@@ -35,7 +35,7 @@ const STANDARD_INK = { S: '#161616', H: '#b3261e', D: '#b3261e', C: '#161616' };
 // Four-colour deck (GDD > Art direction): suit identity never depends on red-vs-black alone.
 const FOUR_COLOR_INK = { S: '#1a7a3c', H: '#b3261e', D: '#1f5fa8', C: '#161616' };
 
-const BG = '#0e3324'; // calm felt-green identity — depth comes from a static radial gradient below, no animation/flashing
+const BG = '#1d5f45'; // vibrant felt-green identity — depth comes from a static radial gradient below, no animation/flashing
 const CARD_FACE = '#faf7ef';
 const CARD_BORDER = '#20201c';
 // Web preview (env.config.demo) is marketing for the full iOS/Android game, not a substitute
@@ -302,9 +302,9 @@ function drawBackground(ctx) {
     meta.width / 2, meta.height * 0.32, meta.height * 0.1,
     meta.width / 2, meta.height * 0.5, meta.height * 0.85
   );
-  g.addColorStop(0, '#1c5540');
+  g.addColorStop(0, '#2f8f68');
   g.addColorStop(0.6, BG);
-  g.addColorStop(1, '#163b2c');
+  g.addColorStop(1, '#234a38');
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, meta.width, meta.height);
 }
