@@ -117,7 +117,9 @@ export function createGame(env) {
     });
   }
   // Words without an antonym only appear in Synonym mode.
-  const activePack = () => (state.mode === 'synonym' ? WORDS : WORDS.filter((e) => e[2] !== null));
+  // The web preview (config.demo) leaves out words flagged mobile-only ('m'), so the apps can carry more.
+  const bank = demo ? WORDS.filter((e) => e[6] !== 'm') : WORDS;
+  const activePack = () => (state.mode === 'synonym' ? bank : bank.filter((e) => e[2] !== null));
 
   const pickEntry = () => {
     const pack = activePack();

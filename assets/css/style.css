@@ -495,3 +495,19 @@ section { padding: 90px 0; position: relative; }
   .cta-band-inner { text-align: center; justify-content: center; }
   .cta-band-inner > div { width: 100%; }
 }
+
+
+/* Word Game demo: end-of-session review */
+.word-review { margin-top: 16px; padding: 16px; border-radius: 14px; background: rgba(255,255,255,0.06); text-align: left; }
+.word-review h4 { margin: 0 0 10px; font-size: 1rem; color: #eef0fb; }
+.word-review ul { list-style: none; margin: 0; padding: 0; max-height: 360px; overflow-y: auto; }
+.word-review li { padding: 10px 12px; margin-bottom: 8px; border-radius: 10px; background: rgba(255,255,255,0.05); }
+.word-review .wr-head { display: flex; align-items: baseline; gap: 8px; }
+.word-review .wr-head strong { font-size: 1.05rem; color: #eef0fb; }
+.word-review .wr-head em { margin-left: auto; font-size: 0.8rem; color: #9aa0c0; font-style: normal; }
+.word-review .wr-mark { font-weight: 700; }
+.word-review .wr-right .wr-mark { color: #4ade80; }
+.word-review .wr-wrong .wr-mark { color: #f87171; }
+.word-review .wr-answer { margin-top: 4px; color: #22d3ee; font-size: 0.95rem; }
+.word-review .wr-wrong .wr-answer { color: #fca5a5; }
+.word-review .wr-meaning { margin-top: 2px; color: #9aa0c0; font-size: 0.85rem; }

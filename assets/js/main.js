@@ -385,13 +385,17 @@ mainNav.querySelectorAll('a').forEach(link => {
   let selectedMode = 'synonym'; // player's choice via the toggle buttons, before starting
   let sessionMode = 'synonym'; // locked from selectedMode at startGame() — fixed for the whole session
   let recentWords = [];
+  let history = []; // this session's answers, for the review
+  const reviewEl = document.getElementById('wordReview');
   let rafId = null;
   let lastTs = 0;
   let best = Number(localStorage.getItem('arcforgeWordMatchBest') || 0);
   bestEl.textContent = best;
 
   function pickEntry() {
-    const pool = sessionMode === 'synonym' ? WORD_BANK : WORD_BANK.filter(e => e[2] !== null);
+    // Words flagged 'm' are mobile-only (the apps carry more words than this web preview).
+    const web = WORD_BANK.filter(e => e[6] !== 'm');
+    const pool = sessionMode === 'synonym' ? web : web.filter(e => e[2] !== null);
     let entry;
     do {
       entry = pool[Math.floor(Math.random() * pool.length)];
@@ -402,7 +406,7 @@ mainNav.querySelectorAll('a').forEach(link => {
   }
 
   function spawnRound() {
-    const [word, synonym, antonym, d1, d2] = pickEntry();
+    const [word, synonym, antonym, d1, d2, meaning] = pickEntry();
     const mode = sessionMode;
     const correctText = mode === 'synonym' ? synonym : antonym;
     const options = [{ text: correctText, correct: true }, { text: d1, correct: false }, { text: d2, correct: false }];
@@ -416,6 +420,7 @@ mainNav.querySelectorAll('a').forEach(link => {
     const bandH = (WORD_BOTTOM - WORD_TOP) / options.length;
     round = {
       targetWord: word,
+      meaning,
       mode,
       words: options.map((o, i) => ({
         text: o.text,
@@ -428,7 +433,12 @@ mainNav.querySelectorAll('a').forEach(link => {
     };
   }
 
-  function resolveRound(hit) {
+  function resolveRound(hit, picked) {
+    // Remember every answer for the end-of-session review.
+    history.push({
+      word: round.targetWord, meaning: round.meaning, mode: round.mode,
+      answer: round.words.find(w => w.correct).text, picked, correct: hit,
+    });
     if (hit) {
       score++;
       scoreEl.textContent = String(score);
@@ -505,12 +515,50 @@ mainNav.querySelectorAll('a').forEach(link => {
           word.y = Math.min(WORD_BOTTOM, Math.max(WORD_TOP, word.y));
         }
         const correctWord = round.words.find(w => w.correct);
-        if (correctWord && correctWord.x < -80) resolveRound(false);
+        if (correctWord && correctWord.x < -80) resolveRound(false, null);
       }
     }
 
     draw();
     if (state === 'playing') rafId = requestAnimationFrame(step);
+  }
+
+  // Session review: every word answered, mistakes first, with the correct answer and its meaning.
+  function showReview() {
+    if (!reviewEl) return;
+    reviewEl.textContent = '';
+    const right = history.filter(h => h.correct).length;
+    const title = document.createElement('h4');
+    title.textContent = history.length
+      ? `Session review — ${right} right, ${history.length - right} missed`
+      : 'Session review — no answers this session';
+    reviewEl.appendChild(title);
+    const list = document.createElement('ul');
+    const rows = history.filter(h => !h.correct).concat(history.filter(h => h.correct));
+    for (const h of rows) {
+      const li = document.createElement('li');
+      li.className = h.correct ? 'wr-right' : 'wr-wrong';
+      const head = document.createElement('div');
+      head.className = 'wr-head';
+      const mark = document.createElement('span');
+      mark.className = 'wr-mark';
+      mark.textContent = h.correct ? '✓' : '✗';
+      const word = document.createElement('strong');
+      word.textContent = h.word;
+      const mode = document.createElement('em');
+      mode.textContent = h.mode;
+      head.append(mark, word, mode);
+      const answer = document.createElement('div');
+      answer.className = 'wr-answer';
+      answer.textContent = 'Answer: ' + h.answer + (h.correct ? '' : (h.picked === null ? '  ·  missed' : '  ·  You: ' + h.picked));
+      const meaning = document.createElement('div');
+      meaning.className = 'wr-meaning';
+      meaning.textContent = h.meaning;
+      li.append(head, answer, meaning);
+      list.appendChild(li);
+    }
+    reviewEl.appendChild(list);
+    reviewEl.hidden = false;
   }
 
   function endGame() {
@@ -524,6 +572,7 @@ mainNav.querySelectorAll('a').forEach(link => {
     startBtn.textContent = 'Play again';
     setModeButtonsDisabled(false);
     draw();
+    showReview();
   }
 
   function startGame() {
@@ -532,6 +581,8 @@ mainNav.querySelectorAll('a').forEach(link => {
     score = 0;
     scoreEl.textContent = '0';
     recentWords = [];
+    history = [];
+    if (reviewEl) reviewEl.hidden = true;
     round = null;
     lastTs = 0;
     sessionMode = selectedMode; // locked in from the player's toggle choice for this whole session
@@ -556,6 +607,7 @@ mainNav.querySelectorAll('a').forEach(link => {
     startBtn.textContent = 'Play';
     setModeButtonsDisabled(false);
     draw();
+    showReview();
   }
 
   function setModeButtonsDisabled(disabled) {
@@ -584,7 +636,7 @@ mainNav.querySelectorAll('a').forEach(link => {
       ctx.font = '700 26px Inter, sans-serif';
       const w = ctx.measureText(word.text).width;
       if (x >= word.x - 12 && x <= word.x + w + 12 && y >= word.y - 30 && y <= word.y + 12) {
-        resolveRound(word.correct);
+        resolveRound(word.correct, word.text);
         return;
       }
     }

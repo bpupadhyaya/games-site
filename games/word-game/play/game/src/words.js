@@ -4,6 +4,8 @@
 // The distractors are deliberately unrelated to the target so every round has exactly one
 // unambiguous correct answer. A null antonym means the word is only used in Synonym mode.
 // The `meaning` is the player's own definition, shown on the session review screen.
+// An optional 7th element 'm' marks a mobile-only word: the free web preview leaves it out, so the
+// apps can carry more words than the browser version (add new rows with ..., 'm' at the end).
 
 export const WORDS = [
   ['abate', 'subside', 'intensify', 'fold', 'measure', 'subside; moderate'],
