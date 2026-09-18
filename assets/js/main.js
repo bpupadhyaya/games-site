@@ -353,3 +353,244 @@ mainNav.querySelectorAll('a').forEach(link => {
 
   draw();
 })();
+
+// --- Tech-preview mini game #3: "Word Match" — a word scrolls in from the right in one of
+// three lanes at a time; the player taps the lane holding the correct synonym or antonym of
+// the target word (shown at the top) before it scrolls past. Timed like a real test section
+// (90 seconds), not endless — a quick, focused vocabulary drill. Word bank is our own
+// compilation, not copied from any test-prep publisher's list.
+(function () {
+  const canvas = document.getElementById('demoCanvas3');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const scoreEl = document.getElementById('demoScore3');
+  const bestEl = document.getElementById('demoBest3');
+  const startBtn = document.getElementById('demoStart3');
+
+  const W = canvas.width, H = canvas.height;
+  const ROUND_SECONDS = 90;
+  const LANE_Y = [130, 190, 250];
+  const LANE_H = 44;
+
+  // word | synonym | antonym | two distractors (plausible same-register words, not related
+  // in meaning to the target, so every round has exactly one correct answer).
+  const WORD_BANK = [
+    ['benevolent', 'kind', 'malevolent', 'arrogant', 'timid'],
+    ['candid', 'frank', 'evasive', 'elaborate', 'graceful'],
+    ['diligent', 'industrious', 'lazy', 'curious', 'talkative'],
+    ['eloquent', 'articulate', 'inarticulate', 'silent', 'restless'],
+    ['frugal', 'thrifty', 'wasteful', 'generous', 'reckless'],
+    ['gregarious', 'sociable', 'reclusive', 'nervous', 'stubborn'],
+    ['humble', 'modest', 'arrogant', 'cautious', 'playful'],
+    ['impartial', 'unbiased', 'biased', 'careless', 'anxious'],
+    ['jovial', 'cheerful', 'somber', 'hesitant', 'stern'],
+    ['lucid', 'clear', 'confusing', 'hidden', 'fragile'],
+    ['meticulous', 'careful', 'careless', 'generous', 'hasty'],
+    ['novice', 'beginner', 'expert', 'teacher', 'leader'],
+    ['obstinate', 'stubborn', 'flexible', 'careless', 'gentle'],
+    ['pragmatic', 'practical', 'idealistic', 'cautious', 'reckless'],
+    ['reticent', 'reserved', 'talkative', 'energetic', 'careless'],
+    ['skeptical', 'doubtful', 'trusting', 'curious', 'excited'],
+    ['tranquil', 'peaceful', 'chaotic', 'crowded', 'ancient'],
+    ['verbose', 'wordy', 'concise', 'quiet', 'vague'],
+    ['zealous', 'passionate', 'apathetic', 'cautious', 'gentle'],
+    ['austere', 'stern', 'lenient', 'colorful', 'curious'],
+    ['concise', 'brief', 'verbose', 'elaborate', 'hesitant'],
+    ['deft', 'skillful', 'clumsy', 'cautious', 'stubborn'],
+    ['earnest', 'sincere', 'insincere', 'careless', 'playful'],
+    ['frivolous', 'trivial', 'serious', 'urgent', 'ancient'],
+    ['genial', 'friendly', 'hostile', 'anxious', 'restless'],
+    ['hasty', 'rushed', 'deliberate', 'gentle', 'quiet'],
+    ['innate', 'inborn', 'acquired', 'hidden', 'rare'],
+    ['lethargic', 'sluggish', 'energetic', 'anxious', 'stubborn'],
+  ];
+
+  let state = 'idle'; // 'idle' | 'playing' | 'ended'
+  let timeLeft = ROUND_SECONDS;
+  let score = 0;
+  let round = null; // { targetWord, mode, lanes: [{ text, x, speed, correct }] }
+  let recentWords = [];
+  let rafId = null;
+  let lastTs = 0;
+  let best = Number(localStorage.getItem('arcforgeWordMatchBest') || 0);
+  bestEl.textContent = best;
+
+  function pickEntry() {
+    let entry;
+    do {
+      entry = WORD_BANK[Math.floor(Math.random() * WORD_BANK.length)];
+    } while (recentWords.includes(entry[0]) && recentWords.length < WORD_BANK.length);
+    recentWords.push(entry[0]);
+    if (recentWords.length > 6) recentWords.shift();
+    return entry;
+  }
+
+  function spawnRound() {
+    const [word, synonym, antonym, d1, d2] = pickEntry();
+    const mode = Math.random() < 0.5 ? 'synonym' : 'antonym';
+    const correctText = mode === 'synonym' ? synonym : antonym;
+    const options = [{ text: correctText, correct: true }, { text: d1, correct: false }, { text: d2, correct: false }];
+    for (let i = options.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [options[i], options[j]] = [options[j], options[i]];
+    }
+    const speedBase = 55 + Math.min(60, score * 3);
+    round = {
+      targetWord: word,
+      mode,
+      lanes: options.map((o, i) => ({
+        text: o.text,
+        correct: o.correct,
+        x: W + 30 + i * 40,
+        y: LANE_Y[i],
+        speed: speedBase + Math.random() * 20,
+        resolved: false,
+      })),
+    };
+  }
+
+  function resolveRound(hitLane) {
+    if (hitLane) {
+      score++;
+      scoreEl.textContent = String(score);
+    }
+    round = null;
+    spawnRound();
+  }
+
+  function drawBackground() {
+    const g = ctx.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, '#262a3f');
+    g.addColorStop(1, '#181a26');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+    ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+    for (const y of LANE_Y) {
+      ctx.beginPath();
+      ctx.moveTo(0, y + LANE_H / 2);
+      ctx.lineTo(W, y + LANE_H / 2);
+      ctx.stroke();
+    }
+  }
+
+  function draw() {
+    drawBackground();
+
+    if (state === 'idle') {
+      ctx.fillStyle = '#eef0fb';
+      ctx.textAlign = 'center';
+      ctx.font = '600 20px Inter, sans-serif';
+      ctx.fillText('Tap Play to start a 90-second round', W / 2, H / 2);
+      return;
+    }
+
+    if (round) {
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#9aa0c0';
+      ctx.font = '600 13px Inter, sans-serif';
+      ctx.fillText(`TAP THE ${round.mode.toUpperCase()} OF`, W / 2, 34);
+      ctx.fillStyle = '#eef0fb';
+      ctx.font = '700 26px Inter, sans-serif';
+      ctx.fillText(round.targetWord, W / 2, 66);
+
+      round.lanes.forEach((lane, i) => {
+        const colors = ['#8b5cf6', '#22d3ee', '#ec4899'];
+        ctx.textAlign = 'left';
+        ctx.font = '600 19px Inter, sans-serif';
+        const w = ctx.measureText(lane.text).width;
+        ctx.fillStyle = 'rgba(255,255,255,0.06)';
+        ctx.beginPath();
+        ctx.roundRect(lane.x - 12, lane.y - 24, w + 24, 34, 8);
+        ctx.fill();
+        ctx.fillStyle = colors[i % colors.length];
+        ctx.fillText(lane.text, lane.x, lane.y);
+      });
+    }
+
+    ctx.textAlign = 'right';
+    ctx.fillStyle = '#9aa0c0';
+    ctx.font = '600 14px Inter, sans-serif';
+    const mm = Math.floor(timeLeft / 60), ss = Math.floor(timeLeft % 60);
+    ctx.fillText(`${mm}:${String(ss).padStart(2, '0')}`, W - 14, 20);
+
+    if (state === 'ended') {
+      ctx.fillStyle = 'rgba(6,7,13,0.72)';
+      ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = '#eef0fb';
+      ctx.textAlign = 'center';
+      ctx.font = '600 20px Inter, sans-serif';
+      ctx.fillText("Time's up — score " + score, W / 2, H / 2);
+    }
+  }
+
+  function step(ts) {
+    const dt = lastTs ? Math.min(0.05, (ts - lastTs) / 1000) : 0;
+    lastTs = ts;
+
+    if (state === 'playing') {
+      timeLeft -= dt;
+      if (timeLeft <= 0) {
+        timeLeft = 0;
+        endGame();
+      } else if (round) {
+        for (const lane of round.lanes) lane.x -= lane.speed * dt;
+        const correctLane = round.lanes.find(l => l.correct);
+        if (correctLane && correctLane.x < -80) resolveRound(false);
+      }
+    }
+
+    draw();
+    if (state === 'playing') rafId = requestAnimationFrame(step);
+  }
+
+  function endGame() {
+    state = 'ended';
+    round = null;
+    if (score > best) {
+      best = score;
+      localStorage.setItem('arcforgeWordMatchBest', String(best));
+      bestEl.textContent = String(best);
+    }
+    startBtn.textContent = 'Play again';
+    draw();
+  }
+
+  function startGame() {
+    state = 'playing';
+    timeLeft = ROUND_SECONDS;
+    score = 0;
+    scoreEl.textContent = '0';
+    recentWords = [];
+    round = null;
+    lastTs = 0;
+    spawnRound();
+    startBtn.textContent = 'Restart';
+    cancelAnimationFrame(rafId);
+    rafId = requestAnimationFrame(step);
+  }
+
+  function handleTap(clientX, clientY) {
+    if (state !== 'playing' || !round) return;
+    const rect = canvas.getBoundingClientRect();
+    const scale = W / rect.width;
+    const x = (clientX - rect.left) * scale;
+    const y = (clientY - rect.top) * scale;
+    for (const lane of round.lanes) {
+      const w = ctx.measureText(lane.text).width;
+      if (x >= lane.x - 12 && x <= lane.x + w + 12 && y >= lane.y - 24 && y <= lane.y + 10) {
+        resolveRound(lane.correct);
+        return;
+      }
+    }
+  }
+
+  canvas.addEventListener('click', e => handleTap(e.clientX, e.clientY));
+  canvas.addEventListener('touchstart', e => {
+    if (e.touches[0]) handleTap(e.touches[0].clientX, e.touches[0].clientY);
+    e.preventDefault();
+  }, { passive: false });
+
+  startBtn.addEventListener('click', startGame);
+
+  draw();
+})();
