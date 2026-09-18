@@ -302,9 +302,9 @@ function drawBackground(ctx) {
     meta.width / 2, meta.height * 0.32, meta.height * 0.1,
     meta.width / 2, meta.height * 0.5, meta.height * 0.85
   );
-  g.addColorStop(0, '#144a36');
+  g.addColorStop(0, '#1c5540');
   g.addColorStop(0.6, BG);
-  g.addColorStop(1, '#081f16');
+  g.addColorStop(1, '#163b2c');
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, meta.width, meta.height);
 }
