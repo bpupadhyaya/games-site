@@ -19,6 +19,25 @@
     "play": "games/big-card-solitaire-large-print/play/"
   },
   {
+    "slug": "crown-star-regions",
+    "stage": "prototype",
+    "title": "Crown Fields",
+    "tagline": "One crown per row, column and region. No touching.",
+    "description": "Crown Fields is a calm grid-placement puzzle: place one crown in every row, column and coloured region so that no two crowns touch, even diagonally. Every puzzle is generated fresh with exactly one solution. Play a quick 7x7 for a coffee break, or unlock the tougher 10x10 Expert board. No timers, no pressure - just clean logic.",
+    "genre": "star battle / queens regions",
+    "demo": true,
+    "howToPlay": [
+      "Tap a cell to cycle it: empty, then crossed out, then a crown.",
+      "Placing a crown automatically crosses out every cell it would make illegal.",
+      "Every row, column and coloured region needs exactly one crown.",
+      "No two crowns may touch, even diagonally.",
+      "Fill the whole board correctly to solve the puzzle.",
+      "Tap Colours on the title screen or while playing to change the region colours - your choice is remembered."
+    ],
+    "icon": "games/crown-star-regions/icon.svg",
+    "play": "games/crown-star-regions/play/"
+  },
+  {
     "slug": "sure-sweep-no-guess",
     "stage": "prototype",
     "title": "Sure Sweep",
