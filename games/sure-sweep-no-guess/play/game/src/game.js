@@ -299,79 +299,82 @@ export function createGame(env) {
     },
 
     render(ctx) {
-      ctx.fillStyle = '#0b1020';
-      ctx.fillRect(0, 0, meta.width, meta.height);
+      drawBackground(ctx);
 
       ctx.textAlign = 'center';
       ctx.fillStyle = '#eef1f4';
-      ctx.font = 'bold 56px system-ui, sans-serif';
+      ctx.font = '800 56px system-ui, sans-serif';
       ctx.fillText('Sure Sweep', meta.width / 2, 110);
-      ctx.font = '26px system-ui, sans-serif';
-      ctx.fillStyle = '#9fb0c3';
-      ctx.fillText('no-guess minesweeper', meta.width / 2, 150);
+      ctx.fillStyle = 'rgba(224,228,240,0.6)';
+      ctx.font = '500 25px system-ui, sans-serif';
+      ctx.fillText('no-guess minesweeper', meta.width / 2, 148);
 
       if (state.scene === 'demo-limit') {
+        drawPanel(ctx, 0, meta.height * 0.32, meta.width, meta.height * 0.4);
         ctx.fillStyle = '#fff';
-        ctx.font = 'bold 40px system-ui, sans-serif';
-        ctx.fillText("That's the free preview!", meta.width / 2, meta.height * 0.42);
-        ctx.font = '26px system-ui, sans-serif';
-        ctx.fillStyle = '#9fb0c3';
-        wrapText(ctx, 'Get the full game on iPhone and Android for unlimited boards, hints and no interruptions.', meta.width / 2, meta.height * 0.5, meta.width - 160, 36);
+        ctx.font = '800 38px system-ui, sans-serif';
+        ctx.fillText("That's the free preview!", meta.width / 2, meta.height * 0.4);
+        ctx.font = '500 25px system-ui, sans-serif';
+        ctx.fillStyle = 'rgba(224,228,240,0.8)';
+        wrapText(ctx, 'Get the full game on iPhone and Android for unlimited boards, hints and no interruptions.', meta.width / 2, meta.height * 0.47, meta.width - 200, 34);
         return;
       }
 
       if (state.scene === 'title') {
         ctx.fillStyle = '#eef1f4';
-        ctx.font = 'bold 40px system-ui, sans-serif';
-        ctx.fillText('Tap to play', meta.width / 2, meta.height * 0.42);
-        ctx.font = '26px system-ui, sans-serif';
-        ctx.fillStyle = '#9fb0c3';
-        ctx.fillText('Every board is provably solvable by logic alone.', meta.width / 2, meta.height * 0.48);
+        ctx.font = '800 38px system-ui, sans-serif';
+        ctx.fillText('Tap to play', meta.width / 2, meta.height * 0.4);
+        ctx.font = '500 25px system-ui, sans-serif';
+        ctx.fillStyle = 'rgba(224,228,240,0.65)';
+        ctx.fillText('Every board is provably solvable by logic alone.', meta.width / 2, meta.height * 0.46);
         if (state.bestTime !== null) {
-          ctx.fillText(`Best time: ${state.bestTime.toFixed(1)}s`, meta.width / 2, meta.height * 0.54);
+          drawPill(ctx, meta.width / 2, meta.height * 0.52, `🏆 Best time: ${state.bestTime.toFixed(1)}s`);
         }
         if (!state.ownsRemoveAds) {
-          drawButton(ctx, REMOVE_ADS_BTN, 'Remove Ads $2.99', '#2a3550');
+          drawButton(ctx, REMOVE_ADS_BTN, 'Remove Ads — $2.99', '#8b5cf6', true);
         }
         if (state.demo) {
-          ctx.font = '22px system-ui, sans-serif';
-          ctx.fillStyle = 'rgba(255,255,255,0.55)';
-          ctx.fillText(`Free preview — ${Math.max(DEMO_BOARD_LIMIT - state.demoBoards, 0)} board(s) left`, meta.width / 2, meta.height * 0.6);
+          drawPill(ctx, meta.width / 2, meta.height * 0.66, `Free preview — ${Math.max(DEMO_BOARD_LIMIT - state.demoBoards, 0)} board(s) left`);
         }
         return;
       }
 
       // HUD row: mine counter + timer.
-      ctx.font = 'bold 32px monospace';
+      ctx.font = '700 30px monospace';
       ctx.fillStyle = '#eef1f4';
       ctx.textAlign = 'left';
-      ctx.fillText(`Mines ${String(Math.max(remainingFlags(), 0)).padStart(2, '0')}`, BOARD_X, 220);
+      ctx.fillText(`💣 ${String(Math.max(remainingFlags(), 0)).padStart(2, '0')}`, BOARD_X, 218);
       ctx.textAlign = 'right';
-      ctx.fillText(`${state.time.toFixed(1)}s`, BOARD_X + BOARD_W, 220);
+      ctx.fillStyle = 'rgba(224,228,240,0.75)';
+      ctx.fillText(`⏱ ${state.time.toFixed(1)}s`, BOARD_X + BOARD_W, 218);
 
       drawGrid(ctx);
-      drawButton(ctx, FLAG_BTN, state.flagMode ? 'Flag*' : 'Flag', state.flagMode ? '#c62828' : '#2a3550');
-      drawButton(ctx, HINT_BTN, 'Hint', '#2a3550');
-      drawButton(ctx, NEW_BTN, 'New', '#2a3550');
+      drawButton(ctx, FLAG_BTN, state.flagMode ? '🚩·' : '🚩', state.flagMode ? '#e63946' : '#2a3550');
+      drawButton(ctx, HINT_BTN, '💡', '#2a3550');
+      drawButton(ctx, NEW_BTN, '↻', '#2a3550');
 
       if (state.scene === 'lost') {
+        drawPanel(ctx, 0, 560, meta.width, 400);
         ctx.textAlign = 'center';
         ctx.fillStyle = '#ff6b6b';
-        ctx.font = 'bold 54px system-ui, sans-serif';
-        ctx.fillText('Boom.', meta.width / 2, 640);
-        ctx.font = '26px system-ui, sans-serif';
-        ctx.fillStyle = '#eef1f4';
-        ctx.fillText('That mine was avoidable by logic — see the highlighted cell.', meta.width / 2, 685);
-        if (!state.shieldOffered) drawButton(ctx, SHIELD_BTN, 'Watch ad: Undo click', '#2e7d32');
+        ctx.font = '800 50px system-ui, sans-serif';
+        ctx.fillText('💥 Boom.', meta.width / 2, 630);
+        ctx.font = '500 24px system-ui, sans-serif';
+        ctx.fillStyle = 'rgba(224,228,240,0.8)';
+        wrapText(ctx, 'That mine was avoidable by logic — see the highlighted cell.', meta.width / 2, 672, meta.width - 140, 30);
+        if (!state.shieldOffered) drawButton(ctx, SHIELD_BTN, '📺 Watch ad: undo that click', '#2e7d32', true);
+        ctx.fillStyle = 'rgba(224,228,240,0.55)';
+        ctx.font = '22px system-ui, sans-serif';
         ctx.fillText('Tap anywhere else for a new board', meta.width / 2, 895);
       } else if (state.scene === 'won') {
+        drawPanel(ctx, 0, 560, meta.width, 260);
         ctx.textAlign = 'center';
         ctx.fillStyle = '#69f0ae';
-        ctx.font = 'bold 54px system-ui, sans-serif';
-        ctx.fillText('Cleared!', meta.width / 2, 640);
-        ctx.font = '26px system-ui, sans-serif';
-        ctx.fillStyle = '#eef1f4';
-        ctx.fillText(`Time: ${state.time.toFixed(1)}s — tap for a new board`, meta.width / 2, 685);
+        ctx.font = '800 50px system-ui, sans-serif';
+        ctx.fillText('✅ Cleared!', meta.width / 2, 630);
+        ctx.font = '500 25px system-ui, sans-serif';
+        ctx.fillStyle = 'rgba(224,228,240,0.8)';
+        ctx.fillText(`Time: ${state.time.toFixed(1)}s — tap for a new board`, meta.width / 2, 675);
       }
     },
 
@@ -396,13 +399,72 @@ export function createGame(env) {
     if (line) ctx.fillText(line, cx, y);
   }
 
-  function drawButton(ctx, r, label, color) {
-    ctx.fillStyle = color;
-    ctx.fillRect(r.x, r.y, r.w, r.h);
-    ctx.fillStyle = '#eef1f4';
-    ctx.font = 'bold 22px system-ui, sans-serif';
+  function drawBackground(ctx) {
+    const g = ctx.createRadialGradient(meta.width * 0.75, -40, 30, meta.width * 0.75, -40, meta.width * 1.2);
+    g.addColorStop(0, '#132430');
+    g.addColorStop(0.55, '#0d1420');
+    g.addColorStop(1, '#08090f');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, meta.width, meta.height);
+  }
+
+  function drawPanel(ctx, x, y, w, h) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.roundRect(x + 24, y, w - 48, h - 24, 24);
+    ctx.fillStyle = 'rgba(13,18,28,0.9)';
+    ctx.shadowColor = 'rgba(0,0,0,0.5)';
+    ctx.shadowBlur = 40;
+    ctx.fill();
+    ctx.restore();
+    ctx.beginPath();
+    ctx.roundRect(x + 24, y, w - 48, h - 24, 24);
+    ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  }
+
+  function drawPill(ctx, cx, y, text) {
+    ctx.font = '600 21px system-ui, sans-serif';
+    const w = ctx.measureText(text).width + 40;
+    ctx.beginPath();
+    ctx.roundRect(cx - w / 2, y - 20, w, 40, 20);
+    ctx.fillStyle = 'rgba(255,255,255,0.06)';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.14)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(224,228,240,0.75)';
     ctx.textAlign = 'center';
-    ctx.fillText(label, r.x + r.w / 2, r.y + r.h / 2 + 8);
+    ctx.fillText(text, cx, y + 7);
+  }
+
+  function drawButton(ctx, r, label, color, wide = false) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.roundRect(r.x, r.y, r.w, r.h, 14);
+    if (wide) {
+      const g = ctx.createLinearGradient(r.x, r.y, r.x + r.w, r.y + r.h);
+      g.addColorStop(0, color);
+      g.addColorStop(1, '#22d3ee');
+      ctx.fillStyle = g;
+      ctx.shadowColor = `${color}80`;
+      ctx.shadowBlur = 22;
+      ctx.shadowOffsetY = 8;
+    } else {
+      ctx.fillStyle = color;
+    }
+    ctx.fill();
+    ctx.restore();
+    ctx.beginPath();
+    ctx.roundRect(r.x, r.y, r.w, r.h, 14);
+    ctx.strokeStyle = 'rgba(255,255,255,0.14)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.fillStyle = wide ? '#0a0d16' : '#eef1f4';
+    ctx.font = `${wide ? '800' : '700'} 24px system-ui, sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.fillText(label, r.x + r.w / 2, r.y + r.h / 2 + 9);
   }
 
   function drawGrid(ctx) {
@@ -413,40 +475,52 @@ export function createGame(env) {
         const y = BOARD_Y + r * CELL;
         const isHint = (state.hint && state.hint.index === i) || (state.scene === 'lost' && state.lossHint && state.lossHint.index === i);
         const isExploded = state.exploded === i;
+        const pad = 2;
+
+        ctx.beginPath();
+        ctx.roundRect(x + pad, y + pad, CELL - pad * 2, CELL - pad * 2, 6);
 
         if (state.revealed[i]) {
-          ctx.fillStyle = isExploded ? '#c62828' : '#eef1f4';
-          ctx.fillRect(x, y, CELL, CELL);
-          ctx.strokeStyle = '#c7cfd8';
-          ctx.strokeRect(x + 0.5, y + 0.5, CELL - 1, CELL - 1);
+          const g = ctx.createLinearGradient(x, y, x, y + CELL);
+          if (isExploded) {
+            g.addColorStop(0, '#e63946');
+            g.addColorStop(1, '#b3212f');
+          } else {
+            g.addColorStop(0, '#f4f6f8');
+            g.addColorStop(1, '#dde3ea');
+          }
+          ctx.fillStyle = g;
+          ctx.fill();
           if (state.numbers[i] === -1) {
             drawMine(ctx, x, y);
           } else if (state.numbers[i] > 0) {
             ctx.fillStyle = NUMBER_COLORS[state.numbers[i]];
-            ctx.font = 'bold 34px system-ui, sans-serif';
+            ctx.font = '800 32px system-ui, sans-serif';
             ctx.textAlign = 'center';
-            ctx.fillText(String(state.numbers[i]), x + CELL / 2, y + CELL / 2 + 12);
+            ctx.fillText(String(state.numbers[i]), x + CELL / 2, y + CELL / 2 + 11);
           }
         } else {
-          ctx.fillStyle = '#b8c4d0';
-          ctx.fillRect(x, y, CELL, CELL);
-          ctx.strokeStyle = '#8a97a6';
-          ctx.strokeRect(x + 1.5, y + CELL - 1.5, CELL - 3, 0);
-          ctx.strokeRect(x + CELL - 1.5, y + 1.5, 0, CELL - 3);
-          ctx.strokeStyle = '#d8e2ea';
-          ctx.strokeRect(x + 1.5, y + 1.5, CELL - 3, 0);
-          ctx.strokeRect(x + 1.5, y + 1.5, 0, CELL - 3);
+          const g = ctx.createLinearGradient(x, y, x, y + CELL);
+          g.addColorStop(0, '#3a4356');
+          g.addColorStop(1, '#262d3d');
+          ctx.fillStyle = g;
+          ctx.fill();
+          ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+          ctx.lineWidth = 1;
+          ctx.stroke();
           if (state.flagged[i]) drawFlag(ctx, x, y);
         }
 
         if (isHint) {
           const pulse = 0.5 + 0.5 * Math.sin(state.pulse * 6);
+          ctx.beginPath();
+          ctx.roundRect(x + 3, y + 3, CELL - 6, CELL - 6, 5);
           ctx.strokeStyle = state.hint && state.hint.index === i && state.hint.kind === 'mine' ? '#ff5252' : '#69f0ae';
           if (state.scene === 'lost' && state.lossHint) {
             ctx.strokeStyle = state.lossHint.kind === 'mine' ? '#ff5252' : '#69f0ae';
           }
           ctx.lineWidth = 3 + pulse * 3;
-          ctx.strokeRect(x + 3, y + 3, CELL - 6, CELL - 6);
+          ctx.stroke();
           ctx.lineWidth = 1;
         }
       }

@@ -246,8 +246,7 @@ export function createGame(env) {
     },
 
     render(ctx) {
-      ctx.fillStyle = '#14161f';
-      ctx.fillRect(0, 0, meta.width, meta.height);
+      drawBackground(ctx);
       ctx.textAlign = 'center';
 
       if (state.scene === 'demo-limit') {
@@ -257,24 +256,23 @@ export function createGame(env) {
 
       if (state.scene === 'title') {
         ctx.fillStyle = '#fff';
-        ctx.font = 'bold 60px system-ui, sans-serif';
+        ctx.font = '800 62px system-ui, sans-serif';
         ctx.fillText(env.manifest.title, meta.width / 2, 220);
+        ctx.fillStyle = 'rgba(224,228,240,0.75)';
         ctx.font = '30px system-ui, sans-serif';
         ctx.fillText(env.manifest.tagline ?? '', meta.width / 2, 280);
 
-        drawButton(ctx, PLAY7_BUTTON, 'Play 7x7');
-        drawButton(ctx, PLAY10_BUTTON, state.expertUnlocked ? 'Expert 10x10' : 'Expert 10x10 (locked)');
-        drawButton(ctx, DAILY_BUTTON, 'Daily 7x7');
+        drawButton(ctx, PLAY7_BUTTON, 'Play 7x7', 'primary');
+        drawButton(ctx, PLAY10_BUTTON, state.expertUnlocked ? 'Expert 10x10' : '🔒 Expert 10x10', state.expertUnlocked ? 'secondary' : 'locked');
+        drawButton(ctx, DAILY_BUTTON, '📅 Daily 7x7', 'secondary');
 
         if (state.lockMessageTimer > 0) {
-          ctx.fillStyle = '#ffb4b4';
-          ctx.font = '26px system-ui, sans-serif';
+          ctx.fillStyle = '#ff9d9d';
+          ctx.font = '600 24px system-ui, sans-serif';
           ctx.fillText('Solve 5 puzzles or buy the Expert Pack to unlock 10x10', meta.width / 2, 940);
         }
         if (state.demo) {
-          ctx.fillStyle = 'rgba(255,255,255,0.55)';
-          ctx.font = '22px system-ui, sans-serif';
-          ctx.fillText(`Free preview — ${DEMO_SOLVE_LIMIT - state.demoSolves} puzzle(s) left`, meta.width / 2, 980);
+          drawPill(ctx, meta.width / 2, 985, `Free preview — ${DEMO_SOLVE_LIMIT - state.demoSolves} puzzle(s) left`);
         }
         return;
       }
@@ -283,19 +281,21 @@ export function createGame(env) {
       drawHud(ctx);
 
       if (state.scene === 'playing') {
-        drawButton(ctx, HINT_BUTTON, 'Hint (ad)');
-        drawButton(ctx, UNDO_BUTTON, 'Undo');
+        drawButton(ctx, HINT_BUTTON, '💡 Hint', 'secondary');
+        drawButton(ctx, UNDO_BUTTON, '↩ Undo', 'secondary');
       }
 
       if (state.scene === 'solved') {
-        ctx.fillStyle = 'rgba(10,12,20,0.72)';
-        ctx.fillRect(0, 940, meta.width, 260);
+        drawPanel(ctx, 0, 920, meta.width, 280);
         ctx.fillStyle = '#fff';
-        ctx.font = 'bold 52px system-ui, sans-serif';
-        ctx.fillText('Solved!', meta.width / 2, 1010);
-        ctx.font = '30px system-ui, sans-serif';
-        ctx.fillText(`Time ${state.solveTime.toFixed(1)}s   Moves ${state.solveMoves}`, meta.width / 2, 1060);
-        ctx.fillText(state.demoLimitReached ? 'Tap to continue' : 'Tap to play a new puzzle', meta.width / 2, 1110);
+        ctx.font = '800 54px system-ui, sans-serif';
+        ctx.fillText('✨ Solved!', meta.width / 2, 995);
+        ctx.fillStyle = 'rgba(224,228,240,0.8)';
+        ctx.font = '600 28px system-ui, sans-serif';
+        ctx.fillText(`Time ${state.solveTime.toFixed(1)}s   Moves ${state.solveMoves}`, meta.width / 2, 1045);
+        ctx.fillStyle = 'rgba(224,228,240,0.55)';
+        ctx.font = '24px system-ui, sans-serif';
+        ctx.fillText(state.demoLimitReached ? 'Tap to continue' : 'Tap to play a new puzzle', meta.width / 2, 1090);
       }
     },
 
@@ -303,24 +303,85 @@ export function createGame(env) {
     getState: () => state,
   };
 
-  function drawButton(ctx, rect, label) {
-    ctx.fillStyle = 'rgba(255,255,255,0.12)';
-    ctx.fillRect(rect.x, rect.y, rect.w, rect.h);
-    ctx.strokeStyle = 'rgba(255,255,255,0.4)';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(rect.x, rect.y, rect.w, rect.h);
-    ctx.fillStyle = '#fff';
-    ctx.font = 'bold 30px system-ui, sans-serif';
+  function drawBackground(ctx) {
+    const g = ctx.createRadialGradient(meta.width * 0.22, -60, 40, meta.width * 0.22, -60, meta.width * 1.15);
+    g.addColorStop(0, '#241a3d');
+    g.addColorStop(0.55, '#150f28');
+    g.addColorStop(1, '#0a0b13');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, meta.width, meta.height);
+  }
+
+  function drawButton(ctx, rect, label, style = 'secondary') {
+    const r = 16;
+    ctx.save();
+    ctx.beginPath();
+    ctx.roundRect(rect.x, rect.y, rect.w, rect.h, r);
+    if (style === 'primary') {
+      const g = ctx.createLinearGradient(rect.x, rect.y, rect.x + rect.w, rect.y + rect.h);
+      g.addColorStop(0, '#8b5cf6');
+      g.addColorStop(1, '#22d3ee');
+      ctx.fillStyle = g;
+      ctx.shadowColor = 'rgba(139,92,246,0.5)';
+      ctx.shadowBlur = 28;
+      ctx.shadowOffsetY = 10;
+    } else if (style === 'locked') {
+      ctx.fillStyle = 'rgba(255,255,255,0.045)';
+    } else {
+      ctx.fillStyle = 'rgba(255,255,255,0.075)';
+    }
+    ctx.fill();
+    ctx.restore();
+    ctx.beginPath();
+    ctx.roundRect(rect.x, rect.y, rect.w, rect.h, r);
+    ctx.strokeStyle = style === 'primary' ? 'rgba(255,255,255,0.3)' : 'rgba(255,255,255,0.14)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+    ctx.fillStyle = style === 'locked' ? 'rgba(224,228,240,0.4)' : style === 'primary' ? '#0a0b13' : '#eef1f4';
+    ctx.font = `${style === 'primary' ? '800' : '700'} 28px system-ui, sans-serif`;
+    ctx.textAlign = 'center';
     ctx.fillText(label, rect.x + rect.w / 2, rect.y + rect.h / 2 + 10);
   }
 
+  function drawPill(ctx, cx, y, text) {
+    ctx.font = '600 21px system-ui, sans-serif';
+    const w = ctx.measureText(text).width + 40;
+    ctx.beginPath();
+    ctx.roundRect(cx - w / 2, y - 20, w, 40, 20);
+    ctx.fillStyle = 'rgba(255,255,255,0.06)';
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,0.14)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.fillStyle = 'rgba(224,228,240,0.75)';
+    ctx.fillText(text, cx, y + 7);
+  }
+
+  function drawPanel(ctx, x, y, w, h) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.roundRect(x + 24, y, w - 48, h - 24, 24);
+    ctx.fillStyle = 'rgba(15,16,26,0.88)';
+    ctx.shadowColor = 'rgba(0,0,0,0.5)';
+    ctx.shadowBlur = 40;
+    ctx.shadowOffsetY = -8;
+    ctx.fill();
+    ctx.restore();
+    ctx.beginPath();
+    ctx.roundRect(x + 24, y, w - 48, h - 24, 24);
+    ctx.strokeStyle = 'rgba(255,255,255,0.12)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+  }
+
   function drawDemoLimit(ctx) {
+    drawPanel(ctx, 0, meta.height * 0.32, meta.width, meta.height * 0.42);
     ctx.fillStyle = '#fff';
-    ctx.font = 'bold 44px system-ui, sans-serif';
-    ctx.fillText("That's the free preview!", meta.width / 2, 460);
-    ctx.font = '28px system-ui, sans-serif';
-    ctx.fillStyle = 'rgba(255,255,255,0.85)';
-    wrapText(ctx, 'Get the full game on iPhone and Android for unlimited puzzles, the Expert board, and no ads to unlock hints.', meta.width / 2, 540, meta.width - 160, 40);
+    ctx.font = '800 42px system-ui, sans-serif';
+    ctx.fillText("That's the free preview!", meta.width / 2, meta.height * 0.4);
+    ctx.font = '500 27px system-ui, sans-serif';
+    ctx.fillStyle = 'rgba(224,228,240,0.8)';
+    wrapText(ctx, 'Get the full game on iPhone and Android for unlimited puzzles, the Expert board, and no ads to unlock hints.', meta.width / 2, meta.height * 0.47, meta.width - 200, 38);
   }
 
   function wrapText(ctx, text, cx, y, maxWidth, lineHeight) {
@@ -340,17 +401,27 @@ export function createGame(env) {
   }
 
   function drawHud(ctx) {
-    ctx.fillStyle = '#fff';
-    ctx.font = '30px system-ui, sans-serif';
-    ctx.fillText(`${state.mode === 'daily' ? 'Daily' : 'Endless'} ${state.size}x${state.size}`, meta.width / 2, 90);
-    ctx.font = '26px system-ui, sans-serif';
-    ctx.fillText(`Time ${state.time.toFixed(1)}s   Moves ${state.moves}`, meta.width / 2, 140);
+    ctx.fillStyle = '#eef1f4';
+    ctx.font = '700 30px system-ui, sans-serif';
+    ctx.fillText(`${state.mode === 'daily' ? '📅 Daily' : 'Endless'} ${state.size}×${state.size}`, meta.width / 2, 90);
+    ctx.fillStyle = 'rgba(224,228,240,0.65)';
+    ctx.font = '500 25px system-ui, sans-serif';
+    ctx.fillText(`⏱ ${state.time.toFixed(1)}s   •   ${state.moves} moves`, meta.width / 2, 138);
   }
 
   function drawBoard(ctx) {
     const { size, regions, cells, conflicts } = state;
     const cs = cellSize(size);
     const conflictSet = new Set(conflicts);
+
+    // Soft shadow behind the board so it reads as one raised surface against the background.
+    ctx.save();
+    ctx.shadowColor = 'rgba(0,0,0,0.5)';
+    ctx.shadowBlur = 36;
+    ctx.shadowOffsetY = 14;
+    ctx.fillStyle = 'rgba(0,0,0,0.001)';
+    ctx.fillRect(BOARD_MARGIN, BOARD_TOP, cs * size, cs * size);
+    ctx.restore();
 
     for (let row = 0; row < size; row++) {
       for (let col = 0; col < size; col++) {
@@ -359,11 +430,18 @@ export function createGame(env) {
         const y = BOARD_TOP + row * cs;
         const inConflict = conflictSet.has(index) && cells[index] === 'crown';
 
-        ctx.fillStyle = inConflict ? 'hsl(0 70% 40%)' : regionColor(regions[index], size, 45);
+        if (inConflict) {
+          ctx.fillStyle = 'hsl(0 70% 40%)';
+        } else {
+          const g = ctx.createLinearGradient(x, y, x, y + cs);
+          g.addColorStop(0, regionColor(regions[index], size, 52));
+          g.addColorStop(1, regionColor(regions[index], size, 40));
+          ctx.fillStyle = g;
+        }
         ctx.fillRect(x, y, cs, cs);
-        ctx.strokeStyle = regionColor(regions[index], size, 28);
-        ctx.lineWidth = 2;
-        ctx.strokeRect(x, y, cs, cs);
+        ctx.strokeStyle = regionColor(regions[index], size, 26);
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(x + 0.75, y + 0.75, cs - 1.5, cs - 1.5);
 
         // Thicker border where this cell's region differs from its right/bottom neighbour, so
         // region shapes read clearly against the flat per-cell fill.
@@ -388,9 +466,11 @@ export function createGame(env) {
       }
     }
 
-    ctx.strokeStyle = 'rgba(255,255,255,0.85)';
-    ctx.lineWidth = 4;
-    ctx.strokeRect(BOARD_MARGIN, BOARD_TOP, cs * size, cs * size);
+    ctx.beginPath();
+    ctx.roundRect(BOARD_MARGIN - 2, BOARD_TOP - 2, cs * size + 4, cs * size + 4, 12);
+    ctx.strokeStyle = 'rgba(255,255,255,0.5)';
+    ctx.lineWidth = 3;
+    ctx.stroke();
   }
 
   function drawCrown(ctx, cx, cy, r) {
