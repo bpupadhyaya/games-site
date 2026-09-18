@@ -1,56 +1,21 @@
 [
   {
-    "slug": "big-card-solitaire-large-print",
-    "stage": "prototype",
-    "title": "Big Card Solitaire",
-    "tagline": "Huge cards, tap to play, every deal winnable.",
-    "description": "Big Card Solitaire is Klondike redrawn for comfort: oversized high-contrast cards, tap-to-move instead of dragging, and no timers or flashing effects. Every deal is checked so it can actually be won. A built-in \"what can I do?\" hint highlights your legal moves whenever you're unsure.",
-    "genre": "large-print senior solitaire",
+    "slug": "word-game",
+    "stage": "release-candidate",
+    "title": "Word Game",
+    "tagline": "Tap the matching word before it drifts away.",
+    "description": "A target word appears, and three candidate words drift in from the right at their own pace and height. Tap the one that's the correct synonym or antonym before it drifts past. Pick synonym-only or antonym-only before you start, and that choice holds for the whole timed session - a fast, focused way to build vocabulary, not a mixed grab-bag quiz.",
+    "genre": "timed vocabulary drill",
     "demo": true,
     "howToPlay": [
-      "Tap a card to select it, then tap where you want it to go.",
-      "Build the four foundation piles up by suit, from Ace to King.",
-      "Stack tableau cards down in alternating colours.",
-      "Tap the stock pile to draw a new card when you're stuck.",
-      "Tap \"what can I do?\" any time to see every legal move highlighted."
+      "Choose Synonym or Antonym mode, then tap Play to start a 90-second session.",
+      "A target word appears at the top; three candidate words drift in from the right.",
+      "Tap the one word that correctly matches the target before it drifts off-screen.",
+      "A correct tap scores a point and the next word appears immediately.",
+      "A wrong tap, or letting the right word drift past, ends that round with no point - the next word appears right away.",
+      "Beat your own best score before the clock runs out."
     ],
-    "icon": "games/big-card-solitaire-large-print/icon.svg",
-    "play": "games/big-card-solitaire-large-print/play/"
-  },
-  {
-    "slug": "crown-star-regions",
-    "stage": "prototype",
-    "title": "Crown Fields",
-    "tagline": "One crown per row, column and region. No touching.",
-    "description": "Crown Fields is a calm grid-placement puzzle: place one crown in every row, column and coloured region so that no two crowns touch, even diagonally. Every puzzle is generated fresh with exactly one solution. Play a quick 7x7 for a coffee break, or unlock the tougher 10x10 Expert board. No timers, no pressure - just clean logic.",
-    "genre": "star battle / queens regions",
-    "demo": true,
-    "howToPlay": [
-      "Tap a cell to cycle it: empty, then crossed out, then a crown.",
-      "Placing a crown automatically crosses out every cell it would make illegal.",
-      "Every row, column and coloured region needs exactly one crown.",
-      "No two crowns may touch, even diagonally.",
-      "Fill the whole board correctly to solve the puzzle."
-    ],
-    "icon": "games/crown-star-regions/icon.svg",
-    "play": "games/crown-star-regions/play/"
-  },
-  {
-    "slug": "sure-sweep-no-guess",
-    "stage": "prototype",
-    "title": "Sure Sweep",
-    "tagline": "No-guess minesweeper. Every board solves by logic alone.",
-    "description": "Sure Sweep is classic mine-clearing with one guarantee: every board can be fully solved by logic, with no lucky guesses required. Tap to reveal, flag suspected mines, and chord through satisfied numbers to clear the board fast. Stuck? A hint shows you the deduction you missed.",
-    "genre": "no-guess minesweeper",
-    "demo": true,
-    "howToPlay": [
-      "Tap a cell to reveal it.",
-      "A number shows how many mines touch that cell.",
-      "Tap the Flag button, then tap a cell to mark it as a suspected mine.",
-      "Tap a revealed number when its flags match it to clear the safe cells around it.",
-      "Reveal every non-mine cell to win - the board is guaranteed solvable without guessing."
-    ],
-    "icon": "games/sure-sweep-no-guess/icon.svg",
-    "play": "games/sure-sweep-no-guess/play/"
+    "icon": "games/word-game/icon.svg",
+    "play": "games/word-game/play/"
   }
 ]

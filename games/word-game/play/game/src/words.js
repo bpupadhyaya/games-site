@@ -1,0 +1,75 @@
+// Word bank: our own vetted compilation, not copied from any test-prep publisher's list.
+// Each row is [word, synonym, antonym, distractor1, distractor2] — the two distractors are
+// plausible same-register words unrelated in meaning to the target, so every round has exactly
+// one unambiguous correct answer regardless of mode (synonym or antonym). See design/GDD.md
+// "Progression and content".
+
+// Standard pack — ships with the base game.
+export const STANDARD_PACK = [
+  ['benevolent', 'kind', 'malevolent', 'arrogant', 'timid'],
+  ['candid', 'frank', 'evasive', 'elaborate', 'graceful'],
+  ['diligent', 'industrious', 'lazy', 'curious', 'talkative'],
+  ['eloquent', 'articulate', 'inarticulate', 'silent', 'restless'],
+  ['frugal', 'thrifty', 'wasteful', 'generous', 'reckless'],
+  ['gregarious', 'sociable', 'reclusive', 'nervous', 'stubborn'],
+  ['humble', 'modest', 'arrogant', 'cautious', 'playful'],
+  ['impartial', 'unbiased', 'biased', 'careless', 'anxious'],
+  ['jovial', 'cheerful', 'somber', 'hesitant', 'stern'],
+  ['lucid', 'clear', 'confusing', 'hidden', 'fragile'],
+  ['meticulous', 'careful', 'careless', 'generous', 'hasty'],
+  ['novice', 'beginner', 'expert', 'teacher', 'leader'],
+  ['obstinate', 'stubborn', 'flexible', 'careless', 'gentle'],
+  ['pragmatic', 'practical', 'idealistic', 'cautious', 'reckless'],
+  ['reticent', 'reserved', 'talkative', 'energetic', 'careless'],
+  ['skeptical', 'doubtful', 'trusting', 'curious', 'excited'],
+  ['tranquil', 'peaceful', 'chaotic', 'crowded', 'ancient'],
+  ['verbose', 'wordy', 'concise', 'quiet', 'vague'],
+  ['zealous', 'passionate', 'apathetic', 'cautious', 'gentle'],
+  ['austere', 'stern', 'lenient', 'colorful', 'curious'],
+  ['concise', 'brief', 'verbose', 'elaborate', 'hesitant'],
+  ['deft', 'skillful', 'clumsy', 'cautious', 'stubborn'],
+  ['earnest', 'sincere', 'insincere', 'careless', 'playful'],
+  ['frivolous', 'trivial', 'serious', 'urgent', 'ancient'],
+  ['genial', 'friendly', 'hostile', 'anxious', 'restless'],
+  ['hasty', 'rushed', 'deliberate', 'gentle', 'quiet'],
+  ['innate', 'inborn', 'acquired', 'hidden', 'rare'],
+  ['lethargic', 'sluggish', 'energetic', 'anxious', 'stubborn'],
+  ['ample', 'plentiful', 'scarce', 'narrow', 'quiet'],
+  ['brisk', 'quick', 'sluggish', 'loud', 'ancient'],
+  ['cordial', 'friendly', 'hostile', 'careless', 'nervous'],
+  ['dubious', 'doubtful', 'certain', 'calm', 'humble'],
+  ['exuberant', 'enthusiastic', 'listless', 'quiet', 'careful'],
+  ['fickle', 'changeable', 'constant', 'gentle', 'brave'],
+  ['gaunt', 'thin', 'plump', 'tall', 'loud'],
+  ['hectic', 'frantic', 'calm', 'quiet', 'distant'],
+  ['impetuous', 'rash', 'cautious', 'gentle', 'proud'],
+  ['jubilant', 'joyful', 'mournful', 'careful', 'quiet'],
+  ['keen', 'eager', 'indifferent', 'gentle', 'slow'],
+  ['languid', 'listless', 'vigorous', 'loud', 'careful'],
+];
+
+// Advanced pack — the "Advanced Word Pack" IAP unlock. Harder/less common vocabulary, same
+// vetted shape as the standard pack. Mixed in alongside the standard pack when owned/trialed,
+// never played alone (see design/GDD.md "Progression and content").
+export const ADVANCED_PACK = [
+  ['ebullient', 'exuberant', 'despondent', 'meticulous', 'furtive'],
+  ['perfunctory', 'cursory', 'thorough', 'gregarious', 'lucid'],
+  ['sanguine', 'optimistic', 'pessimistic', 'verbose', 'austere'],
+  ['taciturn', 'reticent', 'loquacious', 'frugal', 'jovial'],
+  ['vindictive', 'spiteful', 'forgiving', 'diligent', 'candid'],
+  ['ostentatious', 'showy', 'unassuming', 'pragmatic', 'earnest'],
+  ['parsimonious', 'stingy', 'generous', 'zealous', 'lucid'],
+  ['equanimity', 'composure', 'agitation', 'facade', 'novelty'],
+  ['capricious', 'impulsive', 'steadfast', 'benevolent', 'meticulous'],
+  ['indolent', 'lazy', 'industrious', 'candid', 'zealous'],
+  ['magnanimous', 'generous', 'petty', 'skeptical', 'tranquil'],
+  ['obsequious', 'servile', 'defiant', 'lucid', 'frugal'],
+  ['pernicious', 'harmful', 'benign', 'genial', 'hasty'],
+  ['quixotic', 'idealistic', 'pragmatic', 'austere', 'deft'],
+  ['recalcitrant', 'defiant', 'compliant', 'earnest', 'innate'],
+  ['stoic', 'unemotional', 'emotional', 'frivolous', 'verbose'],
+  ['tenacious', 'persistent', 'irresolute', 'genial', 'hasty'],
+  ['ubiquitous', 'omnipresent', 'rare', 'lethargic', 'innate'],
+  ['venerable', 'respected', 'disreputable', 'concise', 'deft'],
+  ['zenith', 'peak', 'nadir', 'facade', 'novice'],
+];

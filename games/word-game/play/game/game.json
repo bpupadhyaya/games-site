@@ -1,10 +1,10 @@
 {
-  "slug": "crown-star-regions",
-  "title": "Crown Fields",
-  "tagline": "One crown per row, column and region. No touching.",
-  "genre": "logic puzzle (grid placement)",
+  "slug": "word-game",
+  "title": "Word Game",
+  "tagline": "Tap the matching word before it drifts away.",
+  "genre": "vocabulary",
   "orientation": "portrait",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "monetization": {
     "model": "hybrid",
     "ads": {
@@ -20,10 +20,10 @@
         "title": "Remove Ads"
       },
       {
-        "id": "expert_pack",
+        "id": "advanced_pack",
         "type": "non-consumable",
-        "priceUsd": 3.99,
-        "title": "Expert Pack"
+        "priceUsd": 1.99,
+        "title": "Advanced Word Pack"
       }
     ]
   },

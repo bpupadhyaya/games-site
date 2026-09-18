@@ -1,0 +1,15 @@
+{
+  "title": "Word Game",
+  "tagline": "Tap the matching word before it drifts away.",
+  "description": "A target word appears, and three candidate words drift in from the right at their own pace and height. Tap the one that's the correct synonym or antonym before it drifts past. Pick synonym-only or antonym-only before you start, and that choice holds for the whole timed session - a fast, focused way to build vocabulary, not a mixed grab-bag quiz.",
+  "genre": "timed vocabulary drill",
+  "demo": true,
+  "howToPlay": [
+    "Choose Synonym or Antonym mode, then tap Play to start a 90-second session.",
+    "A target word appears at the top; three candidate words drift in from the right.",
+    "Tap the one word that correctly matches the target before it drifts off-screen.",
+    "A correct tap scores a point and the next word appears immediately.",
+    "A wrong tap, or letting the right word drift past, ends that round with no point - the next word appears right away.",
+    "Beat your own best score before the clock runs out."
+  ]
+}

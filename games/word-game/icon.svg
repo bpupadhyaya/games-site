@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1024" y2="1024" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#3a3560"/>
+      <stop offset="1" stop-color="#181a26"/>
+    </linearGradient>
+    <linearGradient id="w" x1="180" y1="0" x2="844" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#8b5cf6"/>
+      <stop offset="1" stop-color="#22d3ee"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" rx="220" fill="url(#bg)"/>
+  <text x="512" y="660" font-family="system-ui, sans-serif" font-weight="700" font-size="480"
+        text-anchor="middle" fill="url(#w)">W</text>
+</svg>
