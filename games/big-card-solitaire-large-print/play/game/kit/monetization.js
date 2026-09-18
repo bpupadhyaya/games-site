@@ -1,5 +1,5 @@
-// Ads + in-app purchases behind one API. Products and ad formats come from game.json.
-// Modes:  native = real StoreKit / Play Billing / ads through the shell
+// In-app purchases behind one API (no ads). Products come from game.json.
+// Modes:  native = real StoreKit / Play Billing through the shell
 //         demo   = public web demo: nothing can be bought, purchase() reports reason "demo"
 //         mock   = local development + headless tests: purchases succeed instantly
 export function createMonetization({ bridge, manifest, mode }) {
@@ -9,8 +9,6 @@ export function createMonetization({ bridge, manifest, mode }) {
   const listeners = new Set();
   const resolvedMode = mode ?? (bridge?.native ? 'native' : 'mock');
   const changed = () => listeners.forEach((fn) => fn());
-
-  const adsAllowed = (format) => Boolean(config.ads?.[format]) && !owned.has('remove_ads');
 
   return {
     mode: resolvedMode,
@@ -46,15 +44,13 @@ export function createMonetization({ bridge, manifest, mode }) {
       changed();
       return { ok: true, owned: [...owned] };
     },
-    async showInterstitial(placement) {
-      if (resolvedMode !== 'native' || !adsAllowed('interstitial')) return { shown: false };
-      return bridge.call('ads.show', { format: 'interstitial', placement }).catch(() => ({ shown: false }));
+    // Arcforge ships without advertising. These stay so older game code keeps working: no ad is
+    // ever requested, and a "reward" is simply granted.
+    async showInterstitial() {
+      return { shown: false };
     },
-    // Resolves { rewarded: true } when the player earned the reward.
-    async showRewarded(placement) {
-      if (!config.ads?.rewarded) return { rewarded: false };
-      if (resolvedMode !== 'native') return { rewarded: true };
-      return bridge.call('ads.show', { format: 'rewarded', placement }).catch(() => ({ rewarded: false }));
+    async showRewarded() {
+      return { rewarded: true };
     },
     track(event, params = {}) {
       if (resolvedMode === 'native') bridge.call('analytics.event', { event, params }).catch(() => {});

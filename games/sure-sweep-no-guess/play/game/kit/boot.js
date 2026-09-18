@@ -12,6 +12,7 @@ import { createStorage } from './storage.js';
 import { createMonetization } from './monetization.js';
 import { createAudio } from './audio.js';
 import { createMonkey } from './harness.js';
+import { createPreviewGate } from './preview.js';
 
 export async function boot({ createGame, meta, canvas, background }) {
   const params = new URLSearchParams(globalThis.location.search);
@@ -31,7 +32,9 @@ export async function boot({ createGame, meta, canvas, background }) {
   };
   await env.monetization.init().catch(() => {});
 
-  const game = await createGame(env);
+  const rawGame = await createGame(env);
+  // game.json `monetization.previewSeconds` = free play time before the unlock screen (kit/preview.js).
+  const game = createPreviewGate({ game: rawGame, meta, storage: env.storage, monetization: env.monetization, manifest, demo });
   const view = createView(canvas, { width: meta.width, height: meta.height, background });
   const input = createInput();
   const draw = () => view.frame((ctx) => game.render(ctx, view));
@@ -57,8 +60,16 @@ export async function boot({ createGame, meta, canvas, background }) {
   input.attach(canvas, view);
   canvas.addEventListener('pointerdown', () => env.audio.unlock(), { once: true });
   const loop = createLoop({ update: (dt) => game.update(dt, input.snapshot()), render: draw });
-  globalThis.document.addEventListener('visibilitychange', () => (globalThis.document.hidden ? loop.stop() : loop.start()));
-  bridge.on('app.pause', () => loop.stop());
+  globalThis.document.addEventListener('visibilitychange', () => {
+    if (globalThis.document.hidden) {
+      game.flushPreview?.();
+      loop.stop();
+    } else loop.start();
+  });
+  bridge.on('app.pause', () => {
+    game.flushPreview?.();
+    loop.stop();
+  });
   bridge.on('app.resume', () => loop.start());
   loop.start();
   return { game, env, loop };

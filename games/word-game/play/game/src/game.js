@@ -7,7 +7,7 @@
 // own vertical bounce within a band) across the screen from right to left. The player taps the
 // one that correctly matches the target (synonym or antonym, chosen before the session and
 // locked for its whole 90 seconds). See design/GDD.md for the full design.
-import { STANDARD_PACK, ADVANCED_PACK } from './words.js';
+import { WORDS } from './words.js';
 
 export const meta = { width: 720, height: 1280 };
 
@@ -16,15 +16,10 @@ const SESSION_SECONDS = 90;
 // for it — cap how many full sessions are playable for free. See docs/GAME-CONTRACT.md's
 // "Web preview" section and design/GDD.md's "Demo cut".
 const DEMO_SESSION_LIMIT = 2;
-// Interstitial shown only when leaving the session-end screen, and only every Nth completed
-// session (never mid-round) — see design/GDD.md "Monetization".
-const INTERSTITIAL_EVERY = 2;
 const RECENT_WORDS_MAX = 6;
 
 // Vertical band the three candidate words drift within — deliberately tall (most of the screen
-// height) and split into three independent slices so reading a round moves the eyes across a
-// wide vertical + horizontal range instead of one fixed point. See design/GDD.md's
-// "Wellness-by-design fit" — never described to players as a health benefit.
+// height) and split into three independent slices so the words come in at varied heights.
 const BAND_TOP = 300;
 const BAND_BOTTOM = 1000;
 const SLICE_H = (BAND_BOTTOM - BAND_TOP) / 3;
@@ -35,12 +30,11 @@ const SPEED_PER_POINT = 18;
 const SPEED_CAP_BONUS = 260;
 const SPEED_JITTER = 40;
 
-const CHAR_W = 21; // approximate px/char at the word-chip font size, used for both hit-testing and drawing
-const CHIP_PAD_X = 26;
-const CHIP_H = 68;
+const CHAR_W = 30; // approximate px/char at the candidate-word font size, used for both hit-testing and drawing
+const CHIP_PAD_X = 20;
+const CHIP_H = 84;
 
 const KEY_CODES = ['Digit1', 'Digit2', 'Digit3'];
-const SLOT_COLORS = ['#8b5cf6', '#22d3ee', '#f472b6'];
 
 const inRect = (x, y, r) => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
 const wordChipWidth = (text) => text.length * CHAR_W + CHIP_PAD_X * 2;
@@ -49,15 +43,19 @@ const wordChipWidth = (text) => text.length * CHAR_W + CHIP_PAD_X * 2;
 const MODE_SYN_BTN = { x: 70, y: 480, w: 270, h: 90 };
 const MODE_ANT_BTN = { x: 380, y: 480, w: 270, h: 90 };
 const PLAY_BTN = { x: 160, y: 610, w: 400, h: 110 };
-const TRIAL_BTN = { x: 110, y: 760, w: 500, h: 78 };
-const ADV_BUY_BTN = { x: 110, y: 856, w: 500, h: 78 };
-const REMOVE_ADS_BTN = { x: 110, y: 952, w: 500, h: 78 };
 
-const PLAY_AGAIN_BTN = { x: 160, y: 620, w: 400, h: 110 };
-const CHANGE_MODE_BTN = { x: 160, y: 750, w: 400, h: 78 };
-const GO_TRIAL_BTN = { x: 110, y: 848, w: 500, h: 70 };
-const GO_ADV_BUY_BTN = { x: 110, y: 928, w: 500, h: 70 };
-const GO_REMOVE_ADS_BTN = { x: 110, y: 1008, w: 500, h: 70 };
+// Ends the current session early (same effect as the 90s clock running out) so the player isn't
+// forced to either finish the timer or fully exit the app via the OS back button to change mode.
+const STOP_BTN = { x: 260, y: 1140, w: 200, h: 76 };
+
+// Session review screen: every answer from the session, mistakes first, paged.
+const REVIEW_TOP = 250;
+const REVIEW_ROW_H = 134;
+const REVIEW_PER_PAGE = 5;
+const PREV_BTN = { x: 40, y: 1010, w: 200, h: 70 };
+const NEXT_BTN = { x: 480, y: 1010, w: 200, h: 70 };
+const PLAY_AGAIN_BTN = { x: 40, y: 1120, w: 310, h: 90 };
+const CHANGE_MODE_BTN = { x: 370, y: 1120, w: 310, h: 90 };
 
 export function createGame(env) {
   const { rng, storage, monetization, audio, config } = env;
@@ -73,11 +71,8 @@ export function createGame(env) {
     newBest: false,
     timeLeft: SESSION_SECONDS,
     sessionsCompleted: 0,
-    ownsRemoveAds: monetization.owns('remove_ads'),
-    ownsAdvancedPack: monetization.owns('advanced_pack'),
-    advancedTrialPending: false, // granted by a rewarded ad, consumed by the next session
-    advancedTrialActive: false, // true for the duration of a trial session
-    adBusy: false,
+    history: [], // this session's answers: { word, mode, answer, picked (null = drifted past), correct }
+    reviewPage: 0,
     demo,
     demoSessions: 0,
     demoLimitReached: false,
@@ -94,15 +89,8 @@ export function createGame(env) {
       if (v >= DEMO_SESSION_LIMIT) state.demoLimitReached = true;
     });
   }
-  monetization.onChange(() => {
-    state.ownsRemoveAds = monetization.owns('remove_ads');
-    state.ownsAdvancedPack = monetization.owns('advanced_pack');
-  });
-
-  const activePack = () => {
-    if (state.ownsAdvancedPack || state.advancedTrialActive) return STANDARD_PACK.concat(ADVANCED_PACK);
-    return STANDARD_PACK;
-  };
+  // Words without an antonym only appear in Synonym mode.
+  const activePack = () => (state.mode === 'synonym' ? WORDS : WORDS.filter((e) => e[2] !== null));
 
   const pickEntry = () => {
     const pack = activePack();
@@ -118,7 +106,7 @@ export function createGame(env) {
   };
 
   const spawnRound = () => {
-    const [word, synonym, antonym, d1, d2] = pickEntry();
+    const [word, synonym, antonym, d1, d2, meaning] = pickEntry();
     const correctText = state.mode === 'synonym' ? synonym : antonym;
     const options = rng.shuffle([
       { text: correctText, correct: true },
@@ -128,6 +116,7 @@ export function createGame(env) {
     const speed = SPEED_BASE + Math.min(SPEED_CAP_BONUS, state.score * SPEED_PER_POINT);
     state.round = {
       targetWord: word,
+      meaning,
       mode: state.mode,
       words: options.map((o, slot) => {
         const sliceTop = BAND_TOP + slot * SLICE_H + SLICE_MARGIN;
@@ -159,8 +148,8 @@ export function createGame(env) {
       if (state.demoSessions >= DEMO_SESSION_LIMIT) state.demoLimitReached = true;
     }
     state.mode = state.selectedMode;
-    state.advancedTrialActive = state.ownsAdvancedPack ? false : state.advancedTrialPending;
-    state.advancedTrialPending = false;
+    state.history = [];
+    state.reviewPage = 0;
     state.score = 0;
     state.timeLeft = SESSION_SECONDS;
     state.newBest = false;
@@ -174,6 +163,7 @@ export function createGame(env) {
   const endSession = () => {
     state.scene = 'gameover';
     state.round = null;
+    state.reviewPage = 0;
     const key = bestKey();
     if (state.score > state[key]) {
       state[key] = state.score;
@@ -188,17 +178,11 @@ export function createGame(env) {
     audio.tone({ freq: 560, to: 300, dur: 0.32, type: 'sine', vol: 0.22 });
   };
 
-  // Called whenever the player leaves the session-end screen (Play Again or Change Mode) —
-  // the one natural pause point between sessions. See design/GDD.md "Monetization".
-  const maybeShowInterstitial = async () => {
-    if (demo || state.ownsRemoveAds || state.adBusy) return;
-    if (state.sessionsCompleted % INTERSTITIAL_EVERY !== 0) return;
-    state.adBusy = true;
-    await monetization.showInterstitial('session_end').catch(() => ({ shown: false }));
-    state.adBusy = false;
-  };
-
-  const resolveRound = (hit) => {
+  const resolveRound = (picked) => {
+    const round = state.round;
+    const answer = round.words.find((w) => w.correct).text;
+    const hit = picked !== null && picked === answer;
+    state.history.push({ word: round.targetWord, meaning: round.meaning, mode: round.mode, answer, picked, correct: hit });
     if (hit) {
       state.score += 1;
       audio.tone({ freq: 620, to: 900, dur: 0.1, type: 'triangle', vol: 0.22 });
@@ -208,37 +192,12 @@ export function createGame(env) {
     spawnRound();
   };
 
-  const tryBuyAdvanced = async () => {
-    if (demo || state.ownsAdvancedPack || state.adBusy) return;
-    state.adBusy = true;
-    await monetization.purchase('advanced_pack').catch(() => ({ ok: false }));
-    state.adBusy = false;
-  };
-
-  const tryBuyRemoveAds = async () => {
-    if (demo || state.ownsRemoveAds || state.adBusy) return;
-    state.adBusy = true;
-    await monetization.purchase('remove_ads').catch(() => ({ ok: false }));
-    state.adBusy = false;
-  };
-
-  const tryTrial = async () => {
-    if (demo || state.ownsAdvancedPack || state.adBusy) return;
-    state.adBusy = true;
-    const { rewarded } = await monetization.showRewarded('advanced_trial').catch(() => ({ rewarded: false }));
-    if (rewarded) state.advancedTrialPending = true;
-    state.adBusy = false;
-  };
-
   const updateTitle = (input) => {
     if (!input.pointer.pressed) return;
     const { x, y } = input.pointer;
     if (inRect(x, y, MODE_SYN_BTN)) state.selectedMode = 'synonym';
     else if (inRect(x, y, MODE_ANT_BTN)) state.selectedMode = 'antonym';
     else if (inRect(x, y, PLAY_BTN)) startSession();
-    else if (!demo && !state.ownsAdvancedPack && inRect(x, y, TRIAL_BTN)) tryTrial();
-    else if (!demo && !state.ownsAdvancedPack && inRect(x, y, ADV_BUY_BTN)) tryBuyAdvanced();
-    else if (!demo && !state.ownsRemoveAds && inRect(x, y, REMOVE_ADS_BTN)) tryBuyRemoveAds();
   };
 
   const updatePlaying = (dt, input) => {
@@ -264,9 +223,13 @@ export function createGame(env) {
     // second input in the same tick (e.g. a key alongside a tap) score twice on words that no
     // longer exist.
     if (input.pointer.pressed) {
+      if (inRect(input.pointer.x, input.pointer.y, STOP_BTN)) {
+        endSession();
+        return;
+      }
       const hit = round.words.find((w) => input.pointer.x >= w.x - w.w / 2 && input.pointer.x <= w.x + w.w / 2 && input.pointer.y >= w.y - CHIP_H / 2 && input.pointer.y <= w.y + CHIP_H / 2);
       if (hit) {
-        resolveRound(hit.correct);
+        resolveRound(hit.text);
         return;
       }
     }
@@ -275,28 +238,29 @@ export function createGame(env) {
         const slot = KEY_CODES.indexOf(code);
         const w = round.words.find((rw) => rw.slot === slot);
         if (w) {
-          resolveRound(w.correct);
+          resolveRound(w.text);
           return;
         }
       }
     }
 
     const correctWord = round.words.find((w) => w.correct);
-    if (correctWord && correctWord.x + correctWord.w / 2 < 0) resolveRound(false);
+    if (correctWord && correctWord.x + correctWord.w / 2 < 0) resolveRound(null);
   };
 
-  const updateGameover = async (input) => {
+  const reviewRows = () => {
+    const wrong = state.history.filter((h) => !h.correct);
+    return wrong.concat(state.history.filter((h) => h.correct));
+  };
+  const reviewPages = () => Math.max(1, Math.ceil(state.history.length / REVIEW_PER_PAGE));
+
+  const updateGameover = (input) => {
     if (!input.pointer.pressed) return;
     const { x, y } = input.pointer;
-    if (inRect(x, y, PLAY_AGAIN_BTN)) {
-      await maybeShowInterstitial();
-      startSession();
-    } else if (inRect(x, y, CHANGE_MODE_BTN)) {
-      await maybeShowInterstitial();
-      state.scene = 'title';
-    } else if (!demo && !state.ownsAdvancedPack && inRect(x, y, GO_TRIAL_BTN)) tryTrial();
-    else if (!demo && !state.ownsAdvancedPack && inRect(x, y, GO_ADV_BUY_BTN)) tryBuyAdvanced();
-    else if (!demo && !state.ownsRemoveAds && inRect(x, y, GO_REMOVE_ADS_BTN)) tryBuyRemoveAds();
+    if (inRect(x, y, PLAY_AGAIN_BTN)) startSession();
+    else if (inRect(x, y, CHANGE_MODE_BTN)) state.scene = 'title';
+    else if (inRect(x, y, PREV_BTN)) state.reviewPage = Math.max(0, state.reviewPage - 1);
+    else if (inRect(x, y, NEXT_BTN)) state.reviewPage = Math.min(reviewPages() - 1, state.reviewPage + 1);
   };
 
   return {
@@ -327,6 +291,7 @@ export function createGame(env) {
         ctx.font = '28px system-ui, sans-serif';
         ctx.fillStyle = '#9aa0c0';
         ctx.fillText('Tap the word that matches — before it drifts away', meta.width / 2, 210);
+        ctx.fillText('Graduate-level vocabulary', meta.width / 2, 250);
 
         drawButton(ctx, MODE_SYN_BTN, 'Synonym', state.selectedMode === 'synonym' ? 'active' : undefined);
         drawButton(ctx, MODE_ANT_BTN, 'Antonym', state.selectedMode === 'antonym' ? 'active' : undefined);
@@ -337,19 +302,6 @@ export function createGame(env) {
         ctx.fillText(`Best (${state.selectedMode}): ${bestNow}`, meta.width / 2, 440);
 
         drawButton(ctx, PLAY_BTN, 'Play', 'primary');
-
-        // Purchase/reward buttons stay visible in the web demo (consistent with the full app's
-        // UI) but are disabled: env.monetization.purchase() is blocked in demo mode, so tapping
-        // them is guarded to a no-op rather than promising an unlock the demo can't grant.
-        if (!state.ownsAdvancedPack) {
-          drawButton(ctx, TRIAL_BTN, 'Watch an ad: try Advanced pack for 1 session', undefined, demo);
-          drawButton(ctx, ADV_BUY_BTN, 'Unlock Advanced Pack — $1.99', undefined, demo);
-        } else {
-          ctx.fillStyle = '#9aa0c0';
-          ctx.font = '600 24px system-ui, sans-serif';
-          ctx.fillText('Advanced Pack unlocked', meta.width / 2, TRIAL_BTN.y + TRIAL_BTN.h / 2 + 8);
-        }
-        if (!state.ownsRemoveAds) drawButton(ctx, REMOVE_ADS_BTN, 'Remove Ads — $2.99', undefined, demo);
 
         if (demo) {
           ctx.fillStyle = '#9aa0c0';
@@ -391,50 +343,82 @@ export function createGame(env) {
         ctx.font = 'bold 52px system-ui, sans-serif';
         ctx.fillText(state.round.targetWord, meta.width / 2, 210);
 
-        for (const w of state.round.words) {
-          const cx = w.x - w.w / 2, cy = w.y - CHIP_H / 2;
-          ctx.save();
-          ctx.shadowColor = 'rgba(0,0,0,0.4)';
-          ctx.shadowBlur = 14;
-          ctx.shadowOffsetY = 5;
-          const chipGrad = ctx.createLinearGradient(cx, cy, cx, cy + CHIP_H);
-          chipGrad.addColorStop(0, 'rgba(255,255,255,0.14)');
-          chipGrad.addColorStop(1, 'rgba(255,255,255,0.04)');
-          ctx.fillStyle = chipGrad;
-          roundRect(ctx, cx, cy, w.w, CHIP_H, 16);
-          ctx.fill();
-          ctx.restore();
-          ctx.strokeStyle = 'rgba(255,255,255,0.14)';
-          ctx.lineWidth = 1.5;
-          roundRect(ctx, cx, cy, w.w, CHIP_H, 16);
-          ctx.stroke();
-          ctx.fillStyle = SLOT_COLORS[w.slot % SLOT_COLORS.length];
-          ctx.font = '600 30px system-ui, sans-serif';
-          ctx.fillText(w.text, w.x, w.y + 10);
-        }
+        // Words drift as plain text — no chip behind them and one shared colour, so nothing
+        // pulls the eye toward a particular option.
+        ctx.fillStyle = '#eef0fb';
+        // Same size and weight as the target word so the two read as equals.
+        ctx.font = 'bold 52px system-ui, sans-serif';
+        for (const w of state.round.words) ctx.fillText(w.text, w.x, w.y + 18);
+
+        if (state.scene === 'playing') drawButton(ctx, STOP_BTN, 'Stop');
       }
 
       if (state.scene === 'gameover') {
-        ctx.fillStyle = 'rgba(6,7,13,0.72)';
+        ctx.fillStyle = 'rgba(6,7,13,0.82)';
         ctx.fillRect(0, 0, meta.width, meta.height);
         ctx.fillStyle = '#eef0fb';
-        ctx.font = 'bold 56px system-ui, sans-serif';
-        ctx.fillText("Time's up!", meta.width / 2, 300);
-        ctx.font = '600 36px system-ui, sans-serif';
-        ctx.fillText(`Score: ${state.score}`, meta.width / 2, 370);
-        ctx.font = '28px system-ui, sans-serif';
+        ctx.font = 'bold 50px system-ui, sans-serif';
+        ctx.fillText("Time's up! Review", meta.width / 2, 90);
+        const right = state.history.filter((h) => h.correct).length;
+        ctx.font = '600 32px system-ui, sans-serif';
+        ctx.fillText(`Score ${state.score}  ·  ${right} right, ${state.history.length - right} missed`, meta.width / 2, 150);
+        ctx.font = '26px system-ui, sans-serif';
         ctx.fillStyle = state.newBest ? '#22d3ee' : '#9aa0c0';
         const bestNow = state.mode === 'synonym' ? state.bestSynonym : state.bestAntonym;
-        ctx.fillText(state.newBest ? `New best! (${state.mode}: ${bestNow})` : `Best (${state.mode}): ${bestNow}`, meta.width / 2, 420);
+        ctx.fillText(state.newBest ? `New best! (${state.mode}: ${bestNow})` : `Best (${state.mode}): ${bestNow}`, meta.width / 2, 195);
 
+        const rows = reviewRows();
+        if (!rows.length) {
+          ctx.fillStyle = '#9aa0c0';
+          ctx.font = '28px system-ui, sans-serif';
+          ctx.fillText('No answers this session.', meta.width / 2, REVIEW_TOP + 60);
+        } else if (rows.every((h) => h.correct)) {
+          ctx.fillStyle = '#4ade80';
+          ctx.font = '600 26px system-ui, sans-serif';
+          ctx.fillText('No mistakes — every answer was right.', meta.width / 2, REVIEW_TOP - 8);
+        }
+        rows.slice(state.reviewPage * REVIEW_PER_PAGE, (state.reviewPage + 1) * REVIEW_PER_PAGE).forEach((h, i) => {
+          const y = REVIEW_TOP + i * REVIEW_ROW_H;
+          ctx.fillStyle = 'rgba(255,255,255,0.06)';
+          roundRect(ctx, 30, y, meta.width - 60, REVIEW_ROW_H - 10, 14);
+          ctx.fill();
+          ctx.fillStyle = h.correct ? '#4ade80' : '#f87171';
+          ctx.textAlign = 'left';
+          ctx.font = 'bold 34px system-ui, sans-serif';
+          ctx.fillText(h.correct ? '✓' : '✗', 48, y + 44);
+          ctx.fillStyle = '#eef0fb';
+          ctx.font = 'bold 32px system-ui, sans-serif';
+          ctx.fillText(h.word, 96, y + 40);
+          ctx.textAlign = 'right';
+          ctx.fillStyle = '#9aa0c0';
+          ctx.font = '22px system-ui, sans-serif';
+          ctx.fillText(h.mode, meta.width - 48, y + 38);
+          ctx.textAlign = 'left';
+          ctx.font = '26px system-ui, sans-serif';
+          ctx.fillStyle = '#22d3ee';
+          ctx.fillText(`Answer: ${h.answer}`, 96, y + 76);
+          ctx.fillStyle = '#9aa0c0';
+          ctx.font = '22px system-ui, sans-serif';
+          ctx.fillText(h.meaning.length > 52 ? `${h.meaning.slice(0, 51)}…` : h.meaning, 96, y + 108);
+          ctx.font = '26px system-ui, sans-serif';
+          if (!h.correct) {
+            ctx.textAlign = 'right';
+            ctx.fillStyle = '#f87171';
+            ctx.fillText(h.picked === null ? 'missed' : `You: ${h.picked}`, meta.width - 48, y + 76);
+          }
+          ctx.textAlign = 'center';
+        });
+
+        const pages = reviewPages();
+        if (pages > 1) {
+          drawButton(ctx, PREV_BTN, 'Prev', undefined, state.reviewPage === 0);
+          drawButton(ctx, NEXT_BTN, 'Next', undefined, state.reviewPage >= pages - 1);
+          ctx.fillStyle = '#9aa0c0';
+          ctx.font = '600 26px system-ui, sans-serif';
+          ctx.fillText(`${state.reviewPage + 1} / ${pages}`, meta.width / 2, PREV_BTN.y + 45);
+        }
         drawButton(ctx, PLAY_AGAIN_BTN, 'Play Again', 'primary');
         drawButton(ctx, CHANGE_MODE_BTN, 'Change Mode');
-
-        if (!state.ownsAdvancedPack) {
-          drawButton(ctx, GO_TRIAL_BTN, 'Watch an ad: try Advanced pack', undefined, demo);
-          drawButton(ctx, GO_ADV_BUY_BTN, 'Unlock Advanced Pack — $1.99', undefined, demo);
-        }
-        if (!state.ownsRemoveAds) drawButton(ctx, GO_REMOVE_ADS_BTN, 'Remove Ads — $2.99', undefined, demo);
       }
     },
 

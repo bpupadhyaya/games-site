@@ -16,8 +16,6 @@ import {
 export const meta = { width: SCREEN.width, height: SCREEN.height };
 
 const HISTORY_LIMIT = 60;
-const SOFT_UNLOCK_SOLVES = 5;
-const INTERSTITIAL_EVERY = 3;
 // Web preview (env.config.demo) is marketing for the full iOS/Android game, not a substitute
 // for it — cap how much is playable for free so there is a real reason to get the app.
 const DEMO_SOLVE_LIMIT = 3;
@@ -52,7 +50,7 @@ export function createGame(env) {
     hintsUsed: 0,
     puzzlesSolved: 0,
     totalSolved: 0,
-    expertUnlocked: false,
+    expertUnlocked: true, // the Expert board is part of the game
     lockMessageTimer: 0,
     hintPending: false,
     demo: Boolean(config?.demo),
@@ -62,7 +60,6 @@ export function createGame(env) {
 
   storage.get('totalSolved', 0).then((value) => {
     state.totalSolved = value;
-    if (value >= SOFT_UNLOCK_SOLVES) state.expertUnlocked = true;
   });
   // Persisted (not just in-memory) so reloading the page can't be used to reset the free
   // preview's puzzle count — see docs/GAME-CONTRACT.md's "Web preview" section.
@@ -72,10 +69,6 @@ export function createGame(env) {
       if (value >= DEMO_SOLVE_LIMIT) state.demoLimitReached = true;
     });
   }
-  if (monetization.owns('expert_pack')) state.expertUnlocked = true;
-  monetization.onChange(() => {
-    if (monetization.owns('expert_pack')) state.expertUnlocked = true;
-  });
 
   const pushHistory = () => {
     state.history.push(state.cells.slice());
@@ -113,16 +106,12 @@ export function createGame(env) {
     state.solveMoves = state.moves;
     state.totalSolved += 1;
     storage.set('totalSolved', state.totalSolved);
-    if (state.totalSolved >= SOFT_UNLOCK_SOLVES) state.expertUnlocked = true;
     monetization.track('puzzle_complete', { size: state.size, mode: state.mode, moves: state.moves });
     audio.tone({ freq: 523, dur: 0.1 });
     audio.tone({ freq: 659, dur: 0.1 });
     audio.tone({ freq: 784, dur: 0.16 });
     if (state.mode === 'endless') {
       state.puzzlesSolved += 1;
-      if (state.puzzlesSolved % INTERSTITIAL_EVERY === 0 && !monetization.owns('remove_ads')) {
-        monetization.showInterstitial('puzzle_complete');
-      }
     }
     if (state.demo) {
       state.demoSolves += 1;
@@ -180,9 +169,8 @@ export function createGame(env) {
   const requestHint = async () => {
     if (state.hintPending || state.scene !== 'playing') return;
     state.hintPending = true;
-    const { rewarded } = await monetization.showRewarded('hint');
     state.hintPending = false;
-    if (!rewarded || state.scene !== 'playing') return;
+    if (state.scene !== 'playing') return;
     for (let regionId = 0; regionId < state.size; regionId++) {
       const cell = state.solution[regionId];
       const index = cell.row * state.size + cell.col;
@@ -381,7 +369,7 @@ export function createGame(env) {
     ctx.fillText("That's the free preview!", meta.width / 2, meta.height * 0.4);
     ctx.font = '500 27px system-ui, sans-serif';
     ctx.fillStyle = 'rgba(224,228,240,0.8)';
-    wrapText(ctx, 'Get the full game on iPhone and Android for unlimited puzzles, the Expert board, and no ads to unlock hints.', meta.width / 2, meta.height * 0.47, meta.width - 200, 38);
+    wrapText(ctx, 'Get the full game on iPhone and Android for unlimited puzzles, the Expert board and hints.', meta.width / 2, meta.height * 0.47, meta.width - 200, 38);
   }
 
   function wrapText(ctx, text, cx, y, maxWidth, lineHeight) {

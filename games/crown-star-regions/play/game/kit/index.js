@@ -7,3 +7,4 @@ export { createStorage } from './storage.js';
 export { createMonetization } from './monetization.js';
 export { createAudio } from './audio.js';
 export { boot } from './boot.js';
+export { createPreviewGate } from './preview.js';

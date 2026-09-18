@@ -26,7 +26,6 @@ const FLAG_BTN = { x: 40, y: 1110, w: 96, h: 96 };
 const HINT_BTN = { x: 312, y: 1110, w: 96, h: 96 };
 const NEW_BTN = { x: 584, y: 1110, w: 96, h: 96 };
 const SHIELD_BTN = { x: 160, y: 760, w: 400, h: 96 };
-const REMOVE_ADS_BTN = { x: 160, y: 940, w: 400, h: 80 };
 
 const NUMBER_COLORS = ['#000', '#1565c0', '#2e7d32', '#c62828', '#0d1a63', '#6a1b1a', '#00838f', '#111111', '#555555'];
 
@@ -65,7 +64,6 @@ export function createGame(env) {
     runs: 0,
     generationAttempts: 0,
     generationFellBack: false,
-    ownsRemoveAds: monetization.owns('remove_ads'),
     demo,
     demoBoards: 0,
     demoLimitReached: false,
@@ -81,9 +79,6 @@ export function createGame(env) {
       if (v >= DEMO_BOARD_LIMIT) state.demoLimitReached = true;
     });
   }
-  monetization.onChange(() => {
-    state.ownsRemoveAds = monetization.owns('remove_ads');
-  });
 
   const remainingFlags = () => mineCount - state.flagged.reduce((n, f) => n + (f ? 1 : 0), 0);
 
@@ -214,9 +209,8 @@ export function createGame(env) {
   const requestHint = async () => {
     if (state.hintLoading || state.scene !== 'playing') return;
     state.hintLoading = true;
-    const { rewarded } = await monetization.showRewarded('hint');
     state.hintLoading = false;
-    if (!rewarded || state.scene !== 'playing') return;
+    if (state.scene !== 'playing') return;
     const moves = findForcedMoves(w, h, state.numbers, state.revealed, state.flagged);
     state.hint = moves.length ? { index: moves[0].index, kind: moves[0].kind, timer: 3 } : null;
     monetization.track('hint_used', {});
@@ -225,10 +219,9 @@ export function createGame(env) {
   const requestShield = async () => {
     if (state.shieldLoading || state.shieldOffered || state.scene !== 'lost') return;
     state.shieldLoading = true;
-    const { rewarded } = await monetization.showRewarded('shield');
     state.shieldLoading = false;
     state.shieldOffered = true;
-    if (!rewarded || state.scene !== 'lost' || state.exploded < 0) return;
+    if (state.scene !== 'lost' || state.exploded < 0) return;
     const idx = state.exploded;
     state.revealed[idx] = false;
     state.flagged[idx] = true;
@@ -236,11 +229,6 @@ export function createGame(env) {
     state.lossHint = null;
     state.scene = 'playing';
     monetization.track('shield_used', {});
-  };
-
-  const doPurchase = async () => {
-    const res = await monetization.purchase('remove_ads');
-    if (res.ok) state.ownsRemoveAds = true;
   };
 
   return {
@@ -263,8 +251,7 @@ export function createGame(env) {
       if (state.scene === 'demo-limit') return;
 
       if (state.scene === 'title') {
-        if (inRect(x, y, REMOVE_ADS_BTN) && !state.ownsRemoveAds) doPurchase();
-        else newBoard();
+        newBoard();
         return;
       }
 
@@ -330,9 +317,6 @@ export function createGame(env) {
         if (state.bestTime !== null) {
           drawPill(ctx, meta.width / 2, meta.height * 0.52, `🏆 Best time: ${state.bestTime.toFixed(1)}s`);
         }
-        if (!state.ownsRemoveAds) {
-          drawButton(ctx, REMOVE_ADS_BTN, 'Remove Ads — $2.99', '#8b5cf6', true);
-        }
         if (state.demo) {
           drawPill(ctx, meta.width / 2, meta.height * 0.66, `Free preview — ${Math.max(DEMO_BOARD_LIMIT - state.demoBoards, 0)} board(s) left`);
         }
@@ -362,7 +346,7 @@ export function createGame(env) {
         ctx.font = '500 24px system-ui, sans-serif';
         ctx.fillStyle = 'rgba(224,228,240,0.8)';
         wrapText(ctx, 'That mine was avoidable by logic — see the highlighted cell.', meta.width / 2, 672, meta.width - 140, 30);
-        if (!state.shieldOffered) drawButton(ctx, SHIELD_BTN, '📺 Watch ad: undo that click', '#2e7d32', true);
+        if (!state.shieldOffered) drawButton(ctx, SHIELD_BTN, 'Undo that click', '#2e7d32', true);
         ctx.fillStyle = 'rgba(224,228,240,0.55)';
         ctx.font = '22px system-ui, sans-serif';
         ctx.fillText('Tap anywhere else for a new board', meta.width / 2, 895);

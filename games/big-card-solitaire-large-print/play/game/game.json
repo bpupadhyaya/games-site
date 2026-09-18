@@ -6,18 +6,15 @@
   "orientation": "portrait",
   "version": "0.1.0",
   "monetization": {
-    "model": "hybrid",
-    "ads": {
-      "interstitial": false,
-      "rewarded": true,
-      "banner": false
-    },
+    "model": "premium",
+    "priceUsd": 2.99,
+    "previewSeconds": 90,
     "products": [
       {
-        "id": "remove_ads",
+        "id": "unlock_game",
         "type": "non-consumable",
-        "priceUsd": 3.99,
-        "title": "Remove Ads"
+        "priceUsd": 2.99,
+        "title": "Unlock Game"
       }
     ]
   },

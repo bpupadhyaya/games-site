@@ -23,8 +23,7 @@ export const meta = { width: 720, height: 1280 };
 const SUIT_ORDER = ['S', 'H', 'D', 'C'];
 
 // Card-back themes are simple flat colours — no external art (see GDD > Art direction).
-// 'classic' is always free/unlocked; the others unlock via a rewarded ad, or all at once by
-// owning 'remove_ads' (see GDD > Monetization).
+// Every theme is included with the game.
 const THEMES = [
   { id: 'classic', title: 'Classic', back: '#2255aa' },
   { id: 'sunset', title: 'Sunset', back: '#c9642f' },
@@ -62,7 +61,6 @@ export function createGame(env) {
     fourColorDeck: false,
     unlockedThemes: [],
     activeTheme: 'classic',
-    ownsRemoveAds: monetization.owns('remove_ads'),
     message: '', // quiet, non-scored feedback (e.g. the deal-honesty note below)
   };
 
@@ -87,11 +85,8 @@ export function createGame(env) {
     });
   }
 
-  monetization.onChange(() => {
-    state.ownsRemoveAds = monetization.owns('remove_ads');
-  });
-
-  const themeOwned = (id) => id === 'classic' || state.ownsRemoveAds || state.unlockedThemes.includes(id);
+  // Every theme is included with the game.
+  const themeOwned = () => true;
 
   const startNewDeal = () => {
     if (demo) {
@@ -188,31 +183,14 @@ export function createGame(env) {
   const HINT_BTN = { x: meta.width / 2 - 170, y: meta.height - 110, w: 340, h: 76 };
   const rectContains = (r, x, y) => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
   const themeSwatchRect = (i) => ({ x: 40 + i * 150, y: meta.height * 0.51, w: 120, h: 120 });
-  const REMOVE_ADS_RECT = { x: meta.width / 2 - 240, y: meta.height * 0.78, w: 480, h: 90 };
 
   const handleTitleTap = (x, y) => {
     for (let i = 0; i < THEMES.length; i++) {
       const r = themeSwatchRect(i);
       if (!rectContains(r, x, y)) continue;
       const theme = THEMES[i];
-      if (themeOwned(theme.id)) {
-        state.activeTheme = theme.id;
-        storage.set('activeTheme', theme.id);
-      } else {
-        monetization.showRewarded('unlock_theme').then(({ rewarded }) => {
-          if (!rewarded) return;
-          state.unlockedThemes = [...state.unlockedThemes, theme.id];
-          storage.set('unlockedThemes', state.unlockedThemes);
-          state.activeTheme = theme.id;
-          storage.set('activeTheme', theme.id);
-        });
-      }
-      return;
-    }
-    if (!state.ownsRemoveAds && rectContains(REMOVE_ADS_RECT, x, y)) {
-      monetization.purchase('remove_ads').then(({ ok }) => {
-        if (ok) state.ownsRemoveAds = true;
-      });
+      state.activeTheme = theme.id;
+      storage.set('activeTheme', theme.id);
       return;
     }
     startNewDeal();
@@ -601,24 +579,6 @@ function drawTitle(ctx, env, state) {
     ctx.stroke();
     ctx.fillStyle = 'rgba(255,255,255,0.9)';
     ctx.fillText(theme.title, x + 60, y + 140);
-    const owned = theme.id === 'classic' || state.ownsRemoveAds || state.unlockedThemes.includes(theme.id);
-    if (!owned) {
-      roundRectPath(ctx, x, y, 120, 120, 16);
-      ctx.fillStyle = 'rgba(8,20,15,0.65)';
-      ctx.fill();
-      ctx.fillStyle = '#fff';
-      ctx.font = '18px system-ui, sans-serif';
-      ctx.fillText('🔒 Watch ad', x + 60, y + 55);
-      ctx.fillText('to unlock', x + 60, y + 78);
-      ctx.font = '22px system-ui, sans-serif';
-    }
-  }
-
-  if (!state.ownsRemoveAds) {
-    const r = { x: meta.width / 2 - 240, y: meta.height * 0.78, w: 480, h: 90 };
-    drawButton(ctx, r, '✨ Unlock all themes — $3.99', 'secondary');
-  } else {
-    drawPill(ctx, meta.width / 2, meta.height * 0.82, '✓ All themes unlocked — thank you!', 'rgba(255,213,74,0.18)');
   }
 
   if (state.demo) {
@@ -635,7 +595,7 @@ function drawDemoLimit(ctx) {
   ctx.fillText("🃏 That's the free preview!", meta.width / 2, panel.y + 70);
   ctx.font = '26px system-ui, sans-serif';
   ctx.fillStyle = 'rgba(255,255,255,0.85)';
-  wrapText(ctx, 'Get the full game on iPhone and Android for unlimited deals, more games, and no ads to unlock.', meta.width / 2, panel.y + 130, panel.w - 80, 36);
+  wrapText(ctx, 'Get the full game on iPhone and Android for unlimited deals and every theme.', meta.width / 2, panel.y + 130, panel.w - 80, 36);
 }
 
 function wrapText(ctx, text, cx, y, maxWidth, lineHeight) {

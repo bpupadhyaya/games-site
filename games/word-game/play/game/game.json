@@ -6,24 +6,15 @@
   "orientation": "portrait",
   "version": "1.0.0",
   "monetization": {
-    "model": "hybrid",
-    "ads": {
-      "interstitial": true,
-      "rewarded": true,
-      "banner": false
-    },
+    "model": "premium",
+    "priceUsd": 2.99,
+    "previewSeconds": 90,
     "products": [
       {
-        "id": "remove_ads",
+        "id": "unlock_game",
         "type": "non-consumable",
         "priceUsd": 2.99,
-        "title": "Remove Ads"
-      },
-      {
-        "id": "advanced_pack",
-        "type": "non-consumable",
-        "priceUsd": 1.99,
-        "title": "Advanced Word Pack"
+        "title": "Unlock Game"
       }
     ]
   },
