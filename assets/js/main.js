@@ -354,7 +354,7 @@ mainNav.querySelectorAll('a').forEach(link => {
   draw();
 })();
 
-// --- Tech-preview mini game #3: "Word Match" — three candidate words drift in freely from
+// --- Tech-preview mini game #3: "Word Game" — three candidate words drift in freely from
 // the right (their own speed and gentle vertical float, not fixed lanes); the player taps
 // whichever one is the correct synonym or antonym of the target word (shown at the top)
 // before it drifts past. Timed like a real test section (90 seconds), not endless — a quick,
