@@ -33,12 +33,21 @@ const TITLE_COLOR_BTN = { x: 160, y: 900, w: 400, h: 80 };
 // Colour schemes. Index 0 is the original look and stays the default; players can cycle through
 // the others in-game (some colours are easier on some eyes).
 const DEFAULT_NUMBERS = ['#000', '#1565c0', '#2e7d32', '#c62828', '#0d1a63', '#6a1b1a', '#00838f', '#111111', '#555555'];
+const STRONG_NUMBERS = ['#000', '#1d4ed8', '#15803d', '#b91c1c', '#4c1d95', '#9a3412', '#0e7490', '#111111', '#555555'];
 const THEMES = [
   { name: 'Default', bg: ['#2f7ba3', '#2a5f7e', '#2a4f66'], hidden: ['#3a4356', '#262d3d'], revealed: ['#f4f6f8', '#dde3ea'], numbers: DEFAULT_NUMBERS },
   { name: 'Dark', bg: ['#1d2230', '#161a26', '#10131c'], hidden: ['#3a4356', '#262d3d'], revealed: ['#cfd6e0', '#b4bcc9'], numbers: DEFAULT_NUMBERS },
   { name: 'High contrast', bg: ['#000000', '#000000', '#000000'], hidden: ['#5b6478', '#454c5e'], revealed: ['#ffffff', '#f0f0f0'], numbers: ['#000', '#0000ff', '#007a00', '#d00000', '#00008b', '#8b0000', '#007b8b', '#000', '#444'] },
   { name: 'Colour-blind safe', bg: ['#2f7ba3', '#2a5f7e', '#2a4f66'], hidden: ['#3a4356', '#262d3d'], revealed: ['#f4f6f8', '#dde3ea'], numbers: ['#000', '#0072B2', '#b36b00', '#D55E00', '#CC79A7', '#009E73', '#2a6f9e', '#000', '#555'] },
   { name: 'Warm', bg: ['#a3692f', '#7e5a2a', '#664a2a'], hidden: ['#8a6b4a', '#6f5538'], revealed: ['#fbf3e4', '#efe2c8'], numbers: DEFAULT_NUMBERS },
+  { name: 'Sunset', bg: ['#ff8a5c', '#d6336c', '#5f2b6b'], hidden: ['#7a3a63', '#56264b'], revealed: ['#fff1e6', '#ffd9c2'], numbers: STRONG_NUMBERS },
+  { name: 'Aurora', bg: ['#34d399', '#7c3aed', '#0f172a'], hidden: ['#334155', '#1e293b'], revealed: ['#ecfeff', '#cffafe'], numbers: STRONG_NUMBERS },
+  { name: 'Candy', bg: ['#f9a8d4', '#c4b5fd', '#93c5fd'], hidden: ['#a78bfa', '#8b5cf6'], revealed: ['#fff7fb', '#fde7f3'], numbers: STRONG_NUMBERS },
+  { name: 'Midnight', bg: ['#1e3a8a', '#0f172a', '#020617'], hidden: ['#334155', '#1e293b'], revealed: ['#dbeafe', '#bfdbfe'], numbers: STRONG_NUMBERS },
+  { name: 'Forest', bg: ['#22c55e', '#15803d', '#052e16'], hidden: ['#3f6212', '#2a4210'], revealed: ['#f7fee7', '#ecfccb'], numbers: STRONG_NUMBERS },
+  { name: 'Lavender', bg: ['#c4b5fd', '#8b5cf6', '#4c1d95'], hidden: ['#6d5bd0', '#5b4bb5'], revealed: ['#faf5ff', '#f3e8ff'], numbers: STRONG_NUMBERS },
+  { name: 'Deep sea', bg: ['#22d3ee', '#0e7490', '#083344'], hidden: ['#155e75', '#164e63'], revealed: ['#ecfeff', '#cffafe'], numbers: STRONG_NUMBERS },
+  { name: 'Slate', bg: ['#64748b', '#334155', '#0f172a'], hidden: ['#475569', '#334155'], revealed: ['#f1f5f9', '#e2e8f0'], numbers: STRONG_NUMBERS },
 ];
 
 const inRect = (x, y, r) => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;

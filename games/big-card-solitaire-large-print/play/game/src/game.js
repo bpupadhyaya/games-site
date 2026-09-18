@@ -28,6 +28,11 @@ const THEMES = [
   { id: 'classic', title: 'Classic', back: '#2255aa' },
   { id: 'sunset', title: 'Sunset', back: '#c9642f' },
   { id: 'ocean', title: 'Ocean', back: '#1a8f8f' },
+  { id: 'rose', title: 'Rose', back: '#d6336c' },
+  { id: 'violet', title: 'Violet', back: '#7048e8' },
+  { id: 'forest', title: 'Forest', back: '#2f9e44' },
+  { id: 'graphite', title: 'Graphite', back: '#495057' },
+  { id: 'gold', title: 'Gold', back: '#d4a017' },
 ];
 
 const STANDARD_INK = { S: '#161616', H: '#b3261e', D: '#b3261e', C: '#161616' };
@@ -40,6 +45,12 @@ const TABLES = [
   { name: 'Blue', stops: ['#3f78c8', '#245093', '#183a68'] },
   { name: 'Burgundy', stops: ['#a83a55', '#7a2340', '#4f1729'] },
   { name: 'Charcoal', stops: ['#4a5060', '#2c303c', '#1a1c24'] },
+  { name: 'Purple', stops: ['#8b5cf6', '#5b21b6', '#2e1065'] },
+  { name: 'Teal', stops: ['#2dd4bf', '#0f766e', '#134e4a'] },
+  { name: 'Sunset', stops: ['#fb923c', '#c2410c', '#7c2d12'] },
+  { name: 'Royal', stops: ['#6366f1', '#3730a3', '#1e1b4b'] },
+  { name: 'Rose', stops: ['#fb7185', '#be123c', '#4c0519'] },
+  { name: 'Midnight', stops: ['#1e3a8a', '#0f172a', '#020617'] },
 ];
 const BG = '#1d5f45'; // vibrant felt-green identity — depth comes from a static radial gradient below, no animation/flashing
 const CARD_FACE = '#faf7ef';
@@ -192,10 +203,11 @@ export function createGame(env) {
 
   const HINT_BTN = { x: meta.width / 2 - 170, y: meta.height - 110, w: 340, h: 76 };
   const rectContains = (r, x, y) => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
-  const themeSwatchRect = (i) => ({ x: 40 + i * 150, y: meta.height * 0.51, w: 120, h: 120 });
+  // Card-back swatches: two rows of four.
+  const themeSwatchRect = (i) => ({ x: 40 + (i % 4) * 165, y: meta.height * 0.5 + Math.floor(i / 4) * 175, w: 140, h: 110 });
 
-  const TABLE_BTN = { x: 40, y: 830, w: 310, h: 84 };
-  const SUITS_BTN = { x: 370, y: 830, w: 310, h: 84 };
+  const TABLE_BTN = { x: 40, y: 990, w: 310, h: 84 };
+  const SUITS_BTN = { x: 370, y: 990, w: 310, h: 84 };
   const cycleTable = () => {
     state.table = (state.table + 1) % TABLES.length;
     storage.set('table', state.table);
@@ -585,8 +597,8 @@ function drawTitle(ctx, env, state) {
   const cta = { x: meta.width / 2 - 240, y: meta.height * 0.27, w: 480, h: 92 };
   drawButton(ctx, cta, 'Tap anywhere to deal', 'primary');
 
-  drawButton(ctx, { x: 40, y: 830, w: 310, h: 84 }, `🎨 Table: ${TABLES[state.table].name}`, 'secondary');
-  drawButton(ctx, { x: 370, y: 830, w: 310, h: 84 }, `Suits: ${state.fourColorDeck ? '4-colour' : '2-colour'}`, 'secondary');
+  drawButton(ctx, { x: 40, y: 990, w: 310, h: 84 }, `🎨 Table: ${TABLES[state.table].name}`, 'secondary');
+  drawButton(ctx, { x: 370, y: 990, w: 310, h: 84 }, `Suits: ${state.fourColorDeck ? '4-colour' : '2-colour'}`, 'secondary');
 
   drawPill(ctx, meta.width / 2, meta.height * 0.4, `Hands played: ${state.handsPlayed}   Hands won: ${state.handsWon}`);
 
@@ -595,14 +607,14 @@ function drawTitle(ctx, env, state) {
   ctx.fillText('Card back', meta.width / 2, meta.height * 0.47);
   for (let i = 0; i < THEMES.length; i++) {
     const theme = THEMES[i];
-    const x = 40 + i * 150;
-    const y = meta.height * 0.51;
-    roundRectPath(ctx, x, y, 120, 120, 16);
+    const x = 40 + (i % 4) * 165;
+    const y = meta.height * 0.5 + Math.floor(i / 4) * 175;
+    roundRectPath(ctx, x, y, 140, 110, 16);
     ctx.save();
     ctx.shadowColor = 'rgba(0,0,0,0.35)';
     ctx.shadowBlur = 14;
     ctx.shadowOffsetY = 6;
-    const g = ctx.createLinearGradient(x, y, x, y + 120);
+    const g = ctx.createLinearGradient(x, y, x, y + 110);
     g.addColorStop(0, lighten(theme.back, 24));
     g.addColorStop(1, theme.back);
     ctx.fillStyle = g;
@@ -612,7 +624,7 @@ function drawTitle(ctx, env, state) {
     ctx.lineWidth = state.activeTheme === theme.id ? 6 : 2;
     ctx.stroke();
     ctx.fillStyle = 'rgba(255,255,255,0.9)';
-    ctx.fillText(theme.title, x + 60, y + 140);
+    ctx.fillText(theme.title, x + 70, y + 136);
   }
 
   if (state.demo) {

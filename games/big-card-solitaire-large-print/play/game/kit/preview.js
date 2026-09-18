@@ -59,7 +59,12 @@ export function createPreviewGate({ game, meta, storage, monetization, manifest,
     const res = await monetization.purchase(PRODUCT_ID).catch(() => ({ ok: false }));
     busy = false;
     if (res.ok) owned = true;
-    else if (res.reason && res.reason !== 'cancelled') message = 'Purchase did not complete. Please try again.';
+    else if (res.reason === 'pending') message = 'Payment pending approval. It unlocks once approved.';
+    else if (res.reason && res.reason !== 'cancelled') {
+      message = /^(not-configured|billing-unavailable)/.test(res.reason)
+        ? 'The store is not available right now. Try again later.'
+        : 'Purchase did not complete. Please try again.';
+    }
   };
   const restore = async () => {
     if (busy) return;
