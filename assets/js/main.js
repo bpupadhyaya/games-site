@@ -354,10 +354,11 @@ mainNav.querySelectorAll('a').forEach(link => {
   draw();
 })();
 
-// --- Tech-preview mini game #3: "Word Match" — a word scrolls in from the right in one of
-// three lanes at a time; the player taps the lane holding the correct synonym or antonym of
-// the target word (shown at the top) before it scrolls past. Timed like a real test section
-// (90 seconds), not endless — a quick, focused vocabulary drill. Word bank is our own
+// --- Tech-preview mini game #3: "Word Match" — three candidate words drift in freely from
+// the right (their own speed and gentle vertical float, not fixed lanes); the player taps
+// whichever one is the correct synonym or antonym of the target word (shown at the top)
+// before it drifts past. Timed like a real test section (90 seconds), not endless — a quick,
+// focused vocabulary drill. Word bank is our own
 // compilation, not copied from any test-prep publisher's list.
 (function () {
   const canvas = document.getElementById('demoCanvas3');
@@ -369,8 +370,7 @@ mainNav.querySelectorAll('a').forEach(link => {
 
   const W = canvas.width, H = canvas.height;
   const ROUND_SECONDS = 90;
-  const LANE_Y = [130, 190, 250];
-  const LANE_H = 44;
+  const WORD_TOP = 95, WORD_BOTTOM = 285; // vertical band the moving words drift within
 
   // word | synonym | antonym | two distractors (plausible same-register words, not related
   // in meaning to the target, so every round has exactly one correct answer).
@@ -408,7 +408,7 @@ mainNav.querySelectorAll('a').forEach(link => {
   let state = 'idle'; // 'idle' | 'playing' | 'ended'
   let timeLeft = ROUND_SECONDS;
   let score = 0;
-  let round = null; // { targetWord, mode, lanes: [{ text, x, speed, correct }] }
+  let round = null; // { targetWord, mode, words: [{ text, x, y, vy, speed, correct }] }
   let recentWords = [];
   let rafId = null;
   let lastTs = 0;
@@ -435,22 +435,25 @@ mainNav.querySelectorAll('a').forEach(link => {
       [options[i], options[j]] = [options[j], options[i]];
     }
     const speedBase = 55 + Math.min(60, score * 3);
+    // Each word gets its own free-floating vertical band (not a fixed lane row), a random
+    // drift velocity, and its own random horizontal speed and start offset.
+    const bandH = (WORD_BOTTOM - WORD_TOP) / options.length;
     round = {
       targetWord: word,
       mode,
-      lanes: options.map((o, i) => ({
+      words: options.map((o, i) => ({
         text: o.text,
         correct: o.correct,
-        x: W + 30 + i * 40,
-        y: LANE_Y[i],
+        x: W + 20 + Math.random() * 140,
+        y: WORD_TOP + i * bandH + 20 + Math.random() * (bandH - 40),
+        vy: (Math.random() * 2 - 1) * 14,
         speed: speedBase + Math.random() * 20,
-        resolved: false,
       })),
     };
   }
 
-  function resolveRound(hitLane) {
-    if (hitLane) {
+  function resolveRound(hit) {
+    if (hit) {
       score++;
       scoreEl.textContent = String(score);
     }
@@ -464,13 +467,6 @@ mainNav.querySelectorAll('a').forEach(link => {
     g.addColorStop(1, '#181a26');
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, W, H);
-    ctx.strokeStyle = 'rgba(255,255,255,0.08)';
-    for (const y of LANE_Y) {
-      ctx.beginPath();
-      ctx.moveTo(0, y + LANE_H / 2);
-      ctx.lineTo(W, y + LANE_H / 2);
-      ctx.stroke();
-    }
   }
 
   function draw() {
@@ -493,17 +489,17 @@ mainNav.querySelectorAll('a').forEach(link => {
       ctx.font = '700 26px Inter, sans-serif';
       ctx.fillText(round.targetWord, W / 2, 66);
 
-      round.lanes.forEach((lane, i) => {
+      round.words.forEach((word, i) => {
         const colors = ['#8b5cf6', '#22d3ee', '#ec4899'];
         ctx.textAlign = 'left';
         ctx.font = '600 19px Inter, sans-serif';
-        const w = ctx.measureText(lane.text).width;
+        const w = ctx.measureText(word.text).width;
         ctx.fillStyle = 'rgba(255,255,255,0.06)';
         ctx.beginPath();
-        ctx.roundRect(lane.x - 12, lane.y - 24, w + 24, 34, 8);
+        ctx.roundRect(word.x - 12, word.y - 24, w + 24, 34, 8);
         ctx.fill();
         ctx.fillStyle = colors[i % colors.length];
-        ctx.fillText(lane.text, lane.x, lane.y);
+        ctx.fillText(word.text, word.x, word.y);
       });
     }
 
@@ -533,9 +529,14 @@ mainNav.querySelectorAll('a').forEach(link => {
         timeLeft = 0;
         endGame();
       } else if (round) {
-        for (const lane of round.lanes) lane.x -= lane.speed * dt;
-        const correctLane = round.lanes.find(l => l.correct);
-        if (correctLane && correctLane.x < -80) resolveRound(false);
+        for (const word of round.words) {
+          word.x -= word.speed * dt;
+          word.y += word.vy * dt;
+          if (word.y < WORD_TOP || word.y > WORD_BOTTOM) word.vy *= -1;
+          word.y = Math.min(WORD_BOTTOM, Math.max(WORD_TOP, word.y));
+        }
+        const correctWord = round.words.find(w => w.correct);
+        if (correctWord && correctWord.x < -80) resolveRound(false);
       }
     }
 
@@ -575,10 +576,11 @@ mainNav.querySelectorAll('a').forEach(link => {
     const scale = W / rect.width;
     const x = (clientX - rect.left) * scale;
     const y = (clientY - rect.top) * scale;
-    for (const lane of round.lanes) {
-      const w = ctx.measureText(lane.text).width;
-      if (x >= lane.x - 12 && x <= lane.x + w + 12 && y >= lane.y - 24 && y <= lane.y + 10) {
-        resolveRound(lane.correct);
+    for (const word of round.words) {
+      ctx.font = '600 19px Inter, sans-serif';
+      const w = ctx.measureText(word.text).width;
+      if (x >= word.x - 12 && x <= word.x + w + 12 && y >= word.y - 24 && y <= word.y + 10) {
+        resolveRound(word.correct);
         return;
       }
     }
