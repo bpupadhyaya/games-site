@@ -305,9 +305,9 @@ export function createGame(env) {
 
   function drawBackground(ctx) {
     const g = ctx.createRadialGradient(meta.width * 0.22, -60, 40, meta.width * 0.22, -60, meta.width * 1.15);
-    g.addColorStop(0, '#6249a3');
-    g.addColorStop(0.55, '#4a3f80');
-    g.addColorStop(1, '#443a70');
+    g.addColorStop(0, '#b8792f');
+    g.addColorStop(0.55, '#8f5f2e');
+    g.addColorStop(1, '#6b4a2a');
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, meta.width, meta.height);
   }
