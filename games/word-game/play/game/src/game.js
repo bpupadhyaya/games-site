@@ -47,6 +47,18 @@ const PLAY_BTN = { x: 160, y: 610, w: 400, h: 110 };
 // Ends the current session early (same effect as the 90s clock running out) so the player isn't
 // forced to either finish the timer or fully exit the app via the OS back button to change mode.
 const STOP_BTN = { x: 260, y: 1140, w: 200, h: 76 };
+const COLOR_BTN = { x: 490, y: 1140, w: 200, h: 76 };
+const TITLE_COLOR_BTN = { x: 160, y: 760, w: 400, h: 78 };
+
+// Colour schemes. Index 0 is the original look and stays the default; players can cycle through
+// the others on the title screen or while playing. All words share the scheme's one text colour.
+const SCHEMES = [
+  { name: 'Default', stops: ['#3a3560', '#262a42', '#181a26'], text: '#eef0fb' },
+  { name: 'High contrast', stops: ['#000000', '#000000', '#000000'], text: '#ffffff' },
+  { name: 'Ocean', stops: ['#1d4e7a', '#123556', '#0a1f36'], text: '#e8f4ff' },
+  { name: 'Forest', stops: ['#1f5a44', '#153f30', '#0d2620'], text: '#eafaf1' },
+  { name: 'Warm', stops: ['#6a3a2a', '#45261e', '#26150f'], text: '#fff1e6' },
+];
 
 // Session review screen: every answer from the session, mistakes first, paged.
 const REVIEW_TOP = 250;
@@ -73,6 +85,7 @@ export function createGame(env) {
     sessionsCompleted: 0,
     history: [], // this session's answers: { word, mode, answer, picked (null = drifted past), correct }
     reviewPage: 0,
+    scheme: 0,
     demo,
     demoSessions: 0,
     demoLimitReached: false,
@@ -81,6 +94,11 @@ export function createGame(env) {
 
   let recentWords = [];
 
+  storage.get('scheme', 0).then((v) => (state.scheme = SCHEMES[v] ? v : 0));
+  const cycleScheme = () => {
+    state.scheme = (state.scheme + 1) % SCHEMES.length;
+    storage.set('scheme', state.scheme);
+  };
   storage.get('bestSynonym', 0).then((v) => (state.bestSynonym = v));
   storage.get('bestAntonym', 0).then((v) => (state.bestAntonym = v));
   if (demo) {
@@ -198,6 +216,7 @@ export function createGame(env) {
     if (inRect(x, y, MODE_SYN_BTN)) state.selectedMode = 'synonym';
     else if (inRect(x, y, MODE_ANT_BTN)) state.selectedMode = 'antonym';
     else if (inRect(x, y, PLAY_BTN)) startSession();
+    else if (inRect(x, y, TITLE_COLOR_BTN)) cycleScheme();
   };
 
   const updatePlaying = (dt, input) => {
@@ -223,6 +242,10 @@ export function createGame(env) {
     // second input in the same tick (e.g. a key alongside a tap) score twice on words that no
     // longer exist.
     if (input.pointer.pressed) {
+      if (inRect(input.pointer.x, input.pointer.y, COLOR_BTN)) {
+        cycleScheme();
+        return;
+      }
       if (inRect(input.pointer.x, input.pointer.y, STOP_BTN)) {
         endSession();
         return;
@@ -276,16 +299,17 @@ export function createGame(env) {
         meta.width / 2, meta.height * 0.18, meta.height * 0.08,
         meta.width / 2, meta.height * 0.5, meta.height * 0.85
       );
-      g.addColorStop(0, '#3a3560');
-      g.addColorStop(0.55, '#262a42');
-      g.addColorStop(1, '#181a26');
+      const scheme = SCHEMES[state.scheme];
+      g.addColorStop(0, scheme.stops[0]);
+      g.addColorStop(0.55, scheme.stops[1]);
+      g.addColorStop(1, scheme.stops[2]);
       ctx.fillStyle = g;
       ctx.fillRect(0, 0, meta.width, meta.height);
 
       ctx.textAlign = 'center';
 
       if (state.scene === 'title') {
-        ctx.fillStyle = '#eef0fb';
+        ctx.fillStyle = scheme.text;
         ctx.font = 'bold 60px system-ui, sans-serif';
         ctx.fillText(env.manifest.title, meta.width / 2, 160);
         ctx.font = '28px system-ui, sans-serif';
@@ -297,11 +321,12 @@ export function createGame(env) {
         drawButton(ctx, MODE_ANT_BTN, 'Antonym', state.selectedMode === 'antonym' ? 'active' : undefined);
 
         const bestNow = state.selectedMode === 'synonym' ? state.bestSynonym : state.bestAntonym;
-        ctx.fillStyle = '#eef0fb';
+        ctx.fillStyle = scheme.text;
         ctx.font = '600 26px system-ui, sans-serif';
         ctx.fillText(`Best (${state.selectedMode}): ${bestNow}`, meta.width / 2, 440);
 
         drawButton(ctx, PLAY_BTN, 'Play', 'primary');
+        drawButton(ctx, TITLE_COLOR_BTN, `🎨 Colours: ${scheme.name}`);
 
         if (demo) {
           ctx.fillStyle = '#9aa0c0';
@@ -313,7 +338,7 @@ export function createGame(env) {
       }
 
       if (state.scene === 'demo-limit') {
-        ctx.fillStyle = '#eef0fb';
+        ctx.fillStyle = scheme.text;
         ctx.font = 'bold 44px system-ui, sans-serif';
         ctx.fillText("You've played the free demo", meta.width / 2, meta.height * 0.42);
         ctx.font = '28px system-ui, sans-serif';
@@ -325,7 +350,7 @@ export function createGame(env) {
 
       // Score (top-left) + timer (top-right) — small, out of the way.
       ctx.textAlign = 'left';
-      ctx.fillStyle = '#eef0fb';
+      ctx.fillStyle = scheme.text;
       ctx.font = '600 34px system-ui, sans-serif';
       ctx.fillText(String(state.score), 40, 60);
       ctx.textAlign = 'right';
@@ -339,24 +364,27 @@ export function createGame(env) {
         ctx.fillStyle = '#9aa0c0';
         ctx.font = '600 22px system-ui, sans-serif';
         ctx.fillText(`TAP THE ${state.round.mode.toUpperCase()} OF`, meta.width / 2, 140);
-        ctx.fillStyle = '#eef0fb';
+        ctx.fillStyle = scheme.text;
         ctx.font = 'bold 52px system-ui, sans-serif';
         ctx.fillText(state.round.targetWord, meta.width / 2, 210);
 
         // Words drift as plain text — no chip behind them and one shared colour, so nothing
         // pulls the eye toward a particular option.
-        ctx.fillStyle = '#eef0fb';
+        ctx.fillStyle = scheme.text;
         // Same size and weight as the target word so the two read as equals.
         ctx.font = 'bold 52px system-ui, sans-serif';
         for (const w of state.round.words) ctx.fillText(w.text, w.x, w.y + 18);
 
-        if (state.scene === 'playing') drawButton(ctx, STOP_BTN, 'Stop');
+        if (state.scene === 'playing') {
+          drawButton(ctx, STOP_BTN, 'Stop');
+          drawButton(ctx, COLOR_BTN, '🎨 Colours');
+        }
       }
 
       if (state.scene === 'gameover') {
         ctx.fillStyle = 'rgba(6,7,13,0.82)';
         ctx.fillRect(0, 0, meta.width, meta.height);
-        ctx.fillStyle = '#eef0fb';
+        ctx.fillStyle = scheme.text;
         ctx.font = 'bold 50px system-ui, sans-serif';
         ctx.fillText("Time's up! Review", meta.width / 2, 90);
         const right = state.history.filter((h) => h.correct).length;
@@ -386,7 +414,7 @@ export function createGame(env) {
           ctx.textAlign = 'left';
           ctx.font = 'bold 34px system-ui, sans-serif';
           ctx.fillText(h.correct ? '✓' : '✗', 48, y + 44);
-          ctx.fillStyle = '#eef0fb';
+          ctx.fillStyle = scheme.text;
           ctx.font = 'bold 32px system-ui, sans-serif';
           ctx.fillText(h.word, 96, y + 40);
           ctx.textAlign = 'right';

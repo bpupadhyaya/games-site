@@ -34,6 +34,13 @@ const STANDARD_INK = { S: '#161616', H: '#b3261e', D: '#b3261e', C: '#161616' };
 // Four-colour deck (GDD > Art direction): suit identity never depends on red-vs-black alone.
 const FOUR_COLOR_INK = { S: '#1a7a3c', H: '#b3261e', D: '#1f5fa8', C: '#161616' };
 
+// Table colours (index 0 is the original felt green and stays the default; players can cycle).
+const TABLES = [
+  { name: 'Green', stops: ['#2f8f68', '#1d5f45', '#234a38'] },
+  { name: 'Blue', stops: ['#3f78c8', '#245093', '#183a68'] },
+  { name: 'Burgundy', stops: ['#a83a55', '#7a2340', '#4f1729'] },
+  { name: 'Charcoal', stops: ['#4a5060', '#2c303c', '#1a1c24'] },
+];
 const BG = '#1d5f45'; // vibrant felt-green identity — depth comes from a static radial gradient below, no animation/flashing
 const CARD_FACE = '#faf7ef';
 const CARD_BORDER = '#20201c';
@@ -61,6 +68,7 @@ export function createGame(env) {
     fourColorDeck: false,
     unlockedThemes: [],
     activeTheme: 'classic',
+    table: 0,
     message: '', // quiet, non-scored feedback (e.g. the deal-honesty note below)
   };
 
@@ -70,7 +78,9 @@ export function createGame(env) {
     storage.get('unlockedThemes', []),
     storage.get('activeTheme', 'classic'),
     storage.get('fourColorDeck', false),
-  ]).then(([handsPlayed, handsWon, unlockedThemes, activeTheme, fourColorDeck]) => {
+    storage.get('table', 0),
+  ]).then(([handsPlayed, handsWon, unlockedThemes, activeTheme, fourColorDeck, table]) => {
+    state.table = TABLES[table] ? table : 0;
     state.handsPlayed = handsPlayed;
     state.handsWon = handsWon;
     state.unlockedThemes = unlockedThemes;
@@ -184,7 +194,20 @@ export function createGame(env) {
   const rectContains = (r, x, y) => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
   const themeSwatchRect = (i) => ({ x: 40 + i * 150, y: meta.height * 0.51, w: 120, h: 120 });
 
+  const TABLE_BTN = { x: 40, y: 830, w: 310, h: 84 };
+  const SUITS_BTN = { x: 370, y: 830, w: 310, h: 84 };
+  const cycleTable = () => {
+    state.table = (state.table + 1) % TABLES.length;
+    storage.set('table', state.table);
+  };
+  const toggleSuits = () => {
+    state.fourColorDeck = !state.fourColorDeck;
+    storage.set('fourColorDeck', state.fourColorDeck);
+  };
+
   const handleTitleTap = (x, y) => {
+    if (rectContains(TABLE_BTN, x, y)) return cycleTable();
+    if (rectContains(SUITS_BTN, x, y)) return toggleSuits();
     for (let i = 0; i < THEMES.length; i++) {
       const r = themeSwatchRect(i);
       if (!rectContains(r, x, y)) continue;
@@ -197,6 +220,8 @@ export function createGame(env) {
   };
 
   const handlePlayingTap = (x, y) => {
+    if (rectContains(PLAY_TABLE_BTN, x, y)) return cycleTable();
+    if (rectContains(PLAY_SUITS_BTN, x, y)) return toggleSuits();
     if (rectContains(HINT_BTN, x, y)) {
       state.hint = !state.hint;
       state.selected = null;
@@ -275,14 +300,15 @@ function roundRectPath(ctx, x, y, w, h, r) {
   ctx.closePath();
 }
 
-function drawBackground(ctx) {
+function drawBackground(ctx, state) {
+  const stops = TABLES[state.table].stops;
   const g = ctx.createRadialGradient(
     meta.width / 2, meta.height * 0.32, meta.height * 0.1,
     meta.width / 2, meta.height * 0.5, meta.height * 0.85
   );
-  g.addColorStop(0, '#2f8f68');
-  g.addColorStop(0.6, BG);
-  g.addColorStop(1, '#234a38');
+  g.addColorStop(0, stops[0]);
+  g.addColorStop(0.6, stops[1]);
+  g.addColorStop(1, stops[2]);
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, meta.width, meta.height);
 }
@@ -453,7 +479,7 @@ function isHighlightedDestination(moves, kind, col) {
 }
 
 function drawBoard(ctx, env, state, layout) {
-  drawBackground(ctx);
+  drawBackground(ctx, state);
 
   if (state.scene === 'demo-limit') {
     drawDemoLimit(ctx);
@@ -537,7 +563,12 @@ function drawBoard(ctx, env, state, layout) {
   if (state.scene === 'won') drawWon(ctx);
 }
 
+const PLAY_TABLE_BTN = { x: 20, y: 1170, w: 160, h: 76 };
+const PLAY_SUITS_BTN = { x: 540, y: 1170, w: 160, h: 76 };
+
 function drawHintButton(ctx, state) {
+  drawButton(ctx, PLAY_TABLE_BTN, `🎨 ${TABLES[state.table].name}`, 'secondary');
+  drawButton(ctx, PLAY_SUITS_BTN, state.fourColorDeck ? '4-colour' : '2-colour', 'secondary');
   const r = { x: meta.width / 2 - 170, y: meta.height - 110, w: 340, h: 76 };
   drawButton(ctx, r, 'What can I do?', state.hint ? 'active' : 'secondary');
 }
@@ -553,6 +584,9 @@ function drawTitle(ctx, env, state) {
 
   const cta = { x: meta.width / 2 - 240, y: meta.height * 0.27, w: 480, h: 92 };
   drawButton(ctx, cta, 'Tap anywhere to deal', 'primary');
+
+  drawButton(ctx, { x: 40, y: 830, w: 310, h: 84 }, `🎨 Table: ${TABLES[state.table].name}`, 'secondary');
+  drawButton(ctx, { x: 370, y: 830, w: 310, h: 84 }, `Suits: ${state.fourColorDeck ? '4-colour' : '2-colour'}`, 'secondary');
 
   drawPill(ctx, meta.width / 2, meta.height * 0.4, `Hands played: ${state.handsPlayed}   Hands won: ${state.handsWon}`);
 

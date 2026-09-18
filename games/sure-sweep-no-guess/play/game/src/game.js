@@ -27,7 +27,19 @@ const HINT_BTN = { x: 312, y: 1110, w: 96, h: 96 };
 const NEW_BTN = { x: 584, y: 1110, w: 96, h: 96 };
 const SHIELD_BTN = { x: 160, y: 760, w: 400, h: 96 };
 
-const NUMBER_COLORS = ['#000', '#1565c0', '#2e7d32', '#c62828', '#0d1a63', '#6a1b1a', '#00838f', '#111111', '#555555'];
+const COLOR_BTN = { x: 176, y: 1110, w: 96, h: 96 };
+const TITLE_COLOR_BTN = { x: 160, y: 900, w: 400, h: 80 };
+
+// Colour schemes. Index 0 is the original look and stays the default; players can cycle through
+// the others in-game (some colours are easier on some eyes).
+const DEFAULT_NUMBERS = ['#000', '#1565c0', '#2e7d32', '#c62828', '#0d1a63', '#6a1b1a', '#00838f', '#111111', '#555555'];
+const THEMES = [
+  { name: 'Default', bg: ['#2f7ba3', '#2a5f7e', '#2a4f66'], hidden: ['#3a4356', '#262d3d'], revealed: ['#f4f6f8', '#dde3ea'], numbers: DEFAULT_NUMBERS },
+  { name: 'Dark', bg: ['#1d2230', '#161a26', '#10131c'], hidden: ['#3a4356', '#262d3d'], revealed: ['#cfd6e0', '#b4bcc9'], numbers: DEFAULT_NUMBERS },
+  { name: 'High contrast', bg: ['#000000', '#000000', '#000000'], hidden: ['#5b6478', '#454c5e'], revealed: ['#ffffff', '#f0f0f0'], numbers: ['#000', '#0000ff', '#007a00', '#d00000', '#00008b', '#8b0000', '#007b8b', '#000', '#444'] },
+  { name: 'Colour-blind safe', bg: ['#2f7ba3', '#2a5f7e', '#2a4f66'], hidden: ['#3a4356', '#262d3d'], revealed: ['#f4f6f8', '#dde3ea'], numbers: ['#000', '#0072B2', '#b36b00', '#D55E00', '#CC79A7', '#009E73', '#2a6f9e', '#000', '#555'] },
+  { name: 'Warm', bg: ['#a3692f', '#7e5a2a', '#664a2a'], hidden: ['#8a6b4a', '#6f5538'], revealed: ['#fbf3e4', '#efe2c8'], numbers: DEFAULT_NUMBERS },
+];
 
 const inRect = (x, y, r) => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
 
@@ -67,6 +79,15 @@ export function createGame(env) {
     demo,
     demoBoards: 0,
     demoLimitReached: false,
+    theme: 0,
+  };
+
+  storage.get('theme', 0).then((v) => {
+    state.theme = THEMES[v] ? v : 0;
+  });
+  const cycleTheme = () => {
+    state.theme = (state.theme + 1) % THEMES.length;
+    storage.set('theme', state.theme);
   };
 
   storage.get('bestTime', null).then((v) => {
@@ -251,7 +272,8 @@ export function createGame(env) {
       if (state.scene === 'demo-limit') return;
 
       if (state.scene === 'title') {
-        newBoard();
+        if (inRect(x, y, TITLE_COLOR_BTN)) cycleTheme();
+        else newBoard();
         return;
       }
 
@@ -259,6 +281,10 @@ export function createGame(env) {
         if (inRect(x, y, FLAG_BTN)) {
           state.flagMode = !state.flagMode;
           audio.tone({ freq: 240, dur: 0.05 });
+          return;
+        }
+        if (inRect(x, y, COLOR_BTN)) {
+          cycleTheme();
           return;
         }
         if (inRect(x, y, HINT_BTN)) {
@@ -311,6 +337,7 @@ export function createGame(env) {
         ctx.fillStyle = '#eef1f4';
         ctx.font = '800 38px system-ui, sans-serif';
         ctx.fillText('Tap to play', meta.width / 2, meta.height * 0.4);
+        drawButton(ctx, TITLE_COLOR_BTN, `🎨 Colours: ${THEMES[state.theme].name}`, '#2a3550');
         ctx.font = '500 25px system-ui, sans-serif';
         ctx.fillStyle = 'rgba(224,228,240,0.65)';
         ctx.fillText('Every board is provably solvable by logic alone.', meta.width / 2, meta.height * 0.46);
@@ -334,6 +361,11 @@ export function createGame(env) {
 
       drawGrid(ctx);
       drawButton(ctx, FLAG_BTN, state.flagMode ? '🚩·' : '🚩', state.flagMode ? '#e63946' : '#2a3550');
+      drawButton(ctx, COLOR_BTN, '🎨', '#2a3550');
+      ctx.fillStyle = 'rgba(224,228,240,0.65)';
+      ctx.font = '500 22px system-ui, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(`Colours: ${THEMES[state.theme].name}`, meta.width / 2, 1090);
       drawButton(ctx, HINT_BTN, '💡', '#2a3550');
       drawButton(ctx, NEW_BTN, '↻', '#2a3550');
 
@@ -385,9 +417,10 @@ export function createGame(env) {
 
   function drawBackground(ctx) {
     const g = ctx.createRadialGradient(meta.width * 0.75, -40, 30, meta.width * 0.75, -40, meta.width * 1.2);
-    g.addColorStop(0, '#2f7ba3');
-    g.addColorStop(0.55, '#2a5f7e');
-    g.addColorStop(1, '#2a4f66');
+    const bg = THEMES[state.theme].bg;
+    g.addColorStop(0, bg[0]);
+    g.addColorStop(0.55, bg[1]);
+    g.addColorStop(1, bg[2]);
     ctx.fillStyle = g;
     ctx.fillRect(0, 0, meta.width, meta.height);
   }
@@ -470,23 +503,23 @@ export function createGame(env) {
             g.addColorStop(0, '#e63946');
             g.addColorStop(1, '#b3212f');
           } else {
-            g.addColorStop(0, '#f4f6f8');
-            g.addColorStop(1, '#dde3ea');
+            g.addColorStop(0, THEMES[state.theme].revealed[0]);
+            g.addColorStop(1, THEMES[state.theme].revealed[1]);
           }
           ctx.fillStyle = g;
           ctx.fill();
           if (state.numbers[i] === -1) {
             drawMine(ctx, x, y);
           } else if (state.numbers[i] > 0) {
-            ctx.fillStyle = NUMBER_COLORS[state.numbers[i]];
+            ctx.fillStyle = THEMES[state.theme].numbers[state.numbers[i]];
             ctx.font = '800 32px system-ui, sans-serif';
             ctx.textAlign = 'center';
             ctx.fillText(String(state.numbers[i]), x + CELL / 2, y + CELL / 2 + 11);
           }
         } else {
           const g = ctx.createLinearGradient(x, y, x, y + CELL);
-          g.addColorStop(0, '#3a4356');
-          g.addColorStop(1, '#262d3d');
+          g.addColorStop(0, THEMES[state.theme].hidden[0]);
+          g.addColorStop(1, THEMES[state.theme].hidden[1]);
           ctx.fillStyle = g;
           ctx.fill();
           ctx.strokeStyle = 'rgba(255,255,255,0.08)';

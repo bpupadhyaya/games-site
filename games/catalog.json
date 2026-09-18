@@ -12,28 +12,11 @@
       "Build the four foundation piles up by suit, from Ace to King.",
       "Stack tableau cards down in alternating colours.",
       "Tap the stock pile to draw a new card when you're stuck.",
-      "Tap \"what can I do?\" any time to see every legal move highlighted."
+      "Tap \"what can I do?\" any time to see every legal move highlighted.",
+      "Change the table colour and 2- or 4-colour suits from the title screen or while playing - your choice is remembered."
     ],
     "icon": "games/big-card-solitaire-large-print/icon.svg",
     "play": "games/big-card-solitaire-large-print/play/"
-  },
-  {
-    "slug": "crown-star-regions",
-    "stage": "prototype",
-    "title": "Crown Fields",
-    "tagline": "One crown per row, column and region. No touching.",
-    "description": "Crown Fields is a calm grid-placement puzzle: place one crown in every row, column and coloured region so that no two crowns touch, even diagonally. Every puzzle is generated fresh with exactly one solution. Play a quick 7x7 for a coffee break, or unlock the tougher 10x10 Expert board. No timers, no pressure - just clean logic.",
-    "genre": "star battle / queens regions",
-    "demo": true,
-    "howToPlay": [
-      "Tap a cell to cycle it: empty, then crossed out, then a crown.",
-      "Placing a crown automatically crosses out every cell it would make illegal.",
-      "Every row, column and coloured region needs exactly one crown.",
-      "No two crowns may touch, even diagonally.",
-      "Fill the whole board correctly to solve the puzzle."
-    ],
-    "icon": "games/crown-star-regions/icon.svg",
-    "play": "games/crown-star-regions/play/"
   },
   {
     "slug": "sure-sweep-no-guess",
@@ -48,7 +31,8 @@
       "A number shows how many mines touch that cell.",
       "Tap the Flag button, then tap a cell to mark it as a suspected mine.",
       "Tap a revealed number when its flags match it to clear the safe cells around it.",
-      "Reveal every non-mine cell to win - the board is guaranteed solvable without guessing."
+      "Reveal every non-mine cell to win - the board is guaranteed solvable without guessing.",
+      "Tap the colour button on the title screen or while playing to switch colour schemes - your choice is remembered."
     ],
     "icon": "games/sure-sweep-no-guess/icon.svg",
     "play": "games/sure-sweep-no-guess/play/"
@@ -58,7 +42,7 @@
     "stage": "release-candidate",
     "title": "Word Game",
     "tagline": "Tap the matching word before it drifts away.",
-    "description": "A target word appears, and three candidate words drift in from the right at their own pace and height. Tap the one that's the correct synonym or antonym before it drifts past. Pick synonym-only or antonym-only before you start, and that choice holds for the whole timed session - a fast, focused way to build vocabulary, not a mixed grab-bag quiz.",
+    "description": "Word Game is a fast vocabulary drill built around over 300 graduate-level words. A target word appears at the top and three candidate words drift across the screen - tap the correct synonym or antonym before it drifts away. After every session you get a full review of each word: what you tapped, the correct answer and its meaning, so mistakes turn into words you remember.",
     "genre": "timed vocabulary drill",
     "demo": true,
     "howToPlay": [
@@ -66,8 +50,10 @@
       "A target word appears at the top; three candidate words drift in from the right.",
       "Tap the one word that correctly matches the target before it drifts off-screen.",
       "A correct tap scores a point and the next word appears immediately.",
-      "A wrong tap, or letting the right word drift past, ends that round with no point - the next word appears right away.",
-      "Beat your own best score before the clock runs out."
+      "A wrong tap, or letting the right word drift past, ends that word with no point - the next word appears right away.",
+      "Tap Stop any time to end the session early.",
+      "When the session ends, review every word: your answer, the correct answer and its meaning. Then play again to beat your best score.",
+      "Tap Colours on the title screen or while playing to switch colour schemes - the default is kept and your choice is remembered."
     ],
     "icon": "games/word-game/icon.svg",
     "play": "games/word-game/play/"

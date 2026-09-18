@@ -1,7 +1,7 @@
 {
   "title": "Word Game",
   "tagline": "Tap the matching word before it drifts away.",
-  "description": "A target word appears, and three candidate words drift in from the right at their own pace and height. Tap the one that's the correct synonym or antonym before it drifts past. Pick synonym-only or antonym-only before you start, and that choice holds for the whole timed session - a fast, focused way to build vocabulary, not a mixed grab-bag quiz.",
+  "description": "Word Game is a fast vocabulary drill built around over 300 graduate-level words. A target word appears at the top and three candidate words drift across the screen - tap the correct synonym or antonym before it drifts away. After every session you get a full review of each word: what you tapped, the correct answer and its meaning, so mistakes turn into words you remember.",
   "genre": "timed vocabulary drill",
   "demo": true,
   "howToPlay": [
@@ -9,7 +9,9 @@
     "A target word appears at the top; three candidate words drift in from the right.",
     "Tap the one word that correctly matches the target before it drifts off-screen.",
     "A correct tap scores a point and the next word appears immediately.",
-    "A wrong tap, or letting the right word drift past, ends that round with no point - the next word appears right away.",
-    "Beat your own best score before the clock runs out."
+    "A wrong tap, or letting the right word drift past, ends that word with no point - the next word appears right away.",
+    "Tap Stop any time to end the session early.",
+    "When the session ends, review every word: your answer, the correct answer and its meaning. Then play again to beat your best score.",
+    "Tap Colours on the title screen or while playing to switch colour schemes - the default is kept and your choice is remembered."
   ]
 }
