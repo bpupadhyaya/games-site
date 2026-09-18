@@ -571,10 +571,26 @@ mainNav.querySelectorAll('a').forEach(link => {
     lastTs = 0;
     sessionMode = selectedMode; // locked in from the player's toggle choice for this whole session
     spawnRound();
-    startBtn.textContent = 'Restart';
+    startBtn.textContent = 'Stop';
     setModeButtonsDisabled(true);
     cancelAnimationFrame(rafId);
     rafId = requestAnimationFrame(step);
+  }
+
+  // Ends the session early (before the 90s timer runs out) so the player can re-pick
+  // synonym/antonym and start a fresh session, instead of waiting the round out.
+  function stopGame() {
+    cancelAnimationFrame(rafId);
+    state = 'idle';
+    round = null;
+    if (score > best) {
+      best = score;
+      localStorage.setItem('arcforgeWordMatchBest', String(best));
+      bestEl.textContent = String(best);
+    }
+    startBtn.textContent = 'Play';
+    setModeButtonsDisabled(false);
+    draw();
   }
 
   function setModeButtonsDisabled(disabled) {
@@ -615,7 +631,10 @@ mainNav.querySelectorAll('a').forEach(link => {
     e.preventDefault();
   }, { passive: false });
 
-  startBtn.addEventListener('click', startGame);
+  startBtn.addEventListener('click', () => {
+    if (state === 'playing') stopGame();
+    else startGame();
+  });
 
   draw();
 })();
