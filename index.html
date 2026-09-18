@@ -152,19 +152,37 @@
       <h2 class="section-title center">A taste of what's playable in-browser</h2>
       <p class="section-sub center">
         Real Arcforge games ship natively on iOS and Android — but where it makes sense,
-        we build lightweight, playable web trailers like this one so you can feel the game
-        before you download it.
+        we build lightweight, playable web trailers like these so you can feel the game
+        before you download it. Two quick variations, same core catch mechanic.
       </p>
 
-      <div class="demo-panel">
-        <canvas id="demoCanvas" width="480" height="320" aria-label="Playable tech demo: catch the falling orbs"></canvas>
-        <div class="demo-hud">
-          <div class="demo-score">Score <strong id="demoScore">0</strong></div>
-          <div class="demo-best">Best <strong id="demoBest">0</strong></div>
-          <button id="demoStart" class="btn btn-primary btn-sm">Play</button>
+      <div class="demo-grid">
+        <div class="demo-card">
+          <h3 class="demo-card-title">Catch the Orbs</h3>
+          <div class="demo-panel">
+            <canvas id="demoCanvas" class="demo-canvas" width="480" height="320" aria-label="Playable tech demo: catch the falling orbs"></canvas>
+            <div class="demo-hud">
+              <div class="demo-score">Score <strong id="demoScore">0</strong></div>
+              <div class="demo-best">Best <strong id="demoBest">0</strong></div>
+              <button id="demoStart" class="btn btn-primary btn-sm">Play</button>
+            </div>
+          </div>
+          <p class="demo-hint">Move your mouse or finger to catch falling orbs before they hit the floor. Miss three and it's game over.</p>
+        </div>
+
+        <div class="demo-card">
+          <h3 class="demo-card-title">Eye Trainer <span class="demo-card-badge">Peripheral vision</span></h3>
+          <div class="demo-panel">
+            <canvas id="demoCanvas2" class="demo-canvas" width="480" height="320" aria-label="Playable tech demo: orbs fall from above and arc in from both sides"></canvas>
+            <div class="demo-hud">
+              <div class="demo-score">Score <strong id="demoScore2">0</strong></div>
+              <div class="demo-best">Best <strong id="demoBest2">0</strong></div>
+              <button id="demoStart2" class="btn btn-primary btn-sm">Play</button>
+            </div>
+          </div>
+          <p class="demo-hint">Orbs fall from above and arc in from both sides in a curving parabola. Catching them all keeps your eyes moving in every direction — a fun way to exercise peripheral vision, not just up-and-down tracking.</p>
         </div>
       </div>
-      <p class="demo-hint">Move your mouse or finger to catch falling orbs before they hit the floor. Miss three and it's game over.</p>
     </div>
   </section>
 

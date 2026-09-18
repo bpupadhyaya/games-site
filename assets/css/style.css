@@ -321,6 +321,36 @@ section { padding: 90px 0; position: relative; }
 .next-inner p { margin: 0; font-size: 13.5px; }
 
 /* Demo */
+.demo-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 28px;
+}
+.demo-card { flex: 1 1 480px; max-width: 520px; }
+.demo-card-title {
+  text-align: center;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 1.05rem;
+  margin: 0 0 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+.demo-card-badge {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--cyan);
+  background: rgba(34,211,238,0.12);
+  border: 1px solid rgba(34,211,238,0.3);
+  padding: 3px 10px;
+  border-radius: 999px;
+}
 .demo-panel {
   max-width: 520px;
   margin: 0 auto 16px;
@@ -329,7 +359,7 @@ section { padding: 90px 0; position: relative; }
   border-radius: var(--radius);
   padding: 18px;
 }
-#demoCanvas {
+.demo-canvas {
   width: 100%;
   height: auto;
   display: block;
