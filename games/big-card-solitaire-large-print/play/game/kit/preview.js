@@ -12,9 +12,8 @@ const formatClock = (ms) => {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 };
 
-const priceLabel = (product) => {
+const priceLabel = (product, price) => {
   if (!product) return 'Unlock';
-  const price = `$${product.priceUsd.toFixed(2)}`;
   if (product.type === 'subscription') return `Subscribe — ${price}/${product.period ?? 'month'}`;
   return `Unlock full game — ${price}`;
 };
@@ -110,7 +109,7 @@ export function createPreviewGate({ game, meta, storage, monetization, manifest,
       : [`You've played the ${config.previewSeconds}-second preview of ${manifest.title}.`, 'Unlock it to keep playing.'];
     lines.forEach((line, i) => ctx.fillText(line, w / 2, panel.y + 140 + i * 40));
     if (!demo) {
-      drawButton(ctx, buyBtn, busy ? 'Please wait…' : priceLabel(product), '#8b5cf6', '#ffffff');
+      drawButton(ctx, buyBtn, busy ? 'Please wait…' : priceLabel(product, monetization.priceOf?.(PRODUCT_ID) ?? `$${product?.priceUsd?.toFixed(2)}`), '#8b5cf6', '#ffffff');
       drawButton(ctx, restoreBtn, 'Restore purchase', 'rgba(255,255,255,0.10)', '#e5e7f5');
       if (message) {
         ctx.font = '400 24px system-ui, sans-serif';

@@ -30,7 +30,8 @@ export async function boot({ createGame, meta, canvas, background }) {
     config: { seed, demo },
     manifest,
   };
-  await env.monetization.init().catch(() => {});
+  // Ownership arrives via monetization.onChange; never hold the game hostage to a slow store.
+  await Promise.race([env.monetization.init().catch(() => {}), new Promise((resolve) => setTimeout(resolve, 3000))]);
 
   const rawGame = await createGame(env);
   // game.json `monetization.previewSeconds` = free play time before the unlock screen (kit/preview.js).

@@ -6,9 +6,15 @@ export function createMonetization({ bridge, manifest, mode }) {
   const config = manifest.monetization ?? { model: 'premium' };
   const products = config.products ?? [];
   const owned = new Set();
+  const prices = {}; // localized store prices by product id, filled in by init() in native mode
   const listeners = new Set();
   const resolvedMode = mode ?? (bridge?.native ? 'native' : 'mock');
   const changed = () => listeners.forEach((fn) => fn());
+  const refresh = async () => {
+    const res = await bridge.call('iap.entitlements', { products });
+    for (const id of res?.owned ?? []) owned.add(id);
+    changed();
+  };
 
   return {
     mode: resolvedMode,
@@ -16,9 +22,20 @@ export function createMonetization({ bridge, manifest, mode }) {
     products,
     async init() {
       if (resolvedMode !== 'native') return;
-      const res = await bridge.call('iap.entitlements', { products });
-      for (const id of res?.owned ?? []) owned.add(id);
-      changed();
+      // Ownership changes outside our own purchase() (slow payment approved, another device):
+      // the shell sends iap.changed and we re-read entitlements.
+      bridge.on?.('iap.changed', () => refresh().catch(() => {}));
+      // Prices are best-effort: without them we show the game.json price.
+      bridge.call('iap.prices', { products }).then((res) => {
+        Object.assign(prices, res?.prices ?? {});
+        changed();
+      }).catch(() => {});
+      await refresh();
+    },
+    // The price to show for a product: the store's localized price when known, else game.json's.
+    priceOf(productId) {
+      const product = products.find((p) => p.id === productId);
+      return prices[productId] ?? (product ? `$${product.priceUsd.toFixed(2)}` : '');
     },
     owns: (productId) => owned.has(productId),
     onChange(fn) {
