@@ -26,9 +26,25 @@ export function createPreviewGate({ game, meta, storage, monetization, manifest,
   const product = (config.products ?? []).find((p) => p.id === PRODUCT_ID);
   const w = meta.width;
   const h = meta.height;
-  const panel = { x: w * 0.08, y: h * 0.28, w: w * 0.84, h: h * 0.44 };
-  const buyBtn = { x: panel.x + 40, y: panel.y + panel.h - 190, w: panel.w - 80, h: 80 };
-  const restoreBtn = { x: panel.x + 40, y: panel.y + panel.h - 95, w: panel.w - 80, h: 60 };
+  const panel = { x: w * 0.08, y: h * 0.24, w: w * 0.84, h: h * 0.52 };
+  const buyBtn = { x: panel.x + 40, y: panel.y + panel.h - 250, w: panel.w - 80, h: 80 };
+  const restoreBtn = { x: panel.x + 40, y: panel.y + panel.h - 150, w: panel.w - 80, h: 60 };
+  const textW = panel.w - 80;
+
+  // Greedy word wrap so no line ever runs past the panel.
+  const wrap = (ctx, text, maxW) => {
+    const lines = [];
+    let line = '';
+    for (const word of text.split(' ')) {
+      const next = line ? `${line} ${word}` : word;
+      if (line && ctx.measureText(next).width > maxW) {
+        lines.push(line);
+        line = word;
+      } else line = next;
+    }
+    if (line) lines.push(line);
+    return lines;
+  };
 
   let usedMs = 0;
   let unsavedMs = 0;
@@ -102,19 +118,19 @@ export function createPreviewGate({ game, meta, storage, monetization, manifest,
     ctx.textBaseline = 'middle';
     ctx.font = '700 44px system-ui, sans-serif';
     ctx.fillText('Free preview finished', w / 2, panel.y + 70);
-    ctx.font = '400 28px system-ui, sans-serif';
+    ctx.font = '400 26px system-ui, sans-serif';
     ctx.fillStyle = '#c9cce0';
-    const lines = demo
-      ? [`You've played the free preview of ${manifest.title}.`, 'Get the full game on iPhone and Android.']
-      : [`You've played the ${config.previewSeconds}-second preview of ${manifest.title}.`, 'Unlock it to keep playing.'];
-    lines.forEach((line, i) => ctx.fillText(line, w / 2, panel.y + 140 + i * 40));
+    const body = demo
+      ? `You've played the free preview of ${manifest.title}. Get the full game on iPhone and Android.`
+      : `You've played the ${config.previewSeconds}-second preview of ${manifest.title}. Unlock it to keep playing.`;
+    wrap(ctx, body, textW).forEach((line, i) => ctx.fillText(line, w / 2, panel.y + 140 + i * 38));
     if (!demo) {
       drawButton(ctx, buyBtn, busy ? 'Please wait…' : priceLabel(product, monetization.priceOf?.(PRODUCT_ID) ?? `$${product?.priceUsd?.toFixed(2)}`), '#8b5cf6', '#ffffff');
       drawButton(ctx, restoreBtn, 'Restore purchase', 'rgba(255,255,255,0.10)', '#e5e7f5');
       if (message) {
         ctx.font = '400 24px system-ui, sans-serif';
         ctx.fillStyle = '#f9a8d4';
-        ctx.fillText(message, w / 2, panel.y + panel.h - 25);
+        wrap(ctx, message, textW).forEach((line, i) => ctx.fillText(line, w / 2, restoreBtn.y + restoreBtn.h + 30 + i * 30));
       }
     }
   };
