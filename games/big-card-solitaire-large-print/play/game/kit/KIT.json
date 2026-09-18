@@ -1,5 +1,5 @@
 {
-  "version": "1.2.0",
-  "hash": "01e0f32962e6847dc861d6475652aac946202a40fa20c2fa0e722517aeb6bbe2",
+  "version": "1.2.1",
+  "hash": "2d6d1ab369b03cda2c91c6bc9f8ca3345f5ced5a704287ad67a616dcdc87c39b",
   "note": "Vendored copy. Never edit. Upgrade with: tools/arc kit-upgrade"
 }

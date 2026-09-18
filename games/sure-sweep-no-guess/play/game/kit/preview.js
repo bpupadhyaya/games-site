@@ -40,8 +40,11 @@ export function createPreviewGate({ game, meta, storage, monetization, manifest,
   monetization.onChange(() => {
     owned = monetization.owns(PRODUCT_ID);
   });
+  // The game never waits on this read: play (and the timer) start immediately, and the saved
+  // total is merged in whenever it arrives. `loaded` only gates the overlay.
   storage.get(STORAGE_KEY, 0).then((v) => {
     usedMs = Math.max(usedMs, Number(v) || 0);
+  }).catch(() => {}).finally(() => {
     loaded = true;
   });
 
@@ -134,7 +137,6 @@ export function createPreviewGate({ game, meta, storage, monetization, manifest,
   return {
     ...game,
     update(dt, input) {
-      if (!loaded) return;
       if (locked()) {
         if (!demo && input.pointer.pressed) {
           const { x, y } = input.pointer;
@@ -151,7 +153,6 @@ export function createPreviewGate({ game, meta, storage, monetization, manifest,
     },
     render(ctx, view) {
       game.render(ctx, view);
-      if (!loaded) return;
       ctx.save();
       if (locked()) drawOverlay(ctx);
       else if (!owned) drawCountdown(ctx);
