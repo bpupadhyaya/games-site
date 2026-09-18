@@ -3,5 +3,12 @@
   "tagline": "No-guess minesweeper. Every board solves by logic alone.",
   "description": "Sure Sweep is classic mine-clearing with one guarantee: every board can be fully solved by logic, with no lucky guesses required. Tap to reveal, flag suspected mines, and chord through satisfied numbers to clear the board fast. Stuck? A hint shows you the deduction you missed.",
   "genre": "no-guess minesweeper",
-  "demo": true
+  "demo": true,
+  "howToPlay": [
+    "Tap a cell to reveal it.",
+    "A number shows how many mines touch that cell.",
+    "Tap the Flag button, then tap a cell to mark it as a suspected mine.",
+    "Tap a revealed number when its flags match it to clear the safe cells around it.",
+    "Reveal every non-mine cell to win - the board is guaranteed solvable without guessing."
+  ]
 }

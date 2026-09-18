@@ -1,16 +1,60 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
-  <title>Big Card Solitaire</title>
-  <style>
-    html, body { margin: 0; height: 100%; background: #000; overflow: hidden; overscroll-behavior: none; }
-    canvas { display: block; width: 100vw; height: 100vh; height: 100dvh; touch-action: none; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Big Card Solitaire — free preview | Arcforge</title>
+<meta name="description" content="Huge cards, tap to play, every deal winnable.">
+<link rel="stylesheet" href="../../../assets/css/style.css">
+<style>
+  body { background: #06070d; color: #eef1f4; font-family: 'Inter', system-ui, sans-serif; margin: 0; }
+  .play-wrap { max-width: 1100px; margin: 0 auto; padding: 24px 20px 60px; }
+  .back-link { display: inline-block; margin-bottom: 20px; color: #9fb0c3; text-decoration: none; font-size: 14px; }
+  .back-link:hover { color: #eef1f4; }
+  .play-title { font-family: 'Space Grotesk', sans-serif; font-size: clamp(1.6rem, 4vw, 2.4rem); margin: 0 0 6px; }
+  .play-tagline { color: #9fb0c3; margin: 0 0 28px; font-size: 1.05rem; }
+  .play-layout { display: flex; flex-direction: column; gap: 28px; }
+  @media (min-width: 900px) { .play-layout { flex-direction: row; align-items: flex-start; } }
+  .frame-col { flex: 0 0 auto; width: min(420px, 100%); }
+  .frame-box { position: relative; width: 100%; aspect-ratio: 9/16; border-radius: 16px; overflow: hidden; border: 1px solid rgba(255,255,255,0.12); background: #000; }
+  .frame-box iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+  .info-col { flex: 1 1 auto; min-width: 0; }
+  .info-col h2 { font-family: 'Space Grotesk', sans-serif; font-size: 1.2rem; margin: 0 0 10px; }
+  .info-col p { color: #c7d0dc; line-height: 1.6; margin: 0 0 24px; }
+  .info-col ol { color: #c7d0dc; line-height: 1.7; padding-left: 22px; margin: 0 0 28px; }
+  .store-plug { display: flex; gap: 10px; flex-wrap: wrap; }
+</style>
 </head>
 <body>
-  <canvas id="game"></canvas>
-  <script type="module" src="./main.js"></script>
+  <div class="play-wrap">
+    <a class="back-link" href="../../../#games">&larr; Back to Arcforge</a>
+    <h1 class="play-title">Big Card Solitaire</h1>
+    <p class="play-tagline">Huge cards, tap to play, every deal winnable.</p>
+    <div class="play-layout">
+      <div class="frame-col">
+        <div class="frame-box">
+          <iframe src="game/" title="Big Card Solitaire — playable preview" allow="autoplay"></iframe>
+        </div>
+      </div>
+      <div class="info-col">
+        <h2>About this game</h2>
+        <p>Big Card Solitaire is Klondike redrawn for comfort: oversized high-contrast cards, tap-to-move instead of dragging, and no timers or flashing effects. Every deal is checked so it can actually be won. A built-in "what can I do?" hint highlights your legal moves whenever you're unsure.</p>
+        <h2>How to play</h2>
+        <ol>
+        <li>Tap a card to select it, then tap where you want it to go.</li>
+        <li>Build the four foundation piles up by suit, from Ace to King.</li>
+        <li>Stack tableau cards down in alternating colours.</li>
+        <li>Tap the stock pile to draw a new card when you're stuck.</li>
+        <li>Tap "what can I do?" any time to see every legal move highlighted.</li>
+        </ol>
+        <h2>Get the full game</h2>
+        <p>This browser preview is a free taste. The full game — unlimited play, more content, no interruptions — is coming to phones.</p>
+        <div class="store-plug">
+          <span class="plat soon">iOS — Coming Soon</span>
+          <span class="plat soon">Android — Coming Soon</span>
+        </div>
+      </div>
+    </div>
+  </div>
 </body>
 </html>

@@ -3,5 +3,12 @@
   "tagline": "Huge cards, tap to play, every deal winnable.",
   "description": "Big Card Solitaire is Klondike redrawn for comfort: oversized high-contrast cards, tap-to-move instead of dragging, and no timers or flashing effects. Every deal is checked so it can actually be won. A built-in \"what can I do?\" hint highlights your legal moves whenever you're unsure.",
   "genre": "large-print senior solitaire",
-  "demo": true
+  "demo": true,
+  "howToPlay": [
+    "Tap a card to select it, then tap where you want it to go.",
+    "Build the four foundation piles up by suit, from Ace to King.",
+    "Stack tableau cards down in alternating colours.",
+    "Tap the stock pile to draw a new card when you're stuck.",
+    "Tap \"what can I do?\" any time to see every legal move highlighted."
+  ]
 }

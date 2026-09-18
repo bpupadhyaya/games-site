@@ -277,7 +277,18 @@ section { padding: 90px 0; position: relative; }
 .game-body h3 { margin: 0 0 4px; font-family: var(--font-display); font-size: 1.15rem; }
 .game-genre { margin: 0 0 10px; font-size: 12.5px; color: var(--cyan); font-weight: 600; }
 .game-body p:not(.game-genre) { color: var(--text-dim); font-size: 14px; margin: 0 0 16px; }
-.platform-row { display: flex; gap: 8px; }
+.how-to-play {
+  font-size: 13px !important;
+  line-height: 1.5;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border);
+}
+.how-to-play strong { color: var(--text); }
+.game-actions { margin: 4px 0 14px; }
+.game-actions .btn { width: 100%; justify-content: center; }
+.platform-row { display: flex; gap: 8px; flex-wrap: wrap; }
 .plat {
   font-size: 11.5px;
   color: var(--text-dim);
@@ -285,6 +296,7 @@ section { padding: 90px 0; position: relative; }
   padding: 3px 10px;
   border-radius: 999px;
 }
+.plat.soon { opacity: 0.6; }
 .game-card-next {
   display: flex;
   align-items: center;
