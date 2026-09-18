@@ -409,6 +409,7 @@ mainNav.querySelectorAll('a').forEach(link => {
   let timeLeft = ROUND_SECONDS;
   let score = 0;
   let round = null; // { targetWord, mode, words: [{ text, x, y, vy, speed, correct }] }
+  let sessionMode = 'synonym'; // fixed for the whole 90s session — picked once in startGame()
   let recentWords = [];
   let rafId = null;
   let lastTs = 0;
@@ -427,7 +428,7 @@ mainNav.querySelectorAll('a').forEach(link => {
 
   function spawnRound() {
     const [word, synonym, antonym, d1, d2] = pickEntry();
-    const mode = Math.random() < 0.5 ? 'synonym' : 'antonym';
+    const mode = sessionMode;
     const correctText = mode === 'synonym' ? synonym : antonym;
     const options = [{ text: correctText, correct: true }, { text: d1, correct: false }, { text: d2, correct: false }];
     for (let i = options.length - 1; i > 0; i--) {
@@ -564,6 +565,7 @@ mainNav.querySelectorAll('a').forEach(link => {
     recentWords = [];
     round = null;
     lastTs = 0;
+    sessionMode = Math.random() < 0.5 ? 'synonym' : 'antonym'; // fixed for this whole session
     spawnRound();
     startBtn.textContent = 'Restart';
     cancelAnimationFrame(rafId);
