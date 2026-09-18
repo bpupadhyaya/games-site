@@ -163,9 +163,8 @@ mainNav.querySelectorAll('a').forEach(link => {
   draw();
 })();
 
-// --- Tech-preview mini game #2: "Eye Trainer" — orbs fall from above AND arc in from
-// both sides in a curving parabola, so catching them keeps the eyes moving in every
-// direction (vertical, diagonal, side-to-side) instead of just up-and-down tracking.
+// --- Tech-preview mini game #2: "Arc Catch" — orbs fall from above AND arc in from
+// both sides in a curving parabola.
 // Side-entry height starts high (easy, more reaction time) and lowers as the score grows,
 // down to a floor of 25% canvas height — it never spawns lower than that.
 (function () {
@@ -374,38 +373,10 @@ mainNav.querySelectorAll('a').forEach(link => {
   const ROUND_SECONDS = 90;
   const WORD_TOP = 95, WORD_BOTTOM = 285; // vertical band the moving words drift within
 
-  // word | synonym | antonym | two distractors (plausible same-register words, not related
-  // in meaning to the target, so every round has exactly one correct answer).
-  const WORD_BANK = [
-    ['benevolent', 'kind', 'malevolent', 'arrogant', 'timid'],
-    ['candid', 'frank', 'evasive', 'elaborate', 'graceful'],
-    ['diligent', 'industrious', 'lazy', 'curious', 'talkative'],
-    ['eloquent', 'articulate', 'inarticulate', 'silent', 'restless'],
-    ['frugal', 'thrifty', 'wasteful', 'generous', 'reckless'],
-    ['gregarious', 'sociable', 'reclusive', 'nervous', 'stubborn'],
-    ['humble', 'modest', 'arrogant', 'cautious', 'playful'],
-    ['impartial', 'unbiased', 'biased', 'careless', 'anxious'],
-    ['jovial', 'cheerful', 'somber', 'hesitant', 'stern'],
-    ['lucid', 'clear', 'confusing', 'hidden', 'fragile'],
-    ['meticulous', 'careful', 'careless', 'generous', 'hasty'],
-    ['novice', 'beginner', 'expert', 'teacher', 'leader'],
-    ['obstinate', 'stubborn', 'flexible', 'careless', 'gentle'],
-    ['pragmatic', 'practical', 'idealistic', 'cautious', 'reckless'],
-    ['reticent', 'reserved', 'talkative', 'energetic', 'careless'],
-    ['skeptical', 'doubtful', 'trusting', 'curious', 'excited'],
-    ['tranquil', 'peaceful', 'chaotic', 'crowded', 'ancient'],
-    ['verbose', 'wordy', 'concise', 'quiet', 'vague'],
-    ['zealous', 'passionate', 'apathetic', 'cautious', 'gentle'],
-    ['austere', 'stern', 'lenient', 'colorful', 'curious'],
-    ['concise', 'brief', 'verbose', 'elaborate', 'hesitant'],
-    ['deft', 'skillful', 'clumsy', 'cautious', 'stubborn'],
-    ['earnest', 'sincere', 'insincere', 'careless', 'playful'],
-    ['frivolous', 'trivial', 'serious', 'urgent', 'ancient'],
-    ['genial', 'friendly', 'hostile', 'anxious', 'restless'],
-    ['hasty', 'rushed', 'deliberate', 'gentle', 'quiet'],
-    ['innate', 'inborn', 'acquired', 'hidden', 'rare'],
-    ['lethargic', 'sluggish', 'energetic', 'anxious', 'stubborn'],
-  ];
+  // Full word bank shared with the Word Game preview (games/word-game): rows are
+  // [word, synonym, antonym | null, distractor, distractor, meaning]. A null antonym means the
+  // word is only used in Synonym mode.
+  let WORD_BANK = [];
 
   let state = 'idle'; // 'idle' | 'playing' | 'ended'
   let timeLeft = ROUND_SECONDS;
@@ -420,10 +391,11 @@ mainNav.querySelectorAll('a').forEach(link => {
   bestEl.textContent = best;
 
   function pickEntry() {
+    const pool = sessionMode === 'synonym' ? WORD_BANK : WORD_BANK.filter(e => e[2] !== null);
     let entry;
     do {
-      entry = WORD_BANK[Math.floor(Math.random() * WORD_BANK.length)];
-    } while (recentWords.includes(entry[0]) && recentWords.length < WORD_BANK.length);
+      entry = pool[Math.floor(Math.random() * pool.length)];
+    } while (recentWords.includes(entry[0]) && recentWords.length < pool.length);
     recentWords.push(entry[0]);
     if (recentWords.length > 6) recentWords.shift();
     return entry;
@@ -493,18 +465,11 @@ mainNav.querySelectorAll('a').forEach(link => {
       ctx.font = '700 26px Inter, sans-serif';
       ctx.fillText(round.targetWord, W / 2, 66);
 
-      round.words.forEach((word, i) => {
-        const colors = ['#8b5cf6', '#22d3ee', '#ec4899'];
-        ctx.textAlign = 'left';
-        ctx.font = '600 19px Inter, sans-serif';
-        const w = ctx.measureText(word.text).width;
-        ctx.fillStyle = 'rgba(255,255,255,0.06)';
-        ctx.beginPath();
-        ctx.roundRect(word.x - 12, word.y - 24, w + 24, 34, 8);
-        ctx.fill();
-        ctx.fillStyle = colors[i % colors.length];
-        ctx.fillText(word.text, word.x, word.y);
-      });
+      // Plain text, same size, weight and colour as the target word — no buttons, no colour cues.
+      ctx.textAlign = 'left';
+      ctx.fillStyle = '#eef0fb';
+      ctx.font = '700 26px Inter, sans-serif';
+      round.words.forEach((word) => ctx.fillText(word.text, word.x, word.y));
     }
 
     ctx.textAlign = 'right';
@@ -616,9 +581,9 @@ mainNav.querySelectorAll('a').forEach(link => {
     const x = (clientX - rect.left) * scale;
     const y = (clientY - rect.top) * scale;
     for (const word of round.words) {
-      ctx.font = '600 19px Inter, sans-serif';
+      ctx.font = '700 26px Inter, sans-serif';
       const w = ctx.measureText(word.text).width;
-      if (x >= word.x - 12 && x <= word.x + w + 12 && y >= word.y - 24 && y <= word.y + 10) {
+      if (x >= word.x - 12 && x <= word.x + w + 12 && y >= word.y - 30 && y <= word.y + 12) {
         resolveRound(word.correct);
         return;
       }
@@ -633,8 +598,13 @@ mainNav.querySelectorAll('a').forEach(link => {
 
   startBtn.addEventListener('click', () => {
     if (state === 'playing') stopGame();
-    else startGame();
+    else if (WORD_BANK.length) startGame();
   });
+
+  startBtn.disabled = true;
+  import('../../games/word-game/play/game/src/words.js')
+    .then((m) => { WORD_BANK = m.WORDS; startBtn.disabled = false; })
+    .catch(() => { startBtn.textContent = 'Unavailable'; });
 
   draw();
 })();
