@@ -1,0 +1,7 @@
+{
+  "title": "Sure Sweep",
+  "tagline": "No-guess minesweeper. Every board solves by logic alone.",
+  "description": "Sure Sweep is classic mine-clearing with one guarantee: every board can be fully solved by logic, with no lucky guesses required. Tap to reveal, flag suspected mines, and chord through satisfied numbers to clear the board fast. Stuck? A hint shows you the deduction you missed.",
+  "genre": "no-guess minesweeper",
+  "demo": true
+}

@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- TEMPLATE ICON: replace with the game's own 1024x1024 icon (no transparency, no text smaller than 120px). -->
+  <rect width="1024" height="1024" fill="#0b1020"/>
+  <circle cx="512" cy="512" r="300" fill="#6c5ce7"/>
+</svg>

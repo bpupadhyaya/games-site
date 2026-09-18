@@ -1,0 +1,35 @@
+[
+  {
+    "slug": "big-card-solitaire-large-print",
+    "stage": "prototype",
+    "title": "Big Card Solitaire",
+    "tagline": "Huge cards, tap to play, every deal winnable.",
+    "description": "Big Card Solitaire is Klondike redrawn for comfort: oversized high-contrast cards, tap-to-move instead of dragging, and no timers or flashing effects. Every deal is checked so it can actually be won. A built-in \"what can I do?\" hint highlights your legal moves whenever you're unsure.",
+    "genre": "large-print senior solitaire",
+    "demo": true,
+    "icon": "games/big-card-solitaire-large-print/icon.svg",
+    "play": "games/big-card-solitaire-large-print/play/"
+  },
+  {
+    "slug": "crown-star-regions",
+    "stage": "prototype",
+    "title": "Crown Fields",
+    "tagline": "One crown per row, column and region. No touching.",
+    "description": "Crown Fields is a calm grid-placement puzzle: place one crown in every row, column and coloured region so that no two crowns touch, even diagonally. Every puzzle is generated fresh with exactly one solution. Play a quick 7x7 for a coffee break, or unlock the tougher 10x10 Expert board. No timers, no pressure - just clean logic.",
+    "genre": "star battle / queens regions",
+    "demo": true,
+    "icon": "games/crown-star-regions/icon.svg",
+    "play": "games/crown-star-regions/play/"
+  },
+  {
+    "slug": "sure-sweep-no-guess",
+    "stage": "prototype",
+    "title": "Sure Sweep",
+    "tagline": "No-guess minesweeper. Every board solves by logic alone.",
+    "description": "Sure Sweep is classic mine-clearing with one guarantee: every board can be fully solved by logic, with no lucky guesses required. Tap to reveal, flag suspected mines, and chord through satisfied numbers to clear the board fast. Stuck? A hint shows you the deduction you missed.",
+    "genre": "no-guess minesweeper",
+    "demo": true,
+    "icon": "games/sure-sweep-no-guess/icon.svg",
+    "play": "games/sure-sweep-no-guess/play/"
+  }
+]
