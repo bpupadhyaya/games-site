@@ -1,0 +1,34 @@
+{
+  "slug": "crown-star-regions",
+  "title": "Crown Fields",
+  "tagline": "One crown per row, column and region. No touching.",
+  "genre": "logic puzzle (grid placement)",
+  "orientation": "portrait",
+  "version": "0.1.0",
+  "monetization": {
+    "model": "hybrid",
+    "ads": {
+      "interstitial": true,
+      "rewarded": true,
+      "banner": false
+    },
+    "products": [
+      {
+        "id": "remove_ads",
+        "type": "non-consumable",
+        "priceUsd": 2.99,
+        "title": "Remove Ads"
+      },
+      {
+        "id": "expert_pack",
+        "type": "non-consumable",
+        "priceUsd": 3.99,
+        "title": "Expert Pack"
+      }
+    ]
+  },
+  "locales": [
+    "en"
+  ],
+  "demoOnly": true
+}
