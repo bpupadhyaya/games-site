@@ -367,6 +367,8 @@ mainNav.querySelectorAll('a').forEach(link => {
   const scoreEl = document.getElementById('demoScore3');
   const bestEl = document.getElementById('demoBest3');
   const startBtn = document.getElementById('demoStart3');
+  const modeBtnSynonym = document.getElementById('modeBtnSynonym');
+  const modeBtnAntonym = document.getElementById('modeBtnAntonym');
 
   const W = canvas.width, H = canvas.height;
   const ROUND_SECONDS = 90;
@@ -409,7 +411,8 @@ mainNav.querySelectorAll('a').forEach(link => {
   let timeLeft = ROUND_SECONDS;
   let score = 0;
   let round = null; // { targetWord, mode, words: [{ text, x, y, vy, speed, correct }] }
-  let sessionMode = 'synonym'; // fixed for the whole 90s session — picked once in startGame()
+  let selectedMode = 'synonym'; // player's choice via the toggle buttons, before starting
+  let sessionMode = 'synonym'; // locked from selectedMode at startGame() — fixed for the whole session
   let recentWords = [];
   let rafId = null;
   let lastTs = 0;
@@ -477,7 +480,7 @@ mainNav.querySelectorAll('a').forEach(link => {
       ctx.fillStyle = '#eef0fb';
       ctx.textAlign = 'center';
       ctx.font = '600 20px Inter, sans-serif';
-      ctx.fillText('Tap Play to start a 90-second round', W / 2, H / 2);
+      ctx.fillText(`Tap Play to start a 90-second ${selectedMode} round`, W / 2, H / 2);
       return;
     }
 
@@ -554,6 +557,7 @@ mainNav.querySelectorAll('a').forEach(link => {
       bestEl.textContent = String(best);
     }
     startBtn.textContent = 'Play again';
+    setModeButtonsDisabled(false);
     draw();
   }
 
@@ -565,12 +569,29 @@ mainNav.querySelectorAll('a').forEach(link => {
     recentWords = [];
     round = null;
     lastTs = 0;
-    sessionMode = Math.random() < 0.5 ? 'synonym' : 'antonym'; // fixed for this whole session
+    sessionMode = selectedMode; // locked in from the player's toggle choice for this whole session
     spawnRound();
     startBtn.textContent = 'Restart';
+    setModeButtonsDisabled(true);
     cancelAnimationFrame(rafId);
     rafId = requestAnimationFrame(step);
   }
+
+  function setModeButtonsDisabled(disabled) {
+    modeBtnSynonym.disabled = disabled;
+    modeBtnAntonym.disabled = disabled;
+  }
+
+  function setSelectedMode(mode) {
+    if (state === 'playing') return; // don't let the toggle change mid-session
+    selectedMode = mode;
+    modeBtnSynonym.classList.toggle('is-active', mode === 'synonym');
+    modeBtnAntonym.classList.toggle('is-active', mode === 'antonym');
+    if (state === 'idle') draw();
+  }
+
+  modeBtnSynonym.addEventListener('click', () => setSelectedMode('synonym'));
+  modeBtnAntonym.addEventListener('click', () => setSelectedMode('antonym'));
 
   function handleTap(clientX, clientY) {
     if (state !== 'playing' || !round) return;
