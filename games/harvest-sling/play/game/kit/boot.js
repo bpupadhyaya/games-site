@@ -22,7 +22,29 @@ export async function boot({ createGame, meta, canvas, background }) {
   const demo = params.has('demo') || manifest.demoOnly === true;
   const seed = params.has('seed') ? Number(params.get('seed')) >>> 0 : Date.now() >>> 0;
 
+  // Share text (Daily Hunt result etc.) and jump to another Arcforge game. Native: the shell's share
+  // sheet / game intro. Web: the browser share sheet or clipboard, and the sibling game's play page.
+  const share = async (text) => {
+    if (bridge.native) return (await bridge.call('share.text', { text }).catch(() => null)) ?? { shared: false };
+    try {
+      if (globalThis.navigator?.share) {
+        await globalThis.navigator.share({ text });
+        return { shared: true };
+      }
+      await globalThis.navigator?.clipboard?.writeText(text);
+      return { shared: true, copied: true };
+    } catch {
+      return { shared: false };
+    }
+  };
+  const openGame = (slug) => {
+    if (bridge.native) bridge.call('app.open', { slug }).catch(() => {});
+    else globalThis.location.assign(`../../${slug}/play/`);
+  };
+
   const env = {
+    share,
+    openGame,
     rng: createRng(seed),
     storage: createStorage({ bridge, namespace: manifest.slug }),
     monetization: createMonetization({ bridge, manifest, mode: bridge.native ? 'native' : demo ? 'demo' : 'mock' }),

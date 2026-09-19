@@ -3,7 +3,7 @@ import { W, BIRDS } from './tuning.js';
 
 // World = which landscape to draw and where birds can sit. Perches are spread over the whole
 // upper two thirds of the screen on purpose (see design/GDD.md core loop) - never cluster them.
-export const WORLDS = ['wheat', 'rice', 'orchard'];
+export const WORLDS = ['wheat', 'rice', 'orchard', 'savanna', 'snow'];
 
 export function generateScene(rng, spec) {
   const perches = [];

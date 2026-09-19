@@ -30,6 +30,8 @@ export function createNullContext() {
 
 export function createHeadlessEnv({ seed = 1, manifest, demo = false, day = 20000 }) {
   return {
+    share: async () => ({ shared: false }),
+    openGame() {},
     rng: createRng(seed),
     storage: createStorage({ bridge: null, namespace: manifest.slug }),
     monetization: createMonetization({ bridge: null, manifest, mode: demo ? 'demo' : 'mock' }),

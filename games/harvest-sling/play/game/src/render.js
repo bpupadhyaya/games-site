@@ -1,5 +1,5 @@
 // Every pixel of Golden Sling. Reads state, never changes it. All art is drawn in code.
-import { W, H, SLING, STONE_R, CROP_MAX, CROP_DRAIN_FROM_LEVEL, DAILY, comboMultiplier, woodFor } from './tuning.js';
+import { W, H, SLING, STONE_R, CROP_MAX, CROP_DRAIN_FROM_LEVEL, DAILY, comboMultiplier, woodFor, stoneFor, SIBLINGS } from './tuning.js';
 import { previewArc } from './physics.js';
 
 export const BUTTONS = {
@@ -8,9 +8,15 @@ export const BUTTONS = {
   endless: { x: 140, y: 806, w: 440, h: 92 },
   colors: { x: 140, y: 918, w: 440, h: 80 },
   playColors: { x: 596, y: 1196, w: 108, h: 64 },
-  again: { x: 140, y: 1010, w: 440, h: 104 },
-  home: { x: 140, y: 1130, w: 440, h: 84 },
+  again: { x: 140, y: 1040, w: 440, h: 104 },
+  share: { x: 90, y: 1156, w: 250, h: 76 },
+  home: { x: 380, y: 1156, w: 250, h: 76 },
+  sound: { x: 476, y: 1196, w: 108, h: 64 },
+  soundTitle: { x: 610, y: 24, w: 84, h: 64 },
 };
+
+// Tally screen: one tappable chip per sibling game (2 x 2 grid).
+export const chipRect = (i) => ({ x: 90 + (i % 2) * 280, y: 892 + Math.floor(i / 2) * 72, w: 260, h: 60 });
 
 // Light schemes (index 0 = default look; players can cycle). Colours: sky top/mid/bottom, sun,
 // far hill, near hill, light tint drawn over the whole scene.
@@ -37,6 +43,8 @@ const FIELDS = {
   wheat: { top: '#e2b84c', bottom: '#a9781f', row: 'rgba(120,80,10,0.35)', grass: ['#c9a23a', '#8a6a1a'] },
   rice: { top: '#8fcf6a', bottom: '#2f7d3a', row: 'rgba(200,240,255,0.35)', grass: ['#6fbf4a', '#2f7d3a'] },
   orchard: { top: '#9bc653', bottom: '#4d7f2a', row: 'rgba(40,80,20,0.25)', grass: ['#7fb83f', '#3f6f22'] },
+  savanna: { top: '#dcbd6c', bottom: '#a4783a', row: 'rgba(110,70,20,0.28)', grass: ['#cfa955', '#94682c'] },
+  snow: { top: '#f2f7fd', bottom: '#bccfe4', row: 'rgba(120,150,190,0.30)', grass: ['#ffffff', '#c9d8ea'] },
 };
 
 const BIRD_LOOK = {
@@ -159,6 +167,35 @@ function drawField(ctx, world, time, wind) {
       ctx.fillRect(shine - 90, y, 180, 16);
     }
   }
+  if (world === 'savanna') {
+    // waterhole near the horizon, with a soft sky reflection
+    const wg = ctx.createLinearGradient(0, 838, 0, 878);
+    wg.addColorStop(0, '#7fc4d8');
+    wg.addColorStop(1, '#2f7f9a');
+    ctx.fillStyle = 'rgba(80,50,20,0.5)';
+    ctx.beginPath();
+    ctx.ellipse(150, 856, 172, 30, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = wg;
+    ctx.beginPath();
+    ctx.ellipse(150, 854, 156, 24, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.35)';
+    ctx.beginPath();
+    ctx.ellipse(120 + Math.sin(time * 0.8) * 8, 848, 60, 6, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  if (world === 'snow') {
+    for (let i = 0; i < 14; i++) {
+      const a = 0.35 + 0.35 * Math.sin(time * 2.4 + i * 1.9);
+      ctx.fillStyle = `rgba(255,255,255,${a})`;
+      const sx = (i * 61 + 30) % W;
+      const sy = 830 + ((i * 97) % 400);
+      ctx.beginPath();
+      ctx.arc(sx, sy, 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
   // swaying stalks along the horizon line of the field
   ctx.lineWidth = 3;
   for (let x = 6; x < W; x += 14) {
@@ -181,6 +218,14 @@ function drawFence(ctx, scene) {
   ctx.fillStyle = '#946a42';
   ctx.fillRect(0, y - 34, W, 9);
   ctx.fillRect(0, y - 6, W, 9);
+  if (scene.world === 'snow') {
+    ctx.fillStyle = 'rgba(255,255,255,0.95)';
+    ctx.fillRect(0, y - 39, W, 7);
+    for (let x = 30; x < W; x += 60) {
+      roundRect(ctx, x - 9, y - 56, 18, 9, 4);
+      ctx.fill();
+    }
+  }
   // scarecrow
   const sx = scene.scarecrowX;
   ctx.strokeStyle = '#6b4a2a';
@@ -221,7 +266,9 @@ function drawTree(ctx, tree, time, wind, world) {
   ctx.quadraticCurveTo(tree.x + 10, tree.groundY - tree.height * 0.5, tree.x + 24, tree.groundY + 20);
   ctx.closePath();
   ctx.fill();
-  ctx.strokeStyle = '#5f3f22';
+  const swayNow = Math.sin(time * 0.9 + tree.x) * 4 + wind * 0.04;
+  if (world === 'snow') drawPine(ctx, tree, topY, swayNow);
+  ctx.strokeStyle = world === 'snow' ? '#4a3a2a' : '#5f3f22';
   ctx.lineCap = 'round';
   for (const b of tree.branches) {
     ctx.lineWidth = 11;
@@ -230,7 +277,29 @@ function drawTree(ctx, tree, time, wind, world) {
     ctx.quadraticCurveTo((b.x0 + b.x1) / 2, b.y1 + 16, b.x1, b.y1);
     ctx.stroke();
   }
-  const sway = Math.sin(time * 0.9 + tree.x) * 4 + wind * 0.04;
+  const sway = swayNow;
+  if (world === 'snow') {
+    // snow resting on the bare branches
+    ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+    ctx.lineWidth = 5;
+    for (const b of tree.branches) {
+      ctx.beginPath();
+      ctx.moveTo(b.x0, b.y0 - 6);
+      ctx.quadraticCurveTo((b.x0 + b.x1) / 2, b.y1 + 10, b.x1, b.y1 - 5);
+      ctx.stroke();
+    }
+    return;
+  }
+  if (world === 'savanna') {
+    // acacia: flat umbrella crown in three layers
+    for (const [color, wx, hy, dy] of [['#587a2c', 1.55, 0.34, 8], ['#7a9c3a', 1.35, 0.28, -6], ['#98bc4c', 1.0, 0.2, -18]]) {
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.ellipse(tree.x + sway, topY + dy, tree.crown * wx, tree.crown * hy, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    return;
+  }
   const crownDots = world === 'orchard';
   const blobs = [[0, 0, 1], [-0.62, 0.28, 0.72], [0.62, 0.3, 0.74], [-0.3, -0.42, 0.7], [0.34, -0.38, 0.68]];
   for (const [shade, dy] of [['#2f6b2f', 10], ['#4c9a3f', 0], ['#7cc65a', -12]]) {
@@ -278,6 +347,28 @@ function drawWindSpecks(ctx, time, wind, scheme) {
     ctx.ellipse(0, 0, size, size * 0.45, 0, 0, Math.PI * 2);
     ctx.fill();
     ctx.restore();
+  }
+}
+
+// Snowy pine: four stacked triangle tiers, each with a snow cap. Drawn before the bare branches.
+function drawPine(ctx, tree, topY, sway) {
+  for (let i = 3; i >= 0; i--) {
+    const y = topY - 30 + i * tree.crown * 0.62;
+    const half = tree.crown * (0.55 + i * 0.3);
+    ctx.fillStyle = i % 2 ? '#1c5645' : '#256b55';
+    ctx.beginPath();
+    ctx.moveTo(tree.x + sway * 0.6, y - tree.crown * 0.55);
+    ctx.lineTo(tree.x - half, y + tree.crown * 0.42);
+    ctx.lineTo(tree.x + half, y + tree.crown * 0.42);
+    ctx.closePath();
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.92)';
+    ctx.beginPath();
+    ctx.moveTo(tree.x + sway * 0.6, y - tree.crown * 0.55);
+    ctx.lineTo(tree.x - half * 0.55, y - tree.crown * 0.55 + tree.crown * 0.5);
+    ctx.quadraticCurveTo(tree.x, y - tree.crown * 0.3, tree.x + half * 0.55, y - tree.crown * 0.55 + tree.crown * 0.5);
+    ctx.closePath();
+    ctx.fill();
   }
 }
 
@@ -444,7 +535,7 @@ function drawSlingshot(ctx, state) {
   ctx.strokeStyle = '#3a2110';
   ctx.lineWidth = 2;
   ctx.stroke();
-  if (state.stonesLeft > 0 && state.snap <= 0) drawStone(ctx, pouch.x, pouch.y - 2);
+  if (state.stonesLeft > 0 && state.snap <= 0) drawStone(ctx, pouch.x, pouch.y - 2, stoneFor(state.stars));
 }
 
 // Level-1 tutorial: a translucent finger repeatedly drags back from the pouch, shows the arc, and lets
@@ -485,14 +576,28 @@ function drawTutorialGhost(ctx, state) {
   ctx.restore();
 }
 
-function drawStone(ctx, x, y) {
+// Stones unlock with stars (index = stoneFor(stars)): river pebble, clay ball, river glass.
+export const STONES = [
+  { name: 'River pebble', light: '#e6e6e6', dark: '#6f747c' },
+  { name: 'Clay ball', light: '#f0b184', dark: '#8a4a24' },
+  { name: 'River glass', light: '#d9fff8', dark: '#2a8f86' },
+];
+
+function drawStone(ctx, x, y, kind = 0) {
+  const st = STONES[kind] ?? STONES[0];
   const g = ctx.createRadialGradient(x - 3, y - 3, 1, x, y, STONE_R + 2);
-  g.addColorStop(0, '#e6e6e6');
-  g.addColorStop(1, '#6f747c');
+  g.addColorStop(0, st.light);
+  g.addColorStop(1, st.dark);
   ctx.fillStyle = g;
   ctx.beginPath();
   ctx.arc(x, y, STONE_R, 0, Math.PI * 2);
   ctx.fill();
+  if (kind === 2) {
+    ctx.fillStyle = 'rgba(255,255,255,0.75)';
+    ctx.beginPath();
+    ctx.arc(x - 3, y - 3, 2.6, 0, Math.PI * 2);
+    ctx.fill();
+  }
 }
 
 function drawHud(ctx, state) {
@@ -562,13 +667,14 @@ function drawHud(ctx, state) {
   roundRect(ctx, 14, 1196, 300, 64, 22);
   ctx.fill();
   const shown = Math.min(state.stonesLeft, 12);
-  for (let i = 0; i < shown; i++) drawStone(ctx, 40 + i * 21, 1228);
+  for (let i = 0; i < shown; i++) drawStone(ctx, 40 + i * 21, 1228, stoneFor(state.stars));
   if (state.stonesLeft > 12) {
     ctx.fillStyle = '#fff';
     ctx.font = '700 20px system-ui, sans-serif';
     ctx.fillText(`+${state.stonesLeft - 12}`, 40 + 12 * 21, 1229);
   }
   button(ctx, BUTTONS.playColors, '🎨', 'ghost');
+  button(ctx, BUTTONS.sound, state.muted ? '🔇' : '🔊', 'ghost');
   ctx.restore();
 }
 
@@ -624,7 +730,7 @@ export function drawGame(ctx, state, manifest, day) {
     ctx.moveTo(s.px - s.vx * 0.02, s.py - s.vy * 0.02);
     ctx.lineTo(s.x, s.y);
     ctx.stroke();
-    drawStone(ctx, s.x, s.y);
+    drawStone(ctx, s.x, s.y, stoneFor(state.stars));
   }
   for (const p of state.particles) {
     ctx.save();
@@ -673,6 +779,7 @@ export function drawGame(ctx, state, manifest, day) {
     centered(ctx, '★'.repeat(state.lastStars) + '☆'.repeat(3 - state.lastStars), 600, '700 80px system-ui, sans-serif', '#ffd75a');
     centered(ctx, `+${state.stonesLeft * 5} for stones saved`, 690, '600 24px system-ui, sans-serif', 'rgba(255,255,255,0.8)');
     if (state.newWood >= 0) centered(ctx, `New slingshot unlocked: ${WOODS[state.newWood].name}!`, 725, '700 26px system-ui, sans-serif', '#ffd75a');
+    else if (state.newStone >= 0) centered(ctx, `New stone unlocked: ${STONES[state.newStone].name}!`, 725, '700 26px system-ui, sans-serif', '#ffd75a');
   }
 
   if (state.scene === 'title') {
@@ -685,6 +792,7 @@ export function drawGame(ctx, state, manifest, day) {
     button(ctx, BUTTONS.daily, state.demo ? 'Daily Hunt — in the app' : playedToday ? `Daily done: ${state.daily.score}  🔥${state.daily.streak}` : `Daily Hunt${state.daily.streak ? `  🔥${state.daily.streak}` : ''}`, 'ghost', state.demo || playedToday);
     button(ctx, BUTTONS.endless, state.demo ? 'Endless — in the app' : 'Endless', 'ghost', state.demo);
     button(ctx, BUTTONS.colors, `🎨 Light: ${scheme.name}`, 'ghost');
+    button(ctx, BUTTONS.soundTitle, state.muted ? '🔇' : '🔊', 'ghost');
   }
 
   if (state.scene === 'tally') {
@@ -705,8 +813,10 @@ export function drawGame(ctx, state, manifest, day) {
       roundRect(ctx, W / 2 - (per * 34) / 2 + (i % per) * 34, 730 + Math.floor(i / per) * 34, 28, 28, 6);
       ctx.fill();
     });
-    centered(ctx, 'More from Arcforge: Word Game · Sure Sweep · Big Card Solitaire · Crown Fields', 950, '500 17px system-ui, sans-serif', 'rgba(255,255,255,0.7)');
+    centered(ctx, 'More from Arcforge', 868, '700 22px system-ui, sans-serif', 'rgba(255,255,255,0.85)');
+    SIBLINGS.forEach((g, i) => button(ctx, chipRect(i), g.title, 'ghost'));
     button(ctx, BUTTONS.again, 'Play again', 'primary');
+    button(ctx, BUTTONS.share, state.shareNote || 'Share', 'ghost');
     button(ctx, BUTTONS.home, 'Home', 'ghost');
   }
 

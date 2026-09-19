@@ -5,12 +5,12 @@
 import { createRng } from '../kit/rng.js';
 import {
   W, H, SLING, STONE_R, STARTLE_RADIUS, BIRDS, OWL_STONE_PENALTY, CROP_MAX, CROP_DRAIN_PER_BIRD,
-  CROP_DRAIN_FROM_LEVEL, DAILY, DEMO_LEVEL_LIMIT, DEMO_RUN_LIMIT, levelSpec, comboMultiplier, starsFor, woodFor,
+  CROP_DRAIN_FROM_LEVEL, DAILY, DEMO_LEVEL_LIMIT, DEMO_RUN_LIMIT, levelSpec, comboMultiplier, starsFor, woodFor, stoneFor, SHARE_URL, SIBLINGS,
 } from './tuning.js';
 import { clampPull, launchVelocity, stepStone, segmentHitsCircle, distanceToSegment } from './physics.js';
 import { spawnBird, updateBird, startle, maybeDodge, isTarget, isPerchedPest } from './birds.js';
 import { generateScene, pickBirdType } from './levels.js';
-import { drawGame, BUTTONS, SCHEMES } from './render.js';
+import { drawGame, BUTTONS, SCHEMES, chipRect } from './render.js';
 
 export const meta = { width: W, height: H };
 
@@ -43,9 +43,15 @@ export function createGame(env) {
     time: 0,
     clearTimer: 0,
     lastStars: 0,
+    newStone: -1, // same for stones
     newWood: -1, // index of a slingshot wood unlocked by the level just cleared, else -1
     aim: null, // { sx, sy, pull: {x,y,len} } while dragging
     snap: 0, // band overshoot animation after release
+    muted: false,
+    chirpTimer: 2,
+    windTimer: 0,
+    chirpN: 0,
+    shareNote: '',
     kbdAim: { angle: -Math.PI / 2, power: 130 }, // keyboard aim, remembered between shots
     creakTimer: 0, // seconds until the next band-creak tone while aiming
     shots: [], // this run: 'hit' | 'miss' | 'owl' per stone (Daily Hunt share string)
@@ -64,6 +70,10 @@ export function createGame(env) {
   storage.get('best', 0).then((v) => (state.best = v));
   storage.get('highestLevel', 1).then((v) => (state.highestLevel = v));
   storage.get('stars', 0).then((v) => (state.stars = v));
+  storage.get('muted', false).then((v) => {
+    state.muted = Boolean(v);
+    audio.setMuted(state.muted);
+  });
   storage.get('scheme', 0).then((v) => (state.scheme = SCHEMES[v] ? v : 0));
   storage.get('daily', null).then((v) => v && (state.daily = v));
   if (demo) storage.get('demoRuns', 0).then((v) => (state.demoRuns = v));
@@ -125,8 +135,10 @@ export function createGame(env) {
   const completeLevel = () => {
     state.lastStars = starsFor(state.stonesLeft);
     const woodBefore = woodFor(state.stars);
+    const stoneBefore = stoneFor(state.stars);
     state.stars += state.lastStars;
     state.newWood = woodFor(state.stars) > woodBefore ? woodFor(state.stars) : -1;
+    state.newStone = stoneFor(state.stars) > stoneBefore ? stoneFor(state.stars) : -1;
     storage.set('stars', state.stars);
     if (state.mode === 'campaign' && !demo && state.level + 1 > state.highestLevel) {
       state.highestLevel = state.level + 1;
@@ -210,12 +222,14 @@ export function createGame(env) {
   const updatePlaying = (dt, input) => {
     state.time += dt;
     const spec = state.spec;
+    ambient(dt, spec.gusty ? state.wind * (0.6 + 0.4 * Math.sin(state.time * 0.9)) : state.wind);
     const wind = spec.gusty ? state.wind * (0.6 + 0.4 * Math.sin(state.time * 0.9)) : state.wind;
 
     // --- aiming
     const { pointer } = input;
     if (pointer.pressed) {
       if (inRect(pointer.x, pointer.y, BUTTONS.playColors)) cycleScheme();
+      else if (inRect(pointer.x, pointer.y, BUTTONS.sound)) toggleMute();
       else if (pointer.y >= SLING.dragZoneTop && state.stonesLeft > 0) state.aim = { sx: pointer.x, sy: pointer.y, pull: { x: 0, y: 0, len: 0 } };
     }
     if (state.aim && !state.aim.kbd) {
@@ -301,6 +315,41 @@ export function createGame(env) {
     else if (state.crop <= 0 || (state.stonesLeft <= 0 && state.stones.length === 0 && !state.aim)) endRun();
   };
 
+  function toggleMute() {
+    state.muted = !state.muted;
+    audio.setMuted(state.muted);
+    storage.set('muted', state.muted);
+  }
+
+  // Ambient sound per world (birdsong) + wind, from audio.tone only. Timing comes from a small integer
+  // hash of a counter kept in state, never from playRng, so it cannot disturb the simulation.
+  const CHIRPS = { wheat: [3400, 4000, 0.07, 'sine'], rice: [1500, 1050, 0.2, 'sine'], orchard: [900, 700, 0.26, 'sine'], savanna: [320, 250, 0.32, 'triangle'], snow: [2500, 2800, 0.05, 'sine'] };
+  const hash01 = (n) => ((Math.imul(n + 1, 2654435761) >>> 0) % 100000) / 100000;
+  const ambient = (dt, wind) => {
+    state.chirpTimer -= dt;
+    if (state.chirpTimer <= 0) {
+      state.chirpN += 1;
+      const r = hash01(state.chirpN * 31 + state.level);
+      const [from, to, dur, type] = CHIRPS[state.world?.world] ?? CHIRPS.wheat;
+      audio.tone({ freq: from * (0.93 + r * 0.14), to, dur, type, vol: 0.045 });
+      state.chirpTimer = 2.5 + hash01(state.chirpN * 17 + 3) * 3.5;
+    }
+    state.windTimer -= dt;
+    if (Math.abs(wind) >= 60 && state.windTimer <= 0) {
+      audio.tone({ freq: 80 + Math.abs(wind) * 0.5, dur: 0.55, type: 'triangle', vol: 0.025 });
+      state.windTimer = 0.6;
+    }
+  };
+
+  const shareText = () => {
+    const acc = state.tally.thrown ? Math.round((state.tally.hit / state.tally.thrown) * 100) : 0;
+    const marks = state.shots.map((s) => (s === 'hit' ? '🟩' : s === 'owl' ? '🟥' : '⬜'));
+    const rows = [];
+    for (let i = 0; i < marks.length; i += 10) rows.push(marks.slice(i, i + 10).join(''));
+    const head = state.mode === 'daily' ? `Golden Sling Daily Hunt · day ${day}` : `Golden Sling · level ${state.level}`;
+    return `${head}\n${state.score} pts · ${acc}% accuracy · best combo ${state.bestCombo}\n${rows.join('\n')}\n${SHARE_URL}`;
+  };
+
   function cycleScheme() {
     state.scheme = (state.scheme + 1) % SCHEMES.length;
     storage.set('scheme', state.scheme);
@@ -310,6 +359,7 @@ export function createGame(env) {
     if (!input.pointer.pressed) return;
     const { x, y } = input.pointer;
     if (inRect(x, y, BUTTONS.colors)) cycleScheme();
+    else if (inRect(x, y, BUTTONS.soundTitle)) toggleMute();
     else if (inRect(x, y, BUTTONS.daily)) {
       if (!demo && state.daily.day !== day) startRun('daily');
     } else if (inRect(x, y, BUTTONS.endless)) {
@@ -331,6 +381,12 @@ export function createGame(env) {
           const { x, y } = input.pointer;
           if (inRect(x, y, BUTTONS.again)) startRun(state.mode === 'daily' ? 'campaign' : state.mode);
           else if (inRect(x, y, BUTTONS.home)) state.scene = 'title';
+          else if (inRect(x, y, BUTTONS.share)) {
+            state.shareNote = '';
+            env.share(shareText()).then((r) => {
+              state.shareNote = r && r.copied ? 'Copied!' : '';
+            });
+          } else SIBLINGS.forEach((g, i) => inRect(x, y, chipRect(i)) && env.openGame(g.slug));
         }
       }
       // 'demo-limit': deliberate no-op.

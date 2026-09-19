@@ -29,6 +29,17 @@ export const DEMO_LEVEL_LIMIT = 3;
 export const DEMO_RUN_LIMIT = 3;
 // Stars needed for the 2nd..5th slingshot wood (the 1st, oak, is always available).
 export const STAR_UNLOCKS = [10, 25, 50, 90];
+// Stars needed for the 2nd and 3rd stone (pebble is the default).
+export const STONE_UNLOCKS = [15, 40];
+export const stoneFor = (stars) => STONE_UNLOCKS.filter((t) => stars >= t).length;
+export const SHARE_URL = 'https://equalinformation.com/games-site/';
+// The other Arcforge games, for the tally screen's "More from Arcforge" chips.
+export const SIBLINGS = [
+  { slug: 'word-game', title: 'Word Game' },
+  { slug: 'sure-sweep-no-guess', title: 'Sure Sweep' },
+  { slug: 'big-card-solitaire-large-print', title: 'Big Card Solitaire' },
+  { slug: 'crown-star-regions', title: 'Crown Fields' },
+];
 export const woodFor = (stars) => STAR_UNLOCKS.filter((t) => stars >= t).length;
 
 export function levelSpec(n) {
@@ -41,7 +52,7 @@ export function levelSpec(n) {
     guideDots: Math.max(4, 14 - Math.floor((n - 1) * 0.67)),
     windMax: n < 4 ? 0 : Math.min(140, (n - 3) * 16),
     gusty: n >= 16,
-    world: Math.floor((n - 1) / 5) % 3,
+    world: Math.floor((n - 1) / 5) % 5,
     speed: 1 + Math.min(0.8, (n - 1) * 0.04), // bird tempo multiplier
   };
 }
