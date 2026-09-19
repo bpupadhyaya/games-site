@@ -1,0 +1,15 @@
+{
+  "title": "Golden Sling",
+  "tagline": "Pull, aim, release. Guard the harvest.",
+  "description": "A hand-carved slingshot, a golden field, and birds raiding the crop. Pull back, aim and release to scare them off before the harvest is gone. Every bird behaves differently, the wind picks up as you advance, and every miss sends the flock scattering. Free to play, with a new Daily Hunt every day.",
+  "genre": "slingshot arcade",
+  "demo": true,
+  "howToPlay": [
+    "Drag back from the slingshot to aim - the dotted arc shows where the stone starts to fly.",
+    "Release to fire. Pull farther for more power; gravity and wind bend the shot.",
+    "Hit birds to scare them off and score. Hits in a row build a combo multiplier.",
+    "A miss costs the stone and startles nearby birds, so pick your shots.",
+    "Never hit the owl - it is protected and costs you stones.",
+    "Reach the level's quota before your stones or the crop run out."
+  ]
+}

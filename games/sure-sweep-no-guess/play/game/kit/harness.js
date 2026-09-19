@@ -28,13 +28,13 @@ export function createNullContext() {
   });
 }
 
-export function createHeadlessEnv({ seed = 1, manifest, demo = false }) {
+export function createHeadlessEnv({ seed = 1, manifest, demo = false, day = 20000 }) {
   return {
     rng: createRng(seed),
     storage: createStorage({ bridge: null, namespace: manifest.slug }),
     monetization: createMonetization({ bridge: null, manifest, mode: demo ? 'demo' : 'mock' }),
     audio: createAudio(),
-    config: { seed, demo },
+    config: { seed, demo, day },
     manifest,
   };
 }
@@ -72,8 +72,8 @@ export function createMonkey(seed, meta) {
 
 // Drives the game for `ticks` fixed steps. script(tick, input, game) may inject scripted
 // input; with monkey=true a seeded random player is layered on top.
-export async function runHeadless({ createGame, meta, manifest, seed = 1, ticks = 1800, monkey = true, script = null, demo = false }) {
-  const env = createHeadlessEnv({ seed, manifest, demo });
+export async function runHeadless({ createGame, meta, manifest, seed = 1, ticks = 1800, monkey = true, script = null, demo = false, day }) {
+  const env = createHeadlessEnv({ seed, manifest, demo, day });
   const game = await createGame(env);
   const input = createInput();
   const ctx = createNullContext();

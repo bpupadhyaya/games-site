@@ -27,7 +27,9 @@ export async function boot({ createGame, meta, canvas, background }) {
     storage: createStorage({ bridge, namespace: manifest.slug }),
     monetization: createMonetization({ bridge, manifest, mode: bridge.native ? 'native' : demo ? 'demo' : 'mock' }),
     audio: createAudio(),
-    config: { seed, demo },
+    // day = whole days since 1970 (UTC): lets a game seed a "daily" challenge that is identical for
+    // every player on the same date without reading the clock itself (web/src must stay pure).
+    config: { seed, demo, day: Math.floor(Date.now() / 86400000) },
     manifest,
   };
   // Ownership arrives via monetization.onChange; never hold the game hostage to a slow store.

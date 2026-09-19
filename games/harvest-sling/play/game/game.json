@@ -1,0 +1,15 @@
+{
+  "slug": "harvest-sling",
+  "title": "Golden Sling",
+  "tagline": "Pull, aim, release. Guard the harvest.",
+  "genre": "slingshot arcade",
+  "orientation": "portrait",
+  "version": "0.1.0",
+  "monetization": {
+    "model": "free"
+  },
+  "locales": [
+    "en"
+  ],
+  "demoOnly": true
+}

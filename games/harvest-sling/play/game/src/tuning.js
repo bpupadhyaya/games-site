@@ -1,0 +1,50 @@
+// Every gameplay number in one place (design/GDD.md "Progression and content"). Pure data.
+export const W = 720;
+export const H = 1280;
+
+export const SLING = { x: 360, y: 1050, maxPull: 220, minPull: 24, power: 7.2, dragZoneTop: 640 };
+export const GRAVITY = 900;
+export const STONE_R = 9;
+export const STARTLE_RADIUS = 120;
+
+// points, hit radius, and how long a perched bird of this type stays before leaving by itself.
+export const BIRDS = {
+  sparrow: { points: 10, r: 26, stay: [6, 10], unlock: 1, weight: 5 },
+  pigeon: { points: 15, r: 34, stay: [8, 13], unlock: 1, weight: 5 },
+  parrot: { points: 25, r: 28, stay: [3.2, 3.8], unlock: 3, weight: 3 },
+  duck: { points: 30, r: 32, stay: [0, 0], unlock: 4, weight: 3 },
+  crow: { points: 40, r: 30, stay: [7, 11], unlock: 7, weight: 2 },
+  owl: { points: -50, r: 34, stay: [9, 14], unlock: 8, weight: 1 },
+  hummingbird: { points: 100, r: 16, stay: [0, 0], unlock: 10, weight: 1 },
+};
+export const OWL_STONE_PENALTY = 2;
+export const CROW_DODGE_WINDOW = 2.5;
+
+export const CROP_MAX = 100;
+export const CROP_DRAIN_PER_BIRD = 1.2;
+export const CROP_DRAIN_FROM_LEVEL = 4;
+
+export const DAILY = { level: 8, stones: 20 };
+export const DEMO_LEVEL_LIMIT = 3;
+export const DEMO_RUN_LIMIT = 3;
+// Stars needed for the 2nd..5th slingshot wood (the 1st, oak, is always available).
+export const STAR_UNLOCKS = [10, 25, 50, 90];
+export const woodFor = (stars) => STAR_UNLOCKS.filter((t) => stars >= t).length;
+
+export function levelSpec(n) {
+  const quota = Math.min(16, 4 + Math.floor(n * 0.8));
+  return {
+    n,
+    quota,
+    stones: quota + Math.max(3, 8 - Math.floor(n / 3)),
+    maxBirds: Math.min(6, 2 + Math.floor(n / 4)),
+    guideDots: Math.max(4, 14 - Math.floor((n - 1) * 0.67)),
+    windMax: n < 4 ? 0 : Math.min(140, (n - 3) * 16),
+    gusty: n >= 16,
+    world: Math.floor((n - 1) / 5) % 3,
+    speed: 1 + Math.min(0.8, (n - 1) * 0.04), // bird tempo multiplier
+  };
+}
+
+export const comboMultiplier = (combo) => Math.min(5, 1 + combo * 0.5);
+export const starsFor = (stonesLeft) => (stonesLeft >= 5 ? 3 : stonesLeft >= 2 ? 2 : 1);
