@@ -559,6 +559,8 @@ mainNav.querySelectorAll('a').forEach(link => {
     }
     reviewEl.appendChild(list);
     reviewEl.hidden = false;
+    // Bring the review into view so it is not missed below the game.
+    reviewEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   }
 
   function endGame() {
