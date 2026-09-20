@@ -263,6 +263,9 @@ section { padding: 90px 0; position: relative; }
 .art-2 { background: radial-gradient(120% 140% at 80% 20%, rgba(34,211,238,0.5), transparent 60%), linear-gradient(135deg, #1a333a, #1e2130); }
 .art-3 { background: radial-gradient(120% 140% at 50% 80%, rgba(236,72,153,0.45), transparent 60%), linear-gradient(135deg, #382130, #1e2130); }
 .art-4 { background: radial-gradient(120% 140% at 50% 80%, rgba(34,211,238,0.40), transparent 60%), linear-gradient(135deg, #1f2c3a, #1e2130); }
+.art-6 { background: radial-gradient(120% 140% at 30% 85%, rgba(240,150,60,0.55), transparent 60%), linear-gradient(135deg, #123a30, #1e2130); }
+.art-7 { background: radial-gradient(120% 140% at 70% 25%, rgba(255,200,90,0.5), transparent 60%), linear-gradient(135deg, #1b1f55, #0d1030); }
+.art-8 { background: radial-gradient(120% 140% at 50% 85%, rgba(96,165,250,0.5), transparent 60%), linear-gradient(135deg, #1c3a5a, #22402c); }
 .art-5 { background: radial-gradient(120% 140% at 50% 85%, rgba(255,196,64,0.55), transparent 60%), linear-gradient(135deg, #5a3a12, #2a1c10); }
 .game-tag {
   font-size: 11px;

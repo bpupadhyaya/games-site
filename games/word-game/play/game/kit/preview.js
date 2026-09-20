@@ -135,18 +135,20 @@ export function createPreviewGate({ game, meta, storage, monetization, manifest,
     }
   };
 
+  // Top-centre, small: games keep score/timer HUD in the top corners, so the badge never covers them.
   const drawCountdown = (ctx) => {
     const label = `Preview ${formatClock(limitMs - usedMs)}`;
-    ctx.font = '600 20px system-ui, sans-serif';
-    const pw = ctx.measureText(label).width + 28;
+    ctx.font = '600 18px system-ui, sans-serif';
+    const pw = ctx.measureText(label).width + 24;
+    const x = (w - pw) / 2;
     ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
     ctx.beginPath();
-    ctx.roundRect(w - pw - 10, 8, pw, 32, 16);
+    ctx.roundRect(x, 6, pw, 28, 14);
     ctx.fill();
     ctx.fillStyle = '#e5e7f5';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(label, w - pw / 2 - 10, 24);
+    ctx.fillText(label, w / 2, 20);
   };
 
   return {

@@ -57,6 +57,48 @@
     "play": "games/harvest-sling/play/"
   },
   {
+    "slug": "one-arrow-oath",
+    "stage": "release-candidate",
+    "title": "One Arrow Oath",
+    "tagline": "Nothing fires twice.",
+    "description": "A deckbuilder where your best cards can be played only once. You are an archer sworn never to loose the same arrow twice: every named Arrow you play is spent for the whole run, so each fight asks how little you can afford to spend. Read every enemy's intent, answer it with the right element, take on Debts that come due at the worst moment, and decide whether to keep the Covenant or break it. Inspired by a warrior's vow from ancient Sanskrit epic poetry, one of the world's oldest literary traditions. The world and every name in it are original.",
+    "genre": "roguelite deckbuilder",
+    "demo": true,
+    "howToPlay": [
+      "Read the intent above each enemy: what it will do this turn, and which element answers it.",
+      "Press a card and pull it down like a bowstring, then release to play it. Tapping it twice also works.",
+      "Gold-framed Arrows hit hard and are spent for the whole run. Steel-framed Techniques come back.",
+      "Answer an attack with the element that beats it. A Ward cancels it; a matching Arrow also strikes for +50%.",
+      "Finish weak enemies with Reed Shafts. Never loose a named Arrow at a Lure - it will be wasted.",
+      "After each fight, take one new card. Camps heal, the Tuner trades, Envoys offer choices.",
+      "Debts give power now and come due in the final fight. Settle them at a Camp if you can.",
+      "Breaking the Covenant wins the moment, and your Standing never comes back."
+    ],
+    "icon": "games/one-arrow-oath/icon.svg",
+    "play": "games/one-arrow-oath/play/"
+  },
+  {
+    "slug": "perch",
+    "stage": "production",
+    "title": "Perch",
+    "tagline": "Read the stone. Choose your moment.",
+    "description": "You are a small bird on a branch, and hunters with catapults ring the field. You never aim: you read the stone coming and choose your moment to fly. Survive each day until sunset for up to three stars. Level 1 is one tree; from level 2 whole groves and orchards open up and you choose where to fly. Every level adds one new idea: golden seeds, fast archers, wind, a Master Hunter with a pattern to learn, nets and beaters. From level 3, close calls earn acorns to knock hunters flat. A hit only ruffles feathers. No ads, works offline.",
+    "genre": "dodge arcade",
+    "demo": true,
+    "howToPlay": [
+      "A hunter pulls back a catapult and a red ring shows the perch the stone will hit. A dotted arc shows its path.",
+      "Level 1: tap anywhere to fly and the bird picks the safest perch. From level 2, tap the perch you want to fly to.",
+      "Leave at the last moment for a close call (+5). Dodges in a row build a combo up to x5.",
+      "You have 3 feathers. Survive until the bar at the top fills (sunset): 3 stars for no hits.",
+      "Golden seeds: tap the perch that holds one to fly for it. Every third seed heals a feather.",
+      "Archers fire fast arrows. In wind, trust the red ring, not the hunter. Nets cover a whole tree: leave it. Beaters rattle your perch.",
+      "Hit back (level 3+): close calls earn acorns, up to 3. Tap a hunter to knock him down and cancel his shot.",
+      "Boss levels: the Master Hunter fires the same pattern every attempt. Learn it."
+    ],
+    "icon": "games/perch/icon.svg",
+    "play": "games/perch/play/"
+  },
+  {
     "slug": "sure-sweep-no-guess",
     "stage": "prototype",
     "title": "Sure Sweep",
@@ -74,6 +116,27 @@
     ],
     "icon": "games/sure-sweep-no-guess/icon.svg",
     "play": "games/sure-sweep-no-guess/play/"
+  },
+  {
+    "slug": "tiger-and-goat",
+    "stage": "release-candidate",
+    "title": "Tiger and Goat",
+    "tagline": "Four tigers. Twenty goats. One board.",
+    "description": "Tiger and Goat is Bagh-chal, Nepal's traditional board game. Four tigers hunt twenty goats on a board of 25 points: the goats are slow but many, the tigers few but fast. The game ends only when every goat is captured or every tiger is trapped. Learn in nine hands-on lessons, play either side against four computer levels or a friend on one phone, and solve a new puzzle every day. Win games to earn new boards and a snowy set of pieces. Hand-painted art, large text and reduced motion options. No ads, works offline.",
+    "genre": "abstract strategy board game",
+    "demo": true,
+    "howToPlay": [
+      "New here? Tap Learn to play: nine short lessons where you make every move yourself.",
+      "Goats go first: tap an empty point to place one. All 20 must be placed before any goat may move.",
+      "To move, tap a piece (its legal points glow), then tap where it goes. Goats step one point along a line and never jump.",
+      "A tiger steps one point or jumps a goat to the empty point behind it, capturing it. Goats on an edge or with a piece behind are safe.",
+      "Move not allowed? The piece tries, comes back, and a message tells you why.",
+      "Tigers win by capturing every goat; goats win when no tiger can move. Five captures do not end it. Three repeats is a draw.",
+      "Warnings mark goats a tiger could take next. Hint shows a good move (3 per game). Take back undoes your last move.",
+      "Beat each level with each side for a star. The daily puzzle is the same for all, longer on weekends. Winning unlocks boards and pieces."
+    ],
+    "icon": "games/tiger-and-goat/icon.svg",
+    "play": "games/tiger-and-goat/play/"
   },
   {
     "slug": "word-game",

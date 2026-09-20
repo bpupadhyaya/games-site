@@ -1,0 +1,25 @@
+{
+  "slug": "one-arrow-oath",
+  "title": "One Arrow Oath",
+  "tagline": "Nothing fires twice.",
+  "genre": "roguelite deckbuilder",
+  "orientation": "portrait",
+  "version": "1.0.0",
+  "monetization": {
+    "model": "premium",
+    "priceUsd": 7.99,
+    "previewSeconds": 600,
+    "products": [
+      {
+        "id": "unlock_game",
+        "type": "non-consumable",
+        "priceUsd": 7.99,
+        "title": "Unlock Full Game"
+      }
+    ]
+  },
+  "locales": [
+    "en"
+  ],
+  "demoOnly": true
+}

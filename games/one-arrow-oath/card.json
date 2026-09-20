@@ -1,0 +1,17 @@
+{
+  "title": "One Arrow Oath",
+  "tagline": "Nothing fires twice.",
+  "description": "A deckbuilder where your best cards can be played only once. You are an archer sworn never to loose the same arrow twice: every named Arrow you play is spent for the whole run, so each fight asks how little you can afford to spend. Read every enemy's intent, answer it with the right element, take on Debts that come due at the worst moment, and decide whether to keep the Covenant or break it. Inspired by a warrior's vow from ancient Sanskrit epic poetry, one of the world's oldest literary traditions. The world and every name in it are original.",
+  "genre": "roguelite deckbuilder",
+  "demo": true,
+  "howToPlay": [
+    "Read the intent above each enemy: what it will do this turn, and which element answers it.",
+    "Press a card and pull it down like a bowstring, then release to play it. Tapping it twice also works.",
+    "Gold-framed Arrows hit hard and are spent for the whole run. Steel-framed Techniques come back.",
+    "Answer an attack with the element that beats it. A Ward cancels it; a matching Arrow also strikes for +50%.",
+    "Finish weak enemies with Reed Shafts. Never loose a named Arrow at a Lure - it will be wasted.",
+    "After each fight, take one new card. Camps heal, the Tuner trades, Envoys offer choices.",
+    "Debts give power now and come due in the final fight. Settle them at a Camp if you can.",
+    "Breaking the Covenant wins the moment, and your Standing never comes back."
+  ]
+}

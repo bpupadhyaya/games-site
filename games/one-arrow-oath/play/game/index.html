@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <title>One Arrow Oath</title>
+  <style>
+    /* Display typeface: Cinzel, SIL Open Font License 1.1 (fonts/Cinzel-OFL.txt). */
+    @font-face { font-family: "Cinzel"; src: url("./fonts/Cinzel.woff2") format("woff2"); font-weight: 400 900; font-display: swap; }
+    html, body { margin: 0; height: 100%; background: #05071a; overflow: hidden; overscroll-behavior: none; }
+    canvas { display: block; width: 100vw; height: 100vh; height: 100dvh; touch-action: none; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+    /* Forces the font to load before the canvas first asks for it. */
+    .font-warm { position: absolute; left: -999px; top: 0; font-family: "Cinzel"; font-weight: 700; opacity: 0; pointer-events: none; }
+  </style>
+</head>
+<body>
+  <span class="font-warm" aria-hidden="true">One Arrow Oath 0123456789</span>
+  <canvas id="game"></canvas>
+  <script>
+    /* Render at most 2x: phones report 3x, which is ~2x the pixels for no visible gain and costs frames. */
+    (function () {
+      var real = window.devicePixelRatio || 1;
+      if (real > 2) Object.defineProperty(window, 'devicePixelRatio', { get: function () { return 2; } });
+    })();
+  </script>
+  <script type="module" src="./main.js"></script>
+</body>
+</html>
