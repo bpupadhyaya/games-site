@@ -1,0 +1,17 @@
+{
+  "title": "Hare and Hounds",
+  "tagline": "One hare. Three hounds. One narrow board.",
+  "description": "Hare and Hounds is a traditional hunt game for two sides on a tiny board of eleven points. Three hounds close in on one hare, but hounds may never move backward, so every step is a promise. Trap the hare before the hunt clock runs out, or slip past the hounds. Learn in nine hands-on lessons, play either side at four computer levels, take on a twelve-level campaign with stars, solve a new puzzle every day, or play a friend on one phone. Hand-painted animals, large text and reduced motion. No ads, works offline.",
+  "genre": "abstract strategy board game",
+  "demo": true,
+  "howToPlay": [
+    "New here? Tap Learn to play: nine short lessons where you make every move yourself.",
+    "One hare against three hounds. Tap a piece (its legal points glow), then tap where it goes. One step along a line per turn.",
+    "Hounds win by leaving the hare no move. They never capture, and may never move backward, only forward or sideways.",
+    "The hare wins by getting past all three hounds, or by lasting until the hunt clock (the hounds' moves) runs out.",
+    "Move not allowed? The piece tries, comes back, and a message tells you why.",
+    "Hare's reach shows where the hare could step next. Hint shows a good move (3 per game). Take back undoes your last move.",
+    "The campaign has twelve hunts: fewer moves earn more stars. The daily puzzle is the same for all, longer on weekends.",
+    "Beat each level with each side for a star. Winning unlocks new boards and a snowy set of pieces."
+  ]
+}

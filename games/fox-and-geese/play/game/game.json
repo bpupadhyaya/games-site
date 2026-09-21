@@ -1,0 +1,25 @@
+{
+  "slug": "fox-and-geese",
+  "title": "Fox and Geese",
+  "tagline": "One fox. A flock of geese. A cross of frost.",
+  "genre": "abstract strategy board game",
+  "orientation": "portrait",
+  "version": "1.0.0",
+  "monetization": {
+    "model": "premium",
+    "priceUsd": 2.99,
+    "previewSeconds": 300,
+    "products": [
+      {
+        "id": "unlock_game",
+        "type": "non-consumable",
+        "priceUsd": 2.99,
+        "title": "Unlock Game"
+      }
+    ]
+  },
+  "locales": [
+    "en"
+  ],
+  "demoOnly": true
+}

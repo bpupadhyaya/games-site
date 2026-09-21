@@ -1,0 +1,328 @@
+// Fox and Geese: state and flow. Drawing is in view.js; the rule book is rules.js; the computer's brain is engine.js;
+// lessons.js and puzzles.js are content. See design/ARCHITECTURE.md for the whole map.
+//
+// How a move is made (owner's spec, same as Tiger and Goat): tap a piece (it lifts, its legal points glow), then tap
+// where it should go. A legal move glides there. An illegal one visibly TRIES: the piece travels toward the point,
+// shudders, comes back, and a message says why. A fox that has jumped may jump again: it stays lifted with the next
+// jumps glowing, and the player taps a red point, or taps the fox (or "Stop here") to end the turn.
+import { W, H, BTN, LOOK, DEV_BTN, titleRows, inRect, pointNear, pointAt } from './layout.js';
+import { newGame, clone, applyMove, tryMove, FLOCKS, onBoard, N, CENTRE } from './rules.js';
+import { LEVELS, createThinker, chooseMove, forcingMoves } from './engine.js';
+import { LESSONS, boardOf } from './lessons.js';
+import { createPuzzleMaker, puzzleGame, PUZZLE_TEXT } from './puzzles.js';
+import { UNLOCKS, unlocked, starEarned } from './unlocks.js';
+import { render } from './view.js';
+
+export const meta = { width: W, height: H };
+const DEMO_GAMES = 2, HINTS_PER_GAME = 3;
+const same = (a, b) => a.type === b.type && a.to === b.to && (a.from ?? -1) === (b.from ?? -1);
+
+export function createGame(env) {
+  const { rng, storage, audio, monetization, config } = env;
+  const state = {
+    scene: 'title', t: 0, game: newGame(13), human: 'G', two: false, level: 1, flock: 13, marks: true, sound: true, calm: false,
+    look: { board: 'frost', set: 'classic', big: false },    // cosmetics and message size (unlocked by wins, see UNLOCKS)
+    cursor: CENTRE, kb: false,                               // keyboard play: which point the cursor is on, and whether to show it
+    sel: -1, anim: null, msg: null, think: 0, thinking: false, undo: [], hintsLeft: HINTS_PER_GAME, hint: null, starEarned: false,
+    stats: { games: 0, wins: 0, badges: {} }, saved: null, learned: false, demoGames: 0,
+    lesson: null,                                   // { i, done, count }
+    pz: null,                                       // { status: 'making' | 'ready' | 'solved', puzzle, n, tries, wrong }
+    daily: { day: config.day ?? 0, solvedDay: -1, streak: 0 },
+    dev: config.dev === true, devLesson: 0,
+  };
+  // Working objects that are not part of the saved state: they are rebuilt from it and are fully deterministic.
+  let thinker = null, hintThinker = null, puzzleToday = null;
+  const maker = createPuzzleMaker(state.daily.day);
+
+  storage.get('prefs', null).then((v) => { if (v) { state.level = v.level ?? 1; state.flock = FLOCKS.includes(v.flock) ? v.flock : 13; state.marks = v.marks ?? true; state.sound = v.sound ?? true; state.calm = v.calm ?? false; state.look = { ...state.look, ...(v.look || {}) }; audio.setMuted?.(!state.sound); } });
+  storage.get('stats', null).then((v) => { if (v) state.stats = { ...state.stats, ...v, badges: { ...(v.badges || {}) } }; });
+  storage.get('learned', false).then((v) => { state.learned = state.learned || !!v; });
+  storage.get('daily', null).then((v) => { if (v) { state.daily.solvedDay = v.solvedDay ?? -1; state.daily.streak = v.streak ?? 0; } });
+  storage.get('demoGames', 0).then((v) => { state.demoGames = Math.max(state.demoGames, v); });
+  storage.get('save', null).then((v) => { if (v && v.game && !v.game.winner && state.scene === 'title') state.saved = v; });
+  const savePrefs = () => storage.set('prefs', { level: state.level, flock: state.flock, marks: state.marks, sound: state.sound, calm: state.calm, look: state.look });
+  const saveGame = () => { if (state.scene === 'play' && !state.game.winner) { state.saved = { game: clone(state.game), human: state.human, two: state.two, level: state.level, hintsLeft: state.hintsLeft }; storage.set('save', state.saved); } };
+  const clearSave = () => { state.saved = null; storage.remove('save'); };
+
+  // Reduced motion (toggle on the title): quicker moves, no shudder, no bobbing, no snow, steady glows.
+  // A refused move must still be CLEAR: the piece still travels toward the point and comes back.
+  const dur = (d) => (state.calm ? d * 0.6 : d);
+  const say = (text, hold = 4.5) => { state.msg = { text, t: 0, hold }; };
+  const tone = (o) => { if (state.sound) audio.tone(o); };
+  // a soft "tok" on frozen ground: a short round sine that drops in pitch
+  const clack = (f = 420) => tone({ freq: f * 0.9, to: f * 0.42, dur: 0.07, type: 'sine', vol: 0.1 });
+  const reset = (extra) => Object.assign(state, { sel: -1, anim: null, msg: null, think: 0, thinking: false, undo: [], hint: null, hintsLeft: HINTS_PER_GAME, starEarned: false }, extra);
+
+  function start(human, two) {
+    if (config.demo && state.demoGames >= DEMO_GAMES) { state.scene = 'demo-limit'; return; }
+    if (config.demo) { state.demoGames += 1; storage.set('demoGames', state.demoGames); }
+    thinker = hintThinker = null;
+    reset({ scene: 'play', game: newGame(state.flock), human, two });
+    say(two ? 'The geese begin: tap a goose, then tap where it should step.' : human === 'G' ? 'You are the geese. Tap a goose, then tap where it should step.' : 'You are the fox. The geese move first.');
+    monetization.track('game_start', { side: two ? 'two' : human, level: state.level, flock: state.flock });
+  }
+  function resume() {
+    const v = state.saved; thinker = hintThinker = null;
+    reset({ scene: 'play', game: clone(v.game), human: v.human, two: v.two, level: v.level ?? state.level, hintsLeft: v.hintsLeft ?? HINTS_PER_GAME });
+    say('Game restored.');
+    if (!(state.two || state.game.turn === state.human)) state.think = 0.45;
+  }
+  function startLesson(i, note) {
+    const l = LESSONS[i], g = newGame(13);
+    g.board = boardOf(l.rows); g.turn = l.turn; g.captured = 13 - g.board.filter((c) => c === 'G').length;
+    thinker = hintThinker = null;
+    reset({ scene: 'lesson', game: g, human: l.turn, two: true, lesson: { i, done: false, count: 0 } });
+    if (note) say(note);
+  }
+  function startPuzzle() {
+    thinker = hintThinker = null;
+    const tries = state.pz?.tries ?? 0;
+    if (!puzzleToday) { reset({ scene: 'puzzle', game: newGame(13), pz: { status: 'making', puzzle: null, n: 0, tries, wrong: 0 } }); return; }
+    reset({ scene: 'puzzle', game: puzzleGame(puzzleToday), human: PUZZLE_TEXT[puzzleToday.type].side, two: false, pz: { status: state.daily.solvedDay === state.daily.day ? 'solved' : 'ready', puzzle: puzzleToday, n: puzzleToday.n, tries, wrong: 0 } });
+  }
+
+  const humanTurn = () => !state.game.winner && (state.two || state.game.turn === state.human);
+
+  // Animate a legal move and apply it to the rule book. Ending a chain ("stop") has nothing to animate.
+  function play(m) {
+    const g = state.game;
+    if (m.type === 'stop') { applyMove(g, m); state.sel = -1; state.hint = null; clack(360); afterMove(); return; }
+    state.anim = { type: m.type, kind: g.board[m.from], from: m.from, to: m.to, over: m.over ?? -1, t: 0, dur: dur(m.type === 'jump' ? 0.42 : 0.28) };
+    applyMove(g, m); state.sel = -1; state.hint = null;
+    if (m.type === 'jump') tone({ freq: 320, to: 90, dur: 0.22, type: 'sawtooth', vol: 0.07 }); else clack(state.anim.kind === 'F' ? 520 : 420);
+  }
+  // After a move has finished animating: the game may be over, the computer may be next, or the fox may still be mid-chain.
+  function afterMove() {
+    const g = state.game;
+    if (g.winner) { if (state.scene === 'play') finish(); return; }
+    if (state.scene === 'play') saveGame();
+    if (g.chain >= 0 && (state.two || g.turn === state.human)) state.sel = g.chain;        // the fox stays picked up: jump again or stop
+    else if (state.scene === 'play' && !humanTurn()) state.think = g.chain >= 0 ? 0.25 : 0.45;
+  }
+  // An illegal move: the piece tries, fails and returns, and the player is told why.
+  function refuse(from, to, why) {
+    state.anim = { type: 'refuse', kind: state.game.board[from], from, to, over: -1, t: 0, dur: dur(0.62) };
+    state.sel = -1; say(why);
+    tone({ freq: 190, to: 130, dur: 0.16, type: 'triangle', vol: 0.06 });
+    if (state.scene === 'lesson') { const l = LESSONS[state.lesson.i]; if (l.want === 'refused' && from !== to && (!l.at || l.at.includes(to))) state.lesson.done = true; }
+  }
+
+  // What a tap on board point i means. Returns the legal move that was chosen, or null.
+  function tapBoard(i) {
+    const g = state.game, me = g.turn, there = g.board[i];
+    if (state.sel < 0 && g.chain >= 0) state.sel = g.chain;                       // mid-chain the fox is always the piece in hand
+    if (state.sel < 0) {
+      if (there === me) { state.sel = i; clack(600); }
+      else if (there) say(me === 'G' ? "It is the geese's turn. Tap a goose." : "It is the fox's turn. Tap the fox.");
+      else say(`First tap ${me === 'G' ? 'the goose' : 'the fox'} you want to move, then tap where it should go.`);
+      return null;
+    }
+    if (i === state.sel) {
+      if (g.chain >= 0) return { type: 'stop', from: i, to: i };                    // tapping the fox again ends its chain
+      state.sel = -1; return null;
+    }
+    if (there === me) { state.sel = i; clack(600); return null; }                  // changed their mind: pick another piece
+    const r = tryMove(g, state.sel, i);
+    if (r.move) return r.move;
+    refuse(state.sel, i, r.error); return null;
+  }
+
+  function finish() {
+    const g = state.game;
+    state.scene = 'over'; state.stats.games += 1; clearSave();
+    if (!state.two && g.winner === state.human) {
+      state.stats.wins += 1;
+      state.starEarned = starEarned(state.human, state.level, g.flock);      // see unlocks.js: the classic game or a harder one
+      if (state.starEarned) state.stats.badges[state.human + state.level] = true;
+    }
+    storage.set('stats', state.stats);
+    tone({ freq: g.winner === 'draw' ? 330 : 523, to: g.winner === 'draw' ? 330 : 784, dur: 0.4, type: 'triangle', vol: 0.09 });
+    monetization.track('game_end', { winner: g.winner, moves: g.moves, level: state.level, flock: g.flock });
+  }
+
+  // ---- per-scene updates ----------------------------------------------------------------------------------
+  function updateTitle(tap) {
+    for (let k = 0; k < 3 && !puzzleToday; k++) puzzleToday = maker.step().puzzle;                         // grow today's puzzle in the background
+    if (!tap) return;
+    const R = titleRows(!!state.saved), hit = (r) => inRect(r, tap.x, tap.y);
+    if (hit(R.resume)) resume();
+    else if (hit(R.learn)) startLesson(0);
+    else if (hit(R.fox)) start('F', false);
+    else if (hit(R.geese)) start('G', false);
+    else if (hit(R.two)) start('G', true);
+    else if (hit(R.daily)) startPuzzle();
+    else if (hit(R.level)) { state.level = (state.level + 1) % LEVELS.length; savePrefs(); clack(); }
+    else if (hit(R.flock)) { state.flock = FLOCKS[(FLOCKS.indexOf(state.flock) + 1) % FLOCKS.length]; savePrefs(); clack(); say(state.flock === 13 ? 'The classic flock: 13 geese.' : state.flock < 13 ? `${state.flock} geese: harder for the geese, easier for the fox.` : `${state.flock} geese: easier for the geese, harder for the fox.`, 3.5); }
+    else if (hit(R.sound)) { state.sound = !state.sound; audio.setMuted?.(!state.sound); savePrefs(); clack(); }
+    else if (hit(R.marks)) { state.marks = !state.marks; savePrefs(); clack(); }
+    else if (hit(R.calm)) { state.calm = !state.calm; savePrefs(); clack(); }
+    else if (hit(R.look)) state.scene = 'look';
+    else if (state.dev && inRect(DEV_BTN, tap.x, tap.y)) { const i = state.devLesson; state.devLesson = (i + 1) % LESSONS.length; startLesson(i); }
+  }
+
+  function updatePlay(dt, tap) {
+    if (state.hint) { state.hint.t += dt; if (state.hint.t > 4) state.hint = null; }
+    if (state.anim) {
+      state.anim.t += dt;
+      if (state.anim.t >= state.anim.dur) { state.anim = null; afterMove(); }
+      return;
+    }
+    if (tap && inRect(BTN.menu, tap.x, tap.y)) { saveGame(); state.scene = 'title'; thinker = hintThinker = null; state.thinking = false; return; }
+    if (!humanTurn()) {                                                       // the computer thinks a little every tick
+      state.think -= dt;
+      if (state.think > 0) return;
+      if (!thinker) { thinker = createThinker(state.game, state.level, rng); state.thinking = true; }
+      const r = thinker.step();
+      if (r.move !== undefined) { thinker = null; state.thinking = false; if (r.move) play(r.move); }
+      return;
+    }
+    if (hintThinker) {
+      const r = hintThinker.step();
+      if (r.move !== undefined) {
+        hintThinker = null; state.thinking = false;
+        if (r.move) {
+          if (r.move.type === 'stop') say('Hint: stop here. Tap the fox or Stop here.');
+          else { state.hint = { from: r.move.from ?? -1, to: r.move.to, t: 0 }; say('Hint: move the glowing piece to the glowing point.'); }
+        }
+      }
+      return;
+    }
+    if (tap && inRect(BTN.undo, tap.x, tap.y)) {
+      // the stack holds the position before each HUMAN move, so one pop also takes back the computer's reply
+      if (state.undo.length) { state.game = state.undo.pop(); state.sel = -1; state.hint = null; say('Move taken back.'); clack(360); saveGame(); afterMove(); } else say('Nothing to take back yet.');
+      return;
+    }
+    if (tap && state.game.chain >= 0 && inRect(BTN.stop, tap.x, tap.y)) { state.undo.push(clone(state.game)); play({ type: 'stop', from: state.game.chain, to: state.game.chain }); return; }
+    if (tap && inRect(BTN.hint, tap.x, tap.y)) {
+      if (state.hintsLeft <= 0) say('No hints left in this game.');
+      else { state.hintsLeft -= 1; hintThinker = createThinker(state.game, 2, rng); state.thinking = true; state.sel = -1; }
+      return;
+    }
+    if (!tap) return;
+    const i = pointNear(tap.x, tap.y);
+    if (i < 0) { if (state.game.chain < 0) state.sel = -1; return; }
+    const m = tapBoard(i);
+    if (m) { state.undo.push(clone(state.game)); play(m); }
+  }
+
+  function updateLesson(dt, tap) {
+    const L = state.lesson, l = LESSONS[L.i];
+    if (state.anim) {
+      state.anim.t += dt;
+      if (state.anim.t >= state.anim.dur) {
+        state.anim = null;
+        const g = state.game;
+        if (!L.done) {
+          if (g.chain >= 0) state.sel = g.chain;                                 // keep the fox in hand for the next jump
+          else if (l.want === 'jumps') startLesson(L.i, 'The chain ended too soon. Try again: take both geese.');
+        }
+      }
+      return;
+    }
+    if (tap && inRect(BTN.menu, tap.x, tap.y)) { state.scene = 'title'; return; }
+    if (L.done) {
+      if (tap && inRect(BTN.next, tap.x, tap.y)) {
+        if (L.i + 1 < LESSONS.length) startLesson(L.i + 1);
+        else { state.learned = true; storage.set('learned', true); state.scene = 'title'; say('You know the game. Try the geese against the Easy computer.', 7); }
+      }
+      return;
+    }
+    if (tap && state.game.chain >= 0 && inRect(BTN.stop, tap.x, tap.y)) { startLesson(L.i, 'You stopped early. Try again: take both geese.'); return; }
+    if (!tap) return;
+    const i = pointNear(tap.x, tap.y);
+    if (i < 0) { if (state.game.chain < 0) state.sel = -1; return; }
+    const m = tapBoard(i);
+    if (!m) return;
+    if (m.type === 'stop') { startLesson(L.i, 'You stopped early. Try again: take both geese.'); return; }
+    const after = applyMove(clone(state.game), m, false);
+    const kindOk = l.want === 'step' ? m.type === 'move' : l.want === 'jump' || l.want === 'jumps' ? m.type === 'jump' : l.want === 'win' ? after.winner === l.turn : false;
+    const ok = kindOk && (!l.at || l.at.includes(m.to));
+    if (ok) {
+      play(m);
+      if (l.want === 'jumps') { L.count += 1; if (L.count >= l.n) { state.game.winner = null; L.done = true; tone({ freq: 660, to: 990, dur: 0.2, type: 'triangle', vol: 0.08 }); } }
+      else { state.game.winner = null; L.done = true; tone({ freq: 660, to: 990, dur: 0.2, type: 'triangle', vol: 0.08 }); }
+    } else {
+      state.sel = state.game.chain >= 0 ? state.game.chain : -1;
+      say(l.hint ?? (l.want === 'jump' ? 'That is a step. Tap the fox, then a red point beyond a goose.' : l.want === 'jumps' ? 'Jump over a goose: tap the fox, then the red point behind the goose.' : l.want === 'win' ? 'That leaves the fox a move. Look for the one open point.' : l.want === 'refused' ? 'That move is allowed. Follow the line above and try the point it names.' : 'Not that one. Read the line above and try again.'));
+    }
+  }
+
+  function updatePuzzle(dt, tap) {
+    const P = state.pz;
+    if (tap && inRect(BTN.menu, tap.x, tap.y)) { state.scene = 'title'; return; }
+    if (P.status === 'making') { for (let k = 0; k < 3 && !puzzleToday; k++) puzzleToday = maker.step().puzzle; if (puzzleToday) startPuzzle(); return; }
+    if (state.anim) {
+      state.anim.t += dt;
+      if (state.anim.t < state.anim.dur) return;
+      state.anim = null;
+      const g = state.game, side = PUZZLE_TEXT[P.puzzle.type].side;
+      if (P.wrong > 0) return;                                               // wait, then the position is set up again
+      const solved = P.puzzle.type === 'trap' ? g.winner === 'G' : g.captured > puzzleGame(P.puzzle).captured;
+      if (solved) {
+        P.status = 'solved'; g.winner = null; g.chain = -1; state.sel = -1;
+        if (state.daily.solvedDay !== state.daily.day) { state.daily.streak = state.daily.solvedDay === state.daily.day - 1 ? state.daily.streak + 1 : 1; state.daily.solvedDay = state.daily.day; storage.set('daily', { solvedDay: state.daily.solvedDay, streak: state.daily.streak }); }
+        say('Solved!', 6); tone({ freq: 523, to: 1046, dur: 0.4, type: 'triangle', vol: 0.09 });
+      } else if (g.turn !== side && !g.winner) { const reply = chooseMove(g, 2, rng); if (reply) play(reply); }
+      else if (g.chain >= 0) state.sel = g.chain;
+      return;
+    }
+    if (P.wrong > 0) { P.wrong -= dt; if (P.wrong <= 0) { state.game = puzzleGame(P.puzzle); P.n = P.puzzle.n; P.wrong = 0; say('Set up again. Look for the move that leaves no escape.'); } return; }
+    if (P.status === 'solved') { if (tap && inRect(BTN.share, tap.x, tap.y)) env.share(`Fox and Geese daily puzzle: solved${P.tries ? ' after ' + P.tries + ' wrong tr' + (P.tries === 1 ? 'y' : 'ies') : ' first try'}. Streak ${state.daily.streak}.`); return; }
+    if (!tap) return;
+    const i = pointNear(tap.x, tap.y);
+    if (i < 0) { state.sel = -1; return; }
+    const m = tapBoard(i);
+    if (!m) return;
+    const good = forcingMoves(state.game, P.puzzle.type, P.n) || [];
+    play(m);
+    if (good.some((x) => same(x, m))) P.n -= 1;
+    else { P.tries += 1; P.wrong = 1.4; say(P.puzzle.type === 'catch' ? 'That lets the geese get safe.' : 'That leaves the fox a way out.'); }
+  }
+
+  function updateLook(tap) {
+    if (!tap) return;
+    const pick = (group, key, set) => { if (unlocked(state, group, key)) { state.look[set] = key; savePrefs(); clack(); } else say(UNLOCKS[group][key].need + ' Then it is yours.', 4); };
+    const B3 = ['frost', 'slate', 'moss'], S2 = ['classic', 'dusk'];
+    LOOK.boards.forEach((r, i) => { if (inRect(r, tap.x, tap.y)) pick('board', B3[i], 'board'); });
+    LOOK.sets.forEach((r, i) => { if (inRect(r, tap.x, tap.y)) pick('set', S2[i], 'set'); });
+    LOOK.text.forEach((r, i) => { if (inRect(r, tap.x, tap.y)) { state.look.big = i === 1; savePrefs(); clack(); } });
+    if (inRect(LOOK.back, tap.x, tap.y)) state.scene = 'title';
+  }
+
+  // Keyboard (web demo): arrows move a cursor over the board, Space or Enter is a tap on that point, Escape is Menu.
+  function keyboard(input) {
+    const k = input.keys.pressed, sc = state.scene;
+    if (input.pointer.pressed) { state.kb = false; return null; }
+    if (sc === 'title') { if (k.has('Enter') || k.has('Space')) return { key: 'start' }; return null; }
+    if (sc === 'over') { if (k.has('Enter') || k.has('Space')) return { x: BTN.again.x + 5, y: BTN.again.y + 5 }; return null; }
+    if (sc === 'look') { if (k.has('Escape')) return { x: LOOK.back.x + 5, y: LOOK.back.y + 5 }; return null; }
+    if (sc !== 'play' && sc !== 'lesson' && sc !== 'puzzle') return null;
+    if (k.has('Escape')) return { x: BTN.menu.x + 5, y: BTN.menu.y + 5 };
+    let dx = 0, dy = 0;
+    if (k.has('ArrowLeft')) dx = -1; else if (k.has('ArrowRight')) dx = 1; else if (k.has('ArrowUp')) dy = -1; else if (k.has('ArrowDown')) dy = 1;
+    if (dx || dy) { state.kb = true; const x = (state.cursor % N) + dx, y = Math.floor(state.cursor / N) + dy; if (onBoard(x, y)) state.cursor = x + N * y; return null; }
+    if (k.has('Enter') || k.has('Space')) { state.kb = true; const p = pointAt(state.cursor); return { x: p.x, y: p.y }; }
+    return null;
+  }
+
+  return {
+    update(dt, input) {
+      state.t += dt;
+      if (state.msg) { state.msg.t += dt; if (state.msg.t > state.msg.hold) state.msg = null; }
+      const p = input.pointer, kbd = keyboard(input);
+      let tap = p.pressed ? { x: p.x, y: p.y } : kbd && kbd.x !== undefined ? kbd : null;
+      if (kbd && kbd.key === 'start') tap = { x: titleRows(!!state.saved).geese.x + 5, y: titleRows(!!state.saved).geese.y + 5 };
+      if (state.scene === 'title') updateTitle(tap);
+      else if (state.scene === 'look') updateLook(tap);
+      else if (state.scene === 'play') updatePlay(dt, tap);
+      else if (state.scene === 'lesson') updateLesson(dt, tap);
+      else if (state.scene === 'puzzle') updatePuzzle(dt, tap);
+      else if (state.scene === 'over' && tap) {
+        if (inRect(BTN.again, tap.x, tap.y)) start(state.human, state.two);
+        else if (inRect(BTN.back, tap.x, tap.y)) state.scene = 'title';
+      }
+    },
+    render(ctx) { render(ctx, state); },
+    getState: () => state,
+  };
+}

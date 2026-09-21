@@ -38,6 +38,48 @@
     "play": "games/crown-star-regions/play/"
   },
   {
+    "slug": "fox-and-geese",
+    "stage": "release-candidate",
+    "title": "Fox and Geese",
+    "tagline": "One fox. A flock of geese. A cross of frost.",
+    "description": "Fox and Geese is the classic hunt game, played on a cross of 33 points across Europe for centuries. One fox faces thirteen geese: the geese step forward or sideways and never back, and try to close the fox in; the fox slips between them and jumps any goose left alone, chaining jumps in one turn. Learn in nine hands-on lessons, play either side against four computer levels or a friend on one phone, choose a flock of 7 to 17 geese, and solve a new puzzle every day. Hand-painted fox and geese on a moonlit board. No ads, works offline.",
+    "genre": "abstract strategy board game",
+    "demo": true,
+    "howToPlay": [
+      "New here? Tap Learn to play: nine short lessons where you make every move yourself.",
+      "The geese move first. Tap a goose (its points glow), then tap where it steps: one point forward or sideways, never backward.",
+      "The fox steps one point up, down, left or right, or jumps over a goose to the empty point behind it and captures it.",
+      "After a jump the fox may jump again in the same turn: tap a red point to go on, or tap the fox or Stop here to end its turn.",
+      "Move not allowed? The piece tries, comes back, and a message tells you why.",
+      "The geese win when the fox cannot move. The fox wins when only 5 geese are left. The same position three times is a draw.",
+      "Warnings mark geese the fox could take next. Hint shows a good move (3 per game). Take back undoes your last move.",
+      "Choose a flock of 7 to 17 geese (13 is classic). Beat each level with each side for a star. The daily puzzle is the same for everyone."
+    ],
+    "icon": "games/fox-and-geese/icon.svg",
+    "play": "games/fox-and-geese/play/"
+  },
+  {
+    "slug": "hare-and-hounds",
+    "stage": "release-candidate",
+    "title": "Hare and Hounds",
+    "tagline": "One hare. Three hounds. One narrow board.",
+    "description": "Hare and Hounds is a traditional hunt game for two sides on a tiny board of eleven points. Three hounds close in on one hare, but hounds may never move backward, so every step is a promise. Trap the hare before the hunt clock runs out, or slip past the hounds. Learn in nine hands-on lessons, play either side at four computer levels, take on a twelve-level campaign with stars, solve a new puzzle every day, or play a friend on one phone. Hand-painted animals, large text and reduced motion. No ads, works offline.",
+    "genre": "abstract strategy board game",
+    "demo": true,
+    "howToPlay": [
+      "New here? Tap Learn to play: nine short lessons where you make every move yourself.",
+      "One hare against three hounds. Tap a piece (its legal points glow), then tap where it goes. One step along a line per turn.",
+      "Hounds win by leaving the hare no move. They never capture, and may never move backward, only forward or sideways.",
+      "The hare wins by getting past all three hounds, or by lasting until the hunt clock (the hounds' moves) runs out.",
+      "Move not allowed? The piece tries, comes back, and a message tells you why.",
+      "Hare's reach shows where the hare could step next. Hint shows a good move (3 per game). Take back undoes your last move.",
+      "The campaign has twelve hunts: fewer moves earn more stars. The daily puzzle is the same for all, longer on weekends.",
+      "Beat each level with each side for a star. Winning unlocks new boards and a snowy set of pieces."
+    ],
+    "icon": "games/hare-and-hounds/icon.svg",
+    "play": "games/hare-and-hounds/play/"
+  },
+  {
     "slug": "harvest-sling",
     "stage": "production",
     "title": "Golden Sling",
