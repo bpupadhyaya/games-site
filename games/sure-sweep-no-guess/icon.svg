@@ -1,5 +1,64 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
-  <!-- TEMPLATE ICON: replace with the game's own 1024x1024 icon (no transparency, no text smaller than 120px). -->
-  <rect width="1024" height="1024" fill="#0b1020"/>
-  <circle cx="512" cy="512" r="300" fill="#6c5ce7"/>
+  <defs>
+    <radialGradient id="sea" cx="0.8" cy="0" r="1.25">
+      <stop offset="0" stop-color="#2fd6cb"/>
+      <stop offset="0.5" stop-color="#0f7b82"/>
+      <stop offset="1" stop-color="#05303a"/>
+    </radialGradient>
+    <linearGradient id="tile" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#6ff0e4"/>
+      <stop offset="1" stop-color="#16a3a4"/>
+    </linearGradient>
+    <linearGradient id="paper" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff8e6"/>
+      <stop offset="1" stop-color="#ead9b0"/>
+    </linearGradient>
+    <linearGradient id="flag" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ff8a72"/>
+      <stop offset="1" stop-color="#d3262f"/>
+    </linearGradient>
+    <linearGradient id="brass" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffe694"/>
+      <stop offset="1" stop-color="#b57a1c"/>
+    </linearGradient>
+    <linearGradient id="ok" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#7dffc9"/>
+      <stop offset="1" stop-color="#12b07f"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#sea)"/>
+  <g fill="none" stroke="#ffffff" stroke-opacity="0.09" stroke-width="10">
+    <path d="M-20 170 C 200 110, 380 230, 560 170 S 900 110, 1044 180"/>
+    <path d="M-20 900 C 180 840, 400 960, 600 900 S 900 850, 1044 910"/>
+  </g>
+  <!-- board well -->
+  <rect x="112" y="140" width="800" height="800" rx="96" fill="#000" opacity="0.28"/>
+  <rect x="112" y="112" width="800" height="800" rx="96" fill="#052a33"/>
+  <rect x="112" y="112" width="800" height="800" rx="96" fill="none" stroke="#ffffff" stroke-opacity="0.3" stroke-width="8"/>
+  <!-- opened cells -->
+  <rect x="160" y="160" width="340" height="340" rx="40" fill="url(#paper)"/>
+  <rect x="524" y="524" width="340" height="340" rx="40" fill="url(#paper)"/>
+  <rect x="160" y="160" width="340" height="34" rx="17" fill="#000" opacity="0.1"/>
+  <rect x="524" y="524" width="340" height="34" rx="17" fill="#000" opacity="0.1"/>
+  <!-- raised tiles -->
+  <rect x="524" y="160" width="340" height="340" rx="56" fill="#0a5557"/>
+  <rect x="524" y="160" width="340" height="304" rx="56" fill="url(#tile)"/>
+  <rect x="548" y="180" width="292" height="120" rx="40" fill="#fff" opacity="0.18"/>
+  <rect x="160" y="524" width="340" height="340" rx="56" fill="#0a5557"/>
+  <rect x="160" y="524" width="340" height="304" rx="56" fill="url(#tile)"/>
+  <rect x="184" y="544" width="292" height="120" rx="40" fill="#fff" opacity="0.18"/>
+  <!-- flag on the upper-right tile -->
+  <ellipse cx="690" cy="436" rx="92" ry="22" fill="#000" opacity="0.25"/>
+  <rect x="624" y="392" width="132" height="40" rx="16" fill="url(#brass)"/>
+  <rect x="660" y="196" width="30" height="214" rx="15" fill="#2b1d12"/>
+  <path d="M686 200 Q 770 196 830 258 Q 770 300 686 322 Z" fill="url(#flag)" stroke="#5a1010" stroke-opacity="0.45" stroke-width="6" stroke-linejoin="round"/>
+  <!-- sure-move ring on the lower-left tile -->
+  <rect x="186" y="550" width="288" height="252" rx="42" fill="none" stroke="#4dffa6" stroke-opacity="0.35" stroke-width="44"/>
+  <rect x="186" y="550" width="288" height="252" rx="42" fill="none" stroke="#4dffa6" stroke-width="20"/>
+  <!-- tick: the move is certain -->
+  <circle cx="694" cy="694" r="118" fill="#0a5c47"/>
+  <circle cx="694" cy="684" r="118" fill="url(#ok)"/>
+  <path d="M636 686 L 680 732 L 756 640" fill="none" stroke="#03281e" stroke-width="34" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- a bold one on the opened cell -->
+  <path d="M300 256 L 356 236 L 356 424 M 300 424 L 412 424" fill="none" stroke="#1565c0" stroke-width="46" stroke-linecap="round" stroke-linejoin="round"/>
 </svg>

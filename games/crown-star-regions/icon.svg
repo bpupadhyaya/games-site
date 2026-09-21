@@ -1,5 +1,63 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
-  <!-- TEMPLATE ICON: replace with the game's own 1024x1024 icon (no transparency, no text smaller than 120px). -->
-  <rect width="1024" height="1024" fill="#0b1020"/>
-  <circle cx="512" cy="512" r="300" fill="#6c5ce7"/>
+  <defs>
+    <linearGradient id="gold" x1="0" y1="0" x2="0.6" y2="1">
+      <stop offset="0" stop-color="#fff8d0"/><stop offset="0.4" stop-color="#f9d25c"/><stop offset="1" stop-color="#c0821a"/>
+    </linearGradient>
+    <linearGradient id="band" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffe58a"/><stop offset="1" stop-color="#a96c0e"/>
+    </linearGradient>
+    <linearGradient id="inlay" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffe9a0"/><stop offset="1" stop-color="#c58a1c"/>
+    </linearGradient>
+    <linearGradient id="violet" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#a27bff"/><stop offset="1" stop-color="#4a2fa0"/></linearGradient>
+    <linearGradient id="teal" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4fe0c8"/><stop offset="1" stop-color="#0c7a78"/></linearGradient>
+    <linearGradient id="rose" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#ff8fb4"/><stop offset="1" stop-color="#b3204f"/></linearGradient>
+    <linearGradient id="blue" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6fb4ff"/><stop offset="1" stop-color="#1c4fb0"/></linearGradient>
+    <radialGradient id="pool" cx="0.5" cy="0.52" r="0.5">
+      <stop offset="0" stop-color="#1a0a4a" stop-opacity="0.78"/><stop offset="0.7" stop-color="#1a0a4a" stop-opacity="0.45"/><stop offset="1" stop-color="#1a0a4a" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="vig" cx="0.5" cy="0.45" r="0.75">
+      <stop offset="0.55" stop-color="#0a0326" stop-opacity="0"/><stop offset="1" stop-color="#0a0326" stop-opacity="0.6"/>
+    </radialGradient>
+    <radialGradient id="ruby" cx="0.35" cy="0.3" r="0.8"><stop offset="0" stop-color="#ffb0c0"/><stop offset="1" stop-color="#b8123a"/></radialGradient>
+    <radialGradient id="sapphire" cx="0.35" cy="0.3" r="0.8"><stop offset="0" stop-color="#c8d4ff"/><stop offset="1" stop-color="#3438c0"/></radialGradient>
+    <radialGradient id="pearl" cx="0.35" cy="0.3" r="0.8"><stop offset="0" stop-color="#ffffff"/><stop offset="0.5" stop-color="#ffe9a0"/><stop offset="1" stop-color="#b97f18"/></radialGradient>
+  </defs>
+  <!-- field map: four enamel regions, full bleed -->
+  <rect width="1024" height="1024" fill="#1b0d05"/>
+  <path d="M0 0H600V300H340V560H0Z" fill="url(#violet)"/>
+  <path d="M600 0H1024V620H700V300H600Z" fill="url(#teal)"/>
+  <path d="M0 560H340V300H700V620H560V1024H0Z" fill="url(#rose)"/>
+  <path d="M560 620H1024V1024H560Z" fill="url(#blue)"/>
+  <!-- tile lines -->
+  <g stroke="#140830" stroke-opacity="0.35" stroke-width="8">
+    <path d="M256 0V1024M512 0V1024M768 0V1024M0 256H1024M0 512H1024M0 768H1024"/>
+  </g>
+  <g stroke="#ffffff" stroke-opacity="0.16" stroke-width="4">
+    <path d="M262 0V1024M518 0V1024M774 0V1024M0 262H1024M0 518H1024M0 774H1024"/>
+  </g>
+  <!-- gold inlays between regions -->
+  <g fill="none" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M600 0V300H340V560H0M600 300H700V620H1024M700 620H560V1024" stroke="#231003" stroke-width="40"/>
+    <path d="M600 0V300H340V560H0M600 300H700V620H1024M700 620H560V1024" stroke="url(#inlay)" stroke-width="26"/>
+    <path d="M594 0V294H334V554H0M600 294H706V614H1024M694 614H554V1024" stroke="#fff6c4" stroke-opacity="0.8" stroke-width="5"/>
+  </g>
+  <rect width="1024" height="1024" fill="url(#vig)"/>
+  <circle cx="512" cy="530" r="430" fill="url(#pool)"/>
+  <!-- the crown -->
+  <ellipse cx="524" cy="790" rx="300" ry="44" fill="#0a0326" fill-opacity="0.5"/>
+  <g stroke="#4a2a06" stroke-width="22" stroke-linejoin="round">
+    <path d="M236 650 L200 340 L362 470 L512 215 L662 470 L824 340 L788 650 Z" fill="url(#gold)"/>
+    <path d="M512 215 L662 470 L662 650 L512 650 Z" fill="#96580a" fill-opacity="0.35" stroke="none"/>
+    <rect x="218" y="636" width="588" height="124" rx="30" fill="url(#band)"/>
+    <circle cx="200" cy="340" r="46" fill="url(#pearl)"/>
+    <circle cx="512" cy="215" r="50" fill="url(#pearl)"/>
+    <circle cx="824" cy="340" r="46" fill="url(#pearl)"/>
+  </g>
+  <circle cx="512" cy="698" r="40" fill="url(#ruby)" stroke="#4a2a06" stroke-width="8"/>
+  <circle cx="336" cy="698" r="29" fill="url(#sapphire)" stroke="#4a2a06" stroke-width="7"/>
+  <circle cx="688" cy="698" r="29" fill="url(#sapphire)" stroke="#4a2a06" stroke-width="7"/>
+  <path d="M262 606 L238 400" stroke="#ffffff" stroke-opacity="0.8" stroke-width="14" stroke-linecap="round" fill="none"/>
+  <!-- sparkle -->
+  <path d="M800 130 Q800 200 870 200 Q800 200 800 270 Q800 200 730 200 Q800 200 800 130Z" fill="#fff4be"/>
 </svg>

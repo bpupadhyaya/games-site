@@ -13,7 +13,7 @@
       "Stack tableau cards down in alternating colours.",
       "Tap the stock pile to draw a new card when you're stuck.",
       "Tap \"what can I do?\" any time to see every legal move highlighted.",
-      "Change the table colour and 2- or 4-colour suits from the title screen or while playing - your choice is remembered."
+      "Open Options any time to change the table colour, card back, 2- or 4-colour suits and motion. Your choices are remembered."
     ],
     "icon": "games/big-card-solitaire-large-print/icon.svg",
     "play": "games/big-card-solitaire-large-print/play/"

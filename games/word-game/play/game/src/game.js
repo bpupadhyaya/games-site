@@ -8,75 +8,28 @@
 // one that correctly matches the target (synonym or antonym, chosen before the session and
 // locked for its whole 90 seconds). See design/GDD.md for the full design.
 import { WORDS } from './words.js';
+import { SCHEMES } from './schemes.js';
+import { render } from './render.js';
+import {
+  W, H, BAND_TOP, SLICE_H, SLICE_MARGIN, CHIP_H, slipWidth, inRect, REVIEW_PER_PAGE,
+  MODE_SYN_BTN, MODE_ANT_BTN, PLAY_BTN, TITLE_COLOR_BTN, STOP_BTN, COLOR_BTN,
+  PREV_BTN, NEXT_BTN, PLAY_AGAIN_BTN, CHANGE_MODE_BTN,
+} from './layout.js';
 
-export const meta = { width: 720, height: 1280 };
+export const meta = { width: W, height: H };
 
 const SESSION_SECONDS = 90;
-// Web preview (env.config.demo) is marketing for the full iOS/Android game, not a substitute
-// for it — cap how many full sessions are playable for free. See docs/GAME-CONTRACT.md's
-// "Web preview" section and design/GDD.md's "Demo cut".
+// Web preview (env.config.demo) is a taste of the full iOS/Android game: only a couple of full
+// sessions are playable there. See docs/GAME-CONTRACT.md's "Web preview" section.
 const DEMO_SESSION_LIMIT = 2;
 const RECENT_WORDS_MAX = 6;
-
-// Vertical band the three candidate words drift within — deliberately tall (most of the screen
-// height) and split into three independent slices so the words come in at varied heights.
-const BAND_TOP = 300;
-const BAND_BOTTOM = 1000;
-const SLICE_H = (BAND_BOTTOM - BAND_TOP) / 3;
-const SLICE_MARGIN = 30;
 
 const SPEED_BASE = 140;
 const SPEED_PER_POINT = 18;
 const SPEED_CAP_BONUS = 260;
 const SPEED_JITTER = 40;
 
-const CHAR_W = 30; // approximate px/char at the candidate-word font size, used for both hit-testing and drawing
-const CHIP_PAD_X = 20;
-const CHIP_H = 84;
-
 const KEY_CODES = ['Digit1', 'Digit2', 'Digit3'];
-
-const inRect = (x, y, r) => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
-const wordChipWidth = (text) => text.length * CHAR_W + CHIP_PAD_X * 2;
-
-// Title-screen / gameover-screen button rects (virtual units).
-const MODE_SYN_BTN = { x: 70, y: 480, w: 270, h: 90 };
-const MODE_ANT_BTN = { x: 380, y: 480, w: 270, h: 90 };
-const PLAY_BTN = { x: 160, y: 610, w: 400, h: 110 };
-
-// Ends the current session early (same effect as the 90s clock running out) so the player isn't
-// forced to either finish the timer or fully exit the app via the OS back button to change mode.
-const STOP_BTN = { x: 260, y: 1140, w: 200, h: 76 };
-const COLOR_BTN = { x: 490, y: 1140, w: 200, h: 76 };
-const TITLE_COLOR_BTN = { x: 160, y: 760, w: 400, h: 78 };
-
-// Colour schemes. Index 0 is the original look and stays the default; players can cycle through
-// the others on the title screen or while playing. All words share the scheme's one text colour.
-const SCHEMES = [
-  { name: 'Default', stops: ['#3a3560', '#262a42', '#181a26'], text: '#eef0fb' },
-  { name: 'High contrast', stops: ['#000000', '#000000', '#000000'], text: '#ffffff' },
-  { name: 'Ocean', stops: ['#1d4e7a', '#123556', '#0a1f36'], text: '#e8f4ff' },
-  { name: 'Forest', stops: ['#1f5a44', '#153f30', '#0d2620'], text: '#eafaf1' },
-  { name: 'Warm', stops: ['#6a3a2a', '#45261e', '#26150f'], text: '#fff1e6' },
-  { name: 'Sunset', stops: ['#f97316', '#be185d', '#4c1d95'], text: '#fff7ed' },
-  { name: 'Aurora', stops: ['#10b981', '#6d28d9', '#0f172a'], text: '#ecfdf5' },
-  { name: 'Candy', stops: ['#ec4899', '#8b5cf6', '#3b0764'], text: '#fdf2f8' },
-  { name: 'Midnight', stops: ['#1e3a8a', '#0f172a', '#020617'], text: '#dbeafe' },
-  { name: 'Lavender', stops: ['#8b5cf6', '#5b21b6', '#2e1065'], text: '#f5f3ff' },
-  { name: 'Rose', stops: ['#e11d48', '#9f1239', '#4c0519'], text: '#fff1f2' },
-  { name: 'Teal', stops: ['#14b8a6', '#0f766e', '#042f2e'], text: '#f0fdfa' },
-  { name: 'Gold', stops: ['#ca8a04', '#713f12', '#1c1917'], text: '#fefce8' },
-  { name: 'Slate', stops: ['#64748b', '#334155', '#0f172a'], text: '#f1f5f9' },
-];
-
-// Session review screen: every answer from the session, mistakes first, paged.
-const REVIEW_TOP = 250;
-const REVIEW_ROW_H = 134;
-const REVIEW_PER_PAGE = 5;
-const PREV_BTN = { x: 40, y: 1010, w: 200, h: 70 };
-const NEXT_BTN = { x: 480, y: 1010, w: 200, h: 70 };
-const PLAY_AGAIN_BTN = { x: 40, y: 1120, w: 310, h: 90 };
-const CHANGE_MODE_BTN = { x: 370, y: 1120, w: 310, h: 90 };
 
 export function createGame(env) {
   const { rng, storage, monetization, audio, config } = env;
@@ -98,10 +51,21 @@ export function createGame(env) {
     demo,
     demoSessions: 0,
     demoLimitReached: false,
+    // Presentation clocks, all advanced by the fixed step (never the wall clock):
+    t: 0, // seconds since boot: idle motion
+    sceneT: 1, // seconds since the scene changed: entrance easing (starts settled on first frame)
+    press: null, // { id, t } last button pressed: springy press feedback
+    fx: null, // { kind: 'right' | 'wrong' | 'miss', x, y, w, text, t } feedback for the last answer
     round: null, // { targetWord, mode, words: [{ text, correct, slot, w, x, y, vy, speed }] }
   };
 
   let recentWords = [];
+  const setScene = (scene) => {
+    state.scene = scene;
+    state.sceneT = 0;
+    state.fx = null;
+  };
+  const pressed = (id) => (state.press = { id, t: 0 });
 
   storage.get('scheme', 0).then((v) => (state.scheme = SCHEMES[v] ? v : 0));
   const cycleScheme = () => {
@@ -145,6 +109,7 @@ export function createGame(env) {
     const speed = SPEED_BASE + Math.min(SPEED_CAP_BONUS, state.score * SPEED_PER_POINT);
     state.round = {
       targetWord: word,
+      age: 0,
       meaning,
       mode: state.mode,
       words: options.map((o, slot) => {
@@ -154,7 +119,7 @@ export function createGame(env) {
           text: o.text,
           correct: o.correct,
           slot,
-          w: wordChipWidth(o.text),
+          w: slipWidth(o.text),
           x: meta.width + 20 + rng.range(0, 140),
           y: rng.range(sliceTop, sliceBottom),
           vy: rng.range(-30, 30),
@@ -169,7 +134,7 @@ export function createGame(env) {
   const startSession = () => {
     if (demo) {
       if (state.demoLimitReached) {
-        state.scene = 'demo-limit';
+        setScene('demo-limit');
         return;
       }
       state.demoSessions += 1;
@@ -183,14 +148,14 @@ export function createGame(env) {
     state.timeLeft = SESSION_SECONDS;
     state.newBest = false;
     recentWords = [];
-    state.scene = 'playing';
+    setScene('playing');
     spawnRound();
   };
 
   const bestKey = () => (state.mode === 'synonym' ? 'bestSynonym' : 'bestAntonym');
 
   const endSession = () => {
-    state.scene = 'gameover';
+    setScene('gameover');
     state.round = null;
     state.reviewPage = 0;
     const key = bestKey();
@@ -209,9 +174,18 @@ export function createGame(env) {
 
   const resolveRound = (picked) => {
     const round = state.round;
+    const shown = round.words.find((w) => w.text === picked) ?? round.words.find((w) => w.correct);
     const answer = round.words.find((w) => w.correct).text;
     const hit = picked !== null && picked === answer;
     state.history.push({ word: round.targetWord, meaning: round.meaning, mode: round.mode, answer, picked, correct: hit });
+    state.fx = {
+      kind: hit ? 'right' : picked === null ? 'miss' : 'wrong',
+      x: picked === null ? 0 : Math.max(shown.w / 2 + 12, Math.min(W - shown.w / 2 - 12, shown.x)),
+      y: shown.y,
+      w: shown.w,
+      text: shown.text,
+      t: 0,
+    };
     if (hit) {
       state.score += 1;
       audio.tone({ freq: 620, to: 900, dur: 0.1, type: 'triangle', vol: 0.22 });
@@ -224,10 +198,17 @@ export function createGame(env) {
   const updateTitle = (input) => {
     if (!input.pointer.pressed) return;
     const { x, y } = input.pointer;
-    if (inRect(x, y, MODE_SYN_BTN)) state.selectedMode = 'synonym';
-    else if (inRect(x, y, MODE_ANT_BTN)) state.selectedMode = 'antonym';
-    else if (inRect(x, y, PLAY_BTN)) startSession();
-    else if (inRect(x, y, TITLE_COLOR_BTN)) cycleScheme();
+    if (inRect(x, y, MODE_SYN_BTN)) {
+      state.selectedMode = 'synonym';
+      pressed('syn');
+    } else if (inRect(x, y, MODE_ANT_BTN)) {
+      state.selectedMode = 'antonym';
+      pressed('ant');
+    } else if (inRect(x, y, PLAY_BTN)) startSession();
+    else if (inRect(x, y, TITLE_COLOR_BTN)) {
+      cycleScheme();
+      pressed('colour');
+    }
   };
 
   const updatePlaying = (dt, input) => {
@@ -239,6 +220,7 @@ export function createGame(env) {
     }
     const round = state.round;
     if (!round) return;
+    round.age += dt;
     for (const w of round.words) {
       w.x -= w.speed * dt;
       w.y += w.vy * dt;
@@ -255,6 +237,7 @@ export function createGame(env) {
     if (input.pointer.pressed) {
       if (inRect(input.pointer.x, input.pointer.y, COLOR_BTN)) {
         cycleScheme();
+        pressed('colour');
         return;
       }
       if (inRect(input.pointer.x, input.pointer.y, STOP_BTN)) {
@@ -292,13 +275,22 @@ export function createGame(env) {
     if (!input.pointer.pressed) return;
     const { x, y } = input.pointer;
     if (inRect(x, y, PLAY_AGAIN_BTN)) startSession();
-    else if (inRect(x, y, CHANGE_MODE_BTN)) state.scene = 'title';
-    else if (inRect(x, y, PREV_BTN)) state.reviewPage = Math.max(0, state.reviewPage - 1);
-    else if (inRect(x, y, NEXT_BTN)) state.reviewPage = Math.min(reviewPages() - 1, state.reviewPage + 1);
+    else if (inRect(x, y, CHANGE_MODE_BTN)) setScene('title');
+    else if (inRect(x, y, PREV_BTN)) {
+      state.reviewPage = Math.max(0, state.reviewPage - 1);
+      pressed('prev');
+    } else if (inRect(x, y, NEXT_BTN)) {
+      state.reviewPage = Math.min(reviewPages() - 1, state.reviewPage + 1);
+      pressed('next');
+    }
   };
 
   return {
     update(dt, input) {
+      state.t += dt;
+      state.sceneT += dt;
+      if (state.press && (state.press.t += dt) > 0.6) state.press = null;
+      if (state.fx && (state.fx.t += dt) > 0.8) state.fx = null;
       if (state.scene === 'title') updateTitle(input);
       else if (state.scene === 'playing') updatePlaying(dt, input);
       else if (state.scene === 'gameover') updateGameover(input);
@@ -306,159 +298,7 @@ export function createGame(env) {
     },
 
     render(ctx) {
-      const g = ctx.createRadialGradient(
-        meta.width / 2, meta.height * 0.18, meta.height * 0.08,
-        meta.width / 2, meta.height * 0.5, meta.height * 0.85
-      );
-      const scheme = SCHEMES[state.scheme];
-      g.addColorStop(0, scheme.stops[0]);
-      g.addColorStop(0.55, scheme.stops[1]);
-      g.addColorStop(1, scheme.stops[2]);
-      ctx.fillStyle = g;
-      ctx.fillRect(0, 0, meta.width, meta.height);
-
-      ctx.textAlign = 'center';
-
-      if (state.scene === 'title') {
-        ctx.fillStyle = scheme.text;
-        ctx.font = 'bold 60px system-ui, sans-serif';
-        ctx.fillText(env.manifest.title, meta.width / 2, 160);
-        ctx.font = '28px system-ui, sans-serif';
-        ctx.fillStyle = '#9aa0c0';
-        ctx.fillText('Tap the word that matches — before it drifts away', meta.width / 2, 210);
-        ctx.fillText('Graduate-level vocabulary', meta.width / 2, 250);
-
-        drawButton(ctx, MODE_SYN_BTN, 'Synonym', state.selectedMode === 'synonym' ? 'active' : undefined);
-        drawButton(ctx, MODE_ANT_BTN, 'Antonym', state.selectedMode === 'antonym' ? 'active' : undefined);
-
-        const bestNow = state.selectedMode === 'synonym' ? state.bestSynonym : state.bestAntonym;
-        ctx.fillStyle = scheme.text;
-        ctx.font = '600 26px system-ui, sans-serif';
-        ctx.fillText(`Best (${state.selectedMode}): ${bestNow}`, meta.width / 2, 440);
-
-        drawButton(ctx, PLAY_BTN, 'Play', 'primary');
-        drawButton(ctx, TITLE_COLOR_BTN, `🎨 Colours: ${scheme.name}`);
-
-        if (demo) {
-          ctx.fillStyle = '#9aa0c0';
-          ctx.font = '600 22px system-ui, sans-serif';
-          const left = Math.max(0, DEMO_SESSION_LIMIT - state.demoSessions);
-          ctx.fillText(`Free preview — ${left} session(s) left`, meta.width / 2, 470);
-        }
-        return;
-      }
-
-      if (state.scene === 'demo-limit') {
-        ctx.fillStyle = scheme.text;
-        ctx.font = 'bold 44px system-ui, sans-serif';
-        ctx.fillText("You've played the free demo", meta.width / 2, meta.height * 0.42);
-        ctx.font = '28px system-ui, sans-serif';
-        ctx.fillStyle = '#9aa0c0';
-        ctx.fillText('Get Word Game on iPhone and Android', meta.width / 2, meta.height * 0.48);
-        ctx.fillText('for unlimited sessions.', meta.width / 2, meta.height * 0.52);
-        return;
-      }
-
-      // Score (top-left) + timer (top-right) — small, out of the way.
-      ctx.textAlign = 'left';
-      ctx.fillStyle = scheme.text;
-      ctx.font = '600 34px system-ui, sans-serif';
-      ctx.fillText(String(state.score), 40, 60);
-      ctx.textAlign = 'right';
-      const t = Math.max(0, state.timeLeft);
-      const mm = Math.floor(t / 60);
-      const ss = Math.floor(t % 60);
-      ctx.fillText(`${mm}:${String(ss).padStart(2, '0')}`, meta.width - 40, 60);
-      ctx.textAlign = 'center';
-
-      if (state.round) {
-        ctx.fillStyle = '#9aa0c0';
-        ctx.font = '600 22px system-ui, sans-serif';
-        ctx.fillText(`TAP THE ${state.round.mode.toUpperCase()} OF`, meta.width / 2, 140);
-        ctx.fillStyle = scheme.text;
-        ctx.font = 'bold 52px system-ui, sans-serif';
-        ctx.fillText(state.round.targetWord, meta.width / 2, 210);
-
-        // Words drift as plain text — no chip behind them and one shared colour, so nothing
-        // pulls the eye toward a particular option.
-        ctx.fillStyle = scheme.text;
-        // Same size and weight as the target word so the two read as equals.
-        ctx.font = 'bold 52px system-ui, sans-serif';
-        for (const w of state.round.words) ctx.fillText(w.text, w.x, w.y + 18);
-
-        if (state.scene === 'playing') {
-          drawButton(ctx, STOP_BTN, 'Stop');
-          drawButton(ctx, COLOR_BTN, '🎨 Colours');
-        }
-      }
-
-      if (state.scene === 'gameover') {
-        ctx.fillStyle = 'rgba(6,7,13,0.82)';
-        ctx.fillRect(0, 0, meta.width, meta.height);
-        ctx.fillStyle = scheme.text;
-        ctx.font = 'bold 50px system-ui, sans-serif';
-        ctx.fillText("Time's up! Review", meta.width / 2, 90);
-        const right = state.history.filter((h) => h.correct).length;
-        ctx.font = '600 32px system-ui, sans-serif';
-        ctx.fillText(`Score ${state.score}  ·  ${right} right, ${state.history.length - right} missed`, meta.width / 2, 150);
-        ctx.font = '26px system-ui, sans-serif';
-        ctx.fillStyle = state.newBest ? '#22d3ee' : '#9aa0c0';
-        const bestNow = state.mode === 'synonym' ? state.bestSynonym : state.bestAntonym;
-        ctx.fillText(state.newBest ? `New best! (${state.mode}: ${bestNow})` : `Best (${state.mode}): ${bestNow}`, meta.width / 2, 195);
-
-        const rows = reviewRows();
-        if (!rows.length) {
-          ctx.fillStyle = '#9aa0c0';
-          ctx.font = '28px system-ui, sans-serif';
-          ctx.fillText('No answers this session.', meta.width / 2, REVIEW_TOP + 60);
-        } else if (rows.every((h) => h.correct)) {
-          ctx.fillStyle = '#4ade80';
-          ctx.font = '600 26px system-ui, sans-serif';
-          ctx.fillText('No mistakes — every answer was right.', meta.width / 2, REVIEW_TOP - 8);
-        }
-        rows.slice(state.reviewPage * REVIEW_PER_PAGE, (state.reviewPage + 1) * REVIEW_PER_PAGE).forEach((h, i) => {
-          const y = REVIEW_TOP + i * REVIEW_ROW_H;
-          ctx.fillStyle = 'rgba(255,255,255,0.06)';
-          roundRect(ctx, 30, y, meta.width - 60, REVIEW_ROW_H - 10, 14);
-          ctx.fill();
-          ctx.fillStyle = h.correct ? '#4ade80' : '#f87171';
-          ctx.textAlign = 'left';
-          ctx.font = 'bold 34px system-ui, sans-serif';
-          ctx.fillText(h.correct ? '✓' : '✗', 48, y + 44);
-          ctx.fillStyle = scheme.text;
-          ctx.font = 'bold 32px system-ui, sans-serif';
-          ctx.fillText(h.word, 96, y + 40);
-          ctx.textAlign = 'right';
-          ctx.fillStyle = '#9aa0c0';
-          ctx.font = '22px system-ui, sans-serif';
-          ctx.fillText(h.mode, meta.width - 48, y + 38);
-          ctx.textAlign = 'left';
-          ctx.font = '26px system-ui, sans-serif';
-          ctx.fillStyle = '#22d3ee';
-          ctx.fillText(`Answer: ${h.answer}`, 96, y + 76);
-          ctx.fillStyle = '#9aa0c0';
-          ctx.font = '22px system-ui, sans-serif';
-          ctx.fillText(h.meaning.length > 52 ? `${h.meaning.slice(0, 51)}…` : h.meaning, 96, y + 108);
-          ctx.font = '26px system-ui, sans-serif';
-          if (!h.correct) {
-            ctx.textAlign = 'right';
-            ctx.fillStyle = '#f87171';
-            ctx.fillText(h.picked === null ? 'missed' : `You: ${h.picked}`, meta.width - 48, y + 76);
-          }
-          ctx.textAlign = 'center';
-        });
-
-        const pages = reviewPages();
-        if (pages > 1) {
-          drawButton(ctx, PREV_BTN, 'Prev', undefined, state.reviewPage === 0);
-          drawButton(ctx, NEXT_BTN, 'Next', undefined, state.reviewPage >= pages - 1);
-          ctx.fillStyle = '#9aa0c0';
-          ctx.font = '600 26px system-ui, sans-serif';
-          ctx.fillText(`${state.reviewPage + 1} / ${pages}`, meta.width / 2, PREV_BTN.y + 45);
-        }
-        drawButton(ctx, PLAY_AGAIN_BTN, 'Play Again', 'primary');
-        drawButton(ctx, CHANGE_MODE_BTN, 'Change Mode');
-      }
+      render(ctx, state, env.manifest.title, DEMO_SESSION_LIMIT);
     },
 
     getState() {
@@ -467,48 +307,3 @@ export function createGame(env) {
   };
 }
 
-function roundRect(ctx, x, y, w, h, r) {
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.arcTo(x + w, y, x + w, y + h, r);
-  ctx.arcTo(x + w, y + h, x, y + h, r);
-  ctx.arcTo(x, y + h, x, y, r);
-  ctx.arcTo(x, y, x + w, y, r);
-  ctx.closePath();
-}
-
-// style: 'active' (violet-cyan gradient, used for the selected mode toggle), 'primary' (cyan-lean
-// gradient, used for Play / Play Again), or undefined (flat secondary button).
-function drawButton(ctx, r, label, style, disabled) {
-  ctx.globalAlpha = disabled ? 0.35 : 1;
-  roundRect(ctx, r.x, r.y, r.w, r.h, 16);
-  if (style === 'active' || style === 'primary') {
-    ctx.save();
-    ctx.shadowColor = 'rgba(0,0,0,0.35)';
-    ctx.shadowBlur = 16;
-    ctx.shadowOffsetY = 6;
-    const grad = ctx.createLinearGradient(r.x, r.y, r.x + r.w, r.y);
-    if (style === 'primary') {
-      grad.addColorStop(0, '#22d3ee');
-      grad.addColorStop(1, '#8b5cf6');
-    } else {
-      grad.addColorStop(0, '#8b5cf6');
-      grad.addColorStop(1, '#22d3ee');
-    }
-    ctx.fillStyle = grad;
-    ctx.fill();
-    ctx.restore();
-  } else {
-    ctx.fillStyle = 'rgba(255,255,255,0.08)';
-    ctx.fill();
-    ctx.strokeStyle = 'rgba(255,255,255,0.14)';
-    ctx.lineWidth = 1.5;
-    roundRect(ctx, r.x, r.y, r.w, r.h, 16);
-    ctx.stroke();
-  }
-  ctx.fillStyle = (style === 'active' || style === 'primary') ? '#0b0d16' : '#eef0fb';
-  ctx.font = '600 26px system-ui, sans-serif';
-  ctx.textAlign = 'center';
-  ctx.fillText(label, r.x + r.w / 2, r.y + r.h / 2 + 9);
-  ctx.globalAlpha = 1;
-}

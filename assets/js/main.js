@@ -662,3 +662,10 @@ mainNav.querySelectorAll('a').forEach(link => {
 
   draw();
 })();
+
+
+// iPhone / Android toggle for the "Three ways to browse" screenshots.
+document.querySelectorAll('.os-btn').forEach((btn) => btn.addEventListener('click', () => {
+  document.querySelectorAll('.os-btn').forEach((b) => { const on = b === btn; b.classList.toggle('is-on', on); b.setAttribute('aria-selected', on); });
+  document.querySelectorAll('img[data-view]').forEach((img) => { img.src = 'assets/img/app/' + btn.dataset.os + '-' + img.dataset.view + '.jpg'; });
+}));

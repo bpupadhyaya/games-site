@@ -1,11 +1,11 @@
-// Shared screen-space layout (virtual 720x1280 portrait canvas). One source of truth for both
+// Shared screen-space layout (virtual 720x1560 portrait canvas). One source of truth for both
 // rendering and pointer hit-testing, so they never drift apart. Pure math only — no DOM/canvas.
 
-export const SCREEN = { width: 720, height: 1280 };
+export const SCREEN = { width: 720, height: 1560 };
 
-export const BOARD_MARGIN = 40;
-export const BOARD_TOP = 220;
-export const BOARD_SIZE = SCREEN.width - BOARD_MARGIN * 2; // 640
+export const BOARD_MARGIN = 36;
+export const BOARD_TOP = 320;
+export const BOARD_SIZE = SCREEN.width - BOARD_MARGIN * 2; // 648
 
 export function cellSize(size) {
   return BOARD_SIZE / size;
@@ -25,16 +25,18 @@ export function hitTestCell(x, y, size) {
   return row * size + col;
 }
 
-export const HINT_BUTTON = { x: 50, y: 1120, w: 280, h: 110 };
-export const UNDO_BUTTON = { x: 390, y: 1120, w: 280, h: 110 };
+// In play, below the board.
+export const HINT_BUTTON = { x: 40, y: 1140, w: 310, h: 120 };
+export const UNDO_BUTTON = { x: 370, y: 1140, w: 310, h: 120 };
 
-export const PLAY7_BUTTON = { x: 160, y: 480, w: 400, h: 110 };
-export const PLAY10_BUTTON = { x: 160, y: 620, w: 400, h: 110 };
-export const DAILY_BUTTON = { x: 160, y: 760, w: 400, h: 110 };
+// Title screen.
+export const PLAY7_BUTTON = { x: 90, y: 896, w: 540, h: 124 };
+export const PLAY10_BUTTON = { x: 90, y: 1044, w: 540, h: 100 };
+export const DAILY_BUTTON = { x: 90, y: 1166, w: 540, h: 100 };
+
+// Cycles the colour scheme (same place on the title screen and in play).
+export const COLOR_BUTTON = { x: 90, y: 1300, w: 540, h: 96 };
 
 export function inRect(x, y, rect) {
   return x >= rect.x && x <= rect.x + rect.w && y >= rect.y && y <= rect.y + rect.h;
 }
-
-// Cycles the colour scheme (title screen and in-play, below the board).
-export const COLOR_BUTTON = { x: 160, y: 900, w: 400, h: 90 };

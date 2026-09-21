@@ -1,5 +1,40 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
-  <!-- TEMPLATE ICON: replace with the game's own 1024x1024 icon (no transparency, no text smaller than 120px). -->
-  <rect width="1024" height="1024" fill="#0b1020"/>
-  <circle cx="512" cy="512" r="300" fill="#6c5ce7"/>
+  <defs>
+    <linearGradient id="field" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#EC6AA3"/>
+      <stop offset="0.5" stop-color="#E0508F"/>
+      <stop offset="1" stop-color="#9A1F5C"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.4" r="0.7">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.22"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="paper" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFEFB"/>
+      <stop offset="1" stop-color="#F3E8D2"/>
+    </linearGradient>
+    <linearGradient id="back" x1="0" y1="0" x2="0.4" y2="1">
+      <stop offset="0" stop-color="#3A6BC0"/>
+      <stop offset="1" stop-color="#173E86"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#field)"/>
+  <rect width="1024" height="1024" fill="url(#glow)"/>
+  <g transform="translate(-16 -46)">
+  <!-- a card back peeking out behind -->
+  <g transform="rotate(-14 512 900)">
+    <rect x="226" y="176" width="540" height="760" rx="60" fill="#3B0A22" opacity="0.28" transform="translate(10 26)"/>
+    <rect x="226" y="176" width="540" height="760" rx="60" fill="url(#paper)"/>
+    <rect x="258" y="208" width="476" height="696" rx="36" fill="url(#back)"/>
+    <rect x="282" y="232" width="428" height="648" rx="24" fill="none" stroke="#FFFFFF" stroke-opacity="0.6" stroke-width="8"/>
+  </g>
+  <!-- the ace of hearts -->
+  <g transform="rotate(7 512 900)">
+    <rect x="252" y="150" width="560" height="790" rx="62" fill="#3B0A22" opacity="0.35" transform="translate(12 30)"/>
+    <rect x="252" y="150" width="560" height="790" rx="62" fill="url(#paper)" stroke="#4A2A1A" stroke-opacity="0.55" stroke-width="5"/>
+    <text x="300" y="392" font-family="Helvetica Neue, Arial, sans-serif" font-weight="900" font-size="270" fill="#C0181F">A</text>
+    <path transform="translate(532 650) scale(470)" fill="#C0181F"
+      d="M0 0.48 C-0.1 0.35 -0.52 0.1 -0.52 -0.18 C-0.52 -0.4 -0.35 -0.5 -0.24 -0.5 C-0.11 -0.5 0 -0.42 0 -0.28 C0 -0.42 0.11 -0.5 0.24 -0.5 C0.35 -0.5 0.52 -0.4 0.52 -0.18 C0.52 0.1 0.1 0.35 0 0.48 Z"/>
+  </g>
+  </g>
 </svg>

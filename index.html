@@ -4,12 +4,12 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Arcforge — Premium Mobile Games</title>
-<meta name="description" content="Arcforge crafts premium, ad-free mobile games for iOS and Android. Explore what's coming next.">
+<meta name="description" content="Arcforge: hand-crafted, ad-free games for iPhone and Android — heritage board games, logic puzzles and arcade originals. Play free previews in your browser.">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🕹️</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/style.css?v=20260919a">
+<link rel="stylesheet" href="assets/css/style.css?v=20260921a">
 </head>
 <body>
 
@@ -27,6 +27,7 @@
       <span class="logo-word">ARCFORGE</span>
     </a>
     <nav class="main-nav" id="mainNav">
+      <a href="#views">The App</a>
       <a href="#games">Games</a>
       <a href="#demo">Live Demo</a>
       <a href="#about">About</a>
@@ -43,27 +44,74 @@
 
 <main id="top">
 
-  <section class="hero">
-    <div class="wrap hero-inner">
-      <p class="eyebrow">Mobile Games Studio</p>
-      <h1>Games built to<br><span class="grad-text">obsess over.</span></h1>
-      <p class="hero-sub">
-        Arcforge designs premium, polished games for iOS and Android — crafted with real
-        care, built to be genuinely fun. Here's what's in the forge.
-      </p>
-      <div class="hero-cta">
-        <a href="#games" class="btn btn-primary">Explore Upcoming Games</a>
-        <a href="#demo" class="btn btn-ghost">Try a Live Preview →</a>
+  <section class="hero hero-v2">
+    <div class="wrap hero-grid">
+      <div class="hero-copy">
+        <p class="eyebrow">One app. Every Arcforge game.</p>
+        <h1>A games app that<br><span class="grad-text">plays before you tap.</span></h1>
+        <p class="hero-sub">
+          Arcforge is a collection of hand-crafted games for iPhone and Android — heritage board games from
+          around the world, logic puzzles and arcade originals. No ads. Works offline. Every game starts
+          with a free preview, and you can try them all right here in your browser.
+        </p>
+        <div class="hero-cta">
+          <a href="#games" class="btn btn-primary">▶ Play the games free</a>
+          <a href="#views" class="btn btn-ghost">See the app →</a>
+        </div>
+        <ul class="hero-points">
+          <li><strong>10</strong> games</li><li><strong>0</strong> ads</li><li><strong>100%</strong> offline</li><li><strong>1</strong> free game, forever</li>
+        </ul>
+        <div class="store-badges">
+          <span class="store-badge">App Store <em>In review</em></span>
+          <span class="store-badge">Google Play <em>In review</em></span>
+        </div>
       </div>
-      <div class="store-badges">
-        <span class="store-badge">
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.24 7.31c1.34.07 2.28.74 3.06.8.99-.19 2.15-.75 3.31-.58 1.51.19 2.66.86 3.42 2.16-3.09 1.83-2.6 5.9.44 7.13-.59 1.29-1.4 2.5-2.42 3.46zm-4.86-15c-.1-2.02 1.55-3.75 3.44-3.94.24 2.14-1.9 4.13-3.44 3.94z"/></svg>
-          App Store <em>In review</em>
-        </span>
-        <span class="store-badge">
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><path d="M3.6 2.32a1.5 1.5 0 0 0-.6 1.2v17c0 .5.22.93.6 1.2l9.35-9.7-9.35-9.7zm11.1 9.7l2.36-2.35 3.98 2.28a1.5 1.5 0 0 1 0 2.14l-3.98 2.28-2.36-2.35zm-1.06-1.06l-9.4-9.75a1.4 1.4 0 0 1 1.3-.13l11.03 6.32-2.93 3.56zm0 2.12l2.93 3.56-11.03 6.32c-.44.16-.93.13-1.3-.13l9.4-9.75z"/></svg>
-          Google Play <em>In review</em>
-        </span>
+      <div class="hero-phones" aria-hidden="true">
+        <figure class="phone p-left"><img src="assets/img/app/android-icons.jpg" alt="" width="600" height="1304" loading="lazy"></figure>
+        <figure class="phone p-center"><img src="assets/img/app/ios-live.jpg" alt="" width="600" height="1304" loading="lazy"></figure>
+        <figure class="phone p-right"><img src="assets/img/app/ios-list.jpg" alt="" width="600" height="1304" loading="lazy"></figure>
+      </div>
+    </div>
+  </section>
+
+  <section class="views" id="views">
+    <div class="wrap">
+      <p class="eyebrow center">Three ways to browse</p>
+      <h2 class="section-title center">Pick the menu that suits you</h2>
+      <p class="section-sub center">Some people want a shelf of icons, some want a plain list, some want everything alive. Arcforge has all three — switch any time with one tap, and it remembers your choice.</p>
+      <div class="os-toggle" role="tablist" aria-label="Platform">
+        <button class="os-btn is-on" data-os="ios" role="tab" aria-selected="true">iPhone</button>
+        <button class="os-btn" data-os="android" role="tab" aria-selected="false">Android</button>
+      </div>
+      <div class="views-grid">
+        <div class="view-card">
+          <figure class="phone"><img data-view="icons" src="assets/img/app/ios-icons.jpg" alt="Arcforge Icons view" width="600" height="1304" loading="lazy"></figure>
+          <h3>Icons</h3>
+          <p>A featured carousel, shelves by category and a grid of every game — browse like a store shelf, with each game glowing in its own colour.</p>
+        </div>
+        <div class="view-card is-featured">
+          <figure class="phone"><img data-view="live" src="assets/img/app/ios-live.jpg" alt="Arcforge Live view" width="600" height="1304" loading="lazy"></figure>
+          <h3>Live <span class="pill-new">New</span></h3>
+          <p>The real game plays itself right in the menu. See what you were playing, today's daily challenges, and search everything. Tap <em>Play now</em> and you're in.</p>
+        </div>
+        <div class="view-card">
+          <figure class="phone"><img data-view="list" src="assets/img/app/ios-list.jpg" alt="Arcforge List view" width="600" height="1304" loading="lazy"></figure>
+          <h3>List</h3>
+          <p>Big, calm, colour-coded rows. One tap to a game's page, one more to play. Nothing else on screen.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="only" id="only">
+    <div class="wrap">
+      <p class="eyebrow center">Only in Arcforge</p>
+      <h2 class="section-title center">Things an app store can't show you</h2>
+      <div class="only-grid">
+        <div class="only-card"><figure class="phone "><img src="assets/img/app/android-live.jpg" alt="Live gameplay in the menu" width="600" height="1304" loading="lazy"></figure><div><h3>Live gameplay, not a trailer</h3><p>The spotlight runs the actual game, muted, right inside the menu. What you see is exactly what you get.</p></div></div>
+        <div class="only-card"><figure class="phone "><img src="assets/img/app/android-live-2.jpg" alt="Continue playing and today&#x27;s dailies" width="600" height="1304" loading="lazy"></figure><div><h3>Pick up where you left off</h3><p>Your real progress on every game, today's daily puzzles with your streaks, and the newest games — all on one screen.</p></div></div>
+        <div class="only-card"><figure class="phone "><img src="assets/img/app/android-live-3.jpg" alt="Honest labels on every game" width="600" height="1304" loading="lazy"></figure><div><h3>Honest labels</h3><p>No ads. Works offline. One-time price. How much free preview you have left. Stated plainly on every game, before you tap.</p></div></div>
+        <div class="only-card"><figure class="phone "><img src="assets/img/app/android-about.jpg" alt="A game&#x27;s page with live gameplay" width="600" height="1304" loading="lazy"></figure><div><h3>Games with a story</h3><p>Tiger and Goat from Nepal, Fox and Geese from medieval Europe, Hare and Hounds from France — every game page tells you where it comes from and teaches you to play.</p></div></div>
       </div>
     </div>
   </section>
@@ -77,202 +125,245 @@
         versions with more content are coming to iPhone and Android.
       </p>
 
-      <div class="game-grid">
-        <article class="game-card">
-          <div class="game-art art-5">
+      <div class="game-grid game-grid-v2">
+        <article class="game-card gc" style="--c1:#E0A030;--c2:#A55A14">
+          <div class="gc-media">
             <span class="game-tag">Free Game</span>
+            <div class="gc-shots"><img loading="lazy" src="assets/img/games/harvest-sling/shot-1.jpg" alt="Golden Sling screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/harvest-sling/shot-2.jpg" alt="Golden Sling screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/harvest-sling/shot-3.jpg" alt="Golden Sling screenshot 3" width="420" height="910"></div>
           </div>
           <div class="game-body">
-            <h3>Golden Sling</h3>
-            <p class="game-genre">Slingshot Skill</p>
-            <p>A hand-carved slingshot, a golden field, and birds raiding the crop. Pull back, aim and release to scare them off before the harvest is gone. Every bird behaves differently, the wind rises as you advance, and every miss sends the flock scattering.</p>
-            <p class="how-to-play"><strong>How to play:</strong> Drag back from the slingshot to aim — the dotted arc shows where the stone starts to fly — then release. Hit birds to score and build combos, never hit the protected owl, and reach each level's quota before your stones or the crop run out. The full game is free in the apps, with every level, Endless mode and a new Daily Hunt each day.</p>
+            <div class="gc-head">
+              <img class="gc-icon" loading="lazy" src="assets/img/games/harvest-sling/icon.jpg" alt="" width="72" height="72">
+              <div>
+                <h3>Golden Sling</h3>
+                <p class="game-genre">Slingshot Skill <span class="gc-origin">✨ Arcforge original</span></p>
+              </div>
+              <span class="gc-price">Free</span>
+            </div>
+            <p class="gc-tagline">Pull, aim, release. Guard the harvest.</p>
+            <p>A hand-carved slingshot, a golden field, and birds raiding the crop. Pull back, aim and release to scare them off before the harvest is gone. Every bird behaves differently, the wind picks up as you advance, and every miss sends the flock scattering. Free to play, with a new Daily Hunt every day.</p>
+            <ul class="gc-labels"><li>No ads</li><li>Works offline</li><li>Free forever</li></ul>
+            <details class="gc-how"><summary>How to play</summary><ol class="gc-steps"><li>Drag back from the slingshot to aim - the dotted arc shows where the stone starts to fly.</li><li>Release to fire. Pull farther for more power; gravity and wind bend the shot.</li><li>Hit birds to scare them off and score. Hits in a row build a combo multiplier.</li><li>A miss costs the stone and startles nearby birds, so pick your shots.</li><li>Never hit the owl - it is protected and costs you stones.</li><li>Reach the level&#x27;s quota before your stones or the crop run out.</li></ol></details>
             <div class="game-actions">
               <a class="btn btn-primary btn-sm" href="games/harvest-sling/play/" target="_blank" rel="noopener">▶ Play in Browser — Free</a>
             </div>
-            <span class="platform-row">
-              <span class="plat soon">iOS — In App Store review</span>
-              <span class="plat soon">Android — In Google Play review</span>
-            </span>
+            <span class="platform-row"><span class="plat soon">iOS — In App Store review</span><span class="plat soon">Android — In Google Play review</span></span>
           </div>
         </article>
-
-        <article class="game-card">
-          <div class="game-art art-6">
+        <article class="game-card gc" style="--c1:#3FAF7F;--c2:#1E6B4F">
+          <div class="gc-media">
             <span class="game-tag">Free Preview</span>
+            <div class="gc-shots"><img loading="lazy" src="assets/img/games/tiger-and-goat/shot-1.jpg" alt="Tiger and Goat screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/tiger-and-goat/shot-2.jpg" alt="Tiger and Goat screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/tiger-and-goat/shot-3.jpg" alt="Tiger and Goat screenshot 3" width="420" height="910"></div>
           </div>
           <div class="game-body">
-            <h3>Tiger and Goat</h3>
-            <p class="game-genre">Classic Board Game</p>
-            <p>Tiger and Goat is Bagh-chal, Nepal's traditional board game. Four tigers hunt twenty goats on a board of 25 points: the goats are slow but many, the tigers few but fast. The game ends only when every goat is captured or every tiger is trapped. Learn in nine hands-on lessons, play either side against four computer levels or a friend on one phone, and solve a new puzzle every day. Win games to earn new boards and a snowy set of pieces. Hand-painted art, large text and reduced motion options. No ads, works offline.</p>
-            <p class="how-to-play"><strong>How to play:</strong> Goats go first: tap an empty point to place one. All 20 must be placed before any goat may move. To move, tap a piece (its legal points glow), then tap where it goes. Goats step one point along a line and never jump. A tiger steps one point or jumps a goat to the empty point behind it, capturing it. Goats on an edge or with a piece behind are safe. Move not allowed? The piece tries, comes back, and a message tells you why.</p>
+            <div class="gc-head">
+              <img class="gc-icon" loading="lazy" src="assets/img/games/tiger-and-goat/icon.jpg" alt="" width="72" height="72">
+              <div>
+                <h3>Tiger and Goat</h3>
+                <p class="game-genre">Classic Board Game <span class="gc-origin">🇳🇵 Nepal</span></p>
+              </div>
+              <span class="gc-price">$2.99</span>
+            </div>
+            <p class="gc-tagline">Four tigers. Twenty goats. One board.</p>
+            <p>Tiger and Goat is Bagh-chal, Nepal&#x27;s traditional board game. Four tigers hunt twenty goats on a board of 25 points: the goats are slow but many, the tigers few but fast. The game ends only when every goat is captured or every tiger is trapped. Learn in nine hands-on lessons, play either side against four computer levels or a friend on one phone, and solve a new puzzle every day. Win games to earn new boards and a snowy set of pieces. Hand-painted art, large text and reduced motion options. No ads, works offline.</p>
+            <ul class="gc-labels"><li>No ads</li><li>Works offline</li><li>One-time price</li></ul>
+            <details class="gc-how"><summary>How to play</summary><ol class="gc-steps"><li>New here? Tap Learn to play: nine short lessons where you make every move yourself.</li><li>Goats go first: tap an empty point to place one. All 20 must be placed before any goat may move.</li><li>To move, tap a piece (its legal points glow), then tap where it goes. Goats step one point along a line and never jump.</li><li>A tiger steps one point or jumps a goat to the empty point behind it, capturing it. Goats on an edge or with a piece behind are safe.</li><li>Move not allowed? The piece tries, comes back, and a message tells you why.</li><li>Tigers win by capturing every goat; goats win when no tiger can move. Five captures do not end it. Three repeats is a draw.</li><li>Warnings mark goats a tiger could take next. Hint shows a good move (3 per game). Take back undoes your last move.</li><li>Beat each level with each side for a star. The daily puzzle is the same for all, longer on weekends. Winning unlocks boards and pieces.</li></ol></details>
             <div class="game-actions">
               <a class="btn btn-primary btn-sm" href="games/tiger-and-goat/play/" target="_blank" rel="noopener">▶ Play in Browser — Free</a>
             </div>
-            <span class="platform-row">
-              <span class="plat soon">iOS — Coming soon</span>
-              <span class="plat soon">Android — Coming soon</span>
-            </span>
+            <span class="platform-row"><span class="plat soon">iOS — Coming soon</span><span class="plat soon">Android — Coming soon</span></span>
           </div>
         </article>
-
-        <article class="game-card">
-          <div class="game-art art-9">
+        <article class="game-card gc" style="--c1:#7FA8DC;--c2:#2E4C86">
+          <div class="gc-media">
             <span class="game-tag">Free Preview</span>
+            <div class="gc-shots"><img loading="lazy" src="assets/img/games/fox-and-geese/shot-1.jpg" alt="Fox and Geese screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/fox-and-geese/shot-2.jpg" alt="Fox and Geese screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/fox-and-geese/shot-3.jpg" alt="Fox and Geese screenshot 3" width="420" height="910"></div>
           </div>
           <div class="game-body">
-            <h3>Fox and Geese</h3>
-            <p class="game-genre">Classic Board Game</p>
+            <div class="gc-head">
+              <img class="gc-icon" loading="lazy" src="assets/img/games/fox-and-geese/icon.jpg" alt="" width="72" height="72">
+              <div>
+                <h3>Fox and Geese</h3>
+                <p class="game-genre">Classic Board Game <span class="gc-origin">🌍 Northern Europe</span></p>
+              </div>
+              <span class="gc-price">$2.99</span>
+            </div>
+            <p class="gc-tagline">One fox. A flock of geese. A cross of frost.</p>
             <p>Fox and Geese is the classic hunt game, played on a cross of 33 points across Europe for centuries. One fox faces thirteen geese: the geese step forward or sideways and never back, and try to close the fox in; the fox slips between them and jumps any goose left alone, chaining jumps in one turn. Learn in nine hands-on lessons, play either side against four computer levels or a friend on one phone, choose a flock of 7 to 17 geese, and solve a new puzzle every day. Hand-painted fox and geese on a moonlit board. No ads, works offline.</p>
-            <p class="how-to-play"><strong>How to play:</strong> New here? Tap Learn to play: nine short lessons where you make every move yourself. The geese move first. Tap a goose (its points glow), then tap where it steps: one point forward or sideways, never backward. The fox steps one point up, down, left or right, or jumps over a goose to the empty point behind it and captures it. After a jump the fox may jump again in the same turn: tap a red point to go on, or tap the fox or Stop here to end its turn. Move not allowed? The piece tries, comes back, and a message tells you why. The geese win when the fox cannot move. The fox wins when only 5 geese are left. The same position three times is a draw. Warnings mark geese the fox could take next. Hint shows a good move (3 per game). Take back undoes your last move. Choose a flock of 7 to 17 geese (13 is classic). Beat each level with each side for a star. The daily puzzle is the same for everyone.</p>
+            <ul class="gc-labels"><li>No ads</li><li>Works offline</li><li>One-time price</li></ul>
+            <details class="gc-how"><summary>How to play</summary><ol class="gc-steps"><li>New here? Tap Learn to play: nine short lessons where you make every move yourself.</li><li>The geese move first. Tap a goose (its points glow), then tap where it steps: one point forward or sideways, never backward.</li><li>The fox steps one point up, down, left or right, or jumps over a goose to the empty point behind it and captures it.</li><li>After a jump the fox may jump again in the same turn: tap a red point to go on, or tap the fox or Stop here to end its turn.</li><li>Move not allowed? The piece tries, comes back, and a message tells you why.</li><li>The geese win when the fox cannot move. The fox wins when only 5 geese are left. The same position three times is a draw.</li><li>Warnings mark geese the fox could take next. Hint shows a good move (3 per game). Take back undoes your last move.</li><li>Choose a flock of 7 to 17 geese (13 is classic). Beat each level with each side for a star. The daily puzzle is the same for everyone.</li></ol></details>
             <div class="game-actions">
               <a class="btn btn-primary btn-sm" href="games/fox-and-geese/play/" target="_blank" rel="noopener">▶ Play in Browser — Free</a>
             </div>
-            <span class="platform-row">
-              <span class="plat soon">iOS — Coming soon</span>
-              <span class="plat soon">Android — Coming soon</span>
-            </span>
+            <span class="platform-row"><span class="plat soon">iOS — Coming soon</span><span class="plat soon">Android — Coming soon</span></span>
           </div>
         </article>
-
-        <article class="game-card">
-          <div class="game-art art-10">
+        <article class="game-card gc" style="--c1:#E08A34;--c2:#8A4818">
+          <div class="gc-media">
             <span class="game-tag">Free Preview</span>
+            <div class="gc-shots"><img loading="lazy" src="assets/img/games/hare-and-hounds/shot-1.jpg" alt="Hare and Hounds screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/hare-and-hounds/shot-2.jpg" alt="Hare and Hounds screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/hare-and-hounds/shot-3.jpg" alt="Hare and Hounds screenshot 3" width="420" height="910"></div>
           </div>
           <div class="game-body">
-            <h3>Hare and Hounds</h3>
-            <p class="game-genre">Classic Board Game</p>
+            <div class="gc-head">
+              <img class="gc-icon" loading="lazy" src="assets/img/games/hare-and-hounds/icon.jpg" alt="" width="72" height="72">
+              <div>
+                <h3>Hare and Hounds</h3>
+                <p class="game-genre">Classic Board Game <span class="gc-origin">🇫🇷 France</span></p>
+              </div>
+              <span class="gc-price">$2.99</span>
+            </div>
+            <p class="gc-tagline">One hare. Three hounds. One narrow board.</p>
             <p>Hare and Hounds is a traditional hunt game for two sides on a tiny board of eleven points. Three hounds close in on one hare, but hounds may never move backward, so every step is a promise. Trap the hare before the hunt clock runs out, or slip past the hounds. Learn in nine hands-on lessons, play either side at four computer levels, take on a twelve-level campaign with stars, solve a new puzzle every day, or play a friend on one phone. Hand-painted animals, large text and reduced motion. No ads, works offline.</p>
-            <p class="how-to-play"><strong>How to play:</strong> New here? Tap Learn to play: nine short lessons where you make every move yourself. One hare against three hounds. Tap a piece (its legal points glow), then tap where it goes. One step along a line per turn. Hounds win by leaving the hare no move. They never capture, and may never move backward, only forward or sideways. The hare wins by getting past all three hounds, or by lasting until the hunt clock (the hounds&#x27; moves) runs out. Move not allowed? The piece tries, comes back, and a message tells you why. Hare&#x27;s reach shows where the hare could step next. Hint shows a good move (3 per game). Take back undoes your last move. The campaign has twelve hunts: fewer moves earn more stars. The daily puzzle is the same for all, longer on weekends. Beat each level with each side for a star. Winning unlocks new boards and a snowy set of pieces.</p>
+            <ul class="gc-labels"><li>No ads</li><li>Works offline</li><li>One-time price</li></ul>
+            <details class="gc-how"><summary>How to play</summary><ol class="gc-steps"><li>New here? Tap Learn to play: nine short lessons where you make every move yourself.</li><li>One hare against three hounds. Tap a piece (its legal points glow), then tap where it goes. One step along a line per turn.</li><li>Hounds win by leaving the hare no move. They never capture, and may never move backward, only forward or sideways.</li><li>The hare wins by getting past all three hounds, or by lasting until the hunt clock (the hounds&#x27; moves) runs out.</li><li>Move not allowed? The piece tries, comes back, and a message tells you why.</li><li>Hare&#x27;s reach shows where the hare could step next. Hint shows a good move (3 per game). Take back undoes your last move.</li><li>The campaign has twelve hunts: fewer moves earn more stars. The daily puzzle is the same for all, longer on weekends.</li><li>Beat each level with each side for a star. Winning unlocks new boards and a snowy set of pieces.</li></ol></details>
             <div class="game-actions">
               <a class="btn btn-primary btn-sm" href="games/hare-and-hounds/play/" target="_blank" rel="noopener">▶ Play in Browser — Free</a>
             </div>
-            <span class="platform-row">
-              <span class="plat soon">iOS — Coming soon</span>
-              <span class="plat soon">Android — Coming soon</span>
-            </span>
+            <span class="platform-row"><span class="plat soon">iOS — Coming soon</span><span class="plat soon">Android — Coming soon</span></span>
           </div>
         </article>
-
-        <article class="game-card">
-          <div class="game-art art-7">
+        <article class="game-card gc" style="--c1:#E8B04A;--c2:#3A3F9E">
+          <div class="gc-media">
             <span class="game-tag">Free Preview</span>
+            <div class="gc-shots"><img loading="lazy" src="assets/img/games/one-arrow-oath/shot-1.jpg" alt="One Arrow Oath screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/one-arrow-oath/shot-2.jpg" alt="One Arrow Oath screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/one-arrow-oath/shot-3.jpg" alt="One Arrow Oath screenshot 3" width="420" height="910"></div>
           </div>
           <div class="game-body">
-            <h3>One Arrow Oath</h3>
-            <p class="game-genre">Roguelite Deckbuilder</p>
-            <p>A deckbuilder where your best cards can be played only once. You are an archer sworn never to loose the same arrow twice: every named Arrow you play is spent for the whole run, so each fight asks how little you can afford to spend. Read every enemy's intent, answer it with the right element, take on Debts that come due at the worst moment, and decide whether to keep the Covenant or break it. Inspired by a warrior's vow from ancient Sanskrit epic poetry, one of the world's oldest literary traditions. The world and every name in it are original.</p>
-            <p class="how-to-play"><strong>How to play:</strong> Read the intent above each enemy: what it will do this turn, and which element answers it. Press a card and pull it down like a bowstring, then release to play it. Tapping it twice also works. Gold-framed Arrows hit hard and are spent for the whole run. Steel-framed Techniques come back. Answer an attack with the element that beats it. A Ward cancels it; a matching Arrow also strikes for +50%.</p>
+            <div class="gc-head">
+              <img class="gc-icon" loading="lazy" src="assets/img/games/one-arrow-oath/icon.jpg" alt="" width="72" height="72">
+              <div>
+                <h3>One Arrow Oath</h3>
+                <p class="game-genre">Roguelite Deckbuilder <span class="gc-origin">🌏 South Asia</span></p>
+              </div>
+              <span class="gc-price">$7.99</span>
+            </div>
+            <p class="gc-tagline">Nothing fires twice.</p>
+            <p>A deckbuilder where your best cards can be played only once. You are an archer sworn never to loose the same arrow twice: every named Arrow you play is spent for the whole run, so each fight asks how little you can afford to spend. Read every enemy&#x27;s intent, answer it with the right element, take on Debts that come due at the worst moment, and decide whether to keep the Covenant or break it. Inspired by a warrior&#x27;s vow from ancient Sanskrit epic poetry, one of the world&#x27;s oldest literary traditions. The world and every name in it are original.</p>
+            <ul class="gc-labels"><li>No ads</li><li>Works offline</li><li>One-time price</li></ul>
+            <details class="gc-how"><summary>How to play</summary><ol class="gc-steps"><li>Read the intent above each enemy: what it will do this turn, and which element answers it.</li><li>Press a card and pull it down like a bowstring, then release to play it. Tapping it twice also works.</li><li>Gold-framed Arrows hit hard and are spent for the whole run. Steel-framed Techniques come back.</li><li>Answer an attack with the element that beats it. A Ward cancels it; a matching Arrow also strikes for +50%.</li><li>Finish weak enemies with Reed Shafts. Never loose a named Arrow at a Lure - it will be wasted.</li><li>After each fight, take one new card. Camps heal, the Tuner trades, Envoys offer choices.</li><li>Debts give power now and come due in the final fight. Settle them at a Camp if you can.</li><li>Breaking the Covenant wins the moment, and your Standing never comes back.</li></ol></details>
             <div class="game-actions">
               <a class="btn btn-primary btn-sm" href="games/one-arrow-oath/play/" target="_blank" rel="noopener">▶ Play in Browser — Free</a>
             </div>
-            <span class="platform-row">
-              <span class="plat soon">iOS — Coming soon</span>
-              <span class="plat soon">Android — Coming soon</span>
-            </span>
+            <span class="platform-row"><span class="plat soon">iOS — Coming soon</span><span class="plat soon">Android — Coming soon</span></span>
           </div>
         </article>
-
-        <article class="game-card">
-          <div class="game-art art-4">
+        <article class="game-card gc" style="--c1:#22B8D6;--c2:#0E6F8A">
+          <div class="gc-media">
             <span class="game-tag">Free Preview</span>
+            <div class="gc-shots"><img loading="lazy" src="assets/img/games/word-game/shot-1.jpg" alt="Word Game screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/word-game/shot-2.jpg" alt="Word Game screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/word-game/shot-3.jpg" alt="Word Game screenshot 3" width="420" height="910"></div>
           </div>
           <div class="game-body">
-            <h3>Word Game</h3>
-            <p class="game-genre">Timed Vocabulary Drill</p>
-            <p>A target word appears and three candidate words drift across the screen. Tap the correct synonym or antonym before it drifts away — over 300 graduate-level words, with a full review of every answer after each session.</p>
-            <p class="how-to-play"><strong>How to play:</strong> Pick Synonym or Antonym, then tap Play for a 90-second session. Tap the one word that matches the target. When time is up, review each word you answered — what you tapped, the correct answer and its meaning.</p>
+            <div class="gc-head">
+              <img class="gc-icon" loading="lazy" src="assets/img/games/word-game/icon.jpg" alt="" width="72" height="72">
+              <div>
+                <h3>Word Game</h3>
+                <p class="game-genre">Vocabulary <span class="gc-origin">✨ Arcforge original</span></p>
+              </div>
+              <span class="gc-price">$2.99</span>
+            </div>
+            <p class="gc-tagline">Tap the matching word before it drifts away.</p>
+            <p>Word Game is a fast vocabulary drill built around over 300 graduate-level words. A target word appears at the top and three candidate words drift across the screen - tap the correct synonym or antonym before it drifts away. After every session you get a full review of each word: what you tapped, the correct answer and its meaning, so mistakes turn into words you remember.</p>
+            <ul class="gc-labels"><li>No ads</li><li>Works offline</li><li>One-time price</li><li>90-second rounds</li></ul>
+            <details class="gc-how"><summary>How to play</summary><ol class="gc-steps"><li>Choose Synonym or Antonym mode, then tap Play to start a 90-second session.</li><li>A target word appears at the top; three candidate words drift in from the right.</li><li>Tap the one word that correctly matches the target before it drifts off-screen.</li><li>A correct tap scores a point and the next word appears immediately.</li><li>A wrong tap, or letting the right word drift past, ends that word with no point - the next word appears right away.</li><li>Tap Stop any time to end the session early.</li><li>When the session ends, review every word: your answer, the correct answer and its meaning. Then play again to beat your best score.</li><li>Tap Colours on the title screen or while playing to switch colour schemes - the default is kept and your choice is remembered.</li></ol></details>
             <div class="game-actions">
               <a class="btn btn-primary btn-sm" href="games/word-game/play/" target="_blank" rel="noopener">▶ Play in Browser — Free</a>
             </div>
-            <span class="platform-row">
-              <span class="plat soon">iOS — In App Store review</span>
-              <span class="plat soon">Android — In Google Play review</span>
-            </span>
+            <span class="platform-row"><span class="plat soon">iOS — In App Store review</span><span class="plat soon">Android — In Google Play review</span></span>
           </div>
         </article>
-
-        <article class="game-card">
-          <div class="game-art art-8">
+        <article class="game-card gc" style="--c1:#5FA5F0;--c2:#2D6A4F">
+          <div class="gc-media">
             <span class="game-tag">Free Preview</span>
+            <div class="gc-shots"><img loading="lazy" src="assets/img/games/perch/shot-1.jpg" alt="Perch screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/perch/shot-2.jpg" alt="Perch screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/perch/shot-3.jpg" alt="Perch screenshot 3" width="420" height="910"></div>
           </div>
           <div class="game-body">
-            <h3>Perch</h3>
-            <p class="game-genre">Dodge Arcade</p>
+            <div class="gc-head">
+              <img class="gc-icon" loading="lazy" src="assets/img/games/perch/icon.jpg" alt="" width="72" height="72">
+              <div>
+                <h3>Perch</h3>
+                <p class="game-genre">Dodge Arcade <span class="gc-origin">✨ Arcforge original</span></p>
+              </div>
+              <span class="gc-price">$2.99</span>
+            </div>
+            <p class="gc-tagline">Read the stone. Choose your moment.</p>
             <p>You are a small bird on a branch, and hunters with catapults ring the field. You never aim: you read the stone coming and choose your moment to fly. Survive each day until sunset for up to three stars. Level 1 is one tree; from level 2 whole groves and orchards open up and you choose where to fly. Every level adds one new idea: golden seeds, fast archers, wind, a Master Hunter with a pattern to learn, nets and beaters. From level 3, close calls earn acorns to knock hunters flat. A hit only ruffles feathers. No ads, works offline.</p>
-            <p class="how-to-play"><strong>How to play:</strong> A hunter pulls back a catapult and a red ring shows the perch the stone will hit. A dotted arc shows its path. Level 1: tap anywhere to fly and the bird picks the safest perch. From level 2, tap the perch you want to fly to. Leave at the last moment for a close call (+5). Dodges in a row build a combo up to x5. You have 3 feathers. Survive until the bar at the top fills (sunset): 3 stars for no hits.</p>
+            <ul class="gc-labels"><li>No ads</li><li>Works offline</li><li>One-time price</li></ul>
+            <details class="gc-how"><summary>How to play</summary><ol class="gc-steps"><li>A hunter pulls back a catapult and a red ring shows the perch the stone will hit. A dotted arc shows its path.</li><li>Level 1: tap anywhere to fly and the bird picks the safest perch. From level 2, tap the perch you want to fly to.</li><li>Leave at the last moment for a close call (+5). Dodges in a row build a combo up to x5.</li><li>You have 3 feathers. Survive until the bar at the top fills (sunset): 3 stars for no hits.</li><li>Golden seeds: tap the perch that holds one to fly for it. Every third seed heals a feather.</li><li>Archers fire fast arrows. In wind, trust the red ring, not the hunter. Nets cover a whole tree: leave it. Beaters rattle your perch.</li><li>Hit back (level 3+): close calls earn acorns, up to 3. Tap a hunter to knock him down and cancel his shot.</li><li>Boss levels: the Master Hunter fires the same pattern every attempt. Learn it.</li></ol></details>
             <div class="game-actions">
               <a class="btn btn-primary btn-sm" href="games/perch/play/" target="_blank" rel="noopener">▶ Play in Browser — Free</a>
             </div>
-            <span class="platform-row">
-              <span class="plat soon">iOS — Coming soon</span>
-              <span class="plat soon">Android — Coming soon</span>
-            </span>
+            <span class="platform-row"><span class="plat soon">iOS — Coming soon</span><span class="plat soon">Android — Coming soon</span></span>
           </div>
         </article>
-
-        <article class="game-card">
-          <div class="game-art art-2">
+        <article class="game-card gc" style="--c1:#1FB8B0;--c2:#0F6B72">
+          <div class="gc-media">
             <span class="game-tag">Free Preview</span>
+            <div class="gc-shots"><img loading="lazy" src="assets/img/games/sure-sweep-no-guess/shot-1.jpg" alt="Sure Sweep screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/sure-sweep-no-guess/shot-2.jpg" alt="Sure Sweep screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/sure-sweep-no-guess/shot-3.jpg" alt="Sure Sweep screenshot 3" width="420" height="910"></div>
           </div>
           <div class="game-body">
-            <h3>Sure Sweep</h3>
-            <p class="game-genre">No-Guess Minesweeper</p>
-            <p>Classic mine-clearing with one guarantee: every board can be fully solved by logic alone — no lucky guesses required.</p>
-            <p class="how-to-play"><strong>How to play:</strong> Tap to reveal a cell. Flag cells you're sure are mines. Tap a revealed number when its flags match it to auto-clear the safe cells around it. Clear the board to win.</p>
+            <div class="gc-head">
+              <img class="gc-icon" loading="lazy" src="assets/img/games/sure-sweep-no-guess/icon.jpg" alt="" width="72" height="72">
+              <div>
+                <h3>Sure Sweep</h3>
+                <p class="game-genre">No-Guess Minesweeper <span class="gc-origin">💻 Computer classic</span></p>
+              </div>
+              <span class="gc-price">$2.99</span>
+            </div>
+            <p class="gc-tagline">No-guess minesweeper. Every board solves by logic alone.</p>
+            <p>Sure Sweep is classic mine-clearing with one guarantee: every board can be fully solved by logic, with no lucky guesses required. Tap to reveal, flag suspected mines, and chord through satisfied numbers to clear the board fast. Stuck? A hint shows you the deduction you missed.</p>
+            <ul class="gc-labels"><li>No ads</li><li>Works offline</li><li>One-time price</li></ul>
+            <details class="gc-how"><summary>How to play</summary><ol class="gc-steps"><li>Tap a cell to reveal it.</li><li>A number shows how many mines touch that cell.</li><li>Tap the Flag button, then tap a cell to mark it as a suspected mine.</li><li>Tap a revealed number when its flags match it to clear the safe cells around it.</li><li>Reveal every non-mine cell to win - the board is guaranteed solvable without guessing.</li><li>Tap the colour button on the title screen or while playing to switch colour schemes - your choice is remembered.</li></ol></details>
             <div class="game-actions">
               <a class="btn btn-primary btn-sm" href="games/sure-sweep-no-guess/play/" target="_blank" rel="noopener">▶ Play in Browser — Free</a>
             </div>
-            <span class="platform-row">
-              <span class="plat soon">iOS — In App Store review</span>
-              <span class="plat soon">Android — In Google Play review</span>
-            </span>
+            <span class="platform-row"><span class="plat soon">iOS — In App Store review</span><span class="plat soon">Android — In Google Play review</span></span>
           </div>
         </article>
-
-        <article class="game-card">
-          <div class="game-art art-1">
+        <article class="game-card gc" style="--c1:#8B5CF6;--c2:#4A2FA0">
+          <div class="gc-media">
             <span class="game-tag">Free Preview</span>
+            <div class="gc-shots"><img loading="lazy" src="assets/img/games/crown-star-regions/shot-1.jpg" alt="Crown Fields screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/crown-star-regions/shot-2.jpg" alt="Crown Fields screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/crown-star-regions/shot-3.jpg" alt="Crown Fields screenshot 3" width="420" height="910"></div>
           </div>
           <div class="game-body">
-            <h3>Crown Fields</h3>
-            <p class="game-genre">Logic Puzzle</p>
-            <p>Place one crown in every row, column and coloured region — no two crowns may touch, even diagonally. Every puzzle is generated fresh with exactly one solution.</p>
-            <p class="how-to-play"><strong>How to play:</strong> Tap a cell to cycle empty → cross → crown. Placing a crown auto-crosses cells it would make illegal. Fill every region correctly to solve the puzzle.</p>
+            <div class="gc-head">
+              <img class="gc-icon" loading="lazy" src="assets/img/games/crown-star-regions/icon.jpg" alt="" width="72" height="72">
+              <div>
+                <h3>Crown Fields</h3>
+                <p class="game-genre">Logic Puzzle <span class="gc-origin">✨ Arcforge original</span></p>
+              </div>
+              <span class="gc-price">$2.99</span>
+            </div>
+            <p class="gc-tagline">One crown per row, column and region. No touching.</p>
+            <p>Crown Fields is a calm grid-placement puzzle: place one crown in every row, column and coloured region so that no two crowns touch, even diagonally. Every puzzle is generated fresh with exactly one solution. Play a quick 7x7 for a coffee break, or unlock the tougher 10x10 Expert board. No timers, no pressure - just clean logic.</p>
+            <ul class="gc-labels"><li>No ads</li><li>Works offline</li><li>One-time price</li></ul>
+            <details class="gc-how"><summary>How to play</summary><ol class="gc-steps"><li>Tap a cell to cycle it: empty, then crossed out, then a crown.</li><li>Placing a crown automatically crosses out every cell it would make illegal.</li><li>Every row, column and coloured region needs exactly one crown.</li><li>No two crowns may touch, even diagonally.</li><li>Fill the whole board correctly to solve the puzzle.</li><li>Tap Colours on the title screen or while playing to change the region colours - your choice is remembered.</li></ol></details>
             <div class="game-actions">
               <a class="btn btn-primary btn-sm" href="games/crown-star-regions/play/" target="_blank" rel="noopener">▶ Play in Browser — Free</a>
             </div>
-            <span class="platform-row">
-              <span class="plat soon">iOS — In App Store review</span>
-              <span class="plat soon">Android — In Google Play review</span>
-            </span>
+            <span class="platform-row"><span class="plat soon">iOS — In App Store review</span><span class="plat soon">Android — In Google Play review</span></span>
           </div>
         </article>
-
-        <article class="game-card">
-          <div class="game-art art-3">
+        <article class="game-card gc" style="--c1:#E0508F;--c2:#9A1F5C">
+          <div class="gc-media">
             <span class="game-tag">Free Preview</span>
+            <div class="gc-shots"><img loading="lazy" src="assets/img/games/big-card-solitaire-large-print/shot-1.jpg" alt="Big Card Solitaire screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/big-card-solitaire-large-print/shot-2.jpg" alt="Big Card Solitaire screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/big-card-solitaire-large-print/shot-3.jpg" alt="Big Card Solitaire screenshot 3" width="420" height="910"></div>
           </div>
           <div class="game-body">
-            <h3>Big Card Solitaire</h3>
-            <p class="game-genre">Large-Print Solitaire</p>
-            <p>Klondike redrawn for comfort: oversized high-contrast cards, tap-to-move instead of dragging, no timers or flashing effects — and every deal is checked so it can actually be won.</p>
-            <p class="how-to-play"><strong>How to play:</strong> Tap a card, then tap where you want it to go. Build the four foundations up by suit from Ace to King. Use the "what can I do?" hint if you're ever unsure of a legal move.</p>
+            <div class="gc-head">
+              <img class="gc-icon" loading="lazy" src="assets/img/games/big-card-solitaire-large-print/icon.jpg" alt="" width="72" height="72">
+              <div>
+                <h3>Big Card Solitaire</h3>
+                <p class="game-genre">Large-Print Solitaire <span class="gc-origin">🌎 North America</span></p>
+              </div>
+              <span class="gc-price">$2.99</span>
+            </div>
+            <p class="gc-tagline">Huge cards, tap to play, every deal winnable.</p>
+            <p>Big Card Solitaire is Klondike redrawn for comfort: oversized high-contrast cards, tap-to-move instead of dragging, and no timers or flashing effects. Every deal is checked so it can actually be won. A built-in &quot;what can I do?&quot; hint highlights your legal moves whenever you&#x27;re unsure.</p>
+            <ul class="gc-labels"><li>No ads</li><li>Works offline</li><li>One-time price</li></ul>
+            <details class="gc-how"><summary>How to play</summary><ol class="gc-steps"><li>Tap a card to select it, then tap where you want it to go.</li><li>Build the four foundation piles up by suit, from Ace to King.</li><li>Stack tableau cards down in alternating colours.</li><li>Tap the stock pile to draw a new card when you&#x27;re stuck.</li><li>Tap &quot;what can I do?&quot; any time to see every legal move highlighted.</li><li>Open Options any time to change the table colour, card back, 2- or 4-colour suits and motion. Your choices are remembered.</li></ol></details>
             <div class="game-actions">
               <a class="btn btn-primary btn-sm" href="games/big-card-solitaire-large-print/play/" target="_blank" rel="noopener">▶ Play in Browser — Free</a>
             </div>
-            <span class="platform-row">
-              <span class="plat soon">iOS — In App Store review</span>
-              <span class="plat soon">Android — In Google Play review</span>
-            </span>
-          </div>
-        </article>
-
-        <article class="game-card game-card-next">
-          <div class="next-inner">
-            <span class="next-glyph">+</span>
-            <h3>More on the way</h3>
-            <p>New titles get added here the moment they're playable.</p>
+            <span class="platform-row"><span class="plat soon">iOS — In App Store review</span><span class="plat soon">Android — In Google Play review</span></span>
           </div>
         </article>
       </div>
@@ -388,6 +479,6 @@
   </div>
 </footer>
 
-<script src="assets/js/main.js?v=20260919a"></script>
+<script src="assets/js/main.js?v=20260921a"></script>
 </body>
 </html>
