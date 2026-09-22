@@ -1,0 +1,17 @@
+{
+  "title": "Morabaraba",
+  "tagline": "The game of twelve cows",
+  "description": "Morabaraba is a traditional board game of Southern Africa, played in Lesotho, South Africa, Botswana and Zimbabwe. Twelve cows each on a board of three squares joined by lines and diagonals: place your herd, form a mill of three to shoot an opposing cow, slide to open and close mills, and fly when you are down to three. Learn in nine hands-on lessons, play four computer levels or a friend on one phone, and solve a daily puzzle. Painted dusk-over-the-veld art, large text and reduced motion. No ads, works offline.",
+  "genre": "mill board game",
+  "demo": true,
+  "howToPlay": [
+    "New here? Tap Learn to play: nine short lessons where you make every move yourself.",
+    "Placing: TAP an empty point to place a cow. Each side places all twelve cows first.",
+    "Three cows in a line make a mill, diagonals included. Close one and TAP a glowing cow to shoot it.",
+    "A cow standing in a mill is protected, unless all of that side's cows are in mills.",
+    "Sliding: TAP a cow, then a glowing point (or DRAG it). Cows move one step along a line.",
+    "Down to three cows you may FLY a cow to any empty point. Fewer than three, or no move, loses.",
+    "Illegal move? The cow tries, comes back, and a message says why. Hints explain themselves.",
+    "Beat each computer level with each colour for a star. The daily puzzle is the same for all."
+  ]
+}

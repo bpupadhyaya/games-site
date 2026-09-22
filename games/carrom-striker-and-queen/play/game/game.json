@@ -1,0 +1,25 @@
+{
+  "slug": "carrom-striker-and-queen",
+  "title": "Carrom",
+  "tagline": "Flick, pocket, cover the queen",
+  "genre": "flick physics board game",
+  "orientation": "portrait",
+  "version": "1.0.0",
+  "monetization": {
+    "model": "premium",
+    "priceUsd": 2.99,
+    "previewSeconds": 300,
+    "products": [
+      {
+        "id": "unlock_game",
+        "type": "non-consumable",
+        "priceUsd": 2.99,
+        "title": "Unlock Game"
+      }
+    ]
+  },
+  "locales": [
+    "en"
+  ],
+  "demoOnly": true
+}

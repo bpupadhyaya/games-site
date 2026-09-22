@@ -1,0 +1,17 @@
+{
+  "title": "Baloot",
+  "tagline": "The partnership card game of the Gulf",
+  "description": "Baloot is the traditional four-player partnership card game of Saudi Arabia and the Gulf, related to the French game Belote. Bid for Sun (no trump) or Hokum (a trump suit where the Jack and 9 outrank the Ace), then play all eight tricks with your computer partner against two computer opponents. Ten hands-on lessons teach the whole game, four computer levels give you room to grow, and a new daily deal tests your reading of the table every day. Score only: no wagering, no ads, works offline.",
+  "genre": "partnership trick-taking card game",
+  "demo": true,
+  "howToPlay": [
+    "New to Baloot? Tap Learn to play: ten short lessons where you make every real move yourself.",
+    "TAP a card to raise it, TAP it again to play it, or DRAG it upward. TAP a big button to bid.",
+    "Bidding: one card is turned face up. Say Hokum (that suit is trump), Sun (no trump, x2), or Pass.",
+    "Follow suit. In Hokum, if you can't and an opponent is winning, you must trump the trick.",
+    "In Hokum the Jack and 9 of trump outrank even the Ace.",
+    "Declare runs, sets or Baloot (King and Queen of trump) in the first trick for bonus points.",
+    "Hint (3 a hand) suggests a play and explains why. Take back undoes your last move.",
+    "Race to 152 (or a shorter 61) with your computer partner against two computer opponents."
+  ]
+}

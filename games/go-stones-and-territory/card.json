@@ -1,0 +1,17 @@
+{
+  "title": "Go",
+  "tagline": "The game of stones and territory",
+  "description": "Go is the classic board game of East Asia: Weiqi in China, Baduk in Korea, Igo in Japan. Place stones on a kaya-wood board, surround territory and capture what has no liberties. Learn in eleven hands-on lessons, play the computer at four levels on 9x9, 13x13 or 19x19 boards, pass the phone to a friend, and solve a new puzzle every day. Dead stones are found for you, every refused move is explained, and hints say why a move is good. Hand-painted board, slate and shell stones, large text and reduced motion. No ads, works offline.",
+  "genre": "abstract strategy board game",
+  "demo": true,
+  "howToPlay": [
+    "New here? Tap Learn to play: eleven short lessons where you make every move yourself.",
+    "TAP a crossing to aim: a ghost stone appears. TAP it again (or press Place) to play. DRAG to slide the ghost.",
+    "A stone or group with no empty neighbours (liberties) is captured. Playing where a stone would have none is not allowed.",
+    "Ko: you may not retake a single stone straight away. A move can never repeat an earlier whole-board position.",
+    "Pass when nothing useful is left. Two passes in a row end the game and the board is counted.",
+    "Scoring: your stones plus the empty points only you surround. White gets komi: 5.5 on 9x9, 7.5 on larger boards.",
+    "Dead stones are found for you: tap a group to change your mind, then Accept. Hint suggests a move and says why.",
+    "Four computer levels, three board sizes, two players on one phone, and a new daily puzzle with a streak."
+  ]
+}

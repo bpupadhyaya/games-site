@@ -1,0 +1,17 @@
+{
+  "title": "Tarneeb",
+  "tagline": "The partnership card game of the Levant",
+  "description": "Tarneeb is the bidding-and-trump trick-taking card game of the Levant. You and a computer partner bid against two computer opponents for how many of 13 tricks your side will take; the winning bidder names trump and leads. Follow suit, take tricks, and score by what you win. Learn in eight hands-on lessons, play four computer levels with hints that explain the reasoning, and solve a new open-hand Daily Deal every day. Designed cards with a large-print option, a warm cafe table. No ads, offline, score only.",
+  "genre": "trick-taking card game",
+  "demo": true,
+  "howToPlay": [
+    "Four players, two partnerships: you and your partner against two computer opponents.",
+    "Bidding: each player bids 7 to 13 tricks or passes. High bidder names trump and leads.",
+    "TAP a card to lift it, TAP again (or DRAG it up) to play. You must follow the suit led.",
+    "Highest trump wins a trick; with no trump played, highest card of the suit led wins.",
+    "Make your bid and your side scores its tricks; fall short and your side loses the bid.",
+    "Eight lessons teach following suit, trump, bidding, partnership play and a full hand.",
+    "Daily Deal: all hands face up. Only one first card can reach the target; find it, then play it out.",
+    "Hint explains a good bid or card with a reason; Undo takes back your last move."
+  ]
+}

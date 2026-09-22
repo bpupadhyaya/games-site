@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+<!-- Yut Nori icon: straw mat, two lacquered horse tokens, two carved sticks. Full-bleed, no text. -->
+<defs>
+<pattern id="weave" width="64" height="64" patternUnits="userSpaceOnUse"><rect width="64" height="64" fill="#b48a4c"/>
+<rect x="0" y="2" width="32" height="28" fill="#d0a862"/><rect x="32" y="34" width="32" height="28" fill="#d0a862"/>
+<rect x="34" y="0" width="28" height="32" fill="#a3773d"/><rect x="2" y="32" width="28" height="32" fill="#a3773d"/>
+<path d="M0 30h32M32 62h32M62 0v32M30 32v32" stroke="#6b4a1f" stroke-opacity=".45" stroke-width="3"/></pattern>
+<radialGradient id="light" cx=".7" cy=".1" r="1"><stop offset="0" stop-color="#ffd58a" stop-opacity=".55"/><stop offset=".6" stop-color="#000" stop-opacity="0"/><stop offset="1" stop-color="#1a0c00" stop-opacity=".7"/></radialGradient>
+<radialGradient id="b1" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#6d8fe0"/><stop offset=".55" stop-color="#2c4a9a"/><stop offset="1" stop-color="#182a63"/></radialGradient>
+<radialGradient id="r1" cx=".35" cy=".3" r=".8"><stop offset="0" stop-color="#f27a5c"/><stop offset=".55" stop-color="#c23a26"/><stop offset="1" stop-color="#7c1a12"/></radialGradient>
+<linearGradient id="bs" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1b2b66"/><stop offset="1" stop-color="#0d1638"/></linearGradient>
+<linearGradient id="rs" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#8a2214"/><stop offset="1" stop-color="#4a0d08"/></linearGradient>
+<linearGradient id="flat" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#c9ad76"/><stop offset=".2" stop-color="#f4e6c0"/><stop offset=".8" stop-color="#ecdaae"/><stop offset="1" stop-color="#bd9f68"/></linearGradient>
+<linearGradient id="round" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#2a180a"/><stop offset=".3" stop-color="#7a4d26"/><stop offset=".5" stop-color="#a06e3a"/><stop offset=".8" stop-color="#5f3a1b"/><stop offset="1" stop-color="#2a180a"/></linearGradient>
+</defs>
+<rect width="1024" height="1024" fill="url(#weave)"/><rect width="1024" height="1024" fill="url(#light)"/>
+<g transform="translate(250 330) rotate(-24)"><rect x="-58" y="-330" width="116" height="660" rx="52" fill="#000" opacity=".3" transform="translate(16 22)"/><rect x="-58" y="-330" width="116" height="660" rx="52" fill="url(#flat)" stroke="#5a3714" stroke-width="7"/>
+<path d="M-38 -110l76 12M-38 0l76 12M-38 110l76 12" stroke="#46280f" stroke-width="10" stroke-linecap="round"/><path d="M-32 -290l64 76M32 -290l-64 76" stroke="#be281e" stroke-width="15" stroke-linecap="round"/></g>
+<g transform="translate(780 300) rotate(20)"><rect x="-58" y="-330" width="116" height="660" rx="52" fill="#000" opacity=".3" transform="translate(16 22)"/><rect x="-58" y="-330" width="116" height="660" rx="52" fill="url(#round)" stroke="#140800" stroke-width="7"/>
+<path d="M-46 -200q46 12 92 0M-46 -120q46 12 92 0M-46 -40q46 12 92 0M-46 40q46 12 92 0M-46 120q46 12 92 0M-46 200q46 12 92 0" stroke="#1e0e04" stroke-opacity=".6" stroke-width="5" fill="none"/></g>
+<g transform="translate(340 690)">
+<ellipse cx="14" cy="120" rx="230" ry="96" fill="#000" opacity=".35"/>
+<path d="M-220 0 v70 a220 190 0 0 0 440 0 v-70 z" fill="url(#bs)"/>
+<ellipse cx="0" cy="0" rx="220" ry="190" fill="url(#b1)" stroke="#efd07a" stroke-width="14"/>
+<ellipse cx="0" cy="0" rx="196" ry="166" fill="none" stroke="#000" stroke-opacity=".35" stroke-width="5"/>
+<g transform="translate(6 8) scale(2.4 2.1) translate(-52 -50)"><path d="M26 88C30 66 30 50 38 36C40 24 44 16 47 8L52 22C58 19 65 21 71 28C79 40 88 55 92 65C95 72 90 79 83 78L75 75C71 81 65 81 62 74C58 79 56 85 58 94Z" fill="#000" opacity=".45"/></g>
+<g transform="scale(2.4 2.1) translate(-52 -50)"><path d="M26 88C30 66 30 50 38 36C40 24 44 16 47 8L52 22C58 19 65 21 71 28C79 40 88 55 92 65C95 72 90 79 83 78L75 75C71 81 65 81 62 74C58 79 56 85 58 94Z" fill="#f7e3ab"/><circle cx="63" cy="40" r="2.8" fill="#182a63"/></g>
+<ellipse cx="-70" cy="-90" rx="110" ry="42" transform="rotate(-25 -70 -90)" fill="#fff" opacity=".28"/></g>
+<g transform="translate(700 760)">
+<ellipse cx="14" cy="120" rx="230" ry="96" fill="#000" opacity=".35"/>
+<path d="M-220 0 v70 a220 190 0 0 0 440 0 v-70 z" fill="url(#rs)"/>
+<ellipse cx="0" cy="0" rx="220" ry="190" fill="url(#r1)" stroke="#efd07a" stroke-width="14"/>
+<ellipse cx="0" cy="0" rx="196" ry="166" fill="none" stroke="#000" stroke-opacity=".35" stroke-width="5"/>
+<g transform="translate(6 8) scale(2.4 2.1) translate(-52 -50)"><path d="M26 88C30 66 30 50 38 36C40 24 44 16 47 8L52 22C58 19 65 21 71 28C79 40 88 55 92 65C95 72 90 79 83 78L75 75C71 81 65 81 62 74C58 79 56 85 58 94Z" fill="#000" opacity=".45"/></g>
+<g transform="scale(2.4 2.1) translate(-52 -50)"><path d="M26 88C30 66 30 50 38 36C40 24 44 16 47 8L52 22C58 19 65 21 71 28C79 40 88 55 92 65C95 72 90 79 83 78L75 75C71 81 65 81 62 74C58 79 56 85 58 94Z" fill="#f7e3ab"/><circle cx="63" cy="40" r="2.8" fill="#7c1a12"/></g>
+<ellipse cx="-70" cy="-90" rx="110" ry="42" transform="rotate(-25 -70 -90)" fill="#fff" opacity=".28"/></g>
+</svg>

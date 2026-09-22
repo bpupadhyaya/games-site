@@ -7,7 +7,7 @@ export const HOW_TO_PLAY = [
   { icon: 'dmg', title: 'Arrows are spent', text: 'Gold-framed Arrows hit hard and are gone for the whole run. Steel-framed Techniques come back.' },
   { icon: 'answer', title: 'Answer the attack', text: 'Play the element that beats it. A Ward cancels it. A matching Arrow cancels it and strikes for +50%.' },
   { icon: 'mark', title: 'Waste nothing', text: 'Finish weak enemies with Reed Shafts. Never loose a named Arrow at a Lure.' },
-  { icon: 'guard', title: 'Debts and the Covenant', text: 'Debts give power now and come due in the final fight. Break the Covenant and your Standing never returns.' },
+  { icon: 'guard', title: 'Debts and the Covenant', text: 'Debts give power now and come due in the final fight. Break the Covenant and your Standing is hard to win back.' },
 ];
 
 export const ABOUT = [

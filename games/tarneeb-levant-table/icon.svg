@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <radialGradient id="felt" cx="50%" cy="42%" r="75%">
+      <stop offset="0%" stop-color="#2f7a56"/>
+      <stop offset="55%" stop-color="#1d5a41"/>
+      <stop offset="100%" stop-color="#0d3527"/>
+    </radialGradient>
+    <linearGradient id="rail" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#7a5228"/>
+      <stop offset="100%" stop-color="#4a2f15"/>
+    </linearGradient>
+    <linearGradient id="card" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#fffaf0"/>
+      <stop offset="100%" stop-color="#ece0c6"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#felt)"/>
+  <rect x="0" y="0" width="1024" height="64" fill="url(#rail)"/>
+  <rect x="0" y="960" width="1024" height="64" fill="url(#rail)"/>
+  <rect x="0" y="0" width="64" height="1024" fill="url(#rail)"/>
+  <rect x="960" y="0" width="64" height="1024" fill="url(#rail)"/>
+  <rect x="64" y="64" width="896" height="896" fill="none" stroke="#e8c377" stroke-width="6"/>
+  <g stroke="#f0cd82" stroke-width="4" opacity="0.55" fill="none">
+    <rect x="362" y="362" width="300" height="300"/>
+    <rect x="362" y="362" width="300" height="300" transform="rotate(45 512 512)"/>
+    <circle cx="512" cy="512" r="130"/>
+  </g>
+  <!-- three fanned cards: ace of spades, ace of hearts, king of hearts -->
+  <g transform="translate(472 560) rotate(-20)">
+    <rect x="-150" y="-230" width="240" height="352" rx="26" fill="url(#card)" stroke="#5a3a1e" stroke-width="6"/>
+    <text x="-118" y="-160" font-family="Georgia, 'Times New Roman', serif" font-weight="700" font-size="86" fill="#1c1a22">A</text>
+    <path d="M-108 -95 C-138 -60 -180 -40 -180 5 C-180 35 -155 50 -132 40 C-136 62 -150 78 -170 92 L-46 92 C-66 78 -80 62 -84 40 C-61 50 -36 35 -36 5 C-36 -40 -78 -60 -108 -95 Z" fill="#1c1a22"/>
+  </g>
+  <g transform="translate(552 560) rotate(20)">
+    <rect x="-90" y="-230" width="240" height="352" rx="26" fill="url(#card)" stroke="#5a3a1e" stroke-width="6"/>
+    <text x="-58" y="-160" font-family="Georgia, 'Times New Roman', serif" font-weight="700" font-size="86" fill="#b5202c">A</text>
+    <path transform="translate(0 -40) scale(0.5)" d="M0 -60 C-70 -130 -190 -95 -190 -5 C-190 70 -100 120 0 205 C100 120 190 70 190 -5 C190 -95 70 -130 0 -60 Z" fill="#b5202c"/>
+  </g>
+  <g transform="translate(512 560)">
+    <rect x="-120" y="-260" width="240" height="352" rx="26" fill="url(#card)" stroke="#5a3a1e" stroke-width="6"/>
+    <text x="-88" y="-190" font-family="Georgia, 'Times New Roman', serif" font-weight="700" font-size="86" fill="#b5202c">K</text>
+    <path transform="translate(0 10) scale(0.62)" d="M0 100 C-90 30 -150 -20 -150 -75 C-150 -125 -105 -155 -55 -140 C-25 -130 -8 -105 0 -85 C8 -105 25 -130 55 -140 C105 -155 150 -125 150 -75 C150 -20 90 30 0 100 Z" fill="#b5202c"/>
+  </g>
+  <g transform="translate(512 118)" opacity="0.95">
+    <circle r="44" fill="#3a2411" stroke="#e8c377" stroke-width="5"/>
+    <g stroke="#f0cd82" stroke-width="3" fill="none">
+      <rect x="-32" y="-32" width="64" height="64"/>
+      <rect x="-32" y="-32" width="64" height="64" transform="rotate(45)"/>
+    </g>
+  </g>
+</svg>

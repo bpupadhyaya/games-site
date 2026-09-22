@@ -1,0 +1,17 @@
+{
+  "title": "Mahjong",
+  "tagline": "The game of the four winds",
+  "description": "Mahjong is the four-player tile game of China, played around the world. Build four sets and a pair before the three computer players do: draw, discard, and call chows, pungs and kongs. This Hong Kong-style version shows exactly which patterns scored and why. Learn in eleven hands-on lessons, play against three computer levels, get plain-words hints, and solve a new discard puzzle every day. Thick ivory-and-jade tiles, a felt table, large text, reduced motion and three tile-face styles. Play in 中文 or English. Score only, no ads, works offline.",
+  "genre": "tile game",
+  "demo": true,
+  "howToPlay": [
+    "New here? Learn to play has eleven short lessons where you do every step yourself.",
+    "Each turn you draw a tile and discard one. TAP a tile to lift it, then TAP it again (or DRAG it up) to discard.",
+    "Build four sets and a pair: a chow is three in a row in one suit, a pung is three alike, a kong is four alike.",
+    "When another player discards a tile you can use, TAP Chow, Pung, Kong or Win!, or TAP Pass. A short timer runs; you can turn it off.",
+    "Win! beats Pung and Kong, which beat Chow. A chow may only be taken from the player before you.",
+    "A win needs at least 1 fan (or 3 in Settings). The score screen shows each pattern and why it scored.",
+    "Tap Why? for advice on your discard. The daily challenge is three puzzles, the same for everyone.",
+    "Play a Quick hand or a whole East round of four deals. Your hand is saved when you leave."
+  ]
+}

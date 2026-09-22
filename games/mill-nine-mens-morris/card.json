@@ -1,0 +1,17 @@
+{
+  "title": "Nine Men's Morris",
+  "tagline": "The mill game of Europe",
+  "description": "Nine Men's Morris, known as Muhle in Germany, Moulin in France and Merels in England, is a medieval mill game carved into cloister seats across Europe. Place nine men on a 24-point board, slide them along the lines and take an enemy man with every row of three. Learn in ten hands-on lessons, play five computer levels from Apprentice to Grandmaster, pass the phone to a friend, and solve a mill puzzle every day. No ads, works offline.",
+  "genre": "abstract strategy board game",
+  "demo": true,
+  "howToPlay": [
+    "New here? Tap Learn to play: ten short lessons where you make every move yourself.",
+    "Placing: Light starts. Tap an empty point to place a man. Each side places nine.",
+    "Sliding: tap a man, then a glowing point beside it (or drag it there). Men slide one step along a line.",
+    "Three men in a row is a mill. Tap a glowing red enemy man to take it. Men in a mill are safe unless all enemy men are in mills.",
+    "Down to three men? You fly: any man may jump to any empty point.",
+    "You win when the enemy has two men left or cannot move. Same position 3 times, or 50 moves each with no mill, is a draw.",
+    "A refused move shows a red ring and says why. Hint (3 per game) explains a good move. Undo takes back.",
+    "Five levels, a daily mill puzzle, boards and men to earn. Large text and calm (reduced motion) options."
+  ]
+}

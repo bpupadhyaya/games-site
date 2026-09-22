@@ -1,0 +1,17 @@
+{
+  "title": "Congklak",
+  "tagline": "The shell game of Southeast Asia",
+  "description": "Congklak (Congkak in Malaysia, Sungka in the Philippines) is the carved-boat mancala of Southeast Asia: seven houses a side, seven shells in each, both players sowing at once to open. Sow one shell at a time, scoop on when you land on a full house, shoot the house opposite when you land in an empty one, and play again when you end in your storehouse. Nine hands-on lessons, five computer levels, a daily puzzle and pass-and-play. Burnt houses raise the stakes each round. No ads, works offline.",
+  "genre": "Southeast Asian mancala",
+  "demo": true,
+  "howToPlay": [
+    "New here? Tap Learn to play: nine short lessons where you make every move yourself.",
+    "TAP a glowing house in your right-hand column to sow it. TAP anywhere while shells move to fast-forward.",
+    "Shells go one to each place ahead, into your storehouse but never your opponent's.",
+    "Last shell in your storehouse: play again. In a full house: scoop it up and keep sowing.",
+    "Last shell in your own empty house: shoot, taking every shell in the house opposite.",
+    "Each round starts with both players sowing at the same moment.",
+    "A round ends when the player to move has no shells; houses that cannot be refilled are burnt shut.",
+    "Undo takes back a move; Hint (3 per game) shows a good move and why."
+  ]
+}

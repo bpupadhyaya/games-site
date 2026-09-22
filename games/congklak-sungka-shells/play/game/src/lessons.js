@@ -1,0 +1,38 @@
+// Learn to play: nine short hands-on lessons. Each is a small position and one or two things to DO.
+//   b: shells by place (0-6 your houses, 8-14 your opponent's, 15 your storehouse, 7 theirs); everything else is empty
+//   steps: [{ want: houses that count as doing it right, text: what to do (exact command), done: what to say afterwards, hint }]
+// A later step is played only if your first move gave you another turn. `opening: true` starts with the simultaneous first move.
+export const LESSONS = [
+  { title: 'Sowing shells', b: { 5: 3, 2: 2, 11: 4 },
+    steps: [{ want: [5], text: 'Shells go one to each house, always the same way round. TAP the glowing house with 3 shells.',
+      done: 'One shell into each house ahead: it went past your top house and into your opponent’s column, and the last one fell in an empty house there. Nothing is captured, and the turn passes.',
+      hint: 'That is a real move, but this lesson uses the glowing house.' }] },
+  { title: 'Your storehouse', b: { 4: 10, 1: 2, 12: 3 },
+    steps: [{ want: [4], text: 'Shells fall in your own storehouse (bottom) but never in your opponent’s. TAP the glowing house with 10 shells.',
+      done: 'The shells skipped the other storehouse and the last one dropped into yours. Ending in your own storehouse gives you another turn.' }] },
+  { title: 'Keep going', b: { 0: 2, 2: 2, 5: 1, 3: 4 },
+    steps: [{ want: [0], text: 'If your last shell lands in a house that already has shells, scoop them all up and sow on. TAP the glowing house.',
+      done: 'The last shell fell on a full house, so you picked all of them up and kept going, twice. A single turn can sweep the whole board.',
+      hint: 'Use the glowing house: its last shell lands on a house that is not empty.' }] },
+  { title: 'Shoot!', b: { 1: 3, 10: 5, 6: 2, 12: 1 },
+    steps: [{ want: [1], text: 'End in an EMPTY house of your own and you shoot: you take every shell in the house opposite. TAP the glowing house.',
+      done: 'The last shell fell in your empty house, so you took the house across from it and your shell too: 6 shells into your storehouse. This is called tembak in Indonesia.',
+      hint: 'Only the glowing house ends in an empty house of yours with shells opposite.' }] },
+  { title: 'Both at once', opening: true, b: null,
+    steps: [{ want: [0, 1, 2, 3, 4, 5, 6], text: 'Every round starts with both players sowing at once. TAP any house of yours: your opponent picks one at the same moment.',
+      done: 'Both hands sowed together, one shell per beat. Whoever finishes first plays the next move.' }] },
+  { title: 'Choose well', b: { 0: 3, 2: 1, 4: 2, 10: 6, 12: 2, 13: 1, 8: 4 },
+    steps: [{ want: [4], text: 'Look before you sow: which house gives you the most? Count where each last shell lands, then TAP your choice.',
+      done: 'That was the best move here. Count the last shell of each house before you sow; that habit wins games.',
+      hint: 'Not the biggest haul. Count each house’s last shell: one of them lands in an empty house facing a full one.' }] },
+  { title: 'Big laps', b: { 3: 17, 0: 1, 9: 3 },
+    steps: [{ want: [3], text: 'A house of 16 or more shells goes right round the board, dropping a shell in the house it started from too. TAP the glowing house.',
+      done: 'Round it went, and on. Big houses are powerful, but they also feed your opponent.' }] },
+  { title: 'Two moves in a row', b: { 4: 10, 1: 3, 10: 5 },
+    steps: [{ want: [4], text: 'Ending in your storehouse gives another turn, so plan a chain. TAP the glowing house with 10 shells first.', done: 'Another turn! Now finish it.' },
+            { want: [1], text: 'Your last shell will land in the empty house of yours opposite the full one. TAP the glowing house.',
+      done: 'A storehouse turn followed by a shot. Chains like this decide rounds.' }] },
+  { title: 'End of a round', b: { 1: 3, 10: 2, 6: 5, 15: 30, 7: 40 },
+    steps: [{ want: [1], text: 'A round ends when the player to move has no shells. Take your opponent’s last two: TAP the glowing house.',
+      done: 'Your opponent has nothing left to sow, so the round is over: shells on each side go to that side’s owner. Then both refill their houses with 7 shells each, and a player who cannot fill every house has the last ones burnt shut for the rest of the match.' }] },
+];

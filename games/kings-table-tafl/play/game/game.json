@@ -1,0 +1,25 @@
+{
+  "slug": "kings-table-tafl",
+  "title": "Tafl",
+  "tagline": "The king's table of the North",
+  "genre": "tafl / hnefatafl family",
+  "orientation": "portrait",
+  "version": "1.0.0",
+  "monetization": {
+    "model": "premium",
+    "priceUsd": 2.99,
+    "previewSeconds": 300,
+    "products": [
+      {
+        "id": "unlock_game",
+        "type": "non-consumable",
+        "priceUsd": 2.99,
+        "title": "Unlock Game"
+      }
+    ]
+  },
+  "locales": [
+    "en"
+  ],
+  "demoOnly": true
+}

@@ -1,0 +1,17 @@
+{
+  "title": "Durak",
+  "tagline": "The card game of the fool",
+  "description": "Durak, widely regarded as the most played card game of Russia and its neighbours: attack, defend, throw in, and try not to be the last one holding cards. Play against one to three computer players in Podkidnoy or Perevodnoy, learn in eight short lessons, solve a daily endgame and read the story of the game. Offline, score-only, no wagers.",
+  "genre": "attack-and-defence shedding game",
+  "demo": true,
+  "howToPlay": [
+    "New here? Tap Learn to play: eight short lessons where you make every move yourself.",
+    "TAP a card to lift it, TAP it again to play it. Or DRAG it onto the table.",
+    "Beat an attack with a higher card of the same suit, or with a trump.",
+    "TAP Take to pick up the table when you cannot or will not beat.",
+    "Throw in cards whose rank is already on the table; TAP Bito when done.",
+    "Refill to six from the stock. The last player holding cards is the fool.",
+    "Hint (3 a match) shows a good move and why. Undo takes back your last move.",
+    "Daily Deal: both hands face up. Only one first move keeps you safe; find it, then play on."
+  ]
+}

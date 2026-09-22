@@ -1,0 +1,25 @@
+{
+  "slug": "shogi-generals-and-drops",
+  "title": "Shogi",
+  "tagline": "Japan's game of generals and drops",
+  "genre": "board",
+  "orientation": "portrait",
+  "version": "0.1.0",
+  "monetization": {
+    "model": "premium",
+    "priceUsd": 2.99,
+    "previewSeconds": 300,
+    "products": [
+      {
+        "id": "unlock_game",
+        "type": "non-consumable",
+        "priceUsd": 2.99,
+        "title": "Unlock Game"
+      }
+    ]
+  },
+  "locales": [
+    "en"
+  ],
+  "demoOnly": true
+}

@@ -1,0 +1,25 @@
+{
+  "slug": "durak-na-dache",
+  "title": "Durak",
+  "tagline": "The card game of the fool",
+  "genre": "card game (attack and defence)",
+  "orientation": "portrait",
+  "version": "1.0.0",
+  "monetization": {
+    "model": "premium",
+    "priceUsd": 2.99,
+    "previewSeconds": 300,
+    "products": [
+      {
+        "id": "unlock_game",
+        "type": "non-consumable",
+        "priceUsd": 2.99,
+        "title": "Unlock Game"
+      }
+    ]
+  },
+  "locales": [
+    "en"
+  ],
+  "demoOnly": true
+}

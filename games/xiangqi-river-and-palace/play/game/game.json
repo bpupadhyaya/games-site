@@ -1,0 +1,25 @@
+{
+  "slug": "xiangqi-river-and-palace",
+  "title": "Xiangqi",
+  "tagline": "The game of the river and the palace",
+  "genre": "abstract strategy board game",
+  "orientation": "portrait",
+  "version": "0.1.0",
+  "monetization": {
+    "model": "premium",
+    "priceUsd": 2.99,
+    "previewSeconds": 300,
+    "products": [
+      {
+        "id": "unlock_game",
+        "type": "non-consumable",
+        "priceUsd": 2.99,
+        "title": "Unlock Game"
+      }
+    ]
+  },
+  "locales": [
+    "en"
+  ],
+  "demoOnly": true
+}

@@ -1,0 +1,25 @@
+{
+  "slug": "oware-seed-sowing",
+  "title": "Oware",
+  "tagline": "The seed-sowing game of West Africa",
+  "genre": "abstract strategy board game",
+  "orientation": "portrait",
+  "version": "0.1.0",
+  "monetization": {
+    "model": "premium",
+    "priceUsd": 2.99,
+    "previewSeconds": 300,
+    "products": [
+      {
+        "id": "unlock_game",
+        "type": "non-consumable",
+        "priceUsd": 2.99,
+        "title": "Unlock Game"
+      }
+    ]
+  },
+  "locales": [
+    "en"
+  ],
+  "demoOnly": true
+}

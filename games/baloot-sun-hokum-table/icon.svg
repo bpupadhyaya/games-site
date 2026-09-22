@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- Baloot icon: a deep red table, a brass eight-point star rosette, and a large cream playing
+       card bearing the Jack (the highest card in a Hokum trump suit). Full-bleed, no
+       transparency, readable at 60px (bold shapes, no small text). -->
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="42%" r="75%">
+      <stop offset="0%" stop-color="#7a2230"/>
+      <stop offset="55%" stop-color="#5a1620"/>
+      <stop offset="100%" stop-color="#360d14"/>
+    </radialGradient>
+    <linearGradient id="card" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#fffaf0"/>
+      <stop offset="100%" stop-color="#efe2c4"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+  <g stroke="#e0b25a" stroke-width="10" fill="none" opacity="0.55">
+    <path d="M512 150 L613 261 L753 231 L723 371 L834 472 L723 573 L753 713 L613 683 L512 794 L411 683 L271 713 L301 573 L190 472 L301 371 L271 231 L411 261 Z"/>
+  </g>
+  <circle cx="512" cy="472" r="230" fill="none" stroke="#e0b25a" stroke-width="8" opacity="0.5"/>
+  <g transform="translate(512 472) rotate(-8)">
+    <rect x="-158" y="-224" width="316" height="448" rx="30" fill="url(#card)" stroke="#4a2a10" stroke-width="8"/>
+    <rect x="-134" y="-200" width="268" height="400" rx="20" fill="none" stroke="#b98634" stroke-width="4" opacity="0.6"/>
+    <text x="-118" y="-118" font-family="Georgia, 'Times New Roman', serif" font-weight="800" font-size="150" fill="#c4171d">J</text>
+    <path d="M0 40 C-70 -20 -46 -96 12 -96 C44 -96 60 -70 60 -52 C60 -70 76 -96 108 -96 C166 -96 190 -20 120 40 L60 96 Z" fill="#c4171d" transform="translate(-58 148) scale(1.25)"/>
+    <g transform="translate(118 224) rotate(180)">
+      <text x="0" y="-2" font-family="Georgia, 'Times New Roman', serif" font-weight="800" font-size="150" fill="#c4171d">J</text>
+    </g>
+  </g>
+  <path d="M180 900 C260 840 340 840 420 880 C500 920 560 920 620 880 C700 840 780 840 844 900 L844 1024 L180 1024 Z" fill="#2a0c12" opacity="0.85"/>
+  <rect x="0" y="0" width="1024" height="1024" fill="none" stroke="#e0b25a" stroke-width="14" opacity="0.35"/>
+</svg>

@@ -5,7 +5,7 @@
   "genre": "large-print senior solitaire",
   "demo": true,
   "howToPlay": [
-    "Tap a card to select it, then tap where you want it to go.",
+    "Tap a card to select it, then tap where you want it to go - if only one move is legal, it plays automatically.",
     "Build the four foundation piles up by suit, from Ace to King.",
     "Stack tableau cards down in alternating colours.",
     "Tap the stock pile to draw a new card when you're stuck.",

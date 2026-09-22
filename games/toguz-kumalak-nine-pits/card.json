@@ -1,0 +1,17 @@
+{
+  "title": "Toguz Kumalak",
+  "tagline": "The nine-pebble game of the steppe",
+  "description": "Toguz Kumalak is the traditional sowing game of Kazakhstan and Kyrgyzstan, part of the mancala family. Eighteen pits, 162 pebbles: lift a pit, sow round the board, capture pits your last pebble makes even, and win one opponent pit for good as your tuz. Learn in ten short hands-on lessons, play the computer at five levels, pass the phone to a friend, and solve a new puzzle every day. Carved wood, felt and kilim-pattern art, large text and reduced-motion options. No ads, works offline.",
+  "genre": "abstract strategy board game",
+  "demo": true,
+  "howToPlay": [
+    "New here? Tap Learn to play: ten short lessons where you make every move yourself.",
+    "TAP one of your pits on the bottom row. Glowing pits are the ones you can play.",
+    "The first pebble stays in the pit; the rest go one per pit, counter-clockwise.",
+    "If your last pebble lands in an opponent pit and makes it even, you capture it.",
+    "If it makes exactly three, that pit becomes your tuz: every pebble landing there is yours.",
+    "One tuz each; never the opponent's 9th pit, never the same number as their tuz.",
+    "First to collect 82 of the 162 pebbles wins. Undo takes back a move; Hint shows why.",
+    "Daily puzzle: TAP the one pit that takes the most pebbles."
+  ]
+}

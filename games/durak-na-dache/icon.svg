@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#5a2a1e"/>
+      <stop offset="1" stop-color="#26100b"/>
+    </linearGradient>
+    <linearGradient id="card" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fffef8"/>
+      <stop offset="1" stop-color="#f0e4c4"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f0cd74"/>
+      <stop offset="1" stop-color="#b98b2c"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+  <!-- bold corner flourishes, Khokhloma-style, kept simple so they read at 60px -->
+  <g fill="url(#gold)">
+    <path d="M60 60 q160 0 160 160 q-90 -30 -160 30 q30 -100 -60 -190z"/>
+    <path d="M964 60 q-160 0 -160 160 q90 -30 160 30 q-30 -100 60 -190z"/>
+    <path d="M60 964 q160 0 160 -160 q-90 30 -160 -30 q30 100 -60 190z"/>
+    <path d="M964 964 q-160 0 -160 -160 q90 30 160 -30 q-30 100 60 190z"/>
+  </g>
+  <!-- two overlapping cards, tilted, each with one bold, unmistakable pip (same curves as the in-game cards) -->
+  <g transform="translate(512 522)">
+    <g transform="rotate(-12) translate(-140 -30)">
+      <rect x="-150" y="-210" width="300" height="420" rx="34" fill="url(#card)" stroke="#8a6a30" stroke-width="10"/>
+      <path d="M 0 -168 Q 40 -40 124.8 0 Q 40 40 0 168 Q -40 40 -124.8 0 Q -40 -40 0 -168 Z" fill="#b3242c"/>
+    </g>
+    <g transform="rotate(11) translate(150 10)">
+      <rect x="-150" y="-210" width="300" height="420" rx="34" fill="url(#card)" stroke="#8a6a30" stroke-width="10"/>
+      <path d="M 0 -150 C -45 -75 -202.5 -7.5 -150 75 C -112.5 135 -30 112.5 -18 67.5 Q -15 127.5 -63 153 L 63 153 Q 15 127.5 18 67.5 C 30 112.5 112.5 135 150 75 C 202.5 -7.5 45 -75 0 -150 Z" fill="#161616"/>
+    </g>
+  </g>
+</svg>

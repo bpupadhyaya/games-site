@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#4a2f1a"/>
+      <stop offset="0.55" stop-color="#2c1a0d"/>
+      <stop offset="1" stop-color="#160c05"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.46" r="0.5">
+      <stop offset="0" stop-color="#ffae5a" stop-opacity="0.45"/>
+      <stop offset="1" stop-color="#ffae5a" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="piece" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fff4d6"/>
+      <stop offset="0.55" stop-color="#e6d3a0"/>
+      <stop offset="1" stop-color="#a88f58"/>
+    </linearGradient>
+    <linearGradient id="crown" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffe9a0"/>
+      <stop offset="1" stop-color="#8a5f1a"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+  <rect width="1024" height="1024" fill="url(#glow)"/>
+
+  <!-- knotwork frame: interlaced ring, pure geometric ornament -->
+  <g fill="none" stroke-linecap="round">
+    <circle cx="512" cy="512" r="452" stroke="#160c05" stroke-width="46"/>
+    <circle cx="512" cy="512" r="452" stroke="#a5793a" stroke-width="34"/>
+    <circle cx="512" cy="512" r="452" stroke="#e8c77e" stroke-width="10" stroke-dasharray="58 30"/>
+  </g>
+  <circle cx="512" cy="512" r="452" fill="none" stroke="#160c05" stroke-width="4"/>
+
+  <!-- four corner bosses -->
+  <g>
+    <circle cx="512" cy="98" r="30" fill="#e8c77e"/>
+    <circle cx="512" cy="926" r="30" fill="#e8c77e"/>
+    <circle cx="98" cy="512" r="30" fill="#e8c77e"/>
+    <circle cx="926" cy="512" r="30" fill="#e8c77e"/>
+  </g>
+
+  <!-- the carved octagon king piece -->
+  <g transform="translate(512,540)">
+    <ellipse cx="18" cy="150" rx="270" ry="70" fill="#000" opacity="0.35"/>
+    <polygon points="-260,-70 -184,-186 -92,-260 92,-260 184,-186 260,-70 260,90 184,206 92,280 -92,280 -184,206 -260,90" fill="#1a1006"/>
+    <polygon points="-238,-88 -168,-198 -84,-268 84,-268 168,-198 238,-88 238,74 168,184 84,254 -84,254 -168,184 -238,74" fill="url(#piece)"/>
+    <polygon points="-238,-88 -168,-198 -84,-268 84,-268 168,-198 238,-88 238,74 168,184 84,254 -84,254 -168,184 -238,74" fill="none" stroke="#fffdf5" stroke-width="10" opacity="0.65"/>
+    <polygon points="-190,-72 -134,-160 -68,-216 68,-216 134,-160 190,-72 190,54 134,142 68,196 -68,196 -134,142 -190,54" fill="none" stroke="#6b4f24" stroke-width="16"/>
+    <!-- gilt band -->
+    <polygon points="-238,-88 -168,-198 -84,-268 84,-268 168,-198 238,-88 238,74 168,184 84,254 -84,254 -168,184 -238,74" fill="none" stroke="#c99a3c" stroke-width="30"/>
+    <!-- crown motif -->
+    <polygon points="-130,-20 -130,-118 -66,-46 0,-150 66,-46 130,-118 130,-20" fill="url(#crown)" stroke="#3a2408" stroke-width="14" stroke-linejoin="round"/>
+    <circle cx="0" cy="-40" r="26" fill="#7a1d18" stroke="#3a2408" stroke-width="8"/>
+  </g>
+</svg>

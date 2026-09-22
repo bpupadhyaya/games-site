@@ -1,0 +1,25 @@
+{
+  "slug": "yut-nori-four-sticks",
+  "title": "Yut Nori",
+  "tagline": "Korea's four-stick race",
+  "genre": "Korean stick-dice race board game",
+  "orientation": "portrait",
+  "version": "0.1.0",
+  "monetization": {
+    "model": "premium",
+    "priceUsd": 2.99,
+    "previewSeconds": 300,
+    "products": [
+      {
+        "id": "unlock_game",
+        "type": "non-consumable",
+        "priceUsd": 2.99,
+        "title": "Unlock Game"
+      }
+    ]
+  },
+  "locales": [
+    "en"
+  ],
+  "demoOnly": true
+}

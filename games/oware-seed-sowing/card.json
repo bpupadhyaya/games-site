@@ -1,0 +1,17 @@
+{
+  "title": "Oware",
+  "tagline": "The seed-sowing game of West Africa",
+  "description": "Oware is the classic seed-sowing game of Ghana and West Africa, part of the mancala family. Twelve pits, forty-eight seeds: lift a pit, sow its seeds one by one round the board, and capture pits that end with two or three. Learn in eight short hands-on lessons, play the computer at five levels from Easy to Grandmaster, pass the phone to a friend, and solve a new capture puzzle every day. Hand-carved wood, glossy seeds and woven-cloth art, large text and reduced-motion options. No ads, works offline.",
+  "genre": "abstract strategy board game",
+  "demo": true,
+  "howToPlay": [
+    "New here? Tap Learn to play: eight short lessons where you make every move yourself.",
+    "TAP one of your pits on the bottom row to sow it. Glowing pits are the ones you can play.",
+    "Seeds go one per pit, counter-clockwise: along your row, then back along your opponent's row.",
+    "If your last seed makes an opponent pit hold 2 or 3, you capture it, and the pits before it if they also hold 2 or 3.",
+    "A pit with 12 or more seeds laps the board and skips its own pit.",
+    "If your opponent has no seeds you must play a move that gives them some.",
+    "First to capture 25 seeds wins. Undo takes back a move; Hint (3 per game) shows a good move and why.",
+    "Daily puzzle: TAP the one pit that captures the most seeds. Same puzzle for everyone."
+  ]
+}

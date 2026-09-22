@@ -1,0 +1,17 @@
+{
+  "title": "Mū Tōrere",
+  "tagline": "The eight-pointed star game of Aotearoa",
+  "description": "Mū Tōrere is a traditional Māori board game of Aotearoa New Zealand. Four stones each on an eight-pointed star with a pit in the middle, the putahi: slide one stone at a time and leave your opponent with no move. The game is tiny and fully solved, so it is all traps and foresight. Learn in eight hands-on lessons, climb a Ladder of twelve opponents, solve a new proven puzzle every day, or play a friend on one phone. Carved-wood board, shell and greenstone stones, calm sound. No ads, works offline.",
+  "genre": "abstract strategy board game",
+  "demo": true,
+  "howToPlay": [
+    "New here? Tap Learn to play: eight short lessons where you make every move yourself.",
+    "TAP one of your stones (its legal points glow), then TAP a point. Or DRAG the stone there.",
+    "A stone moves one step: to the next point around the star, or between the rim and the putahi (centre).",
+    "A stone may enter the putahi only when it stands beside an enemy stone. From the putahi it may step to any empty point.",
+    "You win when your opponent has no legal move. The same position three times is a draw.",
+    "Move not allowed? The stone tries, comes back, and a message tells you why.",
+    "Hint shows a good move and why (3 per game). Take back undoes your move and the reply.",
+    "Climb the Ladder of 12 opponents. The last two cannot be beaten, only held to a draw."
+  ]
+}

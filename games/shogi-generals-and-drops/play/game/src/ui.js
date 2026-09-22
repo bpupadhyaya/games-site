@@ -1,0 +1,85 @@
+// Every button on every screen: one list per screen, used both to draw them (view.js) and to hit-test taps (game.js).
+import { LESSONS } from './lessons.js';
+import { LEVELS } from './engine.js';
+
+export const ABOUT_PAGES = 3, HOWTO_PAGES = 2;
+const FULL = { x: 80, w: 560 }, HALF_L = { x: 80, w: 272 }, HALF_R = { x: 368, w: 272 };
+
+export function buttonsFor(s) {
+  const out = [];
+  const add = (id, label, x, y, w, h, o = {}) => out.push({ id, label, x, y, w, h, ...o });
+  const half = (idL, lblL, idR, lblR, y, oL = {}, oR = {}) => { add(idL, lblL, HALF_L.x, y, HALF_L.w, 92, oL); add(idR, lblR, HALF_R.x, y, HALF_R.w, 92, oR); };
+  const bottom = (items, y = 1352) => { const w = items.length === 2 ? 300 : 200, gap = 20, x0 = (720 - (items.length * w + (items.length - 1) * gap)) / 2; items.forEach(([id, label, o], i) => add(id, label, x0 + i * (w + gap), y, w, 92, o)); };
+
+  if (s.promo) {
+    add('promoYes', 'Promote', 70, 640, 270, 320, { kind: 'promo', primary: true });
+    add('promoNo', 'Keep', 380, 640, 270, 320, { kind: 'promo' });
+    add('promoCancel', 'Cancel', 260, 990, 200, 76, { small: true });
+    return out;
+  }
+  switch (s.scene) {
+    case 'title': {
+      let y = 660;
+      if (s.saved) { add('continue', 'Continue game', FULL.x, y, FULL.w, 100, { primary: true }); y += 114; add('play', 'New game vs computer', FULL.x, y, FULL.w, 100); }
+      else add('play', 'Play the computer', FULL.x, y, FULL.w, 100, { primary: true });
+      y += 114;
+      half('learn', 'Learn to play', 'puzzle', 'Puzzle of the day', y); y += 104;
+      half('mini', 'Mini shogi 5x5', 'two', 'Two players', y); y += 104;
+      half('howto', 'How to play', 'about', 'About shogi', y); y += 104;
+      half('settings', 'Settings', 'sound', s.prefs.sound ? 'Sound: on' : 'Sound: off', y); y += 148;
+      half('langJP', 'Play (日本語)', 'langEN', 'Play (English)', y, { toggle: s.prefs.lang !== 'en' }, { toggle: s.prefs.lang === 'en' });
+      break;
+    }
+    case 'setup': {
+      LEVELS.forEach((lv, i) => add('level' + i, lv.name, FULL.x, 318 + i * 96, FULL.w, 86, { toggle: s.level === i, stars: i + 1 }));
+      half('sideB', 'You go first', 'sideW', 'You go second', 972, { toggle: s.humanPick === 0 }, { toggle: s.humanPick === 1 });
+      add('start', 'Start game', FULL.x, 1090, FULL.w, 100, { primary: true });
+      add('back', 'Back', FULL.x, 1206, FULL.w, 84);
+      break;
+    }
+    case 'settings': {
+      const rowsS = [['tSound', 'Sound', s.prefs.sound], ['tCalm', 'Reduced motion', s.prefs.calm], ['tBig', 'Large text', s.prefs.big], ['tLabels', 'Western letters on pieces', s.prefs.labels]];
+      rowsS.forEach(([id, label, on], i) => add(id, label, FULL.x, 330 + i * 108, FULL.w, 92, { pill: on }));
+      half('langJP', 'Play (日本語)', 'langEN', 'Play (English)', 798, { toggle: s.prefs.lang !== 'en' }, { toggle: s.prefs.lang === 'en' });
+      add('back', 'Back', FULL.x, 924, FULL.w, 92);
+      break;
+    }
+    case 'about': case 'howto': {
+      const pages = s.scene === 'about' ? ABOUT_PAGES : HOWTO_PAGES;
+      if (s.page > 0) add('prev', 'Previous', 40, 1330, 200, 88); else add('back', 'Back', 40, 1330, 200, 88);
+      if (s.page < pages - 1) add('next', 'Next', 480, 1330, 200, 88, { primary: true }); else add('back', 'Done', 480, 1330, 200, 88, { primary: true });
+      break;
+    }
+    case 'learn': {
+      LESSONS.forEach((l, i) => add('lesson' + i, `${i + 1}. ${l.title.replace(/^The /, '')}`, i % 2 ? 368 : 80, 300 + Math.floor(i / 2) * 118, 272, 100, { done: s.lessonsDone[i], tile: true }));
+      add('back', 'Back', FULL.x, 1040, FULL.w, 92);
+      break;
+    }
+    case 'play': {
+      if (s.menu) {
+        add('resume', 'Resume', FULL.x, 420, FULL.w, 92, { primary: true });
+        add('newgame', 'New game', FULL.x, 532, FULL.w, 92);
+        add('resign', 'Resign', FULL.x, 644, FULL.w, 92);
+        add('settings', 'Settings', FULL.x, 756, FULL.w, 92);
+        add('title', 'Main menu', FULL.x, 868, FULL.w, 92);
+      } else if (s.result) bottom([['again', 'Play again', { primary: true }], ['title', 'Main menu']]);
+      else bottom([['undo', 'Take back', { dim: !s.canUndo }], ['hint', `Hint (${s.hintsLeft})`, { dim: s.two || s.hintsLeft <= 0 }], ['menu', 'Menu']]);
+      break;
+    }
+    case 'lesson': {
+      if (s.menu) { add('resume', 'Resume', FULL.x, 420, FULL.w, 92, { primary: true }); add('learn', 'All lessons', FULL.x, 532, FULL.w, 92); add('title', 'Main menu', FULL.x, 644, FULL.w, 92); }
+      else if (s.lesson.done) bottom([[s.lesson.i < LESSONS.length - 1 ? 'nextLesson' : 'learn', s.lesson.i < LESSONS.length - 1 ? 'Next lesson' : 'All lessons', { primary: true }], ['retryLesson', 'Again'], ['learn', 'Lessons']]);
+      else bottom([['retryLesson', 'Restart'], ['showMe', 'Show me'], ['learn', 'Lessons']]);
+      break;
+    }
+    case 'puzzle': {
+      if (s.menu) { add('resume', 'Resume', FULL.x, 420, FULL.w, 92, { primary: true }); add('title', 'Main menu', FULL.x, 532, FULL.w, 92); }
+      else if (s.pz.status === 'solved') bottom([['anotherPuzzle', 'Another puzzle', { primary: true }], ['title', 'Main menu']]);
+      else bottom([['pzHint', 'Hint'], ['pzRestart', 'Restart'], ['menu', 'Menu']]);
+      break;
+    }
+    case 'demo-limit': add('title', 'Main menu', FULL.x, 1100, FULL.w, 96, { primary: true }); break;
+    default: break;
+  }
+  return out;
+}

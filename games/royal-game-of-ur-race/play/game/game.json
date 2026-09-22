@@ -1,0 +1,25 @@
+{
+  "slug": "royal-game-of-ur-race",
+  "title": "The Royal Game of Ur",
+  "tagline": "A race from the cradle of civilisation",
+  "genre": "ancient race game",
+  "orientation": "portrait",
+  "version": "0.1.0",
+  "monetization": {
+    "model": "premium",
+    "priceUsd": 2.99,
+    "previewSeconds": 300,
+    "products": [
+      {
+        "id": "unlock_game",
+        "type": "non-consumable",
+        "priceUsd": 2.99,
+        "title": "Unlock Game"
+      }
+    ]
+  },
+  "locales": [
+    "en"
+  ],
+  "demoOnly": true
+}

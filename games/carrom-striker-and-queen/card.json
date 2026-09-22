@@ -1,0 +1,17 @@
+{
+  "title": "Carrom",
+  "tagline": "Flick, pocket, cover the queen",
+  "description": "Carrom is the flick-and-pocket board game played across South Asia, in homes, clubs and tournaments. Slide your striker along the baseline, pull back to aim and let go: coins slide, rebound off the cushions and drop into the corner pockets. Learn in eight hands-on lessons, play the computer at four levels or a friend on one phone, and try a new trick shot every day. A polished plywood board, glossy coins and a dotted aim guide that shows where each shot will go. Large text, reduced motion and left-handed layout included. No ads, works offline.",
+  "genre": "flick physics board game",
+  "demo": true,
+  "howToPlay": [
+    "New here? Tap Learn to play: eight short lessons where you make every shot yourself.",
+    "DRAG the striker sideways along your baseline to place it. It turns red if it touches a coin.",
+    "DRAG BACK from the striker to aim. The dotted line shows the shot; a longer pull is a harder flick. RELEASE to flick.",
+    "Pocket a coin of your colour and you shoot again. Pocket nothing, or the other colour, and the turn passes.",
+    "Pocket the red queen, then pocket one of your own coins on the same or the next stroke to cover it, or she goes back.",
+    "Foul: if the striker falls into a pocket, one of your pocketed coins goes back to the centre and the turn passes.",
+    "Clear your coins first to win the board: 1 point for each coin left on the other side, plus 3 for the covered queen.",
+    "Keyboard: Left and Right slide, A and D aim, Up and Down set power, Space flicks. Hint shows a good shot."
+  ]
+}

@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+<defs>
+  <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="#8a1f27"/>
+    <stop offset="0.55" stop-color="#5e0f18"/>
+    <stop offset="1" stop-color="#320810"/>
+  </linearGradient>
+  <radialGradient id="glow" cx="0.36" cy="0.32" r="0.75">
+    <stop offset="0" stop-color="#ffdca0" stop-opacity="0.35"/>
+    <stop offset="1" stop-color="#ffdca0" stop-opacity="0"/>
+  </radialGradient>
+  <radialGradient id="coin" cx="0.38" cy="0.34" r="0.75">
+    <stop offset="0" stop-color="#fff2c0"/>
+    <stop offset="0.35" stop-color="#f0c65a"/>
+    <stop offset="0.7" stop-color="#d29a2e"/>
+    <stop offset="1" stop-color="#8a5a12"/>
+  </radialGradient>
+  <radialGradient id="inner" cx="0.34" cy="0.3" r="0.8">
+    <stop offset="0" stop-color="#fff6da"/>
+    <stop offset="0.6" stop-color="#e9b64a"/>
+    <stop offset="1" stop-color="#a9701a"/>
+  </radialGradient>
+</defs>
+<rect width="1024" height="1024" fill="url(#bg)"/>
+<rect width="1024" height="1024" fill="url(#glow)"/>
+<!-- soft corner vignette, full bleed -->
+<rect width="1024" height="1024" fill="none"/>
+<!-- crossed swords, subtle, behind the coin -->
+<g opacity="0.5" stroke="#c7d3e4" stroke-width="14" stroke-linecap="round">
+  <line x1="230" y1="230" x2="794" y2="794"/>
+  <line x1="794" y1="230" x2="230" y2="794"/>
+</g>
+<g opacity="0.6" fill="#e6b23e">
+  <path d="M215 215 l40 -6 l6 40 l-40 6 z"/>
+  <path d="M809 215 l-40 -6 l-6 40 l40 6 z"/>
+  <path d="M215 809 l40 6 l6 -40 l-40 -6 z"/>
+  <path d="M809 809 l-40 6 l-6 -40 l40 -6 z"/>
+</g>
+<!-- the coin (denari): large, centered, reads clearly at 60px -->
+<circle cx="512" cy="512" r="330" fill="rgba(20,4,0,0.35)"/>
+<circle cx="512" cy="512" r="322" fill="url(#coin)" stroke="#5e3a0c" stroke-width="10"/>
+<circle cx="512" cy="512" r="322" fill="none" stroke="#fff3c0" stroke-width="4" opacity="0.5"/>
+<g fill="#fff3c0">
+  <circle cx="512" cy="238" r="16"/><circle cx="617" cy="264" r="16"/><circle cx="691" cy="338" r="16"/>
+  <circle cx="717" cy="443" r="16"/><circle cx="691" cy="548" r="16"/><circle cx="617" cy="622" r="16"/>
+  <circle cx="512" cy="648" r="16"/><circle cx="407" cy="622" r="16"/><circle cx="333" cy="548" r="16"/>
+  <circle cx="307" cy="443" r="16"/><circle cx="333" cy="338" r="16"/><circle cx="407" cy="264" r="16"/>
+</g>
+<circle cx="512" cy="443" r="248" fill="url(#inner)" stroke="rgba(110,64,10,0.85)" stroke-width="8"/>
+<g fill="rgba(122,70,10,0.85)">
+  <path d="M512 443 Q512 353 512 253 Q580 313 512 443 Z" transform="rotate(0 512 443)"/>
+  <path d="M512 443 Q512 353 512 253 Q580 313 512 443 Z" transform="rotate(45 512 443)"/>
+  <path d="M512 443 Q512 353 512 253 Q580 313 512 443 Z" transform="rotate(90 512 443)"/>
+  <path d="M512 443 Q512 353 512 253 Q580 313 512 443 Z" transform="rotate(135 512 443)"/>
+  <path d="M512 443 Q512 353 512 253 Q580 313 512 443 Z" transform="rotate(180 512 443)"/>
+  <path d="M512 443 Q512 353 512 253 Q580 313 512 443 Z" transform="rotate(225 512 443)"/>
+  <path d="M512 443 Q512 353 512 253 Q580 313 512 443 Z" transform="rotate(270 512 443)"/>
+  <path d="M512 443 Q512 353 512 253 Q580 313 512 443 Z" transform="rotate(315 512 443)"/>
+</g>
+<circle cx="512" cy="443" r="58" fill="#fff2c0" stroke="#7a460a" stroke-width="8"/>
+<ellipse cx="410" cy="330" rx="70" ry="30" fill="rgba(255,255,255,0.5)" transform="rotate(-28 410 330)"/>
+<!-- a golden broom, sweeping across the lower third: the game's name (scopa = broom) -->
+<g transform="translate(140,760) rotate(-18)">
+  <rect x="0" y="0" width="360" height="26" rx="12" fill="#8a5a12"/>
+  <rect x="0" y="4" width="360" height="8" rx="4" fill="#f0c65a" opacity="0.6"/>
+  <path d="M330 -14 L520 -60 L520 74 L330 40 Z" fill="#e9b64a" stroke="#7a460a" stroke-width="6"/>
+  <g stroke="#8a5a12" stroke-width="5">
+    <line x1="352" y1="-6" x2="500" y2="-40"/>
+    <line x1="352" y1="6" x2="500" y2="6"/>
+    <line x1="352" y1="18" x2="500" y2="52"/>
+  </g>
+</g>
+</svg>

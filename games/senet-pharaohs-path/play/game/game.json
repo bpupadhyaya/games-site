@@ -1,0 +1,25 @@
+{
+  "slug": "senet-pharaohs-path",
+  "title": "Senet",
+  "tagline": "The board game of ancient Egypt",
+  "genre": "ancient Egyptian race board game",
+  "orientation": "portrait",
+  "version": "0.1.0",
+  "monetization": {
+    "model": "premium",
+    "priceUsd": 2.99,
+    "previewSeconds": 300,
+    "products": [
+      {
+        "id": "unlock_game",
+        "type": "non-consumable",
+        "priceUsd": 2.99,
+        "title": "Unlock Game"
+      }
+    ]
+  },
+  "locales": [
+    "en"
+  ],
+  "demoOnly": true
+}

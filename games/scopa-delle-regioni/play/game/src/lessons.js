@@ -1,0 +1,32 @@
+// Nine hands-on lessons. Each sets up a real position; the player must make the move that teaches the idea.
+// suits: 0 coins, 1 cups, 2 swords, 3 batons. ranks: 1 Ace .. 7, 8 Fante, 9 Cavallo, 10 Re.
+import { cardId as c } from './rules.js';
+export const LESSONS = [
+  { title: 'The match', hand: [c(1, 7), c(3, 2)], table: [c(0, 7), c(2, 3), c(3, 5)],
+    text: 'Play a card with the same number as a table card and you capture it. TAP your 7, then TAP the 7 on the table.',
+    want: [{ card: c(1, 7), take: [c(0, 7)] }], done: 'Captured. Both cards go to your pile. Captured cards are how you score.', hint: 'Use the 7 of cups on the 7 of coins.' },
+  { title: 'Adding up', hand: [c(2, 8), c(1, 2)], table: [c(0, 5), c(3, 3), c(1, 9)],
+    text: 'A card can also take several table cards that add up to its number. The Fante counts 8. TAP the Fante, then TAP the 5 and the 3.',
+    want: [{ card: c(2, 8), take: [c(0, 5), c(3, 3)] }], done: 'Five plus three makes eight. Court cards count Fante 8, Cavallo 9, Re 10.', hint: 'The 5 and the 3 add up to the Fante’s 8.' },
+  { title: 'One card beats two', hand: [c(3, 6), c(1, 1)], table: [c(2, 6), c(0, 4), c(1, 2), c(1, 9)],
+    text: 'Careful: this 6 could take the 6, or the 4 and 2 together. The rule: if one card matches, you must take that card alone. Try the 4 and 2 if you like, then take the 6.',
+    want: [{ card: c(3, 6), take: [c(2, 6)] }], done: 'Right: a matching card must be taken on its own, even when a sum is also possible.', hint: 'TAP the 6 of swords: the single match is the only legal capture.' },
+  { title: 'When nothing fits', hand: [c(3, 4), c(1, 10)], table: [c(0, 7), c(2, 9)],
+    text: 'Neither of your cards can capture anything here, but you must still play one. It stays on the table. TAP a card, then TAP it again to lay it down.',
+    want: [{ card: c(3, 4), take: [] }, { card: c(1, 10), take: [] }], done: 'The card stays on the table. Think about what it gives your opponent to capture.', hint: 'Pick either card and TAP it twice.' },
+  { title: 'Scopa! The broom', hand: [c(1, 7), c(2, 1)], table: [c(0, 3), c(3, 4)],
+    text: 'Clear the whole table and you make a scopa (the broom): one extra point. TAP the 7, then the 3 and the 4.',
+    want: [{ card: c(1, 7), take: [c(0, 3), c(3, 4)] }], done: 'Scopa! The table is swept. Each scopa is worth one point at the end of the round.', hint: '3 + 4 = 7, and that empties the table.' },
+  { title: 'Most cards and most coins', hand: [c(2, 9), c(1, 2)], table: [c(0, 4), c(3, 5), c(1, 6), c(2, 3)],
+    text: 'At the end of a round, the player with the most cards scores a point, and so does the player with the most coins (denari). The 9 can take 4 + 5 or 6 + 3. Take the set that includes a coin.',
+    want: [{ card: c(2, 9), take: [c(0, 4), c(3, 5)] }], done: 'A coin: that helps the coins count. Cards and coins are two of the four ways to score.', hint: 'The 4 is the coin. Take the 4 and the 5.' },
+  { title: 'Sette bello', hand: [c(1, 7), c(3, 1)], table: [c(2, 7), c(0, 7), c(3, 4)],
+    text: 'The 7 of coins is the sette bello: one point for whoever ends up with it. Two 7s are on the table. Choose the right one.',
+    want: [{ card: c(1, 7), take: [c(0, 7)] }], done: 'You took the sette bello: a point by itself, and a coin as well.', hint: 'The sette bello is the 7 of coins, the gold one.' },
+  { title: 'Primiera', hand: [c(1, 8), c(3, 3)], table: [c(2, 7), c(2, 1), c(1, 6), c(3, 2)],
+    text: 'Primiera looks at your best card in each suit: 7 = 21, 6 = 18, Ace = 16, 5 = 15, 4 = 14, 3 = 13, 2 = 12, court cards = 10. The Fante can take 7 + 1 or 6 + 2. Take the higher primiera cards.',
+    want: [{ card: c(1, 8), take: [c(2, 7), c(2, 1)] }], done: 'A 7 is the best primiera card there is. You need a card in all four suits to compete.', hint: 'Take the 7 and the Ace of swords.' },
+  { title: 'Counting the round', hand: [c(1, 5)], table: [c(2, 5)], score: true,
+    text: 'This is the last card of the round. TAP your 5, then take the 5 on the table. Then see how a round is scored.',
+    want: [{ card: c(1, 5), take: [c(2, 5)] }], done: 'That is the whole game. Cards, coins, sette bello, primiera and scopas: play to 11.', hint: 'Match the 5.' },
+];

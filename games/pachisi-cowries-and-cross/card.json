@@ -1,0 +1,17 @@
+{
+  "title": "Pachisi",
+  "tagline": "The royal race of the cross",
+  "description": "Pachisi is the royal race game of India, ancestor of Ludo. Throw six cowrie shells, count the mouths that face up, and race four pawns around the embroidered cloth cross to its centre. Land on a rival to send it home, hide on the marked squares, block the way with a pair. Play the full game or the friendly Ludo mode, with two to four players, against four computer personalities or friends passing one phone. Nine hands-on lessons and a daily race. No ads, works offline.",
+  "genre": "family board game",
+  "demo": true,
+  "howToPlay": [
+    "New here? Tap Learn to play: nine short lessons where you make every move yourself.",
+    "TAP the cowries, or SWIPE up across them, to throw. Count the mouths facing up: 1 up = 10, 2 = 2, 3 = 3, 4 = 4, 5 = 25, 6 = 6, none = 12.",
+    "Grace throws (10, 25, 6, 12) give another throw and are the only throws that let a waiting pawn enter the board.",
+    "Pawns that can move glow. TAP one to see where it lands, then TAP it again to move it. A pawn that cannot move shakes and tells you why.",
+    "Race anticlockwise once around the cross, then up the middle lane to the centre. The centre needs an exact count.",
+    "Land exactly on a rival pawn to send it home. Squares marked with an X are safe; two of your pawns on one square form a block.",
+    "Play 2, 3 or 4 players against computers (Beginner, Cautious, Balanced, Bold) or pass one phone between friends.",
+    "Ludo mode uses one die and a smaller board. The daily race sets the same six throws for everybody."
+  ]
+}

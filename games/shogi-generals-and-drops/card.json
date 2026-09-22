@@ -1,0 +1,17 @@
+{
+  "title": "Shogi",
+  "tagline": "Japan's game of generals and drops",
+  "description": "Shogi is the chess-like strategy game of Japan, played on a 9 by 9 board. Its big idea: a captured piece changes sides and can be dropped back on any empty point. Learn in twelve hands-on lessons where you make every move, play five computer levels from Novice to Master as either side, try the quick 5x5 mini board, or pass the phone to a friend. Every refused move is explained, hints tell you why, and a new checkmate puzzle arrives every day. Hand-drawn kaya board and boxwood pieces, large text and reduced motion options. No ads, works offline. Play in 日本語 or English.",
+  "genre": "board game",
+  "demo": true,
+  "howToPlay": [
+    "New here? Tap Learn to play: twelve short lessons where you make every move yourself.",
+    "TAP one of your pieces: every point it may move to glows. TAP a glowing point to move.",
+    "Landing on an enemy piece captures it. Captured pieces wait on your stand under the board.",
+    "To drop: TAP a piece on your stand, then TAP an empty glowing point.",
+    "Reach the last three rows and you may promote: TAP Promote or Keep.",
+    "Not allowed? The piece tries and returns, and a message says why (check, nifu, blocked...).",
+    "Win by checkmate. Hint (3 per game) and Take back help you learn.",
+    "The puzzle of the day is mate in 1 on weekdays and mate in 3 at the weekend."
+  ]
+}

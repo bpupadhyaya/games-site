@@ -1,0 +1,17 @@
+{
+  "title": "Xiangqi",
+  "tagline": "The game of the river and the palace",
+  "description": "Xiangqi is Chinese chess: two armies of sixteen carved pieces face each other across the river, each general guarded inside its palace. Cannons jump to capture, horses can be hobbled, and the generals may never face each other. Learn in ten hands-on lessons, play Red or Black against five computer levels or a friend on one phone, and solve a new checkmate puzzle every day. Play in 中文 with the traditional characters, or in English with Western piece letters. Two board styles, two piece sets, large text and reduced motion. No ads, works offline.",
+  "genre": "abstract strategy board game",
+  "demo": true,
+  "howToPlay": [
+    "New here? Tap Learn to play: ten short lessons where you make every move yourself.",
+    "TAP one of your pieces: it lifts and its legal points glow. Then TAP a glowing point, or DRAG the piece there.",
+    "A red glow marks a piece you can capture. Cannons capture by jumping over exactly one piece.",
+    "Move not allowed? The piece tries, comes back, and a message tells you why.",
+    "Attack the enemy general so it cannot escape: that is checkmate. If you are in check you must answer at once.",
+    "Generals never face each other on an open file. A side with no legal move loses.",
+    "Hint shows a good move (3 per game). Undo takes back your move and the reply.",
+    "The daily puzzle is the same for everyone: mate in 2 on weekdays, mate in 3 at weekends."
+  ]
+}

@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <title>Mū Tōrere</title>
+  <style>
+    /* Titles: Cormorant Garamond Bold, SIL Open Font License 1.1 (fonts/OFL.txt). The second file adds the macron letters (ū, ō). */
+    @font-face { font-family: "Cormorant Garamond"; src: url("./fonts/CormorantGaramond-Bold.woff2") format("woff2"); font-weight: 700; font-display: swap;
+      unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+    @font-face { font-family: "Cormorant Garamond"; src: url("./fonts/CormorantGaramond-Bold-latinext.woff2") format("woff2"); font-weight: 700; font-display: swap;
+      unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+    /* Forces the fonts to load before the canvas first asks for them. */
+    .font-warm { position: absolute; left: -999px; top: 0; font-family: "Cormorant Garamond"; font-weight: 700; opacity: 0; pointer-events: none; }
+    html, body { margin: 0; height: 100%; background: #0a1e24; overflow: hidden; overscroll-behavior: none; }
+    canvas { display: block; width: 100vw; height: 100vh; height: 100dvh; touch-action: none; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+  </style>
+</head>
+<body>
+  <span class="font-warm" aria-hidden="true">Mū Tōrere 0123456789 ūō</span>
+  <canvas id="game"></canvas>
+  <script>
+    /* Render at most 2x: phones report 3x, which is ~2x the pixels for no visible gain and costs frames. */
+    (function () { var real = window.devicePixelRatio || 1; if (real > 2) Object.defineProperty(window, 'devicePixelRatio', { get: function () { return 2; } }); })();
+  </script>
+  <script type="module" src="./main.js"></script>
+</body>
+</html>

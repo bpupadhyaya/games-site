@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!-- Mahjong icon: one hero tile (the 1 of Dots, drawn from shapes) on jade with a soft glow. Full-bleed, no transparency, no text. -->
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="42%" r="75%"><stop offset="0" stop-color="#2fb08a"/><stop offset="0.55" stop-color="#127055"/><stop offset="1" stop-color="#05291f"/></radialGradient>
+    <radialGradient id="glow" cx="50%" cy="46%" r="50%"><stop offset="0" stop-color="#ffe9a6" stop-opacity="0.75"/><stop offset="0.5" stop-color="#8ff0c4" stop-opacity="0.2"/><stop offset="1" stop-color="#8ff0c4" stop-opacity="0"/></radialGradient>
+    <linearGradient id="face" x1="0" y1="0" x2="0.7" y2="1"><stop offset="0" stop-color="#fffdf3"/><stop offset="1" stop-color="#eadfbf"/></linearGradient>
+    <linearGradient id="side" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2fb48a"/><stop offset="1" stop-color="#0d5a43"/></linearGradient>
+    <radialGradient id="shine" cx="30%" cy="25%" r="70%"><stop offset="0" stop-color="#fff" stop-opacity="0.55"/><stop offset="0.6" stop-color="#fff" stop-opacity="0"/></radialGradient>
+    <filter id="soft" x="-30%" y="-30%" width="160%" height="160%"><feGaussianBlur stdDeviation="22"/></filter>
+    <pattern id="felt" width="6" height="6" patternUnits="userSpaceOnUse"><rect width="6" height="6" fill="none"/><circle cx="1" cy="1" r="0.8" fill="#fff" opacity="0.05"/><circle cx="4" cy="4" r="0.8" fill="#000" opacity="0.08"/></pattern>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+  <rect width="1024" height="1024" fill="url(#felt)"/>
+  <circle cx="512" cy="480" r="470" fill="url(#glow)"/>
+  <!-- two tiles peeking behind, tilted -->
+  <g transform="rotate(-14 330 560)"><rect x="150" y="270" width="340" height="470" rx="46" fill="url(#side)" transform="translate(0 30)"/><rect x="150" y="270" width="340" height="470" rx="46" fill="url(#face)" opacity="0.92"/></g>
+  <g transform="rotate(13 700 560)"><rect x="540" y="280" width="340" height="470" rx="46" fill="url(#side)" transform="translate(0 30)"/><rect x="540" y="280" width="340" height="470" rx="46" fill="url(#face)" opacity="0.92"/></g>
+  <rect x="0" y="0" width="1024" height="1024" fill="#06281f" opacity="0.18"/>
+  <!-- hero tile shadow -->
+  <ellipse cx="512" cy="905" rx="250" ry="34" fill="#00120c" opacity="0.5" filter="url(#soft)"/>
+  <!-- hero tile -->
+  <rect x="312" y="170" width="400" height="690" rx="60" fill="url(#side)" transform="translate(0 46)"/>
+  <rect x="312" y="170" width="400" height="690" rx="60" fill="url(#face)"/>
+  <rect x="318" y="176" width="388" height="678" rx="55" fill="none" stroke="#fff" stroke-opacity="0.8" stroke-width="5"/>
+  <rect x="312" y="170" width="400" height="690" rx="60" fill="none" stroke="#6b5220" stroke-opacity="0.35" stroke-width="3"/>
+  <!-- the 1 of Dots: layered rings -->
+  <g transform="translate(512 515)">
+    <circle r="158" fill="#c22d2a"/><circle r="132" fill="#fbf6e6"/><circle r="114" fill="#1c7a3f"/>
+    <g fill="#fbf6e6">
+      <circle cx="82" cy="0" r="14"/><circle cx="71" cy="41" r="14"/><circle cx="41" cy="71" r="14"/><circle cx="0" cy="82" r="14"/><circle cx="-41" cy="71" r="14"/><circle cx="-71" cy="41" r="14"/>
+      <circle cx="-82" cy="0" r="14"/><circle cx="-71" cy="-41" r="14"/><circle cx="-41" cy="-71" r="14"/><circle cx="0" cy="-82" r="14"/><circle cx="41" cy="-71" r="14"/><circle cx="71" cy="-41" r="14"/>
+    </g>
+    <circle r="64" fill="#c22d2a"/><circle r="40" fill="#fbf6e6"/><circle r="24" fill="#1f4f9e"/>
+    <circle r="158" fill="none" stroke="#000" stroke-opacity="0.35" stroke-width="4"/>
+    <circle r="158" fill="url(#shine)"/>
+  </g>
+  <rect x="312" y="170" width="400" height="690" rx="60" fill="url(#shine)" opacity="0.5"/>
+</svg>

@@ -1,0 +1,17 @@
+{
+  "title": "Senet",
+  "tagline": "The board game of ancient Egypt",
+  "description": "Senet is the board game of ancient Egypt, played for thousands of years and shown in tomb paintings. Throw four sticks, race five pieces along a 30-square S-shaped path, swap places with lone opponent pieces, hold a wall of three, and avoid the House of Water. Rules follow a widely published modern reconstruction, since no ancient rules survive. Learn in ten hands-on lessons, play the computer at five levels or a friend on one phone, and solve a daily puzzle. Ebony-and-ivory board, gilded inlay, faience pieces, tumbling sticks. No ads, works offline.",
+  "genre": "ancient Egyptian race board game",
+  "demo": true,
+  "howToPlay": [
+    "New here? Tap Learn to play: ten short lessons where you make every move yourself.",
+    "TAP the sticks to throw. Count the light faces: 1 to 4, or 5 if none. A 1, 4 or 5 earns another throw.",
+    "TAP a glowing piece, then TAP a glowing square. It moves exactly the number thrown, along the S-shaped path.",
+    "Land on a lone enemy piece to swap places. Pairs, and pieces on safe houses, cannot be swapped.",
+    "Three pieces in a row make a wall that nothing can pass. Every piece must stop on square 26.",
+    "Square 27 is the House of Water: it sends a piece back to 15. Leave with exact throws: 5 from 26, 3, 2 or 1 from 28-30.",
+    "A refused move shakes and tells you why. Hint shows a good move; Take back undoes yours.",
+    "First to bring all five pieces home wins. Beat each level for a star; a new puzzle every day."
+  ]
+}

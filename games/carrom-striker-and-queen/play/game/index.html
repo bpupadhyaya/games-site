@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <title>Carrom</title>
+  <style>
+    /* Display font: Fredoka, SIL Open Font License 1.1 (fonts/Fredoka-OFL.txt). */
+    @font-face { font-family: "Fredoka"; src: url("./fonts/Fredoka.woff2") format("woff2"); font-weight: 300 700; font-display: swap; }
+    .font-warm { position: absolute; left: -999px; top: 0; font-family: "Fredoka"; font-weight: 500; opacity: 0; pointer-events: none; }
+    .font-warm b { font-weight: 700; }
+    html, body { margin: 0; height: 100%; background: #0a0400; overflow: hidden; overscroll-behavior: none; }
+    canvas { display: block; width: 100vw; height: 100vh; height: 100dvh; touch-action: none; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+  </style>
+</head>
+<body>
+  <span class="font-warm" aria-hidden="true">Carrom 0123456789 <b>Carrom</b></span>
+  <canvas id="game"></canvas>
+  <script>
+    /* Render at most 2x: phones report 3x, which costs frames for no visible gain. */
+    (function () { var real = window.devicePixelRatio || 1; if (real > 2) Object.defineProperty(window, 'devicePixelRatio', { get: function () { return 2; } }); })();
+  </script>
+  <script type="module" src="./main.js"></script>
+</body>
+</html>

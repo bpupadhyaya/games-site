@@ -1,0 +1,17 @@
+{
+  "title": "Yut Nori",
+  "tagline": "Korea's four-stick race",
+  "description": "Throw four carved sticks and race your horse tokens round a paper board on a woven mat. Yut Nori is the traditional Korean game: yut and mo earn extra throws, corner shortcuts cut across the board, tokens stack to travel as one, and landing on a rival sends it back to the start. Learn in ten hands-on lessons, play a cautious, balanced or aggressive computer team, pass the phone between two teams, and try a new daily challenge. Hand-drawn art, sound, large text and reduced motion. No ads, works offline.",
+  "genre": "traditional stick-throwing race game",
+  "demo": true,
+  "howToPlay": [
+    "New here? Tap Learn to play: ten short lessons where you make every move yourself.",
+    "TAP the felt pad, or SWIPE up on it, to throw the four sticks. Flat sides up: 1 do, 2 gae, 3 geol, 4 yut, none mo (5).",
+    "Yut, mo and every capture earn another throw. Throws are kept and spent in any order: TAP a throw chip to choose one.",
+    "TAP a token, then TAP a glowing point to move. A token starting on a corner may take the diagonal shortcut.",
+    "Land on your own token to stack them; land on a rival to capture it and send it back to the start.",
+    "Back-do (the marked stick alone) moves a token one step back. Refused taps always tell you why.",
+    "Bring all four tokens home first to win. Hints, take back, five computer levels and a daily challenge help you learn.",
+    "Keyboard: Space throws, arrows pick token and point, Tab chooses a throw, H hint, U take back."
+  ]
+}

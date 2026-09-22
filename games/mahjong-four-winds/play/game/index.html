@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <title>Mahjong</title>
+  <style>
+    /* Titles: Cormorant Garamond Bold and the tile characters: Noto Serif SC Bold (subset). Both SIL Open Font License 1.1 (fonts/OFL-*.txt). */
+    @font-face { font-family: "Cormorant Garamond"; src: url("./fonts/CormorantGaramond-Bold.woff2") format("woff2"); font-weight: 700; font-display: block; }
+    @font-face { font-family: "Noto Serif SC"; src: url("./fonts/NotoSerifSC-Bold-subset.woff2") format("woff2"); font-weight: 700; font-display: block; }
+    html, body { margin: 0; height: 100%; background: #06281f; overflow: hidden; overscroll-behavior: none; }
+    canvas { display: block; width: 100vw; height: 100vh; height: 100dvh; touch-action: none; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+  </style>
+</head>
+<body>
+  <canvas id="game"></canvas>
+  <script>
+    /* Render at most 2x: phones report 3x, which is ~2x the pixels for no visible gain and costs frames. */
+    (function () { var real = window.devicePixelRatio || 1; if (real > 2) Object.defineProperty(window, 'devicePixelRatio', { get: function () { return 2; } }); })();
+    /* The tile art is painted once into cached sprites, so both fonts must be loaded before the game starts. */
+    (function () {
+      var go = function () { var s = document.createElement('script'); s.type = 'module'; s.src = './main.js'; document.body.appendChild(s); };
+      var f = document.fonts;
+      if (!f || !f.load) { go(); return; }
+      var t = setTimeout(go, 2500), done = false;
+      var fin = function () { if (done) return; done = true; clearTimeout(t); go(); };
+      Promise.all([f.load('700 40px "Noto Serif SC"', '萬東南西北中發白春夏秋冬梅蘭菊竹麻將一二三四五六七八九'), f.load('700 40px "Cormorant Garamond"', 'Mahjong 0123456789')]).then(fin, fin);
+    })();
+  </script>
+</body>
+</html>

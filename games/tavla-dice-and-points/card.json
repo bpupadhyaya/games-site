@@ -1,0 +1,17 @@
+{
+  "title": "Tavla",
+  "tagline": "The dice game of the coffeehouse",
+  "description": "Tavla is backgammon as played in the coffeehouses of Turkey, the Arab world, Israel and Persia, also called tawla, shesh besh and takhteh nard. Race fifteen checkers around 24 points, hit lone checkers, build walls and bear off first. Learn in nine hands-on lessons, play four computer levels or a friend on one phone, and solve a new best-move puzzle every day. Hints explain why, undo is one tap, forced moves can play themselves. Optional score-only doubling cube and gammons. Inlaid wooden board, carved checkers, tumbling dice. Large text and reduced motion. No ads, works offline.",
+  "genre": "backgammon board game",
+  "demo": true,
+  "howToPlay": [
+    "TAP the dice to roll them: they tumble and settle.",
+    "TAP one of your checkers: the points it can reach glow. TAP a glowing point to move, or DRAG and drop.",
+    "Each die is one move; doubles are played four times. You must play as many dice as you can.",
+    "You cannot land on a point held by two or more opposing checkers. A lone checker (blot) that is hit goes to the bar.",
+    "A checker on the bar must enter first. A refused move explains why in plain words.",
+    "When all 15 are in your home board, bear them off. First to bear off all 15 wins; gammons score more.",
+    "TAP Undo to take back a move, Hint for a good play and its reason. Single forced moves can play themselves.",
+    "New here? Learn to play has nine short lessons. The daily puzzle is the same for everyone."
+  ]
+}

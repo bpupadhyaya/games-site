@@ -1,0 +1,17 @@
+{
+  "title": "Tafl",
+  "tagline": "The king's table of the North",
+  "description": "Tafl is Hnefatafl, the Viking-age strategy game of Northern Europe. A king and his twelve defenders, surrounded by twenty-four attackers, must break out to any corner of the board before the ring closes or the king is taken. Play Copenhagen 11x11, the modern standard board, or start on the smaller, quicker Brandubh 7x7. Learn in ten hands-on lessons where you make every move yourself, play either side against four computer levels or a friend on one phone, and solve a new proven puzzle every day. Carved oak board, bone and horn pieces, hearth light, no ads, works offline.",
+  "genre": "abstract strategy board game",
+  "demo": true,
+  "howToPlay": [
+    "New here? Tap Learn to play: ten short lessons where you make every move yourself.",
+    "TAP a piece (its reachable squares glow), then TAP a square to move. Or DRAG and drop.",
+    "Every piece slides like a rook: any distance in a straight line, never jumping.",
+    "Trap an enemy piece between two of yours in a line to capture it. Moving in between two enemies is always safe.",
+    "The defenders' king reaches any corner to win. The attackers win by taking the king or ringing in every defender.",
+    "Move not allowed? The piece tries, comes back, and a message tells you why.",
+    "Warnings show the king's open lines to a corner. Hint gives a good move and why (3 per game). Take back undoes your last move.",
+    "Beat each level with each side, on both boards, for a star. The daily puzzle is the same for everyone; keep a streak."
+  ]
+}
