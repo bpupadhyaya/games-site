@@ -11,6 +11,32 @@ mainNav.querySelectorAll('a').forEach(link => {
   link.addEventListener('click', () => mainNav.classList.remove('open'));
 });
 
+// --- Search the games grid by name, genre, tagline or origin ---
+(function () {
+  const input = document.getElementById('gameSearch');
+  const empty = document.getElementById('gameSearchEmpty');
+  const cards = Array.from(document.querySelectorAll('.game-card'));
+  if (!input || !cards.length) return;
+
+  // Cache each card's searchable text once (title, genre, tagline, description, origin note).
+  const haystacks = cards.map(card => {
+    const parts = ['h3', '.game-genre', '.gc-tagline', '.gc-origin', '.game-body > p']
+      .flatMap(sel => Array.from(card.querySelectorAll(sel)).map(el => el.textContent));
+    return parts.join(' ').toLowerCase();
+  });
+
+  input.addEventListener('input', () => {
+    const q = input.value.trim().toLowerCase();
+    let visible = 0;
+    cards.forEach((card, i) => {
+      const match = !q || haystacks[i].includes(q);
+      card.hidden = !match;
+      if (match) visible++;
+    });
+    empty.hidden = visible !== 0;
+  });
+})();
+
 // --- Tech-preview mini game: catch the falling orbs ---
 (function () {
   const canvas = document.getElementById('demoCanvas');

@@ -237,6 +237,42 @@ section { padding: 90px 0; position: relative; }
 }
 .section-sub.center { text-align: center; }
 
+/* Games search */
+.game-search {
+  position: relative;
+  max-width: 460px;
+  margin: 0 auto 20px;
+}
+.game-search-icon {
+  position: absolute;
+  left: 18px;
+  top: 50%;
+  transform: translateY(-50%);
+  opacity: 0.7;
+  font-size: 15px;
+  pointer-events: none;
+}
+.game-search input {
+  width: 100%;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 100px;
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 15px;
+  padding: 13px 18px 13px 42px;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+.game-search input::placeholder { color: var(--text-dim); }
+.game-search input:focus { border-color: var(--violet); }
+.game-search input::-webkit-search-cancel-button { cursor: pointer; }
+.game-search-empty {
+  text-align: center;
+  color: var(--text-dim);
+  margin: 0 auto 40px;
+}
+
 /* Games grid */
 .game-grid {
   display: grid;
