@@ -432,8 +432,11 @@ function renderDemo(ctx, state) {
   // scene otherwise leaves empty (no move/undo/hint/resign buttons apply to a demo).
   drawButton(ctx, DEMO_THINK.dec, 'Think −', { disabled: state.demoThinkIdx === 0 });
   drawButton(ctx, DEMO_THINK.inc, 'Think +', { disabled: state.demoThinkIdx === THINK_STEPS.length - 1 });
+  // Moved below the button row (was drawn dead-center of it, directly under where DEMO_PAUSE now
+  // sits, garbling both labels together) - there is real, unused margin between the bar and the
+  // canvas bottom edge for it.
   ctx.save(); ctx.font = '600 20px Georgia, serif'; ctx.fillStyle = '#cbb9e0'; ctx.textAlign = 'center';
-  ctx.fillText(`Think time: ${THINK_STEPS[state.demoThinkIdx]}s`, W / 2, BAR_TOP + BAR_H / 2 + 7);
+  ctx.fillText(`Think time: ${THINK_STEPS[state.demoThinkIdx]}s`, W / 2, BAR_TOP + BAR_H + 34);
   ctx.restore();
   if (state.banner) drawBanner(ctx, state);
 }
