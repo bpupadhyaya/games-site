@@ -2,7 +2,7 @@
 import {
   W, H, HEADER_H, GRID_X, GRID_Y, SQ, BOARD_X, BOARD_Y, BOARD_SIZE, BOARD_BOTTOM,
   TRAY_TOP, TRAY_H, PANEL_TOP, PANEL_H, BAR_TOP, BAR_H, pointXY, squareTopLeft, titleRows, TITLE_BOARD, BTN, BTN4, HEADER,
-  RESULT_PANEL, PROMO, inRect, TEXT_SCALES, TEXT_DEC, TEXT_INC, REF_BACK, REF_NEXT, THINK_STEPS, DEMO_THINK,
+  RESULT_PANEL, PROMO, inRect, TEXT_SCALES, TEXT_DEC, TEXT_INC, REF_BACK, REF_NEXT, THINK_STEPS, DEMO_THINK, DEMO_PAUSE,
 } from './layout.js';
 import { WHITE, BLACK, TYPE_NAME, QUEEN, ROOK, BISHOP, KNIGHT, PAWN, KING, inCheck } from './rules.js';
 import { LEVELS, LEVEL_COUNT } from './engine.js';
@@ -416,7 +416,8 @@ function renderDemo(ctx, state) {
   // the viewer knows how long they have), then names the reveal once the answer is shown.
   if (!state.g.result) {
     ctx.save(); ctx.font = '700 22px Georgia, serif'; ctx.textAlign = 'center';
-    if (state.demoPhase === 'reveal') { ctx.fillStyle = '#ffd97a'; ctx.fillText('The engine plays…', W / 2, 108); }
+    if (state.demoPaused) { ctx.fillStyle = '#7ccbff'; ctx.fillText('Paused', W / 2, 108); }
+    else if (state.demoPhase === 'reveal') { ctx.fillStyle = '#ffd97a'; ctx.fillText('The engine plays…', W / 2, 108); }
     else if (state.demoPhase === 'revealSource') { ctx.fillStyle = '#7ccbff'; ctx.fillText('This piece is about to move…', W / 2, 108); }
     else if (state.demoPhase === 'think') { ctx.fillStyle = '#cbb9e0'; ctx.fillText(`Guess the move… ${Math.max(0, Math.ceil(state.demoTimer))}s`, W / 2, 108); }
     else { ctx.fillStyle = 'rgba(203,185,224,0.7)'; ctx.fillText('Get ready…', W / 2, 108); }
@@ -424,6 +425,9 @@ function renderDemo(ctx, state) {
   }
   drawButton(ctx, HEADER.back, 'Exit');
   drawButton(ctx, HEADER.next, `Speed ×${state.demoSpeed}`);
+  // Pause/Resume freezes the whole loop (including an in-flight move slide) at any moment, in the
+  // control-bar band's own otherwise-empty middle, between the think-time stepper's two pills.
+  drawButton(ctx, DEMO_PAUSE, state.demoPaused ? '▶ Resume' : '❙❙ Pause', { primary: state.demoPaused });
   // Think-time stepper: how long THINK pauses before each REVEAL, in the control-bar band this
   // scene otherwise leaves empty (no move/undo/hint/resign buttons apply to a demo).
   drawButton(ctx, DEMO_THINK.dec, 'Think −', { disabled: state.demoThinkIdx === 0 });

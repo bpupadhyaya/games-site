@@ -93,6 +93,10 @@ export const DEMO_THINK = {
   dec: { x: 24, y: barY + 8, w: 160, h: bh2 },
   inc: { x: W - 184, y: barY + 8, w: 160, h: bh2 },
 };
+// Pause/Resume sits in the middle of that same otherwise-empty control-bar band, between the two
+// think-time stepper pills - freezes the whole THINK/REVEAL_SOURCE/REVEAL/MOVE loop at any moment,
+// resuming exactly where it froze.
+export const DEMO_PAUSE = { x: 200, y: barY + 8, w: 320, h: bh2 };
 // HEADER.back/next: the top-left/top-right pair used ONLY by the title screen's sound toggle and
 // the demo scene's Exit/Speed row (two buttons, never crowded). The About/Controls/Rules reference
 // pages (renderPage) use their OWN REF_BACK/REF_NEXT + TEXT_DEC/TEXT_INC below instead — previously

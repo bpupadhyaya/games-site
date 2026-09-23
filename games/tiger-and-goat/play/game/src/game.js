@@ -34,8 +34,10 @@ export function createGame(env) {
     textScaleIdx: 0,                                // index into TEXT_SCALES; the Rules page's own text-size stepper
     // Auto Play ("Watch & Learn"): true while both sides are computer-played for teaching purposes.
     // autoThinkIdx indexes THINK_STEPS, never a raw float, same pattern as textScaleIdx.
-    // autoPhase/autoMove/autoTimer are the THINK -> REVEAL -> ACT state.
-    autoMode: false, autoThinkIdx: 1, autoPhase: null, autoMove: null, autoTimer: 0,
+    // autoPhase/autoMove/autoTimer are the THINK -> REVEAL -> ACT state. autoPaused freezes the
+    // whole loop (and any in-flight animation/message) at any moment; Resume continues exactly
+    // where it froze rather than restarting the current step.
+    autoMode: false, autoThinkIdx: 1, autoPhase: null, autoMove: null, autoTimer: 0, autoPaused: false,
     pz: null,                                       // { status: 'making' | 'ready' | 'solved', puzzle, n, tries, wrong }
     daily: { day: config.day ?? 0, solvedDay: -1, streak: 0 },
     dev: config.dev === true,
@@ -66,7 +68,7 @@ export function createGame(env) {
   const tone = (o) => { if (state.sound && !state.autoMode) audio.tone(o); };
   // a soft wooden "tok": a short round sine that drops in pitch
   const clack = (f = 420) => tone({ freq: f * 0.8, to: f * 0.36, dur: 0.06, type: 'sine', vol: 0.11 });
-  const reset = (extra) => Object.assign(state, { sel: -1, anim: null, msg: null, think: 0, thinking: false, undo: [], hint: null, hintsLeft: HINTS_PER_GAME, autoMode: false, autoPhase: null, autoMove: null, autoTimer: 0 }, extra);
+  const reset = (extra) => Object.assign(state, { sel: -1, anim: null, msg: null, think: 0, thinking: false, undo: [], hint: null, hintsLeft: HINTS_PER_GAME, autoMode: false, autoPhase: null, autoMove: null, autoTimer: 0, autoPaused: false }, extra);
 
   function start(human, two) {
     if (config.demo && state.demoGames >= DEMO_GAMES) { state.scene = 'demo-limit'; return; }
@@ -222,6 +224,31 @@ export function createGame(env) {
   }
 
   function updatePlay(dt, tap) {
+    if (state.autoMode) {
+      // Auto Play's own 4-slot bottom rail (BTN.auto): Exit, Pause/Resume, and the think-time
+      // stepper. Every other tap - a piece, a point - is ignored: the computer plays every side.
+      // This whole branch runs BEFORE the generic hint/anim advancement below, so Pause can
+      // genuinely freeze an in-flight move animation - not just the decision loop - the instant
+      // it's tapped, mid-frame, rather than waiting for the animation to finish first.
+      if (tap && inRect(BTN.auto.exit, tap.x, tap.y)) {
+        state.autoMode = false; state.autoPhase = null; state.autoMove = null; state.autoPaused = false;
+        // Clear any lingering "X is thinking…"/"This is the move" banner too - it otherwise reads
+        // its own (deliberately long) hold time straight through onto the title screen underneath.
+        state.msg = null;
+        state.scene = 'title'; thinker = hintThinker = null; state.thinking = false; return;
+      }
+      if (tap && inRect(BTN.auto.pause, tap.x, tap.y)) { state.autoPaused = !state.autoPaused; return; }
+      if (tap && inRect(BTN.auto.dec, tap.x, tap.y)) { if (state.autoThinkIdx > 0) { state.autoThinkIdx--; savePrefs(); } return; }
+      if (tap && inRect(BTN.auto.inc, tap.x, tap.y)) { if (state.autoThinkIdx < THINK_STEPS.length - 1) { state.autoThinkIdx++; savePrefs(); } return; }
+      // Paused: freeze everything - the decision loop (autoTick), any in-flight move animation,
+      // and the hint glow / "thinking…" message hold timer (both advanced only from inside this
+      // guard for Auto Play, unlike the general hint/anim block further down) - all stay exactly
+      // as they were until Resume is tapped.
+      if (state.autoPaused) return;
+      if (state.hint) { state.hint.t += dt; if (state.hint.t > 4) state.hint = null; }
+      if (state.anim) { state.anim.t += dt; if (state.anim.t >= state.anim.dur) { state.anim = null; if (state.game.winner) finish(); } return; }
+      autoTick(dt); return;
+    }
     if (state.hint) { state.hint.t += dt; if (state.hint.t > 4) state.hint = null; }
     if (state.anim) {
       state.anim.t += dt;
@@ -234,15 +261,6 @@ export function createGame(env) {
       // own (deliberately long) hold time straight through onto the title screen underneath it.
       state.msg = null;
       state.scene = 'title'; thinker = hintThinker = null; state.thinking = false; return;
-    }
-    if (state.autoMode) {
-      // Auto Play's own bottom rail: Menu exits (handled above, works regardless of mode), and the
-      // Undo/Hint slots become the think-time stepper (same rects, no new layout) - neither undo
-      // nor a hint means anything with nobody tapping. Every other tap - a piece, a point - is
-      // ignored: the computer plays every side.
-      if (tap && inRect(BTN.undo, tap.x, tap.y)) { if (state.autoThinkIdx > 0) { state.autoThinkIdx--; savePrefs(); } return; }
-      if (tap && inRect(BTN.hint, tap.x, tap.y)) { if (state.autoThinkIdx < THINK_STEPS.length - 1) { state.autoThinkIdx++; savePrefs(); } return; }
-      autoTick(dt); return;
     }
     if (!humanTurn()) {                                                       // the computer thinks a little every tick
       state.think -= dt;
@@ -360,7 +378,10 @@ export function createGame(env) {
   return {
     update(dt, input) {
       state.t += dt;
-      if (state.msg) { state.msg.t += dt; if (state.msg.t > state.msg.hold) state.msg = null; }
+      // Auto Play's own message hold-timer is advanced from inside updatePlay's autoMode branch
+      // instead (gated on autoPaused there) - skip it here so a paused "thinking…"/"this is the
+      // move" caption doesn't quietly expire out from under the frozen board.
+      if (state.msg && !(state.autoMode && state.autoPaused)) { state.msg.t += dt; if (state.msg.t > state.msg.hold) state.msg = null; }
       const p = input.pointer, kbd = keyboard(input);
       let tap = p.pressed ? { x: p.x, y: p.y } : kbd && kbd.x !== undefined ? kbd : null;
       if (kbd && kbd.key === 'start') tap = { x: titleRows(!!state.saved).goats.x + 5, y: titleRows(!!state.saved).goats.y + 5 };

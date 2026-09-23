@@ -46,6 +46,13 @@ export const LOOK = {
 };
 export const BTN = {
   menu: { x: 60, y: 1462, w: 190, h: 72 }, undo: { x: 265, y: 1462, w: 190, h: 72 }, hint: { x: 470, y: 1462, w: 190, h: 72 },
+  // Auto Play's own 4-slot bottom rail (Exit / Pause-Resume / Think- / Think+), replacing the
+  // 3-slot BTN row above only while state.autoMode is true - lets the viewer freeze the whole
+  // loop at any moment and pick it back up exactly where it froze.
+  auto: {
+    exit: { x: 30, y: 1462, w: 154, h: 72 }, pause: { x: 198, y: 1462, w: 154, h: 72 },
+    dec: { x: 366, y: 1462, w: 154, h: 72 }, inc: { x: 534, y: 1462, w: 154, h: 72 },
+  },
   again: { x: 140, y: 900, w: 440, h: 96 }, back: { x: 140, y: 1016, w: 440, h: 84 }, share: { x: 140, y: 1120, w: 440, h: 84 },
   next: { x: 140, y: 1462, w: 440, h: 72 },
 };

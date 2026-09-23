@@ -27,8 +27,13 @@ export const BTN = {
   menu: { x: 60, y: 1462, w: 190, h: 72 }, undo: { x: 265, y: 1462, w: 190, h: 72 }, hint: { x: 470, y: 1462, w: 190, h: 72 },
   again: { x: 140, y: 900, w: 440, h: 96 }, back: { x: 140, y: 1016, w: 440, h: 84 }, share: { x: 140, y: 1120, w: 440, h: 84 },
   next: { x: 265, y: 1462, w: 395, h: 72 },
-  // Auto Play: the same bottom-row three-button shape as play's Menu/Undo/Hint, repurposed.
-  apExit: { x: 60, y: 1462, w: 190, h: 72 }, apDec: { x: 265, y: 1462, w: 190, h: 72 }, apInc: { x: 470, y: 1462, w: 190, h: 72 },
+  // Auto Play: originally the same bottom-row three-button shape as play's Menu/Undo/Hint
+  // (Exit/Think-/Think+); now four evenly-sized buttons across that same 60-660 span to fit the
+  // owner-requested Pause control (Exit, Pause, Think-, Think+) without moving the row or
+  // resizing/touching anything above it. While paused, the row is replaced by `again`/`back`
+  // (Resume/Exit) above - the same spot and size the result screens already use.
+  apExit: { x: 60, y: 1462, w: 141, h: 72 }, apPause: { x: 213, y: 1462, w: 141, h: 72 },
+  apDec: { x: 366, y: 1462, w: 141, h: 72 }, apInc: { x: 519, y: 1462, w: 141, h: 72 },
 };
 const row = (i) => ({ x: 90, y: 790 + i * 76, w: 540, h: 66 });
 export function titleRows(hasSave) {

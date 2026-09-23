@@ -202,10 +202,19 @@ export function render(ctx, s) {
     if (sc === 'play') { button(BTN.menu, 'Menu', { size: 26 }); button(BTN.undo, 'Take back', { size: 26, dim: !s.undo.length }); button(BTN.hint, `Hint (${s.hintsLeft})`, { size: 26, dim: s.hintsLeft <= 0 }); }
     else if (sc === 'lesson') { button(BTN.menu, 'Menu', { size: 26 }); if (s.lesson.done) button(BTN.next, s.lesson.i + 1 < LESSONS.length ? 'Next lesson' : 'Finish', { primary: true, size: 28 }); }
     else if (sc === 'puzzle') { button(BTN.menu, 'Menu', { size: 26 }); if (s.pz.status === 'solved') button(BTN.share, 'Share result', { primary: true, size: 30 }); }
-    else if (sc === 'autoplay') {
-      button(BTN.apExit, 'Exit', { size: 26 });
-      button(BTN.apDec, 'Think −', { size: 24, dim: s.apThinkIdx === 0 });
-      button(BTN.apInc, 'Think +', { size: 24, dim: s.apThinkIdx === AP_THINK_STEPS.length - 1 });
+    else if (sc === 'autoplay' && s.ap && s.ap.paused) {
+      // The viewer's own unlimited-thinking-time pause - dims the frozen board exactly like the
+      // result screens dim the final one, then Resume (primary, same spot/size as `again`) / Exit
+      // (same spot/size as `back`) sit on top of it.
+      drawDim(0.72);
+      gold('Paused', 360, 700, 60);
+      button(BTN.again, 'Resume', { primary: true, size: 34 });
+      button(BTN.back, 'Exit', { size: 30 });
+    } else if (sc === 'autoplay') {
+      button(BTN.apExit, 'Exit', { size: 22 });
+      button(BTN.apPause, 'Pause', { size: 22 });
+      button(BTN.apDec, 'Think −', { size: 20, dim: s.apThinkIdx === 0 });
+      button(BTN.apInc, 'Think +', { size: 20, dim: s.apThinkIdx === AP_THINK_STEPS.length - 1 });
     }
     if (sc === 'over') {
       drawDim(0.72);

@@ -5,7 +5,7 @@
 // piece and drop it on a square. Castling: TAP/DRAG the king two squares toward the rook. Promotion
 // opens a picker. An illegal attempt visibly tries, shudders back, and a message says why.
 import {
-  W, H, squareAt, pointXY, inRect, titleRows, BTN, BTN4, HEADER, REF_BACK, REF_NEXT, TEXT_DEC, TEXT_INC, RESULT_PANEL, PROMO, TEXT_SCALES, THINK_STEPS, DEMO_THINK,
+  W, H, squareAt, pointXY, inRect, titleRows, BTN, BTN4, HEADER, REF_BACK, REF_NEXT, TEXT_DEC, TEXT_INC, RESULT_PANEL, PROMO, TEXT_SCALES, THINK_STEPS, DEMO_THINK, DEMO_PAUSE,
 } from './layout.js';
 import {
   newGame, applyMove, undoMove, tryMove, legalTargets, inCheck, WHITE, BLACK,
@@ -38,6 +38,9 @@ export function createGame(env) {
     // `undefined` while the engine is still computing, `null` if it found no legal move, or the
     // move object once ready; demoChosen is the reveal-phase highlighted destination square.
     demoPhase: null, demoTimer: 0, demoThinkIdx: 1, demoPendingMove: undefined, demoChosen: -1,
+    // Freezes the whole demo loop (every phase, and any in-flight move animation) at any moment;
+    // Resume continues exactly where it froze rather than restarting the current step.
+    demoPaused: false,
     progress: { played: 0, wins: 0 }, learned: [],
     coach: { seen: false }, coachBubble: null,
     textScaleIdx: 0, // index into TEXT_SCALES; the About/Controls/Rules reference pages' text size
@@ -226,7 +229,7 @@ export function createGame(env) {
     // demoWait here is only the brief settle pause before the FIRST think of a freshly-loaded
     // board (so the position doesn't start "thinking" the instant it appears); it is unrelated to
     // the per-move THINK/REVEAL teaching loop below, which owns all pacing between moves.
-    Object.assign(state, { last: null, msg: null, hint: null, anim: null, banner: null, overOpen: false, demoWait: 0.6 });
+    Object.assign(state, { last: null, msg: null, hint: null, anim: null, banner: null, overOpen: false, demoWait: 0.6, demoPaused: false });
     clearSel(); thinker = null; pending = null;
     state.demoPhase = null; state.demoPendingMove = undefined; state.demoChosen = -1;
     say(cfg.name, 'info');
@@ -241,6 +244,7 @@ export function createGame(env) {
   const DEMO_SOURCE_SECS = 2;
   const DEMO_REVEAL_SECS = 2;
   function demoStep(dt) {
+    if (state.demoPaused) return;
     const cfg = DEMO_GAMES[state.demoIdx];
     if (state.g.result) {
       state.demoWait -= dt;
@@ -360,7 +364,9 @@ export function createGame(env) {
     for (const r of state.rings) r.t += dt;
     state.rings = state.rings.filter((r) => r.t < 0.5);
 
-    if (state.anim) { state.anim.t += dt; if (state.anim.t >= state.anim.dur) { const f = pending; state.anim = null; pending = null; if (f) f(); } }
+    // Demo Pause must freeze an in-flight move slide too, not just the THINK/REVEAL timers inside
+    // demoStep - this shared animation ticker runs for every scene, so it needs its own guard.
+    if (state.anim && !(state.scene === 'demo' && state.demoPaused)) { state.anim.t += dt; if (state.anim.t >= state.anim.dur) { const f = pending; state.anim = null; pending = null; if (f) f(); } }
 
     if (state.scene === 'lesson' && state.miniWait > 0 && !state.anim) {
       state.miniWait -= dt;
@@ -428,8 +434,9 @@ export function createGame(env) {
         break;
       }
       case 'demo': {
-        if (hit(HEADER.back)) { thinker = null; state.scene = 'title'; clearSel(); state.demoPhase = null; state.demoPendingMove = undefined; state.demoChosen = -1; }
+        if (hit(HEADER.back)) { thinker = null; state.scene = 'title'; clearSel(); state.demoPhase = null; state.demoPendingMove = undefined; state.demoChosen = -1; state.demoPaused = false; }
         else if (hit(HEADER.next)) { state.demoSpeed = state.demoSpeed >= 4 ? 1 : state.demoSpeed * 2; }
+        else if (hit(DEMO_PAUSE)) { state.demoPaused = !state.demoPaused; sound('ok'); }
         else if (hit(DEMO_THINK.dec)) { if (state.demoThinkIdx > 0) { state.demoThinkIdx--; savePrefs(); sound('ok'); } }
         else if (hit(DEMO_THINK.inc)) { if (state.demoThinkIdx < THINK_STEPS.length - 1) { state.demoThinkIdx++; savePrefs(); sound('ok'); } }
         break;

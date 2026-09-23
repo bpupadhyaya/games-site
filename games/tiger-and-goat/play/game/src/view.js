@@ -74,7 +74,7 @@ export function render(ctx, state) {
       text(`Goats captured so far: ${g.captured}`, 64, 520, 24, 'rgba(246,223,174,0.75)', UI, 500, 'left');
     } else {
       text('Tiger and Goat', 410, 140, 40);
-      const turnText = g.winner ? '' : state.autoMode ? `${SIDE[g.turn]} ${state.autoPhase === 'reveal' ? '- this is the move' : 'thinking' + '.'.repeat(1 + (Math.floor(state.t * 3) % 3))}` : state.two ? `${SIDE[g.turn]} to move` : g.turn === state.human ? `Your move (${SIDE[g.turn].toLowerCase()})` : `The computer is thinking${'.'.repeat(1 + (Math.floor(state.t * 3) % 3))}`;
+      const turnText = g.winner ? '' : state.autoMode ? (state.autoPaused ? 'Paused' : `${SIDE[g.turn]} ${state.autoPhase === 'reveal' ? '- this is the move' : 'thinking' + '.'.repeat(1 + (Math.floor(state.t * 3) % 3))}`) : state.two ? `${SIDE[g.turn]} to move` : g.turn === state.human ? `Your move (${SIDE[g.turn].toLowerCase()})` : `The computer is thinking${'.'.repeat(1 + (Math.floor(state.t * 3) % 3))}`;
       piece(g.turn, { x: 110, y: 382, s: 1 }, { scale: g.turn === 'T' ? 1.5 : 2 });
       text(turnText, 180, 362, 36, '#ffffff', UI, 700, 'left');
       text(state.autoMode ? `Auto Play · think time ${THINK_STEPS[state.autoThinkIdx]}s` : state.two ? 'Two players' : `Computer: ${LEVELS[state.level].name}`, 180, 400, 23, 'rgba(246,223,174,0.8)', UI, 500, 'left');
@@ -121,13 +121,15 @@ export function render(ctx, state) {
       ctx.restore();
     }
     if (scene === 'play') {
-      button(BTN.menu, state.autoMode ? 'Exit' : 'Menu', { size: 26 });
       if (state.autoMode) {
-        // The think-time stepper takes the Undo/Hint slots (same rects, no new layout) - neither
-        // undo nor a hint means anything with nobody tapping.
-        button(BTN.undo, '− Think', { size: 24, dim: state.autoThinkIdx <= 0 });
-        button(BTN.hint, 'Think +', { size: 24, dim: state.autoThinkIdx >= THINK_STEPS.length - 1 });
+        // Auto Play's own 4-slot rail: Exit, Pause/Resume (primary while paused so it's obvious
+        // the whole loop is frozen), and the think-time stepper.
+        button(BTN.auto.exit, 'Exit', { size: 24 });
+        button(BTN.auto.pause, state.autoPaused ? '▶ Resume' : '❙❙ Pause', { size: 24, primary: state.autoPaused });
+        button(BTN.auto.dec, '− Think', { size: 22, dim: state.autoThinkIdx <= 0 });
+        button(BTN.auto.inc, 'Think +', { size: 22, dim: state.autoThinkIdx >= THINK_STEPS.length - 1 });
       } else {
+        button(BTN.menu, 'Menu', { size: 26 });
         button(BTN.undo, 'Take back', { size: 26 }); button(BTN.hint, `Hint (${state.hintsLeft})`, { size: 26, dim: state.hintsLeft <= 0 });
       }
     }

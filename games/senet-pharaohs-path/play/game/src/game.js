@@ -68,7 +68,7 @@ export function createGame(env) {
   // Auto Play: free, silent, never touches real save/stats (see isPreviewExempt below and
   // apMovePlayed). Both sides are driven by the real thinker; the loop lives in updateAutoPlay.
   function startAutoPlay() {
-    reset({ scene: 'autoplay', g: newGame(), two: false, phase: 'need', ap: { phase: 'ai', timer: 0, move: null } });
+    reset({ scene: 'autoplay', g: newGame(), two: false, phase: 'need', ap: { phase: 'ai', timer: 0, move: null, paused: false } });
     say('Auto Play: watching Player A and Player B play.', 3);
   }
   function start(two) {
@@ -201,6 +201,19 @@ export function createGame(env) {
   function updateAutoPlay(dt, tap) {
     const g = state.g, AP = state.ap;
     if (tap && inRect(BTN.apExit, tap.x, tap.y)) { thinker = null; state.scene = 'title'; return; }
+    // Owner-requested: a real Pause that freezes the WHOLE loop the instant it is tapped - mid-THINK,
+    // mid-REVEAL, mid-move-animation, mid-engine-search - and Resume picks back up exactly where it
+    // froze, never restarting the current step. Reusing the result screens' `again`/`back` spot and
+    // size for the Resume/Exit pair while paused (drawn dimmed over the frozen board in view.js) -
+    // everything below this block (the roll timer, the move animation, the AI's own thinker.step(),
+    // the THINK/REVEAL countdowns) simply never runs while AP.paused is true, so nothing can advance
+    // a single frame; there is no separate paused-vs-running copy of any of that logic to keep in sync.
+    if (AP.paused) {
+      if (tap && inRect(BTN.again, tap.x, tap.y)) { AP.paused = false; clack(); }
+      else if (tap && inRect(BTN.back, tap.x, tap.y)) { thinker = null; state.scene = 'title'; }
+      return;
+    }
+    if (tap && inRect(BTN.apPause, tap.x, tap.y)) { AP.paused = true; clack(); return; }
     if (tap && inRect(BTN.apDec, tap.x, tap.y) && state.apThinkIdx > 0) { state.apThinkIdx--; savePrefs(); clack(); return; }
     if (tap && inRect(BTN.apInc, tap.x, tap.y) && state.apThinkIdx < AP_THINK_STEPS.length - 1) { state.apThinkIdx++; savePrefs(); clack(); return; }
     state.thinking = AP.phase === 'ai' || AP.phase === 'think';
@@ -387,7 +400,9 @@ export function createGame(env) {
   return {
     update(dt, input) {
       state.t += dt;
-      if (state.msg) { state.msg.t += dt; if (state.msg.t > state.msg.hold) state.msg = null; }
+      // Auto Play's own Pause also freezes the caption's fade-out - a paused screen should not
+      // keep changing on its own in any way, however minor.
+      if (state.msg && !(state.scene === 'autoplay' && state.ap && state.ap.paused)) { state.msg.t += dt; if (state.msg.t > state.msg.hold) state.msg = null; }
       const p = input.pointer, kbd = keyboard(input);
       const tap = p.pressed ? { x: p.x, y: p.y } : kbd ? kbd : null;
       const sc = state.scene;
