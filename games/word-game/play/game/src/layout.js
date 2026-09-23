@@ -20,7 +20,16 @@ export const slipWidth = (text) => text.length * CHAR_W + CHIP_PAD_X * 2;
 export const MODE_SYN_BTN = { x: 56, y: 856, w: 296, h: 116 };
 export const MODE_ANT_BTN = { x: 368, y: 856, w: 296, h: 116 };
 export const PLAY_BTN = { x: 110, y: 1072, w: 500, h: 136 };
-export const TITLE_COLOR_BTN = { x: 150, y: 1266, w: 420, h: 92 };
+// The Colours button used to span the full row (x150 w420); it now shares that same row, same
+// y/height/overall span, with the new Rules button (Rules reference page, additive-only change).
+export const TITLE_COLOR_BTN = { x: 150, y: 1266, w: 202, h: 92 };
+export const TITLE_RULES_BTN = { x: 368, y: 1266, w: 202, h: 92 };
+
+// Rules reference: paginated, reached from the title screen only (this game has no other
+// Controls/About screen to also wire into). Same two-large-buttons-at-bottom geometry the
+// session-review screen already uses for its own Prev/Next-equivalent row.
+export const RULES_BACK_BTN = { x: 40, y: 1384, w: 312, h: 112 };
+export const RULES_NEXT_BTN = { x: 368, y: 1384, w: 312, h: 112 };
 
 // Play screen
 export const PLAQUE = { x: 50, y: 222, w: 620, h: 236 };

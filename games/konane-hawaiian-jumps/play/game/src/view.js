@@ -4,7 +4,7 @@ import { drawWorld, drawSlab, drawStone, drawPetals, drawSquareRing, stoneVarian
 import { jumpsFrom, legalMoves, stones, countMoves, NAMES, overSquares } from './rules.js';
 import { LEVELS } from './engine.js';
 import { LESSONS } from './lessons.js';
-import { ABOUT, HELP_PAGES } from './content.js';
+import { ABOUT, HELP_PAGES, RULES } from './content.js';
 
 const FONT = '"Cormorant Garamond", Georgia, "Times New Roman", serif', UI = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
 const TAU = Math.PI * 2;
@@ -163,7 +163,7 @@ export function render(ctx, state) {
     btn(R.play, 'Play', { primary: state.learned && !R.resume, size: 32 });
     btn(R.learn, 'Learn to play', { primary: !state.learned && !R.resume, size: 30 });
     btn(R.daily, solvedToday ? `Daily puzzle: solved · streak ${state.daily.streak}` : state.daily.streak ? `Daily puzzle · streak ${state.daily.streak}` : 'Daily puzzle', { size: 28 });
-    btn(R.how, 'How to play and controls', { size: 27 }); btn(R.about, 'About Konane', { size: 28 });
+    btn(R.how, 'How to play and controls', { size: 27 }); btn(R.about, 'About Konane', { size: 28 }); btn(R.rules, 'Rules', { size: 28 });
     btn(R.sound, state.sound ? 'Sound on' : 'Sound off', { size: 22, on: state.sound }); btn(R.calm, calm ? 'Calm: on' : 'Calm: off', { size: 22, on: calm }); btn(R.big, big ? 'Large text: on' : 'Large text', { size: 21, on: big });
     text(`Games played: ${state.stats.games} · won: ${state.stats.wins}`, 360, R.sound.y + 112, 22, 'rgba(255,232,196,0.8)', UI, 500);
     if (state.msg) wrap(state.msg.text, 360, R.sound.y + 160, 24, 620, '#ffe9b0');
@@ -184,15 +184,16 @@ export function render(ctx, state) {
     LEVELS.forEach((L, i) => { btn(SETUP.levels[i], `${L.name}${state.stats.badges[`${C.n}-${i}`] ? '  ★' : ''}`, { size: 28, on: C.level === i, dim: C.side === 0 }); });
     if (C.side !== 0) wrap(LEVELS[C.level].blurb, 360, 1270, 22, 560, 'rgba(255,232,196,0.9)', 28);
     btn(SETUP.start, 'Start game', { primary: true, size: 36 }); btn(SETUP.back, 'Back', { size: 26 });
-  } else if (scene === 'help' || scene === 'about') {
-    const pages = scene === 'help' ? HELP_PAGES : ABOUT, P = pages[state.page % pages.length];
-    shadowText(scene === 'help' ? 'How to play' : 'About Konane', 420, 150, 62);
+  } else if (scene === 'help' || scene === 'about' || scene === 'rules') {
+    const pages = scene === 'help' ? HELP_PAGES : scene === 'about' ? ABOUT : RULES, P = pages[state.page % pages.length];
+    shadowText(scene === 'help' ? 'How to play' : scene === 'about' ? 'About Konane' : 'Rules', 420, 150, 62);
     const fs = big ? 30 : 26, lhh = big ? 39 : 34;
-    let hh = 130 + (P.demo ? 160 : 0); for (const para of P.body) hh += lines(para, fs, 570).length * lhh + 18;
+    let hh = 130 + (P.demo ? 160 : 0) + (P.stones ? 190 : 0); for (const para of P.body) hh += lines(para, fs, 570).length * lhh + 18;
     panel(ctx, 40, 200, 640, hh + 30, 0.72);
     text(P.title, 360, 270, 44, '#ffe6b0');
     let y = 320;
     if (P.demo) { y = drawHelpDemo(ctx, P.demo, y + 6, t, calm) + 20; }
+    if (P.stones) { y = drawRulesStones(ctx, text, y + 6) + 20; }
     for (const para of P.body) { const k = wrap(para, 76, y, big ? 30 : 26, 570, PAGE_TEXT, big ? 39 : 34, 'left'); y += k * (big ? 39 : 34) + 18; }
     if (hh + 230 < 1050) { ctx.save(); ctx.translate(360, 1200); ctx.scale(0.5, 0.5); ctx.translate(-360, -760); drawSlab(ctx, 6); if (state.demo) drawStones(ctx, state.demo.g, state.demo.anim, { calm, t }); ctx.restore(); }
     text(`Page ${state.page % pages.length + 1} of ${pages.length}`, 360, 1430, 22, 'rgba(255,232,196,0.7)', UI, 500);
@@ -230,4 +231,15 @@ function drawHelpDemo(ctx, demo, y, t, calm) {
   });
   if (demo.hop) { const [from, , to] = demo.hop, ax = x0 + from * cell + cell / 2, bx = x0 + to * cell + cell / 2; drawStone(ctx, 1, ax + (bx - ax) * e, y + 10 + cell / 2, R, { v: 0, lift: Math.sin(Math.PI * e) * 1.2 }); }
   return y + cell + 20;
+}
+
+// The Rules page for "The stone": the real Black and White stone sprites, drawn via the game's own drawStone, side by side.
+function drawRulesStones(ctx, text, y) {
+  const R = 46, gap = 170, top = y, cy = y + 10 + R + 4;
+  ctx.fillStyle = 'rgba(40,30,32,0.9)'; ctx.beginPath(); ctx.roundRect(360 - gap - R - 30, top, (gap + R + 30) * 2, R * 2 + 66, 18); ctx.fill();
+  drawStone(ctx, 1, 360 - gap, cy, R, { v: 1 });
+  drawStone(ctx, 2, 360 + gap, cy, R, { v: 1 });
+  text('Black', 360 - gap, cy + R + 32, 22, PAGE_TEXT, UI, 700);
+  text('White', 360 + gap, cy + R + 32, 22, PAGE_TEXT, UI, 700);
+  return top + R * 2 + 76;
 }

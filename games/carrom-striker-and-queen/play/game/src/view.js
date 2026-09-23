@@ -5,7 +5,7 @@ import { S, R_COIN, R_STR, BASE_Y, BASE_X0, BASE_X1, POCKETS, trace, striker as 
 import { down, onBoard, SIDE_NAME } from './rules.js';
 import { AI_LEVELS } from './ai.js';
 import { LESSONS } from './lessons.js';
-import { ABOUT, RULES_PAGE, CONTROLS_PAGE } from './pages.js';
+import { ABOUT, RULES_PAGE, CONTROLS_PAGE, GAME_RULES } from './pages.js';
 
 const FONT = '"Fredoka", "Trebuchet MS", system-ui, sans-serif', TAU = Math.PI * 2;
 const GOLD = '#f6d58a', CREAM = '#fff3d6';
@@ -71,7 +71,7 @@ function draw(ctx, state) {
     button(B.learn, 'Learn to play', { sub: Object.keys(state.learned).length ? `${Object.keys(state.learned).length} of ${LESSONS.length} lessons done` : 'New here? Start with lesson one', tone: Object.keys(state.learned).length ? undefined : '#8e5a2a' });
     button(B.daily, 'Daily trick shot', { sub: state.daily.solvedDay === state.daily.day ? 'Solved today. Streak ' + state.daily.streak : state.daily.puzzle ? 'A new shot is ready' : 'Setting up today’s shot' });
     button(B.level, 'Computer level: ' + lv, { size: 28 });
-    button(B.howto, 'How to play', { size: 24 }); button(B.about, 'About', { size: 24 }); button(B.settings, 'Settings', { size: 24 });
+    button(B.howto, 'How to play', { size: 18 }); button(B.about, 'About', { size: 18 }); button(B.rules, 'Game Rules', { size: 18 }); button(B.settings, 'Settings', { size: 18 });
     if (state.dev) text('dev', 40, 40, 20, '#9f9', 'left');
     return;
   }
@@ -99,6 +99,35 @@ function draw(ctx, state) {
     }
     if (sc === 'howto') { button(PAGE.prev, 'Back', { dim: state.page === 0, size: 28 }); button(PAGE.next, 'Next', { dim: state.page === 1, size: 28 }); button(PAGE.back, 'Done', { primary: true, size: 28 }); text(`${state.page + 1} / 2`, CX, 1420, 24, 'rgba(255,243,214,0.7)'); }
     else button(PAGE.back, 'Done', { primary: true, size: 30 });
+    return;
+  }
+  // Exhaustive Game Rules reference (content in pages.js). One topic per page; a piece page shows
+  // the real in-game coin/queen/striker art via this game's own drawPiece(), never a separate icon.
+  if (sc === 'rules') {
+    backdrop();
+    const list = GAME_RULES, page = list[state.page % list.length];
+    shadowText('Game Rules', CX, 150, 76 * Math.min(bs, 1.05), GOLD);
+    panel(40, 200, 640, 1190, 0.78);
+    text(page.title, CX, 256, 40 * bs, GOLD, 'center', 700);
+    let y = 306;
+    if (page.pieces) {
+      const ay = 384, names = { W: 'White', B: 'Black', Q: 'Queen', S: 'Striker' };
+      if (page.pieces.length === 1) {
+        const k = page.pieces[0], base = (k === 'S' ? R_STR : R_COIN) * K, R = 58;
+        coinAt(k, CX, ay, R / base, 0); y = ay + R + 40;
+      } else {
+        const dx = 108, R = 46;
+        page.pieces.forEach((k, i) => {
+          const px = CX + (i === 0 ? -dx : dx), base = (k === 'S' ? R_STR : R_COIN) * K;
+          coinAt(k, px, ay, R / base, 0);
+          text(names[k] ?? '', px, ay + R + 32, 20, 'rgba(255,240,205,0.72)', 'center', 600);
+        });
+        y = ay + R + 78;
+      }
+    }
+    for (const line of page.lines) { const n = wrap(line, 76, y, 28 * bs, 570, CREAM, 36 * bs, 'left'); y += n * 36 * bs + 16; }
+    text(`Page ${(state.page % list.length) + 1} of ${list.length}`, CX, 1420, 24, 'rgba(255,243,214,0.7)');
+    button(PAGE.prev, 'Back', { size: 28 }); button(PAGE.next, 'Next', { size: 28 }); button(PAGE.back, 'Done', { primary: true, size: 28 });
     return;
   }
   if (sc === 'settings') {

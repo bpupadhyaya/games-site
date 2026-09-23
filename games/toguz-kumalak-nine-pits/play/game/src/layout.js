@@ -37,9 +37,17 @@ export function titleRows(hasSave) {
   R.play = row(y); y += 84;
   R.two = row(y); y += 84;
   R.daily = row(y); y += 84;
-  R.about = { x: 70, y, w: 280, h: 78 }; R.settings = { x: 370, y, w: 280, h: 78 };
+  // About / Rules / Settings share this row, three even columns (was About / Settings — Rules is the addition).
+  // Same outer span (x 70 to 650) and same y/h as before, so nothing below this row moves.
+  const third = (580 - 20 * 2) / 3;
+  R.about = { x: 70, y, w: third, h: 78 };
+  R.rules = { x: 70 + third + 20, y, w: third, h: 78 };
+  R.settings = { x: 70 + (third + 20) * 2, y, w: third, h: 78 };
   return R;
 }
+// Rules-page navigation: Back returns to the title, Next advances a page (wraps round). Same x/w/y
+// this game's About and Settings back buttons already use, just split into two side-by-side halves.
+export const RULES_BTN = { back: { x: 70, y: 1400, w: 280, h: 90 }, next: { x: 370, y: 1400, w: 280, h: 90 } };
 // settings rows (label left, value button)
 export const SET = {
   level: { x: 70, y: 330, w: 580, h: 84 }, sound: { x: 70, y: 430, w: 580, h: 84 }, calm: { x: 70, y: 530, w: 580, h: 84 },

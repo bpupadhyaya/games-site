@@ -3,7 +3,7 @@
 import { W, H, HAND_Y, handMetrics, handTileX, meldOrigin, inRect } from './layout.js';
 import { DISPLAY, UI, CJKF, GOLD, IVORY, INK, TAU, tx, wrap, rr, btn, panel, drawTable, drawTileAt, tileByKind } from './draw.js';
 import { LEVELS } from './ai.js';
-import { HOW_PAGES, ABOUT_PAGES } from './content.js';
+import { HOW_PAGES, ABOUT_PAGES, RULE_PAGES } from './content.js';
 import { LESSONS, stageTiles, NEED_COUNT, fakeState, withDraw, idFor, textOf } from './lessons.js';
 import { STYLE_NAMES } from './tiles.js';
 import { winInfo, pointsFor, kindName, fullHand, claimOptions } from './rules.js';
@@ -35,8 +35,11 @@ export function titleRects(S) {
   const y0 = S.saved ? 852 : 900, pitch = S.saved ? 96 : 104, h = S.saved ? 82 : 88;
   const out = rows.map((r, i) => ({ ...r, r: { x: 90, y: y0 + i * pitch, w: 540, h } }));
   const yb = y0 + rows.length * pitch + 8;
-  const small = [['how', 'How to play'], ['about', 'About'], ['settings', 'Settings']];
-  small.forEach(([id, label], i) => out.push({ id, label, kind: 'wood', small: true, r: { x: 40 + i * 214, y: yb, w: 204, h: 72 } }));
+  // Controls/About/Settings share one row; Rules is the addition (was 3 columns, now 4 - same row, same
+  // total span x=40..680, so nothing below it (the Language row) moves).
+  const small = [['how', 'How to play'], ['about', 'About'], ['rules', 'Rules'], ['settings', 'Settings']];
+  const smallGap = 10, smallW = (640 - (small.length - 1) * smallGap) / small.length;
+  small.forEach(([id, label], i) => out.push({ id, label, kind: 'wood', small: true, r: { x: 40 + i * (smallW + smallGap), y: yb, w: smallW, h: 72 } }));
   out.push({ id: 'lv0', chip: 0, r: { x: 40, y: y0 - 92, w: 210, h: 60 } }, { id: 'lv1', chip: 1, r: { x: 255, y: y0 - 92, w: 210, h: 60 } }, { id: 'lv2', chip: 2, r: { x: 470, y: y0 - 92, w: 210, h: 60 } });
   out.push(...titleLangRects(yb + 72 + 28));
   return out;
@@ -122,16 +125,43 @@ export function renderSettings(ctx, S, rs) {
   btn(ctx, BACK, 'Back', { kind: 'gold', size: 38, pressed: rs.ptr.down && inRect(BACK, rs.ptr.x, rs.ptr.y) });
 }
 
-// ------------------------------------------------------------------------------------------------- how / about
+// ------------------------------------------------------------------------------------------------- how / about / rules
 export const PAGER = { prev: { x: 40, y: 1400, w: 200, h: 86 }, next: { x: 480, y: 1400, w: 200, h: 86 }, back: { x: 260, y: 1400, w: 200, h: 86 } };
+// One row of real tiles (drawn with the game's own tileByKind - never a separate simplified icon), centred,
+// with an optional caption underneath. Used by Rules pages that show the tile set. `y` tracks the next free
+// top edge, so captions never overlap the tile art below or above them. Returns the y just below the rows.
+const TILE_ASPECT = 4 / 3; // FH / FW from tiles.js, fixed for every style
+function drawTileRows(ctx, rows, style, yStart) {
+  let y = yStart;
+  for (const row of rows) {
+    const tiles = row.tiles, n = tiles.length, tw = row.tw || 56, gap = row.gap ?? 14, th = tw * TILE_ASPECT;
+    const total = n * tw + (n - 1) * gap;
+    let x = 360 - total / 2 + tw / 2;
+    const cy = y + th / 2;
+    for (const k of tiles) { tileByKind(ctx, k, x, cy, tw, style); x += tw + gap; }
+    y += th + 8;
+    if (row.caption) { tx(ctx, row.caption, 360, y, 18, 'rgba(247,239,214,0.72)', { weight: 600, base: 'top' }); y += 26; }
+    y += 12;
+  }
+  return y + 8;
+}
+// Shrinks the page-title size only if it would overflow the panel (a no-op for every existing How/About
+// title, which already fits at the base size) - needed once Rules introduced a few longer titles.
+function fitTitleSize(ctx, str, base) {
+  let size = base;
+  ctx.save(); ctx.font = `700 ${size}px ${DISPLAY}`;
+  while (ctx.measureText(str).width > 600 && size > 34) { size -= 2; ctx.font = `700 ${size}px ${DISPLAY}`; }
+  ctx.restore();
+  return size;
+}
 function pages(ctx, S, rs, list, page, title) {
   drawTable(ctx);
   tx(ctx, title, 360, 130, 84, GOLD, { font: DISPLAY, shadow: true });
   const p = list[page], b = big(S);
   panel(ctx, 40, 200, 640, 1130, { alpha: 0.7 });
-  tx(ctx, p.title, 360, 290, 60 * (b > 1 ? 0.9 : 1), IVORY, { font: DISPLAY });
+  tx(ctx, p.title, 360, 290, fitTitleSize(ctx, p.title, 60 * (b > 1 ? 0.9 : 1)), IVORY, { font: DISPLAY });
   ctx.strokeStyle = 'rgba(241,207,122,0.4)'; ctx.beginPath(); ctx.moveTo(120, 316); ctx.lineTo(600, 316); ctx.stroke();
-  let y = 380;
+  let y = p.tileRows ? drawTileRows(ctx, p.tileRows, S.prefs.style, 336) : 380;
   for (const line of p.lines) { const n = wrap(ctx, line, 84, y, 28 * b, 552, IVORY, { align: 'left', lh: 38 * b }); y += n * 38 * b + 26; }
   list.forEach((_, i) => { ctx.fillStyle = i === page ? GOLD : 'rgba(247,239,214,0.3)'; ctx.beginPath(); ctx.arc(360 + (i - (list.length - 1) / 2) * 30, 1300, 7, 0, TAU); ctx.fill(); });
   const hasPrev = page > 0, hasNext = page < list.length - 1;
@@ -141,7 +171,8 @@ function pages(ctx, S, rs, list, page, title) {
 }
 export const renderHow = (ctx, S, rs) => pages(ctx, S, rs, HOW_PAGES, S.page, 'How to play');
 export const renderAbout = (ctx, S, rs) => pages(ctx, S, rs, ABOUT_PAGES, S.page, 'About Mahjong');
-export const pageCount = (scene) => (scene === 'how' ? HOW_PAGES.length : ABOUT_PAGES.length);
+export const renderRules = (ctx, S, rs) => pages(ctx, S, rs, RULE_PAGES, S.page, 'Rules');
+export const pageCount = (scene) => (scene === 'how' ? HOW_PAGES.length : scene === 'rules' ? RULE_PAGES.length : ABOUT_PAGES.length);
 
 // ------------------------------------------------------------------------------------------------- learn list, daily hub
 export const lessonRect = (i) => ({ x: 40, y: 180 + i * 100, w: 640, h: 88 });

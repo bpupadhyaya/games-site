@@ -55,6 +55,8 @@ export function handSlot(i, n) {
 
 export const MENU_BTN = (i, n = 5) => rect(110, 704 + i * 108, 500, 90);
 export const BACK = rect(26, 24, 130, 70);
+// Mirrors BACK at the top-right, for the paginated Rules page's Back/Next pair.
+export const NEXT = rect(W - 26 - 130, 24, 130, 70);
 
 // One row per toggle: Sound, Reduced motion, Large print, Four-colour suits, Card back theme.
 export const SETTINGS_ROWS = 5;

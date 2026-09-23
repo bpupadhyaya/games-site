@@ -299,6 +299,7 @@ export function createGame(env) {
       case 'puzzle': startPuzzle(0); break;
       case 'howto': enter('howto'); break;
       case 'about': enter('about'); break;
+      case 'rules': enter('rules'); break;
       case 'settings': { const from = state.scene === 'play' && state.moves.length && !state.result ? 'play' : null; enter('settings'); state.settingsFrom = from; break; }
       case 'sound': case 'tSound': state.prefs.sound = !state.prefs.sound; audio.setMuted(!state.prefs.sound); savePrefs(); break;
       case 'tCalm': state.prefs.calm = !state.prefs.calm; savePrefs(); break;

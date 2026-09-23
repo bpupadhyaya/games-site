@@ -31,7 +31,12 @@ export function titleRows(hasSave) {
   // thing a player sees rather than something buried behind a generic settings button.
   out.langZh = { x: 90, y, w: 262, h: 76 }; out.langEn = { x: 368, y, w: 262, h: 76 };
   out.level = { x: 90, y: y + 84, w: 262, h: 66 }; out.sound = { x: 368, y: y + 84, w: 262, h: 66 };
-  out.how = { x: 90, y: y + 160, w: 262, h: 66 }; out.about = { x: 368, y: y + 160, w: 262, h: 66 };
+  // How to play / About / Rules share one row, three even columns spanning the same width the row used as two
+  // columns before (Rules is the addition) - nothing else on the title screen moved.
+  { const gap = 14, third = (540 - gap * 2) / 3, ry = y + 160;
+    out.how = { x: 90, y: ry, w: third, h: 66 };
+    out.about = { x: 90 + third + gap, y: ry, w: third, h: 66 };
+    out.rules = { x: 90 + (third + gap) * 2, y: ry, w: third, h: 66 }; }
   out.look = { x: 90, y: y + 236, w: 540, h: 66 };
   return out;
 }

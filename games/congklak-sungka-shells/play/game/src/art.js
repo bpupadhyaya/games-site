@@ -76,7 +76,7 @@ function wave(ctx, x, y, s, dir) {                   // one carved wave scroll: 
   ctx.beginPath(); ctx.moveTo(x - 13 * s, y + 8 * s); ctx.bezierCurveTo(x - 8 * s, y - 10 * s, x + 10 * s * dir, y - 12 * s, x + 12 * s * dir, y - 2 * s);
   ctx.bezierCurveTo(x + 13 * s * dir, y + 5 * s, x + 4 * s * dir, y + 6 * s, x + 3 * s * dir, y - 1 * s); ctx.bezierCurveTo(x + 3 * s * dir, y - 4 * s, x + 8 * s * dir, y - 4 * s, x + 8 * s * dir, y - 1 * s);
 }
-function carve(ctx, path, x, y, w, h, k) {            // a concave carved hollow lit from the upper left
+export function carve(ctx, path, x, y, w, h, k) {      // a concave carved hollow lit from the upper left
   ctx.save(); path(ctx); ctx.shadowColor = 'rgba(255,214,150,0.6)'; ctx.shadowOffsetX = 2; ctx.shadowOffsetY = 3.5; ctx.fillStyle = 'rgba(255,224,170,0.6)'; ctx.fill(); ctx.restore();
   ctx.save(); path(ctx); ctx.clip();
   const g = ctx.createLinearGradient(x, y, x + w * 0.8, y + h * 0.95);
@@ -89,6 +89,10 @@ function carve(ctx, path, x, y, w, h, k) {            // a concave carved hollow
   ctx.restore();
   ctx.save(); path(ctx); ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(10,3,0,0.6)'; ctx.stroke(); ctx.restore();
 }
+// Draw one house (small pit) or one storehouse in isolation, using the exact same carved-hollow
+// routine the real board uses (never a separate simplified icon) — for the Rules reference page.
+export function drawHousePit(ctx, x, y, r = PIT_R) { carve(ctx, (c) => { c.beginPath(); c.arc(x, y, r, 0, TAU); }, x - r, y - r, r * 2, r * 2, 1); }
+export function drawStorePit(ctx, x, y, w, h) { carve(ctx, (c) => rr(c, x, y, w, h, 50), x, y, w, h, 0.9); }
 function grain(ctx, x0, y0, w, h, WD, seed, count, alpha) {
   const rnd = lcg(seed), [gr, gg, gb] = WD.grain;
   for (let k = 0; k < count; k++) {

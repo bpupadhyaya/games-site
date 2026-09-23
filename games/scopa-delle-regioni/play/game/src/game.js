@@ -5,6 +5,7 @@ import { W, H, BTN, SET, HAND, inRect, handPos, tableGrid, slotPos, seatPos, dec
 import { newMatch, startRound, captures, legalPlays, applyPlay, scoreRound, whyNot, clone, teamOf, rankOf, cardName, RANK_NAMES } from './rules.js';
 import { LEVELS, createThinker, hintFor } from './engine.js';
 import { LESSONS } from './lessons.js';
+import { RULES } from './rulesContent.js';
 import { puzzleFor, puzzleGame, pv, isWeekend } from './puzzles.js';
 import { render, tableCardAt } from './view.js';
 import { warm } from './art.js';
@@ -326,6 +327,7 @@ export function createGame(env) {
     else if (hit(R.daily)) startPuzzle();
     else if (hit(R.about)) state.scene = 'about';
     else if (hit(R.controls)) state.scene = 'controls';
+    else if (hit(R.rules)) { state.scene = 'rules'; state.page = 0; }
     else if (hit(R.settings)) state.scene = 'settings';
   }
   function updateSettings(tap) {
@@ -388,6 +390,7 @@ export function createGame(env) {
     if (sc === 'over') { if (k.has('Enter') || k.has('Space')) return at(BTN.again); if (k.has('Escape')) return at(BTN.back); return null; }
     if (sc === 'settings') { if (k.has('Escape')) return at(SET.back); return null; }
     if (sc === 'about' || sc === 'controls') { if (k.has('Escape') || k.has('Enter')) return at(BTN.backPage); return null; }
+    if (sc === 'rules') { if (k.has('Escape')) return at(BTN.rulesBack); if (k.has('Enter')) return at(BTN.rulesNext); return null; }
     if (sc !== 'play' && sc !== 'lesson' && sc !== 'puzzle') return null;
     if (state.panel === 'round') { if (k.has('Enter') || k.has('Space')) return at(BTN.cont); return null; }
     if (k.has('Escape')) return at(BTN.menu);
@@ -427,6 +430,10 @@ export function createGame(env) {
       if (sc === 'title') updateTitle(tap);
       else if (sc === 'settings') updateSettings(tap);
       else if (sc === 'about' || sc === 'controls') { if (tap && inRect(BTN.backPage, tap.x, tap.y)) state.scene = 'title'; }
+      else if (sc === 'rules') {
+        if (tap && inRect(BTN.rulesBack, tap.x, tap.y)) { state.scene = 'title'; state.page = 0; }
+        else if (tap && inRect(BTN.rulesNext, tap.x, tap.y)) state.page = (state.page + 1) % RULES.length;
+      }
       else if (sc === 'play' || sc === 'lesson' || sc === 'puzzle') updateBoard(dt, tap);
       else if (sc === 'over' && tap) {
         if (inRect(BTN.again, tap.x, tap.y)) start(state.n);

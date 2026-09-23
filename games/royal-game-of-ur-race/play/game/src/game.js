@@ -1,5 +1,5 @@
 // The Royal Game of Ur: state and flow. Drawing is in view.js; the rule book is rules.js; the computer's brain is engine.js;
-// lessons.js, puzzles.js and heritage.js are content. See design/ARCHITECTURE.md for the map.
+// lessons.js, puzzles.js, heritage.js and content.js are content. See design/ARCHITECTURE.md for the map.
 //
 // A turn: ROLL (tap the dice) -> the dice tumble and settle -> CHOOSE (tap a glowing piece, then the glowing square; or, when
 // only one piece can reach a square, just tap the square) -> the piece hops along its path. A refused move visibly tries and
@@ -10,6 +10,7 @@ import { PIECES, HOME, newGame, clone, cellOf, legalMoves, applyMove, pass, whyN
 import { LEVELS, createThinker, explain } from './engine.js';
 import { LESSONS, lessonGame } from './lessons.js';
 import { HERITAGE } from './heritage.js';
+import { RULES } from './content.js';
 import { createPuzzleMaker, puzzleGame, puzzleKey } from './puzzles.js';
 import { render } from './view.js';
 
@@ -23,7 +24,7 @@ export function createGame(env) {
     sel: -1, anim: null, dice: { vals: [0, 0, 0, 0], total: 0, phase: 'none', t: 0, dur: 0.9 }, wait: 0, kb: -1,
     msg: null, think: 0, thinking: false, undo: [], hintsLeft: HINTS_PER_GAME, hint: null, caps: [0, 0], rv: [{}, {}],
     stats: { games: 0, wins: 0, badges: {} }, saved: null, learned: false, demoGames: 0,
-    lesson: null, pz: null, about: 0, daily: { day: config.day ?? 0, solvedDay: -1, streak: 0 }, dev: config.dev === true,
+    lesson: null, pz: null, about: 0, rules: 0, daily: { day: config.day ?? 0, solvedDay: -1, streak: 0 }, dev: config.dev === true,
   };
   let thinker = null, hintThinker = null, puzzleToday = null;
   const maker = createPuzzleMaker(state.daily.day);
@@ -194,6 +195,7 @@ export function createGame(env) {
     else if (hit(R.two)) start(true);
     else if (hit(R.daily)) startPuzzle();
     else if (hit(R.about)) { state.scene = 'about'; state.about = 0; }
+    else if (hit(R.rules)) { state.scene = 'rules'; state.rules = 0; }
     else if (hit(R.level)) { state.level = (state.level + 1) % LEVELS.length; savePrefs(); clack(); }
     else if (hit(R.sound)) { state.sound = !state.sound; audio.setMuted?.(!state.sound); savePrefs(); clack(); }
     else if (hit(R.big)) { state.big = !state.big; savePrefs(); clack(); }
@@ -294,6 +296,7 @@ export function createGame(env) {
     if (sc === 'title') return go ? press(titleRows(!!state.saved).play) : null;
     if (sc === 'over') return go ? press(BTN.again) : null;
     if (sc === 'about') return k.has('Escape') ? press(BTN.menu) : (k.has('ArrowRight') || go) ? press(BTN.hint) : k.has('ArrowLeft') ? press(BTN.undo) : null;
+    if (sc === 'rules') return k.has('Escape') ? press(BTN.menu) : (k.has('ArrowRight') || go) ? press(BTN.hint) : k.has('ArrowLeft') ? press(BTN.undo) : null;
     if (sc !== 'play' && sc !== 'lesson' && sc !== 'puzzle') return null;
     if (k.has('Escape')) return press(BTN.menu);
     if (sc === 'lesson' && state.lesson.done) return go ? press(BTN.next) : null;
@@ -331,6 +334,10 @@ export function createGame(env) {
         if (inRect(BTN.menu, tap.x, tap.y)) state.scene = 'title';
         else if (inRect(BTN.hint, tap.x, tap.y)) state.about = Math.min(HERITAGE.length - 1, state.about + 1);
         else if (inRect(BTN.undo, tap.x, tap.y)) state.about = Math.max(0, state.about - 1);
+      } else if (state.scene === 'rules' && tap) {
+        if (inRect(BTN.menu, tap.x, tap.y)) state.scene = 'title';
+        else if (inRect(BTN.hint, tap.x, tap.y)) state.rules = Math.min(RULES.length - 1, state.rules + 1);
+        else if (inRect(BTN.undo, tap.x, tap.y)) state.rules = Math.max(0, state.rules - 1);
       } else if (state.scene === 'over' && tap) {
         if (inRect(BTN.again, tap.x, tap.y)) start(state.two);
         else if (inRect(BTN.back, tap.x, tap.y)) state.scene = 'title';

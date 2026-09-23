@@ -7,7 +7,7 @@ import { newGame, clone, applyMove, tryMove, legalMoves, jumpsFrom, overSquares,
 import { LEVELS, createThinker, fromRules } from './engine.js';
 import { LESSONS, lessonGame } from './lessons.js';
 import { createPuzzleMaker, puzzleGame, isPuzzleSolution } from './puzzles.js';
-import { HELP_PAGES, ABOUT } from './content.js';
+import { HELP_PAGES, ABOUT, RULES } from './content.js';
 import { render } from './view.js';
 
 export const meta = { width: W, height: H };
@@ -143,6 +143,7 @@ export function createGame(env) {
     else if (hit(R.daily)) startPuzzle();
     else if (hit(R.how)) { state.scene = 'help'; state.page = 0; }
     else if (hit(R.about)) { state.scene = 'about'; state.page = 0; }
+    else if (hit(R.rules)) { state.scene = 'rules'; state.page = 0; }
     else if (hit(R.sound)) { state.sound = !state.sound; audio.setMuted?.(!state.sound); savePrefs(); clack(); }
     else if (hit(R.calm)) { state.calm = !state.calm; savePrefs(); clack(); }
     else if (hit(R.big)) { state.big = !state.big; savePrefs(); clack(); }
@@ -272,7 +273,7 @@ export function createGame(env) {
     if (input.pointer.pressed) { state.kb = false; return null; }
     if (sc === 'title') { if (k.has('Enter') || k.has('Space')) return { x: titleRows(!!state.saved).play.x + 5, y: titleRows(!!state.saved).play.y + 5 }; return null; }
     if (sc === 'setup') { if (k.has('Enter') || k.has('Space')) return { x: SETUP.start.x + 5, y: SETUP.start.y + 5 }; if (k.has('Escape')) return { x: SETUP.back.x + 5, y: SETUP.back.y + 5 }; return null; }
-    if (sc === 'help' || sc === 'about') { if (k.has('ArrowRight') || k.has('Enter') || k.has('Space')) return { x: HELP.next.x + 5, y: HELP.next.y + 5 }; if (k.has('ArrowLeft')) return { x: HELP.prev.x + 5, y: HELP.prev.y + 5 }; if (k.has('Escape')) return { x: HELP.back.x + 5, y: HELP.back.y + 5 }; return null; }
+    if (sc === 'help' || sc === 'about' || sc === 'rules') { if (k.has('ArrowRight') || k.has('Enter') || k.has('Space')) return { x: HELP.next.x + 5, y: HELP.next.y + 5 }; if (k.has('ArrowLeft')) return { x: HELP.prev.x + 5, y: HELP.prev.y + 5 }; if (k.has('Escape')) return { x: HELP.back.x + 5, y: HELP.back.y + 5 }; return null; }
     if (sc === 'over') { if (k.has('Enter') || k.has('Space')) return { x: BTN.again.x + 5, y: BTN.again.y + 5 }; return null; }
     if (sc !== 'play' && sc !== 'lesson' && sc !== 'puzzle') return null;
     if (k.has('Escape')) return { x: BTN.menu.x + 5, y: BTN.menu.y + 5 };
@@ -295,6 +296,7 @@ export function createGame(env) {
       else if (sc === 'setup') updateSetup(dt, tap);
       else if (sc === 'help') updatePages(dt, tap, HELP_PAGES);
       else if (sc === 'about') updatePages(dt, tap, ABOUT);
+      else if (sc === 'rules') updatePages(dt, tap, RULES);
       else if (sc === 'play') updatePlay(dt, tap);
       else if (sc === 'lesson') updateLesson(dt, tap);
       else if (sc === 'puzzle') updatePuzzle(dt, tap);

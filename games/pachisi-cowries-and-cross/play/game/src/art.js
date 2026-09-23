@@ -57,7 +57,7 @@ function paintFloor(ctx) {
   ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
 }
 
-function star(ctx, x, y, s, col, lw) {
+export function star(ctx, x, y, s, col, lw) {
   ctx.strokeStyle = col; ctx.lineWidth = lw; ctx.lineCap = 'round';
   ctx.beginPath(); ctx.moveTo(x - s, y - s); ctx.lineTo(x + s, y + s); ctx.moveTo(x + s, y - s); ctx.lineTo(x - s, y + s); ctx.stroke();
   ctx.fillStyle = col;

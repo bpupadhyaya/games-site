@@ -241,6 +241,7 @@ export function createGame(env) {
     else if (hit(RW.big)) { state.big = !state.big; savePrefs(); clack(); }
     else if (hit(RW.howto)) { state.info = { which: 'howto', page: 0 }; state.scene = 'info'; }
     else if (hit(RW.about)) { state.info = { which: 'about', page: 0 }; state.scene = 'info'; }
+    else if (hit(RW.rules)) { state.info = { which: 'rules', page: 0 }; state.scene = 'info'; }
   }
   function updateInfo(tap) {
     if (!tap) return; const pages = PAGES[state.info.which];

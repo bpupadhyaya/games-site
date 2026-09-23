@@ -1,0 +1,17 @@
+{
+  "title": "Chess",
+  "tagline": "The timeless game of sixty-four squares.",
+  "description": "A complete, beautifully carved chess set: full rules including castling, en passant and promotion - with a full in-app rules reference for every piece and every way to win or draw - six AI levels from Beginner to Grandmaster, a 12-lesson tutorial, and a two-game AI vs AI demo to watch and learn from. Three original board themes with dimensional, carved-look pieces. Free to play, forever. No ads, no purchases.",
+  "genre": "chess / strategy board game",
+  "demo": true,
+  "howToPlay": [
+    "TAP a piece to see its legal moves highlighted, then TAP a lit square to move it.",
+    "Or DRAG a piece to its destination and let go - both work everywhere.",
+    "Castle by TAPping or DRAGging the king two squares toward a rook.",
+    "Promote a pawn on the last rank by choosing Queen, Rook, Bishop or Knight in the picker.",
+    "Play White, Black, or pass-and-play Two Players on one device.",
+    "Choose an AI level from Beginner to Grandmaster, and use Undo or a Hint if you get stuck.",
+    "Learn the rules and basic tactics in 12 hands-on lessons.",
+    "Watch two full AI vs AI games play out end to end from the title screen."
+  ]
+}

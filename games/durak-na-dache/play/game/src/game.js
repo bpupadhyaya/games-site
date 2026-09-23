@@ -4,12 +4,13 @@
 // Controls (also taught on-screen): TAP a card to lift it, TAP it again or TAP the table to play it; or DRAG it
 // onto the table / onto the exact card it should beat. TAP Take to pick up, TAP Bito when done throwing in,
 // TAP Hint for the best move with a reason, TAP Undo for one step back.
-import { W, H, TOP, ACTIONS, actionRect, handSlot, pairSpot, TABLE_ZONE, MENU_BTN, BACK, SETUP, SETTINGS_ROWS, SETTINGS_ROW, inRect } from './layout.js';
+import { W, H, TOP, ACTIONS, actionRect, handSlot, pairSpot, TABLE_ZONE, MENU_BTN, BACK, NEXT, SETUP, SETTINGS_ROWS, SETTINGS_ROW, inRect } from './layout.js';
 import * as R from './rules.js';
 import { createThinker, explain, ROLLOUTS_PER_FRAME } from './ai.js';
 import { LESSONS } from './lessons.js';
 import { createPuzzleMaker, bestReply } from './puzzles.js';
 import { render, lessonNextRect, dailyShareRect } from './view.js';
+import { RULES } from './rulesText.js';
 
 export const meta = { width: W, height: H };
 const DEMO_LIMIT = 2;
@@ -214,7 +215,7 @@ export function createGame(env) {
   // ---- per-scene updates --------------------------------------------------------------------------------------
   function updateTitle(tap) {
     if (!tap) return;
-    const items = state.saved ? ['continue', 'new', 'learn', 'daily', 'about', 'settings'] : ['new', 'learn', 'daily', 'about', 'settings'];
+    const items = state.saved ? ['continue', 'new', 'learn', 'daily', 'about', 'settings', 'rules'] : ['new', 'learn', 'daily', 'about', 'settings', 'rules'];
     items.forEach((k, i) => {
       if (!inRect(MENU_BTN(i), tap.x, tap.y)) return;
       clack();
@@ -224,6 +225,7 @@ export function createGame(env) {
       else if (k === 'daily') startDaily();
       else if (k === 'about') state.scene = 'about';
       else if (k === 'settings') state.scene = 'settings';
+      else if (k === 'rules') { state.scene = 'rules'; state.page = 0; }
     });
     if (inRect(TOP.sound, tap.x, tap.y)) { state.sound = !state.sound; audio.setMuted?.(!state.sound); savePrefs(); clack(); }
   }
@@ -384,6 +386,13 @@ export function createGame(env) {
 
   const updateAbout = (tap) => { if (tap && inRect(BACK, tap.x, tap.y)) state.scene = 'title'; };
 
+  // Paginated Rules reference: Back returns to the title, Next advances (wrapping back to page 1).
+  function updateRules(tap) {
+    if (!tap) return;
+    if (inRect(BACK, tap.x, tap.y)) { state.scene = 'title'; return; }
+    if (inRect(NEXT, tap.x, tap.y)) { clack(); state.page = (state.page + 1) % RULES.length; }
+  }
+
   // Keyboard equivalents for the web demo (docs/GAME-CONTRACT.md): Left/Right choose a card, Enter/Space plays it,
   // T Take, B Bito, H Hint, U Undo, Escape Menu — the exact verbs taught in the Controls section of the GDD.
   function routeMove(move) {
@@ -394,7 +403,7 @@ export function createGame(env) {
   function keyboard(input) {
     const k = input.keys.pressed;
     if (!k.size) return;
-    if (k.has('Escape') && ['play', 'lesson', 'daily', 'setup', 'about', 'settings'].includes(state.scene)) {
+    if (k.has('Escape') && ['play', 'lesson', 'daily', 'setup', 'about', 'settings', 'rules'].includes(state.scene)) {
       if (state.scene === 'play') saveGame();
       state.scene = 'title'; return;
     }
@@ -427,6 +436,7 @@ export function createGame(env) {
       else if (state.scene === 'lesson') updateLesson(tap);
       else if (state.scene === 'daily') updateDaily(tap);
       else if (state.scene === 'about') updateAbout(tap);
+      else if (state.scene === 'rules') updateRules(tap);
       else if (state.scene === 'settings') updateSettings(tap);
     },
     render(ctx) { render(ctx, state); },

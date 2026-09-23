@@ -25,8 +25,14 @@ export const BTN = {
   hint: { x: 20, y: BOTTOM_Y, w: 388, h: 104 },
   options: { x: 20, y: BOTTOM_Y + 118, w: 388, h: 74 },
   deal: { x: 110, y: 860, w: 500, h: 132 },
-  titleOptions: { x: 140, y: 1176, w: 440, h: 96 },
+  // Options used to be one 440-wide button here; it now shares the row with Rules, same outer
+  // edges (140..580) and the same y/height, so nothing else on the title screen moved.
+  titleOptions: { x: 140, y: 1176, w: 212, h: 96 },
+  titleRules: { x: 368, y: 1176, w: 212, h: 96 },
   dealAgain: { x: 130, y: 900, w: 460, h: 116 },
+  // The Rules reference page's own nav row (Back exits to the title; Next cycles pages).
+  rulesBack: { x: 20, y: 1416, w: 330, h: 116 },
+  rulesNext: { x: 370, y: 1416, w: 330, h: 116 },
 };
 
 // The title's hero fan: tapping it also deals.

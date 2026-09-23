@@ -27,6 +27,10 @@ export function cardAt(n, sel, x, y) {
 export const inRect = (r, x, y) => !!r && x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
 
 export const ABOUT_BACK = { x: 130, y: 1470, w: 460, h: 78 };
+// Rules is a new paginated reference page (Back/Next/"Page N of M"), the same convention as About
+// uses a single static page. Two half-width buttons side by side, same row as ABOUT_BACK.
+export const RULES_BACK = { x: 90, y: 1470, w: 260, h: 78 };
+export const RULES_NEXT = { x: 370, y: 1470, w: 260, h: 78 };
 export const BTN = {
   leave: { x: 40, y: 1478, w: 190, h: 70 }, undo: { x: 265, y: 1478, w: 190, h: 70 }, hint: { x: 490, y: 1478, w: 190, h: 70 },
   next: { x: 130, y: 900, w: 460, h: 88 }, back: { x: 130, y: 1004, w: 460, h: 80 }, lesson: { x: 130, y: 1040, w: 460, h: 84 },
@@ -41,9 +45,15 @@ export const BID = {
 // title screen rows
 const row = (i) => ({ x: 110, y: 700 + i * 92, w: 500, h: 80 });
 export function titleRows(hasSave) {
-  const names = (hasSave ? ['resume'] : []).concat(['learn', 'play', 'daily', 'about']), out = {};
+  const names = (hasSave ? ['resume'] : []).concat(['learn', 'play', 'daily']), out = {};
   names.forEach((n, i) => { out[n] = row(i); });
-  const y = 700 + names.length * 92 + 8;
+  // About and Rules share what used to be a single full-width "about" row, split into two even
+  // columns at the same y/height - the only change to the title screen (everything else below
+  // still starts at exactly the same y it always did).
+  const abr = row(names.length), half = (abr.w - 14) / 2;
+  out.about = { x: abr.x, y: abr.y, w: half, h: abr.h };
+  out.rules = { x: abr.x + half + 14, y: abr.y, w: half, h: abr.h };
+  const y = 700 + (names.length + 1) * 92 + 8;
   out.level = { x: 110, y, w: 500, h: 66 };
   out.sound = { x: 110, y: y + 76, w: 242, h: 60 }; out.calm = { x: 368, y: y + 76, w: 242, h: 60 };
   out.big = { x: 110, y: y + 144, w: 242, h: 60 }; out.target = { x: 368, y: y + 144, w: 242, h: 60 };

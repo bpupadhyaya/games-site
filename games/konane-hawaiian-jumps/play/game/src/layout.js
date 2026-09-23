@@ -18,7 +18,7 @@ export const BTN = {
 };
 // Title screen buttons.
 export function titleRows(hasSave) {
-  const names = (hasSave ? ['resume'] : []).concat(['play', 'learn', 'daily', 'how', 'about']), out = {}, y0 = hasSave ? 690 : 730;
+  const names = (hasSave ? ['resume'] : []).concat(['play', 'learn', 'daily', 'how', 'about', 'rules']), out = {}, y0 = hasSave ? 690 : 730;
   names.forEach((nm, i) => { out[nm] = R(90, y0 + i * 88, 540, 76); });
   const y = y0 + names.length * 88 + 8;
   out.sound = R(90, y, 172, 62); out.calm = R(274, y, 172, 62); out.big = R(458, y, 172, 62);

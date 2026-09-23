@@ -19,6 +19,7 @@ import { computeLayout, hitTest, contains, BTN, HERO, OPT, W, H } from './layout
 import { THEMES, TABLES } from './art.js';
 import { createFx } from './fx.js';
 import { render } from './view.js';
+import { RULES } from './content.js';
 
 export const meta = { width: W, height: H };
 
@@ -32,9 +33,10 @@ export function createGame(env) {
   const demo = Boolean(config?.demo);
 
   const state = {
-    scene: 'title', // 'title' | 'playing' | 'won' | 'demo-limit'
+    scene: 'title', // 'title' | 'playing' | 'won' | 'demo-limit' | 'rules'
     demo,
     demoDeals: 0,
+    rulesPage: 0,
     demoLimitReached: false,
     board: null,
     dealVerified: false,
@@ -212,7 +214,25 @@ export function createGame(env) {
       state.options = true;
       return tick();
     }
+    if (contains(BTN.titleRules, x, y)) {
+      state.scene = 'rules';
+      state.rulesPage = 0;
+      return tick();
+    }
     if (contains(BTN.deal, x, y) || contains(HERO, x, y)) startNewDeal();
+  };
+
+  // The Rules reference page: Back always returns to the title, Next cycles pages (wraps around).
+  const handleRulesTap = (x, y) => {
+    if (contains(BTN.rulesBack, x, y)) {
+      state.scene = 'title';
+      state.rulesPage = 0;
+      return tick();
+    }
+    if (contains(BTN.rulesNext, x, y)) {
+      state.rulesPage = (state.rulesPage + 1) % RULES.length;
+      return tick();
+    }
   };
 
   const handlePlayingTap = (x, y) => {
@@ -260,6 +280,7 @@ export function createGame(env) {
     if (state.scene === 'demo-limit') return;
     if (state.options) handleOptionsTap(x, y);
     else if (state.scene === 'title') handleTitleTap(x, y);
+    else if (state.scene === 'rules') handleRulesTap(x, y);
     else if (state.scene === 'won') {
       // a short pause so the tap that finished the hand cannot also skip the celebration
       if (fx.sinceWon() > 0.6) startNewDeal();
@@ -278,7 +299,7 @@ export function createGame(env) {
         state.hint = !state.hint;
         state.selected = null;
       }
-      if (state.scene !== 'playing' && !state.options && input.keys.pressed.has('KeyN')) startNewDeal();
+      if (state.scene !== 'playing' && state.scene !== 'rules' && !state.options && input.keys.pressed.has('KeyN')) startNewDeal();
       fx.update(dt, state);
     },
 

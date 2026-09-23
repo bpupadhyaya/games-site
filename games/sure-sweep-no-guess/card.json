@@ -1,7 +1,7 @@
 {
   "title": "Sure Sweep",
   "tagline": "No-guess minesweeper. Every board solves by logic alone.",
-  "description": "Sure Sweep is classic mine-clearing with one guarantee: every board can be fully solved by logic, with no lucky guesses required. Tap to reveal, flip the switch to flag suspected mines, and chord through satisfied numbers to clear the board fast. Stuck? A free hint shows you the deduction you missed, and one free Undo takes back a fatal tap. Sea-chart art, a calm teal palette, and colour schemes you can switch anytime.",
+  "description": "Sure Sweep is classic mine-clearing with one guarantee: every board can be fully solved by logic, with no lucky guesses required. Tap to reveal, flip the switch to flag suspected mines, and chord through satisfied numbers to clear the board fast. Stuck? A free hint shows you the deduction you missed, and one free Undo takes back a fatal tap. Sea-chart art, a calm teal palette, and colour schemes you can switch anytime. A full in-app Rules page covers every mechanic.",
   "genre": "no-guess minesweeper",
   "demo": true,
   "howToPlay": [

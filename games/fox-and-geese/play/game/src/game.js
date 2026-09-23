@@ -5,7 +5,8 @@
 // where it should go. A legal move glides there. An illegal one visibly TRIES: the piece travels toward the point,
 // shudders, comes back, and a message says why. A fox that has jumped may jump again: it stays lifted with the next
 // jumps glowing, and the player taps a red point, or taps the fox (or "Stop here") to end the turn.
-import { W, H, BTN, LOOK, DEV_BTN, titleRows, inRect, pointNear, pointAt } from './layout.js';
+import { W, H, BTN, LOOK, RULES_NAV, DEV_BTN, titleRows, inRect, pointNear, pointAt } from './layout.js';
+import { RULES } from './content.js';
 import { newGame, clone, applyMove, tryMove, FLOCKS, onBoard, N, CENTRE } from './rules.js';
 import { LEVELS, createThinker, chooseMove, forcingMoves } from './engine.js';
 import { LESSONS, boardOf } from './lessons.js';
@@ -26,6 +27,7 @@ export function createGame(env) {
     sel: -1, anim: null, msg: null, think: 0, thinking: false, undo: [], hintsLeft: HINTS_PER_GAME, hint: null, starEarned: false,
     stats: { games: 0, wins: 0, badges: {} }, saved: null, learned: false, demoGames: 0,
     lesson: null,                                   // { i, done, count }
+    rulesPage: 0,
     pz: null,                                       // { status: 'making' | 'ready' | 'solved', puzzle, n, tries, wrong }
     daily: { day: config.day ?? 0, solvedDay: -1, streak: 0 },
     dev: config.dev === true, devLesson: 0,
@@ -157,7 +159,14 @@ export function createGame(env) {
     else if (hit(R.marks)) { state.marks = !state.marks; savePrefs(); clack(); }
     else if (hit(R.calm)) { state.calm = !state.calm; savePrefs(); clack(); }
     else if (hit(R.look)) state.scene = 'look';
+    else if (hit(R.rules)) { state.rulesPage = 0; state.scene = 'rules'; }
     else if (state.dev && inRect(DEV_BTN, tap.x, tap.y)) { const i = state.devLesson; state.devLesson = (i + 1) % LESSONS.length; startLesson(i); }
+  }
+
+  function updateRules(tap) {
+    if (!tap) return;
+    if (inRect(RULES_NAV.back, tap.x, tap.y)) { state.scene = 'title'; clack(); }
+    else if (inRect(RULES_NAV.next, tap.x, tap.y)) { state.rulesPage = (state.rulesPage + 1) % RULES.length; clack(); }
   }
 
   function updatePlay(dt, tap) {
@@ -296,6 +305,7 @@ export function createGame(env) {
     if (sc === 'title') { if (k.has('Enter') || k.has('Space')) return { key: 'start' }; return null; }
     if (sc === 'over') { if (k.has('Enter') || k.has('Space')) return { x: BTN.again.x + 5, y: BTN.again.y + 5 }; return null; }
     if (sc === 'look') { if (k.has('Escape')) return { x: LOOK.back.x + 5, y: LOOK.back.y + 5 }; return null; }
+    if (sc === 'rules') { if (k.has('Escape')) return { x: RULES_NAV.back.x + 5, y: RULES_NAV.back.y + 5 }; return null; }
     if (sc !== 'play' && sc !== 'lesson' && sc !== 'puzzle') return null;
     if (k.has('Escape')) return { x: BTN.menu.x + 5, y: BTN.menu.y + 5 };
     let dx = 0, dy = 0;
@@ -314,6 +324,7 @@ export function createGame(env) {
       if (kbd && kbd.key === 'start') tap = { x: titleRows(!!state.saved).geese.x + 5, y: titleRows(!!state.saved).geese.y + 5 };
       if (state.scene === 'title') updateTitle(tap);
       else if (state.scene === 'look') updateLook(tap);
+      else if (state.scene === 'rules') updateRules(tap);
       else if (state.scene === 'play') updatePlay(dt, tap);
       else if (state.scene === 'lesson') updateLesson(dt, tap);
       else if (state.scene === 'puzzle') updatePuzzle(dt, tap);

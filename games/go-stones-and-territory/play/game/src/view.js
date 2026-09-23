@@ -1,10 +1,11 @@
 // Everything drawn each frame. Reads `state` (game.js) and changes nothing. Static art is cached (art.js).
-import { W, H, R, px, py, stoneR, boardLayout, titleButtons, PLAYBOARD } from './layout.js';
+import { W, H, R, px, py, stoneR, boardLayout, titleButtons, RULES_NAV, PLAYBOARD } from './layout.js';
 import { drawTable, drawBoardLayer, drawLamp, drawStone, drawShadow, drawBowl, THEMES } from './art.js';
 import { LEVELS } from './engine.js';
 import { LESSONS } from './lessons.js';
 import { coord, KOMI, opp } from './rules.js';
 import { puzzleText } from './puzzles.js';
+import { RULES } from './content.js';
 
 const FONT = '"Cormorant Garamond", Georgia, "Times New Roman", serif', UI = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
 const TAU = Math.PI * 2;
@@ -70,6 +71,7 @@ export function render(ctx, S) {
   if (scene === 'lessons') return drawLessonList(ctx, S, { text, wrap, button, panel, isPress });
   if (scene === 'about') return drawReader(ctx, S, { text, wrap, button, panel }, 'About Go', ABOUT_TEXT);
   if (scene === 'how') return drawReader(ctx, S, { text, wrap, button, panel }, 'How to play', HOW_TEXT);
+  if (scene === 'rules') return drawRules(ctx, S, { text, wrap, button, panel, isPress });
   if (scene === 'settings') return drawSettings(ctx, S, { text, wrap, button, panel });
   if (scene === 'demo-limit') return drawDemoLimit(ctx, S, { text, wrap, button, panel });
   drawBoardScene(ctx, S, { text, wrap, button, panel, isPress });
@@ -230,6 +232,7 @@ function drawTitle(ctx, S, u) {
   button(R2.about, 'About Go', { press: isPress(R2.about) });
   button(R2.how, 'How to play', { press: isPress(R2.how) });
   button(R2.settings, 'Settings', { press: isPress(R2.settings) });
+  button(R2.rules, 'Rules', { press: isPress(R2.rules) });
 }
 const DEMO_SEQ = [[40, 1], [22, 2], [58, 1], [50, 2], [23, 1], [31, 2], [41, 1], [32, 2], [33, 1], [24, 2], [42, 1], [49, 2], [59, 1], [60, 2], [68, 1], [51, 2], [67, 1], [14, 2], [34, 1], [13, 2], [43, 1], [15, 2], [52, 1], [53, 2], [61, 1], [69, 2], [30, 1], [21, 2]];
 export const demoSequence = () => DEMO_SEQ;
@@ -287,6 +290,37 @@ function drawReader(ctx, S, u, title, items) {
     y += 42 + lines * sz * 1.36 + 26;
   }
   button(READER.back, 'Back', { press: u.isPress ? u.isPress(READER.back) : false });
+}
+// One topic per screen, paginated: Back exits to the title, Next cycles forward through the pages
+// with wraparound (the same convention chess-royal-sixty-four uses for its own Rules page).
+export function rulesPageCount() { return RULES.length; }
+function drawRules(ctx, S, u) {
+  const { text, wrap, button, panel, isPress } = u, sz = S.prefs.big ? 25 : 22;
+  const idx = ((S.rulesPage % RULES.length) + RULES.length) % RULES.length, page = RULES[idx];
+  text('Rules', 360, 176, 70, '#f6e3b4');
+  panel({ x: 36, y: 214, w: 648, h: 1132 });
+  text(page.title, 360, 268, 34, '#f3cf7a', FONT, 700, 'center');
+  let y = 316;
+  if (page.stone) {
+    const cy = y + 58, r = 46;
+    if (page.stone === 'both') {
+      drawStone(ctx, 1, 300, cy, r, { seed: 1 });
+      drawStone(ctx, 2, 420, cy, r, { seed: 2 });
+      text('Black', 300, cy + r + 30, 20, 'rgba(246,227,180,0.75)', UI, 600);
+      text('White', 420, cy + r + 30, 20, 'rgba(246,227,180,0.75)', UI, 600);
+    } else {
+      drawStone(ctx, page.stone, 360, cy, r, { seed: page.stone });
+    }
+    y = cy + r + 62;
+  }
+  for (const para of page.lines) {
+    const lh = sz * 1.36;
+    const lines = wrap(para, 64, y, sz, 596, '#f2e6cc', lh, 'left', 500);
+    y += lines * lh + 22;
+  }
+  text(`Page ${idx + 1} of ${RULES.length}`, 360, 1320, 21, 'rgba(246,227,180,0.65)', UI, 500);
+  button(RULES_NAV.back, 'Back', { press: isPress(RULES_NAV.back) });
+  button(RULES_NAV.next, 'Next', { primary: true, press: isPress(RULES_NAV.next) });
 }
 export function settingsRects() {
   const names = ['sound', 'calm', 'big', 'quick', 'theme'];

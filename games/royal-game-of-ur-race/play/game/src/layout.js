@@ -24,9 +24,15 @@ export const BTN = {
 };
 const row = (i) => ({ x: 90, y: 790 + i * 76, w: 540, h: 66 });
 export function titleRows(hasSave) {
-  const names = (hasSave ? ['resume'] : []).concat(['learn', 'play', 'two', 'daily', 'about']), out = {};
+  const names = (hasSave ? ['resume'] : []).concat(['learn', 'play', 'two', 'daily']), out = {};
   names.forEach((n, i) => { out[n] = row(i); });
-  const y = 790 + names.length * 76 + 6;
+  // About and Rules share the row "About the game" used to have alone, two even columns (Rules is
+  // the addition) -- every other row keeps its exact original position, since this reuses the same
+  // row index (names.length) "about" always occupied and the formula below is unchanged.
+  const aboutRow = row(names.length), gap = 14, half = (aboutRow.w - gap) / 2;
+  out.about = { x: aboutRow.x, y: aboutRow.y, w: half, h: aboutRow.h };
+  out.rules = { x: aboutRow.x + half + gap, y: aboutRow.y, w: half, h: aboutRow.h };
+  const y = 790 + (names.length + 1) * 76 + 6;
   out.level = { x: 90, y, w: 262, h: 60 }; out.sound = { x: 368, y, w: 262, h: 60 };
   out.big = { x: 90, y: y + 68, w: 262, h: 60 }; out.calm = { x: 368, y: y + 68, w: 262, h: 60 };
   return out;

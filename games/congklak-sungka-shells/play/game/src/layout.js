@@ -31,6 +31,7 @@ export const BTN = {
   again: { x: 130, y: 1010, w: 460, h: 96 }, back: { x: 130, y: 1126, w: 460, h: 96 },
   cont: { x: 130, y: 1126, w: 460, h: 96 },
   aboutBack: { x: 130, y: 1400, w: 460, h: 90 },
+  rulesBack: { x: 130, y: 1400, w: 220, h: 90 }, rulesNext: { x: 370, y: 1400, w: 220, h: 90 },
 };
 const row = (y, h = 84) => ({ x: 70, y, w: 580, h });
 export function titleRows(hasSave) {
@@ -40,7 +41,10 @@ export function titleRows(hasSave) {
   R.play = row(y); y += 96;
   R.two = row(y); y += 96;
   R.daily = row(y); y += 96;
-  R.about = { x: 70, y, w: 185, h: 84 }; R.how = { x: 267, y, w: 185, h: 84 }; R.settings = { x: 465, y, w: 185, h: 84 };
+  // About / Controls / Settings share one row; Rules is the addition (was three even columns, now four).
+  const gap = 12, qw = (580 - gap * 3) / 4;
+  R.about = { x: 70, y, w: qw, h: 84 }; R.how = { x: 70 + (qw + gap), y, w: qw, h: 84 };
+  R.rules = { x: 70 + (qw + gap) * 2, y, w: qw, h: 84 }; R.settings = { x: 70 + (qw + gap) * 3, y, w: qw, h: 84 };
   return R;
 }
 export const SET = {

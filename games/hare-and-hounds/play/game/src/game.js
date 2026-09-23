@@ -4,7 +4,8 @@
 // How a move is made (owner's spec): tap a piece (it lifts, its legal points glow), then tap where it should go.
 // A legal move glides there. An illegal one visibly TRIES: the piece travels toward the point, shudders, comes
 // back, and a message says why.
-import { W, H, BTN, LOOK, TILE, titleRows, inRect, pointNear, pointAt, overButtons } from './layout.js';
+import { W, H, BTN, LOOK, RULES_NAV, TILE, titleRows, inRect, pointNear, pointAt, overButtons } from './layout.js';
+import { RULES } from './content.js';
 import { newGame, clone, applyMove, tryMove, legalMoves, DEFAULT_LIMIT } from './rules.js';
 import { LEVELS, createThinker, bestMove, chooseMove, forcingMoves } from './engine.js';
 import { LESSONS, boardOf } from './lessons.js';
@@ -27,6 +28,7 @@ export function createGame(env) {
     sel: -1, anim: null, msg: null, think: 0, thinking: false, undo: [], hintsLeft: HINTS_PER_GAME, hint: null,
     stats: { games: 0, wins: 0, badges: {}, camp: {} }, saved: null, learned: false, demoGames: 0,
     lesson: null,                                   // { i, done }
+    rulesPage: 0,
     pz: null,                                       // { status: 'making' | 'ready' | 'solved', puzzle, n, tries, wrong }
     camp: -1, result: null,                         // the campaign level being played, and the result shown on the last screen
     daily: { day: config.day ?? 0, solvedDay: -1, streak: 0 },
@@ -163,6 +165,13 @@ export function createGame(env) {
     else if (hit(R.marks)) { state.marks = !state.marks; savePrefs(); pat(); }
     else if (hit(R.calm)) { state.calm = !state.calm; savePrefs(); pat(); }
     else if (hit(R.look)) state.scene = 'look';
+    else if (hit(R.rules)) { state.rulesPage = 0; state.scene = 'rules'; }
+  }
+
+  function updateRules(tap) {
+    if (!tap) return;
+    if (inRect(RULES_NAV.back, tap.x, tap.y)) { state.scene = 'title'; pat(); }
+    else if (inRect(RULES_NAV.next, tap.x, tap.y)) { state.rulesPage = (state.rulesPage + 1) % RULES.length; pat(); }
   }
   const campaignOpen = (i) => i === 0 || (state.stats.camp[i - 1] || 0) > 0 || state.dev;
   function updateCampaign(tap) {
@@ -285,6 +294,7 @@ export function createGame(env) {
     if (sc === 'title') { if (k.has('Enter') || k.has('Space')) return { key: 'start' }; return null; }
     if (sc === 'over') { if (k.has('Enter') || k.has('Space')) return { x: BTN.again.x + 5, y: BTN.again.y + 5 }; return null; }
     if (sc === 'look') { if (k.has('Escape')) return { x: LOOK.back.x + 5, y: LOOK.back.y + 5 }; return null; }
+    if (sc === 'rules') { if (k.has('Escape')) return { x: RULES_NAV.back.x + 5, y: RULES_NAV.back.y + 5 }; return null; }
     if (sc === 'campaign') { if (k.has('Escape')) return { x: BTN.menu.x + 5, y: BTN.menu.y + 5 }; return null; }
     if (sc !== 'play' && sc !== 'lesson' && sc !== 'puzzle') return null;
     if (k.has('Escape')) return { x: BTN.menu.x + 5, y: BTN.menu.y + 5 };
@@ -308,6 +318,7 @@ export function createGame(env) {
       if (kbd && kbd.key === 'start') tap = { x: titleRows(!!state.saved).hound.x + 5, y: titleRows(!!state.saved).hound.y + 5 };
       if (state.scene === 'title') updateTitle(tap);
       else if (state.scene === 'look') updateLook(tap);
+      else if (state.scene === 'rules') updateRules(tap);
       else if (state.scene === 'campaign') updateCampaign(tap);
       else if (state.scene === 'play') updatePlay(dt, tap);
       else if (state.scene === 'lesson') updateLesson(dt, tap);

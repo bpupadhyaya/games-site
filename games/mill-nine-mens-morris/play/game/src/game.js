@@ -10,6 +10,7 @@ import { LEVELS, createThinker, createEngine, chooseMove, explain } from './engi
 import { LESSONS } from './lessons.js';
 import { createPuzzleMaker, puzzleGame, forcingMoves, FALLBACK } from './puzzles.js';
 import { UNLOCKS, unlocked } from './unlocks.js';
+import { RULES } from './text.js';
 import { render } from './view.js';
 
 export const meta = { width: W, height: H };
@@ -26,6 +27,7 @@ export function createGame(env) {
     demo: { g: newGame(), timer: 0, since: 1, last: -1, pause: 0 },
     stats: { games: 0, wins: 0, badges: {} }, saved: null, learned: false, demoGames: 0,
     lesson: null, pz: null, daily: { day: config.day ?? 0, solvedDay: -1, streak: 0 }, dev: config.dev === true,
+    rulesPage: 0,
   };
   let thinker = null, hintThinker = null, puzzleToday = null, engine = null;
   const eng = () => engine ?? (engine = createEngine(17));
@@ -174,6 +176,14 @@ export function createGame(env) {
     else if (hit(R.look)) state.scene = 'look';
     else if (hit(R.about)) state.scene = 'about';
     else if (hit(R.how)) state.scene = 'how';
+    else if (hit(R.rules)) { state.scene = 'rules'; state.rulesPage = 0; }
+  }
+
+  // ---- rules (a small paginated reference; About/How are each one static page instead) -----------
+  function updateRules(tap) {
+    if (!tap) return;
+    if (inRect(BTN.rulesBack, tap.x, tap.y)) state.scene = 'title';
+    else if (inRect(BTN.rulesNext, tap.x, tap.y)) state.rulesPage = (state.rulesPage + 1) % RULES.length;
   }
 
   // ---- shared: a human tap on the board in play / lesson / puzzle ---------------------------------------
@@ -295,6 +305,11 @@ export function createGame(env) {
     if (sc === 'over') { if (k.has('Enter') || k.has('Space')) return { x: BTN.again.x + 5, y: BTN.again.y + 5 }; if (k.has('Escape')) return { x: BTN.back.x + 5, y: BTN.back.y + 5 }; return null; }
     if (sc === 'look') { if (k.has('Escape')) return { x: LOOK.back.x + 5, y: LOOK.back.y + 5 }; return null; }
     if (sc === 'about' || sc === 'how') { if (k.has('Escape') || k.has('Enter')) return { x: BTN.pageBack.x + 5, y: BTN.pageBack.y + 5 }; return null; }
+    if (sc === 'rules') {
+      if (k.has('Escape')) return { x: BTN.rulesBack.x + 5, y: BTN.rulesBack.y + 5 };
+      if (k.has('Enter') || k.has('Space')) return { x: BTN.rulesNext.x + 5, y: BTN.rulesNext.y + 5 };
+      return null;
+    }
     if (sc !== 'play' && sc !== 'lesson' && sc !== 'puzzle') return null;
     if (k.has('Escape')) return { x: BTN.menu.x + 5, y: BTN.menu.y + 5 };
     if (k.has('KeyU')) return { x: BTN.undo.x + 5, y: BTN.undo.y + 5 };
@@ -334,6 +349,7 @@ export function createGame(env) {
       if (sc === 'title') updateTitle(dt, tap);
       else if (sc === 'look') updateLook(tap);
       else if (sc === 'about' || sc === 'how') { if (tap && inRect(BTN.pageBack, tap.x, tap.y)) state.scene = 'title'; }
+      else if (sc === 'rules') updateRules(tap);
       else if (sc === 'demo-limit') { if (tap && inRect({ x: 140, y: 880, w: 440, h: 76 }, tap.x, tap.y)) state.scene = 'title'; }
       else if (sc === 'play') updatePlay(dt, p.pressed && state.drag && !dr ? (tap) : tap);
       else if (sc === 'lesson') updateLesson(dt, tap);

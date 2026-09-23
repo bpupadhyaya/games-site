@@ -4,7 +4,7 @@
     "stage": "release-candidate",
     "title": "Baloot",
     "tagline": "The partnership card game of the Gulf",
-    "description": "Baloot is the traditional four-player partnership card game of Saudi Arabia and the Gulf, related to the French game Belote. Bid for Sun (no trump) or Hokum (a trump suit where the Jack and 9 outrank the Ace), then play all eight tricks with your computer partner against two computer opponents. Ten hands-on lessons teach the whole game, four computer levels give you room to grow, and a new daily deal tests your reading of the table every day. Score only: no wagering, no ads, works offline.",
+    "description": "Baloot is the traditional four-player partnership card game of Saudi Arabia and the Gulf, related to the French game Belote. Bid for Sun (no trump) or Hokum (a trump suit where the Jack and 9 outrank the Ace), then play all eight tricks with your computer partner against two computer opponents. Ten hands-on lessons teach the whole game, four computer levels give you room to grow, and a new daily deal tests your reading of the table every day. Score only: no wagering, no ads, works offline. A full in-app Rules reference covers every ruling in detail.",
     "genre": "partnership trick-taking card game",
     "demo": true,
     "howToPlay": [
@@ -25,7 +25,7 @@
     "stage": "prototype",
     "title": "Big Card Solitaire",
     "tagline": "Huge cards, tap to play, every deal winnable.",
-    "description": "Big Card Solitaire is Klondike redrawn for comfort: oversized high-contrast cards, tap-to-move instead of dragging, and no timers or flashing effects. Every deal is checked so it can actually be won. A built-in \"what can I do?\" hint highlights your legal moves whenever you're unsure.",
+    "description": "Big Card Solitaire is Klondike redrawn for comfort: oversized high-contrast cards, tap-to-move instead of dragging, and no timers or flashing effects. Every deal is checked so it can actually be won. A built-in \"what can I do?\" hint highlights your legal moves whenever you're unsure. An in-app Rules page explains every move in plain language.",
     "genre": "large-print senior solitaire",
     "demo": true,
     "howToPlay": [
@@ -44,7 +44,7 @@
     "stage": "release-candidate",
     "title": "Carrom",
     "tagline": "Flick, pocket, cover the queen",
-    "description": "Carrom is the flick-and-pocket board game played across South Asia, in homes, clubs and tournaments. Slide your striker along the baseline, pull back to aim and let go: coins slide, rebound off the cushions and drop into the corner pockets. Learn in eight hands-on lessons, play the computer at four levels or a friend on one phone, and try a new trick shot every day. A polished plywood board, glossy coins and a dotted aim guide that shows where each shot will go. Large text, reduced motion and left-handed layout included. No ads, works offline.",
+    "description": "Carrom is the flick-and-pocket board game played across South Asia, in homes, clubs and tournaments. Slide your striker along the baseline, pull back to aim and let go: coins slide, rebound off the cushions and drop into the corner pockets. Learn in eight hands-on lessons, play the computer at four levels or a friend on one phone, and try a new trick shot every day. A polished plywood board, glossy coins and a dotted aim guide that shows where each shot will go. Large text, reduced motion and left-handed layout included. An in-app Game Rules page covers every edge case. No ads, works offline.",
     "genre": "flick physics board game",
     "demo": true,
     "howToPlay": [
@@ -59,6 +59,27 @@
     ],
     "icon": "games/carrom-striker-and-queen/icon.svg",
     "play": "games/carrom-striker-and-queen/play/"
+  },
+  {
+    "slug": "chess-royal-sixty-four",
+    "stage": "release-candidate",
+    "title": "Chess",
+    "tagline": "The timeless game of sixty-four squares.",
+    "description": "A complete, beautifully carved chess set: full rules including castling, en passant and promotion - with a full in-app rules reference for every piece and every way to win or draw - six AI levels from Beginner to Grandmaster, a 12-lesson tutorial, and a two-game AI vs AI demo to watch and learn from. Three original board themes with dimensional, carved-look pieces. Free to play, forever. No ads, no purchases.",
+    "genre": "chess / strategy board game",
+    "demo": true,
+    "howToPlay": [
+      "TAP a piece to see its legal moves highlighted, then TAP a lit square to move it.",
+      "Or DRAG a piece to its destination and let go - both work everywhere.",
+      "Castle by TAPping or DRAGging the king two squares toward a rook.",
+      "Promote a pawn on the last rank by choosing Queen, Rook, Bishop or Knight in the picker.",
+      "Play White, Black, or pass-and-play Two Players on one device.",
+      "Choose an AI level from Beginner to Grandmaster, and use Undo or a Hint if you get stuck.",
+      "Learn the rules and basic tactics in 12 hands-on lessons.",
+      "Watch two full AI vs AI games play out end to end from the title screen."
+    ],
+    "icon": "games/chess-royal-sixty-four/icon.svg",
+    "play": "games/chess-royal-sixty-four/play/"
   },
   {
     "slug": "congklak-sungka-shells",
@@ -86,7 +107,7 @@
     "stage": "prototype",
     "title": "Crown Fields",
     "tagline": "One crown per row, column and region. No touching.",
-    "description": "Crown Fields is a calm grid-placement puzzle: place one crown in every row, column and coloured region so that no two crowns touch, even diagonally. Every puzzle is generated fresh with exactly one solution, solvable by pure logic. Play a quick 7x7, take on the tougher 10x10 Expert board, or try the Daily Puzzle. A free Hint and Undo are always there if you get stuck. No timers, no pressure - just clean logic.",
+    "description": "Crown Fields is a calm grid-placement puzzle: place one crown in every row, column and coloured region so that no two crowns touch, even diagonally. Every puzzle is generated fresh with exactly one solution, solvable by pure logic. Play a quick 7x7, take on the tougher 10x10 Expert board, or try the Daily Puzzle. A free Hint and Undo are always there if you get stuck. An in-app Rules page explains every mechanic. No timers, no pressure - just clean logic.",
     "genre": "star battle / queens regions",
     "demo": true,
     "howToPlay": [
@@ -107,7 +128,7 @@
     "stage": "production",
     "title": "Durak",
     "tagline": "The card game of the fool",
-    "description": "Durak, widely regarded as the most played card game of Russia and its neighbours: attack, defend, throw in, and try not to be the last one holding cards. Play against one to three computer players in Podkidnoy or Perevodnoy, learn in eight short lessons, solve a daily endgame and read the story of the game. Offline, score-only, no wagers.",
+    "description": "Durak, widely regarded as the most played card game of Russia and its neighbours: attack, defend, throw in, and try not to be the last one holding cards. Play against one to three computer players in Podkidnoy or Perevodnoy, learn in eight short lessons, solve a daily endgame and read the story of the game. A full in-app Rules reference covers every mechanic. Offline, score-only, no wagers.",
     "genre": "attack-and-defence shedding game",
     "demo": true,
     "howToPlay": [
@@ -128,7 +149,7 @@
     "stage": "release-candidate",
     "title": "Fox and Geese",
     "tagline": "One fox. A flock of geese. A cross of frost.",
-    "description": "Fox and Geese is the classic hunt game, played on a cross of 33 points across Europe for centuries. One fox faces thirteen geese: the geese step forward or sideways and never back, and try to close the fox in; the fox slips between them and jumps any goose left alone, chaining jumps in one turn. Learn in nine hands-on lessons, play either side against four computer levels or a friend on one phone, choose a flock of 7 to 17 geese, and solve a new puzzle every day. Hand-painted fox and geese on a moonlit board. No ads, works offline.",
+    "description": "Fox and Geese is the classic hunt game, played on a cross of 33 points across Europe for centuries. One fox faces thirteen geese: the geese step forward or sideways and never back, and try to close the fox in; the fox slips between them and jumps any goose left alone, chaining jumps in one turn. Learn in nine hands-on lessons, play either side against four computer levels or a friend on one phone, choose a flock of 7 to 17 geese, and solve a new puzzle every day. Hand-painted fox and geese on a moonlit board. An in-app Rules page covers it all. No ads, works offline.",
     "genre": "abstract strategy board game",
     "demo": true,
     "howToPlay": [
@@ -149,7 +170,7 @@
     "stage": "production",
     "title": "Go",
     "tagline": "The game of stones and territory",
-    "description": "Go is the classic board game of East Asia: Weiqi in China, Baduk in Korea, Igo in Japan. Place stones on a kaya-wood board, surround territory and capture what has no liberties. Learn in eleven hands-on lessons, play the computer at four levels on 9x9, 13x13 or 19x19 boards, pass the phone to a friend, and solve a new puzzle every day. Dead stones are found for you, every refused move is explained, and hints say why a move is good. Hand-painted board, slate and shell stones, large text and reduced motion. No ads, works offline.",
+    "description": "Go is the classic board game of East Asia: Weiqi in China, Baduk in Korea, Igo in Japan. Place stones on a kaya-wood board, surround territory and capture what has no liberties. Learn in eleven hands-on lessons, play the computer at four levels on 9x9, 13x13 or 19x19 boards, pass the phone to a friend, and solve a new puzzle every day. Dead stones are found for you, every refused move is explained, and hints say why a move is good. Hand-painted board, slate and shell stones, large text and reduced motion. An in-app Rules page covers every rule in exact detail. No ads, works offline.",
     "genre": "abstract strategy board game",
     "demo": true,
     "howToPlay": [
@@ -170,7 +191,7 @@
     "stage": "release-candidate",
     "title": "Hare and Hounds",
     "tagline": "One hare. Three hounds. One narrow board.",
-    "description": "Hare and Hounds is a traditional hunt game for two sides on a tiny board of eleven points. Three hounds close in on one hare, but hounds may never move backward, so every step is a promise. Trap the hare before the hunt clock runs out, or slip past the hounds. Learn in nine hands-on lessons, play either side at four computer levels, take on a twelve-level campaign with stars, solve a new puzzle every day, or play a friend on one phone. Hand-painted animals, large text and reduced motion. No ads, works offline.",
+    "description": "Hare and Hounds is a traditional hunt game for two sides on a tiny board of eleven points. Three hounds close in on one hare, but hounds may never move backward, so every step is a promise. Trap the hare before the hunt clock runs out, or slip past the hounds. Learn in nine hands-on lessons, play either side at four computer levels, take on a twelve-level campaign with stars, solve a new puzzle every day, or play a friend on one phone. Hand-painted animals, large text and reduced motion. An in-app Rules page covers it all. No ads, works offline.",
     "genre": "abstract strategy board game",
     "demo": true,
     "howToPlay": [
@@ -191,7 +212,7 @@
     "stage": "production",
     "title": "Golden Sling",
     "tagline": "Pull, aim, release. Guard the harvest.",
-    "description": "A hand-carved slingshot, a golden field, and birds raiding the crop. Pull back, aim and release to scare them off before the harvest is gone. Every bird behaves differently, the wind picks up as you advance, and every miss sends the flock scattering. Free to play, with a new Daily Hunt every day.",
+    "description": "A hand-carved slingshot, a golden field, and birds raiding the crop. Pull back, aim and release to scare them off before the harvest is gone. Every bird behaves differently, the wind picks up as you advance, and every miss sends the flock scattering. Free to play, with a new Daily Hunt every day. An in-app Rules page covers every bird and mechanic.",
     "genre": "slingshot arcade",
     "demo": true,
     "howToPlay": [
@@ -231,7 +252,7 @@
     "stage": "production",
     "title": "Konane",
     "tagline": "The jumping game of Hawaii",
-    "description": "Konane is a traditional Hawaiian strategy game: black and white stones fill a carved lava-stone slab, and every move is a jump that removes the stone you hop over. Whoever cannot jump loses. Learn with eight hands-on lessons, play a computer at four levels on 6x6, 8x8 or 10x10 boards, or solve a new daily puzzle where exactly one first jump wins by force.",
+    "description": "Konane is a traditional Hawaiian strategy game: black and white stones fill a carved lava-stone slab, and every move is a jump that removes the stone you hop over. Whoever cannot jump loses. Learn with eight hands-on lessons, play a computer at four levels on 6x6, 8x8 or 10x10 boards, or solve a new daily puzzle where exactly one first jump wins by force. A full in-app Rules page covers the opening, the jump and how the game is won.",
     "genre": "Hawaiian jumping game",
     "demo": true,
     "howToPlay": [
@@ -273,7 +294,7 @@
     "stage": "production",
     "title": "Nine Men's Morris",
     "tagline": "The mill game of Europe",
-    "description": "Nine Men's Morris, known as Muhle in Germany, Moulin in France and Merels in England, is a medieval mill game carved into cloister seats across Europe. Place nine men on a 24-point board, slide them along the lines and take an enemy man with every row of three. Learn in ten hands-on lessons, play five computer levels from Apprentice to Grandmaster, pass the phone to a friend, and solve a mill puzzle every day. No ads, works offline.",
+    "description": "Nine Men's Morris, known as Muhle in Germany, Moulin in France and Merels in England, is a medieval mill game carved into cloister seats across Europe. Place nine men on a 24-point board, slide them along the lines and take an enemy man with every row of three. Learn in ten hands-on lessons, play five computer levels from Apprentice to Grandmaster, pass the phone to a friend, and solve a mill puzzle every day. Every rule is written out in full on the in-app Rules page. No ads, works offline.",
     "genre": "abstract strategy board game",
     "demo": true,
     "howToPlay": [
@@ -315,7 +336,7 @@
     "stage": "production",
     "title": "Mū Tōrere",
     "tagline": "The eight-pointed star game of Aotearoa",
-    "description": "Mū Tōrere is a traditional Māori board game of Aotearoa New Zealand. Four stones each on an eight-pointed star with a pit in the middle, the putahi: slide one stone at a time and leave your opponent with no move. The game is tiny and fully solved, so it is all traps and foresight. Learn in eight hands-on lessons, climb a Ladder of twelve opponents, solve a new proven puzzle every day, or play a friend on one phone. Carved-wood board, shell and greenstone stones, calm sound. No ads, works offline.",
+    "description": "Mū Tōrere is a traditional Māori board game of Aotearoa New Zealand. Four stones each on an eight-pointed star with a pit in the middle, the putahi: slide one stone at a time and leave your opponent with no move. The game is tiny and fully solved, so it is all traps and foresight. Learn in eight hands-on lessons, climb a Ladder of twelve opponents, solve a new proven puzzle every day, or play a friend on one phone. Carved-wood board, shell and greenstone stones, calm sound. An in-app Rules page spells out every move exactly. No ads, works offline.",
     "genre": "abstract strategy board game",
     "demo": true,
     "howToPlay": [
@@ -336,7 +357,7 @@
     "stage": "release-candidate",
     "title": "One Arrow Oath",
     "tagline": "Nothing fires twice.",
-    "description": "A deckbuilder where your best cards can be played only once. You are an archer sworn never to loose the same arrow twice: every named Arrow you play is spent for the whole run, so each fight asks how little you can afford to spend. Read every enemy's intent, answer it with the right element, take on Debts that come due at the worst moment, and decide whether to keep the Covenant or break it. Inspired by a warrior's vow from ancient Sanskrit epic poetry, one of the world's oldest literary traditions. The world and every name in it are original.",
+    "description": "A deckbuilder where your best cards can be played only once. You are an archer sworn never to loose the same arrow twice: every named Arrow you play is spent for the whole run, so each fight asks how little you can afford to spend. Read every enemy's intent, answer it with the right element, take on Debts that come due at the worst moment, and decide whether to keep the Covenant or break it. Inspired by a warrior's vow from ancient Sanskrit epic poetry, one of the world's oldest literary traditions. The world and every name in it are original. An in-app Rules page covers every system.",
     "genre": "roguelite deckbuilder",
     "demo": true,
     "howToPlay": [
@@ -357,7 +378,7 @@
     "stage": "production",
     "title": "Oware",
     "tagline": "The seed-sowing game of West Africa",
-    "description": "Oware is the classic seed-sowing game of Ghana and West Africa, part of the mancala family. Twelve pits, forty-eight seeds: lift a pit, sow its seeds one by one round the board, and capture pits that end with two or three. Learn in eight short hands-on lessons, play the computer at five levels from Easy to Grandmaster, pass the phone to a friend, and solve a new capture puzzle every day. Hand-carved wood, glossy seeds and woven-cloth art, large text and reduced-motion options. No ads, works offline.",
+    "description": "Oware is the classic seed-sowing game of Ghana and West Africa, part of the mancala family. Twelve pits, forty-eight seeds: lift a pit, sow its seeds one by one round the board, and capture pits that end with two or three. Learn in eight short hands-on lessons, play the computer at five levels from Easy to Grandmaster, pass the phone to a friend, and solve a new capture puzzle every day. Hand-carved wood, glossy seeds and woven-cloth art, large text and reduced-motion options. Full rules, captures and endings are in the in-app Rules page. No ads, works offline.",
     "genre": "abstract strategy board game",
     "demo": true,
     "howToPlay": [
@@ -378,7 +399,7 @@
     "stage": "production",
     "title": "Pachisi",
     "tagline": "The royal race of the cross",
-    "description": "Pachisi is the royal race game of India, ancestor of Ludo. Throw six cowrie shells, count the mouths that face up, and race four pawns around the embroidered cloth cross to its centre. Land on a rival to send it home, hide on the marked squares, block the way with a pair. Play the full game or the friendly Ludo mode, with two to four players, against four computer personalities or friends passing one phone. Nine hands-on lessons and a daily race. No ads, works offline.",
+    "description": "Pachisi is the royal race game of India, ancestor of Ludo. Throw six cowrie shells, count the mouths that face up, and race four pawns around the embroidered cloth cross to its centre. Land on a rival to send it home, hide on the marked squares, block the way with a pair. Play the full game or the friendly Ludo mode, with two to four players, against four computer personalities or friends passing one phone. Nine hands-on lessons, a daily race and an exhaustive in-app Rules reference. No ads, works offline.",
     "genre": "family board game",
     "demo": true,
     "howToPlay": [
@@ -399,7 +420,7 @@
     "stage": "production",
     "title": "Perch",
     "tagline": "Read the stone. Choose your moment.",
-    "description": "You are a small bird on a branch, and hunters with catapults ring the field. You never aim: you read the stone coming and choose your moment to fly. Survive each day until sunset for up to three stars. Level 1 is one tree; from level 2 whole groves and orchards open up and you choose where to fly. Every level adds one new idea: golden seeds, fast archers, wind, a Master Hunter with a pattern to learn, nets and beaters. From level 3, close calls earn acorns to knock hunters flat. A hit only ruffles feathers. No ads, works offline.",
+    "description": "You are a small bird on a branch, and hunters with catapults ring the field. You never aim: you read the stone coming and choose your moment to fly. Survive each day until sunset for up to three stars. Level 1 is one tree; from level 2 whole groves and orchards open up and you choose where to fly. Every level adds one new idea: golden seeds, fast archers, wind, a Master Hunter with a pattern to learn, nets and beaters. From level 3, close calls earn acorns to knock hunters flat. A hit only ruffles feathers. No ads, works offline. An in-game Rules page covers every mechanic in detail.",
     "genre": "dodge arcade",
     "demo": true,
     "howToPlay": [
@@ -483,7 +504,7 @@
     "stage": "prototype",
     "title": "Shogi",
     "tagline": "Japan's game of generals and drops",
-    "description": "Shogi is the chess-like strategy game of Japan, played on a 9 by 9 board. Its big idea: a captured piece changes sides and can be dropped back on any empty point. Learn in twelve hands-on lessons where you make every move, play five computer levels from Novice to Master as either side, try the quick 5x5 mini board, or pass the phone to a friend. Every refused move is explained, hints tell you why, and a new checkmate puzzle arrives every day. Hand-drawn kaya board and boxwood pieces, large text and reduced motion options. No ads, works offline. Play in 日本語 or English.",
+    "description": "Shogi is the chess-like strategy game of Japan, played on a 9 by 9 board. Its big idea: a captured piece changes sides and can be dropped back on any empty point. Learn in twelve hands-on lessons where you make every move, play five computer levels from Novice to Master as either side, try the quick 5x5 mini board, or pass the phone to a friend. Every refused move is explained, hints tell you why, and a new checkmate puzzle arrives every day. Hand-drawn kaya board and boxwood pieces, large text and reduced motion options. No ads, works offline. Play in 日本語 or English. Full rules built in.",
     "genre": "board game",
     "demo": true,
     "howToPlay": [
@@ -504,7 +525,7 @@
     "stage": "prototype",
     "title": "Sure Sweep",
     "tagline": "No-guess minesweeper. Every board solves by logic alone.",
-    "description": "Sure Sweep is classic mine-clearing with one guarantee: every board can be fully solved by logic, with no lucky guesses required. Tap to reveal, flip the switch to flag suspected mines, and chord through satisfied numbers to clear the board fast. Stuck? A free hint shows you the deduction you missed, and one free Undo takes back a fatal tap. Sea-chart art, a calm teal palette, and colour schemes you can switch anytime.",
+    "description": "Sure Sweep is classic mine-clearing with one guarantee: every board can be fully solved by logic, with no lucky guesses required. Tap to reveal, flip the switch to flag suspected mines, and chord through satisfied numbers to clear the board fast. Stuck? A free hint shows you the deduction you missed, and one free Undo takes back a fatal tap. Sea-chart art, a calm teal palette, and colour schemes you can switch anytime. A full in-app Rules page covers every mechanic.",
     "genre": "no-guess minesweeper",
     "demo": true,
     "howToPlay": [
@@ -525,7 +546,7 @@
     "stage": "production",
     "title": "Tarneeb",
     "tagline": "The partnership card game of the Levant",
-    "description": "Tarneeb is the bidding-and-trump trick-taking card game of the Levant. You and a computer partner bid against two computer opponents for how many of 13 tricks your side will take; the winning bidder names trump and leads. Follow suit, take tricks, and score by what you win. Learn in eight hands-on lessons, play four computer levels with hints that explain the reasoning, and solve a new open-hand Daily Deal every day. Designed cards with a large-print option, a warm cafe table. No ads, offline, score only.",
+    "description": "Tarneeb is the bidding-and-trump trick-taking card game of the Levant. You and a computer partner bid against two computer opponents for how many of 13 tricks your side will take; the winning bidder names trump and leads. Follow suit, take tricks, and score by what you win. Learn in eight hands-on lessons, play four computer levels with hints that explain the reasoning, and solve a new open-hand Daily Deal every day. An in-app Rules page covers bidding and scoring in full. Designed cards with a large-print option, a warm cafe table. No ads, offline, score only.",
     "genre": "trick-taking card game",
     "demo": true,
     "howToPlay": [
@@ -567,7 +588,7 @@
     "stage": "release-candidate",
     "title": "Tiger and Goat",
     "tagline": "Four tigers. Twenty goats. One board.",
-    "description": "Tiger and Goat is Bagh-chal, Nepal's traditional board game. Four tigers hunt twenty goats on a board of 25 points: the goats are slow but many, the tigers few but fast. The game ends only when every goat is captured or every tiger is trapped. Learn in nine hands-on lessons, play either side against four computer levels or a friend on one phone, and solve a new puzzle every day. Win games to earn new boards and a snowy set of pieces. Hand-painted art, large text and reduced motion options. No ads, works offline.",
+    "description": "Tiger and Goat is Bagh-chal, Nepal's traditional board game. Four tigers hunt twenty goats on a board of 25 points: the goats are slow but many, the tigers few but fast. The game ends only when every goat is captured or every tiger is trapped. Learn in nine hands-on lessons, play either side against four computer levels or a friend on one phone, and solve a new puzzle every day. Win games to earn new boards and a snowy set of pieces. Hand-painted art, large text and reduced motion options. An in-app Rules page covers it all. No ads, works offline.",
     "genre": "abstract strategy board game",
     "demo": true,
     "howToPlay": [
@@ -588,7 +609,7 @@
     "stage": "production",
     "title": "Toguz Kumalak",
     "tagline": "The nine-pebble game of the steppe",
-    "description": "Toguz Kumalak is the traditional sowing game of Kazakhstan and Kyrgyzstan, part of the mancala family. Eighteen pits, 162 pebbles: lift a pit, sow round the board, capture pits your last pebble makes even, and win one opponent pit for good as your tuz. Learn in ten short hands-on lessons, play the computer at five levels, pass the phone to a friend, and solve a new puzzle every day. Carved wood, felt and kilim-pattern art, large text and reduced-motion options. No ads, works offline.",
+    "description": "Toguz Kumalak is the traditional sowing game of Kazakhstan and Kyrgyzstan, part of the mancala family. Eighteen pits, 162 pebbles: lift a pit, sow round the board, capture pits your last pebble makes even, and win one opponent pit for good as your tuz. Learn in ten short hands-on lessons, play the computer at five levels, pass the phone to a friend, and solve a new puzzle every day. An in-app Rules page covers every rule in full. Carved wood, felt and kilim-pattern art, large text and reduced-motion options. No ads, works offline.",
     "genre": "abstract strategy board game",
     "demo": true,
     "howToPlay": [
@@ -609,7 +630,7 @@
     "stage": "release-candidate",
     "title": "Word Game",
     "tagline": "Tap the matching word before it drifts away.",
-    "description": "Word Game is a fast vocabulary drill built around over 300 graduate-level words. A target word appears at the top and three candidate words drift across the screen - tap the correct synonym or antonym before it drifts away. After every session you get a full review of each word: what you tapped, the correct answer and its meaning, so mistakes turn into words you remember.",
+    "description": "Word Game is a fast vocabulary drill built around over 300 graduate-level words. A target word appears at the top and three candidate words drift across the screen - tap the correct synonym or antonym before it drifts away. After every session you get a full review of each word: what you tapped, the correct answer and its meaning, so mistakes turn into words you remember. A full in-app Rules page explains every mechanic.",
     "genre": "timed vocabulary drill",
     "demo": true,
     "howToPlay": [

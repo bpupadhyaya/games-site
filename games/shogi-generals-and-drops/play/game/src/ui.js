@@ -1,8 +1,9 @@
 // Every button on every screen: one list per screen, used both to draw them (view.js) and to hit-test taps (game.js).
 import { LESSONS } from './lessons.js';
 import { LEVELS } from './engine.js';
+import { RULES } from './content.js';
 
-export const ABOUT_PAGES = 3, HOWTO_PAGES = 2;
+export const ABOUT_PAGES = 3, HOWTO_PAGES = 2, RULES_PAGES = RULES.length;
 const FULL = { x: 80, w: 560 }, HALF_L = { x: 80, w: 272 }, HALF_R = { x: 368, w: 272 };
 
 export function buttonsFor(s) {
@@ -25,7 +26,10 @@ export function buttonsFor(s) {
       y += 114;
       half('learn', 'Learn to play', 'puzzle', 'Puzzle of the day', y); y += 104;
       half('mini', 'Mini shogi 5x5', 'two', 'Two players', y); y += 104;
-      half('howto', 'How to play', 'about', 'About shogi', y); y += 104;
+      // How to play / About / Rules share one row, three even columns (Rules is the addition; the other
+      // two columns keep their same y and height, only narrower).
+      { const tw = (FULL.w - 32) / 3; add('howto', 'How to play', FULL.x, y, tw, 92); add('about', 'About shogi', FULL.x + tw + 16, y, tw, 92); add('rules', 'Rules', FULL.x + (tw + 16) * 2, y, tw, 92); }
+      y += 104;
       half('settings', 'Settings', 'sound', s.prefs.sound ? 'Sound: on' : 'Sound: off', y); y += 148;
       half('langJP', 'Play (日本語)', 'langEN', 'Play (English)', y, { toggle: s.prefs.lang !== 'en' }, { toggle: s.prefs.lang === 'en' });
       break;
@@ -44,8 +48,8 @@ export function buttonsFor(s) {
       add('back', 'Back', FULL.x, 924, FULL.w, 92);
       break;
     }
-    case 'about': case 'howto': {
-      const pages = s.scene === 'about' ? ABOUT_PAGES : HOWTO_PAGES;
+    case 'about': case 'howto': case 'rules': {
+      const pages = s.scene === 'about' ? ABOUT_PAGES : s.scene === 'howto' ? HOWTO_PAGES : RULES_PAGES;
       if (s.page > 0) add('prev', 'Previous', 40, 1330, 200, 88); else add('back', 'Back', 40, 1330, 200, 88);
       if (s.page < pages - 1) add('next', 'Next', 480, 1330, 200, 88, { primary: true }); else add('back', 'Done', 480, 1330, 200, 88, { primary: true });
       break;

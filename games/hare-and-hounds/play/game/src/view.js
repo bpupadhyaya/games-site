@@ -1,6 +1,6 @@
 // Everything that is drawn each frame. Reads `state` (see game.js) and changes nothing.
 // Static art (forest floor, map) and the two pieces are cached sprites (art.js, pieces.js), so a frame is cheap.
-import { W, H, pointAt, PIECE_R, SIZE, UNIT, BTN, LOOK, TILE, titleRows, clockPos, CLOCK_Y, overButtons } from './layout.js';
+import { W, H, pointAt, PIECE_R, SIZE, UNIT, BTN, LOOK, RULES_NAV, TILE, titleRows, clockPos, CLOCK_Y, overButtons } from './layout.js';
 import { drawTableAndBoard, drawLeaf, BOARD_NAMES } from './art.js';
 import { drawHare, drawHound, SET_NAMES } from './pieces.js';
 import { unlocked } from './unlocks.js';
@@ -9,6 +9,7 @@ import { LEVELS } from './engine.js';
 import { LESSONS } from './lessons.js';
 import { PUZZLE_TEXT } from './puzzles.js';
 import { CAMPAIGN } from './campaign.js';
+import { RULES } from './content.js';
 
 const FONT = '"Cormorant Garamond", Georgia, "Times New Roman", serif', UI = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
 const SIDE = { H: 'Hare', D: 'Hounds' };
@@ -174,7 +175,7 @@ export function render(ctx, state) {
     button(R.two, 'Two players, one phone', { size: 28 });
     button(R.daily, solvedToday ? `Daily puzzle: solved · streak ${state.daily.streak}` : state.daily.streak ? `Daily puzzle · streak ${state.daily.streak}` : 'Daily puzzle', { size: 28 });
     button(R.level, `Computer: ${LEVELS[state.level].name}`, { size: 22 }); button(R.sound, state.sound ? 'Sound on' : 'Sound off', { size: 22 }); button(R.marks, state.marks ? "Hare's reach: on" : "Hare's reach: off", { size: 21 }); button(R.calm, state.calm ? 'Reduced motion: on' : 'Reduced motion: off', { size: 20 });
-    button(R.look, 'Board and pieces', { size: 24 });
+    button(R.look, 'Board and pieces', { size: 24 }); button(R.rules, 'Rules', { size: 24 });
     // badges: one star per level beaten with each side
     const by = R.look.y + 104;
     for (const [side, x0, label] of [['H', 96, 'Hare'], ['D', 396, 'Hounds']]) {
@@ -204,5 +205,31 @@ export function render(ctx, state) {
     }
     const hasNext = state.camp >= 0 && state.camp + 1 < CAMPAIGN.length;
     for (const b of overButtons(state.camp, !state.two && g.winner === state.human, hasNext)) button(b.rect, b.label, { primary: b.primary, size: b.primary ? 34 : 30 });
+  } else if (scene === 'rules') {
+    ctx.fillStyle = 'rgba(6,10,6,0.74)'; ctx.fillRect(0, 0, W, H);
+    const page = RULES[state.rulesPage % RULES.length];
+    text('Rules', 360, 130, 44);
+    text(page.title, 360, 182, 28, '#ffd684', UI, 700);
+    const top = page.piece ? 490 : 220, bottom = 545; // keep clear of the board art drawn below
+    if (page.piece) (page.piece === 'H' ? drawHare : drawHound)(ctx, 360, 365, 70, { set });
+    // Count wrapped lines at a given font size without drawing, so a long page can shrink slightly
+    // to stay clear of the board art instead of running into it.
+    const countLines = (str, size, maxW) => {
+      ctx.font = `600 ${size}px ${UI}`; const words = str.split(' '); let n = 1, cur = '';
+      for (const w of words) { const t2 = cur ? cur + ' ' + w : w; if (ctx.measureText(t2).width > maxW && cur) { n += 1; cur = w; } else cur = t2; }
+      return n;
+    };
+    const maxW = big ? 630 : 640;
+    let size = big ? 29 : 25;
+    for (; size > 15; size -= 1) {
+      const lh = size * 1.3, gap = 12;
+      const total = page.lines.reduce((h, ln) => h + countLines(ln, size, maxW) * lh + gap, 0) - gap;
+      if (total <= bottom - top) break;
+    }
+    const lh = size * 1.3;
+    let y = top;
+    for (const line of page.lines) { const n = wrap(line, 360, y, size, maxW, '#f6e3b4', lh); y += n * lh + 12; }
+    text(`Page ${(state.rulesPage % RULES.length) + 1} of ${RULES.length}`, 360, 1420, 22, 'rgba(246,227,180,0.7)', UI, 500);
+    button(RULES_NAV.back, 'Back', { size: 28 }); button(RULES_NAV.next, 'Next', { size: 28, primary: true });
   }
 }

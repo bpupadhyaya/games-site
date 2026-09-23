@@ -6,6 +6,7 @@ import {
   drawTable, drawTableSwatch, drawFace, drawBack, drawFaceLarge, drawBackLarge, drawLiftShadow,
   drawRing, drawWell, drawPip, drawButton, drawPlate, drawSheet, text, shadowText, wrapText,
 } from './art.js';
+import { RULES } from './content.js';
 
 const SUIT_ORDER = ['S', 'H', 'D', 'C'];
 const HERO_CARDS = [null, { suit: 'C', rank: 11 }, { suit: 'D', rank: 12 }, { suit: 'S', rank: 13 }, { suit: 'H', rank: 1 }];
@@ -18,6 +19,7 @@ export function render(ctx, env, state, layout, fx, { hintMoves, demoLimit }) {
 
   if (state.scene === 'demo-limit') drawDemoLimit(ctx);
   else if (state.scene === 'title') drawTitle(ctx, env, state, theme, calm ? 0 : time, demoLimit);
+  else if (state.scene === 'rules') drawRules(ctx, state, theme);
   else {
     drawPlay(ctx, state, layout, fx, theme, hintMoves, calm ? 1 : 0.78 + 0.22 * Math.sin(time * 2.2));
     if (state.scene === 'won') drawWon(ctx, state, fx.sinceWon(), calm);
@@ -165,13 +167,154 @@ function drawTitle(ctx, env, state, theme, time, demoLimit) {
   drawPlate(ctx, W / 2, 1046, 600, 76);
   text(ctx, `Hands played ${state.handsPlayed}   ·   Hands won ${state.handsWon}`, W / 2, 1095, 30, CREAM, UI, 700);
 
-  drawButton(ctx, BTN.titleOptions, 'Options', { size: 34, sub: 'Table, card backs, suit colours' });
+  // Options used to be one wide button with a subtitle; it now shares its row with Rules, so the
+  // subtitle (still true — table, card backs, suit colours) is dropped to keep both labels clear.
+  drawButton(ctx, BTN.titleOptions, 'Options', { size: 34 });
+  drawButton(ctx, BTN.titleRules, 'Rules', { size: 34 });
 
   if (state.demo) {
     drawPlate(ctx, W / 2, 1300, 520, 64);
     const left = Math.max(demoLimit - state.demoDeals, 0);
     text(ctx, `Free preview: ${left} ${left === 1 ? 'deal' : 'deals'} left`, W / 2, 1342, 28, CREAM, UI, 600);
   }
+}
+
+// ---------------------------------------------------------------------------------------------
+// Rules: an exhaustive, paginated reference. Additive only — reachable from the title screen's
+// new "Rules" button. Every diagram below is drawn with the same drawFace/drawBack/drawWell/
+// drawRing functions the real board uses, never a separate simplified icon set.
+// ---------------------------------------------------------------------------------------------
+function drawRules(ctx, state, theme) {
+  const page = RULES[state.rulesPage % RULES.length];
+  shadowText(ctx, 'Rules', W / 2, 176, 58, CREAM, FONT, 700);
+  // A page title can vary a lot in length; shrink it rather than let it ever touch the edges.
+  let titleSize = 32;
+  ctx.font = `800 ${titleSize}px ${UI}`;
+  while (ctx.measureText(page.title).width > W - 90 && titleSize > 22) {
+    titleSize -= 2;
+    ctx.font = `800 ${titleSize}px ${UI}`;
+  }
+  text(ctx, page.title, W / 2, 236, titleSize, GOLD, UI, 800);
+
+  let y = 288;
+  if (page.diagram) {
+    y = drawRulesDiagram(ctx, page, theme, state) + 40;
+  }
+
+  const LH = 33;
+  for (const line of page.lines) {
+    const numLines = wrapText(ctx, line, W / 2, y, 24, W - 100, LH, 'rgba(251,238,221,0.94)', 500);
+    y += numLines * LH + 12;
+  }
+
+  text(ctx, `Page ${(state.rulesPage % RULES.length) + 1} of ${RULES.length}`, W / 2, 1392, 24, 'rgba(251,238,221,0.65)', UI, 600);
+  drawButton(ctx, BTN.rulesBack, 'Back', { size: 36 });
+  drawButton(ctx, BTN.rulesNext, 'Next', { style: 'primary', size: 36 });
+}
+
+// Draws the small still-life for one Rules page, using the real card art. Returns the y just
+// below the diagram so the caller knows where to start the body text.
+function drawRulesDiagram(ctx, page, theme, state) {
+  const top = 270;
+  const four = state.fourColorDeck;
+  if (page.diagram === 'deck') {
+    const cards = page.cards, gap = 40, totalW = cards.length * CARD_W + (cards.length - 1) * gap;
+    let x = (W - totalW) / 2;
+    for (const c of cards) { drawFace(ctx, x, top, c, four); x += CARD_W + gap; }
+    return top + CARD_H;
+  }
+  if (page.diagram === 'ranks') {
+    const [lo, hi] = page.cards, gap = 120, totalW = CARD_W * 2 + gap;
+    const x0 = (W - totalW) / 2;
+    drawFace(ctx, x0, top, lo, four);
+    drawFace(ctx, x0 + CARD_W + gap, top, hi, four);
+    text(ctx, 'Lowest', x0 + CARD_W / 2, top + CARD_H + 32, 22, GOLD, UI, 700);
+    text(ctx, 'Highest', x0 + CARD_W + gap + CARD_W / 2, top + CARD_H + 32, 22, GOLD, UI, 700);
+    return top + CARD_H + 32;
+  }
+  if (page.diagram === 'colours') {
+    const rank = 9, gap = 16;
+    const cards = [
+      { suit: 'H', four: false }, { suit: 'D', four: false },
+      { suit: 'H', four: true }, { suit: 'D', four: true },
+    ];
+    const totalW = cards.length * CARD_W + (cards.length - 1) * gap;
+    let x = (W - totalW) / 2;
+    for (const c of cards) {
+      drawFace(ctx, x, top, { suit: c.suit, rank }, c.four);
+      x += CARD_W + gap;
+    }
+    text(ctx, '2-colour', (W - totalW) / 2 + CARD_W + gap / 2, top + CARD_H + 30, 22, 'rgba(251,238,221,0.75)', UI, 700);
+    text(ctx, '4-colour', (W - totalW) / 2 + CARD_W * 3 + gap * 2 + gap / 2, top + CARD_H + 30, 22, 'rgba(251,238,221,0.75)', UI, 700);
+    return top + CARD_H + 30;
+  }
+  if (page.diagram === 'deal') {
+    const cols = [1, 4, 7];
+    const scale = 0.5, step = 18, gap = 56;
+    const w = CARD_W * scale;
+    const totalW = cols.length * w + (cols.length - 1) * gap;
+    let x = (W - totalW) / 2;
+    const baseY = top;
+    let maxBottom = baseY;
+    for (const n of cols) {
+      for (let i = 0; i < n; i++) {
+        const cy = baseY + i * step;
+        ctx.save();
+        ctx.translate(x, cy);
+        ctx.scale(scale, scale);
+        if (i === n - 1) drawFace(ctx, 0, 0, { suit: 'S', rank: 5 }, four); else drawBack(ctx, 0, 0, theme);
+        ctx.restore();
+        maxBottom = Math.max(maxBottom, cy + CARD_H * scale);
+      }
+      text(ctx, `Column: ${n} card${n === 1 ? '' : 's'}`, x + w / 2, maxBottom + 30, 20, 'rgba(251,238,221,0.75)', UI, 700);
+      x += w + gap;
+    }
+    return maxBottom + 30;
+  }
+  if (page.diagram === 'stockwaste') {
+    const gap = 90;
+    const x0 = (W - (CARD_W * 2 + gap)) / 2;
+    drawBack(ctx, x0 - 4, top - 5, theme);
+    drawBack(ctx, x0 - 2, top - 2.5, theme);
+    drawBack(ctx, x0, top, theme);
+    drawFace(ctx, x0 + CARD_W + gap, top, { suit: 'D', rank: 4 }, four);
+    text(ctx, 'Stock', x0 + CARD_W / 2, top + CARD_H + 30, 22, 'rgba(251,238,221,0.75)', UI, 700);
+    text(ctx, 'Waste', x0 + CARD_W + gap + CARD_W / 2, top + CARD_H + 30, 22, 'rgba(251,238,221,0.75)', UI, 700);
+    return top + CARD_H + 30;
+  }
+  if (page.diagram === 'tableauRun') {
+    const cx = W / 2 - CARD_W / 2, step = 74;
+    const black8 = { suit: 'S', rank: 8 }, red7 = { suit: 'H', rank: 7 };
+    drawFace(ctx, cx, top, black8, four);
+    drawFace(ctx, cx, top + step, red7, four);
+    drawRing(ctx, cx, top, 1, step + CARD_H);
+    text(ctx, 'This whole run moves together', W / 2, top + step + CARD_H + 34, 22, GOLD, UI, 700);
+    return top + step + CARD_H + 34;
+  }
+  if (page.diagram === 'foundation') {
+    const gap = 60;
+    const x0 = (W - (CARD_W * 2 + gap)) / 2;
+    drawWell(ctx, x0, top, 'H');
+    drawFace(ctx, x0, top, { suit: 'H', rank: 1 }, four);
+    ctx.save();
+    ctx.globalAlpha = 0.45;
+    drawFace(ctx, x0 + CARD_W + gap, top, { suit: 'H', rank: 2 }, four);
+    ctx.restore();
+    text(ctx, 'On the foundation', x0 + CARD_W / 2, top + CARD_H + 30, 20, 'rgba(251,238,221,0.75)', UI, 700);
+    text(ctx, 'Next legal card', x0 + CARD_W + gap + CARD_W / 2, top + CARD_H + 30, 20, 'rgba(251,238,221,0.75)', UI, 700);
+    return top + CARD_H + 30;
+  }
+  if (page.diagram === 'backs') {
+    const gap = 60;
+    const themeA = THEMES[0], themeB = THEMES[4];
+    const x0 = (W - (CARD_W * 2 + gap)) / 2;
+    drawBack(ctx, x0, top, themeA);
+    drawBack(ctx, x0 + CARD_W + gap, top, themeB);
+    text(ctx, themeA.title, x0 + CARD_W / 2, top + CARD_H + 30, 20, 'rgba(251,238,221,0.75)', UI, 700);
+    text(ctx, themeB.title, x0 + CARD_W + gap + CARD_W / 2, top + CARD_H + 30, 20, 'rgba(251,238,221,0.75)', UI, 700);
+    return top + CARD_H + 30;
+  }
+  return top;
 }
 
 // ---------------------------------------------------------------------------------------------

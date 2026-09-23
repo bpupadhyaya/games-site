@@ -22,6 +22,8 @@ export function titleRows(hasSave) {
   out.side = R(90, y, 262, 60); out.level = R(368, y, 262, 60);
   out.sound = R(90, y + 68, 262, 60); out.calm = R(368, y + 68, 262, 60);
   out.text = R(90, y + 136, 262, 60); out.about = R(368, y + 136, 262, 60);
-  out.help = R(90, y + 204, 540, 60);
+  // Controls and the new Rules reference share the row Controls used to have alone, same two-column
+  // pattern as side/level, sound/calm, text/about above - nothing else on the title screen moves.
+  out.help = R(90, y + 204, 262, 60); out.rules = R(368, y + 204, 262, 60);
   return out;
 }

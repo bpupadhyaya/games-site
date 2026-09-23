@@ -1,18 +1,25 @@
 // Every pixel of Golden Sling. Reads state, never changes it. All art is drawn in code.
-import { W, H, SLING, STONE_R, CROP_MAX, CROP_DRAIN_FROM_LEVEL, DAILY, comboMultiplier, woodFor, stoneFor, SIBLINGS } from './tuning.js';
+import { W, H, SLING, STONE_R, CROP_MAX, CROP_DRAIN_FROM_LEVEL, DAILY, BIRDS, comboMultiplier, woodFor, stoneFor, SIBLINGS } from './tuning.js';
 import { previewArc } from './physics.js';
+import { RULES } from './content.js';
 
 export const BUTTONS = {
   play: { x: 140, y: 560, w: 440, h: 112 },
   daily: { x: 140, y: 694, w: 440, h: 92 },
   endless: { x: 140, y: 806, w: 440, h: 92 },
   colors: { x: 140, y: 918, w: 440, h: 80 },
+  // Rules: a new row added below the existing title-screen stack (added for the Rules reference
+  // page) - every button above is untouched, same position and size.
+  rules: { x: 140, y: 1018, w: 440, h: 80 },
   playColors: { x: 596, y: 1196, w: 108, h: 64 },
   again: { x: 140, y: 1040, w: 440, h: 104 },
   share: { x: 90, y: 1156, w: 250, h: 76 },
   home: { x: 380, y: 1156, w: 250, h: 76 },
   sound: { x: 476, y: 1196, w: 108, h: 64 },
   soundTitle: { x: 610, y: 24, w: 84, h: 64 },
+  // Rules reference page navigation - same geometry as the tally screen's Share/Home row.
+  rulesBack: { x: 90, y: 1156, w: 250, h: 76 },
+  rulesNext: { x: 380, y: 1156, w: 250, h: 76 },
 };
 
 // Tally screen: one tappable chip per sibling game (2 x 2 grid).
@@ -711,7 +718,101 @@ function centered(ctx, text, y, font, color) {
   ctx.fillText(text, W / 2, y);
 }
 
+// Wraps `text` centred at W/2 starting at y, returns the y just below the last line drawn.
+function wrapCentered(ctx, text, y, font, color, maxW = W - 100, lh = 32) {
+  ctx.font = font;
+  ctx.fillStyle = color;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  const words = text.split(' ');
+  let line = '', ly = y;
+  for (const w of words) {
+    const cand = line ? `${line} ${w}` : w;
+    if (ctx.measureText(cand).width > maxW && line) { ctx.fillText(line, W / 2, ly); line = w; ly += lh; }
+    else line = cand;
+  }
+  ctx.fillText(line, W / 2, ly);
+  return ly + lh;
+}
+
+function drawRules(ctx, state) {
+  const scheme = SCHEMES[state.scheme] ?? SCHEMES[0];
+  drawSky(ctx, scheme, state.time);
+  drawHills(ctx, scheme);
+  drawField(ctx, 'wheat', state.time, 0);
+  ctx.fillStyle = 'rgba(8,10,18,0.45)';
+  ctx.fillRect(0, 0, W, H);
+  const page = RULES[state.rulesPage % RULES.length];
+  centered(ctx, 'Rules', 82, '900 52px system-ui, sans-serif', '#fff6dc');
+  centered(ctx, page.title, 138, '800 32px system-ui, sans-serif', '#ffd75a');
+
+  let y = 190;
+  if (page.bird) {
+    const def = BIRDS[page.bird];
+    drawBird(ctx, { type: page.bird, r: def.r, x: W / 2, y: 270, phase: 'perched', flap: 0, facing: 1, id: 0 }, state.time);
+    y = 340;
+  } else if (page.demo === 'aim') {
+    // The real slingshot, drawn at its natural in-game position (bottom of screen), pulled back -
+    // so the text above has the whole page and the art below matches exactly what play looks like.
+    const pull = { x: 66, y: -96, len: 116 };
+    const dots = previewArc(pull, 0, 7);
+    dots.forEach((d, i) => {
+      ctx.fillStyle = `rgba(255,255,255,${0.9 - (i / dots.length) * 0.65})`;
+      ctx.beginPath();
+      ctx.arc(d.x, d.y, 6 - (i / dots.length) * 3, 0, Math.PI * 2);
+      ctx.fill();
+    });
+    drawSlingshot(ctx, { stars: 0, snap: 0, stonesLeft: 1, aim: { pull } });
+  } else if (page.demo === 'combo') {
+    const labels = ['+10', '+15  x1.5', '+20  x2'];
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    labels.forEach((l, i) => {
+      const x = W / 2 - 180 + i * 180;
+      drawStone(ctx, x, 250, 0);
+      ctx.font = '800 22px system-ui, sans-serif';
+      ctx.fillStyle = i === 2 ? '#ffd75a' : '#fff';
+      ctx.fillText(l, x, 300);
+    });
+    y = 340;
+  } else if (page.demo === 'wind') {
+    const cx = W / 2, cyy = 260, len = 70;
+    ctx.strokeStyle = '#bfe3ff';
+    ctx.fillStyle = '#bfe3ff';
+    ctx.lineWidth = 6;
+    ctx.beginPath();
+    ctx.moveTo(cx - len / 2, cyy);
+    ctx.lineTo(cx + len / 2, cyy);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(cx + len / 2 + 16, cyy);
+    ctx.lineTo(cx + len / 2, cyy - 16);
+    ctx.lineTo(cx + len / 2, cyy + 16);
+    ctx.closePath();
+    ctx.fill();
+    y = 320;
+  } else if (page.demo === 'upgrades') {
+    const names = ['River pebble', 'Clay ball', 'River glass'];
+    names.forEach((n, i) => {
+      const x = W / 2 - 180 + i * 180;
+      drawStone(ctx, x, 250, i);
+      ctx.font = '600 18px system-ui, sans-serif';
+      ctx.fillStyle = 'rgba(255,255,255,0.85)';
+      ctx.textAlign = 'center';
+      ctx.fillText(n, x, 290);
+    });
+    y = 330;
+  }
+
+  for (const line of page.lines) y = wrapCentered(ctx, line, y, '500 24px system-ui, sans-serif', 'rgba(255,255,255,0.94)', W - 90, 32) + 8;
+
+  centered(ctx, `Page ${(state.rulesPage % RULES.length) + 1} of ${RULES.length}`, 1120, '600 22px system-ui, sans-serif', 'rgba(255,255,255,0.65)');
+  button(ctx, BUTTONS.rulesBack, 'Back', 'ghost');
+  button(ctx, BUTTONS.rulesNext, 'Next', 'primary');
+}
+
 export function drawGame(ctx, state, manifest, day) {
+  if (state.scene === 'rules') { drawRules(ctx, state); return; }
   const scheme = SCHEMES[state.scheme] ?? SCHEMES[0];
   const time = state.time;
   const worldName = state.world?.world ?? 'wheat';
@@ -792,6 +893,7 @@ export function drawGame(ctx, state, manifest, day) {
     button(ctx, BUTTONS.daily, state.demo ? 'Daily Hunt — in the app' : playedToday ? `Daily done: ${state.daily.score}  🔥${state.daily.streak}` : `Daily Hunt${state.daily.streak ? `  🔥${state.daily.streak}` : ''}`, 'ghost', state.demo || playedToday);
     button(ctx, BUTTONS.endless, state.demo ? 'Endless — in the app' : 'Endless', 'ghost', state.demo);
     button(ctx, BUTTONS.colors, `🎨 Light: ${scheme.name}`, 'ghost');
+    button(ctx, BUTTONS.rules, '📖 Rules', 'ghost');
     button(ctx, BUTTONS.soundTitle, state.muted ? '🔇' : '🔊', 'ghost');
   }
 

@@ -2,12 +2,14 @@
 import { newRun, step, stars } from './rules.js';
 import { drawScene, drawText, W, H } from './render.js';
 import { T, SLOTS } from './tuning.js';
+import { RULES } from './content.js';
+import { renderRulesPage, RULES_ENTRY_BOX, RULES_BACK_BOX, RULES_NEXT_BOX } from './rulesView.js';
 
 export const meta = { width: W, height: H };
 
 export function createGame(env) {
   const { rng, storage, audio, monetization, config } = env;
-  const state = { scene: 'title', level: 1, unlocked: 1, stars: {}, run: newRun(1), best: 0, bestTime: 0, feathers: 0, runs: 0, demoRuns: 0, lock: 0, clock: 0 };
+  const state = { scene: 'title', level: 1, unlocked: 1, stars: {}, run: newRun(1), best: 0, bestTime: 0, feathers: 0, runs: 0, demoRuns: 0, lock: 0, clock: 0, page: 0 };
   const fx = [];
   const dev = config.dev === true;   // tester level picker: only while the app's Developer toggle is on (kit 1.6.0+)
   const fxRng = rng.fork();
@@ -96,10 +98,19 @@ export function createGame(env) {
         if (tap) {
           const at = typeof tap === 'object' ? tap : null;
           const inBox = (x0, y0, x1, y1) => at && at.x >= x0 && at.x <= x1 && at.y >= y0 && at.y <= y1;
+          if (inBox(RULES_ENTRY_BOX.x0, RULES_ENTRY_BOX.y0, RULES_ENTRY_BOX.x1, RULES_ENTRY_BOX.y1)) { state.scene = 'rules'; state.page = 0; }
           // tester level picker: only with the Developer toggle on, never in production
-          if (dev && inBox(20, 1090, 200, 1270)) { state.level = state.level > 1 ? state.level - 1 : 12; state.run = newRun(state.level); }
+          else if (dev && inBox(20, 1090, 200, 1270)) { state.level = state.level > 1 ? state.level - 1 : 12; state.run = newRun(state.level); }
           else if (dev && inBox(520, 1090, 700, 1270)) { state.level = state.level < 12 ? state.level + 1 : 1; state.run = newRun(state.level); }
           else { saveProgress(); startRun(); }
+        }
+      } else if (state.scene === 'rules') {
+        if (tap) {
+          const at = typeof tap === 'object' ? tap : null;
+          const inBox = (b) => at && at.x >= b.x0 && at.x <= b.x1 && at.y >= b.y0 && at.y <= b.y1;
+          if (inBox(RULES_BACK_BOX)) { state.scene = 'title'; state.page = 0; }
+          else if (inBox(RULES_NEXT_BOX)) { state.page = (state.page + 1) % RULES.length; }
+          else if (!at) { state.page = (state.page + 1) % RULES.length; } // keyboard Space/Enter: next page
         }
       }
     },
@@ -111,10 +122,14 @@ export function createGame(env) {
       if (state.scene === 'title') {
         drawText(ctx, 'Perch', W / 2, 250, 120);
         drawText(ctx, 'Read the stone. Choose your moment.', W / 2, 320, 30, '#fff8e0', 700);
+        drawText(ctx, 'Rules', W - 96, 66, 30, '#fff8e0', 800);
         drawText(ctx, state.level > 1 || dev ? 'Level ' + state.level + ' · ' + s.name : 'Tap to play', W / 2, 1150, 40, '#ffe27a');
         if (state.level > 1 || dev) drawText(ctx, 'Tap to play', W / 2, 1200, 30, '#fff', 700);
         if (dev) { drawText(ctx, '‹', 110, 1175, 110, '#fff8e0'); drawText(ctx, '›', 610, 1175, 110, '#fff8e0'); drawText(ctx, 'TEST BUILD', W / 2, 1250, 22, '#9fe8ff', 700); }
         if (state.best > 0) drawText(ctx, 'Best ' + state.best, W / 2, 1232, 30, '#fff', 700);
+      } else if (state.scene === 'rules') {
+        ctx.fillStyle = 'rgba(8,12,24,0.86)'; ctx.fillRect(0, 0, W, H);
+        renderRulesPage(ctx, RULES, state.page, t);
       } else if (state.scene === 'over') {
         ctx.fillStyle = 'rgba(15,25,45,0.55)'; ctx.fillRect(0, 0, W, H);
         drawText(ctx, 'Ruffled!', W / 2, 400, 96);

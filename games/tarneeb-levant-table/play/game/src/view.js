@@ -1,10 +1,11 @@
 // Everything that is drawn each frame. Reads `state` (see game.js) and changes nothing.
-import { W, H as SH, CARD, TRICK_CARD, BACK, SLOT, SEAT, PLATE, DECK, HAND_Y, LIFT, handLayout, BTN, BID, titleRows, LESSON_ROWS, LESSONS_BACK, ABOUT_BACK } from './layout.js';
+import { W, H as SH, CARD, TRICK_CARD, BACK, SLOT, SEAT, PLATE, DECK, HAND_Y, LIFT, handLayout, BTN, BID, titleRows, LESSON_ROWS, LESSONS_BACK, ABOUT_BACK, RULES_BACK, RULES_NEXT } from './layout.js';
 import { drawTable, drawLanterns, drawCard, suit, star8, suitColor } from './art.js';
 import { SUIT_NAMES, SEAT_NAMES, legalPlays, teamOf, sortHand } from './rules.js';
 import { LEVELS } from './ai.js';
 import { LESSONS } from './lessons.js';
 import { ABOUT } from './about.js';
+import { RULES } from './rules-content.js';
 
 const FONT = '"Cormorant Garamond", Georgia, "Times New Roman", serif', UI = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
 const TAU = Math.PI * 2, GOLD = '#f2d48a';
@@ -68,7 +69,8 @@ export function render(ctx, S) {
     button(R.learn, 'Learn to play', { primary: !R.resume && !S.learnedAll, sub: `${S.learned.filter(Boolean).length} of ${LESSONS.length} lessons done` });
     button(R.play, 'New match', { primary: !R.resume && S.learnedAll, sub: `You and your partner against two computers` });
     button(R.daily, 'Daily Deal', { sub: S.daily.solvedDay === S.daily.day ? `Solved today. Streak ${S.daily.streak}` : `Open-hand puzzle. Streak ${S.daily.streak}` });
-    button(R.about, 'About Tarneeb', { size: 28 });
+    button(R.about, 'About', { size: 28 });
+    button(R.rules, 'Rules', { size: 28 });
     button(R.level, `Computer: ${LEVELS[S.level].name}`, { size: 28, sub: LEVELS[S.level].blurb });
     button(R.sound, S.sound ? 'Sound on' : 'Sound off', { size: 24, on: S.sound });
     button(R.calm, S.calm ? 'Calm motion' : 'Full motion', { size: 24, on: S.calm });
@@ -90,6 +92,31 @@ export function render(ctx, S) {
       y += wrap(body, 70, y, 21, 580, '#f0e2c4', lh, 'left').valueOf() * lh + sectionGap;
     });
     button(ABOUT_BACK, 'Back', { primary: true });
+    return;
+  }
+  // ------------------------------------------------------------------------------------------------ rules
+  if (S.scene === 'rules') {
+    const n = RULES.length, idx = ((S.page % n) + n) % n, page = RULES[idx];
+    text('Rules', 360, 148, 62);
+    const top = 226, lh = 24, bodyW = 580, titleH = 40, paraGap = 10;
+    let cardsH = 0;
+    if (page.cards) cardsH = 134 + (page.cards.some((c) => c.label) ? 26 : 0) + 24;
+    const bodyLines = page.lines.reduce((sum, l) => sum + countLines(l, 21, bodyW, UI, 600), 0);
+    const bodyH = bodyLines * lh + Math.max(0, page.lines.length - 1) * paraGap;
+    const contentH = titleH + cardsH + bodyH;
+    panel({ x: 40, y: top - 26, w: 640, h: contentH + 40 });
+    let y = top;
+    text(page.title, 70, y, 27, GOLD, FONT, 700, 'left'); y += titleH;
+    if (page.cards) {
+      const cw = 92, ch = 134, gap = 22, cn = page.cards.length, totalW = cn * cw + (cn - 1) * gap, x0 = 360 - totalW / 2;
+      page.cards.forEach((cd, i) => drawCard(ctx, cd.c, x0 + i * (cw + gap), y, cw, ch));
+      if (page.cards.some((c) => c.label)) page.cards.forEach((cd, i) => { if (cd.label) text(cd.label, x0 + i * (cw + gap) + cw / 2, y + ch + 22, 15, 'rgba(246,223,174,0.75)', UI, 600); });
+      y += cardsH;
+    }
+    page.lines.forEach((l) => { y += wrap(l, 70, y, 21, bodyW, '#f0e2c4', lh, 'left').valueOf() * lh + paraGap; });
+    text(`Page ${idx + 1} of ${n}`, 360, 1440, 20, 'rgba(246,223,174,0.65)', UI, 600);
+    button(RULES_BACK, 'Back');
+    button(RULES_NEXT, 'Next', { primary: true });
     return;
   }
   // ------------------------------------------------------------------------------------------------ lesson list

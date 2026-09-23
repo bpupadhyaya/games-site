@@ -4,7 +4,7 @@ import { drawTable, drawBoard, drawLantern, BOARD_THEME_NAMES } from './art.js';
 import { drawPiece, blob, CJK, PIECE_THEME_NAMES } from './pieces.js';
 import { LEVELS } from './engine.js';
 import { LESSONS } from './lessons.js';
-import { HOW, ABOUT } from './content.js';
+import { HOW, ABOUT, RULES } from './content.js';
 import { SIDE_NAME, kingSquare, inCheckBoard, RED, BLACK } from './rules.js';
 
 const TITLE = '"Cormorant Garamond", Georgia, "Times New Roman", serif', UI = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
@@ -78,7 +78,7 @@ export function render(ctx, state) {
     button(rows.langZh, 'Play (象棋)', { on: lang !== 'en', size: 27, font: CJK });
     button(rows.langEn, 'Play (English)', { on: lang === 'en', size: 24 });
     button(rows.level, `Computer: ${LEVELS[state.level].name}`, { size: 24 }); button(rows.sound, `Sound: ${state.sound ? 'on' : 'off'}`, { size: 24 });
-    button(rows.how, 'How to play', { size: 24 }); button(rows.about, 'About Xiangqi', { size: 24 }); button(rows.look, 'Board, pieces and settings', { size: 24 });
+    button(rows.how, 'How to play', { size: 19 }); button(rows.about, 'About Xiangqi', { size: 19 }); button(rows.rules, 'Rules', { size: 24 }); button(rows.look, 'Board, pieces and settings', { size: 24 });
     if (state.progress.played) text(`Games ${state.progress.played}   Wins ${state.progress.wins}`, 360, rows.look.y + rows.look.h + 46, 22, 'rgba(251,236,203,0.6)', UI, 600);
     return;
   }
@@ -104,12 +104,23 @@ export function render(ctx, state) {
     grp(5, 'Sound', LOOK.sound, ['On', 'Off'], state.sound ? 0 : 1);
     button(LOOK.back, 'Back', { primary: true }); return;
   }
-  if (scene === 'howto' || scene === 'about') {
+  if (scene === 'howto' || scene === 'about' || scene === 'rules') {
     lanterns(0.62, -8);
-    const pages = scene === 'howto' ? HOW : ABOUT, pg = pages[state.page % pages.length];
-    heading(scene === 'howto' ? 'How to play' : 'About this game', `${state.page % pages.length + 1} of ${pages.length}`);
+    const pages = scene === 'howto' ? HOW : scene === 'about' ? ABOUT : RULES, pg = pages[state.page % pages.length];
+    const sceneTitle = scene === 'howto' ? 'How to play' : scene === 'about' ? 'About this game' : 'Rules';
+    heading(sceneTitle, `${state.page % pages.length + 1} of ${pages.length}`);
     text(pg.title, 360, 240, 46, GOLD, TITLE);
-    let y = 316; const sz = big ? 31 : 27;
+    let y = 316;
+    // A Rules page about one piece shows that piece's own real in-game sprite, Red and Black side by
+    // side, using the same drawPiece() the board itself uses - never a separate simplified icon.
+    if (pg.type) {
+      const py = 356, dx = 120, pr = 50;
+      piece(pg.type, 360 - dx, py, { R: pr }); piece(-pg.type, 360 + dx, py, { R: pr });
+      text('Red', 360 - dx, py + 78, 20, 'rgba(251,236,203,0.7)', UI, 600);
+      text('Black', 360 + dx, py + 78, 20, 'rgba(251,236,203,0.7)', UI, 600);
+      y = py + 118;
+    }
+    const sz = big ? 31 : 27;
     for (const it of pg.items) {
       ctx.fillStyle = '#e2b661'; ctx.beginPath(); ctx.arc(66, y - 9, 5, 0, TAU); ctx.fill();
       const n = wrap(it, 88, y, sz, 590, CREAM, sz * 1.34, 'left', 500); y += n * sz * 1.34 + 22;

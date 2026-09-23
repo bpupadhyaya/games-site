@@ -5,6 +5,7 @@ import { captures, rankOf, teamOf, RANK_NAMES } from './rules.js';
 import { LEVELS } from './engine.js';
 import { LESSONS } from './lessons.js';
 import { ABOUT } from './about.js';
+import { RULES } from './rulesContent.js';
 
 const FONT = '"Cormorant Garamond", Georgia, "Times New Roman", serif', UI = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
 const CREAM = '#fbe8bf', GOLD = '#f3cf7a', NUM = UI;
@@ -225,7 +226,8 @@ export function render(ctx, state) {
     button(R.play, 'Play the computer', { primary: state.learned && !R.resume, size: 32 });
     button(R.four, 'Four players, in partnership', { size: 30 });
     button(R.daily, solved ? `Daily deal: solved · streak ${state.daily.streak}` : state.daily.streak ? `Daily deal · streak ${state.daily.streak}` : 'Daily deal', { size: 30 });
-    button(R.about, 'About', { size: 24 }); button(R.controls, 'Controls', { size: 24 }); button(R.settings, 'Settings', { size: 24 });
+    button(R.about, 'About', { size: 22 }); button(R.controls, 'Controls', { size: 22 });
+    button(R.rules, 'Rules', { size: 22 }); button(R.settings, 'Settings', { size: 22 });
     const y = R.about.y + 130;
     text(`Games played: ${state.stats.games} · won: ${state.stats.wins}`, 360, y, 22, 'rgba(251,232,191,0.9)', UI, 500);
     let stars = ''; for (let l = 0; l < LEVELS.length; l++) stars += state.stats.badges['L' + l] ? '★ ' : '☆ ';
@@ -255,6 +257,26 @@ export function render(ctx, state) {
     let y = 250;
     for (const [h, body] of ABOUT.parts) { text(h, 70, y, 28, GOLD, FONT, 700, 'left'); y += 32; const n = wrap(body, 70, y, big ? 24 : 21, 580, '#fff3d6', big ? 31 : 27, 'left'); y += n * (big ? 31 : 27) + 22; }
     button(BTN.backPage, 'Back', { primary: true, size: 32 });
+  } else if (scene === 'rules') {
+    panel(36, 100, 648, 1310, 0.92);
+    text('Rules', 360, 190, 64, CREAM, FONT);
+    const pg = RULES[state.page % RULES.length];
+    text(pg.title, 360, 248, 32, GOLD, FONT, 700);
+    let y = 300;
+    if (pg.cards && pg.cards.length) {
+      const n = pg.cards.length, cw = n >= 4 ? 118 : 132, gap = 22, totalW = n * cw + (n - 1) * gap, x0 = 360 - totalW / 2 + cw / 2, cy = y + 108;
+      pg.cards.forEach((cd, i) => {
+        const cx = x0 + i * (cw + gap);
+        card(cd.id, cx, cy, cw, 0);
+        if (cd.label) wrap(cd.label, cx, cy + cw * 1.0, 15, cw + 28, 'rgba(251,232,191,0.85)', 18);
+      });
+      y = cy + cw * 1.0 + 40;
+      if (pg.cardsCaption) { text(pg.cardsCaption, 360, y, 19, 'rgba(251,232,191,0.75)', UI, 600); y += 34; }
+    }
+    for (const line of pg.lines) { const n = wrap(line, 70, y, big ? 23 : 20, 580, '#fff3d6', big ? 30 : 26, 'left'); y += n * (big ? 30 : 26) + 18; }
+    text(`Page ${(state.page % RULES.length) + 1} of ${RULES.length}`, 360, 1398, 20, 'rgba(251,232,191,0.7)', UI, 600);
+    button(BTN.rulesBack, 'Back', { primary: true, size: 30 });
+    button(BTN.rulesNext, 'Next', { primary: true, size: 30 });
   } else if (scene === 'controls') {
     panel(36, 100, 648, 1310, 0.92);
     text('Controls', 360, 190, 64, CREAM, FONT);

@@ -4,7 +4,7 @@ import { drawScene, drawPiece, stickSprite, STICK } from './art.js';
 import { legalMoves } from './rules.js';
 import { LEVELS } from './ai.js';
 import { LESSONS } from './lessons.js';
-import { ABOUT, HOW } from './about.js';
+import { ABOUT, HOW, RULES } from './about.js';
 
 const FONT = '"Cormorant Garamond", Georgia, "Times New Roman", serif', UI = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
 const TAU = Math.PI * 2, IVORY = '#f6e7c4';
@@ -63,6 +63,7 @@ export function render(ctx, s) {
   if (boardScene) drawBoardScene();
   if (sc === 'title' || sc === 'demo-limit') drawTitle();
   if (sc === 'about' || sc === 'how') drawPage(sc === 'about' ? ABOUT : HOW);
+  if (sc === 'rules') drawRulesPage();
   if (sc === 'puzzle' && s.pz.status === 'making') { drawDim(0.5); text("Preparing today's puzzle…", 360, 800, 34, '#fff3d6', UI, 600); button(BTN.menu, 'Menu', { size: 26 }); }
   return;
 
@@ -228,7 +229,7 @@ export function render(ctx, s) {
       button(R.play, 'Play the computer', { primary: s.learned && !R.resume, size: 30 });
       button(R.two, 'Two players, one phone', { size: 28 });
       button(R.daily, s.daily.solvedDay === s.daily.day ? `Daily puzzle: solved · streak ${s.daily.streak}` : s.daily.streak ? `Daily puzzle · streak ${s.daily.streak}` : 'Daily puzzle', { size: 28 });
-      button(R.how, 'How to play', { size: 28 }); button(R.about, 'About Senet', { size: 28 });
+      button(R.how, 'How to play', { size: 28 }); button(R.about, 'About', { size: 26 }); button(R.rules, 'Rules', { size: 26 });
       button(R.level, `Computer: ${LEVELS[s.level].name}`, { size: 22 }); button(R.sound, s.sound ? 'Sound on' : 'Sound off', { size: 22 });
       button(R.calm, s.calm ? 'Reduced motion: on' : 'Reduced motion: off', { size: 20 }); button(R.big, s.big ? 'Large text: on' : 'Large text: off', { size: 22 });
       const by = R.big.y + 96;
@@ -254,5 +255,37 @@ export function render(ctx, s) {
       y += 34 + n * size * 1.34 + 24;
     }
     button(PAGE.back, 'Back', { size: 30 });
+  }
+
+  // Exhaustive rules reference, one topic per page: RULES (about.js) is the content, cross-checked against
+  // rules.js. Piece and stick art reuse the exact same drawPiece()/stickSprite() the board itself uses.
+  function drawRulesPage() {
+    drawDim(0.95);
+    const idx = ((s.rulesPage % RULES.length) + RULES.length) % RULES.length, P = RULES[idx];
+    text('Rules', 360, 152, 22, 'rgba(246,231,196,0.8)', UI, 600);
+    gold(P.title, 360, 210, 44);
+    let y = 300;
+    if (P.piece) {
+      const py = 350;
+      drawPiece(ctx, 1, 288, py, { scale: 1.4 }); drawPiece(ctx, 2, 432, py, { scale: 1.4 });
+      text('Player one', 288, py + 46, 18, 'rgba(246,231,196,0.75)', UI, 600);
+      text('Player two', 432, py + 46, 18, 'rgba(246,231,196,0.75)', UI, 600);
+      y = py + 90;
+    } else if (P.sticks) {
+      const cy = 350;
+      [true, false, true, false].forEach((light, i) => {
+        const sp = stickSprite(light);
+        ctx.save(); ctx.translate(360 + (i - 1.5) * 90, cy); ctx.scale(0.6, 0.6);
+        if (sp) ctx.drawImage(sp, -STICK.w / 2, -STICK.h / 2, STICK.w, STICK.h);
+        ctx.restore();
+      });
+      y = cy + 60;
+    }
+    const size = s.big ? 25 : 22;
+    for (const line of P.lines) { const n = wrap(line, 360, y, size, 600, '#f6e7c4', size * 1.34, 'center'); y += n * size * 1.34 + 18; }
+    text(`Page ${idx + 1} of ${RULES.length}`, 360, 1268, 22, 'rgba(246,231,196,0.7)', UI, 600);
+    button(BTN.menu, 'Menu', { size: 26 });
+    button(BTN.undo, 'Back', { size: 26, dim: idx === 0 });
+    button(BTN.hint, 'Next', { size: 26, primary: idx < RULES.length - 1, dim: idx === RULES.length - 1 });
   }
 }

@@ -9,7 +9,7 @@ import { newGame, fromRows, clone, applyMove, tryMove, legalMoves, openCorners, 
 import { LEVELS, createThinker } from './engine.js';
 import { LESSONS } from './lessons.js';
 import { createPuzzleMaker, puzzleGame, bestReply } from './puzzles.js';
-import { PAGES } from './pages.js';
+import { PAGES, RULES } from './pages.js';
 import { render } from './view.js';
 
 export const meta = { width: W, height: H };
@@ -133,10 +133,11 @@ export function createGame(env) {
     else if (hit(R.text)) { state.big = !state.big; savePrefs(); clack(); }
     else if (hit(R.about)) { state.scene = 'about'; state.page = 0; }
     else if (hit(R.help)) { state.scene = 'help'; state.page = 0; }
+    else if (hit(R.rules)) { state.scene = 'rules'; state.page = 0; }
   }
 
   function updatePages(tap, which) {
-    const pages = PAGES[which];
+    const pages = which === 'rules' ? RULES : PAGES[which];
     if (!tap) return;
     if (inRect(BTN.menu, tap.x, tap.y)) { state.scene = 'title'; return; }
     if (inRect(BTN.next, tap.x, tap.y)) { if (state.page + 1 < pages.length) state.page += 1; else state.scene = 'title'; clack(); }
@@ -256,7 +257,7 @@ export function createGame(env) {
     if (input.pointer.pressed) { state.kb = false; return null; }
     if (sc === 'title') { if (k.has('Enter') || k.has('Space')) { const R = titleRows(!!state.saved); return { x: R.big.x + 5, y: R.big.y + 5 }; } return null; }
     if (sc === 'over') { if (k.has('Enter') || k.has('Space')) return { x: BTN.again.x + 5, y: BTN.again.y + 5 }; return null; }
-    if (sc === 'about' || sc === 'help') { if (k.has('Escape')) return { x: BTN.menu.x + 5, y: BTN.menu.y + 5 }; if (k.has('Enter') || k.has('Space')) return { x: BTN.next.x + 5, y: BTN.next.y + 5 }; return null; }
+    if (sc === 'about' || sc === 'help' || sc === 'rules') { if (k.has('Escape')) return { x: BTN.menu.x + 5, y: BTN.menu.y + 5 }; if (k.has('Enter') || k.has('Space')) return { x: BTN.next.x + 5, y: BTN.next.y + 5 }; return null; }
     if (sc !== 'play' && sc !== 'lesson' && sc !== 'puzzle') return null;
     if (k.has('Escape')) return { x: BTN.menu.x + 5, y: BTN.menu.y + 5 };
     if (k.has('KeyU')) return { x: BTN.undo.x + 5, y: BTN.undo.y + 5 };
@@ -292,6 +293,7 @@ export function createGame(env) {
       if (sc === 'title') updateTitle(tap);
       else if (sc === 'about') updatePages(tap, 'about');
       else if (sc === 'help') updatePages(tap, 'help');
+      else if (sc === 'rules') updatePages(tap, 'rules');
       else if (sc === 'play') updatePlay(dt, tap, sq);
       else if (sc === 'lesson') updateLesson(dt, tap, sq);
       else if (sc === 'puzzle') updatePuzzle(dt, tap, sq);

@@ -1,7 +1,8 @@
 // Everything that is drawn each frame. Reads `state` (see game.js) and changes nothing.
 // All motion is a function of state.pulse (the fixed-step clock) and the start times in state.fx.
-import { W, H, COLS, ROWS, CELL, FRAME, BOARD_X, BOARD_Y, BOARD_W, BOARD_H, HUD, MODE_SWITCH, HINT_BTN, COLOR_BTN, NEW_BTN, RESULT_CARD, SHIELD_BTN, AGAIN_BTN, AGAIN_BTN_WIDE, PLAY_BTN, TITLE_COLOR_BTN, HERO } from './layout.js';
-import { palette, alpha } from './themes.js';
+import { W, H, COLS, ROWS, CELL, FRAME, BOARD_X, BOARD_Y, BOARD_W, BOARD_H, HUD, MODE_SWITCH, HINT_BTN, COLOR_BTN, NEW_BTN, RESULT_CARD, SHIELD_BTN, AGAIN_BTN, AGAIN_BTN_WIDE, PLAY_BTN, TITLE_COLOR_BTN, TITLE_RULES_BTN, HERO, RULES_BACK_BTN, RULES_NEXT_BTN } from './layout.js';
+import { palette, alpha, THEMES } from './themes.js';
+import { RULES } from './content.js';
 
 const FONT = '"Fredoka", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
 const TAU = Math.PI * 2;
@@ -482,6 +483,22 @@ const iconMiniCell = (pal) => (ctx, cx, cy, s) => {
   drawCell(ctx, pal, cx - s / 2, cy - s / 2, s);
   drawNumber(ctx, pal, 1, cx, cy, s);
 };
+// A small reference page - three ruled lines on a rounded card - for the Rules button.
+const iconRules = (ctx, cx, cy, s, ink) => {
+  ctx.strokeStyle = ink;
+  ctx.lineWidth = s * 0.09;
+  ctx.lineCap = 'round';
+  rr(ctx, cx - s * 0.34, cy - s * 0.42, s * 0.68, s * 0.84, s * 0.1);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(cx - s * 0.18, cy - s * 0.14);
+  ctx.lineTo(cx + s * 0.18, cy - s * 0.14);
+  ctx.moveTo(cx - s * 0.18, cy + s * 0.02);
+  ctx.lineTo(cx + s * 0.18, cy + s * 0.02);
+  ctx.moveTo(cx - s * 0.18, cy + s * 0.18);
+  ctx.lineTo(cx + s * 0.04, cy + s * 0.18);
+  ctx.stroke();
+};
 
 // ---- scenes ----------------------------------------------------------------------------------------
 function drawLogo(ctx, pal, cx, y, size, t, intro) {
@@ -607,7 +624,10 @@ function drawTitle(ctx, state, pal, extra) {
   ctx.globalAlpha = b;
   ctx.translate(0, (1 - b) * 50);
   drawButton(ctx, PLAY_BTN, 'Play', { kind: 'primary', size: 58, icon: iconPlay, breathe: Math.sin(t * 2.4) * 0.012, pressTau: fx.btn === 'play' ? t - fx.btnAt : -1 });
-  drawButton(ctx, TITLE_COLOR_BTN, `Colours: ${pal.name}`, { pal, size: 32, iconScale: 1.7, icon: iconSwatches(pal), pressTau: fx.btn === 'colors' ? t - fx.btnAt : -1 });
+  // Same stacked icon-over-label look the in-play Colours button already uses (COLOR_BTN below) -
+  // the natural fit now that this button shares its row with Rules instead of spanning it alone.
+  drawButton(ctx, TITLE_COLOR_BTN, 'Colours', { pal, icon: iconSwatches(pal), iconSize: 46, stacked: true, size: 26, pressTau: fx.btn === 'colors' ? t - fx.btnAt : -1 });
+  drawButton(ctx, TITLE_RULES_BTN, 'Rules', { pal, icon: iconRules, iconSize: 46, stacked: true, size: 26, pressTau: fx.btn === 'rules' ? t - fx.btnAt : -1 });
   if (state.bestTime !== null) drawPill(ctx, 360, 1378, `Best time  ${formatTime(state.bestTime)}s`, { color: '#ffe08a', rim: 'rgba(255,224,138,0.5)', size: 28 });
   else drawPill(ctx, 360, 1378, 'No best time yet - set one', { size: 24, color: 'rgba(244,251,250,0.8)' });
   if (state.demo) drawPill(ctx, 360, 1450, `Free preview: ${extra.demoLeft} board${extra.demoLeft === 1 ? '' : 's'} left`, { size: 22, h: 46 });
@@ -905,10 +925,299 @@ function drawPlay(ctx, state, pal, extra) {
   if (state.demo && !over) text(ctx, `Free preview: ${extra.demoLeft} more board${extra.demoLeft === 1 ? '' : 's'}`, W / 2, 1476, 21, pal.inkFaint, 500);
 }
 
+// ---- Rules reference page ----------------------------------------------------------------------
+// Every illustration below reuses this file's own drawing functions - the exact tile/number/flag/
+// mine/HUD/switch/button art the player sees in a real run - never a separate simplified icon set.
+// Pure: reads nothing from live gameplay state, mutates nothing.
+const RULES_TEXT_TOP_WITH_ART = 860;
+const RULES_TEXT_TOP_HERO = 990; // the hero art is a fixed, larger footprint (see drawHero)
+const RULES_TEXT_TOP_NO_ART = 270;
+const RULES_TEXT_BOTTOM = 1215;
+const RULES_PAGE_LABEL_Y = 1246; // fixed distance from the nav row, never from the body text
+const RULES_TEXT_MAXW = W - 108;
+const RULES_BODY_SIZES = [28, 26, 24, 22, 20, 19, 18];
+
+function wrapRulesParagraph(ctx, str, maxW) {
+  const words = str.split(' ');
+  const lines = [];
+  let line = '';
+  for (const w of words) {
+    const test = line ? `${line} ${w}` : w;
+    if (ctx.measureText(test).width > maxW && line) {
+      lines.push(line);
+      line = w;
+    } else line = test;
+  }
+  if (line) lines.push(line);
+  return lines;
+}
+
+// Picks the largest body size (and matching line/paragraph spacing) whose wrapped paragraphs fit
+// the given pixel budget, so a page can never overflow into the nav row no matter how long it is.
+function layoutRulesBody(ctx, paragraphs, budget) {
+  let best = null;
+  for (const size of RULES_BODY_SIZES) {
+    setFont(ctx, size, 500);
+    const lh = Math.round(size * 1.32);
+    const pgap = Math.round(size * 0.8);
+    const blocks = paragraphs.map((p) => wrapRulesParagraph(ctx, p, RULES_TEXT_MAXW));
+    const lineCount = blocks.reduce((a, b) => a + b.length, 0);
+    const height = lineCount * lh + (blocks.length - 1) * pgap;
+    best = { size, lh, pgap, blocks, height };
+    if (height <= budget) break;
+  }
+  return best;
+}
+
+function fitRulesTitle(ctx, str, maxW, start, floor) {
+  let size = start;
+  setFont(ctx, size, 800);
+  while (ctx.measureText(str).width > maxW && size > floor) {
+    size -= 2;
+    setFont(ctx, size, 800);
+  }
+  return size;
+}
+
+// A little tree of hidden tiles with two neighbours ringed, echoing the Hint/loss-hint ring look,
+// used by a few pages to demonstrate "this tile is deducible" without ever showing a real mine.
+// Canvas fillText never honours embedded newlines - split and stack lines by hand.
+function multilineText(ctx, str, cx, y, size, color, weight, lineHeight = size * 1.25) {
+  str.split('\n').forEach((ln, i) => text(ctx, ln, cx, y + i * lineHeight, size, color, weight));
+}
+
+function drawMiniGrid(ctx, pal, cx, cy, cell, cells, t) {
+  const n = 3;
+  const size = n * cell;
+  const x0 = cx - size / 2;
+  const y0 = cy - size / 2;
+  drawFrame(ctx, pal, x0, y0, size, size, { frame: 12 });
+  for (let i = 0; i < n * n; i++) {
+    const c = i % n;
+    const r = Math.floor(i / n);
+    const x = x0 + c * cell;
+    const y = y0 + r * cell;
+    const spec = cells[i] || { kind: 'hidden' };
+    if (spec.kind === 'open') {
+      drawCell(ctx, pal, x, y, cell);
+      if (spec.n > 0) drawNumber(ctx, pal, spec.n, x + cell / 2, y + cell / 2, cell);
+    } else if (spec.kind === 'flag') {
+      drawTile(ctx, pal, x, y, cell);
+      drawFlag(ctx, x + cell / 2, y + cell / 2, cell, { t });
+    } else {
+      drawTile(ctx, pal, x, y, cell);
+      if (spec.ring) drawRing(ctx, x, y, cell, spec.ring, t);
+    }
+  }
+}
+
+function drawRulesArt(ctx, name, pal, t) {
+  if (!name) return;
+  if (name === 'hero') {
+    drawHero(ctx, pal, t, 10);
+  } else if (name === 'cells') {
+    const items = [
+      { label: 'Hidden', draw: (x, y, s) => drawTile(ctx, pal, x, y, s) },
+      { label: 'Open -\nblank', draw: (x, y, s) => drawCell(ctx, pal, x, y, s) },
+      {
+        label: 'Open -\nnumber',
+        draw: (x, y, s) => {
+          drawCell(ctx, pal, x, y, s);
+          drawNumber(ctx, pal, 3, x + s / 2, y + s / 2, s);
+        },
+      },
+      {
+        label: 'Flagged',
+        draw: (x, y, s) => {
+          drawTile(ctx, pal, x, y, s);
+          drawFlag(ctx, x + s / 2, y + s / 2, s, { t });
+        },
+      },
+      {
+        label: 'A mine\n(run over)',
+        draw: (x, y, s) => {
+          drawCell(ctx, pal, x, y, s, { danger: true });
+          drawMine(ctx, x + s / 2, y + s / 2, s);
+        },
+      },
+    ];
+    const s = 110;
+    const gap = 20;
+    const totalW = items.length * s + (items.length - 1) * gap;
+    let x = W / 2 - totalW / 2;
+    const y = 420;
+    for (const it of items) {
+      it.draw(x, y, s);
+      multilineText(ctx, it.label, x + s / 2, y + s + 34, 19, pal.inkSoft, 600, 24);
+      x += s + gap;
+    }
+  } else if (name === 'neighbours') {
+    drawMiniGrid(
+      ctx,
+      pal,
+      W / 2,
+      560,
+      118,
+      [
+        { kind: 'hidden', ring: 'mine' },
+        { kind: 'hidden', ring: 'mine' },
+        { kind: 'hidden' },
+        { kind: 'hidden' },
+        { kind: 'open', n: 3 },
+        { kind: 'hidden' },
+        { kind: 'hidden' },
+        { kind: 'hidden' },
+        { kind: 'hidden', ring: 'mine' },
+      ],
+      t,
+    );
+    text(ctx, 'The centre tile counts 3 mines among its 8 neighbours', W / 2, 780, 22, pal.inkSoft, 600);
+  } else if (name === 'flood') {
+    const cell = 96;
+    const grid = [0, 0, 1, -2, 0, 0, 1, -2, 1, 1, 2, -2, -2, -2, -2, -2];
+    const n = 4;
+    const size = n * cell;
+    const x0 = W / 2 - size / 2;
+    const y0 = 360;
+    drawFrame(ctx, pal, x0, y0, size, size, { frame: 12 });
+    for (let i = 0; i < grid.length; i++) {
+      const c = i % n;
+      const r = Math.floor(i / n);
+      const x = x0 + c * cell;
+      const y = y0 + r * cell;
+      const v = grid[i];
+      if (v === -2) drawTile(ctx, pal, x, y, cell);
+      else {
+        drawCell(ctx, pal, x, y, cell);
+        if (v > 0) drawNumber(ctx, pal, v, x + cell / 2, y + cell / 2, cell);
+      }
+    }
+    text(ctx, 'One tap on a blank tile opened this whole corner', W / 2, y0 + size + 40, 22, pal.inkSoft, 600);
+  } else if (name === 'flags') {
+    const fakeState = { pulse: t, flagMode: Math.floor(t / 2) % 2 === 1, fx: { modeAt: -1 } };
+    ctx.save();
+    ctx.translate(0, 460 - MODE_SWITCH.y);
+    drawModeSwitch(ctx, fakeState, pal);
+    ctx.restore();
+  } else if (name === 'chord') {
+    drawMiniGrid(
+      ctx,
+      pal,
+      W / 2,
+      560,
+      118,
+      [
+        { kind: 'hidden', ring: 'safe' },
+        { kind: 'flag' },
+        { kind: 'hidden', ring: 'safe' },
+        { kind: 'flag' },
+        { kind: 'open', n: 2 },
+        { kind: 'hidden', ring: 'safe' },
+        { kind: 'hidden', ring: 'safe' },
+        { kind: 'hidden', ring: 'safe' },
+        { kind: 'hidden', ring: 'safe' },
+      ],
+      t,
+    );
+    text(ctx, 'Its 2 flags satisfy the "2" - chording opens the rest at once', W / 2, 780, 22, pal.inkSoft, 600);
+  } else if (name === 'hud') {
+    const total = 30;
+    const numbers = new Array(total).fill(1);
+    const revealed = new Array(total).fill(false);
+    for (let i = 0; i < 18; i++) revealed[i] = true;
+    numbers[3] = -1;
+    numbers[9] = -1;
+    ctx.save();
+    ctx.translate(0, 460 - HUD.y);
+    drawHud(ctx, { scene: 'playing', numbers, revealed, time: 47.3 }, pal, { remainingFlags: 8 });
+    ctx.restore();
+  } else if (name === 'winlose') {
+    const s = 150;
+    const gapX = 140;
+    const y = 480;
+    const lx = W / 2 - gapX / 2 - s;
+    drawCell(ctx, pal, lx, y, s);
+    drawNumber(ctx, pal, 2, lx + s / 2, y + s / 2, s);
+    multilineText(ctx, 'Every non-mine tile open\n= Cleared!', lx + s / 2, y + s + 42, 21, pal.inkSoft, 600);
+    const rx = W / 2 + gapX / 2;
+    drawCell(ctx, pal, rx, y, s, { danger: true });
+    drawMine(ctx, rx + s / 2, y + s / 2, s);
+    multilineText(ctx, 'Any mine revealed\n= Boom.', rx + s / 2, y + s + 42, 21, pal.inkSoft, 600);
+  } else if (name === 'losshint') {
+    const s = 150;
+    const gapX = 140;
+    const y = 480;
+    const lx = W / 2 - gapX / 2 - s;
+    drawTile(ctx, pal, lx, y, s);
+    drawRing(ctx, lx, y, s, 'safe', t);
+    multilineText(ctx, 'Ringed green =\nhad to be safe', lx + s / 2, y + s + 42, 21, pal.inkSoft, 600);
+    const rx = W / 2 + gapX / 2;
+    drawTile(ctx, pal, rx, y, s);
+    drawRing(ctx, rx, y, s, 'mine', t);
+    multilineText(ctx, 'Ringed red =\nhad to be a mine', rx + s / 2, y + s + 42, 21, pal.inkSoft, 600);
+  } else if (name === 'hintundo') {
+    const hintR = { x: W / 2 - 300, y: 500, w: 260, h: 130 };
+    const undoR = { x: W / 2 + 40, y: 500, w: 260, h: 130 };
+    drawButton(ctx, hintR, 'Hint', { pal, icon: iconBulb, stacked: true, size: 30 });
+    drawButton(ctx, undoR, 'Undo', { kind: 'go', size: 34, icon: iconUndo, stacked: true });
+  } else if (name === 'colours') {
+    const names = [0, 2, 3];
+    const s = 150;
+    const gap = 30;
+    const totalW = names.length * s + (names.length - 1) * gap;
+    let x = W / 2 - totalW / 2;
+    const y = 380;
+    for (const idx of names) {
+      const p = palette(idx);
+      drawCell(ctx, p, x, y, s);
+      drawNumber(ctx, p, 3, x + s / 2, y + s / 2, s);
+      text(ctx, THEMES[idx].name, x + s / 2, y + s + 34, 19, pal.inkSoft, 600);
+      x += s + gap;
+    }
+    text(ctx, `${THEMES.length} colour schemes in total - purely cosmetic`, W / 2, y + s + 84, 22, pal.inkSoft, 600);
+  }
+}
+
+function drawRulesPage(ctx, state, pal) {
+  const t = state.pulse;
+  const list = RULES;
+  const i = ((state.page % list.length) + list.length) % list.length;
+  const page = list[i];
+
+  ctx.save();
+  ctx.textAlign = 'center';
+  text(ctx, 'SURE SWEEP - RULES', W / 2, 140, 22, pal.inkFaint, 700);
+  const titleSize = fitRulesTitle(ctx, page.title, W - 80, 44, 26);
+  text(ctx, page.title, W / 2, 202, titleSize, pal.ink, 800);
+
+  drawRulesArt(ctx, page.art, pal, t);
+
+  const textTop = !page.art ? RULES_TEXT_TOP_NO_ART : page.art === 'hero' ? RULES_TEXT_TOP_HERO : RULES_TEXT_TOP_WITH_ART;
+  const { size, lh, pgap, blocks } = layoutRulesBody(ctx, page.lines, RULES_TEXT_BOTTOM - textTop);
+  setFont(ctx, size, 500);
+  ctx.fillStyle = pal.inkSoft;
+  ctx.textAlign = 'center';
+  let y = textTop;
+  blocks.forEach((block, bi) => {
+    for (const ln of block) {
+      ctx.fillText(ln, W / 2, y);
+      y += lh;
+    }
+    if (bi < blocks.length - 1) y += pgap;
+  });
+
+  text(ctx, `Page ${i + 1} of ${list.length}`, W / 2, RULES_PAGE_LABEL_Y, 20, pal.inkFaint, 700);
+  ctx.restore();
+
+  drawButton(ctx, RULES_BACK_BTN, 'Back to title', { pal, size: 28, pressTau: state.fx.btn === 'rulesBack' ? t - state.fx.btnAt : -1 });
+  drawButton(ctx, RULES_NEXT_BTN, 'Next', { pal, size: 30, pressTau: state.fx.btn === 'rulesNext' ? t - state.fx.btnAt : -1 });
+}
+
 export function draw(ctx, state, extra) {
   const pal = palette(state.theme);
   drawBackground(ctx, pal, state.pulse);
   if (state.scene === 'title') drawTitle(ctx, state, pal, extra);
   else if (state.scene === 'demo-limit') drawDemoLimit(ctx, state, pal);
+  else if (state.scene === 'rules') drawRulesPage(ctx, state, pal);
   else drawPlay(ctx, state, pal, extra);
 }

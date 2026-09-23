@@ -6,8 +6,8 @@ import { drawPiece, fontReady, JP } from './pieces.js';
 import { LETTER, NAME, base, mFrom, mTo, isDrop, mDrop, inCheck } from './rules.js';
 import { LEVELS } from './engine.js';
 import { LESSONS } from './lessons.js';
-import { ABOUT, HOWTO } from './content.js';
-import { ABOUT_PAGES, HOWTO_PAGES } from './ui.js';
+import { ABOUT, HOWTO, RULES } from './content.js';
+import { ABOUT_PAGES, HOWTO_PAGES, RULES_PAGES } from './ui.js';
 
 const DISPLAY = '"Cormorant Garamond", "Noto Serif JP", Georgia, "Times New Roman", serif';
 const UI = 'system-ui, -apple-system, "Segoe UI", Roboto, "Noto Serif JP", sans-serif';
@@ -148,14 +148,36 @@ export function render(ctx, state, h) {
       text('Twelve short lessons: you make every move yourself', 360, 222, 27, PAPER, UI, 500);
       const done = state.lessonsDone.filter(Boolean).length;
       text(`${done} of ${LESSONS.length} complete`, 360, 1200, 28, 'rgba(242,213,144,0.85)', UI, 600);
-    } else if (scene === 'about' || scene === 'howto') {
-      const pages = scene === 'about' ? ABOUT : HOWTO, pg = pages[Math.min(state.page, pages.length - 1)];
-      text(scene === 'about' ? 'About shogi' : 'How to play', 360, 150, 56, GOLD, DISPLAY, 700);
+    } else if (scene === 'about' || scene === 'howto' || scene === 'rules') {
+      const pages = scene === 'about' ? ABOUT : scene === 'howto' ? HOWTO : RULES;
+      const pg = pages[Math.min(state.page, pages.length - 1)];
+      text(scene === 'about' ? 'About shogi' : scene === 'howto' ? 'How to play' : 'Rules', 360, 150, 56, GOLD, DISPLAY, 700);
       text(pg.title, 360, 230, 40, PAPER, DISPLAY, 700);
       let y = 262;
-      for (const ln of pg.lines) { const hh = fitText(ln, 360, y, 570, 300, 29 * big, 'rgba(247,236,210,0.94)', 'left', UI, 500); y += hh + 20; }
-      const total = scene === 'about' ? ABOUT_PAGES : HOWTO_PAGES;
-      for (let i = 0; i < total; i++) { ctx.fillStyle = i === state.page ? GOLD : 'rgba(242,213,144,0.3)'; ctx.beginPath(); ctx.arc(360 + (i - (total - 1) / 2) * 30, 1290, 7, 0, TAU); ctx.fill(); }
+      // Rules pages that cover one piece type show the real in-game sprite, Sente and Gote side by side,
+      // using the same drawPiece() the board itself uses - never a separate simplified icon.
+      if (pg.piece !== undefined) {
+        const footY = 340, dx = 110, ps2 = 0.92;
+        drawPiece(ctx, pg.piece, 0, 0, 360 - dx, footY, ps2, { lang });
+        drawPiece(ctx, pg.piece, 1, 1, 360 + dx, footY, ps2, { lang });
+        text('Sente', 360 - dx, footY + 82, 21, 'rgba(247,236,210,0.6)', UI, 600);
+        text('Gote', 360 + dx, footY + 82, 21, 'rgba(247,236,210,0.6)', UI, 600);
+        y = footY + 114;
+      }
+      // Rules pages tend to have more/longer lines than About/Howto ever did, so only Rules uses a slightly
+      // smaller base size and tighter line gap; About/Howto keep their exact original 29/20.
+      const lnSize = scene === 'rules' ? 27 : 29, lnGap = scene === 'rules' ? 16 : 20;
+      // About/Howto call fitText with align 'left' but x = 360 (the panel's horizontal CENTER), so their
+      // left-anchored lines already run off the right edge of the panel/canvas - a pre-existing bug in
+      // those two pages, left untouched here (out of scope: additive only). Rules uses the same 570-wide
+      // column but anchors it correctly at x = 360 - 570/2 so its own lines stay inside the panel.
+      const lnX = scene === 'rules' ? 75 : 360;
+      for (const ln of pg.lines) { const hh = fitText(ln, lnX, y, 570, 300, lnSize * big, 'rgba(247,236,210,0.94)', 'left', UI, 500); y += hh + lnGap; }
+      const total = scene === 'about' ? ABOUT_PAGES : scene === 'howto' ? HOWTO_PAGES : RULES_PAGES;
+      // Rules has more pages than About/Howto ever did, so only its dot row (not theirs) is spaced tighter
+      // to still fit the panel; About/Howto keep their original spacing and radius exactly.
+      const dotGap = scene === 'rules' ? 22 : 30, dotR = scene === 'rules' ? 6 : 7;
+      for (let i = 0; i < total; i++) { ctx.fillStyle = i === state.page ? GOLD : 'rgba(242,213,144,0.3)'; ctx.beginPath(); ctx.arc(360 + (i - (total - 1) / 2) * dotGap, 1290, dotR, 0, TAU); ctx.fill(); }
     } else if (scene === 'demo-limit') {
       text('Preview complete', 360, 340, 74, GOLD, DISPLAY, 700);
       fitText('You have used the free web preview. The full game for iPhone and Android has every lesson, all five computer levels, unlimited games and a new puzzle every day.', 360, 420, 540, 420, 32, PAPER);

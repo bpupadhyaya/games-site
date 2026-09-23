@@ -1,9 +1,10 @@
 // Everything drawn each frame. Reads `state` (game.js) and changes nothing. Static art is cached (art.js).
-import { W, H as HH, CW, CH, TW, TH, BW, BH, HAND_Y, LIFT, BTN, TRICK, SEAT, DECK, TOAST, CHIP, titleRows, PANEL, ACT, OVERLAY_BTN, BACK, handSlot } from './layout.js';
+import { W, H as HH, CW, CH, TW, TH, BW, BH, HAND_Y, LIFT, BTN, TRICK, SEAT, DECK, TOAST, CHIP, titleRows, PANEL, ACT, OVERLAY_BTN, BACK, NEXT, handSlot } from './layout.js';
 import { drawBackground, drawTable, drawCoffee, drawCard, button, plaque, rr, drawSuit, SUIT_INK, FONT, UI, BRASS, CREAM, star8, rosette, TABLE } from './art.js';
 import { SUIT_NAMES, TARGETS, legalFor, cardShort, teamOf, DECL, declValue, SEAT_NAMES } from './rules.js';
 import { LEVELS } from './ai.js';
 import { LESSONS } from './lessons.js';
+import { RULES } from './rulesContent.js';
 
 const TAU = Math.PI * 2;
 const NAMES = ['You', 'Right', 'Partner', 'Left'];
@@ -28,6 +29,7 @@ export function render(ctx, state) {
   if (sc === 'settings') return settingsPage(ctx, state, V);
   if (sc === 'about') return aboutPage(ctx, state, V);
   if (sc === 'how') return howPage(ctx, state, V);
+  if (sc === 'rules') return rulesPage(ctx, state, V);
   if (sc === 'over') return overPage(ctx, state, V);
   if (sc === 'demo-limit') return demoPage(ctx, state, V);
   if (sc === 'daily' && state.daily.status === 'making') { drawTable(ctx, t); text('Setting today\'s deal...', W / 2, 700, 44, CREAM, FONT); button(ctx, BTN.menu, 'Menu', { size: 30 }); return; }
@@ -67,7 +69,7 @@ function title(ctx, state, V) {
   text(`Match to ${TARGETS[state.targetIdx]}`, r.x + r.w / 4, r.y + 48, 28, CREAM, UI, 700);
   text(`${LEVELS[state.level - 1].name}`, r.x + r.w * 0.75, r.y + 36, 28, CREAM, UI, 700);
   text(['Tap to change'][0], r.x + r.w * 0.75, r.y + 62, 18, 'rgba(246,234,208,0.7)', UI, 600);
-  button(ctx, R.settings, 'Settings', { size: 26 }); button(ctx, R.about, 'About', { size: 26 }); button(ctx, R.how, 'Controls', { size: 26 });
+  button(ctx, R.settings, 'Settings', { size: 21 }); button(ctx, R.about, 'About', { size: 21 }); button(ctx, R.how, 'Controls', { size: 21 }); button(ctx, R.rules, 'Rules', { size: 21 });
   text(LEVELS[state.level - 1].blurb, W / 2, R.settings.y + 130, 22, 'rgba(246,234,208,0.8)', UI, 600);
 }
 
@@ -138,6 +140,39 @@ function howPage(ctx, state, V) {
     { p: 'Sun: A 11, 10 10, K 4, Q 3, J 2. Hokum trump: J 20, 9 14, A 11, 10 10, K 4, Q 3. Last trick +10. A hand is 16 game points in Hokum and 26 in Sun. The buyer must beat the other team or they take everything. Winning every trick is Kaboot: 25 in Hokum, 44 in Sun.' },
     { p: 'Declarations: Sira 2, Fifty 5, Hundred 10, Baloot 2 (Sun: 4, 10, 20, four aces 40). Only the team with the best declaration scores theirs.' },
   ], 210, 23, 610);
+}
+// Draws a centred row of real in-game cards (via the same drawCard() the table uses — never a
+// separate simplified icon), each with a label under it, sized to always fit within the page's
+// text margin. Returns the y just below the row, for the body text that follows.
+function drawRuleCards(ctx, state, cards, y0) {
+  const n = cards.length, gap = 16, maxW = 640;
+  const scale = Math.min(0.62, (maxW - (n - 1) * gap) / (n * CW));
+  const w = CW * scale, h = CH * scale;
+  let x = W / 2 - (n * w + (n - 1) * gap) / 2;
+  for (const item of cards) {
+    drawCard(ctx, item.c, x, y0, scale, { four: state.set.four, big: state.set.big });
+    ctx.save(); ctx.textAlign = 'center';
+    ctx.font = `700 18px ${UI}`; ctx.fillStyle = CREAM;
+    ctx.fillText(item.label, x + w / 2, y0 + h + 24);
+    if (item.sub) { ctx.font = `600 14px ${UI}`; ctx.globalAlpha = 0.82; ctx.fillText(item.sub, x + w / 2, y0 + h + 44); ctx.globalAlpha = 1; }
+    ctx.restore();
+    x += w + gap;
+  }
+  return y0 + h + (cards.some((c) => c.sub) ? 66 : 44);
+}
+// The exhaustive Rules reference: a paginated set of short pages (Back / Next / "Page N of M"),
+// the closest equivalent this game has to the board games' per-piece pages, built additively on
+// top of the same pageFrame()/paragraphs() the About and Controls pages already use. Every claim
+// on every page is cross-checked against rules.js in rulesContent.js.
+function rulesPage(ctx, state, V) {
+  pageFrame(ctx, V, 'Game Rules');
+  const list = RULES, page = list[state.page % list.length];
+  V.text(page.title, W / 2, 200, 32, BRASS, UI, 800);
+  let y = 236;
+  if (page.cards && page.cards.length) y = drawRuleCards(ctx, state, page.cards, y) + 10;
+  paragraphs(ctx, V, page.lines.map((p) => ({ p })), y, 24, 610);
+  button(ctx, NEXT, 'Next', { size: 26 });
+  V.text(`Page ${(state.page % list.length) + 1} of ${list.length}`, W / 2, HH - 34, 21, 'rgba(246,234,208,0.65)', UI, 600);
 }
 function demoPage(ctx, state, V) {
   ctx.fillStyle = 'rgba(12,4,6,0.6)'; ctx.fillRect(0, 0, W, HH);

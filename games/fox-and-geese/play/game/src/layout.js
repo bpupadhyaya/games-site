@@ -29,7 +29,9 @@ export function titleRows(hasSave) {
   // three rows of two small buttons: [level | flock] [sound | warnings] [reduced motion | board and pieces]
   out.level = { x: 90, y, w: 262, h: 62 }; out.flock = { x: 368, y, w: 262, h: 62 };
   out.sound = { x: 90, y: y + 70, w: 262, h: 62 }; out.marks = { x: 368, y: y + 70, w: 262, h: 62 };
-  out.calm = { x: 90, y: y + 140, w: 262, h: 62 }; out.look = { x: 368, y: y + 140, w: 262, h: 62 };
+  // Reduced motion / Board and pieces used to be a 2-column row; it is now 3 columns, same y and
+  // same overall span (90..630), to make room for Rules (Rules-page addition; nothing else moves).
+  out.calm = { x: 90, y: y + 140, w: 168, h: 62 }; out.look = { x: 276, y: y + 140, w: 168, h: 62 }; out.rules = { x: 462, y: y + 140, w: 168, h: 62 };
   return out;
 }
 // The 'Board and pieces' screen: three boards, two piece sets, message size, back.
@@ -44,6 +46,9 @@ export const BTN = {
   again: { x: 140, y: 900, w: 440, h: 96 }, back: { x: 140, y: 1016, w: 440, h: 84 }, share: { x: 140, y: 1120, w: 440, h: 84 },
   next: { x: 140, y: 1462, w: 440, h: 72 },
 };
+// Rules reference: paginated, reached from the title screen only. Back/Next share the bottom-bar
+// row/height the play screen's own button bar already uses.
+export const RULES_NAV = { back: { x: 90, y: 1462, w: 262, h: 72 }, next: { x: 368, y: 1462, w: 262, h: 72 } };
 export const inRect = (r, x, y) => !!r && x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
 // The flock tray: one small row of up to 17 geese, the taken ones dimmed.
 export const trayPos = (k) => ({ x: 74 + k * 36.5, y: 530, s: 1 });

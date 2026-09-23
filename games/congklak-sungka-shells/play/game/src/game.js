@@ -6,6 +6,7 @@ import { newGame, clone, applyMove, applyOpening, tryMove, legalMoves, nextRound
 import { LEVELS, createThinker, chooseOpening } from './engine.js';
 import { LESSONS } from './lessons.js';
 import { puzzleFor, puzzleGame, gains, isWeekend } from './puzzles.js';
+import { RULES } from './about.js';
 import { render } from './view.js';
 
 export const meta = { width: W, height: H };
@@ -19,7 +20,7 @@ export function createGame(env) {
     scene: 'title', t: 0, game: newGame('short'), shown: null, two: false, level: 1, match: 'short', sound: true, calm: false, big: false, seeds: 'cowries', wood: 'teak',
     cursor: 3, kb: false, anim: null, msg: null, thinking: false, think: 0, undo: [], hintsLeft: HINTS, hint: null, pick: [null, null],
     stats: { games: 0, wins: 0, badges: {} }, saved: null, learned: false, demoGames: 0, lesson: null, pz: null, ref: null,
-    daily: { day: config.day ?? 0, solvedDay: -1, streak: 0 }, dev: config.dev === true, worstWork: 0,
+    daily: { day: config.day ?? 0, solvedDay: -1, streak: 0 }, dev: config.dev === true, worstWork: 0, page: 0,
   };
   state.shown = state.game.b.slice();
   let thinker = null, hintThinker = null, hintOpening = false;
@@ -177,7 +178,13 @@ export function createGame(env) {
     else if (hit(R.daily)) startPuzzle();
     else if (hit(R.about)) state.scene = 'about';
     else if (hit(R.how)) state.scene = 'how';
+    else if (hit(R.rules)) { state.scene = 'rules'; state.page = 0; }
     else if (hit(R.settings)) state.scene = 'settings';
+  }
+  function updateRules(tap) {
+    if (!tap) return;
+    if (inRect(BTN.rulesBack, tap.x, tap.y)) { state.scene = 'title'; state.page = 0; }
+    else if (inRect(BTN.rulesNext, tap.x, tap.y)) { state.page = (state.page + 1) % RULES.length; clack(); }
   }
   function updateSettings(tap) {
     if (!tap) return;
@@ -354,6 +361,7 @@ export function createGame(env) {
     if (sc === 'round') { if (k.has('Enter') || k.has('Space')) return at(BTN.cont); return null; }
     if (sc === 'settings') { if (k.has('Escape')) return at(SET.back); return null; }
     if (sc === 'about' || sc === 'how') { if (k.has('Escape') || k.has('Enter')) return at(BTN.aboutBack); return null; }
+    if (sc === 'rules') { if (k.has('Escape')) return at(BTN.rulesBack); if (k.has('Enter') || k.has('Space')) return at(BTN.rulesNext); return null; }
     if (sc !== 'play' && sc !== 'lesson' && sc !== 'puzzle') return null;
     if (k.has('Escape')) return at(BTN.menu);
     if (k.has('KeyF') && state.anim) state.anim.fast = true;
@@ -376,6 +384,7 @@ export function createGame(env) {
       if (sc === 'title') updateTitle(tap);
       else if (sc === 'settings') updateSettings(tap);
       else if (sc === 'about' || sc === 'how') { if (tap && inRect(BTN.aboutBack, tap.x, tap.y)) state.scene = 'title'; }
+      else if (sc === 'rules') updateRules(tap);
       else if (sc === 'play') updatePlay(dt, tap);
       else if (sc === 'lesson') updateLesson(dt, tap);
       else if (sc === 'puzzle') updatePuzzle(dt, tap);

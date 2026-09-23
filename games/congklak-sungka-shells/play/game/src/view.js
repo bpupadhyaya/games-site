@@ -1,10 +1,10 @@
 // Everything drawn each frame. Reads `state` (game.js) and changes nothing. The ground, board and shell sprites are cached (art.js).
 import { W, H, PIT_R, PITCH, STORE_BOX, BTN, SET, HULL, posXY, titleRows } from './layout.js';
-import { drawGround, drawBoard, drawSeed, slot, WOODS, SEEDSETS } from './art.js';
+import { drawGround, drawBoard, drawSeed, slot, drawHousePit, drawStorePit, WOODS, SEEDSETS } from './art.js';
 import { legalMoves, STORE, SEQ, nextRound, clone } from './rules.js';
 import { LEVELS } from './engine.js';
 import { LESSONS } from './lessons.js';
-import { ABOUT, HOWTO } from './about.js';
+import { ABOUT, HOWTO, RULES } from './about.js';
 
 const FONT = '"Cormorant Garamond", Georgia, "Times New Roman", serif', UI = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
 const TAU = Math.PI * 2, CREAM = '#fbe8bf', GOLD = '#f3cf7a';
@@ -208,7 +208,7 @@ export function render(ctx, state) {
     button(R.play, 'Play the computer', { primary: state.learned && !R.resume, size: 32 });
     button(R.two, 'Two players, one phone', { size: 30 });
     button(R.daily, solved ? `Daily puzzle: solved · streak ${state.daily.streak}` : state.daily.streak ? `Daily puzzle · streak ${state.daily.streak}` : 'Daily puzzle', { size: 30 });
-    button(R.about, 'About', { size: 26 }); button(R.how, 'Controls', { size: 26 }); button(R.settings, 'Settings', { size: 26 });
+    button(R.about, 'About', { size: 21 }); button(R.how, 'Controls', { size: 21 }); button(R.rules, 'Rules', { size: 21 }); button(R.settings, 'Settings', { size: 21 });
     const y = R.about.y + 130;
     text(`Games played: ${state.stats.games} · won: ${state.stats.wins}`, 360, y, 22, 'rgba(251,232,191,0.9)', UI, 500);
     let stars = ''; for (let l = 0; l < LEVELS.length; l++) stars += state.stats.badges['L' + l] ? '★ ' : '☆ ';
@@ -243,6 +243,40 @@ export function render(ctx, state) {
       const n = wrap(body, 70, y, big ? 25 : 22, 580, '#fff3d6', big ? 32 : 28.5, 'left'); y += n * (big ? 32 : 28.5) + 20;
     }
     button(BTN.aboutBack, 'Back', { primary: true, size: 32 });
+  } else if (scene === 'rules') {
+    const pages = RULES, page = pages[state.page % pages.length];
+    panel(36, 116, 648, 1250, 0.92);
+    text('Rules', 360, 206, 64, CREAM, FONT);
+    text(page.title, 360, 258, 32, GOLD, FONT, 700);
+    let y = 300;
+    // Illustrations reuse the board's own real pit/store/seed drawing functions (art.js) — never a
+    // separate simplified icon, so the picture on this page always matches what is on the board.
+    if (page.art === 'house') {
+      const cx = 360, cy = y + 84;
+      drawHousePit(ctx, cx, cy, PIT_R);
+      for (let k = 0; k < 4; k++) { const s = slot(0, k); drawSeed(ctx, state.seeds, s.v, cx + s.x, cy + s.y, s.rot, 1.42); }
+      text('A house with shells in it', 360, y + 168, 20, 'rgba(251,232,191,0.75)', UI, 600);
+      y += 200;
+    } else if (page.art === 'store') {
+      const S = { x: 255, y: y, w: 210, h: 86 };
+      drawStorePit(ctx, S.x, S.y, S.w, S.h);
+      for (let k = 0; k < 10; k++) { const col = k % 7, row = Math.floor(k / 7); drawSeed(ctx, state.seeds, (k * 3) % 4, S.x + 26 + col * 14 + (row % 2) * 6, S.y + 46 + row * 12, ((k * 97) % 360) * Math.PI / 180, 0.8); }
+      text('Your storehouse, banking shells', 360, y + S.h + 30, 20, 'rgba(251,232,191,0.75)', UI, 600);
+      y += S.h + 62;
+    } else if (page.art === 'capture') {
+      const cy = y + 84, xa = 200, xb = 520;
+      drawHousePit(ctx, xa, cy, PIT_R);
+      drawHousePit(ctx, xb, cy, PIT_R);
+      for (let k = 0; k < 4; k++) { const s = slot(1, k); drawSeed(ctx, state.seeds, s.v, xb + s.x, cy + s.y, s.rot, 1.42); }
+      text('Yours: empty', xa, cy + 68, 18, 'rgba(251,232,191,0.75)', UI, 600);
+      text('Opposite: captured', xb, cy + 68, 18, 'rgba(251,232,191,0.75)', UI, 600);
+      y += 190;
+    }
+    const bodySize = big ? 24 : 22, lh = bodySize * 1.32;
+    for (const para of page.lines) { const n = wrap(para, 70, y, bodySize, 580, '#fff3d6', lh, 'left'); y += n * lh + 18; }
+    text(`Page ${(state.page % pages.length) + 1} of ${pages.length}`, 360, 1340, 20, 'rgba(251,232,191,0.6)', UI, 600);
+    button(BTN.rulesBack, 'Back', { size: 30 });
+    button(BTN.rulesNext, 'Next', { primary: true, size: 30 });
   } else if (scene === 'round') {
     ctx.fillStyle = 'rgba(12,6,24,0.72)'; ctx.fillRect(0, 0, W, H);
     const rr = g.roundResult, mine = rr.a, theirs = rr.b, won = mine > theirs ? 0 : mine < theirs ? 1 : -1;

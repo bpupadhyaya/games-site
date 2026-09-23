@@ -58,7 +58,13 @@ export function titleRows(hasSave) {
   const names = (hasSave ? ['resume'] : []).concat(['play', 'learn', 'two', 'daily']), out = {};
   names.forEach((n, i) => { out[n] = { x: 110, y: 500 + i * 92, w: 500, h: 80 }; });
   const y = 500 + names.length * 92 + 6, half = (i, j) => ({ x: 110 + j * 256, y: y + i * 72, w: 244, h: 62 });
-  out.level = half(0, 0); out.cube = half(0, 1); out.gammon = half(1, 0); out.settings = half(1, 1); out.howto = half(2, 0); out.about = half(2, 1);
+  out.level = half(0, 0); out.cube = half(0, 1); out.gammon = half(1, 0); out.settings = half(1, 1);
+  // How to play / About / Rules share the third row as three even columns (Rules is the addition; same
+  // row position and height as before, just three columns instead of two).
+  const gap3 = 12, third = (500 - gap3 * 2) / 3, y3 = y + 2 * 72;
+  out.howto = { x: 110, y: y3, w: third, h: 62 };
+  out.about = { x: 110 + third + gap3, y: y3, w: third, h: 62 };
+  out.rules = { x: 110 + 2 * (third + gap3), y: y3, w: third, h: 62 };
   return out;
 }
 export const PANEL = { x: 36, y: 250, w: 648, h: 1150 };

@@ -1,10 +1,11 @@
 // All drawing. Pure function of state; no input handling here (that's game.js).
-import { W, H, CARD, TOP, seatSpot, STOCK, TRUMP, DISCARD, pairSpot, TRANSFER_SLOT, TABLE_ZONE, BAR, actionRect, ACTIONS, HAND_Y, handSlot, SETUP, MENU_BTN, BACK, SETTINGS_ROWS, SETTINGS_ROW } from './layout.js';
+import { W, H, CARD, TOP, seatSpot, STOCK, TRUMP, DISCARD, pairSpot, TRANSFER_SLOT, TABLE_ZONE, BAR, actionRect, ACTIONS, HAND_Y, handSlot, SETUP, MENU_BTN, BACK, NEXT, SETTINGS_ROWS, SETTINGS_ROW } from './layout.js';
 import { drawScene, drawFace, drawBack, lacquer, panel, plaque, rr, txt, drawSuit, suitColor, khokhloma, GOLD, CREAM, INK } from './art.js';
 import { suitOf, rankOf, cardName, RANK_LABELS, SUIT_NAMES } from './rules.js';
 import { LEVELS } from './ai.js';
 import { LESSONS } from './lessons.js';
 import { ABOUT } from './about.js';
+import { RULES } from './rulesText.js';
 
 const SUIT_WORD = { spades: 'Spades', hearts: 'Hearts', diamonds: 'Diamonds', clubs: 'Clubs' };
 const ease = (t) => 1 - Math.pow(1 - Math.min(1, Math.max(0, t)), 3);
@@ -124,7 +125,7 @@ function drawTitle(ctx, state) {
   const rot = state.calm ? -0.08 : -0.1 + Math.sin(state.t * 0.8) * 0.03;
   drawCard(ctx, { id: 15 }, W / 2 - 58, 610 + bob * 0.6, { scale: 0.8, rot: rot - 0.12, four: state.four });
   drawCard(ctx, { id: 8 }, W / 2 + 50, 612 + bob * 0.6, { scale: 0.8, rot: -rot + 0.1, four: state.four });
-  const items = state.saved ? ['Continue', 'New Game', 'Learn', 'Daily Deal', 'About', 'Settings'] : ['New Game', 'Learn', 'Daily Deal', 'About', 'Settings'];
+  const items = state.saved ? ['Continue', 'New Game', 'Learn', 'Daily Deal', 'About', 'Settings', 'Rules'] : ['New Game', 'Learn', 'Daily Deal', 'About', 'Settings', 'Rules'];
   items.forEach((label, i) => lacquer(ctx, MENU_BTN(i), { kind: i === 0 && state.saved ? 'gold' : 'wood', label, size: 32 }));
   lacquer(ctx, TOP.sound, { label: state.sound ? '♪' : '×' });
   const statsY = MENU_BTN(items.length).y + 22;
@@ -238,6 +239,36 @@ export function drawAbout(ctx, state) {
   }
 }
 
+// Paginated Rules reference (Back/Next/"Page N of M", the same convention Chess uses) — additive, does not
+// touch drawAbout()'s single-scroll rendering above. Pages that name `cards` show the real in-game card art
+// via drawCard(), the same function the table itself uses, paired with a plain-language caption.
+export function drawRules(ctx, state) {
+  drawScene(ctx, state.t, { calm: state.calm });
+  const page = RULES[state.page % RULES.length];
+  lacquer(ctx, BACK, { label: 'Back' });
+  lacquer(ctx, NEXT, { label: 'Next' });
+  txt(ctx, 'Rules', W / 2, 120, { size: 46, color: CREAM, weight: 700, shadow: 'rgba(0,0,0,0.6)' });
+  // One tall panel (like About's own panels) holds the whole page, so the busy veranda scene never
+  // bleeds through behind the text the way it would if this were drawn straight over drawScene().
+  const panelY = 200, panelBottom = 1460;
+  panel(ctx, 40, panelY, W - 80, panelBottom - panelY, {});
+  let y = panelY + 66;
+  txt(ctx, page.title, W / 2, y, { size: 28, color: GOLD, weight: 700 });
+  y += 56;
+  if (page.cards) {
+    const cy = y + 108, dx = 120;
+    page.cards.forEach((cd, i) => {
+      const x = W / 2 + (i - (page.cards.length - 1) / 2) * dx * 2;
+      if (cd.back) drawCard(ctx, {}, x, cy, { scale: 0.62, back: true, backTheme: state.back });
+      else drawCard(ctx, { id: cd.id }, x, cy, { scale: 0.62, four: state.four });
+      txt(ctx, cd.label, x, cy + 150, { size: 16, color: GOLD, weight: 600 });
+    });
+    y = cy + 192;
+  }
+  for (const line of page.lines) y += wrapCentered(ctx, line, W / 2, y, W - 160, 30, { size: 20, color: CREAM, weight: 500 }) * 30 + 12;
+  txt(ctx, `Page ${(state.page % RULES.length) + 1} of ${RULES.length}`, W / 2, H - 60, { size: 19, color: 'rgba(247,239,220,0.6)', weight: 500 });
+}
+
 export function drawSettings(ctx, state) {
   drawScene(ctx, state.t, { calm: state.calm });
   lacquer(ctx, BACK, { label: '←' });
@@ -296,6 +327,7 @@ export function render(ctx, state) {
   else if (state.scene === 'lesson') drawLesson(ctx, state);
   else if (state.scene === 'daily') drawDaily(ctx, state);
   else if (state.scene === 'about') drawAbout(ctx, state);
+  else if (state.scene === 'rules') drawRules(ctx, state);
   else if (state.scene === 'settings') drawSettings(ctx, state);
   else if (state.scene === 'demo-limit') drawDemoLimit(ctx, state);
 }

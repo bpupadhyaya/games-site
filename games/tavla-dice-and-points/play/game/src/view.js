@@ -6,7 +6,7 @@ import { drawStatic } from './art.js';
 import { drawChecker, drawChip, drawDie, SET_NAMES } from './sprites.js';
 import { LEVELS } from './ai.js';
 import { LESSONS } from './lessons.js';
-import { ABOUT, HOWTO } from './text.js';
+import { ABOUT, HOWTO, RULES } from './text.js';
 
 const FONT = '"Cormorant Garamond", Georgia, "Times New Roman", serif';
 const UI = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
@@ -43,8 +43,12 @@ export function render(ctx, st) {
     c.fillStyle = g; rrect(c, r.x, r.y + dn, r.w, r.h, 18); c.fill();
     c.strokeStyle = o.primary ? 'rgba(255,240,190,0.9)' : 'rgba(255,225,160,0.55)'; c.lineWidth = 2; c.stroke();
     c.strokeStyle = 'rgba(255,255,255,0.22)'; c.lineWidth = 1.5; c.beginPath(); c.moveTo(r.x + 16, r.y + dn + 4); c.lineTo(r.x + r.w - 16, r.y + dn + 4); c.stroke();
-    if (o.sub) { text(label, r.x + r.w / 2, r.y + r.h / 2 - 2, o.size ?? 28, o.primary ? '#2a1606' : '#f8e6b8', UI, 700); text(o.sub, r.x + r.w / 2, r.y + r.h / 2 + 24, 19, o.primary ? '#4a2c0c' : 'rgba(248,230,184,0.75)', UI, 600); }
-    else text(label, r.x + r.w / 2, r.y + dn + r.h / 2 + (o.size ?? 28) * 0.34, o.size ?? 28, o.primary ? '#2a1606' : '#f8e6b8', UI, 700);
+    // shrink the label to fit narrow buttons (e.g. a 3-column row); untouched when it already fits.
+    let size = o.size ?? 28; const maxW = r.w - 24;
+    c.font = `700 ${size}px ${UI}`;
+    while (c.measureText(label).width > maxW && size > 13) { size -= 1; c.font = `700 ${size}px ${UI}`; }
+    if (o.sub) { text(label, r.x + r.w / 2, r.y + r.h / 2 - 2, size, o.primary ? '#2a1606' : '#f8e6b8', UI, 700); text(o.sub, r.x + r.w / 2, r.y + r.h / 2 + 24, 19, o.primary ? '#4a2c0c' : 'rgba(248,230,184,0.75)', UI, 600); }
+    else text(label, r.x + r.w / 2, r.y + dn + r.h / 2 + size * 0.34, size, o.primary ? '#2a1606' : '#f8e6b8', UI, 700);
     c.restore();
   };
   const panel = (x, y, w, h, alpha = 0.9) => {
@@ -58,6 +62,7 @@ export function render(ctx, st) {
   if (sc === 'title') return drawTitle(c, st, ctxU);
   if (sc === 'howto') return drawDoc(c, st, ctxU, 'How to play', HOWTO, 0);
   if (sc === 'about') return drawDoc(c, st, ctxU, 'About Tavla', ABOUT, st.page || 0);
+  if (sc === 'rules') return drawDoc(c, st, ctxU, 'Rules', RULES, st.page || 0, { showCount: true });
   if (sc === 'settings') return drawSettings(c, st, ctxU);
   if (sc === 'demo-limit') return drawDemoLimit(c, st, ctxU);
   drawBoardScene(c, st, ctxU);
@@ -103,22 +108,32 @@ function drawTitle(c, st, U) {
   U.button(R_.settings, 'Settings', { size: 24 });
   U.button(R_.howto, 'How to play', { size: 24 });
   U.button(R_.about, 'About Tavla', { size: 24 });
+  U.button(R_.rules, 'Rules', { size: 24 });
   const y = R_.about.y + 100;
   U.wrap(lv.blurb, 360, y, st.big ? 27 : 23, 560, 'rgba(246,227,180,0.85)', 30);
   if (st.stats.games) U.text(`Games played ${st.stats.games}  ·  won ${st.stats.wins}`, 360, y + 92, 22, 'rgba(232,200,140,0.75)', UI, 600);
   if (st.msg) U.wrap(st.msg.text, 360, y + 130, 24, 560, '#ffe9b0', 30);
 }
 
-function drawDoc(c, st, U, title, doc, page) {
+function drawDoc(c, st, U, title, doc, page, opts = {}) {
   c.fillStyle = 'rgba(14,7,3,0.55)'; c.fillRect(0, 262, W, H - 262);
   U.panel(PANEL.x, PANEL.y, PANEL.w, PANEL.h, 0.94);
   U.text(title, 360, PANEL.y + 84, 60, '#f6dfae', FONT, 700, 'center', true);
   const pg = doc[Math.min(page, doc.length - 1)], size = st.big ? 27 : 24;
   let y = PANEL.y + 140;
+  if (pg.piece) {
+    // a piece page: the real in-game checker, both colours, drawn with this game's own checker sprite.
+    const cy = y + 46, lx = PANEL.x + 170, rx = PANEL.x + PANEL.w - 170;
+    drawChecker(c, st.set, 0, lx, cy, 1.35); drawChecker(c, st.set, 1, rx, cy, 1.35);
+    U.text('Yours', lx, cy + 78, 20, 'rgba(246,227,180,0.8)', UI, 700);
+    U.text('Rival’s', rx, cy + 78, 20, 'rgba(246,227,180,0.8)', UI, 700);
+    y = cy + 118;
+  }
   for (const blk of pg.blocks) {
     if (blk.h) { U.text(blk.h, PANEL.x + 40, y + 6, size + 6, '#e8c46a', UI, 800, 'left'); y += size * 1.6; }
     const n = U.wrap(blk.p, PANEL.x + 40, y, size, PANEL.w - 80, '#f6ead0', size * 1.36, 'left', 500); y += n * size * 1.36 + size * 0.7;
   }
+  if (opts.showCount && doc.length > 1) U.text(`Page ${Math.min(page, doc.length - 1) + 1} of ${doc.length}`, 360, 1310, 18, 'rgba(246,227,180,0.55)', UI, 600);
   if (doc.length > 1) U.button({ x: 140, y: 1330, w: 440, h: 70 }, page + 1 < doc.length ? 'More' : 'Back to first page', { size: 26 });
   U.button(PBACK, 'Back', { primary: true, size: 30 });
 }

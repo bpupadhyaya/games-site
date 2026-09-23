@@ -243,6 +243,7 @@ export function createGame(env) {
     else if (hit(R.daily)) startPuzzle();
     else if (hit(R.about)) { state.scene = 'about'; state.scroll = 0; }
     else if (hit(R.howto)) { state.scene = 'howto'; state.scroll = 0; }
+    else if (hit(R.rules)) { state.scene = 'rules'; state.scroll = 0; }
     else if (hit(R.sound)) { state.sound = !state.sound; audio.setMuted?.(!state.sound); savePrefs(); tok(); }
     else if (hit(R.calm)) { state.calm = !state.calm; savePrefs(); tok(); }
     else if (hit(R.big)) { state.big = !state.big; savePrefs(); tok(); }
@@ -275,7 +276,7 @@ export function createGame(env) {
     if (input.pointer.pressed) { state.kb = false; return null; }
     if (sc === 'title') { if (k.has('Enter') || k.has('Space')) { const R = titleRows(!!state.saved), r = R.resume || R.learn; return { x: r.x + 5, y: r.y + 5 }; } return null; }
     if (sc === 'over') { if (k.has('Enter') || k.has('Space')) return { x: BTN.over1.x + 5, y: BTN.over1.y + 5 }; if (k.has('Escape')) return { x: BTN.over3.x + 5, y: BTN.over3.y + 5 }; return null; }
-    if (sc === 'about' || sc === 'howto' || sc === 'ladder' || sc === 'demo-limit') { if (k.has('Escape')) return { x: BACK.x + 5, y: BACK.y + 5 }; return null; }
+    if (sc === 'about' || sc === 'howto' || sc === 'rules' || sc === 'ladder' || sc === 'demo-limit') { if (k.has('Escape')) return { x: BACK.x + 5, y: BACK.y + 5 }; return null; }
     if (k.has('Escape')) return { x: BTN.menu.x + 5, y: BTN.menu.y + 5 };
     if (k.has('KeyU')) return { x: BTN.undo.x + 5, y: BTN.undo.y + 5 };
     if (k.has('KeyH')) return { x: BTN.hint.x + 5, y: BTN.hint.y + 5 };
@@ -296,7 +297,7 @@ export function createGame(env) {
       const sc = state.scene;
       if (sc === 'title') updateTitle(tap && tap.x !== undefined ? tap : null);
       else if (sc === 'ladder') updateLadder(tap && tap.x !== undefined ? tap : null);
-      else if (sc === 'about' || sc === 'howto') updatePage(input, tap && tap.x !== undefined ? tap : null);
+      else if (sc === 'about' || sc === 'howto' || sc === 'rules') updatePage(input, tap && tap.x !== undefined ? tap : null);
       else if (sc === 'demo-limit') { if (tap && tap.x !== undefined && inRect(BACK, tap.x, tap.y)) state.scene = 'title'; }
       else if (sc === 'over') updateOver(tap && tap.x !== undefined ? tap : null);
       else updateBoard(dt, input, tap);

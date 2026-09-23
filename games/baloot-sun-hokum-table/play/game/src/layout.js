@@ -33,9 +33,10 @@ export function titleRows(hasSave) {
   const o = {};
   if (hasSave) o.resume = row();
   o.play = row(); o.learn = row(); o.daily = row();
-  const sm = 168, gap = 18;
   o.level = R(x, y, w, 76); y += 76 + 16;
-  o.settings = R(x, y, sm, 84); o.about = R(x + sm + gap, y, sm, 84); o.how = R(x + 2 * (sm + gap), y, sm, 84);
+  // Settings / About / Controls / Rules share one row, four even columns (was three — Rules is the addition).
+  const sm = 126, gap = 12;
+  o.settings = R(x, y, sm, 84); o.about = R(x + sm + gap, y, sm, 84); o.how = R(x + 2 * (sm + gap), y, sm, 84); o.rules = R(x + 3 * (sm + gap), y, sm, 84);
   return o;
 }
 export const PANEL = R(30, 990, 660, 190);
@@ -53,3 +54,5 @@ export const ACT = { a: R(30, 1074, 316, 104), b: R(374, 1074, 316, 104) };
 export const OVERLAY_BTN = R(160, 1290, 400, 104);
 export const LESSON_CARD = R(30, 110, 660, 210);
 export const BACK = R(24, 40, 120, 60);
+// "Next" button for the paginated Rules page, mirroring BACK at the opposite top corner.
+export const NEXT = R(W - 24 - 120, 40, 120, 60);

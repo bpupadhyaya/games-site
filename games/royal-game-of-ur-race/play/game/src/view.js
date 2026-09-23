@@ -7,6 +7,7 @@ import { cellOf, legalMoves, HOME, PIECES } from './rules.js';
 import { LEVELS } from './engine.js';
 import { LESSONS } from './lessons.js';
 import { HERITAGE } from './heritage.js';
+import { RULES } from './content.js';
 
 const FONT = '"Cormorant Garamond", Georgia, "Times New Roman", serif', UI = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
 const TAU = Math.PI * 2, GOLD = '#f3d98b', IVORY = '#f8efd8';
@@ -15,7 +16,7 @@ const lerp = (a, b, f) => a + (b - a) * f;
 
 export function render(ctx, state) {
   const scene = state.scene, g = state.game, big = state.big, a = state.anim;
-  drawTableAndBoard(ctx, !(scene === 'title' || scene === 'about' || scene === 'demo-limit' || (scene === 'puzzle' && state.pz.status === 'making')));
+  drawTableAndBoard(ctx, !(scene === 'title' || scene === 'about' || scene === 'rules' || scene === 'demo-limit' || (scene === 'puzzle' && state.pz.status === 'making')));
   const boardScene = scene === 'play' || scene === 'over' || scene === 'lesson' || (scene === 'puzzle' && state.pz.status !== 'making');
 
   const text = (str, x, y, size, color = GOLD, font = FONT, weight = 700, align = 'center') => { ctx.textAlign = align; ctx.font = `${weight} ${size}px ${font}`; ctx.fillStyle = color; ctx.fillText(str, x, y); };
@@ -185,7 +186,7 @@ export function render(ctx, state) {
     button(R.play, 'Play the computer', { primary: state.learned && !R.resume, size: 30 });
     button(R.two, 'Two players, one phone', { size: 28 });
     button(R.daily, solvedToday ? `Daily puzzle: solved · streak ${state.daily.streak}` : state.daily.streak ? `Daily puzzle · streak ${state.daily.streak}` : 'Daily puzzle', { size: 28 });
-    button(R.about, 'About the game', { size: 28 });
+    button(R.about, 'About', { size: 26 }); button(R.rules, 'Rules', { size: 26 });
     button(R.level, `Computer: ${LEVELS[state.level].name}`, { size: 22 }); button(R.sound, state.sound ? 'Sound on' : 'Sound off', { size: 22 });
     button(R.big, state.big ? 'Large text: on' : 'Large text: off', { size: 22 }); button(R.calm, state.calm ? 'Reduced motion: on' : 'Reduced motion: off', { size: 20 });
     text(LEVELS[state.level].blurb, 360, R.big.y + 110, 20, 'rgba(243,217,139,0.7)', UI, 500);
@@ -206,6 +207,20 @@ export function render(ctx, state) {
     para(h.body, 360, 664, 540, big ? [[34, 11], [30, 12]] : [[30, 11], [27, 12], [25, 13]], 13, '#fff3d6', 'center', 1.36);
     text(`${state.about + 1} of ${HERITAGE.length}`, 360, 1268, 22, 'rgba(243,217,139,0.7)', UI, 600);
     button(BTN.menu, 'Menu', { size: 26 }); button(BTN.undo, 'Back', { size: 26, dim: state.about === 0 }); button(BTN.hint, 'Next', { size: 26, primary: state.about < HERITAGE.length - 1, dim: state.about === HERITAGE.length - 1 });
+  } else if (scene === 'rules') {
+    const rl = RULES[state.rules];
+    shadowText('Game rules', 360, 160, 40, GOLD);
+    if (rl.art === 'pieces') { drawPiece(ctx, 296, 350, 62, 0); drawPiece(ctx, 424, 350, 62, 1); }
+    else if (rl.art === 'dice') { for (let k = 0; k < 4; k++) drawDie(ctx, 216 + k * 96, 350, 42, k % 2 === 0, k * 0.55, 1, 0); }
+    else if (rl.art === 'rosette') { rosette(ctx, 360, 350, 92, true, 0); }
+    else if (rl.art === 'capture') { drawPiece(ctx, 300, 356, 58, 1, { dim: true }); drawPiece(ctx, 424, 344, 64, 0); }
+    else drawEmblem(ctx, 360, 350, 118, state);
+    panel(50, 500, 620, 800);
+    shadowText(rl.title, 360, 580, 40, GOLD);
+    ctx.strokeStyle = 'rgba(226,178,74,0.6)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(250, 606); ctx.lineTo(470, 606); ctx.stroke();
+    para(rl.body, 360, 664, 540, big ? [[34, 11], [30, 12]] : [[30, 11], [27, 12], [25, 13]], 13, '#fff3d6', 'center', 1.36);
+    text(`${state.rules + 1} of ${RULES.length}`, 360, 1268, 22, 'rgba(243,217,139,0.7)', UI, 600);
+    button(BTN.menu, 'Menu', { size: 26 }); button(BTN.undo, 'Back', { size: 26, dim: state.rules === 0 }); button(BTN.hint, 'Next', { size: 26, primary: state.rules < RULES.length - 1, dim: state.rules === RULES.length - 1 });
   } else if (scene === 'over') {
     ctx.fillStyle = 'rgba(6,4,2,0.74)'; ctx.fillRect(0, 0, W, H);
     const won = state.two ? `Player ${g.winner + 1} wins` : g.winner === 0 ? 'You win!' : 'The computer wins';

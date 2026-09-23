@@ -2,7 +2,8 @@
 // drawing in view.js. This is the only file that changes `state`.
 //
 // Controls (taught in the game): TAP a card to raise it, TAP it again to play it, or DRAG it up. TAP a big button to bid.
-import { W, H as HH, CW, HAND_Y, LIFT, BTN, TRICK, SEAT, DECK, handSlot, inRect, titleRows, bidButtons, bid2Buttons, ACT, OVERLAY_BTN, BACK } from './layout.js';
+import { W, H as HH, CW, HAND_Y, LIFT, BTN, TRICK, SEAT, DECK, handSlot, inRect, titleRows, bidButtons, bid2Buttons, ACT, OVERLAY_BTN, BACK, NEXT } from './layout.js';
+import { RULES } from './rulesContent.js';
 import { newHand, bidOptions, applyBid, applyDouble, declOptions, declare, playCard, legalCards, matchWinner, whyNot, cardShort, cardName, suitOf, SUIT_NAMES, RUNG, teamOf, nextSeat, declValue, hasBaloot, TARGETS, legalFor, DECL } from './rules.js';
 import { LEVELS, createThinker, heuristicBid, bidReason } from './ai.js';
 import { LESSONS } from './lessons.js';
@@ -23,7 +24,7 @@ export function createGame(env) {
     pos: {}, show: null, says: [null, null, null, null], shown: [0, 0, 0, 0], panel: [], panelText: [],
     stats: { played: 0, wins: 0, best: 0, handsWon: 0, hands: 0 }, saved: null, learned: {}, demoHands: 0,
     lesson: null, daily: { day: config.day ?? 0, solvedDay: -1, streak: 0, tries: 0, status: 'idle', puzzle: null, ready: false, made: 0 },
-    undo: [], listScroll: 0, dev: config.dev === true, refuse: null, celebrate: 0,
+    undo: [], listScroll: 0, dev: config.dev === true, refuse: null, celebrate: 0, page: 0,
   };
   if (config.dev) globalThis.__baloot = { state, start: () => startMatch(), lesson: (i) => startLesson(i), daily: () => startDaily() };   // tester hook (dev only)
   let thinker = null, thinkerKey = '', hintThinker = null, solver = null, maker = null, dailyPuzzle = null;
@@ -350,6 +351,12 @@ export function createGame(env) {
     else if (hit(R.settings)) state.scene = 'settings';
     else if (hit(R.about)) state.scene = 'about';
     else if (hit(R.how)) state.scene = 'how';
+    else if (hit(R.rules)) { state.scene = 'rules'; state.page = 0; }
+  }
+  function updateRules(tap) {
+    if (!tap) return;
+    if (inRect(BACK, tap.x, tap.y)) { state.scene = 'title'; return; }
+    if (inRect(NEXT, tap.x, tap.y)) { state.page = (state.page + 1) % RULES.length; tick(); }
   }
   function updateSettings(tap) {
     if (!tap) return;
@@ -500,6 +507,7 @@ export function createGame(env) {
       else if (sc === 'settings') updateSettings(tap);
       else if (sc === 'lessons') updateLessons(tap);
       else if (sc === 'about' || sc === 'how') updateSimple(tap);
+      else if (sc === 'rules') updateRules(tap);
       else if (sc === 'play' || sc === 'lesson' || sc === 'daily') {
         if (sc === 'daily' && state.daily.status === 'making') {
           if (!maker) maker = createDailyMaker(state.daily.day);

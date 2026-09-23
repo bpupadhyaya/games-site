@@ -1,10 +1,11 @@
 // Everything drawn each frame. Reads `state` (game.js) and changes nothing. The table, board and pebble sprites are cached (art.js).
-import { W, RX, RY, TRAY, MID_Y, BTN, SET, pitPos, trayPos, titleRows } from './layout.js';
+import { W, RX, RY, TRAY, MID_Y, BTN, SET, RULES_BTN, pitPos, trayPos, titleRows } from './layout.js';
 import { drawTable, drawBoard, drawSeed, drawShanyrak, horn, slot, WOODS, SEEDSETS } from './art.js';
 import { legalMoves, numberOf } from './rules.js';
 import { LEVELS } from './engine.js';
 import { LESSONS } from './lessons.js';
 import { ABOUT } from './about.js';
+import { RULES } from './rulesText.js';
 
 const FONT = '"Cormorant Garamond", Georgia, "Times New Roman", serif', UI = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
 const TAU = Math.PI * 2;
@@ -118,6 +119,21 @@ export function render(ctx, state) {
     }
   }
 
+  // a cropped, zoomed-in window onto the REAL board: draws the actual drawBoard()/contents() used during play,
+  // scaled and clipped to a small box, focused on one point - never a separate simplified icon for the Rules page.
+  const artBox = (focus, scale, box, sh, opts = {}) => {
+    ctx.save();
+    ctx.beginPath(); ctx.roundRect(box.x, box.y, box.w, box.h, 26); ctx.clip();
+    ctx.fillStyle = '#100d1c'; ctx.fillRect(box.x, box.y, box.w, box.h);
+    ctx.translate(box.x + box.w / 2 - focus.x * scale, box.y + box.h / 2 - focus.y * scale);
+    ctx.scale(scale, scale);
+    drawBoard(ctx, state.wood);
+    contents(sh, opts);
+    ctx.restore();
+    ctx.save(); ctx.strokeStyle = 'rgba(242,197,107,0.7)'; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.roundRect(box.x, box.y, box.w, box.h, 26); ctx.stroke(); ctx.restore();
+  };
+
   // ---- table -----------------------------------------------------------------------------------------------------
   drawTable(ctx);
 
@@ -207,7 +223,7 @@ export function render(ctx, state) {
     button(R.play, 'Play the computer', { primary: state.learned && !R.resume, size: 32 });
     button(R.two, 'Two players, one phone', { size: 30 });
     button(R.daily, solved ? `Daily puzzle: solved · streak ${state.daily.streak}` : state.daily.streak ? `Daily puzzle · streak ${state.daily.streak}` : 'Daily puzzle', { size: 30 });
-    button(R.about, 'About the game', { size: 26 }); button(R.settings, 'Settings', { size: 26 });
+    button(R.about, 'About', { size: 26 }); button(R.rules, 'Rules', { size: 26 }); button(R.settings, 'Settings', { size: 26 });
     const y = R.about.y + 116;
     text(`Games played: ${state.stats.games} · won: ${state.stats.wins}`, 360, y, 22, 'rgba(248,233,196,0.85)', UI, 500);
     let stars = ''; for (let l = 0; l < LEVELS.length; l++) stars += state.stats.badges['L' + l] ? '★ ' : '☆ ';
@@ -240,6 +256,32 @@ export function render(ctx, state) {
       const n = wrap(body, 70, y, big ? 26 : 23, 580, '#fff3d6', big ? 34 : 30, 'left'); y += n * (big ? 34 : 30) + 22;
     }
     button(BTN.aboutBack, 'Back', { primary: true, size: 32 });
+  } else if (scene === 'rules') {
+    const page = RULES[state.page % RULES.length];
+    panel(36, 120, 648, 1240, 0.92);
+    text('Rules', 360, 176, 26, 'rgba(248,233,196,0.85)', UI, 600);
+    text(page.title, 360, 232, 40, CREAM, FONT);
+    horn(ctx, 360, 264, 12, GOLD, 2.2);
+    let y = 300;
+    const box = { x: 110, y: 300, w: 500, h: 260 };
+    // the real in-game pit/kazan/tuz art, cropped and zoomed from the actual board - never a separate icon
+    if (page.art === 'pit') {
+      artBox(pitPos(4), 2.4, box, { pits: Array.from({ length: 18 }, (_, i) => (i === 4 ? 5 : 9)), kazan: [0, 0], tuz: [-1, -1] }, { legal: [4], counts: false });
+      y = box.y + box.h + 34;
+    } else if (page.art === 'kazan') {
+      artBox(trayPos(0), 1.15, box, { pits: new Array(18).fill(0), kazan: [23, 0], tuz: [-1, -1] }, { counts: true, labels: ['You', 'Computer'] });
+      y = box.y + box.h + 34;
+    } else if (page.art === 'tuz') {
+      artBox({ x: pitPos(12).x, y: pitPos(12).y - 30 }, 2, box, { pits: Array.from({ length: 18 }, (_, i) => (i === 12 ? 0 : 9)), kazan: [0, 0], tuz: [12, -1] }, { counts: false });
+      y = box.y + box.h + 34;
+    }
+    for (const para of page.lines) {
+      const n = wrap(para, 70, y, big ? 24 : 21, 580, '#fff3d6', big ? 32 : 28, 'left');
+      y += n * (big ? 32 : 28) + 18;
+    }
+    text(`Page ${(state.page % RULES.length) + 1} of ${RULES.length}`, 360, 1345, 19, 'rgba(248,233,196,0.6)', UI, 600);
+    button(RULES_BTN.back, 'Back', { size: 30 });
+    button(RULES_BTN.next, 'Next', { primary: true, size: 30 });
   } else if (scene === 'over') {
     ctx.fillStyle = 'rgba(8,10,30,0.72)'; ctx.fillRect(0, 102, W, 1356);
     const won = g.winner === 'draw' ? 'A draw' : state.two ? (g.winner === 0 ? 'Player one wins' : 'Player two wins') : g.winner === 0 ? 'You win!' : 'The computer wins';

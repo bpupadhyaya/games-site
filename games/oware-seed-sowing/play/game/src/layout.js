@@ -26,6 +26,7 @@ export const BTN = {
   next: { x: 200, y: 1340, w: 320, h: 82 }, share: { x: 200, y: 1340, w: 320, h: 82 },
   again: { x: 130, y: 1000, w: 460, h: 96 }, back: { x: 130, y: 1120, w: 460, h: 96 },
   aboutBack: { x: 130, y: 1400, w: 460, h: 90 },
+  rulesBack: { x: 130, y: 1400, w: 220, h: 90 }, rulesNext: { x: 370, y: 1400, w: 220, h: 90 },
 };
 const row = (y, h = 84) => ({ x: 70, y, w: 580, h });
 export function titleRows(hasSave) {
@@ -36,7 +37,11 @@ export function titleRows(hasSave) {
   R.play = row(y); y += 98;
   R.two = row(y); y += 98;
   R.daily = row(y); y += 98;
-  R.about = { x: 70, y, w: 280, h: 84 }; R.settings = { x: 370, y, w: 280, h: 84 };
+  // About / Settings / Rules share one row, three even columns (Rules is the addition).
+  const third = (580 - 14 * 2) / 3, gap = 14;
+  R.about = { x: 70, y, w: third, h: 84 };
+  R.settings = { x: 70 + third + gap, y, w: third, h: 84 };
+  R.rules = { x: 70 + (third + gap) * 2, y, w: third, h: 84 };
   return R;
 }
 // settings rows (label left, value button)

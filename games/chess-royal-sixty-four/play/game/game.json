@@ -1,0 +1,15 @@
+{
+  "slug": "chess-royal-sixty-four",
+  "title": "Chess",
+  "tagline": "The timeless game of sixty-four squares.",
+  "genre": "chess / strategy board game",
+  "orientation": "portrait",
+  "version": "1.0.0",
+  "monetization": {
+    "model": "free"
+  },
+  "locales": [
+    "en"
+  ],
+  "demoOnly": true
+}

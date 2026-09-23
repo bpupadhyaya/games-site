@@ -4,7 +4,7 @@ import { drawScene, drawPiece, braid, pieceRadius } from './art.js';
 import { destinations, openCorners, isCorner, throne, side, SIZES, NAME, ATT, DEF, KING } from './rules.js';
 import { LEVELS } from './engine.js';
 import { LESSONS } from './lessons.js';
-import { PAGES } from './pages.js';
+import { PAGES, RULES } from './pages.js';
 
 const FONT = '"Cinzel", "Cormorant Garamond", Georgia, serif', UI = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
 const TAU = Math.PI * 2, GOLD = '#f0cf86', CREAM = '#fff1d2';
@@ -175,7 +175,8 @@ export function render(ctx, state) {
     button(R.calm, state.calm ? 'Reduced motion: on' : 'Reduced motion: off', { size: 18, ui: true });
     button(R.text, state.big ? 'Text: large' : 'Text: normal', { size: 19, ui: true });
     button(R.about, 'About Tafl', { size: 19, ui: true });
-    button(R.help, 'Controls and rules', { size: 21, ui: true });
+    button(R.help, 'Controls and rules', { size: 19, ui: true });
+    button(R.rules, 'Rules', { size: 19, ui: true });
     const by = R.help.y + 100;
     for (const [sd, x0, label] of [[DEF, 90, 'Defenders'], [ATT, 390, 'Attackers']]) {
       text(label, x0, by, 20, 'rgba(240,207,134,0.85)', UI, 600, 'left');
@@ -187,12 +188,15 @@ export function render(ctx, state) {
     shadowText('That was the free taste.', 360, 800, 40);
     text('Get Tafl on iPhone and Android', 360, 870, 28, CREAM, UI, 600); text('for unlimited games.', 360, 910, 28, CREAM, UI, 600);
     button(BTN.back, 'Menu', { size: 26 });
-  } else if (scene === 'about' || scene === 'help') {
-    const pages = PAGES[scene], pg = pages[Math.min(state.page, pages.length - 1)];
+  } else if (scene === 'about' || scene === 'help' || scene === 'rules') {
+    const pages = scene === 'rules' ? RULES : PAGES[scene], pg = pages[Math.min(state.page, pages.length - 1)];
     panel(36, 140, 648, 1270);
     shadowText(pg.title, 360, 230, 40);
     ctx.save(); ctx.beginPath(); ctx.rect(70, 262, 580, 30); ctx.clip(); braid(ctx, 70, 277, 580, 7, 7, ['#120903', '#a07a3c', '#e8c77e'], 34); ctx.restore();
     let y = 350; const sz = big ? 29 : 25, lh = big ? 38 : 33;
+    // A Rules page about one piece/role shows that piece's real in-game sprite, drawn with the same
+    // drawPiece() the board itself uses - never a separate simplified icon.
+    if (pg.piece) { drawPiece(ctx, 7, pg.piece, 360, y + 66, { scale: 1.9 }); y += 168; }
     for (const para of pg.body) { const nl = wrap(para, 76, y, sz, 568, CREAM, lh, 'left'); y += nl * lh + 22; }
     text(`${state.page + 1} of ${pages.length}`, 360, 1440, 20, 'rgba(240,207,134,0.7)', UI, 500);
     button(BTN.menu, 'Menu', { size: 24 }); if (state.page > 0) button(BTN.undo, 'Back', { size: 24 });

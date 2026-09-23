@@ -32,13 +32,19 @@ export const BTN = {
   next: { x: 200, y: 1462, w: 320, h: 72 }, share: { x: 200, y: 1462, w: 320, h: 72 },
   again: { x: 130, y: 1110, w: 460, h: 92 }, back: { x: 130, y: 1220, w: 460, h: 92 },
   cont: { x: 130, y: 1290, w: 460, h: 96 }, backPage: { x: 130, y: 1440, w: 460, h: 90 },
+  // The Rules reference page's own Back/Next pair, occupying the same footprint as backPage
+  // (x 130-590, y 1440, h 90) split into two even halves with a 20px gap between them.
+  rulesBack: { x: 130, y: 1440, w: 220, h: 90 }, rulesNext: { x: 370, y: 1440, w: 220, h: 90 },
 };
 const row = (y, h = 84) => ({ x: 70, y, w: 580, h });
 export function titleRows(hasSave) {
   let y = 800; const R = {};
   if (hasSave) { R.resume = row(y); y += 100; }
   R.learn = row(y); y += 100; R.play = row(y); y += 100; R.four = row(y); y += 100; R.daily = row(y); y += 100;
-  R.about = { x: 70, y, w: 185, h: 78 }; R.controls = { x: 267, y, w: 185, h: 78 }; R.settings = { x: 465, y, w: 185, h: 78 };
+  // About / Controls / Rules / Settings share one row, four even columns (was three - Rules is
+  // the addition), spanning the exact same x 70-650 span as before.
+  R.about = { x: 70, y, w: 136, h: 78 }; R.controls = { x: 218, y, w: 136, h: 78 };
+  R.rules = { x: 366, y, w: 136, h: 78 }; R.settings = { x: 514, y, w: 136, h: 78 };
   return R;
 }
 export const SET = {

@@ -29,8 +29,16 @@ export const AGAIN_BTN_WIDE = { x: 135, y: 1296, w: 450, h: 112 };
 
 // Title scene.
 export const PLAY_BTN = { x: 110, y: 1060, w: 500, h: 132 };
-export const TITLE_COLOR_BTN = { x: 110, y: 1222, w: 500, h: 96 };
+// Colours + Rules share one row, two even columns (was one full-width Colours button; Rules is
+// the addition - same left/right edges as before, just split in half with a gap between).
+export const TITLE_COLOR_BTN = { x: 110, y: 1222, w: 242, h: 96 };
+export const TITLE_RULES_BTN = { x: 368, y: 1222, w: 242, h: 96 };
 export const HERO = { x: 360, y: 700, cell: 100, n: 5 };
+
+// Rules reference page (title screen only - this game has no other Controls/About screen to
+// mirror). Same bottom-row grid the play scene's Hint/Colours/New board row uses (x 27..693).
+export const RULES_BACK_BTN = { x: 27, y: 1262, w: 324, h: 116 };
+export const RULES_NEXT_BTN = { x: 369, y: 1262, w: 324, h: 116 };
 
 export const cellRect = (index) => ({
   x: BOARD_X + (index % COLS) * CELL,

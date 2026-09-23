@@ -9,11 +9,12 @@
 // locked for its whole 90 seconds). See design/GDD.md for the full design.
 import { WORDS } from './words.js';
 import { SCHEMES } from './schemes.js';
+import { RULES } from './content.js';
 import { render } from './render.js';
 import {
   W, H, BAND_TOP, SLICE_H, SLICE_MARGIN, CHIP_H, slipWidth, inRect, REVIEW_PER_PAGE,
-  MODE_SYN_BTN, MODE_ANT_BTN, PLAY_BTN, TITLE_COLOR_BTN, STOP_BTN, COLOR_BTN,
-  PREV_BTN, NEXT_BTN, PLAY_AGAIN_BTN, CHANGE_MODE_BTN,
+  MODE_SYN_BTN, MODE_ANT_BTN, PLAY_BTN, TITLE_COLOR_BTN, TITLE_RULES_BTN, STOP_BTN, COLOR_BTN,
+  PREV_BTN, NEXT_BTN, PLAY_AGAIN_BTN, CHANGE_MODE_BTN, RULES_BACK_BTN, RULES_NEXT_BTN,
 } from './layout.js';
 
 export const meta = { width: W, height: H };
@@ -47,6 +48,7 @@ export function createGame(env) {
     sessionsCompleted: 0,
     history: [], // this session's answers: { word, mode, answer, picked (null = drifted past), correct }
     reviewPage: 0,
+    rulesPage: 0,
     scheme: 0,
     demo,
     demoSessions: 0,
@@ -208,6 +210,21 @@ export function createGame(env) {
     else if (inRect(x, y, TITLE_COLOR_BTN)) {
       cycleScheme();
       pressed('colour');
+    } else if (inRect(x, y, TITLE_RULES_BTN)) {
+      state.rulesPage = 0;
+      setScene('rules');
+      pressed('rules');
+    }
+  };
+
+  const updateRules = (input) => {
+    if (!input.pointer.pressed) return;
+    const { x, y } = input.pointer;
+    if (inRect(x, y, RULES_BACK_BTN)) {
+      setScene('title');
+    } else if (inRect(x, y, RULES_NEXT_BTN)) {
+      state.rulesPage = (state.rulesPage + 1) % RULES.length;
+      pressed('rulesNext');
     }
   };
 
@@ -294,6 +311,7 @@ export function createGame(env) {
       if (state.scene === 'title') updateTitle(input);
       else if (state.scene === 'playing') updatePlaying(dt, input);
       else if (state.scene === 'gameover') updateGameover(input);
+      else if (state.scene === 'rules') updateRules(input);
       // 'demo-limit': input is a deliberate no-op — see design/GDD.md "Demo cut".
     },
 

@@ -6,13 +6,14 @@ import { DEBTS } from './data/debts.js';
 import { EVENTS } from './data/events.js';
 import { ARCHERS, ARCHER_IDS, OATHS, applyRunToMeta, defaultMeta, loadMeta } from './data/meta.js';
 import { COACH } from './data/help.js';
+import { RULES_REFERENCE } from './data/rules_reference.js';
 import { ENEMIES } from './data/enemies.js';
 import * as B from './rules/battle.js';
 import * as R from './rules/run.js';
 import { makeSky } from './ui/draw.js';
 import { render as renderAll } from './ui/render.js';
 import { C, elementColor } from './ui/theme.js';
-import { ARCHER, BTN, CARD_H, CARD_W, CLOSE, CONFIRM, COVENANT_BTN, COVENANT_BTN_TOP, DETAIL, ENVOY, ENVOY_TOP, FIELD_BOTTOM, GRID, OPTIONS, OPTIONS_TOP, PULL_TO_LOOSE, SECONDARY, HELP_TABS, NEWRUN, TUNER_REMOVE, TUNER_TRIO_Y, choiceRects, enemySlots, handSlots, inRect, titleRects, trioRects } from './ui/layout.js';
+import { ARCHER, BTN, CARD_H, CARD_W, CLOSE, CONFIRM, COVENANT_BTN, COVENANT_BTN_TOP, DETAIL, ENVOY, ENVOY_TOP, FIELD_BOTTOM, GRID, OPTIONS, OPTIONS_TOP, PULL_TO_LOOSE, SECONDARY, HELP_TABS, RULES_NAV, NEWRUN, TUNER_REMOVE, TUNER_TRIO_Y, choiceRects, enemySlots, handSlots, inRect, titleRects, trioRects } from './ui/layout.js';
 
 // 9:19.5 — fills a modern phone edge to edge (the kit letterboxes anything else).
 export const meta = { width: 720, height: 1560 };
@@ -469,6 +470,12 @@ export function createGame(env) {
       if (tab >= 0) {
         o.page = tab;
         sfx.tap();
+      } else if (o.page === 2 && inRect(RULES_NAV.back, tap.x, tap.y)) {
+        o.rulesPage = (o.rulesPage - 1 + RULES_REFERENCE.length) % RULES_REFERENCE.length;
+        sfx.tap();
+      } else if (o.page === 2 && inRect(RULES_NAV.next, tap.x, tap.y)) {
+        o.rulesPage = (o.rulesPage + 1) % RULES_REFERENCE.length;
+        sfx.tap();
       } else if (inRect(CLOSE, tap.x, tap.y)) s.overlay = null;
       return;
     }
@@ -589,7 +596,7 @@ export function createGame(env) {
     if (actions[hit] === 'resume') resume();
     else if (actions[hit] === 'new') startNew();
     else if (actions[hit] === 'book') openBook();
-    else if (actions[hit] === 'help') s.overlay = { type: 'help', page: 0 };
+    else if (actions[hit] === 'help') s.overlay = { type: 'help', page: 0, rulesPage: 0 };
     else s.overlay = { type: 'covenant' };
   }
 

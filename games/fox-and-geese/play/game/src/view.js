@@ -1,6 +1,6 @@
 // Everything that is drawn each frame. Reads `state` (see game.js) and changes nothing.
 // Static art (snowfield, board) and the two pieces are cached sprites (art.js, pieces.js), so a frame is cheap.
-import { W, H, pointAt, PIECE_R, SIZE, UNIT, BTN, LOOK, titleRows, trayPos, DEV_BTN } from './layout.js';
+import { W, H, pointAt, PIECE_R, SIZE, UNIT, BTN, LOOK, RULES_NAV, titleRows, trayPos, DEV_BTN } from './layout.js';
 import { drawTableAndBoard, BOARD_NAMES } from './art.js';
 import { drawFox, drawGoose, SET_NAMES } from './pieces.js';
 import { unlocked, starNeed } from './unlocks.js';
@@ -8,6 +8,7 @@ import { legalMoves, threatened, PTS, FOX_WINS_AT, geeseLeft } from './rules.js'
 import { LEVELS } from './engine.js';
 import { LESSONS } from './lessons.js';
 import { PUZZLE_TEXT } from './puzzles.js';
+import { RULES } from './content.js';
 
 const FONT = '"Cormorant Garamond", Georgia, "Times New Roman", serif', UI = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
 const SIDE = { G: 'Geese', F: 'Fox' };
@@ -43,6 +44,9 @@ export function render(ctx, state) {
     ctx.restore();
   };
   const glow = (i, rgb, pulse) => { const p = pointAt(i); ctx.fillStyle = `rgba(${rgb},${0.45 + pulse * 0.3})`; ctx.beginPath(); ctx.ellipse(p.x, p.y, 25 * UNIT * p.s, 21 * UNIT * p.s, 0, 0, TAU); ctx.fill(); };
+  // Shrinks a button label to fit a narrower button (the Rules-button row needed three columns
+  // where two used to fit) without changing its wording.
+  const fitSize = (label, maxW, start) => { let s = start; ctx.font = `700 ${s}px ${UI}`; while (ctx.measureText(label).width > maxW && s > 11) { s -= 1; ctx.font = `700 ${s}px ${UI}`; } return s; };
 
   // snow drifting down over the scene (not in reduced-motion mode)
   if (!state.calm) {
@@ -161,7 +165,8 @@ export function render(ctx, state) {
     button(R.daily, solvedToday ? `Daily puzzle: solved · streak ${state.daily.streak}` : state.daily.streak ? `Daily puzzle · streak ${state.daily.streak}` : 'Daily puzzle', { size: 28 });
     button(R.level, `Computer: ${LEVELS[state.level].name}`, { size: 22 }); button(R.flock, `Flock: ${state.flock} geese${state.flock === 13 ? ' (classic)' : ''}`, { size: state.flock === 13 ? 19 : 22 });
     button(R.sound, state.sound ? 'Sound on' : 'Sound off', { size: 22 }); button(R.marks, state.marks ? 'Warnings on' : 'Warnings off', { size: 22 });
-    button(R.calm, state.calm ? 'Reduced motion: on' : 'Reduced motion: off', { size: 20 }); button(R.look, 'Board and pieces', { size: 22 });
+    const calmLabel = state.calm ? 'Reduced motion: on' : 'Reduced motion: off', lookLabel = 'Board and pieces', pad = 20;
+    button(R.calm, calmLabel, { size: fitSize(calmLabel, R.calm.w - pad, 20) }); button(R.look, lookLabel, { size: fitSize(lookLabel, R.look.w - pad, 22) }); button(R.rules, 'Rules', { size: 22 });
     // badges: one star per level beaten with each side
     const by = R.look.y + 104;
     for (const [side, x0, label] of [['G', 96, 'Geese'], ['F', 396, 'Fox']]) {
@@ -190,5 +195,31 @@ export function render(ctx, state) {
       ctx.fillStyle = `rgba(210,232,255,${0.8 * (1 - ph)})`; ctx.beginPath(); ctx.arc(x, y, 4 + (k % 3) * 2, 0, TAU); ctx.fill();
     }
     button(BTN.again, 'Play again', { primary: true, size: 34 }); button(BTN.back, 'Menu', { size: 30 });
+  } else if (scene === 'rules') {
+    ctx.fillStyle = 'rgba(4,10,20,0.74)'; ctx.fillRect(0, 0, W, H);
+    const page = RULES[state.rulesPage % RULES.length];
+    text('Rules', 360, 130, 44);
+    text(page.title, 360, 182, 28, '#ffd684', UI, 700);
+    const top = page.piece ? 490 : 220, bottom = 545; // keep clear of the board art drawn below
+    if (page.piece) (page.piece === 'F' ? drawFox : drawGoose)(ctx, 360, 365, page.piece === 'F' ? 70 : 56, { set, flip: true });
+    // Count wrapped lines at a given font size without drawing, so a long page can shrink slightly
+    // to stay compact and comfortably clear of the Back/Next row.
+    const countLines = (str, size, maxW) => {
+      ctx.font = `600 ${size}px ${UI}`; const words = str.split(' '); let n = 1, cur = '';
+      for (const w of words) { const t2 = cur ? cur + ' ' + w : w; if (ctx.measureText(t2).width > maxW && cur) { n += 1; cur = w; } else cur = t2; }
+      return n;
+    };
+    const maxW = big ? 630 : 640;
+    let size = big ? 29 : 25;
+    for (; size > 15; size -= 1) {
+      const lh = size * 1.3, gap = 12;
+      const total = page.lines.reduce((h, ln) => h + countLines(ln, size, maxW) * lh + gap, 0) - gap;
+      if (total <= bottom - top) break;
+    }
+    const lh = size * 1.3;
+    let y = top;
+    for (const line of page.lines) { const n = wrap(line, 360, y, size, maxW, INK, lh); y += n * lh + 12; }
+    text(`Page ${(state.rulesPage % RULES.length) + 1} of ${RULES.length}`, 360, 1420, 22, SOFT, UI, 500);
+    button(RULES_NAV.back, 'Back', { size: 28 }); button(RULES_NAV.next, 'Next', { size: 28, primary: true });
   }
 }

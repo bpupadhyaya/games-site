@@ -1,11 +1,12 @@
 // Toguz Kumalak: state and flow. Drawing is view.js; the rule book is rules.js; the computer is engine.js; lessons.js and puzzles.js are
 // content. The rule book applies a move to `state.game` at once; `state.anim` then PLAYS it (lift, sow pit by pit, capture or tuz)
 // while `state.shown` (the pit counts the player sees) catches up. Input is ignored while an animation runs.
-import { W, H, BTN, SET, titleRows, inRect, pitNear, pitPos } from './layout.js';
+import { W, H, BTN, SET, RULES_BTN, titleRows, inRect, pitNear, pitPos } from './layout.js';
 import { newGame, clone, applyMove, tryMove, legalMoves, sow, sideOf, numberOf, tuzWhy } from './rules.js';
 import { LEVELS, createThinker } from './engine.js';
 import { LESSONS } from './lessons.js';
 import { puzzleFor, puzzleGame, gains, isWeekend } from './puzzles.js';
+import { RULES } from './rulesText.js';
 import { render } from './view.js';
 
 export const meta = { width: W, height: H };
@@ -15,7 +16,7 @@ const NODES_PER_TICK = 600;
 export function createGame(env) {
   const { rng, storage, audio, monetization, config } = env;
   const state = {
-    scene: 'title', t: 0, game: newGame(), shown: null, two: false, level: 1, sound: true, calm: false, big: false, seeds: 'stones', wood: 'walnut',
+    scene: 'title', t: 0, page: 0, game: newGame(), shown: null, two: false, level: 1, sound: true, calm: false, big: false, seeds: 'stones', wood: 'walnut',
     cursor: 4, kb: false, anim: null, msg: null, think: 0, thinking: false, undo: [], hintsLeft: HINTS, hint: null,
     stats: { games: 0, wins: 0, badges: {} }, saved: null, learned: false, demoGames: 0, lesson: null, pz: null, ref: null,
     daily: { day: config.day ?? 0, solvedDay: -1, streak: 0 }, dev: config.dev === true, worstNodes: 0,
@@ -149,6 +150,7 @@ export function createGame(env) {
     else if (hit(R.two)) start(true);
     else if (hit(R.daily)) startPuzzle();
     else if (hit(R.about)) state.scene = 'about';
+    else if (hit(R.rules)) { state.scene = 'rules'; state.page = 0; }
     else if (hit(R.settings)) state.scene = 'settings';
   }
   function updateSettings(tap) {
@@ -282,6 +284,7 @@ export function createGame(env) {
     if (sc === 'over') { if (k.has('Enter') || k.has('Space')) return at(BTN.again); if (k.has('Escape')) return at(BTN.back); return null; }
     if (sc === 'settings') { if (k.has('Escape')) return at(SET.back); return null; }
     if (sc === 'about') { if (k.has('Escape') || k.has('Enter')) return at(BTN.aboutBack); return null; }
+    if (sc === 'rules') { if (k.has('Escape')) return at(RULES_BTN.back); if (k.has('Enter') || k.has('Space')) return at(RULES_BTN.next); return null; }
     if (sc !== 'play' && sc !== 'lesson' && sc !== 'puzzle') return null;
     if (k.has('Escape')) return at(BTN.menu);
     if (k.has('KeyU')) return at(BTN.undo);
@@ -305,6 +308,10 @@ export function createGame(env) {
       if (sc === 'title') updateTitle(tap);
       else if (sc === 'settings') updateSettings(tap);
       else if (sc === 'about') { if (tap && inRect(BTN.aboutBack, tap.x, tap.y)) state.scene = 'title'; }
+      else if (sc === 'rules') {
+        if (tap && inRect(RULES_BTN.back, tap.x, tap.y)) state.scene = 'title';
+        else if (tap && inRect(RULES_BTN.next, tap.x, tap.y)) state.page = (state.page + 1) % RULES.length;
+      }
       else if (sc === 'play') updatePlay(dt, tap);
       else if (sc === 'lesson') updateLesson(dt, tap);
       else if (sc === 'puzzle') updatePuzzle(dt, tap);

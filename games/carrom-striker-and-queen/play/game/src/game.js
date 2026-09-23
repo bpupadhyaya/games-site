@@ -8,6 +8,7 @@ import { createThinker, AI_LEVELS } from './ai.js';
 import { LESSONS, judge } from './lessons.js';
 import { createPuzzleMaker, puzzleBoard } from './daily.js';
 import { THEME_KEYS } from './art.js';
+import { GAME_RULES } from './pages.js';
 import { render } from './view.js';
 
 export const meta = { width: W, height: H };
@@ -251,7 +252,8 @@ export function createGame(env) {
     if (hit(B.resume)) resumeBoard(); else if (hit(B.play)) startBoard('ai'); else if (hit(B.two)) startBoard('two');
     else if (hit(B.learn)) state.scene = 'lessons'; else if (hit(B.daily)) startDaily();
     else if (hit(B.level)) { state.level = (state.level + 1) % AI_LEVELS.length; savePrefs(); tone({ freq: 500, to: 300, dur: 0.06, type: 'triangle', vol: 0.06 }); }
-    else if (hit(B.howto)) { state.scene = 'howto'; state.page = 0; } else if (hit(B.about)) state.scene = 'about'; else if (hit(B.settings)) { state.back = 'title'; state.scene = 'settings'; }
+    else if (hit(B.howto)) { state.scene = 'howto'; state.page = 0; } else if (hit(B.about)) state.scene = 'about';
+    else if (hit(B.rules)) { state.scene = 'rules'; state.page = 0; } else if (hit(B.settings)) { state.back = 'title'; state.scene = 'settings'; }
   }
   function updateSettings(tap) {
     if (!tap) return;
@@ -270,6 +272,7 @@ export function createGame(env) {
       else if (sc === 'play' || sc === 'lesson' || sc === 'daily') updateBoardScene(dt, input, tap);
       else if (sc === 'settings') updateSettings(tap);
       else if (sc === 'howto') { if (tap) { if (inRect(PAGE.back, tap.x, tap.y)) state.scene = 'title'; else if (inRect(PAGE.next, tap.x, tap.y)) state.page = 1; else if (inRect(PAGE.prev, tap.x, tap.y)) state.page = 0; } }
+      else if (sc === 'rules') { if (tap) { if (inRect(PAGE.back, tap.x, tap.y)) state.scene = 'title'; else if (inRect(PAGE.next, tap.x, tap.y)) state.page = (state.page + 1) % GAME_RULES.length; else if (inRect(PAGE.prev, tap.x, tap.y)) state.page = (state.page - 1 + GAME_RULES.length) % GAME_RULES.length; } }
       else if (sc === 'about' || sc === 'demo-limit') { if (tap && inRect(PAGE.back, tap.x, tap.y)) state.scene = 'title'; }
       else if (sc === 'lessons') { if (tap) { if (inRect(PAGE.back, tap.x, tap.y)) state.scene = 'title'; else { const i = lessonRows().findIndex((r) => inRect(r, tap.x, tap.y)); if (i >= 0) startLesson(i); } } }
     },

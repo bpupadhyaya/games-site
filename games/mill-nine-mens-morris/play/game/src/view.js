@@ -7,7 +7,7 @@ import { legalMoves, MILLS, MILL_IDX, NONE, NAMES, bit, pop, placing, flying, op
 import { LEVELS } from './engine.js';
 import { LESSONS } from './lessons.js';
 import { puzzleText } from './puzzles.js';
-import { ABOUT, HOW } from './text.js';
+import { ABOUT, HOW, RULES } from './text.js';
 
 const TITLEF = 'Cinzel, "Trajan Pro", Georgia, "Times New Roman", serif', UI = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
 const TAU = Math.PI * 2;
@@ -74,6 +74,7 @@ export function render(ctx, state) {
   // ---- scene that shows the whole tavern menu -----------------------------------------------------
   if (scene === 'title' || scene === 'look' || scene === 'demo-limit') { vignette(); drawTitleLike(); return; }
   if (scene === 'about' || scene === 'how') { vignette(); drawPage(); return; }
+  if (scene === 'rules') { vignette(); drawRulesPage(); return; }
 
   // ---- board scenes -------------------------------------------------------------------------------
   const boardScene = scene === 'play' || scene === 'over' || scene === 'lesson' || (scene === 'puzzle' && state.pz.status !== 'making');
@@ -108,7 +109,9 @@ export function render(ctx, state) {
       button(R.level, lvl.name, { size: 21 }); button(R.side, state.humanSide === 1 ? 'You: Dark' : 'You: Light', { size: 21 });
       button(R.sound, state.sound ? 'Sound: on' : 'Sound: off', { size: 21 }); button(R.calm, state.calm ? 'Calm: on' : 'Calm: off', { size: 21 });
       button(R.look, 'Board & men', { size: 21 }); button(R.big, big ? 'Large text: on' : 'Large text', { size: 21 });
-      button(R.about, 'About the game', { size: 21 }); button(R.how, 'How to play', { size: 21 });
+      // This row grew from 2 columns (About/How) to 3 (About/How/Rules) to fit the new Rules button,
+      // so labels shrink to fit the narrower columns - same buttons, same destinations, just smaller text.
+      button(R.about, 'About', { size: 17 }); button(R.how, 'How to play', { size: 15 }); button(R.rules, 'Rules', { size: 17 });
       if (state.msg) { plaque(60, 350, 600, 92); wrap(state.msg.text, 360, 392, 26, 540, '#f6e3b4'); }
       text(lvl.note, 360, 1546, 18, 'rgba(240,215,160,0.7)', UI, 500);
     } else if (scene === 'look') {
@@ -139,6 +142,30 @@ export function render(ctx, state) {
       const n = wrap(body, 66, y, fs, 590, '#f0dcae', lh, 'left'); y += n * lh + 20;
     }
     button(BTN.pageBack, 'Back', { primary: true });
+  }
+  // Rules: a small paginated reference (About/How are each one static page with only a Back button -
+  // this game had no Back/Next pagination anywhere before Rules, since Rules needs to fit far more
+  // content than either of those, this is the closest equivalent to the Back/Next/"Page N of M"
+  // convention other games in this batch use).
+  function drawRulesPage() {
+    const page = RULES[state.rulesPage % RULES.length];
+    plaque(30, 130, 660, 1330, 0.85);
+    text('Rules', 360, 210, 44);
+    text(page.title.toUpperCase(), 360, 268, 24, '#f2c766', TITLEF, 700);
+    let y = 316;
+    if (page.piece) {
+      const py = y + 66, dx = 110, r = 46;
+      drawMan(ctx, 360 - dx, py, r, 0, set, {});
+      drawMan(ctx, 360 + dx, py, r, 1, set, {});
+      text('Light', 360 - dx, py + r + 26, 17, 'rgba(240,220,180,0.75)', UI, 600);
+      text('Dark', 360 + dx, py + r + 26, 17, 'rgba(240,220,180,0.75)', UI, 600);
+      y = py + r + 56;
+    }
+    const fs = big ? 24 : 21, lh = fs * 1.34;
+    for (const line of page.lines) { const n = wrap(line, 360, y, fs, 600, '#f0dcae', lh, 'center', 500); y += n * lh + 16; }
+    text(`Page ${(state.rulesPage % RULES.length) + 1} of ${RULES.length}`, 360, 1372, 18, 'rgba(240,215,160,0.65)', UI, 500);
+    button(BTN.rulesBack, 'Back', { primary: true });
+    button(BTN.rulesNext, 'Next', { primary: true });
   }
   function drawHud() {
     if (scene === 'over') { drawOver(); return; }

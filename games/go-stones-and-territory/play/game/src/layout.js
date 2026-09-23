@@ -40,8 +40,13 @@ export const R = {
   done: { x: 190, y: 1118, w: 340, h: 104 },
 };
 export const titleButtons = (hasSave) => {
-  const names = (hasSave ? ['resume'] : []).concat(['play', 'learn', 'daily', 'about', 'how', 'settings']);
+  // 'rules' is appended LAST on purpose: every earlier row keeps the exact x/y/w/h it always had.
+  const names = (hasSave ? ['resume'] : []).concat(['play', 'learn', 'daily', 'about', 'how', 'settings', 'rules']);
   const out = {}, y0 = hasSave ? 872 : 900, h = hasSave ? 74 : 80, gap = hasSave ? 12 : 14;
   names.forEach((nm, i) => { out[nm] = { x: 110, y: y0 + i * (h + gap), w: 500, h }; });
   return out;
 };
+
+// The paginated Rules reference page: Back exits to the title, Next cycles pages with wraparound
+// (same convention as the About/How reader's single Back button, extended for pagination).
+export const RULES_NAV = { back: { x: 36, y: 1380, w: 300, h: 84 }, next: { x: 384, y: 1380, w: 300, h: 84 } };

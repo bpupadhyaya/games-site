@@ -27,7 +27,10 @@ export function titleRows(hasSave) {
   // two rows of two small buttons: [level | sound] and [warnings | reduced motion]
   out.level = { x: 90, y, w: 262, h: 62 }; out.sound = { x: 368, y, w: 262, h: 62 };
   out.marks = { x: 90, y: y + 70, w: 262, h: 62 }; out.calm = { x: 368, y: y + 70, w: 262, h: 62 };
-  out.look = { x: 90, y: y + 140, w: 540, h: 62 };
+  // 'Board and pieces' used to span the full row alone; it now shares that same row/y with the
+  // new Rules button, same two-column width as the rows above (Rules-page addition).
+  out.look = { x: 90, y: y + 140, w: 262, h: 62 };
+  out.rules = { x: 368, y: y + 140, w: 262, h: 62 };
   return out;
 }
 // The 'Board and pieces' screen: three board woods, two piece sets, message size, back.
@@ -42,6 +45,9 @@ export const BTN = {
   again: { x: 140, y: 900, w: 440, h: 96 }, back: { x: 140, y: 1016, w: 440, h: 84 }, share: { x: 140, y: 1120, w: 440, h: 84 },
   next: { x: 140, y: 1462, w: 440, h: 72 },
 };
+// Rules reference: paginated, reached from the title screen only. Back/Next share the same
+// bottom-bar row/height the play screen's own button bar already uses.
+export const RULES_NAV = { back: { x: 90, y: 1462, w: 262, h: 72 }, next: { x: 368, y: 1462, w: 262, h: 72 } };
 export const inRect = (r, x, y) => !!r && x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
 // Where the goats still to be placed wait (two rows of ten), and where captured goats are laid out.
 export const handPos = (k) => ({ x: 94 + (k % 10) * 59, y: 500 + Math.floor(k / 10) * 62, s: 1 });

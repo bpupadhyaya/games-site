@@ -11,6 +11,7 @@ import { clampPull, launchVelocity, stepStone, segmentHitsCircle, distanceToSegm
 import { spawnBird, updateBird, startle, maybeDodge, isTarget, isPerchedPest } from './birds.js';
 import { generateScene, pickBirdType } from './levels.js';
 import { drawGame, BUTTONS, SCHEMES, chipRect } from './render.js';
+import { RULES } from './content.js';
 
 export const meta = { width: W, height: H };
 
@@ -22,7 +23,8 @@ export function createGame(env) {
   const day = config?.day ?? 0;
 
   const state = {
-    scene: 'title', // 'title' | 'playing' | 'levelclear' | 'tally' | 'demo-limit'
+    scene: 'title', // 'title' | 'playing' | 'levelclear' | 'tally' | 'demo-limit' | 'rules'
+    rulesPage: 0,
     mode: 'campaign', // 'campaign' | 'endless' | 'daily'
     level: 1,
     spec: levelSpec(1),
@@ -360,7 +362,10 @@ export function createGame(env) {
     const { x, y } = input.pointer;
     if (inRect(x, y, BUTTONS.colors)) cycleScheme();
     else if (inRect(x, y, BUTTONS.soundTitle)) toggleMute();
-    else if (inRect(x, y, BUTTONS.daily)) {
+    else if (inRect(x, y, BUTTONS.rules)) {
+      state.rulesPage = 0;
+      state.scene = 'rules';
+    } else if (inRect(x, y, BUTTONS.daily)) {
       if (!demo && state.daily.day !== day) startRun('daily');
     } else if (inRect(x, y, BUTTONS.endless)) {
       if (!demo) startRun('endless');
@@ -368,10 +373,18 @@ export function createGame(env) {
     else if (inRect(x, y, BUTTONS.play)) startRun('campaign');
   };
 
+  const updateRules = (input) => {
+    if (!input.pointer.pressed) return;
+    const { x, y } = input.pointer;
+    if (inRect(x, y, BUTTONS.rulesBack)) state.scene = 'title';
+    else if (inRect(x, y, BUTTONS.rulesNext)) state.rulesPage = (state.rulesPage + 1) % RULES.length;
+  };
+
   return {
     update(dt, input) {
       if (state.scene === 'playing') updatePlaying(dt, input);
       else if (state.scene === 'title') updateTitle(input);
+      else if (state.scene === 'rules') updateRules(input);
       else if (state.scene === 'levelclear') {
         state.time += dt;
         state.clearTimer -= dt;

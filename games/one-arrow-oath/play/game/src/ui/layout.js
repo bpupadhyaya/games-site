@@ -93,7 +93,11 @@ export const NEWRUN = {
   begin: { x: 140, y: 1096, w: 440, h: 96 },
   cancel: { x: 190, y: 1218, w: 340, h: 60 },
 };
-export const HELP_TABS = [{ x: 60, y: 236, w: 294, h: 76 }, { x: 366, y: 236, w: 294, h: 76 }];
+// Was a 2-column row (How to Play | About); now 3 columns at the same y and overall span
+// (60..660), to make room for the Rules tab (Rules-page addition; nothing else moves).
+export const HELP_TABS = [{ x: 60, y: 236, w: 192, h: 76 }, { x: 264, y: 236, w: 192, h: 76 }, { x: 468, y: 236, w: 192, h: 76 }];
+// Rules tab pagination: a Back/Next row above the help overlay's own Close button.
+export const RULES_NAV = { back: { x: 60, y: 1258, w: 294, h: 80 }, next: { x: 366, y: 1258, w: 294, h: 80 } };
 export const COVENANT_BTN_TOP = 960;
 export const COVENANT_BTN = { h: 84, gap: 16 };
 export const OPTIONS_TOP = 520;

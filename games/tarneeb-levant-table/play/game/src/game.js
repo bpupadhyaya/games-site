@@ -2,10 +2,11 @@
 // lessons.js and puzzles.js are content. See design/GDD.md for the ruleset.
 //
 // Playing a card: TAP a card (it lifts), TAP it again, or DRAG it up onto the table. Illegal cards are refused with a reason.
-import { W, H as HEIGHT, BTN, BID, SLOT, SEAT, HAND_Y, handLayout, cardAt, inRect, titleRows, LESSON_ROWS, LESSONS_BACK, ABOUT_BACK } from './layout.js';
+import { W, H as HEIGHT, BTN, BID, SLOT, SEAT, HAND_Y, handLayout, cardAt, inRect, titleRows, LESSON_ROWS, LESSONS_BACK, ABOUT_BACK, RULES_BACK, RULES_NEXT } from './layout.js';
 import { deal, bidAction, setTrump, playCard, legalPlays, canBid, whyNotBid, whyIllegal, scoreHand, matchWinner, cloneHand, cardName, SEAT_NAMES, SUIT_NAMES } from './rules.js';
 import { chooseBid, chooseTrump, pickCard, createThinker } from './ai.js';
 import { LESSONS } from './lessons.js';
+import { RULES } from './rules-content.js';
 import { puzzleFor, puzzleHand, puzzleText, createPuzzleBrain } from './puzzles.js';
 import { render } from './view.js';
 
@@ -15,7 +16,7 @@ const DEMO_MATCHES = 2, HINTS_PER_MATCH = 5, DEAL_TIME = 52 * 0.028 + 0.35;
 export function createGame(env) {
   const { rng, storage, audio, monetization, config } = env;
   const state = {
-    scene: 'title', t: 0, level: 2, sound: true, calm: false, big: false, target: 31, back: 'garnet',
+    scene: 'title', t: 0, page: 0, level: 2, sound: true, calm: false, big: false, target: 31, back: 'garnet',
     stats: { played: 0, wins: 0, hands: 0, maxLevel: 2 }, learned: LESSONS.map(() => false), learnedAll: false,
     daily: { day: config.day ?? 0, solvedDay: -1, streak: 0 }, demoMatches: 0, saved: null,
     tb: null, lesson: null, puz: null, puzText: '', puzTarget: 0, dev: config.dev === true,
@@ -191,6 +192,7 @@ export function createGame(env) {
     else if (hit(R.play, x, y)) startMatch();
     else if (hit(R.daily, x, y)) startPuzzle();
     else if (hit(R.about, x, y)) state.scene = 'about';
+    else if (hit(R.rules, x, y)) { state.scene = 'rules'; state.page = 0; }
     else if (hit(R.level, x, y)) { let l = state.level; do { l = l % 4 + 1; } while (l > state.stats.maxLevel && !state.dev); state.level = l; savePrefs(); }
     else if (hit(R.sound, x, y)) { state.sound = !state.sound; audio.setMuted?.(!state.sound); savePrefs(); }
     else if (hit(R.calm, x, y)) { state.calm = !state.calm; savePrefs(); }
@@ -245,6 +247,10 @@ export function createGame(env) {
     if (p.pressed) {
       if (state.scene === 'title') pressTitle(p.x, p.y);
       else if (state.scene === 'about') { if (hit(ABOUT_BACK, p.x, p.y)) state.scene = 'title'; }
+      else if (state.scene === 'rules') {
+        if (hit(RULES_BACK, p.x, p.y)) state.scene = 'title';
+        else if (hit(RULES_NEXT, p.x, p.y)) state.page = (state.page + 1) % RULES.length;
+      }
       else if (state.scene === 'lessons') {
         if (hit(LESSONS_BACK(LESSONS.length), p.x, p.y)) state.scene = 'title';
         LESSON_ROWS(LESSONS.length).forEach((r, i) => { if (hit(r, p.x, p.y)) startLesson(i); });

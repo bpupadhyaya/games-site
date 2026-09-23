@@ -1,6 +1,6 @@
 // Everything that is drawn each frame. Reads `state` (see game.js) and changes nothing.
 // Static art (table, board) and the two pieces are cached sprites (art.js, pieces.js), so a frame is cheap.
-import { W, H, pointAt, PIECE_R, SIZE, UNIT, BTN, LOOK, titleRows, handPos, capturedPos } from './layout.js';
+import { W, H, pointAt, PIECE_R, SIZE, UNIT, BTN, LOOK, RULES_NAV, titleRows, handPos, capturedPos } from './layout.js';
 import { drawTableAndBoard, WOOD_NAMES } from './art.js';
 import { drawTiger, drawGoat, SET_NAMES } from './pieces.js';
 import { unlocked } from './unlocks.js';
@@ -8,6 +8,7 @@ import { legalMoves, threatened } from './rules.js';
 import { LEVELS } from './engine.js';
 import { LESSONS } from './lessons.js';
 import { PUZZLE_TEXT } from './puzzles.js';
+import { RULES } from './content.js';
 
 const FONT = '"Cormorant Garamond", Georgia, "Times New Roman", serif', UI = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
 const SIDE = { G: 'Goats', T: 'Tigers' };
@@ -146,7 +147,7 @@ export function render(ctx, state) {
     button(R.two, 'Two players, one phone', { size: 28 });
     button(R.daily, solvedToday ? `Daily puzzle: solved · streak ${state.daily.streak}` : state.daily.streak ? `Daily puzzle · streak ${state.daily.streak}` : 'Daily puzzle', { size: 28 });
     button(R.level, `Computer: ${LEVELS[state.level].name}`, { size: 22 }); button(R.sound, state.sound ? 'Sound on' : 'Sound off', { size: 22 }); button(R.marks, state.marks ? 'Warnings on' : 'Warnings off', { size: 22 }); button(R.calm, state.calm ? 'Reduced motion: on' : 'Reduced motion: off', { size: 20 });
-    button(R.look, 'Board and pieces', { size: 24 });
+    button(R.look, 'Board and pieces', { size: 24 }); button(R.rules, 'Rules', { size: 24 });
     // badges: one star per level beaten with each side
     const by = R.look.y + 104;
     for (const [side, x0, label] of [['G', 96, 'Goats'], ['T', 396, 'Tigers']]) {
@@ -172,5 +173,16 @@ export function render(ctx, state) {
       }
     }
     button(BTN.again, 'Play again', { primary: true, size: 34 }); button(BTN.back, 'Menu', { size: 30 });
+  } else if (scene === 'rules') {
+    ctx.fillStyle = 'rgba(6,10,14,0.72)'; ctx.fillRect(0, 0, W, H);
+    const page = RULES[state.rulesPage % RULES.length];
+    text('Rules', 360, 130, 44);
+    text(page.title, 360, 182, 28, '#ffd24a', UI, 700);
+    let y = 240;
+    if (page.piece) { piece(page.piece, { x: 360, y: 400, s: 1 }, { scale: page.piece === 'T' ? 2.7 : 3.6 }); y = 510; }
+    const size = big ? 29 : 25, lh = size * 1.32;
+    for (const line of page.lines) { const n = wrap(line, 360, y, size, 620, '#ffffff', lh); y += n * lh + 12; }
+    text(`Page ${(state.rulesPage % RULES.length) + 1} of ${RULES.length}`, 360, 1420, 22, 'rgba(246,223,174,0.7)', UI, 500);
+    button(RULES_NAV.back, 'Back', { size: 28 }); button(RULES_NAV.next, 'Next', { size: 28, primary: true });
   }
 }

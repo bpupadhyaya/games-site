@@ -30,7 +30,7 @@ export function titleRows(hasSave) {
   const pair = (a, b) => { out[a] = { x: 80, y, w: 272, h: 60 }; out[b] = { x: 368, y, w: 272, h: 60 }; y += 68; };
   if (hasSave) full('resume');
   full('learn'); pair('dark', 'light'); full('two'); full('daily'); y += 6;
-  pair('level', 'sound'); pair('marks', 'calm'); pair('big', 'howto'); full('about');
+  pair('level', 'sound'); pair('marks', 'calm'); pair('big', 'howto'); pair('about', 'rules');
   return out;
 }
 // Which board point a tap means: the nearest point (or the cow standing on it).

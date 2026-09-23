@@ -10,7 +10,8 @@ import { LEVELS, PER_TICK, simsFor, createThinker, createScorer, quickMove, reas
 import { LESSONS, boardOf } from './lessons.js';
 import { todaysPuzzle, fromRows, puzzleText } from './puzzles.js';
 import { render, setupRects, lessonRects, settingsRects, READER, quizRect } from './view.js';
-import { titleButtons } from './layout.js';
+import { titleButtons, RULES_NAV } from './layout.js';
+import { RULES } from './content.js';
 import { THEMES, warm } from './art.js';
 
 export const meta = { width: W, height: H };
@@ -30,6 +31,7 @@ export function createGame(env) {
     pz: null, daily: { day: config.day ?? 0, solvedDay: -1, streak: 0 },
     stats: { played: 0, wins: 0 }, saved: null, demoGames: 0, demo: config.demo === true, dev: config.dev === true,
     tap: null, down: false, fromLesson: -1,
+    rulesPage: 0,
   };
   let thinker = null, hintThinker = null, scorer = null, quick = null;
 
@@ -328,6 +330,12 @@ export function createGame(env) {
     else if (on(B.about)) S.scene = 'about';
     else if (on(B.how)) S.scene = 'how';
     else if (on(B.settings)) S.scene = 'settings';
+    else if (on(B.rules)) { S.scene = 'rules'; S.rulesPage = 0; }
+  }
+  function updateRules(p) {
+    if (!p.released) return;
+    if (upHit(RULES_NAV.next, p)) S.rulesPage = (S.rulesPage + 1) % RULES.length;
+    else if (upHit(RULES_NAV.back, p)) S.scene = 'title';
   }
   function updateSetup(p) {
     if (!p.released) return;
@@ -440,6 +448,7 @@ export function createGame(env) {
         case 'setup': updateSetup(p); break;
         case 'lessons': updateLessons(p); break;
         case 'about': case 'how': updateReader(p); break;
+        case 'rules': updateRules(p); break;
         case 'settings': updateSettings(p); break;
         case 'demo-limit': break;
         case 'play': updatePlay(dt, p, input); break;

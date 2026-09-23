@@ -3,13 +3,14 @@ import { CARDS, ELEMENTS, ELEMENT_NAMES, BEATS, BEAT_VERBS, describe } from '../
 import { DEBTS } from '../data/debts.js';
 import { EVENTS, COVENANT } from '../data/events.js';
 import { HOW_TO_PLAY, ABOUT, CREDITS, COACH } from '../data/help.js';
+import { RULES_REFERENCE } from '../data/rules_reference.js';
 import { ARCHERS, ARCHER_IDS, OATHS } from '../data/meta.js';
 import { ENEMIES } from '../data/enemies.js';
 import * as B from '../rules/battle.js';
 import { STEPS_PER_ACT, REMOVE_PRICE, SKIP_REWARD_MARKS, removableTechs } from '../rules/run.js';
 import { C, W, H, SAFE_TOP, elementColor, alpha } from './theme.js';
 import { bar, button, contactShadow, diamond, drawArcher, drawCard, drawConstruct, drawRing, drawSky, glyph, goldFoil, icon, intentBadge, panel, paragraph, roundRect, rule, setPress, text, tracked } from './draw.js';
-import { ARCHER, BTN, CARD_H, CARD_W, CLOSE, CONFIRM, COVENANT_BTN, COVENANT_BTN_TOP, DETAIL, ENVOY, ENVOY_TOP, FOCUS, GRID, HEADER_CX, HEADER_W, HEADER_Y, OPTIONS, OPTIONS_TOP, RESOLVE_BAR, RING, SECONDARY, HELP_TABS, NEWRUN, TUNER_REMOVE, TUNER_TRIO_Y, choiceRects, enemySlots, titleRects, trioRects } from './layout.js';
+import { ARCHER, BTN, CARD_H, CARD_W, CLOSE, CONFIRM, COVENANT_BTN, COVENANT_BTN_TOP, DETAIL, ENVOY, ENVOY_TOP, FOCUS, GRID, HEADER_CX, HEADER_W, HEADER_Y, OPTIONS, OPTIONS_TOP, RESOLVE_BAR, RING, SECONDARY, HELP_TABS, RULES_NAV, NEWRUN, TUNER_REMOVE, TUNER_TRIO_Y, choiceRects, enemySlots, titleRects, trioRects } from './layout.js';
 
 const TAU = Math.PI * 2;
 const ease = (x) => 1 - (1 - x) * (1 - x);
@@ -569,6 +570,33 @@ function shade(ctx) {
   ctx.fillRect(0, 0, W, H);
 }
 
+// The Rules tab of the help overlay: an exhaustive systems reference, paginated. Additive to,
+// and separate from, the brief HOW_TO_PLAY tips and the ABOUT lore text on the other two tabs.
+function drawRulesPage(ctx, o) {
+  const page = RULES_REFERENCE[o.rulesPage % RULES_REFERENCE.length];
+  rule(ctx, W / 2, 350, 380);
+  text(ctx, page.title, W / 2, 396, { size: 28, weight: 700, color: C.goldLight, display: true });
+  let y = 440;
+  if (page.demo === 'cards') {
+    ctx.save();
+    ctx.translate(W / 2 - 110, y + 116);
+    drawCard(ctx, 'first_promise', CARD_W, CARD_H, { t: 0, lit: true });
+    ctx.restore();
+    ctx.save();
+    ctx.translate(W / 2 + 110, y + 116);
+    drawCard(ctx, 'reed', CARD_W, CARD_H, { t: 0.3, lit: true });
+    ctx.restore();
+    text(ctx, 'An Arrow', W / 2 - 110, y + 250, { size: 18, color: C.goldLight });
+    text(ctx, 'A Technique', W / 2 + 110, y + 250, { size: 18, color: C.inkSoft });
+    y += 300;
+  } else if (page.demo === 'ring') {
+    drawRing(ctx, W / 2, y + 74, 64, ELEMENTS, {});
+    y += 176;
+  }
+  for (const line of page.lines) y += paragraph(ctx, line, W / 2, y, W - 190, { size: 22, color: C.inkSoft, lineH: 1.38 }) + 22;
+  text(ctx, `Page ${(o.rulesPage % RULES_REFERENCE.length) + 1} of ${RULES_REFERENCE.length}`, W / 2, 1220, { size: 18, color: C.muted });
+}
+
 function drawInspect(ctx, id, t) {
   shade(ctx);
   ctx.save();
@@ -591,7 +619,7 @@ function drawOverlay(ctx, s, extra) {
   if (o.type === 'help') {
     panel(ctx, { x: 36, y: SAFE_TOP + 40, w: W - 72, h: 1330 });
     tracked(ctx, 'One Arrow Oath', W / 2, 200, { size: 30, spacing: 6, fill: goldFoil(ctx, 160, 170, 560, 200), glow: alpha(C.gold, 0.5) });
-    HELP_TABS.forEach((r, i) => button(ctx, r, i === 0 ? 'How to Play' : 'About', { size: 24, primary: o.page === i, quiet: o.page !== i }));
+    HELP_TABS.forEach((r, i) => button(ctx, r, ['How to Play', 'About', 'Rules'][i], { size: 22, primary: o.page === i, quiet: o.page !== i }));
     if (o.page === 0) {
       HOW_TO_PLAY.forEach((step, i) => {
         const y = 356 + i * 132;
@@ -607,7 +635,7 @@ function drawOverlay(ctx, s, extra) {
       });
       drawRing(ctx, W / 2, 1230, 64, ELEMENTS, {});
       text(ctx, 'Each element beats the next one around the ring.', W / 2, 1330, { size: 19, color: C.muted });
-    } else {
+    } else if (o.page === 1) {
       rule(ctx, W / 2, 350, 380);
       let y = 410;
       ABOUT.forEach((para, i) => {
@@ -616,6 +644,10 @@ function drawOverlay(ctx, s, extra) {
       rule(ctx, W / 2, y + 4, 260);
       text(ctx, `Version ${extra.manifest?.version ?? ''}`, W / 2, y + 50, { size: 18, color: C.muted });
       text(ctx, CREDITS, W / 2, y + 80, { size: 17, color: C.muted });
+    } else {
+      drawRulesPage(ctx, o);
+      button(ctx, RULES_NAV.back, 'Back', { size: 26 });
+      button(ctx, RULES_NAV.next, 'Next', { size: 26, primary: true });
     }
     button(ctx, CLOSE, 'Close', { size: 26, primary: true });
     return;

@@ -16,12 +16,16 @@ export const rackPos = (which, k) => ({ x: 360 + (k - 4) * 56, y: RACK[which].y,
 export const inRect = (r, x, y) => !!r && x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
 
 const mainRow = (y, i) => ({ x: 90, y: y + i * 72, w: 540, h: 64 });
-// Title buttons. names: resume?, learn, play, two, daily; then small: level side / sound calm / look big / about how
+// Title buttons. names: resume?, learn, play, two, daily; then small: level side / sound calm / look big / about how rules
 export function titleRows(hasSave) {
   const names = (hasSave ? ['resume'] : []).concat(['learn', 'play', 'two', 'daily']), out = {}, y0 = 880 - (hasSave ? 0 : 0);
   names.forEach((n, i) => { out[n] = mainRow(y0, i); });
   const y = y0 + names.length * 72 + 8, sm = (i, j) => ({ x: 90 + j * 278, y: y + i * 66, w: 262, h: 58 });
-  out.level = sm(0, 0); out.side = sm(0, 1); out.sound = sm(1, 0); out.calm = sm(1, 1); out.look = sm(2, 0); out.big = sm(2, 1); out.about = sm(3, 0); out.how = sm(3, 1);
+  out.level = sm(0, 0); out.side = sm(0, 1); out.sound = sm(1, 0); out.calm = sm(1, 1); out.look = sm(2, 0); out.big = sm(2, 1);
+  // Row 3 was About/How (2 columns); Rules is a new addition, so this one row becomes 3 even columns.
+  // Every other row above keeps its exact 2-column position/size, unchanged.
+  const bw3 = 540, gap3 = 16, third = (bw3 - gap3 * 2) / 3, sm3 = (j) => ({ x: 90 + j * (third + gap3), y: y + 3 * 66, w: third, h: 58 });
+  out.about = sm3(0); out.how = sm3(1); out.rules = sm3(2);
   return out;
 }
 export const LOOK = {
@@ -35,6 +39,9 @@ export const BTN = {
   again: { x: 140, y: 930, w: 440, h: 96 }, back: { x: 140, y: 1046, w: 440, h: 84 }, share: { x: 140, y: 1150, w: 440, h: 84 },
   next: { x: 275, y: 1462, w: 385, h: 72 }, show: { x: 470, y: 1462, w: 190, h: 72 },
   pageBack: { x: 140, y: 1400, w: 440, h: 84 },
+  // Rules is the only paginated reference page in this game, so it gets its own Back | Next pair
+  // in the same row pageBack occupies elsewhere - About/How keep using pageBack exactly as before.
+  rulesBack: { x: 140, y: 1400, w: 212, h: 84 }, rulesNext: { x: 368, y: 1400, w: 212, h: 84 },
 };
 // Which board point a tap means: the nearest point (generous radius, the men are big).
 export function pointNear(x, y, max = 52) {

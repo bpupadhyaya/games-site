@@ -9,6 +9,7 @@ import { newGame, clone, legalMoves, applyMove, endThrow, throwSticks, facesFor,
 import { LEVELS, createThinker, scoreMoves } from './ai.js';
 import { LESSONS, buildLesson } from './lessons.js';
 import { createPuzzleMaker, puzzleGame } from './puzzles.js';
+import { RULES } from './about.js';
 import { render } from './view.js';
 
 export const meta = { width: W, height: H };
@@ -20,7 +21,7 @@ export function createGame(env) {
     scene: 'title', t: 0, g: newGame(), phase: 'need', two: false, level: 1, sound: true, calm: false, big: false,
     roll: null, sel: -1, anim: null, msg: null, wait: 0, thinking: false, undo: [], hintsLeft: HINTS, hint: null,
     cursor: 5, kb: false, stats: { games: 0, wins: 0, badges: {} }, saved: null, learned: false, demoGames: 0,
-    lesson: null, pz: null, daily: { day: config.day ?? 0, solvedDay: -1, streak: 0 }, dev: config.dev === true,
+    lesson: null, pz: null, rulesPage: 0, daily: { day: config.day ?? 0, solvedDay: -1, streak: 0 }, dev: config.dev === true,
   };
   let thinker = null, hintJob = null, puzzleToday = null;
   const maker = createPuzzleMaker(state.daily.day);
@@ -197,6 +198,7 @@ export function createGame(env) {
     else if (hit(R.daily)) startPuzzle();
     else if (hit(R.how)) state.scene = 'how';
     else if (hit(R.about)) state.scene = 'about';
+    else if (hit(R.rules)) { state.scene = 'rules'; state.rulesPage = 0; }
     else if (hit(R.level)) { state.level = (state.level + 1) % LEVELS.length; savePrefs(); clack(); }
     else if (hit(R.sound)) { state.sound = !state.sound; audio.setMuted?.(!state.sound); savePrefs(); clack(); }
     else if (hit(R.calm)) { state.calm = !state.calm; savePrefs(); clack(); }
@@ -273,6 +275,12 @@ export function createGame(env) {
     if (sc === 'title') { if (k.has('Enter') || k.has('Space')) { const R = titleRows(!!state.saved); const r = R.resume || R.play; return { x: r.x + 5, y: r.y + 5 }; } return null; }
     if (sc === 'over') { if (k.has('Enter') || k.has('Space')) return { x: BTN.again.x + 5, y: BTN.again.y + 5 }; return null; }
     if (sc === 'about' || sc === 'how') { if (k.has('Escape') || k.has('Enter')) return { x: PAGE.back.x + 5, y: PAGE.back.y + 5 }; return null; }
+    if (sc === 'rules') {
+      if (k.has('Escape')) return { x: BTN.menu.x + 5, y: BTN.menu.y + 5 };
+      if (k.has('ArrowRight') || k.has('Enter') || k.has('Space')) return { x: BTN.hint.x + 5, y: BTN.hint.y + 5 };
+      if (k.has('ArrowLeft')) return { x: BTN.undo.x + 5, y: BTN.undo.y + 5 };
+      return null;
+    }
     if (sc !== 'play' && sc !== 'lesson' && sc !== 'puzzle') return null;
     if (k.has('Escape')) return { x: BTN.menu.x + 5, y: BTN.menu.y + 5 };
     if (k.has('Space')) { if (sc === 'lesson' && state.lesson.done) return { x: BTN.next.x + 5, y: BTN.next.y + 5 }; return { x: TRAY.x + 5, y: TRAY.y + 5, key: 'throw' }; }
@@ -305,6 +313,11 @@ export function createGame(env) {
       if (sc === 'title') updateTitle(tap);
       else if (sc === 'demo-limit') { if (tap && inRect(BTN.back, tap.x, tap.y)) state.scene = 'title'; }
       else if (sc === 'about' || sc === 'how') { if (tap && inRect(PAGE.back, tap.x, tap.y)) state.scene = 'title'; }
+      else if (sc === 'rules') {
+        if (tap && inRect(BTN.menu, tap.x, tap.y)) state.scene = 'title';
+        else if (tap && inRect(BTN.hint, tap.x, tap.y)) state.rulesPage = Math.min(RULES.length - 1, state.rulesPage + 1);
+        else if (tap && inRect(BTN.undo, tap.x, tap.y)) state.rulesPage = Math.max(0, state.rulesPage - 1);
+      }
       else if (sc === 'play' || sc === 'lesson') updateBoardScene(dt, tap);
       else if (sc === 'puzzle') {
         if (state.pz.status === 'making') { if (tap && inRect(BTN.menu, tap.x, tap.y)) { state.scene = 'title'; return; } for (let k = 0; k < 3 && !puzzleToday; k++) puzzleToday = maker.step().puzzle; if (puzzleToday) startPuzzle(); }

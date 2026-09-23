@@ -183,6 +183,7 @@ export function createGame(env) {
         if (b.id === 'daily') { S.scene = 'daily'; return; }
         if (b.id === 'how') { S.scene = 'how'; S.page = 0; return; }
         if (b.id === 'about') { S.scene = 'about'; S.page = 0; return; }
+        if (b.id === 'rules') { S.scene = 'rules'; S.page = 0; return; }
         if (b.id === 'settings') { S.scene = 'settings'; return; }
       }
     } else if (sc === 'settings') {
@@ -198,7 +199,7 @@ export function createGame(env) {
         if (s.id === 'sound') audio.setMuted?.(!p.sound);
         savePrefs();
       });
-    } else if (sc === 'how' || sc === 'about') {
+    } else if (sc === 'how' || sc === 'about' || sc === 'rules') {
       const n = SC.pageCount(sc);
       if (S.page > 0 && inRect(SC.PAGER.prev, x, y)) S.page--;
       else if (S.page < n - 1 && inRect(SC.PAGER.next, x, y)) S.page++;
@@ -218,9 +219,9 @@ export function createGame(env) {
     if (!keys || !keys.pressed || !keys.pressed.size) return;
     const p = (c) => keys.pressed.has(c);
     if (S.scene === 'title' && (p('Enter') || p('Space'))) { if (S.saved) { play.resume(S.saved); S.scene = 'play'; } else startMatch('round'); }
-    else if ((S.scene === 'how' || S.scene === 'about') && (p('ArrowRight') || p('Enter'))) { if (S.page < SC.pageCount(S.scene) - 1) S.page++; else toTitle(); }
-    else if ((S.scene === 'how' || S.scene === 'about') && p('ArrowLeft')) S.page = Math.max(0, S.page - 1);
-    else if (p('Escape') && ['settings', 'how', 'about', 'learn', 'daily'].includes(S.scene)) toTitle();
+    else if ((S.scene === 'how' || S.scene === 'about' || S.scene === 'rules') && (p('ArrowRight') || p('Enter'))) { if (S.page < SC.pageCount(S.scene) - 1) S.page++; else toTitle(); }
+    else if ((S.scene === 'how' || S.scene === 'about' || S.scene === 'rules') && p('ArrowLeft')) S.page = Math.max(0, S.page - 1);
+    else if (p('Escape') && ['settings', 'how', 'about', 'rules', 'learn', 'daily'].includes(S.scene)) toTitle();
     else if (S.scene === 'lesson' && (p('Enter') || p('Space')) && (S.lesson.done || ['info', 'score'].includes(S.lesson.step.type))) lessonNext();
   }
 
@@ -262,6 +263,7 @@ export function createGame(env) {
     else if (sc === 'settings') SC.renderSettings(ctx, S, rs);
     else if (sc === 'how') SC.renderHow(ctx, S, rs);
     else if (sc === 'about') SC.renderAbout(ctx, S, rs);
+    else if (sc === 'rules') SC.renderRules(ctx, S, rs);
     else if (sc === 'learn') SC.renderLearn(ctx, S, rs);
     else if (sc === 'daily') SC.renderDailyHub(ctx, S, rs);
     else if (sc === 'lesson') SC.renderLesson(ctx, S, rs);

@@ -1,10 +1,11 @@
 // Everything that is drawn each frame. Reads `state` (see game.js) and changes nothing.
 // All motion comes from the state's fixed-step clocks (state.t, state.sceneT, fx.t, round.age).
 import { SCHEMES } from './schemes.js';
+import { RULES } from './content.js';
 import {
   W, H, BAND_TOP, BAND_BOTTOM, CHIP_H, PLAQUE, TIME_BAR, REVIEW_TOP, REVIEW_ROW_H, REVIEW_PER_PAGE,
-  MODE_SYN_BTN, MODE_ANT_BTN, PLAY_BTN, TITLE_COLOR_BTN, STOP_BTN, COLOR_BTN,
-  PREV_BTN, NEXT_BTN, PLAY_AGAIN_BTN, CHANGE_MODE_BTN, slipWidth,
+  MODE_SYN_BTN, MODE_ANT_BTN, PLAY_BTN, TITLE_COLOR_BTN, TITLE_RULES_BTN, STOP_BTN, COLOR_BTN,
+  PREV_BTN, NEXT_BTN, PLAY_AGAIN_BTN, CHANGE_MODE_BTN, RULES_BACK_BTN, RULES_NEXT_BTN, slipWidth,
 } from './layout.js';
 
 const DISPLAY = '"Cormorant Garamond", Georgia, "Times New Roman", serif';
@@ -244,13 +245,86 @@ export function render(ctx, state, title, demoLimit) {
       ctx.fillStyle = g; ctx.fillRect(0, PLAY_BTN.y - 200, W, 540);
     }
     button(PLAY_BTN, 'Play', { style: 'primary', size: 58, scale: enter(4) * breathe });
-    button(TITLE_COLOR_BTN, `Colours: ${scheme.name}`, { id: 'colour', size: 30, scale: enter(5), swatch });
+    button(TITLE_COLOR_BTN, `Colours: ${scheme.name}`, { id: 'colour', size: 27, scale: enter(5), swatch });
+    button(TITLE_RULES_BTN, 'Rules', { id: 'rules', size: 27, scale: enter(5) });
 
     if (state.demo) {
       const left = Math.max(0, demoLimit - state.demoSessions);
       text(`Free preview: ${left} session${left === 1 ? '' : 's'} left`, W / 2, 1412, 26, soft(0.85), { weight: 600 });
     }
     text('Graduate-level vocabulary  ·  90-second sessions', W / 2, 1490, 25, soft(0.7), { weight: 500 });
+    return;
+  }
+
+  // ---- rules reference ----------------------------------------------------------------------------------
+  if (state.scene === 'rules') {
+    const page = RULES[state.rulesPage % RULES.length];
+    text('Rules', W / 2, 118, 66, '#ffffff', { font: DISPLAY });
+    text(page.title, W / 2, 178, 34, hc ? '#ffffff' : '#8fe6f7', { weight: 700 });
+
+    // a small illustration matching the page, drawn with the game's own slip()/plaque() —
+    // never a separate simplified icon.
+    let textTop = 260;
+    if (page.demo === 'objective' || page.demo === 'mode') {
+      plaque({ x: 170, y: 236, w: 380, h: 132 }, 'TAP THE SYNONYM OF', HERO_TARGET, { small: true, wordSize: 60 });
+      slip('clear', 130, 430, { tilt: -0.03, tint: hc ? undefined : GOOD });
+      slip('ornate', 390, 430, { tilt: 0.02 });
+      slip('murky', 620, 430, { tilt: -0.015 });
+      textTop = 520;
+    } else if (page.demo === 'slips' || page.demo === 'answer') {
+      slip('clear', 130, 300, { tilt: -0.03, tint: page.demo === 'answer' && !hc ? GOOD : undefined });
+      slip('ornate', 390, 300, { tilt: 0.02, tint: page.demo === 'answer' && !hc ? BAD : undefined });
+      slip('murky', 620, 300, { tilt: -0.015 });
+      textTop = 400;
+    } else if (page.demo === 'clock') {
+      const tr = { x: 234, y: 232, w: 252, h: 86 };
+      shadow(tr.x, tr.y, tr.w, tr.h, 22, 8); ctx.fillStyle = 'rgba(3,16,24,0.78)'; rr(tr.x, tr.y, tr.w, tr.h, 22); ctx.fill();
+      ctx.strokeStyle = hexA(CYAN, 0.85); ctx.lineWidth = 2.5; ctx.stroke();
+      const kx = tr.x + 48, ky = tr.y + 43;
+      ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 4; ctx.lineCap = 'round'; ctx.beginPath(); ctx.arc(kx, ky, 19, 0, TAU); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(kx, ky); ctx.lineTo(kx + 12, ky - 8); ctx.stroke();
+      text('1:30', tr.x + 158, tr.y + 63, 56, '#ffffff', { weight: 800 });
+      textTop = 360;
+    } else if (page.demo === 'review') {
+      const rw = 640, rh = 130, x = 40, y = 220;
+      ctx.fillStyle = 'rgba(0,0,0,0.25)'; rr(x + 2, y + 6, rw - 4, rh, 18); ctx.fill();
+      const g = ctx.createLinearGradient(0, y, 0, y + rh);
+      g.addColorStop(0, 'rgba(18,58,74,0.94)'); g.addColorStop(1, 'rgba(8,28,40,0.94)');
+      ctx.fillStyle = g; rr(x, y, rw, rh, 18); ctx.fill();
+      ctx.strokeStyle = 'rgba(255,255,255,0.14)'; ctx.lineWidth = 2; ctx.stroke();
+      ctx.fillStyle = BAD; rr(x, y, 10, rh, [18, 0, 0, 18]); ctx.fill();
+      const mx = x + 52, my = y + 46;
+      ctx.fillStyle = hexA(BAD, 0.18); ctx.beginPath(); ctx.arc(mx, my, 25, 0, TAU); ctx.fill();
+      ctx.strokeStyle = BAD; ctx.lineWidth = 2; ctx.stroke();
+      ctx.lineWidth = 6; ctx.lineCap = 'round'; ctx.beginPath();
+      ctx.moveTo(mx - 10, my - 10); ctx.lineTo(mx + 10, my + 10); ctx.moveTo(mx + 10, my - 10); ctx.lineTo(mx - 10, my + 10); ctx.stroke();
+      text('murky', x + 92, y + 52, 42, '#ffffff', { font: DISPLAY, align: 'left', maxW: 380 });
+      text('Answer: clear', x + 92, y + 88, 26, accent, { align: 'left', weight: 700, maxW: 300 });
+      text('You: ornate', x + rw - 22, y + 88, 25, BAD, { align: 'right', weight: 600, maxW: 220 });
+      textTop = 384;
+    }
+
+    ctx.save(); ctx.textAlign = 'center'; ctx.fillStyle = soft(0.94);
+    const lh = 38, maxW = W - 90;
+    const wrapLine = (str, y0) => {
+      const words = str.split(' ');
+      ctx.font = `500 27px ${UI}`;
+      let line = '', ly = y0;
+      for (const w of words) {
+        const cand = line ? `${line} ${w}` : w;
+        if (ctx.measureText(cand).width > maxW && line) { ctx.fillText(line, W / 2, ly); line = w; ly += lh; }
+        else line = cand;
+      }
+      ctx.fillText(line, W / 2, ly);
+      return ly + lh;
+    };
+    let y = textTop;
+    for (const line of page.lines) y = wrapLine(line, y);
+    ctx.restore();
+
+    text(`Page ${(state.rulesPage % RULES.length) + 1} of ${RULES.length}`, W / 2, 1350, 26, soft(0.65), { weight: 500 });
+    button(RULES_BACK_BTN, 'Back', { size: 34, scale: enter(0) });
+    button(RULES_NEXT_BTN, 'Next', { style: 'primary', size: 34, scale: enter(1) });
     return;
   }
 

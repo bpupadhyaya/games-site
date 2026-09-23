@@ -18,6 +18,36 @@ export const HELP_PAGES = [
     'Sometimes stopping early is a mistake and sometimes going further is. Try both before you decide.',
     'Hints show the computer\'s best idea and the jump counts after it, so you can learn why.'] },
 ];
+// Exhaustive rules reference (verified against web/src/rules.js, the authoritative rule book). Rulebook tone, not tutorial tone.
+export const RULES = [
+  { title: 'The papamū and stones', body: [
+    'This version is played on a square board (a papamū) of your choice: 6x6, 8x8 or 10x10 points, picked on the New game screen before a match starts.',
+    'At the start every point is filled in a strict checkerboard pattern: the point at column x, row y holds a Black stone if x+y is even, and a White stone if x+y is odd. No point is empty until the opening removal below.'] },
+  { title: 'The opening removal', body: [
+    'Black moves first, and that first move is not a jump: Black removes one of Black\'s own stones. Exactly four starting points are offered, whatever the board size — the two central points and two of the four corners (the top-left and the bottom-right) — no other point can be chosen to open with.',
+    'White then removes one White stone that touches the new empty point orthogonally (up, down, left or right, whichever exist on the board): two choices after a corner opening, up to four after a centre opening.',
+    'From here on Black jumps first, and every later turn is a jump.'] },
+  { title: 'The stone', stones: true, body: [
+    'Konane has only one kind of piece: a flat stone, black or white. It never changes what it can do — there is no promotion, no ranking, no special stone.',
+    'A stone\'s only legal action is to jump: it captures by hopping in a straight line over one adjacent enemy stone and landing on the empty point immediately beyond it. A stone that has no jump available simply cannot move at all — it cannot slide to an empty point any other way.'] },
+  { title: 'How a jump works', body: [
+    'A jump travels in a straight line along a row or a column only — this build never allows a diagonal jump.',
+    'To jump, there must be an enemy stone on the very next point in that direction, and the point immediately beyond that enemy stone must be empty. The stone hops over the enemy stone onto that empty point, and the enemy stone is removed from the board at once.',
+    'Any of the four directions — up, down, left or right — is equally legal each time you jump; there is no "forward only" restriction.'] },
+  { title: 'Chaining jumps', demo: { cells: ['W', 'B', '.', 'B', '.'], hop: [0, [1, 3], 4] }, body: [
+    'After landing, the same stone may continue jumping again in the SAME straight-line direction, over the next enemy stone and into the next empty point beyond it, as many times in a row as the board allows.',
+    'You choose, after every hop, whether to keep going or to stop; stopping after any hop is always allowed, and each different stopping point counts as a separate move you may pick.',
+    'A chain cannot change direction partway through. Once a jump starts moving, say, to the right, every further hop that same turn must keep moving to the right. Turning a corner takes a whole new turn.'] },
+  { title: 'You must jump', body: [
+    'Jumping is mandatory whenever it is possible. Once the opening removals are done, the only legal moves the game will ever offer are jumps: there is no way to pass, and no way to move a stone without capturing one.',
+    'If, on your turn, none of your stones has a legal jump, you have no legal move at all, and the game ends immediately — you lose.'] },
+  { title: 'Winning', body: [
+    'The game is won the instant a player, on their turn, cannot make a single legal jump. That player loses; the opponent who forced that position wins.',
+    'There is no other way to win, and no way to resign or offer a draw. The only route to victory is leaving your opponent with no jump left.'] },
+  { title: 'No draws', body: [
+    'This build has no drawn or tied games. Every legal turn removes at least one stone from the board, so the stone count only ever shrinks and the game is always guaranteed to end, with exactly one side unable to jump.',
+    'When a game ends, the reason shown says plainly which side ran out of jumps, for example "Black has no jump left."'] },
+];
 export const ABOUT = [
   { title: 'A game of Hawaii', body: [
     'Konane (written konane or with a macron, kōnane) is a traditional strategy game of Hawaii for two players.',

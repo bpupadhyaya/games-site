@@ -22,7 +22,12 @@ export function titleButtons(hasSave) {
   R.learn = rect(x, y, w, 88); y += 108;
   R.daily = rect(x, y, w, 88); y += 116;
   R.level = rect(x, y, w, 70);
-  R.howto = rect(x, y + 90, 168, 70); R.about = rect(x + 186, y + 90, 168, 70); R.settings = rect(x + 372, y + 90, 168, 70);
+  // Controls / About / Game Rules / Settings: four equal columns spanning the same width and right
+  // edge the original three-across row used (a smaller adaptation of that row, the way Chess's own
+  // Rules page went from a two- to a three-column row).
+  { const gap = 14, cw = (w - gap * 3) / 4, ry = y + 90;
+    R.howto = rect(x, ry, cw, 70); R.about = rect(x + cw + gap, ry, cw, 70);
+    R.rules = rect(x + (cw + gap) * 2, ry, cw, 70); R.settings = rect(x + (cw + gap) * 3, ry, cw, 70); }
   return R;
 }
 export const PLAYB = {                                 // bottom row during play

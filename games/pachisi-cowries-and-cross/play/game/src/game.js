@@ -6,7 +6,7 @@ import { geo, newGame, rollThrow, legalMoves, checkMove, noMoveReason, applyMove
 import { chooseMove, hintMove } from './ai.js';
 import { LESSONS } from './lessons.js';
 import { makeDaily, bestScore, moveScore, starsFor, DAILY_THROWS } from './daily.js';
-import { screenButtons } from './ui.js';
+import { screenButtons, RULES_PAGES } from './ui.js';
 import { render as draw } from './view.js';
 
 export const meta = { width: W, height: H };
@@ -21,7 +21,7 @@ export function createGame(env) {
     prefs: { sound: true, calm: false, big: false, auto: true },
     setup: { mode: 'pachisi', players: 2, opp: 'balanced', friends: false, pieces: 4 },
     stats: { played: 0, wins: 0, lessons: {}, dailyDay: -1, dailyBest: 0, dailyStars: 0, streak: 0, lastDay: -1 },
-    saved: null, menuOpen: false, howPage: 0, aboutPage: 0, howFrom: 'title',
+    saved: null, menuOpen: false, howPage: 0, aboutPage: 0, rulesPage: 0, howFrom: 'title',
     g: newGame({ humans: [true, false] }), phase: 'throw', wait: 0, msg: '', roll: null, opts: [], sel: -1, hop: null, fly: [], hint: null, hintsLeft: 3,
     fast: false, sfx: [], shake: null, res: null, aiMove: null, autoT: null, pass: null, lesson: null, dl: null, over: null, swipe: null, flash: 0,
   };
@@ -324,10 +324,11 @@ export function createGame(env) {
     else if (id === 'daily') startDaily();
     else if (id === 'about') { s.scene = 'about'; s.aboutPage = 0; }
     else if (id === 'how') { s.scene = 'how'; s.howPage = 0; s.howFrom = 'title'; }
+    else if (id === 'rules') { s.scene = 'rules'; s.rulesPage = 0; }
     else if (id === 'settings') s.scene = 'settings';
     else if (id === 'back') { if (s.scene === 'how' && s.howFrom !== 'title') s.scene = s.howFrom; else s.scene = 'title'; s.menuOpen = false; }
     else if (id === 'title') { s.scene = 'title'; s.menuOpen = false; }
-    else if (id === 'page') { if (s.scene === 'how') s.howPage = (s.howPage + 1) % 2; else s.aboutPage = (s.aboutPage + 1) % 2; }
+    else if (id === 'page') { if (s.scene === 'how') s.howPage = (s.howPage + 1) % 2; else if (s.scene === 'rules') s.rulesPage = (s.rulesPage + 1) % RULES_PAGES.length; else s.aboutPage = (s.aboutPage + 1) % 2; }
     else if (id === 'start') startGame();
     else if (id.startsWith('mode:')) s.setup.mode = id.slice(5);
     else if (id.startsWith('pl:')) s.setup.players = Number(id.slice(3));

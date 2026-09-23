@@ -10,7 +10,7 @@ import { LESSONS, setup, ptOf } from './lessons.js';
 import { createPuzzleMaker } from './puzzles.js';
 import { render, REST } from './view.js';
 import { SET_NAMES } from './sprites.js';
-import { ABOUT } from './text.js';
+import { ABOUT, RULES } from './text.js';
 
 export const meta = { width: W, height: H };
 const DEMO_GAMES = 2, DEMO_LESSONS = 3, HINTS = 3;
@@ -396,11 +396,13 @@ export function createGame(env) {
     else if (hit(Rr.settings)) state.scene = 'settings';
     else if (hit(Rr.howto)) state.scene = 'howto';
     else if (hit(Rr.about)) { state.scene = 'about'; state.page = 0; }
+    else if (hit(Rr.rules)) { state.scene = 'rules'; state.page = 0; }
   }
   function updateDoc(tap) {
     if (!tap) return;
     if (inRect(PBACK, tap.x, tap.y)) { state.scene = 'title'; return; }
     if (state.scene === 'about' && inRect({ x: 140, y: 1330, w: 440, h: 70 }, tap.x, tap.y)) state.page = (state.page + 1) % ABOUT.length;
+    else if (state.scene === 'rules' && inRect({ x: 140, y: 1330, w: 440, h: 70 }, tap.x, tap.y)) state.page = (state.page + 1) % RULES.length;
   }
   function updateSettings(tap) {
     if (!tap) return;
@@ -539,7 +541,7 @@ export function createGame(env) {
       const p = input.pointer, tap = p.pressed ? { x: p.x, y: p.y } : null, sc = state.scene;
       if (input.keys.pressed.size && (sc === 'title')) { if (input.keys.pressed.has('Enter') || input.keys.pressed.has('Space')) { start(false); return; } }
       if (sc === 'title') updateTitle(tap);
-      else if (sc === 'howto' || sc === 'about') updateDoc(tap);
+      else if (sc === 'howto' || sc === 'about' || sc === 'rules') updateDoc(tap);
       else if (sc === 'settings') updateSettings(tap);
       else if (sc === 'demo-limit') { if (tap && tap.y > 800 && tap.y < 900) state.scene = 'title'; }
       else if (sc === 'puzzle' && state.pz.status === 'making') { if (tap && inRect(BTN.menu, tap.x, tap.y)) toTitle(); else updatePuzzleMaking(); }

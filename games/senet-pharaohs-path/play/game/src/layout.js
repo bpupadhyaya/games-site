@@ -30,9 +30,15 @@ export const BTN = {
 };
 const row = (i) => ({ x: 90, y: 790 + i * 76, w: 540, h: 66 });
 export function titleRows(hasSave) {
-  const names = (hasSave ? ['resume'] : []).concat(['learn', 'play', 'two', 'daily', 'how', 'about']), out = {};
+  const names = (hasSave ? ['resume'] : []).concat(['learn', 'play', 'two', 'daily', 'how']), out = {};
   names.forEach((n, i) => { out[n] = row(i); });
-  const y = 790 + names.length * 76 + 6;
+  // About used to be its own full-width row here (names.length); it now shares that same row, two
+  // even columns, with Rules (the addition) - every row above keeps its exact original position,
+  // and everything below keeps its exact original position too, since this still counts as one row.
+  const aboutRow = row(names.length), gap = 14, half = (aboutRow.w - gap) / 2;
+  out.about = { x: aboutRow.x, y: aboutRow.y, w: half, h: aboutRow.h };
+  out.rules = { x: aboutRow.x + half + gap, y: aboutRow.y, w: half, h: aboutRow.h };
+  const y = 790 + (names.length + 1) * 76 + 6;
   out.level = { x: 90, y, w: 262, h: 60 }; out.sound = { x: 368, y, w: 262, h: 60 };
   out.calm = { x: 90, y: y + 68, w: 262, h: 60 }; out.big = { x: 368, y: y + 68, w: 262, h: 60 };
   return out;

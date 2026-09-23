@@ -1,9 +1,9 @@
 // Everything drawn each frame. Reads `state` (game.js) and changes nothing. The heavy art is cached (art.js, pieces.js).
 import { W, H, MAT, BOARD, cellSize, posXY, yardOffset, gridXY, hopPath } from './layout.js';
 import { geo, homeCount, trackIndex, COLOUR_NAMES } from './rules.js';
-import { drawStatic, drawFloorOnly, drawPanel, ARM_COLOURS, ARM_LIGHT, lcg } from './art.js';
+import { drawStatic, drawFloorOnly, drawPanel, star, ARM_COLOURS, ARM_LIGHT, lcg } from './art.js';
 import { drawPawn, drawCowry, drawDie } from './pieces.js';
-import { screenButtons, PANEL, HOW_PAGES, ABOUT_PAGES } from './ui.js';
+import { screenButtons, PANEL, HOW_PAGES, ABOUT_PAGES, RULES_PAGES } from './ui.js';
 import { LESSONS } from './lessons.js';
 import { LEVEL_NAMES, LEVEL_BLURB } from './ai.js';
 
@@ -17,7 +17,7 @@ const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
 export function render(ctx, state) {
   const sc = state.scene, T = state.t, big = state.prefs.big, g = state.g;
-  const panelScene = ['setup', 'learn', 'settings', 'how', 'about', 'demo-limit'].includes(sc);
+  const panelScene = ['setup', 'learn', 'settings', 'how', 'about', 'rules', 'demo-limit'].includes(sc);
   const boardScene = !panelScene;
   const mode = boardScene && sc !== 'title' ? g.mode : 'pachisi';
 
@@ -96,7 +96,7 @@ export function render(ctx, state) {
   // ---- panels --------------------------------------------------------------------------------------
   if (panelScene) {
     drawPanel(ctx, PANEL.x, PANEL.y, PANEL.w, PANEL.h);
-    ctxTitle(ctx, text, sc === 'setup' ? 'Set up a game' : sc === 'learn' ? 'Learn to play' : sc === 'settings' ? 'Settings' : sc === 'how' ? HOW_PAGES[state.howPage][0] : sc === 'about' ? ABOUT_PAGES[state.aboutPage][0] : 'Thank you for playing');
+    ctxTitle(ctx, text, sc === 'setup' ? 'Set up a game' : sc === 'learn' ? 'Learn to play' : sc === 'settings' ? 'Settings' : sc === 'how' ? HOW_PAGES[state.howPage][0] : sc === 'about' ? ABOUT_PAGES[state.aboutPage][0] : sc === 'rules' ? RULES_PAGES[state.rulesPage][0] : 'Thank you for playing');
     if (sc === 'setup') {
       const t = state.setup;
       const lab = (s, y) => text(s, 60, y, 26 * (big ? 1.1 : 1), INK, UI, 700, 'left');
@@ -116,6 +116,13 @@ export function render(ctx, state) {
       let y = 250; const sz = big ? 30 : 27;
       for (const para of pg) { const n = wrap(para, 76, y, sz, 568, INK, sz * 1.3, 'left'); y += n * sz * 1.3 + 22; }
       text(`Page ${(sc === 'how' ? state.howPage : state.aboutPage) + 1} of 2`, 360, 1290, 22, '#7a1a20', UI, 600);
+    } else if (sc === 'rules') {
+      const idx = state.rulesPage, page = RULES_PAGES[idx];
+      let y = 250;
+      if (page[2]) { drawRulesArt(ctx, page[2], T); y = 250 + RULES_ART_H; }
+      const sz = big ? 27 : 24;
+      for (const para of page[1]) { const n = wrap(para, 76, y, sz, 568, INK, sz * 1.28, 'left'); y += n * sz * 1.28 + 18; }
+      text(`Page ${idx + 1} of ${RULES_PAGES.length}`, 360, 1290, 22, '#7a1a20', UI, 600);
     } else if (sc === 'demo-limit') {
       wrap('That is the end of the free web preview. Get Pachisi on iPhone and Android for unlimited games, all nine lessons, the daily race and every setting.', 360, 400, 32, 540, INK, 44);
       pawnRow(ctx, 360, 900);
@@ -163,6 +170,38 @@ function motes(ctx, T) {
 }
 
 function pawnRow(ctx, cx, y) { for (let a = 0; a < 4; a++) drawPawn(ctx, a, cx - 150 + a * 100, y, 1.8, Math.abs(Math.sin(a + 0)) * 0); }
+
+// ---- Rules page art: real in-game sprites, drawn in isolation on the reference panel -----------------
+const RULES_ART_H = 190;
+function swatch(ctx, x, y, s, fill) { ctx.save(); ctx.fillStyle = fill; ctx.beginPath(); ctx.roundRect(x - s / 2, y - s / 2, s, s, 8); ctx.fill(); ctx.strokeStyle = 'rgba(120,28,32,0.7)'; ctx.lineWidth = 2; ctx.stroke(); ctx.restore(); }
+function drawRulesArt(ctx, kind, T) {
+  const cx = 360, y = 340;
+  if (kind === 'pawns') {
+    const xs = [150, 290, 430, 570], names = ['Red', 'Green', 'Gold', 'Indigo'];
+    xs.forEach((x, a) => { drawPawn(ctx, a, x, y, 1.7, Math.abs(Math.sin(T * 2 + a)) * 4); ctxSmall(ctx, names[a], x, y + 44); });
+  } else if (kind === 'safe') {
+    swatch(ctx, cx - 100, y - 20, 84, '#e6bd66'); star(ctx, cx - 100, y - 20, 22, '#8e1b22', 3.5);
+    ctxSmall(ctx, 'Safe square', cx - 100, y + 46);
+    swatch(ctx, cx + 100, y - 20, 84, ARM_COLOURS[0]); star(ctx, cx + 100, y - 20, 19, '#fbe7b0', 3.5);
+    ctxSmall(ctx, 'Start square (also safe)', cx + 100, y + 46);
+  } else if (kind === 'block') {
+    drawPawn(ctx, 1, cx - 7, y - 2, 1.6, 0); drawPawn(ctx, 1, cx + 7, y + 2, 1.6, 0);
+    ctxSmall(ctx, 'Two Green pawns: a block', cx, y + 46);
+  } else if (kind === 'cowries') {
+    drawCowry(ctx, cx - 90, y - 10, 0.3, Math.PI, 0, 1.7);
+    ctxSmall(ctx, 'Mouth up', cx - 90, y + 46);
+    drawCowry(ctx, cx + 90, y - 10, -0.2, 0, 0, 1.7);
+    ctxSmall(ctx, 'Mouth down', cx + 90, y + 46);
+  } else if (kind === 'ludo') {
+    drawDie(ctx, cx, y - 10, 0.15, 6, 0, 1.7);
+    ctxSmall(ctx, 'A throw of 6', cx, y + 46);
+  } else if (kind === 'capture') {
+    drawPawn(ctx, 1, cx + 60, y - 30, 1.1, 46, 0.4);
+    drawPawn(ctx, 0, cx - 20, y, 1.7, 0);
+    ctxSmall(ctx, 'Red lands on Green: Green goes home', cx, y + 46);
+  }
+}
+function ctxSmall(ctx, str, x, y) { ctx.textAlign = 'center'; ctx.font = `600 20px ${UI}`; ctx.fillStyle = '#7a1a20'; ctx.fillText(str, x, y); }
 
 // ---- yards: labels and turn glow ---------------------------------------------------------------------------
 function drawYards(ctx, state, text, mode) {
@@ -301,7 +340,7 @@ function drawTitle(ctx, state, text, shadowText) {
   ctx.save(); ctx.strokeStyle = '#c9982f'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(150, 92); ctx.lineTo(570, 92); ctx.stroke();
   for (const x of [150, 360, 570]) { ctx.beginPath(); ctx.moveTo(x, 84); ctx.lineTo(x + 8, 92); ctx.lineTo(x, 100); ctx.lineTo(x - 8, 92); ctx.closePath(); ctx.fillStyle = '#e0b04a'; ctx.fill(); } ctx.restore();
   // the plate behind the buttons
-  const has = !!state.saved, top = 1004, h = has ? 372 : 352;
+  const has = !!state.saved, top = 1004, h = has ? 456 : 392;
   plate(ctx, 36, top, 648, h + 12);
   const s = state.stats; text(s.played ? `${s.played} played · ${s.wins} won` : 'Free preview: 5 minutes of play', 360, top + h - 14, 22, '#c9a86a', UI, 600);
 }

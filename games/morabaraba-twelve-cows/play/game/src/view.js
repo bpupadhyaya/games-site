@@ -181,7 +181,7 @@ export function render(ctx, state) {
     button(RW.level, `Computer: ${LEVELS[state.level].name}`, { size: 22 }); button(RW.sound, state.sound ? 'Sound on' : 'Sound off', { size: 22 });
     button(RW.marks, state.marks ? 'Warnings on' : 'Warnings off', { size: 22 }); button(RW.calm, state.calm ? 'Reduced motion: on' : 'Reduced motion: off', { size: 19 });
     button(RW.big, state.big ? 'Large text: on' : 'Large text: off', { size: 22 }); button(RW.howto, 'How to play', { size: 22 });
-    button(RW.about, 'About Morabaraba', { size: 24 });
+    button(RW.about, 'About Morabaraba', { size: 21 }); button(RW.rules, 'Rules', { size: 22 });
     let sy = RW.about.y + 100; for (const [side, x0, label] of [[1, 100, 'As Dark'], [2, 390, 'As Light']]) { text(label, x0, sy, 21, 'rgba(255,230,180,0.85)', UI, 600, 'left', false); for (let l = 0; l < LEVELS.length; l++) text('★', x0 + 92 + l * 34, sy + 2, 28, state.stats.badges['s' + side + l] ? '#ffd24a' : 'rgba(255,255,255,0.22)', UI, 700, 'left', false); }
     text(`Games played: ${state.stats.games} · won: ${state.stats.wins}`, 360, sy + 40, 21, 'rgba(255,230,180,0.7)', UI, 500, 'center', false);
     if (state.msg) { panel(60, 640, 600, 46, 0.7); text(state.msg.text, 360, 672, 21, '#fff3d6', UI, 600, 'center', false); }
@@ -189,11 +189,21 @@ export function render(ctx, state) {
     text('That was the free taste.', 360, 900, 46); text('Get Morabaraba on iPhone and Android', 360, 970, 28, '#fff3d6', UI, 600); text('for unlimited games.', 360, 1010, 28, '#fff3d6', UI, 600);
   } else if (scene === 'info') {
     const pages = PAGES[state.info.which], p = pages[state.info.page];
-    text(state.info.which === 'about' ? 'About' : 'How to play', 360, 130, 60); band(ctx, 160, 154, 400, 14, 3);
+    const heading = state.info.which === 'about' ? 'About' : state.info.which === 'rules' ? 'Rules' : 'How to play';
+    text(heading, 360, 130, 60); band(ctx, 160, 154, 400, 14, 3);
     text(p.title, 360, 290, 46);
+    let panelY = 320;
+    // A rules page about the cow shows the real in-game sprite, both sides, the same drawCow() the board itself uses.
+    if (p.cows) {
+      const ay = 392, dx = 108, r = 50;
+      drawCow(ctx, 360 - dx, ay, r, 1); drawCow(ctx, 360 + dx, ay, r, 2);
+      text('Dark', 360 - dx, ay + 46, 18, 'rgba(255,230,180,0.8)', UI, 600, 'center', false);
+      text('Light', 360 + dx, ay + 46, 18, 'rgba(255,230,180,0.8)', UI, 600, 'center', false);
+      panelY = ay + 66;
+    }
     const sz = big ? 33 : 30, lhh = sz * 1.34; let tot = 0; for (const para of p.lines) tot += lines(para, 580, sz).length * lhh + 30;
-    panel(30, 320, 660, tot + 40, 0.78);
-    let y = 388;
+    panel(30, panelY, 660, tot + 40, 0.78);
+    let y = panelY + 68;
     for (const para of p.lines) { const n = wrap(para, 70, y, sz, 580, '#fff3d6', lhh, 'left'); y += n * lhh + 30; }
     text(`${state.info.page + 1} of ${pages.length}`, 360, 1420, 22, 'rgba(255,230,180,0.75)', UI, 600, 'center', false);
     button(BTN.menu, 'Menu', { size: 26 }); if (state.info.page > 0) button({ x: 260, y: 1462, w: 200, h: 76 }, 'Back', { size: 26 }); if (state.info.page + 1 < pages.length) button(BTN.nextPage, 'Next', { size: 26, primary: true });

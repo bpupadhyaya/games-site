@@ -5,7 +5,7 @@ import { SIDE_NAME, legalMoves, other } from './rules.js';
 import { LADDER, sayVerdict } from './ai.js';
 import { rate } from './solver.js';
 import { LESSONS } from './lessons.js';
-import { ABOUT, HOWTO } from './content.js';
+import { ABOUT, HOWTO, RULES } from './content.js';
 import { movesToWin } from './puzzles.js';
 
 const TAU = Math.PI * 2;
@@ -51,6 +51,7 @@ export function render(ctx, st) {
   if (sc === 'title') return title();
   if (sc === 'about') return page('About Mū Tōrere', ABOUT);
   if (sc === 'howto') return page('How to play', HOWTO);
+  if (sc === 'rules') return page('Rules', RULES);
   if (sc === 'ladder') return ladder();
   if (sc === 'demo-limit') return demoLimit();
   return boardScene();
@@ -75,8 +76,9 @@ export function render(ctx, st) {
     button(R.ladder, `The Ladder  ·  rung ${st.ladder.top} of 12`);
     button(R.two, 'Two players, one phone');
     button(R.daily, st.daily.solvedDay === st.daily.day ? 'Daily puzzle  ·  solved' : 'Daily puzzle');
-    button(R.about, 'About Mū Tōrere');
-    button(R.howto, 'How to play and controls');
+    button(R.about, 'About', { size: 24 });
+    button(R.howto, 'How to play', { size: 24 });
+    button(R.rules, 'Rules', { size: 24 });
     button(R.sound, st.sound ? 'Sound on' : 'Sound off', { size: 24 }); button(R.calm, st.calm ? 'Calm: on' : 'Calm: off', { size: 24 }); button(R.big, st.big ? 'Large text' : 'Normal text', { size: 24 });
     button(R.marks, st.marks ? 'Warnings on: losing moves are marked' : 'Warnings off', { size: 24 });
     text(`Played ${st.progress.played}  ·  won ${st.progress.wins}${st.daily.streak ? '  ·  streak ' + st.daily.streak : ''}`, 360, 1470, 26, 'rgba(243,230,200,0.75)', UI, 600);
@@ -90,9 +92,18 @@ export function render(ctx, st) {
     ctx.save(); ctx.beginPath(); ctx.rect(0, top, W, bottom - top); ctx.clip();
     let y = top + 30 - st.scroll; const size = 27 * big;
     plaque({ x: 30, y: y - 30, w: 660, h: 4000 }, { top: 'rgba(14,42,48,0.86)', bot: 'rgba(9,28,33,0.86)' });
-    for (const [h, body] of items) {
+    for (const [h, body, art] of items) {
       text(h, 62, y + 26, 32 * big, GOLD, FONT, 700, 'left'); y += 52 * big;
-      const n = wrap(body, 62, y + 12, size, 596, CREAM, size * 1.36, 'left'); y += n * size * 1.36 + 26;
+      // The one Rules item that shows the real in-game stone art (both sides), using the same
+      // drawStone() the board itself uses - never a separate simplified icon.
+      if (art === 'stones') {
+        drawStone(ctx, 1, 110, y + 44, 40); drawStone(ctx, 2, 210, y + 44, 40);
+        text('Shell', 110, y + 98, 18, 'rgba(243,230,200,0.7)', UI, 600);
+        text('Greenstone', 210, y + 98, 18, 'rgba(243,230,200,0.7)', UI, 600);
+        const n = wrap(body, 290, y + 12, size, 368, CREAM, size * 1.36, 'left'); y += Math.max(n * size * 1.36, 128) + 26;
+      } else {
+        const n = wrap(body, 62, y + 12, size, 596, CREAM, size * 1.36, 'left'); y += n * size * 1.36 + 26;
+      }
     }
     st.pageH = y + st.scroll - top;
     ctx.restore();

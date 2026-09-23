@@ -1,0 +1,100 @@
+// Screen geometry. One place for every rectangle so game.js (hit-testing) and view.js (drawing)
+// never disagree. Virtual resolution: 720 x 1280 portrait (docs/GAME-CONTRACT.md).
+export const W = 720, H = 1280;
+
+export const HEADER_H = 128;
+export const BOARD_TOP = 140;
+export const FRAME = 26;           // the carved frame thickness, where coordinate labels live
+export const SQ = 76;              // one square, in virtual pixels
+export const INNER = SQ * 8;       // 608
+export const BOARD_SIZE = INNER + FRAME * 2; // 660
+export const BOARD_X = (W - BOARD_SIZE) / 2; // 30
+export const BOARD_Y = BOARD_TOP;
+export const GRID_X = BOARD_X + FRAME;
+export const GRID_Y = BOARD_Y + FRAME;
+export const BOARD_BOTTOM = BOARD_Y + BOARD_SIZE;
+
+export const TRAY_TOP = BOARD_BOTTOM + 10;
+export const TRAY_H = 46;
+export const PANEL_TOP = TRAY_TOP + TRAY_H * 2 + 10;
+export const PANEL_H = 148;
+export const BAR_TOP = PANEL_TOP + PANEL_H + 12;
+export const BAR_H = 118;
+
+// square <-> pixel. `flip` = true shows Black at the bottom (board rotated 180 degrees).
+export function squareAt(x, y, flip) {
+  if (x < GRID_X || x >= GRID_X + INNER || y < GRID_Y || y >= GRID_Y + INNER) return -1;
+  let file = Math.floor((x - GRID_X) / SQ);
+  let rankFromTop = Math.floor((y - GRID_Y) / SQ);
+  let rank = 7 - rankFromTop;
+  if (flip) { file = 7 - file; rank = 7 - rank; }
+  if (file < 0 || file > 7 || rank < 0 || rank > 7) return -1;
+  return rank * 8 + file;
+}
+export function pointXY(sq, flip) {
+  let file = sq & 7, rank = sq >> 3;
+  if (flip) { file = 7 - file; rank = 7 - rank; }
+  const rankFromTop = 7 - rank;
+  return { x: GRID_X + file * SQ + SQ / 2, y: GRID_Y + rankFromTop * SQ + SQ / 2 };
+}
+export function squareTopLeft(sq, flip) {
+  let file = sq & 7, rank = sq >> 3;
+  if (flip) { file = 7 - file; rank = 7 - rank; }
+  const rankFromTop = 7 - rank;
+  return { x: GRID_X + file * SQ, y: GRID_Y + rankFromTop * SQ };
+}
+
+export const inRect = (r, x, y) => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
+
+// ---- title screen -------------------------------------------------------------------------------
+export const TITLE_BOARD = { x: W / 2 - 300, y: 20, w: 600, h: 520 }; // the hero board banner + title text
+export function titleRows(hasSaved) {
+  const cx = W / 2, bw = 560, bh = 76, gap = 14;
+  let y = TITLE_BOARD.y + TITLE_BOARD.h + 30;
+  const row = (h = bh) => { const r = { x: cx - bw / 2, y, w: bw, h }; y += h + gap; return r; };
+  const rows = {};
+  if (hasSaved) rows.resume = row();
+  rows.playWhite = row();
+  rows.playBlack = row();
+  rows.twoPlayer = row();
+  rows.watch = row();
+  rows.learn = row();
+  // Controls / About / Rules share one row, three even columns (was two — Rules is the addition).
+  const third = (bw - gap * 2) / 3;
+  rows.howto = { x: cx - bw / 2, y, w: third, h: bh };
+  rows.about = { x: cx - bw / 2 + third + gap, y, w: third, h: bh };
+  rows.rules = { x: cx - bw / 2 + (third + gap) * 2, y, w: third, h: bh };
+  y += bh + gap;
+  const half = (bw - gap) / 2;
+  rows.level = { x: cx - bw / 2, y, w: half, h: bh };
+  rows.theme = { x: cx - bw / 2 + half + gap, y, w: half, h: bh };
+  return rows;
+}
+
+// ---- shared control-bar buttons (play / lesson / puzzle scenes) --------------------------------
+const barY = BAR_TOP, bh2 = BAR_H - 16, bw2 = (W - 24 * 2 - 16 * 4) / 5;
+function barButton(i) { return { x: 24 + i * (bw2 + 16), y: barY + 8, w: bw2, h: bh2 }; }
+export const BTN = {
+  menu: barButton(0),
+  flip: barButton(1),
+  undo: barButton(2),
+  hint: barButton(3),
+  resign: barButton(4),
+};
+// A 4-wide variant for scenes that only need four buttons (lessons) — wider slots, longer labels fit.
+const bw4 = (W - 24 * 2 - 16 * 3) / 4;
+function barButton4(i) { return { x: 24 + i * (bw4 + 16), y: barY + 8, w: bw4, h: bh2 }; }
+export const BTN4 = { menu: barButton4(0), flip: barButton4(1), hint: barButton4(2), next: barButton4(3) };
+export const HEADER = {
+  back: { x: 14, y: 14, w: 100, h: 60 },
+  next: { x: W - 114, y: 14, w: 100, h: 60 },
+  sound: { x: W - 114, y: 14, w: 100, h: 60 },
+};
+export const RESULT_PANEL = {
+  again: { x: W / 2 - 270, y: 860, w: 250, h: 84 },
+  menu: { x: W / 2 + 20, y: 860, w: 250, h: 84 },
+};
+export const PROMO = {
+  card: { x: W / 2 - 300, y: 470, w: 600, h: 340 },
+  pieces: [0, 1, 2, 3].map((i) => ({ x: W / 2 - 300 + 40 + i * 135, y: 560, w: 110, h: 110 })),
+};

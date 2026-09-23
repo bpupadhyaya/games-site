@@ -8,7 +8,7 @@ import { newGame, fromBoard, applyMove, undoMove, tryMove, legalFor, inCheck, de
 import { LEVEL_COUNT, createThinker } from './engine.js';
 import { LESSONS, stepBoard, sq } from './lessons.js';
 import { puzzleFor, moveKey } from './puzzles.js';
-import { HOW, ABOUT } from './content.js';
+import { HOW, ABOUT, RULES } from './content.js';
 import { invalidateArt } from './art.js';
 import { invalidatePieces, warmPiece } from './pieces.js';
 import { render } from './view.js';
@@ -322,6 +322,7 @@ export function createGame(env) {
         else if (hit(rows.sound)) { state.sound = !state.sound; audio.setMuted(!state.sound); savePrefs(); }
         else if (hit(rows.how)) { state.scene = 'howto'; state.page = 0; }
         else if (hit(rows.about)) { state.scene = 'about'; state.page = 0; }
+        else if (hit(rows.rules)) { state.scene = 'rules'; state.page = 0; }
         else if (hit(rows.look)) state.scene = 'look';
         break;
       }
@@ -339,8 +340,9 @@ export function createGame(env) {
         if (i >= 0) savePrefs();
         break;
       }
-      case 'howto': case 'about': {
-        if (hit(BTN.prev)) state.scene = 'title'; else if (hit(BTN.page)) state.page = (state.page + 1) % (state.scene === 'howto' ? HOW : ABOUT).length;
+      case 'howto': case 'about': case 'rules': {
+        const list = state.scene === 'howto' ? HOW : state.scene === 'about' ? ABOUT : RULES;
+        if (hit(BTN.prev)) state.scene = 'title'; else if (hit(BTN.page)) state.page = (state.page + 1) % list.length;
         break;
       }
       case 'lesson': {

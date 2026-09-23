@@ -4,8 +4,10 @@
 import {
   SCREEN, BOARD_MARGIN, BOARD_TOP, BOARD_SIZE, inRect,
   HINT_BUTTON, UNDO_BUTTON, PLAY7_BUTTON, PLAY10_BUTTON, DAILY_BUTTON, COLOR_BUTTON,
+  TITLE_COLOR_BUTTON, TITLE_RULES_BUTTON, RULES_BACK_BUTTON, RULES_NEXT_BUTTON,
 } from './layout.js';
 import { PALETTES, regionColor } from './palettes.js';
+import { RULES } from './content.js';
 
 const W = SCREEN.width, H = SCREEN.height, TAU = Math.PI * 2;
 const DISPLAY = '"Cinzel", Georgia, "Times New Roman", serif';
@@ -792,8 +794,10 @@ function drawTitle(ctx, state, manifest, palette, demoLimit) {
   button(ctx, state, PLAY7_BUTTON, 'Play 7 × 7', { primary: true, size: 42, icon: 'crown' });
   button(ctx, state, PLAY10_BUTTON, state.expertUnlocked ? 'Expert 10 × 10' : 'Expert 10 × 10 (locked)', { size: 32, icon: 'grid', dim: !state.expertUnlocked });
   button(ctx, state, DAILY_BUTTON, 'Daily Puzzle', { size: 32, icon: 'calendar' });
-  button(ctx, state, COLOR_BUTTON, palette.name, { id: 'color', size: 27, extra: 150, after: swatches(palette, 7) });
-  text(ctx, 'COLOURS', 360, COLOR_BUTTON.y - 12, 17, 'rgba(247,226,170,0.8)', DISPLAY, 700);
+  // Colours + Rules share the row the single full-width Colours button used to occupy (split in
+  // half; the in-play Colours button below the board is unchanged).
+  button(ctx, state, TITLE_COLOR_BUTTON, 'Colours', { id: 'color', size: 28 });
+  button(ctx, state, TITLE_RULES_BUTTON, 'Rules', { id: 'rules', size: 28 });
 
   if (state.lockMessageTimer > 0) text(ctx, 'Solve 5 puzzles or buy the Expert Pack to unlock 10x10', 360, 1446, 24, '#ffb3c0', UI, 600);
   else text(ctx, 'Tap a square to rule it out. Tap again to crown it.', 360, 1446, 23, 'rgba(250,240,215,0.78)', UI, 500);
@@ -893,11 +897,224 @@ function drawDemoLimit(ctx, state) {
   ctx.restore();
 }
 
+// ---------------------------------------------------------------------------------------------
+// Rules reference page (title screen only). Every illustration below reuses this file's own
+// board/crown/mark/button drawing functions (drawBoardBase, drawPlacedCrown, drawRuledOut,
+// drawCrown, button, chip, ICONS) — never a separate simplified icon set. Pure: reads only the
+// presentation clocks already on `state`, mutates nothing.
+const RULES_TEXT_TOP_WITH_ART = 900;
+const RULES_TEXT_TOP_NO_ART = 300;
+const RULES_TEXT_BOTTOM = 1290;
+const RULES_PAGE_LABEL_Y = 1312;
+const RULES_TEXT_MAXW = W - 108;
+const RULES_BODY_SIZES = [27, 25, 23, 21, 19, 18];
+
+function wrapRulesParagraph(ctx, str, maxW) {
+  const words = str.split(' ');
+  const lines = [];
+  let line = '';
+  for (const w of words) {
+    const test = line ? `${line} ${w}` : w;
+    if (ctx.measureText(test).width > maxW && line) {
+      lines.push(line);
+      line = w;
+    } else line = test;
+  }
+  if (line) lines.push(line);
+  return lines;
+}
+
+// Picks the largest body size (and matching line/paragraph spacing) whose wrapped paragraphs fit
+// the given pixel budget, so a page can never overflow into the nav row no matter how long it is.
+function layoutRulesBody(ctx, paragraphs, budget) {
+  let best = null;
+  for (const size of RULES_BODY_SIZES) {
+    ctx.font = `500 ${size}px ${UI}`;
+    const lh = Math.round(size * 1.34);
+    const pgap = Math.round(size * 0.85);
+    const blocks = paragraphs.map((p) => wrapRulesParagraph(ctx, p, RULES_TEXT_MAXW));
+    const lineCount = blocks.reduce((a, b) => a + b.length, 0);
+    const height = lineCount * lh + (blocks.length - 1) * pgap;
+    best = { size, lh, pgap, blocks, height };
+    if (height <= budget) break;
+  }
+  return best;
+}
+
+function fitRulesTitle(ctx, str, maxW, start, floor) {
+  let size = start;
+  ctx.font = `800 ${size}px ${DISPLAY}`;
+  while (ctx.measureText(str).width > maxW && size > floor) {
+    size -= 2;
+    ctx.font = `800 ${size}px ${DISPLAY}`;
+  }
+  return size;
+}
+
+function highlight(ctx, x, y, cs, alpha = 0.24) {
+  ctx.fillStyle = `rgba(255,255,255,${alpha})`;
+  ctx.fillRect(x, y, cs, cs);
+}
+
+function drawRulesArt(ctx, name, state, palette) {
+  if (!name) return;
+  const cx = 360;
+  if (name === 'board' || name === 'win') {
+    const { geo: heroGeo, regions, crowns } = HERO;
+    const geo = { x: cx - heroGeo.px / 2, y: 280, px: heroGeo.px, n: heroGeo.n };
+    drawBoardBase(ctx, geo, regions, palette, `rules:${name}:${state.palette}`);
+    const cs = geo.px / geo.n;
+    crowns.forEach((i) => {
+      const col = i % geo.n, row = Math.floor(i / geo.n);
+      drawPlacedCrown(ctx, geo.x + col * cs + cs / 2, geo.y + row * cs + cs / 2, cs, 1);
+    });
+    if (name === 'win') {
+      chip(ctx, cx - 130, geo.y + geo.px + 34, 210, 'TIME', '1:42');
+      chip(ctx, cx + 130, geo.y + geo.px + 34, 210, 'MOVES', '11');
+    }
+  } else if (name === 'touch') {
+    const n = 3, cell = 130;
+    const geo = { x: cx - (n * cell) / 2, y: 340, px: n * cell, n };
+    drawBoardBase(ctx, geo, new Array(9).fill(0), palette, `rulesTouch:${state.palette}`);
+    for (let i = 0; i < 9; i++) {
+      if (i === 4) continue;
+      const col = i % 3, row = Math.floor(i / 3);
+      highlight(ctx, geo.x + col * cell, geo.y + row * cell, cell);
+    }
+    drawPlacedCrown(ctx, geo.x + cell * 1.5, geo.y + cell * 1.5, cell, 1);
+    text(ctx, 'Any crown on a lit cell would touch the centre crown', cx, geo.y + geo.px + 56, 22, 'rgba(250,240,215,0.85)', UI, 500);
+  } else if (name === 'cycle') {
+    const cell = 140, gap = 46;
+    const totalW = cell * 3 + gap * 2;
+    let x = cx - totalW / 2;
+    const y = 380;
+    const labels = ['Empty', 'Crossed out', 'Crown'];
+    const marks = ['empty', 'x', 'crown'];
+    marks.forEach((mark, k) => {
+      const geo = { x, y, px: cell, n: 1 };
+      drawBoardBase(ctx, geo, [0], palette, `rulesCycle:${k}:${state.palette}`);
+      if (mark === 'x') drawRuledOut(ctx, x, y, cell, 1);
+      else if (mark === 'crown') drawPlacedCrown(ctx, x + cell / 2, y + cell / 2, cell, 1);
+      text(ctx, labels[k], x + cell / 2, y + cell + 40, 22, 'rgba(250,240,215,0.88)', UI, 600);
+      if (k < 2) text(ctx, '→', x + cell + gap / 2, y + cell / 2 + 10, 34, 'rgba(240,194,76,0.85)');
+      x += cell + gap;
+    });
+  } else if (name === 'autocross') {
+    const { regions } = HERO;
+    const n = HERO.geo.n, px = HERO.geo.px;
+    const geo = { x: cx - px / 2, y: 280, px, n };
+    drawBoardBase(ctx, geo, regions, palette, `rulesAuto:${state.palette}`);
+    const cs = geo.px / n;
+    const cRow = 1, cCol = 1;
+    const crownIndex = cRow * n + cCol;
+    const crownRegion = regions[crownIndex];
+    for (let i = 0; i < n * n; i++) {
+      if (i === crownIndex) continue;
+      const row = Math.floor(i / n), col = i % n;
+      const sameRow = row === cRow, sameCol = col === cCol;
+      const sameRegion = regions[i] === crownRegion;
+      const touching = Math.abs(row - cRow) <= 1 && Math.abs(col - cCol) <= 1;
+      if (sameRow || sameCol || sameRegion || touching) drawRuledOut(ctx, geo.x + col * cs, geo.y + row * cs, cs, 1);
+    }
+    drawPlacedCrown(ctx, geo.x + cCol * cs + cs / 2, geo.y + cRow * cs + cs / 2, cs, 1);
+  } else if (name === 'conflict') {
+    const n = 4, cell = 110;
+    const geo = { x: cx - (n * cell) / 2, y: 330, px: n * cell, n };
+    // Each row is its own region, so the two illustrated crowns (different rows, different
+    // columns, different regions) conflict for exactly one reason: they touch diagonally.
+    const regions = Array.from({ length: n * n }, (_, i) => Math.floor(i / n));
+    drawBoardBase(ctx, geo, regions, palette, `rulesConflict:${state.palette}`);
+    // The pulsing red ring itself is drawn by drawBoardMarks in real play, not by
+    // drawPlacedCrown (which only tints the crown's own jewel for `conflict`) — reproduced here
+    // so this diagram matches what a real conflict actually looks like on the board.
+    const pulse = 0.5 + 0.5 * Math.sin(state.t * 6);
+    [5, 10].forEach((i) => {
+      const col = i % n, row = Math.floor(i / n);
+      const ccx = geo.x + col * cell + cell / 2, ccy = geo.y + row * cell + cell / 2;
+      drawPlacedCrown(ctx, ccx, ccy, cell, 1, { conflict: true });
+      ctx.strokeStyle = `rgba(255,84,112,${0.65 + 0.35 * pulse})`;
+      ctx.lineWidth = Math.max(3, cell * 0.06);
+      ctx.beginPath();
+      ctx.roundRect(ccx - cell / 2 + 5, ccy - cell / 2 + 5, cell - 10, cell - 10, cell * 0.12);
+      ctx.stroke();
+    });
+    text(ctx, 'Diagonally adjacent crowns both flash red', cx, geo.y + geo.px + 56, 22, 'rgba(250,240,215,0.85)', UI, 500);
+  } else if (name === 'hintundo') {
+    const hintR = { x: cx - 300, y: 460, w: 260, h: 130 };
+    const undoR = { x: cx + 40, y: 460, w: 260, h: 130 };
+    button(ctx, state, hintR, 'Hint', { size: 32, icon: 'bulb' });
+    button(ctx, state, undoR, 'Undo', { size: 32, icon: 'undo' });
+  } else if (name === 'colours') {
+    const names = [0, 4, 6];
+    const s = 130, gap = 40;
+    const totalW = names.length * s + (names.length - 1) * gap;
+    let x = cx - totalW / 2;
+    const y = 380;
+    names.forEach((idx, k) => {
+      const p = PALETTES[idx];
+      const geo = { x, y, px: s, n: 1 };
+      // Region id 1 (not 0) so the Colour-blind safe swatch actually shows its pattern —
+      // paintPattern in this file treats pattern kind 0 (id % 10 === 0) as "no pattern".
+      drawBoardBase(ctx, geo, [1], p, `rulesPalette:${idx}`);
+      text(ctx, p.name, x + s / 2, y + s + 36, 20, 'rgba(250,240,215,0.85)', UI, 600);
+      x += s + gap;
+    });
+  } else if (name === 'modes') {
+    const items = [['crown', '7×7 Endless'], ['calendar', 'Daily Puzzle'], ['grid', 'Expert 10×10']];
+    const s = 92, gap = 90;
+    const totalW = items.length * s + (items.length - 1) * gap;
+    let x = cx - totalW / 2 + s / 2;
+    const y = 460;
+    items.forEach(([icon, label]) => {
+      ICONS[icon](ctx, x, y, s, '#f7cd55');
+      text(ctx, label, x, y + s * 0.85, 22, 'rgba(250,240,215,0.9)', UI, 600);
+      x += s + gap;
+    });
+  } else if (name === 'generate') {
+    const { geo: heroGeo, regions } = HERO;
+    const geo = { x: cx - heroGeo.px / 2, y: 300, px: heroGeo.px, n: heroGeo.n };
+    drawBoardBase(ctx, geo, regions, palette, `rulesGen:${state.palette}`);
+    text(ctx, 'checked by a real solver before it is ever shown to you', cx, geo.y + geo.px + 54, 22, 'rgba(250,240,215,0.85)', UI, 500);
+  }
+}
+
+function drawRulesPage(ctx, state, manifest, palette) {
+  const list = RULES;
+  const i = ((state.page % list.length) + list.length) % list.length;
+  const page = list[i];
+
+  text(ctx, `${(manifest.title ?? 'CROWN FIELDS').toUpperCase()} — RULES`, 360, 108, 21, 'rgba(247,226,170,0.85)', DISPLAY, 700);
+  flourish(ctx, 360, 128, 150, 330);
+  const titleSize = fitRulesTitle(ctx, page.title, W - 100, 48, 28);
+  goldText(ctx, page.title, 360, 196, titleSize, W - 80, 800);
+
+  drawRulesArt(ctx, page.art, state, palette);
+
+  const textTop = page.art ? RULES_TEXT_TOP_WITH_ART : RULES_TEXT_TOP_NO_ART;
+  const { size, lh, pgap, blocks } = layoutRulesBody(ctx, page.lines, RULES_TEXT_BOTTOM - textTop);
+  ctx.font = `500 ${size}px ${UI}`;
+  ctx.fillStyle = 'rgba(250,240,215,0.9)';
+  ctx.textAlign = 'center';
+  let y = textTop;
+  blocks.forEach((block, bi) => {
+    for (const ln of block) {
+      ctx.fillText(ln, 360, y);
+      y += lh;
+    }
+    if (bi < blocks.length - 1) y += pgap;
+  });
+
+  text(ctx, `Page ${i + 1} of ${list.length}`, 360, RULES_PAGE_LABEL_Y, 20, 'rgba(247,226,170,0.7)', DISPLAY, 700);
+  button(ctx, state, RULES_BACK_BUTTON, 'Back', { id: 'rulesBack', size: 34 });
+  button(ctx, state, RULES_NEXT_BUTTON, 'Next', { id: 'rulesNext', size: 34 });
+}
+
 export function render(ctx, state, manifest, demoLimit) {
   const palette = PALETTES[state.palette] ?? PALETTES[0];
   drawBackdrop(ctx, state, palette);
   if (state.scene === 'demo-limit') drawDemoLimit(ctx, state);
   else if (state.scene === 'title') drawTitle(ctx, state, manifest, palette, demoLimit);
+  else if (state.scene === 'rules') drawRulesPage(ctx, state, manifest, palette);
   else drawPlay(ctx, state, palette);
   // eased fade between scenes
   const fade = 1 - clamp01(state.sceneT / 0.32);

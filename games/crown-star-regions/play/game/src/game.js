@@ -8,8 +8,12 @@
 
 import { generatePuzzle } from './generator.js';
 import { crownsFromCells, computeConflicts, isSolved } from './rules.js';
-import { SCREEN, hitTestCell, HINT_BUTTON, UNDO_BUTTON, PLAY10_BUTTON, DAILY_BUTTON, COLOR_BUTTON, inRect } from './layout.js';
+import {
+  SCREEN, hitTestCell, HINT_BUTTON, UNDO_BUTTON, PLAY10_BUTTON, DAILY_BUTTON, COLOR_BUTTON,
+  TITLE_COLOR_BUTTON, TITLE_RULES_BUTTON, RULES_BACK_BUTTON, RULES_NEXT_BUTTON, inRect,
+} from './layout.js';
 import { PALETTES } from './palettes.js';
+import { RULES } from './content.js';
 import { render } from './view.js';
 
 export { PALETTES };
@@ -30,6 +34,7 @@ export function createGame(env) {
 
   const state = {
     scene: 'title',
+    page: 0, // current Rules-reference page, only meaningful while scene === 'rules'
     mode: null, // 'daily' | 'endless'
     size: 7,
     regions: [],
@@ -244,9 +249,13 @@ export function createGame(env) {
           state.scene = 'demo-limit';
           return;
         }
-        if (inRect(x, y, COLOR_BUTTON)) {
+        if (inRect(x, y, TITLE_COLOR_BUTTON)) {
           pressed('color');
           cyclePalette();
+        } else if (inRect(x, y, TITLE_RULES_BUTTON)) {
+          pressed('rules');
+          state.page = 0;
+          state.scene = 'rules';
         } else if (inRect(x, y, PLAY10_BUTTON)) {
           if (state.expertUnlocked) startEndless(10);
           else state.lockMessageTimer = 1.6;
@@ -254,6 +263,18 @@ export function createGame(env) {
           startDaily();
         } else {
           startEndless(7);
+        }
+        return;
+      }
+
+      if (state.scene === 'rules') {
+        if (inRect(x, y, RULES_NEXT_BUTTON)) {
+          pressed('rulesNext');
+          state.page = (state.page + 1) % RULES.length;
+        } else if (inRect(x, y, RULES_BACK_BUTTON)) {
+          pressed('rulesBack');
+          state.scene = 'title';
+          state.page = 0;
         }
         return;
       }

@@ -7,10 +7,11 @@
 // logical deduction, from the very first tap. See design/GDD.md for the full design and
 // web/src/solver.js for exactly which deduction rules the generator/solver implement.
 import { neighbors } from './board.js';
-import { W, H, COLS, ROWS, CELL, BOARD_X, BOARD_Y, BOARD_W, BOARD_H, MODE_SWITCH, HINT_BTN, COLOR_BTN, NEW_BTN, SHIELD_BTN, TITLE_COLOR_BTN, inRect } from './layout.js';
+import { W, H, COLS, ROWS, CELL, BOARD_X, BOARD_Y, BOARD_W, BOARD_H, MODE_SWITCH, HINT_BTN, COLOR_BTN, NEW_BTN, SHIELD_BTN, TITLE_COLOR_BTN, TITLE_RULES_BTN, RULES_BACK_BTN, RULES_NEXT_BTN, inRect } from './layout.js';
 import { THEMES } from './themes.js';
 import { draw } from './render.js';
 import { findForcedMoves, generateBoard } from './solver.js';
+import { RULES } from './content.js';
 
 export const meta = { width: W, height: H };
 
@@ -35,6 +36,7 @@ export function createGame(env) {
 
   const state = {
     scene: 'title',
+    page: 0, // current Rules-reference page, only meaningful while scene === 'rules'
     w,
     h,
     mineCount,
@@ -269,9 +271,25 @@ export function createGame(env) {
       if (inRect(x, y, TITLE_COLOR_BTN)) {
         press('colors');
         cycleTheme();
+      } else if (inRect(x, y, TITLE_RULES_BTN)) {
+        press('rules');
+        state.page = 0;
+        state.scene = 'rules';
       } else {
         press('play');
         newBoard();
+      }
+      return;
+    }
+
+    if (state.scene === 'rules') {
+      if (inRect(x, y, RULES_NEXT_BTN)) {
+        press('rulesNext');
+        state.page = (state.page + 1) % RULES.length;
+      } else if (inRect(x, y, RULES_BACK_BTN)) {
+        press('rulesBack');
+        state.scene = 'title';
+        state.page = 0;
       }
       return;
     }

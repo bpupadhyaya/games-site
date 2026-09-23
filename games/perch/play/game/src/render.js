@@ -4,7 +4,7 @@ import { birdPoint, perchPoint, chooseDest, threatened } from './rules.js';
 
 export const W = 720, H = 1280, HORIZON = 330;
 const TAU = Math.PI * 2;
-const FONT = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
+export const FONT = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
 const COATS = ['#c8553d', '#3d7ec8', '#8a5cc8', '#2f9e78', '#c89a3d', '#c84f8a', '#5c7a8a', '#a8663d'];
 
 const mix = (a, b, f) => { const pa = parseInt(a.slice(1), 16), pb = parseInt(b.slice(1), 16), c = (sh) => Math.round(((pa >> sh) & 255) * (1 - f) + ((pb >> sh) & 255) * f); return `rgb(${c(16)},${c(8)},${c(0)})`; };
@@ -40,7 +40,7 @@ function ground(ctx) {
   for (let i = 0; i < 9; i++) { const y = HORIZON + Math.pow(i / 9, 1.8) * (H - HORIZON), h = 4 + i * 5; ctx.fillRect(0, y, W, h); }
 }
 
-function drawTree(ctx, tr, wind = null) {
+export function drawTree(ctx, tr, wind = null) {
   ctx.save(); ctx.translate(tr.x, tr.y); ctx.scale(tr.s, tr.s);
   const dusk = 0;
   void dusk;
@@ -112,7 +112,7 @@ function arm(ctx, S, T, bend, col, w) {
   return H;
 }
 
-function hunter(ctx, h, t, perches) {
+export function hunter(ctx, h, t, perches) {
   const sl = SLOTS[h.slot], coat = h.slot === BOSS_SLOT ? '#8a1f2b' : COATS[h.slot % COATS.length];
   const pulling = h.phase === 'pull', cooling = h.phase === 'cool', stunned = h.phase === 'stunned';
   const p = pulling ? 1 - h.timer / h.total : 0;
@@ -211,7 +211,7 @@ function shade(hex, n) {
   return `rgb(${c(16)},${c(8)},${c(0)})`;
 }
 
-function telegraph(ctx, s, t) {
+export function telegraph(ctx, s, t) {
   for (const h of s.hunters) {
     if (h.phase !== 'pull') continue;
     if (h.kind === 'net') {
@@ -233,7 +233,7 @@ function telegraph(ctx, s, t) {
   }
 }
 
-function stones(ctx, s) {
+export function stones(ctx, s) {
   for (const st of s.stones) {
     const f = Math.min(1, st.age / st.flight), p = perchPoint(s.perches, st.target);
     const sl = st.slot >= 0 ? SLOTS[st.slot] : null;
@@ -276,7 +276,7 @@ function choices(ctx, s, t) {
   });
 }
 
-function seeds(ctx, s, t) {
+export function seeds(ctx, s, t) {
   for (const sd of s.seeds) {
     const p = perchPoint(s.perches, sd.perch), k = Math.max(0.6, p.s);
     if (sd.ttl < 1.6 && Math.floor(t * 10) % 2 === 0) continue;
@@ -291,7 +291,7 @@ function seeds(ctx, s, t) {
   }
 }
 
-function beaters(ctx, s, t) {
+export function beaters(ctx, s, t) {
   for (const bt of s.beaters) {
     const p = s.perches[bt.perch], tr = s.trees[p.tree], q = 1 - bt.timer / bt.total, e = q * q * (3 - 2 * q);
     const sx = p.x < W / 2 ? -50 : W + 50, tx = tr.x + Math.sign(sx - tr.x) * 46 * tr.s, x = sx + (tx - sx) * e, k = Math.max(0.55, tr.s);
@@ -312,7 +312,7 @@ function beaters(ctx, s, t) {
 }
 
 // Acorns in flight, and a ring on every hunter you could knock down while you are holding one.
-function nuts(ctx, s, t) {
+export function nuts(ctx, s, t) {
   if (s.ammo > 0 && !s.over && !s.won) {
     for (const h of s.hunters) {
       if (!(h.phase === 'pull' || h.phase === 'queued')) continue;
@@ -331,7 +331,7 @@ function nuts(ctx, s, t) {
   }
 }
 
-function bird(ctx, s, t, title) {
+export function bird(ctx, s, t, title) {
   const b = s.bird, p = birdPoint(s);
   if (b.inv > 0 && Math.floor(t * 16) % 2 === 0) ctx.globalAlpha = 0.45;
   const rattled = s.beaters.some((bt) => bt.perch === b.perch && b.flit < 0 && bt.timer < 0.8);
@@ -354,7 +354,7 @@ function bird(ctx, s, t, title) {
   ctx.restore(); ctx.globalAlpha = 1;
 }
 
-function hud(ctx, s) {
+export function hud(ctx, s) {
   ctx.textAlign = 'center'; ctx.fillStyle = '#fff'; ctx.strokeStyle = 'rgba(20,30,50,0.55)'; ctx.lineJoin = 'round'; ctx.lineWidth = 10;
   ctx.font = `800 84px ${FONT}`; ctx.strokeText(String(s.score), W / 2, 150); ctx.fillText(String(s.score), W / 2, 150);
   for (let i = 0; i < 3; i++) {

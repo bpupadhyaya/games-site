@@ -21,8 +21,15 @@ export function pointNear(x, y) {
 }
 // Title screen buttons depend on whether an unfinished game is saved.
 export function titleRows(hasSave) {
-  const names = (hasSave ? ['resume'] : []).concat(['learn', 'ladder', 'two', 'daily', 'about', 'howto']), out = {};
+  const names = (hasSave ? ['resume'] : []).concat(['learn', 'ladder', 'two', 'daily']), out = {};
   names.forEach((n, i) => { out[n] = { x: 90, y: 736 + i * 76, w: 540, h: 66 }; });
+  // About / How to play / Rules share one row, three even columns (same x/w as the sound/calm/big
+  // row below) instead of each taking a full-width row of its own — Rules is the addition; About
+  // keeps the exact y position it always had, How to play moves up into the freed row alongside it.
+  const rowY = 736 + names.length * 76;
+  out.about = { x: 90, y: rowY, w: 172, h: 66 };
+  out.howto = { x: 274, y: rowY, w: 172, h: 66 };
+  out.rules = { x: 458, y: rowY, w: 172, h: 66 };
   out.sound = { x: 90, y: 1290, w: 172, h: 60 }; out.calm = { x: 274, y: 1290, w: 172, h: 60 }; out.big = { x: 458, y: 1290, w: 172, h: 60 };
   out.marks = { x: 90, y: 1360, w: 540, h: 60 };
   return out;

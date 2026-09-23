@@ -16,6 +16,7 @@ export function screenButtons(s) {
     else { B.push({ id: 'new', x: 60, y, w: 600, h: 84, label: 'Play', primary: true, size: 42 }); y += 98; }
     B.push({ id: 'learn', y, h: 70, ...row(2, 0), label: 'Learn to play' }, { id: 'daily', y, h: 70, ...row(2, 1), label: 'Daily race' }); y += 84;
     B.push({ id: 'about', y, h: 62, ...row(3, 0), label: 'About', size: 26 }, { id: 'how', y, h: 62, ...row(3, 1), label: 'How to play', size: 26 }, { id: 'settings', y, h: 62, ...row(3, 2), label: 'Settings', size: 26 });
+    y += 76; B.push({ id: 'rules', x: 60, y, w: 600, h: 66, label: 'Rules', size: 28 });
   } else if (sc === 'setup') {
     const t = s.setup;
     B.push(...chips(['mode:pachisi', 'mode:ludo'], 292, 70, 'mode:' + t.mode, ['Pachisi', 'Ludo mode']));
@@ -35,7 +36,7 @@ export function screenButtons(s) {
     const p = s.prefs;
     [['sound', 'Sound', p.sound], ['calm', 'Reduced motion', p.calm], ['big', 'Large text', p.big], ['auto', 'Auto-move a single choice', p.auto]].forEach(([id, label, on], i) => B.push({ id: 'set:' + id, x: 60, y: 250 + i * 118, w: 600, h: 92, label, value: on ? 'On' : 'Off', sel: on, toggle: true }));
     B.push({ id: 'back', x: 60, y: 1310, w: 600, h: 70, label: 'Back' });
-  } else if (sc === 'how' || sc === 'about') {
+  } else if (sc === 'how' || sc === 'about' || sc === 'rules') {
     B.push({ id: 'back', ...row(2, 0), y: 1310, h: 70, label: 'Back' }, { id: 'page', ...row(2, 1), y: 1310, h: 70, label: 'Next page', primary: true });
   } else if (sc === 'play' || sc === 'lesson' || sc === 'daily') {
     const L = s.lesson, ph = s.phase;
@@ -92,5 +93,73 @@ export const ABOUT_PAGES = [
     'Pachisi is the ancestor of many family games. Ludo, patented in England in the 1890s, keeps the cross, the four colours and the race home, and swaps the shells for a die.',
     'Similar cross-and-circuit games are played around the world today.',
     'In this version: six shells with the widely known values, grace throws, safe squares, blocks and the home lane. Cowrie values and small rules differ from place to place, so families often have their own.',
+  ]],
+];
+
+// Exhaustive rules reference (the "Rules" button). Every claim here is cross-checked against the
+// actual implementation in rules.js, the single source of truth for legality (see its own header
+// comment) - this page can never knowingly contradict the engine. Third element, when present, is
+// which piece of real in-game art view.js's drawRulesArt() should render beside the text.
+export const RULES_PAGES = [
+  ['The cross-shaped board', [
+    'Pachisi is played on a cross: four arms of squares meeting at one shared centre square. Each arm is three squares wide and eight squares long, plus the tip square where it meets the centre.',
+    'Going once around the outside of the cross is the outer track: 68 squares in all (17 per arm), travelled anticlockwise.',
+    'Two players use the two arms opposite each other; three players use the near, right and far arms; four players use all four arms - one seat per arm, Red, Green, Gold and Indigo in this build.',
+    'Every seat starts with its pawns waiting in its own coloured yard, and gets either four pawns or two (the "Short game" option chosen at set-up).',
+    'The seat on the near arm always throws first, and turns pass from arm to arm in the same anticlockwise order the pawns travel.',
+  ]],
+  ['The pawn', [
+    'Pachisi has only one kind of piece, coloured and even shaped differently for each seat so colour is never the only cue: Red (a ball), Green (a cone), Gold (a crown) and Indigo (a cube).',
+    'A pawn starts waiting in its own yard. It can only leave the yard by entering onto its own start square, and only on a grace throw (see Cowries and grace throws).',
+    'Once on the board, a pawn moves forward the exact number of squares shown by the throw, always anticlockwise around the outer track.',
+    'After completing the full circuit, a pawn turns up the seven-square home lane belonging to its own arm and makes for the centre (see Reaching the centre).',
+  ], 'pawns'],
+  ['Safe squares', [
+    'Twelve squares on the outer track are marked with a star: three on every arm, one of which is that arm\'s own start square.',
+    'No pawn can ever be captured while standing on a marked square, and pawns of any colour, in any number, are free to share one.',
+    'A marked square is also exempt from blocking: it never forms a block, and a rival pawn may always land there or pass over it.',
+  ], 'safe'],
+  ['Blocks', [
+    'Two of your own pawns standing together on the same UNMARKED square form a block. A block is always one colour - two different colours can never occupy the same unmarked square at once.',
+    'A rival pawn can neither land on a block nor hop over it while moving; the move that would have done so is refused instead.',
+    'At most two of your pawns may ever share an unmarked square - a third pawn cannot land there either.',
+    'None of this applies on a marked square or inside a home lane: any number of your own pawns may share those freely, and a home lane can never hold a rival\'s pawns at all.',
+  ], 'block'],
+  ['The cowrie throw', [
+    'Six cowrie shells are thrown together. Each lands mouth up or mouth down, and the value of the throw comes from how many mouths land up:',
+    '0 up = 12,   1 up = 10,   2 up = 2,   3 up = 3,   4 up = 4,   5 up = 25,   6 up = 6.',
+    'A grace throw (10, 25, 6 or 12) lets you throw again after you move, and it is the ONLY kind of throw that lets a waiting pawn enter the board. On a grace throw you may enter a new pawn, or move a pawn already out - the choice is yours.',
+    'Every throw is played in full the moment it is cast - the game never lets throws queue up unused.',
+  ], 'cowries'],
+  ['Ludo mode', [
+    'Ludo mode runs on the same engine, on a smaller, friendlier board: one six-sided die instead of six shells, a shorter arm (six squares instead of eight) and two marked squares per arm instead of three.',
+    'Only a throw of 6 is special in Ludo mode: it is the only throw that lets a waiting pawn enter, and the only one that earns another throw. No other value does either.',
+    'Ludo mode has no blocks at all - any number of pawns, of any colour, may share any square.',
+    'Landing on a square that holds rival pawns sends every rival pawn there home at once, not just one - but unlike Pachisi, a capture in Ludo mode earns no extra throw, and neither does reaching the centre.',
+  ], 'ludo'],
+  ['Capturing', [
+    'In Pachisi mode, landing exactly on a single rival pawn standing on an unmarked square sends it straight back to its own yard, and you throw again.',
+    'Capture is impossible on a marked square, in either mode - rival pawns simply share it in peace there (see Safe squares).',
+    'Capture is also impossible against a block: you cannot land on two rival pawns standing together at all (see Blocks) - that move is refused rather than played.',
+  ], 'capture'],
+  ['Reaching the centre', [
+    'The centre square is the finish line, reached only after the full 68-square outer circuit and the seven squares of your own home lane.',
+    'You must land on the centre with an EXACT throw: a throw that would carry a pawn past it is refused for that pawn, though another pawn, or another throw, may still be playable.',
+    'One house rule fills the gap this leaves: because no cowrie throw is ever worth exactly 1 (the lowest throw is 2), a pawn sitting exactly one square short of the centre finishes on ANY throw at all. This applies to Pachisi mode only - Ludo mode\'s die can roll a 1, so it needs no such rule.',
+    'Reaching the centre earns another throw, just like a grace throw or a capture (Pachisi mode only - see Ludo mode).',
+  ]],
+  ['Winning', [
+    'The first seat to bring every one of its pawns to the centre wins immediately - four pawns home in the standard game, or two in the Short game.',
+    'The moment that happens the game ends at once, even if other seats still have pawns on the board - there is no second race to finish.',
+    'The remaining seats are simply ranked afterwards, by how many pawns they got home and then by how far the rest had travelled.',
+  ]],
+  ['No legal move', [
+    'A throw is played the instant it is cast. If no pawn can legally use it, the whole throw is lost and play passes on - there is no queue of unused throws, and no draw in Pachisi: the game always continues until somebody wins.',
+    'The most common reasons a throw is refused, in the order the game checks them:',
+    '- A rival block sits on a square this move would have to land on or pass over.',
+    '- Your own two pawns already fill the only unmarked square this move would land on.',
+    '- The move would overshoot the centre, and this pawn is not the one-square-short exception.',
+    '- You threw a value that is not a grace throw, and the only pawn that could move is still waiting in its yard.',
+    'When more than one reason applies to different pawns at once, the message on screen names the single most useful one.',
   ]],
 ];

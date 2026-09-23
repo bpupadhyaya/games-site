@@ -5,10 +5,45 @@ import { legalMoves } from './rules.js';
 import { LEVELS } from './engine.js';
 import { LESSONS } from './lessons.js';
 import { ABOUT } from './about.js';
+import { RULES } from './content.js';
 
 const FONT = '"Cormorant Garamond", Georgia, "Times New Roman", serif', UI = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
 const TAU = Math.PI * 2;
 const CREAM = '#fbe8bf', GOLD = '#f3cf7a';
+
+// ---- Rules page art: a small real board snapshot, drawn with the game's own drawBoard/drawSeed/slot -------------
+// (never a separate invented icon set), the same technique the title screen uses for its mini board.
+function ruleSnapshot(role) {
+  const idle = () => ({ pits: new Array(12).fill(4), store: [0, 0] });
+  if (role === 'setup') return { snap: idle(), hi: null, caption: null };
+  if (role === 'mine') return { snap: idle(), hi: { pits: [0, 1, 2, 3, 4, 5] }, caption: 'Your pits: the bottom row' };
+  if (role === 'theirs') return { snap: idle(), hi: { pits: [6, 7, 8, 9, 10, 11] }, caption: 'The opponent’s pits: the top row' };
+  if (role === 'store') return { snap: { pits: [4, 4, 0, 4, 4, 4, 4, 0, 4, 4, 4, 4], store: [4, 4] }, hi: { trays: true }, caption: 'Each side’s store, holding captured seeds' };
+  if (role === 'capture') return { snap: { pits: [4, 4, 4, 4, 4, 4, 4, 4, 3, 2, 4, 4], store: [0, 0] }, hi: { pits: [8, 9] }, caption: 'Two opponent pits left at 3 and 2: both are captured' };
+  return null;
+}
+function drawRuleBoard(ctx, state, snap, hi) {
+  ctx.save(); ctx.translate(360, 60); ctx.scale(0.6, 0.6); ctx.translate(-360, 0);
+  drawBoard(ctx, state.wood);
+  for (let i = 0; i < 12; i++) {
+    const p = pitPos(i), n = snap.pits[i];
+    for (let k = 0; k < n; k++) { const s = slot(i, k); drawSeed(ctx, state.seeds, s.v, p.x + s.x, p.y + s.y, s.rot, 1.22); }
+  }
+  for (const pl of [0, 1]) {
+    const T = pl === 0 ? TRAY.bottom : TRAY.top, n = snap.store[pl];
+    for (let k = 0; k < n; k++) { const col = k % 17, row = Math.floor(k / 17); drawSeed(ctx, state.seeds, (k * 3 + pl) % 4, T.x + 172 + col * 22 + (row % 2) * 8, T.y + 20 + row * 25, ((k * 97) % 360) * Math.PI / 180, 1.05); }
+  }
+  if (hi && hi.pits) for (const i of hi.pits) {
+    const p = pitPos(i), gr = ctx.createRadialGradient(p.x, p.y, PIT_R * 0.5, p.x, p.y, PIT_R + 22);
+    gr.addColorStop(0, 'rgba(255,220,120,0)'); gr.addColorStop(0.7, 'rgba(255,220,120,0.55)'); gr.addColorStop(1, 'rgba(255,220,120,0)');
+    ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(p.x, p.y, PIT_R + 22, 0, TAU); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,220,120,0.95)'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(p.x, p.y, PIT_R + 4, 0, TAU); ctx.stroke();
+  }
+  if (hi && hi.trays) for (const T of [TRAY.top, TRAY.bottom]) {
+    ctx.strokeStyle = 'rgba(255,220,120,0.95)'; ctx.lineWidth = 5; ctx.beginPath(); ctx.roundRect(T.x - 6, T.y - 6, T.w + 12, T.h + 12, 40); ctx.stroke();
+  }
+  ctx.restore();
+}
 
 export function render(ctx, state) {
   const scene = state.scene, big = state.big, g = state.game, A = state.anim;
@@ -174,7 +209,7 @@ export function render(ctx, state) {
     button(R.play, 'Play the computer', { primary: state.learned && !R.resume, size: 32 });
     button(R.two, 'Two players, one phone', { size: 30 });
     button(R.daily, solved ? `Daily puzzle: solved · streak ${state.daily.streak}` : state.daily.streak ? `Daily puzzle · streak ${state.daily.streak}` : 'Daily puzzle', { size: 30 });
-    button(R.about, 'About Oware', { size: 26 }); button(R.settings, 'Settings', { size: 26 });
+    button(R.about, 'About Oware', { size: 21 }); button(R.settings, 'Settings', { size: 21 }); button(R.rules, 'Rules', { size: 21 });
     const y = R.about.y + 130;
     text(`Games played: ${state.stats.games} · won: ${state.stats.wins}`, 360, y, 22, 'rgba(251,232,191,0.85)', UI, 500);
     let stars = ''; for (let l = 0; l < LEVELS.length; l++) stars += state.stats.badges['L' + l] ? '★ ' : '☆ ';
@@ -207,6 +242,24 @@ export function render(ctx, state) {
       const n = wrap(body, 70, y, big ? 26 : 23, 580, '#fff3d6', big ? 34 : 30, 'left'); y += n * (big ? 34 : 30) + 24;
     }
     button(BTN.aboutBack, 'Back', { primary: true, size: 32 });
+  } else if (scene === 'rules') {
+    const page = RULES[state.page % RULES.length];
+    panel(36, 120, 648, 1240, 0.9);
+    text('Rules', 360, 210, 64, CREAM, FONT);
+    text(page.title, 360, 262, big ? 32 : 28, GOLD, FONT, 700);
+    const info = ruleSnapshot(page.role);
+    let y = 316;
+    if (info) {
+      drawRuleBoard(ctx, state, info.snap, info.hi);
+      if (info.caption) text(info.caption, 360, 712, big ? 22 : 19, 'rgba(251,232,191,0.85)', UI, 600);
+      y = 754;
+    }
+    for (const line of page.lines) {
+      const n = wrap(line, 70, y, big ? 24 : 21, 580, '#fff3d6', big ? 31 : 27, 'left'); y += n * (big ? 31 : 27) + 16;
+    }
+    text(`Page ${(state.page % RULES.length) + 1} of ${RULES.length}`, 360, 1345, 20, 'rgba(251,232,191,0.65)', UI, 500);
+    button(BTN.rulesBack, 'Back', { primary: true, size: 28 });
+    button(BTN.rulesNext, 'Next', { size: 28 });
   } else if (scene === 'over') {
     ctx.fillStyle = 'rgba(20,6,0,0.7)'; ctx.fillRect(0, 0, W, H);
     const won = g.winner === 'draw' ? 'A draw' : state.two ? (g.winner === 0 ? 'Player one wins' : 'Player two wins') : g.winner === 0 ? 'You win!' : 'The computer wins';
