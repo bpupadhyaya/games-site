@@ -7,10 +7,10 @@ import { RULES_REFERENCE } from '../data/rules_reference.js';
 import { ARCHERS, ARCHER_IDS, OATHS } from '../data/meta.js';
 import { ENEMIES } from '../data/enemies.js';
 import * as B from '../rules/battle.js';
-import { STEPS_PER_ACT, REMOVE_PRICE, SKIP_REWARD_MARKS, removableTechs } from '../rules/run.js';
+import { STEPS_PER_ACT, REMOVE_PRICE, SKIP_REWARD_MARKS, removableTechs, campHeal } from '../rules/run.js';
 import { C, W, H, SAFE_TOP, elementColor, alpha, font } from './theme.js';
 import { bar, button, contactShadow, diamond, drawArcher, drawCard, drawConstruct, drawRing, drawSky, glyph, goldFoil, icon, intentBadge, panel, paragraph, roundRect, rule, setPress, text, tracked } from './draw.js';
-import { ARCHER, BTN, CARD_H, CARD_W, CLOSE, CONFIRM, COVENANT_BTN, COVENANT_BTN_TOP, DETAIL, ENVOY, ENVOY_TOP, FOCUS, GRID, HEADER_CX, HEADER_W, HEADER_Y, OPTIONS, OPTIONS_TOP, RESOLVE_BAR, RING, SECONDARY, HELP_TABS, HELP_TEXT, PAGE_NAV, HOWTO_PER_PAGE, ABOUT_PER_PAGE, TEXT_SCALES, NEWRUN, TUNER_REMOVE, TUNER_TRIO_Y, choiceRects, enemySlots, titleRects, trioRects } from './layout.js';
+import { ARCHER, BTN, CARD_H, CARD_W, CLOSE, CONFIRM, COVENANT_BTN, COVENANT_BTN_TOP, DETAIL, ENVOY, ENVOY_TOP, FOCUS, GRID, HEADER_CX, HEADER_W, HEADER_Y, OPTIONS, OPTIONS_TOP, RESOLVE_BAR, RING, SECONDARY, HELP_TABS, HELP_TEXT, PAGE_NAV, HOWTO_PER_PAGE, ABOUT_PER_PAGE, TEXT_SCALES, NEWRUN, TUNER_REMOVE, TUNER_TRIO_Y, choiceRects, enemySlots, titleRects, trioRects, AUTO_HUD, AUTO_STEP_DEC, AUTO_STEP_INC, AUTO_CONTENT_TOP, AUTO_SKIP, AUTO_EXIT, AUTO_AGAIN, AUTO_THINK_STEPS, autoListRects, autoTrioRects, autoHandSlots, autoEnemySlots } from './layout.js';
 
 const TAU = Math.PI * 2;
 const ease = (x) => 1 - (1 - x) * (1 - x);
@@ -188,10 +188,21 @@ function drawTitle(ctx, s) {
   if (s.best > 0) text(ctx, `Best Legend   ${s.best}`, W / 2, 1112, { size: 22, color: C.gold, display: true });
 
   const book = ["Tuner's Book", 'Every Arrow you have loosed'];
+  // 'The Covenant' and 'Auto Play' share their row as two half-width buttons (see
+  // game.js's titleActionRects), so this row count and every earlier row's position never change.
   const labels = s.saved
-    ? [['Continue', `Day ${s.saved.run.act ?? 1}  ·  Step ${s.saved.run.step + 1}  ·  ${s.saved.run.spent.length} spent`], ['New Run', 'Start over'], book, ['How to Play', 'and about this game'], ['The Covenant', 'Rules of the war  ·  settings']]
-    : [['New Run', 'Take up the quiver'], book, ['How to Play', 'and about this game'], ['The Covenant', 'Rules of the war  ·  settings']];
-  titleRects(labels.length).forEach((r, i) => button(ctx, r, labels[i][0], { size: labels.length >= 5 ? 24 : labels.length >= 4 ? 27 : 30, sub: labels[i][1], primary: i === 0 }));
+    ? [['Continue', `Day ${s.saved.run.act ?? 1}  ·  Step ${s.saved.run.step + 1}  ·  ${s.saved.run.spent.length} spent`], ['New Run', 'Start over'], book, ['How to Play', 'and about this game'], ['The Covenant', 'Rules  ·  settings'], ['Auto Play', 'Watch it think']]
+    : [['New Run', 'Take up the quiver'], book, ['How to Play', 'and about this game'], ['The Covenant', 'Rules  ·  settings'], ['Auto Play', 'Watch it think']];
+  const rows = titleRects(labels.length - 1);
+  const last = rows[rows.length - 1];
+  const gap = 16;
+  const half = (last.w - gap) / 2;
+  const rects = [...rows.slice(0, -1), { x: last.x, y: last.y, w: half, h: last.h }, { x: last.x + half + gap, y: last.y, w: half, h: last.h }];
+  const fullSize = labels.length - 1 >= 5 ? 24 : labels.length - 1 >= 4 ? 27 : 30;
+  rects.forEach((r, i) => {
+    const isHalfWidth = i >= rects.length - 2;
+    button(ctx, r, labels[i][0], { size: isHalfWidth ? Math.min(fullSize, 22) : fullSize, sub: labels[i][1], primary: i === 0 });
+  });
 }
 
 function drawMap(ctx, s, extra) {
@@ -580,13 +591,17 @@ function drawRulesPage(ctx, o, scale) {
   rule(ctx, W / 2, 350, 380);
   // Shrinks to fit if a title would otherwise run past the panel at the top text-size step -
   // titles are kept short by content, but this is a hard guarantee against it ever bleeding out.
-  let titleSize = 30 * scale;
+  const baseTitleSize = 30 * scale;
+  let titleSize = baseTitleSize;
   ctx.font = font(titleSize, 700, true);
   const titleMax = W - 140;
   const titleW = ctx.measureText(page.title).width;
   if (titleW > titleMax) titleSize *= titleMax / titleW;
   text(ctx, page.title, W / 2, 396, { size: titleSize, weight: 700, color: C.goldLight, display: true });
-  let y = 440;
+  // Gap below the title scales with the CURRENT text-size step, not the title's own (possibly
+  // shrunk) size - a long title that had to shrink to fit its width still needs the same room
+  // below it as a short one at that step, or the gap collapses along with the shrink.
+  let y = 396 + baseTitleSize * 1.5;
   if (page.demo === 'cards') {
     ctx.save();
     ctx.translate(W / 2 - 110, y + 116);
@@ -652,8 +667,14 @@ function drawOverlay(ctx, s, extra) {
         const items = HOW_TO_PLAY.slice(pageIdx * HOWTO_PER_PAGE, pageIdx * HOWTO_PER_PAGE + HOWTO_PER_PAGE);
         const rowGap = 26 * scale;
         items.forEach((step) => {
-          const titleSize = 27 * scale;
+          let titleSize = 27 * scale;
           const bodySize = 24 * scale;
+          // Shrinks to fit if a title would otherwise run past the panel at the top text-size
+          // step - the same hard guarantee drawRulesPage uses, so a title can never bleed out.
+          ctx.font = font(titleSize, 700, true);
+          const titleMax = W - 172 - 60;
+          const titleW = ctx.measureText(step.title).width;
+          if (titleW > titleMax) titleSize *= titleMax / titleW;
           const titleY = y + titleSize;
           const iconY = titleY - titleSize * 0.3;
           diamond(ctx, 112, iconY, 34);
@@ -669,10 +690,21 @@ function drawOverlay(ctx, s, extra) {
           y = Math.max(bodyY + bh, iconY + 34) + rowGap;
         });
       } else {
-        text(ctx, 'The element ring', W / 2, y + 30, { size: 28 * scale, weight: 700, color: C.goldLight, display: true });
-        drawRing(ctx, W / 2, y + 190, 64, ELEMENTS, {});
-        text(ctx, 'Each element beats the next one around the ring.', W / 2, y + 300, { size: 19, color: C.muted });
-        y += 340;
+        // Same hard-guarantee shrink-to-fit as every other single-line title in this overlay, plus
+        // a gap below it that grows with the (possibly shrunk) size - a fixed +30/+190/+300 only
+        // ever worked for the scale-1 title size and let a big title bleed into the tab row above.
+        const baseRingTitleSize = 28 * scale;
+        let ringTitleSize = baseRingTitleSize;
+        ctx.font = font(ringTitleSize, 700, true);
+        const ringTitleMax = W - 140;
+        const ringTitleW = ctx.measureText('The element ring').width;
+        if (ringTitleW > ringTitleMax) ringTitleSize *= ringTitleMax / ringTitleW;
+        const titleY = y + Math.max(30, baseRingTitleSize * 0.6);
+        text(ctx, 'The element ring', W / 2, titleY, { size: ringTitleSize, weight: 700, color: C.goldLight, display: true });
+        const ringY = titleY + 160;
+        drawRing(ctx, W / 2, ringY, 64, ELEMENTS, {});
+        text(ctx, 'Each element beats the next one around the ring.', W / 2, ringY + 110, { size: 19, color: C.muted });
+        y = ringY + 150;
       }
       text(ctx, `Page ${pageIdx + 1} of ${howtoPages}`, W / 2, y + 14, { size: 18, color: C.muted });
     } else if (o.page === 1) {
@@ -686,10 +718,9 @@ function drawOverlay(ctx, s, extra) {
       let y = 410;
       if (pageIdx < paraPages) {
         const paras = ABOUT.slice(pageIdx * ABOUT_PER_PAGE, pageIdx * ABOUT_PER_PAGE + ABOUT_PER_PAGE);
-        paras.forEach((para, i) => {
-          const idx = pageIdx * ABOUT_PER_PAGE + i;
-          const lead = idx === 0 || idx === 2;
-          y += paragraph(ctx, para, W / 2, y, W - 170, { size: (lead ? 30 : 27) * scale, lineH: 1.44, color: lead ? C.goldLight : C.inkSoft, display: lead }) + 28 * scale;
+        paras.forEach((para) => {
+          const lead = !!para.lead;
+          y += paragraph(ctx, para.text, W / 2, y, W - 170, { size: (lead ? 30 : 27) * scale, lineH: 1.44, color: lead ? C.goldLight : C.inkSoft, display: lead }) + 28 * scale;
         });
       } else {
         text(ctx, `Version ${extra.manifest?.version ?? ''}`, W / 2, y + 40, { size: 18, color: C.muted });
@@ -934,6 +965,179 @@ export function render(ctx, view, s, extra) {
   ctx.restore();
   if (s.overlay) drawOverlay(ctx, s, extra);
   // every scene change fades in from the night
+  if (s.fade > 0) {
+    ctx.fillStyle = `rgba(3, 4, 12, ${Math.min(1, s.fade)})`;
+    ctx.fillRect(0, 0, W, H);
+  }
+}
+
+// ---------------------------------------------------------------- Auto Play (assisted learning)
+// A private run (`A`) driven by rules/*.js directly, never s.run/s.battle. Its own layout, not the
+// real screens': the real ones are built around a human's taps, which nothing needs here. Reuses
+// the same drawing primitives (drawCard, drawConstruct, drawArcher, panel, bar, drawRing…) as the
+// real scenes so a card, an enemy or the ring still look and read exactly the way play teaches you
+// to recognise them — only the chrome around them (header, bottomBar, hand physics) is skipped.
+function autoHud(ctx, s, A) {
+  panel(ctx, AUTO_HUD, { r: 24 });
+  tracked(ctx, 'Auto Play · Watch & Learn', W / 2, AUTO_HUD.y + 36, { size: 18, color: C.goldLight, spacing: 3, glow: alpha(C.gold, 0.5) });
+  const thinking = A.phase === 'think';
+  const caption = thinking ? 'Thinking…' : A.phase === 'over' ? (A.result === 'won' ? 'The day is won.' : 'The quiver falls silent.') : A.caption || '…';
+  paragraph(ctx, caption, W / 2, AUTO_HUD.y + 70, AUTO_HUD.w - 200, { size: 21, weight: 700, color: C.ink, lineH: 1.2, display: true });
+  button(ctx, AUTO_STEP_DEC, '−', { quiet: true, size: 28, disabled: s.autoThinkIdx === 0 });
+  button(ctx, AUTO_STEP_INC, '+', { quiet: true, size: 24, disabled: s.autoThinkIdx === AUTO_THINK_STEPS.length - 1 });
+  text(ctx, `Think time: ${AUTO_THINK_STEPS[s.autoThinkIdx]}s  (max ${AUTO_THINK_STEPS[AUTO_THINK_STEPS.length - 1]}s)`, W / 2, AUTO_HUD.y + 148, { size: 17, color: C.muted, weight: 600 });
+}
+
+function autoControls(ctx, A) {
+  const canSkip = A.phase === 'think' || A.phase === 'reveal';
+  button(ctx, AUTO_SKIP, 'Skip wait', { size: 23, quiet: !canSkip, disabled: !canSkip });
+  button(ctx, AUTO_EXIT, 'Exit', { size: 23, primary: true });
+}
+
+function autoMap(ctx, A) {
+  const doors = A.run.doors;
+  const rects = autoListRects(doors.length);
+  doors.forEach((door, i) => {
+    const r = rects[i];
+    const info = DOOR_INFO[door.kind];
+    const hot = A.ui.choice === i && A.phase !== 'think';
+    panel(ctx, r, { hot });
+    const el = door.encounter ? ENEMIES[door.encounter[0]].element : null;
+    const cx = r.x + 80;
+    const cy = r.y + r.h / 2;
+    if (el) glyph(ctx, el, cx, cy, 44, { width: 3, color: '#ffffff' });
+    else icon(ctx, info.icon, cx, cy, 38, info.color, 3);
+    const title = door.kind === 'boss' ? ENEMIES[door.encounter[0]].name : info.title;
+    text(ctx, title, r.x + 148, r.y + r.h * 0.42, { size: 27, weight: 700, color: info.color, align: 'left', display: true });
+    text(ctx, doorSub(door), r.x + 148, r.y + r.h * 0.72, { size: 18, color: C.inkSoft, align: 'left' });
+  });
+}
+
+// Mirrors game.js's campOptions() — kept as its own small copy since Auto Play never touches the
+// real s.run, so it cannot call the closure that reads it.
+function autoCampOptions(run) {
+  const list = [{ id: 'rest', label: 'Rest', sub: `Heal ${campHeal(run)} Resolve` }];
+  if (removableTechs(run).length > 1) list.push({ id: 'drop', label: 'Lighten the quiver', sub: 'Remove one Technique for good' });
+  if (run.debts.length) list.push({ id: 'settle', label: 'Settle a Debt', sub: 'Costs 5 maximum Resolve' });
+  return list;
+}
+
+function autoCamp(ctx, A) {
+  const options = autoCampOptions(A.run);
+  const rects = autoListRects(options.length);
+  options.forEach((o, i) => {
+    const hot = A.ui.choice === i && A.phase !== 'think';
+    panel(ctx, rects[i], { hot });
+    text(ctx, o.label, rects[i].x + 40, rects[i].y + rects[i].h * 0.44, { size: 27, weight: 700, align: 'left', color: C.ink, display: true });
+    text(ctx, o.sub, rects[i].x + 40, rects[i].y + rects[i].h * 0.74, { size: 19, align: 'left', color: C.inkSoft });
+  });
+}
+
+function autoEnvoy(ctx, A) {
+  const ev = EVENTS[A.envoy.event];
+  tracked(ctx, ev.title, W / 2, AUTO_CONTENT_TOP + 26, { size: 24, color: C.goldLight, spacing: 3, glow: alpha(C.gold, 0.4) });
+  rule(ctx, W / 2, AUTO_CONTENT_TOP + 46, 300);
+  paragraph(ctx, ev.text, W / 2, AUTO_CONTENT_TOP + 92, W - 150, { size: 21, lineH: 1.35, display: true });
+  const optTop = AUTO_CONTENT_TOP + 250;
+  const remaining = 1404 - optTop;
+  const gap = 16;
+  const h = Math.min(130, (remaining - (ev.options.length - 1) * gap) / ev.options.length);
+  const rects = autoListRects(ev.options.length, optTop, h, gap);
+  ev.options.forEach((o, i) => {
+    const hot = A.ui.choice === i && A.phase !== 'think';
+    const danger = (o.effect.standing ?? 0) < 0;
+    panel(ctx, rects[i], { hot, edge: danger && !hot ? alpha(C.damage, 0.7) : null });
+    text(ctx, o.label, rects[i].x + 36, rects[i].y + rects[i].h * 0.4, { size: 23, weight: 700, align: 'left', color: danger ? C.damage : C.ink, display: true });
+    text(ctx, o.note, rects[i].x + 36, rects[i].y + rects[i].h * 0.72, { size: 16, align: 'left', color: C.inkSoft });
+  });
+}
+
+function autoTuner(ctx, A) {
+  const stock = A.door.stock ?? [];
+  const rects = autoTrioRects(stock.length);
+  stock.forEach((item, i) => {
+    const r = rects[i];
+    const hot = A.ui.choice === i && A.phase !== 'think' && !A.leaving;
+    ctx.save();
+    ctx.translate(r.x + r.w / 2, r.y + r.h / 2);
+    drawCard(ctx, item.id, r.w, r.h, { t: 0, lit: hot, dim: item.sold });
+    ctx.restore();
+    text(ctx, item.sold ? 'Sold' : `${item.price} Marks`, r.x + r.w / 2, r.y + r.h + 36, { size: 20, weight: 800, color: item.sold ? C.muted : A.run.marks >= item.price ? C.goldLight : C.damage });
+  });
+  if (A.leaving && A.phase !== 'think') text(ctx, 'Leaving the Tuner — nothing else is worth the Marks', W / 2, (rects[0]?.y ?? AUTO_CONTENT_TOP) + (rects[0]?.h ?? 0) + 84, { size: 20, color: C.goldLight, weight: 700, display: true });
+}
+
+function autoReward(ctx, A) {
+  const r = A.reward;
+  text(ctx, `+${r.marks} Marks`, W / 2, AUTO_CONTENT_TOP + 36, { size: 30, weight: 800, color: C.goldLight, glow: alpha(C.gold, 0.5) });
+  const rects = autoTrioRects(r.cards.length, AUTO_CONTENT_TOP + 96);
+  r.cards.forEach((id, i) => {
+    const hot = A.ui.choice === i && A.phase !== 'think';
+    ctx.save();
+    ctx.translate(rects[i].x + rects[i].w / 2, rects[i].y + rects[i].h / 2 - (hot ? 18 : 0));
+    drawCard(ctx, id, rects[i].w, rects[i].h, { t: 0, lit: hot });
+    ctx.restore();
+  });
+}
+
+function autoBattle(ctx, s, A) {
+  const b = A.battle;
+  const t = s.t;
+  const slots = autoEnemySlots(b.enemies);
+  b.enemies.forEach((e, i) => {
+    if (e.dead) return;
+    const p = slots[i];
+    contactShadow(ctx, p.x, p.y + p.r * 1.3, p.r, p.r * 0.22, 0.4);
+    drawConstruct(ctx, e, p.x, p.y, p.r, t, { targeted: A.ui.target === i && A.phase !== 'think' && b.enemies.length > 1 });
+    intentBadge(ctx, e, p.x, p.y - p.r * 1.4 - 40, t);
+    const bw = Math.max(100, p.r * 2);
+    bar(ctx, p.x - bw / 2, p.y + p.r * 1.4 + 14, bw, 14, e.hp / e.maxHp, C.damage, { colorTop: '#ffb3c0' });
+    text(ctx, `${e.hp}`, p.x, p.y + p.r * 1.4 + 44, { size: 20, weight: 800, color: '#ffffff' });
+    if (!e.decoy) text(ctx, e.name, p.x, p.y + p.r * 1.4 + 66, { size: 15, color: C.inkSoft, display: true });
+  });
+
+  // A boss (or any single large enemy) has a taller name/HP block below it than the usual row — the
+  // status line beneath must clear the tallest one actually on the field, not a fixed offset that
+  // only worked for the common (smaller) enemies.
+  const maxR = Math.max(60, ...slots.map((p) => p.r));
+  const midY = Math.max(AUTO_CONTENT_TOP + 350, (AUTO_CONTENT_TOP + 150) + maxR * 1.4 + 156);
+  text(ctx, `Turn ${b.turn}`, W / 2, midY - 44, { size: 19, weight: 700, color: C.muted, display: true });
+  text(ctx, `RESOLVE ${b.player.resolve}/${b.player.maxResolve}   ·   FOCUS ${b.player.focus}   ·   GUARD ${b.player.guard}`, W / 2, midY, { size: 19, weight: 600, color: C.ink });
+  if (A.caption && A.phase !== 'think') paragraph(ctx, A.caption, W / 2, midY + 46, W - 150, { size: 21, color: C.goldLight, lineH: 1.3, display: true });
+
+  const hslots = autoHandSlots(b.hand.length);
+  b.hand.forEach((inst, i) => {
+    const pos = hslots[i];
+    const lit = A.ui.sel === i && A.phase !== 'think';
+    ctx.save();
+    ctx.translate(pos.x, pos.y - (lit ? 22 : 0));
+    drawCard(ctx, inst.id, pos.w, pos.w * (CARD_H / CARD_W), { t: t + i, lit, unaffordable: !B.canPlay(b, i) });
+    ctx.restore();
+  });
+}
+
+function autoOver(ctx, A) {
+  const won = A.result === 'won';
+  tracked(ctx, won ? 'The Day Is Won' : 'The Quiver Falls Silent', W / 2, AUTO_CONTENT_TOP + 40, { size: 30, color: won ? C.goldLight : C.damage, spacing: 4, glow: alpha(won ? C.gold : C.damage, 0.6) });
+  rule(ctx, W / 2, AUTO_CONTENT_TOP + 68, 340, won ? C.gold : C.damage);
+  text(ctx, 'LEGEND', W / 2, AUTO_CONTENT_TOP + 128, { size: 16, weight: 700, color: C.muted, display: true });
+  tracked(ctx, String(A.legend ?? 0), W / 2, AUTO_CONTENT_TOP + 218, { size: 86, weight: 800, spacing: 5, fill: goldFoil(ctx, 200, AUTO_CONTENT_TOP + 140, 520, AUTO_CONTENT_TOP + 218), glow: alpha(C.gold, 0.6) });
+  const arrowsLeft = A.run.deck.filter((c) => CARDS[c.id].kind === 'arrow').length;
+  text(ctx, `${arrowsLeft} Arrows unspent   ·   Standing ${A.run.standing}/3   ·   ${A.run.debts.length} Debts owed`, W / 2, AUTO_CONTENT_TOP + 262, { size: 19, color: C.inkSoft });
+  button(ctx, AUTO_AGAIN, 'Watch another run', { size: 27, primary: true });
+}
+
+export function renderAuto(ctx, s, A, extra) {
+  drawSky(ctx, extra.sky, s.t, null, { x: 74, y: 138, r: 38 }, s.meta.reduceMotion);
+  if (A.scene === 'map') autoMap(ctx, A);
+  else if (A.scene === 'battle' && A.battle) autoBattle(ctx, s, A);
+  else if (A.scene === 'reward' && A.reward) autoReward(ctx, A);
+  else if (A.scene === 'camp') autoCamp(ctx, A);
+  else if (A.scene === 'envoy' && A.envoy) autoEnvoy(ctx, A);
+  else if (A.scene === 'tuner' && A.door) autoTuner(ctx, A);
+  else if (A.scene === 'runover') autoOver(ctx, A);
+  autoHud(ctx, s, A);
+  autoControls(ctx, A);
   if (s.fade > 0) {
     ctx.fillStyle = `rgba(3, 4, 12, ${Math.min(1, s.fade)})`;
     ctx.fillRect(0, 0, W, H);

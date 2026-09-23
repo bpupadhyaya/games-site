@@ -65,14 +65,29 @@ export function titleRows(hasSave) {
   out.howto = { x: 110, y: y3, w: third, h: 62 };
   out.about = { x: 110 + third + gap3, y: y3, w: third, h: 62 };
   out.rules = { x: 110 + 2 * (third + gap3), y: y3, w: third, h: 62 };
+  // Free, silent, whole-game teaching demo - one more full-width row below everything else, with
+  // plenty of clear room beneath it regardless of which shape the list above is (with/without
+  // "Resume game").
+  out.auto = { x: 110, y: y3 + 62 + 40, w: 500, h: 84 };
   return out;
 }
 export const PANEL = { x: 36, y: 250, w: 648, h: 1150 };
 export const PBACK = { x: 140, y: 1420, w: 440, h: 76 };
+// The reference pages' (How to play / About / Rules) own Back/Next row: an equal-width pill pair
+// side by side near the bottom, replacing what used to be two stacked full-width bars ("More" above
+// a separate "Back"). Back always exits to the title (like the reference pattern in
+// big-card-solitaire-large-print); Next pages forward and wraps back to the first page - there is
+// no "Previous" here, matching this row's own long-standing forward-only behaviour.
+export const DOC_BACK = { x: 20, y: 1420, w: 330, h: 76 };
+export const DOC_NEXT = { x: 370, y: 1420, w: 330, h: 76 };
 // Text-size steps for the reference pages (About/How to play/Rules) drawn by drawDoc(). An index
 // into this array, never a raw float, so the stepper can cleanly disable at either end and a
 // clamp-on-load can never point past the end of the array.
-export const TEXT_SCALES = [1, 1.15, 1.3];
+export const TEXT_SCALES = [1, 1.5, 2, 2.5, 3];
+// Auto Play ("Watch & Learn") think-time steps, in seconds. Index into this, same pattern as
+// TEXT_SCALES above - never a raw float, so the +/- stepper can cleanly disable at either end.
+// Hard-capped at 10s per the owner's explicit instruction. Default index 1 (5s).
+export const THINK_STEPS = [2, 5, 8, 10];
 // The A-/A+ stepper buttons, in the panel's own header row, flanking the title on both sides —
 // same idea as a header row's Back/Next, just this page's own reader card instead.
 export const TEXT_BTN = {

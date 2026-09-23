@@ -15,7 +15,8 @@ import {
   W, H, BAND_TOP, SLICE_H, SLICE_MARGIN, CHIP_H, slipWidth, inRect, REVIEW_PER_PAGE,
   MODE_SYN_BTN, MODE_ANT_BTN, PLAY_BTN, TITLE_COLOR_BTN, TITLE_RULES_BTN, STOP_BTN, COLOR_BTN,
   PREV_BTN, NEXT_BTN, PLAY_AGAIN_BTN, CHANGE_MODE_BTN, RULES_BACK_BTN, RULES_NEXT_BTN,
-  TEXT_SCALES, RULES_TEXT_DEC, RULES_TEXT_INC,
+  TEXT_SCALES, RULES_TEXT_DEC, RULES_TEXT_INC, TITLE_AUTOPLAY_BTN, THINK_STEPS, REVEAL_SECONDS,
+  AUTO_THINK_DEC, AUTO_THINK_INC,
 } from './layout.js';
 
 export const meta = { width: W, height: H };
@@ -55,6 +56,12 @@ export function createGame(env) {
     demo,
     demoSessions: 0,
     demoLimitReached: false,
+    // Auto Play ("Watch & Learn"): a free, silent, whole-session teaching demo. THINK/REVEAL/ACT
+    // loop per round, driven by the same spawnRound()/resolveRound() as real play - see startAutoplay().
+    autoPlay: false, // true only while state.scene is 'autoplay' or the gameover screen it led to
+    autoThinkIdx: 1, // index into THINK_STEPS (never a raw float), default 5s
+    autoPhase: 'think', // 'think' | 'reveal'
+    autoPhaseT: 0,
     // Presentation clocks, all advanced by the fixed step (never the wall clock):
     t: 0, // seconds since boot: idle motion
     sceneT: 1, // seconds since the scene changed: entrance easing (starts settled on first frame)
@@ -70,6 +77,14 @@ export function createGame(env) {
     state.fx = null;
   };
   const pressed = (id) => (state.press = { id, t: 0 });
+  // Auto Play is silent by design (same convention as chess-royal-sixty-four's AI-vs-AI demo and
+  // the platform's attract-mode preview) - it plays itself continuously with no player driving it,
+  // so any tone it made would just be noise. Every audio.tone() call in this file goes through
+  // here instead of calling env.audio.tone() directly.
+  const playTone = (opts) => {
+    if (state.autoPlay) return;
+    audio.tone(opts);
+  };
 
   storage.get('scheme', 0).then((v) => (state.scheme = SCHEMES[v] ? v : 0));
   const cycleScheme = () => {
@@ -83,6 +98,11 @@ export function createGame(env) {
   });
   storage.get('bestSynonym', 0).then((v) => (state.bestSynonym = v));
   storage.get('bestAntonym', 0).then((v) => (state.bestAntonym = v));
+  // Same clamp-on-load convention as textScaleIdx: a stale saved index from a build with a
+  // different-length THINK_STEPS array must never produce a NaN or out-of-range think time.
+  storage.get('autoThinkIdx', 1).then((v) => {
+    state.autoThinkIdx = Math.min(Math.max(v ?? 1, 0), THINK_STEPS.length - 1);
+  });
   if (demo) {
     storage.get('demoSessions', 0).then((v) => {
       state.demoSessions = v;
@@ -124,12 +144,16 @@ export function createGame(env) {
       words: options.map((o, slot) => {
         const sliceTop = BAND_TOP + slot * SLICE_H + SLICE_MARGIN;
         const sliceBottom = BAND_TOP + (slot + 1) * SLICE_H - SLICE_MARGIN;
+        const driftX = rng.range(0, 140); // always drawn, so the rng call sequence never depends on autoPlay
         return {
           text: o.text,
           correct: o.correct,
           slot,
           w: slipWidth(o.text),
-          x: meta.width + 20 + rng.range(0, 140),
+          // Auto Play never drifts words in from off-screen (updateAutoplay never moves them - the
+          // whole point is that the state sits still for THINK/REVEAL) - it rests them on-screen,
+          // centred, right away instead of spawning where real play's drift-in starts from.
+          x: state.autoPlay ? W / 2 : meta.width + 20 + driftX,
           y: rng.range(sliceTop, sliceBottom),
           vy: rng.range(-30, 30),
           sliceTop,
@@ -150,6 +174,7 @@ export function createGame(env) {
       storage.set('demoSessions', state.demoSessions);
       if (state.demoSessions >= DEMO_SESSION_LIMIT) state.demoLimitReached = true;
     }
+    state.autoPlay = false;
     state.mode = state.selectedMode;
     state.history = [];
     state.reviewPage = 0;
@@ -161,24 +186,55 @@ export function createGame(env) {
     spawnRound();
   };
 
+  // Auto Play ("Watch & Learn"): the real 90-second session clock, the real spawnRound()/
+  // resolveRound(), and the real endSession()/gameover screen - the only things that differ are
+  // (a) a THINK -> REVEAL pause before each answer (updateAutoplay, below), (b) it never writes to
+  // real save state (best score / demoSessions / sessionsCompleted - guarded in endSession), and
+  // (c) it is reachable for free regardless of the web demo's session-count limit, since it never
+  // touches demoSessions/demoLimitReached at all. Never counts as, or requires, a real session.
+  const startAutoplay = () => {
+    state.autoPlay = true;
+    state.mode = state.selectedMode;
+    state.history = [];
+    state.reviewPage = 0;
+    state.score = 0;
+    state.timeLeft = SESSION_SECONDS;
+    state.newBest = false;
+    recentWords = [];
+    state.autoPhase = 'think';
+    state.autoPhaseT = 0;
+    setScene('autoplay');
+    spawnRound();
+  };
+  const exitAutoplay = () => {
+    state.autoPlay = false;
+    state.round = null;
+    setScene('title');
+  };
+
   const bestKey = () => (state.mode === 'synonym' ? 'bestSynonym' : 'bestAntonym');
 
   const endSession = () => {
     setScene('gameover');
     state.round = null;
     state.reviewPage = 0;
-    const key = bestKey();
-    if (state.score > state[key]) {
-      state[key] = state.score;
-      state.newBest = true;
-      storage.set(key, state.score);
+    // Auto Play never touches real save/progress state: no best-score write, no session tally,
+    // no analytics track call. state.autoPlay stays true so the gameover screen offers "Watch
+    // Again" / "Exit to Menu" instead of the real Play Again / Change Mode CTAs.
+    if (!state.autoPlay) {
+      const key = bestKey();
+      if (state.score > state[key]) {
+        state[key] = state.score;
+        state.newBest = true;
+        storage.set(key, state.score);
+      }
+      state.sessionsCompleted += 1;
+      monetization.track('session_end', { mode: state.mode, score: state.score });
     }
-    state.sessionsCompleted += 1;
-    monetization.track('session_end', { mode: state.mode, score: state.score });
     // Brief descending tone marks the session ending (design/GDD.md > Art and audio). A single
     // glide (not two separately-scheduled notes) since env.audio.tone() has no delay parameter
     // and web/src cannot use setTimeout (see docs/GAME-CONTRACT.md's determinism rule).
-    audio.tone({ freq: 560, to: 300, dur: 0.32, type: 'sine', vol: 0.22 });
+    playTone({ freq: 560, to: 300, dur: 0.32, type: 'sine', vol: 0.22 });
   };
 
   const resolveRound = (picked) => {
@@ -197,9 +253,9 @@ export function createGame(env) {
     };
     if (hit) {
       state.score += 1;
-      audio.tone({ freq: 620, to: 900, dur: 0.1, type: 'triangle', vol: 0.22 });
+      playTone({ freq: 620, to: 900, dur: 0.1, type: 'triangle', vol: 0.22 });
     } else {
-      audio.tone({ freq: 220, to: 140, dur: 0.16, type: 'sawtooth', vol: 0.18 });
+      playTone({ freq: 220, to: 140, dur: 0.16, type: 'sawtooth', vol: 0.18 });
     }
     spawnRound();
   };
@@ -221,9 +277,17 @@ export function createGame(env) {
       state.rulesPage = 0;
       setScene('rules');
       pressed('rules');
+    } else if (inRect(x, y, TITLE_AUTOPLAY_BTN)) {
+      pressed('autoplay');
+      startAutoplay();
     }
   };
 
+  // Back always returns straight to the title (this scene has no other in-canvas way out - Rules
+  // is only reachable from the title screen and there's no board-scene Menu button drawn here, so
+  // a page-by-page Back with no exit until the last page would strand a player on page 1 for all
+  // 41 taps it'd take to reach the end). Next always cycles forward and wraps back to page 1 after
+  // the last page.
   const updateRules = (input) => {
     if (!input.pointer.pressed) return;
     const { x, y } = input.pointer;
@@ -297,6 +361,60 @@ export function createGame(env) {
     if (correctWord && correctWord.x + correctWord.w / 2 < 0) resolveRound(null);
   };
 
+  // Auto Play's THINK -> REVEAL -> ACT loop (docs: AUTOPLAY-BRIEF.md). Unlike normal play, the
+  // words never drift during a round - "the game state sits still" for the whole THINK+REVEAL
+  // window so a viewer can compare their own guess to the highlighted answer before it is taken -
+  // then ACT calls the exact same resolveRound() real play uses, which scores it, plays the real
+  // feedback fx, and spawns the next round. The real 90-second session clock still runs throughout
+  // (same SESSION_SECONDS, same endSession()), so a full Auto Play run is a real, complete session.
+  const updateAutoplay = (dt, input) => {
+    state.timeLeft -= dt;
+    if (state.timeLeft <= 0) {
+      state.timeLeft = 0;
+      endSession();
+      return;
+    }
+    if (input.pointer.pressed) {
+      if (inRect(input.pointer.x, input.pointer.y, COLOR_BTN)) {
+        cycleScheme();
+        pressed('colour');
+        return;
+      }
+      if (inRect(input.pointer.x, input.pointer.y, STOP_BTN)) {
+        exitAutoplay();
+        return;
+      }
+      if (inRect(input.pointer.x, input.pointer.y, AUTO_THINK_DEC) && state.autoThinkIdx > 0) {
+        state.autoThinkIdx -= 1;
+        storage.set('autoThinkIdx', state.autoThinkIdx);
+        pressed('thinkDec');
+        return;
+      }
+      if (inRect(input.pointer.x, input.pointer.y, AUTO_THINK_INC) && state.autoThinkIdx < THINK_STEPS.length - 1) {
+        state.autoThinkIdx += 1;
+        storage.set('autoThinkIdx', state.autoThinkIdx);
+        pressed('thinkInc');
+        return;
+      }
+    }
+    const round = state.round;
+    if (!round) return;
+    state.autoPhaseT += dt;
+    if (state.autoPhase === 'think') {
+      if (state.autoPhaseT >= THINK_STEPS[state.autoThinkIdx]) {
+        state.autoPhase = 'reveal';
+        state.autoPhaseT = 0;
+      }
+    } else if (state.autoPhase === 'reveal') {
+      if (state.autoPhaseT >= REVEAL_SECONDS) {
+        const answer = round.words.find((w) => w.correct);
+        state.autoPhase = 'think';
+        state.autoPhaseT = 0;
+        if (answer) resolveRound(answer.text); // ACT: the real move-resolution code, nothing separate
+      }
+    }
+  };
+
   const reviewRows = () => {
     const wrong = state.history.filter((h) => !h.correct);
     return wrong.concat(state.history.filter((h) => h.correct));
@@ -306,6 +424,20 @@ export function createGame(env) {
   const updateGameover = (input) => {
     if (!input.pointer.pressed) return;
     const { x, y } = input.pointer;
+    if (state.autoPlay) {
+      // Auto Play's own end-of-session CTAs: "Watch Again" replays a fresh Auto Play session,
+      // "Exit to Menu" leaves Auto Play for good (both drawn in render.js's 'gameover' branch).
+      if (inRect(x, y, PLAY_AGAIN_BTN)) startAutoplay();
+      else if (inRect(x, y, CHANGE_MODE_BTN)) exitAutoplay();
+      else if (inRect(x, y, PREV_BTN)) {
+        state.reviewPage = Math.max(0, state.reviewPage - 1);
+        pressed('prev');
+      } else if (inRect(x, y, NEXT_BTN)) {
+        state.reviewPage = Math.min(reviewPages() - 1, state.reviewPage + 1);
+        pressed('next');
+      }
+      return;
+    }
     if (inRect(x, y, PLAY_AGAIN_BTN)) startSession();
     else if (inRect(x, y, CHANGE_MODE_BTN)) setScene('title');
     else if (inRect(x, y, PREV_BTN)) {
@@ -325,6 +457,7 @@ export function createGame(env) {
       if (state.fx && (state.fx.t += dt) > 0.8) state.fx = null;
       if (state.scene === 'title') updateTitle(input);
       else if (state.scene === 'playing') updatePlaying(dt, input);
+      else if (state.scene === 'autoplay') updateAutoplay(dt, input);
       else if (state.scene === 'gameover') updateGameover(input);
       else if (state.scene === 'rules') updateRules(input);
       // 'demo-limit': input is a deliberate no-op — see design/GDD.md "Demo cut".
@@ -336,6 +469,15 @@ export function createGame(env) {
 
     getState() {
       return state;
+    },
+
+    // kit 1.6.1: exempts Auto Play from web/kit/preview.js's free-preview timer entirely (no time
+    // accrual, no countdown badge) - it's a free teaching/marketing tool, never real play. Stays
+    // true through the Auto Play session and the gameover screen it leads to (state.autoPlay only
+    // clears on exitAutoplay()/startSession()/startAutoplay()), so lingering on the Auto Play
+    // session-review screen never burns real preview time either.
+    isPreviewExempt() {
+      return state.autoPlay;
     },
   };
 }

@@ -53,19 +53,28 @@ export function handSlot(i, n) {
   return { x: cx, y: cy, rot, row };
 }
 
-export const MENU_BTN = (i, n = 5) => rect(110, 704 + i * 108, 500, 90);
+// Pitch/height tightened slightly (was 108/90) to make room for the new "Auto Play" entry without
+// pushing the stats panels below it off the bottom of the canvas, in the worst case (a saved game
+// present, so the list is at its longest: Continue/New/Learn/Daily/About/Settings/Rules/Auto).
+export const MENU_BTN = (i, n = 5) => rect(110, 704 + i * 92, 500, 84);
+// Plain single "Back" pill used by every OTHER scene (lesson, daily, settings, etc.) — still just
+// one small top-left button, never crowded.
 export const BACK = rect(26, 24, 130, 70);
-// Mirrors BACK at the top-right, for the paginated Rules page's Back/Next pair.
-export const NEXT = rect(W - 26 - 130, 24, 130, 70);
 
-// Text-size stepper for the reference pages (About/Rules): an index into TEXT_SCALES, never a raw
-// float, so a stray out-of-range save can always be clamped back into bounds. The two buttons sit
-// centred between Back and Next in the same header row, at the same height, without crowding either.
-export const TEXT_SCALES = [1, 1.15, 1.3];
+// Text-size stepper for the reference pages (About/Rules): two small pills in the TOP corners only,
+// well clear of the page title below them. An index into TEXT_SCALES, never a raw float, so a stray
+// out-of-range save can always be clamped back into bounds.
+export const TEXT_SCALES = [1, 1.5, 2, 2.5, 3];
 export const HEADER = {
-  textDec: rect(250, 24, 100, 70),
-  textInc: rect(370, 24, 100, 70),
+  textDec: rect(20, 20, 130, 68),
+  textInc: rect(W - 150, 20, 130, 68),
 };
+// Reference-page nav (About/Rules): an equal-width Back/Next pill pair anchored near the bottom of
+// the canvas, clear of the reader panel above it — previously these shared one crowded row at the
+// very top with the text-size stepper (`BACK`/`NEXT` at y:24). Back is the neutral/secondary
+// action, Next the primary one (lacquer()'s own 'gold' kind).
+export const REF_BACK = rect(20, 1416, 330, 116);
+export const REF_NEXT = rect(370, 1416, 330, 116);
 
 // One row per toggle: Sound, Reduced motion, Large print, Four-colour suits, Card back theme.
 export const SETTINGS_ROWS = 5;
@@ -77,3 +86,16 @@ export const SETUP = {
   levels: [1, 2, 3, 4].map((v, i) => ({ v, r: rect(60 + (i % 2) * 300, 690 + ((i / 2) | 0) * 118, 280, 100) })),
   start: rect(110, 1080, 500, 112),
 };
+
+// ---- Auto Play ("Watch & Learn") ------------------------------------------------------------
+// Configurable THINK pause: index-based steps (never a raw float), hard-capped at 10s. Status bar
+// sits in the ~70px gap between the top bar and the opponent seats — otherwise empty during play.
+export const AUTO_THINK_STEPS = [2, 5, 8, 10];
+export const AUTO_REVEAL_SECS = 2;
+export const AUTO_BAR = rect(20, 122, W - 40, 62);
+export const AUTO_DEC = rect(30, 134, 60, 40);
+export const AUTO_INC = rect(W - 90, 134, 60, 40);
+// Take/Bito/Hint/Undo/Seen have no meaning in a spectator run — Auto Play's Exit/Pause/Skip share
+// the same action-bar row, just three wider buttons instead of five.
+const AUTO_ACTIONS = ['exit', 'pause', 'skip'];
+export function autoActionRect(k) { const i = AUTO_ACTIONS.indexOf(k); return rect(24 + i * 228, BAR.y, 210, BAR.h); }

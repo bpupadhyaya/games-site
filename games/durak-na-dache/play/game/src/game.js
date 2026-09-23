@@ -4,7 +4,7 @@
 // Controls (also taught on-screen): TAP a card to lift it, TAP it again or TAP the table to play it; or DRAG it
 // onto the table / onto the exact card it should beat. TAP Take to pick up, TAP Bito when done throwing in,
 // TAP Hint for the best move with a reason, TAP Undo for one step back.
-import { W, H, TOP, ACTIONS, actionRect, handSlot, pairSpot, TABLE_ZONE, MENU_BTN, BACK, NEXT, SETUP, SETTINGS_ROWS, SETTINGS_ROW, HEADER, TEXT_SCALES, inRect } from './layout.js';
+import { W, H, TOP, ACTIONS, actionRect, handSlot, pairSpot, TABLE_ZONE, MENU_BTN, BACK, REF_BACK, REF_NEXT, SETUP, SETTINGS_ROWS, SETTINGS_ROW, HEADER, TEXT_SCALES, inRect, AUTO_THINK_STEPS, AUTO_REVEAL_SECS, AUTO_BAR, AUTO_DEC, AUTO_INC, autoActionRect } from './layout.js';
 import * as R from './rules.js';
 import { createThinker, explain, ROLLOUTS_PER_FRAME } from './ai.js';
 import { LESSONS } from './lessons.js';
@@ -29,6 +29,8 @@ export function createGame(env) {
     saved: null, config, demoLimit: DEMO_LIMIT, demoPlays: 0,
     lesson: null, daily: { day: config.day ?? 0, streak: 0, solvedDay: -1, status: 'making', puzzle: null, wrongMsg: '' },
     pickup: null,
+    autoThinkIdx: 1, // index into AUTO_THINK_STEPS ([2,5,8,10]s); Auto Play's THINK pause, default 5s
+    auto: null, // Auto Play ("Watch & Learn") run state; see startAutoPlay()
   };
   let thinker = null, hintThinker = null, dailyMaker = createPuzzleMaker(state.daily.day), dailyReady = null;
   // The daily puzzle may be solved from either seat; the table always shows the taught seat as seat 0 (you).
@@ -40,15 +42,17 @@ export function createGame(env) {
       loser: g.loser === -1 ? -1 : flipSeat(g.loser), refused: g.refused.map((r) => ({ ...r, p: flipSeat(r.p) })) };
   }
 
-  storage.get('prefs', null).then((v) => { if (v) { Object.assign(state, { four: !!v.four, big: !!v.big, sound: v.sound ?? true, calm: !!v.calm, back: v.back || 'gzhel' }); audio.setMuted?.(!state.sound); state.setup.level = v.level ?? 2; state.setup.mode = v.mode || 'pod'; state.setup.n = v.n || 2; state.textScaleIdx = Math.min(Math.max(v.textScaleIdx ?? 0, 0), TEXT_SCALES.length - 1); } });
+  storage.get('prefs', null).then((v) => { if (v) { Object.assign(state, { four: !!v.four, big: !!v.big, sound: v.sound ?? true, calm: !!v.calm, back: v.back || 'gzhel' }); audio.setMuted?.(!state.sound); state.setup.level = v.level ?? 2; state.setup.mode = v.mode || 'pod'; state.setup.n = v.n || 2; state.textScaleIdx = Math.min(Math.max(v.textScaleIdx ?? 0, 0), TEXT_SCALES.length - 1); state.autoThinkIdx = Math.min(Math.max(v.autoThinkIdx ?? 1, 0), AUTO_THINK_STEPS.length - 1); } });
   storage.get('stats', null).then((v) => { if (v) state.stats = { ...state.stats, ...v }; });
   storage.get('daily', null).then((v) => { if (v) { state.daily.solvedDay = v.solvedDay ?? -1; state.daily.streak = v.streak ?? 0; } });
   storage.get('demoPlays', 0).then((v) => { state.demoPlays = Math.max(state.demoPlays, v); });
   storage.get('save', null).then((v) => { if (v && v.game && !v.game.over) state.saved = v; });
-  const savePrefs = () => storage.set('prefs', { four: state.four, big: state.big, sound: state.sound, calm: state.calm, back: state.back, level: state.setup.level, mode: state.setup.mode, n: state.setup.n, textScaleIdx: state.textScaleIdx });
+  const savePrefs = () => storage.set('prefs', { four: state.four, big: state.big, sound: state.sound, calm: state.calm, back: state.back, level: state.setup.level, mode: state.setup.mode, n: state.setup.n, textScaleIdx: state.textScaleIdx, autoThinkIdx: state.autoThinkIdx });
   const saveGame = () => { if (state.scene === 'play' && state.game && !state.game.over) { state.saved = { game: R.clone(state.game), setup: { ...state.setup } }; storage.set('save', state.saved); } else storage.remove('save'); };
 
-  const tone = (o) => { if (state.sound) audio.tone(o); };
+  // Auto Play is silent by design regardless of the player's own Sound setting — single point of
+  // truth: every sound in the game already funnels through this one helper.
+  const tone = (o) => { if (state.sound && state.scene !== 'auto') audio.tone(o); };
   const clack = (f = 420) => tone({ freq: f * 0.85, to: f * 0.35, dur: 0.07, type: 'sine', vol: 0.1 });
   const chime = () => { tone({ freq: 523, dur: 0.1, vol: 0.08 }); tone({ freq: 784, to: 1046, dur: 0.18, vol: 0.08 }); };
   const say = (m) => { state.msg = m; };
@@ -194,7 +198,9 @@ export function createGame(env) {
   }
   function onDown(x, y) {
     const g = state.game;
-    if (!g || g.over || g.actor !== 0 || state.seenOpen || teachingDone()) return;
+    // Auto Play is a spectator run: seat 0's own hand cards are still drawn face-up (same as a
+    // lesson), but must never be liftable/draggable by a stray tap while the computer is playing it.
+    if (state.scene === 'auto' || !g || g.over || g.actor !== 0 || state.seenOpen || teachingDone()) return;
     const c = handHit(x, y);
     if (c === null) return;
     const already = state.sel === c;
@@ -217,7 +223,7 @@ export function createGame(env) {
   // ---- per-scene updates --------------------------------------------------------------------------------------
   function updateTitle(tap) {
     if (!tap) return;
-    const items = state.saved ? ['continue', 'new', 'learn', 'daily', 'about', 'settings', 'rules'] : ['new', 'learn', 'daily', 'about', 'settings', 'rules'];
+    const items = state.saved ? ['continue', 'new', 'learn', 'daily', 'about', 'settings', 'rules', 'auto'] : ['new', 'learn', 'daily', 'about', 'settings', 'rules', 'auto'];
     items.forEach((k, i) => {
       if (!inRect(MENU_BTN(i), tap.x, tap.y)) return;
       clack();
@@ -228,6 +234,7 @@ export function createGame(env) {
       else if (k === 'about') { state.scene = 'about'; state.page = 0; }
       else if (k === 'settings') state.scene = 'settings';
       else if (k === 'rules') { state.scene = 'rules'; state.page = 0; }
+      else if (k === 'auto') startAutoPlay();
     });
     if (inRect(TOP.sound, tap.x, tap.y)) { state.sound = !state.sound; audio.setMuted?.(!state.sound); savePrefs(); clack(); }
   }
@@ -252,6 +259,75 @@ export function createGame(env) {
     SETUP.modes.forEach((r, i) => { if (inRect(r, tap.x, tap.y)) { state.setup.mode = i === 0 ? 'pod' : 'per'; clack(); } });
     SETUP.levels.forEach((r, i) => { if (inRect(r, tap.x, tap.y)) { state.setup.level = i + 1; clack(); } });
     if (inRect(SETUP.start, tap.x, tap.y)) { savePrefs(); newMatch(); }
+  }
+
+  // ---------------------------------------------------------------- Auto Play ("Watch & Learn")
+  // A full, start-to-finish assisted-learning demo: EVERY seat, including the one a human would
+  // normally control, is driven by the exact same computer move-chooser real opponents already use
+  // (ai.js's createThinker — the same function computerTurn() below calls, just run to completion
+  // here instead of time-sliced across frames since this is a one-off call per decision, not a
+  // per-frame budget). One decision point = one move (a lead, a throw-in, a defence, a transfer, a
+  // Take or a Bito), exactly a human's own turn. THINK holds the table still; REVEAL sets
+  // `state.hint` to the chosen move and its real reason — the exact same text explanation
+  // (`explain()`, ai.js) and the exact same banner (`drawHintBanner`, view.js) a human's own Hint
+  // button already shows, for whichever seat is acting. Durak's opponent hands stay hidden even in
+  // this game's own existing lessons and daily puzzle (a deliberate design choice already made
+  // elsewhere in this codebase — teaching here means reasoning under the same hidden information a
+  // real hand has, not X-ray vision), so Auto Play keeps that same convention rather than revealing
+  // every hand; the text explanation is what "reveals" a hidden-hand seat's move, same as it already
+  // does for a human's own Hint. ACT executes the move through the exact same `commit()` function
+  // real play/human moves and computerTurn() both already call. Loops for a whole match to a real
+  // result, reusing the exact same match-over screen (`drawResult`) real play already shows, then
+  // offers "Play again" / "Exit". Never touches stats/save/demoPlays — Auto Play keeps its own
+  // `state.auto` and calls none of those writes (never calls saveGame/finish).
+  const autoThinkSecs = () => AUTO_THINK_STEPS[state.autoThinkIdx];
+  function startAutoPlay() {
+    resetPlayState();
+    const g = R.newDeal(rng, state.setup.n, state.setup.mode);
+    Object.assign(state, { scene: 'auto', game: g, modeName: state.setup.mode === 'pod' ? 'Podkidnoy' : 'Perevodnoy' });
+    state.auto = { sub: 'think', timer: 0, chosen: null, paused: false };
+  }
+  function teardownAuto() { state.auto = null; state.hint = null; state.pickup = null; }
+  function updateAutoScene(dt, tap) {
+    const g = state.game, A = state.auto;
+    if (!A) return;
+    if (tap) {
+      if (inRect(TOP.menu, tap.x, tap.y)) { teardownAuto(); state.scene = 'title'; return; } // the top bar's own ☰ also exits, like every other scene
+      if (inRect(AUTO_DEC, tap.x, tap.y)) { if (state.autoThinkIdx > 0) { state.autoThinkIdx -= 1; savePrefs(); } return; }
+      if (inRect(AUTO_INC, tap.x, tap.y)) { if (state.autoThinkIdx < AUTO_THINK_STEPS.length - 1) { state.autoThinkIdx += 1; savePrefs(); } return; }
+      if (g.over) {
+        if (inRect({ x: 130, y: 800, w: 460, h: 90 }, tap.x, tap.y)) { startAutoPlay(); return; }
+        if (inRect({ x: 130, y: 908, w: 460, h: 76 }, tap.x, tap.y)) { teardownAuto(); state.scene = 'title'; return; }
+        return;
+      }
+      if (inRect(autoActionRect('exit'), tap.x, tap.y)) { teardownAuto(); state.scene = 'title'; return; }
+      if (inRect(autoActionRect('pause'), tap.x, tap.y)) { A.paused = !A.paused; return; }
+      if (inRect(autoActionRect('skip'), tap.x, tap.y)) { if (A.sub === 'think' || A.sub === 'reveal') A.timer = 999; return; }
+      return;
+    }
+    if (state.pickup) { state.pickup.t += dt; if (state.pickup.t >= state.pickup.dur) state.pickup = null; return; }
+    if (g.over || A.paused) return;
+    if (A.sub === 'think') {
+      A.timer += dt;
+      if (A.timer >= autoThinkSecs()) {
+        const t = createThinker(g, g.actor, state.setup.level, rng);
+        let mv = null, guard = 0;
+        while (mv === null && guard++ < 200000) mv = t.step();
+        A.chosen = mv;
+        state.hint = { move: mv, text: explain(g, mv) };
+        A.sub = 'reveal'; A.timer = 0;
+      }
+      return;
+    }
+    if (A.sub === 'reveal') {
+      A.timer += dt;
+      if (A.timer >= AUTO_REVEAL_SECS) {
+        const mv = A.chosen; A.chosen = null; state.hint = null;
+        commit(g, mv);
+        A.sub = 'think'; A.timer = 0;
+      }
+      return;
+    }
   }
 
   // The computer's move: time-sliced. Levels 1-2 resolve in a single step; 3-4 run a bounded number of
@@ -396,17 +472,17 @@ export function createGame(env) {
   // Paginated About reference: same Back/Next/text-size convention as Rules below.
   function updateAbout(tap) {
     if (!tap) return;
-    if (inRect(BACK, tap.x, tap.y)) { state.scene = 'title'; return; }
+    if (inRect(REF_BACK, tap.x, tap.y)) { state.scene = 'title'; return; }
     if (updateTextStepper(tap)) return;
-    if (inRect(NEXT, tap.x, tap.y)) { clack(); state.page = (state.page + 1) % ABOUT.length; }
+    if (inRect(REF_NEXT, tap.x, tap.y)) { clack(); state.page = (state.page + 1) % ABOUT.length; }
   }
 
   // Paginated Rules reference: Back returns to the title, Next advances (wrapping back to page 1).
   function updateRules(tap) {
     if (!tap) return;
-    if (inRect(BACK, tap.x, tap.y)) { state.scene = 'title'; return; }
+    if (inRect(REF_BACK, tap.x, tap.y)) { state.scene = 'title'; return; }
     if (updateTextStepper(tap)) return;
-    if (inRect(NEXT, tap.x, tap.y)) { clack(); state.page = (state.page + 1) % RULES.length; }
+    if (inRect(REF_NEXT, tap.x, tap.y)) { clack(); state.page = (state.page + 1) % RULES.length; }
   }
 
   // Keyboard equivalents for the web demo (docs/GAME-CONTRACT.md): Left/Right choose a card, Enter/Space plays it,
@@ -454,8 +530,13 @@ export function createGame(env) {
       else if (state.scene === 'about') updateAbout(tap);
       else if (state.scene === 'rules') updateRules(tap);
       else if (state.scene === 'settings') updateSettings(tap);
+      else if (state.scene === 'auto') updateAutoScene(dt, tap);
     },
     render(ctx) { render(ctx, state); },
     getState: () => state,
+    // Auto Play is meant to be free like the menu's own attract-mode preview, never gated like real
+    // play — exempts this scene's time from the shared free-preview timer (kit 1.6.1+, no-op on
+    // free/no-preview games and on older kit).
+    isPreviewExempt: () => state.scene === 'auto',
   };
 }

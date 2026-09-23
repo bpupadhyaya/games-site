@@ -1,9 +1,9 @@
 // Congklak: state and flow. Drawing is view.js; the rule book is rules.js; the computer is engine.js; lessons.js and puzzles.js are
 // content. The rule book applies a move to `state.game` at once, and returns the list of EVENTS (lift, drop, capture) that
 // `state.anim` then plays back while `state.shown` (the shell counts the player sees) catches up. Two hands can move at once (the opening).
-import { W, H, BTN, SET, TEXT_STEPPER, TEXT_SCALES, titleRows, inRect, houseNear, posXY } from './layout.js';
+import { W, H, BTN, SET, TEXT_STEPPER, TEXT_SCALES, titleRows, inRect, houseNear, posXY, AUTO_THINK_STEPS, AUTO_REVEAL_SECS, AUTO_BAR, AUTO_DEC, AUTO_INC } from './layout.js';
 import { newGame, clone, applyMove, applyOpening, tryMove, legalMoves, nextRound, outcomeOf, STORE, sideOf } from './rules.js';
-import { LEVELS, createThinker, chooseOpening } from './engine.js';
+import { LEVELS, createThinker, chooseOpening, chooseMove } from './engine.js';
 import { LESSONS } from './lessons.js';
 import { puzzleFor, puzzleGame, gains, isWeekend } from './puzzles.js';
 import { RULES, ABOUT, HOWTO } from './about.js';
@@ -22,12 +22,14 @@ export function createGame(env) {
     stats: { games: 0, wins: 0, badges: {} }, saved: null, learned: false, demoGames: 0, lesson: null, pz: null, ref: null,
     daily: { day: config.day ?? 0, solvedDay: -1, streak: 0 }, dev: config.dev === true, worstWork: 0, page: 0,
     textScaleIdx: 0, // index into TEXT_SCALES; the About/Controls/Rules reference pages' own text size
+    autoThinkIdx: 1, // index into AUTO_THINK_STEPS ([2,5,8,10]s); Auto Play's THINK pause, default 5s
+    auto: null, // Auto Play ("Watch & Learn") run state; see startAutoPlay()
   };
   state.shown = state.game.b.slice();
   let thinker = null, hintThinker = null, hintOpening = false;
 
   storage.get('prefs', null).then((v) => {
-    if (v) { state.level = Math.min(v.level ?? 1, LEVELS.length - 1); state.sound = v.sound ?? true; state.calm = v.calm ?? false; state.big = v.big ?? false; state.seeds = SEEDSETS.includes(v.seeds) ? v.seeds : 'cowries'; state.wood = WOODS.includes(v.wood) ? v.wood : 'teak'; state.match = MATCHES.includes(v.match) ? v.match : 'short'; state.textScaleIdx = v.textScaleIdx ?? 0; audio.setMuted?.(!state.sound); }
+    if (v) { state.level = Math.min(v.level ?? 1, LEVELS.length - 1); state.sound = v.sound ?? true; state.calm = v.calm ?? false; state.big = v.big ?? false; state.seeds = SEEDSETS.includes(v.seeds) ? v.seeds : 'cowries'; state.wood = WOODS.includes(v.wood) ? v.wood : 'teak'; state.match = MATCHES.includes(v.match) ? v.match : 'short'; state.textScaleIdx = v.textScaleIdx ?? 0; state.autoThinkIdx = Math.min(Math.max(v.autoThinkIdx ?? 1, 0), AUTO_THINK_STEPS.length - 1); audio.setMuted?.(!state.sound); }
     // Clamp: a saved index from a build with a longer/shorter TEXT_SCALES array must never survive
     // and produce NaN font sizes on the About/Controls/Rules pages.
     state.textScaleIdx = Math.min(Math.max(state.textScaleIdx ?? 0, 0), TEXT_SCALES.length - 1);
@@ -37,13 +39,15 @@ export function createGame(env) {
   storage.get('daily', null).then((v) => { if (v) { state.daily.solvedDay = v.solvedDay ?? -1; state.daily.streak = v.streak ?? 0; } });
   storage.get('demoGames', 0).then((v) => { state.demoGames = Math.max(state.demoGames, v); });
   storage.get('save', null).then((v) => { if (v && v.game && v.game.winner === null && state.scene === 'title') state.saved = v; });
-  const savePrefs = () => storage.set('prefs', { level: state.level, sound: state.sound, calm: state.calm, big: state.big, seeds: state.seeds, wood: state.wood, match: state.match, textScaleIdx: state.textScaleIdx });
+  const savePrefs = () => storage.set('prefs', { level: state.level, sound: state.sound, calm: state.calm, big: state.big, seeds: state.seeds, wood: state.wood, match: state.match, textScaleIdx: state.textScaleIdx, autoThinkIdx: state.autoThinkIdx });
   const saveGame = () => { if ((state.scene === 'play' || state.scene === 'round') && state.game.winner === null) { state.saved = { game: clone(state.game), two: state.two, level: state.level, hintsLeft: state.hintsLeft }; storage.set('save', state.saved); } };
   const clearSave = () => { state.saved = null; storage.remove('save'); };
   const saveStats = () => { storage.set('stats', state.stats); storage.set('progress', { played: state.stats.games, wins: state.stats.wins }); };
 
   const say = (text, hold = 4.5) => { state.msg = { text, t: 0, hold }; };
-  const tone = (o) => { if (state.sound) audio.tone(o); };
+  // Auto Play is silent by design regardless of the player's own Sound setting — single point of
+  // truth: every sound in the game already funnels through this one helper.
+  const tone = (o) => { if (state.sound && state.scene !== 'auto') audio.tone(o); };
   const clack = (f = 420) => tone({ freq: f, to: f * 0.5, dur: 0.05, type: 'sine', vol: 0.1 });
   const shellTick = (n) => tone({ freq: 520 + (n % 12) * 24, to: 300, dur: 0.04, type: 'triangle', vol: 0.08 });
   const chime = (k) => tone({ freq: 620 + k * 90, to: 900 + k * 120, dur: 0.24, type: 'sine', vol: 0.09 });
@@ -186,6 +190,7 @@ export function createGame(env) {
     else if (hit(R.how)) { state.scene = 'how'; state.page = 0; }
     else if (hit(R.rules)) { state.scene = 'rules'; state.page = 0; }
     else if (hit(R.settings)) state.scene = 'settings';
+    else if (hit(R.auto)) startAutoPlay();
   }
   function updateRules(tap) {
     if (!tap) return;
@@ -267,6 +272,112 @@ export function createGame(env) {
     for (let k = 8; k < 15; k++) if (!g.burnt[k]) g.b[k] = state.game.b[k];
     const o = applyMove(g, h, false);
     return o.end === 'capture' ? `takes ${o.gain} shells` : o.extra ? 'ends in your storehouse' : 'is safe and simple';
+  }
+
+  // ---------------------------------------------------------------- Auto Play ("Watch & Learn")
+  // A full, start-to-finish assisted-learning demo: BOTH sides are driven by the exact same computer
+  // move-chooser real play already uses (engine.js's chooseMove/chooseOpening — chooseMove already
+  // existed, used by tests; chooseOpening is the same function that secretly picks the real
+  // computer's opening house). One decision point = one house to sow (or, for the simultaneous
+  // opening, one house per side), exactly a human's own turn. THINK (configurable) holds the board
+  // still; REVEAL sets the real chosen house as `state.hint`/`state.pick` (the exact same glow a
+  // human's own Hint button or opening pick already uses) so the viewer sees the option about to be
+  // taken highlighted before it happens; ACT plays it through the exact same `play()`/`playOpening()`
+  // functions real play calls, and the exact same animation/rules (`stepAnim`, `applyMove`,
+  // `applyOpening`) then play out untouched. Loops for a WHOLE match (every round) to a real result,
+  // reusing the real round-over and match-over screens. Never touches stats/save/demoGames — Auto
+  // Play keeps its own `state.auto` and calls none of those writes.
+  const autoThinkSecs = () => AUTO_THINK_STEPS[state.autoThinkIdx];
+  function startAutoPlay() {
+    reset({ scene: 'auto', game: newGame(state.match), two: true, auto: { sub: 'think', timer: 0, chosen: null, paused: false } });
+    beginOpening();
+  }
+  function teardownAuto() { state.auto = null; state.hint = null; state.pick = [null, null]; }
+  function afterMoveAuto(r) {
+    const g = state.game;
+    if (r.opening) {
+      const bits = [];
+      for (const pl of [0, 1]) if (r.ends[pl] === 'capture') bits.push(`${who(pl)} took ${r.gains[pl]}.`);
+      say(`${bits.join(' ')} ${who(r.first)} finished first and plays next.`.trim(), 5);
+    } else {
+      const txt = endWords(r);
+      if (r.end === 'capture') say(`${who(r.player)} shot: ${r.gain} shells to the storehouse.`, 4);
+      else if (r.extra) say(`${who(r.player)}: last shell in the storehouse. Plays again!`, 3.5);
+      else if (txt === '') say(`${who(r.player)} sowed ${r.n} shell${r.n === 1 ? '' : 's'}.`, 2.5);
+    }
+    if (g.phase === 'roundOver') { state.auto.sub = 'roundover'; state.auto.timer = 0; return; }
+    if (g.phase === 'matchOver') { state.auto.sub = 'over'; return; }
+    state.auto.sub = 'think'; state.auto.timer = 0;
+  }
+  function autoNextRound() {
+    const burnt = nextRound(state.game);
+    reset({ scene: 'auto', game: state.game, level: state.level, two: true, auto: { sub: 'think', timer: 0, chosen: null, paused: false } });
+    beginOpening();
+    say(`Round ${state.game.round}: ${burnt.length ? `${burnt.length} house${burnt.length === 1 ? '' : 's'} burnt shut. ` : ''}Both players choose a first house.`, 6);
+  }
+  function updateAutoScene(dt, tap) {
+    if (state.msg) { /* already advanced in the top-level update() */ }
+    if (state.hint) { state.hint.t += dt; if (state.hint.t > 6) state.hint = null; }
+    if (state.ref) { state.ref.t += dt; if (state.ref.t > 0.6) state.ref = null; }
+    const g = state.game, A = state.auto;
+    if (!A) return;
+    if (tap) {
+      if (inRect(AUTO_DEC, tap.x, tap.y)) { if (state.autoThinkIdx > 0) { state.autoThinkIdx -= 1; savePrefs(); } return; }
+      if (inRect(AUTO_INC, tap.x, tap.y)) { if (state.autoThinkIdx < AUTO_THINK_STEPS.length - 1) { state.autoThinkIdx += 1; savePrefs(); } return; }
+      if (A.sub === 'over') {
+        if (inRect(BTN.again, tap.x, tap.y)) startAutoPlay();
+        else if (inRect(BTN.back, tap.x, tap.y)) { teardownAuto(); state.scene = 'title'; }
+        return;
+      }
+      if (inRect(BTN.menu, tap.x, tap.y)) { finishAnimNow(); teardownAuto(); state.scene = 'title'; return; } // "Exit"
+      if (state.anim) { state.anim.fast = true; return; }
+      if (inRect(BTN.undo, tap.x, tap.y)) { A.paused = !A.paused; return; } // "Pause"/"Resume"
+      if (inRect(BTN.hint, tap.x, tap.y)) { if (A.sub === 'think' || A.sub === 'reveal' || A.sub === 'roundover') A.timer = 999; return; } // "Skip"
+      return;
+    }
+    if (A.paused || A.sub === 'over') return;
+    if (state.anim) { const r = state.anim.r; if (stepAnim(dt)) afterMoveAuto(r); return; }
+    if (A.sub === 'roundover') {
+      A.timer += dt;
+      if (A.timer >= 3) autoNextRound();
+      return;
+    }
+    if (g.opening) {
+      if (A.sub === 'think') {
+        A.timer += dt;
+        if (A.timer >= autoThinkSecs()) {
+          const h0 = chooseOpening(g, 0, state.level, rng), h1 = chooseOpening(g, 1, state.level, rng);
+          A.chosen = { kind: 'opening', a: h0, b: h1 };
+          state.pick = [h0, h1];
+          A.sub = 'reveal'; A.timer = 0;
+        }
+        return;
+      }
+      if (A.sub === 'reveal') {
+        A.timer += dt;
+        if (A.timer >= AUTO_REVEAL_SECS) { A.chosen = null; A.sub = 'think'; A.timer = 0; playOpening(); }
+        return;
+      }
+      return;
+    }
+    if (A.sub === 'think') {
+      A.timer += dt;
+      if (A.timer >= autoThinkSecs()) {
+        const h = chooseMove(g, state.level, rng);
+        A.chosen = { kind: 'move', house: h };
+        state.hint = { pit: h, t: 0 };
+        A.sub = 'reveal'; A.timer = 0;
+      }
+      return;
+    }
+    if (A.sub === 'reveal') {
+      A.timer += dt;
+      if (A.timer >= AUTO_REVEAL_SECS) {
+        const house = A.chosen ? A.chosen.house : -1; A.chosen = null; A.sub = 'think'; A.timer = 0; state.hint = null;
+        if (house >= 0) play(house);
+      }
+      return;
+    }
   }
 
   function updatePlay(dt, tap) {
@@ -411,9 +522,14 @@ export function createGame(env) {
         if (inRect(BTN.again, tap.x, tap.y)) start(state.two);
         else if (inRect(BTN.back, tap.x, tap.y)) state.scene = 'title';
       }
+      else if (sc === 'auto') updateAutoScene(dt, tap);
     },
     render(ctx) { render(ctx, state); },
     getState: () => state,
+    // Auto Play is meant to be free like the menu's own attract-mode preview, never gated like real
+    // play — exempts this scene's time from the shared free-preview timer (kit 1.6.1+, no-op on
+    // free/no-preview games and on older kit).
+    isPreviewExempt: () => state.scene === 'auto',
   };
 }
 export { isWeekend };

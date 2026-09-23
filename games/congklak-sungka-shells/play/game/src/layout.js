@@ -40,7 +40,7 @@ export const BTN = {
 export const TEXT_STEPPER = { dec: { x: 40, y: 24, w: 120, h: 62 }, inc: { x: W - 160, y: 24, w: 120, h: 62 } };
 // Index into this, never a raw float, so the stepper can cleanly disable at either end and a stale
 // saved index (e.g. from a build with a shorter array) always clamps instead of producing NaN sizes.
-export const TEXT_SCALES = [1, 1.15, 1.3];
+export const TEXT_SCALES = [1, 1.5, 2, 2.5, 3];
 const row = (y, h = 84) => ({ x: 70, y, w: 580, h });
 export function titleRows(hasSave) {
   let y = 745; const R = {};
@@ -49,12 +49,23 @@ export function titleRows(hasSave) {
   R.play = row(y); y += 96;
   R.two = row(y); y += 96;
   R.daily = row(y); y += 96;
-  // About / Controls / Settings share one row; Rules is the addition (was three even columns, now four).
-  const gap = 12, qw = (580 - gap * 3) / 4;
+  // About / Controls / Settings / Rules / Auto: five equal columns (was four before Auto Play).
+  const gap = 10, qw = (580 - gap * 4) / 5;
   R.about = { x: 70, y, w: qw, h: 84 }; R.how = { x: 70 + (qw + gap), y, w: qw, h: 84 };
   R.rules = { x: 70 + (qw + gap) * 2, y, w: qw, h: 84 }; R.settings = { x: 70 + (qw + gap) * 3, y, w: qw, h: 84 };
+  R.auto = { x: 70 + (qw + gap) * 4, y, w: qw, h: 84 };
   return R;
 }
+// ---- Auto Play ("Watch & Learn") ------------------------------------------------------------------
+// Configurable THINK pause: index-based steps (never a raw float), hard-capped at 10s.
+export const AUTO_THINK_STEPS = [2, 5, 8, 10];
+export const AUTO_REVEAL_SECS = 2;
+// A slim status strip above the board's own header text (nothing else draws in this ~90px band
+// during a board scene). Exit/Pause/Skip reuse the exact same bottom-row rects Menu/Undo/Hint
+// already define — those buttons have no meaning in a spectator run.
+export const AUTO_BAR = { x: 30, y: 8, w: 660, h: 70 };
+export const AUTO_DEC = { x: 494, y: 20, w: 56, h: 46 };
+export const AUTO_INC = { x: 620, y: 20, w: 56, h: 46 };
 export const SET = {
   level: { x: 70, y: 300, w: 580, h: 84 }, match: { x: 70, y: 400, w: 580, h: 84 }, sound: { x: 70, y: 500, w: 580, h: 84 }, calm: { x: 70, y: 600, w: 580, h: 84 },
   big: { x: 70, y: 700, w: 580, h: 84 }, seeds: { x: 70, y: 800, w: 580, h: 84 }, wood: { x: 70, y: 900, w: 580, h: 84 },

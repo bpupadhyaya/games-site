@@ -7,7 +7,7 @@
 // logical deduction, from the very first tap. See design/GDD.md for the full design and
 // web/src/solver.js for exactly which deduction rules the generator/solver implement.
 import { neighbors } from './board.js';
-import { W, H, COLS, ROWS, CELL, BOARD_X, BOARD_Y, BOARD_W, BOARD_H, MODE_SWITCH, HINT_BTN, COLOR_BTN, NEW_BTN, SHIELD_BTN, TITLE_COLOR_BTN, TITLE_RULES_BTN, RULES_BACK_BTN, RULES_NEXT_BTN, TEXT_DEC_BTN, TEXT_INC_BTN, TEXT_SCALES, inRect } from './layout.js';
+import { W, H, COLS, ROWS, CELL, BOARD_X, BOARD_Y, BOARD_W, BOARD_H, MODE_SWITCH, HINT_BTN, COLOR_BTN, NEW_BTN, SHIELD_BTN, TITLE_COLOR_BTN, TITLE_RULES_BTN, TITLE_AUTO_BTN, RULES_BACK_BTN, RULES_NEXT_BTN, TEXT_DEC_BTN, TEXT_INC_BTN, TEXT_SCALES, THINK_STEPS, inRect } from './layout.js';
 import { THEMES } from './themes.js';
 import { draw } from './render.js';
 import { findForcedMoves, generateBoard } from './solver.js';
@@ -62,6 +62,17 @@ export function createGame(env) {
     demoBoards: 0,
     demoLimitReached: false,
     theme: 0,
+    // Auto Play ("Watch & Learn"): true while the current board is being solved by the computer
+    // for teaching purposes rather than played by a person. THINK (board static) -> REVEAL (every
+    // cell the current logical pass can determine glows; the ONE about to be acted on is ringed
+    // more prominently, ~2s) -> ACT (the real revealCell/flag path, unchanged) -> loop, for a whole
+    // board. autoThinkIdx indexes THINK_STEPS (never a raw float, same pattern as textScaleIdx).
+    auto: false,
+    autoPhase: null,
+    autoTimer: 0,
+    autoThinkIdx: 1,
+    autoForced: [],
+    autoChosen: null,
     // Presentation-only bookkeeping (animation start times on the `pulse` clock). Nothing in
     // the rules reads it; it lives in state so rendering stays a pure function of state.
     fx: {
@@ -103,6 +114,9 @@ export function createGame(env) {
   storage.get('textScaleIdx', 0).then((v) => {
     state.textScaleIdx = Math.min(Math.max(v ?? 0, 0), TEXT_SCALES.length - 1);
   });
+  storage.get('autoThinkIdx', 1).then((v) => {
+    state.autoThinkIdx = Math.min(Math.max(v ?? 1, 0), THINK_STEPS.length - 1);
+  });
   // Persisted so reloading the page can't reset the free preview's board count.
   if (demo) {
     storage.get('demoBoards', 0).then((v) => {
@@ -113,8 +127,15 @@ export function createGame(env) {
 
   const remainingFlags = () => mineCount - state.flagged.reduce((n, f) => n + (f ? 1 : 0), 0);
 
-  const newBoard = () => {
-    if (demo) {
+  // Auto Play watches itself with no player to hear it for - silent by design, the same principle
+  // as the free-preview cap not applying to it below. The single choke point every sound effect in
+  // this file funnels through, so gating it here silences the whole mode at once.
+  const tone = (o) => {
+    if (!state.auto) audio.tone(o);
+  };
+
+  const newBoard = (auto = false) => {
+    if (!auto && demo) {
       if (state.demoLimitReached) {
         state.scene = 'demo-limit';
         return;
@@ -146,7 +167,14 @@ export function createGame(env) {
     state.time = 0;
     state.generationAttempts = attempts;
     state.generationFellBack = fellBack;
-    state.runs += 1;
+    // Auto Play boards are never counted as a real run: they never touch state.runs (used only to
+    // gate the opening intro animation) or the free-preview board counter above.
+    if (!auto) state.runs += 1;
+    state.auto = auto;
+    state.autoPhase = null;
+    state.autoTimer = 0;
+    state.autoForced = [];
+    state.autoChosen = null;
     fx.revealAt = new Array(total).fill(-1);
     fx.flagAt = new Array(total).fill(-1);
     fx.boardAt = state.pulse;
@@ -176,13 +204,18 @@ export function createGame(env) {
     for (let i = 0; i < total; i++) if (state.revealed[i] && !mineSet.has(i)) opened++;
     if (opened === total - mineCount) {
       state.scene = 'won';
-      audio.tone({ freq: 660, to: 990, dur: 0.35, type: 'triangle' });
-      if (state.bestTime === null || state.time < state.bestTime) {
-        fx.newBest = true;
-        state.bestTime = state.time;
-        storage.set('bestTime', state.bestTime);
+      tone({ freq: 660, to: 990, dur: 0.35, type: 'triangle' });
+      // Auto Play never writes the player's real best time or stats - it reassigns the same
+      // `state`/`mineSet` a real run uses (the established, safe pattern already used for the
+      // demo-board counter above), so nothing here can silently corrupt a real result.
+      if (!state.auto) {
+        if (state.bestTime === null || state.time < state.bestTime) {
+          fx.newBest = true;
+          state.bestTime = state.time;
+          storage.set('bestTime', state.bestTime);
+        }
+        monetization.track('board_won', { time: Math.round(state.time) });
       }
-      monetization.track('board_won', { time: Math.round(state.time) });
     }
   };
 
@@ -194,8 +227,8 @@ export function createGame(env) {
     state.revealed[index] = true;
     state.exploded = index;
     state.scene = 'lost';
-    audio.tone({ freq: 220, to: 80, dur: 0.4, type: 'sawtooth' });
-    monetization.track('board_lost', { time: Math.round(state.time) });
+    tone({ freq: 220, to: 80, dur: 0.4, type: 'sawtooth' });
+    if (!state.auto) monetization.track('board_lost', { time: Math.round(state.time) });
     const moves = findForcedMoves(w, h, state.numbers, priorRevealed, priorFlagged).filter((m) => m.index !== index);
     state.lossHint = moves.length ? { index: moves[0].index, kind: moves[0].kind } : null;
   };
@@ -206,7 +239,7 @@ export function createGame(env) {
       return;
     }
     floodOpen(state.revealed, index);
-    audio.tone(state.numbers[index] === 0 ? { freq: 300, dur: 0.05 } : { freq: 520 + state.numbers[index] * 40, dur: 0.06 });
+    tone(state.numbers[index] === 0 ? { freq: 300, dur: 0.05 } : { freq: 520 + state.numbers[index] * 40, dur: 0.06 });
     checkWin();
   };
 
@@ -225,7 +258,7 @@ export function createGame(env) {
       floodOpen(state.revealed, n);
     }
     if (!hitMine) {
-      audio.tone({ freq: 700, to: 900, dur: 0.1, type: 'square' });
+      tone({ freq: 700, to: 900, dur: 0.1, type: 'square' });
       checkWin();
     }
   };
@@ -238,7 +271,7 @@ export function createGame(env) {
     }
     if (state.flagMode) {
       state.flagged[index] = !state.flagged[index];
-      audio.tone({ freq: state.flagged[index] ? 260 : 200, dur: 0.05, type: 'square' });
+      tone({ freq: state.flagged[index] ? 260 : 200, dur: 0.05, type: 'square' });
       return;
     }
     if (state.flagged[index]) return;
@@ -255,6 +288,57 @@ export function createGame(env) {
     monetization.track('hint_used', {});
   };
 
+  // ---- Auto Play ("Watch & Learn"): the computer solves the whole board by the same logic the
+  // Hint button already uses (findForcedMoves), one forced cell at a time, THINK -> REVEAL -> ACT.
+  const AUTO_REVEAL_SECS = 2;
+  const saveAutoThinkIdx = () => storage.set('autoThinkIdx', state.autoThinkIdx);
+  function autoStep(dt) {
+    if (!state.auto || state.scene !== 'playing') return; // frozen on 'won'/'lost' waiting for a tap
+
+    if (state.autoPhase === 'reveal') {
+      state.autoTimer -= dt;
+      if (state.autoTimer > 0) return;
+      const mv = state.autoChosen;
+      state.autoPhase = null;
+      state.autoForced = [];
+      state.autoChosen = null;
+      if (mv) {
+        if (mv.kind === 'safe') revealCell(mv.index);
+        else state.flagged[mv.index] = true;
+      }
+      return;
+    }
+
+    // THINK phase (also the default/initial phase: autoPhase starts null, so the very first call
+    // here falls straight into it and starts the timer below).
+    if (state.autoPhase !== 'think') {
+      const moves = findForcedMoves(w, h, state.numbers, state.revealed, state.flagged);
+      let chosen = moves[0];
+      if (!chosen) {
+        // Defensive fallback: only reachable on a `generationFellBack` board (the generator gave
+        // up finding a fully-deducible layout within its attempt cap - see solver.js) where no
+        // further forced move exists yet the board isn't won. Reveals any cell the authoritative
+        // mine set (closure-only, never exposed to the renderer) knows is safe, so Auto Play can
+        // never hang on the rare imperfect board. Never reached on a normal, fully-solvable board.
+        for (let i = 0; i < total; i++) {
+          if (!state.revealed[i] && !state.flagged[i] && !mineSet.has(i)) {
+            chosen = { index: i, kind: 'safe' };
+            break;
+          }
+        }
+      }
+      if (!chosen) return; // nothing left to determine (a win should already have been detected)
+      state.autoForced = moves.length ? moves : [chosen];
+      state.autoChosen = chosen;
+      state.autoPhase = 'think';
+      state.autoTimer = THINK_STEPS[state.autoThinkIdx];
+    }
+    state.autoTimer -= dt;
+    if (state.autoTimer > 0) return;
+    state.autoPhase = 'reveal';
+    state.autoTimer = AUTO_REVEAL_SECS;
+  }
+
   const requestShield = async () => {
     if (state.shieldLoading || state.shieldOffered || state.scene !== 'lost') return;
     state.shieldLoading = true;
@@ -270,6 +354,53 @@ export function createGame(env) {
     monetization.track('shield_used', {});
   };
 
+  // Auto Play's own input handling, completely separate from a real run's: the board itself never
+  // reacts to a tap (the computer is the only one acting on it), only the think-time stepper, the
+  // Colours toggle, exit, and (once solved/lost) "Play again" / "Exit to menu".
+  function handleAutoPointer(x, y) {
+    if (state.scene === 'playing') {
+      if (inRect(x, y, MODE_SWITCH)) {
+        press('autoExit');
+        state.auto = false;
+        state.scene = 'title';
+        return;
+      }
+      if (inRect(x, y, HINT_BTN)) {
+        if (state.autoThinkIdx > 0) {
+          state.autoThinkIdx -= 1;
+          saveAutoThinkIdx();
+          press('autoDec');
+        }
+        return;
+      }
+      if (inRect(x, y, COLOR_BTN)) {
+        press('colors');
+        cycleTheme();
+        return;
+      }
+      if (inRect(x, y, NEW_BTN)) {
+        if (state.autoThinkIdx < THINK_STEPS.length - 1) {
+          state.autoThinkIdx += 1;
+          saveAutoThinkIdx();
+          press('autoInc');
+        }
+        return;
+      }
+      return; // taps on the board itself do nothing - the computer plays every cell
+    }
+
+    // 'won' or 'lost'
+    if (state.pulse - fx.sceneAt < RESULT_TAP_DELAY) return;
+    if (inRect(x, y, SHIELD_BTN)) {
+      press('autoExit');
+      state.auto = false;
+      state.scene = 'title';
+      return;
+    }
+    press('again');
+    newBoard(true);
+  }
+
   function handlePointer(x, y) {
     if (state.scene === 'demo-limit') return;
 
@@ -281,6 +412,9 @@ export function createGame(env) {
         press('rules');
         state.page = 0;
         state.scene = 'rules';
+      } else if (inRect(x, y, TITLE_AUTO_BTN)) {
+        press('autoplay');
+        newBoard(true);
       } else {
         press('play');
         newBoard();
@@ -308,13 +442,18 @@ export function createGame(env) {
       return;
     }
 
+    if (state.auto) {
+      handleAutoPointer(x, y);
+      return;
+    }
+
     if (state.scene === 'playing') {
       if (inRect(x, y, MODE_SWITCH)) {
         // Two labelled halves: Reveal on the left, Flag on the right.
         const wantFlag = x >= MODE_SWITCH.x + MODE_SWITCH.w / 2;
         if (wantFlag !== state.flagMode) {
           state.flagMode = wantFlag;
-          audio.tone({ freq: wantFlag ? 260 : 220, dur: 0.05 });
+          tone({ freq: wantFlag ? 260 : 220, dur: 0.05 });
         }
         return;
       }
@@ -386,14 +525,21 @@ export function createGame(env) {
 
       if (state.scene === 'playing') {
         state.time += dt;
-        if (state.hint) {
-          state.hint.timer -= dt;
-          if (state.hint.timer <= 0) state.hint = null;
+        if (!state.auto) {
+          if (state.hint) {
+            state.hint.timer -= dt;
+            if (state.hint.timer <= 0) state.hint = null;
+          }
+          if (keys.pressed.has('KeyF') || keys.pressed.has('Space')) state.flagMode = !state.flagMode;
         }
-        if (keys.pressed.has('KeyF') || keys.pressed.has('Space')) state.flagMode = !state.flagMode;
       }
 
       if (pointer.pressed) handlePointer(pointer.x, pointer.y);
+      // Auto Play's whole loop is just this per-frame gate (autoStep no-ops unless
+      // `state.auto && state.scene === 'playing'`) - there is no interval/timeout to leak, so
+      // leaving the scene (handleAutoPointer above) or the board finishing (checkWin/triggerLoss
+      // moving `state.scene` to 'won'/'lost') stops it for free, the instant it happens.
+      autoStep(dt);
       syncFx();
     },
 

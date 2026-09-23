@@ -1,6 +1,6 @@
 // Everything that is drawn each frame. Reads `state` (see game.js) and changes nothing.
 // The table and board are one cached layer (art.js); pieces and dice are drawn live so they can move, lift and glow.
-import { W, H, BTN, DICE, PIECE_R, YT, YB, cellRect, cellCenter, titleRows, dieCenter, squareAt, restSlots, HOME_RECT, RESERVE_RECT } from './layout.js';
+import { W, H, BTN, DICE, PIECE_R, YT, YB, TEXT_SCALES, AP_THINK_STEPS, cellRect, cellCenter, titleRows, dieCenter, squareAt, restSlots, HOME_RECT, RESERVE_RECT } from './layout.js';
 import { drawTableAndBoard, rosette, wedgeBand, PAL } from './art.js';
 import { drawPiece, drawDie } from './pieces.js';
 import { cellOf, legalMoves, HOME, PIECES } from './rules.js';
@@ -17,10 +17,17 @@ const lerp = (a, b, f) => a + (b - a) * f;
 export function render(ctx, state) {
   const scene = state.scene, g = state.game, big = state.big, a = state.anim;
   drawTableAndBoard(ctx, !(scene === 'title' || scene === 'about' || scene === 'rules' || scene === 'demo-limit' || (scene === 'puzzle' && state.pz.status === 'making')));
-  const boardScene = scene === 'play' || scene === 'over' || scene === 'lesson' || (scene === 'puzzle' && state.pz.status !== 'making');
+  const boardScene = scene === 'play' || scene === 'over' || scene === 'lesson' || (scene === 'puzzle' && state.pz.status !== 'making') || scene === 'autoplay' || scene === 'autoplay-over';
 
   const text = (str, x, y, size, color = GOLD, font = FONT, weight = 700, align = 'center') => { ctx.textAlign = align; ctx.font = `${weight} ${size}px ${font}`; ctx.fillStyle = color; ctx.fillText(str, x, y); };
   const shadowText = (str, x, y, size, color, font, weight, align) => { text(str, x + 1.5, y + 3, size, 'rgba(0,0,0,0.6)', font, weight, align); text(str, x, y, size, color, font, weight, align); };
+  // Shrinks a one-line title only if it would otherwise run past the panel's edges (a no-op for
+  // every title that already fits at the base size).
+  const fitTitle = (str, base, maxW = 560, font = UI, weight = 700) => {
+    let size = base; ctx.font = `${weight} ${size}px ${font}`;
+    while (ctx.measureText(str).width > maxW && size > 22) { size -= 2; ctx.font = `${weight} ${size}px ${font}`; }
+    return size;
+  };
   // wrap into lines; try each size until it fits `maxLines`
   const lines = (str, maxW, sizes, maxLines, weight = 600, font = UI) => {
     let out = [], size = 0;
@@ -61,9 +68,24 @@ export function render(ctx, state) {
 
   // ---- the board scenes ---------------------------------------------------------------------------------------
   if (boardScene) {
-    const human = scene !== 'over' && (state.two || g.turn === 0), movesNow = human && g.roll > 0 && !a && state.dice.phase !== 'rolling' ? legalMoves(g) : [];
+    // Outside Auto Play, "human" gates the real legal-move glow to whichever side a human plays.
+    // Inside Auto Play, nothing is highlighted during THINK; the same glow (all legal pieces, gold)
+    // plus the chosen one (green, via state.hint below) is switched on only during REVEAL.
+    const human = (scene !== 'over' && scene !== 'autoplay' && scene !== 'autoplay-over' && (state.two || g.turn === 0)) || (scene === 'autoplay' && state.ap && state.ap.phase === 'reveal');
+    const movesNow = human && g.roll > 0 && !a && state.dice.phase !== 'rolling' ? legalMoves(g) : [];
     // header
-    if (scene === 'lesson') {
+    if (scene === 'autoplay' || scene === 'autoplay-over') {
+      const AP = state.ap, turn = g.turn;
+      const phaseWord = scene === 'autoplay-over' ? 'Game over' : !AP ? '' : AP.phase === 'think' ? 'Thinking...' : AP.phase === 'reveal' ? 'Here is the move' : 'Watching...';
+      shadowText('Auto Play · Watch & Learn', 360, 170, 40, GOLD);
+      text(phaseWord, 360, 204, 22, 'rgba(243,217,139,0.85)', UI, 600);
+      for (const s of [0, 1]) {
+        const x = s === 0 ? 74 : W - 74, on = scene !== 'autoplay-over' && turn === s;
+        if (on) { ctx.fillStyle = `rgba(255,214,110,${0.25 + 0.12 * Math.sin(state.t * 4)})`; ctx.beginPath(); ctx.arc(x, 158, 42, 0, TAU); ctx.fill(); }
+        drawPiece(ctx, x, 156, 27, s);
+        text(s === 0 ? 'Shell' : 'Jet', x, 208, 19, on ? GOLD : 'rgba(243,217,139,0.6)', UI, 600);
+      }
+    } else if (scene === 'lesson') {
       const l = LESSONS[state.lesson.i];
       text(`Lesson ${state.lesson.i + 1} of ${LESSONS.length}`, 360, 142, 24, 'rgba(243,217,139,0.8)', UI, 600);
       shadowText(l.title, 360, 186, 44, GOLD);
@@ -157,9 +179,15 @@ export function render(ctx, state) {
     if (scene === 'play') { button(BTN.menu, 'Menu', { size: 26 }); button(BTN.undo, 'Take back', { size: 26 }); button(BTN.hint, `Hint (${state.hintsLeft})`, { size: 26, dim: state.hintsLeft <= 0 }); }
     else if (scene === 'lesson') { button(BTN.menu, 'Menu', { size: 26 }); if (state.lesson.done) button({ x: 265, y: BTN.next.y, w: 395, h: BTN.next.h }, state.lesson.i + 1 < LESSONS.length ? 'Next lesson' : 'Finish', { primary: true, size: 28 }); }
     else if (scene === 'puzzle') { button(BTN.menu, 'Menu', { size: 26 }); if (state.pz.status === 'solved') button({ x: 265, y: BTN.next.y, w: 395, h: BTN.next.h }, 'Share result', { primary: true, size: 28 }); }
+    else if (scene === 'autoplay') {
+      button(BTN.apExit, 'Exit', { size: 26 });
+      button(BTN.apDec, 'Think −', { size: 24, dim: state.apThinkIdx === 0 });
+      button(BTN.apInc, 'Think +', { size: 24, dim: state.apThinkIdx === AP_THINK_STEPS.length - 1 });
+      text(`Think time: ${AP_THINK_STEPS[state.apThinkIdx]}s`, 360, 1444, 20, 'rgba(243,217,139,0.8)', UI, 600);
+    }
 
     // message banner, bottom-anchored just above the board
-    if (state.msg && scene === 'play') {
+    if (state.msg && (scene === 'play' || scene === 'autoplay')) {
       const al = Math.min(1, state.msg.t / 0.15) * Math.min(1, (state.msg.hold - state.msg.t) / 0.5);
       const { out, size } = lines(state.msg.text, 590, big ? [[30, 3], [26, 3]] : [[25, 2], [22, 2]], 3), lh = size * 1.25, h = 24 + out.length * lh, y0 = 314 - h;
       ctx.save(); ctx.globalAlpha = Math.max(0, al);
@@ -186,7 +214,7 @@ export function render(ctx, state) {
     button(R.play, 'Play the computer', { primary: state.learned && !R.resume, size: 30 });
     button(R.two, 'Two players, one phone', { size: 28 });
     button(R.daily, solvedToday ? `Daily puzzle: solved · streak ${state.daily.streak}` : state.daily.streak ? `Daily puzzle · streak ${state.daily.streak}` : 'Daily puzzle', { size: 28 });
-    button(R.about, 'About', { size: 26 }); button(R.rules, 'Rules', { size: 26 });
+    button(R.about, 'About', { size: 26 }); button(R.rules, 'Rules', { size: 26 }); button(R.autoplay, 'Auto Play', { size: 22 });
     button(R.level, `Computer: ${LEVELS[state.level].name}`, { size: 22 }); button(R.sound, state.sound ? 'Sound on' : 'Sound off', { size: 22 });
     button(R.big, state.big ? 'Large text: on' : 'Large text: off', { size: 22 }); button(R.calm, state.calm ? 'Reduced motion: on' : 'Reduced motion: off', { size: 20 });
     text(LEVELS[state.level].blurb, 360, R.big.y + 110, 20, 'rgba(243,217,139,0.7)', UI, 500);
@@ -199,28 +227,47 @@ export function render(ctx, state) {
     button(BTN.back, 'Back', { size: 30 });
   } else if (scene === 'about') {
     const h = HERITAGE[state.about];
-    shadowText('About the game', 360, 160, 40, GOLD);
+    // Text scale for these reference pages only (independent of the gameplay "Large text" setting,
+    // which also affects lesson/puzzle banners elsewhere, not this reading screen). Always guarded:
+    // an out-of-range saved index (e.g. from a shorter TEXT_SCALES array) falls back to 1, never NaN.
+    const scale = TEXT_SCALES[state.textScaleIdx] ?? 1;
+    shadowText('About the game', 360, 160, Math.round(40 * Math.min(scale, 1.15)), GOLD);
     drawEmblem(ctx, 360, 350, 118, state, state.about);
-    panel(50, 500, 620, 800);
-    shadowText(h.title, 360, 580, 44, GOLD);
+    // Panel widened and lengthened (was 620x800 at y500) to reclaim the dead space that used to sit
+    // between the panel and the footer buttons - one real sentence per page (not a mid-sentence
+    // fragment) needs real room at the 300% text-size step; see content.js/heritage.js.
+    panel(30, 496, 660, 934);
+    // The page's own sub-title only needs to stay comfortably legible, not grow 1:1 with body text -
+    // past a modest cap it would collide with the art above and the divider below at high scale.
+    shadowText(h.title, 360, 580, fitTitle(h.title, Math.round(44 * Math.min(scale, 1.15)), 560, FONT), GOLD);
     ctx.strokeStyle = 'rgba(226,178,74,0.6)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(250, 606); ctx.lineTo(470, 606); ctx.stroke();
-    para(h.body, 360, 664, 540, big ? [[34, 11], [30, 12]] : [[30, 11], [27, 12], [25, 13]], 13, '#fff3d6', 'center', 1.36);
-    text(`${state.about + 1} of ${HERITAGE.length}`, 360, 1268, 22, 'rgba(243,217,139,0.7)', UI, 600);
+    para(h.body, 360, 664, 600, [Math.round(29 * scale)], 20, '#fff3d6', 'center', 1.4);
+    text(`${state.about + 1} of ${HERITAGE.length}`, 360, 1394, 22, 'rgba(243,217,139,0.7)', UI, 600);
     button(BTN.menu, 'Menu', { size: 26 }); button(BTN.undo, 'Back', { size: 26, dim: state.about === 0 }); button(BTN.hint, 'Next', { size: 26, primary: state.about < HERITAGE.length - 1, dim: state.about === HERITAGE.length - 1 });
+    const atMin = state.textScaleIdx === 0, atMax = state.textScaleIdx === TEXT_SCALES.length - 1;
+    button(BTN.textDec, 'A−', { dim: atMin, size: 30 });
+    button(BTN.textInc, 'A+', { dim: atMax, size: 30 });
   } else if (scene === 'rules') {
     const rl = RULES[state.rules];
-    shadowText('Game rules', 360, 160, 40, GOLD);
+    const scale = TEXT_SCALES[state.textScaleIdx] ?? 1;
+    shadowText('Game rules', 360, 160, Math.round(40 * Math.min(scale, 1.15)), GOLD);
     if (rl.art === 'pieces') { drawPiece(ctx, 296, 350, 62, 0); drawPiece(ctx, 424, 350, 62, 1); }
     else if (rl.art === 'dice') { for (let k = 0; k < 4; k++) drawDie(ctx, 216 + k * 96, 350, 42, k % 2 === 0, k * 0.55, 1, 0); }
     else if (rl.art === 'rosette') { rosette(ctx, 360, 350, 92, true, 0); }
     else if (rl.art === 'capture') { drawPiece(ctx, 300, 356, 58, 1, { dim: true }); drawPiece(ctx, 424, 344, 64, 0); }
     else drawEmblem(ctx, 360, 350, 118, state);
-    panel(50, 500, 620, 800);
-    shadowText(rl.title, 360, 580, 40, GOLD);
+    // Panel widened and lengthened (was 620x800 at y500) to reclaim the dead space that used to sit
+    // between the panel and the footer buttons - one real sentence per page (not a mid-sentence
+    // fragment) needs real room at the 300% text-size step; see content.js/heritage.js.
+    panel(30, 496, 660, 934);
+    shadowText(rl.title, 360, 580, fitTitle(rl.title, Math.round(40 * Math.min(scale, 1.15)), 560, FONT), GOLD);
     ctx.strokeStyle = 'rgba(226,178,74,0.6)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(250, 606); ctx.lineTo(470, 606); ctx.stroke();
-    para(rl.body, 360, 664, 540, big ? [[34, 11], [30, 12]] : [[30, 11], [27, 12], [25, 13]], 13, '#fff3d6', 'center', 1.36);
-    text(`${state.rules + 1} of ${RULES.length}`, 360, 1268, 22, 'rgba(243,217,139,0.7)', UI, 600);
+    para(rl.body, 360, 664, 600, [Math.round(29 * scale)], 20, '#fff3d6', 'center', 1.4);
+    text(`${state.rules + 1} of ${RULES.length}`, 360, 1394, 22, 'rgba(243,217,139,0.7)', UI, 600);
     button(BTN.menu, 'Menu', { size: 26 }); button(BTN.undo, 'Back', { size: 26, dim: state.rules === 0 }); button(BTN.hint, 'Next', { size: 26, primary: state.rules < RULES.length - 1, dim: state.rules === RULES.length - 1 });
+    const atMin = state.textScaleIdx === 0, atMax = state.textScaleIdx === TEXT_SCALES.length - 1;
+    button(BTN.textDec, 'A−', { dim: atMin, size: 30 });
+    button(BTN.textInc, 'A+', { dim: atMax, size: 30 });
   } else if (scene === 'over') {
     ctx.fillStyle = 'rgba(6,4,2,0.74)'; ctx.fillRect(0, 0, W, H);
     const won = state.two ? `Player ${g.winner + 1} wins` : g.winner === 0 ? 'You win!' : 'The computer wins';
@@ -233,6 +280,15 @@ export function render(ctx, state) {
       if (!state.calm) for (let k = 0; k < 16; k++) { const ph = (state.t * 0.35 + k * 0.137) % 1, x = 360 + Math.sin(k * 2.4) * (140 + 90 * ph), y = 600 - ph * 400; ctx.fillStyle = `rgba(255,214,110,${0.8 * (1 - ph)})`; ctx.beginPath(); ctx.arc(x, y, 4 + (k % 3) * 2, 0, TAU); ctx.fill(); }
     }
     button(BTN.again, 'Play again', { primary: true, size: 34 }); button(BTN.back, 'Menu', { size: 30 });
+  } else if (scene === 'autoplay-over') {
+    ctx.fillStyle = 'rgba(6,4,2,0.74)'; ctx.fillRect(0, 0, W, H);
+    const won = g.winner === 0 ? 'Shell wins' : 'Jet wins';
+    drawEmblem(ctx, 360, 470, 130, state);
+    shadowText('Auto Play complete', 360, 660, 40, GOLD);
+    shadowText(won, 360, 720, 68, GOLD);
+    text(`Seven pieces home in ${g.moves} moves`, 360, 776, 26, '#fff3d6', UI, 500);
+    text(`Captures: ${state.caps[0]} by Shell · ${state.caps[1]} by Jet`, 360, 816, 22, 'rgba(243,217,139,0.75)', UI, 500);
+    button(BTN.again, 'Watch again', { primary: true, size: 34 }); button(BTN.back, 'Exit to menu', { size: 30 });
   }
 }
 

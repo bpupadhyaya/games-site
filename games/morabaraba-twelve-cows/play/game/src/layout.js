@@ -26,17 +26,39 @@ export const BTN = {
 // Text-size stepper for the How to play / About / Rules reference pages: a header row above the
 // heading, clear of the Menu/Back/Next buttons in the footer. "A-"/"A+" on all three screens.
 export const TEXT_STEPPER = { dec: { x: 40, y: 24, w: 120, h: 62 }, inc: { x: W - 160, y: 24, w: 120, h: 62 } };
+// The info-page footer always spans the same x=46..674 strip: Menu is always present, Back only
+// once you're past page 1, Next only before the last page - 3 equal pills, or 2 wider ones on the
+// first/last page, never a lopsided pair with Back's slot left as dead space in the middle (which
+// is what happened before: Menu and Next stayed pinned to their 3-button positions even with no
+// Back between them).
+export function infoFooterRects(hasBack, hasNext) {
+  const X0 = 46, SPAN = 628, GAP = 14, Y = 1462, H = 76;
+  const n = 1 + (hasBack ? 1 : 0) + (hasNext ? 1 : 0);
+  const w = (SPAN - GAP * (n - 1)) / n;
+  let x = X0;
+  const next = () => { const r = { x, y: Y, w, h: H }; x += w + GAP; return r; };
+  return { menu: next(), back: hasBack ? next() : null, next: hasNext ? next() : null };
+}
 // Index into this, never a raw float, so the stepper can cleanly disable at either end and a stale
 // saved index (e.g. from a build with a shorter array) always clamps instead of producing NaN sizes.
-export const TEXT_SCALES = [1, 1.15, 1.3];
+export const TEXT_SCALES = [1, 1.5, 2, 2.5, 3];
+// Auto Play (Watch & Learn): think-time steps in seconds, hard-capped at 10s. An index into this
+// array (same pattern as TEXT_SCALES), never a raw float. The stepper reuses TEXT_STEPPER's own
+// position/style - never shown on the same scene as the text-size stepper, so no clash.
+export const AUTO_THINK_STEPS = [2, 5, 8, 10];
+export const AUTO_REVEAL_SECONDS = 2;
 // Title screen: rows depend on whether an unfinished game is saved.
 export function titleRows(hasSave) {
   const out = {}; let y = 740;
   const full = (n) => { out[n] = { x: 80, y, w: 560, h: 66 }; y += 76; };
   const pair = (a, b) => { out[a] = { x: 80, y, w: 272, h: 60 }; out[b] = { x: 368, y, w: 272, h: 60 }; y += 68; };
+  // Auto Play is the addition: the last row grew from a 2-column pair (About/Rules) to a 3-column
+  // trio (About/Rules/Auto Play), same total span (x=80..640) and same y - every row above (and the
+  // badges row drawn below it, at RW.about.y + 100) keeps its exact position, unchanged.
+  const trio = (a, b, c) => { const gap = 14, colw = (560 - gap * 2) / 3; out[a] = { x: 80, y, w: colw, h: 60 }; out[b] = { x: 80 + colw + gap, y, w: colw, h: 60 }; out[c] = { x: 80 + 2 * (colw + gap), y, w: colw, h: 60 }; y += 68; };
   if (hasSave) full('resume');
   full('learn'); pair('dark', 'light'); full('two'); full('daily'); y += 6;
-  pair('level', 'sound'); pair('marks', 'calm'); pair('big', 'howto'); pair('about', 'rules');
+  pair('level', 'sound'); pair('marks', 'calm'); pair('big', 'howto'); trio('about', 'rules', 'auto');
   return out;
 }
 // Which board point a tap means: the nearest point (or the cow standing on it).

@@ -1,5 +1,5 @@
 // Everything drawn each frame. Reads `state` (see game.js) and changes nothing. Static art and pieces are cached sprites.
-import { W, H, D, PIECE_R, pointXY, BTN, LOOK, RES, LOOKLABEL, PLATE, MSG, titleRows, TEXT_SCALES, TEXTSTEP } from './layout.js';
+import { W, H, D, PIECE_R, pointXY, BTN, LOOK, RES, LOOKLABEL, PLATE, MSG, titleRows, TEXT_SCALES, TEXTSTEP, THINK_STEPS, REVEAL_SECONDS } from './layout.js';
 import { drawTable, drawBoard, drawLantern, BOARD_THEME_NAMES } from './art.js';
 import { drawPiece, blob, CJK, PIECE_THEME_NAMES } from './pieces.js';
 import { LEVELS } from './engine.js';
@@ -73,6 +73,9 @@ export function render(ctx, state) {
     button(rows.learn, state.learnedAll ? 'Lessons' : 'Learn to play', { primary: !state.saved });
     button(rows.red, `Play Red (you move first)`, { size: 27 }); button(rows.black, 'Play Black', {}); button(rows.two, 'Two players', {});
     button(rows.daily, state.daily.solvedToday ? 'Daily puzzle: solved' : `Daily puzzle${state.daily.streak ? ' (streak ' + state.daily.streak + ')' : ''}`, { size: 27 });
+    // Auto Play ("Watch & Learn"): free, untimed, both sides play automatically - a teaching demo,
+    // never counted as a real game (see startAutoplay()/isPreviewExempt() in game.js).
+    button(rows.autoplay, 'Auto Play (Watch & Learn)', { size: 24 });
     // Language: a real, named, tappable choice right here on the title screen (not only in Settings), matching
     // Shogi's "Play (X)" pattern so the choice is the first thing a player sees.
     button(rows.langZh, 'Play (象棋)', { on: lang !== 'en', size: 27, font: CJK });
@@ -105,7 +108,9 @@ export function render(ctx, state) {
     button(LOOK.back, 'Back', { primary: true }); return;
   }
   if (scene === 'howto' || scene === 'about' || scene === 'rules') {
-    lanterns(0.62, -8);
+    // No lanterns on this scene: the header row already carries the title, the page indicator and
+    // the A-/A+ stepper, and the lanterns (sized/positioned for the open title screen) collided
+    // with the stepper buttons in both top corners.
     const pages = scene === 'howto' ? HOW : scene === 'about' ? ABOUT : RULES, pg = pages[state.page % pages.length];
     const sceneTitle = scene === 'howto' ? 'How to play' : scene === 'about' ? 'About this game' : 'Rules';
     // Falls back to 1 for any out-of-range index (e.g. a save from a build with a different-length array).
@@ -127,7 +132,12 @@ export function render(ctx, state) {
     ctx.restore();
 
     text(pg.title, 360, rp.y + 62, Math.round(46 * Math.min(scale, 1.15)), GOLD, TITLE);
-    let y = rp.y + 106;
+    // Body font grows a lot more than the (capped) title as the text-size step rises, so the gap
+    // below the title - and below the Red/Black piece labels on a piece page - has to grow with it
+    // too, or a big enough body font makes its own first line's ascent reach up into the title/label
+    // above it. Both offsets below are sized from the body font's own cap-height (~0.75 * sz).
+    const sz = Math.round(28 * scale), lh = Math.round(sz * 1.4), gap = Math.round(18 * scale);
+    let y = rp.y + 90 + Math.round(sz * 0.75);
     // A Rules page about one piece shows that piece's own real in-game sprite, Red and Black side by
     // side, using the same drawPiece() the board itself uses - never a separate simplified icon.
     if (pg.type) {
@@ -135,11 +145,14 @@ export function render(ctx, state) {
       piece(pg.type, 360 - dx, py, { R: pr }); piece(-pg.type, 360 + dx, py, { R: pr });
       text('Red', 360 - dx, py + 78, 20, 'rgba(251,236,203,0.7)', UI, 600);
       text('Black', 360 + dx, py + 78, 20, 'rgba(251,236,203,0.7)', UI, 600);
-      y = py + 118;
+      y = py + 98 + Math.round(sz * 0.75);
     }
-    const sz = Math.round(28 * scale), lh = Math.round(sz * 1.4), gap = Math.round(18 * scale);
+    // The bullet's radius and its vertical offset from the first line's baseline both scale with
+    // the body font - fixed at the old 100% size, it shrank to a stray dot floating well below the
+    // first line's cap-height once the body text grew to the 300% top step.
+    const bulletR = Math.round(5 * scale), bulletDy = Math.round(9 * scale);
     for (const it of pg.items) {
-      ctx.fillStyle = '#e2b661'; ctx.beginPath(); ctx.arc(66, y - 9, 5, 0, TAU); ctx.fill();
+      ctx.fillStyle = '#e2b661'; ctx.beginPath(); ctx.arc(66, y - bulletDy, bulletR, 0, TAU); ctx.fill();
       const n = wrap(it, 88, y, sz, rp.w - 90, CREAM, lh, 'left', 500); y += n * lh + gap;
     }
     button(BTN.prev, 'Back', {}); button(BTN.page, 'Next page', { primary: true });
@@ -149,10 +162,14 @@ export function render(ctx, state) {
   }
 
   // ================================ board scenes ===================================================================
-  lanterns(0.62, -6);
+  const inLesson = scene === 'lesson', inPuzzle = scene === 'puzzle', inAuto = scene === 'autoplay';
+  // No lanterns on Auto Play: like the How to play/About/Rules pages (see the comment at that scene),
+  // this scene has its own top-corner think-time stepper, and the lanterns visibly collided with it.
+  if (!inAuto) lanterns(0.62, -6);
   const g = state.g, a = state.anim;
-  const inLesson = scene === 'lesson', inPuzzle = scene === 'puzzle';
-  if (!inLesson && !inPuzzle) heading('Xiangqi'); else heading(inLesson ? 'Lesson ' + (state.lesson.i + 1) + ' of ' + LESSONS.length : 'Daily puzzle');
+  if (!inLesson && !inPuzzle && !inAuto) heading('Xiangqi');
+  else if (inAuto) heading('Auto Play', 'Both sides play automatically');
+  else heading(inLesson ? 'Lesson ' + (state.lesson.i + 1) + ' of ' + LESSONS.length : 'Daily puzzle');
   const pos = (s) => pointXY(s, flip);
   const own = state.human;
 
@@ -163,7 +180,10 @@ export function render(ctx, state) {
     text(name, r.x + 100, r.y + 42, 30, CREAM, UI, 700, 'left'); text(sub, r.x + 100, r.y + 72, 21, 'rgba(251,236,203,0.7)', UI, 500, 'left');
     const cap = capturedBy(g, side), maxN = 16; cap.slice(0, maxN).forEach((p, k) => piece(p, r.x + 312 + k * 20.5, r.y + 46, { R: 32, scale: 0.4, alpha: 0.95 }));
   };
-  if (inLesson) {
+  if (inAuto) {
+    plate(PLATE.top, BLACK, 'Black', `${LEVELS[state.level].name} computer`, !g.result && g.turn === BLACK);
+    plate(PLATE.bottom, RED, 'Red', `${LEVELS[state.level].name} computer`, !g.result && g.turn === RED);
+  } else if (inLesson) {
     const l = LESSONS[state.lesson.i], st = l.steps[state.lesson.s];
     panel({ x: 40, y: 146, w: 640, h: 176 }, 0.5);
     text(l.title, 360, 190, 42, GOLD, TITLE);
@@ -202,6 +222,16 @@ export function render(ctx, state) {
     else { blob(ctx, p.x, p.y, 34 + pulse * 5, 34 + pulse * 5, '70,220,140', 0.65 + pulse * 0.25); ctx.fillStyle = 'rgba(214,255,226,0.95)'; ctx.beginPath(); ctx.arc(p.x, p.y, 7.5, 0, TAU); ctx.fill(); }
   }
   if (inLesson && !state.lesson.done && state.lesson.showSol) { const st = LESSONS[state.lesson.i].steps[state.lesson.s]; for (const pt of st.sol) { const p = pos(pt[1] * 9 + pt[0]); blob(ctx, p.x, p.y, 62, 62, '90,255,160', 0.5 + pulse * 0.3); } }
+  // Auto Play REVEAL: state.hint already marks the chosen move's from/to with the pulsing green
+  // glow above (same visual the human-facing Hint feature uses), but the brief asks for it to stand
+  // out distinctly from the plain legal-move dots at state.targets, not just share their colour - a
+  // bold gold ring around the actual destination makes the one move about to be played unmistakable
+  // at a glance, so a viewer can compare it to their own guess before it happens.
+  if (inAuto && state.autoPhase === 'reveal' && state.hint) {
+    const p = pos(state.hint.to);
+    ctx.save(); ctx.strokeStyle = `rgba(255,214,80,${0.75 + pulse * 0.25})`; ctx.lineWidth = 5;
+    ctx.beginPath(); ctx.arc(p.x, p.y, 30 + pulse * 6, 0, TAU); ctx.stroke(); ctx.restore();
+  }
 
   // ---- pieces (top to bottom so lower ones overlap upper ones' shadows naturally)
   const moving = a && (a.type === 'move' || a.type === 'refuse') ? a : null, dragSq = state.drag && state.drag.moved ? state.drag.sq : -1;
@@ -245,15 +275,23 @@ export function render(ctx, state) {
   if (!inLesson && !inPuzzle) { panel(MSG, 0.5); }
   else panel(bottom, 0.5);
   const m = state.msg;
-  let line = m ? m.text : defaultMessage(state);
+  let line = inAuto ? autoMessage(state) : m ? m.text : defaultMessage(state);
   const col = m ? (m.kind === 'warn' ? '#ffcf8a' : m.kind === 'good' ? '#c9f7c0' : CREAM) : CREAM;
   const mr = (inLesson || inPuzzle) ? bottom : MSG;
-  wrap(line, 360, mr.y + 48, big ? 34 : 29, 590, col, big ? 44 : 38, 'center', 600);
+  wrap(line, 360, mr.y + 48, big ? 34 : 29, 590, inAuto && state.autoPhase === 'reveal' ? '#8de08a' : col, big ? 44 : 38, 'center', 600);
   if ((inLesson && !state.lesson.done) || (inPuzzle && state.pz.status !== 'solved')) wrap('TAP a piece, then TAP a glowing point. Or DRAG it there.', 360, mr.y + mr.h - 50, 22, 560, 'rgba(242,210,122,0.85)', 28, 'center', 600);
   if (inLesson) { const l = LESSONS[state.lesson.i]; l.steps.forEach((_, k) => { ctx.fillStyle = k < state.lesson.s || (k === state.lesson.s && state.lesson.done) ? '#8de08a' : k === state.lesson.s ? GOLD : 'rgba(255,255,255,0.25)'; ctx.beginPath(); ctx.arc(360 + (k - (l.steps.length - 1) / 2) * 26, mr.y + mr.h - 16, 7, 0, TAU); ctx.fill(); }); }
 
   // ---- buttons
-  if (inLesson) {
+  if (inAuto) {
+    // Think-time stepper: an index into THINK_STEPS (never a raw float), same convention as the
+    // How to play/About/Rules text-size stepper - reuses its exact top-corner geometry (this scene
+    // has nothing else in the top corners to collide with).
+    button(TEXTSTEP.dec, '−', { dim: state.autoThinkIdx === 0, size: 30 });
+    button(TEXTSTEP.inc, '+', { dim: state.autoThinkIdx === THINK_STEPS.length - 1, size: 30 });
+    text(`Think: ${THINK_STEPS[state.autoThinkIdx]}s`, 360, 54, 24, 'rgba(251,236,203,0.85)', UI, 700);
+    button(BTN.menu, 'Exit', {});
+  } else if (inLesson) {
     button(BTN.menu, 'Lessons', {}); button(BTN.undo, 'Hint', { dim: state.lesson.done }); button(BTN.hint, state.lesson.done ? (state.lesson.s + 1 < LESSONS[state.lesson.i].steps.length ? 'Next step' : state.lesson.i + 1 < LESSONS.length ? 'Next lesson' : 'Finish') : 'Restart step', { primary: state.lesson.done });
   } else if (inPuzzle) {
     button(BTN.menu, 'Menu', {}); button(BTN.undo, 'Reset', { dim: state.pz.status === 'solved' }); button(BTN.hint, 'Hint', { dim: state.pz.status === 'solved' });
@@ -265,13 +303,24 @@ export function render(ctx, state) {
   if (state.overOpen && g.result) {
     ctx.fillStyle = 'rgba(8,3,2,0.66)'; ctx.fillRect(0, 300, W, 840);
     panel(RES.panel, 0.9, 0.6);
-    const r = g.result, humanWon = !state.two && r.winner === own, drew = r.winner === 0;
-    const title = drew ? 'A draw' : state.two ? `${SIDE_NAME[r.winner]} wins` : humanWon ? 'You win!' : 'The computer wins';
+    const r = g.result, humanWon = !state.two && !inAuto && r.winner === own, drew = r.winner === 0;
+    const title = drew ? 'A draw' : (state.two || inAuto) ? `${SIDE_NAME[r.winner]} wins` : humanWon ? 'You win!' : 'The computer wins';
     const why = { checkmate: 'Checkmate.', stalemate: 'No legal move left: a loss in Xiangqi.', perpetual: 'Perpetual check is not allowed: the checking side loses.', repetition: 'The same position three times: a draw.', quiet: 'Sixty moves each without a capture: a draw.' }[r.why];
     piece(drew ? 1 : r.winner, 360, 560, { R: 32, scale: 1.8, lift: 0.5 + (calm ? 0 : Math.sin(T * 3) * 0.3) });
+    if (inAuto) text('AUTO-PLAY DEMO — not saved', 360, 468, 20, 'rgba(242,210,122,0.85)', UI, 700);
     text(title, 360, 690, 62, GOLD, TITLE); wrap(why, 360, 736, 26, 500, CREAM, 32);
-    button(RES.again, 'Play again', { primary: true }); button(RES.look, 'Look at the board', {}); button(RES.menu, 'Menu', {});
+    if (inAuto) { button(RES.again, 'Watch again', { primary: true }); button(RES.look, 'Look at the board', {}); button(RES.menu, 'Exit to menu', {}); }
+    else { button(RES.again, 'Play again', { primary: true }); button(RES.look, 'Look at the board', {}); button(RES.menu, 'Menu', {}); }
   }
+}
+
+// The THINK/REVEAL phase, shown in the message panel instead of the usual default/status message -
+// tells a viewer what is happening right now without needing to read a legend elsewhere.
+function autoMessage(state) {
+  if (state.g.result) return 'Game over — see the result below.';
+  if (state.autoPhase === 'reveal') return 'Here is the move about to be played (highlighted in green).';
+  const side = state.g.turn === RED ? 'Red' : 'Black';
+  return `${side} is thinking… try to guess the move before it is revealed.`;
 }
 const GY_MID = 372 + 4.5 * D;
 

@@ -257,7 +257,10 @@ function startFlit(s, dest, forced) {
 
 // A tap while a stone is coming near you means escape. A tap while nothing threatens you means
 // "go for the nearest safe golden seed" if there is one in reach, otherwise a short safe hop.
-function chooseTarget(s) {
+// Exported so Auto Play (game.js) can reuse this exact escape/opportunity logic - the same
+// decision-making a level-1 tap-anywhere flit and the levels 2-3 safe-ring hint already use - as
+// its move-picker, rather than inventing a separate one.
+export function chooseTarget(s) {
   const b = s.bird, here = perchPoint(s.perches, b.perch), inc = incoming(s);
   const near = (i) => inc.some((q) => dist(perchPoint(s.perches, q.perch), perchPoint(s.perches, i)) < T.AVOID_R * Math.max(s.perches[i].s, 0.6));
   if (s.seeds.length && !near(b.perch)) {

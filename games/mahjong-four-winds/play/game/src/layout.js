@@ -12,7 +12,7 @@ export const inRect = (r, x, y) => x >= r.x && x <= r.x + r.w && y >= r.y && y <
 
 // Text-size steps for the reference pages (How to play / About / Rules). Index into this, never a
 // raw float, so the stepper can cleanly disable at either end and a stale saved index always clamps.
-export const TEXT_SCALES = [1, 1.15, 1.3];
+export const TEXT_SCALES = [1, 1.5, 2, 2.5, 3];
 
 // ---- slots in the wall ring: slot i (0..143) -> a position around the ring
 export function wallPos(i) {
@@ -88,6 +88,14 @@ export const CHIPS = [
   { x: 260, y: 132, w: 200, h: 60 },
   { x: 10, y: 470 - 96, w: 190, h: 60 },
 ];
+
+// Auto Play (Watch & Learn): think-time steps in seconds, hard-capped at 10s. An index into this
+// array (same pattern as TEXT_SCALES), never a raw float. The +/- stepper sits in the free top
+// strip above the header text, clear of the Menu button (top-right) and the header's left-aligned
+// round/hand text.
+export const AUTO_THINK_STEPS = [2, 5, 8, 10];
+export const AUTO_STEP = { dec: { x: 180, y: 34, w: 92, h: 62 }, inc: { x: 448, y: 34, w: 92, h: 62 } };
+export const AUTO_REVEAL_SECONDS = 2;
 
 // Every tile's target on screen. `s` = rules state; `up` = set of seats shown face up (all at the end of a hand);
 // opts = { reveal }. Returns Map(id -> { x, y, rot, w, f (0 back, 1 face), z, sel })

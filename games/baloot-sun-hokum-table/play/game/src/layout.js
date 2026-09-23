@@ -34,11 +34,23 @@ export function titleRows(hasSave) {
   if (hasSave) o.resume = row();
   o.play = row(); o.learn = row(); o.daily = row();
   o.level = R(x, y, w, 76); y += 76 + 16;
-  // Settings / About / Controls / Rules share one row, four even columns (was three — Rules is the addition).
-  const sm = 126, gap = 12;
-  o.settings = R(x, y, sm, 84); o.about = R(x + sm + gap, y, sm, 84); o.how = R(x + 2 * (sm + gap), y, sm, 84); o.rules = R(x + 3 * (sm + gap), y, sm, 84);
+  // Settings / About / Controls / Rules / Auto Play share one row, five even columns (was four —
+  // Auto Play is the addition: a silent, free, teaching-only watch mode, see AUTOPLAY docs in game.js).
+  const sm = (w - 4 * 10) / 5, gap = 10;
+  o.settings = R(x, y, sm, 84); o.about = R(x + sm + gap, y, sm, 84); o.how = R(x + 2 * (sm + gap), y, sm, 84); o.rules = R(x + 3 * (sm + gap), y, sm, 84); o.auto = R(x + 4 * (sm + gap), y, sm, 84);
   return o;
 }
+// ---- Auto Play (Watch & Learn) --------------------------------------------------------------------
+// A separate, silent, free, THINK -> REVEAL -> ACT teaching-demo scene. See docs at the top of the
+// auto-play block in game.js for the full behaviour. Configurable think-time steps, index-based
+// (never a raw float), hard-capped at 10s per the owner's instruction.
+export const AUTO_THINK_STEPS = [2, 5, 8, 10];
+export const AUTO_REVEAL_SECS = 2;
+// A slim HUD strip in the gap between the contract chip and the (face-up, study-mode) seats, so it
+// never collides with the scoreboard plaques above or the cards below at any scene this appears in.
+export const AUTO_BAR = R(40, 216, 640, 50);
+export const AUTO_DEC = R(420, 224, 60, 34);
+export const AUTO_INC = R(624, 224, 60, 34);
 export const PANEL = R(30, 990, 660, 190);
 export function bidButtons(n, round) {
   if (round === 1 || n <= 3) { const w = (660 - 2 * 16) / n; return Array.from({ length: n }, (_, i) => R(30 + i * (w + 16), 1050, w, 108)); }
@@ -53,11 +65,16 @@ export function bid2Buttons() {
 export const ACT = { a: R(30, 1074, 316, 104), b: R(374, 1074, 316, 104) };
 export const OVERLAY_BTN = R(160, 1290, 400, 104);
 export const LESSON_CARD = R(30, 110, 660, 210);
+// Plain "Back" used by non-paginated screens (Lessons, Settings) — stays a small top-left pill.
 export const BACK = R(24, 40, 120, 60);
-// "Next" button for the paginated Rules page, mirroring BACK at the opposite top corner.
-export const NEXT = R(W - 24 - 120, 40, 120, 60);
-// Text-size stepper for the About/Controls/Rules reference pages, centred in the same header row
-// as Back/Next (same height) with plenty of clearance on both sides so it never crowds them.
-export const TEXT_SCALES = [1, 1.15, 1.3];
-export const TEXT_DEC = R(W / 2 - 118, 40, 110, 60);
-export const TEXT_INC = R(W / 2 + 8, 40, 110, 60);
+// Reference-page (About/Controls/Rules) nav: a bottom-anchored, equal-width Back/Next pill pair,
+// clear of the reader-card panel above it — never crammed into the header row. Back reads as the
+// neutral/secondary action, Next as the primary (gold) action; disabled/"Done" states are handled
+// in view.js.
+export const REF_BACK = R(20, 1416, 330, 116);
+export const REF_NEXT = R(370, 1416, 330, 116);
+// Text-size stepper (A-/A+) for the About/Controls/Rules reference pages: two small pills in the
+// TOP corners only, well clear of the title — matches the pattern used across every other game.
+export const TEXT_SCALES = [1, 1.5, 2, 2.5, 3];
+export const TEXT_DEC = R(20, 20, 130, 68);
+export const TEXT_INC = R(W - 150, 20, 130, 68);

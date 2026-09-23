@@ -1,5 +1,5 @@
 // Everything that is drawn each frame. Reads `state` (see game.js) and changes nothing.
-import { W, H as SH, CARD, TRICK_CARD, BACK, SLOT, SEAT, PLATE, DECK, HAND_Y, LIFT, handLayout, BTN, BID, titleRows, LESSON_ROWS, LESSONS_BACK, ABOUT_BACK, ABOUT_NEXT, RULES_BACK, RULES_NEXT, TEXT_DEC, TEXT_INC, TEXT_SCALES } from './layout.js';
+import { W, H as SH, CARD, TRICK_CARD, BACK, SLOT, SEAT, PLATE, DECK, HAND_Y, LIFT, handLayout, BTN, BID, titleRows, LESSON_ROWS, LESSONS_BACK, ABOUT_BACK, ABOUT_NEXT, RULES_BACK, RULES_NEXT, TEXT_DEC, TEXT_INC, TEXT_SCALES, THINK_STEPS } from './layout.js';
 import { drawTable, drawLanterns, drawCard, suit, star8, suitColor } from './art.js';
 import { SUIT_NAMES, SEAT_NAMES, legalPlays, teamOf, sortHand } from './rules.js';
 import { LEVELS } from './ai.js';
@@ -76,6 +76,7 @@ export function render(ctx, S) {
     button(R.calm, S.calm ? 'Calm motion' : 'Full motion', { size: 24, on: S.calm });
     button(R.big, S.big ? 'Large print' : 'Standard cards', { size: 24, on: S.big });
     button(R.target, `Game to ${S.target}`, { size: 24 });
+    button(R.auto, 'Auto Play', { size: 30, sub: 'Watch & Learn - every seat computer-played, hands open' });
     return;
   }
 
@@ -90,15 +91,26 @@ export function render(ctx, S) {
     // Falls back to 1 for any out-of-range index (e.g. a save from a build with more/fewer steps).
     const scale = TEXT_SCALES[S.textScaleIdx] ?? 1;
     const headSize = Math.round(62 * Math.min(scale, 1.12)); // the big page title; already generous, capped so it never crowds the stepper
-    const titleSize = Math.round(30 * scale), bodySize = Math.round(28 * scale), lh = Math.round(bodySize * 1.4), paraGap = Math.round(11 * scale), titleH = Math.round(44 * scale);
+    // The page's own title stops growing past the 200% step (2x) - it is already a large display
+    // font there, and letting it keep growing at 250%/300% would force it further and further
+    // above the reader-card's frame (see panelTop below). Body text keeps scaling uncapped, which
+    // is the point of the stepper.
+    const titleScale = Math.min(scale, 2);
+    const titleSize = Math.round(30 * titleScale), bodySize = Math.round(28 * scale), lh = Math.round(bodySize * 1.4), paraGap = Math.round(11 * scale), titleLH = Math.round(titleSize * 1.15);
     const bodyW = 580;
     text(isAbout ? 'About Tarneeb' : 'Rules', 360, 148, headSize);
     let cardsH = 0;
     if (page.cards) cardsH = 134 + (page.cards.some((c) => c.label) ? 26 : 0) + Math.round(24 * scale);
-    const top = 226, panelTop = top - 26, panelBottom = 1400; // fixed reader-card, room left below short pages for a small flourish
+    // The reader-card's top edge backs off further at larger text sizes so a page's own (scaled)
+    // title never pokes its ascenders out above the frame into the screen header above it. Uses
+    // the same capped titleScale as the title itself, so the frame's top edge stops moving once
+    // the title itself stops growing (200%+).
+    const top = 226, panelTop = top - Math.round(26 * titleScale), panelBottom = 1400; // fixed reader-card, room left below short pages for a small flourish
     panel({ x: 40, y: panelTop, w: 640, h: panelBottom - panelTop });
     let y = top;
-    text(page.title, 70, y, titleSize, GOLD, FONT, 700, 'left'); y += titleH;
+    // A page title wraps (like the body text) instead of running off the frame - a long title at
+    // the top text-size step would otherwise overflow the panel's right edge.
+    y += wrap(page.title, 70, y, titleSize, bodyW, GOLD, titleLH, 'left', FONT, 700) * titleLH + Math.round(14 * scale);
     if (page.cards) {
       const cw = 92, ch = 134, gap = 22, cn = page.cards.length, totalW = cn * cw + (cn - 1) * gap, x0 = 360 - totalW / 2;
       page.cards.forEach((cd, i) => drawCard(ctx, cd.c, x0 + i * (cw + gap), y, cw, ch));
@@ -136,8 +148,15 @@ export function render(ctx, S) {
 
   // ------------------------------------------------------------------------------------------------ the table
   if (!tb) return;
-  const Hh = tb.H, open = tb.mode === 'puzzle', big = S.big;
+  // Auto Play shows every hand open too: with all four seats computer-played there is no hidden
+  // information left to protect, and the viewer needs to see every seat's hand to compare its own
+  // guess against (same idiom the "open-hand" Daily Deal puzzle already uses for this reason).
+  const Hh = tb.H, open = tb.mode === 'puzzle' || tb.mode === 'auto', big = S.big;
   const dealing = tb.deal, dealSeq = dealing ? dealCounts(tb) : null;
+  // The pending card, if any (Hint's own highlight for seat 0, or Auto Play's REVEAL for whichever
+  // seat is about to act) - defined early so both the open-hand seats below and "your hand" further
+  // down can use the same value.
+  const hintC = tb.hint && tb.hint.c !== undefined ? tb.hint.c : -1;
 
   // ---- top area: score HUD (match), lesson card or puzzle card. Lesson text is variable length, so its panel
   // (and everything below it, down to the partner's seat) is sized and positioned to fit however many lines it needs.
@@ -159,6 +178,12 @@ export function render(ctx, S) {
     text('Daily Deal', 360, 112, 36);
     wrap(S.puzText, 360, 144, 20, 620, '#f6e8c8', 26);
     trumpY = 236; showTrump = true;
+  } else if (tb.mode === 'auto') {
+    panel({ x: 24, y: 74, w: 672, h: 150 }, 0.86);
+    text('Auto Play', 360, 112, 36);
+    text(`Watch & Learn  ·  think time ${THINK_STEPS[S.autoThinkIdx]}s`, 360, 146, 22, 'rgba(246,223,174,0.92)', UI, 600);
+    text(`Us ${tb.scores[0]}   Them ${tb.scores[1]}   ·   First to ${tb.target}`, 360, 178, 19, 'rgba(246,223,174,0.75)', UI, 600);
+    trumpY = 256; showTrump = Hh.trump >= 0;
   }
   // contract chip and trick count
   if (showTrump) {
@@ -175,10 +200,16 @@ export function render(ctx, S) {
     const active = !Hh.winnerShown && ((Hh.phase === 'bid' && Hh.bid.turn === p) || (Hh.phase === 'play' && Hh.turn === p && !tb.collect) || (Hh.phase === 'trump' && Hh.declarer === p));
     if (open) {
       const cards = Hh.hands[p];
+      // Auto Play's REVEAL phase, for whichever seat is about to play a card: the same dim-the-
+      // illegal / glow-the-legal / brighter-glow-the-chosen treatment "your hand" already gives
+      // seat 0 below, just applied here since every hand is open during this mode.
+      const revealing = tb.mode === 'auto' && tb.autoPhase === 'reveal' && Hh.phase === 'play' && Hh.turn === p;
+      const legalHere = revealing ? legalPlays(Hh, p) : null;
       cards.forEach((c, i) => {
-        const w = 66, h = 97;
-        if (p === 2) drawCard(ctx, c, 360 - (cards.length * 74 - 8) / 2 + i * 74, 262, w, h, { big });
-        else { const cy = seatXY.y + (i - (cards.length - 1) / 2) * 62; drawCard(ctx, c, p === 3 ? 22 : W - 22 - w, cy - h / 2, w, h, { big }); }
+        const w = 66, h = 97, isChosen = revealing && c === hintC, isLegal = !legalHere || legalHere.includes(c);
+        const o = { big, dim: legalHere && !isLegal, glow: isChosen ? '#ffe28a' : (legalHere && isLegal && Hh.trick.length ? 'rgba(255,240,170,0.55)' : undefined) };
+        if (p === 2) drawCard(ctx, c, 360 - (cards.length * 74 - 8) / 2 + i * 74, 262 - (isChosen ? 10 : 0), w, h, o);
+        else { const cy = seatXY.y + (i - (cards.length - 1) / 2) * 62; drawCard(ctx, c, p === 3 ? 22 : W - 22 - w, cy - h / 2 - (isChosen ? 10 : 0), w, h, o); }
       });
     } else {
       const count = sh;
@@ -215,33 +246,40 @@ export function render(ctx, S) {
   } else for (const cd of Hh.trick) if (!flying(cd.c)) drawSlot(cd.p, cd.c);
 
   // ---- bidding panel / trump picker
-  const humanBid = Hh.phase === 'bid' && Hh.bid.turn === 0 && !tb.blocked, humanTrump = Hh.phase === 'trump' && Hh.declarer === 0 && !tb.blocked;
+  // Auto Play never lets a tap through (game.js's pressTable returns early for tb.mode==='auto'),
+  // but it still shows this same panel - read-only - for every seat's bid/trump turn, not only
+  // seat 0's, so the REVEAL ring (tb.hint, set by autoTick) is visible regardless of who is acting.
+  const humanBid = Hh.phase === 'bid' && Hh.bid.turn === 0 && !tb.blocked && !tb.auto;
+  const humanTrump = Hh.phase === 'trump' && Hh.declarer === 0 && !tb.blocked && !tb.auto;
+  const showBidPicker = humanBid || (tb.auto && Hh.phase === 'bid' && !tb.blocked);
+  const showTrumpPicker = humanTrump || (tb.auto && Hh.phase === 'trump' && !tb.blocked);
   if (!dealing && Hh.phase === 'bid') {
     panel(BID.panel, 0.88);
     const b = Hh.bid, names = [1, 2, 3, 0].map((p) => `${SEAT_NAMES[p]} ${b.log[p] === null ? '·' : b.log[p] === 0 ? 'Pass' : b.log[p]}`).join('   ');
-    text(humanBid ? (b.high ? `Your bid (higher than ${b.high}), or pass` : 'Your bid: how many tricks will your side take?') : `${SEAT_NAMES[b.turn]} is thinking…`, 360, 972, 22, '#f6dfae', UI, 700);
-    if (humanBid) {
+    const autoReveal = tb.auto && tb.autoPhase === 'reveal';
+    text(humanBid ? (b.high ? `Your bid (higher than ${b.high}), or pass` : 'Your bid: how many tricks will your side take?') : autoReveal ? 'This is the bid - compare it with your own guess.' : `${SEAT_NAMES[b.turn] === 'You' ? 'You are' : SEAT_NAMES[b.turn] + ' is'} thinking…`, 360, 972, 22, '#f6dfae', UI, 700);
+    if (showBidPicker) {
       BID.nums.forEach((r) => button(r, String(r.n), { size: 34, dim: r.n <= b.high, ring: tb.hint && tb.hint.n === r.n ? '#ffe28a' : undefined, primary: tb.hint && tb.hint.n === r.n }));
       button(BID.pass, 'Pass', { size: 30, ring: tb.hint && tb.hint.n === 0 ? '#ffe28a' : undefined });
     } else text(names, 360, 1070, 22, 'rgba(246,223,174,0.9)', UI, 600);
-    if (humanBid) text(names, 360, 1150, 18, 'rgba(246,223,174,0.7)', UI, 500);
+    if (showBidPicker) text(names, 360, 1150, 18, 'rgba(246,223,174,0.7)', UI, 500);
   }
-  if (!dealing && humanTrump) {
+  if (!dealing && showTrumpPicker) {
     panel(BID.panel, 0.9);
-    text(`You won the bid with ${Hh.contract}. Name trump:`, 360, 972, 24, '#f6dfae', UI, 700);
+    text(humanTrump ? `You won the bid with ${Hh.contract}. Name trump:` : `${SEAT_NAMES[Hh.declarer]} won the bid with ${Hh.contract} and names trump:`, 360, 972, 24, '#f6dfae', UI, 700);
     BID.suits.forEach((r) => {
       button(r, '', { primary: tb.hint && tb.hint.s === r.s, ring: tb.hint && tb.hint.s === r.s ? '#ffe28a' : undefined });
       suit(ctx, r.s, r.x + r.w / 2, r.y + 52, 34, r.s === 1 || r.s === 2 ? '#ff8a80' : '#f6efe0');
       text(SUIT_NAMES[r.s], r.x + r.w / 2, r.y + 120, 22, '#f6dfae', UI, 700);
     });
   }
-  if (!dealing && Hh.phase === 'trump' && Hh.declarer !== 0) {
+  if (!dealing && Hh.phase === 'trump' && !showTrumpPicker) {
     pill(360, 1000, 420, 56, 'rgba(0,0,0,0.5)', 'rgba(232,195,119,0.6)');
     text(`${SEAT_NAMES[Hh.declarer]} won the bid with ${Hh.contract} and names trump…`, 360, 1008, 21, '#f6dfae', UI, 600);
   }
 
   // ---- message banner
-  if (tb.msg && !(Hh.phase === 'bid' && !dealing) && !(Hh.phase === 'trump' && humanTrump)) {
+  if (tb.msg && !(Hh.phase === 'bid' && !dealing) && !(Hh.phase === 'trump' && showTrumpPicker)) {
     const a = clamp01(Math.min(tb.msg.t / 0.15, (tb.msg.hold - tb.msg.t) / 0.5));
     if (a > 0) {
       ctx.save(); ctx.globalAlpha = a; const mr = { x: 40, y: 1130, w: 640, h: 86 }; panel(mr, 0.9);
@@ -252,7 +290,6 @@ export function render(ctx, S) {
   // ---- your hand
   const hand = Hh.hands[0], shown = dealing ? dealSeq[0] : hand.length;
   const L = handLayout(hand.length), turnNow = Hh.phase === 'play' && Hh.turn === 0 && !tb.collect && !tb.blocked, legal = turnNow ? legalPlays(Hh, 0) : [];
-  const hintC = tb.hint && tb.hint.c !== undefined ? tb.hint.c : -1;
   for (let i = 0; i < shown; i++) {
     const c = hand[i], r = L[i];
     if (flying(c) && false) continue;
@@ -282,10 +319,18 @@ export function render(ctx, S) {
   }
 
   // ---- bottom rail buttons
-  if (tb.mode === 'play') button(BTN.leave, 'Leave', { size: 26 });
-  else button(BTN.leave, tb.mode === 'lesson' ? 'Lessons' : 'Leave', { size: 26 });
-  button(BTN.undo, 'Undo', { size: 26, dim: !tb.undo.length });
-  button(BTN.hint, tb.hintsLeft < 90 ? `Hint (${tb.hintsLeft})` : 'Hint', { size: 26, dim: tb.hintsLeft <= 0 });
+  if (tb.mode === 'auto') {
+    // The think-time stepper takes the Undo/Hint slots (same rects, no new layout) - neither
+    // undo nor a hint means anything with nobody tapping.
+    button(BTN.leave, 'Exit', { size: 26 });
+    button(BTN.undo, '− Think', { size: 22, dim: S.autoThinkIdx <= 0 });
+    button(BTN.hint, 'Think +', { size: 22, dim: S.autoThinkIdx >= THINK_STEPS.length - 1 });
+  } else {
+    if (tb.mode === 'play') button(BTN.leave, 'Leave', { size: 26 });
+    else button(BTN.leave, tb.mode === 'lesson' ? 'Lessons' : 'Leave', { size: 26 });
+    button(BTN.undo, 'Undo', { size: 26, dim: !tb.undo.length });
+    button(BTN.hint, tb.hintsLeft < 90 ? `Hint (${tb.hintsLeft})` : 'Hint', { size: 26, dim: tb.hintsLeft <= 0 });
+  }
 
   // ---- lesson result buttons
   if (tb.mode === 'lesson' && S.lesson.state === 'done') {
@@ -318,12 +363,13 @@ export function render(ctx, S) {
   }
   if (tb.over && !tb.summary) {
     panel({ x: 40, y: 330, w: 640, h: 620 }, 0.95);
-    const win = tb.over.winner === 0;
-    text(win ? 'You win!' : 'They win', 360, 440, 84, win ? '#fff2cf' : '#f0c0b0');
+    const win = tb.over.winner === 0, auto = tb.mode === 'auto';
+    text(auto ? (win ? 'South & North win!' : 'East & West win!') : win ? 'You win!' : 'They win', 360, 440, 76, win ? '#fff2cf' : '#f0c0b0');
     text(`Final score   Us ${tb.scores[0]}   Them ${tb.scores[1]}`, 360, 510, 30, '#f6e8c8', UI, 700);
     if (tb.over.unlocked) text(`${LEVELS[tb.over.unlocked].name} level unlocked`, 360, 560, 26, '#a8ecc4', UI, 700);
-    wrap(win ? 'You and your partner took the match.' : 'A hard-fought match. Try a lower level or use Hint and Undo.', 360, 610, 26, 520, '#f6e8c8', 34);
-    button(BTN.again, 'Play again', { primary: true, size: 32 }); button(BTN.back, 'Menu', { size: 30 });
+    wrap(auto ? 'A full match, played entirely by the computer.' : win ? 'You and your partner took the match.' : 'A hard-fought match. Try a lower level or use Hint and Undo.', 360, 610, 26, 520, '#f6e8c8', 34);
+    // BTN.next, not a typo: see the comment on this screen's tap handling in game.js pressTable().
+    button(BTN.next, 'Play again', { primary: true, size: 32 }); button(BTN.back, auto ? 'Exit to menu' : 'Menu', { size: 30 });
   }
   if (tb.leaving) {
     panel({ x: 60, y: 520, w: 600, h: 420 }, 0.96);

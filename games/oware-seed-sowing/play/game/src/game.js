@@ -1,7 +1,7 @@
 // Oware: state and flow. Drawing is view.js; the rule book is rules.js; the computer is engine.js; lessons.js and puzzles.js are
 // content. The rule book applies a move to `state.game` at once; `state.anim` then PLAYS it (lift, sow pit by pit, capture)
 // while `state.shown` (the pit counts the player sees) catches up. Input is ignored while an animation runs.
-import { W, H, BTN, SET, titleRows, inRect, pitNear, pitPos, TEXT_SCALES } from './layout.js';
+import { W, H, BTN, SET, titleRows, inRect, pitNear, pitPos, TEXT_SCALES, AP_THINK_STEPS } from './layout.js';
 import { newGame, clone, applyMove, tryMove, legalMoves, sow, sideOf } from './rules.js';
 import { LEVELS, createThinker } from './engine.js';
 import { LESSONS } from './lessons.js';
@@ -13,6 +13,13 @@ import { render } from './view.js';
 export const meta = { width: W, height: H };
 const DEMO_GAMES = 2, HINTS = 3, SEEDSETS = ['nuts', 'cowries', 'glass'], WOODS = ['iroko', 'ebony'];
 const NODES_PER_TICK = 3500;
+// Auto Play: a whole AI-vs-AI teaching game driven by the SAME engine.js thinker used for the real
+// computer opponent, for BOTH seats. Medium (index 1, the same level a new player meets by default)
+// is strong enough to be worth watching and finishes its search in a fraction of a frame, so the
+// THINK pause is genuinely the viewer's own thinking time, not the engine catching up. Its small
+// amount of noise also keeps a watched game varied rather than replaying the same deterministic
+// line every time. REVEAL is a fixed pause distinct from the configurable THINK pause.
+const AP_LEVEL = 1, AP_REVEAL_TIME = 2;
 
 export function createGame(env) {
   const { rng, storage, audio, monetization, config } = env;
@@ -22,23 +29,28 @@ export function createGame(env) {
     stats: { games: 0, wins: 0, badges: {} }, saved: null, learned: false, demoGames: 0, lesson: null, pz: null, ref: null,
     daily: { day: config.day ?? 0, solvedDay: -1, streak: 0 }, dev: config.dev === true, page: 0,
     textScaleIdx: 0, // index into TEXT_SCALES; the About/Rules reference pages' own text size
+    apThinkIdx: 1, // index into AP_THINK_STEPS; the Auto Play THINK-phase pause, default 5s
+    ap: null, // transient Auto Play loop state: { phase: 'think'|'reveal', timer, legal, move }
   };
   state.shown = { pits: state.game.pits.slice(), store: [0, 0] };
-  let thinker = null, hintThinker = null;
+  let thinker = null, hintThinker = null, apThinker = null;
+  const isAutoplay = () => state.scene === 'autoplay' || state.scene === 'autoplay-over';
 
-  storage.get('prefs', null).then((v) => { if (v) { state.level = v.level ?? 1; state.sound = v.sound ?? true; state.calm = v.calm ?? false; state.big = v.big ?? false; state.seeds = v.seeds ?? 'nuts'; state.wood = v.wood ?? 'iroko'; state.textScaleIdx = Math.min(Math.max(v.textScaleIdx ?? 0, 0), TEXT_SCALES.length - 1); audio.setMuted?.(!state.sound); } });
+  storage.get('prefs', null).then((v) => { if (v) { state.level = v.level ?? 1; state.sound = v.sound ?? true; state.calm = v.calm ?? false; state.big = v.big ?? false; state.seeds = v.seeds ?? 'nuts'; state.wood = v.wood ?? 'iroko'; state.textScaleIdx = Math.min(Math.max(v.textScaleIdx ?? 0, 0), TEXT_SCALES.length - 1); state.apThinkIdx = Math.min(Math.max(v.apThinkIdx ?? 1, 0), AP_THINK_STEPS.length - 1); audio.setMuted?.(!state.sound); } });
   storage.get('stats', null).then((v) => { if (v) state.stats = { ...state.stats, ...v, badges: { ...(v.badges || {}) } }; });
   storage.get('learned', false).then((v) => { state.learned = state.learned || !!v; });
   storage.get('daily', null).then((v) => { if (v) { state.daily.solvedDay = v.solvedDay ?? -1; state.daily.streak = v.streak ?? 0; } });
   storage.get('demoGames', 0).then((v) => { state.demoGames = Math.max(state.demoGames, v); });
   storage.get('save', null).then((v) => { if (v && v.game && v.game.winner === null && state.scene === 'title') state.saved = v; });
-  const savePrefs = () => storage.set('prefs', { level: state.level, sound: state.sound, calm: state.calm, big: state.big, seeds: state.seeds, wood: state.wood, textScaleIdx: state.textScaleIdx });
+  const savePrefs = () => storage.set('prefs', { level: state.level, sound: state.sound, calm: state.calm, big: state.big, seeds: state.seeds, wood: state.wood, textScaleIdx: state.textScaleIdx, apThinkIdx: state.apThinkIdx });
   const saveGame = () => { if (state.scene === 'play' && state.game.winner === null) { state.saved = { game: clone(state.game), two: state.two, level: state.level, hintsLeft: state.hintsLeft }; storage.set('save', state.saved); } };
   const clearSave = () => { state.saved = null; storage.remove('save'); };
   const saveStats = () => { storage.set('stats', state.stats); storage.set('progress', { played: state.stats.games, wins: state.stats.wins }); };
 
   const say = (text, hold = 4.5) => { state.msg = { text, t: 0, hold }; };
-  const tone = (o) => { if (state.sound) audio.tone(o); };
+  // Auto Play is silent by design regardless of the player's own sound setting (same principle as
+  // the menu's attract-mode preview) - never surprise a viewer with sound from a demo.
+  const tone = (o) => { if (state.sound && !isAutoplay()) audio.tone(o); };
   const clack = (f = 420) => tone({ freq: f, to: f * 0.5, dur: 0.05, type: 'sine', vol: 0.1 });
   // a seed dropped into a pit: pitch climbs a little along the sowing, so a long run sounds like a run
   const seedTick = (n) => tone({ freq: 300 + n * 26, to: 180 + n * 12, dur: 0.045, type: 'triangle', vol: 0.09 });
@@ -68,6 +80,56 @@ export function createGame(env) {
     const p = puzzleFor(state.daily.day);
     reset({ scene: 'puzzle', game: puzzleGame(p), two: true, pz: { puzzle: p, status: state.daily.solvedDay === state.daily.day ? 'solved' : 'ready', tries: 0, wrong: 0 } });
     if (state.pz.status === 'ready') say(p.hard ? 'Weekend puzzle. TAP the one pit that captures the most seeds.' : 'TAP the one pit that captures the most seeds.');
+  }
+
+  // ---- Auto Play: a whole AI-vs-AI teaching game, free, silent, never touches real save/stats ----
+  // Every decision point loops THINK (board sits still, viewer's own time to guess) -> REVEAL (the
+  // legal options glow, the move about to be played glows distinctly) -> ACT (the real applyMove/
+  // animation path - the same one a normal turn uses). Both seats are driven by engine.js.
+  function startAutoPlay() {
+    reset({ scene: 'autoplay', game: newGame(), two: true });
+    state.ap = { phase: 'think', timer: 0, legal: [], move: null };
+    apThinker = null;
+  }
+  function apAfterMove(r) {
+    const g = state.game, who = r.player === 0 ? 'Bottom seat' : 'Top seat';
+    const t = describe(r, who);
+    if (t) say(t, 3.5);
+    if (g.winner !== null) { apFinish(); return; }
+    state.ap = { phase: 'think', timer: 0, legal: [], move: null };
+    apThinker = null; state.hint = null;
+  }
+  function apFinish() { apThinker = null; state.scene = 'autoplay-over'; }
+  function updateAutoPlay(dt, tap) {
+    if (tap && inRect(BTN.apExit, tap.x, tap.y)) { apThinker = null; state.scene = 'title'; return; }
+    if (tap && inRect(BTN.apDec, tap.x, tap.y) && state.apThinkIdx > 0) { state.apThinkIdx--; savePrefs(); clack(); }
+    else if (tap && inRect(BTN.apInc, tap.x, tap.y) && state.apThinkIdx < AP_THINK_STEPS.length - 1) { state.apThinkIdx++; savePrefs(); clack(); }
+    if (state.anim) { const rr = state.anim.r; if (stepAnim(dt)) apAfterMove(rr); return; }
+    const g = state.game, AP = state.ap;
+    if (!AP || g.winner !== null) return;
+    if (AP.phase === 'think') {
+      AP.timer += dt;
+      if (!apThinker) apThinker = createThinker(g, AP_LEVEL, rng);
+      if (AP.move === null) {
+        const n0 = apThinker.nodes();
+        for (;;) {
+          const r = apThinker.step();
+          if (r.move !== undefined) { AP.move = r.move; break; }
+          if (apThinker.nodes() - n0 >= NODES_PER_TICK) break;
+        }
+      }
+      if (AP.move !== null && AP.timer >= AP_THINK_STEPS[state.apThinkIdx]) {
+        if (AP.move < 0) { apFinish(); return; } // no legal move: settle() should already have ended the game
+        AP.phase = 'reveal'; AP.timer = 0; AP.legal = legalMoves(g);
+        state.hint = { pit: AP.move, t: 0 };
+      }
+    } else if (AP.phase === 'reveal') {
+      AP.timer += dt;
+      if (AP.timer >= AP_REVEAL_TIME) {
+        const mv = AP.move; AP.phase = 'act'; AP.timer = 0; AP.move = null; state.hint = null;
+        play(mv);
+      }
+    }
   }
 
   // Start playing a move: the rule book changes the game now; the animation shows it.
@@ -138,6 +200,7 @@ export function createGame(env) {
     else if (hit(R.play)) start(false);
     else if (hit(R.two)) start(true);
     else if (hit(R.daily)) startPuzzle();
+    else if (hit(R.autoplay)) startAutoPlay();
     else if (hit(R.about)) { state.scene = 'about'; state.page = 0; }
     else if (hit(R.settings)) state.scene = 'settings';
     else if (hit(R.rules)) { state.scene = 'rules'; state.page = 0; }
@@ -260,6 +323,8 @@ export function createGame(env) {
     if (sc === 'settings') { if (k.has('Escape')) return at(SET.back); return null; }
     if (sc === 'about') { if (k.has('Escape')) return at(BTN.aboutBack); if (k.has('Enter') || k.has('Space')) return at(BTN.aboutNext); return null; }
     if (sc === 'rules') { if (k.has('Escape')) return at(BTN.rulesBack); if (k.has('Enter') || k.has('Space')) return at(BTN.rulesNext); return null; }
+    if (sc === 'autoplay') { if (k.has('Escape')) return at(BTN.apExit); return null; }
+    if (sc === 'autoplay-over') { if (k.has('Enter') || k.has('Space')) return at(BTN.again); if (k.has('Escape')) return at(BTN.back); return null; }
     if (sc !== 'play' && sc !== 'lesson' && sc !== 'puzzle') return null;
     if (k.has('Escape')) return at(BTN.menu);
     if (k.has('KeyU')) return at(BTN.undo);
@@ -284,24 +349,40 @@ export function createGame(env) {
         if (tap && inRect(BTN.textDec, tap.x, tap.y) && state.textScaleIdx > 0) { state.textScaleIdx--; savePrefs(); clack(); }
         else if (tap && inRect(BTN.textInc, tap.x, tap.y) && state.textScaleIdx < TEXT_SCALES.length - 1) { state.textScaleIdx++; savePrefs(); clack(); }
         else if (tap && inRect(BTN.aboutBack, tap.x, tap.y)) state.scene = 'title';
-        else if (tap && inRect(BTN.aboutNext, tap.x, tap.y)) state.page = (state.page + 1) % ABOUT.pages.length;
+        // Next reads "Done" on the last page (see view.js) and exits to the title instead of
+        // silently wrapping back to page one, so it's never a dead-end tap.
+        else if (tap && inRect(BTN.aboutNext, tap.x, tap.y)) {
+          if (state.page === ABOUT.pages.length - 1) state.scene = 'title';
+          else state.page += 1;
+        }
       }
       else if (sc === 'rules') {
         if (tap && inRect(BTN.textDec, tap.x, tap.y) && state.textScaleIdx > 0) { state.textScaleIdx--; savePrefs(); clack(); }
         else if (tap && inRect(BTN.textInc, tap.x, tap.y) && state.textScaleIdx < TEXT_SCALES.length - 1) { state.textScaleIdx++; savePrefs(); clack(); }
         else if (tap && inRect(BTN.rulesBack, tap.x, tap.y)) state.scene = 'title';
-        else if (tap && inRect(BTN.rulesNext, tap.x, tap.y)) state.page = (state.page + 1) % RULES.length;
+        else if (tap && inRect(BTN.rulesNext, tap.x, tap.y)) {
+          if (state.page === RULES.length - 1) state.scene = 'title';
+          else state.page += 1;
+        }
       }
       else if (sc === 'play') updatePlay(dt, tap);
       else if (sc === 'lesson') updateLesson(dt, tap);
       else if (sc === 'puzzle') updatePuzzle(dt, tap);
+      else if (sc === 'autoplay') updateAutoPlay(dt, tap);
       else if (sc === 'over' && tap) {
         if (inRect(BTN.again, tap.x, tap.y)) start(state.two);
+        else if (inRect(BTN.back, tap.x, tap.y)) state.scene = 'title';
+      }
+      else if (sc === 'autoplay-over' && tap) {
+        if (inRect(BTN.again, tap.x, tap.y)) startAutoPlay();
         else if (inRect(BTN.back, tap.x, tap.y)) state.scene = 'title';
       }
     },
     render(ctx) { render(ctx, state); },
     getState: () => state,
+    // Auto Play is a free teaching demo, not real play: exempt from the kit's whole-app
+    // free-preview timer the same way the menu's own attract-mode preview would be.
+    isPreviewExempt: () => isAutoplay(),
   };
 }
 export { isWeekend, sideOf };

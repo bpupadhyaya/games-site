@@ -1,5 +1,5 @@
 // Everything drawn each frame. Reads `state` (game.js) and changes nothing. Board, table and pieces are cached sprites (art.js).
-import { W, H, K, CX, CY, PLAY, sx, sy, BX, BY, METER, PLAYB, MENU, OVER, LESSONB, PAGE, PAGE_TEXT, TEXT_SCALES, BACK, titleButtons, settingRows, lessonRows } from './layout.js';
+import { W, H, K, CX, CY, PLAY, sx, sy, BX, BY, METER, PLAYB, MENU, OVER, LESSONB, PAGE, PAGE_TEXT, TEXT_SCALES, BACK, titleButtons, settingRows, lessonRows, AUTO_THINK_STEPS, AUTO_BAR, AUTO_DEC, AUTO_INC } from './layout.js';
 import { drawTable, drawBoardOnly, drawPiece, THEMES, THEME_KEYS } from './art.js';
 import { S, R_COIN, R_STR, BASE_Y, BASE_X0, BASE_X1, POCKETS, trace, striker as findStriker } from './physics.js';
 import { down, onBoard, SIDE_NAME } from './rules.js';
@@ -44,6 +44,15 @@ function draw(ctx, state) {
   };
   const panel = (x, y, w, h, a = 0.8) => { ctx.fillStyle = `rgba(22,11,5,${a})`; ctx.beginPath(); ctx.roundRect(x, y, w, h, 26); ctx.fill(); ctx.strokeStyle = 'rgba(255,214,150,0.35)'; ctx.lineWidth = 2; ctx.stroke(); };
   const coinAt = (k, px, py, s = 1, lift = 0, alpha = 1) => drawPiece(ctx, k, px, py, s, lift, alpha);
+  // Auto Play's status strip: the ~90px gap above the player cards (which start at y:92) is otherwise
+  // empty during a board scene, so the phase word + the configurable think-time stepper live there.
+  const drawAutoBar = (st, A) => {
+    const r = AUTO_BAR; panel(r.x, r.y, r.w, r.h, 0.72);
+    const label = A.paused ? 'Paused' : A.sub === 'think' ? 'Thinking...' : A.sub === 'reveal' ? 'Revealing the shot...' : st.phase === 'over' ? 'Board complete' : '';
+    text(label, r.x + 20, r.y + r.h / 2 + 8, 24, A.paused ? '#ffd08a' : GOLD, 'left', 700);
+    text(`Think ${AUTO_THINK_STEPS[st.autoThinkIdx]}s`, AUTO_DEC.x - 16, r.y + r.h / 2 + 8, 20, CREAM, 'right', 600);
+    button(AUTO_DEC, '-', { size: 24, noscale: true }); button(AUTO_INC, '+', { size: 24, noscale: true });
+  };
 
   // pieces of a world, with a pulse for pieces that just moved
   const drawWorld = (world, opts = {}) => {
@@ -74,7 +83,9 @@ function draw(ctx, state) {
     button(B.learn, 'Learn to play', { sub: Object.keys(state.learned).length ? `${Object.keys(state.learned).length} of ${LESSONS.length} lessons done` : 'New here? Start with lesson one', tone: Object.keys(state.learned).length ? undefined : '#8e5a2a' });
     button(B.daily, 'Daily trick shot', { sub: state.daily.solvedDay === state.daily.day ? 'Solved today. Streak ' + state.daily.streak : state.daily.puzzle ? 'A new shot is ready' : 'Setting up today’s shot' });
     button(B.level, 'Computer level: ' + lv, { size: 28 });
-    button(B.howto, 'How to play', { size: 18 }); button(B.about, 'About', { size: 18 }); button(B.rules, 'Game Rules', { size: 18 }); button(B.settings, 'Settings', { size: 18 });
+    // Five columns now (Auto Play is the addition) — labels shrunk a step to keep each fitting its
+    // narrower column.
+    button(B.howto, 'How to play', { size: 14 }); button(B.about, 'About', { size: 14 }); button(B.rules, 'Game Rules', { size: 14 }); button(B.settings, 'Settings', { size: 14 }); button(B.auto, 'Auto', { size: 14 });
     if (state.dev) text('dev', 40, 40, 20, '#9f9', 'left');
     return;
   }
@@ -95,6 +106,16 @@ function draw(ctx, state) {
     button(PAGE_TEXT.dec, 'A−', { dim: state.textScaleIdx === 0, size: 34, noscale: true });
     button(PAGE_TEXT.inc, 'A+', { dim: state.textScaleIdx === TEXT_SCALES.length - 1, size: 34, noscale: true });
   };
+  // Shared Back/Next/Done row for every reference page (About/Controls/Game Rules). Exactly one
+  // button is ever the bright primary pill — Next while there is more to read, or Done once Next
+  // is dimmed at the end of a clamped list — so the page never has two equally loud calls to
+  // action fighting for attention. Game Rules wraps (by design, see game.js/test) so its Next never
+  // dims and Done never takes the primary spot; About/Controls clamp at the last page instead.
+  const navRow = (atStart, atEnd) => {
+    button(PAGE.prev, 'Back', { dim: atStart, size: 28 });
+    button(PAGE.next, 'Next', { dim: atEnd, primary: !atEnd, size: 28 });
+    button(PAGE.back, 'Done', { primary: atEnd, size: 28 });
+  };
   if (sc === 'howto' || sc === 'about') {
     backdrop();
     // Both screens are several single-concept pages (About; How to play's Controls then a short
@@ -110,7 +131,10 @@ function draw(ctx, state) {
     readerPanel();
     let y = 268;
     for (const item of cur.items) {
-      if (item.h) { text(item.h, 76, y, 34 * ts, GOLD, 'left', 700); y += 46 * ts; continue; }
+      // item headers wrap the same way body copy does — at the top text-size step a heading a few
+      // words long (e.g. "Where it is played") no longer fits one line, so it must break rather
+      // than run off the panel.
+      if (item.h) { const hlh = 34 * ts * 1.18; const n = wrap(item.h, 76, y, 34 * ts, 570, GOLD, hlh, 'left', 700); y += n * hlh + 12; continue; }
       const n = wrap(item.t, 76, y, 29 * ts, 570, CREAM, 41 * ts, 'left'); y += n * 41 * ts + 16;
     }
     if (sc === 'howto' && cur.illustration && y + 260 < 1390) {
@@ -124,7 +148,7 @@ function draw(ctx, state) {
       ctx.fillStyle = CREAM; for (const d of [-1, 1]) { ctx.beginPath(); ctx.moveTo(300 + d * 62, oy + 110); ctx.lineTo(300 + d * 46, oy + 100); ctx.lineTo(300 + d * 46, oy + 120); ctx.fill(); }
       text('1  slide', 200, oy - 32, 24, GOLD, 'center', 700); text('2  drag back', 170, oy + 168, 24, GOLD, 'center', 700); text('3  release', 540, oy + 74, 24, GOLD, 'center', 700); ctx.restore();
     }
-    button(PAGE.prev, 'Back', { dim: state.page === 0, size: 28 }); button(PAGE.next, 'Next', { dim: state.page === list.length - 1, size: 28 }); button(PAGE.back, 'Done', { primary: true, size: 28 });
+    navRow(state.page === 0, state.page === list.length - 1);
     text(`Page ${state.page + 1} of ${list.length}`, CX, 1420, 24, 'rgba(255,243,214,0.7)');
     return;
   }
@@ -136,13 +160,19 @@ function draw(ctx, state) {
     shadowText('Game Rules', CX, 148, 44 * Math.min(ts, 1.1), GOLD);
     textStepper();
     readerPanel();
-    text(page.title, CX, 256, 40 * Math.min(ts, 1.2), GOLD, 'center', 700);
-    let y = 306;
+    // Page title wraps too (capped size, but a longer title like "Aiming and flicking" can still
+    // need two lines at the top text-size step) — the body text below starts after however many
+    // lines it took.
+    const tsz = 40 * Math.min(ts, 1.2), tlh = tsz * 1.15, tlines = wrap(page.title, CX, 256, tsz, 570, GOLD, tlh, 'center', 700);
+    let y = 256 + tlines * tlh + (tlines > 1 ? 20 : 50);
     if (page.pieces) {
       const ay = 384, names = { W: 'White', B: 'Black', Q: 'Queen', S: 'Striker' };
+      // The gap below the portrait(s) has to grow with the text-size stepper too — a bigger first
+      // line of body text has taller ascenders, which at the old fixed gap collided with the piece
+      // art (single portrait) or the name label under it (two portraits) at the top text-size step.
       if (page.pieces.length === 1) {
         const k = page.pieces[0], base = (k === 'S' ? R_STR : R_COIN) * K, R = 58;
-        coinAt(k, CX, ay, R / base, 0); y = ay + R + 40;
+        coinAt(k, CX, ay, R / base, 0); y = ay + R + Math.max(40, 26 * ts);
       } else {
         const dx = 108, R = 46;
         page.pieces.forEach((k, i) => {
@@ -150,20 +180,32 @@ function draw(ctx, state) {
           coinAt(k, px, ay, R / base, 0);
           text(names[k] ?? '', px, ay + R + 32, 20, 'rgba(255,240,205,0.72)', 'center', 600);
         });
-        y = ay + R + 78;
+        y = ay + R + Math.max(78, 40 + 26 * ts);
       }
     }
     for (const line of page.lines) { const n = wrap(line, 76, y, 29 * ts, 570, CREAM, 41 * ts, 'left'); y += n * 41 * ts + 16; }
     text(`Page ${(state.page % list.length) + 1} of ${list.length}`, CX, 1420, 24, 'rgba(255,243,214,0.7)');
-    button(PAGE.prev, 'Back', { size: 28 }); button(PAGE.next, 'Next', { size: 28 }); button(PAGE.back, 'Done', { primary: true, size: 28 });
+    // Game Rules wraps around (see game.js and the test's own comment) rather than clamping, so
+    // Back/Next are never dimmed here — Next stays the one primary pill throughout.
+    navRow(false, false);
     return;
   }
   if (sc === 'settings') {
     backdrop(); shadowText('Settings', CX, 150, 76, GOLD); const rows = settingRows();
     // "Text size" also has its own -A/+A stepper right on the About/Controls/Rules pages themselves
     // (where a player is actually reading); this row is a shortcut to the same state.textScaleIdx.
-    const items = [['Sound', state.sound ? 'On' : 'Off'], ['Reduced motion', state.calm ? 'On' : 'Off'], ['Text size', ['Normal', 'Larger', 'Largest'][state.textScaleIdx] ?? 'Normal'], ['Left-handed layout', state.left ? 'On' : 'Off'], ['Board', THEMES[state.theme].name], ['Aim guide', state.guide === 2 ? 'Long' : state.guide === 1 ? 'Short' : 'Off'], ['Restore purchases', '']];
-    items.forEach((it, i) => { const r = rows[i]; button(r, '', { size: 32 }); text(it[0], r.x + 40, r.y + r.h / 2 + 11, 32, CREAM, 'left', 700); const on = it[1] === 'On' || it[1] === 'Long' || it[1] === 'Larger' || it[1] === 'Largest'; text(it[1], r.x + r.w - 40, r.y + r.h / 2 + 11, 32, on ? '#b6f28a' : GOLD, 'right', 700); });
+    // Shown as a percentage (matches TEXT_SCALES exactly) rather than a fixed word list, so it can
+    // never fall out of sync if TEXT_SCALES ever gains or loses steps.
+    const items = [
+      ['Sound', state.sound ? 'On' : 'Off', state.sound],
+      ['Reduced motion', state.calm ? 'On' : 'Off', state.calm],
+      ['Text size', Math.round((TEXT_SCALES[state.textScaleIdx] ?? 1) * 100) + '%', state.textScaleIdx > 0],
+      ['Left-handed layout', state.left ? 'On' : 'Off', state.left],
+      ['Board', THEMES[state.theme].name, false],
+      ['Aim guide', state.guide === 2 ? 'Long' : state.guide === 1 ? 'Short' : 'Off', state.guide === 2],
+      ['Restore purchases', '', false],
+    ];
+    items.forEach((it, i) => { const r = rows[i]; button(r, '', { size: 32 }); text(it[0], r.x + 40, r.y + r.h / 2 + 11, 32, CREAM, 'left', 700); text(it[1], r.x + r.w - 40, r.y + r.h / 2 + 11, 32, it[2] ? '#b6f28a' : GOLD, 'right', 700); });
     text('Tap a row to change it.', CX, 1200, 26, 'rgba(255,243,214,0.7)');
     button(PAGE.back, 'Done', { primary: true, size: 30 }); return;
   }
@@ -294,6 +336,13 @@ function draw(ctx, state) {
     else button(at(pb.hint), 'Hint', { size: 28, dim: phase !== 'aim' || state.hintBusy });
     const ready = !!state.aim && phase === 'aim' && !state.drag && !state.blocked;
     button(at(pb.flick), 'Flick', { primary: ready, size: 30, dim: !ready });
+  } else if (sc === 'auto' && state.auto) {
+    // Menu/Hint/Flick have no meaning in a spectator run — the same three slots become Exit/Pause/Skip.
+    const pb = PLAYB, mirror = state.left, at = (r) => (mirror ? { ...r, x: W - r.x - r.w } : r), A = state.auto, ended = phase === 'over';
+    button(at(pb.menu), 'Exit', { size: 28 });
+    if (!ended) button(at(pb.hint), A.paused ? 'Resume' : 'Pause', { size: 28 });
+    if (!ended) button(at(pb.flick), 'Skip', { size: 28, dim: A.sub !== 'think' && A.sub !== 'reveal' });
+    drawAutoBar(state, A);
   }
 
   // ---- overlays
@@ -301,15 +350,15 @@ function draw(ctx, state) {
     ctx.fillStyle = 'rgba(6,2,0,0.72)'; ctx.fillRect(0, 0, W, H); shadowText('Paused', CX, 500, 70, GOLD);
     button(MENU.resume, 'Resume', { primary: true, size: 34 }); button(MENU.restart, sc === 'play' ? 'New board' : 'Restart', { size: 34 }); button(MENU.settings, 'Settings', { size: 34 }); button(MENU.quit, 'Leave', { size: 34 });
   }
-  if (sc === 'play' && g.over && state.phase === 'over') {
+  if ((sc === 'play' || sc === 'auto') && g.over && state.phase === 'over') {
     ctx.fillStyle = 'rgba(6,2,0,0.66)'; ctx.fillRect(0, 0, W, H);
     const o = g.over, two = state.mode === 'two', win = o.winner === 'W' && !two;
     const title = o.winner === 'draw' ? 'A draw' : two ? `${o.winner === 'W' ? 'Player 1' : 'Player 2'} wins` : win ? 'You win!' : 'The computer wins';
     panel(60, 560, 600, 400, 0.9); shadowText(title, CX, 660, 68, GOLD);
     text(o.winner === 'draw' ? 'Equal coins when the board stalled.' : `${o.points} point${o.points === 1 ? '' : 's'} this board`, CX, 730, 34, CREAM, 'center', 600);
     text(o.winner === 'draw' ? '' : o.reason === 'stalled' ? 'More coins pocketed when the board stalled.' : `${SIDE_NAME[o.winner]} pocketed every coin` + (g.queen.state === o.winner ? ' and covered the queen (+3).' : '.'), CX, 780, 24, 'rgba(255,243,214,0.8)', 'center', 500);
-    text(`Boards played ${state.stats.played}  ·  won ${state.stats.wins}`, CX, 850, 26, 'rgba(255,243,214,0.7)', 'center', 500);
-    button(OVER.again, 'Play again', { primary: true, size: 36 }); button(OVER.menu, 'Menu', { size: 32 });
+    if (sc === 'play') text(`Boards played ${state.stats.played}  ·  won ${state.stats.wins}`, CX, 850, 26, 'rgba(255,243,214,0.7)', 'center', 500);
+    button(OVER.again, 'Play again', { primary: true, size: 36 }); button(OVER.menu, sc === 'auto' ? 'Exit' : 'Menu', { size: 32 });
     if (win && !state.calm) for (let i = 0; i < 26; i++) { const a = i * 2.4 + t * 0.6, r = 260 + (i % 5) * 30, x = CX + Math.cos(a) * r, y = 480 + Math.sin(a * 1.3 + t) * 60 + ((t * 60 + i * 37) % 220); coinAt(i % 3 === 0 ? 'Q' : i % 2 ? 'W' : 'B', x, y, 0.8, 0, 0.9); }
   }
   if ((sc === 'lesson') && state.lesson.done) {

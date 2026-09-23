@@ -85,19 +85,39 @@ export const BTN = {
 const bw4 = (W - 24 * 2 - 16 * 3) / 4;
 function barButton4(i) { return { x: 24 + i * (bw4 + 16), y: barY + 8, w: bw4, h: bh2 }; }
 export const BTN4 = { menu: barButton4(0), flip: barButton4(1), hint: barButton4(2), next: barButton4(3) };
+// Think-time stepper (-/+) for the AI-vs-AI demo scene, in the control-bar band that scene
+// otherwise leaves empty (no move/undo/hint/resign buttons apply there). Index into THINK_STEPS,
+// never a raw float, so it can disable cleanly at either end, same pattern as TEXT_SCALES.
+export const THINK_STEPS = [2, 5, 8, 10];
+export const DEMO_THINK = {
+  dec: { x: 24, y: barY + 8, w: 160, h: bh2 },
+  inc: { x: W - 184, y: barY + 8, w: 160, h: bh2 },
+};
+// HEADER.back/next: the top-left/top-right pair used ONLY by the title screen's sound toggle and
+// the demo scene's Exit/Speed row (two buttons, never crowded). The About/Controls/Rules reference
+// pages (renderPage) use their OWN REF_BACK/REF_NEXT + TEXT_DEC/TEXT_INC below instead — previously
+// all four of these lived in this one top row (`y: 14`), cramming Back, Next, A- and A+ together
+// right under the canvas edge. That pattern is gone: the text-size stepper is now two small pills
+// in the top corners only, and Back/Next is an equal-width pill pair anchored near the bottom,
+// clear of the reader-card panel, matching the pattern used across every other game.
 export const HEADER = {
   back: { x: 14, y: 14, w: 100, h: 60 },
   next: { x: W - 114, y: 14, w: 100, h: 60 },
   sound: { x: W - 114, y: 14, w: 100, h: 60 },
-  // Text-size stepper on the About/Controls/Rules reference pages (renderPage) — centred between
-  // Back and Next, same height, so it reads as one header row.
-  textDec: { x: W / 2 - 110, y: 14, w: 100, h: 60 },
-  textInc: { x: W / 2 + 10, y: 14, w: 100, h: 60 },
 };
+// Text-size stepper (A-/A+) for the About/Controls/Rules reference pages: two small pills in the
+// top corners only, well clear of the "About"/"Controls"/"Rules" heading below them.
+export const TEXT_DEC = { x: 20, y: 18, w: 120, h: 60 };
+export const TEXT_INC = { x: W - 140, y: 18, w: 120, h: 60 };
+// Reference-page nav: an equal-width Back/Next pill pair anchored near the bottom of the canvas,
+// clear of the reader-card panel above it. Back reads as the neutral/secondary action, Next as the
+// primary action (drawButton's own accent style).
+export const REF_BACK = { x: 20, y: 1164, w: 332, h: 100 };
+export const REF_NEXT = { x: 368, y: 1164, w: 332, h: 100 };
 // Text-size steps for the reference pages (About/Controls/Rules). Index into this, never a raw
 // float, so "min"/"max" are exact and the stepper can cleanly disable at either end. Every page's
 // content is paced (content.js) to fit comfortably even at the top step.
-export const TEXT_SCALES = [1, 1.15, 1.3];
+export const TEXT_SCALES = [1, 1.5, 2, 2.5, 3];
 export const RESULT_PANEL = {
   again: { x: W / 2 - 270, y: 860, w: 250, h: 84 },
   menu: { x: W / 2 + 20, y: 860, w: 250, h: 84 },

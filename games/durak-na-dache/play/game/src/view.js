@@ -1,5 +1,5 @@
 // All drawing. Pure function of state; no input handling here (that's game.js).
-import { W, H, CARD, TOP, seatSpot, STOCK, TRUMP, DISCARD, pairSpot, TRANSFER_SLOT, TABLE_ZONE, BAR, actionRect, ACTIONS, HAND_Y, handSlot, SETUP, MENU_BTN, BACK, NEXT, SETTINGS_ROWS, SETTINGS_ROW, HEADER, TEXT_SCALES } from './layout.js';
+import { W, H, CARD, TOP, seatSpot, STOCK, TRUMP, DISCARD, pairSpot, TRANSFER_SLOT, TABLE_ZONE, BAR, actionRect, ACTIONS, HAND_Y, handSlot, SETUP, MENU_BTN, BACK, REF_BACK, REF_NEXT, SETTINGS_ROWS, SETTINGS_ROW, HEADER, TEXT_SCALES, AUTO_THINK_STEPS, AUTO_BAR, AUTO_DEC, AUTO_INC, autoActionRect } from './layout.js';
 import { drawScene, drawFace, drawBack, lacquer, panel, plaque, rr, txt, drawSuit, suitColor, khokhloma, GOLD, CREAM, INK } from './art.js';
 import { suitOf, rankOf, cardName, RANK_LABELS, SUIT_NAMES } from './rules.js';
 import { LEVELS } from './ai.js';
@@ -108,7 +108,13 @@ function drawSetup(ctx, state) {
   lacquer(ctx, SETUP.modes[0], { kind: state.setup.mode === 'pod' ? 'gold' : 'wood', label: 'Podkidnoy', sub: 'throw-in' });
   lacquer(ctx, SETUP.modes[1], { kind: state.setup.mode === 'per' ? 'gold' : 'wood', label: 'Perevodnoy', sub: 'transfer' });
   txt(ctx, 'Computer strength', W / 2, 660, { size: 26, color: CREAM, weight: 700 });
-  LEVELS.forEach((L, i) => { const r = SETUP.levels[i]; lacquer(ctx, r, { kind: state.setup.level === L.id ? 'gold' : 'wood', label: `${L.id} · ${L.name}`, size: 24 }); });
+  // Pre-existing bug fixed here (found via CDP screenshot while verifying Auto Play left normal
+  // play unaffected, not assumed): this passed the whole `{v, r}` setup-level descriptor to
+  // lacquer() instead of its `.r` rect, so every field inside was `undefined` and `lacquer()`
+  // crashed at its first `createLinearGradient(..., NaN, ...)` call — silently aborting the rest of
+  // `drawSetup()` (Computer strength, the blurb panel, and the Start button never rendered, so a new
+  // match could never actually be started from this screen).
+  LEVELS.forEach((L, i) => { const r = SETUP.levels[i].r; lacquer(ctx, r, { kind: state.setup.level === L.id ? 'gold' : 'wood', label: `${L.id} · ${L.name}`, size: 24 }); });
   panel(ctx, 40, 1176, W - 80, 96, {});
   const L = LEVELS[state.setup.level - 1];
   txt(ctx, L.blurb, W / 2, 1224, { size: 18, color: CREAM, weight: 500 });
@@ -125,8 +131,8 @@ function drawTitle(ctx, state) {
   const rot = state.calm ? -0.08 : -0.1 + Math.sin(state.t * 0.8) * 0.03;
   drawCard(ctx, { id: 15 }, W / 2 - 58, 610 + bob * 0.6, { scale: 0.8, rot: rot - 0.12, four: state.four });
   drawCard(ctx, { id: 8 }, W / 2 + 50, 612 + bob * 0.6, { scale: 0.8, rot: -rot + 0.1, four: state.four });
-  const items = state.saved ? ['Continue', 'New Game', 'Learn', 'Daily Deal', 'About', 'Settings', 'Rules'] : ['New Game', 'Learn', 'Daily Deal', 'About', 'Settings', 'Rules'];
-  items.forEach((label, i) => lacquer(ctx, MENU_BTN(i), { kind: i === 0 && state.saved ? 'gold' : 'wood', label, size: 32 }));
+  const items = state.saved ? ['Continue', 'New Game', 'Learn', 'Daily Deal', 'About', 'Settings', 'Rules', 'Auto Play'] : ['New Game', 'Learn', 'Daily Deal', 'About', 'Settings', 'Rules', 'Auto Play'];
+  items.forEach((label, i) => lacquer(ctx, MENU_BTN(i), { kind: i === 0 && state.saved ? 'gold' : 'wood', label, size: 30 }));
   lacquer(ctx, TOP.sound, { label: state.sound ? '♪' : '×' });
   const statsY = MENU_BTN(items.length).y + 22;
   panel(ctx, 26, statsY, 300, 74, {});
@@ -138,6 +144,7 @@ function drawTitle(ctx, state) {
 
 export function drawPlay(ctx, state) {
   const g = state.game, o = { four: state.four, big: state.big, backTheme: state.back, names: state.names, thinking: state.thinking, t: state.t };
+  const isAuto = state.scene === 'auto';
   drawScene(ctx, state.t, { calm: state.calm });
   drawTopBar(ctx, state);
   drawStockAndTrump(ctx, g, o);
@@ -145,13 +152,36 @@ export function drawPlay(ctx, state) {
   drawTableCards(ctx, g, state.t, { ...o, beatable: state.beatSlots });
   if (g.mode === 'per' && state.canXfer) { const s = TRANSFER_SLOT(g.table.length); ctx.save(); ctx.globalAlpha = 0.55 + 0.25 * Math.sin(state.t * 5); rr(ctx, s.x - s.w / 2, s.y - s.h / 2, s.w, s.h, 14); ctx.strokeStyle = '#8ee08e'; ctx.lineWidth = 4; ctx.setLineDash([10, 8]); ctx.stroke(); ctx.setLineDash([]); ctx.restore(); }
   if (state.pickup) drawPickupFx(ctx, state.pickup, o);
-  ACTIONS.forEach((k) => actionBtn(ctx, k, { enabled: state.actionEnabled, font: 'en' }));
+  if (isAuto) drawAutoActions(ctx, state);
+  else ACTIONS.forEach((k) => actionBtn(ctx, k, { enabled: state.actionEnabled, font: 'en' }));
   if (state.seenOpen) drawSeenPanel(ctx, state);
   drawHand(ctx, g.hands[0], { ...o, sel: state.sel, legal: state.legalCards, drag: state.drag });
   if (state.drag) { const s = state.drag; drawCard(ctx, { id: s.c }, s.x, s.y, { scale: 1.12, four: state.four, lift: true, glow: '#ffe27a' }); }
   if (state.hint) drawHintBanner(ctx, state);
+  if (isAuto && !g.over) drawAutoBar(ctx, state);
   if (g.over) drawResult(ctx, state);
   panel(ctx, 26, BAR.y - 8, 0, 0, {});
+}
+export const drawAutoPlay = drawPlay;
+
+// Auto Play's bottom row: Take/Bito/Hint/Undo/Seen have no meaning in a spectator run, so the same
+// action-bar row becomes three wider Exit/Pause/Skip buttons.
+function drawAutoActions(ctx, state) {
+  const A = state.auto;
+  lacquer(ctx, autoActionRect('exit'), { label: 'Exit', size: 24 });
+  lacquer(ctx, autoActionRect('pause'), { label: A && A.paused ? 'Resume' : 'Pause', size: 24 });
+  lacquer(ctx, autoActionRect('skip'), { label: 'Skip', size: 24 });
+}
+// Auto Play's status strip: the ~60px gap between the top bar and the opponent seats is otherwise
+// empty during a board scene, so the phase word + the configurable think-time stepper live there.
+function drawAutoBar(ctx, state) {
+  const A = state.auto; if (!A) return;
+  panel(ctx, AUTO_BAR.x, AUTO_BAR.y, AUTO_BAR.w, AUTO_BAR.h, {});
+  const label = A.paused ? 'Paused' : A.sub === 'think' ? 'Thinking...' : 'Revealing...';
+  txt(ctx, label, AUTO_BAR.x + 120, AUTO_BAR.y + AUTO_BAR.h / 2 + 7, { size: 20, color: A.paused ? GOLD : '#8ee0ff', weight: 700, align: 'left' });
+  txt(ctx, `Think ${AUTO_THINK_STEPS[state.autoThinkIdx]}s`, W / 2, AUTO_BAR.y + AUTO_BAR.h / 2 + 6, { size: 19, color: CREAM, weight: 600 });
+  lacquer(ctx, AUTO_DEC, { label: '−', size: 24 });
+  lacquer(ctx, AUTO_INC, { label: '+', size: 24 });
 }
 
 function drawSeenPanel(ctx, state) {
@@ -188,12 +218,13 @@ function drawPickupFx(ctx, p, o) {
 function drawResult(ctx, state) {
   ctx.save(); ctx.fillStyle = 'rgba(10,6,3,0.6)'; ctx.fillRect(0, 0, W, H); ctx.restore();
   panel(ctx, 80, 560, W - 160, 340, {});
-  const g = state.game, you = 0;
-  const line = g.loser === -1 ? 'No fool this time' : g.loser === you ? 'You are the Дурак' : `${state.names[g.loser]} is the fool`;
-  txt(ctx, line, W / 2, 660, { size: 40, color: g.loser === you ? '#ff8a7a' : CREAM, weight: 700 });
-  txt(ctx, g.loser === you ? 'Better luck in the next deal.' : g.loser === -1 ? 'Everyone finished together.' : 'Well played — you stayed safe.', W / 2, 716, { size: 22, color: GOLD, weight: 600 });
+  const g = state.game, you = 0, isAuto = state.scene === 'auto';
+  const line = g.loser === -1 ? 'No fool this time' : (!isAuto && g.loser === you) ? 'You are the Дурак' : `${state.names[g.loser]} is the fool`;
+  const sub = isAuto ? 'Tap Play again for a new deal.' : g.loser === you ? 'Better luck in the next deal.' : g.loser === -1 ? 'Everyone finished together.' : 'Well played — you stayed safe.';
+  txt(ctx, line, W / 2, 660, { size: 40, color: (!isAuto && g.loser === you) ? '#ff8a7a' : CREAM, weight: 700 });
+  txt(ctx, sub, W / 2, 716, { size: 22, color: GOLD, weight: 600 });
   lacquer(ctx, { x: 130, y: 800, w: 460, h: 90 }, { kind: 'gold', label: 'Play again', size: 30 });
-  lacquer(ctx, { x: 130, y: 908, w: 460, h: 76 }, { label: 'Menu', size: 26 });
+  lacquer(ctx, { x: 130, y: 908, w: 460, h: 76 }, { label: isAuto ? 'Exit' : 'Menu', size: 26 });
 }
 
 const LESSON_PANEL = { x: 40, y: 432, w: W - 80 };
@@ -238,17 +269,24 @@ function drawReferencePage(ctx, state, list, headerTitle) {
   const page = list[state.page % list.length];
   // Falls back to 1 for any out-of-range index (e.g. a save from a build with a since-changed array).
   const scale = TEXT_SCALES[state.textScaleIdx] ?? 1;
-  lacquer(ctx, BACK, { label: 'Back' });
-  lacquer(ctx, NEXT, { label: 'Next' });
+  // Text-size stepper: two small pills in the top corners only, clear of the title below them.
   lacquer(ctx, HEADER.textDec, { label: 'A−', disabled: state.textScaleIdx === 0 });
   lacquer(ctx, HEADER.textInc, { label: 'A+', disabled: state.textScaleIdx === TEXT_SCALES.length - 1 });
   txt(ctx, headerTitle, W / 2, 120, { size: 46, color: CREAM, weight: 700, shadow: 'rgba(0,0,0,0.6)' });
-  // One tall panel holds the whole page, so the busy veranda scene never bleeds through behind the text.
-  const panelY = 200, panelBottom = 1460;
+  // One tall panel holds the whole page, so the busy veranda scene never bleeds through behind the
+  // text. Its bottom now stays clear of the Back/Next nav row (REF_BACK/REF_NEXT, y:1416) and the
+  // "Page X of Y" indicator between them, instead of sharing a crowded header row with Back/Next.
+  const panelY = 200, panelBottom = 1370;
   panel(ctx, 40, panelY, W - 80, panelBottom - panelY, {});
   let y = panelY + 66;
-  txt(ctx, page.title, W / 2, y, { size: Math.round(31 * scale), color: GOLD, weight: 700 });
-  y += Math.round(56 * scale);
+  // The title font is capped well below the body's growth (unlike body text, a title is one short
+  // phrase that cannot rewrap into a narrower measure) and wraps onto a second line if it still would
+  // run past the panel's edges at the highest steps, so it never runs off the panel at 300%.
+  const titleScale = Math.min(scale, 1.6);
+  const titleFontPx = Math.round(31 * titleScale);
+  const titleLh = Math.round(titleFontPx * 1.15);
+  const titleLines = wrapCentered(ctx, page.title, W / 2, y, W - 160, titleLh, { size: titleFontPx, color: GOLD, weight: 700 });
+  y += (titleLines - 1) * titleLh + Math.round(56 * scale);
   if (page.cards) {
     const cy = y + 108, dx = 120;
     page.cards.forEach((cd, i) => {
@@ -268,7 +306,12 @@ function drawReferencePage(ctx, state, list, headerTitle) {
     drawCard(ctx, { id: 15 }, W / 2 - 46, sy, { scale: 0.5, rot: -0.14, four: state.four });
     drawCard(ctx, { id: 8 }, W / 2 + 40, sy, { scale: 0.5, rot: 0.12, four: state.four });
   }
-  txt(ctx, `Page ${(state.page % list.length) + 1} of ${list.length}`, W / 2, H - 60, { size: 19, color: 'rgba(247,239,220,0.6)', weight: 500 });
+  txt(ctx, `Page ${(state.page % list.length) + 1} of ${list.length}`, W / 2, 1392, { size: 19, color: 'rgba(247,239,220,0.6)', weight: 500 });
+  // Back/Next: an equal-width bottom pill pair, clear of the reader panel above it. Back is the
+  // neutral/secondary action, Next the primary one (lacquer's own 'gold' kind, the same accent the
+  // title screen's "Play again"/"Start" buttons use).
+  lacquer(ctx, REF_BACK, { label: 'Back' });
+  lacquer(ctx, REF_NEXT, { kind: 'gold', label: 'Next' });
 }
 export function drawAbout(ctx, state) { drawReferencePage(ctx, state, ABOUT, 'About Durak'); }
 // Paginated Rules reference (Back/Next/"Page N of M", the same convention as About above).
@@ -335,4 +378,5 @@ export function render(ctx, state) {
   else if (state.scene === 'rules') drawRules(ctx, state);
   else if (state.scene === 'settings') drawSettings(ctx, state);
   else if (state.scene === 'demo-limit') drawDemoLimit(ctx, state);
+  else if (state.scene === 'auto') drawAutoPlay(ctx, state);
 }

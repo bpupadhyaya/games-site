@@ -1,6 +1,6 @@
 // Everything that is drawn each frame. Reads `state` (see game.js) and changes nothing.
 // All motion is a function of state.pulse (the fixed-step clock) and the start times in state.fx.
-import { W, H, COLS, ROWS, CELL, FRAME, BOARD_X, BOARD_Y, BOARD_W, BOARD_H, HUD, MODE_SWITCH, HINT_BTN, COLOR_BTN, NEW_BTN, RESULT_CARD, SHIELD_BTN, AGAIN_BTN, AGAIN_BTN_WIDE, PLAY_BTN, TITLE_COLOR_BTN, TITLE_RULES_BTN, HERO, RULES_BACK_BTN, RULES_NEXT_BTN, RULES_PANEL, TEXT_DEC_BTN, TEXT_INC_BTN, TEXT_SCALES } from './layout.js';
+import { W, H, COLS, ROWS, CELL, FRAME, BOARD_X, BOARD_Y, BOARD_W, BOARD_H, HUD, MODE_SWITCH, HINT_BTN, COLOR_BTN, NEW_BTN, RESULT_CARD, SHIELD_BTN, AGAIN_BTN, AGAIN_BTN_WIDE, PLAY_BTN, TITLE_COLOR_BTN, TITLE_RULES_BTN, TITLE_AUTO_BTN, HERO, RULES_BACK_BTN, RULES_NEXT_BTN, RULES_PANEL, TEXT_DEC_BTN, TEXT_INC_BTN, TEXT_SCALES, THINK_STEPS } from './layout.js';
 import { palette, alpha, THEMES } from './themes.js';
 import { RULES } from './content.js';
 
@@ -304,6 +304,20 @@ function drawRing(ctx, x, y, s, kind, t) {
   ctx.strokeStyle = color;
   ctx.lineWidth = s * 0.06 + pulse * s * 0.03;
   ctx.stroke();
+}
+
+// The ONE cell Auto Play is actually about to act on, distinct from the plain green/red "sure
+// move" rings drawn around it (drawRing above) - a bright white outer ring, same idiom used for
+// chess-royal-sixty-four's own auto-play reveal highlight.
+function drawChosenRing(ctx, x, y, s, t) {
+  const pulse = 0.6 + 0.4 * Math.sin(t * 7);
+  ctx.save();
+  ctx.strokeStyle = `rgba(255,255,255,${0.85 + 0.15 * pulse})`;
+  ctx.lineWidth = s * 0.05;
+  ctx.beginPath();
+  ctx.arc(x + s / 2, y + s / 2, s * 0.58, 0, TAU);
+  ctx.stroke();
+  ctx.restore();
 }
 
 // The frame and the dark well the tiles sit in.
@@ -626,8 +640,12 @@ function drawTitle(ctx, state, pal, extra) {
   drawButton(ctx, PLAY_BTN, 'Play', { kind: 'primary', size: 58, icon: iconPlay, breathe: Math.sin(t * 2.4) * 0.012, pressTau: fx.btn === 'play' ? t - fx.btnAt : -1 });
   // Same stacked icon-over-label look the in-play Colours button already uses (COLOR_BTN below) -
   // the natural fit now that this button shares its row with Rules instead of spanning it alone.
-  drawButton(ctx, TITLE_COLOR_BTN, 'Colours', { pal, icon: iconSwatches(pal), iconSize: 46, stacked: true, size: 26, pressTau: fx.btn === 'colors' ? t - fx.btnAt : -1 });
-  drawButton(ctx, TITLE_RULES_BTN, 'Rules', { pal, icon: iconRules, iconSize: 46, stacked: true, size: 26, pressTau: fx.btn === 'rules' ? t - fx.btnAt : -1 });
+  drawButton(ctx, TITLE_COLOR_BTN, 'Colours', { pal, icon: iconSwatches(pal), iconSize: 40, stacked: true, size: 22, pressTau: fx.btn === 'colors' ? t - fx.btnAt : -1 });
+  drawButton(ctx, TITLE_RULES_BTN, 'Rules', { pal, icon: iconRules, iconSize: 40, stacked: true, size: 22, pressTau: fx.btn === 'rules' ? t - fx.btnAt : -1 });
+  // Free, silent, full-board teaching demo - shares the Colours/Rules row (now three columns
+  // instead of two) rather than crowding a new row into the tight space below, where the best-time
+  // and free-preview pills already sit close to the canvas edge.
+  drawButton(ctx, TITLE_AUTO_BTN, 'Auto Play', { pal, icon: iconBulb, iconSize: 40, stacked: true, size: 20, pressTau: fx.btn === 'autoplay' ? t - fx.btnAt : -1 });
   if (state.bestTime !== null) drawPill(ctx, 360, 1378, `Best time  ${formatTime(state.bestTime)}s`, { color: '#ffe08a', rim: 'rgba(255,224,138,0.5)', size: 28 });
   else drawPill(ctx, 360, 1378, 'No best time yet - set one', { size: 24, color: 'rgba(244,251,250,0.8)' });
   if (state.demo) drawPill(ctx, 360, 1450, `Free preview: ${extra.demoLeft} board${extra.demoLeft === 1 ? '' : 's'} left`, { size: 22, h: 46 });
@@ -773,8 +791,14 @@ function drawBoard(ctx, state, pal) {
       }
     }
 
-    const hinted = (state.hint && state.hint.index === i && state.hint.kind) || (lost && state.lossHint && state.lossHint.index === i && state.lossHint.kind);
+    // Auto Play's REVEAL phase: every cell the current logical pass can determine (the same
+    // findForcedMoves() the Hint button already calls) glows with this same "sure move" ring -
+    // safe cells green, mines red - and the one actually about to be acted on gets an extra bright
+    // white ring on top, so the viewer can compare their own guess against the real move.
+    const autoMove = state.auto && state.autoPhase === 'reveal' ? state.autoForced.find((m) => m.index === i) : null;
+    const hinted = (state.hint && state.hint.index === i && state.hint.kind) || (lost && state.lossHint && state.lossHint.index === i && state.lossHint.kind) || (autoMove && autoMove.kind);
     if (hinted) drawRing(ctx, x, y, CELL, hinted, t);
+    if (autoMove && state.autoChosen && state.autoChosen.index === i) drawChosenRing(ctx, x, y, CELL, t);
   }
 
   if (lost && state.exploded >= 0 && since < 0.7) {
@@ -858,6 +882,37 @@ function drawControls(ctx, state, pal) {
   text(ctx, `${best}Colours: ${pal.name}`, W / 2, 1436, 24, pal.inkSoft, 500);
 }
 
+// Auto Play's own control row - replaces the Reveal/Flag switch (meaningless when nobody is
+// tapping) with a single "Exit to menu" bar, and the Hint/Colours/New-board row with a think-time
+// stepper either side of the same Colours button (harmless, still lets the viewer cycle themes).
+function drawAutoControls(ctx, state, pal) {
+  const t = state.pulse;
+  const fx = state.fx;
+  const secs = THINK_STEPS[state.autoThinkIdx];
+  const tip =
+    state.autoPhase === 'reveal'
+      ? 'This is the move - compare it with your own guess.'
+      : state.autoPhase === 'think'
+        ? `Thinking… work out your own answer first. (${Math.max(0, Math.ceil(state.autoTimer))}s)`
+        : 'Auto Play: the computer solves this board by logic alone, one sure move at a time.';
+  text(ctx, tip, W / 2, 1090, 24, pal.ink, 500);
+
+  const tau = (id) => (fx.btn === id ? t - fx.btnAt : -1);
+  drawButton(ctx, MODE_SWITCH, 'Exit to menu', { pal, size: 34, pressTau: tau('autoExit') });
+
+  ctx.save();
+  ctx.globalAlpha = state.autoThinkIdx <= 0 ? 0.4 : 1;
+  drawButton(ctx, HINT_BTN, '− Think', { pal, size: 26, pressTau: tau('autoDec') });
+  ctx.restore();
+  drawButton(ctx, COLOR_BTN, 'Colours', { pal, icon: iconSwatches(pal), iconSize: 62, stacked: true, size: 28, pressTau: tau('colors') });
+  ctx.save();
+  ctx.globalAlpha = state.autoThinkIdx >= THINK_STEPS.length - 1 ? 0.4 : 1;
+  drawButton(ctx, NEW_BTN, 'Think +', { pal, size: 26, pressTau: tau('autoInc') });
+  ctx.restore();
+
+  text(ctx, `Think time: ${secs}s   ·   Colours: ${pal.name}`, W / 2, 1436, 24, pal.inkSoft, 500);
+}
+
 function drawResult(ctx, state, pal, a) {
   const t = state.pulse;
   const fx = state.fx;
@@ -868,7 +923,20 @@ function drawResult(ctx, state, pal, a) {
   ctx.translate(0, (1 - a) * 70);
   glassPanel(ctx, c, 36);
   const tau = (id) => (fx.btn === id ? t - fx.btnAt : -1);
-  if (won) {
+  if (state.auto) {
+    // Auto Play's own end-of-board card: same shape and place as a real result, but "Play again"
+    // starts another auto board and there is always an explicit way out, since Undo (mid-run
+    // rescue) and a real best time make no sense for a computer-played demo board.
+    if (won) {
+      text(ctx, 'Solved!', W / 2, c.y + 84, 66, '#6dffc9', 700);
+      text(ctx, `Every safe tile found by logic alone, in ${formatTime(state.time)}s`, W / 2, c.y + 150, 26, 'rgba(244,251,250,0.85)', 500);
+    } else {
+      text(ctx, 'Boom.', W / 2, c.y + 78, 62, '#ff8571', 700);
+      wrapText(ctx, 'This rare fallback board could not be fully proven by logic - a real board never does this.', W / 2, c.y + 130, 580, 36, 26, 'rgba(244,251,250,0.88)', 500);
+    }
+    drawButton(ctx, SHIELD_BTN, 'Exit to menu', { pal, size: 30, pressTau: tau('autoExit') });
+    drawButton(ctx, AGAIN_BTN, 'Play again', { kind: 'primary', size: 30, icon: iconNew, pressTau: tau('again') });
+  } else if (won) {
     text(ctx, 'Cleared!', W / 2, c.y + 84, 66, '#6dffc9', 700);
     text(ctx, `Time ${formatTime(state.time)}s`, W / 2, c.y + 140, 34, LIGHT, 600);
     if (fx.newBest) drawPill(ctx, W / 2, c.y + 194, 'New best time!', { color: '#ffe08a', rim: 'rgba(255,224,138,0.6)', size: 24, h: 46 });
@@ -918,20 +986,25 @@ function drawPlay(ctx, state, pal, extra) {
   if (a < 1) {
     ctx.save();
     ctx.globalAlpha = (1 - a) * (state.runs <= 1 && !over ? intro : 1);
-    drawControls(ctx, state, pal);
+    if (state.auto) drawAutoControls(ctx, state, pal);
+    else drawControls(ctx, state, pal);
     ctx.restore();
   }
   if (a > 0) drawResult(ctx, state, pal, a);
-  if (state.demo && !over) text(ctx, `Free preview: ${extra.demoLeft} more board${extra.demoLeft === 1 ? '' : 's'}`, W / 2, 1476, 21, pal.inkFaint, 500);
+  // Auto Play boards never count against the free-preview limit (game.js `newBoard(true)` never
+  // touches `state.demoBoards`), so this line would be actively misleading while watching one.
+  if (state.demo && !over && !state.auto) text(ctx, `Free preview: ${extra.demoLeft} more board${extra.demoLeft === 1 ? '' : 's'}`, W / 2, 1476, 21, pal.inkFaint, 500);
 }
 
 // ---- Rules reference page ----------------------------------------------------------------------
 // Every illustration below reuses this file's own drawing functions - the exact tile/number/flag/
 // mine/HUD/switch/button art the player sees in a real run - never a separate simplified icon set.
 // Pure: reads nothing from live gameplay state, mutates nothing.
+// The illustration's own bottom edge (art is drawn at a fixed size, never scaled) - the body text's
+// topAnchor on an illustrated page. A no-art page instead anchors off its own page title (see
+// drawRulesPage), since it has no illustration to clear.
 const RULES_TEXT_TOP_WITH_ART = 860;
 const RULES_TEXT_TOP_HERO = 990; // the hero art is a fixed, larger footprint (see drawHero)
-const RULES_TEXT_TOP_NO_ART = 270;
 const RULES_TEXT_BOTTOM = 1215;
 const RULES_PAGE_LABEL_Y = 1246; // fixed distance from the nav row, never from the body text
 const RULES_TEXT_MAXW = W - 108;
@@ -957,19 +1030,37 @@ function wrapRulesParagraph(ctx, str, maxW) {
 }
 
 // Picks the largest body size (and matching line/paragraph spacing) whose wrapped paragraphs fit
-// the given pixel budget, so a page can never overflow into the nav row no matter how long it is.
-function layoutRulesBody(ctx, paragraphs, budget, scale) {
+// between `topAnchor` (the bottom edge of whatever sits above - the page title, or the page's own
+// illustration) and `bottomLimit`, so a page can never overflow into the nav row no matter how long
+// it is, AND can never overlap upward into the title/art above it.
+//
+// `topAnchor` is a boundary, not a baseline: a font's glyphs rise ABOVE its baseline by its ascent,
+// and that ascent grows with the text-size stepper (up to 3x). Treating topAnchor as the first
+// line's baseline (as this used to) left enough clearance at 1x but let the enlarged glyphs at the
+// 300% step climb back up through the title or the illustration above - a real, visible collision
+// only found by rendering the actual pages at 300%, not assumed from the code. Measuring each
+// candidate size's real ascent (canvas TextMetrics, not a guessed ratio) and starting the baseline
+// that far below topAnchor fixes this at every step, including the in-between ones (1.5x/2x/2.5x).
+function bodyAscent(ctx, size) {
+  setFont(ctx, size, 500);
+  const m = ctx.measureText('Ag');
+  return m.actualBoundingBoxAscent || size * 0.78;
+}
+function layoutRulesBody(ctx, paragraphs, topAnchor, bottomLimit, scale) {
   let best = null;
   const sizes = RULES_BODY_BASE.map((s) => Math.round(s * scale));
   for (const size of sizes) {
     setFont(ctx, size, 500);
     const lh = Math.round(size * 1.32);
     const pgap = Math.round(size * 0.8);
+    const startY = topAnchor + bodyAscent(ctx, size);
     const blocks = paragraphs.map((p) => wrapRulesParagraph(ctx, p, RULES_TEXT_MAXW));
     const lineCount = blocks.reduce((a, b) => a + b.length, 0);
-    const height = lineCount * lh + (blocks.length - 1) * pgap;
-    best = { size, lh, pgap, blocks, height };
-    if (height <= budget) break;
+    // A little descent allowance (0.3 * size) on the last line's own glyphs, so the fit check
+    // covers where the ink actually ends, not just where its last baseline sits.
+    const bottomEdge = startY + (lineCount - 1) * lh + (blocks.length - 1) * pgap + size * 0.3;
+    best = { size, lh, pgap, blocks, startY };
+    if (bottomEdge <= bottomLimit) break;
   }
   return best;
 }
@@ -1205,12 +1296,19 @@ function drawRulesPage(ctx, state, pal) {
 
   drawRulesArt(ctx, page.art, pal, t);
 
-  const textTop = !page.art ? RULES_TEXT_TOP_NO_ART : page.art === 'hero' ? RULES_TEXT_TOP_HERO : RULES_TEXT_TOP_WITH_ART;
-  const { size, lh, pgap, blocks } = layoutRulesBody(ctx, page.lines, RULES_TEXT_BOTTOM - textTop, scale);
+  // topAnchor is the real bottom edge of whatever sits above the body text - the page's own
+  // illustration (a fixed, non-scaling footprint), or, on a page with no art, the page title itself.
+  // The title's height grows with the text-size stepper (capped, like the screen title above it), so
+  // a no-art page's clearance has to follow the title's OWN measured size, not a constant tuned only
+  // for the smallest step.
+  const topAnchor = !page.art
+    ? 202 + titleSize * 0.32 + 24
+    : page.art === 'hero' ? RULES_TEXT_TOP_HERO : RULES_TEXT_TOP_WITH_ART;
+  const { size, lh, pgap, blocks, startY } = layoutRulesBody(ctx, page.lines, topAnchor, RULES_TEXT_BOTTOM, scale);
   setFont(ctx, size, 500);
   ctx.fillStyle = pal.inkSoft;
   ctx.textAlign = 'center';
-  let y = textTop;
+  let y = startY;
   blocks.forEach((block, bi) => {
     for (const ln of block) {
       ctx.fillText(ln, W / 2, y);

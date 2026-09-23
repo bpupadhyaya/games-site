@@ -6,6 +6,8 @@ import {
   HINT_BUTTON, UNDO_BUTTON, PLAY7_BUTTON, PLAY10_BUTTON, DAILY_BUTTON, COLOR_BUTTON,
   TITLE_COLOR_BUTTON, TITLE_RULES_BUTTON, RULES_BACK_BUTTON, RULES_NEXT_BUTTON,
   RULES_TEXT_DEC_BUTTON, RULES_TEXT_INC_BUTTON, TEXT_SCALES,
+  TITLE_AUTO_BUTTON, AUTO_EXIT_BUTTON, AUTO_PAUSE_BUTTON, AUTO_SKIP_BUTTON, AUTO_AGAIN_BUTTON,
+  AUTO_EXIT2_BUTTON, AUTO_THINK_STEPS, AUTO_REVEAL_SECS, AUTO_DEC_BUTTON, AUTO_INC_BUTTON,
 } from './layout.js';
 import { PALETTES, regionColor } from './palettes.js';
 import { RULES } from './content.js';
@@ -799,11 +801,12 @@ function drawTitle(ctx, state, manifest, palette, demoLimit) {
   // half; the in-play Colours button below the board is unchanged).
   button(ctx, state, TITLE_COLOR_BUTTON, 'Colours', { id: 'color', size: 28 });
   button(ctx, state, TITLE_RULES_BUTTON, 'Rules', { id: 'rules', size: 28 });
+  button(ctx, state, TITLE_AUTO_BUTTON, 'Auto Play — Watch & Learn', { id: 'auto', size: 24 });
 
-  if (state.lockMessageTimer > 0) text(ctx, 'Solve 5 puzzles or buy the Expert Pack to unlock 10x10', 360, 1446, 24, '#ffb3c0', UI, 600);
-  else text(ctx, 'Tap a square to rule it out. Tap again to crown it.', 360, 1446, 23, 'rgba(250,240,215,0.78)', UI, 500);
-  if (state.demo) pill(ctx, 360, 1494, `Free preview — ${demoLimit - state.demoSolves} puzzle(s) left`);
-  else if (state.totalSolved > 0) pill(ctx, 360, 1494, `Puzzles solved: ${state.totalSolved}`);
+  if (state.lockMessageTimer > 0) text(ctx, 'Solve 5 puzzles or buy the Expert Pack to unlock 10x10', 360, 1500, 22, '#ffb3c0', UI, 600);
+  else text(ctx, 'Tap a square to rule it out. Tap again to crown it.', 360, 1500, 21, 'rgba(250,240,215,0.78)', UI, 500);
+  if (state.demo) pill(ctx, 360, 1536, `Free preview — ${demoLimit - state.demoSolves} puzzle(s) left`);
+  else if (state.totalSolved > 0) pill(ctx, 360, 1536, `Puzzles solved: ${state.totalSolved}`);
 }
 
 function pill(ctx, cx, y, str) {
@@ -818,7 +821,9 @@ function pill(ctx, cx, y, str) {
 function drawPlay(ctx, state, palette) {
   const { size } = state;
   const geo = { x: BOARD_MARGIN, y: BOARD_TOP, px: BOARD_SIZE, n: size };
-  const solved = state.scene === 'solved';
+  const isAuto = state.scene === 'auto';
+  const A = isAuto ? state.auto : null;
+  const solved = state.scene === 'solved' || (isAuto && A && A.sub === 'over');
   const enter = clamp01(state.sceneT / 0.45);
 
   // header
@@ -838,6 +843,15 @@ function drawPlay(ctx, state, palette) {
   if (solved) rays(ctx, 360, geo.y + geo.px / 2, 560, state.t, 0.2 * clamp01(state.sceneT));
   drawBoardBase(ctx, geo, state.regions, palette, state.palette);
   drawBoardMarks(ctx, state, geo);
+  // Auto Play's REVEAL: a pulsing ring on the cell about to be crowned, the same visual language
+  // (a glowing ring) the board already uses elsewhere (conflicts, the finger-down cell).
+  if (isAuto && A && A.sub === 'reveal' && A.target >= 0) {
+    const cs = geo.px / size, col = A.target % size, row = Math.floor(A.target / size);
+    const cx = geo.x + col * cs + cs / 2, cy = geo.y + row * cs + cs / 2, pulse = 0.5 + 0.5 * Math.sin(state.t * 6);
+    ctx.strokeStyle = `rgba(120,220,255,${0.7 + 0.3 * pulse})`;
+    ctx.lineWidth = Math.max(4, cs * 0.08);
+    ctx.beginPath(); ctx.roundRect(cx - cs / 2 + 4, cy - cs / 2 + 4, cs - 8, cs - 8, cs * 0.14); ctx.stroke();
+  }
   ctx.restore();
 
   // crowns placed so far
@@ -854,12 +868,25 @@ function drawPlay(ctx, state, palette) {
         ctx.strokeStyle = 'rgba(240,194,76,0.55)'; ctx.lineWidth = 2; ctx.stroke();
       }
     }
-    button(ctx, state, HINT_BUTTON, 'Hint', { id: 'hint', size: 36, icon: 'bulb' });
-    button(ctx, state, UNDO_BUTTON, 'Undo', { id: 'undo', size: 36, icon: 'undo', dim: state.history.length === 0 });
-    text(ctx, 'COLOURS', 360, COLOR_BUTTON.y - 12, 17, 'rgba(247,226,170,0.8)', DISPLAY, 700);
-    button(ctx, state, COLOR_BUTTON, palette.name, { id: 'color', size: 27, extra: 150, after: swatches(palette, size) });
-    const conflict = state.conflicts.length > 0;
-    text(ctx, conflict ? 'Two crowns clash. Move one of the glowing crowns.' : 'One crown in every row, column and colour. None may touch.', 360, 1450, 23, conflict ? '#ffb3c0' : 'rgba(250,240,215,0.78)', UI, conflict ? 600 : 500);
+    if (isAuto) {
+      // Hint/Undo/Colours have no meaning in a spectator run — the same three slots become
+      // Exit/Pause/Skip, and a status strip + think-time stepper takes the header's top corners.
+      button(ctx, state, AUTO_EXIT_BUTTON, 'Exit', { id: 'autoExit', size: 30 });
+      button(ctx, state, AUTO_PAUSE_BUTTON, A.paused ? 'Resume' : 'Pause', { id: 'autoPause', size: 30 });
+      button(ctx, state, AUTO_SKIP_BUTTON, 'Skip', { id: 'autoSkip', size: 30 });
+      const label = A.paused ? 'Paused' : A.sub === 'think' ? 'Thinking...' : 'Revealing...';
+      text(ctx, label, 360, 1546, 20, A.paused ? '#ffd08a' : 'rgba(120,220,255,0.95)', UI, 600);
+      text(ctx, `Think ${AUTO_THINK_STEPS[state.autoThinkIdx]}s`, 360, 62, 22, 'rgba(247,226,170,0.9)', UI, 700);
+      button(ctx, state, AUTO_DEC_BUTTON, '−', { id: 'autoDec', size: 30 });
+      button(ctx, state, AUTO_INC_BUTTON, '+', { id: 'autoInc', size: 30 });
+    } else {
+      button(ctx, state, HINT_BUTTON, 'Hint', { id: 'hint', size: 36, icon: 'bulb' });
+      button(ctx, state, UNDO_BUTTON, 'Undo', { id: 'undo', size: 36, icon: 'undo', dim: state.history.length === 0 });
+      text(ctx, 'COLOURS', 360, COLOR_BUTTON.y - 12, 17, 'rgba(247,226,170,0.8)', DISPLAY, 700);
+      button(ctx, state, COLOR_BUTTON, palette.name, { id: 'color', size: 27, extra: 150, after: swatches(palette, size) });
+      const conflict = state.conflicts.length > 0;
+      text(ctx, conflict ? 'Two crowns clash. Move one of the glowing crowns.' : 'One crown in every row, column and colour. None may touch.', 360, 1450, 23, conflict ? '#ffb3c0' : 'rgba(250,240,215,0.78)', UI, conflict ? 600 : 500);
+    }
   } else {
     // gold sparks rising past the board
     for (let k = 0; k < 26; k++) {
@@ -879,8 +906,16 @@ function drawPlay(ctx, state, palette) {
     text(ctx, `Moves ${state.solveMoves}`, 490, 1262, 30, '#ffffff', UI, 700);
     text(ctx, state.hintsUsed ? `Hints used: ${state.hintsUsed}` : 'No hints used', 360, 1308, 23, 'rgba(247,226,170,0.85)', UI, 500);
     ctx.globalAlpha = f * (0.65 + 0.35 * Math.sin(state.t * 3.2));
-    text(ctx, state.demoLimitReached ? 'Tap to continue' : 'Tap for a new puzzle', 360, 1380, 30, CREAM, DISPLAY, 700);
+    if (isAuto) {
+      text(ctx, 'Solved!', 360, 1380, 30, CREAM, DISPLAY, 700);
+    } else {
+      text(ctx, state.demoLimitReached ? 'Tap to continue' : 'Tap for a new puzzle', 360, 1380, 30, CREAM, DISPLAY, 700);
+    }
     ctx.restore();
+    if (isAuto) {
+      button(ctx, state, AUTO_AGAIN_BUTTON, 'Play again', { id: 'autoAgain', size: 28 });
+      button(ctx, state, AUTO_EXIT2_BUTTON, 'Exit', { id: 'autoExit2', size: 26 });
+    }
   }
 }
 
@@ -1148,8 +1183,11 @@ function drawRulesPage(ctx, state, manifest, palette) {
   });
 
   text(ctx, `Page ${i + 1} of ${list.length}`, 360, RULES_PAGE_LABEL_Y, 20, 'rgba(247,226,170,0.7)', DISPLAY, 700);
+  // Back reads as the neutral/secondary action (the same purple every other menu button uses);
+  // Next as the primary action (the gold "PLAY" accent), so the two footer buttons are never
+  // visually identical — matches this game's own title-screen convention (gold = the main action).
   button(ctx, state, RULES_BACK_BUTTON, 'Back', { id: 'rulesBack', size: 34 });
-  button(ctx, state, RULES_NEXT_BUTTON, 'Next', { id: 'rulesNext', size: 34 });
+  button(ctx, state, RULES_NEXT_BUTTON, 'Next', { id: 'rulesNext', size: 34, primary: true });
   button(ctx, state, RULES_TEXT_DEC_BUTTON, 'A−', { id: 'textDec', size: 30, dim: state.textScaleIdx === 0 });
   button(ctx, state, RULES_TEXT_INC_BUTTON, 'A+', { id: 'textInc', size: 30, dim: state.textScaleIdx === TEXT_SCALES.length - 1 });
 }

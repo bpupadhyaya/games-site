@@ -1,5 +1,5 @@
 // Everything drawn each frame. Reads `state` (game.js) and changes nothing. Static art is cached (art.js, pieces.js).
-import { W, H, pointAt, PIECE_R, UNIT, BTN, LOOK, TITLE_BOARD, titleRows, rackPos, RACK, TEXT_SCALES, TEXT_STEP } from './layout.js';
+import { W, H, pointAt, PIECE_R, UNIT, BTN, LOOK, TITLE_BOARD, titleRows, rackPos, RACK, TEXT_SCALES, TEXT_STEP, AUTO_THINK_STEPS } from './layout.js';
 import { drawRoom, drawBoard, CANDLES, WOOD_NAMES } from './art.js';
 import { drawMan, blob, SET_NAMES } from './pieces.js';
 import { unlocked } from './unlocks.js';
@@ -24,7 +24,8 @@ export function render(ctx, state) {
   const t = state.t, scene = state.scene, calm = state.calm, set = state.look.set;
   // Falls back to 1 for any out-of-range index (e.g. a save from a build with more/fewer steps).
   const textScale = TEXT_SCALES[state.textScaleIdx] ?? 1, big = state.textScaleIdx > 0;
-  const g = state.game, a = state.anim;
+  const auto = scene === 'auto', D = state.auto;
+  const g = auto ? D.game : state.game, a = auto ? D.anim : state.anim;
   const text = (str, x, y, size, color = '#f6e3b4', font = TITLEF, weight = 700, align = 'center') => { ctx.textAlign = align; ctx.font = `${weight} ${size}px ${font}`; ctx.fillStyle = color; ctx.fillText(str, x, y); };
   const wrapLines = (str, size, maxW, weight = 600) => {
     ctx.font = `${weight} ${size}px ${UI}`; const words = str.split(' '), lines = []; let cur = '';
@@ -80,10 +81,16 @@ export function render(ctx, state) {
   if (scene === 'rules') { vignette(); drawRefPage(RULES, 'Rules'); return; }
 
   // ---- board scenes -------------------------------------------------------------------------------
-  const boardScene = scene === 'play' || scene === 'over' || scene === 'lesson' || (scene === 'puzzle' && state.pz.status !== 'making');
+  const boardScene = scene === 'play' || scene === 'over' || scene === 'lesson' || scene === 'auto' || (scene === 'puzzle' && state.pz.status !== 'making');
   if (!boardScene) { text('Setting the puzzle…', 360, 700, 40); vignette(); return; }
   drawBoard(ctx, state.look.wood);
-  drawPieces(ctx, state, { hidden: a && a.mv && a.t < a.moveDur ? a.to : -1 });
+  // Auto Play draws its own separate game object through the exact same drawPieces() as every other
+  // board scene (same trick already used for the title screen's own AI-vs-AI demo board below), plus
+  // a REVEAL-phase overlay (autoReveal) showing every legal destination and the one about to be taken.
+  // `two: true` forces the plain Light/Dark rack labels+layout (never "You"/"Computer" - nobody is
+  // "you" in Auto Play), regardless of whatever the real state.human/state.two happen to be right now.
+  const pieceState = auto ? { ...state, game: D.game, anim: D.anim, pend: null, sel: -1, hint: null, drag: null, show: null, kb: false, scene: 'auto', two: true, autoReveal: D.phase === 'reveal' ? { legal: D.moves, chosen: D.chosen } : null } : state;
+  drawPieces(ctx, pieceState, { hidden: a && a.mv && a.t < a.moveDur ? a.to : -1 });
   vignette();
   drawHud();
   drawBottom();
@@ -112,9 +119,9 @@ export function render(ctx, state) {
       button(R.level, lvl.name, { size: 21 }); button(R.side, state.humanSide === 1 ? 'You: Dark' : 'You: Light', { size: 21 });
       button(R.sound, state.sound ? 'Sound: on' : 'Sound: off', { size: 21 }); button(R.calm, state.calm ? 'Calm: on' : 'Calm: off', { size: 21 });
       button(R.look, 'Board & men', { size: 21 });
-      // This row grew from 2 columns (About/How) to 3 (About/How/Rules) to fit the new Rules button,
-      // so labels shrink to fit the narrower columns - same buttons, same destinations, just smaller text.
-      button(R.about, 'About', { size: 17 }); button(R.how, 'How to play', { size: 15 }); button(R.rules, 'Rules', { size: 17 });
+      // This row grew from 2 columns (About/How) to 3 (About/How/Rules) to 4 (Auto Play) - same
+      // buttons, same destinations, labels sized to fit the narrower columns each time.
+      button(R.about, 'About', { size: 15 }); button(R.how, 'How to play', { size: 13 }); button(R.rules, 'Rules', { size: 15 }); button(R.auto, 'Auto Play', { size: 13 });
       if (state.msg) { plaque(60, 350, 600, 92); wrap(state.msg.text, 360, 392, 26, 540, '#f6e3b4'); }
       text(lvl.note, 360, 1546, 18, 'rgba(240,215,160,0.7)', UI, 500);
     } else if (scene === 'look') {
@@ -146,33 +153,59 @@ export function render(ctx, state) {
     button(TEXT_STEP.dec, 'A−', { dim: state.textScaleIdx === 0, size: 26 });
     button(TEXT_STEP.inc, 'A+', { dim: state.textScaleIdx === TEXT_SCALES.length - 1, size: 26 });
     text(headerTitle, 360, 256, Math.round(38 * Math.min(textScale, 1.15)));
-    text(pg.title.toUpperCase(), 360, 306, Math.round(24 * textScale), '#f2c766', TITLEF, 700);
-    let y = 366;
+    // Capped the same way as the header above it: a long section title (e.g. "Repetition and the
+    // 100-ply rule") drawn uncapped at 2x would run off the sides of the panel - it is a heading,
+    // not the body copy the text-size stepper exists to grow, so it stops growing past the same
+    // 1.15x the header already stops at.
+    text(pg.title.toUpperCase(), 360, 306, Math.round(24 * Math.min(textScale, 1.15)), '#f2c766', TITLEF, 700);
+    const fs = Math.round(29 * textScale), lh = Math.round(fs * 1.42);
+    // The gap below the (capped) section title has to grow with the body font, not just sit at a
+    // fixed 60px - a big first line's own ascent reaches higher above its baseline as fs grows, and
+    // at fs=87 (300%) a fixed gap let the first line's tall capitals overlap the title text above it.
+    let y = 366 + Math.round(Math.max(0, fs - 29) * 0.6);
     // A rules page that covers the man shows the real in-game sprite, Light and Dark side by side,
-    // using pieces.js's own drawMan() - never a separate simplified icon.
+    // using pieces.js's own drawMan() - never a separate simplified icon. The gap below it scales
+    // with textScale (not just the capped piece radius) because it has to clear the first body
+    // line's own ascent, which keeps growing well past where the piece stops growing.
     if (pg.piece) {
       const py = y + 56, dx = 110, r = Math.round(46 * Math.min(textScale, 1.15));
       drawMan(ctx, 360 - dx, py, r, 0, set, {});
       drawMan(ctx, 360 + dx, py, r, 1, set, {});
       text('Light', 360 - dx, py + r + 26, 17, 'rgba(240,220,180,0.75)', UI, 600);
       text('Dark', 360 + dx, py + r + 26, 17, 'rgba(240,220,180,0.75)', UI, 600);
-      y = py + r + 60;
+      y = py + r + Math.round(60 * textScale);
     }
-    const fs = Math.round(29 * textScale), lh = Math.round(fs * 1.42);
     for (const line of pg.lines) { const n = wrap(line, 360, y, fs, 600, '#f0dcae', lh, 'center', 500); y += n * lh + Math.round(18 * textScale); }
     // A small pair of men on the table, only drawn where it has clear room below the text - never
     // on top of a longer page's last line (the man's own Rules page already shows its own pair above).
     const sy = 1372 - 108;
     if (!pg.piece && y + 150 < sy) { drawMan(ctx, 360 - 84, sy, 38, 0, set, {}); drawMan(ctx, 360 + 84, sy, 38, 1, set, {}); }
     text(`Page ${pageIdx + 1} of ${list.length}`, 360, 1372, 18, 'rgba(240,215,160,0.65)', UI, 500);
-    button(BTN.refBack, 'Back', { primary: true });
+    // Back (exits to the title) reads as the neutral/secondary action; Next (advances, wrapping
+    // back to page 1 at the end) is the primary action - was drawn identically gold before, which
+    // made the pair read as two equally-weighted buttons with no visual "what happens by default".
+    button(BTN.refBack, 'Back', { primary: false });
     button(BTN.refNext, 'Next', { primary: true });
   }
   function drawHud() {
     if (scene === 'over') { drawOver(); return; }
+    if (scene === 'auto' && D.phase === 'over') { drawAutoOver(); return; }
     let head = '', sub = '';
     const who = (s) => NAMES[s];
-    if (scene === 'lesson') {
+    if (scene === 'auto') {
+      const thinkS = AUTO_THINK_STEPS[state.autoThinkIdx];
+      const phaseWord = D.phase === 'think' ? 'thinking' : D.phase === 'reveal' ? 'about to act' : 'playing';
+      head = `${NAMES[g.turn]} is ${phaseWord}`;
+      sub = D.phase === 'think' ? 'THINK: work out your own answer before it is revealed.' : D.phase === 'reveal' ? 'REVEAL: the highlighted move is the one about to be played.' : 'ACT: watch it play out.';
+      const fs = big ? 30 : 26, n = wrapLines(sub, fs, 600).length;
+      plaque(24, 120, 672, 250 + n * fs * 1.32);
+      button(TEXT_STEP.dec, '−', { dim: state.autoThinkIdx === 0, size: 26 });
+      button(TEXT_STEP.inc, '+', { dim: state.autoThinkIdx === AUTO_THINK_STEPS.length - 1, size: 26 });
+      text('Auto Play · Watch & Learn', 360, 232, 24, '#c9a35a', UI, 600);
+      text(head, 360, 284, 42, '#fff0c4');
+      text(`Think time: ${thinkS}s (max 10s)`, 360, 320, 19, '#c9a35a', UI, 600);
+      wrap(sub, 360, 366, fs, 600, '#f6e3b4', fs * 1.32);
+    } else if (scene === 'lesson') {
       const l = LESSONS[state.lesson.i];
       head = `Lesson ${state.lesson.i + 1} of ${LESSONS.length}`; sub = state.lesson.done ? 'Well done. TAP Next.' : l.text;
       const fs = big ? 30 : 26, n = wrapLines(sub, fs, 600).length; plaque(24, 120, 672, 200 + n * fs * 1.32);
@@ -208,8 +241,24 @@ export function render(ctx, state) {
     wrap(g.reason, 360, 640, 28, 500); wrap(w === 'draw' ? 'Perfect play from both sides is a draw, so this is a good result.' : humanWon ? 'Well played. A stronger level awaits.' : 'Try again, or ask for a Hint.', 360, 740, 24, 500, '#cfae74');
     button(BTN.again, 'Play again', { primary: true }); button(BTN.back, 'Menu'); button(BTN.share, 'Share');
   }
+  // Auto Play's own end screen: the whole "game" (one full game to a real win/draw) just finished.
+  // Same shape as drawOver() but its own two actions (Play again auto / Exit to menu), and it never
+  // mentions "you" - nobody was really playing.
+  function drawAutoOver() {
+    plaque(60, 440, 600, 460);
+    const w = g.winner, head = w === 'draw' ? 'A draw' : `${NAMES[w]} wins`;
+    text(head, 360, 550, 78, w === 'draw' ? '#e6c98c' : '#f2c766'); ctx.fillStyle = '#c99a44'; ctx.fillRect(200, 574, 320, 3);
+    wrap(g.reason, 360, 640, 28, 500);
+    text('A full Auto Play demonstration just finished. Nothing here was saved.', 360, 730, 22, '#f2c766', UI, 600);
+    button(BTN.again, 'Play again (auto)', { primary: true }); button(BTN.back, 'Exit to menu');
+  }
   function drawBottom() {
     if (scene === 'over') return;
+    if (scene === 'auto') {
+      if (D.phase === 'over') return;
+      button(BTN.menu, 'Exit'); button(BTN.undo, 'Skip wait', { dim: D.phase === 'act' });
+      return;
+    }
     if (scene === 'lesson') {
       button(BTN.menu, 'Menu');
       if (state.lesson.done) button(BTN.next, state.lesson.i + 1 < LESSONS.length ? 'Next lesson' : 'Finish', { primary: true }); else button(BTN.show, 'Show me');
@@ -251,6 +300,21 @@ function drawPieces(ctx, state, opts = {}) {
     if (state.marks && !state.pend) for (const i of openTwos(g, 1 - me)) ring(i, '255,90,70', 0.35 + pulse * 0.45, 30, true, 3);
     if (state.hint) { const h = state.hint; for (const i of [h.from, h.to]) if (i >= 0 && i < 24) { glow(i, '120,230,255', 0.5 + pulse * 0.4); ring(i, '170,240,255', 0.95, 30, false, 4); } }
     if (state.show) for (const i of state.show) { glow(i, '120,230,255', 0.5 + pulse * 0.4); ring(i, '170,240,255', 0.95, 30, false, 4); }
+  }
+  // Auto Play's REVEAL phase: every legal destination this turn (dim gold ring), then the ONE move
+  // actually about to be played highlighted much more strongly (bright green ring + glow, plus the
+  // source point for a slide/flight), so a watcher can compare their own guess against it.
+  if (scene === 'auto' && state.autoReveal) {
+    const AR = state.autoReveal, isChosen = (m) => AR.chosen && mvFrom(m) === mvFrom(AR.chosen) && mvTo(m) === mvTo(AR.chosen);
+    for (const m of AR.legal || []) {
+      const to = mvTo(m), chosen = isChosen(m);
+      // The plain gold used for normal play's own "legal placement" ring reads as barely-there
+      // against this game's warm wood board at that ring's usual low alpha/radius - REVEAL needs
+      // every option clearly visible at a glance, not just discoverable on close inspection.
+      ring(to, chosen ? '120,255,170' : '255,224,140', chosen ? 0.95 : 0.62 + pulse * 0.18, chosen ? 30 : 25, false, chosen ? 4.5 : 3.2);
+      if (chosen) glow(to, '120,255,170', 0.55 + pulse * 0.3);
+    }
+    if (AR.chosen && mvFrom(AR.chosen) !== NONE) { glow(mvFrom(AR.chosen), '120,255,170', 0.4 + pulse * 0.2); ring(mvFrom(AR.chosen), '120,255,170', 0.9, 30, false, 4); }
   }
   // last move marker
   if (!onTitle && g.plies && state.lastTo >= 0 && !state.pend) ring(state.lastTo, '255,255,255', 0.28, 33, false, 2);

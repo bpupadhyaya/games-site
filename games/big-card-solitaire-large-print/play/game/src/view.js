@@ -1,6 +1,6 @@
 // Everything that is drawn each frame. Reads the state and the visual card positions (fx.js);
 // changes nothing.
-import { W, H, CARD_W, CARD_H, BTN, OPT } from './layout.js';
+import { W, H, CARD_W, CARD_H, BTN, OPT, TEXT_SCALES, AUTO_THINK_STEPS } from './layout.js';
 import {
   FONT, UI, CREAM, GOLD, THEMES, TABLES, ink, rr,
   drawTable, drawTableSwatch, drawFace, drawBack, drawFaceLarge, drawBackLarge, drawLiftShadow,
@@ -23,6 +23,7 @@ export function render(ctx, env, state, layout, fx, { hintMoves, demoLimit }) {
   else {
     drawPlay(ctx, state, layout, fx, theme, hintMoves, calm ? 1 : 0.78 + 0.22 * Math.sin(time * 2.2));
     if (state.scene === 'won') drawWon(ctx, state, fx.sinceWon(), calm);
+    if (state.scene === 'auto' && state.auto && state.auto.phase === 'ended') drawAutoEnded(ctx, state);
   }
   if (state.options) drawOptions(ctx, state, calm ? 1 : fx.optionsT());
 }
@@ -118,8 +119,16 @@ function drawPlay(ctx, state, layout, fx, theme, hintMoves, pulse) {
   const wastePicked = state.selected && state.selected.pile === 'waste';
   placeTop(board.waste, wp.x, wp.y, wastePicked ? 1 : hintSource('waste') ? pulse : 0, wastePicked ? 10 : 0);
 
-  drawButton(ctx, BTN.hint, 'What can I do?', { style: state.hint ? 'active' : 'primary', size: 38, radius: 26 });
-  drawButton(ctx, BTN.options, 'Options', { size: 30 });
+  if (state.scene === 'auto') {
+    const A = state.auto;
+    const ended = A && A.phase === 'ended';
+    drawButton(ctx, BTN.autoSkip, ended ? 'Play again' : 'Skip this pause', { style: ended ? 'active' : 'primary', size: ended ? 34 : 26, radius: 26 });
+    if (!ended) drawButton(ctx, BTN.autoPause, A && A.paused ? 'Resume' : 'Pause', { size: 26 });
+    drawButton(ctx, BTN.autoExit, 'Exit', { size: 26 });
+  } else {
+    drawButton(ctx, BTN.hint, 'What can I do?', { style: state.hint ? 'active' : 'primary', size: 38, radius: 26 });
+    drawButton(ctx, BTN.options, 'Options', { size: 30 });
+  }
 
   for (const { card, v } of flying) {
     drawLiftShadow(ctx, v.x, v.y, v.moving);
@@ -129,6 +138,37 @@ function drawPlay(ctx, state, layout, fx, theme, hintMoves, pulse) {
   if (!state.dealVerified && state.message) {
     text(ctx, 'This deal could not be confirmed as winnable.', W / 2, 92, 24, 'rgba(255,255,255,0.85)', UI, 600);
   }
+  if (state.scene === 'auto') drawAutoBar(ctx, state);
+}
+
+// Auto Play's status strip: the top ~100px is otherwise empty in this game (see layout.js), so the
+// phase caption ("Thinking...", "About to: ...") and the configurable think-time stepper live there.
+function drawAutoBar(ctx, state) {
+  const A = state.auto;
+  if (!A) return;
+  const r = BTN.autoBar;
+  drawPlate(ctx, r.x + r.w / 2, r.y, r.w, r.h);
+  // Short phase word on the left (the highlighted card/ring already shows WHICH move — see
+  // hintSource/state.selected reuse above — so this never needs to repeat the long caption and
+  // risk colliding with the stepper on the right).
+  let label = A.phase === 'deal' ? 'Dealing...' : A.phase === 'think' ? 'Thinking...' : A.phase === 'reveal' ? 'Revealing...' : A.phase === 'ended' ? (A.solved ? 'Solved!' : 'Not solved') : '';
+  if (A.paused && A.phase !== 'ended') label = 'Paused';
+  text(ctx, label, r.x + 20, r.y + r.h / 2 + 8, 26, A.paused ? '#ffd08a' : GOLD, UI, 700, 'left');
+  text(ctx, `Think ${AUTO_THINK_STEPS[state.autoThinkIdx]}s`, BTN.autoDec.x - 20, r.y + r.h / 2 + 8, 22, CREAM, UI, 700, 'right');
+  drawButton(ctx, BTN.autoDec, '-', { size: 28, radius: 12 });
+  drawButton(ctx, BTN.autoInc, '+', { size: 28, radius: 12 });
+}
+
+function drawAutoEnded(ctx, state) {
+  const A = state.auto;
+  ctx.save();
+  ctx.fillStyle = 'rgba(8,4,8,0.55)';
+  ctx.fillRect(0, 0, W, H);
+  drawSheet(ctx, 50, 620, 620, 360);
+  text(ctx, A.solved ? 'Solved!' : 'Not solved this time', W / 2, 720, 56, CREAM, FONT, 700);
+  text(ctx, A.solved ? 'Every move was the search engine\'s own proven line.' : 'The search budget ran out before finding a full line.', W / 2, 780, 26, 'rgba(251,238,221,0.85)', UI, 600);
+  text(ctx, 'Tap "Play again" for a new deal, or Exit to the title.', W / 2, 830, 24, 'rgba(251,238,221,0.7)', UI, 600);
+  ctx.restore();
 }
 
 function drawEmblem(ctx, cy, k) {
@@ -167,10 +207,11 @@ function drawTitle(ctx, env, state, theme, time, demoLimit) {
   drawPlate(ctx, W / 2, 1046, 600, 76);
   text(ctx, `Hands played ${state.handsPlayed}   ·   Hands won ${state.handsWon}`, W / 2, 1095, 30, CREAM, UI, 700);
 
-  // Options used to be one wide button with a subtitle; it now shares its row with Rules, so the
-  // subtitle (still true — table, card backs, suit colours) is dropped to keep both labels clear.
-  drawButton(ctx, BTN.titleOptions, 'Options', { size: 34 });
-  drawButton(ctx, BTN.titleRules, 'Rules', { size: 34 });
+  // Options/Rules/Auto share one row; each is narrower now that there are three, so the label size
+  // comes down to match (still large-print by this game's own standard — see GDD).
+  drawButton(ctx, BTN.titleOptions, 'Options', { size: 24 });
+  drawButton(ctx, BTN.titleRules, 'Rules', { size: 24 });
+  drawButton(ctx, BTN.titleAuto, 'Auto', { size: 24 });
 
   if (state.demo) {
     drawPlate(ctx, W / 2, 1300, 520, 64);
@@ -186,36 +227,62 @@ function drawTitle(ctx, env, state, theme, time, demoLimit) {
 // ---------------------------------------------------------------------------------------------
 function drawRules(ctx, state, theme) {
   const page = RULES[state.rulesPage % RULES.length];
-  shadowText(ctx, 'Rules', W / 2, 176, 58, CREAM, FONT, 700);
+  // Text scale for this reference page only. Always guarded: an out-of-range saved index (e.g.
+  // from a build with a shorter TEXT_SCALES array) falls back to 1, never NaN.
+  const scale = TEXT_SCALES[state.textScaleIdx] ?? 1;
+  shadowText(ctx, 'Rules', W / 2, 176, Math.round(58 * Math.min(scale, 1.15)), CREAM, FONT, 700);
+
+  // The reader card: one framed panel holding the page title, any diagram and the body text, so
+  // the page reads as a designed reference sheet rather than loose floating text.
+  const panel = { x: 30, y: 205, w: W - 60, h: 1165 };
+  drawSheet(ctx, panel.x, panel.y, panel.w, panel.h);
+
   // A page title can vary a lot in length; shrink it rather than let it ever touch the edges.
-  let titleSize = 32;
+  let titleSize = Math.round(34 * scale);
   ctx.font = `800 ${titleSize}px ${UI}`;
-  while (ctx.measureText(page.title).width > W - 90 && titleSize > 22) {
+  while (ctx.measureText(page.title).width > panel.w - 60 && titleSize > 22) {
     titleSize -= 2;
     ctx.font = `800 ${titleSize}px ${UI}`;
   }
-  text(ctx, page.title, W / 2, 236, titleSize, GOLD, UI, 800);
+  text(ctx, page.title, W / 2, panel.y + 55, titleSize, GOLD, UI, 800);
 
-  let y = 288;
+  // Diagrams are drawn at a fixed size (they reuse the board's own real card art) - never scaled,
+  // matching the game's own cards. Only the body text and titles grow with the stepper.
+  // The gap below the title must clear BOTH the title's own descent AND whatever follows it: a
+  // short title shrinks very little (so it still needs its own clearance), but even a heavily
+  // shrunk title sits above a full-size (84px at 300%) body line, whose own ascent reaches a long
+  // way up from its baseline. Using only the title's size undershot when the title was short/small
+  // (its own term shrank) while the body's ascent term stayed the same regardless.
+  const fontPx = Math.round(28 * scale), LH = Math.round(fontPx * 1.4);
+  let y = panel.y + 55 + Math.round(titleSize * 0.4) + Math.round(fontPx * 0.85) + 15;
   if (page.diagram) {
-    y = drawRulesDiagram(ctx, page, theme, state) + 40;
+    // Diagram art itself is fixed-size (never scaled), but where it STARTS must still clear the
+    // title above it — same fixed-gap-vs-shrink-to-fit-title bug as the body text had. The gap
+    // AFTER the diagram must also grow with the body font: a fixed 40px cleared a ~21px ascent at
+    // the old top step, not the ~63px ascent of an 84px body line at 300%.
+    y = drawRulesDiagram(ctx, page, theme, state, y) + 40 + Math.round(fontPx * 0.5);
   }
 
-  const LH = 33;
   for (const line of page.lines) {
-    const numLines = wrapText(ctx, line, W / 2, y, 24, W - 100, LH, 'rgba(251,238,221,0.94)', 500);
+    const numLines = wrapText(ctx, line, W / 2, y, fontPx, panel.w - 80, LH, 'rgba(251,238,221,0.94)', 500);
     y += numLines * LH + 12;
   }
 
   text(ctx, `Page ${(state.rulesPage % RULES.length) + 1} of ${RULES.length}`, W / 2, 1392, 24, 'rgba(251,238,221,0.65)', UI, 600);
   drawButton(ctx, BTN.rulesBack, 'Back', { size: 36 });
   drawButton(ctx, BTN.rulesNext, 'Next', { style: 'primary', size: 36 });
+  const atMin = state.textScaleIdx === 0, atMax = state.textScaleIdx === TEXT_SCALES.length - 1;
+  ctx.save(); if (atMin) ctx.globalAlpha = 0.4;
+  drawButton(ctx, BTN.textDec, 'A−', { size: 30 });
+  ctx.restore();
+  ctx.save(); if (atMax) ctx.globalAlpha = 0.4;
+  drawButton(ctx, BTN.textInc, 'A+', { size: 30 });
+  ctx.restore();
 }
 
 // Draws the small still-life for one Rules page, using the real card art. Returns the y just
 // below the diagram so the caller knows where to start the body text.
-function drawRulesDiagram(ctx, page, theme, state) {
-  const top = 270;
+function drawRulesDiagram(ctx, page, theme, state, top) {
   const four = state.fourColorDeck;
   if (page.diagram === 'deck') {
     const cards = page.cards, gap = 40, totalW = cards.length * CARD_W + (cards.length - 1) * gap;

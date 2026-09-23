@@ -1,11 +1,11 @@
 {
   "title": "Mahjong",
   "tagline": "The game of the four winds",
-  "description": "Mahjong is the four-player tile game of China, played around the world. Build four sets and a pair before the three computer players do: draw, discard, and call chows, pungs and kongs. This Hong Kong-style version shows exactly which patterns scored and why. Learn in eleven hands-on lessons, play against three computer levels, get plain-words hints, and solve a new discard puzzle every day. Thick ivory-and-jade tiles, a felt table, large text, reduced motion and three tile-face styles. Play in 中文 or English. Score only, no ads, works offline.",
+  "description": "Mahjong is the four-player tile game of China, played around the world. Build four sets and a pair before three computer players do: draw, discard, and call chows, pungs and kongs. Hong Kong-style scoring shows exactly which patterns scored and why. Learn in eleven hands-on lessons, watch free Auto Play play a whole hand face-up for you, play three computer levels, get plain-words hints, and solve a new discard puzzle every day. Thick ivory-and-jade tiles, a felt table, large text, reduced motion and three tile-face styles. Play in 中文 or English. Score only, no ads, works offline.",
   "genre": "tile game",
   "demo": true,
   "howToPlay": [
-    "New here? Learn to play has eleven short lessons where you do every step yourself.",
+    "New here? Eleven short lessons teach every step, or watch free Auto Play play a whole hand face-up for you.",
     "Each turn you draw a tile and discard one. TAP a tile to lift it, then TAP it again (or DRAG it up) to discard.",
     "Build four sets and a pair: a chow is three in a row in one suit, a pung is three alike, a kong is four alike.",
     "When another player discards a tile you can use, TAP Chow, Pung, Kong or Win!, or TAP Pass. A short timer runs; you can turn it off.",

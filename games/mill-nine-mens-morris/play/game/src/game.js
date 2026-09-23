@@ -4,7 +4,7 @@
 // How a move is made: PLACING: TAP an empty point. SLIDING: TAP a man (it lifts, its legal points glow), then TAP a
 // glowing point; a man can also be DRAGGED there. A move that makes a mill first shows the man arriving, then the
 // enemy men that may be taken glow red: TAP one. An illegal try shows a red ring and says why.
-import { W, H, BTN, LOOK, titleRows, inRect, pointNear, pointAt, neighbourToward, TEXT_SCALES, TEXT_STEP } from './layout.js';
+import { W, H, BTN, LOOK, titleRows, inRect, pointNear, pointAt, neighbourToward, TEXT_SCALES, TEXT_STEP, AUTO_THINK_STEPS, AUTO_REVEAL_SECONDS } from './layout.js';
 import { newGame, clone, applyMove, tryMove, legalMoves, takeable, NONE, NAMES, mvFrom, mvTo, mvTake, bit, placing, flying, MILLS, formsMill, pop, mkMove, reasonNoMoves, inMills } from './rules.js';
 import { LEVELS, createThinker, createEngine, chooseMove, explain } from './engine.js';
 import { LESSONS } from './lessons.js';
@@ -31,6 +31,9 @@ export function createGame(env) {
     // reading, so setting it once helps everywhere text is read, not just those three pages).
     // `page` is the current page within whichever of those three is on screen.
     textScaleIdx: 0, page: 0,
+    // Auto Play ("Watch & Learn"): a full, silent, start-to-finish demonstration game. `auto` is null
+    // except while `scene === 'auto'`; it never touches `state.game`/`state.saved`/`state.stats`.
+    autoThinkIdx: 1, auto: null,
   };
   let thinker = null, hintThinker = null, puzzleToday = null, engine = null;
   const eng = () => engine ?? (engine = createEngine(17));
@@ -40,19 +43,22 @@ export function createGame(env) {
     // Clamped + guarded: a stale index from a build with a longer/shorter TEXT_SCALES array must
     // never produce a NaN font size (SCALES[idx] ?? 1 in view.js is the other half of this guard).
     state.textScaleIdx = Math.min(Math.max(v.textScaleIdx ?? 0, 0), TEXT_SCALES.length - 1);
+    state.autoThinkIdx = Math.min(Math.max(v.autoThinkIdx ?? 1, 0), AUTO_THINK_STEPS.length - 1);
     audio.setMuted?.(!state.sound); } });
   storage.get('stats', null).then((v) => { if (v) state.stats = { ...state.stats, ...v, badges: { ...(v.badges || {}) } }; });
   storage.get('learned', false).then((v) => { state.learned = state.learned || !!v; });
   storage.get('daily', null).then((v) => { if (v) { state.daily.solvedDay = v.solvedDay ?? -1; state.daily.streak = v.streak ?? 0; } });
   storage.get('demoGames', 0).then((v) => { state.demoGames = Math.max(state.demoGames, v); });
   storage.get('save', null).then((v) => { if (v && v.game && v.game.winner === null && state.scene === 'title') state.saved = v; });
-  const savePrefs = () => storage.set('prefs', { level: state.level, side: state.humanSide, marks: state.marks, sound: state.sound, calm: state.calm, look: state.look, textScaleIdx: state.textScaleIdx });
+  const savePrefs = () => storage.set('prefs', { level: state.level, side: state.humanSide, marks: state.marks, sound: state.sound, calm: state.calm, look: state.look, textScaleIdx: state.textScaleIdx, autoThinkIdx: state.autoThinkIdx });
   const saveGame = () => { if (state.scene === 'play' && state.game.winner === null && !state.pend) { state.saved = { game: clone(state.game), human: state.human, two: state.two, level: state.level, hintsLeft: state.hintsLeft }; storage.set('save', state.saved); } };
   const clearSave = () => { state.saved = null; storage.remove('save'); };
 
   const dur = (d) => (state.calm ? d * 0.6 : d);
   const say = (text, hold = 4.5) => { state.msg = { text, t: 0, hold }; };
-  const tone = (o) => { if (state.sound) audio.tone(o); };
+  // Auto Play plays itself continuously with no player to hear it for - silent by design, regardless
+  // of the real Sound preference, the same way the menu's own attract-mode preview is silent.
+  const tone = (o) => { if (state.sound && state.scene !== 'auto') audio.tone(o); };
   const clack = (f = 420) => tone({ freq: f * 0.8, to: f * 0.36, dur: 0.06, type: 'sine', vol: 0.11 });
   const reset = (extra) => Object.assign(state, { sel: -1, pend: null, anim: null, msg: null, think: 0, thinking: false, undo: [], hint: null, hintsLeft: HINTS_PER_GAME, drag: null, show: null, flash: null, bad: null, lastTo: -1 }, extra);
   const cancelThinking = () => { thinker = hintThinker = null; state.thinking = false; };
@@ -154,6 +160,57 @@ export function createGame(env) {
   }
   function finishLesson() { state.lesson.done = true; state.show = null; tone({ freq: 660, to: 990, dur: 0.2, type: 'triangle', vol: 0.08 }); }
 
+  // ---- Auto Play ("Watch & Learn"): a full, silent, start-to-finish AI-vs-AI game that teaches by
+  // demonstration. For every decision (a placement, a slide, a flight - each already a single `move`
+  // returned by rules.js/engine.js, including any capture it makes) it loops THINK (board sits still,
+  // configurable duration) -> REVEAL (~2s, show every legal destination and highlight the one about
+  // to be played) -> ACT (execute it with the real move/animation code, never a fake path). Reuses
+  // the same createThinker() search that drives the computer opponent in normal play, for BOTH
+  // sides. Runs on its own game object (state.auto.game), never state.game/state.saved/state.stats.
+  const AUTO_LEVEL = 3; // "Master": strong and fast enough for a good teaching demonstration
+  function enterAuto() {
+    cancelThinking();
+    state.scene = 'auto';
+    state.auto = { game: newGame(), phase: 'think', timer: AUTO_THINK_STEPS[state.autoThinkIdx], thinker: null, pendingMove: undefined, moves: null, chosen: null, anim: null };
+  }
+  function exitAuto() { state.auto = null; state.scene = 'title'; }
+  // Executes a move exactly the way normal play does (same animation shape as play()), but on the
+  // auto game object and with no sound.
+  function playAuto(D, m) {
+    const g = D.game, me = g.turn, f = mvFrom(m), to = mvTo(m), x = mvTake(m), fly = f !== NONE && flying(g, me);
+    const md = dur(fly ? 0.5 : f === NONE ? 0.36 : 0.3);
+    D.anim = { side: me, from: f, to, take: x === NONE ? -1 : x, takeSide: 1 - me, mv: true, t: 0, moveDur: md, dur: md + (x === NONE ? 0.04 : 0.66), fly, rack: me === 0 ? 'bottom' : 'top' };
+    applyMove(g, m);
+  }
+  function updateAuto(dt, tap) {
+    const D = state.auto; if (!D) return;
+    if (tap && inRect(BTN.menu, tap.x, tap.y)) { exitAuto(); return; }
+    if (tap && inRect(TEXT_STEP.dec, tap.x, tap.y) && state.autoThinkIdx > 0) { state.autoThinkIdx--; savePrefs(); }
+    else if (tap && inRect(TEXT_STEP.inc, tap.x, tap.y) && state.autoThinkIdx < AUTO_THINK_STEPS.length - 1) { state.autoThinkIdx++; savePrefs(); }
+    else if (tap && (D.phase === 'think' || D.phase === 'reveal') && inRect(BTN.undo, tap.x, tap.y)) { D.timer = 0; }
+    if (D.phase === 'over') {
+      if (tap && inRect(BTN.again, tap.x, tap.y)) enterAuto();
+      else if (tap && inRect(BTN.back, tap.x, tap.y)) exitAuto();
+      return;
+    }
+    if (D.phase === 'act') {
+      if (D.anim) { D.anim.t += dt; if (D.anim.t < D.anim.dur) return; D.anim = null; }
+      D.phase = D.game.winner !== null ? 'over' : 'think'; D.timer = AUTO_THINK_STEPS[state.autoThinkIdx]; D.thinker = null; D.pendingMove = undefined; D.moves = null; D.chosen = null;
+      return;
+    }
+    if (D.phase === 'think') {
+      if (!D.thinker) D.thinker = createThinker(D.game, AUTO_LEVEL, rng, eng());
+      if (D.pendingMove === undefined) { const r = D.thinker.step(); if (r.move !== undefined) D.pendingMove = r.move; }
+      D.timer -= dt;
+      if (D.timer <= 0 && D.pendingMove !== undefined) {
+        D.chosen = D.pendingMove; D.pendingMove = undefined; D.thinker = null;
+        D.moves = legalMoves(D.game, []); D.phase = 'reveal'; D.timer = AUTO_REVEAL_SECONDS;
+      }
+      return;
+    }
+    if (D.phase === 'reveal') { D.timer -= dt; if (D.timer <= 0) { D.phase = 'act'; playAuto(D, D.chosen); } }
+  }
+
   // ---- title -----------------------------------------------------------------------------------------
   function updateDemo(dt) {
     const d = state.demo; d.since += dt; d.timer += dt;
@@ -183,6 +240,7 @@ export function createGame(env) {
     else if (hit(R.about)) { state.scene = 'about'; state.page = 0; }
     else if (hit(R.how)) { state.scene = 'how'; state.page = 0; }
     else if (hit(R.rules)) { state.scene = 'rules'; state.page = 0; }
+    else if (hit(R.auto)) enterAuto();
   }
 
   // ---- text-size stepper, shared by the About/How/Rules reference pages ---------------------------
@@ -322,6 +380,7 @@ export function createGame(env) {
       if (k.has('Enter') || k.has('Space')) return { x: BTN.refNext.x + 5, y: BTN.refNext.y + 5 };
       return null;
     }
+    if (sc === 'auto') { if (k.has('Escape')) return { x: BTN.menu.x + 5, y: BTN.menu.y + 5 }; if (k.has('Space')) return { x: BTN.undo.x + 5, y: BTN.undo.y + 5 }; return null; }
     if (sc !== 'play' && sc !== 'lesson' && sc !== 'puzzle') return null;
     if (k.has('Escape')) return { x: BTN.menu.x + 5, y: BTN.menu.y + 5 };
     if (k.has('KeyU')) return { x: BTN.undo.x + 5, y: BTN.undo.y + 5 };
@@ -367,6 +426,7 @@ export function createGame(env) {
       else if (sc === 'play') updatePlay(dt, p.pressed && state.drag && !dr ? (tap) : tap);
       else if (sc === 'lesson') updateLesson(dt, tap);
       else if (sc === 'puzzle') updatePuzzle(dt, tap);
+      else if (sc === 'auto') updateAuto(dt, tap);
       else if (sc === 'over' && tap) {
         if (inRect(BTN.again, tap.x, tap.y)) start(state.human, state.two);
         else if (inRect(BTN.back, tap.x, tap.y)) state.scene = 'title';
@@ -375,5 +435,8 @@ export function createGame(env) {
     },
     render(ctx) { render(ctx, state); },
     getState: () => state,
+    // Auto Play is a free teaching/marketing demo, not real play: kit 1.6.1's preview gate skips
+    // both time-accrual and the countdown badge while this is true.
+    isPreviewExempt: () => state.scene === 'auto',
   };
 }

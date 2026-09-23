@@ -1,5 +1,5 @@
 // Every pixel of Golden Sling. Reads state, never changes it. All art is drawn in code.
-import { W, H, SLING, STONE_R, CROP_MAX, CROP_DRAIN_FROM_LEVEL, DAILY, BIRDS, comboMultiplier, woodFor, stoneFor, SIBLINGS } from './tuning.js';
+import { W, H, SLING, STONE_R, CROP_MAX, CROP_DRAIN_FROM_LEVEL, DAILY, BIRDS, comboMultiplier, woodFor, stoneFor, SIBLINGS, AP_THINK_STEPS } from './tuning.js';
 import { previewArc } from './physics.js';
 import { RULES } from './content.js';
 
@@ -11,6 +11,9 @@ export const BUTTONS = {
   // Rules: a new row added below the existing title-screen stack (added for the Rules reference
   // page) - every button above is untouched, same position and size.
   rules: { x: 140, y: 1018, w: 440, h: 80 },
+  // Auto Play: one more row below Rules (Auto Play addition) - every row above stays exactly where
+  // it was.
+  auto: { x: 140, y: 1118, w: 440, h: 80 },
   playColors: { x: 596, y: 1196, w: 108, h: 64 },
   again: { x: 140, y: 1040, w: 440, h: 104 },
   share: { x: 90, y: 1156, w: 250, h: 76 },
@@ -26,10 +29,18 @@ export const BUTTONS = {
   textInc: { x: W - 134, y: 14, w: 110, h: 64 },
 };
 
+// Auto Play controls: a band across the very top of the field (there is no free space anywhere
+// else in this game's own dense HUD/sling/ground layout - drawn OVER the real HUD on purpose, the
+// same "own band on top" approach the other autoplay-pro games use for a live-action scene).
+export const AUTOPLAY = {
+  exit: { x: 120, y: 50, w: 150, h: 52 }, pause: { x: 285, y: 50, w: 150, h: 52 }, skip: { x: 450, y: 50, w: 150, h: 52 },
+  dec: { x: 220, y: 114, w: 70, h: 46 }, inc: { x: 430, y: 114, w: 70, h: 46 },
+};
+
 // Text-size steps for the Rules reference page. Index into this, never a raw float, so "min"/
 // "max" are exact and the stepper can cleanly disable at either end. Every Rules page is paced
 // (content.js) to fit comfortably even at the top step.
-export const TEXT_SCALES = [1, 1.15, 1.3];
+export const TEXT_SCALES = [1, 1.5, 2, 2.5, 3];
 
 // Tally screen: one tappable chip per sibling game (2 x 2 grid).
 export const chipRect = (i) => ({ x: 90 + (i % 2) * 280, y: 892 + Math.floor(i / 2) * 72, w: 260, h: 60 });
@@ -744,6 +755,40 @@ function wrapCentered(ctx, text, y, font, color, maxW = W - 100, lh = 32) {
   return ly + lh;
 }
 
+// Auto Play: the real game is rendered by a completely separate instance (`apGame`, built in
+// game.js's startAutoplay() - its own state, storage, audio, never the real player's), so this
+// just draws that instance's own frame first, then a control band on top (the only free space in
+// this game's own dense HUD/sling/ground layout - drawn OVER the real HUD on purpose, the same
+// "own band on top of a live scene" approach the other autoplay-pro games use).
+function drawAutoplay(ctx, state, apGame) {
+  if (apGame) apGame.render(ctx);
+  const A = state.ap;
+  if (!A) return;
+  const apState = apGame ? apGame.getState() : null;
+  ctx.fillStyle = 'rgba(6,10,4,0.82)';
+  roundRect(ctx, 10, 4, W - 20, 164, 20);
+  ctx.fill();
+  centered(ctx, 'Auto Play — watch and learn', 26, '700 22px system-ui, sans-serif', '#ffe9b0');
+  const left = Math.max(0, AP_THINK_STEPS[state.apThinkIdx] - A.t);
+  const phaseText = A.phase === 'finished' ? "That run is over - here's the tally below."
+    : A.paused ? 'Paused'
+    : A.phase === 'idle' ? 'Watching the field for the next bird…'
+    : A.phase === 'think' ? `Think: what shot would you take? (${left.toFixed(1)}s)`
+    : A.phase === 'reveal' ? 'Here is the aim about to be loosed…'
+    : apState && apState.stones.length ? 'Loosed - watching it fly…' : 'Watching it land…';
+  centered(ctx, phaseText, 54, '600 20px system-ui, sans-serif', '#fff');
+  if (A.phase === 'finished') {
+    centered(ctx, 'Tap "Play again" for another run, or "Home" to leave (below).', 137, '600 19px system-ui, sans-serif', '#ffe9b0');
+    return;
+  }
+  button(ctx, AUTOPLAY.exit, 'Exit', 'ghost');
+  button(ctx, AUTOPLAY.pause, A.paused ? 'Resume' : 'Pause', A.paused ? 'primary' : 'ghost');
+  button(ctx, AUTOPLAY.skip, 'Skip', 'ghost');
+  button(ctx, AUTOPLAY.dec, '−', 'ghost', state.apThinkIdx === 0);
+  button(ctx, AUTOPLAY.inc, '+', 'ghost', state.apThinkIdx === AP_THINK_STEPS.length - 1);
+  centered(ctx, `Think time: ${AP_THINK_STEPS[state.apThinkIdx]}s`, 137, '700 20px system-ui, sans-serif', '#ffe9b0');
+}
+
 // The Rules reference page: a single framed "reader card" holds the header, page title, any
 // illustration and the body text, so the page reads as a designed reference sheet rather than
 // text floating loose on the backdrop. The text-size stepper (A-/A+, top corners, TEXT_SCALES)
@@ -781,9 +826,20 @@ function drawRules(ctx, state) {
   ctx.moveTo(card.x + 60, card.y + 94);
   ctx.lineTo(card.x + card.w - 60, card.y + 94);
   ctx.stroke();
-  centered(ctx, page.title, card.y + 150, `800 ${Math.round(32 * scale)}px system-ui, sans-serif`, '#ffd75a');
+  // Title font is capped (like the header above): at the higher end of TEXT_SCALES a page title
+  // drawn as a single centered line (never wrapped) would run wider than the card and off the
+  // screen edges. Capping at the original 1.3x ceiling keeps every title (all <= 19 characters,
+  // the longest that still fits at that size - see content.js) safely within the card at any
+  // TEXT_SCALES top step.
+  const titleScale = Math.min(scale, 1.3);
+  centered(ctx, page.title, card.y + 150, `800 ${Math.round(32 * titleScale)}px system-ui, sans-serif`, '#ffd75a');
 
-  let y = card.y + 200;
+  // The gap from the title down to the body text is fixed at 1x scale (title and body fonts are
+  // both modest then), but body text keeps growing with `scale` past the title's own capped size -
+  // without scaling this gap too, a large body font's first line would climb back up and overlap
+  // the title. Scaling it with `scale` keeps a clear gap at every step (illustration pages are
+  // unaffected: they place their own text below a fixed-height illustration block instead).
+  let y = card.y + 150 + Math.round(50 * scale);
   if (page.bird || page.demo) {
     // Every illustration reserves the same 220px block right under the page title, so the card
     // reads consistently whether the page shows a bird, a demo, or (below) picks up straight away.
@@ -813,10 +869,13 @@ function drawRules(ctx, state) {
       const labels = ['+10', '+15  x1.5', '+20  x2'];
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
+      // These three labels sit in fixed 180px-wide slots side by side, so their font (unlike the
+      // main body text) is capped - same 1.3x ceiling as the title above - rather than scaling all
+      // the way to the top TEXT_SCALES step, or they would overlap each other well before that.
       labels.forEach((l, i) => {
         const x = W / 2 - 180 + i * 180;
         drawStone(ctx, x, boxTop + 70, 0);
-        ctx.font = `800 ${Math.round(22 * scale)}px system-ui, sans-serif`;
+        ctx.font = `800 ${Math.round(22 * titleScale)}px system-ui, sans-serif`;
         ctx.fillStyle = i === 2 ? '#ffd75a' : '#fff';
         ctx.fillText(l, x, boxTop + 120);
       });
@@ -837,10 +896,11 @@ function drawRules(ctx, state) {
       ctx.fill();
     } else if (page.demo === 'upgrades') {
       const names = ['River pebble', 'Clay ball', 'River glass'];
+      // Same fixed-slot reasoning as the combo labels above: capped, not scaled to the top step.
       names.forEach((n, i) => {
         const x = W / 2 - 180 + i * 180;
         drawStone(ctx, x, boxTop + 70, i);
-        ctx.font = `600 ${Math.round(18 * scale)}px system-ui, sans-serif`;
+        ctx.font = `600 ${Math.round(18 * titleScale)}px system-ui, sans-serif`;
         ctx.fillStyle = 'rgba(255,255,255,0.85)';
         ctx.textAlign = 'center';
         ctx.fillText(n, x, boxTop + 110);
@@ -859,8 +919,9 @@ function drawRules(ctx, state) {
   button(ctx, BUTTONS.textInc, 'A+', 'ghost', state.textScaleIdx === TEXT_SCALES.length - 1);
 }
 
-export function drawGame(ctx, state, manifest, day) {
+export function drawGame(ctx, state, manifest, day, apGame) {
   if (state.scene === 'rules') { drawRules(ctx, state); return; }
+  if (state.scene === 'autoplay') { drawAutoplay(ctx, state, apGame); return; }
   const scheme = SCHEMES[state.scheme] ?? SCHEMES[0];
   const time = state.time;
   const worldName = state.world?.world ?? 'wheat';
@@ -942,6 +1003,7 @@ export function drawGame(ctx, state, manifest, day) {
     button(ctx, BUTTONS.endless, state.demo ? 'Endless — in the app' : 'Endless', 'ghost', state.demo);
     button(ctx, BUTTONS.colors, `🎨 Light: ${scheme.name}`, 'ghost');
     button(ctx, BUTTONS.rules, '📖 Rules', 'ghost');
+    button(ctx, BUTTONS.auto, '🎬 Auto Play — watch and learn', 'ghost');
     button(ctx, BUTTONS.soundTitle, state.muted ? '🔇' : '🔊', 'ghost');
   }
 

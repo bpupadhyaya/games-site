@@ -1,6 +1,6 @@
 // Everything drawn per frame. Reads `state` (see game.js) and changes nothing. The heavy art (table, board, checkers,
 // dice faces) lives in cached sprites (art.js, sprites.js), so a frame is only a few dozen drawImage calls.
-import { W, H, D, R, IN, CH, MID, PLEN, SLOT, TRAY, DICE, CUBE, BTN, pointGeom, stackPos, barPos, offPos, landing, titleRows, PANEL, PBACK, SET_ROWS, CUBE_ASK, DONE, OVER, TEXT_SCALES, TEXT_BTN } from './layout.js';
+import { W, H, D, R, IN, CH, MID, PLEN, SLOT, TRAY, DICE, CUBE, BTN, pointGeom, stackPos, barPos, offPos, landing, titleRows, PANEL, PBACK, DOC_BACK, DOC_NEXT, SET_ROWS, CUBE_ASK, DONE, OVER, TEXT_SCALES, TEXT_BTN, THINK_STEPS } from './layout.js';
 import { BAR, OFF, pips, own } from './rules.js';
 import { drawStatic } from './art.js';
 import { drawChecker, drawChip, drawDie, SET_NAMES } from './sprites.js';
@@ -102,6 +102,7 @@ function drawTitle(c, st, U) {
   U.button(R_.learn, 'Learn to play', { size: 30, sub: st.learned ? 'Nine hands-on lessons · done' : 'Nine hands-on lessons' });
   U.button(R_.two, 'Two players', { size: 30, sub: 'Pass the phone' });
   U.button(R_.daily, 'Daily puzzle', { size: 30, sub: st.daily.streak ? `Streak ${st.daily.streak} day${st.daily.streak === 1 ? '' : 's'}` : 'Find the best move' });
+  U.button(R_.auto, 'Auto Play', { size: 30, sub: 'Watch & Learn - both sides computer-played' });
   U.button(R_.level, `Level: ${lv.name}`, { size: 24 });
   U.button(R_.cube, `Cube: ${st.cube.on ? 'On' : 'Off'}`, { size: 24 });
   U.button(R_.gammon, `Gammons: ${st.gammon ? 'On' : 'Off'}`, { size: 24 });
@@ -109,7 +110,7 @@ function drawTitle(c, st, U) {
   U.button(R_.howto, 'How to play', { size: 24 });
   U.button(R_.about, 'About Tavla', { size: 24 });
   U.button(R_.rules, 'Rules', { size: 24 });
-  const y = R_.about.y + 100;
+  const y = R_.auto.y + R_.auto.h + 46;
   U.wrap(lv.blurb, 360, y, st.big ? 27 : 23, 560, 'rgba(246,227,180,0.85)', 30);
   if (st.stats.games) U.text(`Games played ${st.stats.games}  ·  won ${st.stats.wins}`, 360, y + 92, 22, 'rgba(232,200,140,0.75)', UI, 600);
   if (st.msg) U.wrap(st.msg.text, 360, y + 130, 24, 560, '#ffe9b0', 30);
@@ -119,6 +120,32 @@ function drawTitle(c, st, U) {
 // holds the title, the text-size stepper and the body, so the page reads as a designed reference
 // sheet rather than loose floating text. The stepper (A-/A+) is an index into TEXT_SCALES, guarded
 // (`?? 1`) and clamped on load (game.js), so a stale saved index can never produce a broken font.
+// Picks the largest body size (paired with a header size capped like the screen title above it)
+// whose wrapped header+body actually fits between the content's start and the footer/page-indicator
+// row. A page's body font used to scale fully uncapped with the text-size stepper while its budget
+// stayed fixed - safe most of the time because content.js keeps every page to one short sentence,
+// but rendering real pages at the 300% top step found the sentence's own wrapped line count (a
+// short-looking sentence can still wrap to 6-7 lines at that size on this panel's width) plus an
+// uncapped two-line heading regularly ran the body text straight through the page-indicator text
+// below it. This ladder is the same safety net big-card-solitaire-large-print's Rules page and
+// sure-sweep-no-guess's Rules page both already use: try the full requested size first, and only
+// step down if the real, measured wrap doesn't fit - so nearly every page still renders at full
+// size, and the rare long one shrinks gracefully instead of overflowing.
+function fitDocBody(U, blocks, room, scale) {
+  const hSize = Math.round(33 * Math.min(scale, 1.3));
+  const bodyLadder = [28, 26, 24, 22, 20, 18].map((s) => Math.round(s * scale));
+  let best = null;
+  for (const size of bodyLadder) {
+    let h = 0;
+    for (const blk of blocks) {
+      if (blk.h) { const lines = U.wrapLines(blk.h, hSize, PANEL.w - 80, 800).length; h += lines * hSize * 1.15 + size * 0.35; }
+      const n = U.wrapLines(blk.p, size, PANEL.w - 80, 500).length; h += n * size * 1.4 + size * 0.7;
+    }
+    best = { size, hSize, height: h };
+    if (h <= room) break;
+  }
+  return best;
+}
 function drawDoc(c, st, U, title, doc, page, opts = {}) {
   c.fillStyle = 'rgba(14,7,3,0.55)'; c.fillRect(0, 262, W, H - 262);
   U.panel(PANEL.x, PANEL.y, PANEL.w, PANEL.h, 0.94);
@@ -133,23 +160,41 @@ function drawDoc(c, st, U, title, doc, page, opts = {}) {
   c.beginPath(); c.moveTo(PANEL.x + 60, PANEL.y + 164); c.lineTo(PANEL.x + PANEL.w - 60, PANEL.y + 164); c.stroke();
   c.restore();
 
-  const pg = doc[Math.min(page, doc.length - 1)], size = Math.round(28 * scale);
+  const pg = doc[Math.min(page, doc.length - 1)];
   let y = PANEL.y + 208;
+  // The room for a header + a piece portrait (if any) + the body, before the "Page X of Y" caption.
+  const FOOTER_Y = 1290;
+  const capHSize = Math.round(33 * Math.min(scale, 1.3));
   if (pg.piece) {
     // a piece page: the real in-game checker, both colours, drawn with this game's own checker sprite.
     const cy = y + 46, lx = PANEL.x + 170, rx = PANEL.x + PANEL.w - 170, lblSize = Math.round(20 * Math.min(scale, 1.15));
     drawChecker(c, st.set, 0, lx, cy, 1.35); drawChecker(c, st.set, 1, rx, cy, 1.35);
     U.text('Yours', lx, cy + 78, lblSize, 'rgba(246,227,180,0.8)', UI, 700);
     U.text('Rival’s', rx, cy + 78, lblSize, 'rgba(246,227,180,0.8)', UI, 700);
-    y = cy + 118;
+    // The gap below the art is sized off the (capped) header size, never the body size, so it stays
+    // stable regardless of which body size the fit-to-room step below ends up choosing.
+    y = cy + 78 + Math.round(capHSize * 0.9);
   }
+  const { size, hSize } = fitDocBody(U, pg.blocks, FOOTER_Y - y, scale);
   for (const blk of pg.blocks) {
-    if (blk.h) { U.text(blk.h, PANEL.x + 40, y + 6, size + 5, '#e8c46a', UI, 800, 'left'); y += size * 1.55; }
+    // The heading wraps too (not just the body) — at the top text-size steps a short-looking heading
+    // like "Blocked and the bar" no longer reliably fits on one line at the panel's fixed width.
+    if (blk.h) {
+      const hLines = U.wrap(blk.h, PANEL.x + 40, y + 6, hSize, PANEL.w - 80, '#e8c46a', hSize * 1.15, 'left', 800);
+      y += hLines * hSize * 1.15 + size * 0.35;
+    }
     const n = U.wrap(blk.p, PANEL.x + 40, y, size, PANEL.w - 80, '#f6ead0', size * 1.4, 'left', 500); y += n * size * 1.4 + size * 0.7;
   }
   if (opts.showCount && doc.length > 1) U.text(`Page ${Math.min(page, doc.length - 1) + 1} of ${doc.length}`, 360, 1310, 18, 'rgba(246,227,180,0.55)', UI, 600);
-  if (doc.length > 1) U.button({ x: 140, y: 1330, w: 440, h: 70 }, page + 1 < doc.length ? 'More' : 'Back to first page', { size: 26 });
-  U.button(PBACK, 'Back', { primary: true, size: 30 });
+  // An equal-width Back/Next pair, side by side near the bottom - Back is the neutral/secondary
+  // action (always exits to the title), Next is primary (pages forward, wrapping to the first page).
+  // A single-page doc has nothing to page through, so Next is left off and Back spans the full row.
+  if (doc.length > 1) {
+    U.button(DOC_BACK, 'Back', { size: 30 });
+    U.button(DOC_NEXT, 'Next', { primary: true, size: 30 });
+  } else {
+    U.button(PBACK, 'Back', { primary: true, size: 30 });
+  }
 }
 
 function drawSettings(c, st, U) {
@@ -185,8 +230,9 @@ function drawBoardScene(c, st, U) {
   // ---- header ----------------------------------------------------------------------------------------------------------
   U.text('Tavla', 360, 96, 72, '#f6dfae', FONT, 700, 'center', true);
   if (sc !== 'lesson') {
-    U.text(`${st.two && sc === 'play' ? 'Player 1' : 'You'}  ${pips(g, 0)}`, 700, 62, 22, '#f6e3b4', UI, 700, 'right');
-    U.text(`${st.two && sc === 'play' ? 'Player 2' : 'Rival'}  ${pips(g, 1)}`, 700, 90, 22, '#e8b98a', UI, 700, 'right');
+    const twoUp = (st.two || st.autoMode) && sc === 'play';
+    U.text(`${twoUp ? 'Player 1' : 'You'}  ${pips(g, 0)}`, 700, 62, 22, '#f6e3b4', UI, 700, 'right');
+    U.text(`${twoUp ? 'Player 2' : 'Rival'}  ${pips(g, 1)}`, 700, 90, 22, '#e8b98a', UI, 700, 'right');
     U.text('pips to go', 700, 114, 16, 'rgba(246,227,180,0.6)', UI, 600, 'right');
   }
   // message banner
@@ -196,6 +242,7 @@ function drawBoardScene(c, st, U) {
   U.panel(bx, by, bw, bh, 0.86);
   if (sc === 'lesson') U.text(`Lesson ${st.lesson.i + 1} of ${LESSONS.length}: ${LESSONS[st.lesson.i].title}`, 360, by - 6, 22, '#e8c46a', UI, 800);
   if (sc === 'puzzle' && st.pz?.puzzle) U.text(`Daily puzzle · streak ${st.daily.streak}`, 360, by - 6, 22, '#e8c46a', UI, 800);
+  if (st.autoMode) U.text(`Auto Play  ·  think time ${THINK_STEPS[st.autoThinkIdx]}s`, 360, by - 6, 22, '#e8c46a', UI, 800);
   let size = st.big ? 26 : 23, ls = U.wrapLines(msg, size, bw - 40);
   while (ls.length > 3 && size > 15) { size -= 1; ls = U.wrapLines(msg, size, bw - 40); }
   while (ls.length > 2 && size > 15 && bh < 96) { if (ls.length * size * 1.28 <= bh - 16) break; size -= 1; ls = U.wrapLines(msg, size, bw - 40); }
@@ -207,7 +254,7 @@ function drawBoardScene(c, st, U) {
   for (let s = 0; s < 2; s++) {
     let n = g.off[s]; if (a && a.hide && a.hide.kind === 'off' && a.hide.side === s && !a.done) n -= 1;
     for (let k = 0; k < n; k++) { const p = offPos(s, k); drawChip(c, set, s, p.x, p.y); }
-    if (!g.off[s] && !(s === 0 && st.dests.some((d) => d.to === OFF))) { const T = s === 0 ? TRAY.me : TRAY.opp; U.text(s === 0 ? 'Your bear-off tray' : 'Rival’s bear-off tray', 360, T.y + T.h / 2 + 6, 17, 'rgba(255,225,170,0.32)', UI, 700); }
+    if (!g.off[s] && !(s === 0 && st.dests.some((d) => d.to === OFF))) { const T = s === 0 ? TRAY.me : TRAY.opp; U.text(st.autoMode ? `Player ${s + 1}’s bear-off tray` : s === 0 ? 'Your bear-off tray' : 'Rival’s bear-off tray', 360, T.y + T.h / 2 + 6, 17, 'rgba(255,225,170,0.32)', UI, 700); }
     if (g.off[s] && g.off[s] < 10) { const T = s === 0 ? TRAY.me : TRAY.opp; U.text(`${g.off[s]} off`, T.x + T.w - 14, T.y + T.h / 2 + 8, 22, 'rgba(255,235,190,0.9)', UI, 700, 'right', true); }
   }
   if (st.dests.some((d) => d.to === OFF)) {
@@ -261,6 +308,18 @@ function drawBoardScene(c, st, U) {
     c.strokeStyle = `rgba(255,240,170,${0.6 + pulse * 0.4})`; c.lineWidth = 3; c.setLineDash([7, 6]); c.beginPath(); c.arc(p.x, p.y, R - 2, 0, TAU); c.stroke(); c.setLineDash([]);
     if (own(g, 0, d.to) < 0) { c.fillStyle = 'rgba(255,90,60,0.9)'; c.font = `800 15px ${UI}`; c.textAlign = 'center'; c.fillText('HIT', p.x, p.y + 5); }
   }
+  // Auto Play's REVEAL: every step of the move about to be played, ringed the same way Hint already
+  // rings a single suggested move - just generalized to either side (Auto Play plays both).
+  if (st.autoReveal) {
+    const { side, steps } = st.autoReveal;
+    for (const h of steps) {
+      const f = h.from === BAR ? barPos(side, Math.max(0, g.bar[side] - 1), Math.max(1, g.bar[side])) : stackPos(h.from, Math.max(0, Math.abs(g.board[h.from]) - 1), Math.abs(g.board[h.from]) || 1);
+      const to = landing(h.to, h.to === OFF ? g.off[side] : h.to === BAR ? 0 : Math.abs(g.board[h.to]) && own(g, side, h.to) > 0 ? Math.abs(g.board[h.to]) : 0, side);
+      c.strokeStyle = '#7dffb0'; c.lineWidth = 4; c.beginPath(); c.arc(f.x, f.y, R + 5, 0, TAU); c.stroke();
+      c.setLineDash([10, 8]); c.beginPath(); c.moveTo(f.x, f.y); c.lineTo(to.x, to.y); c.stroke(); c.setLineDash([]);
+      c.fillStyle = `rgba(125,255,176,${0.25 + pulse * 0.3})`; c.beginPath(); c.arc(to.x, to.y, R + 4, 0, TAU); c.fill(); c.strokeStyle = '#7dffb0'; c.beginPath(); c.arc(to.x, to.y, R + 4, 0, TAU); c.stroke();
+    }
+  }
   // hint
   if (st.hint) {
     const h = st.hint, f = h.from === BAR ? barPos(0, Math.max(0, g.bar[0] - 1), Math.max(1, g.bar[0])) : stackPos(h.from, Math.max(0, Math.abs(g.board[h.from]) - 1), Math.abs(g.board[h.from]) || 1);
@@ -280,10 +339,17 @@ function drawBoardScene(c, st, U) {
   drawCube(c, st, U, pulse);
   const lock = st.phase !== 'move' && st.phase !== 'roll' && st.phase !== 'end';
   if (sc !== 'over') U.button(BTN.menu, 'Menu', { size: 26 });
-  const fin = (st.lesson && sc === 'lesson' && st.lesson.done) || (sc === 'puzzle' && st.pz?.status === 'solved');
-  if (!fin && (sc === 'play' || sc === 'lesson' || sc === 'puzzle')) {
-    U.button(BTN.undo, 'Undo', { size: 26, dim: !st.canUndo });
-    U.button(BTN.hint, sc === 'puzzle' ? 'Reset' : `Hint (${st.hintsLeft})`, { size: 26, dim: sc !== 'puzzle' && st.hintsLeft <= 0 });
+  if (st.autoMode) {
+    // The think-time stepper takes the Undo/Hint slots (same rects, no new layout) - neither
+    // undo nor a hint means anything with nobody tapping.
+    U.button(BTN.undo, '− Think', { size: 24, dim: st.autoThinkIdx <= 0 });
+    U.button(BTN.hint, 'Think +', { size: 24, dim: st.autoThinkIdx >= THINK_STEPS.length - 1 });
+  } else {
+    const fin = (st.lesson && sc === 'lesson' && st.lesson.done) || (sc === 'puzzle' && st.pz?.status === 'solved');
+    if (!fin && (sc === 'play' || sc === 'lesson' || sc === 'puzzle')) {
+      U.button(BTN.undo, 'Undo', { size: 26, dim: !st.canUndo });
+      U.button(BTN.hint, sc === 'puzzle' ? 'Reset' : `Hint (${st.hintsLeft})`, { size: 26, dim: sc !== 'puzzle' && st.hintsLeft <= 0 });
+    }
   }
   if (st.thinking && !calm) { const n = 1 + (Math.floor(t * 3) % 3); U.text('Thinking' + '.'.repeat(n), 360, 1466, 18, 'rgba(255,230,170,0.8)', UI, 700); }
 

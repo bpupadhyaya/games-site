@@ -79,10 +79,11 @@ export function render(ctx, state) {
   }
 
   // ---- header + message ------------------------------------------------------------------------------
-  const play = sc === 'play' || sc === 'lesson' || sc === 'daily' || sc === 'pass' || sc === 'over';
+  const play = sc === 'play' || sc === 'lesson' || sc === 'daily' || sc === 'pass' || sc === 'over' || sc === 'autoplay' || sc === 'autoplay-over';
   if (play) {
     if (sc === 'lesson' && state.lesson) shadowText(`Lesson ${state.lesson.i + 1} of ${LESSONS.length}: ${LESSONS[state.lesson.i].title}`, 360, 112, big ? 36 : 40, '#f6dfae');
     else if (sc === 'daily') shadowText(`Daily race  ·  score ${state.dl ? state.dl.score : 0}`, 360, 112, 46, '#f6dfae');
+    else if (sc === 'autoplay' || sc === 'autoplay-over') shadowText('Auto Play · Watch & Learn', 360, 112, 36, '#f6dfae');
     else shadowText('Pachisi', 360, 120, 68, '#f6dfae');
     plaque(36, 150, 648, 128);
     fitWrap(state.msg || '', 360, 154, 592, 120, big ? 34 : 29, 20, '#fff2d0');
@@ -90,7 +91,7 @@ export function render(ctx, state) {
 
   if (sc === 'title') drawTitle(ctx, state, text, shadowText);
 
-  if (boardScene && play && sc !== 'over' && sc !== 'pass') {
+  if (boardScene && play && sc !== 'over' && sc !== 'pass' && sc !== 'autoplay-over') {
     drawMedallion(ctx, state, text);
     if (!state.menuOpen && !(sc === 'lesson' && state.lesson?.complete) && !(sc === 'daily' && state.dl?.finished)) buttonsNow();
   }
@@ -99,7 +100,11 @@ export function render(ctx, state) {
   if (panelScene) {
     drawPanel(ctx, PANEL.x, PANEL.y, PANEL.w, PANEL.h);
     const readerPage = sc === 'how' || sc === 'about' || sc === 'rules';
-    ctxTitle(ctx, text, sc === 'setup' ? 'Set up a game' : sc === 'learn' ? 'Learn to play' : sc === 'settings' ? 'Settings' : sc === 'how' ? HOW_PAGES[state.howPage][0] : sc === 'about' ? ABOUT_PAGES[state.aboutPage][0] : sc === 'rules' ? RULES_PAGES[state.rulesPage][0] : 'Thank you for playing', 190, Math.round(66 * (readerPage ? textScale : 1)));
+    // The reference-page header is capped well below the body-text scale (same cap as the old top
+    // step, 1.3x): once TEXT_SCALES grew to reach 2x for body copy, an uncapped 66px title at 2x
+    // (132px) ran off the top of the panel for any short single-word title - the header stays
+    // readable and inside the frame at every step without needing its own overflow handling.
+    ctxTitle(ctx, text, sc === 'setup' ? 'Set up a game' : sc === 'learn' ? 'Learn to play' : sc === 'settings' ? 'Settings' : sc === 'how' ? HOW_PAGES[state.howPage][0] : sc === 'about' ? ABOUT_PAGES[state.aboutPage][0] : sc === 'rules' ? RULES_PAGES[state.rulesPage][0] : 'Thank you for playing', 190, Math.round(66 * (readerPage ? Math.min(textScale, 1.3) : 1)));
     if (sc === 'setup') {
       const t = state.setup;
       const lab = (s, y) => text(s, 60, y, 26 * (big ? 1.1 : 1), INK, UI, 700, 'left');
@@ -116,14 +121,21 @@ export function render(ctx, state) {
       wrap('Progress is kept on this device.', 360, 1266, 22, 560, '#7a1a20', 30);
     } else if (sc === 'how' || sc === 'about') {
       const pages = sc === 'how' ? HOW_PAGES : ABOUT_PAGES, pg = pages[sc === 'how' ? state.howPage : state.aboutPage][1];
-      let y = 250; const sz = Math.round(28 * textScale * (big ? 1.06 : 1)), lh = Math.round(sz * 1.4), gap = Math.round(22 * textScale);
+      // The header's cursive descenders (e.g. the 'g' in "Throwing") sit at a fixed height, but the
+      // body text below it grows with textScale - at the 200%/300% steps a tall capital letter on the
+      // first body line can visually collide with them, so nudge the body's start down a little as
+      // textScale grows (harmless at 100%, where textScale=1 leaves this at the original 250).
+      let y = 250 + Math.round((textScale - 1) * 14); const sz = Math.round(28 * textScale * (big ? 1.06 : 1)), lh = Math.round(sz * 1.4), gap = Math.round(22 * textScale);
       for (const para of pg) { const n = wrap(para, 76, y, sz, 568, INK, lh, 'left'); y += n * lh + gap; }
       text(`Page ${(sc === 'how' ? state.howPage : state.aboutPage) + 1} of ${pages.length}`, 360, 1290, 22, '#7a1a20', UI, 600);
     } else if (sc === 'rules') {
       const idx = state.rulesPage, page = RULES_PAGES[idx];
-      let y = 250;
-      if (page[2]) { drawRulesArt(ctx, page[2], T); y = 250 + RULES_ART_H; }
       const sz = Math.round(28 * textScale * (big ? 1.06 : 1)), lh = Math.round(sz * 1.4), gap = Math.round(18 * textScale);
+      let y = 250 + Math.round((textScale - 1) * 14);
+      // The art's own caption sits at a fixed size/position, but the body text below it grows with
+      // textScale - at the 300% step the body's own ascent reached up far enough to crowd the
+      // caption above it, so the gap after the art must also grow with the body font, not stay fixed.
+      if (page[2]) { drawRulesArt(ctx, page[2], T); y = 250 + RULES_ART_H + Math.round(sz * 0.5); }
       for (const para of page[1]) { const n = wrap(para, 76, y, sz, 568, INK, lh, 'left'); y += n * lh + gap; }
       text(`Page ${idx + 1} of ${RULES_PAGES.length}`, 360, 1290, 22, '#7a1a20', UI, 600);
     } else if (sc === 'demo-limit') {
@@ -138,7 +150,7 @@ export function render(ctx, state) {
   if (state.menuOpen && !panelScene) { scrim(0.6); drawPanel(ctx, 80, 470, 560, 470); ctxTitle(ctx, text, 'Paused', 545, 60); buttonsNow(); }
   if (sc === 'lesson' && state.lesson?.complete) { plate(ctx, 36, 1120, 648, 220); text('Lesson complete', 360, 1178, 42, '#f6dfae', FONT); buttonsNow(); }
   if (sc === 'daily' && state.dl?.finished) drawDailyDone(ctx, state, text, wrap, buttonsNow);
-  if (sc === 'over') drawOver(ctx, state, text, buttonsNow, scrim);
+  if (sc === 'over' || sc === 'autoplay-over') drawOver(ctx, state, text, buttonsNow, scrim);
   if (sc === 'pass') {
     scrim(0.72); drawPanel(ctx, 60, 420, 600, 640);
     const p = state.pass ? g.players[state.pass.pl] : g.players[g.turn], arm = p.arm;
@@ -236,7 +248,10 @@ function drawYards(ctx, state, text, mode) {
 function drawPieces(ctx, state) {
   const g = state.g, G = geo(g.mode), T = state.t, list = [], PK = cellSize(g.mode) / 31;
   const flying = new Set(state.fly.map((f) => f.pl + ',' + f.i)), hop = state.hop;
-  const choose = state.phase === 'choose' && state.opts.length && (g.players[g.turn].human || state.scene !== 'play');
+  // REVEAL (Auto Play): the same destination-ring/selection-glow a human turn uses, shown once the
+  // chosen move is picked (state.sel set in game.js's 'apthink' -> 'apreveal' transition), never
+  // during 'apthink' itself so THINK still shows a bare board.
+  const choose = (state.phase === 'choose' || state.phase === 'apreveal') && state.opts.length && (g.players[g.turn].human || state.scene !== 'play');
   const selMove = choose && state.sel >= 0 ? state.opts.find((o) => o.i === state.sel) : null;
   const froms = choose ? new Set(state.opts.map((o) => o.from)) : new Set();
   const groups = new Map();
@@ -351,7 +366,8 @@ function drawTitle(ctx, state, text, shadowText) {
   ctx.save(); ctx.strokeStyle = '#c9982f'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(150, 92); ctx.lineTo(570, 92); ctx.stroke();
   for (const x of [150, 360, 570]) { ctx.beginPath(); ctx.moveTo(x, 84); ctx.lineTo(x + 8, 92); ctx.lineTo(x, 100); ctx.lineTo(x - 8, 92); ctx.closePath(); ctx.fillStyle = '#e0b04a'; ctx.fill(); } ctx.restore();
   // the plate behind the buttons
-  const has = !!state.saved, top = 1004, h = has ? 456 : 392;
+  // +80 for the new Auto Play row (ui.js screenButtons title block).
+  const has = !!state.saved, top = 1004, h = (has ? 456 : 392) + 80;
   plate(ctx, 36, top, 648, h + 12);
   const s = state.stats; text(s.played ? `${s.played} played · ${s.wins} won` : 'Free preview: 5 minutes of play', 360, top + h - 14, 22, '#c9a86a', UI, 600);
 }

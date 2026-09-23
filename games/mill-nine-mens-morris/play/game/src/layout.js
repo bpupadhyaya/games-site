@@ -16,7 +16,7 @@ export const rackPos = (which, k) => ({ x: 360 + (k - 4) * 56, y: RACK[which].y,
 export const inRect = (r, x, y) => !!r && x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
 
 const mainRow = (y, i) => ({ x: 90, y: y + i * 72, w: 540, h: 64 });
-// Title buttons. names: resume?, learn, play, two, daily; then small: level side / sound calm / look big / about how rules
+// Title buttons. names: resume?, learn, play, two, daily; then small: level side / sound calm / look big / about how rules auto
 export function titleRows(hasSave) {
   const names = (hasSave ? ['resume'] : []).concat(['learn', 'play', 'two', 'daily']), out = {}, y0 = 880 - (hasSave ? 0 : 0);
   names.forEach((n, i) => { out[n] = mainRow(y0, i); });
@@ -26,12 +26,16 @@ export function titleRows(hasSave) {
   // directly on the About/How/Rules pages themselves (TEXT_SCALES/TEXT_STEP below), right where a
   // player is actually reading, so this row's other button takes the whole row.
   out.look = { x: 90, y: y + 2 * 66, w: 540, h: 58 };
-  // Row 3 was About/How (2 columns); Rules is a new addition, so this one row becomes 3 even columns.
-  // Every other row above keeps its exact 2-column position/size, unchanged.
-  const bw3 = 540, gap3 = 16, third = (bw3 - gap3 * 2) / 3, sm3 = (j) => ({ x: 90 + j * (third + gap3), y: y + 3 * 66, w: third, h: 58 });
-  out.about = sm3(0); out.how = sm3(1); out.rules = sm3(2);
+  // Row 3 was About/How/Rules (3 columns); Auto Play is the addition (4 equal columns now, same
+  // total span x=90..630) - every other row above keeps its exact position/size, unchanged.
+  const bw3 = 540, gap3 = 14, n4 = 4, colw = (bw3 - gap3 * (n4 - 1)) / n4, sm3 = (j) => ({ x: 90 + j * (colw + gap3), y: y + 3 * 66, w: colw, h: 58 });
+  out.about = sm3(0); out.how = sm3(1); out.rules = sm3(2); out.auto = sm3(3);
   return out;
 }
+// Auto Play (Watch & Learn): think-time steps in seconds, hard-capped at 10s. An index into this
+// array (same pattern as TEXT_SCALES), never a raw float.
+export const AUTO_THINK_STEPS = [2, 5, 8, 10];
+export const AUTO_REVEAL_SECONDS = 2;
 export const LOOK = {
   woods: [0, 1, 2].map((i) => ({ x: 90 + i * 184, y: 760, w: 172, h: 76 })),
   sets: [0, 1].map((i) => ({ x: 90 + i * 278, y: 940, w: 262, h: 76 })),
@@ -48,13 +52,17 @@ export const BTN = {
   refBack: { x: 140, y: 1400, w: 212, h: 84 }, refNext: { x: 368, y: 1400, w: 212, h: 84 },
 };
 // Text-size steps for the About/How/Rules reference pages. An *index* array, never a raw float, so
-// "min"/"max" are exact and the stepper can cleanly disable at either end.
-export const TEXT_SCALES = [1, 1.15, 1.3];
-// The stepper's home: a small header row at the TOP of those pages' panel. Back/Next on these
-// pages live at the BOTTOM (see BTN.refBack/refNext above), so the top is naturally clear of them.
+// "min"/"max" are exact and the stepper can cleanly disable at either end. Raised from a 1.3x
+// ceiling to 3.0x (300%) on 2026-09-23 at the owner's request (an intermediate 2.0x pass was
+// superseded before landing); kept evenly spaced.
+export const TEXT_SCALES = [1, 1.5, 2, 2.5, 3];
+// The stepper's home: two small pills in the top corners of the panel (matching the same stepper
+// placement used across every other reference page in the catalogue), well clear of the centred
+// header title below. Back/Next on these pages live at the BOTTOM (see BTN.refBack/refNext above),
+// so the top is naturally clear of them either way.
 export const TEXT_STEP = {
-  dec: { x: 360 - 120, y: 148, w: 110, h: 56 },
-  inc: { x: 360 + 10, y: 148, w: 110, h: 56 },
+  dec: { x: 50, y: 148, w: 120, h: 56 },
+  inc: { x: 550, y: 148, w: 120, h: 56 },
 };
 // Which board point a tap means: the nearest point (generous radius, the men are big).
 export function pointNear(x, y, max = 52) {

@@ -23,13 +23,15 @@ export function pointNear(x, y) {
 export function titleRows(hasSave) {
   const names = (hasSave ? ['resume'] : []).concat(['learn', 'ladder', 'two', 'daily']), out = {};
   names.forEach((n, i) => { out[n] = { x: 90, y: 736 + i * 76, w: 540, h: 66 }; });
-  // About / How to play / Rules share one row, three even columns (same x/w as the sound/calm/big
-  // row below) instead of each taking a full-width row of its own — Rules is the addition; About
-  // keeps the exact y position it always had, How to play moves up into the freed row alongside it.
-  const rowY = 736 + names.length * 76;
-  out.about = { x: 90, y: rowY, w: 172, h: 66 };
-  out.howto = { x: 274, y: rowY, w: 172, h: 66 };
-  out.rules = { x: 458, y: rowY, w: 172, h: 66 };
+  // About / How to play / Rules / Auto Play share one row (same x/w span as the sound/calm/big row
+  // below) instead of each taking a full-width row of its own — Auto Play is the addition (3 columns
+  // -> 4, same total span x=90..630), so About/How to play/Rules keep the exact y position they
+  // already had, and nothing else on the title screen moves.
+  const rowY = 736 + names.length * 76, gap = 14, colw = (540 - gap * 3) / 4;
+  out.about = { x: 90, y: rowY, w: colw, h: 66 };
+  out.howto = { x: 90 + colw + gap, y: rowY, w: colw, h: 66 };
+  out.rules = { x: 90 + 2 * (colw + gap), y: rowY, w: colw, h: 66 };
+  out.auto = { x: 90 + 3 * (colw + gap), y: rowY, w: colw, h: 66 };
   out.sound = { x: 90, y: 1290, w: 172, h: 60 }; out.calm = { x: 274, y: 1290, w: 172, h: 60 }; out.big = { x: 458, y: 1290, w: 172, h: 60 };
   out.marks = { x: 90, y: 1360, w: 540, h: 60 };
   return out;
@@ -47,4 +49,15 @@ export const BACK = { x: 140, y: 1462, w: 440, h: 72 };
 export const TEXT_STEPPER = { dec: { x: 40, y: 24, w: 120, h: 62 }, inc: { x: W - 160, y: 24, w: 120, h: 62 } };
 // Index into this, never a raw float, so the stepper can cleanly disable at either end and a stale
 // saved index (e.g. from a build with a shorter array) always clamps instead of producing NaN sizes.
-export const TEXT_SCALES = [1, 1.15, 1.3];
+export const TEXT_SCALES = [1, 1.5, 2, 2.5, 3];
+// The scrollable clip window for the About / How to play / Rules pages (view.js draws the panel and
+// clips to this; game.js clamps drag-scroll to the same window). Kept in one place so the two can
+// never drift apart - they once did, when only view.js's window shrank to clear the "drag to scroll"
+// hint and game.js kept clamping to the old, taller window, quietly hiding the last few lines of the
+// longest pages.
+export const TEXT_PAGE_TOP = 240, TEXT_PAGE_BOTTOM = 1404;
+// Auto Play (Watch & Learn): think-time steps in seconds, hard-capped at 10s. An index into this
+// array (same pattern as TEXT_SCALES), never a raw float. The stepper reuses TEXT_STEPPER's own
+// position/style - never shown on the same scene as the text-size stepper, so no clash.
+export const AUTO_THINK_STEPS = [2, 5, 8, 10];
+export const AUTO_REVEAL_SECONDS = 2;

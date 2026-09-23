@@ -74,4 +74,5 @@ export const HOWTO = [
   ['Help', 'Hint shows a good move and says why (3 per game). Take back undoes your move and the reply. Warnings, in the menu, mark moves that lose.'],
   ['The Ladder', 'Beat each of twelve opponents to climb. The last two cannot be beaten, only held to a draw. A lost game swaps who moves first.'],
   ['Keyboard', 'Left and Right arrows step around the star, Up and Down jump to the putahi and back. Space or Enter is a TAP. U takes back, H is a hint, Escape is Menu.'],
+  ['Auto Play', 'On the title screen, TAP Auto Play (free, silent) to watch a full game play itself, one move at a time. It pauses so you can guess the move yourself, then reveals every legal move and the one it chose. A stepper on that screen sets how long it pauses, from 2 to 10 seconds.'],
 ];

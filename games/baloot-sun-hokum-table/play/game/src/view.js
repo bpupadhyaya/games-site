@@ -1,5 +1,5 @@
 // Everything drawn each frame. Reads `state` (game.js) and changes nothing. Static art is cached (art.js).
-import { W, H as HH, CW, CH, TW, TH, BW, BH, HAND_Y, LIFT, BTN, TRICK, SEAT, DECK, TOAST, CHIP, titleRows, PANEL, ACT, OVERLAY_BTN, BACK, NEXT, TEXT_SCALES, TEXT_DEC, TEXT_INC, handSlot } from './layout.js';
+import { W, H as HH, CW, CH, TW, TH, BW, BH, HAND_Y, LIFT, BTN, TRICK, SEAT, DECK, TOAST, CHIP, titleRows, PANEL, ACT, OVERLAY_BTN, BACK, REF_BACK, REF_NEXT, TEXT_SCALES, TEXT_DEC, TEXT_INC, handSlot, AUTO_THINK_STEPS, AUTO_BAR, AUTO_DEC, AUTO_INC } from './layout.js';
 import { drawBackground, drawTable, drawCoffee, drawCard, button, plaque, rr, drawSuit, SUIT_INK, FONT, UI, BRASS, CREAM, star8, rosette, TABLE } from './art.js';
 import { SUIT_NAMES, TARGETS, legalFor, cardShort, teamOf, DECL, declValue, SEAT_NAMES } from './rules.js';
 import { LEVELS } from './ai.js';
@@ -9,6 +9,7 @@ import { RULES, ABOUT, HOWTO } from './rulesContent.js';
 const TAU = Math.PI * 2;
 const NAMES = ['You', 'Right', 'Partner', 'Left'];
 const TEAM = ['Us', 'Them'];
+const autoThinkLabel = (state) => `${AUTO_THINK_STEPS[state.autoThinkIdx]}s`;
 
 export function render(ctx, state) {
   const sc = state.scene, t = state.t;
@@ -16,7 +17,19 @@ export function render(ctx, state) {
   const text = (str, x, y, size, color = CREAM, font = UI, weight = 700, align = 'center') => { ctx.textAlign = align; ctx.font = `${weight} ${size}px ${font}`; ctx.fillStyle = color; ctx.fillText(str, x, y); };
   const shadowText = (str, x, y, size, color = CREAM, font = UI, weight = 700, align = 'center') => { ctx.save(); ctx.shadowColor = 'rgba(0,0,0,0.75)'; ctx.shadowBlur = 8; ctx.shadowOffsetY = 2; text(str, x, y, size, color, font, weight, align); ctx.restore(); };
   const wrap = (str, x, y, size, maxW, color = CREAM, lh = size * 1.32, align = 'center', weight = 600) => {
-    ctx.font = `${weight} ${size}px ${UI}`; const words = str.split(' '), lines = []; let cur = '';
+    ctx.font = `${weight} ${size}px ${UI}`;
+    // At the largest text-size steps a single long hyphenated word (e.g. "counter-clockwise") can
+    // be wider than the whole column by itself — split-on-space alone would then hand it straight
+    // to fillText and it gets clipped at the panel edge. Pre-break any such word at its hyphens (a
+    // normal typographic hyphenation point) so it still wraps like every other word.
+    const rawWords = str.split(' '), words = [];
+    for (const rw of rawWords) {
+      if (rw.includes('-') && ctx.measureText(rw).width > maxW) {
+        const parts = rw.split('-');
+        parts.forEach((p, i) => words.push(i < parts.length - 1 ? p + '-' : p));
+      } else words.push(rw);
+    }
+    const lines = []; let cur = '';
     for (const w of words) { const t2 = cur ? cur + ' ' + w : w; if (ctx.measureText(t2).width > maxW && cur) { lines.push(cur); cur = w; } else cur = t2; }
     lines.push(cur); lines.forEach((ln, i) => text(ln, x, y + i * lh, size, color, UI, weight, align)); return lines.length;
   };
@@ -69,7 +82,7 @@ function title(ctx, state, V) {
   text(`Match to ${TARGETS[state.targetIdx]}`, r.x + r.w / 4, r.y + 48, 28, CREAM, UI, 700);
   text(`${LEVELS[state.level - 1].name}`, r.x + r.w * 0.75, r.y + 36, 28, CREAM, UI, 700);
   text(['Tap to change'][0], r.x + r.w * 0.75, r.y + 62, 18, 'rgba(246,234,208,0.7)', UI, 600);
-  button(ctx, R.settings, 'Settings', { size: 21 }); button(ctx, R.about, 'About', { size: 21 }); button(ctx, R.how, 'Controls', { size: 21 }); button(ctx, R.rules, 'Rules', { size: 21 });
+  button(ctx, R.settings, 'Settings', { size: 21 }); button(ctx, R.about, 'About', { size: 21 }); button(ctx, R.how, 'Controls', { size: 21 }); button(ctx, R.rules, 'Rules', { size: 21 }); button(ctx, R.auto, 'Auto', { size: 21 });
   text(LEVELS[state.level - 1].blurb, W / 2, R.settings.y + 130, 22, 'rgba(246,234,208,0.8)', UI, 600);
 }
 
@@ -108,8 +121,13 @@ function settingsPage(ctx, state, V) {
 }
 // Draws a centred row of real in-game cards (via the same drawCard() the table uses — never a
 // separate simplified icon), each with a label under it, sized to always fit within the page's
-// text margin. Returns the y just below the row, for the body text that follows.
-function drawRuleCards(ctx, state, cards, y0) {
+// text margin. Returns the y just below the row, for the body text that follows. The card
+// thumbnails and their small captions stay a fixed size at every text-size step (they are not the
+// "text" the stepper scales, the same way the "Page N of M" footer only partly scales) — but the
+// CLEARANCE after those captions, before the (fully scaled) body text starts, must grow with the
+// body font size, or a large step's much taller first line visually collides with the caption
+// right above it. `bodySize` is the caller's already-scaled body font size, used only for that gap.
+function drawRuleCards(ctx, state, cards, y0, bodySize = 29) {
   const n = cards.length, gap = 16, maxW = 640;
   const scale = Math.min(0.62, (maxW - (n - 1) * gap) / (n * CW));
   const w = CW * scale, h = CH * scale;
@@ -123,7 +141,8 @@ function drawRuleCards(ctx, state, cards, y0) {
     ctx.restore();
     x += w + gap;
   }
-  return y0 + h + (cards.some((c) => c.sub) ? 66 : 44);
+  const lastCaptionOffset = cards.some((c) => c.sub) ? 44 : 24;
+  return y0 + h + lastCaptionOffset + Math.round(bodySize * 0.75);
 }
 // A small closing flourish (a thin double rule with a diamond, then three real cards) for pages
 // whose text ends well short of the panel's bottom — never drawn unless there is real, comfortable
@@ -151,38 +170,52 @@ function footerMotif(ctx, state, V, y) {
 // larger — some players wear glasses, some don't. Every list is paced (rulesContent.js) to stay
 // short, single-concept pages that still fit comfortably at the largest step.
 function refPage(ctx, state, V, list, page, headerLabel) {
-  ctx.fillStyle = 'rgba(12,4,6,0.55)'; ctx.fillRect(0, 0, W, HH);
+  // A near-opaque scrim (darker than the 0.55 used elsewhere) so the ambient corner lanterns from
+  // drawBackground() don't show through behind the new corner text-size pills — this page reads as
+  // its own clean reference sheet, not the gameplay backdrop bleeding through.
+  ctx.fillStyle = 'rgba(10,4,5,0.9)'; ctx.fillRect(0, 0, W, HH);
   const scale = TEXT_SCALES[state.textScaleIdx] ?? 1; // guarded: a stale/out-of-range index must never yield NaN sizes
-  const panel = { x: 30, y: 116, w: 660, h: HH - 116 - 92 };
+  // The reader-card panel stops well clear of the bottom nav row (REF_BACK/REF_NEXT at y=1416)
+  // and the page-indicator line above it, so nothing ever overlaps at any text-scale step.
+  const panel = { x: 30, y: 116, w: 660, h: 1250 };
   plaque(ctx, panel, 0.6);
   ctx.save(); ctx.strokeStyle = 'rgba(224,178,90,0.28)'; ctx.lineWidth = 1; rr(ctx, panel.x + 8, panel.y + 8, panel.w - 16, panel.h - 16, 14); ctx.stroke(); ctx.restore();
 
-  const headerSize = Math.round(37 * scale);
-  V.text(headerLabel, W / 2, panel.y + headerSize + 12, headerSize, CREAM, FONT, 700);
-  const dividerY = panel.y + headerSize + 32;
+  const textX = panel.x + 34, maxW = panel.w - 68;
+  // Both the fixed header label ("About Baloot" etc.) and each page's own title are now wrapped
+  // (never shrunk) instead of drawn as one fixed-width line — at the 300% text step a short-looking
+  // title like "About Baloot" is wider than the whole panel in one line, so this keeps every size
+  // step correct instead of only the smaller ones the single-line version was tuned for.
+  const headerSize = Math.round(37 * scale), headerLH = Math.round(headerSize * 1.08);
+  let y = panel.y + headerSize + 12;
+  const headerLines = V.wrap(headerLabel, W / 2, y, headerSize, maxW, CREAM, headerLH, 'center', 700);
+  y += (headerLines - 1) * headerLH;
+  const dividerY = y + 24;
   ctx.strokeStyle = 'rgba(224,178,90,0.5)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(panel.x + 50, dividerY); ctx.lineTo(panel.x + panel.w - 50, dividerY); ctx.stroke();
   V.text('♦', W / 2, dividerY + 10, 20, BRASS, UI, 700);
 
   const item = list[page % list.length];
-  const titleSize = Math.round(31 * scale);
+  const titleSize = Math.round(31 * scale), titleLH = Math.round(titleSize * 1.1);
   const bodySize = Math.round(29 * scale), lh = Math.round(bodySize * 1.4), gap = Math.round(bodySize * 0.7);
-  let y = dividerY + 10 + titleSize + 24;
-  V.text(item.title, W / 2, y, titleSize, BRASS, UI, 800);
+  y = dividerY + 10 + titleSize + 24;
+  const titleLines = V.wrap(item.title, W / 2, y, titleSize, maxW, BRASS, titleLH, 'center', 800);
+  y += (titleLines - 1) * titleLH;
   // Gap after the title must grow with BOTH the title's and the body's font size — a title-only
   // multiplier looked fine at the default scale but crowded the first body line at the top text
   // step, where the body font grew more (in absolute px) than this gap did.
   y += Math.round(titleSize * 0.5 + bodySize * 0.55);
-  if (item.cards && item.cards.length) y = drawRuleCards(ctx, state, item.cards, y) + 10;
-  const textX = panel.x + 34, maxW = panel.w - 68;
+  if (item.cards && item.cards.length) y = drawRuleCards(ctx, state, item.cards, y, bodySize) + 10;
   for (const line of item.lines) { const n = V.wrap(line, textX, y, bodySize, maxW, CREAM, lh, 'left', 600); y += n * lh + gap; }
 
   // Only decorate where there is real room: a card row up top already fills that role, so the
   // closing motif is reserved for pages that end well clear of the footer.
   if (!(item.cards && item.cards.length) && (panel.y + panel.h - 90) - y > 260) footerMotif(ctx, state, V, y + 50);
 
-  V.text(`Page ${(page % list.length) + 1} of ${list.length}`, W / 2, panel.y + panel.h - 22, Math.round(20 * Math.min(scale, 1.1)), 'rgba(246,234,208,0.65)', UI, 600);
-  backButton(ctx, V);
-  button(ctx, NEXT, 'Next', { size: 26 });
+  V.text(`Page ${(page % list.length) + 1} of ${list.length}`, W / 2, 1392, Math.round(20 * Math.min(scale, 1.1)), 'rgba(246,234,208,0.65)', UI, 600);
+  // Bottom-anchored, equal-width Back/Next pair: Back is the neutral/secondary action (muted
+  // fill), Next the primary action (this game's own gold accent gradient).
+  button(ctx, REF_BACK, 'Back', { size: 34 });
+  button(ctx, REF_NEXT, 'Next', { size: 34, primary: true });
   button(ctx, TEXT_DEC, 'A−', { size: 24, dim: state.textScaleIdx === 0 });
   button(ctx, TEXT_INC, 'A+', { size: 24, dim: state.textScaleIdx >= TEXT_SCALES.length - 1 });
 }
@@ -220,16 +253,20 @@ function table(ctx, state, V) {
   const { text, shadowText, wrap, lightSuit } = V, H = state.H, t = state.t, ui = state.ui, sc = state.scene;
   const big = state.set.big, four = state.set.four, calm = state.set.calm;
   drawTable(ctx, t);
-  const study = sc !== 'play';
-  if (!study) drawCoffee(ctx, 84, 318, t, 0.46);
+  const isAuto = sc === 'auto';
+  const study = sc === 'lesson' || sc === 'daily';
+  if (!study && !isAuto) drawCoffee(ctx, 84, 318, t, 0.46);
   const ct = H.contract;
-  // ---- scores
+  const A = isAuto ? state.auto : null;
+  const autoReveal = A && A.phase === 'reveal' && A.chosen ? A : null;
+  // ---- scores (Auto Play keeps its own running score, never the real match's)
   const sPl = [{ x: 92, y: 52, w: 250, h: 88 }, { x: 378, y: 52, w: 250, h: 88 }];
-  const inLesson = sc !== 'play';
+  const inLesson = study;
+  const scoreRow = isAuto ? state.autoMatch?.scores ?? [0, 0] : state.match.scores;
   for (let i = 0; i < (study ? 0 : 2); i++) {
     const r = sPl[i]; plaque(ctx, r, 0.78);
     text(i === 0 ? 'US' : 'THEM', r.x + 22, r.y + 32, 22, 'rgba(246,234,208,0.8)', UI, 800, 'left');
-    text(inLesson ? '-' : String(state.match.scores[i]), r.x + r.w - 22, r.y + 62, 54, i === 0 ? '#ffe08a' : CREAM, UI, 800, 'right');
+    text(inLesson ? '-' : String(scoreRow[i]), r.x + r.w - 22, r.y + 62, 54, i === 0 ? '#ffe08a' : CREAM, UI, 800, 'right');
     if (!inLesson) text(`of ${TARGETS[state.targetIdx]}`, r.x + 22, r.y + 66, 20, 'rgba(246,234,208,0.7)', UI, 600, 'left');
   }
   // ---- contract chip
@@ -247,11 +284,31 @@ function table(ctx, state, V) {
     text(`${H.mult > 1 ? 'x' + H.mult + '  ' : ''}${ct.buyer === 0 ? 'You' : NAMES[ct.buyer]} bought`, CHIP.x + 190, CHIP.y + 34, 22, CREAM, UI, 700, 'left');
     text(`${w}/8`, CHIP.x + CHIP.w - 20, CHIP.y + 34, 22, 'rgba(246,234,208,0.8)', UI, 700, 'right');
   }
+  // ---- Auto Play HUD: phase status + configurable think-time stepper, in the gap between the
+  // contract chip and the face-up seats below (never collides with either).
+  if (isAuto && A) {
+    plaque(ctx, AUTO_BAR, 0.82);
+    const phaseLabel = A.phase === 'think' ? 'Thinking...' : A.phase === 'reveal' ? 'About to act:' : A.phase === 'summary' ? 'Hand done' : A.phase === 'ended' ? 'Match complete' : '...';
+    let who = '';
+    if (A.chosen) who = NAMES[A.chosen.seat] + (A.chosen.kind === 'bid' ? ' bids' : A.chosen.kind === 'double' ? ' answers' : ' plays');
+    text(A.phase === 'reveal' && A.chosen ? `${phaseLabel} ${who}` : phaseLabel, AUTO_BAR.x + 16, AUTO_BAR.y + 32, 20, '#ffe08a', UI, 700, 'left');
+    text(`Think ${autoThinkLabel(state)}`, AUTO_BAR.x + AUTO_BAR.w - 190, AUTO_BAR.y + 32, 18, CREAM, UI, 700, 'left');
+    button(ctx, AUTO_DEC, '-', { size: 22 }); button(ctx, AUTO_INC, '+', { size: 22 });
+    if (A.paused) shadowText('PAUSED', W / 2, AUTO_BAR.y - 14, 22, '#ffd0a8', UI, 800);
+  }
   // ---- opponents' hands (backs) and name plates
   const backSc = 0.5;
   const nb = (s) => Math.floor(state.shown[s] + 0.001);
-  if (study) {
-    const face = (seat, x0, y0, dx, dy) => H.hands[seat].forEach((c, k) => drawCard(ctx, c, x0 + k * dx, y0 + k * dy, 0.5, { four, noShadow: false }));
+  if (study || isAuto) {
+    const face = (seat, x0, y0, dx, dy) => {
+      const rv = autoReveal && autoReveal.chosen.kind === 'play' && autoReveal.chosen.seat === seat ? autoReveal : null;
+      const legalSetR = rv ? new Set(rv.legal) : null;
+      H.hands[seat].forEach((c, k) => {
+        const dim = rv ? !legalSetR.has(c) : false;
+        const glow = rv && rv.chosen.action.card === c ? '#ffe08a' : null;
+        drawCard(ctx, c, x0 + k * dx, y0 + k * dy, 0.5, { four, noShadow: false, dim, glow });
+      });
+    };
     const n2 = H.hands[2].length, sp = n2 > 1 ? Math.min(58, 420 / (n2 - 1)) : 0;
     face(2, 360 - (74 + sp * (n2 - 1)) / 2, 274, sp, 0);
     face(3, 14, 578, 0, 44); face(1, 632, 578, 0, 44);
@@ -267,7 +324,7 @@ function table(ctx, state, V) {
     text(NAMES[s], x, y + 28, 22, turn ? '#ffe08a' : CREAM, UI, 800);
     if (ct && ct.buyer === s) { ctx.fillStyle = '#e0b25a'; ctx.beginPath(); ctx.arc(r.x + r.w - 6, r.y + 6, 9, 0, TAU); ctx.fill(); text('B', r.x + r.w - 6, r.y + 11, 12, '#2a1606', UI, 800); }
   };
-  plate(2, 360, study ? 386 : 338, 150); plate(3, 62, 526, 104); plate(1, 660, 526, 104);
+  plate(2, 360, (study || isAuto) ? 386 : 338, 150); plate(3, 62, 526, 104); plate(1, 660, 526, 104);
   // speech bubbles
   const bub = (s, x, y) => { const b = state.says[s]; if (!b) return; const a = Math.min(1, b.t * 6) * (b.t > 2.8 ? Math.max(0, 1 - (b.t - 2.8) * 4) : 1);
     if (a <= 0) return; ctx.save(); ctx.globalAlpha = a; ctx.font = `800 26px ${UI}`; const w = ctx.measureText(b.text).width + 36; const yy = y - (1 - Math.min(1, b.t * 5)) * -10;
@@ -309,14 +366,20 @@ function table(ctx, state, V) {
   else if (sc === 'daily') dailyHeader(ctx, state, V);
   else if (ui.msg) toast(ctx, ui.msg, V);
   panel(ctx, state, V);
-  if (H.phase === 'play' && H.turn === 0 && !state.show && !state.panel.length && ui.delay <= 0 && !ui.summary) {
+  if (!isAuto && H.phase === 'play' && H.turn === 0 && !state.show && !state.panel.length && ui.delay <= 0 && !ui.summary) {
     const line = ui.sel >= 0 ? 'TAP the card again to play it, or DRAG it up' : H.trick.length ? 'Your turn: TAP a bright card' : 'You lead: TAP a card';
     shadowText(line, W / 2, 1150 - (ui.sel >= 0 ? 8 : 0), 24, '#ffe9b0', UI, 700);
   }
   if (ui.thinking && ui.thinking !== false && state.H.turn !== 0 && !state.show) { /* the computer is thinking */ ctx.fillStyle = 'rgba(255,224,138,0.9)'; for (let i = 0; i < 3; i++) { ctx.beginPath(); ctx.arc(W / 2 - 22 + i * 22, 1010 + Math.sin(t * 8 + i) * 4, 5, 0, TAU); ctx.fill(); } }
-  button(ctx, BTN.hint, 'Hint', { size: 30, sub: sc === 'lesson' ? 'repeat step' : `${ui.hintsLeft} left`, glow: false });
-  button(ctx, BTN.undo, sc === 'daily' ? 'Try again' : 'Take back', { size: 28, dim: sc === 'lesson' });
-  button(ctx, BTN.menu, 'Menu', { size: 30 });
+  if (isAuto) {
+    button(ctx, BTN.hint, 'Skip', { size: 28, sub: 'this pause' });
+    button(ctx, BTN.undo, A && A.paused ? 'Resume' : 'Pause', { size: 28 });
+    button(ctx, BTN.menu, 'Exit', { size: 30 });
+  } else {
+    button(ctx, BTN.hint, 'Hint', { size: 30, sub: sc === 'lesson' ? 'repeat step' : `${ui.hintsLeft} left`, glow: false });
+    button(ctx, BTN.undo, sc === 'daily' ? 'Try again' : 'Take back', { size: 28, dim: sc === 'lesson' });
+    button(ctx, BTN.menu, 'Menu', { size: 30 });
+  }
   if (ui.summary) summary(ctx, state, V);
 }
 
@@ -364,8 +427,9 @@ function panel(ctx, state, V) {
   ctx.save(); ctx.fillStyle = 'rgba(14,6,8,0.66)'; rr(ctx, 16, 976, 688, 216, 26); ctx.fill(); ctx.strokeStyle = 'rgba(224,178,90,0.65)'; ctx.lineWidth = 2.5; ctx.stroke(); ctx.restore();
   if (state.panelText.length) state.panelText.forEach((s, i) => V.text(s, W / 2, 1012 + i * 26, 22, CREAM, UI, 700));
   const hintKey = ui.hint && ui.hint.kind === 'bid' ? ui.hint.a : null;
+  const hintDbl = ui.hint && ui.hint.kind === 'dbl' ? ui.hint : null;
   P.forEach((b, i) => {
-    const hinted = hintKey && b.kind === 'bid' && b.a.t === hintKey.t && (b.a.suit ?? -1) === (hintKey.suit ?? -1);
+    const hinted = (hintKey && b.kind === 'bid' && b.a.t === hintKey.t && (b.a.suit ?? -1) === (hintKey.suit ?? -1)) || (hintDbl && b.kind === 'dbl' && b.raise === hintDbl.raise);
     const cur = ui.kb && ui.cursor === i;
     button(ctx, b.r, b.suit >= 0 ? '' : b.label, { primary: b.primary, size: b.r.h > 100 ? 34 : 30, sub: b.suit >= 0 && b.sub ? undefined : b.sub, glow: hinted || cur, pulse: state.t });
     if (b.suit >= 0) {
@@ -400,7 +464,18 @@ function summary(ctx, state, V) {
   wrap(msg, W / 2, 850, 27, 560, won ? CREAM : '#ffd0a8', 34);
   text('Points scored this hand', W / 2, 950, 24, 'rgba(246,234,208,0.8)', UI, 700);
   text(`Us +${r.delta[0]}      Them +${r.delta[1]}`, W / 2, 1010, 46, '#ffe08a', UI, 800);
-  if (!S.lesson) { text(`Match: Us ${state.match.scores[0]}, Them ${state.match.scores[1]}  (to ${TARGETS[state.targetIdx]})`, W / 2, 1080, 26, CREAM, UI, 700); if (r.matchCall) text('Match call decided the match.', W / 2, 1120, 24, '#ffd0a8', UI, 700); }
+  if (!S.lesson) {
+    const ms = S.auto ? (state.autoMatch?.scores ?? [0, 0]) : state.match.scores;
+    text(`Match: Us ${ms[0]}, Them ${ms[1]}  (to ${TARGETS[state.targetIdx]})`, W / 2, 1080, 26, CREAM, UI, 700);
+    if (r.matchCall) text('Match call decided the match.', W / 2, 1120, 24, '#ffd0a8', UI, 700);
+  }
+  if (S.auto) {
+    const ended = S.matchWinner >= 0;
+    button(ctx, OVERLAY_BTN, ended ? 'Play again' : 'Watching...', { primary: true, size: 32, glow: ended, pulse: state.t, dim: !ended });
+    if (ended) button(ctx, { x: 160, y: 1176, w: 400, h: 90 }, 'Exit to menu', { size: 28 });
+    else text('Auto-continuing to the next hand...', W / 2, 1150, 20, 'rgba(246,234,208,0.75)', UI, 600);
+    return;
+  }
   button(ctx, OVERLAY_BTN, S.lesson ? 'Next lesson' : S.matchWinner >= 0 ? 'See result' : 'Next hand', { primary: true, size: 32, glow: true, pulse: state.t });
 }
 export { star8, DECL, declValue, SEAT_NAMES, TW, TH, BH, CH, HAND_Y, LIFT, TRICK, SEAT, TABLE, handSlot, cardShort };

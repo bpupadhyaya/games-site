@@ -14,19 +14,42 @@ export const BTN = {
   again: R(140, 980, 440, 96), back: R(140, 1096, 440, 84), share: R(140, 1160, 440, 84),
   next: R(265, 1462, 395, 72), skip: R(470, 1462, 190, 72),
 };
-// About/Controls/Rules reference pages: their own "Next" slot (menu + back + next must all fit in
-// the same row at once), since BTN.next above is deliberately wide for scenes where "back" never
-// shows alongside it (lessons) and would overlap BTN.undo if reused here.
-export const PAGE_NEXT = R(470, 1462, 190, 72);
-// Text-size stepper for the reference pages, in the empty margin above their panel. An *index* into
+// About/Controls/Rules reference pages: a plain two-button pill row (professional-polish pass,
+// 2026-09-23) - previously Menu/Back/Next all had to share this one row (three buttons, cramped),
+// with Back only appearing from page 2 on. Menu is gone: Back now does double duty exactly like the
+// good pattern elsewhere in this repo (fox-and-geese, hare-and-hounds, go-stones-and-territory) -
+// it is ALWAYS present, and reads as dimmed (never disabled outright - it still exits, so it is
+// never a dead end) once there is no earlier page to go back to (`state.page === 0`). Equal widths,
+// same geometry the sibling games use for their own Rules nav.
+export const PAGE_NAV = { back: R(90, 1462, 262, 72), next: R(368, 1462, 262, 72) };
+// Text-size stepper for the reference pages, in the empty margin above their panel. Moved down from
+// y=48 (professional-polish pass, 2026-09-23): the persistent roof-beam braid `drawScene()` paints
+// behind every scene sits at roughly y 38-80, and the stepper's old position sat right on top of
+// it, cutting the woven pattern in half behind the buttons - fine on the title screen (nothing else
+// is drawn there) but cluttered wherever a button actually overlapped it. Now clears the beam with
+// real margin on both sides (before it, and before the panel at y=140). An *index* into
 // TEXT_SCALES, never a raw float, so "min"/"max" are exact and the stepper cleanly disables at
 // either end. Every reference page's content is paced (pages.js) to fit comfortably at the top step.
-export const TEXT_DEC = R(185, 48, 155, 66);
-export const TEXT_INC = R(380, 48, 155, 66);
-export const TEXT_SCALES = [1, 1.15, 1.3];
+export const TEXT_DEC = R(185, 90, 155, 44);
+export const TEXT_INC = R(380, 90, 155, 44);
+export const TEXT_SCALES = [1, 1.5, 2, 2.5, 3];
+// Auto Play (assisted-learning THINK -> REVEAL -> ACT loop, same pattern as the other Arcforge
+// games): a bottom control row (reuses the board scenes' own BTN row geometry, since Auto Play's
+// board is not otherwise interactive) plus a think-time stepper in the header gap between the
+// piece trays and the board (y 424-500). An index into AP_THINK_STEPS, never a raw float.
+// The board's own carved frame (art.js FR = 34) extends 34px above BY (500), so anything in the
+// header must clear y=466, not y=500 - found by actually rendering this (the first version of this
+// stepper sat at y 440-490 and visibly collided with the frame's top braid and corner bosses).
+export const AP = {
+  exit: R(60, 1462, 190, 72), pause: R(265, 1462, 190, 72), skip: R(470, 1462, 190, 72),
+  dec: R(150, 352, 130, 50), inc: R(440, 352, 130, 50),
+};
+export const AP_THINK_STEPS = [2, 5, 8, 10];
+export const AP_REVEAL_TIME = 2;
+
 // Title screen: rows of crafted buttons.
 export function titleRows(hasSave) {
-  const names = (hasSave ? ['resume'] : []).concat(['learn', 'big', 'small', 'daily', 'two']), out = {};
+  const names = (hasSave ? ['resume'] : []).concat(['learn', 'big', 'small', 'daily', 'two', 'auto']), out = {};
   names.forEach((nm, i) => { out[nm] = R(90, 700 + i * 76, 540, 66); });
   const y = 700 + names.length * 76 + 6;
   out.side = R(90, y, 262, 60); out.level = R(368, y, 262, 60);

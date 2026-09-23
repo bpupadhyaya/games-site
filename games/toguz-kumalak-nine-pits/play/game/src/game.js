@@ -1,7 +1,7 @@
 // Toguz Kumalak: state and flow. Drawing is view.js; the rule book is rules.js; the computer is engine.js; lessons.js and puzzles.js are
 // content. The rule book applies a move to `state.game` at once; `state.anim` then PLAYS it (lift, sow pit by pit, capture or tuz)
 // while `state.shown` (the pit counts the player sees) catches up. Input is ignored while an animation runs.
-import { W, H, BTN, SET, RULES_BTN, ABOUT_BTN, HEADER, TEXT_SCALES, titleRows, inRect, pitNear, pitPos } from './layout.js';
+import { W, H, BTN, SET, RULES_BTN, ABOUT_BTN, HEADER, TEXT_SCALES, THINK_STEPS, titleRows, inRect, pitNear, pitPos } from './layout.js';
 import { newGame, clone, applyMove, tryMove, legalMoves, sow, sideOf, numberOf, tuzWhy } from './rules.js';
 import { LEVELS, createThinker } from './engine.js';
 import { LESSONS } from './lessons.js';
@@ -13,6 +13,9 @@ import { render } from './view.js';
 export const meta = { width: W, height: H };
 const DEMO_GAMES = 2, HINTS = 3, SEEDSETS = ['stones', 'bone', 'turquoise'], WOODS = ['walnut', 'birch'];
 const NODES_PER_TICK = 600;
+// Auto Play ("Watch & Learn") REVEAL phase length. THINK is configurable (THINK_STEPS, layout.js);
+// this is fixed, matching every other game's own auto-play pass this session.
+const AUTO_REVEAL_SECS = 2;
 
 export function createGame(env) {
   const { rng, storage, audio, monetization, config } = env;
@@ -21,6 +24,10 @@ export function createGame(env) {
     // index into TEXT_SCALES; the About/Rules reference pages' own text size, separate from the
     // `big` gameplay toggle above (that one stays governing pit/tray/message text during play).
     textScaleIdx: 0,
+    // Auto Play ("Watch & Learn"): true while both sides are computer-played for teaching purposes.
+    // autoThinkIdx indexes THINK_STEPS, never a raw float, same pattern as textScaleIdx.
+    // autoPhase/autoMove/autoTimer are the THINK -> REVEAL -> ACT state.
+    autoMode: false, autoThinkIdx: 1, autoPhase: null, autoMove: null, autoTimer: 0,
     cursor: 4, kb: false, anim: null, msg: null, think: 0, thinking: false, undo: [], hintsLeft: HINTS, hint: null,
     stats: { games: 0, wins: 0, badges: {} }, saved: null, learned: false, demoGames: 0, lesson: null, pz: null, ref: null,
     daily: { day: config.day ?? 0, solvedDay: -1, streak: 0 }, dev: config.dev === true, worstNodes: 0,
@@ -29,26 +36,35 @@ export function createGame(env) {
   state.shown = snap(state.game);
   let thinker = null, hintThinker = null;
 
-  storage.get('prefs', null).then((v) => { if (v) { state.level = v.level ?? 1; state.sound = v.sound ?? true; state.calm = v.calm ?? false; state.big = v.big ?? false; state.seeds = SEEDSETS.includes(v.seeds) ? v.seeds : 'stones'; state.wood = WOODS.includes(v.wood) ? v.wood : 'walnut'; state.textScaleIdx = Math.min(Math.max(v.textScaleIdx ?? 0, 0), TEXT_SCALES.length - 1); audio.setMuted?.(!state.sound); } });
+  storage.get('prefs', null).then((v) => { if (v) { state.level = v.level ?? 1; state.sound = v.sound ?? true; state.calm = v.calm ?? false; state.big = v.big ?? false; state.seeds = SEEDSETS.includes(v.seeds) ? v.seeds : 'stones'; state.wood = WOODS.includes(v.wood) ? v.wood : 'walnut'; state.textScaleIdx = Math.min(Math.max(v.textScaleIdx ?? 0, 0), TEXT_SCALES.length - 1); state.autoThinkIdx = Math.min(Math.max(v.autoThinkIdx ?? 1, 0), THINK_STEPS.length - 1); audio.setMuted?.(!state.sound); } });
   storage.get('stats', null).then((v) => { if (v) state.stats = { ...state.stats, ...v, badges: { ...(v.badges || {}) } }; });
   storage.get('learned', false).then((v) => { state.learned = state.learned || !!v; });
   storage.get('daily', null).then((v) => { if (v) { state.daily.solvedDay = v.solvedDay ?? -1; state.daily.streak = v.streak ?? 0; } });
   storage.get('demoGames', 0).then((v) => { state.demoGames = Math.max(state.demoGames, v); });
   storage.get('save', null).then((v) => { if (v && v.game && v.game.winner === null && v.game.pits?.length === 18 && state.scene === 'title') state.saved = v; });
-  const savePrefs = () => storage.set('prefs', { level: state.level, sound: state.sound, calm: state.calm, big: state.big, seeds: state.seeds, wood: state.wood, textScaleIdx: state.textScaleIdx });
-  const saveGame = () => { if (state.scene === 'play' && state.game.winner === null) { state.saved = { game: clone(state.game), two: state.two, level: state.level, hintsLeft: state.hintsLeft }; storage.set('save', state.saved); } };
+  const savePrefs = () => storage.set('prefs', { level: state.level, sound: state.sound, calm: state.calm, big: state.big, seeds: state.seeds, wood: state.wood, textScaleIdx: state.textScaleIdx, autoThinkIdx: state.autoThinkIdx });
+  // Auto Play never writes the player's real in-progress save (it reassigns the same `state.game` a
+  // real game uses - the established, safe pattern this file already uses for lessons/puzzles).
+  const saveGame = () => { if (state.scene === 'play' && !state.autoMode && state.game.winner === null) { state.saved = { game: clone(state.game), two: state.two, level: state.level, hintsLeft: state.hintsLeft }; storage.set('save', state.saved); } };
   const clearSave = () => { state.saved = null; storage.remove('save'); };
   const saveStats = () => { storage.set('stats', state.stats); storage.set('progress', { played: state.stats.games, wins: state.stats.wins }); };
 
   const say = (text, hold = 4.5) => { state.msg = { text, t: 0, hold }; };
-  const tone = (o) => { if (state.sound) audio.tone(o); };
+  // Auto Play watches itself with no player to hear it for - silent by design, same principle as
+  // its own free-preview exemption below. Every sound effect in this file funnels through tone()
+  // (clack/seedTick/chime all call it), so gating it here silences the whole mode at once.
+  const tone = (o) => { if (state.sound && !state.autoMode) audio.tone(o); };
   const clack = (f = 420) => tone({ freq: f, to: f * 0.5, dur: 0.05, type: 'sine', vol: 0.1 });
   // a pebble dropped into a pit: a dry click, pitch climbing a little along the sowing
   const seedTick = (n) => tone({ freq: 340 + n * 22, to: 200 + n * 10, dur: 0.045, type: 'triangle', vol: 0.09 });
   const chime = (k) => tone({ freq: 620 + k * 90, to: 900 + k * 120, dur: 0.24, type: 'sine', vol: 0.09 });
   const syncShown = () => { state.shown = snap(state.game); };
-  const reset = (extra) => { thinker = hintThinker = null; Object.assign(state, { anim: null, msg: null, think: 0, thinking: false, undo: [], hint: null, hintsLeft: HINTS, ref: null }, extra); syncShown(); };
-  const humanTurn = () => state.game.winner === null && (state.two || state.game.turn === 0);
+  const reset = (extra) => { thinker = hintThinker = null; Object.assign(state, { anim: null, msg: null, think: 0, thinking: false, undo: [], hint: null, hintsLeft: HINTS, ref: null, autoMode: false, autoPhase: null, autoMove: null, autoTimer: 0 }, extra); syncShown(); };
+  // Auto Play: nobody controls either side - the whole existing "the computer thinks a slice per
+  // tick" machinery below already handles a side it doesn't own, so making humanTurn() false for
+  // both sides during Auto Play (via its own dedicated autoTick() branch instead) reuses that same
+  // idea without disturbing it.
+  const humanTurn = () => !state.autoMode && state.game.winner === null && (state.two || state.game.turn === 0);
   const durf = (d) => (state.calm ? d * 0.5 : d);
 
   function start(two) {
@@ -57,6 +73,14 @@ export function createGame(env) {
     reset({ scene: 'play', game: newGame(), two });
     say(two ? 'Player one (bottom row) begins. TAP one of your pits to sow it.' : 'You play the bottom row. TAP one of your pits to sow it.');
     monetization.track('game_start', { two, level: state.level });
+  }
+  // Auto Play ("Watch & Learn"): a whole game, both sides driven by the same computer opponent used
+  // for a real single-player game (engine.js createThinker - no new move-picker). Never counts
+  // against the free-preview timer/demo-game cap - see isPreviewExempt() and the deliberate absence
+  // of any `config.demo`/`state.demoGames` read here.
+  function startAuto() {
+    reset({ scene: 'play', game: newGame(), two: false, autoMode: true });
+    say('Auto Play: the computer plays both sides. Watch, then compare with your own guess.', 999);
   }
   function resume() {
     const v = state.saved;
@@ -122,20 +146,26 @@ export function createGame(env) {
   };
   function afterMove(r) {
     const g = state.game;
-    const t = describe(r, state.two ? (r.player === 0 ? 'Player one' : 'Player two') : r.player === 0 ? 'You' : 'The computer');
+    const t = describe(r, state.two || state.autoMode ? (r.player === 0 ? 'Player one' : 'Player two') : r.player === 0 ? 'You' : 'The computer');
     if (t) say(t, 4.5);
-    else if (!state.two && r.player === 1) say(`The computer sowed ${r.n} pebble${r.n === 1 ? '' : 's'}.`, 2.5);
+    else if (!state.two && !state.autoMode && r.player === 1) say(`The computer sowed ${r.n} pebble${r.n === 1 ? '' : 's'}.`, 2.5);
     if (g.winner !== null) { finish(); return; }
     saveGame();
     if (!humanTurn()) state.think = 0.55;
   }
   function finish() {
     const g = state.game;
-    state.scene = 'over'; state.stats.games += 1; clearSave();
-    if (!state.two && g.winner === 0) { state.stats.wins += 1; state.stats.badges['L' + state.level] = true; }
-    saveStats();
+    state.scene = 'over';
+    // Auto Play never touches the real player's stats or save slot - it reassigns the same
+    // `state.game` a real game uses (the established, safe pattern this file already uses for
+    // lessons/puzzles), so nothing here can silently corrupt a real result.
+    if (!state.autoMode) {
+      state.stats.games += 1; clearSave();
+      if (!state.two && g.winner === 0) { state.stats.wins += 1; state.stats.badges['L' + state.level] = true; }
+      saveStats();
+      monetization.track('game_end', { winner: g.winner, moves: g.moves, level: state.level });
+    }
     tone({ freq: g.winner === 'draw' ? 330 : 523, to: g.winner === 'draw' ? 330 : 880, dur: 0.45, type: 'triangle', vol: 0.09 });
-    monetization.track('game_end', { winner: g.winner, moves: g.moves, level: state.level });
   }
 
   // ---- tapping a pit -------------------------------------------------------------------------------------------
@@ -153,6 +183,7 @@ export function createGame(env) {
     else if (hit(R.play)) start(false);
     else if (hit(R.two)) start(true);
     else if (hit(R.daily)) startPuzzle();
+    else if (hit(R.auto)) startAuto();
     else if (hit(R.about)) { state.scene = 'about'; state.page = 0; }
     else if (hit(R.rules)) { state.scene = 'rules'; state.page = 0; }
     else if (hit(R.settings)) state.scene = 'settings';
@@ -182,6 +213,44 @@ export function createGame(env) {
       if (used >= NODES_PER_TICK) { state.worstNodes = Math.max(state.worstNodes, used); return; }
     }
   }
+  // Auto Play's own decision loop: THINK (board static, the pending move already decided but held
+  // back - configurable, THINK_STEPS, capped 10s) -> REVEAL (~2s: the pending move shown via the
+  // same `state.hint` mechanism the Hint button already uses, so the existing glow rendering just
+  // works unchanged) -> ACT (play(), the real move-execution/animation path, unchanged) -> loop, for
+  // a whole game. The move-picker is always engine.js's real `createThinker` at whatever level the
+  // player selected - no new AI was written.
+  function autoTick(dt) {
+    if (state.autoPhase === 'reveal') {
+      state.autoTimer -= dt;
+      if (state.autoTimer > 0) return;
+      const m = state.autoMove; state.autoPhase = null; state.autoMove = null; state.hint = null;
+      if (m >= 0) play(m);
+      return;
+    }
+    if (state.autoPhase === 'think') {
+      state.autoTimer -= dt;
+      if (state.autoTimer > 0) return;
+      const m = state.autoMove;
+      if (m >= 0) state.hint = { pit: m, t: 0 };
+      state.autoPhase = 'reveal'; state.autoTimer = AUTO_REVEAL_SECS;
+      say('This is the move - compare it with your own guess.', AUTO_REVEAL_SECS + 0.5);
+      return;
+    }
+    // Computing (autoPhase still null): the real thinker, stepped a slice per frame exactly like a
+    // normal computer opponent already does, just not yet visible - THINK starts once it is ready.
+    if (!thinker) { thinker = createThinker(state.game, state.level, rng); state.thinking = true; }
+    const n0 = thinker.nodes();
+    for (;;) {
+      const r = thinker.step(), used = thinker.nodes() - n0;
+      if (r.move !== undefined) {
+        thinker = null; state.thinking = false;
+        state.autoMove = r.move; state.autoPhase = 'think'; state.autoTimer = THINK_STEPS[state.autoThinkIdx];
+        say(`${state.game.turn === 0 ? 'Bottom row' : 'Top row'} is thinking…`, state.autoTimer + AUTO_REVEAL_SECS + 1);
+        return;
+      }
+      if (used >= NODES_PER_TICK) { state.worstNodes = Math.max(state.worstNodes, used); return; }
+    }
+  }
   function updateHint() {
     const n0 = hintThinker.nodes();
     for (;;) {
@@ -206,7 +275,22 @@ export function createGame(env) {
     if (state.hint) { state.hint.t += dt; if (state.hint.t > 6) state.hint = null; }
     if (state.ref) { state.ref.t += dt; if (state.ref.t > 0.6) state.ref = null; }
     if (state.anim) { const rr = state.anim.r; if (stepAnim(dt)) afterMove(rr); return; }
-    if (tap && inRect(BTN.menu, tap.x, tap.y)) { saveGame(); state.scene = 'title'; thinker = hintThinker = null; state.thinking = false; return; }
+    if (tap && inRect(BTN.menu, tap.x, tap.y)) {
+      saveGame(); state.autoMode = false; state.autoPhase = null; state.autoMove = null;
+      // Clear any lingering "X is thinking…"/"This is the move" banner too - it otherwise reads its
+      // own (deliberately long) hold time straight through onto the title screen underneath it.
+      state.msg = null;
+      state.scene = 'title'; thinker = hintThinker = null; state.thinking = false; return;
+    }
+    if (state.autoMode) {
+      // Auto Play's own bottom rail: Menu exits (handled above, works regardless of mode), and the
+      // Undo/Hint slots become the think-time stepper (same rects, no new layout) - neither undo
+      // nor a hint means anything with nobody tapping. Every other tap - a pit - is ignored: the
+      // computer plays every side.
+      if (tap && inRect(BTN.undo, tap.x, tap.y)) { if (state.autoThinkIdx > 0) { state.autoThinkIdx--; savePrefs(); } return; }
+      if (tap && inRect(BTN.hint, tap.x, tap.y)) { if (state.autoThinkIdx < THINK_STEPS.length - 1) { state.autoThinkIdx++; savePrefs(); } return; }
+      autoTick(dt); return;
+    }
     if (!humanTurn()) { think(dt); return; }
     if (hintThinker) { updateHint(); return; }
     if (tap && inRect(BTN.undo, tap.x, tap.y)) {
@@ -329,12 +413,18 @@ export function createGame(env) {
       else if (sc === 'lesson') updateLesson(dt, tap);
       else if (sc === 'puzzle') updatePuzzle(dt, tap);
       else if (sc === 'over' && tap) {
-        if (inRect(BTN.again, tap.x, tap.y)) start(state.two);
-        else if (inRect(BTN.back, tap.x, tap.y)) state.scene = 'title';
+        if (inRect(BTN.again, tap.x, tap.y)) { if (state.autoMode) startAuto(); else start(state.two); }
+        // `autoMode` (and the free-preview exemption it drives, plus a lingering long-hold message)
+        // must never linger once the player leaves - every other exit path clears it explicitly too.
+        else if (inRect(BTN.back, tap.x, tap.y)) { state.autoMode = false; state.msg = null; state.scene = 'title'; }
       }
     },
     render(ctx) { render(ctx, state); },
     getState: () => state,
+    // kit 1.6.1: exempts Auto Play from this premium game's free-preview timer (both the
+    // time-accrual and the countdown badge) - the same way the menu's own attract-mode preview is
+    // never gated. Checked once per frame by web/kit/preview.js; nothing else needs to change.
+    isPreviewExempt() { return state.autoMode === true; },
   };
 }
 export { isWeekend, legalMoves };

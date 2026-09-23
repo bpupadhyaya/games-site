@@ -53,8 +53,28 @@ export const RULES_NEXT_BUTTON = { x: 370, y: 1340, w: 310, h: 120 };
 // raw float, so "min"/"max" are exact and the stepper can cleanly disable at either end.
 export const RULES_TEXT_DEC_BUTTON = { x: 24, y: 26, w: 116, h: 68 };
 export const RULES_TEXT_INC_BUTTON = { x: SCREEN.width - 140, y: 26, w: 116, h: 68 };
-export const TEXT_SCALES = [1, 1.15, 1.3];
+export const TEXT_SCALES = [1, 1.5, 2, 2.5, 3];
 
 export function inRect(x, y, rect) {
   return x >= rect.x && x <= rect.x + rect.w && y >= rect.y && y <= rect.y + rect.h;
 }
+
+// ---- Auto Play ("Watch & Learn") ------------------------------------------------------------
+// Title screen: a full-width row below Colours/Rules (90..630, matching that row's edges). The
+// hint line and (when shown) the stats pill below it shift down to make room (see drawTitle).
+export const TITLE_AUTO_BUTTON = { x: 90, y: 1406, w: 540, h: 64 };
+// In play: Hint/Undo (y:1140..1260) and Colours (y:1300..1396) leave y:1396..1560 empty during a
+// normal game — Auto Play's own Exit/Pause/Skip row lives there instead of adding a new area.
+export const AUTO_EXIT_BUTTON = { x: 30, y: 1412, w: 210, h: 110 };
+export const AUTO_PAUSE_BUTTON = { x: 255, y: 1412, w: 210, h: 110 };
+export const AUTO_SKIP_BUTTON = { x: 480, y: 1412, w: 210, h: 110 };
+// Once solved, the same strip becomes two stacked full-width buttons (no Skip/Pause to offer).
+export const AUTO_AGAIN_BUTTON = { x: 90, y: 1412, w: 540, h: 62 };
+export const AUTO_EXIT2_BUTTON = { x: 90, y: 1484, w: 540, h: 62 };
+// Configurable THINK pause: index-based steps (never a raw float), hard-capped at 10s. Status
+// strip + stepper live in the header row's own top corners (RULES_TEXT_DEC/INC_BUTTON's spot is
+// only used on the Rules page, so it's free here).
+export const AUTO_THINK_STEPS = [2, 5, 8, 10];
+export const AUTO_REVEAL_SECS = 2;
+export const AUTO_DEC_BUTTON = { x: 24, y: 26, w: 116, h: 68 };
+export const AUTO_INC_BUTTON = { x: SCREEN.width - 140, y: 26, w: 116, h: 68 };

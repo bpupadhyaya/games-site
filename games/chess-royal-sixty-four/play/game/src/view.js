@@ -2,7 +2,7 @@
 import {
   W, H, HEADER_H, GRID_X, GRID_Y, SQ, BOARD_X, BOARD_Y, BOARD_SIZE, BOARD_BOTTOM,
   TRAY_TOP, TRAY_H, PANEL_TOP, PANEL_H, BAR_TOP, BAR_H, pointXY, squareTopLeft, titleRows, TITLE_BOARD, BTN, BTN4, HEADER,
-  RESULT_PANEL, PROMO, inRect, TEXT_SCALES,
+  RESULT_PANEL, PROMO, inRect, TEXT_SCALES, TEXT_DEC, TEXT_INC, REF_BACK, REF_NEXT, THINK_STEPS, DEMO_THINK,
 } from './layout.js';
 import { WHITE, BLACK, TYPE_NAME, QUEEN, ROOK, BISHOP, KNIGHT, PAWN, KING, inCheck } from './rules.js';
 import { LEVELS, LEVEL_COUNT } from './engine.js';
@@ -75,6 +75,19 @@ function drawGameBoard(ctx, state, flip) {
   for (const t of state.targets) {
     const p = pointXY(t, flip);
     if (board[t] !== 0) drawCaptureRing(ctx, p.x, p.y); else drawDot(ctx, p.x, p.y);
+  }
+  // AI-vs-AI demo's REVEAL phase: the move the engine actually chose, marked distinctly brighter
+  // and pulsing gold so it reads clearly against the plain dots/rings marking every OTHER legal
+  // destination for the same piece (state.targets, above) — the viewer compares their own guess
+  // against this one square.
+  if (state.demoChosen >= 0) {
+    const p = pointXY(state.demoChosen, flip), pulse = (Math.sin(state.t * 6) + 1) / 2;
+    ctx.save();
+    ctx.fillStyle = `rgba(255,205,60,${0.28 + pulse * 0.12})`;
+    ctx.beginPath(); ctx.arc(p.x, p.y, SQ * 0.46, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = `rgba(255,225,120,${0.85 + pulse * 0.15})`; ctx.lineWidth = 6;
+    ctx.beginPath(); ctx.arc(p.x, p.y, SQ * 0.46, 0, Math.PI * 2); ctx.stroke();
+    ctx.restore();
   }
   // hint
   if (state.hint) {
@@ -388,24 +401,78 @@ function renderDemo(ctx, state) {
   ctx.save(); ctx.font = '400 19px Georgia, serif'; ctx.fillStyle = '#cbb9e0'; ctx.textAlign = 'center';
   ctx.fillText(`${state.demoIdx + 1} of ${DEMO_GAMES.length}  ·  White: ${LEVELS[cfg.levels[0]].name}   Black: ${LEVELS[cfg.levels[1]].name}`, W / 2, TRAY_TOP + 20);
   ctx.restore();
+  // The teaching-loop caption: invites a guess while THINK is running (with a live countdown so
+  // the viewer knows how long they have), then names the reveal once the answer is shown.
+  if (!state.g.result) {
+    ctx.save(); ctx.font = '700 22px Georgia, serif'; ctx.textAlign = 'center';
+    if (state.demoPhase === 'reveal') { ctx.fillStyle = '#ffd97a'; ctx.fillText('The engine plays…', W / 2, 108); }
+    else if (state.demoPhase === 'think') { ctx.fillStyle = '#cbb9e0'; ctx.fillText(`Guess the move… ${Math.max(0, Math.ceil(state.demoTimer))}s`, W / 2, 108); }
+    else { ctx.fillStyle = 'rgba(203,185,224,0.7)'; ctx.fillText('Get ready…', W / 2, 108); }
+    ctx.restore();
+  }
   drawButton(ctx, HEADER.back, 'Exit');
   drawButton(ctx, HEADER.next, `Speed ×${state.demoSpeed}`);
+  // Think-time stepper: how long THINK pauses before each REVEAL, in the control-bar band this
+  // scene otherwise leaves empty (no move/undo/hint/resign buttons apply to a demo).
+  drawButton(ctx, DEMO_THINK.dec, 'Think −', { disabled: state.demoThinkIdx === 0 });
+  drawButton(ctx, DEMO_THINK.inc, 'Think +', { disabled: state.demoThinkIdx === THINK_STEPS.length - 1 });
+  ctx.save(); ctx.font = '600 20px Georgia, serif'; ctx.fillStyle = '#cbb9e0'; ctx.textAlign = 'center';
+  ctx.fillText(`Think time: ${THINK_STEPS[state.demoThinkIdx]}s`, W / 2, BAR_TOP + BAR_H / 2 + 7);
+  ctx.restore();
   if (state.banner) drawBanner(ctx, state);
+}
+
+// Counts how many wrapped screen-lines `text` takes at the *current* ctx.font, without drawing —
+// used to size the reader card to its own page's content before anything is painted.
+function countWrappedLines(ctx, text, maxW) {
+  const words = text.split(' '); let n = 1, cur = '';
+  for (const w of words) { const t = cur ? cur + ' ' + w : w; if (ctx.measureText(t).width > maxW && cur) { n++; cur = w; } else cur = t; }
+  return n;
 }
 
 // About, Controls and Rules all share this one reference-page renderer. A reader-style card frames
 // the content (rather than text floating loose on the backdrop), body text reads at a real,
 // comfortable size by default, and a text-size stepper (Header row, between Back/Next) lets anyone
-// go a further 1-3 steps larger — some players wear glasses, some don't; this is their control.
+// go a further steps larger — some players wear glasses, some don't; this is their control.
+// The card's height is computed from its own page's content (title + optional piece portraits +
+// body lines) rather than fixed, so a short page gets a short card and a page whose text has grown
+// at a high text-scale step gets a taller one, up to the screen's own limit — content.js keeps
+// every page to one short, single-concept passage specifically so it always fits (see content.js
+// and STATUS.md for how the 300% ceiling was verified page by page).
 function renderPage(ctx, state, list, headerTitle) {
   drawBackdrop(ctx, state.boardTheme, boardThemeOf(state.boardTheme).bg);
   const page = list[state.page % list.length];
   // Falls back to 1 for any out-of-range index (e.g. a save from a build with more steps).
   const scale = TEXT_SCALES[state.textScaleIdx] ?? 1;
 
+  const panelX = 34, panelW = W - 68, textMaxW = panelW - 90;
+  const fontPx = Math.round(29 * scale), LH = Math.round(fontPx * 1.25), gap = Math.round(8 * scale);
+  ctx.font = `400 ${fontPx}px Georgia, serif`;
+  let linesH = 0;
+  for (const line of page.lines) linesH += countWrappedLines(ctx, line, textMaxW) * LH + gap;
+  linesH -= gap;
+
+  // The page's own sub-title sits below the "About/Controls/Rules" header and its divider. Like
+  // that header (capped at 1.15x just above), its font is capped well below the 300% body-text
+  // ceiling: a big display sub-heading doesn't need to keep growing with the accessibility text
+  // stepper the way body copy does, and every title was already verified to fit one unwrapped
+  // line at up to the old 130% ceiling, so capping here at that same 1.3x keeps every title
+  // pixel-identical to the already-shipped smaller scales instead of ballooning past the card.
+  const titleFontPx = Math.round(31 * Math.min(scale, 1.3));
+  const headerBlockH = 92; // fixed "About/Controls/Rules" heading + divider (that heading's own font is capped)
+  const titleBlockH = titleFontPx + Math.round(fontPx * 0.55) + 10;
+  const pieceBlockH = page.piece ? 160 : 0; // the piece portraits are drawn at a fixed size, independent of text scale
+
+  // footerReserve leaves room below the panel for the "Page X of Y" indicator AND the bottom
+  // Back/Next nav row (REF_BACK/REF_NEXT, y: 1164..1264) — previously this only had to clear a
+  // single header row at the very top, back when Back/Next/A-/A+ all lived up there together.
+  const panelTop = 90, footerReserve = 180, bottomPad = 22;
+  const panelMaxH = H - panelTop - footerReserve;
+  const panelH = Math.min(panelMaxH, Math.max(300, headerBlockH + titleBlockH + pieceBlockH + linesH + bottomPad));
+  const panel = { x: panelX, y: panelTop, w: panelW, h: panelH };
+
   // The reader card: one framed panel holding the header, the piece portraits (if any) and the
   // body text, so the page reads as a designed reference sheet rather than loose floating text.
-  const panel = { x: 34, y: 92, w: W - 68, h: H - 92 - 96 };
   roundPath(ctx, panel.x, panel.y, panel.w, panel.h, 28);
   const pg = ctx.createLinearGradient(0, panel.y, 0, panel.y + panel.h);
   pg.addColorStop(0, 'rgba(30,20,10,0.58)'); pg.addColorStop(1, 'rgba(14,9,5,0.68)');
@@ -418,40 +485,46 @@ function renderPage(ctx, state, list, headerTitle) {
   ctx.font = `700 ${Math.round(38 * Math.min(scale, 1.15))}px Georgia, serif`; ctx.fillText(headerTitle, W / 2, panel.y + 54);
   ctx.strokeStyle = 'rgba(244,234,214,0.3)'; ctx.lineWidth = 2;
   ctx.beginPath(); ctx.moveTo(panel.x + 60, panel.y + 82); ctx.lineTo(panel.x + panel.w - 60, panel.y + 82); ctx.stroke();
-  ctx.font = `700 ${Math.round(31 * scale)}px Georgia, serif`; ctx.fillStyle = '#ffd97a';
-  ctx.fillText(page.title, W / 2, panel.y + 132);
-  let y = panel.y + 178;
+  ctx.font = `700 ${titleFontPx}px Georgia, serif`; ctx.fillStyle = '#ffd97a';
+  ctx.fillText(page.title, W / 2, panel.y + headerBlockH + titleFontPx * 0.8);
+  let y = panel.y + headerBlockH + titleBlockH;
   // Rules pages that cover one piece show the real in-game sprite, White and Black side by side,
   // using the same drawPiece() the board itself uses - never a separate simplified icon.
   if (page.piece) {
-    const footY = panel.y + 246, pr = 54, dx = 100;
+    const footY = y + 68, pr = 54, dx = 100;
     drawPiece(ctx, page.piece, true, W / 2 - dx, footY, P({ R: pr, theme: state.boardTheme }));
     drawPiece(ctx, page.piece, false, W / 2 + dx, footY, P({ R: pr, theme: state.boardTheme }));
     ctx.font = '400 17px Georgia, serif'; ctx.globalAlpha = 0.65; ctx.fillStyle = '#e7d3a6';
     ctx.fillText('White', W / 2 - dx, footY + 30);
     ctx.fillText('Black', W / 2 + dx, footY + 30);
     ctx.globalAlpha = 1; ctx.fillStyle = '#f4ead6';
-    y = footY + 68;
+    y += pieceBlockH;
   }
-  const fontPx = Math.round(29 * scale), LH = Math.round(fontPx * 1.42), gap = Math.round(11 * scale);
   ctx.font = `400 ${fontPx}px Georgia, serif`; ctx.globalAlpha = 0.94; ctx.fillStyle = '#f7eeda';
-  for (const line of page.lines) y = wrapTextLeftish(ctx, line, W / 2, y, panel.w - 90, LH) + LH + gap;
+  for (const line of page.lines) y = wrapTextLeftish(ctx, line, W / 2, y, textMaxW, LH) + LH + gap;
   ctx.globalAlpha = 1;
   // a small still life of pieces on the table, only drawn where it has clear room below the text —
-  // never on top of a long page's last line.
-  const sy = H - 150;
-  if (!page.piece && y + 70 < panel.y + panel.h) {
+  // never on top of a long page's last line, and never on a piece-portrait page. Anchored to the
+  // panel's OWN bottom edge (not a fixed canvas y) so it always sits inside the panel, however tall
+  // the panel ends up being.
+  const sy = panel.y + panel.h - 80;
+  if (!page.piece && scale <= 1.3 && y + 70 < sy - 40) {
     drawPiece(ctx, KNIGHT, false, W / 2 - 150, sy - 6, P({ R: 46, theme: state.boardTheme }));
     drawPiece(ctx, KING, true, W / 2 - 20, sy, P({ R: 50, theme: state.boardTheme }));
     drawPiece(ctx, PAWN, true, W / 2 + 120, sy + 4, P({ R: 44, theme: state.boardTheme }));
   }
-  ctx.font = '400 19px Georgia, serif'; ctx.fillStyle = 'rgba(244,234,214,0.6)';
-  ctx.fillText(`Page ${(state.page % list.length) + 1} of ${list.length}`, W / 2, H - 60);
   ctx.restore();
-  drawButton(ctx, HEADER.back, 'Back');
-  drawButton(ctx, HEADER.next, 'Next');
-  drawButton(ctx, HEADER.textDec, 'A−', { disabled: state.textScaleIdx === 0 });
-  drawButton(ctx, HEADER.textInc, 'A+', { disabled: state.textScaleIdx === TEXT_SCALES.length - 1 });
+  // "Page X of Y" sits between the panel and the bottom nav row, never inside either.
+  ctx.save(); ctx.textAlign = 'center'; ctx.font = '400 19px Georgia, serif'; ctx.fillStyle = 'rgba(244,234,214,0.6)';
+  ctx.fillText(`Page ${(state.page % list.length) + 1} of ${list.length}`, W / 2, 1140);
+  ctx.restore();
+  // Back/Next: an equal-width bottom pill pair, clear of the reader-card panel above it. Back is
+  // the neutral/secondary action, Next the primary (gold) action, matching every other game's
+  // reference pages. The text-size stepper (A-/A+) lives in the top corners only.
+  drawButton(ctx, REF_BACK, 'Back');
+  drawButton(ctx, REF_NEXT, 'Next', { primary: true });
+  drawButton(ctx, TEXT_DEC, 'A−', { disabled: state.textScaleIdx === 0 });
+  drawButton(ctx, TEXT_INC, 'A+', { disabled: state.textScaleIdx === TEXT_SCALES.length - 1 });
 }
 // Wraps `text` centred at cx, returns the y just below the last line drawn.
 function wrapTextLeftish(ctx, text, cx, y, maxW, lh) {

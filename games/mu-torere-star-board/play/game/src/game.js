@@ -4,7 +4,7 @@
 // Moving: TAP a stone (it lifts, its legal points glow), then TAP a glowing point; or DRAG the stone onto a point.
 // A move that is not allowed visibly TRIES (the stone travels toward the point, shudders and comes back) and a message
 // says exactly why. The game state is JSON; only this file mutates it.
-import { W, H, BX, BY, pointPos, pointNear, inRect, BTN, TEXT_STEPPER, TEXT_SCALES, titleRows, LADDER_ROW, LADDER_SIDE, BACK } from './layout.js';
+import { W, H, BX, BY, pointPos, pointNear, inRect, BTN, TEXT_STEPPER, TEXT_SCALES, AUTO_THINK_STEPS, AUTO_REVEAL_SECONDS, TEXT_PAGE_TOP, TEXT_PAGE_BOTTOM, titleRows, LADDER_ROW, LADDER_SIDE, BACK } from './layout.js';
 import { newGame, clone, applyMove, tryMove, legalMoves, SIDE_NAME, other } from './rules.js';
 import { rate } from './solver.js';
 import { LADDER, pickMove, bestMoves, hintReason, stubborn } from './ai.js';
@@ -27,12 +27,16 @@ export function createGame(env) {
     lesson: null, pz: null, daily: { day: config.day ?? 0, solvedDay: -1, streak: 0 },
     dev: config.dev === true,
     textScaleIdx: 0, // index into TEXT_SCALES; the About/How to play/Rules reference pages' own text size
+    // Auto Play ("Watch & Learn"): a full, silent, start-to-finish demonstration game. `auto` is null
+    // except while `scene === 'auto'`; it never touches `state.game`/`state.saved`/`state.progress`.
+    autoThinkIdx: 1, auto: null,
   };
   storage.get('prefs', null).then((v) => {
-    if (v) { state.sound = v.sound ?? true; state.calm = v.calm ?? false; state.big = v.big ?? false; state.marks = v.marks ?? false; state.side = v.side ?? 0; state.textScaleIdx = v.textScaleIdx ?? 0; audio.setMuted?.(!state.sound); }
-    // Clamp: a saved index from a build with a longer/shorter TEXT_SCALES array must never survive
-    // and produce NaN font sizes on the About/How to play/Rules pages.
+    if (v) { state.sound = v.sound ?? true; state.calm = v.calm ?? false; state.big = v.big ?? false; state.marks = v.marks ?? false; state.side = v.side ?? 0; state.textScaleIdx = v.textScaleIdx ?? 0; state.autoThinkIdx = v.autoThinkIdx ?? 1; audio.setMuted?.(!state.sound); }
+    // Clamp: a saved index from a build with a longer/shorter TEXT_SCALES/AUTO_THINK_STEPS array
+    // must never survive and produce NaN font sizes / think-times.
     state.textScaleIdx = Math.min(Math.max(state.textScaleIdx ?? 0, 0), TEXT_SCALES.length - 1);
+    state.autoThinkIdx = Math.min(Math.max(state.autoThinkIdx ?? 1, 0), AUTO_THINK_STEPS.length - 1);
   });
   storage.get('progress', null).then((v) => { if (v) state.progress = { played: v.played ?? 0, wins: v.wins ?? 0 }; });
   storage.get('ladder', null).then((v) => { if (v) state.ladder = { top: v.top ?? 1, beaten: v.beaten || {}, tries: v.tries || {} }; });
@@ -40,14 +44,16 @@ export function createGame(env) {
   storage.get('daily', null).then((v) => { if (v) { state.daily.solvedDay = v.solvedDay ?? -1; state.daily.streak = v.streak ?? 0; } });
   storage.get('demoUses', 0).then((v) => { state.demoUses = Math.max(state.demoUses, v); });
   storage.get('save', null).then((v) => { if (v && v.game && !v.game.winner && state.scene === 'title') state.saved = v; });
-  const savePrefs = () => storage.set('prefs', { sound: state.sound, calm: state.calm, big: state.big, marks: state.marks, side: state.side, textScaleIdx: state.textScaleIdx });
+  const savePrefs = () => storage.set('prefs', { sound: state.sound, calm: state.calm, big: state.big, marks: state.marks, side: state.side, textScaleIdx: state.textScaleIdx, autoThinkIdx: state.autoThinkIdx });
   const saveLadder = () => storage.set('ladder', state.ladder);
   const saveGame = () => { if (state.scene === 'play' && !state.game.winner) { state.saved = { game: clone(state.game), human: state.human, two: state.two, mode: state.mode, rung: state.rung }; storage.set('save', state.saved); } };
   const clearSave = () => { state.saved = null; storage.remove('save'); };
 
   const dur = (d) => (state.calm ? d * 0.6 : d);
   const say = (text, hold = 5) => { state.msg = { text, t: 0, hold }; };
-  const tone = (o) => { if (state.sound) audio.tone(o); };
+  // Auto Play plays itself continuously with no player to hear it for - silent by design, regardless
+  // of the real Sound preference, the same way the menu's own attract-mode preview is silent.
+  const tone = (o) => { if (state.sound && state.scene !== 'auto') audio.tone(o); };
   const tok = (f = 1) => tone({ freq: 300 * f, to: 165 * f, dur: 0.09, type: 'sine', vol: 0.07 });
   const chime = (a, b) => tone({ freq: a, to: b, dur: 0.5, type: 'sine', vol: 0.06 });
   const reset = (extra) => Object.assign(state, { sel: -1, drag: null, anim: null, msg: null, think: 0, next: null, undo: [], hint: null, hintsLeft: HINTS, result: null }, extra);
@@ -182,6 +188,53 @@ export function createGame(env) {
     if (state.daily.solvedDay !== state.daily.day) { state.daily.streak = state.daily.solvedDay === state.daily.day - 1 ? state.daily.streak + 1 : 1; state.daily.solvedDay = state.daily.day; storage.set('daily', { solvedDay: state.daily.solvedDay, streak: state.daily.streak }); }
   }
 
+  // ---- Auto Play ("Watch & Learn"): a full, silent, start-to-finish AI-vs-AI game that teaches by
+  // demonstration. For every decision (a move, exactly the `{from,to}` shape rules.js/ai.js already
+  // use) it loops THINK (board sits still, configurable duration) -> REVEAL (~2s, show every legal
+  // move and highlight the one about to be played) -> ACT (execute it with the real move/animation
+  // code, never a fake path). Reuses ai.js's existing pickMove() (the same table lookup that drives
+  // every computer opponent in normal play, instant since the whole game is solved - no search to
+  // wait on) for BOTH sides. Runs on its own game object (state.auto.game), never state.game/
+  // state.saved/state.progress, so it can never disturb the player's real save or progress.
+  const AUTO_RUNG = 12; // "Deep Current": perfect play that also sets traps - the best teaching demo
+  function enterAuto() {
+    state.scene = 'auto';
+    const g = newGame();
+    state.auto = { game: g, phase: 'think', timer: AUTO_THINK_STEPS[state.autoThinkIdx], chosen: pickMove(g, AUTO_RUNG, rng), moves: null, anim: null };
+  }
+  function exitAuto() { state.auto = null; state.scene = 'title'; }
+  // Executes a move exactly the way normal play does (same animation shape as play()), but on the
+  // auto game object and with no sound.
+  function playAuto(D, m) {
+    const g = D.game, side = g.turn;
+    D.anim = { from: m.from, to: m.to, side, t: 0, dur: dur(0.34), refuse: false };
+    applyMove(g, m);
+  }
+  function updateAuto(dt, tap) {
+    const D = state.auto; if (!D) return;
+    if (tap && inRect(BTN.menu, tap.x, tap.y)) { exitAuto(); return; }
+    if (tap && inRect(TEXT_STEPPER.dec, tap.x, tap.y) && state.autoThinkIdx > 0) { state.autoThinkIdx--; savePrefs(); }
+    else if (tap && inRect(TEXT_STEPPER.inc, tap.x, tap.y) && state.autoThinkIdx < AUTO_THINK_STEPS.length - 1) { state.autoThinkIdx++; savePrefs(); }
+    else if (tap && (D.phase === 'think' || D.phase === 'reveal') && inRect(BTN.undo, tap.x, tap.y)) { D.timer = 0; }
+    if (D.phase === 'over') {
+      if (tap && inRect(BTN.over1, tap.x, tap.y)) enterAuto();
+      else if (tap && inRect(BTN.over2, tap.x, tap.y)) exitAuto();
+      return;
+    }
+    if (D.phase === 'act') {
+      if (D.anim) { D.anim.t += dt; if (D.anim.t < D.anim.dur) return; D.anim = null; }
+      if (D.game.winner) { D.phase = 'over'; return; }
+      D.phase = 'think'; D.timer = AUTO_THINK_STEPS[state.autoThinkIdx]; D.chosen = pickMove(D.game, AUTO_RUNG, rng); D.moves = null;
+      return;
+    }
+    if (D.phase === 'think') {
+      D.timer -= dt;
+      if (D.timer <= 0) { D.moves = legalMoves(D.game.board, D.game.turn); D.phase = 'reveal'; D.timer = AUTO_REVEAL_SECONDS; }
+      return;
+    }
+    if (D.phase === 'reveal') { D.timer -= dt; if (D.timer <= 0) { D.phase = 'act'; playAuto(D, D.chosen); } }
+  }
+
   // ---- per-scene updates --------------------------------------------------------------------------------------------
   function afterAnim() {
     const g = state.game, sc = state.scene;
@@ -250,6 +303,7 @@ export function createGame(env) {
     else if (hit(R.about)) { state.scene = 'about'; state.scroll = 0; }
     else if (hit(R.howto)) { state.scene = 'howto'; state.scroll = 0; }
     else if (hit(R.rules)) { state.scene = 'rules'; state.scroll = 0; }
+    else if (hit(R.auto)) enterAuto();
     else if (hit(R.sound)) { state.sound = !state.sound; audio.setMuted?.(!state.sound); savePrefs(); tok(); }
     else if (hit(R.calm)) { state.calm = !state.calm; savePrefs(); tok(); }
     else if (hit(R.big)) { state.big = !state.big; savePrefs(); tok(); }
@@ -264,7 +318,10 @@ export function createGame(env) {
   function updatePage(input, tap) {
     const p = input.pointer;
     if (p.pressed) state.dragY = p.y;
-    if (p.down && state.dragY !== undefined && !p.pressed) { state.scroll = Math.max(0, Math.min(Math.max(0, state.pageH - 1200), state.scroll + (state.dragY - p.y))); state.dragY = p.y; }
+    // Clamp to the same visible window view.js clips the page to (TEXT_PAGE_BOTTOM - TEXT_PAGE_TOP),
+    // so a drag can always reach the true bottom of the longest page, at any text scale.
+    const viewH = TEXT_PAGE_BOTTOM - TEXT_PAGE_TOP;
+    if (p.down && state.dragY !== undefined && !p.pressed) { state.scroll = Math.max(0, Math.min(Math.max(0, state.pageH - viewH), state.scroll + (state.dragY - p.y))); state.dragY = p.y; }
     if (tap && inRect(BACK, tap.x, tap.y)) state.scene = 'title';
     else if (tap && inRect(TEXT_STEPPER.dec, tap.x, tap.y) && state.textScaleIdx > 0) { state.textScaleIdx--; savePrefs(); tok(); }
     else if (tap && inRect(TEXT_STEPPER.inc, tap.x, tap.y) && state.textScaleIdx < TEXT_SCALES.length - 1) { state.textScaleIdx++; savePrefs(); tok(); }
@@ -285,6 +342,7 @@ export function createGame(env) {
     if (sc === 'title') { if (k.has('Enter') || k.has('Space')) { const R = titleRows(!!state.saved), r = R.resume || R.learn; return { x: r.x + 5, y: r.y + 5 }; } return null; }
     if (sc === 'over') { if (k.has('Enter') || k.has('Space')) return { x: BTN.over1.x + 5, y: BTN.over1.y + 5 }; if (k.has('Escape')) return { x: BTN.over3.x + 5, y: BTN.over3.y + 5 }; return null; }
     if (sc === 'about' || sc === 'howto' || sc === 'rules' || sc === 'ladder' || sc === 'demo-limit') { if (k.has('Escape')) return { x: BACK.x + 5, y: BACK.y + 5 }; return null; }
+    if (sc === 'auto') { if (k.has('Escape')) return { x: BTN.menu.x + 5, y: BTN.menu.y + 5 }; if (k.has('Space')) return { x: BTN.undo.x + 5, y: BTN.undo.y + 5 }; return null; }
     if (k.has('Escape')) return { x: BTN.menu.x + 5, y: BTN.menu.y + 5 };
     if (k.has('KeyU')) return { x: BTN.undo.x + 5, y: BTN.undo.y + 5 };
     if (k.has('KeyH')) return { x: BTN.hint.x + 5, y: BTN.hint.y + 5 };
@@ -308,9 +366,13 @@ export function createGame(env) {
       else if (sc === 'about' || sc === 'howto' || sc === 'rules') updatePage(input, tap && tap.x !== undefined ? tap : null);
       else if (sc === 'demo-limit') { if (tap && tap.x !== undefined && inRect(BACK, tap.x, tap.y)) state.scene = 'title'; }
       else if (sc === 'over') updateOver(tap && tap.x !== undefined ? tap : null);
+      else if (sc === 'auto') updateAuto(dt, tap && tap.x !== undefined ? tap : null);
       else updateBoard(dt, input, tap);
     },
     render(ctx) { render(ctx, state); },
     getState: () => state,
+    // Auto Play is a free teaching/marketing demo, not real play: kit 1.6.1's preview gate skips
+    // both time-accrual and the countdown badge while this is true.
+    isPreviewExempt: () => state.scene === 'auto',
   };
 }

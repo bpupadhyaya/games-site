@@ -1,5 +1,5 @@
 // Everything drawn each frame. Reads `state` (game.js) and changes nothing. The table, board and seed sprites are cached (art.js).
-import { W, H, PIT_R, PITCH, X0, ROW_Y, TRAY, MID_Y, BTN, SET, pitPos, trayPos, titleRows, TEXT_SCALES } from './layout.js';
+import { W, H, PIT_R, PITCH, X0, ROW_Y, TRAY, MID_Y, BTN, SET, pitPos, trayPos, titleRows, TEXT_SCALES, AP_THINK_STEPS } from './layout.js';
 import { drawTable, drawBoard, drawSeed, slot, WOODS, SEEDSETS } from './art.js';
 import { legalMoves } from './rules.js';
 import { LEVELS } from './engine.js';
@@ -22,8 +22,8 @@ function ruleSnapshot(role) {
   if (role === 'capture') return { snap: { pits: [4, 4, 4, 4, 4, 4, 4, 4, 3, 2, 4, 4], store: [0, 0] }, hi: { pits: [8, 9] }, caption: 'Two pits at 3 and 2: both captured' };
   return null;
 }
-function drawRuleBoard(ctx, state, snap, hi) {
-  ctx.save(); ctx.translate(360, 60); ctx.scale(0.6, 0.6); ctx.translate(-360, 0);
+function drawRuleBoard(ctx, state, snap, hi, topY = 60) {
+  ctx.save(); ctx.translate(360, topY); ctx.scale(0.6, 0.6); ctx.translate(-360, 0);
   drawBoard(ctx, state.wood);
   for (let i = 0; i < 12; i++) {
     const p = pitPos(i), n = snap.pits[i];
@@ -47,7 +47,7 @@ function drawRuleBoard(ctx, state, snap, hi) {
 
 export function render(ctx, state) {
   const scene = state.scene, big = state.big, g = state.game, A = state.anim;
-  const boardScene = scene === 'play' || scene === 'over' || scene === 'lesson' || scene === 'puzzle';
+  const boardScene = scene === 'play' || scene === 'over' || scene === 'lesson' || scene === 'puzzle' || scene === 'autoplay' || scene === 'autoplay-over';
 
   const text = (str, x, y, size, color = CREAM, font = UI, weight = 700, align = 'center', shadow = true) => {
     ctx.textAlign = align; ctx.font = `${weight} ${size}px ${font}`;
@@ -132,6 +132,12 @@ export function render(ctx, state) {
       text('Daily puzzle' + (state.pz.puzzle.hard ? ' (weekend)' : ''), 360, 160, 26, 'rgba(251,232,191,0.85)', UI, 600);
       text('Capture the most', 360, 235, 62, CREAM, FONT);
       text(`Streak: ${state.daily.streak} day${state.daily.streak === 1 ? '' : 's'}`, 360, 285, 24, GOLD, UI, 600);
+    } else if (scene === 'autoplay' || scene === 'autoplay-over') {
+      const AP = state.ap, dots = '.'.repeat(1 + (Math.floor(state.t * 3) % 3));
+      const phaseLine = g.winner !== null ? 'Game over' : !AP ? '' : AP.phase === 'think' ? 'Think' + dots : AP.phase === 'reveal' ? 'Here is the move' : 'Playing it out' + dots;
+      text('Auto Play', 360, 180, 58, CREAM, FONT);
+      text('Watch & learn: both seats play themselves', 360, 226, 21, 'rgba(251,232,191,0.85)', UI, 500);
+      text(phaseLine, 360, 268, 26, GOLD, UI, 700);
     } else {
       const th = state.thinking && !A ? 'The computer is thinking' + '.'.repeat(1 + (Math.floor(state.t * 3) % 3)) : null;
       const line = g.winner !== null ? 'Game over' : state.two ? (g.turn === 0 ? 'Player one: bottom row' : 'Player two: top row') : g.turn === 0 ? 'Your move' : (th || 'The computer moves');
@@ -139,14 +145,17 @@ export function render(ctx, state) {
       text(state.two ? 'Two players, one phone' : `Computer: ${LEVELS[state.level].name} · ${LEVELS[state.level].blurb}`, 360, 226, 21, 'rgba(251,232,191,0.85)', UI, 500);
       text('First to capture 25 seeds wins', 360, 268, 22, GOLD, UI, 600);
     }
-    // the player's row of legal pits glows on the human turn
+    // the player's row of legal pits glows on the human turn (or, in Auto Play, during REVEAL)
     let legal = [];
-    if (!A && g.winner === null && (scene === 'play' ? (state.two || g.turn === 0) : scene === 'lesson' ? !state.lesson.done : (state.pz.status !== 'solved' && state.pz.wrong <= 0))) {
-      legal = scene === 'lesson' ? LESSONS[state.lesson.i].want.filter((p) => legalMoves(g).includes(p)) : legalMoves(g);
+    if (!A && g.winner === null) {
+      if (scene === 'play') { if (state.two || g.turn === 0) legal = legalMoves(g); }
+      else if (scene === 'lesson') { if (!state.lesson.done) legal = LESSONS[state.lesson.i].want.filter((p) => legalMoves(g).includes(p)); }
+      else if (scene === 'puzzle') { if (state.pz.status !== 'solved' && state.pz.wrong <= 0) legal = legalMoves(g); }
+      else if (scene === 'autoplay') { if (state.ap && state.ap.phase === 'reveal') legal = state.ap.legal; }
     }
     // a moving chevron along the carved arrows: the direction of sowing
     if (!state.calm) { const f = (state.t * 0.5) % 1; for (const [y, d] of [[MID_Y - 26, -1], [MID_Y + 26, 1]]) { const x = d > 0 ? 190 + 340 * f : 530 - 340 * f; ctx.strokeStyle = `rgba(255,214,120,${0.9 * Math.sin(Math.PI * f)})`; ctx.lineWidth = 4.5; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.beginPath(); ctx.moveTo(x - d * 9, y - 9); ctx.lineTo(x + d * 9, y); ctx.lineTo(x - d * 9, y + 9); ctx.stroke(); } }
-    contents(state.shown.pits, state.shown.store, { legal, labels: scene === 'lesson' || scene === 'puzzle' ? ['You', 'Opponent'] : state.two ? ['Player one', 'Player two'] : ['You', 'Computer'] });
+    contents(state.shown.pits, state.shown.store, { legal, labels: scene === 'autoplay' || scene === 'autoplay-over' ? ['Bottom seat', 'Top seat'] : scene === 'lesson' || scene === 'puzzle' ? ['You', 'Opponent'] : state.two ? ['Player one', 'Player two'] : ['You', 'Computer'] });
     // keyboard cursor
     if (state.kb && scene !== 'over') { const p = pitPos(g.turn === 0 ? state.cursor : 11 - state.cursor); ctx.strokeStyle = '#7dff9a'; ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(p.x, p.y, PIT_R + 7, 0, TAU); ctx.stroke(); }
     // the carried seeds, and capture flourish
@@ -192,6 +201,12 @@ export function render(ctx, state) {
     if (scene === 'play') { button(BTN.menu, 'Menu', { size: 28 }); button(BTN.undo, 'Undo', { size: 28 }); button(BTN.hint, `Hint (${state.hintsLeft})`, { size: 28, dim: state.hintsLeft <= 0 }); }
     else if (scene === 'lesson') { button(BTN.menu, 'Menu', { size: 28 }); if (state.lesson.done && !A) button(BTN.next, state.lesson.i + 1 < LESSONS.length ? 'Next lesson' : 'Finish', { primary: true, size: 30 }); }
     else if (scene === 'puzzle') { button(BTN.menu, 'Menu', { size: 28 }); if (state.pz.status === 'solved' && !A) button(BTN.share, 'Share result', { primary: true, size: 30 }); }
+    else if (scene === 'autoplay') {
+      button(BTN.apExit, 'Exit', { size: 28 });
+      button(BTN.apDec, 'Think −', { size: 25, dim: state.apThinkIdx === 0 });
+      button(BTN.apInc, 'Think +', { size: 25, dim: state.apThinkIdx === AP_THINK_STEPS.length - 1 });
+      text(`Think time: ${AP_THINK_STEPS[state.apThinkIdx]}s`, 360, 1320, 22, GOLD, UI, 600);
+    }
     if (scene === 'play' && state.dev) text('DEV', 40, 130, 20, '#7dff9a', UI, 700, 'left');
   }
 
@@ -212,6 +227,7 @@ export function render(ctx, state) {
     button(R.play, 'Play the computer', { primary: state.learned && !R.resume, size: 32 });
     button(R.two, 'Two players, one phone', { size: 30 });
     button(R.daily, solved ? `Daily puzzle: solved · streak ${state.daily.streak}` : state.daily.streak ? `Daily puzzle · streak ${state.daily.streak}` : 'Daily puzzle', { size: 30 });
+    button(R.autoplay, 'Auto Play · Watch & Learn', { size: 28 });
     button(R.about, 'About Oware', { size: 21 }); button(R.settings, 'Settings', { size: 21 }); button(R.rules, 'Rules', { size: 21 });
     const y = R.about.y + 130;
     text(`Games played: ${state.stats.games} · won: ${state.stats.wins}`, 360, y, 22, 'rgba(251,232,191,0.85)', UI, 500);
@@ -248,12 +264,22 @@ export function render(ctx, state) {
     button(BTN.textDec, 'A−', { size: 28, dim: state.textScaleIdx === 0 });
     button(BTN.textInc, 'A+', { size: 28, dim: state.textScaleIdx === TEXT_SCALES.length - 1 });
     const titleSz = fitSz(page.title, Math.round(30 * scale), 700, FONT, 580, 20), bodySz = Math.round(29 * scale), lh = Math.round(bodySz * 1.4);
-    text(page.title, 70, 262, titleSz, GOLD, FONT, 700, 'left');
-    let y = 262 + Math.round(titleSz * 1.15);
+    // The page title's baseline is anchored below the fixed header/stepper row by the title's own
+    // ascent, so a bigger text-size step can never push it up into "About Oware" above it.
+    const titleY = 252 + Math.round(titleSz * 0.82);
+    text(page.title, 70, titleY, titleSz, GOLD, FONT, 700, 'left');
+    // Clears the title's own descent AND the body font's own ascent - a long title (fitSz-shrunk
+    // much smaller than the scaled-up body font that follows it) left too little room when the gap
+    // was sized off the title alone, same fix as the Rules page below.
+    let y = titleY + Math.round(titleSz * 0.3 + bodySz * 0.85) + 10;
     for (const line of page.lines) { const n = wrap(line, 70, y, bodySz, 580, '#fff3d6', lh, 'left'); y += n * lh + Math.round(16 * scale); }
     text(`Page ${(state.page % ABOUT.pages.length) + 1} of ${ABOUT.pages.length}`, 360, 1345, 20, 'rgba(251,232,191,0.65)', UI, 500);
-    button(BTN.aboutBack, 'Back', { primary: true, size: 28 });
-    button(BTN.aboutNext, 'Next', { size: 28 });
+    // Back is the neutral/secondary action (always returns to the title); Next is the primary,
+    // forward-reading action, and reads as a clear exit affordance ("Done") on the last page rather
+    // than a dead-end "Next" that just wraps back to page one.
+    const aboutLast = state.page % ABOUT.pages.length === ABOUT.pages.length - 1;
+    button(BTN.aboutBack, 'Back', { size: 28 });
+    button(BTN.aboutNext, aboutLast ? 'Done' : 'Next', { primary: true, size: 28 });
   } else if (scene === 'rules') {
     const scale = TEXT_SCALES[state.textScaleIdx] ?? 1;
     const page = RULES[state.page % RULES.length];
@@ -263,18 +289,43 @@ export function render(ctx, state) {
     button(BTN.textInc, 'A+', { size: 28, dim: state.textScaleIdx === TEXT_SCALES.length - 1 });
     const bodySz = Math.round(29 * scale), lh = Math.round(bodySz * 1.4);
     const titleSz = fitSz(page.title, Math.round(31 * scale), 700, FONT, 600, 20);
-    text(page.title, 360, 262, titleSz, GOLD, FONT, 700);
+    // Same anchor-below-header fix as the About page: keeps the title clear of "Rules" above it
+    // at every text-size step.
+    const titleY = 252 + Math.round(titleSz * 0.82);
+    text(page.title, 360, titleY, titleSz, GOLD, FONT, 700);
+    // Everything below the title also has to move with it: at a big scale step a short page title
+    // ("The board", "Capturing"...) can render far taller than the ~316 gap this layout was
+    // originally tuned for, so the board snapshot / caption / body all anchor off the title's own
+    // actual height instead of a fixed offset - the same principle as the About page's `y`. Body
+    // text clears the title's own descent AND the body font's own ascent - a long title (fitSz-
+    // shrunk much smaller than the scaled-up body font that follows it, e.g. "Relay sowing:
+    // seeding a second lap") left too little room when the gap was sized off the title alone.
+    let y = titleY + Math.round(titleSz * 0.3 + bodySz * 0.85) + 10;
     const info = ruleSnapshot(page.role);
-    let y = 316;
     if (info) {
-      drawRuleBoard(ctx, state, info.snap, info.hi);
-      if (info.caption) { const capSz = fitSz(info.caption, Math.round(23 * scale), 600, UI, 600, 16); text(info.caption, 360, 712, capSz, 'rgba(251,232,191,0.85)', UI, 600); }
-      y = 754;
+      const contentTop = titleY + Math.round(titleSz * 1.15); // an illustration has no text ascent to clear
+      const boardTopY = contentTop - 235; // board's own top edge (FRAME.y * 0.6) lands at contentTop
+      drawRuleBoard(ctx, state, info.snap, info.hi, boardTopY);
+      const boardBottomY = boardTopY + 635; // FRAME bottom, scaled
+      y = boardBottomY + 59;
+      if (info.caption) {
+        // capY is a baseline: clear the board's own bottom edge by the caption's ascent, not just
+        // a flat margin, so a bigger text-size step can never sit the caption on top of the board.
+        const capSz = fitSz(info.caption, Math.round(23 * scale), 600, UI, 600, 16), capY = boardBottomY + 20 + Math.round(capSz * 0.75);
+        text(info.caption, 360, capY, capSz, 'rgba(251,232,191,0.85)', UI, 600);
+        // Body text starts clear of both the caption's own descender AND the (much bigger, at a
+        // high text-size step) body font's own ascender above its baseline - not a gap sized off
+        // the caption alone, which used to leave the two touching once bodySz grew past capSz.
+        y = capY + Math.round(capSz * 0.3 + bodySz * 0.85) + 10;
+      }
     }
     for (const line of page.lines) { const n = wrap(line, 70, y, bodySz, 580, '#fff3d6', lh, 'left'); y += n * lh + Math.round(16 * scale); }
     text(`Page ${(state.page % RULES.length) + 1} of ${RULES.length}`, 360, 1345, 20, 'rgba(251,232,191,0.65)', UI, 500);
-    button(BTN.rulesBack, 'Back', { primary: true, size: 28 });
-    button(BTN.rulesNext, 'Next', { size: 28 });
+    // Same Back/Next convention as the About page: Back is neutral (always exits to the title),
+    // Next is the primary forward action and becomes a "Done" exit affordance on the last page.
+    const rulesLast = state.page % RULES.length === RULES.length - 1;
+    button(BTN.rulesBack, 'Back', { size: 28 });
+    button(BTN.rulesNext, rulesLast ? 'Done' : 'Next', { primary: true, size: 28 });
   } else if (scene === 'over') {
     ctx.fillStyle = 'rgba(20,6,0,0.7)'; ctx.fillRect(0, 0, W, H);
     const won = g.winner === 'draw' ? 'A draw' : state.two ? (g.winner === 0 ? 'Player one wins' : 'Player two wins') : g.winner === 0 ? 'You win!' : 'The computer wins';
@@ -288,6 +339,16 @@ export function render(ctx, state) {
       if (!state.calm) for (let k = 0; k < 16; k++) { const ph = (state.t * 0.35 + k * 0.137) % 1, x = 360 + Math.sin(k * 2.4) * (170 + 90 * ph), y = 640 - ph * 420; drawSeed(ctx, state.seeds, k % 4, x, y, ph * 6, 0.9 - ph * 0.4); }
     }
     button(BTN.again, 'Play again', { primary: true, size: 36 }); button(BTN.back, 'Menu', { size: 32 });
+  } else if (scene === 'autoplay-over') {
+    ctx.fillStyle = 'rgba(20,6,0,0.7)'; ctx.fillRect(0, 0, W, H);
+    const won = g.winner === 'draw' ? 'A draw' : g.winner === 0 ? 'Bottom seat wins' : 'Top seat wins';
+    text('Auto Play complete', 360, 470, 52, CREAM, FONT);
+    text(won, 360, 560, 78, GOLD, FONT);
+    wrap(g.reason, 360, 630, 26, 560, '#fff3d6');
+    text(`${state.shown.store[0]} : ${state.shown.store[1]}`, 360, 780, 110, GOLD, FONT);
+    text('Bottom seat : Top seat', 360, 825, 24, 'rgba(251,232,191,0.85)', UI, 600);
+    text(`${g.moves} moves`, 360, 865, 24, 'rgba(251,232,191,0.7)', UI, 500);
+    button(BTN.again, 'Play again', { primary: true, size: 34 }); button(BTN.back, 'Exit to menu', { size: 30 });
   }
   void H; void PITCH; void X0; void ROW_Y;
 }

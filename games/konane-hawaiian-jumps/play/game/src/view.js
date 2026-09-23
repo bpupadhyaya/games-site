@@ -1,5 +1,5 @@
 // Everything drawn each frame. Reads `state` (see game.js) and changes nothing. Static art is cached (art.js).
-import { W, H, GRID, SLAB, cellCenter, cellSize, stoneRadius, BTN, SETUP, HELP, TEXTSTEP, TEXT_SCALES, titleRows } from './layout.js';
+import { W, H, GRID, SLAB, cellCenter, cellSize, stoneRadius, BTN, SETUP, HELP, TEXTSTEP, TEXT_SCALES, AUTO_THINK_STEPS, titleRows } from './layout.js';
 import { drawWorld, drawSlab, drawStone, drawPetals, drawSquareRing, stoneVariant } from './art.js';
 import { jumpsFrom, legalMoves, stones, countMoves, NAMES, overSquares } from './rules.js';
 import { LEVELS } from './engine.js';
@@ -90,12 +90,13 @@ export function drawStones(ctx, g, a, o = {}) {
 
 export function render(ctx, state) {
   const { text, wrap, shadowText, lines } = makeText(ctx), btn = (r, l, o) => button(ctx, { text }, r, l, o);
-  const scene = state.scene, g = state.game, big = state.textScaleIdx > 0, calm = state.calm, t = state.t;
-  const boardScene = scene === 'play' || scene === 'over' || scene === 'lesson' || (scene === 'puzzle' && state.pz.status !== 'making');
+  const scene = state.scene, autoOn = scene === 'auto' && state.auto, D0 = state.auto;
+  const g = autoOn ? D0.game : state.game, big = state.textScaleIdx > 0, calm = state.calm, t = state.t;
+  const boardScene = scene === 'play' || scene === 'over' || scene === 'lesson' || scene === 'auto' || (scene === 'puzzle' && state.pz.status !== 'making');
   drawWorld(ctx, t, boardScene ? g.n : 0, calm);
 
   if (boardScene) {
-    const n = g.n, a = state.anim, R = stoneRadius(n), pulse = calm ? 0.6 : 0.5 + 0.5 * Math.sin(t * 6);
+    const n = g.n, a = autoOn ? D0.anim : state.anim, R = stoneRadius(n), pulse = calm ? 0.6 : 0.5 + 0.5 * Math.sin(t * 6);
     // ---- header ----
     ctx.fillStyle = 'rgba(14,8,16,0.58)'; ctx.beginPath(); ctx.roundRect(24, 192, 672, 214, 22); ctx.fill();
     shadowText('Konane', 420, 128, 62);
@@ -111,6 +112,15 @@ export function render(ctx, state) {
       shadowText(`${SIDE[g.turn]} to move`, 146, 272, 42, '#ffe6b0', FONT, 700, 'left');
       wrap(P.status === 'solved' ? `Solved${P.tries ? ' after ' + P.tries + ' wrong tr' + (P.tries === 1 ? 'y' : 'ies') : ' at the first try'}. Come back tomorrow.` : `Only ONE first jump wins by force. Find it.`, 64, 316, big ? 30 : 26, 600, PAGE_TEXT, 36, 'left');
       text(`Streak: ${state.daily.streak} day${state.daily.streak === 1 ? '' : 's'}   ·   ${g.n}x${g.n} board`, 64, 396, 24, GOLD, UI, 600, 'left');
+    } else if (scene === 'auto') {
+      const D = state.auto, thinkS = AUTO_THINK_STEPS[state.autoThinkIdx];
+      text('Auto Play · Watch & Learn', 420, 176, 26, 'rgba(255,224,178,0.85)', UI, 600);
+      drawStone(ctx, g.winner ? g.winner : g.turn, 96, 236, 30, { v: 1 });
+      const phaseTxt = D.phase === 'think' ? 'thinking' : D.phase === 'reveal' ? 'about to play' : D.phase === 'act' ? 'playing' : 'game over';
+      shadowText(g.winner ? '' : `${SIDE[g.turn]} is ${phaseTxt}${D.phase === 'think' ? '.'.repeat(1 + (Math.floor(t * 3) % 3)) : ''}`, 146, 248, 40, '#ffe6b0', FONT, 700, 'left');
+      text(`${n}x${n} · silent demonstration`, 146, 288, 22, 'rgba(255,224,178,0.85)', UI, 500, 'left');
+      wrap(D.phase === 'think' ? 'THINK: work out your own answer before it is revealed.' : D.phase === 'reveal' ? 'REVEAL: the highlighted move is the one about to be played.' : 'ACT: watch it play out.', 64, 336, 22, 600, PAGE_TEXT, 28, 'left');
+      text(`Think time: ${thinkS}s (max 10s)`, 64, 396, 22, GOLD, UI, 600, 'left');
     } else {
       const mine = state.two || g.turn === state.human;
       drawStone(ctx, g.winner ? g.winner : g.turn, 96, 236, 30, { v: 1 });
@@ -129,11 +139,23 @@ export function render(ctx, state) {
         drawSquareRing(ctx, p.x, p.y, R * 0.96, hops > 1 ? '255,150,110' : '255,216,120', 0.55 + pulse * 0.4, 0.28);
         if (hops > 1) text(`x${hops}`, p.x, p.y + 9, Math.round(R * 0.72), '#fff', UI, 800);
       }
-    } else if (state.marks && !a && state.canAct && !g.winner && g.ply >= 2 && state.sel < 0) {
+    } else if (scene !== 'auto' && state.marks && !a && state.canAct && !g.winner && g.ply >= 2 && state.sel < 0) {
       for (let i = 0; i < g.b.length; i++) if (g.b[i] === g.turn && jumpsFrom(g, i).length) { const p = cellCenter(n, i); ctx.strokeStyle = `rgba(255,222,140,${0.35 + pulse * 0.4})`; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(p.x, p.y, R * 1.08, 0, TAU); ctx.stroke(); }
     }
     if (state.hint && !a) for (const sq of [state.hint.from, state.hint.to]) if (sq >= 0) { const p = cellCenter(n, sq); drawSquareRing(ctx, p.x, p.y, R * 1.05, '120,255,170', 0.6 + pulse * 0.4, 0.3); }
     if (scene === 'lesson' && !state.lesson.done && !a) for (const sq of LESSONS[state.lesson.i].mark || []) { const p = cellCenter(n, sq); drawSquareRing(ctx, p.x, p.y, R * 1.15, '140,210,255', 0.5 + pulse * 0.4, 0.15); }
+    // REVEAL phase of Auto Play: show every legal option (dim gold ring), then the ONE move about
+    // to be played highlighted much more strongly (bright green ring, plus the source square for a
+    // jump), so a watcher can compare their own guess against it before it happens.
+    if (autoOn && D0.phase === 'reveal' && D0.moves) {
+      const chosenAt = (m) => m.type === 'remove' ? m.at === D0.chosen.at : m.to === D0.chosen.to && m.from === D0.chosen.from;
+      for (const m of D0.moves) {
+        const sq = m.type === 'remove' ? m.at : m.to, isChosen = D0.chosen && D0.chosen.type === m.type && chosenAt(m);
+        const p = cellCenter(n, sq);
+        drawSquareRing(ctx, p.x, p.y, R * (isChosen ? 1.14 : 0.95), isChosen ? '120,255,170' : '255,216,120', isChosen ? 0.75 + pulse * 0.25 : 0.32 + pulse * 0.18, isChosen ? 0.4 : 0.15);
+      }
+      if (D0.chosen && D0.chosen.type === 'jump') { const p = cellCenter(n, D0.chosen.from); drawSquareRing(ctx, p.x, p.y, R * 1.14, '120,255,170', 0.75 + pulse * 0.25, 0.4); }
+    }
     drawStones(ctx, g, a, { sel: state.sel, calm, t });
     if (state.kb && scene !== 'over') { const c = cellCenter(n, state.cursor); ctx.strokeStyle = '#7dff9a'; ctx.lineWidth = 5; ctx.beginPath(); ctx.roundRect(c.x - cellSize(n) / 2 + 3, c.y - cellSize(n) / 2 + 3, cellSize(n) - 6, cellSize(n) - 6, 10); ctx.stroke(); }
     if (scene === 'play' || scene === 'over') {           // the trays: stones taken from the slab are collected here
@@ -156,6 +178,14 @@ export function render(ctx, state) {
     if (scene === 'play') { btn(BTN.menu, 'Menu', { size: 26 }); btn(BTN.undo, 'Take back', { size: 26 }); btn(BTN.hint, `Hint (${state.hintsLeft})`, { size: 26, dim: state.hintsLeft <= 0 }); }
     else if (scene === 'lesson') { btn(BTN.menu, 'Menu', { size: 26 }); if (state.lesson.done) btn({ x: 265, y: BTN.next.y, w: 395, h: BTN.next.h }, state.lesson.i + 1 < LESSONS.length ? 'Next lesson' : 'Finish', { primary: true, size: 28 }); }
     else if (scene === 'puzzle') { btn(BTN.menu, 'Menu', { size: 26 }); if (state.pz.status === 'solved') btn(BTN.share, 'Share result', { primary: true, size: 30 }); }
+    else if (scene === 'auto' && D0.phase !== 'over') {
+      btn(BTN.menu, 'Exit', { size: 26 }); btn(BTN.undo, 'Skip wait', { size: 24, dim: D0.phase === 'act' });
+      // Think-time stepper: same position/style as the text-size stepper (TEXTSTEP), just never
+      // shown on the same scene. No extra label up here — it would sit under the preview-timer
+      // badge that the platform draws top-centre; the header panel below already reads "Think
+      // time: Ns (max 10s)".
+      btn(TEXTSTEP.dec, '−', { size: 30, dim: state.autoThinkIdx === 0 }); btn(TEXTSTEP.inc, '+', { size: 30, dim: state.autoThinkIdx === AUTO_THINK_STEPS.length - 1 });
+    }
   }
   if (scene === 'puzzle' && state.pz.status === 'making') { shadowText("Preparing today's puzzle", 360, 800, 42); btn(BTN.menu, 'Menu', { size: 26 }); }
 
@@ -171,7 +201,8 @@ export function render(ctx, state) {
     btn(R.play, 'Play', { primary: state.learned && !R.resume, size: 32 });
     btn(R.learn, 'Learn to play', { primary: !state.learned && !R.resume, size: 30 });
     btn(R.daily, solvedToday ? `Daily puzzle: solved · streak ${state.daily.streak}` : state.daily.streak ? `Daily puzzle · streak ${state.daily.streak}` : 'Daily puzzle', { size: 28 });
-    btn(R.how, 'How to play and controls', { size: 27 }); btn(R.about, 'About Konane', { size: 28 }); btn(R.rules, 'Rules', { size: 28 });
+    btn(R.how, 'How to play and controls', { size: 27 }); btn(R.about, 'About Konane', { size: 28 });
+    btn(R.rules, 'Rules', { size: 26 }); btn(R.auto, 'Auto Play', { size: 26 });
     btn(R.sound, state.sound ? 'Sound on' : 'Sound off', { size: 22, on: state.sound }); btn(R.calm, calm ? 'Calm: on' : 'Calm: off', { size: 22, on: calm }); btn(R.big, big ? 'Large text: on' : 'Large text', { size: 21, on: big });
     text(`Games played: ${state.stats.games} · won: ${state.stats.wins}`, 360, R.sound.y + 112, 22, 'rgba(255,232,196,0.8)', UI, 500);
     if (state.msg) wrap(state.msg.text, 360, R.sound.y + 160, 24, 620, '#ffe9b0');
@@ -197,23 +228,35 @@ export function render(ctx, state) {
     // Text-size stepper (A-/A+), an index into TEXT_SCALES, guarded so a stale/out-of-range saved
     // index can never produce NaN font sizes. Lives right here, in the header of the page being read.
     const scaleIdx = Math.min(Math.max(state.textScaleIdx, 0), TEXT_SCALES.length - 1), scale = TEXT_SCALES[scaleIdx] ?? 1;
-    shadowText(scene === 'help' ? 'How to play' : scene === 'about' ? 'About Konane' : 'Rules', 420, 160, Math.round(58 * Math.min(scale, 1.15)));
+    shadowText(scene === 'help' ? 'How to play' : scene === 'about' ? 'About Konane' : 'Rules', 360, 160, Math.round(58 * Math.min(scale, 1.15)));
     btn(TEXTSTEP.dec, 'A−', { size: 28, dim: scaleIdx === 0 });
     btn(TEXTSTEP.inc, 'A+', { size: 28, dim: scaleIdx === TEXT_SCALES.length - 1 });
     const PANEL_Y = 200, PANEL_BOTTOM = 1400, fs = Math.round(28 * scale), lhh = Math.round(fs * 1.4);
-    let hh = 150 + (P.demo ? 160 : 0) + (P.stones ? 190 : 0); for (const para of P.body) hh += lines(para, fs, 570).length * lhh + 18;
-    const panelH = Math.min(hh + 20, PANEL_BOTTOM - PANEL_Y);
+    // The section title (P.title) wraps too and is capped early, not scaled 1:1 with the body — at
+    // the top text-size steps a short-looking title like "The opening" no longer reliably fits one
+    // line at the panel's fixed width, and it is optional (continuation pages carry no title) since
+    // most pages are now split down to roughly one sentence each to fit the panel at 300%.
+    const titleSize = Math.round(44 * Math.min(scale, 1.2)), titleLH = Math.round(titleSize * 1.12);
+    const titleLines = P.title ? lines(P.title, titleSize, 560, 800).length : 0;
+    // The gap below the title must grow with the BODY's own font size, not the title's — at the top
+    // text-size steps a modest title followed immediately by a much larger body line let the body's
+    // own ascent climb back up into the title's descenders.
+    const titleGap = Math.round(fs * 0.55) + 10;
+    // The reader card is a FIXED size on every page (matching the header/footer on every other
+    // page) so the reference reads as one designed sheet, not a box that resizes to fit whatever
+    // short sentence happens to be on the current page. Short pages simply leave breathing room
+    // at the bottom of the same card — never a shrunken floating box over bare background.
+    const panelH = PANEL_BOTTOM - PANEL_Y;
     readerCard(ctx, 40, PANEL_Y, 640, panelH);
-    text(P.title, 360, PANEL_Y + 82, Math.round(44 * scale), '#ffe6b0');
-    let y = PANEL_Y + 142;
+    let y = PANEL_Y + 60;
+    if (P.title) { wrap(P.title, 360, y + Math.round(titleSize * 0.78), titleSize, 560, '#ffe6b0', titleLH, 'center', 800); y += titleLines * titleLH + titleGap; }
     if (P.demo) { y = drawHelpDemo(ctx, P.demo, y + 6, t, calm) + 20; }
     if (P.stones) { y = drawRulesStones(ctx, text, y + 6) + 20; }
     for (const para of P.body) { const k = wrap(para, 76, y, fs, 570, PAGE_TEXT, lhh, 'left'); y += k * lhh + 18; }
-    // The small slab still-life sits at a fixed spot below the panel, and is only drawn when the
-    // panel is short enough to leave it clear room — never crammed against a long page's last line.
-    if (y + 90 < PANEL_Y + panelH && PANEL_Y + panelH < 1010) { ctx.save(); ctx.translate(360, 1200); ctx.scale(0.5, 0.5); ctx.translate(-360, -760); drawSlab(ctx, 6); if (state.demo) drawStones(ctx, state.demo.g, state.demo.anim, { calm, t }); ctx.restore(); }
     text(`Page ${state.page % pages.length + 1} of ${pages.length}`, 360, 1430, 22, 'rgba(255,232,196,0.7)', UI, 500);
-    btn(HELP.prev, 'Back page', { size: 24 }); btn(HELP.back, 'Menu', { size: 26 }); btn(HELP.next, 'Next page', { size: 24, primary: true });
+    const lastPage = state.page % pages.length === pages.length - 1;
+    btn(HELP.prev, 'Back page', { size: 24 }); btn(HELP.back, 'Menu', { size: 26 });
+    btn(HELP.next, lastPage ? 'Done' : 'Next page', { size: 24, primary: true });
   } else if (scene === 'over') {
     ctx.fillStyle = 'rgba(8,4,10,0.72)'; ctx.fillRect(0, 0, W, H);
     const won = state.two ? `${SIDE[g.winner]} wins` : g.winner === state.human ? 'You win!' : 'The computer wins';
@@ -225,6 +268,13 @@ export function render(ctx, state) {
       if (!calm) for (let k = 0; k < 14; k++) { const ph = (t * 0.35 + k * 0.137) % 1, x = 360 + Math.sin(k * 2.4) * (140 + 90 * ph), y = 700 - ph * 400; ctx.fillStyle = `rgba(255,214,110,${0.8 * (1 - ph)})`; ctx.beginPath(); ctx.arc(x, y, 4 + (k % 3) * 2, 0, TAU); ctx.fill(); }
     }
     btn(BTN.again, 'Play again', { primary: true, size: 34 }); btn(BTN.back, 'Menu', { size: 30 });
+  } else if (scene === 'auto' && D0.phase === 'over') {
+    ctx.fillStyle = 'rgba(8,4,10,0.72)'; ctx.fillRect(0, 0, W, H);
+    drawStone(ctx, g.winner, 360, 640, 100, { v: 1 });
+    shadowText(`${SIDE[g.winner]} wins`, 360, 830, 72); text(g.reason, 360, 886, 28, PAGE_TEXT, UI, 500);
+    text(`${g.moves} moves · Black ${stones(g, 1)} stones · White ${stones(g, 2)} stones`, 360, 932, 24, 'rgba(255,232,196,0.8)', UI, 500);
+    text('A full Auto Play demonstration just finished. Nothing here was saved.', 360, 970, 22, GOLD, UI, 600);
+    btn(BTN.again, 'Play again (auto)', { primary: true, size: 30 }); btn(BTN.back, 'Exit to menu', { size: 30 });
   }
   if (!calm) drawPetals(ctx, t);
   void SLAB; void GRID; void NAMES;

@@ -1,5 +1,5 @@
 // Everything drawn each frame. Reads `state` (game.js) and changes nothing. Static art is cached (art.js).
-import { W, H, BTN, BX, BY, BS, cell, centerOf, titleRows, PAGE_NEXT, TEXT_DEC, TEXT_INC, TEXT_SCALES } from './layout.js';
+import { W, H, BTN, BX, BY, BS, cell, centerOf, titleRows, PAGE_NAV, TEXT_DEC, TEXT_INC, TEXT_SCALES, AP, AP_THINK_STEPS } from './layout.js';
 import { drawScene, drawPiece, braid, pieceRadius } from './art.js';
 import { destinations, openCorners, isCorner, throne, side, SIZES, NAME, ATT, DEF, KING } from './rules.js';
 import { LEVELS } from './engine.js';
@@ -12,7 +12,7 @@ const letter = (v) => (v === ATT ? 'A' : v === KING ? 'K' : 'D');
 
 export function render(ctx, state) {
   const g = state.game, a = state.anim, scene = state.scene, n = g.n, cs = cell(n), big = state.big, calm = state.calm;
-  const boardScene = scene === 'play' || scene === 'over' || scene === 'lesson' || (scene === 'puzzle' && state.pz.status !== 'making');
+  const boardScene = scene === 'play' || scene === 'over' || scene === 'lesson' || (scene === 'puzzle' && state.pz.status !== 'making') || scene === 'autoplay';
   drawScene(ctx, boardScene ? n : 0, state.t, calm);
 
   const text = (str, x, y, size, color = GOLD, font = UI, weight = 700, align = 'center') => { ctx.textAlign = align; ctx.font = `${weight} ${size}px ${font}`; ctx.fillStyle = color; ctx.fillText(str, x, y); };
@@ -127,6 +127,24 @@ export function render(ctx, state) {
       shadowText('Defenders: win in two', 360, 232, 40);
       wrap(state.pz.status === 'solved' ? `Solved${state.pz.tries ? ' after ' + state.pz.tries + ' wrong tr' + (state.pz.tries === 1 ? 'y' : 'ies') : ' at the first try'}. Come back tomorrow for a new one.` : 'Find the one move that lets the king reach a corner two moves from now, however the attackers answer.', 360, 296, big ? 30 : 26, 620, CREAM, big ? 38 : 34);
       text(`Streak: ${state.daily.streak} day${state.daily.streak === 1 ? '' : 's'}`, 360, 440, 24, GOLD, UI, 600);
+    } else if (scene === 'autoplay') {
+      const A = state.ap, sz = SIZES[n];
+      shadowText('Auto Play — watch and learn', 360, 175, 38);
+      const left = A ? Math.max(0, AP_THINK_STEPS[state.apThinkIdx] - A.t) : 0;
+      const phaseText = !A || A.phase === 'finished' ? 'That game is over - see below.'
+        : A.paused ? 'Paused'
+        : A.phase === 'think' ? `Think: what would the ${NAME[g.turn]} play? (${left.toFixed(1)}s)`
+        : A.phase === 'reveal' ? 'Here is the move about to be played…'
+        : 'Playing it out…';
+      text(phaseText, 360, 218, 22, CREAM, UI, 600);
+      const attN = g.b.filter((v) => v === ATT).length, defN = g.b.filter((v) => v === DEF || v === KING).length;
+      tray('A', 270, 'Attackers', attN, sz.att - attN);
+      tray('D', 310, 'Defenders', defN, sz.def + 1 - defN);
+      if (A && A.phase !== 'finished') {
+        text(`Think time: ${AP_THINK_STEPS[state.apThinkIdx]}s`, 360, 388, 22, GOLD, UI, 700);
+        button(AP.dec, '−', { size: 26, dim: state.apThinkIdx === 0 });
+        button(AP.inc, '+', { size: 26, dim: state.apThinkIdx === AP_THINK_STEPS.length - 1 });
+      }
     } else {
       const sz = SIZES[n];
       shadowText('Tafl', 360, 175, 46);
@@ -144,6 +162,21 @@ export function render(ctx, state) {
     if (scene === 'play') { button(BTN.menu, 'Menu', { size: 24 }); button(BTN.undo, 'Take back', { size: 22 }); button(BTN.hint, `Hint (${state.hintsLeft})`, { size: 22, dim: state.hintsLeft <= 0 }); }
     else if (scene === 'lesson') { button(BTN.menu, 'Menu', { size: 24 }); if (state.lesson.done) button(BTN.next, state.lesson.i + 1 < LESSONS.length ? 'Next lesson' : 'Finish', { primary: true, size: 26 }); else button(BTN.skip, 'Restart', { size: 22 }); }
     else if (scene === 'puzzle') { button(BTN.menu, 'Menu', { size: 24 }); if (state.pz.status === 'solved') button(BTN.share, 'Share result', { primary: true, size: 28 }); }
+    else if (scene === 'autoplay') {
+      const A = state.ap;
+      if (A && A.phase === 'finished') {
+        ctx.fillStyle = 'rgba(8,4,2,0.74)'; ctx.fillRect(0, 0, W, H);
+        const won = g.winner === 'draw' ? 'A draw' : `${NAME[g.winner][0].toUpperCase() + NAME[g.winner].slice(1)} win`;
+        shadowText(won, 360, 700, 54); text(g.reason, 360, 748, 22, CREAM, UI, 500);
+        text(`${g.ply} moves`, 360, 786, 20, 'rgba(240,207,134,0.75)', UI, 500);
+        button(BTN.again, 'Watch again', { primary: true, size: 28 });
+        button(BTN.back, 'Menu', { size: 24 });
+      } else {
+        button(AP.pause, A && A.paused ? 'Resume' : 'Pause', { primary: !!(A && A.paused), size: 22 });
+        button(AP.skip, 'Skip', { size: 22 });
+      }
+      button(AP.exit, 'Exit', { size: 22 });
+    }
   }
   if (scene === 'puzzle' && state.pz.status === 'making') { shadowText('Daily puzzle', 360, 400, 50); text("Setting up today's puzzle…", 360, 700, 32, CREAM, UI, 600); button(BTN.menu, 'Menu', { size: 24 }); }
 
@@ -169,6 +202,7 @@ export function render(ctx, state) {
     button(R.small, 'Play Brandubh 7x7 (starter)', { size: 24 });
     button(R.daily, solvedToday ? `Daily puzzle: solved · streak ${state.daily.streak}` : state.daily.streak ? `Daily puzzle · streak ${state.daily.streak}` : 'Daily puzzle', { size: 24 });
     button(R.two, 'Two players, one phone', { size: 24 });
+    button(R.auto, '🎬 Auto Play — watch and learn', { size: 24 });
     button(R.side, `You play: ${state.human === DEF ? 'Defenders' : 'Attackers'}`, { size: 19, ui: true });
     button(R.level, `Computer: ${LEVELS[state.level].name}`, { size: 19, ui: true });
     button(R.sound, state.sound ? 'Sound on' : 'Sound off', { size: 19, ui: true });
@@ -201,14 +235,32 @@ export function render(ctx, state) {
     shadowText(label, 360, 200, Math.round(36 * Math.min(scale, 1.15)), 'rgba(240,222,180,0.92)');
     shadowText(pg.title, 360, 258, Math.round(32 * Math.min(scale, 1.2)), '#ffd97a');
     ctx.save(); ctx.beginPath(); ctx.rect(70, 278, 580, 30); ctx.clip(); braid(ctx, 70, 293, 580, 7, 7, ['#120903', '#a07a3c', '#e8c77e'], 34); ctx.restore();
-    let y = 366; const sz = Math.round(28 * scale), lh = Math.round(sz * 1.4);
+    const sz = Math.round(28 * scale), lh = Math.round(sz * 1.4);
+    // The gap from the braid divider (a fixed decorative band, y 278-308, never scaled) down to the
+    // body's own first baseline must grow with the body font's own ascent, or a big text-size step's
+    // much taller first line climbs back up into the divider - a fixed 366 (professional-polish
+    // pass, 2026-09-23) was tight enough at 300% that the first line's cap-height actually crossed
+    // back into the divider band, caught by actually rendering "Tafl is a family..." at the top step.
+    let y = 308 + Math.round(20 * scale) + Math.round(sz * 0.8);
     // A Rules page about one piece/role shows that piece's real in-game sprite, drawn with the same
     // drawPiece() the board itself uses - never a separate simplified icon.
-    if (pg.piece) { drawPiece(ctx, 7, pg.piece, 360, y + 66, { scale: 1.9 }); y += 168; }
+    if (pg.piece) {
+      const iconY = y + 66;
+      drawPiece(ctx, 7, pg.piece, 360, iconY, { scale: 1.9 });
+      // The icon art itself is a fixed size (its `scale: 1.9` is a piece-art scale, unrelated to the
+      // text-size stepper), but the gap after it must still grow with the body font's own ascent, or
+      // a much taller first line at a big text-size step climbs back up into it - found by actually
+      // rendering "The attacker"/"The defender"/"The king" at the 300% step, where the piece's dark
+      // disc overlapped the body text outright (professional-polish pass, 2026-09-23).
+      y = iconY + 70 + Math.round(16 * scale) + Math.round(sz * 0.8);
+    }
     for (const para of pg.body) { const nl = wrap(para, 76, y, sz, 568, CREAM, lh, 'left'); y += nl * lh + Math.round(20 * scale); }
     text(`${state.page + 1} of ${pages.length}`, 360, 1440, 20, 'rgba(240,207,134,0.7)', UI, 500);
-    button(BTN.menu, 'Menu', { size: 24 }); if (state.page > 0) button(BTN.undo, 'Back', { size: 24 });
-    button(PAGE_NEXT, state.page + 1 < pages.length ? 'Next page' : 'Done', { primary: true, size: 21 });
+    // Back is always shown (never a dead end - see updatePages() in game.js): it reads as dimmed
+    // once there is no earlier page to go back to, exactly the "nothing to go back to" convention
+    // the sibling games use for their own Rules screens.
+    button(PAGE_NAV.back, 'Back', { size: 24, dim: state.page === 0 });
+    button(PAGE_NAV.next, state.page + 1 < pages.length ? 'Next page' : 'Done', { primary: true, size: 21 });
     button(TEXT_DEC, 'A−', { size: 26, dim: state.textScaleIdx === 0 });
     button(TEXT_INC, 'A+', { size: 26, dim: state.textScaleIdx === TEXT_SCALES.length - 1 });
   } else if (scene === 'over') {

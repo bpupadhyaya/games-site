@@ -6,7 +6,8 @@ import {
   W, H, BAND_TOP, BAND_BOTTOM, CHIP_H, PLAQUE, TIME_BAR, REVIEW_TOP, REVIEW_ROW_H, REVIEW_PER_PAGE,
   MODE_SYN_BTN, MODE_ANT_BTN, PLAY_BTN, TITLE_COLOR_BTN, TITLE_RULES_BTN, STOP_BTN, COLOR_BTN,
   PREV_BTN, NEXT_BTN, PLAY_AGAIN_BTN, CHANGE_MODE_BTN, RULES_BACK_BTN, RULES_NEXT_BTN, slipWidth,
-  TEXT_SCALES, RULES_TEXT_DEC, RULES_TEXT_INC, RULES_PANEL,
+  TEXT_SCALES, RULES_TEXT_DEC, RULES_TEXT_INC, RULES_PANEL, TITLE_AUTOPLAY_BTN, THINK_STEPS,
+  REVEAL_SECONDS, AUTO_THINK_DEC, AUTO_THINK_INC,
 } from './layout.js';
 
 const DISPLAY = '"Cormorant Garamond", Georgia, "Times New Roman", serif';
@@ -265,12 +266,13 @@ export function render(ctx, state, title, demoLimit) {
     button(PLAY_BTN, 'Play', { style: 'primary', size: 58, scale: enter(4) * breathe });
     button(TITLE_COLOR_BTN, `Colours: ${scheme.name}`, { id: 'colour', size: 27, scale: enter(5), swatch });
     button(TITLE_RULES_BTN, 'Rules', { id: 'rules', size: 27, scale: enter(5) });
+    button(TITLE_AUTOPLAY_BTN, 'Watch & Learn', { id: 'autoplay', size: 30, scale: enter(6), sub: 'free auto-play demo, no time limit' });
 
     if (state.demo) {
       const left = Math.max(0, demoLimit - state.demoSessions);
-      text(`Free preview: ${left} session${left === 1 ? '' : 's'} left`, W / 2, 1412, 26, soft(0.85), { weight: 600 });
+      text(`Free preview: ${left} session${left === 1 ? '' : 's'} left`, W / 2, 1478, 24, soft(0.85), { weight: 600 });
     }
-    text('Graduate-level vocabulary  ·  90-second sessions', W / 2, 1490, 25, soft(0.7), { weight: 500 });
+    text('Graduate-level vocabulary  ·  90-second sessions', W / 2, 1522, 23, soft(0.7), { weight: 500 });
     return;
   }
 
@@ -280,34 +282,62 @@ export function render(ctx, state, title, demoLimit) {
     // Text-size stepper: an index into TEXT_SCALES (never a raw float), clamped on load in
     // game.js, guarded again here so a stale/out-of-range saved index can never produce NaN sizes.
     const scale = TEXT_SCALES[state.textScaleIdx] ?? 1;
-    const CONTENT_TOP = RULES_PANEL.y + 40;
+    // The illustration above the body text sits at a fixed pixel position (it never scales with
+    // text size), but a taller font's first line reaches further above its own baseline (bigger
+    // ascender) - without this the body text start crept up into the illustration at the higher
+    // text-size steps (found once the 200% pass was pushed on to 300%). ascPad grows with scale
+    // and is 0 at scale 1, so the untouched 100% layout is pixel-identical to before.
+    const ascPad = Math.round(24 * (scale - 1));
 
-    text('Rules', 40, 116, 56, '#ffffff', { font: DISPLAY, align: 'left' });
+    // Header row: two small text-size pills in the top corners only, clear of the centred title
+    // below them (same pattern as every other reference page in this pass).
     button(RULES_TEXT_DEC, 'A−', { id: 'textDec', size: 34, disabled: state.textScaleIdx === 0 });
     button(RULES_TEXT_INC, 'A+', { id: 'textInc', size: 34, disabled: state.textScaleIdx === TEXT_SCALES.length - 1 });
-    text(page.title, W / 2, 192, Math.round(32 * scale), hc ? '#ffffff' : '#8fe6f7', { weight: 700 });
+    ctx.save();
+    if (!hc) { ctx.shadowColor = hexA(CYAN, 0.55); ctx.shadowBlur = 22; }
+    text('Rules', W / 2, 176, 58, '#ffffff', { font: DISPLAY });
+    ctx.restore();
 
     // The framed reader-card panel, drawn before the illustration/body text it carries.
     framedPanel(RULES_PANEL);
 
+    // The page's own title lives inside the panel, capped so a short title's tall ascender at the
+    // top text-size step never reaches up into the "Rules" heading above the panel.
+    const titleSize = Math.min(Math.round(32 * scale), 64);
+    text(page.title, W / 2, RULES_PANEL.y + 55, titleSize, hc ? '#ffffff' : '#8fe6f7', { weight: 700, maxW: RULES_PANEL.w - 80 });
+    const CONTENT_TOP = RULES_PANEL.y + 55 + Math.round(titleSize * 0.5) + 24;
+
+    // Lays out the three demo words as one centred row, sized from their real slip widths so
+    // the row is never wider than the panel — a fixed x=130/390/620 row let the widest word
+    // ("murky") hang past the panel's right border (found rendering this page at the panel's
+    // new width). Centred on the whole canvas, matching how every other diagram on this page
+    // centres itself, so the row lines up with the plaque above it.
+    const threeSlipRow = (y, tints, tilts = [-0.03, 0.02, -0.015]) => {
+      const words = ['clear', 'ornate', 'murky'];
+      const gap = 16;
+      const widths = words.map((w) => slipWidth(w));
+      const totalW = widths.reduce((a, b) => a + b, 0) + gap * (words.length - 1);
+      let x = (W - totalW) / 2;
+      words.forEach((w, i) => {
+        slip(w, x + widths[i] / 2, y, { tilt: tilts[i], tint: hc ? undefined : tints?.[i] });
+        x += widths[i] + gap;
+      });
+    };
+
     // a small illustration matching the page, drawn with the game's own slip()/plaque() —
     // never a separate simplified icon. Only drawn when the page has one; otherwise the body
     // text simply starts higher, right below the panel's top padding.
-    let textTop = CONTENT_TOP;
+    let textTop = CONTENT_TOP + ascPad;
     if (page.demo === 'objective' || page.demo === 'mode') {
       plaque({ x: 170, y: CONTENT_TOP, w: 380, h: 132 }, 'TAP THE SYNONYM OF', HERO_TARGET, { small: true, wordSize: 60 });
-      slip('clear', 130, CONTENT_TOP + 194, { tilt: -0.03, tint: hc ? undefined : GOOD });
-      slip('ornate', 390, CONTENT_TOP + 194, { tilt: 0.02 });
-      slip('murky', 620, CONTENT_TOP + 194, { tilt: -0.015 });
-      textTop = CONTENT_TOP + 284;
+      threeSlipRow(CONTENT_TOP + 194, [GOOD]);
+      textTop = CONTENT_TOP + 284 + ascPad;
     } else if (page.demo === 'slips' || page.demo === 'answer') {
       // Slips are drawn from their centre, so nudge down by half their own height first — leaves
       // the same top padding below the panel's border that the other illustrations get.
       const slipY = CONTENT_TOP + 46;
-      slip('clear', 130, slipY, { tilt: -0.03, tint: page.demo === 'answer' && !hc ? GOOD : undefined });
-      slip('ornate', 390, slipY, { tilt: 0.02, tint: page.demo === 'answer' && !hc ? BAD : undefined });
-      slip('murky', 620, slipY, { tilt: -0.015 });
-      textTop = CONTENT_TOP + 146;
+      threeSlipRow(slipY, page.demo === 'answer' ? [GOOD, BAD] : []);
+      textTop = CONTENT_TOP + 146 + ascPad;
     } else if (page.demo === 'clock') {
       const tr = { x: 234, y: CONTENT_TOP, w: 252, h: 86 };
       shadow(tr.x, tr.y, tr.w, tr.h, 22, 8); ctx.fillStyle = 'rgba(3,16,24,0.78)'; rr(tr.x, tr.y, tr.w, tr.h, 22); ctx.fill();
@@ -316,7 +346,7 @@ export function render(ctx, state, title, demoLimit) {
       ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 4; ctx.lineCap = 'round'; ctx.beginPath(); ctx.arc(kx, ky, 19, 0, TAU); ctx.stroke();
       ctx.beginPath(); ctx.moveTo(kx, ky); ctx.lineTo(kx + 12, ky - 8); ctx.stroke();
       text('1:30', tr.x + 158, tr.y + 63, 56, '#ffffff', { weight: 800 });
-      textTop = CONTENT_TOP + 128;
+      textTop = CONTENT_TOP + 128 + ascPad;
     } else if (page.demo === 'review') {
       const rw = 560, rh = 130, x = RULES_PANEL.x + 40, y = CONTENT_TOP;
       ctx.fillStyle = 'rgba(0,0,0,0.25)'; rr(x + 2, y + 6, rw - 4, rh, 18); ctx.fill();
@@ -333,7 +363,7 @@ export function render(ctx, state, title, demoLimit) {
       text('murky', x + 92, y + 52, 42, '#ffffff', { font: DISPLAY, align: 'left', maxW: 300 });
       text('Answer: clear', x + 92, y + 88, 26, accent, { align: 'left', weight: 700, maxW: 300 });
       text('You: ornate', x + rw - 22, y + 88, 25, BAD, { align: 'right', weight: 600, maxW: 200 });
-      textTop = CONTENT_TOP + 164;
+      textTop = CONTENT_TOP + 164 + ascPad;
     }
 
     ctx.save(); ctx.textAlign = 'center'; ctx.fillStyle = soft(0.94);
@@ -367,8 +397,9 @@ export function render(ctx, state, title, demoLimit) {
     return;
   }
 
-  // ---- play ---------------------------------------------------------------------------------------------
-  if (state.scene === 'playing') {
+  // ---- play (also Auto Play's "Watch & Learn" scene - same HUD/board, see the `auto` branches) ----------
+  if (state.scene === 'playing' || state.scene === 'autoplay') {
+    const auto = state.scene === 'autoplay';
     const fx = state.fx, fxF = fx ? fx.t / 0.8 : 1;
     const secs = Math.max(0, state.timeLeft), frac = secs / 90, low = secs <= 10, mid = secs <= 25;
     const tcol = hc ? '#ffffff' : low ? BAD : mid ? GOLD : '#ffffff';
@@ -425,10 +456,35 @@ export function render(ctx, state, title, demoLimit) {
       ctx.globalAlpha = 1;
     }
 
+    const revealing = auto && state.autoPhase === 'reveal';
     if (state.round) {
       const shake = fx && fx.kind !== 'right' ? Math.sin(fx.t * 58) * 12 * Math.max(0, 1 - fx.t / 0.4) : 0;
       plaque(PLAQUE, `TAP THE ${state.round.mode.toUpperCase()} OF`, state.round.targetWord, { dx: shake, pop: 0.8 + 0.2 * easeBack(state.round.age / 0.28) });
-      for (const w of state.round.words) slip(w.text, w.x, w.y, { w: w.w, trail: true, tilt: Math.sin(t * 1.3 + w.slot * 2.1) * 0.03 });
+      for (const w of state.round.words) {
+        // Auto Play REVEAL: highlight the one option about to be taken, distinctly from the
+        // others, so a viewer can compare it against their own guess (AUTOPLAY-BRIEF.md). Words
+        // never drift in Auto Play (the state sits still for the whole THINK+REVEAL window), so
+        // no motion trail here - it would falsely suggest movement that isn't happening.
+        const answerHere = revealing && w.correct;
+        if (answerHere && !hc) {
+          const glow = ctx.createRadialGradient(w.x, w.y, 10, w.x, w.y, 180);
+          glow.addColorStop(0, hexA(GOOD, 0.5)); glow.addColorStop(1, hexA(GOOD, 0));
+          ctx.fillStyle = glow; ctx.fillRect(w.x - 180, w.y - 180, 360, 360);
+        }
+        slip(w.text, w.x, w.y, {
+          w: w.w,
+          trail: !auto,
+          tilt: auto ? 0 : Math.sin(t * 1.3 + w.slot * 2.1) * 0.03,
+          scale: answerHere ? 1.12 : 1,
+          tint: answerHere ? GOOD : undefined,
+          alpha: revealing && !w.correct ? 0.55 : 1,
+        });
+        if (answerHere) {
+          ctx.strokeStyle = hc ? '#ffffff' : GOOD; ctx.lineWidth = 5;
+          ctx.beginPath(); ctx.ellipse(w.x, w.y, w.w / 2 + 24, CHIP_H / 2 + 20, 0, 0, TAU); ctx.stroke();
+          text('ANSWER', w.x, w.y - CHIP_H / 2 - 34, 24, hc ? '#ffffff' : GOOD, { weight: 800 });
+        }
+      }
     }
 
     // feedback for the last answer
@@ -466,8 +522,21 @@ export function render(ctx, state, title, demoLimit) {
     }
 
     const btnIn = easeBack((sceneT - 0.1) / 0.38);
-    button(STOP_BTN, 'Stop', { size: 32, scale: btnIn });
-    button(COLOR_BTN, 'Colours', { id: 'colour', size: 30, scale: btnIn, swatch });
+    if (auto) {
+      // Think-time stepper: an index into THINK_STEPS (never a raw float), same convention as the
+      // Rules text-size stepper. Sits in the gap between the plaque and the drift band, clear of
+      // the clock/score HUD above and the word band below.
+      const thinkS = THINK_STEPS[state.autoThinkIdx];
+      button(AUTO_THINK_DEC, '−', { id: 'thinkDec', size: 30, scale: btnIn, disabled: state.autoThinkIdx === 0 });
+      button(AUTO_THINK_INC, '+', { id: 'thinkInc', size: 30, scale: btnIn, disabled: state.autoThinkIdx === THINK_STEPS.length - 1 });
+      const phaseLabel = revealing ? 'Answer!' : `Think — ${thinkS}s`;
+      text(phaseLabel, W / 2, 495, 24, revealing ? (hc ? '#ffffff' : GOOD) : soft(0.9), { weight: 800, maxW: 190 });
+      button(STOP_BTN, 'Exit', { size: 32, scale: btnIn });
+      button(COLOR_BTN, 'Colours', { id: 'colour', size: 30, scale: btnIn, swatch });
+    } else {
+      button(STOP_BTN, 'Stop', { size: 32, scale: btnIn });
+      button(COLOR_BTN, 'Colours', { id: 'colour', size: 30, scale: btnIn, swatch });
+    }
     return;
   }
 
@@ -477,7 +546,7 @@ export function render(ctx, state, title, demoLimit) {
     const head = easeOut(sceneT / 0.4);
     ctx.save(); ctx.globalAlpha = head; ctx.translate(0, (1 - head) * -40);
     text("Time's up!", 410, 128, 76, '#ffffff', { font: DISPLAY });
-    text('SESSION REVIEW', 410, 168, 20, hc ? '#ffffff' : '#8fe6f7');
+    text(state.autoPlay ? 'AUTO-PLAY DEMO — not saved' : 'SESSION REVIEW', 410, 168, 20, hc ? '#ffffff' : (state.autoPlay ? GOLD : '#8fe6f7'));
 
     // summary card: the score counts up, with the tally and best beside it
     const card = { x: 40, y: 188, w: 640, h: 170 };
@@ -544,7 +613,12 @@ export function render(ctx, state, title, demoLimit) {
       text(`Page ${state.reviewPage + 1} of ${pages}`, W / 2, PREV_BTN.y + 52, 27, soft(0.85), { weight: 600 });
     }
     const bIn = easeBack((sceneT - 0.25) / 0.38);
-    button(PLAY_AGAIN_BTN, 'Play Again', { style: 'primary', size: 36, scale: bIn });
-    button(CHANGE_MODE_BTN, 'Change Mode', { size: 32, scale: bIn });
+    if (state.autoPlay) {
+      button(PLAY_AGAIN_BTN, 'Watch Again', { style: 'primary', size: 36, scale: bIn });
+      button(CHANGE_MODE_BTN, 'Exit to Menu', { size: 32, scale: bIn });
+    } else {
+      button(PLAY_AGAIN_BTN, 'Play Again', { style: 'primary', size: 36, scale: bIn });
+      button(CHANGE_MODE_BTN, 'Change Mode', { size: 32, scale: bIn });
+    }
   }
 }

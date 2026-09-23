@@ -1,11 +1,15 @@
 // The table: everything drawn during a hand. Reads state, changes nothing. Tiles are placed by the tween objects in
 // `rs.vis` (game.js); art is cached sprites (tiles.js), so a frame is a few hundred drawImage calls.
-import { W, H, RING, BTN, CHIPS, inRect } from './layout.js';
+import { W, H, RING, BTN, CHIPS, AUTO_STEP, AUTO_THINK_STEPS, inRect } from './layout.js';
 import { DISPLAY, UI, CJKF, GOLD, IVORY, INK, TAU, tx, wrap, rr, btn, panel, drawTable, drawTileAt, tileByKind, windGlyph } from './draw.js';
 import { kindOf, kindName, seatWind, windName, wallLeft, pointsFor, POINTS } from './rules.js';
 import { LEVELS } from './ai.js';
 
 export const NAMES = ['You', 'Mei', 'Lin', 'Jun'];
+// During Auto Play nobody is "you" - seat 0 is just another computer seat, driven the same as the
+// other three. Used only by the new Auto Play narration/labels; every pre-existing call site keeps
+// using NAMES[p] directly (seat 0 is never the one narrated to during Auto Play through those).
+export const seatName = (p, auto) => (auto && p === 0 ? 'Seat 1' : NAMES[p]);
 
 export function claimRects(list) {
   const n = list.length, gap = 10, w = Math.min(176, (680 - gap * (n - 1)) / n), total = n * w + gap * (n - 1);
@@ -14,8 +18,13 @@ export function claimRects(list) {
 
 function header(ctx, S) {
   const m = S.match, h = S.h;
-  tx(ctx, m.mode === 'round' ? `${windName(h.wind)} Round` : 'Single Hand', 40, 80, 40, GOLD, { font: DISPLAY, align: 'left', shadow: true });
-  tx(ctx, m.mode === 'round' ? `Hand ${m.hand} of 4${m.repeats ? ` (dealer stays x${m.repeats})` : ''}` : `${windName(h.wind)} wind`, 40, 112, 22 * (S.prefs.big ? 1.1 : 1), 'rgba(247,239,214,0.8)', { align: 'left' });
+  // Auto Play shows its own "Auto Play - Watch & Learn" caption + think-time stepper across this
+  // same top strip (renderAutoHUD) - the normal "Single Hand"/"East Round" label would collide
+  // with the stepper buttons, and is redundant with that caption anyway. The Menu icon still draws.
+  if (S.scene !== 'auto') {
+    tx(ctx, m.mode === 'round' ? `${windName(h.wind)} Round` : 'Single Hand', 40, 80, 40, GOLD, { font: DISPLAY, align: 'left', shadow: true });
+    tx(ctx, m.mode === 'round' ? `Hand ${m.hand} of 4${m.repeats ? ` (dealer stays x${m.repeats})` : ''}` : `${windName(h.wind)} wind`, 40, 112, 22 * (S.prefs.big ? 1.1 : 1), 'rgba(247,239,214,0.8)', { align: 'left' });
+  }
   // menu button
   const r = BTN.menu;
   ctx.fillStyle = 'rgba(0,0,0,0.35)'; rr(ctx, r.x, r.y + 5, r.w, r.h, 22); ctx.fill();
@@ -54,10 +63,10 @@ function plates(ctx, S, pulse) {
     ctx.fillStyle = g; rr(ctx, r.x, r.y, r.w, r.h, 22); ctx.fill();
     ctx.strokeStyle = active ? GOLD : 'rgba(241,207,122,0.4)'; ctx.lineWidth = active ? 3 : 2; rr(ctx, r.x + 1, r.y + 1, r.w - 2, r.h - 2, 21); ctx.stroke();
     windGlyph(ctx, seatWind(h, p), r.x + 32, r.y + r.h / 2, 21, { dealer: h.dealer === p });
-    tx(ctx, p === 0 ? 'You' : NAMES[p], r.x + 62, r.y + r.h / 2 - 2, 24, IVORY, { align: 'left', font: DISPLAY, weight: 700 });
+    tx(ctx, seatName(p, S.scene === 'auto'), r.x + 62, r.y + r.h / 2 - 2, 24, IVORY, { align: 'left', font: DISPLAY, weight: 700 });
     const sc = m.scores[p];
     tx(ctx, (sc > 0 ? '+' : '') + sc, r.x + r.w - 16, r.y + r.h / 2 + 9, 27, sc > 0 ? '#9df0c4' : sc < 0 ? '#ffb1a6' : 'rgba(247,239,214,0.8)', { align: 'right', font: UI });
-    if (p !== 0) tx(ctx, LEVELS[m.levels[p]].name, r.x + 62, r.y + r.h / 2 + 18, 12.5, 'rgba(247,239,214,0.65)', { align: 'left', weight: 600 });
+    if (p !== 0 || S.scene === 'auto') tx(ctx, LEVELS[m.levels[p]].name, r.x + 62, r.y + r.h / 2 + 18, 12.5, 'rgba(247,239,214,0.65)', { align: 'left', weight: 600 });
     else tx(ctx, h.dealer === 0 ? 'dealer' : `${windName(seatWind(h, 0))} seat`, r.x + 62, r.y + r.h / 2 + 22, 14, 'rgba(247,239,214,0.7)', { align: 'left', weight: 600 });
     ctx.restore();
   }
@@ -67,7 +76,7 @@ export function renderTiles(ctx, S, rs) {
   const style = S.prefs.style, h = S.h, ui = S.ui;
   const list = [...rs.vis.values()].sort((a, b) => a.z - b.z);
   const lastTile = h.last ? h.last.tile : ui.lastDisc ?? -1, pulse = 0.5 + 0.5 * Math.sin(S.t * 5);
-  const hintTile = ui.hint ? ui.hint.tile : -1;
+  const hintTile = ui.hint ? ui.hint.tile : ui.autoHint ? ui.autoHint.tile : -1;
   for (const v of list) {
     const kind = kindOf(v.id);
     const glow = v.id === lastTile && v.river ? 0.5 + 0.3 * pulse : v.id === hintTile ? 0.5 + 0.4 * pulse : 0;
@@ -132,12 +141,24 @@ export function renderPlay(ctx, S, rs) {
   }
   // whose move
   if (ui.ph === 'ai') tx(ctx, `${NAMES[S.h.turn]} is thinking...`, 360, 1180, 24, 'rgba(247,239,214,0.75)', { weight: 600 });
+  else if (ui.ph === 'auto-gate') tx(ctx, `${seatName(S.h.turn, true)} is ${ui.auto.phase === 'think' ? 'thinking' : 'about to act'}...`, 360, 1180, 24, 'rgba(247,239,214,0.75)', { weight: 600 });
   if (ui.ph === 'human' && !ui.own?.win && !ui.msg?.text) tx(ctx, ui.own?.lowWin ? 'Complete, but no scoring pattern yet.' : 'Your turn: tap a tile, tap it again to discard.', 360, 1182, 22 * big, 'rgba(247,239,214,0.78)', { weight: 600 });
 
   // bottom bar
-  const hb = BTN.hint, pb = BTN.pause;
-  btn(ctx, hb, 'Why?', { kind: 'gold', size: 32, off: !S.prefs.hints, pressed: rs.ptr.down && inRect(hb, rs.ptr.x, rs.ptr.y), sub: S.kb ? 'H' : null });
+  const hb = BTN.hint, pb = BTN.pause, auto = S.scene === 'auto';
+  btn(ctx, hb, auto ? 'Skip wait' : 'Why?', { kind: 'gold', size: 32, off: !auto && !S.prefs.hints, pressed: rs.ptr.down && inRect(hb, rs.ptr.x, rs.ptr.y), sub: S.kb && !auto ? 'H' : null });
   btn(ctx, pb, 'Menu', { kind: 'wood', size: 32, pressed: rs.ptr.down && inRect(pb, rs.ptr.x, rs.ptr.y) });
+  if (auto) renderAutoHUD(ctx, S, rs);
+}
+
+// Auto Play's own HUD strip: the think-time stepper (+/-), visible throughout, in the free top
+// strip above the header text (the header's round/hand text is left-aligned; Menu is top-right).
+function renderAutoHUD(ctx, S, rs) {
+  const idx = S.prefs.autoThinkIdx ?? 1, secs = AUTO_THINK_STEPS[idx];
+  tx(ctx, 'Auto Play · Watch & Learn', 360, 20, 15, 'rgba(247,239,214,0.65)', { weight: 600 });
+  btn(ctx, AUTO_STEP.dec, '−', { kind: 'wood', size: 28, off: idx === 0, pressed: rs.ptr.down && inRect(AUTO_STEP.dec, rs.ptr.x, rs.ptr.y) });
+  btn(ctx, AUTO_STEP.inc, '+', { kind: 'wood', size: 28, off: idx === AUTO_THINK_STEPS.length - 1, pressed: rs.ptr.down && inRect(AUTO_STEP.inc, rs.ptr.x, rs.ptr.y) });
+  tx(ctx, `Think: ${secs}s`, 360, 72, 22, GOLD, { weight: 700 });
 }
 
 export function claimList(c) {
@@ -172,9 +193,9 @@ export function renderResult(ctx, S, rs) {
     wrap(ctx, 'The wall ran out and nobody completed a hand. No points move, and the dealer stays.', 360, 360, 30, 560, IVORY);
     tx(ctx, '荒莊', 360, 560, 120, 'rgba(241,207,122,0.16)', { font: CJKF });
   } else {
-    const won = r.winner === 0, name = won ? 'You win!' : `${NAMES[r.winner]} wins`;
+    const auto = S.scene === 'auto', won = !auto && r.winner === 0, name = won ? 'You win!' : `${seatName(r.winner, auto)} wins`;
     tx(ctx, name, 360, 250, 78, GOLD, { font: DISPLAY, shadow: true });
-    tx(ctx, r.from < 0 ? `${won ? 'You' : NAMES[r.winner]} drew the winning tile` : `Won on ${r.from === 0 ? 'your' : NAMES[r.from] + "'s"} discard`, 360, 292, 24, 'rgba(247,239,214,0.8)', { weight: 600 });
+    tx(ctx, r.from < 0 ? `${won ? 'You' : seatName(r.winner, auto)} drew the winning tile` : `Won on ${!auto && r.from === 0 ? 'your' : seatName(r.from, auto) + "'s"} discard`, 360, 292, 24, 'rgba(247,239,214,0.8)', { weight: 600 });
     // the winning hand: melds then the concealed sets, pair last
     const info = r.info, sets = info.sets ?? [];
     const groups = sets.length ? [...sets.map((s) => s.t === 'chow' ? [s.k, s.k + 1, s.k + 2] : s.t === 'pung' ? [s.k, s.k, s.k] : [s.k, s.k, s.k, s.k]), [info.pair, info.pair]] : [S.h.result.tiles.map(kindOf)];
@@ -197,22 +218,34 @@ export function renderResult(ctx, S, rs) {
     const ty = 540 + Math.max(pats.length, 1) * rowH + 8;
     ctx.strokeStyle = 'rgba(241,207,122,0.35)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(60, ty - 8); ctx.lineTo(660, ty - 8); ctx.stroke();
     tx(ctx, `${info.fan >= 10 ? 'Limit hand' : info.fan + ' fan'}  =  ${pointsFor(info.fan)} point${pointsFor(info.fan) === 1 ? '' : 's'}`, 360, ty + 36, 36, GOLD, { font: UI, shadow: true });
-    tx(ctx, r.from < 0 ? 'Everyone pays the points.' : `${r.from === 0 ? 'You pay' : NAMES[r.from] + ' pays'} double: the player who discarded it.`, 360, ty + 66, 18, 'rgba(247,239,214,0.7)', { weight: 600 });
+    tx(ctx, r.from < 0 ? 'Everyone pays the points.' : `${!auto && r.from === 0 ? 'You pay' : seatName(r.from, auto) + ' pays'} double: the player who discarded it.`, 360, ty + 66, 18, 'rgba(247,239,214,0.7)', { weight: 600 });
     // payments
     r.pay.forEach((d, p) => {
       const x = 110 + p * 166;
-      tx(ctx, NAMES[p], x, ty + 112, 20, 'rgba(247,239,214,0.8)', { weight: 700 });
+      tx(ctx, seatName(p, auto), x, ty + 112, 20, 'rgba(247,239,214,0.8)', { weight: 700 });
       tx(ctx, (d > 0 ? '+' : '') + d, x, ty + 152, 36, d > 0 ? '#9df0c4' : d < 0 ? '#ffb1a6' : 'rgba(247,239,214,0.5)', { font: UI });
       tx(ctx, 'total ' + m.scores[p], x, ty + 176, 15, 'rgba(247,239,214,0.55)', { weight: 600 });
     });
   }
   ctx.restore();
-  RESULT_BTN.y = nbY;
-  const nb = { x: 110, y: nbY, w: 500, h: 92 };
   ctx.save(); ctx.globalAlpha = a;
-  btn(ctx, nb, ui.resultLast ? 'See final scores' : 'Next hand', { kind: 'gold', size: 38, pulse: 0.5 + 0.5 * Math.sin(S.t * 4), pressed: rs.ptr.down && inRect(nb, rs.ptr.x, rs.ptr.y) });
+  if (S.scene === 'auto' && ui.autoOver) {
+    // The whole Auto Play "game" (one full hand) just finished: offer Play again / Exit, same
+    // shape as every other game's Auto Play end screen, instead of the normal Next-hand flow.
+    AUTO_AGAIN_BTN.y = nbY; AUTO_EXIT_BTN.y = nbY;
+    tx(ctx, 'A full Auto Play demonstration just finished. Nothing here was saved.', 360, nbY - 26, 18, GOLD, { weight: 600 });
+    btn(ctx, AUTO_AGAIN_BTN, 'Play again (auto)', { kind: 'gold', size: 26, pulse: 0.5 + 0.5 * Math.sin(S.t * 4), pressed: rs.ptr.down && inRect(AUTO_AGAIN_BTN, rs.ptr.x, rs.ptr.y) });
+    btn(ctx, AUTO_EXIT_BTN, 'Exit to menu', { kind: 'wood', size: 26, pressed: rs.ptr.down && inRect(AUTO_EXIT_BTN, rs.ptr.x, rs.ptr.y) });
+  } else {
+    RESULT_BTN.y = nbY;
+    const nb = { x: 110, y: nbY, w: 500, h: 92 };
+    const label = S.scene === 'auto' ? 'Continue' : ui.resultLast ? 'See final scores' : 'Next hand';
+    btn(ctx, nb, label, { kind: 'gold', size: 38, pulse: 0.5 + 0.5 * Math.sin(S.t * 4), pressed: rs.ptr.down && inRect(nb, rs.ptr.x, rs.ptr.y) });
+  }
   ctx.restore();
 }
+export const AUTO_AGAIN_BTN = { x: 110, y: 1256, w: 242, h: 92 };
+export const AUTO_EXIT_BTN = { x: 368, y: 1256, w: 242, h: 92 };
 
 
 export function renderMatchEnd(ctx, S, rs) {

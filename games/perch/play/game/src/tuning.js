@@ -36,6 +36,20 @@ export const T = {
   KNOCK_POINTS: 5,
 };
 
+// Auto Play ("Watch & Learn"): THINK holds the state still so the viewer can guess before the bird
+// acts, then REVEAL marks the reachable perches and the one about to be chosen, then ACT flits for
+// real. An index into this list, never a raw float (same pattern as every other stepper in this
+// codebase) - repo-wide hard cap is 10s, but perch's own pace is much faster than a board game's
+// (first stone lands ~4.4s into a level; a hunter's pull-back is as short as 0.45s at high
+// difficulty - see tuning above), so the shared brief's [2,5,8,10] default steps would make each
+// single dodge decision take 7-12s of frozen viewing time, ballooning a 60s level into several real
+// minutes. Scaled down consistently to [1,2,4,6]s (default index 1 = 2s) instead, well under the
+// 10s cap, while keeping the exact same THINK -> REVEAL -> ACT shape and a configurable timeout.
+export const AUTO_THINK_STEPS = [1, 2, 4, 6];
+// REVEAL is fixed (not stepped), scaled down from the shared brief's ~2s by the same ratio as
+// THINK's default (2s vs 5s, a 0.4 ratio) - 2 * 0.4 = 0.8s, rounded to a clean 1s.
+export const AUTO_REVEAL_SECS = 1;
+
 // Hunter slots in the order they join the field. `s` is the depth scale: near hunters are big,
 // far ones small on the horizon, so the eyes keep switching distance and sweeping the width.
 export const SLOTS = [

@@ -3,6 +3,18 @@ export const W = 720;
 export const H = 1280;
 
 export const SLING = { x: 360, y: 1050, maxPull: 220, minPull: 24, power: 7.2, dragZoneTop: 640 };
+
+// Auto Play (assisted-learning THINK -> REVEAL -> ACT loop over the real physics/aiming). This is a
+// fast, continuous action game (10-40s a level, a new bird roughly every second), unlike the
+// turn-based board games this pattern was first built for - a 2s+5s pause before EVERY shot would
+// make the game unwatchably slow and let birds despawn mid-think. Genre adaptation (per the shared
+// brief's own note on this game): the decision-point unit is one SHOT; THINK/REVEAL are scaled down
+// consistently (still the same three-phase shape, still an index array, still configurable) so the
+// whole demo stays at a pace that matches the game's own; the live field is fully frozen for the
+// duration of THINK/REVEAL (nothing spawns, moves or drains) so a slow setting never costs a bird
+// the chance to be shot at - only ACT (the real flight/physics) advances real time.
+export const AP_THINK_STEPS = [1, 2, 3, 5]; // seconds; default index 1 (2s), hard-capped at 5s here
+export const AP_REVEAL_TIME = 0.8; // fixed; scaled down from the board games' 2s for this pace
 export const GRAVITY = 900;
 export const STONE_R = 9;
 export const STARTLE_RADIUS = 120;

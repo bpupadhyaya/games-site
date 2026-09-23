@@ -4,7 +4,7 @@
 // How a move is made: TAP a piece (it lifts, its legal squares glow), then TAP a glowing square; or DRAG the
 // piece and drop it. An illegal move visibly TRIES (the piece travels toward the square, shudders and comes
 // back) and a message says why.
-import { W, H, BTN, titleRows, inRect, squareAt, centerOf, PAGE_NEXT, TEXT_DEC, TEXT_INC, TEXT_SCALES } from './layout.js';
+import { W, H, BTN, titleRows, inRect, squareAt, centerOf, PAGE_NAV, TEXT_DEC, TEXT_INC, TEXT_SCALES, AP, AP_THINK_STEPS, AP_REVEAL_TIME } from './layout.js';
 import { newGame, fromRows, clone, applyMove, tryMove, legalMoves, openCorners, side, NAME, ATT, DEF, key } from './rules.js';
 import { LEVELS, createThinker } from './engine.js';
 import { LESSONS } from './lessons.js';
@@ -14,6 +14,11 @@ import { render } from './view.js';
 
 export const meta = { width: W, height: H };
 const DEMO_GAMES = 2, HINTS_PER_GAME = 3;
+// Auto Play (assisted-learning): a fixed engine strength for both sides, independent of the title
+// screen's own "Computer: X" setting - the point is a consistently instructive demonstration game,
+// not whatever difficulty the player last chose (which might be "Learner", full of blunders).
+// 'Sharp' (depth 3) plays interesting, teachable tafl without a long synchronous think per ply.
+const AP_LEVEL = 2;
 
 export function createGame(env) {
   const { rng, storage, audio, monetization, config } = env;
@@ -27,10 +32,19 @@ export function createGame(env) {
     lesson: null, page: 0, pz: null,
     daily: { day: config.day ?? 0, solvedDay: -1, streak: 0 },
     dev: config.dev === true,
+    // Auto Play: a free, silent, save/stats-untouched THINK -> REVEAL -> ACT demonstration game
+    // (STATUS.md). apThinkIdx is an index into AP_THINK_STEPS (never a raw float); `ap` is this
+    // scene's own tiny phase machine (kept fully JSON-serialisable - the search itself lives in the
+    // module-level `apThinker`, exactly like the real `thinker`/`hintThinker` below). The board it
+    // plays out lives in `state.game`, same as any other scene - but 'autoplay' is only ever
+    // reached from 'title', where `state.game` is not meaningful save data (the real in-progress
+    // game, if any, lives in `state.saved` and is never touched here).
+    apThinkIdx: 1, ap: null,
   };
-  let thinker = null, hintThinker = null, puzzleToday = null;
+  let thinker = null, hintThinker = null, puzzleToday = null, apThinker = null, apRng = null;
   const maker = createPuzzleMaker(state.daily.day);
 
+  storage.get('apThinkIdx', 1).then((v) => { state.apThinkIdx = Math.min(Math.max(v ?? 1, 0), AP_THINK_STEPS.length - 1); });
   storage.get('prefs', null).then((v) => { if (v) { state.level = v.level ?? 1; state.sound = v.sound ?? true; state.calm = v.calm ?? false; state.big = v.big ?? false; state.marks = v.marks ?? true; state.human = v.human ?? DEF; state.textScaleIdx = Math.min(Math.max(v.textScaleIdx ?? 0, 0), TEXT_SCALES.length - 1); audio.setMuted?.(!state.sound); } });
   storage.get('stats', null).then((v) => { if (v) state.stats = { ...state.stats, ...v, badges: { ...(v.badges || {}) } }; });
   storage.get('learned', false).then((v) => { state.learned = state.learned || !!v; });
@@ -75,6 +89,63 @@ export function createGame(env) {
     if (!puzzleToday) { reset({ scene: 'puzzle', game: newGame(7), pz: { status: 'making', puzzle: null, tries, wrong: 0, step: 0 } }); return; }
     const g = puzzleGame(puzzleToday);
     reset({ scene: 'puzzle', game: g, size: puzzleToday.n, human: DEF, two: false, pz: { status: state.daily.solvedDay === state.daily.day ? 'solved' : 'ready', puzzle: puzzleToday, tries, wrong: 0, step: 0 } });
+  }
+
+  // ---- Auto Play: THINK -> REVEAL -> ACT, both sides played by the real engine.js search -------------
+  // Genre note: Tafl is a turn-based abstract strategy game like the other Arcforge board games this
+  // pattern was first built for, so the decision-point unit here is exactly what it is everywhere
+  // else in this pass - one PLY (one side's move) - with no pacing adaptation needed.
+  function apStartWatch(g) {
+    if (g.winner || !legalMoves(g).length) { state.ap = { phase: 'finished', t: 0, move: null, paused: state.ap?.paused ?? false }; apThinker = null; return; }
+    apThinker = createThinker(g, AP_LEVEL, apRng);
+    state.ap = { phase: 'think', t: 0, move: null, paused: state.ap?.paused ?? false };
+  }
+  function startAutoplay() {
+    thinker = hintThinker = null; apRng = rng.fork();
+    reset({ scene: 'autoplay', game: newGame(11), size: 11 });
+    apStartWatch(state.game);
+  }
+  function exitAutoplay() { apThinker = null; state.scene = 'title'; state.hint = null; state.anim = null; }
+  // Applies the chosen move silently (Auto Play never makes sound, whatever the sound toggle says) -
+  // reuses the real animation the human player sees (`state.anim`), just not `play()`'s own tones.
+  function apApply(m) {
+    const g = state.game, v = g.b[m.from], caps = applyMove(g, m);
+    state.anim = { type: 'move', v, from: m.from, to: m.to, caps, t: 0, dur: dur(0.28) };
+  }
+  function updateAutoplay(dt, tap) {
+    const A = state.ap;
+    if (tap) {
+      if (inRect(AP.exit, tap.x, tap.y)) { exitAutoplay(); return; }
+      if (A.phase === 'finished') {
+        if (inRect(BTN.again, tap.x, tap.y)) { startAutoplay(); return; }
+        if (inRect(BTN.back, tap.x, tap.y)) { exitAutoplay(); return; }
+      }
+      if (inRect(AP.dec, tap.x, tap.y)) { if (state.apThinkIdx > 0) { state.apThinkIdx -= 1; storage.set('apThinkIdx', state.apThinkIdx); } return; }
+      if (inRect(AP.inc, tap.x, tap.y)) { if (state.apThinkIdx < AP_THINK_STEPS.length - 1) { state.apThinkIdx += 1; storage.set('apThinkIdx', state.apThinkIdx); } return; }
+      if (inRect(AP.pause, tap.x, tap.y)) { A.paused = !A.paused; return; }
+    }
+    if (A.phase === 'finished' || A.paused) return;
+    const skip = !!(tap && inRect(AP.skip, tap.x, tap.y));
+    if (A.phase === 'think') {
+      if (apThinker) { const r = apThinker.step(); if (r.move !== undefined) { A.move = r.move; apThinker = null; } }
+      A.t += dt;
+      if (skip && A.move !== null) A.t = AP_THINK_STEPS[state.apThinkIdx];
+      if (A.move !== null && A.t >= AP_THINK_STEPS[state.apThinkIdx]) {
+        if (!A.move) { A.phase = 'finished'; A.t = 0; return; }               // no legal move (shouldn't happen: caught in apStartWatch)
+        state.hint = { from: A.move.from, to: A.move.to, t: 0 };              // reveal: reuse the real hint highlight, nothing moves yet
+        A.phase = 'reveal'; A.t = 0;
+      }
+      return;
+    }
+    if (A.phase === 'reveal') {
+      A.t += dt; if (skip) A.t = AP_REVEAL_TIME;
+      if (A.t >= AP_REVEAL_TIME) { apApply(A.move); state.hint = null; A.phase = 'act'; }
+      return;
+    }
+    if (A.phase === 'act') {
+      if (state.anim) { state.anim.t += dt; if (skip) state.anim.t = state.anim.dur; if (state.anim.t < state.anim.dur) return; state.anim = null; }
+      if (state.game.winner) { A.phase = 'finished'; A.t = 0; } else apStartWatch(state.game);
+    }
   }
 
   // Animate a legal move and apply it to the rule book.
@@ -127,6 +198,7 @@ export function createGame(env) {
     else if (hit(R.small)) start(7, state.human, false);
     else if (hit(R.daily)) startPuzzle();
     else if (hit(R.two)) start(state.size === 7 ? 7 : 11, ATT, true);
+    else if (hit(R.auto)) startAutoplay();
     else if (hit(R.side)) { state.human = state.human === DEF ? ATT : DEF; savePrefs(); clack(); }
     else if (hit(R.level)) { state.level = (state.level + 1) % LEVELS.length; savePrefs(); clack(); say(LEVELS[state.level].says, 5); }
     else if (hit(R.sound)) { state.sound = !state.sound; audio.setMuted?.(!state.sound); savePrefs(); clack(); }
@@ -140,11 +212,13 @@ export function createGame(env) {
   function updatePages(tap, which) {
     const pages = which === 'rules' ? RULES : PAGES[which];
     if (!tap) return;
-    if (inRect(BTN.menu, tap.x, tap.y)) { state.scene = 'title'; return; }
     if (inRect(TEXT_DEC, tap.x, tap.y)) { if (state.textScaleIdx > 0) { state.textScaleIdx -= 1; savePrefs(); clack(); } return; }
     if (inRect(TEXT_INC, tap.x, tap.y)) { if (state.textScaleIdx < TEXT_SCALES.length - 1) { state.textScaleIdx += 1; savePrefs(); clack(); } return; }
-    if (inRect(PAGE_NEXT, tap.x, tap.y)) { if (state.page + 1 < pages.length) state.page += 1; else state.scene = 'title'; clack(); return; }
-    if (inRect(BTN.undo, tap.x, tap.y) && state.page > 0) { state.page -= 1; clack(); }
+    if (inRect(PAGE_NAV.next, tap.x, tap.y)) { if (state.page + 1 < pages.length) state.page += 1; else state.scene = 'title'; clack(); return; }
+    // Back does double duty (professional-polish pass, 2026-09-23, replacing the old separate
+    // always-there Menu button): one page back if there is one, otherwise straight to the title -
+    // never a dead end, even though it reads as dimmed at page 0 (drawn in view.js).
+    if (inRect(PAGE_NAV.back, tap.x, tap.y)) { if (state.page > 0) state.page -= 1; else state.scene = 'title'; clack(); }
   }
 
   function onSquarePlay(i) { const m = tapBoard(i); if (m) { state.undo.push(clone(state.game)); play(m); } }
@@ -260,7 +334,8 @@ export function createGame(env) {
     if (input.pointer.pressed) { state.kb = false; return null; }
     if (sc === 'title') { if (k.has('Enter') || k.has('Space')) { const R = titleRows(!!state.saved); return { x: R.big.x + 5, y: R.big.y + 5 }; } return null; }
     if (sc === 'over') { if (k.has('Enter') || k.has('Space')) return { x: BTN.again.x + 5, y: BTN.again.y + 5 }; return null; }
-    if (sc === 'about' || sc === 'help' || sc === 'rules') { if (k.has('Escape')) return { x: BTN.menu.x + 5, y: BTN.menu.y + 5 }; if (k.has('Enter') || k.has('Space')) return { x: PAGE_NEXT.x + 5, y: PAGE_NEXT.y + 5 }; return null; }
+    if (sc === 'about' || sc === 'help' || sc === 'rules') { if (k.has('Escape')) return { x: PAGE_NAV.back.x + 5, y: PAGE_NAV.back.y + 5 }; if (k.has('Enter') || k.has('Space')) return { x: PAGE_NAV.next.x + 5, y: PAGE_NAV.next.y + 5 }; return null; }
+    if (sc === 'autoplay') { if (k.has('Escape')) return { x: AP.exit.x + 5, y: AP.exit.y + 5 }; if (k.has('Space')) return { x: AP.pause.x + 5, y: AP.pause.y + 5 }; return null; }
     if (sc !== 'play' && sc !== 'lesson' && sc !== 'puzzle') return null;
     if (k.has('Escape')) return { x: BTN.menu.x + 5, y: BTN.menu.y + 5 };
     if (k.has('KeyU')) return { x: BTN.undo.x + 5, y: BTN.undo.y + 5 };
@@ -300,6 +375,7 @@ export function createGame(env) {
       else if (sc === 'play') updatePlay(dt, tap, sq);
       else if (sc === 'lesson') updateLesson(dt, tap, sq);
       else if (sc === 'puzzle') updatePuzzle(dt, tap, sq);
+      else if (sc === 'autoplay') updateAutoplay(dt, tap);
       else if (sc === 'over' && tap) {
         if (inRect(BTN.again, tap.x, tap.y)) start(state.size, state.human, state.two);
         else if (inRect(BTN.back, tap.x, tap.y)) state.scene = 'title';
@@ -307,5 +383,9 @@ export function createGame(env) {
     },
     render(ctx) { render(ctx, state); },
     getState: () => state,
+    // kit 1.6.1: exempt Auto Play from the free-preview timer/countdown - this is priced/premium
+    // (game.json monetization.previewSeconds) so without this hook the preview clock would run
+    // (and eventually cut off) a demonstration the player never chose to spend their preview on.
+    isPreviewExempt: () => state.scene === 'autoplay',
   };
 }

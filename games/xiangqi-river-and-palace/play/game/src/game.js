@@ -3,7 +3,7 @@
 //
 // How a move is made: TAP a piece (it lifts, its legal points glow), then TAP a glowing point; or DRAG the piece and drop it.
 // A legal move glides there. An illegal one visibly TRIES, shudders and comes back, and a message says why.
-import { W, H, BTN, LOOK, RES, TEXT_SCALES, TEXTSTEP, titleRows, inRect, squareAt, pointXY } from './layout.js';
+import { W, H, BTN, LOOK, RES, TEXT_SCALES, TEXTSTEP, titleRows, inRect, squareAt, pointXY, THINK_STEPS, REVEAL_SECONDS } from './layout.js';
 import { newGame, fromBoard, applyMove, undoMove, tryMove, legalFor, inCheck, describe, RED, BLACK, SIDE_NAME, TYPE_NAME } from './rules.js';
 import { LEVEL_COUNT, createThinker } from './engine.js';
 import { LESSONS, stepBoard, sq } from './lessons.js';
@@ -27,14 +27,18 @@ export function createGame(env) {
     lesson: { i: 0, s: 0, done: false, showSol: false }, pz: null,
     progress: { played: 0, wins: 0 }, daily: { last: -1, streak: 0, solvedToday: false }, learned: [], learnedAll: false,
     saved: false, demoGames: 0,
+    // Auto Play ("Watch & Learn"): a free, silent, whole-game THINK -> REVEAL -> ACT demo that
+    // drives BOTH sides with the real createThinker() at the currently-set computer level. See
+    // startAutoplay(). Never touches progress/save/demoGames.
+    autoPlay: false, autoThinkIdx: 1, autoPhase: 'think', autoPhaseT: 0, autoMove: null,
   };
   let thinker = null, hinter = null, pending = null, savedBlob = null, warmI = 0, fontFix = 0;
   const sfx = [];
   const day = config.day ?? 20000;
 
   // ---- storage ------------------------------------------------------------------------------------------------------
-  const savePrefs = () => { storage.set('prefs', { level: state.level, sound: state.sound, calm: state.calm, big: state.big, board: state.board, set: state.set, lang: state.lang, textScaleIdx: state.textScaleIdx }); };
-  storage.get('prefs', null).then((p) => { if (!p) return; Object.assign(state, { level: p.level ?? state.level, sound: p.sound ?? true, calm: !!p.calm, big: !!p.big, board: p.board ?? 'paper', set: p.set ?? 'boxwood', lang: p.lang === 'en' ? 'en' : 'zh', textScaleIdx: Math.min(Math.max(Number(p.textScaleIdx) || 0, 0), TEXT_SCALES.length - 1) }); audio.setMuted(!state.sound); });
+  const savePrefs = () => { storage.set('prefs', { level: state.level, sound: state.sound, calm: state.calm, big: state.big, board: state.board, set: state.set, lang: state.lang, textScaleIdx: state.textScaleIdx, autoThinkIdx: state.autoThinkIdx }); };
+  storage.get('prefs', null).then((p) => { if (!p) return; Object.assign(state, { level: p.level ?? state.level, sound: p.sound ?? true, calm: !!p.calm, big: !!p.big, board: p.board ?? 'paper', set: p.set ?? 'boxwood', lang: p.lang === 'en' ? 'en' : 'zh', textScaleIdx: Math.min(Math.max(Number(p.textScaleIdx) || 0, 0), TEXT_SCALES.length - 1), autoThinkIdx: Math.min(Math.max(Number(p.autoThinkIdx ?? 1) || 0, 0), THINK_STEPS.length - 1) }); audio.setMuted(!state.sound); });
   storage.get('progress', null).then((p) => { if (p) state.progress = { played: p.played | 0, wins: p.wins | 0 }; });
   storage.get('daily', null).then((d) => { if (d) { state.daily.last = d.last ?? -1; state.daily.streak = d.last >= day - 1 ? d.streak ?? 0 : 0; state.daily.solvedToday = d.last === day; } });
   storage.get('learned', []).then((l) => { state.learned = Array.isArray(l) ? l : []; state.learnedAll = state.learned.length >= LESSONS.length; });
@@ -50,7 +54,9 @@ export function createGame(env) {
   // ---- small helpers -------------------------------------------------------------------------------------------------
   const say = (text, kind = 'info') => { state.msg = { text, kind, t: 0 }; };
   const sound = (name) => {
-    if (!state.sound) return;
+    // Auto Play is silent by design, same as chess-royal-sixty-four's AI-vs-AI demo - it plays
+    // itself continuously with no player driving it, so any tone would just be noise.
+    if (!state.sound || state.scene === 'autoplay') return;
     if (name === 'tok') audio.tone({ freq: 240, to: 110, dur: 0.07, type: 'triangle', vol: 0.3 });
     else if (name === 'take') { audio.tone({ freq: 200, to: 90, dur: 0.1, type: 'triangle', vol: 0.36 }); sfx.push({ at: state.t + 0.06, o: { freq: 520, to: 300, dur: 0.12, type: 'square', vol: 0.06 } }); }
     else if (name === 'refuse') audio.tone({ freq: 150, to: 110, dur: 0.14, type: 'sine', vol: 0.22 });
@@ -123,6 +129,33 @@ export function createGame(env) {
       monetization.track('game_end', { level: state.level, won: r.winner === state.human });
     }
     sound(r.winner === 0 ? 'ok' : (state.two || r.winner === state.human) ? 'win' : 'lose');
+  };
+
+  // ---- Auto Play ("Watch & Learn") -----------------------------------------------------------------------------------
+  // THINK -> REVEAL -> ACT per move, for the whole game, both sides driven by the real createThinker()
+  // at the currently-set computer level (docs: scratchpad/polish-pro/AUTOPLAY-BRIEF.md). THINK reuses
+  // the exact same state.thinking/thinker/state.thinkT machinery real play already uses for the
+  // computer's turn (see the `state.thinking` block in update()) - only the threshold and what happens
+  // once the move is chosen differ for this scene. ACT reuses doMove() itself: never a separate,
+  // fake execution path.
+  const startAutoplay = () => {
+    state.autoPlay = true; state.g = newGame(); state.human = RED; state.two = false; state.scene = 'autoplay';
+    Object.assign(state, { last: null, msg: null, overOpen: false, hint: null, anim: null, thinking: false, banner: null, autoMove: null, autoPhase: 'think', autoPhaseT: 0 });
+    clearSel(); thinker = null; hinter = null; pending = null;
+    startThinking();
+  };
+  const exitAutoplay = () => { state.autoPlay = false; thinker = null; pending = null; state.autoMove = null; toMenu(); };
+  const afterAutoMove = () => {
+    if (state.g.result) { finishAutoplay(); return; }
+    startThinking();
+  };
+  const finishAutoplay = () => {
+    // Deliberately NOT finishGame(): Auto Play never writes progress/save/demoGames/analytics -
+    // it is a free teaching demo, not a real game. Reuses the same state.overOpen the real result
+    // panel uses (view.js branches on state.autoPlay to show Watch Again / Exit to Menu instead).
+    const r = state.g.result;
+    state.overOpen = true; state.hint = null; state.autoMove = null; clearSel();
+    sound(r.winner === 0 ? 'ok' : 'win');
   };
   const takeBack = () => {
     const g = state.g; if (state.anim || g.log.length === 0) return;
@@ -285,7 +318,23 @@ export function createGame(env) {
     if (state.thinking && !state.anim && thinker) {
       state.thinkT += dt;
       const r = thinker.step();
-      if (r.move !== undefined && state.thinkT >= (state.calm ? 0.35 : 0.6)) { const mv = r.move; thinker = null; state.thinking = false; if (mv) doMove(mv, () => afterMove()); }
+      const auto = state.scene === 'autoplay';
+      const threshold = auto ? THINK_STEPS[state.autoThinkIdx] : (state.calm ? 0.35 : 0.6);
+      if (r.move !== undefined && state.thinkT >= threshold) {
+        const mv = r.move; thinker = null; state.thinking = false;
+        if (auto) {
+          // THINK is over: REVEAL the chosen move before acting on it. `select()`-style highlight
+          // (state.sel/state.targets) shows every legal destination for the piece about to move -
+          // "the available options" - and state.hint (already used elsewhere for the Hint feature's
+          // pulsing highlight) marks the one actually about to be taken, distinctly from the rest.
+          if (mv) { state.autoMove = mv; state.sel = mv.from; state.targets = legalFor(state.g, mv.from); state.hint = { from: mv.from, to: mv.to }; state.autoPhase = 'reveal'; state.autoPhaseT = 0; }
+          else finishAutoplay(); // no legal move at all: the game already ended (checkmate/stalemate)
+        } else if (mv) doMove(mv, () => afterMove());
+      }
+    }
+    if (state.scene === 'autoplay' && state.autoPhase === 'reveal' && !state.anim && state.autoMove) {
+      state.autoPhaseT += dt;
+      if (state.autoPhaseT >= REVEAL_SECONDS) { const mv = state.autoMove; state.autoMove = null; state.autoPhase = 'think'; state.autoPhaseT = 0; doMove(mv, () => afterAutoMove()); }
     }
     if (hinter) { const r = hinter.step(); if (r.move !== undefined) { state.hint = r.move ? { from: r.move.from, to: r.move.to } : null; hinter = null; say(state.hint ? 'A good move is marked in green.' : 'No move found.', 'info'); } }
 
@@ -294,6 +343,7 @@ export function createGame(env) {
     if (keys.pressed.size) {
       const k = [...keys.pressed];
       if (state.scene === 'title') { if (k.includes('Enter') || k.includes('Space')) startGame(RED, false); }
+      else if (state.scene === 'autoplay') { if (k.includes('Escape')) exitAutoplay(); }
       else if (boardScene()) {
         state.kb = true;
         for (const c of k) {
@@ -319,6 +369,7 @@ export function createGame(env) {
         else if (hit(rows.black)) startGame(BLACK, false);
         else if (hit(rows.two)) startGame(RED, true);
         else if (hit(rows.daily)) startPuzzle();
+        else if (hit(rows.autoplay)) startAutoplay();
         else if (hit(rows.level)) { state.level = (state.level % LEVEL_COUNT) + 1; savePrefs(); }
         else if (hit(rows.sound)) { state.sound = !state.sound; audio.setMuted(!state.sound); savePrefs(); }
         else if (hit(rows.how)) { state.scene = 'howto'; state.page = 0; }
@@ -371,6 +422,21 @@ export function createGame(env) {
         boardPointer(p);
         break;
       }
+      case 'autoplay': {
+        // No boardPointer(p): every move is automatic, so board taps do nothing here (this is a
+        // spectated demo, not a session the viewer plays). Only Exit, the think-time stepper, and
+        // (once a game ends) the result panel's own buttons respond.
+        if (state.overOpen) {
+          if (hit(RES.again)) startAutoplay();
+          else if (hit(RES.look)) state.overOpen = false;
+          else if (hit(RES.menu)) exitAutoplay();
+          break;
+        }
+        if (hit(BTN.menu)) { exitAutoplay(); break; }
+        if (hit(TEXTSTEP.dec) && state.autoThinkIdx > 0) { state.autoThinkIdx--; savePrefs(); }
+        else if (hit(TEXTSTEP.inc) && state.autoThinkIdx < THINK_STEPS.length - 1) { state.autoThinkIdx++; savePrefs(); }
+        break;
+      }
       case 'play': {
         const g = state.g;
         if (state.overOpen) {
@@ -395,6 +461,15 @@ export function createGame(env) {
     getState() {
       const { g, pz, ...rest } = state;
       return { ...rest, pz: pz ? { n: pz.n, status: pz.status, tries: pz.tries } : null, g: { board: g.board, turn: g.turn, moves: g.log.length, result: g.result } };
+    },
+
+    // kit 1.6.1: exempts Auto Play from web/kit/preview.js's free-preview timer entirely (no time
+    // accrual, no countdown badge) - it's a free teaching/marketing tool, never real play. Stays
+    // true through the whole Auto Play game and the result panel it leads to (state.autoPlay only
+    // clears in exitAutoplay(), the only way out of the 'autoplay' scene back to the title screen),
+    // so lingering on the Auto Play result screen never burns real preview time either.
+    isPreviewExempt() {
+      return state.autoPlay;
     },
   };
 }

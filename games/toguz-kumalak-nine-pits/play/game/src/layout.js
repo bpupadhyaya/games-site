@@ -44,6 +44,10 @@ export function titleRows(hasSave) {
   R.about = { x: 70, y, w: third, h: 78 };
   R.rules = { x: 70 + third + 20, y, w: third, h: 78 };
   R.settings = { x: 70 + (third + 20) * 2, y, w: third, h: 78 };
+  y += 78 + 26;
+  // Free, silent, whole-game teaching demo - one more full-width row below everything else, with
+  // room to spare below it regardless of which shape the list above is (with/without "Resume").
+  R.auto = row(y);
   return R;
 }
 // Rules-page navigation: Back returns to the title, Next advances a page (wraps round). Same x/w/y
@@ -53,7 +57,11 @@ export const RULES_BTN = { back: { x: 70, y: 1400, w: 280, h: 90 }, next: { x: 3
 // at y=120), centred, mirroring the games this pattern is shared with. An index into TEXT_SCALES,
 // never a raw float, so the stepper can cleanly disable at either end.
 export const HEADER = { textDec: { x: 70, y: 26, w: 130, h: 66 }, textInc: { x: W - 200, y: 26, w: 130, h: 66 } };
-export const TEXT_SCALES = [1, 1.15, 1.3];
+export const TEXT_SCALES = [1, 1.3, 1.6, 2, 2.5, 3];
+// Auto Play ("Watch & Learn") think-time steps, in seconds. Index into this, same pattern as
+// TEXT_SCALES above - never a raw float, so the +/- stepper can cleanly disable at either end.
+// Hard-capped at 10s per the owner's explicit instruction. Default index 1 (5s).
+export const THINK_STEPS = [2, 5, 8, 10];
 // settings rows (label left, value button)
 export const SET = {
   level: { x: 70, y: 330, w: 580, h: 84 }, sound: { x: 70, y: 430, w: 580, h: 84 }, calm: { x: 70, y: 530, w: 580, h: 84 },

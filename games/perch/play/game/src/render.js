@@ -258,22 +258,37 @@ export function stones(ctx, s) {
   }
 }
 
-// From level 2 the player picks the perch. Faint rings show where the bird can go; on the first levels of
-// choosing, a green ring also marks the safest one while a stone is coming (a teacher, not a crutch).
-function choices(ctx, s, t) {
-  if (!s.manual || s.over || s.won) return;
+// Faint rings on every perch the bird could reach from where it is now; the one at index `hi`
+// (when >= 0) drawn distinctly brighter and pulsing. Shared by the manual-play safe-ring hint below
+// and by Auto Play's REVEAL phase (game.js/autoView.js), so both draw the exact same cue.
+function ringsAt(ctx, s, t, hi) {
   const b = s.bird, cur = b.flit >= 0 ? b.dest : b.perch, here = perchPoint(s.perches, cur);
-  const safe = s.level <= 3 && threatened(s) ? chooseDest(s, cur) : -1;
   s.perches.forEach((pp, i) => {
     if (i === cur) return;
     const p = perchPoint(s.perches, i), d = Math.hypot(p.x - here.x, p.y - here.y);
     if (d > 470 * 1.25) return;
     const k = Math.max(0.55, p.s);
-    ctx.save(); ctx.globalAlpha = i === safe ? 0.55 + 0.35 * Math.sin(t * 8) : 0.22;
-    ctx.strokeStyle = i === safe ? '#7dff9a' : '#ffffff'; ctx.lineWidth = i === safe ? 5 : 3;
+    ctx.save(); ctx.globalAlpha = i === hi ? 0.55 + 0.35 * Math.sin(t * 8) : 0.22;
+    ctx.strokeStyle = i === hi ? '#7dff9a' : '#ffffff'; ctx.lineWidth = i === hi ? 5 : 3;
     ctx.beginPath(); ctx.arc(p.x, p.y + 6 * k, 22 * k, 0, TAU); ctx.stroke();
     ctx.restore();
   });
+}
+
+// From level 2 the player picks the perch. Faint rings show where the bird can go; on the first levels of
+// choosing, a green ring also marks the safest one while a stone is coming (a teacher, not a crutch).
+function choices(ctx, s, t) {
+  if (!s.manual || s.over || s.won) return;
+  const b = s.bird, cur = b.flit >= 0 ? b.dest : b.perch;
+  const safe = s.level <= 3 && threatened(s) ? chooseDest(s, cur) : -1;
+  ringsAt(ctx, s, t, safe);
+}
+
+// Auto Play's REVEAL cue: the exact same rings as above, but shown regardless of level/manual
+// gating (this is a teaching demo, not the light in-play hint) and highlighting the destination
+// Auto Play has already committed to for this decision.
+export function autoReveal(ctx, s, t, target) {
+  ringsAt(ctx, s, t, target);
 }
 
 export function seeds(ctx, s, t) {

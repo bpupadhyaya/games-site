@@ -25,15 +25,35 @@ export const BTN = {
   hint: { x: 20, y: BOTTOM_Y, w: 388, h: 104 },
   options: { x: 20, y: BOTTOM_Y + 118, w: 388, h: 74 },
   deal: { x: 110, y: 860, w: 500, h: 132 },
-  // Options used to be one 440-wide button here; it now shares the row with Rules, same outer
-  // edges (140..580) and the same y/height, so nothing else on the title screen moved.
-  titleOptions: { x: 140, y: 1176, w: 212, h: 96 },
-  titleRules: { x: 368, y: 1176, w: 212, h: 96 },
+  // Options/Rules/Auto share one row, same outer edges (140..580) and the same y/height as
+  // before Auto Play was added, so nothing else on the title screen moved.
+  titleOptions: { x: 140, y: 1176, w: 136, h: 96 },
+  titleRules: { x: 292, y: 1176, w: 136, h: 96 },
+  titleAuto: { x: 444, y: 1176, w: 136, h: 96 },
   dealAgain: { x: 130, y: 900, w: 460, h: 116 },
   // The Rules reference page's own nav row (Back exits to the title; Next cycles pages).
   rulesBack: { x: 20, y: 1416, w: 330, h: 116 },
   rulesNext: { x: 370, y: 1416, w: 330, h: 116 },
+  // Text-size stepper on the Rules reference page: a header row above the "Rules" title.
+  textDec: { x: 20, y: 20, w: 130, h: 68 },
+  textInc: { x: W - 150, y: 20, w: 130, h: 68 },
+  // Auto Play ("Watch & Learn"): the top ~100px is otherwise empty in this game (the native app
+  // chrome lives outside the canvas — see the file header comment), so its status bar + think-time
+  // stepper live there. The bottom two buttons are repurposed (Skip/Pause replace Hint/Options,
+  // which have no meaning in a spectator demo) rather than adding a third row.
+  autoBar: { x: 20, y: 18, w: W - 40, h: 72 },
+  autoDec: { x: W - 216, y: 30, w: 56, h: 48 },
+  autoInc: { x: W - 96, y: 30, w: 56, h: 48 },
+  autoSkip: { x: 20, y: BOTTOM_Y, w: 388, h: 104 },
+  autoPause: { x: 20, y: BOTTOM_Y + 118, w: 190, h: 74 },
+  autoExit: { x: 218, y: BOTTOM_Y + 118, w: 190, h: 74 },
 };
+// Configurable Auto Play think-time: index-based steps (never a raw float), hard-capped at 10s.
+export const AUTO_THINK_STEPS = [2, 5, 8, 10];
+export const AUTO_REVEAL_SECS = 2;
+// Text-size steps for the Rules reference page. Index into this, never a raw float, so the
+// stepper can cleanly disable at either end. Content is paced (content.js) to fit even at the top.
+export const TEXT_SCALES = [1, 1.5, 2, 2.5, 3];
 
 // The title's hero fan: tapping it also deals.
 export const HERO = { x: 20, y: 340, w: 680, h: 460 };

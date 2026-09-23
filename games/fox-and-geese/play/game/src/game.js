@@ -5,9 +5,9 @@
 // where it should go. A legal move glides there. An illegal one visibly TRIES: the piece travels toward the point,
 // shudders, comes back, and a message says why. A fox that has jumped may jump again: it stays lifted with the next
 // jumps glowing, and the player taps a red point, or taps the fox (or "Stop here") to end the turn.
-import { W, H, BTN, LOOK, RULES_NAV, RULES_TEXT, TEXT_SCALES, DEV_BTN, titleRows, inRect, pointNear, pointAt } from './layout.js';
+import { W, H, BTN, LOOK, RULES_NAV, RULES_TEXT, TEXT_SCALES, DEV_BTN, THINK_STEPS, REVEAL_TIME, AUTOPLAY, titleRows, inRect, pointNear, pointAt } from './layout.js';
 import { RULES } from './content.js';
-import { newGame, clone, applyMove, tryMove, FLOCKS, onBoard, N, CENTRE } from './rules.js';
+import { newGame, clone, applyMove, tryMove, legalMoves, FLOCKS, onBoard, N, CENTRE } from './rules.js';
 import { LEVELS, createThinker, chooseMove, forcingMoves } from './engine.js';
 import { LESSONS, boardOf } from './lessons.js';
 import { createPuzzleMaker, puzzleGame, PUZZLE_TEXT } from './puzzles.js';
@@ -31,18 +31,20 @@ export function createGame(env) {
     pz: null,                                       // { status: 'making' | 'ready' | 'solved', puzzle, n, tries, wrong }
     daily: { day: config.day ?? 0, solvedDay: -1, streak: 0 },
     dev: config.dev === true, devLesson: 0,
+    // Auto Play: a free, silent, save-untouched THINK -> REVEAL -> ACT demonstration (see STATUS.md).
+    apThinkIdx: 1, ap: null, overFromAutoplay: false,
   };
   // Working objects that are not part of the saved state: they are rebuilt from it and are fully deterministic.
-  let thinker = null, hintThinker = null, puzzleToday = null;
+  let thinker = null, hintThinker = null, apThinker = null, puzzleToday = null;
   const maker = createPuzzleMaker(state.daily.day);
 
-  storage.get('prefs', null).then((v) => { if (v) { state.level = v.level ?? 1; state.flock = FLOCKS.includes(v.flock) ? v.flock : 13; state.marks = v.marks ?? true; state.sound = v.sound ?? true; state.calm = v.calm ?? false; state.look = { ...state.look, ...(v.look || {}) }; state.textScaleIdx = Math.min(Math.max(v.textScaleIdx ?? 0, 0), TEXT_SCALES.length - 1); audio.setMuted?.(!state.sound); } });
+  storage.get('prefs', null).then((v) => { if (v) { state.level = v.level ?? 1; state.flock = FLOCKS.includes(v.flock) ? v.flock : 13; state.marks = v.marks ?? true; state.sound = v.sound ?? true; state.calm = v.calm ?? false; state.look = { ...state.look, ...(v.look || {}) }; state.textScaleIdx = Math.min(Math.max(v.textScaleIdx ?? 0, 0), TEXT_SCALES.length - 1); state.apThinkIdx = Math.min(Math.max(v.apThinkIdx ?? 1, 0), THINK_STEPS.length - 1); audio.setMuted?.(!state.sound); } });
   storage.get('stats', null).then((v) => { if (v) state.stats = { ...state.stats, ...v, badges: { ...(v.badges || {}) } }; });
   storage.get('learned', false).then((v) => { state.learned = state.learned || !!v; });
   storage.get('daily', null).then((v) => { if (v) { state.daily.solvedDay = v.solvedDay ?? -1; state.daily.streak = v.streak ?? 0; } });
   storage.get('demoGames', 0).then((v) => { state.demoGames = Math.max(state.demoGames, v); });
   storage.get('save', null).then((v) => { if (v && v.game && !v.game.winner && state.scene === 'title') state.saved = v; });
-  const savePrefs = () => storage.set('prefs', { level: state.level, flock: state.flock, marks: state.marks, sound: state.sound, calm: state.calm, look: state.look, textScaleIdx: state.textScaleIdx });
+  const savePrefs = () => storage.set('prefs', { level: state.level, flock: state.flock, marks: state.marks, sound: state.sound, calm: state.calm, look: state.look, textScaleIdx: state.textScaleIdx, apThinkIdx: state.apThinkIdx });
   const saveGame = () => { if (state.scene === 'play' && !state.game.winner) { state.saved = { game: clone(state.game), human: state.human, two: state.two, level: state.level, hintsLeft: state.hintsLeft }; storage.set('save', state.saved); } };
   const clearSave = () => { state.saved = null; storage.remove('save'); };
 
@@ -50,7 +52,10 @@ export function createGame(env) {
   // A refused move must still be CLEAR: the piece still travels toward the point and comes back.
   const dur = (d) => (state.calm ? d * 0.6 : d);
   const say = (text, hold = 4.5) => { state.msg = { text, t: 0, hold }; };
-  const tone = (o) => { if (state.sound) audio.tone(o); };
+  // Auto Play is silent by design, exactly like an AI-vs-AI attract demo: no viewer chose to hear a
+  // computer play itself. This covers the loop itself and the shared 'over' result screen it reaches.
+  const autoplaySilent = () => state.scene === 'autoplay' || (state.scene === 'over' && state.overFromAutoplay);
+  const tone = (o) => { if (state.sound && !autoplaySilent()) audio.tone(o); };
   // a soft "tok" on frozen ground: a short round sine that drops in pitch
   const clack = (f = 420) => tone({ freq: f * 0.9, to: f * 0.42, dur: 0.07, type: 'sine', vol: 0.1 });
   const reset = (extra) => Object.assign(state, { sel: -1, anim: null, msg: null, think: 0, thinking: false, undo: [], hint: null, hintsLeft: HINTS_PER_GAME, starEarned: false }, extra);
@@ -83,6 +88,45 @@ export function createGame(env) {
     reset({ scene: 'puzzle', game: puzzleGame(puzzleToday), human: PUZZLE_TEXT[puzzleToday.type].side, two: false, pz: { status: state.daily.solvedDay === state.daily.day ? 'solved' : 'ready', puzzle: puzzleToday, n: puzzleToday.n, tries, wrong: 0 } });
   }
 
+  // ---- Auto Play: a free, silent, whole-game THINK -> REVEAL -> ACT demonstration ----------------------
+  // Reuses the real computer opponent (createThinker/engine.js) for BOTH sides, and the real move/turn
+  // resolution code (play(), afterMove()) - never a separate fake execution path. Never touches
+  // state.stats or the save slot (finish()/saveGame() are only ever called for scene === 'play').
+  function startAutoplay() {
+    thinker = hintThinker = apThinker = null;
+    const g = newGame(state.flock);
+    reset({ scene: 'autoplay', game: g, overFromAutoplay: false });
+    state.ap = { phase: 'think', t: 0, options: [], chosen: null, paused: false };
+    apThinker = createThinker(g, state.level, rng);
+  }
+  function finishAutoplay() { state.scene = 'over'; state.overFromAutoplay = true; }
+  function updateAutoplay(dt, tap) {
+    const A = state.ap;
+    if (tap && inRect(AUTOPLAY.exit, tap.x, tap.y)) { state.scene = 'title'; thinker = hintThinker = apThinker = null; return; }
+    if (tap && inRect(AUTOPLAY.dec, tap.x, tap.y) && state.apThinkIdx > 0) { state.apThinkIdx--; savePrefs(); }
+    else if (tap && inRect(AUTOPLAY.inc, tap.x, tap.y) && state.apThinkIdx < THINK_STEPS.length - 1) { state.apThinkIdx++; savePrefs(); }
+    else if (tap && inRect(AUTOPLAY.pause, tap.x, tap.y)) A.paused = !A.paused;
+    if (A.paused) return;
+    if (tap && inRect(AUTOPLAY.skip, tap.x, tap.y)) {
+      if (state.anim) state.anim.t = state.anim.dur;
+      else if (A.phase === 'think') A.t = THINK_STEPS[state.apThinkIdx];
+      else if (A.phase === 'reveal') A.t = REVEAL_TIME;
+    }
+    if (state.anim) { state.anim.t += dt; if (state.anim.t >= state.anim.dur) { state.anim = null; afterMove(); } return; }
+    if (A.phase === 'think') {
+      // The engine thinks in the background the whole THINK phase, exactly as it does during real play,
+      // but nothing is revealed or highlighted yet - the viewer's own window to work out an answer.
+      if (apThinker) { const r = apThinker.step(); if (r.move !== undefined) { A.chosen = r.move; apThinker = null; } }
+      A.t += dt;
+      if (A.t >= THINK_STEPS[state.apThinkIdx] && apThinker === null) { A.options = legalMoves(state.game); A.phase = 'reveal'; A.t = 0; }
+      return;
+    }
+    if (A.phase === 'reveal') {
+      A.t += dt;
+      if (A.t >= REVEAL_TIME) { const mv = A.chosen; A.phase = 'act'; if (mv) play(mv); else afterMove(); }
+    }
+  }
+
   const humanTurn = () => !state.game.winner && (state.two || state.game.turn === state.human);
 
   // Animate a legal move and apply it to the rule book. Ending a chain ("stop") has nothing to animate.
@@ -96,10 +140,11 @@ export function createGame(env) {
   // After a move has finished animating: the game may be over, the computer may be next, or the fox may still be mid-chain.
   function afterMove() {
     const g = state.game;
-    if (g.winner) { if (state.scene === 'play') finish(); return; }
+    if (g.winner) { if (state.scene === 'play') finish(); else if (state.scene === 'autoplay') finishAutoplay(); return; }
     if (state.scene === 'play') saveGame();
     if (g.chain >= 0 && (state.two || g.turn === state.human)) state.sel = g.chain;        // the fox stays picked up: jump again or stop
     else if (state.scene === 'play' && !humanTurn()) state.think = g.chain >= 0 ? 0.25 : 0.45;
+    else if (state.scene === 'autoplay') { state.sel = g.chain >= 0 ? g.chain : -1; state.ap.phase = 'think'; state.ap.t = 0; state.ap.chosen = null; state.ap.options = []; apThinker = createThinker(g, state.level, rng); }
   }
   // An illegal move: the piece tries, fails and returns, and the player is told why.
   function refuse(from, to, why) {
@@ -160,6 +205,7 @@ export function createGame(env) {
     else if (hit(R.calm)) { state.calm = !state.calm; savePrefs(); clack(); }
     else if (hit(R.look)) state.scene = 'look';
     else if (hit(R.rules)) { state.rulesPage = 0; state.scene = 'rules'; }
+    else if (hit(R.auto)) startAutoplay();
     else if (state.dev && inRect(DEV_BTN, tap.x, tap.y)) { const i = state.devLesson; state.devLesson = (i + 1) % LESSONS.length; startLesson(i); }
   }
 
@@ -308,6 +354,7 @@ export function createGame(env) {
     if (sc === 'over') { if (k.has('Enter') || k.has('Space')) return { x: BTN.again.x + 5, y: BTN.again.y + 5 }; return null; }
     if (sc === 'look') { if (k.has('Escape')) return { x: LOOK.back.x + 5, y: LOOK.back.y + 5 }; return null; }
     if (sc === 'rules') { if (k.has('Escape')) return { x: RULES_NAV.back.x + 5, y: RULES_NAV.back.y + 5 }; return null; }
+    if (sc === 'autoplay') { if (k.has('Escape')) return { x: AUTOPLAY.exit.x + 5, y: AUTOPLAY.exit.y + 5 }; return null; }
     if (sc !== 'play' && sc !== 'lesson' && sc !== 'puzzle') return null;
     if (k.has('Escape')) return { x: BTN.menu.x + 5, y: BTN.menu.y + 5 };
     let dx = 0, dy = 0;
@@ -330,12 +377,18 @@ export function createGame(env) {
       else if (state.scene === 'play') updatePlay(dt, tap);
       else if (state.scene === 'lesson') updateLesson(dt, tap);
       else if (state.scene === 'puzzle') updatePuzzle(dt, tap);
+      else if (state.scene === 'autoplay') updateAutoplay(dt, tap);
       else if (state.scene === 'over' && tap) {
-        if (inRect(BTN.again, tap.x, tap.y)) start(state.human, state.two);
-        else if (inRect(BTN.back, tap.x, tap.y)) state.scene = 'title';
+        if (inRect(BTN.again, tap.x, tap.y)) { if (state.overFromAutoplay) startAutoplay(); else start(state.human, state.two); }
+        else if (inRect(BTN.back, tap.x, tap.y)) { state.overFromAutoplay = false; state.scene = 'title'; }
       }
     },
     render(ctx) { render(ctx, state); },
     getState: () => state,
+    // Auto Play is a free teaching/marketing tool, like the menu's own attract-mode preview - it
+    // must never eat into the paid game's free-preview timer (kit 1.6.1). Exempt the same span
+    // `autoplaySilent()` already covers: the autoplay scene itself, and the shared 'over' result
+    // screen when it was reached from Auto Play (never a real game's own result).
+    isPreviewExempt: () => autoplaySilent(),
   };
 }

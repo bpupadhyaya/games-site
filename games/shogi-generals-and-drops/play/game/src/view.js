@@ -1,13 +1,13 @@
 // Everything drawn each frame. Reads `state` (game.js) and changes nothing. The table, the stands, the board and
 // every piece are cached sprites/layers (art.js, pieces.js), so a frame is cheap.
-import { W, H, sqCenter, standSlot, STAND, STAND_ORDER, TEXT_SCALES } from './layout.js';
+import { W, H, sqCenter, standSlot, STAND, STAND_ORDER, TEXT_SCALES, THINK_STEPS } from './layout.js';
 import { drawTable, drawBoard, drawStands } from './art.js';
 import { drawPiece, fontReady, JP } from './pieces.js';
 import { LETTER, NAME, base, mFrom, mTo, isDrop, mDrop, inCheck } from './rules.js';
 import { LEVELS } from './engine.js';
 import { LESSONS } from './lessons.js';
 import { ABOUT, HOWTO, RULES } from './content.js';
-import { ABOUT_PAGES, HOWTO_PAGES, RULES_PAGES } from './ui.js';
+import { ABOUT_PAGES, HOWTO_PAGES, RULES_PAGES, titleListBottom, TITLE_AUTO_GAP, TITLE_AUTO_H } from './ui.js';
 
 const DISPLAY = '"Cormorant Garamond", "Noto Serif JP", Georgia, "Times New Roman", serif';
 const UI = 'system-ui, -apple-system, "Segoe UI", Roboto, "Noto Serif JP", sans-serif';
@@ -89,7 +89,7 @@ export function render(ctx, state, h) {
   petals(ctx, T);
 
   const scene = state.scene;
-  const onBoard = scene === 'play' || scene === 'lesson' || scene === 'puzzle';
+  const onBoard = scene === 'play' || scene === 'lesson' || scene === 'puzzle' || scene === 'auto';
 
   if (onBoard) drawBoardScene();
   else if (scene === 'title') drawTitle();
@@ -123,12 +123,20 @@ export function render(ctx, state, h) {
       drawPiece(ctx, pc, 0, 0, 0, 0, 0.78, { lang });
       ctx.restore();
     });
-    // language choice
-    text('Language', 360, 1208, 22, 'rgba(247,236,210,0.55)', UI, 600);
-    // stats line
-    if (state.stats.played > 0) text(`Played ${state.stats.played}   Won ${state.stats.wins}`, 360, 1350, 26, 'rgba(247,236,210,0.7)', UI, 500);
-    if (state.daily.streak > 0) text(`Puzzle streak: ${state.daily.streak} day${state.daily.streak === 1 ? '' : 's'}`, 360, 1392, 26, 'rgba(247,236,210,0.7)', UI, 500);
-    text('Tap a piece, tap a glowing point.', 360, 1444, 24, 'rgba(247,236,210,0.45)', UI, 500);
+    // Every one of these positions is computed off titleListBottom(), not a fixed number, because
+    // the button list above grows by one row ("Continue game") whenever there is a saved game -
+    // a fixed number here would either overlap that taller list or leave an odd gap for the shorter
+    // one. The Auto Play button itself lives in ui.js at exactly titleListBottom() + TITLE_AUTO_GAP.
+    const listBottom = titleListBottom({ saved: !!state.saved }), langRowY = listBottom - 92;
+    text('Language', 360, langRowY - 26, 22, 'rgba(247,236,210,0.55)', UI, 600);
+    // stats/streak line: only drawn if it clears the canvas with room to spare - on the tallest
+    // shape of this list (a saved game plus the Auto Play row) there is no safe room left below for
+    // it, and a flourish line is worth skipping rather than ever risking it clipping or overlapping.
+    const afterAuto = listBottom + TITLE_AUTO_GAP + TITLE_AUTO_H + 40;
+    const bits = [];
+    if (state.stats.played > 0) bits.push(`Played ${state.stats.played} · Won ${state.stats.wins}`);
+    if (state.daily.streak > 0) bits.push(`Streak ${state.daily.streak}d`);
+    if (bits.length && afterAuto + 20 <= H - 14) text(bits.join('   '), 360, afterAuto, 25, 'rgba(247,236,210,0.7)', UI, 500);
   }
 
   function drawPages() {
@@ -165,15 +173,24 @@ export function render(ctx, state, h) {
       ctx.beginPath(); ctx.moveTo(120, 250); ctx.lineTo(600, 250); ctx.stroke();
       // Page/section title: some run long ("Why captured pieces come back"), so - same idiom the button
       // label drawer already uses below - shrink it until it clears the panel margins instead of letting
-      // a centred, unwrapped fillText touch or cross the panel edge at the top text-size step.
-      { let sz = Math.round(40 * scale); ctx.font = `700 ${sz}px ${DISPLAY}`;
-        while (ctx.measureText(pg.title).width > 620 && sz > 24) { sz -= 1; ctx.font = `700 ${sz}px ${DISPLAY}`; }
-        text(pg.title, 360, 306, sz, PAPER, DISPLAY, 700); }
-      let y = 346;
+      // a centred, unwrapped fillText touch or cross the panel edge at the top text-size step. Its growth
+      // is also capped (like the screen title above it): an uncapped page title at 3x grew tall enough to
+      // collide with "Rules"/"About shogi"/"How to play" sitting right above it - a real, visible overlap
+      // caught by rendering the actual pages at 300%, not assumed from the code.
+      const titleScale = Math.min(scale, 1.3);
+      let titleSz = Math.round(40 * titleScale); ctx.font = `700 ${titleSz}px ${DISPLAY}`;
+      while (ctx.measureText(pg.title).width > 620 && titleSz > 24) { titleSz -= 1; ctx.font = `700 ${titleSz}px ${DISPLAY}`; }
+      // The title's own baseline and the content that follows both key off its measured size, so growing
+      // or shrinking the title (long title vs short, low scale vs high) can never crowd or gap unevenly.
+      const titleBaseline = 270 + Math.round(titleSz * 0.82);
+      text(pg.title, 360, titleBaseline, titleSz, PAPER, DISPLAY, 700);
+      let y = titleBaseline + Math.round(titleSz * 0.38) + 20;
       // Rules pages that cover one piece type show the real in-game sprite, Sente and Gote side by side,
-      // using the same drawPiece() the board itself uses - never a separate simplified icon.
+      // using the same drawPiece() the board itself uses - never a separate simplified icon. The portrait
+      // itself is always drawn at a fixed size (it must match the real board art), only its vertical
+      // position follows the now scale-aware `y` above it.
       if (pg.piece !== undefined) {
-        const footY = 420, dx = 110, ps2 = 0.92;
+        const footY = y + 74, dx = 110, ps2 = 0.92;
         drawPiece(ctx, pg.piece, 0, 0, 360 - dx, footY, ps2, { lang });
         drawPiece(ctx, pg.piece, 1, 1, 360 + dx, footY, ps2, { lang });
         text('Sente', 360 - dx, footY + 82, Math.round(21 * Math.min(scale, 1.15)), 'rgba(247,236,210,0.6)', UI, 600);
@@ -182,21 +199,25 @@ export function render(ctx, state, h) {
       }
       // Real base sizes (~28-30px on this 720-wide canvas), then the A-/A+ scale multiplies on top.
       // Rules pages tend to have more/longer lines than About/How to play ever did, so Rules keeps a
-      // touch smaller base and tighter paragraph gap; content.js paces every page to fit at the top step.
+      // touch smaller base and tighter paragraph gap; content.js paces every page to a single short
+      // sentence so this rarely needs to shrink even at the 3x top step.
       const lnSize = scene === 'rules' ? 28 : 30, lnGap = Math.round((scene === 'rules' ? 16 : 20) * scale);
       // Left-anchored column inside the panel, matching Rules' original correct anchor: fitText is
       // called with align 'left', so x must be the column's LEFT edge (360 - 570/2), not the panel's
       // horizontal centre. About/How to play used to pass x=360 here, which ran their lines off the
       // right edge of the panel/canvas - fixed by using the same anchor as Rules for all three.
       const lnX = 75;
-      // maxH is a generous ceiling (not a target): fitText only auto-shrinks a paragraph that would
-      // still overflow it, and every page here is already paced to need far less than this.
-      for (const ln of pg.lines) { const hh = fitText(ln, lnX, y, 570, 900, lnSize * scale, 'rgba(247,236,210,0.94)', 'left', UI, 500); y += hh + lnGap; }
+      // maxH is the REAL remaining room before the page indicator, not a flat guess: a flat constant
+      // here let a diagram page's text run past the indicator at 3x (measured on an actual screenshot),
+      // because it had no idea a portrait above it had already spent part of the panel's height. Using
+      // the room actually left guarantees fitText's own safety-shrink can never be reached this way.
+      for (const ln of pg.lines) { const room = Math.max(60, 1260 - y); const hh = fitText(ln, lnX, y, 570, room, lnSize * scale, 'rgba(247,236,210,0.94)', 'left', UI, 500); y += hh + lnGap; }
       const total = scene === 'about' ? ABOUT_PAGES : scene === 'howto' ? HOWTO_PAGES : RULES_PAGES;
-      // Rules has more pages than About/How to play ever did, so only its dot row (not theirs) is
-      // spaced tighter to still fit the panel; About/How to play keep their original spacing and radius.
-      const dotGap = scene === 'rules' ? 22 : 30, dotR = scene === 'rules' ? 6 : 7;
-      for (let i = 0; i < total; i++) { ctx.fillStyle = i === state.page ? GOLD : 'rgba(242,213,144,0.3)'; ctx.beginPath(); ctx.arc(360 + (i - (total - 1) / 2) * dotGap, 1290, dotR, 0, TAU); ctx.fill(); }
+      // A plain "Page X of Y" caption reads clearly at any page count - Rules alone runs to 48 pages
+      // (splitting piece/drop rules into single-concept pages for the 300% text-size step), where a
+      // dot row would shrink to unreadable slivers. Text also keeps About/How to play/Rules visually
+      // consistent with each other instead of switching indicator styles by page count.
+      text(`Page ${state.page + 1} of ${total}`, 360, 1290, 24, 'rgba(247,236,210,0.65)', UI, 600);
     } else if (scene === 'demo-limit') {
       text('Preview complete', 360, 340, 74, GOLD, DISPLAY, 700);
       fitText('You have used the free web preview. The full game for iPhone and Android has every lesson, all five computer levels, unlimited games and a new puzzle every day.', 360, 420, 540, 420, 32, PAPER);
@@ -207,13 +228,14 @@ export function render(ctx, state, h) {
   function drawBoardScene() {
     const g = G, n = g.n, pos = state.game, bs = bottomSide, cell = g.cell, ps = (cell / 68) * PIECE_SCALE;
     const topSide = 1 - bs;
-    const lessonScene = scene === 'lesson', puzzleScene = scene === 'puzzle';
+    const lessonScene = scene === 'lesson', puzzleScene = scene === 'puzzle', autoScene = scene === 'auto';
     // header
     ctx.textAlign = 'center';
-    if (!lessonScene && !puzzleScene) { text('将棋', 300, 88, 46, VERMILION, JP, 700); text('Shogi', 420, 88, 62, GOLD, DISPLAY, 700); }
+    if (autoScene) text('Auto Play', 360, 88, 56, GOLD, DISPLAY, 700);
+    else if (!lessonScene && !puzzleScene) { text('将棋', 300, 88, 46, VERMILION, JP, 700); text('Shogi', 420, 88, 62, GOLD, DISPLAY, 700); }
     else if (lessonScene) text(LESSONS[state.lesson.i].title, 360, 98, 52, GOLD, DISPLAY, 700);
     else text(`Puzzle of the day: mate in ${state.pz.pz.n}`, 360, 98, 50, GOLD, DISPLAY, 700);
-    const sub = lessonScene ? `Lesson ${state.lesson.i + 1} of ${LESSONS.length}` : puzzleScene ? (state.pz.extra ? 'Practice puzzle' : `Same puzzle for everyone today${state.daily.streak ? '   ·   streak ' + state.daily.streak : ''}`) : state.two ? 'Two players on one phone' : `${state.variant === 'mini' ? 'Mini shogi   ·   ' : ''}${LEVELS[state.level].name}   ·   you are ${state.human === 0 ? 'Sente (first)' : 'Gote (second)'}`;
+    const sub = autoScene ? `Watch & Learn  ·  think time ${THINK_STEPS[state.autoThinkIdx]}s` : lessonScene ? `Lesson ${state.lesson.i + 1} of ${LESSONS.length}` : puzzleScene ? (state.pz.extra ? 'Practice puzzle' : `Same puzzle for everyone today${state.daily.streak ? '   ·   streak ' + state.daily.streak : ''}`) : state.two ? 'Two players on one phone' : `${state.variant === 'mini' ? 'Mini shogi   ·   ' : ''}${LEVELS[state.level].name}   ·   you are ${state.human === 0 ? 'Sente (first)' : 'Gote (second)'}`;
     text(sub, 360, 140, 25, 'rgba(247,236,210,0.8)', UI, 500);
 
     drawStands(ctx);
@@ -237,7 +259,8 @@ export function render(ctx, state, h) {
     // in a lesson or puzzle the opponent's tray is covered by the teaching card
     if (!lessonScene && !puzzleScene) {
       drawStand('top', topSide);
-      const nameTop = state.two ? 'Gote' : `Computer  ·  ${LEVELS[state.level].name}`, nameBot = state.two ? 'Sente' : 'You';
+      const nameTop = autoScene ? 'Computer (Gote)' : state.two ? 'Gote' : `Computer  ·  ${LEVELS[state.level].name}`;
+      const nameBot = autoScene ? 'Computer (Sente)' : state.two ? 'Sente' : 'You';
       text(nameTop, 44, 186, 27, 'rgba(247,236,210,0.85)', UI, 600, 'left'); text(nameBot, 44, 1080, 27, 'rgba(247,236,210,0.85)', UI, 600, 'left');
       const turnSide = state.result ? -1 : pos.turn;
       const dotY = turnSide === topSide ? 178 : 1072;
@@ -245,6 +268,9 @@ export function render(ctx, state, h) {
       if (state.thinking) {
         const dots = calm ? 3 : 1 + (Math.floor(t * 3) % 3);
         text('Thinking' + '.'.repeat(dots), 676, 186, 26, GOLD, UI, 600, 'right');
+      } else if (autoScene && state.autoPhase) {
+        const dots = calm ? 3 : 1 + (Math.floor(t * 3) % 3);
+        text(state.autoPhase === 'think' ? 'Thinking' + '.'.repeat(dots) : 'This is the move', 676, 186, 26, GOLD, UI, 600, 'right');
       }
     } else {
       panel(30, 152, 660, 186, 0.9, 20);
@@ -300,6 +326,19 @@ export function render(ctx, state, h) {
         const gl = ctx.createRadialGradient(p.x, p.y, 2, p.x, p.y, cell * 0.3); gl.addColorStop(0, `rgba(255,236,150,${0.95 * pulse})`); gl.addColorStop(0.55, `rgba(240,170,50,${0.55 * pulse})`); gl.addColorStop(1, 'rgba(240,170,50,0)');
         ctx.fillStyle = gl; ctx.beginPath(); ctx.arc(p.x, p.y, cell * 0.3, 0, TAU); ctx.fill();
       }
+    }
+    // Auto Play's REVEAL phase: every legal destination for the piece about to move is drawn above
+    // (the loop just before this one, same as a normal selection) - this ring marks the ONE the
+    // engine is actually about to play, distinctly (bright cyan-white, not the gold/red of the rest),
+    // so the viewer can compare their own guess against the real move before it happens.
+    if (autoScene && state.autoPhase === 'reveal' && state.autoChosenTo >= 0) {
+      const p = sq(state.autoChosenTo), pulse = calm ? 0.75 : 0.65 + 0.35 * Math.sin(t * 7);
+      ctx.save(); ctx.lineCap = 'round';
+      ctx.strokeStyle = `rgba(120,220,255,${0.55 * pulse})`; ctx.lineWidth = 10;
+      ctx.beginPath(); ctx.arc(p.x, p.y, cell * 0.46, 0, TAU); ctx.stroke();
+      ctx.strokeStyle = `rgba(255,255,255,${0.85 + 0.15 * pulse})`; ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.arc(p.x, p.y, cell * 0.46, 0, TAU); ctx.stroke();
+      ctx.restore();
     }
     // hint
     if (state.hint) {

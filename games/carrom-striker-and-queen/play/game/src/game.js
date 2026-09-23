@@ -1,10 +1,10 @@
 // Carrom: state and flow. Drawing is view.js; rules.js is the rule book; physics.js the simulation; ai.js the computer.
 // Controls (taught on the How to play page): DRAG the striker along the baseline to place it, DRAG BACK to aim and set
 // power, RELEASE to flick. The same stroke machinery runs boards, lessons and the daily trick shot.
-import { W, H, K, BX, BY, PLAY, ux, uy, sx, sy, inRect, titleButtons, PLAYB, MENU, OVER, LESSONB, PAGE, PAGE_TEXT, TEXT_SCALES, settingRows, lessonRows } from './layout.js';
+import { W, H, K, BX, BY, PLAY, ux, uy, sx, sy, inRect, titleButtons, PLAYB, MENU, OVER, LESSONB, PAGE, PAGE_TEXT, TEXT_SCALES, settingRows, lessonRows, AUTO_THINK_STEPS, AUTO_REVEAL_SECS, AUTO_BAR, AUTO_DEC, AUTO_INC } from './layout.js';
 import { S, BASE_Y, BASE_X0, BASE_X1, stepWorld, moving, blocked, cloneWorld, R_STR } from './physics.js';
 import { newBoard, cloneGame, placeStriker, flick, resolve, clearX, onBoard, down, other, SIDE_NAME } from './rules.js';
-import { createThinker, AI_LEVELS } from './ai.js';
+import { createThinker, chooseShot, AI_LEVELS } from './ai.js';
 import { LESSONS, judge } from './lessons.js';
 import { createPuzzleMaker, puzzleBoard } from './daily.js';
 import { THEME_KEYS } from './art.js';
@@ -24,24 +24,28 @@ export function createGame(env) {
     stats: { played: 0, wins: 0 }, learned: {}, lesson: null, demoBoards: 0, saved: null, demoMode: config.demo === true, dev: config.dev === true,
     daily: { day: config.day ?? 0, solvedDay: -1, streak: 0, puzzle: null }, pz: null,
     demo: { world: [], fx: [], t: 0, strokes: 0, wait: 0.35 },
+    autoThinkIdx: 1, // indexes AUTO_THINK_STEPS ([2,5,8,10]s); Auto Play's THINK pause, default 5s
+    auto: null, // Auto Play ("Watch & Learn") run state; see startAutoPlay()
   };
   let thinker = null, hintThinker = null, aiShot = null, maker = createPuzzleMaker(state.daily.day), sounds = 0;
 
   // textScaleIdx is clamped on load: a saved index from a build with a longer/shorter TEXT_SCALES
   // must never produce an out-of-range lookup (NaN font sizes) in view.js.
-  storage.get('prefs', null).then((v) => { if (v) { for (const k of ['level', 'sound', 'calm', 'left', 'theme', 'guide']) if (v[k] !== undefined) state[k] = v[k]; if (v.textScaleIdx !== undefined) state.textScaleIdx = Math.min(Math.max(v.textScaleIdx, 0), TEXT_SCALES.length - 1); audio.setMuted?.(!state.sound); } });
+  storage.get('prefs', null).then((v) => { if (v) { for (const k of ['level', 'sound', 'calm', 'left', 'theme', 'guide']) if (v[k] !== undefined) state[k] = v[k]; if (v.textScaleIdx !== undefined) state.textScaleIdx = Math.min(Math.max(v.textScaleIdx, 0), TEXT_SCALES.length - 1); if (v.autoThinkIdx !== undefined) state.autoThinkIdx = Math.min(Math.max(v.autoThinkIdx, 0), AUTO_THINK_STEPS.length - 1); audio.setMuted?.(!state.sound); } });
   storage.get('stats', null).then((v) => { if (v) state.stats = { ...state.stats, ...v }; });
   storage.get('learned', null).then((v) => { if (v) state.learned = { ...state.learned, ...v }; });
   storage.get('daily', null).then((v) => { if (v) { state.daily.solvedDay = v.solvedDay ?? -1; state.daily.streak = v.streak ?? 0; } });
   storage.get('demoBoards', 0).then((v) => { state.demoBoards = Math.max(state.demoBoards, v); });
   storage.get('save', null).then((v) => { if (v && v.g && !v.g.over && state.scene === 'title') state.saved = v; });
-  const savePrefs = () => storage.set('prefs', { level: state.level, sound: state.sound, calm: state.calm, textScaleIdx: state.textScaleIdx, left: state.left, theme: state.theme, guide: state.guide });
+  const savePrefs = () => storage.set('prefs', { level: state.level, sound: state.sound, calm: state.calm, textScaleIdx: state.textScaleIdx, left: state.left, theme: state.theme, guide: state.guide, autoThinkIdx: state.autoThinkIdx });
   const saveStats = () => { storage.set('stats', state.stats); storage.set('progress', { played: state.stats.played, wins: state.stats.wins }); };
   const saveBoard = () => { if (state.scene === 'play' && !state.g.over) { state.saved = { g: cloneGame(state.g), mode: state.mode, level: state.level, hintsLeft: state.hintsLeft }; storage.set('save', state.saved); } };
   const clearSave = () => { state.saved = null; storage.remove('save'); };
 
   const say = (text, hold = 4) => { state.msg = { text, t: 0, hold }; };
-  const tone = (o) => { if (state.sound && sounds < 3) { sounds++; audio.tone(o); } };
+  // Auto Play is silent by design regardless of the player's own Sound setting — single point of
+  // truth: every sound in the game already funnels through this one helper.
+  const tone = (o) => { if (state.sound && sounds < 3 && state.scene !== 'auto') { sounds++; audio.tone(o); } };
   const dur = (d) => (state.calm ? d * 0.6 : d);
   const sfxHit = (v) => { const f = Math.min(1, v / 1800); tone({ freq: 620 + f * 500, to: 210, dur: 0.07, type: 'triangle', vol: 0.05 + f * 0.09 }); if (f > 0.15) tone({ freq: 2100 + f * 900, to: 900, dur: 0.02, type: 'square', vol: 0.02 + f * 0.03 }); };
   const sfxWall = (v) => { const f = Math.min(1, v / 1500); tone({ freq: 300, to: 130, dur: 0.06, type: 'sine', vol: 0.05 + f * 0.08 }); };
@@ -202,6 +206,86 @@ export function createGame(env) {
     state.hintBusy = true; hintThinker = createThinker(state.g, state.g.turn, 3, rng.int(1 << 30), true);
   }
 
+  // ---------------------------------------------------------------- Auto Play ("Watch & Learn")
+  // A full, start-to-finish assisted-learning demo: BOTH sides are driven by the exact same computer
+  // move-chooser real Black already uses (ai.js's createThinker/chooseShot — chooseShot just runs a
+  // thinker to completion in one call, used already by tests and the daily-shot search), through a
+  // THINK -> REVEAL -> ACT loop for every stroke (this game's one decision point, exactly a human's
+  // own turn): THINK holds the board still for a configurable pause; REVEAL sets the real chosen shot
+  // as the current aim (`state.aim`, `state.phase = 'aiaim'`) so the exact same trajectory-guide line
+  // a human's own aim already draws lights up — "a valid shot arc" is literally the brief's own
+  // suggested mapping of "legal options" for a shot-based game; ACT fires it through the exact same
+  // `fire()` function real play uses, and the exact same `stepWorld`/`endStroke`/`resolve` physics
+  // and rules then play out untouched. Loops for a whole board to a real result (`g.over`), reusing
+  // the exact same "Play again" / "Menu" overlay a real board-over already shows. Never touches
+  // stats/save/demoBoards — Auto Play keeps its own `state.auto` and calls none of those writes.
+  const autoThinkSecs = () => AUTO_THINK_STEPS[state.autoThinkIdx];
+  function startAutoPlay() {
+    resetTurn();
+    state.g = newBoard('W');
+    state.mode = 'two'; // cosmetic only (Player 1/Player 2 phrasing) — never persisted, never leaks into a real board
+    state.scene = 'auto';
+    state.sx = S / 2;
+    state.auto = { sub: 'think', timer: 0, shot: null, paused: false };
+    beginAutoTurn();
+  }
+  function beginAutoTurn() {
+    state.sx = clearX(state.g, state.g.turn, state.sx);
+    state.auto.sub = 'think'; state.auto.timer = 0; state.auto.shot = null;
+    state.phase = 'think'; state.aim = null;
+  }
+  function teardownAuto() { state.auto = null; state.aim = null; state.phase = 'aim'; }
+  function afterStrokeAuto() {
+    const g = state.g;
+    if (g.over) { state.phase = 'over'; return; } // reuses the real board-over overlay; never touches stats/save
+    beginAutoTurn();
+  }
+  function updateAutoScene(dt, tap) {
+    updateFx(dt);
+    const g = state.g, A = state.auto;
+    if (!A) return;
+    const mir = (r) => (state.left ? { ...r, x: W - r.x - r.w } : r);
+    if (tap) {
+      if (inRect(mir(AUTO_DEC), tap.x, tap.y)) { if (state.autoThinkIdx > 0) { state.autoThinkIdx -= 1; savePrefs(); } return; }
+      if (inRect(mir(AUTO_INC), tap.x, tap.y)) { if (state.autoThinkIdx < AUTO_THINK_STEPS.length - 1) { state.autoThinkIdx += 1; savePrefs(); } return; }
+      if (state.phase === 'over') {
+        if (inRect(OVER.again, tap.x, tap.y)) startAutoPlay();
+        else if (inRect(OVER.menu, tap.x, tap.y)) { teardownAuto(); state.scene = 'title'; }
+        return;
+      }
+      if (inRect(mir(PLAYB.menu), tap.x, tap.y)) { teardownAuto(); state.scene = 'title'; return; } // "Exit"
+      if (inRect(mir(PLAYB.hint), tap.x, tap.y)) { A.paused = !A.paused; return; } // "Pause"/"Resume"
+      if (inRect(mir(PLAYB.flick), tap.x, tap.y)) { if (A.sub === 'think' || A.sub === 'reveal') A.timer = 999; return; } // "Skip"
+      return;
+    }
+    if (state.phase === 'over' || A.paused) return;
+    if (state.phase === 'fly') {
+      const ev = []; stepWorld(g.world, ev); state.ev.push(...ev); fxFor(ev); state.wait += dt;
+      if (!moving(g.world) || state.wait > 20) endStroke();
+      return;
+    }
+    if (state.phase === 'after') { state.wait += dt; if (state.wait >= dur(0.95)) afterStrokeAuto(); return; }
+    if (A.sub === 'think') {
+      A.timer += dt;
+      if (A.timer >= autoThinkSecs()) {
+        A.shot = chooseShot(g, g.turn, state.level, rng.int(1 << 30), false);
+        state.sx = clearX(g, g.turn, A.shot.x);
+        state.aim = { angle: A.shot.angle, power: A.shot.power };
+        state.phase = 'aiaim'; // reuse the human aim's own trajectory-guide rendering, unchanged
+        A.sub = 'reveal'; A.timer = 0;
+      }
+      return;
+    }
+    if (A.sub === 'reveal') {
+      A.timer += dt;
+      if (A.timer >= AUTO_REVEAL_SECS) {
+        const s = A.shot; A.shot = null; A.sub = 'think'; A.timer = 0;
+        fire(s.angle, s.power); // the exact same function a human's own flick calls
+      }
+      return;
+    }
+  }
+
   // ---------------------------------------------------------------- scenes
   function updateFx(dt) { state.shake = state.shake > 0.05 ? state.shake * Math.exp(-9 * dt) : 0; for (const f of state.fx) f.t += dt; state.fx = state.fx.filter((f) => f.t < f.dur); if (state.msg) { state.msg.t += dt; if (state.msg.t > state.msg.hold) state.msg = null; } }
   function updateBoardScene(dt, input, tap) {
@@ -256,6 +340,7 @@ export function createGame(env) {
     else if (hit(B.level)) { state.level = (state.level + 1) % AI_LEVELS.length; savePrefs(); tone({ freq: 500, to: 300, dur: 0.06, type: 'triangle', vol: 0.06 }); }
     else if (hit(B.howto)) { state.scene = 'howto'; state.page = 0; } else if (hit(B.about)) { state.scene = 'about'; state.page = 0; }
     else if (hit(B.rules)) { state.scene = 'rules'; state.page = 0; } else if (hit(B.settings)) { state.back = 'title'; state.scene = 'settings'; }
+    else if (hit(B.auto)) startAutoPlay();
   }
   // Text-size stepper (A-/A+) shared by the About/Controls/Game Rules reference pages. Returns
   // true when the tap landed on one of the two buttons (whether or not it moved the index — tapping
@@ -286,8 +371,13 @@ export function createGame(env) {
       else if (sc === 'about') { if (tap) { if (inRect(PAGE.back, tap.x, tap.y)) state.scene = 'title'; else if (inRect(PAGE.next, tap.x, tap.y)) state.page = Math.min(state.page + 1, ABOUT_PAGES.length - 1); else if (inRect(PAGE.prev, tap.x, tap.y)) state.page = Math.max(state.page - 1, 0); else if (stepText(tap)) {} } }
       else if (sc === 'demo-limit') { if (tap && inRect(PAGE.back, tap.x, tap.y)) state.scene = 'title'; }
       else if (sc === 'lessons') { if (tap) { if (inRect(PAGE.back, tap.x, tap.y)) state.scene = 'title'; else { const i = lessonRows().findIndex((r) => inRect(r, tap.x, tap.y)); if (i >= 0) startLesson(i); } } }
+      else if (sc === 'auto') updateAutoScene(dt, tap);
     },
     render(ctx) { render(ctx, state); },
     getState: () => state,
+    // Auto Play is meant to be free like the menu's own attract-mode preview, never gated like real
+    // play — exempts this scene's time from the shared free-preview timer (kit 1.6.1+, no-op on
+    // free/no-preview games and on older kit).
+    isPreviewExempt: () => state.scene === 'auto',
   };
 }

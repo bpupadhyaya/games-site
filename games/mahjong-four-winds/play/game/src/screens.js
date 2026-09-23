@@ -35,9 +35,9 @@ export function titleRects(S) {
   const y0 = S.saved ? 852 : 900, pitch = S.saved ? 96 : 104, h = S.saved ? 82 : 88;
   const out = rows.map((r, i) => ({ ...r, r: { x: 90, y: y0 + i * pitch, w: 540, h } }));
   const yb = y0 + rows.length * pitch + 8;
-  // Controls/About/Settings share one row; Rules is the addition (was 3 columns, now 4 - same row, same
-  // total span x=40..680, so nothing below it (the Language row) moves).
-  const small = [['how', 'How to play'], ['about', 'About'], ['rules', 'Rules'], ['settings', 'Settings']];
+  // Controls/About/Rules/Settings share one row; Auto Play is the addition (was 4 columns, now 5 -
+  // same row, same total span x=40..680, so nothing below it (the Language row) moves).
+  const small = [['how', 'How to play'], ['about', 'About'], ['rules', 'Rules'], ['auto', 'Auto Play'], ['settings', 'Settings']];
   const smallGap = 10, smallW = (640 - (small.length - 1) * smallGap) / small.length;
   small.forEach(([id, label], i) => out.push({ id, label, kind: 'wood', small: true, r: { x: 40 + i * (smallW + smallGap), y: yb, w: smallW, h: 72 } }));
   out.push({ id: 'lv0', chip: 0, r: { x: 40, y: y0 - 92, w: 210, h: 60 } }, { id: 'lv1', chip: 1, r: { x: 255, y: y0 - 92, w: 210, h: 60 } }, { id: 'lv2', chip: 2, r: { x: 470, y: y0 - 92, w: 210, h: 60 } });
@@ -126,7 +126,18 @@ export function renderSettings(ctx, S, rs) {
 }
 
 // ------------------------------------------------------------------------------------------------- how / about / rules
-export const PAGER = { prev: { x: 40, y: 1400, w: 200, h: 86 }, next: { x: 480, y: 1400, w: 200, h: 86 }, back: { x: 260, y: 1400, w: 200, h: 86 } };
+// The pager row always spans the same x=40..680 strip, but fills it with however many of
+// Previous/Back/Next actually apply on the current page (Previous only once you're past page 1,
+// Next only before the last page) - three equal pills, or two wider ones on the first/last page,
+// never a lopsided pair pushed to one side with dead margin on the other.
+export function pagerRects(hasPrev, hasNext) {
+  const X0 = 40, SPAN = 640, GAP = 20, Y = 1400, H = 86;
+  const n = 1 + (hasPrev ? 1 : 0) + (hasNext ? 1 : 0);
+  const w = (SPAN - GAP * (n - 1)) / n;
+  let x = X0, i = 0;
+  const next = () => { const r = { x, y: Y, w, h: H }; x += w + GAP; i++; return r; };
+  return { prev: hasPrev ? next() : null, back: next(), next: hasNext ? next() : null };
+}
 // Text-size stepper for these reference pages: a top header row, clear of the screen title below it
 // and of the Previous/Back/Next pager in the footer. "A-"/"A+", same interaction on every one of
 // How to play / About / Rules.
@@ -167,16 +178,30 @@ function pages(ctx, S, rs, list, page, title) {
   tx(ctx, title, 360, 170, Math.round(84 * Math.min(scale, 1.15)), GOLD, { font: DISPLAY, shadow: true });
   const p = list[page];
   panel(ctx, 40, 210, 640, 1120, { alpha: 0.7 });
-  tx(ctx, p.title, 360, 300, fitTitleSize(ctx, p.title, Math.round(60 * scale)), IVORY, { font: DISPLAY });
+  // The page's own sub-title only needs to stay comfortably legible, not grow 1:1 with body text -
+  // past a modest cap it would collide with the header above and the divider below at high scale.
+  tx(ctx, p.title, 360, 300, fitTitleSize(ctx, p.title, Math.round(60 * Math.min(scale, 1.15))), IVORY, { font: DISPLAY });
   ctx.strokeStyle = 'rgba(241,207,122,0.4)'; ctx.beginPath(); ctx.moveTo(120, 326); ctx.lineTo(600, 326); ctx.stroke();
   let y = p.tileRows ? drawTileRows(ctx, p.tileRows, S.prefs.style, 346) : 390;
   const fontPx = Math.round(28 * scale), lh = Math.round(38 * scale);
+  // drawTileRows() ends with a small fixed gap sized for the base (28px) font. Body text is drawn on
+  // its baseline, so a larger scaled font's own ascent can climb back up into the last row's caption
+  // unless the gap grows with it too - add back the difference above the base font's assumed ascent.
+  if (p.tileRows) y += Math.max(0, fontPx - 28);
   for (const line of p.lines) { const n = wrap(ctx, line, 84, y, fontPx, 552, IVORY, { align: 'left', lh }); y += n * lh + 26; }
-  list.forEach((_, i) => { ctx.fillStyle = i === page ? GOLD : 'rgba(247,239,214,0.3)'; ctx.beginPath(); ctx.arc(360 + (i - (list.length - 1) / 2) * 30, 1300, 7, 0, TAU); ctx.fill(); });
+  // A dot per page reads fine for a handful of pages, but some rulesets need many very short pages
+  // once text is large - past a page count that would crowd or run the dots off the panel width,
+  // show a plain "page X of N" label instead (still centred where the dots would sit).
+  if (list.length <= 16) {
+    list.forEach((_, i) => { ctx.fillStyle = i === page ? GOLD : 'rgba(247,239,214,0.3)'; ctx.beginPath(); ctx.arc(360 + (i - (list.length - 1) / 2) * 30, 1300, 7, 0, TAU); ctx.fill(); });
+  } else {
+    tx(ctx, `Page ${page + 1} of ${list.length}`, 360, 1306, 22, 'rgba(247,239,214,0.75)', { weight: 600 });
+  }
   const hasPrev = page > 0, hasNext = page < list.length - 1;
-  if (hasPrev) btn(ctx, PAGER.prev, 'Previous', { kind: 'wood', size: 30, pressed: rs.ptr.down && inRect(PAGER.prev, rs.ptr.x, rs.ptr.y) });
-  btn(ctx, hasNext || hasPrev ? PAGER.back : { ...PAGER.back, x: 260 }, 'Back', { kind: hasNext ? 'wood' : 'gold', size: 32 });
-  if (hasNext) btn(ctx, PAGER.next, 'Next', { kind: 'gold', size: 30, pressed: rs.ptr.down && inRect(PAGER.next, rs.ptr.x, rs.ptr.y) });
+  const P = pagerRects(hasPrev, hasNext);
+  if (hasPrev) btn(ctx, P.prev, 'Previous', { kind: 'wood', size: 30, pressed: rs.ptr.down && inRect(P.prev, rs.ptr.x, rs.ptr.y) });
+  btn(ctx, P.back, 'Back', { kind: hasNext ? 'wood' : 'gold', size: 32 });
+  if (hasNext) btn(ctx, P.next, 'Next', { kind: 'gold', size: 30, pressed: rs.ptr.down && inRect(P.next, rs.ptr.x, rs.ptr.y) });
   const atMin = S.prefs.textScaleIdx === 0, atMax = S.prefs.textScaleIdx === TEXT_SCALES.length - 1;
   btn(ctx, TEXT_STEPPER.dec, 'A−', { kind: 'wood', size: 32, off: atMin, pressed: !atMin && rs.ptr.down && inRect(TEXT_STEPPER.dec, rs.ptr.x, rs.ptr.y) });
   btn(ctx, TEXT_STEPPER.inc, 'A+', { kind: 'wood', size: 32, off: atMax, pressed: !atMax && rs.ptr.down && inRect(TEXT_STEPPER.inc, rs.ptr.x, rs.ptr.y) });
@@ -316,13 +341,14 @@ export function renderLesson(ctx, S, rs) {
 // ------------------------------------------------------------------------------------------------- overlays
 export const PAUSE_RECTS = { resume: { x: 130, y: 640, w: 460, h: 88 }, sound: { x: 130, y: 750, w: 460, h: 88 }, quit: { x: 130, y: 860, w: 460, h: 88 } };
 export function renderPause(ctx, S, rs) {
+  const auto = S.scene === 'auto';
   ctx.fillStyle = 'rgba(0,10,6,0.7)'; ctx.fillRect(0, 0, W, H);
   panel(ctx, 90, 540, 540, 520, { alpha: 0.95 });
   tx(ctx, 'Paused', 360, 610, 66, GOLD, { font: DISPLAY, shadow: true });
   btn(ctx, PAUSE_RECTS.resume, 'Resume', { kind: 'gold', size: 36 });
   btn(ctx, PAUSE_RECTS.sound, S.prefs.sound ? 'Sound: on' : 'Sound: off', { kind: 'jade', size: 32 });
-  btn(ctx, PAUSE_RECTS.quit, 'Save and leave', { kind: 'wood', size: 32 });
-  tx(ctx, 'Your hand is saved when you leave.', 360, 1010, 20, 'rgba(247,239,214,0.65)', { weight: 600 });
+  btn(ctx, PAUSE_RECTS.quit, auto ? 'Exit to menu' : 'Save and leave', { kind: 'wood', size: 32 });
+  tx(ctx, auto ? 'This Auto Play demonstration is not saved.' : 'Your hand is saved when you leave.', 360, 1010, 20, 'rgba(247,239,214,0.65)', { weight: 600 });
 }
 export function renderDemoLimit(ctx, S) {
   drawTable(ctx);

@@ -12,6 +12,8 @@ import {
   SCREEN, hitTestCell, HINT_BUTTON, UNDO_BUTTON, PLAY10_BUTTON, DAILY_BUTTON, COLOR_BUTTON,
   TITLE_COLOR_BUTTON, TITLE_RULES_BUTTON, RULES_BACK_BUTTON, RULES_NEXT_BUTTON,
   RULES_TEXT_DEC_BUTTON, RULES_TEXT_INC_BUTTON, TEXT_SCALES, inRect,
+  TITLE_AUTO_BUTTON, AUTO_EXIT_BUTTON, AUTO_PAUSE_BUTTON, AUTO_SKIP_BUTTON, AUTO_AGAIN_BUTTON,
+  AUTO_EXIT2_BUTTON, AUTO_THINK_STEPS, AUTO_REVEAL_SECS, AUTO_DEC_BUTTON, AUTO_INC_BUTTON,
 } from './layout.js';
 import { PALETTES } from './palettes.js';
 import { RULES } from './content.js';
@@ -59,6 +61,8 @@ export function createGame(env) {
     demo: Boolean(config?.demo),
     demoSolves: 0,
     demoLimitReached: false,
+    autoThinkIdx: 1, // index into AUTO_THINK_STEPS ([2,5,8,10]s); Auto Play's THINK pause, default 5s
+    auto: null, // Auto Play ("Watch & Learn") run state; see startAutoPlay()
     // Presentation-only clocks and marks (view.js reads them; they never affect the rules). They
     // advance with the fixed update step, so the run stays deterministic.
     t: 0, // seconds since boot
@@ -68,6 +72,9 @@ export function createGame(env) {
     ptr: { x: 0, y: 0, down: false },
   };
 
+  // Auto Play is silent by design regardless of anything else — single point of truth: every sound
+  // in the game now goes through this one helper.
+  const tone = (o) => { if (state.scene !== 'auto') audio.tone(o); };
   // Stamp every cell whose mark differs from `before`; marks ripple outward from `origin`.
   const stampChanges = (before, origin = -1) => {
     const n = state.size;
@@ -91,6 +98,9 @@ export function createGame(env) {
 
   storage.get('totalSolved', 0).then((value) => {
     state.totalSolved = value;
+  });
+  storage.get('autoThinkIdx', 1).then((value) => {
+    state.autoThinkIdx = Math.min(Math.max(Number(value) || 0, 0), AUTO_THINK_STEPS.length - 1);
   });
   // Clamped on load: a saved index from a build with a shorter/longer TEXT_SCALES array must never
   // produce an out-of-range lookup (and NaN font sizes) on this one.
@@ -131,7 +141,7 @@ export function createGame(env) {
     const crowns = crownsFromCells(state.size, state.cells);
     const before = state.conflicts.length;
     state.conflicts = [...computeConflicts(state.regions, crowns)];
-    if (state.conflicts.length > before) audio.tone({ freq: 140, dur: 0.12, type: 'square', vol: 0.5 });
+    if (state.conflicts.length > before) tone({ freq: 140, dur: 0.12, type: 'square', vol: 0.5 });
     return crowns;
   };
 
@@ -143,9 +153,9 @@ export function createGame(env) {
     state.totalSolved += 1;
     storage.set('totalSolved', state.totalSolved);
     monetization.track('puzzle_complete', { size: state.size, mode: state.mode, moves: state.moves });
-    audio.tone({ freq: 523, dur: 0.1 });
-    audio.tone({ freq: 659, dur: 0.1 });
-    audio.tone({ freq: 784, dur: 0.16 });
+    tone({ freq: 523, dur: 0.1 });
+    tone({ freq: 659, dur: 0.1 });
+    tone({ freq: 784, dur: 0.16 });
     if (state.mode === 'endless') {
       state.puzzlesSolved += 1;
     }
@@ -161,8 +171,8 @@ export function createGame(env) {
     if (isSolved(state.size, crowns, new Set(state.conflicts))) finishPuzzle();
   };
 
-  const loadPuzzle = (mode, puzzle) => {
-    state.scene = 'playing';
+  const loadPuzzle = (mode, puzzle, scene = 'playing') => {
+    state.scene = scene;
     state.mode = mode;
     state.size = puzzle.size;
     state.regions = puzzle.regions;
@@ -191,7 +201,7 @@ export function createGame(env) {
     state.moves += 1;
     if (state.cells[index] === 'crown') {
       autoCrossForCrown(index);
-      audio.tone({ freq: 392, dur: 0.08 });
+      tone({ freq: 392, dur: 0.08 });
     }
     stampChanges(state.history[state.history.length - 1], index);
     recomputeConflicts();
@@ -206,26 +216,102 @@ export function createGame(env) {
     recomputeConflicts();
   };
 
+  // The next not-yet-placed solution crown, region by region — exactly what the Hint button below
+  // already finds. Auto Play reuses this same lookup (and the placement it leads to) to choose and
+  // then reveal/act on every one of its own decisions, rather than a separate move-picker.
+  const nextSolutionCell = () => {
+    for (let regionId = 0; regionId < state.size; regionId++) {
+      const cell = state.solution[regionId];
+      const index = cell.row * state.size + cell.col;
+      if (state.cells[index] !== 'crown') return index;
+    }
+    return -1;
+  };
+  // Places a proven-correct crown through the exact same steps a real placement takes (history,
+  // auto-cross, mark-change stamping, conflict recompute) — used by both the real Hint button and
+  // Auto Play's ACT step.
+  const placeSolutionCrownAt = (index) => {
+    pushHistory();
+    state.cells[index] = 'crown';
+    autoCrossForCrown(index);
+    stampChanges(state.history[state.history.length - 1], index);
+    recomputeConflicts();
+  };
+
   const requestHint = async () => {
     if (state.hintPending || state.scene !== 'playing') return;
     state.hintPending = true;
     state.hintPending = false;
     if (state.scene !== 'playing') return;
-    for (let regionId = 0; regionId < state.size; regionId++) {
-      const cell = state.solution[regionId];
-      const index = cell.row * state.size + cell.col;
-      if (state.cells[index] !== 'crown') {
-        pushHistory();
-        state.cells[index] = 'crown';
-        state.hintsUsed += 1;
-        autoCrossForCrown(index);
-        stampChanges(state.history[state.history.length - 1], index);
-        recomputeConflicts();
-        checkSolved();
-        return;
-      }
+    const index = nextSolutionCell();
+    if (index >= 0) {
+      placeSolutionCrownAt(index);
+      state.hintsUsed += 1;
+      checkSolved();
     }
   };
+
+  // ---------------------------------------------------------------- Auto Play ("Watch & Learn")
+  // A full, start-to-finish assisted-learning demo. This puzzle has no opponent AI to reuse, but it
+  // already has a real move-chooser: the same region-by-region "next correct crown" lookup the real
+  // Hint button already uses (`nextSolutionCell`, backed by the generator's own solver — see
+  // generator.js's `findSolutions`/`generatePuzzle`, which proves the puzzle's solution before the
+  // player ever sees it). Auto Play calls that unchanged, through a THINK -> REVEAL -> ACT loop for
+  // every crown (this puzzle's one decision point, exactly a player's own move): THINK holds the
+  // board still; REVEAL highlights the target cell (a ring drawn in view.js, the same visual
+  // language as the board's other glows); ACT places it through the exact same `placeSolutionCrownAt`
+  // function the real Hint button calls — never a separate fake path. Loops until the whole board is
+  // solved, then offers "Play again" / "Exit". Never touches totalSolved/demoSolves/hintsUsed — Auto
+  // Play keeps its own `state.auto` and calls none of those writes.
+  const autoThinkSecs = () => AUTO_THINK_STEPS[state.autoThinkIdx];
+  const startAutoPlay = () => {
+    const puzzle = generatePuzzle(rng.fork(), 7) ?? generatePuzzle(rng.fork(), 7, { attempts: 400 });
+    loadPuzzle('endless', puzzle, 'auto');
+    state.auto = { sub: 'think', timer: 0, target: -1, paused: false };
+  };
+  const teardownAuto = () => { state.auto = null; };
+  const checkSolvedAuto = () => {
+    const crowns = crownsFromCells(state.size, state.cells);
+    if (isSolved(state.size, crowns, new Set(state.conflicts))) {
+      state.solved = true;
+      state.solveTime = state.time;
+      state.solveMoves = state.moves;
+      state.auto.sub = 'over';
+    }
+  };
+  function updateAutoScene(dt, tap) {
+    const A = state.auto;
+    if (!A) return;
+    if (tap) {
+      if (inRect(tap.x, tap.y, AUTO_DEC_BUTTON)) { if (state.autoThinkIdx > 0) { state.autoThinkIdx -= 1; storage.set('autoThinkIdx', state.autoThinkIdx); } return; }
+      if (inRect(tap.x, tap.y, AUTO_INC_BUTTON)) { if (state.autoThinkIdx < AUTO_THINK_STEPS.length - 1) { state.autoThinkIdx += 1; storage.set('autoThinkIdx', state.autoThinkIdx); } return; }
+      if (A.sub === 'over') {
+        if (inRect(tap.x, tap.y, AUTO_AGAIN_BUTTON)) startAutoPlay();
+        else if (inRect(tap.x, tap.y, AUTO_EXIT2_BUTTON)) { teardownAuto(); state.scene = 'title'; }
+        return;
+      }
+      if (inRect(tap.x, tap.y, AUTO_EXIT_BUTTON)) { teardownAuto(); state.scene = 'title'; return; }
+      if (inRect(tap.x, tap.y, AUTO_PAUSE_BUTTON)) { A.paused = !A.paused; return; }
+      if (inRect(tap.x, tap.y, AUTO_SKIP_BUTTON)) { if (A.sub === 'think' || A.sub === 'reveal') A.timer = 999; return; }
+      return;
+    }
+    if (A.paused || A.sub === 'over') return;
+    if (A.sub === 'think') {
+      A.timer += dt;
+      if (A.timer >= autoThinkSecs()) { A.target = nextSolutionCell(); A.sub = 'reveal'; A.timer = 0; }
+      return;
+    }
+    if (A.sub === 'reveal') {
+      A.timer += dt;
+      if (A.timer >= AUTO_REVEAL_SECS) {
+        if (A.target >= 0) placeSolutionCrownAt(A.target);
+        A.target = -1;
+        checkSolvedAuto();
+        if (A.sub === 'reveal') { A.sub = 'think'; A.timer = 0; }
+      }
+      return;
+    }
+  }
 
   return {
     update(dt, input) {
@@ -233,7 +319,10 @@ export function createGame(env) {
       state.t += dt;
       state.sceneT += dt;
       state.ptr = { x: input.pointer.x, y: input.pointer.y, down: Boolean(input.pointer.down) };
-      step(dt, input);
+      // Auto Play has its own per-frame timers (THINK/REVEAL), unlike every other scene here, which
+      // only ever reacts to a fresh tap — so it bypasses step()'s tap-only gate.
+      if (state.scene === 'auto') { state.time += dt; updateAutoScene(dt, input.pointer.pressed ? { x: input.pointer.x, y: input.pointer.y } : null); }
+      else step(dt, input);
       if (state.scene !== sceneBefore) state.sceneT = 0;
     },
 
@@ -268,6 +357,8 @@ export function createGame(env) {
           else state.lockMessageTimer = 1.6;
         } else if (inRect(x, y, DAILY_BUTTON)) {
           startDaily();
+        } else if (inRect(x, y, TITLE_AUTO_BUTTON)) {
+          startAutoPlay();
         } else {
           startEndless(7);
         }

@@ -1,5 +1,5 @@
 // Everything drawn each frame. Reads `state` (game.js) and changes nothing. Static art is cached (art.js).
-import { W, H, R, px, py, stoneR, boardLayout, titleButtons, PAGE_NAV, TEXT_SCALES, TEXT_BTN, PLAYBOARD } from './layout.js';
+import { W, H, R, px, py, stoneR, boardLayout, titleButtons, PAGE_NAV, TEXT_SCALES, TEXT_BTN, THINK_STEPS, REVEAL_TIME, AUTOPLAY, PLAYBOARD } from './layout.js';
 import { drawTable, drawBoardLayer, drawLamp, drawStone, drawShadow, drawBowl, THEMES } from './art.js';
 import { LEVELS } from './engine.js';
 import { LESSONS } from './lessons.js';
@@ -10,19 +10,50 @@ import { RULES } from './content.js';
 const FONT = '"Cormorant Garamond", Georgia, "Times New Roman", serif', UI = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
 const TAU = Math.PI * 2;
 export const TITLE_L = { ...boardLayout(9, 136, 404, 448), plain: true };
+// Each entry is one short, single-concept page - split fine enough (one clause or short sentence
+// each) to still fit the reader panel at the top text-size step (see layout.js's TEXT_SCALES, now
+// reaching 3.0 / 300%). Wording is unchanged from the original longer paragraphs; only regrouped.
 export const ABOUT_TEXT = [
-  ['Go, the game of stones and territory', 'Go is one of the oldest board games still played today. It began in China more than 2,500 years ago, where it is called Weiqi, and it travelled to Korea, where it is called Baduk, and to Japan, where it is called Igo.'],
-  ['In the culture', 'In China, Go (qi) was counted among the four arts of the scholar, beside the zither, calligraphy and painting. Across East Asia it has long been played at home, in tea houses and in clubs, by children and by grandparents.'],
-  ['Why it lasts', 'The rules fit on one page: place stones, surround space, capture what has no liberties. Yet on a 19 x 19 board the number of possible positions is larger than the number of atoms in the observable universe.'],
-  ['Stones and boards', 'Traditional sets use slate for black stones and shell for white, kept in round wooden bowls. Fine boards are carved from a single block of wood, often kaya, and are prized for their grain.'],
-  ['Counting the score', 'China uses area scoring (stones plus territory), which is what this game uses. Japan and Korea count territory and prisoners instead. The winner is usually the same either way.'],
+  ['Go, the game of stones and territory', 'Go is one of the oldest board games still played today.'],
+  ['Where Go began', 'It began in China more than 2,500 years ago, where it is called Weiqi.'],
+  ['Go travels to Korea', 'It travelled to Korea, where it is called Baduk,'],
+  ['Go travels to Japan', 'and to Japan, where it is called Igo.'],
+  ['In the culture', 'In China, Go (qi) was counted among the four arts of the scholar,'],
+  ['The four arts', 'beside the zither, calligraphy and painting.'],
+  ['Played everywhere', 'Across East Asia it has long been played at home, in tea houses and in clubs,'],
+  ['Played by everyone', 'by children and by grandparents.'],
+  ['Why it lasts', 'The rules fit on one page: place stones, surround space, capture what has no liberties.'],
+  ['Bigger than the universe', 'Yet on a 19 x 19 board the number of possible'],
+  ['Bigger than the universe, continued', 'positions is larger than the number of atoms'],
+  ['Bigger than the universe, still', 'in the observable universe.'],
+  ['Stones and boards', 'Traditional sets use slate for black stones and shell for white,'],
+  ['Stones and boards, continued', 'kept in round wooden bowls.'],
+  ['Fine boards', 'Fine boards are carved from a single block of wood, often kaya,'],
+  ['Fine boards, continued', 'and are prized for their grain.'],
+  ['Counting the score', 'China uses area scoring (stones plus territory), which is what this game uses.'],
+  ['Territory and prisoners', 'Japan and Korea count territory and prisoners instead.'],
+  ['Usually the same winner', 'The winner is usually the same either way.'],
 ];
 export const HOW_TEXT = [
-  ['Placing a stone', 'TAP a crossing: a ghost stone appears. TAP the same crossing again, or press PLACE, to play it. DRAG to slide the ghost, then let go: it stays until you confirm. Drag off the board to cancel. (Settings: turn on Quick place to play as soon as you let go.)'],
-  ['Buttons', 'PASS: skip your turn. Two passes in a row end the game. UNDO: takes back your last move (and the reply). HINT: shows a good move with a reason. MENU: leave the game (it is saved).'],
-  ['Keyboard', 'Arrow keys move the aim, Enter or Space plays it, P passes, U undoes, H gives a hint.'],
-  ['The rules', 'Surround stones to capture them. A stone or group with no liberties (empty neighbours) is removed. You may not play a stone with no liberties unless it captures. Ko and repeated positions are forbidden.'],
-  ['Winning', 'Area scoring: your stones plus the empty points only you surround. White also gets a bonus (komi): 5.5 on 9 x 9, 7.5 on larger boards. Dead stones are found for you and you can tap a group to change it before you accept.'],
+  ['Placing a stone', 'TAP a crossing: a ghost stone appears.'],
+  ['Confirming a placement', 'TAP the same crossing again, or press PLACE, to play it.'],
+  ['Dragging to aim', 'DRAG to slide the ghost, then let go: it stays until you confirm.'],
+  ['Cancelling a placement', 'Drag off the board to cancel.'],
+  ['Quick place', '(Settings: turn on Quick place to play as soon as you let go.)'],
+  ['Buttons: Pass', 'PASS: skip your turn.'],
+  ['Buttons: Pass ends the game', 'Two passes in a row end the game.'],
+  ['Buttons: Undo', 'UNDO: takes back your last move (and the reply).'],
+  ['Buttons: Hint', 'HINT: shows a good move with a reason.'],
+  ['Buttons: Menu', 'MENU: leave the game (it is saved).'],
+  ['Keyboard', 'Arrow keys move the aim, Enter or Space plays it,'],
+  ['Keyboard, continued', 'P passes, U undoes, H gives a hint.'],
+  ['The rules', 'Surround stones to capture them.'],
+  ['No suicide', 'A stone or group with no liberties (empty neighbours) is removed.'],
+  ['No suicide, continued', 'You may not play a stone with no liberties unless it captures.'],
+  ['Ko', 'Ko and repeated positions are forbidden.'],
+  ['Winning', 'Area scoring: your stones plus the empty points only you surround.'],
+  ['Komi', 'White also gets a bonus (komi): 5.5 on 9 x 9, 7.5 on larger boards.'],
+  ['Dead stones', 'Dead stones are found for you and you can tap a group to change it before you accept.'],
 ];
 
 const ease = (f) => f * f * (3 - 2 * f);
@@ -231,8 +262,9 @@ function drawTitle(ctx, S, u) {
   button(R2.daily, S.daily.solvedDay === S.daily.day ? `Daily puzzle: solved (streak ${S.daily.streak})` : 'Daily puzzle', { press: isPress(R2.daily), size: S.daily.solvedDay === S.daily.day ? 26 : 32 });
   button(R2.about, 'About Go', { press: isPress(R2.about) });
   button(R2.how, 'How to play', { press: isPress(R2.how) });
-  button(R2.settings, 'Settings', { press: isPress(R2.settings) });
-  button(R2.rules, 'Rules', { press: isPress(R2.rules) });
+  button(R2.settings, 'Settings', { size: 27, press: isPress(R2.settings) });
+  button(R2.rules, 'Rules', { size: 27, press: isPress(R2.rules) });
+  button(R2.auto, 'Auto Play — watch and learn', { size: 27, press: isPress(R2.auto) });
 }
 const DEMO_SEQ = [[40, 1], [22, 2], [58, 1], [50, 2], [23, 1], [31, 2], [41, 1], [32, 2], [33, 1], [24, 2], [42, 1], [49, 2], [59, 1], [60, 2], [68, 1], [51, 2], [67, 1], [14, 2], [34, 1], [13, 2], [43, 1], [15, 2], [52, 1], [53, 2], [61, 1], [69, 2], [30, 1], [21, 2]];
 export const demoSequence = () => DEMO_SEQ;
@@ -307,8 +339,12 @@ function drawPageFooter(ctx, u, idx, total) {
 // screen and inside the panel. Returns the y where the body content below it can safely start.
 function drawPageTitle(ctx, u, titleStr, scale) {
   const { wrap } = u, size = Math.round(32 * scale), lh = Math.round(size * 1.22);
-  const lines = wrap(titleStr, 360, 268, size, 604, '#f3cf7a', lh, 'center', 700, FONT);
-  return 268 + lines * lh + Math.round(16 * scale);
+  // The first title line's baseline has to move down as `size` grows, or its own cap-height pokes
+  // up above the reader panel's top edge (y=214) at a big scale - this keeps the same ~28px margin
+  // above the panel top that the old hardcoded "268" baseline (scale 1) happened to give it.
+  const startY = 214 + 28 + Math.round(size * 0.8);
+  const lines = wrap(titleStr, 360, startY, size, 604, '#f3cf7a', lh, 'center', 700, FONT);
+  return startY + lines * lh + Math.round(16 * scale);
 }
 // About / How to play: one topic per page (each [heading, body] entry in ABOUT_TEXT/HOW_TEXT is
 // already a single self-contained concept), paginated with wraparound like Rules below.
@@ -332,16 +368,22 @@ function drawRules(ctx, S, u) {
   panel({ x: 36, y: 214, w: 648, h: 1132 });
   let y = drawPageTitle(ctx, u, page.title, scale);
   if (page.stone) {
-    const cy = y + 58, r = 46;
+    // The stone art, its fixed 300/420 x-positions and its "Black"/"White" caption all stay a
+    // fixed size at every text-size step (this is a small picture with a label, not primary
+    // reading text - and at a big scale a caption that grew with `scale` would itself be too wide
+    // for the 120px gap between the two stones' fixed centres). Only the gap between the caption
+    // and the body text below it has to grow, to clear the bigger body text's own taller ascent.
+    const r = 46, cy = y + 58, labelSz = 20, gap1 = 30;
+    const gap2 = 62 + Math.round(23 * (scale - 1));
     if (page.stone === 'both') {
       drawStone(ctx, 1, 300, cy, r, { seed: 1 });
       drawStone(ctx, 2, 420, cy, r, { seed: 2 });
-      text('Black', 300, cy + r + 30, 20, 'rgba(246,227,180,0.75)', UI, 600);
-      text('White', 420, cy + r + 30, 20, 'rgba(246,227,180,0.75)', UI, 600);
+      text('Black', 300, cy + r + gap1, labelSz, 'rgba(246,227,180,0.75)', UI, 600);
+      text('White', 420, cy + r + gap1, labelSz, 'rgba(246,227,180,0.75)', UI, 600);
     } else {
       drawStone(ctx, page.stone, 360, cy, r, { seed: page.stone });
     }
-    y = cy + r + 62;
+    y = cy + r + gap2;
   }
   const sz = Math.round(29 * scale), lh = Math.round(sz * 1.4);
   for (const para of page.lines) {
@@ -381,7 +423,7 @@ function drawBoardScene(ctx, S, u) {
   const step = lesson ? lesson.steps[S.lesson.step] : null;
   const scoring = S.phase === 'scoring' || S.phase === 'over';
   // ---- header
-  if (scene === 'play') {
+  if (scene === 'play' || scene === 'autoplay') {
     const names = S.two ? ['Black', 'White'] : S.human === 1 ? ['You', LEVELS[S.level].name] : [LEVELS[S.level].name, 'You'];
     [1, 2].forEach((c) => {
       const x = c === 1 ? 24 : 372, active = !scoring && g.turn === c;
@@ -392,8 +434,12 @@ function drawBoardScene(ctx, S, u) {
       text(`Captured ${g.caps[c]}`, x + 116, 198, 24, 'rgba(246,227,180,0.85)', UI, 500, 'left');
       if (c === 2) text(`+${g.komi}`, x + 296, 198, 22, 'rgba(246,227,180,0.6)', UI, 500, 'right');
     });
-    const status = scoring ? (S.phase === 'over' ? 'Game over' : S.scorer ? 'Counting' : 'Check the count') : S.thinking ? 'Thinking...' : `${g.turn === 1 ? 'Black' : 'White'} to play`;
-    text(`${status}   ·   Move ${g.moves + 1}`, 360, 278, 27, 'rgba(246,227,180,0.9)', UI, 600);
+    const apLeft = scene === 'autoplay' ? Math.max(0, THINK_STEPS[S.prefs.apThinkIdx] - S.ap.t) : 0;
+    const status = scene === 'autoplay'
+      ? (scoring ? (S.phase === 'over' ? 'Game over' : S.scorer ? 'Counting' : 'Counting the board') : S.ap.paused ? 'Paused' : S.ap.phase === 'think' ? `Think: what would ${g.turn === 1 ? 'Black' : 'White'} play? (${apLeft.toFixed(0)}s)` : S.ap.phase === 'reveal' ? 'Here is the move about to be played…' : 'Playing…')
+      : scoring ? (S.phase === 'over' ? 'Game over' : S.scorer ? 'Counting' : 'Check the count') : S.thinking ? 'Thinking...' : `${g.turn === 1 ? 'Black' : 'White'} to play`;
+    text(scene === 'autoplay' ? status : `${status}   ·   Move ${g.moves + 1}`, 360, 278, scene === 'autoplay' ? 24 : 27, 'rgba(246,227,180,0.9)', UI, 600);
+    if (scene === 'autoplay') text('Auto Play — watch and learn', 360, 306, 20, 'rgba(246,227,180,0.65)', UI, 600);
   } else if (lesson) {
     text(`Lesson ${S.lesson.i + 1} of ${LESSONS.length}`, 360, 152, 26, 'rgba(246,227,180,0.8)', UI, 600);
     text(lesson.title, 360, 226, 64, '#f6e3b4');
@@ -405,14 +451,20 @@ function drawBoardScene(ctx, S, u) {
   // ---- board
   let glow = [];
   if (lesson && !S.lesson.done && S.lesson.showAt && step.want.at) glow = step.want.at.map(([x, y]) => y * n + x);
+  // Auto Play REVEAL: Go's own branching factor makes "every legal point" (often 50-70+ empty
+  // crossings) too dense to usefully compare against - unlike a board game with a handful of legal
+  // moves, that would just be most of the board. So only the ONE point about to be played is shown,
+  // reusing this same glow ring (a pass has nothing to glow: the status line above says so instead).
+  if (scene === 'autoplay' && S.ap.phase === 'reveal' && S.ap.chosen != null && S.ap.chosen >= 0) glow = [S.ap.chosen];
   const opts = { g, glow };
   if (scoring && S.score) { opts.dead = S.deadList; opts.owner = S.score.owner; }
   if (lesson && step.want.kind === 'libs') opts.tapped = S.lesson.tapped;
   if (scene === 'puzzle' && S.pz) opts.target = S.pz.p.target;
   drawBoardPieces(ctx, S, L, opts);
   // ---- message panel
-  const msg = S.msg ? S.msg.text : lesson ? step.text : scene === 'puzzle' ? puzzleText(S.pz.p) : S.thinking ? 'The computer is thinking...' : S.g.turn === S.human || S.two ? 'Your move. TAP a crossing to aim, then TAP it again (or press Place).' : '';
-  const showMsg = !(scoring && scene === 'play');
+  const apMsg = S.ap && S.ap.phase === 'reveal' ? (S.ap.chosen != null && S.ap.chosen < 0 ? `${g.turn === 1 ? 'Black' : 'White'} is about to pass.` : 'The glowing point is the move about to be played.') : 'Auto Play: the computer plays both Black and White so you can learn by watching a whole game.';
+  const msg = S.msg ? S.msg.text : lesson ? step.text : scene === 'puzzle' ? puzzleText(S.pz.p) : scene === 'autoplay' ? apMsg : S.thinking ? 'The computer is thinking...' : S.g.turn === S.human || S.two ? 'Your move. TAP a crossing to aim, then TAP it again (or press Place).' : '';
+  const showMsg = !(scoring && (scene === 'play' || scene === 'autoplay'));
   if (showMsg) panel(R.msg, { paper: true });
   const fs = big ? 29 : 25;
   if (showMsg) {
@@ -424,43 +476,58 @@ function drawBoardScene(ctx, S, u) {
   wrap(msg, 360, R.msg.y + (R.msg.h - lines * size * 1.28) / 2 + size * 0.98, size, R.msg.w - 56, '#2a1a0a', size * 1.28, 'center', 600);
   ctx.restore();
   }
-  // ---- bowls
-  drawBowl(ctx, 1, 128, 1178, 0.62 + (g.caps[2] ? 0 : 0)); drawBowl(ctx, 2, 592, 1178, 0.62);
+  // ---- bowls (Auto Play repurposes this band for the think-time stepper - see the centre-button
+  // block below - so the bowls would otherwise sit right under the stepper buttons and clash)
+  if (scene !== 'autoplay') { drawBowl(ctx, 1, 128, 1178, 0.62 + (g.caps[2] ? 0 : 0)); drawBowl(ctx, 2, 592, 1178, 0.62); }
   const cap1 = g.caps[1], cap2 = g.caps[2];
   if (scene === 'play' && (cap1 || cap2)) {
     // prisoners: white stones Black has captured sit by Black's bowl, black stones White has captured by White's bowl
     for (let k = 0; k < Math.min(cap1, 10); k++) drawStone(ctx, 2, 62 + k * 13, 1254, 12, { seed: k });
     for (let k = 0; k < Math.min(cap2, 10); k++) drawStone(ctx, 1, 658 - k * 13, 1254, 12, { seed: k });
   }
-  // ---- centre button
+  // ---- centre button / bottom row (Auto Play is its own thing: nothing here is ever tapped on
+  // the board, so it gets its own controls entirely rather than threading into the chains below)
   const cx = R.place;
-  if (scoring) {
-    if (S.phase === 'scoring') button(R.done, S.scorer ? 'Counting...' : 'Accept result', { primary: true, dim: !!S.scorer, size: 34, press: isPress(R.done) });
-    else button(R.done, 'New game', { primary: true, size: 34, press: isPress(R.done) });
-  } else if (lesson && S.lesson.done) button(R.next, S.lesson.step + 1 >= lesson.steps.length ? 'Finish lesson' : 'Next step', { primary: true, size: 36, press: isPress(R.next) });
-  else if (lesson && step.want.kind === 'quiz') {
-    const opts2 = step.want.options; const w = Math.min(210, (600 - (opts2.length - 1) * 12) / opts2.length), tot = opts2.length * w + (opts2.length - 1) * 12;
-    opts2.forEach((o, i) => button({ x: 360 - tot / 2 + i * (w + 12), y: 1118, w, h: 104 }, o, { size: 38, press: isPress(quizRect(step, i)) }));
-  } else if (lesson && (step.want.kind === 'libs' || step.want.kind === 'pass' || step.want.kind === 'undo' || step.want.kind === 'hint')) { /* no centre button */ }
-  else {
-    const has = S.pend >= 0 && !g.b[S.pend];
-    button(cx, has ? 'Place' : 'Tap a point', { primary: has, dim: !has, size: has ? 40 : 27, press: isPress(cx) });
-  }
-  // ---- bottom row
-  if (!scoring) {
-    const nobody = S.thinking && scene === 'play';
-    button(R.pass, 'Pass', { dim: scene === 'puzzle', press: isPress(R.pass) });
-    button(R.undo, 'Undo', { dim: !S.undo.length, press: isPress(R.undo) });
-    button(R.hint, S.thinkKind === 'hint' ? '...' : 'Hint', { dim: nobody, press: isPress(R.hint) });
-    button(R.menu, scene === 'play' ? 'Menu' : 'Back', { press: isPress(R.menu) });
-  } else if (S.phase === 'scoring') {
-    if (!S.scorer) {
-      button({ x: 36, y: 1290, w: 300, h: 84 }, 'Keep playing', { size: 28, press: isPress({ x: 36, y: 1290, w: 300, h: 84 }) });
-      button({ x: 384, y: 1290, w: 300, h: 84 }, 'Menu', { press: isPress({ x: 384, y: 1290, w: 300, h: 84 }) });
+  if (scene === 'autoplay' && S.phase === 'over') {
+    button(R.done, 'Play again', { primary: true, size: 34, press: isPress(R.done) });
+    button(R.menu, 'Exit to menu', { size: 26, press: isPress(R.menu) });
+  } else if (scene === 'autoplay') {
+    // The stepper takes over the centre "Place" band.
+    button(AUTOPLAY.dec, '−', { size: 40, dim: S.prefs.apThinkIdx === 0, press: isPress(AUTOPLAY.dec) });
+    button(AUTOPLAY.inc, '+', { size: 40, dim: S.prefs.apThinkIdx === THINK_STEPS.length - 1, press: isPress(AUTOPLAY.inc) });
+    text(`Think time: ${THINK_STEPS[S.prefs.apThinkIdx]}s`, 360, 1174, 25, '#f6e3b4');
+    button(AUTOPLAY.exit, 'Exit', { press: isPress(AUTOPLAY.exit) });
+    button(AUTOPLAY.pause, S.ap.paused ? 'Resume' : 'Pause', { primary: S.ap.paused, press: isPress(AUTOPLAY.pause) });
+    button(AUTOPLAY.skip, 'Skip', { dim: S.phase === 'scoring' && !!S.scorer, press: isPress(AUTOPLAY.skip) });
+  } else {
+    if (scoring) {
+      if (S.phase === 'scoring') button(R.done, S.scorer ? 'Counting...' : 'Accept result', { primary: true, dim: !!S.scorer, size: 34, press: isPress(R.done) });
+      else button(R.done, 'New game', { primary: true, size: 34, press: isPress(R.done) });
+    } else if (lesson && S.lesson.done) button(R.next, S.lesson.step + 1 >= lesson.steps.length ? 'Finish lesson' : 'Next step', { primary: true, size: 36, press: isPress(R.next) });
+    else if (lesson && step.want.kind === 'quiz') {
+      const opts2 = step.want.options; const w = Math.min(210, (600 - (opts2.length - 1) * 12) / opts2.length), tot = opts2.length * w + (opts2.length - 1) * 12;
+      opts2.forEach((o, i) => button({ x: 360 - tot / 2 + i * (w + 12), y: 1118, w, h: 104 }, o, { size: 38, press: isPress(quizRect(step, i)) }));
+    } else if (lesson && (step.want.kind === 'libs' || step.want.kind === 'pass' || step.want.kind === 'undo' || step.want.kind === 'hint')) { /* no centre button */ }
+    else {
+      const has = S.pend >= 0 && !g.b[S.pend];
+      button(cx, has ? 'Place' : 'Tap a point', { primary: has, dim: !has, size: has ? 40 : 27, press: isPress(cx) });
     }
-  } else button(R.menu, 'Menu', { press: isPress(R.menu) });
+    // ---- bottom row
+    if (!scoring) {
+      const nobody = S.thinking && scene === 'play';
+      button(R.pass, 'Pass', { dim: scene === 'puzzle', press: isPress(R.pass) });
+      button(R.undo, 'Undo', { dim: !S.undo.length, press: isPress(R.undo) });
+      button(R.hint, S.thinkKind === 'hint' ? '...' : 'Hint', { dim: nobody, press: isPress(R.hint) });
+      button(R.menu, scene === 'play' ? 'Menu' : 'Back', { press: isPress(R.menu) });
+    } else if (S.phase === 'scoring') {
+      if (!S.scorer) {
+        button({ x: 36, y: 1290, w: 300, h: 84 }, 'Keep playing', { size: 28, press: isPress({ x: 36, y: 1290, w: 300, h: 84 }) });
+        button({ x: 384, y: 1290, w: 300, h: 84 }, 'Menu', { press: isPress({ x: 384, y: 1290, w: 300, h: 84 }) });
+      }
+    } else button(R.menu, 'Menu', { press: isPress(R.menu) });
+  }
   // ---- score plaque
-  if (scoring && S.score && scene === 'play') {
+  if (scoring && S.score && (scene === 'play' || scene === 'autoplay')) {
     const sc = S.score, b = sc.black, w = sc.white, k = sc.komi, win = sc.winner;
     const by = Math.abs(sc.diff);
     const line = S.phase === 'over' ? `${win === 1 ? 'Black' : 'White'} wins by ${by}` : `${win === 1 ? 'Black' : 'White'} is ahead by ${by}`;
@@ -473,6 +540,7 @@ function drawBoardScene(ctx, S, u) {
   // ---- footer caption
   if (scene === 'play') text(`${n} x ${n}  ·  Chinese area scoring  ·  komi ${g.komi}`, 360, 1440, 24, 'rgba(246,227,180,0.6)', UI, 500);
   else if (scene === 'puzzle') text(S.pz.status === 'solved' ? 'Solved. Come back tomorrow for a new one.' : 'Tap a point, then Place.', 360, 1440, 24, 'rgba(246,227,180,0.7)', UI, 600);
+  else if (scene === 'autoplay' && S.phase !== 'over') text(`${n} x ${n}  ·  Free, silent, never counted against your progress`, 360, 1440, 21, 'rgba(246,227,180,0.6)', UI, 500);
   if (S.thinking && scene === 'play' && !scoring) {
     const p = S.thinkProg;
     ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.beginPath(); ctx.roundRect(210, 1478, 300, 12, 6); ctx.fill();

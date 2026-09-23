@@ -6,12 +6,36 @@ import { createRng } from '../kit/rng.js';
 import {
   W, H, SLING, STONE_R, STARTLE_RADIUS, BIRDS, OWL_STONE_PENALTY, CROP_MAX, CROP_DRAIN_PER_BIRD,
   CROP_DRAIN_FROM_LEVEL, DAILY, DEMO_LEVEL_LIMIT, DEMO_RUN_LIMIT, levelSpec, comboMultiplier, starsFor, woodFor, stoneFor, SHARE_URL, SIBLINGS,
+  AP_THINK_STEPS, AP_REVEAL_TIME,
 } from './tuning.js';
-import { clampPull, launchVelocity, stepStone, segmentHitsCircle, distanceToSegment } from './physics.js';
+import { clampPull, launchVelocity, stepStone, segmentHitsCircle, distanceToSegment, aimAt } from './physics.js';
 import { spawnBird, updateBird, startle, maybeDodge, isTarget, isPerchedPest } from './birds.js';
 import { generateScene, pickBirdType } from './levels.js';
-import { drawGame, BUTTONS, SCHEMES, chipRect, TEXT_SCALES } from './render.js';
+import { drawGame, BUTTONS, AUTOPLAY, SCHEMES, chipRect, TEXT_SCALES } from './render.js';
 import { RULES } from './content.js';
+
+const AP_IDLE = { pointer: { x: 0, y: 0, down: false, pressed: false, released: false }, keys: { down: new Set(), pressed: new Set() } };
+// A shot's flight time isn't known ahead of time (it depends on the angle physics.js's aimAt()
+// solves for), so a few candidate times are tried and the first that yields a real, in-range pull
+// is used - the same idea as a lead shot in any of the other autoplay-pro games' physics-based aims.
+const AP_TIME_GUESSES = [0.35, 0.5, 0.65, 0.8, 1.0, 1.25, 1.5];
+// Easiest first: a stationary (or about-to-be-briefly-stationary) bird is a clean, reliable shot;
+// a moving one needs a lead guess that is more often wrong - "prefer a plausible action" (brief),
+// not a perfect one.
+const AP_PHASE_ORDER = ['perched', 'dodging', 'crossing', 'arriving', 'hopping', 'darting'];
+function apPickShot(s) {
+  const wind = s.spec.gusty ? s.wind * (0.6 + 0.4 * Math.sin(s.time * 0.9)) : s.wind;
+  const candidates = s.birds.filter((b) => !b.gone && b.type !== 'owl' && b.phase !== 'leaving');
+  candidates.sort((a, b) => AP_PHASE_ORDER.indexOf(a.phase) - AP_PHASE_ORDER.indexOf(b.phase));
+  for (const bird of candidates) {
+    for (const t of AP_TIME_GUESSES) {
+      const lead = bird.phase === 'crossing' ? t : 0; // only the duck has a simple constant vx worth leading
+      const pull = aimAt(bird.x + (bird.vx || 0) * lead, bird.y, wind, t);
+      if (pull && pull.len >= SLING.minPull + 4) return { pull, birdId: bird.id };
+    }
+  }
+  return null;
+}
 
 export const meta = { width: W, height: H };
 
@@ -67,8 +91,14 @@ export function createGame(env) {
     daily: { day: -1, score: 0, streak: 0 },
     demoRuns: 0,
     demo,
+    // Auto Play: a free, silent, save/stats-untouched THINK -> REVEAL -> ACT demonstration
+    // (STATUS.md). apThinkIdx is an index into AP_THINK_STEPS (never a raw float); `ap` is this
+    // scene's own tiny phase machine. The actual game being watched is a completely separate
+    // instance (see startAutoplay()/apGame below) - nothing here ever touches the real save state.
+    apThinkIdx: 1, ap: null,
   };
   let playRng = rng.fork();
+  let apGame = null;
 
   storage.get('best', 0).then((v) => (state.best = v));
   storage.get('highestLevel', 1).then((v) => (state.highestLevel = v));
@@ -83,6 +113,7 @@ export function createGame(env) {
   storage.get('textScaleIdx', 0).then((v) => (state.textScaleIdx = Math.min(Math.max(v ?? 0, 0), TEXT_SCALES.length - 1)));
   storage.get('daily', null).then((v) => v && (state.daily = v));
   if (demo) storage.get('demoRuns', 0).then((v) => (state.demoRuns = v));
+  storage.get('apThinkIdx', 1).then((v) => (state.apThinkIdx = Math.min(Math.max(v ?? 1, 0), AP_THINK_STEPS.length - 1)));
 
   const startLevel = (n) => {
     const base = state.mode === 'daily' ? DAILY.level : n;
@@ -374,6 +405,7 @@ export function createGame(env) {
     } else if (inRect(x, y, BUTTONS.endless)) {
       if (!demo) startRun('endless');
     }
+    else if (inRect(x, y, BUTTONS.auto)) startAutoplay();
     else if (inRect(x, y, BUTTONS.play)) startRun('campaign');
   };
 
@@ -386,11 +418,83 @@ export function createGame(env) {
     else if (inRect(x, y, BUTTONS.textInc) && state.textScaleIdx < TEXT_SCALES.length - 1) { state.textScaleIdx++; storage.set('textScaleIdx', state.textScaleIdx); }
   };
 
+  // ---- Auto Play: a free, silent, whole-run THINK -> REVEAL -> ACT demonstration ------------------
+  // Decision-point unit: one SHOT (a genre adaptation - see tuning.js's own note on why THINK/REVEAL
+  // are scaled down for this fast, continuous action game rather than reusing the board games'
+  // timings verbatim). The game being watched is an entirely separate `createGame()` instance with
+  // its own no-op storage/audio/monetization - exactly like the other autoplay-pro games' separate
+  // demo/chapter instances - so the real player's save, stats and stars are never touched, and the
+  // instance's own silence is automatic (a no-op `audio.tone` needs no per-call guard anywhere).
+  // Aiming reuses physics.js's own `aimAt()` (already written for "any future assist/tutorial
+  // ghost"); firing reuses the real input contract verbatim: setting `apState.aim` directly and
+  // then resuming ticks makes the instance's own `fire()` run exactly as it would for a real drag,
+  // because a resumed idle input has `pointer.down === false`, which is exactly the release
+  // condition `updatePlaying` already checks.
+  function apNoopStorage() { return { get: async (k, d) => d, set: async () => {}, remove: async () => {} }; }
+  function startAutoplay() {
+    apGame = createGame({
+      rng: rng.fork(), storage: apNoopStorage(), audio: { tone: () => {}, setMuted: () => {} },
+      monetization: { track: () => {} }, config: { ...config, demo: false }, manifest: env.manifest,
+      share: async () => ({ shared: false }), openGame: () => {},
+    });
+    // Tap "Play" on its own fresh title screen - the same real path a player's first tap takes.
+    apGame.update(1 / 60, { pointer: { x: BUTTONS.play.x + 5, y: BUTTONS.play.y + 5, down: true, pressed: true, released: false }, keys: { down: new Set(), pressed: new Set() } });
+    apGame.update(1 / 60, AP_IDLE);
+    state.ap = { phase: 'idle', t: 0, chosen: null, paused: false };
+    state.scene = 'autoplay';
+  }
+  function exitAutoplay() { apGame = null; state.scene = 'title'; }
+  function updateAutoplay(dt, input) {
+    const A = state.ap, p = input.pointer;
+    if (A.phase === 'finished') {
+      if (p.pressed) {
+        if (inRect(p.x, p.y, BUTTONS.again)) startAutoplay();
+        else if (inRect(p.x, p.y, BUTTONS.home)) exitAutoplay();
+      }
+      return;
+    }
+    if (p.pressed) {
+      if (inRect(p.x, p.y, AUTOPLAY.exit)) { exitAutoplay(); return; }
+      if (inRect(p.x, p.y, AUTOPLAY.dec) && state.apThinkIdx > 0) { state.apThinkIdx--; storage.set('apThinkIdx', state.apThinkIdx); }
+      else if (inRect(p.x, p.y, AUTOPLAY.inc) && state.apThinkIdx < AP_THINK_STEPS.length - 1) { state.apThinkIdx++; storage.set('apThinkIdx', state.apThinkIdx); }
+      else if (inRect(p.x, p.y, AUTOPLAY.pause)) A.paused = !A.paused;
+    }
+    if (A.paused) return;
+    const skip = p.pressed && inRect(p.x, p.y, AUTOPLAY.skip);
+    const apState = apGame.getState();
+    if (apState.scene === 'tally') { A.phase = 'finished'; A.t = 0; return; }   // one whole run is the natural end for this endless game
+    if (apState.scene !== 'playing') { apGame.update(dt, AP_IDLE); return; }    // 'levelclear' auto-advances on its own real timer
+    if (A.phase === 'idle') {
+      apGame.update(dt, AP_IDLE);                                              // the field keeps living until there is something to shoot at
+      if (apState.stonesLeft > 0) { const shot = apPickShot(apState); if (shot) { A.chosen = shot; A.phase = 'think'; A.t = 0; } }
+      return;
+    }
+    if (A.phase === 'think') {
+      A.t += dt; if (skip) A.t = AP_THINK_STEPS[state.apThinkIdx];
+      if (A.t >= AP_THINK_STEPS[state.apThinkIdx]) { apState.aim = { sx: SLING.x, sy: SLING.y, pull: A.chosen.pull }; A.phase = 'reveal'; A.t = 0; }
+      return;
+    }
+    if (A.phase === 'reveal') {
+      A.t += dt; if (skip) A.t = AP_REVEAL_TIME;
+      if (A.t >= AP_REVEAL_TIME) { A.phase = 'act'; apGame.update(1 / 60, AP_IDLE); }   // an idle tick with `aim` set fires it (pointer.down is false)
+      return;
+    }
+    if (A.phase === 'act') {
+      const steps = skip ? 6 : 1;
+      for (let i = 0; i < steps; i++) {
+        apGame.update(1 / 60, AP_IDLE);
+        const s2 = apGame.getState();
+        if (s2.scene !== 'playing' || s2.stones.length === 0) { A.phase = 'idle'; A.t = 0; A.chosen = null; break; }
+      }
+    }
+  }
+
   return {
     update(dt, input) {
       if (state.scene === 'playing') updatePlaying(dt, input);
       else if (state.scene === 'title') updateTitle(input);
       else if (state.scene === 'rules') updateRules(input);
+      else if (state.scene === 'autoplay') updateAutoplay(dt, input);
       else if (state.scene === 'levelclear') {
         state.time += dt;
         state.clearTimer -= dt;
@@ -411,7 +515,7 @@ export function createGame(env) {
       // 'demo-limit': deliberate no-op.
     },
     render(ctx) {
-      drawGame(ctx, state, env.manifest, day);
+      drawGame(ctx, state, env.manifest, day, apGame);
     },
     getState() {
       return state;

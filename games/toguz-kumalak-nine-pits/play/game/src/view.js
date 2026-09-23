@@ -1,5 +1,5 @@
 // Everything drawn each frame. Reads `state` (game.js) and changes nothing. The table, board and pebble sprites are cached (art.js).
-import { W, RX, RY, TRAY, MID_Y, BTN, SET, RULES_BTN, ABOUT_BTN, HEADER, TEXT_SCALES, pitPos, trayPos, titleRows } from './layout.js';
+import { W, H, RX, RY, TRAY, MID_Y, BTN, SET, RULES_BTN, ABOUT_BTN, HEADER, TEXT_SCALES, THINK_STEPS, pitPos, trayPos, titleRows } from './layout.js';
 import { drawTable, drawBoard, drawSeed, drawShanyrak, horn, slot, WOODS, SEEDSETS } from './art.js';
 import { legalMoves, numberOf } from './rules.js';
 import { LEVELS } from './engine.js';
@@ -21,9 +21,22 @@ export function render(ctx, state) {
     if (shadow) { ctx.fillStyle = 'rgba(8,10,30,0.6)'; ctx.fillText(str, x + 1.5, y + 2.5); }
     ctx.fillStyle = color; ctx.fillText(str, x, y);
   };
+  // Word-wraps to maxW. At the highest text-size steps a single long hyphenated word (e.g.
+  // "counter-clockwise") can be wider than maxW all on its own - with no space to break on, it
+  // used to run straight off the canvas edge. Falls back to a character-level break for just that
+  // one word so it wraps like any other overflowing line, instead of clipping.
   const lines = (str, maxW, size, weight = 600) => {
     ctx.font = `${weight} ${size}px ${UI}`; const words = str.split(' '), out = []; let cur = '';
-    for (const w of words) { const t2 = cur ? cur + ' ' + w : w; if (ctx.measureText(t2).width > maxW && cur) { out.push(cur); cur = w; } else cur = t2; }
+    for (const w of words) {
+      if (ctx.measureText(w).width > maxW) {
+        if (cur) { out.push(cur); cur = ''; }
+        let piece = '';
+        for (const ch of w) { const t2 = piece + ch; if (ctx.measureText(t2).width > maxW && piece) { out.push(piece); piece = ch; } else piece = t2; }
+        cur = piece;
+        continue;
+      }
+      const t2 = cur ? cur + ' ' + w : w; if (ctx.measureText(t2).width > maxW && cur) { out.push(cur); cur = w; } else cur = t2;
+    }
     out.push(cur); return out;
   };
   const wrap = (str, x, y, size, maxW, color = CREAM, lh = size * 1.3, align = 'center') => { const L = lines(str, maxW, size); L.forEach((ln, i) => text(ln, x, y + i * lh, size, color, UI, 600, align)); return L.length; };
@@ -146,6 +159,11 @@ export function render(ctx, state) {
       text('Daily puzzle' + (state.pz.puzzle.hard ? ' (weekend)' : ''), 360, 160, 26, 'rgba(248,233,196,0.85)', UI, 600);
       text('Take the most', 360, 235, 62, CREAM, FONT);
       text(`Streak: ${state.daily.streak} day${state.daily.streak === 1 ? '' : 's'}`, 360, 285, 24, GOLD, UI, 600);
+    } else if (state.autoMode) {
+      const line = g.winner !== null ? 'Game over' : `${g.turn === 0 ? 'Bottom row' : 'Top row'} ${state.autoPhase === 'reveal' ? '- this is the move' : 'thinking' + '.'.repeat(1 + (Math.floor(state.t * 3) % 3))}`;
+      text(line, 360, 180, 58, CREAM, FONT);
+      text(`Auto Play · think time ${THINK_STEPS[state.autoThinkIdx]}s`, 360, 226, 21, 'rgba(248,233,196,0.85)', UI, 500);
+      text('First to collect 82 of the 162 pebbles wins', 360, 268, 22, GOLD, UI, 600);
     } else {
       const th = state.thinking && !A ? 'The computer is thinking' + '.'.repeat(1 + (Math.floor(state.t * 3) % 3)) : null;
       const line = g.winner !== null ? 'Game over' : state.two ? (g.turn === 0 ? 'Player one: bottom row' : 'Player two: top row') : g.turn === 0 ? 'Your move' : (th || 'The computer moves');
@@ -159,7 +177,7 @@ export function render(ctx, state) {
     }
     // a moving chevron along the carved arrows: the direction of sowing
     if (!state.calm) { const f = (state.t * 0.5) % 1; for (const [y, d] of [[MID_Y - 40, -1], [MID_Y + 40, 1]]) { const x = d > 0 ? 190 + 340 * f : 530 - 340 * f; ctx.strokeStyle = `rgba(255,214,120,${0.9 * Math.sin(Math.PI * f)})`; ctx.lineWidth = 4.5; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.beginPath(); ctx.moveTo(x - d * 9, y - 9); ctx.lineTo(x + d * 9, y); ctx.lineTo(x - d * 9, y + 9); ctx.stroke(); } }
-    contents(state.shown, { legal, labels: scene === 'lesson' || scene === 'puzzle' ? ['You', 'Opponent'] : state.two ? ['Player one', 'Player two'] : ['You', 'Computer'] });
+    contents(state.shown, { legal, labels: scene === 'lesson' || scene === 'puzzle' ? ['You', 'Opponent'] : state.two || state.autoMode ? ['Player one', 'Player two'] : ['You', 'Computer'] });
     if (state.kb && scene !== 'over') { const p = pitPos(g.turn === 0 ? state.cursor : 17 - state.cursor); ctx.strokeStyle = '#7dff9a'; ctx.lineWidth = 5; ctx.beginPath(); ctx.ellipse(p.x, p.y, RX + 6, RY + 6, 0, 0, TAU); ctx.stroke(); }
     if (A) {
       const r = A.r, o = pitPos(r.pit);
@@ -197,7 +215,17 @@ export function render(ctx, state) {
       while (L.length * ms * 1.28 > 108 && ms > 18) { ms -= 2; L = lines(tx, 620, ms); }
       panel(40, 1180, 640, 128, 0.9); const top = 1180 + 64 - (L.length * ms * 1.28) / 2 + ms * 0.95; L.forEach((ln, i) => text(ln, 360, top + i * ms * 1.28, ms, '#fff3d6', UI, 600, 'center', false));
     }
-    if (scene === 'play') { button(BTN.menu, 'Menu', { size: 28 }); button(BTN.undo, 'Undo', { size: 28 }); button(BTN.hint, `Hint (${state.hintsLeft})`, { size: 28, dim: state.hintsLeft <= 0 }); }
+    if (scene === 'play') {
+      button(BTN.menu, state.autoMode ? 'Exit' : 'Menu', { size: 28 });
+      if (state.autoMode) {
+        // The think-time stepper takes the Undo/Hint slots (same rects, no new layout) - neither
+        // undo nor a hint means anything with nobody tapping.
+        button(BTN.undo, '− Think', { size: 26, dim: state.autoThinkIdx <= 0 });
+        button(BTN.hint, 'Think +', { size: 26, dim: state.autoThinkIdx >= THINK_STEPS.length - 1 });
+      } else {
+        button(BTN.undo, 'Undo', { size: 28 }); button(BTN.hint, `Hint (${state.hintsLeft})`, { size: 28, dim: state.hintsLeft <= 0 });
+      }
+    }
     else if (scene === 'lesson') { button(BTN.menu, 'Menu', { size: 28 }); if (state.lesson.done && !A) button(BTN.next, state.lesson.i + 1 < LESSONS.length ? 'Next lesson' : 'Finish', { primary: true, size: 30 }); }
     else if (scene === 'puzzle') { button(BTN.menu, 'Menu', { size: 28 }); if (state.pz.status === 'solved' && !A) button(BTN.share, 'Share result', { primary: true, size: 30 }); }
     if (scene === 'play' && state.dev) text('DEV', 40, 130, 20, '#7dff9a', UI, 700, 'left');
@@ -224,11 +252,19 @@ export function render(ctx, state) {
     button(R.two, 'Two players, one phone', { size: 30 });
     button(R.daily, solved ? `Daily puzzle: solved · streak ${state.daily.streak}` : state.daily.streak ? `Daily puzzle · streak ${state.daily.streak}` : 'Daily puzzle', { size: 30 });
     button(R.about, 'About', { size: 26 }); button(R.rules, 'Rules', { size: 26 }); button(R.settings, 'Settings', { size: 26 });
-    const y = R.about.y + 116;
-    text(`Games played: ${state.stats.games} · won: ${state.stats.wins}`, 360, y, 22, 'rgba(248,233,196,0.85)', UI, 500);
-    let stars = ''; for (let l = 0; l < LEVELS.length; l++) stars += state.stats.badges['L' + l] ? '★ ' : '☆ ';
-    text(stars.trim(), 360, y + 38, 30, GOLD, UI, 700);
-    if (state.msg) wrap(state.msg.text, 360, 1440, 24, 620, '#ffe9b0');
+    button(R.auto, 'Auto Play · Watch & Learn', { size: 28 });
+    // Positioned off the new Auto Play row above (not a fixed number). A transient message takes
+    // priority over the games/badges flourish when both would land in the same spot (the message is
+    // never up for long); the flourish itself is skipped entirely if the tallest shape of this list
+    // (a saved game, pushing everything down) leaves no safe room, rather than ever risking it
+    // clipping off the canvas.
+    const y = R.auto.y + R.auto.h + 30;
+    if (state.msg) wrap(state.msg.text, 360, y, 24, 620, '#ffe9b0');
+    else if (y + 38 <= H - 40) {
+      text(`Games played: ${state.stats.games} · won: ${state.stats.wins}`, 360, y, 22, 'rgba(248,233,196,0.85)', UI, 500);
+      let stars = ''; for (let l = 0; l < LEVELS.length; l++) stars += state.stats.badges['L' + l] ? '★ ' : '☆ ';
+      text(stars.trim(), 360, y + 38, 30, GOLD, UI, 700);
+    }
   } else if (scene === 'demo-limit') {
     panel(60, 800, 600, 380, 0.9);
     text('That was the free taste.', 360, 920, 56, CREAM, FONT);
@@ -256,9 +292,17 @@ export function render(ctx, state) {
     panel(36, 120, 648, 1240, 0.92);
     text(ABOUT.title, 360, 210, Math.round(60 * Math.min(scale, 1.15)), CREAM, FONT);
     horn(ctx, 360, 246, 12, GOLD, 2.2);
-    text(page.title, 360, 304, Math.round(32 * scale), GOLD, FONT, 700);
+    text(page.title, 360, 304, Math.round(32 * Math.min(scale, 1.15)), GOLD, FONT, 700);
     let y = 356;
     const bodySize = Math.round(29 * scale), lh = Math.round(bodySize * 1.4);
+    // Same fix as the Rules page below (see its own comment): the fixed 356 gap only clears the
+    // title above it at the body font's 1x ascent, so push it down by however much taller this
+    // step's ascent has grown.
+    ctx.font = `600 ${bodySize}px ${UI}`;
+    const bodyAscent = ctx.measureText('Ag').actualBoundingBoxAscent || bodySize * 0.78;
+    ctx.font = `600 29px ${UI}`;
+    const baseAscent = ctx.measureText('Ag').actualBoundingBoxAscent || 29 * 0.78;
+    y += Math.max(0, bodyAscent - baseAscent);
     for (const para of page.lines) { const n = wrap(para, 70, y, bodySize, 580, '#fff3d6', lh, 'left'); y += n * lh + 22; }
     text(`Page ${(state.page % ABOUT.pages.length) + 1} of ${ABOUT.pages.length}`, 360, 1345, 19, 'rgba(248,233,196,0.6)', UI, 600);
     button(ABOUT_BTN.back, 'Back', { size: 30 });
@@ -286,6 +330,17 @@ export function render(ctx, state) {
       y = box.y + box.h + 34;
     }
     const bodySize = Math.round(29 * scale), lh = Math.round(bodySize * 1.4);
+    // `y` above (300 for a plain page, or just under the art box) was measured against the body
+    // font at the 1x step, where its ascent barely clears the title/horn or the art above it. That
+    // ascent grows with the text-size stepper, and a fixed gap doesn't - confirmed on a real 300%
+    // screenshot, where the first body line's own ascent climbed back up through the horn glyph
+    // and grazed the page title above it. Push the start down by exactly how much taller this
+    // step's ascent is than the 1x baseline, so the clearance that was tuned at 1x holds at every step.
+    ctx.font = `600 ${bodySize}px ${UI}`;
+    const bodyAscent = ctx.measureText('Ag').actualBoundingBoxAscent || bodySize * 0.78;
+    ctx.font = `600 29px ${UI}`;
+    const baseAscent = ctx.measureText('Ag').actualBoundingBoxAscent || 29 * 0.78;
+    y += Math.max(0, bodyAscent - baseAscent);
     for (const para of page.lines) {
       const n = wrap(para, 70, y, bodySize, 580, '#fff3d6', lh, 'left');
       y += n * lh + 18;
@@ -297,13 +352,13 @@ export function render(ctx, state) {
     button(HEADER.textInc, 'A+', { size: 34, dim: state.textScaleIdx === TEXT_SCALES.length - 1 });
   } else if (scene === 'over') {
     ctx.fillStyle = 'rgba(8,10,30,0.72)'; ctx.fillRect(0, 102, W, 1356);
-    const won = g.winner === 'draw' ? 'A draw' : state.two ? (g.winner === 0 ? 'Player one wins' : 'Player two wins') : g.winner === 0 ? 'You win!' : 'The computer wins';
+    const won = g.winner === 'draw' ? 'A draw' : state.two || state.autoMode ? (g.winner === 0 ? 'Player one wins' : 'Player two wins') : g.winner === 0 ? 'You win!' : 'The computer wins';
     text(won, 360, 500, 96, CREAM, FONT);
     wrap(g.reason, 360, 570, 26, 560, '#fff3d6');
     text(`${state.shown.kazan[0]} : ${state.shown.kazan[1]}`, 360, 740, 120, GOLD, FONT);
-    text(state.two ? 'Player one : Player two' : 'You : Computer', 360, 785, 24, 'rgba(248,233,196,0.85)', UI, 600);
+    text(state.two || state.autoMode ? 'Player one : Player two' : 'You : Computer', 360, 785, 24, 'rgba(248,233,196,0.85)', UI, 600);
     text(`${g.moves} moves`, 360, 830, 24, 'rgba(248,233,196,0.7)', UI, 500);
-    if (!state.two && g.winner === 0) {
+    if (!state.two && !state.autoMode && g.winner === 0) {
       text(`★ ${LEVELS[state.level].name} beaten`, 360, 900, 32, GOLD, UI, 700);
       if (!state.calm) for (let k = 0; k < 16; k++) { const ph = (state.t * 0.35 + k * 0.137) % 1, x = 360 + Math.sin(k * 2.4) * (170 + 90 * ph), y = 640 - ph * 420; drawSeed(ctx, state.seeds, k % 4, x, y, ph * 6, 0.9 - ph * 0.4); }
     }

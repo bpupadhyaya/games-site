@@ -1,5 +1,5 @@
 // Everything drawn each frame. Reads `state` (game.js) and changes nothing. The table and card faces are cached (art.js).
-import { W, H, HAND, BTN, SET, CLOTH, DECK, PILE, MSG, deckPos, pilePos, handPos, seatPos, tableGrid, slotPos, titleRows, inRect, TEXT_SCALES } from './layout.js';
+import { W, H, HAND, BTN, SET, CLOTH, DECK, PILE, MSG, deckPos, pilePos, handPos, seatPos, tableGrid, slotPos, titleRows, inRect, TEXT_SCALES, AP_THINK_STEPS } from './layout.js';
 import { drawTable, drawCard, drawSuitIcon, CW, CH, TAU } from './art.js';
 import { captures, rankOf, teamOf, RANK_NAMES } from './rules.js';
 import { LEVELS } from './engine.js';
@@ -25,7 +25,7 @@ const ease = (p) => p * p * (3 - 2 * p);
 
 export function render(ctx, state) {
   const scene = state.scene, big = state.big, g = state.g, french = state.french;
-  const boardScene = scene === 'play' || scene === 'lesson' || scene === 'puzzle';
+  const boardScene = scene === 'play' || scene === 'lesson' || scene === 'puzzle' || scene === 'autoplay' || scene === 'autoplay-over';
   const pulse = state.calm ? 0.7 : 0.5 + 0.5 * Math.sin(state.t * 5);
   const rrect = (x, y, w, h, r) => { ctx.beginPath(); ctx.roundRect(x, y, w, h, r); };
 
@@ -76,21 +76,26 @@ export function render(ctx, state) {
 
     // ---- header plaque
     panel(30, 100, 660, 70, 0.8);
-    if (scene === 'play' || scene === 'over') {
-      const A = scene === 'play' ? state.n === 2 ? 'You' : 'Us' : 'You', B = state.n === 2 ? 'Computer' : 'Them';
+    if (scene === 'play' || scene === 'over' || scene === 'autoplay' || scene === 'autoplay-over') {
+      const ap = scene === 'autoplay' ? state.ap : null, apOver = scene === 'autoplay-over';
+      const A = apOver || scene === 'autoplay' ? 'Player A' : scene === 'play' ? (state.n === 2 ? 'You' : 'Us') : 'You';
+      const B = apOver || scene === 'autoplay' ? 'Player B' : state.n === 2 ? 'Computer' : 'Them';
       text(A, 62, 145, 24, CREAM, UI, 700, 'left'); text(String(g.score[0]), 222, 152, 44, GOLD, NUM, 800, 'center');
       text(B, 658, 145, 24, CREAM, UI, 700, 'right'); text(String(g.score[1]), 498, 152, 44, GOLD, NUM, 800, 'center');
-      text(`Round ${g.round}`, 360, 133, 24, CREAM, UI, 700); text(`first to ${g.target}`, 360, 158, 19, 'rgba(251,232,191,0.85)', UI, 600);
+      text(`Round ${g.round}`, 360, 133, 24, CREAM, UI, 700);
+      const apTime = `pause ${AP_THINK_STEPS[state.apThinkIdx]}s`;
+      const sub = ap ? (ap.phase === 'think' ? `Thinking… · ${apTime}` : ap.phase === 'reveal' ? 'Here is the move' : `Watching… · ${apTime}`) : apOver ? 'Auto Play · Watch & Learn' : `first to ${g.target}`;
+      text(sub, 360, 158, 19, 'rgba(251,232,191,0.85)', UI, 600);
     } else if (scene === 'lesson') { text(`Lesson ${state.lesson.i + 1} of ${LESSONS.length}`, 360, 128, 22, 'rgba(251,232,191,0.85)', UI, 600); text(LESSONS[state.lesson.i].title, 360, 158, 38, CREAM, FONT); }
     else { text('Daily deal' + (state.pz.p.hard ? ' (weekend)' : ''), 360, 128, 22, 'rgba(251,232,191,0.85)', UI, 600); text(`Streak: ${state.daily.streak} day${state.daily.streak === 1 ? '' : 's'}`, 360, 158, 28, GOLD, UI, 700); }
 
     // ---- the other seats
-    if (scene === 'play') {
+    if (scene === 'play' || scene === 'autoplay') {
       for (let s = 1; s < g.n; s++) {
         const p = seatPos(g.n, s), n = state.seatShown[s], active = g.turn === s && g.phase === 'play';
         if (active) { const gl = ctx.createRadialGradient(p.x, p.y, 10, p.x, p.y, 90); gl.addColorStop(0, `rgba(255,214,120,${0.4 + 0.25 * pulse})`); gl.addColorStop(1, 'rgba(255,214,120,0)'); ctx.fillStyle = gl; ctx.fillRect(p.x - 90, p.y - 90, 180, 180); }
         for (let k = 0; k < n; k++) { const a = (k - (n - 1) / 2) * 0.22; card(-1, p.x + (k - (n - 1) / 2) * 34, p.y + Math.abs(a) * 24 - 4, 54, a); }
-        const label = g.n === 2 ? `Computer · ${LEVELS[state.level].name}` : s === 2 ? 'Partner' : s === 1 ? 'Left' : 'Right';
+        const label = scene === 'autoplay' ? 'Player B' : g.n === 2 ? `Computer · ${LEVELS[state.level].name}` : s === 2 ? 'Partner' : s === 1 ? 'Left' : 'Right';
         text(label, p.x, p.y + 68 + (g.n === 2 ? -2 : 0), g.n === 2 ? 24 : 21, active ? GOLD : CREAM, UI, 700);
         if (active && state.thinking && !busy) { const dots = '.'.repeat(1 + (Math.floor(state.t * 3) % 3)); text('thinking' + dots, p.x, p.y + 92, 18, 'rgba(251,232,191,0.85)', UI, 500); }
       }
@@ -123,7 +128,7 @@ export function render(ctx, state) {
     if (S && !caps.length && humanTurn && !busy) { const free = state.slots.indexOf(null), p = slotPos(free < 0 ? 0 : free, gr); ctx.save(); ctx.setLineDash([12, 9]); ctx.strokeStyle = `rgba(255,236,170,${0.5 + 0.4 * pulse})`; ctx.lineWidth = 4; rrect(p.x - gr.w / 2, p.y - gr.h / 2, gr.w, gr.h, 14); ctx.stroke(); ctx.restore(); text('lay it here', p.x, p.y + 6, 20, 'rgba(255,240,200,0.9)', UI, 600); }
 
     // ---- deck and my captured pile chips
-    if (scene === 'play') {
+    if (scene === 'play' || scene === 'autoplay') {
     panel(DECK.x, DECK.y, DECK.w, DECK.h, 0.7); backStack(deckPos.x - 4, deckPos.y - 6, 40, state.deckShown > 0 ? 3 : 0); if (state.deckShown === 0) text('empty', deckPos.x, deckPos.y + 6, 18, 'rgba(251,232,191,0.5)', UI, 600);
     text(String(state.deckShown), deckPos.x + 22, DECK.y + DECK.h - 10, 22, GOLD, NUM, 800); text('deck', DECK.x + DECK.w / 2, DECK.y + 20, 15, 'rgba(251,232,191,0.75)', UI, 700);
     panel(PILE.x, PILE.y, PILE.w, PILE.h, 0.7); backStack(pilePos.x - 4, pilePos.y - 6, 40, state.pileShown[0] > 0 ? 3 : 0); text(String(state.pileShown[0]), pilePos.x + 22, PILE.y + PILE.h - 10, 22, GOLD, NUM, 800); text('yours', PILE.x + PILE.w / 2, PILE.y + 20, 15, 'rgba(251,232,191,0.75)', UI, 700);
@@ -156,6 +161,14 @@ export function render(ctx, state) {
     if (scene === 'play') { button(BTN.menu, 'Menu', { size: 28 }); button(BTN.undo, 'Undo', { size: 28, dim: !state.undo }); button(BTN.hint, `Hint (${state.hintsLeft})`, { size: 28, dim: state.hintsLeft <= 0 }); }
     else if (scene === 'lesson') { button(BTN.menu, 'Menu', { size: 28 }); if (state.lesson.done && !busy && !state.panel) button(BTN.next, state.lesson.i + 1 < LESSONS.length ? 'Next lesson' : 'Finish', { primary: true, size: 30 }); }
     else if (scene === 'puzzle') { button(BTN.menu, 'Menu', { size: 28 }); if (state.pz.status === 'solved' && !busy) button(BTN.share, 'Share result', { primary: true, size: 30 }); }
+    else if (scene === 'autoplay') {
+      // The current think-time value is shown in the header caption above (not here): the hand
+      // cards' own art reaches down almost to this button row, leaving no clear room for a second
+      // text line between them without overlapping the cards.
+      button(BTN.apExit, 'Exit', { size: 28 });
+      button(BTN.apDec, 'Think −', { size: 24, dim: state.apThinkIdx === 0 });
+      button(BTN.apInc, 'Think +', { size: 24, dim: state.apThinkIdx === AP_THINK_STEPS.length - 1 });
+    }
 
     // ---- cards in flight
     for (const f of state.fly) {
@@ -182,7 +195,7 @@ export function render(ctx, state) {
   if (boardScene && state.panel === 'round' && g.summary) {
     ctx.fillStyle = 'rgba(14,4,0,0.72)'; ctx.fillRect(0, 0, W, H);
     panel(40, 200, 640, 1040, 0.94);
-    const s = g.summary, per = s.per, T = per.length, names = scene === 'lesson' ? ['You', 'Opponent'] : state.n === 4 ? ['Your team', 'Opponents'] : ['You', 'Computer'];
+    const s = g.summary, per = s.per, T = per.length, names = scene === 'lesson' ? ['You', 'Opponent'] : scene === 'autoplay' ? ['Player A', 'Player B'] : state.n === 4 ? ['Your team', 'Opponents'] : ['You', 'Computer'];
     text(scene === 'lesson' ? 'How a round is scored' : `Round ${g.round}`, 360, 285, 62, CREAM, FONT);
     text(names[0], 430, 350, 26, GOLD, UI, 700); text(names[1], 590, 350, 26, GOLD, UI, 700);
     const rows = [
@@ -209,7 +222,10 @@ export function render(ctx, state) {
     if (scene !== 'lesson') { text('Match score', 82, y + 12, 26, CREAM, UI, 700, 'left'); g.score.forEach((sc, t) => text(String(sc), t === 0 ? 430 : 590, y + 16, 44, GOLD, NUM, 800)); text(`first to ${g.target}`, 360, y + 62, 20, 'rgba(251,232,191,0.75)', UI, 600); y += 90; }
     const notes = []; if (s.winners.carte < 0) notes.push('Equal cards: no point for cards.'); if (s.winners.denari < 0) notes.push('Equal coins: no point for coins.'); if (s.winners.primiera < 0) notes.push('Primiera needs a card in every suit, and the higher total wins.');
     if (notes.length) wrap(notes[0], 360, y + 30, 21, 540, 'rgba(251,232,191,0.8)');
-    button(BTN.cont, scene === 'lesson' ? 'Continue' : g.phase === 'over' ? 'See the result' : 'Next round', { primary: true, size: 34 });
+    // Auto Play's round panel auto-advances on its own timer (updateAutoPlay), so it shows a plain
+    // status label here rather than a button implying a tap.
+    if (scene === 'autoplay') text(g.phase === 'over' ? 'Finishing…' : 'Next round starting…', 360, BTN.cont.y + BTN.cont.h / 2 + 12, 30, 'rgba(251,232,191,0.85)', UI, 700);
+    else button(BTN.cont, scene === 'lesson' ? 'Continue' : g.phase === 'over' ? 'See the result' : 'Next round', { primary: true, size: 34 });
   }
 
   // ---- other screens -------------------------------------------------------------------------------------------------
@@ -227,6 +243,7 @@ export function render(ctx, state) {
     button(R.play, 'Play the computer', { primary: state.learned && !R.resume, size: 32 });
     button(R.four, 'Four players, in partnership', { size: 30 });
     button(R.daily, solved ? `Daily deal: solved · streak ${state.daily.streak}` : state.daily.streak ? `Daily deal · streak ${state.daily.streak}` : 'Daily deal', { size: 30 });
+    button(R.autoplay, 'Auto Play · Watch & Learn', { size: 28 });
     button(R.about, 'About', { size: 22 }); button(R.controls, 'Controls', { size: 22 });
     button(R.rules, 'Rules', { size: 22 }); button(R.settings, 'Settings', { size: 22 });
     const y = R.about.y + 130;
@@ -266,6 +283,11 @@ export function render(ctx, state) {
     const pg = list[state.page % list.length];
     const titleSize = Math.round(31 * scale), titleY = 190 + Math.round(58 * Math.min(scale, 1.15));
     text(pg.title, 360, titleY, titleSize, GOLD, FONT, 700);
+    // Body size is needed below before the cards block too: the gap after a card's fixed-size label
+    // (or caption) must grow with the body font that follows it, or a bigger text-size step crowds
+    // the body text straight into the label/caption above it - the same fixed-gap-vs-growing-font
+    // bug this game family keeps needing to fix wherever a diagram sits above the body text.
+    const bodySize = Math.round(29 * scale), lh = Math.round(bodySize * 1.4), lineGap = Math.round(16 * scale);
     let y = titleY + Math.round(52 * scale);
     if (pg.cards && pg.cards.length) {
       const n = pg.cards.length, cw = n >= 4 ? 118 : 132, gap = 22, totalW = n * cw + (n - 1) * gap, x0 = 360 - totalW / 2 + cw / 2, cy = y + 108;
@@ -274,14 +296,17 @@ export function render(ctx, state) {
         card(cd.id, cx, cy, cw, 0);
         if (cd.label) wrap(cd.label, cx, cy + cw * 1.0, 15, cw + 28, 'rgba(251,232,191,0.85)', 18);
       });
-      y = cy + cw * 1.0 + 40;
-      if (pg.cardsCaption) { text(pg.cardsCaption, 360, y, 19, 'rgba(251,232,191,0.75)', UI, 600); y += 34; }
+      y = cy + cw * 1.0 + 26 + Math.round(bodySize * 0.6);
+      if (pg.cardsCaption) { text(pg.cardsCaption, 360, y, 19, 'rgba(251,232,191,0.75)', UI, 600); y += 18 + Math.round(bodySize * 0.6); }
     }
-    const bodySize = Math.round(29 * scale), lh = Math.round(bodySize * 1.4), lineGap = Math.round(16 * scale);
     for (const line of pg.lines) { const n = wrap(line, 70, y, bodySize, 580, '#fff3d6', lh, 'left'); y += n * lh + lineGap; }
     text(`Page ${(state.page % list.length) + 1} of ${list.length}`, 360, 1398, 20, 'rgba(251,232,191,0.7)', UI, 600);
-    button(BTN.pageBack, 'Back', { primary: true, size: 30 });
-    button(BTN.pageNext, 'Next', { primary: true, size: 30 });
+    // Back is the neutral/secondary action (always exits to the title); Next is the primary,
+    // forward-reading action, and reads as a clear exit affordance ("Done") on the last page rather
+    // than a dead-end "Next" that just wraps back to page one.
+    const isLast = state.page % list.length === list.length - 1;
+    button(BTN.pageBack, 'Back', { size: 30 });
+    button(BTN.pageNext, isLast ? 'Done' : 'Next', { primary: true, size: 30 });
     button(BTN.textDec, 'A−', { size: 28, dim: state.textScaleIdx === 0 });
     button(BTN.textInc, 'A+', { size: 28, dim: state.textScaleIdx === TEXT_SCALES.length - 1 });
   } else if (scene === 'over') {
@@ -294,6 +319,15 @@ export function render(ctx, state) {
     if (won && !T) text(`★ ${LEVELS[state.level].name} beaten`, 360, 870, 32, GOLD, UI, 700);
     if (won && !state.calm) for (let k = 0; k < 18; k++) { const ph = (state.t * 0.3 + k * 0.11) % 1, x = 360 + Math.sin(k * 2.4) * (200 + 90 * ph), y = 640 - ph * 460; card(k % 3 === 0 ? 6 : 29, x, y, 60 * (1 - ph * 0.4), ph * 5, { shadow: false }); }
     button(BTN.again, 'Play again', { primary: true, size: 36 }); button(BTN.back, 'Menu', { size: 32 });
+  } else if (scene === 'autoplay-over') {
+    ctx.fillStyle = 'rgba(20,6,0,0.55)'; ctx.fillRect(0, 0, W, H);
+    const won = g.winner === 0;
+    text('Auto Play complete', 360, 420, 50, CREAM, FONT);
+    text(won ? 'Player A wins!' : 'Player B wins!', 360, 500, 74, CREAM, FONT);
+    text(`${g.score[0]} : ${g.score[1]}`, 360, 680, 130, GOLD, NUM, 800);
+    text('Player A : Player B', 360, 735, 24, 'rgba(251,232,191,0.9)', UI, 600);
+    text(`${g.round} round${g.round === 1 ? '' : 's'}`, 360, 785, 24, 'rgba(251,232,191,0.75)', UI, 500);
+    button(BTN.again, 'Watch again', { primary: true, size: 36 }); button(BTN.back, 'Exit to menu', { size: 32 });
   }
   void H; void TAU; void CH; void RANK_NAMES; void teamOf; void inRect;
 }

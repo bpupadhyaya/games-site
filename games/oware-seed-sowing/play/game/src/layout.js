@@ -31,11 +31,16 @@ export const BTN = {
   // Text-size stepper for the About/Rules reference pages, flanking the panel's top title (the
   // Back/Next pair lives at the BOTTOM of these screens, so the stepper goes up top instead).
   textDec: { x: 50, y: 176, w: 96, h: 58 }, textInc: { x: 574, y: 176, w: 96, h: 58 },
+  // Auto Play: the same bottom-row three-button shape as play's Menu/Undo/Hint, repurposed.
+  apExit: { x: 40, y: 1340, w: 190, h: 82 }, apDec: { x: 265, y: 1340, w: 190, h: 82 }, apInc: { x: 490, y: 1340, w: 190, h: 82 },
 };
+// Auto Play think-time steps, in seconds: an index into this array (never a raw float), default
+// 5s (index 1), hard-capped at 10s per the owner's instruction that a max wait past 10s is too long.
+export const AP_THINK_STEPS = [2, 5, 8, 10];
 // Text-size steps for the About/Rules reference pages. Index into this, never a raw float, so
 // "min"/"max" are exact and the stepper can cleanly disable at either end. Every page's content is
 // paced (about.js / content.js) to fit comfortably even at the top step.
-export const TEXT_SCALES = [1, 1.15, 1.3];
+export const TEXT_SCALES = [1, 1.5, 2, 2.5, 3];
 const row = (y, h = 84) => ({ x: 70, y, w: 580, h });
 export function titleRows(hasSave) {
   let y = 735;
@@ -45,6 +50,7 @@ export function titleRows(hasSave) {
   R.play = row(y); y += 98;
   R.two = row(y); y += 98;
   R.daily = row(y); y += 98;
+  R.autoplay = row(y); y += 98;
   // About / Settings / Rules share one row, three even columns (Rules is the addition).
   const third = (580 - 14 * 2) / 3, gap = 14;
   R.about = { x: 70, y, w: third, h: 84 };

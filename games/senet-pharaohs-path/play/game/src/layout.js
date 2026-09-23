@@ -27,10 +27,16 @@ export const BTN = {
   menu: { x: 60, y: 1462, w: 190, h: 72 }, undo: { x: 265, y: 1462, w: 190, h: 72 }, hint: { x: 470, y: 1462, w: 190, h: 72 },
   again: { x: 140, y: 900, w: 440, h: 96 }, back: { x: 140, y: 1016, w: 440, h: 84 }, share: { x: 140, y: 1120, w: 440, h: 84 },
   next: { x: 265, y: 1462, w: 395, h: 72 },
+  // Auto Play: the same bottom-row three-button shape as play's Menu/Undo/Hint, repurposed.
+  apExit: { x: 60, y: 1462, w: 190, h: 72 }, apDec: { x: 265, y: 1462, w: 190, h: 72 }, apInc: { x: 470, y: 1462, w: 190, h: 72 },
 };
 const row = (i) => ({ x: 90, y: 790 + i * 76, w: 540, h: 66 });
 export function titleRows(hasSave) {
-  const names = (hasSave ? ['resume'] : []).concat(['learn', 'play', 'two', 'daily', 'how']), out = {};
+  // Auto Play: a new full-width row of its own (same shape as Learn/Play/Two/Daily/How above it),
+  // added right after How to play -- the About/Rules row and the settings row below both compute
+  // off `names.length`, so they shift down by the same 76px every row already steps by, and nothing
+  // above this row moves.
+  const names = (hasSave ? ['resume'] : []).concat(['learn', 'play', 'two', 'daily', 'how', 'autoplay']), out = {};
   names.forEach((n, i) => { out[n] = row(i); });
   // About used to be its own full-width row here (names.length); it now shares that same row, two
   // even columns, with Rules (the addition) - every row above keeps its exact original position,
@@ -43,4 +49,15 @@ export function titleRows(hasSave) {
   out.calm = { x: 90, y: y + 68, w: 262, h: 60 }; out.big = { x: 368, y: y + 68, w: 262, h: 60 };
   return out;
 }
-export const PAGE = { back: { x: 140, y: 1440, w: 440, h: 84 }, next: { x: 380, y: 1440, w: 260, h: 84 }, prev: { x: 80, y: 1440, w: 260, h: 84 } };
+// Three even slots so Prev (only shown once past page 1) and Next (only shown before the last page)
+// never collide with Back, which is always shown, centred.
+export const PAGE = { prev: { x: 40, y: 1440, w: 200, h: 84 }, back: { x: 260, y: 1440, w: 200, h: 84 }, next: { x: 480, y: 1440, w: 200, h: 84 } };
+// Text-size stepper for the About/How to play/Rules reference pages: a header row above the title,
+// clear of the Back/Next/Prev/Menu row in the footer. "A-"/"A+" on all three screens.
+export const TEXT_STEPPER = { dec: { x: 40, y: 24, w: 120, h: 62 }, inc: { x: W - 160, y: 24, w: 120, h: 62 } };
+// Index into this, never a raw float, so the stepper can cleanly disable at either end and a stale
+// saved index (e.g. from a build with a shorter array) always clamps instead of producing NaN sizes.
+export const TEXT_SCALES = [1, 1.5, 2, 2.5, 3];
+// Auto Play think-time steps, in seconds: an index into this array (never a raw float), default 5s
+// (index 1), hard-capped at 10s per the owner's instruction that a longer wait defeats the point.
+export const AP_THINK_STEPS = [2, 5, 8, 10];

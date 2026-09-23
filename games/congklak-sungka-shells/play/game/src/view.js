@@ -1,5 +1,5 @@
 // Everything drawn each frame. Reads `state` (game.js) and changes nothing. The ground, board and shell sprites are cached (art.js).
-import { W, H, PIT_R, PITCH, STORE_BOX, BTN, SET, HULL, TEXT_STEPPER, TEXT_SCALES, posXY, titleRows } from './layout.js';
+import { W, H, PIT_R, PITCH, STORE_BOX, BTN, SET, HULL, TEXT_STEPPER, TEXT_SCALES, posXY, titleRows, AUTO_THINK_STEPS, AUTO_BAR, AUTO_DEC, AUTO_INC } from './layout.js';
 import { drawGround, drawBoard, drawSeed, slot, drawHousePit, drawStorePit, WOODS, SEEDSETS } from './art.js';
 import { legalMoves, STORE, SEQ, nextRound, clone } from './rules.js';
 import { LEVELS } from './engine.js';
@@ -12,7 +12,7 @@ export const MATCHES = { single: 'One round', short: 'Three rounds', full: 'Full
 
 export function render(ctx, state) {
   const scene = state.scene, big = state.big, g = state.game, A = state.anim, calm = state.calm, t = state.t;
-  const boardScene = scene === 'play' || scene === 'over' || scene === 'lesson' || scene === 'puzzle' || scene === 'round';
+  const boardScene = scene === 'play' || scene === 'over' || scene === 'lesson' || scene === 'puzzle' || scene === 'round' || scene === 'auto';
 
   const text = (str, x, y, size, color = CREAM, font = UI, weight = 700, align = 'center', shadow = true) => {
     ctx.textAlign = align; ctx.font = `${weight} ${size}px ${font}`;
@@ -25,8 +25,19 @@ export function render(ctx, state) {
     out.push(cur); return out;
   };
   const wrap = (str, x, y, size, maxW, color = CREAM, lh = size * 1.3, align = 'center') => { const L = lines(str, maxW, size); L.forEach((ln, i) => text(ln, x, y + i * lh, size, color, UI, 600, align)); return L.length; };
+  // Shrinks a one-line heading only if it would otherwise run past the panel edge at the top text
+  // scale (a no-op for every short heading, which already fits at the base size).
+  const fitTitle = (str, base, maxW, font = FONT, weight = 700) => {
+    let size = base; ctx.font = `${weight} ${size}px ${font}`;
+    while (ctx.measureText(str).width > maxW && size > 22) { size -= 2; ctx.font = `${weight} ${size}px ${font}`; }
+    return size;
+  };
   const button = (r, label, o = {}) => {
-    ctx.save(); if (o.dim) ctx.globalAlpha = 0.5;
+    ctx.save();
+    // The pill's own background/border is always drawn at full strength, even when `dim` (disabled)
+    // — otherwise a half-transparent pill over a busy backdrop (e.g. the corner text-size stepper
+    // sitting on the woven-mat ground texture above the reader panel) reads as a see-through smear
+    // rather than a clearly disabled control. Only the label dims, which still reads as "disabled".
     ctx.fillStyle = 'rgba(8,4,16,0.5)'; ctx.beginPath(); ctx.roundRect(r.x + 2, r.y + 7, r.w, r.h, 24); ctx.fill();
     const gr = ctx.createLinearGradient(0, r.y, 0, r.y + r.h);
     if (o.primary) { gr.addColorStop(0, '#ffe4a0'); gr.addColorStop(0.55, '#e2a842'); gr.addColorStop(1, '#a86a1c'); } else { gr.addColorStop(0, '#6a3f22'); gr.addColorStop(0.5, '#47260f'); gr.addColorStop(1, '#2c1408'); }
@@ -35,6 +46,7 @@ export function render(ctx, state) {
     // a carved inner line, like the board's rim
     ctx.strokeStyle = o.primary ? 'rgba(120,70,10,0.5)' : 'rgba(243,207,122,0.22)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.roundRect(r.x + 7, r.y + 7, r.w - 14, r.h - 14, 18); ctx.stroke();
     ctx.strokeStyle = 'rgba(255,255,255,0.16)'; ctx.beginPath(); ctx.roundRect(r.x + 5, r.y + 3, r.w - 10, r.h * 0.42, 18); ctx.stroke();
+    if (o.dim) ctx.globalAlpha = 0.55;
     const sz = o.size ?? 30;
     ctx.textAlign = 'center'; ctx.font = `700 ${sz}px ${UI}`;
     ctx.fillStyle = o.primary ? 'rgba(255,240,200,0.5)' : 'rgba(0,0,0,0.5)'; ctx.fillText(label, r.x + r.w / 2, r.y + r.h / 2 + sz * 0.36 + 1.5);
@@ -132,7 +144,7 @@ export function render(ctx, state) {
     }
     // glows for whichever houses can be played now
     let legal = [];
-    const human = !A && g.phase === 'play' && (scene === 'play' ? (state.two || g.turn === 0 || g.opening) : scene === 'lesson' ? !state.lesson.done : (state.pz.status !== 'solved' && state.pz.wrong <= 0));
+    const human = !A && g.phase === 'play' && (scene === 'play' ? (state.two || g.turn === 0 || g.opening) : scene === 'lesson' ? !state.lesson.done : scene === 'puzzle' ? (state.pz.status !== 'solved' && state.pz.wrong <= 0) : false);
     if (human) {
       if (g.opening) legal = [...legalMoves(g, 0).filter((h) => !state.pick || state.pick[0] == null), ...(state.two ? legalMoves(g, 1).filter((h) => !state.pick || state.pick[1] == null) : [])];
       else legal = scene === 'lesson' ? LESSONS[state.lesson.i].steps[state.lesson.step].want.filter((p) => legalMoves(g).includes(p)) : legalMoves(g);
@@ -178,7 +190,19 @@ export function render(ctx, state) {
     if (scene === 'play') { button(BTN.menu, 'Menu', { size: 28 }); button(BTN.undo, 'Undo', { size: 28 }); button(BTN.hint, `Hint (${state.hintsLeft})`, { size: 28, dim: state.hintsLeft <= 0 }); }
     else if (scene === 'lesson') { button(BTN.menu, 'Menu', { size: 28 }); if (state.lesson.done && !A) button(BTN.next, state.lesson.i + 1 < LESSONS.length ? 'Next lesson' : 'Finish', { primary: true, size: 30 }); }
     else if (scene === 'puzzle') { button(BTN.menu, 'Menu', { size: 28 }); if (state.pz.status === 'solved' && !A) button(BTN.share, 'Share result', { primary: true, size: 30 }); }
+    else if (scene === 'auto' && state.auto && state.auto.sub !== 'over' && state.auto.sub !== 'roundover') {
+      // Menu/Undo/Hint have no meaning in a spectator run — the same three slots become Exit/Pause/Skip.
+      button(BTN.menu, 'Exit', { size: 28 }); button(BTN.undo, state.auto.paused ? 'Resume' : 'Pause', { size: 28 }); button(BTN.hint, 'Skip', { size: 28 });
+    }
     if (scene === 'play' && state.dev) text('DEV', 40, 130, 20, '#7dff9a', UI, 700, 'left');
+    if (scene === 'auto' && state.auto && state.auto.sub !== 'roundover' && state.auto.sub !== 'over') {
+      const r = AUTO_BAR, A2 = state.auto;
+      panel(r.x, r.y, r.w, r.h, 0.68);
+      const label = A2.paused ? 'Paused' : A2.sub === 'think' ? 'Thinking...' : A2.sub === 'reveal' ? 'Revealing...' : '';
+      text(label, r.x + 18, r.y + r.h / 2 + 8, 24, A2.paused ? '#ffd08a' : GOLD, UI, 700, 'left', false);
+      text(`Think ${AUTO_THINK_STEPS[state.autoThinkIdx]}s`, AUTO_DEC.x - 14, r.y + r.h / 2 + 6, 19, CREAM, UI, 600, 'right', false);
+      button(AUTO_DEC, '-', { size: 22 }); button(AUTO_INC, '+', { size: 22 });
+    }
   }
 
   if (scene === 'title' || scene === 'demo-limit') {
@@ -208,7 +232,7 @@ export function render(ctx, state) {
     button(R.play, 'Play the computer', { primary: state.learned && !R.resume, size: 32 });
     button(R.two, 'Two players, one phone', { size: 30 });
     button(R.daily, solved ? `Daily puzzle: solved · streak ${state.daily.streak}` : state.daily.streak ? `Daily puzzle · streak ${state.daily.streak}` : 'Daily puzzle', { size: 30 });
-    button(R.about, 'About', { size: 21 }); button(R.how, 'Controls', { size: 21 }); button(R.rules, 'Rules', { size: 21 }); button(R.settings, 'Settings', { size: 21 });
+    button(R.about, 'About', { size: 17 }); button(R.how, 'Controls', { size: 17 }); button(R.rules, 'Rules', { size: 17 }); button(R.settings, 'Settings', { size: 17 }); button(R.auto, 'Auto', { size: 17 });
     const y = R.about.y + 130;
     text(`Games played: ${state.stats.games} · won: ${state.stats.wins}`, 360, y, 22, 'rgba(251,232,191,0.9)', UI, 500);
     let stars = ''; for (let l = 0; l < LEVELS.length; l++) stars += state.stats.badges['L' + l] ? '★ ' : '☆ ';
@@ -243,10 +267,18 @@ export function render(ctx, state) {
     // never fit on one screen, and cramming them in defeats the point of bigger text.
     const parts = P.parts, [h, body] = parts[state.page % parts.length];
     panel(36, 116, 648, 1250, 0.92);
-    text(P.title, 360, 206, Math.round(64 * Math.min(scale, 1.15)), CREAM, FONT);
-    text(h, 70, 280, Math.round(34 * scale), GOLD, FONT, 700, 'left');
+    const topSize = Math.round(64 * Math.min(scale, 1.15));
+    text(P.title, 360, 206, topSize, CREAM, FONT);
+    // The section heading shrinks-to-fit only if it would otherwise run past the panel's right edge
+    // at the top text-size step (a no-op at every smaller step, where it already fits).
+    const headSize = fitTitle(h, Math.round(34 * scale), 600);
+    const headY = 206 + Math.round(46 * scale) + Math.round(headSize * 0.6);
+    text(h, 70, headY, headSize, GOLD, FONT, 700, 'left');
     const bodySize = Math.round(28 * scale), lh = Math.round(38 * scale);
-    wrap(body, 70, 280 + Math.round(50 * scale), bodySize, 580, '#fff3d6', lh, 'left');
+    // Same fix as the Rules page below: the gap must clear the body's ascent even when a long
+    // heading has shrunk a lot via fitTitle (its own term shrinking with it isn't enough on its own).
+    const bodyY = headY + Math.round(headSize * 0.6) + Math.round(bodySize * 0.65) + 10;
+    wrap(body, 70, bodyY, bodySize, 580, '#fff3d6', lh, 'left');
     text(`Page ${(state.page % parts.length) + 1} of ${parts.length}`, 360, 1340, 20, 'rgba(251,232,191,0.6)', UI, 600);
     button(BTN.aboutBack, 'Back', { size: 30 });
     button(BTN.aboutNext, 'Next', { primary: true, size: 30 });
@@ -257,9 +289,19 @@ export function render(ctx, state) {
     const pages = RULES, page = pages[state.page % pages.length];
     const scale = TEXT_SCALES[state.textScaleIdx] ?? 1;
     panel(36, 116, 648, 1250, 0.92);
-    text('Rules', 360, 206, Math.round(64 * Math.min(scale, 1.15)), CREAM, FONT);
-    text(page.title, 360, 258, Math.round(32 * scale), GOLD, FONT, 700);
-    let y = 300;
+    const topSize = Math.round(64 * Math.min(scale, 1.15));
+    text('Rules', 360, 206, topSize, CREAM, FONT);
+    // The page title shrinks-to-fit only if it would otherwise run past the panel edges at the top
+    // text-size step (a no-op at every smaller step, where it already fits).
+    const titleSize = fitTitle(page.title, Math.round(32 * scale), 620);
+    const bodySize = Math.round(28 * scale), lh = Math.round(bodySize * 1.4);
+    const titleY = 206 + Math.round(44 * scale) + Math.round(titleSize * 0.6);
+    text(page.title, 360, titleY, titleSize, GOLD, FONT, 700);
+    // The gap below the title must clear BOTH the title's own descent AND the body's much bigger
+    // ascent: a long title shrinks a lot (fitTitle) so its own term shrinks with it, but the body
+    // font stays at the full 300%-step size regardless, so the gap can't be based on titleSize
+    // alone without the body's first line climbing into the title on a long-title page.
+    let y = titleY + Math.round(titleSize * 0.5) + Math.round(bodySize * 0.65) + 10;
     // Illustrations reuse the board's own real pit/store/seed drawing functions (art.js) — never a
     // separate simplified icon, so the picture on this page always matches what is on the board.
     if (page.art === 'house') {
@@ -267,13 +309,15 @@ export function render(ctx, state) {
       drawHousePit(ctx, cx, cy, PIT_R);
       for (let k = 0; k < 4; k++) { const s = slot(0, k); drawSeed(ctx, state.seeds, s.v, cx + s.x, cy + s.y, s.rot, 1.42); }
       text('A house with shells in it', 360, y + 168, 20, 'rgba(251,232,191,0.75)', UI, 600);
-      y += 200;
+      // Extra headroom below the caption grows with the text scale, since the body font that follows
+      // grows much faster than this fixed-size caption/illustration does.
+      y += 200 + Math.round(30 * (scale - 1));
     } else if (page.art === 'store') {
       const S = { x: 255, y: y, w: 210, h: 86 };
       drawStorePit(ctx, S.x, S.y, S.w, S.h);
       for (let k = 0; k < 10; k++) { const col = k % 7, row = Math.floor(k / 7); drawSeed(ctx, state.seeds, (k * 3) % 4, S.x + 26 + col * 14 + (row % 2) * 6, S.y + 46 + row * 12, ((k * 97) % 360) * Math.PI / 180, 0.8); }
       text('Your storehouse, banking shells', 360, y + S.h + 30, 20, 'rgba(251,232,191,0.75)', UI, 600);
-      y += S.h + 62;
+      y += S.h + 62 + Math.round(30 * (scale - 1));
     } else if (page.art === 'capture') {
       const cy = y + 84, xa = 200, xb = 520;
       drawHousePit(ctx, xa, cy, PIT_R);
@@ -281,9 +325,8 @@ export function render(ctx, state) {
       for (let k = 0; k < 4; k++) { const s = slot(1, k); drawSeed(ctx, state.seeds, s.v, xb + s.x, cy + s.y, s.rot, 1.42); }
       text('Yours: empty', xa, cy + 68, 18, 'rgba(251,232,191,0.75)', UI, 600);
       text('Opposite: captured', xb, cy + 68, 18, 'rgba(251,232,191,0.75)', UI, 600);
-      y += 190;
+      y += 190 + Math.round(30 * (scale - 1));
     }
-    const bodySize = Math.round(28 * scale), lh = Math.round(bodySize * 1.4);
     for (const para of page.lines) { const n = wrap(para, 70, y, bodySize, 580, '#fff3d6', lh, 'left'); y += n * lh + 18; }
     text(`Page ${(state.page % pages.length) + 1} of ${pages.length}`, 360, 1340, 20, 'rgba(251,232,191,0.6)', UI, 600);
     button(BTN.rulesBack, 'Back', { size: 30 });
@@ -291,7 +334,7 @@ export function render(ctx, state) {
     const atMin = state.textScaleIdx === 0, atMax = state.textScaleIdx === TEXT_SCALES.length - 1;
     button(TEXT_STEPPER.dec, 'A−', { dim: atMin, size: 32 });
     button(TEXT_STEPPER.inc, 'A+', { dim: atMax, size: 32 });
-  } else if (scene === 'round') {
+  } else if (scene === 'round' || (scene === 'auto' && state.auto && state.auto.sub === 'roundover')) {
     ctx.fillStyle = 'rgba(12,6,24,0.72)'; ctx.fillRect(0, 0, W, H);
     const rr = g.roundResult, mine = rr.a, theirs = rr.b, won = mine > theirs ? 0 : mine < theirs ? 1 : -1;
     const who = (pl) => (state.two ? (pl === 0 ? 'Player one' : 'Player two') : pl === 0 ? 'You' : 'The computer');
@@ -305,7 +348,7 @@ export function render(ctx, state) {
     wrap(`Refilled houses: ${open[0]} for ${who(0).toLowerCase()}, ${open[1]} for ${who(1).toLowerCase()}.`, 360, 830, 28, 590, '#fff3d6');
     wrap(lost[0] + lost[1] === 0 ? 'Nobody loses a house this time.' : `${lost[0] ? `${who(0)}: ${lost[0]} house${lost[0] === 1 ? '' : 's'} burnt shut. ` : ''}${lost[1] ? `${who(1)}: ${lost[1]} house${lost[1] === 1 ? '' : 's'} burnt shut.` : ''}`, 360, 900, 26, 590, '#ffd7a0');
     button(BTN.cont, 'Next round', { primary: true, size: 36 });
-  } else if (scene === 'over') {
+  } else if (scene === 'over' || (scene === 'auto' && state.auto && state.auto.sub === 'over')) {
     ctx.fillStyle = 'rgba(12,6,24,0.74)'; ctx.fillRect(0, 0, W, H);
     const won = g.winner === 'draw' ? 'A draw' : state.two ? (g.winner === 0 ? 'Player one wins' : 'Player two wins') : g.winner === 0 ? 'You win!' : 'The computer wins';
     text(won, 360, 470, 96, CREAM, FONT);

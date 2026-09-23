@@ -29,10 +29,12 @@ export function titleRows(hasSave) {
   y = 770 + (full.length + 3) * 78 + 4;
   out.level = { x: 90, y, w: 262, h: 62 }; out.sound = { x: 368, y, w: 262, h: 62 };
   out.marks = { x: 90, y: y + 70, w: 262, h: 62 }; out.calm = { x: 368, y: y + 70, w: 262, h: 62 };
-  // 'Board and pieces' used to span the full row alone; it now shares that same row, same
-  // y/height/overall span, with the new Rules button (Rules-page addition).
-  out.look = { x: 90, y: y + 140, w: 262, h: 62 };
-  out.rules = { x: 368, y: y + 140, w: 262, h: 62 };
+  // 'Board and pieces' used to span the full row alone, then shared it with Rules (2 columns); now
+  // 3 columns at the same y and overall span (90..630) for the Auto Play addition - nothing else
+  // on the title screen moves.
+  out.look = { x: 90, y: y + 140, w: 169, h: 62 };
+  out.rules = { x: 275, y: y + 140, w: 169, h: 62 };
+  out.auto = { x: 460, y: y + 140, w: 170, h: 62 };
   return out;
 }
 // The 'Board and pieces' screen: three boards, two piece sets, message size, back.
@@ -59,9 +61,23 @@ export const RULES_HEADER = { textDec: { x: 30, y: 34, w: 130, h: 66 }, textInc:
 export const RULES_PANEL = { x: 24, y: 118, w: W - 48, h: 1320 };
 // Text-size steps for the Rules reference page. An *index* into this, never a raw float, so the
 // stepper can cleanly disable at either end. Every page's content is paced (content.js) to fit
-// comfortably even at the top step.
-export const TEXT_SCALES = [1, 1.15, 1.3];
+// comfortably even at the top step (2026-09-23: raised from 1.3 to 2.0, then to 3.0, at the
+// owner's request).
+export const TEXT_SCALES = [1, 1.5, 2, 2.5, 3];
 export const inRect = (r, x, y) => !!r && x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
+
+// Auto Play (assisted-learning THINK -> REVEAL -> ACT loop, watches the real engine.js chooseMove
+// play both the hare and the hounds). Think-time steps: an *index* array like TEXT_SCALES above,
+// never a raw float, default index 1 (5s), hard-capped at the last step (10s - owner instruction:
+// "max wait should not be more than 10s"). REVEAL is fixed, the same at every think-time step.
+export const THINK_STEPS = [2, 5, 8, 10];
+export const REVEAL_TIME = 2;
+// The corner think-time stepper matches the Rules page's own A-/A+ spot; the bottom row matches
+// the play screen's own three-button bar (BTN.menu/undo/hint) in spot and size.
+export const AUTOPLAY = {
+  dec: { x: 30, y: 34, w: 130, h: 66 }, inc: { x: W - 160, y: 34, w: 130, h: 66 },
+  exit: { x: 60, y: 1462, w: 190, h: 72 }, pause: { x: 265, y: 1462, w: 190, h: 72 }, skip: { x: 470, y: 1462, w: 190, h: 72 },
+};
 // The hunt clock: one small token per hound move the hounds have, in one centred row.
 export const CLOCK_Y = 312;
 export const clockPos = (k, n) => { const step = Math.min(30, 640 / n); return { x: 360 - ((n - 1) * step) / 2 + k * step, y: CLOCK_Y }; };

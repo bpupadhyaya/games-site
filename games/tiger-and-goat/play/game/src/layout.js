@@ -31,6 +31,9 @@ export function titleRows(hasSave) {
   // new Rules button, same two-column width as the rows above (Rules-page addition).
   out.look = { x: 90, y: y + 140, w: 262, h: 62 };
   out.rules = { x: 368, y: y + 140, w: 262, h: 62 };
+  // Free, silent, whole-game teaching demo - one more full-width row below everything else, close
+  // to the canvas edge in the "has a saved game" shape but still clear of it.
+  out.auto = { x: 90, y: out.look.y + 62 + 30, w: 540, h: 72 };
   return out;
 }
 // The 'Board and pieces' screen: three board woods, two piece sets, back. (The old "message text"
@@ -50,15 +53,20 @@ export const BTN = {
 // bottom-bar row/height the play screen's own button bar already uses.
 export const RULES_NAV = { back: { x: 90, y: 1462, w: 262, h: 72 }, next: { x: 368, y: 1462, w: 262, h: 72 } };
 // Text-size stepper for the Rules screen (index into TEXT_SCALES, never a raw float, so "min"/"max"
-// are exact and the buttons can cleanly disable at either end). Centred at the very top of the
-// screen, well clear of the Back/Next row which lives at the bottom.
+// are exact and the buttons can cleanly disable at either end). Top-left/top-right corners, well
+// clear of both the Rules panel's own title below them and the Back/Next row at the bottom.
 export const RULES_HEADER = {
-  textDec: { x: W / 2 - 110, y: 20, w: 100, h: 60 },
-  textInc: { x: W / 2 + 10, y: 20, w: 100, h: 60 },
+  textDec: { x: 24, y: 20, w: 110, h: 60 },
+  textInc: { x: W - 24 - 110, y: 20, w: 110, h: 60 },
 };
 // Text-size steps for the Rules reference page. Every page's content is paced (content.js) to fit
-// comfortably even at the top step.
-export const TEXT_SCALES = [1, 1.15, 1.3];
+// comfortably even at the top step (raised from a 1.3x ceiling to 3x - text-size-300 request,
+// 2026-09-22 - content.js pages were re-split as needed to still fit at the new top step).
+export const TEXT_SCALES = [1, 1.5, 2, 2.5, 3];
+// Auto Play ("Watch & Learn") think-time steps, in seconds. Index into this, same pattern as
+// TEXT_SCALES above - never a raw float, so the +/- stepper can cleanly disable at either end.
+// Hard-capped at 10s per the owner's explicit instruction. Default index 1 (5s).
+export const THINK_STEPS = [2, 5, 8, 10];
 export const inRect = (r, x, y) => !!r && x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
 // Where the goats still to be placed wait (two rows of ten), and where captured goats are laid out.
 export const handPos = (k) => ({ x: 94 + (k % 10) * 59, y: 500 + Math.floor(k / 10) * 62, s: 1 });

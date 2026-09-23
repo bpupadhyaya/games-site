@@ -15,7 +15,8 @@ import {
   isWon,
 } from './rules.js';
 import { generateWinnableDeal } from './solver.js';
-import { computeLayout, hitTest, contains, BTN, HERO, OPT, W, H } from './layout.js';
+import { rankLabel, suitGlyph } from './deck.js';
+import { computeLayout, hitTest, contains, BTN, HERO, OPT, W, H, TEXT_SCALES, AUTO_THINK_STEPS, AUTO_REVEAL_SECS } from './layout.js';
 import { THEMES, TABLES } from './art.js';
 import { createFx } from './fx.js';
 import { render } from './view.js';
@@ -52,6 +53,9 @@ export function createGame(env) {
     options: false, // the options sheet is open (over the title or over a hand)
     reducedMotion: false,
     message: '', // quiet, non-scored feedback (e.g. the deal-honesty note below)
+    textScaleIdx: 0, // index into TEXT_SCALES; the Rules reference page's own text size
+    autoThinkIdx: 1, // index into AUTO_THINK_STEPS ([2,5,8,10]s); Auto Play's THINK pause, default 5s
+    auto: null, // Auto Play ("Watch & Learn") run state; see startAutoPlay()
   };
 
   Promise.all([
@@ -62,7 +66,9 @@ export function createGame(env) {
     storage.get('fourColorDeck', false),
     storage.get('table', 0),
     storage.get('reducedMotion', false),
-  ]).then(([handsPlayed, handsWon, unlockedThemes, activeTheme, fourColorDeck, table, reducedMotion]) => {
+    storage.get('textScaleIdx', 0),
+    storage.get('autoThinkIdx', 1),
+  ]).then(([handsPlayed, handsWon, unlockedThemes, activeTheme, fourColorDeck, table, reducedMotion, textScaleIdx, autoThinkIdx]) => {
     state.reducedMotion = Boolean(reducedMotion);
     state.table = TABLES[table] ? table : 0;
     state.handsPlayed = handsPlayed;
@@ -70,6 +76,10 @@ export function createGame(env) {
     state.unlockedThemes = unlockedThemes;
     state.activeTheme = activeTheme;
     state.fourColorDeck = fourColorDeck;
+    // Clamp: a saved index from a build with a longer/shorter TEXT_SCALES array must never survive
+    // and produce NaN font sizes on the Rules page.
+    state.textScaleIdx = Math.min(Math.max(textScaleIdx ?? 0, 0), TEXT_SCALES.length - 1);
+    state.autoThinkIdx = Math.min(Math.max(autoThinkIdx ?? 1, 0), AUTO_THINK_STEPS.length - 1);
   });
   // Persisted so reloading the page can't reset the free preview's deal count.
   if (demo) {
@@ -117,9 +127,9 @@ export function createGame(env) {
       state.hint = false;
       state.handsWon += 1;
       storage.set('handsWon', state.handsWon);
-      audio.tone({ freq: 523, dur: 0.1 });
-      audio.tone({ freq: 659, dur: 0.1 });
-      audio.tone({ freq: 784, dur: 0.16 });
+      sound({ freq: 523, dur: 0.1 });
+      sound({ freq: 659, dur: 0.1 });
+      sound({ freq: 784, dur: 0.16 });
       monetization.track('hand_won', { attempts: state.dealAttempts });
     }
   };
@@ -153,7 +163,7 @@ export function createGame(env) {
       if (dest.type === 'foundation') moveTableauToFoundation(state.board, source.col, source.index);
       else moveTableauToTableau(state.board, source.col, source.index, dest.col);
     }
-    audio.tone({ freq: 440, dur: 0.06 });
+    sound({ freq: 440, dur: 0.06 });
   };
 
   const destinationMatchesTarget = (dest, target) => {
@@ -188,7 +198,10 @@ export function createGame(env) {
     state.reducedMotion = on;
     storage.set('reducedMotion', on);
   };
-  const tick = () => audio.tone({ freq: 330, dur: 0.04, vol: 0.5 });
+  // Auto Play is silent by design regardless of any other setting — single point of truth: every
+  // sound in the game is played through this one wrapper.
+  const sound = (o) => { if (state.scene !== 'auto') audio.tone(o); };
+  const tick = () => sound({ freq: 330, dur: 0.04, vol: 0.5 });
 
   // The options sheet: table colour, card back, suit colours, motion. Opens over the title or a hand.
   const handleOptionsTap = (x, y) => {
@@ -219,6 +232,7 @@ export function createGame(env) {
       state.rulesPage = 0;
       return tick();
     }
+    if (contains(BTN.titleAuto, x, y)) return startAutoPlay();
     if (contains(BTN.deal, x, y) || contains(HERO, x, y)) startNewDeal();
   };
 
@@ -231,6 +245,16 @@ export function createGame(env) {
     }
     if (contains(BTN.rulesNext, x, y)) {
       state.rulesPage = (state.rulesPage + 1) % RULES.length;
+      return tick();
+    }
+    if (contains(BTN.textDec, x, y) && state.textScaleIdx > 0) {
+      state.textScaleIdx -= 1;
+      storage.set('textScaleIdx', state.textScaleIdx);
+      return tick();
+    }
+    if (contains(BTN.textInc, x, y) && state.textScaleIdx < TEXT_SCALES.length - 1) {
+      state.textScaleIdx += 1;
+      storage.set('textScaleIdx', state.textScaleIdx);
       return tick();
     }
   };
@@ -276,8 +300,118 @@ export function createGame(env) {
     if (source) trySelectSource(source);
   };
 
+  // ---- Auto Play ("Watch & Learn") -------------------------------------------------------------
+  // A full, start-to-finish assisted-learning demo. Solitaire has no opponent to reuse an AI from,
+  // but it already has a real move-chooser: solver.js's bounded search, which every deal is already
+  // run through once (to prove it's winnable) before the player ever sees it. Auto Play reuses that
+  // exact search unchanged (solveFromBoard, via generateWinnableDeal's new `moves` field) instead of
+  // discarding the winning line it finds, then replays that real, proven solution one move at a time
+  // through the SAME rules.js functions real play uses (drawFromStock/moveWasteToFoundation/etc. —
+  // never a separate fake path), via a THINK -> REVEAL -> ACT loop: THINK holds the board still for
+  // a configurable pause, REVEAL turns on the exact same "What can I do?" hint overlay a human
+  // already has (`state.hint`) plus selects the move about to be taken with the exact same steady
+  // highlight a human's own tap-to-select already gets (`state.selected`), then ACT plays it. Decision
+  // point = one move, exactly like a human's own turn. Never touches handsPlayed/handsWon/demoDeals —
+  // Auto Play keeps its own `state.auto` and never calls any of those storage writes.
+  const autoThinkSecs = () => AUTO_THINK_STEPS[state.autoThinkIdx];
+  const cardLabel = (card) => `${rankLabel(card.rank)}${suitGlyph(card.suit)}`;
+  const autoCaption = (move, board) => {
+    if (move.kind === 'draw') return 'Drawing from the stock';
+    if (move.kind === 'waste-foundation') return `Playing ${cardLabel(board.waste[board.waste.length - 1])} to the foundation`;
+    if (move.kind === 'tableau-foundation') return `Playing ${cardLabel(board.tableau[move.col][move.index])} to the foundation`;
+    if (move.kind === 'waste-tableau') return `Moving ${cardLabel(board.waste[board.waste.length - 1])} to column ${move.col + 1}`;
+    if (move.kind === 'tableau-tableau') return `Moving ${cardLabel(board.tableau[move.col][move.index])} to column ${move.to + 1}`;
+    return '';
+  };
+  const autoSelectionFor = (move) => {
+    if (move.kind === 'waste-foundation' || move.kind === 'waste-tableau') return { pile: 'waste' };
+    if (move.kind === 'tableau-foundation' || move.kind === 'tableau-tableau') return { pile: 'tableau', col: move.col, index: move.index };
+    return null;
+  };
+  const applySolverMove = (move) => {
+    if (move.kind === 'draw') drawFromStock(state.board);
+    else if (move.kind === 'waste-foundation') moveWasteToFoundation(state.board);
+    else if (move.kind === 'waste-tableau') moveWasteToTableau(state.board, move.col);
+    else if (move.kind === 'tableau-foundation') moveTableauToFoundation(state.board, move.col, move.index);
+    else if (move.kind === 'tableau-tableau') moveTableauToTableau(state.board, move.col, move.index, move.to);
+    sound({ freq: 440, dur: 0.06 });
+  };
+  const startAutoPlay = () => {
+    const { board, verified, moves } = generateWinnableDeal(rng, {});
+    state.board = board;
+    state.dealVerified = verified;
+    state.message = verified ? '' : 'This deal could not be confirmed solvable within the search budget.';
+    state.selected = null;
+    state.hint = false;
+    state.scene = 'auto';
+    fx.deal(state.board, state.reducedMotion);
+    state.auto = { phase: 'deal', timer: 0, moves: moves || [], moveIdx: 0, paused: false, solved: false, caption: '' };
+  };
+  const teardownAuto = () => {
+    state.auto = null;
+    state.selected = null;
+    state.hint = false;
+  };
+  const updateAuto = (dt, x, y, tapped) => {
+    const A = state.auto;
+    if (!A) return;
+    if (tapped) {
+      if (contains(BTN.autoExit, x, y)) return teardownAuto(), void (state.scene = 'title');
+      if (contains(BTN.autoDec, x, y)) { if (state.autoThinkIdx > 0) { state.autoThinkIdx -= 1; storage.set('autoThinkIdx', state.autoThinkIdx); } return; }
+      if (contains(BTN.autoInc, x, y)) { if (state.autoThinkIdx < AUTO_THINK_STEPS.length - 1) { state.autoThinkIdx += 1; storage.set('autoThinkIdx', state.autoThinkIdx); } return; }
+      if (A.phase === 'ended') {
+        // The Skip button's own spot doubles as "Play again" once the run has ended.
+        if (contains(BTN.autoSkip, x, y)) startAutoPlay();
+        return;
+      }
+      if (contains(BTN.autoSkip, x, y)) { A.timer = 999; return; } // fast-forward only the current pause
+      if (contains(BTN.autoPause, x, y)) { A.paused = !A.paused; return; }
+      return;
+    }
+    if (A.paused || A.phase === 'ended') return;
+    if (A.phase === 'deal') {
+      A.timer += dt;
+      if (A.timer > 0.6) { A.phase = 'think'; A.timer = 0; }
+      return;
+    }
+    if (A.moveIdx >= A.moves.length) {
+      A.phase = 'ended';
+      A.solved = isWon(state.board);
+      if (A.solved) fx.won();
+      return;
+    }
+    if (A.phase === 'think') {
+      A.timer += dt;
+      if (A.timer >= autoThinkSecs()) {
+        const move = A.moves[A.moveIdx];
+        state.selected = autoSelectionFor(move);
+        state.hint = true;
+        A.caption = autoCaption(move, state.board);
+        A.phase = 'reveal';
+        A.timer = 0;
+      }
+      return;
+    }
+    if (A.phase === 'reveal') {
+      A.timer += dt;
+      if (A.timer >= AUTO_REVEAL_SECS) { A.phase = 'act'; A.timer = 0; }
+      return;
+    }
+    if (A.phase === 'act') {
+      const move = A.moves[A.moveIdx];
+      applySolverMove(move);
+      state.selected = null;
+      state.hint = false;
+      A.caption = '';
+      A.moveIdx += 1;
+      A.phase = 'think';
+      A.timer = 0;
+    }
+  };
+
   const handleTap = (x, y) => {
     if (state.scene === 'demo-limit') return;
+    if (state.scene === 'auto') return updateAuto(0, x, y, true);
     if (state.options) handleOptionsTap(x, y);
     else if (state.scene === 'title') handleTitleTap(x, y);
     else if (state.scene === 'rules') handleRulesTap(x, y);
@@ -300,6 +434,9 @@ export function createGame(env) {
         state.selected = null;
       }
       if (state.scene !== 'playing' && state.scene !== 'rules' && !state.options && input.keys.pressed.has('KeyN')) startNewDeal();
+      // Auto Play is the one place in this game with real timers (THINK/REVEAL pacing); every other
+      // scene stays a pure tap-driven turn game.
+      if (state.scene === 'auto') updateAuto(dt, 0, 0, false);
       fx.update(dt, state);
     },
 

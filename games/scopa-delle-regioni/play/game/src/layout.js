@@ -39,17 +39,26 @@ export const BTN = {
   // above the reader panel (which starts at y 100) so it never crowds the panel's own title or the
   // Back/Next pair at the foot.
   textDec: { x: 40, y: 24, w: 120, h: 62 }, textInc: { x: 560, y: 24, w: 120, h: 62 },
+  // Auto Play: the same bottom-row three-button shape as play's Menu/Undo/Hint, repurposed.
+  apExit: { x: 40, y: 1462, w: 190, h: 72 }, apDec: { x: 265, y: 1462, w: 190, h: 72 }, apInc: { x: 490, y: 1462, w: 190, h: 72 },
 };
 // Text-size steps for the About/Controls/Rules reference pages. An *index* into this array, never
 // a raw float, so "min"/"max" are exact and the stepper can cleanly disable at either end. Guard
 // every lookup with `?? 1` and clamp any loaded index into range - a stale saved index from a build
 // with a shorter array must never produce a NaN font size.
-export const TEXT_SCALES = [1, 1.15, 1.3];
+export const TEXT_SCALES = [1, 1.5, 2, 2.5, 3];
+// Auto Play think-time steps, in seconds: an index into this array (never a raw float), default 5s
+// (index 1), hard-capped at 10s per the owner's instruction that a longer wait defeats the point.
+export const AP_THINK_STEPS = [2, 5, 8, 10];
 const row = (y, h = 84) => ({ x: 70, y, w: 580, h });
 export function titleRows(hasSave) {
   let y = 800; const R = {};
   if (hasSave) { R.resume = row(y); y += 100; }
   R.learn = row(y); y += 100; R.play = row(y); y += 100; R.four = row(y); y += 100; R.daily = row(y); y += 100;
+  // Auto Play: a new full-width row of its own (same shape as Learn/Play/Four/Daily above it),
+  // inserted between Daily and the About/Controls/Rules/Settings row -- which shifts down by the
+  // same 100px every other row already steps by, so nothing above this row moves.
+  R.autoplay = row(y); y += 100;
   // About / Controls / Rules / Settings share one row, four even columns (was three - Rules is
   // the addition), spanning the exact same x 70-650 span as before.
   R.about = { x: 70, y, w: 136, h: 78 }; R.controls = { x: 218, y, w: 136, h: 78 };

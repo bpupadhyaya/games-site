@@ -2,7 +2,7 @@
 // drawing in view.js. This is the only file that changes `state`.
 //
 // Controls (taught in the game): TAP a card to raise it, TAP it again to play it, or DRAG it up. TAP a big button to bid.
-import { W, H as HH, CW, HAND_Y, LIFT, BTN, TRICK, SEAT, DECK, handSlot, inRect, titleRows, bidButtons, bid2Buttons, ACT, OVERLAY_BTN, BACK, NEXT, TEXT_SCALES, TEXT_DEC, TEXT_INC } from './layout.js';
+import { W, H as HH, CW, HAND_Y, LIFT, BTN, TRICK, SEAT, DECK, handSlot, inRect, titleRows, bidButtons, bid2Buttons, ACT, OVERLAY_BTN, BACK, REF_BACK, REF_NEXT, TEXT_SCALES, TEXT_DEC, TEXT_INC, AUTO_THINK_STEPS, AUTO_REVEAL_SECS, AUTO_DEC, AUTO_INC } from './layout.js';
 import { RULES, ABOUT, HOWTO } from './rulesContent.js';
 import { newHand, bidOptions, applyBid, applyDouble, declOptions, declare, playCard, legalCards, matchWinner, whyNot, cardShort, cardName, suitOf, SUIT_NAMES, RUNG, teamOf, nextSeat, declValue, hasBaloot, TARGETS, legalFor, DECL } from './rules.js';
 import { LEVELS, createThinker, heuristicBid, bidReason } from './ai.js';
@@ -26,19 +26,21 @@ export function createGame(env) {
     lesson: null, daily: { day: config.day ?? 0, solvedDay: -1, streak: 0, tries: 0, status: 'idle', puzzle: null, ready: false, made: 0 },
     undo: [], listScroll: 0, dev: config.dev === true, refuse: null, celebrate: 0, page: 0,
     aboutPage: 0, howPage: 0, textScaleIdx: 0, // textScaleIdx indexes TEXT_SCALES for the About/Controls/Rules pages
+    autoThinkIdx: 1, // indexes AUTO_THINK_STEPS ([2,5,8,10]s) for the Auto Play THINK pause; default 5s
+    auto: null, autoMatch: null,
   };
-  if (config.dev) globalThis.__baloot = { state, start: () => startMatch(), lesson: (i) => startLesson(i), daily: () => startDaily() };   // tester hook (dev only)
+  if (config.dev) globalThis.__baloot = { state, start: () => startMatch(), lesson: (i) => startLesson(i), daily: () => startDaily(), auto: () => startAutoPlay() };   // tester hook (dev only)
   let thinker = null, thinkerKey = '', hintThinker = null, solver = null, maker = null, dailyPuzzle = null;
   const ui = state.ui;
 
   // ---- storage ---------------------------------------------------------------------------------------------
-  storage.get('prefs', null).then((v) => { if (v) { state.level = v.level ?? 2; state.targetIdx = v.targetIdx ?? 0; state.set = { ...state.set, ...(v.set || {}) }; audio.setMuted?.(!state.set.sound); state.textScaleIdx = Math.min(Math.max(v.textScaleIdx ?? 0, 0), TEXT_SCALES.length - 1); } });
+  storage.get('prefs', null).then((v) => { if (v) { state.level = v.level ?? 2; state.targetIdx = v.targetIdx ?? 0; state.set = { ...state.set, ...(v.set || {}) }; audio.setMuted?.(!state.set.sound); state.textScaleIdx = Math.min(Math.max(v.textScaleIdx ?? 0, 0), TEXT_SCALES.length - 1); state.autoThinkIdx = Math.min(Math.max(v.autoThinkIdx ?? 1, 0), AUTO_THINK_STEPS.length - 1); } });
   storage.get('stats', null).then((v) => { if (v) state.stats = { ...state.stats, ...v }; });
   storage.get('learned', {}).then((v) => { state.learned = { ...v, ...state.learned }; });
   storage.get('daily', null).then((v) => { if (v) { state.daily.solvedDay = v.solvedDay ?? -1; state.daily.streak = v.streak ?? 0; } });
   storage.get('demoHands', 0).then((v) => { state.demoHands = Math.max(state.demoHands, v); });
   storage.get('save', null).then((v) => { if (v && v.H && v.match && state.scene === 'title') state.saved = v; });
-  const savePrefs = () => storage.set('prefs', { level: state.level, targetIdx: state.targetIdx, set: state.set, textScaleIdx: state.textScaleIdx });
+  const savePrefs = () => storage.set('prefs', { level: state.level, targetIdx: state.targetIdx, set: state.set, textScaleIdx: state.textScaleIdx, autoThinkIdx: state.autoThinkIdx });
   const saveStats = () => { storage.set('stats', state.stats); storage.set('progress', { played: state.stats.played, wins: state.stats.wins }); };
   const saveGame = () => {
     if (state.mode !== 'match' || !state.H || state.scene !== 'play' || state.H.phase === 'done' || state.show) return;
@@ -50,7 +52,10 @@ export function createGame(env) {
   // ---- helpers ---------------------------------------------------------------------------------------------
   const target = () => TARGETS[state.targetIdx];
   const say = (text, hold = 4.2) => { ui.msg = { text, t: 0, hold }; };
-  const tone = (o) => { if (state.set.sound) audio.tone(o); };
+  // Auto Play is silent by design regardless of the player's own sound setting (single point of
+  // truth: every sound helper below wraps this one) — the same principle as the menu's own silent
+  // attract-mode preview and Chess's AI-vs-AI demo.
+  const tone = (o) => { if (state.set.sound && state.scene !== 'auto') audio.tone(o); };
   const slap = () => tone({ freq: 240, to: 90, dur: 0.07, type: 'triangle', vol: 0.13 });
   const tick = () => tone({ freq: 700, to: 500, dur: 0.03, type: 'sine', vol: 0.05 });
   const chime = (up = true) => tone({ freq: up ? 520 : 330, to: up ? 880 : 240, dur: 0.35, type: 'triangle', vol: 0.09 });
@@ -121,7 +126,9 @@ export function createGame(env) {
     if (state.mode === 'match' && seat === 0) { state.undo.push(copy(H)); if (state.undo.length > 6) state.undo.shift(); }
     if (!state.pos[card]) state.pos[card] = { x: SEAT[seat].x - CW * 0.38, y: SEAT[seat].y - CW * 0.5, sc: 0.5, born: state.t };
     if (H.tricks === 0 && H.trick.length === 0 && seat !== 0) { /* the computer announces before its first card */ }
-    if (H.tricks === 0 && seat !== 0 && H.hands[seat].length === 8) { const d = declOptions(H, seat); if (d.length && aiDeclares(seat)) { declare(H, seat); speak(seat, d.map((x) => DECL[x.kind].name).join(' + ')); } }
+    // In Auto Play every seat (including seat 0) is computer-driven, so seat 0 auto-declares here too,
+    // exactly like every other seat already does — never a separate fake path.
+    if (H.tricks === 0 && (seat !== 0 || state.mode === 'auto') && H.hands[seat].length === 8) { const d = declOptions(H, seat); if (d.length && aiDeclares(seat)) { declare(H, seat); speak(seat, d.map((x) => DECL[x.kind].name).join(' + ')); } }
     const wasBaloot = H.baloot[seat];
     const r = playCard(H, card); ui.sel = -1; ui.hint = null; slap();
     if (!wasBaloot && H.baloot[seat]) { speak(seat, 'Baloot!'); say(`${['You', 'Right', 'Partner', 'Left'][seat]} play${seat === 0 ? '' : 's'} Baloot: King and Queen of trump (+2).`, 4); chime(); }
@@ -338,6 +345,138 @@ export function createGame(env) {
     } else { state.daily.status = 'failed'; ui.summary = { daily: true, got, target: p.target, failed: true }; state.daily.tries += 1; }
   }
 
+  // ---- Auto Play ("Watch & Learn") ---------------------------------------------------------------------------
+  // A full, start-to-finish assisted-learning demo: every seat (including the one a human would
+  // normally control) is driven by the SAME computer thinker used for the real computer opponents
+  // (createThinker, ai.js) through a THINK -> REVEAL -> ACT loop for every decision (bid, double, a
+  // declare bundled with the first card exactly like the AI already does, or a card play), for a
+  // whole match, until it reaches a real match result. It reuses the exact same execution functions
+  // (doBid/doDouble/doPlay -> applyBid/applyDouble/playCard/declare in rules.js) that real play uses —
+  // never a separate fake path. It keeps its own `state.autoMatch` (never `state.match`) and never
+  // calls saveGame/clearSave/monetization.track/saveStats, so it can never read or write the player's
+  // real save, stats or match progress. Silent by construction: it only ever calls the same
+  // say/speak/tone/chime/buzz helpers real play uses, which are already gated by state.set.sound.
+  function autoThinkSecs() { return AUTO_THINK_STEPS[state.autoThinkIdx]; }
+  function startAutoPlay() {
+    state.scene = 'auto';
+    state.autoMatch = { scores: [0, 0], dealer: rng.int(4), hands: 0, winner: -1 };
+    autoNextHand();
+  }
+  function autoNextHand() {
+    state.autoMatch.hands += 1;
+    beginHand(newHand(rng, state.autoMatch.dealer, state.autoMatch.scores.slice()), 'auto');
+    state.auto = { phase: 'think', timer: 0, chosen: null, legal: [], paused: false };
+    say(`Auto Play: Dealer ${['You', 'Right', 'Partner', 'Left'][state.autoMatch.dealer]}.`, 3);
+  }
+  function autoFinishHand() {
+    const H = state.H, r = H.result, M = state.autoMatch;
+    M.scores[0] += r.delta[0]; M.scores[1] += r.delta[1];
+    const mw = matchWinner(M.scores, target(), r);
+    M.dealer = nextSeat(M.dealer);
+    ui.summary = { result: r, contract: copy(H.contract), mult: H.mult, matchWinner: mw, buyer: H.contract.buyer, auto: true };
+    if (mw >= 0) M.winner = mw;
+    state.auto.phase = 'summary'; state.auto.timer = 0;
+  }
+  // REVEAL: compute the real decision now (running the same thinker used for computer seats to
+  // completion) and the full legal-option set for the acting seat, so the viewer can compare their
+  // own guess against the highlighted choice before it is taken.
+  function autoBuildReveal() {
+    const H = state.H, seat = H.turn;
+    const kind = H.phase === 'bid' ? 'bid' : H.phase === 'double' ? 'double' : 'play';
+    const thinker = createThinker(kind, H, seat, state.level, rng);
+    let r = thinker.step(), guard = 0;
+    while (!r.done && guard++ < 200000) r = thinker.step();
+    state.auto.chosen = { kind, seat, action: r.action };
+    state.auto.legal = kind === 'bid' ? bidOptions(H) : kind === 'double' ? [{ raise: true }, { raise: false }] : legalCards(H, seat);
+    // Reuse the real hint-highlight machinery (ui.hint) so the chosen card/bid glows exactly the way
+    // a human's own hint does, and reuse the real bid/double panel layout so the options on offer look
+    // exactly like the buttons a human would see, for whichever seat is acting.
+    if (kind === 'bid') ui.hint = { kind: 'bid', a: r.action, t: 0 };
+    else if (kind === 'double') ui.hint = { kind: 'dbl', raise: r.action.raise, t: 0 };
+    else ui.hint = { kind: 'card', card: r.action.card, t: 0 };
+    buildAutoPanel(seat, kind);
+  }
+  function buildAutoPanel(seat, kind) {
+    const H = state.H, P = [];
+    if (kind === 'bid') {
+      const opts = bidOptions(H);
+      if (H.round === 1) {
+        const r = bidButtons(opts.length, 1);
+        opts.forEach((o, i) => P.push({ r: r[i], kind: 'bid', a: o, label: o.t === 'hokum' ? 'Hokum' : o.t === 'sun' ? 'Sun' : 'Pass', suit: o.t === 'hokum' ? o.suit : -1, primary: o.t !== 'pass' }));
+      } else {
+        const b = bid2Buttons(); let k = 0;
+        for (const o of opts) {
+          if (o.t === 'hokum') P.push({ r: b.suits[k++], kind: 'bid', a: o, label: 'Hokum', suit: o.suit, primary: true });
+          else if (o.t === 'sun') P.push({ r: b.sun, kind: 'bid', a: o, label: 'Sun', primary: true });
+          else P.push({ r: b.pass, kind: 'bid', a: o, label: 'Pass' });
+        }
+      }
+      state.panelText = [`${['You', 'Right', 'Partner', 'Left'][seat]} is choosing...`];
+    } else if (kind === 'double') {
+      const rung = H.dbl.rung, name = RUNG[rung];
+      P.push({ r: ACT.a, kind: 'dbl', raise: true, label: name, primary: true });
+      P.push({ r: ACT.b, kind: 'dbl', raise: false, label: 'Skip' });
+      state.panelText = [`${['You', 'Right', 'Partner', 'Left'][seat]} is choosing...`];
+    } else { state.panel = []; state.panelText = []; return; }
+    state.panel = P;
+  }
+  // ACT: execute the chosen action through the exact same functions real play uses.
+  function autoAct() {
+    const { kind, action, seat } = state.auto.chosen;
+    state.panel = []; state.panelText = [];
+    if (kind === 'bid') doBid(action, seat); else if (kind === 'double') doDouble(action.raise); else doPlay(action.card);
+    ui.delay = 0; state.auto.chosen = null; state.auto.legal = [];
+  }
+  function teardownAuto() {
+    state.auto = null; state.autoMatch = null; ui.hint = null; state.panel = []; state.panelText = []; ui.summary = null; state.show = null; state.H = null;
+  }
+  function updateAuto(dt, tap) {
+    const A = state.auto; if (!A) return;
+    if (tap && inRect(BTN.menu, tap.x, tap.y)) { teardownAuto(); state.scene = 'title'; return; }
+    if (tap && inRect(AUTO_DEC, tap.x, tap.y)) { if (state.autoThinkIdx > 0) { state.autoThinkIdx -= 1; savePrefs(); tick(); } return; }
+    if (tap && inRect(AUTO_INC, tap.x, tap.y)) { if (state.autoThinkIdx < AUTO_THINK_STEPS.length - 1) { state.autoThinkIdx += 1; savePrefs(); tick(); } return; }
+    if (tap && inRect(BTN.hint, tap.x, tap.y)) { // "Skip": fast-forward the current pause only, never skips a whole decision
+      if (A.phase === 'think') A.timer = autoThinkSecs(); else if (A.phase === 'reveal') A.timer = AUTO_REVEAL_SECS; else if (A.phase === 'summary') A.timer = 999;
+      return;
+    }
+    if (tap && inRect(BTN.undo, tap.x, tap.y)) { A.paused = !A.paused; return; }
+    if (A.phase === 'ended') {
+      if (tap && inRect(OVERLAY_BTN, tap.x, tap.y)) startAutoPlay();
+      else if (tap && inRect({ x: 160, y: 1176, w: 400, h: 90 }, tap.x, tap.y)) { teardownAuto(); state.scene = 'title'; }
+      return;
+    }
+    if (A.paused) return;
+    const H = state.H; if (!H) return;
+    if (ui.msg) { ui.msg.t += dt; if (ui.msg.t > ui.msg.hold) ui.msg = null; }
+    for (let s = 0; s < 4; s++) if (state.says[s]) { state.says[s].t += dt; if (state.says[s].t > 3.2 && H.phase !== 'bid') state.says[s] = null; }
+    state.dealT += dt;
+    if (H.phase === 'redeal') {
+      A.timer += dt;
+      if (A.timer > 1.6) { state.autoMatch.dealer = nextSeat(state.autoMatch.dealer); state.autoMatch.hands -= 1; autoNextHand(); }
+      return;
+    }
+    if (state.show) {
+      state.show.t += dt;
+      if (state.show.t > (state.set.calm ? 0.8 : HOLD) + 0.4) {
+        state.show = null;
+        if (H.phase === 'done') autoFinishHand(); else { A.phase = 'think'; A.timer = 0; }
+      }
+      return;
+    }
+    if (A.phase === 'summary') {
+      A.timer += dt;
+      if (A.timer > 3) {
+        if (ui.summary && ui.summary.matchWinner >= 0) A.phase = 'ended';
+        else { ui.summary = null; autoNextHand(); }
+      }
+      return;
+    }
+    if (H.phase === 'redeal' || H.phase === 'done') return;
+    if (A.phase === 'think') { A.timer += dt; if (A.timer >= autoThinkSecs()) { autoBuildReveal(); A.phase = 'reveal'; A.timer = 0; } return; }
+    if (A.phase === 'reveal') { A.timer += dt; if (A.timer >= AUTO_REVEAL_SECS) { A.phase = 'act'; A.timer = 0; } return; }
+    if (A.phase === 'act') { autoAct(); A.phase = 'think'; A.timer = 0; return; }
+  }
+
   // ---- per-scene updates ---------------------------------------------------------------------------------------
   function updateTitle(tap) {
     if (!maker) maker = createDailyMaker(state.daily.day);
@@ -353,6 +492,7 @@ export function createGame(env) {
     else if (hit(R.about)) { state.scene = 'about'; state.aboutPage = 0; }
     else if (hit(R.how)) { state.scene = 'how'; state.howPage = 0; }
     else if (hit(R.rules)) { state.scene = 'rules'; state.page = 0; }
+    else if (hit(R.auto)) startAutoPlay();
   }
   // Shared by the About/Controls/Rules text-size stepper. Guards both ends so a stale saved index
   // can never walk off the array; the lookup itself is guarded again in view.js (SCALES[idx] ?? 1).
@@ -364,20 +504,20 @@ export function createGame(env) {
   function updateAbout(tap) {
     if (!tap) return;
     if (stepText(tap)) return;
-    if (inRect(BACK, tap.x, tap.y)) { state.scene = 'title'; return; }
-    if (inRect(NEXT, tap.x, tap.y)) { state.aboutPage = (state.aboutPage + 1) % ABOUT.length; tick(); }
+    if (inRect(REF_BACK, tap.x, tap.y)) { state.scene = 'title'; return; }
+    if (inRect(REF_NEXT, tap.x, tap.y)) { state.aboutPage = (state.aboutPage + 1) % ABOUT.length; tick(); }
   }
   function updateHow(tap) {
     if (!tap) return;
     if (stepText(tap)) return;
-    if (inRect(BACK, tap.x, tap.y)) { state.scene = 'title'; return; }
-    if (inRect(NEXT, tap.x, tap.y)) { state.howPage = (state.howPage + 1) % HOWTO.length; tick(); }
+    if (inRect(REF_BACK, tap.x, tap.y)) { state.scene = 'title'; return; }
+    if (inRect(REF_NEXT, tap.x, tap.y)) { state.howPage = (state.howPage + 1) % HOWTO.length; tick(); }
   }
   function updateRules(tap) {
     if (!tap) return;
     if (stepText(tap)) return;
-    if (inRect(BACK, tap.x, tap.y)) { state.scene = 'title'; return; }
-    if (inRect(NEXT, tap.x, tap.y)) { state.page = (state.page + 1) % RULES.length; tick(); }
+    if (inRect(REF_BACK, tap.x, tap.y)) { state.scene = 'title'; return; }
+    if (inRect(REF_NEXT, tap.x, tap.y)) { state.page = (state.page + 1) % RULES.length; tick(); }
   }
   function updateSettings(tap) {
     if (!tap) return;
@@ -491,7 +631,8 @@ export function createGame(env) {
     if (!k.size) return null;
     if (sc === 'title') { if (k.has('Enter') || k.has('Space')) return { key: 'start' }; return null; }
     if (sc === 'over' || sc === 'demo-limit') { if (k.has('Enter') || k.has('Space')) return { x: OVERLAY_BTN.x + 5, y: OVERLAY_BTN.y + 5 }; return null; }
-    if (sc !== 'play' && sc !== 'lesson' && sc !== 'daily') { if (k.has('Escape')) return { x: BACK.x + 5, y: BACK.y + 5 }; return null; }
+    if (sc !== 'play' && sc !== 'lesson' && sc !== 'daily' && sc !== 'auto') { if (k.has('Escape')) return { x: BACK.x + 5, y: BACK.y + 5 }; return null; }
+    if (sc === 'auto') { if (k.has('Escape')) return { x: BTN.menu.x + 5, y: BTN.menu.y + 5 }; return null; }
     if (k.has('Escape')) return { x: BTN.menu.x + 5, y: BTN.menu.y + 5 };
     if (k.has('KeyH')) return { x: BTN.hint.x + 5, y: BTN.hint.y + 5 };
     if (k.has('KeyU')) return { x: BTN.undo.x + 5, y: BTN.undo.y + 5 };
@@ -541,6 +682,7 @@ export function createGame(env) {
         if (tap && inRect(OVERLAY_BTN, tap.x, tap.y)) { state.scene = 'title'; }
         if (tap && inRect({ x: 160, y: 1176, w: 400, h: 90 }, tap.x, tap.y)) startMatch();
       } else if (sc === 'demo-limit') { if (tap && inRect(OVERLAY_BTN, tap.x, tap.y)) state.scene = 'title'; }
+      else if (sc === 'auto') { updateAuto(dt, tap); if (state.H) updatePos(dt); }
     },
     render(ctx) { render(ctx, state); },
     getState: () => state,

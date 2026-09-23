@@ -10,7 +10,7 @@ import { LEVELS, PER_TICK, simsFor, createThinker, createScorer, quickMove, reas
 import { LESSONS, boardOf } from './lessons.js';
 import { todaysPuzzle, fromRows, puzzleText } from './puzzles.js';
 import { render, setupRects, lessonRects, settingsRects, quizRect, ABOUT_TEXT, HOW_TEXT } from './view.js';
-import { titleButtons, PAGE_NAV, TEXT_SCALES, TEXT_BTN } from './layout.js';
+import { titleButtons, PAGE_NAV, TEXT_SCALES, TEXT_BTN, THINK_STEPS, REVEAL_TIME, AUTOPLAY } from './layout.js';
 import { RULES } from './content.js';
 import { THEMES, warm } from './art.js';
 
@@ -21,7 +21,7 @@ const NAMES = { 1: 'Black', 2: 'White' };
 export function createGame(env) {
   const { rng, storage, audio, monetization, config } = env;
   const S = {
-    scene: 'title', t: 0, prefs: { sound: true, calm: false, big: false, quick: false, theme: 'kaya', textScaleIdx: 0 },
+    scene: 'title', t: 0, prefs: { sound: true, calm: false, big: false, quick: false, theme: 'kaya', textScaleIdx: 0, apThinkIdx: 1 },
     setup: { n: 9, level: 1, human: 1 },
     g: newGame(9), human: 1, two: false, level: 1, phase: 'play',
     pend: -1, pendOn: false, pendColor: 1, aim: null, anim: [], refuse: null, hint: null, msg: null, undo: [], sfx: [],
@@ -32,13 +32,15 @@ export function createGame(env) {
     stats: { played: 0, wins: 0 }, saved: null, demoGames: 0, demo: config.demo === true, dev: config.dev === true,
     tap: null, down: false, fromLesson: -1,
     rulesPage: 0, aboutPage: 0, howPage: 0,
+    // Auto Play: a free, silent, save/stats-untouched THINK -> REVEAL -> ACT demonstration (STATUS.md).
+    ap: null,
   };
   let thinker = null, hintThinker = null, scorer = null, quick = null;
 
   // ---- persistence ------------------------------------------------------------------------------------------------
   // Guard the lookup and clamp on load: a stale saved index from a build with a longer/shorter
   // TEXT_SCALES array must never produce a NaN (or out-of-range) font size on the reference pages.
-  storage.get('prefs', null).then((v) => { if (v) { S.prefs = { ...S.prefs, ...v }; if (!THEMES[S.prefs.theme]) S.prefs.theme = 'kaya'; S.prefs.textScaleIdx = Math.min(Math.max(S.prefs.textScaleIdx ?? 0, 0), TEXT_SCALES.length - 1); audio.setMuted?.(!S.prefs.sound); } });
+  storage.get('prefs', null).then((v) => { if (v) { S.prefs = { ...S.prefs, ...v }; if (!THEMES[S.prefs.theme]) S.prefs.theme = 'kaya'; S.prefs.textScaleIdx = Math.min(Math.max(S.prefs.textScaleIdx ?? 0, 0), TEXT_SCALES.length - 1); S.prefs.apThinkIdx = Math.min(Math.max(S.prefs.apThinkIdx ?? 1, 0), THINK_STEPS.length - 1); audio.setMuted?.(!S.prefs.sound); } });
   storage.get('progress', null).then((v) => { if (v) S.stats = { played: v.played ?? 0, wins: v.wins ?? 0 }; });
   storage.get('learned', []).then((v) => { if (Array.isArray(v)) S.learned = [...new Set([...S.learned, ...v])]; });
   storage.get('daily', null).then((v) => { if (v) { S.daily.solvedDay = v.solvedDay ?? -1; S.daily.streak = v.streak ?? 0; } });
@@ -51,7 +53,10 @@ export function createGame(env) {
 
   // ---- small helpers ---------------------------------------------------------------------------------------------
   const say = (text, hold = 6) => { S.msg = { text, t: 0, hold }; };
-  const tone = (o) => { if (S.prefs.sound) audio.tone(o); };
+  // Auto Play is silent by design, exactly like an AI-vs-AI attract demo: no viewer chose to hear
+  // the computer play itself. This covers the loop itself and the shared score/over phase it ends in.
+  const isAutoplay = () => S.scene === 'autoplay';
+  const tone = (o) => { if (S.prefs.sound && !isAutoplay()) audio.tone(o); };
   const later = (delay, o) => S.sfx.push({ t: delay, o });
   const clack = (big = false) => { tone({ freq: big ? 240 : 200, to: 80, dur: 0.09, type: 'triangle', vol: 0.13 }); later(0.025, { freq: 900, to: 500, dur: 0.03, type: 'sine', vol: 0.05 }); };
   const rattle = (k) => { for (let i = 0; i < Math.min(4, k + 1); i++) later(0.05 + i * 0.05, { freq: 320 - i * 40, to: 120, dur: 0.05, type: 'triangle', vol: 0.06 }); };
@@ -124,15 +129,18 @@ export function createGame(env) {
   }
   function acceptScore() {
     if (S.phase !== 'scoring' || S.scorer) return;
-    S.phase = 'over'; clearSave();
+    S.phase = 'over';
+    // Auto Play never touches the real save slot, stats or analytics - only the shared display and
+    // scoring math (S.score/areaScore) are reused, exactly like a normal game-end otherwise.
+    if (!isAutoplay()) clearSave();
     const win = S.score.winner, mine = S.two ? 0 : S.human;
     if (S.fromLesson >= 0) { markLearned(LESSONS[S.fromLesson].id); }
-    S.stats.played += 1; if (!S.two && win === mine) S.stats.wins += 1; saveStats();
-    if (!S.two && win === mine) { spawnConfetti(); tone({ freq: 523, to: 784, dur: 0.4, type: 'triangle', vol: 0.09 }); }
+    if (!isAutoplay()) { S.stats.played += 1; if (!S.two && win === mine) S.stats.wins += 1; saveStats(); }
+    if (!isAutoplay() && !S.two && win === mine) { spawnConfetti(); tone({ freq: 523, to: 784, dur: 0.4, type: 'triangle', vol: 0.09 }); }
     else tone({ freq: 392, to: 330, dur: 0.35, type: 'triangle', vol: 0.08 });
     const by = Math.abs(S.score.diff);
     say(S.two ? `${NAMES[win]} wins by ${by}.` : win === mine ? `You win by ${by}. Well played!` : `The computer wins by ${by}. Try Undo, the hints, or a gentler level.`, 60);
-    monetization.track('game_end', { winner: win, moves: S.g.moves });
+    if (!isAutoplay()) monetization.track('game_end', { winner: win, moves: S.g.moves });
   }
   function spawnConfetti() {
     S.confetti = [];
@@ -146,7 +154,7 @@ export function createGame(env) {
   function humanTurn() { return S.phase === 'play' && !isOver(S.g) && (S.two || S.g.turn === S.human) && !S.thinking; }
   function afterMove() {
     saveGame();
-    if (isOver(S.g)) { if (S.scene === 'play') beginScoring(); return; }
+    if (isOver(S.g)) { if (S.scene === 'play' || S.scene === 'autoplay') beginScoring(); return; }
   }
   function playHuman(i) {
     if (!humanTurn()) return;
@@ -218,6 +226,87 @@ export function createGame(env) {
     S.hint = { mv: res.move };
     say(res.move >= 0 ? `Hint: ${coord(S.g.n, res.move)}. ${reasonFor(S.g, res.move)}` : 'Hint: nothing useful is left. Passing is fine.', 9);
     if (S.scene === 'lesson') { const st = LESSONS[S.lesson.i].steps[S.lesson.step]; if (st.want.kind === 'hint') completeStep(); }
+  }
+
+  // ---- Auto Play: a free, silent, whole-game THINK -> REVEAL -> ACT demonstration -------------------------------------
+  // Decision-point unit: one stone placement or pass, the same unit attempt()/play() already use.
+  // Reuses the real computer opponent (engine.js createThinker/quickMove, the SAME code path
+  // startThinking()/stepThinking() use for a human game) to drive BOTH Black and White, and the
+  // real move/turn-resolution code (doMove/afterMove/beginScoring/acceptScore) - never a separate
+  // fake execution path. Never touches S.stats or the save slot (guarded above by isAutoplay()).
+  function startAutoplay() {
+    thinker = hintThinker = scorer = quick = null;
+    resetBoardState({ scene: 'autoplay', g: newGame(S.setup.n), level: S.setup.level, two: true, human: 1, fromLesson: -1 });
+    S.pendColor = 1;
+    S.ap = { phase: 'think', t: 0, decideT: 0, chosen: null, paused: false };
+    apEnterThink();
+  }
+  function apEnterThink() {
+    S.ap.phase = 'think'; S.ap.t = 0; S.ap.decideT = 0; S.ap.chosen = null;
+    const g = S.g, banned = bannedSet(g);
+    thinker = quick = null;
+    if (S.level === 0) quick = { banned, seed: rng.int(1e9) + 1 };
+    else thinker = createThinker(g, { sims: simsFor(S.level, g.n), seed: rng.int(1e9) + 1, banned });
+  }
+  // The exact decision logic of stepThinking(), stopping short of acting on it: the chosen move is
+  // held in S.ap.chosen (nothing drawn from it) until REVEAL, matching every other game's pattern.
+  function apDecide(dt) {
+    if (S.ap.chosen !== null) return;
+    const g = S.g; S.ap.decideT += dt;
+    let mv = -2, wr = 0.5, res = null;
+    if (quick) { if (S.ap.decideT < 0.6) { S.thinkProg = S.ap.decideT / 0.6; return; } mv = quickMove(g, makeR(quick.seed), quick.banned); wr = g.passes === 1 ? 1 : 0; }
+    else { res = thinker.step(PER_TICK[g.n] ?? 8); S.thinkProg = thinker.progress(); if (!res) return; mv = res.move; wr = res.winrate; }
+    if (res && S.level === 1 && res.moves.length > 1 && rng.chance(0.22)) mv = res.moves[1].mv;
+    if (g.passes === 1 && wr >= 0.65) mv = -1;
+    if (g.moves > g.n * g.n * 3) mv = -1;
+    if (mv >= 0 && !attempt(g, mv).ok) mv = -1;
+    thinker = null; quick = null;
+    S.ap.chosen = mv;
+  }
+  function updateAutoplay(dt, p) {
+    const A = S.ap, on = (r) => p.released && inRect(r, p.x, p.y);
+    if (on(AUTOPLAY.exit)) { thinker = hintThinker = scorer = quick = null; S.scene = 'title'; return; }
+    if (on(AUTOPLAY.dec) && S.prefs.apThinkIdx > 0) { S.prefs.apThinkIdx--; savePrefs(); }
+    else if (on(AUTOPLAY.inc) && S.prefs.apThinkIdx < THINK_STEPS.length - 1) { S.prefs.apThinkIdx++; savePrefs(); }
+    else if (on(AUTOPLAY.pause) && S.phase !== 'over') A.paused = !A.paused;
+    if (A.paused) return;
+    if (S.phase === 'over') {
+      if (p.released && inRect(R.done, p.x, p.y)) startAutoplay();
+      else if (p.released && inRect(R.menu, p.x, p.y)) S.scene = 'title';
+      return;
+    }
+    if (S.phase === 'scoring') {
+      if (scorer) {
+        const budget = on(AUTOPLAY.skip) ? 1e6 : (PER_TICK[S.g.n] ?? 8) * 3;    // Skip: finish counting now
+        const res = scorer.step(budget);
+        if (res) { S.deadList = res.dead; S.score = areaScore(S.g, res.dead); S.scorer = false; scorer = null; A.t = 0; }
+        return;
+      }
+      A.t += dt;
+      if (on(AUTOPLAY.skip)) A.t = REVEAL_TIME;
+      if (A.t >= REVEAL_TIME) acceptScore();
+      return;
+    }
+    if (on(AUTOPLAY.skip)) {
+      if (S.anim.length) for (const a of S.anim) a.t = a.dur;
+      else if (A.phase === 'think') A.t = THINK_STEPS[S.prefs.apThinkIdx];
+      else if (A.phase === 'reveal') A.t = REVEAL_TIME;
+    }
+    if (A.phase === 'think') {
+      A.t += dt; apDecide(dt);
+      if (A.chosen !== null && A.t >= THINK_STEPS[S.prefs.apThinkIdx]) { A.phase = 'reveal'; A.t = 0; }
+    } else if (A.phase === 'reveal') {
+      A.t += dt;
+      if (A.t >= REVEAL_TIME) {
+        const mv = A.chosen, me = S.g.turn; A.chosen = null; A.phase = 'act';
+        pushUndo(); const done = doMove(mv);
+        if (mv < 0) say(S.g.passes >= 2 ? 'Both players have now passed.' : `${NAMES[me]} passes.`, 4);
+        else if (done.captured.length) say(`${NAMES[me]} captured ${done.captured.length} stone${done.captured.length > 1 ? 's' : ''}.`, 4);
+        else S.msg = null;
+        afterMove();
+        if (S.phase === 'play') apEnterThink();
+      }
+    }
   }
 
   // ---- lessons ------------------------------------------------------------------------------------------------------------
@@ -333,6 +422,7 @@ export function createGame(env) {
     else if (on(B.how)) { S.scene = 'how'; S.howPage = 0; }
     else if (on(B.settings)) S.scene = 'settings';
     else if (on(B.rules)) { S.scene = 'rules'; S.rulesPage = 0; }
+    else if (on(B.auto)) startAutoplay();
   }
   // About, How to play and Rules are all paginated the same way (one topic per page, Back/Next
   // with wraparound) and all share the same text-size stepper - one update handler for the three.
@@ -462,10 +552,14 @@ export function createGame(env) {
         case 'play': updatePlay(dt, p, input); break;
         case 'lesson': updateLesson(dt, p, input); break;
         case 'puzzle': updatePuzzle(dt, p, input); break;
+        case 'autoplay': updateAutoplay(dt, p); break;
         default: break;
       }
     },
     render(ctx) { render(ctx, S); },
     getState: () => S,
+    // Auto Play is a free teaching/marketing tool, like the menu's own attract-mode preview - it
+    // must never eat into the paid game's free-preview timer (kit 1.6.1).
+    isPreviewExempt: () => isAutoplay(),
   };
 }

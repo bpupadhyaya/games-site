@@ -11,9 +11,10 @@ import { ENEMIES } from './data/enemies.js';
 import * as B from './rules/battle.js';
 import * as R from './rules/run.js';
 import { makeSky } from './ui/draw.js';
-import { render as renderAll } from './ui/render.js';
+import { render as renderAll, renderAuto } from './ui/render.js';
 import { C, elementColor } from './ui/theme.js';
-import { ARCHER, BTN, CARD_H, CARD_W, CLOSE, CONFIRM, COVENANT_BTN, COVENANT_BTN_TOP, DETAIL, ENVOY, ENVOY_TOP, FIELD_BOTTOM, GRID, OPTIONS, OPTIONS_TOP, PULL_TO_LOOSE, SECONDARY, HELP_TABS, HELP_TEXT, PAGE_NAV, HOWTO_PER_PAGE, ABOUT_PER_PAGE, TEXT_SCALES, NEWRUN, TUNER_REMOVE, TUNER_TRIO_Y, choiceRects, enemySlots, handSlots, inRect, titleRects, trioRects } from './ui/layout.js';
+import { ARCHER, BTN, CARD_H, CARD_W, CLOSE, CONFIRM, COVENANT_BTN, COVENANT_BTN_TOP, DETAIL, ENVOY, ENVOY_TOP, FIELD_BOTTOM, GRID, OPTIONS, OPTIONS_TOP, PULL_TO_LOOSE, SECONDARY, HELP_TABS, HELP_TEXT, PAGE_NAV, HOWTO_PER_PAGE, ABOUT_PER_PAGE, TEXT_SCALES, NEWRUN, TUNER_REMOVE, TUNER_TRIO_Y, choiceRects, enemySlots, handSlots, inRect, titleRects, trioRects, AUTO_THINK_STEPS, AUTO_REVEAL_SECONDS, AUTO_ACT_SECONDS, AUTO_STEP_DEC, AUTO_STEP_INC, AUTO_SKIP, AUTO_EXIT, AUTO_AGAIN } from './ui/layout.js';
+import { chooseCard as autoChooseCard, chooseDoor as autoChooseDoor, chooseReward as autoChooseReward, chooseCampOption as autoChooseCampOption, chooseEnvoyOption as autoChooseEnvoyOption, chooseTunerAction as autoChooseTunerAction, draftValue as autoDraftValue } from './autoplay.js';
 
 // +1: the element-ring diagram gets its own last page rather than riding on the last tip page,
 // where it would have to compete for room and could silently vanish at the top text-size step.
@@ -39,6 +40,8 @@ export function createGame(env) {
     fx: [], lock: 0, shake: 0, pending: null, best: 0, muted: false, demoBattles: 0, saved: null, runs: 0, legend: 0,
     fade: 1, lastScene: 'title', meta: defaultMeta(), coach: { key: null, t: 0 }, unlocked: [],
     textScaleIdx: 0, // index into TEXT_SCALES; the help overlay's How to Play/About/Rules text size
+    autoThinkIdx: 1, // index into AUTO_THINK_STEPS (Auto Play's think-time stepper); default 5s
+    auto: null, // Auto Play's own private run, only while scene === 'auto' — never s.run/s.battle
   };
 
   storage.get('best', 0).then((v) => {
@@ -62,9 +65,17 @@ export function createGame(env) {
   storage.get('save', null).then((v) => {
     if (v && v.run && !s.run) s.saved = v;
   });
+  storage.get('autoThinkIdx', 1).then((v) => {
+    s.autoThinkIdx = Math.min(Math.max(v ?? 1, 0), AUTO_THINK_STEPS.length - 1);
+  });
 
   // ------------------------------------------------------------------ sound
-  const tone = (freq, to, dur, type = 'sine', vol = 0.16) => audio.tone({ freq, to, dur, type, vol });
+  // Auto Play watches itself, with nobody there to hear it: silent by design, the same way the
+  // menu's own moon and stars animate without a sound. One gate here covers every sfx.* call.
+  const tone = (freq, to, dur, type = 'sine', vol = 0.16) => {
+    if (s.scene === 'auto') return;
+    audio.tone({ freq, to, dur, type, vol });
+  };
   const MOTIF = { ember: [330, 349], tide: [392, 262], flare: [523, 659], storm: [196, 185], gale: [440, 587], stone: [147, 165] };
   const sfx = {
     tap: () => tone(620, 520, 0.05, 'sine', 0.08),
@@ -614,9 +625,21 @@ export function createGame(env) {
     s.overlay = { type: 'cards', title: "The Tuner's Book", items, pick: null, note: `${known} of ${items.length} Arrows loosed. Each one, once per run.`, scroll: 0, inspect: null };
   };
 
+  // Title actions: 'covenant' and 'auto' share their row as two half-width buttons (see
+  // titleActionRects below) rather than adding a whole new row, so nothing else on the title
+  // screen shifts.
+  const titleActions = () => (s.saved ? ['resume', 'new', 'book', 'help', 'covenant', 'auto'] : ['new', 'book', 'help', 'covenant', 'auto']);
+  function titleActionRects(actions) {
+    const rows = titleRects(actions.length - 1);
+    const last = rows[rows.length - 1];
+    const gap = 16;
+    const half = (last.w - gap) / 2;
+    return [...rows.slice(0, -1), { x: last.x, y: last.y, w: half, h: last.h }, { x: last.x + half + gap, y: last.y, w: half, h: last.h }];
+  }
+
   function updateTitle(tap, keys) {
-    const actions = s.saved ? ['resume', 'new', 'book', 'help', 'covenant'] : ['new', 'book', 'help', 'covenant'];
-    const rects = titleRects(actions.length);
+    const actions = titleActions();
+    const rects = titleActionRects(actions);
     if (keys.pressed.has('Enter') || keys.pressed.has('Space')) {
       if (s.saved) resume();
       else startNew();
@@ -630,6 +653,7 @@ export function createGame(env) {
     else if (actions[hit] === 'new') startNew();
     else if (actions[hit] === 'book') openBook();
     else if (actions[hit] === 'help') s.overlay = { type: 'help', page: 0, howtoPage: 0, aboutPage: 0, rulesPage: 0 };
+    else if (actions[hit] === 'auto') enterAuto();
     else s.overlay = { type: 'covenant' };
   }
 
@@ -755,6 +779,253 @@ export function createGame(env) {
     else if (inRect(SECONDARY, tap.x, tap.y)) {
       const names = s.run.spent.map((c) => CARDS[c.id].name).join(', ');
       env.share(`One Arrow Oath — Legend ${s.legend}. I spent ${s.run.spent.length} arrows: ${names || 'none'}. Nothing fires twice.`);
+    }
+  }
+
+  // ------------------------------------------------------------------ Auto Play (assisted learning)
+  // A private run driven only by rules/battle.js and rules/run.js — never startRun/nextStep/
+  // beginBattle/finishRun above, whose save()/saveMeta()/clearSave()/monetization.track() must
+  // never fire for a demonstration nobody asked to have saved. The move-picker is autoplay.js,
+  // ported from design/sim.mjs (the private balance simulator — this game's only existing
+  // move-choosing logic, since there is no opponent AI in a single-player card battler).
+  // THINK (board still, nothing shown) -> REVEAL (~2s, highlight the one move about to be taken)
+  // -> ACT (the real rule functions run) -> loop, until the run ends on its own.
+  const autoRng = () => (rng.fork ? rng.fork() : rng);
+
+  const autoCampOptionsList = (run) => {
+    const list = [{ id: 'rest', label: 'Rest', sub: `Heal ${R.campHeal(run)} Resolve` }];
+    if (R.removableTechs(run).length > 1) list.push({ id: 'drop', label: 'Lighten the quiver', sub: 'Remove one Technique for good' });
+    if (run.debts.length) list.push({ id: 'settle', label: 'Settle a Debt', sub: 'Costs 5 maximum Resolve' });
+    return list;
+  };
+
+  function enterAuto() {
+    const run = R.newRun(autoRng(), { archer: 'keeper', oath: 0 });
+    s.auto = {
+      rng: autoRng(), run, battle: null, door: null, reward: null, envoy: null, leaving: false,
+      scene: 'map', phase: 'think', timer: AUTO_THINK_STEPS[s.autoThinkIdx], pending: null,
+      caption: '', result: null, legend: 0, ui: { choice: -1, sel: -1, target: 0 },
+    };
+    s.scene = 'auto';
+    s.fade = s.meta.reduceMotion ? 0 : 1;
+  }
+
+  function exitAuto() {
+    s.auto = null;
+    s.scene = 'title';
+    s.fade = s.meta.reduceMotion ? 0 : 1;
+  }
+
+  function autoFinish(A, result) {
+    A.run.result = result;
+    A.legend = R.legend(A.run);
+    A.result = result;
+    A.scene = 'runover';
+  }
+
+  function autoAdvanceStep(A) {
+    R.advance(A.run, A.rng);
+    A.door = null;
+    A.reward = null;
+    A.envoy = null;
+    A.battle = null;
+    A.leaving = false;
+    if (A.run.result) {
+      autoFinish(A, A.run.result);
+      return;
+    }
+    A.scene = 'map';
+    A.ui.choice = -1;
+  }
+
+  function autoBattleWon(A) {
+    B.settleBattle(A.battle, A.run);
+    A.run.battlesWon += 1;
+    const tier = tierOf(A.door ?? { kind: 'fight' });
+    A.run.marks += R.battleMarks(A.rng, tier);
+    A.reward = { cards: R.genRewards(A.run, A.rng, tier, !!A.door?.guaranteeRare) };
+    A.battle = null;
+    A.scene = 'reward';
+    A.ui.choice = -1;
+  }
+
+  function autoBattleLost(A) {
+    B.settleBattle(A.battle, A.run);
+    autoFinish(A, 'lost');
+  }
+
+  // A Debt or an Envoy event can leave run.pending (a card still to remove, or an Arrow still to
+  // choose) — the real game shows an overlay for it; Auto Play resolves it immediately with the
+  // same draftValue heuristic (best for a gain, worst for a forced removal) so a run never sits
+  // with an unresolved promise the player never sees.
+  function autoResolvePending(A) {
+    let guard = 0;
+    while (A.run.pending && guard < 20) {
+      guard += 1;
+      const items = R.pendingCards(A.run);
+      if (!items.length) {
+        A.run.pending = null;
+        break;
+      }
+      const pick = A.run.pending.type === 'gain'
+        ? items.reduce((best, it) => (autoDraftValue(it.id) > autoDraftValue(best.id) ? it : best))
+        : items.reduce((worst, it) => (autoDraftValue(it.id) < autoDraftValue(worst.id) ? it : worst));
+      R.resolvePending(A.run, pick.uid);
+    }
+  }
+
+  // THINK ends here: decide the single move to make, and how REVEAL should show it.
+  function computeAutoMove(A) {
+    A.leaving = false;
+    if (A.scene === 'map') {
+      const index = autoChooseDoor(A.run);
+      const door = A.run.doors[index];
+      A.pending = { type: 'door', index };
+      A.ui.choice = index;
+      const verbs = { fight: 'Entering a skirmish', elite: 'Entering a hard fight', boss: 'Entering the last door', camp: 'Making camp', tuner: 'Visiting the Tuner', envoy: 'Meeting an Envoy' };
+      A.caption = verbs[door.kind] ?? 'Choosing a door';
+    } else if (A.scene === 'battle') {
+      const pick = autoChooseCard(A.battle);
+      if (pick) {
+        const card = CARDS[A.battle.hand[pick.i].id];
+        const targetEnemy = A.battle.enemies[pick.target];
+        A.pending = { type: 'play', index: pick.i, target: pick.target };
+        A.ui.sel = pick.i;
+        A.ui.target = pick.target;
+        A.caption = targetEnemy && B.needsTarget(card) ? `Playing ${card.name} on ${targetEnemy.name}` : `Playing ${card.name}`;
+      } else {
+        A.pending = { type: 'end' };
+        A.ui.sel = -1;
+        A.caption = 'Ending the turn';
+      }
+    } else if (A.scene === 'reward') {
+      const index = autoChooseReward(A.reward.cards);
+      A.pending = { type: 'take', index };
+      A.ui.choice = index;
+      A.caption = `Taking ${CARDS[A.reward.cards[index]].name}`;
+    } else if (A.scene === 'camp') {
+      const options = autoCampOptionsList(A.run);
+      const index = autoChooseCampOption(options);
+      A.pending = { type: 'camp', index };
+      A.ui.choice = index;
+      A.caption = options[index].label;
+    } else if (A.scene === 'envoy') {
+      const ev = EVENTS[A.envoy.event];
+      const index = autoChooseEnvoyOption(ev);
+      A.pending = { type: 'envoy', index };
+      A.ui.choice = index;
+      A.caption = `Choosing: ${ev.options[index].label}`;
+    } else if (A.scene === 'tuner') {
+      const decision = autoChooseTunerAction(A.run, A.door);
+      if (decision.buy >= 0) {
+        A.pending = { type: 'buy', index: decision.buy };
+        A.ui.choice = decision.buy;
+        A.caption = `Buying ${CARDS[A.door.stock[decision.buy].id].name}`;
+      } else {
+        A.pending = { type: 'leave' };
+        A.ui.choice = -1;
+        A.leaving = true;
+        A.caption = 'Leaving the Tuner';
+      }
+    }
+  }
+
+  // ACT: the pending decision actually happens now, through the real rule functions — never a
+  // fake path that only looks like it played a card or entered a door.
+  function applyAutoMove(A) {
+    const p = A.pending;
+    A.pending = null;
+    if (!p) return;
+    if (p.type === 'door') {
+      const door = A.run.doors[p.index];
+      A.door = door;
+      if (door.kind === 'fight' || door.kind === 'elite' || door.kind === 'boss') {
+        const { battle } = B.startBattle(A.run, door.encounter, A.rng, { final: door.kind === 'boss' && A.run.act === R.ACTS, label: 'a fight' });
+        A.battle = battle;
+        A.scene = 'battle';
+        A.ui.sel = -1;
+        A.ui.target = 0;
+      } else {
+        A.scene = door.kind;
+        A.envoy = door.kind === 'envoy' ? { event: door.event } : null;
+      }
+    } else if (p.type === 'play') {
+      B.playCard(A.battle, A.run, p.index, p.target, A.rng);
+      // The played card just left the hand, splicing every later index down by one — clear the
+      // highlight rather than let it now point at whatever card slid into that slot (matches
+      // playFromHand's own s.ui.sel = -1 after a real play, for the same reason).
+      A.ui.sel = -1;
+      if (A.battle.phase === 'won') autoBattleWon(A);
+      else if (A.battle.phase === 'lost') autoBattleLost(A);
+    } else if (p.type === 'end') {
+      B.endTurn(A.battle, A.run, A.rng);
+      if (A.battle.phase === 'won') autoBattleWon(A);
+      else if (A.battle.phase === 'lost') autoBattleLost(A);
+    } else if (p.type === 'take') {
+      R.addCard(A.run, A.reward.cards[p.index]);
+      autoAdvanceStep(A);
+    } else if (p.type === 'camp') {
+      const options = autoCampOptionsList(A.run);
+      const id = options[p.index].id;
+      if (id === 'rest') R.campRest(A.run);
+      else if (id === 'settle') R.settleDebt(A.run, A.run.debts[0]);
+      else if (id === 'drop') {
+        const c = R.removableTechs(A.run)[0];
+        if (c) R.removeCard(A.run, c.uid);
+      }
+      autoAdvanceStep(A);
+    } else if (p.type === 'envoy') {
+      R.applyEventOption(A.run, A.envoy.event, p.index, A.rng);
+      autoResolvePending(A);
+      autoAdvanceStep(A);
+    } else if (p.type === 'buy') {
+      R.buy(A.run, A.door, p.index);
+    } else if (p.type === 'leave') {
+      autoAdvanceStep(A);
+    }
+  }
+
+  function updateAuto(dt, tap) {
+    const A = s.auto;
+    if (!A) return;
+    if (tap) {
+      if (inRect(AUTO_STEP_DEC, tap.x, tap.y) && s.autoThinkIdx > 0) {
+        s.autoThinkIdx -= 1;
+        storage.set('autoThinkIdx', s.autoThinkIdx);
+        return;
+      }
+      if (inRect(AUTO_STEP_INC, tap.x, tap.y) && s.autoThinkIdx < AUTO_THINK_STEPS.length - 1) {
+        s.autoThinkIdx += 1;
+        storage.set('autoThinkIdx', s.autoThinkIdx);
+        return;
+      }
+      if (inRect(AUTO_EXIT, tap.x, tap.y)) {
+        exitAuto();
+        return;
+      }
+      if (A.phase === 'over' && inRect(AUTO_AGAIN, tap.x, tap.y)) {
+        enterAuto();
+        return;
+      }
+      if ((A.phase === 'think' || A.phase === 'reveal') && inRect(AUTO_SKIP, tap.x, tap.y)) A.timer = 0;
+    }
+    if (A.phase === 'over') return;
+    A.timer -= dt;
+    if (A.timer > 0) return;
+    if (A.phase === 'think') {
+      computeAutoMove(A);
+      A.phase = 'reveal';
+      A.timer = AUTO_REVEAL_SECONDS;
+    } else if (A.phase === 'reveal') {
+      applyAutoMove(A);
+      A.phase = 'act';
+      A.timer = AUTO_ACT_SECONDS;
+    } else if (A.phase === 'act') {
+      if (A.run.result) A.phase = 'over';
+      else {
+        A.phase = 'think';
+        A.timer = AUTO_THINK_STEPS[s.autoThinkIdx];
+      }
     }
   }
 
@@ -969,6 +1240,7 @@ export function createGame(env) {
         if (s.overlay) {
           if (!s.overlay.required) s.overlay = null;
         }
+        else if (s.scene === 'auto') exitAuto();
         else if (s.run && !s.run.result && s.scene !== 'title') s.overlay = { type: 'covenant' };
       } else if (s.overlay) updateOverlay(tap, p);
       else if (s.scene === 'title') updateTitle(tap, keys);
@@ -979,6 +1251,7 @@ export function createGame(env) {
       else if (s.scene === 'envoy') updateEnvoy(tap, keys);
       else if (s.scene === 'tuner') updateTuner(tap, keys);
       else if (s.scene === 'runover') updateRunover(tap, keys);
+      else if (s.scene === 'auto') updateAuto(dt, tap);
       // 'demo-limit': nothing is playable and taps do nothing.
 
       if (ui.press && p.down) ui.press.lastY = p.y;
@@ -986,8 +1259,13 @@ export function createGame(env) {
     },
 
     render(ctx, view) {
-      renderAll(ctx, view, s, { sky, campOptions, demo: !!env.config.demo, demoLeft: Math.max(0, DEMO_BATTLES - s.demoBattles), manifest: env.manifest });
+      if (s.scene === 'auto' && s.auto) renderAuto(ctx, s, s.auto, { sky });
+      else renderAll(ctx, view, s, { sky, campOptions, demo: !!env.config.demo, demoLeft: Math.max(0, DEMO_BATTLES - s.demoBattles), manifest: env.manifest });
     },
+
+    // Auto Play is free and silent by design (see the tone() gate above); it must never accrue
+    // against, or be blocked by, the platform's own preview-time gate.
+    isPreviewExempt: () => s.scene === 'auto',
 
     getState: () => s,
   };

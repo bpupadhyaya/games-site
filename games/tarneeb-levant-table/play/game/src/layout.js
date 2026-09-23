@@ -38,7 +38,12 @@ export const RULES_NEXT = { x: 370, y: 1470, w: 260, h: 78 };
 // exact and the stepper can cleanly disable at either end.
 export const TEXT_DEC = { x: 30, y: 36, w: 118, h: 62 };
 export const TEXT_INC = { x: W - 30 - 118, y: 36, w: 118, h: 62 };
-export const TEXT_SCALES = [1, 1.15, 1.3];
+export const TEXT_SCALES = [1, 1.5, 2, 2.5, 3];
+
+// Auto Play ("Watch & Learn") think-time steps, in seconds. Index into this, same pattern as
+// TEXT_SCALES above - never a raw float, so the +/- stepper can cleanly disable at either end.
+// Hard-capped at 10s per the owner's explicit instruction. Default index 1 (5s).
+export const THINK_STEPS = [2, 5, 8, 10];
 export const BTN = {
   leave: { x: 40, y: 1478, w: 190, h: 70 }, undo: { x: 265, y: 1478, w: 190, h: 70 }, hint: { x: 490, y: 1478, w: 190, h: 70 },
   next: { x: 130, y: 900, w: 460, h: 88 }, back: { x: 130, y: 1004, w: 460, h: 80 }, lesson: { x: 130, y: 1040, w: 460, h: 84 },
@@ -65,6 +70,10 @@ export function titleRows(hasSave) {
   out.level = { x: 110, y, w: 500, h: 66 };
   out.sound = { x: 110, y: y + 76, w: 242, h: 60 }; out.calm = { x: 368, y: y + 76, w: 242, h: 60 };
   out.big = { x: 110, y: y + 144, w: 242, h: 60 }; out.target = { x: 368, y: y + 144, w: 242, h: 60 };
+  // Free, silent, whole-match teaching demo - one more full-width row below everything else, so it
+  // never crowds the existing rows above it (both list shapes, with/without "Continue your match",
+  // still end comfortably clear of the canvas bottom).
+  out.auto = { x: 110, y: y + 220, w: 500, h: 78 };
   return out;
 }
 export const LESSON_ROWS = (n) => Array.from({ length: n }, (_, i) => ({ x: 60, y: 288 + i * 108, w: 600, h: 92 }));

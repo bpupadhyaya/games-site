@@ -20,24 +20,27 @@ export function squareAt(px, py, flip = false) {
 }
 
 // Screen furniture. The app draws its own "Menu" button top-left, so nothing important sits there.
-const row = (i, y0 = 738) => ({ x: 90, y: y0 + i * 84, w: 540, h: 72 });
-// Title buttons: [resume?] learn, red, black, two, daily; then two rows of small buttons and one wide one.
+// Row height/spacing (68/78, was 72/84) and the smaller rows/margins below were all tightened by a
+// few px each, uniformly, to make room for the new Auto Play row (see titleRows()) without moving
+// the fixed-position hero art above them or shrinking the canvas' bottom margin below comfort.
+const row = (i, y0 = 704) => ({ x: 90, y: y0 + i * 78, w: 540, h: 68 });
+// Title buttons: [resume?] learn, red, black, two, daily, autoplay; then two rows of small buttons and one wide one.
 export function titleRows(hasSave) {
-  const names = (hasSave ? ['resume'] : []).concat(['learn', 'red', 'black', 'two', 'daily']), out = {};
-  const y0 = hasSave ? 690 : 740;
+  const names = (hasSave ? ['resume'] : []).concat(['learn', 'red', 'black', 'two', 'daily', 'autoplay']), out = {};
+  const y0 = hasSave ? 660 : 704;
   names.forEach((n, i) => { out[n] = row(i, y0); });
-  const y = y0 + names.length * 84 + 8;
+  const y = y0 + names.length * 78 + 8;
   // Language choice: a clearly labeled row right on the title screen (not only in Settings), so it is the first
   // thing a player sees rather than something buried behind a generic settings button.
-  out.langZh = { x: 90, y, w: 262, h: 76 }; out.langEn = { x: 368, y, w: 262, h: 76 };
-  out.level = { x: 90, y: y + 84, w: 262, h: 66 }; out.sound = { x: 368, y: y + 84, w: 262, h: 66 };
+  out.langZh = { x: 90, y, w: 262, h: 72 }; out.langEn = { x: 368, y, w: 262, h: 72 };
+  out.level = { x: 90, y: y + 80, w: 262, h: 62 }; out.sound = { x: 368, y: y + 80, w: 262, h: 62 };
   // How to play / About / Rules share one row, three even columns spanning the same width the row used as two
   // columns before (Rules is the addition) - nothing else on the title screen moved.
-  { const gap = 14, third = (540 - gap * 2) / 3, ry = y + 160;
-    out.how = { x: 90, y: ry, w: third, h: 66 };
-    out.about = { x: 90 + third + gap, y: ry, w: third, h: 66 };
-    out.rules = { x: 90 + (third + gap) * 2, y: ry, w: third, h: 66 }; }
-  out.look = { x: 90, y: y + 236, w: 540, h: 66 };
+  { const gap = 14, third = (540 - gap * 2) / 3, ry = y + 150;
+    out.how = { x: 90, y: ry, w: third, h: 62 };
+    out.about = { x: 90 + third + gap, y: ry, w: third, h: 62 };
+    out.rules = { x: 90 + (third + gap) * 2, y: ry, w: third, h: 62 }; }
+  out.look = { x: 90, y: y + 220, w: 540, h: 62 };
   return out;
 }
 export const LOOK = {
@@ -52,13 +55,18 @@ export const LOOK = {
 export const BTN = {
   menu: { x: 60, y: 1462, w: 190, h: 72 }, undo: { x: 265, y: 1462, w: 190, h: 72 }, hint: { x: 470, y: 1462, w: 190, h: 72 },
   again: { x: 140, y: 1090, w: 440, h: 92 }, back: { x: 140, y: 1200, w: 440, h: 84 }, share: { x: 140, y: 1300, w: 440, h: 80 },
-  next: { x: 140, y: 1462, w: 440, h: 72 }, prev: { x: 60, y: 1462, w: 190, h: 72 },
-  done: { x: 140, y: 1462, w: 440, h: 72 }, page: { x: 470, y: 1462, w: 190, h: 72 },
+  next: { x: 140, y: 1462, w: 440, h: 72 },
+  done: { x: 140, y: 1462, w: 440, h: 72 },
+  // The How to play / About / Rules reference pages' own footer nav: an equal-width Back/Next-page
+  // pill pair spanning most of the row (previously two narrow 190px buttons with a wide empty gap
+  // between them at x 60-250 / 470-660 - it read as sparse next to every other full-width button
+  // row in this game, and wasn't pixel-matched to the good reference pattern).
+  prev: { x: 20, y: 1462, w: 330, h: 72 }, page: { x: 370, y: 1462, w: 330, h: 72 },
 };
 // Text-size steps for the How to play / About / Rules reference pages. Index into this array, never
 // a raw float, so the stepper can disable cleanly at either end and a stale saved index from a build
 // with a different-length array can be clamped instead of producing NaN sizes.
-export const TEXT_SCALES = [1, 1.15, 1.3];
+export const TEXT_SCALES = [1, 1.5, 2, 2.5, 3];
 // Stepper buttons, top corners of the reference pages - clear of the centred heading/page-title text
 // (which never reaches within 150px of either edge) and of the footer Back/Next row.
 export const TEXTSTEP = {
@@ -66,6 +74,13 @@ export const TEXTSTEP = {
   inc: { x: W - 128, y: 16, w: 110, h: 64 },
 };
 export const inRect = (r, x, y) => !!r && x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
+// Auto Play ("Watch & Learn"): THINK -> REVEAL -> ACT per move (see AUTOPLAY-BRIEF.md). Index-based
+// think-time (never a raw float), same convention as TEXT_SCALES; default index 1 (5s), hard-capped
+// at 10s per the owner's explicit instruction. REVEAL is fixed, not configurable. The stepper pills
+// reuse TEXTSTEP's exact top-corner geometry (that scene has no board-scene HUD to collide with, and
+// autoplay's own HUD has nothing in the top corners either).
+export const THINK_STEPS = [2, 5, 8, 10];
+export const REVEAL_SECONDS = 2;
 // Player plates: opponent above the board, you below it
 export const PLATE = { top: { x: 40, y: 224, w: 640, h: 88 }, bottom: { x: 40, y: 1134, w: 640, h: 88 } };
 export const MSG = { x: 40, y: 1240, w: 640, h: 190 };

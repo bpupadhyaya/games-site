@@ -24,23 +24,31 @@ export const PLAY_BTN = { x: 110, y: 1072, w: 500, h: 136 };
 // y/height/overall span, with the new Rules button (Rules reference page, additive-only change).
 export const TITLE_COLOR_BTN = { x: 150, y: 1266, w: 202, h: 92 };
 export const TITLE_RULES_BTN = { x: 368, y: 1266, w: 202, h: 92 };
+// Auto Play ("Watch & Learn") entry point: a free, full-width row added below the Colours/Rules
+// row (additive-only, same span as that row: x150..570). The two text lines beneath it (free
+// preview count + tagline) were nudged down to make room; see render.js.
+export const TITLE_AUTOPLAY_BTN = { x: 150, y: 1370, w: 420, h: 80 };
 
 // Rules reference: paginated, reached from the title screen only (this game has no other
-// Controls/About screen to also wire into). Same two-large-buttons-at-bottom geometry the
-// session-review screen already uses for its own Prev/Next-equivalent row.
-export const RULES_BACK_BTN = { x: 40, y: 1384, w: 312, h: 112 };
-export const RULES_NEXT_BTN = { x: 368, y: 1384, w: 312, h: 112 };
+// Controls/About screen to also wire into). Back/Next sit as an equal-width pill pair anchored
+// near the bottom, clear of the reader-card panel — same geometry as the good reference pattern
+// (big-card-solitaire-large-print). Back steps to the previous page (dimmed/disabled on page 1,
+// same convention as the session-review Prev button); Next steps forward and turns into a "Done"
+// exit affordance on the last page, instead of wrapping around forever.
+export const RULES_BACK_BTN = { x: 20, y: 1416, w: 330, h: 116 };
+export const RULES_NEXT_BTN = { x: 370, y: 1416, w: 330, h: 116 };
 
 // Text-size stepper for the Rules reference: an *index* into TEXT_SCALES, never a raw float, so
 // a stale saved index from a build with a different-length array can always be clamped safely.
-// Placed top-right of the header row (left of it is the "Rules" title; the app's own Menu button
-// owns the top-left corner and the top ~50 units, same convention the play screen's clock/score
-// pills already follow by starting no earlier than x=250).
-export const TEXT_SCALES = [1, 1.15, 1.3];
-export const RULES_TEXT_DEC = { x: 456, y: 58, w: 108, h: 76 };
-export const RULES_TEXT_INC = { x: 572, y: 58, w: 108, h: 76 };
-// The framed reader-card panel behind the Rules illustration + body text.
-export const RULES_PANEL = { x: 40, y: 230, w: 640, h: 1100 };
+// Two small pills in the top corners only, well clear of the centred "Rules" title below them
+// (the app's own Menu button owns the very top-left ~50 units, same convention every other
+// screen in this game follows).
+export const TEXT_SCALES = [1, 1.5, 2, 2.5, 3];
+export const RULES_TEXT_DEC = { x: 20, y: 20, w: 130, h: 68 };
+export const RULES_TEXT_INC = { x: W - 150, y: 20, w: 130, h: 68 };
+// The framed reader-card panel behind the Rules illustration + body text. The centred "Rules"
+// title sits above it (see render.js); the page indicator sits just below it, above the nav row.
+export const RULES_PANEL = { x: 30, y: 205, w: W - 60, h: 1165 };
 
 // Play screen
 export const PLAQUE = { x: 50, y: 222, w: 620, h: 236 };
@@ -58,3 +66,16 @@ export const PLAY_AGAIN_BTN = { x: 40, y: 1384, w: 312, h: 112 };
 export const CHANGE_MODE_BTN = { x: 368, y: 1384, w: 312, h: 112 };
 
 export const inRect = (x, y, r) => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
+
+// Auto Play ("Watch & Learn"): THINK -> REVEAL -> ACT per round. THINK_STEPS is an *index-based*
+// configurable pause (never a raw float), default index 1 (5s), hard-capped at 10s per the owner's
+// explicit instruction. REVEAL is fixed: long enough to compare the highlighted answer against your
+// own guess, short enough to keep a whole session watchable. The Exit/Colours row reuses STOP_BTN/
+// COLOR_BTN's exact geometry (never rendered at the same time as 'playing'), keeping the same
+// button style without new layout surface. The think-time stepper sits in the gap between the
+// plaque and the drift band (PLAQUE.y+PLAQUE.h=458 .. BAND_TOP=520) rather than the top corners,
+// since the top corners there are already the clock/score HUD.
+export const THINK_STEPS = [2, 5, 8, 10];
+export const REVEAL_SECONDS = 2;
+export const AUTO_THINK_DEC = { x: 160, y: 466, w: 90, h: 46 };
+export const AUTO_THINK_INC = { x: 470, y: 466, w: 90, h: 46 };

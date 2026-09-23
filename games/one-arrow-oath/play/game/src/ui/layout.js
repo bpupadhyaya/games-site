@@ -101,12 +101,18 @@ export const HELP_TABS = [{ x: 60, y: 236, w: 192, h: 76 }, { x: 264, y: 236, w:
 export const PAGE_NAV = { back: { x: 60, y: 1258, w: 294, h: 80 }, next: { x: 366, y: 1258, w: 294, h: 80 } };
 // How many How to Play tips / About paragraphs share one page, so bigger text (below) never
 // overflows the panel: pace new content to these budgets rather than shrinking font size.
-export const HOWTO_PER_PAGE = 3;
-export const ABOUT_PER_PAGE = 2;
+// Lowered from 3/2 to 1/1 for the 300% top step (owner request, 2026-09-22, raised from an
+// earlier 200% target mid-pass): one tip/paragraph per page is already the shortest this pacing
+// constant can express - reaching 300% relies on further splitting the content itself too (see
+// help.js / rules_reference.js).
+export const HOWTO_PER_PAGE = 1;
+export const ABOUT_PER_PAGE = 1;
 // Text-size steps for the help overlay's reference pages (How to Play/About/Rules). Index into
 // this, never a raw float, so "min"/"max" are exact and the stepper can cleanly disable at either
 // end. Every page's content is paced (help.js / rules_reference.js) to fit even at the top step.
-export const TEXT_SCALES = [1, 1.15, 1.3];
+// Raised to a 300% top step (owner request, 2026-09-22): evenly spaced 0.5 steps rather than the
+// old [1, 1.15, 1.3] spacing, since reaching 300% needed real headroom, not one more notch.
+export const TEXT_SCALES = [1, 1.5, 2, 2.5, 3];
 // "A-"/"A+" text-size stepper: a header row of its own, above the title and the How to Play/
 // About/Rules tab row, so it never crowds either. Symmetric either side of the centred title.
 export const HELP_TEXT = { dec: { x: 46, y: 150, w: 96, h: 60 }, inc: { x: 578, y: 150, w: 96, h: 60 } };
@@ -125,3 +131,57 @@ export const SECONDARY = { x: 190, y: 1416, w: 340, h: 72 };
 // Scrollable card grid used by the Quiver / Spent / pick-a-card overlays.
 export const GRID = { x: 24, y: 300, w: W - 48, h: 1000, cols: 4, cellW: 168, cellH: 250 };
 export const CLOSE = { x: 190, y: 1360, w: 340, h: 84 };
+
+// ---------------------------------------------------------------- Auto Play (assisted learning)
+// THINK (board still, nothing shown) -> REVEAL (~2s, legal options dim, the one about to be taken
+// lit) -> ACT (the real rules/battle functions run) -> loop, for a whole run. Think-time is an
+// INDEX into this array, never a raw float, so the stepper can cleanly clamp at either end and a
+// saved index from a shorter/longer build can never go out of range. Default index 1 (5s); the
+// last step (10s) is the hard cap.
+export const AUTO_THINK_STEPS = [2, 5, 8, 10];
+export const AUTO_REVEAL_SECONDS = 2;
+export const AUTO_ACT_SECONDS = 0.9;
+// A dedicated layout, not the real screens'. The real ones are built entirely around a human's
+// taps (drag-to-loose, half a dozen small buttons) that Auto Play never needs, so it gets its own
+// caption/stepper band top and bottom and hands the rest of the canvas to whatever is being
+// decided, rather than fighting the real header/bottomBar for room.
+export const AUTO_HUD = { x: 40, y: 100, w: W - 80, h: 172 };
+export const AUTO_STEP_DEC = { x: 66, y: 212, w: 78, h: 54 };
+export const AUTO_STEP_INC = { x: W - 144, y: 212, w: 78, h: 54 };
+export const AUTO_CONTENT_TOP = 300;
+export const AUTO_CONTENT_BOTTOM = 1404;
+export const AUTO_SKIP = { x: 40, y: 1420, w: 300, h: 84 };
+export const AUTO_EXIT = { x: 380, y: 1420, w: 300, h: 84 };
+export const AUTO_AGAIN = { x: 140, y: 1300, w: 440, h: 96 };
+export const AUTO_OVER_EXIT = { x: 190, y: 1416, w: 340, h: 72 };
+
+// Vertical list of wide panels (map doors, camp options, envoy options) inside the content band.
+export function autoListRects(n, top = AUTO_CONTENT_TOP, h = 158, gap = 22) {
+  const rects = [];
+  for (let i = 0; i < n; i++) rects.push({ x: 44, y: top + i * (h + gap), w: W - 88, h });
+  return rects;
+}
+// Cards side by side (reward, the Tuner's stock) inside the content band.
+export function autoTrioRects(n, y = AUTO_CONTENT_TOP + 30, w = 196) {
+  const gap = 16;
+  const total = n * w + (n - 1) * gap;
+  const rects = [];
+  for (let i = 0; i < n; i++) rects.push({ x: W / 2 - total / 2 + i * (w + gap), y, w, h: w * (CARD_H / CARD_W) });
+  return rects;
+}
+// The hand, laid flat near the bottom of the content band (no drag-to-loose to animate here).
+export function autoHandSlots(n, y = AUTO_CONTENT_BOTTOM - 150) {
+  if (n <= 0) return [];
+  const w = n <= 5 ? 122 : 104;
+  const spacing = n === 1 ? 0 : Math.min(w + 10, (W - 48 - w) / (n - 1));
+  const total = (n - 1) * spacing;
+  const slots = [];
+  for (let i = 0; i < n; i++) slots.push({ x: W / 2 - total / 2 + i * spacing, y, w });
+  return slots;
+}
+// The enemy row, near the top of the content band.
+export function autoEnemySlots(enemies, y = AUTO_CONTENT_TOP + 150) {
+  const n = enemies.length;
+  const xs = n === 1 ? [360] : n === 2 ? [220, 500] : [140, 360, 580];
+  return enemies.map((e, i) => ({ x: xs[Math.min(i, xs.length - 1)], y, r: n >= 3 ? 60 : e.boss ? 80 : 72 }));
+}

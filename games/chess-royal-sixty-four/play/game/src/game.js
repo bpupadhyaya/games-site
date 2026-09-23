@@ -5,7 +5,7 @@
 // piece and drop it on a square. Castling: TAP/DRAG the king two squares toward the rook. Promotion
 // opens a picker. An illegal attempt visibly tries, shudders back, and a message says why.
 import {
-  W, H, squareAt, pointXY, inRect, titleRows, BTN, BTN4, HEADER, RESULT_PANEL, PROMO, TEXT_SCALES,
+  W, H, squareAt, pointXY, inRect, titleRows, BTN, BTN4, HEADER, REF_BACK, REF_NEXT, TEXT_DEC, TEXT_INC, RESULT_PANEL, PROMO, TEXT_SCALES, THINK_STEPS, DEMO_THINK,
 } from './layout.js';
 import {
   newGame, applyMove, undoMove, tryMove, legalTargets, inCheck, WHITE, BLACK,
@@ -32,6 +32,12 @@ export function createGame(env) {
     thinking: false, thinkT: 0, hint: null, hintsLeft: HINTS_PER_GAME, last: null, overOpen: false, page: 0,
     lesson: { i: 0, s: 0, done: false, showSol: false }, miniWait: 0,
     demoIdx: 0, demoSpeed: 1, demoWait: 0,
+    // AI-vs-AI demo teaching loop: THINK (viewer guesses, board static) -> REVEAL (legal targets +
+    // the chosen move highlighted, 2s) -> MOVE (today's existing animation) -> loop. demoThinkIdx
+    // indexes THINK_STEPS (never a raw float, same pattern as textScaleIdx); demoPendingMove is
+    // `undefined` while the engine is still computing, `null` if it found no legal move, or the
+    // move object once ready; demoChosen is the reveal-phase highlighted destination square.
+    demoPhase: null, demoTimer: 0, demoThinkIdx: 1, demoPendingMove: undefined, demoChosen: -1,
     progress: { played: 0, wins: 0 }, learned: [],
     coach: { seen: false }, coachBubble: null,
     textScaleIdx: 0, // index into TEXT_SCALES; the About/Controls/Rules reference pages' text size
@@ -40,8 +46,8 @@ export function createGame(env) {
   const sfx = [];
 
   // ---- storage --------------------------------------------------------------------------------
-  const savePrefs = () => storage.set('prefs', { level: state.level, sound: state.sound, boardTheme: state.boardTheme, textScaleIdx: state.textScaleIdx });
-  storage.get('prefs', null).then((p) => { if (!p) return; Object.assign(state, { level: p.level ?? state.level, sound: p.sound ?? true, boardTheme: p.boardTheme ?? 'walnut', textScaleIdx: Math.min(Math.max(p.textScaleIdx ?? 0, 0), TEXT_SCALES.length - 1) }); audio.setMuted(!state.sound); });
+  const savePrefs = () => storage.set('prefs', { level: state.level, sound: state.sound, boardTheme: state.boardTheme, textScaleIdx: state.textScaleIdx, demoThinkIdx: state.demoThinkIdx });
+  storage.get('prefs', null).then((p) => { if (!p) return; Object.assign(state, { level: p.level ?? state.level, sound: p.sound ?? true, boardTheme: p.boardTheme ?? 'walnut', textScaleIdx: Math.min(Math.max(p.textScaleIdx ?? 0, 0), TEXT_SCALES.length - 1), demoThinkIdx: Math.min(Math.max(p.demoThinkIdx ?? 1, 0), THINK_STEPS.length - 1) }); audio.setMuted(!state.sound); });
   storage.get('progress', null).then((p) => { if (p) state.progress = { played: p.played | 0, wins: p.wins | 0 }; });
   storage.get('learned', []).then((l) => { state.learned = Array.isArray(l) ? l : []; });
   storage.get('coach', null).then((c) => { if (c) state.coach = { seen: !!c.seen }; });
@@ -49,7 +55,10 @@ export function createGame(env) {
   // ---- small helpers ----------------------------------------------------------------------------
   const say = (text, kind = 'info') => { state.msg = { text, kind, t: 0 }; };
   const sound = (name) => {
-    if (!state.sound) return;
+    // The AI-vs-AI auto-play demo plays itself continuously with no player to hear it for -
+    // silent by design, the same way the menu's own attract-mode preview is silent. Nothing is
+    // lost: the demo is a visual "watch how the engine plays" feature, not an audio one.
+    if (!state.sound || state.scene === 'demo') return;
     if (name === 'tok') audio.tone({ freq: 220, to: 120, dur: 0.08, type: 'triangle', vol: 0.28 });
     else if (name === 'take') { audio.tone({ freq: 190, to: 90, dur: 0.11, type: 'triangle', vol: 0.34 }); sfx.push({ at: state.t + 0.07, o: { freq: 480, to: 280, dur: 0.12, type: 'square', vol: 0.05 } }); }
     else if (name === 'refuse') audio.tone({ freq: 150, to: 110, dur: 0.14, type: 'sine', vol: 0.2 });
@@ -214,10 +223,20 @@ export function createGame(env) {
   function loadDemoGame() {
     const cfg = DEMO_GAMES[state.demoIdx];
     state.g = newGame(); state.mode = 'demo'; demoGameRng = demoRng(state.demoIdx);
+    // demoWait here is only the brief settle pause before the FIRST think of a freshly-loaded
+    // board (so the position doesn't start "thinking" the instant it appears); it is unrelated to
+    // the per-move THINK/REVEAL teaching loop below, which owns all pacing between moves.
     Object.assign(state, { last: null, msg: null, hint: null, anim: null, banner: null, overOpen: false, demoWait: 0.6 });
     clearSel(); thinker = null; pending = null;
+    state.demoPhase = null; state.demoPendingMove = undefined; state.demoChosen = -1;
     say(cfg.name, 'info');
   }
+  // Teaching loop for the AI-vs-AI demo: for every move, THINK (board static, viewer works out
+  // their own guess) -> REVEAL (every legal destination for the piece about to move is marked, and
+  // the actual chosen destination is marked more prominently so the viewer can compare) -> MOVE
+  // (today's existing slide animation via doMove, unchanged) -> loop. `demoSpeed` (the existing
+  // Speed x1/x2/x4 toggle) scales both THINK and REVEAL down, same role it always had.
+  const DEMO_REVEAL_SECS = 2;
   function demoStep(dt) {
     const cfg = DEMO_GAMES[state.demoIdx];
     if (state.g.result) {
@@ -228,15 +247,41 @@ export function createGame(env) {
       return;
     }
     if (state.anim) return;
-    state.demoWait -= dt;
-    if (state.demoWait > 0) return;
-    if (!thinker) { const level = cfg.levels[state.g.st.turn === WHITE ? 0 : 1]; const played = state.g.log.map((e) => ({ from: moveFrom(e.m), to: moveTo(e.m) })); thinker = createThinker(state.g, level, demoGameRng, played); }
-    const r = thinker.step();
-    if (r.move !== undefined) {
-      thinker = null;
-      if (!r.move) { state.g.result = { winner: 0, why: 'no-move' }; return; }
-      doMove(r.move, () => { state.demoWait = 0.55 / state.demoSpeed; });
+    if (state.demoWait > 0) { state.demoWait -= dt; return; }
+
+    if (state.demoPhase === 'reveal') {
+      state.demoTimer -= dt;
+      if (state.demoTimer > 0) return;
+      const mv = state.demoPendingMove;
+      state.demoPhase = null; state.demoPendingMove = undefined; state.demoChosen = -1;
+      clearSel();
+      doMove(mv, () => {});
+      return;
     }
+
+    // THINK phase (also the default/initial phase: demoPhase starts null, so the very first call
+    // here falls straight into it and starts the timer below).
+    if (!thinker) {
+      const level = cfg.levels[state.g.st.turn === WHITE ? 0 : 1];
+      const played = state.g.log.map((e) => ({ from: moveFrom(e.m), to: moveTo(e.m) }));
+      thinker = createThinker(state.g, level, demoGameRng, played);
+      state.demoPhase = 'think';
+      state.demoTimer = THINK_STEPS[state.demoThinkIdx] / state.demoSpeed;
+    }
+    const r = thinker.step();
+    if (r.move !== undefined) state.demoPendingMove = r.move;
+    state.demoTimer -= dt;
+    if (state.demoTimer > 0) return;
+    if (state.demoPendingMove === undefined) return; // viewer's think time is up but the engine (a
+    // high level's deeper search) isn't ready yet — keep waiting rather than reveal nothing.
+    const mv = state.demoPendingMove;
+    thinker = null;
+    if (!mv) { state.g.result = { winner: 0, why: 'no-move' }; state.demoPhase = null; return; }
+    state.sel = mv.from;
+    state.targets = legalTargets(state.g.st, mv.from).map((m) => m.to);
+    state.demoChosen = mv.to;
+    state.demoPhase = 'reveal';
+    state.demoTimer = DEMO_REVEAL_SECS / state.demoSpeed;
   }
 
   // ---- taps ------------------------------------------------------------------------------------------
@@ -362,15 +407,17 @@ export function createGame(env) {
       }
       case 'howto': case 'about': case 'rules': {
         const list = state.scene === 'howto' ? HOWTO : state.scene === 'about' ? ABOUT : RULES;
-        if (hit(HEADER.back)) { state.scene = 'title'; state.page = 0; }
-        else if (hit(HEADER.next)) state.page = (state.page + 1) % list.length;
-        else if (hit(HEADER.textDec) && state.textScaleIdx > 0) { state.textScaleIdx--; savePrefs(); sound('ok'); }
-        else if (hit(HEADER.textInc) && state.textScaleIdx < TEXT_SCALES.length - 1) { state.textScaleIdx++; savePrefs(); sound('ok'); }
+        if (hit(REF_BACK)) { state.scene = 'title'; state.page = 0; }
+        else if (hit(REF_NEXT)) state.page = (state.page + 1) % list.length;
+        else if (hit(TEXT_DEC) && state.textScaleIdx > 0) { state.textScaleIdx--; savePrefs(); sound('ok'); }
+        else if (hit(TEXT_INC) && state.textScaleIdx < TEXT_SCALES.length - 1) { state.textScaleIdx++; savePrefs(); sound('ok'); }
         break;
       }
       case 'demo': {
-        if (hit(HEADER.back)) { thinker = null; state.scene = 'title'; }
+        if (hit(HEADER.back)) { thinker = null; state.scene = 'title'; clearSel(); state.demoPhase = null; state.demoPendingMove = undefined; state.demoChosen = -1; }
         else if (hit(HEADER.next)) { state.demoSpeed = state.demoSpeed >= 4 ? 1 : state.demoSpeed * 2; }
+        else if (hit(DEMO_THINK.dec)) { if (state.demoThinkIdx > 0) { state.demoThinkIdx--; savePrefs(); sound('ok'); } }
+        else if (hit(DEMO_THINK.inc)) { if (state.demoThinkIdx < THINK_STEPS.length - 1) { state.demoThinkIdx++; savePrefs(); sound('ok'); } }
         break;
       }
       case 'lesson': {

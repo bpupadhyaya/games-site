@@ -21,17 +21,31 @@ export const BTN = {
   menu: { x: 60, y: 1462, w: 190, h: 72 }, undo: { x: 265, y: 1462, w: 190, h: 72 }, hint: { x: 470, y: 1462, w: 190, h: 72 },
   again: { x: 140, y: 900, w: 440, h: 96 }, back: { x: 140, y: 1016, w: 440, h: 84 }, share: { x: 140, y: 1120, w: 440, h: 84 },
   next: { x: 140, y: 1462, w: 440, h: 72 }, prev: { x: 60, y: 1462, w: 190, h: 72 },
+  // Text-size stepper for the About/Rules reference pages: a header row above the title, clear of
+  // the Menu/Back/Next row in the footer.
+  textDec: { x: 40, y: 24, w: 120, h: 62 }, textInc: { x: W - 160, y: 24, w: 120, h: 62 },
+  // Auto Play: the same bottom-row three-button shape as play's Menu/Take back/Hint, repurposed.
+  apExit: { x: 60, y: 1462, w: 190, h: 72 }, apDec: { x: 265, y: 1462, w: 190, h: 72 }, apInc: { x: 470, y: 1462, w: 190, h: 72 },
 };
+// Text-size steps for the About/Rules reference pages. Index into this, never a raw float, so the
+// stepper can cleanly disable at either end. Content is paced (content.js/heritage.js) to fit even
+// at the top step.
+export const TEXT_SCALES = [1, 1.5, 2, 2.5, 3];
+// Auto Play think-time steps, in seconds: an index into this array (never a raw float), default 5s
+// (index 1), hard-capped at 10s per the owner's instruction that a longer wait defeats the point.
+export const AP_THINK_STEPS = [2, 5, 8, 10];
 const row = (i) => ({ x: 90, y: 790 + i * 76, w: 540, h: 66 });
 export function titleRows(hasSave) {
   const names = (hasSave ? ['resume'] : []).concat(['learn', 'play', 'two', 'daily']), out = {};
   names.forEach((n, i) => { out[n] = row(i); });
-  // About and Rules share the row "About the game" used to have alone, two even columns (Rules is
-  // the addition) -- every other row keeps its exact original position, since this reuses the same
-  // row index (names.length) "about" always occupied and the formula below is unchanged.
-  const aboutRow = row(names.length), gap = 14, half = (aboutRow.w - gap) / 2;
-  out.about = { x: aboutRow.x, y: aboutRow.y, w: half, h: aboutRow.h };
-  out.rules = { x: aboutRow.x + half + gap, y: aboutRow.y, w: half, h: aboutRow.h };
+  // About, Rules and Auto Play share the row "About the game" used to have alone, three even columns
+  // (Rules, then Auto Play, are the additions) -- every other row keeps its exact original position,
+  // since this reuses the same row index (names.length) "about" always occupied, and the formula
+  // below is unchanged, so no later row grows the screen past its original bottom margin.
+  const aboutRow = row(names.length), gap = 14, third = (aboutRow.w - gap * 2) / 3;
+  out.about = { x: aboutRow.x, y: aboutRow.y, w: third, h: aboutRow.h };
+  out.rules = { x: aboutRow.x + third + gap, y: aboutRow.y, w: third, h: aboutRow.h };
+  out.autoplay = { x: aboutRow.x + (third + gap) * 2, y: aboutRow.y, w: third, h: aboutRow.h };
   const y = 790 + (names.length + 1) * 76 + 6;
   out.level = { x: 90, y, w: 262, h: 60 }; out.sound = { x: 368, y, w: 262, h: 60 };
   out.big = { x: 90, y: y + 68, w: 262, h: 60 }; out.calm = { x: 368, y: y + 68, w: 262, h: 60 };

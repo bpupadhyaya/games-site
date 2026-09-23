@@ -29,9 +29,11 @@ export function titleRows(hasSave) {
   // three rows of two small buttons: [level | flock] [sound | warnings] [reduced motion | board and pieces]
   out.level = { x: 90, y, w: 262, h: 62 }; out.flock = { x: 368, y, w: 262, h: 62 };
   out.sound = { x: 90, y: y + 70, w: 262, h: 62 }; out.marks = { x: 368, y: y + 70, w: 262, h: 62 };
-  // Reduced motion / Board and pieces used to be a 2-column row; it is now 3 columns, same y and
-  // same overall span (90..630), to make room for Rules (Rules-page addition; nothing else moves).
-  out.calm = { x: 90, y: y + 140, w: 168, h: 62 }; out.look = { x: 276, y: y + 140, w: 168, h: 62 }; out.rules = { x: 462, y: y + 140, w: 168, h: 62 };
+  // Reduced motion / Board and pieces / Rules / Auto Play: was a 2-column row, then 3 (Rules-page
+  // addition), now 4 (Auto Play addition) - same y and same overall span (90..630) every time,
+  // the labels shrunk to fit via view.js's fitSize() rather than changing their wording.
+  out.calm = { x: 90, y: y + 140, w: 129, h: 62 }; out.look = { x: 227, y: y + 140, w: 129, h: 62 };
+  out.rules = { x: 364, y: y + 140, w: 129, h: 62 }; out.auto = { x: 501, y: y + 140, w: 129, h: 62 };
   return out;
 }
 // The 'Board and pieces' screen: three boards, two piece sets, message size, back.
@@ -51,10 +53,25 @@ export const BTN = {
 export const RULES_NAV = { back: { x: 90, y: 1462, w: 262, h: 72 }, next: { x: 368, y: 1462, w: 262, h: 72 } };
 // Text-size steps for the Rules reference page. An *index* array, never a raw float, so the
 // stepper below can cleanly disable at either end and a stale saved index can always be clamped.
-export const TEXT_SCALES = [1, 1.15, 1.3];
+// Raised to a 300% ceiling (text-polish-300 request, 2026-09-22, superseding the 200% pass done
+// moments earlier in the same session before anything landed): five evenly spaced steps.
+export const TEXT_SCALES = [1, 1.5, 2, 2.5, 3];
 // The text-size stepper on the Rules page: top corners flanking the "Rules" header, well clear of
 // the Back/Next row that lives in the bottom bar.
 export const RULES_TEXT = { dec: { x: 14, y: 14, w: 96, h: 58 }, inc: { x: W - 110, y: 14, w: 96, h: 58 } };
+
+// Auto Play (assisted-learning THINK -> REVEAL -> ACT loop, watches the existing computer opponent
+// play both sides). Think-time steps: an *index* array like TEXT_SCALES above, never a raw float,
+// default index 1 (5s), hard-capped at the last step (10s - explicit owner instruction: "max wait
+// should not be more than 10s"). REVEAL is fixed, the same at every think-time step.
+export const THINK_STEPS = [2, 5, 8, 10];
+export const REVEAL_TIME = 2;
+// Corner stepper (same spot as the Rules page's own A-/A+) and a bottom control row matching the
+// play screen's own three-button bar (BTN.menu/undo/hint) in spot and size.
+export const AUTOPLAY = {
+  dec: { x: 14, y: 14, w: 96, h: 58 }, inc: { x: W - 110, y: 14, w: 96, h: 58 },
+  exit: { x: 60, y: 1462, w: 190, h: 72 }, pause: { x: 265, y: 1462, w: 190, h: 72 }, skip: { x: 470, y: 1462, w: 190, h: 72 },
+};
 export const inRect = (r, x, y) => !!r && x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
 // The flock tray: one small row of up to 17 geese, the taken ones dimmed.
 export const trayPos = (k) => ({ x: 74 + k * 36.5, y: 530, s: 1 });

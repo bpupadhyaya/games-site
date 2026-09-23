@@ -3,7 +3,7 @@
 //
 // Making a move: TAP a checker (its legal points glow), then TAP a point; or DRAG the checker and drop it. A move that is not
 // allowed visibly tries, shudders and comes back, and a plain-language reason is shown (rules.whyNot).
-import { W, H, BTN, DICE, CUBE, CUBE_ASK, DONE, PANEL, PBACK, SET_ROWS, TRAY, inRect, targetAt, stackPos, barPos, offPos, titleRows, OVER, TEXT_SCALES, TEXT_BTN } from './layout.js';
+import { W, H, BTN, DICE, CUBE, CUBE_ASK, DONE, PANEL, PBACK, DOC_BACK, DOC_NEXT, SET_ROWS, TRAY, inRect, targetAt, stackPos, barPos, offPos, titleRows, OVER, TEXT_SCALES, TEXT_BTN, THINK_STEPS } from './layout.js';
 import { BAR, OFF, newGame, clone, expandRoll, beginTurn, legalSteps, playStep, turnCopy, whyNot, isOver, winner, resultValue, key, own, pips } from './rules.js';
 import { LEVELS, createThinker, cubeOffer, cubeTake, reasonFor, SLICE } from './ai.js';
 import { LESSONS, setup, ptOf } from './lessons.js';
@@ -14,6 +14,9 @@ import { ABOUT, HOWTO, RULES } from './text.js';
 
 export const meta = { width: W, height: H };
 const DEMO_GAMES = 2, DEMO_LESSONS = 3, HINTS = 3;
+// Auto Play ("Watch & Learn") REVEAL phase length. THINK is configurable (THINK_STEPS, layout.js);
+// this is fixed, matching every other game's own auto-play pass this session.
+const AUTO_REVEAL_SECS = 2;
 const SETS = Object.keys(SET_NAMES);
 
 export function createGame(env) {
@@ -22,6 +25,11 @@ export function createGame(env) {
     scene: 'title', t: 0, phase: 'idle', g: newGame(), two: false, level: 2, gammon: true, cube: { on: false, v: 1, owner: -1 },
     sound: true, calm: false, big: false, set: 'classic', auto: true,
     textScaleIdx: 0, // index into TEXT_SCALES; the About/How to play/Rules reader pages' text size
+    // Auto Play ("Watch & Learn"): true while both sides are computer-played for teaching purposes.
+    // Distinct from `state.auto` above (an unrelated, pre-existing setting: "play a forced single
+    // legal move for me automatically"). autoThinkIdx indexes THINK_STEPS, never a raw float, same
+    // pattern as textScaleIdx. autoCand/autoReveal/autoTimer are the THINK -> REVEAL -> ACT state.
+    autoMode: false, autoThinkIdx: 1, autoPhase: null, autoCand: null, autoReveal: null, autoTimer: 0,
     dice: { vals: null, side: 0, roll: null }, left: null, sel: -1, dests: [], sources: [], anim: null, drag: null, hint: null, msg: null,
     status: '', canUndo: false, canDouble: false, hintsLeft: HINTS, thinking: false, cursor: null, cursorOn: false, kbi: 0,
     cubeAsk: null, result: null, stats: { games: 0, wins: 0 }, saved: null, learned: false, demoGames: 0, page: 0,
@@ -32,11 +40,13 @@ export function createGame(env) {
   const maker = createPuzzleMaker(state.daily.day);
 
   // ---- saving ---------------------------------------------------------------------------------------------------------
-  const savePrefs = () => storage.set('prefs', { level: state.level, gammon: state.gammon, cubeOn: state.cube.on, sound: state.sound, calm: state.calm, big: state.big, set: state.set, auto: state.auto, textScaleIdx: state.textScaleIdx });
+  const savePrefs = () => storage.set('prefs', { level: state.level, gammon: state.gammon, cubeOn: state.cube.on, sound: state.sound, calm: state.calm, big: state.big, set: state.set, auto: state.auto, textScaleIdx: state.textScaleIdx, autoThinkIdx: state.autoThinkIdx });
   const saveStats = () => { storage.set('stats', state.stats); storage.set('progress', { played: state.stats.games, wins: state.stats.wins }); };
-  const saveGame = () => { if (state.scene === 'play' && !isOver(state.g)) { state.saved = { g: clone(state.g), two: state.two, level: state.level, gammon: state.gammon, cube: { ...state.cube }, hintsLeft: state.hintsLeft }; storage.set('save', state.saved); } };
+  // Auto Play never writes the player's real in-progress save (it reassigns the same `state.g` a
+  // real game uses - the established, safe pattern this file already uses for lessons/puzzles).
+  const saveGame = () => { if (state.scene === 'play' && !state.autoMode && !isOver(state.g)) { state.saved = { g: clone(state.g), two: state.two, level: state.level, gammon: state.gammon, cube: { ...state.cube }, hintsLeft: state.hintsLeft }; storage.set('save', state.saved); } };
   const clearSave = () => { state.saved = null; storage.remove('save'); };
-  storage.get('prefs', null).then((v) => { if (!v) return; state.level = v.level ?? 2; state.gammon = v.gammon ?? true; state.cube.on = v.cubeOn ?? false; state.sound = v.sound ?? true; state.calm = v.calm ?? false; state.big = v.big ?? false; state.set = SETS.includes(v.set) ? v.set : 'classic'; state.auto = v.auto ?? true; state.textScaleIdx = Math.min(Math.max(v.textScaleIdx ?? (v.big ? 1 : 0), 0), TEXT_SCALES.length - 1); audio.setMuted?.(!state.sound); });
+  storage.get('prefs', null).then((v) => { if (!v) return; state.level = v.level ?? 2; state.gammon = v.gammon ?? true; state.cube.on = v.cubeOn ?? false; state.sound = v.sound ?? true; state.calm = v.calm ?? false; state.big = v.big ?? false; state.set = SETS.includes(v.set) ? v.set : 'classic'; state.auto = v.auto ?? true; state.textScaleIdx = Math.min(Math.max(v.textScaleIdx ?? (v.big ? 1 : 0), 0), TEXT_SCALES.length - 1); state.autoThinkIdx = Math.min(Math.max(v.autoThinkIdx ?? 1, 0), THINK_STEPS.length - 1); audio.setMuted?.(!state.sound); });
   storage.get('stats', null).then((v) => { if (v) state.stats = { games: v.games ?? 0, wins: v.wins ?? 0 }; });
   storage.get('learned', false).then((v) => { state.learned = state.learned || !!v; });
   storage.get('daily', null).then((v) => { if (v) { state.daily.solvedDay = v.solvedDay ?? -1; state.daily.streak = v.streak ?? 0; } });
@@ -47,18 +57,40 @@ export function createGame(env) {
   const dur = (d) => (state.calm ? d * 0.55 : d);
   const say = (text, hold = 5) => { state.msg = { text, t: 0, hold }; };
   const later = (at, o) => sfx.push({ at: state.t + at, o });
-  const tone = (o) => { if (state.sound) audio.tone(o); };
+  // Auto Play watches itself with no player to hear it for - silent by design, same principle as
+  // its own free-preview exemption below. Every sound effect in this file funnels through tone()
+  // (clack/rattle both call it), so gating it here silences the whole mode at once.
+  const tone = (o) => { if (state.sound && !state.autoMode) audio.tone(o); };
   const clack = (f = 1, v = 0.16) => { tone({ freq: 420 * f, to: 130 * f, dur: 0.07, type: 'sine', vol: v }); tone({ freq: 2100 * f, to: 700, dur: 0.025, type: 'square', vol: 0.035 }); };
   const rattle = () => { const n = state.calm ? 3 : 9; for (let i = 0; i < n; i++) later(i * (state.calm ? 0.09 : 0.085), { freq: 600 + ((i * 397) % 5) * 130, to: 260, dur: 0.045, type: 'square', vol: 0.045 }); later(dur(0.9), { freq: 300, to: 110, dur: 0.09, type: 'sine', vol: 0.18 }); later(dur(0.9) + 0.06, { freq: 260, to: 100, dur: 0.07, type: 'sine', vol: 0.14 }); };
-  const humanSide = (s) => state.scene !== 'play' || state.two || s === 0;
+  // Auto Play: nobody controls either side - the whole existing "the rival is thinking" bot-driving
+  // machinery below (beginSide/afterRoll/cpuThinkTick/the 'cpu*' phases) already handles a side it
+  // doesn't own, so making humanSide() false for both sides during Auto Play is all it takes to
+  // reuse that entire flow for seat 0 too, unchanged.
+  const humanSide = (s) => !state.autoMode && (state.scene !== 'play' || state.two || s === 0);
   const opp = (s) => 1 - s;
-  const sideName = (s) => (state.two ? `Player ${s + 1}` : s === 0 ? 'You' : 'The rival');
+  const sideName = (s) => (state.two || state.autoMode ? `Player ${s + 1}` : s === 0 ? 'You' : 'The rival');
 
   // ---- starting things --------------------------------------------------------------------------------------------------
   function resetPlay() {
     thinker = hintThinker = null; undo = []; forced = null; noAuto = false;
-    Object.assign(state, { q: [], anim: null, drag: null, hint: null, sel: -1, dests: [], sources: [], dice: { vals: null, side: 0, roll: null }, left: null, canUndo: false, canDouble: false, cubeAsk: null, result: null, msg: null, status: '', thinking: false, cursorOn: false, endT: 0, autoT: 0, think: 0 });
+    Object.assign(state, { q: [], anim: null, drag: null, hint: null, sel: -1, dests: [], sources: [], dice: { vals: null, side: 0, roll: null }, left: null, canUndo: false, canDouble: false, cubeAsk: null, result: null, msg: null, status: '', thinking: false, cursorOn: false, endT: 0, autoT: 0, think: 0, autoMode: false, autoPhase: null, autoCand: null, autoReveal: null, autoTimer: 0 });
     turn = null;
+  }
+  // Auto Play ("Watch & Learn"): a whole game, both sides driven by the same computer opponent
+  // used for a real single-player game (ai.js chooseBid/createThinker - no new move-picker), THINK
+  // -> REVEAL -> ACT (autoTick(), below). The doubling cube is left off for this mode - a whole
+  // game already demonstrates rolling, moving, hitting, bearing off and winning; adding the cube's
+  // own take/drop decision on top is future scope (see STATUS.md), not required to teach the core
+  // loop. Never counts against the free-preview timer/demo-game cap - see isPreviewExempt() and
+  // the deliberate absence of any `config.demo`/`state.demoGames` read here.
+  function startAuto() {
+    resetPlay(); Object.assign(state, { scene: 'play', two: false, autoMode: true, g: newGame(), hintsLeft: HINTS });
+    state.cube = { on: false, v: 1, owner: -1 };
+    let a, b; do { a = rng.int(6) + 1; b = rng.int(6) + 1; } while (a === b);
+    state.g.turn = a > b ? 0 : 1; forced = a > b ? [a, b] : [b, a];
+    say(`Opening roll: Player 1 ${a}, Player 2 ${b}. Player ${state.g.turn + 1} plays ${Math.max(a, b)}-${Math.min(a, b)} first.`, 6);
+    beginSide(true);
   }
   function start(two) {
     if (config.demo && state.demoGames >= DEMO_GAMES) { state.scene = 'demo-limit'; return; }
@@ -111,7 +143,7 @@ export function createGame(env) {
       if (lesson && !LESSONS[state.lesson.i].rollFirst) roll();   // only the first lesson asks for the roll
       if (opening) roll();
     } else {
-      state.phase = 'cpu'; state.think = opening ? 0.9 : 0.6; state.status = 'The rival is thinking…';
+      state.phase = 'cpu'; state.think = opening ? 0.9 : 0.6; state.status = state.autoMode ? `${sideName(s)} is thinking…` : 'The rival is thinking…';
     }
   }
   function roll() {
@@ -129,7 +161,7 @@ export function createGame(env) {
     const s = state.g.turn, vals = state.dice.vals;
     turn = beginTurn(state.g, s, expandRoll(vals)); state.left = turn.dice.slice();
     if (humanSide(s)) { state.phase = 'move'; state.status = ''; refreshMoves(); }
-    else if (turn.total === 0) { state.phase = 'cpuPass'; state.endT = 1.1; say('The rival has no legal move.', 2); }
+    else if (turn.total === 0) { state.phase = 'cpuPass'; state.endT = 1.1; say(state.autoMode ? `${sideName(s)} has no legal move.` : 'The rival has no legal move.', 2); }
     else { state.phase = 'cpuThink'; state.thinking = true; thinker = createThinker(state.g, s, turn.dice, state.level, rng); }
   }
   // work out what can be tapped now
@@ -191,6 +223,14 @@ export function createGame(env) {
     if (!r.done) return;
     thinker = null; state.thinking = false;
     if (!r.cand) { state.phase = 'cpuPass'; state.endT = 0.8; return; }
+    if (state.autoMode) {
+      // Auto Play's THINK phase starts here: the move for this roll is already decided (the same
+      // ai.js thinker a real computer opponent uses), but held back and revealed after a pause
+      // instead of played immediately - see the 'autoThink'/'autoReveal' phases in updateBoard().
+      state.autoCand = r.cand; state.autoPhase = 'think'; state.phase = 'autoThink'; state.autoTimer = THINK_STEPS[state.autoThinkIdx];
+      say(`${sideName(state.g.turn)} is thinking…`, state.autoTimer + AUTO_REVEAL_SECS + 1);
+      return;
+    }
     state.q = r.cand.steps.slice(); state.phase = 'cpuMove'; state.cpuWhy = null;
     { const v = state.dice.vals, hits = r.cand.steps.filter((x) => x.hit).length; say(`The rival rolled ${v[0]}-${v[1]}${hits ? ' and hit ' + (hits > 1 ? 'two of your checkers.' : 'your checker!') : '.'}`, 4); }
   }
@@ -221,7 +261,7 @@ export function createGame(env) {
   // ---- game end -------------------------------------------------------------------------------------------------------------
   function finish() { const w = winner(state.g), gv = resultValue(state.g, w, state.gammon); finishResult(w, gv * state.cube.v, gv > 1, gv === 3 ? 'backgammon' : gv === 2 ? 'gammon' : 'single'); }
   function finishResult(w, points, big, kind) {
-    const vsCpu = !state.two;
+    const vsCpu = !state.two && !state.autoMode;
     state.scene = 'over'; state.phase = 'over'; state.thinking = false; state.q = []; state.anim = null; state.dests = []; state.sources = [];
     const name = vsCpu ? (w === 0 ? 'You win' : 'The rival wins') : `Player ${w + 1} wins`;
     state.result = {
@@ -229,9 +269,12 @@ export function createGame(env) {
       body: `${kind === 'dropped' ? 'The double was dropped. ' : kind === 'gammon' ? 'A gammon: the loser had borne off no checker. ' : kind === 'backgammon' ? 'A backgammon: the loser still had a checker on the bar or in the winner’s home. ' : ''}${points} point${points === 1 ? '' : 's'}${state.cube.v > 1 && kind !== 'dropped' ? ` (cube ${state.cube.v})` : ''}.`,
       w, points,
     };
+    // Auto Play never touches the real player's stats, save slot or monetization tracking - it
+    // reassigns the same `state.g` a real game uses (the established, safe pattern this file
+    // already uses for lessons/puzzles), so nothing here can silently corrupt a real result.
     if (vsCpu) { state.stats.games += 1; if (w === 0) state.stats.wins += 1; saveStats(); }
-    clearSave(); tone({ freq: w === 0 || !vsCpu ? 523 : 330, to: w === 0 || !vsCpu ? 784 : 262, dur: 0.45, type: 'triangle', vol: 0.1 });
-    monetization.track('game_end', { winner: w, points, level: state.level });
+    if (!state.autoMode) { clearSave(); monetization.track('game_end', { winner: w, points, level: state.level }); }
+    tone({ freq: w === 0 || !vsCpu ? 523 : 330, to: w === 0 || !vsCpu ? 784 : 262, dur: 0.45, type: 'triangle', vol: 0.1 });
   }
 
   // ---- lessons --------------------------------------------------------------------------------------------------------------
@@ -391,6 +434,7 @@ export function createGame(env) {
     else if (hit(Rr.learn)) startLesson(state.learned ? 0 : 0);
     else if (hit(Rr.two)) start(true);
     else if (hit(Rr.daily)) startPuzzle();
+    else if (hit(Rr.auto)) startAuto();
     else if (hit(Rr.level)) { state.level = (state.level + 1) % LEVELS.length; savePrefs(); clack(); }
     else if (hit(Rr.cube)) { state.cube.on = !state.cube.on; savePrefs(); clack(); }
     else if (hit(Rr.gammon)) { state.gammon = !state.gammon; savePrefs(); clack(); }
@@ -405,9 +449,13 @@ export function createGame(env) {
     // Text-size stepper: an index into TEXT_SCALES, clamped at both ends, same on every doc page.
     if (inRect(TEXT_BTN.dec, tap.x, tap.y)) { if (state.textScaleIdx > 0) { state.textScaleIdx--; savePrefs(); clack(); } return; }
     if (inRect(TEXT_BTN.inc, tap.x, tap.y)) { if (state.textScaleIdx < TEXT_SCALES.length - 1) { state.textScaleIdx++; savePrefs(); clack(); } return; }
-    if (inRect(PBACK, tap.x, tap.y)) { state.scene = 'title'; return; }
     const list = DOC_LIST[state.scene];
-    if (list && list.length > 1 && inRect({ x: 140, y: 1330, w: 440, h: 70 }, tap.x, tap.y)) state.page = (state.page + 1) % list.length;
+    // A single-page doc has no Next, so its Back spans the full row at PBACK's position (see
+    // drawDoc); a multi-page doc uses the side-by-side DOC_BACK/DOC_NEXT pair instead.
+    if (list && list.length > 1) {
+      if (inRect(DOC_BACK, tap.x, tap.y)) { state.scene = 'title'; return; }
+      if (inRect(DOC_NEXT, tap.x, tap.y)) { state.page = (state.page + 1) % list.length; return; }
+    } else if (inRect(PBACK, tap.x, tap.y)) { state.scene = 'title'; return; }
   }
   function updateSettings(tap) {
     if (!tap) return;
@@ -432,9 +480,21 @@ export function createGame(env) {
     // buttons (they work in every phase where they make sense)
     if (tap) {
       if (state.scene === 'over') {
-        if (inRect(OVER.again, tap.x, tap.y)) start(state.two);
-        else if (inRect(OVER.menu, tap.x, tap.y)) { state.scene = 'title'; state.phase = 'idle'; }
+        if (inRect(OVER.again, tap.x, tap.y)) { if (state.autoMode) startAuto(); else start(state.two); }
+        // resetPlay() (not just setting scene/phase) so Auto Play's own state - autoMode above
+        // all, which controls the free-preview exemption - never lingers once the player leaves.
+        else if (inRect(OVER.menu, tap.x, tap.y)) { resetPlay(); state.scene = 'title'; state.phase = 'idle'; }
         else if (inRect(OVER.share, tap.x, tap.y)) env.share(`Tavla: ${state.result.title} ${state.result.body}`);
+        return;
+      }
+      if (state.autoMode) {
+        // Auto Play's own bottom rail: Menu exits like any other non-interactive scene already
+        // does, and the Undo/Hint slots become the think-time stepper (same rects, no new layout) -
+        // neither undo nor a hint means anything with nobody tapping. Every other tap - the dice,
+        // the cube, a checker, a point - is ignored: the computer plays every side.
+        if (inRect(BTN.menu, tap.x, tap.y)) { toTitle(); return; }
+        if (inRect(BTN.undo, tap.x, tap.y)) { if (state.autoThinkIdx > 0) { state.autoThinkIdx--; savePrefs(); } return; }
+        if (inRect(BTN.hint, tap.x, tap.y)) { if (state.autoThinkIdx < THINK_STEPS.length - 1) { state.autoThinkIdx++; savePrefs(); } return; }
         return;
       }
       if (ph === 'cubeask') {
@@ -453,7 +513,14 @@ export function createGame(env) {
       if (inRect(BTN.hint, tap.x, tap.y)) { if (state.scene === 'puzzle') resetPuzzle(); else doHint(); return; }
     }
     if (state.scene === 'lesson' && state.lesson.done) return;
-    if (input.keys.pressed.size) { const k = input.keys.pressed; if (k.has('Escape') && ph !== 'move') { toTitle(); return; } keyboard(k); if (state.phase !== ph) return; }
+    if (input.keys.pressed.size) {
+      const k = input.keys.pressed;
+      if (k.has('Escape') && ph !== 'move') { toTitle(); return; }
+      // No other keyboard shortcut applies during Auto Play - the computer plays every side. (`ph`
+      // is never 'move' in this mode, since humanSide() is always false, so the Escape check above
+      // already covers exiting by keyboard.)
+      if (!state.autoMode) { keyboard(k); if (state.phase !== ph) return; }
+    }
 
     // per-phase work
     switch (state.phase) {
@@ -500,6 +567,25 @@ export function createGame(env) {
         state.cubeDone = false; roll(); break;
       }
       case 'cpuThink': cpuThinkTick(); break;
+      // Auto Play only: THINK (board static, the pending move already decided but held back) ->
+      // REVEAL (~2s: every step of the chosen move ringed on the board, autoTick's own drawing
+      // data in state.autoReveal) -> the existing 'cpuMove' phase below plays it out unchanged.
+      case 'autoThink': {
+        state.autoTimer -= dt;
+        if (state.autoTimer > 0) break;
+        const cand = state.autoCand, s = state.g.turn;
+        state.autoReveal = { side: s, steps: cand.steps.map((st) => ({ from: st.from, to: st.to })) };
+        state.autoPhase = 'reveal'; state.autoTimer = AUTO_REVEAL_SECS; state.phase = 'autoReveal';
+        say('This is the move - compare it with your own guess.', AUTO_REVEAL_SECS + 0.5);
+        break;
+      }
+      case 'autoReveal': {
+        state.autoTimer -= dt;
+        if (state.autoTimer > 0) break;
+        const cand = state.autoCand; state.autoCand = null; state.autoReveal = null; state.autoPhase = null;
+        state.q = cand.steps.slice(); state.phase = 'cpuMove'; state.cpuWhy = null;
+        break;
+      }
       case 'cpuMove': {
         if (state.anim) break;
         if (state.q.length) { state.pauseT = (state.pauseT ?? 0) - dt; if (state.pauseT > 0) break; state.pauseT = dur(0.16); step(state.g.turn, state.q.shift(), null); break; }
@@ -554,5 +640,9 @@ export function createGame(env) {
     },
     render(ctx) { render(ctx, state); },
     getState: () => state,
+    // kit 1.6.1: exempts Auto Play from this premium game's free-preview timer (both the
+    // time-accrual and the countdown badge) - the same way the menu's own attract-mode preview is
+    // never gated. Checked once per frame by web/kit/preview.js; nothing else needs to change.
+    isPreviewExempt() { return state.autoMode === true; },
   };
 }

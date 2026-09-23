@@ -1,5 +1,5 @@
 // Everything drawn each frame. Reads `state` (game.js) and changes nothing. Static art is cached (art.js, pieces.js).
-import { W, H, pointAt, COW_R, PEN, penSlot, MSG, BTN, TEXT_STEPPER, TEXT_SCALES, titleRows, inRect } from './layout.js';
+import { W, H, pointAt, COW_R, PEN, penSlot, MSG, BTN, TEXT_STEPPER, TEXT_SCALES, AUTO_THINK_STEPS, titleRows, inRect, infoFooterRects } from './layout.js';
 import { drawBackdrop, drawBoard, drawLife, band, PIGMENT, poly, TAU } from './art.js';
 import { drawCow } from './pieces.js';
 import { RULES as R } from './morabaraba.js';
@@ -13,9 +13,10 @@ const NAME = { 1: 'Dark', 2: 'Light' };
 export const boardOf = (state) => (state.take ? state.take.board : state.game.board);
 
 export function render(ctx, state) {
-  const scene = state.scene, g = state.game, a = state.anim, big = state.big;
+  const scene = state.scene, auto = scene === 'auto', D = state.auto;
+  const g = auto ? D.game : state.game, a = auto ? D.anim : state.anim, big = state.big;
   drawBackdrop(ctx); drawLife(ctx, state.t, state.calm);
-  const boardScene = scene === 'play' || scene === 'over' || scene === 'lesson' || (scene === 'puzzle' && state.pz.status !== 'making');
+  const boardScene = scene === 'play' || scene === 'over' || scene === 'lesson' || scene === 'auto' || (scene === 'puzzle' && state.pz.status !== 'making');
 
   const text = (str, x, y, size, color = '#fbe6b8', font = FONT, weight = 700, align = 'center', shadow = true) => {
     ctx.textAlign = align; ctx.font = `${weight} ${size}px ${font}`;
@@ -55,8 +56,22 @@ export function render(ctx, state) {
     // ---- header on the sky ----
     text('Morabaraba', 360, 92, 52);
     band(ctx, 150, 112, 420, 14, 1);
-    const bottom = state.two ? 1 : state.human, topSide = 3 - bottom;
-    if (scene === 'lesson') {
+    // Auto Play treats both sides like "two players" for layout/label purposes - nobody is really
+    // "you" in that mode, so it gets the same plain Dark/Light labels a real two-player game shows.
+    const twoLike = state.two || auto;
+    const bottom = twoLike ? 1 : state.human, topSide = 3 - bottom;
+    if (scene === 'auto') {
+      const thinkS = AUTO_THINK_STEPS[state.autoThinkIdx];
+      const phaseWord = D.phase === 'think' ? 'thinking' : D.phase === 'reveal' ? 'about to act' : 'playing';
+      text('Auto Play · Watch & Learn', 360, 148, 23, 'rgba(255,230,180,0.9)', UI, 600);
+      drawCow(ctx, 92, 250, 40, g.turn, { face: g.turn === 1 ? 1 : -1 });
+      text(`${NAME[g.turn]} is ${phaseWord}`, 150, 206, 34, '#ffffff', UI, 700, 'left');
+      const sub = D.phase === 'think' ? 'THINK: work out your own answer before it is revealed.' : D.phase === 'reveal' ? 'REVEAL: the highlighted move is the one about to be played.' : 'ACT: watch it play out.';
+      const subLines = wrap(sub, 150, 244, 20, 560, 'rgba(255,230,180,0.95)', 26, 'left');
+      text(`Think time: ${thinkS}s (max 10s)`, 150, 244 + subLines * 26 + 16, 21, 'rgba(255,230,180,0.75)', UI, 500, 'left');
+      const atMin = state.autoThinkIdx === 0, atMax = state.autoThinkIdx === AUTO_THINK_STEPS.length - 1;
+      button(TEXT_STEPPER.dec, '−', { dim: atMin, size: 30 }); button(TEXT_STEPPER.inc, '+', { dim: atMax, size: 30 });
+    } else if (scene === 'lesson') {
       const l = LESSONS[state.lesson.i];
       text(`Lesson ${state.lesson.i + 1} of ${LESSONS.length}`, 360, 172, 26, 'rgba(255,230,180,0.9)', UI, 600);
       text(l.title, 360, 232, 48);
@@ -92,12 +107,14 @@ export function render(ctx, state) {
       }
     };
     pen('top', topSide); pen('bottom', bottom);
-    text(`${NAME[topSide]}${state.two ? '' : ' · computer'}`, 646, PEN.top.y + 79, 15, 'rgba(255,230,180,0.75)', UI, 600, 'right', false);
-    text(`${NAME[bottom]}${state.two ? '' : ' · you'}`, 646, PEN.bottom.y + 79, 15, 'rgba(255,230,180,0.75)', UI, 600, 'right', false);
+    text(`${NAME[topSide]}${twoLike ? '' : ' · computer'}`, 646, PEN.top.y + 79, 15, 'rgba(255,230,180,0.75)', UI, 600, 'right', false);
+    text(`${NAME[bottom]}${twoLike ? '' : ' · you'}`, 646, PEN.bottom.y + 79, 15, 'rgba(255,230,180,0.75)', UI, 600, 'right', false);
 
     // ---- the board ----
     drawBoard(ctx);
-    const board = boardOf(state), pulse = state.calm ? 0.6 : 0.5 + 0.5 * Math.sin(state.t * 6);
+    // boardOf() reads state.take/state.game directly; Auto Play's board lives at `g` (already
+    // resolved above to state.auto.game) instead, and never uses the take-a-cow sub-step.
+    const board = auto ? g.board : boardOf(state), pulse = state.calm ? 0.6 : 0.5 + 0.5 * Math.sin(state.t * 6);
     // mills glow
     if (scene !== 'over') for (const s of [1, 2]) for (const k of R.heldMills(board, s)) {
       const m = R.mills[k], pts = m.map(pointAt);
@@ -111,8 +128,17 @@ export function render(ctx, state) {
     if (state.hint && !a) { glowAt(state.hint.to, '120,255,170', pulse, 30); if (state.hint.from >= 0) glowAt(state.hint.from, '120,255,170', pulse, 30); }
     if (state.lessonGlow && !a) for (const i of state.lessonGlow) glowAt(i, '255,236,140', pulse, 30);
     // warnings: points where the other side would close a mill on its next move
-    if (state.marks && humanTurn && !state.take && scene !== 'over' && scene !== 'lesson') for (const i of state.threats || []) glowAt(i, '255,90,70', pulse, 22);
+    if (!auto && state.marks && humanTurn && !state.take && scene !== 'over' && scene !== 'lesson') for (const i of state.threats || []) glowAt(i, '255,90,70', pulse, 22);
     if (state.take) for (const i of state.take.opts) { glowAt(i, '255,80,60', pulse, 36); const p = pointAt(i); ctx.strokeStyle = `rgba(255,90,70,${0.6 + pulse * 0.4})`; ctx.lineWidth = 4; ctx.beginPath(); ctx.ellipse(p.x, p.y + 10 * p.s, 34 * p.s, 15 * p.s, 0, 0, TAU); ctx.stroke(); }
+    // Auto Play's REVEAL phase: every legal destination this turn (dim gold ring/glow), then the ONE
+    // move actually about to be played highlighted far more strongly (bright green), so a watcher can
+    // compare their own guess against it before it happens.
+    if (scene === 'auto' && D.phase === 'reveal' && D.moves) {
+      const isChosen = (m) => D.chosen && m.type === D.chosen.type && m.to === D.chosen.to && (m.from ?? -1) === (D.chosen.from ?? -1);
+      for (const m of D.moves) { if (!isChosen(m)) glowAt(m.to, '255,224,140', pulse, 26); }
+      const c = D.chosen;
+      if (c) { glowAt(c.to, '120,255,170', pulse, 36); if (c.from >= 0) glowAt(c.from, '120,255,170', pulse, 32); }
+    }
     // cows, far rows first
     const order = []; for (let i = 0; i < 24; i++) order.push(i); order.sort((x, y) => pointAt(x).y - pointAt(y).y);
     const moving = a && a.t < a.mdur && a.type !== 'shot';
@@ -156,6 +182,7 @@ export function render(ctx, state) {
     if (scene === 'play') { button(BTN.menu, 'Menu', { size: 26 }); button(BTN.undo, 'Take back', { size: 26 }); button(BTN.hint, `Hint (${state.hintsLeft})`, { size: 26, dim: state.hintsLeft <= 0 }); }
     else if (scene === 'lesson') { button(BTN.menu, 'Menu', { size: 26 }); if (state.lesson.done) button(BTN.next, state.lesson.i + 1 < LESSONS.length ? 'Next lesson' : 'Finish', { primary: true, size: 28 }); }
     else if (scene === 'puzzle') { button(BTN.menu, 'Menu', { size: 26 }); if (state.pz.status === 'solved') button(BTN.share, 'Share result', { primary: true, size: 30 }); }
+    else if (scene === 'auto' && D.phase !== 'over') { button(BTN.menu, 'Exit', { size: 26 }); button(BTN.undo, 'Skip wait', { size: 26, dim: D.phase === 'act' }); }
   }
 
   // ---- the title and other full screens ----
@@ -188,7 +215,7 @@ export function render(ctx, state) {
     button(RW.level, `Computer: ${LEVELS[state.level].name}`, { size: 22 }); button(RW.sound, state.sound ? 'Sound on' : 'Sound off', { size: 22 });
     button(RW.marks, state.marks ? 'Warnings on' : 'Warnings off', { size: 22 }); button(RW.calm, state.calm ? 'Reduced motion: on' : 'Reduced motion: off', { size: 19 });
     button(RW.big, state.big ? 'Large text: on' : 'Large text: off', { size: 22 }); button(RW.howto, 'How to play', { size: 22 });
-    button(RW.about, 'About Morabaraba', { size: 21 }); button(RW.rules, 'Rules', { size: 22 });
+    button(RW.about, 'About Morabaraba', { size: 18 }); button(RW.rules, 'Rules', { size: 20 }); button(RW.auto, 'Auto Play', { size: 18 });
     let sy = RW.about.y + 100; for (const [side, x0, label] of [[1, 100, 'As Dark'], [2, 390, 'As Light']]) { text(label, x0, sy, 21, 'rgba(255,230,180,0.85)', UI, 600, 'left', false); for (let l = 0; l < LEVELS.length; l++) text('★', x0 + 92 + l * 34, sy + 2, 28, state.stats.badges['s' + side + l] ? '#ffd24a' : 'rgba(255,255,255,0.22)', UI, 700, 'left', false); }
     text(`Games played: ${state.stats.games} · won: ${state.stats.wins}`, 360, sy + 40, 21, 'rgba(255,230,180,0.7)', UI, 500, 'center', false);
     if (state.msg) { panel(60, 640, 600, 46, 0.7); text(state.msg.text, 360, 672, 21, '#fff3d6', UI, 600, 'center', false); }
@@ -202,22 +229,51 @@ export function render(ctx, state) {
     const scale = TEXT_SCALES[state.textScaleIdx] ?? 1;
     const heading = state.info.which === 'about' ? 'About' : state.info.which === 'rules' ? 'Rules' : 'How to play';
     text(heading, 360, 130, Math.round(60 * Math.min(scale, 1.15))); band(ctx, 160, 154, 400, 14, 3);
-    text(p.title, 360, 290, fitTitle(p.title, Math.round(46 * scale)));
-    let panelY = 320;
+    // One fixed-size framed panel holds the page's own sub-title, optional cow art and body text on
+    // EVERY page (never sized to content) - so the reference reads as one consistent designed
+    // sheet, not a box that jumps around in size/position and leaves bare background beneath it on
+    // a short page (which is what a content-driven panel did before).
+    const PANEL_Y = 190, PANEL_BOTTOM = 1400;
+    panel(30, PANEL_Y, 660, PANEL_BOTTOM - PANEL_Y, 0.78);
+    // The page's own sub-title is a heading, not the body copy the stepper exists to grow, so it is
+    // capped the same way the "Rules"/"About"/"How to play" header above it already is
+    // (Math.min(scale, 1.15)) - a SHORT title (e.g. "The board", "The cow") has plenty of width
+    // budget left at fitTitle's maxW even at 300% and, left uncapped, grew large enough to overlap
+    // the header/divider band above it (confirmed by rendering "The board" at 300% and seeing its
+    // own glyphs cross the panel's top edge). The title-to-body gap still grows with the actual
+    // rendered title size, since the title font still grows some with scale.
+    const titleSize = fitTitle(p.title, Math.round(46 * Math.min(scale, 1.15)));
+    const bodySz = Math.round(30 * scale);
+    let y = PANEL_Y + 66 + Math.round(8 * (scale - 1));
+    text(p.title, 360, y, titleSize);
+    // The gap from the title's own baseline down to the body/cow-art below it has to clear BOTH the
+    // title's own descent (scales with titleSize) AND the body font's own ascent (a big scaled body
+    // line's cap-height reaches well above its baseline) - using only one term left the two crowding
+    // or overlapping at the top text-size steps (confirmed by rendering the exact "The board and
+    // setup" page at 300% and seeing "Three squares" crowd right under it).
+    y += Math.round(titleSize * 0.5) + Math.round(bodySz * 0.85) + 30;
     // A rules page about the cow shows the real in-game sprite, both sides, the same drawCow() the board itself uses.
     if (p.cows) {
-      const ay = 392, dx = 108, r = 50;
+      const ay = y + 60, dx = 108, r = 50;
       drawCow(ctx, 360 - dx, ay, r, 1); drawCow(ctx, 360 + dx, ay, r, 2);
       text('Dark', 360 - dx, ay + 46, 18, 'rgba(255,230,180,0.8)', UI, 600, 'center', false);
       text('Light', 360 + dx, ay + 46, 18, 'rgba(255,230,180,0.8)', UI, 600, 'center', false);
-      panelY = ay + 66;
+      // The gap from the "Dark"/"Light" caption down to the body text below has to grow with the
+      // body font too (the cow art itself is fixed-size, never scaled) - a fixed gap here let a big
+      // scaled first body line's own ascent climb up into the caption at the top text-size steps.
+      y = ay + 46 + 30 + Math.round(bodySz * 0.9);
     }
-    const sz = Math.round(30 * scale), lhh = Math.round(sz * 1.4); let tot = 0; for (const para of p.lines) tot += lines(para, 580, sz).length * lhh + 30;
-    panel(30, panelY, 660, tot + 40, 0.78);
-    let y = panelY + 68;
-    for (const para of p.lines) { const n = wrap(para, 70, y, sz, 580, '#fff3d6', lhh, 'left'); y += n * lhh + 30; }
+    const lhh = Math.round(bodySz * 1.4);
+    for (const para of p.lines) { const n = wrap(para, 70, y, bodySz, 580, '#fff3d6', lhh, 'left'); y += n * lhh + 30; }
     text(`${state.info.page + 1} of ${pages.length}`, 360, 1420, 22, 'rgba(255,230,180,0.75)', UI, 600, 'center', false);
-    button(BTN.menu, 'Menu', { size: 26 }); if (state.info.page > 0) button({ x: 260, y: 1462, w: 200, h: 76 }, 'Back', { size: 26 }); if (state.info.page + 1 < pages.length) button(BTN.nextPage, 'Next', { size: 26, primary: true });
+    // The footer always fills the same x=46..674 strip: Menu is always present, Back only past page
+    // 1, Next only before the last page - 3 equal pills, or 2 wider ones on the first/last page,
+    // never a lopsided pair with a dead gap where Back would have been.
+    const hasBack = state.info.page > 0, hasNext = state.info.page + 1 < pages.length;
+    const F = infoFooterRects(hasBack, hasNext);
+    button(F.menu, 'Menu', { size: 26 });
+    if (hasBack) button(F.back, 'Back', { size: 26 });
+    if (hasNext) button(F.next, 'Next', { size: 26, primary: true });
     const atMin = state.textScaleIdx === 0, atMax = state.textScaleIdx === TEXT_SCALES.length - 1;
     button(TEXT_STEPPER.dec, 'A−', { dim: atMin, size: 30 });
     button(TEXT_STEPPER.inc, 'A+', { dim: atMax, size: 30 });
@@ -232,6 +288,16 @@ export function render(ctx, state) {
       if (!state.calm) for (let k = 0; k < 14; k++) { const ph = (state.t * 0.35 + k * 0.137) % 1, x = 360 + Math.sin(k * 2.4) * (140 + 90 * ph), y = 640 - ph * 380; ctx.fillStyle = `rgba(255,214,110,${0.8 * (1 - ph)})`; ctx.beginPath(); ctx.arc(x, y, 4 + (k % 3) * 2, 0, TAU); ctx.fill(); }
     }
     button(BTN.again, 'Play again', { primary: true, size: 34 }); button(BTN.back, 'Menu', { size: 30 });
+  } else if (scene === 'auto' && D.phase === 'over') {
+    // Auto Play's own end screen: the whole "game" (one full game to a real win/draw) just finished.
+    // Same shape as the normal 'over' screen but its own two actions, and it never mentions "you".
+    ctx.fillStyle = 'rgba(14,4,2,0.72)'; ctx.fillRect(0, 0, W, H);
+    const won = g.winner === 'draw' ? 'A draw' : `${NAME[g.winner]} wins`;
+    if (g.winner !== 'draw') drawCow(ctx, 360, 600, 130, g.winner);
+    text(won, 360, 720, 68); text(g.reason, 360, 780, 26, '#fff3d6', UI, 500);
+    text(`${g.moves} moves · Dark shot ${g.shots[1]}, Light shot ${g.shots[2]}`, 360, 826, 22, 'rgba(255,230,180,0.75)', UI, 500);
+    text('A full Auto Play demonstration just finished. Nothing here was saved.', 360, 868, 22, '#ffd24a', UI, 600);
+    button(BTN.again, 'Play again (auto)', { primary: true, size: 30 }); button(BTN.back, 'Exit to menu', { size: 28 });
   }
 }
 import { POINT_UV as UV } from './morabaraba.js';

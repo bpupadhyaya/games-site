@@ -3,22 +3,28 @@
 import { newHand, drawTile, discard, claim, passAll, declareWin, selfWin, makeKong, ownKongs, hasClaim, kindOf, kindName, kindCounts, shanten, wallLeft, seatWind, sortTiles } from './rules.js';
 import { settleClaims, applyClaim, aiTurn } from './flow.js';
 import { chooseClaim, discardHint, stepsText } from './ai.js';
-import { tileTargets, wallPos, handMetrics, handTileX, HAND_Y, inRect, BTN, RING, ROT } from './layout.js';
-import { claimList, ownList, claimRects, NAMES, RESULT_BTN } from './view.js';
+import { tileTargets, wallPos, handMetrics, handTileX, HAND_Y, inRect, BTN, RING, ROT, AUTO_STEP, AUTO_THINK_STEPS, AUTO_REVEAL_SECONDS } from './layout.js';
+import { claimList, ownList, claimRects, NAMES, RESULT_BTN, AUTO_AGAIN_BTN, AUTO_EXIT_BTN, seatName } from './view.js';
 
 const CLAIM_TIME = 9;
+// Auto Play ("Watch & Learn") drives EVERY seat, including seat 0, with the same computer players
+// used for the other three in normal play - reusing chooseDiscard/chooseClaim/chooseKong (via
+// aiTurn/chooseClaim from ai.js) for the whole table, never a new/simplified AI. This constant only
+// exists inside `web/src`; it never changes the normal 3-computer game (gated by S.scene==='auto').
+const AUTO_LEVEL = 2;
 
 export function createPlay(ctx) {
   const { S, rng, sfx, say, storage, vis, rs } = ctx;
   let T = new Map();
   const pace = () => (S.prefs.pace === 'fast' ? 0.32 : 0.85);
+  const isAuto = () => S.scene === 'auto';
 
   // ----------------------------------------------------------------------------------------------- start / finish
   function startHand() {
     const m = S.match;
     const h = newHand(rng, { dealer: m.dealer, wind: 0, minFan: S.prefs.minFan });
     S.h = h; vis.clear(); T = new Map();
-    S.ui = { ph: 'dealing', wait: 0, sel: -1, selId: -1, msg: null, hint: null, claim: null, own: null, lastDisc: -1, pause: false, drag: null, resT: 0, call: null, resultLast: false, name: '' };
+    S.ui = { ph: 'dealing', wait: 0, sel: -1, selId: -1, msg: null, hint: null, autoHint: null, claim: null, own: null, lastDisc: -1, pause: false, drag: null, resT: 0, call: null, resultLast: false, autoOver: false, auto: null, name: '' };
     const calm = S.prefs.calm;
     // every tile starts outside the table and slides into its slot in the wall ring; dealt tiles then fly out to the hands
     const dealIdx = new Map(); h.dealOrder.forEach(([t], i) => dealIdx.set(t, i));
@@ -29,34 +35,50 @@ export function createPlay(ctx) {
     }
     S.ui.wait = calm ? 0.6 : 0.95 + h.dealOrder.length * 0.02 + 0.5;
     sfx('shuffle');
-    say(S.match.mode === 'round' ? `${NAMES[m.dealer] === 'You' ? 'You are' : NAMES[m.dealer] + ' is'} the dealer (East). ${m.dealer === 0 ? 'You play first.' : ''}` : 'A single hand. Dealer plays first.', 4);
-    S.stats.hands = (S.stats.hands ?? 0) + 1;
-    S.demoHands += 1; if (ctx.config.demo) storage.set('demoHands', S.demoHands);
-    ctx.monetization.track('hand_start', { dealer: m.dealer });
+    // Auto Play never touches real stats/progress/save, and its own intro never calls seat 0 "you"
+    // (it is just another computer seat here, exactly like the other three).
+    if (isAuto()) {
+      say('Auto Play: a full hand plays itself, seat by seat. Watch and learn.', 4);
+    } else {
+      say(S.match.mode === 'round' ? `${NAMES[m.dealer] === 'You' ? 'You are' : NAMES[m.dealer] + ' is'} the dealer (East). ${m.dealer === 0 ? 'You play first.' : ''}` : 'A single hand. Dealer plays first.', 4);
+      S.stats.hands = (S.stats.hands ?? 0) + 1;
+      S.demoHands += 1; if (ctx.config.demo) storage.set('demoHands', S.demoHands);
+      ctx.monetization.track('hand_start', { dealer: m.dealer });
+    }
   }
 
   function finishHand() {
     const h = S.h, ui = S.ui, r = h.result, m = S.match;
-    ui.ph = 'result'; ui.resT = 0; ui.sel = -1; ui.selId = -1; ui.hint = null; ui.claim = null; ui.own = null; ui.msg = null;
+    ui.ph = 'result'; ui.resT = 0; ui.sel = -1; ui.selId = -1; ui.hint = null; ui.autoHint = null; ui.claim = null; ui.own = null; ui.msg = null;
     if (r.type === 'win') {
       r.pay.forEach((d, p) => { m.scores[p] += d; });
-      if (r.winner === 0) { S.stats.wins = (S.stats.wins ?? 0) + 1; S.matchWins += 1; S.stats.bestFan = Math.max(S.stats.bestFan ?? 0, r.info.fan); }
+      // Auto Play's seat 0 is just another computer seat - a win there is not a real player win, so
+      // it must never touch the real stats (wins/bestFan) the title screen and store listing show.
+      if (!isAuto() && r.winner === 0) { S.stats.wins = (S.stats.wins ?? 0) + 1; S.matchWins += 1; S.stats.bestFan = Math.max(S.stats.bestFan ?? 0, r.info.fan); }
       sfx(r.winner === 0 ? 'win' : 'lose');
     } else sfx('draw');
-    S.stats.played = (S.stats.played ?? 0) + 1;
-    storage.set('progress', { played: S.stats.played, wins: S.stats.wins ?? 0 });
-    storage.set('stats', S.stats);
-    storage.remove('save');
-    S.saved = null;
+    // Auto Play never writes real stats/progress and never touches (or clears) a real saved game.
+    if (!isAuto()) {
+      S.stats.played = (S.stats.played ?? 0) + 1;
+      storage.set('progress', { played: S.stats.played, wins: S.stats.wins ?? 0 });
+      storage.set('stats', S.stats);
+      storage.remove('save');
+      S.saved = null;
+    }
     // dealer stays after a win by the dealer or an exhausted wall; otherwise the deal passes on
     const stay = r.type === 'draw' || r.winner === m.dealer;
     m.next = { stay, dealer: stay ? m.dealer : (m.dealer + 1) % 4, rot: m.rot + (stay ? 0 : 1) };
     ui.resultLast = m.mode === 'hand' || m.next.rot >= 4 || m.hand >= 8;
-    ctx.monetization.track('hand_end', { result: r.type, winner: r.winner ?? -1 });
+    if (!isAuto()) ctx.monetization.track('hand_end', { result: r.type, winner: r.winner ?? -1 });
   }
 
   function nextHand() {
     const m = S.match, n = m.next;
+    // Auto Play's "whole game" is one complete hand (deal through a win or an exhausted wall) -
+    // the same natural unit the menu's own "Quick hand" already offers, just played by four
+    // computers instead of one and zero to three. No dealer rotation / next-hand here: show the
+    // Play again / Exit to menu screen instead (rendered by renderResult when ui.autoOver is set).
+    if (isAuto()) { S.ui.autoOver = true; return; }
     if (S.ui.resultLast) { if (S.lessonPlay) { ctx.lessonPlayDone(); return; } S.scene = 'matchend'; return; }
     m.repeats = n.stay ? m.repeats + 1 : 0; m.dealer = n.dealer; m.rot = n.rot; m.hand += 1;
     if (ctx.config.demo && S.demoHands >= ctx.demoHands) { S.scene = 'demo-limit'; return; }
@@ -72,9 +94,11 @@ export function createPlay(ctx) {
 
   function afterDraw(res) {
     const h = S.h, ui = S.ui;
-    for (const e of res.ev) if (e.type === 'bonus') { sfx('draw'); if (e.p === 0) say(`Bonus tile: ${kindName(kindOf(e.tile))}. Set aside; you drew a replacement.`, 3.2); }
+    for (const e of res.ev) if (e.type === 'bonus') { sfx('draw'); if (isAuto()) say(`${seatName(e.p, true)} drew a bonus tile: ${kindName(kindOf(e.tile))}.`, 3.2); else if (e.p === 0) say(`Bonus tile: ${kindName(kindOf(e.tile))}. Set aside; you drew a replacement.`, 3.2); }
     if (res.ended) { finishHand(); return; }
-    if (h.turn === 0) enterHuman(); else { ui.ph = 'ai'; ui.wait = pace() * (0.75 + 0.5 * ((h.moves * 37) % 10) / 10); }
+    if (isAuto()) enterAutoTurnGate();
+    else if (h.turn === 0) enterHuman();
+    else { ui.ph = 'ai'; ui.wait = pace() * (0.75 + 0.5 * ((h.moves * 37) % 10) / 10); }
     sfx('draw');
   }
 
@@ -87,6 +111,36 @@ export function createPlay(ctx) {
     saveNow();
   }
 
+  // ---- Auto Play ("Watch & Learn"): THINK (board sits still, configurable duration) -> REVEAL
+  // (~2s, narrate + highlight the decision ai.js already made) -> ACT (the exact same execution
+  // path normal play uses: doDiscard / makeKong / declareWin / resolveClaims). Every decision -
+  // a seat's whole turn (win/kong/discard) or the claim window after a discard - is its own gate.
+  function enterAutoTurnGate() {
+    const h = S.h, ui = S.ui, p = h.turn;
+    const a = aiTurn(h, p, S.match.levels[p], rng);          // decided now, revealed later, acted on last
+    ui.ph = 'auto-gate'; ui.auto = { phase: 'think', t: 0, kind: 'turn', seat: p, action: a }; ui.autoHint = null;
+  }
+  function enterAutoClaimGate() {
+    S.ui.ph = 'auto-gate'; S.ui.auto = { phase: 'think', t: 0, kind: 'claim' };
+  }
+  // Called once, when THINK ends: narrate + highlight what is about to happen (never executes it).
+  function revealAutoTurn() {
+    const ui = S.ui, { seat: p, action: a } = ui.auto;
+    if (a.kind === 'win') say(`${seatName(p, true)} is about to declare Mahjong!`, AUTO_REVEAL_SECONDS + 0.6);
+    else if (a.kind === 'kong') say(`${seatName(p, true)} is about to declare a kong.`, AUTO_REVEAL_SECONDS + 0.6);
+    else { ui.autoHint = { tile: a.tile }; say(`${seatName(p, true)} is about to discard the ${kindName(kindOf(a.tile))}.`, AUTO_REVEAL_SECONDS + 0.6); }
+  }
+  function revealAutoClaim() {
+    const h = S.h, c = S.ui.claim, win = settleClaims(h, c.from, c.choices);        // preview only; resolveClaims() re-settles for real at ACT
+    say(win ? `${seatName(win.q, true)} is about to ${win.type === 'win' ? 'declare Mahjong on' : win.type} this discard.` : 'Everyone passes on this discard.', AUTO_REVEAL_SECONDS + 0.6);
+  }
+  function actAutoTurn() {
+    const h = S.h, ui = S.ui, { seat: p, action: a } = ui.auto;
+    if (a.kind === 'win') { declareWin(h, p, 'self'); ui.call = { seat: p, text: 'MAHJONG!', t: 0 }; finishHand(); }
+    else if (a.kind === 'kong') { sfx('claim'); ui.call = { seat: p, text: 'KONG', t: 0 }; const r = makeKong(h, p, a.kong); if (r.ended) finishHand(); else enterAutoTurnGate(); }
+    else doDiscard(a.tile);
+  }
+
   function stepTurn() {
     const h = S.h;
     const res = drawTile(h);
@@ -96,7 +150,7 @@ export function createPlay(ctx) {
   function doDiscard(tile) {
     const h = S.h, ui = S.ui, from = h.turn;
     const opts = discard(h, tile);
-    ui.lastDisc = tile; ui.sel = -1; ui.selId = -1; ui.hint = null; ui.own = null; ui.drag = null;
+    ui.lastDisc = tile; ui.sel = -1; ui.selId = -1; ui.hint = null; ui.autoHint = null; ui.own = null; ui.drag = null;
     sfx('clack');
     beginClaim(opts, from);
   }
@@ -104,7 +158,10 @@ export function createPlay(ctx) {
   function beginClaim(opts, from) {
     const h = S.h, ui = S.ui, choices = [null, null, null, null];
     ui.ph = 'claim';
-    for (let q = 1; q < 4; q++) if (q !== from && hasClaim(opts[q])) choices[q] = chooseClaim(h, q, opts[q], S.match.levels[q], rng);
+    // In Auto Play every seat (including 0) is a computer seat: it gets the same claim-or-pass
+    // decision from ai.js's chooseClaim as seats 1-3 always did, instead of waiting on real input.
+    for (let q = isAuto() ? 0 : 1; q < 4; q++) if (q !== from && hasClaim(opts[q])) choices[q] = chooseClaim(h, q, opts[q], S.match.levels[q], rng);
+    if (isAuto()) { ui.claim = { from, opts, choices, human: false, tile: h.last.tile, t: 0, timer: 0, chowPick: null }; enterAutoClaimGate(); return; }
     const human = from !== 0 && hasClaim(opts[0]);
     ui.claim = { from, opts, choices, human, tile: h.last.tile, t: S.prefs.timer ? CLAIM_TIME : 0, timer: S.prefs.timer ? CLAIM_TIME : 0, chowPick: null };
     ui.wait = 0.5;
@@ -125,9 +182,10 @@ export function createPlay(ctx) {
     if (win.type === 'win') { ui.call = { seat: win.q, text: 'MAHJONG!', t: 0 }; finishHand(); return; }
     if (res && res.ev) for (const e of res.ev) if (e.type === 'bonus') sfx('draw');
     if (res && res.ended) { finishHand(); return; }
-    if (h.turn === 0) enterHuman();
+    if (isAuto()) enterAutoTurnGate();
+    else if (h.turn === 0) enterHuman();
     else { ui.ph = 'ai'; ui.wait = pace(); }
-    say(`${who} took it: ${win.type}.`, 2.6);
+    if (!isAuto()) say(`${who} took it: ${win.type}.`, 2.6);
   }
 
   // human decision on a claim
@@ -252,16 +310,40 @@ export function createPlay(ctx) {
       if (c.human) {
         if (c.timer > 0 && !c.chowPick) { c.t -= dt; if (c.t <= 0) { say('Time is up: passed.', 2); c.choices[0] = null; resolveClaims(); } }
       } else { ui.wait -= dt; if (ui.wait <= 0) resolveClaims(); }
-    } else if (ui.ph === 'result') { ui.resT += dt; }
+    } else if (ui.ph === 'auto-gate') {
+      const A = ui.auto; A.t += dt;
+      if (A.phase === 'think') {
+        if (A.t >= (AUTO_THINK_STEPS[S.prefs.autoThinkIdx] ?? 5)) { A.phase = 'reveal'; A.t = 0; if (A.kind === 'turn') revealAutoTurn(); else revealAutoClaim(); }
+      } else if (A.t >= AUTO_REVEAL_SECONDS) {
+        if (A.kind === 'turn') actAutoTurn(); else resolveClaims();
+      }
+    } else if (ui.ph === 'result') { ui.resT += dt; if (isAuto() && !ui.autoOver && ui.resT > 3) nextHand(); }
     tween(dt);
   }
   const keyPress = (input) => input.keys && input.keys.pressed && input.keys.pressed.size > 0;
 
   function buttonTap(x, y, down, dragged) {
     const ui = S.ui;
-    if (ui.ph === 'result') { if (ui.resT > 0.5 && inRect(RESULT_BTN, x, y)) nextHand(); return; }
+    if (ui.ph === 'result') {
+      if (isAuto()) {
+        if (ui.autoOver && ui.resT > 0.3 && inRect(AUTO_AGAIN_BTN, x, y)) { ctx.startAutoMatch(); return; }
+        if (ui.autoOver && ui.resT > 0.3 && inRect(AUTO_EXIT_BTN, x, y)) { ctx.toTitle(); return; }
+        if (!ui.autoOver && ui.resT > 0.5 && inRect(RESULT_BTN, x, y)) nextHand();
+        return;
+      }
+      if (ui.resT > 0.5 && inRect(RESULT_BTN, x, y)) nextHand();
+      return;
+    }
     if (ui.ph === 'dealing') { ui.wait = Math.min(ui.wait, 0.05); for (const v of vis.values()) { v.hold = 0; v.build = 0; } return; }
     if (inRect(BTN.menu, x, y) || inRect(BTN.pause, x, y)) { ui.pause = true; return; }
+    if (isAuto() && inRect(AUTO_STEP.dec, x, y)) { if (S.prefs.autoThinkIdx > 0) { S.prefs.autoThinkIdx--; ctx.savePrefs(); } return; }
+    if (isAuto() && inRect(AUTO_STEP.inc, x, y)) { if (S.prefs.autoThinkIdx < AUTO_THINK_STEPS.length - 1) { S.prefs.autoThinkIdx++; ctx.savePrefs(); } return; }
+    if (isAuto() && inRect(BTN.hint, x, y)) {
+      // "Skip wait": forces the current THINK/REVEAL pause to end early. Harmless no-op once the
+      // decision has already moved into ACT (a fresh doDiscard/makeKong/resolveClaims call).
+      if (ui.ph === 'auto-gate') { const A = ui.auto; if (A.phase === 'think') A.t = AUTO_THINK_STEPS[S.prefs.autoThinkIdx] ?? 5; else A.t = AUTO_REVEAL_SECONDS; }
+      return;
+    }
     if (inRect(BTN.hint, x, y)) { showHint(); return; }
     // claim buttons
     if (ui.ph === 'claim' && ui.claim.human) {
@@ -296,7 +378,10 @@ export function createPlay(ctx) {
   function tween(dt) {
     const h = S.h; if (!h) return;
     const ui = S.ui, calm = S.prefs.calm;
-    T = tileTargets(h, { reveal: ui.ph === 'result', selected: ui.selId, big: S.prefs.big });
+    // Auto Play shows every hand face-up throughout (not just at the result) - the viewer needs to
+    // see a seat's tiles to follow why the AI chose what it is about to do; the highlight added at
+    // REVEAL (ui.autoHint's glow) is what is actually withheld during THINK, not the hand itself.
+    T = tileTargets(h, { reveal: ui.ph === 'result' || isAuto(), selected: ui.selId, big: S.prefs.big });
     rs.T = T;
     const k = calm ? 60 : 15, a = 1 - Math.exp(-k * dt), af = 1 - Math.exp(-(calm ? 60 : 11) * dt);
     for (const [id, tg] of T) {

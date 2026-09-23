@@ -14,7 +14,7 @@ export const RULES_NEXT_BOX = { x0: W - 260, y0: NAV_Y0, x1: W - 20, y1: NAV_Y1 
 // The text-size stepper: an index into this list, never a raw float. Persisted by game.js in its
 // own prefs storage. Always look it up with `?? 1` and clamp any loaded value to this range - a
 // stale index from a build with a shorter array must never produce a NaN/undefined font size.
-export const TEXT_SCALES = [1, 1.15, 1.3];
+export const TEXT_SCALES = [1, 1.5, 2, 2.5, 3];
 // Same header row as the "PERCH — RULES" caption, one in each top corner, clear of that centred
 // label and clear of the framed panel below it.
 export const TEXT_DEC_BOX = { x0: 16, y0: 22, x1: 164, y1: 92 };
@@ -36,10 +36,23 @@ const TITLE_BASE = 34;
 const HEADER_BASE = 22;
 const FOOTER_BASE = 21;
 const NAV_BASE = 36;
+// The lowest this ladder will ever go, even on the last-resort safety net.
+const BODY_FLOOR = 20;
 
+// A full descending ladder from the scale's own top size down to BODY_FLOOR, 2px at a time - not
+// just a handful of near-top candidates then a hard drop to a fixed floor. That old 5-candidates-
+// then-cliff shape (top..top-8, then straight to 18) meant that once the text-size stepper reached
+// its 300% step, almost every page's paragraph no longer fit any of the near-top candidates and
+// fell all the way to the tiny fixed floor - visibly SMALLER than the default 100% step, exactly
+// backwards from what the "bigger text" control promises. A fine-grained ladder finds the largest
+// size that actually fits, which measured out at roughly 35-55px across every page in this game at
+// the top step - comfortably bigger than the 100% default, never the old floor.
 function bodySizesFor(scale) {
   const top = Math.round(BODY_BASE * scale);
-  return [top, top - 2, top - 4, top - 6, top - 8, 18];
+  const sizes = [];
+  for (let s = top; s > BODY_FLOOR; s -= 2) sizes.push(s);
+  sizes.push(BODY_FLOOR);
+  return sizes;
 }
 
 function wrapParagraph(ctx, text, maxW) {
@@ -78,6 +91,20 @@ function fitTitleSize(ctx, text, maxW, start, floor) {
   let size = start;
   ctx.font = `800 ${size}px ${FONT}`;
   while (ctx.measureText(text).width > maxW && size > floor) { size -= 2; ctx.font = `800 ${size}px ${FONT}`; }
+  return size;
+}
+
+// Same shrink-to-fit principle as fitTitleSize, generalised for every OTHER fixed-position
+// single-line label on this page (the header caption, the footer page count, "‹ Back"/"Next ›") -
+// each of those used to just grow with `scale` with no upper bound, which was fine while the top
+// step was a modest 1.3x/2x but breaks at 3x: the header ran into the A-/A+ buttons and even the
+// panel below it, and Back/Next ran off both edges of the screen and up into the footer. Shrinking
+// each to its own box, the same way the title already shrinks to the page width, fixes all three
+// without touching their position, colour or weight.
+function fitLineSize(ctx, text, maxW, start, floor, weight = 700) {
+  let size = start;
+  ctx.font = `${weight} ${size}px ${FONT}`;
+  while (ctx.measureText(text).width > maxW && size > floor) { size -= 1; ctx.font = `${weight} ${size}px ${FONT}`; }
   return size;
 }
 
@@ -146,9 +173,13 @@ function drawArt(ctx, art, t) {
       { trees: levelDef(2).trees, x: 360, label: 'Level 2' },
       { trees: levelDef(3).trees, x: 580, label: 'Level 3+' },
     ];
+    // Centred lower than the other mini-scenes on this page (380 -> 425): this is the one page
+    // whose title needs to shrink (long title) rather than just sit at its usual size, and even
+    // shrunk, its baseline moves below the old fixed 138 at the larger text-size steps - this
+    // keeps the level-1 tree's crown clear of it at every step instead of only at the default one.
     for (const c of cols) {
-      for (const tr of fitTrees(c.trees, c.x, 380, 190, 280)) drawTree(ctx, tr);
-      drawText(ctx, c.label, c.x, 552, 20, '#fff8e0', 800);
+      for (const tr of fitTrees(c.trees, c.x, 425, 190, 280)) drawTree(ctx, tr);
+      drawText(ctx, c.label, c.x, 597, 20, '#fff8e0', 800);
     }
   } else if (art.kind === 'hud') {
     ctx.save(); ctx.translate(0, 230);
@@ -229,11 +260,24 @@ export function renderRulesPage(ctx, list, index, t, scaleIdx = 0) {
   ctx.save();
   ctx.textAlign = 'center';
   drawPanel(ctx);
-  drawText(ctx, 'PERCH — RULES', W / 2, 64, Math.round(HEADER_BASE * scale), 'rgba(255,255,255,0.62)', 700);
+  // Kept clear of both A-/A+ buttons (and, past that, shrunk further rather than run under the
+  // panel below it) - see fitLineSize.
+  const headerText = 'PERCH — RULES';
+  const headerMaxW = TEXT_INC_BOX.x0 - TEXT_DEC_BOX.x1 - 24;
+  const headerSize = fitLineSize(ctx, headerText, headerMaxW, Math.round(HEADER_BASE * scale), 14);
+  drawText(ctx, headerText, W / 2, 64, headerSize, 'rgba(255,255,255,0.62)', 700);
   stepButton(ctx, TEXT_DEC_BOX, 'A−', scaleIdx === 0);
   stepButton(ctx, TEXT_INC_BOX, 'A+', scaleIdx === TEXT_SCALES.length - 1);
-  const titleSize = fitTitleSize(ctx, page.title, W - 64, Math.round(TITLE_BASE * scale), Math.round(22 * scale));
-  drawText(ctx, page.title, W / 2, 138, titleSize, '#ffe27a', 800);
+  // The floor is a fixed size, never scaled up with the rest of the page - at the top text-size
+  // step a long title needs real room to shrink into, or it silently overflows past the panel's
+  // edges instead of ever getting small enough to fit (this happened at 200% before the fix).
+  const titleSize = fitTitleSize(ctx, page.title, W - 64, Math.round(TITLE_BASE * scale), 22);
+  // A short title that never needed to shrink grows a lot at the top text-size step (up to
+  // TITLE_BASE * 2) - keep its ascender clear of the panel's top border by nudging the baseline
+  // down as the title itself gets taller. At every size this game shipped before, that formula
+  // lands within a pixel of the old fixed 138, so this is invisible below the new top step.
+  const titleY = Math.max(138, 112 + Math.round(titleSize * 0.8));
+  drawText(ctx, page.title, W / 2, titleY, titleSize, '#ffe27a', 800);
   drawArt(ctx, page.art, t);
 
   const textTop = page.art ? 656 : 300;
@@ -247,8 +291,18 @@ export function renderRulesPage(ctx, list, index, t, scaleIdx = 0) {
   ctx.globalAlpha = 1;
 
   signatureBird(ctx, t);
-  drawText(ctx, `Page ${i + 1} of ${list.length}`, W / 2, 1112, Math.round(FOOTER_BASE * scale), 'rgba(255,255,255,0.62)', 700);
-  drawText(ctx, '‹ Back', 140, 1224, Math.round(NAV_BASE * scale), '#fff8e0', 800);
-  drawText(ctx, 'Next ›', W - 140, 1224, Math.round(NAV_BASE * scale), '#fff8e0', 800);
+  const footerText = `Page ${i + 1} of ${list.length}`;
+  const footerSize = fitLineSize(ctx, footerText, W - 48, Math.round(FOOTER_BASE * scale), 14);
+  drawText(ctx, footerText, W / 2, 1112, footerSize, 'rgba(255,255,255,0.62)', 700);
+  // Each nav label is kept inside its own tap zone's width, never the screen edge or the other
+  // label - at the 300% step an unshrunk NAV_BASE ran both labels off-screen and up into the
+  // footer above them (see fitLineSize).
+  // On the last page the label reads "Done" (game.js exits to the title on tap) instead of a
+  // dead-end "Next ›" that just wraps back to page one.
+  const nextLabel = i === list.length - 1 ? 'Done' : 'Next ›';
+  const backSize = fitLineSize(ctx, '‹ Back', RULES_BACK_BOX.x1 - RULES_BACK_BOX.x0 - 24, Math.round(NAV_BASE * scale), 18, 800);
+  const nextSize = fitLineSize(ctx, nextLabel, RULES_NEXT_BOX.x1 - RULES_NEXT_BOX.x0 - 24, Math.round(NAV_BASE * scale), 18, 800);
+  drawText(ctx, '‹ Back', 140, 1224, backSize, '#fff8e0', 800);
+  drawText(ctx, nextLabel, W - 140, 1224, nextSize, '#ffe27a', 800);
   ctx.restore();
 }

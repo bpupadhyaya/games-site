@@ -6,19 +6,27 @@ import { geo, newGame, rollThrow, legalMoves, checkMove, noMoveReason, applyMove
 import { chooseMove, hintMove } from './ai.js';
 import { LESSONS } from './lessons.js';
 import { makeDaily, bestScore, moveScore, starsFor, DAILY_THROWS } from './daily.js';
-import { screenButtons, RULES_PAGES, HOW_PAGES, ABOUT_PAGES, TEXT_SCALES } from './ui.js';
+import { screenButtons, RULES_PAGES, HOW_PAGES, ABOUT_PAGES, TEXT_SCALES, AP_THINK_STEPS } from './ui.js';
 import { render as draw } from './view.js';
 
 export const meta = { width: W, height: H };
 
 const DEMO_GAMES = 2;
+// Auto Play: a whole AI-vs-AI teaching game driven by the SAME ai.js chooseMove used for every real
+// computer opponent, for BOTH seats. 2 players / 4 pawns is the game's own default real-game setup
+// (state.setup's initial value) - the matchup most players actually meet - with two different
+// personalities for variety. (An earlier draft used the full 4-player board; measured multi-rival
+// capture cycles could run long enough to make the watched demo drag, so this matches the default
+// game shape instead - still the real board, rules and engine, just both seats are AI.) REVEAL is a
+// fixed pause distinct from THINK.
+const AP_LEVELS = ['balanced', 'cautious'], AP_REVEAL_TIME = 2;
 
 export function createGame(env) {
   const { rng, storage, audio, config } = env;
 
   const state = {
     scene: 'title', t: 0, demo: !!config.demo, demoGames: 0, dailyDemo: -1,
-    prefs: { sound: true, calm: false, big: false, auto: true, textScaleIdx: 0 },
+    prefs: { sound: true, calm: false, big: false, auto: true, textScaleIdx: 0, apThinkIdx: 1 },
     setup: { mode: 'pachisi', players: 2, opp: 'balanced', friends: false, pieces: 4 },
     stats: { played: 0, wins: 0, lessons: {}, dailyDay: -1, dailyBest: 0, dailyStars: 0, streak: 0, lastDay: -1 },
     saved: null, menuOpen: false, howPage: 0, aboutPage: 0, rulesPage: 0, howFrom: 'title',
@@ -30,8 +38,9 @@ export function createGame(env) {
   storage.get('prefs', null).then((v) => {
     if (v) {
       Object.assign(state.prefs, v);
-      // Clamp against a stale index from a build with a shorter/longer TEXT_SCALES array.
+      // Clamp against a stale index from a build with a shorter/longer TEXT_SCALES/AP_THINK_STEPS array.
       state.prefs.textScaleIdx = Math.min(Math.max(state.prefs.textScaleIdx ?? 0, 0), TEXT_SCALES.length - 1);
+      state.prefs.apThinkIdx = Math.min(Math.max(state.prefs.apThinkIdx ?? 1, 0), AP_THINK_STEPS.length - 1);
       audio.setMuted(!state.prefs.sound);
     }
   });
@@ -45,7 +54,10 @@ export function createGame(env) {
   const clearSave = () => { state.saved = null; storage.remove('save'); };
 
   // ---- sound (all synthesized; delayed tones are scheduled in update so it stays deterministic) ---------------
-  const tone = (o, delay = 0) => { if (!state.prefs.sound) return; if (delay > 0) state.sfx.push({ t: delay, o }); else audio.tone(o); };
+  const isAutoplay = () => state.scene === 'autoplay' || state.scene === 'autoplay-over';
+  // Auto Play is silent by design regardless of the player's own sound setting (same principle as
+  // the menu's own attract-mode preview) - never surprise a viewer with sound from a demo.
+  const tone = (o, delay = 0) => { if (!state.prefs.sound || isAutoplay()) return; if (delay > 0) state.sfx.push({ t: delay, o }); else audio.tone(o); };
   const clack = (f = 420, v = 0.1) => tone({ freq: f, to: f * 0.5, dur: 0.05, type: 'triangle', vol: v });
   let snd = 1;
   const sr = (n) => { snd = (Math.imul(snd, 1664525) + 1013904223) >>> 0; return snd % n; };
@@ -64,7 +76,11 @@ export function createGame(env) {
   const cur = () => state.g.players[state.g.turn];
   const isHuman = () => cur().human;
   const soloDrive = () => state.scene === 'lesson' || state.scene === 'daily';
-  const aiTurn = () => !soloDrive() && !isHuman();
+  const apTurn = () => state.scene === 'autoplay';
+  // Auto Play folds into the same "AI drives this turn" path everywhere else in this file (the
+  // pre-throw pause, the auto-throw, the tap-to-hurry speedup) - only the choice itself gets its own
+  // THINK/REVEAL treatment (afterShow below), so no other AI-turn plumbing needed duplicating.
+  const aiTurn = () => apTurn() || (!soloDrive() && !isHuman());
   const stepDef = () => LESSONS[state.lesson.i].steps[state.lesson.step];
   const nameOf = (pl) => state.g.players[pl].name;
   const dieMode = () => state.g.mode === 'ludo';
@@ -77,6 +93,15 @@ export function createGame(env) {
     return Array.from({ length: n }, () => o);
   }
   function resetPlayView() { state.menuOpen = false; state.roll = null; state.fly = []; state.hop = null; state.over = null; state.opts = []; state.sel = -1; }
+  // Free, silent, never touches real save/stats (see isPreviewExempt below and apFinishGame's
+  // autoplay branch). Uses the game's default 2-player/4-pawn shape (see AP_LEVELS comment above for
+  // why) with two different AI personalities so captures and blocks still happen for a watcher to see.
+  function startAutoPlay() {
+    const g = newGame({ mode: 'pachisi', players: 2, pieces: 4, humans: [false, false], levels: AP_LEVELS });
+    g.players.forEach((p) => { p.name = COLOUR_NAMES[p.arm]; });
+    state.g = g; state.scene = 'autoplay'; state.hintsLeft = 0; resetPlayView();
+    beginTurn();
+  }
   function startGame() {
     if (state.demo && state.demoGames >= DEMO_GAMES) { state.scene = 'demo-limit'; return; }
     if (state.demo) { state.demoGames++; storage.set('demoGames', state.demoGames); }
@@ -206,6 +231,14 @@ export function createGame(env) {
       return;
     }
     state.opts = moves; state.sel = -1; state.hint = null;
+    if (apTurn()) {
+      // THINK: the board sits still (view.js only glows opts/sel during 'apreveal', not 'apthink') for
+      // the configured pause; the real chooseMove() already ran, silently, so REVEAL is instant.
+      state.apMove = chooseMove(g, moves, cur().level, rng);
+      state.phase = 'apthink'; state.wait = AP_THINK_STEPS[state.prefs.apThinkIdx];
+      say(`${nameOf(pl)} is thinking... (think time: ${AP_THINK_STEPS[state.prefs.apThinkIdx]}s)`);
+      return;
+    }
     if (aiTurn()) {
       state.aiMove = chooseMove(g, moves, cur().level, rng); state.phase = 'ai'; state.wait = 0.55;
       say(`${nameOf(pl)} is choosing...`);
@@ -269,6 +302,14 @@ export function createGame(env) {
     const rank = g.players.map((p, pl) => ({ pl, home: homeCount(g, pl), prog: progressOf(g, pl) })).sort((a, b) => (b.pl === g.winner) - (a.pl === g.winner) || b.home - a.home || b.prog - a.prog);
     state.over = { winner: g.winner, rank, youWon: g.players[g.winner].human && humans() === 1 };
     state.scene = 'over';
+  }
+  // Never touches state.stats/saveStats/clearSave/monetization - Auto Play is a free demo, not real
+  // play. Reuses the same rank/"drawOver" presentation as a real game-over screen.
+  function apFinishGame() {
+    const g = state.g;
+    const rank = g.players.map((p, pl) => ({ pl, home: homeCount(g, pl), prog: progressOf(g, pl) })).sort((a, b) => (b.pl === g.winner) - (a.pl === g.winner) || b.home - a.home || b.prog - a.prog);
+    state.over = { winner: g.winner, rank, youWon: false };
+    state.scene = 'autoplay-over';
   }
 
   // ---- hitting things -------------------------------------------------------------------------------
@@ -335,10 +376,19 @@ export function createGame(env) {
     else if (id === 'settings') s.scene = 'settings';
     else if (id === 'back') { if (s.scene === 'how' && s.howFrom !== 'title') s.scene = s.howFrom; else s.scene = 'title'; s.menuOpen = false; }
     else if (id === 'title') { s.scene = 'title'; s.menuOpen = false; }
-    else if (id === 'page') { if (s.scene === 'how') s.howPage = (s.howPage + 1) % HOW_PAGES.length; else if (s.scene === 'rules') s.rulesPage = (s.rulesPage + 1) % RULES_PAGES.length; else s.aboutPage = (s.aboutPage + 1) % ABOUT_PAGES.length; }
+    // On the last page the button reads "Done" (ui.js) and exits instead of wrapping back to page
+    // one, so it's never a dead-end tap; "how" respects where it was opened from, same as "back".
+    else if (id === 'page') {
+      if (s.scene === 'how') { if (s.howPage === HOW_PAGES.length - 1) { s.scene = s.howFrom !== 'title' ? s.howFrom : 'title'; s.menuOpen = false; } else s.howPage += 1; }
+      else if (s.scene === 'rules') { if (s.rulesPage === RULES_PAGES.length - 1) s.scene = 'title'; else s.rulesPage += 1; }
+      else { if (s.aboutPage === ABOUT_PAGES.length - 1) s.scene = 'title'; else s.aboutPage += 1; }
+    }
     else if (id === 'textDec') { if (s.prefs.textScaleIdx > 0) { s.prefs.textScaleIdx--; savePrefs(); } }
     else if (id === 'textInc') { if (s.prefs.textScaleIdx < TEXT_SCALES.length - 1) { s.prefs.textScaleIdx++; savePrefs(); } }
     else if (id === 'start') startGame();
+    else if (id === 'autoplay') startAutoPlay();
+    else if (id === 'apDec') { if (s.prefs.apThinkIdx > 0) { s.prefs.apThinkIdx--; savePrefs(); } }
+    else if (id === 'apInc') { if (s.prefs.apThinkIdx < AP_THINK_STEPS.length - 1) { s.prefs.apThinkIdx++; savePrefs(); } }
     else if (id.startsWith('mode:')) s.setup.mode = id.slice(5);
     else if (id.startsWith('pl:')) s.setup.players = Number(id.slice(3));
     else if (id.startsWith('who:')) s.setup.friends = id === 'who:friends';
@@ -352,7 +402,7 @@ export function createGame(env) {
     else if (id === 'leave') { s.menuOpen = false; s.hop = null; s.fly = []; s.phase = 'throw'; if (s.scene === 'lesson') s.scene = 'learn'; else { if (s.scene === 'play') saveGame(); s.scene = 'title'; } }
     else if (id === 'sound') { s.prefs.sound = !s.prefs.sound; savePrefs(); }
     else if (id === 'hint') useHint();
-    else if (id === 'again') { if (s.scene === 'lesson') startLesson(s.lesson.i); else if (s.scene === 'daily') startDaily(); else startGame(); }
+    else if (id === 'again') { if (s.scene === 'lesson') startLesson(s.lesson.i); else if (s.scene === 'daily') startDaily(); else if (s.scene === 'autoplay-over') startAutoPlay(); else startGame(); }
     else if (id === 'nextlesson') { if (s.lesson.i + 1 < LESSONS.length) startLesson(s.lesson.i + 1); else s.scene = 'learn'; }
     else if (id === 'lessons') s.scene = 'learn';
     else if (id === 'ready') { s.scene = 'play'; s.pass = null; }
@@ -384,10 +434,19 @@ export function createGame(env) {
       case 'show': afterShow(); break;
       case 'choose': if (state.autoT != null) { state.autoT -= dt; if (state.autoT <= 0) { const m = state.opts[0]; if (m) play(m); } } break;
       case 'ai': play(state.aiMove); break;
+      // REVEAL: the chosen move already sits in state.apMove; state.sel makes view.js's existing
+      // selection-glow/ghost-path highlight it, distinct from the other opts' plain destination rings.
+      case 'apthink': {
+        const mv = state.apMove;
+        state.phase = 'apreveal'; state.sel = mv.i; state.wait = AP_REVEAL_TIME;
+        say(`${nameOf(state.g.turn)}: about to ${mv.caps.length ? 'capture a rival' : mv.enter ? 'enter a pawn' : 'move ' + mv.value + ' squares'}.`);
+        break;
+      }
+      case 'apreveal': play(state.apMove); break;
       case 'after': afterMove(); break;
       case 'nomove': afterNoMove(); break;
       case 'lessonwait': lessonAdvance(); break;
-      case 'won': finishGame(); break;
+      case 'won': if (apTurn()) apFinishGame(); else finishGame(); break;
       default: break;
     }
   }
@@ -403,7 +462,7 @@ export function createGame(env) {
       state.sfx = state.sfx.filter((q) => q.t > 0);
 
       const sc = state.scene, ptr = input.pointer, keys = input.keys.pressed;
-      const inPlay = sc === 'play' || sc === 'lesson' || sc === 'daily';
+      const inPlay = sc === 'play' || sc === 'lesson' || sc === 'daily' || sc === 'autoplay';
       const yours = () => isHuman() || soloDrive();
       if (ptr.pressed) {
         state.swipe = { x: ptr.x, y: ptr.y };
@@ -434,5 +493,8 @@ export function createGame(env) {
     },
     render(ctx) { draw(ctx, state); },
     getState: () => state,
+    // Auto Play is a free teaching demo, not real play: exempt from the kit's whole-app
+    // free-preview timer the same way the menu's own attract-mode preview would be.
+    isPreviewExempt: () => isAutoplay(),
   };
 }

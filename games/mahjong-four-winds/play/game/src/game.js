@@ -4,7 +4,7 @@
 //   layout.js   table geometry                    view.js    table drawing        draw.js  shared drawing, tiles.js tile art
 //   screens.js  menus, lessons, daily             lessons.js / puzzles.js / content.js  content as data
 // This file: scenes, settings, storage, sound, lessons and the daily challenge.
-import { W, H, inRect, TEXT_SCALES } from './layout.js';
+import { W, H, inRect, TEXT_SCALES, AUTO_THINK_STEPS } from './layout.js';
 import { createPlay } from './play.js';
 import { renderPlay, renderResult, renderMatchEnd, MATCHEND_BTNS } from './view.js';
 import { LESSONS, fakeState, withDraw, classify, NEED_COUNT, textOf } from './lessons.js';
@@ -16,7 +16,7 @@ import * as SC from './screens.js';
 
 export const meta = { width: W, height: H };
 const DEMO_HANDS = 3;
-const PREF_DEFAULTS = { level: 1, sound: true, calm: false, big: false, style: 'traditional', lang: 'zh', timer: true, pace: 'normal', minFan: 1, hints: true, textScaleIdx: 0 };
+const PREF_DEFAULTS = { level: 1, sound: true, calm: false, big: false, style: 'traditional', lang: 'zh', timer: true, pace: 'normal', minFan: 1, hints: true, textScaleIdx: 0, autoThinkIdx: 1 };
 
 const SFX = {
   click: [[0, { freq: 1700, to: 800, dur: 0.03, type: 'triangle', vol: 0.1 }]],
@@ -43,7 +43,10 @@ export function createGame(env) {
   const puzzles = [];
   let pd = null;                                                 // where the current press started
 
-  const sfx = (name) => { if (!S.prefs.sound) return; for (const [dt, o] of SFX[name]) sq.push({ at: S.t + dt, o }); };
+  // Auto Play plays itself continuously with no player to hear it for - silent by design,
+  // regardless of the real Sound preference, the same way the menu's own attract-mode preview
+  // (and every other game's Auto Play mode) is silent.
+  const sfx = (name) => { if (!S.prefs.sound || S.scene === 'auto') return; for (const [dt, o] of SFX[name]) sq.push({ at: S.t + dt, o }); };
   const say = (text, hold = 4, warn = false) => { if (S.ui) S.ui.msg = { text, t: 0, hold, warn }; };
   const savePrefs = () => storage.set('prefs', S.prefs);
   const saveLearned = () => storage.set('learned', S.learned);
@@ -56,6 +59,7 @@ export function createGame(env) {
     // Clamp: a saved index from a build with a longer/shorter TEXT_SCALES array must never survive
     // and produce NaN font sizes on the About/How to play/Rules pages.
     S.prefs.textScaleIdx = Math.min(Math.max(S.prefs.textScaleIdx ?? 0, 0), TEXT_SCALES.length - 1);
+    S.prefs.autoThinkIdx = Math.min(Math.max(S.prefs.autoThinkIdx ?? 1, 0), AUTO_THINK_STEPS.length - 1);
   });
   storage.get('stats', null).then((v) => { if (v) S.stats = { ...S.stats, ...v }; });
   storage.get('learned', {}).then((v) => { S.learned = { ...v, ...S.learned }; });
@@ -68,7 +72,7 @@ export function createGame(env) {
   });
   storage.get('save', null).then((v) => { if (v && v.h && v.match && S.scene === 'title') S.saved = v; });
 
-  const play = createPlay({ S, rng, sfx, say, storage, vis, rs, config, monetization, audio, savePrefs, toTitle, demoHands: DEMO_HANDS, lessonPlayDone: () => { S.lessonPlay = false; S.learned[LESSONS.length - 1] = true; saveLearned(); S.scene = 'learn'; } });
+  const play = createPlay({ S, rng, sfx, say, storage, vis, rs, config, monetization, audio, savePrefs, toTitle, startAutoMatch: () => startAutoMatch(), demoHands: DEMO_HANDS, lessonPlayDone: () => { S.lessonPlay = false; S.learned[LESSONS.length - 1] = true; saveLearned(); S.scene = 'learn'; } });
 
   function startMatch(mode, levels) {
     if (config.demo && S.demoHands >= DEMO_HANDS) { S.scene = 'demo-limit'; return; }
@@ -77,6 +81,18 @@ export function createGame(env) {
     S.matchWins = 0; S.scene = 'play'; S.kb = false;
     play.startHand();
     monetization.track('match_start', { mode, level: L });
+  }
+
+  // Auto Play ("Watch & Learn"): a full, free, silent hand where every seat - including seat 0 - is
+  // driven by ai.js's own chooseDiscard/chooseClaim/chooseKong (via createPlay's THINK/REVEAL/ACT
+  // gate), reusing the exact same turn machine, animation and scoring as normal play. A NEW scene
+  // ('auto'), never touching normal play/lesson/puzzle state, real save, stats or progress. Not
+  // gated by the free-preview/demo-hand limits: it is a teaching/marketing tool, not real play.
+  const AUTO_LEVEL = 2;
+  function startAutoMatch() {
+    S.match = { mode: 'auto', dealer: 0, rot: 0, hand: 1, repeats: 0, scores: [0, 0, 0, 0], levels: [AUTO_LEVEL, AUTO_LEVEL, AUTO_LEVEL, AUTO_LEVEL], next: null };
+    S.matchWins = 0; S.scene = 'auto'; S.kb = false;
+    play.startHand();
   }
 
   // ------------------------------------------------------------------------------------------------ lessons
@@ -189,6 +205,7 @@ export function createGame(env) {
         if (b.id === 'how') { S.scene = 'how'; S.page = 0; return; }
         if (b.id === 'about') { S.scene = 'about'; S.page = 0; return; }
         if (b.id === 'rules') { S.scene = 'rules'; S.page = 0; return; }
+        if (b.id === 'auto') { startAutoMatch(); return; }
         if (b.id === 'settings') { S.scene = 'settings'; return; }
       }
     } else if (sc === 'settings') {
@@ -205,10 +222,11 @@ export function createGame(env) {
         savePrefs();
       });
     } else if (sc === 'how' || sc === 'about' || sc === 'rules') {
-      const n = SC.pageCount(sc);
-      if (S.page > 0 && inRect(SC.PAGER.prev, x, y)) S.page--;
-      else if (S.page < n - 1 && inRect(SC.PAGER.next, x, y)) S.page++;
-      else if (inRect(SC.PAGER.back, x, y)) toTitle();
+      const n = SC.pageCount(sc), hasPrev = S.page > 0, hasNext = S.page < n - 1;
+      const P = SC.pagerRects(hasPrev, hasNext);
+      if (hasPrev && inRect(P.prev, x, y)) S.page--;
+      else if (hasNext && inRect(P.next, x, y)) S.page++;
+      else if (inRect(P.back, x, y)) toTitle();
       else if (inRect(SC.TEXT_STEPPER.dec, x, y) && S.prefs.textScaleIdx > 0) { S.prefs.textScaleIdx--; savePrefs(); sfx('click'); }
       else if (inRect(SC.TEXT_STEPPER.inc, x, y) && S.prefs.textScaleIdx < TEXT_SCALES.length - 1) { S.prefs.textScaleIdx++; savePrefs(); sfx('click'); }
     } else if (sc === 'learn') {
@@ -238,7 +256,7 @@ export function createGame(env) {
     const ptr = input.pointer; rs.ptr.x = ptr.x; rs.ptr.y = ptr.y; rs.ptr.down = ptr.down;
     for (let i = sq.length - 1; i >= 0; i--) if (sq[i].at <= S.t) { audio.tone(sq[i].o); sq.splice(i, 1); }
     if (ptr.pressed) pd = { x: ptr.x, y: ptr.y };
-    if (S.scene === 'play') { play.update(dt, input); return; }
+    if (S.scene === 'play' || S.scene === 'auto') { play.update(dt, input); return; }
     if (S.scene === 'lesson') {
       const L = S.lesson;
       if (L.wrongT > 0) L.wrongT -= dt;
@@ -255,7 +273,7 @@ export function createGame(env) {
   function render(ctx) {
     setLang(S.prefs.lang);
     const sc = S.scene;
-    if (sc === 'play') {
+    if (sc === 'play' || sc === 'auto') {
       renderPlay(ctx, S, rs);
       const ui = S.ui;
       if (ui.call) {
@@ -278,5 +296,8 @@ export function createGame(env) {
     else if (sc === 'demo-limit') SC.renderDemoLimit(ctx, S);
   }
 
-  return { update, render, getState: () => S };
+  // Auto Play is a free teaching/marketing demo, not real play: kit 1.6.1's preview gate skips both
+  // time-accrual and the countdown badge while this is true, so watching it never eats into (or
+  // shows) the paid-unlock free-preview timer.
+  return { update, render, getState: () => S, isPreviewExempt: () => S.scene === 'auto' };
 }

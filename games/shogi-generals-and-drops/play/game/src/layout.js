@@ -28,4 +28,10 @@ export const inRect = (r, x, y) => x >= r.x && x <= r.x + r.w && y >= r.y && y <
 // Text-size steps for the reference pages (About/How to play/Rules). Index into this, never a raw
 // float, so "min"/"max" are exact and the stepper can cleanly disable at either end. Every page's
 // content is paced (content.js) to fit comfortably even at the top step.
-export const TEXT_SCALES = [1, 1.15, 1.3];
+export const TEXT_SCALES = [1, 1.5, 2, 2.5, 3];
+
+// Auto Play (Watch & Learn) think-time steps, in seconds. Index into this, same pattern as
+// TEXT_SCALES above - never a raw float, so the +/- stepper can cleanly disable at either end.
+// Hard-capped at 10s per the owner's explicit instruction (a longer wait defeats the point of a
+// short, timed "guess before you're shown" loop). Default index 1 (5s).
+export const THINK_STEPS = [2, 5, 8, 10];

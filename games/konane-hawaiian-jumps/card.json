@@ -1,7 +1,7 @@
 {
   "title": "Konane",
   "tagline": "The jumping game of Hawaii",
-  "description": "Konane is a traditional Hawaiian strategy game: black and white stones fill a carved lava-stone slab, and every move is a jump that removes the stone you hop over. Whoever cannot jump loses. Learn with eight hands-on lessons, play a computer at four levels on 6x6, 8x8 or 10x10 boards, or solve a new daily puzzle where exactly one first jump wins by force. A full in-app Rules page covers the opening, the jump and how the game is won.",
+  "description": "Konane is a traditional Hawaiian strategy game: black and white stones fill a carved lava-stone slab, and every move is a jump that removes the stone you hop over. Whoever cannot jump loses. Learn with eight hands-on lessons, watch a full free Auto Play demonstration that thinks, reveals and plays every move for you, play a computer at four levels on 6x6, 8x8 or 10x10 boards, or solve a new daily puzzle where exactly one first jump wins by force. A full in-app Rules page covers the opening, the jump and how the game is won.",
   "genre": "Hawaiian jumping game",
   "demo": true,
   "howToPlay": [
@@ -10,7 +10,7 @@
     "Keep hopping in one straight line, or stop after any hop.",
     "You cannot turn a corner in one move, and you must jump if you can.",
     "The first player with no jump left loses. There are no draws.",
-    "Eight lessons teach every rule by doing.",
+    "Eight lessons teach every rule by doing, or watch free Auto Play think and play a full game for you.",
     "Take back moves and ask for hints that explain why.",
     "Solve the daily puzzle: only one first jump wins."
   ]

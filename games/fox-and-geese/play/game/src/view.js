@@ -1,6 +1,6 @@
 // Everything that is drawn each frame. Reads `state` (see game.js) and changes nothing.
 // Static art (snowfield, board) and the two pieces are cached sprites (art.js, pieces.js), so a frame is cheap.
-import { W, H, pointAt, PIECE_R, SIZE, UNIT, BTN, LOOK, RULES_NAV, RULES_TEXT, TEXT_SCALES, titleRows, trayPos, DEV_BTN } from './layout.js';
+import { W, H, pointAt, PIECE_R, SIZE, UNIT, BTN, LOOK, RULES_NAV, RULES_TEXT, TEXT_SCALES, THINK_STEPS, AUTOPLAY, titleRows, trayPos, DEV_BTN } from './layout.js';
 import { drawTableAndBoard, BOARD_NAMES } from './art.js';
 import { drawFox, drawGoose, SET_NAMES } from './pieces.js';
 import { unlocked, starNeed } from './unlocks.js';
@@ -24,7 +24,7 @@ export function render(ctx, state) {
   drawTableAndBoard(ctx, state.look.board);
   const set = state.look.set, big = state.look.big;
   const g = state.game, a = state.anim, scene = state.scene;
-  const boardScene = scene === 'play' || scene === 'over' || scene === 'lesson' || (scene === 'puzzle' && state.pz.status !== 'making');
+  const boardScene = scene === 'play' || scene === 'over' || scene === 'lesson' || scene === 'autoplay' || (scene === 'puzzle' && state.pz.status !== 'making');
 
   const text = (str, x, y, size, color = INK, font = FONT, weight = 700, align = 'center') => { ctx.textAlign = align; ctx.font = `${weight} ${size}px ${font}`; ctx.fillStyle = color; ctx.fillText(str, x, y); };
   const wrap = (str, x, y, size, maxW, color, lh = size * 1.3, align = 'center') => {
@@ -81,6 +81,21 @@ export function render(ctx, state) {
       text(t.title, 180, 270, 40, '#ffffff', UI, 700, 'left');
       wrap(state.pz.status === 'solved' ? `Solved${state.pz.tries ? ' after ' + state.pz.tries + ' wrong tr' + (state.pz.tries === 1 ? 'y' : 'ies') : ' at the first try'}. Come back tomorrow for a new one.` : t.goal(state.pz.puzzle.n), 64, 380, big ? 32 : 27, 600, '#eef7ff', 36, 'left');
       text(`Streak: ${state.daily.streak} day${state.daily.streak === 1 ? '' : 's'} · geese captured so far: ${g.captured}`, 64, 462, 24, INK, UI, 600, 'left');
+    } else if (scene === 'autoplay') {
+      const A = state.ap, left0 = THINK_STEPS[state.apThinkIdx] - A.t;
+      const phaseText = A.paused ? 'Paused' : A.phase === 'think' ? `Think: what would you play? (${Math.max(0, left0).toFixed(0)}s)` : A.phase === 'reveal' ? 'Here is the move about to be played…' : 'Playing the move…';
+      text('Auto Play — watch and learn', 410, 130, 24, SOFT, UI, 600);
+      piece(g.turn, { x: 110, y: 372, s: 1 }, { scale: g.turn === 'F' ? 1.2 : 1.3 });
+      text(`${SIDE[g.turn]} to move${g.chain >= 0 ? ' (chain)' : ''}`, 180, 350, 34, '#ffffff', UI, 700, 'left');
+      wrap(phaseText, 180, 384, 22, 470, '#ffe9b0', 27, 'left');
+      text(`Geese left: ${geeseLeft(g)} of ${g.flock}`, 64, 462, 24, INK, UI, 600, 'left');
+      text(`Computer: ${LEVELS[state.level].name}`, 656, 462, 20, SOFT, UI, 500, 'right');
+      const leftG = geeseLeft(g);
+      for (let k = 0; k < g.flock; k++) piece('G', trayPos(k), { scale: 0.5, dim: k >= leftG, flip: true });
+      button(AUTOPLAY.dec, '−', { size: 30, dim: state.apThinkIdx === 0 });
+      button(AUTOPLAY.inc, '+', { size: 30, dim: state.apThinkIdx === THINK_STEPS.length - 1 });
+      // Sits below the kit's own top-centre "Preview m:ss" badge (kit/preview.js), never under it.
+      text(`Think time: ${THINK_STEPS[state.apThinkIdx]}s`, 360, 92, 21, INK, UI, 700);
     } else {
       text('Fox and Geese', 410, 140, 40);
       const chain = g.chain >= 0;
@@ -99,6 +114,13 @@ export function render(ctx, state) {
     if (state.sel >= 0 && !a) for (const m of legalMoves(g)) if (m.from === state.sel) glow(m.to, m.type === 'jump' ? '255,140,90' : '255,244,170', pulse);
     if (g.chain >= 0 && !a && scene !== 'over' && (state.two || g.turn === state.human)) for (const m of legalMoves(g)) if (m.type === 'jump') glow(m.to, '255,140,90', pulse);
     if (state.hint && !a) { glow(state.hint.to, '120,255,170', pulse); if (state.hint.from >= 0) glow(state.hint.from, '120,255,170', pulse); }
+    // Auto Play REVEAL: every legal option glows softly, the one about to be taken glows distinctly
+    // brighter (gold at its destination, green at its origin) so the viewer can compare their own guess.
+    if (scene === 'autoplay' && state.ap.phase === 'reveal' && !a) {
+      const chosen = state.ap.chosen;
+      for (const m of state.ap.options) { if (chosen && m.type === chosen.type && m.to === chosen.to && (m.from ?? -1) === (chosen.from ?? -1)) continue; glow(m.to, '150,190,255', 0.4); }
+      if (chosen) { glow(chosen.to, '255,208,90', pulse); if (chosen.type !== 'stop') glow(chosen.from, '120,255,170', pulse); }
+    }
     const danger = state.marks && scene !== 'over' ? threatened(g) : new Set();
     for (const i of PTS) {                               // far rows first; the moving piece is drawn where it is, not where it will be
       if (a && a.type === 'jump' && i === a.over) { ctx.save(); ctx.globalAlpha = Math.max(0, 1 - (a.t / a.dur) * 1.6); piece('G', pointAt(i), { flip: flipOf(i) }); ctx.restore(); }
@@ -135,6 +157,7 @@ export function render(ctx, state) {
     if (scene === 'play') { button(BTN.menu, 'Menu', { size: 26 }); button(BTN.undo, 'Take back', { size: 26 }); if (humanChain) button(BTN.stop, 'Stop here', { size: 26, primary: true }); else button(BTN.hint, `Hint (${state.hintsLeft})`, { size: 26, dim: state.hintsLeft <= 0 }); }
     else if (scene === 'lesson') { button(BTN.menu, 'Menu', { size: 26 }); if (state.lesson.done) button({ x: 265, y: BTN.next.y, w: 395, h: BTN.next.h }, state.lesson.i + 1 < LESSONS.length ? 'Next lesson' : 'Finish', { primary: true, size: 28 }); else if (humanChain) button(BTN.stop, 'Stop here', { size: 26, primary: true }); }
     else if (scene === 'puzzle') { button(BTN.menu, 'Menu', { size: 26 }); if (state.pz.status === 'solved') button(BTN.share, 'Share result', { primary: true, size: 30 }); }
+    else if (scene === 'autoplay') { button(AUTOPLAY.exit, 'Exit', { size: 26 }); button(AUTOPLAY.pause, state.ap.paused ? 'Resume' : 'Pause', { size: 26, primary: state.ap.paused }); button(AUTOPLAY.skip, 'Skip', { size: 26 }); }
   }
 
   if (scene === 'title' || scene === 'demo-limit' || scene === 'look' || (scene === 'puzzle' && state.pz.status === 'making')) {
@@ -166,7 +189,8 @@ export function render(ctx, state) {
     button(R.level, `Computer: ${LEVELS[state.level].name}`, { size: 22 }); button(R.flock, `Flock: ${state.flock} geese${state.flock === 13 ? ' (classic)' : ''}`, { size: state.flock === 13 ? 19 : 22 });
     button(R.sound, state.sound ? 'Sound on' : 'Sound off', { size: 22 }); button(R.marks, state.marks ? 'Warnings on' : 'Warnings off', { size: 22 });
     const calmLabel = state.calm ? 'Reduced motion: on' : 'Reduced motion: off', lookLabel = 'Board and pieces', pad = 20;
-    button(R.calm, calmLabel, { size: fitSize(calmLabel, R.calm.w - pad, 20) }); button(R.look, lookLabel, { size: fitSize(lookLabel, R.look.w - pad, 22) }); button(R.rules, 'Rules', { size: 22 });
+    button(R.calm, calmLabel, { size: fitSize(calmLabel, R.calm.w - pad, 20) }); button(R.look, lookLabel, { size: fitSize(lookLabel, R.look.w - pad, 22) });
+    button(R.rules, 'Rules', { size: fitSize('Rules', R.rules.w - pad, 22) }); button(R.auto, 'Auto Play', { size: fitSize('Auto Play', R.auto.w - pad, 22) });
     // badges: one star per level beaten with each side
     const by = R.look.y + 104;
     for (const [side, x0, label] of [['G', 96, 'Geese'], ['F', 396, 'Fox']]) {
@@ -181,20 +205,24 @@ export function render(ctx, state) {
     text('Get Fox and Geese on iPhone and Android', 360, 1030, 28, '#eef7ff', UI, 600); text('for unlimited games.', 360, 1070, 28, '#eef7ff', UI, 600);
   } else if (scene === 'over') {
     ctx.fillStyle = 'rgba(4,10,20,0.74)'; ctx.fillRect(0, 0, W, H);
-    const won = g.winner === 'draw' ? 'A draw' : state.two ? `${SIDE[g.winner]} win` : g.winner === state.human ? 'You win!' : 'The computer wins';
+    // A win/star belongs to the player's own real progress; an Auto Play session never touches it
+    // (state.starEarned stays false and stats/save are never written for it - see startAutoplay()).
+    const realWin = !state.two && !state.overFromAutoplay && g.winner === state.human;
+    const won = g.winner === 'draw' ? 'A draw' : (state.two || state.overFromAutoplay) ? `${SIDE[g.winner]} win` : g.winner === state.human ? 'You win!' : 'The computer wins';
     if (g.winner !== 'draw') (g.winner === 'F' ? drawFox : drawGoose)(ctx, 360, 520, g.winner === 'F' ? 170 : 130, { set, flip: true });
+    if (state.overFromAutoplay) text('Auto Play', 360, 460, 24, SOFT, UI, 600);
     text(won, 360, 720, 64); text(g.reason, 360, 780, 28, '#eef7ff', UI, 500);
     text(`${g.moves} moves · ${g.captured} ${g.captured === 1 ? 'goose' : 'geese'} captured`, 360, 826, 24, SOFT, UI, 500);
-    if (!state.two && g.winner === state.human && state.starEarned) {
+    if (realWin && state.starEarned) {
       text(`★ ${LEVELS[state.level].name} beaten as the ${state.human === 'F' ? 'fox' : 'geese'}`, 360, 868, 24, '#ffd24a', UI, 600);
-    } else if (!state.two && g.winner === state.human) {
+    } else if (realWin) {
       text(`A win, but no star: as the ${state.human === 'F' ? 'fox' : 'geese'} a star needs ${starNeed(state.human, state.level)}`, 360, 868, 21, SOFT, UI, 500);
     }
-    if (!state.two && g.winner === state.human && !state.calm) for (let k = 0; k < 14; k++) {        // pale sparks drifting up around the winner
+    if (realWin && !state.calm) for (let k = 0; k < 14; k++) {        // pale sparks drifting up around the winner
       const ph = (state.t * 0.35 + k * 0.137) % 1, x = 360 + Math.sin(k * 2.4) * (140 + 90 * ph), y = 640 - ph * 380;
       ctx.fillStyle = `rgba(210,232,255,${0.8 * (1 - ph)})`; ctx.beginPath(); ctx.arc(x, y, 4 + (k % 3) * 2, 0, TAU); ctx.fill();
     }
-    button(BTN.again, 'Play again', { primary: true, size: 34 }); button(BTN.back, 'Menu', { size: 30 });
+    button(BTN.again, 'Play again', { primary: true, size: 34 }); button(BTN.back, state.overFromAutoplay ? 'Exit to menu' : 'Menu', { size: 30 });
   } else if (scene === 'rules') {
     ctx.fillStyle = 'rgba(4,10,20,0.74)'; ctx.fillRect(0, 0, W, H);
     const page = RULES[state.rulesPage % RULES.length];
@@ -217,10 +245,19 @@ export function render(ctx, state) {
     const pieceR = page.piece ? Math.round(58 * Math.min(scale, 1.2)) : 0;
     // The fox/goose head stands well above its own anchor point (long ears, a raised neck), so the
     // block reserves extra headroom above the anchor - clear of the title above - plus its shadow
-    // below, before the body text starts.
-    const pieceBlockH = page.piece ? pieceR * 3 + 40 : 0;
+    // below, before the body text starts. The goose's neck hangs noticeably lower below its own
+    // anchor than the fox's head does, so the flat padding below was widened (was `+ 40`, still
+    // fine for the fox) after a real render at the 300% step showed the goose's neck just touching
+    // the first body line - see STATUS.md.
+    const pieceBlockH = page.piece ? pieceR * 3 + 60 : 0;
     const headerBlockH = 104;                                          // "Rules" header + divider
-    const titleBlockH = Math.round(31 * scale * 1.3) + 30;
+    // Gap from the title's own baseline to the body's first baseline must grow with both fonts'
+    // real ascent/descent, not a fixed-ish constant - the old `31*scale*1.3+30` formula left enough
+    // clearance up to the 130%/200% ceilings but was too tight at 300%, where the much taller title
+    // glyphs' descenders started touching the first body line's ascenders (caught by rendering a
+    // real page at the 300% step - see STATUS.md).
+    const titleFontPx = Math.round(31 * scale);
+    const titleBlockH = titleFontPx + Math.round(fontPx * 0.9) + 20;
     const cardTop = 108, cardMax = 1290;                                 // never crosses the footer
     const cardH = Math.min(cardMax, Math.max(420, headerBlockH + titleBlockH + pieceBlockH + linesH + 50));
     const card = { x: cardX, y: cardTop, w: cardW, h: cardH };
@@ -238,7 +275,7 @@ export function render(ctx, state) {
     text('Rules', 360, card.y + 52, Math.round(38 * Math.min(scale, 1.15)));
     ctx.strokeStyle = 'rgba(160,206,244,0.35)'; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.moveTo(card.x + 60, card.y + 78); ctx.lineTo(card.x + card.w - 60, card.y + 78); ctx.stroke();
-    text(page.title, 360, card.y + headerBlockH + Math.round(31 * scale), Math.round(31 * scale), '#ffd684', UI, 700);
+    text(page.title, 360, card.y + headerBlockH + titleFontPx, titleFontPx, '#ffd684', UI, 700);
 
     let y = card.y + headerBlockH + titleBlockH;
     if (page.piece) {

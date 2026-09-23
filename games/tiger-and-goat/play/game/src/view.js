@@ -1,6 +1,6 @@
 // Everything that is drawn each frame. Reads `state` (see game.js) and changes nothing.
 // Static art (table, board) and the two pieces are cached sprites (art.js, pieces.js), so a frame is cheap.
-import { W, H, pointAt, PIECE_R, SIZE, UNIT, BTN, LOOK, RULES_NAV, RULES_HEADER, TEXT_SCALES, titleRows, handPos, capturedPos } from './layout.js';
+import { W, H, pointAt, PIECE_R, SIZE, UNIT, BTN, LOOK, RULES_NAV, RULES_HEADER, TEXT_SCALES, THINK_STEPS, titleRows, handPos, capturedPos } from './layout.js';
 import { drawTableAndBoard, WOOD_NAMES } from './art.js';
 import { drawTiger, drawGoat, SET_NAMES } from './pieces.js';
 import { unlocked } from './unlocks.js';
@@ -74,10 +74,10 @@ export function render(ctx, state) {
       text(`Goats captured so far: ${g.captured}`, 64, 520, 24, 'rgba(246,223,174,0.75)', UI, 500, 'left');
     } else {
       text('Tiger and Goat', 410, 140, 40);
-      const turnText = g.winner ? '' : state.two ? `${SIDE[g.turn]} to move` : g.turn === state.human ? `Your move (${SIDE[g.turn].toLowerCase()})` : `The computer is thinking${'.'.repeat(1 + (Math.floor(state.t * 3) % 3))}`;
+      const turnText = g.winner ? '' : state.autoMode ? `${SIDE[g.turn]} ${state.autoPhase === 'reveal' ? '- this is the move' : 'thinking' + '.'.repeat(1 + (Math.floor(state.t * 3) % 3))}` : state.two ? `${SIDE[g.turn]} to move` : g.turn === state.human ? `Your move (${SIDE[g.turn].toLowerCase()})` : `The computer is thinking${'.'.repeat(1 + (Math.floor(state.t * 3) % 3))}`;
       piece(g.turn, { x: 110, y: 382, s: 1 }, { scale: g.turn === 'T' ? 1.5 : 2 });
       text(turnText, 180, 362, 36, '#ffffff', UI, 700, 'left');
-      text(state.two ? 'Two players' : `Computer: ${LEVELS[state.level].name}`, 180, 400, 23, 'rgba(246,223,174,0.8)', UI, 500, 'left');
+      text(state.autoMode ? `Auto Play · think time ${THINK_STEPS[state.autoThinkIdx]}s` : state.two ? 'Two players' : `Computer: ${LEVELS[state.level].name}`, 180, 400, 23, 'rgba(246,223,174,0.8)', UI, 500, 'left');
       text(`Goats to place: ${g.inHand}`, 64, 448, 26, '#f6dfae', UI, 600, 'left');
       for (let k = 0; k < g.inHand; k++) piece('G', handPos(k), { scale: 0.95 });
       text(`Captured: ${g.captured} of 20`, 64, 654, 26, '#f6dfae', UI, 600, 'left');
@@ -120,7 +120,17 @@ export function render(ctx, state) {
       lines.forEach((ln, i) => text(ln, 360, y0 + 38 + i * lh, ms, '#fff3d6', UI, 600));
       ctx.restore();
     }
-    if (scene === 'play') { button(BTN.menu, 'Menu', { size: 26 }); button(BTN.undo, 'Take back', { size: 26 }); button(BTN.hint, `Hint (${state.hintsLeft})`, { size: 26, dim: state.hintsLeft <= 0 }); }
+    if (scene === 'play') {
+      button(BTN.menu, state.autoMode ? 'Exit' : 'Menu', { size: 26 });
+      if (state.autoMode) {
+        // The think-time stepper takes the Undo/Hint slots (same rects, no new layout) - neither
+        // undo nor a hint means anything with nobody tapping.
+        button(BTN.undo, '− Think', { size: 24, dim: state.autoThinkIdx <= 0 });
+        button(BTN.hint, 'Think +', { size: 24, dim: state.autoThinkIdx >= THINK_STEPS.length - 1 });
+      } else {
+        button(BTN.undo, 'Take back', { size: 26 }); button(BTN.hint, `Hint (${state.hintsLeft})`, { size: 26, dim: state.hintsLeft <= 0 });
+      }
+    }
     else if (scene === 'lesson') { button(BTN.menu, 'Menu', { size: 26 }); if (state.lesson.done) button({ x: 265, y: BTN.next.y, w: 395, h: BTN.next.h }, state.lesson.i + 1 < LESSONS.length ? 'Next lesson' : 'Finish', { primary: true, size: 28 }); }
     else if (scene === 'puzzle') { button(BTN.menu, 'Menu', { size: 26 }); if (state.pz.status === 'solved') button(BTN.share, 'Share result', { primary: true, size: 30 }); }
   }
@@ -151,24 +161,30 @@ export function render(ctx, state) {
     button(R.daily, solvedToday ? `Daily puzzle: solved · streak ${state.daily.streak}` : state.daily.streak ? `Daily puzzle · streak ${state.daily.streak}` : 'Daily puzzle', { size: 28 });
     button(R.level, `Computer: ${LEVELS[state.level].name}`, { size: 22 }); button(R.sound, state.sound ? 'Sound on' : 'Sound off', { size: 22 }); button(R.marks, state.marks ? 'Warnings on' : 'Warnings off', { size: 22 }); button(R.calm, state.calm ? 'Reduced motion: on' : 'Reduced motion: off', { size: 20 });
     button(R.look, 'Board and pieces', { size: 24 }); button(R.rules, 'Rules', { size: 24 });
-    // badges: one star per level beaten with each side
-    const by = R.look.y + 104;
-    for (const [side, x0, label] of [['G', 96, 'Goats'], ['T', 396, 'Tigers']]) {
-      text(label, x0, by, 22, 'rgba(246,223,174,0.8)', UI, 600, 'left');
-      for (let l = 0; l < LEVELS.length; l++) text('★', x0 + 96 + l * 36, by + 2, 30, state.stats.badges[side + l] ? '#ffd24a' : 'rgba(255,255,255,0.22)', UI, 700, 'left');
+    button(R.auto, 'Auto Play · Watch & Learn', { size: 26 });
+    // badges: one star per level beaten with each side. Positioned off the new Auto Play row above
+    // (not a fixed number), and skipped entirely if that leaves no safe room below it - the tallest
+    // shape of this list (a saved game, pushing everything down) has none left to spare, and a
+    // flourish is worth skipping rather than ever risking it clipping off the canvas.
+    const by = R.auto.y + R.auto.h + 24;
+    if (by + 40 <= H - 10) {
+      for (const [side, x0, label] of [['G', 96, 'Goats'], ['T', 396, 'Tigers']]) {
+        text(label, x0, by, 22, 'rgba(246,223,174,0.8)', UI, 600, 'left');
+        for (let l = 0; l < LEVELS.length; l++) text('★', x0 + 96 + l * 36, by + 2, 30, state.stats.badges[side + l] ? '#ffd24a' : 'rgba(255,255,255,0.22)', UI, 700, 'left');
+      }
+      text(`Games played: ${state.stats.games} · won: ${state.stats.wins}`, 360, by + 40, 22, 'rgba(246,223,174,0.65)', UI, 500);
     }
-    text(`Games played: ${state.stats.games} · won: ${state.stats.wins}`, 360, by + 44, 22, 'rgba(246,223,174,0.65)', UI, 500);
     if (state.msg) wrap(state.msg.text, 360, 748, 24, 620, '#ffe9b0');
   } else if (scene === 'demo-limit') {
     text('That was the free taste.', 360, 960, 44);
     text('Get Tiger and Goat on iPhone and Android', 360, 1030, 28, '#fff3d6', UI, 600); text('for unlimited games.', 360, 1070, 28, '#fff3d6', UI, 600);
   } else if (scene === 'over') {
     ctx.fillStyle = 'rgba(6,10,14,0.72)'; ctx.fillRect(0, 0, W, H);
-    const won = g.winner === 'draw' ? 'A draw' : state.two ? `${SIDE[g.winner]} win` : g.winner === state.human ? 'You win!' : 'The computer wins';
+    const won = g.winner === 'draw' ? 'A draw' : state.two || state.autoMode ? `${SIDE[g.winner]} win` : g.winner === state.human ? 'You win!' : 'The computer wins';
     if (g.winner !== 'draw') (g.winner === 'T' ? drawTiger : drawGoat)(ctx, 360, 520, g.winner === 'T' ? 170 : 130, { set });
     text(won, 360, 720, 64); text(g.reason, 360, 780, 28, '#fff3d6', UI, 500);
     text(`${g.moves} moves · ${g.captured} goat${g.captured === 1 ? '' : 's'} captured`, 360, 826, 24, 'rgba(246,223,174,0.75)', UI, 500);
-    if (!state.two && g.winner === state.human) {
+    if (!state.two && !state.autoMode && g.winner === state.human) {
       text(`★ ${LEVELS[state.level].name} beaten as the ${SIDE[state.human].toLowerCase()}`, 360, 868, 24, '#ffd24a', UI, 600);
       if (!state.calm) for (let k = 0; k < 14; k++) {                        // gold sparks drifting up around the winner
         const ph = (state.t * 0.35 + k * 0.137) % 1, x = 360 + Math.sin(k * 2.4) * (140 + 90 * ph), y = 640 - ph * 380;
@@ -198,8 +214,23 @@ export function render(ctx, state) {
     ctx.strokeStyle = 'rgba(246,223,174,0.3)'; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.moveTo(panel.x + 60, panel.y + 82); ctx.lineTo(panel.x + panel.w - 60, panel.y + 82); ctx.stroke();
     const pageTitleY = panel.y + 132;
-    text(page.title, 360, pageTitleY, Math.round(31 * scale), '#ffd24a', UI, 700);
-    let y = pageTitleY + 58;
+    // Each page's own title is capped the same way the 'Rules' wordmark is (see above) - at the
+    // 300% top step an uncapped title would run past the panel's edges or crowd the divider line
+    // above it. The body text below keeps growing all the way to the top step; only the
+    // single-line heading caps. Capping the size alone isn't enough on its own, though: a longer
+    // title ("Tigers during placement") at the SAME capped size as a short one ("The board") still
+    // measured wider than the panel and ran edge to edge, past the panel's own frame - caught by
+    // rendering a real middle-of-the-deck page, not just the shorter early ones. So the title also
+    // shrinks, same idiom as the button-label shrinker below, until it clears the panel's margins.
+    { let tSize = Math.round(31 * Math.min(scale, 2));
+      ctx.font = `700 ${tSize}px ${UI}`;
+      while (ctx.measureText(page.title).width > panel.w - 80 && tSize > 22) { tSize -= 1; ctx.font = `700 ${tSize}px ${UI}`; }
+      text(page.title, 360, pageTitleY, tSize, '#ffd24a', UI, 700); }
+    // The gap below the title also has to grow past the 2x step: the title itself is capped (just
+    // above), but the body text's own ascenders keep growing all the way to the top step, and a
+    // fixed 58px gap (fine through 2x) is no longer enough room once the body font passes that -
+    // without this, the first body line's tops crowd or overlap the title text at the 300% step.
+    let y = pageTitleY + 58 + Math.round(40 * Math.max(0, scale - 2));
     if (page.piece) { const footY = pageTitleY + 218; piece(page.piece, { x: 360, y: footY, s: 1 }, { scale: page.piece === 'T' ? 2.7 : 3.6 }); y = footY + 110; }
     const size = Math.round(29 * scale), lh = Math.round(size * 1.42), gap = Math.round(11 * scale);
     for (const line of page.lines) { const n = wrap(line, 360, y, size, panel.w - 90, '#ffffff', lh); y += n * lh + gap; }

@@ -1,6 +1,6 @@
 // Everything that is drawn each frame. Reads `state` (see game.js) and changes nothing.
 // Static art (forest floor, map) and the two pieces are cached sprites (art.js, pieces.js), so a frame is cheap.
-import { W, H, pointAt, PIECE_R, SIZE, UNIT, BTN, LOOK, RULES_NAV, RULES_HEADER, RULES_PANEL, TEXT_SCALES, TILE, titleRows, clockPos, CLOCK_Y, overButtons } from './layout.js';
+import { W, H, pointAt, PIECE_R, SIZE, UNIT, BTN, LOOK, RULES_NAV, RULES_HEADER, RULES_PANEL, TEXT_SCALES, TILE, THINK_STEPS, AUTOPLAY, titleRows, clockPos, CLOCK_Y, overButtons } from './layout.js';
 import { drawTableAndBoard, drawLeaf, BOARD_NAMES } from './art.js';
 import { drawHare, drawHound, SET_NAMES } from './pieces.js';
 import { unlocked } from './unlocks.js';
@@ -20,13 +20,13 @@ export function render(ctx, state) {
   drawTableAndBoard(ctx, state.look.board);
   const set = state.look.set, big = state.look.big;
   const g = state.game, a = state.anim, scene = state.scene;
-  const boardScene = scene === 'play' || scene === 'over' || scene === 'lesson' || (scene === 'puzzle' && state.pz.status !== 'making');
+  const boardScene = scene === 'play' || scene === 'over' || scene === 'lesson' || scene === 'autoplay' || (scene === 'puzzle' && state.pz.status !== 'making');
 
   const text = (str, x, y, size, color = '#f6e3b4', font = FONT, weight = 700, align = 'center') => { ctx.textAlign = align; ctx.font = `${weight} ${size}px ${font}`; ctx.fillStyle = color; ctx.fillText(str, x, y); };
-  const wrap = (str, x, y, size, maxW, color, lh = size * 1.3, align = 'center') => {
-    ctx.font = `600 ${size}px ${UI}`; const words = str.split(' '), lines = []; let cur = '';
+  const wrap = (str, x, y, size, maxW, color, lh = size * 1.3, align = 'center', weight = 600) => {
+    ctx.font = `${weight} ${size}px ${UI}`; const words = str.split(' '), lines = []; let cur = '';
     for (const w of words) { const t2 = cur ? cur + ' ' + w : w; if (ctx.measureText(t2).width > maxW && cur) { lines.push(cur); cur = w; } else cur = t2; }
-    lines.push(cur); lines.forEach((ln, i) => text(ln, x, y + i * lh, size, color, UI, 600, align)); return lines.length;
+    lines.push(cur); lines.forEach((ln, i) => text(ln, x, y + i * lh, size, color, UI, weight, align)); return lines.length;
   };
   const piece = (k, pos, opts = {}) => { const r = PIECE_R * pos.s * SIZE[k] * (opts.scale ?? 1); (k === 'H' ? drawHare : drawHound)(ctx, pos.x, pos.y - r * 0.56, r, { set, ...opts }); };
   const button = (r, label, o = {}) => {
@@ -39,6 +39,9 @@ export function render(ctx, state) {
     ctx.restore();
   };
   const glow = (i, rgb, pulse) => { const p = pointAt(i); ctx.fillStyle = `rgba(${rgb},${0.45 + pulse * 0.3})`; ctx.beginPath(); ctx.ellipse(p.x, p.y, 34 * UNIT * p.s, 28 * UNIT * p.s, 0, 0, TAU); ctx.fill(); };
+  // Shrinks a button label to fit a narrower button (the look/Rules row needed a third column for
+  // Auto Play) without changing its wording.
+  const fitSize = (label, maxW, start) => { let sz = start; ctx.font = `700 ${sz}px ${UI}`; while (ctx.measureText(label).width > maxW && sz > 11) { sz -= 1; ctx.font = `700 ${sz}px ${UI}`; } return sz; };
 
   // drifting leaves: a few cached sprites, still in reduced-motion mode
   if (!state.calm) for (let k = 0; k < 7; k++) {
@@ -72,6 +75,15 @@ export function render(ctx, state) {
       text(t.title, 150, 226, 38, '#ffffff', UI, 700, 'left');
       wrap(state.pz.status === 'solved' ? `Solved${state.pz.tries ? ' after ' + state.pz.tries + ' wrong tr' + (state.pz.tries === 1 ? 'y' : 'ies') : ' at the first try'}. Come back tomorrow for a new one.` : t.goal(state.pz.puzzle.n), 150, 262, big ? 27 : 24, 540, '#fff3d6', 30, 'left');
       text(`Streak: ${state.daily.streak} day${state.daily.streak === 1 ? '' : 's'}`, 64, 340, 24, '#f6e3b4', UI, 600, 'left');
+    } else if (scene === 'autoplay') {
+      const A = state.ap, left0 = THINK_STEPS[state.apThinkIdx] - A.t;
+      const phaseText = A.paused ? 'Paused' : A.phase === 'think' ? `Think: what would ${SIDE[g.turn].toLowerCase()} play? (${Math.max(0, left0).toFixed(0)}s)` : 'Here is the move about to be played…';
+      text('Auto Play — watch and learn', 410, 130, 24, 'rgba(246,227,180,0.85)', UI, 600);
+      piece(g.turn, { x: 96, y: 262, s: 1 }, { scale: 0.62 });
+      text(`${SIDE[g.turn]} to move`, 150, 222, 34, '#ffffff', UI, 700, 'left');
+      wrap(phaseText, 150, 258, 21, 480, '#ffe9b0', 26, 'left');
+      const left = Math.max(0, g.limit - g.hm);
+      text(g.limit > 60 ? '' : `Hunt clock: the hounds have ${left} move${left === 1 ? '' : 's'} left`, 360, 296, 22, left <= 3 ? '#ff9a80' : '#f6e3b4', UI, 600);
     } else {
       text(NAME, 410, 130, 40);
       const camp = state.camp >= 0 ? CAMPAIGN[state.camp] : null;
@@ -84,7 +96,7 @@ export function render(ctx, state) {
         text(g.limit > 60 ? '' : `Hunt clock: the hounds have ${left} move${left === 1 ? '' : 's'} left`, 360, 296, 22, left <= 3 ? '#ff9a80' : '#f6e3b4', UI, 600);
       }
     }
-    if (g.limit <= 60 && (scene === 'play' || scene === 'over' || (scene === 'lesson' && LESSONS[state.lesson.i].limit))) for (let k = 0; k < g.limit; k++) {                  // the clock: a token per hound move
+    if (g.limit <= 60 && (scene === 'play' || scene === 'over' || scene === 'autoplay' || (scene === 'lesson' && LESSONS[state.lesson.i].limit))) for (let k = 0; k < g.limit; k++) {                  // the clock: a token per hound move
       const c = clockPos(k, g.limit), used = k < g.hm;
       ctx.fillStyle = used ? 'rgba(0,0,0,0.5)' : g.limit - g.hm <= 3 ? '#e9663a' : '#e8b84a'; ctx.beginPath(); ctx.arc(c.x, c.y, used ? 5 : 8, 0, TAU); ctx.fill();
       if (!used) { ctx.strokeStyle = 'rgba(255,240,190,0.7)'; ctx.lineWidth = 1.5; ctx.stroke(); }
@@ -92,9 +104,26 @@ export function render(ctx, state) {
 
     // ---- the board ------------------------------------------------------------------------------------
     const pulse = state.calm ? 0.6 : 0.5 + 0.5 * Math.sin(state.t * 6);
-    if (state.marks && scene !== 'over' && g.turn === 'D' && (state.two || state.human === 'D') && !a) for (const i of hareReach(g)) glow(i, '255,120,90', 0.1);          // where the hare could go next
+    // Auto Play never shows this pre-existing "where the hare could go next" warning: THINK must
+    // show nothing highlighted yet (that is what REVEAL is for), and Auto Play's own REVEAL/ACT
+    // glows below are the directed teaching highlight for this mode - showing both at once would
+    // just be visual noise, not a clearer lesson.
+    if (state.marks && scene !== 'over' && scene !== 'autoplay' && g.turn === 'D' && (state.two || state.human === 'D') && !a) for (const i of hareReach(g)) glow(i, '255,120,90', 0.1);
     if (state.sel >= 0 && !a) for (const m of legalMoves(g)) if (m.from === state.sel) glow(m.to, '255,236,150', pulse);
     if (state.hint && !a) { glow(state.hint.to, '120,255,170', pulse); glow(state.hint.from, '120,255,170', pulse); }
+    // Auto Play REVEAL: every legal option glows softly, the one about to be taken glows distinctly
+    // brighter (gold at its destination, green at its origin) so the viewer can compare their own guess.
+    if (scene === 'autoplay' && state.ap.phase === 'reveal' && !a) {
+      const chosen = state.ap.chosen;
+      for (const m of legalMoves(g)) { if (chosen && m.to === chosen.to && m.from === chosen.from) continue; glow(m.to, '150,190,255', 0.4); }
+      if (chosen) {
+        glow(chosen.to, '255,208,90', pulse); glow(chosen.from, '120,255,170', pulse);
+        // A dark ring around the chosen destination so gold still reads clearly against this
+        // board's own light cream tone (found by actually rendering: gold-on-cream had far less
+        // contrast here than it does on the icier boards other games use for the same highlight).
+        const cp = pointAt(chosen.to); ctx.strokeStyle = 'rgba(40,24,4,0.85)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.ellipse(cp.x, cp.y, 34 * UNIT * cp.s, 28 * UNIT * cp.s, 0, 0, TAU); ctx.stroke();
+      }
+    }
     const order = [...Array(11).keys()].sort((p, q) => pointAt(p).y - pointAt(q).y);
     for (const i of order) {                                          // far points first; the moving piece is drawn where it is, not where it will be
       if (a && ((a.type !== 'refuse' && i === a.to) || (a.type === 'refuse' && i === a.from))) continue;
@@ -128,6 +157,14 @@ export function render(ctx, state) {
     if (scene === 'play') { button(BTN.menu, 'Menu', { size: 26 }); button(BTN.undo, 'Take back', { size: 26 }); button(BTN.hint, `Hint (${state.hintsLeft})`, { size: 26, dim: state.hintsLeft <= 0 }); }
     else if (scene === 'lesson') { button(BTN.menu, 'Menu', { size: 26 }); if (state.lesson.done) button({ x: 265, y: BTN.next.y, w: 395, h: BTN.next.h }, state.lesson.i + 1 < LESSONS.length ? 'Next lesson' : 'Finish', { primary: true, size: 28 }); }
     else if (scene === 'puzzle') { button(BTN.menu, 'Menu', { size: 26 }); if (state.pz.status === 'solved') button(BTN.share, 'Share result', { primary: true, size: 30 }); }
+    else if (scene === 'autoplay') {
+      button(AUTOPLAY.dec, '−', { size: 30, dim: state.apThinkIdx === 0 });
+      button(AUTOPLAY.inc, '+', { size: 30, dim: state.apThinkIdx === THINK_STEPS.length - 1 });
+      text(`Think time: ${THINK_STEPS[state.apThinkIdx]}s`, 360, 46, 21, '#f6e3b4', UI, 700);
+      button(AUTOPLAY.exit, 'Exit', { size: 26 });
+      button(AUTOPLAY.pause, state.ap.paused ? 'Resume' : 'Pause', { size: 26, primary: state.ap.paused });
+      button(AUTOPLAY.skip, 'Skip', { size: 26 });
+    }
   }
 
   const heads = scene === 'title' || scene === 'demo-limit' || scene === 'look' || scene === 'campaign' || (scene === 'puzzle' && state.pz.status === 'making');
@@ -175,7 +212,9 @@ export function render(ctx, state) {
     button(R.two, 'Two players, one phone', { size: 28 });
     button(R.daily, solvedToday ? `Daily puzzle: solved · streak ${state.daily.streak}` : state.daily.streak ? `Daily puzzle · streak ${state.daily.streak}` : 'Daily puzzle', { size: 28 });
     button(R.level, `Computer: ${LEVELS[state.level].name}`, { size: 22 }); button(R.sound, state.sound ? 'Sound on' : 'Sound off', { size: 22 }); button(R.marks, state.marks ? "Hare's reach: on" : "Hare's reach: off", { size: 21 }); button(R.calm, state.calm ? 'Reduced motion: on' : 'Reduced motion: off', { size: 20 });
-    button(R.look, 'Board and pieces', { size: 24 }); button(R.rules, 'Rules', { size: 24 });
+    const lookLabel = 'Board and pieces', pad = 18;
+    button(R.look, lookLabel, { size: fitSize(lookLabel, R.look.w - pad, 24) }); button(R.rules, 'Rules', { size: fitSize('Rules', R.rules.w - pad, 24) });
+    button(R.auto, 'Auto Play', { size: fitSize('Auto Play', R.auto.w - pad, 24) });
     // badges: one star per level beaten with each side
     const by = R.look.y + 104;
     for (const [side, x0, label] of [['H', 96, 'Hare'], ['D', 396, 'Hounds']]) {
@@ -230,15 +269,39 @@ export function render(ctx, state) {
     // it never dwarfs the card, flanked by the text-size stepper (A-/A+).
     text('Rules', 360, 82, Math.round(44 * Math.min(scale, 1.15)));
 
-    text(page.title, 360, P2.y + 66, Math.round(32 * scale), '#ffd684', UI, 700);
-    let y = P2.y + 118;
+    const titleSize = Math.round(32 * scale);
+    // A long title can be wider than the screen once `scale` gets big (300%'s own top step) - it
+    // wraps onto a second line rather than shrinking, the same rule as the body text below it
+    // (2026-09-23, 300% pass).
+    const titleLH = Math.round(titleSize * 1.15);
+    const titleLineCount = wrap(page.title, 360, P2.y + 66, titleSize, P2.w - 60, '#ffd684', titleLH, 'center', 700);
     const maxW = P2.w - 90;
+    const fontPx = Math.round(29 * scale), lh = Math.round(fontPx * 1.42), gap = Math.round(12 * scale);
+    let y;
     if (page.piece) {
       const iconY = P2.y + 250;
       (page.piece === 'H' ? drawHare : drawHound)(ctx, 360, iconY, 62, { set });
-      y = iconY + 128;
+      // The icon art itself is a fixed size (like the small still-life below - never scaled), but
+      // the gap AFTER it must still grow with the body font's own ascent, or a much taller first
+      // line at a big text-size step climbs back up into the icon - found by actually rendering
+      // "The hound"/"The hare" at the 300% step, where the hound's chin touched the body text's own
+      // first line (this branch was missed by the 2026-09-23 300% pass, which only fixed the
+      // non-piece branch below). Same real-font-metric approach as that fix.
+      ctx.font = `600 ${fontPx}px ${UI}`;
+      const bodyAsc = ctx.measureText('Ag').fontBoundingBoxAscent || fontPx * 0.8;
+      y = iconY + 90 + Math.round(20 * scale) + bodyAsc;
+    } else {
+      // The title and the body's own first line both grow with `scale`; at the top step (300%)
+      // a fixed gap is no longer enough to clear the title's descent plus the body's own ascent,
+      // so the gap is measured from real font metrics instead (2026-09-23, 300% pass). Math.max
+      // keeps the original fixed gap wherever it was already enough, so lower steps are unchanged.
+      ctx.font = `700 ${titleSize}px ${UI}`;
+      const titleDesc = ctx.measureText(page.title).fontBoundingBoxDescent || titleSize * 0.25;
+      const titleBottom = P2.y + 66 + (titleLineCount - 1) * titleLH + titleDesc;
+      ctx.font = `600 ${fontPx}px ${UI}`;
+      const bodyAsc = ctx.measureText('Ag').fontBoundingBoxAscent || fontPx * 0.8;
+      y = Math.max(P2.y + 118, titleBottom + Math.round(14 * scale) + bodyAsc);
     }
-    const fontPx = Math.round(29 * scale), lh = Math.round(fontPx * 1.42), gap = Math.round(12 * scale);
     for (const line of page.lines) { const n = wrap(line, 360, y, fontPx, maxW, '#f6e3b4', lh); y += n * lh + gap; }
 
     // A small still life of the two pieces, only when a page has no portrait of its own and there

@@ -4,7 +4,7 @@
 // How a move is made: TAP a piece (its legal points glow), then TAP a glowing point. To drop a captured piece:
 // TAP it on your stand, then TAP an empty glowing point. A refused move visibly tries, shudders, comes back, and a
 // message says why.
-import { W, H, geom, sqAt, standSlot, STAND, STAND_ORDER, inRect, TEXT_SCALES } from './layout.js';
+import { W, H, geom, sqAt, standSlot, STAND, STAND_ORDER, inRect, TEXT_SCALES, THINK_STEPS } from './layout.js';
 import { newGame, applyMove, legalMoves, result, inCheck, mFrom, mTo, mPromo, mDrop, isDrop, dropMove, mk, whyNotMove, whyNotDrop, describe, fromRows, make, unmake, NAME, HINT, hasLegalMove } from './rules.js';
 import { createThinker } from './engine.js';
 import { LESSONS } from './lessons.js';
@@ -16,6 +16,11 @@ export const meta = { width: W, height: H };
 const DEMO_GAMES = 2, DEMO_LESSONS = 4, HINTS = 3, STEP_NODES = 2000;
 const SHOWCASE = 777700000;      // seeds SHOWCASE+1..+9 open fixed scenes for the store pictures (tools/arc shots)
 const LETTER_T = { P: 1, L: 2, N: 3, S: 4, G: 5, B: 6, R: 7 };
+// Auto Play (Watch & Learn): the computer plays BOTH sides through a THINK -> REVEAL -> ACT loop,
+// reusing the real engine (engine.js) and the real move-execution path (playMove) - never a second
+// fake game. AUTO_LEVEL is fixed (not the player's chosen difficulty): strong enough to be worth
+// watching, fast enough that its own thinking rarely outlasts the viewer's configured think time.
+const AUTO_LEVEL = 2, AUTO_REVEAL_SECS = 2;
 
 export function createGame(env) {
   const { rng, storage, audio, monetization, config } = env;
@@ -27,12 +32,19 @@ export function createGame(env) {
     // A-/A+ stepper that lives right on those pages. Separate from prefs.big, which still governs
     // other (gameplay-adjacent) screens: setup/settings blurbs, lesson/puzzle status text, result text.
     textScaleIdx: 0,
+    // Auto Play teaching loop (scene 'auto'): THINK (board static, viewer works out their own guess)
+    // -> REVEAL (every legal destination for the piece about to move glows; the one actually about
+    // to be played is ringed distinctly, ~2s) -> ACT (the real playMove/animation, unchanged) -> loop,
+    // for a whole game. autoThinkIdx indexes THINK_STEPS (never a raw float, same pattern as
+    // textScaleIdx above). autoPendingMove is `undefined` while the engine still computes, `null` if
+    // it finds no legal move, or the move once ready; autoChosenTo is the reveal-phase ringed square.
+    autoPhase: null, autoTimer: 0, autoThinkIdx: 1, autoPendingMove: undefined, autoChosenTo: -1,
     prefs: { sound: true, calm: false, big: false, labels: false, lang: 'jp' },
     stats: { played: 0, wins: 0 }, saved: null, lessonsDone: new Array(LESSONS.length).fill(false), lesson: null,
     pz: null, daily: { day: config.day ?? 0, solvedDay: -1, streak: 0 }, demo: { games: 0, lessons: 0, puzzles: 0 },
     dev: config.dev === true, demoMode: config.demo === true,
   };
-  let legalCache = null, thinker = null, hintThinker = null, pending = [], pendingShowcase = config.seed > SHOWCASE && config.seed < SHOWCASE + 10 ? config.seed - SHOWCASE : 0;
+  let legalCache = null, thinker = null, hintThinker = null, autoThinker = null, pending = [], pendingShowcase = config.seed > SHOWCASE && config.seed < SHOWCASE + 10 ? config.seed - SHOWCASE : 0;
   let showcaseLang = null;         // a showcase scene's forced language choice always wins over the async prefs load below
   const G = () => geom(state.game.n);
   const flip = () => !state.two && state.human === 1 && state.scene === 'play';
@@ -44,8 +56,9 @@ export function createGame(env) {
     if (v) {
       state.prefs = { ...state.prefs, ...v.prefs }; state.level = v.level ?? state.level; audio.setMuted(!state.prefs.sound);
       // Guarded lookup + clamp: a stale saved index from a build with a longer/shorter TEXT_SCALES
-      // array must never produce a NaN or out-of-range font size.
+      // (or THINK_STEPS) array must never produce a NaN or out-of-range font size / think-time.
       state.textScaleIdx = Math.min(Math.max(v.textScaleIdx ?? state.textScaleIdx, 0), TEXT_SCALES.length - 1);
+      state.autoThinkIdx = Math.min(Math.max(v.autoThinkIdx ?? state.autoThinkIdx, 0), THINK_STEPS.length - 1);
     }
     if (showcaseLang) state.prefs.lang = showcaseLang;
   });
@@ -54,7 +67,7 @@ export function createGame(env) {
   storage.get('daily', null).then((v) => { if (v) { state.daily.solvedDay = v.solvedDay ?? -1; state.daily.streak = v.streak ?? 0; } });
   storage.get('demo', null).then((v) => { if (v) state.demo = { games: Math.max(state.demo.games, v.games || 0), lessons: Math.max(state.demo.lessons, v.lessons || 0), puzzles: Math.max(state.demo.puzzles, v.puzzles || 0) }; });
   storage.get('save', null).then((v) => { if (v && Array.isArray(v.moves) && state.scene === 'title') state.saved = v; });
-  const savePrefs = () => storage.set('prefs', { prefs: state.prefs, level: state.level, textScaleIdx: state.textScaleIdx });
+  const savePrefs = () => storage.set('prefs', { prefs: state.prefs, level: state.level, textScaleIdx: state.textScaleIdx, autoThinkIdx: state.autoThinkIdx });
   const saveProgress = () => storage.set('progress', { played: state.stats.played, wins: state.stats.wins });
   const saveGame = () => { if (state.scene === 'play' && !state.result && state.moves.length) { state.saved = { variant: state.variant, moves: state.moves.slice(), human: state.human, level: state.level, two: state.two }; storage.set('save', state.saved); } };
   const clearSave = () => { state.saved = null; storage.remove('save'); };
@@ -63,13 +76,16 @@ export function createGame(env) {
   // ---- helpers ---------------------------------------------------------------------------------------------
   const dur = (d) => (state.prefs.calm ? d * 0.55 : d);
   const say = (text, hold = 6) => { state.msg = { text, t: 0, hold }; };
-  const tone = (o) => { if (state.prefs.sound) audio.tone(o); };
+  // Auto Play watches itself with no player to hear it for - silent by design, same principle as the
+  // menu's own silent attract-mode preview. This is the one choke point every sound effect funnels
+  // through (clack/chime below both call tone()), so gating it here silences the whole scene at once.
+  const tone = (o) => { if (state.prefs.sound && state.scene !== 'auto') audio.tone(o); };
   const clack = (f = 420, v = 0.12) => tone({ freq: f * 0.8, to: f * 0.36, dur: 0.07, type: 'sine', vol: v });
   const chime = (freqs) => freqs.forEach((f) => tone({ freq: f, dur: 0.4, type: 'triangle', vol: 0.08 }));
   const later = (t, fn) => pending.push({ t, fn });
   const humanTurn = () => state.two || state.game.turn === state.human;
   const changed = () => { legalCache = null; state.sel = null; state.targets = []; state.hint = null; hintThinker = null; };
-  const ui = () => ({ scene: state.scene, prefs: state.prefs, saved: state.saved, level: state.level, humanPick: state.humanPick, page: state.page, textScaleIdx: state.textScaleIdx, lessonsDone: state.lessonsDone, menu: state.menu, result: state.result, canUndo: state.moves.length > 0 && !state.two && !state.thinking, hintsLeft: state.hintsLeft, two: state.two, lesson: state.lesson, pz: state.pz, promo: state.promo });
+  const ui = () => ({ scene: state.scene, prefs: state.prefs, saved: state.saved, level: state.level, humanPick: state.humanPick, page: state.page, textScaleIdx: state.textScaleIdx, autoThinkIdx: state.autoThinkIdx, lessonsDone: state.lessonsDone, menu: state.menu, result: state.result, canUndo: state.moves.length > 0 && !state.two && !state.thinking, hintsLeft: state.hintsLeft, two: state.two, lesson: state.lesson, pz: state.pz, promo: state.promo });
 
   function replay(variant, moves) { const pos = newGame(variant); for (const m of moves) applyMove(pos, m); return pos; }
   function enter(scene) {
@@ -115,10 +131,10 @@ export function createGame(env) {
     saveGame();
     if (!humanTurn()) { state.thinking = true; state.thinkT = 0; thinker = createThinker(pos, state.level, rng); }
   }
+  const resultWhy = (res) => ({ checkmate: 'Checkmate', 'perpetual check': 'Perpetual check', repetition: 'Same position four times', 'move limit': 'Move limit reached', resignation: 'Resigned' }[res.why] || 'No legal move');
   function finishGame(res) {
     state.result = res; state.thinking = false; thinker = null; state.menu = false; state.sel = null; state.targets = [];
-    const me = state.two ? null : state.human;
-    const why = { checkmate: 'Checkmate', 'perpetual check': 'Perpetual check', repetition: 'Same position four times', 'move limit': 'Move limit reached', resignation: 'Resigned' }[res.why] || 'No legal move';
+    const me = state.two ? null : state.human, why = resultWhy(res);
     if (res.winner === null) say(`${why}: the game is a draw.`, 999);
     else if (me === null) say(`${why}! ${res.winner === 0 ? 'Sente (bottom)' : 'Gote (top)'} wins.`, 999);
     else if (res.winner === me) say(`${why}! You win.`, 999);
@@ -126,6 +142,62 @@ export function createGame(env) {
     if (!state.two) { state.stats.played++; if (res.winner === me) state.stats.wins++; saveProgress(); chime(res.winner === me ? [523, 659, 784] : res.winner === null ? [440, 440] : [392, 330]); }
     clearSave();
     monetization.track('game_end', { winner: res.winner, why: res.why, ply: state.game.ply });
+  }
+
+  // ---- Auto Play ("Watch & Learn"): the computer plays every side, THINK -> REVEAL -> ACT, for a
+  // whole game. Never touches state.moves/saved/stats/progress/monetization.track - those are the
+  // player's real save/progress and this scene must never write to them (it reassigns state.game the
+  // same way lesson/puzzle already do, which is why those two also leave the real save untouched).
+  function startAuto() {
+    enter('auto');
+    autoThinker = null;
+    Object.assign(state, { variant: 'standard', game: newGame('standard'), moves: [], result: null, lastMove: null,
+      autoPhase: null, autoPendingMove: undefined, autoChosenTo: -1 });
+    say('Auto Play: the computer plays both sides. THINK, then the move is revealed before it plays - compare it with your own guess.', 999);
+  }
+  function autoFinish(res) {
+    state.result = res; autoThinker = null; state.autoPhase = null; state.autoPendingMove = undefined; state.autoChosenTo = -1;
+    state.sel = null; state.targets = [];
+    const why = resultWhy(res);
+    say(res.winner === null ? `${why}: the game is a draw.` : `${why}! ${res.winner === 0 ? 'Sente (bottom)' : 'Gote (top)'} wins.`, 999);
+  }
+  function autoStep(dt) {
+    if (state.result || state.anim) return;
+    const pos = state.game;
+
+    if (state.autoPhase === 'reveal') {
+      state.autoTimer -= dt;
+      if (state.autoTimer > 0) return;
+      const mv = state.autoPendingMove;
+      state.autoPhase = null; state.autoPendingMove = undefined; state.autoChosenTo = -1;
+      state.sel = null; state.targets = [];
+      playMove(mv, true);
+      const res = result(state.game);
+      if (res) autoFinish(res);
+      return;
+    }
+
+    // THINK phase (also the default/initial phase: autoPhase starts null, so the very first call
+    // here falls straight into it and starts the timer below).
+    if (!autoThinker) {
+      autoThinker = createThinker(pos, AUTO_LEVEL, rng);
+      state.autoPhase = 'think';
+      state.autoTimer = THINK_STEPS[state.autoThinkIdx];
+    }
+    const r = autoThinker.step(STEP_NODES);
+    if (r && r.move !== undefined) state.autoPendingMove = r.move;
+    state.autoTimer -= dt;
+    if (state.autoTimer > 0) return;
+    if (state.autoPendingMove === undefined) return; // think time is up but a deep search isn't
+    // ready yet - keep waiting a frame at a time rather than reveal nothing.
+    const mv = state.autoPendingMove;
+    autoThinker = null;
+    if (!mv) { autoFinish({ winner: null, why: 'no-move' }); return; }
+    state.sel = isDrop(mv) ? { drop: mDrop(mv) } : { sq: mFrom(mv) };
+    computeTargets();
+    state.autoChosenTo = mTo(mv);
+    state.autoPhase = 'reveal';
+    state.autoTimer = AUTO_REVEAL_SECS;
   }
 
   // ---- tapping -----------------------------------------------------------------------------------------------
@@ -309,6 +381,9 @@ export function createGame(env) {
       case 'two': startGame({ variant: 'standard', human: 0, level: state.level, two: true }); break;
       case 'learn': enter('learn'); break;
       case 'puzzle': startPuzzle(0); break;
+      case 'autoplay': startAuto(); break;
+      case 'autoThinkDec': if (state.autoThinkIdx > 0) { state.autoThinkIdx--; savePrefs(); } break;
+      case 'autoThinkInc': if (state.autoThinkIdx < THINK_STEPS.length - 1) { state.autoThinkIdx++; savePrefs(); } break;
       case 'howto': enter('howto'); break;
       case 'about': enter('about'); break;
       case 'rules': enter('rules'); break;
@@ -327,7 +402,7 @@ export function createGame(env) {
       case 'sideB': state.humanPick = 0; break;
       case 'sideW': state.humanPick = 1; break;
       case 'start': startGame({ variant: state.variant, human: state.humanPick, level: state.level, two: false }); break;
-      case 'again': startGame({ variant: state.variant, human: state.two ? 0 : state.human, level: state.level, two: state.two }); break;
+      case 'again': if (state.scene === 'auto') startAuto(); else startGame({ variant: state.variant, human: state.two ? 0 : state.human, level: state.level, two: state.two }); break;
       case 'title': enter('title'); break;
       case 'menu': state.menu = true; break;
       case 'resume': state.menu = false; break;
@@ -379,7 +454,7 @@ export function createGame(env) {
         else if (state.scene === 'setup') press('start');
         else if (playing && !state.menu) { const p = cursorPoint(); tapBoard(p.x, p.y); }
       } else if (k === 'Escape') {
-        if (state.promo) press('promoCancel'); else if (state.sel) { state.sel = null; state.targets = []; } else if (state.scene === 'play' && !state.result) state.menu = !state.menu;
+        if (state.promo) press('promoCancel'); else if (state.sel) { state.sel = null; state.targets = []; } else if ((state.scene === 'play' || state.scene === 'auto') && !state.result) state.menu = !state.menu;
       } else if (k === 'KeyH') askHint();
       else if (k === 'KeyZ') undo();
       else if (k === 'KeyD' && playing && humanTurn() && !state.menu) {
@@ -457,6 +532,11 @@ export function createGame(env) {
         say(`Check! Keep going: mate in ${p.pz.n - p.moveNo}.`, 999);
       }
     }
+    // Paused (state.menu) or ended (state.result) both freeze the loop exactly like the normal play
+    // scene does; leaving the scene (any other button here) stops it for good - there is no separate
+    // timer/interval to tear down, just this per-frame gate, so it can never keep running or making
+    // sound off-screen.
+    if (state.scene === 'auto' && !state.menu) autoStep(dt);
   }
 
   if (pendingShowcase) { const k = pendingShowcase; pendingShowcase = 0; showcase(k); }

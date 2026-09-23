@@ -40,10 +40,18 @@ export const R = {
   done: { x: 190, y: 1118, w: 340, h: 104 },
 };
 export const titleButtons = (hasSave) => {
-  // 'rules' is appended LAST on purpose: every earlier row keeps the exact x/y/w/h it always had.
-  const names = (hasSave ? ['resume'] : []).concat(['play', 'learn', 'daily', 'about', 'how', 'settings', 'rules']);
+  // Every row up to and including 'how' keeps the exact x/y/w/h it always had. There was no
+  // vertical room left below 'rules' for a new full-width row (Auto Play addition), so instead
+  // 'settings' and 'rules' - previously the last two full-width rows - now share ONE row as two
+  // half-width buttons at the SAME y each always had (settings' old y), freeing 'rules' old row for
+  // the new 'auto' full-width button. Total footprint (and every other row) is unchanged.
+  const names = (hasSave ? ['resume'] : []).concat(['play', 'learn', 'daily', 'about', 'how']);
   const out = {}, y0 = hasSave ? 872 : 900, h = hasSave ? 74 : 80, gap = hasSave ? 12 : 14;
   names.forEach((nm, i) => { out[nm] = { x: 110, y: y0 + i * (h + gap), w: 500, h }; });
+  const pairY = y0 + names.length * (h + gap), halfW = (500 - 20) / 2;
+  out.settings = { x: 110, y: pairY, w: halfW, h };
+  out.rules = { x: 110 + halfW + 20, y: pairY, w: halfW, h };
+  out.auto = { x: 110, y: pairY + (h + gap), w: 500, h };
   return out;
 };
 
@@ -54,10 +62,23 @@ export const PAGE_NAV = { back: { x: 36, y: 1380, w: 300, h: 84 }, next: { x: 38
 // Text-size steps for the About/How/Rules reference pages. An *index* into this, never a raw
 // float, so "min"/"max" are exact and the stepper can cleanly disable at either end. Content on
 // every reference page is paced (content.js) to fit comfortably even at the top step.
-export const TEXT_SCALES = [1, 1.15, 1.3];
+export const TEXT_SCALES = [1, 1.5, 2, 2.5, 3];
 // "A-"/"A+" stepper buttons, flanking the big page title (drawn at y=176) above the reader panel
 // (which starts at y=214) - out of the way of the panel and of Back/Next at the bottom.
 export const TEXT_BTN = {
   dec: { x: 30, y: 122, w: 128, h: 72 },
   inc: { x: W - 30 - 128, y: 122, w: 128, h: 72 },
+};
+
+// Auto Play (assisted-learning THINK -> REVEAL -> ACT loop, watches the real engine.js thinker
+// play both Black and White). Think-time steps: an *index* array like TEXT_SCALES above, never a
+// raw float, default index 1 (5s), hard-capped at the last step (10s - owner instruction: "max
+// wait should not be more than 10s"). REVEAL is fixed, the same at every think-time step.
+export const THINK_STEPS = [2, 5, 8, 10];
+export const REVEAL_TIME = 2;
+// The stepper takes over the centre "Place"/"Tap a point" band (autoplay never needs it: nothing
+// is tapped), and the bottom row reuses the same three left-hand slots pass/undo/hint already use.
+export const AUTOPLAY = {
+  dec: { x: 36, y: 1118, w: 190, h: 104 }, inc: { x: 494, y: 1118, w: 190, h: 104 },
+  exit: { x: 36, y: 1290, w: 150, h: 84 }, pause: { x: 202, y: 1290, w: 150, h: 84 }, skip: { x: 368, y: 1290, w: 150, h: 84 },
 };

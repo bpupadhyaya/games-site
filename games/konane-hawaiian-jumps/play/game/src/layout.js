@@ -16,11 +16,14 @@ export const BTN = {
   menu: R(60, 1462, 190, 72), undo: R(265, 1462, 190, 72), hint: R(470, 1462, 190, 72),
   again: R(140, 1000, 440, 96), back: R(140, 1116, 440, 84), share: R(140, 1220, 440, 84), next: R(140, 1462, 440, 72),
 };
-// Title screen buttons.
+// Title screen buttons. "Rules" and "Auto Play" share one row (half-width each) so adding the new
+// Auto Play entry point never shifts anything else on the title screen down.
 export function titleRows(hasSave) {
-  const names = (hasSave ? ['resume'] : []).concat(['play', 'learn', 'daily', 'how', 'about', 'rules']), out = {}, y0 = hasSave ? 690 : 730;
+  const names = (hasSave ? ['resume'] : []).concat(['play', 'learn', 'daily', 'how', 'about']), out = {}, y0 = hasSave ? 690 : 730;
   names.forEach((nm, i) => { out[nm] = R(90, y0 + i * 88, 540, 76); });
-  const y = y0 + names.length * 88 + 8;
+  const rulesY = y0 + names.length * 88;
+  out.rules = R(90, rulesY, 262, 76); out.auto = R(368, rulesY, 262, 76);
+  const y = rulesY + 88 + 8;
   out.sound = R(90, y, 172, 62); out.calm = R(274, y, 172, 62); out.big = R(458, y, 172, 62);
   return out;
 }
@@ -35,5 +38,11 @@ export const HELP = { prev: R(60, 1462, 190, 72), next: R(470, 1462, 190, 72), b
 // Text-size steps for the reference pages (How to play, About, Rules). An index into this array,
 // never a raw float, so the stepper can cleanly disable at either end. Buttons sit in the empty
 // header strip above the page title, well clear of it and of the Back/Next/Menu row at the foot.
-export const TEXT_SCALES = [1, 1.15, 1.3];
+export const TEXT_SCALES = [1, 1.5, 2, 2.5, 3];
 export const TEXTSTEP = { dec: R(40, 34, 130, 62), inc: R(550, 34, 130, 62) };
+// Auto Play (Watch & Learn): think-time steps in seconds, hard-capped at 10s. An index into this
+// array (same pattern as TEXT_SCALES), never a raw float. The stepper reuses the TEXTSTEP buttons'
+// position/style (never shown on the same scene as the text-size stepper, so no clash).
+export const AUTO_THINK_STEPS = [2, 5, 8, 10];
+export const AUTO_THINK_DEFAULT = 1; // index of 5s
+export const AUTO_REVEAL_SECONDS = 2;
