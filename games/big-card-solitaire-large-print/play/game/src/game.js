@@ -252,15 +252,19 @@ export function createGame(env) {
     if (contains(BTN.deal, x, y) || contains(HERO, x, y)) startNewDeal();
   };
 
-  // The Rules reference page: Back always returns to the title, Next cycles pages (wraps around).
+  // The Rules reference page: Back steps to the previous page, or exits to the title from page 1
+  // (owner-reported bug, 2026-09-23: Back used to always jump straight to the title, discarding
+  // whatever page you were reading - a real regression from the standard pattern every other
+  // game's Rules reference uses). Next steps forward and reads "Done" on the last page, exiting
+  // there instead of silently wrapping back to page 1.
   const handleRulesTap = (x, y) => {
     if (contains(BTN.rulesBack, x, y)) {
-      state.scene = 'title';
-      state.rulesPage = 0;
+      if (state.rulesPage > 0) state.rulesPage -= 1;
+      else state.scene = 'title';
       return tick();
     }
     if (contains(BTN.rulesNext, x, y)) {
-      state.rulesPage = (state.rulesPage + 1) % RULES.length;
+      if (state.rulesPage >= RULES.length - 1) { state.scene = 'title'; state.rulesPage = 0; } else state.rulesPage += 1;
       return tick();
     }
     if (contains(BTN.textDec, x, y) && state.textScaleIdx > 0) {

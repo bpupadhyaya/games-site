@@ -270,7 +270,7 @@ function drawRules(ctx, state, theme) {
 
   text(ctx, `Page ${(state.rulesPage % RULES.length) + 1} of ${RULES.length}`, W / 2, 1392, 24, 'rgba(251,238,221,0.65)', UI, 600);
   drawButton(ctx, BTN.rulesBack, 'Back', { size: 36 });
-  drawButton(ctx, BTN.rulesNext, 'Next', { style: 'primary', size: 36 });
+  drawButton(ctx, BTN.rulesNext, state.rulesPage >= RULES.length - 1 ? 'Done' : 'Next', { style: 'primary', size: 36 });
   const atMin = state.textScaleIdx === 0, atMax = state.textScaleIdx === TEXT_SCALES.length - 1;
   ctx.save(); if (atMin) ctx.globalAlpha = 0.4;
   drawButton(ctx, BTN.textDec, 'A−', { size: 30 });
