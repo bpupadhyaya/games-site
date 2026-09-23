@@ -77,14 +77,24 @@ export const REF_BACK = rect(20, 1416, 330, 116);
 export const REF_NEXT = rect(370, 1416, 330, 116);
 
 // One row per toggle: Sound, Reduced motion, Large print, Four-colour suits, Card back theme.
+// Starts at y=440 (was 290) so the first row clears the full-width embroidered band tableTop()
+// draws at y=340-420 — the old first row sat right on top of it. Pitch widened 132 -> 155 at the
+// same time: with only 5 rows the old spacing left ~640px of dead green felt below the last row;
+// the wider pitch spreads the rows to fill the screen properly instead.
 export const SETTINGS_ROWS = 5;
-export const SETTINGS_ROW = (i) => rect(90, 290 + i * 132, W - 180, 104);
+export const SETTINGS_ROW = (i) => rect(90, 440 + i * 155, W - 180, 104);
 
+// Shifted +220 from the original y's (was 330/494/690/1080) to clear BOTH the veranda header art
+// (samovar/cup, ends ~y=300) AND the full-width embroidered cross-stitch band tableTop() draws at
+// y=340-386 (plus its cast-shadow to y=420) — the old "New game" heading sat right on the band and
+// was hard to read. drawSetup() now puts that heading at y=452, comfortably below the band, and
+// everything else moves down by the same flat 220px so all the original internal gaps stay
+// identical (still no overflow at the bottom: the blurb panel now ends at y=1492 of 1560).
 export const SETUP = {
-  players: [2, 3, 4].map((v, i) => ({ v, r: rect(110 + i * 170, 330, 150, 84) })),
-  modes: [rect(70, 494, 285, 96), rect(365, 494, 285, 96)],
-  levels: [1, 2, 3, 4].map((v, i) => ({ v, r: rect(60 + (i % 2) * 300, 690 + ((i / 2) | 0) * 118, 280, 100) })),
-  start: rect(110, 1080, 500, 112),
+  players: [2, 3, 4].map((v, i) => ({ v, r: rect(110 + i * 170, 550, 150, 84) })),
+  modes: [rect(70, 714, 285, 96), rect(365, 714, 285, 96)],
+  levels: [1, 2, 3, 4].map((v, i) => ({ v, r: rect(60 + (i % 2) * 300, 910 + ((i / 2) | 0) * 118, 280, 100) })),
+  start: rect(110, 1300, 500, 112),
 };
 
 // ---- Auto Play ("Watch & Learn") ------------------------------------------------------------

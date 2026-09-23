@@ -658,7 +658,10 @@ export function createGame(env) {
 
   return {
     update(dt, input) {
-      state.t += dt;
+      // Auto Play's Pause is asked to freeze the WHOLE loop, not just its own THINK/REVEAL timers
+      // — including every ambient, decorative animation driven off this one shared clock (the
+      // title medallion, glows, pulses, the coffee-cup steam) so a paused frame is truly still.
+      state.t += state.scene === 'auto' && state.auto?.paused ? 0 : dt;
       const p = input.pointer, kbd = keyboard(input);
       let tap = p.pressed ? { x: p.x, y: p.y } : kbd && kbd.x !== undefined ? kbd : null;
       const sc = state.scene;
@@ -682,9 +685,19 @@ export function createGame(env) {
         if (tap && inRect(OVERLAY_BTN, tap.x, tap.y)) { state.scene = 'title'; }
         if (tap && inRect({ x: 160, y: 1176, w: 400, h: 90 }, tap.x, tap.y)) startMatch();
       } else if (sc === 'demo-limit') { if (tap && inRect(OVERLAY_BTN, tap.x, tap.y)) state.scene = 'title'; }
-      else if (sc === 'auto') { updateAuto(dt, tap); if (state.H) updatePos(dt); }
+      else if (sc === 'auto') {
+        updateAuto(dt, tap);
+        // Pause must freeze the WHOLE loop, including a card still gliding toward its last target
+        // (updatePos eases positions every frame regardless of phase) — not just the THINK/REVEAL
+        // timers inside updateAuto. Feeding it dt=0 while paused holds every card exactly where it
+        // was instead of letting it keep drifting to its destination under the "Paused" label.
+        if (state.H) updatePos(state.auto && state.auto.paused ? 0 : dt);
+      }
     },
     render(ctx) { render(ctx, state); },
     getState: () => state,
+    // Auto Play is a free teaching demo, like the menu's own attract-mode preview - it should
+    // never spend the player's paid-preview time. Checked once per frame by kit/preview.js.
+    isPreviewExempt: () => state.scene === 'auto',
   };
 }

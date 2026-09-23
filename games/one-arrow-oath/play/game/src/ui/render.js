@@ -10,7 +10,7 @@ import * as B from '../rules/battle.js';
 import { STEPS_PER_ACT, REMOVE_PRICE, SKIP_REWARD_MARKS, removableTechs, campHeal } from '../rules/run.js';
 import { C, W, H, SAFE_TOP, elementColor, alpha, font } from './theme.js';
 import { bar, button, contactShadow, diamond, drawArcher, drawCard, drawConstruct, drawRing, drawSky, glyph, goldFoil, icon, intentBadge, panel, paragraph, roundRect, rule, setPress, text, tracked } from './draw.js';
-import { ARCHER, BTN, CARD_H, CARD_W, CLOSE, CONFIRM, COVENANT_BTN, COVENANT_BTN_TOP, DETAIL, ENVOY, ENVOY_TOP, FOCUS, GRID, HEADER_CX, HEADER_W, HEADER_Y, OPTIONS, OPTIONS_TOP, RESOLVE_BAR, RING, SECONDARY, HELP_TABS, HELP_TEXT, PAGE_NAV, HOWTO_PER_PAGE, ABOUT_PER_PAGE, TEXT_SCALES, NEWRUN, TUNER_REMOVE, TUNER_TRIO_Y, choiceRects, enemySlots, titleRects, trioRects, AUTO_HUD, AUTO_STEP_DEC, AUTO_STEP_INC, AUTO_CONTENT_TOP, AUTO_SKIP, AUTO_EXIT, AUTO_AGAIN, AUTO_THINK_STEPS, autoListRects, autoTrioRects, autoHandSlots, autoEnemySlots } from './layout.js';
+import { ARCHER, BTN, CARD_H, CARD_W, CLOSE, CONFIRM, COVENANT_BTN, COVENANT_BTN_TOP, DETAIL, ENVOY, ENVOY_TOP, FOCUS, GRID, HEADER_CX, HEADER_W, HEADER_Y, OPTIONS, OPTIONS_TOP, RESOLVE_BAR, RING, SECONDARY, HELP_TABS, HELP_TEXT, PAGE_NAV, HOWTO_PER_PAGE, ABOUT_PER_PAGE, TEXT_SCALES, NEWRUN, TUNER_REMOVE, TUNER_TRIO_Y, choiceRects, enemySlots, titleRects, trioRects, AUTO_HUD, AUTO_STEP_DEC, AUTO_STEP_INC, AUTO_CONTENT_TOP, AUTO_SKIP, AUTO_PAUSE, AUTO_EXIT, AUTO_AGAIN, AUTO_THINK_STEPS, autoListRects, autoTrioRects, autoHandSlots, autoEnemySlots } from './layout.js';
 
 const TAU = Math.PI * 2;
 const ease = (x) => 1 - (1 - x) * (1 - x);
@@ -548,12 +548,18 @@ function drawRunover(ctx, s) {
   text(ctx, `${arrowsLeft} Arrows unspent   ·   Standing ${s.run.standing}/3   ·   ${s.run.debts.length} Debts owed`, W / 2, 500, { size: 21, color: C.inkSoft });
 
   (s.unlocked ?? []).forEach((line, i) => text(ctx, line, W / 2, 528 + i * 26, { size: 21, weight: 700, color: C.good, display: true, glow: alpha(C.good, 0.4) }));
-  panel(ctx, { x: 44, y: 566, w: W - 88, h: 694 });
+  // Panel height tracks how many Arrows were actually spent, so a short run's summary doesn't
+  // leave a tall empty box below a single line (or the "not one Arrow" message) — same pattern
+  // as the Rival's quiver panel above.
+  const spent = s.run.spent;
+  const shown = spent.slice(0, 12);
+  const hasMore = spent.length > shown.length;
+  const rows = spent.length ? shown.length + (hasMore ? 1 : 0) : 1;
+  const panelH = Math.max(230, Math.min(694, 78 + rows * 42 + 76));
+  panel(ctx, { x: 44, y: 566, w: W - 88, h: panelH });
   tracked(ctx, 'The Spent', W / 2, 620, { size: 24, spacing: 5, color: C.goldLight });
   rule(ctx, W / 2, 644, 260);
-  const spent = s.run.spent;
   if (!spent.length) text(ctx, 'Not one Arrow left your bow.', W / 2, 730, { size: 25, color: C.good, display: true });
-  const shown = spent.slice(0, 12);
   shown.forEach((c, i) => {
     const y = 700 + i * 42;
     const card = CARDS[c.id];
@@ -981,16 +987,22 @@ function autoHud(ctx, s, A) {
   panel(ctx, AUTO_HUD, { r: 24 });
   tracked(ctx, 'Auto Play · Watch & Learn', W / 2, AUTO_HUD.y + 36, { size: 18, color: C.goldLight, spacing: 3, glow: alpha(C.gold, 0.5) });
   const thinking = A.phase === 'think';
-  const caption = thinking ? 'Thinking…' : A.phase === 'over' ? (A.result === 'won' ? 'The day is won.' : 'The quiver falls silent.') : A.caption || '…';
-  paragraph(ctx, caption, W / 2, AUTO_HUD.y + 70, AUTO_HUD.w - 200, { size: 21, weight: 700, color: C.ink, lineH: 1.2, display: true });
+  const paused = A.paused && A.phase !== 'over';
+  const caption = paused ? 'Paused' : thinking ? 'Thinking…' : A.phase === 'over' ? (A.result === 'won' ? 'The day is won.' : 'The quiver falls silent.') : A.caption || '…';
+  paragraph(ctx, caption, W / 2, AUTO_HUD.y + 70, AUTO_HUD.w - 200, { size: 21, weight: 700, color: paused ? C.damage : C.ink, lineH: 1.2, display: true });
   button(ctx, AUTO_STEP_DEC, '−', { quiet: true, size: 28, disabled: s.autoThinkIdx === 0 });
   button(ctx, AUTO_STEP_INC, '+', { quiet: true, size: 24, disabled: s.autoThinkIdx === AUTO_THINK_STEPS.length - 1 });
   text(ctx, `Think time: ${AUTO_THINK_STEPS[s.autoThinkIdx]}s  (max ${AUTO_THINK_STEPS[AUTO_THINK_STEPS.length - 1]}s)`, W / 2, AUTO_HUD.y + 148, { size: 17, color: C.muted, weight: 600 });
 }
 
 function autoControls(ctx, A) {
-  const canSkip = A.phase === 'think' || A.phase === 'reveal';
+  const over = A.phase === 'over';
+  const paused = A.paused && !over;
+  const canSkip = !paused && (A.phase === 'think' || A.phase === 'reveal');
   button(ctx, AUTO_SKIP, 'Skip wait', { size: 23, quiet: !canSkip, disabled: !canSkip });
+  // Kept as a real (disabled, not hidden) third slot once the run is over, same language as Skip
+  // above it, so the row never grows a gap where Pause used to be.
+  button(ctx, AUTO_PAUSE, paused ? 'Resume' : 'Pause', { size: 23, primary: paused, quiet: over, disabled: over });
   button(ctx, AUTO_EXIT, 'Exit', { size: 23, primary: true });
 }
 

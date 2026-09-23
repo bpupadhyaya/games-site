@@ -13,7 +13,7 @@ import * as R from './rules/run.js';
 import { makeSky } from './ui/draw.js';
 import { render as renderAll, renderAuto } from './ui/render.js';
 import { C, elementColor } from './ui/theme.js';
-import { ARCHER, BTN, CARD_H, CARD_W, CLOSE, CONFIRM, COVENANT_BTN, COVENANT_BTN_TOP, DETAIL, ENVOY, ENVOY_TOP, FIELD_BOTTOM, GRID, OPTIONS, OPTIONS_TOP, PULL_TO_LOOSE, SECONDARY, HELP_TABS, HELP_TEXT, PAGE_NAV, HOWTO_PER_PAGE, ABOUT_PER_PAGE, TEXT_SCALES, NEWRUN, TUNER_REMOVE, TUNER_TRIO_Y, choiceRects, enemySlots, handSlots, inRect, titleRects, trioRects, AUTO_THINK_STEPS, AUTO_REVEAL_SECONDS, AUTO_ACT_SECONDS, AUTO_STEP_DEC, AUTO_STEP_INC, AUTO_SKIP, AUTO_EXIT, AUTO_AGAIN } from './ui/layout.js';
+import { ARCHER, BTN, CARD_H, CARD_W, CLOSE, CONFIRM, COVENANT_BTN, COVENANT_BTN_TOP, DETAIL, ENVOY, ENVOY_TOP, FIELD_BOTTOM, GRID, OPTIONS, OPTIONS_TOP, PULL_TO_LOOSE, SECONDARY, HELP_TABS, HELP_TEXT, PAGE_NAV, HOWTO_PER_PAGE, ABOUT_PER_PAGE, TEXT_SCALES, NEWRUN, TUNER_REMOVE, TUNER_TRIO_Y, choiceRects, enemySlots, handSlots, inRect, titleRects, trioRects, AUTO_THINK_STEPS, AUTO_REVEAL_SECONDS, AUTO_ACT_SECONDS, AUTO_STEP_DEC, AUTO_STEP_INC, AUTO_SKIP, AUTO_PAUSE, AUTO_EXIT, AUTO_AGAIN } from './ui/layout.js';
 import { chooseCard as autoChooseCard, chooseDoor as autoChooseDoor, chooseReward as autoChooseReward, chooseCampOption as autoChooseCampOption, chooseEnvoyOption as autoChooseEnvoyOption, chooseTunerAction as autoChooseTunerAction, draftValue as autoDraftValue } from './autoplay.js';
 
 // +1: the element-ring diagram gets its own last page rather than riding on the last tip page,
@@ -804,7 +804,7 @@ export function createGame(env) {
     s.auto = {
       rng: autoRng(), run, battle: null, door: null, reward: null, envoy: null, leaving: false,
       scene: 'map', phase: 'think', timer: AUTO_THINK_STEPS[s.autoThinkIdx], pending: null,
-      caption: '', result: null, legend: 0, ui: { choice: -1, sel: -1, target: 0 },
+      caption: '', result: null, legend: 0, ui: { choice: -1, sel: -1, target: 0 }, paused: false,
     };
     s.scene = 'auto';
     s.fade = s.meta.reduceMotion ? 0 : 1;
@@ -1007,9 +1007,16 @@ export function createGame(env) {
         enterAuto();
         return;
       }
-      if ((A.phase === 'think' || A.phase === 'reveal') && inRect(AUTO_SKIP, tap.x, tap.y)) A.timer = 0;
+      // Pause freezes the whole loop exactly where it is - mid-THINK, mid-REVEAL or mid-ACT's
+      // settle pause - by short-circuiting below before A.timer (or anything else) ever moves;
+      // Resume just lets the same timer keep counting down from wherever it was left.
+      if (A.phase !== 'over' && inRect(AUTO_PAUSE, tap.x, tap.y)) {
+        A.paused = !A.paused;
+        return;
+      }
+      if (!A.paused && (A.phase === 'think' || A.phase === 'reveal') && inRect(AUTO_SKIP, tap.x, tap.y)) A.timer = 0;
     }
-    if (A.phase === 'over') return;
+    if (A.phase === 'over' || A.paused) return;
     A.timer -= dt;
     if (A.timer > 0) return;
     if (A.phase === 'think') {

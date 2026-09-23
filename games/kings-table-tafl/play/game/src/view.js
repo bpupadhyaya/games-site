@@ -174,8 +174,8 @@ export function render(ctx, state) {
       } else {
         button(AP.pause, A && A.paused ? 'Resume' : 'Pause', { primary: !!(A && A.paused), size: 22 });
         button(AP.skip, 'Skip', { size: 22 });
+        button(AP.exit, 'Exit', { size: 22 });
       }
-      button(AP.exit, 'Exit', { size: 22 });
     }
   }
   if (scene === 'puzzle' && state.pz.status === 'making') { shadowText('Daily puzzle', 360, 400, 50); text("Setting up today's puzzle…", 360, 700, 32, CREAM, UI, 600); button(BTN.menu, 'Menu', { size: 24 }); }

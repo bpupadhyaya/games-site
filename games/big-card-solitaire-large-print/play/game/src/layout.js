@@ -69,6 +69,11 @@ export const OPT = {
   motionOn: { x: 44, y: 1180, w: 308, h: 92 },
   motionOff: { x: 368, y: 1180, w: 308, h: 92 },
   done: { x: 140, y: 1340, w: 440, h: 110 },
+  // Opening Options mid-hand (the only way back to the title once a hand has started — there was
+  // no other exit at all, see STATUS.md) splits the bottom row: a secondary "New deal" alongside
+  // the primary "Done", instead of the single full-width Done shown from the title.
+  newDeal: { x: 20, y: 1340, w: 320, h: 110 },
+  doneAfterHand: { x: 380, y: 1340, w: 320, h: 110 },
 };
 
 export const contains = (r, x, y) => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;

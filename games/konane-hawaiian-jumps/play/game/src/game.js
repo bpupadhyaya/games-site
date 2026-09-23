@@ -134,7 +134,7 @@ export function createGame(env) {
   function enterAuto() {
     thinker = hintThinker = null;
     Object.assign(state, { scene: 'auto', sel: -1, hint: null, msg: null, kb: false, canAct: false });
-    state.auto = { game: newGame(6), phase: 'think', timer: AUTO_THINK_STEPS[state.autoThinkIdx], thinker: null, pendingMove: undefined, moves: null, chosen: null, anim: null };
+    state.auto = { game: newGame(6), phase: 'think', timer: AUTO_THINK_STEPS[state.autoThinkIdx], thinker: null, pendingMove: undefined, moves: null, chosen: null, anim: null, paused: false };
   }
   function exitAuto() { state.auto = null; state.scene = 'title'; }
   // Executes a move exactly the way normal play does (same mkAnim + applyMove), but on the auto
@@ -143,14 +143,21 @@ export function createGame(env) {
   function updateAuto(dt, tap) {
     const D = state.auto; if (!D) return;
     if (tap && inRect(BTN.menu, tap.x, tap.y)) { exitAuto(); return; }
+    // Pause/Resume (shared brief follow-up, 2026-09-23): freezes the WHOLE loop - the think-time
+    // countdown, the engine search stepping, the reveal wait and the move animation - at whatever
+    // instant it is tapped, and Resume continues from exactly that frame, not from the start of the
+    // current phase. Reuses the BTN.hint slot (unused during Auto Play, same row as Exit/Skip wait).
+    if (D.phase !== 'over' && tap && inRect(BTN.hint, tap.x, tap.y)) { D.paused = !D.paused; return; }
     if (tap && inRect(TEXTSTEP.dec, tap.x, tap.y) && state.autoThinkIdx > 0) { state.autoThinkIdx--; savePrefs(); }
     else if (tap && inRect(TEXTSTEP.inc, tap.x, tap.y) && state.autoThinkIdx < AUTO_THINK_STEPS.length - 1) { state.autoThinkIdx++; savePrefs(); }
-    else if (tap && (D.phase === 'think' || D.phase === 'reveal') && inRect(BTN.undo, tap.x, tap.y)) { D.timer = 0; }
+    else if (tap && !D.paused && (D.phase === 'think' || D.phase === 'reveal') && inRect(BTN.undo, tap.x, tap.y)) { D.timer = 0; }
     if (D.phase === 'over') {
       if (tap && inRect(BTN.again, tap.x, tap.y)) enterAuto();
       else if (tap && inRect(BTN.back, tap.x, tap.y)) exitAuto();
       return;
     }
+    if (D.paused) return; // nothing below this line ever runs while paused: timers, the thinker's
+                           // own step() and the move animation's own clock all simply stop advancing.
     if (D.phase === 'act') {
       if (D.anim) { D.anim.t += dt; if (D.anim.t < D.anim.dur) return; D.anim = null; }
       D.phase = D.game.winner ? 'over' : 'think'; D.timer = AUTO_THINK_STEPS[state.autoThinkIdx]; D.thinker = null; D.pendingMove = undefined; D.moves = null; D.chosen = null;
@@ -335,7 +342,7 @@ export function createGame(env) {
     if (sc === 'setup') { if (k.has('Enter') || k.has('Space')) return { x: SETUP.start.x + 5, y: SETUP.start.y + 5 }; if (k.has('Escape')) return { x: SETUP.back.x + 5, y: SETUP.back.y + 5 }; return null; }
     if (sc === 'help' || sc === 'about' || sc === 'rules') { if (k.has('ArrowRight') || k.has('Enter') || k.has('Space')) return { x: HELP.next.x + 5, y: HELP.next.y + 5 }; if (k.has('ArrowLeft')) return { x: HELP.prev.x + 5, y: HELP.prev.y + 5 }; if (k.has('Escape')) return { x: HELP.back.x + 5, y: HELP.back.y + 5 }; return null; }
     if (sc === 'over') { if (k.has('Enter') || k.has('Space')) return { x: BTN.again.x + 5, y: BTN.again.y + 5 }; return null; }
-    if (sc === 'auto') { if (k.has('Escape')) return { x: BTN.menu.x + 5, y: BTN.menu.y + 5 }; if (k.has('Space')) return { x: BTN.undo.x + 5, y: BTN.undo.y + 5 }; return null; }
+    if (sc === 'auto') { if (k.has('Escape')) return { x: BTN.menu.x + 5, y: BTN.menu.y + 5 }; if (k.has('Space')) return { x: BTN.hint.x + 5, y: BTN.hint.y + 5 }; if (k.has('KeyU')) return { x: BTN.undo.x + 5, y: BTN.undo.y + 5 }; return null; }
     if (sc !== 'play' && sc !== 'lesson' && sc !== 'puzzle') return null;
     if (k.has('Escape')) return { x: BTN.menu.x + 5, y: BTN.menu.y + 5 };
     if (k.has('KeyU')) return { x: BTN.undo.x + 5, y: BTN.undo.y + 5 };
@@ -370,5 +377,12 @@ export function createGame(env) {
     },
     render(ctx) { render(ctx, state); },
     getState: () => state,
+    // kit 1.6.1: exempt Auto Play from the free-preview timer (game.json monetization.previewSeconds)
+    // - this game is priced, so without this hook the preview clock would run (and could cut off) a
+    // demonstration the player never chose to spend their preview on. This was flagged as a platform
+    // request in STATUS.md when Auto Play was first built, but the hook itself was never actually
+    // added then - added now (2026-09-23 final polish pass); confirmed with kit already at 1.6.1 in
+    // this worktree, so no kit-upgrade was needed, just this one line.
+    isPreviewExempt: () => state.scene === 'auto',
   };
 }

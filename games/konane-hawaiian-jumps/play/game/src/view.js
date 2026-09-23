@@ -94,6 +94,13 @@ export function render(ctx, state) {
   const g = autoOn ? D0.game : state.game, big = state.textScaleIdx > 0, calm = state.calm, t = state.t;
   const boardScene = scene === 'play' || scene === 'over' || scene === 'lesson' || scene === 'auto' || (scene === 'puzzle' && state.pz.status !== 'making');
   drawWorld(ctx, t, boardScene ? g.n : 0, calm);
+  // Drifting petals right after the backdrop, before any board/panel/button is painted over them:
+  // final-polish pass found they used to be drawn last (on top of literally everything, every
+  // scene), so a petal would routinely drift across a title-screen button's own label text or a
+  // reference page's body copy - looked like a stray smudge in a still screenshot, not atmosphere.
+  // Everything solid (the slab, panels, buttons) is opaque and paints over them here instead, so
+  // the petals now only ever show in the open sky/sea backdrop, never over anything readable.
+  if (!calm) drawPetals(ctx, t);
 
   if (boardScene) {
     const n = g.n, a = autoOn ? D0.anim : state.anim, R = stoneRadius(n), pulse = calm ? 0.6 : 0.5 + 0.5 * Math.sin(t * 6);
@@ -117,9 +124,9 @@ export function render(ctx, state) {
       text('Auto Play · Watch & Learn', 420, 176, 26, 'rgba(255,224,178,0.85)', UI, 600);
       drawStone(ctx, g.winner ? g.winner : g.turn, 96, 236, 30, { v: 1 });
       const phaseTxt = D.phase === 'think' ? 'thinking' : D.phase === 'reveal' ? 'about to play' : D.phase === 'act' ? 'playing' : 'game over';
-      shadowText(g.winner ? '' : `${SIDE[g.turn]} is ${phaseTxt}${D.phase === 'think' ? '.'.repeat(1 + (Math.floor(t * 3) % 3)) : ''}`, 146, 248, 40, '#ffe6b0', FONT, 700, 'left');
+      shadowText(g.winner ? '' : D.paused ? 'Paused' : `${SIDE[g.turn]} is ${phaseTxt}${D.phase === 'think' ? '.'.repeat(1 + (Math.floor(t * 3) % 3)) : ''}`, 146, 248, 40, '#ffe6b0', FONT, 700, 'left');
       text(`${n}x${n} · silent demonstration`, 146, 288, 22, 'rgba(255,224,178,0.85)', UI, 500, 'left');
-      wrap(D.phase === 'think' ? 'THINK: work out your own answer before it is revealed.' : D.phase === 'reveal' ? 'REVEAL: the highlighted move is the one about to be played.' : 'ACT: watch it play out.', 64, 336, 22, 600, PAGE_TEXT, 28, 'left');
+      wrap(D.paused ? 'Frozen exactly where you paused it. Resume to keep watching.' : D.phase === 'think' ? 'THINK: work out your own answer before it is revealed.' : D.phase === 'reveal' ? 'REVEAL: the highlighted move is the one about to be played.' : 'ACT: watch it play out.', 64, 336, 22, 600, PAGE_TEXT, 28, 'left');
       text(`Think time: ${thinkS}s (max 10s)`, 64, 396, 22, GOLD, UI, 600, 'left');
     } else {
       const mine = state.two || g.turn === state.human;
@@ -179,7 +186,8 @@ export function render(ctx, state) {
     else if (scene === 'lesson') { btn(BTN.menu, 'Menu', { size: 26 }); if (state.lesson.done) btn({ x: 265, y: BTN.next.y, w: 395, h: BTN.next.h }, state.lesson.i + 1 < LESSONS.length ? 'Next lesson' : 'Finish', { primary: true, size: 28 }); }
     else if (scene === 'puzzle') { btn(BTN.menu, 'Menu', { size: 26 }); if (state.pz.status === 'solved') btn(BTN.share, 'Share result', { primary: true, size: 30 }); }
     else if (scene === 'auto' && D0.phase !== 'over') {
-      btn(BTN.menu, 'Exit', { size: 26 }); btn(BTN.undo, 'Skip wait', { size: 24, dim: D0.phase === 'act' });
+      btn(BTN.menu, 'Exit', { size: 26 }); btn(BTN.undo, 'Skip wait', { size: 24, dim: D0.phase === 'act' || D0.paused });
+      btn(BTN.hint, D0.paused ? 'Resume' : 'Pause', { size: 26, primary: D0.paused });
       // Think-time stepper: same position/style as the text-size stepper (TEXTSTEP), just never
       // shown on the same scene. No extra label up here — it would sit under the preview-timer
       // badge that the platform draws top-centre; the header panel below already reads "Think
@@ -240,8 +248,12 @@ export function render(ctx, state) {
     const titleLines = P.title ? lines(P.title, titleSize, 560, 800).length : 0;
     // The gap below the title must grow with the BODY's own font size, not the title's — at the top
     // text-size steps a modest title followed immediately by a much larger body line let the body's
-    // own ascent climb back up into the title's descenders.
-    const titleGap = Math.round(fs * 0.55) + 10;
+    // own ascent climb back up into the title's descenders. Final-polish pass: 0.55 was still not
+    // enough at the 300% ceiling for any title that itself wraps to 2 lines (e.g. "The papamu and
+    // stones") - measured the body's first line's ascent actually reaching a couple of px into the
+    // title's own descenders. 0.95 + a bigger constant clears it with real headroom, verified by
+    // rendering every page that has a title at every text-scale step, not just the one found short.
+    const titleGap = Math.round(fs * 0.95) + 14;
     // The reader card is a FIXED size on every page (matching the header/footer on every other
     // page) so the reference reads as one designed sheet, not a box that resizes to fit whatever
     // short sentence happens to be on the current page. Short pages simply leave breathing room
@@ -276,7 +288,6 @@ export function render(ctx, state) {
     text('A full Auto Play demonstration just finished. Nothing here was saved.', 360, 970, 22, GOLD, UI, 600);
     btn(BTN.again, 'Play again (auto)', { primary: true, size: 30 }); btn(BTN.back, 'Exit to menu', { size: 30 });
   }
-  if (!calm) drawPetals(ctx, t);
   void SLAB; void GRID; void NAMES;
 }
 

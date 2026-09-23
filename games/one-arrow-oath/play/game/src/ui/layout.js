@@ -150,8 +150,12 @@ export const AUTO_STEP_DEC = { x: 66, y: 212, w: 78, h: 54 };
 export const AUTO_STEP_INC = { x: W - 144, y: 212, w: 78, h: 54 };
 export const AUTO_CONTENT_TOP = 300;
 export const AUTO_CONTENT_BOTTOM = 1404;
-export const AUTO_SKIP = { x: 40, y: 1420, w: 300, h: 84 };
-export const AUTO_EXIT = { x: 380, y: 1420, w: 300, h: 84 };
+// Three even buttons across the same span the old Skip/Exit pair used (was two 300-wide buttons
+// with a 40px gap; AUTO_PAUSE is the addition, for the owner's "freeze the whole loop, resume
+// exactly where it froze" request - still a comfortable tap target at 200 wide).
+export const AUTO_SKIP = { x: 40, y: 1420, w: 200, h: 84 };
+export const AUTO_PAUSE = { x: 260, y: 1420, w: 200, h: 84 };
+export const AUTO_EXIT = { x: 480, y: 1420, w: 200, h: 84 };
 export const AUTO_AGAIN = { x: 140, y: 1300, w: 440, h: 96 };
 export const AUTO_OVER_EXIT = { x: 190, y: 1416, w: 340, h: 72 };
 

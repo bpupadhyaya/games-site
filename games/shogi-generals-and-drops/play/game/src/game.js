@@ -502,10 +502,20 @@ export function createGame(env) {
   function update(dt, input) {
     state.t += dt;
     if (pendingShowcase) { const k = pendingShowcase; pendingShowcase = 0; showcase(k); }
-    if (state.msg) state.msg.t += dt;
-    for (const p of pending) p.t -= dt;
-    if (pending.length) pending = pending.filter((p) => { if (p.t <= 0) { p.fn(); return false; } return true; });
-    if (state.anim) { state.anim.t += dt; if (state.anim.t >= state.anim.dur) state.anim = null; }
+    // Pause (state.menu) must freeze the WHOLE loop the instant it is tapped, not just stop new
+    // moves: an in-flight move/capture animation, a fading message and any delayed sound queued via
+    // `later()` (e.g. the second capture clack) all used to keep ticking on real wall-clock time
+    // while the "Paused" overlay was up, so a move could visibly finish sliding/landing - and a
+    // queued sound could still fire - after the player had already paused. Freezing all three here
+    // means Resume always picks back up with exactly the animation/message/timer it paused with,
+    // never a step ahead of what the player saw. Ordinary tapping (handleTap below) is unaffected -
+    // it is how Resume/Main menu themselves get tapped in the first place.
+    if (!state.menu) {
+      if (state.msg) state.msg.t += dt;
+      for (const p of pending) p.t -= dt;
+      if (pending.length) pending = pending.filter((p) => { if (p.t <= 0) { p.fn(); return false; } return true; });
+      if (state.anim) { state.anim.t += dt; if (state.anim.t >= state.anim.dur) state.anim = null; }
+    }
 
     const pt = input.pointer;
     if (pt.pressed) handleTap(pt.x, pt.y);
@@ -545,5 +555,9 @@ export function createGame(env) {
     update,
     render(ctx, view) { render(ctx, state, { G: G(), flip: flip(), bottomSide: bottomSide(), buttons: buttonsFor(ui()), view }); },
     getState() { return state; },
+    // Auto Play ("Watch & Learn") is meant to be free/uncapped like a marketing attract-mode demo,
+    // not gated like real play - kit/preview.js checks this once per frame and skips counting time
+    // against the free-preview timer while it returns true. See STATUS.md.
+    isPreviewExempt: () => state.scene === 'auto',
   };
 }

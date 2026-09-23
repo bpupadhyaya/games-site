@@ -134,10 +134,10 @@ export function render(ctx, state) {
       text(`Streak: ${state.daily.streak} day${state.daily.streak === 1 ? '' : 's'}`, 360, 285, 24, GOLD, UI, 600);
     } else if (scene === 'autoplay' || scene === 'autoplay-over') {
       const AP = state.ap, dots = '.'.repeat(1 + (Math.floor(state.t * 3) % 3));
-      const phaseLine = g.winner !== null ? 'Game over' : !AP ? '' : AP.phase === 'think' ? 'Think' + dots : AP.phase === 'reveal' ? 'Here is the move' : 'Playing it out' + dots;
+      const phaseLine = scene === 'autoplay' && state.apPaused ? 'Paused' : g.winner !== null ? 'Game over' : !AP ? '' : AP.phase === 'think' ? 'Think' + dots : AP.phase === 'reveal' ? 'Here is the move' : 'Playing it out' + dots;
       text('Auto Play', 360, 180, 58, CREAM, FONT);
       text('Watch & learn: both seats play themselves', 360, 226, 21, 'rgba(251,232,191,0.85)', UI, 500);
-      text(phaseLine, 360, 268, 26, GOLD, UI, 700);
+      text(phaseLine, 360, 268, 26, scene === 'autoplay' && state.apPaused ? '#ff9a6a' : GOLD, UI, 700);
     } else {
       const th = state.thinking && !A ? 'The computer is thinking' + '.'.repeat(1 + (Math.floor(state.t * 3) % 3)) : null;
       const line = g.winner !== null ? 'Game over' : state.two ? (g.turn === 0 ? 'Player one: bottom row' : 'Player two: top row') : g.turn === 0 ? 'Your move' : (th || 'The computer moves');
@@ -203,8 +203,9 @@ export function render(ctx, state) {
     else if (scene === 'puzzle') { button(BTN.menu, 'Menu', { size: 28 }); if (state.pz.status === 'solved' && !A) button(BTN.share, 'Share result', { primary: true, size: 30 }); }
     else if (scene === 'autoplay') {
       button(BTN.apExit, 'Exit', { size: 28 });
-      button(BTN.apDec, 'Think −', { size: 25, dim: state.apThinkIdx === 0 });
-      button(BTN.apInc, 'Think +', { size: 25, dim: state.apThinkIdx === AP_THINK_STEPS.length - 1 });
+      button(BTN.apPause, state.apPaused ? 'Resume' : 'Pause', { size: 26, primary: state.apPaused });
+      button(BTN.apDec, '−', { size: 30, dim: state.apThinkIdx === 0 });
+      button(BTN.apInc, '+', { size: 30, dim: state.apThinkIdx === AP_THINK_STEPS.length - 1 });
       text(`Think time: ${AP_THINK_STEPS[state.apThinkIdx]}s`, 360, 1320, 22, GOLD, UI, 600);
     }
     if (scene === 'play' && state.dev) text('DEV', 40, 130, 20, '#7dff9a', UI, 700, 'left');

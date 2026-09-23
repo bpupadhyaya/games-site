@@ -1,5 +1,5 @@
 // Everything drawn each frame. Reads `state` (game.js) and changes nothing. The table, board and pebble sprites are cached (art.js).
-import { W, H, RX, RY, TRAY, MID_Y, BTN, SET, RULES_BTN, ABOUT_BTN, HEADER, TEXT_SCALES, THINK_STEPS, pitPos, trayPos, titleRows } from './layout.js';
+import { W, H, RX, RY, TRAY, MID_Y, BTN, AUTO_BTN, SET, RULES_BTN, ABOUT_BTN, HEADER, TEXT_SCALES, THINK_STEPS, pitPos, trayPos, titleRows } from './layout.js';
 import { drawTable, drawBoard, drawSeed, drawShanyrak, horn, slot, WOODS, SEEDSETS } from './art.js';
 import { legalMoves, numberOf } from './rules.js';
 import { LEVELS } from './engine.js';
@@ -20,6 +20,16 @@ export function render(ctx, state) {
     ctx.textAlign = align; ctx.font = `${weight} ${size}px ${font}`;
     if (shadow) { ctx.fillStyle = 'rgba(8,10,30,0.6)'; ctx.fillText(str, x + 1.5, y + 2.5); }
     ctx.fillStyle = color; ctx.fillText(str, x, y);
+  };
+  // A one-line headline never wraps or clips - it shrinks to fit maxW instead. Needed because the
+  // end-game headline ("The computer wins" / "Player two wins") is far wider at the same font size
+  // than the short strings ("You win!", "A draw") it was originally sized around, and used to run
+  // off both edges of the canvas.
+  const fitText = (str, x, y, maxSize, maxW, color = CREAM, font = FONT, weight = 700) => {
+    ctx.font = `${weight} ${maxSize}px ${font}`;
+    const w = ctx.measureText(str).width;
+    const size = w > maxW ? Math.floor(maxSize * (maxW / w) * 0.98) : maxSize;
+    text(str, x, y, size, color, font, weight);
   };
   // Word-wraps to maxW. At the highest text-size steps a single long hyphenated word (e.g.
   // "counter-clockwise") can be wider than maxW all on its own - with no space to break on, it
@@ -160,13 +170,25 @@ export function render(ctx, state) {
       text('Take the most', 360, 235, 62, CREAM, FONT);
       text(`Streak: ${state.daily.streak} day${state.daily.streak === 1 ? '' : 's'}`, 360, 285, 24, GOLD, UI, 600);
     } else if (state.autoMode) {
-      const line = g.winner !== null ? 'Game over' : `${g.turn === 0 ? 'Bottom row' : 'Top row'} ${state.autoPhase === 'reveal' ? '- this is the move' : 'thinking' + '.'.repeat(1 + (Math.floor(state.t * 3) % 3))}`;
+      // While a move is animating, `g.turn` has already flipped to the NEXT mover (rules.js
+      // applyMove flips it synchronously, before the animation plays) - so without this, the
+      // side label would jump to the other row a full animation early, mid-sow. Read whose move
+      // is actually on screen from the animation itself (A.r.player) instead.
+      const mover = A ? A.r.player : g.turn;
+      // Paused freezes literally everything about this game (game.js updatePlay/update), including
+      // the dots-cycling "thinking..." animation - so the header must say so plainly instead of
+      // still animating a phase that, underneath, is not actually progressing.
+      const phase = state.autoPaused ? '- paused' : A ? 'is sowing' : state.autoPhase === 'reveal' ? '- this is the move' : 'thinking' + '.'.repeat(1 + (Math.floor(state.t * 3) % 3));
+      const line = g.winner !== null ? 'Game over' : `${mover === 0 ? 'Bottom row' : 'Top row'} ${phase}`;
       text(line, 360, 180, 58, CREAM, FONT);
       text(`Auto Play · think time ${THINK_STEPS[state.autoThinkIdx]}s`, 360, 226, 21, 'rgba(248,233,196,0.85)', UI, 500);
       text('First to collect 82 of the 162 pebbles wins', 360, 268, 22, GOLD, UI, 600);
     } else {
+      // Same fix as Auto Play above: use the animating move's real player, not the already-flipped
+      // `g.turn`, so the header never announces the next mover before this move finishes animating.
+      const mover = A ? A.r.player : g.turn;
       const th = state.thinking && !A ? 'The computer is thinking' + '.'.repeat(1 + (Math.floor(state.t * 3) % 3)) : null;
-      const line = g.winner !== null ? 'Game over' : state.two ? (g.turn === 0 ? 'Player one: bottom row' : 'Player two: top row') : g.turn === 0 ? 'Your move' : (th || 'The computer moves');
+      const line = g.winner !== null ? 'Game over' : state.two ? (mover === 0 ? 'Player one: bottom row' : 'Player two: top row') : mover === 0 ? 'Your move' : (th || 'The computer moves');
       text(line, 360, 180, 58, CREAM, FONT);
       text(state.two ? 'Two players, one phone' : `Computer: ${LEVELS[state.level].name} · ${LEVELS[state.level].blurb}`, 360, 226, 21, 'rgba(248,233,196,0.85)', UI, 500);
       text('First to collect 82 of the 162 pebbles wins', 360, 268, 22, GOLD, UI, 600);
@@ -216,13 +238,16 @@ export function render(ctx, state) {
       panel(40, 1180, 640, 128, 0.9); const top = 1180 + 64 - (L.length * ms * 1.28) / 2 + ms * 0.95; L.forEach((ln, i) => text(ln, 360, top + i * ms * 1.28, ms, '#fff3d6', UI, 600, 'center', false));
     }
     if (scene === 'play') {
-      button(BTN.menu, state.autoMode ? 'Exit' : 'Menu', { size: 28 });
       if (state.autoMode) {
-        // The think-time stepper takes the Undo/Hint slots (same rects, no new layout) - neither
-        // undo nor a hint means anything with nobody tapping.
-        button(BTN.undo, '− Think', { size: 26, dim: state.autoThinkIdx <= 0 });
-        button(BTN.hint, 'Think +', { size: 26, dim: state.autoThinkIdx >= THINK_STEPS.length - 1 });
+        // Auto Play's own 4-slot rail (AUTO_BTN, layout.js): Exit, Pause/Resume, then the
+        // think-time stepper. Pause is its own dedicated button, not folded into Exit, since it
+        // must stay reachable and legible independent of it.
+        button(AUTO_BTN.exit, 'Exit', { size: 24 });
+        button(AUTO_BTN.pause, state.autoPaused ? 'Resume' : 'Pause', { size: 24, primary: state.autoPaused });
+        button(AUTO_BTN.dec, '− Think', { size: 22, dim: state.autoThinkIdx <= 0 });
+        button(AUTO_BTN.inc, 'Think +', { size: 22, dim: state.autoThinkIdx >= THINK_STEPS.length - 1 });
       } else {
+        button(BTN.menu, 'Menu', { size: 28 });
         button(BTN.undo, 'Undo', { size: 28 }); button(BTN.hint, `Hint (${state.hintsLeft})`, { size: 28, dim: state.hintsLeft <= 0 });
       }
     }
@@ -303,6 +328,15 @@ export function render(ctx, state) {
     ctx.font = `600 29px ${UI}`;
     const baseAscent = ctx.measureText('Ag').actualBoundingBoxAscent || 29 * 0.78;
     y += Math.max(0, bodyAscent - baseAscent);
+    // Center a short page's text block in the remaining panel space instead of always pinning it
+    // to the top - most About facts are one short sentence, and top-anchoring left the panel
+    // mostly empty below them. Measured against the real wrap, so a page that already fills the
+    // panel at this scale (every page was verified not to overflow up to 300%, see STATUS.md)
+    // gets zero offset and renders exactly as before - never risks pushing text past the footer.
+    let aboutBlockH = 0;
+    for (const para of page.lines) aboutBlockH += lines(para, 580, bodySize).length * lh + 22;
+    aboutBlockH = Math.max(0, aboutBlockH - 22);
+    y += Math.max(0, (1300 - y - aboutBlockH) / 2);
     for (const para of page.lines) { const n = wrap(para, 70, y, bodySize, 580, '#fff3d6', lh, 'left'); y += n * lh + 22; }
     text(`Page ${(state.page % ABOUT.pages.length) + 1} of ${ABOUT.pages.length}`, 360, 1345, 19, 'rgba(248,233,196,0.6)', UI, 600);
     button(ABOUT_BTN.back, 'Back', { size: 30 });
@@ -341,6 +375,12 @@ export function render(ctx, state) {
     ctx.font = `600 29px ${UI}`;
     const baseAscent = ctx.measureText('Ag').actualBoundingBoxAscent || 29 * 0.78;
     y += Math.max(0, bodyAscent - baseAscent);
+    // Center a short page's text block in the remaining panel space (see About's identical fix,
+    // same reasoning) - a no-op on any page whose content already fills the space up to 300%.
+    let rulesBlockH = 0;
+    for (const para of page.lines) rulesBlockH += lines(para, 580, bodySize).length * lh + 18;
+    rulesBlockH = Math.max(0, rulesBlockH - 18);
+    y += Math.max(0, (1300 - y - rulesBlockH) / 2);
     for (const para of page.lines) {
       const n = wrap(para, 70, y, bodySize, 580, '#fff3d6', lh, 'left');
       y += n * lh + 18;
@@ -353,7 +393,7 @@ export function render(ctx, state) {
   } else if (scene === 'over') {
     ctx.fillStyle = 'rgba(8,10,30,0.72)'; ctx.fillRect(0, 102, W, 1356);
     const won = g.winner === 'draw' ? 'A draw' : state.two || state.autoMode ? (g.winner === 0 ? 'Player one wins' : 'Player two wins') : g.winner === 0 ? 'You win!' : 'The computer wins';
-    text(won, 360, 500, 96, CREAM, FONT);
+    fitText(won, 360, 500, 96, 620);
     wrap(g.reason, 360, 570, 26, 560, '#fff3d6');
     text(`${state.shown.kazan[0]} : ${state.shown.kazan[1]}`, 360, 740, 120, GOLD, FONT);
     text(state.two || state.autoMode ? 'Player one : Player two' : 'You : Computer', 360, 785, 24, 'rgba(248,233,196,0.85)', UI, 600);

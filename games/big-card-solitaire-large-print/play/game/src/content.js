@@ -117,20 +117,18 @@ export const RULES = [
     title: 'Suit colour, and the 4-colour option',
     lines: [
       'hearts and diamonds are the two red suits.',
-      'A',
     ],
   },
   {
     title: 'Suit colour, and the 4-colour option',
     lines: [
-      'tableau sequence always alternates between a black suit and a red suit underneath,',
+      'A tableau sequence always alternates between a black suit and a red suit underneath,',
     ],
   },
   {
     title: 'Suit colour, and the 4-colour option',
     lines: [
-      'whatever',
-      'ink is on screen.',
+      'whatever ink is on screen.',
     ],
   },
   {
@@ -370,13 +368,12 @@ export const RULES = [
     lines: [
       'Tap a card to select it.',
       'With exactly one legal destination it moves there immediately.',
-      'With',
     ],
   },
   {
     title: 'Tapping, selecting, and the hint',
     lines: [
-      'more than one, tap the destination you want; tapping anywhere else, or the same card again,',
+      'With more than one, tap the destination you want; tapping anywhere else, or the same card again,',
     ],
   },
   {

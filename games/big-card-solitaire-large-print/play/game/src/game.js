@@ -216,6 +216,22 @@ export function createGame(env) {
     if (contains(OPT.suits4, x, y)) return tick(), setSuits(true);
     if (contains(OPT.motionOn, x, y)) return tick(), setReducedMotion(false);
     if (contains(OPT.motionOff, x, y)) return tick(), setReducedMotion(true);
+    // Mid-hand, the sheet's bottom row is split: "New deal" abandons the current hand (there was
+    // otherwise no way at all to back out of a hand short of solving it — see STATUS.md), "Done"
+    // just closes the sheet and resumes. From the title, the single full-width "Done" is unchanged.
+    if (state.scene === 'playing') {
+      if (contains(OPT.newDeal, x, y)) {
+        state.options = false;
+        tick();
+        startNewDeal();
+        return;
+      }
+      if (contains(OPT.doneAfterHand, x, y)) {
+        state.options = false;
+        tick();
+      }
+      return;
+    }
     if (contains(OPT.done, x, y)) {
       state.options = false;
       tick();
@@ -437,7 +453,12 @@ export function createGame(env) {
       // Auto Play is the one place in this game with real timers (THINK/REVEAL pacing); every other
       // scene stays a pure tap-driven turn game.
       if (state.scene === 'auto') updateAuto(dt, 0, 0, false);
-      fx.update(dt, state);
+      // Pause must freeze the WHOLE loop, including a card still mid-slide from the last move —
+      // not just the THINK/REVEAL timers above. Feeding fx a real dt while paused would let an
+      // in-flight slide/flip animation keep completing underneath the "Paused" label instead of
+      // holding exactly where it was (found by actually pausing mid-move-animation, not assumed).
+      const autoFrozen = state.scene === 'auto' && state.auto?.paused;
+      fx.update(autoFrozen ? 0 : dt, state);
     },
 
     render(ctx) {

@@ -109,6 +109,11 @@ export function buttonsFor(s) {
       break;
     }
     case 'auto': {
+      // Same `state.menu` pause gate every other scene uses (game.js's update() skips autoStep(dt)
+      // entirely while it's true, freezing THINK/REVEAL timers and the in-flight engine search
+      // bit-for-bit - not just hiding the board), but labelled "Pause"/"Resume" here specifically:
+      // this is the one control a Watch & Learn viewer reaches for to get unlimited thinking time on
+      // demand, so it must read as a pause control, not a generic app menu.
       if (s.menu) { add('resume', 'Resume', FULL.x, 420, FULL.w, 92, { primary: true }); add('title', 'Main menu', FULL.x, 532, FULL.w, 92); }
       else if (s.result) bottom([['again', 'Play again', { primary: true }], ['title', 'Main menu']]);
       else {
@@ -116,7 +121,7 @@ export function buttonsFor(s) {
         // reference pages) - out of the way of the centred "Auto Play" title between them.
         add('autoThinkDec', '−', 50, 60, 110, 66, { small: true, dim: s.autoThinkIdx <= 0 });
         add('autoThinkInc', '+', 560, 60, 110, 66, { small: true, dim: s.autoThinkIdx >= THINK_STEPS.length - 1 });
-        add('menu', 'Menu', 260, 1352, 200, 92);
+        add('menu', 'Pause', 260, 1352, 200, 92);
       }
       break;
     }

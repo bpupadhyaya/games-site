@@ -426,7 +426,12 @@ function drawOptions(ctx, state, t) {
   drawButton(ctx, OPT.motionOn, 'Gentle', { style: state.reducedMotion ? 'quiet' : 'active', size: 32 });
   drawButton(ctx, OPT.motionOff, 'Reduced', { style: state.reducedMotion ? 'active' : 'quiet', size: 32 });
 
-  drawButton(ctx, OPT.done, 'Done', { style: 'primary', size: 46, radius: 30 });
+  if (state.scene === 'playing') {
+    drawButton(ctx, OPT.newDeal, 'New deal', { style: 'quiet', size: 36, radius: 30 });
+    drawButton(ctx, OPT.doneAfterHand, 'Done', { style: 'primary', size: 46, radius: 30 });
+  } else {
+    drawButton(ctx, OPT.done, 'Done', { style: 'primary', size: 46, radius: 30 });
+  }
   ctx.restore();
 }
 

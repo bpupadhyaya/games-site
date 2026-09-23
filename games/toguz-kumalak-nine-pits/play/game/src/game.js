@@ -1,7 +1,7 @@
 // Toguz Kumalak: state and flow. Drawing is view.js; the rule book is rules.js; the computer is engine.js; lessons.js and puzzles.js are
 // content. The rule book applies a move to `state.game` at once; `state.anim` then PLAYS it (lift, sow pit by pit, capture or tuz)
 // while `state.shown` (the pit counts the player sees) catches up. Input is ignored while an animation runs.
-import { W, H, BTN, SET, RULES_BTN, ABOUT_BTN, HEADER, TEXT_SCALES, THINK_STEPS, titleRows, inRect, pitNear, pitPos } from './layout.js';
+import { W, H, BTN, AUTO_BTN, SET, RULES_BTN, ABOUT_BTN, HEADER, TEXT_SCALES, THINK_STEPS, titleRows, inRect, pitNear, pitPos } from './layout.js';
 import { newGame, clone, applyMove, tryMove, legalMoves, sow, sideOf, numberOf, tuzWhy } from './rules.js';
 import { LEVELS, createThinker } from './engine.js';
 import { LESSONS } from './lessons.js';
@@ -27,7 +27,7 @@ export function createGame(env) {
     // Auto Play ("Watch & Learn"): true while both sides are computer-played for teaching purposes.
     // autoThinkIdx indexes THINK_STEPS, never a raw float, same pattern as textScaleIdx.
     // autoPhase/autoMove/autoTimer are the THINK -> REVEAL -> ACT state.
-    autoMode: false, autoThinkIdx: 1, autoPhase: null, autoMove: null, autoTimer: 0,
+    autoMode: false, autoPaused: false, autoThinkIdx: 1, autoPhase: null, autoMove: null, autoTimer: 0,
     cursor: 4, kb: false, anim: null, msg: null, think: 0, thinking: false, undo: [], hintsLeft: HINTS, hint: null,
     stats: { games: 0, wins: 0, badges: {} }, saved: null, learned: false, demoGames: 0, lesson: null, pz: null, ref: null,
     daily: { day: config.day ?? 0, solvedDay: -1, streak: 0 }, dev: config.dev === true, worstNodes: 0,
@@ -59,7 +59,7 @@ export function createGame(env) {
   const seedTick = (n) => tone({ freq: 340 + n * 22, to: 200 + n * 10, dur: 0.045, type: 'triangle', vol: 0.09 });
   const chime = (k) => tone({ freq: 620 + k * 90, to: 900 + k * 120, dur: 0.24, type: 'sine', vol: 0.09 });
   const syncShown = () => { state.shown = snap(state.game); };
-  const reset = (extra) => { thinker = hintThinker = null; Object.assign(state, { anim: null, msg: null, think: 0, thinking: false, undo: [], hint: null, hintsLeft: HINTS, ref: null, autoMode: false, autoPhase: null, autoMove: null, autoTimer: 0 }, extra); syncShown(); };
+  const reset = (extra) => { thinker = hintThinker = null; Object.assign(state, { anim: null, msg: null, think: 0, thinking: false, undo: [], hint: null, hintsLeft: HINTS, ref: null, autoMode: false, autoPaused: false, autoPhase: null, autoMove: null, autoTimer: 0 }, extra); syncShown(); };
   // Auto Play: nobody controls either side - the whole existing "the computer thinks a slice per
   // tick" machinery below already handles a side it doesn't own, so making humanTurn() false for
   // both sides during Auto Play (via its own dedicated autoTick() branch instead) reuses that same
@@ -272,23 +272,37 @@ export function createGame(env) {
   }
 
   function updatePlay(dt, tap) {
+    // Auto Play's Pause/Resume and Exit are checked FIRST, ahead of the hint/ref cosmetic timers
+    // and well ahead of the move-animation step below, so they register at literally any instant -
+    // mid-THINK, mid-REVEAL, mid-move-animation or mid-engine-search - never queued behind an
+    // animation the way a real player's own Menu tap normally is (see the file-header comment:
+    // input is otherwise withheld while state.anim is playing).
+    if (state.autoMode) {
+      if (tap && inRect(AUTO_BTN.pause, tap.x, tap.y)) { state.autoPaused = !state.autoPaused; return; }
+      if (tap && inRect(AUTO_BTN.exit, tap.x, tap.y)) {
+        saveGame(); state.autoMode = false; state.autoPaused = false; state.autoPhase = null; state.autoMove = null;
+        state.msg = null;
+        state.scene = 'title'; thinker = hintThinker = null; state.thinking = false; return;
+      }
+      // Frozen: return before the hint/ref timers, stepAnim() (the move animation) and autoTick()
+      // (the THINK/REVEAL countdown and the engine search loop) - nothing below this line runs
+      // while paused, so Resume always picks back up exactly where it froze, never restarting the
+      // current step.
+      if (state.autoPaused) return;
+    }
     if (state.hint) { state.hint.t += dt; if (state.hint.t > 6) state.hint = null; }
     if (state.ref) { state.ref.t += dt; if (state.ref.t > 0.6) state.ref = null; }
     if (state.anim) { const rr = state.anim.r; if (stepAnim(dt)) afterMove(rr); return; }
-    if (tap && inRect(BTN.menu, tap.x, tap.y)) {
-      saveGame(); state.autoMode = false; state.autoPhase = null; state.autoMove = null;
-      // Clear any lingering "X is thinking…"/"This is the move" banner too - it otherwise reads its
-      // own (deliberately long) hold time straight through onto the title screen underneath it.
-      state.msg = null;
+    if (!state.autoMode && tap && inRect(BTN.menu, tap.x, tap.y)) {
+      saveGame();
       state.scene = 'title'; thinker = hintThinker = null; state.thinking = false; return;
     }
     if (state.autoMode) {
-      // Auto Play's own bottom rail: Menu exits (handled above, works regardless of mode), and the
-      // Undo/Hint slots become the think-time stepper (same rects, no new layout) - neither undo
-      // nor a hint means anything with nobody tapping. Every other tap - a pit - is ignored: the
+      // The think-time stepper takes its own dedicated rects (AUTO_BTN.dec/inc) - neither undo nor
+      // a hint means anything with nobody tapping. Every other tap - a pit - is ignored: the
       // computer plays every side.
-      if (tap && inRect(BTN.undo, tap.x, tap.y)) { if (state.autoThinkIdx > 0) { state.autoThinkIdx--; savePrefs(); } return; }
-      if (tap && inRect(BTN.hint, tap.x, tap.y)) { if (state.autoThinkIdx < THINK_STEPS.length - 1) { state.autoThinkIdx++; savePrefs(); } return; }
+      if (tap && inRect(AUTO_BTN.dec, tap.x, tap.y)) { if (state.autoThinkIdx > 0) { state.autoThinkIdx--; savePrefs(); } return; }
+      if (tap && inRect(AUTO_BTN.inc, tap.x, tap.y)) { if (state.autoThinkIdx < THINK_STEPS.length - 1) { state.autoThinkIdx++; savePrefs(); } return; }
       autoTick(dt); return;
     }
     if (!humanTurn()) { think(dt); return; }
@@ -388,8 +402,17 @@ export function createGame(env) {
 
   return {
     update(dt, input) {
-      state.t += dt;
-      if (state.msg) { state.msg.t += dt; if (state.msg.t > state.msg.hold) state.msg = null; }
+      // While Auto Play is paused, genuinely nothing about that running game advances - not just
+      // the board and search (already withheld in updatePlay), but also the message banner's own
+      // hold timer (it must not quietly time out and vanish underneath the freeze) and `state.t`,
+      // the shared decorative clock every ambient animation reads (the sowing-direction chevron,
+      // the lamplight breathing flicker, the seed shimmer, a tuz flag's wave) - otherwise a
+      // screenshot taken a moment apart would show the board "paused" but still visibly alive,
+      // which is not what a real freeze looks like. `state.t` only ever gates decoration, never
+      // game logic, so withholding it changes nothing else.
+      const autoFrozen = state.scene === 'play' && state.autoMode && state.autoPaused;
+      if (!autoFrozen) state.t += dt;
+      if (state.msg && !autoFrozen) { state.msg.t += dt; if (state.msg.t > state.msg.hold) state.msg = null; }
       const p = input.pointer, kbd = keyboard(input);
       const tap = p.pressed ? { x: p.x, y: p.y } : kbd;
       const sc = state.scene;
@@ -416,7 +439,7 @@ export function createGame(env) {
         if (inRect(BTN.again, tap.x, tap.y)) { if (state.autoMode) startAuto(); else start(state.two); }
         // `autoMode` (and the free-preview exemption it drives, plus a lingering long-hold message)
         // must never linger once the player leaves - every other exit path clears it explicitly too.
-        else if (inRect(BTN.back, tap.x, tap.y)) { state.autoMode = false; state.msg = null; state.scene = 'title'; }
+        else if (inRect(BTN.back, tap.x, tap.y)) { state.autoMode = false; state.autoPaused = false; state.msg = null; state.scene = 'title'; }
       }
     },
     render(ctx) { render(ctx, state); },

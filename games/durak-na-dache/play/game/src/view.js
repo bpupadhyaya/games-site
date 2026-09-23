@@ -100,14 +100,16 @@ function drawTopBar(ctx, state) {
 
 function drawSetup(ctx, state) {
   drawScene(ctx, state.t, { calm: state.calm });
-  txt(ctx, 'ДУРАК', W / 2, 150, { size: 96, color: CREAM, weight: 700, shadow: 'rgba(0,0,0,0.6)' });
-  txt(ctx, 'New game', W / 2, 216, { size: 30, color: GOLD, weight: 600 });
-  txt(ctx, 'Players', W / 2, 300, { size: 26, color: CREAM, weight: 700 });
+  // No giant "ДУРАК" wordmark here (that's the title screen's job, and it used to sit right on top
+  // of the cup/samovar art, half-illegible) — "New game" alone is the page heading, placed clear of
+  // BOTH the header art and the full-width embroidered band tableTop() draws right under it.
+  txt(ctx, 'New game', W / 2, 452, { size: 36, color: GOLD, weight: 700, shadow: 'rgba(0,0,0,0.5)' });
+  txt(ctx, 'Players', W / 2, 520, { size: 26, color: CREAM, weight: 700 });
   SETUP.players.forEach((p, i) => lacquer(ctx, p.r, { kind: state.setup.n === p.v ? 'gold' : 'wood', label: String(p.v) }));
-  txt(ctx, 'Mode', W / 2, 464, { size: 26, color: CREAM, weight: 700 });
+  txt(ctx, 'Mode', W / 2, 684, { size: 26, color: CREAM, weight: 700 });
   lacquer(ctx, SETUP.modes[0], { kind: state.setup.mode === 'pod' ? 'gold' : 'wood', label: 'Podkidnoy', sub: 'throw-in' });
   lacquer(ctx, SETUP.modes[1], { kind: state.setup.mode === 'per' ? 'gold' : 'wood', label: 'Perevodnoy', sub: 'transfer' });
-  txt(ctx, 'Computer strength', W / 2, 660, { size: 26, color: CREAM, weight: 700 });
+  txt(ctx, 'Computer strength', W / 2, 880, { size: 26, color: CREAM, weight: 700 });
   // Pre-existing bug fixed here (found via CDP screenshot while verifying Auto Play left normal
   // play unaffected, not assumed): this passed the whole `{v, r}` setup-level descriptor to
   // lacquer() instead of its `.r` rect, so every field inside was `undefined` and `lacquer()`
@@ -115,9 +117,9 @@ function drawSetup(ctx, state) {
   // `drawSetup()` (Computer strength, the blurb panel, and the Start button never rendered, so a new
   // match could never actually be started from this screen).
   LEVELS.forEach((L, i) => { const r = SETUP.levels[i].r; lacquer(ctx, r, { kind: state.setup.level === L.id ? 'gold' : 'wood', label: `${L.id} · ${L.name}`, size: 24 }); });
-  panel(ctx, 40, 1176, W - 80, 96, {});
+  panel(ctx, 40, 1396, W - 80, 96, {});
   const L = LEVELS[state.setup.level - 1];
-  txt(ctx, L.blurb, W / 2, 1224, { size: 18, color: CREAM, weight: 500 });
+  txt(ctx, L.blurb, W / 2, 1444, { size: 18, color: CREAM, weight: 500 });
   lacquer(ctx, SETUP.start, { kind: 'gold', label: 'Start', size: 40 });
   lacquer(ctx, BACK, { label: '←' });
 }
@@ -132,7 +134,9 @@ function drawTitle(ctx, state) {
   drawCard(ctx, { id: 15 }, W / 2 - 58, 610 + bob * 0.6, { scale: 0.8, rot: rot - 0.12, four: state.four });
   drawCard(ctx, { id: 8 }, W / 2 + 50, 612 + bob * 0.6, { scale: 0.8, rot: -rot + 0.1, four: state.four });
   const items = state.saved ? ['Continue', 'New Game', 'Learn', 'Daily Deal', 'About', 'Settings', 'Rules', 'Auto Play'] : ['New Game', 'Learn', 'Daily Deal', 'About', 'Settings', 'Rules', 'Auto Play'];
-  items.forEach((label, i) => lacquer(ctx, MENU_BTN(i), { kind: i === 0 && state.saved ? 'gold' : 'wood', label, size: 30 }));
+  // Index 0 is always the one primary action (Continue when a save exists, otherwise New Game) —
+  // it should read as primary either way, not only when a save exists.
+  items.forEach((label, i) => lacquer(ctx, MENU_BTN(i), { kind: i === 0 ? 'gold' : 'wood', label, size: 30 }));
   lacquer(ctx, TOP.sound, { label: state.sound ? '♪' : '×' });
   const statsY = MENU_BTN(items.length).y + 22;
   panel(ctx, 26, statsY, 300, 74, {});
@@ -331,7 +335,11 @@ export function drawSettings(ctx, state) {
   for (let i = 0; i < SETTINGS_ROWS; i++) {
     const r = SETTINGS_ROW(i);
     lacquer(ctx, r, { kind: 'wood' });
-    txt(ctx, rows[i].label, r.x + 34, r.y + r.h / 2, { size: 24, color: CREAM, weight: 700, align: 'left' });
+    // Label starts at x+76, clear of the khokhloma corner flourish lacquer() draws at x+34 for any
+    // pill wider than 200 (that flourish assumes a CENTERED label, like every other button in this
+    // game — this is the one left-aligned label, so it needs its own clearance instead of colliding
+    // with the ornament).
+    txt(ctx, rows[i].label, r.x + 76, r.y + r.h / 2, { size: 24, color: CREAM, weight: 700, align: 'left' });
     plaque(ctx, r.x + r.w - 108, r.y + r.h / 2, 176, 62, { hot: rows[i].value === 'On' });
     txt(ctx, rows[i].value, r.x + r.w - 108, r.y + r.h / 2, { size: 21, color: rows[i].value === 'On' ? '#3a2408' : CREAM, weight: 700 });
   }

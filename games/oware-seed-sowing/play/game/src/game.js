@@ -31,6 +31,7 @@ export function createGame(env) {
     textScaleIdx: 0, // index into TEXT_SCALES; the About/Rules reference pages' own text size
     apThinkIdx: 1, // index into AP_THINK_STEPS; the Auto Play THINK-phase pause, default 5s
     ap: null, // transient Auto Play loop state: { phase: 'think'|'reveal', timer, legal, move }
+    apPaused: false, // viewer-controlled: freezes the whole Auto Play loop (see updateAutoPlay)
   };
   state.shown = { pits: state.game.pits.slice(), store: [0, 0] };
   let thinker = null, hintThinker = null, apThinker = null;
@@ -89,6 +90,7 @@ export function createGame(env) {
   function startAutoPlay() {
     reset({ scene: 'autoplay', game: newGame(), two: true });
     state.ap = { phase: 'think', timer: 0, legal: [], move: null };
+    state.apPaused = false;
     apThinker = null;
   }
   function apAfterMove(r) {
@@ -102,8 +104,15 @@ export function createGame(env) {
   function apFinish() { apThinker = null; state.scene = 'autoplay-over'; }
   function updateAutoPlay(dt, tap) {
     if (tap && inRect(BTN.apExit, tap.x, tap.y)) { apThinker = null; state.scene = 'title'; return; }
+    // Pause freezes the WHOLE loop exactly where it is - mid-THINK, mid-REVEAL, mid-move-animation
+    // or mid-engine-search - by simply not calling any of the time/step advances below at all while
+    // paused (nothing here mutates dt into state until past this point). Resume continues the same
+    // AP object, the same in-flight state.anim and the same apThinker (never recreated), so a
+    // search already underway picks back up instead of restarting.
+    if (tap && inRect(BTN.apPause, tap.x, tap.y)) { state.apPaused = !state.apPaused; clack(); return; }
     if (tap && inRect(BTN.apDec, tap.x, tap.y) && state.apThinkIdx > 0) { state.apThinkIdx--; savePrefs(); clack(); }
     else if (tap && inRect(BTN.apInc, tap.x, tap.y) && state.apThinkIdx < AP_THINK_STEPS.length - 1) { state.apThinkIdx++; savePrefs(); clack(); }
+    if (state.apPaused) return;
     if (state.anim) { const rr = state.anim.r; if (stepAnim(dt)) apAfterMove(rr); return; }
     const g = state.game, AP = state.ap;
     if (!AP || g.winner !== null) return;

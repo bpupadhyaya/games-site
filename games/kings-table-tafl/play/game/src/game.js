@@ -115,11 +115,14 @@ export function createGame(env) {
   function updateAutoplay(dt, tap) {
     const A = state.ap;
     if (tap) {
-      if (inRect(AP.exit, tap.x, tap.y)) { exitAutoplay(); return; }
       if (A.phase === 'finished') {
+        // Finished: the "Watch again"/"Menu" pair inside the end panel is the only way out (matches
+        // every other end screen in this game) - the always-there bottom-row Exit button is not
+        // drawn once finished (see view.js), so its hit-rect must not be a hidden/invisible tap
+        // target either, or a stray board tap in that area would silently exit with no affordance.
         if (inRect(BTN.again, tap.x, tap.y)) { startAutoplay(); return; }
         if (inRect(BTN.back, tap.x, tap.y)) { exitAutoplay(); return; }
-      }
+      } else if (inRect(AP.exit, tap.x, tap.y)) { exitAutoplay(); return; }
       if (inRect(AP.dec, tap.x, tap.y)) { if (state.apThinkIdx > 0) { state.apThinkIdx -= 1; storage.set('apThinkIdx', state.apThinkIdx); } return; }
       if (inRect(AP.inc, tap.x, tap.y)) { if (state.apThinkIdx < AP_THINK_STEPS.length - 1) { state.apThinkIdx += 1; storage.set('apThinkIdx', state.apThinkIdx); } return; }
       if (inRect(AP.pause, tap.x, tap.y)) { A.paused = !A.paused; return; }
@@ -335,7 +338,12 @@ export function createGame(env) {
     if (sc === 'title') { if (k.has('Enter') || k.has('Space')) { const R = titleRows(!!state.saved); return { x: R.big.x + 5, y: R.big.y + 5 }; } return null; }
     if (sc === 'over') { if (k.has('Enter') || k.has('Space')) return { x: BTN.again.x + 5, y: BTN.again.y + 5 }; return null; }
     if (sc === 'about' || sc === 'help' || sc === 'rules') { if (k.has('Escape')) return { x: PAGE_NAV.back.x + 5, y: PAGE_NAV.back.y + 5 }; if (k.has('Enter') || k.has('Space')) return { x: PAGE_NAV.next.x + 5, y: PAGE_NAV.next.y + 5 }; return null; }
-    if (sc === 'autoplay') { if (k.has('Escape')) return { x: AP.exit.x + 5, y: AP.exit.y + 5 }; if (k.has('Space')) return { x: AP.pause.x + 5, y: AP.pause.y + 5 }; return null; }
+    if (sc === 'autoplay') {
+      const finished = state.ap?.phase === 'finished';
+      if (k.has('Escape')) return finished ? { x: BTN.back.x + 5, y: BTN.back.y + 5 } : { x: AP.exit.x + 5, y: AP.exit.y + 5 };
+      if (k.has('Space')) return finished ? { x: BTN.again.x + 5, y: BTN.again.y + 5 } : { x: AP.pause.x + 5, y: AP.pause.y + 5 };
+      return null;
+    }
     if (sc !== 'play' && sc !== 'lesson' && sc !== 'puzzle') return null;
     if (k.has('Escape')) return { x: BTN.menu.x + 5, y: BTN.menu.y + 5 };
     if (k.has('KeyU')) return { x: BTN.undo.x + 5, y: BTN.undo.y + 5 };

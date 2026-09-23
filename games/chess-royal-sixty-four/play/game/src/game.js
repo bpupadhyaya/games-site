@@ -232,10 +232,13 @@ export function createGame(env) {
     say(cfg.name, 'info');
   }
   // Teaching loop for the AI-vs-AI demo: for every move, THINK (board static, viewer works out
-  // their own guess) -> REVEAL (every legal destination for the piece about to move is marked, and
-  // the actual chosen destination is marked more prominently so the viewer can compare) -> MOVE
-  // (today's existing slide animation via doMove, unchanged) -> loop. `demoSpeed` (the existing
-  // Speed x1/x2/x4 toggle) scales both THINK and REVEAL down, same role it always had.
+  // their own guess) -> REVEAL_SOURCE (the piece about to move gets its own pulsing highlight,
+  // nothing else shown yet — the viewer registers WHICH piece before being told where) -> REVEAL
+  // (every legal destination for that piece is marked, and the actual chosen destination is marked
+  // more prominently so the viewer can compare) -> MOVE (today's existing slide animation via
+  // doMove, unchanged) -> loop. `demoSpeed` (the existing Speed x1/x2/x4 toggle) scales THINK and
+  // both reveal stages down, same role it always had.
+  const DEMO_SOURCE_SECS = 2;
   const DEMO_REVEAL_SECS = 2;
   function demoStep(dt) {
     const cfg = DEMO_GAMES[state.demoIdx];
@@ -259,6 +262,19 @@ export function createGame(env) {
       return;
     }
 
+    if (state.demoPhase === 'revealSource') {
+      state.demoTimer -= dt;
+      if (state.demoTimer > 0) return;
+      // First stage is over (the viewer has seen which piece is about to move); now reveal every
+      // legal destination for it plus the one actually chosen, same as before.
+      const mv = state.demoPendingMove;
+      state.targets = legalTargets(state.g.st, mv.from).map((m) => m.to);
+      state.demoChosen = mv.to;
+      state.demoPhase = 'reveal';
+      state.demoTimer = DEMO_REVEAL_SECS / state.demoSpeed;
+      return;
+    }
+
     // THINK phase (also the default/initial phase: demoPhase starts null, so the very first call
     // here falls straight into it and starts the timer below).
     if (!thinker) {
@@ -278,10 +294,8 @@ export function createGame(env) {
     thinker = null;
     if (!mv) { state.g.result = { winner: 0, why: 'no-move' }; state.demoPhase = null; return; }
     state.sel = mv.from;
-    state.targets = legalTargets(state.g.st, mv.from).map((m) => m.to);
-    state.demoChosen = mv.to;
-    state.demoPhase = 'reveal';
-    state.demoTimer = DEMO_REVEAL_SECS / state.demoSpeed;
+    state.demoPhase = 'revealSource';
+    state.demoTimer = DEMO_SOURCE_SECS / state.demoSpeed;
   }
 
   // ---- taps ------------------------------------------------------------------------------------------

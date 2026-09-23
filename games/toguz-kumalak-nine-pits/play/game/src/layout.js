@@ -27,6 +27,14 @@ export const BTN = {
   next: { x: 200, y: 1340, w: 320, h: 82 }, share: { x: 200, y: 1340, w: 320, h: 82 },
   again: { x: 130, y: 1000, w: 460, h: 96 }, back: { x: 130, y: 1120, w: 460, h: 96 },
 };
+// Auto Play's own bottom rail: 4 even slots (Exit, Pause/Resume, think-time -/+) in the same row
+// BTN.menu/undo/hint occupy for a normal game - a dedicated rect set (not a 4th BTN slot crammed
+// into the 3 above) because Pause must be reachable by itself, distinct from Exit, at any instant.
+export const AUTO_BTN = (() => {
+  const y = 1340, h = 82, gap = 16, x0 = 40, total = 640, w = (total - 3 * gap) / 4;
+  const at = (i) => ({ x: x0 + i * (w + gap), y, w, h });
+  return { exit: at(0), pause: at(1), dec: at(2), inc: at(3) };
+})();
 // About is now paginated (one heritage fact per page), same Back/Next split as Rules below.
 export const ABOUT_BTN = { back: { x: 70, y: 1400, w: 280, h: 90 }, next: { x: 370, y: 1400, w: 280, h: 90 } };
 const row = (y, h = 78) => ({ x: 70, y, w: 580, h });

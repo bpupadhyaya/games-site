@@ -71,6 +71,17 @@ function drawGameBoard(ctx, state, flip) {
   }
   // selection glow
   if (state.sel >= 0) { const tl = squareTopLeft(state.sel, flip); drawSelectGlow(ctx, tl.x, tl.y); }
+  // AI-vs-AI demo's own REVEAL_SOURCE sub-phase: before showing where the piece will go, first
+  // draw a pulsing ring around WHICH piece is about to move — a distinct light-blue color from the
+  // gold destination highlight below, so the viewer registers the piece itself (and can start
+  // guessing its destination) before being told where it's headed.
+  if (state.demoPhase === 'revealSource' && state.sel >= 0) {
+    const p = pointXY(state.sel, flip), pulse = (Math.sin(state.t * 7) + 1) / 2;
+    ctx.save();
+    ctx.strokeStyle = `rgba(120,205,255,${0.75 + pulse * 0.25})`; ctx.lineWidth = 6;
+    ctx.beginPath(); ctx.arc(p.x, p.y, SQ * 0.48, 0, Math.PI * 2); ctx.stroke();
+    ctx.restore();
+  }
   // legal-move markers
   for (const t of state.targets) {
     const p = pointXY(t, flip);
@@ -406,6 +417,7 @@ function renderDemo(ctx, state) {
   if (!state.g.result) {
     ctx.save(); ctx.font = '700 22px Georgia, serif'; ctx.textAlign = 'center';
     if (state.demoPhase === 'reveal') { ctx.fillStyle = '#ffd97a'; ctx.fillText('The engine plays…', W / 2, 108); }
+    else if (state.demoPhase === 'revealSource') { ctx.fillStyle = '#7ccbff'; ctx.fillText('This piece is about to move…', W / 2, 108); }
     else if (state.demoPhase === 'think') { ctx.fillStyle = '#cbb9e0'; ctx.fillText(`Guess the move… ${Math.max(0, Math.ceil(state.demoTimer))}s`, W / 2, 108); }
     else { ctx.fillStyle = 'rgba(203,185,224,0.7)'; ctx.fillText('Get ready…', W / 2, 108); }
     ctx.restore();

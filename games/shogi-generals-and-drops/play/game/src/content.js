@@ -6,7 +6,7 @@ import { P, L, N, S, G, B, R, K } from './rules.js';
 // paragraphs each; nothing here was shortened or cut, only broken at paragraph/sentence boundaries.
 export const ABOUT = [
   { title: 'Japan\'s game of generals', lines: [
-    'Shogi is the chess-like strategy game of Japan. It is played on a board of 9 by 9 points, and each player has 20 pieces.',
+    'Shogi is the chess-like strategy game of Japan. It is played on a 9 by 9 board of squares, and each player has 20 pieces.',
   ] },
   { title: 'Japan\'s game of generals', lines: [
     'It is documented in Japan for about a thousand years, and its ancestors belong to the same old family of Asian war games as chess.',
@@ -122,13 +122,13 @@ export const RULES = [
   {
     title: 'The board',
     lines: [
-      'Shogi is played on a grid of points, not squares.',
+      'Shogi is played on a grid of squares, like chess - not a grid of intersecting lines like Go.',
     ],
   },
   {
     title: 'The board',
     lines: [
-      'The standard game uses a 9x9 board (81 points); this app also has a quicker 5x5 mini shogi as a gentler way in.',
+      'The standard game uses a 9x9 board (81 squares); this app also has a quicker 5x5 mini shogi as a gentler way in.',
     ],
   },
   {

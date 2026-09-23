@@ -531,12 +531,18 @@ export function createGame(env) {
     update(dt, input) {
       S.t += dt;
       const p = input.pointer; S.down = p.down; S.tap = p.down ? { x: p.x, y: p.y } : null;
-      // timers
-      for (const a of S.anim) a.t += dt; S.anim = S.anim.filter((a) => a.t < a.dur + (a.type === 'drop' ? 0.05 : 0));
-      if (S.refuse) { S.refuse.t += dt; if (S.refuse.t > 0.75) S.refuse = null; }
-      if (S.msg) { S.msg.t += dt; if (S.msg.t > S.msg.hold && S.scene !== 'lesson' && !(S.scene === 'play' && S.phase !== 'play')) S.msg = null; else if (S.msg.t > S.msg.hold) S.msg = null; }
-      for (const c of S.confetti) { c.t += dt; c.x += c.vx * dt; c.y += c.vy * dt; } if (S.confetti.length && S.confetti[0].t > 3) S.confetti = S.confetti.filter((c) => c.t < 2.5);
-      if (S.sfx.length) { for (const s of S.sfx) s.t -= dt; for (const s of S.sfx) if (s.t <= 0) tone(s.o); S.sfx = S.sfx.filter((s) => s.t > 0); }
+      // timers — Pause must freeze the WHOLE Auto Play loop the instant it is tapped, including a
+      // mid-flight stone drop/capture animation (this block used to run unconditionally every tick
+      // regardless of S.ap.paused, since updateAutoplay()'s own pause check only gates ITS OWN
+      // phase transitions, not this shared per-tick timer block that runs before it).
+      const apPausedNow = S.scene === 'autoplay' && S.ap && S.ap.paused;
+      if (!apPausedNow) {
+        for (const a of S.anim) a.t += dt; S.anim = S.anim.filter((a) => a.t < a.dur + (a.type === 'drop' ? 0.05 : 0));
+        if (S.refuse) { S.refuse.t += dt; if (S.refuse.t > 0.75) S.refuse = null; }
+        if (S.msg) { S.msg.t += dt; if (S.msg.t > S.msg.hold && S.scene !== 'lesson' && !(S.scene === 'play' && S.phase !== 'play')) S.msg = null; else if (S.msg.t > S.msg.hold) S.msg = null; }
+        for (const c of S.confetti) { c.t += dt; c.x += c.vx * dt; c.y += c.vy * dt; } if (S.confetti.length && S.confetti[0].t > 3) S.confetti = S.confetti.filter((c) => c.t < 2.5);
+        if (S.sfx.length) { for (const s of S.sfx) s.t -= dt; for (const s of S.sfx) if (s.t <= 0) tone(s.o); S.sfx = S.sfx.filter((s) => s.t > 0); }
+      }
       if (S.scene === 'title' || S.scene === 'setup') warm(boardLayout(9), boardLayout(13), boardLayout(19), S.prefs.theme);
       // the puzzle of the day is stored by day number from config
       S.daily.day = config.day ?? S.daily.day;

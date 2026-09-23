@@ -305,8 +305,11 @@ export function createGame(env) {
       if (inRect(autoActionRect('skip'), tap.x, tap.y)) { if (A.sub === 'think' || A.sub === 'reveal') A.timer = 999; return; }
       return;
     }
-    if (state.pickup) { state.pickup.t += dt; if (state.pickup.t >= state.pickup.dur) state.pickup = null; return; }
+    // Paused must freeze the WHOLE loop, including a mid-flight pickup (Take) animation — this
+    // check used to run AFTER the pickup-animation tick below, so tapping Pause while cards were
+    // still flying to a taker's hand let that animation keep playing to completion regardless.
     if (g.over || A.paused) return;
+    if (state.pickup) { state.pickup.t += dt; if (state.pickup.t >= state.pickup.dur) state.pickup = null; return; }
     if (A.sub === 'think') {
       A.timer += dt;
       if (A.timer >= autoThinkSecs()) {
