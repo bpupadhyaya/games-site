@@ -41,17 +41,20 @@ export const PAGES = {
   rules: [
     { title: 'The board and setup', lines: [
       'Three squares sit one inside another: outer, middle and inner. Their corners and midpoints are the 24 points where cows stand.',
-      'Each square is a ring of eight points joined around its own edge. Four SPOKES also join the midpoints of the three rings, and four DIAGONALS join the corners of the three rings.',
+      'Each square is a ring of eight points joined around its own edge. Four SPOKES also join the midpoints of the three rings, and four DIAGONALS join the corners of the three rings.'] },
+    { title: 'Mills, and the setup', lines: [
       'A MILL is three cows of the same side standing on one straight line. There are 20 such lines in total: 12 ring sides, 4 spokes and 4 diagonals.',
       'Each player starts with twelve cows in hand and none on the board. Dark places the first cow.'] },
     { title: 'The cow', cows: true, lines: [
       'Morabaraba has only one kind of piece: the cow. Dark and Light each herd twelve identical cows — no cow is stronger than another.',
-      'PLACING (while any cows remain in your hand): TAP an empty point to place one there.',
+      'PLACING (while any cows remain in your hand): TAP an empty point to place one there.'] },
+    { title: 'The cow: moving and flying', lines: [
       'MOVING (once your hand is empty): slide one cow one step to an adjacent empty point, along a ring side, a spoke or a diagonal.',
       'FLYING: the instant you are down to exactly three cows in total with none left in hand, that cow may move to ANY empty point on the board — adjacency no longer matters.'] },
     { title: 'Mills and shooting', lines: [
       'Closing a mill — by placing a cow, or by sliding or flying one into place — lets you SHOOT: remove one of the other side\'s cows from the board at once.',
-      'A cow standing inside a currently formed mill is protected and cannot be shot, UNLESS every one of that side\'s cows on the board is inside a mill — then any of them, mill or not, becomes shootable.',
+      'A cow standing inside a currently formed mill is protected and cannot be shot, UNLESS every one of that side\'s cows on the board is inside a mill — then any of them, mill or not, becomes shootable.'] },
+    { title: 'Shooting: one at a time, and swinging', lines: [
       'One move that closes two mills at the same time still shoots only ONE cow, never two. You choose which eligible cow to remove.',
       'Swinging a mill open and shut works exactly as it sounds: sliding a cow out breaks the mill, and sliding it back in closes it again and lets you shoot again — as many times as you can repeat the swing.'] },
     { title: 'Winning the game', lines: [

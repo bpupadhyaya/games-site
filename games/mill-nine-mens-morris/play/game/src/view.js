@@ -1,5 +1,5 @@
 // Everything drawn each frame. Reads `state` (game.js) and changes nothing. Static art is cached (art.js, pieces.js).
-import { W, H, pointAt, PIECE_R, UNIT, BTN, LOOK, TITLE_BOARD, titleRows, rackPos, RACK } from './layout.js';
+import { W, H, pointAt, PIECE_R, UNIT, BTN, LOOK, TITLE_BOARD, titleRows, rackPos, RACK, TEXT_SCALES, TEXT_STEP } from './layout.js';
 import { drawRoom, drawBoard, CANDLES, WOOD_NAMES } from './art.js';
 import { drawMan, blob, SET_NAMES } from './pieces.js';
 import { unlocked } from './unlocks.js';
@@ -21,7 +21,9 @@ export function shown(state) {
 }
 
 export function render(ctx, state) {
-  const t = state.t, scene = state.scene, calm = state.calm, set = state.look.set, big = state.look.big;
+  const t = state.t, scene = state.scene, calm = state.calm, set = state.look.set;
+  // Falls back to 1 for any out-of-range index (e.g. a save from a build with more/fewer steps).
+  const textScale = TEXT_SCALES[state.textScaleIdx] ?? 1, big = state.textScaleIdx > 0;
   const g = state.game, a = state.anim;
   const text = (str, x, y, size, color = '#f6e3b4', font = TITLEF, weight = 700, align = 'center') => { ctx.textAlign = align; ctx.font = `${weight} ${size}px ${font}`; ctx.fillStyle = color; ctx.fillText(str, x, y); };
   const wrapLines = (str, size, maxW, weight = 600) => {
@@ -73,8 +75,9 @@ export function render(ctx, state) {
 
   // ---- scene that shows the whole tavern menu -----------------------------------------------------
   if (scene === 'title' || scene === 'look' || scene === 'demo-limit') { vignette(); drawTitleLike(); return; }
-  if (scene === 'about' || scene === 'how') { vignette(); drawPage(); return; }
-  if (scene === 'rules') { vignette(); drawRulesPage(); return; }
+  if (scene === 'about') { vignette(); drawRefPage(ABOUT, "About Nine Men's Morris"); return; }
+  if (scene === 'how') { vignette(); drawRefPage(HOW, 'How to play'); return; }
+  if (scene === 'rules') { vignette(); drawRefPage(RULES, 'Rules'); return; }
 
   // ---- board scenes -------------------------------------------------------------------------------
   const boardScene = scene === 'play' || scene === 'over' || scene === 'lesson' || (scene === 'puzzle' && state.pz.status !== 'making');
@@ -108,7 +111,7 @@ export function render(ctx, state) {
       button(R.daily, state.daily.solvedDay === state.daily.day ? `Puzzle of the day  ✓  ${state.daily.streak}` : 'Puzzle of the day', { });
       button(R.level, lvl.name, { size: 21 }); button(R.side, state.humanSide === 1 ? 'You: Dark' : 'You: Light', { size: 21 });
       button(R.sound, state.sound ? 'Sound: on' : 'Sound: off', { size: 21 }); button(R.calm, state.calm ? 'Calm: on' : 'Calm: off', { size: 21 });
-      button(R.look, 'Board & men', { size: 21 }); button(R.big, big ? 'Large text: on' : 'Large text', { size: 21 });
+      button(R.look, 'Board & men', { size: 21 });
       // This row grew from 2 columns (About/How) to 3 (About/How/Rules) to fit the new Rules button,
       // so labels shrink to fit the narrower columns - same buttons, same destinations, just smaller text.
       button(R.about, 'About', { size: 17 }); button(R.how, 'How to play', { size: 15 }); button(R.rules, 'Rules', { size: 17 });
@@ -132,40 +135,38 @@ export function render(ctx, state) {
       button({ x: 140, y: 880, w: 440, h: 76 }, 'Back');
     }
   }
-  function drawPage() {
-    const rows = scene === 'about' ? ABOUT : HOW, title = scene === 'about' ? "About Nine Men's Morris" : 'How to play';
+  // About, How to play and Rules all share this one reference-page renderer: a framed reader card
+  // (the same tavern `plaque()` used everywhere else in this game, never a floating loose block of
+  // text), real comfortable-to-read body text by default, and a text-size stepper (A-/A+, top of the
+  // panel - Back/Next for these pages live at the bottom, so the top is naturally clear of them) for
+  // anyone who wants it a further 1-2 steps larger. Content is paced (text.js) to fit at the top step.
+  function drawRefPage(list, headerTitle) {
+    const pageIdx = state.page % list.length, pg = list[pageIdx];
     plaque(30, 130, 660, 1330, 0.85);
-    text(title, 360, 210, scene === 'about' ? 42 : 52);
-    let y = 268; const fs = big ? 27 : 23, lh = fs * 1.34;
-    for (const [head, body] of rows) {
-      text(head.toUpperCase(), 66, y, 20, '#f2c766', TITLEF, 700, 'left'); y += 8 + lh * 0.85;
-      const n = wrap(body, 66, y, fs, 590, '#f0dcae', lh, 'left'); y += n * lh + 20;
-    }
-    button(BTN.pageBack, 'Back', { primary: true });
-  }
-  // Rules: a small paginated reference (About/How are each one static page with only a Back button -
-  // this game had no Back/Next pagination anywhere before Rules, since Rules needs to fit far more
-  // content than either of those, this is the closest equivalent to the Back/Next/"Page N of M"
-  // convention other games in this batch use).
-  function drawRulesPage() {
-    const page = RULES[state.rulesPage % RULES.length];
-    plaque(30, 130, 660, 1330, 0.85);
-    text('Rules', 360, 210, 44);
-    text(page.title.toUpperCase(), 360, 268, 24, '#f2c766', TITLEF, 700);
-    let y = 316;
-    if (page.piece) {
-      const py = y + 66, dx = 110, r = 46;
+    button(TEXT_STEP.dec, 'A−', { dim: state.textScaleIdx === 0, size: 26 });
+    button(TEXT_STEP.inc, 'A+', { dim: state.textScaleIdx === TEXT_SCALES.length - 1, size: 26 });
+    text(headerTitle, 360, 256, Math.round(38 * Math.min(textScale, 1.15)));
+    text(pg.title.toUpperCase(), 360, 306, Math.round(24 * textScale), '#f2c766', TITLEF, 700);
+    let y = 366;
+    // A rules page that covers the man shows the real in-game sprite, Light and Dark side by side,
+    // using pieces.js's own drawMan() - never a separate simplified icon.
+    if (pg.piece) {
+      const py = y + 56, dx = 110, r = Math.round(46 * Math.min(textScale, 1.15));
       drawMan(ctx, 360 - dx, py, r, 0, set, {});
       drawMan(ctx, 360 + dx, py, r, 1, set, {});
       text('Light', 360 - dx, py + r + 26, 17, 'rgba(240,220,180,0.75)', UI, 600);
       text('Dark', 360 + dx, py + r + 26, 17, 'rgba(240,220,180,0.75)', UI, 600);
-      y = py + r + 56;
+      y = py + r + 60;
     }
-    const fs = big ? 24 : 21, lh = fs * 1.34;
-    for (const line of page.lines) { const n = wrap(line, 360, y, fs, 600, '#f0dcae', lh, 'center', 500); y += n * lh + 16; }
-    text(`Page ${(state.rulesPage % RULES.length) + 1} of ${RULES.length}`, 360, 1372, 18, 'rgba(240,215,160,0.65)', UI, 500);
-    button(BTN.rulesBack, 'Back', { primary: true });
-    button(BTN.rulesNext, 'Next', { primary: true });
+    const fs = Math.round(29 * textScale), lh = Math.round(fs * 1.42);
+    for (const line of pg.lines) { const n = wrap(line, 360, y, fs, 600, '#f0dcae', lh, 'center', 500); y += n * lh + Math.round(18 * textScale); }
+    // A small pair of men on the table, only drawn where it has clear room below the text - never
+    // on top of a longer page's last line (the man's own Rules page already shows its own pair above).
+    const sy = 1372 - 108;
+    if (!pg.piece && y + 150 < sy) { drawMan(ctx, 360 - 84, sy, 38, 0, set, {}); drawMan(ctx, 360 + 84, sy, 38, 1, set, {}); }
+    text(`Page ${pageIdx + 1} of ${list.length}`, 360, 1372, 18, 'rgba(240,215,160,0.65)', UI, 500);
+    button(BTN.refBack, 'Back', { primary: true });
+    button(BTN.refNext, 'Next', { primary: true });
   }
   function drawHud() {
     if (scene === 'over') { drawOver(); return; }

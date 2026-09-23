@@ -1,6 +1,6 @@
 // Everything drawn per frame. Reads `state` (see game.js) and changes nothing. The heavy art (table, board, checkers,
 // dice faces) lives in cached sprites (art.js, sprites.js), so a frame is only a few dozen drawImage calls.
-import { W, H, D, R, IN, CH, MID, PLEN, SLOT, TRAY, DICE, CUBE, BTN, pointGeom, stackPos, barPos, offPos, landing, titleRows, PANEL, PBACK, SET_ROWS, CUBE_ASK, DONE, OVER } from './layout.js';
+import { W, H, D, R, IN, CH, MID, PLEN, SLOT, TRAY, DICE, CUBE, BTN, pointGeom, stackPos, barPos, offPos, landing, titleRows, PANEL, PBACK, SET_ROWS, CUBE_ASK, DONE, OVER, TEXT_SCALES, TEXT_BTN } from './layout.js';
 import { BAR, OFF, pips, own } from './rules.js';
 import { drawStatic } from './art.js';
 import { drawChecker, drawChip, drawDie, SET_NAMES } from './sprites.js';
@@ -60,8 +60,8 @@ export function render(ctx, st) {
   const ctxU = { text, wrap, wrapLines, button, panel };
 
   if (sc === 'title') return drawTitle(c, st, ctxU);
-  if (sc === 'howto') return drawDoc(c, st, ctxU, 'How to play', HOWTO, 0);
-  if (sc === 'about') return drawDoc(c, st, ctxU, 'About Tavla', ABOUT, st.page || 0);
+  if (sc === 'howto') return drawDoc(c, st, ctxU, 'How to play', HOWTO, st.page || 0, { showCount: true });
+  if (sc === 'about') return drawDoc(c, st, ctxU, 'About Tavla', ABOUT, st.page || 0, { showCount: true });
   if (sc === 'rules') return drawDoc(c, st, ctxU, 'Rules', RULES, st.page || 0, { showCount: true });
   if (sc === 'settings') return drawSettings(c, st, ctxU);
   if (sc === 'demo-limit') return drawDemoLimit(c, st, ctxU);
@@ -115,23 +115,37 @@ function drawTitle(c, st, U) {
   if (st.msg) U.wrap(st.msg.text, 360, y + 130, 24, 560, '#ffe9b0', 30);
 }
 
+// About, How to play and Rules all share this one reference-page renderer. A framed reader card
+// holds the title, the text-size stepper and the body, so the page reads as a designed reference
+// sheet rather than loose floating text. The stepper (A-/A+) is an index into TEXT_SCALES, guarded
+// (`?? 1`) and clamped on load (game.js), so a stale saved index can never produce a broken font.
 function drawDoc(c, st, U, title, doc, page, opts = {}) {
   c.fillStyle = 'rgba(14,7,3,0.55)'; c.fillRect(0, 262, W, H - 262);
   U.panel(PANEL.x, PANEL.y, PANEL.w, PANEL.h, 0.94);
-  U.text(title, 360, PANEL.y + 84, 60, '#f6dfae', FONT, 700, 'center', true);
-  const pg = doc[Math.min(page, doc.length - 1)], size = st.big ? 27 : 24;
-  let y = PANEL.y + 140;
+  const scale = TEXT_SCALES[st.textScaleIdx] ?? 1;
+  // The title grows a little with the stepper but is capped early — it is already large by design,
+  // and should never fight the stepper buttons either side of it for room.
+  const titleSize = Math.round(60 * Math.min(scale, 1.15));
+  U.text(title, 360, PANEL.y + 140, titleSize, '#f6dfae', FONT, 700, 'center', true);
+  U.button(TEXT_BTN.dec, 'A−', { size: 28, dim: st.textScaleIdx === 0 });
+  U.button(TEXT_BTN.inc, 'A+', { size: 28, dim: st.textScaleIdx === TEXT_SCALES.length - 1 });
+  c.save(); c.strokeStyle = 'rgba(232,196,106,0.35)'; c.lineWidth = 2;
+  c.beginPath(); c.moveTo(PANEL.x + 60, PANEL.y + 164); c.lineTo(PANEL.x + PANEL.w - 60, PANEL.y + 164); c.stroke();
+  c.restore();
+
+  const pg = doc[Math.min(page, doc.length - 1)], size = Math.round(28 * scale);
+  let y = PANEL.y + 208;
   if (pg.piece) {
     // a piece page: the real in-game checker, both colours, drawn with this game's own checker sprite.
-    const cy = y + 46, lx = PANEL.x + 170, rx = PANEL.x + PANEL.w - 170;
+    const cy = y + 46, lx = PANEL.x + 170, rx = PANEL.x + PANEL.w - 170, lblSize = Math.round(20 * Math.min(scale, 1.15));
     drawChecker(c, st.set, 0, lx, cy, 1.35); drawChecker(c, st.set, 1, rx, cy, 1.35);
-    U.text('Yours', lx, cy + 78, 20, 'rgba(246,227,180,0.8)', UI, 700);
-    U.text('Rival’s', rx, cy + 78, 20, 'rgba(246,227,180,0.8)', UI, 700);
+    U.text('Yours', lx, cy + 78, lblSize, 'rgba(246,227,180,0.8)', UI, 700);
+    U.text('Rival’s', rx, cy + 78, lblSize, 'rgba(246,227,180,0.8)', UI, 700);
     y = cy + 118;
   }
   for (const blk of pg.blocks) {
-    if (blk.h) { U.text(blk.h, PANEL.x + 40, y + 6, size + 6, '#e8c46a', UI, 800, 'left'); y += size * 1.6; }
-    const n = U.wrap(blk.p, PANEL.x + 40, y, size, PANEL.w - 80, '#f6ead0', size * 1.36, 'left', 500); y += n * size * 1.36 + size * 0.7;
+    if (blk.h) { U.text(blk.h, PANEL.x + 40, y + 6, size + 5, '#e8c46a', UI, 800, 'left'); y += size * 1.55; }
+    const n = U.wrap(blk.p, PANEL.x + 40, y, size, PANEL.w - 80, '#f6ead0', size * 1.4, 'left', 500); y += n * size * 1.4 + size * 0.7;
   }
   if (opts.showCount && doc.length > 1) U.text(`Page ${Math.min(page, doc.length - 1) + 1} of ${doc.length}`, 360, 1310, 18, 'rgba(246,227,180,0.55)', UI, 600);
   if (doc.length > 1) U.button({ x: 140, y: 1330, w: 440, h: 70 }, page + 1 < doc.length ? 'More' : 'Back to first page', { size: 26 });

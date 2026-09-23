@@ -2,10 +2,11 @@
 // lessons.js and puzzles.js are content. See design/GDD.md for the ruleset.
 //
 // Playing a card: TAP a card (it lifts), TAP it again, or DRAG it up onto the table. Illegal cards are refused with a reason.
-import { W, H as HEIGHT, BTN, BID, SLOT, SEAT, HAND_Y, handLayout, cardAt, inRect, titleRows, LESSON_ROWS, LESSONS_BACK, ABOUT_BACK, RULES_BACK, RULES_NEXT } from './layout.js';
+import { W, H as HEIGHT, BTN, BID, SLOT, SEAT, HAND_Y, handLayout, cardAt, inRect, titleRows, LESSON_ROWS, LESSONS_BACK, ABOUT_BACK, ABOUT_NEXT, RULES_BACK, RULES_NEXT, TEXT_DEC, TEXT_INC, TEXT_SCALES } from './layout.js';
 import { deal, bidAction, setTrump, playCard, legalPlays, canBid, whyNotBid, whyIllegal, scoreHand, matchWinner, cloneHand, cardName, SEAT_NAMES, SUIT_NAMES } from './rules.js';
 import { chooseBid, chooseTrump, pickCard, createThinker } from './ai.js';
 import { LESSONS } from './lessons.js';
+import { ABOUT } from './about.js';
 import { RULES } from './rules-content.js';
 import { puzzleFor, puzzleHand, puzzleText, createPuzzleBrain } from './puzzles.js';
 import { render } from './view.js';
@@ -17,6 +18,7 @@ export function createGame(env) {
   const { rng, storage, audio, monetization, config } = env;
   const state = {
     scene: 'title', t: 0, page: 0, level: 2, sound: true, calm: false, big: false, target: 31, back: 'garnet',
+    textScaleIdx: 0, // index into TEXT_SCALES; the About/Rules reference pages' text size, some players wear glasses
     stats: { played: 0, wins: 0, hands: 0, maxLevel: 2 }, learned: LESSONS.map(() => false), learnedAll: false,
     daily: { day: config.day ?? 0, solvedDay: -1, streak: 0 }, demoMatches: 0, saved: null,
     tb: null, lesson: null, puz: null, puzText: '', puzTarget: 0, dev: config.dev === true,
@@ -24,13 +26,13 @@ export function createGame(env) {
   let thinker = null, brain = null, pz = null;
 
   // ---- saved data ----------------------------------------------------------------------------------------------
-  storage.get('prefs', null).then((v) => { if (v) { state.level = v.level ?? 2; state.sound = v.sound ?? true; state.calm = v.calm ?? false; state.big = v.big ?? false; state.target = v.target ?? 31; state.back = v.back ?? 'garnet'; audio.setMuted?.(!state.sound); } });
+  storage.get('prefs', null).then((v) => { if (v) { state.level = v.level ?? 2; state.sound = v.sound ?? true; state.calm = v.calm ?? false; state.big = v.big ?? false; state.target = v.target ?? 31; state.back = v.back ?? 'garnet'; state.textScaleIdx = Math.min(Math.max(v.textScaleIdx ?? 0, 0), TEXT_SCALES.length - 1); audio.setMuted?.(!state.sound); } });
   storage.get('progress', null).then((v) => { if (v) state.stats = { ...state.stats, ...v }; });
   storage.get('learned', null).then((v) => { if (Array.isArray(v)) { state.learned = LESSONS.map((_, i) => !!v[i]); state.learnedAll = state.learned.every(Boolean); } });
   storage.get('daily', null).then((v) => { if (v) { state.daily.solvedDay = v.solvedDay ?? -1; state.daily.streak = v.streak ?? 0; } });
   storage.get('demoMatches', 0).then((v) => { state.demoMatches = Math.max(state.demoMatches, v); });
   storage.get('save', null).then((v) => { if (v && v.H && state.scene === 'title') state.saved = v; });
-  const savePrefs = () => storage.set('prefs', { level: state.level, sound: state.sound, calm: state.calm, big: state.big, target: state.target, back: state.back });
+  const savePrefs = () => storage.set('prefs', { level: state.level, sound: state.sound, calm: state.calm, big: state.big, target: state.target, back: state.back, textScaleIdx: state.textScaleIdx });
   const saveProgress = () => storage.set('progress', state.stats);
   const saveMatch = () => { const tb = state.tb; if (tb && tb.mode === 'play' && !tb.over) { state.saved = { H: cloneHand(tb.H), scores: tb.scores.slice(), dealer: tb.dealer, handNo: tb.handNo, level: tb.level, target: tb.target, hintsLeft: tb.hintsLeft }; storage.set('save', state.saved); } };
   const clearSave = () => { state.saved = null; storage.remove('save'); };
@@ -191,7 +193,7 @@ export function createGame(env) {
     else if (hit(R.learn, x, y)) state.scene = 'lessons';
     else if (hit(R.play, x, y)) startMatch();
     else if (hit(R.daily, x, y)) startPuzzle();
-    else if (hit(R.about, x, y)) state.scene = 'about';
+    else if (hit(R.about, x, y)) { state.scene = 'about'; state.page = 0; }
     else if (hit(R.rules, x, y)) { state.scene = 'rules'; state.page = 0; }
     else if (hit(R.level, x, y)) { let l = state.level; do { l = l % 4 + 1; } while (l > state.stats.maxLevel && !state.dev); state.level = l; savePrefs(); }
     else if (hit(R.sound, x, y)) { state.sound = !state.sound; audio.setMuted?.(!state.sound); savePrefs(); }
@@ -246,10 +248,17 @@ export function createGame(env) {
     const tb = state.tb;
     if (p.pressed) {
       if (state.scene === 'title') pressTitle(p.x, p.y);
-      else if (state.scene === 'about') { if (hit(ABOUT_BACK, p.x, p.y)) state.scene = 'title'; }
+      else if (state.scene === 'about') {
+        if (hit(ABOUT_BACK, p.x, p.y)) state.scene = 'title';
+        else if (hit(ABOUT_NEXT, p.x, p.y)) state.page = (state.page + 1) % ABOUT.length;
+        else if (hit(TEXT_DEC, p.x, p.y) && state.textScaleIdx > 0) { state.textScaleIdx--; savePrefs(); }
+        else if (hit(TEXT_INC, p.x, p.y) && state.textScaleIdx < TEXT_SCALES.length - 1) { state.textScaleIdx++; savePrefs(); }
+      }
       else if (state.scene === 'rules') {
         if (hit(RULES_BACK, p.x, p.y)) state.scene = 'title';
         else if (hit(RULES_NEXT, p.x, p.y)) state.page = (state.page + 1) % RULES.length;
+        else if (hit(TEXT_DEC, p.x, p.y) && state.textScaleIdx > 0) { state.textScaleIdx--; savePrefs(); }
+        else if (hit(TEXT_INC, p.x, p.y) && state.textScaleIdx < TEXT_SCALES.length - 1) { state.textScaleIdx++; savePrefs(); }
       }
       else if (state.scene === 'lessons') {
         if (hit(LESSONS_BACK(LESSONS.length), p.x, p.y)) state.scene = 'title';

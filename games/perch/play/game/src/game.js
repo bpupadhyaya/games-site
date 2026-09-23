@@ -3,13 +3,13 @@ import { newRun, step, stars } from './rules.js';
 import { drawScene, drawText, W, H } from './render.js';
 import { T, SLOTS } from './tuning.js';
 import { RULES } from './content.js';
-import { renderRulesPage, RULES_ENTRY_BOX, RULES_BACK_BOX, RULES_NEXT_BOX } from './rulesView.js';
+import { renderRulesPage, RULES_ENTRY_BOX, RULES_BACK_BOX, RULES_NEXT_BOX, TEXT_DEC_BOX, TEXT_INC_BOX, TEXT_SCALES } from './rulesView.js';
 
 export const meta = { width: W, height: H };
 
 export function createGame(env) {
   const { rng, storage, audio, monetization, config } = env;
-  const state = { scene: 'title', level: 1, unlocked: 1, stars: {}, run: newRun(1), best: 0, bestTime: 0, feathers: 0, runs: 0, demoRuns: 0, lock: 0, clock: 0, page: 0 };
+  const state = { scene: 'title', level: 1, unlocked: 1, stars: {}, run: newRun(1), best: 0, bestTime: 0, feathers: 0, runs: 0, demoRuns: 0, lock: 0, clock: 0, page: 0, textScaleIdx: 0 };
   const fx = [];
   const dev = config.dev === true;   // tester level picker: only while the app's Developer toggle is on (kit 1.6.0+)
   const fxRng = rng.fork();
@@ -18,6 +18,9 @@ export function createGame(env) {
   storage.get('bestTime', 0).then((v) => { state.bestTime = Math.max(state.bestTime, v); });
   storage.get('feathers', 0).then((v) => { state.feathers = Math.max(state.feathers, v); });
   storage.get('demoRuns', 0).then((v) => { state.demoRuns = Math.max(state.demoRuns, v); });
+  // The Rules page text-size step: clamped on load so a stale index from a build with a
+  // different-length TEXT_SCALES array can never produce a NaN/undefined font size.
+  storage.get('textScaleIdx', 0).then((v) => { state.textScaleIdx = Math.min(Math.max(v ?? 0, 0), TEXT_SCALES.length - 1); });
   storage.get('progress', null).then((v) => {
     if (!v) return;
     state.unlocked = dev ? 99 : Math.max(state.unlocked, v.unlocked || 1);
@@ -110,6 +113,8 @@ export function createGame(env) {
           const inBox = (b) => at && at.x >= b.x0 && at.x <= b.x1 && at.y >= b.y0 && at.y <= b.y1;
           if (inBox(RULES_BACK_BOX)) { state.scene = 'title'; state.page = 0; }
           else if (inBox(RULES_NEXT_BOX)) { state.page = (state.page + 1) % RULES.length; }
+          else if (inBox(TEXT_DEC_BOX) && state.textScaleIdx > 0) { state.textScaleIdx--; storage.set('textScaleIdx', state.textScaleIdx); }
+          else if (inBox(TEXT_INC_BOX) && state.textScaleIdx < TEXT_SCALES.length - 1) { state.textScaleIdx++; storage.set('textScaleIdx', state.textScaleIdx); }
           else if (!at) { state.page = (state.page + 1) % RULES.length; } // keyboard Space/Enter: next page
         }
       }
@@ -129,7 +134,7 @@ export function createGame(env) {
         if (state.best > 0) drawText(ctx, 'Best ' + state.best, W / 2, 1232, 30, '#fff', 700);
       } else if (state.scene === 'rules') {
         ctx.fillStyle = 'rgba(8,12,24,0.86)'; ctx.fillRect(0, 0, W, H);
-        renderRulesPage(ctx, RULES, state.page, t);
+        renderRulesPage(ctx, RULES, state.page, t, state.textScaleIdx);
       } else if (state.scene === 'over') {
         ctx.fillStyle = 'rgba(15,25,45,0.55)'; ctx.fillRect(0, 0, W, H);
         drawText(ctx, 'Ruffled!', W / 2, 400, 96);

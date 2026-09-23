@@ -4,7 +4,7 @@
 // How a move is made: TAP a piece (it lifts, its legal squares glow), then TAP a glowing square; or DRAG the
 // piece and drop it. An illegal move visibly TRIES (the piece travels toward the square, shudders and comes
 // back) and a message says why.
-import { W, H, BTN, titleRows, inRect, squareAt, centerOf } from './layout.js';
+import { W, H, BTN, titleRows, inRect, squareAt, centerOf, PAGE_NEXT, TEXT_DEC, TEXT_INC, TEXT_SCALES } from './layout.js';
 import { newGame, fromRows, clone, applyMove, tryMove, legalMoves, openCorners, side, NAME, ATT, DEF, key } from './rules.js';
 import { LEVELS, createThinker } from './engine.js';
 import { LESSONS } from './lessons.js';
@@ -20,6 +20,7 @@ export function createGame(env) {
   const state = {
     scene: 'title', t: 0, game: newGame(11), size: 11, human: DEF, two: false, level: 1,
     sound: true, calm: false, big: false, marks: true,
+    textScaleIdx: 0, // index into TEXT_SCALES; the About/Controls/Rules reference pages' own text size
     cursor: 60, kb: false, sel: -1, drag: null, anim: null, msg: null, think: 0, thinking: false, undo: [],
     hintsLeft: HINTS_PER_GAME, hint: null,
     stats: { games: 0, wins: 0, badges: {} }, saved: null, learned: false, demoGames: 0,
@@ -30,13 +31,13 @@ export function createGame(env) {
   let thinker = null, hintThinker = null, puzzleToday = null;
   const maker = createPuzzleMaker(state.daily.day);
 
-  storage.get('prefs', null).then((v) => { if (v) { state.level = v.level ?? 1; state.sound = v.sound ?? true; state.calm = v.calm ?? false; state.big = v.big ?? false; state.marks = v.marks ?? true; state.human = v.human ?? DEF; audio.setMuted?.(!state.sound); } });
+  storage.get('prefs', null).then((v) => { if (v) { state.level = v.level ?? 1; state.sound = v.sound ?? true; state.calm = v.calm ?? false; state.big = v.big ?? false; state.marks = v.marks ?? true; state.human = v.human ?? DEF; state.textScaleIdx = Math.min(Math.max(v.textScaleIdx ?? 0, 0), TEXT_SCALES.length - 1); audio.setMuted?.(!state.sound); } });
   storage.get('stats', null).then((v) => { if (v) state.stats = { ...state.stats, ...v, badges: { ...(v.badges || {}) } }; });
   storage.get('learned', false).then((v) => { state.learned = state.learned || !!v; });
   storage.get('daily', null).then((v) => { if (v) { state.daily.solvedDay = v.solvedDay ?? -1; state.daily.streak = v.streak ?? 0; } });
   storage.get('demoGames', 0).then((v) => { state.demoGames = Math.max(state.demoGames, v); });
   storage.get('save', null).then((v) => { if (v && v.game && !v.game.winner && state.scene === 'title') state.saved = v; });
-  const savePrefs = () => storage.set('prefs', { level: state.level, sound: state.sound, calm: state.calm, big: state.big, marks: state.marks, human: state.human });
+  const savePrefs = () => storage.set('prefs', { level: state.level, sound: state.sound, calm: state.calm, big: state.big, marks: state.marks, human: state.human, textScaleIdx: state.textScaleIdx });
   const saveGame = () => { if (state.scene === 'play' && !state.game.winner) { state.saved = { game: clone(state.game), human: state.human, two: state.two, level: state.level, size: state.size, hintsLeft: state.hintsLeft }; storage.set('save', state.saved); } };
   const clearSave = () => { state.saved = null; storage.remove('save'); };
 
@@ -140,7 +141,9 @@ export function createGame(env) {
     const pages = which === 'rules' ? RULES : PAGES[which];
     if (!tap) return;
     if (inRect(BTN.menu, tap.x, tap.y)) { state.scene = 'title'; return; }
-    if (inRect(BTN.next, tap.x, tap.y)) { if (state.page + 1 < pages.length) state.page += 1; else state.scene = 'title'; clack(); }
+    if (inRect(TEXT_DEC, tap.x, tap.y)) { if (state.textScaleIdx > 0) { state.textScaleIdx -= 1; savePrefs(); clack(); } return; }
+    if (inRect(TEXT_INC, tap.x, tap.y)) { if (state.textScaleIdx < TEXT_SCALES.length - 1) { state.textScaleIdx += 1; savePrefs(); clack(); } return; }
+    if (inRect(PAGE_NEXT, tap.x, tap.y)) { if (state.page + 1 < pages.length) state.page += 1; else state.scene = 'title'; clack(); return; }
     if (inRect(BTN.undo, tap.x, tap.y) && state.page > 0) { state.page -= 1; clack(); }
   }
 
@@ -257,7 +260,7 @@ export function createGame(env) {
     if (input.pointer.pressed) { state.kb = false; return null; }
     if (sc === 'title') { if (k.has('Enter') || k.has('Space')) { const R = titleRows(!!state.saved); return { x: R.big.x + 5, y: R.big.y + 5 }; } return null; }
     if (sc === 'over') { if (k.has('Enter') || k.has('Space')) return { x: BTN.again.x + 5, y: BTN.again.y + 5 }; return null; }
-    if (sc === 'about' || sc === 'help' || sc === 'rules') { if (k.has('Escape')) return { x: BTN.menu.x + 5, y: BTN.menu.y + 5 }; if (k.has('Enter') || k.has('Space')) return { x: BTN.next.x + 5, y: BTN.next.y + 5 }; return null; }
+    if (sc === 'about' || sc === 'help' || sc === 'rules') { if (k.has('Escape')) return { x: BTN.menu.x + 5, y: BTN.menu.y + 5 }; if (k.has('Enter') || k.has('Space')) return { x: PAGE_NEXT.x + 5, y: PAGE_NEXT.y + 5 }; return null; }
     if (sc !== 'play' && sc !== 'lesson' && sc !== 'puzzle') return null;
     if (k.has('Escape')) return { x: BTN.menu.x + 5, y: BTN.menu.y + 5 };
     if (k.has('KeyU')) return { x: BTN.undo.x + 5, y: BTN.undo.y + 5 };

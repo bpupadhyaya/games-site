@@ -3,7 +3,7 @@ import { W, H, MAT, BOARD, cellSize, posXY, yardOffset, gridXY, hopPath } from '
 import { geo, homeCount, trackIndex, COLOUR_NAMES } from './rules.js';
 import { drawStatic, drawFloorOnly, drawPanel, star, ARM_COLOURS, ARM_LIGHT, lcg } from './art.js';
 import { drawPawn, drawCowry, drawDie } from './pieces.js';
-import { screenButtons, PANEL, HOW_PAGES, ABOUT_PAGES, RULES_PAGES } from './ui.js';
+import { screenButtons, PANEL, HOW_PAGES, ABOUT_PAGES, RULES_PAGES, TEXT_SCALES } from './ui.js';
 import { LESSONS } from './lessons.js';
 import { LEVEL_NAMES, LEVEL_BLURB } from './ai.js';
 
@@ -17,6 +17,8 @@ const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
 export function render(ctx, state) {
   const sc = state.scene, T = state.t, big = state.prefs.big, g = state.g;
+  // Falls back to 1 for any out-of-range index (e.g. a save from a build with more/fewer steps).
+  const textScale = TEXT_SCALES[state.prefs.textScaleIdx ?? 0] ?? 1;
   const panelScene = ['setup', 'learn', 'settings', 'how', 'about', 'rules', 'demo-limit'].includes(sc);
   const boardScene = !panelScene;
   const mode = boardScene && sc !== 'title' ? g.mode : 'pachisi';
@@ -96,7 +98,8 @@ export function render(ctx, state) {
   // ---- panels --------------------------------------------------------------------------------------
   if (panelScene) {
     drawPanel(ctx, PANEL.x, PANEL.y, PANEL.w, PANEL.h);
-    ctxTitle(ctx, text, sc === 'setup' ? 'Set up a game' : sc === 'learn' ? 'Learn to play' : sc === 'settings' ? 'Settings' : sc === 'how' ? HOW_PAGES[state.howPage][0] : sc === 'about' ? ABOUT_PAGES[state.aboutPage][0] : sc === 'rules' ? RULES_PAGES[state.rulesPage][0] : 'Thank you for playing');
+    const readerPage = sc === 'how' || sc === 'about' || sc === 'rules';
+    ctxTitle(ctx, text, sc === 'setup' ? 'Set up a game' : sc === 'learn' ? 'Learn to play' : sc === 'settings' ? 'Settings' : sc === 'how' ? HOW_PAGES[state.howPage][0] : sc === 'about' ? ABOUT_PAGES[state.aboutPage][0] : sc === 'rules' ? RULES_PAGES[state.rulesPage][0] : 'Thank you for playing', 190, Math.round(66 * (readerPage ? textScale : 1)));
     if (sc === 'setup') {
       const t = state.setup;
       const lab = (s, y) => text(s, 60, y, 26 * (big ? 1.1 : 1), INK, UI, 700, 'left');
@@ -113,15 +116,15 @@ export function render(ctx, state) {
       wrap('Progress is kept on this device.', 360, 1266, 22, 560, '#7a1a20', 30);
     } else if (sc === 'how' || sc === 'about') {
       const pages = sc === 'how' ? HOW_PAGES : ABOUT_PAGES, pg = pages[sc === 'how' ? state.howPage : state.aboutPage][1];
-      let y = 250; const sz = big ? 30 : 27;
-      for (const para of pg) { const n = wrap(para, 76, y, sz, 568, INK, sz * 1.3, 'left'); y += n * sz * 1.3 + 22; }
-      text(`Page ${(sc === 'how' ? state.howPage : state.aboutPage) + 1} of 2`, 360, 1290, 22, '#7a1a20', UI, 600);
+      let y = 250; const sz = Math.round(28 * textScale * (big ? 1.06 : 1)), lh = Math.round(sz * 1.4), gap = Math.round(22 * textScale);
+      for (const para of pg) { const n = wrap(para, 76, y, sz, 568, INK, lh, 'left'); y += n * lh + gap; }
+      text(`Page ${(sc === 'how' ? state.howPage : state.aboutPage) + 1} of ${pages.length}`, 360, 1290, 22, '#7a1a20', UI, 600);
     } else if (sc === 'rules') {
       const idx = state.rulesPage, page = RULES_PAGES[idx];
       let y = 250;
       if (page[2]) { drawRulesArt(ctx, page[2], T); y = 250 + RULES_ART_H; }
-      const sz = big ? 27 : 24;
-      for (const para of page[1]) { const n = wrap(para, 76, y, sz, 568, INK, sz * 1.28, 'left'); y += n * sz * 1.28 + 18; }
+      const sz = Math.round(28 * textScale * (big ? 1.06 : 1)), lh = Math.round(sz * 1.4), gap = Math.round(18 * textScale);
+      for (const para of page[1]) { const n = wrap(para, 76, y, sz, 568, INK, lh, 'left'); y += n * lh + gap; }
       text(`Page ${idx + 1} of ${RULES_PAGES.length}`, 360, 1290, 22, '#7a1a20', UI, 600);
     } else if (sc === 'demo-limit') {
       wrap('That is the end of the free web preview. Get Pachisi on iPhone and Android for unlimited games, all nine lessons, the daily race and every setting.', 360, 400, 32, 540, INK, 44);
@@ -153,7 +156,15 @@ export function render(ctx, state) {
   const gr = ctx.createRadialGradient(90, 120, 10, 90, 120, 800); gr.addColorStop(0, 'rgba(255,170,70,1)'); gr.addColorStop(1, 'rgba(0,0,0,0)'); ctx.fillStyle = gr; ctx.fillRect(0, 0, W, 900); ctx.restore();
 }
 
-function ctxTitle(ctx, text, str, y = 190, size = 66) { text(str, 360, y === 190 ? 196 : y, size, '#7a1a20', FONT, 700); }
+function ctxTitle(ctx, text, str, y = 190, size = 66) {
+  // Shrink-to-fit: a long page title (Rules/About/How to play headings) must never run off either
+  // edge of the panel, however large the requested display size is.
+  const maxW = PANEL.w - 96;
+  let s = size;
+  ctx.font = `700 ${s}px ${FONT}`;
+  while (s > 30 && ctx.measureText(str).width > maxW) { s -= 2; ctx.font = `700 ${s}px ${FONT}`; }
+  text(str, 360, y === 190 ? 196 : y, s, '#7a1a20', FONT, 700);
+}
 function plate(ctx, x, y, w, h) {
   ctx.save(); ctx.shadowColor = 'rgba(0,0,0,0.6)'; ctx.shadowBlur = 20; ctx.fillStyle = 'rgba(28,14,8,0.97)'; ctx.beginPath(); ctx.roundRect(x, y, w, h, 20); ctx.fill(); ctx.restore();
   ctx.strokeStyle = '#c9982f'; ctx.lineWidth = 3; ctx.beginPath(); ctx.roundRect(x, y, w, h, 20); ctx.stroke();

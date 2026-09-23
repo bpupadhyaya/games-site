@@ -1,5 +1,5 @@
 // Everything that is drawn each frame. Reads `state` (see game.js) and changes nothing.
-import { W, H as SH, CARD, TRICK_CARD, BACK, SLOT, SEAT, PLATE, DECK, HAND_Y, LIFT, handLayout, BTN, BID, titleRows, LESSON_ROWS, LESSONS_BACK, ABOUT_BACK, RULES_BACK, RULES_NEXT } from './layout.js';
+import { W, H as SH, CARD, TRICK_CARD, BACK, SLOT, SEAT, PLATE, DECK, HAND_Y, LIFT, handLayout, BTN, BID, titleRows, LESSON_ROWS, LESSONS_BACK, ABOUT_BACK, ABOUT_NEXT, RULES_BACK, RULES_NEXT, TEXT_DEC, TEXT_INC, TEXT_SCALES } from './layout.js';
 import { drawTable, drawLanterns, drawCard, suit, star8, suitColor } from './art.js';
 import { SUIT_NAMES, SEAT_NAMES, legalPlays, teamOf, sortHand } from './rules.js';
 import { LEVELS } from './ai.js';
@@ -79,44 +79,47 @@ export function render(ctx, S) {
     return;
   }
 
-  // ------------------------------------------------------------------------------------------------ about
-  if (S.scene === 'about') {
-    text('About Tarneeb', 360, 148, 62);
-    const lh = 26, headGap = 30, sectionGap = 14, top = 226;
-    const bodyLines = ABOUT.map(([, body]) => countLines(body, 21, 580, UI, 600));
-    const contentH = bodyLines.reduce((sum, n) => sum + headGap + n * lh + sectionGap, 0);
-    panel({ x: 40, y: top - 26, w: 640, h: contentH + 40 });
-    let y = top;
-    ABOUT.forEach(([head, body], i) => {
-      text(head, 70, y, 27, GOLD, FONT, 700, 'left'); y += headGap;
-      y += wrap(body, 70, y, 21, 580, '#f0e2c4', lh, 'left').valueOf() * lh + sectionGap;
-    });
-    button(ABOUT_BACK, 'Back', { primary: true });
-    return;
-  }
-  // ------------------------------------------------------------------------------------------------ rules
-  if (S.scene === 'rules') {
-    const n = RULES.length, idx = ((S.page % n) + n) % n, page = RULES[idx];
-    text('Rules', 360, 148, 62);
-    const top = 226, lh = 24, bodyW = 580, titleH = 40, paraGap = 10;
+  // ------------------------------------------------------------------------------------------------ about / rules
+  // Both are paginated reference sheets, one concept per page, sharing this one renderer: a framed
+  // reader card (the same warm walnut/gold panel used everywhere else in this game, not a new
+  // style), real comfortable body text, and a text-size stepper in the top corners (this game's
+  // Back/Next live at the bottom of the screen, so the corners are free and nothing gets crowded).
+  if (S.scene === 'about' || S.scene === 'rules') {
+    const isAbout = S.scene === 'about', list = isAbout ? ABOUT : RULES, backBtn = isAbout ? ABOUT_BACK : RULES_BACK, nextBtn = isAbout ? ABOUT_NEXT : RULES_NEXT;
+    const n = list.length, idx = ((S.page % n) + n) % n, page = list[idx];
+    // Falls back to 1 for any out-of-range index (e.g. a save from a build with more/fewer steps).
+    const scale = TEXT_SCALES[S.textScaleIdx] ?? 1;
+    const headSize = Math.round(62 * Math.min(scale, 1.12)); // the big page title; already generous, capped so it never crowds the stepper
+    const titleSize = Math.round(30 * scale), bodySize = Math.round(28 * scale), lh = Math.round(bodySize * 1.4), paraGap = Math.round(11 * scale), titleH = Math.round(44 * scale);
+    const bodyW = 580;
+    text(isAbout ? 'About Tarneeb' : 'Rules', 360, 148, headSize);
     let cardsH = 0;
-    if (page.cards) cardsH = 134 + (page.cards.some((c) => c.label) ? 26 : 0) + 24;
-    const bodyLines = page.lines.reduce((sum, l) => sum + countLines(l, 21, bodyW, UI, 600), 0);
-    const bodyH = bodyLines * lh + Math.max(0, page.lines.length - 1) * paraGap;
-    const contentH = titleH + cardsH + bodyH;
-    panel({ x: 40, y: top - 26, w: 640, h: contentH + 40 });
+    if (page.cards) cardsH = 134 + (page.cards.some((c) => c.label) ? 26 : 0) + Math.round(24 * scale);
+    const top = 226, panelTop = top - 26, panelBottom = 1400; // fixed reader-card, room left below short pages for a small flourish
+    panel({ x: 40, y: panelTop, w: 640, h: panelBottom - panelTop });
     let y = top;
-    text(page.title, 70, y, 27, GOLD, FONT, 700, 'left'); y += titleH;
+    text(page.title, 70, y, titleSize, GOLD, FONT, 700, 'left'); y += titleH;
     if (page.cards) {
       const cw = 92, ch = 134, gap = 22, cn = page.cards.length, totalW = cn * cw + (cn - 1) * gap, x0 = 360 - totalW / 2;
       page.cards.forEach((cd, i) => drawCard(ctx, cd.c, x0 + i * (cw + gap), y, cw, ch));
       if (page.cards.some((c) => c.label)) page.cards.forEach((cd, i) => { if (cd.label) text(cd.label, x0 + i * (cw + gap) + cw / 2, y + ch + 22, 15, 'rgba(246,223,174,0.75)', UI, 600); });
       y += cardsH;
     }
-    page.lines.forEach((l) => { y += wrap(l, 70, y, 21, bodyW, '#f0e2c4', lh, 'left').valueOf() * lh + paraGap; });
+    page.lines.forEach((l) => { y += wrap(l, 70, y, bodySize, bodyW, '#f0e2c4', lh, 'left').valueOf() * lh + paraGap; });
+    // A small faded four-suit flourish, only drawn where it actually fits below the last line of
+    // text - never on top of a longer page's last paragraph.
+    const remaining = panelBottom - y;
+    if (remaining > 200) {
+      const cy = y + remaining / 2, gapX = 84, x0 = 360 - gapX * 1.5;
+      ctx.save(); ctx.globalAlpha = 0.3;
+      [0, 1, 2, 3].forEach((s, i) => suit(ctx, s, x0 + i * gapX, cy, 32, s === 1 || s === 2 ? '#ff8a80' : '#f6efe0'));
+      ctx.restore();
+    }
     text(`Page ${idx + 1} of ${n}`, 360, 1440, 20, 'rgba(246,223,174,0.65)', UI, 600);
-    button(RULES_BACK, 'Back');
-    button(RULES_NEXT, 'Next', { primary: true });
+    button(backBtn, 'Back');
+    button(nextBtn, 'Next', { primary: true });
+    button(TEXT_DEC, 'A−', { size: 30, dim: S.textScaleIdx === 0 });
+    button(TEXT_INC, 'A+', { size: 30, dim: S.textScaleIdx === TEXT_SCALES.length - 1 });
     return;
   }
   // ------------------------------------------------------------------------------------------------ lesson list

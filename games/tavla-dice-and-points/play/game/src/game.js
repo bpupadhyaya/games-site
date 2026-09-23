@@ -3,14 +3,14 @@
 //
 // Making a move: TAP a checker (its legal points glow), then TAP a point; or DRAG the checker and drop it. A move that is not
 // allowed visibly tries, shudders and comes back, and a plain-language reason is shown (rules.whyNot).
-import { W, H, BTN, DICE, CUBE, CUBE_ASK, DONE, PANEL, PBACK, SET_ROWS, TRAY, inRect, targetAt, stackPos, barPos, offPos, titleRows, OVER } from './layout.js';
+import { W, H, BTN, DICE, CUBE, CUBE_ASK, DONE, PANEL, PBACK, SET_ROWS, TRAY, inRect, targetAt, stackPos, barPos, offPos, titleRows, OVER, TEXT_SCALES, TEXT_BTN } from './layout.js';
 import { BAR, OFF, newGame, clone, expandRoll, beginTurn, legalSteps, playStep, turnCopy, whyNot, isOver, winner, resultValue, key, own, pips } from './rules.js';
 import { LEVELS, createThinker, cubeOffer, cubeTake, reasonFor, SLICE } from './ai.js';
 import { LESSONS, setup, ptOf } from './lessons.js';
 import { createPuzzleMaker } from './puzzles.js';
 import { render, REST } from './view.js';
 import { SET_NAMES } from './sprites.js';
-import { ABOUT, RULES } from './text.js';
+import { ABOUT, HOWTO, RULES } from './text.js';
 
 export const meta = { width: W, height: H };
 const DEMO_GAMES = 2, DEMO_LESSONS = 3, HINTS = 3;
@@ -21,6 +21,7 @@ export function createGame(env) {
   const state = {
     scene: 'title', t: 0, phase: 'idle', g: newGame(), two: false, level: 2, gammon: true, cube: { on: false, v: 1, owner: -1 },
     sound: true, calm: false, big: false, set: 'classic', auto: true,
+    textScaleIdx: 0, // index into TEXT_SCALES; the About/How to play/Rules reader pages' text size
     dice: { vals: null, side: 0, roll: null }, left: null, sel: -1, dests: [], sources: [], anim: null, drag: null, hint: null, msg: null,
     status: '', canUndo: false, canDouble: false, hintsLeft: HINTS, thinking: false, cursor: null, cursorOn: false, kbi: 0,
     cubeAsk: null, result: null, stats: { games: 0, wins: 0 }, saved: null, learned: false, demoGames: 0, page: 0,
@@ -31,11 +32,11 @@ export function createGame(env) {
   const maker = createPuzzleMaker(state.daily.day);
 
   // ---- saving ---------------------------------------------------------------------------------------------------------
-  const savePrefs = () => storage.set('prefs', { level: state.level, gammon: state.gammon, cubeOn: state.cube.on, sound: state.sound, calm: state.calm, big: state.big, set: state.set, auto: state.auto });
+  const savePrefs = () => storage.set('prefs', { level: state.level, gammon: state.gammon, cubeOn: state.cube.on, sound: state.sound, calm: state.calm, big: state.big, set: state.set, auto: state.auto, textScaleIdx: state.textScaleIdx });
   const saveStats = () => { storage.set('stats', state.stats); storage.set('progress', { played: state.stats.games, wins: state.stats.wins }); };
   const saveGame = () => { if (state.scene === 'play' && !isOver(state.g)) { state.saved = { g: clone(state.g), two: state.two, level: state.level, gammon: state.gammon, cube: { ...state.cube }, hintsLeft: state.hintsLeft }; storage.set('save', state.saved); } };
   const clearSave = () => { state.saved = null; storage.remove('save'); };
-  storage.get('prefs', null).then((v) => { if (!v) return; state.level = v.level ?? 2; state.gammon = v.gammon ?? true; state.cube.on = v.cubeOn ?? false; state.sound = v.sound ?? true; state.calm = v.calm ?? false; state.big = v.big ?? false; state.set = SETS.includes(v.set) ? v.set : 'classic'; state.auto = v.auto ?? true; audio.setMuted?.(!state.sound); });
+  storage.get('prefs', null).then((v) => { if (!v) return; state.level = v.level ?? 2; state.gammon = v.gammon ?? true; state.cube.on = v.cubeOn ?? false; state.sound = v.sound ?? true; state.calm = v.calm ?? false; state.big = v.big ?? false; state.set = SETS.includes(v.set) ? v.set : 'classic'; state.auto = v.auto ?? true; state.textScaleIdx = Math.min(Math.max(v.textScaleIdx ?? (v.big ? 1 : 0), 0), TEXT_SCALES.length - 1); audio.setMuted?.(!state.sound); });
   storage.get('stats', null).then((v) => { if (v) state.stats = { games: v.games ?? 0, wins: v.wins ?? 0 }; });
   storage.get('learned', false).then((v) => { state.learned = state.learned || !!v; });
   storage.get('daily', null).then((v) => { if (v) { state.daily.solvedDay = v.solvedDay ?? -1; state.daily.streak = v.streak ?? 0; } });
@@ -394,15 +395,19 @@ export function createGame(env) {
     else if (hit(Rr.cube)) { state.cube.on = !state.cube.on; savePrefs(); clack(); }
     else if (hit(Rr.gammon)) { state.gammon = !state.gammon; savePrefs(); clack(); }
     else if (hit(Rr.settings)) state.scene = 'settings';
-    else if (hit(Rr.howto)) state.scene = 'howto';
+    else if (hit(Rr.howto)) { state.scene = 'howto'; state.page = 0; }
     else if (hit(Rr.about)) { state.scene = 'about'; state.page = 0; }
     else if (hit(Rr.rules)) { state.scene = 'rules'; state.page = 0; }
   }
+  const DOC_LIST = { howto: HOWTO, about: ABOUT, rules: RULES };
   function updateDoc(tap) {
     if (!tap) return;
+    // Text-size stepper: an index into TEXT_SCALES, clamped at both ends, same on every doc page.
+    if (inRect(TEXT_BTN.dec, tap.x, tap.y)) { if (state.textScaleIdx > 0) { state.textScaleIdx--; savePrefs(); clack(); } return; }
+    if (inRect(TEXT_BTN.inc, tap.x, tap.y)) { if (state.textScaleIdx < TEXT_SCALES.length - 1) { state.textScaleIdx++; savePrefs(); clack(); } return; }
     if (inRect(PBACK, tap.x, tap.y)) { state.scene = 'title'; return; }
-    if (state.scene === 'about' && inRect({ x: 140, y: 1330, w: 440, h: 70 }, tap.x, tap.y)) state.page = (state.page + 1) % ABOUT.length;
-    else if (state.scene === 'rules' && inRect({ x: 140, y: 1330, w: 440, h: 70 }, tap.x, tap.y)) state.page = (state.page + 1) % RULES.length;
+    const list = DOC_LIST[state.scene];
+    if (list && list.length > 1 && inRect({ x: 140, y: 1330, w: 440, h: 70 }, tap.x, tap.y)) state.page = (state.page + 1) % list.length;
   }
   function updateSettings(tap) {
     if (!tap) return;

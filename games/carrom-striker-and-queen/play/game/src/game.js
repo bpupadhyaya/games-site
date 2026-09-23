@@ -1,14 +1,14 @@
 // Carrom: state and flow. Drawing is view.js; rules.js is the rule book; physics.js the simulation; ai.js the computer.
 // Controls (taught on the How to play page): DRAG the striker along the baseline to place it, DRAG BACK to aim and set
 // power, RELEASE to flick. The same stroke machinery runs boards, lessons and the daily trick shot.
-import { W, H, K, BX, BY, PLAY, ux, uy, sx, sy, inRect, titleButtons, PLAYB, MENU, OVER, LESSONB, PAGE, settingRows, lessonRows } from './layout.js';
+import { W, H, K, BX, BY, PLAY, ux, uy, sx, sy, inRect, titleButtons, PLAYB, MENU, OVER, LESSONB, PAGE, PAGE_TEXT, TEXT_SCALES, settingRows, lessonRows } from './layout.js';
 import { S, BASE_Y, BASE_X0, BASE_X1, stepWorld, moving, blocked, cloneWorld, R_STR } from './physics.js';
 import { newBoard, cloneGame, placeStriker, flick, resolve, clearX, onBoard, down, other, SIDE_NAME } from './rules.js';
 import { createThinker, AI_LEVELS } from './ai.js';
 import { LESSONS, judge } from './lessons.js';
 import { createPuzzleMaker, puzzleBoard } from './daily.js';
 import { THEME_KEYS } from './art.js';
-import { GAME_RULES } from './pages.js';
+import { GAME_RULES, HOWTO_PAGES, ABOUT_PAGES } from './pages.js';
 import { render } from './view.js';
 
 export const meta = { width: W, height: H };
@@ -18,7 +18,7 @@ const ease = (f) => f * f * (3 - 2 * f);
 export function createGame(env) {
   const { rng, storage, audio, monetization, config } = env;
   const state = {
-    scene: 'title', t: 0, level: 1, mode: 'ai', sound: true, calm: false, big: false, left: false, theme: 'plywood', guide: 2,
+    scene: 'title', t: 0, level: 1, mode: 'ai', sound: true, calm: false, textScaleIdx: 0, left: false, theme: 'plywood', guide: 2,
     g: newBoard('W'), phase: 'aim', sx: S / 2, aim: null, drag: null, fx: [], msg: null, tip: '', blocked: false, menu: false, hintsLeft: HINTS, hintBusy: false,
     ev: [], sum: null, wait: 0, shake: 0, page: 0, back: 'title', hintPulse: 1,
     stats: { played: 0, wins: 0 }, learned: {}, lesson: null, demoBoards: 0, saved: null, demoMode: config.demo === true, dev: config.dev === true,
@@ -27,13 +27,15 @@ export function createGame(env) {
   };
   let thinker = null, hintThinker = null, aiShot = null, maker = createPuzzleMaker(state.daily.day), sounds = 0;
 
-  storage.get('prefs', null).then((v) => { if (v) { for (const k of ['level', 'sound', 'calm', 'big', 'left', 'theme', 'guide']) if (v[k] !== undefined) state[k] = v[k]; audio.setMuted?.(!state.sound); } });
+  // textScaleIdx is clamped on load: a saved index from a build with a longer/shorter TEXT_SCALES
+  // must never produce an out-of-range lookup (NaN font sizes) in view.js.
+  storage.get('prefs', null).then((v) => { if (v) { for (const k of ['level', 'sound', 'calm', 'left', 'theme', 'guide']) if (v[k] !== undefined) state[k] = v[k]; if (v.textScaleIdx !== undefined) state.textScaleIdx = Math.min(Math.max(v.textScaleIdx, 0), TEXT_SCALES.length - 1); audio.setMuted?.(!state.sound); } });
   storage.get('stats', null).then((v) => { if (v) state.stats = { ...state.stats, ...v }; });
   storage.get('learned', null).then((v) => { if (v) state.learned = { ...state.learned, ...v }; });
   storage.get('daily', null).then((v) => { if (v) { state.daily.solvedDay = v.solvedDay ?? -1; state.daily.streak = v.streak ?? 0; } });
   storage.get('demoBoards', 0).then((v) => { state.demoBoards = Math.max(state.demoBoards, v); });
   storage.get('save', null).then((v) => { if (v && v.g && !v.g.over && state.scene === 'title') state.saved = v; });
-  const savePrefs = () => storage.set('prefs', { level: state.level, sound: state.sound, calm: state.calm, big: state.big, left: state.left, theme: state.theme, guide: state.guide });
+  const savePrefs = () => storage.set('prefs', { level: state.level, sound: state.sound, calm: state.calm, textScaleIdx: state.textScaleIdx, left: state.left, theme: state.theme, guide: state.guide });
   const saveStats = () => { storage.set('stats', state.stats); storage.set('progress', { played: state.stats.played, wins: state.stats.wins }); };
   const saveBoard = () => { if (state.scene === 'play' && !state.g.over) { state.saved = { g: cloneGame(state.g), mode: state.mode, level: state.level, hintsLeft: state.hintsLeft }; storage.set('save', state.saved); } };
   const clearSave = () => { state.saved = null; storage.remove('save'); };
@@ -252,14 +254,22 @@ export function createGame(env) {
     if (hit(B.resume)) resumeBoard(); else if (hit(B.play)) startBoard('ai'); else if (hit(B.two)) startBoard('two');
     else if (hit(B.learn)) state.scene = 'lessons'; else if (hit(B.daily)) startDaily();
     else if (hit(B.level)) { state.level = (state.level + 1) % AI_LEVELS.length; savePrefs(); tone({ freq: 500, to: 300, dur: 0.06, type: 'triangle', vol: 0.06 }); }
-    else if (hit(B.howto)) { state.scene = 'howto'; state.page = 0; } else if (hit(B.about)) state.scene = 'about';
+    else if (hit(B.howto)) { state.scene = 'howto'; state.page = 0; } else if (hit(B.about)) { state.scene = 'about'; state.page = 0; }
     else if (hit(B.rules)) { state.scene = 'rules'; state.page = 0; } else if (hit(B.settings)) { state.back = 'title'; state.scene = 'settings'; }
+  }
+  // Text-size stepper (A-/A+) shared by the About/Controls/Game Rules reference pages. Returns
+  // true when the tap landed on one of the two buttons (whether or not it moved the index — tapping
+  // a disabled end still consumes the tap so it doesn't fall through to something behind it).
+  function stepText(tap) {
+    if (inRect(PAGE_TEXT.dec, tap.x, tap.y)) { if (state.textScaleIdx > 0) { state.textScaleIdx--; savePrefs(); tone({ freq: 460, to: 360, dur: 0.05, type: 'triangle', vol: 0.06 }); } return true; }
+    if (inRect(PAGE_TEXT.inc, tap.x, tap.y)) { if (state.textScaleIdx < TEXT_SCALES.length - 1) { state.textScaleIdx++; savePrefs(); tone({ freq: 460, to: 560, dur: 0.05, type: 'triangle', vol: 0.06 }); } return true; }
+    return false;
   }
   function updateSettings(tap) {
     if (!tap) return;
     if (inRect(PAGE.back, tap.x, tap.y)) { state.scene = state.back === 'title' ? 'title' : state.back; if (state.scene !== 'title') state.menu = true; savePrefs(); return; }
     const rows = settingRows(); const i = rows.findIndex((r) => inRect(r, tap.x, tap.y)); if (i < 0) return;
-    if (i === 0) { state.sound = !state.sound; audio.setMuted?.(!state.sound); } else if (i === 1) state.calm = !state.calm; else if (i === 2) state.big = !state.big; else if (i === 3) state.left = !state.left;
+    if (i === 0) { state.sound = !state.sound; audio.setMuted?.(!state.sound); } else if (i === 1) state.calm = !state.calm; else if (i === 2) state.textScaleIdx = (state.textScaleIdx + 1) % TEXT_SCALES.length; else if (i === 3) state.left = !state.left;
     else if (i === 6) { monetization.restore?.(); say('Checking for earlier purchases…', 3); } else if (i === 4) state.theme = THEME_KEYS[(THEME_KEYS.indexOf(state.theme) + 1) % THEME_KEYS.length]; else if (i === 5) state.guide = (state.guide + 2) % 3;
     savePrefs(); tone({ freq: 520, to: 380, dur: 0.05, type: 'triangle', vol: 0.06 });
   }
@@ -271,9 +281,10 @@ export function createGame(env) {
       if (sc === 'title') updateTitle(dt, tap);
       else if (sc === 'play' || sc === 'lesson' || sc === 'daily') updateBoardScene(dt, input, tap);
       else if (sc === 'settings') updateSettings(tap);
-      else if (sc === 'howto') { if (tap) { if (inRect(PAGE.back, tap.x, tap.y)) state.scene = 'title'; else if (inRect(PAGE.next, tap.x, tap.y)) state.page = 1; else if (inRect(PAGE.prev, tap.x, tap.y)) state.page = 0; } }
-      else if (sc === 'rules') { if (tap) { if (inRect(PAGE.back, tap.x, tap.y)) state.scene = 'title'; else if (inRect(PAGE.next, tap.x, tap.y)) state.page = (state.page + 1) % GAME_RULES.length; else if (inRect(PAGE.prev, tap.x, tap.y)) state.page = (state.page - 1 + GAME_RULES.length) % GAME_RULES.length; } }
-      else if (sc === 'about' || sc === 'demo-limit') { if (tap && inRect(PAGE.back, tap.x, tap.y)) state.scene = 'title'; }
+      else if (sc === 'howto') { if (tap) { if (inRect(PAGE.back, tap.x, tap.y)) state.scene = 'title'; else if (inRect(PAGE.next, tap.x, tap.y)) state.page = Math.min(state.page + 1, HOWTO_PAGES.length - 1); else if (inRect(PAGE.prev, tap.x, tap.y)) state.page = Math.max(state.page - 1, 0); else if (stepText(tap)) {} } }
+      else if (sc === 'rules') { if (tap) { if (inRect(PAGE.back, tap.x, tap.y)) state.scene = 'title'; else if (inRect(PAGE.next, tap.x, tap.y)) state.page = (state.page + 1) % GAME_RULES.length; else if (inRect(PAGE.prev, tap.x, tap.y)) state.page = (state.page - 1 + GAME_RULES.length) % GAME_RULES.length; else if (stepText(tap)) {} } }
+      else if (sc === 'about') { if (tap) { if (inRect(PAGE.back, tap.x, tap.y)) state.scene = 'title'; else if (inRect(PAGE.next, tap.x, tap.y)) state.page = Math.min(state.page + 1, ABOUT_PAGES.length - 1); else if (inRect(PAGE.prev, tap.x, tap.y)) state.page = Math.max(state.page - 1, 0); else if (stepText(tap)) {} } }
+      else if (sc === 'demo-limit') { if (tap && inRect(PAGE.back, tap.x, tap.y)) state.scene = 'title'; }
       else if (sc === 'lessons') { if (tap) { if (inRect(PAGE.back, tap.x, tap.y)) state.scene = 'title'; else { const i = lessonRows().findIndex((r) => inRect(r, tap.x, tap.y)); if (i >= 0) startLesson(i); } } }
     },
     render(ctx) { render(ctx, state); },

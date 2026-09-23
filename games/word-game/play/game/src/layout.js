@@ -31,6 +31,17 @@ export const TITLE_RULES_BTN = { x: 368, y: 1266, w: 202, h: 92 };
 export const RULES_BACK_BTN = { x: 40, y: 1384, w: 312, h: 112 };
 export const RULES_NEXT_BTN = { x: 368, y: 1384, w: 312, h: 112 };
 
+// Text-size stepper for the Rules reference: an *index* into TEXT_SCALES, never a raw float, so
+// a stale saved index from a build with a different-length array can always be clamped safely.
+// Placed top-right of the header row (left of it is the "Rules" title; the app's own Menu button
+// owns the top-left corner and the top ~50 units, same convention the play screen's clock/score
+// pills already follow by starting no earlier than x=250).
+export const TEXT_SCALES = [1, 1.15, 1.3];
+export const RULES_TEXT_DEC = { x: 456, y: 58, w: 108, h: 76 };
+export const RULES_TEXT_INC = { x: 572, y: 58, w: 108, h: 76 };
+// The framed reader-card panel behind the Rules illustration + body text.
+export const RULES_PANEL = { x: 40, y: 230, w: 640, h: 1100 };
+
 // Play screen
 export const PLAQUE = { x: 50, y: 222, w: 620, h: 236 };
 export const TIME_BAR = { x: 40, y: 170, w: 640, h: 16 };

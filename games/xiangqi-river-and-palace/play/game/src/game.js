@@ -3,7 +3,7 @@
 //
 // How a move is made: TAP a piece (it lifts, its legal points glow), then TAP a glowing point; or DRAG the piece and drop it.
 // A legal move glides there. An illegal one visibly TRIES, shudders and comes back, and a message says why.
-import { W, H, BTN, LOOK, RES, titleRows, inRect, squareAt, pointXY } from './layout.js';
+import { W, H, BTN, LOOK, RES, TEXT_SCALES, TEXTSTEP, titleRows, inRect, squareAt, pointXY } from './layout.js';
 import { newGame, fromBoard, applyMove, undoMove, tryMove, legalFor, inCheck, describe, RED, BLACK, SIDE_NAME, TYPE_NAME } from './rules.js';
 import { LEVEL_COUNT, createThinker } from './engine.js';
 import { LESSONS, stepBoard, sq } from './lessons.js';
@@ -21,6 +21,7 @@ export function createGame(env) {
   const state = {
     scene: 'title', t: 0,
     g: newGame(), human: RED, two: false, level: 3, sound: true, calm: false, big: false, board: 'paper', set: 'boxwood', lang: 'zh',
+    textScaleIdx: 0, // index into TEXT_SCALES; the How to play/About/Rules reference pages' text size
     sel: -1, targets: [], drag: null, cursor: 85, kb: false, anim: null, parts: [], rings: [], banner: null, msg: null,
     thinking: false, thinkT: 0, hint: null, hintsLeft: HINTS_PER_GAME, last: null, overOpen: false, page: 0,
     lesson: { i: 0, s: 0, done: false, showSol: false }, pz: null,
@@ -32,8 +33,8 @@ export function createGame(env) {
   const day = config.day ?? 20000;
 
   // ---- storage ------------------------------------------------------------------------------------------------------
-  const savePrefs = () => { storage.set('prefs', { level: state.level, sound: state.sound, calm: state.calm, big: state.big, board: state.board, set: state.set, lang: state.lang }); };
-  storage.get('prefs', null).then((p) => { if (!p) return; Object.assign(state, { level: p.level ?? state.level, sound: p.sound ?? true, calm: !!p.calm, big: !!p.big, board: p.board ?? 'paper', set: p.set ?? 'boxwood', lang: p.lang === 'en' ? 'en' : 'zh' }); audio.setMuted(!state.sound); });
+  const savePrefs = () => { storage.set('prefs', { level: state.level, sound: state.sound, calm: state.calm, big: state.big, board: state.board, set: state.set, lang: state.lang, textScaleIdx: state.textScaleIdx }); };
+  storage.get('prefs', null).then((p) => { if (!p) return; Object.assign(state, { level: p.level ?? state.level, sound: p.sound ?? true, calm: !!p.calm, big: !!p.big, board: p.board ?? 'paper', set: p.set ?? 'boxwood', lang: p.lang === 'en' ? 'en' : 'zh', textScaleIdx: Math.min(Math.max(Number(p.textScaleIdx) || 0, 0), TEXT_SCALES.length - 1) }); audio.setMuted(!state.sound); });
   storage.get('progress', null).then((p) => { if (p) state.progress = { played: p.played | 0, wins: p.wins | 0 }; });
   storage.get('daily', null).then((d) => { if (d) { state.daily.last = d.last ?? -1; state.daily.streak = d.last >= day - 1 ? d.streak ?? 0 : 0; state.daily.solvedToday = d.last === day; } });
   storage.get('learned', []).then((l) => { state.learned = Array.isArray(l) ? l : []; state.learnedAll = state.learned.length >= LESSONS.length; });
@@ -342,7 +343,10 @@ export function createGame(env) {
       }
       case 'howto': case 'about': case 'rules': {
         const list = state.scene === 'howto' ? HOW : state.scene === 'about' ? ABOUT : RULES;
-        if (hit(BTN.prev)) state.scene = 'title'; else if (hit(BTN.page)) state.page = (state.page + 1) % list.length;
+        if (hit(BTN.prev)) state.scene = 'title';
+        else if (hit(BTN.page)) state.page = (state.page + 1) % list.length;
+        else if (hit(TEXTSTEP.dec) && state.textScaleIdx > 0) { state.textScaleIdx--; savePrefs(); sound('ok'); }
+        else if (hit(TEXTSTEP.inc) && state.textScaleIdx < TEXT_SCALES.length - 1) { state.textScaleIdx++; savePrefs(); sound('ok'); }
         break;
       }
       case 'lesson': {

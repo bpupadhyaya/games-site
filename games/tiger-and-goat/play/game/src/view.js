@@ -1,6 +1,6 @@
 // Everything that is drawn each frame. Reads `state` (see game.js) and changes nothing.
 // Static art (table, board) and the two pieces are cached sprites (art.js, pieces.js), so a frame is cheap.
-import { W, H, pointAt, PIECE_R, SIZE, UNIT, BTN, LOOK, RULES_NAV, titleRows, handPos, capturedPos } from './layout.js';
+import { W, H, pointAt, PIECE_R, SIZE, UNIT, BTN, LOOK, RULES_NAV, RULES_HEADER, TEXT_SCALES, titleRows, handPos, capturedPos } from './layout.js';
 import { drawTableAndBoard, WOOD_NAMES } from './art.js';
 import { drawTiger, drawGoat, SET_NAMES } from './pieces.js';
 import { unlocked } from './unlocks.js';
@@ -16,7 +16,11 @@ const TAU = Math.PI * 2;
 
 export function render(ctx, state) {
   drawTableAndBoard(ctx, state.look.wood);
-  const set = state.look.set, big = state.look.big;
+  const set = state.look.set;
+  // Falls back to 1 for any out-of-range index (e.g. a save from a build with a longer/shorter
+  // TEXT_SCALES array) - a stale index must never produce a NaN font size.
+  const scale = TEXT_SCALES[state.textScaleIdx] ?? 1;
+  const big = scale > 1; // the older two-level "big" look, still used by in-play messages and lesson/puzzle text
   const g = state.game, a = state.anim, scene = state.scene;
   const boardScene = scene === 'play' || scene === 'over' || scene === 'lesson' || (scene === 'puzzle' && state.pz.status !== 'making');
 
@@ -131,10 +135,9 @@ export function render(ctx, state) {
   if (scene === 'look') {
     text('Board and pieces', 410, 150, 46); text('Earned by winning. Never for sale.', 360, 205, 26, 'rgba(246,223,174,0.8)', FONT, 400);
     const group = (label, y) => text(label, 90, y, 24, 'rgba(246,223,174,0.85)', UI, 600, 'left');
-    group('Board', 786); group('Pieces', 946); group('Message text', 1106);
+    group('Board', 786); group('Pieces', 946);
     ['teak', 'walnut', 'ash'].forEach((k, i) => { const ok = unlocked(state, 'wood', k); button(LOOK.woods[i], ok ? WOOD_NAMES[k] : `${WOOD_NAMES[k]} (locked)`, { size: 23, primary: state.look.wood === k, dim: !ok }); });
     ['classic', 'snow'].forEach((k, i) => { const ok = unlocked(state, 'set', k); button(LOOK.sets[i], ok ? SET_NAMES[k] : `${SET_NAMES[k]} (locked)`, { size: 26, primary: state.look.set === k, dim: !ok }); });
-    button(LOOK.text[0], 'Normal', { size: 26, primary: !big }); button(LOOK.text[1], 'Large', { size: 30, primary: big });
     button(LOOK.back, 'Back', { size: 30 });
     if (state.msg) wrap(state.msg.text, 360, 1236, big ? 30 : 24, 620, '#ffe9b0');
     text(`Wins so far: ${state.stats.wins}`, 360, 1420, 22, 'rgba(246,223,174,0.7)', UI, 500);
@@ -176,13 +179,33 @@ export function render(ctx, state) {
   } else if (scene === 'rules') {
     ctx.fillStyle = 'rgba(6,10,14,0.72)'; ctx.fillRect(0, 0, W, H);
     const page = RULES[state.rulesPage % RULES.length];
-    text('Rules', 360, 130, 44);
-    text(page.title, 360, 182, 28, '#ffd24a', UI, 700);
-    let y = 240;
-    if (page.piece) { piece(page.piece, { x: 360, y: 400, s: 1 }, { scale: page.piece === 'T' ? 2.7 : 3.6 }); y = 510; }
-    const size = big ? 29 : 25, lh = size * 1.32;
-    for (const line of page.lines) { const n = wrap(line, 360, y, size, 620, '#ffffff', lh); y += n * lh + 12; }
-    text(`Page ${(state.rulesPage % RULES.length) + 1} of ${RULES.length}`, 360, 1420, 22, 'rgba(246,223,174,0.7)', UI, 500);
+
+    // The reader card: one framed panel holding the header, the piece portrait (if any) and the
+    // body text, so the page reads as a designed reference sheet rather than loose floating text
+    // on the backdrop. Sits between the text-size stepper (top) and Back/Next (bottom).
+    const panel = { x: 30, y: 96, w: W - 60, h: RULES_NAV.back.y - 16 - 96 };
+    ctx.beginPath(); ctx.roundRect(panel.x, panel.y, panel.w, panel.h, 26);
+    const pg = ctx.createLinearGradient(0, panel.y, 0, panel.y + panel.h);
+    pg.addColorStop(0, 'rgba(58,38,20,0.55)'); pg.addColorStop(1, 'rgba(16,10,5,0.72)');
+    ctx.fillStyle = pg; ctx.fill();
+    ctx.strokeStyle = 'rgba(246,223,174,0.32)'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.beginPath(); ctx.roundRect(panel.x + 6, panel.y + 6, panel.w - 12, panel.h - 12, 20);
+    ctx.strokeStyle = 'rgba(246,223,174,0.12)'; ctx.lineWidth = 1; ctx.stroke();
+
+    // The screen title's own growth is capped a little short of the body text's, so it never
+    // dwarfs the panel at the top text-size step.
+    text('Rules', 360, panel.y + 54, Math.round(44 * Math.min(scale, 1.15)));
+    ctx.strokeStyle = 'rgba(246,223,174,0.3)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(panel.x + 60, panel.y + 82); ctx.lineTo(panel.x + panel.w - 60, panel.y + 82); ctx.stroke();
+    const pageTitleY = panel.y + 132;
+    text(page.title, 360, pageTitleY, Math.round(31 * scale), '#ffd24a', UI, 700);
+    let y = pageTitleY + 58;
+    if (page.piece) { const footY = pageTitleY + 218; piece(page.piece, { x: 360, y: footY, s: 1 }, { scale: page.piece === 'T' ? 2.7 : 3.6 }); y = footY + 110; }
+    const size = Math.round(29 * scale), lh = Math.round(size * 1.42), gap = Math.round(11 * scale);
+    for (const line of page.lines) { const n = wrap(line, 360, y, size, panel.w - 90, '#ffffff', lh); y += n * lh + gap; }
+    text(`Page ${(state.rulesPage % RULES.length) + 1} of ${RULES.length}`, 360, panel.y + panel.h - 34, 20, 'rgba(246,223,174,0.65)', UI, 500);
+    button(RULES_HEADER.textDec, 'A−', { size: 28, dim: state.textScaleIdx === 0 });
+    button(RULES_HEADER.textInc, 'A+', { size: 28, dim: state.textScaleIdx === TEXT_SCALES.length - 1 });
     button(RULES_NAV.back, 'Back', { size: 28 }); button(RULES_NAV.next, 'Next', { size: 28, primary: true });
   }
 }

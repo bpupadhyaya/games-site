@@ -1,5 +1,5 @@
 // Everything drawn each frame. Reads `state` (game.js) and changes nothing. Static art is cached (art.js, pieces.js).
-import { W, H, pointAt, COW_R, PEN, penSlot, MSG, BTN, titleRows, inRect } from './layout.js';
+import { W, H, pointAt, COW_R, PEN, penSlot, MSG, BTN, TEXT_STEPPER, TEXT_SCALES, titleRows, inRect } from './layout.js';
 import { drawBackdrop, drawBoard, drawLife, band, PIGMENT, poly, TAU } from './art.js';
 import { drawCow } from './pieces.js';
 import { RULES as R } from './morabaraba.js';
@@ -28,6 +28,13 @@ export function render(ctx, state) {
     out.push(cur); return out;
   };
   const wrap = (str, x, y, size, maxW, color, lh = size * 1.3, align = 'center') => { const L = lines(str, maxW, size); L.forEach((ln, i) => text(ln, x, y + i * lh, size, color, UI, 600, align)); return L.length; };
+  // Shrinks a one-line title only if it would otherwise run past the canvas edges at the top text
+  // scale (a no-op for every short title, which already fits at the base size).
+  const fitTitle = (str, base, maxW = 640, font = FONT, weight = 700) => {
+    let size = base; ctx.font = `${weight} ${size}px ${font}`;
+    while (ctx.measureText(str).width > maxW && size > 30) { size -= 2; ctx.font = `${weight} ${size}px ${font}`; }
+    return size;
+  };
   const button = (r, label, o = {}) => {
     ctx.save(); if (o.dim) ctx.globalAlpha = 0.5;
     ctx.fillStyle = 'rgba(15,3,1,0.45)'; ctx.beginPath(); ctx.roundRect(r.x + 3, r.y + 6, r.w, r.h, 16); ctx.fill();
@@ -189,9 +196,13 @@ export function render(ctx, state) {
     text('That was the free taste.', 360, 900, 46); text('Get Morabaraba on iPhone and Android', 360, 970, 28, '#fff3d6', UI, 600); text('for unlimited games.', 360, 1010, 28, '#fff3d6', UI, 600);
   } else if (scene === 'info') {
     const pages = PAGES[state.info.which], p = pages[state.info.page];
+    // Text scale for these reference pages only (independent of the gameplay "Large text" setting,
+    // which affects other screens too). Always guarded: an out-of-range saved index (e.g. from a
+    // build with a shorter TEXT_SCALES array) falls back to 1, never NaN.
+    const scale = TEXT_SCALES[state.textScaleIdx] ?? 1;
     const heading = state.info.which === 'about' ? 'About' : state.info.which === 'rules' ? 'Rules' : 'How to play';
-    text(heading, 360, 130, 60); band(ctx, 160, 154, 400, 14, 3);
-    text(p.title, 360, 290, 46);
+    text(heading, 360, 130, Math.round(60 * Math.min(scale, 1.15))); band(ctx, 160, 154, 400, 14, 3);
+    text(p.title, 360, 290, fitTitle(p.title, Math.round(46 * scale)));
     let panelY = 320;
     // A rules page about the cow shows the real in-game sprite, both sides, the same drawCow() the board itself uses.
     if (p.cows) {
@@ -201,12 +212,15 @@ export function render(ctx, state) {
       text('Light', 360 + dx, ay + 46, 18, 'rgba(255,230,180,0.8)', UI, 600, 'center', false);
       panelY = ay + 66;
     }
-    const sz = big ? 33 : 30, lhh = sz * 1.34; let tot = 0; for (const para of p.lines) tot += lines(para, 580, sz).length * lhh + 30;
+    const sz = Math.round(30 * scale), lhh = Math.round(sz * 1.4); let tot = 0; for (const para of p.lines) tot += lines(para, 580, sz).length * lhh + 30;
     panel(30, panelY, 660, tot + 40, 0.78);
     let y = panelY + 68;
     for (const para of p.lines) { const n = wrap(para, 70, y, sz, 580, '#fff3d6', lhh, 'left'); y += n * lhh + 30; }
     text(`${state.info.page + 1} of ${pages.length}`, 360, 1420, 22, 'rgba(255,230,180,0.75)', UI, 600, 'center', false);
     button(BTN.menu, 'Menu', { size: 26 }); if (state.info.page > 0) button({ x: 260, y: 1462, w: 200, h: 76 }, 'Back', { size: 26 }); if (state.info.page + 1 < pages.length) button(BTN.nextPage, 'Next', { size: 26, primary: true });
+    const atMin = state.textScaleIdx === 0, atMax = state.textScaleIdx === TEXT_SCALES.length - 1;
+    button(TEXT_STEPPER.dec, 'A−', { dim: atMin, size: 30 });
+    button(TEXT_STEPPER.inc, 'A+', { dim: atMax, size: 30 });
   } else if (scene === 'over') {
     ctx.fillStyle = 'rgba(14,4,2,0.72)'; ctx.fillRect(0, 0, W, H);
     const won = g.winner === 'draw' ? 'A draw' : state.two ? `${NAME[g.winner]} wins` : g.winner === state.human ? 'You win!' : 'The computer wins';

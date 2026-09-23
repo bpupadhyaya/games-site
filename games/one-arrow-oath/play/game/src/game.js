@@ -5,7 +5,7 @@ import { CARDS } from './data/cards.js';
 import { DEBTS } from './data/debts.js';
 import { EVENTS } from './data/events.js';
 import { ARCHERS, ARCHER_IDS, OATHS, applyRunToMeta, defaultMeta, loadMeta } from './data/meta.js';
-import { COACH } from './data/help.js';
+import { COACH, HOW_TO_PLAY, ABOUT } from './data/help.js';
 import { RULES_REFERENCE } from './data/rules_reference.js';
 import { ENEMIES } from './data/enemies.js';
 import * as B from './rules/battle.js';
@@ -13,7 +13,14 @@ import * as R from './rules/run.js';
 import { makeSky } from './ui/draw.js';
 import { render as renderAll } from './ui/render.js';
 import { C, elementColor } from './ui/theme.js';
-import { ARCHER, BTN, CARD_H, CARD_W, CLOSE, CONFIRM, COVENANT_BTN, COVENANT_BTN_TOP, DETAIL, ENVOY, ENVOY_TOP, FIELD_BOTTOM, GRID, OPTIONS, OPTIONS_TOP, PULL_TO_LOOSE, SECONDARY, HELP_TABS, RULES_NAV, NEWRUN, TUNER_REMOVE, TUNER_TRIO_Y, choiceRects, enemySlots, handSlots, inRect, titleRects, trioRects } from './ui/layout.js';
+import { ARCHER, BTN, CARD_H, CARD_W, CLOSE, CONFIRM, COVENANT_BTN, COVENANT_BTN_TOP, DETAIL, ENVOY, ENVOY_TOP, FIELD_BOTTOM, GRID, OPTIONS, OPTIONS_TOP, PULL_TO_LOOSE, SECONDARY, HELP_TABS, HELP_TEXT, PAGE_NAV, HOWTO_PER_PAGE, ABOUT_PER_PAGE, TEXT_SCALES, NEWRUN, TUNER_REMOVE, TUNER_TRIO_Y, choiceRects, enemySlots, handSlots, inRect, titleRects, trioRects } from './ui/layout.js';
+
+// +1: the element-ring diagram gets its own last page rather than riding on the last tip page,
+// where it would have to compete for room and could silently vanish at the top text-size step.
+const HOWTO_PAGES = Math.ceil(HOW_TO_PLAY.length / HOWTO_PER_PAGE) + 1;
+// +1: Version/credits get their own last page rather than riding on the last paragraph page,
+// where a long final paragraph plus that footer could together overflow at the top text step.
+const ABOUT_PAGES = Math.ceil(ABOUT.length / ABOUT_PER_PAGE) + 1;
 
 // 9:19.5 — fills a modern phone edge to edge (the kit letterboxes anything else).
 export const meta = { width: 720, height: 1560 };
@@ -31,10 +38,16 @@ export function createGame(env) {
     ui: { sel: -1, target: 0, drag: null, press: null, choice: -1, cardPos: {}, shownHp: [], shownResolve: 50, flash: [], pull: 0, lastPlay: { x: 360, y: 1280 } },
     fx: [], lock: 0, shake: 0, pending: null, best: 0, muted: false, demoBattles: 0, saved: null, runs: 0, legend: 0,
     fade: 1, lastScene: 'title', meta: defaultMeta(), coach: { key: null, t: 0 }, unlocked: [],
+    textScaleIdx: 0, // index into TEXT_SCALES; the help overlay's How to Play/About/Rules text size
   };
 
   storage.get('best', 0).then((v) => {
     s.best = Math.max(s.best, v);
+  });
+  // Clamped so a stale saved index from a build with a shorter/longer TEXT_SCALES array can
+  // never produce an out-of-range (NaN-font) lookup.
+  storage.get('textScaleIdx', 0).then((v) => {
+    s.textScaleIdx = Math.min(Math.max(v ?? 0, 0), TEXT_SCALES.length - 1);
   });
   storage.get('muted', false).then((v) => {
     s.muted = !!v;
@@ -467,13 +480,33 @@ export function createGame(env) {
     if (o.type === 'help') {
       if (!tap) return;
       const tab = HELP_TABS.findIndex((r) => inRect(r, tap.x, tap.y));
-      if (tab >= 0) {
+      if (inRect(HELP_TEXT.dec, tap.x, tap.y) && s.textScaleIdx > 0) {
+        s.textScaleIdx--;
+        storage.set('textScaleIdx', s.textScaleIdx);
+        sfx.tap();
+      } else if (inRect(HELP_TEXT.inc, tap.x, tap.y) && s.textScaleIdx < TEXT_SCALES.length - 1) {
+        s.textScaleIdx++;
+        storage.set('textScaleIdx', s.textScaleIdx);
+        sfx.tap();
+      } else if (tab >= 0) {
         o.page = tab;
         sfx.tap();
-      } else if (o.page === 2 && inRect(RULES_NAV.back, tap.x, tap.y)) {
+      } else if (o.page === 0 && inRect(PAGE_NAV.back, tap.x, tap.y)) {
+        o.howtoPage = (o.howtoPage - 1 + HOWTO_PAGES) % HOWTO_PAGES;
+        sfx.tap();
+      } else if (o.page === 0 && inRect(PAGE_NAV.next, tap.x, tap.y)) {
+        o.howtoPage = (o.howtoPage + 1) % HOWTO_PAGES;
+        sfx.tap();
+      } else if (o.page === 1 && inRect(PAGE_NAV.back, tap.x, tap.y)) {
+        o.aboutPage = (o.aboutPage - 1 + ABOUT_PAGES) % ABOUT_PAGES;
+        sfx.tap();
+      } else if (o.page === 1 && inRect(PAGE_NAV.next, tap.x, tap.y)) {
+        o.aboutPage = (o.aboutPage + 1) % ABOUT_PAGES;
+        sfx.tap();
+      } else if (o.page === 2 && inRect(PAGE_NAV.back, tap.x, tap.y)) {
         o.rulesPage = (o.rulesPage - 1 + RULES_REFERENCE.length) % RULES_REFERENCE.length;
         sfx.tap();
-      } else if (o.page === 2 && inRect(RULES_NAV.next, tap.x, tap.y)) {
+      } else if (o.page === 2 && inRect(PAGE_NAV.next, tap.x, tap.y)) {
         o.rulesPage = (o.rulesPage + 1) % RULES_REFERENCE.length;
         sfx.tap();
       } else if (inRect(CLOSE, tap.x, tap.y)) s.overlay = null;
@@ -596,7 +629,7 @@ export function createGame(env) {
     if (actions[hit] === 'resume') resume();
     else if (actions[hit] === 'new') startNew();
     else if (actions[hit] === 'book') openBook();
-    else if (actions[hit] === 'help') s.overlay = { type: 'help', page: 0, rulesPage: 0 };
+    else if (actions[hit] === 'help') s.overlay = { type: 'help', page: 0, howtoPage: 0, aboutPage: 0, rulesPage: 0 };
     else s.overlay = { type: 'covenant' };
   }
 

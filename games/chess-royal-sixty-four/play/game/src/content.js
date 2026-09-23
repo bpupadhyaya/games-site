@@ -48,6 +48,11 @@ export const RULES = [
       '(rows), numbered 1 to 8.',
       'Each side starts with 16 pieces - 8 pawns, 2 rooks, 2 knights, 2 bishops, a queen and a king -',
       'filling its own back two ranks. White\'s army starts on ranks 1-2, Black\'s on ranks 7-8.',
+    ],
+  },
+  {
+    title: 'Turn order',
+    lines: [
       'White always moves first, then the players strictly alternate turns - one move per turn.',
       '(This page covers the rules only. See Controls for how to move a piece by tap or drag.)',
     ],
@@ -60,6 +65,11 @@ export const RULES = [
       'the front line one square at a time.',
       'It moves straight ahead one square, except on its very first move, when it may advance two',
       'squares instead - only if both squares ahead of it are empty.',
+    ],
+  },
+  {
+    title: 'The pawn: capturing',
+    lines: [
       'It captures one square diagonally forward only. A pawn can never capture straight ahead,',
       'and it never moves or captures sideways or backward.',
       'En passant and promotion are two special pawn rules explained in full on later pages.',
@@ -113,6 +123,11 @@ export const RULES = [
     lines: [
       'The king is the piece the whole game is fought over - not the strongest piece, but the one',
       'that must never be lost. It moves exactly one square in any direction.',
+    ],
+  },
+  {
+    title: 'The king: staying safe',
+    lines: [
       'A king may never move to a square attacked by an enemy piece, even to make a capture - that',
       'would leave it in check, which is not a legal move.',
       'The king has one special two-square move, castling, explained on the next page.',
@@ -124,32 +139,52 @@ export const RULES = [
       'Castling moves the king two squares toward one of its own rooks, and that rook jumps to the',
       'square the king crossed - the king\'s only two-square move, and the only move that moves two',
       'of a player\'s own pieces at once.',
+    ],
+  },
+  {
+    title: 'Castling: when it is legal',
+    lines: [
       'It is legal only when every one of these is true: the king has not yet moved; that particular',
       'rook has not yet moved; every square between the king and that rook is empty; the king is not',
       'currently in check; and the king does not pass through, or land on, a square attacked by the',
       'opponent.',
+    ],
+  },
+  {
+    title: 'Castling: kingside and queenside',
+    lines: [
       'Kingside castling (toward the rook on the h-file) and queenside castling (toward the rook on',
       'the a-file) are tracked separately - losing the right to one side does not affect the other.',
     ],
   },
   {
-    title: 'En passant and promotion',
+    title: 'En passant',
     lines: [
       'En passant ("in passing"): when an enemy pawn advances two squares on its first move and',
       'lands directly beside one of your pawns, you may capture it as if it had advanced only one',
       'square. This capture is only legal on your very next move - wait a turn and the chance is',
       'gone for good.',
+    ],
+  },
+  {
+    title: 'Promotion',
+    lines: [
       'Promotion: the instant a pawn reaches the far rank (rank 8 for White, rank 1 for Black), it',
       'is replaced by a queen, rook, bishop or knight of the same colour. The choice is always',
       'yours - promotion is never automatic, even though the queen is usually the strongest pick.',
     ],
   },
   {
-    title: 'Check, checkmate, stalemate',
+    title: 'Check',
     lines: [
       'Check: a king is in check when an enemy piece attacks its square. A player in check must',
       'immediately play a move that ends the check - move the king to safety, block the attacking',
       'line, or capture the attacker. No other move is legal while your king is in check.',
+    ],
+  },
+  {
+    title: 'Checkmate and stalemate',
+    lines: [
       'Checkmate: if the player to move is in check and has no legal move that escapes it, that',
       'player is checkmated and the game ends at once - the checkmated side loses.',
       'Stalemate: if the player to move is not in check but has no legal move at all, the game ends',
@@ -166,13 +201,18 @@ export const RULES = [
     ],
   },
   {
-    title: 'Draws',
+    title: 'Draws: by no progress',
     lines: [
       'Stalemate: the player to move has no legal move and is not in check (previous page) - drawn.',
       'The 50-move rule: if 50 full moves - 100 half-moves in total - pass with no pawn move and',
       'no capture by either side, the game is drawn.',
       'Threefold repetition: if the exact same position - same pieces, same player to move, same',
       'castling rights, same en passant right - occurs three times in the game, it is drawn.',
+    ],
+  },
+  {
+    title: 'Draws: insufficient material',
+    lines: [
       'Insufficient material: neither side has enough force left to ever force checkmate.',
       'Recognised here: king vs king; king and one bishop vs king; king and one knight vs king;',
       'and king and bishop vs king and bishop when both bishops travel on the same colour of square.',

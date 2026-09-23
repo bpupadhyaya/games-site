@@ -4,7 +4,7 @@
 //   layout.js   table geometry                    view.js    table drawing        draw.js  shared drawing, tiles.js tile art
 //   screens.js  menus, lessons, daily             lessons.js / puzzles.js / content.js  content as data
 // This file: scenes, settings, storage, sound, lessons and the daily challenge.
-import { W, H, inRect } from './layout.js';
+import { W, H, inRect, TEXT_SCALES } from './layout.js';
 import { createPlay } from './play.js';
 import { renderPlay, renderResult, renderMatchEnd, MATCHEND_BTNS } from './view.js';
 import { LESSONS, fakeState, withDraw, classify, NEED_COUNT, textOf } from './lessons.js';
@@ -16,7 +16,7 @@ import * as SC from './screens.js';
 
 export const meta = { width: W, height: H };
 const DEMO_HANDS = 3;
-const PREF_DEFAULTS = { level: 1, sound: true, calm: false, big: false, style: 'traditional', lang: 'zh', timer: true, pace: 'normal', minFan: 1, hints: true };
+const PREF_DEFAULTS = { level: 1, sound: true, calm: false, big: false, style: 'traditional', lang: 'zh', timer: true, pace: 'normal', minFan: 1, hints: true, textScaleIdx: 0 };
 
 const SFX = {
   click: [[0, { freq: 1700, to: 800, dur: 0.03, type: 'triangle', vol: 0.1 }]],
@@ -51,7 +51,12 @@ export function createGame(env) {
   const toTitle = () => { S.scene = 'title'; S.page = 0; };
 
   // ---- load saved data (never blocks play)
-  storage.get('prefs', null).then((v) => { if (v) { S.prefs = { ...PREF_DEFAULTS, ...v }; audio.setMuted?.(!S.prefs.sound); } });
+  storage.get('prefs', null).then((v) => {
+    if (v) { S.prefs = { ...PREF_DEFAULTS, ...v }; audio.setMuted?.(!S.prefs.sound); }
+    // Clamp: a saved index from a build with a longer/shorter TEXT_SCALES array must never survive
+    // and produce NaN font sizes on the About/How to play/Rules pages.
+    S.prefs.textScaleIdx = Math.min(Math.max(S.prefs.textScaleIdx ?? 0, 0), TEXT_SCALES.length - 1);
+  });
   storage.get('stats', null).then((v) => { if (v) S.stats = { ...S.stats, ...v }; });
   storage.get('learned', {}).then((v) => { S.learned = { ...v, ...S.learned }; });
   storage.get('demoHands', 0).then((v) => { S.demoHands = Math.max(S.demoHands, v); });
@@ -204,6 +209,8 @@ export function createGame(env) {
       if (S.page > 0 && inRect(SC.PAGER.prev, x, y)) S.page--;
       else if (S.page < n - 1 && inRect(SC.PAGER.next, x, y)) S.page++;
       else if (inRect(SC.PAGER.back, x, y)) toTitle();
+      else if (inRect(SC.TEXT_STEPPER.dec, x, y) && S.prefs.textScaleIdx > 0) { S.prefs.textScaleIdx--; savePrefs(); sfx('click'); }
+      else if (inRect(SC.TEXT_STEPPER.inc, x, y) && S.prefs.textScaleIdx < TEXT_SCALES.length - 1) { S.prefs.textScaleIdx++; savePrefs(); sfx('click'); }
     } else if (sc === 'learn') {
       if (inRect(SC.LEARN_BACK, x, y)) { toTitle(); return; }
       LESSONS.forEach((_, i) => { if (inRect(SC.lessonRect(i), x, y)) { sfx('click'); startLesson(i); } });

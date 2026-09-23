@@ -47,6 +47,17 @@ export const titleButtons = (hasSave) => {
   return out;
 };
 
-// The paginated Rules reference page: Back exits to the title, Next cycles pages with wraparound
-// (same convention as the About/How reader's single Back button, extended for pagination).
-export const RULES_NAV = { back: { x: 36, y: 1380, w: 300, h: 84 }, next: { x: 384, y: 1380, w: 300, h: 84 } };
+// The paginated reference pages (About / How to play / Rules): Back exits to the title, Next
+// cycles pages with wraparound. All three screens share this one footer nav.
+export const PAGE_NAV = { back: { x: 36, y: 1380, w: 300, h: 84 }, next: { x: 384, y: 1380, w: 300, h: 84 } };
+
+// Text-size steps for the About/How/Rules reference pages. An *index* into this, never a raw
+// float, so "min"/"max" are exact and the stepper can cleanly disable at either end. Content on
+// every reference page is paced (content.js) to fit comfortably even at the top step.
+export const TEXT_SCALES = [1, 1.15, 1.3];
+// "A-"/"A+" stepper buttons, flanking the big page title (drawn at y=176) above the reader panel
+// (which starts at y=214) - out of the way of the panel and of Back/Next at the bottom.
+export const TEXT_BTN = {
+  dec: { x: 30, y: 122, w: 128, h: 72 },
+  inc: { x: W - 30 - 128, y: 122, w: 128, h: 72 },
+};

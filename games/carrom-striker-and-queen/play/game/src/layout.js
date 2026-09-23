@@ -39,6 +39,13 @@ export const MENU = { resume: rect(110, 560, 500, 92), restart: rect(110, 672, 5
 export const OVER = { again: rect(110, 1000, 500, 96), menu: rect(110, 1116, 500, 84) };
 export const LESSONB = { next: rect(110, 1330, 500, 92), retry: rect(110, 1330, 240, 92), list: rect(370, 1330, 240, 92) };
 export const PAGE = { prev: rect(40, 1440, 200, 84), next: rect(480, 1440, 200, 84), back: rect(260, 1440, 200, 84) };
+// Text-size stepper for the About/Controls/Game Rules reference pages — top-left and top-right
+// corners, the same rect shape BACK already uses, so it reads as a header row without crowding the
+// Back/Next/Done row at the bottom of these pages.
+export const PAGE_TEXT = { dec: rect(28, 44, 150, 64), inc: rect(W - 178, 44, 150, 64) };
+// Text-size steps for those reference pages. Index into this, never a raw float, so the stepper can
+// disable cleanly at either end. Content in pages.js is paced to fit at the top step.
+export const TEXT_SCALES = [1, 1.15, 1.3];
 export function settingRows() { const r = []; for (let i = 0; i < 7; i++) r.push(rect(60, 250 + i * 132, 600, 104)); return r; }
 export function lessonRows() { const r = []; for (let i = 0; i < 8; i++) r.push(rect(60, 240 + i * 130, 600, 108)); return r; }
 export { S, BASE_Y };

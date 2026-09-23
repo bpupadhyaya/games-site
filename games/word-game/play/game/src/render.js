@@ -6,6 +6,7 @@ import {
   W, H, BAND_TOP, BAND_BOTTOM, CHIP_H, PLAQUE, TIME_BAR, REVIEW_TOP, REVIEW_ROW_H, REVIEW_PER_PAGE,
   MODE_SYN_BTN, MODE_ANT_BTN, PLAY_BTN, TITLE_COLOR_BTN, TITLE_RULES_BTN, STOP_BTN, COLOR_BTN,
   PREV_BTN, NEXT_BTN, PLAY_AGAIN_BTN, CHANGE_MODE_BTN, RULES_BACK_BTN, RULES_NEXT_BTN, slipWidth,
+  TEXT_SCALES, RULES_TEXT_DEC, RULES_TEXT_INC, RULES_PANEL,
 } from './layout.js';
 
 const DISPLAY = '"Cormorant Garamond", Georgia, "Times New Roman", serif';
@@ -164,6 +165,23 @@ export function render(ctx, state, title, demoLimit) {
     ctx.restore();
   };
 
+  // A reader-card panel: dark translucent gradient fill + double border, matching the plaque's
+  // own palette. Drawn behind reference-page illustrations and body text so they read as a
+  // designed sheet rather than loose text floating on the backdrop.
+  const framedPanel = (r) => {
+    if (hc) {
+      ctx.fillStyle = '#000000'; rr(r.x, r.y, r.w, r.h, 28); ctx.fill();
+      ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 4; ctx.stroke();
+      return;
+    }
+    shadow(r.x, r.y, r.w, r.h, 28, 16);
+    const g = ctx.createLinearGradient(0, r.y, 0, r.y + r.h);
+    g.addColorStop(0, 'rgba(10,42,56,0.82)'); g.addColorStop(1, 'rgba(3,14,22,0.90)');
+    ctx.fillStyle = g; rr(r.x, r.y, r.w, r.h, 28); ctx.fill();
+    ctx.strokeStyle = hexA(CYAN, 0.5); ctx.lineWidth = 3; rr(r.x, r.y, r.w, r.h, 28); ctx.stroke();
+    ctx.strokeStyle = 'rgba(255,255,255,0.10)'; ctx.lineWidth = 2; rr(r.x + 9, r.y + 9, r.w - 18, r.h - 18, 20); ctx.stroke();
+  };
+
   // ---- backdrop -----------------------------------------------------------------------------------------
   if (hc) { ctx.fillStyle = '#000000'; ctx.fillRect(0, 0, W, H); } else {
     const bg = ctx.createLinearGradient(0, 0, 0, H);
@@ -259,34 +277,48 @@ export function render(ctx, state, title, demoLimit) {
   // ---- rules reference ----------------------------------------------------------------------------------
   if (state.scene === 'rules') {
     const page = RULES[state.rulesPage % RULES.length];
-    text('Rules', W / 2, 118, 66, '#ffffff', { font: DISPLAY });
-    text(page.title, W / 2, 178, 34, hc ? '#ffffff' : '#8fe6f7', { weight: 700 });
+    // Text-size stepper: an index into TEXT_SCALES (never a raw float), clamped on load in
+    // game.js, guarded again here so a stale/out-of-range saved index can never produce NaN sizes.
+    const scale = TEXT_SCALES[state.textScaleIdx] ?? 1;
+    const CONTENT_TOP = RULES_PANEL.y + 40;
+
+    text('Rules', 40, 116, 56, '#ffffff', { font: DISPLAY, align: 'left' });
+    button(RULES_TEXT_DEC, 'A−', { id: 'textDec', size: 34, disabled: state.textScaleIdx === 0 });
+    button(RULES_TEXT_INC, 'A+', { id: 'textInc', size: 34, disabled: state.textScaleIdx === TEXT_SCALES.length - 1 });
+    text(page.title, W / 2, 192, Math.round(32 * scale), hc ? '#ffffff' : '#8fe6f7', { weight: 700 });
+
+    // The framed reader-card panel, drawn before the illustration/body text it carries.
+    framedPanel(RULES_PANEL);
 
     // a small illustration matching the page, drawn with the game's own slip()/plaque() —
-    // never a separate simplified icon.
-    let textTop = 260;
+    // never a separate simplified icon. Only drawn when the page has one; otherwise the body
+    // text simply starts higher, right below the panel's top padding.
+    let textTop = CONTENT_TOP;
     if (page.demo === 'objective' || page.demo === 'mode') {
-      plaque({ x: 170, y: 236, w: 380, h: 132 }, 'TAP THE SYNONYM OF', HERO_TARGET, { small: true, wordSize: 60 });
-      slip('clear', 130, 430, { tilt: -0.03, tint: hc ? undefined : GOOD });
-      slip('ornate', 390, 430, { tilt: 0.02 });
-      slip('murky', 620, 430, { tilt: -0.015 });
-      textTop = 520;
+      plaque({ x: 170, y: CONTENT_TOP, w: 380, h: 132 }, 'TAP THE SYNONYM OF', HERO_TARGET, { small: true, wordSize: 60 });
+      slip('clear', 130, CONTENT_TOP + 194, { tilt: -0.03, tint: hc ? undefined : GOOD });
+      slip('ornate', 390, CONTENT_TOP + 194, { tilt: 0.02 });
+      slip('murky', 620, CONTENT_TOP + 194, { tilt: -0.015 });
+      textTop = CONTENT_TOP + 284;
     } else if (page.demo === 'slips' || page.demo === 'answer') {
-      slip('clear', 130, 300, { tilt: -0.03, tint: page.demo === 'answer' && !hc ? GOOD : undefined });
-      slip('ornate', 390, 300, { tilt: 0.02, tint: page.demo === 'answer' && !hc ? BAD : undefined });
-      slip('murky', 620, 300, { tilt: -0.015 });
-      textTop = 400;
+      // Slips are drawn from their centre, so nudge down by half their own height first — leaves
+      // the same top padding below the panel's border that the other illustrations get.
+      const slipY = CONTENT_TOP + 46;
+      slip('clear', 130, slipY, { tilt: -0.03, tint: page.demo === 'answer' && !hc ? GOOD : undefined });
+      slip('ornate', 390, slipY, { tilt: 0.02, tint: page.demo === 'answer' && !hc ? BAD : undefined });
+      slip('murky', 620, slipY, { tilt: -0.015 });
+      textTop = CONTENT_TOP + 146;
     } else if (page.demo === 'clock') {
-      const tr = { x: 234, y: 232, w: 252, h: 86 };
+      const tr = { x: 234, y: CONTENT_TOP, w: 252, h: 86 };
       shadow(tr.x, tr.y, tr.w, tr.h, 22, 8); ctx.fillStyle = 'rgba(3,16,24,0.78)'; rr(tr.x, tr.y, tr.w, tr.h, 22); ctx.fill();
       ctx.strokeStyle = hexA(CYAN, 0.85); ctx.lineWidth = 2.5; ctx.stroke();
       const kx = tr.x + 48, ky = tr.y + 43;
       ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 4; ctx.lineCap = 'round'; ctx.beginPath(); ctx.arc(kx, ky, 19, 0, TAU); ctx.stroke();
       ctx.beginPath(); ctx.moveTo(kx, ky); ctx.lineTo(kx + 12, ky - 8); ctx.stroke();
       text('1:30', tr.x + 158, tr.y + 63, 56, '#ffffff', { weight: 800 });
-      textTop = 360;
+      textTop = CONTENT_TOP + 128;
     } else if (page.demo === 'review') {
-      const rw = 640, rh = 130, x = 40, y = 220;
+      const rw = 560, rh = 130, x = RULES_PANEL.x + 40, y = CONTENT_TOP;
       ctx.fillStyle = 'rgba(0,0,0,0.25)'; rr(x + 2, y + 6, rw - 4, rh, 18); ctx.fill();
       const g = ctx.createLinearGradient(0, y, 0, y + rh);
       g.addColorStop(0, 'rgba(18,58,74,0.94)'); g.addColorStop(1, 'rgba(8,28,40,0.94)');
@@ -298,17 +330,17 @@ export function render(ctx, state, title, demoLimit) {
       ctx.strokeStyle = BAD; ctx.lineWidth = 2; ctx.stroke();
       ctx.lineWidth = 6; ctx.lineCap = 'round'; ctx.beginPath();
       ctx.moveTo(mx - 10, my - 10); ctx.lineTo(mx + 10, my + 10); ctx.moveTo(mx + 10, my - 10); ctx.lineTo(mx - 10, my + 10); ctx.stroke();
-      text('murky', x + 92, y + 52, 42, '#ffffff', { font: DISPLAY, align: 'left', maxW: 380 });
+      text('murky', x + 92, y + 52, 42, '#ffffff', { font: DISPLAY, align: 'left', maxW: 300 });
       text('Answer: clear', x + 92, y + 88, 26, accent, { align: 'left', weight: 700, maxW: 300 });
-      text('You: ornate', x + rw - 22, y + 88, 25, BAD, { align: 'right', weight: 600, maxW: 220 });
-      textTop = 384;
+      text('You: ornate', x + rw - 22, y + 88, 25, BAD, { align: 'right', weight: 600, maxW: 200 });
+      textTop = CONTENT_TOP + 164;
     }
 
     ctx.save(); ctx.textAlign = 'center'; ctx.fillStyle = soft(0.94);
-    const lh = 38, maxW = W - 90;
+    const bodySize = Math.round(29 * scale), lh = Math.round(41 * scale), maxW = RULES_PANEL.w - 80;
     const wrapLine = (str, y0) => {
       const words = str.split(' ');
-      ctx.font = `500 27px ${UI}`;
+      ctx.font = `500 ${bodySize}px ${UI}`;
       let line = '', ly = y0;
       for (const w of words) {
         const cand = line ? `${line} ${w}` : w;
@@ -322,7 +354,7 @@ export function render(ctx, state, title, demoLimit) {
     for (const line of page.lines) y = wrapLine(line, y);
     ctx.restore();
 
-    text(`Page ${(state.rulesPage % RULES.length) + 1} of ${RULES.length}`, W / 2, 1350, 26, soft(0.65), { weight: 500 });
+    text(`Page ${(state.rulesPage % RULES.length) + 1} of ${RULES.length}`, W / 2, RULES_PANEL.y + RULES_PANEL.h + 22, 26, soft(0.65), { weight: 500 });
     button(RULES_BACK_BTN, 'Back', { size: 34, scale: enter(0) });
     button(RULES_NEXT_BTN, 'Next', { style: 'primary', size: 34, scale: enter(1) });
     return;

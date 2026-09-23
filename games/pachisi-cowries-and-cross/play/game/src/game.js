@@ -6,7 +6,7 @@ import { geo, newGame, rollThrow, legalMoves, checkMove, noMoveReason, applyMove
 import { chooseMove, hintMove } from './ai.js';
 import { LESSONS } from './lessons.js';
 import { makeDaily, bestScore, moveScore, starsFor, DAILY_THROWS } from './daily.js';
-import { screenButtons, RULES_PAGES } from './ui.js';
+import { screenButtons, RULES_PAGES, HOW_PAGES, ABOUT_PAGES, TEXT_SCALES } from './ui.js';
 import { render as draw } from './view.js';
 
 export const meta = { width: W, height: H };
@@ -18,7 +18,7 @@ export function createGame(env) {
 
   const state = {
     scene: 'title', t: 0, demo: !!config.demo, demoGames: 0, dailyDemo: -1,
-    prefs: { sound: true, calm: false, big: false, auto: true },
+    prefs: { sound: true, calm: false, big: false, auto: true, textScaleIdx: 0 },
     setup: { mode: 'pachisi', players: 2, opp: 'balanced', friends: false, pieces: 4 },
     stats: { played: 0, wins: 0, lessons: {}, dailyDay: -1, dailyBest: 0, dailyStars: 0, streak: 0, lastDay: -1 },
     saved: null, menuOpen: false, howPage: 0, aboutPage: 0, rulesPage: 0, howFrom: 'title',
@@ -27,7 +27,14 @@ export function createGame(env) {
   };
 
   // ---- storage ----------------------------------------------------------------------------------
-  storage.get('prefs', null).then((v) => { if (v) { Object.assign(state.prefs, v); audio.setMuted(!state.prefs.sound); } });
+  storage.get('prefs', null).then((v) => {
+    if (v) {
+      Object.assign(state.prefs, v);
+      // Clamp against a stale index from a build with a shorter/longer TEXT_SCALES array.
+      state.prefs.textScaleIdx = Math.min(Math.max(state.prefs.textScaleIdx ?? 0, 0), TEXT_SCALES.length - 1);
+      audio.setMuted(!state.prefs.sound);
+    }
+  });
   storage.get('stats', null).then((v) => { if (v) Object.assign(state.stats, v, { lessons: { ...(v.lessons || {}) } }); });
   storage.get('demoGames', 0).then((v) => { state.demoGames = Math.max(state.demoGames, v); });
   storage.get('dailyDemo', -1).then((v) => { state.dailyDemo = Math.max(state.dailyDemo, v); });
@@ -328,7 +335,9 @@ export function createGame(env) {
     else if (id === 'settings') s.scene = 'settings';
     else if (id === 'back') { if (s.scene === 'how' && s.howFrom !== 'title') s.scene = s.howFrom; else s.scene = 'title'; s.menuOpen = false; }
     else if (id === 'title') { s.scene = 'title'; s.menuOpen = false; }
-    else if (id === 'page') { if (s.scene === 'how') s.howPage = (s.howPage + 1) % 2; else if (s.scene === 'rules') s.rulesPage = (s.rulesPage + 1) % RULES_PAGES.length; else s.aboutPage = (s.aboutPage + 1) % 2; }
+    else if (id === 'page') { if (s.scene === 'how') s.howPage = (s.howPage + 1) % HOW_PAGES.length; else if (s.scene === 'rules') s.rulesPage = (s.rulesPage + 1) % RULES_PAGES.length; else s.aboutPage = (s.aboutPage + 1) % ABOUT_PAGES.length; }
+    else if (id === 'textDec') { if (s.prefs.textScaleIdx > 0) { s.prefs.textScaleIdx--; savePrefs(); } }
+    else if (id === 'textInc') { if (s.prefs.textScaleIdx < TEXT_SCALES.length - 1) { s.prefs.textScaleIdx++; savePrefs(); } }
     else if (id === 'start') startGame();
     else if (id.startsWith('mode:')) s.setup.mode = id.slice(5);
     else if (id.startsWith('pl:')) s.setup.players = Number(id.slice(3));

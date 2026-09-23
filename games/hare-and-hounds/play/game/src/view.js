@@ -1,6 +1,6 @@
 // Everything that is drawn each frame. Reads `state` (see game.js) and changes nothing.
 // Static art (forest floor, map) and the two pieces are cached sprites (art.js, pieces.js), so a frame is cheap.
-import { W, H, pointAt, PIECE_R, SIZE, UNIT, BTN, LOOK, RULES_NAV, TILE, titleRows, clockPos, CLOCK_Y, overButtons } from './layout.js';
+import { W, H, pointAt, PIECE_R, SIZE, UNIT, BTN, LOOK, RULES_NAV, RULES_HEADER, RULES_PANEL, TEXT_SCALES, TILE, titleRows, clockPos, CLOCK_Y, overButtons } from './layout.js';
 import { drawTableAndBoard, drawLeaf, BOARD_NAMES } from './art.js';
 import { drawHare, drawHound, SET_NAMES } from './pieces.js';
 import { unlocked } from './unlocks.js';
@@ -208,28 +208,49 @@ export function render(ctx, state) {
   } else if (scene === 'rules') {
     ctx.fillStyle = 'rgba(6,10,6,0.74)'; ctx.fillRect(0, 0, W, H);
     const page = RULES[state.rulesPage % RULES.length];
-    text('Rules', 360, 130, 44);
-    text(page.title, 360, 182, 28, '#ffd684', UI, 700);
-    const top = page.piece ? 490 : 220, bottom = 545; // keep clear of the board art drawn below
-    if (page.piece) (page.piece === 'H' ? drawHare : drawHound)(ctx, 360, 365, 70, { set });
-    // Count wrapped lines at a given font size without drawing, so a long page can shrink slightly
-    // to stay clear of the board art instead of running into it.
-    const countLines = (str, size, maxW) => {
-      ctx.font = `600 ${size}px ${UI}`; const words = str.split(' '); let n = 1, cur = '';
-      for (const w of words) { const t2 = cur ? cur + ' ' + w : w; if (ctx.measureText(t2).width > maxW && cur) { n += 1; cur = w; } else cur = t2; }
-      return n;
-    };
-    const maxW = big ? 630 : 640;
-    let size = big ? 29 : 25;
-    for (; size > 15; size -= 1) {
-      const lh = size * 1.3, gap = 12;
-      const total = page.lines.reduce((h, ln) => h + countLines(ln, size, maxW) * lh + gap, 0) - gap;
-      if (total <= bottom - top) break;
+    // Falls back to 1 for any out-of-range index (e.g. a save from a build with more steps).
+    const scale = TEXT_SCALES[state.textScaleIdx] ?? 1;
+
+    // The reader card: one framed panel holding the page title, the piece portrait (if any) and
+    // the body text, so a page reads as a designed reference sheet rather than loose floating
+    // text over the busy board art behind it. Every page is paced (content.js) to fit comfortably
+    // even at the top text-size step - never shrunk to fit at render time.
+    const P2 = RULES_PANEL;
+    ctx.save();
+    ctx.beginPath(); ctx.roundRect(P2.x, P2.y, P2.w, P2.h, 28);
+    const pg = ctx.createLinearGradient(0, P2.y, 0, P2.y + P2.h);
+    pg.addColorStop(0, 'rgba(34,26,12,0.6)'); pg.addColorStop(1, 'rgba(12,9,4,0.72)');
+    ctx.fillStyle = pg; ctx.fill();
+    ctx.strokeStyle = 'rgba(246,227,180,0.3)'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.beginPath(); ctx.roundRect(P2.x + 6, P2.y + 6, P2.w - 12, P2.h - 12, 22);
+    ctx.strokeStyle = 'rgba(246,227,180,0.12)'; ctx.lineWidth = 1; ctx.stroke();
+    ctx.restore();
+
+    // Header row, above the card: the screen title, capped a touch below the body's own growth so
+    // it never dwarfs the card, flanked by the text-size stepper (A-/A+).
+    text('Rules', 360, 82, Math.round(44 * Math.min(scale, 1.15)));
+
+    text(page.title, 360, P2.y + 66, Math.round(32 * scale), '#ffd684', UI, 700);
+    let y = P2.y + 118;
+    const maxW = P2.w - 90;
+    if (page.piece) {
+      const iconY = P2.y + 250;
+      (page.piece === 'H' ? drawHare : drawHound)(ctx, 360, iconY, 62, { set });
+      y = iconY + 128;
     }
-    const lh = size * 1.3;
-    let y = top;
-    for (const line of page.lines) { const n = wrap(line, 360, y, size, maxW, '#f6e3b4', lh); y += n * lh + 12; }
-    text(`Page ${(state.rulesPage % RULES.length) + 1} of ${RULES.length}`, 360, 1420, 22, 'rgba(246,227,180,0.7)', UI, 500);
+    const fontPx = Math.round(29 * scale), lh = Math.round(fontPx * 1.42), gap = Math.round(12 * scale);
+    for (const line of page.lines) { const n = wrap(line, 360, y, fontPx, maxW, '#f6e3b4', lh); y += n * lh + gap; }
+
+    // A small still life of the two pieces, only when a page has no portrait of its own and there
+    // is clear room below the last line - never crowding a long page's text.
+    if (!page.piece && y + 150 < P2.y + P2.h - 70) {
+      const sy = P2.y + P2.h - 140;
+      drawHound(ctx, 360 - 110, sy, 52, { set }); drawHare(ctx, 360 + 110, sy, 60, { set });
+    }
+    text(`Page ${(state.rulesPage % RULES.length) + 1} of ${RULES.length}`, 360, P2.y + P2.h - 22, 20, 'rgba(246,227,180,0.65)', UI, 500);
+
+    button(RULES_HEADER.textDec, 'A−', { size: 30, dim: state.textScaleIdx === 0 });
+    button(RULES_HEADER.textInc, 'A+', { size: 30, dim: state.textScaleIdx === TEXT_SCALES.length - 1 });
     button(RULES_NAV.back, 'Back', { size: 28 }); button(RULES_NAV.next, 'Next', { size: 28, primary: true });
   }
 }

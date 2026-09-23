@@ -1,6 +1,6 @@
 // Every screen that is not the table: title, settings, How to play, About, lessons, daily challenge, pause, demo limit.
 // `*Rects` functions are the single source for both drawing and tapping.
-import { W, H, HAND_Y, handMetrics, handTileX, meldOrigin, inRect } from './layout.js';
+import { W, H, HAND_Y, handMetrics, handTileX, meldOrigin, inRect, TEXT_SCALES } from './layout.js';
 import { DISPLAY, UI, CJKF, GOLD, IVORY, INK, TAU, tx, wrap, rr, btn, panel, drawTable, drawTileAt, tileByKind } from './draw.js';
 import { LEVELS } from './ai.js';
 import { HOW_PAGES, ABOUT_PAGES, RULE_PAGES } from './content.js';
@@ -127,6 +127,10 @@ export function renderSettings(ctx, S, rs) {
 
 // ------------------------------------------------------------------------------------------------- how / about / rules
 export const PAGER = { prev: { x: 40, y: 1400, w: 200, h: 86 }, next: { x: 480, y: 1400, w: 200, h: 86 }, back: { x: 260, y: 1400, w: 200, h: 86 } };
+// Text-size stepper for these reference pages: a top header row, clear of the screen title below it
+// and of the Previous/Back/Next pager in the footer. "A-"/"A+", same interaction on every one of
+// How to play / About / Rules.
+export const TEXT_STEPPER = { dec: { x: 40, y: 24, w: 120, h: 62 }, inc: { x: W - 160, y: 24, w: 120, h: 62 } };
 // One row of real tiles (drawn with the game's own tileByKind - never a separate simplified icon), centred,
 // with an optional caption underneath. Used by Rules pages that show the tile set. `y` tracks the next free
 // top edge, so captions never overlap the tile art below or above them. Returns the y just below the rows.
@@ -156,18 +160,26 @@ function fitTitleSize(ctx, str, base) {
 }
 function pages(ctx, S, rs, list, page, title) {
   drawTable(ctx);
-  tx(ctx, title, 360, 130, 84, GOLD, { font: DISPLAY, shadow: true });
-  const p = list[page], b = big(S);
-  panel(ctx, 40, 200, 640, 1130, { alpha: 0.7 });
-  tx(ctx, p.title, 360, 290, fitTitleSize(ctx, p.title, 60 * (b > 1 ? 0.9 : 1)), IVORY, { font: DISPLAY });
-  ctx.strokeStyle = 'rgba(241,207,122,0.4)'; ctx.beginPath(); ctx.moveTo(120, 316); ctx.lineTo(600, 316); ctx.stroke();
-  let y = p.tileRows ? drawTileRows(ctx, p.tileRows, S.prefs.style, 336) : 380;
-  for (const line of p.lines) { const n = wrap(ctx, line, 84, y, 28 * b, 552, IVORY, { align: 'left', lh: 38 * b }); y += n * 38 * b + 26; }
+  // Text-size scale for this reference page only (independent of the gameplay "Large text" setting,
+  // which affects hand-tile size during play, not this reading screen). Always guarded: an out-of-range
+  // saved index (e.g. from a build with a shorter TEXT_SCALES array) must fall back to 1, never NaN.
+  const scale = TEXT_SCALES[S.prefs.textScaleIdx] ?? 1;
+  tx(ctx, title, 360, 170, Math.round(84 * Math.min(scale, 1.15)), GOLD, { font: DISPLAY, shadow: true });
+  const p = list[page];
+  panel(ctx, 40, 210, 640, 1120, { alpha: 0.7 });
+  tx(ctx, p.title, 360, 300, fitTitleSize(ctx, p.title, Math.round(60 * scale)), IVORY, { font: DISPLAY });
+  ctx.strokeStyle = 'rgba(241,207,122,0.4)'; ctx.beginPath(); ctx.moveTo(120, 326); ctx.lineTo(600, 326); ctx.stroke();
+  let y = p.tileRows ? drawTileRows(ctx, p.tileRows, S.prefs.style, 346) : 390;
+  const fontPx = Math.round(28 * scale), lh = Math.round(38 * scale);
+  for (const line of p.lines) { const n = wrap(ctx, line, 84, y, fontPx, 552, IVORY, { align: 'left', lh }); y += n * lh + 26; }
   list.forEach((_, i) => { ctx.fillStyle = i === page ? GOLD : 'rgba(247,239,214,0.3)'; ctx.beginPath(); ctx.arc(360 + (i - (list.length - 1) / 2) * 30, 1300, 7, 0, TAU); ctx.fill(); });
   const hasPrev = page > 0, hasNext = page < list.length - 1;
   if (hasPrev) btn(ctx, PAGER.prev, 'Previous', { kind: 'wood', size: 30, pressed: rs.ptr.down && inRect(PAGER.prev, rs.ptr.x, rs.ptr.y) });
   btn(ctx, hasNext || hasPrev ? PAGER.back : { ...PAGER.back, x: 260 }, 'Back', { kind: hasNext ? 'wood' : 'gold', size: 32 });
   if (hasNext) btn(ctx, PAGER.next, 'Next', { kind: 'gold', size: 30, pressed: rs.ptr.down && inRect(PAGER.next, rs.ptr.x, rs.ptr.y) });
+  const atMin = S.prefs.textScaleIdx === 0, atMax = S.prefs.textScaleIdx === TEXT_SCALES.length - 1;
+  btn(ctx, TEXT_STEPPER.dec, 'A−', { kind: 'wood', size: 32, off: atMin, pressed: !atMin && rs.ptr.down && inRect(TEXT_STEPPER.dec, rs.ptr.x, rs.ptr.y) });
+  btn(ctx, TEXT_STEPPER.inc, 'A+', { kind: 'wood', size: 32, off: atMax, pressed: !atMax && rs.ptr.down && inRect(TEXT_STEPPER.inc, rs.ptr.x, rs.ptr.y) });
 }
 export const renderHow = (ctx, S, rs) => pages(ctx, S, rs, HOW_PAGES, S.page, 'How to play');
 export const renderAbout = (ctx, S, rs) => pages(ctx, S, rs, ABOUT_PAGES, S.page, 'About Mahjong');

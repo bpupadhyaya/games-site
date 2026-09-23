@@ -4,13 +4,14 @@
 // Controls (also taught on-screen): TAP a card to lift it, TAP it again or TAP the table to play it; or DRAG it
 // onto the table / onto the exact card it should beat. TAP Take to pick up, TAP Bito when done throwing in,
 // TAP Hint for the best move with a reason, TAP Undo for one step back.
-import { W, H, TOP, ACTIONS, actionRect, handSlot, pairSpot, TABLE_ZONE, MENU_BTN, BACK, NEXT, SETUP, SETTINGS_ROWS, SETTINGS_ROW, inRect } from './layout.js';
+import { W, H, TOP, ACTIONS, actionRect, handSlot, pairSpot, TABLE_ZONE, MENU_BTN, BACK, NEXT, SETUP, SETTINGS_ROWS, SETTINGS_ROW, HEADER, TEXT_SCALES, inRect } from './layout.js';
 import * as R from './rules.js';
 import { createThinker, explain, ROLLOUTS_PER_FRAME } from './ai.js';
 import { LESSONS } from './lessons.js';
 import { createPuzzleMaker, bestReply } from './puzzles.js';
 import { render, lessonNextRect, dailyShareRect } from './view.js';
 import { RULES } from './rulesText.js';
+import { ABOUT } from './about.js';
 
 export const meta = { width: W, height: H };
 const DEMO_LIMIT = 2;
@@ -22,6 +23,7 @@ export function createGame(env) {
   const state = {
     scene: 'title', t: 0, game: null, names: NAMES, four: false, big: false, sound: true, calm: false,
     back: 'gzhel', setup: { n: 2, mode: 'pod', level: 2 }, stats: { played: 0, wins: 0 },
+    textScaleIdx: 0, // index into TEXT_SCALES; the About/Rules reference pages' text size
     sel: -1, drag: null, legalCards: new Set(), beatSlots: null, canXfer: false, actionEnabled: () => false,
     msg: '', modeName: 'Podkidnoy', hint: null, hintsLeft: 3, undo: null, thinking: false, seenOpen: false,
     saved: null, config, demoLimit: DEMO_LIMIT, demoPlays: 0,
@@ -38,12 +40,12 @@ export function createGame(env) {
       loser: g.loser === -1 ? -1 : flipSeat(g.loser), refused: g.refused.map((r) => ({ ...r, p: flipSeat(r.p) })) };
   }
 
-  storage.get('prefs', null).then((v) => { if (v) { Object.assign(state, { four: !!v.four, big: !!v.big, sound: v.sound ?? true, calm: !!v.calm, back: v.back || 'gzhel' }); audio.setMuted?.(!state.sound); state.setup.level = v.level ?? 2; state.setup.mode = v.mode || 'pod'; state.setup.n = v.n || 2; } });
+  storage.get('prefs', null).then((v) => { if (v) { Object.assign(state, { four: !!v.four, big: !!v.big, sound: v.sound ?? true, calm: !!v.calm, back: v.back || 'gzhel' }); audio.setMuted?.(!state.sound); state.setup.level = v.level ?? 2; state.setup.mode = v.mode || 'pod'; state.setup.n = v.n || 2; state.textScaleIdx = Math.min(Math.max(v.textScaleIdx ?? 0, 0), TEXT_SCALES.length - 1); } });
   storage.get('stats', null).then((v) => { if (v) state.stats = { ...state.stats, ...v }; });
   storage.get('daily', null).then((v) => { if (v) { state.daily.solvedDay = v.solvedDay ?? -1; state.daily.streak = v.streak ?? 0; } });
   storage.get('demoPlays', 0).then((v) => { state.demoPlays = Math.max(state.demoPlays, v); });
   storage.get('save', null).then((v) => { if (v && v.game && !v.game.over) state.saved = v; });
-  const savePrefs = () => storage.set('prefs', { four: state.four, big: state.big, sound: state.sound, calm: state.calm, back: state.back, level: state.setup.level, mode: state.setup.mode, n: state.setup.n });
+  const savePrefs = () => storage.set('prefs', { four: state.four, big: state.big, sound: state.sound, calm: state.calm, back: state.back, level: state.setup.level, mode: state.setup.mode, n: state.setup.n, textScaleIdx: state.textScaleIdx });
   const saveGame = () => { if (state.scene === 'play' && state.game && !state.game.over) { state.saved = { game: R.clone(state.game), setup: { ...state.setup } }; storage.set('save', state.saved); } else storage.remove('save'); };
 
   const tone = (o) => { if (state.sound) audio.tone(o); };
@@ -223,7 +225,7 @@ export function createGame(env) {
       else if (k === 'new') state.scene = 'setup';
       else if (k === 'learn') startLesson(0);
       else if (k === 'daily') startDaily();
-      else if (k === 'about') state.scene = 'about';
+      else if (k === 'about') { state.scene = 'about'; state.page = 0; }
       else if (k === 'settings') state.scene = 'settings';
       else if (k === 'rules') { state.scene = 'rules'; state.page = 0; }
     });
@@ -384,12 +386,26 @@ export function createGame(env) {
     }
   }
 
-  const updateAbout = (tap) => { if (tap && inRect(BACK, tap.x, tap.y)) state.scene = 'title'; };
+  // Shared by both paginated reference screens (About/Rules): Back returns to the title, Next
+  // advances (wrapping back to page 1), and A-/A+ step the reader text size, clamped at each end.
+  function updateTextStepper(tap) {
+    if (inRect(HEADER.textDec, tap.x, tap.y) && state.textScaleIdx > 0) { state.textScaleIdx -= 1; savePrefs(); clack(); return true; }
+    if (inRect(HEADER.textInc, tap.x, tap.y) && state.textScaleIdx < TEXT_SCALES.length - 1) { state.textScaleIdx += 1; savePrefs(); clack(); return true; }
+    return false;
+  }
+  // Paginated About reference: same Back/Next/text-size convention as Rules below.
+  function updateAbout(tap) {
+    if (!tap) return;
+    if (inRect(BACK, tap.x, tap.y)) { state.scene = 'title'; return; }
+    if (updateTextStepper(tap)) return;
+    if (inRect(NEXT, tap.x, tap.y)) { clack(); state.page = (state.page + 1) % ABOUT.length; }
+  }
 
   // Paginated Rules reference: Back returns to the title, Next advances (wrapping back to page 1).
   function updateRules(tap) {
     if (!tap) return;
     if (inRect(BACK, tap.x, tap.y)) { state.scene = 'title'; return; }
+    if (updateTextStepper(tap)) return;
     if (inRect(NEXT, tap.x, tap.y)) { clack(); state.page = (state.page + 1) % RULES.length; }
   }
 

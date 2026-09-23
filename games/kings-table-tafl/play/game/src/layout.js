@@ -14,6 +14,16 @@ export const BTN = {
   again: R(140, 980, 440, 96), back: R(140, 1096, 440, 84), share: R(140, 1160, 440, 84),
   next: R(265, 1462, 395, 72), skip: R(470, 1462, 190, 72),
 };
+// About/Controls/Rules reference pages: their own "Next" slot (menu + back + next must all fit in
+// the same row at once), since BTN.next above is deliberately wide for scenes where "back" never
+// shows alongside it (lessons) and would overlap BTN.undo if reused here.
+export const PAGE_NEXT = R(470, 1462, 190, 72);
+// Text-size stepper for the reference pages, in the empty margin above their panel. An *index* into
+// TEXT_SCALES, never a raw float, so "min"/"max" are exact and the stepper cleanly disables at
+// either end. Every reference page's content is paced (pages.js) to fit comfortably at the top step.
+export const TEXT_DEC = R(185, 48, 155, 66);
+export const TEXT_INC = R(380, 48, 155, 66);
+export const TEXT_SCALES = [1, 1.15, 1.3];
 // Title screen: rows of crafted buttons.
 export function titleRows(hasSave) {
   const names = (hasSave ? ['resume'] : []).concat(['learn', 'big', 'small', 'daily', 'two']), out = {};

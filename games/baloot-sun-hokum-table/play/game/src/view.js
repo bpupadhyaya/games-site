@@ -1,10 +1,10 @@
 // Everything drawn each frame. Reads `state` (game.js) and changes nothing. Static art is cached (art.js).
-import { W, H as HH, CW, CH, TW, TH, BW, BH, HAND_Y, LIFT, BTN, TRICK, SEAT, DECK, TOAST, CHIP, titleRows, PANEL, ACT, OVERLAY_BTN, BACK, NEXT, handSlot } from './layout.js';
+import { W, H as HH, CW, CH, TW, TH, BW, BH, HAND_Y, LIFT, BTN, TRICK, SEAT, DECK, TOAST, CHIP, titleRows, PANEL, ACT, OVERLAY_BTN, BACK, NEXT, TEXT_SCALES, TEXT_DEC, TEXT_INC, handSlot } from './layout.js';
 import { drawBackground, drawTable, drawCoffee, drawCard, button, plaque, rr, drawSuit, SUIT_INK, FONT, UI, BRASS, CREAM, star8, rosette, TABLE } from './art.js';
 import { SUIT_NAMES, TARGETS, legalFor, cardShort, teamOf, DECL, declValue, SEAT_NAMES } from './rules.js';
 import { LEVELS } from './ai.js';
 import { LESSONS } from './lessons.js';
-import { RULES } from './rulesContent.js';
+import { RULES, ABOUT, HOWTO } from './rulesContent.js';
 
 const TAU = Math.PI * 2;
 const NAMES = ['You', 'Right', 'Partner', 'Left'];
@@ -106,41 +106,6 @@ function settingsPage(ctx, state, V) {
   [[7 + 8 * 1, 0], [3 + 8 * 2, 1], [6 + 8 * 3, 2], [4 + 8 * 0, 3]].forEach(([c], i) => drawCard(ctx, c, 90 + i * 140, 990, 0.85, { big: state.set.big, four: state.set.four }));
   V.wrap('Your choices are saved on this device.', W / 2, 1300, 22, 560, 'rgba(246,234,208,0.8)');
 }
-function paragraphs(ctx, V, items, y0, size = 26, maxW = 600) {
-  let y = y0;
-  for (const it of items) {
-    if (it.h) { V.text(it.h, 60, y, size + 4, BRASS, UI, 800, 'left'); y += size * 1.5; continue; }
-    const n = V.wrap(it.p, 60, y, size, maxW, CREAM, size * 1.36, 'left'); y += n * size * 1.36 + size * 0.7;
-  }
-}
-function aboutPage(ctx, state, V) {
-  pageFrame(ctx, V, 'About Baloot');
-  paragraphs(ctx, V, [
-    { p: 'Baloot is a trick-taking card game for four players in two partnerships, played across Saudi Arabia and the wider Arabian Peninsula. It is related to the French game Belote.' },
-    { p: 'It uses a 32-card deck, 7 to Ace. Each player gets eight cards. Partners sit opposite each other.' },
-    { p: 'Two contracts: Sun, with no trump, and Hokum, where one suit is trump and the Jack and 9 of trump become the two highest cards.' },
-    { p: 'Players may score bonuses called declarations: Sira, Fifty, Hundred and Baloot, the King and Queen of trump together.' },
-    { p: 'A match is usually played to 152 game points.' },
-    { p: 'This game follows the widely played Saudi rules. House rules vary from table to table, so the choices made here are listed under Controls.' },
-    { p: 'Score only: no money is played for.' },
-  ], 230, 27, 610);
-}
-function howPage(ctx, state, V) {
-  pageFrame(ctx, V, 'Controls and rules');
-  paragraphs(ctx, V, [
-    { h: 'Controls' },
-    { p: 'TAP a card to raise it, TAP it again to play it. Or DRAG it upward.' },
-    { p: 'TAP a big button to bid, double or declare. Hint suggests a play and says why. Take back undoes your last play.' },
-    { p: 'Keyboard: Left and Right pick a card or button, Enter or Space plays, H is Hint, U is Take back, Esc is Menu.' },
-    { h: 'The hand' },
-    { p: 'Bidding: one card is turned up. Each player may say Hokum (that suit is trump), Sun or Pass. A second round lets Hokum be a different suit. Sun beats Hokum.' },
-    { p: 'The buyer takes the turned-up card and everyone is dealt to eight. Opponents may then Double (x2); the buyer can answer Three, the opponents Four, and the buyer a Match call: win the hand, win the match.' },
-    { p: 'Follow suit. In Hokum, if you cannot and an opponent is winning, you must trump, and you must go higher than a trump already played.' },
-    { h: 'Points' },
-    { p: 'Sun: A 11, 10 10, K 4, Q 3, J 2. Hokum trump: J 20, 9 14, A 11, 10 10, K 4, Q 3. Last trick +10. A hand is 16 game points in Hokum and 26 in Sun. The buyer must beat the other team or they take everything. Winning every trick is Kaboot: 25 in Hokum, 44 in Sun.' },
-    { p: 'Declarations: Sira 2, Fifty 5, Hundred 10, Baloot 2 (Sun: 4, 10, 20, four aces 40). Only the team with the best declaration scores theirs.' },
-  ], 210, 23, 610);
-}
 // Draws a centred row of real in-game cards (via the same drawCard() the table uses — never a
 // separate simplified icon), each with a label under it, sized to always fit within the page's
 // text margin. Returns the y just below the row, for the body text that follows.
@@ -160,20 +125,70 @@ function drawRuleCards(ctx, state, cards, y0) {
   }
   return y0 + h + (cards.some((c) => c.sub) ? 66 : 44);
 }
-// The exhaustive Rules reference: a paginated set of short pages (Back / Next / "Page N of M"),
-// the closest equivalent this game has to the board games' per-piece pages, built additively on
-// top of the same pageFrame()/paragraphs() the About and Controls pages already use. Every claim
-// on every page is cross-checked against rules.js in rulesContent.js.
-function rulesPage(ctx, state, V) {
-  pageFrame(ctx, V, 'Game Rules');
-  const list = RULES, page = list[state.page % list.length];
-  V.text(page.title, W / 2, 200, 32, BRASS, UI, 800);
-  let y = 236;
-  if (page.cards && page.cards.length) y = drawRuleCards(ctx, state, page.cards, y) + 10;
-  paragraphs(ctx, V, page.lines.map((p) => ({ p })), y, 24, 610);
-  button(ctx, NEXT, 'Next', { size: 26 });
-  V.text(`Page ${(state.page % list.length) + 1} of ${list.length}`, W / 2, HH - 34, 21, 'rgba(246,234,208,0.65)', UI, 600);
+// A small closing flourish (a thin double rule with a diamond, then three real cards) for pages
+// whose text ends well short of the panel's bottom — never drawn unless there is real, comfortable
+// room left, so it never crowds the body text or the "Page N of M" footer below it. The Rules/
+// Rank-order pages already show illustrative cards inline; this is only for pages that don't.
+function footerMotif(ctx, state, V, y) {
+  ctx.save(); ctx.strokeStyle = 'rgba(224,178,90,0.35)'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.moveTo(W / 2 - 96, y); ctx.lineTo(W / 2 - 26, y); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(W / 2 + 26, y); ctx.lineTo(W / 2 + 96, y); ctx.stroke();
+  ctx.restore();
+  V.text('♦', W / 2, y + 6, 16, BRASS, UI, 700);
+  const cards = [7, 14, 21]; // Ace of Spades, King of Hearts, Queen of Diamonds: a small echo of the title screen's fan
+  const sc = 0.5, w = CW * sc, gap = 18;
+  let x = W / 2 - (cards.length * w + (cards.length - 1) * gap) / 2;
+  ctx.save(); ctx.globalAlpha = 0.92;
+  for (const c of cards) { drawCard(ctx, c, x, y + 26, sc, { four: state.set.four, big: state.set.big }); x += w + gap; }
+  ctx.restore();
 }
+// About, Controls (How to Play) and Rules all share this one reference-page renderer: a framed
+// "reader card" panel (rr()/plaque()'s own dark-translucent, brass-bordered style — this game's
+// own palette, not a new one) holds the header, an optional row of real in-game cards, and the
+// body text, so the page reads as a designed reference sheet rather than text floating loose on
+// the carpet backdrop. A text-size stepper (A-/A+, same button() style as every other button in
+// this game) sits in the header row between Back and Next and lets anyone go up to two steps
+// larger — some players wear glasses, some don't. Every list is paced (rulesContent.js) to stay
+// short, single-concept pages that still fit comfortably at the largest step.
+function refPage(ctx, state, V, list, page, headerLabel) {
+  ctx.fillStyle = 'rgba(12,4,6,0.55)'; ctx.fillRect(0, 0, W, HH);
+  const scale = TEXT_SCALES[state.textScaleIdx] ?? 1; // guarded: a stale/out-of-range index must never yield NaN sizes
+  const panel = { x: 30, y: 116, w: 660, h: HH - 116 - 92 };
+  plaque(ctx, panel, 0.6);
+  ctx.save(); ctx.strokeStyle = 'rgba(224,178,90,0.28)'; ctx.lineWidth = 1; rr(ctx, panel.x + 8, panel.y + 8, panel.w - 16, panel.h - 16, 14); ctx.stroke(); ctx.restore();
+
+  const headerSize = Math.round(37 * scale);
+  V.text(headerLabel, W / 2, panel.y + headerSize + 12, headerSize, CREAM, FONT, 700);
+  const dividerY = panel.y + headerSize + 32;
+  ctx.strokeStyle = 'rgba(224,178,90,0.5)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(panel.x + 50, dividerY); ctx.lineTo(panel.x + panel.w - 50, dividerY); ctx.stroke();
+  V.text('♦', W / 2, dividerY + 10, 20, BRASS, UI, 700);
+
+  const item = list[page % list.length];
+  const titleSize = Math.round(31 * scale);
+  const bodySize = Math.round(29 * scale), lh = Math.round(bodySize * 1.4), gap = Math.round(bodySize * 0.7);
+  let y = dividerY + 10 + titleSize + 24;
+  V.text(item.title, W / 2, y, titleSize, BRASS, UI, 800);
+  // Gap after the title must grow with BOTH the title's and the body's font size — a title-only
+  // multiplier looked fine at the default scale but crowded the first body line at the top text
+  // step, where the body font grew more (in absolute px) than this gap did.
+  y += Math.round(titleSize * 0.5 + bodySize * 0.55);
+  if (item.cards && item.cards.length) y = drawRuleCards(ctx, state, item.cards, y) + 10;
+  const textX = panel.x + 34, maxW = panel.w - 68;
+  for (const line of item.lines) { const n = V.wrap(line, textX, y, bodySize, maxW, CREAM, lh, 'left', 600); y += n * lh + gap; }
+
+  // Only decorate where there is real room: a card row up top already fills that role, so the
+  // closing motif is reserved for pages that end well clear of the footer.
+  if (!(item.cards && item.cards.length) && (panel.y + panel.h - 90) - y > 260) footerMotif(ctx, state, V, y + 50);
+
+  V.text(`Page ${(page % list.length) + 1} of ${list.length}`, W / 2, panel.y + panel.h - 22, Math.round(20 * Math.min(scale, 1.1)), 'rgba(246,234,208,0.65)', UI, 600);
+  backButton(ctx, V);
+  button(ctx, NEXT, 'Next', { size: 26 });
+  button(ctx, TEXT_DEC, 'A−', { size: 24, dim: state.textScaleIdx === 0 });
+  button(ctx, TEXT_INC, 'A+', { size: 24, dim: state.textScaleIdx >= TEXT_SCALES.length - 1 });
+}
+function aboutPage(ctx, state, V) { refPage(ctx, state, V, ABOUT, state.aboutPage, 'About Baloot'); }
+function howPage(ctx, state, V) { refPage(ctx, state, V, HOWTO, state.howPage, 'How to Play'); }
+function rulesPage(ctx, state, V) { refPage(ctx, state, V, RULES, state.page, 'Game Rules'); }
 function demoPage(ctx, state, V) {
   ctx.fillStyle = 'rgba(12,4,6,0.6)'; ctx.fillRect(0, 0, W, HH);
   V.text('That was the preview', W / 2, 500, 60, CREAM, FONT, 700);

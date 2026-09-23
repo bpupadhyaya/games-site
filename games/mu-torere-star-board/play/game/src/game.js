@@ -4,7 +4,7 @@
 // Moving: TAP a stone (it lifts, its legal points glow), then TAP a glowing point; or DRAG the stone onto a point.
 // A move that is not allowed visibly TRIES (the stone travels toward the point, shudders and comes back) and a message
 // says exactly why. The game state is JSON; only this file mutates it.
-import { W, H, BX, BY, pointPos, pointNear, inRect, BTN, titleRows, LADDER_ROW, LADDER_SIDE, BACK } from './layout.js';
+import { W, H, BX, BY, pointPos, pointNear, inRect, BTN, TEXT_STEPPER, TEXT_SCALES, titleRows, LADDER_ROW, LADDER_SIDE, BACK } from './layout.js';
 import { newGame, clone, applyMove, tryMove, legalMoves, SIDE_NAME, other } from './rules.js';
 import { rate } from './solver.js';
 import { LADDER, pickMove, bestMoves, hintReason, stubborn } from './ai.js';
@@ -26,15 +26,21 @@ export function createGame(env) {
     progress: { played: 0, wins: 0 }, ladder: { top: 1, beaten: {}, tries: {} }, learned: false, saved: null, demoUses: 0,
     lesson: null, pz: null, daily: { day: config.day ?? 0, solvedDay: -1, streak: 0 },
     dev: config.dev === true,
+    textScaleIdx: 0, // index into TEXT_SCALES; the About/How to play/Rules reference pages' own text size
   };
-  storage.get('prefs', null).then((v) => { if (v) { state.sound = v.sound ?? true; state.calm = v.calm ?? false; state.big = v.big ?? false; state.marks = v.marks ?? false; state.side = v.side ?? 0; audio.setMuted?.(!state.sound); } });
+  storage.get('prefs', null).then((v) => {
+    if (v) { state.sound = v.sound ?? true; state.calm = v.calm ?? false; state.big = v.big ?? false; state.marks = v.marks ?? false; state.side = v.side ?? 0; state.textScaleIdx = v.textScaleIdx ?? 0; audio.setMuted?.(!state.sound); }
+    // Clamp: a saved index from a build with a longer/shorter TEXT_SCALES array must never survive
+    // and produce NaN font sizes on the About/How to play/Rules pages.
+    state.textScaleIdx = Math.min(Math.max(state.textScaleIdx ?? 0, 0), TEXT_SCALES.length - 1);
+  });
   storage.get('progress', null).then((v) => { if (v) state.progress = { played: v.played ?? 0, wins: v.wins ?? 0 }; });
   storage.get('ladder', null).then((v) => { if (v) state.ladder = { top: v.top ?? 1, beaten: v.beaten || {}, tries: v.tries || {} }; });
   storage.get('learned', false).then((v) => { state.learned = state.learned || !!v; });
   storage.get('daily', null).then((v) => { if (v) { state.daily.solvedDay = v.solvedDay ?? -1; state.daily.streak = v.streak ?? 0; } });
   storage.get('demoUses', 0).then((v) => { state.demoUses = Math.max(state.demoUses, v); });
   storage.get('save', null).then((v) => { if (v && v.game && !v.game.winner && state.scene === 'title') state.saved = v; });
-  const savePrefs = () => storage.set('prefs', { sound: state.sound, calm: state.calm, big: state.big, marks: state.marks, side: state.side });
+  const savePrefs = () => storage.set('prefs', { sound: state.sound, calm: state.calm, big: state.big, marks: state.marks, side: state.side, textScaleIdx: state.textScaleIdx });
   const saveLadder = () => storage.set('ladder', state.ladder);
   const saveGame = () => { if (state.scene === 'play' && !state.game.winner) { state.saved = { game: clone(state.game), human: state.human, two: state.two, mode: state.mode, rung: state.rung }; storage.set('save', state.saved); } };
   const clearSave = () => { state.saved = null; storage.remove('save'); };
@@ -260,6 +266,8 @@ export function createGame(env) {
     if (p.pressed) state.dragY = p.y;
     if (p.down && state.dragY !== undefined && !p.pressed) { state.scroll = Math.max(0, Math.min(Math.max(0, state.pageH - 1200), state.scroll + (state.dragY - p.y))); state.dragY = p.y; }
     if (tap && inRect(BACK, tap.x, tap.y)) state.scene = 'title';
+    else if (tap && inRect(TEXT_STEPPER.dec, tap.x, tap.y) && state.textScaleIdx > 0) { state.textScaleIdx--; savePrefs(); tok(); }
+    else if (tap && inRect(TEXT_STEPPER.inc, tap.x, tap.y) && state.textScaleIdx < TEXT_SCALES.length - 1) { state.textScaleIdx++; savePrefs(); tok(); }
   }
   function updateOver(tap) {
     if (!tap) return;

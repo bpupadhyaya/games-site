@@ -1,6 +1,8 @@
 // Exhaustive Scopa rules reference, paginated like the About/Controls pages. Every claim here is
 // cross-checked against the actual implementation in rules.js (the single source of truth for
-// legality and scoring) so this page can never contradict the engine.
+// legality and scoring) so this page can never contradict the engine. Split one concept per page
+// (a few pages here cover what used to be one page each) so every page still fits comfortably at
+// the largest text-size step - verified by rendering, not assumed.
 import { cardId, SETTEBELLO } from './rules.js';
 
 const DENARI = 0, COPPE = 1, SPADE = 2, BASTONI = 3;
@@ -34,13 +36,10 @@ export const RULES = [
     ],
   },
   {
-    title: 'The deal and turn order',
+    title: 'The deal',
     lines: [
       '2 players play alone. 4 players form two fixed partnerships by seat parity: seats 0 and 2 are one team, seats 1 and 3 the other.',
       'To start a round, 4 cards are dealt face-up to the table and 3 cards to each player\'s hand.',
-      'If that face-up deal would put 3 or more Re (rank 10) on the table, the whole table is re-shuffled and re-dealt - this repeats until fewer than 3 Re land there.',
-      'Turns pass around the table in fixed seat order (0, 1, 2, 3, back to 0...), and the seat to the dealer\'s left always plays first in a round.',
-      "Once every hand is empty, 3 more cards are dealt to each player from the stock - this repeats until the stock itself runs out.",
     ],
     cards: [
       { id: cardId(DENARI, 3), label: '' },
@@ -51,12 +50,41 @@ export const RULES = [
     cardsCaption: 'An opening table: four cards dealt face-up',
   },
   {
+    title: 'The deal: avoiding too many Re',
+    lines: [
+      'If that face-up deal would put 3 or more Re (rank 10) on the table, the whole table is re-shuffled and re-dealt - this repeats until fewer than 3 Re land there.',
+    ],
+  },
+  {
+    title: 'Turn order',
+    lines: [
+      'Turns pass around the table in fixed seat order (0, 1, 2, 3, back to 0...), and the seat to the dealer\'s left always plays first in a round.',
+    ],
+  },
+  {
+    title: 'Restocking hands',
+    lines: [
+      "Once every hand is empty, 3 more cards are dealt to each player from the stock - this repeats until the stock itself runs out.",
+    ],
+  },
+  {
     title: 'Making a capture',
     lines: [
       "Playing a card from your hand can capture cards on the table - or, if it captures nothing, it is simply laid face-up on the table instead.",
-      "If any table card shares the played card's exact rank, that single matching card is the ONLY legal capture - you may not add up other cards to that rank instead. (Two matches of the same rank on the table: take either one, but still alone.)",
-      'If no table card matches the rank, you may capture any combination of table cards whose ranks add up exactly to the played card\'s rank.',
       'If neither a match nor a sum is possible, the card is laid face-up on the table, to be captured later.',
+    ],
+  },
+  {
+    title: 'Capturing: the matching rule',
+    lines: [
+      "If any table card shares the played card's exact rank, that single matching card is the ONLY legal capture - you may not add up other cards to that rank instead.",
+      'Two matches of the same rank on the table: take either one, but still alone.',
+    ],
+  },
+  {
+    title: 'Capturing: adding up',
+    lines: [
+      'If no table card matches the rank, you may capture any combination of table cards whose ranks add up exactly to the played card\'s rank.',
     ],
     cards: [
       { id: cardId(BASTONI, 7), label: 'Played: 7' },
@@ -74,16 +102,36 @@ export const RULES = [
     ],
   },
   {
-    title: 'Scoring a round',
+    title: 'Scoring a round: overview',
     lines: [
-      'At the end of each round, four categories are judged, one point each. A tie for the most in a category (or nobody having any) awards NOBODY that point:',
+      'At the end of each round, four categories are judged, one point each. A tie for the most in a category (or nobody having any) awards NOBODY that point.',
+    ],
+  },
+  {
+    title: 'Scoring: carte and denari',
+    lines: [
       'Carte - the side that captured the most cards overall.',
       'Denari - the side that captured the most cards of the coins (denari) suit.',
+    ],
+  },
+  {
+    title: 'Scoring: the settebello',
+    lines: [
       'Settebello - whoever captured the 7 of denari. Automatic, and never a tie, since there is only one such card in the deck.',
-      "Primiera - the side with the higher Primiera total (see the values page) - but ONLY if that side holds at least one card of every one of the 4 suits. A side missing a suit entirely cannot win this point at all.",
-      'On top of those four, each side also scores one point for every scopa it made during the round.',
     ],
     cards: [{ id: SETTEBELLO, label: 'Settebello' }],
+  },
+  {
+    title: 'Scoring: the primiera',
+    lines: [
+      "Primiera - the side with the higher Primiera total (see the values page) - but ONLY if that side holds at least one card of every one of the 4 suits. A side missing a suit entirely cannot win this point at all.",
+    ],
+  },
+  {
+    title: 'Scoring: the scopa bonus',
+    lines: [
+      'On top of those four categories, each side also scores one point for every scopa it made during the round.',
+    ],
   },
   {
     title: 'Winning the match',

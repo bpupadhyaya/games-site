@@ -26,8 +26,9 @@ export const BTN = {
   menu: { x: 40, y: 1340, w: 190, h: 82 }, undo: { x: 265, y: 1340, w: 190, h: 82 }, hint: { x: 490, y: 1340, w: 190, h: 82 },
   next: { x: 200, y: 1340, w: 320, h: 82 }, share: { x: 200, y: 1340, w: 320, h: 82 },
   again: { x: 130, y: 1000, w: 460, h: 96 }, back: { x: 130, y: 1120, w: 460, h: 96 },
-  aboutBack: { x: 130, y: 1400, w: 460, h: 90 },
 };
+// About is now paginated (one heritage fact per page), same Back/Next split as Rules below.
+export const ABOUT_BTN = { back: { x: 70, y: 1400, w: 280, h: 90 }, next: { x: 370, y: 1400, w: 280, h: 90 } };
 const row = (y, h = 78) => ({ x: 70, y, w: 580, h });
 export function titleRows(hasSave) {
   let y = 880;
@@ -48,6 +49,11 @@ export function titleRows(hasSave) {
 // Rules-page navigation: Back returns to the title, Next advances a page (wraps round). Same x/w/y
 // this game's About and Settings back buttons already use, just split into two side-by-side halves.
 export const RULES_BTN = { back: { x: 70, y: 1400, w: 280, h: 90 }, next: { x: 370, y: 1400, w: 280, h: 90 } };
+// Text-size stepper for the About/Rules reference pages: a header row above the panel (panel starts
+// at y=120), centred, mirroring the games this pattern is shared with. An index into TEXT_SCALES,
+// never a raw float, so the stepper can cleanly disable at either end.
+export const HEADER = { textDec: { x: 70, y: 26, w: 130, h: 66 }, textInc: { x: W - 200, y: 26, w: 130, h: 66 } };
+export const TEXT_SCALES = [1, 1.15, 1.3];
 // settings rows (label left, value button)
 export const SET = {
   level: { x: 70, y: 330, w: 580, h: 84 }, sound: { x: 70, y: 430, w: 580, h: 84 }, calm: { x: 70, y: 530, w: 580, h: 84 },

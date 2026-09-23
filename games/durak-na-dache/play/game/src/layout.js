@@ -58,6 +58,15 @@ export const BACK = rect(26, 24, 130, 70);
 // Mirrors BACK at the top-right, for the paginated Rules page's Back/Next pair.
 export const NEXT = rect(W - 26 - 130, 24, 130, 70);
 
+// Text-size stepper for the reference pages (About/Rules): an index into TEXT_SCALES, never a raw
+// float, so a stray out-of-range save can always be clamped back into bounds. The two buttons sit
+// centred between Back and Next in the same header row, at the same height, without crowding either.
+export const TEXT_SCALES = [1, 1.15, 1.3];
+export const HEADER = {
+  textDec: rect(250, 24, 100, 70),
+  textInc: rect(370, 24, 100, 70),
+};
+
 // One row per toggle: Sound, Reduced motion, Large print, Four-colour suits, Card back theme.
 export const SETTINGS_ROWS = 5;
 export const SETTINGS_ROW = (i) => rect(90, 290 + i * 132, W - 180, 104);

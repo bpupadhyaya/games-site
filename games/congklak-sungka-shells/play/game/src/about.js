@@ -21,6 +21,11 @@ export const RULES = [
     lines: [
       'Fourteen small houses in all: seven in your own column, the right-hand side you tap, and seven in your opponent’s column on the left. Each house starts with 7 shells — 98 shells on the board altogether.',
       'Each side also has one storehouse: yours at the bottom of your column, your opponent’s at the top of theirs. Both storehouses start empty.',
+    ],
+  },
+  {
+    title: 'Setup: who moves first',
+    lines: [
       'To begin, both players choose one of their own houses and sow it at exactly the same moment (see “The simultaneous opening”, later on this page list). Whichever side’s sowing finishes first is the one who moves next; on an exact tie, player one moves next.',
       '(This page covers the rules only — see Controls for how to tap and play.)',
     ],
@@ -30,6 +35,11 @@ export const RULES = [
     art: 'house',
     lines: [
       'Each small house holds shells — yours or your opponent’s — and can be sown from or sown into. Tapping one of your own houses that has shells lifts every shell out of it, leaving it empty, and sows them one by one into the houses ahead: up your own column, across the top, and down your opponent’s column — reaching your own storehouse and starting round the board again if there are enough shells to go that far.',
+    ],
+  },
+  {
+    title: 'A house: whose you can tap',
+    lines: [
       'Both players sow into every house on the board, yours and your opponent’s alike — only the two storehouses are private. You can never tap an empty house, one of your opponent’s houses, or a house that has been burnt shut (see later pages).',
     ],
   },
@@ -46,6 +56,11 @@ export const RULES = [
     title: 'Relay sowing',
     lines: [
       'If the very last shell you sow lands in a house — yours or your opponent’s — that already had one or more shells in it, you immediately scoop up everything now sitting in that house, including the shell you just dropped, and keep sowing onward from there. This costs nothing extra and does not end your turn: it is still the same single move.',
+    ],
+  },
+  {
+    title: 'Relay sowing: how far it can run',
+    lines: [
       'A relay can circle the board more than once — if it comes back around to the house it started from, that house (now empty) simply receives a shell like any other. Relays are rare but can run long: the longest seen in this game’s own testing is 342 shells sown in one move. As a safety limit, a single relay is never let run past 500 shells sown.',
     ],
   },
@@ -63,6 +78,11 @@ export const RULES = [
     lines: [
       'If the very last shell you sow lands in one of your OWN houses that was completely empty a moment before, look at the house directly opposite it, on your opponent’s side. If that opposite house has one or more shells in it, you capture: every shell in it, plus the one shell you just dropped, all go straight into your own storehouse at once, emptying both houses.',
       'If the opposite house is empty too, nothing is captured — your dropped shell simply stays put in your own empty house, and your turn ends as normal.',
+    ],
+  },
+  {
+    title: 'Capturing: what never triggers it',
+    lines: [
       'Landing your last shell in an empty house on your OPPONENT’s side never captures anything, no matter what: the shell stays there and your turn ends. Only an empty house on your own side can ever trigger a capture.',
       'A capture, or a sow that lands harmlessly in an empty house, always ends your turn — unlike landing in your own storehouse, it never earns you another go.',
     ],
@@ -80,6 +100,11 @@ export const RULES = [
     lines: [
       'If the match continues into another round, each player refills their own houses back up to 7 shells, spending shells from their own storehouse, filling the house nearest their own storehouse first, then the next, and so on.',
       'Any house that side cannot refill — because they have run out of open houses, or simply do not have 7 shells left to spend — is burnt shut for the rest of the match: skipped by every future sow, on both sides, and never filled or played again.',
+    ],
+  },
+  {
+    title: 'Refilling: leftovers and a failed refill',
+    lines: [
       'Leftover shells that are not enough to fill a whole house stay banked safely in the storehouse.',
       'If a player cannot refill even a single house, the match ends immediately in the other player’s favour — no further round is played.',
     ],

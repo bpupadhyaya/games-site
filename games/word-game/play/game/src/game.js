@@ -15,6 +15,7 @@ import {
   W, H, BAND_TOP, SLICE_H, SLICE_MARGIN, CHIP_H, slipWidth, inRect, REVIEW_PER_PAGE,
   MODE_SYN_BTN, MODE_ANT_BTN, PLAY_BTN, TITLE_COLOR_BTN, TITLE_RULES_BTN, STOP_BTN, COLOR_BTN,
   PREV_BTN, NEXT_BTN, PLAY_AGAIN_BTN, CHANGE_MODE_BTN, RULES_BACK_BTN, RULES_NEXT_BTN,
+  TEXT_SCALES, RULES_TEXT_DEC, RULES_TEXT_INC,
 } from './layout.js';
 
 export const meta = { width: W, height: H };
@@ -49,6 +50,7 @@ export function createGame(env) {
     history: [], // this session's answers: { word, mode, answer, picked (null = drifted past), correct }
     reviewPage: 0,
     rulesPage: 0,
+    textScaleIdx: 0, // index into TEXT_SCALES (Rules reference text size), never a raw float
     scheme: 0,
     demo,
     demoSessions: 0,
@@ -74,6 +76,11 @@ export function createGame(env) {
     state.scheme = (state.scheme + 1) % SCHEMES.length;
     storage.set('scheme', state.scheme);
   };
+  // Clamp on load: a saved index from a build with a longer/shorter TEXT_SCALES array must never
+  // produce a NaN or out-of-range font size.
+  storage.get('textScaleIdx', 0).then((v) => {
+    state.textScaleIdx = Math.min(Math.max(v ?? 0, 0), TEXT_SCALES.length - 1);
+  });
   storage.get('bestSynonym', 0).then((v) => (state.bestSynonym = v));
   storage.get('bestAntonym', 0).then((v) => (state.bestAntonym = v));
   if (demo) {
@@ -225,6 +232,14 @@ export function createGame(env) {
     } else if (inRect(x, y, RULES_NEXT_BTN)) {
       state.rulesPage = (state.rulesPage + 1) % RULES.length;
       pressed('rulesNext');
+    } else if (inRect(x, y, RULES_TEXT_DEC) && state.textScaleIdx > 0) {
+      state.textScaleIdx -= 1;
+      storage.set('textScaleIdx', state.textScaleIdx);
+      pressed('textDec');
+    } else if (inRect(x, y, RULES_TEXT_INC) && state.textScaleIdx < TEXT_SCALES.length - 1) {
+      state.textScaleIdx += 1;
+      storage.set('textScaleIdx', state.textScaleIdx);
+      pressed('textInc');
     }
   };
 

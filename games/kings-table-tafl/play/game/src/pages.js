@@ -9,28 +9,42 @@ export const PAGES = {
       'Amber light along a row or column shows the king has a clear run to a corner (Warnings in the menu).',
       'Keyboard: ARROWS move the cursor, SPACE or ENTER is a TAP, U takes back, H gives a hint, ESCAPE opens the menu.',
     ] },
+    // Split from one longer "The rules" page: at the top text-size step the original four paragraphs
+    // ran past the panel. Two shorter, single-concept pages instead.
     { title: 'The rules', body: [
       'Two sides. The 24 attackers (dark horn) move first. The 12 defenders (pale bone) and their king (gilt crown) start in the middle. Every piece slides like a rook, any distance, never jumping.',
       'Capture: close an enemy piece between two of yours on a row or column by moving. Moving in between two enemies is safe. The king captures too. Corners are hostile to all; the throne is hostile to attackers, and to defenders when empty.',
+    ] },
+    { title: 'Winning and special squares', body: [
       'Only the king may stand on a corner or on the throne. Other pieces may slide over the empty throne.',
       'Defenders win when the king reaches any corner. Attackers win by taking the king: four around him (three beside the throne; on the small board, an ordinary sandwich), or by ringing in every defender. No legal move loses. The same position three times, or move 300, is a draw.',
     ] },
+    // Likewise split "Boards and levels" - four paragraphs no longer fit one page at the top step.
     { title: 'Boards and levels', body: [
       'Copenhagen 11x11 is the modern standard: 24 attackers against 12 defenders and a king. Brandubh 7x7 is the small starter board: 8 against 4 and a king, with a quicker king capture.',
       'Left out on purpose: the shieldwall capture and the edge-fort rule, so every rule can be learned in ten lessons.',
+    ] },
+    { title: 'Computer levels', body: [
       'Levels: Learner slips often. Steady sees one-move escapes. Sharp looks three moves ahead. Master looks four ahead.',
       'Strength differs by side: the defenders\' king has many ways out, so a computer defender is given one move less foresight than an attacker at the same level. Beating Master as the attackers is the great challenge.',
     ] },
   ],
   about: [
+    // Split from one longer "Tafl: the king's table" page: at the top text-size step all three
+    // paragraphs together ran well past the panel. Two shorter, single-concept pages instead.
     { title: 'Tafl: the king\'s table', body: [
       'Tafl is a family of strategy games played across Northern Europe for centuries. "Tafl" is Old Norse for a board game. In the best-known form, hnefatafl, a king and his defenders are surrounded by twice as many attackers.',
       'Boards and pieces have turned up in Scandinavia and the British Isles. A gaming board with a ruled grid, with a Nine Men\'s Morris pattern on its back, lay in the Gokstad ship burial in Norway (late 9th century). A 7x7 wooden board with pegged holes, found at Ballinderry in Ireland, is dated to the 10th century.',
+    ] },
+    { title: 'Written record', body: [
       'Old Norse writing mentions the game too. The Orkneyinga saga lists skill at tafl among the accomplishments of Earl Rognvald of Orkney.',
     ] },
+    // Likewise split "How it lived on" - three long paragraphs together overflowed at the top step.
     { title: 'How it lived on', body: [
       'When chess reached the North in the 11th and 12th centuries it gradually replaced tafl, but local versions lived on: Brandubh in Ireland, Tawlbwrdd in Wales, Ard Ri in Scotland, and hnefatafl in Iceland.',
       'In 1732 the Swedish naturalist Carl Linnaeus, travelling in Lapland, noted down how the Sámi played Tablut on a 9x9 board. His account is a key source for rebuilding the rules.',
+    ] },
+    { title: 'Playing it today', body: [
       'Nobody knows exactly how tafl was played in the Viking Age; today\'s rules are modern reconstructions. Copenhagen Hnefatafl on 11x11 is a widely played modern ruleset, and clubs play it around the world. This game uses a simplified version.',
     ] },
   ],
@@ -85,9 +99,15 @@ export const RULES = [
       'The king captures the same way a defender does. The king himself can never be captured this way - taking the king works differently, covered next.',
     ],
   },
+  // Split from one longer "Taking the king" page: all three paragraphs together ran well past the
+  // panel at the top text-size step. Two shorter, single-concept pages instead.
   {
     title: 'Taking the king', body: [
       'On the Copenhagen 11x11 board, the king is captured by surrounding every open side next to him with an attacker (or a corner, or the throne itself when he stands beside it) - all four sides away from any edge, or however many sides he has if he stands on the edge of the board.',
+    ],
+  },
+  {
+    title: 'Taking the king: exceptions', body: [
       'The throne counts as one of those hostile sides whenever the king stands directly next to it, so in that position three attackers plus the throne are enough.',
       'On the smaller Brandubh 7x7 board, this strict rule only applies on or beside the throne. Everywhere else on that board, an ordinary two-piece sandwich - one attacker (or hostile corner or throne) on each opposite side - takes the king, exactly like any other piece. This is a deliberate simplification so the small board plays fast.',
     ],

@@ -39,6 +39,14 @@ export const HERO = { x: 360, y: 700, cell: 100, n: 5 };
 // mirror). Same bottom-row grid the play scene's Hint/Colours/New board row uses (x 27..693).
 export const RULES_BACK_BTN = { x: 27, y: 1262, w: 324, h: 116 };
 export const RULES_NEXT_BTN = { x: 369, y: 1262, w: 324, h: 116 };
+// The framed reader-card panel behind the Rules body text (drawn with the game's own glassPanel()),
+// and the text-size stepper above it - a header row in the otherwise-empty top strip this page
+// never used before. An index into TEXT_SCALES, never a raw float, so the stepper can cleanly
+// disable at either end.
+export const RULES_PANEL = { x: 24, y: 118, w: W - 48, h: 1134 };
+export const TEXT_DEC_BTN = { x: 36, y: 24, w: 116, h: 64 };
+export const TEXT_INC_BTN = { x: W - 152, y: 24, w: 116, h: 64 };
+export const TEXT_SCALES = [1, 1.15, 1.3];
 
 export const cellRect = (index) => ({
   x: BOARD_X + (index % COLS) * CELL,

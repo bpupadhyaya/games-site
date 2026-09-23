@@ -42,3 +42,9 @@ export const BTN = {
 export const LADDER_ROW = (i) => ({ x: 40, y: 330 + i * 86, w: 640, h: 76 });
 export const LADDER_SIDE = { x: 90, y: 1390, w: 540, h: 60 };
 export const BACK = { x: 140, y: 1462, w: 440, h: 72 };
+// Text-size stepper for the About / How to play / Rules reference pages: a header row above the
+// title, clear of the Back button in the footer. "A-"/"A+" on all three screens.
+export const TEXT_STEPPER = { dec: { x: 40, y: 24, w: 120, h: 62 }, inc: { x: W - 160, y: 24, w: 120, h: 62 } };
+// Index into this, never a raw float, so the stepper can cleanly disable at either end and a stale
+// saved index (e.g. from a build with a shorter array) always clamps instead of producing NaN sizes.
+export const TEXT_SCALES = [1, 1.15, 1.3];

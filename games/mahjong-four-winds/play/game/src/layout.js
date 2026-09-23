@@ -10,6 +10,10 @@ export const ROT = [0, -Math.PI / 2, Math.PI, Math.PI / 2];        // a tile's t
 export const HAND_Y = 1372, RIVER_W = 36, RIVER_PX = 37.5, RIVER_PY = 45;
 export const inRect = (r, x, y) => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
 
+// Text-size steps for the reference pages (How to play / About / Rules). Index into this, never a
+// raw float, so the stepper can cleanly disable at either end and a stale saved index always clamps.
+export const TEXT_SCALES = [1, 1.15, 1.3];
+
 // ---- slots in the wall ring: slot i (0..143) -> a position around the ring
 export function wallPos(i) {
   const stack = i >> 1, level = i & 1, side = Math.floor(stack / 18), n = stack % 18, S = (RING.half * 2) / 18;

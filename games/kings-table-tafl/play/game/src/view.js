@@ -1,5 +1,5 @@
 // Everything drawn each frame. Reads `state` (game.js) and changes nothing. Static art is cached (art.js).
-import { W, H, BTN, BX, BY, BS, cell, centerOf, titleRows } from './layout.js';
+import { W, H, BTN, BX, BY, BS, cell, centerOf, titleRows, PAGE_NEXT, TEXT_DEC, TEXT_INC, TEXT_SCALES } from './layout.js';
 import { drawScene, drawPiece, braid, pieceRadius } from './art.js';
 import { destinations, openCorners, isCorner, throne, side, SIZES, NAME, ATT, DEF, KING } from './rules.js';
 import { LEVELS } from './engine.js';
@@ -190,17 +190,27 @@ export function render(ctx, state) {
     button(BTN.back, 'Menu', { size: 26 });
   } else if (scene === 'about' || scene === 'help' || scene === 'rules') {
     const pages = scene === 'rules' ? RULES : PAGES[scene], pg = pages[Math.min(state.page, pages.length - 1)];
+    // The reference pages get their own text-size stepper (A-/A+, above the panel) rather than
+    // sharing the title screen's "Text: large/normal" toggle (which still governs lesson/puzzle/
+    // banner text) - the point is a player finds the control right where they're reading.
+    // Guarded lookup: an out-of-range saved index (e.g. from a build with a longer/shorter array)
+    // falls back to 1 rather than producing NaN sizes.
+    const scale = TEXT_SCALES[state.textScaleIdx] ?? 1;
     panel(36, 140, 648, 1270);
-    shadowText(pg.title, 360, 230, 40);
-    ctx.save(); ctx.beginPath(); ctx.rect(70, 262, 580, 30); ctx.clip(); braid(ctx, 70, 277, 580, 7, 7, ['#120903', '#a07a3c', '#e8c77e'], 34); ctx.restore();
-    let y = 350; const sz = big ? 29 : 25, lh = big ? 38 : 33;
+    const label = scene === 'about' ? 'About Tafl' : scene === 'help' ? 'Controls & Rules' : 'Rules';
+    shadowText(label, 360, 200, Math.round(36 * Math.min(scale, 1.15)), 'rgba(240,222,180,0.92)');
+    shadowText(pg.title, 360, 258, Math.round(32 * Math.min(scale, 1.2)), '#ffd97a');
+    ctx.save(); ctx.beginPath(); ctx.rect(70, 278, 580, 30); ctx.clip(); braid(ctx, 70, 293, 580, 7, 7, ['#120903', '#a07a3c', '#e8c77e'], 34); ctx.restore();
+    let y = 366; const sz = Math.round(28 * scale), lh = Math.round(sz * 1.4);
     // A Rules page about one piece/role shows that piece's real in-game sprite, drawn with the same
     // drawPiece() the board itself uses - never a separate simplified icon.
     if (pg.piece) { drawPiece(ctx, 7, pg.piece, 360, y + 66, { scale: 1.9 }); y += 168; }
-    for (const para of pg.body) { const nl = wrap(para, 76, y, sz, 568, CREAM, lh, 'left'); y += nl * lh + 22; }
+    for (const para of pg.body) { const nl = wrap(para, 76, y, sz, 568, CREAM, lh, 'left'); y += nl * lh + Math.round(20 * scale); }
     text(`${state.page + 1} of ${pages.length}`, 360, 1440, 20, 'rgba(240,207,134,0.7)', UI, 500);
     button(BTN.menu, 'Menu', { size: 24 }); if (state.page > 0) button(BTN.undo, 'Back', { size: 24 });
-    button(BTN.next, state.page + 1 < pages.length ? 'Next page' : 'Done', { primary: true, size: 26 });
+    button(PAGE_NEXT, state.page + 1 < pages.length ? 'Next page' : 'Done', { primary: true, size: 21 });
+    button(TEXT_DEC, 'A−', { size: 26, dim: state.textScaleIdx === 0 });
+    button(TEXT_INC, 'A+', { size: 26, dim: state.textScaleIdx === TEXT_SCALES.length - 1 });
   } else if (scene === 'over') {
     ctx.fillStyle = 'rgba(8,4,2,0.74)'; ctx.fillRect(0, 0, W, H);
     const won = g.winner === 'draw' ? 'A draw' : state.two ? `${NAME[g.winner][0].toUpperCase() + NAME[g.winner].slice(1)} win` : g.winner === state.human ? 'You win!' : 'The computer wins';

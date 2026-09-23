@@ -49,6 +49,12 @@ export const BTN = {
 // Rules reference: paginated, reached from the title screen only. Back/Next share the bottom-bar
 // row/height the play screen's own button bar already uses.
 export const RULES_NAV = { back: { x: 90, y: 1462, w: 262, h: 72 }, next: { x: 368, y: 1462, w: 262, h: 72 } };
+// Text-size steps for the Rules reference page. An *index* array, never a raw float, so the
+// stepper below can cleanly disable at either end and a stale saved index can always be clamped.
+export const TEXT_SCALES = [1, 1.15, 1.3];
+// The text-size stepper on the Rules page: top corners flanking the "Rules" header, well clear of
+// the Back/Next row that lives in the bottom bar.
+export const RULES_TEXT = { dec: { x: 14, y: 14, w: 96, h: 58 }, inc: { x: W - 110, y: 14, w: 96, h: 58 } };
 export const inRect = (r, x, y) => !!r && x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
 // The flock tray: one small row of up to 17 geese, the taken ones dimmed.
 export const trayPos = (k) => ({ x: 74 + k * 36.5, y: 530, s: 1 });

@@ -1,5 +1,5 @@
 // Everything drawn each frame. Reads `state` (game.js) and changes nothing. The table, board and seed sprites are cached (art.js).
-import { W, H, PIT_R, PITCH, X0, ROW_Y, TRAY, MID_Y, BTN, SET, pitPos, trayPos, titleRows } from './layout.js';
+import { W, H, PIT_R, PITCH, X0, ROW_Y, TRAY, MID_Y, BTN, SET, pitPos, trayPos, titleRows, TEXT_SCALES } from './layout.js';
 import { drawTable, drawBoard, drawSeed, slot, WOODS, SEEDSETS } from './art.js';
 import { legalMoves } from './rules.js';
 import { LEVELS } from './engine.js';
@@ -19,7 +19,7 @@ function ruleSnapshot(role) {
   if (role === 'mine') return { snap: idle(), hi: { pits: [0, 1, 2, 3, 4, 5] }, caption: 'Your pits: the bottom row' };
   if (role === 'theirs') return { snap: idle(), hi: { pits: [6, 7, 8, 9, 10, 11] }, caption: 'The opponent’s pits: the top row' };
   if (role === 'store') return { snap: { pits: [4, 4, 0, 4, 4, 4, 4, 0, 4, 4, 4, 4], store: [4, 4] }, hi: { trays: true }, caption: 'Each side’s store, holding captured seeds' };
-  if (role === 'capture') return { snap: { pits: [4, 4, 4, 4, 4, 4, 4, 4, 3, 2, 4, 4], store: [0, 0] }, hi: { pits: [8, 9] }, caption: 'Two opponent pits left at 3 and 2: both are captured' };
+  if (role === 'capture') return { snap: { pits: [4, 4, 4, 4, 4, 4, 4, 4, 3, 2, 4, 4], store: [0, 0] }, hi: { pits: [8, 9] }, caption: 'Two pits at 3 and 2: both captured' };
   return null;
 }
 function drawRuleBoard(ctx, state, snap, hi) {
@@ -60,6 +60,9 @@ export function render(ctx, state) {
     out.push(cur); return out;
   };
   const wrap = (str, x, y, size, maxW, color = CREAM, lh = size * 1.3, align = 'center') => { const L = lines(str, maxW, size); L.forEach((ln, i) => text(ln, x, y + i * lh, size, color, UI, 600, align)); return L.length; };
+  // A one-line heading/caption never wraps; instead it shrinks to fit, so a long string (or a
+  // bigger text-size step) can never clip past the panel - used by the About/Rules page titles.
+  const fitSz = (str, size, weight, font, maxW, min) => { let s = size; ctx.font = `${weight} ${s}px ${font}`; while (ctx.measureText(str).width > maxW && s > min) { s -= 1; ctx.font = `${weight} ${s}px ${font}`; } return s; };
   const button = (r, label, o = {}) => {
     ctx.save(); if (o.dim) ctx.globalAlpha = 0.5;
     ctx.fillStyle = 'rgba(30,8,0,0.45)'; ctx.beginPath(); ctx.roundRect(r.x + 2, r.y + 7, r.w, r.h, 22); ctx.fill();
@@ -234,29 +237,41 @@ export function render(ctx, state) {
     for (let k = 0; k < 9; k++) drawSeed(ctx, state.seeds, k % 4, 210 + k * 38, 1090, k * 0.7, 1.5);
     button(SET.back, 'Back', { primary: true, size: 32 });
   } else if (scene === 'about') {
+    // Text-size stepper: a small index (never a raw float) into TEXT_SCALES, guarded and clamped
+    // on load (game.js) so a stale saved index from a shorter/longer array can never produce NaN
+    // fonts. One paginated concept per page, same reader-card pattern as Rules below, so the body
+    // text can be this much bigger without any page overflowing the panel.
+    const scale = TEXT_SCALES[state.textScaleIdx] ?? 1;
+    const page = ABOUT.pages[state.page % ABOUT.pages.length];
     panel(36, 120, 648, 1240, 0.9);
     text(ABOUT.title, 360, 210, 64, CREAM, FONT);
-    let y = 268;
-    for (const [h, body] of ABOUT.parts) {
-      text(h, 70, y, 28, GOLD, FONT, 700, 'left'); y += 34;
-      const n = wrap(body, 70, y, big ? 26 : 23, 580, '#fff3d6', big ? 34 : 30, 'left'); y += n * (big ? 34 : 30) + 24;
-    }
-    button(BTN.aboutBack, 'Back', { primary: true, size: 32 });
+    button(BTN.textDec, 'A−', { size: 28, dim: state.textScaleIdx === 0 });
+    button(BTN.textInc, 'A+', { size: 28, dim: state.textScaleIdx === TEXT_SCALES.length - 1 });
+    const titleSz = fitSz(page.title, Math.round(30 * scale), 700, FONT, 580, 20), bodySz = Math.round(29 * scale), lh = Math.round(bodySz * 1.4);
+    text(page.title, 70, 262, titleSz, GOLD, FONT, 700, 'left');
+    let y = 262 + Math.round(titleSz * 1.15);
+    for (const line of page.lines) { const n = wrap(line, 70, y, bodySz, 580, '#fff3d6', lh, 'left'); y += n * lh + Math.round(16 * scale); }
+    text(`Page ${(state.page % ABOUT.pages.length) + 1} of ${ABOUT.pages.length}`, 360, 1345, 20, 'rgba(251,232,191,0.65)', UI, 500);
+    button(BTN.aboutBack, 'Back', { primary: true, size: 28 });
+    button(BTN.aboutNext, 'Next', { size: 28 });
   } else if (scene === 'rules') {
+    const scale = TEXT_SCALES[state.textScaleIdx] ?? 1;
     const page = RULES[state.page % RULES.length];
     panel(36, 120, 648, 1240, 0.9);
     text('Rules', 360, 210, 64, CREAM, FONT);
-    text(page.title, 360, 262, big ? 32 : 28, GOLD, FONT, 700);
+    button(BTN.textDec, 'A−', { size: 28, dim: state.textScaleIdx === 0 });
+    button(BTN.textInc, 'A+', { size: 28, dim: state.textScaleIdx === TEXT_SCALES.length - 1 });
+    const bodySz = Math.round(29 * scale), lh = Math.round(bodySz * 1.4);
+    const titleSz = fitSz(page.title, Math.round(31 * scale), 700, FONT, 600, 20);
+    text(page.title, 360, 262, titleSz, GOLD, FONT, 700);
     const info = ruleSnapshot(page.role);
     let y = 316;
     if (info) {
       drawRuleBoard(ctx, state, info.snap, info.hi);
-      if (info.caption) text(info.caption, 360, 712, big ? 22 : 19, 'rgba(251,232,191,0.85)', UI, 600);
+      if (info.caption) { const capSz = fitSz(info.caption, Math.round(23 * scale), 600, UI, 600, 16); text(info.caption, 360, 712, capSz, 'rgba(251,232,191,0.85)', UI, 600); }
       y = 754;
     }
-    for (const line of page.lines) {
-      const n = wrap(line, 70, y, big ? 24 : 21, 580, '#fff3d6', big ? 31 : 27, 'left'); y += n * (big ? 31 : 27) + 16;
-    }
+    for (const line of page.lines) { const n = wrap(line, 70, y, bodySz, 580, '#fff3d6', lh, 'left'); y += n * lh + Math.round(16 * scale); }
     text(`Page ${(state.page % RULES.length) + 1} of ${RULES.length}`, 360, 1345, 20, 'rgba(251,232,191,0.65)', UI, 500);
     button(BTN.rulesBack, 'Back', { primary: true, size: 28 });
     button(BTN.rulesNext, 'Next', { size: 28 });

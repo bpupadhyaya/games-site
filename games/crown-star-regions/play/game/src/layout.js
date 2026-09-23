@@ -48,6 +48,13 @@ export const TITLE_RULES_BUTTON = { x: 368, y: 1300, w: 262, h: 96 };
 export const RULES_BACK_BUTTON = { x: 40, y: 1340, w: 310, h: 120 };
 export const RULES_NEXT_BUTTON = { x: 370, y: 1340, w: 310, h: 120 };
 
+// Text-size stepper on the Rules reference page — top corners, clear of the centred title/
+// flourish below them and of the Back/Next row at the bottom. An index into TEXT_SCALES, never a
+// raw float, so "min"/"max" are exact and the stepper can cleanly disable at either end.
+export const RULES_TEXT_DEC_BUTTON = { x: 24, y: 26, w: 116, h: 68 };
+export const RULES_TEXT_INC_BUTTON = { x: SCREEN.width - 140, y: 26, w: 116, h: 68 };
+export const TEXT_SCALES = [1, 1.15, 1.3];
+
 export function inRect(x, y, rect) {
   return x >= rect.x && x <= rect.x + rect.w && y >= rect.y && y <= rect.y + rect.h;
 }

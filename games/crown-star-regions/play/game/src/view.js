@@ -5,6 +5,7 @@ import {
   SCREEN, BOARD_MARGIN, BOARD_TOP, BOARD_SIZE, inRect,
   HINT_BUTTON, UNDO_BUTTON, PLAY7_BUTTON, PLAY10_BUTTON, DAILY_BUTTON, COLOR_BUTTON,
   TITLE_COLOR_BUTTON, TITLE_RULES_BUTTON, RULES_BACK_BUTTON, RULES_NEXT_BUTTON,
+  RULES_TEXT_DEC_BUTTON, RULES_TEXT_INC_BUTTON, TEXT_SCALES,
 } from './layout.js';
 import { PALETTES, regionColor } from './palettes.js';
 import { RULES } from './content.js';
@@ -902,12 +903,43 @@ function drawDemoLimit(ctx, state) {
 // board/crown/mark/button drawing functions (drawBoardBase, drawPlacedCrown, drawRuledOut,
 // drawCrown, button, chip, ICONS) — never a separate simplified icon set. Pure: reads only the
 // presentation clocks already on `state`, mutates nothing.
+//
+// A framed reader card (RULES_PANEL, drawn by drawRulesPanel) sits behind the header/title/art/
+// body so the page reads as a designed reference sheet rather than text floating loose on the
+// backdrop. A text-size stepper (RULES_TEXT_DEC_BUTTON/RULES_TEXT_INC_BUTTON, top corners) steps
+// state.textScaleIdx through TEXT_SCALES and enlarges the title + body proportionally; this
+// file's own pre-existing shrink-to-fit safety net (layoutRulesBody, below) still guarantees a
+// page can never spill past RULES_TEXT_BOTTOM even so — real overflow at the top text step is
+// fixed by splitting a page's content in content.js, never by lowering these base sizes.
+const RULES_PANEL = { x: 34, y: 90, w: W - 68, h: 1330 - 90 };
 const RULES_TEXT_TOP_WITH_ART = 900;
 const RULES_TEXT_TOP_NO_ART = 300;
 const RULES_TEXT_BOTTOM = 1290;
 const RULES_PAGE_LABEL_Y = 1312;
 const RULES_TEXT_MAXW = W - 108;
-const RULES_BODY_SIZES = [27, 25, 23, 21, 19, 18];
+// Base (scale 1) body sizes, largest first — real reading sizes now (was capped at 27/floor 18).
+const RULES_BODY_SIZES = [30, 28, 26, 24, 22, 20];
+
+function drawRulesPanel(ctx) {
+  const p = RULES_PANEL;
+  ctx.save();
+  ctx.beginPath();
+  ctx.roundRect(p.x, p.y, p.w, p.h, 28);
+  const g = ctx.createLinearGradient(0, p.y, 0, p.y + p.h);
+  g.addColorStop(0, 'rgba(32,18,78,0.6)');
+  g.addColorStop(1, 'rgba(11,6,30,0.76)');
+  ctx.fillStyle = g;
+  ctx.fill();
+  ctx.lineWidth = 2;
+  ctx.strokeStyle = 'rgba(247,205,85,0.32)';
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.roundRect(p.x + 6, p.y + 6, p.w - 12, p.h - 12, 22);
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = 'rgba(247,205,85,0.12)';
+  ctx.stroke();
+  ctx.restore();
+}
 
 function wrapRulesParagraph(ctx, str, maxW) {
   const words = str.split(' ');
@@ -924,11 +956,12 @@ function wrapRulesParagraph(ctx, str, maxW) {
   return lines;
 }
 
-// Picks the largest body size (and matching line/paragraph spacing) whose wrapped paragraphs fit
-// the given pixel budget, so a page can never overflow into the nav row no matter how long it is.
-function layoutRulesBody(ctx, paragraphs, budget) {
+// Picks the largest body size from `sizes` (and matching line/paragraph spacing) whose wrapped
+// paragraphs fit the given pixel budget, so a page can never overflow into the nav row no matter
+// how long it is. `sizes` is the scaled RULES_BODY_SIZES for the current text-size step.
+function layoutRulesBody(ctx, paragraphs, budget, sizes = RULES_BODY_SIZES) {
   let best = null;
-  for (const size of RULES_BODY_SIZES) {
+  for (const size of sizes) {
     ctx.font = `500 ${size}px ${UI}`;
     const lh = Math.round(size * 1.34);
     const pgap = Math.round(size * 0.85);
@@ -1082,16 +1115,26 @@ function drawRulesPage(ctx, state, manifest, palette) {
   const list = RULES;
   const i = ((state.page % list.length) + list.length) % list.length;
   const page = list[i];
+  // Guarded lookup: an out-of-range saved index (e.g. from a build with a longer/shorter
+  // TEXT_SCALES) falls back to 1 rather than producing a NaN font size.
+  const scale = TEXT_SCALES[state.textScaleIdx] ?? 1;
+
+  drawRulesPanel(ctx);
 
   text(ctx, `${(manifest.title ?? 'CROWN FIELDS').toUpperCase()} — RULES`, 360, 108, 21, 'rgba(247,226,170,0.85)', DISPLAY, 700);
   flourish(ctx, 360, 128, 150, 330);
-  const titleSize = fitRulesTitle(ctx, page.title, W - 100, 48, 28);
+  // Header/title grows with scale too, capped a little tighter than the body so it never crowds
+  // the flourish above it.
+  const titleStart = Math.round(48 * Math.min(scale, 1.15));
+  const titleFloor = Math.round(28 * scale);
+  const titleSize = fitRulesTitle(ctx, page.title, W - 100, titleStart, titleFloor);
   goldText(ctx, page.title, 360, 196, titleSize, W - 80, 800);
 
   drawRulesArt(ctx, page.art, state, palette);
 
   const textTop = page.art ? RULES_TEXT_TOP_WITH_ART : RULES_TEXT_TOP_NO_ART;
-  const { size, lh, pgap, blocks } = layoutRulesBody(ctx, page.lines, RULES_TEXT_BOTTOM - textTop);
+  const sizes = RULES_BODY_SIZES.map((s) => Math.round(s * scale));
+  const { size, lh, pgap, blocks } = layoutRulesBody(ctx, page.lines, RULES_TEXT_BOTTOM - textTop, sizes);
   ctx.font = `500 ${size}px ${UI}`;
   ctx.fillStyle = 'rgba(250,240,215,0.9)';
   ctx.textAlign = 'center';
@@ -1107,6 +1150,8 @@ function drawRulesPage(ctx, state, manifest, palette) {
   text(ctx, `Page ${i + 1} of ${list.length}`, 360, RULES_PAGE_LABEL_Y, 20, 'rgba(247,226,170,0.7)', DISPLAY, 700);
   button(ctx, state, RULES_BACK_BUTTON, 'Back', { id: 'rulesBack', size: 34 });
   button(ctx, state, RULES_NEXT_BUTTON, 'Next', { id: 'rulesNext', size: 34 });
+  button(ctx, state, RULES_TEXT_DEC_BUTTON, 'A−', { id: 'textDec', size: 30, dim: state.textScaleIdx === 0 });
+  button(ctx, state, RULES_TEXT_INC_BUTTON, 'A+', { id: 'textInc', size: 30, dim: state.textScaleIdx === TEXT_SCALES.length - 1 });
 }
 
 export function render(ctx, state, manifest, demoLimit) {

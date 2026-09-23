@@ -1,11 +1,12 @@
 // Everything drawn each frame. Reads `state` (game.js) and changes nothing. The table and card faces are cached (art.js).
-import { W, H, HAND, BTN, SET, CLOTH, DECK, PILE, MSG, deckPos, pilePos, handPos, seatPos, tableGrid, slotPos, titleRows, inRect } from './layout.js';
+import { W, H, HAND, BTN, SET, CLOTH, DECK, PILE, MSG, deckPos, pilePos, handPos, seatPos, tableGrid, slotPos, titleRows, inRect, TEXT_SCALES } from './layout.js';
 import { drawTable, drawCard, drawSuitIcon, CW, CH, TAU } from './art.js';
 import { captures, rankOf, teamOf, RANK_NAMES } from './rules.js';
 import { LEVELS } from './engine.js';
 import { LESSONS } from './lessons.js';
 import { ABOUT } from './about.js';
 import { RULES } from './rulesContent.js';
+import { CONTROLS } from './controlsContent.js';
 
 const FONT = '"Cormorant Garamond", Georgia, "Times New Roman", serif', UI = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
 const CREAM = '#fbe8bf', GOLD = '#f3cf7a', NUM = UI;
@@ -251,18 +252,21 @@ export function render(ctx, state) {
     [4, 34, 10, 20].forEach((id, i) => card(id, 150 + i * 140, 1120, 120, (i - 1.5) * 0.06));
     text(state.french ? 'French suits: diamonds, hearts, spades, clubs' : 'Coins, cups, swords, batons', 360, 1270, 22, 'rgba(251,232,191,0.85)', UI, 600);
     button(SET.back, 'Back', { primary: true, size: 32 });
-  } else if (scene === 'about') {
+  } else if (scene === 'about' || scene === 'rules' || scene === 'controls') {
+    // About, Controls and Rules all share this one reader-page layout: a framed panel (already
+    // this game's own dark translucent card, `panel()`), a page per single concept, and a text-size
+    // stepper right here in the header row so anyone - glasses or not - can bump it up where they
+    // are actually reading, rather than hunting for it in Settings.
+    const list = scene === 'about' ? ABOUT : scene === 'rules' ? RULES : CONTROLS;
+    const headerTitle = scene === 'about' ? 'About Scopa' : scene === 'rules' ? 'Rules' : 'Controls';
+    const scale = TEXT_SCALES[state.textScaleIdx] ?? 1; // guarded: an out-of-range saved index must never yield NaN sizes.
     panel(36, 100, 648, 1310, 0.92);
-    text(ABOUT.title, 360, 190, 64, CREAM, FONT);
-    let y = 250;
-    for (const [h, body] of ABOUT.parts) { text(h, 70, y, 28, GOLD, FONT, 700, 'left'); y += 32; const n = wrap(body, 70, y, big ? 24 : 21, 580, '#fff3d6', big ? 31 : 27, 'left'); y += n * (big ? 31 : 27) + 22; }
-    button(BTN.backPage, 'Back', { primary: true, size: 32 });
-  } else if (scene === 'rules') {
-    panel(36, 100, 648, 1310, 0.92);
-    text('Rules', 360, 190, 64, CREAM, FONT);
-    const pg = RULES[state.page % RULES.length];
-    text(pg.title, 360, 248, 32, GOLD, FONT, 700);
-    let y = 300;
+    const headerSize = Math.round(64 * Math.min(scale, 1.15));
+    text(headerTitle, 360, 190, headerSize, CREAM, FONT);
+    const pg = list[state.page % list.length];
+    const titleSize = Math.round(31 * scale), titleY = 190 + Math.round(58 * Math.min(scale, 1.15));
+    text(pg.title, 360, titleY, titleSize, GOLD, FONT, 700);
+    let y = titleY + Math.round(52 * scale);
     if (pg.cards && pg.cards.length) {
       const n = pg.cards.length, cw = n >= 4 ? 118 : 132, gap = 22, totalW = n * cw + (n - 1) * gap, x0 = 360 - totalW / 2 + cw / 2, cy = y + 108;
       pg.cards.forEach((cd, i) => {
@@ -273,24 +277,13 @@ export function render(ctx, state) {
       y = cy + cw * 1.0 + 40;
       if (pg.cardsCaption) { text(pg.cardsCaption, 360, y, 19, 'rgba(251,232,191,0.75)', UI, 600); y += 34; }
     }
-    for (const line of pg.lines) { const n = wrap(line, 70, y, big ? 23 : 20, 580, '#fff3d6', big ? 30 : 26, 'left'); y += n * (big ? 30 : 26) + 18; }
-    text(`Page ${(state.page % RULES.length) + 1} of ${RULES.length}`, 360, 1398, 20, 'rgba(251,232,191,0.7)', UI, 600);
-    button(BTN.rulesBack, 'Back', { primary: true, size: 30 });
-    button(BTN.rulesNext, 'Next', { primary: true, size: 30 });
-  } else if (scene === 'controls') {
-    panel(36, 100, 648, 1310, 0.92);
-    text('Controls', 360, 190, 64, CREAM, FONT);
-    const items = [
-      ['Play a card', 'TAP a card in your hand. It lifts. TAP the same card again to play it.'],
-      ['Take cards', 'TAP the glowing table cards you want to take. When they add up, the capture plays itself.'],
-      ['A matching card', 'If a table card has the same number, you must take that one card alone.'],
-      ['Lay a card down', 'If nothing can be taken, TAP the lifted card again (or TAP the table) to lay it down.'],
-      ['Changed your mind', 'TAP a selected table card to put it back, or TAP another card in your hand.'],
-      ['Hint and Undo', 'TAP Hint for a good play and the reason. TAP Undo to take back your last play.'],
-      ['Keyboard', '1 2 3 pick a card. Left and Right move over the table cards, Enter selects one, Space plays. H hint, U undo, Esc menu.'],
-    ];
-    let y = 250; for (const [h, body] of items) { text(h, 70, y, 28, GOLD, FONT, 700, 'left'); y += 32; const n = wrap(body, 70, y, big ? 24 : 21, 580, '#fff3d6', big ? 31 : 27, 'left'); y += n * (big ? 31 : 27) + 22; }
-    button(BTN.backPage, 'Back', { primary: true, size: 32 });
+    const bodySize = Math.round(29 * scale), lh = Math.round(bodySize * 1.4), lineGap = Math.round(16 * scale);
+    for (const line of pg.lines) { const n = wrap(line, 70, y, bodySize, 580, '#fff3d6', lh, 'left'); y += n * lh + lineGap; }
+    text(`Page ${(state.page % list.length) + 1} of ${list.length}`, 360, 1398, 20, 'rgba(251,232,191,0.7)', UI, 600);
+    button(BTN.pageBack, 'Back', { primary: true, size: 30 });
+    button(BTN.pageNext, 'Next', { primary: true, size: 30 });
+    button(BTN.textDec, 'A−', { size: 28, dim: state.textScaleIdx === 0 });
+    button(BTN.textInc, 'A+', { size: 28, dim: state.textScaleIdx === TEXT_SCALES.length - 1 });
   } else if (scene === 'over') {
     ctx.fillStyle = 'rgba(20,6,0,0.55)'; ctx.fillRect(0, 0, W, H);
     const won = g.winner === 0, T = state.n === 4;

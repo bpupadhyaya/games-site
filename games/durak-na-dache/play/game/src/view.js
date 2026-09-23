@@ -1,5 +1,5 @@
 // All drawing. Pure function of state; no input handling here (that's game.js).
-import { W, H, CARD, TOP, seatSpot, STOCK, TRUMP, DISCARD, pairSpot, TRANSFER_SLOT, TABLE_ZONE, BAR, actionRect, ACTIONS, HAND_Y, handSlot, SETUP, MENU_BTN, BACK, NEXT, SETTINGS_ROWS, SETTINGS_ROW } from './layout.js';
+import { W, H, CARD, TOP, seatSpot, STOCK, TRUMP, DISCARD, pairSpot, TRANSFER_SLOT, TABLE_ZONE, BAR, actionRect, ACTIONS, HAND_Y, handSlot, SETUP, MENU_BTN, BACK, NEXT, SETTINGS_ROWS, SETTINGS_ROW, HEADER, TEXT_SCALES } from './layout.js';
 import { drawScene, drawFace, drawBack, lacquer, panel, plaque, rr, txt, drawSuit, suitColor, khokhloma, GOLD, CREAM, INK } from './art.js';
 import { suitOf, rankOf, cardName, RANK_LABELS, SUIT_NAMES } from './rules.js';
 import { LEVELS } from './ai.js';
@@ -226,48 +226,53 @@ export function drawDaily(ctx, state) {
 }
 export const dailyShareRect = () => ({ x: W / 2 - 190, y: DAILY_PANEL.y + DAILY_PANEL.h + 20, w: 380, h: 70 });
 
-export function drawAbout(ctx, state) {
+// Shared reader-panel layout for every text-heavy reference screen (About, Rules): a framed panel
+// (art.js's own panel(), the same lacquer-and-khokhloma frame used everywhere else in this game)
+// holding a page title and body copy, with Back/Next paging and an A-/A+ text-size stepper in the
+// header row (reusing lacquer(), this game's own button style — its built-in `disabled` dimming
+// covers the "dimmed at each end" requirement for free). Pages that name `cards` show the real
+// in-game card art via drawCard(), paired with a plain-language caption, exactly as the table itself
+// draws cards — never a separate simplified icon.
+function drawReferencePage(ctx, state, list, headerTitle) {
   drawScene(ctx, state.t, { calm: state.calm });
-  lacquer(ctx, BACK, { label: '←' });
-  txt(ctx, 'About Durak', W / 2, 120, { size: 46, color: CREAM, weight: 700 });
-  let y = 210;
-  for (const sec of ABOUT) {
-    panel(ctx, 46, y, W - 92, sec.h === 'Durak' ? 190 : 170, {});
-    txt(ctx, sec.h, 90, y + 40, { size: 24, color: GOLD, weight: 700, align: 'left' });
-    wrapText(ctx, sec.p, 90, y + 76, W - 180, 26, { size: 18, color: CREAM });
-    y += (sec.h === 'Durak' ? 190 : 170) + 18;
-  }
-}
-
-// Paginated Rules reference (Back/Next/"Page N of M", the same convention Chess uses) — additive, does not
-// touch drawAbout()'s single-scroll rendering above. Pages that name `cards` show the real in-game card art
-// via drawCard(), the same function the table itself uses, paired with a plain-language caption.
-export function drawRules(ctx, state) {
-  drawScene(ctx, state.t, { calm: state.calm });
-  const page = RULES[state.page % RULES.length];
+  const page = list[state.page % list.length];
+  // Falls back to 1 for any out-of-range index (e.g. a save from a build with a since-changed array).
+  const scale = TEXT_SCALES[state.textScaleIdx] ?? 1;
   lacquer(ctx, BACK, { label: 'Back' });
   lacquer(ctx, NEXT, { label: 'Next' });
-  txt(ctx, 'Rules', W / 2, 120, { size: 46, color: CREAM, weight: 700, shadow: 'rgba(0,0,0,0.6)' });
-  // One tall panel (like About's own panels) holds the whole page, so the busy veranda scene never
-  // bleeds through behind the text the way it would if this were drawn straight over drawScene().
+  lacquer(ctx, HEADER.textDec, { label: 'A−', disabled: state.textScaleIdx === 0 });
+  lacquer(ctx, HEADER.textInc, { label: 'A+', disabled: state.textScaleIdx === TEXT_SCALES.length - 1 });
+  txt(ctx, headerTitle, W / 2, 120, { size: 46, color: CREAM, weight: 700, shadow: 'rgba(0,0,0,0.6)' });
+  // One tall panel holds the whole page, so the busy veranda scene never bleeds through behind the text.
   const panelY = 200, panelBottom = 1460;
   panel(ctx, 40, panelY, W - 80, panelBottom - panelY, {});
   let y = panelY + 66;
-  txt(ctx, page.title, W / 2, y, { size: 28, color: GOLD, weight: 700 });
-  y += 56;
+  txt(ctx, page.title, W / 2, y, { size: Math.round(31 * scale), color: GOLD, weight: 700 });
+  y += Math.round(56 * scale);
   if (page.cards) {
     const cy = y + 108, dx = 120;
     page.cards.forEach((cd, i) => {
       const x = W / 2 + (i - (page.cards.length - 1) / 2) * dx * 2;
       if (cd.back) drawCard(ctx, {}, x, cy, { scale: 0.62, back: true, backTheme: state.back });
       else drawCard(ctx, { id: cd.id }, x, cy, { scale: 0.62, four: state.four });
-      txt(ctx, cd.label, x, cy + 150, { size: 16, color: GOLD, weight: 600 });
+      txt(ctx, cd.label, x, cy + 150, { size: Math.round(16 * Math.min(scale, 1.15)), color: GOLD, weight: 600 });
     });
     y = cy + 192;
   }
-  for (const line of page.lines) y += wrapCentered(ctx, line, W / 2, y, W - 160, 30, { size: 20, color: CREAM, weight: 500 }) * 30 + 12;
-  txt(ctx, `Page ${(state.page % RULES.length) + 1} of ${RULES.length}`, W / 2, H - 60, { size: 19, color: 'rgba(247,239,220,0.6)', weight: 500 });
+  const fontPx = Math.round(29 * scale), lh = Math.round(fontPx * 1.4), gap = Math.round(10 * scale);
+  for (const line of page.lines) y += wrapCentered(ctx, line, W / 2, y, W - 160, lh, { size: fontPx, color: CREAM, weight: 500 }) * lh + gap;
+  // A small crossed-cards flourish (the same pair the title screen shows) — only where a short page has
+  // genuinely left clear room below its last line, never crowding a longer page's text or its "cards" art.
+  if (!page.cards && y + 220 < panelBottom) {
+    const sy = Math.min(panelBottom - 130, y + 130);
+    drawCard(ctx, { id: 15 }, W / 2 - 46, sy, { scale: 0.5, rot: -0.14, four: state.four });
+    drawCard(ctx, { id: 8 }, W / 2 + 40, sy, { scale: 0.5, rot: 0.12, four: state.four });
+  }
+  txt(ctx, `Page ${(state.page % list.length) + 1} of ${list.length}`, W / 2, H - 60, { size: 19, color: 'rgba(247,239,220,0.6)', weight: 500 });
 }
+export function drawAbout(ctx, state) { drawReferencePage(ctx, state, ABOUT, 'About Durak'); }
+// Paginated Rules reference (Back/Next/"Page N of M", the same convention as About above).
+export function drawRules(ctx, state) { drawReferencePage(ctx, state, RULES, 'Rules'); }
 
 export function drawSettings(ctx, state) {
   drawScene(ctx, state.t, { calm: state.calm });

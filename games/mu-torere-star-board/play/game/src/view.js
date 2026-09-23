@@ -1,5 +1,5 @@
 // Everything drawn each frame. Reads `state` (game.js) and changes nothing. Static art is cached (art.js).
-import { W, H, BX, BY, PR, STONE_R, pointPos, BTN, titleRows, LADDER_ROW, LADDER_SIDE, BACK } from './layout.js';
+import { W, H, BX, BY, PR, STONE_R, pointPos, BTN, TEXT_STEPPER, TEXT_SCALES, titleRows, LADDER_ROW, LADDER_SIDE, BACK } from './layout.js';
 import { drawBackground, drawBoard, drawStone, koru, band, FONT, UI } from './art.js';
 import { SIDE_NAME, legalMoves, other } from './rules.js';
 import { LADDER, sayVerdict } from './ai.js';
@@ -14,10 +14,15 @@ const CREAM = '#f3e6c8', GOLD = '#e8c777', MINT = '#8fe0b8';
 export function render(ctx, st) {
   const t = st.t, big = st.big ? 1.16 : 1;
   const text = (s, x, y, size, color = CREAM, font = UI, weight = 700, align = 'center') => { ctx.textAlign = align; ctx.font = `${weight} ${size}px ${font}`; ctx.fillStyle = color; ctx.fillText(s, x, y); };
+  // Measures only (never draws) - shared by wrap() and by page()'s dry-run height pass.
+  const countLines = (s, maxW, size, font = UI, weight = 600) => {
+    ctx.font = `${weight} ${size}px ${font}`; const words = String(s).split(' '), out = []; let cur = '';
+    for (const w of words) { const n = cur ? cur + ' ' + w : w; if (ctx.measureText(n).width > maxW && cur) { out.push(cur); cur = w; } else cur = n; }
+    out.push(cur); return out;
+  };
   const wrap = (s, x, y, size, maxW, color = CREAM, lh = size * 1.32, align = 'center', font = UI, weight = 600) => {
-    ctx.font = `${weight} ${size}px ${font}`; const words = String(s).split(' '), lines = []; let cur = '';
-    for (const w of words) { const n = cur ? cur + ' ' + w : w; if (ctx.measureText(n).width > maxW && cur) { lines.push(cur); cur = w; } else cur = n; }
-    lines.push(cur); lines.forEach((ln, i) => text(ln, x, y + i * lh, size, color, font, weight, align)); return lines.length;
+    const lns = countLines(s, maxW, size, font, weight);
+    lns.forEach((ln, i) => text(ln, x, y + i * lh, size, color, font, weight, align)); return lns.length;
   };
   const plaque = (r, o = {}) => {
     ctx.save(); ctx.fillStyle = 'rgba(0,10,12,0.4)'; ctx.beginPath(); ctx.roundRect(r.x + 3, r.y + 7, r.w, r.h, 20); ctx.fill();
@@ -87,28 +92,44 @@ export function render(ctx, st) {
 
   // ---------------------------------------------------------------- text pages (About, How to play)
   function page(name, items) {
-    text(name, 360, 170, 70, '#f7e8c4', FONT, 700); band(ctx, 130, 590, 208, 11, 'rgba(143,224,184,0.6)', 2.6);
+    // Text scale for these reference pages only (independent of the gameplay "Large text" setting,
+    // which also affects the Ladder screen and lesson banners, not this reading screen). Always
+    // guarded: an out-of-range saved index (e.g. from a shorter TEXT_SCALES array) falls back to 1.
+    const scale = TEXT_SCALES[st.textScaleIdx] ?? 1;
+    text(name, 360, 170, Math.round(70 * Math.min(scale, 1.15)), '#f7e8c4', FONT, 700); band(ctx, 130, 590, 208, 11, 'rgba(143,224,184,0.6)', 2.6);
     const top = 240, bottom = 1440;
     ctx.save(); ctx.beginPath(); ctx.rect(0, top, W, bottom - top); ctx.clip();
-    let y = top + 30 - st.scroll; const size = 27 * big;
-    plaque({ x: 30, y: y - 30, w: 660, h: 4000 }, { top: 'rgba(14,42,48,0.86)', bot: 'rgba(9,28,33,0.86)' });
+    let y = top + 30 - st.scroll; const size = Math.round(28 * scale);
+    // Measure the real content height first (a dry run using `lines()`, which only measures and never
+    // draws) so the plaque behind the text always covers every item, at every text-size step - a fixed
+    // guess here once let the panel run out before the text did, once the top step made items taller.
+    let measured = 30;
+    for (const [, body, art] of items) {
+      measured += Math.round(52 * scale);
+      const n = countLines(body, art === 'stones' ? 368 : 596, size).length;
+      measured += art === 'stones' ? Math.max(n * size * 1.4, 128) + 26 : n * size * 1.4 + 26;
+    }
+    plaque({ x: 30, y: y - 30, w: 660, h: measured + 40 }, { top: 'rgba(14,42,48,0.86)', bot: 'rgba(9,28,33,0.86)' });
     for (const [h, body, art] of items) {
-      text(h, 62, y + 26, 32 * big, GOLD, FONT, 700, 'left'); y += 52 * big;
+      text(h, 62, y + 26, Math.round(32 * scale), GOLD, FONT, 700, 'left'); y += Math.round(52 * scale);
       // The one Rules item that shows the real in-game stone art (both sides), using the same
       // drawStone() the board itself uses - never a separate simplified icon.
       if (art === 'stones') {
         drawStone(ctx, 1, 110, y + 44, 40); drawStone(ctx, 2, 210, y + 44, 40);
         text('Shell', 110, y + 98, 18, 'rgba(243,230,200,0.7)', UI, 600);
         text('Greenstone', 210, y + 98, 18, 'rgba(243,230,200,0.7)', UI, 600);
-        const n = wrap(body, 290, y + 12, size, 368, CREAM, size * 1.36, 'left'); y += Math.max(n * size * 1.36, 128) + 26;
+        const n = wrap(body, 290, y + 12, size, 368, CREAM, size * 1.4, 'left'); y += Math.max(n * size * 1.4, 128) + 26;
       } else {
-        const n = wrap(body, 62, y + 12, size, 596, CREAM, size * 1.36, 'left'); y += n * size * 1.36 + 26;
+        const n = wrap(body, 62, y + 12, size, 596, CREAM, size * 1.4, 'left'); y += n * size * 1.4 + 26;
       }
     }
     st.pageH = y + st.scroll - top;
     ctx.restore();
     button(BACK, 'Back');
     if (st.pageH > bottom - top) text('drag to scroll', 360, 1436, 22, 'rgba(243,230,200,0.6)', UI, 600);
+    const atMin = st.textScaleIdx === 0, atMax = st.textScaleIdx === TEXT_SCALES.length - 1;
+    button(TEXT_STEPPER.dec, 'A−', { dim: atMin, size: 30 });
+    button(TEXT_STEPPER.inc, 'A+', { dim: atMax, size: 30 });
   }
 
   // ---------------------------------------------------------------- the Ladder

@@ -69,6 +69,16 @@ export function titleRows(hasSave) {
 }
 export const PANEL = { x: 36, y: 250, w: 648, h: 1150 };
 export const PBACK = { x: 140, y: 1420, w: 440, h: 76 };
+// Text-size steps for the reference pages (About/How to play/Rules) drawn by drawDoc(). An index
+// into this array, never a raw float, so the stepper can cleanly disable at either end and a
+// clamp-on-load can never point past the end of the array.
+export const TEXT_SCALES = [1, 1.15, 1.3];
+// The A-/A+ stepper buttons, in the panel's own header row, flanking the title on both sides —
+// same idea as a header row's Back/Next, just this page's own reader card instead.
+export const TEXT_BTN = {
+  dec: { x: PANEL.x + 22, y: PANEL.y + 20, w: 100, h: 56 },
+  inc: { x: PANEL.x + PANEL.w - 22 - 100, y: PANEL.y + 20, w: 100, h: 56 },
+};
 export const SET_ROWS = ['sound', 'calm', 'big', 'set', 'auto', 'moves'].reduce((o, n, i) => { o[n] = { x: 90, y: 330 + i * 116, w: 540, h: 92 }; return o; }, {});
 export const CUBE_ASK = { take: { x: 90, y: 760, w: 250, h: 84 }, drop: { x: 380, y: 760, w: 250, h: 84 } };
 export const OVER = { again: { x: 110, y: 790, w: 500, h: 84 }, menu: { x: 110, y: 890, w: 240, h: 72 }, share: { x: 370, y: 890, w: 240, h: 72 } };

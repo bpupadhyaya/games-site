@@ -10,7 +10,7 @@ import {
 import { clampPull, launchVelocity, stepStone, segmentHitsCircle, distanceToSegment } from './physics.js';
 import { spawnBird, updateBird, startle, maybeDodge, isTarget, isPerchedPest } from './birds.js';
 import { generateScene, pickBirdType } from './levels.js';
-import { drawGame, BUTTONS, SCHEMES, chipRect } from './render.js';
+import { drawGame, BUTTONS, SCHEMES, chipRect, TEXT_SCALES } from './render.js';
 import { RULES } from './content.js';
 
 export const meta = { width: W, height: H };
@@ -25,6 +25,7 @@ export function createGame(env) {
   const state = {
     scene: 'title', // 'title' | 'playing' | 'levelclear' | 'tally' | 'demo-limit' | 'rules'
     rulesPage: 0,
+    textScaleIdx: 0, // index into TEXT_SCALES; the Rules reference page's text size
     mode: 'campaign', // 'campaign' | 'endless' | 'daily'
     level: 1,
     spec: levelSpec(1),
@@ -77,6 +78,9 @@ export function createGame(env) {
     audio.setMuted(state.muted);
   });
   storage.get('scheme', 0).then((v) => (state.scheme = SCHEMES[v] ? v : 0));
+  // Clamp on load: a stale saved index from a build with a longer/shorter TEXT_SCALES array must
+  // never produce an out-of-range (NaN-font) size.
+  storage.get('textScaleIdx', 0).then((v) => (state.textScaleIdx = Math.min(Math.max(v ?? 0, 0), TEXT_SCALES.length - 1)));
   storage.get('daily', null).then((v) => v && (state.daily = v));
   if (demo) storage.get('demoRuns', 0).then((v) => (state.demoRuns = v));
 
@@ -378,6 +382,8 @@ export function createGame(env) {
     const { x, y } = input.pointer;
     if (inRect(x, y, BUTTONS.rulesBack)) state.scene = 'title';
     else if (inRect(x, y, BUTTONS.rulesNext)) state.rulesPage = (state.rulesPage + 1) % RULES.length;
+    else if (inRect(x, y, BUTTONS.textDec) && state.textScaleIdx > 0) { state.textScaleIdx--; storage.set('textScaleIdx', state.textScaleIdx); }
+    else if (inRect(x, y, BUTTONS.textInc) && state.textScaleIdx < TEXT_SCALES.length - 1) { state.textScaleIdx++; storage.set('textScaleIdx', state.textScaleIdx); }
   };
 
   return {

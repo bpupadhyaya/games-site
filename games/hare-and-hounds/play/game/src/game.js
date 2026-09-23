@@ -4,7 +4,7 @@
 // How a move is made (owner's spec): tap a piece (it lifts, its legal points glow), then tap where it should go.
 // A legal move glides there. An illegal one visibly TRIES: the piece travels toward the point, shudders, comes
 // back, and a message says why.
-import { W, H, BTN, LOOK, RULES_NAV, TILE, titleRows, inRect, pointNear, pointAt, overButtons } from './layout.js';
+import { W, H, BTN, LOOK, RULES_NAV, RULES_HEADER, TEXT_SCALES, TILE, titleRows, inRect, pointNear, pointAt, overButtons } from './layout.js';
 import { RULES } from './content.js';
 import { newGame, clone, applyMove, tryMove, legalMoves, DEFAULT_LIMIT } from './rules.js';
 import { LEVELS, createThinker, bestMove, chooseMove, forcingMoves } from './engine.js';
@@ -28,7 +28,7 @@ export function createGame(env) {
     sel: -1, anim: null, msg: null, think: 0, thinking: false, undo: [], hintsLeft: HINTS_PER_GAME, hint: null,
     stats: { games: 0, wins: 0, badges: {}, camp: {} }, saved: null, learned: false, demoGames: 0,
     lesson: null,                                   // { i, done }
-    rulesPage: 0,
+    rulesPage: 0, textScaleIdx: 0,                   // index into TEXT_SCALES; the Rules reference page's text size
     pz: null,                                       // { status: 'making' | 'ready' | 'solved', puzzle, n, tries, wrong }
     camp: -1, result: null,                         // the campaign level being played, and the result shown on the last screen
     daily: { day: config.day ?? 0, solvedDay: -1, streak: 0 },
@@ -36,13 +36,13 @@ export function createGame(env) {
   };
   let hintThinker = null;
 
-  storage.get('prefs', null).then((v) => { if (v) { state.level = v.level ?? 1; state.marks = v.marks ?? true; state.sound = v.sound ?? true; state.calm = v.calm ?? false; state.look = { ...state.look, ...(v.look || {}) }; audio.setMuted?.(!state.sound); } });
+  storage.get('prefs', null).then((v) => { if (v) { state.level = v.level ?? 1; state.marks = v.marks ?? true; state.sound = v.sound ?? true; state.calm = v.calm ?? false; state.look = { ...state.look, ...(v.look || {}) }; state.textScaleIdx = Math.min(Math.max(v.textScaleIdx ?? 0, 0), TEXT_SCALES.length - 1); audio.setMuted?.(!state.sound); } });
   storage.get('stats', null).then((v) => { if (v) state.stats = { ...state.stats, ...v, badges: { ...(v.badges || {}) }, camp: { ...(v.camp || {}) } }; });
   storage.get('learned', false).then((v) => { state.learned = state.learned || !!v; });
   storage.get('daily', null).then((v) => { if (v) { state.daily.solvedDay = v.solvedDay ?? -1; state.daily.streak = v.streak ?? 0; } });
   storage.get('demoGames', 0).then((v) => { state.demoGames = Math.max(state.demoGames, v); });
   storage.get('save', null).then((v) => { if (v && v.game && !v.game.winner && state.scene === 'title') state.saved = v; });
-  const savePrefs = () => storage.set('prefs', { level: state.level, marks: state.marks, sound: state.sound, calm: state.calm, look: state.look });
+  const savePrefs = () => storage.set('prefs', { level: state.level, marks: state.marks, sound: state.sound, calm: state.calm, look: state.look, textScaleIdx: state.textScaleIdx });
   const saveGame = () => { if (state.scene === 'play' && !state.game.winner) { state.saved = { game: clone(state.game), human: state.human, two: state.two, level: state.level, hintsLeft: state.hintsLeft, camp: state.camp }; storage.set('save', state.saved); } };
   const clearSave = () => { state.saved = null; storage.remove('save'); };
 
@@ -172,6 +172,8 @@ export function createGame(env) {
     if (!tap) return;
     if (inRect(RULES_NAV.back, tap.x, tap.y)) { state.scene = 'title'; pat(); }
     else if (inRect(RULES_NAV.next, tap.x, tap.y)) { state.rulesPage = (state.rulesPage + 1) % RULES.length; pat(); }
+    else if (inRect(RULES_HEADER.textDec, tap.x, tap.y) && state.textScaleIdx > 0) { state.textScaleIdx--; savePrefs(); pat(); }
+    else if (inRect(RULES_HEADER.textInc, tap.x, tap.y) && state.textScaleIdx < TEXT_SCALES.length - 1) { state.textScaleIdx++; savePrefs(); pat(); }
   }
   const campaignOpen = (i) => i === 0 || (state.stats.camp[i - 1] || 0) > 0 || state.dev;
   function updateCampaign(tap) {

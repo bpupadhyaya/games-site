@@ -1,5 +1,5 @@
 // Everything drawn each frame. Reads `state` (see game.js) and changes nothing. Static art and pieces are cached sprites.
-import { W, H, D, PIECE_R, pointXY, BTN, LOOK, RES, LOOKLABEL, PLATE, MSG, titleRows } from './layout.js';
+import { W, H, D, PIECE_R, pointXY, BTN, LOOK, RES, LOOKLABEL, PLATE, MSG, titleRows, TEXT_SCALES, TEXTSTEP } from './layout.js';
 import { drawTable, drawBoard, drawLantern, BOARD_THEME_NAMES } from './art.js';
 import { drawPiece, blob, CJK, PIECE_THEME_NAMES } from './pieces.js';
 import { LEVELS } from './engine.js';
@@ -108,24 +108,44 @@ export function render(ctx, state) {
     lanterns(0.62, -8);
     const pages = scene === 'howto' ? HOW : scene === 'about' ? ABOUT : RULES, pg = pages[state.page % pages.length];
     const sceneTitle = scene === 'howto' ? 'How to play' : scene === 'about' ? 'About this game' : 'Rules';
+    // Falls back to 1 for any out-of-range index (e.g. a save from a build with a different-length array).
+    const scale = TEXT_SCALES[state.textScaleIdx] ?? 1;
     heading(sceneTitle, `${state.page % pages.length + 1} of ${pages.length}`);
-    text(pg.title, 360, 240, 46, GOLD, TITLE);
-    let y = 316;
+
+    // The reader card: one framed panel holding the page title, the piece portraits (if any) and the
+    // body text, so the page reads as a designed reference sheet rather than text floating loose over
+    // the lanterns/table backdrop.
+    const rp = { x: 34, y: 150, w: W - 68, h: 1430 - 150 };
+    ctx.save();
+    ctx.beginPath(); ctx.roundRect(rp.x, rp.y, rp.w, rp.h, 26);
+    const rg = ctx.createLinearGradient(0, rp.y, 0, rp.y + rp.h);
+    rg.addColorStop(0, 'rgba(40,14,10,0.6)'); rg.addColorStop(1, 'rgba(16,6,4,0.72)');
+    ctx.fillStyle = rg; ctx.fill();
+    ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(242,210,122,0.32)'; ctx.stroke();
+    ctx.beginPath(); ctx.roundRect(rp.x + 6, rp.y + 6, rp.w - 12, rp.h - 12, 20);
+    ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(242,210,122,0.12)'; ctx.stroke();
+    ctx.restore();
+
+    text(pg.title, 360, rp.y + 62, Math.round(46 * Math.min(scale, 1.15)), GOLD, TITLE);
+    let y = rp.y + 106;
     // A Rules page about one piece shows that piece's own real in-game sprite, Red and Black side by
     // side, using the same drawPiece() the board itself uses - never a separate simplified icon.
     if (pg.type) {
-      const py = 356, dx = 120, pr = 50;
+      const py = rp.y + 148, dx = 120, pr = 50;
       piece(pg.type, 360 - dx, py, { R: pr }); piece(-pg.type, 360 + dx, py, { R: pr });
       text('Red', 360 - dx, py + 78, 20, 'rgba(251,236,203,0.7)', UI, 600);
       text('Black', 360 + dx, py + 78, 20, 'rgba(251,236,203,0.7)', UI, 600);
       y = py + 118;
     }
-    const sz = big ? 31 : 27;
+    const sz = Math.round(28 * scale), lh = Math.round(sz * 1.4), gap = Math.round(18 * scale);
     for (const it of pg.items) {
       ctx.fillStyle = '#e2b661'; ctx.beginPath(); ctx.arc(66, y - 9, 5, 0, TAU); ctx.fill();
-      const n = wrap(it, 88, y, sz, 590, CREAM, sz * 1.34, 'left', 500); y += n * sz * 1.34 + 22;
+      const n = wrap(it, 88, y, sz, rp.w - 90, CREAM, lh, 'left', 500); y += n * lh + gap;
     }
-    button(BTN.prev, 'Back', {}); button(BTN.page, 'Next page', { primary: true }); return;
+    button(BTN.prev, 'Back', {}); button(BTN.page, 'Next page', { primary: true });
+    button(TEXTSTEP.dec, 'A−', { dim: state.textScaleIdx === 0, size: 30 });
+    button(TEXTSTEP.inc, 'A+', { dim: state.textScaleIdx === TEXT_SCALES.length - 1, size: 30 });
+    return;
   }
 
   // ================================ board scenes ===================================================================

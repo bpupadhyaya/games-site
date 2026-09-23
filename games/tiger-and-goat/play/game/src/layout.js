@@ -33,12 +33,13 @@ export function titleRows(hasSave) {
   out.rules = { x: 368, y: y + 140, w: 262, h: 62 };
   return out;
 }
-// The 'Board and pieces' screen: three board woods, two piece sets, message size, back.
+// The 'Board and pieces' screen: three board woods, two piece sets, back. (The old "message text"
+// Normal/Large row moved to the Rules screen itself as a visible text-size stepper - see
+// RULES_HEADER/TEXT_SCALES above - rather than staying buried in this settings screen.)
 export const LOOK = {
   woods: [0, 1, 2].map((i) => ({ x: 90 + i * 184, y: 800, w: 172, h: 76 })),
   sets: [0, 1].map((i) => ({ x: 90 + i * 278, y: 960, w: 262, h: 76 })),
-  text: [0, 1].map((i) => ({ x: 90 + i * 278, y: 1120, w: 262, h: 76 })),
-  back: { x: 140, y: 1290, w: 440, h: 84 },
+  back: { x: 140, y: 1120, w: 440, h: 84 },
 };
 export const BTN = {
   menu: { x: 60, y: 1462, w: 190, h: 72 }, undo: { x: 265, y: 1462, w: 190, h: 72 }, hint: { x: 470, y: 1462, w: 190, h: 72 },
@@ -48,6 +49,16 @@ export const BTN = {
 // Rules reference: paginated, reached from the title screen only. Back/Next share the same
 // bottom-bar row/height the play screen's own button bar already uses.
 export const RULES_NAV = { back: { x: 90, y: 1462, w: 262, h: 72 }, next: { x: 368, y: 1462, w: 262, h: 72 } };
+// Text-size stepper for the Rules screen (index into TEXT_SCALES, never a raw float, so "min"/"max"
+// are exact and the buttons can cleanly disable at either end). Centred at the very top of the
+// screen, well clear of the Back/Next row which lives at the bottom.
+export const RULES_HEADER = {
+  textDec: { x: W / 2 - 110, y: 20, w: 100, h: 60 },
+  textInc: { x: W / 2 + 10, y: 20, w: 100, h: 60 },
+};
+// Text-size steps for the Rules reference page. Every page's content is paced (content.js) to fit
+// comfortably even at the top step.
+export const TEXT_SCALES = [1, 1.15, 1.3];
 export const inRect = (r, x, y) => !!r && x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
 // Where the goats still to be placed wait (two rows of ten), and where captured goats are laid out.
 export const handPos = (k) => ({ x: 94 + (k % 10) * 59, y: 500 + Math.floor(k / 10) * 62, s: 1 });

@@ -1,9 +1,12 @@
 // Every button on every screen: one list per screen, used both to draw them (view.js) and to hit-test taps (game.js).
 import { LESSONS } from './lessons.js';
 import { LEVELS } from './engine.js';
-import { RULES } from './content.js';
+import { ABOUT, HOWTO, RULES } from './content.js';
+import { TEXT_SCALES } from './layout.js';
 
-export const ABOUT_PAGES = 3, HOWTO_PAGES = 2, RULES_PAGES = RULES.length;
+// Derived from content.js directly (not hardcoded) so splitting a page there - e.g. one that
+// overflowed at the top text-size step - can never drift out of sync with the page count here.
+export const ABOUT_PAGES = ABOUT.length, HOWTO_PAGES = HOWTO.length, RULES_PAGES = RULES.length;
 const FULL = { x: 80, w: 560 }, HALF_L = { x: 80, w: 272 }, HALF_R = { x: 368, w: 272 };
 
 export function buttonsFor(s) {
@@ -52,6 +55,11 @@ export function buttonsFor(s) {
       const pages = s.scene === 'about' ? ABOUT_PAGES : s.scene === 'howto' ? HOWTO_PAGES : RULES_PAGES;
       if (s.page > 0) add('prev', 'Previous', 40, 1330, 200, 88); else add('back', 'Back', 40, 1330, 200, 88);
       if (s.page < pages - 1) add('next', 'Next', 480, 1330, 200, 88, { primary: true }); else add('back', 'Done', 480, 1330, 200, 88, { primary: true });
+      // Text-size stepper for these read-heavy reference pages, right in the top corners of the panel
+      // where a player is already reading - not buried in Settings. Guarded lookup + clamp on load
+      // both live in game.js; here we only need to disable at either end of the array.
+      add('textDec', 'A−', 50, 78, 110, 66, { small: true, dim: s.textScaleIdx <= 0 });
+      add('textInc', 'A+', 560, 78, 110, 66, { small: true, dim: s.textScaleIdx >= TEXT_SCALES.length - 1 });
       break;
     }
     case 'learn': {

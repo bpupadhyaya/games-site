@@ -55,6 +55,16 @@ export const BTN = {
   next: { x: 140, y: 1462, w: 440, h: 72 }, prev: { x: 60, y: 1462, w: 190, h: 72 },
   done: { x: 140, y: 1462, w: 440, h: 72 }, page: { x: 470, y: 1462, w: 190, h: 72 },
 };
+// Text-size steps for the How to play / About / Rules reference pages. Index into this array, never
+// a raw float, so the stepper can disable cleanly at either end and a stale saved index from a build
+// with a different-length array can be clamped instead of producing NaN sizes.
+export const TEXT_SCALES = [1, 1.15, 1.3];
+// Stepper buttons, top corners of the reference pages - clear of the centred heading/page-title text
+// (which never reaches within 150px of either edge) and of the footer Back/Next row.
+export const TEXTSTEP = {
+  dec: { x: 18, y: 16, w: 110, h: 64 },
+  inc: { x: W - 128, y: 16, w: 110, h: 64 },
+};
 export const inRect = (r, x, y) => !!r && x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
 // Player plates: opponent above the board, you below it
 export const PLATE = { top: { x: 40, y: 224, w: 640, h: 88 }, bottom: { x: 40, y: 1134, w: 640, h: 88 } };

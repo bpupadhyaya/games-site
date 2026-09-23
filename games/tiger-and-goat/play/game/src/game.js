@@ -4,7 +4,7 @@
 // How a move is made (owner's spec): tap a piece (it lifts, its legal points glow), then tap where it should go.
 // A legal move glides there. An illegal one visibly TRIES: the piece travels toward the point, shudders, comes
 // back, and a message says why. Goats are placed with a single tap on an empty point.
-import { W, H, BTN, LOOK, RULES_NAV, titleRows, inRect, pointNear, pointAt } from './layout.js';
+import { W, H, BTN, LOOK, RULES_NAV, RULES_HEADER, TEXT_SCALES, titleRows, inRect, pointNear, pointAt } from './layout.js';
 import { newGame, clone, applyMove, tryMove } from './rules.js';
 import { LEVELS, createThinker, chooseMove, forcingMoves } from './engine.js';
 import { LESSONS, boardOf } from './lessons.js';
@@ -22,12 +22,13 @@ export function createGame(env) {
   const { rng, storage, audio, monetization, config } = env;
   const state = {
     scene: 'title', t: 0, game: newGame(), human: 'G', two: false, level: 1, marks: true, sound: true, calm: false,
-    look: { wood: 'teak', set: 'classic', big: false },     // cosmetics and message size (unlocked by wins, see UNLOCKS)
+    look: { wood: 'teak', set: 'classic' },                  // cosmetics (unlocked by wins, see UNLOCKS)
     cursor: 12, kb: false,                                   // keyboard play: which point the cursor is on, and whether to show it
     sel: -1, anim: null, msg: null, think: 0, thinking: false, undo: [], hintsLeft: HINTS_PER_GAME, hint: null,
     stats: { games: 0, wins: 0, badges: {} }, saved: null, learned: false, demoGames: 0,
     lesson: null,                                   // { i, done }
     rulesPage: 0,
+    textScaleIdx: 0,                                // index into TEXT_SCALES; the Rules page's own text-size stepper
     pz: null,                                       // { status: 'making' | 'ready' | 'solved', puzzle, n, tries, wrong }
     daily: { day: config.day ?? 0, solvedDay: -1, streak: 0 },
     dev: config.dev === true,
@@ -36,13 +37,13 @@ export function createGame(env) {
   let thinker = null, hintThinker = null, puzzleToday = null;
   const maker = createPuzzleMaker(state.daily.day);
 
-  storage.get('prefs', null).then((v) => { if (v) { state.level = v.level ?? 1; state.marks = v.marks ?? true; state.sound = v.sound ?? true; state.calm = v.calm ?? false; state.look = { ...state.look, ...(v.look || {}) }; audio.setMuted?.(!state.sound); } });
+  storage.get('prefs', null).then((v) => { if (v) { state.level = v.level ?? 1; state.marks = v.marks ?? true; state.sound = v.sound ?? true; state.calm = v.calm ?? false; state.look = { ...state.look, ...(v.look || {}) }; state.textScaleIdx = Math.min(Math.max(v.textScaleIdx ?? 0, 0), TEXT_SCALES.length - 1); audio.setMuted?.(!state.sound); } });
   storage.get('stats', null).then((v) => { if (v) state.stats = { ...state.stats, ...v, badges: { ...(v.badges || {}) } }; });
   storage.get('learned', false).then((v) => { state.learned = state.learned || !!v; });
   storage.get('daily', null).then((v) => { if (v) { state.daily.solvedDay = v.solvedDay ?? -1; state.daily.streak = v.streak ?? 0; } });
   storage.get('demoGames', 0).then((v) => { state.demoGames = Math.max(state.demoGames, v); });
   storage.get('save', null).then((v) => { if (v && v.game && !v.game.winner && state.scene === 'title') state.saved = v; });
-  const savePrefs = () => storage.set('prefs', { level: state.level, marks: state.marks, sound: state.sound, calm: state.calm, look: state.look });
+  const savePrefs = () => storage.set('prefs', { level: state.level, marks: state.marks, sound: state.sound, calm: state.calm, look: state.look, textScaleIdx: state.textScaleIdx });
   const saveGame = () => { if (state.scene === 'play' && !state.game.winner) { state.saved = { game: clone(state.game), human: state.human, two: state.two, level: state.level, hintsLeft: state.hintsLeft }; storage.set('save', state.saved); } };
   const clearSave = () => { state.saved = null; storage.remove('save'); };
 
@@ -151,6 +152,8 @@ export function createGame(env) {
     if (!tap) return;
     if (inRect(RULES_NAV.back, tap.x, tap.y)) { state.scene = 'title'; clack(); }
     else if (inRect(RULES_NAV.next, tap.x, tap.y)) { state.rulesPage = (state.rulesPage + 1) % RULES.length; clack(); }
+    else if (inRect(RULES_HEADER.textDec, tap.x, tap.y) && state.textScaleIdx > 0) { state.textScaleIdx--; savePrefs(); clack(); }
+    else if (inRect(RULES_HEADER.textInc, tap.x, tap.y) && state.textScaleIdx < TEXT_SCALES.length - 1) { state.textScaleIdx++; savePrefs(); clack(); }
   }
 
   function updatePlay(dt, tap) {
@@ -254,7 +257,6 @@ export function createGame(env) {
     const W3 = ['teak', 'walnut', 'ash'], S2 = ['classic', 'snow'];
     LOOK.woods.forEach((r, i) => { if (inRect(r, tap.x, tap.y)) pick('wood', W3[i], 'wood'); });
     LOOK.sets.forEach((r, i) => { if (inRect(r, tap.x, tap.y)) pick('set', S2[i], 'set'); });
-    LOOK.text.forEach((r, i) => { if (inRect(r, tap.x, tap.y)) { state.look.big = i === 1; savePrefs(); clack(); } });
     if (inRect(LOOK.back, tap.x, tap.y)) state.scene = 'title';
   }
 

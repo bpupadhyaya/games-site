@@ -8,9 +8,9 @@ import { ARCHERS, ARCHER_IDS, OATHS } from '../data/meta.js';
 import { ENEMIES } from '../data/enemies.js';
 import * as B from '../rules/battle.js';
 import { STEPS_PER_ACT, REMOVE_PRICE, SKIP_REWARD_MARKS, removableTechs } from '../rules/run.js';
-import { C, W, H, SAFE_TOP, elementColor, alpha } from './theme.js';
+import { C, W, H, SAFE_TOP, elementColor, alpha, font } from './theme.js';
 import { bar, button, contactShadow, diamond, drawArcher, drawCard, drawConstruct, drawRing, drawSky, glyph, goldFoil, icon, intentBadge, panel, paragraph, roundRect, rule, setPress, text, tracked } from './draw.js';
-import { ARCHER, BTN, CARD_H, CARD_W, CLOSE, CONFIRM, COVENANT_BTN, COVENANT_BTN_TOP, DETAIL, ENVOY, ENVOY_TOP, FOCUS, GRID, HEADER_CX, HEADER_W, HEADER_Y, OPTIONS, OPTIONS_TOP, RESOLVE_BAR, RING, SECONDARY, HELP_TABS, RULES_NAV, NEWRUN, TUNER_REMOVE, TUNER_TRIO_Y, choiceRects, enemySlots, titleRects, trioRects } from './layout.js';
+import { ARCHER, BTN, CARD_H, CARD_W, CLOSE, CONFIRM, COVENANT_BTN, COVENANT_BTN_TOP, DETAIL, ENVOY, ENVOY_TOP, FOCUS, GRID, HEADER_CX, HEADER_W, HEADER_Y, OPTIONS, OPTIONS_TOP, RESOLVE_BAR, RING, SECONDARY, HELP_TABS, HELP_TEXT, PAGE_NAV, HOWTO_PER_PAGE, ABOUT_PER_PAGE, TEXT_SCALES, NEWRUN, TUNER_REMOVE, TUNER_TRIO_Y, choiceRects, enemySlots, titleRects, trioRects } from './layout.js';
 
 const TAU = Math.PI * 2;
 const ease = (x) => 1 - (1 - x) * (1 - x);
@@ -572,10 +572,20 @@ function shade(ctx) {
 
 // The Rules tab of the help overlay: an exhaustive systems reference, paginated. Additive to,
 // and separate from, the brief HOW_TO_PLAY tips and the ABOUT lore text on the other two tabs.
-function drawRulesPage(ctx, o) {
+// `scale` is the text-size stepper's current step (TEXT_SCALES[idx] ?? 1) — only text grows with
+// it, never the demo card/ring art, so the illustrations stay a fixed size like the rest of the
+// game's iconography.
+function drawRulesPage(ctx, o, scale) {
   const page = RULES_REFERENCE[o.rulesPage % RULES_REFERENCE.length];
   rule(ctx, W / 2, 350, 380);
-  text(ctx, page.title, W / 2, 396, { size: 28, weight: 700, color: C.goldLight, display: true });
+  // Shrinks to fit if a title would otherwise run past the panel at the top text-size step -
+  // titles are kept short by content, but this is a hard guarantee against it ever bleeding out.
+  let titleSize = 30 * scale;
+  ctx.font = font(titleSize, 700, true);
+  const titleMax = W - 140;
+  const titleW = ctx.measureText(page.title).width;
+  if (titleW > titleMax) titleSize *= titleMax / titleW;
+  text(ctx, page.title, W / 2, 396, { size: titleSize, weight: 700, color: C.goldLight, display: true });
   let y = 440;
   if (page.demo === 'cards') {
     ctx.save();
@@ -593,8 +603,10 @@ function drawRulesPage(ctx, o) {
     drawRing(ctx, W / 2, y + 74, 64, ELEMENTS, {});
     y += 176;
   }
-  for (const line of page.lines) y += paragraph(ctx, line, W / 2, y, W - 190, { size: 22, color: C.inkSoft, lineH: 1.38 }) + 22;
-  text(ctx, `Page ${(o.rulesPage % RULES_REFERENCE.length) + 1} of ${RULES_REFERENCE.length}`, W / 2, 1220, { size: 18, color: C.muted });
+  for (const line of page.lines) y += paragraph(ctx, line, W / 2, y, W - 190, { size: 27 * scale, color: C.inkSoft, lineH: 1.42 }) + 22 * scale;
+  // The page indicator sits right below the actual content, not at a fixed y, so it can never be
+  // overrun by a page's wrapped text growing taller at a bigger text-size step.
+  text(ctx, `Page ${(o.rulesPage % RULES_REFERENCE.length) + 1} of ${RULES_REFERENCE.length}`, W / 2, y + 14, { size: 18, color: C.muted });
 }
 
 function drawInspect(ctx, id, t) {
@@ -617,38 +629,79 @@ function drawOverlay(ctx, s, extra) {
   }
   shade(ctx);
   if (o.type === 'help') {
+    // Falls back to 1 for any out-of-range index (e.g. a save from a build with more steps).
+    const scale = TEXT_SCALES[s.textScaleIdx] ?? 1;
     panel(ctx, { x: 36, y: SAFE_TOP + 40, w: W - 72, h: 1330 });
-    tracked(ctx, 'One Arrow Oath', W / 2, 200, { size: 30, spacing: 6, fill: goldFoil(ctx, 160, 170, 560, 200), glow: alpha(C.gold, 0.5) });
+    // Text-size stepper: its own row above the title, so it never crowds the How to Play/About/
+    // Rules tabs below it. Only body/title text is multiplied by `scale` — nav chrome, icons and
+    // illustrations stay a fixed size, matching the rest of the game's own primitives.
+    button(ctx, HELP_TEXT.dec, 'A−', { quiet: true, size: 24, disabled: s.textScaleIdx === 0 });
+    button(ctx, HELP_TEXT.inc, 'A+', { quiet: true, size: 24, disabled: s.textScaleIdx === TEXT_SCALES.length - 1 });
+    tracked(ctx, 'One Arrow Oath', W / 2, 200, { size: 30 * Math.min(scale, 1.15), spacing: 6, maxWidth: 380, fill: goldFoil(ctx, 160, 170, 560, 200), glow: alpha(C.gold, 0.5) });
     HELP_TABS.forEach((r, i) => button(ctx, r, ['How to Play', 'About', 'Rules'][i], { size: 22, primary: o.page === i, quiet: o.page !== i }));
     if (o.page === 0) {
-      HOW_TO_PLAY.forEach((step, i) => {
-        const y = 356 + i * 132;
-        diamond(ctx, 112, y + 30, 34);
-        ctx.fillStyle = '#0a0c24';
-        ctx.fill();
-        ctx.lineWidth = 2;
-        ctx.strokeStyle = goldFoil(ctx, 78, y - 4, 146, y + 64);
-        ctx.stroke();
-        icon(ctx, step.icon, 112, y + 30, 28, C.goldLight, 2.8);
-        text(ctx, step.title, 172, y + 18, { size: 26, weight: 700, align: 'left', color: C.goldLight, display: true });
-        paragraph(ctx, step.text, 172, y + 52, W - 250, { size: 21, align: 'left', color: C.inkSoft, lineH: 1.32 });
-      });
-      drawRing(ctx, W / 2, 1230, 64, ELEMENTS, {});
-      text(ctx, 'Each element beats the next one around the ring.', W / 2, 1330, { size: 19, color: C.muted });
+      // Tips are paced HOWTO_PER_PAGE at a time (layout.js) and paginated with the same Back/Next
+      // row Rules uses, so a bigger text-size step gets a shorter page instead of a cramped one.
+      // The element-ring diagram gets its own final page (tipPages + 1) rather than riding on the
+      // last tip page, where it would compete for room and could silently vanish at the top step.
+      const tipPages = Math.ceil(HOW_TO_PLAY.length / HOWTO_PER_PAGE);
+      const howtoPages = tipPages + 1;
+      const pageIdx = o.howtoPage % howtoPages;
+      let y = 356;
+      if (pageIdx < tipPages) {
+        const items = HOW_TO_PLAY.slice(pageIdx * HOWTO_PER_PAGE, pageIdx * HOWTO_PER_PAGE + HOWTO_PER_PAGE);
+        const rowGap = 26 * scale;
+        items.forEach((step) => {
+          const titleSize = 27 * scale;
+          const bodySize = 24 * scale;
+          const titleY = y + titleSize;
+          const iconY = titleY - titleSize * 0.3;
+          diamond(ctx, 112, iconY, 34);
+          ctx.fillStyle = '#0a0c24';
+          ctx.fill();
+          ctx.lineWidth = 2;
+          ctx.strokeStyle = goldFoil(ctx, 78, iconY - 34, 146, iconY + 34);
+          ctx.stroke();
+          icon(ctx, step.icon, 112, iconY, 28, C.goldLight, 2.8);
+          text(ctx, step.title, 172, titleY, { size: titleSize, weight: 700, align: 'left', color: C.goldLight, display: true });
+          const bodyY = titleY + bodySize * 1.25;
+          const bh = paragraph(ctx, step.text, 172, bodyY, W - 250, { size: bodySize, align: 'left', color: C.inkSoft, lineH: 1.36 });
+          y = Math.max(bodyY + bh, iconY + 34) + rowGap;
+        });
+      } else {
+        text(ctx, 'The element ring', W / 2, y + 30, { size: 28 * scale, weight: 700, color: C.goldLight, display: true });
+        drawRing(ctx, W / 2, y + 190, 64, ELEMENTS, {});
+        text(ctx, 'Each element beats the next one around the ring.', W / 2, y + 300, { size: 19, color: C.muted });
+        y += 340;
+      }
+      text(ctx, `Page ${pageIdx + 1} of ${howtoPages}`, W / 2, y + 14, { size: 18, color: C.muted });
     } else if (o.page === 1) {
+      // Version/credits get their own final page (paraPages + 1) rather than riding on the last
+      // paragraph page — a long last paragraph plus that footer could together overflow at the
+      // top text-size step, so they never have to compete with paragraph text for room.
+      const paraPages = Math.ceil(ABOUT.length / ABOUT_PER_PAGE);
+      const aboutPages = paraPages + 1;
+      const pageIdx = o.aboutPage % aboutPages;
       rule(ctx, W / 2, 350, 380);
       let y = 410;
-      ABOUT.forEach((para, i) => {
-        y += paragraph(ctx, para, W / 2, y, W - 170, { size: i === 0 || i === 2 ? 25 : 22, lineH: 1.46, color: i === 0 || i === 2 ? C.goldLight : C.inkSoft, display: i === 0 || i === 2 }) + 30;
-      });
-      rule(ctx, W / 2, y + 4, 260);
-      text(ctx, `Version ${extra.manifest?.version ?? ''}`, W / 2, y + 50, { size: 18, color: C.muted });
-      text(ctx, CREDITS, W / 2, y + 80, { size: 17, color: C.muted });
+      if (pageIdx < paraPages) {
+        const paras = ABOUT.slice(pageIdx * ABOUT_PER_PAGE, pageIdx * ABOUT_PER_PAGE + ABOUT_PER_PAGE);
+        paras.forEach((para, i) => {
+          const idx = pageIdx * ABOUT_PER_PAGE + i;
+          const lead = idx === 0 || idx === 2;
+          y += paragraph(ctx, para, W / 2, y, W - 170, { size: (lead ? 30 : 27) * scale, lineH: 1.44, color: lead ? C.goldLight : C.inkSoft, display: lead }) + 28 * scale;
+        });
+      } else {
+        text(ctx, `Version ${extra.manifest?.version ?? ''}`, W / 2, y + 40, { size: 18, color: C.muted });
+        text(ctx, CREDITS, W / 2, y + 74, { size: 17, color: C.muted });
+        y += 74;
+      }
+      text(ctx, `Page ${pageIdx + 1} of ${aboutPages}`, W / 2, y + 30, { size: 18, color: C.muted });
     } else {
-      drawRulesPage(ctx, o);
-      button(ctx, RULES_NAV.back, 'Back', { size: 26 });
-      button(ctx, RULES_NAV.next, 'Next', { size: 26, primary: true });
+      drawRulesPage(ctx, o, scale);
     }
+    button(ctx, PAGE_NAV.back, 'Back', { size: 26 });
+    button(ctx, PAGE_NAV.next, 'Next', { size: 26, primary: true });
     button(ctx, CLOSE, 'Close', { size: 26, primary: true });
     return;
   }

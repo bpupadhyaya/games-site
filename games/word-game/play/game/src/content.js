@@ -37,6 +37,8 @@ export const RULES = [
     ],
   },
   {
+    // Split from a single longer "Answering" page (2026-09-22 text-size pass) so every page
+    // still fits comfortably at the top text-size step - see web/src/layout.js TEXT_SCALES.
     title: 'Answering',
     demo: 'answer',
     lines: [
@@ -44,6 +46,12 @@ export const RULES = [
       'Correct: your score goes up by one, and a new target word appears immediately.',
       'Wrong: no point is scored, and a new target word appears immediately - the same outcome',
       'as letting the correct word drift past unanswered.',
+    ],
+  },
+  {
+    title: 'Misses and shortcuts',
+    demo: 'answer',
+    lines: [
       'Letting the correct word drift completely off the left edge without tapping it also',
       'counts as a miss, with no point scored.',
       'On a keyboard, the number keys 1, 2 and 3 answer with whichever word currently sits in',

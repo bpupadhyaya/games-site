@@ -30,9 +30,17 @@ export const BTN = {
   next: { x: 250, y: 1424, w: 430, h: 74 }, share: { x: 250, y: 1424, w: 430, h: 74 },
   again: { x: 130, y: 1010, w: 460, h: 96 }, back: { x: 130, y: 1126, w: 460, h: 96 },
   cont: { x: 130, y: 1126, w: 460, h: 96 },
-  aboutBack: { x: 130, y: 1400, w: 460, h: 90 },
+  // About/Controls are now paginated (one part per page, like Rules) so a bigger text-size step
+  // never has to cram every part onto one screen: same split Back/Next footer as Rules.
+  aboutBack: { x: 130, y: 1400, w: 220, h: 90 }, aboutNext: { x: 370, y: 1400, w: 220, h: 90 },
   rulesBack: { x: 130, y: 1400, w: 220, h: 90 }, rulesNext: { x: 370, y: 1400, w: 220, h: 90 },
 };
+// Text-size stepper for the About / Controls / Rules reference pages: a header row above the panel,
+// clear of the Back/Next buttons in the footer. "A-"/"A+", same interaction on all three screens.
+export const TEXT_STEPPER = { dec: { x: 40, y: 24, w: 120, h: 62 }, inc: { x: W - 160, y: 24, w: 120, h: 62 } };
+// Index into this, never a raw float, so the stepper can cleanly disable at either end and a stale
+// saved index (e.g. from a build with a shorter array) always clamps instead of producing NaN sizes.
+export const TEXT_SCALES = [1, 1.15, 1.3];
 const row = (y, h = 84) => ({ x: 70, y, w: 580, h });
 export function titleRows(hasSave) {
   let y = 745; const R = {};

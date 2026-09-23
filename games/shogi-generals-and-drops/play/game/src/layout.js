@@ -24,3 +24,8 @@ export function standSlot(which, i, count) {          // centre of the i-th slot
   return { x: s.x + 30 + gap * (i + 0.5), y: s.y + s.h / 2 + 4 };
 }
 export const inRect = (r, x, y) => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
+
+// Text-size steps for the reference pages (About/How to play/Rules). Index into this, never a raw
+// float, so "min"/"max" are exact and the stepper can cleanly disable at either end. Every page's
+// content is paced (content.js) to fit comfortably even at the top step.
+export const TEXT_SCALES = [1, 1.15, 1.3];

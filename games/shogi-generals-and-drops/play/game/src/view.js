@@ -1,6 +1,6 @@
 // Everything drawn each frame. Reads `state` (game.js) and changes nothing. The table, the stands, the board and
 // every piece are cached sprites/layers (art.js, pieces.js), so a frame is cheap.
-import { W, H, sqCenter, standSlot, STAND, STAND_ORDER } from './layout.js';
+import { W, H, sqCenter, standSlot, STAND, STAND_ORDER, TEXT_SCALES } from './layout.js';
 import { drawTable, drawBoard, drawStands } from './art.js';
 import { drawPiece, fontReady, JP } from './pieces.js';
 import { LETTER, NAME, base, mFrom, mTo, isDrop, mDrop, inCheck } from './rules.js';
@@ -151,31 +151,50 @@ export function render(ctx, state, h) {
     } else if (scene === 'about' || scene === 'howto' || scene === 'rules') {
       const pages = scene === 'about' ? ABOUT : scene === 'howto' ? HOWTO : RULES;
       const pg = pages[Math.min(state.page, pages.length - 1)];
-      text(scene === 'about' ? 'About shogi' : scene === 'howto' ? 'How to play' : 'Rules', 360, 150, 56, GOLD, DISPLAY, 700);
-      text(pg.title, 360, 230, 40, PAPER, DISPLAY, 700);
-      let y = 262;
+      // Text-size stepper (A-/A+, drawn as ordinary buttons up in the header row by ui.js/drawButtons).
+      // Falls back to 1 for any out-of-range index (e.g. a save from a build with more steps) - the
+      // clamp-on-load in game.js should already prevent this, but the lookup guard costs nothing.
+      const scale = TEXT_SCALES[state.textScaleIdx] ?? 1;
+      // The screen title sits in the header row alongside the A-/A+ buttons, so - like the page title
+      // below it - it is capped at a gentler growth than the body text, keeping it clear of the buttons
+      // at the top step instead of ballooning past them.
+      text(scene === 'about' ? 'About shogi' : scene === 'howto' ? 'How to play' : 'Rules', 360, 224, Math.round(56 * Math.min(scale, 1.15)), GOLD, DISPLAY, 700);
+      // A thin rule under the screen title, so the reference sheet reads as one designed card (matching
+      // this game's own gold-on-dark palette) rather than a title just floating over the body text.
+      ctx.strokeStyle = 'rgba(242,213,144,0.35)'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(120, 250); ctx.lineTo(600, 250); ctx.stroke();
+      // Page/section title: some run long ("Why captured pieces come back"), so - same idiom the button
+      // label drawer already uses below - shrink it until it clears the panel margins instead of letting
+      // a centred, unwrapped fillText touch or cross the panel edge at the top text-size step.
+      { let sz = Math.round(40 * scale); ctx.font = `700 ${sz}px ${DISPLAY}`;
+        while (ctx.measureText(pg.title).width > 620 && sz > 24) { sz -= 1; ctx.font = `700 ${sz}px ${DISPLAY}`; }
+        text(pg.title, 360, 306, sz, PAPER, DISPLAY, 700); }
+      let y = 346;
       // Rules pages that cover one piece type show the real in-game sprite, Sente and Gote side by side,
       // using the same drawPiece() the board itself uses - never a separate simplified icon.
       if (pg.piece !== undefined) {
-        const footY = 340, dx = 110, ps2 = 0.92;
+        const footY = 420, dx = 110, ps2 = 0.92;
         drawPiece(ctx, pg.piece, 0, 0, 360 - dx, footY, ps2, { lang });
         drawPiece(ctx, pg.piece, 1, 1, 360 + dx, footY, ps2, { lang });
-        text('Sente', 360 - dx, footY + 82, 21, 'rgba(247,236,210,0.6)', UI, 600);
-        text('Gote', 360 + dx, footY + 82, 21, 'rgba(247,236,210,0.6)', UI, 600);
-        y = footY + 114;
+        text('Sente', 360 - dx, footY + 82, Math.round(21 * Math.min(scale, 1.15)), 'rgba(247,236,210,0.6)', UI, 600);
+        text('Gote', 360 + dx, footY + 82, Math.round(21 * Math.min(scale, 1.15)), 'rgba(247,236,210,0.6)', UI, 600);
+        y = footY + 120;
       }
-      // Rules pages tend to have more/longer lines than About/Howto ever did, so only Rules uses a slightly
-      // smaller base size and tighter line gap; About/Howto keep their exact original 29/20.
-      const lnSize = scene === 'rules' ? 27 : 29, lnGap = scene === 'rules' ? 16 : 20;
-      // About/Howto call fitText with align 'left' but x = 360 (the panel's horizontal CENTER), so their
-      // left-anchored lines already run off the right edge of the panel/canvas - a pre-existing bug in
-      // those two pages, left untouched here (out of scope: additive only). Rules uses the same 570-wide
-      // column but anchors it correctly at x = 360 - 570/2 so its own lines stay inside the panel.
-      const lnX = scene === 'rules' ? 75 : 360;
-      for (const ln of pg.lines) { const hh = fitText(ln, lnX, y, 570, 300, lnSize * big, 'rgba(247,236,210,0.94)', 'left', UI, 500); y += hh + lnGap; }
+      // Real base sizes (~28-30px on this 720-wide canvas), then the A-/A+ scale multiplies on top.
+      // Rules pages tend to have more/longer lines than About/How to play ever did, so Rules keeps a
+      // touch smaller base and tighter paragraph gap; content.js paces every page to fit at the top step.
+      const lnSize = scene === 'rules' ? 28 : 30, lnGap = Math.round((scene === 'rules' ? 16 : 20) * scale);
+      // Left-anchored column inside the panel, matching Rules' original correct anchor: fitText is
+      // called with align 'left', so x must be the column's LEFT edge (360 - 570/2), not the panel's
+      // horizontal centre. About/How to play used to pass x=360 here, which ran their lines off the
+      // right edge of the panel/canvas - fixed by using the same anchor as Rules for all three.
+      const lnX = 75;
+      // maxH is a generous ceiling (not a target): fitText only auto-shrinks a paragraph that would
+      // still overflow it, and every page here is already paced to need far less than this.
+      for (const ln of pg.lines) { const hh = fitText(ln, lnX, y, 570, 900, lnSize * scale, 'rgba(247,236,210,0.94)', 'left', UI, 500); y += hh + lnGap; }
       const total = scene === 'about' ? ABOUT_PAGES : scene === 'howto' ? HOWTO_PAGES : RULES_PAGES;
-      // Rules has more pages than About/Howto ever did, so only its dot row (not theirs) is spaced tighter
-      // to still fit the panel; About/Howto keep their original spacing and radius exactly.
+      // Rules has more pages than About/How to play ever did, so only its dot row (not theirs) is
+      // spaced tighter to still fit the panel; About/How to play keep their original spacing and radius.
       const dotGap = scene === 'rules' ? 22 : 30, dotR = scene === 'rules' ? 6 : 7;
       for (let i = 0; i < total; i++) { ctx.fillStyle = i === state.page ? GOLD : 'rgba(242,213,144,0.3)'; ctx.beginPath(); ctx.arc(360 + (i - (total - 1) / 2) * dotGap, 1290, dotR, 0, TAU); ctx.fill(); }
     } else if (scene === 'demo-limit') {

@@ -1,11 +1,11 @@
 // Everything drawn each frame. Reads `state` (game.js) and changes nothing. Board, table and pieces are cached sprites (art.js).
-import { W, H, K, CX, CY, PLAY, sx, sy, BX, BY, METER, PLAYB, MENU, OVER, LESSONB, PAGE, BACK, titleButtons, settingRows, lessonRows } from './layout.js';
+import { W, H, K, CX, CY, PLAY, sx, sy, BX, BY, METER, PLAYB, MENU, OVER, LESSONB, PAGE, PAGE_TEXT, TEXT_SCALES, BACK, titleButtons, settingRows, lessonRows } from './layout.js';
 import { drawTable, drawBoardOnly, drawPiece, THEMES, THEME_KEYS } from './art.js';
 import { S, R_COIN, R_STR, BASE_Y, BASE_X0, BASE_X1, POCKETS, trace, striker as findStriker } from './physics.js';
 import { down, onBoard, SIDE_NAME } from './rules.js';
 import { AI_LEVELS } from './ai.js';
 import { LESSONS } from './lessons.js';
-import { ABOUT, RULES_PAGE, CONTROLS_PAGE, GAME_RULES } from './pages.js';
+import { ABOUT_PAGES, HOWTO_PAGES, GAME_RULES } from './pages.js';
 
 const FONT = '"Fredoka", "Trebuchet MS", system-ui, sans-serif', TAU = Math.PI * 2;
 const GOLD = '#f6d58a', CREAM = '#fff3d6';
@@ -15,7 +15,10 @@ export function render(ctx, state) {
   draw(ctx, state); ctx.restore();
 }
 function draw(ctx, state) {
-  const bs = state.big ? 1.16 : 1, sc = state.scene, t = state.t, g = state.g;
+  // bs (button/text scale) drives the whole game's UI text, same as the old "Large text" toggle did;
+  // ts is the reference-page-only multiplier used for the About/Controls/Rules body copy, which goes
+  // one step further (up to 1.3) since that is the text players are actually reading at length.
+  const bs = Math.min(TEXT_SCALES[state.textScaleIdx] ?? 1, 1.16), ts = TEXT_SCALES[state.textScaleIdx] ?? 1, sc = state.scene, t = state.t, g = state.g;
   const text = (str, x, y, size, color = CREAM, align = 'center', weight = 600) => { ctx.textAlign = align; ctx.font = `${weight} ${size}px ${FONT}`; ctx.fillStyle = color; ctx.fillText(str, x, y); };
   const wrap = (str, x, y, size, maxW, color = CREAM, lh = size * 1.28, align = 'center', weight = 500) => {
     ctx.font = `${weight} ${size}px ${FONT}`; const out = []; let cur = '';
@@ -78,17 +81,41 @@ function draw(ctx, state) {
 
   // ---------------------------------------------------------------- PAGES
   const backdrop = () => { drawTable(ctx); ctx.fillStyle = 'rgba(8,3,0,0.55)'; ctx.fillRect(0, 0, W, H); };
+  // The reader card: one framed panel (rounded rect, dark translucent fill, thin double border) that
+  // holds the header, page title, any piece portraits and the body text, so these reference pages
+  // read as a designed reference sheet rather than text floating loose on the felt. `ts` (see above)
+  // is the text-size stepper's own multiplier — always guarded with `?? 1` so a stale saved index
+  // from a build with a different-length TEXT_SCALES can never produce a broken font size.
+  const readerPanel = () => {
+    panel(40, 200, 640, 1190, 0.82);
+    ctx.save(); ctx.strokeStyle = 'rgba(255,214,150,0.16)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.roundRect(48, 208, 624, 1174, 20); ctx.stroke(); ctx.restore();
+  };
+  const textStepper = () => {
+    button(PAGE_TEXT.dec, 'A−', { dim: state.textScaleIdx === 0, size: 34, noscale: true });
+    button(PAGE_TEXT.inc, 'A+', { dim: state.textScaleIdx === TEXT_SCALES.length - 1, size: 34, noscale: true });
+  };
   if (sc === 'howto' || sc === 'about') {
-    backdrop(); const P = sc === 'about' ? ABOUT : state.page === 0 ? CONTROLS_PAGE : RULES_PAGE;
-    shadowText(sc === 'about' ? 'About Carrom' : state.page === 0 ? 'Controls' : 'Rules', CX, 150, 76 * Math.min(bs, 1.05), GOLD);
-    panel(40, 200, 640, 1190, 0.78);
+    backdrop();
+    // Both screens are several single-concept pages (About; How to play's Controls then a short
+    // Rules recap), each short enough to fit its panel even at the text-size stepper's top step —
+    // see pages.js ABOUT_PAGES / HOWTO_PAGES.
+    const list = sc === 'about' ? ABOUT_PAGES : HOWTO_PAGES;
+    const cur = list[state.page % list.length];
+    // A smaller header than this game's hero-title style (was 76px, same as the title screen) — at
+    // that size "About Carrom"/"Game Rules" collided with the new A-/A+ buttons in the top corners.
+    // Still well above the ~36-38px floor and far above the original ~20-23px complaint.
+    shadowText(sc === 'about' ? 'About' : cur.section, CX, 148, 48 * Math.min(ts, 1.1), GOLD);
+    textStepper();
+    readerPanel();
     let y = 268;
-    for (const item of P) {
-      if (item.h) { text(item.h, 76, y, 34 * bs, GOLD, 'left', 700); y += 46 * bs; continue; }
-      const n = wrap(item.t, 76, y, 28 * bs, 570, CREAM, 36 * bs, 'left'); y += n * 36 * bs + 16;
+    for (const item of cur.items) {
+      if (item.h) { text(item.h, 76, y, 34 * ts, GOLD, 'left', 700); y += 46 * ts; continue; }
+      const n = wrap(item.t, 76, y, 29 * ts, 570, CREAM, 41 * ts, 'left'); y += n * 41 * ts + 16;
     }
-    if (sc === 'howto' && state.page === 0) {
-      // a small drawing of the gesture: slide, pull back, release
+    if (sc === 'howto' && cur.illustration && y + 260 < 1390) {
+      // a small drawing of the gesture: slide, pull back, release — only drawn where it has clear
+      // room below the text, never on top of it at a larger text-size step.
       const oy = 1120; ctx.save(); ctx.fillStyle = 'rgba(232,196,128,0.22)'; ctx.beginPath(); ctx.roundRect(76, oy - 70, 568, 250, 18); ctx.fill();
       ctx.strokeStyle = 'rgba(255,240,205,0.35)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(100, oy + 110); ctx.lineTo(620, oy + 110); ctx.stroke();
       drawPiece(ctx, 'S', 300, oy + 110, 1.1, 0.1); drawPiece(ctx, 'W', 470, oy - 10, 1, 0);
@@ -97,8 +124,8 @@ function draw(ctx, state) {
       ctx.fillStyle = CREAM; for (const d of [-1, 1]) { ctx.beginPath(); ctx.moveTo(300 + d * 62, oy + 110); ctx.lineTo(300 + d * 46, oy + 100); ctx.lineTo(300 + d * 46, oy + 120); ctx.fill(); }
       text('1  slide', 200, oy - 32, 24, GOLD, 'center', 700); text('2  drag back', 170, oy + 168, 24, GOLD, 'center', 700); text('3  release', 540, oy + 74, 24, GOLD, 'center', 700); ctx.restore();
     }
-    if (sc === 'howto') { button(PAGE.prev, 'Back', { dim: state.page === 0, size: 28 }); button(PAGE.next, 'Next', { dim: state.page === 1, size: 28 }); button(PAGE.back, 'Done', { primary: true, size: 28 }); text(`${state.page + 1} / 2`, CX, 1420, 24, 'rgba(255,243,214,0.7)'); }
-    else button(PAGE.back, 'Done', { primary: true, size: 30 });
+    button(PAGE.prev, 'Back', { dim: state.page === 0, size: 28 }); button(PAGE.next, 'Next', { dim: state.page === list.length - 1, size: 28 }); button(PAGE.back, 'Done', { primary: true, size: 28 });
+    text(`Page ${state.page + 1} of ${list.length}`, CX, 1420, 24, 'rgba(255,243,214,0.7)');
     return;
   }
   // Exhaustive Game Rules reference (content in pages.js). One topic per page; a piece page shows
@@ -106,9 +133,10 @@ function draw(ctx, state) {
   if (sc === 'rules') {
     backdrop();
     const list = GAME_RULES, page = list[state.page % list.length];
-    shadowText('Game Rules', CX, 150, 76 * Math.min(bs, 1.05), GOLD);
-    panel(40, 200, 640, 1190, 0.78);
-    text(page.title, CX, 256, 40 * bs, GOLD, 'center', 700);
+    shadowText('Game Rules', CX, 148, 44 * Math.min(ts, 1.1), GOLD);
+    textStepper();
+    readerPanel();
+    text(page.title, CX, 256, 40 * Math.min(ts, 1.2), GOLD, 'center', 700);
     let y = 306;
     if (page.pieces) {
       const ay = 384, names = { W: 'White', B: 'Black', Q: 'Queen', S: 'Striker' };
@@ -125,15 +153,17 @@ function draw(ctx, state) {
         y = ay + R + 78;
       }
     }
-    for (const line of page.lines) { const n = wrap(line, 76, y, 28 * bs, 570, CREAM, 36 * bs, 'left'); y += n * 36 * bs + 16; }
+    for (const line of page.lines) { const n = wrap(line, 76, y, 29 * ts, 570, CREAM, 41 * ts, 'left'); y += n * 41 * ts + 16; }
     text(`Page ${(state.page % list.length) + 1} of ${list.length}`, CX, 1420, 24, 'rgba(255,243,214,0.7)');
     button(PAGE.prev, 'Back', { size: 28 }); button(PAGE.next, 'Next', { size: 28 }); button(PAGE.back, 'Done', { primary: true, size: 28 });
     return;
   }
   if (sc === 'settings') {
     backdrop(); shadowText('Settings', CX, 150, 76, GOLD); const rows = settingRows();
-    const items = [['Sound', state.sound ? 'On' : 'Off'], ['Reduced motion', state.calm ? 'On' : 'Off'], ['Large text', state.big ? 'On' : 'Off'], ['Left-handed layout', state.left ? 'On' : 'Off'], ['Board', THEMES[state.theme].name], ['Aim guide', state.guide === 2 ? 'Long' : state.guide === 1 ? 'Short' : 'Off'], ['Restore purchases', '']];
-    items.forEach((it, i) => { const r = rows[i]; button(r, '', { size: 32 }); text(it[0], r.x + 40, r.y + r.h / 2 + 11, 32, CREAM, 'left', 700); const on = it[1] === 'On' || it[1] === 'Long'; text(it[1], r.x + r.w - 40, r.y + r.h / 2 + 11, 32, on ? '#b6f28a' : GOLD, 'right', 700); });
+    // "Text size" also has its own -A/+A stepper right on the About/Controls/Rules pages themselves
+    // (where a player is actually reading); this row is a shortcut to the same state.textScaleIdx.
+    const items = [['Sound', state.sound ? 'On' : 'Off'], ['Reduced motion', state.calm ? 'On' : 'Off'], ['Text size', ['Normal', 'Larger', 'Largest'][state.textScaleIdx] ?? 'Normal'], ['Left-handed layout', state.left ? 'On' : 'Off'], ['Board', THEMES[state.theme].name], ['Aim guide', state.guide === 2 ? 'Long' : state.guide === 1 ? 'Short' : 'Off'], ['Restore purchases', '']];
+    items.forEach((it, i) => { const r = rows[i]; button(r, '', { size: 32 }); text(it[0], r.x + 40, r.y + r.h / 2 + 11, 32, CREAM, 'left', 700); const on = it[1] === 'On' || it[1] === 'Long' || it[1] === 'Larger' || it[1] === 'Largest'; text(it[1], r.x + r.w - 40, r.y + r.h / 2 + 11, 32, on ? '#b6f28a' : GOLD, 'right', 700); });
     text('Tap a row to change it.', CX, 1200, 26, 'rgba(255,243,214,0.7)');
     button(PAGE.back, 'Done', { primary: true, size: 30 }); return;
   }

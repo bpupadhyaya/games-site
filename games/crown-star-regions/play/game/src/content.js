@@ -19,6 +19,11 @@ export const RULES = [
         'regions on a 7×7 board, 10 on the 10×10 Expert board. A solved puzzle places exactly ' +
         'one crown in every row, every column and every region - that many crowns in total, never ' +
         'more, never fewer.',
+    ],
+  },
+  {
+    title: 'Region sizes vary',
+    lines: [
       'Regions are grown, not hand-drawn, so their sizes vary from puzzle to puzzle: no region is ' +
         'ever allowed to cover more than about 30% of the board, and at most one region on a board ' +
         'is a single cell. That is exactly why some regions collapse to an obvious placement before ' +
@@ -72,15 +77,25 @@ export const RULES = [
     ],
   },
   {
-    title: 'Hint and Undo',
+    title: 'Undo',
     art: 'hintundo',
     lines: [
       'Undo steps back one mark at a time - free, with no limit for the puzzle you are currently ' +
         'solving.',
+    ],
+  },
+  {
+    title: 'Hint',
+    lines: [
       'Hint places one correct crown immediately, with no ad and no waiting: it checks the puzzle’s ' +
         'regions in order (region 0, then 1, then 2, and so on) and drops a crown on the first ' +
         'region that does not have its solution crown placed yet. It does not look ahead for ' +
         'whichever region is easiest to finish next.',
+    ],
+  },
+  {
+    title: 'Free and unlimited',
+    lines: [
       'Both Hint and Undo are simply free and unlimited in this build - any suggestion elsewhere ' +
         'that a hint costs a reward or an ad no longer matches the shipped game.',
     ],
@@ -96,14 +111,24 @@ export const RULES = [
     ],
   },
   {
-    title: 'Modes and sizes',
+    title: 'Endless',
     art: 'modes',
     lines: [
       'Endless: an untimed 7×7 puzzle from a fresh random seed every time. Tapping anywhere on the ' +
         'solved screen of an Endless puzzle starts a new one at the same size.',
+    ],
+  },
+  {
+    title: 'Daily Puzzle',
+    lines: [
       'Daily Puzzle: a 7×7 board seeded from the date, so every player sees the same board on a ' +
         'given day. Finishing it and tapping the solved screen does NOT repeat the Daily - it starts ' +
         'a fresh Endless 7×7 instead.',
+    ],
+  },
+  {
+    title: 'Expert 10×10',
+    lines: [
       'Expert 10×10: a bigger board, generated the same way at size 10 - one crown per row, column ' +
         'and region either way. It is unlocked and playable right away in this build; a "solve 5 or ' +
         'buy the Expert Pack" message some earlier notes describe is not currently enforced.',
@@ -117,6 +142,11 @@ export const RULES = [
         'crowns into mismatched sizes. A real backtracking solver then checks the board and reshapes ' +
         'it, cell by cell, until that starting placement is the ONLY solution left - checked by ' +
         'search, never assumed.',
+    ],
+  },
+  {
+    title: 'Built to avoid guessing',
+    lines: [
       'The generator also strongly favours a board a player can finish by pure step-by-step ' +
         'deduction, never a blind guess, and throws out any board so easy its crowns simply fall out ' +
         'on their own. That preference is not an absolute guarantee, though: unlike a true no-guess ' +
@@ -132,7 +162,8 @@ export const RULES = [
       'A puzzle is solved the instant the board holds exactly one crown in every row, every column ' +
         'and every region, with zero conflicts left anywhere - there is no separate "submit" step.',
       'The solved screen shows your time and move count, plus how many hints you used (or "No hints ' +
-        'used"). Tapping it moves straight on to the next puzzle, per the Modes and sizes page.',
+        'used"). Tapping it moves straight on to the next puzzle - see Endless, Daily Puzzle and ' +
+        'Expert 10×10.',
     ],
   },
 ];

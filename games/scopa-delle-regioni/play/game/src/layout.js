@@ -31,11 +31,20 @@ export const BTN = {
   menu: { x: 40, y: 1462, w: 190, h: 72 }, undo: { x: 265, y: 1462, w: 190, h: 72 }, hint: { x: 490, y: 1462, w: 190, h: 72 },
   next: { x: 200, y: 1462, w: 320, h: 72 }, share: { x: 200, y: 1462, w: 320, h: 72 },
   again: { x: 130, y: 1110, w: 460, h: 92 }, back: { x: 130, y: 1220, w: 460, h: 92 },
-  cont: { x: 130, y: 1290, w: 460, h: 96 }, backPage: { x: 130, y: 1440, w: 460, h: 90 },
-  // The Rules reference page's own Back/Next pair, occupying the same footprint as backPage
-  // (x 130-590, y 1440, h 90) split into two even halves with a 20px gap between them.
-  rulesBack: { x: 130, y: 1440, w: 220, h: 90 }, rulesNext: { x: 370, y: 1440, w: 220, h: 90 },
+  cont: { x: 130, y: 1290, w: 460, h: 96 },
+  // The About/Controls/Rules reference pages share one Back/Next pair at the foot of the reader
+  // panel (x 130-590, y 1440, h 90), split into two even halves with a 20px gap between them.
+  pageBack: { x: 130, y: 1440, w: 220, h: 90 }, pageNext: { x: 370, y: 1440, w: 220, h: 90 },
+  // Text-size stepper for the same reference pages, sitting in the otherwise-empty felt margin
+  // above the reader panel (which starts at y 100) so it never crowds the panel's own title or the
+  // Back/Next pair at the foot.
+  textDec: { x: 40, y: 24, w: 120, h: 62 }, textInc: { x: 560, y: 24, w: 120, h: 62 },
 };
+// Text-size steps for the About/Controls/Rules reference pages. An *index* into this array, never
+// a raw float, so "min"/"max" are exact and the stepper can cleanly disable at either end. Guard
+// every lookup with `?? 1` and clamp any loaded index into range - a stale saved index from a build
+// with a shorter array must never produce a NaN font size.
+export const TEXT_SCALES = [1, 1.15, 1.3];
 const row = (y, h = 84) => ({ x: 70, y, w: 580, h });
 export function titleRows(hasSave) {
   let y = 800; const R = {};

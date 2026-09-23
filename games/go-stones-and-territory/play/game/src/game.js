@@ -9,8 +9,8 @@ import { newGame, attempt, play, isOver, group, areaScore, opp, coord, nbs, KOMI
 import { LEVELS, PER_TICK, simsFor, createThinker, createScorer, quickMove, reasonFor } from './engine.js';
 import { LESSONS, boardOf } from './lessons.js';
 import { todaysPuzzle, fromRows, puzzleText } from './puzzles.js';
-import { render, setupRects, lessonRects, settingsRects, READER, quizRect } from './view.js';
-import { titleButtons, RULES_NAV } from './layout.js';
+import { render, setupRects, lessonRects, settingsRects, quizRect, ABOUT_TEXT, HOW_TEXT } from './view.js';
+import { titleButtons, PAGE_NAV, TEXT_SCALES, TEXT_BTN } from './layout.js';
 import { RULES } from './content.js';
 import { THEMES, warm } from './art.js';
 
@@ -21,7 +21,7 @@ const NAMES = { 1: 'Black', 2: 'White' };
 export function createGame(env) {
   const { rng, storage, audio, monetization, config } = env;
   const S = {
-    scene: 'title', t: 0, prefs: { sound: true, calm: false, big: false, quick: false, theme: 'kaya' },
+    scene: 'title', t: 0, prefs: { sound: true, calm: false, big: false, quick: false, theme: 'kaya', textScaleIdx: 0 },
     setup: { n: 9, level: 1, human: 1 },
     g: newGame(9), human: 1, two: false, level: 1, phase: 'play',
     pend: -1, pendOn: false, pendColor: 1, aim: null, anim: [], refuse: null, hint: null, msg: null, undo: [], sfx: [],
@@ -31,12 +31,14 @@ export function createGame(env) {
     pz: null, daily: { day: config.day ?? 0, solvedDay: -1, streak: 0 },
     stats: { played: 0, wins: 0 }, saved: null, demoGames: 0, demo: config.demo === true, dev: config.dev === true,
     tap: null, down: false, fromLesson: -1,
-    rulesPage: 0,
+    rulesPage: 0, aboutPage: 0, howPage: 0,
   };
   let thinker = null, hintThinker = null, scorer = null, quick = null;
 
   // ---- persistence ------------------------------------------------------------------------------------------------
-  storage.get('prefs', null).then((v) => { if (v) { S.prefs = { ...S.prefs, ...v }; if (!THEMES[S.prefs.theme]) S.prefs.theme = 'kaya'; audio.setMuted?.(!S.prefs.sound); } });
+  // Guard the lookup and clamp on load: a stale saved index from a build with a longer/shorter
+  // TEXT_SCALES array must never produce a NaN (or out-of-range) font size on the reference pages.
+  storage.get('prefs', null).then((v) => { if (v) { S.prefs = { ...S.prefs, ...v }; if (!THEMES[S.prefs.theme]) S.prefs.theme = 'kaya'; S.prefs.textScaleIdx = Math.min(Math.max(S.prefs.textScaleIdx ?? 0, 0), TEXT_SCALES.length - 1); audio.setMuted?.(!S.prefs.sound); } });
   storage.get('progress', null).then((v) => { if (v) S.stats = { played: v.played ?? 0, wins: v.wins ?? 0 }; });
   storage.get('learned', []).then((v) => { if (Array.isArray(v)) S.learned = [...new Set([...S.learned, ...v])]; });
   storage.get('daily', null).then((v) => { if (v) { S.daily.solvedDay = v.solvedDay ?? -1; S.daily.streak = v.streak ?? 0; } });
@@ -327,15 +329,21 @@ export function createGame(env) {
     else if (on(B.play)) { if (S.demo && S.demoGames >= DEMO_GAMES) S.scene = 'demo-limit'; else S.scene = 'setup'; }
     else if (on(B.learn)) S.scene = 'lessons';
     else if (on(B.daily)) startPuzzle();
-    else if (on(B.about)) S.scene = 'about';
-    else if (on(B.how)) S.scene = 'how';
+    else if (on(B.about)) { S.scene = 'about'; S.aboutPage = 0; }
+    else if (on(B.how)) { S.scene = 'how'; S.howPage = 0; }
     else if (on(B.settings)) S.scene = 'settings';
     else if (on(B.rules)) { S.scene = 'rules'; S.rulesPage = 0; }
   }
-  function updateRules(p) {
+  // About, How to play and Rules are all paginated the same way (one topic per page, Back/Next
+  // with wraparound) and all share the same text-size stepper - one update handler for the three.
+  const TEXT_STEP_TONE = (up) => tone({ freq: up ? 680 : 560, to: up ? 880 : 460, dur: 0.09, type: 'sine', vol: 0.13 });
+  function updatePageNav(p, list, pageKey) {
     if (!p.released) return;
-    if (upHit(RULES_NAV.next, p)) S.rulesPage = (S.rulesPage + 1) % RULES.length;
-    else if (upHit(RULES_NAV.back, p)) S.scene = 'title';
+    const idx = S.prefs.textScaleIdx ?? 0;
+    if (upHit(TEXT_BTN.dec, p) && idx > 0) { S.prefs.textScaleIdx = idx - 1; savePrefs(); TEXT_STEP_TONE(false); }
+    else if (upHit(TEXT_BTN.inc, p) && idx < TEXT_SCALES.length - 1) { S.prefs.textScaleIdx = idx + 1; savePrefs(); TEXT_STEP_TONE(true); }
+    else if (upHit(PAGE_NAV.next, p)) S[pageKey] = (S[pageKey] + 1) % list.length;
+    else if (upHit(PAGE_NAV.back, p)) S.scene = 'title';
   }
   function updateSetup(p) {
     if (!p.released) return;
@@ -351,7 +359,6 @@ export function createGame(env) {
     lessonRects().forEach((r, i) => { if (inRect(r, p.x, p.y)) startLesson(i); });
     if (inRect({ x: 110, y: 1230, w: 500, h: 84 }, p.x, p.y)) S.scene = 'title';
   }
-  function updateReader(p) { if (upHit(READER.back, p)) S.scene = 'title'; }
   function updateSettings(p) {
     if (!p.released) return;
     const Rs = settingsRects(), on = (r) => inRect(r, p.x, p.y), P = S.prefs;
@@ -447,8 +454,9 @@ export function createGame(env) {
         case 'title': updateTitle(p); break;
         case 'setup': updateSetup(p); break;
         case 'lessons': updateLessons(p); break;
-        case 'about': case 'how': updateReader(p); break;
-        case 'rules': updateRules(p); break;
+        case 'about': updatePageNav(p, ABOUT_TEXT, 'aboutPage'); break;
+        case 'how': updatePageNav(p, HOW_TEXT, 'howPage'); break;
+        case 'rules': updatePageNav(p, RULES, 'rulesPage'); break;
         case 'settings': updateSettings(p); break;
         case 'demo-limit': break;
         case 'play': updatePlay(dt, p, input); break;

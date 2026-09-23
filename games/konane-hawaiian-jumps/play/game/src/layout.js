@@ -32,3 +32,8 @@ export const SETUP = {
   start: R(110, 1290, 500, 96), back: R(60, 1462, 190, 72),
 };
 export const HELP = { prev: R(60, 1462, 190, 72), next: R(470, 1462, 190, 72), back: R(265, 1462, 190, 72) };
+// Text-size steps for the reference pages (How to play, About, Rules). An index into this array,
+// never a raw float, so the stepper can cleanly disable at either end. Buttons sit in the empty
+// header strip above the page title, well clear of it and of the Back/Next/Menu row at the foot.
+export const TEXT_SCALES = [1, 1.15, 1.3];
+export const TEXTSTEP = { dec: R(40, 34, 130, 62), inc: R(550, 34, 130, 62) };

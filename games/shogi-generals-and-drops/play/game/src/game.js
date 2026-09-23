@@ -4,7 +4,7 @@
 // How a move is made: TAP a piece (its legal points glow), then TAP a glowing point. To drop a captured piece:
 // TAP it on your stand, then TAP an empty glowing point. A refused move visibly tries, shudders, comes back, and a
 // message says why.
-import { W, H, geom, sqAt, standSlot, STAND, STAND_ORDER, inRect } from './layout.js';
+import { W, H, geom, sqAt, standSlot, STAND, STAND_ORDER, inRect, TEXT_SCALES } from './layout.js';
 import { newGame, applyMove, legalMoves, result, inCheck, mFrom, mTo, mPromo, mDrop, isDrop, dropMove, mk, whyNotMove, whyNotDrop, describe, fromRows, make, unmake, NAME, HINT, hasLegalMove } from './rules.js';
 import { createThinker } from './engine.js';
 import { LESSONS } from './lessons.js';
@@ -23,6 +23,10 @@ export function createGame(env) {
     scene: 'title', t: 0, variant: 'standard', game: newGame(), moves: [], human: 0, humanPick: 0, two: false, level: 2,
     sel: null, targets: [], anim: null, msg: null, thinking: false, thinkT: 0, result: null, hintsLeft: HINTS, hint: null,
     promo: null, menu: false, page: 0, cursor: 40, kb: false, lastMove: null, settingsFrom: null,
+    // Index into TEXT_SCALES; the About/How-to-play/Rules reference pages' text size, set by the
+    // A-/A+ stepper that lives right on those pages. Separate from prefs.big, which still governs
+    // other (gameplay-adjacent) screens: setup/settings blurbs, lesson/puzzle status text, result text.
+    textScaleIdx: 0,
     prefs: { sound: true, calm: false, big: false, labels: false, lang: 'jp' },
     stats: { played: 0, wins: 0 }, saved: null, lessonsDone: new Array(LESSONS.length).fill(false), lesson: null,
     pz: null, daily: { day: config.day ?? 0, solvedDay: -1, streak: 0 }, demo: { games: 0, lessons: 0, puzzles: 0 },
@@ -36,13 +40,21 @@ export function createGame(env) {
   const legal = () => (legalCache ??= legalMoves(state.game));
 
   // ---- storage ---------------------------------------------------------------------------------------------
-  storage.get('prefs', null).then((v) => { if (v) { state.prefs = { ...state.prefs, ...v.prefs }; state.level = v.level ?? state.level; audio.setMuted(!state.prefs.sound); } if (showcaseLang) state.prefs.lang = showcaseLang; });
+  storage.get('prefs', null).then((v) => {
+    if (v) {
+      state.prefs = { ...state.prefs, ...v.prefs }; state.level = v.level ?? state.level; audio.setMuted(!state.prefs.sound);
+      // Guarded lookup + clamp: a stale saved index from a build with a longer/shorter TEXT_SCALES
+      // array must never produce a NaN or out-of-range font size.
+      state.textScaleIdx = Math.min(Math.max(v.textScaleIdx ?? state.textScaleIdx, 0), TEXT_SCALES.length - 1);
+    }
+    if (showcaseLang) state.prefs.lang = showcaseLang;
+  });
   storage.get('progress', null).then((v) => { if (v) state.stats = { played: v.played ?? 0, wins: v.wins ?? 0 }; });
   storage.get('learned', null).then((v) => { if (Array.isArray(v)) state.lessonsDone = LESSONS.map((_, i) => !!v[i]); });
   storage.get('daily', null).then((v) => { if (v) { state.daily.solvedDay = v.solvedDay ?? -1; state.daily.streak = v.streak ?? 0; } });
   storage.get('demo', null).then((v) => { if (v) state.demo = { games: Math.max(state.demo.games, v.games || 0), lessons: Math.max(state.demo.lessons, v.lessons || 0), puzzles: Math.max(state.demo.puzzles, v.puzzles || 0) }; });
   storage.get('save', null).then((v) => { if (v && Array.isArray(v.moves) && state.scene === 'title') state.saved = v; });
-  const savePrefs = () => storage.set('prefs', { prefs: state.prefs, level: state.level });
+  const savePrefs = () => storage.set('prefs', { prefs: state.prefs, level: state.level, textScaleIdx: state.textScaleIdx });
   const saveProgress = () => storage.set('progress', { played: state.stats.played, wins: state.stats.wins });
   const saveGame = () => { if (state.scene === 'play' && !state.result && state.moves.length) { state.saved = { variant: state.variant, moves: state.moves.slice(), human: state.human, level: state.level, two: state.two }; storage.set('save', state.saved); } };
   const clearSave = () => { state.saved = null; storage.remove('save'); };
@@ -57,7 +69,7 @@ export function createGame(env) {
   const later = (t, fn) => pending.push({ t, fn });
   const humanTurn = () => state.two || state.game.turn === state.human;
   const changed = () => { legalCache = null; state.sel = null; state.targets = []; state.hint = null; hintThinker = null; };
-  const ui = () => ({ scene: state.scene, prefs: state.prefs, saved: state.saved, level: state.level, humanPick: state.humanPick, page: state.page, lessonsDone: state.lessonsDone, menu: state.menu, result: state.result, canUndo: state.moves.length > 0 && !state.two && !state.thinking, hintsLeft: state.hintsLeft, two: state.two, lesson: state.lesson, pz: state.pz, promo: state.promo });
+  const ui = () => ({ scene: state.scene, prefs: state.prefs, saved: state.saved, level: state.level, humanPick: state.humanPick, page: state.page, textScaleIdx: state.textScaleIdx, lessonsDone: state.lessonsDone, menu: state.menu, result: state.result, canUndo: state.moves.length > 0 && !state.two && !state.thinking, hintsLeft: state.hintsLeft, two: state.two, lesson: state.lesson, pz: state.pz, promo: state.promo });
 
   function replay(variant, moves) { const pos = newGame(variant); for (const m of moves) applyMove(pos, m); return pos; }
   function enter(scene) {
@@ -310,6 +322,8 @@ export function createGame(env) {
       case 'back': goBack(); break;
       case 'prev': state.page = Math.max(0, state.page - 1); break;
       case 'next': state.page++; break;
+      case 'textDec': if (state.textScaleIdx > 0) { state.textScaleIdx--; savePrefs(); } break;
+      case 'textInc': if (state.textScaleIdx < TEXT_SCALES.length - 1) { state.textScaleIdx++; savePrefs(); } break;
       case 'sideB': state.humanPick = 0; break;
       case 'sideW': state.humanPick = 1; break;
       case 'start': startGame({ variant: state.variant, human: state.humanPick, level: state.level, two: false }); break;

@@ -1,12 +1,13 @@
 // Toguz Kumalak: state and flow. Drawing is view.js; the rule book is rules.js; the computer is engine.js; lessons.js and puzzles.js are
 // content. The rule book applies a move to `state.game` at once; `state.anim` then PLAYS it (lift, sow pit by pit, capture or tuz)
 // while `state.shown` (the pit counts the player sees) catches up. Input is ignored while an animation runs.
-import { W, H, BTN, SET, RULES_BTN, titleRows, inRect, pitNear, pitPos } from './layout.js';
+import { W, H, BTN, SET, RULES_BTN, ABOUT_BTN, HEADER, TEXT_SCALES, titleRows, inRect, pitNear, pitPos } from './layout.js';
 import { newGame, clone, applyMove, tryMove, legalMoves, sow, sideOf, numberOf, tuzWhy } from './rules.js';
 import { LEVELS, createThinker } from './engine.js';
 import { LESSONS } from './lessons.js';
 import { puzzleFor, puzzleGame, gains, isWeekend } from './puzzles.js';
 import { RULES } from './rulesText.js';
+import { ABOUT } from './about.js';
 import { render } from './view.js';
 
 export const meta = { width: W, height: H };
@@ -17,6 +18,9 @@ export function createGame(env) {
   const { rng, storage, audio, monetization, config } = env;
   const state = {
     scene: 'title', t: 0, page: 0, game: newGame(), shown: null, two: false, level: 1, sound: true, calm: false, big: false, seeds: 'stones', wood: 'walnut',
+    // index into TEXT_SCALES; the About/Rules reference pages' own text size, separate from the
+    // `big` gameplay toggle above (that one stays governing pit/tray/message text during play).
+    textScaleIdx: 0,
     cursor: 4, kb: false, anim: null, msg: null, think: 0, thinking: false, undo: [], hintsLeft: HINTS, hint: null,
     stats: { games: 0, wins: 0, badges: {} }, saved: null, learned: false, demoGames: 0, lesson: null, pz: null, ref: null,
     daily: { day: config.day ?? 0, solvedDay: -1, streak: 0 }, dev: config.dev === true, worstNodes: 0,
@@ -25,13 +29,13 @@ export function createGame(env) {
   state.shown = snap(state.game);
   let thinker = null, hintThinker = null;
 
-  storage.get('prefs', null).then((v) => { if (v) { state.level = v.level ?? 1; state.sound = v.sound ?? true; state.calm = v.calm ?? false; state.big = v.big ?? false; state.seeds = SEEDSETS.includes(v.seeds) ? v.seeds : 'stones'; state.wood = WOODS.includes(v.wood) ? v.wood : 'walnut'; audio.setMuted?.(!state.sound); } });
+  storage.get('prefs', null).then((v) => { if (v) { state.level = v.level ?? 1; state.sound = v.sound ?? true; state.calm = v.calm ?? false; state.big = v.big ?? false; state.seeds = SEEDSETS.includes(v.seeds) ? v.seeds : 'stones'; state.wood = WOODS.includes(v.wood) ? v.wood : 'walnut'; state.textScaleIdx = Math.min(Math.max(v.textScaleIdx ?? 0, 0), TEXT_SCALES.length - 1); audio.setMuted?.(!state.sound); } });
   storage.get('stats', null).then((v) => { if (v) state.stats = { ...state.stats, ...v, badges: { ...(v.badges || {}) } }; });
   storage.get('learned', false).then((v) => { state.learned = state.learned || !!v; });
   storage.get('daily', null).then((v) => { if (v) { state.daily.solvedDay = v.solvedDay ?? -1; state.daily.streak = v.streak ?? 0; } });
   storage.get('demoGames', 0).then((v) => { state.demoGames = Math.max(state.demoGames, v); });
   storage.get('save', null).then((v) => { if (v && v.game && v.game.winner === null && v.game.pits?.length === 18 && state.scene === 'title') state.saved = v; });
-  const savePrefs = () => storage.set('prefs', { level: state.level, sound: state.sound, calm: state.calm, big: state.big, seeds: state.seeds, wood: state.wood });
+  const savePrefs = () => storage.set('prefs', { level: state.level, sound: state.sound, calm: state.calm, big: state.big, seeds: state.seeds, wood: state.wood, textScaleIdx: state.textScaleIdx });
   const saveGame = () => { if (state.scene === 'play' && state.game.winner === null) { state.saved = { game: clone(state.game), two: state.two, level: state.level, hintsLeft: state.hintsLeft }; storage.set('save', state.saved); } };
   const clearSave = () => { state.saved = null; storage.remove('save'); };
   const saveStats = () => { storage.set('stats', state.stats); storage.set('progress', { played: state.stats.games, wins: state.stats.wins }); };
@@ -149,7 +153,7 @@ export function createGame(env) {
     else if (hit(R.play)) start(false);
     else if (hit(R.two)) start(true);
     else if (hit(R.daily)) startPuzzle();
-    else if (hit(R.about)) state.scene = 'about';
+    else if (hit(R.about)) { state.scene = 'about'; state.page = 0; }
     else if (hit(R.rules)) { state.scene = 'rules'; state.page = 0; }
     else if (hit(R.settings)) state.scene = 'settings';
   }
@@ -283,7 +287,7 @@ export function createGame(env) {
     if (sc === 'title') { const R = titleRows(!!state.saved); if (k.has('Enter') || k.has('Space')) return at(R.resume || R.play); return null; }
     if (sc === 'over') { if (k.has('Enter') || k.has('Space')) return at(BTN.again); if (k.has('Escape')) return at(BTN.back); return null; }
     if (sc === 'settings') { if (k.has('Escape')) return at(SET.back); return null; }
-    if (sc === 'about') { if (k.has('Escape') || k.has('Enter')) return at(BTN.aboutBack); return null; }
+    if (sc === 'about') { if (k.has('Escape')) return at(ABOUT_BTN.back); if (k.has('Enter') || k.has('Space')) return at(ABOUT_BTN.next); return null; }
     if (sc === 'rules') { if (k.has('Escape')) return at(RULES_BTN.back); if (k.has('Enter') || k.has('Space')) return at(RULES_BTN.next); return null; }
     if (sc !== 'play' && sc !== 'lesson' && sc !== 'puzzle') return null;
     if (k.has('Escape')) return at(BTN.menu);
@@ -307,10 +311,19 @@ export function createGame(env) {
       const sc = state.scene;
       if (sc === 'title') updateTitle(tap);
       else if (sc === 'settings') updateSettings(tap);
-      else if (sc === 'about') { if (tap && inRect(BTN.aboutBack, tap.x, tap.y)) state.scene = 'title'; }
+      else if (sc === 'about') {
+        if (!tap) { /* no-op */ }
+        else if (inRect(ABOUT_BTN.back, tap.x, tap.y)) state.scene = 'title';
+        else if (inRect(ABOUT_BTN.next, tap.x, tap.y)) state.page = (state.page + 1) % ABOUT.pages.length;
+        else if (inRect(HEADER.textDec, tap.x, tap.y) && state.textScaleIdx > 0) { state.textScaleIdx--; savePrefs(); clack(); }
+        else if (inRect(HEADER.textInc, tap.x, tap.y) && state.textScaleIdx < TEXT_SCALES.length - 1) { state.textScaleIdx++; savePrefs(); clack(); }
+      }
       else if (sc === 'rules') {
-        if (tap && inRect(RULES_BTN.back, tap.x, tap.y)) state.scene = 'title';
-        else if (tap && inRect(RULES_BTN.next, tap.x, tap.y)) state.page = (state.page + 1) % RULES.length;
+        if (!tap) { /* no-op */ }
+        else if (inRect(RULES_BTN.back, tap.x, tap.y)) state.scene = 'title';
+        else if (inRect(RULES_BTN.next, tap.x, tap.y)) state.page = (state.page + 1) % RULES.length;
+        else if (inRect(HEADER.textDec, tap.x, tap.y) && state.textScaleIdx > 0) { state.textScaleIdx--; savePrefs(); clack(); }
+        else if (inRect(HEADER.textInc, tap.x, tap.y) && state.textScaleIdx < TEXT_SCALES.length - 1) { state.textScaleIdx++; savePrefs(); clack(); }
       }
       else if (sc === 'play') updatePlay(dt, tap);
       else if (sc === 'lesson') updateLesson(dt, tap);

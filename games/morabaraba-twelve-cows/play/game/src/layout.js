@@ -23,6 +23,12 @@ export const BTN = {
   again: { x: 130, y: 900, w: 460, h: 96 }, back: { x: 130, y: 1016, w: 460, h: 84 }, share: { x: 130, y: 1120, w: 460, h: 84 },
   next: { x: 130, y: 1462, w: 460, h: 76 }, prev: { x: 46, y: 1462, w: 200, h: 76 }, nextPage: { x: 474, y: 1462, w: 200, h: 76 },
 };
+// Text-size stepper for the How to play / About / Rules reference pages: a header row above the
+// heading, clear of the Menu/Back/Next buttons in the footer. "A-"/"A+" on all three screens.
+export const TEXT_STEPPER = { dec: { x: 40, y: 24, w: 120, h: 62 }, inc: { x: W - 160, y: 24, w: 120, h: 62 } };
+// Index into this, never a raw float, so the stepper can cleanly disable at either end and a stale
+// saved index (e.g. from a build with a shorter array) always clamps instead of producing NaN sizes.
+export const TEXT_SCALES = [1, 1.15, 1.3];
 // Title screen: rows depend on whether an unfinished game is saved.
 export function titleRows(hasSave) {
   const out = {}; let y = 740;

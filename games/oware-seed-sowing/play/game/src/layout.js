@@ -25,9 +25,17 @@ export const BTN = {
   menu: { x: 40, y: 1340, w: 190, h: 82 }, undo: { x: 265, y: 1340, w: 190, h: 82 }, hint: { x: 490, y: 1340, w: 190, h: 82 },
   next: { x: 200, y: 1340, w: 320, h: 82 }, share: { x: 200, y: 1340, w: 320, h: 82 },
   again: { x: 130, y: 1000, w: 460, h: 96 }, back: { x: 130, y: 1120, w: 460, h: 96 },
-  aboutBack: { x: 130, y: 1400, w: 460, h: 90 },
+  // About and Rules are both paginated reference pages: same Back/Next footer shape.
+  aboutBack: { x: 130, y: 1400, w: 220, h: 90 }, aboutNext: { x: 370, y: 1400, w: 220, h: 90 },
   rulesBack: { x: 130, y: 1400, w: 220, h: 90 }, rulesNext: { x: 370, y: 1400, w: 220, h: 90 },
+  // Text-size stepper for the About/Rules reference pages, flanking the panel's top title (the
+  // Back/Next pair lives at the BOTTOM of these screens, so the stepper goes up top instead).
+  textDec: { x: 50, y: 176, w: 96, h: 58 }, textInc: { x: 574, y: 176, w: 96, h: 58 },
 };
+// Text-size steps for the About/Rules reference pages. Index into this, never a raw float, so
+// "min"/"max" are exact and the stepper can cleanly disable at either end. Every page's content is
+// paced (about.js / content.js) to fit comfortably even at the top step.
+export const TEXT_SCALES = [1, 1.15, 1.3];
 const row = (y, h = 84) => ({ x: 70, y, w: 580, h });
 export function titleRows(hasSave) {
   let y = 735;

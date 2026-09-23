@@ -21,7 +21,11 @@ export function titleRows(hasSave) {
   const names = (hasSave ? ['resume'] : []).concat(['learn', 'play', 'two', 'daily']), out = {}, y0 = 880 - (hasSave ? 0 : 0);
   names.forEach((n, i) => { out[n] = mainRow(y0, i); });
   const y = y0 + names.length * 72 + 8, sm = (i, j) => ({ x: 90 + j * 278, y: y + i * 66, w: 262, h: 58 });
-  out.level = sm(0, 0); out.side = sm(0, 1); out.sound = sm(1, 0); out.calm = sm(1, 1); out.look = sm(2, 0); out.big = sm(2, 1);
+  out.level = sm(0, 0); out.side = sm(0, 1); out.sound = sm(1, 0); out.calm = sm(1, 1);
+  // Text size used to live here as a binary "Large text" toggle. It is now a 3-step stepper drawn
+  // directly on the About/How/Rules pages themselves (TEXT_SCALES/TEXT_STEP below), right where a
+  // player is actually reading, so this row's other button takes the whole row.
+  out.look = { x: 90, y: y + 2 * 66, w: 540, h: 58 };
   // Row 3 was About/How (2 columns); Rules is a new addition, so this one row becomes 3 even columns.
   // Every other row above keeps its exact 2-column position/size, unchanged.
   const bw3 = 540, gap3 = 16, third = (bw3 - gap3 * 2) / 3, sm3 = (j) => ({ x: 90 + j * (third + gap3), y: y + 3 * 66, w: third, h: 58 });
@@ -38,10 +42,19 @@ export const BTN = {
   menu: { x: 60, y: 1462, w: 190, h: 72 }, undo: { x: 265, y: 1462, w: 190, h: 72 }, hint: { x: 470, y: 1462, w: 190, h: 72 },
   again: { x: 140, y: 930, w: 440, h: 96 }, back: { x: 140, y: 1046, w: 440, h: 84 }, share: { x: 140, y: 1150, w: 440, h: 84 },
   next: { x: 275, y: 1462, w: 385, h: 72 }, show: { x: 470, y: 1462, w: 190, h: 72 },
-  pageBack: { x: 140, y: 1400, w: 440, h: 84 },
-  // Rules is the only paginated reference page in this game, so it gets its own Back | Next pair
-  // in the same row pageBack occupies elsewhere - About/How keep using pageBack exactly as before.
-  rulesBack: { x: 140, y: 1400, w: 212, h: 84 }, rulesNext: { x: 368, y: 1400, w: 212, h: 84 },
+  // About, How to play and Rules are all now paginated reference screens (see TEXT_SCALES below -
+  // bigger text meant more of them needed real Back/Next pagination, not just a single Back), and
+  // share this one Back | Next pair.
+  refBack: { x: 140, y: 1400, w: 212, h: 84 }, refNext: { x: 368, y: 1400, w: 212, h: 84 },
+};
+// Text-size steps for the About/How/Rules reference pages. An *index* array, never a raw float, so
+// "min"/"max" are exact and the stepper can cleanly disable at either end.
+export const TEXT_SCALES = [1, 1.15, 1.3];
+// The stepper's home: a small header row at the TOP of those pages' panel. Back/Next on these
+// pages live at the BOTTOM (see BTN.refBack/refNext above), so the top is naturally clear of them.
+export const TEXT_STEP = {
+  dec: { x: 360 - 120, y: 148, w: 110, h: 56 },
+  inc: { x: 360 + 10, y: 148, w: 110, h: 56 },
 };
 // Which board point a tap means: the nearest point (generous radius, the men are big).
 export function pointNear(x, y, max = 52) {

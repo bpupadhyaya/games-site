@@ -4,7 +4,7 @@
 // How a move is made: PLACING = TAP an empty point. SLIDING = TAP a cow (its legal points glow) then TAP a point, or DRAG the cow
 // onto a point. A mill lets you shoot: the other side's unprotected cows glow red and you TAP one. An illegal move visibly TRIES
 // (the cow travels toward the point, shudders, comes back) and a message says why.
-import { W, H, BTN, titleRows, inRect, pointNear, pointAt } from './layout.js';
+import { W, H, BTN, TEXT_STEPPER, TEXT_SCALES, titleRows, inRect, pointNear, pointAt } from './layout.js';
 import { RULES as R, POINT_UV } from './morabaraba.js';
 import { LEVELS, createThinker, chooseMove } from './engine.js';
 import { LESSONS, boardOf } from './lessons.js';
@@ -25,17 +25,23 @@ export function createGame(env) {
     threats: [], lessonGlow: null,
     stats: { games: 0, wins: 0, badges: {} }, saved: null, learned: false, demoGames: 0,
     lesson: null, pz: null, daily: { day: config.day ?? 0, solvedDay: -1, streak: 0 }, info: { which: 'howto', page: 0 }, dev: config.dev === true,
+    textScaleIdx: 0, // index into TEXT_SCALES; the How to play/About/Rules reference pages' own text size
   };
   let thinker = null, hintThinker = null, puzzleToday = null, pendingReply = null;
   const maker = createPuzzleMaker(state.daily.day);
 
-  storage.get('prefs', null).then((v) => { if (v) { state.level = v.level ?? 1; state.marks = v.marks ?? true; state.sound = v.sound ?? true; state.calm = v.calm ?? false; state.big = v.big ?? false; audio.setMuted?.(!state.sound); } });
+  storage.get('prefs', null).then((v) => {
+    if (v) { state.level = v.level ?? 1; state.marks = v.marks ?? true; state.sound = v.sound ?? true; state.calm = v.calm ?? false; state.big = v.big ?? false; state.textScaleIdx = v.textScaleIdx ?? 0; audio.setMuted?.(!state.sound); }
+    // Clamp: a saved index from a build with a longer/shorter TEXT_SCALES array must never survive
+    // and produce NaN font sizes on the How to play/About/Rules pages.
+    state.textScaleIdx = Math.min(Math.max(state.textScaleIdx ?? 0, 0), TEXT_SCALES.length - 1);
+  });
   storage.get('stats', null).then((v) => { if (v) state.stats = { ...state.stats, ...v, badges: { ...(v.badges || {}) } }; });
   storage.get('learned', false).then((v) => { state.learned = state.learned || !!v; });
   storage.get('daily', null).then((v) => { if (v) { state.daily.solvedDay = v.solvedDay ?? -1; state.daily.streak = v.streak ?? 0; } });
   storage.get('demoGames', 0).then((v) => { state.demoGames = Math.max(state.demoGames, v); });
   storage.get('save', null).then((v) => { if (v && v.game && !v.game.winner && state.scene === 'title') state.saved = v; });
-  const savePrefs = () => storage.set('prefs', { level: state.level, marks: state.marks, sound: state.sound, calm: state.calm, big: state.big });
+  const savePrefs = () => storage.set('prefs', { level: state.level, marks: state.marks, sound: state.sound, calm: state.calm, big: state.big, textScaleIdx: state.textScaleIdx });
   const saveGame = () => { if (state.scene === 'play' && !state.game.winner && !state.take) { state.saved = { game: R.clone(state.game), human: state.human, two: state.two, level: state.level, hintsLeft: state.hintsLeft }; storage.set('save', state.saved); } };
   const clearSave = () => { state.saved = null; storage.remove('save'); };
 
@@ -248,6 +254,8 @@ export function createGame(env) {
     if (inRect(BTN.menu, tap.x, tap.y)) state.scene = 'title';
     else if (inRect({ x: 260, y: 1462, w: 200, h: 76 }, tap.x, tap.y) && state.info.page > 0) state.info.page -= 1;
     else if (inRect(BTN.nextPage, tap.x, tap.y) && state.info.page + 1 < pages.length) state.info.page += 1;
+    else if (inRect(TEXT_STEPPER.dec, tap.x, tap.y) && state.textScaleIdx > 0) { state.textScaleIdx--; savePrefs(); clack(); }
+    else if (inRect(TEXT_STEPPER.inc, tap.x, tap.y) && state.textScaleIdx < TEXT_SCALES.length - 1) { state.textScaleIdx++; savePrefs(); clack(); }
   }
 
   // shared by play, lesson and puzzle: the human's board input. Returns nothing; may start a move.

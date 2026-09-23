@@ -1,5 +1,5 @@
 // Everything drawn each frame. Reads `state` (game.js) and changes nothing. The ground, board and shell sprites are cached (art.js).
-import { W, H, PIT_R, PITCH, STORE_BOX, BTN, SET, HULL, posXY, titleRows } from './layout.js';
+import { W, H, PIT_R, PITCH, STORE_BOX, BTN, SET, HULL, TEXT_STEPPER, TEXT_SCALES, posXY, titleRows } from './layout.js';
 import { drawGround, drawBoard, drawSeed, slot, drawHousePit, drawStorePit, WOODS, SEEDSETS } from './art.js';
 import { legalMoves, STORE, SEQ, nextRound, clone } from './rules.js';
 import { LEVELS } from './engine.js';
@@ -235,19 +235,30 @@ export function render(ctx, state) {
     button(SET.back, 'Back', { primary: true, size: 32 });
   } else if (scene === 'about' || scene === 'how') {
     const P = scene === 'about' ? ABOUT : HOWTO;
+    // Text scale for these reference pages only (independent of the gameplay "Large text" setting,
+    // which also affects house/store numerals during play, not this reading screen). Always guarded:
+    // an out-of-range saved index (e.g. from a build with a shorter TEXT_SCALES array) falls back to 1.
+    const scale = TEXT_SCALES[state.textScaleIdx] ?? 1;
+    // Paginated one part per page, the same as Rules: at the top text-size step, all six parts
+    // never fit on one screen, and cramming them in defeats the point of bigger text.
+    const parts = P.parts, [h, body] = parts[state.page % parts.length];
     panel(36, 116, 648, 1250, 0.92);
-    text(P.title, 360, 206, 64, CREAM, FONT);
-    let y = 262;
-    for (const [h, body] of P.parts) {
-      text(h, 70, y, 28, GOLD, FONT, 700, 'left'); y += 32;
-      const n = wrap(body, 70, y, big ? 25 : 22, 580, '#fff3d6', big ? 32 : 28.5, 'left'); y += n * (big ? 32 : 28.5) + 20;
-    }
-    button(BTN.aboutBack, 'Back', { primary: true, size: 32 });
+    text(P.title, 360, 206, Math.round(64 * Math.min(scale, 1.15)), CREAM, FONT);
+    text(h, 70, 280, Math.round(34 * scale), GOLD, FONT, 700, 'left');
+    const bodySize = Math.round(28 * scale), lh = Math.round(38 * scale);
+    wrap(body, 70, 280 + Math.round(50 * scale), bodySize, 580, '#fff3d6', lh, 'left');
+    text(`Page ${(state.page % parts.length) + 1} of ${parts.length}`, 360, 1340, 20, 'rgba(251,232,191,0.6)', UI, 600);
+    button(BTN.aboutBack, 'Back', { size: 30 });
+    button(BTN.aboutNext, 'Next', { primary: true, size: 30 });
+    const atMin = state.textScaleIdx === 0, atMax = state.textScaleIdx === TEXT_SCALES.length - 1;
+    button(TEXT_STEPPER.dec, 'A−', { dim: atMin, size: 32 });
+    button(TEXT_STEPPER.inc, 'A+', { dim: atMax, size: 32 });
   } else if (scene === 'rules') {
     const pages = RULES, page = pages[state.page % pages.length];
+    const scale = TEXT_SCALES[state.textScaleIdx] ?? 1;
     panel(36, 116, 648, 1250, 0.92);
-    text('Rules', 360, 206, 64, CREAM, FONT);
-    text(page.title, 360, 258, 32, GOLD, FONT, 700);
+    text('Rules', 360, 206, Math.round(64 * Math.min(scale, 1.15)), CREAM, FONT);
+    text(page.title, 360, 258, Math.round(32 * scale), GOLD, FONT, 700);
     let y = 300;
     // Illustrations reuse the board's own real pit/store/seed drawing functions (art.js) — never a
     // separate simplified icon, so the picture on this page always matches what is on the board.
@@ -272,11 +283,14 @@ export function render(ctx, state) {
       text('Opposite: captured', xb, cy + 68, 18, 'rgba(251,232,191,0.75)', UI, 600);
       y += 190;
     }
-    const bodySize = big ? 24 : 22, lh = bodySize * 1.32;
+    const bodySize = Math.round(28 * scale), lh = Math.round(bodySize * 1.4);
     for (const para of page.lines) { const n = wrap(para, 70, y, bodySize, 580, '#fff3d6', lh, 'left'); y += n * lh + 18; }
     text(`Page ${(state.page % pages.length) + 1} of ${pages.length}`, 360, 1340, 20, 'rgba(251,232,191,0.6)', UI, 600);
     button(BTN.rulesBack, 'Back', { size: 30 });
     button(BTN.rulesNext, 'Next', { primary: true, size: 30 });
+    const atMin = state.textScaleIdx === 0, atMax = state.textScaleIdx === TEXT_SCALES.length - 1;
+    button(TEXT_STEPPER.dec, 'A−', { dim: atMin, size: 32 });
+    button(TEXT_STEPPER.inc, 'A+', { dim: atMax, size: 32 });
   } else if (scene === 'round') {
     ctx.fillStyle = 'rgba(12,6,24,0.72)'; ctx.fillRect(0, 0, W, H);
     const rr = g.roundResult, mine = rr.a, theirs = rr.b, won = mine > theirs ? 0 : mine < theirs ? 1 : -1;

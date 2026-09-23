@@ -4,13 +4,13 @@
 // How a move is made: PLACING: TAP an empty point. SLIDING: TAP a man (it lifts, its legal points glow), then TAP a
 // glowing point; a man can also be DRAGGED there. A move that makes a mill first shows the man arriving, then the
 // enemy men that may be taken glow red: TAP one. An illegal try shows a red ring and says why.
-import { W, H, BTN, LOOK, titleRows, inRect, pointNear, pointAt, neighbourToward } from './layout.js';
+import { W, H, BTN, LOOK, titleRows, inRect, pointNear, pointAt, neighbourToward, TEXT_SCALES, TEXT_STEP } from './layout.js';
 import { newGame, clone, applyMove, tryMove, legalMoves, takeable, NONE, NAMES, mvFrom, mvTo, mvTake, bit, placing, flying, MILLS, formsMill, pop, mkMove, reasonNoMoves, inMills } from './rules.js';
 import { LEVELS, createThinker, createEngine, chooseMove, explain } from './engine.js';
 import { LESSONS } from './lessons.js';
 import { createPuzzleMaker, puzzleGame, forcingMoves, FALLBACK } from './puzzles.js';
 import { UNLOCKS, unlocked } from './unlocks.js';
-import { RULES } from './text.js';
+import { ABOUT, HOW, RULES } from './text.js';
 import { render } from './view.js';
 
 export const meta = { width: W, height: H };
@@ -21,25 +21,32 @@ export function createGame(env) {
   const { rng, storage, audio, monetization, config } = env;
   const state = {
     scene: 'title', t: 0, game: newGame(), human: 0, humanSide: 0, two: false, level: 1, marks: true, sound: true, calm: false,
-    look: { wood: 'oak', set: 'boxwood', big: false },
+    look: { wood: 'oak', set: 'boxwood' },
     cursor: 9, kb: false, sel: -1, pend: null, anim: null, msg: null, think: 0, thinking: false, undo: [], hintsLeft: HINTS_PER_GAME,
     hint: null, drag: null, show: null, flash: null, bad: null, lastTo: -1,
     demo: { g: newGame(), timer: 0, since: 1, last: -1, pause: 0 },
     stats: { games: 0, wins: 0, badges: {} }, saved: null, learned: false, demoGames: 0,
     lesson: null, pz: null, daily: { day: config.day ?? 0, solvedDay: -1, streak: 0 }, dev: config.dev === true,
-    rulesPage: 0,
+    // Text-size index for the About/How/Rules reference pages (also feeds the HUD's own "big text"
+    // reading, so setting it once helps everywhere text is read, not just those three pages).
+    // `page` is the current page within whichever of those three is on screen.
+    textScaleIdx: 0, page: 0,
   };
   let thinker = null, hintThinker = null, puzzleToday = null, engine = null;
   const eng = () => engine ?? (engine = createEngine(17));
   const maker = createPuzzleMaker(state.daily.day);
 
-  storage.get('prefs', null).then((v) => { if (v) { state.level = v.level ?? 1; state.humanSide = v.side ?? 0; state.marks = v.marks ?? true; state.sound = v.sound ?? true; state.calm = v.calm ?? false; state.look = { ...state.look, ...(v.look || {}) }; audio.setMuted?.(!state.sound); } });
+  storage.get('prefs', null).then((v) => { if (v) { state.level = v.level ?? 1; state.humanSide = v.side ?? 0; state.marks = v.marks ?? true; state.sound = v.sound ?? true; state.calm = v.calm ?? false; state.look = { ...state.look, ...(v.look || {}) };
+    // Clamped + guarded: a stale index from a build with a longer/shorter TEXT_SCALES array must
+    // never produce a NaN font size (SCALES[idx] ?? 1 in view.js is the other half of this guard).
+    state.textScaleIdx = Math.min(Math.max(v.textScaleIdx ?? 0, 0), TEXT_SCALES.length - 1);
+    audio.setMuted?.(!state.sound); } });
   storage.get('stats', null).then((v) => { if (v) state.stats = { ...state.stats, ...v, badges: { ...(v.badges || {}) } }; });
   storage.get('learned', false).then((v) => { state.learned = state.learned || !!v; });
   storage.get('daily', null).then((v) => { if (v) { state.daily.solvedDay = v.solvedDay ?? -1; state.daily.streak = v.streak ?? 0; } });
   storage.get('demoGames', 0).then((v) => { state.demoGames = Math.max(state.demoGames, v); });
   storage.get('save', null).then((v) => { if (v && v.game && v.game.winner === null && state.scene === 'title') state.saved = v; });
-  const savePrefs = () => storage.set('prefs', { level: state.level, side: state.humanSide, marks: state.marks, sound: state.sound, calm: state.calm, look: state.look });
+  const savePrefs = () => storage.set('prefs', { level: state.level, side: state.humanSide, marks: state.marks, sound: state.sound, calm: state.calm, look: state.look, textScaleIdx: state.textScaleIdx });
   const saveGame = () => { if (state.scene === 'play' && state.game.winner === null && !state.pend) { state.saved = { game: clone(state.game), human: state.human, two: state.two, level: state.level, hintsLeft: state.hintsLeft }; storage.set('save', state.saved); } };
   const clearSave = () => { state.saved = null; storage.remove('save'); };
 
@@ -172,18 +179,24 @@ export function createGame(env) {
     else if (hit(R.side)) { state.humanSide = 1 - state.humanSide; savePrefs(); clack(); }
     else if (hit(R.sound)) { state.sound = !state.sound; audio.setMuted?.(!state.sound); savePrefs(); clack(); }
     else if (hit(R.calm)) { state.calm = !state.calm; savePrefs(); clack(); }
-    else if (hit(R.big)) { state.look.big = !state.look.big; savePrefs(); clack(); }
     else if (hit(R.look)) state.scene = 'look';
-    else if (hit(R.about)) state.scene = 'about';
-    else if (hit(R.how)) state.scene = 'how';
-    else if (hit(R.rules)) { state.scene = 'rules'; state.rulesPage = 0; }
+    else if (hit(R.about)) { state.scene = 'about'; state.page = 0; }
+    else if (hit(R.how)) { state.scene = 'how'; state.page = 0; }
+    else if (hit(R.rules)) { state.scene = 'rules'; state.page = 0; }
   }
 
-  // ---- rules (a small paginated reference; About/How are each one static page instead) -----------
-  function updateRules(tap) {
+  // ---- text-size stepper, shared by the About/How/Rules reference pages ---------------------------
+  function tapTextStep(tap) {
+    if (inRect(TEXT_STEP.dec, tap.x, tap.y)) { if (state.textScaleIdx > 0) { state.textScaleIdx -= 1; savePrefs(); clack(); } return true; }
+    if (inRect(TEXT_STEP.inc, tap.x, tap.y)) { if (state.textScaleIdx < TEXT_SCALES.length - 1) { state.textScaleIdx += 1; savePrefs(); clack(); } return true; }
+    return false;
+  }
+  // ---- About / How / Rules: one shared paginated reference screen (see view.js's drawRefPage()) ---
+  function updateRefPage(list, tap) {
     if (!tap) return;
-    if (inRect(BTN.rulesBack, tap.x, tap.y)) state.scene = 'title';
-    else if (inRect(BTN.rulesNext, tap.x, tap.y)) state.rulesPage = (state.rulesPage + 1) % RULES.length;
+    if (tapTextStep(tap)) return;
+    if (inRect(BTN.refBack, tap.x, tap.y)) state.scene = 'title';
+    else if (inRect(BTN.refNext, tap.x, tap.y)) state.page = (state.page + 1) % list.length;
   }
 
   // ---- shared: a human tap on the board in play / lesson / puzzle ---------------------------------------
@@ -304,10 +317,9 @@ export function createGame(env) {
     if (sc === 'title') { if (k.has('Enter') || k.has('Space')) { const R = titleRows(!!state.saved); const r = R.resume ?? R.play; return { x: r.x + 5, y: r.y + 5 }; } return null; }
     if (sc === 'over') { if (k.has('Enter') || k.has('Space')) return { x: BTN.again.x + 5, y: BTN.again.y + 5 }; if (k.has('Escape')) return { x: BTN.back.x + 5, y: BTN.back.y + 5 }; return null; }
     if (sc === 'look') { if (k.has('Escape')) return { x: LOOK.back.x + 5, y: LOOK.back.y + 5 }; return null; }
-    if (sc === 'about' || sc === 'how') { if (k.has('Escape') || k.has('Enter')) return { x: BTN.pageBack.x + 5, y: BTN.pageBack.y + 5 }; return null; }
-    if (sc === 'rules') {
-      if (k.has('Escape')) return { x: BTN.rulesBack.x + 5, y: BTN.rulesBack.y + 5 };
-      if (k.has('Enter') || k.has('Space')) return { x: BTN.rulesNext.x + 5, y: BTN.rulesNext.y + 5 };
+    if (sc === 'about' || sc === 'how' || sc === 'rules') {
+      if (k.has('Escape')) return { x: BTN.refBack.x + 5, y: BTN.refBack.y + 5 };
+      if (k.has('Enter') || k.has('Space')) return { x: BTN.refNext.x + 5, y: BTN.refNext.y + 5 };
       return null;
     }
     if (sc !== 'play' && sc !== 'lesson' && sc !== 'puzzle') return null;
@@ -348,8 +360,9 @@ export function createGame(env) {
       const sc = state.scene;
       if (sc === 'title') updateTitle(dt, tap);
       else if (sc === 'look') updateLook(tap);
-      else if (sc === 'about' || sc === 'how') { if (tap && inRect(BTN.pageBack, tap.x, tap.y)) state.scene = 'title'; }
-      else if (sc === 'rules') updateRules(tap);
+      else if (sc === 'about') updateRefPage(ABOUT, tap);
+      else if (sc === 'how') updateRefPage(HOW, tap);
+      else if (sc === 'rules') updateRefPage(RULES, tap);
       else if (sc === 'demo-limit') { if (tap && inRect({ x: 140, y: 880, w: 440, h: 76 }, tap.x, tap.y)) state.scene = 'title'; }
       else if (sc === 'play') updatePlay(dt, p.pressed && state.drag && !dr ? (tap) : tap);
       else if (sc === 'lesson') updateLesson(dt, tap);

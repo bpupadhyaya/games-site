@@ -10,7 +10,8 @@ import { generatePuzzle } from './generator.js';
 import { crownsFromCells, computeConflicts, isSolved } from './rules.js';
 import {
   SCREEN, hitTestCell, HINT_BUTTON, UNDO_BUTTON, PLAY10_BUTTON, DAILY_BUTTON, COLOR_BUTTON,
-  TITLE_COLOR_BUTTON, TITLE_RULES_BUTTON, RULES_BACK_BUTTON, RULES_NEXT_BUTTON, inRect,
+  TITLE_COLOR_BUTTON, TITLE_RULES_BUTTON, RULES_BACK_BUTTON, RULES_NEXT_BUTTON,
+  RULES_TEXT_DEC_BUTTON, RULES_TEXT_INC_BUTTON, TEXT_SCALES, inRect,
 } from './layout.js';
 import { PALETTES } from './palettes.js';
 import { RULES } from './content.js';
@@ -54,6 +55,7 @@ export function createGame(env) {
     lockMessageTimer: 0,
     hintPending: false,
     palette: 0,
+    textScaleIdx: 0, // index into TEXT_SCALES; the Rules reference page's text size
     demo: Boolean(config?.demo),
     demoSolves: 0,
     demoLimitReached: false,
@@ -89,6 +91,11 @@ export function createGame(env) {
 
   storage.get('totalSolved', 0).then((value) => {
     state.totalSolved = value;
+  });
+  // Clamped on load: a saved index from a build with a shorter/longer TEXT_SCALES array must never
+  // produce an out-of-range lookup (and NaN font sizes) on this one.
+  storage.get('textScaleIdx', 0).then((value) => {
+    state.textScaleIdx = Math.min(Math.max(Number(value) || 0, 0), TEXT_SCALES.length - 1);
   });
   // Persisted (not just in-memory) so reloading the page can't be used to reset the free
   // preview's puzzle count — see docs/GAME-CONTRACT.md's "Web preview" section.
@@ -268,7 +275,19 @@ export function createGame(env) {
       }
 
       if (state.scene === 'rules') {
-        if (inRect(x, y, RULES_NEXT_BUTTON)) {
+        if (inRect(x, y, RULES_TEXT_INC_BUTTON)) {
+          if (state.textScaleIdx < TEXT_SCALES.length - 1) {
+            pressed('textInc');
+            state.textScaleIdx++;
+            storage.set('textScaleIdx', state.textScaleIdx);
+          }
+        } else if (inRect(x, y, RULES_TEXT_DEC_BUTTON)) {
+          if (state.textScaleIdx > 0) {
+            pressed('textDec');
+            state.textScaleIdx--;
+            storage.set('textScaleIdx', state.textScaleIdx);
+          }
+        } else if (inRect(x, y, RULES_NEXT_BUTTON)) {
           pressed('rulesNext');
           state.page = (state.page + 1) % RULES.length;
         } else if (inRect(x, y, RULES_BACK_BUTTON)) {

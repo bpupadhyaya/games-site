@@ -52,6 +52,15 @@ export const BTN = {
 // Rules reference: paginated, reached from the title screen only. Back/Next share the bottom-bar
 // row/height the play screen's own button bar already uses.
 export const RULES_NAV = { back: { x: 90, y: 1462, w: 262, h: 72 }, next: { x: 368, y: 1462, w: 262, h: 72 } };
+// The text-size stepper lives in its own row at the very top of the Rules screen - well clear of
+// the Back/Next page-turn buttons at the bottom - so it never fights either for space or attention.
+export const RULES_HEADER = { textDec: { x: 30, y: 34, w: 130, h: 66 }, textInc: { x: W - 160, y: 34, w: 130, h: 66 } };
+// The reader-card panel that frames the Rules body text, between the header row and the bottom nav.
+export const RULES_PANEL = { x: 24, y: 118, w: W - 48, h: 1320 };
+// Text-size steps for the Rules reference page. An *index* into this, never a raw float, so the
+// stepper can cleanly disable at either end. Every page's content is paced (content.js) to fit
+// comfortably even at the top step.
+export const TEXT_SCALES = [1, 1.15, 1.3];
 export const inRect = (r, x, y) => !!r && x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
 // The hunt clock: one small token per hound move the hounds have, in one centred row.
 export const CLOCK_Y = 312;

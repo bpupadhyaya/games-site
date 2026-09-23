@@ -26,11 +26,19 @@ export function cardAt(n, sel, x, y) {
 }
 export const inRect = (r, x, y) => !!r && x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
 
-export const ABOUT_BACK = { x: 130, y: 1470, w: 460, h: 78 };
-// Rules is a new paginated reference page (Back/Next/"Page N of M"), the same convention as About
-// uses a single static page. Two half-width buttons side by side, same row as ABOUT_BACK.
+// About and Rules are both paginated reference pages (Back/Next/"Page N of M"), one concept per
+// page. Two half-width buttons side by side, same row for both screens.
+export const ABOUT_BACK = { x: 90, y: 1470, w: 260, h: 78 };
+export const ABOUT_NEXT = { x: 370, y: 1470, w: 260, h: 78 };
 export const RULES_BACK = { x: 90, y: 1470, w: 260, h: 78 };
 export const RULES_NEXT = { x: 370, y: 1470, w: 260, h: 78 };
+// Text-size stepper for the About/Rules reference pages, tucked into the otherwise-empty top
+// corners of the screen (this game's Back/Next live at the bottom, not the top, so there is
+// nothing up here to crowd). An index into TEXT_SCALES, never a raw float, so "min"/"max" are
+// exact and the stepper can cleanly disable at either end.
+export const TEXT_DEC = { x: 30, y: 36, w: 118, h: 62 };
+export const TEXT_INC = { x: W - 30 - 118, y: 36, w: 118, h: 62 };
+export const TEXT_SCALES = [1, 1.15, 1.3];
 export const BTN = {
   leave: { x: 40, y: 1478, w: 190, h: 70 }, undo: { x: 265, y: 1478, w: 190, h: 70 }, hint: { x: 490, y: 1478, w: 190, h: 70 },
   next: { x: 130, y: 900, w: 460, h: 88 }, back: { x: 130, y: 1004, w: 460, h: 80 }, lesson: { x: 130, y: 1040, w: 460, h: 84 },

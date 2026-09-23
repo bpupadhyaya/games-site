@@ -20,7 +20,16 @@ export const BUTTONS = {
   // Rules reference page navigation - same geometry as the tally screen's Share/Home row.
   rulesBack: { x: 90, y: 1156, w: 250, h: 76 },
   rulesNext: { x: 380, y: 1156, w: 250, h: 76 },
+  // Text-size stepper for the Rules reference page: top corners, clear of the reader card below
+  // (see TEXT_SCALES) and clear of the Back/Next row at the bottom.
+  textDec: { x: 24, y: 14, w: 110, h: 64 },
+  textInc: { x: W - 134, y: 14, w: 110, h: 64 },
 };
+
+// Text-size steps for the Rules reference page. Index into this, never a raw float, so "min"/
+// "max" are exact and the stepper can cleanly disable at either end. Every Rules page is paced
+// (content.js) to fit comfortably even at the top step.
+export const TEXT_SCALES = [1, 1.15, 1.3];
 
 // Tally screen: one tappable chip per sibling game (2 x 2 grid).
 export const chipRect = (i) => ({ x: 90 + (i % 2) * 280, y: 892 + Math.floor(i / 2) * 72, w: 260, h: 60 });
@@ -735,80 +744,119 @@ function wrapCentered(ctx, text, y, font, color, maxW = W - 100, lh = 32) {
   return ly + lh;
 }
 
+// The Rules reference page: a single framed "reader card" holds the header, page title, any
+// illustration and the body text, so the page reads as a designed reference sheet rather than
+// text floating loose on the backdrop. The text-size stepper (A-/A+, top corners, TEXT_SCALES)
+// lets anyone go up to two steps larger - some players wear glasses, some don't.
 function drawRules(ctx, state) {
   const scheme = SCHEMES[state.scheme] ?? SCHEMES[0];
   drawSky(ctx, scheme, state.time);
   drawHills(ctx, scheme);
   drawField(ctx, 'wheat', state.time, 0);
-  ctx.fillStyle = 'rgba(8,10,18,0.45)';
+  ctx.fillStyle = 'rgba(8,10,18,0.5)';
   ctx.fillRect(0, 0, W, H);
-  const page = RULES[state.rulesPage % RULES.length];
-  centered(ctx, 'Rules', 82, '900 52px system-ui, sans-serif', '#fff6dc');
-  centered(ctx, page.title, 138, '800 32px system-ui, sans-serif', '#ffd75a');
 
-  let y = 190;
-  if (page.bird) {
-    const def = BIRDS[page.bird];
-    drawBird(ctx, { type: page.bird, r: def.r, x: W / 2, y: 270, phase: 'perched', flap: 0, facing: 1, id: 0 }, state.time);
-    y = 340;
-  } else if (page.demo === 'aim') {
-    // The real slingshot, drawn at its natural in-game position (bottom of screen), pulled back -
-    // so the text above has the whole page and the art below matches exactly what play looks like.
-    const pull = { x: 66, y: -96, len: 116 };
-    const dots = previewArc(pull, 0, 7);
-    dots.forEach((d, i) => {
-      ctx.fillStyle = `rgba(255,255,255,${0.9 - (i / dots.length) * 0.65})`;
-      ctx.beginPath();
-      ctx.arc(d.x, d.y, 6 - (i / dots.length) * 3, 0, Math.PI * 2);
-      ctx.fill();
-    });
-    drawSlingshot(ctx, { stars: 0, snap: 0, stonesLeft: 1, aim: { pull } });
-  } else if (page.demo === 'combo') {
-    const labels = ['+10', '+15  x1.5', '+20  x2'];
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    labels.forEach((l, i) => {
-      const x = W / 2 - 180 + i * 180;
-      drawStone(ctx, x, 250, 0);
-      ctx.font = '800 22px system-ui, sans-serif';
-      ctx.fillStyle = i === 2 ? '#ffd75a' : '#fff';
-      ctx.fillText(l, x, 300);
-    });
-    y = 340;
-  } else if (page.demo === 'wind') {
-    const cx = W / 2, cyy = 260, len = 70;
-    ctx.strokeStyle = '#bfe3ff';
-    ctx.fillStyle = '#bfe3ff';
-    ctx.lineWidth = 6;
-    ctx.beginPath();
-    ctx.moveTo(cx - len / 2, cyy);
-    ctx.lineTo(cx + len / 2, cyy);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(cx + len / 2 + 16, cyy);
-    ctx.lineTo(cx + len / 2, cyy - 16);
-    ctx.lineTo(cx + len / 2, cyy + 16);
-    ctx.closePath();
-    ctx.fill();
-    y = 320;
-  } else if (page.demo === 'upgrades') {
-    const names = ['River pebble', 'Clay ball', 'River glass'];
-    names.forEach((n, i) => {
-      const x = W / 2 - 180 + i * 180;
-      drawStone(ctx, x, 250, i);
-      ctx.font = '600 18px system-ui, sans-serif';
-      ctx.fillStyle = 'rgba(255,255,255,0.85)';
+  const scale = TEXT_SCALES[state.textScaleIdx] ?? 1;
+  const page = RULES[state.rulesPage % RULES.length];
+
+  const card = { x: 30, y: 96, w: W - 60, h: 1008 };
+  roundRect(ctx, card.x, card.y, card.w, card.h, 30);
+  const cardFill = ctx.createLinearGradient(0, card.y, 0, card.y + card.h);
+  cardFill.addColorStop(0, 'rgba(14,18,32,0.6)');
+  cardFill.addColorStop(1, 'rgba(6,8,16,0.76)');
+  ctx.fillStyle = cardFill;
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(255,246,220,0.3)';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  roundRect(ctx, card.x + 6, card.y + 6, card.w - 12, card.h - 12, 24);
+  ctx.strokeStyle = 'rgba(255,246,220,0.12)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  centered(ctx, 'Rules', card.y + 58, `900 ${Math.round(46 * Math.min(scale, 1.15))}px system-ui, sans-serif`, '#fff6dc');
+  ctx.strokeStyle = 'rgba(255,246,220,0.28)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(card.x + 60, card.y + 94);
+  ctx.lineTo(card.x + card.w - 60, card.y + 94);
+  ctx.stroke();
+  centered(ctx, page.title, card.y + 150, `800 ${Math.round(32 * scale)}px system-ui, sans-serif`, '#ffd75a');
+
+  let y = card.y + 200;
+  if (page.bird || page.demo) {
+    // Every illustration reserves the same 220px block right under the page title, so the card
+    // reads consistently whether the page shows a bird, a demo, or (below) picks up straight away.
+    const boxTop = card.y + 190, boxH = 220;
+    if (page.bird) {
+      const def = BIRDS[page.bird];
+      drawBird(ctx, { type: page.bird, r: def.r, x: W / 2, y: boxTop + 110, phase: 'perched', flap: 0, facing: 1, id: 0 }, state.time);
+    } else if (page.demo === 'aim') {
+      // The real slingshot illustration, pulled up (via translate) and clipped to this block so it
+      // reads as a framed window onto the actual in-game view instead of overflowing the card -
+      // the sling's own art is anchored to the real bottom-of-screen SLING position.
+      ctx.save();
+      roundRect(ctx, card.x + 10, boxTop, card.w - 20, boxH, 18);
+      ctx.clip();
+      ctx.translate(0, boxTop + 15 - (SLING.y - 46));
+      const pull = { x: 66, y: -96, len: 116 };
+      const dots = previewArc(pull, 0, 7);
+      dots.forEach((d, i) => {
+        ctx.fillStyle = `rgba(255,255,255,${0.9 - (i / dots.length) * 0.65})`;
+        ctx.beginPath();
+        ctx.arc(d.x, d.y, 6 - (i / dots.length) * 3, 0, Math.PI * 2);
+        ctx.fill();
+      });
+      drawSlingshot(ctx, { stars: 0, snap: 0, stonesLeft: 1, aim: { pull } });
+      ctx.restore();
+    } else if (page.demo === 'combo') {
+      const labels = ['+10', '+15  x1.5', '+20  x2'];
       ctx.textAlign = 'center';
-      ctx.fillText(n, x, 290);
-    });
-    y = 330;
+      ctx.textBaseline = 'middle';
+      labels.forEach((l, i) => {
+        const x = W / 2 - 180 + i * 180;
+        drawStone(ctx, x, boxTop + 70, 0);
+        ctx.font = `800 ${Math.round(22 * scale)}px system-ui, sans-serif`;
+        ctx.fillStyle = i === 2 ? '#ffd75a' : '#fff';
+        ctx.fillText(l, x, boxTop + 120);
+      });
+    } else if (page.demo === 'wind') {
+      const cx = W / 2, cyy = boxTop + 80, len = 70;
+      ctx.strokeStyle = '#bfe3ff';
+      ctx.fillStyle = '#bfe3ff';
+      ctx.lineWidth = 6;
+      ctx.beginPath();
+      ctx.moveTo(cx - len / 2, cyy);
+      ctx.lineTo(cx + len / 2, cyy);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(cx + len / 2 + 16, cyy);
+      ctx.lineTo(cx + len / 2, cyy - 16);
+      ctx.lineTo(cx + len / 2, cyy + 16);
+      ctx.closePath();
+      ctx.fill();
+    } else if (page.demo === 'upgrades') {
+      const names = ['River pebble', 'Clay ball', 'River glass'];
+      names.forEach((n, i) => {
+        const x = W / 2 - 180 + i * 180;
+        drawStone(ctx, x, boxTop + 70, i);
+        ctx.font = `600 ${Math.round(18 * scale)}px system-ui, sans-serif`;
+        ctx.fillStyle = 'rgba(255,255,255,0.85)';
+        ctx.textAlign = 'center';
+        ctx.fillText(n, x, boxTop + 110);
+      });
+    }
+    y = boxTop + boxH + 26;
   }
 
-  for (const line of page.lines) y = wrapCentered(ctx, line, y, '500 24px system-ui, sans-serif', 'rgba(255,255,255,0.94)', W - 90, 32) + 8;
+  const fontPx = Math.round(29 * scale), lh = Math.round(fontPx * 1.42), gap = Math.round(10 * scale);
+  for (const line of page.lines) y = wrapCentered(ctx, line, y, `500 ${fontPx}px system-ui, sans-serif`, 'rgba(255,255,255,0.94)', card.w - 90, lh) + gap;
 
   centered(ctx, `Page ${(state.rulesPage % RULES.length) + 1} of ${RULES.length}`, 1120, '600 22px system-ui, sans-serif', 'rgba(255,255,255,0.65)');
   button(ctx, BUTTONS.rulesBack, 'Back', 'ghost');
   button(ctx, BUTTONS.rulesNext, 'Next', 'primary');
+  button(ctx, BUTTONS.textDec, 'A−', 'ghost', state.textScaleIdx === 0);
+  button(ctx, BUTTONS.textInc, 'A+', 'ghost', state.textScaleIdx === TEXT_SCALES.length - 1);
 }
 
 export function drawGame(ctx, state, manifest, day) {

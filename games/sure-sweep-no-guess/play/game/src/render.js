@@ -1,6 +1,6 @@
 // Everything that is drawn each frame. Reads `state` (see game.js) and changes nothing.
 // All motion is a function of state.pulse (the fixed-step clock) and the start times in state.fx.
-import { W, H, COLS, ROWS, CELL, FRAME, BOARD_X, BOARD_Y, BOARD_W, BOARD_H, HUD, MODE_SWITCH, HINT_BTN, COLOR_BTN, NEW_BTN, RESULT_CARD, SHIELD_BTN, AGAIN_BTN, AGAIN_BTN_WIDE, PLAY_BTN, TITLE_COLOR_BTN, TITLE_RULES_BTN, HERO, RULES_BACK_BTN, RULES_NEXT_BTN } from './layout.js';
+import { W, H, COLS, ROWS, CELL, FRAME, BOARD_X, BOARD_Y, BOARD_W, BOARD_H, HUD, MODE_SWITCH, HINT_BTN, COLOR_BTN, NEW_BTN, RESULT_CARD, SHIELD_BTN, AGAIN_BTN, AGAIN_BTN_WIDE, PLAY_BTN, TITLE_COLOR_BTN, TITLE_RULES_BTN, HERO, RULES_BACK_BTN, RULES_NEXT_BTN, RULES_PANEL, TEXT_DEC_BTN, TEXT_INC_BTN, TEXT_SCALES } from './layout.js';
 import { palette, alpha, THEMES } from './themes.js';
 import { RULES } from './content.js';
 
@@ -935,7 +935,11 @@ const RULES_TEXT_TOP_NO_ART = 270;
 const RULES_TEXT_BOTTOM = 1215;
 const RULES_PAGE_LABEL_Y = 1246; // fixed distance from the nav row, never from the body text
 const RULES_TEXT_MAXW = W - 108;
-const RULES_BODY_SIZES = [28, 26, 24, 22, 20, 19, 18];
+// A real, comfortable base size (~29-30px on this 720-wide canvas) scaled by the reader's own
+// text-size step (TEXT_SCALES, see layout.js), with only a small fallback ladder below it as a
+// safety net for a rare tight page - the primary defence against overflow is content.js keeping
+// every page to one short concept, not shrinking the font to fit (see content.js's own note).
+const RULES_BODY_BASE = [30, 28, 26];
 
 function wrapRulesParagraph(ctx, str, maxW) {
   const words = str.split(' ');
@@ -954,9 +958,10 @@ function wrapRulesParagraph(ctx, str, maxW) {
 
 // Picks the largest body size (and matching line/paragraph spacing) whose wrapped paragraphs fit
 // the given pixel budget, so a page can never overflow into the nav row no matter how long it is.
-function layoutRulesBody(ctx, paragraphs, budget) {
+function layoutRulesBody(ctx, paragraphs, budget, scale) {
   let best = null;
-  for (const size of RULES_BODY_SIZES) {
+  const sizes = RULES_BODY_BASE.map((s) => Math.round(s * scale));
+  for (const size of sizes) {
     setFont(ctx, size, 500);
     const lh = Math.round(size * 1.32);
     const pgap = Math.round(size * 0.8);
@@ -1183,17 +1188,25 @@ function drawRulesPage(ctx, state, pal) {
   const list = RULES;
   const i = ((state.page % list.length) + list.length) % list.length;
   const page = list[i];
+  // Guarded lookup: a stale saved index from a build with a shorter/longer TEXT_SCALES array must
+  // never produce a NaN or out-of-range font size.
+  const scale = TEXT_SCALES[state.textScaleIdx] ?? 1;
+
+  // The reader card: one framed panel holding the whole page, so it reads as a designed reference
+  // sheet rather than text floating loose on the backdrop. Reuses this game's own glassPanel() -
+  // the same panel style as the HUD and result cards - never a new panel style.
+  glassPanel(ctx, RULES_PANEL, 34);
 
   ctx.save();
   ctx.textAlign = 'center';
   text(ctx, 'SURE SWEEP - RULES', W / 2, 140, 22, pal.inkFaint, 700);
-  const titleSize = fitRulesTitle(ctx, page.title, W - 80, 44, 26);
+  const titleSize = fitRulesTitle(ctx, page.title, W - 80, Math.round(44 * Math.min(scale, 1.15)), 26);
   text(ctx, page.title, W / 2, 202, titleSize, pal.ink, 800);
 
   drawRulesArt(ctx, page.art, pal, t);
 
   const textTop = !page.art ? RULES_TEXT_TOP_NO_ART : page.art === 'hero' ? RULES_TEXT_TOP_HERO : RULES_TEXT_TOP_WITH_ART;
-  const { size, lh, pgap, blocks } = layoutRulesBody(ctx, page.lines, RULES_TEXT_BOTTOM - textTop);
+  const { size, lh, pgap, blocks } = layoutRulesBody(ctx, page.lines, RULES_TEXT_BOTTOM - textTop, scale);
   setFont(ctx, size, 500);
   ctx.fillStyle = pal.inkSoft;
   ctx.textAlign = 'center';
@@ -1211,6 +1224,18 @@ function drawRulesPage(ctx, state, pal) {
 
   drawButton(ctx, RULES_BACK_BTN, 'Back to title', { pal, size: 28, pressTau: state.fx.btn === 'rulesBack' ? t - state.fx.btnAt : -1 });
   drawButton(ctx, RULES_NEXT_BTN, 'Next', { pal, size: 30, pressTau: state.fx.btn === 'rulesNext' ? t - state.fx.btnAt : -1 });
+
+  // Text-size stepper ("A-"/"A+"): a header row above the reader card - the top strip this page
+  // never used before - so anyone finds it right where they are reading, not buried in a settings
+  // screen. Dimmed (not just disabled) at either end.
+  ctx.save();
+  ctx.globalAlpha = state.textScaleIdx === 0 ? 0.4 : 1;
+  drawButton(ctx, TEXT_DEC_BTN, 'A−', { pal, size: 30, pressTau: state.fx.btn === 'textDec' ? t - state.fx.btnAt : -1 });
+  ctx.restore();
+  ctx.save();
+  ctx.globalAlpha = state.textScaleIdx === TEXT_SCALES.length - 1 ? 0.4 : 1;
+  drawButton(ctx, TEXT_INC_BTN, 'A+', { pal, size: 30, pressTau: state.fx.btn === 'textInc' ? t - state.fx.btnAt : -1 });
+  ctx.restore();
 }
 
 export function draw(ctx, state, extra) {

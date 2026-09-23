@@ -2,8 +2,8 @@
 // drawing in view.js. This is the only file that changes `state`.
 //
 // Controls (taught in the game): TAP a card to raise it, TAP it again to play it, or DRAG it up. TAP a big button to bid.
-import { W, H as HH, CW, HAND_Y, LIFT, BTN, TRICK, SEAT, DECK, handSlot, inRect, titleRows, bidButtons, bid2Buttons, ACT, OVERLAY_BTN, BACK, NEXT } from './layout.js';
-import { RULES } from './rulesContent.js';
+import { W, H as HH, CW, HAND_Y, LIFT, BTN, TRICK, SEAT, DECK, handSlot, inRect, titleRows, bidButtons, bid2Buttons, ACT, OVERLAY_BTN, BACK, NEXT, TEXT_SCALES, TEXT_DEC, TEXT_INC } from './layout.js';
+import { RULES, ABOUT, HOWTO } from './rulesContent.js';
 import { newHand, bidOptions, applyBid, applyDouble, declOptions, declare, playCard, legalCards, matchWinner, whyNot, cardShort, cardName, suitOf, SUIT_NAMES, RUNG, teamOf, nextSeat, declValue, hasBaloot, TARGETS, legalFor, DECL } from './rules.js';
 import { LEVELS, createThinker, heuristicBid, bidReason } from './ai.js';
 import { LESSONS } from './lessons.js';
@@ -25,19 +25,20 @@ export function createGame(env) {
     stats: { played: 0, wins: 0, best: 0, handsWon: 0, hands: 0 }, saved: null, learned: {}, demoHands: 0,
     lesson: null, daily: { day: config.day ?? 0, solvedDay: -1, streak: 0, tries: 0, status: 'idle', puzzle: null, ready: false, made: 0 },
     undo: [], listScroll: 0, dev: config.dev === true, refuse: null, celebrate: 0, page: 0,
+    aboutPage: 0, howPage: 0, textScaleIdx: 0, // textScaleIdx indexes TEXT_SCALES for the About/Controls/Rules pages
   };
   if (config.dev) globalThis.__baloot = { state, start: () => startMatch(), lesson: (i) => startLesson(i), daily: () => startDaily() };   // tester hook (dev only)
   let thinker = null, thinkerKey = '', hintThinker = null, solver = null, maker = null, dailyPuzzle = null;
   const ui = state.ui;
 
   // ---- storage ---------------------------------------------------------------------------------------------
-  storage.get('prefs', null).then((v) => { if (v) { state.level = v.level ?? 2; state.targetIdx = v.targetIdx ?? 0; state.set = { ...state.set, ...(v.set || {}) }; audio.setMuted?.(!state.set.sound); } });
+  storage.get('prefs', null).then((v) => { if (v) { state.level = v.level ?? 2; state.targetIdx = v.targetIdx ?? 0; state.set = { ...state.set, ...(v.set || {}) }; audio.setMuted?.(!state.set.sound); state.textScaleIdx = Math.min(Math.max(v.textScaleIdx ?? 0, 0), TEXT_SCALES.length - 1); } });
   storage.get('stats', null).then((v) => { if (v) state.stats = { ...state.stats, ...v }; });
   storage.get('learned', {}).then((v) => { state.learned = { ...v, ...state.learned }; });
   storage.get('daily', null).then((v) => { if (v) { state.daily.solvedDay = v.solvedDay ?? -1; state.daily.streak = v.streak ?? 0; } });
   storage.get('demoHands', 0).then((v) => { state.demoHands = Math.max(state.demoHands, v); });
   storage.get('save', null).then((v) => { if (v && v.H && v.match && state.scene === 'title') state.saved = v; });
-  const savePrefs = () => storage.set('prefs', { level: state.level, targetIdx: state.targetIdx, set: state.set });
+  const savePrefs = () => storage.set('prefs', { level: state.level, targetIdx: state.targetIdx, set: state.set, textScaleIdx: state.textScaleIdx });
   const saveStats = () => { storage.set('stats', state.stats); storage.set('progress', { played: state.stats.played, wins: state.stats.wins }); };
   const saveGame = () => {
     if (state.mode !== 'match' || !state.H || state.scene !== 'play' || state.H.phase === 'done' || state.show) return;
@@ -349,12 +350,32 @@ export function createGame(env) {
     else if (hit(R.daily)) startDaily();
     else if (hit(R.level)) { if (tap.x > 360) { state.level = state.level % LEVELS.length + 1; } else { state.targetIdx = (state.targetIdx + 1) % TARGETS.length; } savePrefs(); tick(); }
     else if (hit(R.settings)) state.scene = 'settings';
-    else if (hit(R.about)) state.scene = 'about';
-    else if (hit(R.how)) state.scene = 'how';
+    else if (hit(R.about)) { state.scene = 'about'; state.aboutPage = 0; }
+    else if (hit(R.how)) { state.scene = 'how'; state.howPage = 0; }
     else if (hit(R.rules)) { state.scene = 'rules'; state.page = 0; }
+  }
+  // Shared by the About/Controls/Rules text-size stepper. Guards both ends so a stale saved index
+  // can never walk off the array; the lookup itself is guarded again in view.js (SCALES[idx] ?? 1).
+  function stepText(tap) {
+    if (inRect(TEXT_DEC, tap.x, tap.y)) { if (state.textScaleIdx > 0) { state.textScaleIdx -= 1; savePrefs(); tick(); } return true; }
+    if (inRect(TEXT_INC, tap.x, tap.y)) { if (state.textScaleIdx < TEXT_SCALES.length - 1) { state.textScaleIdx += 1; savePrefs(); tick(); } return true; }
+    return false;
+  }
+  function updateAbout(tap) {
+    if (!tap) return;
+    if (stepText(tap)) return;
+    if (inRect(BACK, tap.x, tap.y)) { state.scene = 'title'; return; }
+    if (inRect(NEXT, tap.x, tap.y)) { state.aboutPage = (state.aboutPage + 1) % ABOUT.length; tick(); }
+  }
+  function updateHow(tap) {
+    if (!tap) return;
+    if (stepText(tap)) return;
+    if (inRect(BACK, tap.x, tap.y)) { state.scene = 'title'; return; }
+    if (inRect(NEXT, tap.x, tap.y)) { state.howPage = (state.howPage + 1) % HOWTO.length; tick(); }
   }
   function updateRules(tap) {
     if (!tap) return;
+    if (stepText(tap)) return;
     if (inRect(BACK, tap.x, tap.y)) { state.scene = 'title'; return; }
     if (inRect(NEXT, tap.x, tap.y)) { state.page = (state.page + 1) % RULES.length; tick(); }
   }
@@ -369,8 +390,6 @@ export function createGame(env) {
     if (inRect(BACK, tap.x, tap.y)) { state.scene = 'title'; return; }
     LESSONS.forEach((L, i) => { if (inRect(lessonRow(i), tap.x, tap.y)) startLesson(i); });
   }
-  function updateSimple(tap) { if (tap && inRect(BACK, tap.x, tap.y)) state.scene = 'title'; }
-
   function updateTable(dt, tap, input) {
     const H = state.H, sc = state.scene;
     if (ui.msg) { ui.msg.t += dt; if (ui.msg.t > ui.msg.hold) ui.msg = null; }
@@ -506,7 +525,8 @@ export function createGame(env) {
       if (sc === 'title') updateTitle(tap);
       else if (sc === 'settings') updateSettings(tap);
       else if (sc === 'lessons') updateLessons(tap);
-      else if (sc === 'about' || sc === 'how') updateSimple(tap);
+      else if (sc === 'about') updateAbout(tap);
+      else if (sc === 'how') updateHow(tap);
       else if (sc === 'rules') updateRules(tap);
       else if (sc === 'play' || sc === 'lesson' || sc === 'daily') {
         if (sc === 'daily' && state.daily.status === 'making') {

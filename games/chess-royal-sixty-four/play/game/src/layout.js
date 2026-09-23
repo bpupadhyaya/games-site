@@ -89,7 +89,15 @@ export const HEADER = {
   back: { x: 14, y: 14, w: 100, h: 60 },
   next: { x: W - 114, y: 14, w: 100, h: 60 },
   sound: { x: W - 114, y: 14, w: 100, h: 60 },
+  // Text-size stepper on the About/Controls/Rules reference pages (renderPage) — centred between
+  // Back and Next, same height, so it reads as one header row.
+  textDec: { x: W / 2 - 110, y: 14, w: 100, h: 60 },
+  textInc: { x: W / 2 + 10, y: 14, w: 100, h: 60 },
 };
+// Text-size steps for the reference pages (About/Controls/Rules). Index into this, never a raw
+// float, so "min"/"max" are exact and the stepper can cleanly disable at either end. Every page's
+// content is paced (content.js) to fit comfortably even at the top step.
+export const TEXT_SCALES = [1, 1.15, 1.3];
 export const RESULT_PANEL = {
   again: { x: W / 2 - 270, y: 860, w: 250, h: 84 },
   menu: { x: W / 2 + 20, y: 860, w: 250, h: 84 },

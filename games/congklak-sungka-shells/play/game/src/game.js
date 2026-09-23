@@ -1,12 +1,12 @@
 // Congklak: state and flow. Drawing is view.js; the rule book is rules.js; the computer is engine.js; lessons.js and puzzles.js are
 // content. The rule book applies a move to `state.game` at once, and returns the list of EVENTS (lift, drop, capture) that
 // `state.anim` then plays back while `state.shown` (the shell counts the player sees) catches up. Two hands can move at once (the opening).
-import { W, H, BTN, SET, titleRows, inRect, houseNear, posXY } from './layout.js';
+import { W, H, BTN, SET, TEXT_STEPPER, TEXT_SCALES, titleRows, inRect, houseNear, posXY } from './layout.js';
 import { newGame, clone, applyMove, applyOpening, tryMove, legalMoves, nextRound, outcomeOf, STORE, sideOf } from './rules.js';
 import { LEVELS, createThinker, chooseOpening } from './engine.js';
 import { LESSONS } from './lessons.js';
 import { puzzleFor, puzzleGame, gains, isWeekend } from './puzzles.js';
-import { RULES } from './about.js';
+import { RULES, ABOUT, HOWTO } from './about.js';
 import { render } from './view.js';
 
 export const meta = { width: W, height: H };
@@ -21,17 +21,23 @@ export function createGame(env) {
     cursor: 3, kb: false, anim: null, msg: null, thinking: false, think: 0, undo: [], hintsLeft: HINTS, hint: null, pick: [null, null],
     stats: { games: 0, wins: 0, badges: {} }, saved: null, learned: false, demoGames: 0, lesson: null, pz: null, ref: null,
     daily: { day: config.day ?? 0, solvedDay: -1, streak: 0 }, dev: config.dev === true, worstWork: 0, page: 0,
+    textScaleIdx: 0, // index into TEXT_SCALES; the About/Controls/Rules reference pages' own text size
   };
   state.shown = state.game.b.slice();
   let thinker = null, hintThinker = null, hintOpening = false;
 
-  storage.get('prefs', null).then((v) => { if (v) { state.level = Math.min(v.level ?? 1, LEVELS.length - 1); state.sound = v.sound ?? true; state.calm = v.calm ?? false; state.big = v.big ?? false; state.seeds = SEEDSETS.includes(v.seeds) ? v.seeds : 'cowries'; state.wood = WOODS.includes(v.wood) ? v.wood : 'teak'; state.match = MATCHES.includes(v.match) ? v.match : 'short'; audio.setMuted?.(!state.sound); } });
+  storage.get('prefs', null).then((v) => {
+    if (v) { state.level = Math.min(v.level ?? 1, LEVELS.length - 1); state.sound = v.sound ?? true; state.calm = v.calm ?? false; state.big = v.big ?? false; state.seeds = SEEDSETS.includes(v.seeds) ? v.seeds : 'cowries'; state.wood = WOODS.includes(v.wood) ? v.wood : 'teak'; state.match = MATCHES.includes(v.match) ? v.match : 'short'; state.textScaleIdx = v.textScaleIdx ?? 0; audio.setMuted?.(!state.sound); }
+    // Clamp: a saved index from a build with a longer/shorter TEXT_SCALES array must never survive
+    // and produce NaN font sizes on the About/Controls/Rules pages.
+    state.textScaleIdx = Math.min(Math.max(state.textScaleIdx ?? 0, 0), TEXT_SCALES.length - 1);
+  });
   storage.get('stats', null).then((v) => { if (v) state.stats = { ...state.stats, ...v, badges: { ...(v.badges || {}) } }; });
   storage.get('learned', false).then((v) => { state.learned = state.learned || !!v; });
   storage.get('daily', null).then((v) => { if (v) { state.daily.solvedDay = v.solvedDay ?? -1; state.daily.streak = v.streak ?? 0; } });
   storage.get('demoGames', 0).then((v) => { state.demoGames = Math.max(state.demoGames, v); });
   storage.get('save', null).then((v) => { if (v && v.game && v.game.winner === null && state.scene === 'title') state.saved = v; });
-  const savePrefs = () => storage.set('prefs', { level: state.level, sound: state.sound, calm: state.calm, big: state.big, seeds: state.seeds, wood: state.wood, match: state.match });
+  const savePrefs = () => storage.set('prefs', { level: state.level, sound: state.sound, calm: state.calm, big: state.big, seeds: state.seeds, wood: state.wood, match: state.match, textScaleIdx: state.textScaleIdx });
   const saveGame = () => { if ((state.scene === 'play' || state.scene === 'round') && state.game.winner === null) { state.saved = { game: clone(state.game), two: state.two, level: state.level, hintsLeft: state.hintsLeft }; storage.set('save', state.saved); } };
   const clearSave = () => { state.saved = null; storage.remove('save'); };
   const saveStats = () => { storage.set('stats', state.stats); storage.set('progress', { played: state.stats.games, wins: state.stats.wins }); };
@@ -176,8 +182,8 @@ export function createGame(env) {
     else if (hit(R.play)) start(false);
     else if (hit(R.two)) start(true);
     else if (hit(R.daily)) startPuzzle();
-    else if (hit(R.about)) state.scene = 'about';
-    else if (hit(R.how)) state.scene = 'how';
+    else if (hit(R.about)) { state.scene = 'about'; state.page = 0; }
+    else if (hit(R.how)) { state.scene = 'how'; state.page = 0; }
     else if (hit(R.rules)) { state.scene = 'rules'; state.page = 0; }
     else if (hit(R.settings)) state.scene = 'settings';
   }
@@ -185,6 +191,18 @@ export function createGame(env) {
     if (!tap) return;
     if (inRect(BTN.rulesBack, tap.x, tap.y)) { state.scene = 'title'; state.page = 0; }
     else if (inRect(BTN.rulesNext, tap.x, tap.y)) { state.page = (state.page + 1) % RULES.length; clack(); }
+    else if (inRect(TEXT_STEPPER.dec, tap.x, tap.y) && state.textScaleIdx > 0) { state.textScaleIdx--; savePrefs(); clack(); }
+    else if (inRect(TEXT_STEPPER.inc, tap.x, tap.y) && state.textScaleIdx < TEXT_SCALES.length - 1) { state.textScaleIdx++; savePrefs(); clack(); }
+  }
+  // About and Controls ("How to play") are paginated one part per page, the same as Rules, so a bigger
+  // text-size step never has to cram every part onto a single screen.
+  function updateAbout(sc, tap) {
+    if (!tap) return;
+    const n = (sc === 'about' ? ABOUT : HOWTO).parts.length;
+    if (inRect(BTN.aboutBack, tap.x, tap.y)) { state.scene = 'title'; state.page = 0; }
+    else if (inRect(BTN.aboutNext, tap.x, tap.y)) { state.page = (state.page + 1) % n; clack(); }
+    else if (inRect(TEXT_STEPPER.dec, tap.x, tap.y) && state.textScaleIdx > 0) { state.textScaleIdx--; savePrefs(); clack(); }
+    else if (inRect(TEXT_STEPPER.inc, tap.x, tap.y) && state.textScaleIdx < TEXT_SCALES.length - 1) { state.textScaleIdx++; savePrefs(); clack(); }
   }
   function updateSettings(tap) {
     if (!tap) return;
@@ -360,7 +378,7 @@ export function createGame(env) {
     if (sc === 'over') { if (k.has('Enter') || k.has('Space')) return at(BTN.again); if (k.has('Escape')) return at(BTN.back); return null; }
     if (sc === 'round') { if (k.has('Enter') || k.has('Space')) return at(BTN.cont); return null; }
     if (sc === 'settings') { if (k.has('Escape')) return at(SET.back); return null; }
-    if (sc === 'about' || sc === 'how') { if (k.has('Escape') || k.has('Enter')) return at(BTN.aboutBack); return null; }
+    if (sc === 'about' || sc === 'how') { if (k.has('Escape')) return at(BTN.aboutBack); if (k.has('Enter') || k.has('Space')) return at(BTN.aboutNext); return null; }
     if (sc === 'rules') { if (k.has('Escape')) return at(BTN.rulesBack); if (k.has('Enter') || k.has('Space')) return at(BTN.rulesNext); return null; }
     if (sc !== 'play' && sc !== 'lesson' && sc !== 'puzzle') return null;
     if (k.has('Escape')) return at(BTN.menu);
@@ -383,7 +401,7 @@ export function createGame(env) {
       const sc = state.scene;
       if (sc === 'title') updateTitle(tap);
       else if (sc === 'settings') updateSettings(tap);
-      else if (sc === 'about' || sc === 'how') { if (tap && inRect(BTN.aboutBack, tap.x, tap.y)) state.scene = 'title'; }
+      else if (sc === 'about' || sc === 'how') updateAbout(sc, tap);
       else if (sc === 'rules') updateRules(tap);
       else if (sc === 'play') updatePlay(dt, tap);
       else if (sc === 'lesson') updateLesson(dt, tap);

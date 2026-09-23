@@ -5,7 +5,7 @@
 // piece and drop it on a square. Castling: TAP/DRAG the king two squares toward the rook. Promotion
 // opens a picker. An illegal attempt visibly tries, shudders back, and a message says why.
 import {
-  W, H, squareAt, pointXY, inRect, titleRows, BTN, BTN4, HEADER, RESULT_PANEL, PROMO,
+  W, H, squareAt, pointXY, inRect, titleRows, BTN, BTN4, HEADER, RESULT_PANEL, PROMO, TEXT_SCALES,
 } from './layout.js';
 import {
   newGame, applyMove, undoMove, tryMove, legalTargets, inCheck, WHITE, BLACK,
@@ -34,13 +34,14 @@ export function createGame(env) {
     demoIdx: 0, demoSpeed: 1, demoWait: 0,
     progress: { played: 0, wins: 0 }, learned: [],
     coach: { seen: false }, coachBubble: null,
+    textScaleIdx: 0, // index into TEXT_SCALES; the About/Controls/Rules reference pages' text size
   };
   let thinker = null, hinter = null, pending = null, warmI = 0, fontFix = 0, miniRng = null, demoGameRng = null;
   const sfx = [];
 
   // ---- storage --------------------------------------------------------------------------------
-  const savePrefs = () => storage.set('prefs', { level: state.level, sound: state.sound, boardTheme: state.boardTheme });
-  storage.get('prefs', null).then((p) => { if (!p) return; Object.assign(state, { level: p.level ?? state.level, sound: p.sound ?? true, boardTheme: p.boardTheme ?? 'walnut' }); audio.setMuted(!state.sound); });
+  const savePrefs = () => storage.set('prefs', { level: state.level, sound: state.sound, boardTheme: state.boardTheme, textScaleIdx: state.textScaleIdx });
+  storage.get('prefs', null).then((p) => { if (!p) return; Object.assign(state, { level: p.level ?? state.level, sound: p.sound ?? true, boardTheme: p.boardTheme ?? 'walnut', textScaleIdx: Math.min(Math.max(p.textScaleIdx ?? 0, 0), TEXT_SCALES.length - 1) }); audio.setMuted(!state.sound); });
   storage.get('progress', null).then((p) => { if (p) state.progress = { played: p.played | 0, wins: p.wins | 0 }; });
   storage.get('learned', []).then((l) => { state.learned = Array.isArray(l) ? l : []; });
   storage.get('coach', null).then((c) => { if (c) state.coach = { seen: !!c.seen }; });
@@ -363,6 +364,8 @@ export function createGame(env) {
         const list = state.scene === 'howto' ? HOWTO : state.scene === 'about' ? ABOUT : RULES;
         if (hit(HEADER.back)) { state.scene = 'title'; state.page = 0; }
         else if (hit(HEADER.next)) state.page = (state.page + 1) % list.length;
+        else if (hit(HEADER.textDec) && state.textScaleIdx > 0) { state.textScaleIdx--; savePrefs(); sound('ok'); }
+        else if (hit(HEADER.textInc) && state.textScaleIdx < TEXT_SCALES.length - 1) { state.textScaleIdx++; savePrefs(); sound('ok'); }
         break;
       }
       case 'demo': {

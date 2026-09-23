@@ -1,5 +1,5 @@
 // Everything drawn each frame. Reads `state` (see game.js) and changes nothing. Static art is cached (art.js).
-import { W, H, GRID, SLAB, cellCenter, cellSize, stoneRadius, BTN, SETUP, HELP, titleRows } from './layout.js';
+import { W, H, GRID, SLAB, cellCenter, cellSize, stoneRadius, BTN, SETUP, HELP, TEXTSTEP, TEXT_SCALES, titleRows } from './layout.js';
 import { drawWorld, drawSlab, drawStone, drawPetals, drawSquareRing, stoneVariant } from './art.js';
 import { jumpsFrom, legalMoves, stones, countMoves, NAMES, overSquares } from './rules.js';
 import { LEVELS } from './engine.js';
@@ -38,6 +38,14 @@ export function button(ctx, tx, r, label, o = {}) {
 function panel(ctx, x, y, w, h, a = 0.7) {
   ctx.fillStyle = `rgba(16,9,14,${a})`; ctx.beginPath(); ctx.roundRect(x, y, w, h, 24); ctx.fill();
   ctx.strokeStyle = 'rgba(255,214,170,0.45)'; ctx.lineWidth = 2; ctx.stroke();
+}
+// The reader card behind a text-heavy reference page (How to play, About, Rules): the same dark
+// basalt panel plus a fainter inset line, so a page of body text reads as a designed reference
+// sheet rather than loose text floating on the backdrop.
+function readerCard(ctx, x, y, w, h) {
+  panel(ctx, x, y, w, h, 0.76);
+  ctx.strokeStyle = 'rgba(255,214,170,0.16)'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.roundRect(x + 7, y + 7, w - 14, h - 14, 18); ctx.stroke();
 }
 
 // Where the moving stone is: a hop is an arc from square to square; the stone pauses a beat at each landing.
@@ -82,7 +90,7 @@ export function drawStones(ctx, g, a, o = {}) {
 
 export function render(ctx, state) {
   const { text, wrap, shadowText, lines } = makeText(ctx), btn = (r, l, o) => button(ctx, { text }, r, l, o);
-  const scene = state.scene, g = state.game, big = state.big, calm = state.calm, t = state.t;
+  const scene = state.scene, g = state.game, big = state.textScaleIdx > 0, calm = state.calm, t = state.t;
   const boardScene = scene === 'play' || scene === 'over' || scene === 'lesson' || (scene === 'puzzle' && state.pz.status !== 'making');
   drawWorld(ctx, t, boardScene ? g.n : 0, calm);
 
@@ -186,16 +194,24 @@ export function render(ctx, state) {
     btn(SETUP.start, 'Start game', { primary: true, size: 36 }); btn(SETUP.back, 'Back', { size: 26 });
   } else if (scene === 'help' || scene === 'about' || scene === 'rules') {
     const pages = scene === 'help' ? HELP_PAGES : scene === 'about' ? ABOUT : RULES, P = pages[state.page % pages.length];
-    shadowText(scene === 'help' ? 'How to play' : scene === 'about' ? 'About Konane' : 'Rules', 420, 150, 62);
-    const fs = big ? 30 : 26, lhh = big ? 39 : 34;
-    let hh = 130 + (P.demo ? 160 : 0) + (P.stones ? 190 : 0); for (const para of P.body) hh += lines(para, fs, 570).length * lhh + 18;
-    panel(ctx, 40, 200, 640, hh + 30, 0.72);
-    text(P.title, 360, 270, 44, '#ffe6b0');
-    let y = 320;
+    // Text-size stepper (A-/A+), an index into TEXT_SCALES, guarded so a stale/out-of-range saved
+    // index can never produce NaN font sizes. Lives right here, in the header of the page being read.
+    const scaleIdx = Math.min(Math.max(state.textScaleIdx, 0), TEXT_SCALES.length - 1), scale = TEXT_SCALES[scaleIdx] ?? 1;
+    shadowText(scene === 'help' ? 'How to play' : scene === 'about' ? 'About Konane' : 'Rules', 420, 160, Math.round(58 * Math.min(scale, 1.15)));
+    btn(TEXTSTEP.dec, 'A−', { size: 28, dim: scaleIdx === 0 });
+    btn(TEXTSTEP.inc, 'A+', { size: 28, dim: scaleIdx === TEXT_SCALES.length - 1 });
+    const PANEL_Y = 200, PANEL_BOTTOM = 1400, fs = Math.round(28 * scale), lhh = Math.round(fs * 1.4);
+    let hh = 150 + (P.demo ? 160 : 0) + (P.stones ? 190 : 0); for (const para of P.body) hh += lines(para, fs, 570).length * lhh + 18;
+    const panelH = Math.min(hh + 20, PANEL_BOTTOM - PANEL_Y);
+    readerCard(ctx, 40, PANEL_Y, 640, panelH);
+    text(P.title, 360, PANEL_Y + 82, Math.round(44 * scale), '#ffe6b0');
+    let y = PANEL_Y + 142;
     if (P.demo) { y = drawHelpDemo(ctx, P.demo, y + 6, t, calm) + 20; }
     if (P.stones) { y = drawRulesStones(ctx, text, y + 6) + 20; }
-    for (const para of P.body) { const k = wrap(para, 76, y, big ? 30 : 26, 570, PAGE_TEXT, big ? 39 : 34, 'left'); y += k * (big ? 39 : 34) + 18; }
-    if (hh + 230 < 1050) { ctx.save(); ctx.translate(360, 1200); ctx.scale(0.5, 0.5); ctx.translate(-360, -760); drawSlab(ctx, 6); if (state.demo) drawStones(ctx, state.demo.g, state.demo.anim, { calm, t }); ctx.restore(); }
+    for (const para of P.body) { const k = wrap(para, 76, y, fs, 570, PAGE_TEXT, lhh, 'left'); y += k * lhh + 18; }
+    // The small slab still-life sits at a fixed spot below the panel, and is only drawn when the
+    // panel is short enough to leave it clear room — never crammed against a long page's last line.
+    if (y + 90 < PANEL_Y + panelH && PANEL_Y + panelH < 1010) { ctx.save(); ctx.translate(360, 1200); ctx.scale(0.5, 0.5); ctx.translate(-360, -760); drawSlab(ctx, 6); if (state.demo) drawStones(ctx, state.demo.g, state.demo.anim, { calm, t }); ctx.restore(); }
     text(`Page ${state.page % pages.length + 1} of ${pages.length}`, 360, 1430, 22, 'rgba(255,232,196,0.7)', UI, 500);
     btn(HELP.prev, 'Back page', { size: 24 }); btn(HELP.back, 'Menu', { size: 26 }); btn(HELP.next, 'Next page', { size: 24, primary: true });
   } else if (scene === 'over') {

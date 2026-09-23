@@ -1,6 +1,6 @@
 // Everything that is drawn each frame. Reads `state` (see game.js) and changes nothing.
 // Static art (snowfield, board) and the two pieces are cached sprites (art.js, pieces.js), so a frame is cheap.
-import { W, H, pointAt, PIECE_R, SIZE, UNIT, BTN, LOOK, RULES_NAV, titleRows, trayPos, DEV_BTN } from './layout.js';
+import { W, H, pointAt, PIECE_R, SIZE, UNIT, BTN, LOOK, RULES_NAV, RULES_TEXT, TEXT_SCALES, titleRows, trayPos, DEV_BTN } from './layout.js';
 import { drawTableAndBoard, BOARD_NAMES } from './art.js';
 import { drawFox, drawGoose, SET_NAMES } from './pieces.js';
 import { unlocked, starNeed } from './unlocks.js';
@@ -198,28 +198,58 @@ export function render(ctx, state) {
   } else if (scene === 'rules') {
     ctx.fillStyle = 'rgba(4,10,20,0.74)'; ctx.fillRect(0, 0, W, H);
     const page = RULES[state.rulesPage % RULES.length];
-    text('Rules', 360, 130, 44);
-    text(page.title, 360, 182, 28, '#ffd684', UI, 700);
-    const top = page.piece ? 490 : 220, bottom = 545; // keep clear of the board art drawn below
-    if (page.piece) (page.piece === 'F' ? drawFox : drawGoose)(ctx, 360, 365, page.piece === 'F' ? 70 : 56, { set, flip: true });
-    // Count wrapped lines at a given font size without drawing, so a long page can shrink slightly
-    // to stay compact and comfortably clear of the Back/Next row.
+    // Falls back to 1 for any out-of-range saved index (e.g. a save from a build with more steps).
+    const scale = TEXT_SCALES[state.textScaleIdx] ?? 1;
+
+    // Count wrapped lines at a given font size without drawing, so the card can be sized to its
+    // own page's content (a short page gets a short card, a long one a tall one) instead of either
+    // floating in a mostly-empty frame or risking an overflow.
     const countLines = (str, size, maxW) => {
       ctx.font = `600 ${size}px ${UI}`; const words = str.split(' '); let n = 1, cur = '';
       for (const w of words) { const t2 = cur ? cur + ' ' + w : w; if (ctx.measureText(t2).width > maxW && cur) { n += 1; cur = w; } else cur = t2; }
       return n;
     };
-    const maxW = big ? 630 : 640;
-    let size = big ? 29 : 25;
-    for (; size > 15; size -= 1) {
-      const lh = size * 1.3, gap = 12;
-      const total = page.lines.reduce((h, ln) => h + countLines(ln, size, maxW) * lh + gap, 0) - gap;
-      if (total <= bottom - top) break;
+    const cardX = 34, cardW = W - 68, textMaxW = cardW - 96;
+    const fontPx = Math.round(29 * scale), lh = Math.round(fontPx * 1.42), gap = Math.round(14 * scale);
+    let linesH = 0;
+    for (const line of page.lines) linesH += countLines(line, fontPx, textMaxW) * lh + gap;
+    linesH -= gap;
+    const pieceR = page.piece ? Math.round(58 * Math.min(scale, 1.2)) : 0;
+    // The fox/goose head stands well above its own anchor point (long ears, a raised neck), so the
+    // block reserves extra headroom above the anchor - clear of the title above - plus its shadow
+    // below, before the body text starts.
+    const pieceBlockH = page.piece ? pieceR * 3 + 40 : 0;
+    const headerBlockH = 104;                                          // "Rules" header + divider
+    const titleBlockH = Math.round(31 * scale * 1.3) + 30;
+    const cardTop = 108, cardMax = 1290;                                 // never crosses the footer
+    const cardH = Math.min(cardMax, Math.max(420, headerBlockH + titleBlockH + pieceBlockH + linesH + 50));
+    const card = { x: cardX, y: cardTop, w: cardW, h: cardH };
+
+    ctx.save();
+    ctx.beginPath(); ctx.roundRect(card.x, card.y, card.w, card.h, 26);
+    const pg = ctx.createLinearGradient(0, card.y, 0, card.y + card.h);
+    pg.addColorStop(0, 'rgba(22,38,56,0.62)'); pg.addColorStop(1, 'rgba(6,14,26,0.76)');
+    ctx.fillStyle = pg; ctx.fill();
+    ctx.strokeStyle = 'rgba(160,206,244,0.42)'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.beginPath(); ctx.roundRect(card.x + 6, card.y + 6, card.w - 12, card.h - 12, 20);
+    ctx.strokeStyle = 'rgba(160,206,244,0.15)'; ctx.lineWidth = 1; ctx.stroke();
+    ctx.restore();
+
+    text('Rules', 360, card.y + 52, Math.round(38 * Math.min(scale, 1.15)));
+    ctx.strokeStyle = 'rgba(160,206,244,0.35)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(card.x + 60, card.y + 78); ctx.lineTo(card.x + card.w - 60, card.y + 78); ctx.stroke();
+    text(page.title, 360, card.y + headerBlockH + Math.round(31 * scale), Math.round(31 * scale), '#ffd684', UI, 700);
+
+    let y = card.y + headerBlockH + titleBlockH;
+    if (page.piece) {
+      (page.piece === 'F' ? drawFox : drawGoose)(ctx, 360, y + pieceR * 1.8, pieceR, { set, flip: true });
+      y += pieceBlockH;
     }
-    const lh = size * 1.3;
-    let y = top;
-    for (const line of page.lines) { const n = wrap(line, 360, y, size, maxW, INK, lh); y += n * lh + 12; }
+    for (const line of page.lines) { const n = wrap(line, 360, y, fontPx, textMaxW, INK, lh); y += n * lh + gap; }
+
     text(`Page ${(state.rulesPage % RULES.length) + 1} of ${RULES.length}`, 360, 1420, 22, SOFT, UI, 500);
     button(RULES_NAV.back, 'Back', { size: 28 }); button(RULES_NAV.next, 'Next', { size: 28, primary: true });
+    button(RULES_TEXT.dec, 'A−', { size: 26, dim: state.textScaleIdx === 0 });
+    button(RULES_TEXT.inc, 'A+', { size: 26, dim: state.textScaleIdx === TEXT_SCALES.length - 1 });
   }
 }

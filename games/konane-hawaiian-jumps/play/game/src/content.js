@@ -36,7 +36,8 @@ export const RULES = [
     'Any of the four directions — up, down, left or right — is equally legal each time you jump; there is no "forward only" restriction.'] },
   { title: 'Chaining jumps', demo: { cells: ['W', 'B', '.', 'B', '.'], hop: [0, [1, 3], 4] }, body: [
     'After landing, the same stone may continue jumping again in the SAME straight-line direction, over the next enemy stone and into the next empty point beyond it, as many times in a row as the board allows.',
-    'You choose, after every hop, whether to keep going or to stop; stopping after any hop is always allowed, and each different stopping point counts as a separate move you may pick.',
+    'You choose, after every hop, whether to keep going or to stop; stopping after any hop is always allowed, and each different stopping point counts as a separate move you may pick.'] },
+  { title: 'A chain cannot turn', body: [
     'A chain cannot change direction partway through. Once a jump starts moving, say, to the right, every further hop that same turn must keep moving to the right. Turning a corner takes a whole new turn.'] },
   { title: 'You must jump', body: [
     'Jumping is mandatory whenever it is possible. Once the opening removals are done, the only legal moves the game will ever offer are jumps: there is no way to pass, and no way to move a stone without capturing one.',

@@ -2,7 +2,7 @@
 // puzzles.js and content.js are content. See design/GDD.md for the map.
 // How a move is made: TAP a stone (it lifts, its landing squares glow), then TAP a landing square. An impossible move visibly TRIES:
 // the stone slides toward the square, shudders, comes back, and a message says why.
-import { W, H, BTN, SETUP, HELP, titleRows, inRect, squareAt, cellCenter } from './layout.js';
+import { W, H, BTN, SETUP, HELP, TEXTSTEP, TEXT_SCALES, titleRows, inRect, squareAt, cellCenter } from './layout.js';
 import { newGame, clone, applyMove, tryMove, legalMoves, jumpsFrom, overSquares, countMoves, NAMES } from './rules.js';
 import { LEVELS, createThinker, fromRules } from './engine.js';
 import { LESSONS, lessonGame } from './lessons.js';
@@ -18,7 +18,7 @@ export function createGame(env) {
   const { rng, storage, audio, monetization, config } = env;
   const state = {
     scene: 'title', t: 0, game: newGame(6), human: 1, two: false, level: 1, cfg: { n: 6, side: 1, level: 1 },
-    sound: true, calm: false, big: false, marks: true, cursor: 0, kb: false, canAct: false,
+    sound: true, calm: false, textScaleIdx: 0, marks: true, cursor: 0, kb: false, canAct: false,
     sel: -1, anim: null, msg: null, think: 0, thinking: false, undo: [], hintsLeft: HINTS, hint: null,
     stats: { games: 0, wins: 0, badges: {} }, saved: null, learned: false, demoGames: 0, lesson: null, pz: null, page: 0,
     daily: { day: config.day ?? 0, solvedDay: -1, streak: 0 }, demo: null, dev: config.dev === true,
@@ -26,13 +26,13 @@ export function createGame(env) {
   let thinker = null, hintThinker = null, puzzleToday = null;
   const maker = createPuzzleMaker(state.daily.day), demoRng = rng.fork();
 
-  storage.get('prefs', null).then((v) => { if (v) { state.cfg = { ...state.cfg, ...(v.cfg || {}) }; state.sound = v.sound ?? true; state.calm = v.calm ?? false; state.big = v.big ?? false; audio.setMuted?.(!state.sound); } });
+  storage.get('prefs', null).then((v) => { if (v) { state.cfg = { ...state.cfg, ...(v.cfg || {}) }; state.sound = v.sound ?? true; state.calm = v.calm ?? false; state.textScaleIdx = Math.min(Math.max((v.textScaleIdx ?? (v.big ? TEXT_SCALES.length - 1 : 0)) | 0, 0), TEXT_SCALES.length - 1); audio.setMuted?.(!state.sound); } });
   storage.get('stats', null).then((v) => { if (v) state.stats = { ...state.stats, ...v, badges: { ...(v.badges || {}) } }; });
   storage.get('learned', false).then((v) => { state.learned = state.learned || !!v; });
   storage.get('daily', null).then((v) => { if (v) { state.daily.solvedDay = v.solvedDay ?? -1; state.daily.streak = v.streak ?? 0; } });
   storage.get('demoGames', 0).then((v) => { state.demoGames = Math.max(state.demoGames, v); });
   storage.get('save', null).then((v) => { if (v && v.game && !v.game.winner && state.scene === 'title') state.saved = v; });
-  const savePrefs = () => storage.set('prefs', { cfg: state.cfg, sound: state.sound, calm: state.calm, big: state.big });
+  const savePrefs = () => storage.set('prefs', { cfg: state.cfg, sound: state.sound, calm: state.calm, textScaleIdx: state.textScaleIdx });
   const saveGame = () => { if (state.scene === 'play' && !state.game.winner) { state.saved = { game: clone(state.game), human: state.human, two: state.two, level: state.level, hintsLeft: state.hintsLeft }; storage.set('save', state.saved); } };
   const clearSave = () => { state.saved = null; storage.remove('save'); };
 
@@ -146,7 +146,9 @@ export function createGame(env) {
     else if (hit(R.rules)) { state.scene = 'rules'; state.page = 0; }
     else if (hit(R.sound)) { state.sound = !state.sound; audio.setMuted?.(!state.sound); savePrefs(); clack(); }
     else if (hit(R.calm)) { state.calm = !state.calm; savePrefs(); clack(); }
-    else if (hit(R.big)) { state.big = !state.big; savePrefs(); clack(); }
+    // Quick shortcut: jump straight to the smallest or the largest step. Fine-grained control lives
+    // right on the How to play/About/Rules pages themselves (the A-/A+ stepper), where the text is.
+    else if (hit(R.big)) { state.textScaleIdx = state.textScaleIdx > 0 ? 0 : TEXT_SCALES.length - 1; savePrefs(); clack(); }
   }
   function updateSetup(dt, tap) {
     tickDemo(dt);
@@ -164,6 +166,8 @@ export function createGame(env) {
     if (inRect(HELP.back, tap.x, tap.y)) state.scene = 'title';
     else if (inRect(HELP.next, tap.x, tap.y)) { state.page = (state.page + 1) % pages.length; clack(); }
     else if (inRect(HELP.prev, tap.x, tap.y)) { state.page = (state.page + pages.length - 1) % pages.length; clack(); }
+    else if (inRect(TEXTSTEP.dec, tap.x, tap.y) && state.textScaleIdx > 0) { state.textScaleIdx--; savePrefs(); clack(); }
+    else if (inRect(TEXTSTEP.inc, tap.x, tap.y) && state.textScaleIdx < TEXT_SCALES.length - 1) { state.textScaleIdx++; savePrefs(); clack(); }
   }
 
   function hintText(m) {

@@ -1,8 +1,10 @@
 // Exhaustive Rules reference content. Every claim here is cross-checked against the actual
 // implementation in rules.js (the single source of truth for legality and scoring) so this page
-// can never contradict the engine. Kept short-paragraph style like about.js, not a wall of text.
+// can never contradict the engine. One short concept per page - some pages below were split from
+// a single longer page once the reference page's body text grew to a comfortably-readable size
+// (see view.js), so every page still fits with room to spare, even at the top text-size step.
 // `cards`, when present, lists real card indices (suit*13+rank, see rules.js) drawn with this
-// game's own drawCard() — never a separate simplified icon.
+// game's own drawCard() - never a separate simplified icon.
 export const RULES = [
   {
     title: 'The deck',
@@ -32,20 +34,40 @@ export const RULES = [
     ],
   },
   {
-    title: 'The deal and turn order',
+    title: 'Seats and partnerships',
     lines: [
       'Four players sit in two fixed partnerships. You (South) and your partner (North) are one team; the two computer opponents, East and West, are the other team. Seats are numbered 0 (You), 1 (East), 2 (Partner) and 3 (West).',
+    ],
+  },
+  {
+    title: 'The deal',
+    lines: [
       'Each player is dealt 13 cards to start a hand. The very first dealer of a match is chosen at random; after every hand - including a hand that is thrown in and redealt because all four players passed - the deal moves on to the next seat in turn order.',
+    ],
+  },
+  {
+    title: 'Turn order',
+    lines: [
       'Both the deal and the play of cards follow the same rotation around the table: You, then East, then your Partner, then West, then back to You, shown on screen going counter-clockwise. That direction is what this game means by "the deal passes to the right."',
     ],
   },
   {
-    title: 'Bidding',
+    title: 'Bidding: opening the auction',
     lines: [
       'Bidding always opens with the player to the dealer\'s right (the next seat after the dealer in turn order) and continues around the table.',
       'On your turn you either pass, or bid a number of tricks from 7 to 13. A bid must be strictly higher than the current high bid - you cannot merely match it - or you must pass instead.',
+    ],
+  },
+  {
+    title: 'Bidding: passing and ending',
+    lines: [
       'Once you pass, you are out of the bidding for that hand; you get no further turn to bid, even if everyone else also passes.',
       'Bidding ends the instant either of two things happens: someone bids the maximum of 13 (nothing can outbid it), or every player except one has passed, leaving a single bidder who wins by default at their last bid.',
+    ],
+  },
+  {
+    title: 'Bidding: no bids, and naming trump',
+    lines: [
       'If all four players pass without anyone ever bidding, the hand is thrown in with no cards played, and it is redealt by the next dealer in rotation.',
       'The player who wins the bidding (the declarer) then names the trump suit. This choice is made only after bidding has closed - it is not announced as part of the bid itself - and the declarer always names one of the four suits (there is no "no trump" option in this game). The declarer then leads to the first trick.',
     ],
@@ -60,12 +82,17 @@ export const RULES = [
     ],
   },
   {
-    title: 'Scoring a hand',
+    title: 'Scoring: making or missing the bid',
     lines: [
       'If the declaring side took at least as many tricks as it bid, that side scores the number of tricks it actually took - not just the bid amount. Bidding 8 and taking 10 scores 10, not 8.',
       'If the declaring side took fewer tricks than it bid, that side scores nothing for tricks - instead it LOSES points equal to the amount it bid. Bidding 8 and taking only 6 scores -8 for that hand.',
+    ],
+  },
+  {
+    title: 'Scoring: the other side, and a sweep',
+    lines: [
       'The defending side always scores the number of tricks it took, whether or not the declaring side made its bid.',
-      'A clean sweep - the declaring side bids all 13 tricks and takes all 13 - wins the match outright, immediately, no matter the running score. This is the one instant, hand-ending exception to everything else on this page.',
+      'A clean sweep - the declaring side bids all 13 tricks and takes all 13 - wins the match outright, immediately, no matter the running score. This is the one instant, hand-ending exception to everything else here.',
     ],
   },
   {

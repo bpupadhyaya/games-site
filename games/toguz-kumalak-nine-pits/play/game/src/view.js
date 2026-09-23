@@ -1,5 +1,5 @@
 // Everything drawn each frame. Reads `state` (game.js) and changes nothing. The table, board and pebble sprites are cached (art.js).
-import { W, RX, RY, TRAY, MID_Y, BTN, SET, RULES_BTN, pitPos, trayPos, titleRows } from './layout.js';
+import { W, RX, RY, TRAY, MID_Y, BTN, SET, RULES_BTN, ABOUT_BTN, HEADER, TEXT_SCALES, pitPos, trayPos, titleRows } from './layout.js';
 import { drawTable, drawBoard, drawSeed, drawShanyrak, horn, slot, WOODS, SEEDSETS } from './art.js';
 import { legalMoves, numberOf } from './rules.js';
 import { LEVELS } from './engine.js';
@@ -247,20 +247,30 @@ export function render(ctx, state) {
     for (let k = 0; k < 9; k++) drawSeed(ctx, state.seeds, k % 4, 210 + k * 38, 1090, k * 0.7, 1.3);
     button(SET.back, 'Back', { primary: true, size: 32 });
   } else if (scene === 'about') {
+    // A dedicated text-size stepper (index into TEXT_SCALES, never a raw float, guarded + clamped on
+    // load in game.js) lives right on this reference page, in the header row above the panel - not
+    // buried in Settings - since this is the page players actually read. It is independent of the
+    // `big` gameplay toggle (pit/tray/message text during play), which is untouched.
+    const scale = TEXT_SCALES[state.textScaleIdx] ?? 1;
+    const page = ABOUT.pages[state.page % ABOUT.pages.length];
     panel(36, 120, 648, 1240, 0.92);
-    text(ABOUT.title, 360, 210, 60, CREAM, FONT);
+    text(ABOUT.title, 360, 210, Math.round(60 * Math.min(scale, 1.15)), CREAM, FONT);
     horn(ctx, 360, 246, 12, GOLD, 2.2);
-    let y = 300;
-    for (const [h, body] of ABOUT.parts) {
-      text(h, 70, y, 28, GOLD, FONT, 700, 'left'); y += 34;
-      const n = wrap(body, 70, y, big ? 26 : 23, 580, '#fff3d6', big ? 34 : 30, 'left'); y += n * (big ? 34 : 30) + 22;
-    }
-    button(BTN.aboutBack, 'Back', { primary: true, size: 32 });
+    text(page.title, 360, 304, Math.round(32 * scale), GOLD, FONT, 700);
+    let y = 356;
+    const bodySize = Math.round(29 * scale), lh = Math.round(bodySize * 1.4);
+    for (const para of page.lines) { const n = wrap(para, 70, y, bodySize, 580, '#fff3d6', lh, 'left'); y += n * lh + 22; }
+    text(`Page ${(state.page % ABOUT.pages.length) + 1} of ${ABOUT.pages.length}`, 360, 1345, 19, 'rgba(248,233,196,0.6)', UI, 600);
+    button(ABOUT_BTN.back, 'Back', { size: 30 });
+    button(ABOUT_BTN.next, 'Next', { primary: true, size: 30 });
+    button(HEADER.textDec, 'A−', { size: 34, dim: state.textScaleIdx === 0 });
+    button(HEADER.textInc, 'A+', { size: 34, dim: state.textScaleIdx === TEXT_SCALES.length - 1 });
   } else if (scene === 'rules') {
+    const scale = TEXT_SCALES[state.textScaleIdx] ?? 1;
     const page = RULES[state.page % RULES.length];
     panel(36, 120, 648, 1240, 0.92);
     text('Rules', 360, 176, 26, 'rgba(248,233,196,0.85)', UI, 600);
-    text(page.title, 360, 232, 40, CREAM, FONT);
+    text(page.title, 360, 232, Math.round(40 * Math.min(scale, 1.15)), CREAM, FONT);
     horn(ctx, 360, 264, 12, GOLD, 2.2);
     let y = 300;
     const box = { x: 110, y: 300, w: 500, h: 260 };
@@ -275,13 +285,16 @@ export function render(ctx, state) {
       artBox({ x: pitPos(12).x, y: pitPos(12).y - 30 }, 2, box, { pits: Array.from({ length: 18 }, (_, i) => (i === 12 ? 0 : 9)), kazan: [0, 0], tuz: [12, -1] }, { counts: false });
       y = box.y + box.h + 34;
     }
+    const bodySize = Math.round(29 * scale), lh = Math.round(bodySize * 1.4);
     for (const para of page.lines) {
-      const n = wrap(para, 70, y, big ? 24 : 21, 580, '#fff3d6', big ? 32 : 28, 'left');
-      y += n * (big ? 32 : 28) + 18;
+      const n = wrap(para, 70, y, bodySize, 580, '#fff3d6', lh, 'left');
+      y += n * lh + 18;
     }
     text(`Page ${(state.page % RULES.length) + 1} of ${RULES.length}`, 360, 1345, 19, 'rgba(248,233,196,0.6)', UI, 600);
     button(RULES_BTN.back, 'Back', { size: 30 });
     button(RULES_BTN.next, 'Next', { primary: true, size: 30 });
+    button(HEADER.textDec, 'A−', { size: 34, dim: state.textScaleIdx === 0 });
+    button(HEADER.textInc, 'A+', { size: 34, dim: state.textScaleIdx === TEXT_SCALES.length - 1 });
   } else if (scene === 'over') {
     ctx.fillStyle = 'rgba(8,10,30,0.72)'; ctx.fillRect(0, 102, W, 1356);
     const won = g.winner === 'draw' ? 'A draw' : state.two ? (g.winner === 0 ? 'Player one wins' : 'Player two wins') : g.winner === 0 ? 'You win!' : 'The computer wins';

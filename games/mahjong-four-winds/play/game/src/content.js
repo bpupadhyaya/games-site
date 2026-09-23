@@ -45,12 +45,13 @@ export const RULE_PAGES = [
     ] },
   { title: 'Bonus tiles: flowers and seasons', lines: [
     'Eight bonus tiles complete the 144-tile set: four flowers and four seasons, one copy of each - never four copies like the other tiles.',
-    'A bonus tile drawn into your hand is set aside at once and you draw a replacement immediately. It is never kept as part of a set or discarded.',
-    'Each flower and season is numbered 1 to 4. Holding the one that matches your own seat number scores a fan (see Scoring).'],
+    'A bonus tile drawn into your hand is set aside at once and you draw a replacement immediately. It is never kept as part of a set or discarded.'],
     tileRows: [
       { tiles: [34, 35, 36, 37], caption: 'Flowers: Plum, Orchid, Chrysanthemum, Bamboo' },
       { tiles: [38, 39, 40, 41], caption: 'Seasons: Spring, Summer, Autumn, Winter' },
     ] },
+  { title: 'Bonus tiles: scoring your own', lines: [
+    'Each flower and season is numbered 1 to 4. Holding the one that matches your own seat number scores a fan (see Scoring, a few pages on).'] },
   { title: 'Chow, pung and kong', lines: [
     'A CHOW is three tiles in a row, all the same suit (4-5-6 of Bamboo, shown below). Winds and dragons can never form a chow.',
     'A PUNG is three identical tiles, of any suit or an honour tile.',
@@ -74,7 +75,8 @@ export const RULE_PAGES = [
     'You then discard one tile from your full 14-tile hand, leaving 13 again. TAP a tile to lift it, then TAP it again - or DRAG it upward - to discard it.'] },
   { title: 'Claiming a discard', lines: [
     'When a tile is discarded, every other seat may claim it if it would complete a Win, a Pung, a Kong, or a Chow.',
-    'A Chow may only be claimed from the player immediately before you in turn order; a Pung, a Kong or a Win can be claimed on a discard from any seat.',
+    'A Chow may only be claimed from the player immediately before you in turn order; a Pung, a Kong or a Win can be claimed on a discard from any seat.'] },
+  { title: 'Claim priority', lines: [
     'Priority when more than one seat wants the same tile: WIN beats PUNG and KONG, and both beat CHOW. If more than one seat could make the same kind of claim, the seat nearer after the discarder (in turn order) gets it.',
     'A claimed set is shown face up (open) in front of that player, who then discards a tile of their own.'] },
   { title: 'Kong on your own turn', lines: [
@@ -83,7 +85,8 @@ export const RULE_PAGES = [
     'This build does not let another player claim ("rob") the tile added to make an added kong - see the last page.'] },
   { title: 'Declaring Mahjong (winning)', lines: [
     'You may declare a win the instant your hand is complete - four sets and a pair, fourteen tiles - either by drawing the winning tile yourself, or by claiming another player\'s discard as your final tile.',
-    'The one other winning shape is Thirteen Orphans: one each of every terminal (1 and 9) tile and every honour tile - thirteen different kinds - plus one more copy of any one of them. This needs a hand with no declared sets at all, not even a concealed kong.',
+    'The one other winning shape is Thirteen Orphans: one each of every terminal (1 and 9) tile and every honour tile - thirteen different kinds - plus one more copy of any one of them. This needs a hand with no declared sets at all, not even a concealed kong.'] },
+  { title: 'Reaching the minimum', lines: [
     'A complete hand alone is not enough to win: it must also reach the minimum fan set in Settings (next pages) before you may declare it.'] },
   { title: 'Scoring: limit hands (10 fan)', lines: [
     'A limit hand scores the maximum 10 fan outright, whatever else it contains:',
@@ -106,7 +109,8 @@ export const RULE_PAGES = [
   { title: 'What this build leaves out', lines: [
     'This is a friendly, teachable Hong Kong-style ruleset, not every regional or tournament rule. Left out on purpose:',
     'Seven Pairs is not a recognised winning shape here - only four sets plus a pair, or Thirteen Orphans, can win.',
-    'Robbing a Kong: you cannot claim a tile as your winning tile when another player adds it to make an added kong.',
+    'Robbing a Kong: you cannot claim a tile as your winning tile when another player adds it to make an added kong.'] },
+  { title: 'What this build leaves out (cont.)', lines: [
     'Dealer doubling: East\'s win pays and is paid at the very same rate as anyone else\'s - no bonus multiplier for being the dealer.',
     'Riichi (Japanese), Taiwanese, Sichuan, American and other regional rule sets are different games, with their own scoring, and are not implemented here.'] },
 ];

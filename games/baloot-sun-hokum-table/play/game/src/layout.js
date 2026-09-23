@@ -56,3 +56,8 @@ export const LESSON_CARD = R(30, 110, 660, 210);
 export const BACK = R(24, 40, 120, 60);
 // "Next" button for the paginated Rules page, mirroring BACK at the opposite top corner.
 export const NEXT = R(W - 24 - 120, 40, 120, 60);
+// Text-size stepper for the About/Controls/Rules reference pages, centred in the same header row
+// as Back/Next (same height) with plenty of clearance on both sides so it never crowds them.
+export const TEXT_SCALES = [1, 1.15, 1.3];
+export const TEXT_DEC = R(W / 2 - 118, 40, 110, 60);
+export const TEXT_INC = R(W / 2 + 8, 40, 110, 60);

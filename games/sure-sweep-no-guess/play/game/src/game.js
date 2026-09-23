@@ -7,7 +7,7 @@
 // logical deduction, from the very first tap. See design/GDD.md for the full design and
 // web/src/solver.js for exactly which deduction rules the generator/solver implement.
 import { neighbors } from './board.js';
-import { W, H, COLS, ROWS, CELL, BOARD_X, BOARD_Y, BOARD_W, BOARD_H, MODE_SWITCH, HINT_BTN, COLOR_BTN, NEW_BTN, SHIELD_BTN, TITLE_COLOR_BTN, TITLE_RULES_BTN, RULES_BACK_BTN, RULES_NEXT_BTN, inRect } from './layout.js';
+import { W, H, COLS, ROWS, CELL, BOARD_X, BOARD_Y, BOARD_W, BOARD_H, MODE_SWITCH, HINT_BTN, COLOR_BTN, NEW_BTN, SHIELD_BTN, TITLE_COLOR_BTN, TITLE_RULES_BTN, RULES_BACK_BTN, RULES_NEXT_BTN, TEXT_DEC_BTN, TEXT_INC_BTN, TEXT_SCALES, inRect } from './layout.js';
 import { THEMES } from './themes.js';
 import { draw } from './render.js';
 import { findForcedMoves, generateBoard } from './solver.js';
@@ -37,6 +37,7 @@ export function createGame(env) {
   const state = {
     scene: 'title',
     page: 0, // current Rules-reference page, only meaningful while scene === 'rules'
+    textScaleIdx: 0, // index into TEXT_SCALES; the Rules reference page's own text size
     w,
     h,
     mineCount,
@@ -96,6 +97,11 @@ export function createGame(env) {
 
   storage.get('bestTime', null).then((v) => {
     state.bestTime = v;
+  });
+  // Clamped on load: a stale saved index from a build with a shorter/longer TEXT_SCALES must never
+  // produce a NaN or out-of-range font size.
+  storage.get('textScaleIdx', 0).then((v) => {
+    state.textScaleIdx = Math.min(Math.max(v ?? 0, 0), TEXT_SCALES.length - 1);
   });
   // Persisted so reloading the page can't reset the free preview's board count.
   if (demo) {
@@ -290,6 +296,14 @@ export function createGame(env) {
         press('rulesBack');
         state.scene = 'title';
         state.page = 0;
+      } else if (inRect(x, y, TEXT_DEC_BTN) && state.textScaleIdx > 0) {
+        state.textScaleIdx -= 1;
+        storage.set('textScaleIdx', state.textScaleIdx);
+        press('textDec');
+      } else if (inRect(x, y, TEXT_INC_BTN) && state.textScaleIdx < TEXT_SCALES.length - 1) {
+        state.textScaleIdx += 1;
+        storage.set('textScaleIdx', state.textScaleIdx);
+        press('textInc');
       }
       return;
     }

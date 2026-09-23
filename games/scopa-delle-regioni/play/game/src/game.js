@@ -1,11 +1,13 @@
 // Scopa: state and flow. Drawing is view.js; the rule book is rules.js; the computer is engine.js; lessons.js and
 // puzzles.js are content. The rule book applies a play to `state.g` at once; a short queue of animation steps then
 // SHOWS it (card flight, capture, scopa, sweep, deal) while `state.slots`/`hslots` (what is drawn) catch up.
-import { W, H, BTN, SET, HAND, inRect, handPos, tableGrid, slotPos, seatPos, deckPos, pilePos, titleRows, CLOTH } from './layout.js';
+import { W, H, BTN, SET, HAND, inRect, handPos, tableGrid, slotPos, seatPos, deckPos, pilePos, titleRows, CLOTH, TEXT_SCALES } from './layout.js';
 import { newMatch, startRound, captures, legalPlays, applyPlay, scoreRound, whyNot, clone, teamOf, rankOf, cardName, RANK_NAMES } from './rules.js';
 import { LEVELS, createThinker, hintFor } from './engine.js';
 import { LESSONS } from './lessons.js';
+import { ABOUT } from './about.js';
 import { RULES } from './rulesContent.js';
+import { CONTROLS } from './controlsContent.js';
 import { puzzleFor, puzzleGame, pv, isWeekend } from './puzzles.js';
 import { render, tableCardAt } from './view.js';
 import { warm } from './art.js';
@@ -18,6 +20,7 @@ export function createGame(env) {
   const { rng, storage, audio, monetization, config } = env;
   const state = {
     scene: 'title', t: 0, g: newMatch(2, 11), n: 2, level: 1, sound: true, calm: false, big: false, french: false, target: 11,
+    textScaleIdx: 0, // index into TEXT_SCALES; the About/Controls/Rules reference pages' text size
     slots: new Array(SLOTS).fill(null), hslots: [null, null, null], hide: [], fly: [], held: [], glow: [], pileShown: [0, 0], fx: [],
     sel: null, cur: 0, curZone: 'hand', kb: false, msg: null, thinking: false, undo: null, hintsLeft: HINTS, hint: null, ref: null,
     stats: { games: 0, wins: 0, badges: {} }, saved: null, learned: false, demoGames: 0, lesson: null, pz: null, panel: null,
@@ -27,13 +30,13 @@ export function createGame(env) {
   // Screenshot mode (?shot=1, used by `tools/arc shots`): pointer input is ignored and the scene follows the seed.
   const SHOT = typeof location !== 'undefined' && /[?&]shot=1/.test(location.search || '');
 
-  storage.get('prefs', null).then((v) => { if (v) { state.level = v.level ?? 1; state.sound = v.sound ?? true; state.calm = v.calm ?? false; state.big = v.big ?? false; state.french = v.french ?? false; state.target = v.target ?? 11; audio.setMuted?.(!state.sound); } });
+  storage.get('prefs', null).then((v) => { if (v) { state.level = v.level ?? 1; state.sound = v.sound ?? true; state.calm = v.calm ?? false; state.big = v.big ?? false; state.french = v.french ?? false; state.target = v.target ?? 11; state.textScaleIdx = Math.min(Math.max(v.textScaleIdx ?? 0, 0), TEXT_SCALES.length - 1); audio.setMuted?.(!state.sound); } });
   storage.get('stats', null).then((v) => { if (v) state.stats = { ...state.stats, ...v, badges: { ...(v.badges || {}) } }; });
   storage.get('learned', false).then((v) => { state.learned = state.learned || !!v; });
   storage.get('daily', null).then((v) => { if (v) { state.daily.solvedDay = v.solvedDay ?? -1; state.daily.streak = v.streak ?? 0; } });
   storage.get('demoGames', 0).then((v) => { state.demoGames = Math.max(state.demoGames, v); });
   storage.get('save', null).then((v) => { if (v && v.g && v.g.phase === 'play' && state.scene === 'title') state.saved = v; });
-  const savePrefs = () => storage.set('prefs', { level: state.level, sound: state.sound, calm: state.calm, big: state.big, french: state.french, target: state.target });
+  const savePrefs = () => storage.set('prefs', { level: state.level, sound: state.sound, calm: state.calm, big: state.big, french: state.french, target: state.target, textScaleIdx: state.textScaleIdx });
   const saveGame = () => { if (state.scene === 'play' && state.g.phase === 'play') { state.saved = { g: clone(state.g), n: state.n, level: state.level, hintsLeft: state.hintsLeft }; storage.set('save', state.saved); } };
   const clearSave = () => { state.saved = null; storage.remove('save'); };
   const saveStats = () => { storage.set('stats', state.stats); storage.set('progress', { played: state.stats.games, wins: state.stats.wins }); };
@@ -325,8 +328,8 @@ export function createGame(env) {
     else if (hit(R.play)) start(2);
     else if (hit(R.four)) start(4);
     else if (hit(R.daily)) startPuzzle();
-    else if (hit(R.about)) state.scene = 'about';
-    else if (hit(R.controls)) state.scene = 'controls';
+    else if (hit(R.about)) { state.scene = 'about'; state.page = 0; }
+    else if (hit(R.controls)) { state.scene = 'controls'; state.page = 0; }
     else if (hit(R.rules)) { state.scene = 'rules'; state.page = 0; }
     else if (hit(R.settings)) state.scene = 'settings';
   }
@@ -389,8 +392,7 @@ export function createGame(env) {
     if (sc === 'title') { const R = titleRows(!!state.saved); if (k.has('Enter') || k.has('Space')) return at(R.resume || R.play); return null; }
     if (sc === 'over') { if (k.has('Enter') || k.has('Space')) return at(BTN.again); if (k.has('Escape')) return at(BTN.back); return null; }
     if (sc === 'settings') { if (k.has('Escape')) return at(SET.back); return null; }
-    if (sc === 'about' || sc === 'controls') { if (k.has('Escape') || k.has('Enter')) return at(BTN.backPage); return null; }
-    if (sc === 'rules') { if (k.has('Escape')) return at(BTN.rulesBack); if (k.has('Enter')) return at(BTN.rulesNext); return null; }
+    if (sc === 'about' || sc === 'controls' || sc === 'rules') { if (k.has('Escape')) return at(BTN.pageBack); if (k.has('Enter')) return at(BTN.pageNext); return null; }
     if (sc !== 'play' && sc !== 'lesson' && sc !== 'puzzle') return null;
     if (state.panel === 'round') { if (k.has('Enter') || k.has('Space')) return at(BTN.cont); return null; }
     if (k.has('Escape')) return at(BTN.menu);
@@ -429,10 +431,12 @@ export function createGame(env) {
       const sc = state.scene;
       if (sc === 'title') updateTitle(tap);
       else if (sc === 'settings') updateSettings(tap);
-      else if (sc === 'about' || sc === 'controls') { if (tap && inRect(BTN.backPage, tap.x, tap.y)) state.scene = 'title'; }
-      else if (sc === 'rules') {
-        if (tap && inRect(BTN.rulesBack, tap.x, tap.y)) { state.scene = 'title'; state.page = 0; }
-        else if (tap && inRect(BTN.rulesNext, tap.x, tap.y)) state.page = (state.page + 1) % RULES.length;
+      else if (sc === 'about' || sc === 'controls' || sc === 'rules') {
+        const list = sc === 'about' ? ABOUT : sc === 'rules' ? RULES : CONTROLS;
+        if (tap && inRect(BTN.pageBack, tap.x, tap.y)) { state.scene = 'title'; state.page = 0; }
+        else if (tap && inRect(BTN.pageNext, tap.x, tap.y)) state.page = (state.page + 1) % list.length;
+        else if (tap && inRect(BTN.textDec, tap.x, tap.y) && state.textScaleIdx > 0) { state.textScaleIdx--; savePrefs(); clack(); }
+        else if (tap && inRect(BTN.textInc, tap.x, tap.y) && state.textScaleIdx < TEXT_SCALES.length - 1) { state.textScaleIdx++; savePrefs(); clack(); }
       }
       else if (sc === 'play' || sc === 'lesson' || sc === 'puzzle') updateBoard(dt, tap);
       else if (sc === 'over' && tap) {

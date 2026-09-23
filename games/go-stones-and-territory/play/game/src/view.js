@@ -1,5 +1,5 @@
 // Everything drawn each frame. Reads `state` (game.js) and changes nothing. Static art is cached (art.js).
-import { W, H, R, px, py, stoneR, boardLayout, titleButtons, RULES_NAV, PLAYBOARD } from './layout.js';
+import { W, H, R, px, py, stoneR, boardLayout, titleButtons, PAGE_NAV, TEXT_SCALES, TEXT_BTN, PLAYBOARD } from './layout.js';
 import { drawTable, drawBoardLayer, drawLamp, drawStone, drawShadow, drawBowl, THEMES } from './art.js';
 import { LEVELS } from './engine.js';
 import { LESSONS } from './lessons.js';
@@ -34,10 +34,10 @@ export function render(ctx, S) {
   drawLamp(ctx, S.t, calm);
   const big = S.prefs.big;
   const text = (str, x, y, size, color = '#f6e3b4', font = FONT, weight = 700, align = 'center') => { ctx.textAlign = align; ctx.font = `${weight} ${size}px ${font}`; ctx.fillStyle = color; ctx.fillText(str, x, y); };
-  const wrap = (str, x, y, size, maxW, color, lh = size * 1.32, align = 'center', weight = 500) => {
-    ctx.font = `${weight} ${size}px ${UI}`; const words = str.split(' '), lines = []; let cur = '';
+  const wrap = (str, x, y, size, maxW, color, lh = size * 1.32, align = 'center', weight = 500, font = UI) => {
+    ctx.font = `${weight} ${size}px ${font}`; const words = str.split(' '), lines = []; let cur = '';
     for (const w of words) { const t2 = cur ? cur + ' ' + w : w; if (ctx.measureText(t2).width > maxW && cur) { lines.push(cur); cur = w; } else cur = t2; }
-    lines.push(cur); lines.forEach((ln, i) => text(ln, x, y + i * lh, size, color, UI, weight, align)); return lines.length;
+    lines.push(cur); lines.forEach((ln, i) => text(ln, x, y + i * lh, size, color, font, weight, align)); return lines.length;
   };
   const button = (r, label, o = {}) => {
     const press = o.press ? 2 : 0;
@@ -69,8 +69,8 @@ export function render(ctx, S) {
   if (scene === 'title') return drawTitle(ctx, S, { text, wrap, button, panel, isPress });
   if (scene === 'setup') return drawSetup(ctx, S, { text, wrap, button, panel, isPress });
   if (scene === 'lessons') return drawLessonList(ctx, S, { text, wrap, button, panel, isPress });
-  if (scene === 'about') return drawReader(ctx, S, { text, wrap, button, panel }, 'About Go', ABOUT_TEXT);
-  if (scene === 'how') return drawReader(ctx, S, { text, wrap, button, panel }, 'How to play', HOW_TEXT);
+  if (scene === 'about') return drawReader(ctx, S, { text, wrap, button, panel, isPress }, 'About Go', ABOUT_TEXT, S.aboutPage);
+  if (scene === 'how') return drawReader(ctx, S, { text, wrap, button, panel, isPress }, 'How to play', HOW_TEXT, S.howPage);
   if (scene === 'rules') return drawRules(ctx, S, { text, wrap, button, panel, isPress });
   if (scene === 'settings') return drawSettings(ctx, S, { text, wrap, button, panel });
   if (scene === 'demo-limit') return drawDemoLimit(ctx, S, { text, wrap, button, panel });
@@ -278,29 +278,59 @@ function drawLessonList(ctx, S, u) {
   });
   button({ x: 110, y: 1230, w: 500, h: 84 }, 'Back', { press: u.isPress({ x: 110, y: 1230, w: 500, h: 84 }) });
 }
-export const READER = { back: { x: 110, y: 1380, w: 500, h: 84 } };
-function drawReader(ctx, S, u, title, items) {
-  const { text, wrap, button, panel } = u, sz = S.prefs.big ? 26 : 22;
-  text(title, 360, 176, 70, '#f6e3b4');
+// About, How to play and Rules all share this one reference-page shape: a big title, a framed
+// reader-card panel, a text-size stepper ("A-"/"A+") flanking the title so it is right where a
+// player is reading, and a Back/Next footer that pages one topic at a time (same convention for
+// all three, and the same one chess-royal-sixty-four uses for its own reference pages).
+function readerScale(S) { return TEXT_SCALES[S.prefs.textScaleIdx ?? 0] ?? 1; }
+function drawPageHeader(ctx, u, S, title) {
+  const { button, isPress } = u, idx = S.prefs.textScaleIdx ?? 0;
+  // The banner title shrinks to fit the gap between the two stepper buttons - "How to play" is
+  // wide enough at the usual 70px to otherwise run under "A+"/"A-".
+  const maxW = TEXT_BTN.inc.x - (TEXT_BTN.dec.x + TEXT_BTN.dec.w) - 40;
+  let size = 70;
+  ctx.font = `700 ${size}px ${FONT}`;
+  while (ctx.measureText(title).width > maxW && size > 38) { size -= 2; ctx.font = `700 ${size}px ${FONT}`; }
+  ctx.textAlign = 'center'; ctx.fillStyle = '#f6e3b4'; ctx.fillText(title, 360, 176);
+  button(TEXT_BTN.dec, 'A−', { dim: idx === 0, press: isPress ? isPress(TEXT_BTN.dec) : false, size: 30 });
+  button(TEXT_BTN.inc, 'A+', { dim: idx === TEXT_SCALES.length - 1, press: isPress ? isPress(TEXT_BTN.inc) : false, size: 30 });
+}
+function drawPageFooter(ctx, u, idx, total) {
+  const { text, button, isPress } = u;
+  text(`Page ${idx + 1} of ${total}`, 360, 1320, 21, 'rgba(246,227,180,0.65)', UI, 500);
+  button(PAGE_NAV.back, 'Back', { press: isPress ? isPress(PAGE_NAV.back) : false });
+  button(PAGE_NAV.next, 'Next', { primary: true, press: isPress ? isPress(PAGE_NAV.next) : false });
+}
+// The in-panel page/section title: WRAPPED (never a single fixed-width line), because a few of
+// these headings ("Go, the game of stones and territory") are too long to fit on one line once
+// the top text-size step makes the font big - wrapping instead of overflowing keeps every title on
+// screen and inside the panel. Returns the y where the body content below it can safely start.
+function drawPageTitle(ctx, u, titleStr, scale) {
+  const { wrap } = u, size = Math.round(32 * scale), lh = Math.round(size * 1.22);
+  const lines = wrap(titleStr, 360, 268, size, 604, '#f3cf7a', lh, 'center', 700, FONT);
+  return 268 + lines * lh + Math.round(16 * scale);
+}
+// About / How to play: one topic per page (each [heading, body] entry in ABOUT_TEXT/HOW_TEXT is
+// already a single self-contained concept), paginated with wraparound like Rules below.
+function drawReader(ctx, S, u, title, items, page) {
+  const { wrap, panel } = u, scale = readerScale(S);
+  const idx = ((page % items.length) + items.length) % items.length, [heading, body] = items[idx];
+  drawPageHeader(ctx, u, S, title);
   panel({ x: 36, y: 214, w: 648, h: 1132 });
-  let y = 272;
-  for (const [h, body] of items) {
-    text(h, 64, y, 32, '#f3cf7a', FONT, 700, 'left');
-    const lines = wrap(body, 64, y + 42, sz, 596, '#f2e6cc', sz * 1.36, 'left');
-    y += 42 + lines * sz * 1.36 + 26;
-  }
-  button(READER.back, 'Back', { press: u.isPress ? u.isPress(READER.back) : false });
+  const bodyY = drawPageTitle(ctx, u, heading, scale);
+  const sz = Math.round(29 * scale), lh = Math.round(sz * 1.4);
+  wrap(body, 64, bodyY, sz, 592, '#f2e6cc', lh, 'left', 500);
+  drawPageFooter(ctx, u, idx, items.length);
 }
 // One topic per screen, paginated: Back exits to the title, Next cycles forward through the pages
 // with wraparound (the same convention chess-royal-sixty-four uses for its own Rules page).
 export function rulesPageCount() { return RULES.length; }
 function drawRules(ctx, S, u) {
-  const { text, wrap, button, panel, isPress } = u, sz = S.prefs.big ? 25 : 22;
+  const { text, wrap, panel } = u, scale = readerScale(S);
   const idx = ((S.rulesPage % RULES.length) + RULES.length) % RULES.length, page = RULES[idx];
-  text('Rules', 360, 176, 70, '#f6e3b4');
+  drawPageHeader(ctx, u, S, 'Rules');
   panel({ x: 36, y: 214, w: 648, h: 1132 });
-  text(page.title, 360, 268, 34, '#f3cf7a', FONT, 700, 'center');
-  let y = 316;
+  let y = drawPageTitle(ctx, u, page.title, scale);
   if (page.stone) {
     const cy = y + 58, r = 46;
     if (page.stone === 'both') {
@@ -313,14 +343,12 @@ function drawRules(ctx, S, u) {
     }
     y = cy + r + 62;
   }
+  const sz = Math.round(29 * scale), lh = Math.round(sz * 1.4);
   for (const para of page.lines) {
-    const lh = sz * 1.36;
-    const lines = wrap(para, 64, y, sz, 596, '#f2e6cc', lh, 'left', 500);
-    y += lines * lh + 22;
+    const lines = wrap(para, 64, y, sz, 592, '#f2e6cc', lh, 'left', 500);
+    y += lines * lh + Math.round(22 * scale);
   }
-  text(`Page ${idx + 1} of ${RULES.length}`, 360, 1320, 21, 'rgba(246,227,180,0.65)', UI, 500);
-  button(RULES_NAV.back, 'Back', { press: isPress(RULES_NAV.back) });
-  button(RULES_NAV.next, 'Next', { primary: true, press: isPress(RULES_NAV.next) });
+  drawPageFooter(ctx, u, idx, RULES.length);
 }
 export function settingsRects() {
   const names = ['sound', 'calm', 'big', 'quick', 'theme'];
