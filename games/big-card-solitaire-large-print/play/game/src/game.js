@@ -16,7 +16,7 @@ import {
 } from './rules.js';
 import { generateWinnableDeal } from './solver.js';
 import { rankLabel, suitGlyph } from './deck.js';
-import { computeLayout, hitTest, contains, BTN, HERO, OPT, W, H, TEXT_SCALES, AUTO_THINK_STEPS, AUTO_REVEAL_SECS } from './layout.js';
+import { computeLayout, hitTest, contains, BTN, HERO, OPT, W, H, TEXT_SCALES, AUTO_THINK_STEPS, AUTO_REVEAL_SECS, SIBLINGS, chipRect } from './layout.js';
 import { THEMES, TABLES } from './art.js';
 import { createFx } from './fx.js';
 import { render } from './view.js';
@@ -436,6 +436,18 @@ export function createGame(env) {
     else if (state.scene === 'title') handleTitleTap(x, y);
     else if (state.scene === 'rules') handleRulesTap(x, y);
     else if (state.scene === 'won') {
+      // "More from Arcforge" chips (layout.js SIBLINGS/chipRect) sit in the empty band below the
+      // sheet — check them explicitly, and first, so a chip tap opens that game instead of also
+      // being swallowed by the catch-all "any tap deals again" below.
+      let openedGame = false;
+      for (let i = 0; i < SIBLINGS.length; i++) {
+        if (contains(chipRect(i), x, y)) {
+          env.openGame(SIBLINGS[i].slug);
+          openedGame = true;
+          break;
+        }
+      }
+      if (openedGame) return;
       // a short pause so the tap that finished the hand cannot also skip the celebration
       if (fx.sinceWon() > 0.6) startNewDeal();
     }

@@ -5,7 +5,7 @@
 // piece and drop it on a square. Castling: TAP/DRAG the king two squares toward the rook. Promotion
 // opens a picker. An illegal attempt visibly tries, shudders back, and a message says why.
 import {
-  W, H, squareAt, pointXY, inRect, titleRows, BTN, BTN4, HEADER, REF_BACK, REF_NEXT, TEXT_DEC, TEXT_INC, RESULT_PANEL, PROMO, TEXT_SCALES, THINK_STEPS, DEMO_THINK, DEMO_PAUSE,
+  W, H, squareAt, pointXY, inRect, titleRows, BTN, BTN4, HEADER, REF_BACK, REF_NEXT, TEXT_DEC, TEXT_INC, RESULT_PANEL, PROMO, SIBLINGS, chipRect, TEXT_SCALES, THINK_STEPS, DEMO_THINK, DEMO_PAUSE,
 } from './layout.js';
 import {
   newGame, applyMove, undoMove, tryMove, legalTargets, inCheck, WHITE, BLACK,
@@ -461,6 +461,7 @@ export function createGame(env) {
         if (state.overOpen) {
           if (hit(RESULT_PANEL.again)) startGame(state.human, state.mode);
           else if (hit(RESULT_PANEL.menu)) toMenu();
+          else SIBLINGS.forEach((sib, i) => hit(chipRect(i)) && env.openGame(sib.slug));
           break;
         }
         if (hit(BTN.menu)) { toMenu(); break; }

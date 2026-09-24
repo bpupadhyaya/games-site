@@ -126,6 +126,20 @@ export const RESULT_PANEL = {
   again: { x: W / 2 - 270, y: 860, w: 250, h: 84 },
   menu: { x: W / 2 + 20, y: 860, w: 250, h: 84 },
 };
+// The result overlay's own natural end-of-session "More from Arcforge" cross-promo row (same
+// mechanism as harvest-sling's tally screen, `env.openGame(slug)`). This is a FREE game, so every
+// entry here must be a PAID game, never one of the app's other free games (they're already visible
+// in the menu) — see the standing regression test in test/game.test.js. Sits in the genuinely empty
+// gap between the mode subtitle (ends ~y531) and the New Game/Menu row (RESULT_PANEL, starts y860):
+// Featured paid games (Tiger and Goat, Go, Carrom) plus one chess-family affinity pick (Xiangqi).
+export const SIBLINGS = [
+  { slug: 'tiger-and-goat', title: 'Tiger and Goat' },
+  { slug: 'go-stones-and-territory', title: 'Go' },
+  { slug: 'carrom-striker-and-queen', title: 'Carrom' },
+  { slug: 'xiangqi-river-and-palace', title: 'Xiangqi' },
+];
+// 2x2 grid, same x-columns as RESULT_PANEL's own buttons (90..350 and 370..630).
+export const chipRect = (i) => ({ x: 90 + (i % 2) * 280, y: 640 + Math.floor(i / 2) * 80, w: 260, h: 64 });
 export const PROMO = {
   card: { x: W / 2 - 300, y: 470, w: 600, h: 340 },
   pieces: [0, 1, 2, 3].map((i) => ({ x: W / 2 - 300 + 40 + i * 135, y: 560, w: 110, h: 110 })),

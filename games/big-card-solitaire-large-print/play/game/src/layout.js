@@ -48,6 +48,22 @@ export const BTN = {
   autoPause: { x: 20, y: BOTTOM_Y + 118, w: 190, h: 74 },
   autoExit: { x: 218, y: BOTTOM_Y + 118, w: 190, h: 74 },
 };
+// "More from Arcforge" cross-promo, shown only on the 'won' screen (view.js's drawWon), in the
+// empty band below the sheet. Deliberately paid games only, never another free game — a player can
+// already find the free ones themselves — so this one natural post-session moment (the player just
+// finished and is deciding what's next anyway) goes to games they might not otherwise discover and
+// might buy (2026-09-23, owner decision; same mechanism as harvest-sling's tally screen).
+export const SIBLINGS = [
+  { slug: 'tiger-and-goat', title: 'Tiger and Goat' },
+  { slug: 'go-stones-and-territory', title: 'Go' },
+  { slug: 'carrom-striker-and-queen', title: 'Carrom' },
+  { slug: 'scopa-delle-regioni', title: 'Scopa' },
+];
+// Kept clear of the sheet above (bottom edge y=1080) and the real BTN.hint/BTN.options buttons
+// below (y=1340+) — both still render, dimmed, under the 'won' overlay (view.js's drawPlay runs
+// for every non-title scene), so the chip row must not sit on top of them.
+export const chipRect = (i) => ({ x: 40 + (i % 2) * 340, y: 1120 + Math.floor(i / 2) * 108, w: 320, h: 92 });
+
 // Configurable Auto Play think-time: index-based steps (never a raw float), hard-capped at 10s.
 export const AUTO_THINK_STEPS = [2, 5, 8, 10];
 export const AUTO_REVEAL_SECS = 2;

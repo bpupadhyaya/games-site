@@ -7,7 +7,7 @@
 // logical deduction, from the very first tap. See design/GDD.md for the full design and
 // web/src/solver.js for exactly which deduction rules the generator/solver implement.
 import { neighbors } from './board.js';
-import { W, H, COLS, ROWS, CELL, BOARD_X, BOARD_Y, BOARD_W, BOARD_H, MODE_SWITCH, HINT_BTN, COLOR_BTN, NEW_BTN, SHIELD_BTN, TITLE_COLOR_BTN, TITLE_RULES_BTN, TITLE_AUTO_BTN, RULES_BACK_BTN, RULES_NEXT_BTN, TEXT_DEC_BTN, TEXT_INC_BTN, TEXT_SCALES, THINK_STEPS, inRect } from './layout.js';
+import { W, H, COLS, ROWS, CELL, BOARD_X, BOARD_Y, BOARD_W, BOARD_H, MODE_SWITCH, HINT_BTN, COLOR_BTN, NEW_BTN, SHIELD_BTN, TITLE_COLOR_BTN, TITLE_RULES_BTN, TITLE_AUTO_BTN, RULES_BACK_BTN, RULES_NEXT_BTN, TEXT_DEC_BTN, TEXT_INC_BTN, TEXT_SCALES, THINK_STEPS, SIBLINGS, chipRect, inRect } from './layout.js';
 import { THEMES } from './themes.js';
 import { draw } from './render.js';
 import { findForcedMoves, generateBoard } from './solver.js';
@@ -24,7 +24,7 @@ export const DEMO_BOARD_LIMIT = 3;
 const RESULT_TAP_DELAY = 0.5;
 
 export function createGame(env) {
-  const { rng, storage, monetization, audio, config } = env;
+  const { rng, storage, monetization, audio, config, openGame } = env;
   const { w, h, mines: mineCount } = DIFFICULTY;
   const total = w * h;
   const demo = Boolean(config?.demo);
@@ -494,6 +494,13 @@ export function createGame(env) {
       press('shield');
       requestShield();
       return;
+    }
+    for (let i = 0; i < SIBLINGS.length; i++) {
+      if (inRect(x, y, chipRect(i))) {
+        press(`chip${i}`);
+        openGame(SIBLINGS[i].slug);
+        return;
+      }
     }
     press('again');
     newBoard();

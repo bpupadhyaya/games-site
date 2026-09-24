@@ -45,12 +45,16 @@ export const STAR_UNLOCKS = [10, 25, 50, 90];
 export const STONE_UNLOCKS = [15, 40];
 export const stoneFor = (stars) => STONE_UNLOCKS.filter((t) => stars >= t).length;
 export const SHARE_URL = 'https://equalinformation.com/games-site/';
-// The other Arcforge games, for the tally screen's "More from Arcforge" chips.
+// The other Arcforge games, for the tally screen's "More from Arcforge" chips. This is a free
+// game's one natural advertising moment (a player has just finished a session and is deciding
+// what to do next) - deliberately paid games only, never another free game: a player can already
+// find the free ones for themselves (they're labelled), so this moment is spent showing the ones
+// they might not otherwise discover and might buy (2026-09-23, owner decision).
 export const SIBLINGS = [
+  { slug: 'tiger-and-goat', title: 'Tiger and Goat' },
+  { slug: 'go-stones-and-territory', title: 'Go' },
+  { slug: 'carrom-striker-and-queen', title: 'Carrom' },
   { slug: 'word-game', title: 'Word Game' },
-  { slug: 'sure-sweep-no-guess', title: 'Sure Sweep' },
-  { slug: 'big-card-solitaire-large-print', title: 'Big Card Solitaire' },
-  { slug: 'crown-star-regions', title: 'Crown Fields' },
 ];
 export const woodFor = (stars) => STAR_UNLOCKS.filter((t) => stars >= t).length;
 

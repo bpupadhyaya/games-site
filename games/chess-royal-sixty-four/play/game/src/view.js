@@ -2,7 +2,7 @@
 import {
   W, H, HEADER_H, GRID_X, GRID_Y, SQ, BOARD_X, BOARD_Y, BOARD_SIZE, BOARD_BOTTOM,
   TRAY_TOP, TRAY_H, PANEL_TOP, PANEL_H, BAR_TOP, BAR_H, pointXY, squareTopLeft, titleRows, TITLE_BOARD, BTN, BTN4, HEADER,
-  RESULT_PANEL, PROMO, inRect, TEXT_SCALES, TEXT_DEC, TEXT_INC, REF_BACK, REF_NEXT, THINK_STEPS, DEMO_THINK, DEMO_PAUSE,
+  RESULT_PANEL, PROMO, SIBLINGS, chipRect, inRect, TEXT_SCALES, TEXT_DEC, TEXT_INC, REF_BACK, REF_NEXT, THINK_STEPS, DEMO_THINK, DEMO_PAUSE,
 } from './layout.js';
 import { WHITE, BLACK, TYPE_NAME, QUEEN, ROOK, BISHOP, KNIGHT, PAWN, KING, inCheck } from './rules.js';
 import { LEVELS, LEVEL_COUNT } from './engine.js';
@@ -371,6 +371,10 @@ function drawResultPanel(ctx, state) {
   ctx.font = '400 20px Georgia, serif'; ctx.globalAlpha = 0.8;
   ctx.fillText(state.mode === 'two' ? 'Two Players' : `vs ${LEVELS[state.level].name}`, W / 2, top + 150);
   ctx.globalAlpha = 1;
+  ctx.font = '700 20px Georgia, serif'; ctx.globalAlpha = 0.75; ctx.fillStyle = '#f4ead6';
+  ctx.fillText('More from Arcforge', W / 2, 610);
+  ctx.globalAlpha = 1;
+  SIBLINGS.forEach((g, i) => drawButton(ctx, chipRect(i), g.title));
   drawButton(ctx, RESULT_PANEL.again, 'New Game', { primary: true });
   drawButton(ctx, RESULT_PANEL.menu, 'Menu');
   ctx.restore();

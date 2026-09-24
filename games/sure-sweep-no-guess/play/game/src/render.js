@@ -1,6 +1,6 @@
 // Everything that is drawn each frame. Reads `state` (see game.js) and changes nothing.
 // All motion is a function of state.pulse (the fixed-step clock) and the start times in state.fx.
-import { W, H, COLS, ROWS, CELL, FRAME, BOARD_X, BOARD_Y, BOARD_W, BOARD_H, HUD, MODE_SWITCH, HINT_BTN, COLOR_BTN, NEW_BTN, RESULT_CARD, SHIELD_BTN, AGAIN_BTN, AGAIN_BTN_WIDE, PLAY_BTN, TITLE_COLOR_BTN, TITLE_RULES_BTN, TITLE_AUTO_BTN, HERO, RULES_BACK_BTN, RULES_NEXT_BTN, RULES_PANEL, TEXT_DEC_BTN, TEXT_INC_BTN, TEXT_SCALES, THINK_STEPS } from './layout.js';
+import { W, H, COLS, ROWS, CELL, FRAME, BOARD_X, BOARD_Y, BOARD_W, BOARD_H, HUD, MODE_SWITCH, HINT_BTN, COLOR_BTN, NEW_BTN, RESULT_CARD, SHIELD_BTN, AGAIN_BTN, AGAIN_BTN_WIDE, PLAY_BTN, TITLE_COLOR_BTN, TITLE_RULES_BTN, TITLE_AUTO_BTN, HERO, RULES_BACK_BTN, RULES_NEXT_BTN, RULES_PANEL, TEXT_DEC_BTN, TEXT_INC_BTN, TEXT_SCALES, THINK_STEPS, SIBLINGS, CHIP_LABEL_Y, chipRect } from './layout.js';
 import { palette, alpha, THEMES } from './themes.js';
 import { RULES } from './content.js';
 
@@ -913,6 +913,16 @@ function drawAutoControls(ctx, state, pal) {
   text(ctx, `Think time: ${secs}s   ·   Colours: ${pal.name}`, W / 2, 1436, 24, pal.inkSoft, 500);
 }
 
+// Shrinks a chip's label to whatever size actually fits its (narrow, single-row) chip rather than
+// trusting a fixed size - "Tiger and Goat" is noticeably longer than "Go" or "Carrom".
+function chipTextSize(ctx, label, maxWidth) {
+  for (const size of [20, 18, 16, 14]) {
+    setFont(ctx, size, 700);
+    if (ctx.measureText(label).width <= maxWidth) return size;
+  }
+  return 14;
+}
+
 function drawResult(ctx, state, pal, a) {
   const t = state.pulse;
   const fx = state.fx;
@@ -926,7 +936,8 @@ function drawResult(ctx, state, pal, a) {
   if (state.auto) {
     // Auto Play's own end-of-board card: same shape and place as a real result, but "Play again"
     // starts another auto board and there is always an explicit way out, since Undo (mid-run
-    // rescue) and a real best time make no sense for a computer-played demo board.
+    // rescue) and a real best time make no sense for a computer-played demo board. No cross-promo
+    // chips here - nobody is deciding "what next" while watching a silent teaching demo.
     if (won) {
       text(ctx, 'Solved!', W / 2, c.y + 84, 66, '#6dffc9', 700);
       text(ctx, `Every safe tile found by logic alone, in ${formatTime(state.time)}s`, W / 2, c.y + 150, 26, 'rgba(244,251,250,0.85)', 500);
@@ -936,19 +947,29 @@ function drawResult(ctx, state, pal, a) {
     }
     drawButton(ctx, SHIELD_BTN, 'Exit to menu', { pal, size: 30, pressTau: tau('autoExit') });
     drawButton(ctx, AGAIN_BTN, 'Play again', { kind: 'primary', size: 30, icon: iconNew, pressTau: tau('again') });
-  } else if (won) {
-    text(ctx, 'Cleared!', W / 2, c.y + 84, 66, '#6dffc9', 700);
-    text(ctx, `Time ${formatTime(state.time)}s`, W / 2, c.y + 140, 34, LIGHT, 600);
-    if (fx.newBest) drawPill(ctx, W / 2, c.y + 194, 'New best time!', { color: '#ffe08a', rim: 'rgba(255,224,138,0.6)', size: 24, h: 46 });
-    else if (state.bestTime !== null) text(ctx, `Best ${formatTime(state.bestTime)}s`, W / 2, c.y + 200, 26, 'rgba(244,251,250,0.7)', 500);
-    drawButton(ctx, AGAIN_BTN_WIDE, 'New board', { kind: 'primary', size: 38, icon: iconNew, pressTau: tau('again') });
   } else {
-    text(ctx, 'Boom.', W / 2, c.y + 78, 62, '#ff8571', 700);
-    wrapText(ctx, 'That mine was avoidable by logic - see the ringed tile.', W / 2, c.y + 130, 580, 36, 27, 'rgba(244,251,250,0.88)', 500);
-    if (!state.shieldOffered) {
-      drawButton(ctx, SHIELD_BTN, 'Undo', { kind: 'go', size: 36, icon: iconUndo, pressTau: tau('shield') });
-      drawButton(ctx, AGAIN_BTN, 'New board', { kind: 'primary', size: 32, pressTau: tau('again') });
-    } else drawButton(ctx, AGAIN_BTN_WIDE, 'New board', { kind: 'primary', size: 38, icon: iconNew, pressTau: tau('again') });
+    if (won) {
+      text(ctx, 'Cleared!', W / 2, c.y + 84, 66, '#6dffc9', 700);
+      text(ctx, `Time ${formatTime(state.time)}s`, W / 2, c.y + 140, 34, LIGHT, 600);
+      if (fx.newBest) drawPill(ctx, W / 2, c.y + 194, 'New best time!', { color: '#ffe08a', rim: 'rgba(255,224,138,0.6)', size: 24, h: 46 });
+      else if (state.bestTime !== null) text(ctx, `Best ${formatTime(state.bestTime)}s`, W / 2, c.y + 200, 26, 'rgba(244,251,250,0.7)', 500);
+      drawButton(ctx, AGAIN_BTN_WIDE, 'New board', { kind: 'primary', size: 38, icon: iconNew, pressTau: tau('again') });
+    } else {
+      text(ctx, 'Boom.', W / 2, c.y + 78, 62, '#ff8571', 700);
+      wrapText(ctx, 'That mine was avoidable by logic - see the ringed tile.', W / 2, c.y + 130, 580, 36, 27, 'rgba(244,251,250,0.88)', 500);
+      if (!state.shieldOffered) {
+        drawButton(ctx, SHIELD_BTN, 'Undo', { kind: 'go', size: 36, icon: iconUndo, pressTau: tau('shield') });
+        drawButton(ctx, AGAIN_BTN, 'New board', { kind: 'primary', size: 32, pressTau: tau('again') });
+      } else drawButton(ctx, AGAIN_BTN_WIDE, 'New board', { kind: 'primary', size: 38, icon: iconNew, pressTau: tau('again') });
+    }
+    // "More from Arcforge": a free game's one natural advertising moment (a player has just
+    // finished - won or lost - and is deciding what to do next anyway). Shared between both
+    // outcomes rather than duplicated per branch. Paid games only - see SIBLINGS in layout.js.
+    text(ctx, 'More from Arcforge', W / 2, CHIP_LABEL_Y, 19, 'rgba(244,251,250,0.65)', 600);
+    SIBLINGS.forEach((g, i) => {
+      const r = chipRect(i);
+      drawButton(ctx, r, g.title, { pal, size: chipTextSize(ctx, g.title, r.w - 18), pressTau: tau(`chip${i}`) });
+    });
   }
   ctx.restore();
 

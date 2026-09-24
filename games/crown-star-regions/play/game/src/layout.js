@@ -78,3 +78,22 @@ export const AUTO_THINK_STEPS = [2, 5, 8, 10];
 export const AUTO_REVEAL_SECS = 2;
 export const AUTO_DEC_BUTTON = { x: 24, y: 26, w: 116, h: 68 };
 export const AUTO_INC_BUTTON = { x: SCREEN.width - 140, y: 26, w: 116, h: 68 };
+
+// ---- Cross-promotion (solved screen, real play only) ----------------------------------------
+// The other Arcforge games, for the solved screen's "More from Arcforge" chips — this free game's
+// one natural advertising moment (a player has just finished a puzzle and is deciding what to do
+// next anyway). Deliberately paid games only, never another free game: a player can already find
+// the free ones for themselves (they're labelled), so this moment is spent on ones they might not
+// otherwise discover and might buy (2026-09-23, owner decision; same pattern as harvest-sling's
+// own SIBLINGS on its tally screen).
+export const SIBLINGS = [
+  { slug: 'tiger-and-goat', title: 'Tiger and Goat' },
+  { slug: 'go-stones-and-territory', title: 'Go' },
+  { slug: 'carrom-striker-and-queen', title: 'Carrom' },
+  { slug: 'word-game', title: 'Word Game' },
+];
+// A 2x2 grid below the (shrunk) solved panel, same left/right edges as the panel (50..670).
+export function chipRect(i) {
+  const w = 298, h = 58, gapX = 24, gapY = 10;
+  return { x: 50 + (i % 2) * (w + gapX), y: 1380 + Math.floor(i / 2) * (h + gapY), w, h };
+}

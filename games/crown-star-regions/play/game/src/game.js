@@ -14,6 +14,7 @@ import {
   RULES_TEXT_DEC_BUTTON, RULES_TEXT_INC_BUTTON, TEXT_SCALES, inRect,
   TITLE_AUTO_BUTTON, AUTO_EXIT_BUTTON, AUTO_PAUSE_BUTTON, AUTO_SKIP_BUTTON, AUTO_AGAIN_BUTTON,
   AUTO_EXIT2_BUTTON, AUTO_THINK_STEPS, AUTO_REVEAL_SECS, AUTO_DEC_BUTTON, AUTO_INC_BUTTON,
+  SIBLINGS, chipRect,
 } from './layout.js';
 import { PALETTES } from './palettes.js';
 import { RULES } from './content.js';
@@ -391,6 +392,16 @@ export function createGame(env) {
       }
 
       if (state.scene === 'solved') {
+        // "More from Arcforge" cross-promo chips (SIBLINGS/chipRect in layout.js) — checked before
+        // the tap-anywhere-continues catch-all below, so tapping one opens that game instead of
+        // also starting a new puzzle. Paid games only; see layout.js for why.
+        for (let i = 0; i < SIBLINGS.length; i++) {
+          if (inRect(x, y, chipRect(i))) {
+            pressed(`chip${i}`);
+            env.openGame(SIBLINGS[i].slug);
+            return;
+          }
+        }
         if (state.demoLimitReached) {
           state.scene = 'demo-limit';
           return;

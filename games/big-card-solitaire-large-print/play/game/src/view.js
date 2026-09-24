@@ -1,6 +1,6 @@
 // Everything that is drawn each frame. Reads the state and the visual card positions (fx.js);
 // changes nothing.
-import { W, H, CARD_W, CARD_H, BTN, OPT, TEXT_SCALES, AUTO_THINK_STEPS } from './layout.js';
+import { W, H, CARD_W, CARD_H, BTN, OPT, TEXT_SCALES, AUTO_THINK_STEPS, SIBLINGS, chipRect } from './layout.js';
 import {
   FONT, UI, CREAM, GOLD, THEMES, TABLES, ink, rr,
   drawTable, drawTableSwatch, drawFace, drawBack, drawFaceLarge, drawBackLarge, drawLiftShadow,
@@ -468,6 +468,9 @@ function drawWon(ctx, state, since, calm) {
   text(ctx, 'All four foundations complete.', W / 2, 816, 30, 'rgba(251,238,221,0.9)', UI, 600);
   text(ctx, `Hands won: ${state.handsWon}`, W / 2, 862, 30, GOLD, UI, 700);
   drawButton(ctx, BTN.dealAgain, 'Deal again', { style: 'primary', size: 46, radius: 30 });
+  // "More from Arcforge": the empty band below the sheet, paid games only (layout.js SIBLINGS).
+  text(ctx, 'More from Arcforge', W / 2, 1108, 24, 'rgba(251,238,221,0.75)', UI, 700);
+  SIBLINGS.forEach((g, i) => drawButton(ctx, chipRect(i), g.title, { style: 'quiet', size: 28 }));
   ctx.restore();
 }
 
