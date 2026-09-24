@@ -287,31 +287,6 @@ section { padding: 90px 0; position: relative; }
   transition: transform 0.25s ease, border-color 0.25s ease;
 }
 .game-card:hover { transform: translateY(-6px); border-color: rgba(255,255,255,0.2); }
-/* A hand-picked, deliberately tiny "Top Pick" treatment — an editorial call, not a guess. */
-.game-card.spotlight {
-  position: relative;
-  border: 1px solid transparent;
-  background:
-    linear-gradient(180deg, var(--surface), var(--surface-2)) padding-box,
-    linear-gradient(135deg, #ffe078, #f5a826) border-box;
-  box-shadow: 0 0 0 1px rgba(245,168,38,0.28), 0 20px 44px rgba(245,168,38,0.2);
-}
-.game-card.spotlight:hover { border-color: transparent; box-shadow: 0 0 0 1px rgba(245,168,38,0.4), 0 24px 52px rgba(245,168,38,0.28); }
-.spotlight-ribbon {
-  position: absolute;
-  top: 14px;
-  left: 14px;
-  z-index: 3;
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  padding: 6px 12px;
-  border-radius: 999px;
-  background: linear-gradient(180deg, #ffe078, #f5a826);
-  color: #402100;
-  box-shadow: 0 6px 16px rgba(0,0,0,0.35), inset 0 0 0 1px rgba(255,255,255,0.5);
-}
 .game-art {
   height: 150px;
   position: relative;
