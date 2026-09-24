@@ -14,7 +14,7 @@ import {
   RULES_TEXT_DEC_BUTTON, RULES_TEXT_INC_BUTTON, TEXT_SCALES, inRect,
   TITLE_AUTO_BUTTON, AUTO_EXIT_BUTTON, AUTO_PAUSE_BUTTON, AUTO_SKIP_BUTTON, AUTO_AGAIN_BUTTON,
   AUTO_EXIT2_BUTTON, AUTO_THINK_STEPS, AUTO_REVEAL_SECS, AUTO_DEC_BUTTON, AUTO_INC_BUTTON,
-  SIBLINGS, chipRect,
+  SIBLINGS, chipRect, chipRectAuto,
 } from './layout.js';
 import { PALETTES } from './palettes.js';
 import { RULES } from './content.js';
@@ -287,6 +287,16 @@ export function createGame(env) {
       if (inRect(tap.x, tap.y, AUTO_DEC_BUTTON)) { if (state.autoThinkIdx > 0) { state.autoThinkIdx -= 1; storage.set('autoThinkIdx', state.autoThinkIdx); } return; }
       if (inRect(tap.x, tap.y, AUTO_INC_BUTTON)) { if (state.autoThinkIdx < AUTO_THINK_STEPS.length - 1) { state.autoThinkIdx += 1; storage.set('autoThinkIdx', state.autoThinkIdx); } return; }
       if (A.sub === 'over') {
+        // "More from Arcforge" cross-promo chips (SIBLINGS/chipRectAuto in layout.js) — checked
+        // before Play again/Exit below, same pattern as the 'solved' scene's own chip check in
+        // step(), so a chip tap opens that sibling game instead of also starting a fresh run.
+        for (let i = 0; i < SIBLINGS.length; i++) {
+          if (inRect(tap.x, tap.y, chipRectAuto(i))) {
+            pressed(`chipAuto${i}`);
+            env.openGame(SIBLINGS[i].slug);
+            return;
+          }
+        }
         if (inRect(tap.x, tap.y, AUTO_AGAIN_BUTTON)) startAutoPlay();
         else if (inRect(tap.x, tap.y, AUTO_EXIT2_BUTTON)) { teardownAuto(); state.scene = 'title'; }
         return;

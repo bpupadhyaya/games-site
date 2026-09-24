@@ -452,9 +452,15 @@ export function createGame(env) {
   function updateAutoplay(dt, input) {
     const A = state.ap, p = input.pointer;
     if (A.phase === 'finished') {
+      // The finished state renders the shadow apGame's own real tally screen underneath the Auto
+      // Play control band (drawAutoplay() in render.js), chips included - so a player sees the
+      // exact same "More from Arcforge" row a real session's tally shows. Wire the chip taps up
+      // the same way the real tally scene does (env.openGame doesn't depend on any real-vs-shadow
+      // session state, unlike Share, which is deliberately left inert here - see STATUS.md).
       if (p.pressed) {
         if (inRect(p.x, p.y, BUTTONS.again)) startAutoplay();
         else if (inRect(p.x, p.y, BUTTONS.home)) exitAutoplay();
+        else SIBLINGS.forEach((g, i) => inRect(p.x, p.y, chipRect(i)) && env.openGame(g.slug));
       }
       return;
     }

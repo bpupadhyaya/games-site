@@ -16,7 +16,7 @@ import {
 } from './rules.js';
 import { generateWinnableDeal } from './solver.js';
 import { rankLabel, suitGlyph } from './deck.js';
-import { computeLayout, hitTest, contains, BTN, HERO, OPT, W, H, TEXT_SCALES, AUTO_THINK_STEPS, AUTO_REVEAL_SECS, SIBLINGS, chipRect } from './layout.js';
+import { computeLayout, hitTest, contains, BTN, HERO, OPT, W, H, TEXT_SCALES, AUTO_THINK_STEPS, AUTO_REVEAL_SECS, SIBLINGS, chipRect, chipRectAuto } from './layout.js';
 import { THEMES, TABLES } from './art.js';
 import { createFx } from './fx.js';
 import { render } from './view.js';
@@ -380,6 +380,11 @@ export function createGame(env) {
       if (contains(BTN.autoDec, x, y)) { if (state.autoThinkIdx > 0) { state.autoThinkIdx -= 1; storage.set('autoThinkIdx', state.autoThinkIdx); } return; }
       if (contains(BTN.autoInc, x, y)) { if (state.autoThinkIdx < AUTO_THINK_STEPS.length - 1) { state.autoThinkIdx += 1; storage.set('autoThinkIdx', state.autoThinkIdx); } return; }
       if (A.phase === 'ended') {
+        // "More from Arcforge" chips (layout.js SIBLINGS/chipRectAuto) sit in the empty band
+        // below the ended sheet — check them first, same reasoning as the real 'won' screen.
+        for (let i = 0; i < SIBLINGS.length; i++) {
+          if (contains(chipRectAuto(i), x, y)) { env.openGame(SIBLINGS[i].slug); return; }
+        }
         // The Skip button's own spot doubles as "Play again" once the run has ended.
         if (contains(BTN.autoSkip, x, y)) startAutoPlay();
         return;

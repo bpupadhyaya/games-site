@@ -1,6 +1,6 @@
 // Everything that is drawn each frame. Reads the state and the visual card positions (fx.js);
 // changes nothing.
-import { W, H, CARD_W, CARD_H, BTN, OPT, TEXT_SCALES, AUTO_THINK_STEPS, SIBLINGS, chipRect } from './layout.js';
+import { W, H, CARD_W, CARD_H, BTN, OPT, TEXT_SCALES, AUTO_THINK_STEPS, SIBLINGS, chipRect, chipRectAuto } from './layout.js';
 import {
   FONT, UI, CREAM, GOLD, THEMES, TABLES, ink, rr,
   drawTable, drawTableSwatch, drawFace, drawBack, drawFaceLarge, drawBackLarge, drawLiftShadow,
@@ -168,6 +168,11 @@ function drawAutoEnded(ctx, state) {
   text(ctx, A.solved ? 'Solved!' : 'Not solved this time', W / 2, 720, 56, CREAM, FONT, 700);
   text(ctx, A.solved ? 'Every move was the search engine\'s own proven line.' : 'The search budget ran out before finding a full line.', W / 2, 780, 26, 'rgba(251,238,221,0.85)', UI, 600);
   text(ctx, 'Tap "Play again" for a new deal, or Exit to the title.', W / 2, 830, 24, 'rgba(251,238,221,0.7)', UI, 600);
+  // "More from Arcforge": the empty band between the sheet (ends y=980) and the control bar
+  // (BTN.autoSkip starts y=1340) — same SIBLINGS list as the real 'won' screen, own positions
+  // (layout.js chipRectAuto) since the available space here is shaped differently.
+  text(ctx, 'More from Arcforge', W / 2, 1020, 24, 'rgba(251,238,221,0.75)', UI, 700);
+  SIBLINGS.forEach((g, i) => drawButton(ctx, chipRectAuto(i), g.title, { style: 'quiet', size: 28 }));
   ctx.restore();
 }
 

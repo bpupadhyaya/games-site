@@ -936,8 +936,10 @@ function drawResult(ctx, state, pal, a) {
   if (state.auto) {
     // Auto Play's own end-of-board card: same shape and place as a real result, but "Play again"
     // starts another auto board and there is always an explicit way out, since Undo (mid-run
-    // rescue) and a real best time make no sense for a computer-played demo board. No cross-promo
-    // chips here - nobody is deciding "what next" while watching a silent teaching demo.
+    // rescue) and a real best time make no sense for a computer-played demo board. Cross-promo
+    // chips DO belong here too (2026-09-23, owner follow-up reversing the earlier call): a viewer
+    // who just watched Auto Play solve/fail a board is in the same "what's next" moment a real
+    // player is - see SIBLINGS in layout.js.
     if (won) {
       text(ctx, 'Solved!', W / 2, c.y + 84, 66, '#6dffc9', 700);
       text(ctx, `Every safe tile found by logic alone, in ${formatTime(state.time)}s`, W / 2, c.y + 150, 26, 'rgba(244,251,250,0.85)', 500);
@@ -947,6 +949,11 @@ function drawResult(ctx, state, pal, a) {
     }
     drawButton(ctx, SHIELD_BTN, 'Exit to menu', { pal, size: 30, pressTau: tau('autoExit') });
     drawButton(ctx, AGAIN_BTN, 'Play again', { kind: 'primary', size: 30, icon: iconNew, pressTau: tau('again') });
+    text(ctx, 'More from Arcforge', W / 2, CHIP_LABEL_Y, 19, 'rgba(244,251,250,0.65)', 600);
+    SIBLINGS.forEach((g, i) => {
+      const r = chipRect(i);
+      drawButton(ctx, r, g.title, { pal, size: chipTextSize(ctx, g.title, r.w - 18), pressTau: tau(`chip${i}`) });
+    });
   } else {
     if (won) {
       text(ctx, 'Cleared!', W / 2, c.y + 84, 66, '#6dffc9', 700);

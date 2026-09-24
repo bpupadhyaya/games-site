@@ -79,13 +79,14 @@ export const AUTO_REVEAL_SECS = 2;
 export const AUTO_DEC_BUTTON = { x: 24, y: 26, w: 116, h: 68 };
 export const AUTO_INC_BUTTON = { x: SCREEN.width - 140, y: 26, w: 116, h: 68 };
 
-// ---- Cross-promotion (solved screen, real play only) ----------------------------------------
+// ---- Cross-promotion (solved screen — both real play and Auto Play) -------------------------
 // The other Arcforge games, for the solved screen's "More from Arcforge" chips — this free game's
-// one natural advertising moment (a player has just finished a puzzle and is deciding what to do
-// next anyway). Deliberately paid games only, never another free game: a player can already find
-// the free ones for themselves (they're labelled), so this moment is spent on ones they might not
-// otherwise discover and might buy (2026-09-23, owner decision; same pattern as harvest-sling's
-// own SIBLINGS on its tally screen).
+// one natural advertising moment (a player, or a viewer who just watched Auto Play solve the
+// puzzle, is deciding what to do next anyway). Deliberately paid games only, never another free
+// game: a player can already find the free ones for themselves (they're labelled), so this moment
+// is spent on ones they might not otherwise discover and might buy (2026-09-23, owner decision;
+// same pattern as harvest-sling's own SIBLINGS on its tally screen). Originally real-play only;
+// extended to Auto Play's own "over" sub-state the same day per owner follow-up — see STATUS.md.
 export const SIBLINGS = [
   { slug: 'tiger-and-goat', title: 'Tiger and Goat' },
   { slug: 'go-stones-and-territory', title: 'Go' },
@@ -96,4 +97,13 @@ export const SIBLINGS = [
 export function chipRect(i) {
   const w = 298, h = 58, gapX = 24, gapY = 10;
   return { x: 50 + (i % 2) * (w + gapX), y: 1380 + Math.floor(i / 2) * (h + gapY), w, h };
+}
+// Auto Play's own "over" sub-state has far less free space: AUTO_AGAIN_BUTTON/AUTO_EXIT2_BUTTON
+// (above) already occupy y:1412..1546, so chipRect()'s 2x2 grid (y:1380..1448) would overlap
+// AUTO_AGAIN_BUTTON. This is a single row of 4, sized to sit entirely between the solved panel's
+// bottom edge (y:1330) and AUTO_AGAIN_BUTTON's top (y:1412), same left/right edges as the panel
+// (50..670). Verified against a real render — see STATUS.md.
+export function chipRectAuto(i) {
+  const w = 146, h = 44, gap = 12;
+  return { x: 50 + i * (w + gap), y: 1352, w, h };
 }

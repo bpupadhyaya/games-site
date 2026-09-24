@@ -41,6 +41,11 @@ export function createGame(env) {
     // Freezes the whole demo loop (every phase, and any in-flight move animation) at any moment;
     // Resume continues exactly where it froze rather than restarting the current step.
     demoPaused: false,
+    // True once the LAST of the two demo games has reached its own result - the demo then stops
+    // (rather than looping straight back to game 1) and shows the same "More from Arcforge"
+    // cross-promo a real game-over does, since a viewer who just watched the whole demo is in the
+    // same "what's next" moment a real player is.
+    demoFinished: false,
     progress: { played: 0, wins: 0 }, learned: [],
     coach: { seen: false }, coachBubble: null,
     textScaleIdx: 0, // index into TEXT_SCALES; the About/Controls/Rules reference pages' text size
@@ -229,7 +234,7 @@ export function createGame(env) {
     // demoWait here is only the brief settle pause before the FIRST think of a freshly-loaded
     // board (so the position doesn't start "thinking" the instant it appears); it is unrelated to
     // the per-move THINK/REVEAL teaching loop below, which owns all pacing between moves.
-    Object.assign(state, { last: null, msg: null, hint: null, anim: null, banner: null, overOpen: false, demoWait: 0.6, demoPaused: false });
+    Object.assign(state, { last: null, msg: null, hint: null, anim: null, banner: null, overOpen: false, demoWait: 0.6, demoPaused: false, demoFinished: false });
     clearSel(); thinker = null; pending = null;
     state.demoPhase = null; state.demoPendingMove = undefined; state.demoChosen = -1;
     say(cfg.name, 'info');
@@ -244,12 +249,15 @@ export function createGame(env) {
   const DEMO_SOURCE_SECS = 2;
   const DEMO_REVEAL_SECS = 2;
   function demoStep(dt) {
-    if (state.demoPaused) return;
+    if (state.demoPaused || state.demoFinished) return;
     const cfg = DEMO_GAMES[state.demoIdx];
     if (state.g.result) {
       state.demoWait -= dt;
       if (state.demoWait <= 0) {
-        if (state.demoIdx < DEMO_GAMES.length - 1) { state.demoIdx++; loadDemoGame(); } else { state.demoIdx = 0; loadDemoGame(); }
+        if (state.demoIdx < DEMO_GAMES.length - 1) { state.demoIdx++; loadDemoGame(); }
+        // The whole demo (both games) just finished: stop and show the same cross-promo moment a
+        // real game-over does, instead of silently looping back to game 1.
+        else state.demoFinished = true;
       }
       return;
     }
@@ -434,6 +442,13 @@ export function createGame(env) {
         break;
       }
       case 'demo': {
+        if (state.demoFinished) {
+          // Same cross-promo moment the real game-over screen offers - see demoStep()'s comment.
+          if (hit(RESULT_PANEL.again)) startDemo();
+          else if (hit(RESULT_PANEL.menu)) { thinker = null; state.scene = 'title'; clearSel(); state.demoPaused = false; }
+          else SIBLINGS.forEach((sib, i) => hit(chipRect(i)) && env.openGame(sib.slug));
+          break;
+        }
         if (hit(HEADER.back)) { thinker = null; state.scene = 'title'; clearSel(); state.demoPhase = null; state.demoPendingMove = undefined; state.demoChosen = -1; state.demoPaused = false; }
         else if (hit(HEADER.next)) { state.demoSpeed = state.demoSpeed >= 4 ? 1 : state.demoSpeed * 2; }
         else if (hit(DEMO_PAUSE)) { state.demoPaused = !state.demoPaused; sound('ok'); }

@@ -407,11 +407,35 @@ function renderLesson(ctx, state) {
   if (state.promoPending) drawPromoPicker(ctx, state);
 }
 
+// The whole 2-game demo just finished (see demoStep()'s comment): same "More from Arcforge"
+// cross-promo a real game-over shows, since a viewer who watched it all is in the same "what's
+// next" moment - reuses resultText()/SIBLINGS/chipRect/RESULT_PANEL exactly, just with demo-
+// appropriate button labels/behaviour (Watch Again instead of New Game).
+function drawDemoFinished(ctx, state) {
+  const r = state.g.result;
+  ctx.save();
+  const top = BOARD_Y + BOARD_SIZE * 0.32;
+  ctx.fillStyle = 'rgba(10,7,4,0.86)'; ctx.fillRect(0, top, W, H - top);
+  ctx.font = '700 42px Georgia, serif'; ctx.fillStyle = r.why === 'checkmate' ? '#ffe6a8' : '#f4ead6'; ctx.textAlign = 'center';
+  wrapText(ctx, resultText(r, state), W / 2, top + 90, W - 100, 48);
+  ctx.font = '400 20px Georgia, serif'; ctx.globalAlpha = 0.8;
+  ctx.fillText(`Demo complete — Game ${state.demoIdx + 1} of ${DEMO_GAMES.length}`, W / 2, top + 150);
+  ctx.globalAlpha = 1;
+  ctx.font = '700 20px Georgia, serif'; ctx.globalAlpha = 0.75; ctx.fillStyle = '#f4ead6';
+  ctx.fillText('More from Arcforge', W / 2, 610);
+  ctx.globalAlpha = 1;
+  SIBLINGS.forEach((g, i) => drawButton(ctx, chipRect(i), g.title));
+  drawButton(ctx, RESULT_PANEL.again, 'Watch Again', { primary: true });
+  drawButton(ctx, RESULT_PANEL.menu, 'Menu');
+  ctx.restore();
+}
+
 function renderDemo(ctx, state) {
   drawBackdrop(ctx, state.boardTheme, ['#161220', '#08060a']);
   const cfg = DEMO_GAMES[state.demoIdx];
   drawTopBar(ctx, state, cfg.name);
   drawGameBoard(ctx, state, false);
+  if (state.demoFinished) { drawDemoFinished(ctx, state); return; }
   drawMoveList(ctx, state);
   ctx.save(); ctx.font = '400 19px Georgia, serif'; ctx.fillStyle = '#cbb9e0'; ctx.textAlign = 'center';
   ctx.fillText(`${state.demoIdx + 1} of ${DEMO_GAMES.length}  ·  White: ${LEVELS[cfg.levels[0]].name}   Black: ${LEVELS[cfg.levels[1]].name}`, W / 2, TRAY_TOP + 20);

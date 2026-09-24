@@ -48,11 +48,13 @@ export const BTN = {
   autoPause: { x: 20, y: BOTTOM_Y + 118, w: 190, h: 74 },
   autoExit: { x: 218, y: BOTTOM_Y + 118, w: 190, h: 74 },
 };
-// "More from Arcforge" cross-promo, shown only on the 'won' screen (view.js's drawWon), in the
-// empty band below the sheet. Deliberately paid games only, never another free game — a player can
-// already find the free ones themselves — so this one natural post-session moment (the player just
-// finished and is deciding what's next anyway) goes to games they might not otherwise discover and
-// might buy (2026-09-23, owner decision; same mechanism as harvest-sling's tally screen).
+// "More from Arcforge" cross-promo, shown on the real 'won' screen (view.js's drawWon) AND on
+// Auto Play's ended screen (view.js's drawAutoEnded, state.auto.phase === 'ended') — a viewer who
+// just watched Auto Play solve/fail the deal is in the same "what's next" moment a real player who
+// just won is. Deliberately paid games only, never another free game — a player can already find
+// the free ones themselves — so this one natural post-session moment goes to games they might not
+// otherwise discover and might buy (2026-09-23, owner decision; same mechanism as harvest-sling's
+// tally screen; extended to Auto Play 2026-09-23 per owner follow-up — see STATUS.md).
 export const SIBLINGS = [
   { slug: 'tiger-and-goat', title: 'Tiger and Goat' },
   { slug: 'go-stones-and-territory', title: 'Go' },
@@ -63,6 +65,11 @@ export const SIBLINGS = [
 // below (y=1340+) — both still render, dimmed, under the 'won' overlay (view.js's drawPlay runs
 // for every non-title scene), so the chip row must not sit on top of them.
 export const chipRect = (i) => ({ x: 40 + (i % 2) * 340, y: 1120 + Math.floor(i / 2) * 108, w: 320, h: 92 });
+// Auto Play's ended screen has a differently-shaped empty band: its sheet is shorter (ends y=980)
+// and its control bar starts higher (BTN.autoSkip at y=1340) than the real 'won' screen's, so this
+// gets its own chip positions rather than reusing chipRect() verbatim — see STATUS.md for the real
+// render check that picked these numbers.
+export const chipRectAuto = (i) => ({ x: 40 + (i % 2) * 340, y: 1050 + Math.floor(i / 2) * 125, w: 320, h: 100 });
 
 // Configurable Auto Play think-time: index-based steps (never a raw float), hard-capped at 10s.
 export const AUTO_THINK_STEPS = [2, 5, 8, 10];

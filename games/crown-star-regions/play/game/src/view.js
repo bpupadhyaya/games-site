@@ -8,7 +8,7 @@ import {
   RULES_TEXT_DEC_BUTTON, RULES_TEXT_INC_BUTTON, TEXT_SCALES,
   TITLE_AUTO_BUTTON, AUTO_EXIT_BUTTON, AUTO_PAUSE_BUTTON, AUTO_SKIP_BUTTON, AUTO_AGAIN_BUTTON,
   AUTO_EXIT2_BUTTON, AUTO_THINK_STEPS, AUTO_REVEAL_SECS, AUTO_DEC_BUTTON, AUTO_INC_BUTTON,
-  SIBLINGS, chipRect,
+  SIBLINGS, chipRect, chipRectAuto,
 } from './layout.js';
 import { PALETTES, regionColor } from './palettes.js';
 import { RULES } from './content.js';
@@ -908,17 +908,21 @@ function drawPlay(ctx, state, palette) {
     text(ctx, `Time ${clock(state.solveTime)}`, 230, 1244, 30, '#ffffff', UI, 700);
     text(ctx, `Moves ${state.solveMoves}`, 490, 1244, 30, '#ffffff', UI, 700);
     text(ctx, state.hintsUsed ? `Hints used: ${state.hintsUsed}` : 'No hints used', 360, 1284, 23, 'rgba(247,226,170,0.85)', UI, 500);
-    if (!isAuto) {
-      // This free game's one natural advertising moment: the player just finished a puzzle and is
-      // deciding what to do next anyway. Paid games only, never another free game — see
-      // SIBLINGS in layout.js for why and which ones. Tap handling: game.js's 'solved' branch.
-      text(ctx, 'MORE FROM ARCFORGE', 360, 1362, 20, 'rgba(247,226,170,0.75)', DISPLAY, 700);
+    // This free game's one natural advertising moment: a player (or a viewer who just watched
+    // Auto Play solve it) is deciding what to do next anyway. Paid games only, never another free
+    // game — see SIBLINGS in layout.js for why and which ones. Real play has room for the 2x2
+    // chipRect() grid below this panel; Auto Play's "over" sub-state has AUTO_AGAIN_BUTTON/
+    // AUTO_EXIT2_BUTTON starting right at y:1412, so it uses the single-row chipRectAuto() layout
+    // instead (replaces the old standalone "Solved!" line — the panel's own "SOLVED" title above
+    // already says that). Tap handling: game.js's 'solved' branch / updateAutoScene's 'over' branch.
+    text(ctx, 'MORE FROM ARCFORGE', 360, isAuto ? 1344 : 1362, isAuto ? 13 : 20, 'rgba(247,226,170,0.75)', DISPLAY, 700);
+    if (isAuto) {
+      SIBLINGS.forEach((g, i) => button(ctx, state, chipRectAuto(i), g.title, { size: 14, id: `chipAuto${i}` }));
+    } else {
       SIBLINGS.forEach((g, i) => button(ctx, state, chipRect(i), g.title, { size: 20, id: `chip${i}` }));
     }
     ctx.globalAlpha = f * (0.65 + 0.35 * Math.sin(state.t * 3.2));
-    if (isAuto) {
-      text(ctx, 'Solved!', 360, 1380, 30, CREAM, DISPLAY, 700);
-    } else {
+    if (!isAuto) {
       text(ctx, state.demoLimitReached ? 'Tap to continue' : 'Tap for a new puzzle', 360, 1546, 30, CREAM, DISPLAY, 700);
     }
     ctx.restore();

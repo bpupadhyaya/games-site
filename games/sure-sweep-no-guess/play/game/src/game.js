@@ -397,6 +397,13 @@ export function createGame(env) {
       state.scene = 'title';
       return;
     }
+    for (let i = 0; i < SIBLINGS.length; i++) {
+      if (inRect(x, y, chipRect(i))) {
+        press(`chip${i}`);
+        openGame(SIBLINGS[i].slug);
+        return;
+      }
+    }
     press('again');
     newBoard(true);
   }
