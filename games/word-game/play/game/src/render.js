@@ -7,7 +7,7 @@ import {
   MODE_SYN_BTN, MODE_ANT_BTN, PLAY_BTN, TITLE_COLOR_BTN, TITLE_RULES_BTN, STOP_BTN, COLOR_BTN,
   PREV_BTN, NEXT_BTN, PLAY_AGAIN_BTN, CHANGE_MODE_BTN, RULES_BACK_BTN, RULES_NEXT_BTN, slipWidth,
   TEXT_SCALES, RULES_TEXT_DEC, RULES_TEXT_INC, RULES_PANEL, TITLE_AUTOPLAY_BTN, THINK_STEPS,
-  REVEAL_SECONDS, AUTO_THINK_DEC, AUTO_THINK_INC,
+  REVEAL_SECONDS, AUTO_THINK_DEC, AUTO_THINK_INC, AUTO_STOP_BTN, AUTO_PAUSE_BTN, AUTO_COLOR_BTN,
 } from './layout.js';
 
 const DISPLAY = '"Cormorant Garamond", Georgia, "Times New Roman", serif';
@@ -386,7 +386,7 @@ export function render(ctx, state, title, demoLimit) {
 
     text(`Page ${(state.rulesPage % RULES.length) + 1} of ${RULES.length}`, W / 2, RULES_PANEL.y + RULES_PANEL.h + 22, 26, soft(0.65), { weight: 500 });
     button(RULES_BACK_BTN, 'Back', { size: 34, scale: enter(0) });
-    button(RULES_NEXT_BTN, 'Next', { style: 'primary', size: 34, scale: enter(1) });
+    button(RULES_NEXT_BTN, state.rulesPage >= RULES.length - 1 ? 'Done' : 'Next', { style: 'primary', size: 34, scale: enter(1) });
     return;
   }
 
@@ -529,10 +529,13 @@ export function render(ctx, state, title, demoLimit) {
       const thinkS = THINK_STEPS[state.autoThinkIdx];
       button(AUTO_THINK_DEC, '−', { id: 'thinkDec', size: 30, scale: btnIn, disabled: state.autoThinkIdx === 0 });
       button(AUTO_THINK_INC, '+', { id: 'thinkInc', size: 30, scale: btnIn, disabled: state.autoThinkIdx === THINK_STEPS.length - 1 });
-      const phaseLabel = revealing ? 'Answer!' : `Think — ${thinkS}s`;
-      text(phaseLabel, W / 2, 495, 24, revealing ? (hc ? '#ffffff' : GOOD) : soft(0.9), { weight: 800, maxW: 190 });
-      button(STOP_BTN, 'Exit', { size: 32, scale: btnIn });
-      button(COLOR_BTN, 'Colours', { id: 'colour', size: 30, scale: btnIn, swatch });
+      // Paused freezes literally everything here (game.js update()), including the dots/countdown
+      // this label would otherwise still read as live - so it must say so plainly instead.
+      const phaseLabel = state.autoPaused ? 'Paused' : revealing ? 'Answer!' : `Think — ${thinkS}s`;
+      text(phaseLabel, W / 2, 495, 24, state.autoPaused ? hexA(GOLD, 0.95) : revealing ? (hc ? '#ffffff' : GOOD) : soft(0.9), { weight: 800, maxW: 190 });
+      button(AUTO_STOP_BTN, 'Exit', { size: 28, scale: btnIn });
+      button(AUTO_PAUSE_BTN, state.autoPaused ? 'Resume' : 'Pause', { id: 'autoPause', size: 28, scale: btnIn, style: state.autoPaused ? 'active' : undefined });
+      button(AUTO_COLOR_BTN, 'Colours', { id: 'colour', size: 24, scale: btnIn, swatch });
     } else {
       button(STOP_BTN, 'Stop', { size: 32, scale: btnIn });
       button(COLOR_BTN, 'Colours', { id: 'colour', size: 30, scale: btnIn, swatch });

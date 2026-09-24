@@ -79,3 +79,10 @@ export const THINK_STEPS = [2, 5, 8, 10];
 export const REVEAL_SECONDS = 2;
 export const AUTO_THINK_DEC = { x: 160, y: 466, w: 90, h: 46 };
 export const AUTO_THINK_INC = { x: 470, y: 466, w: 90, h: 46 };
+// Auto Play's own bottom row: 3 even slots (Exit, Pause/Resume, Colours) spanning the exact same
+// x70..650 the 2-slot STOP_BTN/COLOR_BTN row spans for real play - a dedicated rect set rather
+// than a 3rd button crammed into those two, since a tap in the new gap between slots must never
+// fall through to a wider, stale rect from the old 2-button layout.
+export const AUTO_STOP_BTN = { x: 70, y: 1408, w: 180, h: 96 };
+export const AUTO_PAUSE_BTN = { x: 270, y: 1408, w: 180, h: 96 };
+export const AUTO_COLOR_BTN = { x: 470, y: 1408, w: 180, h: 96 };

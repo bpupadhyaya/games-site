@@ -16,7 +16,7 @@ import {
   MODE_SYN_BTN, MODE_ANT_BTN, PLAY_BTN, TITLE_COLOR_BTN, TITLE_RULES_BTN, STOP_BTN, COLOR_BTN,
   PREV_BTN, NEXT_BTN, PLAY_AGAIN_BTN, CHANGE_MODE_BTN, RULES_BACK_BTN, RULES_NEXT_BTN,
   TEXT_SCALES, RULES_TEXT_DEC, RULES_TEXT_INC, TITLE_AUTOPLAY_BTN, THINK_STEPS, REVEAL_SECONDS,
-  AUTO_THINK_DEC, AUTO_THINK_INC,
+  AUTO_THINK_DEC, AUTO_THINK_INC, AUTO_STOP_BTN, AUTO_PAUSE_BTN, AUTO_COLOR_BTN,
 } from './layout.js';
 
 export const meta = { width: W, height: H };
@@ -59,6 +59,8 @@ export function createGame(env) {
     // Auto Play ("Watch & Learn"): a free, silent, whole-session teaching demo. THINK/REVEAL/ACT
     // loop per round, driven by the same spawnRound()/resolveRound() as real play - see startAutoplay().
     autoPlay: false, // true only while state.scene is 'autoplay' or the gameover screen it led to
+    autoPaused: false, // Pause/Resume: freezes the whole Auto Play loop (session clock, THINK/
+    // REVEAL timers, and the shared presentation clocks below) at any instant - see updateAutoplay().
     autoThinkIdx: 1, // index into THINK_STEPS (never a raw float), default 5s
     autoPhase: 'think', // 'think' | 'reveal'
     autoPhaseT: 0,
@@ -175,6 +177,7 @@ export function createGame(env) {
       if (state.demoSessions >= DEMO_SESSION_LIMIT) state.demoLimitReached = true;
     }
     state.autoPlay = false;
+    state.autoPaused = false;
     state.mode = state.selectedMode;
     state.history = [];
     state.reviewPage = 0;
@@ -194,6 +197,7 @@ export function createGame(env) {
   // touches demoSessions/demoLimitReached at all. Never counts as, or requires, a real session.
   const startAutoplay = () => {
     state.autoPlay = true;
+    state.autoPaused = false;
     state.mode = state.selectedMode;
     state.history = [];
     state.reviewPage = 0;
@@ -208,6 +212,7 @@ export function createGame(env) {
   };
   const exitAutoplay = () => {
     state.autoPlay = false;
+    state.autoPaused = false;
     state.round = null;
     setScene('title');
   };
@@ -283,18 +288,18 @@ export function createGame(env) {
     }
   };
 
-  // Back always returns straight to the title (this scene has no other in-canvas way out - Rules
-  // is only reachable from the title screen and there's no board-scene Menu button drawn here, so
-  // a page-by-page Back with no exit until the last page would strand a player on page 1 for all
-  // 41 taps it'd take to reach the end). Next always cycles forward and wraps back to page 1 after
-  // the last page.
+  // Back steps back one page, only returning to the title from page 1 (every platform shell also
+  // has its own native back button, so an in-canvas step-back can never strand a player). Next
+  // exits to the title ("Done") from the last page instead of wrapping back to page 1.
   const updateRules = (input) => {
     if (!input.pointer.pressed) return;
     const { x, y } = input.pointer;
     if (inRect(x, y, RULES_BACK_BTN)) {
-      setScene('title');
+      if (state.rulesPage > 0) state.rulesPage -= 1;
+      else setScene('title');
     } else if (inRect(x, y, RULES_NEXT_BTN)) {
-      state.rulesPage = (state.rulesPage + 1) % RULES.length;
+      if (state.rulesPage >= RULES.length - 1) setScene('title');
+      else state.rulesPage += 1;
       pressed('rulesNext');
     } else if (inRect(x, y, RULES_TEXT_DEC) && state.textScaleIdx > 0) {
       state.textScaleIdx -= 1;
@@ -367,7 +372,24 @@ export function createGame(env) {
   // then ACT calls the exact same resolveRound() real play uses, which scores it, plays the real
   // feedback fx, and spawns the next round. The real 90-second session clock still runs throughout
   // (same SESSION_SECONDS, same endSession()), so a full Auto Play run is a real, complete session.
+  // Pause/Resume: checked FIRST, ahead of the session clock and the THINK/REVEAL timers below, so
+  // it registers at literally any instant - mid-THINK, mid-REVEAL, or mid the (instantaneous)
+  // resolveRound() call. `if (state.autoPaused) return;` then withholds everything else in this
+  // function; the shared presentation clocks (state.t/sceneT/press/fx) are withheld too, in the
+  // top-level update() below, so a paused screenshot never looks subtly alive.
   const updateAutoplay = (dt, input) => {
+    if (input.pointer.pressed) {
+      if (inRect(input.pointer.x, input.pointer.y, AUTO_PAUSE_BTN)) {
+        state.autoPaused = !state.autoPaused;
+        pressed('autoPause');
+        return;
+      }
+      if (inRect(input.pointer.x, input.pointer.y, AUTO_STOP_BTN)) {
+        exitAutoplay();
+        return;
+      }
+    }
+    if (state.autoPaused) return;
     state.timeLeft -= dt;
     if (state.timeLeft <= 0) {
       state.timeLeft = 0;
@@ -375,13 +397,9 @@ export function createGame(env) {
       return;
     }
     if (input.pointer.pressed) {
-      if (inRect(input.pointer.x, input.pointer.y, COLOR_BTN)) {
+      if (inRect(input.pointer.x, input.pointer.y, AUTO_COLOR_BTN)) {
         cycleScheme();
         pressed('colour');
-        return;
-      }
-      if (inRect(input.pointer.x, input.pointer.y, STOP_BTN)) {
-        exitAutoplay();
         return;
       }
       if (inRect(input.pointer.x, input.pointer.y, AUTO_THINK_DEC) && state.autoThinkIdx > 0) {
@@ -451,10 +469,17 @@ export function createGame(env) {
 
   return {
     update(dt, input) {
-      state.t += dt;
-      state.sceneT += dt;
-      if (state.press && (state.press.t += dt) > 0.6) state.press = null;
-      if (state.fx && (state.fx.t += dt) > 0.8) state.fx = null;
+      // Auto Play Pause must freeze genuinely everything about that running session, not just the
+      // board and its timers - including the shared presentation clocks every ambient animation
+      // reads (idle motion, entrance easing, the press/feedback fx timers), or a screenshot taken
+      // a moment apart would still show something quietly moving despite being "paused".
+      const autoFrozen = state.scene === 'autoplay' && state.autoPaused;
+      if (!autoFrozen) {
+        state.t += dt;
+        state.sceneT += dt;
+        if (state.press && (state.press.t += dt) > 0.6) state.press = null;
+        if (state.fx && (state.fx.t += dt) > 0.8) state.fx = null;
+      }
       if (state.scene === 'title') updateTitle(input);
       else if (state.scene === 'playing') updatePlaying(dt, input);
       else if (state.scene === 'autoplay') updateAutoplay(dt, input);
