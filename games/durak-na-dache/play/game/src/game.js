@@ -465,8 +465,9 @@ export function createGame(env) {
     }
   }
 
-  // Shared by both paginated reference screens (About/Rules): Back returns to the title, Next
-  // advances (wrapping back to page 1), and A-/A+ step the reader text size, clamped at each end.
+  // Shared by both paginated reference screens (About/Rules): Back steps back one page (only
+  // exiting to the title from page 0), Next advances (exiting on the last page instead of
+  // wrapping), and A-/A+ step the reader text size, clamped at each end.
   function updateTextStepper(tap) {
     if (inRect(HEADER.textDec, tap.x, tap.y) && state.textScaleIdx > 0) { state.textScaleIdx -= 1; savePrefs(); clack(); return true; }
     if (inRect(HEADER.textInc, tap.x, tap.y) && state.textScaleIdx < TEXT_SCALES.length - 1) { state.textScaleIdx += 1; savePrefs(); clack(); return true; }
@@ -475,17 +476,17 @@ export function createGame(env) {
   // Paginated About reference: same Back/Next/text-size convention as Rules below.
   function updateAbout(tap) {
     if (!tap) return;
-    if (inRect(REF_BACK, tap.x, tap.y)) { state.scene = 'title'; return; }
+    if (inRect(REF_BACK, tap.x, tap.y)) { if (state.page > 0) state.page -= 1; else state.scene = 'title'; return; }
     if (updateTextStepper(tap)) return;
-    if (inRect(REF_NEXT, tap.x, tap.y)) { clack(); state.page = (state.page + 1) % ABOUT.length; }
+    if (inRect(REF_NEXT, tap.x, tap.y)) { clack(); if (state.page >= ABOUT.length - 1) { state.scene = 'title'; state.page = 0; } else state.page += 1; }
   }
 
-  // Paginated Rules reference: Back returns to the title, Next advances (wrapping back to page 1).
+  // Paginated Rules reference: Back steps back one page (only exiting to the title from page 0).
   function updateRules(tap) {
     if (!tap) return;
-    if (inRect(REF_BACK, tap.x, tap.y)) { state.scene = 'title'; return; }
+    if (inRect(REF_BACK, tap.x, tap.y)) { if (state.page > 0) state.page -= 1; else state.scene = 'title'; return; }
     if (updateTextStepper(tap)) return;
-    if (inRect(REF_NEXT, tap.x, tap.y)) { clack(); state.page = (state.page + 1) % RULES.length; }
+    if (inRect(REF_NEXT, tap.x, tap.y)) { clack(); if (state.page >= RULES.length - 1) { state.scene = 'title'; state.page = 0; } else state.page += 1; }
   }
 
   // Keyboard equivalents for the web demo (docs/GAME-CONTRACT.md): Left/Right choose a card, Enter/Space plays it,

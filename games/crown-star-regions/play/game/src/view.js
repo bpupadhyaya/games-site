@@ -1187,7 +1187,7 @@ function drawRulesPage(ctx, state, manifest, palette) {
   // Next as the primary action (the gold "PLAY" accent), so the two footer buttons are never
   // visually identical — matches this game's own title-screen convention (gold = the main action).
   button(ctx, state, RULES_BACK_BUTTON, 'Back', { id: 'rulesBack', size: 34 });
-  button(ctx, state, RULES_NEXT_BUTTON, 'Next', { id: 'rulesNext', size: 34, primary: true });
+  button(ctx, state, RULES_NEXT_BUTTON, i >= list.length - 1 ? 'Done' : 'Next', { id: 'rulesNext', size: 34, primary: true });
   button(ctx, state, RULES_TEXT_DEC_BUTTON, 'A−', { id: 'textDec', size: 30, dim: state.textScaleIdx === 0 });
   button(ctx, state, RULES_TEXT_INC_BUTTON, 'A+', { id: 'textInc', size: 30, dim: state.textScaleIdx === TEXT_SCALES.length - 1 });
 }

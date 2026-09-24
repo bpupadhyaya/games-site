@@ -285,7 +285,7 @@ export function render(ctx, state) {
     for (const line of page.lines) { const n = wrap(line, 360, y, fontPx, textMaxW, INK, lh); y += n * lh + gap; }
 
     text(`Page ${(state.rulesPage % RULES.length) + 1} of ${RULES.length}`, 360, 1420, 22, SOFT, UI, 500);
-    button(RULES_NAV.back, 'Back', { size: 28 }); button(RULES_NAV.next, 'Next', { size: 28, primary: true });
+    button(RULES_NAV.back, 'Back', { size: 28 }); button(RULES_NAV.next, state.rulesPage >= RULES.length - 1 ? 'Done' : 'Next', { size: 28, primary: true });
     button(RULES_TEXT.dec, 'A−', { size: 26, dim: state.textScaleIdx === 0 });
     button(RULES_TEXT.inc, 'A+', { size: 26, dim: state.textScaleIdx === TEXT_SCALES.length - 1 });
   }

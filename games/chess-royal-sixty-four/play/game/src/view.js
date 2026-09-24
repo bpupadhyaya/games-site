@@ -541,7 +541,7 @@ function renderPage(ctx, state, list, headerTitle) {
   // the neutral/secondary action, Next the primary (gold) action, matching every other game's
   // reference pages. The text-size stepper (A-/A+) lives in the top corners only.
   drawButton(ctx, REF_BACK, 'Back');
-  drawButton(ctx, REF_NEXT, 'Next', { primary: true });
+  drawButton(ctx, REF_NEXT, state.page >= list.length - 1 ? 'Done' : 'Next', { primary: true });
   drawButton(ctx, TEXT_DEC, 'A−', { disabled: state.textScaleIdx === 0 });
   drawButton(ctx, TEXT_INC, 'A+', { disabled: state.textScaleIdx === TEXT_SCALES.length - 1 });
 }

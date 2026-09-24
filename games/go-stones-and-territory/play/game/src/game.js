@@ -424,16 +424,22 @@ export function createGame(env) {
     else if (on(B.rules)) { S.scene = 'rules'; S.rulesPage = 0; }
     else if (on(B.auto)) startAutoplay();
   }
-  // About, How to play and Rules are all paginated the same way (one topic per page, Back/Next
-  // with wraparound) and all share the same text-size stepper - one update handler for the three.
+  // About, How to play and Rules are all paginated the same way (one topic per page: Next steps
+  // forward and exits to the title on the last page instead of wrapping, Back steps back and only
+  // exits to the title from page 0) and all share the same text-size stepper - one update handler
+  // for the three.
   const TEXT_STEP_TONE = (up) => tone({ freq: up ? 680 : 560, to: up ? 880 : 460, dur: 0.09, type: 'sine', vol: 0.13 });
   function updatePageNav(p, list, pageKey) {
     if (!p.released) return;
     const idx = S.prefs.textScaleIdx ?? 0;
     if (upHit(TEXT_BTN.dec, p) && idx > 0) { S.prefs.textScaleIdx = idx - 1; savePrefs(); TEXT_STEP_TONE(false); }
     else if (upHit(TEXT_BTN.inc, p) && idx < TEXT_SCALES.length - 1) { S.prefs.textScaleIdx = idx + 1; savePrefs(); TEXT_STEP_TONE(true); }
-    else if (upHit(PAGE_NAV.next, p)) S[pageKey] = (S[pageKey] + 1) % list.length;
-    else if (upHit(PAGE_NAV.back, p)) S.scene = 'title';
+    else if (upHit(PAGE_NAV.next, p)) {
+      if (S[pageKey] >= list.length - 1) { S.scene = 'title'; S[pageKey] = 0; } else S[pageKey]++;
+    }
+    else if (upHit(PAGE_NAV.back, p)) {
+      if (S[pageKey] > 0) S[pageKey]--; else S.scene = 'title';
+    }
   }
   function updateSetup(p) {
     if (!p.released) return;

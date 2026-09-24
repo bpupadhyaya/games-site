@@ -192,7 +192,9 @@ export function createGame(env) {
         if (tap) {
           const at = typeof tap === 'object' ? tap : null;
           const inBox = (b) => at && at.x >= b.x0 && at.x <= b.x1 && at.y >= b.y0 && at.y <= b.y1;
-          if (inBox(RULES_BACK_BOX)) { state.scene = 'title'; state.page = 0; }
+          // Steps back one page first (never discards where the player was mid-list); only exits
+          // to the title once already on page one.
+          if (inBox(RULES_BACK_BOX)) { if (state.page > 0) state.page--; else state.scene = 'title'; }
           // On the last page the label reads "Done" (rulesView.js) and exits to the title instead
           // of silently wrapping back to page one, so it's never a dead-end tap.
           else if (inBox(RULES_NEXT_BOX)) { if (state.page === RULES.length - 1) { state.scene = 'title'; state.page = 0; } else state.page++; }

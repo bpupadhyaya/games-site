@@ -412,8 +412,13 @@ export function createGame(env) {
   const updateRules = (input) => {
     if (!input.pointer.pressed) return;
     const { x, y } = input.pointer;
-    if (inRect(x, y, BUTTONS.rulesBack)) state.scene = 'title';
-    else if (inRect(x, y, BUTTONS.rulesNext)) state.rulesPage = (state.rulesPage + 1) % RULES.length;
+    if (inRect(x, y, BUTTONS.rulesBack)) {
+      if (state.rulesPage > 0) state.rulesPage--;
+      else state.scene = 'title';
+    } else if (inRect(x, y, BUTTONS.rulesNext)) {
+      if (state.rulesPage >= RULES.length - 1) { state.scene = 'title'; state.rulesPage = 0; }
+      else state.rulesPage++;
+    }
     else if (inRect(x, y, BUTTONS.textDec) && state.textScaleIdx > 0) { state.textScaleIdx--; storage.set('textScaleIdx', state.textScaleIdx); }
     else if (inRect(x, y, BUTTONS.textInc) && state.textScaleIdx < TEXT_SCALES.length - 1) { state.textScaleIdx++; storage.set('textScaleIdx', state.textScaleIdx); }
   };

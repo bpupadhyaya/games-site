@@ -187,6 +187,27 @@
     "play": "games/go-stones-and-territory/play/"
   },
   {
+    "slug": "golden-isle-journey",
+    "stage": "prototype",
+    "title": "The Road to Lanka",
+    "tagline": "An exiled prince. A stolen princess. A leap across the sea.",
+    "description": "A retelling of the Ramayana, the great Sanskrit epic, as thirteen playable scenes with painted, hand-crafted characters lit like a stage. Draw the great bow at Janakpur, walk out of Ayodhya, defend the forest home at Panchavati, rally the vanara army, fly with Hanuman across the sea, slip through Lanka by night, build the bridge, command the war and face the ten-crowned king. Then carry the lamps home to Ayodhya. Every character and scene is drawn in code, with real story and heritage notes throughout. A Chapter Guide (title screen and pause menu) explains how every chapter is won.",
+    "genre": "story adventure",
+    "demo": true,
+    "howToPlay": [
+      "Each chapter opens with a story card, then a short demo shows the exact commands. Replay it any time from the card or the pause menu.",
+      "TAP: touch once. HOLD: keep your finger down. DRAG: slide it. RELEASE: lift it. Every chapter tells you which command it needs.",
+      "The bow: HOLD 1 to 2 seconds, then RELEASE inside the gold band. The exile: HOLD to walk, RELEASE beside the people with lamps.",
+      "Forest, deer, allies, night roofs and bridge: TAP the target you choose. Never TAP the deer or birds in the forest.",
+      "Hanuman's flight and the chariot home: HOLD and DRAG up or down to steer. Lift your finger to fly level.",
+      "The war: TAP a unit card, then TAP a lane. The duel: DRAG back, line up the dotted arc, RELEASE to shoot.",
+      "The fortress run: TAP to leap, HOLD for a higher leap. Open Controls on the title screen for every command.",
+      "Earn up to three stars per chapter and follow the road from Janakpur to Ayodhya. Open The Story & Its World for notes on the epic."
+    ],
+    "icon": "games/golden-isle-journey/icon.svg",
+    "play": "games/golden-isle-journey/play/"
+  },
+  {
     "slug": "hare-and-hounds",
     "stage": "release-candidate",
     "title": "Hare and Hounds",

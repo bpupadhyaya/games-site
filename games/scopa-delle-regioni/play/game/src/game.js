@@ -495,7 +495,12 @@ export function createGame(env) {
       else if (sc === 'settings') updateSettings(tap);
       else if (sc === 'about' || sc === 'controls' || sc === 'rules') {
         const list = sc === 'about' ? ABOUT : sc === 'rules' ? RULES : CONTROLS;
-        if (tap && inRect(BTN.pageBack, tap.x, tap.y)) { state.scene = 'title'; state.page = 0; }
+        // Back steps to the previous page, or exits to the title from page 1 (owner-reported bug,
+        // 2026-09-23: Back used to always jump straight to the title, discarding whatever page you
+        // were reading).
+        if (tap && inRect(BTN.pageBack, tap.x, tap.y)) {
+          if (state.page > 0) state.page -= 1; else state.scene = 'title';
+        }
         // On the last page the button reads "Done" (view.js) and exits to the title instead of
         // silently wrapping back to page one, so it's never a dead-end tap.
         else if (tap && inRect(BTN.pageNext, tap.x, tap.y)) {

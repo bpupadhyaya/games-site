@@ -214,8 +214,14 @@ export function createGame(env) {
 
   function updateRules(tap) {
     if (!tap) return;
-    if (inRect(RULES_NAV.back, tap.x, tap.y)) { state.scene = 'title'; pat(); }
-    else if (inRect(RULES_NAV.next, tap.x, tap.y)) { state.rulesPage = (state.rulesPage + 1) % RULES.length; pat(); }
+    if (inRect(RULES_NAV.back, tap.x, tap.y)) {
+      if (state.rulesPage > 0) state.rulesPage--; else state.scene = 'title';
+      pat();
+    }
+    else if (inRect(RULES_NAV.next, tap.x, tap.y)) {
+      if (state.rulesPage >= RULES.length - 1) { state.scene = 'title'; state.rulesPage = 0; } else state.rulesPage++;
+      pat();
+    }
     else if (inRect(RULES_HEADER.textDec, tap.x, tap.y) && state.textScaleIdx > 0) { state.textScaleIdx--; savePrefs(); pat(); }
     else if (inRect(RULES_HEADER.textInc, tap.x, tap.y) && state.textScaleIdx < TEXT_SCALES.length - 1) { state.textScaleIdx++; savePrefs(); pat(); }
   }

@@ -380,11 +380,12 @@ export function createGame(env) {
           }
         } else if (inRect(x, y, RULES_NEXT_BUTTON)) {
           pressed('rulesNext');
-          state.page = (state.page + 1) % RULES.length;
+          if (state.page >= RULES.length - 1) { state.scene = 'title'; state.page = 0; }
+          else state.page++;
         } else if (inRect(x, y, RULES_BACK_BUTTON)) {
           pressed('rulesBack');
-          state.scene = 'title';
-          state.page = 0;
+          if (state.page > 0) state.page--;
+          else state.scene = 'title';
         }
         return;
       }

@@ -1320,8 +1320,8 @@ function drawRulesPage(ctx, state, pal) {
   text(ctx, `Page ${i + 1} of ${list.length}`, W / 2, RULES_PAGE_LABEL_Y, 20, pal.inkFaint, 700);
   ctx.restore();
 
-  drawButton(ctx, RULES_BACK_BTN, 'Back to title', { pal, size: 28, pressTau: state.fx.btn === 'rulesBack' ? t - state.fx.btnAt : -1 });
-  drawButton(ctx, RULES_NEXT_BTN, 'Next', { pal, size: 30, pressTau: state.fx.btn === 'rulesNext' ? t - state.fx.btnAt : -1 });
+  drawButton(ctx, RULES_BACK_BTN, 'Back', { pal, size: 28, pressTau: state.fx.btn === 'rulesBack' ? t - state.fx.btnAt : -1 });
+  drawButton(ctx, RULES_NEXT_BTN, i >= list.length - 1 ? 'Done' : 'Next', { pal, size: 30, pressTau: state.fx.btn === 'rulesNext' ? t - state.fx.btnAt : -1 });
 
   // Text-size stepper ("A-"/"A+"): a header row above the reader card - the top strip this page
   // never used before - so anyone finds it right where they are reading, not buried in a settings

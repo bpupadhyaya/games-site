@@ -420,15 +420,20 @@ export function createGame(env) {
       else if (sc === 'settings') updateSettings(tap);
       else if (sc === 'about') {
         if (!tap) { /* no-op */ }
-        else if (inRect(ABOUT_BTN.back, tap.x, tap.y)) state.scene = 'title';
-        else if (inRect(ABOUT_BTN.next, tap.x, tap.y)) state.page = (state.page + 1) % ABOUT.pages.length;
+        // Back steps to the previous page, or exits to the title from page 1 (owner-reported bug,
+        // 2026-09-23: Back used to always jump straight to the title, discarding whatever page you
+        // were reading). Next steps forward and exits on the last page ("Done", view.js) instead of
+        // silently wrapping back to page 1.
+        else if (inRect(ABOUT_BTN.back, tap.x, tap.y)) { if (state.page > 0) state.page -= 1; else state.scene = 'title'; }
+        else if (inRect(ABOUT_BTN.next, tap.x, tap.y)) { if (state.page >= ABOUT.pages.length - 1) { state.scene = 'title'; state.page = 0; } else state.page += 1; }
         else if (inRect(HEADER.textDec, tap.x, tap.y) && state.textScaleIdx > 0) { state.textScaleIdx--; savePrefs(); clack(); }
         else if (inRect(HEADER.textInc, tap.x, tap.y) && state.textScaleIdx < TEXT_SCALES.length - 1) { state.textScaleIdx++; savePrefs(); clack(); }
       }
       else if (sc === 'rules') {
         if (!tap) { /* no-op */ }
-        else if (inRect(RULES_BTN.back, tap.x, tap.y)) state.scene = 'title';
-        else if (inRect(RULES_BTN.next, tap.x, tap.y)) state.page = (state.page + 1) % RULES.length;
+        // Same Back/Next fix as About above, over RULES/state.page (reset to 0 on entry, line ~188).
+        else if (inRect(RULES_BTN.back, tap.x, tap.y)) { if (state.page > 0) state.page -= 1; else state.scene = 'title'; }
+        else if (inRect(RULES_BTN.next, tap.x, tap.y)) { if (state.page >= RULES.length - 1) { state.scene = 'title'; state.page = 0; } else state.page += 1; }
         else if (inRect(HEADER.textDec, tap.x, tap.y) && state.textScaleIdx > 0) { state.textScaleIdx--; savePrefs(); clack(); }
         else if (inRect(HEADER.textInc, tap.x, tap.y) && state.textScaleIdx < TEXT_SCALES.length - 1) { state.textScaleIdx++; savePrefs(); clack(); }
       }

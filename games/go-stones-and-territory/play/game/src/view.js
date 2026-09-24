@@ -331,7 +331,7 @@ function drawPageFooter(ctx, u, idx, total) {
   const { text, button, isPress } = u;
   text(`Page ${idx + 1} of ${total}`, 360, 1320, 21, 'rgba(246,227,180,0.65)', UI, 500);
   button(PAGE_NAV.back, 'Back', { press: isPress ? isPress(PAGE_NAV.back) : false });
-  button(PAGE_NAV.next, 'Next', { primary: true, press: isPress ? isPress(PAGE_NAV.next) : false });
+  button(PAGE_NAV.next, idx >= total - 1 ? 'Done' : 'Next', { primary: true, press: isPress ? isPress(PAGE_NAV.next) : false });
 }
 // The in-panel page/section title: WRAPPED (never a single fixed-width line), because a few of
 // these headings ("Go, the game of stones and territory") are too long to fit on one line once
@@ -347,7 +347,8 @@ function drawPageTitle(ctx, u, titleStr, scale) {
   return startY + lines * lh + Math.round(16 * scale);
 }
 // About / How to play: one topic per page (each [heading, body] entry in ABOUT_TEXT/HOW_TEXT is
-// already a single self-contained concept), paginated with wraparound like Rules below.
+// already a single self-contained concept), paginated like Rules below: Next steps forward and
+// exits ("Done") from the last page, Back steps back and exits only from the first page.
 function drawReader(ctx, S, u, title, items, page) {
   const { wrap, panel } = u, scale = readerScale(S);
   const idx = ((page % items.length) + items.length) % items.length, [heading, body] = items[idx];
@@ -358,8 +359,8 @@ function drawReader(ctx, S, u, title, items, page) {
   wrap(body, 64, bodyY, sz, 592, '#f2e6cc', lh, 'left', 500);
   drawPageFooter(ctx, u, idx, items.length);
 }
-// One topic per screen, paginated: Back exits to the title, Next cycles forward through the pages
-// with wraparound (the same convention chess-royal-sixty-four uses for its own Rules page).
+// One topic per screen, paginated: Back steps back a page (exiting to the title only from page 0),
+// Next steps forward and exits to the title ("Done") on the last page instead of wrapping.
 export function rulesPageCount() { return RULES.length; }
 function drawRules(ctx, S, u) {
   const { text, wrap, panel } = u, scale = readerScale(S);

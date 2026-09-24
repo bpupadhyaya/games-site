@@ -213,9 +213,10 @@ function refPage(ctx, state, V, list, page, headerLabel) {
 
   V.text(`Page ${(page % list.length) + 1} of ${list.length}`, W / 2, 1392, Math.round(20 * Math.min(scale, 1.1)), 'rgba(246,234,208,0.65)', UI, 600);
   // Bottom-anchored, equal-width Back/Next pair: Back is the neutral/secondary action (muted
-  // fill), Next the primary action (this game's own gold accent gradient).
+  // fill), Next the primary action (this game's own gold accent gradient) - reads "Done" on the
+  // last page, where it exits to the title instead of wrapping back to page 1.
   button(ctx, REF_BACK, 'Back', { size: 34 });
-  button(ctx, REF_NEXT, 'Next', { size: 34, primary: true });
+  button(ctx, REF_NEXT, page % list.length >= list.length - 1 ? 'Done' : 'Next', { size: 34, primary: true });
   button(ctx, TEXT_DEC, 'A−', { size: 24, dim: state.textScaleIdx === 0 });
   button(ctx, TEXT_INC, 'A+', { size: 24, dim: state.textScaleIdx >= TEXT_SCALES.length - 1 });
 }

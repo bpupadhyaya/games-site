@@ -314,6 +314,6 @@ export function render(ctx, state) {
 
     button(RULES_HEADER.textDec, 'A−', { size: 30, dim: state.textScaleIdx === 0 });
     button(RULES_HEADER.textInc, 'A+', { size: 30, dim: state.textScaleIdx === TEXT_SCALES.length - 1 });
-    button(RULES_NAV.back, 'Back', { size: 28 }); button(RULES_NAV.next, 'Next', { size: 28, primary: true });
+    button(RULES_NAV.back, 'Back', { size: 28 }); button(RULES_NAV.next, state.rulesPage >= RULES.length - 1 ? 'Done' : 'Next', { size: 28, primary: true });
   }
 }

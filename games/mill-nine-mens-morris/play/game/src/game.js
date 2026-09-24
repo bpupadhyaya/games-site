@@ -250,11 +250,20 @@ export function createGame(env) {
     return false;
   }
   // ---- About / How / Rules: one shared paginated reference screen (see view.js's drawRefPage()) ---
+  // Back steps to the previous page, or exits to the title from page 1 (owner-reported bug,
+  // 2026-09-23: Back used to always jump straight to the title, discarding whatever page you were
+  // reading). Next steps forward and reads "Done" on the last page (see view.js), exiting there
+  // instead of silently wrapping back to page 1.
   function updateRefPage(list, tap) {
     if (!tap) return;
     if (tapTextStep(tap)) return;
-    if (inRect(BTN.refBack, tap.x, tap.y)) state.scene = 'title';
-    else if (inRect(BTN.refNext, tap.x, tap.y)) state.page = (state.page + 1) % list.length;
+    if (inRect(BTN.refBack, tap.x, tap.y)) {
+      if (state.page > 0) state.page -= 1;
+      else state.scene = 'title';
+    } else if (inRect(BTN.refNext, tap.x, tap.y)) {
+      if (state.page >= list.length - 1) { state.scene = 'title'; state.page = 0; }
+      else state.page += 1;
+    }
   }
 
   // ---- shared: a human tap on the board in play / lesson / puzzle ---------------------------------------

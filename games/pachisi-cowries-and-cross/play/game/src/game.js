@@ -374,7 +374,15 @@ export function createGame(env) {
     else if (id === 'how') { s.scene = 'how'; s.howPage = 0; s.howFrom = 'title'; }
     else if (id === 'rules') { s.scene = 'rules'; s.rulesPage = 0; }
     else if (id === 'settings') s.scene = 'settings';
-    else if (id === 'back') { if (s.scene === 'how' && s.howFrom !== 'title') s.scene = s.howFrom; else s.scene = 'title'; s.menuOpen = false; }
+    // Steps back one page first (never discards where the player was mid-list); only exits once
+    // already on page one - "how" then respects where it was opened from, same as its "page"/Done
+    // exit above.
+    else if (id === 'back') {
+      if (s.scene === 'how') { if (s.howPage > 0) s.howPage -= 1; else { s.scene = s.howFrom !== 'title' ? s.howFrom : 'title'; s.menuOpen = false; } }
+      else if (s.scene === 'rules') { if (s.rulesPage > 0) s.rulesPage -= 1; else { s.scene = 'title'; s.menuOpen = false; } }
+      else if (s.scene === 'about') { if (s.aboutPage > 0) s.aboutPage -= 1; else { s.scene = 'title'; s.menuOpen = false; } }
+      else { s.scene = 'title'; s.menuOpen = false; }
+    }
     else if (id === 'title') { s.scene = 'title'; s.menuOpen = false; }
     // On the last page the button reads "Done" (ui.js) and exits instead of wrapping back to page
     // one, so it's never a dead-end tap; "how" respects where it was opened from, same as "back".

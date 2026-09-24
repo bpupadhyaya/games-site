@@ -1,0 +1,25 @@
+{
+  "slug": "golden-isle-journey",
+  "title": "The Road to Lanka",
+  "tagline": "An exiled prince. A stolen princess. A leap across the sea.",
+  "genre": "story adventure",
+  "orientation": "portrait",
+  "version": "0.1.0",
+  "monetization": {
+    "model": "premium",
+    "priceUsd": 4.99,
+    "previewSeconds": 600,
+    "products": [
+      {
+        "id": "unlock_game",
+        "type": "non-consumable",
+        "priceUsd": 4.99,
+        "title": "Unlock Game"
+      }
+    ]
+  },
+  "locales": [
+    "en"
+  ],
+  "demoOnly": true
+}

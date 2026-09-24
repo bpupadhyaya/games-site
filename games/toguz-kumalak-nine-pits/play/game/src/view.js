@@ -340,7 +340,7 @@ export function render(ctx, state) {
     for (const para of page.lines) { const n = wrap(para, 70, y, bodySize, 580, '#fff3d6', lh, 'left'); y += n * lh + 22; }
     text(`Page ${(state.page % ABOUT.pages.length) + 1} of ${ABOUT.pages.length}`, 360, 1345, 19, 'rgba(248,233,196,0.6)', UI, 600);
     button(ABOUT_BTN.back, 'Back', { size: 30 });
-    button(ABOUT_BTN.next, 'Next', { primary: true, size: 30 });
+    button(ABOUT_BTN.next, state.page >= ABOUT.pages.length - 1 ? 'Done' : 'Next', { primary: true, size: 30 });
     button(HEADER.textDec, 'A−', { size: 34, dim: state.textScaleIdx === 0 });
     button(HEADER.textInc, 'A+', { size: 34, dim: state.textScaleIdx === TEXT_SCALES.length - 1 });
   } else if (scene === 'rules') {
@@ -387,7 +387,7 @@ export function render(ctx, state) {
     }
     text(`Page ${(state.page % RULES.length) + 1} of ${RULES.length}`, 360, 1345, 19, 'rgba(248,233,196,0.6)', UI, 600);
     button(RULES_BTN.back, 'Back', { size: 30 });
-    button(RULES_BTN.next, 'Next', { primary: true, size: 30 });
+    button(RULES_BTN.next, state.page >= RULES.length - 1 ? 'Done' : 'Next', { primary: true, size: 30 });
     button(HEADER.textDec, 'A−', { size: 34, dim: state.textScaleIdx === 0 });
     button(HEADER.textInc, 'A+', { size: 34, dim: state.textScaleIdx === TEXT_SCALES.length - 1 });
   } else if (scene === 'over') {

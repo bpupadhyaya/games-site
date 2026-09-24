@@ -181,11 +181,12 @@ export function render(ctx, state) {
     const sy = 1372 - 108;
     if (!pg.piece && y + 150 < sy) { drawMan(ctx, 360 - 84, sy, 38, 0, set, {}); drawMan(ctx, 360 + 84, sy, 38, 1, set, {}); }
     text(`Page ${pageIdx + 1} of ${list.length}`, 360, 1372, 18, 'rgba(240,215,160,0.65)', UI, 500);
-    // Back (exits to the title) reads as the neutral/secondary action; Next (advances, wrapping
-    // back to page 1 at the end) is the primary action - was drawn identically gold before, which
-    // made the pair read as two equally-weighted buttons with no visual "what happens by default".
+    // Back (steps back a page, or exits the title from page 1) reads as the neutral/secondary
+    // action; Next (advances, reading "Done" on the last page instead of wrapping) is the primary
+    // action - was drawn identically gold before, which made the pair read as two equally-weighted
+    // buttons with no visual "what happens by default".
     button(BTN.refBack, 'Back', { primary: false });
-    button(BTN.refNext, 'Next', { primary: true });
+    button(BTN.refNext, pageIdx >= list.length - 1 ? 'Done' : 'Next', { primary: true });
   }
   function drawHud() {
     if (scene === 'over') { drawOver(); return; }

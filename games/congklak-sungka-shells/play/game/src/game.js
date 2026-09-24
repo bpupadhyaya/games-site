@@ -194,8 +194,14 @@ export function createGame(env) {
   }
   function updateRules(tap) {
     if (!tap) return;
-    if (inRect(BTN.rulesBack, tap.x, tap.y)) { state.scene = 'title'; state.page = 0; }
-    else if (inRect(BTN.rulesNext, tap.x, tap.y)) { state.page = (state.page + 1) % RULES.length; clack(); }
+    if (inRect(BTN.rulesBack, tap.x, tap.y)) {
+      if (state.page > 0) { state.page--; clack(); }
+      else state.scene = 'title';
+    }
+    else if (inRect(BTN.rulesNext, tap.x, tap.y)) {
+      if (state.page >= RULES.length - 1) { state.scene = 'title'; state.page = 0; }
+      else { state.page++; clack(); }
+    }
     else if (inRect(TEXT_STEPPER.dec, tap.x, tap.y) && state.textScaleIdx > 0) { state.textScaleIdx--; savePrefs(); clack(); }
     else if (inRect(TEXT_STEPPER.inc, tap.x, tap.y) && state.textScaleIdx < TEXT_SCALES.length - 1) { state.textScaleIdx++; savePrefs(); clack(); }
   }
@@ -204,8 +210,14 @@ export function createGame(env) {
   function updateAbout(sc, tap) {
     if (!tap) return;
     const n = (sc === 'about' ? ABOUT : HOWTO).parts.length;
-    if (inRect(BTN.aboutBack, tap.x, tap.y)) { state.scene = 'title'; state.page = 0; }
-    else if (inRect(BTN.aboutNext, tap.x, tap.y)) { state.page = (state.page + 1) % n; clack(); }
+    if (inRect(BTN.aboutBack, tap.x, tap.y)) {
+      if (state.page > 0) { state.page--; clack(); }
+      else state.scene = 'title';
+    }
+    else if (inRect(BTN.aboutNext, tap.x, tap.y)) {
+      if (state.page >= n - 1) { state.scene = 'title'; state.page = 0; }
+      else { state.page++; clack(); }
+    }
     else if (inRect(TEXT_STEPPER.dec, tap.x, tap.y) && state.textScaleIdx > 0) { state.textScaleIdx--; savePrefs(); clack(); }
     else if (inRect(TEXT_STEPPER.inc, tap.x, tap.y) && state.textScaleIdx < TEXT_SCALES.length - 1) { state.textScaleIdx++; savePrefs(); clack(); }
   }

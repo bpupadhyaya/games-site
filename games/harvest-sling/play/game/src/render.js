@@ -914,7 +914,7 @@ function drawRules(ctx, state) {
 
   centered(ctx, `Page ${(state.rulesPage % RULES.length) + 1} of ${RULES.length}`, 1120, '600 22px system-ui, sans-serif', 'rgba(255,255,255,0.65)');
   button(ctx, BUTTONS.rulesBack, 'Back', 'ghost');
-  button(ctx, BUTTONS.rulesNext, 'Next', 'primary');
+  button(ctx, BUTTONS.rulesNext, state.rulesPage >= RULES.length - 1 ? 'Done' : 'Next', 'primary');
   button(ctx, BUTTONS.textDec, 'A−', 'ghost', state.textScaleIdx === 0);
   button(ctx, BUTTONS.textInc, 'A+', 'ghost', state.textScaleIdx === TEXT_SCALES.length - 1);
 }

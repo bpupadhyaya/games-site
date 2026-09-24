@@ -425,11 +425,19 @@ export function createGame(env) {
     if (state.scene === 'rules') {
       if (inRect(x, y, RULES_NEXT_BTN)) {
         press('rulesNext');
-        state.page = (state.page + 1) % RULES.length;
+        if (state.page >= RULES.length - 1) {
+          state.scene = 'title';
+          state.page = 0;
+        } else {
+          state.page += 1;
+        }
       } else if (inRect(x, y, RULES_BACK_BTN)) {
         press('rulesBack');
-        state.scene = 'title';
-        state.page = 0;
+        if (state.page > 0) {
+          state.page -= 1;
+        } else {
+          state.scene = 'title';
+        }
       } else if (inRect(x, y, TEXT_DEC_BTN) && state.textScaleIdx > 0) {
         state.textScaleIdx -= 1;
         storage.set('textScaleIdx', state.textScaleIdx);

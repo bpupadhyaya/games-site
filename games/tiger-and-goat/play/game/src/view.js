@@ -239,6 +239,7 @@ export function render(ctx, state) {
     text(`Page ${(state.rulesPage % RULES.length) + 1} of ${RULES.length}`, 360, panel.y + panel.h - 34, 20, 'rgba(246,223,174,0.65)', UI, 500);
     button(RULES_HEADER.textDec, 'A−', { size: 28, dim: state.textScaleIdx === 0 });
     button(RULES_HEADER.textInc, 'A+', { size: 28, dim: state.textScaleIdx === TEXT_SCALES.length - 1 });
-    button(RULES_NAV.back, 'Back', { size: 28 }); button(RULES_NAV.next, 'Next', { size: 28, primary: true });
+    button(RULES_NAV.back, 'Back', { size: 28 });
+    button(RULES_NAV.next, state.rulesPage >= RULES.length - 1 ? 'Done' : 'Next', { size: 28, primary: true });
   }
 }

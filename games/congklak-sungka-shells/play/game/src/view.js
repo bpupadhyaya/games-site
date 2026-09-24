@@ -281,7 +281,7 @@ export function render(ctx, state) {
     wrap(body, 70, bodyY, bodySize, 580, '#fff3d6', lh, 'left');
     text(`Page ${(state.page % parts.length) + 1} of ${parts.length}`, 360, 1340, 20, 'rgba(251,232,191,0.6)', UI, 600);
     button(BTN.aboutBack, 'Back', { size: 30 });
-    button(BTN.aboutNext, 'Next', { primary: true, size: 30 });
+    button(BTN.aboutNext, state.page % parts.length >= parts.length - 1 ? 'Done' : 'Next', { primary: true, size: 30 });
     const atMin = state.textScaleIdx === 0, atMax = state.textScaleIdx === TEXT_SCALES.length - 1;
     button(TEXT_STEPPER.dec, 'A−', { dim: atMin, size: 32 });
     button(TEXT_STEPPER.inc, 'A+', { dim: atMax, size: 32 });
@@ -330,7 +330,7 @@ export function render(ctx, state) {
     for (const para of page.lines) { const n = wrap(para, 70, y, bodySize, 580, '#fff3d6', lh, 'left'); y += n * lh + 18; }
     text(`Page ${(state.page % pages.length) + 1} of ${pages.length}`, 360, 1340, 20, 'rgba(251,232,191,0.6)', UI, 600);
     button(BTN.rulesBack, 'Back', { size: 30 });
-    button(BTN.rulesNext, 'Next', { primary: true, size: 30 });
+    button(BTN.rulesNext, state.page % pages.length >= pages.length - 1 ? 'Done' : 'Next', { primary: true, size: 30 });
     const atMin = state.textScaleIdx === 0, atMax = state.textScaleIdx === TEXT_SCALES.length - 1;
     button(TEXT_STEPPER.dec, 'A−', { dim: atMin, size: 32 });
     button(TEXT_STEPPER.inc, 'A+', { dim: atMax, size: 32 });

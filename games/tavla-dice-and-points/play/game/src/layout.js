@@ -75,9 +75,9 @@ export const PANEL = { x: 36, y: 250, w: 648, h: 1150 };
 export const PBACK = { x: 140, y: 1420, w: 440, h: 76 };
 // The reference pages' (How to play / About / Rules) own Back/Next row: an equal-width pill pair
 // side by side near the bottom, replacing what used to be two stacked full-width bars ("More" above
-// a separate "Back"). Back always exits to the title (like the reference pattern in
-// big-card-solitaire-large-print); Next pages forward and wraps back to the first page - there is
-// no "Previous" here, matching this row's own long-standing forward-only behaviour.
+// a separate "Back"). Back steps back one page, only exiting to the title from page 1 (an
+// owner-reported bug, 2026-09-23: it used to always exit to the title regardless of the current
+// page); Next pages forward and exits to the title ("Done") from the last page instead of wrapping.
 export const DOC_BACK = { x: 20, y: 1420, w: 330, h: 76 };
 export const DOC_NEXT = { x: 370, y: 1420, w: 330, h: 76 };
 // Text-size steps for the reference pages (About/How to play/Rules) drawn by drawDoc(). An index

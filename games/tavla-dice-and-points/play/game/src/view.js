@@ -186,12 +186,14 @@ function drawDoc(c, st, U, title, doc, page, opts = {}) {
     const n = U.wrap(blk.p, PANEL.x + 40, y, size, PANEL.w - 80, '#f6ead0', size * 1.4, 'left', 500); y += n * size * 1.4 + size * 0.7;
   }
   if (opts.showCount && doc.length > 1) U.text(`Page ${Math.min(page, doc.length - 1) + 1} of ${doc.length}`, 360, 1310, 18, 'rgba(246,227,180,0.55)', UI, 600);
-  // An equal-width Back/Next pair, side by side near the bottom - Back is the neutral/secondary
-  // action (always exits to the title), Next is primary (pages forward, wrapping to the first page).
-  // A single-page doc has nothing to page through, so Next is left off and Back spans the full row.
+  // An equal-width Back/Next pair, side by side near the bottom - Back steps back one page, only
+  // exiting to the title from page 1; Next pages forward and exits to the title ("Done") from the
+  // last page instead of wrapping. A single-page doc has nothing to page through, so Next is left
+  // off and Back spans the full row (always exits, since there is only one page).
   if (doc.length > 1) {
+    const isLast = Math.min(page, doc.length - 1) >= doc.length - 1;
     U.button(DOC_BACK, 'Back', { size: 30 });
-    U.button(DOC_NEXT, 'Next', { primary: true, size: 30 });
+    U.button(DOC_NEXT, isLast ? 'Done' : 'Next', { primary: true, size: 30 });
   } else {
     U.button(PBACK, 'Back', { primary: true, size: 30 });
   }

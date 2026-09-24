@@ -241,8 +241,12 @@ export function createGame(env) {
     beginAutoTurn();
   }
   function updateAutoScene(dt, tap) {
-    updateFx(dt);
     const g = state.g, A = state.auto;
+    // Pause must freeze the WHOLE loop, not just the THINK/REVEAL timers below — updateFx drives
+    // screen shake decay, particle/flash effects and the toast message timer every frame
+    // regardless of phase, so calling it with the real dt while paused let all of that keep
+    // animating/decaying (and a toast keep counting down to disappear) under the "Paused" label.
+    updateFx(A && A.paused ? 0 : dt);
     if (!A) return;
     const mir = (r) => (state.left ? { ...r, x: W - r.x - r.w } : r);
     if (tap) {

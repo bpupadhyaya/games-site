@@ -147,7 +147,12 @@ export function renderPlay(ctx, S, rs) {
   // bottom bar
   const hb = BTN.hint, pb = BTN.pause, auto = S.scene === 'auto';
   btn(ctx, hb, auto ? 'Skip wait' : 'Why?', { kind: 'gold', size: 32, off: !auto && !S.prefs.hints, pressed: rs.ptr.down && inRect(hb, rs.ptr.x, rs.ptr.y), sub: S.kb && !auto ? 'H' : null });
-  btn(ctx, pb, 'Menu', { kind: 'wood', size: 32, pressed: rs.ptr.down && inRect(pb, rs.ptr.x, rs.ptr.y) });
+  // Auto Play: this same button already freezes the WHOLE loop (ui.pause gates every phase's own
+  // timer/thinker/animation at the very top of play.js's update(), before any of them run) and the
+  // overlay it opens is already headed "Paused" with a real "Resume" - it was just mislabeled
+  // "Menu" here, which undersold what one tap actually does for an Auto Play viewer wanting to
+  // freeze the demonstration (final-polish pass, owner request for a clear Pause affordance).
+  btn(ctx, pb, auto ? 'Pause' : 'Menu', { kind: 'wood', size: 32, pressed: rs.ptr.down && inRect(pb, rs.ptr.x, rs.ptr.y) });
   if (auto) renderAutoHUD(ctx, S, rs);
 }
 

@@ -453,8 +453,16 @@ export function createGame(env) {
     // A single-page doc has no Next, so its Back spans the full row at PBACK's position (see
     // drawDoc); a multi-page doc uses the side-by-side DOC_BACK/DOC_NEXT pair instead.
     if (list && list.length > 1) {
-      if (inRect(DOC_BACK, tap.x, tap.y)) { state.scene = 'title'; return; }
-      if (inRect(DOC_NEXT, tap.x, tap.y)) { state.page = (state.page + 1) % list.length; return; }
+      if (inRect(DOC_BACK, tap.x, tap.y)) {
+        if (state.page > 0) state.page -= 1;
+        else state.scene = 'title';
+        return;
+      }
+      if (inRect(DOC_NEXT, tap.x, tap.y)) {
+        if (state.page >= list.length - 1) { state.scene = 'title'; state.page = 0; }
+        else state.page += 1;
+        return;
+      }
     } else if (inRect(PBACK, tap.x, tap.y)) { state.scene = 'title'; return; }
   }
   function updateSettings(tap) {

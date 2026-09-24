@@ -357,7 +357,10 @@ export function createGame(env) {
       else if (sc === 'about') {
         if (tap && inRect(BTN.textDec, tap.x, tap.y) && state.textScaleIdx > 0) { state.textScaleIdx--; savePrefs(); clack(); }
         else if (tap && inRect(BTN.textInc, tap.x, tap.y) && state.textScaleIdx < TEXT_SCALES.length - 1) { state.textScaleIdx++; savePrefs(); clack(); }
-        else if (tap && inRect(BTN.aboutBack, tap.x, tap.y)) state.scene = 'title';
+        else if (tap && inRect(BTN.aboutBack, tap.x, tap.y)) {
+          if (state.page > 0) state.page -= 1;
+          else state.scene = 'title';
+        }
         // Next reads "Done" on the last page (see view.js) and exits to the title instead of
         // silently wrapping back to page one, so it's never a dead-end tap.
         else if (tap && inRect(BTN.aboutNext, tap.x, tap.y)) {
@@ -368,7 +371,10 @@ export function createGame(env) {
       else if (sc === 'rules') {
         if (tap && inRect(BTN.textDec, tap.x, tap.y) && state.textScaleIdx > 0) { state.textScaleIdx--; savePrefs(); clack(); }
         else if (tap && inRect(BTN.textInc, tap.x, tap.y) && state.textScaleIdx < TEXT_SCALES.length - 1) { state.textScaleIdx++; savePrefs(); clack(); }
-        else if (tap && inRect(BTN.rulesBack, tap.x, tap.y)) state.scene = 'title';
+        else if (tap && inRect(BTN.rulesBack, tap.x, tap.y)) {
+          if (state.page > 0) state.page -= 1;
+          else state.scene = 'title';
+        }
         else if (tap && inRect(BTN.rulesNext, tap.x, tap.y)) {
           if (state.page === RULES.length - 1) state.scene = 'title';
           else state.page += 1;

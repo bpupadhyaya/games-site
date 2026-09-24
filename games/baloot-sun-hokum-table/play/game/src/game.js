@@ -501,23 +501,28 @@ export function createGame(env) {
     if (inRect(TEXT_INC, tap.x, tap.y)) { if (state.textScaleIdx < TEXT_SCALES.length - 1) { state.textScaleIdx += 1; savePrefs(); tick(); } return true; }
     return false;
   }
+  // Back steps to the previous page, or exits to the title from page 1 (owner-reported bug,
+  // 2026-09-23: Back used to always jump straight to the title, discarding whatever page you were
+  // reading). Next steps forward and reads "Done" on the last page (see view.js), exiting there
+  // instead of silently wrapping back to page 1. Shared shape across About/How/Rules below - each
+  // uses its own page field/list.
   function updateAbout(tap) {
     if (!tap) return;
     if (stepText(tap)) return;
-    if (inRect(REF_BACK, tap.x, tap.y)) { state.scene = 'title'; return; }
-    if (inRect(REF_NEXT, tap.x, tap.y)) { state.aboutPage = (state.aboutPage + 1) % ABOUT.length; tick(); }
+    if (inRect(REF_BACK, tap.x, tap.y)) { if (state.aboutPage > 0) state.aboutPage -= 1; else state.scene = 'title'; return; }
+    if (inRect(REF_NEXT, tap.x, tap.y)) { if (state.aboutPage >= ABOUT.length - 1) { state.scene = 'title'; state.aboutPage = 0; } else state.aboutPage += 1; tick(); }
   }
   function updateHow(tap) {
     if (!tap) return;
     if (stepText(tap)) return;
-    if (inRect(REF_BACK, tap.x, tap.y)) { state.scene = 'title'; return; }
-    if (inRect(REF_NEXT, tap.x, tap.y)) { state.howPage = (state.howPage + 1) % HOWTO.length; tick(); }
+    if (inRect(REF_BACK, tap.x, tap.y)) { if (state.howPage > 0) state.howPage -= 1; else state.scene = 'title'; return; }
+    if (inRect(REF_NEXT, tap.x, tap.y)) { if (state.howPage >= HOWTO.length - 1) { state.scene = 'title'; state.howPage = 0; } else state.howPage += 1; tick(); }
   }
   function updateRules(tap) {
     if (!tap) return;
     if (stepText(tap)) return;
-    if (inRect(REF_BACK, tap.x, tap.y)) { state.scene = 'title'; return; }
-    if (inRect(REF_NEXT, tap.x, tap.y)) { state.page = (state.page + 1) % RULES.length; tick(); }
+    if (inRect(REF_BACK, tap.x, tap.y)) { if (state.page > 0) state.page -= 1; else state.scene = 'title'; return; }
+    if (inRect(REF_NEXT, tap.x, tap.y)) { if (state.page >= RULES.length - 1) { state.scene = 'title'; state.page = 0; } else state.page += 1; tick(); }
   }
   function updateSettings(tap) {
     if (!tap) return;

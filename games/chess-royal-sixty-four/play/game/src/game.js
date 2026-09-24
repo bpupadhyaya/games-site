@@ -427,8 +427,8 @@ export function createGame(env) {
       }
       case 'howto': case 'about': case 'rules': {
         const list = state.scene === 'howto' ? HOWTO : state.scene === 'about' ? ABOUT : RULES;
-        if (hit(REF_BACK)) { state.scene = 'title'; state.page = 0; }
-        else if (hit(REF_NEXT)) state.page = (state.page + 1) % list.length;
+        if (hit(REF_BACK)) { if (state.page > 0) state.page -= 1; else state.scene = 'title'; }
+        else if (hit(REF_NEXT)) { if (state.page >= list.length - 1) { state.scene = 'title'; state.page = 0; } else state.page += 1; }
         else if (hit(TEXT_DEC) && state.textScaleIdx > 0) { state.textScaleIdx--; savePrefs(); sound('ok'); }
         else if (hit(TEXT_INC) && state.textScaleIdx < TEXT_SCALES.length - 1) { state.textScaleIdx++; savePrefs(); sound('ok'); }
         break;

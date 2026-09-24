@@ -315,7 +315,7 @@ function drawReferencePage(ctx, state, list, headerTitle) {
   // neutral/secondary action, Next the primary one (lacquer's own 'gold' kind, the same accent the
   // title screen's "Play again"/"Start" buttons use).
   lacquer(ctx, REF_BACK, { label: 'Back' });
-  lacquer(ctx, REF_NEXT, { kind: 'gold', label: 'Next' });
+  lacquer(ctx, REF_NEXT, { kind: 'gold', label: state.page >= list.length - 1 ? 'Done' : 'Next' });
 }
 export function drawAbout(ctx, state) { drawReferencePage(ctx, state, ABOUT, 'About Durak'); }
 // Paginated Rules reference (Back/Next/"Page N of M", the same convention as About above).
