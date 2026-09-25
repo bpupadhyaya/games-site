@@ -84,8 +84,9 @@
   .store-plug .plat {
     display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 500;
     color: var(--text-dim); border: 1px solid var(--border); background: rgba(255,255,255,0.03);
-    padding: 8px 14px; border-radius: 999px;
+    padding: 8px 14px; border-radius: 999px; text-decoration: none; transition: color 0.15s ease, border-color 0.15s ease;
   }
+  .store-plug a.plat:hover { color: var(--text); border-color: var(--violet); }
 </style>
 </head>
 <body>
@@ -123,8 +124,8 @@
           <h2>Get the full game</h2>
           <p>This browser preview is a free taste. The full game — unlimited play, more content, no interruptions — is coming to phones.</p>
           <div class="store-plug">
-            <span class="plat">📱 iOS — Coming Soon</span>
-            <span class="plat">🤖 Android — Coming Soon</span>
+            <a class="plat" href="https://apps.apple.com/app/arcforge-polished-games/id6813746442" target="_blank" rel="noopener">📱 iOS — Get Arcforge on the App Store</a>
+            <span class="plat">🤖 Android — In Google Play review</span>
           </div>
         </div>
       </div>
