@@ -2,16 +2,16 @@
 // `state`, never mutates it. Menus, pages and settings live in menus.js.
 import { W, H, project, depthScale } from './cam.js';
 import { LANE, JACK_ZONE, LOFTS, SPINS, HAND_Z, R_B, R_J, flightPath, rollOutEstimate, reachFor, theJack, ranking, dist2D } from './sim.js';
-import { bakePitch, drawBoule, drawJack, dustSprite, bouleSprite, palOf, TEAM, setHost, canBake } from './art.js';
+import { startBake, BAKE_BG, BAKE_NEED, drawBoule, drawJack, dustSprite, bouleSprite, palOf, TEAM, setHost, canBake } from './art.js';
 import { LOFT_BTN, SPIN_BTN, HINT_BTN, MENU_BTN, HUD, PULL, FAST_BTN, DEMO_BAR, THINK_STEPS } from './layout.js';
 import { FONT, C, roundPath, drawButton, panel, textShadow, wrapLines } from './ui.js';
 import { PROFILES } from './opponents.js';
 
 const TAU = Math.PI * 2;
 const pitchCache = new Map();
-let bakeWait = 0, bakeKey = '';
-const LOAD_BEAT = 7;   // frames of "Raking the gravel…" shown before the one-off pitch bake, so the pause reads as a loading beat
-export function invalidatePitch() { pitchCache.clear(); bakeWait = 0; }
+const jobs = new Map();   // key -> in-progress sliced bake
+let steppedThisFrame = false;
+export function invalidatePitch() { pitchCache.clear(); jobs.clear(); }
 function artRes(ctx) {
   try { const a = typeof ctx.getTransform === 'function' ? ctx.getTransform().a : 2; return Math.min(2, Math.max(1, Math.ceil(a * 2) / 2)); } catch { return 2; }
 }
@@ -379,19 +379,39 @@ function drawToast(ctx, text, y = 150, alpha = 1) {
 }
 
 // ---- the scene ---------------------------------------------------------------------------------
-function ensurePitch(ctx, T) {
+// The pitch sprite for T: a finished canvas, null while still baking, false when this host cannot bake.
+// Baking is sliced by a fixed work budget per frame (no clock). Pitches are warmed ahead of time behind the menus (warmPitches),
+// so "Raking the gravel…" only shows when a pitch is needed before it is ready, and then with big slices.
+const pitchKey = (T) => `${T.id}:${T.seed}`;
+function stepJob(ctx, T, ms) {
   setHost(ctx);
-  const key = `${T.id}:${T.seed}`;
+  const key = pitchKey(T);
   const hit = pitchCache.get(key);
   if (hit) return hit;
-  if (key !== bakeKey) { bakeKey = key; bakeWait = 0; }
-  if (bakeWait < LOAD_BEAT) { bakeWait++; return null; }
-  const sp = bakePitch(T, artRes(ctx));
-  if (sp) {
-    if (pitchCache.size >= 3) pitchCache.delete(pitchCache.keys().next().value);
-    pitchCache.set(key, sp);
+  if (!canBake()) return false;
+  let job = jobs.get(key);
+  if (!job) { job = startBake(T, artRes(ctx)); jobs.set(key, job); }
+  steppedThisFrame = true;
+  const cv = job.step(ms);
+  if (job.failed) return false;
+  if (!cv) return null;
+  jobs.delete(key);
+  if (pitchCache.size >= 4) pitchCache.delete(pitchCache.keys().next().value);
+  pitchCache.set(key, cv);
+  return cv;
+}
+// Screenshot mode (?shot=1) draws only a few frames, so there bake the whole pitch at once, no loading beat.
+const SHOT_MODE = (() => { try { return /[?&]shot=/.test(globalThis.location.search); } catch { return false; } })();
+const ensurePitch = (ctx, T) => stepJob(ctx, T, SHOT_MODE ? Infinity : BAKE_NEED);
+// Called once per frame after drawing: spend a few idle ms baking pitches the game will need soon.
+export function warmPitches(ctx, list) {
+  if (steppedThisFrame) { steppedThisFrame = false; return; }
+  for (const T of list) {
+    if (!T) continue;
+    const r = stepJob(ctx, T, BAKE_BG);
+    if (r === null) { steppedThisFrame = false; return; }
   }
-  return sp;
+  steppedThisFrame = false;
 }
 
 function drawLoading(ctx, T) {
@@ -407,7 +427,7 @@ export function drawWorldLayer(ctx, state, w, parts, o = {}) {
   const T = w.terrain, t = state.t;
   const sprite = ensurePitch(ctx, T);
   if (!sprite) {
-    if (canBake()) { drawLoading(ctx, T); return false; }
+    if (sprite === null) { drawLoading(ctx, T); return false; }
     const P = palOf(T);
     ctx.fillStyle = `rgb(${P.base.join(',')})`; ctx.fillRect(0, 0, W, H);
   } else ctx.drawImage(sprite, 0, 0, W, H);

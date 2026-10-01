@@ -13,7 +13,7 @@ import { newMatch, beginEnd, judgeJack, placeJack, whoNext, scoreOf, applyEnd, J
 import { createPlanner, executePlan, planJack } from './ai.js';
 import { PROFILES } from './opponents.js';
 import { inRect, PLAY_ZONE, LOFT_BTN, SPIN_BTN, HINT_BTN, MENU_BTN, PULL, DEMO_BAR, TEXT_DEC, TEXT_INC, REF_BACK, REF_NEXT, TEXT_SCALES, THINK_STEPS, SETUP_PINS } from './layout.js';
-import { renderPlay } from './view.js';
+import { renderPlay, warmPitches } from './view.js';
 import { renderTitle, renderSetup, renderSettings, renderResult, renderPause, renderPages, renderDemoLimit, hitScreen, flowMeta, pageCount, ensureLayout } from './menus.js';
 import { ABOUT, HOWTO, RULES } from './content.js';
 import { setPress } from './ui.js';
@@ -135,9 +135,17 @@ export function createGame(env) {
     state.sel.loft = 1; state.sel.spin = 0;
     toast(state.humanTurn ? 'Throw the jack into the lit zone' : `${sideLabel(m.turn)} throws the jack`);
   };
+  // Pitches are generated ahead of time (while the title / setup / result screens are up) so the renderer can bake
+  // them in idle slices; starting a match then takes the ready pitch instead of making the player wait.
+  const prep = {};
+  const prepFor = (id) => {
+    if (!prep[id]) prep[id] = makeTerrain(id, id === 'daily' ? createRng((config.day | 0) * 7919 + 13) : fx.fork());
+    return prep[id];
+  };
   const startMatch = (cfg) => {
     if (state.demo && cfg.mode !== 'watch' && state.record.demoEnds >= DEMO_END_CAP) { state.scene = 'demolimit'; state.ui.scroll = 0; return; }
-    const T = makeTerrain(cfg.pitch, cfg.pitch === 'daily' ? createRng((config.day | 0) * 7919 + 13) : fx.fork());
+    const T = prepFor(cfg.pitch);
+    if (cfg.pitch !== 'daily') delete prep[cfg.pitch];
     state.w = createWorld(T);
     state.m = newMatch({ target: 13, mode: 'ai', opp: 0, pitch: cfg.pitch, firstJack: aiRng.int(2), watchA: 3, ...cfg });
     state.scene = 'play'; state.paused = false; state.pauseMenu = false; state.ui.scroll = 0;
@@ -557,6 +565,8 @@ export function createGame(env) {
         case 'play': updatePlay(dt, input); break;
         default: break;
       }
+      if (state.scene === 'title' || state.scene === 'setup') prepFor(state.setup.pitch);
+      else if (state.scene === 'result' && state.m) prepFor(state.m.cfg.pitch);
     },
     render(ctx) {
       switch (state.scene) {
@@ -574,6 +584,7 @@ export function createGame(env) {
           break;
         default: break;
       }
+      if (state.scene !== 'play') warmPitches(ctx, [state.att && state.att.w.terrain, ...Object.values(prep)]);
     },
     getState: () => state,
   };

@@ -144,8 +144,11 @@ function paintBackdrop(c, T) {
 
 // ---------------------------------------------------------------------------------------------
 // the ground: a top-down colour map of the pitch, projected row by row through the camera
+// Relative cost of each yield point (units of work; whole bake is roughly 8000 units).
+const WORK = { macroRow: 5, projRow: 1, pebbleGen: 6, pebblePaint: 8, backdrop: 40, markings: 40 };
+export const BAKE_BG = 280, BAKE_NEED = 1100;   // units per frame: pitch not needed yet / needed now
 const MX0 = -190, MX1 = 190, MY0 = -380, MY1 = 700, MS = 1.4;
-function bakeMacro(T) {
+function* bakeMacro(T) {
   const P = palOf(T), w = Math.round((MX1 - MX0) * MS), h = Math.round((MY1 - MY0) * MS);
   const cv = newCanvas(w, h); if (!cv) return null;
   const ctx = cv.getContext('2d'), img = ctx.createImageData(w, h), d = img.data;
@@ -165,6 +168,7 @@ function bakeMacro(T) {
   };
   const treeS = P.trees;
   for (let py = 0; py < h; py++) {
+    if (spent(WORK.macroRow)) yield;
     const wy = MY0 + py / MS;
     for (let px = 0; px < w; px++) {
       const wx = MX0 + px / MS;
@@ -211,10 +215,11 @@ function bakeMacro(T) {
   return cv;
 }
 
-function projectRows(c, tex, res) {
+function* projectRows(c, tex, res) {
   const yTop = Math.floor(project(0, MY1 - 10, 0).y);
   const step = 1 / res;
   for (let sy = yTop; sy < H; sy += step) {
+    if (spent(WORK.projRow)) yield;
     const wy = groundY(sy + step * 0.5);
     if (wy < MY0 || wy > MY1) continue;
     const s = scaleAt(wy), ds = depthScale(wy);
@@ -225,7 +230,7 @@ function projectRows(c, tex, res) {
   }
 }
 
-function paintPebbles(c, T) {
+function* paintPebbles(c, T) {
   const P = palOf(T), rnd = lcg(T.seed ^ 0x5151);
   const tints = [[255, 244, 222], [236, 214, 170], [198, 174, 138], [150, 132, 106], [110, 92, 72], [78, 64, 50], [170, 150, 140], [190, 120, 86], [212, 200, 180]];
   const N = 30000;
@@ -233,9 +238,12 @@ function paintPebbles(c, T) {
   for (let i = 0; i < N; i++) {
     const x = (rnd() * 2 - 1) * 128, y = MY0 + 40 + rnd() * (MY1 - MY0 - 90);
     items.push([x, y, 0.32 + rnd() * rnd() * 0.9, Math.floor(rnd() * tints.length), rnd(), rnd()]);
+    if ((i & 2047) === 2047 && spent(WORK.pebbleGen)) yield;
   }
   items.sort((a, b) => b[1] - a[1]);
+  let pn = 0;
   for (const [x, y, r, ti, ang, q] of items) {
+    if ((++pn & 255) === 0 && spent(WORK.pebblePaint)) yield;
     if (Math.abs(x) > LANE.halfW + 10 && q < 0.6) continue;
     // fewer pebbles on loose sand and hard clay patches
     let skip = 0;
@@ -357,20 +365,54 @@ function paintMarkings(c) {
 }
 
 // ---------------------------------------------------------------------------------------------
-export function bakePitch(T, res) {
+// Work-sliced bake: a generator that yields whenever the current step's WORK budget is spent, so the
+// pitch can be painted a little per frame (behind the menus) instead of freezing one frame for a second.
+// The budget counts units of work (macro rows, pebble batches, projected rows), never time, so the
+// number of steps is the same on every device and every run.
+let budget = Infinity;
+const spent = (units) => { budget -= units; return budget <= 0; };
+function* bakeSteps(T, res) {
   const cv = newCanvas(Math.round(W * res), Math.round(H * res));
   if (!cv) return null;
   const c = cv.getContext('2d');
   c.scale(res, res);
   paintBackdrop(c, T);
-  const macro = bakeMacro(T);
-  if (macro) projectRows(c, macro, res);
-  paintPebbles(c, T);
+  if (spent(WORK.backdrop)) yield;
+  const macro = yield* bakeMacro(T);
+  if (macro) yield* projectRows(c, macro, res);
+  yield* paintPebbles(c, T);
   for (const st of T.stones) paintRock(c, st);
   paintMarkings(c);
   paintPlanks(c, T);
+  if (spent(WORK.markings)) yield;
   paintTrunks(c, T);
   return cv;
+}
+// Synchronous bake (shots, tools): runs to the end in one go.
+export function bakePitch(T, res) {
+  budget = Infinity;
+  const g = bakeSteps(T, res);
+  let r = g.next();
+  while (!r.done) r = g.next();
+  return r.value;
+}
+// Start a sliced bake; call job.step(units) each frame until it returns the finished canvas (null while working).
+export function startBake(T, res) {
+  const g = bakeSteps(T, res);
+  const job = {
+    done: false, canvas: null, failed: false,
+    step(units) {
+      if (job.done) return job.canvas;
+      budget = units;
+      try {
+        const r = g.next();
+        if (r.done) { job.done = true; job.canvas = r.value; if (!r.value) job.failed = true; }
+      } catch (e) { job.done = true; job.failed = true; job.canvas = null; }
+      budget = Infinity;
+      return job.canvas;
+    },
+  };
+  return job;
 }
 
 // ---------------------------------------------------------------------------------------------
