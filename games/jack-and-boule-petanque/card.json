@@ -1,0 +1,14 @@
+{
+  "title": "Jack and Boule",
+  "tagline": "Read the gravel. Point, shoot, win the end.",
+  "description": "Pétanque from Provence with real rolling physics. Slingshot your steel boule toward the jack across generated gravel pitches, choose to point or shoot, and outplay five rivals.",
+  "genre": "petanque / boules physics",
+  "demo": true,
+  "howToPlay": [
+    "Pull back on the screen like a slingshot, then let go to throw.",
+    "Pull length sets the distance and pull direction sets the aim.",
+    "Choose Roll, Half-lob, Lob or Shoot, and add backspin to stop short.",
+    "Read the slopes, sand and stones: the gravel decides where a boule stops.",
+    "The side with the closest boule scores. First to 13 wins."
+  ]
+}

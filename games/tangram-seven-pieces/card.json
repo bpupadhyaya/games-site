@@ -1,0 +1,16 @@
+{
+  "title": "Tangram: Seven Pieces",
+  "tagline": "Seven pieces. Endless shapes.",
+  "description": "The classic Chinese seven-piece puzzle, made to feel wonderful. Drag, turn, flip and click the pieces into more than 80 hand-checked silhouettes, from animals and people to the thirteen convex shapes. A Daily Puzzle, stars, a hint that teaches, and Watch & Learn, which solves a puzzle step by step. No timers and no ads.",
+  "genre": "silhouette dissection puzzle",
+  "demo": true,
+  "howToPlay": [
+    "Fill the dark silhouette with all seven pieces. Pieces may not overlap or leave gaps.",
+    "Drag a piece with one finger. Let go near a corner and it clicks into place.",
+    "Tap a piece to select it, tap again to turn it 45 degrees, or drag the round handle.",
+    "The parallelogram is the only piece that needs flipping: select it and press Flip.",
+    "Press Hint to see which piece goes where, press again to have it placed.",
+    "Three stars for no hints. Solve eight puzzles in a chapter to open the next.",
+    "Watch & Learn plays a puzzle for you, step by step, with time to think."
+  ]
+}

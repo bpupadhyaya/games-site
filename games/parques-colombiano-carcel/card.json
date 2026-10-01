@@ -1,0 +1,15 @@
+{
+  "title": "Parqués: Salida y Cárcel",
+  "tagline": "Colombian parqués: break out of jail, split your dice, capture rivals",
+  "description": "Colombia's version of the pachisi family. Free your pieces from the cárcel with a pair of dice, spend each die on the piece you choose, hide on seguros, build barriers and send rivals back to jail. Play 1-3 computer opponents or pass one phone around the table, get hints, or watch a whole game with Auto Play.",
+  "genre": "cross-and-circle race game",
+  "demo": true,
+  "howToPlay": [
+    "Roll two dice: tap or swipe the tray.",
+    "Only a pair frees a piece from the cárcel onto your salida.",
+    "Each die is its own move: pick a die, then a glowing piece.",
+    "Land exactly on a rival outside a safe square to send it to jail.",
+    "Two of your pieces on one square form a barrier rivals cannot pass.",
+    "Bring all four pieces up your lane to the corona to win."
+  ]
+}

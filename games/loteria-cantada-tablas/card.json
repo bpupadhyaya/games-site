@@ -1,0 +1,14 @@
+{
+  "title": "Lotería Cantada",
+  "tagline": "Sung riddles, folk-art cards, and a bean on every tabla.",
+  "description": "Mexican picture bingo with an all-original deck. A caller sings a rhyming riddle for each card, you tap the picture on your tabla and shout ¡Lotería! when your pattern is complete. Play the computer, face to face with a friend, or call a real table.",
+  "genre": "picture bingo card game",
+  "demo": true,
+  "howToPlay": [
+    "Choose a tabla: a grid of 16 pictures.",
+    "Listen to the riddle and tap the matching picture to drop a bean.",
+    "Each call stays open only for a moment, so be quick.",
+    "Press ¡LOTERÍA! when your pattern is complete, before the computer does.",
+    "Use Hint, or Watch & Learn to see a whole round explained."
+  ]
+}

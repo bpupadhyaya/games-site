@@ -164,6 +164,27 @@
     "play": "games/durak-na-dache/play/"
   },
   {
+    "slug": "fanorona-approach-withdraw",
+    "stage": "release-candidate",
+    "title": "Fanorona: Approach & Withdraw",
+    "tagline": "Madagascar's national board game: capture by approach, capture by withdrawal.",
+    "description": "Fanorona is the strategy board game of Madagascar: 22 stones a side on a board of 45 points, where you capture whole lines by moving toward them or away from them, then chain on along new lines. Play six computer levels from Beginner to Master, learn in eight short lessons, watch two computers play with a think-and-reveal commentary, or share one phone. Full rules inside, large text, no ads.",
+    "genre": "abstract strategy board game",
+    "demo": true,
+    "howToPlay": [
+      "New here? Tap Learn: eight short lessons where you make every move yourself.",
+      "Tap a stone, then a lit point. The number shows how many stones that step captures.",
+      "Approach: step toward an enemy line and capture it. Withdraw: step away and capture the line behind you.",
+      "If a step can do both, you choose. Gold is approach, blue is withdraw.",
+      "Capturing is compulsory. After a capture your stone may keep going along a new line, or you can end the turn.",
+      "Think shows a strong move with numbered arrows. Danger rings the stones you could lose next turn.",
+      "Watch & Learn plays a whole game between two computers: guess the move, then see it revealed.",
+      "Win by capturing every enemy stone. Twenty turns with no capture is a draw."
+    ],
+    "icon": "games/fanorona-approach-withdraw/icon.svg",
+    "play": "games/fanorona-approach-withdraw/play/"
+  },
+  {
     "slug": "fox-and-geese",
     "stage": "release-candidate",
     "title": "Fox and Geese",
@@ -267,6 +288,24 @@
     "play": "games/harvest-sling/play/"
   },
   {
+    "slug": "jack-and-boule-petanque",
+    "stage": "release-candidate",
+    "title": "Jack and Boule",
+    "tagline": "Read the gravel. Point, shoot, win the end.",
+    "description": "Pétanque from Provence with real rolling physics. Slingshot your steel boule toward the jack across generated gravel pitches, choose to point or shoot, and outplay five rivals.",
+    "genre": "petanque / boules physics",
+    "demo": true,
+    "howToPlay": [
+      "Pull back on the screen like a slingshot, then let go to throw.",
+      "Pull length sets the distance and pull direction sets the aim.",
+      "Choose Roll, Half-lob, Lob or Shoot, and add backspin to stop short.",
+      "Read the slopes, sand and stones: the gravel decides where a boule stops.",
+      "The side with the closest boule scores. First to 13 wins."
+    ],
+    "icon": "games/jack-and-boule-petanque/icon.svg",
+    "play": "games/jack-and-boule-petanque/play/"
+  },
+  {
     "slug": "kings-table-tafl",
     "stage": "release-candidate",
     "title": "Tafl",
@@ -307,6 +346,24 @@
     ],
     "icon": "games/konane-hawaiian-jumps/icon.svg",
     "play": "games/konane-hawaiian-jumps/play/"
+  },
+  {
+    "slug": "loteria-cantada-tablas",
+    "stage": "release-candidate",
+    "title": "Lotería Cantada",
+    "tagline": "Sung riddles, folk-art cards, and a bean on every tabla.",
+    "description": "Mexican picture bingo with an all-original deck. A caller sings a rhyming riddle for each card, you tap the picture on your tabla and shout ¡Lotería! when your pattern is complete. Play the computer, face to face with a friend, or call a real table.",
+    "genre": "picture bingo card game",
+    "demo": true,
+    "howToPlay": [
+      "Choose a tabla: a grid of 16 pictures.",
+      "Listen to the riddle and tap the matching picture to drop a bean.",
+      "Each call stays open only for a moment, so be quick.",
+      "Press ¡LOTERÍA! when your pattern is complete, before the computer does.",
+      "Use Hint, or Watch & Learn to see a whole round explained."
+    ],
+    "icon": "games/loteria-cantada-tablas/icon.svg",
+    "play": "games/loteria-cantada-tablas/play/"
   },
   {
     "slug": "mahjong-four-winds",
@@ -351,6 +408,28 @@
     "play": "games/mill-nine-mens-morris/play/"
   },
   {
+    "slug": "moksha-patam-snakes-ladders",
+    "stage": "release-candidate",
+    "title": "Snakes & Ladders Cloth Board",
+    "tagline": "The painted-cloth dice race, reimagined.",
+    "description": "The classic dice race on a hand-painted cloth board in the Indian tradition. Roll, hop, climb ladders named for good habits and slide down serpents named for slips. Flick the die across the table and watch it tumble. Play one die or pick the better of two each turn, add extra rules (exact finish, six rolls again, bump back), and choose the classic board, a fresh fair board, or the board of the day. Play 2 to 4 people on one phone or against computers, ask for hints, read the full rules, or Watch & Learn as the computer plays a whole game. Text size up to 300%.",
+    "genre": "dice race board game",
+    "demo": true,
+    "howToPlay": [
+      "Tap Roll, or flick the die across the table, to throw it.",
+      "Your pawn hops forward that many squares along the zig-zag numbers.",
+      "End on the foot of a ladder to climb it; end on a serpent's head to slide down.",
+      "In Pick of Two mode, tap the die you want to use, or tap its glowing landing square.",
+      "Tap Hint any time to see what lies ahead or which die is better, and why.",
+      "Reach square 100 first to win. By default you need the exact number to finish.",
+      "Choose extra rules in the setup: exact finish, six rolls again, bump back.",
+      "Play 2 to 4 people on one phone, or against computers from Easy to Sharp.",
+      "Watch & Learn plays a whole game by itself so you can see how it thinks."
+    ],
+    "icon": "games/moksha-patam-snakes-ladders/icon.svg",
+    "play": "games/moksha-patam-snakes-ladders/play/"
+  },
+  {
     "slug": "morabaraba-twelve-cows",
     "stage": "production",
     "title": "Morabaraba",
@@ -392,6 +471,27 @@
     ],
     "icon": "games/mu-torere-star-board/icon.svg",
     "play": "games/mu-torere-star-board/play/"
+  },
+  {
+    "slug": "okey-tile-rummy-offline",
+    "stage": "release-candidate",
+    "title": "Okey Offline",
+    "tagline": "Turkey's tile rummy, four at the table.",
+    "description": "Okey is the tile rummy game of Turkey. You and three computer players share 106 tiles; each deal a turned-up indicator decides which tile is the wild okey for that deal only. Draw, arrange your two-row rack into runs and sets (or seven pairs) by dragging, then finish by discarding your last tile. Finish on the okey itself and the deal counts double. Sort helpers tidy the rack, a free Hint explains its reasoning, and Watch & Learn plays a whole deal with time to think before each move. Three computer levels, a full Rules page, English or Turkish labels. Offline, no ads, score only.",
+    "genre": "tile rummy game",
+    "demo": true,
+    "howToPlay": [
+      "Four players, 106 tiles. A turned-up indicator makes the next tile up in that colour the wild okey for this deal.",
+      "Your turn: DRAW from the face-down stack, or TAP the glowing pile on your left to take your neighbour's last discard.",
+      "ARRANGE your rack by DRAGGING tiles between its two rows. A green line shows every valid run or set.",
+      "Runs are 3+ consecutive tiles of one colour (12-13-1 is allowed). Sets are 3 or 4 tiles of one number in different colours.",
+      "DISCARD one tile: drag it onto your own pile, or tap it and press Discard.",
+      "Finish when the 14 tiles you keep are all in runs and sets, or form seven pairs. Finishing on the okey doubles the deal.",
+      "Runs, Sets and Smart sort the rack for you. Hint is free and explains its choice.",
+      "Watch & Learn plays a whole deal for you with time to think before each move, and a Pause that freezes it any moment."
+    ],
+    "icon": "games/okey-tile-rummy-offline/icon.svg",
+    "play": "games/okey-tile-rummy-offline/play/"
   },
   {
     "slug": "one-arrow-oath",
@@ -456,6 +556,25 @@
     ],
     "icon": "games/pachisi-cowries-and-cross/icon.svg",
     "play": "games/pachisi-cowries-and-cross/play/"
+  },
+  {
+    "slug": "parques-colombiano-carcel",
+    "stage": "release-candidate",
+    "title": "Parqués: Salida y Cárcel",
+    "tagline": "Colombian parqués: break out of jail, split your dice, capture rivals",
+    "description": "Colombia's version of the pachisi family. Free your pieces from the cárcel with a pair of dice, spend each die on the piece you choose, hide on seguros, build barriers and send rivals back to jail. Play 1-3 computer opponents or pass one phone around the table, get hints, or watch a whole game with Auto Play.",
+    "genre": "cross-and-circle race game",
+    "demo": true,
+    "howToPlay": [
+      "Roll two dice: tap or swipe the tray.",
+      "Only a pair frees a piece from the cárcel onto your salida.",
+      "Each die is its own move: pick a die, then a glowing piece.",
+      "Land exactly on a rival outside a safe square to send it to jail.",
+      "Two of your pieces on one square form a barrier rivals cannot pass.",
+      "Bring all four pieces up your lane to the corona to win."
+    ],
+    "icon": "games/parques-colombiano-carcel/icon.svg",
+    "play": "games/parques-colombiano-carcel/play/"
   },
   {
     "slug": "perch",
@@ -584,6 +703,26 @@
     "play": "games/sure-sweep-no-guess/play/"
   },
   {
+    "slug": "tangram-seven-pieces",
+    "stage": "release-candidate",
+    "title": "Tangram: Seven Pieces",
+    "tagline": "Seven pieces. Endless shapes.",
+    "description": "The classic Chinese seven-piece puzzle, made to feel wonderful. Drag, turn, flip and click the pieces into more than 80 hand-checked silhouettes, from animals and people to the thirteen convex shapes. A Daily Puzzle, stars, a hint that teaches, and Watch & Learn, which solves a puzzle step by step. No timers and no ads.",
+    "genre": "silhouette dissection puzzle",
+    "demo": true,
+    "howToPlay": [
+      "Fill the dark silhouette with all seven pieces. Pieces may not overlap or leave gaps.",
+      "Drag a piece with one finger. Let go near a corner and it clicks into place.",
+      "Tap a piece to select it, tap again to turn it 45 degrees, or drag the round handle.",
+      "The parallelogram is the only piece that needs flipping: select it and press Flip.",
+      "Press Hint to see which piece goes where, press again to have it placed.",
+      "Three stars for no hints. Solve eight puzzles in a chapter to open the next.",
+      "Watch & Learn plays a puzzle for you, step by step, with time to think."
+    ],
+    "icon": "games/tangram-seven-pieces/icon.svg",
+    "play": "games/tangram-seven-pieces/play/"
+  },
+  {
     "slug": "tarneeb-levant-table",
     "stage": "production",
     "title": "Tarneeb",
@@ -626,6 +765,27 @@
     "play": "games/tavla-dice-and-points/play/"
   },
   {
+    "slug": "tavli-kafeneio-trio",
+    "stage": "release-candidate",
+    "title": "Tavli: Portes Plakoto Fevga",
+    "tagline": "The Greek coffeehouse trio",
+    "description": "Tavli is the Greek tables family, played in coffeehouses as three games in turn on one board: Portes hits, Plakoto pins, Fevga blocks and never hits. Play a match to 5 or 7 against a strong offline computer at four levels, or a friend. Fevga is the closest relative of long nard, known as Nard or Nardy across the Caucasus and Persia, and Portes is tavla or tawla elsewhere. Hints explain why, Watch and Learn shows the computer thinking, text up to 300 percent. No ads, offline.",
+    "genre": "backgammon variants",
+    "demo": true,
+    "howToPlay": [
+      "TAP the dice to roll. TAP a checker: the points it can reach glow. TAP a glowing point, or DRAG and drop.",
+      "Each die is one move; doubles are played four times. You must play as many dice as you can.",
+      "Portes: land on a lone enemy checker to hit it. A hit checker waits on the bar and must enter first.",
+      "Plakoto: nothing is hit. Land on a lone enemy checker to pin it under yours until you leave.",
+      "Fevga: nothing is hit and any occupied point is closed. One checker per turn leaves the head; no six-point walls.",
+      "Bear off all 15 once they are home. First off wins: 1 point, or 2 if the loser had borne off nothing.",
+      "A match plays Portes, Plakoto, Fevga in turn until one side reaches 5 or 7 points.",
+      "Undo takes back a step, Hint explains a good move, and the round button pauses. Watch and Learn shows the AI thinking."
+    ],
+    "icon": "games/tavli-kafeneio-trio/icon.svg",
+    "play": "games/tavli-kafeneio-trio/play/"
+  },
+  {
     "slug": "tiger-and-goat",
     "stage": "release-candidate",
     "title": "Tiger and Goat",
@@ -647,6 +807,27 @@
     "play": "games/tiger-and-goat/play/"
   },
   {
+    "slug": "timing-six-cricket-chase",
+    "stage": "release-candidate",
+    "title": "Golden Hour Cricket",
+    "tagline": "Swipe to bat. Flick to bowl. Beat the sunset.",
+    "description": "A premium cricket game for your phone. Swipe to bat: direction is the shot, speed is the power, timing is everything. Chase targets with real scoring, read the field, take the risky run, bowl with pace, swing and spin, and play backyard house rules like Tippy-Go and Six and Out. Cricket began in England and spread through the Commonwealth, and backyard cricket is a beloved Australian tradition. Original game: every player and ground is invented.",
+    "genre": "cricket batting and bowling",
+    "demo": true,
+    "howToPlay": [
+      "SWIPE when the bowler lets go: the swipe direction is the shot direction on the field.",
+      "The moment you start the swipe is your timing: PERFECT or GOOD gives clean contact.",
+      "A slow drag is a ground shot; a fast flick goes in the air for a six, but is riskier.",
+      "TAP to block. Do nothing to leave the ball.",
+      "Read the field on the radar and swipe toward the gaps.",
+      "Tap RUN after you hit the ball, and tap again to queue another run. Watch the throw!",
+      "In a Full Match you bowl too: pick a delivery, drag the ring, flick to bowl.",
+      "Watch Auto Play to see the computer think through every ball."
+    ],
+    "icon": "games/timing-six-cricket-chase/icon.svg",
+    "play": "games/timing-six-cricket-chase/play/"
+  },
+  {
     "slug": "toguz-kumalak-nine-pits",
     "stage": "production",
     "title": "Toguz Kumalak",
@@ -666,6 +847,27 @@
     ],
     "icon": "games/toguz-kumalak-nine-pits/icon.svg",
     "play": "games/toguz-kumalak-nine-pits/play/"
+  },
+  {
+    "slug": "truco-brasileiro-manilha",
+    "stage": "release-candidate",
+    "title": "Truco Brasileiro: Manilha",
+    "tagline": "Shout Truco, bluff the table, win with the manilha",
+    "description": "Truco is one of Brazil's best-loved card games: three cards each, a shouted stake ladder (Truco, Seis, Nove, Doze) and a lot of bluffing. This version has both big regional styles, Paulista (a turned card names the four manilhas) and Mineiro (four fixed manilhas), for two players or as a four-player partnership. The computer opponents truly bluff and remember whether you run; your computer partner sends and reads the traditional table gestures. Hints, full Rules, big text and Auto Play help you learn. Score only: no chips, no wagers, no ads, works offline.",
+    "genre": "vying trick-taking card game",
+    "demo": true,
+    "howToPlay": [
+      "Win two of the three tricks in each hand. Any card is legal: there is no following suit.",
+      "TAP a card to raise it, TAP it again to play it, or DRAG it upward. Gold-edged cards are manilhas and beat everything.",
+      "Paulista: the turned vira names the manilhas (next rank up). Mineiro: always 4 of Clubs, 7 of Hearts, Ace of Spades, 7 of Diamonds.",
+      "On your turn tap TRUCO to raise the stakes. The other team can accept, run or raise again. Bluff if you dare.",
+      "When the computer shouts, choose Accept, Run or the next raise. Hint shows your chance of winning the hand.",
+      "At 11 points (Paulista) or 10 (Mineiro) your team looks at all its cards and decides whether to play or run.",
+      "With four players tap Signal to tell your partner your best card with a face. Opponents may notice.",
+      "Race to 12 points. Auto Play on the title screen shows a full match and explains each decision."
+    ],
+    "icon": "games/truco-brasileiro-manilha/icon.svg",
+    "play": "games/truco-brasileiro-manilha/play/"
   },
   {
     "slug": "word-game",

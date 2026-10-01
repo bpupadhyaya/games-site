@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3b5ba9"/><stop offset="1" stop-color="#17204a"/></linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f6d27a"/><stop offset="1" stop-color="#b9731f"/></linearGradient>
+    <linearGradient id="snake" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#58b36c"/><stop offset="1" stop-color="#1b6a3a"/></linearGradient>
+    <radialGradient id="pawn" cx="0.35" cy="0.3" r="0.8"><stop offset="0" stop-color="#ffd0c8"/><stop offset="0.35" stop-color="#d9473a"/><stop offset="1" stop-color="#6e1710"/></radialGradient>
+    <filter id="sh" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="6" dy="12" stdDeviation="10" flood-color="#000" flood-opacity="0.45"/></filter>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+  <rect x="96" y="96" width="832" height="832" rx="40" fill="#f2dca6" filter="url(#sh)"/>
+  <g>
+    <rect x="132" y="132" width="190" height="190" fill="#e39a55"/><rect x="322" y="132" width="190" height="190" fill="#f2dca6"/><rect x="512" y="132" width="190" height="190" fill="#79b3aa"/><rect x="702" y="132" width="190" height="190" fill="#d98782"/>
+    <rect x="132" y="322" width="190" height="190" fill="#f2dca6"/><rect x="322" y="322" width="190" height="190" fill="#79b3aa"/><rect x="512" y="322" width="190" height="190" fill="#d98782"/><rect x="702" y="322" width="190" height="190" fill="#e39a55"/>
+    <rect x="132" y="512" width="190" height="190" fill="#79b3aa"/><rect x="322" y="512" width="190" height="190" fill="#d98782"/><rect x="512" y="512" width="190" height="190" fill="#e39a55"/><rect x="702" y="512" width="190" height="190" fill="#f2dca6"/>
+    <rect x="132" y="702" width="190" height="190" fill="#d98782"/><rect x="322" y="702" width="190" height="190" fill="#e39a55"/><rect x="512" y="702" width="190" height="190" fill="#f2dca6"/><rect x="702" y="702" width="190" height="190" fill="#79b3aa"/>
+  </g>
+  <rect x="132" y="132" width="760" height="760" fill="none" stroke="#17204a" stroke-width="14"/>
+  <!-- ladder -->
+  <g filter="url(#sh)" stroke-linecap="round">
+    <line x1="250" y1="820" x2="520" y2="300" stroke="#8a5320" stroke-width="30"/><line x1="340" y1="860" x2="610" y2="340" stroke="#8a5320" stroke-width="30"/>
+    <line x1="250" y1="820" x2="520" y2="300" stroke="#e0b95e" stroke-width="20"/><line x1="340" y1="860" x2="610" y2="340" stroke="#e0b95e" stroke-width="20"/>
+    <g stroke="#8a5320" stroke-width="20"><line x1="285" y1="760" x2="375" y2="800"/><line x1="340" y1="655" x2="430" y2="695"/><line x1="394" y1="550" x2="484" y2="590"/><line x1="448" y1="446" x2="538" y2="486"/></g>
+  </g>
+  <!-- serpent -->
+  <g filter="url(#sh)" fill="none" stroke-linecap="round">
+    <path d="M800 230 C 640 250, 860 420, 700 500 S 820 700, 640 780 S 600 900, 560 930" stroke="#0e3d22" stroke-width="86"/>
+    <path d="M800 230 C 640 250, 860 420, 700 500 S 820 700, 640 780 S 600 900, 560 930" stroke="url(#snake)" stroke-width="66"/>
+    <path d="M800 230 C 640 250, 860 420, 700 500 S 820 700, 640 780 S 600 900, 560 930" stroke="#f1d36b" stroke-width="8" stroke-dasharray="4 30"/>
+  </g>
+  <g filter="url(#sh)">
+    <ellipse cx="810" cy="214" rx="64" ry="48" fill="url(#snake)" stroke="#0e3d22" stroke-width="8" transform="rotate(-20 810 214)"/>
+    <circle cx="830" cy="186" r="14" fill="#fffbe8"/><circle cx="834" cy="188" r="7" fill="#16100a"/>
+    <circle cx="790" cy="206" r="14" fill="#fffbe8"/><circle cx="794" cy="208" r="7" fill="#16100a"/>
+  </g>
+  <!-- pawn -->
+  <g filter="url(#sh)">
+    <ellipse cx="330" cy="838" rx="78" ry="26" fill="#6e1710"/>
+    <path d="M262 830 C 300 780 300 720 290 690 L 370 690 C 360 720 360 780 398 830 Z" fill="url(#pawn)"/>
+    <ellipse cx="330" cy="690" rx="50" ry="14" fill="url(#gold)"/>
+    <circle cx="330" cy="630" r="62" fill="url(#pawn)"/>
+    <circle cx="308" cy="606" r="14" fill="#fff" opacity="0.7"/>
+  </g>
+</svg>

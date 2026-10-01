@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#7fb8ea"/>
+      <stop offset="0.5" stop-color="#f6e2b6"/>
+      <stop offset="0.52" stop-color="#d9b988"/>
+      <stop offset="1" stop-color="#9d7a4c"/>
+    </linearGradient>
+    <radialGradient id="chrome" cx="0.36" cy="0.3" r="0.8">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="0.28" stop-color="#cfe2f7"/>
+      <stop offset="0.6" stop-color="#6f8db8"/>
+      <stop offset="0.82" stop-color="#2d3c58"/>
+      <stop offset="1" stop-color="#121a2a"/>
+    </radialGradient>
+    <linearGradient id="refl" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#eaf4ff" stop-opacity="0.0"/>
+      <stop offset="0.48" stop-color="#cfe5ff" stop-opacity="0.35"/>
+      <stop offset="0.54" stop-color="#e9c28a" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#6b4a28" stop-opacity="0.7"/>
+    </linearGradient>
+    <radialGradient id="jack" cx="0.35" cy="0.32" r="0.8">
+      <stop offset="0" stop-color="#fff0d0"/>
+      <stop offset="0.2" stop-color="#ff9a5a"/>
+      <stop offset="0.6" stop-color="#d8321c"/>
+      <stop offset="1" stop-color="#5e0a06"/>
+    </radialGradient>
+    <radialGradient id="shadow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#2a1608" stop-opacity="0.6"/>
+      <stop offset="1" stop-color="#2a1608" stop-opacity="0"/>
+    </radialGradient>
+    <clipPath id="ball"><circle cx="470" cy="520" r="290"/></clipPath>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#sky)"/>
+  <g fill="#fff6dc" opacity="0.55">
+    <circle cx="90" cy="640" r="7"/><circle cx="200" cy="760" r="9"/><circle cx="130" cy="880" r="6"/><circle cx="330" cy="930" r="8"/>
+    <circle cx="640" cy="900" r="9"/><circle cx="800" cy="800" r="7"/><circle cx="900" cy="940" r="10"/><circle cx="950" cy="690" r="6"/>
+    <circle cx="560" cy="780" r="6"/><circle cx="60" cy="990" r="7"/><circle cx="760" cy="970" r="6"/>
+  </g>
+  <g fill="#5a3b1e" opacity="0.4">
+    <circle cx="150" cy="700" r="6"/><circle cx="260" cy="860" r="7"/><circle cx="420" cy="960" r="6"/><circle cx="700" cy="860" r="7"/>
+    <circle cx="880" cy="860" r="6"/><circle cx="980" cy="800" r="7"/><circle cx="90" cy="800" r="5"/>
+  </g>
+  <ellipse cx="540" cy="840" rx="320" ry="64" fill="url(#shadow)"/>
+  <ellipse cx="840" cy="760" rx="86" ry="24" fill="url(#shadow)"/>
+  <circle cx="470" cy="520" r="290" fill="url(#chrome)"/>
+  <g clip-path="url(#ball)">
+    <rect x="150" y="230" width="700" height="600" fill="url(#refl)" transform="rotate(-12 470 520)"/>
+    <ellipse cx="470" cy="520" rx="290" ry="96" fill="none" stroke="#17408a" stroke-width="22" transform="rotate(-24 470 520)"/>
+    <ellipse cx="470" cy="520" rx="290" ry="96" fill="none" stroke="#bcd6ff" stroke-width="6" opacity="0.7" transform="rotate(-24 470 500)"/>
+    <ellipse cx="470" cy="520" rx="96" ry="290" fill="none" stroke="#17408a" stroke-width="18" transform="rotate(20 470 520)"/>
+  </g>
+  <ellipse cx="368" cy="388" rx="64" ry="38" fill="#ffffff" opacity="0.92" transform="rotate(-38 368 388)"/>
+  <circle cx="470" cy="520" r="289" fill="none" stroke="#0d1424" stroke-width="6" opacity="0.5"/>
+  <circle cx="800" cy="720" r="62" fill="url(#jack)"/>
+  <ellipse cx="780" cy="696" rx="16" ry="10" fill="#ffffff" opacity="0.9" transform="rotate(-35 780 696)"/>
+</svg>

@@ -1,0 +1,17 @@
+{
+  "title": "Tavli: Portes Plakoto Fevga",
+  "tagline": "The Greek coffeehouse trio",
+  "description": "Tavli is the Greek tables family, played in coffeehouses as three games in turn on one board: Portes hits, Plakoto pins, Fevga blocks and never hits. Play a match to 5 or 7 against a strong offline computer at four levels, or a friend. Fevga is the closest relative of long nard, known as Nard or Nardy across the Caucasus and Persia, and Portes is tavla or tawla elsewhere. Hints explain why, Watch and Learn shows the computer thinking, text up to 300 percent. No ads, offline.",
+  "genre": "backgammon variants",
+  "demo": true,
+  "howToPlay": [
+    "TAP the dice to roll. TAP a checker: the points it can reach glow. TAP a glowing point, or DRAG and drop.",
+    "Each die is one move; doubles are played four times. You must play as many dice as you can.",
+    "Portes: land on a lone enemy checker to hit it. A hit checker waits on the bar and must enter first.",
+    "Plakoto: nothing is hit. Land on a lone enemy checker to pin it under yours until you leave.",
+    "Fevga: nothing is hit and any occupied point is closed. One checker per turn leaves the head; no six-point walls.",
+    "Bear off all 15 once they are home. First off wins: 1 point, or 2 if the loser had borne off nothing.",
+    "A match plays Portes, Plakoto, Fevga in turn until one side reaches 5 or 7 points.",
+    "Undo takes back a step, Hint explains a good move, and the round button pauses. Watch and Learn shows the AI thinking."
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "title": "Truco Brasileiro: Manilha",
+  "tagline": "Shout Truco, bluff the table, win with the manilha",
+  "description": "Truco is one of Brazil's best-loved card games: three cards each, a shouted stake ladder (Truco, Seis, Nove, Doze) and a lot of bluffing. This version has both big regional styles, Paulista (a turned card names the four manilhas) and Mineiro (four fixed manilhas), for two players or as a four-player partnership. The computer opponents truly bluff and remember whether you run; your computer partner sends and reads the traditional table gestures. Hints, full Rules, big text and Auto Play help you learn. Score only: no chips, no wagers, no ads, works offline.",
+  "genre": "vying trick-taking card game",
+  "demo": true,
+  "howToPlay": [
+    "Win two of the three tricks in each hand. Any card is legal: there is no following suit.",
+    "TAP a card to raise it, TAP it again to play it, or DRAG it upward. Gold-edged cards are manilhas and beat everything.",
+    "Paulista: the turned vira names the manilhas (next rank up). Mineiro: always 4 of Clubs, 7 of Hearts, Ace of Spades, 7 of Diamonds.",
+    "On your turn tap TRUCO to raise the stakes. The other team can accept, run or raise again. Bluff if you dare.",
+    "When the computer shouts, choose Accept, Run or the next raise. Hint shows your chance of winning the hand.",
+    "At 11 points (Paulista) or 10 (Mineiro) your team looks at all its cards and decides whether to play or run.",
+    "With four players tap Signal to tell your partner your best card with a face. Opponents may notice.",
+    "Race to 12 points. Auto Play on the title screen shows a full match and explains each decision."
+  ]
+}

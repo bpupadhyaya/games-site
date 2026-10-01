@@ -1,0 +1,25 @@
+{
+  "slug": "parques-colombiano-carcel",
+  "title": "Parqués: Salida y Cárcel",
+  "tagline": "Colombian parqués: break out of jail, split your dice, capture rivals",
+  "genre": "cross-and-circle race game",
+  "orientation": "portrait",
+  "version": "1.0.1",
+  "monetization": {
+    "model": "premium",
+    "priceUsd": 2.99,
+    "previewSeconds": 90,
+    "products": [
+      {
+        "id": "unlock_game",
+        "type": "non-consumable",
+        "priceUsd": 2.99,
+        "title": "Unlock Game"
+      }
+    ]
+  },
+  "locales": [
+    "en"
+  ],
+  "demoOnly": true
+}

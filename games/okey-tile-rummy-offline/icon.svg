@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <radialGradient id="felt" cx="50%" cy="40%" r="80%">
+      <stop offset="0%" stop-color="#23907f"/>
+      <stop offset="55%" stop-color="#0f5650"/>
+      <stop offset="100%" stop-color="#041d1b"/>
+    </radialGradient>
+    <linearGradient id="face" x1="0" y1="0" x2="0.4" y2="1">
+      <stop offset="0%" stop-color="#fffdf2"/>
+      <stop offset="60%" stop-color="#f4ead0"/>
+      <stop offset="100%" stop-color="#e2d4ae"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#ffe58a"/>
+      <stop offset="50%" stop-color="#d9a21b"/>
+      <stop offset="100%" stop-color="#fff0a8"/>
+    </linearGradient>
+    <filter id="sh" x="-30%" y="-30%" width="160%" height="170%">
+      <feDropShadow dx="0" dy="22" stdDeviation="22" flood-color="#000" flood-opacity="0.55"/>
+    </filter>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#felt)"/>
+  <g fill="#9ff0dd" opacity="0.1">
+    <g id="tl"><path d="M0 -60 Q-34 -26 -14 36 L14 36 Q34 -26 0 -60Z"/><path d="M-12 -34 Q-60 -26 -42 22 Q-28 46 0 40 Q-14 4 -12 -34Z"/><path d="M12 -34 Q60 -26 42 22 Q28 46 0 40 Q14 4 12 -34Z"/></g>
+    <use href="#tl" x="180" y="170"/><use href="#tl" x="512" y="130"/><use href="#tl" x="844" y="170"/>
+    <use href="#tl" x="180" y="860"/><use href="#tl" x="512" y="900"/><use href="#tl" x="844" y="860"/>
+    <use href="#tl" x="80" y="520"/><use href="#tl" x="944" y="520"/>
+  </g>
+  <rect x="34" y="34" width="956" height="956" rx="120" fill="none" stroke="#e7bd62" stroke-width="8" opacity="0.8"/>
+  <!-- three fanned tiles -->
+  <g filter="url(#sh)">
+    <g transform="translate(300 560) rotate(-16)">
+      <rect x="-150" y="-215" width="300" height="430" rx="46" fill="#9f8f66"/>
+      <rect x="-150" y="-230" width="300" height="420" rx="46" fill="url(#face)" stroke="#bfae80" stroke-width="5"/>
+      <text x="0" y="40" font-family="'Trebuchet MS','Arial Black',Arial,sans-serif" font-weight="900" font-size="230" text-anchor="middle" fill="#1b57b3">5</text>
+      <rect x="-30" y="100" width="60" height="60" rx="12" fill="#1b57b3"/>
+    </g>
+    <g transform="translate(724 560) rotate(16)">
+      <rect x="-150" y="-215" width="300" height="430" rx="46" fill="#9f8f66"/>
+      <rect x="-150" y="-230" width="300" height="420" rx="46" fill="url(#face)" stroke="#bfae80" stroke-width="5"/>
+      <text x="0" y="40" font-family="'Trebuchet MS','Arial Black',Arial,sans-serif" font-weight="900" font-size="230" text-anchor="middle" fill="#1d1b26">9</text>
+      <path d="M0 95 L38 163 L-38 163Z" fill="#1d1b26"/>
+    </g>
+    <g transform="translate(512 520)">
+      <rect x="-165" y="-250" width="330" height="480" rx="50" fill="#9f8f66"/>
+      <rect x="-165" y="-265" width="330" height="470" rx="50" fill="url(#face)" stroke="url(#gold)" stroke-width="16"/>
+      <text x="0" y="55" font-family="'Trebuchet MS','Arial Black',Arial,sans-serif" font-weight="900" font-size="270" text-anchor="middle" fill="#c3262b">7</text>
+      <circle cx="0" cy="128" r="38" fill="#c3262b"/>
+      <path d="M-105 -232 L-93 -205 L-66 -195 L-93 -185 L-105 -158 L-117 -185 L-144 -195 L-117 -205Z" fill="url(#gold)"/>
+    </g>
+  </g>
+</svg>

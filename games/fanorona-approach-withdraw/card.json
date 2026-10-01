@@ -1,0 +1,17 @@
+{
+  "title": "Fanorona: Approach & Withdraw",
+  "tagline": "Madagascar's national board game: capture by approach, capture by withdrawal.",
+  "description": "Fanorona is the strategy board game of Madagascar: 22 stones a side on a board of 45 points, where you capture whole lines by moving toward them or away from them, then chain on along new lines. Play six computer levels from Beginner to Master, learn in eight short lessons, watch two computers play with a think-and-reveal commentary, or share one phone. Full rules inside, large text, no ads.",
+  "genre": "abstract strategy board game",
+  "demo": true,
+  "howToPlay": [
+    "New here? Tap Learn: eight short lessons where you make every move yourself.",
+    "Tap a stone, then a lit point. The number shows how many stones that step captures.",
+    "Approach: step toward an enemy line and capture it. Withdraw: step away and capture the line behind you.",
+    "If a step can do both, you choose. Gold is approach, blue is withdraw.",
+    "Capturing is compulsory. After a capture your stone may keep going along a new line, or you can end the turn.",
+    "Think shows a strong move with numbered arrows. Danger rings the stones you could lose next turn.",
+    "Watch & Learn plays a whole game between two computers: guess the move, then see it revealed.",
+    "Win by capturing every enemy stone. Twenty turns with no capture is a draw."
+  ]
+}

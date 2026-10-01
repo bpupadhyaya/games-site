@@ -1,0 +1,17 @@
+{
+  "title": "Golden Hour Cricket",
+  "tagline": "Swipe to bat. Flick to bowl. Beat the sunset.",
+  "description": "A premium cricket game for your phone. Swipe to bat: direction is the shot, speed is the power, timing is everything. Chase targets with real scoring, read the field, take the risky run, bowl with pace, swing and spin, and play backyard house rules like Tippy-Go and Six and Out. Cricket began in England and spread through the Commonwealth, and backyard cricket is a beloved Australian tradition. Original game: every player and ground is invented.",
+  "genre": "cricket batting and bowling",
+  "demo": true,
+  "howToPlay": [
+    "SWIPE when the bowler lets go: the swipe direction is the shot direction on the field.",
+    "The moment you start the swipe is your timing: PERFECT or GOOD gives clean contact.",
+    "A slow drag is a ground shot; a fast flick goes in the air for a six, but is riskier.",
+    "TAP to block. Do nothing to leave the ball.",
+    "Read the field on the radar and swipe toward the gaps.",
+    "Tap RUN after you hit the ball, and tap again to queue another run. Watch the throw!",
+    "In a Full Match you bowl too: pick a delivery, drag the ring, flick to bowl.",
+    "Watch Auto Play to see the computer think through every ball."
+  ]
+}

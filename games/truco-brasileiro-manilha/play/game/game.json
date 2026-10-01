@@ -1,0 +1,25 @@
+{
+  "slug": "truco-brasileiro-manilha",
+  "title": "Truco Brasileiro: Manilha",
+  "tagline": "Shout Truco, bluff the table, win with the manilha",
+  "genre": "vying trick-taking card game",
+  "orientation": "portrait",
+  "version": "1.0.1",
+  "monetization": {
+    "model": "premium",
+    "priceUsd": 2.99,
+    "previewSeconds": 90,
+    "products": [
+      {
+        "id": "unlock_game",
+        "type": "non-consumable",
+        "priceUsd": 2.99,
+        "title": "Unlock Game"
+      }
+    ]
+  },
+  "locales": [
+    "en"
+  ],
+  "demoOnly": true
+}

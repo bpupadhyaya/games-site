@@ -1,0 +1,17 @@
+{
+  "title": "Okey Offline",
+  "tagline": "Turkey's tile rummy, four at the table.",
+  "description": "Okey is the tile rummy game of Turkey. You and three computer players share 106 tiles; each deal a turned-up indicator decides which tile is the wild okey for that deal only. Draw, arrange your two-row rack into runs and sets (or seven pairs) by dragging, then finish by discarding your last tile. Finish on the okey itself and the deal counts double. Sort helpers tidy the rack, a free Hint explains its reasoning, and Watch & Learn plays a whole deal with time to think before each move. Three computer levels, a full Rules page, English or Turkish labels. Offline, no ads, score only.",
+  "genre": "tile rummy game",
+  "demo": true,
+  "howToPlay": [
+    "Four players, 106 tiles. A turned-up indicator makes the next tile up in that colour the wild okey for this deal.",
+    "Your turn: DRAW from the face-down stack, or TAP the glowing pile on your left to take your neighbour's last discard.",
+    "ARRANGE your rack by DRAGGING tiles between its two rows. A green line shows every valid run or set.",
+    "Runs are 3+ consecutive tiles of one colour (12-13-1 is allowed). Sets are 3 or 4 tiles of one number in different colours.",
+    "DISCARD one tile: drag it onto your own pile, or tap it and press Discard.",
+    "Finish when the 14 tiles you keep are all in runs and sets, or form seven pairs. Finishing on the okey doubles the deal.",
+    "Runs, Sets and Smart sort the rack for you. Hint is free and explains its choice.",
+    "Watch & Learn plays a whole deal for you with time to think before each move, and a Pause that freezes it any moment."
+  ]
+}

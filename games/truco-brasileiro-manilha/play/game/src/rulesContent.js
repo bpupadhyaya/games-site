@@ -1,0 +1,50 @@
+// Rules, About and How to Play pages. Numbers (stakes, special-hand values, targets) are read from rules.js so the
+// text can never drift from the engine. Pages: { title, lines: [paragraphs], cards?: [{ c, label, sub, man }] }.
+import { card, VARIANTS, TARGET } from './rules.js';
+
+const P = VARIANTS.paulista, M = VARIANTS.mineiro;
+const r = (rank) => ['4', '5', '6', '7', 'Q', 'J', 'K', 'A', '2', '3'].indexOf(rank);
+const D = 0, S = 1, Hh = 2, C = 3; // suits
+const ladder = (v) => v.vals.map((x, i) => (i === 0 ? `${x} to start` : `${v.shouts[i]} ${x}`)).join(', ');
+const runs = (v) => v.vals.slice(0, 4).join(', ');
+
+export const RULES = [
+  { title: 'The deck', lines: ['Truco uses a 40-card deck: the 8, 9 and 10 of every suit are removed. Ranks, weakest to strongest: 4 5 6 7 Q J K A 2 3. The 3 is the strongest ordinary card.', 'Suits never matter for ordinary cards: two cards of the same rank are equal.'],
+    cards: ['4', '5', '6', '7', 'Q', 'J', 'K', 'A', '2', '3'].map((k, i) => ({ c: card([C, Hh, S, D][i % 4], r(k)), label: k })) },
+  { title: 'Players and teams', lines: ['Four players: you and the computer partner across the table against the two computer opponents on your left and right. Two players: you against one computer opponent.', 'Play goes clockwise: you, Right, Partner, Left. The dealer changes every hand and the player after the dealer leads the first trick.', `The first team to ${TARGET} points wins the match. Points are only scores: there are no chips and no stakes.`] },
+  { title: 'The deal', lines: ['Everyone gets 3 cards. A hand is the best of three tricks.', 'Paulista: the next card is turned face up. This is the vira. It is not dealt to anyone, but it decides which cards are manilhas.', 'Mineiro: there is no vira. The manilhas are always the same four cards.'] },
+  { title: 'Paulista manilhas', lines: ['The manilha rank is the rank just above the vira in the order 4 5 6 7 Q J K A 2 3 (after the 3 comes the 4). Example: the vira is a 6, so every 7 is a manilha.',
+    'The four manilhas beat every other card. Among them the suit decides: Clubs (Zap) beat Hearts (Copas), which beat Spades (Espadilha), which beat Diamonds (Pica-fumo).'],
+    cards: [{ c: card(D, r('6')), label: 'Vira' }, { c: card(C, r('7')), label: 'Zap', man: true }, { c: card(Hh, r('7')), label: 'Copas', man: true }, { c: card(S, r('7')), label: 'Espadilha', man: true }, { c: card(D, r('7')), label: 'Pica-fumo', man: true }] },
+  { title: 'Mineiro manilhas', lines: ['The manilhas are fixed in every hand, strongest first: the 4 of Clubs (Zap), the 7 of Hearts (Copas), the Ace of Spades (Espadilha) and the 7 of Diamonds (Pica-fumo).', 'All other cards keep their plain rank. The 7 of Clubs and 7 of Spades are ordinary 7s, the Ace of Hearts is an ordinary Ace, and the other 4s are the weakest cards.'],
+    cards: [{ c: card(C, r('4')), label: 'Zap', man: true }, { c: card(Hh, r('7')), label: 'Copas', man: true }, { c: card(S, r('A')), label: 'Espadilha', man: true }, { c: card(D, r('7')), label: 'Pica-fumo', man: true }] },
+  { title: 'Playing a trick', lines: ['The leader plays any card. Everyone else plays any card in turn: you do not have to follow suit and nothing is trump except the manilhas.', 'The highest card wins the trick and its owner leads the next one.', 'If the two best cards are equal and belong to different teams the trick is tied (empate). The player who led the tied trick leads again. If equal best cards belong to the same team that team wins the trick.'] },
+  { title: 'Winning the hand', lines: ['Win two tricks and the hand is yours; play stops as soon as it is decided.', 'First trick tied: whoever wins the second trick wins the hand. First trick won and second tied: the first trick decides. One trick each: the third decides, and if the third is tied the first trick decides.',
+    'Everything tied: in Paulista nobody scores and a new hand is dealt. In Mineiro the team of the player who led the hand wins.'] },
+  { title: 'What a hand is worth', lines: [`Paulista: ${ladder(P)}.`, `Mineiro: ${ladder(M)}.`, 'The value only rises when someone shouts and the other side accepts. If nobody shouts, the winner of the tricks scores the opening value.'] },
+  { title: 'Shouting Truco', lines: ['On your own turn, before you play a card, you may shout the next step of the ladder instead: Truco, then Seis, Nove, Doze (Mineiro: Jogo for the last step).', 'The other team must answer at once: accept, run, or raise one step. Play stops until they answer.', 'Only the team that did NOT make the last shout may shout again. Once Doze (or Jogo) is accepted nothing can be raised.'] },
+  { title: 'Accept, run, raise', lines: ['Accept: the hand is now worth the shouted stake and play continues.', `Run: the hand ends and the team that shouted scores the stake you were playing for before the shout. Paulista: ${runs(P)}. Mineiro: ${runs(M)}.`, 'Raise: you answer with the next shout (for example Truco answered with Seis). The first team now has the same three choices.'] },
+  { title: 'Who answers', lines: ['When the computer shouts, you answer for your team. Your partner never answers for you.', 'When you shout, the next opponent in turn answers for their team. They know their own cards and what they could see of your gestures, not yours.', 'The computer remembers how often you run from a Truco in this match. Run too often and it will bluff you more.'] },
+  { title: `${P.specialName} and ${M.specialName}`, lines: [`Paulista: a team on ${P.special} points (opponents lower) plays ${P.specialName}. Before play the team looks at ALL its own cards (you see your partner's) and chooses: play for ${P.specialVal} points or run and give the opponents ${P.specialRun}.`,
+    `Mineiro: a team on ${M.special} points plays ${M.specialName}: play for ${M.specialVal} or run and give the opponents ${M.specialRun}.`, 'During this hand nobody can shout Truco: the value stays fixed.'] },
+  { title: 'Mão de Ferro (iron hand)', lines: [`If BOTH teams are on ${P.special} (Paulista) or ${M.special} (Mineiro) the hand is played blind: nobody looks at their cards, you choose a card by position, and nobody can shout.`, 'The hand is worth the opening value and whoever wins it wins the match.'] },
+  { title: 'Winning the match', lines: [`The match ends as soon as a team reaches ${TARGET} or more points. A hand can end with no points only when all three tricks tie in Paulista.`, 'There is no other way to end a match without a winner.'] },
+  { title: 'Gestures (4 players)', lines: ['Partners may signal. Tap Signal once per hand and pick a face: wink = Zap, raised brow = another manilha, pursed lips = a 3 or a 2 as your best card, shrug = nothing above an Ace.', 'Your computer partner always sees your gesture and plays and shouts with it in mind. An opponent may catch it too: Rookies rarely do, Masters often.', 'The computer partner and opponents signal too. You always see your partner. Now and then you glimpse an opponent signalling. A gesture is only a claim: you may bluff with it.'] },
+  { title: 'Computer levels and hints', lines: ['Rookie: plays by feel, shouts with strong cards, almost never bluffs. Regular: counts what is left and bluffs sometimes. Master: simulates the hidden hands, bluffs players who run, and reads gestures.', 'Hint (3 per hand) suggests the best play or answer with the chance of winning the hand. Take-backs do not exist: a shout is final.'] },
+  { title: 'Auto Play (Watch and Learn)', lines: ['Auto Play lets the computer play every seat of a whole match while you watch. Each decision pauses to THINK (2, 5, 8 or 10 seconds, you choose), then REVEALS the options and the chosen one for 2 seconds, then plays it.', 'Pause freezes everything exactly where it is. Auto Play never touches your stats or saved match.'] },
+];
+
+export const HOWTO = [
+  { title: 'Goal', lines: [`Win hands to reach ${TARGET} points before the other team. Each hand is three tricks: win two.`, 'Paulista and Mineiro are the two big Brazilian ways to play. Switch on the title screen.'] },
+  { title: 'Play a card', lines: ['TAP a card to raise it, TAP it again to play it, or DRAG it upward. Cards with a gold edge are manilhas: they beat everything.', 'Any card is legal: there is no following suit.'] },
+  { title: 'Shout Truco', lines: ['On your turn, tap TRUCO to raise the stake. The other team may accept, run, or raise again.', 'Strong hand? Shout. Weak hand? You may bluff: the other side cannot see your cards.'] },
+  { title: 'When they shout', lines: ['A panel asks you: Accept (play on for more points), Run (give up the hand, they score the old stake) or Raise.', 'Ask Hint before you answer: it shows your chance of winning the hand.'] },
+  { title: 'Partner gestures', lines: ['With four players tap Signal to tell your partner your best card with a face. Your partner signals back before you play.', 'Careful: opponents may notice.'] },
+  { title: 'Learn by watching', lines: ['Auto Play on the title screen plays a full match with the computer in every seat, and explains each decision before it happens.', 'Settings has the text size, large-print cards and four-colour suits.'] },
+];
+
+export const ABOUT = [
+  { title: 'About this game', lines: ['Truco is one of the best-loved card games in Brazil: three cards each, a shouted stake ladder, a lot of bluffing, and the manilhas that beat the whole deck.', 'This version has the two big regional styles, Paulista (a turned card names the manilhas) and Mineiro (four fixed manilhas), for two or four players.'] },
+  { title: 'What is inside', lines: ['Full Paulista and Mineiro rules with Truco, Seis, Nove, Doze and the special hands at the end of a match.', 'Three computer levels. The partner and opponents bluff, read gestures, and remember whether you run.', 'Hints, a complete Rules reference, Auto Play to learn by watching, large-print cards and four-colour suits.'] },
+  { title: 'Score only', lines: ['Points are only a score. There are no chips, coins, wagers or ads, and the game works offline.', 'A free preview lets you try it; one purchase unlocks everything.'] },
+];

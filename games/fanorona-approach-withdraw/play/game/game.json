@@ -1,0 +1,25 @@
+{
+  "slug": "fanorona-approach-withdraw",
+  "title": "Fanorona: Approach & Withdraw",
+  "tagline": "Madagascar's national board game: capture by approach and withdrawal.",
+  "genre": "abstract strategy board game",
+  "orientation": "portrait",
+  "version": "1.0.1",
+  "monetization": {
+    "model": "premium",
+    "priceUsd": 2.99,
+    "previewSeconds": 90,
+    "products": [
+      {
+        "id": "unlock_game",
+        "type": "non-consumable",
+        "priceUsd": 2.99,
+        "title": "Unlock Game"
+      }
+    ]
+  },
+  "locales": [
+    "en"
+  ],
+  "demoOnly": true
+}

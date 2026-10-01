@@ -1,0 +1,18 @@
+{
+  "title": "Snakes & Ladders Cloth Board",
+  "tagline": "The painted-cloth dice race, reimagined.",
+  "description": "The classic dice race on a hand-painted cloth board in the Indian tradition. Roll, hop, climb ladders named for good habits and slide down serpents named for slips. Flick the die across the table and watch it tumble. Play one die or pick the better of two each turn, add extra rules (exact finish, six rolls again, bump back), and choose the classic board, a fresh fair board, or the board of the day. Play 2 to 4 people on one phone or against computers, ask for hints, read the full rules, or Watch & Learn as the computer plays a whole game. Text size up to 300%.",
+  "genre": "dice race board game",
+  "demo": true,
+  "howToPlay": [
+    "Tap Roll, or flick the die across the table, to throw it.",
+    "Your pawn hops forward that many squares along the zig-zag numbers.",
+    "End on the foot of a ladder to climb it; end on a serpent's head to slide down.",
+    "In Pick of Two mode, tap the die you want to use, or tap its glowing landing square.",
+    "Tap Hint any time to see what lies ahead or which die is better, and why.",
+    "Reach square 100 first to win. By default you need the exact number to finish.",
+    "Choose extra rules in the setup: exact finish, six rolls again, bump back.",
+    "Play 2 to 4 people on one phone, or against computers from Easy to Sharp.",
+    "Watch & Learn plays a whole game by itself so you can see how it thinks."
+  ]
+}

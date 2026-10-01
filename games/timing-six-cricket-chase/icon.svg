@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- Golden Hour Cricket icon: a low golden sun, a bat swinging through, the ball sailing away over the stumps. Original art. -->
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#26407a"/>
+      <stop offset="0.38" stop-color="#7a5aa0"/>
+      <stop offset="0.62" stop-color="#f08a68"/>
+      <stop offset="0.82" stop-color="#ffc77a"/>
+      <stop offset="1" stop-color="#ffe3a0"/>
+    </linearGradient>
+    <radialGradient id="sun" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="0.35" stop-color="#fff3c8"/>
+      <stop offset="1" stop-color="#ffd27a" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="ball" cx="0.35" cy="0.32" r="0.8">
+      <stop offset="0" stop-color="#ff8a6b"/>
+      <stop offset="0.5" stop-color="#d13a28"/>
+      <stop offset="1" stop-color="#5a0d0a"/>
+    </radialGradient>
+    <linearGradient id="bat" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#c79a55"/>
+      <stop offset="0.5" stop-color="#ffe3a8"/>
+      <stop offset="1" stop-color="#b8863c"/>
+    </linearGradient>
+    <linearGradient id="grass" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#5aa14a"/>
+      <stop offset="1" stop-color="#2b6a2e"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#sky)"/>
+  <circle cx="700" cy="640" r="330" fill="url(#sun)"/>
+  <circle cx="700" cy="640" r="130" fill="#fff6d2"/>
+  <path d="M0 700 L220 650 L420 690 L640 640 L860 690 L1024 660 L1024 1024 L0 1024 Z" fill="#3a2a56" opacity="0.9"/>
+  <path d="M0 760 L1024 760 L1024 1024 L0 1024 Z" fill="url(#grass)"/>
+  <path d="M330 760 L700 760 L860 1024 L170 1024 Z" fill="#d6c28f"/>
+  <g transform="translate(560 800)">
+    <rect x="-70" y="-250" width="26" height="250" rx="12" fill="#f4dca4"/>
+    <rect x="-13" y="-250" width="26" height="250" rx="12" fill="#f4dca4"/>
+    <rect x="44" y="-250" width="26" height="250" rx="12" fill="#f4dca4"/>
+    <rect x="-70" y="-268" width="62" height="14" rx="6" fill="#fff3d0"/>
+    <rect x="8" y="-268" width="62" height="14" rx="6" fill="#fff3d0"/>
+  </g>
+  <path d="M120 900 L520 840 L560 870 L160 960 Z" fill="#1c1230" opacity="0.28"/>
+  <g transform="rotate(-38 330 760)">
+    <rect x="300" y="360" width="64" height="150" rx="26" fill="#2a2a2a"/>
+    <path d="M286 500 L378 500 L392 900 Q392 930 360 930 L304 930 Q272 930 272 900 Z" fill="url(#bat)" stroke="#8a5a1e" stroke-width="6"/>
+    <path d="M308 520 L316 900" stroke="#ffffff" stroke-opacity="0.45" stroke-width="10" stroke-linecap="round"/>
+  </g>
+  <path d="M350 560 Q540 190 820 150" fill="none" stroke="#fff6d2" stroke-width="16" stroke-linecap="round" stroke-dasharray="4 30" opacity="0.8"/>
+  <circle cx="835" cy="146" r="66" fill="#ffd27a" opacity="0.5"/>
+  <circle cx="835" cy="146" r="52" fill="url(#ball)"/>
+  <path d="M790 126 Q835 100 880 166" fill="none" stroke="#ffe9c8" stroke-width="7" stroke-linecap="round"/>
+  <ellipse cx="816" cy="128" rx="16" ry="9" transform="rotate(-35 816 128)" fill="#ffffff" opacity="0.55"/>
+</svg>
