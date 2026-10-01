@@ -124,6 +124,25 @@
     "play": "games/crown-star-regions/play/"
   },
   {
+    "slug": "domino-cubano-doble-nueve",
+    "stage": "release-candidate",
+    "title": "Dominó Cubano: Doble Nueve",
+    "tagline": "Cuban partnership dominoes. Read the table, trust your partner.",
+    "description": "Real Cuban partnership dominoes with the full double-nine set, played the way it's played in Miami's Domino Park and across the Caribbean. Your AI partner actually reads the table: every pass proves what a seat doesn't hold. Three difficulty tiers put that to real use, up to full Torneo partnership reading. No chips, no stakes - first team to 100 wins.",
+    "genre": "partnership domino game",
+    "demo": true,
+    "howToPlay": [
+      "You and the seat across from you are partners against the other two - ten tiles each, fifteen stay asleep.",
+      "Drag a tile from your rack onto either glowing end of the line - it plays if either number matches.",
+      "No match? Tap Pass - the game only lets you pass when you truly have nothing to play.",
+      "Every pass is a clue: it proves that seat holds nothing matching either open end, for the rest of the hand.",
+      "A hand ends when someone empties their rack, or all four seats pass in a row - lowest pips wins the block.",
+      "First team to 100 points wins the match. Choose Casual, Club or Torneo difficulty before you deal in."
+    ],
+    "icon": "games/domino-cubano-doble-nueve/icon.svg",
+    "play": "games/domino-cubano-doble-nueve/play/"
+  },
+  {
     "slug": "durak-na-dache",
     "stage": "production",
     "title": "Durak",

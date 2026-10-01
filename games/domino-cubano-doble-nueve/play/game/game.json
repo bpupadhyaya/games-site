@@ -1,0 +1,25 @@
+{
+  "slug": "domino-cubano-doble-nueve",
+  "title": "Dominó Cubano: Doble Nueve",
+  "tagline": "Cuban partnership dominoes. Read the table, trust your partner.",
+  "genre": "partnership domino game",
+  "orientation": "portrait",
+  "version": "1.0.0",
+  "monetization": {
+    "model": "premium",
+    "priceUsd": 2.99,
+    "previewSeconds": 90,
+    "products": [
+      {
+        "id": "unlock_game",
+        "type": "non-consumable",
+        "priceUsd": 2.99,
+        "title": "Unlock Game"
+      }
+    ]
+  },
+  "locales": [
+    "en"
+  ],
+  "demoOnly": true
+}

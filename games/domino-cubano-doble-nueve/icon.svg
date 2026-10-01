@@ -1,0 +1,103 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <radialGradient id="bg" cx="0.38" cy="0.3" r="1.05">
+      <stop offset="0" stop-color="#4fd0b0"/>
+      <stop offset="0.45" stop-color="#1f6355"/>
+      <stop offset="1" stop-color="#0a201b"/>
+    </radialGradient>
+    <radialGradient id="vignette" cx="0.5" cy="0.46" r="0.75">
+      <stop offset="0" stop-color="#000000" stop-opacity="0"/>
+      <stop offset="0.72" stop-color="#000000" stop-opacity="0"/>
+      <stop offset="1" stop-color="#000000" stop-opacity="0.45"/>
+    </radialGradient>
+    <radialGradient id="glow" cx="0.32" cy="0.22" r="0.55">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.35"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+
+    <linearGradient id="ivoryHero" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="0.55" stop-color="#f5f7f9"/>
+      <stop offset="1" stop-color="#d9dee3"/>
+    </linearGradient>
+    <linearGradient id="ivorySide" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#b9bec4"/>
+      <stop offset="1" stop-color="#888e95"/>
+    </linearGradient>
+    <linearGradient id="ivorySecondary" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f0f2f4"/>
+      <stop offset="1" stop-color="#ccd2d7"/>
+    </linearGradient>
+    <linearGradient id="sideSecondary" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#949ba2"/>
+      <stop offset="1" stop-color="#6e747b"/>
+    </linearGradient>
+    <linearGradient id="sheen" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.55"/>
+      <stop offset="0.4" stop-color="#ffffff" stop-opacity="0.08"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <radialGradient id="pipGrad" cx="0.35" cy="0.3" r="0.75">
+      <stop offset="0" stop-color="#3c3f43"/>
+      <stop offset="0.55" stop-color="#1d1f21"/>
+      <stop offset="1" stop-color="#050506"/>
+    </radialGradient>
+    <linearGradient id="ringSilver" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#f4f6f8"/>
+      <stop offset="0.5" stop-color="#cad0d6"/>
+      <stop offset="1" stop-color="#8b929a"/>
+    </linearGradient>
+
+    <filter id="dropShadow" x="-60%" y="-60%" width="220%" height="220%">
+      <feDropShadow dx="0" dy="26" stdDeviation="26" flood-color="#000000" flood-opacity="0.5"/>
+    </filter>
+    <filter id="dropShadowSoft" x="-60%" y="-60%" width="220%" height="220%">
+      <feDropShadow dx="0" dy="14" stdDeviation="16" flood-color="#000000" flood-opacity="0.35"/>
+    </filter>
+
+    <clipPath id="clipHero"><rect x="330" y="100" width="460" height="760" rx="46"/></clipPath>
+    <clipPath id="clipSecondary"><rect x="190" y="430" width="340" height="560" rx="38"/></clipPath>
+  </defs>
+
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+  <rect width="1024" height="1024" fill="url(#glow)"/>
+  <circle cx="512" cy="512" r="440" fill="none" stroke="url(#ringSilver)" stroke-width="20" opacity="0.9"/>
+  <circle cx="512" cy="512" r="440" fill="none" stroke="#ffffff" stroke-width="3" opacity="0.45"/>
+
+  <!-- secondary tile, fanned out behind the hero: hints at a full set without competing for focus -->
+  <g transform="rotate(-16 360 710)" filter="url(#dropShadowSoft)">
+    <rect x="190" y="444" width="340" height="560" rx="38" fill="url(#sideSecondary)"/>
+    <rect x="190" y="430" width="340" height="560" rx="38" fill="url(#ivorySecondary)" stroke="#2b2e33" stroke-width="7" opacity="0.92"/>
+    <line x1="230" y1="710" x2="490" y2="710" stroke="#2b2e33" stroke-width="5" opacity="0.4"/>
+    <g fill="url(#pipGrad)" opacity="0.92">
+      <!-- top half: 6 -->
+      <circle cx="272" cy="506" r="26"/><circle cx="448" cy="506" r="26"/>
+      <circle cx="272" cy="570" r="26"/><circle cx="448" cy="570" r="26"/>
+      <circle cx="272" cy="634" r="26"/><circle cx="448" cy="634" r="26"/>
+      <!-- bottom half: 4 -->
+      <circle cx="272" cy="786" r="26"/><circle cx="448" cy="786" r="26"/>
+      <circle cx="272" cy="914" r="26"/><circle cx="448" cy="914" r="26"/>
+    </g>
+  </g>
+
+  <!-- hero tile: the 9-9 opener, "Doble Nueve" -->
+  <g transform="rotate(11 560 480)" filter="url(#dropShadow)">
+    <rect x="330" y="118" width="460" height="760" rx="46" fill="url(#ivorySide)"/>
+    <rect x="330" y="100" width="460" height="760" rx="46" fill="url(#ivoryHero)"/>
+    <rect x="330" y="100" width="460" height="760" rx="46" fill="none" stroke="url(#ringSilver)" stroke-width="6" opacity="0.9"/>
+    <rect x="330" y="100" width="460" height="760" rx="46" fill="none" stroke="#26282c" stroke-width="3" opacity="0.55"/>
+    <line x1="378" y1="480" x2="742" y2="480" stroke="#26282c" stroke-width="7" opacity="0.45"/>
+    <g fill="url(#pipGrad)">
+      <circle cx="440" cy="203" r="36"/><circle cx="560" cy="203" r="36"/><circle cx="680" cy="203" r="36"/>
+      <circle cx="440" cy="290" r="36"/><circle cx="560" cy="290" r="36"/><circle cx="680" cy="290" r="36"/>
+      <circle cx="440" cy="377" r="36"/><circle cx="560" cy="377" r="36"/><circle cx="680" cy="377" r="36"/>
+      <circle cx="440" cy="583" r="36"/><circle cx="560" cy="583" r="36"/><circle cx="680" cy="583" r="36"/>
+      <circle cx="440" cy="670" r="36"/><circle cx="560" cy="670" r="36"/><circle cx="680" cy="670" r="36"/>
+      <circle cx="440" cy="757" r="36"/><circle cx="560" cy="757" r="36"/><circle cx="680" cy="757" r="36"/>
+    </g>
+    <rect x="342" y="112" width="436" height="736" rx="38" fill="none" stroke="#ffffff" stroke-width="5" opacity="0.4"/>
+    <rect x="330" y="100" width="460" height="760" fill="url(#sheen)" clip-path="url(#clipHero)"/>
+  </g>
+
+  <rect width="1024" height="1024" fill="url(#vignette)"/>
+</svg>
