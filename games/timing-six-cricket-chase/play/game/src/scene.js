@@ -254,21 +254,21 @@ function drawCue(ctx, x, y, type, t) {
 export function drawDelivery(ctx, v) {
   const m = v.m, th = THEMES[m.theme], hand = m.hand, L = th.pitchLen;
   const P = makeProj(hand);
-  drawBackdrop(ctx, m.theme, CAM.hy);
-  drawGround(ctx, P, m.theme, hand);
+  const use3d = !!v.use3d;   // the 3D layer draws the set and the people behind this canvas; only overlays are drawn here
+  if (!use3d) { drawBackdrop(ctx, m.theme, CAM.hy); drawGround(ctx, P, m.theme, hand); }
   const phase = m.phase;
   const d = m.d;
   const inFlight = d && (phase === 'flight' || phase === 'contact' || (phase === 'result' && !m.live));
   const ft = phase === 'flight' ? m.ft : phase === 'contact' ? (m.sw?.t ?? m.ft) + 0.05 : (m.ft ?? 0);
   // far wicket + bowler
-  wicketAt(ctx, P, m.theme, L, m.last?.out && m.inn.role === 'bowl' ? 0 : 0);
+  if (!use3d) wicketAt(ctx, P, m.theme, L, m.last?.out && m.inn.role === 'bowl' ? 0 : 0);
   const homeKit = m.theme === 'backyard' ? KIT.yard : m.theme === 'beach' ? KIT.beach : KIT.home;
   const humanBat = m.inn.role === 'bat';
   const kitB = humanBat ? KIT.away : homeKit;
   const kitBat = humanBat ? homeKit : KIT.away;
   // fielders in front of the batter, in perspective (far ones first)
   const seen = (m.field ?? []).filter((f) => f.role === 'field' && f.z > 2.5).sort((a, b) => b.z - a.z);
-  for (const f of seen) {
+  for (const f of (use3d ? [] : seen)) {
     const fp = P(f.x, 0, f.z);
     if (fp[2] > 120 || fp[0] < -30 || fp[0] > W + 30) continue;
     drawPerson(ctx, fp[0], fp[1], fp[2], { kit: kitB, face: 'front', cap: true, pose: { run: f.run > 0.5 ? (v.t ?? 0) * 11 + f.id : 0, crouch: 0.18 }, sdir: hand });
@@ -283,7 +283,7 @@ export function drawDelivery(ctx, v) {
   if (!(m.inn.role === 'bowl' && false)) {
     const bp = P(0.8, 0, bz); bp[2] *= 1.0;
     const showBowler = bz > L - 1.2;
-    if (showBowler || phase === 'ready' || phase === 'runup') drawPerson(ctx, bp[0], bp[1], bp[2], { kit: kitB, face: 'front', cap: true, pose: { run, arm, crouch: 0, lean } });
+    if (!use3d && (showBowler || phase === 'ready' || phase === 'runup')) drawPerson(ctx, bp[0], bp[1], bp[2], { kit: kitB, face: 'front', cap: true, pose: { run, arm, crouch: 0, lean } });
     if (m.next && m.inn.role === 'bat' && ((phase === 'runup' && m.pt > (m.runT ?? 1) * 0.45) || (phase === 'flight' && m.ft < 0.2))) drawCue(ctx, bp[0] + 46, bp[1] - 1.9 * bp[2], m.next.type, m.pt);
   }
   // ball: shadow, trail, ball
@@ -309,6 +309,7 @@ export function drawDelivery(ctx, v) {
     glow(ctx, sp[0], sp[1], r * 3.4, 'rgba(255,240,200,A)', 0.4);
     drawBall(ctx, sp[0], sp[1], r, th.ball, (m.ft ?? 0) * 18 * (d.spec.type.includes('spin') ? 1.6 : 1));
   };
+  if (use3d) { glow(ctx, 590, CAM.hy - 52, 420, 'rgba(255,214,150,A)', 0.14); return { P, tip: null }; }
   if (behind) drawBallNow();
   wicketAt(ctx, P, m.theme, 0, v.stumpsBroken ?? 0);
   // batter

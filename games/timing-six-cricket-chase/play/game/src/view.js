@@ -10,6 +10,11 @@ import { MODES, strikerOf, nonStrikerOf, bowlerOf, ballsLeft, requiredRate, runR
 import { TYPES, TYPE_KEYS } from './ball.js';
 import { PRESETS, PRESET_KEYS, SECTOR_NAMES } from './field.js';
 
+const CREDITS_3D = [
+  '# 3D people and credits',
+  'The people in the batter\'s-eye view are real-time 3D athletes. Characters: Microsoft Rocketbox Avatar Library (MIT licence, copyright 2020 Microsoft), textures repainted. Motion data: Quaternius Universal Animation Library (CC0), Carnegie Mellon University Graphics Lab Motion Capture Database (mocap.cs.cmu.edu, funded by NSF EIA-0196217, BVH conversion by Bruce Hahne). Rendering: three.js, copyright 2010-2024 three.js authors, MIT licence.',
+  'The MIT licence grants permission, free of charge, to use, copy, modify, merge, publish, distribute, sublicense and sell copies of the software, provided the copyright notice and this permission notice are included. The software is provided as is, without warranty of any kind.',
+];
 export const R = {
   zoomDec: { x: 16, y: 14, w: 100, h: 58 }, zoomInc: { x: 604, y: 14, w: 100, h: 58 },
   pause: { x: 640, y: 20, w: 56, h: 56 }, think: { x: 572, y: 20, w: 60, h: 56 },
@@ -190,7 +195,8 @@ export function sceneSpec(state) {
     }
     case 'howto': case 'about': case 'rules': {
       const doc = state.scene === 'howto' ? HOWTO : state.scene === 'about' ? ABOUT : RULES;
-      const items = doc.map((it) => (it.t === 'fig' ? { ...it, draw: (ctx, w, h) => drawFigure(ctx, it.key, w, h) } : it));
+      let items = doc.map((it) => (it.t === 'fig' ? { ...it, draw: (ctx, w, h) => drawFigure(ctx, it.key, w, h) } : it));
+      if (state.scene === 'about') items = items.concat((state.env?.view3d?.credits ?? CREDITS_3D).map((text) => (text.startsWith('# ') ? { t: 'h', text: text.slice(2) } : { t: 'para', text })));
       return { items, paged: true, footer: [{ id: 'prev', label: 'Back' }, { id: 'next', label: state.ui.pageIdx >= state.ui.pageN - 1 ? 'Done' : 'Next', primary: true }] };
     }
     case 'results': {
@@ -399,7 +405,8 @@ export function renderPlay(ctx, state) {
   const m = state.m, v = state.v;
   const t = state.t;
   const live = !!m.live && (m.phase === 'live' || (m.phase === 'result' && m.live));
-  const useOver = live || state.scene === 'replay';
+  const vv = state.env?.view3d;
+  const useOver = (live && !(vv && vv.hold)) || state.scene === 'replay';
   ctx.save();
   if (v.shake > 0.1) ctx.translate((Math.sin(t * 90) * v.shake), (Math.cos(t * 77) * v.shake * 0.7));
   if (m.phase === 'contact') { const z = 1 + 0.06 * clamp(m.pt / 0.13, 0, 1); ctx.translate(360, 760); ctx.scale(z, z); ctx.translate(-360, -760); }
@@ -423,17 +430,23 @@ export function renderPlay(ctx, state) {
   timingChip(ctx, state, useOver ? Math.max(252, hudBottom + 60) : 700);
   if (!state.paused) drawCall(ctx, state, useOver ? Math.max(300, hudBottom + 110) : Math.max(330, hudBottom + 120));
   drawOverStrip(ctx, state);
-  if (state.scene === 'play' && human) drawBattingControls(ctx, state, useOver);
+  if (state.scene === 'play' && human) drawBattingControls(ctx, state, useOver || !!(vv && vv.hold));
   if (state.scene === 'play' && m.inn.role === 'bowl') drawBowlingUi(ctx, state);
   if (m.phase === 'overbreak' && m.inn.role === 'bowl') drawFieldPicker(ctx, state);
   if (state.scene === 'auto') drawAutoPanel(ctx, state);
   if (state.think.open) drawThink(ctx, state);
   if (state.paused && state.scene !== 'auto') drawPauseMenu(ctx, state);
   if (m.phase === 'inningsEnd') { ctx.fillStyle = 'rgba(10,6,24,0.35)'; ctx.fillRect(0, 0, W, H); }
+  // the 3D action cam shows through a hole in the 2D picture
+  if (vv && vv.pip) {
+    const p = vv.pip;
+    ctx.save(); rr(ctx, p.x, p.y, p.w, p.h, 18); ctx.clip(); ctx.clearRect(p.x, p.y, p.w, p.h); ctx.restore();
+    ctx.strokeStyle = 'rgba(255,214,140,0.9)'; ctx.lineWidth = 4; rr(ctx, p.x, p.y, p.w, p.h, 18); ctx.stroke();
+  }
 }
 
 function renderDeliveryView(ctx, state) {
-  drawDelivery(ctx, { ...state.v, m: state.m });
+  drawDelivery(ctx, { ...state.v, m: state.m, use3d: !!state.env?.view3d?.active });
 }
 
 function renderOverhead(ctx, state) {

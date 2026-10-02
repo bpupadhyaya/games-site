@@ -1,0 +1,14 @@
+{
+  "title": "Sepak Takraw",
+  "tagline": "Receive. Set. Scissor-kick it over the net.",
+  "description": "Lead a team of three in sepak takraw, the acrobatic kick-volleyball of Southeast Asia, in real 3D. Choose your receive, your set and your attack, time the kick, and read the block. Five rival teams, a Learn path, Think hints and Watch & Learn.",
+  "genre": "kick volleyball sport",
+  "demo": true,
+  "howToPlay": [
+    "Tap the court to aim, choose a serve and press SERVE when the ring closes.",
+    "Choose which player attacks, then where and how the set goes.",
+    "Pick an attack and press SMASH on the ring: roll, sunback, scissor, header or foot.",
+    "Choose a single block, a double block or drop back when they set.",
+    "Win two sets out of three to 21."
+  ]
+}

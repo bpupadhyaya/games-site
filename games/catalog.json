@@ -438,6 +438,24 @@
     "play": "games/jack-and-boule-petanque/play/"
   },
   {
+    "slug": "kabaddi-raid-and-tag",
+    "stage": "release-candidate",
+    "title": "Kabaddi: Raid and Tag",
+    "tagline": "Raid, tag and tackle in 3D.",
+    "description": "The traditional South Asian team sport of raid and tag: choose your approach, tag defenders, and get home before the chain closes. Five opponents, Learn lessons, Think hints and Two Players.",
+    "genre": "team contact sport",
+    "demo": true,
+    "howToPlay": [
+      "Pick a move: step in, feint, touch, bonus line or retreat.",
+      "Cross the baulk line before you can go home.",
+      "Tap as the ring closes for the best timing.",
+      "Defend with holds, blocks and dashes.",
+      "Tap Think for the best move and why."
+    ],
+    "icon": "games/kabaddi-raid-and-tag/icon.svg",
+    "play": "games/kabaddi-raid-and-tag/play/"
+  },
+  {
     "slug": "kegeln-nine-pin-skittles",
     "stage": "release-candidate",
     "title": "Kegeln",
@@ -956,6 +974,24 @@
     ],
     "icon": "games/senet-pharaohs-path/icon.svg",
     "play": "games/senet-pharaohs-path/play/"
+  },
+  {
+    "slug": "sepak-takraw-rally",
+    "stage": "release-candidate",
+    "title": "Sepak Takraw",
+    "tagline": "Receive. Set. Scissor-kick it over the net.",
+    "description": "Lead a team of three in sepak takraw, the acrobatic kick-volleyball of Southeast Asia, in real 3D. Choose your receive, your set and your attack, time the kick, and read the block. Five rival teams, a Learn path, Think hints and Watch & Learn.",
+    "genre": "kick volleyball sport",
+    "demo": true,
+    "howToPlay": [
+      "Tap the court to aim, choose a serve and press SERVE when the ring closes.",
+      "Choose which player attacks, then where and how the set goes.",
+      "Pick an attack and press SMASH on the ring: roll, sunback, scissor, header or foot.",
+      "Choose a single block, a double block or drop back when they set.",
+      "Win two sets out of three to 21."
+    ],
+    "icon": "games/sepak-takraw-rally/icon.svg",
+    "play": "games/sepak-takraw-rally/play/"
   },
   {
     "slug": "shagai-anklebone-flicks",

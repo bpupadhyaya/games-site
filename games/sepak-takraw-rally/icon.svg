@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#17445f"/><stop offset="0.6" stop-color="#2f7fa8"/><stop offset="1" stop-color="#1b5a7a"/></linearGradient>
+    <radialGradient id="ball" cx="0.38" cy="0.32" r="0.8"><stop offset="0" stop-color="#ffd58a"/><stop offset="0.6" stop-color="#d8a04e"/><stop offset="1" stop-color="#9a6422"/></radialGradient>
+    <clipPath id="bc"><circle cx="512" cy="430" r="230"/></clipPath>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+  <path d="M0 800 L1024 700 L1024 1024 L0 1024Z" fill="#10202f" opacity="0.55"/>
+  <!-- net -->
+  <g stroke="#f3f7fb" stroke-width="10" opacity="0.9"><path d="M0 700 H1024"/><path d="M0 724 H1024" stroke-width="4"/><path d="M0 750 H1024" stroke-width="4"/><path d="M0 776 H1024" stroke-width="4"/></g>
+  <g stroke="#f3f7fb" stroke-width="3" opacity="0.6"><path d="M120 700V780M240 700V780M360 700V780M480 700V780M600 700V780M720 700V780M840 700V780M960 700V780"/></g>
+  <!-- ball -->
+  <circle cx="512" cy="430" r="230" fill="url(#ball)"/>
+  <g clip-path="url(#bc)" fill="none" stroke-linecap="round">
+    <g stroke="#8c571a" stroke-width="26"><path d="M250 250 Q512 420 780 250"/><path d="M250 610 Q512 440 780 610"/><path d="M400 180 Q330 430 400 690"/><path d="M624 180 Q694 430 624 690"/></g>
+    <g stroke="#ffe3a6" stroke-width="12"><path d="M250 250 Q512 420 780 250"/><path d="M250 610 Q512 440 780 610"/><path d="M400 180 Q330 430 400 690"/><path d="M624 180 Q694 430 624 690"/></g>
+    <g fill="#5a3410" stroke="none" opacity="0.8"><ellipse cx="512" cy="430" rx="34" ry="30"/><ellipse cx="400" cy="318" rx="26" ry="22"/><ellipse cx="624" cy="318" rx="26" ry="22"/><ellipse cx="400" cy="560" rx="26" ry="22"/><ellipse cx="624" cy="560" rx="26" ry="22"/></g>
+  </g>
+  <circle cx="512" cy="430" r="230" fill="none" stroke="#6b3f12" stroke-width="10"/>
+  <!-- kicking foot swoosh -->
+  <path d="M150 930 Q430 800 640 640" fill="none" stroke="#f3f7fb" stroke-width="34" stroke-linecap="round" opacity="0.9"/>
+  <path d="M110 960 Q420 840 600 690" fill="none" stroke="#e2503c" stroke-width="20" stroke-linecap="round" opacity="0.95"/>
+</svg>
