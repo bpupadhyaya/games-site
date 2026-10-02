@@ -625,6 +625,25 @@
     "play": "games/mu-torere-star-board/play/"
   },
   {
+    "slug": "noughts-crosses-three-in-a-row",
+    "stage": "release-candidate",
+    "title": "Noughts & Crosses",
+    "tagline": "Three in a row, made deep.",
+    "description": "The classic three-in-a-row game, made beautiful: lit bronze crosses and verdigris noughts on carved marble, with four ways to play. Classic 3x3, the Roman Terni Lapilli with sliding pieces, Misère where three in a row loses, and a 4x4 Quad board. Five opponent levels up to a solver that never slips, two players on one phone, Think with a plain-English reason, eleven lessons and Watch & Learn. No timers and no ads.",
+    "genre": "abstract strategy, three in a row",
+    "demo": true,
+    "howToPlay": [
+      "Take turns with your opponent placing your mark. X always goes first. Three in a row wins.",
+      "Tap an empty square to place your mark. A full board with no line is a draw.",
+      "Terni Lapilli: place three pieces each, then tap a piece and a joined empty point to slide it. Diagonals count.",
+      "Misère: complete three in a row and you lose. Quad: four in a row, or a 2x2 square, wins on the 4x4 board.",
+      "Think shows the best move and why: this blocks a fork, this wins. Undo takes a move back.",
+      "Learn teaches threats, blocks and forks in eleven short lessons. Watch & Learn plays whole games with time to think and a Pause button."
+    ],
+    "icon": "games/noughts-crosses-three-in-a-row/icon.svg",
+    "play": "games/noughts-crosses-three-in-a-row/play/"
+  },
+  {
     "slug": "oche-darts-501",
     "stage": "release-candidate",
     "title": "Oche Darts 501",
