@@ -12,9 +12,9 @@ import { newMatch, beginRound, afterShot, scoreRound, applyRound, anyRivals } fr
 import { createPlanner, executePlan } from './ai.js';
 import { PROFILES } from './opponents.js';
 import {
-  W, H, inRect, PLAY_ZONE, SLIDER, HINT_BTN, MENU_BTN, PULL, DEMO_BAR, TEXT_DEC, TEXT_INC, REF_BACK, REF_NEXT, TEXT_SCALES, THINK_STEPS, SETUP_PINS,
+  W, H, inRect, PULL, TEXT_DEC, TEXT_INC, REF_BACK, REF_NEXT, TEXT_SCALES, THINK_STEPS, SETUP_PINS,
 } from './layout.js';
-import { renderPlay } from './view.js';
+import { renderPlay, layoutOf } from './view.js';
 import { renderTitle, renderSetup, renderSettings, renderResult, renderPause, renderPages, renderDemoLimit, hitScreen, flowMeta, pageCount, ensureLayout, resetMenus } from './menus.js';
 import { ABOUT, HOWTO, RULES } from './content.js';
 import { setPress } from './ui.js';
@@ -22,6 +22,10 @@ import { setPress } from './ui.js';
 export const meta = { width: W, height: H };
 const DEMO_ROUND_CAP = 2;
 const FALL_T = 0.5;
+// Stray-touch guard (the kit has one pointer): a second finger shows up as the pointer jumping across the screen in a
+// single tick. During a pull such a jump is ignored, and a release that lands that far from the last accepted pull
+// position is a second finger lifting, so it cancels the pull instead of flicking from the wrong spot.
+export const STRAY_JUMP = 220;
 const PEGX = PEGS.map((p) => p.x), PEGY = PEGS.map((p) => p.y);
 
 export function createGame(env) {
@@ -274,7 +278,7 @@ export function createGame(env) {
       const info = scoreRound(m, w);
       const sc = w.discs.filter((d) => d.mode === 'live' && discValue(d) > 0).length;
       for (let i = 0; i < Math.min(6, sc + info.pockets[0] + info.pockets[1]); i++) sfx.chime(i);
-      toast(info.pts[0] === info.pts[1] ? 'Round tied' : `${sideLabel(info.pts[0] > info.pts[1] ? 0 : 1)} takes round ${info.round}`, 3.4);
+      toast(info.pts[0] === info.pts[1] ? 'Round tied' : `${sideLabel(info.pts[0] > info.pts[1] ? 0 : 1)} ${mode() === 'ai' && info.pts[0] > info.pts[1] ? 'take' : 'takes'} round ${info.round}`, 3.4);
     } else beginTurn();
   };
   const afterRound = () => {
@@ -395,6 +399,7 @@ export function createGame(env) {
     const { m } = state;
     const ptr = input.pointer, keys = input.keys;
     const watch = m.cfg.mode === 'watch';
+    const L = layoutOf(state), barHidden = L.bannerReplacesBar && m.phase === 'score';
     if (config.dev && keys.pressed.has('KeyK')) { clearSaved(); m.scores[0] = 100; m.scores[1] = 60; m.over = { win: 0, extra: false }; m.phase = 'over'; state.scene = 'result'; state.ui.scroll = 0; return; }
     if (keys.pressed.has('KeyP') || keys.pressed.has('Escape')) { if (state.pauseMenu) closePause(); else if (!watch) openPause(); else state.paused = !state.paused; }
     if (state.pauseMenu) {
@@ -408,26 +413,32 @@ export function createGame(env) {
       return;
     }
     if (watch) {
-      if (ptr.pressed) {
+      if (ptr.pressed && !barHidden) {
+        const DEMO_BAR = L.demo;
         if (inRect(DEMO_BAR.pause, ptr.x, ptr.y)) { state.paused = !state.paused; sfx.tick(); }
         else if (inRect(DEMO_BAR.dec, ptr.x, ptr.y)) { state.settings.thinkIdx = Math.max(0, state.settings.thinkIdx - 1); sfx.tick(); save(); toast(`Thinking time: ${THINK_STEPS[state.settings.thinkIdx]} s`, 1.6); }
         else if (inRect(DEMO_BAR.inc, ptr.x, ptr.y)) { state.settings.thinkIdx = Math.min(THINK_STEPS.length - 1, state.settings.thinkIdx + 1); sfx.tick(); save(); toast(`Thinking time: ${THINK_STEPS[state.settings.thinkIdx]} s`, 1.6); }
         else if (inRect(DEMO_BAR.exit, ptr.x, ptr.y)) { leaveMatch(); return; }
       }
-    } else if (ptr.pressed && inRect(MENU_BTN, ptr.x, ptr.y)) { openPause(); return; }
+    } else if (ptr.pressed && !barHidden && inRect(L.menu, ptr.x, ptr.y)) { openPause(); return; }
     state.ff = (m.phase === 'fly') && ptr.down && !state.paused ? 2 : 1;
 
     state.blocked = state.humanTurn && m.phase === 'aim' && spotBlocked(state.w, m.turn, state.aim.u);
     if (state.humanTurn && !state.paused && m.phase === 'aim') {
       if (ptr.pressed) {
-        if (inRect(SLIDER, ptr.x, ptr.y)) { slideDrag = true; setSpot(ptr.x); }
-        else if (inRect(HINT_BTN, ptr.x, ptr.y)) { requestHint(); sfx.tick(); }
-        else if (inRect(PLAY_ZONE, ptr.x, ptr.y) && Math.abs(state.view.rot - state.view.target) < 0.05) { state.drag = { sx: ptr.x, sy: ptr.y, len: 0, valid: false }; state.hint = null; state.hintPreview = null; state.alts = null; state.kbOn = false; }
+        if (inRect(L.slider, ptr.x, ptr.y)) { slideDrag = true; setSpot(ptr.x); }
+        else if (inRect(L.hint, ptr.x, ptr.y)) { requestHint(); sfx.tick(); }
+        else if (inRect(L.zone, ptr.x, ptr.y) && Math.abs(state.view.rot - state.view.target) < 0.05) { state.drag = { sx: ptr.x, sy: ptr.y, lx: ptr.x, ly: ptr.y, len: 0, valid: false }; state.hint = null; state.hintPreview = null; state.alts = null; state.kbOn = false; }
       }
       if (slideDrag) { if (ptr.down) setSpot(ptr.x); if (ptr.released || !ptr.down) slideDrag = false; }
       if (state.drag) {
-        if (ptr.down) dragAim(state.drag, ptr);
-        if (ptr.released) {
+        const d0 = state.drag;
+        const stray = Math.hypot(ptr.x - d0.lx, ptr.y - d0.ly) > STRAY_JUMP;
+        if (ptr.down && !stray) { d0.lx = ptr.x; d0.ly = ptr.y; dragAim(d0, ptr); }
+        if (ptr.released && stray) {
+          // a second finger lifted: not the pulling finger, so no flick (the pull is dropped; pull again)
+          state.drag = null; state.aim.active = false; state.preview = null; toast('Second touch ignored: pull again', 1.8);
+        } else if (ptr.released) {
           const d = state.drag; state.drag = null; state.aim.active = false;
           if (d.valid && state.blocked) { state.preview = null; toast('A disc is in the way: slide to a clear spot', 2.2); sfx.no(); }
           else if (d.valid) throwDisc(m.turn, { u: state.aim.u, ang: state.aim.ang, power: state.aim.power });

@@ -64,16 +64,35 @@ export function hudMetrics(S, ctx) {
   return { compact: false, z, fs, lines, y: 40, h: 40 + lines.length * fs * 1.22 + 20 };
 }
 
+// Wraps the status text into at most `maxLines` lines. When it does not fit, the last line ends in "..." and `more` is true:
+// the text is then tappable and opens the full-screen "Why?" reader (text never gets cut off without a way to read all of it).
+export function fitStatus(cx, text, fs, maxW, maxLines) {
+  cx.font = `400 ${fs}px ${FONT}`;
+  let lines = wrapLines(cx, text, maxW), more = false;
+  if (lines.length > maxLines) { more = true; lines = lines.slice(0, maxLines); lines[maxLines - 1] = lines[maxLines - 1].replace(/[ ,.;:]*$/, '') + '...'; }
+  return { lines, more };
+}
+export const whyTitle = (S) => (S.m.cfg.mode === 'watch' || S.ph === 'think' ? 'Why this line?' : 'The suggested line');
+
 // Sizes of the bottom controls for the larger text sizes.
 function trayMetrics(S, ctx) {
   const z = zOf(S), cx = ctx ?? estCtx;
   const fs = Math.round(24 * z);
-  cx.font = `400 ${fs}px ${FONT}`;
-  let lines = wrapLines(cx, statusText(S), W - 110);
   const maxLines = S.m.cfg.mode === 'watch' ? 2 : Math.max(2, Math.floor((H * 0.24) / (fs * 1.22)));
-  if (lines.length > maxLines) { lines = lines.slice(0, maxLines); lines[maxLines - 1] = lines[maxLines - 1].replace(/[ ,.;:]*$/, '') + '...'; }
+  const { lines, more } = fitStatus(cx, statusText(S), fs, W - 110, maxLines);
+  const mfs = Math.round(fs * 0.8), moreH = more ? mfs * 1.3 : 0;
   const bh = Math.round(26 * z * 1.15 + 38), rows = S.m.cfg.mode === 'watch' ? 2 : 1;
-  return { fs, lines, bh, rows, h: 24 + lines.length * fs * 1.22 + 16 + rows * bh + (rows - 1) * 12 + 28 };
+  return { fs, lines, more, mfs, bh, rows, h: 24 + lines.length * fs * 1.22 + moreH + 16 + rows * bh + (rows - 1) * 12 + 28 };
+}
+// The compact (100 to 150 percent) status box above the controls.
+function compactStatus(S, ctx, z) {
+  if (S.ph === 'aim' || !S.m) return null;
+  const text = statusText(S);
+  if (!text) return null;
+  const cx = ctx ?? estCtx, fs = Math.round(22 * z);
+  const { lines, more } = fitStatus(cx, text, fs, W - 70, 4);
+  const mfs = Math.round(fs * 0.8), h = lines.length * fs * 1.25 + (more ? mfs * 1.3 : 0) + 18, y = (S.m.cfg.mode === 'watch' ? 1070 : 1000) - h;
+  return { fs, lines, more, mfs, h, y, rect: { x: 24, y, w: W - 48, h } };
 }
 
 export function computeLayout(S, ctx) {
@@ -82,6 +101,7 @@ export function computeLayout(S, ctx) {
   if (z > COMPACT) { tray = trayMetrics(S, ctx); trayH = tray.h; }
   const lay = playLayout(z, hud.h, trayH);
   lay.hud = hud; lay.tray = tray; lay.z = z;
+  lay.status = z <= COMPACT ? compactStatus(S, ctx, z) : null;
   lay.rects = rectsFor(S, lay);
   return lay;
 }
@@ -103,6 +123,7 @@ function rectsFor(S, lay) {
     const h = lay.compact ? 72 : lay.tray.bh, y = lay.compact ? 1086 : H - 28 - 2 * h - 12;
     Object.assign(R, row(y, h, [{ id: 'wdec', w: 1 }, { id: 'wlabel', w: 3 }, { id: 'winc', w: 1 }]));
     Object.assign(R, row(y + h + 12, h, [{ id: 'wpause', w: 2 }, { id: 'wexit', w: 1 }]));
+    addMore(R, lay, y);
     return R;
   }
   if (lay.compact) {
@@ -116,13 +137,21 @@ function rectsFor(S, lay) {
     else if (ph === 'rolling') Object.assign(R, row(TRAY.act.y, TRAY.act.h, [{ id: 'skip', w: 1.6 }, { id: 'menu', w: 0.9 }]));
     else Object.assign(R, row(TRAY.act.y, TRAY.act.h, [{ id: 'menu', w: 1 }]));
     if (humanAim && S.hint && !S.hint.busy) R.use = hintGeom(S, lay).use;
+    addMore(R, lay, 0);
     return R;
   }
   // large text: the status text, then one or two big buttons
   const t = lay.tray, y = H - 28 - t.bh;
   const ids = humanAim ? [{ id: 'setup', w: 1 }, { id: 'roll', w: 1 }] : ph === 'result' ? [{ id: 'replay', w: 1 }, { id: 'next', w: 1 }] : ph === 'replay' || ph === 'rolling' ? [{ id: 'skip', w: 1 }, { id: 'menu', w: 1 }] : [{ id: 'menu', w: 1 }];
   Object.assign(R, row(y, t.bh, ids));
+  addMore(R, lay, y);
   return R;
+}
+// The tappable status text (only when it had to be shortened). Added last so every button wins a tie.
+function addMore(R, lay, btnTop) {
+  if (lay.compact) { if (lay.status && lay.status.more) R.more = lay.status.rect; return; }
+  const t = lay.tray;
+  if (t && t.more) R.more = { x: 0, y: lay.trayTop, w: W, h: Math.max(40, btnTop - lay.trayTop - 4) };
 }
 
 // The Think hint card sits under the scoreboard (so it never covers the ball or the controls), with the button inside it.
@@ -250,6 +279,12 @@ function drawHud(ctx, S, lay) {
   void m;
 }
 
+function drawTrayText(ctx, lay) {
+  const t = lay.tray;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+  t.lines.forEach((l, i) => { ctx.font = `400 ${t.fs}px ${FONT}`; textShadow(ctx, l, W / 2, lay.trayTop + 16 + t.fs * (1 + i * 1.22), '#fff3d6', 6); });
+  if (t.more) { ctx.font = `700 ${t.mfs}px ${FONT}`; textShadow(ctx, 'Tap here to read it all', W / 2, lay.trayTop + 16 + t.fs * (1 + t.lines.length * 1.22) + t.mfs * 0.2, '#7de8ff', 6); }
+}
 function drawTray(ctx, S, lay) {
   const R = lay.rects, z = lay.z, m = S.m, ph = S.ph;
   const bar = ctx.createLinearGradient(0, lay.trayTop - 24, 0, H);
@@ -258,7 +293,7 @@ function drawTray(ctx, S, lay) {
   const size = Math.round(26 * Math.min(z, 3)), humanAim = ph === 'aim' && S.humanTurn;
   const btn = (id, label, o = {}) => { if (R[id]) drawButton(ctx, R[id], label, { size, ...o }); };
   if (m.cfg.mode === 'watch') {
-    if (!lay.compact) { const t = lay.tray; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'; t.lines.forEach((l, i) => { ctx.font = `400 ${t.fs}px ${FONT}`; textShadow(ctx, l, W / 2, lay.trayTop + 16 + t.fs * (1 + i * 1.22), '#fff3d6', 6); }); }
+    if (!lay.compact) { const t = lay.tray; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'; drawTrayText(ctx, lay); }
     const big = !lay.compact;
     btn('wdec', big ? '−' : 'Faster', { dark: true, disabled: S.settings.thinkIdx === 0, size: big ? size : Math.round(size * 0.85) });
     btn('winc', big ? '+' : 'Slower', { dark: true, disabled: S.settings.thinkIdx === 3, size: big ? size : Math.round(size * 0.85) });
@@ -284,9 +319,7 @@ function drawTray(ctx, S, lay) {
     return;
   }
   // large text
-  const t = lay.tray;
-  ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
-  t.lines.forEach((l, i) => { ctx.font = `400 ${t.fs}px ${FONT}`; textShadow(ctx, l, W / 2, lay.trayTop + 16 + t.fs * (1 + i * 1.22), '#fff3d6', 6); });
+  drawTrayText(ctx, lay);
   btn('setup', 'Set up'); btn('roll', 'Roll', { primary: true });
   btn('replay', 'Replay', { dark: true }); btn('next', 'Next', { primary: true });
   btn('skip', 'Skip', { dark: true }); btn('menu', 'Menu', { dark: true });
@@ -347,16 +380,14 @@ function drawStatus(ctx, S, lay) {
     ctx.font = `700 22px ${FONT}`; ctx.fillStyle = '#bff3ff'; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
     ctx.fillText('Testing lines with real rolls...', W / 2, lay.hud.h + 30); return;
   }
-  const text = statusText(S);
-  if (!text || S.ph === 'aim') return;
-  const z = lay.z, fs = Math.round(22 * z);
-  ctx.font = `400 ${fs}px ${FONT}`;
-  const lines = wrapLines(ctx, text, W - 70).slice(0, 4);
-  const h = lines.length * fs * 1.25 + 18, y = (S.m.cfg.mode === 'watch' ? 1070 : 1000) - h;
+  const st = lay.status;
+  if (!st) return;
+  const { fs, lines, y, h } = st;
   roundPath(ctx, 24, y, W - 48, h, 16); ctx.fillStyle = 'rgba(18,11,6,0.86)'; ctx.fill();
   ctx.strokeStyle = 'rgba(125,232,255,0.5)'; ctx.lineWidth = 2; ctx.stroke();
-  ctx.fillStyle = '#e8fbff'; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+  ctx.fillStyle = '#e8fbff'; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'; ctx.font = `400 ${fs}px ${FONT}`;
   lines.forEach((l, i) => ctx.fillText(l, W / 2, y + 12 + fs * (1 + i * 1.25) - 4));
+  if (st.more) { ctx.font = `700 ${st.mfs}px ${FONT}`; ctx.fillStyle = '#7de8ff'; ctx.fillText('Tap here to read it all', W / 2, y + 12 + fs * (1 + lines.length * 1.25) - 4 + st.mfs * 0.1); }
 }
 export { toScene, scaleAt, pathPoints, SCENE_H, C };
 export { computeLayout as layoutFor };

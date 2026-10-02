@@ -8,8 +8,8 @@ import { DT, newSim, stepSim, simResult, launchFor, pathPoints, PIN_Z0, ALL } fr
 import { newMatch, applyThrow, standingFor, totals, LENGTHS, phaseName, toMask } from './engine.js';
 import { PROFILES, ASSIST, HUMAN_LAT, tableJob, chooseFromTable, rollWithError, verifyPlan, explainHint } from './ai.js';
 import { makeCam, scaleAt, camPreset, replayCam } from './scene.js';
-import { renderPlay, computeLayout, resultText, sideName } from './view.js';
-import { renderTitle, renderSetup, renderSettings, renderLearn, renderResult, renderPause, renderSheet, renderPages, renderDemoLimit, hitScreen, flowMeta, pageCount, ensureLayout } from './menus.js';
+import { renderPlay, computeLayout, resultText, sideName, statusText, whyTitle } from './view.js';
+import { renderTitle, renderSetup, renderSettings, renderLearn, renderResult, renderPause, renderSheet, renderWhy, renderPages, renderDemoLimit, hitScreen, flowMeta, pageCount, ensureLayout } from './menus.js';
 import { ABOUT, HOWTO, RULES, LESSONS } from './content.js';
 import { setPress } from './ui.js';
 
@@ -29,6 +29,14 @@ export function createGame(env) {
   let shotMode = false;
   try { shotMode = /[?&]shot=/.test(globalThis.location.search); } catch { shotMode = false; }
   const shotSeed = config.seed | 0;
+  // The kit has a single pointer: a second finger would make it jump and its lift would end the aim or the flick. So every touch
+  // that is not the primary one is dropped in the capture phase, before the kit's canvas listeners ever see it.
+  try {
+    if (typeof globalThis.addEventListener === 'function' && !shotMode) {
+      const dropStray = (e) => { if (e.pointerType === 'touch' && e.isPrimary === false) e.stopImmediatePropagation(); };
+      for (const type of ['pointerdown', 'pointermove', 'pointerup', 'pointercancel']) globalThis.addEventListener(type, dropStray, true);
+    }
+  } catch { /* no DOM (headless): nothing to guard */ }
   let aiJob = null, hintJob = null;      // the heavy search jobs live outside `state` (they are big and not state)
 
   const state = {
@@ -39,7 +47,7 @@ export function createGame(env) {
     ui: { scroll: 0, drag: null }, page: 0, resume: null, loaded: false,
     m: null, ph: 'intro', pt: 0, humanTurn: false, plan: { x0: 0, aimX: 0, power: 1, hook: 0 }, plans: [null, null],
     cam: makeCam(), sim: null, ballShow: null, ballOpts: null, overlay: null, parts: [], banner: null, toast: '', toastT: 0,
-    hint: null, think: null, res: null, lastPath: null, fade: 0, drops: null, shake: 0, sheet: false, chaseZ: 0, thrown: null,
+    why: null, hint: null, think: null, res: null, lastPath: null, fade: 0, drops: null, shake: 0, sheet: false, chaseZ: 0, thrown: null,
     drag: null, rt: 0, fast: false, thinkSecs: 5, rec: [], recT: 0, rumbleT: 0, acc: 0, autoReplayDone: false, lastPhaseShown: 0, shot: false, showcase: false,
     att: { cam: null, sim: null, wait: 1, n: 0, parts: [], acc: 0 },
   };
@@ -146,7 +154,7 @@ export function createGame(env) {
     state.humanTurn = !isAI(side);
     state.plan = { ...(state.plans[side] ?? defaultPlan()) };
     resetPins(curStanding(), drop);
-    state.hint = null; hintJob = null; state.think = null; aiJob = null; state.sheet = false; state.drag = null;
+    state.hint = null; hintJob = null; state.think = null; aiJob = null; state.sheet = false; state.why = null; state.drag = null;
     state.pt = 0; state.fast = false;
     state.ph = intro ? 'intro' : state.humanTurn ? 'aim' : 'think';
     if (state.ph === 'think') startThink();
@@ -217,9 +225,9 @@ export function createGame(env) {
       if (e.k === 'tip') {
         dust(list, e.x, e.z, 3, 1 + e.s); if (e.s > 0.3) chips(list, e.x, e.z, 2 + Math.round(e.s * 3));
         if (e.ball) { sfx.crack(0.6 + e.s * 0.6); state.shake = Math.max(state.shake, 0.35 + 0.3 * e.s); } else sfx.clack(0.5 + e.s);
-      } else if (e.k === 'clack') sfx.clack(e.s);
+      } else if (e.k === 'clack') { sfx.clack(e.s); if (e.s > 0.55) state.shake = Math.max(state.shake, 0.12 + 0.12 * e.s); }
       else if (e.k === 'tap') sfx.clack(0.5);
-      else if (e.k === 'thump') { sfx.thump(e.s); dust(list, e.x, e.z, 2, 0.8); }
+      else if (e.k === 'thump') { sfx.thump(e.s); dust(list, e.x, e.z, 2, 0.8); if (e.s > 0.5) state.shake = Math.max(state.shake, 0.1 + 0.1 * e.s); }
       else if (e.k === 'gutter') { sfx.gutter(); toast('Pudel: the ball left the lane', 1.8); }
       else if (e.k === 'net') sfx.thump(0.8);
     }
@@ -243,7 +251,7 @@ export function createGame(env) {
     if (state.rec.length > 1) state.lastPath = state.rec.slice();
     const n = rec.pins;
     if (rec.pudel) showBanner('PUDEL', 'The ball left the lane', 'bad', 2, 84);
-    else if (rec.alle) { showBanner('ALLE NEUNE!', 'All nine pins down', '', 2.4, 76); sfx.big(); }
+    else if (rec.alle) { showBanner('ALLE NEUNE!', 'All nine pins down', '', 2.4, 76); sfx.big(); state.shake = 1; sfx.crack(1.2); }
     else if (rec.kranz) { showBanner('KRANZ!', 'The King stands in a ring of fallen pins', '', 2.4, 84); sfx.big(); }
     else if (n === 0) showBanner('No pins', 'The ball found no pin', 'bad', 1.7, 76);
     else { showBanner(String(n), resultText(rec), '', 1.9, 120); sfx.chime(n >= 7 ? 2 : 0); }
@@ -345,7 +353,7 @@ export function createGame(env) {
       }
       if (th.plan && th.t >= th.dur) {
         th.t = 0;
-        if (watch) { th.phase = 'reveal'; th.dur = REVEAL_SECS; sfx.tick(); } else { th.phase = 'act'; th.dur = 0.9; }
+        if (watch) { th.phase = 'reveal'; th.dur = REVEAL_SECS * (1 + (TEXT_SCALES[state.settings.textIdx] - 1)); sfx.tick(); } else { th.phase = 'act'; th.dur = 0.9; }
       }
     } else if (th.phase === 'reveal') {
       th.t += dt;
@@ -360,10 +368,19 @@ export function createGame(env) {
 
   // ---- the play scene --------------------------------------------------------------------------------------------------
   const openPause = () => { if (state.scene !== 'play' || mode() === 'watch') return; state.paused = true; state.pauseMenu = true; state.ui.scroll = 0; state.drag = null; };
+  // The full "Why?" reader for a status text that was cut short (Watch & Learn reason, Think line). Watch & Learn is paused while it is open.
+  const openWhy = () => {
+    const text = statusText(state);
+    if (!text) return;
+    state.why = { text, title: whyTitle(state), wasPaused: state.paused };
+    if (mode() === 'watch') state.paused = true;
+    state.ui.scroll = 0; state.drag = null; sfx.tick();
+  };
+  const closeWhy = () => { if (!state.why) return; if (mode() === 'watch') state.paused = !!state.why.wasPaused; state.why = null; state.ui.scroll = 0; };
   const closePause = () => { state.paused = false; state.pauseMenu = false; state.ui.scroll = 0; };
   const leaveMatch = () => {
     if (mode() === 'learn') state.scene = 'learn'; else { saveResume(); state.scene = 'title'; }
-    state.paused = false; state.pauseMenu = false; state.ui.scroll = 0; state.think = null; state.banner = null; state.sheet = false; state.drag = null; aiJob = null; hintJob = null;
+    state.paused = false; state.pauseMenu = false; state.why = null; state.ui.scroll = 0; state.think = null; state.banner = null; state.sheet = false; state.drag = null; aiJob = null; hintJob = null;
   };
   const setOverlay = () => {
     const ph = state.ph, th = state.think;
@@ -399,6 +416,7 @@ export function createGame(env) {
     switch (id) {
       case 'think': requestHint(); return true;
       case 'use': useHint(); return true;
+      case 'more': openWhy(); return true;
       case 'left': setPlan({ aimX: state.plan.aimX - 0.02 }); sfx.tick(); return true;
       case 'right': setPlan({ aimX: state.plan.aimX + 0.02 }); sfx.tick(); return true;
       case 'roll': doRoll(1); return true;
@@ -466,12 +484,18 @@ export function createGame(env) {
     else if (id === 'st-') setPlan({ x0: state.plan.x0 - 0.03 }); else if (id === 'st+') setPlan({ x0: state.plan.x0 + 0.03 });
     else if (id === 'think') requestHint(); else if (id === 'use') useHint();
     else if (id === 'close') state.sheet = false;
+    else if (id === 'smenu') { state.sheet = false; openPause(); }
   };
 
   const updatePlay = (dt, input) => {
     const m = state.m, ptr = input.pointer, keys = input.keys;
     const watch = m.cfg.mode === 'watch';
     const lay = computeLayout(state, null);
+    if (state.why) {
+      if (keys.pressed.has('KeyP') || keys.pressed.has('Escape')) closeWhy();
+      else updateFlowScene(dt, input, (id) => { if (id === 'wclose') closeWhy(); }, 'why');
+      return;
+    }
     if (keys.pressed.has('KeyP') || keys.pressed.has('Escape')) { if (state.pauseMenu) closePause(); else if (state.sheet) state.sheet = false; else if (!watch) openPause(); else state.paused = !state.paused; }
     if (state.pauseMenu) {
       if (flowMeta().key !== 'pause') return;
@@ -490,6 +514,7 @@ export function createGame(env) {
       if (id === 'wpause') { state.paused = !state.paused; sfx.tick(); }
       else if (id === 'wdec') { state.settings.thinkIdx = Math.max(0, state.settings.thinkIdx - 1); state.thinkSecs = THINK_STEPS[state.settings.thinkIdx]; sfx.tick(); save(); }
       else if (id === 'winc') { state.settings.thinkIdx = Math.min(THINK_STEPS.length - 1, state.settings.thinkIdx + 1); state.thinkSecs = THINK_STEPS[state.settings.thinkIdx]; sfx.tick(); save(); }
+      else if (id === 'more') openWhy();
       else if (id === 'wexit') { leaveMatch(); return; }
     }
     // Everything below is frozen while paused: timers, the computer's thinking, the ball, the pins, the replay.
@@ -817,6 +842,7 @@ export function createGame(env) {
             setOverlay();
             renderPlay(ctx, state);
             if (state.sheet && state.ph === 'aim') renderSheet(ctx, state);
+            if (state.why) renderWhy(ctx, state);
             if (state.pauseMenu) renderPause(ctx, state);
           }
           break;

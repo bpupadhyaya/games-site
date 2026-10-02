@@ -5,8 +5,8 @@ import { R_DISC, R_POCKET, R_PEG, R_PEG_RING, R_BASE, R_PLAY, R_BOARD, RINGS, PE
 export const FONT = "Georgia, 'Times New Roman', serif";
 const TAU = Math.PI * 2;
 export const TEAM = [
-  { face0: '#e4504a', face1: '#b02226', edge: '#5e0d10', mark: '#ffe9d2', glow: 'rgba(255,110,90,0.9)', name: 'red' },
-  { face0: '#3f94cf', face1: '#1d5a8c', edge: '#0c2c49', mark: '#e6f4ff', glow: 'rgba(90,170,255,0.9)', name: 'blue' },
+  { face0: '#ee4b3c', face1: '#bf2420', edge: '#5e0d10', mark: '#fff0dc', glow: 'rgba(255,110,90,0.9)', name: 'red' },
+  { face0: '#2f86d6', face1: '#16569c', edge: '#0a2848', mark: '#eaf6ff', glow: 'rgba(90,170,255,0.9)', name: 'blue' },
 ];
 
 // ---- host (off-screen surfaces) ------------------------------------------------------------------
@@ -218,9 +218,16 @@ export function drawDisc(ctx, x, y, team, spin = 0, o = {}) {
   ctx.lineWidth = Math.max(0.8, r * 0.05); ctx.strokeStyle = 'rgba(0,0,0,0.25)';
   ctx.beginPath(); ctx.arc(x, y, r * 0.66, 0, TAU); ctx.stroke();
   // emblem
-  ctx.fillStyle = T.mark; ctx.globalAlpha = a * 0.92;
-  if (team === 0) leafPath(ctx, x, y + r * 0.02, r * 0.5, spin); else starPath(ctx, x, y, r * 0.5, spin);
-  ctx.fill();
+  // Two unmistakable sides even at 20 px: red = a pale medallion with a dark leaf; blue = a dark centre ringed in pale with a pale star.
+  if (team === 0) {
+    ctx.fillStyle = T.mark; ctx.beginPath(); ctx.arc(x, y, r * 0.62, 0, TAU); ctx.fill();
+    ctx.lineWidth = Math.max(1, r * 0.07); ctx.strokeStyle = 'rgba(70,8,12,0.75)'; ctx.stroke();
+    ctx.fillStyle = '#8f1218'; leafPath(ctx, x, y + r * 0.02, r * 0.5, spin); ctx.fill();
+  } else {
+    ctx.fillStyle = '#081f3a'; ctx.beginPath(); ctx.arc(x, y, r * 0.62, 0, TAU); ctx.fill();
+    ctx.lineWidth = Math.max(1.4, r * 0.14); ctx.strokeStyle = T.mark; ctx.stroke();
+    ctx.fillStyle = T.mark; starPath(ctx, x, y, r * 0.46, spin); ctx.fill();
+  }
   ctx.globalAlpha = a;
   // specular
   g = ctx.createRadialGradient(x - r * 0.45, y - r * 0.5, 0, x - r * 0.45, y - r * 0.5, r * 0.5);

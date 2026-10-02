@@ -3,7 +3,7 @@
 //
 // Scenes: title, setup, settings, play (also Watch & Learn), result, howto / about / rules, demolimit.
 // Throwing: touch and hold in the play area, the aim point sways (tightens, then tires), release to throw.
-import { W, H, BOARD, PX_PER_MM, AIM, THINK_BTN, MENU_BTN, WATCH, inRect, TEXT_DEC, TEXT_INC, REF_BACK, REF_NEXT, TEXT_SCALES, THINK_STEPS, REVEAL_SECS, SETUP_PINS } from './layout.js';
+import { W, H, BOARD, BOARD_R0, PX_PER_MM, AIM, HUD, setPlayLayout, THINK_BTN, MENU_BTN, WATCH, inRect, TEXT_DEC, TEXT_INC, REF_BACK, REF_NEXT, TEXT_SCALES, THINK_STEPS, REVEAL_SECS, SETUP_PINS } from './layout.js';
 import { hitAt, wireDistance, newMatch, applyDart, closeVisit, nextTurn, winLeg, startNextLeg, dartsLeft, suggest, bestRoute, targetByLabel } from './engine.js';
 import { PROFILES, skillTable, chooseAim, explain, throwAt, newVisitBias, newForm, gauss } from './ai.js';
 import { ASSIST, swayAmp, swayOffset, spreadSigma, steadiness, tired } from './aim.js';
@@ -28,6 +28,8 @@ export function createGame(env) {
   let shotMode = false;
   try { shotMode = /[?&]shot=/.test(globalThis.location.search); } catch { shotMode = false; }
   const shotSeed = config.seed | 0;
+  let shotZoom = -1;
+  try { const z = /[?&]zoom=(\d)/.exec(globalThis.location.search); if (z) shotZoom = Number(z[1]); } catch { shotZoom = -1; }
 
   const state = {
     scene: 'title', back: 'title', t: 0, paused: false, pauseMenu: false, demo: !!config.demo,
@@ -40,6 +42,13 @@ export function createGame(env) {
     coachRoute: null, pickup: false, att: { darts: [], wait: 1.4, n: 0, parts: [] }, kb: { x: 360, y: BOARD.cy }, shot: false, ai: { form: [1, 1], bias: [[0, 0], [0, 0]] },
   };
   let tables = [null, null];
+  // The play layout follows the text-size setting (and Watch & Learn's different bottom bar). Called before anything reads
+  // BOARD / the button rectangles, including when a match starts or resumes, so positions are never computed on a stale layout.
+  const syncLayout = () => setPlayLayout(state.settings.textIdx, !!(state.m && state.m.cfg.mode === 'watch'));
+  // Aim quantities are drawn in pixels but mean millimetres of board, so they scale with the board: the same hold gives the
+  // same spread on the board whatever the text size.
+  const boardK = () => BOARD.R / BOARD_R0;
+  syncLayout();
 
   // ---- persistence ---------------------------------------------------------------------------------
   const save = () => { storage.set('settings', state.settings); storage.set('record', state.record); };
@@ -60,7 +69,7 @@ export function createGame(env) {
       r.rem[m.turn] = m.visit.startRem; if (visitSnap) r.stats = cloneStats(visitSnap);
     } else if (m.visit.darts.length) {
       r.visit = { ...m.visit, darts: m.visit.darts.map((d) => ({ ...d })) };
-      r.sticks = state.darts.filter((d) => !d.fall).map((d) => ({ x: d.x, y: d.y, side: d.side, label: d.label }));
+      r.sticks = state.darts.filter((d) => !d.fall).map((d) => ({ mx: (d.x - BOARD.cx) / PX_PER_MM, my: (d.y - BOARD.cy) / PX_PER_MM, side: d.side, label: d.label }));
     }
     state.resume = r;
     storage.set('resume', state.resume);
@@ -153,7 +162,7 @@ export function createGame(env) {
     if (state.demo && cfg.mode !== 'watch' && state.record.demoLegs >= DEMO_LEG_CAP) { state.scene = 'demolimit'; state.ui.scroll = 0; return; }
     const first = cfg.first ?? (cfg.mode === 'ai' ? aiR.int(2) : aiR.int(2));
     state.m = newMatch({ start: 501, legs: 2, mode: 'ai', opp: 0, watchA: 3, ...cfg, first });
-    state.scene = 'play'; state.paused = false; state.pauseMenu = false; state.ui.scroll = 0;
+    state.scene = 'play'; state.paused = false; state.pauseMenu = false; state.ui.scroll = 0; syncLayout();
     state.lastVisit = [undefined, undefined]; state.parts = []; state.banner = null;
     beginLeg();
   };
@@ -173,18 +182,20 @@ export function createGame(env) {
       m.visit = { ...r.visit, darts: r.visit.darts.map((d) => ({ ...d })) };
       m.rem[m.turn] = m.visit.bust ? m.visit.startRem : Math.max(2, m.visit.startRem - m.visit.darts.reduce((n, d) => n + (d.busted ? 0 : d.value), 0));
     } else m.visit.startRem = m.rem[m.turn];
-    state.m = m; state.scene = 'play'; state.paused = false; state.pauseMenu = false; state.ui.scroll = 0;
+    state.m = m; state.scene = 'play'; state.paused = false; state.pauseMenu = false; state.ui.scroll = 0; syncLayout();
     state.lastVisit = [undefined, undefined]; state.parts = [];
     resetVisuals(); tables = [null, null]; newForms(m); snapVisit();
     if (Array.isArray(r.snap) && r.snap.length === 2) visitSnap = cloneStats(r.snap);
-    state.darts = (r.sticks ?? []).filter((d) => Number.isFinite(d.x) && Number.isFinite(d.y)).slice(0, 3).map((d) => ({ x: d.x, y: d.y, side: d.side ? 1 : 0, label: d.label, age: 2, amp: 0, ph: 0 }));
+    // sticks are saved in millimetres from the bull (1.0.2+); 1.0.1 saved pixels of the 100% layout (1.66 px per mm, bull at 360, 592)
+    const stickMm = (d) => (Number.isFinite(d.mx) && Number.isFinite(d.my) ? [d.mx, d.my] : [(d.x - 360) / (BOARD_R0 / 170), (d.y - 592) / (BOARD_R0 / 170)]);
+    state.darts = (r.sticks ?? []).filter((d) => d && (Number.isFinite(d.mx) ? Number.isFinite(d.my) : Number.isFinite(d.x) && Number.isFinite(d.y))).slice(0, 3).map((d) => ({ x: BOARD.cx + stickMm(d)[0] * PX_PER_MM, y: BOARD.cy + stickMm(d)[1] * PX_PER_MM, side: d.side ? 1 : 0, label: d.label, age: 2, amp: 0, ph: 0 }));
     state.phase = 'intro'; state.pt = 0; state.humanTurn = false;
     showBanner('Welcome back', `Leg ${m.legNo}, ${sideNameOf(m.turn)} to throw`, '', 1.5, 64);
   };
 
   // ---- throwing ------------------------------------------------------------------------------------------
   const launchDart = (side, lx, ly) => {
-    const ex = clamp(lx, 12, W - 12), ey = clamp(ly, 150, 1010);
+    const ex = clamp(lx, 12, W - 12), ey = clamp(ly, AIM.top - 50, AIM.maxY);
     const mx = (ex - BOARD.cx) / PX_PER_MM, my = (ey - BOARD.cy) / PX_PER_MM;
     const hit = hitAt(mx, my);
     let bounced = false, why = '';
@@ -195,7 +206,7 @@ export function createGame(env) {
         if (!d.fall && Math.hypot(d.x - ex, d.y - ey) < 7 && fx.next() < 0.38) { bounced = true; why = 'Deflected'; break; }
       }
     }
-    state.flight = { sx: 360 + (fx.next() - 0.5) * 50, sy: 1150, ex, ey, t: 0, dur: 0.26, hit, bounced, why, side };
+    state.flight = { sx: 360 + (fx.next() - 0.5) * 50, sy: AIM.bottom - 16, ex, ey, t: 0, dur: 0.26, hit, bounced, why, side };
     state.phase = 'flying'; state.pt = 0; state.aim = null; state.reticle = null; state.hint = null; state.think = null;
     sfx.whoosh();
     if (!isAI(side)) state.record.thrown = (state.record.thrown | 0) + 1;
@@ -233,20 +244,20 @@ export function createGame(env) {
 
   const doRelease = () => {
     const a = state.aim, k = ASSIST[state.settings.assist].k;
-    const A = swayAmp(a.t, k), off = swayOffset(a.t, A, a.ph);
-    const sig = spreadSigma(A, k, a.speed);
+    const bk = boardK(), A = swayAmp(a.t, k) * bk, off = swayOffset(a.t, A, a.ph);
+    const sig = spreadSigma(A / bk, k, a.speed) * bk;
     const lx = a.bx + off.x + gauss(hn) * sig * 0.9, ly = a.by + off.y + gauss(hn) * sig * 1.1;
     launchDart(state.m.turn, lx, ly);
   };
   const cancelAim = () => { state.aim = null; state.reticle = null; state.phase = 'ready'; };
   const beginAim = (fxp, fyp, kb) => {
-    state.aim = { t: 0, fx: fxp, fy: fyp, bx: clamp(fxp, 24, W - 24), by: clamp(fyp + (kb ? 0 : AIM.offsetY), AIM.top + 10, 1010), ph: [hn() * TAU, hn() * TAU, hn() * TAU, hn() * TAU], speed: 0, cancel: false, kb: !!kb, lx: fxp, ly: fyp };
+    state.aim = { t: 0, fx: fxp, fy: fyp, bx: clamp(fxp, 24, W - 24), by: clamp(fyp + (kb ? 0 : AIM.offsetY), AIM.top + 10, AIM.maxY), ph: [hn() * TAU, hn() * TAU, hn() * TAU, hn() * TAU], speed: 0, cancel: false, kb: !!kb, lx: fxp, ly: fyp };
     state.phase = 'aiming';
   };
   const updateAimPose = () => {
     const a = state.aim, k = ASSIST[state.settings.assist].k;
-    const A = swayAmp(a.t, k), off = swayOffset(a.t, A, a.ph);
-    state.reticle = { x: a.bx + off.x, y: a.by + off.y, sigma: spreadSigma(A, k, a.speed), steady: steadiness(a.t, k), tired: tired(a.t), fx: a.kb ? undefined : a.fx, fy: a.fy };
+    const bk = boardK(), A = swayAmp(a.t, k) * bk, off = swayOffset(a.t, A, a.ph);
+    state.reticle = { x: a.bx + off.x, y: a.by + off.y, sigma: spreadSigma(A / bk, k, a.speed) * bk, steady: steadiness(a.t, k), tired: tired(a.t), fx: a.kb ? undefined : a.fx, fy: a.fy };
   };
   const requestHint = () => {
     const m = state.m;
@@ -399,7 +410,7 @@ export function createGame(env) {
         if (keys.down.has('ArrowRight')) a.bx += sp;
         if (keys.down.has('ArrowUp')) a.by -= sp;
         if (keys.down.has('ArrowDown')) a.by += sp;
-        a.bx = clamp(a.bx, 24, W - 24); a.by = clamp(a.by, AIM.top + 10, 1010); state.kb.x = a.bx; state.kb.y = a.by;
+        a.bx = clamp(a.bx, 24, W - 24); a.by = clamp(a.by, AIM.top + 10, AIM.maxY); state.kb.x = a.bx; state.kb.y = a.by;
         a.speed = 0;
         updateAimPose();
         if (keys.pressed.has('Space') && a.t > AIM.minHold) doRelease();
@@ -407,7 +418,7 @@ export function createGame(env) {
         if (ptr.down) {
           a.speed = a.speed * 0.75 + (Math.hypot(ptr.x - a.lx, ptr.y - a.ly) / Math.max(dt, 1e-3)) * 0.25;
           a.lx = a.fx = ptr.x; a.ly = a.fy = ptr.y;
-          a.bx = clamp(ptr.x, 24, W - 24); a.by = clamp(ptr.y + AIM.offsetY, AIM.top + 10, 1010);
+          a.bx = clamp(ptr.x, 24, W - 24); a.by = clamp(ptr.y + AIM.offsetY, AIM.top + 10, AIM.maxY);
           a.cancel = ptr.y > AIM.bottom;
         } else a.speed *= 0.5;
         updateAimPose();
@@ -584,6 +595,7 @@ export function createGame(env) {
     state.darts.push({ x: BOARD.cx + t.at[0] * PX_PER_MM + dx, y: BOARD.cy + t.at[1] * PX_PER_MM + dy, age: 2, side, amp: 0, ph: 0, label });
   };
   const holdAim = (fxp, fyp, t, ph) => {
+    { const k = BOARD.R / BOARD_R0; fxp = BOARD.cx + (fxp - 360) * k; fyp = BOARD.cy + (fyp + AIM.offsetY - 592) * k - AIM.offsetY; }   // placed relative to the board, so zoomed shots aim at the same spot
     state.aim = { t, fx: fxp, fy: fyp, bx: fxp, by: fyp + AIM.offsetY, ph, speed: 0, cancel: false, kb: false, lx: fxp, ly: fyp };
     state.phase = 'aiming'; updateAimPose();
   };
@@ -593,6 +605,7 @@ export function createGame(env) {
   };
   const applyPreset = () => {
     state.shot = true;
+    if (shotZoom >= 0 && shotZoom < TEXT_SCALES.length) state.settings.textIdx = shotZoom;
     const n = ((shotSeed % 100) + 100) % 100;
     if (n === 1) {
       state.att.darts = [[0, -103, 0], [32, -103, 1], [0, -2, 0], [-26, -135, 1], [-60, -75, 0]].map(([x, y, s]) => ({ x, y, age: 3, side: s, amp: 0, ph: 0 }));
@@ -670,6 +683,7 @@ export function createGame(env) {
     // Watch & Learn and every menu are free; only real play counts against the free preview (a paused match does not).
     isPreviewExempt: () => !(state.scene === 'play' && state.m && state.m.cfg.mode !== 'watch') || state.paused,
     update(dt, input) {
+      syncLayout();
       setPress(input.pointer);
       if (state.shot) { state.t += dt; return; }
       state.t += state.paused && state.scene === 'play' ? 0 : dt;
@@ -686,6 +700,7 @@ export function createGame(env) {
       }
     },
     render(ctx) {
+      syncLayout();
       switch (state.scene) {
         case 'title': renderTitle(ctx, state); break;
         case 'setup': renderSetup(ctx, state); break;

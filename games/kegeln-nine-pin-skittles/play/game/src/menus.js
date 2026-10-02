@@ -17,11 +17,11 @@ export function ensureLayout(state, key) {
   if (LAID.key === key && LAID.lay) return;
   const defs = {
     title: [titleWidgets, 0, H], setup: [setupWidgets, 0, 1130], settings: [settingsWidgets, 0, H], learn: [learnWidgets, 0, H],
-    result: [(st) => (st.m.cfg.mode === 'learn' ? lessonResultWidgets(st) : resultWidgets(st)), 0, H], demolimit: [demoLimitWidgets, 0, H], sheet: [sheetWidgets, 90, H - 20],
+    result: [(st) => (st.m.cfg.mode === 'learn' ? lessonResultWidgets(st) : resultWidgets(st)), 0, H], demolimit: [demoLimitWidgets, 0, H], sheet: [sheetWidgets, 90, H - 20], why: [whyWidgets, 90, H - 20],
   };
   const d = defs[key];
   if (!d) return;
-  const lay = flowLayout(estCtx, d[0](state), TEXT_SCALES[state.settings.textIdx], key === 'sheet' ? { x: 50, w: 620 } : undefined);
+  const lay = flowLayout(estCtx, d[0](state), TEXT_SCALES[state.settings.textIdx], key === 'sheet' || key === 'why' ? { x: 50, w: 620 } : undefined);
   LAID = { key, lay, top: d[1], bottom: d[2], h: lay.contentH };
 }
 export function hitScreen(x, y, scroll) { return LAID.lay ? flowHit(LAID.lay, LAID.top, scroll, x, y) : null; }
@@ -200,6 +200,17 @@ export function sheetWidgets(state) {
     { t: 'btn', id: 'think', label: state.hint && state.hint.busy ? 'Thinking...' : 'Think', dark: true },
     ...(state.hint && !state.hint.busy ? [{ t: 'p', label: state.hint.text, size: 22, color: '#bff3ff' }, { t: 'btn', id: 'use', label: 'Use this line', primary: true }] : []),
     { t: 'btn', id: 'close', label: 'Done', primary: true, h: 88 },
+    { t: 'btn', id: 'smenu', label: 'Menu', sub: state.m && state.m.cfg.mode === 'learn' ? 'Pause, rules, quit to the lessons' : 'Pause, rules, quit (your match is kept)', dark: true, h: 84 },
+    { t: 'gap', h: 20 },
+  ];
+}
+
+// The full-screen reader for a status text that was too long for its box at the current text size (Watch & Learn reasons, the Think line).
+export function whyWidgets(state) {
+  return [
+    { t: 'h', label: state.why.title, size: 40 },
+    { t: 'p', label: state.why.text, size: 26, color: '#e8fbff', align: 'left' },
+    { t: 'btn', id: 'wclose', label: state.why.wasPaused === false && state.m.cfg.mode === 'watch' ? 'Close' : 'Close', primary: true, h: 88 },
     { t: 'gap', h: 20 },
   ];
 }
@@ -291,6 +302,12 @@ export function renderPause(ctx, state) {
   const sc0 = Math.min(state.ui.scroll, maxScroll);
   drawFlow(ctx, lay, y0, y0 + ch, sc0);
   scrollHint(ctx, y0, y0 + ch, sc0, maxScroll, 30, 660);
+}
+export function renderWhy(ctx, state) {
+  scrim(ctx, 0.78);
+  const top = 90, bottom = H - 20;
+  panel(ctx, 20, top - 20, 680, bottom - top + 30, { r: 28, fill: 'rgba(24,18,12,0.97)', stroke: 'rgba(125,232,255,0.55)' });
+  drawFlowScreen(ctx, state, 'why', whyWidgets(state), top, bottom, { x: 50, w: 620 });
 }
 export function renderSheet(ctx, state) {
   scrim(ctx, 0.7);

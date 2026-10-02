@@ -113,7 +113,7 @@ export function drawBoardAt(ctx, cx, cy, R, o = {}) {
   setHost(ctx);
   const key = Math.round(R);
   let sp = sprites.get(key);
-  if (!sp && canBake() && sprites.size < 3) {
+  if (!sp && canBake() && sprites.size < 8) {
     const S = 2, half = Math.ceil(R * 1.3);
     const cv = newCanvas(half * 2 * S, half * 2 * S);
     const c = cv && cv.getContext('2d');
