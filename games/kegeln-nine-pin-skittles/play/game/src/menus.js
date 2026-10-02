@@ -2,7 +2,7 @@
 // paginated About / How to Play / Rules reader with its illustrations (drawn with the game's own pin layout). Pure drawing.
 import { W, H, TEXT_SCALES, TEXT_DEC, TEXT_INC, REF_BACK, REF_NEXT, THINK_STEPS, SETUP_PINS } from './layout.js';
 import { FONT, NUM, C, roundPath, drawButton, panel, wrapLines, textShadow, flowLayout, drawFlow, flowHit } from './ui.js';
-import { drawRoom, drawLane, drawActors, drawParts, TAU } from './scene.js';
+import { drawRoom, drawLane, drawActors, drawParts, interpSim, TAU } from './scene.js';
 import { PROFILES, ASSIST } from './ai.js';
 import { LENGTHS, totals, countOf } from './engine.js';
 import { PIN_POS, PIN_NAMES, KING, POWERS, pathPoints, LANE_HALF, PIN_Z0 } from './phys.js';
@@ -37,7 +37,8 @@ const spaced = (ctx, text, cx, y, gap) => {
 export function drawAttract(ctx, state) {
   const a = state.att, cam = a.cam;
   drawRoom(ctx, cam, state.t); drawLane(ctx, cam, state.t);
-  drawActors(ctx, cam, a.sim.pins, a.sim.ball.on ? a.sim.ball : null, {});
+  const iv = interpSim(a.sim, a.alpha);
+  drawActors(ctx, cam, iv.pins, iv.ball.on ? iv.ball : null, {});
   drawParts(ctx, cam, a.parts);
 }
 

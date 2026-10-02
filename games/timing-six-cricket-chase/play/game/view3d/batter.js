@@ -13,7 +13,7 @@ import { V3, D2R, clamp, lerp, smooth, UP, ramp, rampL, fvec, lvec, comb, norm, 
 export const BAT = { len: 0.85, sweet: 0.58, gripC: 0.16, face: 0.026 };   // metres along the bat: sweet spot; grip centre; face plane offset from the centre line
 export const PIVOT = { x: -0.5, z: 0.05 };                                  // stance pivot (sim frame, feet centre)
 const PSI0 = 105 * D2R;                                                      // stance yaw: chest to the off side, a little open to the bowler
-const PEL_H = 0.84;
+const PEL_H = 0.83;
 const wrapTo = (a, ref) => { let d = a - ref; d = Math.atan2(Math.sin(d), Math.cos(d)); return ref + d; };
 
 /** Shot families from the swipe angle (sim degrees: 0 straight, + off side) and the ball. */
@@ -139,7 +139,7 @@ export function batterPose(ctx, rig, out = {}) {
   // ---------------- pelvis height, lean ------------------------------------------------------------------------------------------------
   const pelY = lerp(PEL_H, fit.y, arrive);
   const pel = pelXZ.clone().setY(pelY);
-  const lean0 = 16 * D2R;
+  const lean0 = 9 * D2R;
   const leanFit = fit.th - 0;
   const spinePitch = lerp(lean0, leanFit, arrive) + (back ? -2 * D2R * sP : 0);
   const leanTail = sw ? -(1 - ramp(tau, 0.12, 0.5)) * 0 : 0;
@@ -205,10 +205,15 @@ function batPath(ctx, P) {
   // body-frame helper: point at (f, up, l) from the pelvis centre in the chest frame at yaw psi
   const at = (psi, f, u, l, origin = pel) => new V3(origin.x, 0, origin.z).add(comb(psi, f, 0, l)).setY(u);
   // stance: bat grounded behind the rear toes, hands in front of the front thigh
-  const S = { G: at(psi0, 0.30, 0.76, 0.0, pel0.clone().addScaledVector(fvec(psi0), -0.03)), a: norm(comb(psi0, -0.20, -0.97, 0.12)), n: norm(new V3(0, 0.05, -1)) };
+  // stance: the toe of the bat rests on the ground just behind the toes of the back foot, the handle leans a little towards the body,
+  // hands low in front of the front thigh with soft elbows, blade face to the bowler (never poking out past the front pad)
+  const sBase = pel0.clone().addScaledVector(fvec(psi0), -0.03);
+  const sG = at(psi0, 0.15, 0.68, 0.10, sBase), sT = at(psi0, 0.09, 0.02, -0.14, sBase);
+  const S = { G: sG, a: norm(sT.clone().sub(sG)), n: norm(new V3(0, 0.05, -1)) };
   // backlift: bat up and back over the rear shoulder (~130 deg from vertical), hands at chest height
   const K = { G: at(psiChest, 0.24, 1.02, -0.10), a: norm(comb(psiChest, 0.20, 0.64, -0.74)), n: norm(comb(psiChest, 0.45, 0.2, 0.86)) };
-  const M = { G: at(psiChest, 0.30, 0.90, -0.05), a: norm(comb(psiChest, 0.05, 0.1, -1.0)), n: norm(comb(psiChest, 0.4, 0.3, 0.86)) };
+  // the bat is picked up straight (handle up, hands rising in front of the chest), then cocked back over the rear shoulder
+  const M = { G: at(psiChest, 0.22, 1.0, 0.02), a: norm(comb(psiChest, 0.0, 0.92, -0.38)), n: norm(comb(psiChest, 0.35, 0.3, 0.88)) };
   const pre = (u) => {
     const e = clamp(u, 0, 1);
     if (e < 0.5) { const k = smooth(e * 2); return { G: S.G.clone().lerp(M.G, k), a: nlerp(S.a, M.a, k), n: nlerp(S.n, M.n, k) }; }

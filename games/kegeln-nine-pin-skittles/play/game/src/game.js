@@ -7,7 +7,7 @@ import { W, H, TEXT_SCALES, THINK_STEPS, REVEAL_SECS, TEXT_DEC, TEXT_INC, REF_BA
 import { DT, newSim, stepSim, simResult, launchFor, pathPoints, PIN_Z0, ALL } from './phys.js';
 import { newMatch, applyThrow, standingFor, totals, LENGTHS, phaseName, toMask } from './engine.js';
 import { PROFILES, ASSIST, HUMAN_LAT, tableJob, chooseFromTable, rollWithError, verifyPlan, explainHint } from './ai.js';
-import { fixedCam, scaleAt } from './scene.js';
+import { fixedCam, scaleAt, snapSim } from './scene.js';
 import { renderPlay, computeLayout, resultText, sideName, statusText, whyTitle } from './view.js';
 import { renderTitle, renderSetup, renderSettings, renderLearn, renderResult, renderPause, renderSheet, renderWhy, renderPages, renderDemoLimit, hitScreen, flowMeta, pageCount, ensureLayout } from './menus.js';
 import { ABOUT, HOWTO, RULES, LESSONS } from './content.js';
@@ -47,7 +47,7 @@ export function createGame(env) {
     ui: { scroll: 0, drag: null }, page: 0, resume: null, loaded: false,
     m: null, ph: 'intro', pt: 0, humanTurn: false, plan: { x0: 0, aimX: 0, power: 1, hook: 0 }, plans: [null, null],
     cam: fixedCam(), sim: null, ballShow: null, ballOpts: null, overlay: null, parts: [], banner: null, toast: '', toastT: 0,
-    why: null, hint: null, think: null, res: null, lastPath: null, fade: 0, drops: null, sheet: false, thrown: null, final: null, pipParts: [],
+    why: null, hint: null, think: null, res: null, lastPath: null, fade: 0, drops: null, sheet: false, thrown: null, final: null, pipParts: [], alpha: 0,
     drag: null, rt: 0, fast: false, thinkSecs: 5, rec: [], recT: 0, rumbleT: 0, acc: 0, autoReplayDone: false, lastPhaseShown: 0, shot: false, showcase: false,
     att: { cam: null, sim: null, wait: 1, n: 0, parts: [], acc: 0 },
   };
@@ -522,8 +522,8 @@ export function createGame(env) {
       const speed = state.fast ? 6 : 1;
       state.rt += dt;
       let acc = dt * speed + state.acc, n = 0;
-      while (acc >= DT && !sim.done && n < 90) { stepSim(sim); acc -= DT; n++; }
-      state.acc = acc;
+      while (acc >= DT && !sim.done && n < 90) { snapSim(sim); stepSim(sim); acc -= DT; n++; }
+      state.acc = acc; state.alpha = acc / DT;
       if (!b.contact && b.on) {
         state.recT += dt; if (state.recT > 0.12) { state.recT = 0; state.rec.push({ x: b.x, z: b.z }); }
         state.rumbleT -= dt; if (state.rumbleT <= 0) { state.rumbleT = 0.15; sfx.rumble(Math.hypot(b.vx, b.vz)); }
@@ -541,7 +541,8 @@ export function createGame(env) {
       state.rt += dt;
       state.acc += dt * (sim.ball.on && sim.ball.z < PIN_Z0 - 1.3 ? 8 : 0.45);   // skip the long roll, then show the crash slowly in the inset
       let n = 0;
-      while (state.acc >= DT && !sim.done && n < 90) { stepSim(sim); state.acc -= DT; n++; }
+      while (state.acc >= DT && !sim.done && n < 90) { snapSim(sim); stepSim(sim); state.acc -= DT; n++; }
+      state.alpha = state.acc / DT;
       handleEvents(sim, state.pipParts);
       if (sim.done) { state.pt = 0; state.ph = 'replayHold'; }
     } else if (ph === 'replayHold') {
@@ -694,7 +695,8 @@ export function createGame(env) {
     if (!s.done) {
       a.acc += dt * 0.9;
       let n = 0;
-      while (a.acc >= DT && !s.done && n < 60) { stepSim(s); a.acc -= DT; n++; }
+      while (a.acc >= DT && !s.done && n < 60) { snapSim(s); stepSim(s); a.acc -= DT; n++; }
+      a.alpha = a.acc / DT;
       for (const e of s.events) if (e.k === 'tip') dust(a.parts, e.x, e.z, 3, 1);
       s.events.length = 0;
     } else { a.wait += dt; if (a.wait > 1.6) startAttract(); }
@@ -720,6 +722,7 @@ export function createGame(env) {
   };
   const NOINPUT = { pointer: { x: -1, y: -1, down: false, pressed: false, released: false }, keys: { down: new Set(), pressed: new Set() } };
   const applyPreset = () => {
+    if (shotSeed >= 1000) { shotRoll((shotSeed - 1000) * 12, { x0: 0.12, aimX: -0.07, power: 1, hook: -2 }); return; }   // filmstrip: seed 1000 + k = k * 12 physics steps into the roll
     const n = ((shotSeed % 100) + 100) % 100;
     if (n === 60) {   // showcase: two computer players play for real while the shot runs its ticks (input ignored)
       state.showcase = true; state.settings.thinkIdx = 0; state.thinkSecs = 2;

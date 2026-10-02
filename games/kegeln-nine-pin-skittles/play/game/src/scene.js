@@ -5,27 +5,23 @@ import { PIN_POS, PIN_Z0, PIN_H, BALL_R, LANE_HALF, BOARD_X, BACK_Z, KING } from
 
 export const TAU = Math.PI * 2;
 export const ROOM_X = 1.32, ROOM_H = 3.6, WALL_Z = 24.6;
-// Depth is warped: the long lane is shown short and the pin deck at full depth, so the diamond reads as a diamond from a raised
-// camera. U(z) is the "virtual distance" of a point z metres down the lane; the perspective is real in U.
-const U0 = 3.6;
-export function U(z) {
-  if (z <= 0) return U0 + 0.07 * z;
-  if (z <= 12) return U0 + 0.07 * z;
-  const a = U0 + 0.84;
-  if (z <= 19.5) { const t = z - 12; return a + 0.07 * t + (0.93 * t * t * t) / (3 * 56.25); }
-  const b = a + 0.07 * 7.5 + (0.93 * 421.875) / 168.75;
-  return b + (z - 19.5);
-}
-export function zFromU(u) { let lo = -8, hi = 40; for (let i = 0; i < 40; i++) { const m = (lo + hi) / 2; if (U(m) < u) lo = m; else hi = m; } return (lo + hi) / 2; }
+// TRUE perspective: a pinhole camera looking down the lane (no depth warp), so a ball rolling at a steady speed moves fast on screen near the
+// camera and appears to slow as it recedes, as in real life. U(z) is the distance from the camera along the lane: the camera stands D0 metres
+// behind the foul line. World units are metres and the lane is its real 19.5 m.
+const D0 = 16.5;
+export function U(z) { return D0 + z; }
+export function zFromU(u) { return u - D0; }
 const U_PINS = U(PIN_Z0);
 // THE camera. One fixed camera for the whole delivery, like a bowler standing at the foul line looking down the lane, raised enough to
 // read the pin diamond. It never moves, zooms, tilts or shakes: the lane, walls and pin deck keep the same screen position in every
 // frame (rule: the playing surface never moves). Only the ball, the pins, the dust and the UI move.
-// Tuning: uc 0 = the foul line, H = eye height (m), spins = pixels per virtual metre at the pin deck, ypins = screen y of the deck.
-const FIX = { H: 2.0, spins: 236, ypins: 440 };
+// Tuning: H = eye height (m); pinPx = pixels per metre across the front pin line (this sets the focal length); ypins = screen y of the deck front.
+// The pins are drawn PIN_K times larger than true size (uniform, about their feet) so the far diamond reads on a phone.
+const FIX = { H: 2.15, pinPx: 192, ypins: 455 };
+export const PIN_K = 1.35;
 export function fixedCam() {
-  const uc = 0, f = FIX.spins * (U_PINS - uc);
-  return { uc, H: FIX.H, f, yh: FIX.ypins - FIX.H * FIX.spins, x: 0 };
+  const uc = 0, f = FIX.pinPx * (U_PINS - uc);
+  return { uc, H: FIX.H, f, yh: FIX.ypins - FIX.H * FIX.pinPx, x: 0 };
 }
 // The small static close-up of the pin deck shown as an inset after a roll (never a move of the main view).
 export function pipCam() { const uc = U_PINS - 2.4, H = 1.0, spins = 420, f = spins * 2.4; return { uc, H, f, yh: 640 - H * spins, x: 0 }; }
@@ -46,7 +42,7 @@ const mix = (c1, c2, t) => `rgb(${Math.round(lerp(c1[0], c2[0], t))},${Math.roun
 
 // ---------------------------------------------------------------------------------------------------------------
 // The room
-const LAMPS = [4.4, 5.6, 7.0, 8.8, 10.8].map((u) => zFromU(u));
+const LAMPS = [2.5, 5.5, 9, 13, 17.5];
 export function drawRoom(ctx, cam, t) {
   const z0 = nearZ(cam), z1 = WALL_Z, X = ROOM_X, Hh = ROOM_H;
   // ceiling and background
@@ -199,14 +195,14 @@ export function drawPin(ctx, cam, p, opts = {}) {
   if (p.st < 0) return;
   const th = p.st === 0 ? (p.wob || 0) * Math.sin(p.ph || 0) : p.th, sinT = Math.sin(th), cosT = Math.cos(th);
   const dx = p.dx || 0, dz = p.dz || 1;
-  const lift = opts.lift || 0, alpha = opts.alpha ?? 1;
-  const offFoot = p.st === 0 ? 0 : 0.19 * Math.sin(p.th);
+  const lift = opts.lift || 0, alpha = opts.alpha ?? 1, K = opts.k ?? PIN_K;
+  const offFoot = p.st === 0 ? 0 : 0.19 * K * Math.sin(p.th);
   const fx = p.x - dx * offFoot, fz = p.z - dz * offFoot;
   const king = p.id === KING;
   const pts = PROFILE.map(([h, r]) => {
-    const wx = fx + dx * h * sinT, wz = fz + dz * h * sinT, wy = h * cosT + (p.st === 0 ? 0 : 0.062 * sinT) + lift;
+    const wx = fx + dx * h * K * sinT, wz = fz + dz * h * K * sinT, wy = K * (h * cosT + (p.st === 0 ? 0 : 0.062 * sinT)) + lift;
     const c = proj(cam, wx, wy, wz);
-    return { x: c.x, y: c.y, r: r * c.s, h };
+    return { x: c.x, y: c.y, r: r * K * c.s, h };
   });
   const L = [], R = [];
   for (let i = 0; i < pts.length; i++) {
@@ -249,12 +245,12 @@ function drawShadow(ctx, cam, x, z, rx, ry, a = 0.38, rot = 0) {
   const g = ctx.createRadialGradient(0, 0, 0, 0, 0, rx * c.s); g.addColorStop(0, `rgba(10,4,0,${a})`); g.addColorStop(1, 'rgba(10,4,0,0)');
   ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, rx * c.s, 0, TAU); ctx.fill(); ctx.restore();
 }
-export function pinShadow(ctx, cam, p, alpha = 1) {
+export function pinShadow(ctx, cam, p, alpha = 1, K = PIN_K) {
   if (p.st < 0) return;
-  if (p.st === 0) drawShadow(ctx, cam, p.x, p.z, 0.1, 0.045, 0.4 * alpha);
+  if (p.st === 0) drawShadow(ctx, cam, p.x, p.z, 0.1 * K, 0.045 * K, 0.4 * alpha);
   else {
     const a = proj(cam, p.x, 0, p.z), b = proj(cam, p.x + (p.dx || 0), 0, p.z + (p.dz || 1)), ang = Math.atan2(b.y - a.y, b.x - a.x);
-    drawShadow(ctx, cam, p.x, p.z, 0.1 + 0.15 * Math.sin(p.th), 0.06, 0.38 * alpha, Math.abs(ang) < 1.2 || Math.abs(ang) > 1.94 ? ang : 0);
+    drawShadow(ctx, cam, p.x, p.z, (0.1 + 0.15 * Math.sin(p.th)) * K, 0.06 * K, 0.38 * alpha, Math.abs(ang) < 1.2 || Math.abs(ang) > 1.94 ? ang : 0);
   }
 }
 
@@ -290,11 +286,11 @@ export function drawActors(ctx, cam, pins, ball, extra = {}) {
   for (const p of pins) if (p.st >= 0) list.push({ z: p.z + (p.st === 0 ? 0 : 0.05), pin: p });
   if (ball && ball.on !== false && !extra.hideBall) list.push({ z: ball.z + 0.05, ball });
   list.sort((a, b) => b.z - a.z);
-  for (const e of list) if (e.pin) pinShadow(ctx, cam, e.pin, extra.alphaOf ? extra.alphaOf(e.pin) : 1);
+  for (const e of list) if (e.pin) pinShadow(ctx, cam, e.pin, extra.alphaOf ? extra.alphaOf(e.pin) : 1, extra.pinK);
   for (const e of list) {
     if (e.pin) {
       const k = extra.dropOf ? extra.dropOf(e.pin) : 0;
-      drawPin(ctx, cam, e.pin, { lift: k, alpha: extra.alphaOf ? extra.alphaOf(e.pin) : 1 });
+      drawPin(ctx, cam, e.pin, { lift: k, alpha: extra.alphaOf ? extra.alphaOf(e.pin) : 1, k: extra.pinK });
     } else drawBall(ctx, cam, e.ball, ((e.ball.z / BALL_R) % TAU) || 0, extra.ballOpts);
   }
 }
@@ -342,3 +338,19 @@ export function drawParts(ctx, cam, parts) {
 
 
 export { clamp };
+
+// ---------------------------------------------------------------------------------------------------------------
+// Sub-step interpolation: the physics runs in fixed steps (1/240 s); drawing blends the previous step into the current one by the fraction of
+// a step left over, so motion is smooth at any display rate. snapSim() is called just before each physics step. Never touches the physics.
+export function snapSim(s) {
+  const b = s.ball;
+  s.pv = { bx: b.x, bz: b.z, p: s.pins.map((p) => ({ x: p.x, z: p.z, th: p.th, ph: p.ph, wob: p.wob })) };
+}
+export function interpSim(s, a) {
+  const pv = s.pv;
+  if (!pv || s.done || !(a > 0)) return { pins: s.pins, ball: s.ball };
+  const L = (u, v) => u + (v - u) * Math.min(1, a);
+  const pins = s.pins.map((p, i) => { const q = pv.p[i]; return { ...p, x: L(q.x, p.x), z: L(q.z, p.z), th: L(q.th, p.th), ph: L(q.ph, p.ph), wob: L(q.wob, p.wob) }; });
+  const b = s.ball;
+  return { pins, ball: { ...b, x: L(pv.bx, b.x), z: L(pv.bz, b.z) } };
+}

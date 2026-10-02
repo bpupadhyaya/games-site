@@ -1,8 +1,8 @@
 // Drawing for the play screen: the ice (fixed, never scrolls), stones, sweeping brushes, aim guide, scoreboard and
 // control bar. Pure: reads `state`, never mutates it. Menus and pages live in menus.js. All text follows the 100-300%
 // text size setting; the ice region shrinks to make room instead of clipping.
-import { R, HALF_W, HOG_FAR, HOG_NEAR, BACK, HOUSE_R, NEAR_TEE, toButton } from './sim.js';
-import { TEAM, drawHouse, drawStone, drawBrushes, startIceBake, TILE_M, setHost, canBake, lcg } from './art.js';
+import { R, HALF_W, HOG_FAR, HOG_NEAR, BACK, HOUSE_R, BUTTON_R, FOUR_R, EIGHT_R, NEAR_TEE, toButton } from './sim.js';
+import { TEAM, drawStone, drawBrushes, startIceBake, TILE_M, setHost, canBake, lcg } from './art.js';
 import { W, H, TEXT_SCALES, playLayout, inRect } from './layout.js';
 import { FONT, C, roundPath, drawButton, panel, wrapLines } from './ui.js';
 import { WEIGHTS } from './match.js';
@@ -31,38 +31,51 @@ export function layoutFor(state) {
   const kind = m && m.cfg.mode === 'watch' ? 'watch' : state.ctl === 'fly' ? 'fly' : state.ctl === 'score' ? 'score' : 'aim';
   return playLayout(textScale(state), kind);
 }
-// Fixed view (the playing surface never moves): the sheet is drawn once, in the same place on screen for the whole match.
-// A real sheet is ~45 m long and 4.75 m wide, so the lengthwise scale is not uniform: the house and guard area (zone A) is
-// true scale (ppm = pixels per metre, the same scale across the sheet), a middle strip (zone B) is squeezed to bs x, and the
-// long run-up to the delivery end (zone C) is squeezed to whatever height is left. Only the drawing mapping is non-uniform;
-// the physics stays in real metres.
-export const VIEW_TOP = BACK + 0.55, ZA_END = -3.2, ZB_END = -9.0, VIEW_BOT = HOG_NEAR - 1.05;
-const zoneBs = (rh) => (rh < 500 ? 0.3 : 0.5);
+// Fixed view (the playing surface never moves). A real sheet is ~45 m long and 4.75 m wide, so the lengthwise map is a smooth curve:
+// the on-screen scale is constant over the house and its guard area (rings are true circles), then eases down smoothly (a
+// smoothstep, so there is no jump in the scale or its slope) to a small constant over the long run-up to the delivery end. A
+// stone's on-screen speed is therefore always real speed times a smoothly varying, monotonically falling scale. Across the sheet
+// the scale is uniform (ppm, the house scale). Only the drawing map is non-linear; the physics stays in real metres.
+export const VIEW_TOP = BACK + 0.55, VIEW_BOT = HOG_NEAR - 1.05;
+const T0 = 4.6, TW = 10, TE = 0.12;        // uniform zone length (m), easing length (m), far-end scale as a fraction of the house scale
+const shape = (t) => { if (t <= T0) return 1; const u = Math.min(1, (t - T0) / TW); return 1 - (1 - TE) * u * u * (3 - 2 * u); };
+// Relative on-screen scale at world y (1 over the house, falling to TE): game.js paces the slide by its inverse, so on-screen speed
+// is exactly proportional to real speed along the whole path.
+export const lengthShape = (y) => shape(Math.max(0, VIEW_TOP - y));
 export function makeCam(state, lay0) {
   // Always built from the tallest-controls layout (aim), whatever the phase, so the sheet never shifts when the control bar changes.
   const lay = playLayout(textScale(state), 'aim');
   void lay0;
-  const rh = lay.regionBottom - lay.regionTop;
-  const bs = zoneBs(rh);
-  const ppm = Math.min(112, (rh * 0.82) / ((VIEW_TOP - ZA_END) + (ZA_END - ZB_END) * bs));
-  const hA = (VIEW_TOP - ZA_END) * ppm, hB = (ZA_END - ZB_END) * ppm * bs, hC = rh - hA - hB;
-  const sC = hC / (ZB_END - VIEW_BOT);              // px per metre in zone C
-  const top = lay.regionTop;
-  const Y = (y) => {
-    if (y >= ZA_END) return top + (VIEW_TOP - y) * ppm;
-    if (y >= ZB_END) return top + hA + (ZA_END - y) * ppm * bs;
-    return top + hA + hB + (ZB_END - y) * sC;
+  const rh = lay.regionBottom - lay.regionTop, top = lay.regionTop;
+  const L = VIEW_TOP - VIEW_BOT;
+  const A = (t) => {                          // exact integral of shape, any t >= 0
+    if (t <= T0) return t;
+    const d = t - T0;
+    if (d <= TW) { const u = d / TW; return T0 + d - (1 - TE) * TW * (u * u * u - u * u * u * u / 2); }
+    return T0 + TW - (1 - TE) * TW * 0.5 + (d - TW) * TE;
   };
-  const yAt = (sy) => {
-    const d = sy - top;
-    if (d <= hA) return VIEW_TOP - d / ppm;
-    if (d <= hA + hB) return ZA_END - (d - hA) / (ppm * bs);
-    return ZB_END - (d - hA - hB) / sC;
-  };
-  const sy = (y) => (y >= ZA_END ? ppm : y >= ZB_END ? ppm * bs : sC);   // px per metre lengthwise at world y
+  const s0 = rh / A(L);                        // px per metre over the house
+  const Y = (y) => top + s0 * A(VIEW_TOP - y);
+  const yAt = (py) => { const target = (py - top) / s0; let lo = -5, hi = 80; for (let i = 0; i < 48; i++) { const mid = (lo + hi) / 2; if (A(Math.max(0, mid)) + Math.min(0, mid) < target) lo = mid; else hi = mid; } return VIEW_TOP - (lo + hi) / 2; };
+  const sy = (y) => s0 * shape(Math.max(0, VIEW_TOP - y));   // px per metre lengthwise at world y
+  const ppm = Math.min(112, s0);
   return { ppm, top, rh, bottom: lay.regionBottom, X: (x) => W / 2 + x * ppm, Y, yAt, sy };
 }
 export function camToWorld(cam, sx, sy) { return { x: (sx - W / 2) / cam.ppm, y: cam.yAt(sy) }; }
+
+// The rings follow the lengthwise map (each ring is a polygon through X/Y), so a stone on a ring edge sits exactly on the ring.
+function drawHouseMapped(ctx, cam) {
+  const ring = (r, fill, edge) => {
+    ctx.beginPath();
+    for (let i = 0; i <= 96; i++) { const a = (i / 96) * TAU, x = cam.X(Math.cos(a) * r), y = cam.Y(Math.sin(a) * r); if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); }
+    ctx.closePath(); ctx.fillStyle = fill; ctx.fill();
+    ctx.lineWidth = Math.max(1, cam.ppm * 0.012); ctx.strokeStyle = edge; ctx.stroke();
+  };
+  ring(HOUSE_R, 'rgba(38,104,186,0.80)', 'rgba(14,52,110,0.65)');
+  ring(EIGHT_R, 'rgba(246,251,255,0.93)', 'rgba(120,160,200,0.7)');
+  ring(FOUR_R, 'rgba(204,48,46,0.86)', 'rgba(110,20,20,0.6)');
+  ring(BUTTON_R, 'rgba(250,253,255,0.98)', 'rgba(120,160,200,0.7)');
+}
 
 // ---- the ice ------------------------------------------------------------------------------------------------------------------
 export function drawIce(ctx, cam, state) {
@@ -117,7 +130,7 @@ export function drawIce(ctx, cam, state) {
     ctx.fillStyle = 'rgba(40,88,150,0.42)'; ctx.fillRect(X(0) - 1, top, 2, bot - top);
     line(0, 'rgba(40,88,150,0.5)', 0.025); line(BACK, 'rgba(40,88,150,0.45)', 0.025);
     line(HOG_FAR, 'rgba(204,52,48,0.8)', 0.1); line(HOG_NEAR, 'rgba(204,52,48,0.8)', 0.1);
-    drawHouse(ctx, X(0), Y(0), ppm);
+    drawHouseMapped(ctx, cam);
     // the free guard zone, faintly
     if (state.showFgz) {
       ctx.fillStyle = 'rgba(255,255,255,0.0)';
@@ -140,27 +153,40 @@ export function drawIce(ctx, cam, state) {
 }
 const AIM_TOP_END = BACK + 0.55;
 
+// Smooth motion: while a delivery runs, game.js keeps for every stone the displayed position/turn at the previous update (d0*)
+// and at this update (d*), already placed at the sub-step fraction of the fixed physics step. Drawing blends the two by the time
+// since the last update, so motion is continuous at any display rate. Everything here is drawing only.
+export function dispOf(state, s) {
+  const al = state && state.alpha !== undefined ? state.alpha : 1;
+  if (!state || !state.fl || !state.m || state.m.phase !== 'fly' || s.dx === undefined) return { x: s.x, y: s.y, a: s.ang };
+  const k = s.d0x === undefined ? 1 : al;
+  const x0 = s.d0x ?? s.dx, y0 = s.d0y ?? s.dy, a0 = s.d0a ?? s.da;
+  return { x: x0 + (s.dx - x0) * k, y: y0 + (s.dy - y0) * k, a: a0 + (s.da - a0) * k };
+}
+const lerpAng = (a, b, k) => { let d = b - a; while (d > Math.PI) d -= TAU; while (d < -Math.PI) d += TAU; return a + d * k; };
+
 // ---- stones, trail, brushes, particles ---------------------------------------------------------------------------------------
 export function drawStones(ctx, cam, state, w, o = {}) {
   const rpx = R * cam.ppm;
   const hl = o.highlight ?? null;
   for (const s of w.stones) {
     if (s.mode === 'out' && s.out > 0.9) continue;
-    const x = cam.X(s.x), y = cam.Y(s.y);
+    const dp = dispOf(state, s);
+    const x = cam.X(dp.x), y = cam.Y(dp.y);
     if (y < -60 || y > H + 60) continue;
     let a = 1, k = 1;
     if (s.mode === 'out') { a = Math.max(0, 1 - s.out / 0.9); k = 1 + s.out * 0.25; }
     const sp = Math.hypot(s.vx, s.vy);
-    if (sp > 0.6 && s.mode === 'play') {
+    if (sp > 0.3 && s.mode === 'play') {
       const hxp = s.vx * cam.ppm, hyp = -s.vy * cam.sy(s.y), hn = Math.hypot(hxp, hyp) || 1;
-      const len = Math.min(0.9, sp * 0.16) * cam.ppm, nx = hxp / hn, ny = hyp / hn;
+      const len = Math.min(1.1, sp * 0.2) * cam.ppm, nx = hxp / hn, ny = hyp / hn;
       const g = ctx.createLinearGradient(x, y, x - nx * len, y - ny * len);
-      g.addColorStop(0, 'rgba(255,255,255,0.35)'); g.addColorStop(1, 'rgba(255,255,255,0)');
+      g.addColorStop(0, `rgba(255,255,255,${(0.4 * Math.min(1, (sp - 0.3) / 0.6)).toFixed(3)})`); g.addColorStop(1, 'rgba(255,255,255,0)');
       ctx.strokeStyle = g; ctx.lineWidth = rpx * 1.5; ctx.lineCap = 'round';
       ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - nx * len, y - ny * len); ctx.stroke();
     }
     const gl = hl && hl.has(s.id) ? 0.55 + 0.35 * Math.sin(state.t * 6) : (s.heat ?? 0);
-    drawStone(ctx, x, y, rpx * k, s.team, -s.ang, { a, glow: gl, speck: s.id });
+    drawStone(ctx, x, y, rpx * k, s.team, -dp.a, { a, glow: gl, speck: s.id });
   }
 }
 
@@ -172,6 +198,7 @@ export function drawTrail(ctx, cam, state) {
   ctx.strokeStyle = 'rgba(60,100,150,0.16)'; ctx.lineWidth = Math.max(1.5, R * cam.ppm * 0.5);
   ctx.beginPath();
   tr.forEach((p, i) => { const x = cam.X(p[0]), y = cam.Y(p[1]); if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); });
+  if (state.fl && state.w) { const fs = state.w.stones.find((q) => q.id === state.fl.id); if (fs) { const d = dispOf(state, fs); ctx.lineTo(cam.X(d.x), cam.Y(d.y)); } }
   ctx.stroke();
   // where it was swept the ice is polished and brighter
   let open = false;
@@ -189,15 +216,16 @@ export function drawTrail(ctx, cam, state) {
 }
 
 export function drawFlightBrushes(ctx, cam, state) {
-  const f = state.fl;
-  if (!f) return;
-  const s = state.w.stones.find((q) => q.id === f.id);
-  if (!s || s.mode !== 'play') return;
-  const sp = Math.hypot(s.vx, s.vy);
-  if (sp === 0) return;
-  const hxp = s.vx * cam.ppm, hyp = -s.vy * cam.sy(s.y), hn = Math.hypot(hxp, hyp) || 1;
-  const hx = hxp / hn, hy = hyp / hn;
-  drawBrushes(ctx, cam.X(s.x), cam.Y(s.y), hx, hy, cam.ppm, f.eff, f.phase, f.team);
+  const f = state.fl, b = f && f.b;
+  if (!b || b.a < 0.01 || state.m.phase !== 'fly') return;
+  const al = state.alpha ?? 1, k = b.x0 === undefined ? 1 : al;
+  const L = (p, q) => (b[p + '0'] ?? b[q]) + (b[q] - (b[p + '0'] ?? b[q])) * k;
+  const bx = L('x', 'x'), by = L('y', 'y'), ph = L('ph', 'ph'), amp = L('amp', 'amp'), fade = L('a', 'a');
+  const ang = lerpAng(b.ang0 ?? b.ang, b.ang, k);
+  // heading on screen: world heading pushed through the fixed map, so the heads turn smoothly with the stone's path
+  const hxw = Math.cos(ang), hyw = Math.sin(ang);
+  const hxp = hxw * cam.ppm, hyp = -hyw * cam.sy(by), hn = Math.hypot(hxp, hyp) || 1;
+  drawBrushes(ctx, cam.X(bx), cam.Y(by), hxp / hn, hyp / hn, cam.ppm, amp, ph, f.team, fade);
 }
 
 export function drawParts(ctx, cam, parts) {
@@ -509,7 +537,7 @@ export function drawAttract(ctx, state, ppm = 105, yTop = 2.2, top = 40) {
   if (a) {
     drawTrail(ctx, cam, { trail: a.trail });
     drawStones(ctx, cam, { t: state.t }, a.w);
-    if (a.fl) drawBrushes(ctx, cam.X(a.fl.x), cam.Y(a.fl.y), 0, -1, ppm, a.fl.eff, a.fl.phase, a.fl.team);
+    if (a.fl) drawBrushes(ctx, cam.X(a.fl.x), cam.Y(a.fl.y), 0, -1, ppm, 0.14 + 0.3 * a.fl.eff, a.fl.phase, a.fl.team, 1);
     drawParts(ctx, cam, a.parts);
   }
 }

@@ -3,7 +3,7 @@
 // widths estimated) and by render (real text widths), and gives the same rectangles to both.
 import { W, H, TEXT_SCALES, COMPACT, TRAY, SCENE_Y0, SCENE_H, playLayout, toScene } from './layout.js';
 import { FONT, NUM, C, roundPath, drawButton, paintButton, panel, wrapLines, textShadow, ease } from './ui.js';
-import { drawRoom, drawLane, drawActors, drawPath, drawTarget, drawParts, proj, scaleAt, pipCam, TAU } from './scene.js';
+import { drawRoom, drawLane, drawActors, drawPath, drawTarget, drawParts, proj, scaleAt, pipCam, interpSim, TAU } from './scene.js';
 import { PROFILES } from './ai.js';
 import { POWERS, pathPoints, PIN_Z0 } from './phys.js';
 import { totals, phaseName, throwNo } from './engine.js';
@@ -217,7 +217,8 @@ export function drawLaneScene(ctx, S) {
     if (ov.plan) { drawPath(ctx, cam, ov.plan.pts, ov.plan.col ?? '#ffe08a', t, 0.05, 1); drawTarget(ctx, cam, ov.plan.aimX, PIN_Z0, ov.plan.col ?? '#ffe08a', t, ov.plan.label); }
   }
   const replaying = !!S.final;   // while the replay inset plays, the main view keeps showing the finished throw
-  drawActors(ctx, cam, (replaying ? S.final : S.sim).pins, replaying ? null : S.ballShow, {
+  const iv = replaying ? null : interpSim(S.sim, S.alpha);
+  drawActors(ctx, cam, replaying ? S.final.pins : iv.pins, replaying ? null : (S.ballShow === S.sim.ball ? iv.ball : S.ballShow), {
     alphaOf: (p) => (S.fade && p.st >= 0 && (p.st > 0 || Math.abs(p.x) > 0.67) ? Math.max(0, 1 - S.fade) : 1),
     dropOf: (p) => (S.drops ? Math.max(0, S.drops[p.id] ?? 0) : 0),
     ballOpts: S.ballOpts,
@@ -236,7 +237,8 @@ function drawReplayInset(ctx, S) {
   ctx.fillStyle = '#120a06'; ctx.fillRect(x, y, w, h);
   ctx.translate(x + w / 2, y + h / 2); ctx.scale(0.5, 0.5); ctx.translate(-360, -500);
   drawLane(ctx, cam, S.t);
-  drawActors(ctx, cam, S.sim.pins, S.sim.ball.on ? S.sim.ball : null, {});
+  const iv = interpSim(S.sim, S.alpha);
+  drawActors(ctx, cam, iv.pins, iv.ball.on ? iv.ball : null, { pinK: 1 });
   drawParts(ctx, cam, S.pipParts);
   ctx.restore();
   roundPath(ctx, x, y, w, h, 14); ctx.strokeStyle = '#e9c15f'; ctx.lineWidth = 3; ctx.stroke();

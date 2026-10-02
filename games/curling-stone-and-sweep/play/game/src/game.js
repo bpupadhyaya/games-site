@@ -15,7 +15,7 @@ import { throwNoise, applyNoise, HUMAN } from './noise.js';
 import { explainShot, situation } from './explain.js';
 import { LESSONS, lessonById, lessonIndex } from './lessons.js';
 import { W, H, inRect, REF_BACK, REF_NEXT, TEXT_DEC, TEXT_INC, TEXT_SCALES, THINK_STEPS, SETUP_PINS } from './layout.js';
-import { renderPlay, layoutFor, makeCam, camToWorld, cardRect } from './view.js';
+import { renderPlay, layoutFor, makeCam, camToWorld, cardRect, lengthShape } from './view.js';
 import {
   renderTitle, renderSetup, renderSettings, renderLearn, renderQuiz, renderResult, renderPause, renderShotOptions, renderReason, renderLessonResult, renderPages, renderDemoLimit,
   hitScreen, flowMeta, pageCount, ensureLayout, resetMenus,
@@ -27,7 +27,9 @@ export const meta = { width: W, height: H };
 const DEMO_END_CAP = 2;
 const SHOT_MODE = (() => { try { return /[?&]shot=/.test(globalThis.location.search); } catch { return false; } })();
 
+const PACE = 2.6;   // sim steps per update at the house (grows smoothly towards the far end, see lengthShape)
 export function createGame(env) {
+  const nowMs = () => (env.clock ? env.clock() : 0);   // display clock from the shell; absent in headless runs (alpha stays 1)
   const { rng, audio, storage, config, monetization } = env;
   const fx = rng.fork();
   const aiRng = rng.fork();
@@ -324,6 +326,7 @@ export function createGame(env) {
     state.trail = []; state.humanTurn = false; state.pv = null; state.finalPreview = null; state.drag = null; state.card = null; state.think = null; state.restT = 0; state.hl = null;
     if (human) state.record.throws = (state.record.throws | 0) + 1;
     state.sweepIn = { px: 0, py: 0, sp: 0, on: false };
+    for (const q of w.stones) { q.dx = undefined; q.d0x = undefined; }
     sfx.release();
     if (human && state.humanSweeps && state.lesson && state.lesson.def.kind === 'sweep') toast('Sweep now: rub the ice side to side', 3);
   }
@@ -353,6 +356,27 @@ export function createGame(env) {
     return tgt;
   }
 
+  // The sweepers: smooth, game-clock driven. The anchor trails the stone with a slight lag, the heading turns smoothly, the sweep
+  // oscillates sinusoidally (about 2-3 Hz when working) with an eased width, and the pair fades in and out. The sim never reads this.
+  function updateBrushes(dt, s, mv) {
+    const fl = state.fl;
+    if (!fl.b) fl.b = { x: s ? s.x : 0, y: s ? s.y : 0, ang: Math.PI / 2, ph: 0, amp: 0.1, a: 0 };
+    const b = fl.b;
+    b.x0 = b.x; b.y0 = b.y; b.ang0 = b.ang; b.ph0 = b.ph; b.amp0 = b.amp; b.a0 = b.a;
+    const kp = 1 - Math.exp(-dt / 0.09), ka = 1 - Math.exp(-dt / 0.12), kw = 1 - Math.exp(-dt / 0.18);
+    if (s && s.mode === 'play') {
+      const sp = Math.hypot(s.vx, s.vy);
+      if (sp > 0.02) { let d = Math.atan2(s.vy, s.vx) - b.ang; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI; b.ang += d * (1 - Math.exp(-dt / 0.08)); }
+      const tx = s.dx ?? s.x, ty = s.dy ?? s.y;
+      b.x += (tx - b.x) * kp; b.y += (ty - b.y) * kp;
+    }
+    const want = mv ? 1 : 0;
+    b.a += (want - b.a) * ka;
+    const eff = fl.eff;
+    b.amp += (0.12 + 0.3 * eff - b.amp) * kw;
+    b.ph += dt * Math.PI * 2 * (1.8 + 1.0 * eff);
+  }
+
   // ---- flight --------------------------------------------------------------------------------------------------------
   function updateFlight(dt, input) {
     const { w, fl } = state;
@@ -360,19 +384,32 @@ export function createGame(env) {
     const moving = () => s && s.mode === 'play' && (s.vx !== 0 || s.vy !== 0);
     if (state.humanSweeps) { fl.tgt = humanEffort(dt, input); fl.eff += clamp(fl.tgt - fl.eff, -0.1, 0.07); }
     state.ff = !!(input.pointer.down && inRect(state.cam.lay?.ctrl?.fast, input.pointer.x, input.pointer.y)) || (!state.humanSweeps && input.keys.down.has('Space'));
-    // advance the ice: time is compressed, faster far from the house
-    fl.acc += (s && s.y < -15 ? 5 : 2.5) * (state.ff ? 2 : 1);
+    // advance the ice: time is compressed by the inverse of the on-screen scale at the stone, so the stone's on-screen speed is
+    // exactly proportional to its real speed along the whole path (smooth, no jump in pace; faster pace far from the house)
+    fl.acc += (PACE / lengthShape(s ? s.y : 0)) * (state.ff ? 2 : 1);
     let n = Math.floor(fl.acc); fl.acc -= n;
     const ev = [];
+    let stepped = 0;
     while (n-- > 0 && !w.settled) {
       if (!state.humanSweeps) {
         if (moving() && w.t >= fl.nextAt && s.y > -26) { fl.cmd = sweepDecision(w, s.id, fl.plan, profOf(fl.team), aiRng); fl.nextAt = w.t + 0.35; }
         fl.eff += clamp(fl.cmd - fl.eff, -4 * STEP, 4 * STEP);
       }
+      for (const q of w.stones) { q.lx = q.x; q.ly = q.y; q.la = q.ang; }
       stepWorld(w, { team: fl.team, eff: moving() ? fl.eff : 0 }, ev);
+      stepped++;
       fl.t += STEP;
       if (s && s.mode === 'play' && Math.round(fl.t / STEP) % 3 === 0 && state.trail.length < 900) state.trail.push([s.x, s.y, fl.eff]);
     }
+    // displayed state: the sim sits at step k, the frame is a fraction acc of the way to step k+1; draw at step k-1 + acc so the
+    // picture advances by exactly `rate` steps every update (no 2-3-2-3 stepping) and sub-update blending does the rest
+    for (const q of w.stones) {
+      q.d0x = q.dx; q.d0y = q.dy; q.d0a = q.da;
+      if (stepped && !w.settled) { q.dx = q.lx + (q.x - q.lx) * fl.acc; q.dy = q.ly + (q.y - q.ly) * fl.acc; q.da = q.la + (q.ang - q.la) * fl.acc; }
+      else { q.dx = q.x; q.dy = q.y; q.da = q.ang; }
+    }
+    state.stepped = true;
+    updateBrushes(dt, s, moving());
     if (ev.length) worldEvents(w, state.parts, ev, true);
     fl.disp += (fl.eff - fl.disp) * 0.25;
     fl.phase += dt * (3 + fl.eff * 16);
@@ -819,6 +856,8 @@ export function createGame(env) {
     }
   }
 
+  // wall-clock drawing helpers stay out of the enumerable state (hashes and saves never see them)
+  for (const k of ['alpha', 'updAt']) Object.defineProperty(state, k, { value: undefined, writable: true, enumerable: false });
   startAttract();
   resetMenus();
   if (SHOT_MODE) {
@@ -848,6 +887,7 @@ export function createGame(env) {
     // Watch & Learn, lessons and every menu are free; only real play counts against the free preview (a paused match does not).
     isPreviewExempt: () => !(state.scene === 'play' && state.m && state.m.cfg.mode !== 'watch' && state.m.cfg.mode !== 'lesson') || state.paused,
     update(dt, input) {
+      state.stepped = false; state.updAt = nowMs();
       setPress(input.pointer);
       state.t += state.paused && state.scene === 'play' ? 0 : dt;
       if (state.att && state.scene !== 'play') updateAttract(dt);
@@ -871,6 +911,7 @@ export function createGame(env) {
       }
     },
     render(ctx) {
+      state.alpha = state.stepped && env.clock ? Math.max(0, Math.min(1, (nowMs() - state.updAt) / (STEP * 1000))) : 1;
       switch (state.scene) {
         case 'title': renderTitle(ctx, state); break;
         case 'setup': renderSetup(ctx, state); break;

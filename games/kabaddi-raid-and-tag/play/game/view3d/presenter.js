@@ -10,8 +10,8 @@ const LIB = '../vendor3d/index.js';
 import { FINGER_POSES, blendFingerPose } from '../vendor3d/rig.js';
 const frac = (n) => ((n * 2654435761) >>> 0) / 4294967296;      // deterministic per-player variation (no randomness, no clock)
 const POOL = 11;
-const KITS = [{ top: '#2f6fd6', bottoms: '#f2f2f2', socks: '#2f6fd6' }, { top: '#d8453a', bottoms: '#2a2a2e', socks: '#d8453a' }];
-const SKINS = ['original', 'tan', 'brown', 'deep', 'light', 'tan', 'brown'];
+const KITS = [{ top: '#2f6fd6', bottoms: '#f2f2f2', socks: '#2f6fd6', shoes: '#f2f2f2', trim: '#cfe0ff' }, { top: '#d8453a', bottoms: '#2a2a2e', socks: '#d8453a', shoes: '#2a2a2e', trim: '#ffd0c8' }];
+const SKINS = ['clay', 'wood', 'peach', 'tan', 'brown', 'deep', 'peach'];
 const HAIRS = ['black', 'black', 'brown', 'black', 'grey', 'black', 'ginger'];
 const COURT = { W: 10, HALF: 6.5, BONUS: 4.75 };
 const toWorld = (team, x, u) => (team === 0 ? { x: x - COURT.W / 2, z: u } : { x: COURT.W / 2 - x, z: -u });
@@ -61,7 +61,7 @@ export async function createPresenter({ kitCanvas, quality }) {
   async function loadPool(kind) {
     if (pools[kind]) return pools[kind];
     const list = [];
-    const hs = await Promise.all(Array.from({ length: POOL }, () => loadHuman({ character: kind === 'f' ? 'athlete_f' : 'athlete_m', kit: KITS[0], lod: 'auto', quality })));
+    const hs = await Promise.all(Array.from({ length: POOL }, () => loadHuman({ character: kind === 'f' ? 'mannequin_f' : 'mannequin_m', kit: KITS[0], quality })));
     for (const h of hs) {
       addKabaddiClips(h);
       h.addLayer('live', { mask: 'all', additive: true, weight: 1 }); h.addLayer('react', { mask: 'upper', additive: true, weight: 0 });
@@ -340,12 +340,11 @@ export async function createPresenter({ kitCanvas, quality }) {
     camera.updateMatrixWorld(true); camera.matrixWorldInverse.copy(camera.matrixWorld).invert();
     // budget: the full level (7.5k triangles) only for the raider on the high tier, never on medium / low (they use the medium level: hands included, 3.6k)
     const fullCap = quality === 'high' ? 1 : 0;
-    let nFull = 0;
-    for (const [g, e] of byG) {
-      let lv = e.human.autoLOD(camera, L.ch);
-      if (lv === 0 && (sc.actors[g].role !== 'raider' || nFull >= fullCap)) { lv = 1; e.human.setLOD(1); }
-      if (lv === 0) nFull++;
-      e.shadow.visible = !blobs && !(lv === 0 && stage.renderer.shadowMap.enabled);
+    const fullIds = new Set([Ra.g]);
+    if (sc.beat && sc.raid) for (const id of (sc.beat.engaged || []).slice(0, 2)) fullIds.add(sc.raid.def * 7 + id);
+    for (const [g, e] of byG) {          // every player is drawn in full (the mannequins are about 1.4k triangles each); the detailed shadow is for the raider and lead only
+      const wantFull = fullIds.has(g);
+      e.shadow.visible = !blobs && !(wantFull && stage.renderer.shadowMap.enabled);
     }
     stage.update(dt);
     overlay(ctx, sc, s, L);

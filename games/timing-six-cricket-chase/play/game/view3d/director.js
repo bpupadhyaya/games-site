@@ -28,7 +28,7 @@ export function createDirector(P) {
 
   async function build(theme) {
     const world = new World(stage, theme);
-    const mk = (side, role, k) => makeActor(stage, theme, side, role, k, 'athlete_m', P.quality);
+    const mk = (side, role, k) => makeActor(stage, theme, side, role, k, 'mannequin_m', P.quality);
     const batter = await mk('bat', 'batter', 0);       // the hero: dressed (pads, gloves, helmet), the only shadow caster
     const nonStriker = await mk('bat', 'batter', 3);
     const bowler = await mk('field', 'bowler', 1);

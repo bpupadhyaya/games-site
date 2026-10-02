@@ -3,10 +3,11 @@
 import * as THREE from './three.js';
 import { decodeClips, CLIP_BONES } from './clipcodec.js';
 import { Clip, Layer, NB, MASKS, makePose, copyPose, sampleClip } from './animation.js';
+import { buildMannequinGeometry, MANNEQUIN_DETAIL, MANNEQUIN_BASE } from './mannequin.js';
 import { buildLodSet, makeLightMaterial, LOD_NAMES, LOD_POLICY, screenHeightPx, pickLod } from './lod.js';
 import { FingerRig, WristLimiter, LookAt, solveTwoBone, FINGER_POSES, blendFingerPose } from './rig.js';
 
-export const SKIN_TONES = { original: null, light: null, tan: '#c8936a', brown: '#8c5a3c', deep: '#583826' };
+export const SKIN_TONES = { original: null, light: null, tan: '#c8936a', brown: '#8c5a3c', deep: '#583826', clay: '#b48765', wood: '#a97a47', ivory: '#e2d8c8', peach: '#e0a982' };   // clay/wood/ivory/peach: the mannequin tones
 export const HAIR_COLORS = { original: null, black: '#1b1714', brown: '#4a3220', blond: '#c7a468', ginger: '#9c4a26', grey: '#9a9a9a', white: '#e4e1da' };
 
 const HERE = new URL('.', import.meta.url);
@@ -439,10 +440,12 @@ export class Human {
   }
 
   // ------------------------------------------------------------ appearance
-  setKit({ top, bottoms, socks } = {}) {
+  setKit({ top, bottoms, socks, shoes, trim } = {}) {
     for (const m of this.mats) {
       const u = m.userData.tint; if (!u) continue;
       const ref = this.info.clothRef || 0.8;
+      if (u.uTrim && (trim !== undefined || top !== undefined)) { const tc = trim !== undefined ? asColor(trim) : asColor(top).lerp(new THREE.Color(1, 1, 1), 0.62); u.uTrim.value.copy(tc); }
+      if (shoes !== undefined && u.uShoe) u.uShoe.value.copy(asColor(shoes));
       if (top !== undefined) u.uTop.value.copy(asColor(top)).multiplyScalar(1 / ref);
       if (bottoms !== undefined) u.uBottoms.value.copy(asColor(bottoms)).multiplyScalar(1 / ref);
       if (socks !== undefined) u.uSocks.value.copy(asColor(socks)).multiplyScalar(1 / ref);
@@ -450,6 +453,7 @@ export class Human {
   }
 
   setSkin(tone) {
+    if (this.info.kind === 'mannequin' && (tone === 'original' || tone === 'light' || tone == null)) tone = tone === 'light' ? 'peach' : 'clay';
     const hex = SKIN_TONES[tone] !== undefined ? SKIN_TONES[tone] : tone;
     for (const m of this.mats) {
       const u = m.userData.tint; if (!u) continue;
@@ -909,6 +913,7 @@ export async function loadHuman(spec = {}) {
   const base = spec.base || defaultAssetBase();
   const id = spec.character || 'athlete_m';
   const info = await cached(`char:${base}${id}`, () => fetchJson(`${base}characters/${id}.json`));
+  if (info.kind === 'mannequin') return loadMannequin(spec, base, id, info);
   const [gltf, clipSet, bodyMask, headMask, bodySkin] = await Promise.all([
     cached(`glb:${base}${id}`, async () => gltfLoader().parseAsync(await fetchBuf(`${base}characters/${info.glb}`), `${base}characters/`)),
     typeof spec.clips === 'object' && spec.clips ? spec.clips : loadClips(spec.clips || 'base', base),
@@ -968,7 +973,7 @@ export async function loadHuman(spec = {}) {
     const lu = {
       uTop: { value: new THREE.Color(1, 1, 1) }, uBottoms: { value: new THREE.Color(1, 1, 1) }, uSocks: { value: new THREE.Color(1, 1, 1) },
       uSkin: { value: new THREE.Color(1, 1, 1) }, uSkinK: { value: 0 }, uSkinLum: { value: typeof info.skinLum === 'number' ? info.skinLum : 0.3 },
-      uHair: { value: new THREE.Color(1, 1, 1) }, uHairK: { value: 0 }, uHairLum: { value: info.hairLum || 0.12 },
+      uHair: { value: new THREE.Color(1, 1, 1) }, uHairK: { value: 0 }, uHairLum: { value: info.hairLum || 0.12 }, uShoe: { value: new THREE.Color(1, 1, 1) }, uTrim: { value: new THREE.Color(1, 1, 1) }, uRim: { value: 0 },
     };
     const lm = makeLightMaterial(lu); mats.push(lm);
     const light = new THREE.SkinnedMesh(lodSet.light, lm);
@@ -1043,4 +1048,55 @@ function smoothTorsoWeights(scene) {
 function clone(scene) {
   const c = THREE.SkeletonUtils.clone(scene);
   return c;
+}
+
+
+// ------------------------------------------------------------ stylised mannequins (procedural geometry on the same skeleton)
+async function loadMannequin(spec, base, id, info0) {
+  const legs = spec.legs || info0.legs || 'shorts';
+  const info = { ...info0, legs };
+  const [gltf, clipSet] = await Promise.all([
+    cached(`glb:${base}${id}`, async () => gltfLoader().parseAsync(await fetchBuf(`${base}characters/${info.glb}`), `${base}characters/`)),
+    typeof spec.clips === 'object' && spec.clips ? spec.clips : loadClips(spec.clips || 'base', base),
+  ]);
+  // geometry for the three detail levels, built once per character + legs option from the skeleton's rest pose and shared by every person
+  const geos = await cached(`mgeo:${base}${id}:${legs}:${spec.hair === false ? 'nohair' : 'hair'}`, async () => {
+    gltf.scene.updateMatrixWorld(true);
+    const rest = {}, idxMap = {}; let skin = null;
+    gltf.scene.traverse((o) => { if (o.isSkinnedMesh) skin = o.skeleton; });
+    skin.bones.forEach((b, i) => { idxMap[b.name] = i; rest[b.name] = b.getWorldPosition(new THREE.Vector3()); });
+    const sp = { sex: info.sex, legs, height: info.height, hair: spec.hair };
+    return { full: buildMannequinGeometry(rest, idxMap, sp, MANNEQUIN_DETAIL.full), medium: buildMannequinGeometry(rest, idxMap, sp, MANNEQUIN_DETAIL.medium), light: buildMannequinGeometry(rest, idxMap, sp, MANNEQUIN_DETAIL.light) };
+  });
+  const model = clone(gltf.scene);
+  const bones = {};
+  model.traverse((o) => { if (o.isBone) bones[o.name] = o; });
+  let dummy = null; model.traverse((o) => { if (o.isSkinnedMesh) dummy = o; });
+  const skeleton = dummy.skeleton, bindMatrix = dummy.bindMatrix, parent = dummy.parent;
+  parent.remove(dummy);
+  const u = {
+    uTop: { value: new THREE.Color(1, 1, 1) }, uBottoms: { value: new THREE.Color(1, 1, 1) }, uSocks: { value: new THREE.Color(1, 1, 1) }, uShoe: { value: new THREE.Color(1, 1, 1) },
+    uSkin: { value: new THREE.Color(1, 1, 1) }, uSkinK: { value: 0 }, uSkinLum: { value: MANNEQUIN_BASE.skinLum },
+    uHair: { value: new THREE.Color(1, 1, 1) }, uHairK: { value: 0 }, uHairLum: { value: MANNEQUIN_BASE.hairLum }, uTrim: { value: new THREE.Color(1, 1, 1) }, uRim: { value: 0.4 },
+  };
+  const mat = makeLightMaterial(u); mat.roughness = 0.62;   // double-sided (inherited): hides any open seam
+  const lodSets = { full: [], medium: [], light: [], ready: true, stats: {} };
+  for (const lv of ['full', 'medium', 'light']) {
+    const m = new THREE.SkinnedMesh(geos[lv], mat);
+    m.bind(skeleton, bindMatrix); m.frustumCulled = false; m.castShadow = spec.castShadow !== false; m.receiveShadow = true; m.visible = lv === 'full';
+    parent.add(m); lodSets[lv].push(m); lodSets.stats[lv] = geos[lv].index.count / 3;
+  }
+  const root = new THREE.Group();
+  root.name = `human:${id}`;
+  root.add(model);
+  const h = new Human({ root, model, bones, info: { ...info, ...MANNEQUIN_BASE }, clips: Object.defineProperty({ ...clipSet }, '__meta', { value: clipSet.__meta, enumerable: false }), mats: [mat], lodSets, lod: 0 });
+  h.setKit(spec.kit || info.kit || {});
+  h.setSkin(spec.skin || info.skin || 'clay');
+  if (spec.hair && spec.hair !== false) h.setHair(spec.hair); else h.setHair('#3a2a1e');
+  if (spec.quality) h.setQuality(spec.quality);
+  if (spec.lod !== undefined && spec.lod !== 'auto') h.setLOD(spec.lod);
+  if (spec.lod === 'auto') h.lodAuto = true;
+  if (h.clips.idle) h.play('idle', { fade: 0 });
+  h.update(0);
+  return h;
 }

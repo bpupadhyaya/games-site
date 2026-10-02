@@ -257,33 +257,18 @@ export function buildPerson(h, rig, spec) {
   }
   // ---- gloves ------------------------------------------------------------------------------------------------------------------
   if (spec.gloves) {
+    // the mannequin has mitten hands: a glove is only a coloured wrist cuff (thicker for the keeper)
     for (const s of side) {
-      const fr = h.fingers[s];
-      const hb = h.bones[`Bip01_${s}_Hand`];
-      const M = hb.matrixWorld;
-      const knuck = fr.knuckle.clone(), fd = fr.fingerDir.clone().normalize(), pd = fr.palmDir.clone().normalize(), ac = fr.across.clone().normalize();
-      const W = (v) => v.clone().applyMatrix4(M);
-      const D = (v) => v.clone().transformDirection(M);
+      const hb = h.bones[`Bip01_${s}_Hand`], fb = h.bones[`Bip01_${s}_Forearm`], fore = bi(`${s}_Forearm`), hbIdx = bi(`${s}_Hand`);
+      const p0 = hb.getWorldPosition(new V()), pf = fb.getWorldPosition(new V());
+      const dir = p0.clone().sub(pf).normalize();
       const keeper = spec.gloves === 'keeper';
-      const cen = knuck.clone().multiplyScalar(0.55).addScaledVector(fd, keeper ? 0.050 : 0.034).addScaledVector(pd, keeper ? -0.002 : 0.004);
-      const hbIdx = bi(`${s}_Hand`);
-      // fist / mitt body
-      const sx = keeper ? 0.062 : 0.050, sy = keeper ? 0.030 : 0.036, sz = keeper ? 0.090 : 0.064;
-      gb.ellipsoid(hard, W(cen), D(ac).multiplyScalar(sx), D(pd).multiplyScalar(sy), D(fd).multiplyScalar(sz), col.glove, [[hbIdx, 1]], { nu: 16, nv: 10 });
-      // padded finger rolls on the back of the glove
-      for (let k = 0; k < 3; k++) {
-        const cc = cen.clone().addScaledVector(fd, 0.012 + k * 0.022).addScaledVector(pd, -sy * 0.62);
-        gb.ellipsoid(hard, W(cc), D(ac).multiplyScalar(sx * 0.88), D(pd).multiplyScalar(0.010), D(fd).multiplyScalar(0.012), col.gloveTrim || col.glove, [[hbIdx, 1]], { nu: 12, nv: 6 });
-      }
-      // wrist cuff
-      const cuffC = new V(0, 0, 0).addScaledVector(fd, -0.012);
-      const fore = bi(`${s}_Forearm`);
-      const cuffPts = [
-        { p: W(cuffC.clone().addScaledVector(fd, 0.022)), rx: 0.044, rz: 0.040, w: [[hbIdx, 1]] },
-        { p: W(cuffC.clone().addScaledVector(fd, -0.060)), rx: 0.046, rz: 0.044, w: [[hbIdx, 0.5], [fore, 0.5]] },
-        { p: W(cuffC.clone().addScaledVector(fd, -0.120)), rx: 0.050, rz: 0.048, w: [[fore, 1]] },
+      const pts = [
+        { p: p0.clone().addScaledVector(dir, -0.10), rx: 0.046, rz: 0.044, w: [[fore, 1]], c: col.gloveTrim || col.glove },
+        { p: p0.clone().addScaledVector(dir, -0.04), rx: keeper ? 0.058 : 0.05, rz: keeper ? 0.056 : 0.048, w: [[fore, 0.5], [hbIdx, 0.5]], c: col.glove },
+        { p: p0.clone().addScaledVector(dir, 0.02), rx: keeper ? 0.06 : 0.052, rz: keeper ? 0.054 : 0.046, w: [[hbIdx, 1]], c: col.glove },
       ];
-      gb.tube(hard, cuffPts, { nu: 14, color: col.glove, zref: D(pd) });
+      gb.tube(hard, pts, { nu: 12, color: col.glove, zref: new V(0, 0, 1) });
     }
   }
   // cloth and hard gear are drawn as ONE skinned mesh (one draw call per dressed person): the hard parts are appended to the cloth accumulator

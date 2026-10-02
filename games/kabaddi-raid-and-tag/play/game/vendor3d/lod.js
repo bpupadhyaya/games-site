@@ -159,20 +159,23 @@ export function makeLightMaterial(u) {
   m.userData.tint = u; m.userData.kind = 'light';
   m.onBeforeCompile = (sh) => {
     Object.assign(sh.uniforms, u);
-    sh.vertexShader = `attribute vec4 aMask; attribute float aHair; varying vec4 vMask; varying float vHair;\n${sh.vertexShader}`.replace('#include <begin_vertex>', '#include <begin_vertex>\n vMask = aMask; vHair = aHair;');
-    sh.fragmentShader = `uniform vec3 uTop; uniform vec3 uBottoms; uniform vec3 uSocks; uniform vec3 uSkin; uniform float uSkinK; uniform float uSkinLum; uniform vec3 uHair; uniform float uHairK; uniform float uHairLum; float gFloor = 0.0; varying vec4 vMask; varying float vHair;\n${sh.fragmentShader}`
+    sh.vertexShader = `attribute vec4 aMask; attribute float aHair; attribute float aTrim; varying vec4 vMask; varying float vHair; varying float vTrim;\n${sh.vertexShader}`.replace('#include <begin_vertex>', '#include <begin_vertex>\n vMask = aMask; vHair = aHair; vTrim = aTrim;');
+    sh.fragmentShader = `uniform vec3 uTop; uniform vec3 uBottoms; uniform vec3 uSocks; uniform vec3 uSkin; uniform float uSkinK; uniform float uSkinLum; uniform vec3 uHair; uniform float uHairK; uniform float uHairLum; uniform vec3 uShoe; uniform vec3 uTrim; uniform float uRim; float gFloor = 0.0; varying float vTrim; varying vec4 vMask; varying float vHair;\n${sh.fragmentShader}`
       .replace('#include <color_fragment>', `#include <color_fragment>
       {
         vec3 b0 = diffuseColor.rgb; vec3 c = b0;
         c = mix(c, b0 * uTop, vMask.r); c = mix(c, b0 * uBottoms, vMask.g); c = mix(c, b0 * uSocks, vMask.b);
-        float lh = dot(c, vec3(0.2126, 0.7152, 0.0722));
-        c = mix(c, uHair * clamp(pow(lh / uHairLum, 0.65), 0.25, 2.6), vHair * uHairK);
+        float lh = dot(c, vec3(0.2126, 0.7152, 0.0722)); float lb = dot(b0, vec3(0.2126, 0.7152, 0.0722));
+        c = mix(c, uHair * clamp(pow(lh / uHairLum, 0.65), 0.25, 2.6), max(vHair, 0.0) * uHairK);
+        c = mix(c, uShoe * (lb / 0.8), max(-vHair, 0.0));
+        c = mix(c, uTrim * (lb / 0.8), clamp(vTrim, 0.0, 1.0));
+        c = mix(c, vec3(0.86) * (lb / 0.8), clamp(vTrim - 1.0, 0.0, 1.0));
         float l = dot(c, vec3(0.2126, 0.7152, 0.0722));
         c = mix(c, uSkin * clamp(l / uSkinLum, 0.0, 2.4), vMask.a * uSkinK);
         diffuseColor.rgb = c;
         gFloor = 0.4;
       }`)
-      .replace('#include <opaque_fragment>', '#include <opaque_fragment>\n gl_FragColor.rgb = max(gl_FragColor.rgb, diffuseColor.rgb * gFloor);\n if (!gl_FrontFacing) gl_FragColor.rgb = diffuseColor.rgb * 0.62;');
+      .replace('#include <opaque_fragment>', '#include <opaque_fragment>\n gl_FragColor.rgb = max(gl_FragColor.rgb, diffuseColor.rgb * gFloor);\n float rimF = pow(1.0 - clamp(dot(normalize(normal), normalize(vViewPosition)), 0.0, 1.0), 3.0); gl_FragColor.rgb += uRim * rimF * vec3(0.46, 0.56, 0.72) + uRim * 0.34 * (0.45 + 0.55 * normal.y) * vec3(0.5, 0.58, 0.7);\n if (!gl_FrontFacing) gl_FragColor.rgb = diffuseColor.rgb * 0.62;');
   };
   m.customProgramCacheKey = () => 'view3d-light';
   return m;

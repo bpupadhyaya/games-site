@@ -6,7 +6,7 @@ import { TECH, evalPose } from './skills.js';
 import { buildCourt, buildBall } from './court.js';
 
 const LIB = '../vendor3d/index.js';
-const SKINS = ['original', 'tan', 'brown', 'light', 'tan', 'deep'];
+const SKINS = ['peach', 'clay', 'wood', 'ivory', 'tan', 'brown'];
 const HAIRS = ['black', 'brown', 'black', 'blond', 'brown', 'black'];
 const KITS = [
   { top: '#d0342c', bottoms: '#f4f4f4', socks: '#f4f4f4' },
@@ -21,7 +21,6 @@ function pickQuality() {
   const weak = (nav.hardwareConcurrency && nav.hardwareConcurrency <= 6) || (nav.deviceMemory && nav.deviceMemory <= 4);
   return weak ? 'medium' : 'high';
 }
-const MAX_FULL = { high: 2, medium: 1, low: 1 };
 
 export async function createPresenter({ kitCanvas, quality = pickQuality() }) {
   let V3;
@@ -47,31 +46,24 @@ export async function createPresenter({ kitCanvas, quality = pickQuality() }) {
     // rebuild the whole scene content (called at start and when the event / venue changes)
     P.ready = false;
     for (const h of P.humans) stage.remove(h);
-    if (P.blobPlane) stage.scene.remove(P.blobPlane);
     if (P.court) stage.remove(P.court);
     if (P.ball) stage.remove(P.ball);
     P.humans = []; P.actors = [];
-    // one transparent plane carries every blob shadow (a single draw call)
-    { const BW = 2 * (3.05 + 1.6), BL = 2 * (6.7 + 1.6), TW = 256, TH = Math.round(256 * BL / BW);
-      const cv = document.createElement('canvas'); cv.width = TW; cv.height = TH;
-      const tex = new THREE.CanvasTexture(cv); tex.colorSpace = THREE.SRGBColorSpace;
-      const mat = new THREE.MeshStandardMaterial({ map: tex, transparent: true, depthWrite: false, roughness: 1 });
-      const pl = new THREE.Mesh(new THREE.PlaneGeometry(BW, BL), mat); pl.rotation.x = -Math.PI / 2; pl.position.y = 0.01; pl.renderOrder = 1;
-      stage.scene.add(pl); P.blobPlane = pl; P.blob = { cv, ctx: cv.getContext('2d'), tex, BW, BL, TW, TH }; }
     P.court = buildCourt(stage, { venue, netHeight: women ? 1.42 : 1.52 });
     stage.setLighting(venue === 'beach' ? 'day' : 'indoor', venue === 'beach' ? {} : { exposure: 0.72, hemi: 0.6, keyI: 2.3 });
     if (venue === 'hall') stage.setSky('#0c1824', '#0c1824', { near: 22, far: 70 });
     P.ball = buildBall(); stage.add(P.ball);
-    const char = women ? 'athlete_f' : 'athlete_m';
+    const char = women ? 'mannequin_f' : 'mannequin_m';
     for (let i = 0; i < 6; i++) {
       const team = i < 3 ? 0 : 1;
-      const h = await loadHuman({ character: char, kit: KITS[team], skin: SKINS[i], hair: HAIRS[i], lod: 'auto', quality: quality });
+      const h = await loadHuman({ character: char, kit: KITS[team], skin: SKINS[i], hair: HAIRS[i], legs: 'shorts' });
       h.groundClamp = 'auto'; h.footPlanting = true;
       h.play('ready_stance', { fade: 0 });
+      if (quality !== 'high' && team === 1) h.model.traverse((o) => { if (o.isMesh || o.isSkinnedMesh) o.castShadow = false; });   // the far team is small: no shadow pass for it on medium / low
       h.setPosition(0, 0, 0);
       stage.add(h);
       P.humans.push(h);
-      P.actors.push({ lvl: 0, a: new Actor(h), lastAct: -1, prev: null, lock: null, yaw: team === 0 ? 0 : Math.PI, state: 'idle', phase: i * 0.37 });
+      P.actors.push({ a: new Actor(h), lastAct: -1, prev: null, lock: null, yaw: team === 0 ? 0 : Math.PI, state: 'idle', phase: i * 0.37 });
     }
     P.women = women; P.venue = venue; P.ready = true;
     stage.invalidate();
@@ -89,7 +81,7 @@ export async function createPresenter({ kitCanvas, quality = pickQuality() }) {
       const avg = perfSum / perfN; perfN = 0; perfSum = 0;
       if (avg > 22 && perfLevel < 2) {
         perfLevel++;
-        if (perfLevel === 1) { stage.renderer.shadowMap.enabled = false; for (const h of P.humans) for (const m of h.lodSets.full) m.castShadow = false; }
+        if (perfLevel === 1) { stage.renderer.shadowMap.enabled = false; }
         else stage.renderer.setPixelRatio(Math.min(1.25, stage.renderer.getPixelRatio()));
         stage.invalidate();
       }
@@ -166,21 +158,6 @@ export async function createPresenter({ kitCanvas, quality = pickQuality() }) {
     // before the toss the feeder holds the ball
     const R = s.rally;
     const feeder = s.phase === 'ready' && R ? s.players[R.server * 3 + 2] : null;
-    // level of detail: full meshes only for the players who are in an action (or the one nearest the ball), light meshes + blob shadows for the rest
-    const shadowsOn = stage.renderer.shadowMap.enabled;
-    const cand = s.players.map((q, i) => { const a = q.act; const inWin = a && s.t >= a.t0 - 0.3 && s.t <= a.t1; return { i, k: inWin ? Math.abs(s.t - a.tc) : 100 + Math.hypot(q.x - s.ball.x, q.z - s.ball.z) }; }).sort((u, v) => u.k - v.k);
-    const order = cand.map((c) => c.i);
-    for (let r = 0; r < 6; r++) {
-      const i = order[r], pa = P.actors[i], h = P.humans[i];
-      const lvl = r < (MAX_FULL[quality] || 1) ? 0 : (quality !== 'low' && s.players[i].team === 0 ? 1 : 2);   // near team: medium, far team: light (small on screen)
-      if (lvl !== pa.lvl || pa.cast !== (lvl === 0 && shadowsOn)) { pa.lvl = lvl; h.setLOD(lvl); pa.cast = lvl === 0 && shadowsOn; for (const k of ['full', 'medium', 'light']) for (const m of h.lodSets[k]) m.castShadow = k === 'full' && pa.cast; }
-      pa.showBlob = !(lvl === 0 && shadowsOn);
-    }
-    { const B = P.blob, c = B.ctx; c.clearRect(0, 0, B.TW, B.TH);
-      for (let i = 0; i < 6; i++) { if (!P.actors[i].showBlob) continue; const q = s.players[i];
-        const x = (q.x + B.BW / 2) / B.BW * B.TW, y = ((q.z + B.BL / 2) / B.BL) * B.TH, r = 0.5 / B.BW * B.TW, k = Math.max(0.35, 1 - q.jy * 0.9);
-        const g = c.createRadialGradient(x, y, 0, x, y, r); g.addColorStop(0, `rgba(0,0,0,${0.42 * k})`); g.addColorStop(1, 'rgba(0,0,0,0)'); c.fillStyle = g; c.fillRect(x - r, y - r, 2 * r, 2 * r); }
-      B.tex.needsUpdate = true; }
     for (let i = 0; i < 6; i++) {
       const sp = s.players[i], H = P.humans[i], pa = P.actors[i];
       // base animation

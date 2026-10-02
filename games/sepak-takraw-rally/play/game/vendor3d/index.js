@@ -9,7 +9,7 @@ export { CLIP_BONES } from './clipcodec.js';
 export { addSportClips, addBatClips, addThrowClips, addFieldClips, BAT_LEAD } from './sportclips.js';
 export { makeCricketBat, makeBall, makeStumps, makeStick } from './props.js';
 export * as THREE from './three.js';
-export const VIEW3D_VERSION = '1.4.2';
+export const VIEW3D_VERSION = '1.5.1';
 export { addGloves, addPads, addWhites, addHelmet, addCap, equipBatter } from './equipment.js';
 export { buildLodSet, LOD_NAMES, LOD_POLICY, screenHeightPx, pickLod } from './lod.js';
 export { createCrowd } from './crowd.js';
