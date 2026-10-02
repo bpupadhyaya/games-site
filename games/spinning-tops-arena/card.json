@@ -1,0 +1,14 @@
+{
+  "title": "Spinning Tops Arena",
+  "tagline": "Wind it. Launch it. Last one spinning wins.",
+  "description": "A physics duel with turned wooden tops in a lacquered dish. Build your top in the workshop, pull the cord, whip it to speed and watch the spin, the wobble and the clash decide it. Five rivals, three dishes, two players on one device.",
+  "genre": "spinning-top physics duel",
+  "demo": true,
+  "howToPlay": [
+    "Build a top: body, tip, rim weight, spin direction.",
+    "Press near your top and drag back, then let go.",
+    "Tap when the needle is in the gold to whip the cord.",
+    "Watch the clash: a slow top wobbles, a hard hit near the rim sends a top out.",
+    "Win two rounds out of three."
+  ]
+}
