@@ -631,3 +631,8 @@ section { padding: 90px 0; position: relative; }
   .gc-icon { width: 56px; height: 56px; border-radius: 14px; }
 }
 @media (prefers-reduced-motion: reduce) { .hero-phones .phone { animation: none; } .gc-shots img, .view-card .phone { transition: none; } }
+
+/* header name: 'ARCFORGE - WORLD HERITAGE GAMES' (the sub-line wraps under the word on narrow screens) */
+.logo-word { line-height: 1.15; }
+.logo-sub { font-weight: 600; opacity: 0.85; }
+@media (max-width: 720px) { .logo-sub { display: block; font-size: 0.62em; letter-spacing: 0.08em; } .logo-sep { display: none; } }
