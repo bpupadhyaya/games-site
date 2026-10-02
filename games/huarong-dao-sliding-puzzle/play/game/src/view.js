@@ -1,6 +1,6 @@
 // Everything drawn each frame. Reads state, changes nothing.
 import {
-  W, H, UI, DISPLAY, CARVE, GOLD, GOLD_HI, GOLD_LO, PAPER, text, rr, panel, button, background, star, drawBlock, icon, drawParticles, alpha, light, dark, blockColors,
+  W, H, UI, DISPLAY, CARVE, GOLD, GOLD_HI, GOLD_LO, PAPER, text, rr, panel, button, background, star, drawBlock, setBlockLang, icon, drawParticles, alpha, light, dark, blockColors,
 } from './art.js';
 import { parseLayout, reachable, applyMove, DIMS } from './engine.js';
 import { rectOf, nameBlocks, movesFor } from './puzzle.js';
@@ -152,7 +152,8 @@ function drawArt(ctx, name, x, y, w, h, S, b) {
   const bx = (cols) => cx - (CELL * cols * kb) / 2;
   if (name === 'logo') {
     miniBoard(ctx, HDLM_ROWS, cx - CELL * 4 * 0.2 / 2 * 1, y + 22, (h - 44) / (CELL * 5));
-    text(ctx, '华容道', x + w * 0.76, cy + 18, 64, GOLD, { font: CARVE, weight: 900, shadow: 'rgba(0,0,0,0.6)' });
+    if (S.lang === 'zh') text(ctx, '华容道', x + w * 0.76, cy + 18, 64, GOLD, { font: CARVE, weight: 900, shadow: 'rgba(0,0,0,0.6)' });
+    else { text(ctx, 'Huarong', x + w * 0.76, cy - 2, 50, GOLD, { font: DISPLAY, weight: 900, shadow: 'rgba(0,0,0,0.6)' }); text(ctx, 'Dao', x + w * 0.76, cy + 52, 50, GOLD, { font: DISPLAY, weight: 900, shadow: 'rgba(0,0,0,0.6)' }); }
   } else if (name === 'goal' || name === 'gate') {
     const rows = ['.BB.', 'ABBC', 'DEEF', 'DGHF', 'I..J'];
     const pieces = blocksOf(HDLM_ROWS).map((p) => ({ ...p }));
@@ -227,12 +228,13 @@ function drawArt(ctx, name, x, y, w, h, S, b) {
     icon(ctx, 'lock', cx + 190, y + h - 50, 40, 'rgba(246,234,210,0.7)');
   } else if (name === 'hdlm') {
     miniBoard(ctx, HDLM_ROWS, bx(4), y + 16, kb);
-    text(ctx, '横刀立马', x + w - 130, cy - 10, 50, GOLD, { font: CARVE, weight: 900, shadow: 'rgba(0,0,0,0.6)' });
+    if (S.lang === 'zh') text(ctx, '横刀立马', x + w - 130, cy - 10, 50, GOLD, { font: CARVE, weight: 900, shadow: 'rgba(0,0,0,0.6)' });
+    else { text(ctx, 'Heng Dao', x + w - 130, cy - 34, 42, GOLD, { font: DISPLAY, weight: 900, shadow: 'rgba(0,0,0,0.6)' }); text(ctx, 'Li Ma', x + w - 130, cy + 10, 42, GOLD, { font: DISPLAY, weight: 900, shadow: 'rgba(0,0,0,0.6)' }); }
     text(ctx, '81', x + w - 130, cy + 60, 60, PAPER, { font: DISPLAY, weight: 800 });
   } else if (name === 'auto') {
     ctx.strokeStyle = 'rgba(255,255,255,0.16)'; ctx.lineWidth = 12; ctx.beginPath(); ctx.arc(cx - 110, cy, 44, 0, Math.PI * 2); ctx.stroke();
     ctx.strokeStyle = GOLD; ctx.beginPath(); ctx.arc(cx - 110, cy, 44, -Math.PI / 2, -Math.PI / 2 + ((t * 0.4) % 1) * Math.PI * 2); ctx.stroke();
-    drawBlock(ctx, { x: cx + 10, y: cy - 77, w: CELL, h: CELL }, { t: 'S', name: { zh: '卒' } }, { glow: 0.5 + 0.5 * Math.sin(t * 5) });
+    drawBlock(ctx, { x: cx + 10, y: cy - 77, w: CELL, h: CELL }, { t: 'S', name: { zh: '卒', en: 'Soldier' } }, { glow: 0.5 + 0.5 * Math.sin(t * 5) });
     icon(ctx, 'pause', cx + 200, cy, 52, GOLD);
   } else if (name === 'demo' || name === 'lock') {
     icon(ctx, 'lock', cx, cy, 90, GOLD);
@@ -314,12 +316,12 @@ function drawTitle(ctx, S, ui) {
   g.addColorStop(0, '#fff3c4'); g.addColorStop(0.5, '#e4bd68'); g.addColorStop(1, '#b2842f');
   ctx.save();
   ctx.shadowColor = 'rgba(0,0,0,0.7)'; ctx.shadowBlur = 24; ctx.shadowOffsetY = 8;
-  ctx.font = `900 ${zh ? 180 : 168}px ${CARVE}`;
   ctx.textAlign = 'center';
   ctx.fillStyle = g;
-  ctx.fillText('华容道', 360, 292);
+  if (zh) { ctx.font = `900 180px ${CARVE}`; ctx.fillText('华容道', 360, 292); }
+  else { ctx.font = `900 100px ${DISPLAY}`; ctx.fillText('HUARONG', 360, 226); ctx.font = `900 70px ${DISPLAY}`; ctx.fillText('D A O', 360, 304); }
   ctx.restore();
-  text(ctx, zh ? 'HUARONG DAO' : 'HUARONG DAO · SLIDING PUZZLE', 360, 352, zh ? 40 : 32, 'rgba(246,234,210,0.85)', { font: DISPLAY, weight: 700 });
+  text(ctx, zh ? 'HUARONG DAO' : 'SLIDING PUZZLE', 360, 352, zh ? 40 : 34, 'rgba(246,234,210,0.85)', { font: DISPLAY, weight: 700 });
   text(ctx, tr(S.lang, 'tagline'), 360, 396, 26, 'rgba(246,234,210,0.62)', { weight: 500 });
   // the self-playing board
   const { pieces, lift } = attractState(S.t);
@@ -620,6 +622,7 @@ function drawPlay(ctx, S, ui) {
 }
 
 export function render(ctx, S, ui) {
+  setBlockLang(S.lang);
   ctx.textBaseline = 'alphabetic';
   switch (S.scene) {
     case 'title': drawTitle(ctx, S, ui); break;

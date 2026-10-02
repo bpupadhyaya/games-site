@@ -35,8 +35,8 @@ export const NAV_NEXT = { x: 486, y: 1450, w: 210, h: 84 };
 export const DOC_BODY_NAV = { x: 48, y: 136, w: 624, h: 1190 };
 
 // ---- title screen ----
-export const LANG_EN = { x: 440, y: 24, w: 120, h: 64 };
-export const LANG_ZH = { x: 576, y: 24, w: 120, h: 64 };
+export const LANG_EN = { x: 150, y: 24, w: 270, h: 64 };
+export const LANG_ZH = { x: 432, y: 24, w: 240, h: 64 };
 export const MENU_REGION = { x: 24, y: 830, w: 672, h: 680 };
 
 // ---- overlays ----

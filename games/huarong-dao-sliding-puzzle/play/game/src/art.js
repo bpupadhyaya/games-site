@@ -23,6 +23,9 @@ export const BLOCK = {
   huang: { base: '#85386a', ink: '#f7e2b8' },
   S: { base: '#4b3128', ink: '#e4bd68' },
 };
+// Which script the block faces carry: 'en' engraves the English names, 'zh' the carved characters.
+let BLOCK_LANG = 'en';
+export const setBlockLang = (l) => { BLOCK_LANG = l === 'zh' ? 'zh' : 'en'; };
 export const blockColors = (p) => {
   if (p.t === 'C') return BLOCK.C;
   if (p.t === 'S') return BLOCK.S;
@@ -215,18 +218,31 @@ export function drawBlock(ctx, r, p, o = {}) {
     ctx.fillStyle = alpha(col.ink, 0.7);
     for (const [cx, cy] of [[x + ins, y + ins], [x + w - ins, y + ins], [x + ins, y + h - ins], [x + w - ins, y + h - ins]]) { ctx.beginPath(); ctx.arc(cx, cy, 5, 0, Math.PI * 2); ctx.fill(); }
   }
-  // engraved characters
-  const chars = [...p.name.zh];
   const cx = x + w / 2, cy = y + h / 2;
-  let size, pos;
-  if (p.t === 'C') { size = 118; pos = chars.map((c, i) => [cx + (i - 0.5) * size * 1.0, cy + size * 0.34, c]); }
-  else if (p.t === 'V') { size = 84; pos = chars.map((c, i) => [cx, cy + (i - 0.5) * size * 1.06 + size * 0.34, c]); }
-  else if (p.t === 'H') { size = 84; pos = chars.map((c, i) => [cx + (i - 0.5) * size * 1.0, cy + size * 0.34, c]); }
-  else { size = 84; pos = [[cx, cy + size * 0.34, chars[0]]]; }
-  for (const [tx, ty, c] of pos) {
-    text(ctx, c, tx + 2, ty + 3, size, 'rgba(0,0,0,0.5)', { font: CARVE, weight: 900 });
-    text(ctx, c, tx - 1, ty - 1, size, 'rgba(255,255,255,0.18)', { font: CARVE, weight: 900 });
-    text(ctx, c, tx, ty, size, col.ink, { font: CARVE, weight: 900 });
+  const engrave = (str, tx, ty, size, font, weight) => {
+    text(ctx, str, tx + 2, ty + 3, size, 'rgba(0,0,0,0.5)', { font, weight });
+    text(ctx, str, tx - 1, ty - 1, size, 'rgba(255,255,255,0.18)', { font, weight });
+    text(ctx, str, tx, ty, size, col.ink, { font, weight });
+  };
+  if (BLOCK_LANG === 'en') {
+    // engraved English names, one word per line, fitted to the block's inner frame
+    const words = (p.name.en ?? p.name.zh).split(' ');
+    const lines = p.t === 'C' ? words : words.length > 1 ? words : [words[0]];
+    const availW = w - (ins + 8) * 2, availH = h - (ins + 6) * 2;
+    ctx.font = `900 100px ${DISPLAY}`;
+    const widest = Math.max(...lines.map((l) => ctx.measureText(l).width)) / 100;
+    const cap = p.t === 'C' ? 92 : p.t === 'S' ? 40 : p.t === 'V' ? 62 : 56;
+    const size = Math.min(cap, availW / widest, availH / (lines.length * 1.08));
+    const lh = size * 1.08;
+    lines.forEach((l, i) => engrave(l, cx, cy + (i - (lines.length - 1) / 2) * lh + size * 0.34, size, DISPLAY, 900));
+  } else {
+    const chars = [...p.name.zh];
+    let size, pos;
+    if (p.t === 'C') { size = 118; pos = chars.map((c, i) => [cx + (i - 0.5) * size * 1.0, cy + size * 0.34, c]); }
+    else if (p.t === 'V') { size = 84; pos = chars.map((c, i) => [cx, cy + (i - 0.5) * size * 1.06 + size * 0.34, c]); }
+    else if (p.t === 'H') { size = 84; pos = chars.map((c, i) => [cx + (i - 0.5) * size * 1.0, cy + size * 0.34, c]); }
+    else { size = 84; pos = [[cx, cy + size * 0.34, chars[0]]]; }
+    for (const [tx, ty, c] of pos) engrave(c, tx, ty, size, CARVE, 900);
   }
   if (o.glow) {
     ctx.strokeStyle = `rgba(255,236,160,${0.95 * o.glow})`;

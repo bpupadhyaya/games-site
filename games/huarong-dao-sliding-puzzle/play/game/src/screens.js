@@ -63,8 +63,8 @@ export function buildUi(S) {
       b.push({ t: 'row', size: 28, minH: 96, items: [{ id: 'about', label: T('aboutBtn') }, { id: 'settings', label: T('settingsBtn') }] });
       ui.blocks = b;
       ui.fixed = [
-        { id: 'lang:en', rect: LANG_EN, kind: S.lang === 'en' ? 'on' : 'normal', label: 'English', size: 25 },
-        { id: 'lang:zh', rect: LANG_ZH, kind: S.lang === 'zh' ? 'on' : 'normal', label: '中文', size: 27 },
+        { id: 'lang:en', rect: LANG_EN, kind: S.lang === 'en' ? 'on' : 'normal', label: 'Play in English', size: 25 },
+        { id: 'lang:zh', rect: LANG_ZH, kind: S.lang === 'zh' ? 'on' : 'normal', label: '中文 游戏', size: 27 },
       ];
       break;
     }
@@ -127,7 +127,7 @@ export function buildUi(S) {
       const b = [];
       b.push({ t: 'h', text: T('settingsBtn'), size: 36 });
       b.push({ t: 'p', text: T('language'), size: 24, gap: 6 });
-      b.push({ t: 'row', size: 28, items: [{ id: 'lang:en', label: 'English', kind: S.lang === 'en' ? 'on' : 'normal' }, { id: 'lang:zh', label: '中文', kind: S.lang === 'zh' ? 'on' : 'normal' }] });
+      b.push({ t: 'row', size: 28, items: [{ id: 'lang:en', label: 'Play in English', kind: S.lang === 'en' ? 'on' : 'normal' }, { id: 'lang:zh', label: '中文 游戏', kind: S.lang === 'zh' ? 'on' : 'normal' }] });
       b.push({ t: 'btn', id: 'set:sound', label: S.sound ? T('soundOn') : T('soundOff'), kind: S.sound ? 'on' : 'normal', size: 28 });
       b.push({ t: 'p', text: `${T('thinkTime')}: ${THINK_STEPS[S.thinkIdx]}${T('seconds')}`, size: 24, gap: 6 });
       b.push({ t: 'row', size: 30, items: [{ id: 'set:think-', label: '-', disabled: S.thinkIdx === 0 }, { id: 'set:think+', label: '+', disabled: S.thinkIdx === THINK_STEPS.length - 1 }] });

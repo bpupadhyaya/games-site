@@ -198,6 +198,9 @@ export async function createGame(env) {
     } else if (n === 7) { S.scene = 'rules'; S.page.rules = 2;
     } else if (n === 8) { S.scene = 'howto'; S.page.howto = 1; S.textIdx = 2;
     } else if (n === 9) { S.scene = 'settings'; S.textIdx = 4;
+    } else if (n === 10) { S.lang = 'zh'; // review only: the Chinese title screen
+    } else if (n === 11) { S.lang = 'zh'; S.scene = 'rules'; S.page.rules = 2; // review only: Chinese Rules
+    } else if (n === 12) { S.lang = 'zh'; S.scene = 'settings'; // review only: Chinese Settings
     } else if (n === 6) { // the same game in Chinese, a block selected
       S.lang = 'zh';
       startLevel(lvIdx('red-cliffs'));
@@ -206,7 +209,7 @@ export async function createGame(env) {
       puz.selected = nextAutoMove(puz)?.id ?? -1;
     }
   }
-  const shotSeed = typeof location !== 'undefined' && /[?&]shot=1/.test(location.search) && config?.seed >= 900001 && config.seed <= 900009 ? config.seed - 900000 : 0;
+  const shotSeed = typeof location !== 'undefined' && /[?&]shot=1/.test(location.search) && config?.seed >= 900001 && config.seed <= 900012 ? config.seed - 900000 : 0;
   if (shotSeed) stageShot(shotSeed);
 
   // ------------------------------------------------------------------------------ ui plumbing
