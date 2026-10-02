@@ -1,0 +1,25 @@
+{
+  "slug": "bao-la-kiswahili",
+  "title": "Bao la Kiswahili",
+  "tagline": "The great board game of the Swahili coast",
+  "genre": "mancala strategy board game",
+  "orientation": "portrait",
+  "version": "1.0.0",
+  "monetization": {
+    "model": "premium",
+    "priceUsd": 3.99,
+    "previewSeconds": 90,
+    "products": [
+      {
+        "id": "unlock_game",
+        "type": "non-consumable",
+        "priceUsd": 3.99,
+        "title": "Unlock Game"
+      }
+    ]
+  },
+  "locales": [
+    "en"
+  ],
+  "demoOnly": true
+}

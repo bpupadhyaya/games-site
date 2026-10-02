@@ -1,0 +1,15 @@
+{
+  "title": "Tower of Hanoi",
+  "tagline": "Move the tower. Find the pattern.",
+  "description": "The classic disc-stacking puzzle, made to feel wonderful: lit, lacquered discs on carved pegs that lift, slide and drop with a satisfying thud. Three chapters from 3 to 10 discs, a four-peg variant and scrambled starts, a Daily Challenge, and a real solver behind Think and Watch & Learn so every level shows its exact minimum. No timers and no ads.",
+  "genre": "disc-stacking recursion puzzle",
+  "demo": true,
+  "howToPlay": [
+    "Move the whole tower of discs from the first peg to the gold peg, one disc at a time.",
+    "Tap a peg to lift its top disc, then tap the peg where it should go. Or drag the disc and let go.",
+    "A larger disc may never rest on a smaller one. Such a move is refused and does not count.",
+    "Every level shows its minimum number of moves. Three stars for matching it.",
+    "Think shows the best next move from wherever you are. Undo takes a move back.",
+    "Watch & Learn plays whole towers with the best moves, with time to think and a Pause button."
+  ]
+}

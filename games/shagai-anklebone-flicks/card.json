@@ -1,0 +1,15 @@
+{
+  "title": "Shagai",
+  "tagline": "Toss four ankle bones, hold the best, gallop the felt trail",
+  "description": "A dice race inspired by the ankle-bone games of Mongolia. Toss four bones that land as Horse, Camel, Sheep or Goat, hold the ones you like and toss the rest again, then gallop your bone-horse along a winding trail across the steppe. Land on a tailwind, avoid marmot burrows, and flick rivals back. Play one to three computer riders, get Hints, or watch a whole race with Auto Play.",
+  "genre": "dice and flick race",
+  "demo": true,
+  "howToPlay": [
+    "Tap or swipe up on the felt mat to toss four bones.",
+    "Each side is worth strides; matching sides earn a bonus.",
+    "Tap bones to hold them, then Toss again (up to two more times).",
+    "Press Gallop: your bone-horse rides that many stations.",
+    "Tailwinds push you on, burrows push you back, and landing on a rival flicks them back.",
+    "First to station 66 wins."
+  ]
+}

@@ -21,6 +21,27 @@
     "play": "games/baloot-sun-hokum-table/play/"
   },
   {
+    "slug": "bao-la-kiswahili",
+    "stage": "release-candidate",
+    "title": "Bao la Kiswahili",
+    "tagline": "The great board game of the Swahili coast",
+    "description": "Bao la Kiswahili is the great strategy game of Zanzibar, Tanzania and Kenya, and the deepest of the mancala family. Bring seeds into play in namua, capture and sow from a kichwa, guard your nyumba, then fight the mtaji. Six lessons, Watch & Learn, Think hints, four computer levels and a full illustrated Rules page.",
+    "genre": "mancala strategy board game",
+    "demo": true,
+    "howToPlay": [
+      "You sit at the bottom. The two rows nearest you are yours; the glowing pits are the ones you may play.",
+      "Namua: you start with 22 seeds in your store. Each turn one goes into a pit of your front row.",
+      "If a glowing pit faces enemy seeds you must capture: tap it, then choose the end of your front row (kichwa) to sow the captured seeds from.",
+      "If nothing can capture, play a takata: pick a glowing pit and a direction. Both directions show where the sowing would end.",
+      "Mtaji: once your store is empty, sow a pit with 2 or more seeds. If its last seed lands on a pit facing enemy seeds, you capture.",
+      "Win by leaving your opponent with an empty front row or no pit that can be sown.",
+      "Think shows a good move and why. Undo takes a move back. Watch & Learn plays a whole game for you to study.",
+      "The Rules page explains every rule, nyumba, safari and kutakatia included, with pictures and text up to 300%."
+    ],
+    "icon": "games/bao-la-kiswahili/icon.svg",
+    "play": "games/bao-la-kiswahili/play/"
+  },
+  {
     "slug": "big-card-solitaire-large-print",
     "stage": "prototype",
     "title": "Big Card Solitaire",
@@ -101,6 +122,24 @@
     ],
     "icon": "games/congklak-sungka-shells/icon.svg",
     "play": "games/congklak-sungka-shells/play/"
+  },
+  {
+    "slug": "crokinole-disc-flick",
+    "stage": "release-candidate",
+    "title": "Disc Flick Table",
+    "tagline": "Flick it. Ring it. Pocket the twenty.",
+    "description": "A Canadian tabletop classic with real disc physics. Pull back and flick across a maple board, bounce off brass pegs, drop one in the pocket for 20, and outplay five rivals.",
+    "genre": "physics disc-flick tabletop",
+    "demo": true,
+    "howToPlay": [
+      "Slide your disc along your line, then pull back anywhere like a slingshot and let go.",
+      "Pull length sets the power and pull direction sets the aim.",
+      "If a rival disc is on the board, your flick must touch one or it is removed.",
+      "Rings score 5, 10 and 15 and the centre pocket scores 20.",
+      "Eight discs each per round; the higher total after the last round wins."
+    ],
+    "icon": "games/crokinole-disc-flick/icon.svg",
+    "play": "games/crokinole-disc-flick/play/"
   },
   {
     "slug": "crown-star-regions",
@@ -248,6 +287,25 @@
     "play": "games/golden-isle-journey/play/"
   },
   {
+    "slug": "hanoi-tower-discs",
+    "stage": "release-candidate",
+    "title": "Tower of Hanoi",
+    "tagline": "Move the tower. Find the pattern.",
+    "description": "The classic disc-stacking puzzle, made to feel wonderful: lit, lacquered discs on carved pegs that lift, slide and drop with a satisfying thud. Three chapters from 3 to 10 discs, a four-peg variant and scrambled starts, a Daily Challenge, and a real solver behind Think and Watch & Learn so every level shows its exact minimum. No timers and no ads.",
+    "genre": "disc-stacking recursion puzzle",
+    "demo": true,
+    "howToPlay": [
+      "Move the whole tower of discs from the first peg to the gold peg, one disc at a time.",
+      "Tap a peg to lift its top disc, then tap the peg where it should go. Or drag the disc and let go.",
+      "A larger disc may never rest on a smaller one. Such a move is refused and does not count.",
+      "Every level shows its minimum number of moves. Three stars for matching it.",
+      "Think shows the best next move from wherever you are. Undo takes a move back.",
+      "Watch & Learn plays whole towers with the best moves, with time to think and a Pause button."
+    ],
+    "icon": "games/hanoi-tower-discs/icon.svg",
+    "play": "games/hanoi-tower-discs/play/"
+  },
+  {
     "slug": "hare-and-hounds",
     "stage": "release-candidate",
     "title": "Hare and Hounds",
@@ -288,6 +346,26 @@
     "play": "games/harvest-sling/play/"
   },
   {
+    "slug": "huarong-dao-sliding-puzzle",
+    "stage": "release-candidate",
+    "title": "Huarong Dao: Sliding Puzzle",
+    "tagline": "Free the commander. Fewest moves wins.",
+    "description": "The classic Chinese sliding-block puzzle, made to feel wonderful. Slide carved lacquer blocks around the pass to lead Cao Cao to the gate. 32 layouts including the famous Heng Dao Li Ma, the fewest possible moves for each, a real hint, unlimited undo and Watch & Learn, which solves levels step by step. No timers and no ads.",
+    "genre": "sliding block puzzle",
+    "demo": true,
+    "howToPlay": [
+      "Lead Cao Cao, the big red block, to the gate at the bottom of the board.",
+      "Drag a block into an empty space. It slides along the real route and never through other blocks.",
+      "Or tap a block to see every cell it can reach, then tap one.",
+      "A move is one block set down on a new cell, however far it travels.",
+      "Think shows the best next move; press it again to make it. Undo takes back a move.",
+      "Finish close to the fewest possible moves for three stars. Solve six levels in a chapter to open the next.",
+      "Watch & Learn solves levels for you, step by step, with time to think."
+    ],
+    "icon": "games/huarong-dao-sliding-puzzle/icon.svg",
+    "play": "games/huarong-dao-sliding-puzzle/play/"
+  },
+  {
     "slug": "jack-and-boule-petanque",
     "stage": "release-candidate",
     "title": "Jack and Boule",
@@ -304,6 +382,24 @@
     ],
     "icon": "games/jack-and-boule-petanque/icon.svg",
     "play": "games/jack-and-boule-petanque/play/"
+  },
+  {
+    "slug": "kendama-ken-and-ball",
+    "stage": "release-candidate",
+    "title": "Ken and Ball",
+    "tagline": "A string, a heavy ball and a steady hand.",
+    "description": "A Japanese skill toy with real string physics. Drag the ken, pop the ball and land it in a cup or on the spike, climb 20 tricks, or chase a Combo Run.",
+    "genre": "skill toy / string-and-ball physics",
+    "demo": true,
+    "howToPlay": [
+      "Press and drag to move the ken like a hand.",
+      "Pull up quickly or hold Pop and let go to send the ball flying.",
+      "Slide a cup under the ball and move down with it as it lands.",
+      "Put the spike under the ball with the hole facing it to spike it.",
+      "Flip the ken for the base cup. Fewer drops earn more stars."
+    ],
+    "icon": "games/kendama-ken-and-ball/icon.svg",
+    "play": "games/kendama-ken-and-ball/play/"
   },
   {
     "slug": "kings-table-tafl",
@@ -325,6 +421,24 @@
     ],
     "icon": "games/kings-table-tafl/icon.svg",
     "play": "games/kings-table-tafl/play/"
+  },
+  {
+    "slug": "kite-duel-sky-fight",
+    "stage": "release-candidate",
+    "title": "Kite Duel",
+    "tagline": "Read the wind. Cross the string. Cut them loose.",
+    "description": "A fighting-kite duel in a living sky. Touch to steer, choose slack, steady or pull, and saw through your rival's string before yours parts. Five rivals, four skies, real wind and string tension.",
+    "genre": "kite-fighting skill duel",
+    "demo": true,
+    "howToPlay": [
+      "Touch the sky to set your kite's heading.",
+      "Choose Slack, Steady or Pull for the string.",
+      "Read the wind strip: pull in lulls, ease off before gusts.",
+      "Swing across your rival's string and keep it tight to cut.",
+      "Win two rounds out of three."
+    ],
+    "icon": "games/kite-duel-sky-fight/icon.svg",
+    "play": "games/kite-duel-sky-fight/play/"
   },
   {
     "slug": "konane-hawaiian-jumps",
@@ -385,6 +499,44 @@
     ],
     "icon": "games/mahjong-four-winds/icon.svg",
     "play": "games/mahjong-four-winds/play/"
+  },
+  {
+    "slug": "makruk-thai-chess-tutor",
+    "stage": "release-candidate",
+    "title": "Makruk: Thai Chess",
+    "tagline": "The chess of Thailand, with a tutor beside you.",
+    "description": "Makruk is Thailand's traditional chess: cowrie-shell pawns, a queen that steps one square, and endgames played against a count. Play five computer levels from Beginner to Master, learn in eight short lessons, watch two computers play with a think-and-reveal commentary, or share one phone. Think shows a strong move and why, and a live Count strip teaches the counting rules. Full rules inside, large text, no ads.",
+    "genre": "Thai chess",
+    "demo": true,
+    "howToPlay": [
+      "New here? Tap Learn: eight short lessons where you make every move yourself.",
+      "Tap a piece, then a lit square, or drag it. Dots are quiet moves and red rings are captures.",
+      "Checkmate the other Khun to win. Gold moves first.",
+      "A Bia (cowrie) steps forward and captures diagonally. On the sixth rank it becomes a Bia-ngai.",
+      "When no Bia remain the counting rule starts. The Count strip shows the count, the limit and the moves left.",
+      "Think shows a strong move and the reason. Threats rings your pieces that could be taken next.",
+      "Watch & Learn plays a whole game between two computers: guess the move, then see it revealed. Pause any time."
+    ],
+    "icon": "games/makruk-thai-chess-tutor/icon.svg",
+    "play": "games/makruk-thai-chess-tutor/play/"
+  },
+  {
+    "slug": "matkot-beach-rally",
+    "stage": "release-candidate",
+    "title": "Matkot Beach Rally",
+    "tagline": "The beach paddle game from Israel. Keep the ball alive.",
+    "description": "Matkot, the wooden-paddle rally heard on every Israeli beach. Drag to run, lift to swing, and rally with a partner for the longest streak or beat five rivals who read the ball like real people. Golden-hour sand, sea and a sky that slides toward sunset.",
+    "genre": "beach paddle rally",
+    "demo": true,
+    "howToPlay": [
+      "Press anywhere and drag to run. Lift your thumb to swing.",
+      "Get under the white ring on the sand: that is where the ball drops.",
+      "Meet the ball on the left or right of your paddle to aim left or right.",
+      "Swing early for a fast smash, late for a high lob; mid-height is sweet.",
+      "Beach Rally: keep it going with Dana. Match: first to 7 or 11 wins."
+    ],
+    "icon": "games/matkot-beach-rally/icon.svg",
+    "play": "games/matkot-beach-rally/play/"
   },
   {
     "slug": "mill-nine-mens-morris",
@@ -471,6 +623,24 @@
     ],
     "icon": "games/mu-torere-star-board/icon.svg",
     "play": "games/mu-torere-star-board/play/"
+  },
+  {
+    "slug": "oche-darts-501",
+    "stage": "release-candidate",
+    "title": "Oche Darts 501",
+    "tagline": "Hold steady, release, and check out on a double.",
+    "description": "Pub darts with a drifting aim point that tightens then tires. Race down from 501 with a proper double-out, learn finishes with the checkout coach, and play five opponents or a friend.",
+    "genre": "darts / skill sport",
+    "demo": true,
+    "howToPlay": [
+      "Touch and hold to aim: the aim point sways, then settles, then tires.",
+      "Let go while the aim point is over your target.",
+      "Three darts a visit; each dart is subtracted from 501.",
+      "Finish exactly on zero with a double, or you bust.",
+      "Tap Think for the best next dart and checkout route."
+    ],
+    "icon": "games/oche-darts-501/icon.svg",
+    "play": "games/oche-darts-501/play/"
   },
   {
     "slug": "okey-tile-rummy-offline",
@@ -659,6 +829,25 @@
     ],
     "icon": "games/senet-pharaohs-path/icon.svg",
     "play": "games/senet-pharaohs-path/play/"
+  },
+  {
+    "slug": "shagai-anklebone-flicks",
+    "stage": "release-candidate",
+    "title": "Shagai",
+    "tagline": "Toss four ankle bones, hold the best, gallop the felt trail",
+    "description": "A dice race inspired by the ankle-bone games of Mongolia. Toss four bones that land as Horse, Camel, Sheep or Goat, hold the ones you like and toss the rest again, then gallop your bone-horse along a winding trail across the steppe. Land on a tailwind, avoid marmot burrows, and flick rivals back. Play one to three computer riders, get Hints, or watch a whole race with Auto Play.",
+    "genre": "dice and flick race",
+    "demo": true,
+    "howToPlay": [
+      "Tap or swipe up on the felt mat to toss four bones.",
+      "Each side is worth strides; matching sides earn a bonus.",
+      "Tap bones to hold them, then Toss again (up to two more times).",
+      "Press Gallop: your bone-horse rides that many stations.",
+      "Tailwinds push you on, burrows push you back, and landing on a rival flicks them back.",
+      "First to station 66 wins."
+    ],
+    "icon": "games/shagai-anklebone-flicks/icon.svg",
+    "play": "games/shagai-anklebone-flicks/play/"
   },
   {
     "slug": "shogi-generals-and-drops",

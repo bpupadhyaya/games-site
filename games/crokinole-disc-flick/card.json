@@ -1,0 +1,14 @@
+{
+  "title": "Disc Flick Table",
+  "tagline": "Flick it. Ring it. Pocket the twenty.",
+  "description": "A Canadian tabletop classic with real disc physics. Pull back and flick across a maple board, bounce off brass pegs, drop one in the pocket for 20, and outplay five rivals.",
+  "genre": "physics disc-flick tabletop",
+  "demo": true,
+  "howToPlay": [
+    "Slide your disc along your line, then pull back anywhere like a slingshot and let go.",
+    "Pull length sets the power and pull direction sets the aim.",
+    "If a rival disc is on the board, your flick must touch one or it is removed.",
+    "Rings score 5, 10 and 15 and the centre pocket scores 20.",
+    "Eight discs each per round; the higher total after the last round wins."
+  ]
+}

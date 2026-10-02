@@ -1,0 +1,25 @@
+{
+  "slug": "kite-duel-sky-fight",
+  "title": "Kite Duel",
+  "tagline": "Read the wind. Cross the string. Cut them loose.",
+  "genre": "kite-fighting skill duel",
+  "orientation": "portrait",
+  "version": "1.0.0",
+  "monetization": {
+    "model": "premium",
+    "priceUsd": 3.99,
+    "previewSeconds": 90,
+    "products": [
+      {
+        "id": "unlock_game",
+        "type": "non-consumable",
+        "priceUsd": 3.99,
+        "title": "Unlock Game"
+      }
+    ]
+  },
+  "locales": [
+    "en"
+  ],
+  "demoOnly": true
+}

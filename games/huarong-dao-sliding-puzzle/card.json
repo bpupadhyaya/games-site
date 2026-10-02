@@ -1,0 +1,16 @@
+{
+  "title": "Huarong Dao: Sliding Puzzle",
+  "tagline": "Free the commander. Fewest moves wins.",
+  "description": "The classic Chinese sliding-block puzzle, made to feel wonderful. Slide carved lacquer blocks around the pass to lead Cao Cao to the gate. 32 layouts including the famous Heng Dao Li Ma, the fewest possible moves for each, a real hint, unlimited undo and Watch & Learn, which solves levels step by step. No timers and no ads.",
+  "genre": "sliding block puzzle",
+  "demo": true,
+  "howToPlay": [
+    "Lead Cao Cao, the big red block, to the gate at the bottom of the board.",
+    "Drag a block into an empty space. It slides along the real route and never through other blocks.",
+    "Or tap a block to see every cell it can reach, then tap one.",
+    "A move is one block set down on a new cell, however far it travels.",
+    "Think shows the best next move; press it again to make it. Undo takes back a move.",
+    "Finish close to the fewest possible moves for three stars. Solve six levels in a chapter to open the next.",
+    "Watch & Learn solves levels for you, step by step, with time to think."
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "title": "Kite Duel",
+  "tagline": "Read the wind. Cross the string. Cut them loose.",
+  "description": "A fighting-kite duel in a living sky. Touch to steer, choose slack, steady or pull, and saw through your rival's string before yours parts. Five rivals, four skies, real wind and string tension.",
+  "genre": "kite-fighting skill duel",
+  "demo": true,
+  "howToPlay": [
+    "Touch the sky to set your kite's heading.",
+    "Choose Slack, Steady or Pull for the string.",
+    "Read the wind strip: pull in lulls, ease off before gusts.",
+    "Swing across your rival's string and keep it tight to cut.",
+    "Win two rounds out of three."
+  ]
+}

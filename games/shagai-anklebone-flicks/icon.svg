@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0d3a80"/><stop offset="0.6" stop-color="#3b8ad0"/><stop offset="1" stop-color="#f6d9a4"/></linearGradient>
+    <radialGradient id="bone" cx="0.35" cy="0.3" r="0.8"><stop offset="0" stop-color="#fffdf4"/><stop offset="0.6" stop-color="#f1e6c8"/><stop offset="1" stop-color="#c8b58a"/></radialGradient>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#sky)"/>
+  <circle cx="780" cy="250" r="90" fill="#fff6d8" opacity="0.9"/>
+  <path d="M0 700 L180 560 L330 680 L520 520 L720 690 L880 590 L1024 680 V1024 H0Z" fill="#4f7b6a"/>
+  <rect y="720" width="1024" height="304" fill="#9bb85a"/>
+  <rect x="120" y="760" width="784" height="150" rx="40" fill="#8f2a26"/>
+  <rect x="150" y="785" width="724" height="100" rx="24" fill="#245fa8"/>
+  <path d="M290 330 C400 380 480 380 590 330 C800 290 840 700 590 700 C480 650 400 650 290 700 C40 700 80 290 290 330Z" fill="url(#bone)" stroke="#5a3c19" stroke-width="14" transform="translate(70 0) rotate(-8 450 510)"/>
+  <ellipse cx="512" cy="508" rx="170" ry="125" fill="#f0d9cf" stroke="#d8a595" stroke-width="10" transform="rotate(-8 512 508)"/>
+  <path d="M440 640 L450 440 L480 380 L505 340 L535 390 L610 430 L690 520 L720 560 L706 596 L640 590 L610 630 L590 650Z" fill="#a8451f" transform="rotate(-8 512 508) translate(-30 -10)"/>
+  <circle cx="610" cy="500" r="12" fill="#f6edd2"/>
+</svg>

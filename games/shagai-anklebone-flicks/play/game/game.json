@@ -1,0 +1,25 @@
+{
+  "slug": "shagai-anklebone-flicks",
+  "title": "Shagai",
+  "tagline": "Toss four ankle bones, hold the best, gallop the felt trail",
+  "genre": "dice and flick race",
+  "orientation": "portrait",
+  "version": "1.0.0",
+  "monetization": {
+    "model": "premium",
+    "priceUsd": 2.99,
+    "previewSeconds": 90,
+    "products": [
+      {
+        "id": "unlock_game",
+        "type": "non-consumable",
+        "priceUsd": 2.99,
+        "title": "Unlock Game"
+      }
+    ]
+  },
+  "locales": [
+    "en"
+  ],
+  "demoOnly": true
+}

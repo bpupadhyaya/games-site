@@ -1,0 +1,16 @@
+{
+  "title": "Makruk: Thai Chess",
+  "tagline": "The chess of Thailand, with a tutor beside you.",
+  "description": "Makruk is Thailand's traditional chess: cowrie-shell pawns, a queen that steps one square, and endgames played against a count. Play five computer levels from Beginner to Master, learn in eight short lessons, watch two computers play with a think-and-reveal commentary, or share one phone. Think shows a strong move and why, and a live Count strip teaches the counting rules. Full rules inside, large text, no ads.",
+  "genre": "Thai chess",
+  "demo": true,
+  "howToPlay": [
+    "New here? Tap Learn: eight short lessons where you make every move yourself.",
+    "Tap a piece, then a lit square, or drag it. Dots are quiet moves and red rings are captures.",
+    "Checkmate the other Khun to win. Gold moves first.",
+    "A Bia (cowrie) steps forward and captures diagonally. On the sixth rank it becomes a Bia-ngai.",
+    "When no Bia remain the counting rule starts. The Count strip shows the count, the limit and the moves left.",
+    "Think shows a strong move and the reason. Threats rings your pieces that could be taken next.",
+    "Watch & Learn plays a whole game between two computers: guess the move, then see it revealed. Pause any time."
+  ]
+}

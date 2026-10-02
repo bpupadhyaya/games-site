@@ -1,0 +1,105 @@
+// Browser/WebView entry point shared by every game. web/main.js calls boot() and nothing else.
+// URL flags:  ?demo=1            public web demo (nothing purchasable)
+//             ?dev=1             browser only: env.config.dev = true (tester tools)
+//             ?seed=N            fixed RNG seed
+//             ?shot=1&ticks=N    play N ticks with the seeded monkey, draw one frame, then set
+//                                document.title = "shot-ready" (used by `tools/arc shots`)
+import { createRng } from './rng.js';
+import { createLoop, STEP } from './loop.js';
+import { createInput } from './input.js';
+import { createView } from './view.js';
+import { createBridge } from './bridge.js';
+import { createStorage } from './storage.js';
+import { createMonetization } from './monetization.js';
+import { createAudio } from './audio.js';
+import { createMonkey } from './harness.js';
+import { createPreviewGate } from './preview.js';
+
+export async function boot({ createGame, meta, canvas, background }) {
+  const params = new URLSearchParams(globalThis.location.search);
+  const manifest = await (await fetch('./game.json')).json();
+  const bridge = createBridge();
+  // Bundles published to the public site carry demoOnly, so the demo cut cannot be bypassed via the URL.
+  const demo = params.has('demo') || manifest.demoOnly === true;
+  const dev = !demo && (bridge.native ? (await bridge.call('app.dev').catch(() => null))?.dev === true : params.has('dev'));
+  const seed = params.has('seed') ? Number(params.get('seed')) >>> 0 : Date.now() >>> 0;
+
+  // Share text (Daily Hunt result etc.) and jump to another Arcforge game. Native: the shell's share
+  // sheet / game intro. Web: the browser share sheet or clipboard, and the sibling game's play page.
+  const share = async (text) => {
+    if (bridge.native) return (await bridge.call('share.text', { text }).catch(() => null)) ?? { shared: false };
+    try {
+      if (globalThis.navigator?.share) {
+        await globalThis.navigator.share({ text });
+        return { shared: true };
+      }
+      await globalThis.navigator?.clipboard?.writeText(text);
+      return { shared: true, copied: true };
+    } catch {
+      return { shared: false };
+    }
+  };
+  const openGame = (slug) => {
+    if (bridge.native) bridge.call('app.open', { slug }).catch(() => {});
+    else globalThis.location.assign(`../../${slug}/play/`);
+  };
+
+  const env = {
+    share,
+    openGame,
+    rng: createRng(seed),
+    storage: createStorage({ bridge, namespace: manifest.slug }),
+    monetization: createMonetization({ bridge, manifest, mode: bridge.native ? 'native' : demo ? 'demo' : 'mock' }),
+    audio: createAudio(),
+    // day = whole days since 1970 (UTC): lets a game seed a "daily" challenge that is identical for
+    // every player on the same date without reading the clock itself (web/src must stay pure).
+    // dev: true only when the app's Developer toggle is on (debug builds only; compile-time false in release)
+    // or, in the browser, when the URL has ?dev=1. Games use it to show tester tools (level pickers, skips).
+    config: { seed, demo, day: Math.floor(Date.now() / 86400000), dev },
+    manifest,
+  };
+  // Ownership arrives via monetization.onChange; never hold the game hostage to a slow store.
+  await Promise.race([env.monetization.init().catch(() => {}), new Promise((resolve) => setTimeout(resolve, 3000))]);
+
+  const rawGame = await createGame(env);
+  // game.json `monetization.previewSeconds` = free play time before the unlock screen (kit/preview.js).
+  const game = createPreviewGate({ game: rawGame, meta, storage: env.storage, monetization: env.monetization, manifest, demo });
+  const view = createView(canvas, { width: meta.width, height: meta.height, background });
+  const input = createInput();
+  const draw = () => view.frame((ctx) => game.render(ctx, view));
+
+  if (params.has('shot')) {
+    const monkey = createMonkey(seed, meta);
+    const ticks = Number(params.get('ticks') ?? 600);
+    for (let i = 0; i < ticks; i++) {
+      monkey(input);
+      game.update(STEP, input.snapshot());
+      if (i % 60 === 0) await null;
+    }
+    // Keep presenting the frozen frame: a single draw may never reach the compositor before capture.
+    const present = () => {
+      draw();
+      globalThis.requestAnimationFrame(present);
+    };
+    present();
+    globalThis.document.title = 'shot-ready';
+    return { game, env };
+  }
+
+  input.attach(canvas, view);
+  canvas.addEventListener('pointerdown', () => env.audio.unlock(), { once: true });
+  const loop = createLoop({ update: (dt) => game.update(dt, input.snapshot()), render: draw });
+  globalThis.document.addEventListener('visibilitychange', () => {
+    if (globalThis.document.hidden) {
+      game.flushPreview?.();
+      loop.stop();
+    } else loop.start();
+  });
+  bridge.on('app.pause', () => {
+    game.flushPreview?.();
+    loop.stop();
+  });
+  bridge.on('app.resume', () => loop.start());
+  loop.start();
+  return { game, env, loop };
+}

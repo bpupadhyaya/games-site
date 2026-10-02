@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2f3a8f"/>
+      <stop offset="0.55" stop-color="#d9709c"/>
+      <stop offset="1" stop-color="#ffc98e"/>
+    </linearGradient>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#sky)"/>
+  <circle cx="780" cy="820" r="150" fill="#fff0c8" opacity="0.55"/>
+  <path d="M250 1024 Q420 640 600 330" stroke="#fff6e4" stroke-width="7" fill="none"/>
+  <path d="M800 1024 Q640 700 420 360" stroke="#fff6e4" stroke-width="7" fill="none"/>
+  <circle cx="520" cy="560" r="46" fill="#ffd77a" opacity="0.8"/>
+  <g transform="translate(610 300) rotate(14)">
+    <polygon points="0,-170 130,-15 0,190 -130,-15" fill="#e2503c"/>
+    <polygon points="0,-170 130,-15 0,-15" fill="#fff1d6"/>
+    <polygon points="0,190 -130,-15 0,-15" fill="#fff1d6"/>
+    <polygon points="0,-170 130,-15 0,190 -130,-15" fill="none" stroke="#5a2a1a" stroke-width="9"/>
+    <path d="M0 -170 V190 M-130 -15 Q0 -60 130 -15" stroke="#5a2a1a" stroke-width="7" fill="none"/>
+  </g>
+  <g transform="translate(410 340) rotate(-16)">
+    <polygon points="-90,-190 90,-190 150,0 90,190 -90,190 -150,0" fill="#f2f4ff"/>
+    <rect x="-150" y="-190" width="300" height="100" fill="#27327f"/>
+    <rect x="-150" y="10" width="300" height="90" fill="#27327f"/>
+    <polygon points="-90,-190 90,-190 150,0 90,190 -90,190 -150,0" fill="none" stroke="#141a45" stroke-width="9"/>
+  </g>
+  <circle cx="515" cy="475" r="30" fill="#fff6e4"/>
+</svg>

@@ -1,0 +1,14 @@
+{
+  "title": "Ken and Ball",
+  "tagline": "A string, a heavy ball and a steady hand.",
+  "description": "A Japanese skill toy with real string physics. Drag the ken, pop the ball and land it in a cup or on the spike, climb 20 tricks, or chase a Combo Run.",
+  "genre": "skill toy / string-and-ball physics",
+  "demo": true,
+  "howToPlay": [
+    "Press and drag to move the ken like a hand.",
+    "Pull up quickly or hold Pop and let go to send the ball flying.",
+    "Slide a cup under the ball and move down with it as it lands.",
+    "Put the spike under the ball with the hole facing it to spike it.",
+    "Flip the ken for the base cup. Fewer drops earn more stars."
+  ]
+}

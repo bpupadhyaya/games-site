@@ -1,0 +1,17 @@
+{
+  "title": "Bao la Kiswahili",
+  "tagline": "The great board game of the Swahili coast",
+  "description": "Bao la Kiswahili is the great strategy game of Zanzibar, Tanzania and Kenya, and the deepest of the mancala family. Bring seeds into play in namua, capture and sow from a kichwa, guard your nyumba, then fight the mtaji. Six lessons, Watch & Learn, Think hints, four computer levels and a full illustrated Rules page.",
+  "genre": "mancala strategy board game",
+  "demo": true,
+  "howToPlay": [
+    "You sit at the bottom. The two rows nearest you are yours; the glowing pits are the ones you may play.",
+    "Namua: you start with 22 seeds in your store. Each turn one goes into a pit of your front row.",
+    "If a glowing pit faces enemy seeds you must capture: tap it, then choose the end of your front row (kichwa) to sow the captured seeds from.",
+    "If nothing can capture, play a takata: pick a glowing pit and a direction. Both directions show where the sowing would end.",
+    "Mtaji: once your store is empty, sow a pit with 2 or more seeds. If its last seed lands on a pit facing enemy seeds, you capture.",
+    "Win by leaving your opponent with an empty front row or no pit that can be sown.",
+    "Think shows a good move and why. Undo takes a move back. Watch & Learn plays a whole game for you to study.",
+    "The Rules page explains every rule, nyumba, safari and kutakatia included, with pictures and text up to 300%."
+  ]
+}
