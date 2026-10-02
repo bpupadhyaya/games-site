@@ -167,9 +167,12 @@ function finishDartCheck(m, res) {
 // Close the visit: update the averages and report what to show. Does not change whose turn it is.
 export function closeVisit(m) {
   const v = m.visit, side = m.turn, st = m.stats[side];
+  if (v.closed) return { side, pts: v.total, bust: v.bust, won: v.won, darts: v.darts.length };   // already counted (a resumed match)
+  v.closed = true;
   const pts = v.bust ? 0 : v.startRem - m.rem[side];
   v.total = pts;
-  // the darts a busted visit did not throw still count against nobody; only darts actually thrown count
+  // a busted visit scores 0 and counts as a full visit of 3 darts in the average, as on a real scoreboard
+  if (v.bust) st.darts += 3 - v.darts.length;
   st.points += pts;
   st.visits++;
   if (pts > st.hi) st.hi = pts;

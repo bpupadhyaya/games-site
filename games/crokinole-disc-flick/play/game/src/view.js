@@ -178,6 +178,10 @@ function drawAim(ctx, state) {
   const dragging = !!(a.active || state.aiDrag);
   // the waiting disc, hovering a little
   drawDisc(ctx, p.x, p.y, side, a.ang * 0.4, { lift: 7, glow: 0.35 + 0.2 * Math.sin(t * 5) });
+  if (state.blocked) {
+    ctx.save(); ctx.strokeStyle = '#ff7a5a'; ctx.lineWidth = 4; ctx.globalAlpha = 0.65 + 0.3 * Math.sin(t * 9);
+    ctx.beginPath(); ctx.arc(p.x, p.y, R_DISC + 7, 0, TAU); ctx.moveTo(p.x - 13, p.y - 13); ctx.lineTo(p.x + 13, p.y + 13); ctx.stroke(); ctx.restore();
+  }
   if (dragging) {
     const L = 14 + a.power * 62, bx = p.x - Math.cos(a.ang) * L, by = p.y - Math.sin(a.ang) * L;
     ctx.save(); ctx.lineCap = 'round';
@@ -349,7 +353,8 @@ function drawChips(ctx, state) {
     ctx.save(); ctx.globalAlpha = Math.min(1, (1 - k) * 2); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.font = `700 ${p.size ?? 30}px ${FONT}`;
     ctx.translate(s.x, s.y - 24 - k * 34);
-    textShadow(ctx, p.text, 0, 0, p.col ?? '#ffe08a', 6);
+    ctx.lineJoin = 'round'; ctx.lineWidth = Math.max(5, (p.size ?? 30) * 0.2); ctx.strokeStyle = 'rgba(48,22,8,0.92)'; ctx.strokeText(p.text, 0, 0);
+    ctx.fillStyle = p.col ?? '#ffe08a'; ctx.fillText(p.text, 0, 0);
     ctx.restore();
   }
 }
@@ -360,22 +365,21 @@ function drawBanner(ctx, state) {
   if (m.phase !== 'score' || !m.roundInfo) return;
   const info = m.roundInfo, k = Math.min(1, Math.max(0, (info.t - 0.3) / 0.5));
   if (k <= 0) return;
-  const y = 330 - (1 - k) * 30, nm = names(state);
+  // Below the board, so the discs and their score chips stay visible while the round is counted.
+  const y = 956 + (1 - k) * 24, nm = names(state);
   ctx.save(); ctx.globalAlpha = k;
-  const g = ctx.createLinearGradient(0, y - 20, 0, y + 150); g.addColorStop(0, 'rgba(24,10,8,0.0)'); g.addColorStop(0.2, 'rgba(24,10,8,0.9)'); g.addColorStop(1, 'rgba(24,10,8,0.9)');
-  roundPath(ctx, 40, y, 640, 150, 28); ctx.fillStyle = 'rgba(28,12,10,0.92)'; ctx.fill();
+  roundPath(ctx, 40, y, 640, 142, 28); ctx.fillStyle = 'rgba(28,12,10,0.94)'; ctx.fill();
   ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(255,214,150,0.5)'; ctx.stroke();
   ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
-  ctx.fillStyle = '#fff3d6'; ctx.font = `700 34px ${FONT}`; ctx.fillText(`Round ${info.round} counted`, W / 2, y + 44);
-  ctx.font = `700 52px ${FONT}`;
-  ctx.fillStyle = TEAM[0].face0; ctx.textAlign = 'right'; ctx.fillText(String(info.pts[0]), W / 2 - 40, y + 104);
-  ctx.fillStyle = '#ffe9bf'; ctx.textAlign = 'center'; ctx.fillText(':', W / 2, y + 100);
-  ctx.fillStyle = TEAM[1].face0; ctx.textAlign = 'left'; ctx.fillText(String(info.pts[1]), W / 2 + 40, y + 104);
-  ctx.font = `400 21px ${FONT}`; ctx.fillStyle = 'rgba(255,233,191,0.8)';
-  ctx.textAlign = 'right'; ctx.fillText(nm[0], W / 2 - 100, y + 134); ctx.textAlign = 'left'; ctx.fillText(nm[1], W / 2 + 100, y + 134);
+  ctx.fillStyle = '#fff3d6'; ctx.font = `700 30px ${FONT}`; ctx.fillText(`Round ${info.round} counted`, W / 2, y + 34);
+  ctx.font = `700 50px ${FONT}`;
+  ctx.fillStyle = TEAM[0].face0; ctx.textAlign = 'right'; ctx.fillText(String(info.pts[0]), W / 2 - 40, y + 88);
+  ctx.fillStyle = '#ffe9bf'; ctx.textAlign = 'center'; ctx.fillText(':', W / 2, y + 84);
+  ctx.fillStyle = TEAM[1].face0; ctx.textAlign = 'left'; ctx.fillText(String(info.pts[1]), W / 2 + 40, y + 88);
+  ctx.font = `400 22px ${FONT}`; ctx.fillStyle = 'rgba(255,233,191,0.85)';
+  ctx.textAlign = 'right'; ctx.fillText(nm[0], W / 2 - 150, y + 84); ctx.textAlign = 'left'; ctx.fillText(nm[1], W / 2 + 150, y + 84);
+  if (info.t > 1.2) { ctx.globalAlpha = k * (0.7 + 0.3 * Math.sin(state.t * 4)); ctx.fillStyle = '#fff3d6'; ctx.font = `400 22px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText(m.cfg.mode === 'watch' ? 'Next round starting…' : 'Tap to continue', W / 2, y + 125); }
   ctx.restore();
-  void g;
-  if (info.t > 1.2) { ctx.save(); ctx.globalAlpha = 0.6 + 0.3 * Math.sin(state.t * 4); ctx.fillStyle = '#fff3d6'; ctx.font = `400 22px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText(m.cfg.mode === 'watch' ? 'Next round starting…' : 'Tap to continue', W / 2, y + 180); ctx.restore(); }
 }
 
 export function renderPlay(ctx, state) {

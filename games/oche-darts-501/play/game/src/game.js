@@ -43,13 +43,36 @@ export function createGame(env) {
 
   // ---- persistence ---------------------------------------------------------------------------------
   const save = () => { storage.set('settings', state.settings); storage.set('record', state.record); };
+  // What is written to storage so a killed app can Continue: the match, and the visit in progress (the darts already thrown
+  // stay thrown, with their places on the board). Once a leg has been won it is the start of the next leg. `snap` is the
+  // statistics at the start of the visit, used if the visit that ended the leg is replayed.
+  let visitSnap = null;
+  const cloneStats = (st) => st.map((x) => ({ ...x }));
+  const snapVisit = () => { visitSnap = state.m ? cloneStats(state.m.stats) : null; };
   const saveResume = () => {
     const m = state.m;
-    if (!m || m.cfg.mode === 'watch' || m.over) return;
-    state.resume = { cfg: m.cfg, rem: m.rem, legsWon: m.legsWon, starter: m.starter, turn: m.turn, legNo: m.legNo, stats: m.stats };
+    if (!m || m.cfg.mode === 'watch') return;
+    if (m.over) { clearResume(); return; }
+    const r = { cfg: m.cfg, rem: [...m.rem], legsWon: [...m.legsWon], starter: m.starter, turn: m.turn, legNo: m.legNo, stats: cloneStats(m.stats), visit: null, sticks: [], snap: visitSnap };
+    if (state.phase === 'legEnd' && m.visit.won) {
+      r.rem = [m.cfg.start, m.cfg.start]; r.starter = 1 - m.starter; r.turn = r.starter; r.legNo = m.legNo + 1;
+    } else if (m.visit.won) {   // the winning dart is in flight or settling: throw that visit again
+      r.rem[m.turn] = m.visit.startRem; if (visitSnap) r.stats = cloneStats(visitSnap);
+    } else if (m.visit.darts.length) {
+      r.visit = { ...m.visit, darts: m.visit.darts.map((d) => ({ ...d })) };
+      r.sticks = state.darts.filter((d) => !d.fall).map((d) => ({ x: d.x, y: d.y, side: d.side, label: d.label }));
+    }
+    state.resume = r;
     storage.set('resume', state.resume);
   };
   const clearResume = () => { state.resume = null; storage.remove('resume'); };
+  const num2 = (a, lo, hi) => Array.isArray(a) && a.length === 2 && a.every((v) => Number.isInteger(v) && v >= lo && v <= hi);
+  const validResume = (r) => !!r && !!r.cfg && r.cfg.mode !== 'watch' && (r.cfg.start === 501 || r.cfg.start === 301) && [1, 2, 3].includes(r.cfg.legs)
+    && (r.cfg.mode === 'two' || (Number.isInteger(r.cfg.opp) && r.cfg.opp >= 0 && r.cfg.opp < PROFILES.length))
+    && num2(r.rem, 2, r.cfg.start) && num2(r.legsWon, 0, 2) && r.legsWon.every((v) => v < r.cfg.legs) && (r.turn === 0 || r.turn === 1) && (r.starter === 0 || r.starter === 1)
+    && Number.isInteger(r.legNo) && r.legNo >= 1 && Array.isArray(r.stats) && r.stats.length === 2 && r.stats.every((x) => x && typeof x === 'object')
+    && (!r.visit || (Array.isArray(r.visit.darts) && r.visit.darts.length >= 1 && r.visit.darts.length <= 3 && Number.isInteger(r.visit.startRem) && r.visit.startRem >= 2 && r.visit.startRem <= r.cfg.start
+      && r.visit.darts.every((d) => d && Number.isFinite(d.value))));
   Promise.all([storage.get('settings', null), storage.get('record', null), storage.get('resume', null)]).then(([s, r, res]) => {
     if (s) Object.assign(state.settings, s);
     if (r) Object.assign(state.record, r);
@@ -58,7 +81,7 @@ export function createGame(env) {
     st.thinkIdx = clamp(st.thinkIdx | 0, 0, THINK_STEPS.length - 1);
     st.assist = clamp(st.assist | 0, 0, ASSIST.length - 1);
     if (!Array.isArray(state.record.wins) || state.record.wins.length < 5) state.record.wins = [0, 0, 0, 0, 0];
-    if (res && res.cfg && Array.isArray(res.rem) && Array.isArray(res.stats) && res.cfg.mode !== 'watch' && !shotMode) state.resume = res;
+    if (validResume(res) && !shotMode) state.resume = res;
     state.loaded = true;
     audio.setMuted?.(!st.sound);
   }).catch(() => { state.loaded = true; });
@@ -109,7 +132,7 @@ export function createGame(env) {
 
   const beginLeg = () => {
     const m = state.m;
-    resetVisuals(); tables = [null, null]; newForms(m);
+    resetVisuals(); tables = [null, null]; newForms(m); snapVisit();
     state.phase = 'intro'; state.pt = 0; state.humanTurn = false;
     showBanner(`Leg ${m.legNo}`, `${sideNameOf(m.turn)} ${verb(sideNameOf(m.turn), 'throw', 'throws')} first`, '', 1.5, 84);
   };
@@ -121,6 +144,7 @@ export function createGame(env) {
   const beginTurn = () => {
     const m = state.m, side = m.turn;
     state.phase = 'ready'; state.pt = 0; state.aim = null; state.reticle = null; state.hint = null; state.think = null; state.pickup = false;
+    if (m.visit.darts.length === 0) snapVisit();
     state.humanTurn = !isAI(side);
     if (!state.humanTurn) state.ai.bias[side] = newVisitBias(profOf(side), rn);
     computeCoach();
@@ -141,13 +165,19 @@ export function createGame(env) {
   const resumeMatch = () => {
     const r = state.resume;
     if (!r) return;
+    if (state.demo && state.record.demoLegs >= DEMO_LEG_CAP) { clearResume(); state.scene = 'demolimit'; state.ui.scroll = 0; return; }
     const m = newMatch({ ...r.cfg });
     m.rem = [...r.rem]; m.legsWon = [...r.legsWon]; m.starter = r.starter; m.turn = r.turn; m.legNo = r.legNo;
     m.stats = r.stats.map((s) => ({ ...s }));
-    m.visit.startRem = m.rem[m.turn];
+    if (r.visit) {
+      m.visit = { ...r.visit, darts: r.visit.darts.map((d) => ({ ...d })) };
+      m.rem[m.turn] = m.visit.bust ? m.visit.startRem : Math.max(2, m.visit.startRem - m.visit.darts.reduce((n, d) => n + (d.busted ? 0 : d.value), 0));
+    } else m.visit.startRem = m.rem[m.turn];
     state.m = m; state.scene = 'play'; state.paused = false; state.pauseMenu = false; state.ui.scroll = 0;
     state.lastVisit = [undefined, undefined]; state.parts = [];
-    resetVisuals(); tables = [null, null]; newForms(m);
+    resetVisuals(); tables = [null, null]; newForms(m); snapVisit();
+    if (Array.isArray(r.snap) && r.snap.length === 2) visitSnap = cloneStats(r.snap);
+    state.darts = (r.sticks ?? []).filter((d) => Number.isFinite(d.x) && Number.isFinite(d.y)).slice(0, 3).map((d) => ({ x: d.x, y: d.y, side: d.side ? 1 : 0, label: d.label, age: 2, amp: 0, ph: 0 }));
     state.phase = 'intro'; state.pt = 0; state.humanTurn = false;
     showBanner('Welcome back', `Leg ${m.legNo}, ${sideNameOf(m.turn)} to throw`, '', 1.5, 64);
   };
@@ -272,13 +302,15 @@ export function createGame(env) {
   const endVisitNext = () => { nextTurn(state.m); state.darts = []; state.flash = null; beginTurn(); saveResume(); };
   const beginLegEnd = () => {
     const m = state.m, winner = m.turn;
+    const r = closeVisit(m);   // the checkout visit counts in the averages, the highest visit and the best checkout
+    state.lastVisit[r.side] = r.pts;
     const matchWon = winLeg(m);
     state.phase = 'legEnd'; state.pt = 0; state.humanTurn = false; state.pickup = false; state.hint = null; state.think = null;
     if (m.cfg.mode !== 'watch') { if (!isAI(winner)) state.record.legs++; state.record.demoLegs++; }
     const name = sideNameOf(winner);
     if (matchWon) showBanner('GAME SHOT!', `${name} ${verb(name, 'win', 'wins')} the match ${m.legsWon[0]} to ${m.legsWon[1]}`, 'big', 60, 78, 600);
     else showBanner('GAME SHOT!', `${name} ${verb(name, 'take', 'takes')} leg ${m.legNo}`, 'big', 60, 78, 600);
-    sfx.win(); save();
+    sfx.win(); save(); saveResume();
   };
   const finishMatch = () => {
     const m = state.m;
@@ -344,7 +376,11 @@ export function createGame(env) {
     state.pt += dt;
     const phase = state.phase;
     if (phase === 'intro') {
-      if (state.pt >= 1.5 || (ptr.pressed && state.pt > 0.4)) { state.banner = null; beginTurn(); }
+      if (state.pt >= 1.5 || (ptr.pressed && state.pt > 0.4)) {
+        state.banner = null;
+        const v = m.visit;
+        if (v.done && !v.won && v.darts.length) { state.phase = 'settle'; state.pt = 5; state.humanTurn = false; } else beginTurn();   // a resumed visit that was already over
+      }
     } else if (phase === 'ready') {
       if (state.humanTurn) {
         if (ptr.pressed) {
@@ -379,7 +415,7 @@ export function createGame(env) {
           if (a.cancel) { cancelAim(); toast('Throw cancelled', 1.2); }
           else if (a.t < AIM.minHold) { cancelAim(); toast('Hold to aim, then let go', 1.6); }
           else doRelease();
-        } else if (!ptr.down) cancelAim();
+        } else if (!ptr.down) { toast(a.t < AIM.minHold ? 'Hold to aim, then let go' : 'Throw cancelled', 1.4); cancelAim(); }
       }
     } else if (phase === 'flying') {
       const f = state.flight;
@@ -390,7 +426,7 @@ export function createGame(env) {
       if (state.pt >= (m.visit.bust ? 1.1 : 0.7)) {
         if (m.visit.won) beginLegEnd();
         else if (m.visit.done) beginVisitEnd();
-        else beginTurn();
+        else { beginTurn(); saveResume(); }
       }
     } else if (phase === 'visitEnd') {
       if (state.pt >= 1.7 || (ptr.pressed && state.pt > 0.45)) { state.banner = null; collectDarts(); }

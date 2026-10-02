@@ -53,8 +53,12 @@ const heroArt = () => ({
 
 export function titleWidgets(state) {
   const sound = state.settings.sound;
-  const wd = [heroArt(), { t: 'gap', h: 250 }];
-  wd.push({ t: 'btn', id: 'play', label: 'Play vs Computer', primary: true, h: 92 });
+  const wd = [heroArt(), { t: 'gap', h: state.saved ? 144 : 250 }];
+  if (state.saved) {
+    const sn = state.saved, who = sn.cfg.mode === 'two' ? 'Two players' : `vs ${PROFILES[sn.cfg.opp].name}`;
+    wd.push({ t: 'btn', id: 'resume', label: 'Continue match', sub: `${who} · round ${sn.round} · ${sn.scores[0]}–${sn.scores[1]}`, primary: true, h: 92 });
+  }
+  wd.push({ t: 'btn', id: 'play', label: 'Play vs Computer', primary: !state.saved, h: 92 });
   wd.push({ t: 'btn', id: 'two', label: 'Two Players', row: 1 });
   wd.push({ t: 'btn', id: 'watch', label: 'Watch & Learn', row: 1 });
   wd.push({ t: 'btn', id: 'howto', label: 'How to Play', row: 2 });
@@ -108,7 +112,7 @@ export function resultWidgets(state) {
   const winner = o.win;
   const title = mode === 'two' ? `Player ${winner + 1} wins` : mode === 'watch' ? `${PROFILES[winner === 0 ? m.cfg.watchA : m.cfg.opp].name} wins` : winner === 0 ? 'You win!' : 'You lose';
   const big = TEXT_SCALES[state.settings.textIdx] > 1.5;
-  const wd = [{ t: 'gap', h: big ? 24 : 70 }, { t: 'h', label: title, size: 64, cap: big ? 1.2 : 1.5 }, { t: 'h', label: `${m.scores[0]} – ${m.scores[1]}`, size: 84, cap: big ? 1.1 : 1.3, color: '#ffd97a' }];
+  const wd = [{ t: 'gap', h: big ? 24 : 120 }, { t: 'h', label: title, size: 64, cap: big ? 1.2 : 1.5 }, { t: 'h', label: `${m.scores[0]} – ${m.scores[1]}`, size: 84, cap: big ? 1.1 : 1.3, color: '#ffd97a' }];
   const per = m.roundLog.map((r) => `${r.pts[0]}–${r.pts[1]}`).join('   ');
   wd.push({ t: 'p', label: `${m.roundLog.length} round${m.roundLog.length === 1 ? '' : 's'}: ${per}`, size: 26, cap: big ? 2 : 3 });
   if (o.extra) wd.push({ t: 'p', label: 'Settled in an extra round.', bold: true, color: '#ffe9bf', size: 26, cap: big ? 2 : 3 });
@@ -135,9 +139,10 @@ export function pauseWidgets(state) {
   ];
 }
 
-export function demoLimitWidgets() {
+export function demoLimitWidgets(state) {
+  const big = TEXT_SCALES[state.settings.textIdx] > 1.5;
   return [
-    { t: 'gap', h: 200 }, { t: 'h', label: 'That is the free preview', size: 48 },
+    { t: 'gap', h: big ? 30 : 160 }, { t: 'h', label: 'That is the free preview', size: 48 },
     { t: 'p', label: 'You have played the free rounds of the web demo. The full game on iPhone and Android has every rival, the full matches and unlimited play.', size: 28 },
     { t: 'gap', h: 20 },
     { t: 'btn', id: 'menu', label: 'Main menu', primary: true },
@@ -210,14 +215,14 @@ export function renderSettings(ctx, state) {
   drawFlowScreen(ctx, state, 'settings', settingsWidgets(state), 0, H);
 }
 export function renderResult(ctx, state) {
-  drawTable(ctx, state, state.w, [], { rot: 0, noShake: true, scale: 0.9 });
-  scrim(ctx, 0.62);
+  drawTable(ctx, state, state.w, [], { rot: 0, noShake: true, scale: 0.8, cy: TEXT_SCALES[state.settings.textIdx] > 1.5 ? undefined : 930 });
+  scrim(ctx, 0.5);
   drawFlowScreen(ctx, state, 'result', resultWidgets(state), 0, H);
 }
 export function renderDemoLimit(ctx, state) {
-  attractTable(ctx, state, 0.9);
+  attractTable(ctx, state, 0.8, TEXT_SCALES[state.settings.textIdx] > 1.5 ? undefined : 930);
   scrim(ctx, 0.72);
-  drawFlowScreen(ctx, state, 'demolimit', demoLimitWidgets(), 0, H);
+  drawFlowScreen(ctx, state, 'demolimit', demoLimitWidgets(state), 0, H);
 }
 export function renderPause(ctx, state) {
   scrim(ctx, 0.55);
@@ -372,11 +377,11 @@ export function drawArt(key, ctx, x, y, w, h, state) {
       const m = mini(ctx, w, h, state, { zoom: 1.0 });
       const p = startPoint(0, 0.25), px = m.X(p.x), py = m.Y(p.y);
       drawDisc(ctx, px, py, 0, 0, { scale: m.s * 2.2 });
-      arrow(ctx, px, py + 6, px + 2, py + 58, '#ffd35a', 5); label(ctx, 'pull back', px + 56, py + 46, 18, '#ffd35a', 'left');
+      arrow(ctx, px, py + 8, px + 2, py + 30, '#ffd35a', 5); tag(ctx, 'pull back', w * 0.2, h - 22, '#ffd35a', 17);
       ctx.save(); ctx.setLineDash([2, 9]); ctx.lineCap = 'round'; ctx.strokeStyle = '#fffbe8'; ctx.lineWidth = 4;
       ctx.beginPath(); ctx.moveTo(px, py - 16); ctx.lineTo(m.X(-20), m.Y(-120)); ctx.stroke(); ctx.restore();
       drawDisc(ctx, m.X(-20), m.Y(-120), 0, 0, { scale: m.s * 2.2, a: 0.45, ghost: true });
-      label(ctx, 'flick goes this way', m.X(60), m.Y(-150), 18, '#fffbe8', 'left');
+      tag(ctx, 'flick goes this way', w * 0.8, 36, '#fffbe8', 17);
     },
     spot() {
       const m = mini(ctx, w, h, state);
@@ -384,17 +389,17 @@ export function drawArt(key, ctx, x, y, w, h, state) {
       ctx.strokeStyle = 'rgba(255,211,90,0.9)'; ctx.lineWidth = 6; ctx.lineCap = 'round';
       ctx.beginPath(); ctx.arc(m.cx, m.cy, R_BASE * m.s, c - half, c + half); ctx.stroke();
       [-0.6, 0, 0.6].forEach((u, i) => { const p = startPoint(0, u); drawDisc(ctx, m.X(p.x), m.Y(p.y), 0, 0, { scale: m.s * 2.2, a: i === 1 ? 1 : 0.5, ghost: i !== 1 }); });
-      label(ctx, 'your line: slide the disc along it', w / 2, h - 12, 18, '#ffe9bf');
+      tag(ctx, 'your line: slide the disc along it', w * 0.5, 24, '#ffe9bf', 17);
     },
     musthit() {
       const m = mini(ctx, w, h, state, { zoom: 1.1, dy: -30 });
       const t = startPoint(0, -0.2);
       drawDisc(ctx, m.X(-70), m.Y(-90), 1, 0.5, { scale: m.s * 2.2 });
       drawDisc(ctx, m.X(t.x), m.Y(t.y), 0, 0, { scale: m.s * 2.2 });
-      arrow(ctx, m.X(t.x), m.Y(t.y) - 14, m.X(-66), m.Y(-70), '#7ee8a8', 5); tag(ctx, 'touches a rival: stays', m.X(-120), m.Y(60), '#7ee8a8', 17);
+      arrow(ctx, m.X(t.x), m.Y(t.y) - 14, m.X(-66), m.Y(-70), '#7ee8a8', 5); tag(ctx, 'touches a rival: stays', w * 0.24, h - 20, '#7ee8a8', 17);
       const t2 = startPoint(0, 0.4);
       drawDisc(ctx, m.X(t2.x), m.Y(t2.y), 0, 0, { scale: m.s * 2.2 });
-      arrow(ctx, m.X(t2.x), m.Y(t2.y) - 14, m.X(t2.x + 20), m.Y(110), '#ffb48a', 5); tag(ctx, 'misses: removed', m.X(190), m.Y(80), '#ffb48a', 17);
+      arrow(ctx, m.X(t2.x), m.Y(t2.y) - 14, m.X(t2.x + 20), m.Y(110), '#ffb48a', 5); tag(ctx, 'misses: removed', w * 0.8, h - 20, '#ffb48a', 17);
     },
     rings() {
       const m = mini(ctx, w, h, state);
@@ -420,7 +425,7 @@ export function drawArt(key, ctx, x, y, w, h, state) {
       drawDisc(ctx, m.X(30), m.Y(180), 0, 0, { scale: m.s * 2.2 });
       arrow(ctx, m.X(26), m.Y(150), m.X(-2), m.Y(0), '#ffd35a', 5);
       arrow(ctx, m.X(-18), m.Y(-42), m.X(-50), m.Y(-130), '#ffffff', 4);
-      label(ctx, 'rival bounces away', m.X(30), m.Y(-100), 17, '#fffbe8', 'left');
+      tag(ctx, 'rival bounces away', w * 0.78, 30, '#fffbe8', 17);
     },
     removed() {
       const m = mini(ctx, w, h, state);
@@ -429,14 +434,14 @@ export function drawArt(key, ctx, x, y, w, h, state) {
       ctx.beginPath(); ctx.arc(m.cx, m.cy, (RINGS[2].r + R_DISC) * m.s, 0, TAU); ctx.stroke(); ctx.setLineDash([]);
       drawDisc(ctx, m.X(150), m.Y(250), 0, 0, { scale: m.s * 2.2, a: 0.5, ghost: true });
       drawDisc(ctx, m.X(-60), m.Y(-80), 1, 0, { scale: m.s * 2.2 });
-      tag(ctx, 'short of the 5 ring: removed', m.X(120), m.Y(300), '#ffb48a', 16);
-      tag(ctx, 'past the edge: gutter', m.X(-170), m.Y(-250), '#ffb48a', 16);
+      tag(ctx, 'short of the 5 ring: removed', w * 0.74, h - 20, '#ffb48a', 16);
+      tag(ctx, 'past the edge: gutter', w * 0.26, 22, '#ffb48a', 16);
     },
     pocket() {
       const m = mini(ctx, w, h, state, { zoom: 3.6 });
       drawDisc(ctx, m.X(30), m.Y(34), 0, 0, { scale: m.s * 2.2, a: 0.6, ghost: true });
       arrow(ctx, m.X(30), m.Y(34), m.X(4), m.Y(4), '#ffd35a', 5);
-      tag(ctx, '20 points', m.X(0), m.Y(-60), '#ffe08a', 20);
+      tag(ctx, '20 points', w * 0.17, h * 0.5, '#ffe08a', 20);
       void R_POCKET;
     },
     rounds() {

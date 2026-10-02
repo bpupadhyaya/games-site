@@ -7,7 +7,7 @@
 import { W, H, K, BOUNDS, newWorld, stepWorld, clamp, SKY_IDS } from './sim.js';
 import { createBrain, createPlanner, PROFILES, PERFECT } from './ai.js';
 import { KITE_PAL } from './art.js';
-import { inRect, SKY_ZONE, MODE_BTN, THINK_BTN, PAUSE_BTN, WATCH_BAR, BANNER_BTN, TEXT_DEC, TEXT_INC, REF_BACK, REF_NEXT, TEXT_SCALES, THINK_STEPS, SETUP_PINS } from './layout.js';
+import { inRect, playLayout, TEXT_DEC, TEXT_INC, REF_BACK, REF_NEXT, TEXT_SCALES, THINK_STEPS, SETUP_PINS } from './layout.js';
 import { renderPlay, drawBanner, palsOf } from './view.js';
 import { renderTitle, renderSetup, renderSettings, renderResult, renderPause, renderPages, renderDemoLimit, hitScreen, flowMeta, pageCount, ensureLayout } from './menus.js';
 import { ABOUT, HOWTO, RULES } from './content.js';
@@ -33,16 +33,50 @@ export function createGame(env) {
     ui: { scroll: 0, drag: null }, page: 0,
     att: null, match: null, w: null, ph: 'ready', phT: 0, banner: null, pals: null,
     parts: [], shake: null, flash: 0, toast: '', toastT: 0, hint: null, hintBusy: false, wl: null, steer: false, loaded: false,
-    thinSeen: [false, false], crossToast: false,
+    thinSeen: [false, false], crossToast: false, saved: null,
   };
   let brain = null, hintPlanner = null, attBrains = null, fxT = 0, sawT = 0, windT = 0, humT = 0, attSky = 0;
   let planners = null;
+  let savedSnap = null, saveT = 0;
 
   // ---- persistence -----------------------------------------------------------------------------
   const save = () => { storage.set('settings', state.settings); storage.set('record', state.record); };
-  Promise.all([storage.get('settings', null), storage.get('record', null)]).then(([s, r]) => {
+
+  // A duel in progress is saved at safe points (round start, about every second of flight, and when the pause menu
+  // opens) so an app kill or background never loses it. The snapshot is the whole sim world (plain numbers) plus the
+  // match; the rival's hand is rebuilt on resume. Only Play a Duel is saved, never Watch & Learn.
+  const DUEL_VERSION = 1;
+  const metaOf = (snap) => ({ opp: PROFILES[snap.cfg.opp]?.name ?? 'Rival', round: snap.round, wins: [...snap.wins], rounds: snap.cfg.rounds, sky: snap.cfg.sky });
+  const validSnap = (d) => d && d.v === DUEL_VERSION && d.cfg && d.cfg.mode === 'ai' && PROFILES[d.cfg.opp] && Array.isArray(d.wins) && d.w && Array.isArray(d.w.k) && d.w.k.length === 2 && d.w.wind && !d.w.over;
+  const persistDuel = () => {
+    const m = state.match, w = state.w;
+    if (!m || !w || m.cfg.mode !== 'ai' || m.over || w.over || state.scene !== 'play') return;
+    const snap = { v: DUEL_VERSION, cfg: { ...m.cfg }, round: m.round, wins: [...m.wins], stats: { ...m.stats }, w: { ...w, ev: [], contact: null, sever: null }, ph: state.ph === 'fly' ? 'fly' : 'ready', phT: 0, wp: state.wp, thinSeen: [...state.thinSeen], crossToast: state.crossToast };
+    savedSnap = JSON.parse(JSON.stringify(snap));
+    state.saved = metaOf(savedSnap);
+    saveT = 0;
+    storage.set('duel', snap);
+  };
+  const clearDuel = () => { savedSnap = null; state.saved = null; storage.remove('duel'); };
+  const resumeDuel = () => {
+    if (!savedSnap) return;
+    const snap = JSON.parse(JSON.stringify(savedSnap));
+    state.match = { cfg: snap.cfg, round: snap.round, wins: snap.wins, stats: snap.stats, over: null };
+    state.w = snap.w; state.w.ev = []; state.w.contact = null; state.w.contactT = 0;
+    state.pals = palsOf(state.match);
+    state.ph = snap.ph; state.phT = 0; state.wp = snap.wp; state.banner = null; state.parts = []; state.hint = null; state.hintBusy = false;
+    state.shake = null; state.flash = 0; state.steer = false; state.toastT = 0; state.wl = null;
+    state.thinSeen = snap.thinSeen; state.crossToast = snap.crossToast;
+    hintPlanner = null; planners = null; fxT = 0; sawT = 0; saveT = 0;
+    brain = createBrain(PROFILES[snap.cfg.opp], aiRng.fork(), 1);
+    state.scene = 'play'; state.ui.scroll = 0; state.ui.drag = null;
+    openPause();                       // never an instant loss: the duel waits on the pause menu
+  };
+
+  Promise.all([storage.get('settings', null), storage.get('record', null), storage.get('duel', null)]).then(([s, r, d]) => {
     if (s) Object.assign(state.settings, s);
     if (r) Object.assign(state.record, r);
+    if (validSnap(d)) { savedSnap = d; state.saved = metaOf(d); }
     state.settings.textIdx = clamp(state.settings.textIdx | 0, 0, TEXT_SCALES.length - 1);
     state.settings.thinkIdx = clamp(state.settings.thinkIdx | 0, 0, THINK_STEPS.length - 1);
     state.loaded = true;
@@ -131,7 +165,7 @@ export function createGame(env) {
     brain = c.mode === 'watch' ? null : createBrain(pb, aiRng.fork(), 1);
     state.thinSeen = [false, false];
     if (c.mode === 'watch') beginBeat();
-    else toast('Touch the sky to set a heading', 2.4);
+    else { toast('Touch the sky to set a heading', 2.4); persistDuel(); }
   };
 
   const startMatch = (cfg) => {
@@ -177,6 +211,7 @@ export function createGame(env) {
     const m = state.match;
     if (m.over) {
       state.scene = 'result'; state.ui.scroll = 0;
+      if (m.cfg.mode === 'ai') clearDuel();
       if (m.cfg.mode === 'ai') {
         state.record.played++; state.record.cuts += m.stats.cuts;
         if (m.over.win === 0) { state.record.wins[m.cfg.opp]++; state.record.streak++; state.record.best = Math.max(state.record.best, state.record.streak); } else state.record.streak = 0;
@@ -185,7 +220,7 @@ export function createGame(env) {
       if (state.demo && m.cfg.mode !== 'watch' && state.record.demoRounds >= DEMO_ROUND_CAP) { state.scene = 'demolimit'; state.ui.scroll = 0; }
     } else {
       save();
-      if (state.demo && state.record.demoRounds >= DEMO_ROUND_CAP) { state.scene = 'demolimit'; state.ui.scroll = 0; return; }
+      if (state.demo && state.record.demoRounds >= DEMO_ROUND_CAP) { clearDuel(); state.scene = 'demolimit'; state.ui.scroll = 0; return; }
       m.round++; startRound();
     }
   };
@@ -224,6 +259,7 @@ export function createGame(env) {
     state.wp += w.wnow * sdt;
     handleEvents(w);
     contactFx(sdt);
+    if (!isWatch() && !w.over) { saveT += dt; if (saveT >= 1) persistDuel(); }
   };
 
   // ---- Watch & Learn: Think -> Reveal -> Act ----------------------------------------------------
@@ -255,7 +291,7 @@ export function createGame(env) {
   };
 
   // ---- the play scene ----------------------------------------------------------------------------
-  const openPause = () => { state.paused = true; state.pauseMenu = true; state.ui.scroll = 0; };
+  const openPause = () => { state.paused = true; state.pauseMenu = true; state.ui.scroll = 0; persistDuel(); };
   const closePause = () => { state.paused = false; state.pauseMenu = false; state.ui.scroll = 0; };
   const leaveMatch = () => { state.scene = 'title'; state.paused = false; state.pauseMenu = false; state.ui.scroll = 0; planners = null; hintPlanner = null; state.hintBusy = false; state.wl = null; state.hint = null; brain = null; };
 
@@ -284,6 +320,7 @@ export function createGame(env) {
   const updatePlay = (dt, input) => {
     const ptr = input.pointer, keys = input.keys, m = state.match;
     const watch = m.cfg.mode === 'watch';
+    const L = playLayout(state.settings.textIdx);
     if (config.dev && keys.pressed.has('KeyK') && state.w) state.w.k[1].integ = 0;
     if (keys.pressed.has('KeyP') || keys.pressed.has('Escape')) { if (state.pauseMenu) closePause(); else if (!watch) openPause(); else state.paused = !state.paused; }
     // overlays
@@ -299,20 +336,20 @@ export function createGame(env) {
     }
     if (watch) {
       if (ptr.pressed) {
-        if (inRect(WATCH_BAR.pause, ptr.x, ptr.y)) { state.paused = !state.paused; sfx.tick(); }
-        else if (inRect(WATCH_BAR.dec, ptr.x, ptr.y)) { state.settings.thinkIdx = Math.max(0, state.settings.thinkIdx - 1); sfx.tick(); save(); }
-        else if (inRect(WATCH_BAR.inc, ptr.x, ptr.y)) { state.settings.thinkIdx = Math.min(THINK_STEPS.length - 1, state.settings.thinkIdx + 1); sfx.tick(); save(); }
-        else if (inRect(WATCH_BAR.exit, ptr.x, ptr.y)) { leaveMatch(); return; }
+        if (inRect(L.watch.pause, ptr.x, ptr.y)) { state.paused = !state.paused; sfx.tick(); }
+        else if (inRect(L.watch.dec, ptr.x, ptr.y)) { state.settings.thinkIdx = Math.max(0, state.settings.thinkIdx - 1); sfx.tick(); save(); }
+        else if (inRect(L.watch.inc, ptr.x, ptr.y)) { state.settings.thinkIdx = Math.min(THINK_STEPS.length - 1, state.settings.thinkIdx + 1); sfx.tick(); save(); }
+        else if (inRect(L.watch.exit, ptr.x, ptr.y)) { leaveMatch(); return; }
       }
     } else if (state.ph === 'between') {
-      if (ptr.pressed && (inRect(BANNER_BTN, ptr.x, ptr.y) || ptr.y > 240) && state.phT > 0.6) { sfx.tick(); afterBanner(); return; }
+      if (ptr.pressed && state.phT > 0.6) { sfx.tick(); afterBanner(); return; }
     } else {
       const k = state.w.k[0];
       if (ptr.pressed) {
-        if (inRect(PAUSE_BTN, ptr.x, ptr.y)) { openPause(); return; }
-        if (inRect(THINK_BTN, ptr.x, ptr.y)) { requestHint(); sfx.tick(); }
-        for (const r of MODE_BTN) if (inRect(r, ptr.x, ptr.y)) setMode(r.id);
-        if (inRect(SKY_ZONE, ptr.x, ptr.y) && !state.w.over) state.steer = true;
+        if (inRect(L.pause, ptr.x, ptr.y)) { openPause(); return; }
+        if (inRect(L.think, ptr.x, ptr.y)) { requestHint(); sfx.tick(); }
+        for (const r of L.modes) if (inRect(r, ptr.x, ptr.y)) setMode(r.id);
+        if (inRect(L.sky, ptr.x, ptr.y) && !state.w.over) state.steer = true;
       }
       if (state.steer && ptr.down && !state.w.over) { k.tx = clamp(ptr.x, BOUNDS.x0, BOUNDS.x1); k.ty = clamp(ptr.y, BOUNDS.y0, BOUNDS.y1); }
       if (!ptr.down) state.steer = false;
@@ -357,13 +394,16 @@ export function createGame(env) {
     else if (id === 'p-howto') { state.back = 'play'; state.scene = 'howto'; state.page = 0; }
     else if (id === 'p-sound') { state.settings.sound = !state.settings.sound; audio.setMuted?.(!state.settings.sound); save(); }
     else if (id === 'p-calm') { state.settings.calm = !state.settings.calm; save(); }
+    else if (id === 'p-txt-dec') { state.settings.textIdx = Math.max(0, state.settings.textIdx - 1); state.ui.scroll = 0; save(); }
+    else if (id === 'p-txt-inc') { state.settings.textIdx = Math.min(TEXT_SCALES.length - 1, state.settings.textIdx + 1); state.ui.scroll = 0; save(); }
     else if (id === 'quit') leaveMatch();
   }
 
   const handleTitle = (id) => {
     if (!id) return;
     sfx.tick();
-    if (id === 'play') { state.scene = 'setup'; state.ui.scroll = 0; state.setupMsg = ''; }
+    if (id === 'continue') resumeDuel();
+    else if (id === 'play') { state.scene = 'setup'; state.ui.scroll = 0; state.setupMsg = ''; }
     else if (id === 'watch') startWatch();
     else if (id === 'howto' || id === 'rules' || id === 'about') { state.back = 'title'; state.scene = id; state.page = 0; }
     else if (id === 'settings') { state.scene = 'settings'; state.ui.scroll = 0; }

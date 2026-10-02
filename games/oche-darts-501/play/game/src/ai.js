@@ -4,13 +4,13 @@
 // avoids busts and awkward leaves for their own reasons. Pure and deterministic; no randomness except what the caller passes in.
 import { hitAt, TARGETS, targetByLabel, bestRoute, prettyLabel } from './engine.js';
 
-// avg is the 3-dart average the spread gives over a real leg (calibrated by test/calibrate runs, see STATUS.md).
+// avg is the 3-dart average the spread gives over a real leg in the game (bounce-outs and busts included), checked by simulation of whole 501 legs; the sigmas were re-tuned in the 1.0.1 review.
 export const PROFILES = [
-  { name: 'Dot the Landlady', tag: 'Friendly, steady, no hurry', stars: 1, sigma: 27, avg: 30, wobble: 0.18, nerve: 0.35, form: 0.10, think: [0.9, 1.8], hue: 28 },
-  { name: 'Gaz from the Corner', tag: 'Big hitter, loose aim', stars: 2, sigma: 17, avg: 45, wobble: 0.14, nerve: 0.30, form: 0.10, think: [0.8, 1.6], hue: 200 },
-  { name: 'Marguerite', tag: 'Cool head, tidy doubles', stars: 3, sigma: 12.5, avg: 60, wobble: 0.10, nerve: 0.22, form: 0.08, think: [0.7, 1.5], hue: 330 },
-  { name: 'Old Fergus', tag: 'Forty years at the oche', stars: 4, sigma: 9.5, avg: 75, wobble: 0.07, nerve: 0.16, form: 0.07, think: [0.6, 1.3], hue: 120 },
-  { name: 'The Quiet Lad', tag: 'Hardly ever misses twice', stars: 5, sigma: 7.5, avg: 90, wobble: 0.04, nerve: 0.10, form: 0.05, think: [0.5, 1.1], hue: 265 },
+  { name: 'Dot the Landlady', tag: 'Friendly, steady, no hurry', stars: 1, sigma: 20.3, avg: 30, wobble: 0.18, nerve: 0.35, form: 0.10, think: [0.9, 1.8], hue: 28 },
+  { name: 'Gaz from the Corner', tag: 'Big hitter, loose aim', stars: 2, sigma: 14.5, avg: 45, wobble: 0.14, nerve: 0.30, form: 0.10, think: [0.8, 1.6], hue: 200 },
+  { name: 'Marguerite', tag: 'Cool head, tidy doubles', stars: 3, sigma: 11.2, avg: 60, wobble: 0.10, nerve: 0.22, form: 0.08, think: [0.7, 1.5], hue: 330 },
+  { name: 'Old Fergus', tag: 'Forty years at the oche', stars: 4, sigma: 8.7, avg: 75, wobble: 0.07, nerve: 0.16, form: 0.07, think: [0.6, 1.3], hue: 120 },
+  { name: 'The Quiet Lad', tag: 'Hardly ever misses twice', stars: 5, sigma: 6.3, avg: 90, wobble: 0.04, nerve: 0.10, form: 0.05, think: [0.5, 1.1], hue: 265 },
 ];
 
 const lcg = (seed) => { let s = seed >>> 0; return () => ((s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 4294967296); };

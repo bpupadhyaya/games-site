@@ -54,10 +54,22 @@ export function drawButton(ctx, r, label, opts = {}) {
   ctx.font = `700 ${px}px ${FONT}`;
   while (ctx.measureText(label).width > maxW && px > 13) { px -= 1; ctx.font = `700 ${px}px ${FONT}`; }
   const cx = r.x + r.w / 2 + (icon ? 24 : 0);
-  ctx.fillText(label, cx, r.y + dy + r.h / 2 - (sub ? 11 : 0));
-  if (sub) { ctx.font = `400 ${Math.round(size * 0.62)}px ${FONT}`; ctx.globalAlpha = 0.85; ctx.fillText(sub, cx, r.y + dy + r.h / 2 + size * 0.5); ctx.globalAlpha = 1; }
+  ctx.fillText(label, cx, r.y + dy + r.h / 2 - (sub ? size * 0.45 : 0));
+  if (sub) {
+    let sp = Math.round(size * 0.62);
+    ctx.font = `400 ${sp}px ${FONT}`;
+    while (ctx.measureText(sub).width > r.w - 24 && sp > 11) { sp -= 1; ctx.font = `400 ${sp}px ${FONT}`; }
+    ctx.globalAlpha = 0.85; ctx.fillText(sub, cx, r.y + dy + r.h / 2 + size * 0.5); ctx.globalAlpha = 1;
+  }
   if (icon) icon(ctx, r.x + 32, r.y + dy + r.h / 2, light && !disabled ? '#fffaf0' : C.ink);
   ctx.restore();
+}
+
+// The largest font size (<= px) at which `text` fits in maxW (never below min).
+export function fitPx(ctx, text, weight, px, maxW, min = 12) {
+  ctx.font = `${weight} 100px ${FONT}`;
+  const per = ctx.measureText(String(text)).width / 100 || 0.001;
+  return Math.max(min, Math.min(px, Math.floor(maxW / per)));
 }
 
 export function panel(ctx, x, y, w, h, opts = {}) {

@@ -149,7 +149,8 @@ export function flowLayout(ctx, widgets, scale, o = {}) {
       ctx.font = `700 ${fs}px ${FONT}`;
       const lines = wrapLines(ctx, wd.label, w0 - 28);
       const sub = wd.sub ? wrapLines(ctx, wd.sub, w0 - 28).length : 0;
-      const h = Math.max(wd.h ?? 84, lines.length * fs * 1.15 + sub * fs * 0.72 + 34);
+      const starsH = wd.stars && fs > 30 ? fs * 0.85 : 0;   // big text: the stars get a line of their own
+      const h = Math.max(wd.h ?? 84, lines.length * fs * 1.15 + sub * fs * 0.72 + starsH + 34);
       out.push({ w: wd, x: x0, y, wd: w0, h, fs, lines }); y += h + GAP;
     }
   }
@@ -185,7 +186,8 @@ function drawButtonRect(ctx, r, it, wd) {
   ctx.font = `700 ${it.fs}px ${FONT}`;
   const subLines = wd.sub ? (() => { ctx.font = `400 ${Math.round(it.fs * 0.72)}px ${FONT}`; const l = wrapLines(ctx, wd.sub, r.w - 28); ctx.font = `700 ${it.fs}px ${FONT}`; return l; })() : [];
   const total = it.lines.length * it.fs * 1.15 + subLines.length * it.fs * 0.72;
-  let y = r.y + dy + (r.h - total) / 2 + it.fs * 0.88;
+  const starsH = wd.stars && it.fs > 30 ? it.fs * 0.85 : 0;
+  let y = r.y + dy + (r.h - total - starsH) / 2 + it.fs * 0.88;
   it.lines.forEach((l) => { ctx.fillText(l, r.x + r.w / 2, y); y += it.fs * 1.15; });
   if (subLines.length) {
     ctx.font = `400 ${Math.round(it.fs * 0.72)}px ${FONT}`; ctx.globalAlpha = 0.85;
@@ -194,8 +196,10 @@ function drawButtonRect(ctx, r, it, wd) {
     ctx.globalAlpha = 1;
   }
   if (wd.stars) {
-    ctx.font = `400 ${Math.round(it.fs * 0.7)}px ${FONT}`; ctx.textAlign = 'right'; ctx.fillStyle = light ? '#ffe9a0' : '#b8431c';
-    ctx.fillText('★'.repeat(wd.stars) + '☆'.repeat(5 - wd.stars), r.x + r.w - 16, r.y + dy + it.fs * 0.95);
+    ctx.font = `400 ${Math.round(it.fs * 0.7)}px ${FONT}`; ctx.fillStyle = light ? '#ffe9a0' : '#b8431c';
+    const row = '★'.repeat(wd.stars) + '☆'.repeat(5 - wd.stars);
+    if (starsH) { ctx.textAlign = 'center'; ctx.fillText(row, r.x + r.w / 2, r.y + dy + r.h - (r.h - total - starsH) / 2 - starsH * 0.2); }
+    else { ctx.textAlign = 'right'; ctx.fillText(row, r.x + r.w - 16, r.y + dy + it.fs * 0.95); }
   }
   ctx.restore();
 }

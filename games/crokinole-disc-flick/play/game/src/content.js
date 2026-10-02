@@ -54,6 +54,9 @@ export const HOWTO = [
     'Hint finds a strong flick and shows it as a blue ghost disc and path. Calm mode (Menu or Settings) draws the whole predicted path, including bounces.',
     'Watch & Learn plays a complete round between two computer players. Each one thinks first, then shows its plan, then flicks. Pause freezes everything, and Think + and Think − change how long they think.',
   ] },
+  { title: 'Saving a match', p: [
+    'The game saves your match after every flick has come to rest. If you close the app, or it is closed for you, Continue match on the main menu brings you back to the start of your turn, paused, with every disc where it lay. Watch & Learn is not saved. Starting a new match replaces the saved one.',
+  ] },
   { title: 'Keyboard', p: [
     'A and D slide the spot. Arrow left and right turn the aim, up and down change power. Space flicks. H gives a hint. P pauses. Holding the screen while discs slide speeds them up.',
   ] },
@@ -70,6 +73,7 @@ export const RULES = [
   ] },
   { title: 'Where a flick starts', art: 'spot', p: [
     'A flick starts from your own shooting line: the curved line at the edge of the board on your side. You may place the disc anywhere along that line, then flick it towards the board.',
+    'You cannot place a disc on top of another one. If a disc already lies on your spot, the new disc shows a red ring: slide along the line to a clear spot first.',
     'In a game for two players on one phone, the board turns to face whoever is flicking.',
   ] },
   { title: 'Taking turns', p: [

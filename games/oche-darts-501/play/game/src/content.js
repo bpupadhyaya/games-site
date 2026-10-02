@@ -81,7 +81,7 @@ export const RULES = [
   { title: 'Bust', p: [
     'A dart is a bust if it would take your score below zero, leave you on exactly 1 (no double can finish from 1), or take you to zero without being a double.',
     'On a bust your score returns to what it was at the start of that visit, the visit scores nothing, and your turn ends at once: any darts you had left are lost.',
-    'A bust counts as a visit scoring zero in your three-dart average.',
+    'A bust counts as a full visit of three darts scoring zero in your three-dart average.',
   ], art: 'bust' },
   { title: 'Checkouts', p: [
     'The highest finish is 170 (treble 20, treble 20, bull). The lowest is 2 (double 1).',
@@ -91,7 +91,7 @@ export const RULES = [
   { title: 'Legs and the match', p: [
     'A leg is one race down from 501 or 301. The first to reach the number of legs chosen (1, 2 or 3) wins the match.',
     'Who throws first in the opening leg is random. After that the starter alternates every leg.',
-    'Your three-dart average is the points you scored divided by the darts you threw, times three. The result screen shows the average, your highest visit, 180s, 100-plus visits, your best checkout and how many doubles you hit.',
+    'Your three-dart average is the points you scored divided by the darts you threw, times three (a bust counts as three darts). The result screen shows the average, your highest visit, 180s, 100-plus visits, your best checkout and how many doubles you hit.',
   ] },
   { title: 'Hold, drift and settle', p: [
     'Your aim point is where your finger is, held 150 units above it, plus a drift. The drift starts wide and shrinks smoothly over 1.4 seconds to its steadiest. It stays at its steadiest until 2.4 seconds, then your arm tires and it grows by a steady amount each second, up to a limit at about 5.4 seconds.',

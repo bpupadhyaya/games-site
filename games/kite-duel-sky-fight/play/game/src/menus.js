@@ -56,9 +56,11 @@ const heroArt = () => ({
 
 export function titleWidgets(state) {
   const sound = state.settings.sound;
+  const sv = state.saved;
   return [
     heroArt(),
-    { t: 'btn', id: 'play', label: 'Play a Duel', primary: true, h: 88 },
+    ...(sv ? [{ t: 'btn', id: 'continue', label: 'Continue Duel', sub: `${sv.opp} · Round ${sv.round}${sv.rounds === 3 ? ` · ${sv.wins[0]}–${sv.wins[1]}` : ''}`, primary: true, h: 88 }] : []),
+    { t: 'btn', id: 'play', label: 'Play a Duel', primary: !sv, h: 88 },
     { t: 'btn', id: 'watch', label: 'Watch & Learn', sub: 'Two rivals duel while you learn why' },
     { t: 'btn', id: 'howto', label: 'How to Play', row: 2 },
     { t: 'btn', id: 'rules', label: 'Rules', row: 2 },
@@ -140,6 +142,9 @@ export function pauseWidgets(state) {
     { t: 'btn', id: 'p-howto', label: 'How to Play', row: 7 },
     { t: 'btn', id: 'p-sound', label: st.sound ? 'Sound: On' : 'Sound: Off', row: 8 },
     { t: 'btn', id: 'p-calm', label: st.calm ? 'Calm: On' : 'Calm: Off', row: 8, active: st.calm },
+    { t: 'p', label: `Text size: ${Math.round(TEXT_SCALES[st.textIdx] * 100)}%`, bold: true, color: '#ffe9a0', size: 24 },
+    { t: 'btn', id: 'p-txt-dec', label: 'A−  Smaller', row: 10, disabled: st.textIdx === 0 },
+    { t: 'btn', id: 'p-txt-inc', label: 'A+  Larger', row: 10, disabled: st.textIdx === TEXT_SCALES.length - 1 },
     { t: 'btn', id: 'quit', label: 'Quit to menu', dark: true },
   ];
 }

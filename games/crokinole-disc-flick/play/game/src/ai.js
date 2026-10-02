@@ -1,7 +1,7 @@
 // The opponent. The planner proposes shots (pocket tries, ring placements, takeouts, cut shots), plays each one
 // out on a copy of the board with the real physics, scores the board it leaves, then re-tests the best few with
 // small slips to prefer shots that survive a shaky flick. Execution noise and blunders make the weaker rivals human.
-import { startPoint, launch, cloneWorld, settle, resolveShot, discValue, speedForDistance, speedToPower, clamp, R_DISC, RINGS, MAX_U } from './sim.js';
+import { startPoint, spotBlocked, launch, cloneWorld, settle, resolveShot, discValue, speedForDistance, speedToPower, clamp, R_DISC, RINGS, MAX_U } from './sim.js';
 
 const gauss = (rng) => (rng.next() + rng.next() + rng.next() + rng.next() - 2) * 1.7;
 
@@ -23,7 +23,8 @@ function evalShot(w, side, c) {
 
 function candidates(w, side, prof) {
   const out = [];
-  const us = prof.positions;
+  const clear = prof.positions.filter((u) => !spotBlocked(w, side, u, 16));
+  const us = clear.length ? clear : prof.positions;
   const rivals = w.discs.filter((d) => d.team !== side && d.mode === 'live');
   const push = (u, tx, ty, extra, kind) => {
     const p = startPoint(side, u);

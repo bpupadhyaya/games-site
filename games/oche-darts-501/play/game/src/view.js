@@ -224,7 +224,7 @@ function drawCoach(ctx, state) {
   }
   if (!state.humanTurn) {
     if (th) { say(`${sideName(state, m.turn)} is lining up...`, 24); }
-    else say(`${sideName(state, m.turn)} throws`, 24);
+    else { const nm = sideName(state, m.turn); say(nm === 'You' ? 'You throw' : `${nm} throws`, 24); }
     return;
   }
   const rem = m.rem[m.turn], dl = dartsLeft(m);
@@ -254,7 +254,9 @@ function drawBanner(ctx, b) {
   ctx.fillStyle = b.kind === 'bust' ? 'rgba(120,20,18,0.95)' : b.kind === 'big' ? 'rgba(20,70,40,0.95)' : 'rgba(22,16,10,0.94)'; ctx.fill();
   ctx.lineWidth = 4; ctx.strokeStyle = b.kind === 'bust' ? '#ff8a7a' : '#e9c15f'; ctx.stroke();
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.font = `800 ${b.size ?? 78}px ${NUM}`; ctx.fillStyle = b.kind === 'bust' ? '#ffd0c8' : '#fff0c4';
+  let bs = b.size ?? 78; ctx.font = `800 ${bs}px ${NUM}`;
+  while (ctx.measureText(b.text).width > 560 && bs > 24) { bs -= 2; ctx.font = `800 ${bs}px ${NUM}`; }
+  ctx.fillStyle = b.kind === 'bust' ? '#ffd0c8' : '#fff0c4';
   ctx.fillText(b.text, 0, b.sub ? -26 : 2);
   if (b.sub) { ctx.font = `700 28px ${FONT}`; ctx.fillStyle = 'rgba(255,240,200,0.92)'; ctx.fillText(b.sub, 0, 44); }
   ctx.restore();

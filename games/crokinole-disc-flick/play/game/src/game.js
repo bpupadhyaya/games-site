@@ -6,7 +6,7 @@
 // release flicks. The slider under the board sets where along the baseline the disc starts.
 import {
   createWorld, newDisc, launch, stepWorld, resolveShot, previewShot, startPoint, clamp, MAX_U, R_BASE, discValue,
-  speedForDistance, speedToPower, PEGS,
+  speedForDistance, speedToPower, PEGS, spotBlocked, freeSpot,
 } from './sim.js';
 import { newMatch, beginRound, afterShot, scoreRound, applyRound, anyRivals } from './match.js';
 import { createPlanner, executePlan } from './ai.js';
@@ -37,14 +37,16 @@ export function createGame(env) {
     att: null, w: null, m: null,
     aim: { u: 0, ang: -Math.PI / 2, power: 0.5, active: false, manual: false }, preview: null, hint: null, hintPreview: null, hintBusy: false, alts: null,
     parts: [], pops: [], pegFlash: new Array(8).fill(0), shake: null, toast: '', toastT: 0, humanTurn: false, view: { rot: 0, target: 0 },
-    think: null, aiDrag: null, kbOn: false, drag: null, hadRiv: false, restT: 0, flyT: 0, clearT: 0, loaded: false, restoreMsg: '', ff: 1,
+    think: null, aiDrag: null, kbOn: false, blocked: false, drag: null, hadRiv: false, restT: 0, flyT: 0, clearT: 0, loaded: false, restoreMsg: '', ff: 1,
+    saved: null,
   };
   let planner = null, hintPlanner = null, previewKey = '', slideDrag = false;
 
   // ---- persistence -----------------------------------------------------------------------------
   const save = () => { storage.set('settings', state.settings); storage.set('record', state.record); };
-  Promise.all([storage.get('settings', null), storage.get('record', null)]).then(([s, r]) => {
+  Promise.all([storage.get('settings', null), storage.get('record', null), storage.get('match', null)]).then(([s, r, mt]) => {
     if (s) Object.assign(state.settings, s);
+    if (!state.saved) state.saved = validSnapshot(mt);
     if (r) Object.assign(state.record, r);
     state.settings.textIdx = clamp(state.settings.textIdx | 0, 0, TEXT_SCALES.length - 1);
     state.settings.thinkIdx = clamp(state.settings.thinkIdx | 0, 0, THINK_STEPS.length - 1);
@@ -52,6 +54,35 @@ export function createGame(env) {
     state.loaded = true;
     audio.setMuted?.(!state.settings.sound);
   });
+
+  // A match is written down at every safe point (a turn is about to start, so every disc is at rest) and offered
+  // as Continue on the menu. Killed mid-flick, the player resumes at the start of that flick. Watch & Learn is not saved.
+  const num = (v, lo, hi) => typeof v === 'number' && Number.isFinite(v) && v >= lo && v <= hi;
+  function validSnapshot(sn) {
+    try {
+      if (!sn || sn.v !== 1 || !sn.cfg || !(sn.cfg.mode === 'ai' || sn.cfg.mode === 'two')) return null;
+      const c = sn.cfg;
+      if (!num(c.opp, 0, PROFILES.length - 1) || !num(c.rounds, 1, 99) || !num(c.first, 0, 1)) return null;
+      if (!num(sn.round, 1, 99) || !num(sn.rounds, sn.round, 99) || !num(sn.turn, 0, 1) || !num(sn.shots, 0, 9999) || !num(sn.u, -1, 1)) return null;
+      if (!Array.isArray(sn.scores) || sn.scores.length !== 2 || !sn.scores.every((v) => num(v, 0, 99999))) return null;
+      if (!Array.isArray(sn.hand) || sn.hand.length !== 2 || !sn.hand.every((v) => num(v, 0, 8)) || sn.hand[sn.turn] < 1) return null;
+      if (!Array.isArray(sn.log) || sn.log.length > 99 || !sn.log.every((r) => r && num(r.round, 1, 99) && Array.isArray(r.pts) && r.pts.length === 2 && r.pts.every((v) => num(v, 0, 999)))) return null;
+      if (!Array.isArray(sn.discs) || sn.discs.length > 16 || !num(sn.nextId, 1, 99999)) return null;
+      if (!sn.discs.every((d) => d && num(d.id, 1, 99999) && (d.team === 0 || d.team === 1) && (d.mode === 'live' || d.mode === 'pocket') && num(d.x, -400, 400) && num(d.y, -400, 400) && num(d.spin, -1e6, 1e6))) return null;
+      return sn;
+    } catch { return null; }
+  }
+  const snapshot = () => {
+    const { m, w } = state;
+    return {
+      v: 1, cfg: { mode: m.cfg.mode, opp: m.cfg.opp, rounds: m.cfg.rounds, first: m.cfg.first ?? 0 },
+      round: m.round, rounds: m.rounds, scores: m.scores.slice(), hand: m.hand.slice(), first: m.first, turn: m.turn, shots: m.shots,
+      log: m.roundLog.map((r) => ({ round: r.round, pts: r.pts.slice() })), u: state.aim.u, nextId: w.nextId,
+      discs: w.discs.filter((d) => d.mode === 'live' || d.mode === 'pocket').map((d) => ({ id: d.id, team: d.team, mode: d.mode, x: d.x, y: d.y, spin: d.spin })),
+    };
+  };
+  const persistMatch = () => { if (state.m && state.m.cfg.mode !== 'watch' && !state.m.over) { state.saved = snapshot(); storage.set('match', state.saved); } };
+  const clearSaved = () => { if (state.saved) { state.saved = null; storage.set('match', null); } };
 
   // ---- sound -----------------------------------------------------------------------------------
   const tone = (o) => { if (state.settings.sound) audio.tone(o); };
@@ -83,7 +114,7 @@ export function createGame(env) {
   };
   const confetti = (parts, x, y, n) => {
     for (let i = 0; i < n; i++) {
-      const a = fx.next() * Math.PI * 2, s = 60 + fx.next() * 200, leaf = i % 3 === 0;
+      const a = fx.next() * Math.PI * 2, s = 110 + fx.next() * 260, leaf = i % 3 === 0;
       addPart(parts, { kind: 3, x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, t: 0, max: 0.8 + fx.next() * 0.5, size: leaf ? 8 + fx.next() * 4 : 2.5 + fx.next() * 2, leaf, rot: fx.next() * 6, col: leaf ? (i % 2 ? '#e4504a' : '#ffd35a') : '#ffe08a' });
     }
   };
@@ -108,8 +139,8 @@ export function createGame(env) {
         let bi = 0, bd = 1e9;
         for (let i = 0; i < 8; i++) { const d = Math.hypot(e.x - PEGX[i], e.y - PEGY[i]); if (d < bd) { bd = d; bi = i; } }
         state.pegFlash[bi] = 1;
-        addPart(parts, { kind: 2, x: e.x, y: e.y, vx: 0, vy: 0, t: 0, max: 0.3, size: 20, col: '#ffe08a' });
-        sparks(parts, e.x, e.y, 3);
+        addPart(parts, { kind: 2, x: e.x, y: e.y, vx: 0, vy: 0, t: 0, max: 0.34, size: 30, col: '#ffe08a' });
+        sparks(parts, e.x, e.y, 5);
         if (live) sfx.ting(e.v);
       } else if (e.t === 'pocket') {
         confetti(parts, 0, 0, 22);
@@ -163,16 +194,18 @@ export function createGame(env) {
   };
   const centreAim = (side, u) => { const p = startPoint(side, u); return Math.atan2(-p.y, -p.x); };
 
-  const beginTurn = () => {
+  const beginTurn = (resumed = false) => {
     const m = state.m, side = m.turn;
     m.phase = 'aim';
     state.humanTurn = !isAI(side);
     state.hint = null; state.hintPreview = null; state.alts = null; state.think = null; state.preview = null; planner = null; hintPlanner = null; state.hintBusy = false; state.drag = null; state.kbOn = false; slideDrag = false;
     state.view.target = m.cfg.mode === 'two' && side === 1 ? Math.PI : 0;
-    const u = state.humanTurn ? clamp(state.aim.u, -MAX_U, MAX_U) : 0;
+    const u = state.humanTurn ? freeSpot(state.w, side, clamp(state.aim.u, -MAX_U, MAX_U)) : 0;
     state.aim = { u, ang: centreAim(side, u), power: 0.5, active: false, manual: false };
-    if (state.humanTurn) toast(m.cfg.mode === 'two' ? `${sideLabel(side)}: your flick` : (anyRivals(state.w, side) ? 'Your flick: you must touch a rival disc' : 'Your flick: aim for the middle'), 2.8);
+    if (resumed) toast('Match restored. Press Resume to carry on', 3.2);
+    else if (state.humanTurn) toast(m.cfg.mode === 'two' ? `${sideLabel(side)}: your flick` : (anyRivals(state.w, side) ? 'Your flick: you must touch a rival disc' : 'Your flick: aim for the middle'), 2.8);
     else if (m.cfg.mode !== 'watch') toast(`${sideLabel(side)} is thinking…`, 2.0);
+    if (!resumed) persistMatch();
   };
   const startRound = () => { beginRound(state.m, state.w); state.parts = []; state.pops = []; beginTurn(); toast(`Round ${state.m.round}: ${sideLabel(state.m.turn)} shoots first`, 2.6); };
 
@@ -184,6 +217,23 @@ export function createGame(env) {
     state.parts = []; state.pops = []; state.view.rot = 0; state.view.target = 0; state.aim.u = 0;
     beginRound(state.m, state.w);
     beginTurn();
+  };
+  const resumeMatch = () => {
+    const sn = state.saved;
+    if (!sn) return;
+    if (state.demo && state.record.demoRounds >= DEMO_ROUND_CAP) { clearSaved(); state.scene = 'demolimit'; state.ui.scroll = 0; return; }
+    const w = createWorld();
+    w.nextId = sn.nextId;
+    for (const d of sn.discs) { const q = newDisc(w, d.team, d.x, d.y); q.id = d.id; q.mode = d.mode; q.spin = d.spin; if (d.mode === 'pocket') q.fall = 99; w.discs.push(q); }
+    w.nextId = Math.max(w.nextId, ...w.discs.map((d) => d.id + 1));
+    const m = newMatch({ ...sn.cfg, watchA: 3 });
+    Object.assign(m, { round: sn.round, rounds: sn.rounds, scores: sn.scores.slice(), hand: sn.hand.slice(), first: sn.first, turn: sn.turn, shots: sn.shots, roundLog: sn.log.map((r) => ({ round: r.round, pts: r.pts.slice() })), phase: 'aim' });
+    state.w = w; state.m = m;
+    state.scene = 'play'; state.ui.scroll = 0; state.parts = []; state.pops = []; state.shake = null;
+    state.aim.u = sn.u; state.hadRiv = false; state.flyT = 0; state.restT = 0; state.ff = 1;
+    beginTurn(true);
+    state.view.rot = state.view.target;
+    openPause();    // always resumes paused: nothing moves, and no preview time is used, until the player presses Resume
   };
   const startWatch = () => {
     const picks = [1, 2, 3, 4];
@@ -213,6 +263,7 @@ export function createGame(env) {
     if (notes.length) {
       toast(describeNote(notes[0]), 2.6); sfx.no();
       pop(notes[0].x, notes[0].y, notes[0].k === 'nohit' ? 'No contact' : 'Out', '#ffb48a', 26);
+      for (const n of notes) { burst(state.parts, n.x, n.y, 10, 'rgba(255,170,130,0.9)'); addPart(state.parts, { kind: 2, x: n.x, y: n.y, vx: 0, vy: 0, t: 0, max: 0.45, size: 34, col: '#ffb48a' }); }
     } else if (shot && shot.mode === 'pocket') toast('Twenty! In the pocket', 2.4);
     m.phase = 'clear'; state.clearT = 0;
   };
@@ -237,8 +288,8 @@ export function createGame(env) {
         if (m.over.win === 0) { state.record.wins[m.cfg.opp]++; state.record.streak++; state.record.best = Math.max(state.record.best, state.record.streak); sfx.win(); } else state.record.streak = 0;
       }
       state.record.topRound = Math.max(state.record.topRound | 0, ...m.roundLog.map((r) => r.pts[0]));
-      save();
-    } else if (state.demo && m.cfg.mode !== 'watch' && state.record.demoRounds >= DEMO_ROUND_CAP) { save(); state.scene = 'demolimit'; state.ui.scroll = 0; }
+      clearSaved(); save();
+    } else if (state.demo && m.cfg.mode !== 'watch' && state.record.demoRounds >= DEMO_ROUND_CAP) { clearSaved(); save(); state.scene = 'demolimit'; state.ui.scroll = 0; }
     else { save(); startRound(); }
   };
 
@@ -311,7 +362,7 @@ export function createGame(env) {
       const k = Math.min(1, th.t / th.dur), e = 1 - Math.pow(1 - k, 3);
       state.aim = { u: th.p.u, ang: th.p.ang, power: th.p.power * e, active: true, manual: true };
       state.aiDrag = true;
-      if (th.t >= th.dur) { const p = th.p; state.aiDrag = null; throwDisc(side, p); }
+      if (th.t >= th.dur) { const p = { ...th.p, u: freeSpot(state.w, side, th.p.u) }; state.aiDrag = null; throwDisc(side, p); }
     }
   };
 
@@ -344,7 +395,7 @@ export function createGame(env) {
     const { m } = state;
     const ptr = input.pointer, keys = input.keys;
     const watch = m.cfg.mode === 'watch';
-    if (config.dev && keys.pressed.has('KeyK')) { m.scores[0] = 100; m.scores[1] = 60; m.over = { win: 0, extra: false }; m.phase = 'over'; state.scene = 'result'; state.ui.scroll = 0; return; }
+    if (config.dev && keys.pressed.has('KeyK')) { clearSaved(); m.scores[0] = 100; m.scores[1] = 60; m.over = { win: 0, extra: false }; m.phase = 'over'; state.scene = 'result'; state.ui.scroll = 0; return; }
     if (keys.pressed.has('KeyP') || keys.pressed.has('Escape')) { if (state.pauseMenu) closePause(); else if (!watch) openPause(); else state.paused = !state.paused; }
     if (state.pauseMenu) {
       if (flowMeta().key !== 'pause') return;
@@ -366,6 +417,7 @@ export function createGame(env) {
     } else if (ptr.pressed && inRect(MENU_BTN, ptr.x, ptr.y)) { openPause(); return; }
     state.ff = (m.phase === 'fly') && ptr.down && !state.paused ? 2 : 1;
 
+    state.blocked = state.humanTurn && m.phase === 'aim' && spotBlocked(state.w, m.turn, state.aim.u);
     if (state.humanTurn && !state.paused && m.phase === 'aim') {
       if (ptr.pressed) {
         if (inRect(SLIDER, ptr.x, ptr.y)) { slideDrag = true; setSpot(ptr.x); }
@@ -377,7 +429,8 @@ export function createGame(env) {
         if (ptr.down) dragAim(state.drag, ptr);
         if (ptr.released) {
           const d = state.drag; state.drag = null; state.aim.active = false;
-          if (d.valid) throwDisc(m.turn, { u: state.aim.u, ang: state.aim.ang, power: state.aim.power });
+          if (d.valid && state.blocked) { state.preview = null; toast('A disc is in the way: slide to a clear spot', 2.2); sfx.no(); }
+          else if (d.valid) throwDisc(m.turn, { u: state.aim.u, ang: state.aim.ang, power: state.aim.power });
           else { state.preview = null; if (d.len > 8) toast(d.len < PULL.min ? 'Pull back further, then let go' : 'Pull away from the board, so the flick goes into it', 1.8); }
         }
       }
@@ -392,7 +445,7 @@ export function createGame(env) {
       if (keys.down.has('KeyD')) { state.aim.u = clamp(state.aim.u + 0.012, -MAX_U, MAX_U); if (!state.aim.manual) state.aim.ang = centreAim(side, state.aim.u); touched = true; }
       if (keys.pressed.has('KeyH')) requestHint();
       if (touched) { state.kbOn = true; state.aim.active = true; state.hint = null; state.hintPreview = null; updatePreview(); }
-      if (keys.pressed.has('Space') && state.kbOn && !state.drag) throwDisc(side, { u: state.aim.u, ang: state.aim.ang, power: state.aim.power });
+      if (keys.pressed.has('Space') && state.kbOn && !state.drag && !state.blocked) throwDisc(side, { u: state.aim.u, ang: state.aim.ang, power: state.aim.power });
     } else if (state.drag && !state.humanTurn) { state.drag = null; state.aim.active = false; }
     if (state.paused) return;
     updateHint();
@@ -452,7 +505,8 @@ export function createGame(env) {
   const handleTitle = (id) => {
     if (!id) return;
     sfx.tick();
-    if (id === 'play') { state.setup.mode = 'ai'; state.scene = 'setup'; state.ui.scroll = 0; state.setupMsg = ''; }
+    if (id === 'resume') resumeMatch();
+    else if (id === 'play') { state.setup.mode = 'ai'; state.scene = 'setup'; state.ui.scroll = 0; state.setupMsg = ''; }
     else if (id === 'two') { state.setup.mode = 'two'; state.scene = 'setup'; state.ui.scroll = 0; state.setupMsg = ''; }
     else if (id === 'watch') startWatch();
     else if (id === 'howto' || id === 'rules' || id === 'about') { state.back = 'title'; state.scene = id; state.page = 0; }

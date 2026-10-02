@@ -61,6 +61,18 @@ export function startPoint(side, u) {
   return side === 0 ? { x: Math.sin(a) * R_BASE, y: Math.cos(a) * R_BASE } : { x: -Math.sin(a) * R_BASE, y: -Math.cos(a) * R_BASE };
 }
 
+// True when a disc already lies on the shooting spot, so a new disc cannot stand there (it would start overlapping it).
+export function spotBlocked(w, side, u, pad = 1) {
+  const p = startPoint(side, u), lim = 2 * R_DISC + pad;
+  return w.discs.some((d) => d.mode === 'live' && Math.hypot(d.x - p.x, d.y - p.y) < lim);
+}
+// The nearest clear spot to u along the baseline (u itself when it is clear).
+export function freeSpot(w, side, u) {
+  if (!spotBlocked(w, side, u)) return u;
+  for (let k = 1; k <= 40; k++) for (const sg of [1, -1]) { const v = clamp(u + sg * k * 0.03, -MAX_U, MAX_U); if (!spotBlocked(w, side, v)) return v; }
+  return u;
+}
+
 // Launch a new disc for `side` from baseline position u at aim angle `ang` (radians, atan2(dy, dx)) and power 0..1.
 export function launch(w, side, u, ang, power) {
   const p = startPoint(side, u);
@@ -185,10 +197,10 @@ export function resolveShot(w, hadRivals) {
   const notes = [];
   const shot = w.discs.find((d) => d.id === w.shot);
   if (shot && hadRivals && !w.hitOpp && shot.mode !== 'gutter') {
-    if (shot.mode === 'pocket' || live(shot)) { notes.push({ k: 'nohit', x: shot.x, y: shot.y }); shot.mode = 'gutter'; shot.fall = FALL_T; }
+    if (shot.mode === 'pocket' || live(shot)) { notes.push({ k: 'nohit', x: shot.x, y: shot.y }); shot.mode = 'gutter'; shot.fall = 0; }
   }
   for (const d of w.discs) {
-    if (isOutside(d)) { d.mode = 'gutter'; d.fall = FALL_T * 0.4; if (d.id !== w.shot) notes.push({ k: 'out', x: d.x, y: d.y }); else if (!notes.length) notes.push({ k: 'short', x: d.x, y: d.y }); }
+    if (isOutside(d)) { d.mode = 'gutter'; d.fall = 0; if (d.id !== w.shot) notes.push({ k: 'out', x: d.x, y: d.y }); else if (!notes.length) notes.push({ k: 'short', x: d.x, y: d.y }); }
   }
   return notes;
 }
