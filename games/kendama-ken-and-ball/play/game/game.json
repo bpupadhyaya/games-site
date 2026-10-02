@@ -4,7 +4,7 @@
   "tagline": "A string, a heavy ball and a steady hand.",
   "genre": "skill toy / string-and-ball physics",
   "orientation": "portrait",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "monetization": {
     "model": "premium",
     "priceUsd": 2.99,

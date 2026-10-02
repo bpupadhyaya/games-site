@@ -141,7 +141,7 @@ export function createGame(env) {
   function newTurnState(who) {
     state.rd = {
       who, phase: 'scatter', pt: 0, stage: state.match.stage[who], ri: 0, five: [], mat: [], hold: 0, held: [], sel: [], spot: null, charge: 0, h: 0.5,
-      roll: null, ev: null, et: 0, res: null, eps: null, catchAt: null, picked: [], parts: [], floats: [], trail: [], flash: 0, shake: 0,
+      roll: null, ev: null, et: 0, res: null, eps: null, catchAt: null, picked: [], parts: [], floats: [], trail: [], flash: 0,
       sc: null, drag: null, hint: null, beat: null, ai: null, kk: null, kh: null, kres: null, banner: null, turnPoints: 0, fails: 0, bannerT: 0, pv: null, holdFly: null, lastC: -1, keyCharge: false, kept: null,
     };
   }
@@ -267,8 +267,9 @@ export function createGame(env) {
       applySuccess();
     } else {
       sfx.fault();
-      rd.flash = state.settings.calm ? 0 : 0.4; rd.shake = state.settings.calm ? 0 : 0.4;
+      rd.flash = state.settings.calm ? 0 : 0.4;
       const at = res.why === 'clip' ? ev.fault : hp;
+      if (!state.settings.calm) ring(rd, at.x, at.y, 90, '#ff8a76');
       floatText(rd, T(`fail_${res.why}`), at.x, Math.min(at.y, 600) - 60, '#ffb09a');
       m.stats.faults[rd.who]++;
       rd.fails++;
@@ -602,7 +603,6 @@ export function createGame(env) {
     if (state.freeze) return;
     if (state.toastT > 0) state.toastT -= dt;
     if (rd.flash > 0) rd.flash = Math.max(0, rd.flash - dt * 1.4);
-    if (rd.shake > 0) rd.shake = Math.max(0, rd.shake - dt);
     if (rd.bannerT > 0) rd.bannerT -= dt;
     if (rd.hint) { rd.hint.t += dt; if (rd.hint.t > HINT_SECS) rd.hint = null; }
     rd.pt += dt;

@@ -300,14 +300,14 @@ export function createGame(env) {
           const P = makeProj(m.hand);
           const [sx, sy] = P(d.xc, d.yc, 0.4);
           flashAt(sx, sy, 160 + 140 * e.q); ring(sx, sy, '#fff4c8', 10); burst(sx, sy, 16, '#ffe08a', 520);
-          v.shake = 5 + 9 * e.q; v.flash = 0.35;
+          v.flash = 0.35;
           break;
         }
         case 'ground': { if (!m.live) break; const bp = ballPos(m); const [x, y] = toScreen(m.theme, bp[0] * m.hand, bp[2]); spawn(3, () => ({ kind: 'grass', x, y, vx: (vr() - 0.5) * 120, vy: -60 - vr() * 80, r: 3 + vr() * 2, life: 0.4, max: 0.4, color: '#6fbf4a', rot: vr() * 3, g: 300 })); sfx('thud'); break; }
-        case 'six': sfx('roar'); confetti(360, 420, 60, ['#ffd34d', '#ff6b57', '#2ec4b6', '#fff4dc']); v.shake = 10; v.flash = 0.2; crowdFlash(26); break;
-        case 'four': sfx('cheer'); confetti(360, 440, 28, ['#2ec4b6', '#8be07a', '#fff4dc']); v.shake = 6; crowdFlash(12); break;
+        case 'six': sfx('roar'); confetti(360, 420, 60, ['#ffd34d', '#ff6b57', '#2ec4b6', '#fff4dc']); v.flash = 0.2; crowdFlash(26); break;
+        case 'four': sfx('cheer'); confetti(360, 440, 28, ['#2ec4b6', '#8be07a', '#fff4dc']); crowdFlash(12); break;
         case 'caught': sfx('groan'); burst(360, 500, 14, '#ff9a8a', 260); break;
-        case 'stumps': sfx('stumps'); v.shake = 11; v.stumpsAnim = 0; break;
+        case 'stumps': sfx('stumps'); v.stumpsAnim = 0; break;
         case 'wicket': sfx('groan'); v.flash = 0.3; break;
         case 'result': if (state.scene === 'play' && m.inn.role === 'bat') { state.prefs.coach = Math.min(99, (state.prefs.coach ?? 0) + 1); if (state.prefs.coach % 3 === 0) savePrefs(); } break;
         case 'run': sfx('run'); break;
@@ -568,7 +568,7 @@ export function createGame(env) {
     const k = Math.min(Math.floor(r.i), r.n - 1);
     state.v.otrail.push([r.p[k * 3] * state.m.hand, r.p[k * 3 + 1], r.p[k * 3 + 2]]);
     if (state.v.otrail.length > 16) state.v.otrail.shift();
-    if (!r.cheered && r.i >= r.n - 4) { r.cheered = true; confetti(360, 500, 70, ['#ffd34d', '#ff6b57', '#2ec4b6', '#fff4dc']); sfx('roar'); state.v.shake = 8; }
+    if (!r.cheered && r.i >= r.n - 4) { r.cheered = true; confetti(360, 500, 70, ['#ffd34d', '#ff6b57', '#2ec4b6', '#fff4dc']); sfx('roar'); }
     updateView(dt);
     const p = input.pointer;
     if (r.i >= r.n + 40 || (p.pressed && inRect({ x: 160, y: 1130, w: 400, h: 100 }, p.x, p.y)) || input.keys.pressed.has('Space')) { state.replay = null; go('results'); }

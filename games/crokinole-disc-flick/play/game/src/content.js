@@ -74,7 +74,7 @@ export const RULES = [
   { title: 'Where a flick starts', art: 'spot', p: [
     'A flick starts from your own shooting line: the curved line at the edge of the board on your side. You may place the disc anywhere along that line, then flick it towards the board.',
     'You cannot place a disc on top of another one. If a disc already lies on your spot, the new disc shows a red ring: slide along the line to a clear spot first.',
-    'In a game for two players on one phone, the board turns to face whoever is flicking.',
+    'In a game for two players on one phone, the board never moves. A card tells you when to pass the phone, and the second player flicks from the top edge, pulling the disc back upwards. A setting can turn the board to face the shooter instead.',
   ] },
   { title: 'Taking turns', p: [
     'The sides flick one disc each in turn until all sixteen discs are flicked. The side that flicks first changes every round. In round one the first side is chosen at random.',

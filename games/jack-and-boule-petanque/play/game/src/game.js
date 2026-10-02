@@ -174,7 +174,7 @@ export function createGame(env) {
         burst(state.parts, e.x, e.y, 3, 2 + Math.floor(e.v / 150), 3, 0.35, 60);
         sfx.clack(e.v);
         state.parts.push({ kind: 2, x: e.x, y: e.y, z: 6, vx: 0, vy: 0, vz: 0, t: 0, max: 0.35, size: 1, a: 1 });
-        if (e.v > 420) state.shake = { t: 0, dur: 0.28, amp: Math.min(7, e.v / 150) };
+        if (e.v > 420) burst(state.parts, e.x, e.y, 0, Math.min(10, 4 + Math.floor(e.v / 150)), 4.2, 0.6, 70);
       } else if (e.t === 'stone') sfx.tick();
       else if (e.t === 'out') { burst(state.parts, e.x, e.y, 0, 3, 3, 0.4, 50); toast(e.id === JACK_ID ? 'The jack is out of the lane!' : 'Out of the lane: that boule is dead', 2.4); sfx.no(); }
     }

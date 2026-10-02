@@ -12,19 +12,10 @@ export function fovFor(aspect) {
 
 export function initialCam() { return { x: 0, y: 6.6, z: -10.6, lx: 0, ly: 0.1, lz: -0.2 }; }
 
-// Desired camera for a state: behind the near baseline, high enough to see over the net, gently following the ball.
-export function camTarget(s) {
-  const b = s.ball;
-  const bx = b.vis ? clamp(b.x, -3.5, 3.5) : 0;
-  const slow = clamp(1 - s.ts, 0, 0.6);               // focus (slow motion) pushes in a little
-  const push = slow * 1.6;
-  return { x: bx * 0.22, y: 6.6 - push * 0.5, z: -10.6 + push, lx: bx * 0.14, ly: 0.1, lz: -0.2 + slow * 0.4 };
-}
-export function stepCam(cam, s, dt) {
-  const t = camTarget(s);
-  const k = 1 - Math.exp(-dt / 0.45);
-  for (const f of ['x', 'y', 'z', 'lx', 'ly', 'lz']) cam[f] += (t[f] - cam[f]) * k;
-}
+// Desired camera: a fixed broadcast position behind the near baseline, high enough to see over the net. The court never pans,
+// zooms or pushes in (fixed surface rule); only the ball and the players move.
+export function camTarget() { return initialCam(); }
+export function stepCam(cam) { Object.assign(cam, camTarget()); }
 
 // Project a world point to CSS pixels on a W x H screen showing the camera with the given aspect.
 export function project(cam, W, H, x, y, z) {

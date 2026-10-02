@@ -37,7 +37,7 @@ export const HOWTO = [
   ], art: 'plan' },
   { title: 'Roll', p: [
     'Flick the ball up the lane with a quick, straight swipe, or tap Roll. A smooth, straight flick is a little more accurate than the Roll button; a wobbly or slow flick is less accurate. Your hand is never perfect, so the ball will land near the ring, not always on it.',
-    'Watch the ball roll. The view follows it into the pins, and a slow-motion replay of the crash can be played after the throw.',
+    'Watch the ball roll. The view never moves, like standing at the foul line of a real lane: only the ball and the pins move. After big throws a small slow-motion replay of the pin deck can play in a corner.',
   ] },
   { title: 'Hook and weight', p: [
     'Hook makes the ball curve. The path bends more towards the end of the lane, so a hook lets you come in from the side and slide between pins. A big hook drifts the ball up to about half a metre sideways at Medium weight.',

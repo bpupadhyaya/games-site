@@ -45,15 +45,15 @@ function shaderTint(mat, kind, u) {
   mat.onBeforeCompile = (sh) => {
     Object.assign(sh.uniforms, u);
     const head = kind === 'head';
-    if (!head) sh.vertexShader = `varying float vBy;\n${sh.vertexShader}`.replace('#include <begin_vertex>', '#include <begin_vertex>\n vBy = position.y;');
-    sh.fragmentShader = `uniform sampler2D tMask; uniform sampler2D tSkin; uniform vec3 uTop; uniform vec3 uBottoms; uniform vec3 uSocks; uniform vec3 uSkin; uniform float uSkinK; uniform float uSkinLum; uniform vec3 uHair; uniform float uHairK; uniform float uHairLum; float gFloor = 0.0; ${head ? '' : 'varying float vBy;'}\n${sh.fragmentShader}`.replace('#include <map_fragment>', `#include <map_fragment>
+    if (!head) sh.vertexShader = `varying float vBy; varying float vBx;\n${sh.vertexShader}`.replace('#include <begin_vertex>', '#include <begin_vertex>\n vBy = position.y; vBx = abs(position.x);');
+    sh.fragmentShader = `uniform sampler2D tMask; uniform sampler2D tSkin; uniform vec3 uTop; uniform vec3 uBottoms; uniform vec3 uSocks; uniform vec3 uSkin; uniform float uSkinK; uniform float uSkinLum; uniform vec3 uHair; uniform float uHairK; uniform float uHairLum; float gFloor = 0.0; ${head ? '' : 'varying float vBy; varying float vBx;'}\n${sh.fragmentShader}`.replace('#include <map_fragment>', `#include <map_fragment>
       {
         vec3 m = texture2D(tMask, vMapUv).rgb;
         vec3 c = diffuseColor.rgb;
         ${head
     ? 'c = mix(c, uHair * clamp(pow(dot(c, vec3(0.2126, 0.7152, 0.0722)) / uHairLum, 0.65), 0.25, 2.6), m.r * uHairK); float skin = m.g;'
     : 'vec3 b0 = c; float cm = clamp(m.r + m.g + m.b, 0.0, 1.0); b0 *= mix(1.0, clamp(0.58 / max(dot(b0, vec3(0.2126, 0.7152, 0.0722)), 0.02), 1.0, 8.0), cm); c = mix(c, b0 * uTop, m.r); c = mix(c, b0 * uBottoms, m.g); c = mix(c, b0 * uSocks, m.b); float skin = texture2D(tSkin, vMapUv).r;'}
-        ${head ? '' : 'if (skin < 0.5 && cm < 0.5 && vBy > 0.3 && dot(c, vec3(0.2126, 0.7152, 0.0722)) < 0.14) c = vec3(0.72) * (vBy > 1.0 ? uTop : uBottoms);   // near-black texels above the knee are hem/seam paint, never real detail'}
+        ${head ? '' : 'if (skin < 0.5 && cm < 0.5 && vBy > 0.3 && vBx < 0.22 && dot(c, vec3(0.2126, 0.7152, 0.0722)) < 0.14) c = vec3(0.72) * (vBy > 1.0 ? uTop : uBottoms);   // near-black texels above the knee are hem/seam paint, never real detail'}
         float l = dot(c, vec3(0.2126, 0.7152, 0.0722));
         ${head ? '' : 'if (skin > 0.5) { float fl = 0.55 * uSkinLum; if (l < fl) { c *= clamp(fl / max(l, 0.004), 1.0, 12.0); l = dot(c, vec3(0.2126, 0.7152, 0.0722)); } }   // skin under hems / in joints is painted near-black: lift it'}
         c = mix(c, uSkin * clamp(l / uSkinLum, 0.0, 2.4), skin * uSkinK);
@@ -532,7 +532,7 @@ export class Human {
     const root = this.root;
     root.updateMatrixWorld(true);
     // 1) fingers + wrists (local-only, cheap); the light level skips them (invisible at that size)
-    for (const s of this.lod === 2 && this.cheapLight !== false ? [] : ['L', 'R']) {
+    for (const s of ['L', 'R']) {   // fingers and wrist limits run at every level (a light-level hand without them is a flat board)
       const f = this.fingers[s];
       if (f.ok) {
         const p = this._fingerPose[s];

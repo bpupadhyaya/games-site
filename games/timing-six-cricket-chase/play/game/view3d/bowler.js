@@ -53,15 +53,33 @@ export function bowlerPose(ctx, rig, out = {}) {
   const zPelJ = zbf + 1.38 * s;                           // at take-off (behind the landing spot)
   const zMark = zPelJ + DJ;                               // run-up start
   const markX = xl;
+  // follow-through: 3-4 short decelerating steps, one foot always on the ground; sim z of each foot as a function of tau
+  const FT = {
+    L: [[0.0, 0.30], [0.40, 1.55], [0.82, 3.0]],       // [landing time, distance past the release z (m)]
+    R: [[0.20, 0.95], [0.60, 2.3], [1.02, 3.55]],
+  };
+  const stepFoot = (plants, from, tau2, hold, h) => {   // returns { d, lift } for tau2 >= the first leave time
+    let d = from, lift = 0, t0 = -9;
+    for (const [tl, dl] of plants) {
+      const tLeave = Math.max(t0, tl - hold);
+      if (tau2 < tLeave) break;
+      if (tau2 < tl) { const u = (tau2 - tLeave) / (tl - tLeave); d = from + (dl - from) * smooth(u); lift = h * Math.sin(Math.PI * u); return { d, lift }; }
+      from = dl; d = dl; t0 = tl;
+    }
+    return { d, lift };
+  };
   // pelvis in the IK segment
-  const pelZ = kV(tau, [
-    [Tj, new V3(0, 0, zPelJ)], [Ta, new V3(0, 0, lerp(zPelJ, zbf, 0.50))], [Tb, new V3(0, 0, zbf - 0.02 * s)], [Tf, new V3(0, 0, zr + 0.26 * s)], [0, new V3(0, 0, zr + 0.10 * s)],
+  const pelZ = tau > 0.0 ? (() => {
+    const l = stepFoot(FT.L, 0.30, tau, 0.26, 0.2), r = stepFoot(FT.R, -(zbf - zr), tau, 0.215, 0.24);
+    return zr - (l.d + r.d) / 2 - 0.0 + 0.0;
+  })() : kV(tau, [
+    [Tj, new V3(0, 0, zPelJ)], [Ta, new V3(0, 0, lerp(zPelJ, zbf, 0.50))], [Tb, new V3(0, 0, zbf - 0.02 * s)], [Tf, new V3(0, 0, zr + 0.26 * s)], [0, new V3(0, 0, zr + 0.21)],
     [0.12, new V3(0, 0, zr - 0.30 * s)], [0.30, new V3(0, 0, zr - 1.05 * s)], [0.6, new V3(0, 0, zr - 2.0 * s)], [1.2, new V3(0, 0, zr - 3.2 * s)],
   ]).z;
 
   // ---------------- what the body does -------------------------------------------------------------------------------------------------------
   const H0 = rig.ankleH0 * s + 0.795 * s * 0.995 + 0.0;          // pelvis height with straight legs
-  const hk = (t) => K(t, [[Tj, 0.915], [Ta, 1.02], [Tb, 0.90], [Tf, 0.84], [0, 0.87], [0.12, 0.83], [0.3, 0.86], [0.7, 0.9]]) * s;
+  const hk = (t) => K(t, [[Tj, 0.9], [Ta, 0.98], [Tb, 0.90], [Tf, 0.84], [0, 0.87], [0.12, 0.83], [0.3, 0.83], [0.7, 0.85], [1.2, 0.87]]) * s;
   const yawP = K(tau, [[Tj, -8], [Ta, V.coil * 0.55], [Tb, V.coil], [Tf, V.coil * 0.62], [0, -10], [0.12, 28], [0.3, 12], [0.7, 0]]) * D2R;
   const yawS = K(tau, [[Tj, 0], [Ta, V.coil * 0.12], [Tb, V.coil * 0.2], [Tf, -4], [0, 26], [0.12, 14], [0.4, 0]]) * D2R;
   const pitch = K(tau, [[Tj, 7], [Ta, -9], [Tb, 1], [Tf, 16], [0, 36], [0.12, 56], [0.3, 48], [0.7, 20], [1.2, 6]]) * D2R * (V.id === 'spin' ? 0.55 : 1);
@@ -79,32 +97,31 @@ export function bowlerPose(ctx, rig, out = {}) {
   let rf, rfYaw, rfPitch = 0;
   if (tau < Tb) {
     const u = rampL(tau, Tj, Tb);
-    rf = rPush.clone().lerp(rfPlant, smooth(u)); rf.y = A + 0.30 * Math.sin(Math.PI * Math.pow(u, 0.9)) * (1 - 0.15 * u);
+    rf = rPush.clone().lerp(rfPlant, smooth(u)); rf.y = A + 0.20 * Math.sin(Math.PI * Math.pow(u, 0.9)) * (1 - 0.15 * u);
     rfYaw = lerp(-0.3, V.coil * D2R, smooth(u)); rfPitch = (1 - u) * 0.6;
   } else if (tau < -0.015) {
     rf = rfPlant.clone(); rfYaw = V.coil * D2R * (1 - 0.6 * ramp(tau, Tf, 0.04)); rfPitch = 0.5 * ramp(tau, -0.06, -0.015);
-  } else if (tau < 0.05) {
-    const u = rampL(tau, -0.015, 0.05);
-    rf = rfPlant.clone().add(new V3(0, 0.0, 0.0)); rf.y = A + 0.28 * smooth(u); rf.z -= 0.18 * smooth(u); rfYaw = V.coil * D2R * 0.4; rfPitch = 0.5 + 0.4 * u;
   } else {
-    const u = rampL(tau, 0.05, 0.34);
-    const land = new V3(xBody - 0.28 * s, A, -(zr - 1.15 * s));
-    rf = rfPlant.clone().lerp(land, smooth(u)); rf.y = A + 0.24 * Math.sin(Math.PI * u); rfYaw = lerp(V.coil * D2R * 0.4, 0, u); rfPitch = (1 - u) * 0.5;
+    // trailing leg swings through and lands ahead of the front foot, then alternate short steps
+    const sw = stepFoot(FT.R, -(zbf - zr), tau, 0.215, 0.26);
+    rf = new V3(xBody - 0.2 * s, A + sw.lift, -(zr - sw.d)); rfYaw = lerp(V.coil * D2R * 0.4, 0, ramp(tau, 0, 0.3)); rfPitch = sw.lift > 0 ? 0.5 : 0;
   }
   // front (left) foot: knee drive in the bound, reaches and lands heel first on a braced leg, stays planted, then steps through
   const lfLand = new V3(xl + 0.10 * s, A, -zff);
   let lf, lfYaw, lfPitch = 0;
   if (tau < Tf) {
     const u = rampL(tau, Tj, Tf);
-    const apex = new V3(xl + 0.08 * s, A + 0.62 * s, -(zPelJ - 0.45 * s));            // knee high, shin hanging
+    const apex = new V3(xl + 0.08 * s, A + 0.32 * s, -(zPelJ - 0.45 * s));            // knee high, shin hanging
     const reach = new V3(xl + 0.10 * s, A + 0.22 * s, -(zff + 0.55 * s));
     if (u < 0.45) { const k = smooth(u / 0.45); lf = new V3(xl + 0.07 * s, A + 0.1, -(zPelJ + 0.05)).lerp(apex, k); }
     else { const k = smooth((u - 0.45) / 0.55); lf = apex.clone().lerp(lfLand, k); lf.y = lerp(apex.y, A, k) + 0.12 * Math.sin(Math.PI * k) * 0.6; }
     lfYaw = lerp(0, -0.3, u); lfPitch = u < 0.9 ? -0.35 * (1 - u) : (1 - u) * -0.6;   // toes up on the way in (heel strike)
     void reach;
-  } else if (tau < 0.46) {
-    lf = lfLand.clone(); lfYaw = -0.3 + 0.3 * ramp(tau, 0, 0.3); lfPitch = 0;
-  } else { lf = lfLand.clone(); lfYaw = 0; }
+  } else {
+    const st = stepFoot(FT.L, 0.30, tau, 0.26, 0.2);
+    lf = new V3(lfLand.x + (xBody - xl) - 0.05, A + st.lift, -(zr - st.d));
+    lfYaw = -0.3 + 0.3 * ramp(tau, 0, 0.3); lfPitch = st.lift > 0 ? 0.25 : 0;
+  }
 
   // knee poles (knees point along the toes)
   const kneeR = rf.clone().add(new V3(Math.sin(rfYaw), 0.5, Math.cos(rfYaw)).multiplyScalar(0.6)); kneeR.y = rf.y + 0.45;

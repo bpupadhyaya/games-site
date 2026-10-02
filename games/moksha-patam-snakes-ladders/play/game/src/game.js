@@ -191,7 +191,7 @@ export function createGame(env) {
       segs.push({ type: 'shudder', a: posXY(b.from, b.player), dur: 0.35 });
       for (let n = b.from - 1; n >= Math.max(b.to, 1); n--) segs.push({ type: 'hop', a: posXY(n + 1, b.player), b: squareXY(n), dur: 0.14, k: 1, back: true });
       if (b.to === 0) segs.push({ type: 'hop', a: squareXY(1), b: startXY(b.player), dur: 0.14, k: 1, back: true });
-      banner('Bumped!', '#ffb199', '#e0533a'); sound('bump'); state.shake = { t: 0, amp: 9 }; say(`${g.players[b.player].name} is bumped back to ${b.to || 'the start'}.`, 'bad');
+      banner('Bumped!', '#ffb199', '#e0533a'); sound('bump'); say(`${g.players[b.player].name} is bumped back to ${b.to || 'the start'}.`, 'bad');
       startAnim(b.player, segs, () => { state.shown[b.player] = b.to; proceed(ev); });
     } else proceed(ev);
   }
@@ -235,7 +235,7 @@ export function createGame(env) {
   function leaveSeg(s) {
     if (s.type === 'hop') { const q = s.b; burst(q.x, q.y + 12, s.back ? 2 : 4, ['rgba(255,236,200,0.7)'], 60, 'dust', 40); }
     else if (s.type === 'climb') { burst(s.b.x, s.b.y, 22, ['#ffe27a', '#fff6c8', '#ffb347'], 200); state.rings.push({ x: s.b.x, y: s.b.y + 8, t: 0, c: 'rgba(255,230,140,0.95)', big: true }); }
-    else if (s.type === 'slide') { state.shake = { t: 0, amp: 7 }; burst(s.b.x, s.b.y + 8, 16, ['rgba(120,80,40,0.7)', 'rgba(230,200,150,0.7)'], 130, 'dust', 80); state.rings.push({ x: s.b.x, y: s.b.y + 8, t: 0, c: 'rgba(255,180,150,0.9)' }); }
+    else if (s.type === 'slide') { burst(s.b.x, s.b.y + 8, 16, ['rgba(120,80,40,0.7)', 'rgba(230,200,150,0.7)'], 130, 'dust', 80); state.rings.push({ x: s.b.x, y: s.b.y + 8, t: 0, c: 'rgba(255,180,150,0.9)' }); }
   }
   function tickAnim(dt) {
     const a = state.anim; if (!a) return;

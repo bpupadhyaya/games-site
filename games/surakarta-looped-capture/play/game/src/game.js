@@ -169,7 +169,7 @@ export async function createGame(env) {
       else if (e.type === 'whoosh') SOUNDS.whoosh(e.dur);
       else if (e.type === 'land') {
         const g = geoNow(M), [cx, cy] = pointXY(g, e.at);
-        if (e.cap) { SOUNDS.hit(); spawn(M, rng, cx, cy, e.who, 'hit'); M.shake = 0.22; } else { spawn(M, rng, cx, cy, e.who, 'step'); }
+        if (e.cap) { SOUNDS.hit(); spawn(M, rng, cx, cy, e.who, 'hit'); } else { spawn(M, rng, cx, cy, e.who, 'step'); }
       } else if (e.type === 'refuse') SOUNDS.refuse();
       else if (e.type === 'select') SOUNDS.select();
       else if (e.type === 'undo') SOUNDS.undo();

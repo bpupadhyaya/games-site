@@ -73,7 +73,10 @@ export async function makeActor(stage, theme, side, role, k = 0, character = 'at
 
 /** Set the level of detail from the person's size on screen; the gear follows (hidden at light, except the striker's). Returns the level. */
 export function setActorLod(actor, camera, viewportHeight, heroMax = 0) {
-  let lv = actor.h.autoLOD(camera, viewportHeight);
+  // the library tiers use the medium mesh (fine hands) down to 60-90 px; cricket's far people are tiny and their hands are a few pixels, so non-strikers keep the light mesh
+  // (1 draw call, trousers baked in) below 90 px on every tier. The striker follows the library policy untouched.
+  const pol = actor.h.lodPolicy;
+  let lv = actor.hero || !pol ? actor.h.autoLOD(camera, viewportHeight) : actor.h.autoLOD(camera, viewportHeight, { full: pol.full, medium: Math.max(pol.medium, 90) });
   if (actor.hero && lv < heroMax) { lv = heroMax; actor.h.setLOD(lv); }   // the striker is huge on screen: below the high tier he is drawn at medium (3k triangles, looks the same at that size)
   if (lv !== actor.glv) {
     actor.glv = lv;

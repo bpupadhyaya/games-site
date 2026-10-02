@@ -50,7 +50,7 @@ export const RULES = [
     'That is why the centre is the strongest point to take and a corner is the next best, and why an edge is the weakest first move.',
   ] },
   { title: 'Making a move', art: 'tap', body: [
-    'Tap an empty square. Press and hold a square and a faint preview of your mark appears; let go on the same square to place it, or slide your finger away to cancel. Tapping a taken square places nothing and makes the board shake slightly; a tap when it is not your turn does nothing.',
+    'Tap an empty square. Press and hold a square and a faint preview of your mark appears; let go on the same square to place it, or slide your finger away to cancel. Tapping a taken square places nothing and flashes that square red; a tap when it is not your turn does nothing.',
     'On a keyboard use the arrow keys and Enter or Space, the digits 1 to 9 on the 3x3 boards, U for Undo, T for Think, R for Restart and Escape or P to pause.',
   ] },
   { title: 'Forks and blocks', art: 'fork', body: [

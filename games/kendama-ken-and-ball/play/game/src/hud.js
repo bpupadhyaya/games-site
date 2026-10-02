@@ -272,9 +272,7 @@ export function renderPlay(ctx, s, rope, petals) {
   const showHint = s.hint && (s.hint.phase === 'show' || s.hint.phase === 'run') ? s.hint : (s.watch && (s.watch.phase === 'think' || s.watch.phase === 'reveal') ? s.watch : null);
   const hintObj = showHint ? { arcs: showHint.arcs, plan: showHint.phase === 'run' || showHint.phase === 'think' ? null : showHint.plan } : null;
   const ghost = showHint && showHint.plan && showHint.plan.land && (showHint.phase === 'show' || showHint.phase === 'reveal') ? showHint.plan.land : null;
-  let sx = 0, sy = 0;
-  if (s.shake > 0) { sx = Math.sin(s.t * 90) * s.shake * 8; sy = Math.cos(s.t * 77) * s.shake * 6; }
-  ctx.save(); ctx.translate(sx, sy);
+  ctx.save();
   drawWorld(ctx, s.w, rope, { glow, petals, parts: s.parts, hint: hintObj, ghost, t: s.t });
   ctx.restore();
   drawFinger(ctx, s);

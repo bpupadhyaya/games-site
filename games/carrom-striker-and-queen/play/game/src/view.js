@@ -11,7 +11,7 @@ const FONT = '"Fredoka", "Trebuchet MS", system-ui, sans-serif', TAU = Math.PI *
 const GOLD = '#f6d58a', CREAM = '#fff3d6';
 
 export function render(ctx, state) {
-  ctx.save(); if (state.shake > 0.3) ctx.translate(Math.sin(state.t * 91) * state.shake, Math.cos(state.t * 77) * state.shake);
+  ctx.save();
   draw(ctx, state); ctx.restore();
 }
 function draw(ctx, state) {

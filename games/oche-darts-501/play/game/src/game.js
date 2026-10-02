@@ -38,7 +38,7 @@ export function createGame(env) {
     setup: { mode: 'ai', opp: 0, start: 501, legs: 2 }, setupMsg: '', restoreMsg: '',
     ui: { scroll: 0, drag: null }, page: 0, resume: null, loaded: false,
     m: null, phase: 'ready', pt: 0, humanTurn: false, aim: null, reticle: null, flight: null, darts: [], parts: [], pops: [],
-    banner: null, flash: null, hint: null, think: null, shake: null, toast: '', toastT: 0, bustShake: 0, lastVisit: [undefined, undefined],
+    banner: null, flash: null, hint: null, think: null, toast: '', toastT: 0, bustShake: 0, lastVisit: [undefined, undefined],
     coachRoute: null, pickup: false, att: { darts: [], wait: 1.4, n: 0, parts: [] }, kb: { x: 360, y: BOARD.cy }, shot: false, ai: { form: [1, 1], bias: [[0, 0], [0, 0]] },
   };
   let tables = [null, null];
@@ -222,7 +222,6 @@ export function createGame(env) {
       res = applyDart(m, { label: 'Out', value: 0, mult: 0, seg: 0, bounced: true });
       sfx.ting(); sparks(f.ex, f.ey, 8);
       state.pops.push({ x: f.ex, y: f.ey, text: f.why === 'Wide' ? 'Wide!' : 'Bounced out!', sub: '', col: '#ffb4a0', t: 0 });
-      state.shake = { t: 0, amp: 1.5 };
     } else {
       state.darts.push({ x: f.ex, y: f.ey, age: 0, side: f.side, amp: 0.2 + fx.next() * 0.08, ph: fx.next() * TAU, label: hit.label });
       res = applyDart(m, { label: hit.label, value: hit.value, mult: hit.mult, seg: hit.seg, bounced: false });
@@ -230,7 +229,7 @@ export function createGame(env) {
       sfx.thud(hit.value === 0 ? 0.6 : 1);
       dust(f.ex, f.ey, 5 + (big ? 4 : 0));
       if (hit.value > 0) sparks(f.ex, f.ey, hit.mult >= 2 ? 6 : 2);
-      state.shake = { t: 0, amp: big ? 3.4 : 2.4 };
+      sparks(f.ex, f.ey, big ? 6 : 3);
       if (hit.value > 0) {
         state.flash = { label: hit.label, t: 0 };
         state.pops.push({ x: f.ex, y: f.ey, text: hit.label === 'Bull' ? 'BULL' : hit.label, sub: `${hit.value}`, col: hit.mult === 3 ? '#8fe8ff' : hit.mult === 2 ? '#ffd36a' : '#fff1cf', t: 0, big });
@@ -238,7 +237,7 @@ export function createGame(env) {
       } else state.pops.push({ x: f.ex, y: f.ey, text: 'Miss', sub: '', col: '#ffb4a0', t: 0 });
     }
     state.phase = 'settle'; state.pt = 0; state.coachRoute = null;
-    if (res.kind === 'bust') { showBanner('BUST', res.why, 'bust', 1.5, 92, 620); sfx.bust(); state.bustShake = 0.7; state.shake = { t: 0, amp: 5 }; }
+    if (res.kind === 'bust') { showBanner('BUST', res.why, 'bust', 1.5, 92, 620); sfx.bust(); state.bustShake = 0.7; }
     else if (res.kind === 'leg') { confetti(70); sfx.big(); }
   };
 
@@ -354,7 +353,6 @@ export function createGame(env) {
     stepParts(dt);
     for (const d of state.darts) { d.age += dt; if (d.fall) d.fall.age += dt; if (d.leave) d.leave += dt; }
     state.darts = state.darts.filter((d) => !(d.fall && d.fall.age > 0.7));
-    if (state.shake) { state.shake.t += dt; if (state.shake.t > 0.5) state.shake = null; }
     if (state.flash) { state.flash.t += dt; if (state.flash.t > 0.5) state.flash = null; }
     if (state.toastT > 0) state.toastT -= dt;
     if (state.bustShake > 0) state.bustShake = Math.max(0, state.bustShake - dt);

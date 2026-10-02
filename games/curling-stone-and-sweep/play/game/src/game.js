@@ -15,7 +15,7 @@ import { throwNoise, applyNoise, HUMAN } from './noise.js';
 import { explainShot, situation } from './explain.js';
 import { LESSONS, lessonById, lessonIndex } from './lessons.js';
 import { W, H, inRect, REF_BACK, REF_NEXT, TEXT_DEC, TEXT_INC, TEXT_SCALES, THINK_STEPS, SETUP_PINS } from './layout.js';
-import { renderPlay, layoutFor, makeCam, camToWorld, AIM_TOP, cardRect } from './view.js';
+import { renderPlay, layoutFor, makeCam, camToWorld, cardRect } from './view.js';
 import {
   renderTitle, renderSetup, renderSettings, renderLearn, renderQuiz, renderResult, renderPause, renderShotOptions, renderReason, renderLessonResult, renderPages, renderDemoLimit,
   hitScreen, flowMeta, pageCount, ensureLayout, resetMenus,
@@ -38,9 +38,9 @@ export function createGame(env) {
     learn: { done: {} },
     setup: { mode: 'ai', opp: 0, format: 'short', ends: 4 }, setupMsg: '',
     ui: { scroll: 0, drag: null }, page: 0,
-    att: null, w: null, m: null, names: ['You', 'Louise'], cam: { yTop: AIM_TOP }, ctl: 'aim',
+    att: null, w: null, m: null, names: ['You', 'Louise'], cam: {}, ctl: 'aim',
     aim: { x: 0, y: 0, w: 0, turn: 1, placed: false }, pv: null, finalPreview: null, weightsOk: [true, true, true, true],
-    humanTurn: false, fl: null, trail: [], parts: [], pops: [], toast: '', toastT: 0, card: null, shake: null, hl: null,
+    humanTurn: false, fl: null, trail: [], parts: [], pops: [], toast: '', toastT: 0, card: null, hl: null,
     think: null, hintBusy: false, wlabel: '', restT: 0, saved: null, quiz: null, lesson: null, lessonRes: null, loaded: false, restoreMsg: '', ff: false, pre: null,
     drag: null, sweepIn: { px: 0, py: 0, sp: 0, on: false }, humanSweeps: false, shotMode: null, assist: false, resumeAim: null, lastNotes: [],
   };
@@ -132,7 +132,7 @@ export function createGame(env) {
         chips(parts, e.x, e.y, Math.min(12, 3 + Math.floor(e.v * 3)), 1.2);
         ring(parts, e.x, e.y, 26 + e.v * 12, '#ffffff');
         for (const s of w.stones) if (s.id === e.a || s.id === e.b) s.heat = Math.min(1, e.v / 2.5);
-        if (live) { sfx.clack(e.v); if (e.v > 1.4) state.shake = { t: 0, dur: 0.28, amp: Math.min(7, e.v * 2.4) }; }
+        if (live) { sfx.clack(e.v); }
       } else if (e.k === 'out') {
         chips(parts, e.x, e.y, 8, 1.4);
         if (live) { sfx.out(); pop(clamp(e.x, -2, 2), Math.min(e.y, BACK + 0.2), e.why === 'back' ? 'Out the back' : 'Out', '#ffb48a', 26); }
@@ -245,7 +245,7 @@ export function createGame(env) {
   function startEnd() {
     const m = state.m;
     beginEnd(m, state.w);
-    state.parts = []; state.pops = []; state.cam.yTop = AIM_TOP;
+    state.parts = []; state.pops = [];
     beginTurn();
     toast(`End ${m.end}: ${state.names[m.hammer]} ${state.names[m.hammer] === 'You' ? 'have' : 'has'} the last stone`, 2.8);
   }
@@ -271,7 +271,7 @@ export function createGame(env) {
     const m = newMatch({ watchA: 3, ...sn.cfg });
     Object.assign(m, { end: sn.end, ends: sn.ends, scores: sn.scores.slice(), hammer: sn.hammer, thrown: sn.thrown.slice(), shot: sn.shot, turn: sn.turn, log: sn.log.map((r) => ({ ...r })), phase: 'aim' });
     state.w = w; state.m = m; state.lesson = null; setNames();
-    state.scene = 'play'; state.ui.scroll = 0; state.parts = []; state.pops = []; state.shake = null; state.cam.yTop = AIM_TOP; state.reasonOpen = false;
+    state.scene = 'play'; state.ui.scroll = 0; state.parts = []; state.pops = []; state.reasonOpen = false;
     state.resumeAim = sn.aim;
     beginTurn(true);
     openPause();    // always resumes paused: nothing moves, and no preview time is used, until the player presses Resume
@@ -297,7 +297,7 @@ export function createGame(env) {
     state.w = createWorld();
     for (const [t, x, y] of def.stones) addStone(state.w, t, x, y);
     state.m.thrown = [0, 0]; state.m.shot = 4; state.m.turn = 0; state.m.hammer = 1; state.m.phase = 'aim';
-    state.parts = []; state.pops = []; state.cam.yTop = AIM_TOP; state.lessonRes = null;
+    state.parts = []; state.pops = []; state.lessonRes = null;
     beginTurn();
     if (def.fixed) { state.aim = { x: def.fixed.x, y: def.fixed.stopY, w: 0, turn: def.fixed.turn, placed: true }; updatePreview(true); }
   }
@@ -325,7 +325,6 @@ export function createGame(env) {
     if (human) state.record.throws = (state.record.throws | 0) + 1;
     state.sweepIn = { px: 0, py: 0, sp: 0, on: false };
     sfx.release();
-    state.shake = { t: 0, dur: 0.1, amp: 1.5 };
     if (human && state.humanSweeps && state.lesson && state.lesson.def.kind === 'sweep') toast('Sweep now: rub the ice side to side', 3);
   }
   const humanThrow = () => {
@@ -659,15 +658,7 @@ export function createGame(env) {
     stepFx(dt);
     updateHint();
     updateAI(dt);
-    // camera: follows the stone, otherwise rests on the house
-    const winM = (lay.regionBottom - lay.regionTop) / makeCam(state, lay).ppm;
-    let want = AIM_TOP;
-    if (state.fl) {
-      const s = state.w.stones.find((q) => q.id === state.fl.id);
-      if (s && s.mode === 'play' && (s.vx || s.vy)) want = Math.min(AIM_TOP, s.y + 0.7 * winM);
-    }
-    state.cam.yTop += (want - state.cam.yTop) * 0.11;
-    if (Math.abs(state.cam.yTop - want) < 0.002) state.cam.yTop = want;
+    // fixed camera rule: the playing surface never moves; only stones, sweepers, trails and effects do
     if (m.phase === 'fly') updateFlight(dt, input);
     else if (m.phase === 'settle' && !state.lesson) { state.restT += dt; if (state.restT > 0.7) finishSettle(); }
   }
@@ -680,7 +671,6 @@ export function createGame(env) {
     stepParts(state.parts, dt);
     for (const p of state.pops) p.t += dt;
     state.pops = state.pops.filter((p) => p.t < p.max);
-    if (state.shake) { state.shake.t += dt; if (state.shake.t >= state.shake.dur) state.shake = null; }
     if (state.toastT > 0) state.toastT -= dt;
   }
 
@@ -844,7 +834,13 @@ export function createGame(env) {
       else if (v === 'result') { state.m.over = { win: 0, extra: false }; state.m.scores = [6, 3]; state.m.log = [{ end: 1, team: 0, pts: 2, steal: false }, { end: 2, team: 1, pts: 1, steal: true }]; state.scene = 'result'; }
       else if (v === 'quiz') { startLesson('count'); }
       else if (v === 'rules' || v === 'about' || v === 'howto') { state.scene = v; state.back = 'title'; state.page = Number(q('page')) | 0; }
+      else if (v === 'watch') { startWatch(); state.shotMode = null; }
       else state.scene = v;
+    }
+    const adv = Number(q('ticks')) | 0;   // review aid: play this many fixed steps before the first frame
+    if (adv > 0 && state.scene === 'play') {
+      const blank = { pointer: { x: 0, y: 0, down: false, pressed: false, released: false }, keys: { down: new Set(), pressed: new Set() } };
+      for (let i = 0; i < adv; i++) { state.t += 1 / 60; if (state.shotMode) showcaseStep(); updatePlay(1 / 60, blank); }
     }
   }
 

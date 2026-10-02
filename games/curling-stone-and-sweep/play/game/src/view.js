@@ -1,4 +1,4 @@
-// Drawing for the play screen: the ice (camera follows the stone), stones, sweeping brushes, aim guide, scoreboard and
+// Drawing for the play screen: the ice (fixed, never scrolls), stones, sweeping brushes, aim guide, scoreboard and
 // control bar. Pure: reads `state`, never mutates it. Menus and pages live in menus.js. All text follows the 100-300%
 // text size setting; the ice region shrinks to make room instead of clipping.
 import { R, HALF_W, HOG_FAR, HOG_NEAR, BACK, HOUSE_R, NEAR_TEE, toButton } from './sim.js';
@@ -31,15 +31,38 @@ export function layoutFor(state) {
   const kind = m && m.cfg.mode === 'watch' ? 'watch' : state.ctl === 'fly' ? 'fly' : state.ctl === 'score' ? 'score' : 'aim';
   return playLayout(textScale(state), kind);
 }
-// Camera: ppm = pixels per metre; yTop = world y at the top of the ice region.
-export function makeCam(state, lay) {
+// Fixed view (the playing surface never moves): the sheet is drawn once, in the same place on screen for the whole match.
+// A real sheet is ~45 m long and 4.75 m wide, so the lengthwise scale is not uniform: the house and guard area (zone A) is
+// true scale (ppm = pixels per metre, the same scale across the sheet), a middle strip (zone B) is squeezed to bs x, and the
+// long run-up to the delivery end (zone C) is squeezed to whatever height is left. Only the drawing mapping is non-uniform;
+// the physics stays in real metres.
+export const VIEW_TOP = BACK + 0.55, ZA_END = -3.2, ZB_END = -9.0, VIEW_BOT = HOG_NEAR - 1.05;
+const zoneBs = (rh) => (rh < 500 ? 0.3 : 0.5);
+export function makeCam(state, lay0) {
+  // Always built from the tallest-controls layout (aim), whatever the phase, so the sheet never shifts when the control bar changes.
+  const lay = playLayout(textScale(state), 'aim');
+  void lay0;
   const rh = lay.regionBottom - lay.regionTop;
-  const ppm = Math.max(46, Math.min(112, rh / 8.5));
-  const sh = state.shake ? Math.sin(state.shake.t * 70) * state.shake.amp * (1 - state.shake.t / state.shake.dur) : 0;
-  return { ppm, top: lay.regionTop + sh, yTop: state.cam.yTop, rh, bottom: lay.regionBottom, X: (x) => W / 2 + x * ppm, Y: (y) => lay.regionTop + sh + (state.cam.yTop - y) * ppm };
+  const bs = zoneBs(rh);
+  const ppm = Math.min(112, (rh * 0.82) / ((VIEW_TOP - ZA_END) + (ZA_END - ZB_END) * bs));
+  const hA = (VIEW_TOP - ZA_END) * ppm, hB = (ZA_END - ZB_END) * ppm * bs, hC = rh - hA - hB;
+  const sC = hC / (ZB_END - VIEW_BOT);              // px per metre in zone C
+  const top = lay.regionTop;
+  const Y = (y) => {
+    if (y >= ZA_END) return top + (VIEW_TOP - y) * ppm;
+    if (y >= ZB_END) return top + hA + (ZA_END - y) * ppm * bs;
+    return top + hA + hB + (ZB_END - y) * sC;
+  };
+  const yAt = (sy) => {
+    const d = sy - top;
+    if (d <= hA) return VIEW_TOP - d / ppm;
+    if (d <= hA + hB) return ZA_END - (d - hA) / (ppm * bs);
+    return ZB_END - (d - hA - hB) / sC;
+  };
+  const sy = (y) => (y >= ZA_END ? ppm : y >= ZB_END ? ppm * bs : sC);   // px per metre lengthwise at world y
+  return { ppm, top, rh, bottom: lay.regionBottom, X: (x) => W / 2 + x * ppm, Y, yAt, sy };
 }
-export function camToWorld(cam, sx, sy) { return { x: (sx - W / 2) / cam.ppm, y: cam.yTop - (sy - cam.top) / cam.ppm }; }
-export const aimYTop = () => AIM_TOP;
+export function camToWorld(cam, sx, sy) { return { x: (sx - W / 2) / cam.ppm, y: cam.yAt(sy) }; }
 
 // ---- the ice ------------------------------------------------------------------------------------------------------------------
 export function drawIce(ctx, cam, state) {
@@ -50,6 +73,7 @@ export function drawIce(ctx, cam, state) {
   ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
   const x0 = X(-HALF_W), x1 = X(HALF_W);
   const yEndTop = Y(AIM_TOP_END), yEndBot = Y(-37.2);
+  const yLoW = -37.2, yHiW = AIM_TOP_END;
   const top = Math.max(-4, yEndTop), bot = Math.min(H + 4, yEndBot);
   if (bot > top) {
     // boards on both sides
@@ -63,7 +87,7 @@ export function drawIce(ctx, cam, state) {
     const g = ctx.createLinearGradient(x0, 0, x1, 0);
     g.addColorStop(0, '#b9d6ea'); g.addColorStop(0.18, '#dcedf8'); g.addColorStop(0.5, '#e9f4fb'); g.addColorStop(0.82, '#dcedf8'); g.addColorStop(1, '#b9d6ea');
     ctx.fillStyle = g; ctx.fillRect(x0, top, x1 - x0, bot - top);
-    // pebble and frost, tied to the ice so it scrolls with the camera
+    // pebble and frost, tied to the ice (fixed)
     const tile = ensureIce(ctx);
     if (tile) {
       if (!icePat) icePat = ctx.createPattern(tile, 'repeat');
@@ -78,7 +102,7 @@ export function drawIce(ctx, cam, state) {
     }
     ctx.save(); ctx.beginPath(); ctx.rect(x0, top, x1 - x0, bot - top); ctx.clip();
     // hairline scratches in world chunks
-    const yHi = cam.yTop, yLo = cam.yTop - H / ppm;
+    const yHi = yHiW, yLo = yLoW;
     for (let c = Math.floor(yLo / 4) - 1; c <= Math.ceil(yHi / 4); c++) {
       const r = lcg((c + 400) * 2654435761);
       for (let i = 0; i < 7; i++) {
@@ -92,16 +116,14 @@ export function drawIce(ctx, cam, state) {
     const line = (y, col, wm) => { ctx.fillStyle = col; ctx.fillRect(x0, Y(y) - wm * ppm / 2, x1 - x0, Math.max(1.5, wm * ppm)); };
     ctx.fillStyle = 'rgba(40,88,150,0.42)'; ctx.fillRect(X(0) - 1, top, 2, bot - top);
     line(0, 'rgba(40,88,150,0.5)', 0.025); line(BACK, 'rgba(40,88,150,0.45)', 0.025);
-    line(NEAR_TEE, 'rgba(40,88,150,0.5)', 0.025); line(NEAR_TEE - BACK, 'rgba(40,88,150,0.45)', 0.025);
     line(HOG_FAR, 'rgba(204,52,48,0.8)', 0.1); line(HOG_NEAR, 'rgba(204,52,48,0.8)', 0.1);
     drawHouse(ctx, X(0), Y(0), ppm);
-    drawHouse(ctx, X(0), Y(NEAR_TEE), ppm);
     // the free guard zone, faintly
     if (state.showFgz) {
       ctx.fillStyle = 'rgba(255,255,255,0.0)';
     }
     // soft lights reflected in the ice (fixed on screen, a touch of parallax)
-    const par = (cam.yTop * 6) % 220;
+    const par = 0;
     for (const [lx, ly, lr, a] of [[210, 230 - par * 0.2, 260, 0.2], [530, 760 - par * 0.3, 300, 0.16], [260, 1120 - par * 0.1, 240, 0.12]]) {
       const lg = ctx.createRadialGradient(lx, ly, 0, lx, ly, lr);
       lg.addColorStop(0, `rgba(255,255,255,${a})`); lg.addColorStop(1, 'rgba(255,255,255,0)');
@@ -130,7 +152,8 @@ export function drawStones(ctx, cam, state, w, o = {}) {
     if (s.mode === 'out') { a = Math.max(0, 1 - s.out / 0.9); k = 1 + s.out * 0.25; }
     const sp = Math.hypot(s.vx, s.vy);
     if (sp > 0.6 && s.mode === 'play') {
-      const len = Math.min(0.9, sp * 0.16) * cam.ppm, nx = s.vx / sp, ny = -s.vy / sp;
+      const hxp = s.vx * cam.ppm, hyp = -s.vy * cam.sy(s.y), hn = Math.hypot(hxp, hyp) || 1;
+      const len = Math.min(0.9, sp * 0.16) * cam.ppm, nx = hxp / hn, ny = hyp / hn;
       const g = ctx.createLinearGradient(x, y, x - nx * len, y - ny * len);
       g.addColorStop(0, 'rgba(255,255,255,0.35)'); g.addColorStop(1, 'rgba(255,255,255,0)');
       ctx.strokeStyle = g; ctx.lineWidth = rpx * 1.5; ctx.lineCap = 'round';
@@ -172,7 +195,8 @@ export function drawFlightBrushes(ctx, cam, state) {
   if (!s || s.mode !== 'play') return;
   const sp = Math.hypot(s.vx, s.vy);
   if (sp === 0) return;
-  const hx = s.vx / sp, hy = -s.vy / sp;
+  const hxp = s.vx * cam.ppm, hyp = -s.vy * cam.sy(s.y), hn = Math.hypot(hxp, hyp) || 1;
+  const hx = hxp / hn, hy = hyp / hn;
   drawBrushes(ctx, cam.X(s.x), cam.Y(s.y), hx, hy, cam.ppm, f.eff, f.phase, f.team);
 }
 
@@ -479,7 +503,7 @@ export function renderPlay(ctx, state) {
 
 // The ice for menus: a house view with the attract world.
 export function drawAttract(ctx, state, ppm = 105, yTop = 2.2, top = 40) {
-  const cam = { ppm, top, yTop, X: (x) => W / 2 + x * ppm, Y: (y) => top + (yTop - y) * ppm };
+  const cam = { ppm, top, X: (x) => W / 2 + x * ppm, Y: (y) => top + (yTop - y) * ppm, yAt: (sy) => yTop - (sy - top) / ppm, sy: () => ppm };
   drawIce(ctx, cam, state);
   const a = state.att;
   if (a) {

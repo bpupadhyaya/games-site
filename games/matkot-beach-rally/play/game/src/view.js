@@ -368,9 +368,8 @@ export function drawThink(ctx, st, t) {
 
 // ---- the whole play scene -----------------------------------------------------------------------------------------------------
 export function renderScene(ctx, st, s) {
-  // s: { w, L, parts, trail, looks, t, cue, guideBall, hintPlan, thinkPlan, shake }
+  // s: { w, L, parts, trail, looks, t, cue, guideBall, hintPlan, thinkPlan }
   ctx.save();
-  if (s.shake) ctx.translate((Math.sin(s.shake.t * 90) * s.shake.amp * (1 - s.shake.t / s.shake.dur)), (Math.cos(s.shake.t * 73) * s.shake.amp * 0.6 * (1 - s.shake.t / s.shake.dur)));
   drawBackdrop(ctx, s.L, s.t);
   if (s.guides) s.guides(ctx);
   drawActors(ctx, s.w, s.looks, s.L, s.trail, s.t, { cue: s.cue });

@@ -154,7 +154,7 @@ export async function createGame(env) {
       if (e.type === 'shake') { for (let i = 0; i < 9; i++) SOUNDS.rattle(i); }
       else if (e.type === 'land') { SOUNDS.land(e.i); const [x, y] = seatPos(M, bottomSeat(M)); spawn(M, rng, x - 120 + e.i * 60, y + 20, 'thud'); }
       else if (e.type === 'bid') SOUNDS.bid();
-      else if (e.type === 'call') { if (e.kind === 'dudo') SOUNDS.dudo(); else SOUNDS.calzo(); M.shake = 0.3; }
+      else if (e.type === 'call') { if (e.kind === 'dudo') SOUNDS.dudo(); else SOUNDS.calzo(); }
       else if (e.type === 'flip') SOUNDS.flip();
       else if (e.type === 'refuse') SOUNDS.refuse();
       else if (e.type === 'hint') SOUNDS.hint();

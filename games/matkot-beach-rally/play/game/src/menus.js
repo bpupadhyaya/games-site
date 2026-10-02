@@ -30,7 +30,7 @@ export function hitScreen(x, y, scroll) { return LAID.lay ? flowHit(LAID.lay, LA
 
 function bgScene(ctx, state, src, pos = 1.6) {
   const L = lightAt(pos);
-  renderScene(ctx, state, { w: src.w, L, parts: src.parts ?? [], trail: src.trail ?? [], looks: src.looks ?? ['dana', 'maya'], t: state.t, shake: null, cue: false, guides: null });
+  renderScene(ctx, state, { w: src.w, L, parts: src.parts ?? [], trail: src.trail ?? [], looks: src.looks ?? ['dana', 'maya'], t: state.t, cue: false, guides: null });
 }
 function scrim(ctx, a = 0.5) {
   const g = ctx.createLinearGradient(0, 0, 0, H);
@@ -231,7 +231,7 @@ export function renderSettings(ctx, state) {
 export function renderResult(ctx, state) {
   const r = state.run;
   const L = lightAt(r.light);
-  renderScene(ctx, state, { w: r.w, L, parts: [], trail: [], looks: r.looks, t: state.t, shake: null, cue: false, guides: null });
+  renderScene(ctx, state, { w: r.w, L, parts: [], trail: [], looks: r.looks, t: state.t, cue: false, guides: null });
   scrim(ctx, 0.62);
   drawFlowScreen(ctx, state, 'result', resultWidgets(state), 0, H);
 }

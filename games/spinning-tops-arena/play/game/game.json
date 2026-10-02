@@ -4,7 +4,7 @@
   "tagline": "Wind it. Launch it. Last one spinning wins.",
   "genre": "spinning-top physics duel",
   "orientation": "portrait",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "monetization": {
     "model": "premium",
     "priceUsd": 3.99,

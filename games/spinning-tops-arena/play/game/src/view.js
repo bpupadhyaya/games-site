@@ -301,9 +301,6 @@ export function renderPlay(ctx, state) {
   const watch = m.cfg.mode === 'watch';
   if (state.ph === 'pass') { drawTableLayer(ctx); drawPassCard(ctx, state, L); return; }
   ctx.save();
-  if (state.shake) { const k = 1 - state.shake.t / state.shake.dur; ctx.translate(Math.sin(state.t * 90) * state.shake.amp * k, Math.cos(state.t * 77) * state.shake.amp * k); }
-  const cam = state.cam;
-  if (cam && cam.z > 1.001) { ctx.translate(cam.x, cam.y); ctx.scale(cam.z, cam.z); ctx.translate(-cam.x, -cam.y); }
   drawScene(ctx, sceneOf(state));
   // the aim and the coach's suggestion
   if (!watch && (state.ph === 'aim' || state.ph === 'timing')) {

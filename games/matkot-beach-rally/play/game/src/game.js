@@ -171,7 +171,7 @@ export function createGame(env) {
       mode, cfg: { ...cfg }, w, parts: [], trail: [], names, looks, auto, to: cfg.to ?? 7, score: [0, 0], serve: first, firstServe: first,
       phase: 'ready', phaseT: 0, rally: 0, best: 0, points: 0, combo: 0, mult: 1, banner: null, think: null, guide: null, hitstop: 0,
       light: mode === 'coop' ? 1 : LIGHT_POS[cfg.light ?? 1], lightTarget: mode === 'coop' ? 1 : LIGHT_POS[cfg.light ?? 1],
-      windBase: calm ? 0 : WINDS[cfg.wind ?? 0], windSign: fx.next() < 0.5 ? -1 : 1, adapt: 0.35, shake: null, over: null, pointInfo: null, total: 0,
+      windBase: calm ? 0 : WINDS[cfg.wind ?? 0], windSign: fx.next() < 0.5 ? -1 : 1, adapt: 0.35, over: null, pointInfo: null, total: 0,
       stats: { longest: 0, sweet: 0, hits: 0, whiffs: 0, hints: 0, smashes: 0, newBest: false }, tierSeen: 0,
     };
     state.scene = 'play'; state.paused = false; state.pauseMenu = false; state.ui.scroll = 0; state.hold = null; state.hintOk = false;
@@ -297,7 +297,7 @@ export function createGame(env) {
         sfx.tok(e.h, e.speed);
         ringFx(r.parts, e.x, e.y, e.z, e.sweet ? 1.0 : 0.6, e.sweet ? 'rgba(255,236,150,A)' : 'rgba(255,255,255,A)');
         sparks(r.parts, e.x, e.y, e.z, e.sweet ? 9 : 4);
-        if (e.style === 'smash') { r.shake = { t: 0, dur: 0.25, amp: 5 }; r.stats.smashes++; }
+        if (e.style === 'smash') { ringFx(r.parts, e.x, e.y, e.z, 1.4, 'rgba(255,170,90,A)'); sparks(r.parts, e.x, e.y, e.z, 8); r.stats.smashes++; }
         if (e.sweet || e.style === 'smash') r.hitstop = 0.045;
         puff(r.parts, w.p[e.side].x, w.p[e.side].y, 2, 0.05, 0.8);
         if (r.mode === 'coop') {
@@ -390,7 +390,6 @@ export function createGame(env) {
     if (state.paused) return;   // paused: nothing below advances (timers, plans, animations)
     if (state.toastT > 0) state.toastT -= dt;
     if (r.banner) { r.banner.t += dt; if (r.banner.t >= r.banner.dur) r.banner = null; }
-    if (r.shake) { r.shake.t += dt; if (r.shake.t >= r.shake.dur) r.shake = null; }
     r.light += (r.lightTarget - r.light) * Math.min(1, dt * 2);
     stepParts(r.parts, dt);
     const human = !r.auto[0];
@@ -610,14 +609,14 @@ export function createGame(env) {
 
 // ---- play-scene rendering (needs the run's view model) -----------------------------------------------------------------------
 export function sceneFor(state, src, L) {
-  return { w: src.w, L, parts: src.parts, trail: src.trail, looks: src.looks ?? ['you', 'dana'], t: state.t, shake: src.shake ?? null, cue: false, guides: null };
+  return { w: src.w, L, parts: src.parts, trail: src.trail, looks: src.looks ?? ['you', 'dana'], t: state.t, cue: false, guides: null };
 }
 const incoming0 = (w) => w.phase === 'rally' && w.b.live && canHit(w, 0);
 
 function renderPlay(ctx, st) {
   const r = st.run, w = r.w, L = lightAt(r.light);
   const human = !r.auto[0];
-  const S = sceneFor(st, { w, parts: r.parts, trail: r.trail, looks: r.looks, shake: r.shake }, L);
+  const S = sceneFor(st, { w, parts: r.parts, trail: r.trail, looks: r.looks }, L);
   S.cue = human && r.phase === 'play';
   const th = r.think;
   S.guides = (c2) => {

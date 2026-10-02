@@ -4,7 +4,7 @@
   "tagline": "Flick, pocket, cover the queen",
   "genre": "flick physics board game",
   "orientation": "portrait",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "monetization": {
     "model": "premium",
     "priceUsd": 2.99,

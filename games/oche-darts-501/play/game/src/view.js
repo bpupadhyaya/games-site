@@ -181,7 +181,11 @@ function drawPanel(ctx, state, side) {
   // remaining
   ctx.font = `800 ${fsc}px ${NUM}`;
   ctx.fillStyle = active ? '#ffffff' : 'rgba(255,255,255,0.78)';
-  const shake = state.bustShake && active ? Math.sin(state.bustShake * 60) * 6 * Math.min(1, state.bustShake * 2) : 0;
+  const shake = 0;
+  if (state.bustShake && active) {
+    const k = Math.min(1, state.bustShake * 2), pulse = 0.5 + 0.5 * Math.sin(state.bustShake * 24);
+    ctx.fillStyle = `rgb(255,${Math.round(255 - 150 * k * pulse)},${Math.round(255 - 170 * k * pulse)})`;
+  }
   if (st) { ctx.textAlign = 'right'; ctx.fillText(remTxt, p.x + p.w - 20 + shake, p.y + HUD.pan.scoreBase); }
   else { ctx.textAlign = 'center'; ctx.fillText(remTxt, p.x + p.w / 2 + shake, p.y + HUD.pan.scoreBase); }
   // small stats: average on the left, darts left (or the last visit) on the right
@@ -365,10 +369,8 @@ function drawBanner(ctx, b, state) {
 export function renderPlay(ctx, state) {
   const m = state.m, t = state.t;
   drawBackdrop(ctx);
-  // board with a little shiver on impact
-  const sh = state.shake ? state.shake.amp * Math.exp(-state.shake.t * 14) * Math.sin(state.shake.t * 90) : 0;
+  // the board never moves; the dart wobbles in it and a spark marks the impact
   ctx.save();
-  ctx.translate(sh * 0.6, sh);
   drawBoardAt(ctx, BOARD.cx, BOARD.cy, BOARD.R);
   if (state.flash) highlight(ctx, state.flash.label, 'flash', state.flash.t * 3);
   if (state.hint) highlight(ctx, state.hint.route[0], 'main', t);

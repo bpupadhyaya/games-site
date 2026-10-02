@@ -184,7 +184,6 @@ export function createGame(env) {
     const m = state.match, w = state.w;
     state.ph = 'cut'; state.phT = 0;
     state.flash = state.settings.calm ? 0 : 0.5;
-    if (!state.settings.calm) state.shake = { t: 0, dur: 0.5, amp: 12 };
     spark(state.parts, e.x, e.y, 46, 1.6);
     state.parts.push({ kind: 'ring', x: e.x, y: e.y, vx: 0, vy: 0, t: 0, max: 0.7, size: 160 });
     const pal = state.pals[e.side];

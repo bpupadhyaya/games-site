@@ -242,7 +242,6 @@ export function renderPlay(ctx, state) {
   const sky = m.cfg.sky, pals = palsOf(m);
   const L = playLayout(state.settings.textIdx), cm = Math.min(L.m, 1.6), capY = L.hudBottom + 14;
   ctx.save();
-  if (state.shake) { const k = 1 - state.shake.t / state.shake.dur; ctx.translate(Math.sin(state.t * 90) * state.shake.amp * k, Math.cos(state.t * 77) * state.shake.amp * k); }
   drawScene(ctx, state, w, sky, pals);
   const watch = m.cfg.mode === 'watch';
   // the player's heading point

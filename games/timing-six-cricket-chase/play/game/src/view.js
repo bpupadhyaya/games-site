@@ -20,7 +20,7 @@ export const R = {
   pause: { x: 640, y: 20, w: 56, h: 56 }, think: { x: 572, y: 20, w: 60, h: 56 },
   run: { x: 150, y: 1096, w: 420, h: 112 },
   radar: { x: 550, y: 186, w: 154, h: 154 },
-  speed: { x: 16, y: 1196, w: 120, h: 56 }, autoPause: { x: 150, y: 1196, w: 420, h: 56 }, autoThinkDec: { x: 584, y: 1196, w: 56, h: 56 }, autoThinkInc: { x: 648, y: 1196, w: 56, h: 56 },
+  speed: { x: 124, y: 1130, w: 164, h: 56 }, autoPause: { x: 298, y: 1130, w: 236, h: 56 }, autoThinkDec: { x: 546, y: 1130, w: 56, h: 56 }, autoThinkInc: { x: 610, y: 1130, w: 56, h: 56 },
 };
 
 const hidden = (o, k, v) => { Object.defineProperty(o, k, { value: v, enumerable: false, writable: true, configurable: true }); };
@@ -408,8 +408,6 @@ export function renderPlay(ctx, state) {
   const vv = state.env?.view3d;
   const useOver = (live && !(vv && vv.hold)) || state.scene === 'replay';
   ctx.save();
-  if (v.shake > 0.1) ctx.translate((Math.sin(t * 90) * v.shake), (Math.cos(t * 77) * v.shake * 0.7));
-  if (m.phase === 'contact') { const z = 1 + 0.06 * clamp(m.pt / 0.13, 0, 1); ctx.translate(360, 760); ctx.scale(z, z); ctx.translate(-360, -760); }
   if (useOver) renderOverhead(ctx, state); else renderDeliveryView(ctx, state);
   ctx.restore();
   drawParticles(ctx, v.parts);
@@ -640,10 +638,10 @@ function drawPauseMenu(ctx, state) {
 function drawAutoPanel(ctx, state) {
   const a = state.auto, m = state.m;
   // bottom controls
-  drawButton(ctx, R.speed, `x${a.speed}`, { size: 26 });
+  drawButton(ctx, R.speed, `Speed x${a.speed}`, { size: 24 });
   drawButton(ctx, R.autoPause, state.paused ? 'RESUME' : 'PAUSE', { primary: state.paused, size: 28 });
   drawButton(ctx, R.autoThinkDec, '−', { size: 32 }); drawButton(ctx, R.autoThinkInc, '+', { size: 32 });
-  ctx.font = `500 16px ${SANS}`; ctx.fillStyle = 'rgba(255,244,224,0.8)'; ctx.textAlign = 'center'; ctx.fillText(`think ${[2, 5, 8, 10][state.prefs.thinkIdx]}s`, 644, 1190);
+  ctx.font = `500 16px ${SANS}`; ctx.fillStyle = 'rgba(255,244,224,0.8)'; ctx.textAlign = 'center'; ctx.fillText(`think ${[2, 5, 8, 10][state.prefs.thinkIdx]}s`, 606, 1204);
   drawPill(ctx, { x: 18, y: 1130, w: 96, h: 56 }, 'Exit', { size: 24 });
   // reasoning card
   const lines = a.lines;

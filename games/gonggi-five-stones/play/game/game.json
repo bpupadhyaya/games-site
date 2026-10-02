@@ -4,7 +4,7 @@
   "tagline": "Toss one, take the rest, catch it before it falls.",
   "genre": "five-stones toss and catch skill game",
   "orientation": "portrait",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "monetization": {
     "model": "premium",
     "priceUsd": 2.99,

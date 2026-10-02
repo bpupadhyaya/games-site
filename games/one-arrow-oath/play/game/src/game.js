@@ -37,7 +37,7 @@ export function createGame(env) {
   const s = {
     scene: 'title', t: 0, run: null, battle: null, door: null, reward: null, envoy: null, overlay: null,
     ui: { sel: -1, target: 0, drag: null, press: null, choice: -1, cardPos: {}, shownHp: [], shownResolve: 50, flash: [], pull: 0, lastPlay: { x: 360, y: 1280 } },
-    fx: [], lock: 0, shake: 0, pending: null, best: 0, muted: false, demoBattles: 0, saved: null, runs: 0, legend: 0,
+    fx: [], lock: 0, pending: null, best: 0, muted: false, demoBattles: 0, saved: null, runs: 0, legend: 0,
     fade: 1, lastScene: 'title', meta: defaultMeta(), coach: { key: null, t: 0 }, unlocked: [],
     textScaleIdx: 0, // index into TEXT_SCALES; the help overlay's How to Play/About/Rules text size
     autoThinkIdx: 1, // index into AUTO_THINK_STEPS (Auto Play's think-time stepper); default 5s
@@ -331,7 +331,7 @@ export function createGame(env) {
         s.fx.push({ k: 'streak', x0: from.x, y0: from.y, x1: ARCHER.x, y1: ARCHER.y - 110, color: elementColor(ev.element), thick: 4, t: 0, dur: 0.2, delay: d });
         s.fx.push({ k: 'num', x: ARCHER.x + 150, y: ARCHER.y - 110, text: ev.amount > 0 ? `-${ev.amount}` : 'blocked', color: ev.amount > 0 ? C.damage : C.guard, size: ev.amount > 0 ? 46 : 28, t: 0, dur: 0.9, delay: d + 0.18 });
         if (ev.amount > 0) {
-          s.fx.push({ k: 'shake', amount: Math.min(6, 2 + ev.amount / 4), t: 0, dur: 0.25, delay: d + 0.18 });
+          s.fx.push({ k: 'ring', x: ARCHER.x, y: ARCHER.y - 110, color: C.damage, t: 0, dur: 0.35, delay: d + 0.18 });
           sfx.hurt();
         } else sfx.guard();
         d += 0.34;
@@ -1226,22 +1226,18 @@ export function createGame(env) {
       if (p.released && ui.press && !ui.press.moved) tap = { x: p.x, y: p.y };
 
       // effects
-      let shake = 0;
       for (const f of s.fx) {
         if (f.delay > 0) f.delay -= dt;
         else {
           f.t += dt;
-          if (f.k === 'shake') shake = Math.max(shake, f.amount * Math.max(0, 1 - f.t / f.dur));
         }
       }
       s.fx = s.fx.filter((f) => f.t < f.dur);
-      s.shake = shake;
       if (s.scene !== s.lastScene) {
         s.lastScene = s.scene;
         s.fade = s.meta.reduceMotion ? 0 : 1;
       }
       if (s.fade > 0) s.fade = Math.max(0, s.fade - dt * 3.2);
-      if (s.meta.reduceMotion) s.shake = 0;
 
       if (keys.pressed.has('Escape')) {
         if (s.overlay) {

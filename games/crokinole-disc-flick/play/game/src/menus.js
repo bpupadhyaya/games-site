@@ -93,6 +93,7 @@ export function settingsWidgets(state) {
     { t: 'gap', h: 10 }, { t: 'h', label: 'Settings', size: 48 },
     { t: 'btn', id: 'set-sound', label: st.sound ? 'Sound: On' : 'Sound: Off' },
     { t: 'btn', id: 'set-calm', label: st.calm ? 'Calm mode: On' : 'Calm mode: Off', sub: 'Shows the whole predicted path, bounces and all', active: st.calm },
+    { t: 'btn', id: 'set-rotate', label: st.rotate ? 'Rotate board to face the shooter: On' : 'Rotate board to face the shooter: Off', sub: 'Two players only. For players sitting opposite each other', active: st.rotate },
     { t: 'p', label: `Text size: ${Math.round(sc * 100)}%`, bold: true, color: '#ffe9bf', size: 26 },
     { t: 'btn', id: 'txt-dec', label: 'A−  Smaller', row: 4, disabled: st.textIdx === 0 },
     { t: 'btn', id: 'txt-inc', label: 'A+  Larger', row: 4, disabled: st.textIdx === TEXT_SCALES.length - 1 },
@@ -185,7 +186,7 @@ function drawFlowScreen(ctx, state, key, widgets, top, bottom) {
   return { scroll, maxScroll, lay };
 }
 
-const attractTable = (ctx, state, scale = 0.95, cy) => drawTable(ctx, state, state.att.w, state.att.parts, { rot: state.t * 0.05, scale, noShake: true, cy });
+const attractTable = (ctx, state, scale = 0.95, cy) => drawTable(ctx, state, state.att.w, state.att.parts, { rot: 0, scale, cy });
 
 export function renderTitle(ctx, state) {
   attractTable(ctx, state, 0.62, 560);
@@ -215,7 +216,7 @@ export function renderSettings(ctx, state) {
   drawFlowScreen(ctx, state, 'settings', settingsWidgets(state), 0, H);
 }
 export function renderResult(ctx, state) {
-  drawTable(ctx, state, state.w, [], { rot: 0, noShake: true, scale: 0.8, cy: TEXT_SCALES[state.settings.textIdx] > 1.5 ? undefined : 930 });
+  drawTable(ctx, state, state.w, [], { rot: 0, scale: 0.8, cy: TEXT_SCALES[state.settings.textIdx] > 1.5 ? undefined : 930 });
   scrim(ctx, 0.5);
   drawFlowScreen(ctx, state, 'result', resultWidgets(state), 0, H);
 }

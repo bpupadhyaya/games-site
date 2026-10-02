@@ -410,9 +410,8 @@ function drawScene(ctx, S, puz, auto) {
   }
   // rods
   for (let i = 0; i < puz.P; i = i + 1) {
-    const sx = (puz.shake[i] > 0 ? Math.sin(puz.shake[i] * 70) * 6 * (puz.shake[i] / 0.4) : 0);
     const glow = (puz.done && i === puz.goal) ? 0.6 + 0.4 * Math.sin(puz.doneT * 5) : held === i ? 0.7 : 0;
-    drawRod(ctx, g.pegX[i] + sx, g.baseY + 20, g.len + 20, g.rodR, { glow });
+    drawRod(ctx, g.pegX[i], g.baseY + 20, g.len + 20, g.rodR, { glow });
   }
   // landing shadows for discs in the air
   for (const d of puz.discs) {
@@ -434,7 +433,9 @@ function drawScene(ctx, S, puz, auto) {
   for (const d of order) {
     const px = g.pegX[d.id === d.id ? puz.pegOf[d.id] : 0];
     const glow = d.id === hintDisc ? 0.5 + 0.5 * pulse : (auto && auto.target && auto.phase !== 'think' && auto.target.disc === d.id ? 0.55 + 0.45 * pulse : 0);
-    drawDisc(ctx, d.x, d.y, g.w(d.id), g.sh, d.id, { squash: squashOf(d), glow, label, hole: g.rodR });
+    const wt = d.id === puz.wiggleDisc ? Math.max(...puz.shake) : 0; // refused move: only the disc wiggles
+    const wx = wt > 0 ? Math.sin(wt * 70) * 6 * (wt / 0.4) : 0;
+    drawDisc(ctx, d.x + wx, d.y, g.w(d.id), g.sh, d.id, { squash: squashOf(d), glow, label, hole: g.rodR });
     if ((d.mode === 'rest' || d.mode === 'drop') && Math.abs(d.x - px) < 2) rodFront(ctx, g, px, d.y - g.sh);
   }
   // Think arc

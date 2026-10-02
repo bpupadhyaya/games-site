@@ -119,8 +119,8 @@ function drawJails(ctx, state, R) {
   }
 }
 function drawBars(ctx, state, arm) {
-  const r = jailRect(arm), sh = state.jailShake?.[arm] || 0, off = sh > 0 ? Math.sin(sh * 70) * 4 * sh : 0;
-  ctx.save(); ctx.beginPath(); ctx.roundRect(r.x + 2, r.y + 2, r.w - 4, r.h - 4, 16); ctx.clip(); ctx.translate(off, 0);
+  const r = jailRect(arm), sh = state.jailShake?.[arm] || 0, fl = sh > 0 ? Math.min(1, sh / 0.7) * (0.55 + 0.45 * Math.sin(sh * 40)) : 0;
+  ctx.save(); ctx.beginPath(); ctx.roundRect(r.x + 2, r.y + 2, r.w - 4, r.h - 4, 16); ctx.clip();
   const n = 7;
   for (let k = 0; k < n; k++) {
     const x = r.x + 10 + k * ((r.w - 20) / (n - 1)), g = ctx.createLinearGradient(x - 3, 0, x + 3, 0);
@@ -130,6 +130,10 @@ function drawBars(ctx, state, arm) {
   ctx.globalAlpha = 0.92;
   for (const y of [r.y + 8, r.y + r.h - 14]) { const g = ctx.createLinearGradient(0, y, 0, y + 7); g.addColorStop(0, '#f2f6ff'); g.addColorStop(1, '#4a5368'); ctx.fillStyle = g; ctx.fillRect(r.x + 2, y, r.w - 4, 7); }
   ctx.restore();
+  if (fl > 0) { // fixed surface: the jail bars stay put; flash the slot instead
+    ctx.save(); ctx.strokeStyle = `rgba(255,120,90,${fl})`; ctx.lineWidth = 6; ctx.shadowColor = '#ff6a5a'; ctx.shadowBlur = 16;
+    ctx.beginPath(); ctx.roundRect(r.x + 3, r.y + 3, r.w - 6, r.h - 6, 16); ctx.stroke(); ctx.restore();
+  }
 }
 
 // ---- pieces ---------------------------------------------------------------------------------------------------------------

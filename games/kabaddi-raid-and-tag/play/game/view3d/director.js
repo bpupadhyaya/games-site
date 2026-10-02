@@ -6,13 +6,18 @@ export function createDirector(THREE, camera) {
   const pos = V(0, 5, -9), look = V(0, 1, 2);
   const want = V(), wantLook = V();
   const keep = {};
-  let shot = 'wide', t = 0, snap = true, fov = 40, wantFov = 40, shake = 0, shakeT = 0, seed = 1;
+  let shot = 'wide', t = 0, snap = true, fov = 40, wantFov = 40, seed = 1;
   const bbox = (pts) => { const b = { x0: 1e9, x1: -1e9, z0: 1e9, z1: -1e9 }; for (const p of pts) { b.x0 = Math.min(b.x0, p.x); b.x1 = Math.max(b.x1, p.x); b.z0 = Math.min(b.z0, p.z); b.z1 = Math.max(b.z1, p.z); } return b; };
 
   // `ctx`: { dir: +1/-1 raid direction along z, raider:{x,z}, lead:{x,z}|null, near:[{x,z}], all:[{x,z}], aspect, regionAspect, side: +1/-1 }
-  function setShot(name, cut = false) { if (name !== shot) { shot = name; t = 0; if (cut) snap = true; keep.ang = null; } }
+  function setShot(name, cut = false) {
+    if (name === 'follow') name = 'wide';                                // only three stable shots: wide, pair, hold
+    if (name !== shot) { const leaving = shot === 'pair' || shot === 'hold'; shot = name; t = 0; if (cut || leaving) snap = true; keep.ang = null; keep.fix = null; keep.wide = null; }
+  }
+  let fixed = null;
   function update(dt, ctx) {
     t += dt;
+    if (fixed) { pos.set(...fixed.pos); look.set(...fixed.look); fov = wantFov = fixed.fov; camera.position.copy(pos); camera.lookAt(look); return; }
     const f = ctx.dir, side = ctx.side || 1;
     const R = ctx.raider;
     const tanH = Math.tan((wantFov * Math.PI) / 360) * ctx.regionAspect;     // half horizontal extent per unit distance
@@ -27,9 +32,11 @@ export function createDirector(THREE, camera) {
       const cx = (b.x0 + b.x1) / 2, cz = (b.z0 + b.z1) / 2;
       wantFov = 36;
       const d = fitDist(pts, 1.4, 7.5, 12);
-      want.set(cx * 0.6 - side * 0.8, 3.8 + d * 0.3, cz - f * (d * 0.95));
-      wantLook.set(cx, 0.9, cz + f * 0.2);
-      k = 0.5;
+      const cw = V(cx * 0.6 - side * 0.8, 3.8 + d * 0.3, cz - f * (d * 0.95)), cl = V(cx, 0.9, cz + f * 0.2);
+      // a steady shot: it only re-frames (one slow glide) when the action leaves the safe zone around the current framing
+      if (!keep.wide || Math.abs(cl.x - keep.wide.look.x) > 1.6 || Math.abs(cl.z - keep.wide.look.z) > 2.4 || Math.abs(cw.y - keep.wide.pos.y) > 1.2) keep.wide = { pos: cw, look: cl };
+      want.copy(keep.wide.pos); wantLook.copy(keep.wide.look);
+      k = 0.9;
     } else if (shot === 'follow') {
       const pts = [R, ...(ctx.near.length ? ctx.near : ctx.all)];
       const b = bbox(pts), cx = (b.x0 + b.x1) / 2, cz = (b.z0 + b.z1) / 2;
@@ -46,7 +53,7 @@ export function createDirector(THREE, camera) {
       let dx = L.x - R.x, dz = L.z - R.z; const len = Math.hypot(dx, dz) || 1; dx /= len; dz /= len;
       if (shot === 'hold') { dx = 0; dz = f; }                           // the hold camera ignores the defenders' last steps and keeps a steady angle
       const hold = shot === 'hold', sway = Math.min(1, t / 1.6);
-      const d = hold ? 4.5 - 0.5 * sway : 4.4;
+      const d = hold ? 4.3 : 4.4;
       const bx = -dx, bz = -dz;
       if (!keep.ang || keep.shot !== shot || keep.key !== ctx.key) {
         let best = null;
@@ -63,13 +70,14 @@ export function createDirector(THREE, camera) {
           }
           if (!best || cost < best.cost) best = { ang, cost };
         }
-        keep.ang = best.ang; keep.shot = shot; keep.key = ctx.key;
+        keep.ang = best.ang; keep.shot = shot; keep.key = ctx.key; keep.fix = null;
       }
       const ca = Math.cos(keep.ang), sa = Math.sin(keep.ang);
-      wantFov = hold ? 36 - 2 * sway : 36;
-      want.set(mx + (bx * ca - bz * sa) * d, hold ? 1.5 : 1.65, mz + (bx * sa + bz * ca) * d);
-      wantLook.set(mx, 0.95, mz);
-      k = hold ? 0.3 : 0.2;
+      wantFov = 36;
+      // fixed for the whole shot: framed once at the cut, no easing or drift while the contact plays out
+      if (!keep.fix) keep.fix = { pos: V(mx + (bx * ca - bz * sa) * d, hold ? 1.5 : 1.65, mz + (bx * sa + bz * ca) * d), look: V(mx, 0.95, mz) };
+      want.copy(keep.fix.pos); wantLook.copy(keep.fix.look);
+      k = 0.05;
     } else {
       wantFov = 40; want.set(0, 5, -9 * f); wantLook.set(0, 1, 0);
     }
@@ -85,16 +93,11 @@ export function createDirector(THREE, camera) {
       if (dd < rad && pos.y < 2.4) { const k2 = rad / Math.max(dd, 0.05); pos.x = o.x + dx * k2; pos.z = o.z + dz * k2; }
     }
     camera.position.copy(pos);
-    if (shakeT > 0) {
-      shakeT = Math.max(0, shakeT - dt);
-      seed = (seed * 1664525 + 1013904223) >>> 0; const r = (seed / 4294967296 - 0.5) * 2;
-      camera.position.x += r * shake * (shakeT / 0.3); camera.position.y -= r * shake * 0.6 * (shakeT / 0.3);
-    }
     camera.lookAt(look);
   }
   return {
-    update, setShot, snap: () => { snap = true; }, shot: () => shot, fov: () => fov,
-    shake(amount, secs = 0.3) { shake = amount; shakeT = secs; },
+    update, setShot, fix(v) { fixed = v; }, snap: () => { snap = true; }, shot: () => shot, fov: () => fov,
+    shake() {},                                                            // the camera never shakes (fixed surface rule)
     state: () => ({ pos: pos.clone(), look: look.clone(), fov }),
   };
 }

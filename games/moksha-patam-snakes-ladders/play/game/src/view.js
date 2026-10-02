@@ -209,7 +209,6 @@ function drawHeader(ctx, state, title) {
 export function renderBoardScene(ctx, state, demo) {
   drawBackdrop(ctx);
   ctx.save();
-  if (state.shake) { const k = 1 - state.shake.t / 0.4; ctx.translate(Math.sin(state.shake.t * 90) * state.shake.amp * k, Math.cos(state.shake.t * 70) * state.shake.amp * 0.6 * k); }
   const g = state.g, cur = g.players[state.mover >= 0 ? state.mover : g.turn];
   drawBoard(ctx, g.board);
   drawHighlights(ctx, state);

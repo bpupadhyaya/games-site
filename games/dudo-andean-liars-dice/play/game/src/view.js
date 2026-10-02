@@ -528,8 +528,11 @@ function drawReveal(ctx, S, M, lay) {
   const ds = Math.min(66, rh - 12, (T.w - 214 - 100) / 5 - 8);
   const rowsTop = rowsTop0 + Math.max(0, (rowsH - rh * alive.length) / 6);
   let running = 0;
-  const shakeX = callPhase ? Math.sin(M.t * 60) * 5 * (1 - M.t / 1.2) : 0;
-  ctx.save(); ctx.translate(shakeX, 0);
+  if (callPhase) { // fixed surface: flash the called bid instead of sliding the rows
+    const fl = Math.max(0, 1 - M.t / 1.2) * (0.55 + 0.45 * Math.sin(M.t * 26));
+    ctx.save(); ctx.strokeStyle = `rgba(242,184,75,${clamp01(fl)})`; ctx.lineWidth = 4; rr(ctx, T.x + 14, headerY - 48, 270, 96, 18); ctx.stroke(); ctx.restore();
+  }
+  ctx.save();
   alive.forEach((seat, k) => {
     const age = M.phase === 'call' ? -1 : M.phase === 'reveal' ? M.t - k * 0.5 : 9;
     const y = rowsTop + k * rh + rh / 2;

@@ -4,7 +4,7 @@
   "tagline": "Flick it. Ring it. Pocket the twenty.",
   "genre": "physics disc-flick tabletop",
   "orientation": "portrait",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "monetization": {
     "model": "premium",
     "priceUsd": 3.99,

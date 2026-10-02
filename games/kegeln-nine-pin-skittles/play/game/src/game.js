@@ -7,7 +7,7 @@ import { W, H, TEXT_SCALES, THINK_STEPS, REVEAL_SECS, TEXT_DEC, TEXT_INC, REF_BA
 import { DT, newSim, stepSim, simResult, launchFor, pathPoints, PIN_Z0, ALL } from './phys.js';
 import { newMatch, applyThrow, standingFor, totals, LENGTHS, phaseName, toMask } from './engine.js';
 import { PROFILES, ASSIST, HUMAN_LAT, tableJob, chooseFromTable, rollWithError, verifyPlan, explainHint } from './ai.js';
-import { makeCam, scaleAt, camPreset, replayCam } from './scene.js';
+import { fixedCam, scaleAt } from './scene.js';
 import { renderPlay, computeLayout, resultText, sideName, statusText, whyTitle } from './view.js';
 import { renderTitle, renderSetup, renderSettings, renderLearn, renderResult, renderPause, renderSheet, renderWhy, renderPages, renderDemoLimit, hitScreen, flowMeta, pageCount, ensureLayout } from './menus.js';
 import { ABOUT, HOWTO, RULES, LESSONS } from './content.js';
@@ -19,7 +19,7 @@ const TAU = Math.PI * 2;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const MAX_PARTS = 150;
 const START_MAX = 0.5, AIM_MAX = 0.62;
-const AIM_CAM = camPreset(0);
+const FIXED_CAM = fixedCam();   // the one camera: the playing surface never moves
 const NOLAUNCH = { x0: 0, vx0: 0, vz: 0, A: 0, T: 3 };
 
 export function createGame(env) {
@@ -46,12 +46,12 @@ export function createGame(env) {
     setup: { mode: 'ai', opp: 0, len: 1 }, setupMsg: '', restoreMsg: '',
     ui: { scroll: 0, drag: null }, page: 0, resume: null, loaded: false,
     m: null, ph: 'intro', pt: 0, humanTurn: false, plan: { x0: 0, aimX: 0, power: 1, hook: 0 }, plans: [null, null],
-    cam: makeCam(), sim: null, ballShow: null, ballOpts: null, overlay: null, parts: [], banner: null, toast: '', toastT: 0,
-    why: null, hint: null, think: null, res: null, lastPath: null, fade: 0, drops: null, shake: 0, sheet: false, chaseZ: 0, thrown: null,
+    cam: fixedCam(), sim: null, ballShow: null, ballOpts: null, overlay: null, parts: [], banner: null, toast: '', toastT: 0,
+    why: null, hint: null, think: null, res: null, lastPath: null, fade: 0, drops: null, sheet: false, thrown: null, final: null, pipParts: [],
     drag: null, rt: 0, fast: false, thinkSecs: 5, rec: [], recT: 0, rumbleT: 0, acc: 0, autoReplayDone: false, lastPhaseShown: 0, shot: false, showcase: false,
     att: { cam: null, sim: null, wait: 1, n: 0, parts: [], acc: 0 },
   };
-  Object.assign(state.cam, AIM_CAM);
+  
   state.sim = newSim(ALL(), NOLAUNCH);
   state.ballShow = { x: 0, z: 0, on: true };
   const record = state.record;
@@ -125,22 +125,6 @@ export function createGame(env) {
   const aimPts = (p) => pathPoints(p.x0, p.aimX, p.power, p.hook, 18);
   const maskArr = (list) => { const a = new Array(9).fill(false); list.forEach((i) => { a[i] = true; }); return a; };
 
-  // ---- the camera ----------------------------------------------------------------------------------------------
-  const chaseFor = (bz) => { const t = clamp((bz - 2) / 14.5, 0, 1); return camPreset(t * t * (3 - 2 * t)); };
-  const updateCamera = (dt) => {
-    const c = state.cam, ph = state.ph;
-    let tg = AIM_CAM, rate = 4;
-    if (ph === 'rolling') { const b = state.sim.ball; if (b.on) state.chaseZ = b.z; tg = chaseFor(state.chaseZ); rate = 6; }
-    else if (ph === 'result') tg = chaseFor(state.chaseZ);
-    else if (ph === 'replay' || ph === 'replayHold') {
-      const k = clamp(state.rt / 4.5, 0, 1);
-      tg = replayCam(-0.35 + 0.7 * k); rate = 3;
-    }
-    const k = Math.min(1, dt * rate);
-    for (const key of ['uc', 'H', 'f', 'yh', 'x']) c[key] += (tg[key] - c[key]) * k;
-    if (state.shake > 0) { state.shake = Math.max(0, state.shake - dt * 2.2); const a = state.shake * 9; c.shx = Math.sin(state.t * 91) * a; c.shy = Math.cos(state.t * 77) * a * 0.6; } else { c.shx = 0; c.shy = 0; }
-  };
-
   // ---- match flow ---------------------------------------------------------------------------------------------------
   const resetPins = (standing, drop) => {
     state.sim = newSim(standing, NOLAUNCH);
@@ -175,7 +159,7 @@ export function createGame(env) {
     if (state.demo && cfg.mode !== 'watch') { record.demoMatches++; save(); }
     state.scene = 'play'; state.paused = false; state.pauseMenu = false; state.ui.scroll = 0;
     state.plans = [null, null]; state.parts = []; state.banner = null; state.lastPath = null; state.lastPhaseShown = 0;
-    Object.assign(state.cam, AIM_CAM);
+    
     showPhaseBanner();
     beginTurn(true, true);
   };
@@ -190,7 +174,7 @@ export function createGame(env) {
     state.m = JSON.parse(JSON.stringify(r));
     state.scene = 'play'; state.ui.scroll = 0; state.plans = [null, null]; state.parts = []; state.banner = null; state.lastPath = null;
     state.lastPhaseShown = state.m.phase;
-    Object.assign(state.cam, AIM_CAM);
+    
     beginTurn(false, false);
     state.paused = true; state.pauseMenu = true;   // a resumed match starts paused
   };
@@ -199,7 +183,7 @@ export function createGame(env) {
     const m = newMatch({ mode: 'learn', len: 0, first: 0, laneK: 1 });
     m.lesson = { idx, title: L.title, tries: L.tries, goal: L.goal, carry: L.carry, used: 0, passed: false, standing: maskArr(L.standing), text: L.text };
     state.m = m; state.scene = 'play'; state.paused = false; state.pauseMenu = false; state.ui.scroll = 0;
-    state.plans = [null, null]; state.parts = []; state.lastPath = null; Object.assign(state.cam, AIM_CAM);
+    state.plans = [null, null]; state.parts = []; state.lastPath = null; 
     showBanner(`Lesson ${idx + 1}`, L.title, '', 2.2, 64);
     beginTurn(true, true);
   };
@@ -210,7 +194,7 @@ export function createGame(env) {
     state.thrown = { standing, L: { ...L } };
     state.sim = newSim(standing, L, m.laneK);
     state.ph = 'rolling'; state.pt = 0; state.rt = 0; state.hint = null; hintJob = null; state.sheet = false; state.fast = false; state.acc = 0;
-    state.chaseZ = 0; state.rec = [{ x: L.x0, z: 0 }]; state.recT = 0; state.rumbleT = 0;
+    state.rec = [{ x: L.x0, z: 0 }]; state.recT = 0; state.rumbleT = 0;
     state.plans[m.turn] = { ...state.plan };
     state.banner = null;
     sfx.whoosh();
@@ -224,10 +208,10 @@ export function createGame(env) {
     for (const e of sim.events) {
       if (e.k === 'tip') {
         dust(list, e.x, e.z, 3, 1 + e.s); if (e.s > 0.3) chips(list, e.x, e.z, 2 + Math.round(e.s * 3));
-        if (e.ball) { sfx.crack(0.6 + e.s * 0.6); state.shake = Math.max(state.shake, 0.35 + 0.3 * e.s); } else sfx.clack(0.5 + e.s);
-      } else if (e.k === 'clack') { sfx.clack(e.s); if (e.s > 0.55) state.shake = Math.max(state.shake, 0.12 + 0.12 * e.s); }
+        if (e.ball) { sfx.crack(0.6 + e.s * 0.6); } else sfx.clack(0.5 + e.s);
+      } else if (e.k === 'clack') { sfx.clack(e.s); }
       else if (e.k === 'tap') sfx.clack(0.5);
-      else if (e.k === 'thump') { sfx.thump(e.s); dust(list, e.x, e.z, 2, 0.8); if (e.s > 0.5) state.shake = Math.max(state.shake, 0.1 + 0.1 * e.s); }
+      else if (e.k === 'thump') { sfx.thump(e.s); dust(list, e.x, e.z, 2, 0.8); }
       else if (e.k === 'gutter') { sfx.gutter(); toast('Pudel: the ball left the lane', 1.8); }
       else if (e.k === 'net') sfx.thump(0.8);
     }
@@ -251,7 +235,7 @@ export function createGame(env) {
     if (state.rec.length > 1) state.lastPath = state.rec.slice();
     const n = rec.pins;
     if (rec.pudel) showBanner('PUDEL', 'The ball left the lane', 'bad', 2, 84);
-    else if (rec.alle) { showBanner('ALLE NEUNE!', 'All nine pins down', '', 2.4, 76); sfx.big(); state.shake = 1; sfx.crack(1.2); }
+    else if (rec.alle) { showBanner('ALLE NEUNE!', 'All nine pins down', '', 2.4, 76); sfx.big(); sfx.crack(1.2); }
     else if (rec.kranz) { showBanner('KRANZ!', 'The King stands in a ring of fallen pins', '', 2.4, 84); sfx.big(); }
     else if (n === 0) showBanner('No pins', 'The ball found no pin', 'bad', 1.7, 76);
     else { showBanner(String(n), resultText(rec), '', 1.9, 120); sfx.chime(n >= 7 ? 2 : 0); }
@@ -261,11 +245,12 @@ export function createGame(env) {
   const startReplay = () => {
     const t = state.thrown;
     if (!t) { beginSweep(); return; }
+    // The main view keeps showing the finished throw (state.final); the replay plays in a small fixed close-up inset (state.sim).
+    state.final = state.sim; state.pipParts = [];
     state.sim = newSim(t.standing, t.L, state.m.laneK);
-    state.ph = 'replay'; state.rt = 0; state.pt = 0; state.banner = null; state.autoReplayDone = true; state.acc = 0;
-    Object.assign(state.cam, replayCam(-0.35));
+    state.ph = 'replay'; state.rt = 0; state.pt = 0; state.autoReplayDone = true; state.acc = 0;
   };
-  const beginSweep = () => { state.ph = 'sweep'; state.pt = 0; state.fade = 0; state.banner = null; };
+  const beginSweep = () => { if (state.final) { state.sim = state.final; state.final = null; state.pipParts = []; } state.ph = 'sweep'; state.pt = 0; state.fade = 0; state.banner = null; };
   const nextAfterThrow = () => {
     const m = state.m;
     if (m.cfg.mode === 'learn') {
@@ -397,7 +382,7 @@ export function createGame(env) {
     state.ballOpts = ph === 'aim' ? { glow: 0.25 + 0.1 * Math.sin(state.t * 4) } : null;
   };
   const stepVisuals = (dt) => {
-    state.parts = stepParts(state.parts, dt);
+    state.parts = stepParts(state.parts, dt); state.pipParts = stepParts(state.pipParts, dt);
     if (state.toastT > 0) state.toastT -= dt;
     if (state.banner) { state.banner.t += dt; if (state.banner.t >= state.banner.dur) state.banner = null; }
     if (state.drops) {
@@ -521,7 +506,6 @@ export function createGame(env) {
     if (state.paused) return;
     toneBudget = 0;
     stepVisuals(dt);
-    updateCamera(dt);
     state.pt += dt;
     const ph = state.ph;
     if (!watch && ptr.pressed && (ph === 'think' || ph === 'intro' || ph === 'sweep') && pressRect(lay.rects, ptr) === 'menu') { openPause(); return; }
@@ -535,8 +519,7 @@ export function createGame(env) {
     else if (ph === 'rolling') {
       if (!watch && ptr.pressed) { const id = pressRect(lay.rects, ptr); if (id) handleTrayId(id); }
       const sim = state.sim, b = sim.ball;
-      const near = b.on && b.z > PIN_Z0 - 1.1 && b.z < PIN_Z0 + 0.8;
-      const speed = state.fast ? 6 : near ? 0.55 : 1;
+      const speed = state.fast ? 6 : 1;
       state.rt += dt;
       let acc = dt * speed + state.acc, n = 0;
       while (acc >= DT && !sim.done && n < 90) { stepSim(sim); acc -= DT; n++; }
@@ -556,10 +539,10 @@ export function createGame(env) {
       if (!watch && ptr.pressed) { const id = pressRect(lay.rects, ptr); if (id) { handleTrayId(id); return; } if (state.pt > 0.5) { beginSweep(); return; } }
       const sim = state.sim;
       state.rt += dt;
-      state.acc += dt * 0.3;
+      state.acc += dt * (sim.ball.on && sim.ball.z < PIN_Z0 - 1.3 ? 8 : 0.45);   // skip the long roll, then show the crash slowly in the inset
       let n = 0;
-      while (state.acc >= DT && !sim.done && n < 60) { stepSim(sim); state.acc -= DT; n++; }
-      handleEvents(sim, state.parts);
+      while (state.acc >= DT && !sim.done && n < 90) { stepSim(sim); state.acc -= DT; n++; }
+      handleEvents(sim, state.pipParts);
       if (sim.done) { state.pt = 0; state.ph = 'replayHold'; }
     } else if (ph === 'replayHold') {
       if (state.pt >= 0.9 || (!watch && ptr.pressed)) beginSweep();
@@ -695,7 +678,7 @@ export function createGame(env) {
 
   // ---- the live lane behind the title and the menus ---------------------------------------------------------------------
   const ATTRACT = [[0.08, 1, 1], [-0.14, 2, 1], [0.2, -2, 1], [-0.06, 0, 1], [0.02, 1, 2], [-0.25, -1, 1]];   // aim, hook, power
-  const newAttractCam = () => { const c = makeCam(); Object.assign(c, camPreset(0.75)); return c; };
+  const newAttractCam = () => fixedCam();
   const startAttract = () => {
     const a = state.att, pick = ATTRACT[a.n++ % ATTRACT.length];
     a.sim = newSim(ALL(), launchFor(0, pick[0], pick[2], pick[1]), 1);
@@ -731,8 +714,7 @@ export function createGame(env) {
     const L = launchFor(plan.x0, plan.aimX, plan.power, plan.hook);
     launch(L); state.sim = newSim(standing, L, 1);
     const s = state.sim; let n = 0; while (n++ < steps && !s.done) stepSim(s);
-    state.chaseZ = s.ball.z; Object.assign(state.cam, chaseFor(state.chaseZ));
-    state.ph = 'rolling'; handleEvents(s, state.parts); state.shake = 0;
+        state.ph = 'rolling'; handleEvents(s, state.parts);
     state.parts = stepParts(state.parts, 0.05);
     setOverlay();
   };
@@ -779,10 +761,12 @@ export function createGame(env) {
     if (n === 32) { state.settings.textIdx = 4; state.m = null; startLesson(1); state.banner = null; state.ph = 'aim'; state.humanTurn = true; state.drops = null; setOverlay(); return; }
     if (n === 15) { startLesson(2); state.banner = null; state.ph = 'aim'; state.humanTurn = true; state.drops = null; state.plan = { x0: 0.3, aimX: -0.42, power: 1, hook: 2 }; setOverlay(); return; }
     if (n === 16) { shotRoll(1100, { x0: 0.12, aimX: -0.07, power: 1, hook: -2 }); state.ph = 'result'; state.res = { pins: 7, pudel: false }; showBanner('7', '7 pins down', '', 99, 120); state.banner.t = 0.5; return; }
-    if (n === 17) {
+    if (n === 18) { shotRoll(1500, { x0: 0.4, aimX: 0.06, power: 1, hook: 0 }); state.ph = 'result'; state.res = { pins: 9, alle: true }; showBanner('ALLE NEUNE!', 'All nine pins down', '', 99, 76); state.banner.t = 0.5; return; }
+    if (n === 17) {   // the replay inset: the main view shows the finished throw, the inset replays the crash
       shotRoll(60, { x0: 0.12, aimX: -0.07, power: 1, hook: -2 });
-      const L = state.thrown.L; state.sim = newSim(ALL(), L, 1); const s2 = state.sim; let k = 0; while (k++ < 3400 && !s2.done) stepSim(s2);
-      state.ph = 'replay'; state.rt = 2; Object.assign(state.cam, replayCam(-0.1)); state.parts = []; handleEvents(s2, state.parts); return;
+      const L = state.thrown.L, full = newSim(ALL(), L, 1); let k = 0; while (k++ < 3400 && !full.done) stepSim(full);
+      state.final = full; state.sim = newSim(ALL(), L, 1); k = 0; while (k++ < 800 && !state.sim.done) stepSim(state.sim);
+      state.ph = 'replay'; state.rt = 2; state.parts = []; state.pipParts = []; handleEvents(state.sim, state.pipParts); state.ballShow = null; return;
     }
     if (n >= 20 && n <= 29) {
       state.settings.textIdx = 4;

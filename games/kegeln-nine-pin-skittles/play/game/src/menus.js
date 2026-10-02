@@ -106,7 +106,7 @@ export function settingsWidgets(state) {
   return [
     { t: 'gap', h: 10 }, { t: 'h', label: 'Settings', size: 48 },
     { t: 'btn', id: 'set-sound', label: st.sound ? 'Sound: On' : 'Sound: Off' },
-    { t: 'btn', id: 'set-replay', label: st.replay ? 'Crash replays: On' : 'Crash replays: Off', sub: 'A slow-motion replay after big throws', active: st.replay },
+    { t: 'btn', id: 'set-replay', label: st.replay ? 'Crash replays: On' : 'Crash replays: Off', sub: 'A small replay of the pin deck after big throws', active: st.replay },
     { t: 'p', label: `Aim steadiness: ${ASSIST[st.assist].name}`, bold: true, color: '#ffe9bf', size: 26 },
     ...ASSIST.map((a, i) => ({ t: 'btn', id: `as${i}`, label: a.name, row: 12, active: st.assist === i })),
     { t: 'p', label: `Text size: ${Math.round(sc * 100)}%`, bold: true, color: '#ffe9bf', size: 26 },

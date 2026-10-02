@@ -43,20 +43,16 @@ function ensureBoard(ctx) {
 }
 
 // ---- coordinates -----------------------------------------------------------------------------------------
-export const shakeOf = (state) => {
-  const s = state.shake;
-  if (!s) return { x: 0, y: 0 };
-  const k = 1 - s.t / s.dur;
-  return { x: Math.sin(s.t * 71) * s.amp * k, y: Math.cos(s.t * 63) * s.amp * k };
-};
+// Slider direction: shooter 2 shoots from the top of a board that does not turn, so the knob runs the other way on screen.
+export const sliderSign = (state) => (state.m && state.m.cfg.mode === 'two' && state.m.turn === 1 && !state.settings.rotate ? -1 : 1);
 // The play screen's rectangles for the current text zoom (one function in layout.js feeds drawing and hit-testing).
 export const zoomOf = (state) => TEXT_SCALES[Math.max(0, Math.min(TEXT_SCALES.length - 1, state.settings.textIdx | 0))] ?? 1;
 export const layoutOf = (state) => playLayout(zoomOf(state), !!state.m && state.m.cfg.mode === 'watch');
 export function toScreen(state, x, y, o = {}) {
   const fr = layoutOf(state).board;
-  const rot = o.rot ?? state.view?.rot ?? 0, sc = o.scale ?? fr.s, sh = o.noShake ? { x: 0, y: 0 } : shakeOf(state);
+  const rot = o.rot ?? state.view?.rot ?? 0, sc = o.scale ?? fr.s;
   const c = Math.cos(rot), s = Math.sin(rot);
-  return { x: fr.cx + sh.x + (x * c - y * s) * sc, y: fr.cy + sh.y + (x * s + y * c) * sc };
+  return { x: fr.cx + (x * c - y * s) * sc, y: fr.cy + (x * s + y * c) * sc };
 }
 export function toWorld(state, sx, sy) {
   const fr = layoutOf(state).board;
@@ -137,9 +133,8 @@ export function drawTable(ctx, state, w, parts, o = {}) {
   const bg = ensureBackdrop(ctx);
   if (bg) ctx.drawImage(bg, 0, 0, W, H); else drawBackdrop(ctx, W, H);
   const spr = ensureBoard(ctx);
-  const sh = o.noShake ? { x: 0, y: 0 } : shakeOf(state);
   ctx.save();
-  ctx.translate((o.cx ?? BC.x) + sh.x, (o.cy ?? BC.y) + sh.y);
+  ctx.translate(o.cx ?? BC.x, o.cy ?? BC.y);
   ctx.rotate(o.rot ?? state.view?.rot ?? 0);
   if (o.scale) ctx.scale(o.scale, o.scale);
   if (spr) ctx.drawImage(spr, -SPRITE_SIZE / 2, -SPRITE_SIZE / 2, SPRITE_SIZE, SPRITE_SIZE);
@@ -397,7 +392,7 @@ export function drawBar(ctx, state) {
   ctx.strokeStyle = 'rgba(255,233,191,0.5)'; ctx.lineWidth = 4; ctx.lineCap = 'round';
   ctx.beginPath(); ctx.moveTo(TR.x0, TR.y); ctx.lineTo(TR.x1, TR.y); ctx.stroke();
   for (let i = -4; i <= 4; i++) { const x = W / 2 + (i / 4) * 276; ctx.beginPath(); ctx.moveTo(x, TR.y - 8); ctx.lineTo(x, TR.y + 8); ctx.stroke(); }
-  const u = state.aim ? state.aim.u : 0, kx = W / 2 + (u / MAX_U) * 276;
+  const u = state.aim ? state.aim.u : 0, kx = W / 2 + sliderSign(state) * (u / MAX_U) * 276;
   drawDisc(ctx, kx, TR.y, m.cfg.mode === 'two' ? m.turn : 0, 0, { scale: L.knob, glow: on ? 0.5 : 0 });
   ctx.restore();
   const waiting = !state.humanTurn;
@@ -484,6 +479,27 @@ function drawBanner(ctx, state) {
   ctx.restore();
 }
 
+// Hand-over card for pass-and-play. It covers only the control strip: the board stays exactly as it was.
+function drawPass(ctx, state) {
+  if (!state.pass || !state.m || state.m.phase !== 'aim') return;
+  const L = layoutOf(state), side = state.pass.side;
+  const top = L.bar ? L.bar.y : L.slider.y, bot = H - 8, h = bot - top, x = 20, w = W - 40;
+  ctx.save();
+  roundPath(ctx, x, top, w, h, 22); ctx.fillStyle = '#1e0e0a'; ctx.fill();
+  ctx.lineWidth = 3; ctx.strokeStyle = TEAM[side].glow.replace('0.9', '0.9'); ctx.stroke();
+  const big = L.stacked ? L.fs.btn : 28;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  drawDisc(ctx, x + 56, top + h / 2, side, 0, { scale: 1.3, glow: 0.5 });
+  const name = `Player ${side + 1}`, tx = x + 100, tw = w - 120;
+  ctx.fillStyle = '#fff1d4';
+  const l1 = fitText(ctx, [`Pass the phone to ${name}`, `Pass to ${name}`, name], big, tw, 700);
+  ctx.fillText(l1, tx + tw / 2, top + h * 0.36, tw);
+  ctx.fillStyle = 'rgba(255,233,191,0.85)';
+  const sp = Math.max(16, Math.round(big * 0.66));
+  const l2 = fitText(ctx, ['Tap when you are ready', 'Tap to start'], sp, tw, 400);
+  ctx.fillText(l2, tx + tw / 2, top + h * 0.7, tw);
+  ctx.restore();
+}
 export function renderPlay(ctx, state) {
   const m = state.m, w = state.w, L = layoutOf(state);
   const showBase = m.phase === 'aim' ? m.turn : undefined;
@@ -505,6 +521,7 @@ export function renderPlay(ctx, state) {
     roundPath(ctx, r.x + 22, r.y + r.h - 12, Math.max(6, (r.w - 44) * frac), 6, 3); ctx.fillStyle = th.phase === 'think' ? '#ffd35a' : '#7ee8a8'; ctx.fill();
   }
   drawBar(ctx, state);
+  drawPass(ctx, state);
   void H; void inRect; void PULL; void C; void R_BOARD; void R_POCKET;
 }
 export { names };

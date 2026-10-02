@@ -110,6 +110,6 @@ export const RULES = [
     'Watch & Learn plays one round between two rivals in turns. Each turn is Think (the sky is frozen while the rivals consider their options; default 5 seconds, 2 to 10), then Reveal (2 seconds, the chosen heading is shown), then Act (the kites fly the plan for 2.4 seconds). Pause stops all of it, including the clocks and the animation, and Resume continues exactly where it stopped.',
   ] },
   { title: 'Settings', p: [
-    'Text size scales every text screen from 100% to 300%. Calm effects turns off the screen shake and flashes. Sound can be switched off at any time. Watch & Learn Think time can be 2, 5, 8 or 10 seconds.',
+    'Text size scales every text screen from 100% to 300%. Calm effects turns off the flashes. Sound can be switched off at any time. Watch & Learn Think time can be 2, 5, 8 or 10 seconds.',
   ] },
 ];

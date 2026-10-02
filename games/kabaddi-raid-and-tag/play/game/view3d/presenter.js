@@ -7,6 +7,8 @@ import { createDirector } from './director.js';
 import { makeContacts } from './contacts.js';
 
 const LIB = '../vendor3d/index.js';
+import { FINGER_POSES, blendFingerPose } from '../vendor3d/rig.js';
+const frac = (n) => ((n * 2654435761) >>> 0) / 4294967296;      // deterministic per-player variation (no randomness, no clock)
 const POOL = 11;
 const KITS = [{ top: '#2f6fd6', bottoms: '#f2f2f2', socks: '#2f6fd6' }, { top: '#d8453a', bottoms: '#2a2a2e', socks: '#d8453a' }];
 const SKINS = ['original', 'tan', 'brown', 'deep', 'light', 'tan', 'brown'];
@@ -34,6 +36,9 @@ export async function createPresenter({ kitCanvas, quality }) {
   kitCanvas.parentElement.insertBefore(canvas, kitCanvas);
   kitCanvas.style.position = 'relative'; kitCanvas.style.zIndex = '1';
   const stage = createStage({ canvas, quality, dprCap: 2, lighting: 'indoor', shadowSize: 6 });
+  // one shadow-casting person (the raider) on the high tier; the medium and low tiers draw only blob shadows (a whole shadow pass is about 4-7k triangles)
+  const shadowMaps = quality === 'high';
+  if (!shadowMaps) stage.renderer.shadowMap.enabled = false;
   if (!stage.supported) { canvas.remove(); return fallback; }
   let lost = false;
   stage.onContextLost(() => { lost = true; });
@@ -56,13 +61,14 @@ export async function createPresenter({ kitCanvas, quality }) {
   async function loadPool(kind) {
     if (pools[kind]) return pools[kind];
     const list = [];
-    const hs = await Promise.all(Array.from({ length: POOL }, () => loadHuman({ character: kind === 'f' ? 'athlete_f' : 'athlete_m', kit: KITS[0], lod: 'auto' })));
+    const hs = await Promise.all(Array.from({ length: POOL }, () => loadHuman({ character: kind === 'f' ? 'athlete_f' : 'athlete_m', kit: KITS[0], lod: 'auto', quality })));
     for (const h of hs) {
       addKabaddiClips(h);
+      h.addLayer('live', { mask: 'all', additive: true, weight: 1 }); h.addLayer('react', { mask: 'upper', additive: true, weight: 0 });
       h.root.visible = false; h.turnRate = 9; h.groundClamp = 'auto';
       const sh = new THREE.Mesh(shadowGeo, shadowMat); sh.visible = false; sh.renderOrder = 1; stage.scene.add(sh);
       stage.add(h); stage.track(h);
-      list.push({ human: h, shadow: sh, g: -1, ctrl: null });
+      list.push({ human: h, shadow: sh, g: -1, ctrl: null, react: 0 });
     }
     pools[kind] = list;
     return list;
@@ -104,7 +110,10 @@ export async function createPresenter({ kitCanvas, quality }) {
       h.root.visible = true; free.shadow.visible = true;
       free.ctrl = { until: -1, mode: '', partner: null, kind: '' };
       h.play('idle', { fade: 0 });
-      h.setFingers('both', 'open');
+      h.setFingers('both', 'relaxed');
+      h.play('k_live', { layer: 'live', fade: 0, loop: true, startTime: frac(a.g * 7 + 3) * 2.8, speed: 0.75 + frac(a.g * 11 + 5) * 0.6 });
+      h.play('k_react', { layer: 'react', fade: 0, loop: false });
+      free.react = 0;
     }
     stage.invalidate();
   }
@@ -117,11 +126,15 @@ export async function createPresenter({ kitCanvas, quality }) {
     const moving = a.speed > 0.45;
     let mode;
     if (moving) mode = 'loco';
-    else if (a.role === 'raider') mode = 'k_raid_stance';
-    else if (a.role === 'def') mode = 'k_def_stance';
+    else if (a.role === 'raider') mode = `k_raid_stance_${a.g % 2}`;
+    else if (a.role === 'def') mode = `k_def_stance_${(a.g * 5 + a.idx * 3) % 4}`;
     else mode = 'idle_relaxed';
     if (mode === 'loco') { h.locomote(Math.min(7, a.speed)); c.mode = 'loco'; }
-    else if (c.mode !== mode) { h.play(mode, { fade: 0.25, loop: true }); c.mode = mode; }
+    else if (c.mode !== mode) {
+      const clip = h.clips[mode];
+      h.play(mode, { fade: 0.3, loop: true, startTime: clip && clip.loop ? frac(a.g * 13 + 1) * clip.dur : 0, speed: 0.88 + frac(a.g * 17 + 2) * 0.26 });
+      c.mode = mode;
+    }
   }
   const playOnce = (e, name, now, o = {}) => {
     const h = e.human;
@@ -164,7 +177,7 @@ export async function createPresenter({ kitCanvas, quality }) {
     } else if (e.type === 'contact') {
       const r = E(rt, raider);
       if (e.caught) {
-        director.setShot('hold', true); director.shake(0.04, 0.3);
+        director.setShot('hold', true);
         if (r) { r.human.play('k_held', { fade: catching ? 0 : 0.3, loop: true }); r.ctrl.mode = 'k_held'; r.ctrl.until = 1e9; r.ctrl.kind = 'held'; r.ctrl.partner = null; }
         (e.joiners || e.engaged).forEach((id, i) => {
           const d = E(dtm, id); if (!d) return;
@@ -176,7 +189,6 @@ export async function createPresenter({ kitCanvas, quality }) {
           d.human.on('contact', () => { if (d.ctrl && d.ctrl.mode === name) d.human.play(`${base}_hold`, { fade: 0.05, loop: true }); });
         });
       } else {
-        if (e.touched.length || e.bonusGot) director.shake(0.012, 0.2);
         for (const id of e.touched) { const d = E(dtm, id); if (d) playOnce(d, 'k_def_touched', now); }
         if (['ankle', 'thigh', 'chain', 'dash'].includes(e.resp) && e.lead != null) { const d = E(dtm, e.lead); if (d && !e.touched.includes(e.lead)) playOnce(d, 'k_def_miss', now); }
       }
@@ -285,6 +297,22 @@ export async function createPresenter({ kitCanvas, quality }) {
       idleFor(e, a, now);
       e.shadow.position.set(a.wx, 0.012, a.wz);
     }
+    // life: the live layer (breathing, weight shift, sway) is strong while a player is idle and almost off during a contact clip;
+    // defenders raise their hands and set their weight as the raider comes near, each at his own pace; the fingers flex slowly, out of phase
+    const RR = sc.raid ? sc.actors[sc.raid.team * 7 + sc.raid.raider] : null;
+    for (const [g, e] of byG) {
+      const a = sc.actors[g], h = e.human, c = e.ctrl, idle = now >= c.until;
+      h.layers.live.setWeight(idle ? 1 : 0.2, 0);
+      let wantR = 0;
+      if (RR && a.role === 'def' && idle) { const d = Math.hypot(a.wx - RR.wx, a.wz - RR.wz); wantR = Math.max(0, Math.min(1, (4.2 - d) / 2.2)) * 0.9; }
+      e.react += (wantR - e.react) * Math.min(1, dt * (1.6 + frac(g * 3 + 1) * 2.4));
+      h.layers.react.setWeight(e.react, 0);
+      if (idle) {
+        const k1 = 0.2 + 0.1 * Math.sin(now * (0.7 + frac(g) * 0.5) + frac(g * 5) * 6.28), k2 = 0.2 + 0.1 * Math.sin(now * (0.6 + frac(g * 9) * 0.5) + 2.1 + frac(g * 3) * 6.28);
+        h.setFingers('L', blendFingerPose(FINGER_POSES.relaxed, FINGER_POSES.fist, Math.max(0, k1 - 0.1)));
+        h.setFingers('R', blendFingerPose(FINGER_POSES.open, FINGER_POSES.fist, Math.max(0, k2 - 0.05)));
+      } else h.setFingers('both', 'auto');
+    }
     updateTargets(sc);
     if (sc.raid) {
       const R = entry(sc.raid.team * 7 + sc.raid.raider);
@@ -306,16 +334,18 @@ export async function createPresenter({ kitCanvas, quality }) {
     director.update(dt, { dir, raider: { x: Ra.wx, z: Ra.wz }, lead, near, all: all.filter((o) => !lead || Math.hypot(o.x - lead.x, o.z - lead.z) > 0.05), regionAspect: L.w / L.h, side: 1, key: `${sc.match.raids}:${sc.beat ? sc.beat.n : 0}` });
     applyView(L, director.fov());
     stage.setShadowTarget(Ra.wx, 0, Ra.wz);
-    for (const [g, e] of byG) { const a = sc.actors[g]; const on = a.role === 'raider' || (lead && Math.hypot(a.wx - lead.x, a.wz - lead.z) < 0.01); e.human.model.traverse((o) => { if (o.isSkinnedMesh) o.castShadow = !!on; }); }
-    // level of detail: the raider, the lead defender and (in a chain) the joiners are drawn in full, everybody else with the light mesh
-    const fullIds = new Set([Ra.g]);
-    if (sc.beat && sc.raid) for (const id of (sc.beat.engaged || []).slice(0, 2)) fullIds.add(sc.raid.def * 7 + id);
-    const maxFull = quality === 'low' ? 1 : 2;
+    for (const [g, e] of byG) { const a = sc.actors[g]; const on = shadowMaps && a.role === 'raider'; e.human.model.traverse((o) => { if (o.isSkinnedMesh) o.castShadow = !!on; }); }
+    // level of detail: the library's policy (size on screen in css px, thresholds by quality tier): full for the big players, medium (hands included) for the
+    // middle ones, light (1 draw call) only for the small ones. Shadow maps only for the raider and the lead defender (set above), a soft blob for everybody else.
+    camera.updateMatrixWorld(true); camera.matrixWorldInverse.copy(camera.matrixWorld).invert();
+    // budget: the full level (7.5k triangles) only for the raider on the high tier, never on medium / low (they use the medium level: hands included, 3.6k)
+    const fullCap = quality === 'high' ? 1 : 0;
     let nFull = 0;
     for (const [g, e] of byG) {
-      const wantFull = fullIds.has(g) && nFull < maxFull; if (wantFull) nFull++;
-      e.human.setLOD(wantFull ? 'full' : 'light');
-      e.shadow.visible = !blobs && !(wantFull && stage.renderer.shadowMap.enabled);      // the detailed players have a real shadow, the rest a soft blob
+      let lv = e.human.autoLOD(camera, L.ch);
+      if (lv === 0 && (sc.actors[g].role !== 'raider' || nFull >= fullCap)) { lv = 1; e.human.setLOD(1); }
+      if (lv === 0) nFull++;
+      e.shadow.visible = !blobs && !(lv === 0 && stage.renderer.shadowMap.enabled);
     }
     stage.update(dt);
     overlay(ctx, sc, s, L);

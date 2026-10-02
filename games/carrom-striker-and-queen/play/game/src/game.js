@@ -20,7 +20,7 @@ export function createGame(env) {
   const state = {
     scene: 'title', t: 0, level: 1, mode: 'ai', sound: true, calm: false, textScaleIdx: 0, left: false, theme: 'plywood', guide: 2,
     g: newBoard('W'), phase: 'aim', sx: S / 2, aim: null, drag: null, fx: [], msg: null, tip: '', blocked: false, menu: false, hintsLeft: HINTS, hintBusy: false,
-    ev: [], sum: null, wait: 0, shake: 0, page: 0, back: 'title', hintPulse: 1,
+    ev: [], sum: null, wait: 0, page: 0, back: 'title', hintPulse: 1,
     stats: { played: 0, wins: 0 }, learned: {}, lesson: null, demoBoards: 0, saved: null, demoMode: config.demo === true, dev: config.dev === true,
     daily: { day: config.day ?? 0, solvedDay: -1, streak: 0, puzzle: null }, pz: null,
     demo: { world: [], fx: [], t: 0, strokes: 0, wait: 0.35 },
@@ -93,7 +93,7 @@ export function createGame(env) {
   }
   function fxFor(ev) {
     for (const e of ev) {
-      if (e.t === 'hit') { sfxHit(e.v); if (e.v > 1100 && !state.calm) state.shake = Math.max(state.shake, Math.min(5, e.v / 500)); if (e.v > 260) state.fx.push({ type: 'ring', x: e.x, y: e.y, t: 0, dur: dur(0.3), s: Math.min(1, e.v / 1200) }); }
+      if (e.t === 'hit') { sfxHit(e.v); if (e.v > 260) state.fx.push({ type: 'ring', x: e.x, y: e.y, t: 0, dur: dur(0.3), s: Math.min(1, e.v / 1200) }); }
       else if (e.t === 'wall') sfxWall(e.v);
       else if (e.t === 'pocket') { sfxPocket(); const px = e.p % 2 ? S - 8 : 8, py = e.p > 1 ? S - 8 : 8; state.fx.push({ type: 'ring', x: px, y: py, t: 0, dur: dur(0.5), s: 1.6 }); if (e.k === 'Q' || e.k === 'S') state.fx.push({ type: 'pop', text: e.k === 'Q' ? 'Queen!' : 'Foul', color: e.k === 'Q' ? '#ff8a7a' : '#ff7a5a', x: px, y: py, t: 0, dur: dur(1.1) }); state.fx.push({ type: 'drop', k: e.k, x: e.x, y: e.y, px: e.p % 2 ? S - 8 : 8, py: e.p > 1 ? S - 8 : 8, t: 0, dur: dur(0.4) }); }
     }
@@ -291,7 +291,7 @@ export function createGame(env) {
   }
 
   // ---------------------------------------------------------------- scenes
-  function updateFx(dt) { state.shake = state.shake > 0.05 ? state.shake * Math.exp(-9 * dt) : 0; for (const f of state.fx) f.t += dt; state.fx = state.fx.filter((f) => f.t < f.dur); if (state.msg) { state.msg.t += dt; if (state.msg.t > state.msg.hold) state.msg = null; } }
+  function updateFx(dt) { for (const f of state.fx) f.t += dt; state.fx = state.fx.filter((f) => f.t < f.dur); if (state.msg) { state.msg.t += dt; if (state.msg.t > state.msg.hold) state.msg = null; } }
   function updateBoardScene(dt, input, tap) {
     updateFx(dt);
     const s = state.scene, ph = state.phase, g = state.g;

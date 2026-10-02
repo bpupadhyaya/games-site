@@ -47,10 +47,10 @@ export function createGame(env) {
     ui: { scroll: 0, drag: null }, page: 0,
     att: null, match: null, w: null, pre: null, ph: 'intro', phT: 0, banner: null,
     side: 0, aim: { drag: false, ang: -Math.PI / 2, pow: 0, fx: 0, fy: 0, path: null, lx: 0, ly: 0 }, aims: [null, null], timing: null, speed: 1,
-    parts: [], trails: [[], []], cam: { z: 1, x: 360, y: ARENA.cy }, shake: null, flash: 0, toast: '', toastT: 0, hint: null, hintBusy: false, wl: null,
+    parts: [], trails: [[], []], flash: 0, toast: '', toastT: 0, hint: null, hintBusy: false, wl: null,
     bigT: 0, saved: null, arenaName: '', loaded: false,
   };
-  let hintPlanner = null, rivalPlanner = null, rivalLaunch = null, planners = null, saveT = 0, savedSnap = null, whirrT = 0, trailT = 0, dustT = 0, pathT = 0, attSeq = 0, hitCam = 0, camFocus = { x: 360, y: ARENA.cy };
+  let hintPlanner = null, rivalPlanner = null, rivalLaunch = null, planners = null, saveT = 0, savedSnap = null, whirrT = 0, trailT = 0, dustT = 0, pathT = 0, attSeq = 0;
 
   // ---- persistence ---------------------------------------------------------------------------------
   const save = () => { storage.set('settings', state.settings); storage.set('record', state.record); };
@@ -144,7 +144,7 @@ export function createGame(env) {
     });
   };
 
-  // one sim step's events become sparks, sounds and camera moves
+  // one sim step's events become sparks, sounds (the dish never moves)
   const handleEvents = (w, parts, audible = true) => {
     for (const e of w.ev) {
       const s = toScreen(e.x, e.y);
@@ -156,8 +156,6 @@ export function createGame(env) {
         if (audible) {
           sfx.hit(e.f);
           if (e.f > 220) state.bigT = 0.9;
-          if (!state.settings.calm && e.f > 160) state.shake = { t: 0, dur: 0.3, amp: clamp(e.f / 60, 3, 11) };
-          if (!state.settings.calm) { hitCam = 0.5; camFocus = { x: s.x, y: s.y }; }
         }
       } else if (e.t === 'wall') {
         spark(parts, s.x, s.y - 10, 4, 0.5); dust(parts, s.x, s.y, 2, 12);
@@ -206,8 +204,8 @@ export function createGame(env) {
     state.w = null; state.pre = preTops(m); state.ph = 'intro'; state.phT = 0; state.banner = null;
     state.parts = []; state.trails = [[], []]; state.aims = [null, null]; state.side = 0; state.timing = null; state.speed = 1;
     state.aim = { drag: false, ang: bearing(0), pow: 0, fx: 0, fy: 0, path: null, lx: 0, ly: 0 };
-    state.hint = null; state.hintBusy = false; hintPlanner = null; state.shake = null; state.flash = 0; state.toastT = 0; state.bigT = 0;
-    state.cam = { z: 1, x: 360, y: ARENA.cy }; hitCam = 0; planners = null; rivalPlanner = null; rivalLaunch = null; state.wl = null;
+    state.hint = null; state.hintBusy = false; hintPlanner = null; state.flash = 0; state.toastT = 0; state.bigT = 0;
+    planners = null; rivalPlanner = null; rivalLaunch = null; state.wl = null;
     state.arenaName = ARENAS[c.arena].name;
     prebake(c.arena);
     if (c.mode === 'ai') rivalPlanner = createPlanner(c.arena, 1, c.builds[1], c.builds[0], PROFILES[c.opp], aiRng.fork());
@@ -426,15 +424,6 @@ export function createGame(env) {
     if (!w.over) { saveT += dt; if (saveT >= 1.2 && !isWatch()) persistMatch(); }
   };
 
-  const updateCamera = (dt) => {
-    const c = state.cam, w = state.w;
-    let tz = 1, tx = 360, ty = ARENA.cy;
-    if (!state.settings.calm && w && state.ph === 'run' && hitCam > 0) { hitCam -= dt; tz = 1.06; tx = camFocus.x; ty = camFocus.y; }
-    if (!state.settings.calm && w && w.over && state.ph === 'over') { const l = w.tops[w.over.loser], s = toScreen(l.x, l.y); tz = 1.12; tx = s.x; ty = s.y; }
-    const k = Math.min(1, dt * 4);
-    c.z += (tz - c.z) * k; c.x += (tx - c.x) * k; c.y += (ty - c.y) * k;
-  };
-
   const updatePlay = (dt, input) => {
     const ptr = input.pointer, keys = input.keys, m = state.match;
     const watch = m.cfg.mode === 'watch';
@@ -508,9 +497,7 @@ export function createGame(env) {
     if (state.paused) return;
     if (state.toastT > 0) state.toastT -= dt;
     if (state.flash > 0) state.flash = Math.max(0, state.flash - dt * 1.4);
-    if (state.shake) { state.shake.t += dt; if (state.shake.t >= state.shake.dur) state.shake = null; }
     stepParts(state.parts, dt);
-    updateCamera(dt);
     state.phT += dt;
     if (!watch) {
       updateHint(dt);
@@ -725,7 +712,7 @@ export function createGame(env) {
       stepParts(state.parts, STEP);
       if (w.over && !toOver) break;
     }
-    if (w.over) { state.ph = 'over'; state.phT = 0.5; state.cam = { z: 1.1, x: toScreen(w.tops[w.over.loser].x, w.tops[w.over.loser].y).x, y: toScreen(w.tops[w.over.loser].x, w.tops[w.over.loser].y).y }; }
+    if (w.over) { state.ph = 'over'; state.phT = 0.5; }
   };
   const stageShot = (n) => {
     state.shot = true; state.settings.sound = false; audio.setMuted?.(true);

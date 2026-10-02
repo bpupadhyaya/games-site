@@ -388,9 +388,7 @@ function pulse(S, rate = 5) { return 0.5 + 0.5 * Math.sin(S.t * rate); }
 // Draws the board and its marks for a match. `auto` carries Watch & Learn's reveal info.
 function drawBoardScene(ctx, S, M, geo, auto) {
   const th = theme(S), sp = SPECS[M.mode];
-  const sx = M.shake > 0 ? Math.sin(M.shake * 70) * 7 * (M.shake / 0.3) : 0;
   ctx.save();
-  ctx.translate(sx, 0);
   const glow = ctx.createRadialGradient(geo.x + geo.side / 2, geo.y + geo.side / 2, 40, geo.x + geo.side / 2, geo.y + geo.side / 2, geo.side * 0.85);
   glow.addColorStop(0, th.glow); glow.addColorStop(1, 'rgba(0,0,0,0)');
   ctx.fillStyle = glow; ctx.fillRect(geo.x - 160, geo.y - 160, geo.side + 320, geo.side + 320);

@@ -18,20 +18,24 @@ export function U(z) {
 }
 export function zFromU(u) { let lo = -8, hi = 40; for (let i = 0; i < 40; i++) { const m = (lo + hi) / 2; if (U(m) < u) lo = m; else hi = m; } return (lo + hi) / 2; }
 const U_PINS = U(PIN_Z0);
-// A camera preset: p = 0 is the aim view from behind the foul line, p = 1 the close crash view over the pin deck.
-export function camPreset(p, x = 0) {
-  const uc = lerp(0, U_PINS - 3.0, p), H = lerp(2.2, 1.7, p), spins = lerp(176, 330, p), ypins = lerp(460, 520, p);
-  const f = spins * (U_PINS - uc);
-  return { uc, H, f, yh: ypins - H * spins, x };
+// THE camera. One fixed camera for the whole delivery, like a bowler standing at the foul line looking down the lane, raised enough to
+// read the pin diamond. It never moves, zooms, tilts or shakes: the lane, walls and pin deck keep the same screen position in every
+// frame (rule: the playing surface never moves). Only the ball, the pins, the dust and the UI move.
+// Tuning: uc 0 = the foul line, H = eye height (m), spins = pixels per virtual metre at the pin deck, ypins = screen y of the deck.
+const FIX = { H: 2.0, spins: 236, ypins: 440 };
+export function fixedCam() {
+  const uc = 0, f = FIX.spins * (U_PINS - uc);
+  return { uc, H: FIX.H, f, yh: FIX.ypins - FIX.H * FIX.spins, x: 0 };
 }
-export function replayCam(x) { const uc = U_PINS - 2.4, H = 1.0, spins = 420, f = spins * 2.4; return { uc, H, f, yh: 640 - H * spins, x }; }
-export function makeCam() { return { ...camPreset(0), shx: 0, shy: 0 }; }
+// The small static close-up of the pin deck shown as an inset after a roll (never a move of the main view).
+export function pipCam() { const uc = U_PINS - 2.4, H = 1.0, spins = 420, f = spins * 2.4; return { uc, H, f, yh: 640 - H * spins, x: 0 }; }
+export const makeCam = fixedCam;
 export const scaleAt = (cam, z) => cam.f / Math.max(0.35, U(z) - cam.uc);
 export function proj(cam, x, y, z) {
   const s = scaleAt(cam, z);
-  return { x: 360 + (x - cam.x) * s + cam.shx, y: cam.yh + (cam.H - y) * s + cam.shy, s };
+  return { x: 360 + (x - cam.x) * s, y: cam.yh + (cam.H - y) * s, s };
 }
-export const laneXAt = (cam, sx, z) => cam.x + (sx - 360 - cam.shx) / scaleAt(cam, z);
+export const laneXAt = (cam, sx, z) => cam.x + (sx - 360) / scaleAt(cam, z);
 const nearZ = (cam) => Math.max(-3, zFromU(cam.uc + 0.9));
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));

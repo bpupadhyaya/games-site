@@ -3,7 +3,7 @@
 // widths estimated) and by render (real text widths), and gives the same rectangles to both.
 import { W, H, TEXT_SCALES, COMPACT, TRAY, SCENE_Y0, SCENE_H, playLayout, toScene } from './layout.js';
 import { FONT, NUM, C, roundPath, drawButton, paintButton, panel, wrapLines, textShadow, ease } from './ui.js';
-import { drawRoom, drawLane, drawActors, drawPath, drawTarget, drawParts, proj, scaleAt, TAU } from './scene.js';
+import { drawRoom, drawLane, drawActors, drawPath, drawTarget, drawParts, proj, scaleAt, pipCam, TAU } from './scene.js';
 import { PROFILES } from './ai.js';
 import { POWERS, pathPoints, PIN_Z0 } from './phys.js';
 import { totals, phaseName, throwNo } from './engine.js';
@@ -216,12 +216,32 @@ export function drawLaneScene(ctx, S) {
     if (ov.hint) { drawPath(ctx, cam, ov.hint.pts, '#7de8ff', t, 0.04, 0.95); drawTarget(ctx, cam, ov.hint.aimX, PIN_Z0, '#7de8ff', t, ''); }
     if (ov.plan) { drawPath(ctx, cam, ov.plan.pts, ov.plan.col ?? '#ffe08a', t, 0.05, 1); drawTarget(ctx, cam, ov.plan.aimX, PIN_Z0, ov.plan.col ?? '#ffe08a', t, ov.plan.label); }
   }
-  drawActors(ctx, cam, S.sim.pins, S.ballShow, {
+  const replaying = !!S.final;   // while the replay inset plays, the main view keeps showing the finished throw
+  drawActors(ctx, cam, (replaying ? S.final : S.sim).pins, replaying ? null : S.ballShow, {
     alphaOf: (p) => (S.fade && p.st >= 0 && (p.st > 0 || Math.abs(p.x) > 0.67) ? Math.max(0, 1 - S.fade) : 1),
     dropOf: (p) => (S.drops ? Math.max(0, S.drops[p.id] ?? 0) : 0),
     ballOpts: S.ballOpts,
   });
   drawParts(ctx, cam, S.parts);
+  if (replaying) drawReplayInset(ctx, S);
+}
+
+// Replay as a small picture-in-picture: a static close-up of the pin deck, in the wall space above the left of the lane (it never covers the
+// lane). The main view does not move.
+const PIP = { x: 22, y: 192, w: 196, h: 150 };
+function drawReplayInset(ctx, S) {
+  const { x, y, w, h } = PIP, cam = pipCam();
+  ctx.save();
+  roundPath(ctx, x, y, w, h, 14); ctx.clip();
+  ctx.fillStyle = '#120a06'; ctx.fillRect(x, y, w, h);
+  ctx.translate(x + w / 2, y + h / 2); ctx.scale(0.5, 0.5); ctx.translate(-360, -500);
+  drawLane(ctx, cam, S.t);
+  drawActors(ctx, cam, S.sim.pins, S.sim.ball.on ? S.sim.ball : null, {});
+  drawParts(ctx, cam, S.pipParts);
+  ctx.restore();
+  roundPath(ctx, x, y, w, h, 14); ctx.strokeStyle = '#e9c15f'; ctx.lineWidth = 3; ctx.stroke();
+  ctx.font = `700 15px ${FONT}`; ctx.textAlign = 'left'; ctx.textBaseline = "bottom"; ctx.fillStyle = "#ffe9bf";
+  ctx.fillText("Replay", x + 10, y + h - 6);
 }
 
 function drawBanner(ctx, S, lay) {

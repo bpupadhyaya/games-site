@@ -122,8 +122,7 @@ export function createDirector(P) {
     const v = state.v || {};
     stage.renderer.setScissorTest(false);
     stage.renderer.setViewport(0, 0, P.cssW, P.cssH);
-    const zoom = m.phase === 'contact' ? 1 + 0.06 * clamp(m.pt / 0.13, 0, 1) : 1;
-    P.proj.zoom = zoom; P.proj.sx = v.shake ? Math.sin(state.t * 90) * v.shake : 0; P.proj.sy = v.shake ? Math.cos(state.t * 77) * v.shake * 0.7 : 0;
+    P.proj.zoom = 1; P.proj.sx = 0; P.proj.sy = 0;
     if (P.debugCam) {
       const dc = typeof P.debugCam === 'function' ? P.debugCam(state, cur) : P.debugCam;
       P.cam.position.set(dc.pos[0], dc.pos[1], dc.pos[2]); P.cam.lookAt(dc.look[0], dc.look[1], dc.look[2]);
@@ -158,7 +157,8 @@ export function createDirector(P) {
     const shot = P.pipOverride ? P.pipOverride(state, pos) : pipShot(state, hand, pos);
     const dtRaw = state.t - pipCam.t, dt = clamp(dtRaw, 0, 0.1);
     if (!pipCam.init || pipCam.key !== shot.key || dtRaw > 0.12 || dtRaw < -0.01) { pipCam.pos.copy(shot.pos); pipCam.look.copy(shot.look); pipCam.init = true; }
-    else { const k = 1 - Math.exp(-dt * 7); pipCam.pos.lerp(shot.pos, k); pipCam.look.lerp(shot.look, k); }
+    else if (shot.key === 'finish' || shot.key === 'batter') { /* fixed framing: a still shot, no drift */ }
+    else { const k = 1 - Math.exp(-dt * (shot.key === 'ball' ? 4 : 2.2)); pipCam.pos.lerp(shot.pos, k); pipCam.look.lerp(shot.look, k); }
     pipCam.key = shot.key; pipCam.t = state.t;
     const x = fit.ox + R.x * fit.s, y = fit.oy + R.y * fit.s, w = R.w * fit.s, h = R.h * fit.s;
     const r = stage.renderer;

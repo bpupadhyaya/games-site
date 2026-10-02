@@ -496,8 +496,6 @@ export function drawWorldLayer(ctx, state, w, parts, o = {}) {
 
 export function renderPlay(ctx, state) {
   const w = state.w, m = state.m, t = state.t;
-  const sh = state.shake;
-  if (sh && sh.t < sh.dur) { const k = 1 - sh.t / sh.dur; ctx.save(); ctx.translate(Math.sin(sh.t * 90) * sh.amp * k, Math.cos(sh.t * 71) * sh.amp * k * 0.7); renderPlayInner(ctx, state); ctx.restore(); return; }
   renderPlayInner(ctx, state);
 }
 

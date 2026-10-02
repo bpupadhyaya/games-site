@@ -835,12 +835,8 @@ function drawPlay(ctx, state, palette) {
   chip(ctx, 232, 220, 232, 'TIME', clock(solved ? state.solveTime : state.time));
   chip(ctx, 488, 220, 232, 'MOVES', String(solved ? state.solveMoves : state.moves));
 
-  // board (settles into place when the scene opens)
+  // board (fixed surface: no settle-in scale)
   ctx.save();
-  if (!solved && enter < 1) {
-    const s = 0.93 + 0.07 * easeBack(enter);
-    ctx.translate(360, geo.y + geo.px / 2); ctx.scale(s, s); ctx.translate(-360, -(geo.y + geo.px / 2));
-  }
   if (solved) rays(ctx, 360, geo.y + geo.px / 2, 560, state.t, 0.2 * clamp01(state.sceneT));
   drawBoardBase(ctx, geo, state.regions, palette, state.palette);
   drawBoardMarks(ctx, state, geo);

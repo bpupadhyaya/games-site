@@ -509,7 +509,6 @@ export function renderPlay(ctx, state, hp) {
   const rd = state.rd, L = playLayout(state.settings.textIdx);
   drawFloor(ctx, W, H);
   ctx.save();
-  if (rd.shake > 0 && !state.settings.calm) ctx.translate(Math.sin(state.t * 90) * 6 * rd.shake, Math.cos(state.t * 77) * 4 * rd.shake);
   ctx.translate(L.view.ox, L.view.oy); ctx.scale(L.view.s, L.view.s);
   drawWorld(ctx, state, rd, hp);
   ctx.restore();

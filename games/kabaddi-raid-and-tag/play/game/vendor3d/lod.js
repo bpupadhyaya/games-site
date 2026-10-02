@@ -10,9 +10,10 @@ export const LOD_TARGETS = { medium: 0.4, light: 0.12 };
 
 /** Screen-size policy per quality tier: pixel height of the person above which a level is used. */
 export const LOD_POLICY = {
-  high: { full: 230, medium: 90 },
-  medium: { full: 340, medium: 120 },
-  low: { full: Infinity, medium: 210 },
+  // the light level (a distant blob with a simplified hand) is only for people shorter than ~60 px; everyone taller keeps the full-detail hands of the medium level
+  high: { full: 230, medium: 60 },
+  medium: { full: 340, medium: 70 },
+  low: { full: Infinity, medium: 90 },
 };
 
 const srgbToLinear = (c) => { c /= 255; return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
@@ -31,7 +32,7 @@ const texel = (px, u, v) => { const x = Math.min(px.w - 1, Math.max(0, Math.floo
  * Cluster vertices of one or more source meshes on a grid. srcs: [{geo, id, bake?(i, out)}]. Positions/normals/weights are averaged, UVs optionally kept
  * (keepUV: the first vertex's UV; the key then includes the quantised UV so texture seams stay intact). Returns {geo, triOf} with per-source index lists.
  */
-function cluster(srcs, cell, { keepUV, bakeLen = 0 }) {
+function cluster(srcs, cell, { keepUV, bakeLen = 0, handSet = null, handFine = 0.4 }) {
   const keys = new Map(), reps = [];
   const maps = [];
   for (const s of srcs) {
@@ -42,8 +43,11 @@ function cluster(srcs, cell, { keepUV, bakeLen = 0 }) {
       if (bakeLen) s.bake(i, bake);
       // material class (top / bottoms / socks / skin / hair / other) is part of the key: clusters never bleed cloth colour into skin
       const cls = bakeLen ? (bake[7] > 0.5 ? 5 : bake[6] > 0.5 ? 4 : bake[3] > 0.5 ? 1 : bake[4] > 0.5 ? 2 : bake[5] > 0.5 ? 3 : 0) : 0;
-      let k = `${s.id}|${cls}|${Math.round(pos.getX(i) / cell)},${Math.round(pos.getY(i) / cell)},${Math.round(pos.getZ(i) / cell)}`;
-      if (keepUV) k += `|${Math.round(uv.getX(i) * 6)},${Math.round(uv.getY(i) * 6)}`;
+      // vertices weighted to the hand / finger bones use a finer cell, so the hand keeps a real shape (palm, four fingers, thumb) instead of collapsing into a blade
+      let hw = 0; if (handSet) for (let k2 = 0; k2 < 4; k2++) if (handSet.has(si.getComponent(i, k2))) hw += sw.getComponent(i, k2);
+      const cl = hw > 0.5 ? cell * Math.max(handFine, 0.001) : cell;
+      let k = hw > 0.5 && handFine === 0 ? `${s.id}|h|${i}` : `${s.id}|${cls}|${hw > 0.5 ? 'h' : ''}|${Math.round(pos.getX(i) / cl)},${Math.round(pos.getY(i) / cl)},${Math.round(pos.getZ(i) / cl)}`;
+      if (keepUV && !(hw > 0.5 && handFine === 0)) k += `|${Math.round(uv.getX(i) * 6)},${Math.round(uv.getY(i) * 6)}`;
       let c = keys.get(k);
       if (c === undefined) { c = reps.length; keys.set(k, c); reps.push({ src: s, first: i, n: 0, x: 0, y: 0, z: 0, nx: 0, ny: 0, nz: 0, w: new Map(), bake: new Float32Array(bakeLen) }); }
       const r = reps[c]; r.n++;
@@ -107,13 +111,15 @@ function fitCell(srcs, target, opts) {
  * src meshes: {mesh (SkinnedMesh), kind: 'body'|'head'}.  Returns { medium: [{kind, geo}], light: geo, stats }.
  */
 export function buildLodSet(meshes, { albedo, bodyMask, bodySkin, headMask }) {
+  const bones = meshes[0].mesh.skeleton.bones;
+  const handSet = new Set(); bones.forEach((b, i) => { if (/_Hand$|_Finger\d|_Forearm$/.test(b.name)) handSet.add(i); });   // hand + forearm keep detail: a collapsed forearm reads as a needle
   const px = { body: readPixels(albedo.body), head: readPixels(albedo.head), bodyMask: readPixels(bodyMask), bodySkin: readPixels(bodySkin), headMask: readPixels(headMask) };
   const full = meshes.reduce((a, m) => a + m.mesh.geometry.index.count / 3, 0);
   // medium: per mesh, UVs kept, shares the tinted textured materials
   const medium = meshes.map((m, i) => {
     const one = [{ geo: m.mesh.geometry, id: i }];
     const target = LOD_TARGETS.medium;
-    const f = fitCell(one, target, { keepUV: true });
+    const f = fitCell(one, target, { keepUV: true, handSet, handFine: 0 });   // medium keeps the full hand (150 triangles each): hands are what a viewer reads first
     return { kind: m.kind, geo: buildGeo(f.cl, [0], { withUV: true }), tris: f.tris };
   });
   // light: all meshes merged; albedo (linear) + tint masks baked per vertex
@@ -128,11 +134,11 @@ export function buildLodSet(meshes, { albedo, bodyMask, bodySkin, headMask }) {
         if (out[6] > 0.5 && lum < 0.17) { const k = 0.17 / Math.max(lum, 0.004); const kk = Math.min(k, 12); out[0] *= kk; out[1] *= kk; out[2] *= kk; lum = 0.17; }
         // cloth keeps its folds but not the ambient-occlusion bands at hems (they read as dirty grey smudges when the figure is small)
         if (out[6] < 0.5 && out[3] + out[4] + out[5] > 0.5 && lum < 0.62 && lum > 0.001) { const k = 0.62 / lum; out[0] *= k; out[1] *= k; out[2] *= k; lum = 0.62; }
-        if (out[6] < 0.5 && out[3] + out[4] + out[5] < 0.5 && m.mesh.geometry.attributes.position.getY(v) > 0.45) { out[0] = out[1] = out[2] = 0.72; if (out[3] + out[4] + out[5] < 0.5) { if (m.mesh.geometry.attributes.position.getY(v) > 1.0) out[3] = 1; else out[4] = 1; } }
+        if (out[6] < 0.5 && out[3] + out[4] + out[5] < 0.5 && m.mesh.geometry.attributes.position.getY(v) > 0.45 && Math.abs(m.mesh.geometry.attributes.position.getX(v)) < 0.22) { out[0] = out[1] = out[2] = 0.72; if (out[3] + out[4] + out[5] < 0.5) { if (m.mesh.geometry.attributes.position.getY(v) > 1.0) out[3] = 1; else out[4] = 1; } }
       } else { const k = texel(px.headMask, u, w); out[3] = out[4] = out[5] = 0; out[6] = px.headMask.data[k + 1] / 255; out[7] = px.headMask.data[k] / 255; }
     },
   }));
-  const f = fitCell(srcs, LOD_TARGETS.light, { keepUV: false, bakeLen: 8 });
+  const f = fitCell(srcs, LOD_TARGETS.light, { keepUV: false, bakeLen: 8, handSet, handFine: 0.16 });
   const cl = f.cl;
   const light = buildGeo(cl, srcs.map((_, i) => i), {
     withUV: false,
@@ -144,7 +150,7 @@ export function buildLodSet(meshes, { albedo, bodyMask, bodySkin, headMask }) {
       g.setAttribute('aHair', new THREE.BufferAttribute(hair, 1));
     },
   });
-  return { medium, light, stats: { full, medium: medium.reduce((a, m) => a + m.tris, 0), light: f.tris, lightVerts: cl.count } };
+  return { medium, light, handSet: [...handSet], stats: { full, medium: medium.reduce((a, m) => a + m.tris, 0), light: f.tris, lightVerts: cl.count } };
 }
 
 /** The single light-level material: vertex colours + baked masks, same tint recipe as the textured levels. */

@@ -146,7 +146,7 @@ export function createGame(env) {
     H.answerSeat = respSeat(H, H.pending); if (bluff) H.bluffs[idx] = true;
     const word = RL.shoutName(H, idx), val = RL.VARIANTS[H.variant].vals[idx];
     speak(seat, word + '!'); banner(word.toUpperCase() + '!', `${seatName(seat)} ${seat === 0 && !isAuto() ? 'call' : 'calls'} it: worth ${val}`, idx >= 3 ? '#ff5a3c' : '#ffd23f', 1.4);
-    state.shake = 11 + idx * 3; shoutSfx(idx); burst(W / 2, 760, idx >= 3 ? '#ff7a4c' : '#ffd23f', 22 + idx * 6);
+    shoutSfx(idx); burst(W / 2, 760, idx >= 3 ? '#ff7a4c' : '#ffd23f', 22 + idx * 6);
     ui.delay = dly(1.1); ui.hint = null; ui.sig = false;
     if (seat === 0 && !isAuto()) state.stats.trucos += 1;
   }
@@ -164,7 +164,7 @@ export function createGame(env) {
       H.answerSeat = seat; const res = RL.answerRaise(H, 'raise'); H.answerSeat = respSeat(H, H.pending);
       const word = RL.shoutName(H, res.idx), val = RL.VARIANTS[H.variant].vals[res.idx];
       speak(seat, word + '!'); banner(word.toUpperCase() + '!', `${seatName(seat)} ${seat === 0 && !isAuto() ? 'raise' : 'raises'}: worth ${val}`, res.idx >= 3 ? '#ff5a3c' : '#ffd23f', 1.4);
-      state.shake = 12 + res.idx * 3; shoutSfx(res.idx); burst(W / 2, 760, '#ff7a4c', 28); ui.delay = dly(1.1);
+      shoutSfx(res.idx); burst(W / 2, 760, '#ff7a4c', 28); ui.delay = dly(1.1);
     }
   }
   function doSpecial(play, seat) {

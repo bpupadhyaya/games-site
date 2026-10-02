@@ -56,7 +56,6 @@ function flow(ctx, V, state, region, build) {
 export function render(ctx, state) {
   const sc = state.scene, t = state.t, V = makeV(ctx);
   ctx.save();
-  if (state.shake > 0 && !state.set.calm) ctx.translate(Math.sin(t * 90) * state.shake * 0.5, Math.cos(t * 77) * state.shake * 0.4);
   drawBackground(ctx, t);
   if (sc === 'title') title(ctx, state, V);
   else if (sc === 'settings') settingsPage(ctx, state, V);

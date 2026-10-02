@@ -725,7 +725,6 @@ function drawBoard(ctx, state, pal) {
   const flagGlow = state.scene === 'playing' && state.flagMode ? alpha('#ff6b5e', 0.65 + 0.3 * Math.sin(t * 5)) : undefined;
 
   ctx.save();
-  if (lost && since < 0.6) ctx.translate(Math.sin(since * 55) * 5 * Math.exp(-since * 7), 0);
   drawFrame(ctx, pal, BOARD_X, BOARD_Y, BOARD_W, BOARD_H, { glow: flagGlow });
 
   const fullReveal = lost && state.shieldOffered; // no undo left, so nothing is given away

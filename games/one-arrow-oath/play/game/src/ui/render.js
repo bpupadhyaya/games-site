@@ -955,7 +955,6 @@ export function render(ctx, view, s, extra) {
   setPress(s.ui.press ? { x: s.ui.press.x, y: s.ui.press.y } : null);
   const tintEnemy = s.scene === 'battle' && s.battle ? s.battle.enemies.find((e) => !e.dead && !e.decoy) : null;
   ctx.save();
-  if (s.shake > 0) ctx.translate(Math.sin(s.t * 90) * s.shake, Math.cos(s.t * 70) * s.shake);
   const moonAt = s.scene === 'title' || s.scene === 'demo-limit' || s.scene === 'runover' ? { x: 570, y: 250, r: 78 } : { x: 74, y: 138, r: 38 };
   drawSky(ctx, extra.sky, s.t, tintEnemy && tintEnemy.element ? elementColor(tintEnemy.element) : null, moonAt, s.meta.reduceMotion);
   if (s.scene === 'title') drawTitle(ctx, s);

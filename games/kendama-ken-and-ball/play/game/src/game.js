@@ -42,7 +42,7 @@ export function createGame(env) {
     ui: { scroll: 0, drag: null, focusId: null }, page: 0, ladderMsg: '', restoreMsg: '',
     w: createWorld(), tr: newTracker([{ t: 'big' }]), trickId: 'big', trickName: 'Big Cup', run: newRun(), pr: { target: 'big', catches: 0, streak: 0, best: 0 },
     drag: null, pop: { holding: false, charge: 0, active: false, t: 0, V: 0, ang: 0, p0: null, key: false }, hint: null, watch: null, res: null, resT: 0,
-    parts: [], pops: [], toast: '', toastT: 0, flash: 0, shake: 0, att: null, thinkSecs: 5, thinkMax: THINK_STEPS.length - 1, loaded: false, shotAuto: false,
+    parts: [], pops: [], toast: '', toastT: 0, flash: 0, att: null, thinkSecs: 5, thinkMax: THINK_STEPS.length - 1, loaded: false, shotAuto: false,
   };
   settleHanging(state.w);
   let rope = newRope(), planner = null, hintPlanner = null, ctl = null, autoSeq = 0;
@@ -145,7 +145,7 @@ export function createGame(env) {
     const w = createWorld(); w.assist = state.settings.assist; settleHanging(w);
     state.w = w; rope = newRope(); state.drag = null; state.parts = []; state.pops = []; state.hint = null; hintPlanner = null; ctl = null;
     state.pop = { holding: false, charge: 0, active: false, t: 0, V: 0, ang: 0, p0: null, key: false };
-    state.toastT = 0; state.flash = 0; state.shake = 0; state.res = null; state.resT = 0; state.watch = null; planner = null; autoSeq = 0;
+    state.toastT = 0; state.flash = 0; state.res = null; state.resT = 0; state.watch = null; planner = null; autoSeq = 0;
     state.scene = 'play'; state.paused = false; state.pauseMenu = false; state.ui.scroll = 0;
   };
   const openTrick = (id) => {
@@ -363,7 +363,7 @@ export function createGame(env) {
     const w = state.w;
     for (let i = 0; i < ev.length; i += EVENT_STRIDE) {
       const t = ev[i], v = ev[i + 1];
-      if (t === 1) { sfx.tok(v); if (v > 500) dustAt(state.parts, w.ball.x, w.ball.y + R * 0.6, 3); if (v > 900) state.shake = 0.18; }
+      if (t === 1) { sfx.tok(v); if (v > 500) dustAt(state.parts, w.ball.x, w.ball.y + R * 0.6, 3); if (v > 900) { dustAt(state.parts, w.ball.x, w.ball.y + R * 0.6, 4); state.flash = Math.max(state.flash, 0.12); } }
       else if (t === 3) sfx.snap(v);
       else if (t === 4) sfx.wall();
       else if (t === 5) { sfx.ping(); burstAt(state.parts, w.ball.x, w.ball.y, 8, '#f0bd3c'); }
@@ -488,7 +488,6 @@ export function createGame(env) {
     stepParts(state.parts, dt); stepPetals(dt);
     if (state.toastT > 0) state.toastT -= dt;
     if (state.flash > 0) state.flash -= dt;
-    if (state.shake > 0) state.shake -= dt;
     for (const p of state.pops) p.t += dt;
     state.pops = state.pops.filter((p) => p.t < p.max);
   };

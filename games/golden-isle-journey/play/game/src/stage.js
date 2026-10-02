@@ -141,9 +141,9 @@ export function shadow(ctx, x, y, w, alpha = 0.35) {
   ctx.beginPath(); ctx.ellipse(x, y, w, w * 0.16, 0, 0, TAU); ctx.fill();
 }
 
+// Fixed surface rule: the scene never shakes (callers keep their sparks, flashes and sounds).
 export function shakeOffset(t, amount, rm) {
-  if (rm || amount <= 0) return [0, 0];
-  return [Math.sin(t * 61) * amount, Math.cos(t * 47) * amount];
+  return [0, 0];
 }
 
 // Gold filigree border used on the title, cards and end screens.

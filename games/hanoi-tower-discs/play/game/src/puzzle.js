@@ -146,6 +146,7 @@ function attempt(puz, a, b) {
   // refused: the disc goes back where it came from
   puz.events.push({ type: 'refuse', peg: b });
   puz.shake[b] = 0.4;
+  puz.wiggleDisc = topDisc(puz, a);
   holdFlash(puz, b);
   puz.refused = { t: 2.4, peg: b };
   const d = topDisc(puz, a);

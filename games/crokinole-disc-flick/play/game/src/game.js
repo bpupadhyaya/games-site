@@ -14,7 +14,7 @@ import { PROFILES } from './opponents.js';
 import {
   W, H, inRect, PULL, TEXT_DEC, TEXT_INC, REF_BACK, REF_NEXT, TEXT_SCALES, THINK_STEPS, SETUP_PINS,
 } from './layout.js';
-import { renderPlay, layoutOf } from './view.js';
+import { renderPlay, layoutOf, sliderSign } from './view.js';
 import { renderTitle, renderSetup, renderSettings, renderResult, renderPause, renderPages, renderDemoLimit, hitScreen, flowMeta, pageCount, ensureLayout, resetMenus } from './menus.js';
 import { ABOUT, HOWTO, RULES } from './content.js';
 import { setPress } from './ui.js';
@@ -34,13 +34,13 @@ export function createGame(env) {
   const aiRng = rng.fork();
   const state = {
     scene: 'title', back: 'title', t: 0, paused: false, pauseMenu: false, demo: !!config.demo,
-    settings: { sound: true, calm: false, textIdx: 0, thinkIdx: 1 },
+    settings: { sound: true, calm: false, rotate: false, textIdx: 0, thinkIdx: 1 },
     record: { wins: [0, 0, 0, 0, 0], played: 0, streak: 0, best: 0, demoRounds: 0, flicks: 0, topRound: 0 },
     setup: { mode: 'ai', opp: 0, rounds: 2 }, setupMsg: '',
     ui: { scroll: 0, drag: null }, page: 0,
     att: null, w: null, m: null,
     aim: { u: 0, ang: -Math.PI / 2, power: 0.5, active: false, manual: false }, preview: null, hint: null, hintPreview: null, hintBusy: false, alts: null,
-    parts: [], pops: [], pegFlash: new Array(8).fill(0), shake: null, toast: '', toastT: 0, humanTurn: false, view: { rot: 0, target: 0 },
+    parts: [], pops: [], pegFlash: new Array(8).fill(0), pass: null, lastSide: -1, toast: '', toastT: 0, humanTurn: false, view: { rot: 0, target: 0 },
     think: null, aiDrag: null, kbOn: false, blocked: false, drag: null, hadRiv: false, restT: 0, flyT: 0, clearT: 0, loaded: false, restoreMsg: '', ff: 1,
     saved: null,
   };
@@ -137,7 +137,6 @@ export function createGame(env) {
         for (const d of w.discs) if (d.id === e.a || d.id === e.b) d.heat = Math.min(1, e.v / 500);
         if (live) {
           sfx.clack(e.v);
-          if (e.v > 550) state.shake = { t: 0, dur: 0.26, amp: Math.min(6, e.v / 190) };
         }
       } else if (e.t === 'peg') {
         let bi = 0, bd = 1e9;
@@ -149,7 +148,7 @@ export function createGame(env) {
       } else if (e.t === 'pocket') {
         confetti(parts, 0, 0, 22);
         addPart(parts, { kind: 2, x: 0, y: 0, vx: 0, vy: 0, t: 0, max: 0.6, size: 70, col: '#ffd35a' });
-        if (live) { sfx.drop(); pop(0, -50, '+20', '#ffe08a', 44); state.shake = { t: 0, dur: 0.22, amp: 3 }; }
+        if (live) { sfx.drop(); pop(0, -50, '+20', '#ffe08a', 44); }
       } else if (e.t === 'gutter') {
         burst(parts, e.x, e.y, 4, 'rgba(60,34,16,0.8)');
         if (live) sfx.gutter();
@@ -203,7 +202,10 @@ export function createGame(env) {
     m.phase = 'aim';
     state.humanTurn = !isAI(side);
     state.hint = null; state.hintPreview = null; state.alts = null; state.think = null; state.preview = null; planner = null; hintPlanner = null; state.hintBusy = false; state.drag = null; state.kbOn = false; slideDrag = false;
-    state.view.target = m.cfg.mode === 'two' && side === 1 ? Math.PI : 0;
+    // fixed camera rule: the playing surface never moves. Only the optional setting (off by default) turns the board.
+    state.view.target = m.cfg.mode === 'two' && side === 1 && state.settings.rotate ? Math.PI : 0;
+    state.pass = (!resumed && m.cfg.mode === 'two' && state.lastSide >= 0 && state.lastSide !== side) ? { side, t: 0 } : null;
+    state.lastSide = side;
     const u = state.humanTurn ? freeSpot(state.w, side, clamp(state.aim.u, -MAX_U, MAX_U)) : 0;
     state.aim = { u, ang: centreAim(side, u), power: 0.5, active: false, manual: false };
     if (resumed) toast('Match restored. Press Resume to carry on', 3.2);
@@ -218,7 +220,7 @@ export function createGame(env) {
     state.w = createWorld();
     state.m = newMatch({ mode: 'ai', opp: 0, rounds: 2, first: aiRng.int(2), watchA: 3, ...cfg });
     state.scene = 'play'; state.paused = false; state.pauseMenu = false; state.ui.scroll = 0;
-    state.parts = []; state.pops = []; state.view.rot = 0; state.view.target = 0; state.aim.u = 0;
+    state.parts = []; state.pops = []; state.view.rot = 0; state.view.target = 0; state.aim.u = 0; state.pass = null; state.lastSide = -1;
     beginRound(state.m, state.w);
     beginTurn();
   };
@@ -233,7 +235,7 @@ export function createGame(env) {
     const m = newMatch({ ...sn.cfg, watchA: 3 });
     Object.assign(m, { round: sn.round, rounds: sn.rounds, scores: sn.scores.slice(), hand: sn.hand.slice(), first: sn.first, turn: sn.turn, shots: sn.shots, roundLog: sn.log.map((r) => ({ round: r.round, pts: r.pts.slice() })), phase: 'aim' });
     state.w = w; state.m = m;
-    state.scene = 'play'; state.ui.scroll = 0; state.parts = []; state.pops = []; state.shake = null;
+    state.scene = 'play'; state.ui.scroll = 0; state.parts = []; state.pops = [];
     state.aim.u = sn.u; state.hadRiv = false; state.flyT = 0; state.restT = 0; state.ff = 1;
     beginTurn(true);
     state.view.rot = state.view.target;
@@ -256,7 +258,6 @@ export function createGame(env) {
     planner = null; hintPlanner = null; state.hintBusy = false;
     state.restT = 0; state.flyT = 0;
     sfx.whoosh(p.power);
-    state.shake = { t: 0, dur: 0.12, amp: 1.5 };
   };
 
   const describeNote = (n) => (n.k === 'nohit' ? 'No rival disc touched: that disc is removed' : n.k === 'short' ? 'Too short: that disc is removed' : 'Off the scoring rings: removed');
@@ -321,7 +322,7 @@ export function createGame(env) {
     if (dr.valid) updatePreview(); else state.preview = null;
   };
   const setSpot = (x) => {
-    const u = clamp(((x - W / 2) / 276) * MAX_U, -MAX_U, MAX_U);
+    const u = clamp(sliderSign(state) * ((x - W / 2) / 276) * MAX_U, -MAX_U, MAX_U);
     if (u !== state.aim.u) {
       state.aim.u = u;
       if (!state.aim.manual) state.aim.ang = centreAim(state.m.turn, u);
@@ -400,6 +401,9 @@ export function createGame(env) {
     const ptr = input.pointer, keys = input.keys;
     const watch = m.cfg.mode === 'watch';
     const L = layoutOf(state), barHidden = L.bannerReplacesBar && m.phase === 'score';
+    // the hand-over card: the board is untouched; one tap from the next player starts their flick
+    const passUp = !!state.pass && m.phase === 'aim' && !state.paused;
+    if (passUp) { state.pass.t += dt; }
     if (config.dev && keys.pressed.has('KeyK')) { clearSaved(); m.scores[0] = 100; m.scores[1] = 60; m.over = { win: 0, extra: false }; m.phase = 'over'; state.scene = 'result'; state.ui.scroll = 0; return; }
     if (keys.pressed.has('KeyP') || keys.pressed.has('Escape')) { if (state.pauseMenu) closePause(); else if (!watch) openPause(); else state.paused = !state.paused; }
     if (state.pauseMenu) {
@@ -424,7 +428,7 @@ export function createGame(env) {
     state.ff = (m.phase === 'fly') && ptr.down && !state.paused ? 2 : 1;
 
     state.blocked = state.humanTurn && m.phase === 'aim' && spotBlocked(state.w, m.turn, state.aim.u);
-    if (state.humanTurn && !state.paused && m.phase === 'aim') {
+    if (state.humanTurn && !state.paused && m.phase === 'aim' && !state.pass) {
       if (ptr.pressed) {
         if (inRect(L.slider, ptr.x, ptr.y)) { slideDrag = true; setSpot(ptr.x); }
         else if (inRect(L.hint, ptr.x, ptr.y)) { requestHint(); sfx.tick(); }
@@ -458,6 +462,7 @@ export function createGame(env) {
       if (touched) { state.kbOn = true; state.aim.active = true; state.hint = null; state.hintPreview = null; updatePreview(); }
       if (keys.pressed.has('Space') && state.kbOn && !state.drag && !state.blocked) throwDisc(side, { u: state.aim.u, ang: state.aim.ang, power: state.aim.power });
     } else if (state.drag && !state.humanTurn) { state.drag = null; state.aim.active = false; }
+    if (passUp && state.pass.t > 0.35 && ptr.pressed) { state.pass = null; sfx.tick(); }
     if (state.paused) return;
     updateHint();
     updateAI(dt);
@@ -482,7 +487,6 @@ export function createGame(env) {
     stepParts(state.parts, dt);
     for (const p of state.pops) p.t += dt;
     state.pops = state.pops.filter((p) => p.t < p.max);
-    if (state.shake) { state.shake.t += dt; if (state.shake.t >= state.shake.dur) state.shake = null; }
     if (state.toastT > 0) state.toastT -= dt;
     if (m.phase === 'score') {
       m.roundInfo.t += dt;
@@ -540,6 +544,7 @@ export function createGame(env) {
     sfx.tick();
     if (id === 'set-sound') { st.sound = !st.sound; audio.setMuted?.(!st.sound); }
     else if (id === 'set-calm') st.calm = !st.calm;
+    else if (id === 'set-rotate') st.rotate = !st.rotate;
     else if (id === 'txt-dec') st.textIdx = Math.max(0, st.textIdx - 1);
     else if (id === 'txt-inc') st.textIdx = Math.min(TEXT_SCALES.length - 1, st.textIdx + 1);
     else if (id === 'think-dec') st.thinkIdx = Math.max(0, st.thinkIdx - 1);
@@ -614,7 +619,7 @@ export function createGame(env) {
 
   return {
     // Watch & Learn and every menu are free; only real play counts against the free preview (a paused match does not).
-    isPreviewExempt: () => !(state.scene === 'play' && state.m && state.m.cfg.mode !== 'watch') || state.paused,
+    isPreviewExempt: () => !(state.scene === 'play' && state.m && state.m.cfg.mode !== 'watch') || state.paused || !!state.pass,
     update(dt, input) {
       setPress(input.pointer);
       state.t += state.paused && state.scene === 'play' ? 0 : dt;

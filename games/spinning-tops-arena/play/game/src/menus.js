@@ -184,7 +184,7 @@ export function settingsWidgets(state) {
   return [
     { t: 'gap', h: 10 }, { t: 'h', label: 'Settings', size: 48 },
     { t: 'btn', id: 'set-sound', label: st.sound ? 'Sound: On' : 'Sound: Off' },
-    { t: 'btn', id: 'set-calm', label: st.calm ? 'Calm effects: On' : 'Calm effects: Off', sub: 'No screen shake, flashes or camera zoom', active: st.calm },
+    { t: 'btn', id: 'set-calm', label: st.calm ? 'Calm effects: On' : 'Calm effects: Off', sub: 'No screen flashes', active: st.calm },
     { t: 'p', label: `Text size: ${Math.round(sc * 100)}%`, bold: true, color: '#ffe9a0', size: 26 },
     { t: 'btn', id: 'txt-dec', label: 'A−  Smaller', row: 4, disabled: st.textIdx === 0 },
     { t: 'btn', id: 'txt-inc', label: 'A+  Larger', row: 4, disabled: st.textIdx === TEXT_SCALES.length - 1 },
