@@ -744,8 +744,9 @@ export function createGame(env) {
     // internal simulation state (whatever shape that chapter's 13-different-mechanics state takes)
     // and not just the outer THINK/REVEAL/ACT phase machinery.
     getAutoplayChapter: () => (apInst ? { inst: apInst, driver: apDriver } : null),
-    // Auto Play is a free teaching/marketing tool, like the menu's own attract-mode preview - it
-    // must never eat into the paid game's free-preview timer (kit 1.6.1).
-    isPreviewExempt: () => state.scene === 'autoplay',
+    // Only a player actually playing inside a chapter counts against the free preview (kit 1.6.1+). Title, Road, World,
+    // Chapter Guide, About, story cards, the how-to demo, Pause, Auto Play, result/lost screens and a chapter's own
+    // finished/celebration beat are exempt.
+    isPreviewExempt: () => !(state.scene === 'play' && cur && !cur.showcase && !cur.state?.done && cur.state?.phase !== 'celebrate' && cur.state?.phase !== 'snap'),
   };
 }

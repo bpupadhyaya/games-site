@@ -4,7 +4,7 @@
   "tagline": "One hare. Three hounds. One narrow board.",
   "genre": "board",
   "orientation": "portrait",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "monetization": {
     "model": "premium",
     "priceUsd": 2.99,

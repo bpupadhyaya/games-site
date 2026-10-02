@@ -391,10 +391,8 @@ export function createGame(env) {
     },
     render(ctx) { render(ctx, state); },
     getState: () => state,
-    // Auto Play is a free teaching/marketing tool, like the menu's own attract-mode preview - it
-    // must never eat into the paid game's free-preview timer (kit 1.6.1). Exempt the same span
-    // `autoplaySilent()` already covers: the autoplay scene itself, and the shared 'over' result
-    // screen when it was reached from Auto Play (never a real game's own result).
-    isPreviewExempt: () => autoplaySilent(),
+    // Only a human playing a live game counts against the free preview (kit 1.6.1+). Title, Look, Rules, Learn,
+    // the daily puzzle, Auto Play and every result screen are exempt.
+    isPreviewExempt: () => !(state.scene === 'play' && !state.game.winner),
   };
 }

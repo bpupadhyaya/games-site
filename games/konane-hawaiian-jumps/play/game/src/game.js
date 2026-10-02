@@ -383,6 +383,8 @@ export function createGame(env) {
     // request in STATUS.md when Auto Play was first built, but the hook itself was never actually
     // added then - added now (2026-09-23 final polish pass); confirmed with kit already at 1.6.1 in
     // this worktree, so no kit-upgrade was needed, just this one line.
-    isPreviewExempt: () => state.scene === 'auto',
+    // Only a human playing a match or the daily puzzle spends the preview; menus, setup, Rules/About/How to Play,
+    // lessons, Watch & Learn, result and demo-limit screens do not.
+    isPreviewExempt: () => state.scene !== 'play' && state.scene !== 'puzzle',
   };
 }

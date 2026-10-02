@@ -6,9 +6,9 @@ import { buildPerson, buildBat, buildBall } from './gear.js';
 // Team looks. `bat` = the batting side (cream whites with teal trim), `field` = the fielding side (blue), per the 2D art.
 const LOOKS = {
   stadium: {
-    bat: { shirt: '#f4ead2', trousers: '#f2eee3', sleeves: 'short', sleeve: '#f4ead2', pad: '#fbf8f0', strap: '#d8b987', helmet: '#1f6f78', grille: '#9aa1a8', glove: '#f6f2e8', gloveTrim: '#1f6f78', pads: true, gloves: 'bat', kit: { top: '#f4ead2', bottoms: '#f2eee3', socks: '#f2eee3' } },
+    bat: { shirt: '#f4ead2', trousers: '#f2eee3', sleeves: 'short', sleeve: '#f4ead2', pad: '#fbf8f0', strap: '#d8b987', helmet: '#1f6f78', grille: '#9aa1a8', glove: '#f6f2e8', gloveTrim: '#1f6f78', pads: true, gloves: 'bat', kit: { top: '#f4ead2', bottoms: '#f2eee3', socks: '#f2eee3', trim: '#1f6f78' } },
     field: { shirt: '#3d6fd1', trousers: '#2c3f78', sleeves: 'short', sleeve: '#3d6fd1', cap: '#2c3f78', kit: { top: '#3d6fd1', bottoms: '#f2eee3', socks: '#f2eee3' } },
-    keeper: { shirt: '#3d6fd1', trousers: '#2c3f78', sleeves: 'short', sleeve: '#3d6fd1', cap: '#2c3f78', pad: '#f6f2e8', strap: '#c9a46a', pads: true, glove: '#e8d9b0', gloveTrim: '#2c3f78', gloves: 'keeper', kit: { top: '#3d6fd1', bottoms: '#f2eee3', socks: '#f2eee3' } },
+    keeper: { shirt: '#3d6fd1', trousers: '#2c3f78', sleeves: 'short', sleeve: '#3d6fd1', cap: '#2c3f78', pad: '#f6f2e8', strap: '#c9a46a', pads: true, glove: '#e8d9b0', gloveTrim: '#2c3f78', gloves: 'keeper', kit: { top: '#3d6fd1', bottoms: '#f2eee3', socks: '#f2eee3', trim: '#e8d9b0' } },
     umpire: { shirt: '#f2f0ea', trousers: '#3a3f4a', sleeves: 'short', sleeve: '#f2f0ea', hat: true, cap: '#f4f1e6', kit: { top: '#f2f0ea', bottoms: '#3a3f4a', socks: '#2b2f38' } },
   },
   backyard: {

@@ -3,6 +3,11 @@
 // owned. Wraps a game object from the outside, so game code never sees it; boot() applies it
 // whenever game.json declares previewSeconds. Time is counted from the fixed update step, so it
 // is deterministic and pauses whenever the loop is stopped (background, app.pause).
+//
+// A game can exempt its own current scene from counting against the timer (e.g. an "Auto Play"
+// teaching demo, meant to be free like the menu's own attract-mode preview, not gated like real
+// play) by defining `isPreviewExempt()` on the object it returns from createGame - checked once
+// per frame, no kit/boot.js changes needed. Games that don't define it are unaffected.
 const PRODUCT_ID = 'unlock_game';
 const STORAGE_KEY = '__previewMs';
 const SAVE_EVERY_MS = 1000;
@@ -163,7 +168,7 @@ export function createPreviewGate({ game, meta, storage, monetization, manifest,
         return;
       }
       game.update(dt, input);
-      if (owned) return;
+      if (owned || game.isPreviewExempt?.()) return;
       usedMs += dt * 1000;
       unsavedMs += dt * 1000;
       if (unsavedMs >= SAVE_EVERY_MS || usedMs >= limitMs) persist();
@@ -172,7 +177,7 @@ export function createPreviewGate({ game, meta, storage, monetization, manifest,
       game.render(ctx, view);
       ctx.save();
       if (locked()) drawOverlay(ctx);
-      else if (!owned) drawCountdown(ctx);
+      else if (!owned && !game.isPreviewExempt?.()) drawCountdown(ctx);
       ctx.restore();
     },
     flushPreview: persist,

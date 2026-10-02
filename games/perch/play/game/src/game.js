@@ -264,6 +264,6 @@ export function createGame(env) {
     // Auto Play is meant to be free like the menu's own attract-mode preview, never gated behind
     // the paid unlock - it's a teaching/marketing tool, not real play. Checked by kit/preview.js
     // (createPreviewGate) once per frame; requires kit 1.6.1+.
-    isPreviewExempt: () => state.scene === 'auto',
+    isPreviewExempt: () => state.scene !== 'play',
   };
 }

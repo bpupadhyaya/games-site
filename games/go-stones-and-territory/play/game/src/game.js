@@ -570,8 +570,9 @@ export function createGame(env) {
     },
     render(ctx) { render(ctx, S); },
     getState: () => S,
-    // Auto Play is a free teaching/marketing tool, like the menu's own attract-mode preview - it
-    // must never eat into the paid game's free-preview timer (kit 1.6.1).
-    isPreviewExempt: () => isAutoplay(),
+    // The preview clock counts real play only: a live match (placing stones, not the scoring/result card) or the daily puzzle
+    // until it is solved. Menu, setup, lessons, About / How to Play / Rules, Settings, Auto Play (a free teaching demo) and the
+    // demo-limit card are all free time.
+    isPreviewExempt: () => !((S.scene === 'play' && S.phase === 'play') || (S.scene === 'puzzle' && S.pz.status !== 'solved')),
   };
 }

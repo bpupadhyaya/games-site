@@ -446,6 +446,8 @@ export function createGame(env) {
     // kit 1.6.1: exempts Auto Play from this premium game's free-preview timer (both the
     // time-accrual and the countdown badge) - the same way the menu's own attract-mode preview is
     // never gated. Checked once per frame by web/kit/preview.js; nothing else needs to change.
-    isPreviewExempt() { return !!(state.tb && state.tb.mode === 'auto'); },
+    // Counts real play only: a live human match at the table (not the hand summary, the match-over card or the leave-match
+    // prompt). Menus, About, Rules, the lesson list and lessons, the daily puzzle, Auto Play and the demo-limit screen are exempt.
+    isPreviewExempt() { const tb = state.tb; return !(state.scene === 'table' && tb && tb.mode === 'play' && !tb.over && !tb.summary && !tb.leaving); },
   };
 }

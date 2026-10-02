@@ -538,10 +538,10 @@ export function createGame(env) {
     },
     render(ctx) { render(ctx, state); },
     getState: () => state,
-    // Auto Play is meant to be free like the menu's own attract-mode preview, never gated like real
-    // play — exempts this scene's time from the shared free-preview timer (kit 1.6.1+, no-op on
-    // free/no-preview games and on older kit).
-    isPreviewExempt: () => state.scene === 'auto',
+    // The preview clock counts real play only: a live game (sowing and choosing houses) or the daily puzzle while it is open.
+    // Menu, lessons, Rules / Controls / About, Settings, Auto Play (a free teaching demo), the round-over and result cards and
+    // the demo-limit card are all free time.
+    isPreviewExempt: () => !(state.scene === 'play' || (state.scene === 'puzzle' && state.pz && state.pz.status === 'ready')),
   };
 }
 export { isWeekend };

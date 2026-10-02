@@ -4,7 +4,7 @@
   "tagline": "Tap the matching word before it drifts away.",
   "genre": "vocabulary",
   "orientation": "portrait",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "monetization": {
     "model": "premium",
     "priceUsd": 2.99,

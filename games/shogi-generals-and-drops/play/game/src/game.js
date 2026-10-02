@@ -555,9 +555,9 @@ export function createGame(env) {
     update,
     render(ctx, view) { render(ctx, state, { G: G(), flip: flip(), bottomSide: bottomSide(), buttons: buttonsFor(ui()), view }); },
     getState() { return state; },
-    // Auto Play ("Watch & Learn") is meant to be free/uncapped like a marketing attract-mode demo,
-    // not gated like real play - kit/preview.js checks this once per frame and skips counting time
-    // against the free-preview timer while it returns true. See STATUS.md.
-    isPreviewExempt: () => state.scene === 'auto',
+    // The free-preview timer counts only real play (a match or the daily mate puzzle in progress). Menus, setup,
+    // Learn, How to Play, About, Rules, Settings, Watch & Learn (Auto Play), the pause menu and result screens are exempt.
+    // kit/preview.js checks this once per frame and skips counting while it returns true.
+    isPreviewExempt: () => !(state.scene === 'play' || state.scene === 'puzzle') || state.menu || Boolean(state.result),
   };
 }

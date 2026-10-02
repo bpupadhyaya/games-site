@@ -1268,7 +1268,9 @@ export function createGame(env) {
 
     // Auto Play is free and silent by design (see the tone() gate above); it must never accrue
     // against, or be blocked by, the platform's own preview-time gate.
-    isPreviewExempt: () => s.scene === 'auto',
+    // Counts real play only: a live battle with no pause/covenant/inspect overlay open. The title, help/About/Rules, the map, camp,
+    // envoy, tuner, reward and card screens, the story, the run-over result, the demo-limit screen and Auto Play are all exempt.
+    isPreviewExempt: () => !(s.scene === 'battle' && s.battle && !s.overlay),
 
     getState: () => s,
   };

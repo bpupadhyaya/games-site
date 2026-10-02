@@ -501,8 +501,8 @@ export function createGame(env) {
     },
     render(ctx) { draw(ctx, state); },
     getState: () => state,
-    // Auto Play is a free teaching demo, not real play: exempt from the kit's whole-app
-    // free-preview timer the same way the menu's own attract-mode preview would be.
-    isPreviewExempt: () => isAutoplay(),
+    // The free-preview timer counts only real play (a match or the daily deal). Menus, setup, Learn, Rules,
+    // About, How to Play, Settings, Watch & Learn (Auto Play), the pause menu and result screens are exempt.
+    isPreviewExempt: () => !(state.scene === 'play' || state.scene === 'daily') || state.menuOpen,
   };
 }

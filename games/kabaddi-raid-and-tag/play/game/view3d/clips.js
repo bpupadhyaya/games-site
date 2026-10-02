@@ -18,7 +18,7 @@ export function addKabaddiClips(human) {
   const raidStance = (a, o = {}) => ({
     Pelvis: { pos: [0, -0.02 - 0.03 * a, 0.02] }, R_Thigh: { flex: 12 + 7 * a }, R_Calf: { flex: 12 + 12 * a }, L_Thigh: { flex: 22 + 7 * a, abduct: 4 }, L_Calf: { flex: 20 + 12 * a },
     Spine: { flex: 6 }, Spine1: { flex: 8, twist: -4 }, Spine2: { flex: 4, twist: -3 }, Neck: { flex: -8 }, Head: { flex: -4 },
-    R_UpperArm: { flex: 34, abduct: 14 }, R_Forearm: { flex: 58 }, L_UpperArm: { flex: 14, abduct: 24 }, L_Forearm: { flex: 62 }, R_Hand: { rot: [0, 0, -28] }, L_Hand: { rot: [0, 0, -28] }, ...o,
+    R_UpperArm: { flex: 34, abduct: 14 }, R_Forearm: { flex: 58 }, L_UpperArm: { flex: 14, abduct: 24 }, L_Forearm: { flex: 62 }, R_Hand: { rot: [0, 0, -8] }, L_Hand: { rot: [0, 0, -8] }, ...o,
   });
   make({
     name: 'k_raid_stance', duration: 0.8, loop: true, base: 'ready_stance', fingers: 'relaxed',
@@ -31,7 +31,7 @@ export function addKabaddiClips(human) {
   const defStance = (a) => ({
     Pelvis: { pos: [0, -0.04 - 0.025 * a, 0] }, R_Thigh: { flex: 10 + 6 * a, abduct: 10 }, R_Calf: { flex: 12 + 10 * a }, L_Thigh: { flex: 10 + 6 * a, abduct: 10 }, L_Calf: { flex: 12 + 10 * a },
     Spine: { flex: 6 }, Spine1: { flex: 8 }, Spine2: { flex: 4 }, Neck: { flex: -8 }, Head: { flex: -4 },
-    R_UpperArm: { flex: 40, abduct: 44 }, R_Forearm: { flex: 62 }, L_UpperArm: { flex: 40, abduct: 44 }, L_Forearm: { flex: 62 }, R_Hand: { rot: [0, 0, -40] }, L_Hand: { rot: [0, 0, -40] },
+    R_UpperArm: { flex: 40, abduct: 44 }, R_Forearm: { flex: 62 }, L_UpperArm: { flex: 40, abduct: 44 }, L_Forearm: { flex: 62 }, R_Hand: { rot: [0, 0, -12] }, L_Hand: { rot: [0, 0, -12] },
   });
   make({
     name: 'k_def_stance', duration: 1.0, loop: true, base: 'ready_stance', fingers: 'relaxed',
@@ -204,7 +204,7 @@ export function addKabaddiClips(human) {
       R_UpperArm: { flex: 16, abduct: 46 }, R_Forearm: { flex: 36 }, L_UpperArm: { flex: 32, abduct: 32 }, L_Forearm: { flex: 24 }, R_Hand: { rot: [0, 0, -18] }, L_Hand: { rot: [0, 0, -26] } }),
     // one foot forward
     (a) => ({ Pelvis: { pos: [0, -0.06 - 0.02 * a, 0.03] }, R_Thigh: { flex: 28 + 5 * a, abduct: 8 }, L_Thigh: { flex: 4 + 3 * a, abduct: 12 }, R_Calf: { flex: 24 + 6 * a }, L_Calf: { flex: 12 + 6 * a }, Neck: { flex: -16 }, Head: { flex: -9 }, Spine1: { flex: 4, twist: -7 }, Spine2: { flex: 4, twist: -3 },
-      R_UpperArm: { flex: 26, abduct: 40 }, R_Forearm: { flex: 14 }, L_UpperArm: { flex: 12, abduct: 36 }, L_Forearm: { flex: 44 }, R_Hand: { rot: [0, 0, -28] }, L_Hand: { rot: [0, 0, -20] } }),
+      R_UpperArm: { flex: 26, abduct: 40 }, R_Forearm: { flex: 14 }, L_UpperArm: { flex: 12, abduct: 36 }, L_Forearm: { flex: 44 }, R_Hand: { rot: [0, 0, -8] }, L_Hand: { rot: [0, 0, -20] } }),
     // half crouch, hands up near the chest
     (a) => ({ Pelvis: { pos: [0, -0.08 - 0.02 * a, 0] }, R_Thigh: { flex: 18 + 5 * a, abduct: 12 }, L_Thigh: { flex: 24 + 5 * a, abduct: 10 }, R_Calf: { flex: 24 + 8 * a }, L_Calf: { flex: 30 + 8 * a }, Neck: { flex: -16 }, Head: { flex: -9 }, Spine1: { flex: 10, twist: 5 }, Spine2: { flex: 6, side: 3 },
       R_UpperArm: { flex: 18, abduct: 48 }, R_Forearm: { flex: 22 }, L_UpperArm: { flex: 28, abduct: 38 }, L_Forearm: { flex: 30 }, R_Hand: { rot: [0, 0, -20] }, L_Hand: { rot: [0, 0, -24] } }),

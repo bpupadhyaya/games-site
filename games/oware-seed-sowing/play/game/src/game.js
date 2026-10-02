@@ -397,7 +397,9 @@ export function createGame(env) {
     getState: () => state,
     // Auto Play is a free teaching demo, not real play: exempt from the kit's whole-app
     // free-preview timer the same way the menu's own attract-mode preview would be.
-    isPreviewExempt: () => isAutoplay(),
+    // Only a human playing a match or the daily puzzle spends the preview; menus, Settings, Rules/About, lessons,
+    // Watch & Learn (incl. its result), the game-over and demo-limit screens do not.
+    isPreviewExempt: () => state.scene !== 'play' && state.scene !== 'puzzle',
   };
 }
 export { isWeekend, sideOf };

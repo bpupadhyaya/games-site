@@ -455,6 +455,6 @@ export async function createGame(env) {
     // Auto Play never counts against the purchase preview-time clock or the demo-match limit —
     // it's a free, unlimited teaching/marketing demo, same as every other game's Auto Play. Kit's
     // preview gate checks this once per update() tick (kit/preview.js).
-    isPreviewExempt: () => state.scene === 'auto',
+    isPreviewExempt: () => !(state.scene === 'playing' && !state.handResult && !state.matchResult),
   };
 }

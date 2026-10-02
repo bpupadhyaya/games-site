@@ -383,5 +383,8 @@ export function createGame(env) {
     },
     render(ctx) { render(ctx, state); },
     getState: () => state,
+    // The preview clock counts real play only: a match (play) or the daily challenge once it is set. Menu, About, How to Play,
+    // lessons, the result card and the demo-limit card are free time.
+    isPreviewExempt: () => frozen || !(state.scene === 'play' || (state.scene === 'puzzle' && state.pz.status !== 'making')),
   };
 }

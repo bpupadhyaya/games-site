@@ -469,7 +469,7 @@ export function createGame(env) {
     // clears in exitAutoplay(), the only way out of the 'autoplay' scene back to the title screen),
     // so lingering on the Auto Play result screen never burns real preview time either.
     isPreviewExempt() {
-      return state.autoPlay;
+      return !(state.scene === 'play' && !state.autoPlay && state.g && !state.g.result && !state.overOpen);
     },
   };
 }

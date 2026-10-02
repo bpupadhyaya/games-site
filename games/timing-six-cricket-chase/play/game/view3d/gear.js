@@ -255,22 +255,7 @@ export function buildPerson(h, rig, spec) {
     gb.ellipsoid(hard, head.clone().add(new V(0, 0.150, 0.004)), new V(0.112, 0, 0), new V(0, 0.082, 0), new V(0, 0, 0.122), col.cap, [[headIdx, 1]], { nu: 18, nv: 8, v0: 0, v1: 0.55 });
     gb.ellipsoid(hard, head.clone().add(new V(0, 0.128, 0.004)), new V(0.19, 0, 0), new V(0, 0.010, 0), new V(0, 0, 0.19), col.cap, [[headIdx, 1]], { nu: 20, nv: 6 });
   }
-  // ---- gloves ------------------------------------------------------------------------------------------------------------------
-  if (spec.gloves) {
-    // the mannequin has mitten hands: a glove is only a coloured wrist cuff (thicker for the keeper)
-    for (const s of side) {
-      const hb = h.bones[`Bip01_${s}_Hand`], fb = h.bones[`Bip01_${s}_Forearm`], fore = bi(`${s}_Forearm`), hbIdx = bi(`${s}_Hand`);
-      const p0 = hb.getWorldPosition(new V()), pf = fb.getWorldPosition(new V());
-      const dir = p0.clone().sub(pf).normalize();
-      const keeper = spec.gloves === 'keeper';
-      const pts = [
-        { p: p0.clone().addScaledVector(dir, -0.10), rx: 0.046, rz: 0.044, w: [[fore, 1]], c: col.gloveTrim || col.glove },
-        { p: p0.clone().addScaledVector(dir, -0.04), rx: keeper ? 0.058 : 0.05, rz: keeper ? 0.056 : 0.048, w: [[fore, 0.5], [hbIdx, 0.5]], c: col.glove },
-        { p: p0.clone().addScaledVector(dir, 0.02), rx: keeper ? 0.06 : 0.052, rz: keeper ? 0.054 : 0.046, w: [[hbIdx, 1]], c: col.glove },
-      ];
-      gb.tube(hard, pts, { nu: 12, color: col.glove, zref: new V(0, 0, 1) });
-    }
-  }
+  // ---- gloves: the library mannequin's mitt hands already carry a wrist cuff in the kit's `trim` colour (cast.js sets it to the glove colour), so no cuff is added here
   // cloth and hard gear are drawn as ONE skinned mesh (one draw call per dressed person): the hard parts are appended to the cloth accumulator
   const base = cloth.count;
   cloth.pos.push(...hard.pos); cloth.nor.push(...hard.nor); cloth.col.push(...hard.col); cloth.si.push(...hard.si); cloth.sw.push(...hard.sw);

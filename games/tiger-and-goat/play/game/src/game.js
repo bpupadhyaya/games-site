@@ -410,6 +410,8 @@ export function createGame(env) {
     // kit 1.6.1: exempts Auto Play from this premium game's free-preview timer (both the
     // time-accrual and the countdown badge) - the same way the menu's own attract-mode preview is
     // never gated. Checked once per frame by web/kit/preview.js; nothing else needs to change.
-    isPreviewExempt() { return state.autoMode === true; },
+    // Counts real play only: a live human game (or two-player game) in progress. Menus, Rules, Look, lessons, the daily puzzle,
+    // Auto Play, the result screen and the demo-limit screen are all exempt.
+    isPreviewExempt() { return !(state.scene === 'play' && !state.autoMode && !state.game.winner); },
   };
 }

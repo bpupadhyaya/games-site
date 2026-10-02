@@ -538,9 +538,8 @@ export function createGame(env) {
     },
     render(ctx) { render(ctx, state); },
     getState: () => state,
-    // Auto Play is meant to be free like the menu's own attract-mode preview, never gated like real
-    // play — exempts this scene's time from the shared free-preview timer (kit 1.6.1+, no-op on
-    // free/no-preview games and on older kit).
-    isPreviewExempt: () => state.scene === 'auto',
+    // Only a human playing a live match counts against the free preview; menus, setup, Learn, Daily, Rules,
+    // About, Settings, Auto Play and a finished match are exempt (kit 1.6.1+).
+    isPreviewExempt: () => !(state.scene === 'play' && state.game && !state.game.over),
   };
 }

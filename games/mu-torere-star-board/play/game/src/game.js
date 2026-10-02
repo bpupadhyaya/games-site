@@ -373,6 +373,8 @@ export function createGame(env) {
     getState: () => state,
     // Auto Play is a free teaching/marketing demo, not real play: kit 1.6.1's preview gate skips
     // both time-accrual and the countdown badge while this is true.
-    isPreviewExempt: () => state.scene === 'auto',
+    // Only a human playing a match or the daily puzzle spends the preview; menus, Ladder list, Rules/About/How to Play,
+    // lessons, Watch & Learn, result and demo-limit screens do not.
+    isPreviewExempt: () => state.scene !== 'play' && state.scene !== 'puzzle',
   };
 }

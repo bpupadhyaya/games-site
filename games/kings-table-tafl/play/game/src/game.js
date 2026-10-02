@@ -391,9 +391,8 @@ export function createGame(env) {
     },
     render(ctx) { render(ctx, state); },
     getState: () => state,
-    // kit 1.6.1: exempt Auto Play from the free-preview timer/countdown - this is priced/premium
-    // (game.json monetization.previewSeconds) so without this hook the preview clock would run
-    // (and eventually cut off) a demonstration the player never chose to spend their preview on.
-    isPreviewExempt: () => state.scene === 'autoplay',
+    // Only a human playing a live game counts against the free preview (kit 1.6.1+). Title, About, Controls, Rules,
+    // Learn, the daily puzzle, Auto Play and every result screen are exempt.
+    isPreviewExempt: () => !(state.scene === 'play' && !state.game.winner),
   };
 }

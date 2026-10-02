@@ -299,5 +299,5 @@ export function createGame(env) {
   // Auto Play is a free teaching/marketing demo, not real play: kit 1.6.1's preview gate skips both
   // time-accrual and the countdown badge while this is true, so watching it never eats into (or
   // shows) the paid-unlock free-preview timer.
-  return { update, render, getState: () => S, isPreviewExempt: () => S.scene === 'auto' };
+  return { update, render, getState: () => S, isPreviewExempt: () => !(S.scene === 'play' && !S.lessonPlay && S.ui && !S.ui.pause && S.ui.ph !== 'result' && S.ui.ph !== 'dealing') };
 }

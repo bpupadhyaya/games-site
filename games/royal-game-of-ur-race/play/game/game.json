@@ -4,7 +4,7 @@
   "tagline": "A race from the cradle of civilisation",
   "genre": "ancient race game",
   "orientation": "portrait",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "monetization": {
     "model": "premium",
     "priceUsd": 2.99,

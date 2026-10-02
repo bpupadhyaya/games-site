@@ -4,7 +4,7 @@
   "tagline": "Nothing fires twice.",
   "genre": "roguelite deckbuilder",
   "orientation": "portrait",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "monetization": {
     "model": "premium",
     "priceUsd": 7.99,

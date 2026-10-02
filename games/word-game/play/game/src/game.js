@@ -502,7 +502,7 @@ export function createGame(env) {
     // clears on exitAutoplay()/startSession()/startAutoplay()), so lingering on the Auto Play
     // session-review screen never burns real preview time either.
     isPreviewExempt() {
-      return state.autoPlay;
+      return !(state.scene === 'playing' && !state.autoPlay);
     },
   };
 }

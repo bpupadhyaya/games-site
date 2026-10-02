@@ -701,8 +701,9 @@ export function createGame(env) {
     },
     render(ctx) { render(ctx, state); },
     getState: () => state,
-    // Auto Play is a free teaching demo, like the menu's own attract-mode preview - it should
-    // never spend the player's paid-preview time. Checked once per frame by kit/preview.js.
-    isPreviewExempt: () => state.scene === 'auto',
+    // The preview clock counts real play only: a live match hand (not the hand-result card) or the daily deal while it is open.
+    // Menu, lessons, Rules / How to Play / About, Settings, Auto Play (a free teaching demo), result cards and the demo-limit
+    // card are all free time. Checked once per frame by kit/preview.js.
+    isPreviewExempt: () => !!state.ui.summary || !((state.scene === 'play') || (state.scene === 'daily' && state.daily.status === 'ready')),
   };
 }

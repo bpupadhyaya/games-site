@@ -13,8 +13,8 @@ const sstep = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a)
 const lerp = (a, b, t) => a + (b - a) * t;
 
 export const MANNEQUIN_DETAIL = {
-  full: { torso: 8, limb: 6, head: 10, headRings: 8, fr: [0.5, 1], torsoFr: [0.5, 1], hand: 5 },
-  medium: { torso: 7, limb: 5, head: 8, headRings: 6, fr: [1], torsoFr: [1], hand: 4 },
+  full: { torso: 8, limb: 6, head: 10, headRings: 8, fr: [0.5, 1], torsoFr: [0.5, 1], hand: 6 },
+  medium: { torso: 7, limb: 5, head: 8, headRings: 6, fr: [1], torsoFr: [1], hand: 5 },
   light: { torso: 6, limb: 4, head: 6, headRings: 5, fr: [1], torsoFr: [1], hand: 4 },
 };
 
@@ -193,12 +193,20 @@ export function buildMannequinGeometry(rest, boneIndex, spec, detail) {
       (k, fr) => (k === 0 && fr <= 0.4 ? (fr >= 0.3401 ? topT : topA) : skinA), Z, { sides: D.limb, fracs: [D.fr.length > 1 ? [0.15, 0.34, 0.3401, 0.4, 0.4001, 0.7, 1] : [0.34, 0.3401, 0.4, 0.4001, 1], D.fr.length > 1 ? [0.45, 1] : [1]], capStart: false });
     // hand: palm + four fingers merged into one slightly curved slab (with two subtle crease lines), thumb as a separate tapered tube
     const across = P(`${s}_Finger4`).sub(P(`${s}_Finger1`)).normalize();
-    const hw = f ? 0.036 : 0.041, hth = f ? 0.0155 : 0.0175;
-    const pj = [{ n: `${s}_Hand`, a: hw * 0.82, b: hth * 1.1 }, { n: `${s}_Finger2`, a: hw, b: hth }, { n: `${s}_Finger21`, a: hw * 0.92, b: hth * 0.86 }, { n: `${s}_Finger22`, a: hw * 0.78, b: hth * 0.72 }];
-    limb(pj, (k, fr) => ({ color: skinCol.map((v) => v * ((k === 1 && fr > 0.45 && fr < 0.99) || (k === 2 && fr > 0.45 && fr < 0.99) ? 0.84 : 1)), mask: M.skin, hair: 0 }), across,
-      { sides: D.hand, fracs: [[0.5, 1], [0.5, 1], [0.5, 1]], extend: 0.85, endTaper: 0.62, capEnd: true, shade: (th) => (Math.sin(th) < -0.4 ? 0.9 : 1) });
-    const tj = [{ n: `${s}_Finger0`, a: 0.0185, b: 0.0185 }, { n: `${s}_Finger01`, a: 0.0165, b: 0.0165 }, { n: `${s}_Finger02`, a: 0.0145, b: 0.0145 }];
-    limb(tj, () => skinA, across, { sides: Math.max(4, D.hand - 1), fracs: [[0.5, 1], [0.5, 1]], extend: 0.9, endTaper: 0.65, capEnd: true });
+    // a rounded mitt: length ~0.11 x body height, width ~0.45 of its length, thickness ~0.3; slightly lighter than the forearm so it separates from the sleeve
+    const hw = f ? 0.040 : 0.045, hth = f ? 0.026 : 0.029, hc = skinCol.map((v) => v * 1.12);
+    const pj = [{ n: `${s}_Hand`, a: hw * 0.72, b: hth * 0.95 }, { n: `${s}_Finger2`, a: hw, b: hth }, { n: `${s}_Finger21`, a: hw * 0.96, b: hth * 0.96 }, { n: `${s}_Finger22`, a: hw * 0.84, b: hth * 0.84 }];
+    limb(pj, (k, fr) => ({ color: hc.map((v) => v * ((k === 1 && fr > 0.45 && fr < 0.99) ? 0.86 : 1)), mask: M.skin, hair: 0 }), across,
+      { sides: D.hand, fracs: [[0.5, 1], [0.5, 1], [0.5, 1]], extend: 0.7, endTaper: 0.7, capEnd: true, shade: (th) => (Math.sin(th) < -0.4 ? 0.92 : 1) });
+    // thumb: its own rounded tube, slightly darker crease where it leaves the palm
+    const tj = [{ n: `${s}_Finger0`, a: 0.0225, b: 0.021 }, { n: `${s}_Finger01`, a: 0.0205, b: 0.0195 }, { n: `${s}_Finger02`, a: 0.0175, b: 0.017 }];
+    limb(tj, (k, fr) => ({ color: hc.map((v) => v * (k === 0 && fr < 0.6 ? 0.88 : 1)), mask: M.skin, hair: 0 }), across, { sides: Math.max(5, D.hand), fracs: [[0.5, 1], [0.5, 1]], extend: 0.75, endTaper: 0.75, capEnd: true });
+    // wristband cuff in the trim colour: defines the wrist and hides the join between forearm and mitt
+    {
+      const w0 = P(`${s}_Hand`), f0 = P(`${s}_Forearm`), ax = w0.clone().sub(f0).normalize();
+      const cw = [[N(`${s}_Forearm`), 0.5], [N(`${s}_Hand`), 0.5]];
+      B.sweep([st(w0.clone().addScaledVector(ax, -0.04), wr * 1.42, wr * 1.38, cw, clothCol, M.top, 0, 1), st(w0.clone().addScaledVector(ax, 0.01), wr * 1.34, wr * 1.3, [[N(`${s}_Hand`), 1]], clothCol, M.top, 0, 1)], Z, D.limb, { capStart: false, capEnd: false });
+    }
     void sg;
   }
   // ------------------------------------------------------------------ legs (+ shoes)
