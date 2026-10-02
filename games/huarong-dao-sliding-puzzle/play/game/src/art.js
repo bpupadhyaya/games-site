@@ -219,13 +219,14 @@ export function drawBlock(ctx, r, p, o = {}) {
     for (const [cx, cy] of [[x + ins, y + ins], [x + w - ins, y + ins], [x + ins, y + h - ins], [x + w - ins, y + h - ins]]) { ctx.beginPath(); ctx.arc(cx, cy, 5, 0, Math.PI * 2); ctx.fill(); }
   }
   const cx = x + w / 2, cy = y + h / 2;
+  const flat = (str, tx, ty, size, font, weight) => text(ctx, str, tx, ty, size, col.ink, { font, weight });
   const engrave = (str, tx, ty, size, font, weight) => {
     text(ctx, str, tx + 2, ty + 3, size, 'rgba(0,0,0,0.5)', { font, weight });
     text(ctx, str, tx - 1, ty - 1, size, 'rgba(255,255,255,0.18)', { font, weight });
     text(ctx, str, tx, ty, size, col.ink, { font, weight });
   };
   if (BLOCK_LANG === 'en') {
-    // engraved English names, one word per line, fitted to the block's inner frame
+    // English names: one flat, crisp pass (no shadow or highlight copy), one word per line, fitted to the block's inner frame
     const words = (p.name.en ?? p.name.zh).split(' ');
     const lines = p.t === 'C' ? words : words.length > 1 ? words : [words[0]];
     const availW = w - (ins + 8) * 2, availH = h - (ins + 6) * 2;
@@ -234,7 +235,7 @@ export function drawBlock(ctx, r, p, o = {}) {
     const cap = p.t === 'C' ? 92 : p.t === 'S' ? 40 : p.t === 'V' ? 62 : 56;
     const size = Math.min(cap, availW / widest, availH / (lines.length * 1.08));
     const lh = size * 1.08;
-    lines.forEach((l, i) => engrave(l, cx, cy + (i - (lines.length - 1) / 2) * lh + size * 0.34, size, DISPLAY, 900));
+    lines.forEach((l, i) => flat(l, cx, cy + (i - (lines.length - 1) / 2) * lh + size * 0.34, size, DISPLAY, 900));
   } else {
     const chars = [...p.name.zh];
     let size, pos;
