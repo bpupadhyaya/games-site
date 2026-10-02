@@ -1,0 +1,14 @@
+{
+  "title": "Gonggi: Five Stones",
+  "tagline": "Toss one, take the rest, catch it before it falls.",
+  "description": "The traditional Korean five-stones game on a patchwork mat. Plan the route, set the toss, and climb from one at a time to kkeokki. Five computer levels, pass and play, lessons and Watch & Learn. Play in English or Korean.",
+  "genre": "five-stones toss and catch skill game",
+  "demo": true,
+  "howToPlay": [
+    "Scatter the stones and tap the one to hold.",
+    "Tap the stones to take, in order, without touching others.",
+    "Hold the pad to set the toss height, release to toss.",
+    "Tap when the ring closes to catch the falling stone.",
+    "Finish with kkeokki: catch all five on the back of your hand."
+  ]
+}

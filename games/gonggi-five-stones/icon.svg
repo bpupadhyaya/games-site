@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <radialGradient id="i" cx="35%" cy="30%" r="80%"><stop offset="0" stop-color="#fffdf4"/><stop offset="0.5" stop-color="#ece4d2"/><stop offset="1" stop-color="#a89f8a"/></radialGradient>
+    <radialGradient id="s" cx="35%" cy="30%" r="80%"><stop offset="0" stop-color="#dce8f6"/><stop offset="0.5" stop-color="#8ea6c9"/><stop offset="1" stop-color="#4a5f88"/></radialGradient>
+    <radialGradient id="r" cx="35%" cy="30%" r="80%"><stop offset="0" stop-color="#ffe6e4"/><stop offset="0.5" stop-color="#eba9ae"/><stop offset="1" stop-color="#b3636d"/></radialGradient>
+    <radialGradient id="j" cx="35%" cy="30%" r="80%"><stop offset="0" stop-color="#e4f8ea"/><stop offset="0.5" stop-color="#92cfae"/><stop offset="1" stop-color="#4a8a6e"/></radialGradient>
+    <radialGradient id="a" cx="35%" cy="30%" r="80%"><stop offset="0" stop-color="#fff0cc"/><stop offset="0.5" stop-color="#e8b862"/><stop offset="1" stop-color="#a9742a"/></radialGradient>
+  </defs>
+  <rect width="1024" height="1024" fill="#3b4f94"/>
+  <rect x="341" width="342" height="512" fill="#d8683c"/>
+  <rect x="683" width="341" height="512" fill="#2d7f78"/>
+  <rect y="512" width="341" height="512" fill="#dca94a"/>
+  <rect x="341" y="512" width="342" height="512" fill="#8c4c80"/>
+  <rect x="683" y="512" width="341" height="512" fill="#c5546b"/>
+  <g stroke="#f6ecd2" stroke-width="10"><path d="M341 0V1024M683 0V1024M0 512H1024"/></g>
+  <g stroke="#463030" stroke-opacity="0.45" stroke-width="6" stroke-dasharray="26 18" fill="none"><path d="M318 0V1024M706 0V1024M0 488H1024M0 536H1024"/></g>
+  <g stroke="#1c1030" stroke-opacity="0.45" stroke-width="5">
+    <ellipse cx="300" cy="640" rx="118" ry="104" fill="url(#i)"/>
+    <ellipse cx="720" cy="690" rx="118" ry="104" fill="url(#s)"/>
+    <ellipse cx="500" cy="760" rx="118" ry="104" fill="url(#r)"/>
+    <ellipse cx="400" cy="420" rx="118" ry="104" fill="url(#j)"/>
+  </g>
+  <ellipse cx="520" cy="250" rx="118" ry="104" fill="#000" opacity="0.25" transform="translate(30 60)"/>
+  <ellipse cx="520" cy="250" rx="118" ry="104" fill="url(#a)" stroke="#1c1030" stroke-opacity="0.45" stroke-width="5"/>
+</svg>

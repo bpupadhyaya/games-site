@@ -163,6 +163,24 @@
     "play": "games/crown-star-regions/play/"
   },
   {
+    "slug": "curling-stone-and-sweep",
+    "stage": "release-candidate",
+    "title": "Stone and Sweep",
+    "tagline": "Throw it. Curl it. Sweep it home.",
+    "description": "Slide granite stones down a sheet of pebbled ice with real friction, curl and collisions. Place the broom, choose the weight and the turn, then rub the ice to sweep: the stone slides further and curls less. Play five computer rivals, share the phone, learn the shots in short lessons, or watch two players explain their choices.",
+    "genre": "physics strategy ice sport",
+    "demo": true,
+    "howToPlay": [
+      "Drag on the ice to put the broom where the stone should stop.",
+      "Choose Draw, Tap, Takeout or Peel, and an in-turn or out-turn curl, then press Throw.",
+      "Rub the ice while the stone slides: sweeping carries it further and keeps it straighter.",
+      "After the last stone, the side closest to the button scores one point for each stone closer than the other side's best.",
+      "The side that scores gives up the last stone for the next end."
+    ],
+    "icon": "games/curling-stone-and-sweep/icon.svg",
+    "play": "games/curling-stone-and-sweep/play/"
+  },
+  {
     "slug": "domino-cubano-doble-nueve",
     "stage": "release-candidate",
     "title": "Dominó Cubano: Doble Nueve",
@@ -180,6 +198,24 @@
     ],
     "icon": "games/domino-cubano-doble-nueve/icon.svg",
     "play": "games/domino-cubano-doble-nueve/play/"
+  },
+  {
+    "slug": "dudo-andean-liars-dice",
+    "stage": "release-candidate",
+    "title": "Dudo: Andean Bluff Dice",
+    "tagline": "Hide your dice. Bid. Bluff. Call it.",
+    "description": "The bluffing dice game of the Andes, made beautiful: five dice under a leather cup, woven tables, bone dice that tumble and shine. Bid on what lies under every cup, call Dudo when you smell a bluff, or risk an exact Calzo. Five computer levels, two to four friends on one phone with a screen that hides the dice, Think with the exact odds in plain words, six short lessons and Watch & Learn with every cup open. Play in English or in Spanish. No timers, no ads, nothing wagered.",
+    "genre": "bluffing dice game",
+    "demo": true,
+    "howToPlay": [
+      "Everyone has five dice hidden under a cup. Look at your own dice, then bid on how many of one face lie under all the cups together.",
+      "Pick a face, set the number and tap Bid. A bid must go up: more dice, or the same number of a higher face. Ones, called pacos, are wild.",
+      "Too high? Tap Dudo! Cups are lifted and counted and the loser gives up a die. Sure it is exact? Tap Calzo: win a die back, or lose one.",
+      "Think tells you in plain words how many matching dice to expect and how likely the bid is. The last player with a die wins.",
+      "Pass the phone with friends: a screen hides the dice between turns. Learn and Watch & Learn teach the game."
+    ],
+    "icon": "games/dudo-andean-liars-dice/icon.svg",
+    "play": "games/dudo-andean-liars-dice/play/"
   },
   {
     "slug": "durak-na-dache",
@@ -287,6 +323,24 @@
     "play": "games/golden-isle-journey/play/"
   },
   {
+    "slug": "gonggi-five-stones",
+    "stage": "release-candidate",
+    "title": "Gonggi: Five Stones",
+    "tagline": "Toss one, take the rest, catch it before it falls.",
+    "description": "The traditional Korean five-stones game on a patchwork mat. Plan the route, set the toss, and climb from one at a time to kkeokki. Five computer levels, pass and play, lessons and Watch & Learn. Play in English or Korean.",
+    "genre": "five-stones toss and catch skill game",
+    "demo": true,
+    "howToPlay": [
+      "Scatter the stones and tap the one to hold.",
+      "Tap the stones to take, in order, without touching others.",
+      "Hold the pad to set the toss height, release to toss.",
+      "Tap when the ring closes to catch the falling stone.",
+      "Finish with kkeokki: catch all five on the back of your hand."
+    ],
+    "icon": "games/gonggi-five-stones/icon.svg",
+    "play": "games/gonggi-five-stones/play/"
+  },
+  {
     "slug": "hanoi-tower-discs",
     "stage": "release-candidate",
     "title": "Tower of Hanoi",
@@ -382,6 +436,24 @@
     ],
     "icon": "games/jack-and-boule-petanque/icon.svg",
     "play": "games/jack-and-boule-petanque/play/"
+  },
+  {
+    "slug": "kegeln-nine-pin-skittles",
+    "stage": "release-candidate",
+    "title": "Kegeln",
+    "tagline": "Nine pins, a heavy ball and a long wooden lane.",
+    "description": "German-heritage nine-pin skittles with real pin physics. Plan your aim, hook and weight, flick the ball up the lane and clear the pins in Volle and Abräumen.",
+    "genre": "skill sport / nine-pin skittles",
+    "demo": true,
+    "howToPlay": [
+      "Drag on the lane to place the aim ring; drag the ball to choose where you start.",
+      "Pick a hook (seven curves) and a weight (Soft, Medium, Firm).",
+      "Flick the ball up the lane or tap Roll, and watch the pins fall.",
+      "Volle: every throw at nine pins. Abräumen: clear the pins you left.",
+      "Tap Think for a line that was tested with twelve simulated rolls."
+    ],
+    "icon": "games/kegeln-nine-pin-skittles/icon.svg",
+    "play": "games/kegeln-nine-pin-skittles/play/"
   },
   {
     "slug": "kendama-ken-and-ball",
@@ -625,6 +697,24 @@
     "play": "games/mu-torere-star-board/play/"
   },
   {
+    "slug": "nonogram-picture-grid",
+    "stage": "release-candidate",
+    "title": "Nonogram",
+    "tagline": "Fill the grid. Reveal the picture.",
+    "description": "A calm logic picture puzzle: use the numbers beside the grid to decide which squares are filled and a small illustration appears. 121 pictures from 5 by 5 to 20 by 20, each with exactly one solution that logic alone can reach. Think explains the next step in plain words, Watch & Learn solves pictures with the reasons shown, and a daily picture keeps it fresh. English and Japanese. No timer, no ads.",
+    "genre": "logic picture puzzle",
+    "demo": true,
+    "howToPlay": [
+      "The numbers beside each row and above each column give the lengths of the runs of filled squares in that line.",
+      "Tap a square to fill it, or drag along a line to fill a run. Use Cross to mark squares you know are empty.",
+      "Think finds the next square that logic proves and explains why. Use Zoom and Move on big boards.",
+      "Every picture earns up to three stars: solved, no Think, no wrong marks.",
+      "Learn and Watch & Learn teach overlap, edges and gaps step by step."
+    ],
+    "icon": "games/nonogram-picture-grid/icon.svg",
+    "play": "games/nonogram-picture-grid/play/"
+  },
+  {
     "slug": "noughts-crosses-three-in-a-row",
     "stage": "release-candidate",
     "title": "Noughts & Crosses",
@@ -829,6 +919,24 @@
     "play": "games/scopa-delle-regioni/play/"
   },
   {
+    "slug": "seega-custodian-siege",
+    "stage": "release-candidate",
+    "title": "Seega: Desert Siege",
+    "tagline": "Place. Slide. Sandwich.",
+    "description": "A traditional Egyptian board game for a 5x5 board, made beautiful. Fill the board two stones at a time, leaving only the centre empty, then slide your stones and trap enemy stones between two of yours. Lit pebbles and date stones sit on a carved sandstone board. Five opponent levels from Novice to Master, two players on one phone, Think with a plain-English reason, a short Learn course and Watch & Learn. Play in English or in Arabic. No timers and no ads.",
+    "genre": "abstract strategy, custodian capture",
+    "demo": true,
+    "howToPlay": [
+      "Each side has 12 stones. Take turns placing two stones at a time on any empty square except the centre, until the board is full.",
+      "Then slide one stone a step, up, down, left or right, into an empty square. The side that placed last moves first, into the centre.",
+      "Trap an enemy stone between two of yours, in a row or column, to capture it. One slide can take several; the same stone may go on.",
+      "Corners can never be captured and the centre square is safe too. If a side cannot move, the other side moves again.",
+      "Reduce your opponent to one stone to win. Think shows a good move and why; Learn and Watch & Learn teach the ideas."
+    ],
+    "icon": "games/seega-custodian-siege/icon.svg",
+    "play": "games/seega-custodian-siege/play/"
+  },
+  {
     "slug": "senet-pharaohs-path",
     "stage": "prototype",
     "title": "Senet",
@@ -888,6 +996,25 @@
     ],
     "icon": "games/shogi-generals-and-drops/icon.svg",
     "play": "games/shogi-generals-and-drops/play/"
+  },
+  {
+    "slug": "surakarta-looped-capture",
+    "stage": "release-candidate",
+    "title": "Surakarta",
+    "tagline": "The looping capture game",
+    "description": "A Javanese-named strategy game on a carved board of looping tracks. Pieces step one point but capture by racing round the circuits and the corner loops, with every legal route drawn as a glowing trail. Five opponent levels, two players on one phone, Think with a plain-English reason, seven lessons and Watch & Learn. No timers and no ads.",
+    "genre": "abstract strategy, circuit capture",
+    "demo": true,
+    "howToPlay": [
+      "Each side has 12 pieces. Light plays from the bottom and moves first. Capture every enemy piece to win.",
+      "Tap a piece, then a free neighbouring point to step one point in any direction.",
+      "To capture, select a piece: glowing trails show routes along the circuits, round a corner loop. Tap the piece at the end of one.",
+      "A capturing piece may pass over its own starting point, so even a neighbouring enemy can be taken the long way round.",
+      "Think shows the best move and why. The eye button rings pieces that can be captured next turn.",
+      "Learn teaches loops, circuits, defence and clean captures. Watch & Learn plays a whole game with a Pause button."
+    ],
+    "icon": "games/surakarta-looped-capture/icon.svg",
+    "play": "games/surakarta-looped-capture/play/"
   },
   {
     "slug": "sure-sweep-no-guess",

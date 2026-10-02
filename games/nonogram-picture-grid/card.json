@@ -1,0 +1,14 @@
+{
+  "title": "Nonogram",
+  "tagline": "Fill the grid. Reveal the picture.",
+  "description": "A calm logic picture puzzle: use the numbers beside the grid to decide which squares are filled and a small illustration appears. 121 pictures from 5 by 5 to 20 by 20, each with exactly one solution that logic alone can reach. Think explains the next step in plain words, Watch & Learn solves pictures with the reasons shown, and a daily picture keeps it fresh. English and Japanese. No timer, no ads.",
+  "genre": "logic picture puzzle",
+  "demo": true,
+  "howToPlay": [
+    "The numbers beside each row and above each column give the lengths of the runs of filled squares in that line.",
+    "Tap a square to fill it, or drag along a line to fill a run. Use Cross to mark squares you know are empty.",
+    "Think finds the next square that logic proves and explains why. Use Zoom and Move on big boards.",
+    "Every picture earns up to three stars: solved, no Think, no wrong marks.",
+    "Learn and Watch & Learn teach overlap, edges and gaps step by step."
+  ]
+}

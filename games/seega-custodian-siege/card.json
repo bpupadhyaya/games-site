@@ -1,0 +1,14 @@
+{
+  "title": "Seega: Desert Siege",
+  "tagline": "Place. Slide. Sandwich.",
+  "description": "A traditional Egyptian board game for a 5x5 board, made beautiful. Fill the board two stones at a time, leaving only the centre empty, then slide your stones and trap enemy stones between two of yours. Lit pebbles and date stones sit on a carved sandstone board. Five opponent levels from Novice to Master, two players on one phone, Think with a plain-English reason, a short Learn course and Watch & Learn. Play in English or in Arabic. No timers and no ads.",
+  "genre": "abstract strategy, custodian capture",
+  "demo": true,
+  "howToPlay": [
+    "Each side has 12 stones. Take turns placing two stones at a time on any empty square except the centre, until the board is full.",
+    "Then slide one stone a step, up, down, left or right, into an empty square. The side that placed last moves first, into the centre.",
+    "Trap an enemy stone between two of yours, in a row or column, to capture it. One slide can take several; the same stone may go on.",
+    "Corners can never be captured and the centre square is safe too. If a side cannot move, the other side moves again.",
+    "Reduce your opponent to one stone to win. Think shows a good move and why; Learn and Watch & Learn teach the ideas."
+  ]
+}

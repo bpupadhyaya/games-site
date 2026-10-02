@@ -1,0 +1,14 @@
+{
+  "title": "Stone and Sweep",
+  "tagline": "Throw it. Curl it. Sweep it home.",
+  "description": "Slide granite stones down a sheet of pebbled ice with real friction, curl and collisions. Place the broom, choose the weight and the turn, then rub the ice to sweep: the stone slides further and curls less. Play five computer rivals, share the phone, learn the shots in short lessons, or watch two players explain their choices.",
+  "genre": "physics strategy ice sport",
+  "demo": true,
+  "howToPlay": [
+    "Drag on the ice to put the broom where the stone should stop.",
+    "Choose Draw, Tap, Takeout or Peel, and an in-turn or out-turn curl, then press Throw.",
+    "Rub the ice while the stone slides: sweeping carries it further and keeps it straighter.",
+    "After the last stone, the side closest to the button scores one point for each stone closer than the other side's best.",
+    "The side that scores gives up the last stone for the next end."
+  ]
+}

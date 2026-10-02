@@ -1,0 +1,15 @@
+{
+  "title": "Surakarta",
+  "tagline": "The looping capture game",
+  "description": "A Javanese-named strategy game on a carved board of looping tracks. Pieces step one point but capture by racing round the circuits and the corner loops, with every legal route drawn as a glowing trail. Five opponent levels, two players on one phone, Think with a plain-English reason, seven lessons and Watch & Learn. No timers and no ads.",
+  "genre": "abstract strategy, circuit capture",
+  "demo": true,
+  "howToPlay": [
+    "Each side has 12 pieces. Light plays from the bottom and moves first. Capture every enemy piece to win.",
+    "Tap a piece, then a free neighbouring point to step one point in any direction.",
+    "To capture, select a piece: glowing trails show routes along the circuits, round a corner loop. Tap the piece at the end of one.",
+    "A capturing piece may pass over its own starting point, so even a neighbouring enemy can be taken the long way round.",
+    "Think shows the best move and why. The eye button rings pieces that can be captured next turn.",
+    "Learn teaches loops, circuits, defence and clean captures. Watch & Learn plays a whole game with a Pause button."
+  ]
+}

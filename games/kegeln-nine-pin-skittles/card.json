@@ -1,0 +1,14 @@
+{
+  "title": "Kegeln",
+  "tagline": "Nine pins, a heavy ball and a long wooden lane.",
+  "description": "German-heritage nine-pin skittles with real pin physics. Plan your aim, hook and weight, flick the ball up the lane and clear the pins in Volle and Abräumen.",
+  "genre": "skill sport / nine-pin skittles",
+  "demo": true,
+  "howToPlay": [
+    "Drag on the lane to place the aim ring; drag the ball to choose where you start.",
+    "Pick a hook (seven curves) and a weight (Soft, Medium, Firm).",
+    "Flick the ball up the lane or tap Roll, and watch the pins fall.",
+    "Volle: every throw at nine pins. Abräumen: clear the pins you left.",
+    "Tap Think for a line that was tested with twelve simulated rolls."
+  ]
+}
