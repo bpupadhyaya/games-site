@@ -53,7 +53,9 @@ export function evaluate(X, p, explain = false) {
     const dpass = dist(p, q);
     const clearOk = !cl ? (X.isTwo(q.x, q.z) ? 1 : 0.2) : 1;
     const v = pq2 * (1 - 0.8 * risk) * 0.93 * clearOk + (q.callT > 0 ? 0.1 : 0) - (dpass > 9 ? 0.1 : 0);
-    opts.push({ k: 'pass', to: q.id, v: v - 0.02, c: cq, d: dq, risk, pm: pq, pts: ptsAt(X, q.x, q.z), q, nd: nearestDef(X, q.x, q.z, team) });
+    // kick-out: a handler who has attacked the rim and met help passes to a shooter who is open behind the arc
+    const kick = d0 < 3.4 && cq < 0.3 && X.isTwo(q.x, q.z) && c0 > 0.35 ? 0.5 : 0;
+    opts.push({ k: 'pass', to: q.id, v: v - 0.02 + kick, c: cq, d: dq, risk, pm: pq, pts: ptsAt(X, q.x, q.z), q, nd: nearestDef(X, q.x, q.z, team) });
   }
   // drive: the lane between the handler and the rim
   if (cl && d0 > 1.7 && d0 < 7.5) {
@@ -61,7 +63,7 @@ export function evaluate(X, p, explain = false) {
     for (const o of opps) lane = Math.max(lane, clamp(1 - segDist(o.x, o.z, p.x, p.z, 0, 0.9) / 1.0, 0, 1));
     const pm = X.makeProb(p, 0, 1.0, clamp(lane * 0.8, 0, 1), 0.85);
     const speedAdj = 1 - clamp((d0 - 3) / 8, 0, 0.35);
-    opts.push({ k: 'drive', v: pm * speedAdj * 1.9 - 0.04 + c0 * 0.08, lane, pm });
+    opts.push({ k: 'drive', v: pm * speedAdj * 2.6 - 0.04 + c0 * 0.08, lane, pm });
   }
   return { opts, c0, d0, pts0, cl };
 }
@@ -80,8 +82,14 @@ function handlerPlan(X, p, lv, explain) {
   const need = clamp(0.62 - (12 - s.shotClock) * 0.05, 0.0, 0.62);
   opts.sort((a, b) => b.v - a.v);
   let pick = opts[0] || { k: 'probe', v: 0 };
-  if (R.next() > lv.iq && opts.length > 1) pick = opts[1 + Math.floor(R.next() * Math.min(opts.length - 1, 2))];
+  // a drive that has started is carried through while the lane stays open (a sticky decision, so layups and dunks actually happen)
+  const dr = opts.find((o) => o.k === 'drive');
+  if (dr && p.tmp.driveUntil > s.t && dr.lane < 0.8 && !(pick.k === 'pass' && pick.v > 1.1)) pick = dr;
+  if (!(pick === dr && p.tmp.driveUntil > s.t) && R.next() > lv.iq && opts.length > 1) pick = opts[1 + Math.floor(R.next() * Math.min(opts.length - 1, 2))];
   const shootOpt = opts.find((o) => o.k === 'shoot');
+  if (pick.k === 'drive' && !(p.tmp.driveUntil > s.t)) p.tmp.driveUntil = s.t + 1.6;
+  // the dribble was ended: the only moves left are a pass or a shot
+  if (p.dstate === 'dead') { const ps = opts.filter((o) => o.k === 'pass').sort((a, b) => b.v - a.v)[0]; pick = shootOpt && (!ps || shootOpt.v >= ps.v * 0.8 || urgent) ? shootOpt : ps || shootOpt || pick; }
   if (urgent && shootOpt && (forced || pick.k !== 'pass' || shootOpt.v >= pick.v * 0.8)) pick = shootOpt;
   const dx = HOOP.x - p.x, dz = HOOP.z - p.z;
   if (globalThis.__aiCount) globalThis.__aiCount[pick.k] = (globalThis.__aiCount[pick.k] || 0) + 1;

@@ -19,7 +19,7 @@ export function createGame(env) {
   const demo = !!config.demo;
   const G = {
     scene: 'title', mode: 'none', demo, loaded: false,
-    settings: { textIdx: 0, sound: true, thinkIdx: 1 },
+    settings: { textIdx: 0, sound: true, thinkIdx: 1, kitIdx: 0, courtIdx: 0 },
     setup: { opp: 3, role: 0, len: 'full', watch: false, watchA: 3, lastMode: 'ai' },
     ui: { scroll: 0, drag: null }, page: 0, back: 'title', setupMsg: '', restoreMsg: '',
     learn: { cur: 0, qi: 0, qscore: 0, done: {}, result: null },
@@ -58,6 +58,7 @@ export function createGame(env) {
     if (validSave(mch)) { snap = mch; G.saved = metaOfSave(mch); }
     G.settings.textIdx = clamp(G.settings.textIdx | 0, 0, TEXT_SCALES.length - 1);
     G.settings.thinkIdx = clamp(G.settings.thinkIdx | 0, 0, THINK_STEPS.length - 1);
+    G.settings.kitIdx = clamp(G.settings.kitIdx | 0, 0, 3); G.settings.courtIdx = clamp(G.settings.courtIdx | 0, 0, 2);
     G.loaded = true;
     audio.setMuted?.(!G.settings.sound);
   });
@@ -160,12 +161,14 @@ export function createGame(env) {
         case 'notcleared': flash('TAKE IT BEHIND THE ARC', '#ff9a86', 34); break;
         case 'screened': if (s.humanId >= 0 && e.by === s.humanId) flash('SCREEN!', '#7fe8d6', 50); break;
         case 'overtime': flash('OVERTIME', '#ffd23f', 56, 'First to 2 points'); break;
+        case 'violation': sfx.whistle(); flash(e.why === 'double dribble' ? 'DOUBLE DRIBBLE' : 'TRAVELLING', '#ff9a86', 46, 'Check ball'); break;
+        case 'pickup': if (s.humanId >= 0 && e.pid === s.humanId) flash('DRIBBLE ENDED', '#ffe9a0', 34, 'Pass or shoot'); break;
         case 'out': sfx.whistle(); flash('OUT OF BOUNDS', '#ff9a86', 40); break;
         case 'setup': if (G.mode === 'ai') persistMatch(); break;
         case 'score': {
           sfx.swish();
           const my = s.humanId < 0 ? e.team === 0 : mine(e.pid);
-          G.feedback = { t: s.t, text: e.swish ? 'SWISH!' : `+${e.pts}`, col: my ? '#7fe8d6' : '#ff9a86', size: 60, sub: e.swish ? `+${e.pts}` : '' };
+          G.feedback = { t: s.t, text: e.dunk ? 'DUNK!' : e.swish ? 'SWISH!' : `+${e.pts}`, col: my ? '#7fe8d6' : '#ff9a86', size: 60, sub: e.swish || e.dunk ? `+${e.pts}` : '' };
           setTimeout0(() => sfx.cheer(my));
           break;
         }
@@ -253,7 +256,7 @@ export function createGame(env) {
   function openThink() {
     if (!S || S.s.humanId < 0) return;
     const sug = S.suggest();
-    G.think = { reason: sug.reason, summary: sug.summary || '', target: sug.target || null };
+    G.thinkSt = null; G.think = { reason: sug.reason, summary: sug.summary || '', target: sug.target || null };
   }
 
   // ---- menus --------------------------------------------------------------------------------------------------------------------------------
@@ -278,8 +281,14 @@ export function createGame(env) {
     const max = mt.lay ? Math.max(0, mt.lay.contentH - (mt.bottom - mt.top)) : 0;
     if (input.keys.pressed.has('Equal') || input.keys.pressed.has('NumpadAdd')) { G.settings.textIdx = Math.min(TEXT_SCALES.length - 1, G.settings.textIdx + 1); saveSettings(); }
     if (input.keys.pressed.has('Minus') || input.keys.pressed.has('NumpadSubtract')) { G.settings.textIdx = Math.max(0, G.settings.textIdx - 1); saveSettings(); }
-    if (input.keys.down.has('ArrowDown')) G.ui.scroll = clamp(G.ui.scroll + 14, 0, max);
-    if (input.keys.down.has('ArrowUp')) G.ui.scroll = clamp(G.ui.scroll - 14, 0, max);
+    { const k = input.keys, step = Math.max(40, mt.bottom - mt.top - 60), set = (v) => { G.ui.scroll = clamp(v, 0, max); };
+      if (input.wheel) set(G.ui.scroll + input.wheel);
+      if (k.down.has('ArrowDown')) set(G.ui.scroll + 14);
+      if (k.down.has('ArrowUp')) set(G.ui.scroll - 14);
+      if (k.pressed.has('PageDown') || k.pressed.has('Space')) set(G.ui.scroll + step);
+      if (k.pressed.has('PageUp')) set(G.ui.scroll - step);
+      if (k.pressed.has('Home')) set(0);
+      if (k.pressed.has('End')) set(max); }
   };
   const go = (scene) => { G.scene = scene; G.ui.scroll = 0; G.page = 0; };
   function handleTitle(id) {
@@ -318,6 +327,8 @@ export function createGame(env) {
     else if (id === 'txt-dec') { st.textIdx = Math.max(0, st.textIdx - 1); G.ui.scroll = 0; }
     else if (id === 'txt-inc') { st.textIdx = Math.min(TEXT_SCALES.length - 1, st.textIdx + 1); G.ui.scroll = 0; }
     else if (id === 'think-dec') st.thinkIdx = Math.max(0, st.thinkIdx - 1);
+    else if (id === 'kit-next') st.kitIdx = ((st.kitIdx | 0) + 1) % 4;
+    else if (id === 'court-next') st.courtIdx = ((st.courtIdx | 0) + 1) % 3;
     else if (id === 'think-inc') st.thinkIdx = Math.min(THINK_STEPS.length - 1, st.thinkIdx + 1);
     else if (id === 'restore') { G.restoreMsg = 'Checking...'; env.monetization.restore().then(() => { G.restoreMsg = env.monetization.owns('unlock_game') ? 'Purchase restored.' : 'No earlier purchase found.'; }).catch(() => { G.restoreMsg = 'Could not reach the store.'; }); }
     else if (id === 'back') { go('title'); G.restoreMsg = ''; }
@@ -368,20 +379,43 @@ export function createGame(env) {
     else if (id === 'p-txt-inc') { G.settings.textIdx = Math.min(TEXT_SCALES.length - 1, G.settings.textIdx + 1); G.ui.scroll = 0; saveSettings(); }
     else if (id === 'quit') leaveMatch();
   }
+  // Shared scrolling input for every text screen: touch drag / swipe inside `rect`, mouse wheel, arrows, PageUp / PageDown, Space, Home / End.
+  // `st` = { scroll, drag } is owned by the caller; returns true when the pointer is being used to scroll (so a tap must not fire).
+  function scrollInput(input, st, max, view, rect) {
+    const ptr = input.pointer, keys = input.keys;
+    const set = (v) => { st.scroll = clamp(v, 0, max); };
+    if (ptr.pressed) st.drag = rect && inRect(rect, ptr.x, ptr.y) ? { y0: ptr.y, s0: st.scroll, moved: 0 } : null;
+    let used = false;
+    if (st.drag && ptr.down) { st.drag.moved = Math.max(st.drag.moved, Math.abs(ptr.y - st.drag.y0)); if (st.drag.moved >= 10) { set(st.drag.s0 - (ptr.y - st.drag.y0)); used = true; } }
+    if (ptr.released && st.drag) { used = used || st.drag.moved >= 10; st.drag = null; }
+    if (input.wheel) set(st.scroll + input.wheel);
+    const step = Math.max(40, view - 60);
+    if (keys.down.has('ArrowDown')) set(st.scroll + 14);
+    if (keys.down.has('ArrowUp')) set(st.scroll - 14);
+    if (keys.pressed.has('PageDown') || keys.pressed.has('Space')) set(st.scroll + step);
+    if (keys.pressed.has('PageUp')) set(st.scroll - step);
+    if (keys.pressed.has('Home')) set(0);
+    if (keys.pressed.has('End')) set(max);
+    return used;
+  }
   const updatePages = (input) => {
     const ptr = input.pointer, keys = input.keys;
-    const n = MN.pageCount();
-    const close = () => { G.scene = G.back === 'play' ? 'play' : 'title'; G.page = 0; };
-    const next = () => { if (G.page >= n - 1) close(); else G.page++; };
-    const prev = () => { if (G.page <= 0) close(); else G.page--; };
-    if (ptr.pressed) {
-      if (inRect(REF_NEXT, ptr.x, ptr.y)) next();
-      else if (inRect(REF_BACK, ptr.x, ptr.y)) prev();
-      else if (inRect(TEXT_DEC, ptr.x, ptr.y)) { G.settings.textIdx = Math.max(0, G.settings.textIdx - 1); saveSettings(); }
-      else if (inRect(TEXT_INC, ptr.x, ptr.y)) { G.settings.textIdx = Math.min(TEXT_SCALES.length - 1, G.settings.textIdx + 1); saveSettings(); }
+    const mt = MN.readerMeta();
+    const close = () => { G.scene = G.back === 'play' ? 'play' : 'title'; G.ui.scroll = 0; G.ui.drag = null; };
+    const down = () => { if (G.ui.scroll >= mt.max - 2) close(); else G.ui.scroll = clamp(G.ui.scroll + mt.view - 70, 0, mt.max); };
+    const up = () => { if (G.ui.scroll <= 2) close(); else G.ui.scroll = clamp(G.ui.scroll - (mt.view - 70), 0, mt.max); };
+    const zoom = (d) => { const old = G.settings.textIdx; G.settings.textIdx = clamp(old + d, 0, TEXT_SCALES.length - 1); if (G.settings.textIdx !== old) G.ui.keepFrac = mt.max > 0 ? G.ui.scroll / mt.max : 0; saveSettings(); };
+    const used = scrollInput(input, G.ui, mt.max, mt.view, mt.rect);
+    if (ptr.pressed && !used) {
+      if (inRect(REF_NEXT, ptr.x, ptr.y)) down();
+      else if (inRect(REF_BACK, ptr.x, ptr.y)) close();
+      else if (inRect(TEXT_DEC, ptr.x, ptr.y)) zoom(-1);
+      else if (inRect(TEXT_INC, ptr.x, ptr.y)) zoom(1);
     }
-    if (keys.pressed.has('ArrowRight')) next();
-    if (keys.pressed.has('ArrowLeft')) prev();
+    if (keys.pressed.has('ArrowRight')) down();
+    if (keys.pressed.has('ArrowLeft')) up();
+    if (keys.pressed.has('Equal') || keys.pressed.has('NumpadAdd')) zoom(1);
+    if (keys.pressed.has('Minus') || keys.pressed.has('NumpadSubtract')) zoom(-1);
     if (keys.pressed.has('Escape')) close();
   };
   const updateSetup = (dt, input) => {
@@ -401,7 +435,8 @@ export function createGame(env) {
     const lay = hudLayout(G.settings.textIdx);
     if (G.think) {
       resetCtl();
-      if (ptr.pressed && G.thinkRects) {
+      const tm = G.thinkMeta, tused = tm && G.thinkSt ? scrollInput(input, G.thinkSt, tm.max, tm.view, tm.rect) : false;
+      if (ptr.pressed && !tused && G.thinkRects) {
         if (inRect(G.thinkRects.show, ptr.x, ptr.y)) { G.hintShow = { until: s.t + 5, target: G.think.target }; G.think = null; sfx.tick(); }
         else if (inRect(G.thinkRects.close, ptr.x, ptr.y)) { G.think = null; sfx.tick(); }
       }
@@ -409,7 +444,8 @@ export function createGame(env) {
       return;
     }
     if (G.mode === 'watch') {
-      if (ptr.pressed) {
+      const wm = G.watchMeta, wused = wm && G.watchSt ? scrollInput(input, G.watchSt, wm.max, wm.view, wm.rect) : false;
+      if (ptr.pressed && !wused) {
         const i = watchHit(ptr.x, ptr.y);
         if (i === 0) { G.watch.paused = !G.watch.paused; sfx.tick(); }
         else if (i === 1) { G.settings.thinkIdx = Math.max(0, G.settings.thinkIdx - 1); saveSettings(); }

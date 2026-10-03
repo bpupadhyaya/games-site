@@ -2,23 +2,18 @@
 // positions through it). One fixed position: the court never pans, zooms, shakes or tilts. The picture is defined for the virtual
 // 720 x 1280 rectangle; taller screens simply show more floor above and below, wider screens are pillarboxed.
 export const ASPECT_REF = 720 / 1280;
-// Behind and above the hoop, looking out over the half court: the hoop, the paint and the ball are near the camera and big, the arc
-// and the half-court line are far and smaller (true perspective, never moves). Screen right is world -x; screen up is world +z.
-export const CAM = { x: 0, y: 6.0, z: -6.0, lx: 0, ly: 0, lz: 2.0, hfov: 54 };
+// A telephoto broadcast view from beside the court, high above the near sideline: the WHOLE half court (corners, wings, sidelines, the
+// half-court line) is inside the picture. Screen right is world -z (towards the hoop, which stands at the right); screen up is world -x
+// (the far sideline). True perspective, never moves: the near sideline is about 1.5 times larger than the far one.
+export const CAM = { x: 32.9, y: 14.6, z: 3.8, lx: 2, ly: 0, lz: 3.8, hfov: 26 };
 // stick / key direction on the screen (right, down) -> world direction (x, z) on the floor
 export function screenToWorld(sx, sy, cam = CAM) {
   let fx = cam.lx - cam.x, fz = cam.lz - cam.z; const l = Math.hypot(fx, fz) || 1; fx /= l; fz /= l;
   const rx = -fz, rz = fx;                         // right = forward x up, flattened
   return { x: rx * sx - fx * sy, z: rz * sx - fz * sy };
 }
-// how far from the centre line (metres) a player standing at depth z is still inside the picture (body height 1 m, 40 px margin)
-const VT = [];
-export function visHalfWidth(z, cam = CAM) {
-  const k = Math.round((z + 3) * 4); if (VT[k] !== undefined) return VT[k];
-  let lo = 0, hi = 14;
-  for (let i = 0; i < 30; i++) { const mid = (lo + hi) / 2; const p = projectV(cam, mid, 1.0, z); if (p && Math.abs(p.x - 360) <= 320) lo = mid; else hi = mid; }
-  return (VT[k] = lo);
-}
+// The whole half court is inside the picture, so players only stay inside the lines (kept for the AI and the sim: same call as before)
+export function visHalfWidth() { return 7.35; }
 
 export function project(cam, W, H, x, y, z) {
   // W x H = the CSS size of the (pillarboxed) 3D canvas; returns CSS pixels in that canvas

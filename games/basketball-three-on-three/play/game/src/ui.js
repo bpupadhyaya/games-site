@@ -233,3 +233,12 @@ export function flowHit(lay, top, scroll, x, y) {
   }
   return null;
 }
+
+// Scroll thumb + fades for a clipped text region. rect = the visible region, view/max from the content size.
+export function drawScrollBar(ctx, rect, scroll, max, light = false) {
+  if (max <= 0) return;
+  const th = Math.max(54, rect.h * (rect.h / (rect.h + max))), ty = rect.y + (scroll / max) * (rect.h - th);
+  roundPath(ctx, rect.x + rect.w - 11, rect.y, 7, rect.h, 3.5); ctx.fillStyle = light ? 'rgba(255,246,228,0.16)' : 'rgba(19,40,58,0.14)'; ctx.fill();
+  roundPath(ctx, rect.x + rect.w - 11, ty, 7, th, 3.5); ctx.fillStyle = light ? 'rgba(255,246,228,0.85)' : 'rgba(28,60,88,0.8)'; ctx.fill();
+}
+

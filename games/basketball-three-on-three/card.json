@@ -6,9 +6,10 @@
   "demo": true,
   "howToPlay": [
     "Choose a role: guard, wing or big. You control that one player.",
-    "Left thumb moves. SHOOT: hold and release in the green zone. PASS to a teammate, CROSS to beat a defender.",
+    "Left thumb moves and dribbles. Stop to end your dribble, then only pass or shoot; walking on is travelling.",
+    "SHOOT: hold and release in the green zone. PASS to a teammate, CROSS to beat a defender.",
     "Without the ball: CALL for a pass, hold SCREEN to free a teammate, CUT into space.",
-    "On defence: stay between your man and the hoop, STEAL when the ball is low, BLOCK a shooter, JUMP for rebounds.",
-    "First to 21 or the lead at 10:00 wins; overtime is first to 2."
+    "On defence: stay between your man and the hoop, STEAL, BLOCK and JUMP for rebounds.",
+    "Finish drives with layups or dunks. First to 21 or the lead at 10:00 wins; overtime is first to 2."
   ]
 }

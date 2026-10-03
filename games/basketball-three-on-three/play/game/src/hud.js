@@ -1,7 +1,7 @@
 // In-play HUD: scoreboard and clocks, prompts, role tags, the thumb controls (floating stick + four context buttons), the shot meter,
 // Think / Watch panels and the 2D fallback court. Everything follows the 100-300% text size (through PLAY_M).
 import { W, H, PLAY_M, hudLayout, inRect } from './layout.js';
-import { FONT, C, roundPath, drawButton, panel, wrapLines } from './ui.js';
+import { FONT, C, roundPath, drawButton, panel, wrapLines, drawScrollBar } from './ui.js';
 import { ROLES, HOOP, ARC_R, ARC_X, HW, Z_BASE, Z_HALF } from './consts.js';
 import { projectV, CAM } from './camera.js';
 
@@ -28,7 +28,7 @@ export function controlState(G, sim) {
   const lbl = (q) => ROLES[q.role].short;
   if (hasBall) {
     const ok = s.cleared && !ready;
-    return { mode: 'ball', passIds, a: ok ? { label: 'SHOOT', hold: true } : off(ready ? 'WAIT' : 'CLEAR'), b: mates[0] && !ready ? { label: 'PASS', sub: lbl(mates[0]), col: ROLE_COL[mates[0].role] } : null, c: mates[1] && !ready ? { label: 'PASS', sub: lbl(mates[1]), col: ROLE_COL[mates[1].role] } : null, d: !ready ? { label: 'CROSS' } : null };
+    return { mode: 'ball', passIds, a: ok ? { label: 'SHOOT', hold: true } : off(ready ? 'WAIT' : 'CLEAR'), b: mates[0] && !ready ? { label: 'PASS', sub: lbl(mates[0]), col: ROLE_COL[mates[0].role] } : null, c: mates[1] && !ready ? { label: 'PASS', sub: lbl(mates[1]), col: ROLE_COL[mates[1].role] } : null, d: !ready ? (p.dstate === 'drib' ? { label: 'CROSS' } : { label: 'CROSS', off: true }) : null };
   }
   if (B.mode === 'held' && s.players[B.holder].team === p.team) return { mode: 'off', passIds, a: { label: 'CALL', hold: true }, b: { label: 'SCREEN', hold: true }, c: { label: 'CUT' }, d: null };
   if (B.mode === 'held') return { mode: 'def', passIds, a: ready ? off('WAIT') : { label: 'STEAL' }, b: { label: 'BLOCK' }, c: { label: 'BURST' }, d: null };
@@ -184,6 +184,8 @@ function promptLine(G, s, cs) {
   if (s.phase === 'ft') return s.ft && s.ft.shooter === s.humanId ? 'Free throw: hold SHOOT, release in the green' : 'Free throw';
   if (s.humanId >= 0 && s.phase === 'live') {
     const p = s.players[s.humanId], B = s.ball;
+    if (B.mode === 'held' && B.holder === p.id && p.dstate === 'dead') return 'Dribble ended: pass or shoot, do not walk';
+    if (B.mode === 'held' && B.holder === p.id && p.dstate === 'hold' && s.cleared) return 'Move to dribble. Stop and hold to end it.';
     if (B.mode === 'held' && B.holder === p.id && !s.cleared) return 'Take the ball behind the arc first';
     if (s.poss === p.team && s.shotClock < 4 && B.mode === 'held') return 'Shot clock! Shoot now';
   }
@@ -192,6 +194,7 @@ function promptLine(G, s, cs) {
 
 export function renderHud(ctx, G, sim, view) {
   const s = sim.s;
+  TEAM_COL[0] = ['#2f7be0', '#27b37a', '#8a55d4', '#ee9a3c'][G.settings.kitIdx | 0] || TEAM_COL[0];
   const lay = hudLayout(G.settings.textIdx);
   const m = lay.m;
   const cs = controlState(G, sim);
@@ -245,10 +248,17 @@ function renderWatch(ctx, G, s, lay, m) {
   const ps = Math.round(22 * Math.min(m, 1.5)), pw = W - 40;
   ctx.font = `600 ${ps}px ${FONT}`; const lines = wrapLines(ctx, msg, pw - 30);
   const rowsH = (m >= 1.5 ? 2 : 1) * (lay.util.think.h + 10);
-  const ph = Math.min(lines.length, 9) * ps * 1.25 + 20, py = H - 14 - rowsH - ph - 8;
+  const fullH = lines.length * ps * 1.25 + 20, ph = Math.min(fullH, H * 0.4), py = H - 14 - rowsH - ph - 8;
+  G.watchSt = G.watchSt || { scroll: 0, drag: null, msg: '' };
+  if (G.watchSt.msg !== msg) { G.watchSt.msg = msg; G.watchSt.scroll = 0; }
+  const maxS = Math.max(0, fullH - ph); G.watchSt.scroll = Math.max(0, Math.min(G.watchSt.scroll, maxS));
+  G.watchMeta = { rect: { x: 20, y: py, w: pw, h: ph }, max: maxS, view: ph };
   roundPath(ctx, 20, py, pw, ph, 16); ctx.fillStyle = 'rgba(8,18,30,0.86)'; ctx.fill();
+  ctx.save(); roundPath(ctx, 20, py, pw, ph, 16); ctx.clip();
   ctx.fillStyle = w.phase === 'think' ? '#ffe9a0' : w.phase === 'reveal' ? '#7fe8d6' : '#ff9a86'; ctx.textAlign = 'left';
-  lines.slice(0, 9).forEach((l, i) => ctx.fillText(l, 36, py + 10 + ps * (0.95 + i * 1.25)));
+  lines.forEach((l, i) => ctx.fillText(l, 36, py + 10 + ps * (0.95 + i * 1.25) - G.watchSt.scroll));
+  ctx.restore();
+  drawScrollBar(ctx, { x: 20, y: py + 6, w: pw - 4, h: ph - 12 }, G.watchSt.scroll, maxS, true);
   const bh = lay.util.think.h, big = m >= 1.5;
   const y2 = H - 14 - bh, y1 = y2 - bh - 10;
   const rects = big ? [[14, y1, 345, bh], [361, y1, 345, bh], [14, y2, 345, bh], [361, y2, 345, bh]] : [[14, y2, 170, bh], [194, y2, 170, bh], [374, y2, 170, bh], [554, y2, 152, bh]];
@@ -275,9 +285,18 @@ export function renderThink(ctx, G, view) {
   ctx.fillStyle = '#7fe8d6'; ctx.font = `700 ${Math.round(28 * Math.min(m, 1.6))}px ${FONT}`;
   const sm = wrapLines(ctx, t.summary, w - 50); sm.forEach((l, i) => ctx.fillText(l, W / 2, y + 108 + i * 34 * Math.min(m, 1.6)));
   const off = y + 108 + sm.length * 34 * Math.min(m, 1.6) + 6;
-  ctx.textAlign = 'left'; ctx.fillStyle = '#fff6e4'; ctx.font = `400 ${size}px ${FONT}`;
-  lines.forEach((l, i) => ctx.fillText(l, x + 30, off + size * (1 + i * 1.3)));
   const by = y + total - bh * 2 - 40;
+  // the coach's text scrolls inside its own box when the zoomed text is longer than the panel
+  const area = { x: x + 10, y: off - 6, w: w - 20, h: Math.max(60, by - 12 - (off - 6)) };
+  const textH = size * 1.3 * lines.length + 14, maxS = Math.max(0, textH - area.h);
+  G.thinkSt = G.thinkSt || { scroll: 0, drag: null };
+  G.thinkSt.scroll = Math.max(0, Math.min(G.thinkSt.scroll, maxS));
+  G.thinkMeta = { rect: area, max: maxS, view: area.h };
+  ctx.save(); ctx.beginPath(); ctx.rect(area.x, area.y, area.w, area.h); ctx.clip();
+  ctx.textAlign = 'left'; ctx.fillStyle = '#fff6e4'; ctx.font = `400 ${size}px ${FONT}`;
+  lines.forEach((l, i) => ctx.fillText(l, x + 30, off + size * (1 + i * 1.3) - G.thinkSt.scroll));
+  ctx.restore();
+  drawScrollBar(ctx, area, G.thinkSt.scroll, maxS, true);
   G.thinkRects = { show: { x: x + 24, y: by, w: w - 48, h: bh }, close: { x: x + 24, y: by + bh + 14, w: w - 48, h: bh } };
   drawButton(ctx, G.thinkRects.show, 'Show on court', { primary: true, size: Math.round(30 * Math.min(m, 1.5)) });
   drawButton(ctx, G.thinkRects.close, 'Close', { dark: true, size: Math.round(28 * Math.min(m, 1.5)) });

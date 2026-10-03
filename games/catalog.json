@@ -95,6 +95,25 @@
     "play": "games/bao-la-kiswahili/play/"
   },
   {
+    "slug": "basketball-three-on-three",
+    "stage": "release-candidate",
+    "title": "Basketball 3x3",
+    "tagline": "Pick a role. Screen, drive, shoot, rebound.",
+    "description": "Play real 3x3 half-court basketball in 3D: pick guard, wing or big, and control that one player while the computer plays your two teammates and three opponents. Time your shot in the green zone, set screens, pass to the open player, steal, block and rebound. Five opponent levels, a Learn path, Think hints and Watch & Learn.",
+    "genre": "half-court basketball sport",
+    "demo": true,
+    "howToPlay": [
+      "Choose a role: guard, wing or big. You control that one player.",
+      "Left thumb moves and dribbles. Stop to end your dribble, then only pass or shoot; walking on is travelling.",
+      "SHOOT: hold and release in the green zone. PASS to a teammate, CROSS to beat a defender.",
+      "Without the ball: CALL for a pass, hold SCREEN to free a teammate, CUT into space.",
+      "On defence: stay between your man and the hoop, STEAL, BLOCK and JUMP for rebounds.",
+      "Finish drives with layups or dunks. First to 21 or the lead at 10:00 wins; overtime is first to 2."
+    ],
+    "icon": "games/basketball-three-on-three/icon.svg",
+    "play": "games/basketball-three-on-three/play/"
+  },
+  {
     "slug": "big-card-solitaire-large-print",
     "stage": "prototype",
     "title": "Big Card Solitaire",

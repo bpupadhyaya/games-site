@@ -109,7 +109,9 @@ export class Human {
     CLIP_BONES.forEach((n, i) => { const q = b[n].quaternion.clone(); if (i === 0) q.premultiply(this.pelvisPre.clone().invert()); this.restPose.q.set([q.x, q.y, q.z, q.w], i * 4); });
     this.model.updateMatrixWorld(true);
     this._captureRest();
+    this.scale = this.scale || 1;
     this.fingers = { L: new FingerRig(b, 'L'), R: new FingerRig(b, 'R') };
+    if (this.scale !== 1) for (const s of ['L', 'R']) if (this.fingers[s].ok) this.fingers[s].knuckle.multiplyScalar(1 / this.scale);   // hand-local units are unscaled
     this.wrists = { L: new WristLimiter(b, 'L'), R: new WristLimiter(b, 'R') };
     this.look = new LookAt(b, () => this.root);
     this._ankleRest = Math.max(0.04, Math.min(0.15, b.Bip01_L_Foot.getWorldPosition(new THREE.Vector3()).y));
@@ -127,6 +129,13 @@ export class Human {
     for (const n of ['Head', 'L_Calf', 'R_Calf', 'L_Thigh', 'R_Thigh', 'L_Foot', 'R_Foot', 'L_Hand', 'R_Hand', 'Spine2']) this._restQ[n] = this.bones[`Bip01_${n}`].getWorldQuaternion(new THREE.Quaternion());
     const mesh = this.model.getObjectByProperty('isSkinnedMesh', true);
     const sk = mesh && mesh.skeleton;
+    // sole frames of both feet, in FOOT-bone local space, from the rest pose (independent of how the root is oriented later)
+    this._sole = {};
+    for (const s of ['L', 'R']) {
+      const f = this.bones[`Bip01_${s}_Foot`], t = this.bones[`Bip01_${s}_Toe0`], rq = this._restQ[`${s}_Foot`].clone().invert();
+      const fw = t.getWorldPosition(new THREE.Vector3()).sub(f.getWorldPosition(new THREE.Vector3())); fw.y = 0; fw.normalize();
+      this._sole[s] = { fwd: fw.applyQuaternion(rq), up: new THREE.Vector3(0, 1, 0).applyQuaternion(rq), left: new THREE.Vector3(1, 0, 0).applyQuaternion(rq) };
+    }
     this.headBox = null;
     if (sk) {
       const hi = sk.bones.indexOf(this.bones.Bip01_Head);
@@ -370,9 +379,9 @@ export class Human {
    * Presenter-driven hand reach: put the hand of `side` at a WORLD point (ball release point, catch point), blended by weight.
    * Call every frame (weight 0 / point null releases). The elbow keeps its animated bend unless `pole` (world point) is given.
    */
-  setReach(side, point, { weight = 1, pole = null } = {}) {
+  setReach(side, point, { weight = 1, pole = null, quat = null } = {}) {   // quat: optional WORLD orientation of the hand (see contact.solvePalmBall)
     if (!point || weight <= 0) { this._reach[side] = null; return; }
-    this._reach[side] = { p: new THREE.Vector3(point.x, point.y, point.z), weight, pole: pole ? new THREE.Vector3(pole.x, pole.y, pole.z) : null };
+    this._reach[side] = { p: new THREE.Vector3(point.x, point.y, point.z), weight, pole: pole ? new THREE.Vector3(pole.x, pole.y, pole.z) : null, quat: quat ? quat.clone() : null };
   }
 
   /** Put the ANKLE of `side` at a world point (optionally also orienting the foot with a world quaternion), blended by weight; null releases. Pair with contact.solveFootBall. */
@@ -460,6 +469,24 @@ export class Human {
       u.uSkinK.value = hex ? 1 : 0;
       if (hex) u.uSkin.value.copy(asColor(hex));
     }
+  }
+
+  /** 0..1: a soft darker edge on the body (reads at 25-60 px; the rim light is faded out as it grows). Mannequins only. */
+  setSilhouette(k = 0.6) { for (const m of this.mats) { const u = m.userData.tint; if (u && u.uOutline) u.uOutline.value = k === true ? 0.6 : +k || 0; } return this; }
+
+  /** Side panels along the torso in the trim colour (team kit accent bands). Mannequins only. */
+  setStripes(on = true) { for (const m of this.mats) { const u = m.userData.tint; if (u && u.uStripe) u.uStripe.value = on ? 1 : 0; } return this; }
+
+  /** Back decal slot: a short text (role letter / number) on the shirt back. text null removes it. */
+  setDecal(text, { color = '#ffffff', font = '700 74px system-ui, sans-serif' } = {}) {
+    for (const m of this.mats) {
+      const u = m.userData.tint; if (!u || !u.tDecal) continue;
+      if (!text) { u.uDecalOn.value = 0; continue; }
+      const cv = globalThis.document.createElement('canvas'); cv.width = cv.height = 128; const g = cv.getContext('2d');
+      g.clearRect(0, 0, 128, 128); g.fillStyle = '#fff'; g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = String(text).length > 2 ? font.replace('74px', '46px') : font; g.fillText(String(text), 64, 68);
+      const tex = new THREE.CanvasTexture(cv); tex.flipY = true; u.tDecal.value = tex; u.uDecalCol.value.copy(asColor(color)); u.uDecalOn.value = 1;
+    }
+    return this;
   }
 
   setHair(color) {
@@ -607,6 +634,7 @@ export class Human {
       if (!r || r.weight <= 0.001) continue;
       const a = this.arms[side];
       solveTwoBone(a.upper, a.mid, a.end, r.p, { weight: r.weight, pole: r.pole });
+      if (r.quat) { const cur = a.end.getWorldQuaternion(new THREE.Quaternion()); this._setHandWorld(side, cur.slerp(r.quat, r.weight)); }
     }
     // authored prop (bat) pose track: grip point + direction + roll in character space, solved with arm IK
     if (clip && clip.propTrack) this._propTrack(tr.time, clip);
@@ -983,8 +1011,10 @@ export async function loadHuman(spec = {}) {
   }
   const root = new THREE.Group();
   root.name = `human:${id}`;
-  root.add(model);
-  const h = new Human({ root, model, bones, info: { ...info, clothRef }, clips: Object.defineProperty({ ...clipSet }, '__meta', { value: clipSet.__meta, enumerable: false }), mats, lodSets, lod: 0 });
+  const sc = spec.scale || 1; model.scale.setScalar(sc);
+  root.add(model); root.updateMatrixWorld(true);
+  const h = new Human({ root, model, bones, info: { ...info, clothRef }, clips: Object.defineProperty({ ...clipSet }, '__meta', { value: clipSet.__meta, enumerable: false }), mats, lodSets, lod: 0, scale: sc });
+  h.info.height = (info.height || 1.8) * sc;
   const kit = spec.kit || info.kit || {};
   h.setKit(kit);
   if (spec.skin) h.setSkin(spec.skin);
@@ -1088,11 +1118,16 @@ async function loadMannequin(spec, base, id, info0) {
   }
   const root = new THREE.Group();
   root.name = `human:${id}`;
-  root.add(model);
-  const h = new Human({ root, model, bones, info: { ...info, ...MANNEQUIN_BASE }, clips: Object.defineProperty({ ...clipSet }, '__meta', { value: clipSet.__meta, enumerable: false }), mats: [mat], lodSets, lod: 0 });
+  const sc = spec.scale || 1; model.scale.setScalar(sc);
+  root.add(model); root.updateMatrixWorld(true);
+  const h = new Human({ root, model, bones, info: { ...info, ...MANNEQUIN_BASE }, clips: Object.defineProperty({ ...clipSet }, '__meta', { value: clipSet.__meta, enumerable: false }), mats: [mat], lodSets, lod: 0, scale: sc });
+  h.info.height = (info.height || 1.8) * sc;
   h.setKit(spec.kit || info.kit || {});
   h.setSkin(spec.skin || info.skin || 'clay');
   if (spec.hair && spec.hair !== false) h.setHair(spec.hair); else h.setHair('#3a2a1e');
+  if (spec.silhouette) h.setSilhouette(spec.silhouette === true ? 0.6 : spec.silhouette);
+  if (spec.stripes) h.setStripes(true);
+  if (spec.decal) h.setDecal(spec.decal);
   if (spec.quality) h.setQuality(spec.quality);
   if (spec.lod !== undefined && spec.lod !== 'auto') h.setLOD(spec.lod);
   if (spec.lod === 'auto') h.lodAuto = true;

@@ -7,11 +7,17 @@ import { CAM } from '../src/camera.js';
 import { HOOP } from '../src/consts.js';
 
 const LIB = '../vendor3d/index.js';
-import { SCALE_BALL, BR } from '../src/consts.js';
+import { SCALE_BALL, BR, ROLES } from '../src/consts.js';
 const SKINS = ['tan', 'deep', 'peach', 'brown', 'clay', 'wood'];
 const HAIRS = ['black', 'black', 'brown', 'black', 'brown', 'blond'];
-const KITS = [
+export const MY_KITS = [
   { top: '#2467c9', bottoms: '#173c78', socks: '#f3f3f3', shoes: '#f3f3f3', trim: '#ffd23f' },
+  { top: '#1f9d6a', bottoms: '#12583c', socks: '#f3f3f3', shoes: '#f3f3f3', trim: '#ffffff' },
+  { top: '#7a45c2', bottoms: '#47257a', socks: '#f3f3f3', shoes: '#f3f3f3', trim: '#ffd23f' },
+  { top: '#e8892f', bottoms: '#8a4a12', socks: '#f3f3f3', shoes: '#f3f3f3', trim: '#13283a' },
+];
+const KITS = [
+  MY_KITS[0],
   { top: '#d6402f', bottoms: '#7a1d14', socks: '#f3f3f3', shoes: '#f3f3f3', trim: '#ffffff' },
 ];
 
@@ -76,7 +82,7 @@ export async function createPresenter({ kitCanvas, quality = pickQuality() }) {
       const h = await loadHuman({ character: 'mannequin_m', kit: KITS[team], skin: SKINS[i], hair: HAIRS[i], legs: 'shorts' });
       h.groundClamp = 'auto'; h.footPlanting = true;
       h.play('ready_stance', { fade: 0, startTime: (i * 0.53) % 2.7 });
-      const sc = [0.99, 1.03, 1.09][role];
+      const sc = ROLES[role].scale;
       h.root.scale.setScalar(sc);
       stage.add(h);
       stage.track(h);
@@ -134,6 +140,7 @@ export async function createPresenter({ kitCanvas, quality = pickQuality() }) {
     if (!P.ready || P.lost) return;
     const G0 = game.getState();
     const s = G0.sim;
+    { const ki = G0.settings ? G0.settings.kitIdx | 0 : 0, ci = G0.settings ? G0.settings.courtIdx | 0 : 0; if (ki !== P.kitIdx) { P.kitIdx = ki; for (let i = 0; i < 3; i++) P.humans[i].setKit(MY_KITS[Math.min(ki, MY_KITS.length - 1)]); } if (ci !== P.courtIdx && P.hall) { P.courtIdx = ci; P.hall.setCourt(ci); } }
     const show = !!s && (G0.scene === 'play' || G0.scene === 'title' || G0.scene === 'result' || G0.scene === 'setup' || G0.scene === 'settings' || G0.scene === 'learn' || G0.scene === 'lesson' || G0.scene === 'lessonresult' || G0.scene === 'quiz' || G0.scene === 'demolimit' || G0.scene === undefined);
     if (!s) { stage.setVisible(false); return; }
     stage.setVisible(true);

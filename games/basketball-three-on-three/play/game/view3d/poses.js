@@ -29,6 +29,8 @@ function palmTarget(A, side, palm, w, pole) {
   const wrist = palm.clone().addScaledVector(dir, -PALM * A.h.root.scale.y);
   return { p: [wrist.x, wrist.y, wrist.z], f: 'w', w, pole, pf: 'b', palm: palm.clone() };
 }
+// a free arm (a guard hand, a defender's raised hands) is not a ball contact: it keeps clear of the other bodies and of the ball
+const free = (T) => { T.free = true; return T; };
 const POLE_R = [-0.5, -1, -0.35], POLE_L = [0.5, -1, -0.35];
 const poleOf = (side) => (side === 'R' ? POLE_R : POLE_L);
 
@@ -76,7 +78,8 @@ export function applyPose(A, P) {
       let changed = false;
       for (const sd of ['L', 'R']) {
         const T0 = P.arms && P.arms[sd];
-        if (T0 && T0.palm && T0.w >= 0.5) continue;
+        // a palm placed on the ball's surface is a deliberate contact (the sim guarantees it); every other arm, a defender's hands included, keeps clear
+        if (T0 && T0.palm && T0.w >= 0.5 && !T0.free) continue;
         const sh = A.b[sd].up.getWorldPosition(V()), wr = A.h.bonePosition(`${sd}_Hand`).clone(), el = A.h.bonePosition(`${sd}_Forearm`).clone();
         const w = wr.clone();
         let moved = false;
@@ -88,6 +91,7 @@ export function applyPose(A, P) {
         }
         if (moved) {
           const wl = w.clone().sub(sh), maxL = 0.62 * A.h.root.scale.y; if (wl.length() > maxL) w.copy(sh).addScaledVector(wl.normalize(), maxL);
+          { const ix = sides.indexOf(sd); if (ix >= 0) sides.splice(ix, 1); }
           P.arms[sd] = { p: [w.x, w.y, w.z], f: 'w', w: 1, pole: sd === 'L' ? [0.5, -1, -0.35] : [-0.5, -1, -0.35], pf: 'b' };
           changed = true;
         }
@@ -246,16 +250,26 @@ export function poseFor(P, s, sp, d, pa, D, dt, speed) {
       // one-handed layup: the ball rides high in the right hand, the left arm stays tucked in front of the chest
       const ph = sm((td - act.t0) / 0.3);
       pRt = pr.clone();
-      pLt = V(act.x0 * 0 + sp.x + lat.x * 0.28 + fw.x * 0.22, 1.35 * sc + sp.jy, sp.z + lat.z * 0.28 + fw.z * 0.22);
+      pLt = V(sp.x + lat.x * 0.3 + fw.x * 0.18, lerp(1.35 * sc, 1.95 * sc, sm((td - act.t0) / 0.35)) + sp.jy, sp.z + lat.z * 0.3 + fw.z * 0.18);   // the free arm rises to shield the ball
       wL = 0.9;
     } else if (layup) { pLt = V(sp.x + lat.x * 0.3 + fw.x * 0.1, 1.2 * sc + sp.jy, sp.z + lat.z * 0.3 + fw.z * 0.1); wL = 1 - sm((sinceR - 0.1) / 0.3); }
+    if (act.dunk) {
+      // dunk: both palms on the ball from the sides above the rim; after the release the hands stay at the rim while the body settles
+      const ref = tr !== null ? V(act.rel.x, act.rel.y, act.rel.z) : ballV;
+      const open = tr !== null ? sm(sinceR / 0.18) : 0;   // after the release the hands open outwards and up so the ball drops through between them
+      pRt = ref.clone().addScaledVector(lat, -(BALL_R + HAND_T + 0.3 * open)).add(V(0, 0.05 + 0.18 * open, 0));
+      pLt = ref.clone().addScaledVector(lat, BALL_R + HAND_T + 0.3 * open).add(V(0, 0.05 + 0.18 * open, 0));
+      wR = wL = tr !== null ? 1 - sm((sinceR - 0.25) / 0.25) : 1;
+      P2.torso.bend = 4 + 10 * sm((td - act.tj) / 0.3);
+      if (tr === null) { reachT = { L: pLt, R: pRt }; reachW = 1; }
+    }
     P2.arms[shootHand] = palmTarget(A, shootHand, pRt, wR, poleOf(shootHand));
-    P2.arms[guide] = palmTarget(A, guide, pLt, wL, [0.6, -0.8, -0.2]);
+    P2.arms[guide] = layup && tr === null ? free(palmTarget(A, guide, pLt, wL, [0.6, -0.8, -0.2])) : palmTarget(A, guide, pLt, wL, [0.6, -0.8, -0.2]);
     fingers = { L: 'ballGrip', R: 'ballGrip' };
     if (sinceR >= 0.05) { fingers.R = 'relaxed'; }
     // legs: planted through the gather, tucked slightly in the air, bent knees on landing
     const air = sp.jy;
-    legLift.L = air * 0.82; legLift.R = air * 0.9 + (layup ? 0.2 * Math.min(1, air / 0.2) : 0);
+    legLift.L = air * 0.82 + (layup ? 0.34 * Math.min(1, air / 0.15) : 0); legLift.R = air * 0.9;   // layup: the inside knee drives up
     if (layup && air > 0.02) { /* knee drive on the layup side */ }
     lookAt = V(0, 3.05, 0); lookW = 0.9;
     pa.aimFace = act.face;
@@ -297,7 +311,7 @@ export function poseFor(P, s, sp, d, pa, D, dt, speed) {
     const palm = guard.clone().lerp(tgt, reachK);
     P2.arms[side] = palmTarget(A, side, palm, 1, poleOf(side));
     reachT = { [side]: palm }; reachW = reachK;
-    P2.arms.L = palmTarget(A, 'L', V(sp.x + fwd.x * 0.3 + left.x * 0.5, 1.0, sp.z + fwd.z * 0.3 + left.z * 0.5), 0.9, POLE_L);
+    P2.arms.L = free(palmTarget(A, 'L', V(sp.x + fwd.x * 0.3 + left.x * 0.5, 1.0, sp.z + fwd.z * 0.3 + left.z * 0.5), 0.9, POLE_L));
     crouch(0.10 * Math.sin(Math.PI * clamp((td - act.t0) / (act.tl - act.t0), 0, 1)));
     P2.torso.bend = 10 + 6 * reachK;
     fingers = { L: 'open', R: 'open' };
@@ -319,18 +333,31 @@ export function poseFor(P, s, sp, d, pa, D, dt, speed) {
       aL = aL.lerp(ballV.clone().addScaledVector(l2, BALL_R + HAND_T), k); aR = aR.lerp(ballV.clone().addScaledVector(l2, -(BALL_R + HAND_T)), k);
     }
     P2.arms.L = palmTarget(A, 'L', aL, 1, [0.5, -0.4, 0.3]); P2.arms.R = palmTarget(A, 'R', aR, 1, [-0.5, -0.4, 0.3]);
+    if (!near) { free(P2.arms.L); free(P2.arms.R); }
     if (near) { reachT = { L: aL, R: aR }; reachW = 1; }
     else if ((B.mode === 'loose' || B.mode === 'shot' || hasBall) && Math.hypot(ball.x - sp.x, ball.z - sp.z) < 1.2 && ball.y < 1.5) reachBall(1);
     fingers = { L: 'open', R: 'open' };
     P2.torso.bend = -4;
     lookAt = ballV; lookW = 0.9;
   } else if (sp.screenOn) {
-    dy = -0.09 * sm(sp.setT / 0.25);
-    P2.torso.bend = 8; P2.torso.side = 0;
-    const hp = V(sp.x + fwd.x * 0.3, 1.0, sp.z + fwd.z * 0.3);
-    P2.arms.L = palmTarget(A, 'L', hp.clone().addScaledVector(left, 0.07), 1, [0.4, -1, 0.2]); P2.arms.R = palmTarget(A, 'R', hp.clone().addScaledVector(left, -0.07), 1, [-0.4, -1, 0.2]);
+    dy = -0.13 * sm(sp.setT / 0.25);
+    P2.torso.bend = 14; P2.torso.side = 0;
+    const hp = V(sp.x + fwd.x * 0.32, 1.28 * sc, sp.z + fwd.z * 0.32);
+    // braced and wide, forearms crossed over the chest: a wall the defender has to go around
+    P2.arms.L = free(palmTarget(A, 'L', hp.clone().addScaledVector(left, -0.14), 1, [0.2, -0.6, 0.6])); P2.arms.R = free(palmTarget(A, 'R', hp.clone().addScaledVector(left, 0.14).add(V(0, 0.07, 0)), 1, [-0.2, -0.6, 0.6]));
+    P2._wideLegs = true;
     fingers = { L: 'fist', R: 'fist' };
     lookAt = ballV; lookW = 0.6;
+  } else if (hasBall && sp.dstate !== 'drib' && sinceCatch >= cd + 0.04) {
+    // ---- holding the ball (before the first dribble, or after the dribble was ended): both palms on its sides at the chest, ready to pass or shoot
+    crouch(0.04);
+    P2.torso.bend = 8;
+    const lf = V(left.x, 0, left.z);
+    P2.arms.L = palmTarget(A, 'L', ballV.clone().addScaledVector(lf, BALL_R + HAND_T), 1, POLE_L);
+    P2.arms.R = palmTarget(A, 'R', ballV.clone().addScaledVector(lf, -(BALL_R + HAND_T)), 1, POLE_R);
+    fingers = { L: 'ballGrip', R: 'ballGrip' };
+    lookAt = V(0, 1.8, 0); lookW = 0.5;
+    report = { kind: 'hold' };
   } else if (hasBall || (sinceCatch < cd + 0.12 && B.mode === 'held' && holder && holder.id === id)) {
     // ---- dribbling / holding
     const dr = null;
@@ -364,7 +391,7 @@ export function poseFor(P, s, sp, d, pa, D, dt, speed) {
       const sign = sgn(other);
       const guard = V(sp.x + left.x * 0.34 * sign + fwd.x * 0.30, sp.z * 0 + 1.18 * sc, sp.z + left.z * 0.34 * sign + fwd.z * 0.30);
       guard.x = sp.x + left.x * 0.34 * sign + fwd.x * 0.30; guard.z = sp.z + left.z * 0.34 * sign + fwd.z * 0.30;
-      P2.arms[other] = palmTarget(A, other, guard, 0.85, poleOf(other));
+      P2.arms[other] = free(palmTarget(A, other, guard, 0.85, poleOf(other)));
     }
     P2.arms[side] = palmTarget(A, side, palm, 1, poleOf(side));
     if (sinceCatch < cd + 0.04) {
@@ -408,7 +435,7 @@ export function poseFor(P, s, sp, d, pa, D, dt, speed) {
     let nearD = 9; for (const q of s.players) if (q.team !== sp.team && !q.out) nearD = Math.min(nearD, Math.hypot(q.x - sp.x, q.z - sp.z));
     const hf = nearD < 1.2 ? 0.08 : 0.24;       // hands stay out of the opponent's body when he is close
     const hands = { L: V(sp.x + left.x * 0.58 + fwd.x * hf, 1.12 * sc + wave, sp.z + left.z * 0.58 + fwd.z * hf), R: V(sp.x - left.x * 0.58 + fwd.x * hf, 1.02 * sc - wave, sp.z - left.z * 0.58 + fwd.z * hf) };
-    P2.arms.L = palmTarget(A, 'L', hands.L, 0.95, [0.6, -0.7, 0.1]); P2.arms.R = palmTarget(A, 'R', hands.R, 0.95, [-0.6, -0.7, 0.1]);
+    P2.arms.L = free(palmTarget(A, 'L', hands.L, 0.95, [0.6, -0.7, 0.1])); P2.arms.R = free(palmTarget(A, 'R', hands.R, 0.95, [-0.6, -0.7, 0.1]));
     fingers = { L: 'open', R: 'open' };
     lookAt = bp; lookW = 0.85;
     // a ball passing or bouncing within reach: both hands go to it (interceptions, deflections)
@@ -419,7 +446,7 @@ export function poseFor(P, s, sp, d, pa, D, dt, speed) {
     P2.torso.bend = 8 + clamp(speed * 1.5, 0, 8);
     if (sp.callT > 0) {
       const sh = A.b.R.up.getWorldPosition(V());
-      P2.arms.R = palmTarget(A, 'R', V(sp.x - left.x * 0.28 + fwd.x * 0.28, 2.0 * sc, sp.z - left.z * 0.28 + fwd.z * 0.28), 1, [-0.8, -0.4, -0.3]);
+      P2.arms.R = free(palmTarget(A, 'R', V(sp.x - left.x * 0.28 + fwd.x * 0.28, 2.0 * sc, sp.z - left.z * 0.28 + fwd.z * 0.28), 1, [-0.8, -0.4, -0.3]));
       fingers.R = 'open';
     }
     lookAt = ballV; lookW = 0.75;
@@ -436,14 +463,15 @@ export function poseFor(P, s, sp, d, pa, D, dt, speed) {
   if (landDip > 0) dy = Math.min(dy, -landDip);
 
   // ---------------- personal space: the other players' body capsules; applyPose keeps the free arms out of them
-  P2.avoid = [];
+  P2.avoid = []; P2.ballPos = ballV.clone();
   if (Math.hypot(ball.x - sp.x, ball.z - sp.z) < 1.4) P2.avoid.push([ballV.clone(), ballV.clone(), BALL_R + 0.07]);   // free hands keep off the ball too
   for (const q of s.players) {
     if (q.id === id || q.out) continue;
     if (Math.hypot(q.x - sp.x, q.z - sp.z) > 1.7) continue;
     const hq = P.humans[q.id], pel = hq.bonePosition('Pelvis'), sp2 = hq.bonePosition('Spine2'), nk = hq.bonePosition('Neck'), hd = hq.bonePosition('Head');
-    P2.avoid.push([pel.clone(), sp2.clone(), 0.24], [sp2.clone(), nk.clone(), 0.23], [nk.clone(), hd.clone(), 0.2]);
-    for (const sd of ['L', 'R']) { const ua = hq.bonePosition(`${sd}_UpperArm`), fa = hq.bonePosition(`${sd}_Forearm`), ha = hq.bonePosition(`${sd}_Hand`); P2.avoid.push([ua.clone(), fa.clone(), 0.2], [fa.clone(), ha.clone(), 0.22]); }
+    const qs = hq.root.scale.y;
+    P2.avoid.push([pel.clone(), sp2.clone(), 0.24 * qs], [sp2.clone(), nk.clone(), 0.23 * qs], [nk.clone(), hd.clone(), 0.2 * qs]);
+    for (const sd of ['L', 'R']) { const ua = hq.bonePosition(`${sd}_UpperArm`), fa = hq.bonePosition(`${sd}_Forearm`), ha = hq.bonePosition(`${sd}_Hand`); P2.avoid.push([ua.clone(), fa.clone(), 0.2 * qs], [fa.clone(), ha.clone(), 0.22 * qs]); }
   }
   // ---------------- contact lean: when the palms are further than the arms reach, the body steps / leans towards the ball
   let lunged = false;
@@ -463,6 +491,7 @@ export function poseFor(P, s, sp, d, pa, D, dt, speed) {
     P2.pelvis.y += dy + jy;
     for (const side of ['L', 'R']) {
       const f = footAnim[side].clone();
+      if (P2._wideLegs) f.addScaledVector(left, (side === 'L' ? 1 : -1) * 0.11);
       f.y = Math.max(A.groundAnkle, f.y) + legLift[side];
       if (jy < 0.01 && !legLift[side]) f.y = A.groundAnkle;
       P2.legs[side] = { p: [f.x, f.y, f.z], f: 'w', w: 1, pole: [0, 0.1, 1], pf: 'g', aim: jy < 0.01 ? { n: [0, -1, 0], face: 'sole', fwd: [fwd.x, 0, fwd.z], w: 1 } : undefined };

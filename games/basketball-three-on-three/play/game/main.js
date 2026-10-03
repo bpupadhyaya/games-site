@@ -38,7 +38,10 @@ const tracker = (() => {
   };
   on('pointerup', up); on('pointercancel', up);
   globalThis.addEventListener('blur', () => { for (const t of live.values()) { t.down = false; t.released = true; } primary = null; });
+  let wheel = 0;
+  on('wheel', (e) => { if (!onTarget(e)) return; const r = canvas.getBoundingClientRect(), sc = Math.min(r.width / 720, r.height / 1280); wheel += (e.deltaY * (e.deltaMode === 1 ? 40 : e.deltaMode === 2 ? 600 : 1)) / sc; e.preventDefault(); });
   return {
+    takeWheel() { const w = wheel; wheel = 0; return w; },
     snapshot() { const now = performance.now(); return [...live.values()].map((t) => ({ ...t, pressed: t.pressed && now - t.t0 < 150 })); },
     afterUpdate() { for (const [id, t] of live) { t.pressed = false; if (t.released) live.delete(id); } },
   };
@@ -46,7 +49,7 @@ const tracker = (() => {
 
 const wrap = (game) => {
   const upd = game.update.bind(game);
-  game.update = (dt, input) => { input.touches = tracker.snapshot(); upd(dt, input); tracker.afterUpdate(); };
+  game.update = (dt, input) => { input.touches = tracker.snapshot(); input.wheel = tracker.takeWheel(); upd(dt, input); tracker.afterUpdate(); };
   if (new URLSearchParams(location.search).has('dev')) window.__game = game;   // dev only: lets the test harness read the state
   if (presenter && presenter.stage) return presenter.wrap(game);
   const r = game.render.bind(game);

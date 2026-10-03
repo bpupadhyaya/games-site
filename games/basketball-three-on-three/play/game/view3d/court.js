@@ -52,26 +52,31 @@ export function buildHall(stage, { quality = 'high' } = {}) {
   // ---- floor: the texture covers x in [-9.3, 9.3], z in [-3.4, 11.4] (court plus a margin)
   const X0 = -11.3, X1 = 11.3, Z0 = -4.6, Z1 = 16.0, CWm = X1 - X0, CLm = Z1 - Z0;
   const TW = quality === 'low' ? 1024 : 2048, TH = Math.round(TW * CLm / CWm);
-  const floorTex = canvasTex(TW, TH, (c, w, h) => {
+  const PALS = [
+    { wood: '#d9a66a', key: '#2f5f9e', ft: '#3b72b8', sur: '#1a3350', pl: [150, 100, 50] },     // maple
+    { wood: '#3f6aa0', key: '#d46a2a', ft: '#e07b36', sur: '#14243a', pl: [40, 70, 120] },     // blue floor
+    { wood: '#7b7f86', key: '#b0463a', ft: '#c4574a', sur: '#1b2230', pl: [100, 104, 110] },    // street
+  ];
+  const drawFloor = (pal) => canvasTex(TW, TH, (c, w, h) => {
     const S = w / CWm;
     const X = (x) => (x - X0) * S, Z = (z) => (z - Z0) * S;       // the top of the image is the far end (-z)
     // surround
-    c.fillStyle = '#1a3350'; c.fillRect(0, 0, w, h);
+    c.fillStyle = pal.sur; c.fillRect(0, 0, w, h);
     // playing surface: maple
     const r = rngf(11);
-    c.fillStyle = '#d9a66a'; c.fillRect(X(-HW), Z(ZB), 2 * HW * S, (ZH - ZB) * S);
+    c.fillStyle = pal.wood; c.fillRect(X(-HW), Z(ZB), 2 * HW * S, (ZH - ZB) * S);
     // planks
     for (let i = 0; i < 90; i++) {
       const x = X(-HW) + (i / 90) * 2 * HW * S;
-      c.fillStyle = `rgba(${150 + r() * 30},${100 + r() * 20},${50 + r() * 15},${0.08 + r() * 0.1})`;
+      c.fillStyle = `rgba(${pal.pl[0] + r() * 30},${pal.pl[1] + r() * 20},${pal.pl[2] + r() * 15},${0.08 + r() * 0.1})`;
       c.fillRect(x, Z(ZB), (2 * HW * S) / 90, (ZH - ZB) * S);
       c.fillStyle = 'rgba(80,50,20,0.18)'; c.fillRect(x, Z(ZB), 1.2, (ZH - ZB) * S);
     }
     // painted key (blue) and the restricted semicircle
-    c.fillStyle = '#2f5f9e';
+    c.fillStyle = pal.key;
     c.fillRect(X(-KEY_HW), Z(ZB), 2 * KEY_HW * S, (FT_Z - ZB) * S);
-    c.fillStyle = '#d9a66a'; c.beginPath(); c.arc(X(0), Z(0), 1.25 * S, 0, Math.PI); c.fill();
-    c.fillStyle = '#3b72b8'; c.beginPath(); c.arc(X(0), Z(FT_Z), 1.8 * S, 0, Math.PI * 2); c.fill();
+    c.fillStyle = pal.wood; c.beginPath(); c.arc(X(0), Z(0), 1.25 * S, 0, Math.PI); c.fill();
+    c.fillStyle = pal.ft; c.beginPath(); c.arc(X(0), Z(FT_Z), 1.8 * S, 0, Math.PI * 2); c.fill();
     c.save(); c.beginPath(); c.rect(X(-KEY_HW), Z(ZH), 2 * KEY_HW * S, (ZH - FT_Z) * S); c.clip(); c.restore();
     // lines
     c.strokeStyle = '#f7f7f4'; c.lineWidth = 0.05 * S; c.lineCap = 'butt'; c.lineJoin = 'round';
@@ -97,6 +102,7 @@ export function buildHall(stage, { quality = 'high' } = {}) {
     const gr = c.createLinearGradient(0, 0, 0, h); gr.addColorStop(0, 'rgba(255,255,255,0.05)'); gr.addColorStop(1, 'rgba(0,0,0,0.12)');
     c.fillStyle = gr; c.fillRect(0, 0, w, h);
   });
+  const floorTex = drawFloor(PALS[0]);
   const floor = new THREE.Mesh(new THREE.PlaneGeometry(CWm, CLm), new THREE.MeshStandardMaterial({ map: floorTex, roughness: 0.5, metalness: 0.0 }));
   floor.rotation.x = -Math.PI / 2; floor.position.set((X0 + X1) / 2, 0, (Z0 + Z1) / 2); floor.receiveShadow = true; g.add(floor);
   // ---- backboard (transparent, its own mesh), and ONE merged mesh for the stanchion, pad, arm, ring and bracket
@@ -187,7 +193,8 @@ export function buildHall(stage, { quality = 'high' } = {}) {
   ]);
   g.add(new THREE.Mesh(wallGeo, new THREE.MeshStandardMaterial({ map: wall, roughness: 1 })));
   stage.add(g);
-  return { group: g, net: netApi, board, floor };
+  const setCourt = (i) => { const t = drawFloor(PALS[Math.max(0, Math.min(PALS.length - 1, i | 0))]); floor.material.map.dispose(); floor.material.map = t; floor.material.needsUpdate = true; };
+  return { group: g, net: netApi, board, floor, setCourt };
 }
 
 export function buildBall(scale = 1) {

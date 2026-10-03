@@ -1,12 +1,12 @@
 // The match: players, ball physics, rules, clocks. Pure and deterministic (dt = 1/60, seeded streams). The 3D presenter and the HUD
 // only READ `sim.s`. Every contact (dribble bounce, release, catch, rim touch) has an exact time here.
-import { G, BR, HOOP, RIM_R, TUBE_R, BOARD_Z, BOARD, HW, Z_BASE, Z_HALF, ARC_R, ARC_X, FT_Z, BOUND, DT, SHOT_CLOCK, GAME_LEN, ROLES, LEVELS, TM_LEVEL, SPOTS } from './consts.js';
+import { G, BR, HOOP, RIM_R, TUBE_R, BOARD_Z, BOARD, HW, Z_BASE, Z_HALF, ARC_R, ARC_X, FT_Z, BOUND, DT, SHOT_CLOCK, GAME_LEN, ROLES, LEVELS, TM_LEVEL, SPOTS, PLAYER_SCALE } from './consts.js';
 import { makeDribble } from './dribble.js';
 import { clamp, hyp, normal, angDiff } from './util.js';
 import * as AI from './ai.js';
 import { visHalfWidth } from './camera.js';
 
-const PLAYER_R = 0.45;
+const PLAYER_R = 0.45 * PLAYER_SCALE;   // personal space grows with the body
 const RING = Array.from({ length: 32 }, (_, k) => ({ x: RIM_R * Math.cos((k / 32) * Math.PI * 2), z: RIM_R * Math.sin((k / 32) * Math.PI * 2) }));
 const NAMES = ['Blue', 'Red'];
 const TEAM_NAME = (t, cfg) => (t === 0 ? 'Blue' : 'Red');
@@ -32,7 +32,7 @@ export function createSim(cfg, rng) {
   // ---- players ----------------------------------------------------------------------------------------------------------------
   for (let team = 0; team < 2; team++) for (let role = 0; role < 3; role++) {
     const r = ROLES[role];
-    s.players.push({ id: team * 3 + role, team, role, human: !autoHuman && s.humanId === team * 3 + role, x: 0, z: 0, vx: 0, vz: 0, face: Math.PI, jy: 0, jvy: 0, act: null, sc: r.scale, reachH: r.reach, hand: 1, du: 0, side: -1, sideT: -1, lastCatch: -9,
+    s.players.push({ id: team * 3 + role, team, role, human: !autoHuman && s.humanId === team * 3 + role, x: 0, z: 0, vx: 0, vz: 0, face: Math.PI, jy: 0, jvy: 0, act: null, sc: r.scale, reachH: r.reach, hand: 1, du: 0, side: -1, sideT: -1, lastCatch: -9, dstate: 'hold', stillT: 0, deadX: 0, deadZ: 0,
       stumble: 0, cool: { steal: 0, cross: 0, jump: 0, pass: 0 }, plan: null, nextThink: 0, set: false, setT: 0, screenOn: false, burst: 0, out: false, callT: 0, expect: null, landT: 0, tmp: {}, speed: 0, cx: 0, cz: 0, dT: 0.5, bounceNext: false });
   }
   s.ball = { x: 0, y: 1, z: 0, vx: 0, vy: 0, vz: 0, mode: 'held', holder: 0, lastTeam: 0, lastId: 0, target: -1, age: 0, rim: 0, board: 0, thru: false, shot: null, dead: false, prevY: 1, spin: 0, deflect: false, bounceT: 0, passFrom: -1, pickT: 0, spinAxis: 0 };
@@ -74,8 +74,8 @@ export function createSim(cfg, rng) {
   // sigma of the miss at the rim plane (metres) for a given shooter, distance, contest, timing score
   const sigmaOf = (p, d, c, tq, layup) => {
     const sk = skillOf(p, layup);
-    const s0 = layup ? 0.100 : 0.062 + 0.0062 * d;
-    return (s0 * (1.9 - 1.3 * tq) * (1 + 0.9 * c) * 1.4) / sk;
+    const s0 = layup ? 0.12 : 0.062 + 0.0062 * d;
+    return (s0 * (1.9 - 1.3 * tq) * (1 + 0.9 * c) * 1.55) / sk;
   };
   const SIG = [[0.03, 0.98], [0.05, 0.94], [0.07, 0.81], [0.09, 0.72], [0.11, 0.63], [0.14, 0.50], [0.18, 0.35], [0.25, 0.22], [0.4, 0.10], [0.7, 0.03]];
   const pFromSigma = (sg) => { if (sg <= SIG[0][0]) return SIG[0][1]; for (let i = 1; i < SIG.length; i++) if (sg <= SIG[i][0]) { const [a, pa] = SIG[i - 1], [b, pb] = SIG[i]; return pa + (pb - pa) * (sg - a) / (b - a); } return 0.04; };
@@ -90,7 +90,7 @@ export function createSim(cfg, rng) {
   const dribOf = (p) => {
     const sp = hyp(p.vx, p.vz);
     const T = clamp(0.56 - sp * 0.034 - (ROLES[p.role].handle - 1) * 0.05, 0.38, 0.6);
-    p.dT = T; return makeDribble(T);
+    p.dT = T; return makeDribble(T, p.sc);
   };
   function heldBall(p) {
     const d = dribOf(p);
@@ -98,8 +98,8 @@ export function createSim(cfg, rng) {
     const hy = p.holdYaw ?? p.face, sinF = Math.sin(hy), cosF = Math.cos(hy);
     const sp = hyp(p.vx, p.vz);
     // lateral offset (hand side) eases across during a crossover; the ball crosses low in front of the body
-    const lat = 0.30 * p.sideT, fwd = 0.24 + 0.025 * Math.min(sp, 5);
-    const y = d.y(u);
+    const grow = p.sc + (BR - 0.236) * 0.5, still = p.dstate !== 'drib', lat = still ? 0 : 0.30 * grow * p.sideT, fwd = still ? 0.36 * grow : (0.24 + 0.025 * Math.min(sp, 5)) * grow;   // the toy-scale body and ball ride further out
+    const y = p.dstate === 'drib' ? d.y(u) : 1.22 * p.sc;
     // the ball drifts forward at the floor contact when moving
     const lead = sp * 0.06 * Math.sin(Math.PI * u);
     B.x = p.x + cosF * lat + sinF * (fwd + lead);
@@ -115,7 +115,7 @@ export function createSim(cfg, rng) {
     const o = [SPOTS.top, SPOTS.wingL, { x: 2.4, z: 2.4 }];
     return o;
   }
-  function setPlayer(p, x, z, face) { p.holdYaw = face; p.x = x; p.z = z; p.vx = p.vz = 0; p.face = face; p.jy = 0; p.jvy = 0; p.act = null; p.set = false; p.setT = 0; p.screenOn = false; p.stumble = 0; p.burst = 0; p.landT = 0; p.plan = null; p.nextThink = s.t + 0.2; p.expect = null; p.du = 0; }
+  function setPlayer(p, x, z, face) { p.holdYaw = face; p.x = x; p.z = z; p.vx = p.vz = 0; p.face = face; p.jy = 0; p.jvy = 0; p.act = null; p.set = false; p.setT = 0; p.screenOn = false; p.stumble = 0; p.burst = 0; p.landT = 0; p.plan = null; p.nextThink = s.t + 0.2; p.expect = null; p.du = 0; p.dstate = 'hold'; p.stillT = 0; }
   function setupPossession(off, mode) {
     s.poss = off; s.mode = mode; s.phase = 'ready'; s.timer = mode === 'check' ? 1.6 : 1.3; s.cleared = true; s.shotClock = SHOT_CLOCK; s.hold = null; s.ft = null; s.shotInfo = null;
     const de = opp(off);
@@ -149,11 +149,13 @@ export function createSim(cfg, rng) {
     act.tl = act.tj + (layup ? 0.67 : ft ? 0.56 : 0.56);
     act.apexT = layup ? act.tj + 0.19 : ft ? t0 + 0.44 : act.tj + act.jv / G;
     act.aiRel = timingErr === null ? null : act.apexT + timingErr;
+    // a dunk: a finish at the rim by a player who can get above it (Big most often); the ball is put through from above at the top of the jump
+    if (layup && d < 2.1) { const pd = [0.12, 0.25, 0.6][p.role] * (p.human ? 1 : 0.6 + 0.4 * lvOf(p).skill); if (R.next() < pd) { act.dunk = true; act.jv = 4.6; act.tj = t0 + 0.2; act.apexT = act.tj + act.jv / G; act.tl = act.tj + 2 * act.jv / G + 0.04; act.aiRel = act.apexT; act.hold = false; } }
     act.w0 = ft ? 0.13 : meterWindow(d, contestOf(p.x, p.z, p.team).c, layup);
     act.hold = true;
     act.from = { x: B.x, y: B.y, z: B.z };
     p.act = act;
-    ev('shotStart', { pid: p.id, layup, ft });
+    ev('shotStart', { pid: p.id, layup, ft, dunk: !!act.dunk });
     return true;
   }
   function cmdShotRelease(p) { const a = p.act; if (a && (a.kind === 'shot' || a.kind === 'layup') && a.tr === null && a.human) a.hold = false; }
@@ -183,7 +185,7 @@ export function createSim(cfg, rng) {
     else if (p.screenOn) { p.screenOn = false; p.set = false; p.setT = 0; }
   }
   function cmdCross(p) {
-    if (B.mode !== 'held' || B.holder !== p.id || p.cool.cross > 0 || p.act || p.jy > 0.02) return false;
+    if (B.mode !== 'held' || B.holder !== p.id || p.dstate !== 'drib' || p.cool.cross > 0 || p.act || p.jy > 0.02) return false;
     p.cool.cross = 1.3; p.burst = 0.4; p.side = -p.side;
     p.crossT = 0.32;
     // the nearest defender in front can be beaten
@@ -224,7 +226,12 @@ export function createSim(cfg, rng) {
     B.spin = 6; B.spinAxis = Math.atan2(B.vx, B.vz);
     B.shot = { id: p.id, team: p.team, pts: a.ft ? 1 : isTwo(p.x, p.z) ? 2 : 1, layup: a.layup, ft: a.ft, d, c, tq, sg, relT: s.t, x0, z0, rimHits: 0, blocked: false, fouled: false };
     s.shotInfo = B.shot;
-    a.rel = { x: x0, y: relY, z: z0 };
+    if (a.dunk) {
+      B.x = HOOP.x; B.y = HOOP.y + 0.06; B.z = HOOP.z + 0.03; B.vx = B.vz = 0; B.vy = -3.2; B.shot.dunk = true; B.shot.tq = 1; B.shot.pts = 1;
+      if (R.next() < 0.06 + 0.1 * c) { B.vx = 1.4; B.vz = 0.6; B.vy = -1; }   // a contested dunk can rattle out
+      ev('dunk', { pid: p.id });
+    }
+    a.rel = { x: B.x, y: B.y, z: B.z };
     a.tr = s.t;
     if (!a.ft) { const st = s.stats[p.team]; st.fga++; if (B.shot.pts === 2) st.tpa++; }
     ev('shot', { pid: p.id, team: p.team, pts: B.shot.pts, layup: a.layup, d, c, tq, e, ft: a.ft });
@@ -325,7 +332,7 @@ export function createSim(cfg, rng) {
     const t = sh.team;
     s.score[t] += sh.pts;
     const st = s.stats[t]; if (!sh.ft) { st.fgm++; if (sh.pts === 2) st.tpm++; }
-    ev('score', { team: t, pid: sh.id, pts: sh.pts, swish: B.rim === 0 && !B.board, ft: sh.ft, layup: sh.layup, d: sh.d, score: [...s.score] });
+    ev('score', { team: t, pid: sh.id, pts: sh.pts, swish: B.rim === 0 && !B.board, ft: sh.ft, layup: sh.layup, dunk: !!sh.dunk, d: sh.d, score: [...s.score] });
     s.last = { team: t, id: sh.id, pts: sh.pts, t: s.t, kind: 'score', swish: B.rim === 0 && !B.board };
     // shooting fouls: "and one"
     if (sh.fouled) { s.pendingFT = { shooter: sh.id, n: 1, foulBy: sh.foulBy }; sh.fouled = false; s.fouls[opp(t)]++; ev('foul', { team: opp(t), by: sh.foulBy, on: sh.id, ft: 1, and1: true }); }
@@ -401,7 +408,7 @@ export function createSim(cfg, rng) {
     B.mode = 'held'; B.holder = p.id; B.vx = B.vy = B.vz = 0; B.thru = false; B.target = -1; B.passFrom = -1;
     const changed = p.team !== s.poss;
     B.lastTeam = p.team; B.lastId = p.id; B.shot = null; B.deflect = false;
-    p.du = 0.0; p.lastCatch = s.t;
+    p.du = 0.0; p.lastCatch = s.t; p.dstate = 'hold'; p.stillT = 0;
     if (changed) { s.poss = p.team; s.cleared = false; s.shotClock = SHOT_CLOCK; ev('poss', { team: p.team, how }); }
     else if (how === 'rebound') { s.shotClock = SHOT_CLOCK; }
     s.shotClockRun = true;
@@ -533,6 +540,11 @@ export function createSim(cfg, rng) {
     const k = m > 1 ? 1 / m : 1;
     p.in = s.phase === 'ft' || s.phase === 'ready' ? { mx: 0, mz: 0 } : { mx: mx * k, mz: mz * k };   // set pieces (check ball, free throws): everyone stands
   }
+  function violation(p, why) {
+    ev('violation', { pid: p.id, team: p.team, why });
+    p.act = null; B.mode = 'loose'; B.vx = B.vy = B.vz = 0; B.lastTeam = p.team; B.lastId = p.id;
+    turnover(p.team, why);
+  }
   function applyAction(p, plan) {
     const a = plan;
     if (!a) return;
@@ -567,7 +579,7 @@ export function createSim(cfg, rng) {
       if (act.kind === 'shot' || act.kind === 'layup') {
         if (act.layup) {
           // drive towards the hoop during the layup
-          const dx = HOOP.x - p.x, dz = HOOP.z + 0.85 - p.z, dl = Math.hypot(dx, dz);
+          const dx = HOOP.x - p.x, dz = HOOP.z + (act.dunk ? 0.4 : 0.85) - p.z, dl = Math.hypot(dx, dz);
           const spd = Math.min(3.4, dl / 0.35);
           p.vx = dx / Math.max(dl, 0.01) * spd * (s.t < act.tj + 0.55 ? 1 : 0.3); p.vz = dz / Math.max(dl, 0.01) * spd * (s.t < act.tj + 0.55 ? 1 : 0.3);
           if (dl < 0.45) { p.vx *= 0.3; p.vz *= 0.3; }
@@ -582,6 +594,7 @@ export function createSim(cfg, rng) {
       const k = Math.exp(-dt * 9); p.vx *= k; p.vz *= k; wx = wz = null;
       p.set = p.setT > 0.28 && Math.hypot(p.vx, p.vz) < 0.5;
     } else p.set = false;
+    if (!p.human && p.dstate === 'dead' && B.mode === 'held' && B.holder === p.id) { wx = 0; wz = 0; }
     if (wx !== null && !airborne) moveTowardIntent(p, dt, wx, wz);
     p.x += p.vx * dt; p.z += p.vz * dt;
     p.z = clamp(p.z, BOUND.z0, BOUND.z1); { const xl = Math.min(BOUND.x, visHalfWidth(p.z)); p.x = clamp(p.x, -xl, xl); }
@@ -621,8 +634,20 @@ export function createSim(cfg, rng) {
       p.jvy -= G * dt; p.jy += p.jvy * dt;
       if (p.jy <= 0) { p.jy = 0; if (p.jvy < -0.5) { p.landT = 0.18; ev('land', { pid: p.id, v: -p.jvy }); } p.jvy = 0; }
     }
-    // dribble phase and floor-contact sound
-    if (B.mode === 'held' && B.holder === p.id && !(act && (act.kind === 'shot' || act.kind === 'layup') && s.t > act.tj - 0.06)) {
+    // the dribble: holding (ball in both hands) -> dribbling (the ball bounces) -> dead (the dribble was ended: pass or shoot, no more steps)
+    if (B.mode === 'held' && B.holder === p.id && !(act && (act.kind === 'shot' || act.kind === 'layup' || act.kind === 'pass'))) {
+      if (p.dstate === 'hold') { if (p.speed > 0.9 && s.phase === 'live') { p.dstate = 'drib'; p.du = 0; p.stillT = 0; } }
+      else if (p.dstate === 'drib') {
+        if (p.speed < 0.5 && s.phase === 'live') { p.stillT += dt; if (p.stillT > 0.6 && p.du < 0.35) { p.dstate = 'dead'; p.deadX = p.x; p.deadZ = p.z; ev('pickup', { pid: p.id }); } } else p.stillT = 0;
+      } else if (p.dstate === 'dead' && s.phase === 'live') {
+        const mv = hyp(p.x - p.deadX, p.z - p.deadZ);
+        if (mv > 0.85) {
+          if (p.human) { violation(p, p.speed > 2.2 ? 'double dribble' : 'travelling'); return; }
+          p.x = p.deadX + (p.x - p.deadX) * 0.85 / mv; p.z = p.deadZ + (p.z - p.deadZ) * 0.85 / mv; p.vx = p.vz = 0;
+        }
+      }
+    }
+    if (B.mode === 'held' && B.holder === p.id && p.dstate === 'drib' && !(act && (act.kind === 'shot' || act.kind === 'layup') && s.t > act.tj - 0.06)) {
       const T = dribOf(p).T;
       const before = p.du;
       p.du += dt / T;
@@ -694,7 +719,7 @@ export function createSim(cfg, rng) {
       const a = P[i], b = P[j];
       if (a.out || b.out) continue;
       const dx = b.x - a.x, dz = b.z - a.z, d = Math.hypot(dx, dz);
-      const lim = (a.set ? 0.5 : PLAYER_R) + (b.set ? 0.5 : PLAYER_R);
+      const lim = (a.set ? PLAYER_R * 1.1 : PLAYER_R) + (b.set ? PLAYER_R * 1.1 : PLAYER_R);
       if (d < lim && d > 1e-4) {
         const nx = dx / d, nz = dz / d, pen = lim - d;
         const wa = a.set ? 0 : 1 * (1 / ROLES[a.role].strong), wb = b.set ? 0 : 1 * (1 / ROLES[b.role].strong);
@@ -816,11 +841,12 @@ export function createSim(cfg, rng) {
       const kA = smooth(clamp((t - a.t0) / T1, 0, 1));
       const y1 = (a.layup ? 1.7 : 1.5) * h.sc + h.jy;
       const y2 = (a.layup ? 1.90 * h.sc + 0.10 : 1.90 * h.sc + 0.04) + h.jy;
-      const fx = h.x + sinF * (a.layup ? 0.2 : 0.12), fz = h.z + cosF * (a.layup ? 0.2 : 0.12);
+      let fx = h.x + sinF * (a.layup ? 0.2 : 0.12), fz = h.z + cosF * (a.layup ? 0.2 : 0.12);
+      let y2d = y2; if (a.dunk) { fx = HOOP.x; fz = HOOP.z + 0.03; y2d = HOOP.y + 0.06; }
       let x = a.from.x + (h.x + sinF * 0.27 - a.from.x) * kA, y = a.from.y + (y1 - a.from.y) * kA, z = a.from.z + (h.z + cosF * 0.27 - a.from.z) * kA;
       const t1 = a.t0 + T1 * 0.8;
       const kB = smooth(clamp((t - t1) / Math.max(0.05, a.apexT - t1), 0, 1));
-      B.x = x + (fx - x) * kB; B.z = z + (fz - z) * kB; B.y = y + (y2 - y) * kB;
+      B.x = x + (fx - x) * kB; B.z = z + (fz - z) * kB; B.y = y + (y2d - y) * kB;
       return;
     }
     if (a && a.kind === 'pass') {
