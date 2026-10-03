@@ -1,0 +1,25 @@
+{
+  "slug": "kubb-toss",
+  "title": "Kubb",
+  "tagline": "Knock the blocks, throw them back, topple the king.",
+  "genre": "lawn game / throwing skill",
+  "orientation": "portrait",
+  "version": "1.0.0",
+  "monetization": {
+    "model": "premium",
+    "priceUsd": 2.99,
+    "previewSeconds": 90,
+    "products": [
+      {
+        "id": "unlock_game",
+        "type": "non-consumable",
+        "priceUsd": 2.99,
+        "title": "Unlock Game"
+      }
+    ]
+  },
+  "locales": [
+    "en"
+  ],
+  "demoOnly": true
+}

@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+<defs>
+<linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#222c38"/><stop offset="1" stop-color="#0c1016"/></linearGradient>
+<radialGradient id="glow" cx="0.5" cy="0.5" r="0.6"><stop offset="0" stop-color="#ffd696" stop-opacity="0.45"/><stop offset="1" stop-color="#ffd696" stop-opacity="0"/></radialGradient>
+<linearGradient id="slab" x1="0" y1="0" x2="0.3" y2="1"><stop offset="0" stop-color="#f4f1e9"/><stop offset="1" stop-color="#cfcabd"/></linearGradient>
+<radialGradient id="bone" cx="0.35" cy="0.3" r="0.8"><stop offset="0" stop-color="#fffaf0"/><stop offset="0.45" stop-color="#efe4cb"/><stop offset="1" stop-color="#8f8062"/></radialGradient>
+<radialGradient id="glass" cx="0.35" cy="0.3" r="0.85"><stop offset="0" stop-color="#6aa9b8"/><stop offset="0.5" stop-color="#16232b"/><stop offset="1" stop-color="#04080b"/></radialGradient>
+<filter id="sh" x="-30%" y="-30%" width="160%" height="170%"><feDropShadow dx="0" dy="14" stdDeviation="12" flood-color="#000" flood-opacity="0.45"/></filter>
+<filter id="ss" x="-30%" y="-30%" width="160%" height="170%"><feDropShadow dx="4" dy="10" stdDeviation="6" flood-color="#000" flood-opacity="0.5"/></filter>
+</defs>
+<rect width="1024" height="1024" fill="url(#bg)"/>
+<rect width="1024" height="1024" fill="url(#glow)"/>
+<g filter="url(#sh)"><rect x="112" y="150" width="800" height="800" rx="40" fill="url(#slab)"/></g>
+<g stroke="#8b7a55" stroke-width="10" fill="none" opacity="0.75"><path d="M150 188 H874 V912 H150 Z"/></g>
+<g stroke="#4a4438" stroke-width="5" opacity="0.5"><path d="M212 250H812M212 450H812M212 650H812M212 850H812M212 250V850M412 250V850M612 250V850M812 250V850"/></g>
+<g stroke="#606876" stroke-width="5" fill="none" opacity="0.28"><path d="M150 700 Q420 560 874 640"/><path d="M300 190 Q500 420 420 910"/></g>
+<g filter="url(#ss)">
+<circle cx="312" cy="550" r="96" fill="url(#bone)"/><circle cx="312" cy="550" r="88" fill="none" stroke="#8f8062" stroke-width="5" opacity="0.5"/>
+<circle cx="712" cy="550" r="96" fill="url(#bone)"/><circle cx="712" cy="550" r="88" fill="none" stroke="#8f8062" stroke-width="5" opacity="0.5"/>
+<circle cx="512" cy="550" r="96" fill="url(#glass)"/><circle cx="512" cy="550" r="88" fill="none" stroke="#5fa6b8" stroke-width="7" opacity="0.9"/>
+</g>
+<ellipse cx="478" cy="506" rx="26" ry="12" transform="rotate(-40 478 506)" fill="#fff" opacity="0.55"/><circle cx="462" cy="530" r="6" fill="#fff" opacity="0.85"/>
+<ellipse cx="278" cy="506" rx="26" ry="12" transform="rotate(-40 278 506)" fill="#fff" opacity="0.6"/>
+<ellipse cx="678" cy="506" rx="26" ry="12" transform="rotate(-40 678 506)" fill="#fff" opacity="0.6"/>
+<g stroke="#e86a54" stroke-width="22" stroke-linecap="round" opacity="0.95"><path d="M470 508 L554 592M554 508 L470 592"/></g>
+</svg>

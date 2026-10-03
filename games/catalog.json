@@ -18,6 +18,17 @@
     "play": "games/alquerque-twelve-and-twelve/play/"
   },
   {
+    "slug": "american-football-seven-on-seven",
+    "stage": "release-candidate",
+    "title": "American Football: 7 on 7",
+    "tagline": "Call the play, then play your position in seven-a-side football.",
+    "description": "A simplified seven-on-seven game of American football in 3D. Pick a position, call plays and play it in real time: throw, run, catch, rush, cover and tackle. Five opponent levels, Watch & Learn, and a full Rules page.",
+    "genre": "team sport with play-calling",
+    "demo": true,
+    "icon": "games/american-football-seven-on-seven/icon.svg",
+    "play": "games/american-football-seven-on-seven/play/"
+  },
+  {
     "slug": "ampe-jump-and-clap",
     "stage": "release-candidate",
     "title": "Ampe",
@@ -76,6 +87,24 @@
     ],
     "icon": "games/bao-la-kiswahili/icon.svg",
     "play": "games/bao-la-kiswahili/play/"
+  },
+  {
+    "slug": "basketball-three-on-three",
+    "stage": "release-candidate",
+    "title": "Basketball 3x3",
+    "tagline": "Pick a role. Screen, drive, shoot, rebound.",
+    "description": "Play real 3x3 half-court basketball in 3D: pick guard, wing or big, and control that one player while the computer plays your two teammates and three opponents. Time your shot in the green zone, set screens, pass to the open player, steal, block and rebound. Five opponent levels, a Learn path, Think hints and Watch & Learn.",
+    "genre": "half-court basketball sport",
+    "demo": true,
+    "howToPlay": [
+      "Choose a role: guard, wing or big. You control that one player.",
+      "Left thumb moves. SHOOT: hold and release in the green zone. PASS to a teammate, CROSS to beat a defender.",
+      "Without the ball: CALL for a pass, hold SCREEN to free a teammate, CUT into space.",
+      "On defence: stay between your man and the hoop, STEAL when the ball is low, BLOCK a shooter, JUMP for rebounds.",
+      "First to 21 or the lead at 10:00 wins; overtime is first to 2."
+    ],
+    "icon": "games/basketball-three-on-three/icon.svg",
+    "play": "games/basketball-three-on-three/play/"
   },
   {
     "slug": "big-card-solitaire-large-print",
@@ -139,6 +168,24 @@
     "play": "games/chess-royal-sixty-four/play/"
   },
   {
+    "slug": "chogan-persian-polo",
+    "stage": "release-candidate",
+    "title": "Chogan",
+    "tagline": "Ride, swing and score in the ancient game that became polo.",
+    "description": "Chogan is the ancient mounted game of Iran and the ancestor of polo. Take one of three riders, steer a galloping horse, time your mallet swing and drive the ball between the posts. Five computer rival teams, a Learn path, Think hints and Watch & Learn.",
+    "genre": "mounted sport / Persian polo",
+    "demo": true,
+    "howToPlay": [
+      "Drag with your left thumb to ride; push to the edge to sprint.",
+      "Hold SWING to wind up and let go to hit; steer to choose the direction.",
+      "Get the ball beside your horse (the ring turns green) before you swing.",
+      "Press HOOK to knock away a rival's mallet as he winds up.",
+      "Play four short periods; the team with more goals wins."
+    ],
+    "icon": "games/chogan-persian-polo/icon.svg",
+    "play": "games/chogan-persian-polo/play/"
+  },
+  {
     "slug": "congklak-sungka-shells",
     "stage": "production",
     "title": "Congklak",
@@ -158,6 +205,24 @@
     ],
     "icon": "games/congklak-sungka-shells/icon.svg",
     "play": "games/congklak-sungka-shells/play/"
+  },
+  {
+    "slug": "cornhole-bag-toss",
+    "stage": "release-candidate",
+    "title": "Cornhole",
+    "tagline": "Pitch bags at the slanted board and sink them in the hole.",
+    "description": "The backyard bag toss. Pull back and let go: land a bag on the slanted board for one point or in the hole for three, and push your rival's bags out of the way. Real board size and slope, soft fabric bags with a flip and a flop, cancellation scoring, five computer opponents, Think, Learn and Watch & Learn.",
+    "genre": "skill sport / lawn bag toss",
+    "demo": true,
+    "howToPlay": [
+      "Press on the lawn, pull back and to a side, let go to throw.",
+      "Pick Slide, Arc or Flip and add spin to curve a slide.",
+      "Bag on the board: 1 point. Bag in the hole: 3.",
+      "After four bags each, only the difference counts. First to 11 or 21 wins.",
+      "Tap Think for a throw that was tested with twelve simulated bags."
+    ],
+    "icon": "games/cornhole-bag-toss/icon.svg",
+    "play": "games/cornhole-bag-toss/play/"
   },
   {
     "slug": "crokinole-disc-flick",
@@ -215,6 +280,24 @@
     ],
     "icon": "games/curling-stone-and-sweep/icon.svg",
     "play": "games/curling-stone-and-sweep/play/"
+  },
+  {
+    "slug": "diketo-stones",
+    "stage": "release-candidate",
+    "title": "Diketo: Stones",
+    "tagline": "Toss one, take the rest, catch it before it falls.",
+    "description": "The traditional Southern African stone-toss game on a swept dirt yard. Take the pile out of the hole and back in, stage by stage, with a timed toss and catch. Five computer levels, pass and play, lessons and Watch & Learn.",
+    "genre": "stone toss and pick-up skill game",
+    "demo": true,
+    "howToPlay": [
+      "Hold the pad to set the toss height, release to toss.",
+      "While the stone is in the air, tap or drag across the stones to take.",
+      "Tap CATCH when the ring closes on the landing spot.",
+      "Move the pile out of the hole and back in, stage by stage.",
+      "Drop it and the turn passes: the first to finish the last stage wins."
+    ],
+    "icon": "games/diketo-stones/icon.svg",
+    "play": "games/diketo-stones/play/"
   },
   {
     "slug": "domino-cubano-doble-nueve",
@@ -294,6 +377,42 @@
     ],
     "icon": "games/fanorona-approach-withdraw/icon.svg",
     "play": "games/fanorona-approach-withdraw/play/"
+  },
+  {
+    "slug": "football-seven-a-side",
+    "stage": "release-candidate",
+    "title": "Football: Seven a Side",
+    "tagline": "One role. One team. A real match.",
+    "description": "Seven-a-side football in real-time 3D. Pick a role (striker, winger, midfielder, defender or goalkeeper), play it with a thumb stick and context buttons, and let the computer play the rest. Five rival levels, Learn drills, Think hints and Watch & Learn.",
+    "genre": "team sport",
+    "demo": true,
+    "howToPlay": [
+      "Pick one role before the match and keep it.",
+      "Drag the left thumb to move; hold SPRINT to run.",
+      "With the ball: SHOOT (hold, release), PASS, LOB or THROUGH.",
+      "Without it: TACKLE, SLIDE, HEAD or CALL; goalkeepers swipe to dive.",
+      "Win two halves of 2, 3 or 5 minutes."
+    ],
+    "icon": "games/football-seven-a-side/icon.svg",
+    "play": "games/football-seven-a-side/play/"
+  },
+  {
+    "slug": "footy-kick-and-mark",
+    "stage": "release-candidate",
+    "title": "Footy: Kick and Mark",
+    "tagline": "Kick, mark and tackle: six-a-side on a whole oval.",
+    "description": "A simplified original take on the Australian football tradition, in real 3D. Pick one player, handball and kick to your forwards, win the mark, tackle cleanly and score through the four posts. Five computer levels, a Learn path with a tutorial for every role, Think hints and Watch & Learn.",
+    "genre": "team sport / kick-and-mark ball game",
+    "demo": true,
+    "howToPlay": [
+      "Drag the left stick to run; hold RUN to sprint.",
+      "KICK or HANDBALL to a teammate: push the stick towards him and follow the teal ring.",
+      "Run to the gold ring and press MARK a third of a second before the ball arrives.",
+      "After a mark, press KICK when the bar is in the middle.",
+      "TACKLE the carrier from behind; score 6 for a goal, 1 for a behind."
+    ],
+    "icon": "games/footy-kick-and-mark/icon.svg",
+    "play": "games/footy-kick-and-mark/play/"
   },
   {
     "slug": "fox-and-geese",
@@ -474,6 +593,24 @@
     "play": "games/huarong-dao-sliding-puzzle/play/"
   },
   {
+    "slug": "hurling-sliotar-dash",
+    "stage": "release-candidate",
+    "title": "Hurling: Sliotar Dash",
+    "tagline": "Strike, solo and score.",
+    "description": "The fast Gaelic field game of Ireland in 3D: pick a role, strike for a point or a goal, rise the ball, solo run and hook. Five opponents, Learn drills, Think hints and Watch & Learn.",
+    "genre": "team field sport",
+    "demo": true,
+    "howToPlay": [
+      "Pick a role: forward, midfielder, back or goalkeeper.",
+      "Drag the stick to run; push all the way to sprint.",
+      "RISE picks the ball up; PASS hand-passes; HOOK checks a rival.",
+      "Hold STRIKE: release in the GOAL zone (3) or the POINT zone (1).",
+      "Tap Think for the best play and why."
+    ],
+    "icon": "games/hurling-sliotar-dash/icon.svg",
+    "play": "games/hurling-sliotar-dash/play/"
+  },
+  {
     "slug": "jack-and-boule-petanque",
     "stage": "release-candidate",
     "title": "Jack and Boule",
@@ -546,6 +683,24 @@
     "play": "games/kendama-ken-and-ball/play/"
   },
   {
+    "slug": "kilikiti-village-match",
+    "stage": "release-candidate",
+    "title": "Kilikiti",
+    "tagline": "A village match: swipe, flick, run and catch.",
+    "description": "Samoa's own bat-and-ball game in a modern, simplified take for your phone. Pick one role in your team (batter, bowler, inner or deep fielder) and play it while the computer plays everyone else. A three-sided bat, a hard rubber ball and a big fielding side, in short matches with real runs, fours, sixes and run outs. Five opponent levels, a Learn path for each role, Think hints and Watch & Learn.",
+    "genre": "bat-and-ball team sport",
+    "demo": true,
+    "howToPlay": [
+      "Pick one role in your team. The computer plays everyone else.",
+      "Batter: swipe the way you want the ball to go as it reaches the bat; tap RUN after a hit.",
+      "Bowler: pick a swerve, then flick up the screen. The ring shows where it lands.",
+      "Fielder: hold a finger to run, tap just as the ball reaches you, then choose where to throw.",
+      "Tap ? for a hint with a reason, or watch the computer play and explain in Watch & Learn."
+    ],
+    "icon": "games/kilikiti-village-match/icon.svg",
+    "play": "games/kilikiti-village-match/play/"
+  },
+  {
     "slug": "kings-table-tafl",
     "stage": "release-candidate",
     "title": "Tafl",
@@ -585,6 +740,24 @@
     "play": "games/kite-duel-sky-fight/play/"
   },
   {
+    "slug": "kolam-dot-pattern",
+    "stage": "release-candidate",
+    "title": "Kolam",
+    "tagline": "One line. Every dot.",
+    "description": "A calm drawing puzzle inspired by the South Indian kolam tradition: trace one unbroken glowing line around every dot and close it. 72 patterns on square, diamond and staggered grids, Think with checked reasons, Watch & Learn, a daily pattern and a free-draw Sandbox with mirror symmetry. No timer, no ads.",
+    "genre": "dot-pattern drawing puzzle",
+    "demo": true,
+    "howToPlay": [
+      "Touch near a dot and drag around it; the line follows your finger.",
+      "Between dots choose how the line passes: wrap, cross or dip.",
+      "Marks on gaps are fixed. Draw one closed line through every arc that keeps them.",
+      "Guide warns before a turn that would trap part of the pattern; Think explains the next stretch.",
+      "Three stars: close the loop, no Think, no wrong turns."
+    ],
+    "icon": "games/kolam-dot-pattern/icon.svg",
+    "play": "games/kolam-dot-pattern/play/"
+  },
+  {
     "slug": "konane-hawaiian-jumps",
     "stage": "production",
     "title": "Konane",
@@ -604,6 +777,42 @@
     ],
     "icon": "games/konane-hawaiian-jumps/icon.svg",
     "play": "games/konane-hawaiian-jumps/play/"
+  },
+  {
+    "slug": "kubb-toss",
+    "stage": "release-candidate",
+    "title": "Kubb",
+    "tagline": "Knock the blocks, throw them back, topple the king.",
+    "description": "The Nordic lawn game with real wooden physics. Drag back to throw a spinning baton, knock over the other team's kubbs, throw your own fallen ones back as field kubbs, and fell the king last to win.",
+    "genre": "lawn game / throwing skill",
+    "demo": true,
+    "howToPlay": [
+      "Drag back on the pitch like a slingshot and let go to throw a baton.",
+      "Pick Loft (Low, Medium, High) and Spin to change how the baton flies and lands.",
+      "Knock down field kubbs first, then the baseline kubbs, then the king.",
+      "Fallen kubbs are thrown back into the other half: drag a ring, let go.",
+      "Topple the king too early and you lose. Tap Think for a tested throw."
+    ],
+    "icon": "games/kubb-toss/icon.svg",
+    "play": "games/kubb-toss/play/"
+  },
+  {
+    "slug": "latrunculi-roman",
+    "stage": "release-candidate",
+    "title": "Ludus Latrunculorum",
+    "tagline": "Slide. Sandwich. Enclose the dux.",
+    "description": "The Roman game of little soldiers on a marble board with pieces of bone and glass. Slide your soldiers like rooks, sandwich the other side's soldiers to take them, and enclose the enemy dux. A reconstructed game, with five opponent levels from Novice to Master, two players on one phone, Think with a plain-English reason, a short Learn course and Watch & Learn. No timers and no ads.",
+    "genre": "abstract strategy, custodian capture",
+    "demo": true,
+    "howToPlay": [
+      "Each side has 15 soldiers and a dux. Ivory moves first. Slide one piece a turn along its row or column over empty squares, like a rook.",
+      "Sandwich an enemy soldier between two of your pieces, in a row or column, to take it. Moving between two enemies is safe.",
+      "A soldier on an edge falls only along the edge; a corner soldier falls to the two squares beside it.",
+      "The dux cannot be sandwiched: enclose it, every side held by you or the edge, and you win. No move left, or only a dux left, loses.",
+      "Think shows a good move and why; Learn and Watch & Learn teach the ideas."
+    ],
+    "icon": "games/latrunculi-roman/icon.svg",
+    "play": "games/latrunculi-roman/play/"
   },
   {
     "slug": "loteria-cantada-tablas",
@@ -1006,6 +1215,24 @@
     "play": "games/royal-game-of-ur-race/play/"
   },
   {
+    "slug": "sapo-frog-toss",
+    "stage": "release-candidate",
+    "title": "Sapo: Frog Toss",
+    "tagline": "Toss brass discs at the open mouth of the frog.",
+    "description": "The classic tavern table game of Peru, Chile and Argentina. Pull back, aim, add spin and drop brass discs into the golden frog's mouth for 500.",
+    "genre": "skill toss / tavern table game",
+    "demo": true,
+    "howToPlay": [
+      "Drag down in the lower part of the screen to pull the disc back; the ring shows where it lands.",
+      "Pick a high Lob or a low Drive, and a spin to the left or right.",
+      "A disc that drops into a hole scores: the frog's mouth is worth 500.",
+      "Loose discs stay on the table: knock your rival's away.",
+      "After each round the loose disc nearest the mouth earns a bonus. Tap Think for a tested throw."
+    ],
+    "icon": "games/sapo-frog-toss/icon.svg",
+    "play": "games/sapo-frog-toss/play/"
+  },
+  {
     "slug": "scopa-delle-regioni",
     "stage": "release-candidate",
     "title": "Scopa",
@@ -1124,6 +1351,24 @@
     "play": "games/shogi-generals-and-drops/play/"
   },
   {
+    "slug": "snooker-cue-and-frame",
+    "stage": "release-candidate",
+    "title": "Snooker: Cue and Frame",
+    "tagline": "Pot, spin, build the break.",
+    "description": "Snooker on a fixed table with real ball physics: top spin, back spin, side spin, cushions and pockets. Aim, pull the cue back, pot a red and a colour, and build a break. Play five computer opponents, share the phone, learn the shots in short lessons, or watch two players explain their choices.",
+    "genre": "snooker vs computer",
+    "demo": true,
+    "howToPlay": [
+      "Drag on the table to aim; drag in the Fine aim window for small turns.",
+      "Drag on the white ball circle to choose top spin, back spin or side spin.",
+      "Pull the cue back on the Power strip and let go to shoot.",
+      "Pot a red (1 point), then a colour (2 to 7), and keep going; when the reds are gone, pot the colours in order.",
+      "A foul gives the other player at least 4 points."
+    ],
+    "icon": "games/snooker-cue-and-frame/icon.svg",
+    "play": "games/snooker-cue-and-frame/play/"
+  },
+  {
     "slug": "spinning-tops-arena",
     "stage": "release-candidate",
     "title": "Spinning Tops Arena",
@@ -1180,6 +1425,25 @@
     ],
     "icon": "games/sure-sweep-no-guess/icon.svg",
     "play": "games/sure-sweep-no-guess/play/"
+  },
+  {
+    "slug": "tab-stick-race",
+    "stage": "release-candidate",
+    "title": "Tab: Stick Race",
+    "tagline": "The four-stick race of Egypt and the Arab world",
+    "description": "A traditional race-and-capture game played with four tumbling throwing sticks. Bring your stones on with a one, slide them along a carved 28-square path, land on your rival's stones, rest on the star squares and be first home. Five opponent levels, two players on one phone, Think that explains moves with the real chances of the next throws, a Learn course and Watch & Learn. Play in English or Arabic. No timers and no ads.",
+    "genre": "race board game, stick dice",
+    "demo": true,
+    "howToPlay": [
+      "Each side has seven stones (or four in a quick game). Bring every stone home before your rival does.",
+      "Tap Throw: four sticks tumble. Flat sides up are your count: none flat is 6, one is 1, two is 2, three is 3, four is 4.",
+      "After a 1, 4 or 6 you throw again. A 2 or 3 ends your throws. Keep every count and spend them in any order.",
+      "A 1 brings a stone on. Spend a count: tap a stone, then the glowing square. Landing on a rival stone captures it.",
+      "A stone on a star square cannot be captured. A stone carried past the last square goes home.",
+      "Think shows the best move and why. Learn teaches the rules. Watch & Learn plays a whole game with a Pause button."
+    ],
+    "icon": "games/tab-stick-race/icon.svg",
+    "play": "games/tab-stick-race/play/"
   },
   {
     "slug": "tangram-seven-pieces",
@@ -1347,6 +1611,41 @@
     ],
     "icon": "games/truco-brasileiro-manilha/icon.svg",
     "play": "games/truco-brasileiro-manilha/play/"
+  },
+  {
+    "slug": "tumbang-preso-can-toss",
+    "stage": "release-candidate",
+    "title": "Tumbang Preso: Can Toss",
+    "tagline": "Knock the can down. Fetch your slipper. Do not get tagged.",
+    "description": "A traditional street game from the Philippines in real time. Throw slippers at the can as a thrower, or guard it as the taya: stand it up again and tag the runners. Real flight and bounce physics, five computer players, short lessons, hints with the numbers behind them, and a Watch & Learn mode that explains every choice.",
+    "genre": "street toss and tag",
+    "demo": true,
+    "howToPlay": [
+      "Drag on the yard to place the target ring on the can, choose Lob or Skim and press Throw.",
+      "When the can falls, the guard has to fetch it and stand it up: that is your time to run for your slipper.",
+      "Behind the toe line you are safe. Out in the yard you can be tagged while the can stands.",
+      "As the guard, press Fix can, then chase the runner most likely to be caught."
+    ],
+    "icon": "games/tumbang-preso-can-toss/icon.svg",
+    "play": "games/tumbang-preso-can-toss/play/"
+  },
+  {
+    "slug": "volleyball-rotation-rally",
+    "stage": "release-candidate",
+    "title": "Volleyball",
+    "tagline": "Pick your role. Pass, set, spike and block.",
+    "description": "Play one of six players on a volleyball team in real 3D: setter, outside hitter, middle blocker, opposite or libero. Run your player, time each touch and aim with a flick while the computer plays the other eleven. Five rival levels, role tutorials, Learn lessons, Think hints and Watch & Learn.",
+    "genre": "team volleyball sport",
+    "demo": true,
+    "howToPlay": [
+      "Choose your role, then drag to run your player.",
+      "When the ring closes on your player, lift your finger to pass, set, spike, serve or block.",
+      "Flick as you lift to aim: left, right, long or short.",
+      "Win sets to 25 (win by two); the deciding set goes to 15.",
+      "Tap Roles to see the rotation order."
+    ],
+    "icon": "games/volleyball-rotation-rally/icon.svg",
+    "play": "games/volleyball-rotation-rally/play/"
   },
   {
     "slug": "word-game",

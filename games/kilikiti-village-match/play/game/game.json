@@ -1,0 +1,25 @@
+{
+  "slug": "kilikiti-village-match",
+  "title": "Kilikiti",
+  "tagline": "A village match: swipe, flick, run and catch.",
+  "genre": "bat-and-ball team sport",
+  "orientation": "portrait",
+  "version": "1.0.1",
+  "monetization": {
+    "model": "premium",
+    "priceUsd": 3.99,
+    "previewSeconds": 90,
+    "products": [
+      {
+        "id": "unlock_game",
+        "type": "non-consumable",
+        "priceUsd": 3.99,
+        "title": "Unlock Game"
+      }
+    ]
+  },
+  "locales": [
+    "en"
+  ],
+  "demoOnly": true
+}

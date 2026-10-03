@@ -1,0 +1,13 @@
+{
+  "title": "Tumbang Preso: Can Toss",
+  "tagline": "Knock the can down. Fetch your slipper. Do not get tagged.",
+  "description": "A traditional street game from the Philippines in real time. Throw slippers at the can as a thrower, or guard it as the taya: stand it up again and tag the runners. Real flight and bounce physics, five computer players, short lessons, hints with the numbers behind them, and a Watch & Learn mode that explains every choice.",
+  "genre": "street toss and tag",
+  "demo": true,
+  "howToPlay": [
+    "Drag on the yard to place the target ring on the can, choose Lob or Skim and press Throw.",
+    "When the can falls, the guard has to fetch it and stand it up: that is your time to run for your slipper.",
+    "Behind the toe line you are safe. Out in the yard you can be tagged while the can stands.",
+    "As the guard, press Fix can, then chase the runner most likely to be caught."
+  ]
+}

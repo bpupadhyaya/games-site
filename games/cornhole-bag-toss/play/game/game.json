@@ -1,0 +1,25 @@
+{
+  "slug": "cornhole-bag-toss",
+  "title": "Cornhole",
+  "tagline": "Pitch bags at the slanted board and sink them in the hole.",
+  "genre": "skill sport / lawn bag toss",
+  "orientation": "portrait",
+  "version": "1.0.0",
+  "monetization": {
+    "model": "premium",
+    "priceUsd": 2.99,
+    "previewSeconds": 90,
+    "products": [
+      {
+        "id": "unlock_game",
+        "type": "non-consumable",
+        "priceUsd": 2.99,
+        "title": "Unlock Game"
+      }
+    ]
+  },
+  "locales": [
+    "en"
+  ],
+  "demoOnly": true
+}

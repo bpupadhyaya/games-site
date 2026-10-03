@@ -1,0 +1,20 @@
+{
+  "version": "1.6.0",
+  "characters": [
+    "mannequin_m",
+    "mannequin_f"
+  ],
+  "clips": [
+    "base"
+  ],
+  "files": {
+    "characters/mannequin_m.glb": "b75014e5b6033ec6ef0979a126cac399f1004f23bc1ed2e9df74aad9eacf288a",
+    "characters/mannequin_m.json": "d2b7eb91a162f48489ef97377e9fc5dc8cb5136633b52665a0ae970e35f5e7e6",
+    "characters/mannequin_f.glb": "c6632ddaa0fbc8cd80c64e9f7cf5f9fca15aaca1020415159903e1ae53c9b467",
+    "characters/mannequin_f.json": "1f703227b40c1f415fd00774f6ea35c2003c815de98e5e61458e4e4f25daa9f3",
+    "clips/base.bin": "8a3871846e5303a374014b8d5197bd767f3f62449917be3fc0fc7069f4dd7de0",
+    "clips/base.json": "9d7bd7a3a4e145d959784b59b7058f4ab4afebe0c29bbf6a9ed72603ec145269"
+  },
+  "hash": "7e84a4b516a2985ed81565f1db97e2dde76917389cdb48b18228a8bf7588e832",
+  "note": "Vendored copies. Never edit. Re-select with: tools/arc view3d-add <slug> --characters a,b ; refresh with: tools/arc view3d-upgrade"
+}

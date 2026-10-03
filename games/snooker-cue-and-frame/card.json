@@ -1,0 +1,14 @@
+{
+  "title": "Snooker: Cue and Frame",
+  "tagline": "Pot, spin, build the break.",
+  "description": "Snooker on a fixed table with real ball physics: top spin, back spin, side spin, cushions and pockets. Aim, pull the cue back, pot a red and a colour, and build a break. Play five computer opponents, share the phone, learn the shots in short lessons, or watch two players explain their choices.",
+  "genre": "snooker vs computer",
+  "demo": true,
+  "howToPlay": [
+    "Drag on the table to aim; drag in the Fine aim window for small turns.",
+    "Drag on the white ball circle to choose top spin, back spin or side spin.",
+    "Pull the cue back on the Power strip and let go to shoot.",
+    "Pot a red (1 point), then a colour (2 to 7), and keep going; when the reds are gone, pot the colours in order.",
+    "A foul gives the other player at least 4 points."
+  ]
+}

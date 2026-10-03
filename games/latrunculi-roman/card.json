@@ -1,0 +1,14 @@
+{
+  "title": "Ludus Latrunculorum",
+  "tagline": "Slide. Sandwich. Enclose the dux.",
+  "description": "The Roman game of little soldiers on a marble board with pieces of bone and glass. Slide your soldiers like rooks, sandwich the other side's soldiers to take them, and enclose the enemy dux. A reconstructed game, with five opponent levels from Novice to Master, two players on one phone, Think with a plain-English reason, a short Learn course and Watch & Learn. No timers and no ads.",
+  "genre": "abstract strategy, custodian capture",
+  "demo": true,
+  "howToPlay": [
+    "Each side has 15 soldiers and a dux. Ivory moves first. Slide one piece a turn along its row or column over empty squares, like a rook.",
+    "Sandwich an enemy soldier between two of your pieces, in a row or column, to take it. Moving between two enemies is safe.",
+    "A soldier on an edge falls only along the edge; a corner soldier falls to the two squares beside it.",
+    "The dux cannot be sandwiched: enclose it, every side held by you or the edge, and you win. No move left, or only a dux left, loses.",
+    "Think shows a good move and why; Learn and Watch & Learn teach the ideas."
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "slug": "hurling-sliotar-dash",
+  "title": "Hurling: Sliotar Dash",
+  "tagline": "Fast Irish field sport: strike, solo, score.",
+  "genre": "team field sport",
+  "orientation": "portrait",
+  "version": "1.0.1",
+  "monetization": {
+    "model": "premium",
+    "priceUsd": 3.99,
+    "previewSeconds": 90,
+    "products": [
+      {
+        "id": "unlock_game",
+        "type": "non-consumable",
+        "priceUsd": 3.99,
+        "title": "Unlock Game"
+      }
+    ]
+  },
+  "locales": [
+    "en"
+  ],
+  "demoOnly": true
+}

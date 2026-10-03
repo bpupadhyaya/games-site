@@ -1,0 +1,14 @@
+{
+  "title": "Cornhole",
+  "tagline": "Pitch bags at the slanted board and sink them in the hole.",
+  "description": "The backyard bag toss. Pull back and let go: land a bag on the slanted board for one point or in the hole for three, and push your rival's bags out of the way. Real board size and slope, soft fabric bags with a flip and a flop, cancellation scoring, five computer opponents, Think, Learn and Watch & Learn.",
+  "genre": "skill sport / lawn bag toss",
+  "demo": true,
+  "howToPlay": [
+    "Press on the lawn, pull back and to a side, let go to throw.",
+    "Pick Slide, Arc or Flip and add spin to curve a slide.",
+    "Bag on the board: 1 point. Bag in the hole: 3.",
+    "After four bags each, only the difference counts. First to 11 or 21 wins.",
+    "Tap Think for a throw that was tested with twelve simulated bags."
+  ]
+}

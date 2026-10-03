@@ -1,0 +1,25 @@
+{
+  "slug": "kolam-dot-pattern",
+  "title": "Kolam",
+  "tagline": "One line. Every dot.",
+  "genre": "dot-pattern drawing puzzle",
+  "orientation": "portrait",
+  "version": "1.0.0",
+  "monetization": {
+    "model": "premium",
+    "priceUsd": 2.99,
+    "previewSeconds": 90,
+    "products": [
+      {
+        "id": "unlock_game",
+        "type": "non-consumable",
+        "priceUsd": 2.99,
+        "title": "Unlock Game"
+      }
+    ]
+  },
+  "locales": [
+    "en"
+  ],
+  "demoOnly": true
+}

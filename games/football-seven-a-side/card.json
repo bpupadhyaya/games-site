@@ -1,0 +1,14 @@
+{
+  "title": "Football: Seven a Side",
+  "tagline": "One role. One team. A real match.",
+  "description": "Seven-a-side football in real-time 3D. Pick a role (striker, winger, midfielder, defender or goalkeeper), play it with a thumb stick and context buttons, and let the computer play the rest. Five rival levels, Learn drills, Think hints and Watch & Learn.",
+  "genre": "team sport",
+  "demo": true,
+  "howToPlay": [
+    "Pick one role before the match and keep it.",
+    "Drag the left thumb to move; hold SPRINT to run.",
+    "With the ball: SHOOT (hold, release), PASS, LOB or THROUGH.",
+    "Without it: TACKLE, SLIDE, HEAD or CALL; goalkeepers swipe to dive.",
+    "Win two halves of 2, 3 or 5 minutes."
+  ]
+}

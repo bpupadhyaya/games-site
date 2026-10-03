@@ -1,0 +1,14 @@
+{
+  "title": "Kolam",
+  "tagline": "One line. Every dot.",
+  "description": "A calm drawing puzzle inspired by the South Indian kolam tradition: trace one unbroken glowing line around every dot and close it. 72 patterns on square, diamond and staggered grids, Think with checked reasons, Watch & Learn, a daily pattern and a free-draw Sandbox with mirror symmetry. No timer, no ads.",
+  "genre": "dot-pattern drawing puzzle",
+  "demo": true,
+  "howToPlay": [
+    "Touch near a dot and drag around it; the line follows your finger.",
+    "Between dots choose how the line passes: wrap, cross or dip.",
+    "Marks on gaps are fixed. Draw one closed line through every arc that keeps them.",
+    "Guide warns before a turn that would trap part of the pattern; Think explains the next stretch.",
+    "Three stars: close the loop, no Think, no wrong turns."
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "slug": "basketball-three-on-three",
+  "title": "Basketball 3x3",
+  "tagline": "Pick a role. Screen, drive, shoot, rebound.",
+  "genre": "half-court basketball sport",
+  "orientation": "portrait",
+  "version": "1.0.1",
+  "monetization": {
+    "model": "premium",
+    "priceUsd": 3.99,
+    "previewSeconds": 90,
+    "products": [
+      {
+        "id": "unlock_game",
+        "type": "non-consumable",
+        "priceUsd": 3.99,
+        "title": "Unlock Game"
+      }
+    ]
+  },
+  "locales": [
+    "en"
+  ],
+  "demoOnly": true
+}

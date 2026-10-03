@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2e8b57"/><stop offset="1" stop-color="#0f2a1d"/></linearGradient></defs>
+  <rect width="1024" height="1024" fill="url(#g)"/>
+  <ellipse cx="512" cy="860" rx="330" ry="70" fill="#0a1f15" opacity="0.5"/>
+  <!-- horse head and neck silhouette -->
+  <path d="M300 820 C330 600 360 470 470 360 C500 330 520 300 530 250 L560 210 L575 262 C640 270 720 330 760 420 C790 490 760 520 720 520 C690 520 670 500 650 490 C610 520 590 600 600 700 C610 760 620 800 640 820 Z" fill="#7a3f1e"/>
+  <path d="M470 360 C500 330 520 300 530 250 L560 210 L575 262 C540 290 520 330 500 380 Z" fill="#2a1912"/>
+  <circle cx="665" cy="425" r="14" fill="#f4efe4"/>
+  <!-- mallet and ball -->
+  <line x1="250" y1="250" x2="760" y2="880" stroke="#e8d9b8" stroke-width="26" stroke-linecap="round"/>
+  <rect x="705" y="840" width="120" height="44" rx="14" fill="#e8d9b8" transform="rotate(50 765 862)"/>
+  <circle cx="850" cy="780" r="62" fill="#fbf7ee"/>
+  <rect x="790" y="770" width="120" height="18" fill="#d8422f"/>
+</svg>

@@ -1,0 +1,14 @@
+{
+  "title": "Chogan",
+  "tagline": "Ride, swing and score in the ancient game that became polo.",
+  "description": "Chogan is the ancient mounted game of Iran and the ancestor of polo. Take one of three riders, steer a galloping horse, time your mallet swing and drive the ball between the posts. Five computer rival teams, a Learn path, Think hints and Watch & Learn.",
+  "genre": "mounted sport / Persian polo",
+  "demo": true,
+  "howToPlay": [
+    "Drag with your left thumb to ride; push to the edge to sprint.",
+    "Hold SWING to wind up and let go to hit; steer to choose the direction.",
+    "Get the ball beside your horse (the ring turns green) before you swing.",
+    "Press HOOK to knock away a rival's mallet as he winds up.",
+    "Play four short periods; the team with more goals wins."
+  ]
+}

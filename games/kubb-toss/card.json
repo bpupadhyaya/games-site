@@ -1,0 +1,14 @@
+{
+  "title": "Kubb",
+  "tagline": "Knock the blocks, throw them back, topple the king.",
+  "description": "The Nordic lawn game with real wooden physics. Drag back to throw a spinning baton, knock over the other team's kubbs, throw your own fallen ones back as field kubbs, and fell the king last to win.",
+  "genre": "lawn game / throwing skill",
+  "demo": true,
+  "howToPlay": [
+    "Drag back on the pitch like a slingshot and let go to throw a baton.",
+    "Pick Loft (Low, Medium, High) and Spin to change how the baton flies and lands.",
+    "Knock down field kubbs first, then the baseline kubbs, then the king.",
+    "Fallen kubbs are thrown back into the other half: drag a ring, let go.",
+    "Topple the king too early and you lose. Tap Think for a tested throw."
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "title": "Tab: Stick Race",
+  "tagline": "The four-stick race of Egypt and the Arab world",
+  "description": "A traditional race-and-capture game played with four tumbling throwing sticks. Bring your stones on with a one, slide them along a carved 28-square path, land on your rival's stones, rest on the star squares and be first home. Five opponent levels, two players on one phone, Think that explains moves with the real chances of the next throws, a Learn course and Watch & Learn. Play in English or Arabic. No timers and no ads.",
+  "genre": "race board game, stick dice",
+  "demo": true,
+  "howToPlay": [
+    "Each side has seven stones (or four in a quick game). Bring every stone home before your rival does.",
+    "Tap Throw: four sticks tumble. Flat sides up are your count: none flat is 6, one is 1, two is 2, three is 3, four is 4.",
+    "After a 1, 4 or 6 you throw again. A 2 or 3 ends your throws. Keep every count and spend them in any order.",
+    "A 1 brings a stone on. Spend a count: tap a stone, then the glowing square. Landing on a rival stone captures it.",
+    "A stone on a star square cannot be captured. A stone carried past the last square goes home.",
+    "Think shows the best move and why. Learn teaches the rules. Watch & Learn plays a whole game with a Pause button."
+  ]
+}

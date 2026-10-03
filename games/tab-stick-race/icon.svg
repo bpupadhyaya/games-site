@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+<defs>
+<linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a6a58"/><stop offset="1" stop-color="#0f3a2e"/></linearGradient>
+<linearGradient id="fl" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#cdbd93"/><stop offset="0.5" stop-color="#f6ecd0"/><stop offset="1" stop-color="#d8c9a0"/></linearGradient>
+<linearGradient id="rd" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#3b2012"/><stop offset="0.45" stop-color="#9a5a34"/><stop offset="1" stop-color="#4a2814"/></linearGradient>
+<filter id="sh" x="-30%" y="-10%" width="160%" height="130%"><feDropShadow dx="14" dy="20" stdDeviation="14" flood-color="#000" flood-opacity="0.45"/></filter>
+</defs>
+<rect width="1024" height="1024" fill="url(#bg)"/>
+<circle cx="512" cy="512" r="400" fill="none" stroke="#e0b44c" stroke-opacity="0.35" stroke-width="8"/>
+<polygon points="512,112 576,448 912,512 576,576 512,912 448,576 112,512 448,448" fill="none" stroke="#e0b44c" stroke-opacity="0.35" stroke-width="8"/>
+<g filter="url(#sh)">
+<g transform="rotate(-9 270 520)"><rect x="222" y="190" width="96" height="660" rx="44" fill="url(#rd)"/><path d="M246 230V810" stroke="#2a150a" stroke-opacity="0.5" stroke-width="5"/></g>
+<g transform="rotate(5 440 520)"><rect x="392" y="170" width="96" height="680" rx="44" fill="url(#fl)"/><g fill="#5a3a20"><rect x="396" y="330" width="88" height="14"/><rect x="396" y="356" width="88" height="14"/><rect x="396" y="500" width="88" height="14"/><rect x="396" y="526" width="88" height="14"/><rect x="396" y="670" width="88" height="14"/><rect x="396" y="696" width="88" height="14"/></g></g>
+<g transform="rotate(-4 610 520)"><rect x="562" y="190" width="96" height="670" rx="44" fill="url(#fl)"/><g fill="#5a3a20"><rect x="566" y="340" width="88" height="14"/><rect x="566" y="366" width="88" height="14"/><rect x="566" y="510" width="88" height="14"/><rect x="566" y="536" width="88" height="14"/><rect x="566" y="680" width="88" height="14"/><rect x="566" y="706" width="88" height="14"/></g></g>
+<g transform="rotate(10 780 520)"><rect x="732" y="170" width="96" height="680" rx="44" fill="url(#rd)"/><path d="M756 210V810" stroke="#2a150a" stroke-opacity="0.5" stroke-width="5"/></g>
+</g>
+</svg>

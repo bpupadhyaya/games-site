@@ -1,0 +1,14 @@
+{
+  "title": "Sapo: Frog Toss",
+  "tagline": "Toss brass discs at the open mouth of the frog.",
+  "description": "The classic tavern table game of Peru, Chile and Argentina. Pull back, aim, add spin and drop brass discs into the golden frog's mouth for 500.",
+  "genre": "skill toss / tavern table game",
+  "demo": true,
+  "howToPlay": [
+    "Drag down in the lower part of the screen to pull the disc back; the ring shows where it lands.",
+    "Pick a high Lob or a low Drive, and a spin to the left or right.",
+    "A disc that drops into a hole scores: the frog's mouth is worth 500.",
+    "Loose discs stay on the table: knock your rival's away.",
+    "After each round the loose disc nearest the mouth earns a bonus. Tap Think for a tested throw."
+  ]
+}

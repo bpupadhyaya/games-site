@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9fd8a0"/><stop offset="0.55" stop-color="#4fa352"/><stop offset="1" stop-color="#2c7436"/></linearGradient>
+    <linearGradient id="wood" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#c99a58"/><stop offset="0.45" stop-color="#f0cf90"/><stop offset="1" stop-color="#b4823f"/></linearGradient>
+    <linearGradient id="kingwood" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#b87d3d"/><stop offset="0.45" stop-color="#e2ad66"/><stop offset="1" stop-color="#9c6628"/></linearGradient>
+    <linearGradient id="blue" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4b9bf0"/><stop offset="1" stop-color="#2468b8"/></linearGradient>
+    <linearGradient id="orange" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ff9a4a"/><stop offset="1" stop-color="#d8601a"/></linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.35" r="0.7"><stop offset="0" stop-color="#fff6c8" stop-opacity="0.55"/><stop offset="1" stop-color="#fff6c8" stop-opacity="0"/></radialGradient>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#sky)"/>
+  <rect width="1024" height="1024" fill="url(#glow)"/>
+  <g opacity="0.16" fill="#0b3a14"><rect x="0" y="560" width="1024" height="70"/><rect x="0" y="700" width="1024" height="90"/><rect x="0" y="860" width="1024" height="110"/></g>
+  <!-- shadows -->
+  <ellipse cx="560" cy="860" rx="330" ry="46" fill="#0a2e12" opacity="0.38"/>
+  <!-- king -->
+  <g transform="translate(250 210)">
+    <rect x="30" y="170" width="250" height="560" rx="18" fill="url(#kingwood)" stroke="#5a3510" stroke-width="10"/>
+    <rect x="30" y="360" width="250" height="52" fill="#f1c34a" stroke="#6a4308" stroke-width="6"/>
+    <rect x="30" y="170" width="250" height="40" rx="14" fill="#c98a30" opacity="0.5"/>
+    <path d="M10 190 L10 70 L85 130 L155 20 L225 130 L300 70 L300 190 Z" fill="#f4c64a" stroke="#6a4308" stroke-width="10" stroke-linejoin="round"/>
+    <circle cx="155" cy="95" r="20" fill="#d8402e" stroke="#6a4308" stroke-width="6"/>
+  </g>
+  <!-- blue kubb -->
+  <g transform="translate(130 520)">
+    <rect x="0" y="40" width="190" height="320" rx="16" fill="url(#wood)" stroke="#5a3510" stroke-width="10"/>
+    <rect x="0" y="40" width="190" height="86" rx="16" fill="url(#blue)" stroke="#143f78" stroke-width="8"/>
+  </g>
+  <!-- orange kubb -->
+  <g transform="translate(700 560)">
+    <rect x="0" y="40" width="190" height="300" rx="16" fill="url(#wood)" stroke="#5a3510" stroke-width="10"/>
+    <rect x="0" y="40" width="190" height="86" rx="16" fill="url(#orange)" stroke="#8a3a08" stroke-width="8"/>
+  </g>
+  <!-- baton in flight -->
+  <g transform="translate(300 330) rotate(-38 330 120)">
+    <rect x="0" y="70" width="700" height="100" rx="50" fill="url(#wood)" stroke="#5a3510" stroke-width="10"/>
+    <rect x="70" y="70" width="64" height="100" fill="#2f7fd6"/><rect x="566" y="70" width="64" height="100" fill="#2f7fd6"/>
+    <rect x="334" y="70" width="32" height="100" fill="#fff7e4"/>
+  </g>
+</svg>

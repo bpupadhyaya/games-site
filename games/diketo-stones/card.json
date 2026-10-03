@@ -1,0 +1,14 @@
+{
+  "title": "Diketo: Stones",
+  "tagline": "Toss one, take the rest, catch it before it falls.",
+  "description": "The traditional Southern African stone-toss game on a swept dirt yard. Take the pile out of the hole and back in, stage by stage, with a timed toss and catch. Five computer levels, pass and play, lessons and Watch & Learn.",
+  "genre": "stone toss and pick-up skill game",
+  "demo": true,
+  "howToPlay": [
+    "Hold the pad to set the toss height, release to toss.",
+    "While the stone is in the air, tap or drag across the stones to take.",
+    "Tap CATCH when the ring closes on the landing spot.",
+    "Move the pile out of the hole and back in, stage by stage.",
+    "Drop it and the turn passes: the first to finish the last stage wins."
+  ]
+}

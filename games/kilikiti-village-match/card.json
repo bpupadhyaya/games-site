@@ -1,0 +1,14 @@
+{
+  "title": "Kilikiti",
+  "tagline": "A village match: swipe, flick, run and catch.",
+  "description": "Samoa's own bat-and-ball game in a modern, simplified take for your phone. Pick one role in your team (batter, bowler, inner or deep fielder) and play it while the computer plays everyone else. A three-sided bat, a hard rubber ball and a big fielding side, in short matches with real runs, fours, sixes and run outs. Five opponent levels, a Learn path for each role, Think hints and Watch & Learn.",
+  "genre": "bat-and-ball team sport",
+  "demo": true,
+  "howToPlay": [
+    "Pick one role in your team. The computer plays everyone else.",
+    "Batter: swipe the way you want the ball to go as it reaches the bat; tap RUN after a hit.",
+    "Bowler: pick a swerve, then flick up the screen. The ring shows where it lands.",
+    "Fielder: hold a finger to run, tap just as the ball reaches you, then choose where to throw.",
+    "Tap ? for a hint with a reason, or watch the computer play and explain in Watch & Learn."
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "title": "Volleyball",
+  "tagline": "Pick your role. Pass, set, spike and block.",
+  "description": "Play one of six players on a volleyball team in real 3D: setter, outside hitter, middle blocker, opposite or libero. Run your player, time each touch and aim with a flick while the computer plays the other eleven. Five rival levels, role tutorials, Learn lessons, Think hints and Watch & Learn.",
+  "genre": "team volleyball sport",
+  "demo": true,
+  "howToPlay": [
+    "Choose your role, then drag to run your player.",
+    "When the ring closes on your player, lift your finger to pass, set, spike, serve or block.",
+    "Flick as you lift to aim: left, right, long or short.",
+    "Win sets to 25 (win by two); the deciding set goes to 15.",
+    "Tap Roles to see the rotation order."
+  ]
+}

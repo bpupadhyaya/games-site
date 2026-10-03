@@ -1,0 +1,14 @@
+{
+  "title": "Footy: Kick and Mark",
+  "tagline": "Kick, mark and tackle: six-a-side on a whole oval.",
+  "description": "A simplified original take on the Australian football tradition, in real 3D. Pick one player, handball and kick to your forwards, win the mark, tackle cleanly and score through the four posts. Five computer levels, a Learn path with a tutorial for every role, Think hints and Watch & Learn.",
+  "genre": "team sport / kick-and-mark ball game",
+  "demo": true,
+  "howToPlay": [
+    "Drag the left stick to run; hold RUN to sprint.",
+    "KICK or HANDBALL to a teammate: push the stick towards him and follow the teal ring.",
+    "Run to the gold ring and press MARK a third of a second before the ball arrives.",
+    "After a mark, press KICK when the bar is in the middle.",
+    "TACKLE the carrier from behind; score 6 for a goal, 1 for a behind."
+  ]
+}
