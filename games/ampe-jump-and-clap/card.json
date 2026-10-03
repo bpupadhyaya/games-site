@@ -1,0 +1,14 @@
+{
+  "title": "Ampe",
+  "tagline": "Clap. Jump. Throw a foot.",
+  "description": "Ampe is a jumping and clapping game from Ghana, played in playgrounds across West Africa. Face your opponent, clap and jump on the beat, and throw out one foot: the same foot and the Leader scores, a different foot and the Follower does. Tap LEFT or RIGHT as the ring closes. Five computer opponents that learn your habits, a Learn path, Think hints, Practice and Watch & Learn.",
+  "genre": "rhythm / jump-and-clap game",
+  "demo": true,
+  "howToPlay": [
+    "A steady beat runs. Each round is two beats: a clap and hop, then the big jump with a clap.",
+    "Tap LEFT or RIGHT as the ring reaches the gold target, when your player takes off.",
+    "At the top of the jump both players throw out the chosen foot.",
+    "Same foot: the Leader scores. Different feet: the Follower scores and becomes the Leader.",
+    "Be first to 11 points. The computer reads your habits, so mix your feet."
+  ]
+}

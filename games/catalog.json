@@ -1,5 +1,41 @@
 [
   {
+    "slug": "alquerque-twelve-and-twelve",
+    "stage": "release-candidate",
+    "title": "Alquerque: Twelve and Twelve",
+    "tagline": "Step. Jump. Capture.",
+    "description": "An old board game of Spain and the Arab world, often described as a forerunner of draughts, made beautiful. Twelve pieces a side on a carved and inlaid board of 25 points joined by lines: step forward or sideways, jump to capture, and chain your jumps. Capturing is compulsory. Five opponent levels from Novice to Master, two players on one phone, Think with a plain-English reason, a short Learn course and Watch & Learn. Play in English, Spanish or Arabic. No timers and no ads.",
+    "genre": "abstract strategy, leaping capture",
+    "demo": true,
+    "howToPlay": [
+      "Each side has 12 pieces on a board of 25 points joined by lines. Light moves first, from the bottom, into the empty centre.",
+      "Step one point along a line, forward or sideways, never backward. Diagonal lines pass only through every other point.",
+      "Capture by jumping over an adjacent enemy piece into the empty point beyond, in any direction. Capturing is compulsory.",
+      "A piece that has jumped must keep jumping while it can, so one turn can take several pieces.",
+      "Capture every enemy piece, or leave the other side with no legal move. Think, Learn and Watch & Learn teach the ideas."
+    ],
+    "icon": "games/alquerque-twelve-and-twelve/icon.svg",
+    "play": "games/alquerque-twelve-and-twelve/play/"
+  },
+  {
+    "slug": "ampe-jump-and-clap",
+    "stage": "release-candidate",
+    "title": "Ampe",
+    "tagline": "Clap. Jump. Throw a foot.",
+    "description": "Ampe is a jumping and clapping game from Ghana, played in playgrounds across West Africa. Face your opponent, clap and jump on the beat, and throw out one foot: the same foot and the Leader scores, a different foot and the Follower does. Tap LEFT or RIGHT as the ring closes. Five computer opponents that learn your habits, a Learn path, Think hints, Practice and Watch & Learn.",
+    "genre": "rhythm / jump-and-clap game",
+    "demo": true,
+    "howToPlay": [
+      "A steady beat runs. Each round is two beats: a clap and hop, then the big jump with a clap.",
+      "Tap LEFT or RIGHT as the ring reaches the gold target, when your player takes off.",
+      "At the top of the jump both players throw out the chosen foot.",
+      "Same foot: the Leader scores. Different feet: the Follower scores and becomes the Leader.",
+      "Be first to 11 points. The computer reads your habits, so mix your feet."
+    ],
+    "icon": "games/ampe-jump-and-clap/icon.svg",
+    "play": "games/ampe-jump-and-clap/play/"
+  },
+  {
     "slug": "baloot-sun-hokum-table",
     "stage": "release-candidate",
     "title": "Baloot",
@@ -279,6 +315,24 @@
     ],
     "icon": "games/fox-and-geese/icon.svg",
     "play": "games/fox-and-geese/play/"
+  },
+  {
+    "slug": "gabata-three-row-mancala",
+    "stage": "release-candidate",
+    "title": "Gabata: Three-Row Sowing",
+    "tagline": "The three-row sowing game of Ethiopia and Eritrea.",
+    "description": "A carved wooden board of eighteen holes: sow seeds round your own loop, relay through full holes and capture a whole column when your last seed drops into an empty hole. Five opponent levels, two players on one phone, Think with a reason in words, six lessons and Watch & Learn. Play in English or choose the Amharic option for the menus and scores. No timers and no ads.",
+    "genre": "mancala, sowing and capture",
+    "demo": true,
+    "howToPlay": [
+      "Tap one of your holes that holds seeds. All its seeds are dropped one by one into the next holes of your loop.",
+      "If your last seed lands in a hole that already holds seeds, pick those up and sow on.",
+      "If your last seed lands in an empty hole, you capture every opponent seed in that column.",
+      "The game ends when a player runs out of seeds. Captured seeds plus the seeds in your own holes are your score.",
+      "Think shows the best move and why."
+    ],
+    "icon": "games/gabata-three-row-mancala/icon.svg",
+    "play": "games/gabata-three-row-mancala/play/"
   },
   {
     "slug": "go-stones-and-territory",
@@ -752,6 +806,24 @@
     "play": "games/noughts-crosses-three-in-a-row/play/"
   },
   {
+    "slug": "o-an-quan-mandarin-squares",
+    "stage": "release-candidate",
+    "title": "O An Quan: Mandarin Squares",
+    "tagline": "Vietnam's pebble game of sowing and capture.",
+    "description": "The traditional Vietnamese children's game, rebuilt on a lacquered wooden board: sow stones one at a time, relay through full squares, leap an empty square to capture and win the two mandarins. Five opponent levels, two players on one phone, Think with a reason in words, six lessons and Watch & Learn. Play in English or in Vietnamese. No timers and no ads.",
+    "genre": "mancala, sowing and capture",
+    "demo": true,
+    "howToPlay": [
+      "Tap one of your squares that holds stones, then choose Sow left or Sow right (or swipe from the square).",
+      "Your stones are dropped one by one. If the last one lands before a full square, pick that square up and sow on.",
+      "If the last stone is followed by an empty square and then a full one, you capture the full one. Chains count.",
+      "The two big mandarin stones are worth 10 points each. The game ends when both are captured; the higher total wins.",
+      "Run out of stones and you refill your side from your winnings. Think shows the best move and why."
+    ],
+    "icon": "games/o-an-quan-mandarin-squares/icon.svg",
+    "play": "games/o-an-quan-mandarin-squares/play/"
+  },
+  {
     "slug": "oche-darts-501",
     "stage": "release-candidate",
     "title": "Oche Darts 501",
@@ -872,6 +944,24 @@
     ],
     "icon": "games/parques-colombiano-carcel/icon.svg",
     "play": "games/parques-colombiano-carcel/play/"
+  },
+  {
+    "slug": "pelota-wall-rally",
+    "stage": "release-candidate",
+    "title": "Pelota Vasca",
+    "tagline": "Hit the wall. Read the angles. Win to 22.",
+    "description": "The fast wall ball of the Basque Country in real 3D. Play one on one or two on two with the bare hand or a paddle, aim at the front and left walls, and time your swing. Five rivals, Learn lessons, Think hints and Watch & Learn.",
+    "genre": "wall ball sport",
+    "demo": true,
+    "howToPlay": [
+      "Drag to run, or let Auto-run take you to the ball.",
+      "Tap the wall to aim; choose Drive, Drop or Lob.",
+      "Press SWING when the ring closes around the button.",
+      "Use the left wall and the rebote; the ball may bounce once.",
+      "Win to 22 against five rival levels."
+    ],
+    "icon": "games/pelota-wall-rally/icon.svg",
+    "play": "games/pelota-wall-rally/play/"
   },
   {
     "slug": "perch",

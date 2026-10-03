@@ -1,0 +1,14 @@
+{
+  "title": "O An Quan: Mandarin Squares",
+  "tagline": "Vietnam's pebble game of sowing and capture.",
+  "description": "The traditional Vietnamese children's game, rebuilt on a lacquered wooden board: sow stones one at a time, relay through full squares, leap an empty square to capture and win the two mandarins. Five opponent levels, two players on one phone, Think with a reason in words, six lessons and Watch & Learn. Play in English or in Vietnamese. No timers and no ads.",
+  "genre": "mancala, sowing and capture",
+  "demo": true,
+  "howToPlay": [
+    "Tap one of your squares that holds stones, then choose Sow left or Sow right (or swipe from the square).",
+    "Your stones are dropped one by one. If the last one lands before a full square, pick that square up and sow on.",
+    "If the last stone is followed by an empty square and then a full one, you capture the full one. Chains count.",
+    "The two big mandarin stones are worth 10 points each. The game ends when both are captured; the higher total wins.",
+    "Run out of stones and you refill your side from your winnings. Think shows the best move and why."
+  ]
+}

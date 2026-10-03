@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f6b24a"/><stop offset="0.62" stop-color="#e07b1f"/><stop offset="1" stop-color="#a24f0c"/></linearGradient>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+  <ellipse cx="512" cy="900" rx="380" ry="60" fill="#5b2d08" opacity="0.35"/>
+  <!-- two figures jumping toward each other -->
+  <g stroke-linecap="round" stroke-linejoin="round">
+    <g transform="translate(300 560)">
+      <circle cx="0" cy="-250" r="64" fill="#6b3a1e"/>
+      <rect x="-80" y="-170" width="160" height="210" rx="52" fill="#fff3d6"/>
+      <path d="M40 -90 L190 -120" stroke="#6b3a1e" stroke-width="44" fill="none"/>
+      <path d="M-30 30 L-70 190" stroke="#6b3a1e" stroke-width="48" fill="none"/>
+      <path d="M30 30 L210 110" stroke="#6b3a1e" stroke-width="48" fill="none"/>
+    </g>
+    <g transform="translate(724 560) scale(-1 1)">
+      <circle cx="0" cy="-250" r="64" fill="#6b3a1e"/>
+      <rect x="-80" y="-170" width="160" height="210" rx="52" fill="#1f9d8f"/>
+      <path d="M40 -90 L190 -120" stroke="#6b3a1e" stroke-width="44" fill="none"/>
+      <path d="M-30 30 L-70 190" stroke="#6b3a1e" stroke-width="48" fill="none"/>
+      <path d="M30 30 L210 110" stroke="#6b3a1e" stroke-width="48" fill="none"/>
+    </g>
+  </g>
+  <!-- clap burst between the hands -->
+  <g stroke="#fff3d6" stroke-width="22" stroke-linecap="round"><path d="M512 360 V270"/><path d="M440 390 L380 330"/><path d="M584 390 L644 330"/><path d="M420 450 H350"/><path d="M604 450 H674"/></g>
+</svg>

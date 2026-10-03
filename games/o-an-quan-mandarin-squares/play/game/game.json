@@ -1,0 +1,25 @@
+{
+  "slug": "o-an-quan-mandarin-squares",
+  "title": "O An Quan: Mandarin Squares",
+  "genre": "Vietnamese mancala",
+  "orientation": "portrait",
+  "version": "1.0.1",
+  "monetization": {
+    "model": "premium",
+    "priceUsd": 2.99,
+    "previewSeconds": 90,
+    "products": [
+      {
+        "id": "unlock_game",
+        "type": "non-consumable",
+        "priceUsd": 2.99,
+        "title": "Unlock Game"
+      }
+    ]
+  },
+  "locales": [
+    "en",
+    "vi"
+  ],
+  "demoOnly": true
+}

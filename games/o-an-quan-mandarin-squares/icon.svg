@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+<defs>
+<linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3b1a0e"/><stop offset="1" stop-color="#150a07"/></linearGradient>
+<linearGradient id="wood" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c0703f"/><stop offset="1" stop-color="#7a3a1d"/></linearGradient>
+<linearGradient id="pit" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a1108"/><stop offset="1" stop-color="#5a2c16"/></linearGradient>
+<radialGradient id="stone" cx="0.35" cy="0.3" r="0.8"><stop offset="0" stop-color="#ffffff"/><stop offset="0.35" stop-color="#eadfc4"/><stop offset="1" stop-color="#7a6a4a"/></radialGradient>
+<radialGradient id="quan" cx="0.35" cy="0.3" r="0.8"><stop offset="0" stop-color="#c8ffe9"/><stop offset="0.4" stop-color="#2fae8a"/><stop offset="1" stop-color="#0c4c3b"/></radialGradient>
+<radialGradient id="glow" cx="0.5" cy="0.5" r="0.6"><stop offset="0" stop-color="#ffb066" stop-opacity="0.5"/><stop offset="1" stop-color="#ffb066" stop-opacity="0"/></radialGradient>
+</defs>
+<rect width="1024" height="1024" fill="url(#bg)"/>
+<rect width="1024" height="1024" fill="url(#glow)"/>
+<rect x="72" y="250" width="880" height="524" rx="64" fill="#2a1208" opacity="0.6" transform="translate(0 18)"/>
+<rect x="72" y="250" width="880" height="524" rx="64" fill="url(#wood)" stroke="#4a200f" stroke-width="8"/>
+<rect x="104" y="282" width="816" height="460" rx="44" fill="#3b180a"/>
+<rect x="124" y="302" width="150" height="420" rx="75" fill="url(#pit)" stroke="#e0b050" stroke-width="7"/>
+<rect x="750" y="302" width="150" height="420" rx="75" fill="url(#pit)" stroke="#e0b050" stroke-width="7"/>
+<g fill="url(#pit)">
+<rect x="296" y="302" width="86" height="200" rx="40"/><rect x="398" y="302" width="86" height="200" rx="40"/><rect x="500" y="302" width="86" height="200" rx="40"/><rect x="602" y="302" width="86" height="200" rx="40"/><rect x="704" y="302" width="26" height="200" rx="13" opacity="0"/>
+<rect x="296" y="522" width="86" height="200" rx="40"/><rect x="398" y="522" width="86" height="200" rx="40"/><rect x="500" y="522" width="86" height="200" rx="40"/><rect x="602" y="522" width="86" height="200" rx="40"/>
+</g>
+<line x1="296" y1="512" x2="688" y2="512" stroke="#e0b050" stroke-width="5"/>
+<circle cx="199" cy="512" r="58" fill="url(#quan)" stroke="#f1cf72" stroke-width="8"/>
+<circle cx="825" cy="512" r="58" fill="url(#quan)" stroke="#f1cf72" stroke-width="8"/>
+<path d="M199 486 L214 512 L199 538 L184 512 Z" fill="#f1cf72"/>
+<path d="M825 486 L840 512 L825 538 L810 512 Z" fill="#f1cf72"/>
+<g fill="url(#stone)" stroke="#5a4a30" stroke-width="2">
+<circle cx="339" cy="380" r="30"/><circle cx="360" cy="430" r="28"/><circle cx="318" cy="440" r="27"/>
+<circle cx="441" cy="610" r="30"/><circle cx="462" cy="660" r="28"/><circle cx="420" cy="672" r="27"/><circle cx="470" cy="600" r="26"/>
+<circle cx="543" cy="400" r="30"/>
+<circle cx="645" cy="640" r="30"/><circle cx="666" cy="590" r="27"/>
+<circle cx="199" cy="610" r="22"/><circle cx="825" cy="420" r="22"/><circle cx="800" cy="610" r="22"/>
+</g>
+</svg>

@@ -1,0 +1,25 @@
+{
+  "slug": "pelota-wall-rally",
+  "title": "Pelota Vasca",
+  "tagline": "Hit the wall. Read the angles. Win to 22.",
+  "genre": "wall ball sport",
+  "orientation": "portrait",
+  "version": "1.0.1",
+  "monetization": {
+    "model": "premium",
+    "priceUsd": 3.99,
+    "previewSeconds": 90,
+    "products": [
+      {
+        "id": "unlock_game",
+        "type": "non-consumable",
+        "priceUsd": 3.99,
+        "title": "Unlock Game"
+      }
+    ]
+  },
+  "locales": [
+    "en"
+  ],
+  "demoOnly": true
+}

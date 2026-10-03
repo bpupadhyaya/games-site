@@ -166,25 +166,25 @@ export function drawStone(ctx, x, y, rpx, team, ang = 0, o = {}) {
 
 // ---- brush heads -------------------------------------------------------------------------------------------------------
 // Two abstract brush heads (no people) that sweep alternately across the path in front of a moving stone.
-// (px, py) anchor in px; (hx, hy) unit heading in screen space; ppm px per metre; amp = sweep half-width in metres (eased by the
+// (px, py) anchor in px; (hx, hy) unit heading in screen space; rpx = the stone's drawn radius in px (heads are 2.2 stone diameters long); amp = sweep half-width in metres (eased by the
 // caller); phase in radians (the two heads are half a cycle apart); fade 0..1 for appearing and disappearing.
-export function drawBrushes(ctx, px, py, hx, hy, ppm, amp, phase, team, fade = 1) {
+export function drawBrushes(ctx, px, py, hx, hy, rpx, amp, phase, team, fade = 1) {
   const T = TEAM[team];
   const nx = -hy, ny = hx;   // across the path
-  const heads = [{ ahead: 0.62, ph: phase }, { ahead: 1.1, ph: phase + Math.PI }];
+  const heads = [{ ahead: 2.4, ph: phase }, { ahead: 4.1, ph: phase + Math.PI }];   // distances in stone radii, just ahead of the stone
   const rot = Math.atan2(ny, nx);
   const ease = (ph) => { const s = Math.sin(ph); return s * (1 - 0.18 * s * s); };   // slightly eased turnarounds
   for (const hd of heads) {
     for (let k = 3; k >= 0; k--) {          // soft motion trail: older positions fade out
       const ph = hd.ph - k * 0.3;
-      const off = ease(ph) * amp * ppm;
-      const cx = px + hx * hd.ahead * ppm + nx * off, cy = py + hy * hd.ahead * ppm + ny * off;
+      const off = ease(ph) * amp * rpx * 3.2;
+      const cx = px + hx * hd.ahead * rpx + nx * off, cy = py + hy * hd.ahead * rpx + ny * off;
       const a = (k === 0 ? 0.96 : 0.2 - k * 0.04) * fade;
       if (a <= 0.01) continue;
       ctx.save();
       ctx.globalAlpha = a;
       ctx.translate(cx, cy); ctx.rotate(rot);
-      const w = 0.62 * ppm, h = 0.16 * ppm;
+      const w = 4.4 * rpx, h = 1.0 * rpx;
       if (k === 0) {
         ctx.fillStyle = 'rgba(8,24,44,0.28)'; ctx.beginPath(); ctx.ellipse(0.12 * h, 0.7 * h, w * 0.55, h * 0.75, 0, 0, TAU); ctx.fill();
       }

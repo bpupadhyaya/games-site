@@ -1,0 +1,14 @@
+{
+  "title": "Alquerque: Twelve and Twelve",
+  "tagline": "Step. Jump. Capture.",
+  "description": "An old board game of Spain and the Arab world, often described as a forerunner of draughts, made beautiful. Twelve pieces a side on a carved and inlaid board of 25 points joined by lines: step forward or sideways, jump to capture, and chain your jumps. Capturing is compulsory. Five opponent levels from Novice to Master, two players on one phone, Think with a plain-English reason, a short Learn course and Watch & Learn. Play in English, Spanish or Arabic. No timers and no ads.",
+  "genre": "abstract strategy, leaping capture",
+  "demo": true,
+  "howToPlay": [
+    "Each side has 12 pieces on a board of 25 points joined by lines. Light moves first, from the bottom, into the empty centre.",
+    "Step one point along a line, forward or sideways, never backward. Diagonal lines pass only through every other point.",
+    "Capture by jumping over an adjacent enemy piece into the empty point beyond, in any direction. Capturing is compulsory.",
+    "A piece that has jumped must keep jumping while it can, so one turn can take several pieces.",
+    "Capture every enemy piece, or leave the other side with no legal move. Think, Learn and Watch & Learn teach the ideas."
+  ]
+}

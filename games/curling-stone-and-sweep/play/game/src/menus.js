@@ -481,7 +481,7 @@ export function drawArt(key, ctx, x, y, w, h, state) {
       ctx.save(); roundPath(ctx, 0, 0, w, h, 16); ctx.clip();
       ctx.fillStyle = 'rgba(255,255,255,0.7)'; ctx.fillRect(w * 0.44, 0, w * 0.12, h);
       drawStone(ctx, w * 0.5, h * 0.7, 30, 0, 0.7, { speck: 5 });
-      drawBrushes(ctx, w * 0.5, h * 0.7, 0, -1, 90, 0.38, 1.2, 0, 1);
+      drawBrushes(ctx, w * 0.5, h * 0.7, 0, -1, 18, 0.38, 1.2, 0, 1);
       arrow(ctx, w * 0.5, h * 0.56, w * 0.5, 22, '#2f78b8', 5);
       ctx.restore();
       tag(ctx, 'brush heads warm the ice', w * 0.74, h * 0.4, '#cfe7f8', 17);

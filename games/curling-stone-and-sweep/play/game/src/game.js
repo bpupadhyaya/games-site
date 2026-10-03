@@ -15,7 +15,7 @@ import { throwNoise, applyNoise, HUMAN } from './noise.js';
 import { explainShot, situation } from './explain.js';
 import { LESSONS, lessonById, lessonIndex } from './lessons.js';
 import { W, H, inRect, REF_BACK, REF_NEXT, TEXT_DEC, TEXT_INC, TEXT_SCALES, THINK_STEPS, SETUP_PINS } from './layout.js';
-import { renderPlay, layoutFor, makeCam, camToWorld, cardRect, lengthShape } from './view.js';
+import { renderPlay, layoutFor, makeCam, aimToWorld, cardRect } from './view.js';
 import {
   renderTitle, renderSetup, renderSettings, renderLearn, renderQuiz, renderResult, renderPause, renderShotOptions, renderReason, renderLessonResult, renderPages, renderDemoLimit,
   hitScreen, flowMeta, pageCount, ensureLayout, resetMenus,
@@ -27,7 +27,7 @@ export const meta = { width: W, height: H };
 const DEMO_END_CAP = 2;
 const SHOT_MODE = (() => { try { return /[?&]shot=/.test(globalThis.location.search); } catch { return false; } })();
 
-const PACE = 2.6;   // sim steps per update at the house (grows smoothly towards the far end, see lengthShape)
+const PACE = 3;   // sim steps per update: one constant pace, so on-screen speed follows real speed times the camera's natural perspective scale
 export function createGame(env) {
   const nowMs = () => (env.clock ? env.clock() : 0);   // display clock from the shell; absent in headless runs (alpha stays 1)
   const { rng, audio, storage, config, monetization } = env;
@@ -384,9 +384,8 @@ export function createGame(env) {
     const moving = () => s && s.mode === 'play' && (s.vx !== 0 || s.vy !== 0);
     if (state.humanSweeps) { fl.tgt = humanEffort(dt, input); fl.eff += clamp(fl.tgt - fl.eff, -0.1, 0.07); }
     state.ff = !!(input.pointer.down && inRect(state.cam.lay?.ctrl?.fast, input.pointer.x, input.pointer.y)) || (!state.humanSweeps && input.keys.down.has('Space'));
-    // advance the ice: time is compressed by the inverse of the on-screen scale at the stone, so the stone's on-screen speed is
-    // exactly proportional to its real speed along the whole path (smooth, no jump in pace; faster pace far from the house)
-    fl.acc += (PACE / lengthShape(s ? s.y : 0)) * (state.ff ? 2 : 1);
+    // advance the ice at a constant pace (time compression), so on-screen speed is real speed times the camera's smooth scale
+    fl.acc += PACE * (state.ff ? 2 : 1);
     let n = Math.floor(fl.acc); fl.acc -= n;
     const ev = [];
     let stepped = 0;
@@ -662,7 +661,7 @@ export function createGame(env) {
       if (state.drag && state.humanTurn && !state.paused) {
         if (ptr.down) {
           const cam = makeCam(state, lay);
-          const wp = camToWorld(cam, ptr.x, ptr.y - 64 * Math.min(1.4, cam.ppm / 100));
+          const wp = aimToWorld(cam, ptr.x, ptr.y);
           const t = clampTarget(wp.x, wp.y);
           if (!state.aim.placed || Math.abs(t.x - state.aim.x) > 0.004 || Math.abs(t.y - state.aim.y) > 0.004) { if (!state.drag.moved) sfx.place(); setAim({ x: t.x, y: t.y, placed: true }); state.drag.moved = true; updatePreview(); }
         }

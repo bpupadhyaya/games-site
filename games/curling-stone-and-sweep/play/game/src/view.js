@@ -2,7 +2,7 @@
 // control bar. Pure: reads `state`, never mutates it. Menus and pages live in menus.js. All text follows the 100-300%
 // text size setting; the ice region shrinks to make room instead of clipping.
 import { R, HALF_W, HOG_FAR, HOG_NEAR, BACK, HOUSE_R, BUTTON_R, FOUR_R, EIGHT_R, NEAR_TEE, toButton } from './sim.js';
-import { TEAM, drawStone, drawBrushes, startIceBake, TILE_M, setHost, canBake, lcg } from './art.js';
+import { TEAM, drawHouse, drawStone, drawBrushes, startIceBake, TILE_M, setHost, canBake, lcg } from './art.js';
 import { W, H, TEXT_SCALES, playLayout, inRect } from './layout.js';
 import { FONT, C, roundPath, drawButton, panel, wrapLines } from './ui.js';
 import { WEIGHTS } from './match.js';
@@ -31,45 +31,59 @@ export function layoutFor(state) {
   const kind = m && m.cfg.mode === 'watch' ? 'watch' : state.ctl === 'fly' ? 'fly' : state.ctl === 'score' ? 'score' : 'aim';
   return playLayout(textScale(state), kind);
 }
-// Fixed view (the playing surface never moves). A real sheet is ~45 m long and 4.75 m wide, so the lengthwise map is a smooth curve:
-// the on-screen scale is constant over the house and its guard area (rings are true circles), then eases down smoothly (a
-// smoothstep, so there is no jump in the scale or its slope) to a small constant over the long run-up to the delivery end. A
-// stone's on-screen speed is therefore always real speed times a smoothly varying, monotonically falling scale. Across the sheet
-// the scale is uniform (ppm, the house scale). Only the drawing map is non-linear; the physics stays in real metres.
+// Fixed view (the playing surface never moves). Two fixed pieces, like a broadcast of a real match:
+//  1. the MAIN view: one true-perspective camera looking down the whole sheet from behind the hack (raised, fixed pose). A stone is
+//     large and fast near the camera and shrinks and slows smoothly towards the house; the sheet is a trapezoid.
+//  2. the HOUSE INSET: a fixed top-down close-up of the house in the top-right corner (uniform scale), used to place the broom
+//     and to read stones and scoring. Stones are drawn a little bigger than true scale in both.
+// Only drawing maps change; physics stays in real metres. cam.X(x, y) / cam.Y(y) project a world point; cam.rad(y) is the stone's
+// drawn radius in px there; cam.sx/sy are px per metre across / along the sheet at y.
 export const VIEW_TOP = BACK + 0.55, VIEW_BOT = HOG_NEAR - 1.05;
-const T0 = 4.6, TW = 10, TE = 0.12;        // uniform zone length (m), easing length (m), far-end scale as a fraction of the house scale
-const shape = (t) => { if (t <= T0) return 1; const u = Math.min(1, (t - T0) / TW); return 1 - (1 - TE) * u * u * (3 - 2 * u); };
-// Relative on-screen scale at world y (1 over the house, falling to TE): game.js paces the slide by its inverse, so on-screen speed
-// is exactly proportional to real speed along the whole path.
-export const lengthShape = (y) => shape(Math.max(0, VIEW_TOP - y));
+const NEAR_FAR = 2.5;                       // near-end scale over far-end (house end) scale of the main camera
+const R_NEAR = 28, R_FAR = 12;              // drawn stone radius (virtual px) at the near end and at the house end of the main view
 export function makeCam(state, lay0) {
   // Always built from the tallest-controls layout (aim), whatever the phase, so the sheet never shifts when the control bar changes.
   const lay = playLayout(textScale(state), 'aim');
   void lay0;
   const rh = lay.regionBottom - lay.regionTop, top = lay.regionTop;
-  const L = VIEW_TOP - VIEW_BOT;
-  const A = (t) => {                          // exact integral of shape, any t >= 0
-    if (t <= T0) return t;
-    const d = t - T0;
-    if (d <= TW) { const u = d / TW; return T0 + d - (1 - TE) * TW * (u * u * u - u * u * u * u / 2); }
-    return T0 + TW - (1 - TE) * TW * 0.5 + (d - TW) * TE;
-  };
-  const s0 = rh / A(L);                        // px per metre over the house
-  const Y = (y) => top + s0 * A(VIEW_TOP - y);
-  const yAt = (py) => { const target = (py - top) / s0; let lo = -5, hi = 80; for (let i = 0; i < 48; i++) { const mid = (lo + hi) / 2; if (A(Math.max(0, mid)) + Math.min(0, mid) < target) lo = mid; else hi = mid; } return VIEW_TOP - (lo + hi) / 2; };
-  const sy = (y) => s0 * shape(Math.max(0, VIEW_TOP - y));   // px per metre lengthwise at world y
-  const ppm = Math.min(112, s0);
-  return { ppm, top, rh, bottom: lay.regionBottom, X: (x) => W / 2 + x * ppm, Y, yAt, sy };
+  const S = Math.round(Math.min(232, rh * 0.42));
+  const rect = { x: W - 14 - S, y: top + 6, w: S, h: S };
+  const sFar = Math.min(48, (W / 2 - 14 - S - 6) / HALF_W);
+  const sNear = Math.min(sFar * NEAR_FAR, 700 / (2 * HALF_W));
+  const L = VIEW_TOP - VIEW_BOT, c = L / (sNear / sFar - 1);
+  const A = sNear * c, K = rh / Math.log((c + L) / c), bot = top + rh;   // vertical scale K/z (like across: A/z), so circles keep their shape
+  const uOf = (y) => y - VIEW_BOT;
+  const sx = (y) => A / (c + uOf(y));
+  const sy = (y) => K / (c + uOf(y));
+  const sFarA = A / (c + L), sNearA = A / c;
+  const rad = (y) => R_FAR + (R_NEAR - R_FAR) * (sx(y) - sFarA) / (sNearA - sFarA);
+  const Y = (y) => bot - K * Math.log((c + uOf(y)) / c);
+  const X = (x, y) => W / 2 + x * sx(y);
+  const yAt = (py) => VIEW_BOT + c * Math.exp((bot - py) / K) - c;
+  const xAt = (px, y) => (px - W / 2) / sx(y);
+  // the inset: top-down, uniform, centred on the button
+  const ips = S / 4.0, icx = rect.x + S / 2, icy = rect.y + S / 2;
+  const ins = { inset: true, rect, ppm: ips, X: (x) => icx + x * ips, Y: (y) => icy - y * ips, sx: () => ips, sy: () => ips, rad: () => R * ips * 1.4,
+    yAt: (py) => (icy - py) / ips, xAt: (px) => (px - icx) / ips };
+  return { ppm: sx(0), top, rh, bottom: bot, X, Y, yAt, xAt, sx, sy, rad, rect, ins, lay };
 }
-export function camToWorld(cam, sx, sy) { return { x: (sx - W / 2) / cam.ppm, y: cam.yAt(sy) }; }
+// How far above the finger the broom sits, so the finger never hides it.
+export const aimShift = (cam, px, py) => (inRect(cam.rect, px, py) ? 44 : 64);
+// Screen point (a finger) to a world target, through whichever fixed view the finger is in. Exact inverse of cam.X / cam.Y.
+export function aimToWorld(cam, px, py) {
+  const inIns = inRect(cam.rect, px, py), v = inIns ? cam.ins : cam;
+  const sy = py - aimShift(cam, px, py);
+  const y = v.yAt(sy);
+  return { x: v.xAt(px, y), y };
+}
 
 // The rings follow the lengthwise map (each ring is a polygon through X/Y), so a stone on a ring edge sits exactly on the ring.
 function drawHouseMapped(ctx, cam) {
   const ring = (r, fill, edge) => {
     ctx.beginPath();
-    for (let i = 0; i <= 96; i++) { const a = (i / 96) * TAU, x = cam.X(Math.cos(a) * r), y = cam.Y(Math.sin(a) * r); if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); }
+    for (let i = 0; i <= 96; i++) { const a = (i / 96) * TAU, wx = Math.cos(a) * r, wy = Math.sin(a) * r, x = cam.X(wx, wy), y = cam.Y(wy); if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); }
     ctx.closePath(); ctx.fillStyle = fill; ctx.fill();
-    ctx.lineWidth = Math.max(1, cam.ppm * 0.012); ctx.strokeStyle = edge; ctx.stroke();
+    ctx.lineWidth = Math.max(1, cam.ppm * 0.02); ctx.strokeStyle = edge; ctx.stroke();
   };
   ring(HOUSE_R, 'rgba(38,104,186,0.80)', 'rgba(14,52,110,0.65)');
   ring(EIGHT_R, 'rgba(246,251,255,0.93)', 'rgba(120,160,200,0.7)');
@@ -151,6 +165,99 @@ export function drawIce(ctx, cam, state) {
   vg.addColorStop(0, 'rgba(4,12,24,0.35)'); vg.addColorStop(0.2, 'rgba(4,12,24,0)'); vg.addColorStop(0.8, 'rgba(4,12,24,0)'); vg.addColorStop(1, 'rgba(4,12,24,0.4)');
   ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
 }
+// ---- the main perspective view of the sheet --------------------------------------------------------------------------------------
+function iceFill(ctx, cam, x0, x1) {
+  const g = ctx.createLinearGradient(x0, 0, x1, 0);
+  g.addColorStop(0, '#b9d6ea'); g.addColorStop(0.18, '#dcedf8'); g.addColorStop(0.5, '#e9f4fb'); g.addColorStop(0.82, '#dcedf8'); g.addColorStop(1, '#b9d6ea');
+  return g;
+}
+export function drawSheet(ctx, cam, state) {
+  const { X, Y } = cam;
+  const yT = VIEW_TOP, yB = VIEW_BOT - 6;
+  ctx.fillStyle = '#08121f'; ctx.fillRect(0, 0, W, H);
+  const bg = ctx.createLinearGradient(0, 0, 0, H);
+  bg.addColorStop(0, '#0d2036'); bg.addColorStop(1, '#091727');
+  ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+  const quad = (xa, xb, ya, yb) => { ctx.beginPath(); ctx.moveTo(X(xa, ya), Y(ya)); ctx.lineTo(X(xb, ya), Y(ya)); ctx.lineTo(X(xb, yb), Y(yb)); ctx.lineTo(X(xa, yb), Y(yb)); ctx.closePath(); };
+  // boards on both sides, narrowing with distance like the ice
+  for (const dir of [-1, 1]) {
+    quad(dir * HALF_W, dir * (HALF_W + 0.5), yT, yB);
+    const gx = X(dir * HALF_W, yB);
+    const g = ctx.createLinearGradient(gx, 0, gx + dir * 40, 0);
+    g.addColorStop(0, '#2a4056'); g.addColorStop(1, '#0c1826');
+    ctx.fillStyle = g; ctx.fill();
+    ctx.strokeStyle = 'rgba(190,225,255,0.5)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(X(dir * HALF_W, yT), Y(yT)); ctx.lineTo(X(dir * HALF_W, yB), Y(yB)); ctx.stroke();
+  }
+  quad(-HALF_W, HALF_W, yT, yB);
+  ctx.fillStyle = iceFill(ctx, cam, X(-HALF_W, yB), X(HALF_W, yB)); ctx.fill();
+  ctx.save(); quad(-HALF_W, HALF_W, yT, yB); ctx.clip();
+  const tile = ensureIce(ctx);
+  if (tile) {
+    if (!icePat) icePat = ctx.createPattern(tile, 'repeat');
+    if (icePat) {
+      const sc = (cam.ppm * 0.8 * TILE_M) / 512;
+      ctx.save(); ctx.translate(W / 2, Y(-8)); ctx.scale(sc, sc);
+      ctx.fillStyle = icePat; ctx.globalAlpha = 0.85; ctx.fillRect(-W / sc, -H / sc, 2 * W / sc, 2 * H / sc);
+      ctx.restore();
+    }
+  }
+  // hairline scratches in world chunks, projected
+  for (let c = Math.floor(-37 / 4) - 1; c <= Math.ceil(yT / 4); c++) {
+    const r = lcg((c + 400) * 2654435761);
+    for (let i = 0; i < 7; i++) {
+      const sx0 = (r() - 0.5) * 2 * HALF_W, sy0 = c * 4 + r() * 4, len = 0.8 + r() * 3, a = Math.PI / 2 + (r() - 0.5) * 0.35;
+      ctx.strokeStyle = r() < 0.5 ? `rgba(255,255,255,${0.2 + r() * 0.2})` : `rgba(90,130,170,${0.1 + r() * 0.12})`;
+      ctx.lineWidth = 0.8 + r() * 1.1;
+      const ex = sx0 + Math.cos(a) * len * 0.35, ey = sy0 + Math.sin(a) * len;
+      ctx.beginPath(); ctx.moveTo(X(sx0, sy0), Y(sy0)); ctx.lineTo(X(ex, ey), Y(ey)); ctx.stroke();
+    }
+  }
+  // lines: a line across the sheet is a horizontal band whose width shrinks with distance
+  const line = (y, col, wm) => { ctx.fillStyle = col; const th = Math.max(1.5, wm * cam.sy(y)); ctx.fillRect(X(-HALF_W, y), Y(y) - th / 2, X(HALF_W, y) - X(-HALF_W, y), th); };
+  ctx.strokeStyle = 'rgba(40,88,150,0.42)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(X(0, yT), Y(yT)); ctx.lineTo(X(0, yB), Y(yB)); ctx.stroke();
+  line(0, 'rgba(40,88,150,0.5)', 0.025); line(BACK, 'rgba(40,88,150,0.45)', 0.025);
+  line(HOG_FAR, 'rgba(204,52,48,0.8)', 0.1); line(HOG_NEAR, 'rgba(204,52,48,0.8)', 0.1);
+  drawHouseMapped(ctx, cam);
+  // the hack: two foot rubbers at the delivery end
+  ctx.fillStyle = 'rgba(20,30,44,0.85)';
+  for (const hx of [-0.14, 0.14]) { const y0 = VIEW_BOT + 0.15, y1 = y0 + 0.5; ctx.beginPath(); ctx.moveTo(X(hx - 0.07, y0), Y(y0)); ctx.lineTo(X(hx + 0.07, y0), Y(y0)); ctx.lineTo(X(hx + 0.07, y1), Y(y1)); ctx.lineTo(X(hx - 0.07, y1), Y(y1)); ctx.closePath(); ctx.fill(); }
+  // soft lights reflected in the ice (fixed on screen)
+  for (const [lx, ly, lr, a] of [[210, 330, 260, 0.18], [530, 760, 300, 0.14], [260, 1100, 240, 0.12]]) {
+    const lg = ctx.createRadialGradient(lx, ly, 0, lx, ly, lr);
+    lg.addColorStop(0, `rgba(255,255,255,${a})`); lg.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = lg; ctx.fillRect(0, 0, W, H);
+  }
+  ctx.restore();
+  // end board
+  ctx.fillStyle = '#16293f'; ctx.beginPath(); ctx.moveTo(X(-HALF_W - 0.5, yT), Y(yT)); ctx.lineTo(X(HALF_W + 0.5, yT), Y(yT)); ctx.lineTo(X(HALF_W + 0.5, yT), Y(yT) - 18); ctx.lineTo(X(-HALF_W - 0.5, yT), Y(yT) - 18); ctx.closePath(); ctx.fill();
+  const vg = ctx.createLinearGradient(0, 0, 0, H);
+  vg.addColorStop(0, 'rgba(4,12,24,0.35)'); vg.addColorStop(0.2, 'rgba(4,12,24,0)'); vg.addColorStop(0.8, 'rgba(4,12,24,0)'); vg.addColorStop(1, 'rgba(4,12,24,0.4)');
+  ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
+}
+
+// The fixed top-down house inset. Everything drawn inside is clipped to it.
+export function beginInset(ctx, cam) {
+  const r = cam.rect, ins = cam.ins;
+  ctx.save();
+  ctx.shadowColor = 'rgba(0,0,0,0.45)'; ctx.shadowBlur = 14;
+  roundPath(ctx, r.x, r.y, r.w, r.h, 18); ctx.fillStyle = '#dcedf8'; ctx.fill();
+  ctx.shadowBlur = 0;
+  roundPath(ctx, r.x, r.y, r.w, r.h, 18); ctx.clip();
+  const g = ctx.createLinearGradient(r.x, 0, r.x + r.w, 0);
+  g.addColorStop(0, '#c4dcec'); g.addColorStop(0.5, '#eaf4fb'); g.addColorStop(1, '#c4dcec');
+  ctx.fillStyle = g; ctx.fillRect(r.x, r.y, r.w, r.h);
+  const tile = ensureIce(ctx);
+  if (tile && icePat) { const sc = (ins.ppm * TILE_M) / 512; ctx.save(); ctx.translate(ins.X(0), ins.Y(0)); ctx.scale(sc, sc); ctx.fillStyle = icePat; ctx.globalAlpha = 0.85; ctx.fillRect(-r.w / sc, -r.h / sc, 2 * r.w / sc, 2 * r.h / sc); ctx.restore(); }
+  ctx.fillStyle = 'rgba(40,88,150,0.45)'; ctx.fillRect(ins.X(0) - 1, r.y, 2, r.h);
+  ctx.fillRect(r.x, ins.Y(0) - 1, r.w, 2); ctx.fillRect(r.x, ins.Y(BACK) - 1, r.w, 2);
+  drawHouse(ctx, ins.X(0), ins.Y(0), ins.ppm);
+}
+export function endInset(ctx, cam) {
+  const r = cam.rect;
+  ctx.restore();
+  ctx.save(); roundPath(ctx, r.x, r.y, r.w, r.h, 18); ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(140,200,245,0.85)'; ctx.stroke(); ctx.restore();
+}
+
 const AIM_TOP_END = BACK + 0.55;
 
 // Smooth motion: while a delivery runs, game.js keeps for every stone the displayed position/turn at the previous update (d0*)
@@ -167,19 +274,18 @@ const lerpAng = (a, b, k) => { let d = b - a; while (d > Math.PI) d -= TAU; whil
 
 // ---- stones, trail, brushes, particles ---------------------------------------------------------------------------------------
 export function drawStones(ctx, cam, state, w, o = {}) {
-  const rpx = R * cam.ppm;
   const hl = o.highlight ?? null;
   for (const s of w.stones) {
     if (s.mode === 'out' && s.out > 0.9) continue;
     const dp = dispOf(state, s);
-    const x = cam.X(dp.x), y = cam.Y(dp.y);
+    const x = cam.X(dp.x, dp.y), y = cam.Y(dp.y), rpx = cam.rad(dp.y);
     if (y < -60 || y > H + 60) continue;
     let a = 1, k = 1;
     if (s.mode === 'out') { a = Math.max(0, 1 - s.out / 0.9); k = 1 + s.out * 0.25; }
     const sp = Math.hypot(s.vx, s.vy);
     if (sp > 0.3 && s.mode === 'play') {
-      const hxp = s.vx * cam.ppm, hyp = -s.vy * cam.sy(s.y), hn = Math.hypot(hxp, hyp) || 1;
-      const len = Math.min(1.1, sp * 0.2) * cam.ppm, nx = hxp / hn, ny = hyp / hn;
+      const hxp = s.vx * cam.sx(dp.y), hyp = -s.vy * cam.sy(dp.y), hn = Math.hypot(hxp, hyp) || 1;
+      const len = Math.min(4.2, sp * 1.6) * rpx, nx = hxp / hn, ny = hyp / hn;
       const g = ctx.createLinearGradient(x, y, x - nx * len, y - ny * len);
       g.addColorStop(0, `rgba(255,255,255,${(0.4 * Math.min(1, (sp - 0.3) / 0.6)).toFixed(3)})`); g.addColorStop(1, 'rgba(255,255,255,0)');
       ctx.strokeStyle = g; ctx.lineWidth = rpx * 1.5; ctx.lineCap = 'round';
@@ -195,20 +301,21 @@ export function drawTrail(ctx, cam, state) {
   if (!tr || tr.length < 2) return;
   ctx.save();
   ctx.lineCap = 'round'; ctx.lineJoin = 'round';
-  ctx.strokeStyle = 'rgba(60,100,150,0.16)'; ctx.lineWidth = Math.max(1.5, R * cam.ppm * 0.5);
+  ctx.strokeStyle = 'rgba(60,100,150,0.16)'; const rr = cam.rad(-12);
+  ctx.lineWidth = Math.max(1.5, rr * 0.45);
   ctx.beginPath();
-  tr.forEach((p, i) => { const x = cam.X(p[0]), y = cam.Y(p[1]); if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); });
-  if (state.fl && state.w) { const fs = state.w.stones.find((q) => q.id === state.fl.id); if (fs) { const d = dispOf(state, fs); ctx.lineTo(cam.X(d.x), cam.Y(d.y)); } }
+  tr.forEach((p, i) => { const x = cam.X(p[0], p[1]), y = cam.Y(p[1]); if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); });
+  if (state.fl && state.w) { const fs = state.w.stones.find((q) => q.id === state.fl.id); if (fs) { const d = dispOf(state, fs); ctx.lineTo(cam.X(d.x, d.y), cam.Y(d.y)); } }
   ctx.stroke();
   // where it was swept the ice is polished and brighter
   let open = false;
   for (let pass = 0; pass < 2; pass++) {
     ctx.strokeStyle = pass === 0 ? 'rgba(255,255,255,0.20)' : 'rgba(255,255,255,0.5)';
-    ctx.lineWidth = pass === 0 ? R * cam.ppm * 2.2 : R * cam.ppm * 0.6;
+    ctx.lineWidth = pass === 0 ? rr * 1.5 : rr * 0.4;
     ctx.beginPath(); open = false;
     for (let i = 0; i < tr.length; i++) {
       const p = tr[i];
-      if (p[2] > 0.18) { const x = cam.X(p[0]), y = cam.Y(p[1]); if (!open) { ctx.moveTo(x, y); open = true; } else ctx.lineTo(x, y); } else open = false;
+      if (p[2] > 0.18) { const x = cam.X(p[0], p[1]), y = cam.Y(p[1]); if (!open) { ctx.moveTo(x, y); open = true; } else ctx.lineTo(x, y); } else open = false;
     }
     ctx.stroke();
   }
@@ -222,15 +329,16 @@ export function drawFlightBrushes(ctx, cam, state) {
   const L = (p, q) => (b[p + '0'] ?? b[q]) + (b[q] - (b[p + '0'] ?? b[q])) * k;
   const bx = L('x', 'x'), by = L('y', 'y'), ph = L('ph', 'ph'), amp = L('amp', 'amp'), fade = L('a', 'a');
   const ang = lerpAng(b.ang0 ?? b.ang, b.ang, k);
-  // heading on screen: world heading pushed through the fixed map, so the heads turn smoothly with the stone's path
+  // heading on screen: the world heading pushed through the fixed projection, so the heads turn smoothly with the stone's path
   const hxw = Math.cos(ang), hyw = Math.sin(ang);
-  const hxp = hxw * cam.ppm, hyp = -hyw * cam.sy(by), hn = Math.hypot(hxp, hyp) || 1;
-  drawBrushes(ctx, cam.X(bx), cam.Y(by), hxp / hn, hyp / hn, cam.ppm, amp, ph, f.team, fade);
+  const ax = cam.X(bx, by), ay = cam.Y(by);
+  const hxp = cam.X(bx + hxw * 0.5, by + hyw * 0.5) - ax, hyp = cam.Y(by + hyw * 0.5) - ay, hn = Math.hypot(hxp, hyp) || 1;
+  drawBrushes(ctx, ax, ay, hxp / hn, hyp / hn, cam.rad(by), amp, ph, f.team, fade);
 }
 
 export function drawParts(ctx, cam, parts) {
   for (const q of parts) {
-    const k = 1 - q.t / q.max, x = cam.X(q.x), y = cam.Y(q.y);
+    const k = 1 - q.t / q.max, x = cam.X(q.x, q.y), y = cam.Y(q.y);
     if (q.kind === 2) {   // expanding ring
       ctx.strokeStyle = q.col; ctx.globalAlpha = Math.max(0, k) * 0.8; ctx.lineWidth = 2.5;
       ctx.beginPath(); ctx.arc(x, y, q.size * (1 - k * 0.7) * cam.ppm / 100, 0, TAU); ctx.stroke(); ctx.globalAlpha = 1;
@@ -247,32 +355,32 @@ export function drawParts(ctx, cam, parts) {
 export function drawAim(ctx, cam, state) {
   const a = state.aim;
   if (!a || !a.placed) return;
-  const tx = cam.X(a.x), ty = cam.Y(a.y), rpx = R * cam.ppm;
+  const tx = cam.X(a.x, a.y), ty = cam.Y(a.y), rpx = cam.rad(a.y);
   const pv = state.pv;
   ctx.save();
   if (pv && pv.path) {
     ctx.lineCap = 'round';
     ctx.setLineDash([2, 9]); ctx.strokeStyle = 'rgba(255,255,255,0.95)'; ctx.lineWidth = 3.5;
-    ctx.beginPath(); pv.path.forEach((p, i) => { const x = cam.X(p[0]), y = cam.Y(p[1]); if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); }); ctx.stroke();
+    ctx.beginPath(); pv.path.forEach((p, i) => { const x = cam.X(p[0], p[1]), y = cam.Y(p[1]); if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); }); ctx.stroke();
     ctx.setLineDash([]); ctx.strokeStyle = 'rgba(30,90,170,0.35)'; ctx.lineWidth = 8;
-    ctx.beginPath(); pv.path.forEach((p, i) => { const x = cam.X(p[0]), y = cam.Y(p[1]); if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); }); ctx.stroke();
+    ctx.beginPath(); pv.path.forEach((p, i) => { const x = cam.X(p[0], p[1]), y = cam.Y(p[1]); if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); }); ctx.stroke();
     if (pv.end) {
-      const ex = cam.X(pv.end.x), ey = cam.Y(pv.end.y);
+      const ex = cam.X(pv.end.x, pv.end.y), ey = cam.Y(pv.end.y);
       drawStone(ctx, ex, ey, rpx, state.m.turn, 0.6, { a: 0.5, ghost: true });
       ctx.lineWidth = 2.5; ctx.strokeStyle = pv.end.kind === 'contact' ? 'rgba(255,170,60,0.95)' : pv.end.kind === 'out' ? 'rgba(255,90,70,0.95)' : 'rgba(255,255,255,0.9)';
       ctx.beginPath(); ctx.arc(ex, ey, rpx * 1.35, 0, TAU); ctx.stroke();
     }
   }
-  if (state.finalPreview) for (const g of state.finalPreview) drawStone(ctx, cam.X(g.x), cam.Y(g.y), rpx, g.team, 0.5, { a: 0.5, ghost: true });
+  if (state.finalPreview) for (const g of state.finalPreview) drawStone(ctx, cam.X(g.x, g.y), cam.Y(g.y), cam.rad(g.y), g.team, 0.5, { a: 0.5, ghost: true });
   // the broom: where the thrower is aiming. A flat brush head with a pole, drawn as an object.
   const pulse = 1 + Math.sin(state.t * 5) * 0.05;
   ctx.strokeStyle = 'rgba(25,60,110,0.85)'; ctx.lineWidth = 2;
   ctx.beginPath(); ctx.arc(tx, ty, rpx * 1.9 * pulse, 0, TAU); ctx.stroke();
   ctx.strokeStyle = 'rgba(255,255,255,0.9)'; ctx.lineWidth = 1.4;
   ctx.beginPath(); ctx.arc(tx, ty, rpx * 1.9 * pulse + 2, 0, TAU); ctx.stroke();
-  const bw = 0.62 * cam.ppm, bh = 0.17 * cam.ppm;
-  ctx.strokeStyle = '#1b2b3d'; ctx.lineWidth = Math.max(3, cam.ppm * 0.03); ctx.lineCap = 'round';
-  ctx.beginPath(); ctx.moveTo(tx, ty + bh * 0.5); ctx.lineTo(tx + cam.ppm * 0.15, ty + cam.ppm * 1.7); ctx.stroke();
+  const bw = rpx * 3.4, bh = rpx * 0.95;
+  ctx.strokeStyle = '#1b2b3d'; ctx.lineWidth = Math.max(3, rpx * 0.22); ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(tx, ty + bh * 0.5); ctx.lineTo(tx + rpx * 0.9, ty + rpx * 6); ctx.stroke();
   ctx.fillStyle = 'rgba(8,24,44,0.3)'; roundPath(ctx, tx - bw / 2 + 3, ty - bh / 2 + 5, bw, bh, bh * 0.4); ctx.fill();
   ctx.fillStyle = '#1d2c3c'; roundPath(ctx, tx - bw / 2, ty - bh / 2, bw, bh, bh * 0.4); ctx.fill();
   ctx.fillStyle = TEAM[state.m.turn].main; roundPath(ctx, tx - bw / 2 + 2, ty - bh / 2 + 2, bw - 4, bh * 0.45, bh * 0.2); ctx.fill();
@@ -476,7 +584,7 @@ export function drawCard(ctx, state, lay) {
 export function drawScoreMarks(ctx, cam, state) {
   const info = state.m.endInfo;
   if (!info || state.m.phase !== 'score') return;
-  const bx = cam.X(0), by = cam.Y(0);
+  const bx = cam.X(0, 0), by = cam.Y(0);
   const fs = Math.round(22 * Math.min(textScale(state), 2));
   ctx.save();
   let n = 0;
@@ -484,14 +592,14 @@ export function drawScoreMarks(ctx, cam, state) {
     const s = state.w.stones.find((q) => q.id === id);
     if (!s) continue;
     const counted = info.counted.includes(id);
-    const x = cam.X(s.x), y = cam.Y(s.y);
+    const x = cam.X(s.x, s.y), y = cam.Y(s.y), rr = cam.rad(s.y);
     ctx.strokeStyle = counted ? '#ffffff' : 'rgba(180,210,235,0.35)'; ctx.lineWidth = counted ? 2 : 1; ctx.setLineDash([4, 5]);
     ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(x, y); ctx.stroke(); ctx.setLineDash([]);
     if (counted) {
       n++;
-      ctx.beginPath(); ctx.arc(x, y, R * cam.ppm * (1.5 + Math.sin(state.t * 6) * 0.1), 0, TAU); ctx.strokeStyle = TEAM[s.team].tint; ctx.lineWidth = 3; ctx.stroke();
-      roundPath(ctx, x - fs * 0.7, y - R * cam.ppm - fs * 1.7, fs * 1.4, fs * 1.4, fs * 0.7); ctx.fillStyle = 'rgba(8,22,40,0.92)'; ctx.fill();
-      ctx.fillStyle = '#fff'; ctx.font = `800 ${fs}px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(String(n), x, y - R * cam.ppm - fs * 1.0);
+      ctx.beginPath(); ctx.arc(x, y, rr * (1.5 + Math.sin(state.t * 6) * 0.1), 0, TAU); ctx.strokeStyle = TEAM[s.team].tint; ctx.lineWidth = 3; ctx.stroke();
+      roundPath(ctx, x - fs * 0.7, y - rr - fs * 1.7, fs * 1.4, fs * 1.4, fs * 0.7); ctx.fillStyle = 'rgba(8,22,40,0.92)'; ctx.fill();
+      ctx.fillStyle = '#fff'; ctx.font = `800 ${fs}px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(String(n), x, y - rr - fs * 1.0);
     }
     void toButton; void HOUSE_R;
   }
@@ -500,7 +608,7 @@ export function drawScoreMarks(ctx, cam, state) {
 
 export function drawPops(ctx, cam, state) {
   for (const p of state.pops) {
-    const k = p.t / p.max, x = cam.X(p.x), y = cam.Y(p.y) - k * 60;
+    const k = p.t / p.max, x = cam.X(p.x, p.y), y = cam.Y(p.y) - k * 60;
     ctx.save();
     ctx.globalAlpha = Math.max(0, 1 - k * k);
     ctx.font = `800 ${Math.round(p.size * Math.min(textScale(state), 2))}px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -515,14 +623,21 @@ export function renderPlay(ctx, state) {
   const lay = layoutFor(state);
   const cam = makeCam(state, lay);
   state.cam.lay = lay; state.cam.ppm = cam.ppm;
-  drawIce(ctx, cam, state);
-  drawTrail(ctx, cam, state);
-  if (state.ctl === 'aim' && state.aim.placed) drawAim(ctx, cam, state);
-  drawStones(ctx, cam, state, state.w, { highlight: state.hl });
-  drawFlightBrushes(ctx, cam, state);
-  drawParts(ctx, cam, state.parts);
-  drawScoreMarks(ctx, cam, state);
+  const scene = (c) => {
+    drawTrail(ctx, c, state);
+    if (state.ctl === 'aim' && state.aim.placed) drawAim(ctx, c, state);
+    drawStones(ctx, c, state, state.w, { highlight: state.hl });
+    drawFlightBrushes(ctx, c, state);
+    drawParts(ctx, c, state.parts);
+    drawScoreMarks(ctx, c, state);
+  };
+  drawSheet(ctx, cam, state);
+  scene(cam);
   drawPops(ctx, cam, state);
+  beginInset(ctx, cam);
+  scene(cam.ins);
+  drawPops(ctx, cam.ins, state);
+  endInset(ctx, cam);
   drawHud(ctx, state, lay);
   drawControls(ctx, state, lay);
   drawCard(ctx, state, lay);
@@ -531,13 +646,13 @@ export function renderPlay(ctx, state) {
 
 // The ice for menus: a house view with the attract world.
 export function drawAttract(ctx, state, ppm = 105, yTop = 2.2, top = 40) {
-  const cam = { ppm, top, X: (x) => W / 2 + x * ppm, Y: (y) => top + (yTop - y) * ppm, yAt: (sy) => yTop - (sy - top) / ppm, sy: () => ppm };
+  const cam = { ppm, top, X: (x) => W / 2 + x * ppm, Y: (y) => top + (yTop - y) * ppm, yAt: (sy) => yTop - (sy - top) / ppm, sx: () => ppm, sy: () => ppm, rad: () => R * ppm };
   drawIce(ctx, cam, state);
   const a = state.att;
   if (a) {
     drawTrail(ctx, cam, { trail: a.trail });
     drawStones(ctx, cam, { t: state.t }, a.w);
-    if (a.fl) drawBrushes(ctx, cam.X(a.fl.x), cam.Y(a.fl.y), 0, -1, ppm, 0.14 + 0.3 * a.fl.eff, a.fl.phase, a.fl.team, 1);
+    if (a.fl) drawBrushes(ctx, cam.X(a.fl.x), cam.Y(a.fl.y), 0, -1, R * ppm * 1.4, 0.14 + 0.3 * a.fl.eff, a.fl.phase, a.fl.team, 1);
     drawParts(ctx, cam, a.parts);
   }
 }

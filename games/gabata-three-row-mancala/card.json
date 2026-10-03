@@ -1,0 +1,14 @@
+{
+  "title": "Gabata: Three-Row Sowing",
+  "tagline": "The three-row sowing game of Ethiopia and Eritrea.",
+  "description": "A carved wooden board of eighteen holes: sow seeds round your own loop, relay through full holes and capture a whole column when your last seed drops into an empty hole. Five opponent levels, two players on one phone, Think with a reason in words, six lessons and Watch & Learn. Play in English or choose the Amharic option for the menus and scores. No timers and no ads.",
+  "genre": "mancala, sowing and capture",
+  "demo": true,
+  "howToPlay": [
+    "Tap one of your holes that holds seeds. All its seeds are dropped one by one into the next holes of your loop.",
+    "If your last seed lands in a hole that already holds seeds, pick those up and sow on.",
+    "If your last seed lands in an empty hole, you capture every opponent seed in that column.",
+    "The game ends when a player runs out of seeds. Captured seeds plus the seeds in your own holes are your score.",
+    "Think shows the best move and why."
+  ]
+}
