@@ -4,16 +4,16 @@
   "tagline": "Pitch bags at the slanted board and sink them in the hole.",
   "genre": "skill sport / lawn bag toss",
   "orientation": "portrait",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "monetization": {
     "model": "premium",
-    "priceUsd": 2.99,
+    "priceUsd": 3.99,
     "previewSeconds": 90,
     "products": [
       {
         "id": "unlock_game",
         "type": "non-consumable",
-        "priceUsd": 2.99,
+        "priceUsd": 3.99,
         "title": "Unlock Game"
       }
     ]
