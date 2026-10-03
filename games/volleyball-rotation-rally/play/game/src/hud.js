@@ -100,13 +100,22 @@ function courtOverlay(ctx, G, s, lay) {
       const k = Math.max(0.6, 5.5 / Math.max(3, p.depth) * 3.2);
       ctx.save();
       ctx.strokeStyle = 'rgba(255,246,228,0.85)'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(p.x, p.y, 15 * k * 0.6 + 8, 0, TAU); ctx.stroke();
-      ctx.strokeStyle = 'rgba(255,255,255,0.18)'; ctx.setLineDash([3, 5]); ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(p.x, p.y + 14); ctx.lineTo(f.x, f.y); ctx.stroke(); ctx.setLineDash([]);
+      // floor point under the ball: a ring on the floor and a drop line, so a low ball never reads as touching the floor until it reaches the ring
+      const fxp = proj(G, b.x + 0.34, 0, b.z), fzp = proj(G, b.x, 0, b.z + 0.34);
+      const rx = fxp ? Math.abs(fxp.x - f.x) : 14, ry = fzp ? Math.abs(fzp.y - f.y) : 6;
+      ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.beginPath(); ctx.ellipse(f.x, f.y, rx, ry, 0, 0, TAU); ctx.fill();
+      ctx.strokeStyle = 'rgba(255,246,228,0.8)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(f.x, f.y, rx, ry, 0, 0, TAU); ctx.stroke();
+      if (b.y > 0.4) { ctx.strokeStyle = 'rgba(255,246,228,0.4)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(p.x, p.y + 12); ctx.lineTo(f.x, f.y); ctx.stroke(); }
       ctx.restore();
     }
     if (b.flight && s.phase === 'rally') {
       const tl = landTime(b.flight);
       if (tl && tl > now) { const lp = posAt(b.flight, tl); const q = proj(G, lp.x, 0, lp.z); const inb = Math.abs(lp.x) <= HW + 0.06 && Math.abs(lp.z) <= HL + 0.06; if (q && lp.z < 0.5 && (Math.abs(lp.z) < HL + 3)) { ctx.save(); ctx.strokeStyle = inb ? 'rgba(255,246,228,0.8)' : 'rgba(255,150,130,0.9)'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.ellipse(q.x, q.y, 20, 9, 0, 0, TAU); ctx.stroke(); ctx.beginPath(); ctx.moveTo(q.x - 8, q.y - 3); ctx.lineTo(q.x + 8, q.y + 3); ctx.moveTo(q.x + 8, q.y - 3); ctx.lineTo(q.x - 8, q.y + 3); ctx.stroke(); ctx.restore(); } }
     }
+  }
+  if (G.landFx && now - G.landFx.t < 0.6 && now >= G.landFx.t) {
+    const q = proj(G, G.landFx.x, 0, G.landFx.z), u = (now - G.landFx.t) / 0.6;
+    if (q) { ctx.save(); ctx.strokeStyle = `rgba(255,255,255,${0.9 * (1 - u)})`; ctx.lineWidth = 4 * (1 - u) + 1; ctx.beginPath(); ctx.ellipse(q.x, q.y, 20 + 70 * u, 8 + 28 * u, 0, 0, TAU); ctx.stroke(); ctx.restore(); }
   }
   // role tags above the user's team
   for (const p of s.players) {
@@ -234,16 +243,33 @@ export function renderThink(ctx, G, title, lines, useLabel) {
   const r = { ...THINK_CARD };
   ctx.font = `600 ${Math.round(26 * sc)}px ${FONT}`;
   const all = [];
-  lines.forEach((l) => wrapLines(ctx, l, r.w - 60).forEach((x) => all.push(x)));
+  lines.forEach((l) => wrapLines(ctx, l, r.w - 80).forEach((x) => all.push(x)));
   const lh = Math.round(26 * sc * 1.3);
+  const bh = Math.round(72 * Math.min(sc, 1.4));
   r.h = Math.min(H - 300, Math.max(300, 160 + all.length * lh + 120));
   r.y = Math.max(130, (H - r.h) / 2 - 60);
   panel(ctx, r.x, r.y, r.w, r.h, { r: 28, fill: 'rgba(14,34,52,0.97)', stroke: 'rgba(255,246,228,0.45)' });
   ctx.fillStyle = '#ffe9a0'; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'; ctx.font = `800 ${Math.round(34 * Math.min(sc, 1.5))}px ${FONT}`;
   ctx.fillText(title, W / 2, r.y + 62);
+  // the text window scrolls when the (zoomed) text is longer than the card
+  const y0 = r.y + 90, y1 = r.y + r.h - bh - 36, view = y1 - y0, content = all.length * lh + 16, max = Math.max(0, content - view);
+  const key = title + '|' + lines.join('|') + '|' + G.settings.textIdx;
+  if (G.cardKey !== key) { G.cardKey = key; G.cardScroll = 0; }
+  G.cardScroll = Math.max(0, Math.min(G.cardScroll || 0, max));
+  G.cardMeta = { max, view, rect: { x: r.x, y: y0, w: r.w, h: view } };
+  ctx.save(); ctx.beginPath(); ctx.rect(r.x + 8, y0, r.w - 16, view); ctx.clip();
   ctx.fillStyle = '#fff6e4'; ctx.textAlign = 'left'; ctx.font = `500 ${Math.round(26 * sc)}px ${FONT}`;
-  all.slice(0, Math.floor((r.h - 220) / lh)).forEach((l, k) => ctx.fillText(l, r.x + 30, r.y + 120 + k * lh));
-  const bh = Math.round(72 * Math.min(sc, 1.4));
+  all.forEach((l, k) => { const y = y0 + 8 + k * lh - G.cardScroll; if (y > y0 - lh && y < y1 + lh) ctx.fillText(l, r.x + 30, y + lh * 0.75); });
+  ctx.restore();
+  if (max > 0) {
+    const th = Math.max(40, view * (view / content)), ty = y0 + (G.cardScroll / max) * (view - th);
+    roundPath(ctx, r.x + r.w - 18, y0, 6, view, 3); ctx.fillStyle = 'rgba(255,246,228,0.15)'; ctx.fill();
+    roundPath(ctx, r.x + r.w - 18, ty, 6, th, 3); ctx.fillStyle = 'rgba(255,246,228,0.6)'; ctx.fill();
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = `700 20px ${FONT}`;
+    if (G.cardScroll < max - 4) { roundPath(ctx, W / 2 - 50, y1 - 34, 100, 30, 15); ctx.fillStyle = 'rgba(255,246,228,0.92)'; ctx.fill(); ctx.fillStyle = '#13283a'; ctx.fillText('▼ more', W / 2, y1 - 19); }
+    else { roundPath(ctx, W / 2 - 40, y0 + 4, 80, 28, 14); ctx.fillStyle = 'rgba(255,246,228,0.92)'; ctx.fill(); ctx.fillStyle = '#13283a'; ctx.fillText('▲ up', W / 2, y0 + 18); }
+    ctx.textBaseline = 'alphabetic';
+  }
   const rects = { close: { x: r.x + 24, y: r.y + r.h - bh - 20, w: useLabel ? 250 : r.w - 48, h: bh }, use: useLabel ? { x: r.x + 24 + 270, y: r.y + r.h - bh - 20, w: r.w - 48 - 270, h: bh } : null };
   drawButton(ctx, rects.close, 'Close', { dark: true, size: Math.round(26 * Math.min(sc, 1.4)) });
   if (rects.use) drawButton(ctx, rects.use, useLabel, { primary: true, size: Math.round(26 * Math.min(sc, 1.4)) });

@@ -1,10 +1,11 @@
 // Hurling: Sliotar Dash — the game shell. Scenes, input, persistence, preview wiring, Learn, Watch & Learn. The match lives in sim.js.
 import { createSim } from './sim.js';
-import { W, H, TEXT_SCALES, THINK_STEPS, REF_BACK, REF_NEXT, TEXT_DEC, TEXT_INC, SETUP_PINS, inRect, hudLayout } from './layout.js';
+import { W, H, TEXT_SCALES, THINK_STEPS, REF_CLOSE, TEXT_DEC, TEXT_INC, SETUP_PINS, inRect, hudLayout } from './layout.js';
 import { setPress } from './ui.js';
 import { ABOUT, HOWTO, RULES, LESSONS, QUIZ } from './content.js';
 import * as MN from './menus.js';
-import { renderHud, renderFallback, renderThink, renderMarks, watchHit, fmtScore, totalPts, TEAM_NAME } from './hud.js';
+import { READER, pageViewH } from './menus.js';
+import { renderHud, renderFallback, renderThink, renderMarks, watchHit, fmtScore, totalPts, TEAM_NAME, CARD } from './hud.js';
 import { createControls } from './controls.js';
 import { createDrill } from './drills.js';
 import { ROLES, CHOICES } from './consts.js';
@@ -172,6 +173,29 @@ export function createGame(env) {
   }
 
   // ---- menus -----------------------------------------------------------------------------------------------
+  // Scrolling by wheel and keys, shared by every scrolling screen (readers, menus, cards). `view` = visible height, `max` = furthest scroll.
+  // Wheel: game.wheel(deltaY) from the shell. Keys: arrows, PageUp / PageDown, Space (Shift+Space up), Home, End.
+  function scrollInput(input, max, view, key = 'scroll') {
+    const k = input.keys;
+    let sc = G.ui[key] || 0;
+    if (G.wheelAcc) { sc += G.wheelAcc * 1.1; G.wheelAcc = 0; }
+    if (k.down.has('ArrowDown')) sc += 16;
+    if (k.down.has('ArrowUp')) sc -= 16;
+    const page = Math.max(80, view - 70);
+    if (k.pressed.has('PageDown') || (k.pressed.has('Space') && !k.down.has('ShiftLeft') && !k.down.has('ShiftRight'))) sc += page;
+    if (k.pressed.has('PageUp') || (k.pressed.has('Space') && (k.down.has('ShiftLeft') || k.down.has('ShiftRight')))) sc -= page;
+    if (k.pressed.has('Home')) sc = 0;
+    if (k.pressed.has('End')) sc = max;
+    G.ui[key] = clamp(sc, 0, max);
+  }
+  // drag inside a text card (Think card, Watch & Learn panel): returns true when this pointer press belongs to the card's text
+  function cardInput(input) {
+    const ptr = input.pointer, R = CARD.rect;
+    if (ptr.pressed && R && ptr.x >= R.x && ptr.x <= R.x + R.w + 24 && ptr.y >= R.y && ptr.y <= R.y + R.h) G.ui.cardDrag = { y0: ptr.y, s0: G.ui.cardScroll || 0 };
+    if (G.ui.cardDrag && ptr.down) G.ui.cardScroll = clamp(G.ui.cardDrag.s0 - (ptr.y - G.ui.cardDrag.y0), 0, CARD.max);
+    if (ptr.released) G.ui.cardDrag = null;
+    scrollInput(input, CARD.max, CARD.view, 'cardScroll');
+  }
   function scrollFlow(ptr) {
     const d = G.ui.drag, mt = MN.flowMeta();
     d.moved = Math.max(d.moved, Math.abs(ptr.y - d.y0));
@@ -193,8 +217,7 @@ export function createGame(env) {
     const max = mt.lay ? Math.max(0, mt.lay.contentH - (mt.bottom - mt.top)) : 0;
     if (input.keys.pressed.has('Equal') || input.keys.pressed.has('NumpadAdd')) { G.settings.textIdx = Math.min(TEXT_SCALES.length - 1, G.settings.textIdx + 1); saveSettings(); }
     if (input.keys.pressed.has('Minus') || input.keys.pressed.has('NumpadSubtract')) { G.settings.textIdx = Math.max(0, G.settings.textIdx - 1); saveSettings(); }
-    if (input.keys.down.has('ArrowDown')) G.ui.scroll = clamp(G.ui.scroll + 14, 0, max);
-    if (input.keys.down.has('ArrowUp')) G.ui.scroll = clamp(G.ui.scroll - 14, 0, max);
+    scrollInput(input, max, mt.bottom - mt.top);
   };
   const go = (scene) => { G.scene = scene; G.ui.scroll = 0; G.page = 0; MN.ensureLayout(G, '-'); };
   function handleTitle(id) {
@@ -293,19 +316,26 @@ export function createGame(env) {
   }
   const updatePages = (input) => {
     const ptr = input.pointer, keys = input.keys;
-    const n = MN.pageCount();
-    const close = () => { G.scene = G.back === 'play' ? 'play' : 'title'; G.page = 0; if (G.scene === 'play') ctl.beginPlay(G.touches); };
-    const next = () => { if (G.page >= n - 1) close(); else G.page++; };
-    const prev = () => { if (G.page <= 0) close(); else G.page--; };
+    const max = READER.max || 0, view = pageViewH();
+    const close = () => { G.scene = G.back === 'play' ? 'play' : 'title'; G.page = 0; G.ui.scroll = 0; G.ui.drag = null; if (G.scene === 'play') ctl.beginPlay(G.touches); };
+    const zoom = (d) => { const n = clamp(G.settings.textIdx + d, 0, TEXT_SCALES.length - 1); if (n !== G.settings.textIdx) { G.settings.textIdx = n; G.ui.scroll = 0; saveSettings(); } };
     if (ptr.pressed) {
-      if (inRect(REF_NEXT, ptr.x, ptr.y)) next();
-      else if (inRect(REF_BACK, ptr.x, ptr.y)) prev();
-      else if (inRect(TEXT_DEC, ptr.x, ptr.y)) { G.settings.textIdx = Math.max(0, G.settings.textIdx - 1); saveSettings(); }
-      else if (inRect(TEXT_INC, ptr.x, ptr.y)) { G.settings.textIdx = Math.min(TEXT_SCALES.length - 1, G.settings.textIdx + 1); saveSettings(); }
+      if (inRect(REF_CLOSE, ptr.x, ptr.y)) { close(); return; }
+      else if (inRect(TEXT_DEC, ptr.x, ptr.y)) zoom(-1);
+      else if (inRect(TEXT_INC, ptr.x, ptr.y)) zoom(1);
+      else if (ptr.x > 8 + 704 - 40 && ptr.y > 84 + 84 && ptr.y < 84 + 1066 - 14) G.ui.drag = { bar: true };
+      else if (ptr.y > 84 + 70 && ptr.y < 84 + 1066) G.ui.drag = { y0: ptr.y, s0: G.ui.scroll };
     }
-    if (keys.pressed.has('ArrowRight')) next();
-    if (keys.pressed.has('ArrowLeft')) prev();
-    if (keys.pressed.has('Escape')) close();
+    if (G.ui.drag && ptr.down) {
+      const d = G.ui.drag;
+      if (d.bar) G.ui.scroll = clamp(((ptr.y - (84 + 84)) / view) * (max + view) - view / 2, 0, max);
+      else G.ui.scroll = clamp(d.s0 - (ptr.y - d.y0), 0, max);
+    }
+    if (ptr.released) G.ui.drag = null;
+    if (keys.pressed.has('Equal') || keys.pressed.has('NumpadAdd')) zoom(1);
+    if (keys.pressed.has('Minus') || keys.pressed.has('NumpadSubtract')) zoom(-1);
+    scrollInput(input, max, view);
+    if (keys.pressed.has('Escape') || keys.pressed.has('Enter')) close();
   };
   const updatePinned = (dt, input, key, handler) => {
     const ptr = input.pointer, k = input.keys;
@@ -334,6 +364,7 @@ export function createGame(env) {
     const lay = hudLayout(G.settings.textIdx);
     const ts = touchList(input);
     if (G.mode === 'watch') {
+      cardInput(input);
       if (input.pointer.pressed) {
         const i = watchHit(input.pointer.x, input.pointer.y);
         if (i === 0) { G.watch.paused = !G.watch.paused; sfx.tick(); }
@@ -347,6 +378,7 @@ export function createGame(env) {
       return;
     }
     if (G.think) {
+      cardInput(input);
       if (G.thinkRects && ((input.pointer.pressed && inRect(G.thinkRects.close, input.pointer.x, input.pointer.y)) || input.keys.pressed.has('Escape') || input.keys.pressed.has('KeyT'))) { G.think = null; sfx.tick(); ctl.beginPlay(ts); }
       return;
     }
@@ -372,8 +404,10 @@ export function createGame(env) {
 
   return {
     // Menus, Rules, About, settings, Learn text, Watch & Learn, pause and result screens are free; only real play counts against the preview.
-    isPreviewExempt: () => !(G.scene === 'play' && (G.mode === 'ai' || G.mode === 'drill')) || G.paused || G.pauseMenu || !!G.think || (S && (S.s.phase === 'dead' || S.s.phase === 'halftime' || S.s.over)),
+    // Only live play of a real match (mode 'ai', play phase, not paused) uses the preview. Dev mode (env.config.dev) unlocks everything.
+    isPreviewExempt: () => !!config.dev || !(G.scene === 'play' && G.mode === 'ai') || G.paused || G.pauseMenu || !!G.think || !S || !(S.s.phase === 'play' || S.s.phase === 'restart') || S.s.over,
     setTouches(list) { G.multi = true; G.touches = list; },
+    wheel(dy) { G.wheelAcc = (G.wheelAcc || 0) + dy; },
     update(dt, input) {
       setPress(input.pointer);
       G.t += dt;
@@ -394,6 +428,7 @@ export function createGame(env) {
         case 'play': updatePlay(dt, input); break;
         default: break;
       }
+      G.wheelAcc = 0;
     },
     render(ctx, view) {
       G.viewW = (view && view.cssW) || 720; G.viewH = (view && view.cssH) || 1280;

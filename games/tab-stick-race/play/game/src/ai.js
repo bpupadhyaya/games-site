@@ -65,34 +65,73 @@ function casualScore(m) {
 }
 
 // ---- searches ---------------------------------------------------------------------------------------------------------
-// Best leaf value reachable by spending the rest of this turn's values in the best order.
-function bestSeq(st, p, memo) {
-  if (st.turn !== p || st.winner >= 0 || st.phase === 'throw') return evaluate(st, p);
+// Best leaf value reachable by spending the rest of this turn's values in the best order. It is a generator so a search can be cut
+// into slices: every `ctr.slice` positions it hands control back (a frame is never held for the whole search).
+function* bestSeq(st, p, memo, ctr) {
+  if (st.turn !== p || st.winner >= 0 || st.phase === 'throw') { ctr.n += 4; return evaluate(st, p); }    // evaluating a finished line is the dearest step
   const k = keyOf(st);
   const hit = memo.get(k);
+  ctr.n += 1;
   if (hit !== undefined) return hit;
   let best = -Infinity;
   for (const m of legalMoves(st)) {
-    const s = bestSeq(applyMove(st, m), p, memo);
+    if (ctr.n >= ctr.slice) { ctr.n = 0; yield; }
+    const s = yield* bestSeq(applyMove(st, m), p, memo, ctr);
     if (s > best) best = s;
   }
   memo.set(k, best);
   return best;
 }
-
-// Scores every legal first move by the best way to finish the turn.
-export function scoreMoves(st) {
-  const p = st.turn, memo = new Map();
-  return legalMoves(st).map((mv) => ({ mv, score: bestSeq(applyMove(st, mv), p, memo) }));
-}
-
-export function analyse(st) {
-  return withLevel('master', () => analyseIn(st));
-}
-function analyseIn(st) {
-  const rows = scoreMoves(st);
-  rows.sort((a, b) => b.score - a.score);
+function* scoreAll(st, ctr) {
+  const p = st.turn, memo = new Map(), rows = [];
+  if (st.pending.length > MAX_FULL) { for (const mv of legalMoves(st)) rows.push({ mv, score: evaluate(applyMove(st, mv), p) }); return rows; }
+  for (const mv of legalMoves(st)) rows.push({ mv, score: yield* bestSeq(applyMove(st, mv), p, memo, ctr) });
   return rows;
+}
+
+// A search that runs in slices: `job.step(n)` evaluates about n positions and returns true once `job.rows` (every legal first move
+// with the score of its best continuation) is ready. The level's tuning is applied only while a slice runs.
+// A turn can hold many counts (a run of ones, fours and sixes): trying every order of 6 or more counts takes seconds, so a turn
+// with more than MAX_FULL counts is scored one move ahead only (the same value, without the order search). That is rare (well under
+// one turn in a hundred) and a long turn is mostly forced anyway.
+export const MAX_FULL = 5;
+export const SLICE = 400;     // work units per slice (a leaf evaluation counts 4, any other node 1)
+export function searchJob(st, levelId) {
+  const ctr = { n: 0, slice: SLICE }, gen = scoreAll(st, ctr);
+  const job = {
+    done: false, rows: null,
+    step(n = SLICE) {
+      if (job.done) return true;
+      ctr.slice = n; ctr.n = 0;
+      withLevel(levelId, () => { const r = gen.next(); if (r.done) { job.done = true; job.rows = r.value; } });
+      return job.done;
+    },
+    finish() { while (!job.step(1e9)); return job.rows; },
+  };
+  return job;
+}
+export const scoreMoves = (st) => searchJob(st, 'master').finish();
+
+// Rows best first (Think). `analyse` runs the whole search at once; Think itself uses `searchJob` and sorts the finished rows.
+export const sortRows = (rows) => rows.slice().sort((a, b) => b.score - a.score);
+export function analyse(st) { return sortRows(searchJob(st, 'master').finish()); }
+
+// Picking a move for the computer. Expert and Master search in slices: `startPick` returns { move } at once for the cheap levels and
+// for a forced move, otherwise { job, st, levelId }; once the job is done `finishPick` gives the move.
+export function startPick(st, levelId, rng) {
+  const moves = legalMoves(st);
+  if (!moves.length) return { move: null };
+  if (levelId !== 'expert' && levelId !== 'master') return { move: pickMove(st, levelId, rng) };
+  if (moves.length === 1) return { move: moves[0] };
+  return { job: searchJob(st, levelId), st, levelId };
+}
+export function finishPick(pk, rng) {
+  if (pk.move !== undefined) return pk.move;
+  const rows = pk.job.finish();
+  if (pk.levelId === 'master') return sortRows(rows)[0].mv;
+  let best = rows[0], bs = -Infinity;
+  for (const r of rows) { const s = r.score + rng.next() * 0.01; if (s > bs) { bs = s; best = r; } }
+  return best.mv;
 }
 
 export function pickMove(st, levelId, rng) { return withLevel(levelId, () => pickMoveIn(st, levelId, rng)); }
@@ -114,13 +153,7 @@ function pickMoveIn(st, levelId, rng) {
     for (const m of moves) { const s = evaluate(applyMove(st, m), p) + rng.next() * 0.01; if (s > bs) { bs = s; best = m; } }
     return best;
   }
-  if (levelId === 'expert') {
-    const rows = scoreMoves(st);
-    let best = rows[0], bs = -Infinity;
-    for (const r of rows) { const s = r.score + rng.next() * 0.01; if (s > bs) { bs = s; best = r; } }
-    return best.mv;
-  }
-  return analyse(st)[0].mv;
+  return finishPick({ job: searchJob(st, levelId), st, levelId }, rng);
 }
 
 // ---- Think: a verified reason ------------------------------------------------------------------------------------------
@@ -135,7 +168,7 @@ const TXT = {
     enter: 'brings a new stone onto the board (it needs a one, which is not easy to get)',
     safe: 'lands on a safe square, where it cannot be captured',
     escape: (a, b) => `moves a stone out of danger: the chance it can be hit next turn falls from at most ${a} to at most ${b}`,
-    low: (a) => `lands where the other side has only about a ${a} chance of hitting it`,
+    low: (a) => `lands where the other side can hit it with a chance of at most ${a}`,
     risky: (a) => `is the best of a risky set of moves: the landing square can be hit with at most ${a}`,
     plain: 'makes the most progress for the least risk',
   },
@@ -144,10 +177,10 @@ const TXT = {
     heads: { cap: 'أسر', enter: 'أدخل حجراً', safe: 'خذ المربع الآمن', best: 'أفضل نقلة' },
     use: (v, facts) => `استعمال العدد ${v} على هذا الحجر ${facts.join('، و')}.`,
     cap: (n) => `يأسر حجراً كان قد قطع ${n} مربعاً ويعيده إلى البداية`,
-    enter: 'يُدخل حجراً جديداً إلى اللوح (وهو يحتاج إلى العدد واحد الذي ليس سهل الحصول عليه)',
+    enter: 'يُدخل حجراً جديداً إلى اللوح (وهو يحتاج إلى العدد واحد، وليس من السهل الحصول عليه)',
     safe: 'ينزل على مربع آمن لا يمكن أسره فيه',
     escape: (a, b) => `ينقل حجراً من الخطر: احتمال إصابته في الدور القادم ينخفض من ${a} على الأكثر إلى ${b} على الأكثر`,
-    low: (a) => `ينزل حيث لا يملك الخصم إلا احتمالاً نحو ${a} لإصابته`,
+    low: (a) => `ينزل حيث لا يتجاوز احتمال إصابته من الخصم ${a}`,
     risky: (a) => `هو أفضل نقلة بين نقلات محفوفة بالخطر: يمكن إصابة مربع النزول باحتمال ${a} على الأكثر`,
     plain: 'يحقق أكبر تقدّم بأقل خطر',
   },

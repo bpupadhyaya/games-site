@@ -260,6 +260,7 @@ export function createGame(env) {
     const max = mt.lay ? Math.max(0, mt.lay.contentH - (mt.bottom - mt.top)) : 0;
     if (input.keys.pressed.has('Equal') || input.keys.pressed.has('NumpadAdd')) setText(G.settings.textIdx + 1);
     if (input.keys.pressed.has('Minus') || input.keys.pressed.has('NumpadSubtract')) setText(G.settings.textIdx - 1);
+    const wh = env.wheel ? env.wheel() : 0; if (wh) G.ui.scroll = clamp(G.ui.scroll + wh, 0, max);
     if (input.keys.down.has('ArrowDown')) G.ui.scroll = clamp(G.ui.scroll + 14, 0, max);
     if (input.keys.down.has('ArrowUp')) G.ui.scroll = clamp(G.ui.scroll - 14, 0, max);
   };
@@ -353,18 +354,27 @@ export function createGame(env) {
   }
   const roleTutList = () => { const r = ROLE_INFO[G.roleTut]; return [{ title: `${r.num}  ${r.name}`, p: r.long }, { title: 'Controls for every role', p: [HOWTO[1].p[0], HOWTO[2].p[0], HOWTO[3].p[0]] }]; };
   const updatePages = (input) => {
-    const ptr = input.pointer, keys = input.keys, n = MN.pageCount();
-    const close = () => { G.scene = G.back === 'play' ? 'play' : G.back === 'setup' ? 'setup' : 'title'; G.page = 0; MN.invalidateLayout(); };
-    const next = () => { if (G.page >= n - 1) close(); else G.page++; };
-    const prev = () => { if (G.page <= 0) close(); else G.page--; };
+    const ptr = input.pointer, keys = input.keys, rm = MN.refMeta(), view = rm.vh;
+    const close = () => { G.scene = G.back === 'play' ? 'play' : G.back === 'setup' ? 'setup' : 'title'; G.page = 0; G.ui.scroll = 0; G.ui.drag = null; MN.invalidateLayout(); };
+    const setS = (v) => { G.ui.scroll = clamp(v, 0, rm.max); };
+    const next = () => { if (G.ui.scroll >= rm.max - 4) close(); else setS(G.ui.scroll + view * 0.85); };
+    const prev = () => { if (G.ui.scroll <= 4) close(); else setS(G.ui.scroll - view * 0.85); };
     if (ptr.pressed) {
       if (inRect(REF_NEXT, ptr.x, ptr.y)) next();
       else if (inRect(REF_BACK, ptr.x, ptr.y)) prev();
       else if (inRect(TEXT_DEC, ptr.x, ptr.y)) setText(G.settings.textIdx - 1);
       else if (inRect(TEXT_INC, ptr.x, ptr.y)) setText(G.settings.textIdx + 1);
+      else G.ui.drag = { y0: ptr.y, s0: G.ui.scroll };
     }
-    if (keys.pressed.has('ArrowRight')) next();
-    if (keys.pressed.has('ArrowLeft')) prev();
+    if (G.ui.drag && ptr.down) setS(G.ui.drag.s0 - (ptr.y - G.ui.drag.y0));
+    if (!ptr.down) G.ui.drag = null;
+    const wh = env.wheel ? env.wheel() : 0; if (wh) setS(G.ui.scroll + wh);
+    if (keys.down.has('ArrowDown')) setS(G.ui.scroll + 16);
+    if (keys.down.has('ArrowUp')) setS(G.ui.scroll - 16);
+    if (keys.pressed.has('PageDown') || keys.pressed.has('Space')) setS(G.ui.scroll + view * 0.85);
+    if (keys.pressed.has('PageUp')) setS(G.ui.scroll - view * 0.85);
+    if (keys.pressed.has('End')) setS(rm.max);
+    if (keys.pressed.has('Home')) setS(0);
     if (keys.pressed.has('Escape')) close();
   };
   const updateSetup = (dt, input) => {

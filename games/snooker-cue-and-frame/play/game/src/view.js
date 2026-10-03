@@ -305,8 +305,10 @@ export function drawHud(ctx, state, lay) {
     }
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = `700 ${Math.round(fs * 0.86)}px ${FONT}`; ctx.fillStyle = '#ffe9a8';
     ctx.fillText(clip(info1 + (f.visit > 0 ? ` · Break ${f.visit}` : ''), w0 - 24, Math.round(fs * 0.86)), W / 2, hud.y + 6 + row * 1.5 + 4);
-    ctx.font = `600 ${Math.round(fs * 0.78)}px ${FONT}`; ctx.fillStyle = '#cfe8d8';
-    ctx.fillText(clip(`${frameTxt}${left} left`, w0 - 24, Math.round(fs * 0.78)), W / 2, hud.y + 6 + row * 2.5 + 2);
+    if (hud.rows !== 2) {
+      ctx.font = `600 ${Math.round(fs * 0.78)}px ${FONT}`; ctx.fillStyle = '#cfe8d8';
+      ctx.fillText(clip(`${frameTxt}${left} left`, w0 - 24, Math.round(fs * 0.78)), W / 2, hud.y + 6 + row * 2.5 + 2);
+    }
   }
 }
 
@@ -357,6 +359,7 @@ function drawPower(ctx, state, r, fs) {
   }
 }
 
+export const verdictScroll = { max: 0, top: 0, bottom: 0 };
 function drawCtrlText(ctx, text, x, y, w, fs, color = '#f4eed8', align = 'center', lh = 1.25) {
   ctx.font = `600 ${fs}px ${FONT}`; ctx.fillStyle = color; ctx.textAlign = align; ctx.textBaseline = 'alphabetic';
   let yy = y;
@@ -391,10 +394,24 @@ export function drawControls(ctx, state, lay) {
   if (kind === 'verdict') {
     const v = state.verdict ?? { title: '', lines: [], buttons: [] };
     ctx.textBaseline = 'alphabetic';
-    let y = c.textTop + fs * 1.0;
-    ctx.font = `800 ${Math.round(fs * 1.12)}px ${FONT}`; ctx.fillStyle = v.tone === 'bad' ? '#ffb6a0' : v.tone === 'good' ? '#9af0c0' : '#ffe9a8'; ctx.textAlign = 'center';
-    for (const l of wrapLines(ctx, v.title, W - 40)) { ctx.fillText(l, W / 2, y); y += fs * 1.25; }
-    for (const ln of v.lines) y = drawCtrlText(ctx, ln, 20, y, W - 40, Math.round(fs * 0.82), '#e6f2ea');
+    const nb = v.buttons.length, btop = nb === 1 ? c.go.y : nb === 2 ? c.half1.y : c.go2.y;
+    const vt = c.textTop - 2, vb = btop - 10;
+    const rows = [];                                   // the text is laid out once, clipped to its box and scrollable (drag) at any text size
+    ctx.font = `800 ${Math.round(fs * 1.12)}px ${FONT}`;
+    for (const l of wrapLines(ctx, v.title, W - 40)) rows.push({ t: l, f: `800 ${Math.round(fs * 1.12)}px ${FONT}`, col: v.tone === 'bad' ? '#ffb6a0' : v.tone === 'good' ? '#9af0c0' : '#ffe9a8', h: fs * 1.25 });
+    for (const ln of v.lines) { ctx.font = `600 ${Math.round(fs * 0.82)}px ${FONT}`; for (const l of wrapLines(ctx, ln, W - 40)) rows.push({ t: l, f: `600 ${Math.round(fs * 0.82)}px ${FONT}`, col: '#e6f2ea', h: Math.round(fs * 0.82) * 1.25 }); }
+    const total = rows.reduce((a, r) => a + r.h, 0) + fs * 0.3;
+    verdictScroll.max = Math.max(0, total - (vb - vt)); verdictScroll.top = vt; verdictScroll.bottom = vb;
+    v.scroll = Math.max(0, Math.min(verdictScroll.max, v.scroll ?? 0));
+    ctx.save(); ctx.beginPath(); ctx.rect(0, vt, W, vb - vt); ctx.clip();
+    let y = vt + fs * 0.95 - v.scroll; ctx.textAlign = 'center';
+    for (const r of rows) { ctx.font = r.f; ctx.fillStyle = r.col; ctx.fillText(r.t, W / 2, y); y += r.h; }
+    ctx.restore();
+    if (verdictScroll.max > 0) {
+      const th = Math.max(36, (vb - vt) * ((vb - vt) / total)), ty = vt + (v.scroll / verdictScroll.max) * (vb - vt - th);
+      roundPath(ctx, W - 12, ty, 6, th, 3); ctx.fillStyle = 'rgba(241,233,208,0.6)'; ctx.fill();
+      ctx.font = `700 22px ${FONT}`; ctx.fillStyle = 'rgba(255,233,168,0.95)'; ctx.textAlign = 'right'; ctx.fillText(v.scroll < verdictScroll.max - 4 ? 'drag up for more ▼' : '▲ drag down', W - 22, vb - 4);
+    }
     const n = v.buttons.length;
     const rects = n === 1 ? [c.go] : n === 2 ? [c.half1, c.half2] : [c.go2, c.go];
     v.buttons.forEach((b, i) => drawButton(ctx, rects[i] ?? c.go, b.label, { primary: !!b.primary, dark: !b.primary, size: Math.round(fs * 1.0) }));
@@ -402,7 +419,7 @@ export function drawControls(ctx, state, lay) {
   }
   // aim
   drawPower(ctx, state, c.power, fsG);
-  drawInset(ctx, state, c.inset, fsG);
+  if (c.inset) drawInset(ctx, state, c.inset, fsG);
   const guideLbl = ['Guide: Off', 'Guide: Line', 'Guide: Preview'][state.settings.guide];
   const dis = !state.humanTurn || state.paused;
   if (c.small) {
@@ -413,8 +430,8 @@ export function drawControls(ctx, state, lay) {
     drawButton(ctx, c.guide, guideLbl, { dark: true, size: Math.round(fs * 0.78) });
     drawButton(ctx, c.menu, 'Menu', { dark: true, size: Math.round(fs * 0.95) });
   } else {
-    drawButton(ctx, c.shot, 'Spin', { dark: true, size: Math.round(fs * 0.95), sub: state.aim.a || state.aim.b ? 'set' : 'centre' });
-    drawButton(ctx, c.think, state.think ? 'Thinking…' : 'Think', { dark: true, disabled: dis, size: Math.round(fs * 0.95) });
+    drawButton(ctx, c.shot, 'Spin', { dark: true, size: Math.round(fs * 0.95), sub: c.big ? null : state.aim.a || state.aim.b ? 'set' : 'centre' });
+    drawButton(ctx, c.think, state.think ? (c.big ? '…' : 'Thinking…') : 'Think', { dark: true, disabled: dis, size: Math.round(fs * 0.95) });
     drawButton(ctx, c.menu, 'Menu', { dark: true, size: Math.round(fs * 0.95) });
   }
 }
@@ -452,7 +469,7 @@ export function renderPlay(ctx, state) {
 
 export function cardRect(state, lay) {
   const big = lay.fs > 38;
-  const fs = Math.round(26 * Math.min(lay.fs / 26, 1.4) * 0.78);
+  const fs = Math.round(26 * Math.min(lay.fs / 26, 2.0) * 0.78);
   const h = Math.round(fs * (big ? 2.6 : 3.7));
   return { x: 22, y: lay.regionTop + 8, w: W - 44, h, fs, big };
 }

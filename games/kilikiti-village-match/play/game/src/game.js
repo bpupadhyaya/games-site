@@ -34,8 +34,10 @@ export function createGame(env) {
   };
   hid(G, 'env', env);
   hid(G, '_ui', { hits: [], footer: [], view: { x: 0, y: 0, w: W, h: H }, pages: null, maxS: 0 });
+  // mouse wheel / trackpad scrolls the text screens (the kit input has no wheel event); consumed in uiInput
+  try { globalThis.addEventListener?.('wheel', (e) => { if (G.scene !== 'play') { G.wheel = (G.wheel || 0) + Math.max(-400, Math.min(400, e.deltaY)); e.preventDefault?.(); } }, { passive: false }); } catch { /* no DOM */ }
   let S = null;                  // the running sim API (not part of the serializable state)
-  let lastPt = null;
+  let lastPt = null, ghost = null;
   let attract = null, bot = null, evSeen = 0, snap = null, updAt = 0, stepped = false;
   const simRng = rng.fork();
   const sfxq = [];
@@ -418,13 +420,15 @@ export function createGame(env) {
   function uiInput(input) {
     const p = input.pointer, ui = G.ui, U = G._ui;
     if (p.pressed) ui.drag = { y0: p.y, s0: ui.scroll, moved: false, x0: p.x };
-    const paged = G.scene === 'howto' || G.scene === 'about' || G.scene === 'rules';
     if (ui.drag && p.down) {
       const dy = p.y - ui.drag.y0;
       if (Math.abs(dy) > 12) ui.drag.moved = true;
-      if (ui.drag.moved && !paged) ui.scroll = clamp(ui.drag.s0 - dy, 0, U.maxS);
+      if (ui.drag.moved) ui.scroll = clamp(ui.drag.s0 - dy, 0, U.maxS);
     }
+    if (G.wheel) { ui.scroll = clamp(ui.scroll + G.wheel, 0, U.maxS); G.wheel = 0; }
     for (const k of input.keys.pressed) {
+      if (k === 'PageDown') ui.scroll = clamp(ui.scroll + U.view.h * 0.85, 0, U.maxS);
+      if (k === 'PageUp') ui.scroll = clamp(ui.scroll - U.view.h * 0.85, 0, U.maxS);
       if (k === 'ArrowDown') ui.scroll = clamp(ui.scroll + 80, 0, U.maxS);
       if (k === 'ArrowUp') ui.scroll = clamp(ui.scroll - 80, 0, U.maxS);
       if (k === 'Escape') uiTap('back');
@@ -435,7 +439,6 @@ export function createGame(env) {
     if (p.released && ui.drag) {
       const d = ui.drag; ui.drag = null;
       if (d.moved) {
-        if (paged && Math.abs(p.y - d.y0) > 70 && U.view.y <= d.y0 && d.y0 <= U.view.y + U.view.h) uiTap(p.y < d.y0 ? 'next' : 'prev');
         return;
       }
       const x = p.x, y = p.y;
@@ -514,6 +517,7 @@ export function createGame(env) {
   return {
     // Menus, Rules, About, settings, Learn practice, Watch & Learn, pause, Think and the computer's own innings are free; only real play counts against the preview.
     isPreviewExempt: () => {
+      if (config.dev) return true;   // the developer toggle unlocks everything
       if (G.scene !== 'play' || G.watch || G.practice || G.paused || G.think || !S) return true;
       const s = S.s;
       if (s.phase === 'break' || s.phase === 'matchEnd') return true;
@@ -521,8 +525,24 @@ export function createGame(env) {
     },
     update(dt, input) {
       G.tick++;
-      // a stray second finger makes the kit's single pointer jump: a jump of more than 260 px in one tick while held is ignored (the position stays where it was)
-      { const pp = input.pointer; if (pp.down && !pp.pressed && lastPt && Math.hypot(pp.x - lastPt.x, pp.y - lastPt.y) > 260) { pp.x = lastPt.x; pp.y = lastPt.y; } lastPt = pp.down ? { x: pp.x, y: pp.y } : null; }
+      // The kit has ONE pointer: a second finger landing makes it jump, and a second finger lifting reports "released" for the first finger too.
+      // The game works on its own copy: a jump of more than 260 px in one tick is ignored (the position stays), and a release that comes with such a jump
+      // is a stray finger lifting: the first finger is kept as "still down" (a ghost touch) while it keeps moving, and let go 0.25 s after it stops.
+      {
+        const kp = input.pointer, pp = { x: kp.x, y: kp.y, down: kp.down, pressed: kp.pressed, released: kp.released };
+        const jump = lastPt ? Math.hypot(pp.x - lastPt.x, pp.y - lastPt.y) : 0;
+        if (pp.pressed) ghost = null;
+        if (ghost) {
+          if (!pp.released && jump > 0 && jump <= 260 && jump > 1.5) { ghost.still = 0; lastPt = { x: pp.x, y: pp.y }; } else { ghost.still += dt; pp.x = lastPt.x; pp.y = lastPt.y; }
+          if (ghost.still > 0.25 || kp.pressed) { pp.down = false; pp.released = true; ghost = null; lastPt = null; } else { pp.down = true; pp.released = false; }
+        } else if (pp.released && lastPt && jump > 260 && G.scene === 'play') {
+          ghost = { still: 0 }; pp.x = lastPt.x; pp.y = lastPt.y; pp.down = true; pp.released = false;
+        } else {
+          if (pp.down && !pp.pressed && lastPt && jump > 260) { pp.x = lastPt.x; pp.y = lastPt.y; }
+          lastPt = pp.down ? { x: pp.x, y: pp.y } : null;
+        }
+        input = { pointer: pp, keys: input.keys };
+      }
       setPress(input.pointer.down ? input.pointer.x : null, input.pointer.y);
       if (!G.paused) G.t += dt;
       stepped = false;

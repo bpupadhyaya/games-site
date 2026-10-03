@@ -24,7 +24,10 @@ function createTouchHub(el) {
   const up = (e) => { const t = live.get(e.pointerId); if (t) { const v = toVirtual(e.clientX, e.clientY); t.x = v.x; t.y = v.y; t.down = false; t.released = true; } };
   on('pointerup', up); on('pointercancel', up);
   globalThis.addEventListener('blur', () => { for (const t of live.values()) { t.down = false; t.released = true; } });
+  let wheel = 0;
+  on('wheel', (e) => { wheel += e.deltaY * (e.deltaMode === 1 ? 40 : e.deltaMode === 2 ? 600 : 1); e.preventDefault(); });
   return {
+    takeWheel() { const w = wheel; wheel = 0; return w; },
     snapshot() {
       const out = [];
       for (const [id, t] of [...live]) {

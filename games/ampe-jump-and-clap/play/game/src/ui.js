@@ -85,9 +85,18 @@ export function panel(ctx, x, y, w, h, opts = {}) {
 export function wrapLines(ctx, text, maxW) {
   const words = String(text).split(' '), lines = [];
   let line = '';
+  const push = (w) => {
+    // a single word wider than the line (a web address, say) is broken so it can never run off the page
+    while (ctx.measureText(w).width > maxW && w.length > 1) {
+      let n = w.length - 1;
+      while (n > 1 && ctx.measureText(w.slice(0, n)).width > maxW) n--;
+      lines.push(w.slice(0, n)); w = w.slice(n);
+    }
+    return w;
+  };
   for (const word of words) {
     const next = line ? `${line} ${word}` : word;
-    if (line && ctx.measureText(next).width > maxW) { lines.push(line); line = word; } else line = next;
+    if (line && ctx.measureText(next).width > maxW) { lines.push(line); line = push(word); } else line = line ? next : push(word);
   }
   if (line) lines.push(line);
   return lines;
@@ -219,7 +228,7 @@ function drawButtonRect(ctx, r, it, wd) {
     subLines.forEach((l) => { ctx.fillText(l, r.x + r.w / 2, y); y += it.fs * 0.72; });
     ctx.globalAlpha = 1;
   }
-  if (wd.stars) {
+  if (wd.stars && it.fs <= 40) {
     ctx.font = `400 ${Math.round(it.fs * 0.7)}px ${FONT}`; ctx.textAlign = 'right'; ctx.fillStyle = light ? '#ffe9a0' : '#a8301f';
     ctx.fillText('★'.repeat(wd.stars) + '☆'.repeat(5 - wd.stars), r.x + r.w - 16, r.y + dy + it.fs * 0.95);
   }

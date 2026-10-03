@@ -70,11 +70,28 @@ export function textFill(ctx, text, x, y, size, opts = {}) {
 
 export function wrapLines(ctx, text, maxW) {
   const out = [];
+  // a word wider than the line (a web address at 300% text) is broken at a character that fits; at "/" or "." where possible
+  const pieces = (word) => {
+    if (ctx.measureText(word).width <= maxW) return [word];
+    const res = []; let cur = '';
+    for (const ch of word) {
+      if (cur && ctx.measureText(cur + ch).width > maxW) {
+        const cut = Math.max(cur.lastIndexOf('/'), cur.lastIndexOf('.'), cur.lastIndexOf('-')) + 1;
+        if (cut > cur.length * 0.4 && cut < cur.length) { res.push(cur.slice(0, cut)); cur = cur.slice(cut) + ch; } else { res.push(cur); cur = ch; }
+      } else cur += ch;
+    }
+    if (cur) res.push(cur);
+    return res;
+  };
   for (const para of String(text).split('\n')) {
     let line = '';
     for (const word of para.split(' ')) {
-      const t = line ? `${line} ${word}` : word;
-      if (line && ctx.measureText(t).width > maxW) { out.push(line); line = word; } else line = t;
+      const ps = pieces(word);
+      ps.forEach((w, k) => {
+        const t = line && k === 0 ? `${line} ${w}` : line && k > 0 ? w : w;
+        if (k > 0) { if (line) out.push(line); line = w; return; }
+        if (line && ctx.measureText(t).width > maxW) { out.push(line); line = w; } else line = t;
+      });
     }
     out.push(line);
   }

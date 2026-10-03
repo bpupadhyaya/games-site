@@ -7,6 +7,7 @@ export const TEXT_SCALES = [1, 1.5, 2, 2.5, 3];
 export const THINK_STEPS = [2, 5, 8, 10];
 export const REF_BACK = { x: 20, y: 1164, w: 332, h: 100 };
 export const REF_NEXT = { x: 368, y: 1164, w: 332, h: 100 };
+export const REF_CLOSE = { x: 20, y: 1164, w: 680, h: 100 };
 export const TEXT_DEC = { x: 20, y: 18, w: 120, h: 60 };
 export const TEXT_INC = { x: W - 140, y: 18, w: 120, h: 60 };
 export const SETUP_PINS = { start: { x: 30, y: 1156, w: 440, h: 96 }, back: { x: 486, y: 1156, w: 204, h: 96 } };

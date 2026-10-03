@@ -1,31 +1,32 @@
 // GAME CONTRACT (docs/GAME-CONTRACT.md). Tab: the four-stick race of Egypt and the Arab world, five opponents, a Learn path.
-import { SCREEN, inRect, BACK_BTN, PAUSE_BTN, TOOLBAR_IDS, autoLayout } from './layout.js';
+import { SCREEN, inRect, BACK_BTN, PAUSE_BTN, TOOLBAR_IDS, autoLayout, playLayout } from './layout.js';
 import { TEXT_SCALES, hitDoc, clampScroll } from './ui.js';
-import { buildUi, THINK_STEPS, demoOver, lvName } from './screens.js';
+import { buildUi, THINK_STEPS, PACES, AUTO_SPEEDS, demoOver, lvName } from './screens.js';
 import { WAIT, HOME, N, makeState, applyThrow, legalMoves, posOf, sqOf, isSafe } from './rules.js';
-import { LEVELS, levelById, pickMove, analyse, explain } from './ai.js';
+import { LEVELS, levelById, startPick, finishPick, searchJob, sortRows, analyse, explain } from './ai.js';
 import { LESSONS, lessonStart, judge, REFUSALS, lessonText } from './lessons.js';
 import { createMatch, playMove, undoMatch, tapStone, tapTarget, stepMatch, spawn, canUndo, canThrow, humanTurn, settled, startThrow, refuse, movesOf, isHumanSide } from './match.js';
-import { RULE_COUNT, HOWTO_COUNT, tr, LANGS, QUICK } from './content.js';
-import { themeById, THEMES } from './art.js';
+import { RULE_COUNT, HOWTO_COUNT, tr, LANGS, SHORT } from './content.js';
+import { themeById, THEMES, bakeSticks, stickDims } from './art.js';
 import { render, playGeo, squareAt, exitBadge, yardRect, slotXY } from './view.js';
 
 export const meta = { width: SCREEN.width, height: SCREEN.height };
 
-const VERSION = '1.0.0';
+const VERSION = '1.0.1';
 const STEP = 1 / 60;
 const WIN_NOTES = [523, 659, 784, 1047, 1319];
 const AUTO_LV = ['master', 'expert'];
 const W_ = WAIT;
-const AUTO_PIECES = 3;            // Watch & Learn plays a short game (three stones each) so a whole session fits in a few minutes
+const AUTO_PIECES = 2;            // Watch & Learn plays a very short game (two stones each) so a whole session fits in a few minutes
+const SINGLE_WAIT = 0.6;          // a single possible move is played for the player after this long (game seconds)
 
 export async function createGame(env) {
   const { rng, storage, audio, config } = env;
   const nowMs = () => (env.clock ? env.clock() : 0);   // display clock from the shell; absent in headless runs (alpha stays 1)
 
   const S = {
-    scene: 'title', overlay: null, t: 0, ovT: 0, sound: true, themeId: 'sand', lang: 'en', textIdx: 0, thinkIdx: 1,
-    setup: { level: 'skilled', side: 0, pieces: 7 }, stats: {}, lessons: {}, save: null, demoGames: 0, progress: { games: 0, wins: 0 },
+    scene: 'title', overlay: null, t: 0, ovT: 0, sound: true, themeId: 'sand', lang: 'en', textIdx: 0, thinkIdx: 1, paceIdx: 1, speedIdx: 1, autoSingle: true, pace: 1, wheel: 0,
+    setup: { level: 'skilled', side: 0, pieces: SHORT }, stats: {}, lessons: {}, save: null, demoGames: 0, progress: { games: 0, wins: 0 },
     page: { howto: 0, rules: 0 }, scroll: {}, scrollVel: {}, press: null, match: null, auto: null, lessonIdx: 0, endInfo: null, lessonInfo: null,
     toast: null, toastT: 0, canUndo: false, winSeq: null, lessonWait: -1, lessonOk: null, lastOpts: null, hintBusy: false, hintDelay: 0,
     demo: Boolean(config?.demo), dev: Boolean(config?.dev), owns: false, price: '', resetArm: false, version: VERSION, shot: false, lastPtr: { x: 0, y: 0 },
@@ -40,9 +41,12 @@ export async function createGame(env) {
     if (LANGS.some((l) => l.id === set.lang)) S.lang = set.lang;
     if (Number.isInteger(set.textIdx)) S.textIdx = Math.min(Math.max(set.textIdx, 0), TEXT_SCALES.length - 1);
     if (Number.isInteger(set.thinkIdx)) S.thinkIdx = Math.min(Math.max(set.thinkIdx, 0), THINK_STEPS.length - 1);
+    if (Number.isInteger(set.paceIdx)) S.paceIdx = Math.min(Math.max(set.paceIdx, 0), PACES.length - 1);
+    if (Number.isInteger(set.speedIdx)) S.speedIdx = Math.min(Math.max(set.speedIdx, 0), AUTO_SPEEDS.length - 1);
+    if (typeof set.autoSingle === 'boolean') S.autoSingle = set.autoSingle;
     if (set.setup) {
       const lv = set.setup.level === 'two' || LEVELS.some((l) => l.id === set.setup.level) ? set.setup.level : 'skilled';
-      S.setup = { level: lv, side: set.setup.side === 1 ? 1 : 0, pieces: set.setup.pieces === QUICK ? QUICK : 7 };
+      S.setup = { level: lv, side: set.setup.side === 1 ? 1 : 0, pieces: [3, 5, 7].includes(set.setup.pieces) ? set.setup.pieces : SHORT };
     }
   }
   if (stats && typeof stats === 'object') S.stats = stats;
@@ -59,7 +63,7 @@ export async function createGame(env) {
   const T = (k, v) => tr(k, v, S.lang);
   const th = () => themeById(S.themeId);
   const pal = () => ({ 0: th().light.glow, 1: th().dark.glow });
-  const saveSettings = () => storage.set('tb.settings', { sound: S.sound, themeId: S.themeId, lang: S.lang, textIdx: S.textIdx, thinkIdx: S.thinkIdx, setup: S.setup });
+  const saveSettings = () => storage.set('tb.settings', { sound: S.sound, themeId: S.themeId, lang: S.lang, textIdx: S.textIdx, thinkIdx: S.thinkIdx, paceIdx: S.paceIdx, speedIdx: S.speedIdx, autoSingle: S.autoSingle, setup: S.setup });
   const saveStats = () => storage.set('tb.stats', S.stats);
   const saveLessons = () => storage.set('tb.lessons', S.lessons);
   const saveGame = () => {
@@ -87,7 +91,7 @@ export async function createGame(env) {
   };
 
   // ------------------------------------------------------------------------------ matches
-  const cancelHint = () => { S.hintBusy = false; S.hintDelay = 0; };
+  const cancelHint = () => { S.hintBusy = false; S.hintDelay = 0; S.hintJob = null; };
   function launch(M) {
     S.match = M; S.scene = M.auto ? 'auto' : 'play'; S.overlay = null; S.press = null; S.endInfo = null; S.lessonInfo = null; S.winSeq = null; S.toast = null; S.lessonWait = -1; S.lessonOk = null;
     cancelHint();
@@ -95,7 +99,7 @@ export async function createGame(env) {
   function startMatch(opts, count = true) {
     if (count && demoOver(S)) { S.scene = 'demo-limit'; S.overlay = null; return; }
     const two = opts.level === 'two';
-    const M = createMatch({ level: two ? 'skilled' : opts.level, human: two ? 0 : opts.side ?? 0, two, pieces: opts.pieces ?? 7, pal: pal(), lesson: opts.lesson ?? null, start: opts.start, force: opts.force });
+    const M = createMatch({ level: two ? 'skilled' : opts.level, human: two ? 0 : opts.side ?? 0, two, pieces: opts.pieces ?? SHORT, pal: pal(), lesson: opts.lesson ?? null, start: opts.start, force: opts.force });
     if (count && S.demo) { S.demoGames += 1; storage.set('tb.demo', S.demoGames); }
     launch(M);
     if (!opts.lesson) { S.lastOpts = opts; S.save = null; storage.set('tb.save', null); }
@@ -211,7 +215,7 @@ export async function createGame(env) {
     const M = S.match;
     if (!M || M.over || !humanTurn(M) || M.st.phase !== 'move' || S.hintBusy) return;
     M.hint = null; M.sel = null;
-    S.hintBusy = true; S.hintDelay = 0.12;              // a moment of "Thinking..." first, then the (fast) analysis
+    S.hintBusy = true; S.hintDelay = 0.12; S.hintJob = { job: searchJob(M.st, 'master'), st: M.st };   // a moment of "Thinking...", then the search in slices
     SOUNDS.ui();
   }
   function stepHint(dt) {
@@ -219,13 +223,27 @@ export async function createGame(env) {
     const M = S.match;
     if (!M || M.over || M.st.phase !== 'move') { cancelHint(); return; }
     S.hintDelay -= dt;
-    if (S.hintDelay > 0) return;
-    const rows = analyse(M.st);
+    const hj = S.hintJob;
+    if (!hj || hj.st !== M.st) { cancelHint(); return; }
+    if (!hj.job.done) hj.job.step();                    // a few milliseconds of search per frame
+    if (S.hintDelay > 0 || !hj.job.done) return;
+    const rows = sortRows(hj.job.rows);
     const mv = rows[0].mv;
     const ex = explain(M.st, mv, S.lang);
     M.hint = { mv, head: ex.head, why: ex.why };
     cancelHint();
     SOUNDS.hint();
+  }
+
+  // A turn with exactly one possible move (a lone stone, a blocked path) is played for the player after a short wait, with a note.
+  // The player can turn this off in Settings; lessons never do it.
+  function stepSingle(M, dt) {
+    const ok = S.autoSingle && !M.lesson && !S.overlay && humanTurn(M) && M.st.phase === 'move' && !S.hintBusy && !M.hint && (M.sel === null || M.sel === undefined);
+    if (!ok) { M.singleT = 0; return; }
+    const list = movesOf(M);
+    if (list.length !== 1) { M.singleT = 0; return; }
+    M.singleT = (M.singleT || 0) + dt;
+    if (M.singleT >= SINGLE_WAIT) { M.singleT = 0; toast(T('onlyMove')); playMove(M, list[0]); }
   }
 
   // ------------------------------------------------------------------------------ Watch & Learn
@@ -245,11 +263,12 @@ export async function createGame(env) {
     const a = S.auto, M = S.match;
     a.phase = 'think'; a.t = 0; a.plan = null;
     a.forced = legalMoves(M.st).length === 1;           // nothing to decide: keep the explanation but do not wait
+    a.pick = startPick(M.st, AUTO_LV[M.st.turn], rng); a.pick.st = M.st;   // Expert and Master search in slices while the think time runs
     a.cands = M.st.pos[M.st.turn].filter((x) => x >= 0 && x < N).map((x) => sqOf(M.st.turn, x));
   }
   function finishPlan() {
     const a = S.auto, M = S.match, st = M.st;
-    const mv = pickMove(st, AUTO_LV[st.turn], rng) ?? legalMoves(st)[0];
+    const mv = (a.pick && a.pick.st === st ? finishPick(a.pick, rng) : null) ?? legalMoves(st)[0];
     const ex = explain(st, mv, S.lang);
     a.plan = { mv, moves: legalMoves(st) };
     a.note = { head: ex.head, why: ex.why };
@@ -270,6 +289,7 @@ export async function createGame(env) {
       if (!M.throwAnim && a.t >= 0.5) { a.phase = 'next'; a.t = 0; }
     } else if (a.phase === 'think') {
       a.scan = a.cands.length ? a.cands[Math.floor(a.t / 0.4) % a.cands.length] : null;
+      if (a.pick && a.pick.job && !a.pick.job.done) a.pick.job.step();
       if (a.t >= (a.forced ? 0.5 : THINK_STEPS[S.thinkIdx])) { finishPlan(); a.phase = 'reveal'; a.t = 0; a.scan = null; }
     } else if (a.phase === 'reveal') {
       if (a.t >= (a.forced ? 1.2 : 2)) { a.phase = 'act'; a.t = 0; playMove(M, a.plan.mv); }
@@ -394,6 +414,7 @@ export async function createGame(env) {
     if (id === 'zoom-') { setText(-1); return; }
     if (id === 'zoom+') { setText(1); return; }
     if (id.startsWith('lv:')) { S.setup.level = id.slice(3); saveSettings(); SOUNDS.ui(); return; }
+    if (id.startsWith('pace:')) { S.paceIdx = Number(id.slice(5)); saveSettings(); SOUNDS.ui(); return; }
     if (id.startsWith('side:')) { S.setup.side = Number(id.slice(5)); saveSettings(); SOUNDS.ui(); return; }
     if (id.startsWith('pc:')) { S.setup.pieces = Number(id.slice(3)); saveSettings(); SOUNDS.ui(); return; }
     if (id.startsWith('theme:')) { S.themeId = id.slice(6); saveSettings(); SOUNDS.ui(); return; }
@@ -414,6 +435,7 @@ export async function createGame(env) {
         S.page[S.scene] = Math.min(total - 1, S.page[S.scene] + 1); S.scroll = {}; SOUNDS.ui(); return;
       }
       case 'set:sound': S.sound = !S.sound; audio.setMuted(!S.sound); saveSettings(); if (S.sound) SOUNDS.ui(); return;
+      case 'set:single': S.autoSingle = !S.autoSingle; saveSettings(); SOUNDS.ui(); return;
       case 'set:think-': S.thinkIdx = Math.max(0, S.thinkIdx - 1); saveSettings(); return;
       case 'set:think+': S.thinkIdx = Math.min(THINK_STEPS.length - 1, S.thinkIdx + 1); saveSettings(); return;
       case 'set:restore': Promise.resolve(env.monetization?.restore?.()).then(refreshOwns); return;
@@ -585,8 +607,8 @@ export async function createGame(env) {
   function autoAction(id) {
     if (id === 'auto:exit') { S.auto = null; S.match = null; gotoScene('title'); }
     else if (id === 'auto:pause') S.auto.paused = !S.auto.paused;
-    else if (id === 'auto:slower') { S.thinkIdx = Math.max(0, S.thinkIdx - 1); saveSettings(); }
-    else if (id === 'auto:faster') { S.thinkIdx = Math.min(THINK_STEPS.length - 1, S.thinkIdx + 1); saveSettings(); }
+    else if (id === 'auto:slower') { S.speedIdx = Math.max(0, S.speedIdx - 1); saveSettings(); }
+    else if (id === 'auto:faster') { S.speedIdx = Math.min(AUTO_SPEEDS.length - 1, S.speedIdx + 1); saveSettings(); }
   }
 
   // ---- keyboard
@@ -621,6 +643,8 @@ export async function createGame(env) {
   return {
     update(dt, input) {
       updAt = nowMs(); stepped = true;
+      // pictures of the sticks are painted a few per frame in the background (fixed work per frame, no clock)
+      { const d = stickDims(S.scene === 'play' || S.scene === 'auto' ? playLayout(TEXT_SCALES[S.textIdx]).mat.h : 318); bakeSticks(th(), d.L, d.Wd, S.shot ? 80 : 4); }
       // Watch & Learn's Pause (and the in-game pause card) freezes the whole loop: timers, search, animations, particles, the clock.
       const frozen = (S.scene === 'auto' && S.auto && S.auto.paused) || S.overlay === 'pause';
       if (!frozen) S.t += dt;
@@ -639,6 +663,11 @@ export async function createGame(env) {
       if (ptr.down || ptr.pressed) { S.lastPtr.x = ptr.x; S.lastPtr.y = ptr.y; }
       if (!S.shot && (input.keys.pressed.size || input.keys.down.size)) onKeys(input.keys);
 
+      if (S.wheel) {
+        const ui = buildUi(S);
+        if (ui.layout && ui.region) setScroll(ui, getScroll(ui) + S.wheel);
+        S.wheel = 0;
+      }
       for (const k of Object.keys(S.scrollVel)) {
         const v = S.scrollVel[k];
         if (Math.abs(v) < 8) { delete S.scrollVel[k]; continue; }
@@ -649,10 +678,13 @@ export async function createGame(env) {
 
       const M = S.match;
       if (M && !S.shot) {
+        // the game speed setting plays throws, moves and the computer's waits faster; Watch & Learn has its own speed
+        S.pace = S.scene === 'auto' ? AUTO_SPEEDS[S.speedIdx] : PACES[S.paceIdx];
+        const pdt = dt * S.pace;
         if (S.scene === 'play') {
-          if (!frozen) { stepMatch(M, dt, rng); stepHint(dt); }
+          if (!frozen) { stepMatch(M, pdt, rng); stepHint(dt); stepSingle(M, pdt); }
           S.canUndo = canUndo(M);
-        } else if (S.scene === 'auto' && !frozen) { stepMatch(M, dt, rng); updateAuto(dt); }
+        } else if (S.scene === 'auto' && !frozen) { stepMatch(M, pdt, rng); updateAuto(pdt); }
         if (S.scene === 'play' || S.scene === 'auto') {
           handleEvents(M);
           if (!frozen) stepWinSeq(dt);
@@ -680,6 +712,8 @@ export async function createGame(env) {
       render(ctx, S, buildUi(S));
     },
 
+    scrollBy(px) { S.wheel += px; },        // the mouse wheel and the tests use the same path
+
     getState() {
       const M = S.match;
       return {
@@ -694,8 +728,10 @@ export async function createGame(env) {
       };
     },
 
-    // The preview clock counts real play only. Menus, setup, Learn, Rules / How to Play / About, Settings, every overlay (pause, result,
-    // lesson, Watch & Learn summary), the demo card, the lessons and Watch & Learn are all free time.
-    isPreviewExempt: () => S.shot || S.scene !== 'play' || Boolean(S.overlay) || Boolean(S.match && S.match.lesson),
+    // The preview clock counts live action only: sticks in the air, a stone travelling, the computer's turn. Menus, setup, Learn,
+    // Rules / How to Play / About, Settings, every overlay (pause, result, lesson, Watch & Learn summary), the demo card, the lessons,
+    // Watch & Learn, a finished game and the player's own idle moments (waiting to throw, choosing a stone) are all free time.
+    // Developer mode (env.config.dev) never spends the preview.
+    isPreviewExempt: () => S.shot || S.dev || S.scene !== 'play' || Boolean(S.overlay) || !S.match || Boolean(S.match.lesson) || Boolean(S.match.over) || humanTurn(S.match),
   };
 }

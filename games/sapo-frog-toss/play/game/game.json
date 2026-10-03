@@ -4,7 +4,7 @@
   "tagline": "Toss brass discs at the open mouth of the frog.",
   "genre": "skill toss / tavern table game",
   "orientation": "portrait",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "monetization": {
     "model": "premium",
     "priceUsd": 2.99,

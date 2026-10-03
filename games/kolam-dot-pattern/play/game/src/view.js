@@ -244,12 +244,13 @@ function drawBoardPlay(ctx, S, M, area, o = {}) {
     ctx.strokeStyle = alpha(th.hint, 0.85); ctx.lineWidth = w * 1.1; ctx.setLineDash([w * 1.6, w * 1.6]); ctx.lineDashOffset = -S.t * 18; ctx.stroke(); ctx.setLineDash([]);
   }
   // ghost options at the tip
-  if (!R && !M.fail && M.T.arcs.length && !M.cur && (M.held || o.ghost)) {
+  if (!R && !M.fail && M.T.arcs.length && !M.cur && !M.run) {
     const opts = exits(M.T).filter((q) => q.valid && !q.closing);
     for (const q of opts) {
       const c = optCurve(M, q);
       linePath(ctx, g, [{ c, dir: 0 }], 0, 1);
       ctx.lineCap = 'round'; ctx.strokeStyle = alpha(th.powder, 0.22); ctx.lineWidth = w * 0.9; ctx.setLineDash([w * 1.2, w * 1.8]); ctx.stroke(); ctx.setLineDash([]);
+      if (opts.length >= 2) { const m = bezPoint(c, 0.5), [mx, my] = toScreen(g, m[0], m[1]); ctx.fillStyle = alpha(th.powder, 0.35 + 0.15 * Math.sin(S.t * 4)); ctx.beginPath(); ctx.arc(mx, my, Math.max(5, g.S * 0.07), 0, 7); ctx.fill(); }
     }
   }
   // the line

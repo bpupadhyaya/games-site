@@ -104,6 +104,7 @@ export function createDriver({ THREE, humans, specs, ball, BALL_R, hash }) {
     const dl = Math.hypot(lx - q.x, lz - q.z);
     if (dl > 0.6) { lx = q.x + (lx - q.x) * 0.6 / dl; lz = q.z + (lz - q.z) * 0.6 / dl; }
     if (r.kind !== 'kick' && r.kind !== 'head') { lx = q.x + ly.x * 0.13 * sgn; lz = q.z + ly.z * 0.13 * sgn; }
+    if (r.kind === 'kick' && r.act && r.act.sx !== undefined && r.tech !== 'throw') { lx = r.act.sx + ly.x * sgn * 0.19; lz = r.act.sz + ly.z * sgn * 0.19; }   // the sim steps the player to its stand spot: the support foot goes beside it
     r.lockW[sup] = { x: lx, z: lz };
     r.evSeen = c.evSeen;
     r.tail = (TECH[r.tech] ? 0.7 : 0.4);
@@ -127,7 +128,7 @@ export function createDriver({ THREE, humans, specs, ball, BALL_R, hash }) {
     if (heldBy >= 0) {
       const hp = s.players[heldBy], a = hp.act;
       if (a && a.k === 'kick' && a.kind === 'gk') { const tc = (a.tck - 1) * STEP, u = clamp((T - a.t0) / Math.max(0.05, tc - a.t0), 0, 1), e = u * u * (3 - 2 * u); bvis.y = ballI.y * (1 - e) + 0.42 * e - BR + BALL_R; }
-      if (a && a.k === 'kick' && a.kind === 'throw') { const u = clamp((T - a.t0) / 0.28, 0, 1), e = u * u * (3 - 2 * u); bvis.y = (1.3 - BR + BALL_R) + (ballI.y - 1.3) * e; }
+      if (a && a.k === 'kick' && a.kind === 'throw') { const u = clamp((T - a.t0) / 0.28, 0, 1), e = u * u * (3 - 2 * u); bvis.y = (1.3 - BR + BALL_R) + (ballI.y - 1.3) * e + 0.14 * e; }
     }
     // a keeper who has dived and caught the ball holds it in the hands where he lies, not at the standing chest spot
     if (heldBy >= 0) { const hp2 = s.players[heldBy]; if (hp2.act && hp2.act.k === 'dive' && hp2.act.hit) { const hh = crew[heldBy].h, l = hh.bonePosition('L_Hand'), r = hh.bonePosition('R_Hand'); bvis.set((l.x + r.x) / 2, (l.y + r.y) / 2 + BALL_R * 0.35, (l.z + r.z) / 2); } }
@@ -178,7 +179,7 @@ export function createDriver({ THREE, humans, specs, ball, BALL_R, hash }) {
       let reachL = null, reachR = null, reachW = 0;
       if (heldBy === i && !p.act) { reachW = 1; }
       // saves: hands go to the ball around the sim's save event
-      if (p.role === 'GK') { const ce = c.catchEv; if (ce && !p.act) { const tt = T - ce.t; if (tt > -0.14 && tt < 0.5) reachW = Math.max(reachW, clamp(1 - Math.abs(tt - 0.1) / 0.45, 0, 1)); } }
+      if (p.role === 'GK') { const ce = c.catchEv; if (ce && !p.act) { const tt = T - ce.t; if (tt > -0.14 && tt < 0.5) reachW = Math.max(reachW, clamp(1 - Math.max(0, Math.abs(tt - 0.05) - 0.14) / 0.3, 0, 1)); } }
       if (reachW > 0) {
         const side = (ox) => V(bvis.x + leftVec(q.face).x * ox, bvis.y, bvis.z + leftVec(q.face).z * ox);
         // palms meet the ball surface: the library solves the wrist and hand orientation so the palm (not the wrist) touches
@@ -198,12 +199,12 @@ export function createDriver({ THREE, humans, specs, ball, BALL_R, hash }) {
       h.update(dt);
       // a keeper's hands meet the ball: the sim's catch radius is generous (up to ~0.7 m from the hands' rest point), so close the gap with a short lean/step of the whole body
       if (reachW > 0 && p.role === 'GK' && !p.act && c.catchEv && Math.abs(T - c.catchEv.t) < 0.16) {
-        for (let it = 0; it < 4; it++) {
+        for (let it = 0; it < 12; it++) {
           const n = nearestPart(THREE, h, /Hand|Finger/, bvis, 'hands');
           const gap = n.d - BALL_R;
-          if (Math.abs(gap) < 0.004) break;
+          if (Math.abs(gap) < 0.002) break;
           const u = bvis.clone().sub(n.p).normalize();
-          c.leanOff = (c.leanOff || V()).addScaledVector(u, gap * 0.8); c.leanOff.y = 0;
+          c.leanOff = (c.leanOff || V()).addScaledVector(u, gap * 1.0); c.leanOff.y = 0;
           if (c.leanOff.length() > 0.7) c.leanOff.setLength(0.7);
           h.root.position.set(q.x + c.leanOff.x, 0, q.z + c.leanOff.z);
           h.update(0);
@@ -241,15 +242,17 @@ export function createDriver({ THREE, humans, specs, ball, BALL_R, hash }) {
                 if (pose2) actor.apply(pose2, 0);
               }
             }
-            if ((rec.kind === 'dive' && t > 0.08 && t < 0.95 && bvis.distanceTo(ctx.pts.hand) < 1.3) || (rec.kind === 'pickup' && t > -0.05 && t < 0.45)) {
-              rec.shift ||= V();
-              for (let it = 0; it < 6; it++) {
+            if ((rec.kind === 'dive' && t > 0.08 && t < 0.95 && bvis.distanceTo(ctx.pts.hand) < 0.6 && !(c.catchEv && T > c.catchEv.t + 0.02)) || (rec.kind === 'pickup' && t > -0.05 && t < 0.45)) {
+              const useHC = rec.kind === 'dive';
+              if (useHC) rec.hc = V(); else rec.shift ||= V();   // a dive moves the hand target (solved afresh each frame), the body never slides off its dive
+              for (let it = 0; it < 14; it++) {
                 const n = nearestPart(THREE, h, /Hand|Finger/, bvis, 'hands');
                 const gap = n.d - BALL_R;
-                if (Math.abs(gap) < 0.004) break;
+                if (Math.abs(gap) < 0.002) break;
                 const u = bvis.clone().sub(n.p).normalize();
-                rec.shift.addScaledVector(u, gap * 0.8);
-                if (rec.shift.length() > 1.1) rec.shift.setLength(1.1);
+                const tgt = useHC ? rec.hc : rec.shift;
+                tgt.addScaledVector(u, gap * (useHC ? 1.0 : 0.8));
+                if (tgt.length() > (useHC ? 0.5 : 1.1)) tgt.setLength(useHC ? 0.5 : 1.1);
                 h.update(0);
                 const ctx2 = buildCtx(c, rec, s, p, q, T, t, bvis, ballI);
                 const pose2 = evalPose(def, ctx2, t, actor);
@@ -263,7 +266,7 @@ export function createDriver({ THREE, humans, specs, ball, BALL_R, hash }) {
     }
     // bodies never pass through each other: where two bodies overlap, the one NOT in the middle of a ball contact is moved away along the ground
     const busy = (c) => !!(c.rec && c.pose && Math.abs(c.pose.t) < 0.2 && !c.rec.ageBased);
-    for (let pass = 0; pass < 2; pass++) for (let i = 0; i < 14; i++) for (let j = i + 1; j < 14; j++) {
+    for (let pass = 0; pass < 3; pass++) for (let i = 0; i < 14; i++) for (let j = i + 1; j < 14; j++) {
       const a = crew[i], b = crew[j], pa = pl[i], pb = pl[j];
       if (Math.hypot(pa.x - pb.x, pa.z - pb.z) > 1.3) continue;
       const w = penetration(a.h, b.h);
@@ -338,7 +341,7 @@ export function createDriver({ THREE, humans, specs, ball, BALL_R, hash }) {
       ctx.h = a0.h; ctx.pts.hand = V(a0.hx, a0.hy, a0.hz);
       const hy = a0.hy || [0.35, 0.95, 1.65][a0.h];
       ctx.pts.hand.y = hy;
-      { const dB = ctx.pts.hand.distanceTo(bvis), w = clamp(1 - (dB - 0.15) / 0.9, 0, 1); ctx.pts.hand.lerp(bvis, w); }
+      { const dB = ctx.pts.hand.distanceTo(bvis), w = clamp(1 - (dB - 0.4) / 0.6, 0, 1); const away = V(q.x - bvis.x, 0.9 - bvis.y, q.z - bvis.z).normalize().multiplyScalar(BALL_R + 0.05); ctx.pts.hand.lerp(bvis.clone().add(away), w); if (rec.hc) ctx.pts.hand.add(rec.hc); }   // the wrists stop at the ball surface on the keeper's side
       ctx.peak = clamp(hy - 0.15, 0.3, 1.5) - 0.89;
       // pelvis shift towards the hand point so the arms (0.8 m from the pelvis) reach where the sim says the hands are
       const dx = a0.hx - q.x, dz = a0.hz - q.z, d = Math.hypot(dx, dz);

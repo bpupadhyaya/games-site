@@ -154,14 +154,27 @@ export class World {
       return mergeGeos(parts);
     };
     const wm = new S.MeshStandardMaterial({ vertexColors: true, roughness: 0.6 });
-    this.wk = [0, 1].map((i) => {
-      const root = new S.Group(); const whole = new S.Mesh(mk(), wm); root.add(whole);
-      const loose = new S.Group(); loose.visible = false; root.add(loose);
-      const sticks = [];
-      for (const k of [-1, 0, 1]) { const m = new S.Mesh(mergeGeos([{ geo: new S.CylinderGeometry(0.02, 0.022, STUMP.h, 8), pos: [0, STUMP.h / 2, 0], color: srgb('#f7efdc') }]), wm); m.position.set(k * STUMP.spacing, 0, 0); loose.add(m); sticks.push(m); }
-      root.position.z = i === 0 ? 0 : -L; this.group.add(root);
-      return { root, whole, loose, sticks };
-    });
+    // both wickets are ONE dynamic mesh (one draw call): per stick the rest vertices are kept and re-posed only while the stumps fly apart
+    const pieces = [];   // { w, k (stick 0..2, or 3 = the band), base: Float32Array, nbase: Float32Array, first, count }
+    const wpos = [], wnor = [], wcol = [], widx = [];
+    for (let w = 0; w < 2; w++) {
+      for (let k = 0; k < 4; k++) {
+        const g = k < 3 ? new S.CylinderGeometry(0.02, 0.022, STUMP.h, 8) : new S.BoxGeometry(STUMP.spacing * 2 + 0.06, 0.03, 0.03);
+        const c = k < 3 ? srgb('#f7efdc') : srgb('#ff7a4d');
+        const ox = k < 3 ? (k - 1) * STUMP.spacing : 0, oy = k < 3 ? STUMP.h / 2 : STUMP.h * 0.2;   // oy bakes the stick's height above its foot, so a broken stick turns about its foot
+        const pa = g.attributes.position, na = g.attributes.normal, first = wpos.length / 3;
+        const base = new Float32Array(pa.count * 3), nb = new Float32Array(pa.count * 3);
+        for (let i = 0; i < pa.count; i++) { base.set([pa.getX(i), pa.getY(i) + oy, pa.getZ(i)], i * 3); nb.set([na.getX(i), na.getY(i), na.getZ(i)], i * 3); wpos.push(0, 0, 0); wnor.push(0, 1, 0); wcol.push(...c); }
+        for (let i = 0; i < g.index.count; i++) widx.push(g.index.getX(i) + first);
+        pieces.push({ w, k, base, nbase: nb, first, count: pa.count, ox, oy });
+      }
+    }
+    const wg = new BufferGeometry();
+    wg.setAttribute('position', new Attr(new Float32Array(wpos), 3)); wg.setAttribute('normal', new Attr(new Float32Array(wnor), 3)); wg.setAttribute('color', new Attr(new Float32Array(wcol), 3));
+    wg.setIndex(new Attr16(new Uint16Array(widx), 1));
+    const wmesh = new S.Mesh(wg, wm); wmesh.frustumCulled = false; this.group.add(wmesh);
+    this.wk = { mesh: wmesh, pieces, last: [null, null] };
+    this.setBroken(0, 0, true); this.setBroken(1, 0, true);
     this._scenery();
     this.group.add(new S.Mesh(mergeGeos(this._lines), new S.MeshStandardMaterial({ vertexColors: true, roughness: 0.85, side: 2 })));   // markings, pitch, rope, palms, huts: ONE draw call
     // blob shadows: one dynamic mesh of quads (a single draw call)
@@ -256,16 +269,32 @@ export class World {
   }
 
   /** The stumps fly apart: t in [0,1]; dir = +1 for the striker's end (they fly toward the camera side). */
-  setBroken(i, t) {
-    const w = this.wk[i];
-    w.whole.visible = t <= 0; w.loose.visible = t > 0;
-    if (t <= 0) return;
-    const dir = i === 0 ? 1 : -1;
-    w.sticks.forEach((m, k) => {
-      const kk = (k - 1) * 0.5 + 0.15 * (k === 1 ? 1 : 0);
-      m.position.set((k - 1) * STUMP.spacing + t * kk, Math.max(0, t * 0.22 * (1 - t) * 2), dir * t * (0.7 + 0.35 * k));
-      m.rotation.set(dir * t * (1.1 + 0.4 * k), 0, -t * ((k - 1) * 1.1 + 0.5) * 1.4);
-    });
+  setBroken(i, t, force = false) {
+    const W = this.wk;
+    if (!force && W.last[i] === t) return;
+    W.last[i] = t;
+    const dir = i === 0 ? 1 : -1, wz = i === 0 ? 0 : -PITCH;
+    const pa = W.mesh.geometry.attributes.position, na = W.mesh.geometry.attributes.normal;
+    const m = new Matrix4(), q = new THREE.Quaternion(), e = new THREE.Euler(), v = new V3(), rotOnly = new Matrix4();
+    for (const pc of W.pieces) {
+      if (pc.w !== i) continue;
+      let px = pc.ox, py = 0, pz = 0, rx = 0, rz = 0, sc = 1;
+      if (t > 0) {
+        if (pc.k === 3) sc = 0.0001;   // the band goes with the unbroken wicket
+        else {
+          const k = pc.k, kk = (k - 1) * 0.5 + 0.15 * (k === 1 ? 1 : 0);
+          px = (k - 1) * STUMP.spacing + t * kk; py = Math.max(0, t * 0.22 * (1 - t) * 2); pz = dir * t * (0.7 + 0.35 * k);
+          rx = dir * t * (1.1 + 0.4 * k); rz = -t * ((k - 1) * 1.1 + 0.5) * 1.4;
+        }
+      }
+      q.setFromEuler(e.set(rx, 0, rz));
+      m.compose(v.set(px, py, pz + wz), q, new V3(sc, sc, sc)); rotOnly.makeRotationFromQuaternion(q);
+      for (let n = 0; n < pc.count; n++) {
+        v.set(pc.base[n * 3], pc.base[n * 3 + 1], pc.base[n * 3 + 2]).applyMatrix4(m); pa.setXYZ(pc.first + n, v.x, v.y, v.z);
+        v.set(pc.nbase[n * 3], pc.nbase[n * 3 + 1], pc.nbase[n * 3 + 2]).applyMatrix4(rotOnly); na.setXYZ(pc.first + n, v.x, v.y, v.z);
+      }
+    }
+    pa.needsUpdate = true; na.needsUpdate = true;
   }
 
   dispose() { this.group.removeFromParent(); }

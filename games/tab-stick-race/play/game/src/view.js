@@ -1,15 +1,15 @@
 // Everything drawn each frame. Reads state, changes nothing (apart from small caches).
 import {
-  W, H, DISPLAY, THEMES, themeById, text, rr, panel, button, background, icon, drawParticles, drawPiece, boardGeo, drawBoard, drawFelt, drawStick, drawStickShadow, drawDust,
+  W, H, DISPLAY, THEMES, themeById, text, rr, panel, button, background, icon, drawParticles, drawPiece, boardGeo, drawBoard, drawFelt, drawStick, drawStickCached, drawStickShadow, drawDust,
   alpha, clamp01, ease, easeIO, backOut, mix,
 } from './art.js';
 import { TEXT_SCALES, wrap, tw } from './ui.js';
 import { HOME, WAIT, N, COLS, SAFE, FLAT_ODDS, FLAT_TO_VALUE, sqOf, cellOf, sideName, isSafe } from './rules.js';
 import { LEVELS } from './ai.js';
 import { LESSONS, lessonText } from './lessons.js';
-import { tr, QUICK, valueName } from './content.js';
+import { tr, valueName } from './content.js';
 import { BACK_BTN, PAUSE_BTN, TOOLBAR_IDS, autoLayout, DOC_PANEL, NAV_PREV, NAV_NEXT, playLayout } from './layout.js';
-import { THINK_STEPS, lvName } from './screens.js';
+import { THINK_STEPS, AUTO_SPEEDS, lvName, piecesLabel } from './screens.js';
 import { humanTurn, movesOf, canThrow, canUndo, isHumanSide } from './match.js';
 import { planThrow, stickPose, restPose } from './sticks.js';
 
@@ -18,7 +18,7 @@ const T = (S, k, v) => tr(k, v, S.lang);
 const STEP = 1 / 60;
 // Display time of a clocked animation: the simulation is one step ahead of what is drawn, and the drawn time is interpolated
 // between steps with S.alpha (0..1), so motion is smooth on 60 and 120 Hz screens.
-export const vis = (S, a) => Math.max(0, a.t - (1 - (S.alpha ?? 1)) * STEP);
+export const vis = (S, a) => Math.max(0, a.t - (1 - (S.alpha ?? 1)) * STEP * (S.pace ?? 1));
 
 // Largest text size (<= start) whose wrapped lines fit w x h. Used by every HUD text so zoom never overflows.
 export function fitText(str, w, h, start, min = 18, lh = 1.28) {
@@ -244,7 +244,7 @@ function drawSticksOn(ctx, th, mat, plan, tm, S, yClip = true) {
   const items = plan.sticks.map((_, i) => ({ i, p: stickPose(plan, i, tm) }));
   for (const it of items) { const px = mat.x + it.p.x * mat.w, py = mat.y + it.p.y * mat.h; drawStickShadow(ctx, px, py, L, Wd, it.p.yaw, it.p.z); }
   items.sort((a, b) => a.p.z - b.p.z);
-  for (const it of items) { const px = mat.x + it.p.x * mat.w, py = mat.y + it.p.y * mat.h; drawStick(ctx, th, px, py, L, Wd, it.p.yaw, it.p.roll, it.p.z); }
+  for (const it of items) { const px = mat.x + it.p.x * mat.w, py = mat.y + it.p.y * mat.h; drawStickCached(ctx, th, px, py, L, Wd, it.p.yaw, it.p.roll, it.p.z); }
   ctx.restore();
   void S;
 }
@@ -532,13 +532,13 @@ function drawMat(ctx, S, M, r) {
   if (A) { plan = A.plan; tm = vis(S, A); }
   else if (M.lastPlan) { plan = M.lastPlan.plan; tm = plan.dur; }
   const L = Math.min(250, r.h * 0.64), Wd = L * 0.19;
-  ctx.save(); rr(ctx, r.x, r.y, r.w, r.h, 30); ctx.clip();
+  ctx.save(); ctx.beginPath(); ctx.rect(r.x, r.y, r.w, r.h); ctx.clip();      // a plain rectangle clip is far cheaper than a rounded one; the sticks never reach the corners
   if (plan) drawSticksOn(ctx, th, r, plan, Math.min(tm, plan.dur), S, false);
   else {
     const flats = [false, true, false, true];
     const items = flats.map((f, i) => ({ i, p: restPose(flats, i), f }));
     for (const it of items) { const px = r.x + it.p.x * r.w, py = r.y + it.p.y * r.h; drawStickShadow(ctx, px, py, L, Wd, it.p.yaw, 0); }
-    for (const it of items) { const px = r.x + it.p.x * r.w, py = r.y + it.p.y * r.h; drawStick(ctx, th, px, py, L, Wd, it.p.yaw, it.p.roll, 0); }
+    for (const it of items) { const px = r.x + it.p.x * r.w, py = r.y + it.p.y * r.h; drawStickCached(ctx, th, px, py, L, Wd, it.p.yaw, it.p.roll, 0); }
   }
   drawDust(ctx, M.parts);
   ctx.restore();
@@ -615,8 +615,8 @@ function drawAutoBar(ctx, S, auto) {
     text(ctx, label, r.x + r.w / 2, yy + is + 10 + ls * 0.85, ls, th.ink, { weight: 700 });
     ctx.restore();
   };
-  side(b.slower, 'minus', T(S, 'autoSlower'), S.thinkIdx === 0, 'auto:slower');
-  side(b.faster, 'plus', T(S, 'autoFaster'), S.thinkIdx === THINK_STEPS.length - 1, 'auto:faster');
+  side(b.slower, 'minus', T(S, 'autoSlower'), S.speedIdx === 0, 'auto:slower');
+  side(b.faster, 'plus', T(S, 'autoFaster'), S.speedIdx === AUTO_SPEEDS.length - 1, 'auto:faster');
   button(ctx, th, b.pause, [], 'primary', { pressed: pr('auto:pause'), radius: 22 });
   const lab = auto.paused ? T(S, 'autoPlay') : T(S, 'autoPause');
   const ps = fitOne(lab, b.pause.w - 140, 32 * (1 + (z - 1) * 0.5), 18), is = 44 * (1 + (z - 1) * 0.3);
@@ -667,8 +667,8 @@ function drawPlay(ctx, S) {
   const auto = S.scene === 'auto' ? S.auto : null;
   const { lay, geo } = playGeo(S, M);
   const title = M.lesson ? lessonText(M.lesson, S.lang).title : T(S, 'title');
-  const pcs = M.pieces === QUICK ? T(S, 'pieces4') : T(S, 'pieces7');
-  const sub = M.lesson ? `${S.lang === 'ar' ? 'الدرس' : 'Lesson'} ${S.lessonIdx + 1} / ${LESSONS.length}` : auto ? `${T(S, 'autoSession')} · ${T(S, 'think')} ${THINK_STEPS[S.thinkIdx]}${T(S, 'seconds')}` : `${M.two ? T(S, 'twoPlayers') : `${T(S, 'vsComputer')} · ${lvName(S, LEVELS.find((l) => l.id === M.level) ?? LEVELS[2])}`} · ${pcs}`;
+  const pcs = piecesLabel(S, M.pieces);
+  const sub = M.lesson ? `${S.lang === 'ar' ? 'الدرس' : 'Lesson'} ${S.lessonIdx + 1} / ${LESSONS.length}` : auto ? `${T(S, 'autoSession')} · ${T(S, 'autoSpeed')} x${AUTO_SPEEDS[S.speedIdx]} · ${T(S, 'think')} ${THINK_STEPS[S.thinkIdx]}${T(S, 'seconds')}` : `${M.two ? T(S, 'twoPlayers') : `${T(S, 'vsComputer')} · ${lvName(S, LEVELS.find((l) => l.id === M.level) ?? LEVELS[2])}`} · ${pcs}`;
   drawHud(ctx, S, title, sub, !auto);
   const st = M.st;
   const toMove = M.over ? -1 : st.turn;

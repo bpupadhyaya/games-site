@@ -34,6 +34,20 @@ export function createGame(env) {
       if (paras.length) aboutList = [...ABOUT, { title: 'Credits and licences', p: paras }];
     }).catch(() => {});
   }
+  // mouse wheel / trackpad: collected here, applied by whichever text screen is open (CSS px -> the 720-wide canvas space)
+  let wheelDy = 0;
+  if (typeof globalThis.addEventListener === 'function') globalThis.addEventListener('wheel', (e) => { wheelDy += e.deltaY * (e.deltaMode === 1 ? 32 : 1) * (720 / Math.max(240, G.viewW || 720)); }, { passive: true });
+  const takeWheel = () => { const d = wheelDy; wheelDy = 0; return d; };
+  // wheel + keys (arrows, Page Up/Down, Space, Home, End) -> new scroll offset
+  function navScroll(input, cur, max, page) {
+    let v = cur + takeWheel();
+    const k = input.keys;
+    if (k.down.has('ArrowDown')) v += 14; if (k.down.has('ArrowUp')) v -= 14;
+    if (k.pressed.has('PageDown') || k.pressed.has('Space')) v += page * 0.85;
+    if (k.pressed.has('PageUp')) v -= page * 0.85;
+    if (k.pressed.has('Home')) v = 0; if (k.pressed.has('End')) v = max;
+    return clamp(v, 0, max);
+  }
   let S = null, evSeen = 0, snap = null, simRng = rng.fork(), updAt = 0, stepped = false;
   const nowMs = () => (env.clock ? env.clock() : 0);
 
@@ -218,6 +232,14 @@ export function createGame(env) {
       if (ptr.pressed && G.thinkRects) {
         if (inRect(G.thinkRects.use, ptr.x, ptr.y)) { if (G.think.kind) { S.setKind(G.think.kind); S.setAim(G.think.aim); } G.think = null; sfx.tick(); }
         else if (inRect(G.thinkRects.close, ptr.x, ptr.y)) { G.think = null; sfx.tick(); }
+        else if (G.thinkView && inRect(G.thinkView, ptr.x, ptr.y)) G.think.drag = { y0: ptr.y, s0: G.think.scroll || 0 };
+      }
+      if (G.think && G.thinkView) {
+        const mx = G.thinkView.maxScroll;
+        if (G.think.drag && ptr.down) G.think.scroll = clamp(G.think.drag.s0 - (ptr.y - G.think.drag.y0), 0, mx);
+        if (ptr.released) G.think.drag = null;
+        G.think.scroll = navScroll(input, G.think.scroll || 0, mx, G.thinkView.h);
+        if (keys.pressed.has('Escape')) { G.think = null; sfx.tick(); }
       }
       return;
     }
@@ -295,8 +317,7 @@ export function createGame(env) {
     const max = mt.lay ? Math.max(0, mt.lay.contentH - (mt.bottom - mt.top)) : 0;
     if (input.keys.pressed.has('Equal') || input.keys.pressed.has('NumpadAdd')) { G.settings.textIdx = Math.min(TEXT_SCALES.length - 1, G.settings.textIdx + 1); saveSettings(); }
     if (input.keys.pressed.has('Minus') || input.keys.pressed.has('NumpadSubtract')) { G.settings.textIdx = Math.max(0, G.settings.textIdx - 1); saveSettings(); }
-    if (input.keys.down.has('ArrowDown')) G.ui.scroll = clamp(G.ui.scroll + 14, 0, max);
-    if (input.keys.down.has('ArrowUp')) G.ui.scroll = clamp(G.ui.scroll - 14, 0, max);
+    G.ui.scroll = navScroll(input, G.ui.scroll, max, mt.bottom - mt.top);
   };
   const go = (scene) => { G.scene = scene; G.ui.scroll = 0; G.page = 0; };
   function handleTitle(id) {
@@ -400,19 +421,24 @@ export function createGame(env) {
   }
   const updatePages = (input) => {
     const ptr = input.pointer, keys = input.keys;
-    const n = MN.pageCount();
-    const close = () => { G.scene = G.back === 'play' ? 'play' : G.back === 'setup' ? 'setup' : G.back === 'learn' ? 'learn' : 'title'; G.page = 0; G.ui.scroll = 0; };
-    const next = () => { if (G.page >= n - 1) close(); else G.page++; };
-    const prev = () => { if (G.page <= 0) close(); else G.page--; };
+    const list = G.scene === 'howto' ? HOWTO : G.scene === 'about' ? aboutList : G.scene === 'rules' ? RULES : ROLEGUIDE;
+    MN.ensureReader(G, list, G.scene === 'howto' ? 'How to Play' : G.scene === 'about' ? 'About' : G.scene === 'rules' ? 'Rules' : 'Role guide');
+    const rd = MN.readerMeta(), V = MN.READER_VIEW;
+    const max = Math.max(0, rd.contentH - rd.viewH);
+    const close = () => { G.scene = G.back === 'play' ? 'play' : G.back === 'setup' ? 'setup' : G.back === 'learn' ? 'learn' : 'title'; G.page = 0; G.ui.scroll = 0; G.ui.drag = null; };
+    const next = () => { if (max <= 0) close(); else if (G.ui.scroll >= max - 4) G.ui.scroll = 0; else G.ui.scroll = clamp(G.ui.scroll + V.h * 0.85, 0, max); };
     if (ptr.pressed) {
       if (inRect(REF_NEXT, ptr.x, ptr.y)) next();
-      else if (inRect(REF_BACK, ptr.x, ptr.y)) prev();
-      else if (inRect(TEXT_DEC, ptr.x, ptr.y)) { G.settings.textIdx = Math.max(0, G.settings.textIdx - 1); saveSettings(); }
-      else if (inRect(TEXT_INC, ptr.x, ptr.y)) { G.settings.textIdx = Math.min(TEXT_SCALES.length - 1, G.settings.textIdx + 1); saveSettings(); }
+      else if (inRect(REF_BACK, ptr.x, ptr.y)) close();
+      else if (inRect(TEXT_DEC, ptr.x, ptr.y)) { G.settings.textIdx = Math.max(0, G.settings.textIdx - 1); G.ui.scroll = 0; saveSettings(); }
+      else if (inRect(TEXT_INC, ptr.x, ptr.y)) { G.settings.textIdx = Math.min(TEXT_SCALES.length - 1, G.settings.textIdx + 1); G.ui.scroll = 0; saveSettings(); }
+      else if (inRect({ x: V.x - 6, y: V.y, w: V.w + 12, h: V.h }, ptr.x, ptr.y)) G.ui.drag = { y0: ptr.y, s0: G.ui.scroll };
     }
+    if (G.ui.drag && ptr.down) G.ui.scroll = clamp(G.ui.drag.s0 - (ptr.y - G.ui.drag.y0), 0, max);
+    if (ptr.released) G.ui.drag = null;
+    G.ui.scroll = navScroll(input, G.ui.scroll, max, V.h);
     if (keys.pressed.has('ArrowRight')) next();
-    if (keys.pressed.has('ArrowLeft')) prev();
-    if (keys.pressed.has('Escape')) close();
+    if (keys.pressed.has('ArrowLeft') || keys.pressed.has('Escape')) close();
   };
   const updateSetup = (dt, input) => {
     const ptr = input.pointer, k = input.keys;
@@ -434,7 +460,7 @@ export function createGame(env) {
 
   return {
     // Menus, Rules, About, settings, Learn text and Watch & Learn are free; only real play counts against the preview.
-    isPreviewExempt: () => !(G.scene === 'play' && (G.mode === 'ai' || G.mode === 'drill')) || G.paused || G.pauseMenu || !!G.think || (S && (S.s.phase === 'dead' || S.s.phase === 'over')),
+    isPreviewExempt: () => !(G.scene === 'play' && (G.mode === 'ai' || G.mode === 'drill')) || G.paused || G.pauseMenu || !!G.think || (S && (S.s.phase === 'dead' || S.s.phase === 'over' || S.s.phase === 'ready' || S.s.phase === 'serve')),
     update(dt, input) {
       setPress(input.pointer);
       G.t += dt;

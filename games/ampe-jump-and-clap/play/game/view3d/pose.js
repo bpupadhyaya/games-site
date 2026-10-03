@@ -15,13 +15,14 @@ const easeOut = (x) => { x = clamp(x, 0, 1); return 1 - (1 - x) * (1 - x); };
 export const BODY = {
   stand: 0.866,         // pelvis height when standing (slightly bent knees)
   stanceX: 0.115,       // half distance between the planted ankles
-  handGapMin: 0.065,   // half distance between the two wrist joints at the moment the palms touch (calibrated, see dev/verify)
+  handGapMin: 0.0975,   // half distance between the two wrist joints at the moment the palms touch (calibrated, see dev/verify)
   handGapMax: 0.2,      // half distance at the widest part of the clap
   clapY: 0.30,          // clap height above the pelvis
   clapZ: 0.40,          // clap distance in front of the pelvis
   clapIn: 0.26,         // how long the hands take to close (s)
-  thrustFwd: 0.60, thrustSide: 0.15, thrustUp: 0.40,
+  thrustFwd: 0.60, thrustSide: 0.15, thrustUp: 0.50,
   tuckUp: 0.19,
+  wristFollow: 0.8,     // 0 = palms exactly parallel, 1 = hand continues the forearm; trades wrist bend (cuff look) against palm alignment
 };
 
 // ---- the vertical channel: cubic Hermite keys with take-off speed, so every flight is an exact parabola --------------------------
@@ -84,7 +85,18 @@ export function playerPose(c) {
   const acts = actionsOf(s);
   const keys = verticalKeys(acts);
   const rhythm = !!s.round && s.phase !== 'hold' && s.phase !== 'over' || (s.phase === 'over' && !!s.round);
-  const dy = rhythm ? evalKeys(keys, t) : 0;
+  // end-of-match reaction: starts once the last jump has landed. Winner: arms up and happy hops. Loser: head down, then a slow sporting clap.
+  // Friendly pair (no winner): both give a relaxed slow clap and a nod.
+  const scoringMode = s.cfg && (s.cfg.mode === 'match' || s.cfg.mode === 'watch');
+  const cel = s.over && s.round && scoringMode ? t - (s.round.tb + s.round.A / 2 + 0.12) : -1;
+  const role = cel >= 0 ? (s.winner < 0 ? 'draw' : s.winner === i ? 'win' : 'lose') : null;
+  let hopFrac = 0, celHop = 0;
+  if (role === 'win') {
+    const cs = Math.max(0, cel - 0.2), ph = (cs * 1.9) % 1;
+    hopFrac = cs > 0 ? 4 * ph * (1 - ph) : 0;
+    celHop = 0.15 * hopFrac * smooth(cs / 0.3);
+  }
+  const dy = (rhythm ? evalKeys(keys, t) : 0) + celHop;
   const up = Math.max(0, dy);
   const sin = Math.sin(yaw), cos = Math.cos(yaw);
   const W = (lx, lz) => [base.x + lx * cos + lz * sin, base.z - lx * sin + lz * cos];     // local (x = left, z = forward) -> world
@@ -116,10 +128,11 @@ export function playerPose(c) {
     // the thrust: starts when every tap window has closed (80 ms before the apex), full at the apex, held, then pulled back
     const ts = a.apex - 0.08;
     let u = 0;
-    if (t >= ts && t < a.apex + 0.035) u = easeOut((t - ts) / 0.08);
-    else if (t >= a.apex + 0.035) u = 1 - smooth((t - (a.apex + 0.035)) / 0.1);
+    if (t >= ts && t < a.apex + 0.08) u = easeOut((t - ts) / 0.08);
+    else if (t >= a.apex + 0.08) u = 1 - smooth((t - (a.apex + 0.08)) / 0.12);
     if (foot !== null && foot !== undefined && !isMiss) { thrustU = u; thrown = foot; thrustSide = foot === 0 ? 1 : -1; }
   }
+  if (role === 'win') tuck = Math.max(tuck, 0.45 * hopFrac);
   // ---- feet --------------------------------------------------------------------------------------------------------------
   const legs = {};
   const airHop = (() => { for (const a of acts) { if (a.kind !== 'hop') continue; if (Math.abs(t - a.apex) < 0.06) return up; } return 0; })();
@@ -161,7 +174,7 @@ export function playerPose(c) {
   let gap = BODY.handGapMax * 0.55, ha = 0, hz = 0;     // resting: hands loosely apart in front
   if (clapping) {
     const u = clamp(Math.abs(tau) / BODY.clapIn, 0, 1);
-    const k = 1 - (1 - u) * (1 - u);                     // fastest at contact, slowing as the hands open
+    const k = 0.5 * (1 - (1 - u) * (1 - u)) + 0.5 * u * u * (3 - 2 * u);   // hands part briskly but stay within a few cm of each other around the beat
     gap = lerp(BODY.handGapMin, BODY.handGapMax, k);
     ha = 0.04 * k; hz = -0.03 * k;
   } else {
@@ -176,7 +189,26 @@ export function playerPose(c) {
     let x = sx * gap, y = BODY.clapY + ha + (side === 'L' ? 0.012 : -0.01) * Math.sin(ti * 1.1 + ph), z = BODY.clapZ + hz;
     if (armsOut) { x = sx * (0.23 + asym + 0.015 * breath); y = 0.04 + 0.01 * breath * sx; z = 0.12 + (side === 'L' ? 0.04 : 0); }
     // the thrust leans the body back a little, so the hands follow the chest
-    arms[side] = { p: [x, y, z], f: 'b', w: 1, pole: [sx * 0.25, -1, -0.15], pf: 'b', hand: armsOut ? null : { alpha: -80, w: 1 } };
+    arms[side] = { p: [x, y, z], f: 'b', w: 1, pole: [sx * 0.25, -1, -0.15], pf: 'b', hand: armsOut ? null : { alpha: -80, w: 1, follow: BODY.wristFollow } };
+  }
+
+  if (role) {
+    const u = smooth(cel / 0.35);
+    for (const side of ['L', 'R']) {
+      const sx = side === 'L' ? 1 : -1;
+      let x, y, z, hand = null, pole = [sx * 0.25, -1, -0.15];
+      if (role === 'win') {
+        const w = Math.sin(cel * 9 + (side === 'L' ? 0 : 1.7));
+        x = sx * (0.30 + 0.04 * w); y = lerp(BODY.clapY, 0.98, u); z = lerp(BODY.clapZ, 0.10, u); pole = [sx * 0.9, -0.2, -0.3];
+      } else {
+        const slow = role === 'draw' ? smooth(cel / 0.5) : smooth((cel - 0.9) / 0.5);          // loser starts clapping after a moment
+        const g = lerp(BODY.handGapMin, 0.15, 0.5 + 0.5 * Math.sin(cel * Math.PI * 2 * 1.5 + Math.PI / 2));
+        const hang = [sx * 0.21, 0.03, 0.10];
+        x = lerp(hang[0], sx * g, slow); y = lerp(hang[1], BODY.clapY - 0.04, slow); z = lerp(hang[2], BODY.clapZ - 0.04, slow);
+        if (slow > 0.6) hand = { alpha: -80, w: slow };
+      }
+      arms[side] = { p: [x, y, z], f: 'b', w: 1, pole, pf: 'b', hand };
+    }
   }
 
   // ---- torso and head ------------------------------------------------------------------------------------------------------------
@@ -186,12 +218,16 @@ export function playerPose(c) {
   if (miss && flightJump) { side += Math.sin(t * 22) * 5 * tuck; bend += 6; }
   const target = oppHead.clone();
   target.y += 0.02 * Math.sin(ti * 0.9 + ph);
+  let lookW = 0.85;
+  if (role === 'win') { bend = -5 + 3 * Math.sin(cel * 9); side = shift * 1.0; target.y += 0.45 * smooth(cel / 0.4); }
+  else if (role === 'lose') { const u = smooth(cel / 0.5); bend = lerp(bend, 15, u); side = 2.5 * Math.sin(cel * 1.1) * u; target.set(base.x + 0.02, 0.2, base.z + (yaw ? -0.5 : 0.5)); target.x += 0.25 * Math.sin(cel * 3.2) * Math.min(1, cel / 0.6) * (cel < 2.2 ? 1 : Math.max(0, 1 - (cel - 2.2))); target.y = lerp(oppHead.y, 0.25, u); lookW = 1; }
+  else if (role === 'draw') { bend = lerp(bend, 6 + 3 * Math.sin(cel * 4), smooth(cel / 0.4)); }
   return {
     pelvis: pel, yaw, pitch: 0, roll: shift * 0.8, groundY: 0,
     torso: { bend, side, twist: 2.5 * shift2 + (i === 0 ? 1 : -1) * 1.5 },
     pelvisTilt: { bend: 0, side: shift * 1.0, twist: 0 },
     legs, arms,
-    look: { target, w: 0.85 },
+    look: { target, w: lookW },
     out: { dy, gap, thrustU, tuck, tau },
   };
 }

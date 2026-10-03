@@ -199,6 +199,7 @@ function roleBadge(ctx, G, s, y) {
   const zs = inPlayScale(G);
   const fs = fitFont(ctx, txt, 22 * zs, 600, 700);
   const tw = ctx.measureText(txt).width;
+  y = Math.max(y, hudBottom + 14 + fs);   // always just under the score strip, whatever the text size
   rr(ctx, 14, y - fs - 6, tw + 28, fs + 16, 14); ctx.fillStyle = 'rgba(4,24,32,0.78)'; ctx.fill();
   ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic'; ctx.fillStyle = idle ? 'rgba(255,244,224,0.85)' : PAL.gold; ctx.fillText(txt, 28, y);
 }
@@ -238,7 +239,7 @@ function bowlerControls(ctx, G, s, t) {
   // chips: the kind of delivery
   for (const c of R.chips) drawButton(ctx, c.rect, DELIVERIES[c.k].name, { active: G.aim.type === c.k, size: 24 * Math.min(1.3, inPlayScale(G)) });
   const zs = inPlayScale(G);
-  fitFont(ctx, 'Flick up the screen to bowl: far = full, short = short; sideways = line.', 24 * zs, 690, 700);
+  fitFont(ctx, 'Flick up the screen to bowl: far = full, short = short; sideways = line.', 24 * zs, 690, 700, SANS, 18);
   ctx.textAlign = 'center'; ctx.fillStyle = '#fff'; ctx.shadowColor = 'rgba(0,20,30,0.8)'; ctx.shadowBlur = 6; ctx.fillText('Flick up the screen to bowl: far = full, short = short; sideways = line.', 360, 1150); ctx.shadowBlur = 0;
   // the predicted bounce spot
   const a = G.bowlPreview || { bx: G.aim.bx, bz: G.aim.bz, speed: G.aim.speed };
@@ -334,7 +335,7 @@ export function drawPause(ctx, G) {
   drawButton(ctx, PAUSE_BTNS.textInc, 'Text A+', { size: fs * 0.85, disabled: G.settings.textIdx === TEXT_SCALES.length - 1 });
   drawButton(ctx, PAUSE_BTNS.rules, 'Rules', { size: fs });
   drawButton(ctx, PAUSE_BTNS.quit, 'Save and quit', { danger: true, size: fs });
-  ctx.font = `600 ${22}px ${SANS}`; ctx.fillStyle = 'rgba(255,244,224,0.85)'; ctx.textAlign = 'center'; ctx.fillText(`Text size ${Math.round(scaleOf(G) * 100)}%`, 360, 930);
+  ctx.font = `600 26px ${SANS}`; ctx.fillStyle = 'rgba(255,244,224,0.9)'; ctx.textAlign = 'center'; ctx.fillText(`Text size ${Math.round(scaleOf(G) * 100)}%`, 360, 930);
 }
 
 function drawWatchPanel(ctx, G, s) {

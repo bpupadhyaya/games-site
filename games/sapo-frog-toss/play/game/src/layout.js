@@ -23,7 +23,7 @@ export const TRAY = {
   mode: { y: 1034, h: 66, x: 16, bw: 98, gap: 6 },
   act: { y: 1108, h: 100 },
 };
-export const PULL = { y0: 560, y1: 1030, max: 230, min: 26 };   // where a touch starts a pull, how far a full pull is, the smallest pull that throws
+export const PULL = { y0: 420, y1: 1030, max: 300, min: 30 };   // where a touch starts a pull, how far a full pull is, the smallest pull that throws
 
 export function playLayout(z, hudH, trayH) {
   if (z <= COMPACT) return { compact: true, s: 1, vx: 0, vy: SCENE_Y0, clip: null, hudH, trayTop: 1030 };

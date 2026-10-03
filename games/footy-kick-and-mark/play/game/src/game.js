@@ -16,7 +16,7 @@ const TEAM_NAMES = ['Red', 'Blue'];
 
 export function createGame(env) {
   const { rng, audio, storage, config } = env;
-  const demo = !!config.demo, tp = env.touchpad || null;
+  const demo = !!config.demo, tp = env.touchpad || null, wheel = env.wheel || null;
   const G = {
     scene: 'title', mode: 'none', demo, loaded: false,
     settings: { textIdx: 0, sound: true, women: false, thinkIdx: 1 },
@@ -143,9 +143,9 @@ export function createGame(env) {
         case 'tackle': sfx.tackle(); break;
         case 'spoil': case 'tap': sfx.spoil(); break;
         case 'bounceBall': if (e.v > 3) sfx.bounce(); break;
-        case 'bounce': case 'setshot': case 'heldBall': case 'out': sfx.whistle(); break;
+        case 'bounce': case 'setshot': case 'heldBall': case 'out': sfx.whistle(); G.whistleT = G.t; break;
         case 'siren': sfx.siren(); break;
-        case 'goal': sfx.goal(); cheer(1); if (G.mode === 'ai') persistMatch(); G.replayFrames = hist.slice(-100); G.replay = { t0: s.t + 0.5, n: G.replayFrames.length, team: e.team }; break;
+        case 'goal': sfx.goal(); G.whistleT = G.t; cheer(1); if (G.mode === 'ai') persistMatch(); G.replayFrames = hist.slice(-100); G.replay = { t0: s.t + 0.5, n: G.replayFrames.length, team: e.team }; break;
         case 'behind': sfx.behind(); if (G.mode === 'ai') persistMatch(); break;
         case 'quarterEnd':
           if (G.mode === 'ai' || G.mode === 'watch') { if (s.q + 1 < s.quarters) { persistMatch(); G.scene = 'qbreak'; G.ui.scroll = 0; } }
@@ -194,8 +194,7 @@ export function createGame(env) {
     const max = mt.lay ? Math.max(0, mt.lay.contentH - (mt.bottom - mt.top)) : 0;
     if (input.keys.pressed.has('Equal') || input.keys.pressed.has('NumpadAdd')) { G.settings.textIdx = Math.min(TEXT_SCALES.length - 1, G.settings.textIdx + 1); saveSettings(); }
     if (input.keys.pressed.has('Minus') || input.keys.pressed.has('NumpadSubtract')) { G.settings.textIdx = Math.max(0, G.settings.textIdx - 1); saveSettings(); }
-    if (input.keys.down.has('ArrowDown')) G.ui.scroll = clamp(G.ui.scroll + 14, 0, max);
-    if (input.keys.down.has('ArrowUp')) G.ui.scroll = clamp(G.ui.scroll - 14, 0, max);
+    scrollKeys(input, max, mt.lay ? mt.bottom - mt.top : 1000);
   };
   const go = (scene) => { G.scene = scene; G.ui.scroll = 0; G.page = 0; MN.ensureLayout(G, '-'); };
   function handleTitle(id) {
@@ -294,20 +293,34 @@ export function createGame(env) {
     else if (id === 'p-txt-inc') { G.settings.textIdx = Math.min(TEXT_SCALES.length - 1, G.settings.textIdx + 1); G.ui.scroll = 0; saveSettings(); }
     else if (id === 'quit') leaveMatch();
   }
+  // keys and wheel that scroll any long text: arrows, PageUp/PageDown, Space, Home/End, mouse wheel
+  const scrollKeys = (input, max, viewH) => {
+    const k = input.keys;
+    let sc = G.ui.scroll;
+    if (k.down.has('ArrowDown')) sc += 14;
+    if (k.down.has('ArrowUp')) sc -= 14;
+    if (k.pressed.has('PageDown') || k.pressed.has('Space')) sc += viewH * 0.85;
+    if (k.pressed.has('PageUp')) sc -= viewH * 0.85;
+    if (k.pressed.has('Home')) sc = 0;
+    if (k.pressed.has('End')) sc = max;
+    if (wheel) sc += wheel.take();
+    G.ui.scroll = clamp(sc, 0, max);
+  };
   const updatePages = (input) => {
     const ptr = input.pointer, keys = input.keys;
-    const n = MN.pageCount();
-    const close = () => { G.scene = G.back === 'play' ? 'play' : 'title'; G.page = 0; };
-    const next = () => { if (G.page >= n - 1) close(); else G.page++; };
-    const prev = () => { if (G.page <= 0) close(); else G.page--; };
+    const dm = MN.docMeta(), vw = MN.docView();
+    const close = () => { G.scene = G.back === 'play' ? 'play' : 'title'; G.page = 0; G.ui.scroll = 0; G.ui.drag = null; };
+    const textChanged = () => { G.ui.scroll = 0; saveSettings(); };
     if (ptr.pressed) {
-      if (inRect(REF_NEXT, ptr.x, ptr.y)) next();
-      else if (inRect(REF_BACK, ptr.x, ptr.y)) prev();
-      else if (inRect(TEXT_DEC, ptr.x, ptr.y)) { G.settings.textIdx = Math.max(0, G.settings.textIdx - 1); saveSettings(); }
-      else if (inRect(TEXT_INC, ptr.x, ptr.y)) { G.settings.textIdx = Math.min(TEXT_SCALES.length - 1, G.settings.textIdx + 1); saveSettings(); }
+      if (inRect(REF_NEXT, ptr.x, ptr.y)) { if (G.ui.scroll >= dm.max - 4) { close(); return; } G.ui.scroll = clamp(G.ui.scroll + dm.viewH * 0.85, 0, dm.max); }
+      else if (inRect(REF_BACK, ptr.x, ptr.y)) { close(); return; }
+      else if (inRect(TEXT_DEC, ptr.x, ptr.y)) { G.settings.textIdx = Math.max(0, G.settings.textIdx - 1); textChanged(); }
+      else if (inRect(TEXT_INC, ptr.x, ptr.y)) { G.settings.textIdx = Math.min(TEXT_SCALES.length - 1, G.settings.textIdx + 1); textChanged(); }
+      else if (ptr.y >= vw.top - 20 && ptr.y <= vw.bottom + 20) G.ui.drag = { y0: ptr.y, s0: G.ui.scroll };
     }
-    if (keys.pressed.has('ArrowRight')) next();
-    if (keys.pressed.has('ArrowLeft')) prev();
+    if (G.ui.drag && ptr.down) G.ui.scroll = clamp(G.ui.drag.s0 - (ptr.y - G.ui.drag.y0), 0, dm.max);
+    if (ptr.released) G.ui.drag = null;
+    scrollKeys(input, dm.max, dm.viewH);
     if (keys.pressed.has('Escape')) close();
   };
   const updateSetup = (dt, input) => {
@@ -323,16 +336,28 @@ export function createGame(env) {
   const openThink = () => {
     const hp = S.humanPlayer(); if (!hp) return;
     const h = S.hint(hp.id);
-    G.think = { ...h };
+    G.think = { ...h }; G.thinkScroll = 0;
   };
   function updatePlay(dt, input, touches) {
     const ptr = input.pointer, s = S.s;
-    if (G.mode === 'shot') { S.update(dt, {}); processEvents(); return; }
+    if (G.mode === 'shot') { S.update(dt, {}); recordHist(); processEvents(); return; }
     if (G.pauseMenu) { MN.ensureLayout(G, 'pause'); updateFlowScene(dt, input, handlePause, null); return; }
     const lay = hudLayout(G.settings.textIdx);
     if (G.think) {
       if (ptr.pressed && G.thinkRects && inRect(G.thinkRects.close, ptr.x, ptr.y)) { G.think = null; sfx.tick(); controls.reset(); }
-      if (input.keys.pressed.has('Enter') || input.keys.pressed.has('Space')) { G.think = null; controls.reset(); }
+      if (input.keys.pressed.has('Enter')) { G.think = null; controls.reset(); }
+      const tv = G.thinkView;
+      if (tv) {       // long advice (large text) scrolls: drag, wheel, arrows, PageUp/PageDown, Home/End
+        if (ptr.pressed && ptr.y >= tv.top - 10 && ptr.y <= tv.bottom + 10 && !(G.thinkRects && inRect(G.thinkRects.close, ptr.x, ptr.y))) G.ui.tdrag = { y0: ptr.y, s0: G.thinkScroll || 0, moved: 0 };
+        if (G.ui.tdrag && ptr.down) { const d = G.ui.tdrag; d.moved = Math.max(d.moved, Math.abs(ptr.y - d.y0)); G.thinkScroll = clamp(d.s0 - (ptr.y - d.y0), 0, tv.max); }
+        if (ptr.released) G.ui.tdrag = null;
+        const k = input.keys; let sc = G.thinkScroll || 0;
+        if (k.down.has('ArrowDown')) sc += 12; if (k.down.has('ArrowUp')) sc -= 12;
+        if (k.pressed.has('PageDown')) sc += tv.vh * 0.85; if (k.pressed.has('PageUp')) sc -= tv.vh * 0.85;
+        if (k.pressed.has('Home')) sc = 0; if (k.pressed.has('End')) sc = tv.max;
+        if (wheel) sc += wheel.take();
+        G.thinkScroll = clamp(sc, 0, tv.max);
+      }
       return;
     }
     if (G.mode === 'watch') {
@@ -386,6 +411,7 @@ export function createGame(env) {
       setPress(input.pointer);
       const touches = tp ? tp.snapshot() : legacyTouches(input.pointer);
       G.t += dt;
+      if (G.scene === 'play' && wheel && !G.think && !G.pauseMenu) wheel.take();
       if (G.scene === 'play' && !G.paused && !G.pauseMenu && S && (G.mode === 'ai' || G.mode === 'watch') && !(G.mode === 'watch' && (S.s.hold || G.watch.paused))) murmur(dt);
       if (G.scene !== 'play') S.update(dt, {});
       switch (G.scene) {

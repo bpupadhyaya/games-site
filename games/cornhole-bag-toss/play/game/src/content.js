@@ -62,7 +62,7 @@ export const RULES = [
   ], art: 'board' },
   { title: 'The bags', p: [
     'Each side has four bags, red with a diamond mark or blue with a ring mark. A bag is about 15 cm square and soft: it does not bounce. A bag that lands flat stays near where it lands; a bag that lands on an edge or corner can flop forward and slide on a little.',
-    'A bag that lands on or against another bag shoves it along with part of the speed it arrived with, so a fast Slide can drive a blocker up the board, into the hole or off the back. Bags that touch push each other and can spin and turn. A bag lying half over the hole is pulled toward it a little as it slows.',
+    'A bag that lands on or against another bag shoves it along with part of the speed it arrived with (and slows down by part of what it gave away), so a fast Slide can drive a blocker up the board, into the hole or off the back. Bags that touch push each other and can spin and turn. A bag lying half over the hole is pulled toward it a little as it slows.',
   ] },
   { title: 'Taking turns', p: [
     `A round (an inning) is eight bags: ${BAGS_EACH} each, thrown one at a time, the two sides alternating. The side that throws first in a round throws bags 1, 3, 5 and 7.`,

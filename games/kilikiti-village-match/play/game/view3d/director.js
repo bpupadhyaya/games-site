@@ -11,6 +11,7 @@ import { batterPose, familyOf, PIVOT, BAT } from './batter.js';
 import { bowlerPose, bowlerArms, VARIANTS } from './bowler.js';
 import { quatFromBasis } from './rig.js';
 import { ramp } from './util3.js';
+import { diveSpec, DIVE } from './dive.js';
 
 const toWorld = (x, y, z, out = new V3()) => out.set(x, y, -z);
 const yawOfDir = (dx, dz) => Math.atan2(dx, -dz);        // sim direction (dx, dz) -> world avatar yaw (yaw 0 faces +Z world)
@@ -371,7 +372,10 @@ export async function createDirector(P) {
     const speed = d ? d.spec.speed : 16;
     const relX = d ? d.spec.relX : 0.1;
     const rel = toWorld(relX, REL_Y, REL_Z);
-    const V0 = speed < 15.2 ? VARIANTS.spin : (s.ballSeq % 2 ? VARIANTS.frontOn : VARIANTS.sideOn);
+    const V00 = speed < 15.2 ? VARIANTS.spin : (s.ballSeq % 2 ? VARIANTS.frontOn : VARIANTS.sideOn);
+    // each bowler has his own run-up and action: a little more or less stride, coil and spring, from his own seed
+    const q1 = hash(Math.floor(a.seed * 4096) + 1) - 0.5, q2 = hash(Math.floor(a.seed * 4096) + 2) - 0.5;
+    const V0 = { ...V00, stride: V00.stride * (1 + 0.12 * q1), coil: V00.coil + 26 * q2, up: V00.up * (1 + 0.5 * q1), vmax: V00.vmax * (1 + 0.1 * q2) };
     h.root.scale.setScalar(V0.scale);
     const tau = s.phase === 'runup' ? s.pt - 0.95 + ctx.u * DT : s.phase === 'flight' ? s.ft + ctx.u * DT : s.phase === 'dead' && s.deadFrom === 'flight' ? s.ft + s.pt : (s.phase === 'ready' || s.phase === 'aim') ? -9 : s.ft + s.pt;
     const bctx = { tau, variant: V0, rel, L: PITCH, runT: 0.95, scale: V0.scale };
@@ -455,6 +459,37 @@ export async function createDirector(P) {
         }
       }
     }
+    // an authored dive: the human fielder who pressed CATCH for a ball just out of reach, and the take itself (act kind 'dive') with the slide and the rise
+    let dv = null;
+    if (live && L && f.role !== 'wk') {
+      if (L.bs === 'held' && L.holder === f.id && act && act.kind === 'dive' && actAge < DIVE.total && L.takePos) dv = { tgt: toWorld(L.takePos[0], Math.max(0.1, L.takePos[1]), L.takePos[2]), tau: actAge };
+      else if (f.ctl && (L.bs === 'fly' || L.bs === 'loose') && ballW && L.track && s.t - s.ctl.tapAt >= 0 && s.t - s.ctl.tapAt < 0.5) {
+        const bp = trackPos(L.track, L.i), nx = trackPos(L.track, L.i + 1);
+        const dh = Math.hypot(f.x - bp[0], f.z - bp[2]), sp = Math.max(4, Math.hypot((nx[0] - bp[0]) * 60, (nx[2] - bp[2]) * 60));
+        const eta = Math.max(0, dh - 0.95) / (sp + speed * 0.8);
+        if (a.diveTc == null && bp[1] <= 1.15 && dh > 0.62 && dh < 3.0 && eta < DIVE.launch + 0.1) { a.diveTc = s.t + eta; a.diveL = clamp(eta + 0.06, 0.16, DIVE.launch); }
+        if (a.diveTc != null) dv = { tgt: ballW.clone(), tau: Math.min(0, s.t - a.diveTc) };
+      }
+    }
+    if (!dv && !(L && L.bs === 'held' && L.holder === f.id) && a.diveTc != null && s.t - a.diveTc > 0.5) a.diveTc = null;
+    if (dv) {
+      const dx = dv.tgt.x - x, dz = dv.tgt.z + z;
+      const yawD = Math.atan2(dx, dz);
+      if (speed > 0.6 && dv.tau < 0) { const clipName = speed > 4.0 ? 'sprint' : speed > 2.2 ? 'jog' : 'walk'; const cl = h.getClip(clipName); rig.setBase([{ clip: clipName, time: (((a.cyc ?? 0) % cl.dur) + cl.dur) % cl.dur, w: 1 }]); }
+      else rig.setBase([{ clip: 'field_pickup_throw', time: 0.22, w: 1 }]);
+      h.root.position.set(x, 0, -z); h.root.rotation.y = yawD; h.update(1 / 120); h.root.updateMatrixWorld(true);
+      const standY = a.standY ?? (a.standY = rig.pelvis.getWorldPosition(new V3()).y);
+      rig.noLower = false;
+      const r = diveSpec({ x, z: -z, yaw: yawD, tgt: dv.tgt, tau: dv.tau, launch: a.diveL ?? DIVE.launch, standY, ankleH: rig.ankleH ?? 0.08, loco: speed > 0.6 && dv.tau < 0 });
+      const spec = r.spec; spec.head = ballW && live ? { target: dv.tgt, weight: 0.7, maxYaw: 1.0, maxPitch: 0.6 } : null;
+      a.lastDesc = { clip: 'dive', time: +dv.tau.toFixed(2), tgt: true };
+      for (const k of Object.keys(a.targets || {})) h.setTarget(k, null); a.targets = {};
+      h.setReach('R', null); h.setReach('L', null);
+      rig.solve(spec);
+      rig.noLower = true;
+      h.root.updateMatrixWorld(true);
+      return;
+    }
     if (d.clip === 'field_ready' || d.clip === 'keeper_crouch') {
       if (speed > 0.6) { d.loco = true; }
       else if (!live && s.phase !== 'dead' && !(s.last && s.last.wicket && s.pt > 0.3)) {
@@ -503,6 +538,28 @@ export async function createDirector(P) {
     if (d.clip === 'field_ready' || d.clip === 'keeper_crouch') {   // the live idle layer: every player stands a little differently (weight on one side, a turn of the trunk)
       const sw = Math.sin(tNow * 0.7 + a.seed * 9) * 0.04;
       spec.spine = { pitch: 0.03 * Math.sin(tNow * 1.3 + a.seed * 5), yaw: (a.seed - 0.5) * 0.18, roll: (a.seed - 0.5) * 0.14 + sw };
+      if (d.clip === 'field_ready' && !d.loco) {
+        // authored waiting stances, one at a time per player, each held 9-15 s on the player's own schedule: 0 ready, 1 hands on knees, 2 hands on hips, 3 one hand on a hip, a hand to the neck
+        const per = 9 + a.seed * 6, ph = tNow / per + a.seed * 7, idx = Math.floor(ph), fr = ph - idx;
+        const stance = Math.floor(hash(idx * 13 + Math.floor(a.seed * 1000)) * 4), w = ramp(fr, 0, 0.08) * (1 - ramp(fr, 0.92, 1));
+        a.stance = stance;
+        if (stance === 1) spec.spine.pitch += 0.42 * w;
+        if (stance !== 0 && w > 0.01) {
+          const yw = d.yaw, latv = new V3(Math.cos(yw), 0, -Math.sin(yw)), fv = new V3(Math.sin(yw), 0, Math.cos(yw));
+          spec.arms = (rg) => {
+            const hips = rg.pelvis.getWorldPosition(new V3());
+            if (stance === 1) {
+              const kl = rg.leg.L.calf.getWorldPosition(new V3()), kr = rg.leg.R.calf.getWorldPosition(new V3());
+              return { L: { p: kl.add(new V3(0, 0.1, 0)), pole: kl.clone().addScaledVector(latv, 0.5), w }, R: { p: kr.add(new V3(0, 0.1, 0)), pole: kr.clone().addScaledVector(latv, -0.5), w } };
+            }
+            const hl = hips.clone().addScaledVector(latv, 0.25).addScaledVector(fv, 0.03).add(new V3(0, 0.1, 0));
+            const hr = hips.clone().addScaledVector(latv, -0.25).addScaledVector(fv, 0.03).add(new V3(0, 0.1, 0));
+            if (stance === 2) return { L: { p: hl, pole: hl.clone().addScaledVector(latv, 0.5).addScaledVector(fv, -0.3), w }, R: { p: hr, pole: hr.clone().addScaledVector(latv, -0.5).addScaledVector(fv, -0.3), w } };
+            const nk = rg.neck.getWorldPosition(new V3()).addScaledVector(latv, -0.12).addScaledVector(fv, 0.1);
+            return { L: { p: hl, pole: hl.clone().addScaledVector(latv, 0.5).addScaledVector(fv, -0.3), w }, R: { p: nk, pole: nk.clone().addScaledVector(latv, -0.5).add(new V3(0, 0.1, 0)), w } };
+          };
+        }
+      }
     }
     if (tgt && (d.clip === 'catch_two_hand' || d.clip === 'field_pickup_throw')) {
       // the hands go to the ball exactly (two-bone IK), the torso folds forward to bring the shoulders down to a low ball

@@ -11,7 +11,7 @@ export const getLang = () => LANG;
 const STR = {
   en: {
     appName: 'Gabata', appSub: 'Three-Row Sowing', tagline: 'The three-row sowing game of Ethiopia and Eritrea.',
-    langHead: 'Choose your language', langNote: 'Amharic covers the game name, menus, buttons and scores. The long texts stay in English. You can change this any time on the main menu.',
+    langHead: 'Choose your language', langNote: 'Amharic covers the game name, menus, buttons, scores and short messages. The long texts (Rules, lessons, hints) stay in English, and the Amharic was written without review by a native speaker. You can change this any time on the main menu.',
     playBtn: 'Play', continueBtn: 'Continue game', learnBtn: 'Learn', autoBtn: 'Watch & Learn', howtoBtn: 'How to Play', rulesBtn: 'Rules', aboutBtn: 'About',
     settingsBtn: 'Settings', back: 'Back', next: 'Next', prev: 'Previous', think: 'Think', undo: 'Undo', restart: 'Restart', resume: 'Resume', paused: 'Paused',
     quitMenu: 'Main Menu', soundOn: 'Sound: On', soundOff: 'Sound: Off', thinkTime: 'Watch & Learn think time', seconds: 's',
@@ -68,6 +68,9 @@ const STR = {
     pileCap: 'የተያዙ', pileBoard: 'በገበታው ላይ', pileTotal: 'ነጥብ', toMove: 'ተራው', waiting: 'በመጠባበቅ', winner: 'አሸናፊ',
     rowTop: 'የላይ', rowMiddle: 'የመሃል', rowBottom: 'የታች',
     nativeNote: 'ረጃጅም ጽሑፎች በእንግሊዝኛ ናቸው።',
+    youTook: 'እርስዎ {n} ዘሮችን ያዙ', theyTook: '{who} {n} ዘሮችን ያዘ', tookNothing: 'በዚህ ተራ ምንም አልተያዘም', pickHole: 'ዘር ያለበት ከእርስዎ ጉድጓዶች አንዱን ይንኩ።',
+    turnOf: '{who}: ተራው', correct: 'ትክክል!', notQuite: 'ገና አይደለም', lessonNext: 'ቀጣይ ትምህርት', lessonRetry: 'እንደገና ሞክር', lessonList: 'ሁሉም ትምህርቶች',
+    autoSlower: 'ማሰቢያ -', autoFaster: 'ማሰቢያ +', nothingUndo: 'ወደ ኋላ የሚመለስ የለም', savedGame: 'የተቀመጠ ጨዋታ', resetDone: 'ተሰርዟል', owned: 'ሙሉ ጨዋታው ተከፍቷል። እናመሰግናለን!',
   },
 };
 
@@ -139,7 +142,8 @@ const rulesEn = () => [
   ] },
   { title: 'What is different from the traditional game', art: 'board', body: [
     'Gabata (also spelled Gebeta) is a family of games, and the rules vary by region and by family. The three-row form is played on three rows of six holes with three seeds in each hole, relay sowing and the capture of a whole column, and these are all kept here.',
-    'Traditional players often begin by sowing at the same time, racing each other, before play settles into turns. On a phone that is not practical, so this game starts with Player 1 and then alternates. The exact ending count and the shape of the loop also differ between regions; this game documents its choices on these pages.',
+    'What published descriptions of the three-row game of the Eritrean highlands agree on, and this game keeps: three rows of six holes, three seeds in each, each player owns the row nearest them and the three holes of the middle row on their right, sowing goes left to right along your own row and then right to left along your middle holes, a last seed that lands in a hole with seeds in it carries on, and a last seed that lands in an empty hole of yours captures the seeds the opponent has in that column.',
+    'Where this game simplifies: traditional players begin by sowing at the same time, racing each other, before play settles into turns, and this game simply starts with Player 1 and alternates. Some descriptions let the capturing seed be lifted and sown on, so that one turn can capture several times; here a capture ends the turn. In traditional play a finished round may be followed by a new round, with each player\'s seeds shared out again three to a hole; here one round decides the game and the score is the seeds captured plus the seeds left in your holes. These are our own simplifications and not a claim about how any one community plays.',
   ] },
   { title: 'Making a move', art: 'tap', body: [
     'Tap one of your holes that holds seeds and it is played at once: a hand glides along the board and drops the seeds one by one. Tapping an empty hole or one of the opponent\'s holes flashes it and does nothing. A second finger resting on the screen is ignored.',

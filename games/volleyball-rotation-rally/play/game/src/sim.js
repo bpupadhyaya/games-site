@@ -9,7 +9,7 @@ import { dirOf, latSign, W, depthOf, latOf, sideOf, makeStats, courtLineup, rota
 import { tmFromErr, aiSigma, LAG, WIN, OPEN, passQuality, setQuality, serveQuality, serveErrP, attackQuality } from './physics.js';
 import * as AI from './ai.js';
 
-const TUNE_DIG = { base: 0.84, skill: 0.5, speed: 0.55, stretch: 0.35, aq: 0.5 };
+const TUNE_DIG = { base: 0.78, skill: 0.5, speed: 0.55, stretch: 0.35, aq: 0.5 };
 const READY = 1.7;          // s between a point and the start of the serve
 const POINT_PAUSE = 2.6;    // s the point is shown before the next rally
 const SET_PAUSE = 4.2;
@@ -409,7 +409,7 @@ export function createSim(cfg0, rng) {
         const T = techBand(tech, women);
         let y0 = T.y0, y1 = T.y1, pref = T.pref;
         if (tech === 'spike') { y0 = Math.max((HIT0 + 0.05) * K, HIT0 * K + 0.58); y1 = HIT0 * K + p.st.jump - (women ? 0.12 : 0.05); pref = y1 - 0.06; if (y1 < y0 + 0.05) continue; }
-        const ic = intercept(fl, p, s.t, { minY: y0, maxY: y1, preferY: pref, fwd: T.fwd, human: p.user && !cfg.bot, tMin: s.t + (tech === 'spike' ? 0.5 : 0.28), spd: kind === 'receive' ? speedAt(fl, s.t + 0.2) : 0, dive: tech === 'dig' });
+        const ic = intercept(fl, p, s.t, { minY: y0, maxY: y1, preferY: pref, fwd: T.reach ?? T.fwd, human: p.user && !cfg.bot, tMin: s.t + (tech === 'spike' ? 0.5 : 0.28), spd: kind === 'receive' ? speedAt(fl, s.t + 0.2) : 0, dive: tech === 'dig' });
         if (!ic) continue;
         // an overhand touch of a fast ball is a risk: only the slow ones
         if (tech === 'over') { const v = speedAt(fl, ic.t); if (v > 12.5 && kind === 'receive') continue; if (p.tp === 6 && depthOf(team, ic.z) < ATK && kind !== 'receive') continue; }
@@ -574,7 +574,7 @@ export function createSim(cfg0, rng) {
   function reachStretch(p, pl, b) {
     const dC = Math.hypot(p.x - b.x, p.z - b.z);
     const T = TECH[pl.tech];
-    const extra = Math.max(0, dC - T.fwd - (pl.tech === 'spike' ? 0.32 : 0.14));
+    const extra = Math.max(0, dC - (T.reach ?? T.fwd) - (pl.tech === 'spike' ? 0.32 : 0.14));
     return extra / LUNGE;   // 1 = a full lunge; a dive goes beyond (up to 3)
   }
   function doTouch(ev) {

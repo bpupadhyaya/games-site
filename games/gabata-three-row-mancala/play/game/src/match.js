@@ -32,6 +32,7 @@ export function startMove(M, mv, silent = false) {
   M.hist.push({ st: before, mv });
   M.st = st; M.sel = -1; M.hint = null; M.last = mv; M.thinking = false;
   if (silent) { M.D = fromState(st); if (st.over) { M.over = st.over; } return; }
+  M.capInfo = null;
   M.A = { ev, i: 0, t: 0, began: false, flights: [], hand: null, pend: Array(18).fill(0), dd: DROP_T, lap: 0 };
   M.busy = true;
 }
@@ -61,6 +62,13 @@ export function tapCell(M, i) {
 
 const ease = (k) => (k < 0.5 ? 4 * k * k * k : 1 - ((-2 * k + 2) ** 3) / 2);
 const clamp01 = (v) => Math.max(0, Math.min(1, v));
+// Position (0..1) along a step whose speed ramps up over the first `a` of it and down over the last `b`, constant between.
+function trapezoid(u, a, b) {
+  const c = 1 / (1 - a / 2 - b / 2);
+  if (a > 0 && u < a) return c * u * u / (2 * a);
+  if (b > 0 && u > 1 - b) { const w = 1 - u; return 1 - c * w * w / (2 * b); }
+  return c * (u - a / 2);
+}
 
 function pileTarget(M, who) { return M.pileTo[who - 1]; }
 
@@ -129,10 +137,13 @@ function stepAnim(M, dt) {
       A.began = true; A.from = [A.hand.x, A.hand.y]; A.released = false;
       // the hand keeps the same on-screen speed on every step, so a long step (round the corner) takes proportionally longer
       const dist = Math.hypot(r.cx - A.from[0], r.cy - A.from[1]);
-      A.cd = Math.max(A.dd * 0.75, Math.min(0.8, dist / (CELL_W / A.dd))) / M.speed;
+      A.cd = Math.max(0.09, Math.min(0.9, dist / (CELL_W / A.dd))) / M.speed;
+      // the hand starts from rest on the first step of a lap and settles on the last one; in between it holds one steady speed
+      const prevDrop = A.i > 0 && A.ev[A.i - 1].t === 'drop', nextDrop = A.i + 1 < A.ev.length && A.ev[A.i + 1].t === 'drop';
+      A.ra = prevDrop ? 0 : 0.35; A.rb = nextDrop ? 0 : 0.35;
     }
     const dd = A.cd;
-    const u = clamp01(A.t / dd), k = 0.7 * u + 0.3 * ease(u);
+    const u = clamp01(A.t / dd), k = trapezoid(u, A.ra, A.rb);
     A.hand.x = A.from[0] + (r.cx - A.from[0]) * k; A.hand.y = A.from[1] + (r.cy - A.from[1]) * k;
     if (!A.released && A.t >= dd * 0.55) {
       A.released = true; A.hand.n--;
@@ -158,7 +169,7 @@ function stepAnim(M, dt) {
       }
       const lastF = A.flights.filter((f) => f.kind === 'pile'); if (lastF.length) lastF[lastF.length - 1].last = true;
       M.ringCell = e.at; M.ringT = 0.9; M.capCells = e.cells; M.capT = 0.9;
-      M.fx.push({ t: 'capture', cell: e.at, cells: e.cells, n: e.n, who: e.who });
+      M.fx.push({ t: 'capture', cell: e.at, cells: e.cells, n: e.n, who: e.who }); M.capInfo = { n: e.n, who: e.who };
       A.waitT = 0;
     }
     if (!A.flights.some((f) => f.kind === 'pile') && A.t > 0.35) next();
@@ -199,7 +210,7 @@ export function spark(M, rng, cell, big) {
 export function flightPos(f, alpha = 1) {
   const tt = f.pt === undefined ? f.t : f.pt + (f.t - f.pt) * alpha;
   const k = clamp01(tt / f.dur);
-  const e = f.kind === 'drop' ? k : ease(k) * 0.35 + k * 0.65;
+  const e = f.kind === 'drop' ? k : ease(k) * 0.2 + k * 0.8;
   const arc = f.kind === "drop" ? Math.sin(k * Math.PI) * 9 : Math.sin(k * Math.PI) * FLY_ARC * 1.6;
   return [f.from[0] + (f.to[0] - f.from[0]) * e, f.from[1] + (f.to[1] - f.from[1]) * e - arc, k];
 }

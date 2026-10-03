@@ -511,7 +511,7 @@ export function createSim(cfg, rng, resume = null) {
 
   function pickUp(f, y, diving = false, pos = null) {
     const L = s.live; L.takePos = pos ? [pos[0], pos[1], pos[2]] : [f.x, y, f.z];
-    L.bs = 'held'; L.holder = f.id; f.gather = 0; L.pickT = L.t; L.thinkDone = false; L.userHold = 0;
+    L.bs = 'held'; L.holder = f.id; f.gather = diving ? -0.45 : 0; L.pickT = L.t; L.thinkDone = false; L.userHold = 0;
     f.act = { kind: diving ? 'dive' : (y > 0.5 ? 'catchBounce' : 'pick'), t0: s.t };
     ev('pick', { by: f.id, dive: diving, y });
     s.ctl.throwEnd = -1;

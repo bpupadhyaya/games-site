@@ -279,7 +279,8 @@ export function scrollbar(ctx, rect, scroll, total) {
   if (total <= rect.h + 1) return;
   const th = Math.max(36, rect.h * rect.h / total);
   const ty = rect.y + (rect.h - th) * (scroll / Math.max(1, total - rect.h));
-  ctx.fillStyle = 'rgba(255,214,140,0.35)'; rr(ctx, rect.x + rect.w + 6, ty, 6, th, 3); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.14)'; rr(ctx, rect.x + rect.w + 5, rect.y, 8, rect.h, 4); ctx.fill();
+  ctx.fillStyle = 'rgba(255,214,140,0.8)'; rr(ctx, rect.x + rect.w + 5, ty, 8, th, 4); ctx.fill();
 }
 
 export { W, H };

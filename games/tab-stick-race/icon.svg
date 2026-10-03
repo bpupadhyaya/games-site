@@ -1,11 +1,15 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
 <defs>
+<radialGradient id="ivs" cx="0.38" cy="0.35" r="0.7"><stop offset="0" stop-color="#fffaf0"/><stop offset="1" stop-color="#bfb293"/></radialGradient>
+<radialGradient id="cls" cx="0.38" cy="0.35" r="0.7"><stop offset="0" stop-color="#d98a58"/><stop offset="1" stop-color="#6a2e16"/></radialGradient>
 <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a6a58"/><stop offset="1" stop-color="#0f3a2e"/></linearGradient>
 <linearGradient id="fl" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#cdbd93"/><stop offset="0.5" stop-color="#f6ecd0"/><stop offset="1" stop-color="#d8c9a0"/></linearGradient>
 <linearGradient id="rd" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#3b2012"/><stop offset="0.45" stop-color="#9a5a34"/><stop offset="1" stop-color="#4a2814"/></linearGradient>
 <filter id="sh" x="-30%" y="-10%" width="160%" height="130%"><feDropShadow dx="14" dy="20" stdDeviation="14" flood-color="#000" flood-opacity="0.45"/></filter>
 </defs>
 <rect width="1024" height="1024" fill="url(#bg)"/>
+<rect x="28" y="28" width="968" height="968" rx="150" fill="none" stroke="#e0b44c" stroke-width="10" stroke-opacity="0.8"/>
+<rect x="52" y="52" width="920" height="920" rx="130" fill="none" stroke="#e0b44c" stroke-width="3" stroke-opacity="0.5" stroke-dasharray="18 14"/>
 <circle cx="512" cy="512" r="400" fill="none" stroke="#e0b44c" stroke-opacity="0.35" stroke-width="8"/>
 <polygon points="512,112 576,448 912,512 576,576 512,912 448,576 112,512 448,448" fill="none" stroke="#e0b44c" stroke-opacity="0.35" stroke-width="8"/>
 <g filter="url(#sh)">
@@ -14,4 +18,6 @@
 <g transform="rotate(-4 610 520)"><rect x="562" y="190" width="96" height="670" rx="44" fill="url(#fl)"/><g fill="#5a3a20"><rect x="566" y="340" width="88" height="14"/><rect x="566" y="366" width="88" height="14"/><rect x="566" y="510" width="88" height="14"/><rect x="566" y="536" width="88" height="14"/><rect x="566" y="680" width="88" height="14"/><rect x="566" y="706" width="88" height="14"/></g></g>
 <g transform="rotate(10 780 520)"><rect x="732" y="170" width="96" height="680" rx="44" fill="url(#rd)"/><path d="M756 210V810" stroke="#2a150a" stroke-opacity="0.5" stroke-width="5"/></g>
 </g>
+<g transform="translate(512 512)"><circle r="56" fill="#0f3a2e" fill-opacity="0.55"/><polygon points="0.0,-84.0 15.3,-37.0 59.4,-59.4 37.0,-15.3 84.0,0.0 37.0,15.3 59.4,59.4 15.3,37.0 0.0,84.0 -15.3,37.0 -59.4,59.4 -37.0,15.3 -84.0,0.0 -37.0,-15.3 -59.4,-59.4 -15.3,-37.0" fill="#2fa3a0" stroke="#e0b44c" stroke-width="6"/></g>
+<g filter="url(#sh)"><circle cx="300" cy="840" r="78" fill="url(#ivs)"/><circle cx="724" cy="840" r="78" fill="url(#cls)"/></g>
 </svg>

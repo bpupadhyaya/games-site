@@ -4,7 +4,7 @@ import { W, H, TEXT_SCALES, TEXT_DEC, TEXT_INC, REF_BACK, REF_NEXT, THINK_STEPS,
 import { FONT, NUM, C, roundPath, drawButton, panel, wrapLines, textShadow, flowLayout, drawFlow, flowHit } from './ui.js';
 import { PROFILES, ASSIST } from './ai.js';
 import { SIZES } from './engine.js';
-import { LOFTS, SPINS, FIELD } from './phys.js';
+import { LOFTS, SPINS, FIELD, KUBB, KING } from './phys.js';
 import { ABOUT, HOWTO, RULES, LESSONS } from './content.js';
 import { drawScene, sideName } from './view.js';
 import { TEAM, TAU } from './scene.js';
@@ -287,85 +287,93 @@ export function renderSheet(ctx, state) {
   drawFlowScreen(ctx, state, 'sheet', sheetWidgets(state), top, bottom, { x: 50, w: 620 });
 }
 
-// ---- reference pages ---------------------------------------------------------------------------------------------------------------------
-let PAGE_COUNT = 1;
-export const pageCount = () => PAGE_COUNT;
-const PANEL = { x: 34, y: 100, w: 652, h: 1030 };
-function buildPages(ctx, list, scale) {
-  const fs = Math.round(28 * scale), lh = fs * 1.28, tw = PANEL.w - 80;
+// ---- reference pages: one continuous, scrollable document (About / How to Play / Rules) -------------------------------------------------------------
+// The text is laid out once per text size as a tall column and drawn through a window (drag, wheel, keys, Next/Back scroll it), so any text size fits.
+const PANEL = { x: 16, y: 100, w: 688, h: 1030 };
+export const READER = { x: PANEL.x, y: PANEL.y + 92, w: PANEL.w, h: PANEL.h - 108, max: 0 };
+export const readerMeta = () => READER;
+const ART_H = 250;
+function buildDoc(ctx, list, scale) {
+  const fs = Math.round(28 * scale), lh = Math.round(fs * 1.24), tw = PANEL.w - 64;
   const secFs = Math.round(34 * Math.min(scale, 1.3));
-  const top = PANEL.y + 120, limit = PANEL.y + PANEL.h - 70;
-  const pages = [];
-  let cur = null, used = 0;
-  const newPage = () => { cur = { blocks: [], fs, lh, secFs }; used = 0; pages.push(cur); };
-  list.forEach((sec) => {
+  const items = [];
+  let y = 14;
+  list.forEach((sec, si) => {
+    if (si > 0) { items.push({ k: 'rule', y: y + 6 }); y += 30; }
     ctx.font = `700 ${secFs}px ${FONT}`;
-    const tl = wrapLines(ctx, sec.title, tw);
-    const titleH = tl.length * secFs * 1.2 + 16;
+    const tl = wrapLines(ctx, sec.title, tw), th = tl.length * secFs * 1.2 + 14;
+    items.push({ k: 'title', y, lines: tl, h: th }); y += th;
+    if (sec.art) { items.push({ k: 'art', y, key: sec.art }); y += ART_H; }
     ctx.font = `400 ${fs}px ${FONT}`;
     const lines = [];
-    sec.p.forEach((para, pi) => { wrapLines(ctx, para, tw).forEach((l, k) => lines.push({ text: l, gapBefore: k === 0 && pi > 0 })); });
-    const lineH = (l, n) => lh + (l.gapBefore && n > 0 ? lh * 0.45 : 0);
-    const artH = sec.art ? 250 : 0;
-    let full = titleH + artH + 26;
-    lines.forEach((l, k) => { full += lineH(l, k); });
-    if (!cur || used + full > limit - top) newPage();
-    let i = 0, part = 0;
-    while (true) {
-      const blk = { title: sec.title, tl, titleH, art: part === 0 ? sec.art : null, artH: part === 0 ? artH : 0, lines: [], part };
-      let h = titleH + blk.artH + 26;
-      while (i < lines.length) {
-        const add = lineH(lines[i], blk.lines.length);
-        if (used + h + add > limit - top && (blk.lines.length > 0 || used > 0)) break;
-        blk.lines.push({ ...lines[i] }); h += add; i++;
-      }
-      cur.blocks.push(blk); used += h;
-      part++;
-      if (i >= lines.length) break;
-      newPage();
-    }
+    sec.p.forEach((para, pi) => { wrapLines(ctx, para, tw).forEach((l, k) => lines.push({ text: l, gap: k === 0 && pi > 0 })); });
+    lines.forEach((l, k) => { if (l.gap && k > 0) y += lh * 0.4; items.push({ k: 'line', y, text: l.text }); y += lh; });
+    y += 14;
   });
-  return pages;
+  return { items, contentH: y + 8, fs, lh, secFs };
 }
-const pageCache = new Map();
+const docCache = new Map();
 export function renderPages(ctx, state, list, header) {
   backdrop(ctx, state, 0.72);
   const sc = TEXT_SCALES[state.settings.textIdx];
   const pkey = `${header}:${sc}`;
-  let pages = pageCache.get(pkey);
-  if (!pages) { pages = buildPages(ctx, list, sc); pageCache.set(pkey, pages); }
-  PAGE_COUNT = pages.length;
-  const idx = Math.min(state.page, pages.length - 1);
-  const pg = pages[idx];
+  let doc = docCache.get(pkey);
+  if (!doc) { doc = buildDoc(ctx, list, sc); docCache.set(pkey, doc); }
+  const R = READER;
+  R.max = Math.max(0, doc.contentH - R.h);
+  if (state.ui.keepFrac != null) { state.ui.scroll = state.ui.keepFrac * R.max; state.ui.keepFrac = null; }
+  state.ui.scroll = Math.max(0, Math.min(R.max, state.ui.scroll));
+  const scroll = state.ui.scroll;
   panel(ctx, PANEL.x, PANEL.y, PANEL.w, PANEL.h, { r: 30, fill: 'rgba(248,243,224,0.97)', stroke: 'rgba(120,92,36,0.8)' });
   ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
   ctx.fillStyle = '#9a3a14'; ctx.font = `700 ${Math.round(40 * Math.min(sc, 1.15))}px ${FONT}`;
   ctx.fillText(header, W / 2, PANEL.y + 58);
   ctx.strokeStyle = 'rgba(90,70,30,0.4)'; ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.moveTo(PANEL.x + 60, PANEL.y + 78); ctx.lineTo(PANEL.x + PANEL.w - 60, PANEL.y + 78); ctx.stroke();
-  let y = PANEL.y + 120;
-  pg.blocks.forEach((blk, bi) => {
-    if (bi > 0) { ctx.strokeStyle = 'rgba(90,70,30,0.25)'; ctx.beginPath(); ctx.moveTo(PANEL.x + 80, y - 8); ctx.lineTo(PANEL.x + PANEL.w - 80, y - 8); ctx.stroke(); y += 8; }
-    ctx.textAlign = 'center'; ctx.fillStyle = '#b8431c'; ctx.font = `700 ${pg.secFs}px ${FONT}`;
-    blk.tl.forEach((l, k) => ctx.fillText(l + (blk.part > 0 && k === blk.tl.length - 1 ? ' (cont.)' : ''), W / 2, y + pg.secFs * (0.9 + k * 1.2) - 8));
-    y += blk.titleH;
-    if (blk.art) { ctx.save(); ctx.beginPath(); ctx.rect(PANEL.x + 20, y, PANEL.w - 40, blk.artH); ctx.clip(); drawArt(blk.art, ctx, PANEL.x + 40, y, PANEL.w - 80, blk.artH - 12, state); ctx.restore(); y += blk.artH; }
-    ctx.fillStyle = C.ink; ctx.font = `400 ${pg.fs}px ${FONT}`; ctx.textAlign = 'left';
-    blk.lines.forEach((l, k) => {
-      if (l.gapBefore && k > 0) y += pg.lh * 0.45;
-      ctx.fillText(l.text, PANEL.x + 40, y + pg.fs * 0.85);
-      y += pg.lh;
-    });
-    y += 26;
-  });
-  ctx.textAlign = 'center'; ctx.font = `400 22px ${FONT}`; ctx.fillStyle = 'rgba(70,56,30,0.7)';
-  ctx.fillText(`Page ${idx + 1} of ${pages.length}`, W / 2, PANEL.y + PANEL.h - 28);
-  drawButton(ctx, TEXT_DEC, 'A−', { disabled: state.settings.textIdx === 0, size: 30 });
+  ctx.beginPath(); ctx.moveTo(PANEL.x + 50, PANEL.y + 78); ctx.lineTo(PANEL.x + PANEL.w - 50, PANEL.y + 78); ctx.stroke();
+  ctx.save(); ctx.beginPath(); ctx.rect(R.x, R.y, R.w, R.h); ctx.clip();
+  for (const it of doc.items) {
+    const y = R.y + it.y - scroll;
+    if (it.k === 'line') {
+      if (y > R.y + R.h || y + doc.lh < R.y) continue;
+      ctx.fillStyle = C.ink; ctx.font = `400 ${doc.fs}px ${FONT}`; ctx.textAlign = 'left'; ctx.fillText(it.text, PANEL.x + 32, y + doc.fs * 0.85);
+    } else if (it.k === 'title') {
+      if (y > R.y + R.h || y + it.h < R.y) continue;
+      ctx.textAlign = 'center'; ctx.fillStyle = '#b8431c'; ctx.font = `700 ${doc.secFs}px ${FONT}`;
+      it.lines.forEach((l, k) => ctx.fillText(l, W / 2, y + doc.secFs * (0.9 + k * 1.2) - 4));
+    } else if (it.k === 'rule') {
+      ctx.strokeStyle = 'rgba(90,70,30,0.25)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(PANEL.x + 60, y); ctx.lineTo(PANEL.x + PANEL.w - 60, y); ctx.stroke();
+    } else if (it.k === 'art') {
+      if (y > R.y + R.h || y + ART_H < R.y) continue;
+      ctx.save(); ctx.beginPath(); ctx.rect(PANEL.x + 20, y, PANEL.w - 40, ART_H - 6); ctx.clip(); drawArt(it.key, ctx, PANEL.x + 34, y, PANEL.w - 68, ART_H - 12, state); ctx.restore();
+    }
+  }
+  ctx.restore();
+  if (R.max > 0) {
+    // scroll bar, a fade and a "more" / "up" pill so it is obvious that the text goes on
+    const th = Math.max(60, R.h * (R.h / doc.contentH)), ty = R.y + (scroll / R.max) * (R.h - th);
+    roundPath(ctx, PANEL.x + PANEL.w - 12, ty, 6, th, 3); ctx.fillStyle = 'rgba(90,70,30,0.55)'; ctx.fill();
+    const cx = PANEL.x + PANEL.w / 2;
+    if (scroll < R.max - 4) {
+      const g = ctx.createLinearGradient(0, R.y + R.h - 80, 0, R.y + R.h); g.addColorStop(0, 'rgba(248,243,224,0)'); g.addColorStop(1, 'rgba(248,243,224,0.95)');
+      ctx.fillStyle = g; ctx.fillRect(R.x + 4, R.y + R.h - 80, R.w - 24, 78);
+      roundPath(ctx, cx - 56, R.y + R.h - 44, 112, 34, 17); ctx.fillStyle = 'rgba(40,30,12,0.88)'; ctx.fill();
+      ctx.fillStyle = '#fff3cf'; ctx.font = `700 22px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('\u25bc more', cx, R.y + R.h - 26);
+    }
+    if (scroll > 4) {
+      const g2 = ctx.createLinearGradient(0, R.y, 0, R.y + 56); g2.addColorStop(0, 'rgba(248,243,224,0.96)'); g2.addColorStop(1, 'rgba(248,243,224,0)');
+      ctx.fillStyle = g2; ctx.fillRect(R.x + 4, R.y, R.w - 24, 56);
+      roundPath(ctx, cx - 44, R.y + 6, 88, 34, 17); ctx.fillStyle = 'rgba(40,30,12,0.88)'; ctx.fill();
+      ctx.fillStyle = '#fff3cf'; ctx.font = `700 22px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('\u25b2 up', cx, R.y + 23);
+    }
+  }
+  drawButton(ctx, TEXT_DEC, 'A\u2212', { disabled: state.settings.textIdx === 0, size: 30 });
   drawButton(ctx, TEXT_INC, 'A+', { disabled: state.settings.textIdx === TEXT_SCALES.length - 1, size: 30 });
+  ctx.textBaseline = 'alphabetic';
   ctx.fillStyle = '#fff6dc'; ctx.font = `700 24px ${FONT}`; ctx.textAlign = 'center';
   ctx.fillText(`${Math.round(sc * 100)}%`, W / 2, 56);
-  drawButton(ctx, REF_BACK, idx === 0 ? 'Close' : 'Back', { size: 32 });
-  drawButton(ctx, REF_NEXT, idx === pages.length - 1 ? 'Done' : 'Next', { primary: true, size: 32 });
+  const atEnd = R.max <= 0 || scroll >= R.max - 4;
+  drawButton(ctx, REF_BACK, 'Back', { size: 32 });
+  drawButton(ctx, REF_NEXT, atEnd ? 'Done' : 'Next page', { primary: true, size: 32 });
 }
 
 // ---- illustrations: top-down diagrams drawn with the game's own pitch numbers -----------------------------------------------------------------
@@ -386,7 +394,7 @@ function pitch(ctx, ox, oy, k) {
 }
 const px = (ox, oy, k, x, y) => ({ x: ox + (x + FIELD.W / 2) * k, y: oy + (FIELD.L - y) * k });
 function kubbDot(ctx, p, team, k, o = {}) {
-  const s = Math.max(11, 0.158 * k * 2.1);
+  const s = Math.max(11, KUBB.w * k * 1.75);
   ctx.save();
   if (o.ghost) { ctx.setLineDash([3, 3]); ctx.strokeStyle = 'rgba(255,255,230,0.7)'; ctx.lineWidth = 1.5; ctx.strokeRect(p.x - s / 2, p.y - s / 2, s, s); ctx.restore(); return; }
   ctx.translate(p.x, p.y); if (o.down) ctx.rotate(0.6);
@@ -395,7 +403,7 @@ function kubbDot(ctx, p, team, k, o = {}) {
   ctx.restore();
 }
 function kingDot(ctx, p, k, o = {}) {
-  const s = Math.max(14, 0.2 * k * 2.2);
+  const s = Math.max(14, KING.w * k * 1.8);
   ctx.save(); ctx.translate(p.x, p.y);
   ctx.fillStyle = o.down ? '#b88a4a' : '#e0a84a'; ctx.fillRect(-s / 2, -s / 2, s, s);
   ctx.lineWidth = 2; ctx.strokeStyle = '#6a3f10'; ctx.strokeRect(-s / 2, -s / 2, s, s);

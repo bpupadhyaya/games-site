@@ -41,14 +41,20 @@ function createTouchPad(el) {
   };
 }
 const touchpad = createTouchPad(canvas);
+// Mouse wheel / trackpad scroll for the long text pages (virtual units; consumed by the game once per frame)
+const wheel = (() => {
+  let acc = 0;
+  canvas.addEventListener('wheel', (e) => { const r = canvas.getBoundingClientRect(); const k = e.deltaMode === 1 ? 40 : e.deltaMode === 2 ? r.height : 1; acc += e.deltaY * k * (1280 / Math.max(1, r.height)); acc = Math.max(-4000, Math.min(4000, acc)); e.preventDefault(); }, { passive: false });
+  return { take() { const v = acc; acc = 0; return v; } };
+})();
 
 const wrap = (game) => {
   document.addEventListener('visibilitychange', () => { if (document.hidden) game.autoPause?.(); });
-  if (q.has('dev')) window.__game = game;   // dev only: lets the test harness read the state
+  if (q.has('dev')) { window.__game = game; window.__presenter = presenter; }   // dev only: lets the test harness read the state
   if (presenter && presenter.stage) return presenter.wrap(game);
   const r = game.render.bind(game);
   game.render = (ctx, view) => { view.cssW = canvas.clientWidth || 720; view.cssH = canvas.clientHeight || 1280; view.noGL = true; r(ctx, view); };
   return game;
 };
 const shot = q.has('shot');
-boot({ createGame: async (env) => wrap(await createGame({ ...env, touchpad: shot ? null : touchpad, config: shot ? { ...env.config, shot: true } : env.config })), meta, canvas, background: 'rgba(0,0,0,0)' });
+boot({ createGame: async (env) => wrap(await createGame({ ...env, touchpad: shot ? null : touchpad, wheel, config: shot ? { ...env.config, shot: true } : env.config })), meta, canvas, background: 'rgba(0,0,0,0)' });

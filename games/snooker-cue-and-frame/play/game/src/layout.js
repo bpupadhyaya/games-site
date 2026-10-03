@@ -25,21 +25,34 @@ export function hudBox(sc) {
     return { stacked: false, x: 0, y: 34, w: W, h, bottom: 34 + h, fs: Math.round(24 * s) };
   }
   const fs = Math.round(24 * s), row = Math.round(fs * 1.38);
-  const h = 12 + row * 3 + 8;
-  return { stacked: true, x: 0, y: 34, w: W, h, bottom: 34 + h, fs, row };
+  // From 250% the scoreboard keeps two rows (names and scores, what is on) so the table keeps its size.
+  const rows = s >= 2.25 ? 2 : 3;
+  const h = 12 + row * rows + 8;
+  return { stacked: true, rows, x: 0, y: 34, w: W, h, bottom: 34 + h, fs, row };
 }
 
 // The control bar has one fixed height per text size so the table never shifts between phases.
 // kind: 'aim' | 'roll' | 'verdict' | 'watch' | 'place'
 export function playLayout(sc, kind = 'aim') {
+  const sc0 = sc;
   const s = Math.min(sc, 3);
   const hud = hudBox(sc);
   const fs = Math.round(26 * s), g = 8;
   const small = s < 1.5;
   const ph = small ? 84 : Math.max(84, Math.round(fs * 1.45));
   const bh = Math.max(64, Math.round(fs * 1.5));
+  const big = s >= 2.25;          // 250% and 300%: power strip plus ONE row of three buttons (the magnifier gives way to table room)
+  // Other phases (rolling, verdict, Watch & Learn) need more room for text and buttons: at big sizes their bar slides up over the table
+  // (the table itself never moves or resizes).
+  const tall = big && kind !== 'aim';
   let row2, top;
-  if (small) {
+  if (tall) {
+    row2 = Math.max(206, 3 * bh + 2 * g);
+    top = H - (8 + ph + g + row2 + 14);
+  } else if (big) {
+    row2 = bh;
+    top = H - (8 + ph + g + row2 + 14);
+  } else if (small) {
     row2 = 190;
     top = H - (10 + ph + g + row2 + 12);
   } else {
@@ -47,14 +60,18 @@ export function playLayout(sc, kind = 'aim') {
     top = H - (8 + ph + g + row2 + 14);
   }
   const y1 = top + (small ? 10 : 8), y2 = y1 + ph + g;
-  const c = { top, fs, bh, ph, row2, small, power: rc(14, y1, W - 28, ph), y2 };
-  if (small) {
+  const c = { top, fs, bh, ph, row2, small, big, power: rc(14, y1, W - 28, ph), y2 };
+  if (big && !tall) {
+    const bw3 = (W - 28 - 2 * g) / 3;
+    c.inset = null; c.guide = null;
+    c.shot = rc(14, y2, bw3, row2); c.think = rc(14 + bw3 + g, y2, bw3, row2); c.menu = rc(14 + 2 * (bw3 + g), y2, bw3, row2);
+  } else if (small && !tall) {
     const S = 172;
     c.spin = rc(14, y2 + (row2 - S) / 2, S, S);
     c.inset = rc(14 + S + g, y2, 190, row2);
     const bx = c.inset.x + c.inset.w + g, bw = W - 14 - bx, b3 = (row2 - 2 * g) / 3;
     c.think = rc(bx, y2, bw, b3); c.guide = rc(bx, y2 + b3 + g, bw, b3); c.menu = rc(bx, y2 + 2 * (b3 + g), bw, b3);
-  } else {
+  } else if (!big) {
     const iw = 206;
     c.inset = rc(14, y2, iw, row2);
     const bx = 14 + iw + g, bw = W - 14 - bx, b3 = (row2 - 2 * g) / 3;
@@ -88,7 +105,9 @@ export function playLayout(sc, kind = 'aim') {
     }
     c.labelY = top + 10; c.labelH = Math.max(lab, 34);
   }
-  return { hud, ctrl: c, regionTop: hud.bottom + 4, regionBottom: top - 4, fs, bh };
+  if (!tall) c.tall = false; else c.tall = true;
+  // the table region always comes from the 'aim' bar, so the table is identical in every phase
+  return { hud, ctrl: c, regionTop: hud.bottom + 4, regionBottom: (tall ? playLayout(sc0, 'aim').ctrl.top : top) - 4, fs, bh };
 }
 
 // The popup panel used by the pause menu and the spin and reason modals.

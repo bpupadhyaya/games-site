@@ -38,9 +38,33 @@ export async function createPresenter({ kitCanvas, quality = pickQuality() }) {
 
   // ---- hurleys and helmets: one instanced draw call each for all twelve (matrices copied from the bones every frame)
   const stickMesh = new THREE.InstancedMesh(hurleyGeometry(), new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.55 }), 12);
-  const capMesh = new THREE.InstancedMesh(helmetCapGeometry(), new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.45, metalness: 0.1 }), 12);
-  const guardMesh = new THREE.InstancedMesh(helmetGuardGeometry(), new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.35, metalness: 0.5 }), 12);
-  for (const m of [stickMesh, capMesh, guardMesh]) { m.frustumCulled = false; stage.add(m); }
+  // helmet = cap (tinted per team through the instance colour) + steel face guard (fixed colour) in ONE geometry / ONE draw call: aGuard = 1 on the guard vertices
+  // keeps them out of the instance tint.
+  const helmetGeo = (() => {
+    const A = helmetCapGeometry(), B = helmetGuardGeometry(), pos = [], nor = [], col = [], uv = [], gd = [], idx = [];
+    let base = 0;
+    for (const [g, v] of [[A, 0], [B, 1]]) {
+      for (let i = 0; i < g.attributes.position.count; i++) {
+        pos.push(g.attributes.position.getX(i), g.attributes.position.getY(i), g.attributes.position.getZ(i));
+        nor.push(g.attributes.normal.getX(i), g.attributes.normal.getY(i), g.attributes.normal.getZ(i));
+        col.push(g.attributes.color.getX(i), g.attributes.color.getY(i), g.attributes.color.getZ(i)); uv.push(0, 0); gd.push(v);
+      }
+      for (let i = 0; i < g.index.count; i++) idx.push(g.index.getX(i) + base);
+      base += g.attributes.position.count;
+    }
+    const o = new THREE.BufferGeometry();
+    o.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); o.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3));
+    o.setAttribute('color', new THREE.Float32BufferAttribute(col, 3)); o.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+    o.setAttribute('aGuard', new THREE.Float32BufferAttribute(gd, 1)); o.setIndex(idx);
+    return o;
+  })();
+  const helmetMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.4, metalness: 0.25 });
+  helmetMat.onBeforeCompile = (sh) => {
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', 'attribute float aGuard;\n#include <common>')
+      .replace('#include <color_vertex>', '#include <color_vertex>\n#ifdef USE_INSTANCING_COLOR\n vColor.xyz = color.xyz * mix(instanceColor.xyz, vec3(1.0), aGuard);\n#endif');
+  };
+  const capMesh = new THREE.InstancedMesh(helmetGeo, helmetMat, 12);
+  for (const m of [stickMesh, capMesh]) { m.frustumCulled = false; stage.add(m); }
   const mtx = new THREE.Matrix4();
   function syncInstances() {
     for (let i = 0; i < P.humans.length; i++) {
@@ -49,18 +73,40 @@ export async function createPresenter({ kitCanvas, quality = pickQuality() }) {
       stickMesh.setMatrixAt(i, P.hurleys[i].matrixWorld);
       h.bones.Bip01_Head.updateWorldMatrix(true, false);
       mtx.multiplyMatrices(h.bones.Bip01_Head.matrixWorld, anim.helmetM[i]);
-      capMesh.setMatrixAt(i, mtx); guardMesh.setMatrixAt(i, mtx);
+      capMesh.setMatrixAt(i, mtx);
     }
-    stickMesh.count = capMesh.count = guardMesh.count = P.humans.length;
-    stickMesh.instanceMatrix.needsUpdate = capMesh.instanceMatrix.needsUpdate = guardMesh.instanceMatrix.needsUpdate = true;
+    stickMesh.count = capMesh.count = P.humans.length;
+    stickMesh.instanceMatrix.needsUpdate = capMesh.instanceMatrix.needsUpdate = true;
   }
 
   const anim = createAnimator(V3, { lod: quality === 'high' ? 1 : 2, onHuman: (h, i) => {
     stage.add(h); stage.track(h);
     const gk = i % 6 === 0, team = i < 6 ? 0 : 1;
-    capMesh.setColorAt(i, new THREE.Color(gk ? GK_HELMET_COL[team] : HELMET_COL[team])); guardMesh.setColorAt(i, new THREE.Color(0xffffff)); stickMesh.setColorAt(i, new THREE.Color(0xffffff));
+    capMesh.setColorAt(i, new THREE.Color(gk ? GK_HELMET_COL[team] : HELMET_COL[team])); stickMesh.setColorAt(i, new THREE.Color(0xffffff));
   } });
   P.anim = anim;
+
+  // ---- one real (planar, cast-along-the-sun) shadow for the active player: the controlled player, else the ball carrier. The light-LOD skinned
+  // geometry is drawn a second time, flattened onto the grass along the sun direction (1 extra draw call, about 1.2k triangles). Min-blending
+  // against the grass means overlapping limbs darken the pixel once, not twice.
+  const SUN = V(0.32, 0, -0.38);       // ground offset per metre of height (sun is up-left of the camera, shadow falls away to the right)
+  const shMat = new THREE.MeshBasicMaterial({ color: 0x357c3d, toneMapped: false, transparent: true, depthWrite: false, blending: 5, blendEquation: 103, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });   // MIN blend: overlapping limbs never darken twice
+  shMat.onBeforeCompile = (sh) => {
+    sh.uniforms.uSun = { value: SUN };
+    sh.vertexShader = sh.vertexShader.replace('#include <common>', 'uniform vec3 uSun;\n#include <common>')
+      .replace('#include <project_vertex>', '#include <project_vertex>\n{ vec4 wp = modelMatrix * vec4(transformed, 1.0); wp.xz += max(wp.y, 0.0) * uSun.xz; wp.y = 0.035; gl_Position = projectionMatrix * viewMatrix * wp; }');
+  };
+  let shadowMesh = null, shadowOn = -2;
+  function setShadow(id) {
+    if (id === shadowOn) return;
+    shadowOn = id;
+    if (id < 0 || !P.humans[id]) { if (shadowMesh) shadowMesh.visible = false; return; }
+    const src = P.humans[id].lodSets.light[0];
+    if (!shadowMesh) { shadowMesh = new THREE.SkinnedMesh(src.geometry, shMat); shadowMesh.frustumCulled = false; shadowMesh.renderOrder = 2; }
+    if (shadowMesh.parent) shadowMesh.parent.remove(shadowMesh);
+    src.parent.add(shadowMesh);
+    shadowMesh.bind(src.skeleton, src.bindMatrix); shadowMesh.visible = true;
+  }
   P.ready_p = anim.build().then(() => { P.humans = anim.humans; P.hurleys = anim.hurleys; P.ready = true; stage.invalidate(); });
 
   let perfN = 0, perfSum = 0, perfLast = 0, perfLevel = 0;
@@ -93,6 +139,7 @@ export async function createPresenter({ kitCanvas, quality = pickQuality() }) {
     const bp = (k, fb) => (ok ? snap.prev.b[k] + (snap.cur.b[k] - snap.prev.b[k]) * alpha : fb);
     const ballW = V(-bp(0, s.ball.x), Math.max(bp(1, s.ball.y), BALL_VIS_R), bp(2, s.ball.z));
     anim.step(s, Tp, dt, at, ballW);
+    setShadow(s.cfg.human >= 0 ? s.cfg.human : s.ball.holder);
     // --- ball
     const bm = P.ball;
     bm.position.copy(ballW);
@@ -113,7 +160,7 @@ export async function createPresenter({ kitCanvas, quality = pickQuality() }) {
     const co = P.camOverride;
     if (co) { cam.position.set(co.x, co.y, co.z); cam.lookAt(co.lx, co.ly, co.lz); if (co.fov && cam.fov !== co.fov) { cam.fov = co.fov; cam.updateProjectionMatrix(); } }
     else { cam.position.set(-c.x, c.y, c.z); cam.lookAt(-c.lx, c.ly, c.lz); }
-    stage.update(dt, { renderNow: false }); anim.fix(s, Tp, ballW); syncInstances(); blobs.set(12, ballW.x, ballW.z, BALL_VIS_R * (1.5 + hh * 0.25), 0.014); blobs.mesh.count = 13; if (!P.noRender) { stage.render(); perfTick(); }
+    stage.update(dt, { renderNow: false }); anim.post(s, Tp); anim.fix(s, Tp, ballW); syncInstances(); blobs.set(12, ballW.x, ballW.z, BALL_VIS_R * (1.5 + hh * 0.25), 0.014); blobs.mesh.count = 13; if (!P.noRender) { stage.render(); perfTick(); }
   }
   P.frame = frame;
   P.wrap = (game) => {

@@ -30,3 +30,19 @@ export const fromVirtual = (x, y, W, H) => { const s = Math.min(W / 720, H / 128
 export function projectV(W, H, x, y, z) { const p = project(W, H, x, y, z); if (!p) return null; const v = toVirtual(p.u, p.v, W, H); return { x: v.x, y: v.y, depth: p.depth }; }
 // pixels per metre at a field point (lateral), in virtual units
 export function scaleAt(W, H, x, z) { const a = projectV(W, H, x - 0.5, 0, z), b = projectV(W, H, x + 0.5, 0, z); return a && b ? Math.abs(b.x - a.x) : 30; }
+
+// The Rules-page formation camera (a close three-quarter view of the whole field from behind our end line) and a generic projector for it,
+// so the 2D page can put labels exactly over the real 3D riders. Window size w x h in CSS px, vertical field of view fov.
+export const SHOW_CAM = { x: 0, y: 21, z: -31, lx: 0, ly: 0, lz: -1.5, fov: 40 };
+export function projectWith(cam, fov, w, h, x, y, z) {
+  const aspect = w / h, px = -x;
+  let fx = cam.lx - cam.x, fy = cam.ly - cam.y, fz = cam.lz - cam.z;
+  const fl = Math.hypot(fx, fy, fz); fx /= fl; fy /= fl; fz /= fl;
+  let rx = -fz, rz = fx; const rl = Math.hypot(rx, rz); rx /= rl; rz /= rl;
+  const ux = -rz * fy, uy = rz * fx - rx * fz, uz = rx * fy;
+  const dx = px - cam.x, dy = y - cam.y, dz = z - cam.z;
+  const xc = dx * rx + dz * rz, yc = dx * ux + dy * uy + dz * uz, zc = dx * fx + dy * fy + dz * fz;
+  if (zc < 0.05) return null;
+  const th = Math.tan((fov * Math.PI) / 360);
+  return { x: (xc / (zc * th * aspect) + 1) * 0.5 * w, y: (1 - yc / (zc * th)) * 0.5 * h };
+}

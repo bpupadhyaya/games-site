@@ -5,7 +5,11 @@ import { FIELD } from './phys.js';
 import { targets, throwLine, dirOf, baselineY, teamHalf, KING_RING, KING_ID, kingPos } from './engine.js';
 const clampY = (y, team) => (team === 0 ? Math.min(y, FIELD.L - 0.5) : Math.max(y, 0.5));
 import { runThrow, worldFromMatch, errFor, launchFor, maskOf } from './sim.js';
-import { LOFTS, SPINS } from './phys.js';
+import { LOFTS, SPINS, KING, BATON, pathOf } from './phys.js';
+
+// A throw whose flight crosses the king's space low down (the king may only fall last) is one nobody should choose: used by the computer players and the aim warning.
+export const KING_LOW = { r: 0.5 + BATON.len / 2, z: KING.h + BATON.len / 2 };
+export const overKing = (L, kp) => pathOf(L, 40).some((q) => Math.hypot(q.x - kp.x, q.y - kp.y) < KING_LOW.r && q.z < KING_LOW.z);
 
 export const PROFILES = [
   { name: 'Lina', tag: 'Just learning', stars: 1, noise: 2.4, scan: 2, verify: 0, samples: 0, rand: 0.6, think: [0.6, 1.0] },
@@ -57,7 +61,12 @@ function candidatesFor(m, rn, prof) {
     }
   }
   void rn; void prof;
-  return out;
+  if (T.king) return out;
+  const kp = kingPos(m);
+  // when the king stands in the corridor of the throw, only a lob is safe even with a short or long throw
+  const inLine = (c) => Math.abs(kp.x - (c.plan.sx + c.plan.ax) / 2) < 1.0 && (kp.y - c.line.y) * dir > 0 && (c.plan.ay - kp.y) * dir > -1.0;
+  const safe = out.filter((c) => !overKing(launchFor(c.plan, c.line.y, dir, {}), kp) && !(inLine(c) && c.plan.loft < 2));
+  return safe.length ? safe : out;
 }
 
 // A job that finds the best throw. step(n) runs up to n simulated throws and returns true when done; the result is in job.result.
@@ -110,6 +119,9 @@ export function batonJob(m, prof, o = {}) {
       return !!job.result;
     },
     finish() {
+      // Nobody throws a baton they can see will topple the king too early: when a safe shot exists, a careless random choice is made among the safe ones.
+      const safe = job.scored.filter((c) => c.v0 > -5);
+      if (safe.length && !T.king) { job.scored = safe; job.top = job.top.filter((c) => c.v0 > -5); if (!job.top.length) job.top = safe.slice(0, 1); }
       let pool = job.phase === 'done' && prof.samples > 0 ? job.top : job.scored;
       let pick;
       if (prof.samples > 0) pick = pool.slice().sort((a, b) => (b.sv / b.sn) - (a.sv / a.sn))[0];

@@ -14,6 +14,7 @@ const GRADE_COL = { perfect: '#7fe8d6', good: '#ffe9a0', ok: '#fff6e4', early: '
 export function createGame(env) {
   const { rng, audio, storage, config } = env;
   const demo = !!config.demo;
+  const dev = !!config.dev;            // tester switch (?dev=1 / the shell's Developer toggle): the preview never runs out
   const fx = env.fx || null;
   const G = {
     scene: 'title', mode: 'none', demo, loaded: false,
@@ -170,13 +171,27 @@ export function createGame(env) {
 
   // ---- watch & learn --------------------------------------------------------------------------------------------------------
   const nm = (i) => (i === 0 ? 'Gold' : 'Teal');
+  const nfoot = (x) => (x === 1 ? 'Right' : 'Left');
+  // "Gold has thrown Right in 3 of its last 4 rounds": the plain facts a player could have used
+  function habitLine(s, p) {
+    const hs = s.hist.feet[p].slice(-5), n = hs.length;
+    if (n < 3) return '';
+    const r = hs.filter((x) => x === 1).length, l = n - r, top = r >= l ? 1 : 0, k = Math.max(r, l);
+    return k * 2 > n ? `${nm(p)} has thrown ${nfoot(top)} in ${k} of its last ${n} rounds.` : `${nm(p)} has been mixing its feet (${l} Left, ${r} Right lately).`;
+  }
   function watchTexts(s) {
     const h = s.hold, L = h.leader, F = 1 - L;
     const pr = predictHint(s.hist.feet[F], true, nm(L), nm(F));
-    const think = `${nm(L)} leads, so ${nm(L)} wants the feet to match and ${nm(F)} wants them to differ. ${pr.text.replace(/^It threw/, `${nm(F)} threw`).replace(/ It will probably throw/, ` ${nm(F)} will probably throw`)}`;
-    const f = h.planned, nf = (x) => (x === 1 ? 'Right' : 'Left');
-    const same = f[0] === f[1];
-    const reveal = `${nm(0)} chose ${nf(f[0])}. ${nm(1)} chose ${nf(f[1])}. ${same ? `Same foot: ${nm(L)}, the Leader, scores.` : `Different feet: ${nm(F)}, the Follower, scores and becomes the Leader.`}`;
+    const think = `${nm(L)} is the Leader this round, so ${nm(L)} wants the two feet to MATCH. ${nm(F)} is the Follower and wants them to DIFFER. `
+      + `${habitLine(s, F) || `${nm(F)} has not shown a habit yet.`} ${habitLine(s, L)} `
+      + `${pr.text.replace(/^It threw/, `${nm(F)} threw`).replace(/ It will probably throw/, ` ${nm(F)} will probably throw`)} `
+      + `A smart Leader copies the foot the Follower is likely to use; a smart Follower avoids the foot the Leader is likely to copy.`;
+    const f = h.planned, same = f[0] === f[1];
+    const sc = [s.score[0], s.score[1]]; sc[same ? L : F]++;
+    const why = same
+      ? `${nm(L)} (Leader) guessed right and scores: ${nm(L)} wanted a match and ${nm(F)} threw the same foot, so ${nm(L)} stays the Leader.`
+      : `${nm(F)} (Follower) scores: ${nm(F)} wanted a difference and got one, so ${nm(F)} becomes the Leader and ${nm(L)} must now try to differ.`;
+    const reveal = `${nm(0)} chose ${nfoot(f[0])}. ${nm(1)} chose ${nfoot(f[1])}. ${same ? 'SAME foot.' : 'DIFFERENT feet.'} ${why} Score after this round: Gold ${sc[0]}, Teal ${sc[1]}.`;
     return { think, reveal };
   }
   function updateWatch() {
@@ -210,7 +225,10 @@ export function createGame(env) {
         else if (i === 1) { G.settings.thinkIdx = Math.max(0, G.settings.thinkIdx - 1); saveSettings(); }
         else if (i === 2) { G.settings.thinkIdx = Math.min(THINK_STEPS.length - 1, G.settings.thinkIdx + 1); saveSettings(); }
         else if (i === 3) leaveMatch();
+        else if (G.watchBox && inRect(G.watchBox, ptr.x, ptr.y)) G.ui.wdrag = { y0: ptr.y, s0: G.watchScroll || 0 };
       }
+      if (G.ui.wdrag && ptr.down) G.watchScroll = clamp(G.ui.wdrag.s0 - (ptr.y - G.ui.wdrag.y0), 0, G.watchMax || 0);
+      if (ptr.released) G.ui.wdrag = null;
       if (keys.pressed.has('KeyP') || keys.pressed.has('Space')) G.watch.paused = !G.watch.paused;
       if (keys.pressed.has('Escape')) leaveMatch();
       return;
@@ -335,22 +353,33 @@ export function createGame(env) {
     else if (id === 'p-txt-inc') setText(1);
     else if (id === 'quit') leaveMatch();
   }
-  const updatePages = (input, count) => {
+  const updatePages = (input) => {
     const ptr = input.pointer, keys = input.keys;
-    const n = MN.pageCount();
-    const close = () => { G.scene = G.back === 'play' ? 'play' : 'title'; G.page = 0; MN.invalidate(); };
-    const next = () => { if (G.page >= n - 1) close(); else G.page++; };
-    const prev = () => { if (G.page <= 0) close(); else G.page--; };
+    const di = MN.docInfo();
+    const close = () => { G.scene = G.back === 'play' ? 'play' : 'title'; G.page = 0; G.ui.scroll = 0; G.ui.drag = null; MN.invalidate(); };
+    const by = (d) => { G.ui.scroll = clamp(G.ui.scroll + d, 0, di.max); };
+    const pgH = Math.max(100, di.view * 0.88);
+    const next = () => { if (G.ui.scroll >= di.max - 2) close(); else by(pgH); };
+    const prev = () => { if (G.ui.scroll < 2) close(); else by(-pgH); };
+    const onBtn = (x, y) => inRect(REF_NEXT, x, y) || inRect(REF_BACK, x, y) || inRect(TEXT_DEC, x, y) || inRect(TEXT_INC, x, y);
     if (ptr.pressed) {
       if (inRect(REF_NEXT, ptr.x, ptr.y)) next();
       else if (inRect(REF_BACK, ptr.x, ptr.y)) prev();
-      else if (inRect(TEXT_DEC, ptr.x, ptr.y)) { G.settings.textIdx = Math.max(0, G.settings.textIdx - 1); G.page = 0; saveSettings(); }
-      else if (inRect(TEXT_INC, ptr.x, ptr.y)) { G.settings.textIdx = Math.min(TEXT_SCALES.length - 1, G.settings.textIdx + 1); G.page = 0; saveSettings(); }
+      else if (inRect(TEXT_DEC, ptr.x, ptr.y)) { G.settings.textIdx = Math.max(0, G.settings.textIdx - 1); G.ui.scroll = 0; saveSettings(); }
+      else if (inRect(TEXT_INC, ptr.x, ptr.y)) { G.settings.textIdx = Math.min(TEXT_SCALES.length - 1, G.settings.textIdx + 1); G.ui.scroll = 0; saveSettings(); }
+      else if (!onBtn(ptr.x, ptr.y)) G.ui.drag = { y0: ptr.y, s0: G.ui.scroll };
     }
+    if (G.ui.drag && ptr.down) G.ui.scroll = clamp(G.ui.drag.s0 - (ptr.y - G.ui.drag.y0), 0, di.max);
+    if (ptr.released) G.ui.drag = null;
+    if (keys.down.has('ArrowDown')) by(14);
+    if (keys.down.has('ArrowUp')) by(-14);
+    if (keys.pressed.has('PageDown') || keys.pressed.has('Space')) by(pgH);
+    if (keys.pressed.has('PageUp')) by(-pgH);
+    if (keys.pressed.has('End')) G.ui.scroll = di.max;
+    if (keys.pressed.has('Home')) G.ui.scroll = 0;
     if (keys.pressed.has('ArrowRight')) next();
     if (keys.pressed.has('ArrowLeft')) prev();
     if (keys.pressed.has('Escape')) close();
-    void count;
   };
   const updateSetup = (dt, input) => {
     const ptr = input.pointer, k = input.keys;
@@ -372,7 +401,7 @@ export function createGame(env) {
       if (r === false) return;
       if (r === 'hold') {
         w.timer -= dt;
-        if (w.phase === 'think') { G.watchText = w.texts.think; if (w.timer <= 0) { w.phase = 'reveal'; w.timer = 2; } }
+        if (w.phase === 'think') { G.watchText = w.texts.think; if (w.timer <= 0) { w.phase = 'reveal'; w.timer = 4.5; } }
         else if (w.phase === 'reveal') { G.watchText = w.texts.reveal; if (w.timer <= 0) { w.phase = 'act'; S.release(); } }
         S.update(dt); updAt = now();
         return;
@@ -399,8 +428,9 @@ export function createGame(env) {
   startup();
 
   const api = {
-    // Menus, Rules, About, settings, Learn, Practice and Watch & Learn are free; only real play of a match counts against the preview.
-    isPreviewExempt: () => !(G.scene === 'play' && G.mode === 'match') || G.paused || G.pauseMenu || !S || S.s.over,
+    // Menus, Rules, About, settings, Learn, Practice, Watch & Learn, the count-in before the first beat, pause and results are free;
+    // only live rounds of a match count against the preview.
+    isPreviewExempt: () => dev || !(G.scene === 'play' && G.mode === 'match') || G.paused || G.pauseMenu || !S || S.s.over || S.s.phase === 'count',
     autoPause() { if (G.scene === 'play' && !G.paused && !G.pauseMenu && G.mode !== 'shot') { if (G.mode === 'watch') G.watch.paused = true; else doPause(); } },
     update(dt, input) {
       setPress(input.pointer);
@@ -445,6 +475,13 @@ export function createGame(env) {
           break;
         default: break;
       }
+    },
+    // mouse wheel / trackpad: scrolls whichever reader or menu is on screen
+    wheel(dy) {
+      if (G.scene === 'howto' || G.scene === 'about' || G.scene === 'rules') { G.ui.scroll = clamp(G.ui.scroll + dy, 0, MN.docInfo().max); return; }
+      if (G.scene === 'play' && G.mode === 'watch') { G.watchScroll = Math.max(0, (G.watchScroll || 0) + dy); return; }
+      const mt = MN.flowMeta(); if (!mt.lay) return;
+      G.ui.scroll = clamp(G.ui.scroll + dy, 0, Math.max(0, mt.lay.contentH - (mt.bottom - mt.top)));
     },
     getState: () => G,
   };

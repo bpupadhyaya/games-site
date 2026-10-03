@@ -75,6 +75,11 @@ export function createAnimator(V3, { base, lod = 0, onHuman = null } = {}) {
         st.act = act.id;
         const key = act.kind === 'strike' ? `strike:${act.variant}` : act.kind;
         const clip = ACT_CLIP[key];
+        if (act.kind === 'hook' && act.variant === 'dive') {
+          // the keeper leaves the ground sideways: post() leans the whole body over (see below). side: +1 = towards the avatar's left
+          const mx = -(act.stance.x - p.x), left = Math.cos(st.yaw), side = mx * left >= 0 ? 1 : -1;
+          st.dive = { side, t0: act.t0, tc: act.tc, t1: act.t1 };
+        }
         if (clip) {
           h.holdTwoHanded(A.hurleys[i], 'L', { gap: 0.1 }); st.twoHand = true;
           h.setFingers('R', 'batGrip');
@@ -108,6 +113,30 @@ export function createAnimator(V3, { base, lod = 0, onHuman = null } = {}) {
     }
   };
 
+  // A goalkeeper's dive: after the library has posed the body, tip the WHOLE body over about the pelvis (library rotateBody), launch off the ground, land on the
+  // side, then scramble back up. The stick hands stay on the hook clip, so the contact fix below still puts the bas on the ball. Returns true while diving.
+  A.DIVE_TC = 36;
+  const ease = (x) => { x = Math.max(0, Math.min(1, x)); return x * x * (3 - 2 * x); };
+  A.post = function post(s, Tp, only = null) {
+    for (let i = 0; i < 12; i++) {
+      if (only && !only.has(i)) continue;
+      const st = A.st[i], d = st.dive, h = A.humans[i];
+      if (!d) continue;
+      const tEnd = d.t1 + 0.42;
+      if (Tp > tEnd || Tp < d.t0 - 0.02) { if (st.divePose) { V3.rotateBody(h, null); st.divePose = false; } if (Tp > tEnd) st.dive = null; continue; }
+      let th;
+      if (Tp <= d.tc) th = A.DIVE_TC * ease((Tp - d.t0 - 0.05) / (d.tc - d.t0 - 0.05));
+      else if (Tp <= d.t1) th = A.DIVE_TC + (88 - A.DIVE_TC) * ease((Tp - d.tc) / 0.14);
+      else th = 88 * (1 - ease((Tp - d.t1) / 0.4));
+      const lie = Math.min(1, th / 88);
+      const pv = h.bonePosition('Pelvis', V());
+      const arc = Tp < d.tc ? 0.18 * Math.sin(Math.PI * Math.max(0, Math.min(1, (Tp - d.t0) / (d.tc - d.t0)))) : 0;
+      const y = pv.y * (1 - lie) + 0.2 * lie + arc;
+      V3.rotateBody(h, { pelvis: V(pv.x, y, pv.z), yaw: h.facing, pitch: 0, roll: -d.side * th });
+      st.divePose = true;
+    }
+  };
+
   // After the library has posed the humans for this frame: make the contact exact. Where the arms cannot reach the sim's contact point, the body is
   // eased a little towards it (a few centimetres, for the frames right around the contact) and the pose is re-solved, so the bas (or palm) is on the ball at the contact tick.
   const sw = (x) => { x = Math.max(0, Math.min(1, x)); return x * x * (3 - 2 * x); };
@@ -126,10 +155,11 @@ export function createAnimator(V3, { base, lod = 0, onHuman = null } = {}) {
         const tgt = a.c && Tp >= a.tc - 1e-6 ? V(-a.c.x, Math.max(a.c.y, BALL_VIS_R), a.c.z) : ballW;
         const d = tgt.clone().sub(cur);
         if (a.kind === 'pass') d.addScaledVector(d.clone().normalize(), -BALL_VIS_R * 0.9);
-        const err = d.length(); if (globalThis.__dbg) console.log("fix", i, it, a.kind, (Tp - a.tc).toFixed(3), w.toFixed(2), err.toFixed(3));
+        const err = d.length(); if (globalThis.__dbg && (a.variant === "dive")) console.log("fix", i, it, a.kind, a.tc.toFixed(2), (Tp - a.tc).toFixed(3), w.toFixed(2), err.toFixed(3));
         if (err < 0.004) break;
         const k = Math.min(1, w * 1.0);
-        h.root.position.x += d.x * k * 0.85; h.root.position.z += d.z * k * 0.85; h.root.position.y = Math.max(-0.02, Math.min(0.06, h.root.position.y + d.y * k * 0.7));
+        h.root.position.x += d.x * k * 0.85; h.root.position.z += d.z * k * 0.85; const diving = a.variant === 'dive' && A.st[i].divePose;
+        h.root.position.y = diving ? h.root.position.y + d.y * k * 0.85 : Math.max(-0.02, Math.min(0.06, h.root.position.y + d.y * k * 0.7));
         h.root.updateMatrixWorld(true);
         h._writePose(h._pose, false); h._post(0);
       }
@@ -157,7 +187,7 @@ export function createAnimator(V3, { base, lod = 0, onHuman = null } = {}) {
   const _pa = V(), _pb = V(), _bt = V(), _tp = V(), _hb2 = V(), _up3 = V(0, 0.03, 0);
   A.clear = function clear(i) {
     const h = A.humans[i], hurley = A.hurleys[i];
-    for (let it = 0; it < 4; it++) {
+    for (let it = 0; it < (A.st[i].divePose ? 12 : 4); it++) {
       hurley.updateWorldMatrix(true, false);
       _bt.set(0, 0, 0).applyMatrix4(hurley.matrixWorld); _tp.set(0, 0.97, -0.17).applyMatrix4(hurley.matrixWorld);
       let worst = 0, wn = null, head = false;

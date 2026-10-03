@@ -2,7 +2,7 @@
 // They share the ui.js column kit (text zoom 100-300%, paging, scrolling). Reads G; the only thing it writes is G._ui (hit rectangles for the update step).
 import { W, H, PITCH, FIELD, clamp, lerp, ease, LEVELS, MODES, ROLE_KEYS } from './core.js';
 import { PAL, FONT, SANS, rr, textFill, wrapLines, vGrad, glow } from './art.js';
-import { TEXT_SCALES, drawButton, drawPill, panel, layoutColumn, drawColumn, pageStarts, pageClip, maxScroll, scrollbar } from './ui.js';
+import { TEXT_SCALES, drawButton, drawPill, panel, layoutColumn, drawColumn, pageStarts, maxScroll, scrollbar } from './ui.js';
 import { ABOUT, HOWTO, RULES, ROLE_INFO, LESSONS } from './content.js';
 import { WINDOWS } from './ball.js';
 import { SLOTS } from './field.js';
@@ -62,24 +62,24 @@ function columnScreen(ctx, G, spec) {
   if (!spec.over3d) drawBackdrop(ctx, G, false);
   zoomPills(ctx, G);
   const fy = footerLayout(ctx, spec.footer ?? [], s);
-  const top = 90, bottom = fy.top - 10 - (spec.paged ? 34 : 0);
+  const pgSize = 24 * Math.min(s, 1.5), top = 90, bottom = fy.top - 10 - (spec.paged ? pgSize + 14 : 0);
   const view = { x: 34, y: top, w: W - 68, h: bottom - top };
   const lay = layoutColumn(ctx, spec.items, view.w - 10, s);
   const pages = spec.paged ? pageStarts(lay, view.h) : null;
   let sc = clamp(G.ui.scroll, 0, maxScroll(lay, view.h));
-  let pi = 0, clipH = null;
+  let pi = 0;
   if (pages) {
+    // readers scroll freely (drag, wheel, keys, scroll bar); Back / Next jump a page at a time and the counter follows the scroll position
     for (let i = 0; i < pages.length; i++) if (sc >= pages[i] - 2) pi = i;
-    sc = pages[pi];
-    clipH = pageClip(lay, sc, view.h);
+    if (sc >= maxScroll(lay, view.h) - 2) pi = pages.length - 1;
   }
   G.ui.scroll = sc;
-  const hits = drawColumn(ctx, lay, view, sc, s, G, clipH);
-  if (!pages) scrollbar(ctx, view, sc, lay.total);
+  const hits = drawColumn(ctx, lay, view, sc, s, G, null);
+  scrollbar(ctx, view, sc, lay.total);
   for (const b of fy.buttons) drawButton(ctx, b.rect, b.label, { primary: b.primary, disabled: b.disabled, size: b.size, sub: b.sub, active: b.active, danger: b.danger });
   setUi(G, { hits, footer: fy.buttons.filter((b) => !b.disabled).map((b) => ({ id: b.id, rect: b.rect })), view, lay, pages, maxS: maxScroll(lay, view.h) });
   if (pages) {
-    ctx.font = `600 22px ${SANS}`; ctx.fillStyle = 'rgba(255,244,220,0.85)'; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+    ctx.font = `600 ${pgSize}px ${SANS}`; ctx.fillStyle = 'rgba(255,244,220,0.9)'; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
     ctx.fillText(`Page ${pi + 1} of ${pages.length}`, W / 2, fy.top - 14);
     G.ui.pageIdx = pi; G.ui.pageN = pages.length;
   }
@@ -147,7 +147,7 @@ function heroFig(ctx, w, h, G) {
   ctx.fillStyle = 'rgba(255,255,255,0.92)'; ctx.textAlign = 'center';
   const tag = 'A village match: swipe, flick, run and catch.';
   let sz = Math.min(26, w * 0.04) * Math.min(scaleOf(G), 2); ctx.font = `600 ${sz}px ${SANS}`; while (sz > 12 && ctx.measureText(tag).width > w - 30) { sz -= 1; ctx.font = `600 ${sz}px ${SANS}`; }
-  ctx.fillText(tag, cx, h * 0.9);
+  if (scaleOf(G) < 2) ctx.fillText(tag, cx, h * 0.9);   // decorative line: left out at large text sizes rather than shown tiny
   const u = (t * 0.4) % 1;
   glow(ctx, lerp(w * 0.1, w * 0.9, u), h * 0.8 - Math.sin(u * Math.PI) * h * 0.3, 18, 'rgba(255,170,90,A)', 0.5);
 }

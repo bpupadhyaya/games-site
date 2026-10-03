@@ -2,7 +2,7 @@
 // sim.js (table geometry, spots, friction, spin, cushions, pockets), rules.js (what is on, scoring, fouls and their values, free ball,
 // snooker test, re-spotting, miss rule, frame end and the re-spotted black), ai.js (the five opponents), game.js (flow, Think, Watch & Learn,
 // saving, concede). Numbers: playing area 3.569 x 1.778 m, baulk line 0.737 m from the baulk cushion, D radius 0.292 m, ball 52.5 mm
-// real (played 1.7x), pink spot halfway from the blue spot to the top cushion, black spot 0.324 m from the top cushion.
+// real (played 1.9x), pink spot halfway from the blue spot to the top cushion, black spot 0.324 m from the top cushion.
 // A section is { title, art?, p: [paragraphs] }; the reader paginates the lines so nothing overflows at any text size.
 
 export const ABOUT = [
@@ -15,7 +15,7 @@ export const ABOUT = [
   ] },
   { title: 'This version', p: [
     'Cue and Frame simulates every ball with real friction, spin and collisions. You aim, choose where the tip strikes the white, and pull the cue back for power. Side spin bends the rebound off a cushion, back spin brings the white back, top spin sends it forward.',
-    'The table never moves: the camera is fixed behind the baulk end. To keep balls readable on a phone they are drawn and played about 1.7 times their real size; the table, the spots and the pocket-to-ball proportions keep their real values. There are no people on screen, only the cue and the balls.',
+    'The table never moves: the camera is fixed behind the baulk end. To keep balls readable on a phone they are drawn and played about 1.9 times their real size; the table, the spots and the pocket-to-ball proportions keep their real values. There are no people on screen, only the cue and the balls.',
   ] },
   { title: 'Ways to play', p: [
     'Play against one of five computer opponents, share the phone with a friend, learn the game in short hands-on lessons, or sit back with Watch & Learn and see why a strong player chooses each shot. Think is always one tap away.',
@@ -42,7 +42,7 @@ export const HOWTO = [
     'Hold the Fast button while the balls roll to speed up. Pause freezes everything.',
   ] },
   { title: 'Guide, assist and Think', p: [
-    'Guide has three settings: Off, Line (aim line, ghost white and object-ball line) and Preview (the shot actually simulated for a moment after the contact). Aim assist, in Settings, snaps your aim to a clear potting line when you are very close to one.',
+    'Guide has three settings: Off, Line (aim line, ghost white and object-ball line) and Preview (the shot actually simulated for a moment after the contact). Aim assist (on by default; Settings turns it off) snaps your aim to a clear potting line when you are close to one, a little more generously against the two easiest opponents.',
     'Think shows a strong shot for the position: it sets the aim, spin and a power marker on the strip, and explains the reason. You can change anything before you shoot.',
   ] },
   { title: 'Placing the white', art: 'd', p: [
@@ -66,7 +66,7 @@ export const RULES = [
   { title: 'The table', art: 'table', p: [
     'The playing area, between the cushions, is 3.569 m long and 1.778 m wide, with a pocket at each corner and one in the middle of each long cushion. The short cushion nearest the player is the baulk cushion; the far one is the top cushion.',
     'A baulk line is marked 0.737 m from the baulk cushion. Behind it is the D, a semicircle of radius 0.292 m centred on the baulk line.',
-    'Balls are drawn and played 1.7 times their real size (real diameter 52.5 mm). The corner pocket mouth is 1.62 balls wide and the middle pocket mouth 1.9 balls wide, as on a real table. A ball drops when its centre crosses the line between the two jaw tips of a pocket.',
+    'Balls are drawn and played 1.9 times their real size (real diameter 52.5 mm). The corner pocket mouth is 1.62 balls wide and the middle pocket mouth 1.9 balls wide, as on a real table. A ball drops when its centre crosses the line between the two jaw tips of a pocket.',
   ] },
   { title: 'The balls and their values', art: 'values', p: [
     'There is one white ball (the cue ball), up to fifteen reds worth 1 point each, and six colours: yellow 2, green 3, brown 4, blue 5, pink 6 and black 7.',
@@ -113,6 +113,6 @@ export const RULES = [
     'Beginner, Casual, Club, Expert and Master use the same shot planner, each with a different amount of search and a different size of execution error in aim, power and spin. In calibration matches over many frames each level beat the one below it. Higher levels also look for safety shots and snookers when no pot is worth the risk.',
   ] },
   { title: 'Differences from a rule book', p: [
-    'The colour you play after a red is the colour the white touches first (there is no separate nomination). A free red stays off the table. There are no push-shot, double-hit or touching-ball checks, no jump shots or massé shots, no time limit, and no repeated-miss rule (only the one-replay limit). The balls are 1.7 times real size. Everything else on these pages is as the game plays.',
+    'The colour you play after a red is the colour the white touches first (there is no separate nomination). A free red stays off the table. There are no push-shot, double-hit or touching-ball checks, no jump shots or massé shots, no time limit, and no repeated-miss rule (only the one-replay limit). The balls are 1.9 times real size. Everything else on these pages is as the game plays.',
   ] },
 ];

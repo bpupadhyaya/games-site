@@ -100,8 +100,8 @@ export function createCtl(h, id, ball) {
             const hh = ph.h;
             const c = bodyPoint(hh, 'chest', h);
             const left = tmp.c.set(Math.cos(yaw), 0, -Math.sin(yaw));
-            h.setReach('L', tmp.d.copy(c).addScaledVector(left, 0.14).setY(c.y - 0.04), { weight: 0.9 });
-            h.setReach('R', tmp.e.copy(c).addScaledVector(left, -0.14).setY(c.y - 0.04), { weight: 0.9 });
+            h.setReach('L', tmp.d.copy(c).addScaledVector(left, 0.14 * (h.scale / 1.4)).setY(c.y - 0.04 * (h.scale / 1.4)), { weight: 0.9 });
+            h.setReach('R', tmp.e.copy(c).addScaledVector(left, -0.14 * (h.scale / 1.4)).setY(c.y - 0.04 * (h.scale / 1.4)), { weight: 0.9 });
             wL = wR = -1;
           }
         } else if (dead && v < 0.4) {
@@ -195,7 +195,7 @@ export function createCtl(h, id, ball) {
       if (other && tk.role === 'tackler') {
         // the hands go round the carrier's waist on the side nearest the tackler (a circle around his spine, never through his body)
         const sp = other.h.bonePosition('Spine', tmp.a); const me = h.root.position;
-        const ang = Math.atan2(me.x - sp.x, me.z - sp.z), R = 0.27, hy = sp.y - 0.03;
+        const ang = Math.atan2(me.x - sp.x, me.z - sp.z), R = 0.27 * (h.scale / 1.4), hy = sp.y - 0.03;
         const pA = tmp.d.set(sp.x + R * Math.sin(ang + 0.55), hy, sp.z + R * Math.cos(ang + 0.55));
         const pB = tmp.e.set(sp.x + R * Math.sin(ang - 0.55), hy, sp.z + R * Math.cos(ang - 0.55));
         const left = tmp.c.set(Math.cos(yaw), 0, -Math.sin(yaw));
@@ -204,7 +204,7 @@ export function createCtl(h, id, ball) {
         if (kd > 0) {
           const pel = other.h.bonePosition('Pelvis', tmp.b), nk = other.h.bonePosition('Neck', V());
           const ax = nk.sub(pel).normalize(), tx = Math.sin(ang), tz = Math.cos(ang);
-          const bA = V(sp.x + tx * 0.38 + ax.x * 0.2, sp.y + ax.y * 0.2, sp.z + tz * 0.38 + ax.z * 0.2), bB = V(sp.x + tx * 0.38 - ax.x * 0.2, sp.y - ax.y * 0.2, sp.z + tz * 0.38 - ax.z * 0.2);
+          const bA = V(sp.x + tx * 0.38 * (h.scale / 1.4) + ax.x * 0.2, sp.y + ax.y * 0.2, sp.z + tz * 0.38 * (h.scale / 1.4) + ax.z * 0.2), bB = V(sp.x + tx * 0.38 * (h.scale / 1.4) - ax.x * 0.2, sp.y - ax.y * 0.2, sp.z + tz * 0.38 * (h.scale / 1.4) - ax.z * 0.2);
           pA.lerp(bA, kd); pB.lerp(bB, kd);
         }
         const dA = (pA.x - me.x) * left.x + (pA.z - me.z) * left.z, dB = (pB.x - me.x) * left.x + (pB.z - me.z) * left.z;

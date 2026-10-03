@@ -130,6 +130,32 @@ export function addFootyClips(human) {
     events: { contact: 0.13 },
   });
 
+
+  // ---- goal celebrations, authored here (two variants): A = both arms thrown up with two hops; B = a right fist pump, then a left, with a body twist and a bounce
+  const celebPoleR = [{ t: 0, pos: [-0.75, 1.3, -0.1] }, { t: 2.4, pos: [-0.75, 1.3, -0.1] }], celebPoleL = [{ t: 0, pos: [0.75, 1.3, -0.1] }, { t: 2.4, pos: [0.75, 1.3, -0.1] }];
+  const hop = (t, y, th, c) => ({ t, pose: { Pelvis: { pos: [0, y, 0.0] }, Spine1: { flex: -6 + th }, Spine2: { flex: -4 }, Neck: { flex: -6 }, L_Thigh: { flex: c }, R_Thigh: { flex: c }, L_Calf: { flex: c * 1.6 }, R_Calf: { flex: c * 1.6 } }, ease: 'inOut' });
+  make({
+    name: 'f_celebrate_a', duration: 2.4, base: 'idle', grounded: false, fingers: 'open',
+    keys: [{ t: 0, pose: { Pelvis: { pos: [0, -0.02, 0] }, Spine1: { flex: 4 } } }, hop(0.18, -0.12, 6, 30), hop(0.38, 0.06, -8, 4), hop(0.62, -0.1, 4, 26), hop(0.82, 0.07, -8, 4), hop(1.1, -0.03, -4, 10), hop(1.7, -0.03, -2, 8), { t: 2.4, pose: { Pelvis: { pos: [0, -0.02, 0] }, Spine1: { flex: 6 } }, ease: 'inOut' }],
+    ik: {
+      R_Hand: { keys: ik([{ t: 0, pos: [-0.2, 0.9, 0.2] }, { t: 0.2, pos: [-0.45, 1.25, 0.15], ease: 'out' }, { t: 0.4, pos: [-0.38, 2.05, 0.05], ease: 'out' }, { t: 0.62, pos: [-0.46, 1.95, 0.05], ease: 'inOut' }, { t: 0.84, pos: [-0.36, 2.1, 0.05], ease: 'inOut' }, { t: 1.6, pos: [-0.4, 1.98, 0.08], ease: 'inOut' }, { t: 2.4, pos: [-0.2, 0.92, 0.1], ease: 'inOut' }]), pole: celebPoleR },
+      L_Hand: { keys: ik([{ t: 0, pos: [0.2, 0.9, 0.2] }, { t: 0.2, pos: [0.45, 1.25, 0.15], ease: 'out' }, { t: 0.4, pos: [0.38, 2.05, 0.05], ease: 'out' }, { t: 0.62, pos: [0.46, 1.95, 0.05], ease: 'inOut' }, { t: 0.84, pos: [0.36, 2.1, 0.05], ease: 'inOut' }, { t: 1.6, pos: [0.4, 1.98, 0.08], ease: 'inOut' }, { t: 2.4, pos: [0.2, 0.92, 0.1], ease: 'inOut' }]), pole: celebPoleL },
+    },
+  });
+  make({
+    name: 'f_celebrate_b', duration: 2.4, base: 'idle', grounded: false, fingers: 'fist',
+    keys: [{ t: 0, pose: { Pelvis: { pos: [0, -0.02, 0] } } },
+      { t: 0.25, pose: { Pelvis: { pos: [0, -0.08, 0.02], twist: -10 }, Spine1: { twist: -14, flex: 4 }, L_Thigh: { flex: 18 }, R_Thigh: { flex: 10 }, L_Calf: { flex: 24 }, R_Calf: { flex: 14 } }, ease: 'inOut' },
+      { t: 0.5, pose: { Pelvis: { pos: [0, 0.04, 0.02], twist: 8 }, Spine1: { twist: 12, flex: -4 }, L_Thigh: { flex: 4 }, R_Thigh: { flex: 4 } }, ease: 'out' },
+      { t: 0.9, pose: { Pelvis: { pos: [0, -0.08, 0.02], twist: 10 }, Spine1: { twist: 14, flex: 4 }, R_Thigh: { flex: 18 }, L_Thigh: { flex: 10 }, R_Calf: { flex: 24 }, L_Calf: { flex: 14 } }, ease: 'inOut' },
+      { t: 1.15, pose: { Pelvis: { pos: [0, 0.04, 0.02], twist: -8 }, Spine1: { twist: -12, flex: -4 }, L_Thigh: { flex: 4 }, R_Thigh: { flex: 4 } }, ease: 'out' },
+      { t: 1.7, pose: { Pelvis: { pos: [0, -0.04, 0], twist: 0 }, Spine1: { twist: 0, flex: 2 } }, ease: 'inOut' }, { t: 2.4, pose: { Pelvis: { pos: [0, -0.02, 0], twist: 0 }, Spine1: { flex: 6 } }, ease: 'inOut' }],
+    ik: {
+      R_Hand: { keys: ik([{ t: 0, pos: [-0.2, 0.9, 0.2] }, { t: 0.25, pos: [-0.3, 1.3, 0.2], ease: 'inOut' }, { t: 0.5, pos: [-0.3, 2.0, 0.15], ease: 'out' }, { t: 0.7, pos: [-0.3, 1.5, 0.2], ease: 'inOut' }, { t: 0.95, pos: [-0.3, 2.05, 0.15], ease: 'out' }, { t: 1.3, pos: [-0.28, 1.2, 0.25], ease: 'inOut' }, { t: 2.4, pos: [-0.2, 0.92, 0.1], ease: 'inOut' }]), pole: celebPoleR },
+      L_Hand: { keys: ik([{ t: 0, pos: [0.2, 0.9, 0.2] }, { t: 0.5, pos: [0.3, 1.1, 0.25], ease: 'inOut' }, { t: 0.9, pos: [0.3, 1.3, 0.2], ease: 'inOut' }, { t: 1.15, pos: [0.3, 2.0, 0.15], ease: 'out' }, { t: 1.45, pos: [0.3, 1.5, 0.2], ease: 'inOut' }, { t: 1.7, pos: [0.3, 2.05, 0.15], ease: 'out' }, { t: 2.1, pos: [0.25, 1.2, 0.2], ease: 'inOut' }, { t: 2.4, pos: [0.2, 0.92, 0.1], ease: 'inOut' }]), pole: celebPoleL },
+    },
+  });
+
   // ---- stances and life ------------------------------------------------------------------------------------------------------
   const stance = (a, v) => ({
     Pelvis: { pos: [0, -0.04 - 0.02 * a - 0.03 * v, 0] }, R_Thigh: { flex: 10 + 5 * a + 6 * v, abduct: 6 + 3 * v }, L_Thigh: { flex: 12 + 5 * a + 4 * v, abduct: 5 }, R_Calf: { flex: 14 + 8 * a + 8 * v }, L_Calf: { flex: 16 + 8 * a + 6 * v },

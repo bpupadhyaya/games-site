@@ -3,7 +3,7 @@
 // is applied when the sticks settle; a move is committed to the position at once and the stone then travels for display only, so
 // taps, Undo, Auto Play and save/Continue share one path.
 import { newGame, settle, applyThrow, applyMove, legalMoves, movesWith, clone, other, extraThrow, FLAT_TO_VALUE, WAIT, HOME, N, sideName } from './rules.js';
-import { pickMove } from './ai.js';
+import { startPick, finishPick } from './ai.js';
 import { planThrow, stickPose, impactTimes } from './sticks.js';
 
 export const STEP_T = 1 / 60;
@@ -58,7 +58,7 @@ function resolveThrow(M) {
   M.pop = { v, n, by: before.turn, t: 0, extra: extraThrow(v) };
   const passed = M.st.turn !== before.turn;
   M.events.push({ type: 'value', v, n, by: before.turn, extra: extraThrow(v), passed });
-  if (passed) { M.notice = { kind: 'pass', who: before.turn }; M.aiT = 1.1; } else M.aiT = 0.8;
+  if (passed) { M.notice = { kind: 'pass', who: before.turn }; M.aiT = 0.9; } else M.aiT = 0.55;
   checkEnd(M);
 }
 
@@ -78,7 +78,7 @@ export function playMove(M, mv, silent = false) {
   } else M.pendingEnd = M.st.winner >= 0;
   const passed = M.st.turn !== p && M.st.winner < 0;
   if (passed && !silent) M.notice = { kind: 'next', who: M.st.turn };
-  M.aiT = 0.65;
+  M.aiT = 0.45;
   if (silent) checkEnd(M, true); else if (M.st.winner >= 0) { /* the result is shown once the stone has landed */ }
 }
 
@@ -164,10 +164,14 @@ export function stepMatch(M, dt, rng) {
   if (!M.over && !M.auto && !M.freeze && !M.anim && !M.throwAnim && !isHumanSide(M, M.st.turn) && (!M.lesson || M.lesson.type === 'game')) {
     M.thinking = true;
     M.aiT -= dt;
-    if (M.aiT <= 0) {
+    // Expert and Master search in slices while the move waits its turn, so no frame is held by the search
+    if (M.st.phase === 'move' && (!M.pick || M.pick.st !== M.st)) { M.pick = startPick(M.st, M.level, rng); M.pick.st = M.st; }
+    if (M.pick && M.pick.job && !M.pick.job.done) M.pick.job.step();
+    if (M.aiT <= 0 && !(M.st.phase === 'move' && M.pick && M.pick.job && !M.pick.job.done)) {
       if (M.st.phase === 'throw') startThrow(M, rng);
       else if (M.st.phase === 'move') {
-        const mv = pickMove(M.st, M.level, rng);
+        const pk = M.pick; M.pick = null;
+        const mv = pk ? finishPick(pk, rng) : null;
         if (mv) playMove(M, mv); else { const s = clone(M.st); s.pending = []; M.st = settle(s); }
       }
     }

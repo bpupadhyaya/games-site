@@ -13,6 +13,36 @@ export const fmtScore = (sc) => `${sc.g}-${String(sc.p).padStart(2, '0')}`;
 export const totalPts = (sc) => sc.g * 3 + sc.p;
 export const fmtClock = (sec) => { const s = Math.max(0, Math.ceil(sec)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
 
+// A text box that scrolls when its text is longer than the box (Think card, Watch & Learn panel): clipped lines, a visible scroll bar and a "more" cue.
+// game.js drags / wheels / keys G.ui.cardScroll within CARD.max; changing `key` (new text) starts again at the top.
+export const CARD = { rect: null, max: 0, view: 0 };
+function scrollBox(ctx, G, rect, rows, key) {
+  // rows: [{ text, font, color, lh, align, gap }]
+  if (G.ui.cardKey !== key) { G.ui.cardKey = key; G.ui.cardScroll = 0; }
+  let h = 0; rows.forEach((r) => { h += (r.gap || 0) + r.lh; });
+  const max = Math.max(0, h - rect.h), sc = Math.max(0, Math.min(G.ui.cardScroll || 0, max));
+  G.ui.cardScroll = sc;
+  ctx.save(); ctx.beginPath(); ctx.rect(rect.x, rect.y, rect.w, rect.h); ctx.clip();
+  let y = rect.y - sc;
+  rows.forEach((r) => {
+    y += r.gap || 0;
+    ctx.font = r.font; ctx.fillStyle = r.color; ctx.textAlign = r.align || 'left'; ctx.textBaseline = 'alphabetic';
+    ctx.fillText(r.text, r.align === 'center' ? rect.x + rect.w / 2 : rect.x, y + r.lh * 0.78);
+    y += r.lh;
+  });
+  ctx.restore();
+  CARD.rect = rect; CARD.max = max; CARD.view = rect.h;
+  if (max > 0) {
+    const bx = rect.x + rect.w + 6, th = Math.max(40, rect.h * (rect.h / h)), ty = rect.y + (sc / max) * (rect.h - th);
+    roundPath(ctx, bx, rect.y, 8, rect.h, 4); ctx.fillStyle = 'rgba(255,246,228,0.18)'; ctx.fill();
+    roundPath(ctx, bx, ty, 8, th, 4); ctx.fillStyle = 'rgba(255,246,228,0.8)'; ctx.fill();
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    if (sc < max - 4) { roundPath(ctx, rect.x + rect.w / 2 - 50, rect.y + rect.h - 32, 100, 28, 14); ctx.fillStyle = 'rgba(255,246,228,0.92)'; ctx.fill(); ctx.fillStyle = '#10281c'; ctx.font = `700 19px ${FONT}`; ctx.fillText('▼ more', rect.x + rect.w / 2, rect.y + rect.h - 18); }
+    else if (sc > 4) { roundPath(ctx, rect.x + rect.w / 2 - 40, rect.y + 4, 80, 28, 14); ctx.fillStyle = 'rgba(255,246,228,0.92)'; ctx.fill(); ctx.fillStyle = '#10281c'; ctx.font = `700 19px ${FONT}`; ctx.fillText('▲ up', rect.x + rect.w / 2, rect.y + 18); }
+    ctx.textBaseline = 'alphabetic';
+  }
+}
+
 const proj = (G, view, x, y, z) => projectV(G.sim.cam, view.cssW || 720, view.cssH || 1280, x, y, z);
 
 function scoreboard(ctx, G, s, m0) {
@@ -35,10 +65,10 @@ function scoreboard(ctx, G, s, m0) {
   const cm = big ? m * 0.8 : m, cy = big ? 14 + 24 * m + 50 * m + 20 * m + 44 * cm : 14 + 24 * m + 40 * m;
   ctx.textAlign = 'center'; ctx.fillStyle = '#fff6e4'; ctx.font = `800 ${Math.round(46 * cm)}px ${FONT}`;
   const left = s.cfg.drill ? 0 : Math.max(0, s.cfg.halfSec - s.clock);
-  ctx.fillText(s.cfg.drill ? '' : fmtClock(left), big ? W / 2 - 110 * cm * 0.6 : W / 2, cy);
+  ctx.fillText(s.cfg.drill ? '' : fmtClock(left), W / 2, cy);
   ctx.fillStyle = '#ffd97a'; ctx.font = `700 ${Math.round(19 * cm)}px ${FONT}`;
   const lbl = s.cfg.drill ? 'Practice' : s.cfg.halves === 1 ? 'Quick match' : s.half === 1 ? 'First half' : 'Second half';
-  if (big) { ctx.textAlign = 'left'; ctx.fillText(lbl, W / 2 + 10, cy - 4 * cm); } else ctx.fillText(lbl, W / 2, cy + 24 * m);
+  ctx.fillText(lbl, W / 2, big ? cy + 26 * cm : cy + 24 * m);
 }
 
 // a thin ring around the ball so it never gets lost against the grass; the ring tightens with height
@@ -177,6 +207,7 @@ function controls(ctx, G, s, lay, ui) {
 
 export function renderHud(ctx, G, view, ui) {
   const s = G.sim;
+  CARD.rect = null;
   const lay = hudLayout(G.settings.textIdx), m = lay.m;
   scoreboard(ctx, G, s, m);
   const watch = G.mode === 'watch';
@@ -231,11 +262,12 @@ function renderWatchPanel(ctx, G, s, lay, m) {
   const byTop = bottom - rows * bh - (rows - 1) * 10;
   const ps = Math.round(21 * Math.min(m, 1.5)), pw = W - 40;
   ctx.font = `600 ${ps}px ${FONT}`;
-  const lines = wrapLines(ctx, msg, pw - 30).slice(0, 9);
-  const ph = lines.length * ps * 1.25 + 20, py = byTop - ph - 12;
+  const lines = wrapLines(ctx, msg, pw - 56);
+  const maxPh = Math.min(H * 0.34, byTop - 260);                 // the pitch stays visible; longer text scrolls inside the panel
+  const ph = Math.min(maxPh, lines.length * ps * 1.25 + 20), py = byTop - ph - 12;
   roundPath(ctx, 20, py, pw, ph, 16); ctx.fillStyle = 'rgba(4,16,10,0.88)'; ctx.fill();
-  ctx.fillStyle = w.phase === 'think' ? '#ffe9a0' : w.phase === 'reveal' ? '#7fe8d6' : '#ff9a86'; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
-  lines.forEach((l, i) => ctx.fillText(l, 36, py + 10 + ps * (0.95 + i * 1.25)));
+  const wcol = w.phase === 'think' ? '#ffe9a0' : w.phase === 'reveal' ? '#7fe8d6' : '#ff9a86';
+  scrollBox(ctx, G, { x: 36, y: py + 8, w: pw - 56, h: ph - 16 }, lines.map((t) => ({ text: t, font: `600 ${ps}px ${FONT}`, color: wcol, lh: ps * 1.25 })), msg.replace(/^THINK \d+s/, 'THINK'));
   const labels = [w.paused ? 'Resume' : 'Pause', 'Think −', 'Think +', 'Exit'];
   const cols = rows === 2 ? 2 : 4, cw = (W - 28 - (cols - 1) * 10) / cols;
   W_RECTS.length = 0;
@@ -253,21 +285,22 @@ export function renderThink(ctx, G, view) {
   ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(0, 0, W, H);
   const m = PLAY_M[G.settings.textIdx];
   const x = 30, w = W - 60;
-  const size = Math.round(26 * Math.min(m, 2));
+  const size = Math.round(26 * Math.min(m, 2)), sumS = Math.round(28 * Math.min(m, 1.6));
   ctx.font = `400 ${size}px ${FONT}`;
-  const lines = wrapLines(ctx, t.reason, w - 60);
-  const hh = size * 1.3 * lines.length + 60;
+  const lines = wrapLines(ctx, t.reason, w - 80);
+  ctx.font = `700 ${sumS}px ${FONT}`;
+  const sm = wrapLines(ctx, t.summary, w - 80);
   const bh = Math.round(84 * Math.min(m, 1.5));
-  const total = Math.min(H - 100, 70 + size * 1.5 + hh + bh + 50);
+  const headH = Math.round(34 * Math.min(m, 1.6)) + 40;
+  const textH = sm.length * sumS * 1.25 + 14 + lines.length * size * 1.3 + 8;
+  const total = Math.min(H - 100, headH + textH + bh + 70);
   const y = Math.max(30, (H - total) / 2);
   panel(ctx, x, y, w, total, { r: 26, fill: 'rgba(14,38,26,0.97)', stroke: 'rgba(255,246,228,0.5)' });
   ctx.textAlign = 'center'; ctx.fillStyle = '#ffe9a0'; ctx.font = `800 ${Math.round(34 * Math.min(m, 1.6))}px ${FONT}`; ctx.fillText('Coach says', W / 2, y + 56);
-  ctx.fillStyle = '#7fe8d6'; ctx.font = `700 ${Math.round(28 * Math.min(m, 1.6))}px ${FONT}`;
-  const sm = wrapLines(ctx, t.summary, w - 50); sm.forEach((l, i) => ctx.fillText(l, W / 2, y + 108 + i * 34 * Math.min(m, 1.6)));
-  const off = y + 108 + sm.length * 34 * Math.min(m, 1.6) + 6;
-  ctx.textAlign = 'left'; ctx.fillStyle = '#fff6e4'; ctx.font = `400 ${size}px ${FONT}`;
-  lines.forEach((l, i) => ctx.fillText(l, x + 30, off + size * (1 + i * 1.3)));
-  const by = y + total - bh - 30;
+  const by = y + total - bh - 26;
+  const box = { x: x + 28, y: y + headH + 24, w: w - 70, h: by - (y + headH + 24) - 14 };
+  const rows = [...sm.map((l) => ({ text: l, font: `700 ${sumS}px ${FONT}`, color: '#7fe8d6', lh: sumS * 1.25 })), ...lines.map((l, i) => ({ text: l, font: `400 ${size}px ${FONT}`, color: '#fff6e4', lh: size * 1.3, gap: i === 0 ? 14 : 0 }))];
+  scrollBox(ctx, G, box, rows, 'think:' + t.summary);
   G.thinkRects = { close: { x: x + 24, y: by, w: w - 48, h: bh } };
   drawButton(ctx, G.thinkRects.close, 'Close', { primary: true, size: Math.round(30 * Math.min(m, 1.5)) });
 }

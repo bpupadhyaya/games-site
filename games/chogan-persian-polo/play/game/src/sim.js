@@ -406,6 +406,7 @@ export function createSim(cfg, rng) {
       if (s.clock <= 0) { s.clock = 0; endPeriod(); }
     }
     for (const t of [0, 1]) aiTeamThink(s, t);
+    for (const t of [0, 1]) aiTeamThink(s, t, true);
     // controls
     const ctls = R.map((r) => controlFor(r));
     for (let i = 0; i < R.length; i++) {

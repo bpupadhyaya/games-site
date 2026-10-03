@@ -219,6 +219,29 @@ export function drawTable(ctx, cam) {
     ctx.fillStyle = 'rgba(255,255,255,0.55)'; ctx.beginPath(); ctx.arc(p[0], p[1], rs, 0, TAU); ctx.fill();
   }
   ctx.restore();
+  // raised cushions: a soft shadow on the cloth, the sloped rubber face, the nose and the top of the rubber, so the rails have depth
+  {
+    const ZN = 0.034, BACK = 0.012;
+    const seg = (x0, y0, x1, y1, nx, ny) => {
+      const P = (x, y, z) => cam.px(x, y, z);
+      for (const [wd, al] of [[0.05, 0.07], [0.034, 0.09], [0.018, 0.12], [0.008, 0.16]]) {
+        poly(ctx, [P(x0, y0, 0), P(x1, y1, 0), P(x1 + nx * wd, y1 + ny * wd, 0), P(x0 + nx * wd, y0 + ny * wd, 0)]); ctx.fillStyle = `rgba(0,18,8,${al})`; ctx.fill();
+      }
+      const ax = x0 - nx * BACK, ay = y0 - ny * BACK, bx = x1 - nx * BACK, by = y1 - ny * BACK;
+      const face = [P(x0, y0, 0.002), P(x1, y1, 0.002), P(bx, by, ZN), P(ax, ay, ZN)];
+      poly(ctx, face);
+      const fy0 = Math.min(face[0][1], face[2][1]), fy1 = Math.max(face[0][1], face[2][1]);
+      const fgl = ctx.createLinearGradient(0, fy0, 0, fy1 + 0.01); const lit = ny > 0 ? 0 : 1;
+      fgl.addColorStop(lit, '#0f7b44'); fgl.addColorStop(1 - lit, '#075a30'); ctx.fillStyle = Math.abs(ny) > 0.5 ? fgl : (nx > 0 ? '#0c6a3a' : '#095f33'); ctx.fill();
+      const top = [P(ax, ay, ZN), P(bx, by, ZN), P(bx - nx * CB, by - ny * CB, ZN), P(ax - nx * CB, ay - ny * CB, ZN)];
+      poly(ctx, top); ctx.fillStyle = '#0a5f34'; ctx.fill();
+      ctx.lineWidth = 1.6; ctx.strokeStyle = 'rgba(205,255,225,0.55)'; ctx.beginPath(); ctx.moveTo(top[0][0], top[0][1]); ctx.lineTo(top[1][0], top[1][1]); ctx.stroke();
+      ctx.lineWidth = 1.2; ctx.strokeStyle = 'rgba(0,0,0,0.45)'; ctx.beginPath(); ctx.moveTo(top[3][0], top[3][1]); ctx.lineTo(top[2][0], top[2][1]); ctx.stroke();
+    };
+    seg(CE, TL, TW - CE, TL, 0, -1);                                     // far cushion first: it is behind the side ones in the picture
+    for (const [x, nx] of [[0, 1], [TW, -1]]) { seg(x, TL - CE, x, TL / 2 + MG / 2, nx, 0); seg(x, TL / 2 - MG / 2, x, CE, nx, 0); }
+    seg(CE, 0, TW - CE, 0, 0, 1);
+  }
   // cushion nose highlight
   ctx.strokeStyle = 'rgba(190,255,215,0.5)'; ctx.lineWidth = 1.5;
   const nose = (a, b) => { const p = cam.px(a[0], a[1]), q = cam.px(b[0], b[1]); ctx.beginPath(); ctx.moveTo(p[0], p[1]); ctx.lineTo(q[0], q[1]); ctx.stroke(); };
@@ -230,7 +253,8 @@ export function drawTable(ctx, cam) {
     const cxp = p.kind === 'c' ? (p.x < 0.5 ? -0.012 : TW + 0.012) : (p.x < 0.5 ? -0.03 : TW + 0.03);
     const cyp = p.kind === 'c' ? (p.y < 0.5 ? -0.012 : TL + 0.012) : p.y;
     poly(ctx, circlePts(cam, cxp, cyp, rp + 0.012, 30)); ctx.fillStyle = '#2a1608'; ctx.fill();
-    poly(ctx, circlePts(cam, cxp, cyp, rp, 30)); ctx.fillStyle = '#030303'; ctx.fill();
+    const pc = cam.px(cxp, cyp), prr = cam.ballR(Math.max(0.1, Math.min(TL, cyp))) * 2.1;
+    poly(ctx, circlePts(cam, cxp, cyp, rp, 30)); const pg = ctx.createRadialGradient(pc[0], pc[1] - prr * 0.25, 2, pc[0], pc[1], prr); pg.addColorStop(0, '#000'); pg.addColorStop(0.7, '#050403'); pg.addColorStop(1, '#1c1109'); ctx.fillStyle = pg; ctx.fill();
   }
   for (const j of JAWS) {
     poly(ctx, circlePts(cam, j.x, j.y, GEOM.RK + 0.001, 14)); ctx.fillStyle = '#0a5a32'; ctx.fill();
@@ -243,8 +267,11 @@ export function drawTable(ctx, cam) {
     const cxp = p.kind === 'c' ? (p.x < 0.5 ? -0.012 : TW + 0.012) : (p.x < 0.5 ? -0.03 : TW + 0.03);
     const cyp = p.kind === 'c' ? (p.y < 0.5 ? -0.012 : TL + 0.012) : p.y;
     const pts = circlePts(cam, cxp, cyp, rp, 30);
-    ctx.save(); poly(ctx, rail); ctx.clip(); poly(ctx, pts); ctx.stroke(); ctx.restore();
+    ctx.save(); poly(ctx, rail); ctx.clip(); poly(ctx, pts); ctx.stroke();
+    ctx.strokeStyle = 'rgba(255,236,170,0.55)'; ctx.lineWidth = 1; poly(ctx, circlePts(cam, cxp, cyp, rp + 0.004, 30)); ctx.stroke(); ctx.strokeStyle = 'rgba(214,170,80,0.85)'; ctx.lineWidth = 2; ctx.restore();
   }
+  // inner edge of the wooden rail: a thin dark bevel where wood meets rubber
+  ctx.lineWidth = 1.4; ctx.strokeStyle = 'rgba(25,10,0,0.55)'; poly(ctx, rectPts(cam, -CB - 0.003, -CB - 0.003, TW + CB + 0.003, TL + CB + 0.003)); ctx.stroke();
 }
 
 // bake the whole static table into one surface (one blit per frame afterwards)

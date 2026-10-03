@@ -336,7 +336,7 @@ function drawBanner(ctx, S, lay) {
 function drawHud(ctx, S, lay) {
   const hud = lay.hud, m = S.m;
   const g = ctx.createLinearGradient(0, 0, 0, hud.h + 30);
-  g.addColorStop(0, 'rgba(6,16,8,0.93)'); g.addColorStop(0.85, 'rgba(6,16,8,0.62)'); g.addColorStop(1, 'rgba(6,16,8,0)');
+  g.addColorStop(0, 'rgba(6,16,8,0.6)'); g.addColorStop(0.75, 'rgba(6,16,8,0.32)'); g.addColorStop(1, 'rgba(6,16,8,0)');
   ctx.fillStyle = g; ctx.fillRect(0, 0, W, hud.h + 30);
   ctx.textBaseline = 'alphabetic';
   if (hud.compact) {

@@ -439,9 +439,18 @@ export function createSim(cfg0, rng) {
     // keep players apart (soft)
     for (let i = 0; i < players.length; i++) for (let j = i + 1; j < players.length; j++) {
       const a = players[i], b = players[j];
-      if ((a.swing && s.t < a.swing.t1 && s.t < a.swing.tc + 0.2) || (b.swing && s.t < b.swing.t1 && s.t < b.swing.tc + 0.2)) continue;
+      const sa = !!(a.swing && s.t < a.swing.t1 && s.t < a.swing.tc + 0.2), sb = !!(b.swing && s.t < b.swing.t1 && s.t < b.swing.tc + 0.2);
+      if (sa && sb) continue;
       const dx = b.x - a.x, dz = b.z - a.z, d = Math.hypot(dx, dz);
-      if (d < 0.8 && d > 1e-4) { const push = (0.8 - d) * 0.5 * Math.min(1, 12 * H * 4); a.x -= dx / d * push; a.z -= dz / d * push; b.x += dx / d * push; b.z += dz / d * push; }
+      // a player in a stroke is planted: the other one steps clear; bodies never get closer than 0.62 m (centre to centre)
+      if (d < 0.8 && d > 1e-4) {
+        const hard = d < 0.62 ? (0.62 - d) : 0;
+        const push = (0.8 - d) * 0.5 * Math.min(1, 12 * H * 4);
+        const ux = dx / d, uz = dz / d;
+        if (sa) { const k = Math.max(push * 2, hard); b.x += ux * k; b.z += uz * k; }
+        else if (sb) { const k = Math.max(push * 2, hard); a.x -= ux * k; a.z -= uz * k; }
+        else { const k = Math.max(push, hard * 0.5); a.x -= ux * k; a.z -= uz * k; b.x += ux * k; b.z += uz * k; }
+      }
     }
     for (const p of players) {
       // facing: the front wall at rest; the direction of travel when running; the shot direction in a swing

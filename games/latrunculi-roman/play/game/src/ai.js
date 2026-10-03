@@ -9,7 +9,7 @@ export const LEVELS = [
   { id: 'casual', depth: 1, q: 0, cap: 3000, noise: 0.18 },
   { id: 'skilled', depth: 2, q: 2, cap: 9000, noise: 0.05 },
   { id: 'expert', depth: 3, q: 3, cap: 60000, noise: 0 },
-  { id: 'master', depth: 5, q: 4, cap: 300000, noise: 0 },
+  { id: 'master', depth: 5, q: 4, cap: 70000, noise: 0 },
 ];
 export const levelOf = (id) => LEVELS.find((l) => l.id === id) ?? LEVELS[2];
 
@@ -55,11 +55,18 @@ function exposure(cells, who) {
   return n * 14;
 }
 
-function mobilityOf(cells, who) {
+function mobilityDiff(cells, me) {
   let n = 0;
   for (let i = 0; i < NN; i++) {
-    if (SIDE[cells[i]] !== who) continue;
-    for (const ray of RAYS[i]) for (let k = 0; k < ray.length; k++) { if (cells[ray[k]] !== 0) break; n++; }
+    const c = cells[i];
+    if (c === 0) continue;
+    const w = SIDE[c] === me ? 1 : -1, r = i >> 3, col = i & 7;
+    let k = 0;
+    for (let j = i + 1, e = i + 7 - col; j <= e && cells[j] === 0; j++) k++;
+    for (let j = i - 1, e = i - col; j >= e && cells[j] === 0; j--) k++;
+    for (let j = i + 8; j < NN && cells[j] === 0; j += 8) k++;
+    for (let j = i - 8; j >= 0 && cells[j] === 0; j -= 8) k++;
+    n += w * k;
   }
   return n;
 }
@@ -75,7 +82,7 @@ export function evaluate(st, me) {
   }
   v += exposure(cells, foe) - exposure(cells, me);
   v += duxDanger(cells, foe) - duxDanger(cells, me);
-  v += (mobilityOf(cells, me) - mobilityOf(cells, foe)) * 0.6;
+  v += mobilityDiff(cells, me) * 0.6;
   return v;
 }
 
@@ -89,15 +96,18 @@ function terminal(st, me, depth) {
 
 // Moves best-first (captures, then moves that land beside the enemy dux), each with its new state built only when searched.
 const HIST = new Int32Array(NN * NN);
-const near = (cells, to, foe) => { const dp = cells.indexOf(DUX[foe]); return dp >= 0 && ADJ[dp].includes(to) ? 1 : 0; };
+class Kid {
+  constructor(mv, caps, pri, st) { this.mv = mv; this.caps = caps; this.pri = pri; this.st = st; this._ns = null; }
+  get ns() { return this._ns ?? (this._ns = applyMove(this.st, this.mv)); }
+}
 function children(st) {
-  const kids = [], cells = st.cells.slice(), me = st.turn;
+  const kids = [], cells = st.cells.slice(), me = st.turn, foe = other(me);
+  const dp = cells.indexOf(DUX[foe]), dadj = dp >= 0 ? ADJ[dp] : null;
   for (const mv of legalMoves(st)) {
     const caps = quickGain(cells, mv, me);
-    kids.push({ mv, caps, pri: caps * 100000 + near(st.cells, mv.to, other(me)) * 5000 + HIST[mv.from * NN + mv.to], st, _ns: null });
+    kids.push(new Kid(mv, caps, caps * 100000 + (dadj && dadj.includes(mv.to) ? 5000 : 0) + HIST[mv.from * NN + mv.to], st));
   }
   kids.sort((a, b) => b.pri - a.pri);
-  for (const k of kids) Object.defineProperty(k, 'ns', { get() { return this._ns ?? (this._ns = applyMove(this.st, this.mv)); } });
   return kids;
 }
 
@@ -177,7 +187,7 @@ function ab(st, depth, alpha, beta, me, ply, budget, q) {
 }
 
 // Nodes of search work between two yields (about one frame of work on a phone).
-const QUANTUM = 1500;
+const QUANTUM = 500;
 
 // The same search as `ab`, but the first plies are a generator that yields between children, so a long search is sliced into
 // small pieces (the game steps one slice per frame). The deeper plies run in plain recursion.
@@ -230,7 +240,22 @@ export function* movementSearch(st, maxDepth, nodeCap, q = 2) {
       results.push({ mv: k.mv, s: v, caps: k.caps, ns: k.ns });
       if (v > best) best = v;
     }
-    if (aborted) break;
+    if (aborted) {
+      // The budget ran out part-way through this depth. The previous best move was searched first, so the finished part is still
+      // a fair comparison: if a later move beat it, play that one; the unfinished moves keep their older scores, kept below it.
+      if (results.length) {
+        let top = results[0];
+        for (const x of results) if (x.s > top.s) top = x;
+        const merged = done.map((x) => {
+          const r = results.find((y) => y.mv === x.mv);
+          if (r) return r;
+          return { mv: x.mv, s: Math.min(x.s, top.s - 1), caps: x.caps };
+        });
+        merged.depth = d;
+        done = merged;
+      }
+      break;
+    }
     done = results; done.depth = d;
     kids = results.slice().sort((x, y) => y.s - x.s).map((x) => ({ mv: x.mv, ns: x.ns, caps: x.caps }));
     if (best >= WIN / 2 || best <= -WIN / 2) break;

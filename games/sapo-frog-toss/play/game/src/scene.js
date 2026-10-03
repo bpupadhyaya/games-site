@@ -132,9 +132,9 @@ export function drawHoles(ctx, S, t = 0) {
     ctx.save(); ctx.translate(p.x, p.y); ctx.scale(1, clamp(vs, 0.35, 0.7)); ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     ctx.font = `800 ${Math.round(p.s * 0.058)}px 'Avenir Next Condensed','Arial Narrow',Arial,sans-serif`; ctx.fillStyle = 'rgba(255,238,190,0.92)'; ctx.fillText(String(h.v), 0, 0); ctx.restore();
   }
-  // the 500 painted in front of the frog's mouth
+  // the mouth value painted in front of the frog's mouth
   const p = proj(0, 0, MOUTH.z - MOUTH.R - 0.06);
-  ctx.save(); ctx.translate(p.x, p.y); ctx.scale(1, 0.52); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = `800 ${Math.round(p.s * 0.075)}px 'Avenir Next Condensed','Arial Narrow',Arial,sans-serif`; ctx.fillStyle = '#ffd36a'; ctx.fillText('500', 0, 0); ctx.restore();
+  ctx.save(); ctx.translate(p.x, p.y); ctx.scale(1, 0.52); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = `800 ${Math.round(p.s * 0.075)}px 'Avenir Next Condensed','Arial Narrow',Arial,sans-serif`; ctx.fillStyle = '#ffd36a'; ctx.fillText(String(MOUTH.v), 0, 0); ctx.restore();
 }
 
 // ---- the frog, the mill and the bridges (drawn in depth order with the discs) -------------------------------------------------

@@ -4,7 +4,7 @@
   "tagline": "Pick your role. Play the match.",
   "genre": "team sport",
   "orientation": "portrait",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "monetization": {
     "model": "premium",
     "priceUsd": 3.99,

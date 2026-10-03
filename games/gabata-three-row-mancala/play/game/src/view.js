@@ -62,10 +62,10 @@ function drawDocBlocks(ctx, S, ui, scroll) {
   if (layout.height > region.h) {
     const track = region.h - 8, tH = Math.max(48, (region.h / layout.height) * track);
     const ty = region.y + 4 + (scroll / (layout.height - region.h)) * (track - tH);
-    ctx.fillStyle = 'rgba(255,255,255,0.1)';
-    rr(ctx, region.x + region.w + 8, region.y + 4, 6, track, 3); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.18)';
+    rr(ctx, region.x + region.w + 7, region.y + 4, 8, track, 4); ctx.fill();
     ctx.fillStyle = alpha(th.accent, 0.75);
-    rr(ctx, region.x + region.w + 8, ty, 6, tH, 3); ctx.fill();
+    rr(ctx, region.x + region.w + 7, ty, 8, tH, 4); ctx.fill();
   }
 }
 
@@ -109,8 +109,9 @@ function drawPathMarks(ctx, th, ev) {
     if (e.t === 'pick') { lap++; laps[lap] = { from: e.cell, to: e.cell }; }
     else if (e.t === 'drop' && laps[lap]) laps[lap].to = e.cell;
   }
-  laps.forEach((l, i) => { if (l.from !== l.to) arcArrow(ctx, CELLS[l.from], CELLS[l.to], LANE[i % LANE.length], i); });
-  laps.forEach((l, i) => ringCell(ctx, l.from, i === 0 ? th.accent : LANE[i % LANE.length], i === 0 ? 5 : 3.5, 0.95, 1));
+  // a long relay stays readable: arrows only for the first and the last lap, the laps in between show just where they start
+  laps.forEach((l, i) => { if (l.from !== l.to && (i === 0 || i === laps.length - 1)) arcArrow(ctx, CELLS[l.from], CELLS[l.to], i === 0 ? LANE[0] : LANE[1], i); });
+  laps.forEach((l, i) => ringCell(ctx, l.from, i === 0 ? th.accent : i === laps.length - 1 ? LANE[1] : 'rgba(255,255,255,0.55)', i === 0 ? 5 : 3.5, 0.95, 1));
   for (const e of ev) if (e.t === 'capture') {
     for (const c of e.cells) ringCell(ctx, c, '#ffe27a', 6, 1, 3);
     const r = CELLS[e.at];
@@ -489,6 +490,7 @@ function drawPlay(ctx, S) {
   } else if (S.toast) head = S.toast;
   else if (M.hint) { head = M.hint.head; body = M.hint.why; }
   else if (M.lesson && M.lesson.type !== 'game') { head = lessonText(M.lesson.id).task; }
+  else if (M.busy && M.capInfo) { const w = M.capInfo.who; head = (!M.two && !M.lesson && !auto && w === M.human) ? tr('youTook', { n: M.capInfo.n }) : tr('theyTook', { who: nameOf(S, M, w), n: M.capInfo.n }); body = ''; }
   else if (M.busy) { head = tr('sowing'); body = ''; }
   else if (M.thinking) { head = tr('thinking'); body = S.sumText || ''; }
   else if (humanTurn(M)) { head = M.two ? tr('turnOf', { who: st.turn === 1 ? tr('p1') : tr('p2') }) : tr('yourMove'); body = S.sumText || tr('pickHole'); }

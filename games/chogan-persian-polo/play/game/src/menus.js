@@ -2,7 +2,9 @@
 // Rules reader with its diagrams. Pure drawing; game.js owns state. All text follows the 100-300% text size.
 import { W, H, TEXT_SCALES, TEXT_DEC, TEXT_INC, REF_BACK, REF_NEXT, THINK_STEPS, SETUP_PINS } from './layout.js';
 import { FONT, DISPLAY, C, roundPath, drawButton, panel, wrapLines, textShadow, flowLayout, drawFlow, flowHit } from './ui.js';
-import { LEVELS, PERIOD_SECS, HW, HL, GOAL_HW, REACH } from './consts.js';
+import { LEVELS, PERIOD_SECS, HW, HL, GOAL_HW, REACH, FIG, SPOTS } from './consts.js';
+import { SHOW_CAM, projectWith } from './camera.js';
+const spotFor = (team, role) => (team === 0 ? { x: SPOTS[role].x, z: SPOTS[role].z } : { x: -SPOTS[role].x, z: -SPOTS[role].z });
 import { LESSONS, QUIZ, ROLE_INFO } from './content.js';
 
 const TAU = Math.PI * 2;
@@ -254,84 +256,90 @@ export function renderPause(ctx, state) {
   scrollHint(ctx, y0, y0 + ch, sc0, maxScroll, 30, 660);
 }
 
-// ---- reference pages --------------------------------------------------------------------------
-let PAGE_COUNT = 1;
-export const pageCount = () => PAGE_COUNT;
+// ---- reference pages (Rules, How to Play, About, role guide): ONE scrolling column inside the panel ---------------------------------
+// The text is laid out once per text size; the reader scrolls by finger drag, mouse wheel, arrow keys or the Back/Next page buttons, with a
+// scroll bar and "more" / "up" hints, so nothing can be cut off at 300%.
 const PANEL = { x: 34, y: 100, w: 652, h: 1030 };
+export const REF_VIEW = { top: PANEL.y + 96, bottom: PANEL.y + PANEL.h - 56 };
+let REF = { max: 0, vh: REF_VIEW.bottom - REF_VIEW.top, total: 0 };
+export const refMeta = () => REF;
 
-function buildPages(ctx, list, scale) {
+function buildFlow(ctx, list, scale) {
   const fs = Math.round(28 * scale), lh = fs * 1.28, tw = PANEL.w - 80;
   const secFs = Math.round(34 * Math.min(scale, 1.3));
-  const top = PANEL.y + 120, limit = PANEL.y + PANEL.h - 70;
-  const pages = [];
-  let cur = null, used = 0;
-  const newPage = () => { cur = { blocks: [], fs, lh, secFs }; used = 0; pages.push(cur); };
-  list.forEach((sec) => {
+  const blocks = []; let y = 8;
+  list.forEach((sec, si) => {
     ctx.font = `700 ${secFs}px ${FONT}`;
-    const tl = wrapLines(ctx, sec.title, tw);
-    const titleH = tl.length * secFs * 1.2 + 16;
+    const tl = wrapLines(ctx, sec.title, tw), titleH = tl.length * secFs * 1.2 + 16;
     ctx.font = `400 ${fs}px ${FONT}`;
     const lines = [];
     sec.p.forEach((para, pi) => { wrapLines(ctx, para, tw).forEach((l, k) => lines.push({ text: l, gapBefore: k === 0 && pi > 0 })); });
-    const lineH = (l, n) => lh + (l.gapBefore && n > 0 ? lh * 0.45 : 0);
-    const artH = sec.art && scale < 2 ? 210 : 0;
-    let full = titleH + artH + 26;
-    lines.forEach((l, k) => { full += lineH(l, k); });
-    const minNeed = titleH + artH + 26 + lh * 3;
-    if (!cur || (used + full > limit - top && used + minNeed > limit - top)) newPage();
-    let i = 0, part = 0;
-    while (true) {
-      const blk = { title: sec.title, tl, titleH, art: part === 0 && artH > 0 ? sec.art : null, artH: part === 0 ? artH : 0, lines: [], part };
-      let h = titleH + blk.artH + 26;
-      while (i < lines.length) {
-        const add = lineH(lines[i], blk.lines.length);
-        if (used + h + add > limit - top && (blk.lines.length > 0 || used > 0)) break;
-        blk.lines.push({ ...lines[i] }); h += add; i++;
-      }
-      cur.blocks.push(blk); used += h;
-      part++;
-      if (i >= lines.length) break;
-      newPage();
-    }
+    const artH = sec.art ? (ART_TALL.has(sec.art) ? 500 : 210) : 0;
+    const blk = { y, tl, titleH, art: sec.art || null, artH, lines, rule: si > 0 };
+    let h = (blk.rule ? 16 : 0) + titleH + artH;
+    lines.forEach((l, k) => { h += lh + (l.gapBefore && k > 0 ? lh * 0.45 : 0); });
+    h += 30; blk.h = h; blocks.push(blk); y += h;
   });
-  return pages;
+  return { blocks, total: y, fs, lh, secFs };
 }
-const pageCache = new Map();
+const flowCache = new Map();
 export function renderPages(ctx, state, list, header) {
   bg(ctx, 0.8);
   state.artRect = null;
   const sc = TEXT_SCALES[state.settings.textIdx];
   const pkey = `${header}:${sc}:${list.length}:${list[list.length - 1].p.length}`;
-  let pages = pageCache.get(pkey);
-  if (!pages) { pages = buildPages(ctx, list, sc); pageCache.set(pkey, pages); }
-  PAGE_COUNT = pages.length;
-  const idx = Math.min(state.page, pages.length - 1);
-  const pg = pages[idx];
+  let F = flowCache.get(pkey);
+  if (!F) { F = buildFlow(ctx, list, sc); flowCache.set(pkey, F); }
+  const { top, bottom } = REF_VIEW, vh = bottom - top, max = Math.max(0, F.total - vh);
+  REF = { max, vh, total: F.total };
+  const scroll = Math.min(Math.max(0, state.ui.scroll), max); state.ui.scroll = scroll;
   panel(ctx, PANEL.x, PANEL.y, PANEL.w, PANEL.h, { r: 30, fill: 'rgba(255,246,228,0.97)', stroke: 'rgba(19,40,58,0.6)' });
   ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
   ctx.fillStyle = C.vermDark; ctx.font = `italic 700 ${Math.round(42 * Math.min(sc, 1.15))}px ${DISPLAY}`;
   ctx.fillText(header, W / 2, PANEL.y + 58);
   ctx.strokeStyle = 'rgba(19,40,58,0.3)'; ctx.lineWidth = 2;
   ctx.beginPath(); ctx.moveTo(PANEL.x + 60, PANEL.y + 78); ctx.lineTo(PANEL.x + PANEL.w - 60, PANEL.y + 78); ctx.stroke();
-  let y = PANEL.y + 120;
-  pg.blocks.forEach((blk, bi) => {
-    if (bi > 0) { ctx.strokeStyle = 'rgba(19,40,58,0.2)'; ctx.beginPath(); ctx.moveTo(PANEL.x + 80, y - 8); ctx.lineTo(PANEL.x + PANEL.w - 80, y - 8); ctx.stroke(); y += 8; }
-    ctx.textAlign = 'center'; ctx.fillStyle = C.indigo; ctx.font = `700 ${pg.secFs}px ${FONT}`;
-    blk.tl.forEach((l, k) => ctx.fillText(l + (blk.part > 0 && k === blk.tl.length - 1 ? ' (cont.)' : ''), W / 2, y + pg.secFs * (0.9 + k * 1.2) - 8));
+  ctx.save(); ctx.beginPath(); ctx.rect(PANEL.x + 8, top, PANEL.w - 16, vh); ctx.clip();
+  for (const blk of F.blocks) {
+    let y = top + blk.y - scroll;
+    if (y > bottom || y + blk.h < top) continue;
+    if (blk.rule) { ctx.strokeStyle = 'rgba(19,40,58,0.2)'; ctx.beginPath(); ctx.moveTo(PANEL.x + 80, y + 4); ctx.lineTo(PANEL.x + PANEL.w - 80, y + 4); ctx.stroke(); y += 16; }
+    ctx.textAlign = 'center'; ctx.fillStyle = C.indigo; ctx.font = `700 ${F.secFs}px ${FONT}`;
+    blk.tl.forEach((l, k) => ctx.fillText(l, W / 2, y + F.secFs * (0.9 + k * 1.2) - 8));
     y += blk.titleH;
-    if (blk.art) { ctx.save(); ctx.beginPath(); ctx.rect(PANEL.x + 20, y, PANEL.w - 40, blk.artH); ctx.clip(); drawArt(blk.art, ctx, PANEL.x + 40, y, PANEL.w - 80, blk.artH - 12, state); ctx.restore(); y += blk.artH; }
-    ctx.fillStyle = C.ink; ctx.font = `400 ${pg.fs}px ${FONT}`; ctx.textAlign = 'left';
-    blk.lines.forEach((l, k) => { if (l.gapBefore && k > 0) y += pg.lh * 0.45; ctx.fillText(l.text, PANEL.x + 40, y + pg.fs * 0.85); y += pg.lh; });
-    y += 26;
-  });
-  ctx.textAlign = 'center'; ctx.font = `400 22px ${FONT}`; ctx.fillStyle = 'rgba(19,40,58,0.7)';
-  ctx.fillText(`Page ${idx + 1} of ${pages.length}`, W / 2, PANEL.y + PANEL.h - 28);
-  drawButton(ctx, TEXT_DEC, 'A−', { disabled: state.settings.textIdx === 0, size: 30 });
+    if (blk.art) {
+      // a live 3D window is only used while it is fully inside the reader; partly scrolled out it is a still card
+      const inside = y + blk.artH - 12 > top + 4 && y < bottom - 4;
+      ctx.save(); ctx.beginPath(); ctx.rect(PANEL.x + 20, Math.max(y, top), PANEL.w - 40, blk.artH); ctx.clip();
+      drawArt(blk.art, ctx, PANEL.x + 40, y, PANEL.w - 80, blk.artH - 12, inside ? state : null); ctx.restore(); y += blk.artH;
+    }
+    ctx.fillStyle = C.ink; ctx.font = `400 ${F.fs}px ${FONT}`; ctx.textAlign = 'left';
+    blk.lines.forEach((l, k) => { if (l.gapBefore && k > 0) y += F.lh * 0.45; ctx.fillText(l.text, PANEL.x + 40, y + F.fs * 0.85); y += F.lh; });
+  }
+  ctx.restore();
+  if (max > 0) {
+    const th = Math.max(60, vh * vh / F.total), ty = top + (scroll / max) * (vh - th);
+    roundPath(ctx, PANEL.x + PANEL.w - 18, ty, 7, th, 3.5); ctx.fillStyle = 'rgba(19,40,58,0.45)'; ctx.fill();
+    const cx = W / 2;
+    if (scroll < max - 4) {
+      const g = ctx.createLinearGradient(0, bottom - 70, 0, bottom); g.addColorStop(0, 'rgba(255,246,228,0)'); g.addColorStop(1, 'rgba(255,246,228,0.97)'); ctx.fillStyle = g; ctx.fillRect(PANEL.x + 10, bottom - 70, PANEL.w - 20, 70);
+      roundPath(ctx, cx - 60, bottom - 38, 120, 32, 16); ctx.fillStyle = C.indigo; ctx.fill();
+      ctx.fillStyle = '#fff6e4'; ctx.font = `700 22px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('\u25bc scroll', cx, bottom - 21);
+    }
+    if (scroll > 4) {
+      roundPath(ctx, cx - 40, top + 6, 80, 30, 15); ctx.fillStyle = C.indigo; ctx.fill();
+      ctx.fillStyle = '#fff6e4'; ctx.font = `700 22px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('\u25b2 up', cx, top + 21);
+    }
+  }
+  ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'center'; ctx.font = `400 22px ${FONT}`; ctx.fillStyle = 'rgba(19,40,58,0.7)';
+  const pages = Math.max(1, Math.ceil(F.total / vh)), cur = max <= 0 ? 1 : Math.min(pages, 1 + Math.round(scroll / max * (pages - 1)));
+  ctx.fillText(max > 0 ? `Screen ${cur} of ${pages}` : '', W / 2, PANEL.y + PANEL.h - 22);
+  drawButton(ctx, TEXT_DEC, 'A\u2212', { disabled: state.settings.textIdx === 0, size: 30 });
   drawButton(ctx, TEXT_INC, 'A+', { disabled: state.settings.textIdx === TEXT_SCALES.length - 1, size: 30 });
   ctx.fillStyle = '#fff6e4'; ctx.font = `700 24px ${FONT}`; ctx.textAlign = 'center';
   ctx.fillText(`${Math.round(sc * 100)}%`, W / 2, 56);
-  drawButton(ctx, REF_BACK, idx === 0 ? 'Close' : 'Back', { size: 32 });
-  drawButton(ctx, REF_NEXT, idx === pages.length - 1 ? 'Done' : 'Next', { primary: true, size: 32 });
+  drawButton(ctx, REF_BACK, scroll <= 4 ? 'Close' : 'Back', { size: 32 });
+  drawButton(ctx, REF_NEXT, scroll >= max - 4 ? 'Done' : 'Next', { primary: true, size: 32 });
 }
 
 // ---- diagrams: a top-down field drawn with the game's own geometry --------------------------------------------------------
@@ -356,14 +364,33 @@ function arrow(ctx, x0, y0, x1, y1, col = '#ffc94d', wd = 4) {
 function label(ctx, t, x, y, size = 18, col = '#fff6e4', align = 'center') {
   ctx.save(); ctx.fillStyle = col; ctx.font = `700 ${size}px ${FONT}`; ctx.textAlign = align; ctx.textBaseline = 'alphabetic'; ctx.shadowColor = 'rgba(0,0,0,0.6)'; ctx.shadowBlur = 3; ctx.fillText(t, x, y); ctx.restore();
 }
-export const ART_3D = new Set(['riding', 'stroke', 'reach']);
+export const ART_3D = new Set(['riding', 'stroke', 'reach', 'field', 'roles']);
+const ART_TALL = new Set(['field', 'roles']);
 export function drawArt(key, ctx, x, y, w, h, state) {
   ctx.save();
   if (ART_3D.has(key) && state) {
     // a window onto the real 3D horse and rider: the 2D panel is cut away here and the presenter draws the showcase behind it
-    state.artRect = { key, x, y, w, h };
+    state.artRect = { key, x, y, w, h, c0: Math.max(y, REF_VIEW.top), c1: Math.min(y + h, REF_VIEW.bottom) };
     roundPath(ctx, x, y, w, h, 16); ctx.clip(); ctx.clearRect(x, y, w, h);
     ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(19,40,58,0.55)'; roundPath(ctx, x, y, w, h, 16); ctx.stroke();
+    if (key === 'field' || key === 'roles') {
+      const pr = (px, py, pz) => projectWith(SHOW_CAM, SHOW_CAM.fov, w, h, px, py, pz), at = (q) => q && { x: x + q.x, y: y + q.y };
+      if (key === 'roles') {
+        for (let role = 0; role < 3; role++) for (const team of [0, 1]) {
+          const sp = spotFor(team, role), q = at(pr(sp.x, 2.9 * FIG, sp.z)); if (!q) continue;
+          ctx.beginPath(); ctx.arc(q.x, q.y, 17, 0, TAU); ctx.fillStyle = team === 0 ? '#d0342c' : '#1f6fc4'; ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = '#fff6e4'; ctx.stroke();
+          ctx.fillStyle = '#fff'; ctx.font = `700 22px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(String(role + 1), q.x, q.y + 1);
+        }
+        label(ctx, 'Red: your side. You choose one rider.', x + w / 2, y + h - 40, 20); label(ctx, 'Blue: the computer', x + w / 2, y + h - 14, 18, '#bcd8ff');
+        ctx.textBaseline = 'alphabetic';
+      } else {
+        const L = (a, b, txt, dy = 0) => { const p0 = at(pr(a[0], 0.05, a[1])), p1 = at(pr(b[0], 0.05, b[1])); if (!p0 || !p1) return; arrow(ctx, p0.x, p0.y, p1.x, p1.y, '#ffc94d', 3); arrow(ctx, p1.x, p1.y, p0.x, p0.y, '#ffc94d', 3); label(ctx, txt, (p0.x + p1.x) / 2, (p0.y + p1.y) / 2 + dy, 20, '#ffe9a0'); };
+        L([-HW - 0.9, -HL], [-HW - 0.9, HL], `${HL * 2} m`, -10);
+        L([-HW, -HL - 1.4], [HW, -HL - 1.4], `${HW * 2} m`, 22);
+        L([-GOAL_HW, HL + 1.8], [GOAL_HW, HL + 1.8], `goal ${GOAL_HW * 2} m`, -8);
+        const q = at(pr(0, 0.05, 0)); if (q) label(ctx, 'centre', q.x + 70, q.y + 6, 16, '#fff6e4');
+      }
+    }
     if (key === 'reach') {
       // the envelopes of the three strokes over a top-down view of the horse (the showcase camera looks straight down; ahead is up)
       const sc = h / (2 * 9 * Math.tan(13 * Math.PI / 180)), cx = x + w / 2, cy = y + h / 2;

@@ -50,7 +50,10 @@ export const STR = {
   endSoldiers: 'Only the dux was left: it cannot capture alone.', endSoldiersYou: 'You were left with only your dux.', endSoldiersOpp: 'The other side was left with only its dux.',
   endBlocked: 'The other side had no move.', endBlockedYou: 'You had no move.', endBlockedOpp: 'The other side had no move.',
   stallLead: '{n} moves passed with no capture',
-  endEqual: '{lead}, and both sides have {n}.',
+  endEqual: '{lead}, and both sides have {n} and equal room to move.',
+  endRoomYou: '{lead}. Pieces are level at {n} each, and you have more room to move ({a} moves to {b}).',
+  endRoomOne: '{lead}. Pieces are level at {n} each, and {name} has more room to move ({a} moves to {b}).',
+  endRoomSide: '{lead}. Pieces are level at {n} each, and {side} have more room to move ({a} moves to {b}).',
   endMoreYou: '{lead}, and you have more pieces ({a} to {b}).',
   endMoreOne: '{lead}, and {name} has more pieces ({a} to {b}).',
   endMoreSide: '{lead}, and {side} have more pieces ({a} to {b}).',
@@ -61,7 +64,7 @@ export const STR = {
   cEdge: 'on an edge, only along the edge', cCornerEx: 'corner: both squares beside it',
   cCloseIn: 'slide in to close the last side', cDuxSafe: 'sandwiched, but a dux is only lost when enclosed', cEnclose: 'all four sides held: the dux is lost',
   cCentre: 'centre: 4 sides', cEdgeD: 'edge: 3 sides', cCorner: 'corner: 2 sides', cDuxOwn: 'a friendly piece beside the dux keeps it safe',
-  cLone: 'only the dux is left', cBlocked: 'Jet cannot move: Ivory wins', cStall: '{n} moves with no capture: count the pieces',
+  cLone: 'only the dux is left', cBlocked: 'Jet cannot move: Ivory wins', cStall: '{n} moves with no capture: count the pieces, then the room',
   cIvoryFirst: 'moves first', cJetSecond: 'moves second', cThinkEx: 'Captures 1 soldier by sandwiching it.', cThinkReveal: 'THINK  ·  REVEAL  ·  ACT',
   cSoldier: 'soldier', cDux: 'dux',
   // Think and its reasons
@@ -135,7 +138,7 @@ const HOWTO = [
   { art: 'enclose', title: 'The dux',
     body: 'The dux cannot be taken by a sandwich. It is lost when every square beside it is held by the other side or is off the board: four sides in the middle, three on an edge, two in a corner. A friendly piece beside it keeps it safe.' },
   { art: 'blocked', title: 'Other ways to win',
-    body: `If the side to move has no legal move, it loses. A side left with only its dux has lost too. If ${QUIET_LIMIT} moves in a row pass with no capture, the side with more pieces wins, and equal pieces is a draw.` },
+    body: `If the side to move has no legal move, it loses. A side left with only its dux has lost too. If ${QUIET_LIMIT} moves in a row pass with no capture, the side with more pieces wins. With equal pieces, the side with more room to move wins, and only equal room is a draw.` },
   { art: 'think', title: 'Think and Learn',
     body: 'Think shows a good move and explains why in plain words. Learn is a short course with real positions, and Watch & Learn plays a whole game for you with a Pause button.' },
 ];
@@ -199,7 +202,7 @@ const RULES = [
     'The game checks this after every move, including moves that take soldiers.',
   ] },
   { art: 'stall', title: 'Drawn-out games', body: [
-    `If ${QUIET_LIMIT} moves in a row (${HALF} by each side) pass with no capture, the game ends. The side with more pieces on the board wins, counting the dux; equal pieces is a draw. The no-capture count is shown at the top of the game screen.`,
+    `If ${QUIET_LIMIT} moves in a row (${HALF} by each side) pass with no capture, the game ends. The side with more pieces on the board wins, counting the dux. If the pieces are equal, the side with more room wins: room is the number of moves the side's pieces could make right now, counting every square each piece could slide to, as if it were that side's turn. Only equal pieces and equal room make a draw. The no-capture count is shown at the top of the game screen.`,
     'A capture always starts the count again from zero. There is no other repetition rule: the no-capture count is what ends a stand-off.',
   ] },
   { art: 'reconstruct', title: 'Where reconstructions differ', body: [
@@ -212,7 +215,7 @@ const RULES = [
   ] },
   { art: 'levels', title: 'The opponent levels', body: [
     'Five levels, from Novice to Master. Novice moves almost at random. Casual takes the captures it sees. Skilled searches two moves deep, Expert three and Master five, counting each side\'s move separately, and Master guards its dux with care.',
-    'Every level was tested against the one below it in many computer-against-computer games, with sides swapped, and each beats the one below more often than it loses to it. No win is guaranteed against any level, and games between strong players often end in a draw on the no-capture limit.',
+    'Every level was tested against the one below it in many computer-against-computer games, with sides swapped, and each beats the one below more often than it loses to it. No win is guaranteed against any level, and games between strong players are often settled on the no-capture limit, by pieces or by room.',
   ] },
   { art: 'think', title: 'Think', body: [
     'Think suggests a move and says why in words: a capture, a soldier leaving danger, a dux gaining room, or a threat being set up. The game engine checks every reason against the position before showing it.',

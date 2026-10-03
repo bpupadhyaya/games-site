@@ -151,8 +151,8 @@ export function matrixNote(kind, id) {
   const y = (v) => `${v.toFixed(1)} yd`;
   if (kind === 'off') {
     const row = MATRIX.def.map((d) => ({ d, v: cellMean(id, d) })).sort((a, b) => b.v - a.v);
-    return `In ${MATRIX.n} simulated plays against each defence it gained most against ${callName(row[0].d)} (${y(row[0].v)}) and least against ${callName(row[row.length - 1].d)} (${y(row[row.length - 1].v)}).`;
+    return `Simulated (${MATRIX.n} plays each): best against ${callName(row[0].d)} (${y(row[0].v)}), worst against ${callName(row[row.length - 1].d)} (${y(row[row.length - 1].v)}).`;
   }
   const col = MATRIX.off.map((o) => ({ o, v: cellMean(o, id) })).sort((a, b) => a.v - b.v);
-  return `In ${MATRIX.n} simulated plays per pair it allowed the least to ${callName(col[0].o)} (${y(col[0].v)}) and the most to ${callName(col[col.length - 1].o)} (${y(col[col.length - 1].v)}).`;
+  return `Simulated (${MATRIX.n} plays each): allows least to ${callName(col[0].o)} (${y(col[0].v)}), most to ${callName(col[col.length - 1].o)} (${y(col[col.length - 1].v)}).`;
 }

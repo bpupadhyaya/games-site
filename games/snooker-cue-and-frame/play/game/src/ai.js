@@ -37,7 +37,10 @@ export const pocketAim = (i) => JAW_MID[i];
 function cloneFrame(f) {
   return { ...f, scores: f.scores.slice(), breaks: f.breaks.slice(), high: f.high.slice(), fouls: f.fouls.slice(), cfg: f.cfg };
 }
-export function playOut(f, w, shot, maxT = 24) {
+// A shot played out on a copy of the table, written as a generator that yields every CHUNK physics steps so the planner can spread a
+// long rally over several display frames (about 1 ms of work per piece). playOut() drains it in one go: same result either way.
+const CHUNK = 48;
+export function* playOutG(f, w, shot, maxT = 24) {
   const w2 = cloneWorld(w);
   const f2 = cloneFrame(f);
   const before = beforeShot(f, w);
@@ -50,12 +53,15 @@ export function playOut(f, w, shot, maxT = 24) {
     let mv = false;
     for (const q of w2.b) if (q.on && (q.vx !== 0 || q.vy !== 0 || q.wx !== 0 || q.wy !== 0)) { mv = true; break; }
     if (!mv) break;
+    if (n % CHUNK === 0) yield;
   }
   for (const q of w2.b) { q.vx = 0; q.vy = 0; q.wx = 0; q.wy = 0; q.wz = 0; }
   const res = judge(f2, w2, ev, before);
   const out = applyShot(f2, w2, res, before);
   return { f: f2, w: w2, ev, res, out, before };
 }
+const drain = (g) => { let r = g.next(); while (!r.done) r = g.next(); return r.value; };
+export function playOut(f, w, shot, maxT = 24) { return drain(playOutG(f, w, shot, maxT)); }
 
 // ---- how comfortable is the next shot? (geometry only) -----------------------------------------------------------------------
 // Returns 0..1 for the best pot available to the player about to shoot, plus a note about the best pair.
@@ -107,11 +113,12 @@ function targetsFor(f, w) {
 }
 
 // contact velocity of the object ball for a shot (used to compensate throw): play until the cue ball's first impact.
-function firstContact(w, shot) {
+function* firstContactG(w, shot) {
   const w2 = cloneWorld(w);
   strike(w2, shot);
   let n = Math.floor(4 / STEP);
   while (n-- > 0) {
+    if (n % CHUNK === 0) yield;
     stepWorld(w2);
     const e = w2.ev.find((x) => x.k === 'hit' && (x.a === CUE || x.b === CUE));
     if (e) { const id = e.a === CUE ? e.b : e.a; const q = ballById(w2, id); return { id, vx: q.vx, vy: q.vy }; }
@@ -139,13 +146,14 @@ export function potCandidates(f, w, lim = 99) {
 }
 
 // the aim angle for a pot, compensating throw by measuring the object ball's real departure direction
-export function aimAngle(w, cand, power, spin, iters = 2) {
+export function aimAngle(w, cand, power, spin, iters = 2) { return drain(aimAngleG(w, cand, power, spin, iters)); }
+export function* aimAngleG(w, cand, power, spin, iters = 2) {
   const c = ballById(w, CUE), t = ballById(w, cand.target);
   const { ux, uy, pa } = cand.g;
   let want = Math.atan2(uy, ux);
   let angle = Math.atan2(cand.g.gy - c.y, cand.g.gx - c.x);
   for (let i = 0; i < iters; i++) {
-    const fc = firstContact(w, { angle, power, a: spin.a, b: spin.b });
+    const fc = yield* firstContactG(w, { angle, power, a: spin.a, b: spin.b });
     if (!fc || fc.id !== cand.target) break;
     let err = Math.atan2(fc.vy, fc.vx) - want;
     while (err > Math.PI) err -= 2 * Math.PI; while (err < -Math.PI) err += 2 * Math.PI;
@@ -244,40 +252,44 @@ export function createPlanner(f, w, prof, rng, o = {}) {
     }
     return out;
   };
-  const evaluate = (plan) => {
-    let shot;
-    if (plan.kind === 'safety') shot = { angle: plan.angle, power: plan.power, a: plan.a, b: plan.b };
-    else {
-      const power = powerFor(plan.cand, plan.mult);
-      const angle = aimAngle(w, plan.cand, power, plan.spin, P.polish > 0 ? 2 : 1);
-      shot = { angle, power, a: plan.spin.a, b: plan.spin.b };
-    }
-    const r = playOut(f, w, shot);
-    const potsTarget = plan.kind !== 'safety' && r.res.potted.includes(plan.cand.target);
-    let val = valueOf(f, r, P, null);
-    if (plan.kind !== 'safety' && !potsTarget) val -= 1.5;              // the pot was the point
-    return { plan, shot, r, val, pots: potsTarget, kind: plan.kind === 'safety' ? 'safety' : potsTarget ? 'pot' : 'miss' };
+  // A job is one shot played out on a copy of the table; stepOne() advances the current job a slice at a time.
+  let job = null;
+  const beginPlan = (plan) => {
+    job = { po: (function* () {
+      let shot;
+      if (plan.kind === 'safety') shot = { angle: plan.angle, power: plan.power, a: plan.a, b: plan.b };
+      else {
+        const power = powerFor(plan.cand, plan.mult);
+        const angle = yield* aimAngleG(w, plan.cand, power, plan.spin, P.polish > 0 ? 2 : 1);
+        shot = { angle, power, a: plan.spin.a, b: plan.spin.b };
+      }
+      const r = yield* playOutG(f, w, shot);
+      return { r, shot };
+    })(), done: ({ r, shot }) => {
+      const potsTarget = plan.kind !== 'safety' && r.res.potted.includes(plan.cand.target);
+      let val = valueOf(f, r, P, null);
+      if (plan.kind !== 'safety' && !potsTarget) val -= 1.5;              // the pot was the point
+      results.push({ plan, shot, r, val, pots: potsTarget, kind: plan.kind === 'safety' ? 'safety' : potsTarget ? 'pot' : 'miss' });
+    } };
   };
 
+  let robustQ = null, robustI = 0;
   const finish = () => {
-    done = true;
-    results.sort((a, b) => b.val - a.val);
     // expected value under this level's own execution error: the top few are replayed with noise and re-ranked
+    results.sort((a, b) => b.val - a.val);
     const nR = o.perfect ? 4 : P.robust;
     if (nR > 0 && results.length > 1) {
       const top = results.slice(0, Math.min(results.length, nR));
       const prof2 = o.perfect ? { sigA: 0.03, sigP: 0.018, sigS: 0.025 } : P;
-      for (const x of top) {
-        let sum = 0;
-        for (let k = 0; k < 4; k++) {
-          const r = playOut(f, w, execNoise(x.shot, prof2, rng));
-          const pt = x.plan.kind !== 'safety' && r.res.potted.includes(x.plan.cand.target);
-          sum += valueOf(f, r, P, null) + (x.plan.kind !== 'safety' && !pt ? -1.5 : 0);
-        }
-        x.val = 0.35 * x.val + 0.65 * (sum / 4);
-      }
-      results.sort((a, b) => b.val - a.val);
+      robustQ = [];
+      for (const x of top) { x.sum = 0; for (let k = 0; k < 4; k++) robustQ.push({ x, prof2 }); }
+      robustI = 0;
+      return;
     }
+    conclude();
+  };
+  const conclude = () => {
+    done = true;
     let best = results[0] ?? null;
     if (!o.perfect && best && P.blunder > 0 && rng.next() < P.blunder && results.length > 2) best = results[1 + rng.int(Math.min(3, results.length - 1))];
     result = best ? build(best) : fallbackShot();
@@ -297,8 +309,21 @@ export function createPlanner(f, w, prof, rng, o = {}) {
   };
 
   const stepOne = () => {
+    if (job) { const st = job.po.next(); if (st.done) { const j = job; job = null; j.done(st.value); } return; }
+    if (robustQ) {
+      if (robustI < robustQ.length) {
+        const { x, prof2 } = robustQ[robustI++];
+        job = { po: playOutG(f, w, execNoise(x.shot, prof2, rng)), done: (r) => {
+          const pt = x.plan.kind !== 'safety' && r.res.potted.includes(x.plan.cand.target);
+          x.sum += valueOf(f, r, P, null) + (x.plan.kind !== 'safety' && !pt ? -1.5 : 0);
+          if (robustI >= robustQ.length) { for (const y of robustQ) { if (y.x.sum !== undefined) { y.x.val = 0.35 * y.x.val + 0.65 * (y.x.sum / 4); y.x.sum = undefined; } } robustQ = null; results.sort((a2, b2) => b2.val - a2.val); conclude(); }
+        } };
+        return;
+      }
+      return;
+    }
     if (stage === 0) {
-      if (pi < planList.length) { results.push(evaluate(planList[pi++])); return; }
+      if (pi < planList.length) { beginPlan(planList[pi++]); return; }
       // decide whether to also look at safety
       const bestPot = results.reduce((m, x) => Math.max(m, x.val), -99);
       const potted = results.some((x) => x.pots && x.val > 0);
@@ -310,7 +335,7 @@ export function createPlanner(f, w, prof, rng, o = {}) {
       return;
     }
     if (stage === 1) {
-      if (si2 < safeQ.length) { results.push(evaluate(safeQ[si2++])); return; }
+      if (si2 < safeQ.length) { beginPlan(safeQ[si2++]); return; }
       stage = 2; return;
     }
     if (stage === 2) {
@@ -324,11 +349,12 @@ export function createPlanner(f, w, prof, rng, o = {}) {
       if (pj < polishList.length) {
         const { pt, d } = polishList[pj++];
         const shot = { ...pt.shot, angle: pt.shot.angle + rad(d) };
-        const r = playOut(f, w, shot);
-        const potsTarget = r.res.potted.includes(pt.plan.cand.target);
-        const val = valueOf(f, r, P, null) + (potsTarget ? 0 : -1.5);
-        // robustness: prefer a shot that still pots when nudged; this one is only kept if it beats the original
-        if (potsTarget && val > pt.val + 0.01) results.push({ plan: pt.plan, shot, r, val, pots: true, kind: 'pot' });
+        job = { po: playOutG(f, w, shot), done: (r) => {
+          const potsTarget = r.res.potted.includes(pt.plan.cand.target);
+          const val = valueOf(f, r, P, null) + (potsTarget ? 0 : -1.5);
+          // robustness: prefer a shot that still pots when nudged; this one is only kept if it beats the original
+          if (potsTarget && val > pt.val + 0.01) results.push({ plan: pt.plan, shot, r, val, pots: true, kind: 'pot' });
+        } };
         return;
       }
       finish();

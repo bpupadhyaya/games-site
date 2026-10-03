@@ -27,7 +27,11 @@ export function mergeParts(parts) {
     g.applyMatrix4(m);
     const P = g.attributes.position, N = g.attributes.normal, U = g.attributes.uv;
     c.set(pt.c ?? 0xffffff);
-    for (let i = 0; i < P.count; i++) { pos.push(P.getX(i), P.getY(i), P.getZ(i)); nor.push(N.getX(i), N.getY(i), N.getZ(i)); col.push(c.r, c.g, c.b); uv.push(U ? U.getX(i) : 0, U ? U.getY(i) : 0); }
+    const R = pt.uvr, K = pt.uvc;   // uvr = [u0, v0, u1, v1]: map the part's 0..1 UVs into that atlas window; uvc = [u, v]: every vertex samples that single atlas point
+    for (let i = 0; i < P.count; i++) {
+      pos.push(P.getX(i), P.getY(i), P.getZ(i)); nor.push(N.getX(i), N.getY(i), N.getZ(i)); col.push(c.r, c.g, c.b);
+      if (K) uv.push(K[0], K[1]); else if (R && U) uv.push(R[0] + (R[2] - R[0]) * U.getX(i), R[1] + (R[3] - R[1]) * U.getY(i)); else uv.push(U ? U.getX(i) : 0, U ? U.getY(i) : 0);
+    }
     const I = g.index; if (I) for (let i = 0; i < I.count; i++) idx.push(I.getX(i) + base); else for (let i = 0; i < P.count; i++) idx.push(i + base);
     base += P.count;
     g.dispose();
@@ -42,18 +46,20 @@ const seeded = (seed) => () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 42
 
 export function buildPitch(stage) {
   const g = new THREE.Group(); g.name = 'pitch';
-  // ---- grass with mown bands and every marking, one texture
+  // ONE mesh, ONE material, ONE draw call for everything static: the atlas holds the mown pitch with every marking (top), then a white
+  // swatch (for flat vertex-coloured parts: frames, steps, boards, surround), the crowd strip and the net strip.
   const PW = 2 * (HW + 5), PL = 2 * (HL + 7), TW = 1024, TH = Math.round(TW * PL / PW);
-  const grass = canvasTex(TW, TH, (c, w, h) => {
+  const SW = 8, CR = 128, NT = 128, AH = TH + SW + CR + NT + 16;
+  const atlas = canvasTex(TW, AH, (c, w, h) => {
     const S = w / PW;
-    const X = (x) => (x + PW / 2) * S, Z = (z) => (1 - (z + PL / 2) / PL) * h;
-    c.fillStyle = '#3e8a45'; c.fillRect(0, 0, w, h);
+    const X = (x) => (x + PW / 2) * S, Z = (z) => (1 - (z + PL / 2) / PL) * TH;
+    c.fillStyle = '#3e8a45'; c.fillRect(0, 0, w, TH);
     // mown bands across the pitch
     for (let i = 0; i < 16; i++) { c.fillStyle = i % 2 ? '#3a8341' : '#46934d'; const z0 = -HL + (i * 2 * HL) / 16; c.fillRect(X(-HW), Z(z0 + (2 * HL) / 16), 2 * HW * S, (2 * HL / 16) * S + 1); }
     // outside the lines: darker
-    c.fillStyle = '#2e6d36'; c.fillRect(0, 0, X(-HW), h); c.fillRect(X(HW), 0, w - X(HW), h); c.fillRect(0, 0, w, Z(HL + 0)); c.fillRect(0, Z(-HL), w, h - Z(-HL));
+    c.fillStyle = '#2e6d36'; c.fillRect(0, 0, X(-HW), TH); c.fillRect(X(HW), 0, w - X(HW), TH); c.fillRect(0, 0, w, Z(HL + 0)); c.fillRect(0, Z(-HL), w, TH - Z(-HL));
     // grain
-    const id = c.getImageData(0, 0, w, h), rnd = seeded(9);
+    const id = c.getImageData(0, 0, w, TH), rnd = seeded(9);
     for (let i = 0; i < id.data.length; i += 4) { const n = (rnd() - 0.5) * 10; id.data[i] += n; id.data[i + 1] += n; id.data[i + 2] += n * 0.6; }
     c.putImageData(id, 0, 0);
     c.strokeStyle = '#f4f7f2'; c.lineWidth = 0.1 * S; c.lineCap = 'butt';
@@ -65,55 +71,58 @@ export function buildPitch(stage) {
       c.strokeRect(X(-GOAL_HW - 2.2), Z(sg * HL), (GOAL_HW * 2 + 4.4) * S, -sg * SMALL_D * S);   // small rectangle
       c.beginPath(); c.arc(X(0), Z(sg * (HL - LINE_20)), 5 * S, sg > 0 ? 0.0 : Math.PI, sg > 0 ? Math.PI : 2 * Math.PI, false); c.stroke();
     }
+    // white swatch
+    c.fillStyle = '#fff'; c.fillRect(0, TH, w, SW);
+    // crowd strip
+    const y0 = TH + SW;
+    c.fillStyle = '#1b2a22'; c.fillRect(0, y0, w, CR);
+    const rc = seeded(17), cols = ['#c9544a', '#e6c24f', '#3f86c9', '#eeeeee', '#58a67e', '#8a63b8', '#df8f3d', '#2a2a2e'];
+    for (let row = 0; row < 7; row++) for (let i = 0; i < 200; i++) { c.fillStyle = cols[Math.floor(rc() * cols.length)]; c.globalAlpha = 0.7; c.beginPath(); c.arc(i * 5.2 + rc() * 3, y0 + 12 + row * 16 + rc() * 4, 3.1 + rc() * 1.5, 0, 6.3); c.fill(); }
+    c.globalAlpha = 1;
+    // net strip (transparent background, cut out with alphaTest)
+    const n0 = y0 + CR + 8;
+    c.strokeStyle = 'rgba(245,245,240,0.95)'; c.lineWidth = 1.6;
+    for (let x = 0; x <= w; x += 32) { c.beginPath(); c.moveTo(x, n0); c.lineTo(x, n0 + NT); c.stroke(); }
+    for (let y = 0; y <= NT; y += 16) { c.beginPath(); c.moveTo(0, n0 + y); c.lineTo(w, n0 + y); c.stroke(); }
   });
-  const field = plane(PW, PL, new THREE.MeshStandardMaterial({ map: grass, roughness: 1, metalness: 0 }), 0, 0, 0);
-  field.receiveShadow = true; g.add(field);
-  const outer = plane(160, 160, new THREE.MeshStandardMaterial({ color: '#25552c', roughness: 1 }), 0, -0.01, 0); g.add(outer);
+  atlas.generateMipmaps = true;
+  const V_ = (y) => 1 - y / AH;     // canvas row -> texture v
+  const WH = [0.5, V_(TH + SW / 2)];                       // white swatch point
+  const CRW = [0, V_(TH + SW + CR - 2), 1, V_(TH + SW + 2)];   // crowd window (u0, vBottom, u1, vTop)
+  const NTW = [0, V_(TH + SW + CR + 8 + NT - 2), 1, V_(TH + SW + CR + 8 + 2)];
+  const parts = [];
+  // ground: the pitch window uses the top TH rows; the surround is flat colour
+  parts.push({ geo: new THREE.PlaneGeometry(PW, PL), p: [0, 0, 0], r: [-Math.PI / 2, 0, 0], uvr: [0, V_(TH), 1, 1] });
+  parts.push({ geo: new THREE.PlaneGeometry(160, 160), p: [0, -0.01, 0], r: [-Math.PI / 2, 0, 0], uvc: WH, c: 0x25552c });
 
-  // ---- goals: H-shaped posts, crossbar, net behind the line (all merged: one call for the frames, one for the nets)
-  const netTex = canvasTex(256, 128, (c, w, h) => {
-    c.clearRect(0, 0, w, h); c.strokeStyle = 'rgba(245,245,240,0.85)'; c.lineWidth = 2;
-    for (let x = 0; x <= w; x += 16) { c.beginPath(); c.moveTo(x, 0); c.lineTo(x, h); c.stroke(); }
-    for (let y = 0; y <= h; y += 16) { c.beginPath(); c.moveTo(0, y); c.lineTo(w, y); c.stroke(); }
-  }, [1, 1]);
-  const netMat = new THREE.MeshStandardMaterial({ map: netTex, transparent: true, alphaTest: 0.08, side: THREE.DoubleSide, roughness: 1, depthWrite: false });
-  const frameParts = [], netParts = [];
+  // ---- goals: H-shaped posts, crossbar, net behind the line
   for (const sg of [1, -1]) {
     const z0 = sg * HL, d = NET_D * sg;
-    for (const x of [-GOAL_HW, GOAL_HW]) frameParts.push({ geo: new THREE.CylinderGeometry(0.075, 0.085, POST_H, 12), p: [x, POST_H / 2, z0], c: 0xf6f6f2 });
-    frameParts.push({ geo: new THREE.CylinderGeometry(0.065, 0.065, GOAL_HW * 2, 12), p: [0, BAR, z0], r: [0, 0, Math.PI / 2], c: 0xf6f6f2 });
-    frameParts.push({ geo: new THREE.CylinderGeometry(0.03, 0.03, GOAL_HW * 2, 8), p: [0, 0.03, z0 + d], r: [0, 0, Math.PI / 2], c: 0xf6f6f2 });
-    netParts.push({ geo: new THREE.PlaneGeometry(GOAL_HW * 2, BAR), p: [0, BAR / 2, z0 + d] });
-    for (const sx of [-1, 1]) netParts.push({ geo: new THREE.PlaneGeometry(NET_D, BAR), p: [sx * GOAL_HW, BAR / 2, z0 + d / 2], r: [0, Math.PI / 2, 0] });
-    netParts.push({ geo: new THREE.PlaneGeometry(GOAL_HW * 2, NET_D), p: [0, BAR, z0 + d / 2], r: [-Math.PI / 2, 0, 0] });
+    for (const x of [-GOAL_HW, GOAL_HW]) parts.push({ geo: new THREE.CylinderGeometry(0.075, 0.085, POST_H, 12), p: [x, POST_H / 2, z0], uvc: WH, c: 0xf6f6f2 });
+    parts.push({ geo: new THREE.CylinderGeometry(0.065, 0.065, GOAL_HW * 2, 12), p: [0, BAR, z0], r: [0, 0, Math.PI / 2], uvc: WH, c: 0xf6f6f2 });
+    parts.push({ geo: new THREE.CylinderGeometry(0.03, 0.03, GOAL_HW * 2, 8), p: [0, 0.03, z0 + d], r: [0, 0, Math.PI / 2], uvc: WH, c: 0xf6f6f2 });
+    parts.push({ geo: new THREE.PlaneGeometry(GOAL_HW * 2, BAR), p: [0, BAR / 2, z0 + d], uvr: NTW });
+    for (const sx of [-1, 1]) parts.push({ geo: new THREE.PlaneGeometry(NET_D, BAR), p: [sx * GOAL_HW, BAR / 2, z0 + d / 2], r: [0, Math.PI / 2, 0], uvr: NTW });
+    parts.push({ geo: new THREE.PlaneGeometry(GOAL_HW * 2, NET_D), p: [0, BAR, z0 + d / 2], r: [-Math.PI / 2, 0, 0], uvr: NTW });
   }
-  g.add(new THREE.Mesh(mergeParts(frameParts), new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.4, metalness: 0.1 })));
-  g.add(new THREE.Mesh(mergeParts(netParts), netMat));
 
-  // ---- stands: tiers with a crowd texture on the long sides and behind the far goal; dark boards in front
-  const crowd = canvasTex(512, 128, (c, w, h) => {
-    c.fillStyle = '#1b2a22'; c.fillRect(0, 0, w, h);
-    const rnd = seeded(17), cols = ['#c9544a', '#e6c24f', '#3f86c9', '#eeeeee', '#58a67e', '#8a63b8', '#df8f3d', '#2a2a2e'];
-    for (let row = 0; row < 7; row++) for (let i = 0; i < 100; i++) { c.fillStyle = cols[Math.floor(rnd() * cols.length)]; c.globalAlpha = 0.7; c.beginPath(); c.arc(i * 5.2 + rnd() * 3, 12 + row * 16 + rnd() * 4, 3.1 + rnd() * 1.5, 0, 6.3); c.fill(); }
-    c.globalAlpha = 1;
-  });
-  const crowdMat = new THREE.MeshStandardMaterial({ map: crowd, roughness: 1, side: THREE.DoubleSide });
-  const stepParts = [], crowdParts = [];
+  // ---- stands: tiers with a crowd on the long sides and behind the far goal; dark boards in front
   const tier = (len, x, z, ry, rows = 3) => {
     const cs = Math.cos(ry), sn = Math.sin(ry);
     const W = (lx, ly, lz) => [x + lx * cs + lz * sn, ly, z - lx * sn + lz * cs];   // local -> world (rotation about Y)
     for (let r = 0; r < rows; r++) {
-      stepParts.push({ geo: new THREE.BoxGeometry(len, 0.9, 1.4), p: W(0, 0.45 + r * 0.9, r * 1.4), r: [0, ry, 0], c: 0x3c4540 });
-      crowdParts.push({ geo: new THREE.PlaneGeometry(len, 0.9), p: W(0, 1.1 + r * 0.9, r * 1.4 - 0.71), r: [0, ry, 0] });
+      parts.push({ geo: new THREE.BoxGeometry(len, 0.9, 1.4), p: W(0, 0.45 + r * 0.9, r * 1.4), r: [0, ry, 0], uvc: WH, c: 0x3c4540 });
+      parts.push({ geo: new THREE.PlaneGeometry(len, 0.9), p: W(0, 1.1 + r * 0.9, r * 1.4 - 0.71), r: [0, ry, 0], uvr: CRW });
     }
   };
   tier(HL * 2 + 12, HW + 5.2, 0, Math.PI / 2);
   tier(HL * 2 + 12, -HW - 5.2, 0, -Math.PI / 2);
   tier(HW * 2 + 14, 0, HL + 7.0, 0);
-  const bd = (len, x, z, ry) => stepParts.push({ geo: new THREE.BoxGeometry(len, 0.9, 0.12), p: [x, 0.45, z], r: [0, ry, 0], c: 0x173d2b });
+  const bd = (len, x, z, ry) => parts.push({ geo: new THREE.BoxGeometry(len, 0.9, 0.12), p: [x, 0.45, z], r: [0, ry, 0], uvc: WH, c: 0x173d2b });
   bd(HL * 2 + 6, HW + 2.6, 0, Math.PI / 2); bd(HL * 2 + 6, -HW - 2.6, 0, Math.PI / 2); bd(HW * 2 + 6, 0, HL + 6.5, 0);
-  g.add(new THREE.Mesh(mergeParts(stepParts), new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1 })));
-  g.add(new THREE.Mesh(mergeParts(crowdParts), crowdMat));
+  const mat = new THREE.MeshStandardMaterial({ map: atlas, vertexColors: true, roughness: 0.95, metalness: 0, side: THREE.DoubleSide, alphaTest: 0.2 });
+  const mesh = new THREE.Mesh(mergeParts(parts), mat);
+  g.add(mesh);
   stage.add(g);
   return g;
 }

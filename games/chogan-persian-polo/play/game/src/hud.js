@@ -131,7 +131,7 @@ function fieldOverlays(ctx, G, S, s, L, rider) {
   }
   const col = best > 0 ? '#7fe8d6' : 'rgba(255,246,228,0.55)';
   const bp = P(G, b.x, 0.02, b.z);
-  if (bp) { const rr = Math.max(14, scaleAt(G.viewW || 720, G.viewH || 1280, b.x, b.z) * 0.62); ctx.save(); ctx.beginPath(); ctx.ellipse(bp.x, bp.y, rr * 1.15, rr * 0.7, 0, 0, TAU); ctx.lineWidth = best > 0 ? 5 : 3; ctx.strokeStyle = col; ctx.stroke(); ctx.restore(); }
+  if (bp) { const rr = Math.max(14, scaleAt(G.viewW || 720, G.viewH || 1280, b.x, b.z) * 0.9); ctx.save(); ctx.beginPath(); ctx.ellipse(bp.x, bp.y, rr * 1.15, rr * 0.7, 0, 0, TAU); ctx.lineWidth = best > 0 ? 5 : 3; ctx.strokeStyle = col; ctx.stroke(); ctx.restore(); }
   // aim arrow while winding or when steering during a stroke
   if (rider.sw.ph === 'wind' || rider.sw.ph === 'strike') {
     const dir = rider.sw.ph === 'wind' ? G.aimDir : rider.sw.dir;

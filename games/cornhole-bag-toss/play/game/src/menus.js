@@ -2,7 +2,7 @@
 // paginated About / How to Play / Rules reader with its illustrations (drawn with the game's own board and bags). Pure drawing.
 import { W, H, TEXT_SCALES, TEXT_DEC, TEXT_INC, REF_BACK, REF_NEXT, THINK_STEPS, SETUP_PINS } from './layout.js';
 import { FONT, NUM, C, roundPath, drawButton, panel, wrapLines, textShadow, flowLayout, drawFlow, flowHit } from './ui.js';
-import { drawBackdrop, drawLawn, drawProps, drawBoard, drawBags, drawParts, interpBags, TAU } from './scene.js';
+import { drawStill, drawBags, drawParts, interpBags, TAU } from './scene.js';
 import { PROFILES, ASSIST } from './ai.js';
 import { LENGTHS, pointsOf, BAGS_EACH } from './engine.js';
 import { STYLES, BOARD_W, BOARD_L, HOLE_V, HOLE_R, BAG_HALF, G, RELEASE, arcPoints, BOARD_Z0, COS_A, holeWorld } from './phys.js';
@@ -37,7 +37,7 @@ const spaced = (ctx, text, cx, y, gap) => {
 // ---- the live backyard behind the title and the menus --------------------------------------------------------------------------
 export function drawAttract(ctx, state) {
   const a = state.att, cam = a.cam;
-  drawBackdrop(ctx, cam, state.t); drawLawn(ctx, cam, state.t); drawProps(ctx, cam); drawBoard(ctx, cam);
+  drawStill(ctx, cam, state.t);
   drawBags(ctx, cam, interpBags(a.sim, a.alpha));
   drawParts(ctx, cam, a.parts);
 }
@@ -181,7 +181,7 @@ export function quizWidgets(state) {
     { t: 'p', label: `Red has ${A.pa} points on the board, blue has ${A.pb}. Who scores this round?`, size: 26, color: '#ffe9bf' },
     { t: 'art', h: 330, draw(ctx, w, h) { drawQuizBoard(ctx, w, h, q); } }];
   if (L.feedback) wd.push({ t: 'p', label: L.feedback, size: 26, bold: true, color: L.lastOk ? '#9fe8b4' : '#ffb4a0' });
-  A.options.forEach((o, i) => wd.push({ t: 'btn', id: `ans${i}`, label: o, h: 84, disabled: !!L.feedback && L.lastOk, active: L.chosen === o && L.lastOk }));
+  A.options.forEach((o, i) => wd.push({ t: 'btn', id: `ans${i}`, label: o, h: 84, disabled: !!L.feedback && L.lastOk && L.chosen !== o, active: L.chosen === o && L.lastOk }));
   if (L.feedback && L.lastOk) wd.push({ t: 'btn', id: 'qnext', label: qi + 1 >= QUIZ.length ? 'Finish' : 'Next question', primary: true, h: 88 });
   wd.push({ t: 'btn', id: 'qquit', label: 'Back to the lessons', dark: true, h: 76 }, { t: 'gap', h: 30 });
   return wd;
@@ -221,6 +221,7 @@ export function sheetWidgets(state) {
   const dTxt = depth < 0 ? `${-depth} cm short of the board` : depth > 122 ? `${depth - 122} cm past the board` : `${depth} cm up the board`;
   return [
     { t: 'h', label: 'Set up your throw', size: 40 },
+    ...(state.guide ? [{ t: 'p', label: state.guide, size: 24, color: '#e8fbff' }] : []),
     { t: 'p', label: `Style: ${STYLES[p.style].name}`, bold: true, color: '#ffe9bf', size: 26 },
     { t: 'btn', id: 'sty-', label: '◄ Lower', row: 1, disabled: p.style <= 0 || lock },
     { t: 'btn', id: 'sty+', label: 'Higher ►', row: 1, disabled: p.style >= 2 || lock },
@@ -244,6 +245,11 @@ export function whyWidgets(state) {
   return [
     { t: 'h', label: state.why.title, size: 40 },
     { t: 'p', label: state.why.text, size: 26, color: '#e8fbff', align: 'left' },
+    ...(state.m && state.m.cfg.mode === 'watch' ? [
+      { t: 'p', label: `Thinking time: ${THINK_STEPS[state.settings.thinkIdx]} s`, bold: true, color: '#ffe9bf', size: 26 },
+      { t: 'btn', id: 'wdec', label: 'Shorter', row: 5, disabled: state.settings.thinkIdx === 0 },
+      { t: 'btn', id: 'winc', label: 'Longer', row: 5, disabled: state.settings.thinkIdx === THINK_STEPS.length - 1 },
+    ] : []),
     { t: 'btn', id: 'wclose', label: 'Close', primary: true, h: 88 },
     { t: 'gap', h: 20 },
   ];
@@ -305,8 +311,9 @@ export function renderSetup(ctx, state) {
   const g = ctx.createLinearGradient(0, 1100, 0, H);
   g.addColorStop(0, 'rgba(8,16,8,0)'); g.addColorStop(0.2, 'rgba(8,16,8,0.88)'); g.addColorStop(1, 'rgba(8,16,8,0.96)');
   ctx.fillStyle = g; ctx.fillRect(0, 1100, W, H - 1100);
-  drawButton(ctx, SETUP_PINS.start, 'Start the game', { primary: true, size: 32 });
-  drawButton(ctx, SETUP_PINS.back, 'Back', { dark: true, size: 28 });
+  const zz = TEXT_SCALES[state.settings.textIdx];
+  drawButton(ctx, SETUP_PINS.start, 'Start the game', { primary: true, size: Math.round(32 * Math.min(zz, 1.7)) });
+  drawButton(ctx, SETUP_PINS.back, 'Back', { dark: true, size: Math.round(28 * Math.min(zz, 2)) });
   if (state.setupMsg) { ctx.textAlign = 'center'; ctx.font = `700 22px ${FONT}`; ctx.fillStyle = '#ffd9a0'; ctx.fillText(state.setupMsg, W / 2, 1140); }
 }
 export function renderSettings(ctx, state) { backdrop(ctx, state, 0.74); drawFlowScreen(ctx, state, 'settings', settingsWidgets(state), 0, H); }
@@ -344,6 +351,10 @@ export function renderSheet(ctx, state) {
 // ---- reference pages --------------------------------------------------------------------------
 let PAGE_COUNT = 1;
 export const pageCount = () => PAGE_COUNT;
+// The reader is one continuous column: the pages are laid end to end, each one SLOT tall, and the window shows a part of it. The player can drag
+// (or use the wheel, the arrow keys, Page Up / Down) to scroll to any line; Back / Next jump a whole page. The scroll bar on the right shows where
+// the window is in the whole text.
+export const READER = { slot: 1, view: 1, max: 0 };
 const PANEL = { x: 34, y: 100, w: 652, h: 1030 };
 
 function buildPages(ctx, list, scale) {
@@ -390,17 +401,49 @@ export function renderPages(ctx, state, list, header) {
   let pages = pageCache.get(pkey);
   if (!pages) { pages = buildPages(ctx, list, sc); pageCache.set(pkey, pages); }
   PAGE_COUNT = pages.length;
-  const idx = Math.min(state.page, pages.length - 1);
-  const pg = pages[idx];
+  const top = PANEL.y + 100, bottom = PANEL.y + PANEL.h - 52, slot = PANEL.h - 190 + 24;
+  READER.slot = slot; READER.view = bottom - top; READER.max = Math.max(0, pages.length * slot - READER.view);
+  if (state.ui.rsKey !== pkey) { state.ui.rsKey = pkey; state.ui.rsPage = -1; }
+  if (state.ui.rsPage !== state.page) { state.ui.rs = Math.min(READER.max, Math.max(0, Math.min(state.page, pages.length - 1) * slot)); state.ui.rsPage = state.page; }
+  state.ui.rs = Math.min(READER.max, Math.max(0, state.ui.rs ?? 0));
+  const rs = state.ui.rs;
+  const idx = Math.min(pages.length - 1, Math.max(0, Math.round(rs / slot)));
   panel(ctx, PANEL.x, PANEL.y, PANEL.w, PANEL.h, { r: 30, fill: 'rgba(250,244,224,0.97)', stroke: 'rgba(120,86,40,0.8)' });
   ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
   ctx.fillStyle = C.redDark; ctx.font = `700 ${Math.round(40 * Math.min(sc, 1.15))}px ${FONT}`;
   ctx.fillText(header, W / 2, PANEL.y + 58);
   ctx.strokeStyle = 'rgba(110,76,40,0.4)'; ctx.lineWidth = 2;
   ctx.beginPath(); ctx.moveTo(PANEL.x + 60, PANEL.y + 78); ctx.lineTo(PANEL.x + PANEL.w - 60, PANEL.y + 78); ctx.stroke();
-  let y = PANEL.y + 120;
+  // the window on the text
+  ctx.save(); ctx.beginPath(); ctx.rect(PANEL.x + 10, top, PANEL.w - 20, bottom - top); ctx.clip();
+  pages.forEach((pg, pi) => {
+    const y0 = PANEL.y + 120 + pi * slot - rs;
+    if (y0 > bottom || y0 + slot < top) return;
+    drawReaderPage(ctx, pg, state, y0);
+  });
+  ctx.restore();
+  // fade at the top and the bottom edge of the window when there is more text beyond it
+  if (rs > 2) { const g = ctx.createLinearGradient(0, top, 0, top + 26); g.addColorStop(0, 'rgba(250,244,224,0.95)'); g.addColorStop(1, 'rgba(250,244,224,0)'); ctx.fillStyle = g; ctx.fillRect(PANEL.x + 10, top, PANEL.w - 20, 26); }
+  if (rs < READER.max - 2) { const g = ctx.createLinearGradient(0, bottom - 26, 0, bottom); g.addColorStop(0, 'rgba(250,244,224,0)'); g.addColorStop(1, 'rgba(250,244,224,0.95)'); ctx.fillStyle = g; ctx.fillRect(PANEL.x + 10, bottom - 26, PANEL.w - 20, 26); }
+  // the scroll bar
+  if (READER.max > 0) {
+    const th = Math.max(54, (bottom - top) * ((bottom - top) / (pages.length * slot))), ty = top + (rs / READER.max) * (bottom - top - th);
+    roundPath(ctx, PANEL.x + PANEL.w - 18, top, 8, bottom - top, 4); ctx.fillStyle = 'rgba(110,76,40,0.16)'; ctx.fill();
+    roundPath(ctx, PANEL.x + PANEL.w - 18, ty, 8, th, 4); ctx.fillStyle = 'rgba(140,31,27,0.7)'; ctx.fill();
+  }
+  ctx.textAlign = 'center'; ctx.font = `400 22px ${FONT}`; ctx.fillStyle = 'rgba(70,50,30,0.7)';
+  ctx.fillText(`Page ${idx + 1} of ${pages.length}${READER.max > 0 ? '  ·  drag to scroll' : ''}`, W / 2, PANEL.y + PANEL.h - 22);
+  drawButton(ctx, TEXT_DEC, 'A−', { disabled: state.settings.textIdx === 0, size: 30 });
+  drawButton(ctx, TEXT_INC, 'A+', { disabled: state.settings.textIdx === TEXT_SCALES.length - 1, size: 30 });
+  ctx.fillStyle = '#fff3d6'; ctx.font = `700 24px ${FONT}`; ctx.textAlign = 'center';
+  ctx.fillText(`${Math.round(sc * 100)}%`, W / 2, 56);
+  drawButton(ctx, REF_BACK, idx === 0 && rs < 4 ? 'Close' : 'Back', { size: 32 });
+  drawButton(ctx, REF_NEXT, rs >= READER.max - 4 ? 'Done' : 'Next', { primary: true, size: 32 });
+}
+function drawReaderPage(ctx, pg, state, y0) {
+  let y = y0;
   pg.blocks.forEach((blk, bi) => {
-    if (bi > 0) { ctx.strokeStyle = 'rgba(110,76,40,0.25)'; ctx.beginPath(); ctx.moveTo(PANEL.x + 80, y - 8); ctx.lineTo(PANEL.x + PANEL.w - 80, y - 8); ctx.stroke(); y += 8; }
+    if (bi > 0) { ctx.strokeStyle = 'rgba(110,76,40,0.25)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(PANEL.x + 80, y - 8); ctx.lineTo(PANEL.x + PANEL.w - 80, y - 8); ctx.stroke(); y += 8; }
     ctx.textAlign = 'center'; ctx.fillStyle = C.red; ctx.font = `700 ${pg.secFs}px ${FONT}`;
     blk.tl.forEach((l, k) => ctx.fillText(blk.part > 0 || k < blk.tl.length - 1 ? l : l.replace(/ ?\(cont\.\)$/, ''), W / 2, y + pg.secFs * (0.9 + k * 1.2) - 8));
     y += blk.titleH;
@@ -413,14 +456,6 @@ export function renderPages(ctx, state, list, header) {
     });
     y += 26;
   });
-  ctx.textAlign = 'center'; ctx.font = `400 22px ${FONT}`; ctx.fillStyle = 'rgba(70,50,30,0.7)';
-  ctx.fillText(`Page ${idx + 1} of ${pages.length}`, W / 2, PANEL.y + PANEL.h - 28);
-  drawButton(ctx, TEXT_DEC, 'A−', { disabled: state.settings.textIdx === 0, size: 30 });
-  drawButton(ctx, TEXT_INC, 'A+', { disabled: state.settings.textIdx === TEXT_SCALES.length - 1, size: 30 });
-  ctx.fillStyle = '#fff3d6'; ctx.font = `700 24px ${FONT}`; ctx.textAlign = 'center';
-  ctx.fillText(`${Math.round(sc * 100)}%`, W / 2, 56);
-  drawButton(ctx, REF_BACK, idx === 0 ? 'Close' : 'Back', { size: 32 });
-  drawButton(ctx, REF_NEXT, idx === pages.length - 1 ? 'Done' : 'Next', { primary: true, size: 32 });
 }
 
 // ---- illustrations: drawn with the game's own board and bags -----------------------------------------------------------------

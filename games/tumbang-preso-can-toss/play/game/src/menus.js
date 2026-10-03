@@ -1,7 +1,7 @@
 // Every screen that is not the play screen: title, setup, Learn, quiz, settings, result, pause, round summary, lesson result and the
 // paginated About / How to play / Rules reader with its illustrations (drawn with the game's own can, slippers and tokens through
 // the same true-perspective camera). Pure drawing; game.js owns state.
-import { W, H, TEXT_SCALES, TEXT_DEC, TEXT_INC, REF_BACK, REF_NEXT, THINK_STEPS, SETUP_PINS } from './layout.js';
+import { W, H, TEXT_SCALES, TEXT_DEC, TEXT_INC, REF_CLOSE, THINK_STEPS, SETUP_PINS, clamp } from './layout.js';
 import { FIELD, CAN, LINE_Z, TAG_R, STYLES, throwSolve, G, HAND_Y, createWorld, taya, throwers, slipOf, runTimes } from './sim.js';
 import { drawCan, drawSlipper, drawPawn, drawShadow, groundRing, pawnLook } from './art.js';
 import { drawAttract, makeCam } from './view.js';
@@ -13,15 +13,14 @@ import { ABOUT, HOWTO, RULES } from './content.js';
 const TAU = Math.PI * 2;
 
 // ---- flow screens ------------------------------------------------------------------------------------
-let PAGE_COUNT = 1;
 let LAID = { key: '', lay: null, top: 0, bottom: H };
 export const flowMeta = () => LAID;
-export function resetMenus() { LAID = { key: '', lay: null, top: 0, bottom: H }; PAGE_COUNT = 1; }
+export function resetMenus() { LAID = { key: '', lay: null, top: 0, bottom: H }; colCache.clear(); }
 const estCtx = { font: '', measureText(t) { const m = /(\d+)px/.exec(this.font); return { width: String(t).length * (m ? +m[1] : 20) * 0.55 }; } };
 const DEFS = () => ({
   title: [titleWidgets, 0, H], setup: [setupWidgets, 0, 1130], settings: [settingsWidgets, 0, H], learn: [learnWidgets, 0, H],
   quiz: [quizWidgets, 0, H], result: [resultWidgets, 0, H], demolimit: [demoLimitWidgets, 0, H],
-  pause: [pauseWidgets, 60, H - 60, true], reason: [reasonWidgets, 60, H - 60, true], roundover: [roundWidgets, 60, H - 60, true], lessonres: [lessonWidgets, 60, H - 60, true],
+  pause: [pauseWidgets, 60, H - 60, true], sheet: [sheetWidgets, 60, H - 60, true], reason: [reasonWidgets, 60, H - 60, true], roundover: [roundWidgets, 60, H - 60, true], lessonres: [lessonWidgets, 60, H - 60, true],
 });
 export function ensureLayout(state, key) {
   if (LAID.key === key && LAID.lay) return;
@@ -91,6 +90,7 @@ export function settingsWidgets(state) {
   return [
     { t: 'gap', h: 10 }, { t: 'h', label: 'Settings', size: 48 },
     { t: 'btn', id: 'set-sound', label: st.sound ? 'Sound: On' : 'Sound: Off' },
+    { t: 'btn', id: 'set-haptics', label: st.haptics ? 'Vibration: On' : 'Vibration: Off', sub: 'A short buzz when a throw lands, a can falls or you are tagged (on phones that allow it)' },
     { t: 'p', label: `Text size: ${Math.round(sc * 100)}%`, bold: true, color: '#e6cfa6', size: 26 },
     { t: 'btn', id: 'txt-dec', label: 'A−  Smaller', row: 4, disabled: st.textIdx === 0 },
     { t: 'btn', id: 'txt-inc', label: 'A+  Larger', row: 4, disabled: st.textIdx === TEXT_SCALES.length - 1 },
@@ -179,6 +179,20 @@ export function pauseWidgets(state) {
     { t: 'btn', id: 'p-txtdec', label: 'A−', row: 10, disabled: st.textIdx === 0 },
     { t: 'btn', id: 'p-txtinc', label: 'A+', row: 10, disabled: st.textIdx === TEXT_SCALES.length - 1 },
     { t: 'btn', id: 'quit', label: lesson ? 'Back to Learn' : 'Quit to menu', dark: true },
+  ];
+}
+
+// The set-up sheet used at 200% text and above instead of the Lob / Skim / Think buttons (the yard keeps its size).
+export function sheetWidgets(state) {
+  const st = state.aim.style;
+  return [
+    { t: 'h', label: 'Set up your throw', size: 40 },
+    { t: 'p', label: st === 'skim' ? 'Skim: low and fast, sends the can far.' : 'Lob: high arc, easier to place.', size: 24, color: '#e6cfa6' },
+    { t: 'btn', id: 'sty-lob', label: 'Lob', row: 11, active: st === 'lob', dark: st !== 'lob' },
+    { t: 'btn', id: 'sty-skim', label: 'Skim', row: 11, active: st === 'skim', dark: st !== 'skim' },
+    { t: 'btn', id: 'sh-done', label: 'Done', primary: true, h: 88 },
+    { t: 'btn', id: 'sh-think', label: 'Think', sub: 'Show a hint', dark: true },
+    { t: 'btn', id: 'sh-menu', label: 'Pause menu', dark: true },
   ];
 }
 
@@ -287,91 +301,95 @@ function modal(ctx, state, key, widgets) {
   drawFlow(ctx, lay, y0, y0 + ch, sc0);
   scrollHint(ctx, y0, y0 + ch, sc0, maxScroll, 30, 660);
 }
+export const renderSheet = (ctx, state) => modal(ctx, state, 'sheet', sheetWidgets(state));
 export const renderPause = (ctx, state) => modal(ctx, state, 'pause', pauseWidgets(state));
 export const renderReason = (ctx, state) => modal(ctx, state, 'reason', reasonWidgets(state));
 export const renderRoundOver = (ctx, state) => modal(ctx, state, 'roundover', roundWidgets(state));
 export const renderLessonResult = (ctx, state) => modal(ctx, state, 'lessonres', lessonWidgets(state));
 
 // ---- reference pages --------------------------------------------------------------------------------
-export const pageCount = () => PAGE_COUNT;
+// About / How to Play / Rules are ONE scrolling column inside a panel: drag, swipe, mouse wheel, arrow / page keys and the scroll bar
+// all move it, at every text size. READ holds the measured column so game.js knows how far it can scroll.
 const PANEL = { x: 34, y: 100, w: 652, h: 1030 };
+export const READER = { x: PANEL.x + 14, y: PANEL.y + 92, w: PANEL.w - 28, h: PANEL.h - 92 - 16 };
+let READ = { key: '', contentH: 0 };
+export const readerMax = () => Math.max(0, READ.contentH - READER.h);
+export const readerKey = () => READ.key;
 
-function buildPages(ctx, list, scale) {
-  const fs = Math.round(28 * scale), lh = fs * 1.28, tw = PANEL.w - 80;
+function buildColumn(ctx, list, scale) {
+  const fs = Math.round(28 * scale), lh = fs * 1.28, tw = PANEL.w - 96;
   const secFs = Math.round(34 * Math.min(scale, 1.3));
-  const top = PANEL.y + 120, limit = PANEL.y + PANEL.h - 70;
-  const pages = [];
-  let cur = null, used = 0;
-  const newPage = () => { cur = { blocks: [], fs, lh, secFs }; used = 0; pages.push(cur); };
-  list.forEach((sec) => {
-    ctx.font = `700 ${secFs}px ${FONT}`;
+  const items = [];
+  let y = 10;
+  list.forEach((sec, si) => {
+    if (si > 0) { items.push({ k: 'rule', y: y - 6 }); y += 14; }
+    ctx.font = `800 ${secFs}px ${FONT}`;
     const tl = wrapLines(ctx, sec.title, tw);
-    const titleH = tl.length * secFs * 1.2 + 16;
+    items.push({ k: 'title', y, lines: tl, fs: secFs });
+    y += tl.length * secFs * 1.2 + 14;
+    if (sec.art) { items.push({ k: 'art', y, h: 300, art: sec.art }); y += 310; }
     ctx.font = `400 ${fs}px ${FONT}`;
-    const lines = [];
-    sec.p.forEach((para, pi) => { wrapLines(ctx, para, tw).forEach((l, k) => lines.push({ text: l, gapBefore: k === 0 && pi > 0 })); });
-    const lineH = (l, n) => lh + (l.gapBefore && n > 0 ? lh * 0.45 : 0);
-    const artH = sec.art ? 300 : 0;
-    let full = titleH + artH + 26;
-    lines.forEach((l, k) => { full += lineH(l, k); });
-    if (!cur || used + full > limit - top) newPage();
-    let i = 0, part = 0;
-    while (true) {
-      const blk = { title: sec.title, tl, titleH, art: part === 0 ? sec.art : null, artH: part === 0 ? artH : 0, lines: [], part };
-      let h = titleH + blk.artH + 26;
-      while (i < lines.length) {
-        const add = lineH(lines[i], blk.lines.length);
-        if (used + h + add > limit - top && (blk.lines.length > 0 || used > 0)) break;
-        blk.lines.push({ ...lines[i] }); h += add; i++;
-      }
-      cur.blocks.push(blk); used += h;
-      part++;
-      if (i >= lines.length) break;
-      newPage();
-    }
+    sec.p.forEach((para, pi) => {
+      if (pi > 0) y += lh * 0.45;
+      wrapLines(ctx, para, tw).forEach((l) => { items.push({ k: 'line', y, text: l }); y += lh; });
+    });
+    y += 22;
   });
-  return pages;
+  return { items, contentH: y + 8, fs, lh };
 }
 
-const pageCache = new Map();
+const colCache = new Map();
+function ensureColumn(ctx, list, header, sc) {
+  const key = `${header}:${sc}`;
+  let col = colCache.get(key);
+  if (!col) { col = buildColumn(ctx, list, sc); colCache.set(key, col); }
+  READ = { key, contentH: col.contentH };
+  return col;
+}
+// called by game.js before the first frame of a reader screen, so scrolling limits exist even before it was drawn
+export function ensureReader(state, list, header) { const sc = TEXT_SCALES[state.settings.textIdx]; if (!colCache.has(`${header}:${sc}`)) READ = { key: `${header}:${sc}`, contentH: buildColumn(estCtx, list, sc).contentH }; else READ = { key: `${header}:${sc}`, contentH: colCache.get(`${header}:${sc}`).contentH }; }
+
 export function renderPages(ctx, state, list, header) {
   attract(ctx, state); scrim(ctx, 0.76);
   const sc = TEXT_SCALES[state.settings.textIdx];
-  const pkey = `${header}:${sc}`;
-  let pages = pageCache.get(pkey);
-  if (!pages) { pages = buildPages(ctx, list, sc); pageCache.set(pkey, pages); }
-  PAGE_COUNT = pages.length;
-  const idx = Math.min(state.page, pages.length - 1);
-  const pg = pages[idx];
+  const col = ensureColumn(ctx, list, header, sc);
+  const max = readerMax(), scroll = clamp(state.ui.scroll, 0, max);
   panel(ctx, PANEL.x, PANEL.y, PANEL.w, PANEL.h, { r: 30, fill: 'rgba(252,245,230,0.98)', stroke: 'rgba(120,70,30,0.7)' });
   ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
   ctx.fillStyle = C.terraDark; ctx.font = `800 ${Math.round(40 * Math.min(sc, 1.15))}px ${FONT}`;
   ctx.fillText(header, W / 2, PANEL.y + 58);
   ctx.strokeStyle = 'rgba(120,70,30,0.4)'; ctx.lineWidth = 2;
   ctx.beginPath(); ctx.moveTo(PANEL.x + 60, PANEL.y + 78); ctx.lineTo(PANEL.x + PANEL.w - 60, PANEL.y + 78); ctx.stroke();
-  let y = PANEL.y + 120;
-  pg.blocks.forEach((blk, bi) => {
-    if (bi > 0) { ctx.strokeStyle = 'rgba(120,70,30,0.25)'; ctx.beginPath(); ctx.moveTo(PANEL.x + 80, y - 8); ctx.lineTo(PANEL.x + PANEL.w - 80, y - 8); ctx.stroke(); y += 8; }
-    ctx.textAlign = 'center'; ctx.fillStyle = C.sky; ctx.font = `800 ${pg.secFs}px ${FONT}`;
-    blk.tl.forEach((l, k) => ctx.fillText(l + (blk.part > 0 && k === blk.tl.length - 1 ? ' (cont.)' : ''), W / 2, y + pg.secFs * (0.9 + k * 1.2) - 8));
-    y += blk.titleH;
-    if (blk.art) { ctx.save(); ctx.beginPath(); ctx.rect(PANEL.x + 20, y, PANEL.w - 40, blk.artH); ctx.clip(); drawArt(blk.art, ctx, PANEL.x + 40, y, PANEL.w - 80, blk.artH - 12); ctx.restore(); y += blk.artH; }
-    ctx.fillStyle = C.ink; ctx.font = `400 ${pg.fs}px ${FONT}`; ctx.textAlign = 'left';
-    blk.lines.forEach((l, k) => {
-      if (l.gapBefore && k > 0) y += pg.lh * 0.45;
-      ctx.fillText(l.text, PANEL.x + 40, y + pg.fs * 0.85);
-      y += pg.lh;
-    });
-    y += 26;
-  });
-  ctx.textAlign = 'center'; ctx.font = `400 22px ${FONT}`; ctx.fillStyle = 'rgba(60,34,18,0.7)';
-  ctx.fillText(`Page ${idx + 1} of ${pages.length}`, W / 2, PANEL.y + PANEL.h - 28);
+  ctx.save();
+  ctx.beginPath(); ctx.rect(READER.x, READER.y, READER.w, READER.h); ctx.clip();
+  const x0 = PANEL.x + 40, top = READER.y - scroll;
+  for (const it of col.items) {
+    const y = top + it.y;
+    if (it.k === 'line') {
+      if (y > READER.y + READER.h || y + col.lh < READER.y) continue;
+      ctx.fillStyle = C.ink; ctx.font = `400 ${col.fs}px ${FONT}`; ctx.textAlign = 'left'; ctx.fillText(it.text, x0, y + col.fs * 0.85);
+    } else if (it.k === 'title') {
+      if (y > READER.y + READER.h || y + it.lines.length * it.fs * 1.2 < READER.y) continue;
+      ctx.textAlign = 'center'; ctx.fillStyle = C.sky; ctx.font = `800 ${it.fs}px ${FONT}`;
+      it.lines.forEach((l, k) => ctx.fillText(l, W / 2, y + it.fs * (0.9 + k * 1.2)));
+    } else if (it.k === 'rule') {
+      ctx.strokeStyle = 'rgba(120,70,30,0.25)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(PANEL.x + 80, y); ctx.lineTo(PANEL.x + PANEL.w - 80, y); ctx.stroke();
+    } else if (it.k === 'art') {
+      if (y > READER.y + READER.h || y + it.h < READER.y) continue;
+      ctx.save(); ctx.beginPath(); ctx.rect(PANEL.x + 20, y, PANEL.w - 40, it.h); ctx.clip(); drawArt(it.art, ctx, PANEL.x + 40, y, PANEL.w - 80, it.h - 12); ctx.restore();
+    }
+  }
+  ctx.restore();
+  if (max > 0) {
+    const th = Math.max(60, READER.h * (READER.h / col.contentH)), ty = READER.y + (scroll / max) * (READER.h - th);
+    roundPath(ctx, PANEL.x + PANEL.w - 16, ty, 8, th, 4); ctx.fillStyle = 'rgba(120,70,30,0.55)'; ctx.fill();
+    scrollHint(ctx, READER.y, READER.y + READER.h, scroll, max, PANEL.x + 14, PANEL.w - 28);
+  }
   drawButton(ctx, TEXT_DEC, 'A−', { disabled: state.settings.textIdx === 0, size: 30 });
   drawButton(ctx, TEXT_INC, 'A+', { disabled: state.settings.textIdx === TEXT_SCALES.length - 1, size: 30 });
   ctx.fillStyle = '#fff6e6'; ctx.font = `700 24px ${FONT}`; ctx.textAlign = 'center';
   ctx.fillText(`${Math.round(sc * 100)}%`, W / 2, 56);
-  drawButton(ctx, REF_BACK, idx === 0 ? 'Close' : 'Back', { size: 32 });
-  drawButton(ctx, REF_NEXT, idx === pages.length - 1 ? 'Done' : 'Next', { primary: true, size: 32 });
+  drawButton(ctx, REF_CLOSE, 'Close', { primary: true, size: 32 });
 }
 
 // ---- illustrations: the game's own can, slippers and tokens in the same perspective ---------------------------------

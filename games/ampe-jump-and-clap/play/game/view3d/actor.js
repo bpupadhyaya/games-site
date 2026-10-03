@@ -58,6 +58,7 @@ export class Actor {
     }
     this.restHand = { L: this.b.L.hand.getWorldQuaternion(Q()), R: this.b.R.hand.getWorldQuaternion(Q()) };   // hands hang with the palms toward the thighs
     this._restQ = new Map([this.b.spine2, this.b.head].map((bn) => [bn, bn.getWorldQuaternion(Q())]));
+    this.restLocal = { L: this.b.L.hand.quaternion.clone(), R: this.b.R.hand.quaternion.clone() };   // bind-pose hand rotation in the forearm frame (dev: wrist twist check)
     this.pelvisRest = this.b.pelvis.getWorldPosition(V());
     this.headRest = this.b.head.getWorldPosition(V());
     this.groundAnkle = Math.max(this.rest.L.ankleY, this.rest.R.ankleY);
@@ -253,9 +254,19 @@ export class Actor {
     // optional hand orientation: T.hand = { alpha, w }: from the hanging rest pose (fingers down, palm toward the body) pitch the fingers
     // forward by alpha degrees about the body's lateral axis; the palms then face each other (clap) instead of crossing.
     if (T.hand && T.hand.w > 0) {
-      const cur = B.hand.getWorldQuaternion(Q());
+      let cur = B.hand.getWorldQuaternion(Q());
       const q = F.bq.clone().multiply(Q().setFromAxisAngle(V(1, 0, 0), T.hand.alpha * D2R)).multiply(this.restHand[s]);
       if (T.hand.yaw) q.premultiply(Q().setFromAxisAngle(V(0, 1, 0).applyQuaternion(F.bq), T.hand.yaw * D2R));
+      // ease the palm-facing target toward the natural wrist (hand continuing the forearm) so the wrist bends less and the cuff stays smooth
+      if (T.hand.follow) q.slerp(B.fore.getWorldQuaternion(Q()).multiply(this.restLocal[s]), T.hand.follow);
+      // share the roll between forearm and hand: the wrist cuff sits between them, so it twists half as much (no candy-wrapper wrist)
+      const wr = B.hand.getWorldPosition(V()), el = B.fore.getWorldPosition(V()), ax = wr.sub(el).normalize();
+      const tgtQ = cur.clone().slerp(q, T.hand.w);
+      const d = tgtQ.clone().multiply(cur.clone().invert());
+      let tw = 2 * Math.atan2(d.x * ax.x + d.y * ax.y + d.z * ax.z, d.w);
+      if (tw > Math.PI) tw -= 2 * Math.PI; else if (tw < -Math.PI) tw += 2 * Math.PI;
+      if (Math.abs(tw) > 1e-3) rotateBoneWorld(B.fore, Q().setFromAxisAngle(ax, tw * 0.95));
+      cur = B.hand.getWorldQuaternion(Q());
       setBoneWorldQuat(B.hand, cur.slerp(q, T.hand.w));
     }
   }

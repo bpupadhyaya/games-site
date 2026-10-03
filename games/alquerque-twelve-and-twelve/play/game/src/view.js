@@ -63,10 +63,10 @@ function drawDocBlocks(ctx, S, ui, scroll) {
   if (layout.height > region.h) {
     const track = region.h - 8, tH = Math.max(48, (region.h / layout.height) * track);
     const ty = region.y + 4 + (scroll / (layout.height - region.h)) * (track - tH);
-    ctx.fillStyle = 'rgba(255,255,255,0.1)';
-    rr(ctx, region.x + region.w + 8, region.y + 4, 6, track, 3); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.18)';
+    rr(ctx, region.x + region.w + 6, region.y + 4, 10, track, 5); ctx.fill();
     ctx.fillStyle = alpha(th.accent.length === 7 ? th.accent : '#e8c46a', 0.75);
-    rr(ctx, region.x + region.w + 8, ty, 6, tH, 3); ctx.fill();
+    rr(ctx, region.x + region.w + 6, ty, 10, tH, 5); ctx.fill();
   }
 }
 

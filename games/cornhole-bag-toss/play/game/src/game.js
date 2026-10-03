@@ -8,8 +8,8 @@ import { DT, newSim, stepSim, snapSim, launchFor, throwWithError, runToEnd, AIM_
 import { newMatch, applyThrow, turnOf, bagIndex, LENGTHS, roundText, BAGS_EACH } from './engine.js';
 import { PROFILES, ASSIST, tableJob, chooseFromTable, verifyPlan, explainHint, gaussOf } from './ai.js';
 import { fixedCam } from './scene.js';
-import { renderPlay, computeLayout, sideName, statusText, whyTitle } from './view.js';
-import { renderTitle, renderSetup, renderSettings, renderLearn, renderQuiz, renderResult, renderPause, renderSheet, renderWhy, renderPages, renderDemoLimit, hitScreen, flowMeta, pageCount, ensureLayout, quizAnswers } from './menus.js';
+import { renderPlay, computeLayout, sideName, statusText, whyTitle, introGeom } from './view.js';
+import { renderTitle, renderSetup, renderSettings, renderLearn, renderQuiz, renderResult, renderPause, renderSheet, renderWhy, renderPages, renderDemoLimit, hitScreen, flowMeta, pageCount, ensureLayout, quizAnswers, READER } from './menus.js';
 import { ABOUT, HOWTO, RULES, LESSONS, QUIZ } from './content.js';
 import { setPress } from './ui.js';
 
@@ -20,7 +20,14 @@ const MAX_PARTS = 120;
 const HZ = holeWorld();
 const DEFAULT_PLAN = () => ({ style: 1, spin: 0, aimX: 0, aimZ: Math.round((HZ.z - 0.28) * 100) / 100 });
 const HAND = { x: RELEASE.x, y: RELEASE.y, z: RELEASE.z };
-const PULL_MIN = 34;
+const PULL_MIN = 28, PULL_DEAD = 12, PULL_FULL = 330;
+// The pull maths, pure so it can be measured: dx, dy are the finger's travel in scene pixels (dy positive = pulled toward the player). A small sideways
+// drift (a thumb always arcs) is ignored; a long pull simply stays at the farthest throw.
+export function pullToPlan(dx, dy) {
+  const p = clamp((dy - 22) / PULL_FULL, 0, 1);
+  const side = Math.sign(dx) * Math.max(0, Math.abs(dx) - PULL_DEAD);
+  return { aimZ: AIM_Z0 + p * (AIM_Z1 - AIM_Z0), aimX: clamp(-side * 0.0023, -AIM_X, AIM_X), dy };
+}
 
 export function createGame(env) {
   const { rng, audio, storage, config, monetization } = env;
@@ -37,6 +44,10 @@ export function createGame(env) {
       for (const type of ['pointerdown', 'pointermove', 'pointerup', 'pointercancel']) globalThis.addEventListener(type, dropStray, true);
     }
   } catch { /* no DOM (headless): nothing to guard */ }
+  // The mouse wheel / trackpad scrolls every long text (the kit does not pass it on): the deltas pile up here and the screens take them.
+  try {
+    if (typeof globalThis.addEventListener === 'function') globalThis.addEventListener('wheel', (e) => { state.wheel = clamp((state.wheel || 0) + (e.deltaMode === 1 ? e.deltaY * 32 : e.deltaY), -600, 600); }, { passive: true });
+  } catch { /* no DOM */ }
   let aiJob = null, hintJob = null;      // the search jobs live outside `state` (they are big and not state)
   const ghostCache = { key: '', val: null };
 
@@ -45,7 +56,7 @@ export function createGame(env) {
     settings: { sound: true, assist: 1, textIdx: 0, thinkIdx: 1, ghost: true },
     record: { played: 0, wins: [0, 0, 0, 0, 0], learn: 0, holes: 0, bestScore: 0, demoGames: 0, throws: 0 },
     setup: { mode: 'ai', opp: 0, len: 1 }, setupMsg: '', restoreMsg: '',
-    ui: { scroll: 0, drag: null }, page: 0, resume: null, loaded: false,
+    ui: { scroll: 0, drag: null, rs: 0, rsPage: -1, rsKey: '' }, wheel: 0, page: 0, resume: null, loaded: false,
     m: null, ph: 'intro', pt: 0, humanTurn: false, plan: DEFAULT_PLAN(), plans: [null, null], lessonCount: LESSONS.length,
     cam: fixedCam(), sim: null, handBag: null, handSide: 0, overlay: null, miniGuide: null, guide: '', parts: [], banner: null, toast: '', toastT: 0,
     why: null, hint: null, think: null, res: null, lastArc: null, drag: null, sheet: false, fast: false, thinkSecs: 5,
@@ -159,7 +170,7 @@ export function createGame(env) {
     state.handSide = side;
     newBoardSim();
     state.hint = null; hintJob = null; state.think = null; aiJob = null; state.sheet = false; state.why = null; state.drag = null;
-    state.pt = 0; state.fast = false; state.res = null;
+    state.pt = 0; state.fast = false; state.res = null; state.introScroll = 0; state.introDrag = null;
     setHand();
     state.ph = intro ? 'intro' : state.humanTurn ? 'aim' : 'think';
     if (state.ph === 'think') startThink();
@@ -373,8 +384,7 @@ export function createGame(env) {
   // ---- the play scene --------------------------------------------------------------------------------------------------
   const openPause = () => { if (state.scene !== 'play' || mode() === 'watch') return; state.paused = true; state.pauseMenu = true; state.ui.scroll = 0; state.drag = null; };
   const openWhy = () => {
-    const text = statusText(state);
-    if (!text) return;
+    const text = statusText(state) || 'Nothing to explain right now: the reason for the next throw appears here while the computer is thinking.';
     state.why = { text, title: whyTitle(state), wasPaused: state.paused };
     if (mode() === 'watch') state.paused = true;
     state.ui.scroll = 0; state.drag = null; sfx.tick();
@@ -430,18 +440,14 @@ export function createGame(env) {
 
   // The gesture: press on the lawn, pull back (down) and to a side, let go. The distance sets how far the bag flies; the sideways pull aims it
   // the other way (like a catapult). A pull shorter than PULL_MIN cancels. A smooth, straight pull is a little more accurate than a wobbly one.
-  const pullPlan = (d, lay) => {
-    const dx = (d.x - d.sx) / lay.s, dy = (d.y - d.sy) / lay.s;
-    const p = clamp((dy - 26) / 330, 0, 1);
-    return { aimZ: AIM_Z0 + p * (AIM_Z1 - AIM_Z0), aimX: clamp(-dx * 0.0021, -AIM_X, AIM_X), dy };
-  };
+  const pullPlan = (d, lay) => pullToPlan((d.x - d.sx) / lay.s, (d.y - d.sy) / lay.s);
   const updateAimInput = (dt, input, lay) => {
     const ptr = input.pointer, keys = input.keys, R = lay.rects;
     if (ptr.pressed) {
       const id = pressRect(R, ptr);
       if (id && handleTrayId(id)) return;
       const sy = (ptr.y - lay.vy) / lay.s + SCENE_Y0;
-      const inView = lay.clip ? inRect(lay.clip, ptr.x, ptr.y) : ptr.y < lay.trayTop - 4 && ptr.y > lay.hud.h - 20;
+      const inView = lay.clip ? inRect(lay.clip, ptr.x, ptr.y) : ptr.y < lay.trayTop - 4 && ptr.y > lay.hud.h - 10;
       if (inView && sy >= PULL_ZONE_Y0) state.drag = { kind: 'pull', x: ptr.x, y: ptr.y, sx: ptr.x, sy: ptr.y, path: [[ptr.x, ptr.y]], active: false };
     }
     const d = state.drag;
@@ -450,17 +456,19 @@ export function createGame(env) {
       const pp = pullPlan(d, lay);
       d.active = pp.dy >= PULL_MIN;
       if (d.active) setPlan({ aimX: pp.aimX, aimZ: pp.aimZ });
-      setHand(((d.x - d.sx) / lay.s) * 0.0006, -0.5 * clamp(pp.dy / 330, 0, 1));
+      setHand(((d.x - d.sx) / lay.s) * 0.0006, -0.5 * clamp(pp.dy / PULL_FULL, 0, 1));
     }
     if (d && ptr.released) {
       state.drag = null;
-      const pp = pullPlan(d, lay);
+      // the lift-off itself often flicks the finger: use the average of the last few samples as the end of the pull
+      const tail = d.path.slice(-4), ex = tail.reduce((a, q) => a + q[0], 0) / tail.length, ey = tail.reduce((a, q) => a + q[1], 0) / tail.length;
+      const pp = pullToPlan((ex - d.sx) / lay.s, (ey - d.sy) / lay.s);
       if (d.active && pp.dy >= PULL_MIN) {
         // smoothness: how far the path strays from the straight line start -> end, relative to its length
-        const [ex, ey] = d.path[d.path.length - 1], len = Math.hypot(ex - d.sx, ey - d.sy) || 1;
+        const len = Math.hypot(ex - d.sx, ey - d.sy) || 1;
         let dev = 0; for (const [px, py] of d.path) dev = Math.max(dev, Math.abs((ex - d.sx) * (d.sy - py) - (d.sx - px) * (ey - d.sy)) / len);
         setPlan({ aimX: pp.aimX, aimZ: pp.aimZ });
-        doThrow(clamp(0.8 + (dev / len) * 2.4, 0.8, 1.5));
+        doThrow(clamp(0.85 + (dev / len) * 1.6, 0.85, 1.35));
         return;
       }
       setHand();
@@ -498,7 +506,7 @@ export function createGame(env) {
     const lay = computeLayout(state, null);
     if (state.why) {
       if (keys.pressed.has('KeyP') || keys.pressed.has('Escape')) closeWhy();
-      else updateFlowScene(dt, input, (id) => { if (id === 'wclose') closeWhy(); }, 'why');
+      else updateFlowScene(dt, input, (id) => { if (id === 'wclose') closeWhy(); else if (id === 'wdec' || id === 'winc') { state.settings.thinkIdx = clamp(state.settings.thinkIdx + (id === 'winc' ? 1 : -1), 0, THINK_STEPS.length - 1); state.thinkSecs = THINK_STEPS[state.settings.thinkIdx]; sfx.tick(); save(); ensureLayout(state, 'why'); } }, 'why');
       return;
     }
     if (keys.pressed.has('KeyP') || keys.pressed.has('Escape')) { if (state.pauseMenu) closePause(); else if (state.sheet) state.sheet = false; else if (!watch) openPause(); else state.paused = !state.paused; }
@@ -506,6 +514,7 @@ export function createGame(env) {
       if (flowMeta().key !== 'pause') return;
       if (ptr.pressed) state.ui.drag = { y0: ptr.y, s0: state.ui.scroll, moved: 0 };
       if (state.ui.drag && ptr.down) scrollFlow(ptr);
+      { const mt = flowMeta(), mx = mt.lay ? Math.max(0, mt.lay.contentH - (mt.bottom - mt.top)) : 0; if (state.wheel) { state.ui.scroll = clamp(state.ui.scroll + state.wheel, 0, mx); state.wheel = 0; } if (keys.down.has('ArrowDown')) state.ui.scroll = clamp(state.ui.scroll + 14, 0, mx); if (keys.down.has('ArrowUp')) state.ui.scroll = clamp(state.ui.scroll - 14, 0, mx); }
       if (ptr.released && state.ui.drag) { const d = state.ui.drag; state.ui.drag = null; if (d.moved < 10) handlePauseTap(hitScreen(ptr.x, ptr.y, state.ui.scroll)); }
       return;
     }
@@ -532,7 +541,21 @@ export function createGame(env) {
     if (ph === 'intro') {
       setHand();
       const wait = m.cfg.mode === 'learn' ? 1e9 : 1.5;
-      if (state.pt >= wait || (ptr.pressed && state.pt > 0.4)) { state.banner = null; state.ph = state.humanTurn ? 'aim' : 'think'; state.pt = 0; if (state.ph === 'think') startThink(); }
+      let go = state.pt >= wait;
+      if (m.cfg.mode === 'learn') {
+        // the lesson card: when its text is longer than the card, drag / wheel / arrow keys scroll it and only the Start button (or Enter) begins
+        const g = introGeom(state, null);
+        if (g.over) {
+          if (ptr.pressed) state.introDrag = { y0: ptr.y, s0: state.introScroll || 0, moved: 0 };
+          if (state.introDrag && ptr.down) { state.introDrag.moved = Math.max(state.introDrag.moved, Math.abs(ptr.y - state.introDrag.y0)); state.introScroll = clamp(state.introDrag.s0 - (ptr.y - state.introDrag.y0), 0, g.max); }
+          if (ptr.released && state.introDrag) { if (state.introDrag.moved < 10 && inRect(g.start, ptr.x, ptr.y)) go = true; state.introDrag = null; }
+          if (state.wheel) { state.introScroll = clamp((state.introScroll || 0) + state.wheel, 0, g.max); state.wheel = 0; }
+          if (keys.down.has('ArrowDown')) state.introScroll = clamp((state.introScroll || 0) + 14, 0, g.max);
+          if (keys.down.has('ArrowUp')) state.introScroll = clamp((state.introScroll || 0) - 14, 0, g.max);
+          if (keys.pressed.has('Enter') || keys.pressed.has('Space')) go = true;
+        } else go = ptr.pressed && state.pt > 0.4;
+      } else go = go || (ptr.pressed && state.pt > 0.4);
+      if (go) { state.banner = null; state.ph = state.humanTurn ? 'aim' : 'think'; state.pt = 0; state.introScroll = 0; if (state.ph === 'think') startThink(); }
     } else if (ph === 'aim') {
       stepHint();
       if (!state.drag) setHand();
@@ -562,8 +585,8 @@ export function createGame(env) {
     if (!id) return;
     sfx.tick();
     if (id === 'resume') closePause();
-    else if (id === 'p-rules') { state.back = 'play'; state.scene = 'rules'; state.page = 0; }
-    else if (id === 'p-howto') { state.back = 'play'; state.scene = 'howto'; state.page = 0; }
+    else if (id === 'p-rules') { state.back = 'play'; state.scene = 'rules'; state.page = 0; state.ui.rsPage = -1; }
+    else if (id === 'p-howto') { state.back = 'play'; state.scene = 'howto'; state.page = 0; state.ui.rsPage = -1; }
     else if (id === 'p-sound') { state.settings.sound = !state.settings.sound; audio.setMuted?.(!state.settings.sound); save(); }
     else if (id === 'quit') leaveMatch();
   }
@@ -585,7 +608,7 @@ export function createGame(env) {
     else if (id === 'watch') startWatch();
     else if (id === 'learn') { state.scene = 'learn'; state.ui.scroll = 0; }
     else if (id === 'continue') resumeMatch();
-    else if (id === 'howto' || id === 'rules' || id === 'about') { state.back = 'title'; state.scene = id; state.page = 0; }
+    else if (id === 'howto' || id === 'rules' || id === 'about') { state.back = 'title'; state.scene = id; state.page = 0; state.ui.rsPage = -1; }
     else if (id === 'settings') { state.scene = 'settings'; state.ui.scroll = 0; }
     else if (id === 'sound') { state.settings.sound = !state.settings.sound; audio.setMuted?.(!state.settings.sound); save(); }
   };
@@ -667,6 +690,7 @@ export function createGame(env) {
     const max = mt.lay ? Math.max(0, mt.lay.contentH - (mt.bottom - mt.top)) : 0;
     if (input.keys.pressed.has('Equal') || input.keys.pressed.has('NumpadAdd')) { state.settings.textIdx = Math.min(TEXT_SCALES.length - 1, state.settings.textIdx + 1); save(); }
     if (input.keys.pressed.has('Minus') || input.keys.pressed.has('NumpadSubtract')) { state.settings.textIdx = Math.max(0, state.settings.textIdx - 1); save(); }
+    if (state.wheel) { state.ui.scroll = clamp(state.ui.scroll + state.wheel, 0, max); state.wheel = 0; }
     if (input.keys.down.has('ArrowDown')) state.ui.scroll = clamp(state.ui.scroll + 14, 0, max);
     if (input.keys.down.has('ArrowUp')) state.ui.scroll = clamp(state.ui.scroll - 14, 0, max);
   };
@@ -682,16 +706,28 @@ export function createGame(env) {
     updateFlowScene(dt, input, handleSetup, 'setup');
   };
   const updatePages = (input) => {
-    const ptr = input.pointer, keys = input.keys, n = pageCount();
-    const close = () => { state.scene = state.back === 'play' ? 'play' : 'title'; state.page = 0; };
-    const next = () => { if (state.page >= n - 1) close(); else state.page++; };
-    const prev = () => { if (state.page <= 0) close(); else state.page--; };
+    const ptr = input.pointer, keys = input.keys, n = pageCount(), ui = state.ui;
+    const R = READER, close = () => { state.scene = state.back === 'play' ? 'play' : 'title'; state.page = 0; ui.rsPage = -1; ui.rdrag = null; };
+    const setRs = (v) => { ui.rs = clamp(v, 0, R.max); state.page = clamp(Math.round(ui.rs / R.slot), 0, n - 1); ui.rsPage = state.page; };
+    const jump = (t) => { setRs(t); };
+    const next = () => { if (ui.rs >= R.max - 4) close(); else jump(Math.min(R.max, (Math.floor(ui.rs / R.slot + 0.02) + 1) * R.slot)); };
+    const prev = () => { if (ui.rs <= 4) close(); else jump(Math.max(0, (Math.ceil(ui.rs / R.slot - 0.02) - 1) * R.slot)); };
     if (ptr.pressed) {
       if (inRect(REF_NEXT, ptr.x, ptr.y)) next();
       else if (inRect(REF_BACK, ptr.x, ptr.y)) prev();
       else if (inRect(TEXT_DEC, ptr.x, ptr.y)) { state.settings.textIdx = Math.max(0, state.settings.textIdx - 1); save(); }
       else if (inRect(TEXT_INC, ptr.x, ptr.y)) { state.settings.textIdx = Math.min(TEXT_SCALES.length - 1, state.settings.textIdx + 1); save(); }
+      else ui.rdrag = { y0: ptr.y, rs0: ui.rs };
     }
+    if (ui.rdrag && ptr.down) setRs(ui.rdrag.rs0 - (ptr.y - ui.rdrag.y0));
+    if (ptr.released) ui.rdrag = null;
+    if (state.wheel) { setRs(ui.rs + state.wheel); state.wheel = 0; }
+    if (keys.down.has('ArrowDown')) setRs(ui.rs + 16);
+    if (keys.down.has('ArrowUp')) setRs(ui.rs - 16);
+    if (keys.pressed.has('PageDown') || keys.pressed.has('Space')) jump(Math.min(R.max, ui.rs + R.view * 0.85));
+    if (keys.pressed.has('PageUp')) jump(Math.max(0, ui.rs - R.view * 0.85));
+    if (keys.pressed.has('Home')) jump(0);
+    if (keys.pressed.has('End')) jump(R.max);
     if (keys.pressed.has('ArrowRight')) next();
     if (keys.pressed.has('ArrowLeft')) prev();
     if (keys.pressed.has('Escape')) close();
@@ -795,6 +831,19 @@ export function createGame(env) {
       state.sim = s; state.ph = 'result'; state.handBag = null; state.overlay = null; state.miniGuide = null; showBanner('CORNHOLE!', 'In the hole: 3 points', '', 99, 84); state.banner.t = 0.5; return;
     }
     if (n === 17) { startLesson(4); state.scene = 'quiz'; return; }
+    if (n >= 30 && n <= 39) {   // more screens at 300% text
+      state.settings.textIdx = 4;
+      if (n === 30) state.scene = 'learn';
+      else if (n === 31) { startLesson(0); }
+      else if (n === 32) { startLesson(4); state.scene = 'quiz'; }
+      else if (n === 33) { shotMatch({ mode: 'ai', opp: 2, len: 1 }, SHOT_BOARD.slice(0, 2)); state.paused = true; state.pauseMenu = true; }
+      else if (n === 34) { shotMatch({ mode: 'watch', watchA: 3, opp: 2, len: 0 }, SHOT_BOARD.slice(0, 2)); state.why = { text: 'Arc throw just in front of the hole. Twelve test throws: 4 in the hole, 6 on the board, 2 missed. That is +2.1 points on average for this round (0 to +3). It moves or knocks off an opponent bag in 4 of 12.', title: 'Why this throw?', wasPaused: false }; }
+      else if (n === 35) state.scene = 'demolimit';
+      else if (n === 36) { startWatch(); state.ph = 'think'; state.think = { t: 0.8, dur: 2, phase: 'reveal', plan: { ...state.plan }, text: 'Arc throw just in front of the hole. Twelve test throws: 4 in the hole, 6 on the board, 2 missed.', from: { ...state.plan }, progress: 1 }; state.banner = null; }
+      else if (n === 37) { shotMatch({ mode: 'ai', opp: 2, len: 1 }, SHOT_BOARD.slice(0, 3)); state.hint = { busy: false, plan: { style: 2, spin: 0, aimX: 0.04, aimZ: HZ.z - 0.08 }, text: 'Flip throw right at the hole. Twelve test throws: 5 in the hole, 5 on the board, 2 missed.' }; state.sheet = true; }
+      else if (n === 38) { startMatch({ mode: 'two', len: 0, first: 0 }); state.banner = null; }
+      return;
+    }
     if (n >= 20 && n <= 29) {
       state.settings.textIdx = 4;
       if (n === 20) { state.back = 'title'; state.scene = 'rules'; state.page = 2; }
@@ -815,8 +864,15 @@ export function createGame(env) {
 
   // ---- the object the kit and the shell see --------------------------------------------------------------------------------
   const game = {
-    // Watch & Learn, the lessons and every menu are free; only real play counts against the free preview (a paused game does not).
-    isPreviewExempt: () => !(state.scene === 'play' && state.m && state.m.cfg.mode !== 'watch' && state.m.cfg.mode !== 'learn') || state.paused,
+    // Only live action uses up the free preview: a bag in the air, a computer player's throw in motion, or a pull on the screen. Every menu, the
+    // rules pages, settings, lessons, Watch & Learn, the Think hint, pause, the set-up sheet, banners, results and a player waiting to aim are free.
+    // A tester build (config.dev) never uses it up at all.
+    isPreviewExempt: () => {
+      if (config.dev) return true;
+      if (state.scene !== 'play' || !state.m || state.m.cfg.mode === 'watch' || state.m.cfg.mode === 'learn') return true;
+      if (state.paused || state.pauseMenu || state.why || state.sheet) return true;
+      return !(state.ph === 'flight' || (state.ph === 'think' && state.think && state.think.phase === 'act') || (state.ph === 'aim' && state.drag && state.drag.active));
+    },
     update(dt, input) {
       if (state.showcase) input = NOINPUT;
       setPress(input.pointer);

@@ -11,6 +11,7 @@ const wrap = (game) => {
   if (new URLSearchParams(location.search).has('dev')) window.__game = game;
   // leaving the app (or switching tabs) pauses a match in progress
   const away = () => { try { game.getState().requestPause(); } catch { /* not ready */ } };
+  document.addEventListener('wheel', (e) => { try { if (game.getState().addWheel(e.deltaY * (e.deltaMode === 1 ? 32 : e.deltaMode === 2 ? 600 : 1) * (720 / (canvas.clientWidth || 720))) && e.cancelable) e.preventDefault(); } catch { /* not ready */ } }, { passive: false });
   document.addEventListener('visibilitychange', () => { if (document.hidden) away(); });
   window.addEventListener('pagehide', away);   // dev only: lets the test harness read the state
   if (presenter && presenter.stage) return presenter.wrap(game);

@@ -59,12 +59,13 @@ export async function createPresenter({ kitCanvas, quality }) {
     if (loading) return; loading = true;
     try {
       const ch = women ? 'mannequin_f' : 'mannequin_m';
-      const hs = await Promise.all(Array.from({ length: 12 }, (_, i) => loadHuman({ character: ch, kit: KITS[i < 6 ? 0 : 1], skin: SKINS[i], hair: HAIRS[i], quality })));
+      const hs = await Promise.all(Array.from({ length: 12 }, (_, i) => loadHuman({ character: ch, kit: KITS[i < 6 ? 0 : 1], skin: SKINS[i], hair: HAIRS[i], quality, silhouette: 0.75, stripes: true, decal: String((i % 6) + 1) })));
       if (list) for (const e of list) stage.remove(e.human);
       list = hs.map((h, i) => {
         addFootyClips(h);
         for (const sd of ['L', 'R']) solveFootBall(h, sd, new THREE.Vector3(), new THREE.Vector3(0, 0, 1), new THREE.Vector3(0, 0, 1), 'instep', 0.1);   // caches the sole frame while the body is in its world-aligned rest pose (the library derives it lazily)
         h.addLayer('live', { mask: 'all', additive: true, weight: 1 });
+        if (quality !== 'high') h.setLOD(quality === 'low' ? 2 : 1);       // medium: the second mesh detail level (about 60% of the triangles); high keeps full detail
         h.root.scale.setScalar(BS);                                   // 1.25x players: readable from the fixed whole-pitch camera
         h.root.visible = true; h.turnRate = 0; h.groundClamp = 'auto'; h.footPlanting = true;
         h.setKit(KITS[i < 6 ? 0 : 1]);
@@ -74,7 +75,7 @@ export async function createPresenter({ kitCanvas, quality }) {
         return { human: h, id: i, ctrl: { mode: '', until: -1, act: -9, partner: -1, held: false }, prev: null, cur: null, jr: 0 };
       });
       if (ref) stage.remove(ref.human);
-      { const rh = await loadHuman({ character: ch, kit: { top: '#f2c200', bottoms: '#1c1c1c', socks: '#1c1c1c', shoes: '#111111', trim: '#1c1c1c' }, skin: 'tan', hair: 'grey', quality }); rh.root.scale.setScalar(BS); rh.groundClamp = 'auto'; rh.footPlanting = true; rh.play('idle_relaxed', { fade: 0, loop: true }); stage.add(rh); ref = { human: rh, x: 0, z: -4 }; }
+      { const rh = await loadHuman({ character: ch, kit: { top: '#f2c200', bottoms: '#1c1c1c', socks: '#1c1c1c', shoes: '#111111', trim: '#1c1c1c' }, skin: 'tan', hair: 'grey', quality }); if (quality !== 'high') rh.setLOD(quality === 'low' ? 2 : 1); rh.root.scale.setScalar(BS); rh.groundClamp = 'auto'; rh.footPlanting = true; rh.play('idle_relaxed', { fade: 0, loop: true }); stage.add(rh); ref = { human: rh, x: 0, z: -4 }; }
       builtKind = women ? 'f' : 'm'; ready = true;
       try { stage.renderer.compile?.(stage.scene, camera); } catch { /* optional */ }
       stage.invalidate();
@@ -128,6 +129,11 @@ export async function createPresenter({ kitCanvas, quality }) {
       cssW = 0;
     }
     const w = want || cw;
+    // tall phones: the 9:16 HUD rectangle is centred, so the strip above it shows only extra sky; a dark top band (same colour as the scoreboard) takes its place
+    const extra = Math.max(0, Math.round((ch - w * 16 / 9) / 2));
+    if (!P.band) { P.band = globalThis.document.createElement('div'); P.band.style.cssText = 'position:fixed;top:0;pointer-events:none;z-index:0'; canvas.parentElement.insertBefore(P.band, kitCanvas); }
+    P.band.style.left = want ? '50%' : '0'; P.band.style.transform = want ? 'translateX(-50%)' : ''; P.band.style.width = w + 'px'; P.band.style.height = extra + 'px';
+    P.band.style.background = 'linear-gradient(#0b1a28 0%, #0f2233 85%, rgba(15,34,51,0.55) 100%)'; P.band.style.display = extra > 2 ? 'block' : 'none';
     if (w !== cssW || ch !== cssH) { cssW = w; cssH = ch; stage.resize(); }
     return { w, h: ch };
   }
@@ -194,7 +200,7 @@ export async function createPresenter({ kitCanvas, quality }) {
       if (a && a.kind === 'wrap' && c.kind !== 'wrap') { playLoop(e, 'f_wrap', 0.08, false); c.kind = 'wrap'; c.until = a.t1; c.partner = a.tgt; }
       else if (a && a.kind === 'tackled' && c.kind !== 'tackled') { playLoop(e, 'f_held', 0.1, false); c.kind = 'tackled'; c.until = a.t1; c.partner = a.by; }
       else if (a && a.kind === 'stagger' && c.kind !== 'stagger') { h.play('f_miss', { fade: 0.08, loop: false }); c.mode = 'f_miss'; c.kind = 'stagger'; c.until = a.t1; c.partner = -1; }
-      else if (a && a.kind === 'celebrate' && c.kind !== 'celebrate') { h.play(frac(i + 3) < 0.5 ? 'celebrate_2' : 'celebrate', { fade: 0.2, loop: false }); c.mode = 'celeb'; c.kind = 'celebrate'; c.until = a.t1; }
+      else if (a && a.kind === 'celebrate' && c.kind !== 'celebrate') { h.play(frac(i * 3 + 1) < 0.5 ? 'f_celebrate_a' : 'f_celebrate_b', { fade: 0.15, loop: false, speed: 0.92 + frac(i * 7 + 2) * 0.2 }); c.mode = 'celeb'; c.kind = 'celebrate'; c.until = a.t1; }
       const busy = a && (ACT_CLIP[a.kind] || a.kind === 'wrap' || a.kind === 'tackled' || a.kind === 'stagger' || a.kind === 'celebrate' || a.kind === 'wrapEnd');
       if (!busy && tNow >= c.until) {
         c.kind = ''; c.partner = -1;
@@ -282,10 +288,10 @@ export async function createPresenter({ kitCanvas, quality }) {
     const setDirs = (hh) => { hh._pd = hh._pd || {}; for (const sd of ['L', 'R']) { const w = hh.bonePosition(sd + '_Hand', V()), f = hh.bonePosition(sd + '_Forearm', V()); hh._pd[sd] = w.sub(f).normalize(); } };
     for (const e of list) {
       const hh = e.human; hh.update(dt); setDirs(hh);
-      if (hh._rp && hh._rp.length) { for (const [sd, pt, o] of hh._rp) hh.setReach(sd, pt.clone().addScaledVector(hh._pd[sd], -PL), o); hh.update(1e-5); setDirs(hh); for (const [sd, pt, o] of hh._rp) hh.setReach(sd, pt.clone().addScaledVector(hh._pd[sd], -PL), o); hh.update(1e-5); setDirs(hh); }     // second pass: the palm, not the wrist, lands on the ball
+      if (hh._rp && hh._rp.length) { for (const [sd, pt, o] of hh._rp) hh.setReach(sd, pt.clone().addScaledVector(hh._pd[sd], -PL), o); hh.update(1e-5); setDirs(hh); for (const [sd, pt, o] of hh._rp) hh.setReach(sd, pt.clone().addScaledVector(hh._pd[sd], -PL), o); hh.update(1e-5); setDirs(hh); for (const [sd, pt, o] of hh._rp) hh.setReach(sd, pt.clone().addScaledVector(hh._pd[sd], -PL), o); hh.update(1e-5); setDirs(hh); }     // second pass: the palm, not the wrist, lands on the ball
     }
     // keep two wrapped bodies apart (limbs never pass through each other)
-    for (let i = 0; i < 12; i++) { const p = s.players[i], a = p.act; if (a && a.kind === 'wrap') { try { resolvePenetration(list[i].human, list[a.tgt].human, { move: 'a', tolerance: 0.004, iterations: 14, ignore: [['L hand', 'abdomen'], ['R hand', 'abdomen'], ['L hand', 'pelvis'], ['R hand', 'pelvis'], ['L forearm', 'abdomen'], ['R forearm', 'abdomen'], ['L hand', 'chest'], ['R hand', 'chest']] }); } catch { /* ignore */ } } }
+    for (let i = 0; i < 12; i++) { const p = s.players[i], a = p.act; if (a && a.kind === 'wrap') { try { resolvePenetration(list[i].human, list[a.tgt].human, { move: 'a', tolerance: 0.001, iterations: 40, ignore: [['L hand', 'abdomen'], ['R hand', 'abdomen'], ['L hand', 'pelvis'], ['R hand', 'pelvis'], ['L forearm', 'abdomen'], ['R forearm', 'abdomen'], ['L hand', 'chest'], ['R hand', 'chest']] }); } catch { /* ignore */ } } }
     // ball
     const B = s.ball;
     let bp = bi;
@@ -316,7 +322,7 @@ export async function createPresenter({ kitCanvas, quality }) {
       rh.root.position.set(q2.x, 0, q2.z); rh.setFacing(Math.atan2(bi.x - q2.x, bi.z - q2.z));
       if (dt > 0) { if (spd > 0.4) rh.locomote(Math.min(5, spd)); else if (rh.layers.base.current && rh.layers.base.current.clip.name !== 'idle_relaxed') rh.play('idle_relaxed', { fade: 0.3, loop: true }); }
       rh.lookAt(V(bi.x, 1, bi.z), { weight: 0.5 }); rh.update(dt); void ox; void oz;
-      blobs.set(12, q2.x, q2.z, 0.55 * BS);
+      blobs.set(12, q2.x, q2.z, 0.55 * BS); P.umpire = { x: q2.x, z: q2.z };
     }
     // shadows
     for (let i = 0; i < 12; i++) { const q = frames[i]; blobs.set(i, q.x, q.z, 0.55 * BS * (1 - Math.min(0.5, q.jh * 0.5))); }
@@ -330,7 +336,7 @@ export async function createPresenter({ kitCanvas, quality }) {
     game.render = (ctx, view) => {
       const rr = kitCanvas.getBoundingClientRect();
       const cw = rr.width || kitCanvas.clientWidth || 720, ch = rr.height || kitCanvas.clientHeight || 1280;
-      view.cssW = cw / ch > 0.5625 ? Math.round(ch * 0.5625) : cw; view.cssH = ch;
+      view.cssW = cw / ch > 0.5625 ? Math.round(ch * 0.5625) : cw; view.cssH = ch; view.umpire = P.umpire || null;
       r(ctx, view);
       try { frame(game); } catch (e) { console.warn('3D frame failed', e); }
     };

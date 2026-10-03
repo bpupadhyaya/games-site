@@ -8,10 +8,10 @@ import { W, H, TEXT_SCALES, THINK_STEPS, REVEAL_SECS, TEXT_DEC, TEXT_INC, REF_BA
 import { FIELD, KUBB, DT, SUB, savePrev, stepWorld, addBody, kubbsAtRest, pathOf, launchOf, batonFrom, qAxis, MAX_REACH, LOFTS, SPINS } from './phys.js';
 import { newMatch, startTurn, endTurn, applyThrow, turnOver, targets, throwLine, tossCheck, placeCheck, standField, tossFail, freeSpot, fieldOf, baseOf, dirOf, baselineY, KING_RING, SIZES, kingPos } from './engine.js';
 import { worldFromMatch, finalsOf, maskOf, errFor, launchFor, scatterAt } from './sim.js';
-import { PROFILES, ASSIST, batonJob, describeShot, tossSpots, tossError, tossAdvice, placeSpot, lcg } from './ai.js';
+import { PROFILES, ASSIST, overKing, batonJob, describeShot, tossSpots, tossError, tossAdvice, placeSpot, lcg } from './ai.js';
 import * as SC from './scene.js';
 import { renderPlay, computeLayout, sideName, statusText, whyTitle, setMeasureCtx } from './view.js';
-import { renderTitle, renderSetup, renderSettings, renderLearn, renderResult, renderPause, renderSheet, renderWhy, renderPages, renderDemoLimit, hitScreen, flowMeta, pageCount, ensureLayout } from './menus.js';
+import { renderTitle, renderSetup, renderSettings, renderLearn, renderResult, renderPause, renderSheet, renderWhy, renderPages, renderDemoLimit, hitScreen, flowMeta, readerMeta, ensureLayout } from './menus.js';
 import { ABOUT, HOWTO, RULES, LESSONS } from './content.js';
 import { setPress } from './ui.js';
 
@@ -21,8 +21,8 @@ const TAU = Math.PI * 2;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const MAX_PARTS = 140;
 const STAND_MAX = 1.5;
-const PULL_MIN = 36;           // px: a shorter pull cancels the throw
-const KY = 0.0225, KX = 0.0125;   // metres per pixel of pull
+const PULL_MIN = 24;           // px: a shorter pull cancels the throw
+const KY = 0.02, KX = 0.0105;   // metres per pixel of pull
 const REACH_MIN = 0.9;
 export const GESTURE = { KX, KY, REACH_MIN, PULL_MIN };
 
@@ -47,7 +47,7 @@ export function createGame(env) {
     scene: 'title', back: 'title', t: 0, paused: false, pauseMenu: false, demo: !!config.demo,
     settings: { sound: true, assist: 1, textIdx: 0, thinkIdx: 1 },
     record: { played: 0, wins: [0, 0, 0, 0, 0], learn: 0, demoMatches: 0, throws: 0, knockedDown: 0 },
-    setup: { mode: 'ai', opp: 0, size: config.demo ? 0 : 1, opening: true }, setupMsg: '', restoreMsg: '',
+    setup: { mode: 'ai', opp: 0, size: config.demo ? 0 : 2, opening: true }, setupMsg: '', restoreMsg: '',
     ui: { scroll: 0, drag: null }, page: 0, resume: null, loaded: false,
     m: null, ph: 'intro', pt: 0, humanTurn: false, plan: { sx: 0, ax: 0, ay: 4, loft: 0, spin: 2 }, pref: [{ loft: 0, spin: 2 }, { loft: 0, spin: 2 }],
     line: { y: 0, adv: false }, overlay: null, parts: [], fades: [], marks: [], paddles: [], showPaddles: true, tossAnim: null, toss: null, drag: null, swing: 0,
@@ -56,6 +56,8 @@ export function createGame(env) {
   };
   // Not part of the saved / hashed state: the physics world, the baked backdrop, jobs, the display clock.
   const hidden = (k, v) => Object.defineProperty(state, k, { value: v, writable: true, enumerable: false });
+  hidden('wheel', 0);
+  try { if (typeof globalThis.addEventListener === 'function' && !shotMode) globalThis.addEventListener('wheel', (e) => { state.wheel += e.deltaY * (e.deltaMode === 1 ? 32 : 1); }, { passive: true }); } catch { /* no DOM */ }
   hidden('world', null); hidden('baked', null); hidden('alpha', 1); hidden('att', { scene: null, world: null, wait: 1, n: 0, t: 0, done: false, m: null });
   let aiJob = null, hintJob = null, bake = null, stepped = false, updAt = 0;
   // Search jobs run a few simulated throws per frame. With a display clock the work is capped at about 5 ms a frame so a slow phone never stutters;
@@ -81,7 +83,7 @@ export function createGame(env) {
   const clearResume = () => { state.resume = null; storage.remove('resume'); };
   const int = (v, lo, hi) => Number.isInteger(v) && v >= lo && v <= hi;
   const num = (v) => Number.isFinite(v);
-  const validResume = (r) => !!r && !!r.cfg && (r.cfg.mode === 'ai' || r.cfg.mode === 'two') && (r.size === 3 || r.size === 5) && (r.cfg.mode === 'two' || int(r.cfg.opp, 0, PROFILES.length - 1))
+  const validResume = (r) => !!r && !!r.cfg && (r.cfg.mode === 'ai' || r.cfg.mode === 'two') && (r.size === 3 || r.size === 4 || r.size === 5) && (r.cfg.mode === 'two' || int(r.cfg.opp, 0, PROFILES.length - 1))
     && (r.turn === 0 || r.turn === 1) && !r.over && int(r.turnNo, 0, 200) && int(r.baton, 0, 6) && int(r.batons, 1, 6) && Array.isArray(r.queue) && r.queue.every((q) => int(q, 0, 9))
     && (r.phase === 'throwin' || r.phase === 'batons') && int(r.tossTry, 0, 2) && Array.isArray(r.blocks) && r.blocks.length === 11
     && r.blocks.every((b, i) => b && b.id === i && num(b.x) && num(b.y) && num(b.z) && Math.abs(b.x) < 6 && b.y > -6 && b.y < 12 && ['base', 'field', 'fallen', 'cleared', 'king'].includes(b.role) && (!b.q || (Array.isArray(b.q) && b.q.length === 4 && b.q.every(num))))
@@ -397,7 +399,7 @@ export function createGame(env) {
   };
   const finishMatch = () => {
     const m = state.m;
-    state.scene = 'result'; state.ui.scroll = 0; state.page = 0; state.banner = null;
+    state.scene = 'result'; state.ui.scroll = 0; state.banner = null;
     clearResume();
     if (m.cfg.mode === 'ai') {
       record.played++;
@@ -515,7 +517,7 @@ export function createGame(env) {
       const dist = Math.hypot(state.plan.ax - L.r.x, state.plan.ay - L.r.y), sc = scatterAt(state.plan.loft, dist, humanNoise());
       const pts = pathOf(L, 40), kp = kingPos(m);
       // a low flight over the king (the king may only fall last) gets a warning
-      const lowOverKing = !T.king && pts.some((q) => Math.hypot(q.x - kp.x, q.y - kp.y) < 0.4 && q.z < 1.1);
+      const lowOverKing = !T.king && overKing(L, kp);
       ov = { line: state.line.adv ? state.line : null, legal: T.ids, rings: [{ x: state.plan.ax, y: state.plan.ay, col: '#ffe08a', scatter: sc }], paths: [{ pts, col: 'rgba(255,240,170,0.95)' }], labels: [{ x: state.plan.ax, y: state.plan.ay, z: 0, text: `${dist.toFixed(1)} m`, col: '#ffe9a0', below: dir > 0 }] };
       if (lowOverKing) { ov.warn = { x: kp.x, y: kp.y }; ov.labels.push({ x: kp.x, y: kp.y, z: 1.15, text: 'Too low: may hit the king', col: '#ffb4a0' }); }
       if (state.hint && !state.hint.busy && state.hint.plan && !state.hint.toss) {
@@ -601,7 +603,7 @@ export function createGame(env) {
     if (d && ptr.released) {
       state.drag = null;
       const dx = (ptr.x - d.x0) / lay.s, dy = (ptr.y - d.y0) / lay.s, back = dirOf(state.m.turn) > 0 ? dy : -dy;
-      if (d.len >= PULL_MIN && back >= PULL_MIN * 0.6) { setPlan(planFromPull(dx, dy)); doThrow(state.plan, humanNoise(), hn); return; }
+      if (d.len >= PULL_MIN && back >= PULL_MIN * 0.3) { setPlan(planFromPull(dx, dy)); doThrow(state.plan, humanNoise(), hn); return; }
       if (d.len >= PULL_MIN) toast('Pull back towards you, then let go', 1.8);
     }
     if (!ptr.down && state.drag) state.drag = null;
@@ -685,6 +687,7 @@ export function createGame(env) {
       if (ptr.pressed) state.ui.drag = { y0: ptr.y, s0: state.ui.scroll, moved: 0 };
       if (state.ui.drag && ptr.down) scrollFlow(ptr);
       if (ptr.released && state.ui.drag) { const d = state.ui.drag; state.ui.drag = null; if (d.moved < 10) handlePauseTap(hitScreen(ptr.x, ptr.y, state.ui.scroll)); }
+      { const mt = flowMeta(); scrollKeys(dt, input, mt.lay ? mt.lay.contentH - (mt.bottom - mt.top) : 0, mt.lay ? mt.bottom - mt.top : 800); }
       return;
     }
     if (state.sheet && state.ph === 'aim') { updateFlowScene(dt, input, handleSheet, 'sheet'); stepHint(); return; }
@@ -730,13 +733,27 @@ export function createGame(env) {
     if (!id) return;
     sfx.tick();
     if (id === 'resume') closePause();
-    else if (id === 'p-rules') { state.back = 'play'; state.scene = 'rules'; state.page = 0; }
-    else if (id === 'p-howto') { state.back = 'play'; state.scene = 'howto'; state.page = 0; }
+    else if (id === 'p-rules') { state.back = 'play'; state.scene = 'rules'; state.ui.scroll = 0; }
+    else if (id === 'p-howto') { state.back = 'play'; state.scene = 'howto'; state.ui.scroll = 0; }
     else if (id === 'p-sound') { state.settings.sound = !state.settings.sound; audio.setMuted?.(!state.settings.sound); save(); }
     else if (id === 'quit') leaveMatch();
   }
 
   // ---- menus ----------------------------------------------------------------------------------------------------------------------------------------------------
+  // Shared scrolling input for every scrolling screen: arrow keys, PageUp / PageDown / Space, Home / End, the mouse wheel and the fling after a drag.
+  function scrollKeys(dt, input, max, viewH) {
+    const k = input.keys; let sc = state.ui.scroll;
+    if (k.down.has('ArrowDown')) sc += 18;
+    if (k.down.has('ArrowUp')) sc -= 18;
+    if (k.pressed.has('PageDown') || k.pressed.has('Space')) sc += viewH * 0.88;
+    if (k.pressed.has('PageUp')) sc -= viewH * 0.88;
+    if (k.pressed.has('Home')) { sc = 0; state.ui.vel = 0; }
+    if (k.pressed.has('End')) { sc = max; state.ui.vel = 0; }
+    if (k.pressed.has('PageDown') || k.pressed.has('PageUp') || k.pressed.has('Space')) state.ui.vel = 0;
+    if (state.wheel) { sc += state.wheel; state.wheel = 0; }
+    if (state.ui.vel && !state.ui.drag) { sc += state.ui.vel * dt; state.ui.vel *= 0.92; if (Math.abs(state.ui.vel) < 25) state.ui.vel = 0; }
+    state.ui.scroll = clamp(sc, 0, Math.max(0, max));
+  }
   function scrollFlow(ptr) {
     const d = state.ui.drag, mt = flowMeta();
     d.moved = Math.max(d.moved, Math.abs(ptr.y - d.y0));
@@ -753,7 +770,7 @@ export function createGame(env) {
     else if (id === 'watch') startWatch();
     else if (id === 'learn') { state.scene = 'learn'; state.ui.scroll = 0; }
     else if (id === 'continue') resumeMatch();
-    else if (id === 'howto' || id === 'rules' || id === 'about') { state.back = 'title'; state.scene = id; state.page = 0; }
+    else if (id === 'howto' || id === 'rules' || id === 'about') { state.back = 'title'; state.scene = id; state.ui.scroll = 0; }
     else if (id === 'settings') { state.scene = 'settings'; state.ui.scroll = 0; }
     else if (id === 'sound') { state.settings.sound = !state.settings.sound; audio.setMuted?.(!state.settings.sound); save(); }
   };
@@ -819,8 +836,7 @@ export function createGame(env) {
     const max = mt.lay ? Math.max(0, mt.lay.contentH - (mt.bottom - mt.top)) : 0;
     if (input.keys.pressed.has('Equal') || input.keys.pressed.has('NumpadAdd')) { state.settings.textIdx = Math.min(TEXT_SCALES.length - 1, state.settings.textIdx + 1); save(); }
     if (input.keys.pressed.has('Minus') || input.keys.pressed.has('NumpadSubtract')) { state.settings.textIdx = Math.max(0, state.settings.textIdx - 1); save(); }
-    if (input.keys.down.has('ArrowDown')) state.ui.scroll = clamp(state.ui.scroll + 14, 0, max);
-    if (input.keys.down.has('ArrowUp')) state.ui.scroll = clamp(state.ui.scroll - 14, 0, max);
+    scrollKeys(dt, input, max, mt.lay ? mt.bottom - mt.top : 800);
   };
   const updateSetup = (dt, input) => {
     const ptr = input.pointer, k = input.keys;
@@ -830,20 +846,31 @@ export function createGame(env) {
     if (ptr.pressed && (inRect(SETUP_PINS.start, ptr.x, ptr.y) || inRect(SETUP_PINS.back, ptr.x, ptr.y))) { handleSetup(inRect(SETUP_PINS.start, ptr.x, ptr.y) ? 'start' : 'back'); return; }
     updateFlowScene(dt, input, handleSetup, 'setup');
   };
-  const updatePages = (input) => {
-    const ptr = input.pointer, keys = input.keys, n = pageCount();
-    const close = () => { state.scene = state.back === 'play' ? 'play' : 'title'; state.page = 0; };
-    const next = () => { if (state.page >= n - 1) close(); else state.page++; };
-    const prev = () => { if (state.page <= 0) close(); else state.page--; };
+  // One continuous document: drag or fling it, mouse wheel, arrow keys, PageUp / PageDown / Space, Home / End, or the Next page button.
+  const updatePages = (dt, input) => {
+    const ptr = input.pointer, keys = input.keys, R = readerMeta();
+    const close = () => { state.scene = state.back === 'play' ? 'play' : 'title'; state.ui.scroll = 0; state.ui.drag = null; state.ui.vel = 0; };
+    const zoom = (d) => { const f = R.max > 0 ? state.ui.scroll / R.max : 0; state.settings.textIdx = clamp(state.settings.textIdx + d, 0, TEXT_SCALES.length - 1); state.ui.keepFrac = f; save(); };
+    const next = () => { if (R.max <= 0 || state.ui.scroll >= R.max - 4) close(); else state.ui.scroll = clamp(state.ui.scroll + R.h * 0.88, 0, R.max); };
     if (ptr.pressed) {
       if (inRect(REF_NEXT, ptr.x, ptr.y)) next();
-      else if (inRect(REF_BACK, ptr.x, ptr.y)) prev();
-      else if (inRect(TEXT_DEC, ptr.x, ptr.y)) { state.settings.textIdx = Math.max(0, state.settings.textIdx - 1); save(); }
-      else if (inRect(TEXT_INC, ptr.x, ptr.y)) { state.settings.textIdx = Math.min(TEXT_SCALES.length - 1, state.settings.textIdx + 1); save(); }
+      else if (inRect(REF_BACK, ptr.x, ptr.y)) close();
+      else if (inRect(TEXT_DEC, ptr.x, ptr.y)) zoom(-1);
+      else if (inRect(TEXT_INC, ptr.x, ptr.y)) zoom(1);
+      else if (inRect(R, ptr.x, ptr.y)) { state.ui.drag = { y0: ptr.y, s0: state.ui.scroll, moved: 0, ly: ptr.y, v: 0 }; state.ui.vel = 0; }
     }
+    const d = state.ui.drag;
+    if (d && ptr.down) {
+      d.moved = Math.max(d.moved, Math.abs(ptr.y - d.y0));
+      state.ui.scroll = clamp(d.s0 - (ptr.y - d.y0), 0, R.max);
+      d.v = 0.6 * d.v + 0.4 * ((d.ly - ptr.y) / Math.max(dt, 1 / 120)); d.ly = ptr.y;
+    }
+    if (d && ptr.released) { state.ui.vel = d.moved >= 10 ? clamp(d.v, -2500, 2500) : 0; state.ui.drag = null; }
+    scrollKeys(dt, input, R.max, R.h);
+    if (keys.pressed.has('Equal') || keys.pressed.has('NumpadAdd')) zoom(1);
+    if (keys.pressed.has('Minus') || keys.pressed.has('NumpadSubtract')) zoom(-1);
     if (keys.pressed.has('ArrowRight')) next();
-    if (keys.pressed.has('ArrowLeft')) prev();
-    if (keys.pressed.has('Escape')) close();
+    if (keys.pressed.has('ArrowLeft') || keys.pressed.has('Escape')) close();
   };
 
   // ---- the live lawn behind the title and the menus: a baton knocks kubbs over now and then ------------------------------------------------------------------------
@@ -921,8 +948,8 @@ export function createGame(env) {
       shotTurn((m) => { for (const i of [0, 1]) m.blocks[i].role = 'fallen'; Object.assign(m.blocks[0], { down: true, x: -0.7, y: 1.5, z: KUBB.w / 2, q: lieQ(0.3) }); Object.assign(m.blocks[1], { down: true, x: 0.6, y: 2.0, z: KUBB.w / 2, q: lieQ(-0.5) }); startTurn(m); m.batons = 6; });
       state.tossN = 2; startToss(); state.banner = null; setOverlay(); return;
     }
-    if (n === 7) { state.back = 'title'; state.scene = 'rules'; state.page = 0; return; }
-    if (n === 8) { state.back = 'title'; state.scene = 'howto'; state.page = 0; return; }
+    if (n === 7) { state.back = 'title'; state.scene = 'rules'; state.ui.scroll = 0; return; }
+    if (n === 8) { state.back = 'title'; state.scene = 'howto'; state.ui.scroll = 0; return; }
     if (n === 9) { state.scene = 'setup'; return; }
     if (n === 10) { state.scene = 'settings'; return; }
     if (n === 11) { state.back = 'title'; state.scene = 'about'; return; }
@@ -966,7 +993,7 @@ export function createGame(env) {
     }
     if (n >= 20 && n <= 29) {
       state.settings.textIdx = 4;
-      if (n === 20) { state.back = 'title'; state.scene = 'rules'; state.page = 2; }
+      if (n === 20) { state.back = 'title'; state.scene = 'rules'; state.ui.scroll = 1800; }
       else if (n === 21) state.scene = 'title';
       else if (n === 22) { shotTurn((m) => { m.blocks[5].role = 'cleared'; }); setOverlay(); }
       else if (n === 23) state.scene = 'settings';
@@ -975,10 +1002,10 @@ export function createGame(env) {
       else if (n === 26) { startMatch({ mode: 'ai', opp: 2, size: 5, first: 0 }); state.m.over = { win: 1, why: 'The king fell too early.' }; state.scene = 'result'; }
       else if (n === 27) { state.back = 'title'; state.scene = 'about'; }
       else if (n === 28) { shotTurn((m) => { m.blocks[5].role = 'cleared'; }); state.ph = 'result'; showBanner('Kubb down!', 'Orange will throw it back in', 'team0', 99, 60); state.banner.t = 0.5; }
-      else if (n === 29) { state.back = 'title'; state.scene = 'howto'; state.page = 1; }
+      else if (n === 29) { state.back = 'title'; state.scene = 'howto'; state.ui.scroll = 900; }
       return;
     }
-    if (n >= 40 && n <= 59) { state.back = 'title'; state.scene = 'rules'; state.page = n - 40; }
+    if (n >= 40 && n <= 59) { state.back = 'title'; state.scene = 'rules'; state.ui.scroll = (n - 40) * 900; }
   };
 
   // ---- the object the kit and the shell see ----------------------------------------------------------------------------------------------------------------------------------
@@ -1001,10 +1028,11 @@ export function createGame(env) {
         case 'learn': updateFlowScene(dt, input, handleLearn, 'learn'); break;
         case 'result': updateFlowScene(dt, input, handleResult, 'result'); break;
         case 'demolimit': updateFlowScene(dt, input, (id) => { if (id === 'menu') { state.scene = 'title'; state.ui.scroll = 0; } }, 'demolimit'); break;
-        case 'howto': case 'about': case 'rules': updatePages(input); break;
+        case 'howto': case 'about': case 'rules': updatePages(dt, input); break;
         case 'play': updatePlay(dt, input); break;
         default: break;
       }
+      state.wheel = 0;
       updAt = nowMs();
     },
     render(ctx) {

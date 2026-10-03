@@ -11,6 +11,9 @@ import {
 
 export const DEMO_GAMES = 2;
 export const THINK_STEPS = [2, 5, 8, 10];
+export const PACES = [1, 1.5, 2];            // game speed: playback rate of throws, stone moves and the computer's waits
+export const AUTO_SPEEDS = [1, 2, 4];          // Watch & Learn speed: everything, thinking included, runs this much faster
+export const piecesLabel = (S, n) => (n === 3 ? T(S, 'pieces3') : n === 5 ? T(S, 'pieces5') : n === 7 ? T(S, 'pieces7') : n === 4 ? T(S, 'pieces4') : `${n}`);
 
 export const demoOver = (S) => S.demo && S.demoGames >= DEMO_GAMES;
 export const recOf = (S, level) => S.stats[level] ?? [0, 0];
@@ -73,7 +76,7 @@ export function buildUi(S) {
         b.push({ t: 'row', size: 28, minH: 84, items: [{ id: 'side:0', label: T(S, 'sideFirst'), kind: S.setup.side === 0 ? 'on' : 'normal' }, { id: 'side:1', label: T(S, 'sideSecond'), kind: S.setup.side === 1 ? 'on' : 'normal' }] });
       }
       b.push({ t: 'h', text: T(S, 'piecesTitle'), size: 34 });
-      b.push({ t: 'row', size: 28, minH: 84, items: [{ id: 'pc:7', label: T(S, 'pieces7'), kind: S.setup.pieces === 7 ? 'on' : 'normal' }, { id: 'pc:4', label: T(S, 'pieces4'), kind: S.setup.pieces === 4 ? 'on' : 'normal' }] });
+      b.push({ t: 'row', size: 28, minH: 84, items: [3, 5, 7].map((n) => ({ id: `pc:${n}`, label: piecesLabel(S, n), kind: S.setup.pieces === n ? 'on' : 'normal' })) });
       if (lv !== 'two') {
         const rec = recOf(S, lv);
         b.push({ t: 'p', text: `${T(S, 'record')} (${levelLabel(S)}): ${rec[0]}${T(S, 'wins')}  ${rec[1]}${T(S, 'losses')}`, size: 22, gap: 12 });
@@ -129,6 +132,9 @@ export function buildUi(S) {
       b.push({ t: 'p', text: T(S, 'theme'), size: 24, gap: 6 });
       for (const th of THEMES) b.push({ t: 'btn', id: `theme:${th.id}`, label: S.lang === 'ar' ? th.ar : th.name, kind: S.themeId === th.id ? 'on' : 'normal', size: 28 });
       b.push({ t: 'btn', id: 'set:sound', label: S.sound ? T(S, 'soundOn') : T(S, 'soundOff'), kind: S.sound ? 'on' : 'normal', size: 28 });
+      b.push({ t: 'p', text: T(S, 'paceTitle'), size: 24, gap: 6 });
+      b.push({ t: 'row', size: 26, items: PACES.map((_, i) => ({ id: `pace:${i}`, label: T(S, `pace${i + 1}`), kind: S.paceIdx === i ? 'on' : 'normal' })) });
+      b.push({ t: 'btn', id: 'set:single', label: S.autoSingle ? T(S, 'singleOn') : T(S, 'singleOff'), kind: S.autoSingle ? 'on' : 'normal', size: 24 });
       b.push({ t: 'p', text: `${T(S, 'thinkTime')}: ${THINK_STEPS[S.thinkIdx]}${T(S, 'seconds')}`, size: 24, gap: 6 });
       b.push({ t: 'row', size: 30, items: [{ id: 'set:think-', label: '-', disabled: S.thinkIdx === 0 }, { id: 'set:think+', label: '+', disabled: S.thinkIdx === THINK_STEPS.length - 1 }] });
       if (!S.demo) {

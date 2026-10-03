@@ -2,8 +2,8 @@
 // Plain canvas 2D, no images, nothing here changes game state.
 
 export const W = 720, H = 1560;
-export const UI = '-apple-system, "SF Pro Text", "Segoe UI", Roboto, system-ui, sans-serif';
-export const DISPLAY = '"Palatino Linotype", Palatino, "Iowan Old Style", Georgia, "Times New Roman", serif';
+export const UI = '-apple-system, "SF Pro Text", "Segoe UI", Roboto, "Noto Sans Ethiopic", "Kefa", "Nyala", "Abyssinica SIL", system-ui, sans-serif';
+export const DISPLAY = '"Palatino Linotype", Palatino, "Iowan Old Style", Georgia, "Times New Roman", "Noto Serif Ethiopic", "Noto Sans Ethiopic", "Kefa", "Nyala", serif';
 
 const hexRgb = (h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
 export function mix(h, o, t) {

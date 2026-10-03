@@ -4,7 +4,7 @@
   "tagline": "Knock the can down. Fetch your slipper. Do not get tagged.",
   "genre": "street toss and tag",
   "orientation": "portrait",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "monetization": {
     "model": "premium",
     "priceUsd": 2.99,

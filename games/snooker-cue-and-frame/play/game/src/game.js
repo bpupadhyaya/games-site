@@ -15,10 +15,10 @@ import { aimRay, objectLine, previewShot, snapAim } from './guide.js';
 import { explainShot, situation } from './explain.js';
 import { LESSONS, lessonById, lessonIndex, lessonWorld } from './lessons.js';
 import { W, H, inRect, REF_BACK, REF_NEXT, TEXT_DEC, TEXT_INC, TEXT_SCALES, THINK_STEPS, SETUP_PINS } from './layout.js';
-import { renderPlay, layoutFor, camFor, aimToTable, cardRect } from './view.js';
+import { renderPlay, layoutFor, camFor, aimToTable, cardRect, verdictScroll } from './view.js';
 import {
   renderTitle, renderSetup, renderSettings, renderLearn, renderQuiz, renderResult, renderPause, renderSpin, renderReason, renderLessonResult, renderPages, renderDemoLimit,
-  hitScreen, flowMeta, pageCount, ensureLayout, resetMenus, artRect,
+  hitScreen, flowMeta, docMeta, ensureLayout, resetMenus, artRect,
 } from './menus.js';
 import { ABOUT, HOWTO, RULES } from './content.js';
 import { setPress } from './ui.js';
@@ -39,7 +39,7 @@ export function createGame(env) {
   const aiRng = rng.fork();
   const state = {
     scene: 'title', back: 'title', t: 0, paused: false, pauseMenu: false, spinOpts: false, reasonOpen: false, demo: !!config.demo,
-    settings: { sound: true, textIdx: 0, thinkIdx: 1, guide: 1, assist: 0 },
+    settings: { sound: true, textIdx: 0, thinkIdx: 1, guide: 1, assist: 1 },
     record: { wins: [0, 0, 0, 0, 0], played: 0, streak: 0, best: 0, high: 0, demoFrames: 0 },
     learn: { done: {} },
     setup: { mode: 'ai', opp: 0, format: 'six', best: 1 }, setupMsg: '',
@@ -201,7 +201,7 @@ export function createGame(env) {
     while (a > Math.PI) a -= TAU;
     while (a < -Math.PI) a += TAU;
     state.aim.angle = a;
-    if (state.settings.assist) { const s = snapAim(state.w, a); if (s !== null) state.aim.angle = s; }
+    if (state.settings.assist) { const easy = state.m && state.m.cfg.mode === 'ai' && state.m.cfg.opp <= 1; const s = snapAim(state.w, a, easy ? 2.2 : 1.4); if (s !== null) state.aim.angle = s; }
     if (state.card && state.card.sticky) state.card = null;
   };
 
@@ -456,7 +456,7 @@ export function createGame(env) {
     guideKey = ''; updateGuide(true);
   }
   function runBudget(pl, n) {
-    if (!env.clock) { pl.step(n); return; }
+    if (!env.clock) { pl.step(n * 24); return; }
     const t0 = nowMs();
     do { pl.step(1); } while (!pl.done && nowMs() - t0 < 6);
   }
@@ -638,6 +638,9 @@ export function createGame(env) {
       if (ptr.pressed && inRect(c.pause, ptr.x, ptr.y)) { openPause(); sfx.tick(); }
     } else if (state.ctl === 'verdict') {
       const v = state.verdict;
+      if (v && ptr.pressed && ptr.y >= verdictScroll.top && ptr.y <= verdictScroll.bottom) state.vdrag = { y0: ptr.y, s0: v.scroll ?? 0 };
+      if (v && state.vdrag && ptr.down) v.scroll = clamp(state.vdrag.s0 - (ptr.y - state.vdrag.y0), 0, verdictScroll.max);
+      if (!ptr.down) state.vdrag = null;
       if (v && ptr.pressed) {
         const n = v.buttons.length;
         const rects = n === 1 ? [c.go] : n === 2 ? [c.half1, c.half2] : [c.go2, c.go];
@@ -833,20 +836,31 @@ export function createGame(env) {
     if (ptr.pressed && (inRect(SETUP_PINS.start, ptr.x, ptr.y) || inRect(SETUP_PINS.back, ptr.x, ptr.y))) { handleSetup(inRect(SETUP_PINS.start, ptr.x, ptr.y) ? 'start' : 'back'); return; }
     updateFlowScene(dt, input, handleSetup, 'setup');
   };
+  // Reference pages scroll like any long page: drag, mouse wheel, arrow / page keys, and the Up / Next buttons (a screenful at a time).
+  let pageDrag = null, wheelAcc = 0;
+  try { globalThis.addEventListener('wheel', (e) => { if (state.scene === 'rules' || state.scene === 'howto' || state.scene === 'about') wheelAcc += e.deltaY; }, { passive: true }); } catch { /* no window */ }
+  Object.defineProperty(state, 'pageDragging', { get: () => !!pageDrag, enumerable: false });
   const updatePages = (input) => {
-    const ptr = input.pointer, keys = input.keys;
-    const n = pageCount();
+    const ptr = input.pointer, keys = input.keys, dm = docMeta();
     const close = () => { state.scene = state.back === 'play' ? 'play' : 'title'; state.page = 0; };
-    const next = () => { if (state.page >= n - 1) close(); else state.page++; };
-    const prev = () => { if (state.page <= 0) close(); else state.page--; };
+    const go = (d) => { state.page = clamp(state.page + d, 0, dm.max); };
+    const screenful = () => Math.round(dm.view * 0.85);
     if (ptr.pressed) {
-      if (inRect(REF_NEXT, ptr.x, ptr.y)) next();
-      else if (inRect(REF_BACK, ptr.x, ptr.y)) prev();
+      if (inRect(REF_NEXT, ptr.x, ptr.y)) { if (state.page >= dm.max - 4) close(); else go(screenful()); pageDrag = null; }
+      else if (inRect(REF_BACK, ptr.x, ptr.y)) { if (state.page > 4) go(-screenful()); else close(); pageDrag = null; }
       else if (inRect(TEXT_DEC, ptr.x, ptr.y)) { state.settings.textIdx = Math.max(0, state.settings.textIdx - 1); save(); }
       else if (inRect(TEXT_INC, ptr.x, ptr.y)) { state.settings.textIdx = Math.min(TEXT_SCALES.length - 1, state.settings.textIdx + 1); save(); }
+      else pageDrag = { y0: ptr.y, s0: state.page };
     }
-    if (keys.pressed.has('ArrowRight')) next();
-    if (keys.pressed.has('ArrowLeft')) prev();
+    if (pageDrag && ptr.down) state.page = clamp(pageDrag.s0 - (ptr.y - pageDrag.y0), 0, dm.max);
+    if (!ptr.down) pageDrag = null;
+    if (wheelAcc) { go(wheelAcc); wheelAcc = 0; }
+    if (keys.down.has('ArrowDown')) go(14);
+    if (keys.down.has('ArrowUp')) go(-14);
+    if (keys.pressed.has('PageDown') || keys.pressed.has('ArrowRight')) go(screenful());
+    if (keys.pressed.has('PageUp') || keys.pressed.has('ArrowLeft')) go(-screenful());
+    if (keys.pressed.has('Home')) state.page = 0;
+    if (keys.pressed.has('End')) state.page = dm.max;
     if (keys.pressed.has('Escape')) close();
   };
 
@@ -894,7 +908,7 @@ export function createGame(env) {
   }
 
   // wall-clock drawing helpers stay out of the enumerable state (hashes and saves never see them)
-  for (const k of ['alpha', 'updAt', 'cam', 'replayed', 'stepped', 'shotT0', 'lastRes', 'resumeAim']) Object.defineProperty(state, k, { value: undefined, writable: true, enumerable: false });
+  for (const k of ['alpha', 'updAt', 'cam', 'replayed', 'stepped', 'shotT0', 'lastRes', 'resumeAim', 'vdrag']) Object.defineProperty(state, k, { value: undefined, writable: true, enumerable: false });
   startAttract();
   resetMenus();
   let ivl = 1000 / 60;
@@ -911,7 +925,7 @@ export function createGame(env) {
       else if (v === 'verdict') { state.verdict = { title: 'Foul: 4 to Expert', tone: 'bad', lines: ['The wrong ball was hit first.', 'Expert places the white in the D.'], buttons: [{ id: 'cont', label: 'Continue', primary: true }] }; state.ctl = 'verdict'; state.shotMode = null; }
       else if (v === 'result') { state.m.frames = [2, 1]; state.m.over = { win: 0 }; state.m.results = [{ scores: [64, 31], win: 0, high: [35, 12] }, { scores: [22, 51], win: 1, high: [14, 28] }, { scores: [58, 40], win: 0, high: [22, 18] }]; state.scene = 'result'; }
       else if (v === 'quiz') startLesson('fouls');
-      else if (v === 'rules' || v === 'about' || v === 'howto') { state.scene = v; state.back = 'title'; state.page = Number(q('page')) | 0; }
+      else if (v === 'rules' || v === 'about' || v === 'howto') { state.scene = v; state.back = 'title'; state.page = (Number(q('page')) | 0) * 300; }
       else if (v === 'watch') { startWatch(); state.shotMode = null; }
       else if (v === 'lesson') { startLesson(q('id') ?? 'pot'); state.shotMode = null; }
       else state.scene = v;
@@ -920,7 +934,10 @@ export function createGame(env) {
 
   return {
     // Watch & Learn, lessons and every menu are free; only real play counts against the free preview (a paused game does not).
-    isPreviewExempt: () => !(state.scene === 'play' && state.m && state.m.cfg.mode !== 'watch' && state.m.cfg.mode !== 'lesson') || state.paused,
+    // Only live action counts: balls rolling, the computer taking its turn. Menus, Rules, Learn, Watch & Learn, pause, results, and the
+    // player's own aiming / verdict screens (nothing is moving) are free.
+    isPreviewExempt: () => !(state.scene === 'play' && state.m && state.m.cfg.mode !== 'watch' && state.m.cfg.mode !== 'lesson') || state.paused
+      || state.pauseMenu || state.spinOpts || state.reasonOpen || state.ctl === 'verdict' || (state.ctl === 'aim' && !!state.humanTurn && !state.stroke),
     update(dt, inputIn) {
       const input = SHOT_MODE ? BLANK : inputIn;      // store screenshots never use the random player
       state.stepped = false;

@@ -9,7 +9,7 @@ export const LEVELS = [
   { id: 'casual', depth: 2, cap: 3000, flaw: 0.25 },
   { id: 'skilled', depth: 3, cap: 6000, flaw: 0.08 },
   { id: 'expert', depth: 5, cap: 15000, flaw: 0.03 },
-  { id: 'master', depth: 10, cap: 250000, flaw: 0 },
+  { id: 'master', depth: 10, cap: 250000, flaw: 0, tt: true },
 ];
 export const levelOf = (id) => LEVELS.find((l) => l.id === id) ?? LEVELS[2];
 
@@ -62,19 +62,46 @@ function mobility(cells, who) {
 }
 const HUB = []; for (let i = 0; i < NN; i++) { const [r, c] = rc(i); HUB.push((r + c) % 2 === 0 ? 1 : 0); }
 const WIN = 100000;
+// Transposition table (per decision): the same position reached by different move orders is searched once. Entries are only stored
+// when the node finished inside the node budget, so a half-searched (thrown away) depth never leaves wrong values behind.
+const ttKey = (st) => { let k = 0; const c = st.cells; for (let i = 0; i < NN; i++) k = k * 3 + c[i]; return (k * 2 + (st.turn - 1)) * 26 + (st.chain + 1); };
+const EXACT = 0, LOWER = 1, UPPER = 2;
+function ttStore(budget, key, depth, best, a0, b0) {
+  if (!budget.tt || budget.n <= 0) return;
+  const e = budget.tt.get(key);
+  if (e && e.d > depth) return;
+  budget.tt.set(key, { d: depth, v: best, f: best <= a0 ? UPPER : best >= b0 ? LOWER : EXACT });
+}
+// returns a value when the table settles this node, else undefined (alpha/beta may be narrowed through `w`)
+function ttProbe(budget, key, depth, w) {
+  if (!budget.tt) return undefined;
+  const e = budget.tt.get(key);
+  if (!e || e.d < depth) return undefined;
+  if (e.f === EXACT) return e.v;
+  if (e.f === LOWER) { if (e.v > w.a) w.a = e.v; } else if (e.v < w.b) w.b = e.v;
+  return w.a >= w.b ? e.v : undefined;
+}
 function children(st) {
   const kids = legalMoves(st).map((mv) => ({ mv, ns: applyMove(st, mv) }));
   kids.sort((x, y) => (y.mv.cap >= 0) - (x.mv.cap >= 0));
   return kids;
 }
-function terminal(st, me, ply) {
+function terminal(st, me, ply, budget) {
   const o = st.over;
   if (o.winner === 0) return 0;
   return o.winner === me ? WIN - ply : -WIN + ply;
 }
 function ab(st, depth, alpha, beta, me, ply, budget) {
-  if (st.over) return terminal(st, me, ply);
+  if (st.over) return terminal(st, me, ply, budget);
   if (budget.n <= 0) return evaluate(st, me);
+  let key = 0, w = null;
+  if (budget.tt) {
+    key = ttKey(st); w = { a: alpha, b: beta };
+    const hit = ttProbe(budget, key, depth, w);
+    if (hit !== undefined) return hit;
+    alpha = w.a; beta = w.b;
+  }
+  const a0 = alpha, b0 = beta;
   budget.n--;
   const kids = children(st);
   if (!kids.length) return evaluate(st, me);
@@ -84,67 +111,80 @@ function ab(st, depth, alpha, beta, me, ply, budget) {
     if (kids[0].mv.cap < 0 || ply > 40) return evaluate(st, me);
   }
   const nd = (ns) => (ns.turn === st.turn ? depth : depth - 1);
+  let best;
   if (st.turn === me) {
-    let best = -Infinity;
+    best = -Infinity;
     for (const k of kids) {
       const v = ab(k.ns, nd(k.ns), alpha, beta, me, ply + 1, budget);
       if (v > best) best = v;
       if (best > alpha) alpha = best;
       if (alpha >= beta) break;
     }
-    return best;
+  } else {
+    best = Infinity;
+    for (const k of kids) {
+      const v = ab(k.ns, nd(k.ns), alpha, beta, me, ply + 1, budget);
+      if (v < best) best = v;
+      if (best < beta) beta = best;
+      if (alpha >= beta) break;
+    }
   }
-  let best = Infinity;
-  for (const k of kids) {
-    const v = ab(k.ns, nd(k.ns), alpha, beta, me, ply + 1, budget);
-    if (v < best) best = v;
-    if (best < beta) beta = best;
-    if (alpha >= beta) break;
-  }
+  if (budget.tt) ttStore(budget, key, depth, best, a0, b0);
   return best;
 }
 
 // The same search as `ab`, but the upper plies are a generator that yields every QUANTUM nodes, so a long search is sliced into
 // pieces of a few milliseconds (the game steps one slice per frame). The deeper plies run in plain recursion.
-const QUANTUM = 2500, GEN_PLIES = 7;
+// A subtree with at most PLAIN_DEPTH turns left is searched in one go (it is small); everything above it can yield, so no slice is long.
+const QUANTUM = 1000, PLAIN_DEPTH = 2;
 function* abY(st, depth, alpha, beta, me, ply, budget) {
-  if (st.over) return terminal(st, me, ply);
+  if (st.over) return terminal(st, me, ply, budget);
   if (budget.n <= 0) return evaluate(st, me);
-  if (ply >= GEN_PLIES) return ab(st, depth, alpha, beta, me, ply, budget);
+  if (depth <= PLAIN_DEPTH) return ab(st, depth, alpha, beta, me, ply, budget);
+  let key = 0, w = null;
+  if (budget.tt) {
+    key = ttKey(st); w = { a: alpha, b: beta };
+    const hit = ttProbe(budget, key, depth, w);
+    if (hit !== undefined) return hit;
+    alpha = w.a; beta = w.b;
+  }
+  const a0 = alpha, b0 = beta;
   budget.n--;
   const kids = children(st);
   if (!kids.length) return evaluate(st, me);
   if (depth <= 0 && st.chain < 0 && (kids[0].mv.cap < 0 || ply > 40)) return evaluate(st, me);
   const nd = (ns) => (ns.turn === st.turn ? depth : depth - 1);
+  let best;
   if (st.turn === me) {
-    let best = -Infinity;
+    best = -Infinity;
     for (const k of kids) {
       const v = yield* abY(k.ns, nd(k.ns), alpha, beta, me, ply + 1, budget);
       if (v > best) best = v;
       if (best > alpha) alpha = best;
       if (alpha >= beta) break;
-      if (budget.n <= budget.mark) { budget.mark = budget.n - QUANTUM; yield; }
+      if (budget.n <= budget.mark) { budget.mark = budget.n - QUANTUM; yield; if (budget.stop && budget.stop.stop) budget.n = 0; }
     }
-    return best;
+  } else {
+    best = Infinity;
+    for (const k of kids) {
+      const v = yield* abY(k.ns, nd(k.ns), alpha, beta, me, ply + 1, budget);
+      if (v < best) best = v;
+      if (best < beta) beta = best;
+      if (alpha >= beta) break;
+      if (budget.n <= budget.mark) { budget.mark = budget.n - QUANTUM; yield; if (budget.stop && budget.stop.stop) budget.n = 0; }
+    }
   }
-  let best = Infinity;
-  for (const k of kids) {
-    const v = yield* abY(k.ns, nd(k.ns), alpha, beta, me, ply + 1, budget);
-    if (v < best) best = v;
-    if (best < beta) beta = best;
-    if (alpha >= beta) break;
-    if (budget.n <= budget.mark) { budget.mark = budget.n - QUANTUM; yield; }
-  }
+  if (budget.tt) ttStore(budget, key, depth, best, a0, b0);
   return best;
 }
 
 // Iterative deepening, root moves scored exactly. A depth that runs out of budget is thrown away and the last finished depth is kept,
 // so a larger budget can only play better. Yields once per root move.
-export function* search(st, maxDepth, nodeCap, info) {
+export function* search(st, maxDepth, nodeCap, info, opt = {}) {
   const me = st.turn;
   let kids = children(st);
   let done = kids.map((k) => ({ mv: k.mv, s: 0 }));
-  const budget = { n: nodeCap, mark: nodeCap - QUANTUM };
+  const budget = { n: nodeCap, mark: nodeCap - QUANTUM, tt: opt.tt ? new Map() : null, stop: opt.ctl ?? null };
   for (let d = 1; d <= maxDepth; d++) {
     const results = [];
     let aborted = false, best = -Infinity;
@@ -172,14 +212,14 @@ function pickBest(list, rng) {
 }
 
 // One decision as a generator: returns the chosen move.
-export function* thinkTask(st, level, rng) {
+export function* thinkTask(st, level, rng, ctl) {
   const moves = legalMoves(st);
   if (!moves.length) return null;
   if (moves.length === 1) return moves[0];
   const L = levelOf(level);
   if (L.id === 'novice') return moves[rng.int(moves.length)];
   if (L.flaw && rng.chance(L.flaw)) return moves[rng.int(moves.length)];
-  const list = yield* search(st, L.depth, L.cap);
+  const list = yield* search(st, L.depth, L.cap, null, { tt: L.tt, ctl });
   return pickBest(list, rng).mv;
 }
 export function chooseMove(st, level, rng) {

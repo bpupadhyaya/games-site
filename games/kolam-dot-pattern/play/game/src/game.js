@@ -23,7 +23,7 @@ const NAMES = [523.25, 587.33, 659.25, 783.99, 880.0];
 export async function createGame(env) {
   const { rng, storage, audio, config } = env;
   const S = {
-    scene: 'title', overlay: null, t: 0, ovT: 0, sound: true, themeId: 'stone', textIdx: 0, thinkIdx: 1, check: true,
+    scene: 'title', overlay: null, t: 0, ovT: 0, sound: true, themeId: 'stone', textIdx: 0, thinkIdx: 1, check: false,
     results: {}, saves: {}, openIds: {}, lastId: null, lessons: {}, daily: { streak: 0, last: -1 }, demoIds: [], demoCount: 0,
     page: { howto: 0, rules: 0 }, scroll: {}, scrollVel: {}, press: null, match: null, auto: null, chapterIdx: 0, lessonIdx: 0, endInfo: null,
     demo: Boolean(config?.demo), dev: Boolean(config?.dev), owns: false, price: '', resetArm: false, version: VERSION, shot: false, lastPtr: { x: 0, y: 0 },
@@ -103,6 +103,8 @@ export async function createGame(env) {
 
   // ------------------------------------------------------------------------------ matches
   const z = () => TEXT_SCALES[S.textIdx];
+  // Guide is a setting (off by default); lessons always have it on so the first steps teach
+  const effGuide = () => S.check || Boolean(S.match && S.match.lesson !== null);
   const areaOf = () => (S.scene === 'auto' ? autoLayout(z()).area : S.scene === 'sandbox' ? sandboxLayout(z()).area : playLayout(z()).area);
   const unit = (x, y) => { const B = S.scene === 'sandbox' ? S.sb.B : S.match.B; return toUnit(boardGeo(B, areaOf(), 30), x, y); };
 
@@ -299,7 +301,7 @@ export async function createGame(env) {
   function leaveToMenu() { releaseAll(); saveMatch(); saveSb(); S.match = null; S.auto = null; S.sb = S.scene === 'sandbox' ? S.sb : S.sb; gotoScene('title'); }
   function releaseAll() {
     const M = S.match;
-    if (M && S.scene === 'play') { P.releaseFinger(M); drain(M); }
+    if (M && S.scene === 'play') { P.releaseFinger(M, effGuide()); drain(M); }
     if (S.scene === 'sandbox' && S.sb) { releaseSb(S.sb); saveSb(); }
   }
 
@@ -466,13 +468,13 @@ export async function createGame(env) {
     if (S.scene === 'sandbox') { const h = moveSb(S.sb, F); if (h) { if (h.mode === 'draw') SOUNDS.draw(h.arc); else SOUNDS.erase(); } return; }
     const M = S.match;
     if (!M) { S.press = null; return; }
-    P.dragTo(M, F, S.check);
+    P.dragTo(M, F, effGuide());
     drain(M);
   }
   function endStroke() {
     if (S.scene === 'sandbox' && S.sb) { if (releaseSb(S.sb)) saveSb(); return; }
     const M = S.match;
-    if (M) { P.releaseFinger(M); drain(M); saveMatch(); }
+    if (M) { P.releaseFinger(M, effGuide()); drain(M); saveMatch(); }
   }
   function hudAction(id) {
     if (id === 'hud:back') leaveToMenu();
@@ -533,6 +535,8 @@ export async function createGame(env) {
       else if (S.press && S.press.kind === 'stroke' && !ptr.down && !ptr.pressed && !S.shot) { S.press = null; endStroke(); }
       if (ptr.down || ptr.pressed) { S.lastPtr.x = ptr.x; S.lastPtr.y = ptr.y; }
       if (!S.shot && (input.keys.pressed.size || input.keys.down.size)) onKeys(input.keys);
+      const wy = env.wheel ? env.wheel.take() : 0;
+      if (wy && !S.press) { const ui = buildUi(S); if (ui.layout && ui.region) { setScroll(ui, getScroll(ui) + wy); S.scrollVel = {}; } }
 
       for (const k of Object.keys(S.scrollVel)) {
         const v = S.scrollVel[k];

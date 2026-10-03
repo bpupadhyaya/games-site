@@ -28,6 +28,9 @@ export function createGame(env) {
     sim: null, women: false, paused: false, pauseMenu: false, think: null, thinkRects: null, feedback: null, showRot: false,
     watch: { phase: 'think', timer: 0, paused: false, holdId: -1 }, t: 0, viewW: 720, viewH: 1280,
   };
+  G.wheel = 0;
+  // mouse wheel / trackpad scroll for every text screen; main.js forwards the DOM wheel event here (the kit's pointer has no wheel)
+  G.addWheel = (dy) => { if (G.scene === 'play' && !G.pauseMenu && !G.think && !(G.mode === 'watch' && S && S.s.hold && G.watch.phase !== 'act')) return false; G.wheel += dy; return true; };
   let aboutList = ABOUT;
   if (typeof fetch === 'function') {
     fetch('./vendor3d/LICENSES.md').then((r) => (r.status >= 400 ? '' : r.text())).then((t) => {
@@ -159,7 +162,7 @@ export function createGame(env) {
         if (e.kind === 'attack') sfx.spike(); else if (e.kind === 'serve') sfx.serve(); else if (e.kind === 'set') sfx.set(); else sfx.bump(e.q || 0.5);
         if (mine) { const lab = e.auto ? 'NO PRESS' : tmLabel(e.tm); G.feedback = { t: s.t, text: lab, col: e.auto ? '#ff9a86' : e.tm >= 0.9 ? '#7fe8d6' : e.tm >= 0.7 ? '#ffe9a0' : e.tm >= 0.45 ? '#fff6e4' : '#ff9a86', x: e.c.x, z: e.c.z }; }
       } else if (e.type === 'block') sfx.block();
-      else if (e.type === 'land') sfx.bounce();
+      else if (e.type === 'land') { sfx.bounce(); G.landFx = { x: e.x, z: e.z, t: s.t }; }
       else if (e.type === 'netHit' || e.type === 'cord') sfx.net();
       else if (e.type === 'point') {
         sfx.whistle();
@@ -282,8 +285,14 @@ export function createGame(env) {
     const max = mt.lay ? Math.max(0, mt.lay.contentH - (mt.bottom - mt.top)) : 0;
     if (input.keys.pressed.has('Equal') || input.keys.pressed.has('NumpadAdd')) { G.settings.textIdx = Math.min(TEXT_SCALES.length - 1, G.settings.textIdx + 1); saveSettings(); }
     if (input.keys.pressed.has('Minus') || input.keys.pressed.has('NumpadSubtract')) { G.settings.textIdx = Math.max(0, G.settings.textIdx - 1); saveSettings(); }
+    const kp = input.keys.pressed, page = Math.max(80, (mt.bottom - mt.top) * 0.85);
     if (input.keys.down.has('ArrowDown')) G.ui.scroll = clamp(G.ui.scroll + 14, 0, max);
     if (input.keys.down.has('ArrowUp')) G.ui.scroll = clamp(G.ui.scroll - 14, 0, max);
+    if (kp.has('PageDown') || kp.has('Space')) G.ui.scroll = clamp(G.ui.scroll + page, 0, max);
+    if (kp.has('PageUp')) G.ui.scroll = clamp(G.ui.scroll - page, 0, max);
+    if (kp.has('Home')) G.ui.scroll = 0;
+    if (kp.has('End')) G.ui.scroll = max;
+    if (G.wheel) { G.ui.scroll = clamp(G.ui.scroll + G.wheel, 0, max); G.wheel = 0; }
   };
   const go = (scene) => { G.scene = scene; G.ui.scroll = 0; G.page = 0; };
   const refresh = () => { G.women = !!G.settings.women; };
@@ -390,18 +399,35 @@ export function createGame(env) {
   }
   const updatePages = (input) => {
     const ptr = input.pointer, keys = input.keys;
-    const n = MN.pageCount();
-    const close = () => { G.scene = G.back === 'play' ? 'play' : G.back === 'roleend' ? 'roleend' : 'title'; G.page = 0; G.ui.scroll = 0; };
-    const next = () => { if (G.page >= n - 1) close(); else G.page++; };
-    const prev = () => { if (G.page <= 0) close(); else G.page--; };
+    const rm = MN.pagesMeta(), max = rm.max, step = rm.view * 0.85;
+    const close = () => { G.scene = G.back === 'play' ? 'play' : G.back === 'roleend' ? 'roleend' : 'title'; G.page = 0; G.ui.scroll = 0; G.ui.vel = 0; };
+    const to = (v) => { G.ui.scroll = clamp(v, 0, max); };
+    const next = () => { if (G.ui.scroll >= max - 4) close(); else to(G.ui.scroll + step); };
+    const prev = () => { if (G.ui.scroll <= 4) close(); else to(G.ui.scroll - step); };
     if (ptr.pressed) {
       if (inRect(REF_NEXT, ptr.x, ptr.y)) next();
       else if (inRect(REF_BACK, ptr.x, ptr.y)) prev();
-      else if (inRect(TEXT_DEC, ptr.x, ptr.y)) { G.settings.textIdx = Math.max(0, G.settings.textIdx - 1); saveSettings(); }
-      else if (inRect(TEXT_INC, ptr.x, ptr.y)) { G.settings.textIdx = Math.min(TEXT_SCALES.length - 1, G.settings.textIdx + 1); saveSettings(); }
+      else if (inRect(TEXT_DEC, ptr.x, ptr.y)) { G.settings.textIdx = Math.max(0, G.settings.textIdx - 1); G.ui.scroll = 0; saveSettings(); }
+      else if (inRect(TEXT_INC, ptr.x, ptr.y)) { G.settings.textIdx = Math.min(TEXT_SCALES.length - 1, G.settings.textIdx + 1); G.ui.scroll = 0; saveSettings(); }
+      else { G.ui.drag = { y0: ptr.y, s0: G.ui.scroll, last: ptr.y, moved: 0 }; G.ui.vel = 0; }
     }
-    if (keys.pressed.has('ArrowRight')) next();
-    if (keys.pressed.has('ArrowLeft')) prev();
+    if (G.ui.drag && ptr.down) {
+      const d = G.ui.drag; d.moved = Math.max(d.moved, Math.abs(ptr.y - d.y0));
+      G.ui.vel = (d.last - ptr.y) * 0.9 + G.ui.vel * 0.1; d.last = ptr.y;
+      if (d.moved >= 6) to(d.s0 - (ptr.y - d.y0));
+    }
+    if (ptr.released && G.ui.drag) G.ui.drag = null;
+    else if (!ptr.down && Math.abs(G.ui.vel || 0) > 0.4) { to(G.ui.scroll + G.ui.vel); G.ui.vel *= 0.92; }
+    else if (!G.ui.drag) G.ui.vel = 0;
+    if (G.wheel) { to(G.ui.scroll + G.wheel); G.wheel = 0; }
+    if (keys.down.has('ArrowDown')) to(G.ui.scroll + 14);
+    if (keys.down.has('ArrowUp')) to(G.ui.scroll - 14);
+    if (keys.pressed.has('PageDown') || keys.pressed.has('Space') || keys.pressed.has('ArrowRight')) { if (G.ui.scroll >= max - 4 && keys.pressed.has('ArrowRight')) close(); else to(G.ui.scroll + step); }
+    if (keys.pressed.has('PageUp') || keys.pressed.has('ArrowLeft')) { if (G.ui.scroll <= 4 && keys.pressed.has('ArrowLeft')) close(); else to(G.ui.scroll - step); }
+    if (keys.pressed.has('Home')) to(0);
+    if (keys.pressed.has('End')) to(max);
+    if (keys.pressed.has('Equal') || keys.pressed.has('NumpadAdd')) { G.settings.textIdx = Math.min(TEXT_SCALES.length - 1, G.settings.textIdx + 1); G.ui.scroll = 0; saveSettings(); }
+    if (keys.pressed.has('Minus') || keys.pressed.has('NumpadSubtract')) { G.settings.textIdx = Math.max(0, G.settings.textIdx - 1); G.ui.scroll = 0; saveSettings(); }
     if (keys.pressed.has('Escape')) close();
   };
   const updateSetup = (dt, input) => {
@@ -412,6 +438,23 @@ export function createGame(env) {
     updateFlowScene(dt, input, handleSetup, 'setup');
   };
 
+  // Think / Watch cards: when the zoomed text is longer than the card it scrolls (drag, wheel, arrows, Page keys, Home / End)
+  function cardScrollInput(input) {
+    const m = G.cardMeta, ptr = input.pointer, keys = input.keys;
+    if (!m || m.max <= 0) { G.wheel = 0; G.ui.cdrag = null; return; }
+    const sc = (v) => { G.cardScroll = clamp(v, 0, m.max); };
+    if (ptr.pressed && inRect(m.rect, ptr.x, ptr.y)) G.ui.cdrag = { y0: ptr.y, s0: G.cardScroll || 0, moved: 0 };
+    if (G.ui.cdrag && ptr.down) { const d = G.ui.cdrag; d.moved = Math.max(d.moved, Math.abs(ptr.y - d.y0)); if (d.moved >= 6) sc(d.s0 - (ptr.y - d.y0)); }
+    if (ptr.released) G.ui.cdrag = null;
+    if (G.wheel) { sc((G.cardScroll || 0) + G.wheel); G.wheel = 0; }
+    if (keys.down.has('ArrowDown')) sc((G.cardScroll || 0) + 12);
+    if (keys.down.has('ArrowUp')) sc((G.cardScroll || 0) - 12);
+    if (keys.pressed.has('PageDown')) sc((G.cardScroll || 0) + m.view * 0.85);
+    if (keys.pressed.has('PageUp')) sc((G.cardScroll || 0) - m.view * 0.85);
+    if (keys.pressed.has('Home')) sc(0);
+    if (keys.pressed.has('End')) sc(m.max);
+  }
+
   // ---- the play update ------------------------------------------------------------------------------
   function updatePlay(dt, input) {
     const ptr = input.pointer, keys = input.keys;
@@ -419,6 +462,7 @@ export function createGame(env) {
     if (G.pauseMenu) { MN.ensureLayout(G, 'pause'); updateFlowScene(dt, input, handlePause, null); S.setMove(0, 0); return; }
     if (G.think) {
       S.setMove(0, 0);
+      cardScrollInput(input);
       if (ptr.pressed && G.thinkRects) {
         if (G.thinkRects.use && inRect(G.thinkRects.use, ptr.x, ptr.y)) { useThink(); G.think = null; sfx.tick(); }
         else if (inRect(G.thinkRects.close, ptr.x, ptr.y)) { G.think = null; sfx.tick(); }
@@ -426,6 +470,7 @@ export function createGame(env) {
       return;
     }
     if (G.mode === 'watch') {
+      if (S.s.hold && G.watch.phase !== 'act') cardScrollInput(input);
       if (ptr.pressed) {
         const i = watchHit(G, ptr.x, ptr.y);
         if (i === 0) { G.watch.paused = !G.watch.paused; sfx.tick(); }
@@ -466,7 +511,7 @@ export function createGame(env) {
 
   return {
     // Menus, Rules, About, settings, Learn, lessons and Watch & Learn are free; only real play counts against the preview.
-    isPreviewExempt: () => !(G.scene === 'play' && G.mode === 'ai') || G.paused || G.pauseMenu || !!G.think || G.showRot || (S && S.s.phase === 'dead'),
+    isPreviewExempt: () => !(G.scene === 'play' && G.mode === 'ai') || G.paused || G.pauseMenu || !!G.think || G.showRot || (S && (S.s.phase === 'dead' || S.s.phase === 'pre' || !!(S.s.prompt && S.s.prompt.kind === 'serveWait'))),
     update(dt, input) {
       setPress(input.pointer);
       G.t += dt;

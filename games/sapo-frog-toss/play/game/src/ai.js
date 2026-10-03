@@ -43,7 +43,7 @@ export const planKey = (p) => `${p.ax.toFixed(3)},${p.az.toFixed(3)},${p.spin},$
 export function makeJob(m, side, level, strat = level) {
   const table = strat >= 2 ? tableDiscs(m) : [], last = leftFor(m, side) === 1, nextId = m.nextId;
   const sigma = level === 'human' ? 0 : level;
-  const job = { table, side, stage: 0, i: 0, cands: [], top: [], best: null, done: false, progress: 0, nextId, last, sigma };
+  const job = { strat, table, side, stage: 0, i: 0, cands: [], top: [], best: null, done: false, progress: 0, nextId, last, sigma };
   const grid = [];
   const spins = strat >= 3 ? [-1, 0, 1] : [0];
   const styles = strat >= 1 ? [0, 1] : [0];
@@ -65,20 +65,27 @@ export function makeJob(m, side, level, strat = level) {
         if (job.i >= job.grid.length) {
           job.cands.sort((a, b) => b.v - a.v);
           // keep the best few that are not near-duplicates of each other
-          const top = [];
-          for (const c of job.cands) { if (top.length >= job.K) break; if (top.every((t) => Math.hypot(t.p.ax - c.p.ax, t.p.az - c.p.az) > 0.07 || t.p.style !== c.p.style)) top.push(c); }
+          // (at most two per target hole, so the plans differ in where they aim, not only a few centimetres)
+          const top = [], perHole = {};
+          const holeOf = (c) => { const s = c.res.scored.find((e) => e.id === job.nextId); return s ? s.hole : 'none'; };
+          for (const c of job.cands) {
+            if (top.length >= job.K) break;
+            const hk = holeOf(c); if ((perHole[hk] || 0) >= 2) continue;
+            if (top.every((t) => Math.hypot(t.p.ax - c.p.ax, t.p.az - c.p.az) > 0.07 || t.p.style !== c.p.style)) { top.push(c); perHole[hk] = (perHole[hk] || 0) + 1; }
+          }
           job.top = top; job.stage = 1; job.i = 0; job.cands = null;
         }
       } else {
         const c = job.top[job.i++];
-        let sum = 0, n = 0, worst = 1e9, bestv = -1e9; const holes = {}; let mouth = 0;
-        for (const g of NP.slice(0, job.samples)) {
-          const r = runThrow(job.table, launchDisc(job.nextId, side, clampPlan(shifted(c.p, job.sigmaEval, g))));
-          const v = valueOf(r, job.table, side, job.last);
-          sum += v; n++; worst = Math.min(worst, v); bestv = Math.max(bestv, v);
-          for (const s of r.scored) if (s.id === job.nextId) { holes[s.hole] = (holes[s.hole] || 0) + 1; if (s.hole === 'mouth') mouth++; }
+        // test throws with the thrower's wobble around the plan and a few small shifts of it; keep the shift that does best
+        const offs = job.strat >= 2 ? [[0, 0], [0.025, 0], [-0.025, 0], [0, 0.025], [0, -0.025]] : [[0, 0]];
+        let bestRec = null;
+        for (const [ox, oz] of offs) {
+          const plan = clampPlan({ ...c.p, ax: c.p.ax + ox, az: c.p.az + oz });
+          const rec = sampleRecord(job, plan);
+          if (!bestRec || rec.ev > bestRec.ev) bestRec = rec;
         }
-        c.ev = sum / n; c.worst = worst; c.bestv = bestv; c.holes = holes; c.mouth = mouth; c.n = n;
+        c.p = bestRec.p; c.ev = bestRec.ev; c.worst = bestRec.worst; c.bestv = bestRec.bestv; c.holes = bestRec.holes; c.mouth = bestRec.mouth; c.n = bestRec.n; c.res = bestRec.res; c.v = bestRec.v;
         job.progress = 0.7 + 0.3 * job.i / job.top.length;
         if (job.i >= job.top.length) { job.top.sort((a, b) => b.ev - a.ev); job.best = job.top[0]; job.done = true; job.progress = 1; }
       }
@@ -90,7 +97,7 @@ export function makeJob(m, side, level, strat = level) {
 }
 
 // Test a given plan with the thrower's wobble, on the real table, and return the same kind of record as a search candidate.
-export function evalPlan(job, plan) {
+function sampleRecord(job, plan) {
   const base = runThrow(job.table, launchDisc(job.nextId, job.side, plan));
   let sum = 0, n = 0, worst = 1e9, bestv = -1e9, mouth = 0; const holes = {};
   for (const g of NP.slice(0, job.samples)) {
@@ -101,18 +108,24 @@ export function evalPlan(job, plan) {
   }
   return { p: plan, v: valueOf(base, job.table, job.side, job.last), res: base, ev: sum / n, worst, bestv, holes, mouth, n };
 }
+export const evalPlan = sampleRecord;
 // Choose what the computer throws, from a finished search, with the strategy of its level. Returns a candidate record.
 export function choose(job, prof, rn) {
   const t = job.top;
   if (prof.strat <= 0) {
     // novice: aim at one of the easy holes, ignoring the loose discs
-    const easy = HOLES.filter((h) => h.v <= 100);
+    const easy = HOLES.filter((h) => h.R >= 0.05);
     const h = easy[Math.floor(rn() * easy.length)];
     return evalPlan(job, { ax: h.x, az: Math.max(0.05, h.z - 0.065), spin: 0, style: 0 });
   }
   if (prof.strat === 1) return t[0];
   if (prof.strat === 2 && t.length > 1 && rn() < 0.3) return t[Math.min(t.length - 1, 1 + Math.floor(rn() * 2))];
   if (prof.strat === 3 && t.length > 1 && rn() < 0.12) return t[1];
+  if (prof.strat >= 4 && t.length > 1) {
+    // the master plays every disc for value: any of the near-equal best plans, so it does not always go for the same hole
+    const near = t.filter((c) => c.ev >= t[0].ev * 0.72);
+    return near[Math.floor(rn() * near.length)];
+  }
   return t[0];
 }
 

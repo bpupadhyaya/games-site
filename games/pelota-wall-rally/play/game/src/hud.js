@@ -205,19 +205,37 @@ export function renderThink(ctx, G) {
   const m = PLAY_M[G.settings.textIdx];
   const x = 30, w = W - 60;
   const size = Math.round(26 * Math.min(m, 2));
+  const k = Math.min(m, 1.6);
   ctx.font = `400 ${size}px ${FONT}`;
-  const lines = wrapLines(ctx, t.reason, w - 60);
-  const hh = size * 1.3 * lines.length + 60;
+  const lines = wrapLines(ctx, t.reason, w - 80);
+  ctx.font = `700 ${Math.round(28 * k)}px ${FONT}`;
+  const sm = wrapLines(ctx, t.summary, w - 50);
   const bh = Math.round(84 * Math.min(m, 1.5));
-  const total = Math.min(H - 120, 70 + size * 1.5 + hh + bh * 2 + 50);
+  const head = 108 + sm.length * 34 * k + 6;                 // title + summary
+  const bodyH = size * 1.3 * lines.length + 24;
+  const foot = bh * 2 + 40 + 14;
+  const maxTotal = H - 80;
+  const total = Math.min(maxTotal, head + bodyH + foot);
   const y = Math.max(40, (H - total) / 2);
   panel(ctx, x, y, w, total, { r: 26, fill: 'rgba(24,38,34,0.96)', stroke: 'rgba(255,246,228,0.5)' });
-  ctx.textAlign = 'center'; ctx.fillStyle = '#ffe9a0'; ctx.font = `800 ${Math.round(34 * Math.min(m, 1.6))}px ${FONT}`; ctx.fillText('Coach says', W / 2, y + 56);
-  ctx.fillStyle = '#7fe8d6'; ctx.font = `700 ${Math.round(28 * Math.min(m, 1.6))}px ${FONT}`;
-  const sm = wrapLines(ctx, t.summary, w - 50); sm.forEach((l, i) => ctx.fillText(l, W / 2, y + 108 + i * 34 * Math.min(m, 1.6)));
-  const off = y + 108 + sm.length * 34 * Math.min(m, 1.6) + 6;
+  ctx.textAlign = 'center'; ctx.fillStyle = '#ffe9a0'; ctx.font = `800 ${Math.round(34 * k)}px ${FONT}`; ctx.fillText('Coach says', W / 2, y + 56);
+  ctx.fillStyle = '#7fe8d6'; ctx.font = `700 ${Math.round(28 * k)}px ${FONT}`;
+  sm.forEach((l, i) => ctx.fillText(l, W / 2, y + 108 + i * 34 * k));
+  const vy = y + head, vh = total - head - foot;
+  const maxScroll = Math.max(0, bodyH - vh);
+  const sc = Math.min(Math.max(0, t.scroll || 0), maxScroll); t.scroll = sc;
+  G.thinkView = { x: x + 10, y: vy, w: w - 20, h: vh, maxScroll };
+  ctx.save(); ctx.beginPath(); ctx.rect(x + 10, vy, w - 20, vh); ctx.clip();
   ctx.textAlign = 'left'; ctx.fillStyle = '#fff6e4'; ctx.font = `400 ${size}px ${FONT}`;
-  lines.forEach((l, i) => ctx.fillText(l, x + 30, off + size * (1 + i * 1.3)));
+  lines.forEach((l, i) => ctx.fillText(l, x + 30, vy - sc + size * (1 + i * 1.3)));
+  ctx.restore();
+  if (maxScroll > 0) {
+    const th = Math.max(40, vh * (vh / bodyH)), ty = vy + (sc / maxScroll) * (vh - th);
+    roundPath(ctx, x + w - 16, vy, 6, vh, 3); ctx.fillStyle = 'rgba(255,246,228,0.15)'; ctx.fill();
+    roundPath(ctx, x + w - 16, ty, 6, th, 3); ctx.fillStyle = 'rgba(255,246,228,0.7)'; ctx.fill();
+    ctx.font = `700 20px ${FONT}`; ctx.textAlign = 'center'; ctx.fillStyle = '#ffe9a0';
+    ctx.fillText(sc < maxScroll - 4 ? '▼ drag for more' : '▲ drag up', W / 2, vy + vh + 22);
+  }
   const by = y + total - bh * 2 - 40;
   G.thinkRects = { use: { x: x + 24, y: by, w: w - 48, h: bh }, close: { x: x + 24, y: by + bh + 14, w: w - 48, h: bh } };
   drawButton(ctx, G.thinkRects.use, t.kind ? 'Use it' : 'OK', { primary: true, size: Math.round(30 * Math.min(m, 1.5)) });

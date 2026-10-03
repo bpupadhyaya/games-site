@@ -687,11 +687,17 @@ export async function createGame(env) {
       render(ctx, S, buildUi(S));
     },
 
+    // Mouse wheel / trackpad over a text screen scrolls it (main.js forwards the canvas wheel event).
+    wheel(dy) {
+      const ui = buildUi(S);
+      if (ui.layout && ui.region) { S.scrollVel = {}; setScroll(ui, getScroll(ui) + dy); }
+    },
+
     getState() {
       const M = S.match;
       return {
         scene: S.scene, overlay: S.overlay, textIdx: S.textIdx, thinkIdx: S.thinkIdx, sound: S.sound, theme: S.themeId, lang: S.lang, setup: S.setup,
-        stats: S.stats, lessons: Object.keys(S.lessons).length, lessonIdx: S.lessonIdx, page: S.page, scroll: S.scroll, demoGames: S.demoGames,
+        stats: S.stats, lessons: Object.keys(S.lessons).length, lessonIdx: S.lessonIdx, page: S.page, scroll: S.scroll, scrollMax: (() => { const u = buildUi(S); return u.layout && u.region ? Math.max(0, Math.round(u.layout.height - u.region.h)) : 0; })(), demoGames: S.demoGames,
         auto: S.auto ? { k: S.auto.k, phase: S.auto.phase, t: Math.round(S.auto.t * 100) / 100, paused: S.auto.paused } : null,
         match: M ? {
           level: M.level, lesson: Boolean(M.lesson), human: M.human, two: M.two, cells: M.st.cells.join(','), q: M.st.q.join(''), pd: M.st.pd.join(','), pq: M.st.pq.join(''), turn: M.st.turn, moves: M.hist.length,
@@ -702,7 +708,8 @@ export async function createGame(env) {
     },
 
     // The preview clock counts real play only. Menus, setup, Learn, Rules / How to Play / About, Settings, every overlay (pause, result,
-    // lesson, Watch & Learn summary), the demo card, the lessons and Watch & Learn are all free time.
-    isPreviewExempt: () => (S.shot && !S.shotLock) || S.scene !== 'play' || Boolean(S.overlay) || Boolean(S.match && S.match.lesson),
+    // lesson, Watch & Learn summary), the demo card, the lessons and Watch & Learn are all free time. Dev mode unlocks everything; so does the player's own idle turn (choosing a square, direction or Think),
+    // so only the sowing, captures and the computer's moves use the 90 s.
+    isPreviewExempt: () => S.dev || (S.shot && !S.shotLock) || S.scene !== 'play' || Boolean(S.overlay) || Boolean(S.match && S.match.lesson) || Boolean(S.match && humanTurn(S.match)),
   };
 }

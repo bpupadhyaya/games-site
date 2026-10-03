@@ -9,7 +9,7 @@ import { createDriver } from './anim.js';
 const LIB = '../vendor3d/index.js';
 export const BALL_SCALE = (() => { try { const m = /[?&]bs=([0-9.]+)/.exec(globalThis.location.search); if (m) return +m[1]; } catch { /* ignore */ } return 1.3; })();   // visual ball radius = 0.11 * scale: a real ball is about 3 px on screen, unreadable
 export const BALL_R = BR * BALL_SCALE;
-export const PLAYER_SCALE = (() => { try { const m = /[?&]ps=([0-9.]+)/.exec(globalThis.location.search); if (m) return +m[1]; } catch { /* ignore */ } return 1.2; })();   // stylised players drawn a little larger so they read on a phone
+export const PLAYER_SCALE = (() => { try { const m = /[?&]ps=([0-9.]+)/.exec(globalThis.location.search); if (m) return +m[1]; } catch { /* ignore */ } return 1.35; })();   // stylised players drawn a little larger so they read on a phone
 const SKINS = ['peach', 'clay', 'wood', 'ivory', 'tan', 'brown', 'deep'];
 const HAIRS = ['black', 'brown', 'blond', 'ginger', 'grey', 'black', 'brown'];
 const KITS = [

@@ -11,7 +11,11 @@ export function makeMallet() {
   // one mesh (one draw call): shaft, grip and head merged with vertex colours
   const parts = [[new THREE.CylinderGeometry(0.014, 0.011, STICK_LEN - 0.07, 8), 0, (STICK_LEN - 0.07) / 2, 0, 0, [0.78, 0.6, 0.35]],
     [new THREE.CylinderGeometry(0.02, 0.02, 0.26, 8), 0, 0.16, 0, 0, [0.16, 0.1, 0.07]],
-    [new THREE.CylinderGeometry(0.034, 0.034, 0.2, 10), 0, STICK_LEN, 0, Math.PI / 2, [0.9, 0.85, 0.72]]];
+    [new THREE.CylinderGeometry(0.034, 0.034, 0.2, 10), 0, STICK_LEN, 0, Math.PI / 2, [0.9, 0.85, 0.72]],
+    // hand detail: a pommel cap, a wrapped grip band and the wrist cord loop that hangs from the handle
+    [new THREE.SphereGeometry(0.03, 8, 6), 0, 0.02, 0, 0, [0.12, 0.08, 0.06]],
+    [new THREE.CylinderGeometry(0.0235, 0.0235, 0.035, 8), 0, 0.31, 0, 0, [0.85, 0.74, 0.5]],
+    [new THREE.TorusGeometry(0.075, 0.007, 5, 14), 0, 0.2, 0.045, Math.PI / 2 - 0.35, [0.78, 0.2, 0.15]]];
   const pos = [], nor = [], col = [], idx = [];
   let base = 0;
   for (const [geo, x, y, z, rx, c] of parts) {

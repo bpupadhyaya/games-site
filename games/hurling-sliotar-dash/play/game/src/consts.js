@@ -38,8 +38,8 @@ export const LEVELS = [
   { name: 'Parish', stars: 1, react: 0.5, skill: 0.42, speed: 0.9, aggr: 0.45, iq: 0.3 },
   { name: 'Club', stars: 2, react: 0.36, skill: 0.55, speed: 0.95, aggr: 0.55, iq: 0.45 },
   { name: 'County', stars: 3, react: 0.26, skill: 0.68, speed: 1.0, aggr: 0.65, iq: 0.6 },
-  { name: 'Regional', stars: 4, react: 0.17, skill: 0.81, speed: 1.04, aggr: 0.75, iq: 0.78 },
-  { name: 'Champion', stars: 5, react: 0.09, skill: 0.93, speed: 1.08, aggr: 0.85, iq: 0.92 },
+  { name: 'Regional', stars: 4, react: 0.215, skill: 0.73, speed: 1.02, aggr: 0.69, iq: 0.69 },
+  { name: 'Champion', stars: 5, react: 0.16, skill: 0.79, speed: 1.04, aggr: 0.74, iq: 0.8 },
 ];
 
 // Rule numbers shared by the engine and the Rules text (test/rules.test.js fails when the text and these disagree)
@@ -60,5 +60,5 @@ export const GROUND_SEC = 0.34;        // strike from the ground / rising pick-u
 export const PASS_SEC = 0.26;          // hand-pass
 export const HOOK_SEC = 0.24;          // hook / block swing
 export const ASSIST_DEG = 35;          // aim assist cone (half angle, degrees)
-export const KEEPER_REACH = 0.9;       // goalkeeper stick block radius (a field player's is HOOK_REACH)
+export const KEEPER_REACH = 1.05;       // goalkeeper stick block radius (a field player's is HOOK_REACH)
 export const KEEPER_DIVE = 2.6;        // lateral reach of a dive

@@ -2,7 +2,7 @@
 // overlays. Pure drawing; game.js owns state. Moving things are drawn from the display time `rd.det` (the sim time blended
 // between two fixed steps) so motion is smooth at any refresh rate.
 import {
-  W, H, HOME, PIT, R, CHARGE_SECS, H_MIN, WIN_EARLY, WIN_LATE, airtime, AIR_BASE, AIR_SLOPE, winScale, clamp, handAt, slotPos, stageCount, tossesPerHalf, stageTake, progressOf, MODES,
+  W, H, HOME, PIT, R, CHARGE_SECS, H_MIN, WIN_EARLY, WIN_LATE, airtime, AIR_BASE, AIR_SLOPE, winScale, clamp, handAt, slotPos, pitRadius, stageCount, tossesPerHalf, stageTake, progressOf, MODES,
 } from './sim.js';
 import { drawFloor, drawYard, drawHomeMark, drawStone, drawGho, drawHand, drawTrail, drawRoute, drawBadge, drawRing, drawParticles } from './art.js';
 import { playLayout, THINK_STEPS } from './layout.js';
@@ -57,7 +57,7 @@ export function drawWorld(ctx, state, rd, p, hp = {}) {
   const reveal = rd.beat && rd.beat.phase !== 'think';
   const inToss = ['air', 'resolve'].includes(phase) && rd.ev;
   const charging = phase === 'charge';
-  drawYard(ctx);
+  drawYard(ctx, pitRadius(p.pit.length + p.ground.length));
   drawHomeMark(ctx, HOME.x, HOME.y, charging ? 1 : 0);
   const tk = inToss ? takenView(rd, p, det) : { skip: new Set(), list: [] };
 
@@ -67,7 +67,7 @@ export function drawWorld(ctx, state, rd, p, hp = {}) {
 
   // ---- the pile in the hole, then the stones on the yard
   const items = [];
-  for (const id of p.pit) { if (tk.skip.has(id)) continue; const s = slotPos(id); items.push({ id, x: s.x, y: s.y, rot: (id * 1.37) % 3.14, inPit: true }); }
+  for (const id of p.pit) { if (tk.skip.has(id)) continue; const s = slotPos(id, p.pit.length + p.ground.length); items.push({ id, x: s.x, y: s.y, rot: (id * 1.37) % 3.14, inPit: true }); }
   for (const g of p.ground) {
     if (tk.skip.has(g.id)) continue;
     let s = { id: g.id, x: g.x, y: g.y, rot: g.rot }, z = 0;
@@ -86,7 +86,7 @@ export function drawWorld(ctx, state, rd, p, hp = {}) {
   if (planIds && planIds.length === 1 && !hp.noPlanBadge) { const s = items.find((q) => q.id === planIds[0]); if (s) drawRing(ctx, s.x, s.y, R * 1.9, 'rgba(255,214,94,0.7)', 3, [5, 7]); }
   if (hint && hint.kind === 'plan' && !rd.ctx?.sweep) drawPlanRoute(ctx, hint.plan.ids.map((id) => lookup(p, id)).filter(Boolean), p.dir, t);
   if (reveal && rd.ai && rd.ai.plan && phase === 'ready') drawPlanRoute(ctx, rd.ai.plan.ids.map((id) => lookup(p, id)).filter(Boolean), p.dir, t);
-  if ((hint && hint.kind === 'plan' && rd.ctx?.sweep) || (reveal && rd.ai && rd.ai.sweep)) drawRing(ctx, p.dir === 'out' ? PIT.x : lookupCentroid(p).x, p.dir === 'out' ? PIT.y : lookupCentroid(p).y, p.dir === 'out' ? PIT.r : 90, 'rgba(255,214,94,0.85)', 4, [8, 8]);
+  if ((hint && hint.kind === 'plan' && rd.ctx?.sweep) || (reveal && rd.ai && rd.ai.sweep)) drawRing(ctx, p.dir === 'out' ? PIT.x : lookupCentroid(p).x, p.dir === 'out' ? PIT.y : lookupCentroid(p).y, p.dir === 'out' ? pitRadius(p.pit.length + p.ground.length) : 90, 'rgba(255,214,94,0.85)', 4, [8, 8]);
   if (rd.beat && rd.beat.phase === 'think' && rd.ai && rd.ai.cands && phase === 'ready') {
     const c = rd.ai.cands[Math.floor(rd.beat.t * 2.2) % rd.ai.cands.length];
     if (c) drawPlanRoute(ctx, c.ids.map((id) => lookup(p, id)).filter(Boolean), p.dir, t, 0.2);
@@ -111,7 +111,7 @@ export function drawWorld(ctx, state, rd, p, hp = {}) {
     ctx.fillStyle = f.col; ctx.fillText(f.text, f.x, y + 2); ctx.restore();
   }
 }
-const lookup = (p, id) => { const g = p.ground.find((q) => q.id === id); if (g) return g; if (p.pit.includes(id)) return slotPos(id); return null; };
+const lookup = (p, id) => { const g = p.ground.find((q) => q.id === id); if (g) return g; if (p.pit.includes(id)) return slotPos(id, p.pit.length + p.ground.length); return null; };
 const lookupCentroid = (p) => (p.ground.length ? { x: p.ground.reduce((a, s) => a + s.x, 0) / p.ground.length, y: p.ground.reduce((a, s) => a + s.y, 0) / p.ground.length } : HOME);
 function drawPlanRoute(ctx, stones, dir, t, alpha = 0.26) {
   if (!stones.length) return;
@@ -323,25 +323,33 @@ function drawBar(ctx, state, hp, L) {
   drawButton(ctx, L.pause, T('pause'), { size: 28 * Math.min(L.m, 1.5) * 0.9, dark: true });
 }
 
+let HINT_META = { rect: { x: 0, y: 0, w: 0, h: 0 }, max: 0 };
+export const hintMeta = () => HINT_META;
 function drawHintCard(ctx, state, L, text, title, kindWatch) {
   const zoom = Math.min(L.m, 1.8);
   const x = 22, w = W - 44;
-  let size = Math.round(24 * zoom), lines, h;
-  const maxH = Math.max(160, (L.barTop - 8) - (L.hudBottom + 8) - 20);
-  for (;;) {
-    ctx.font = `500 ${size}px ${FONT}`; lines = wrapLines(ctx, text, w - 44);
-    h = lines.length * size * 1.3 + size * 1.7 + 34;
-    if (h <= maxH || size <= 14) break;
-    size -= 1;
-  }
-  const bottom = L.barTop - 14;
-  const y = bottom - h;
+  const size = Math.round(24 * zoom);
+  ctx.font = `500 ${size}px ${FONT}`;
+  const lines = wrapLines(ctx, text, w - 60);
+  const head = size * 1.7 + 20, contentH = lines.length * size * 1.3 + 22;
+  const maxH = Math.max(200, (L.barTop - 8) - (L.hudBottom + 8) - 20);
+  const h = Math.min(maxH, head + contentH), bodyH = h - head;
+  const max = Math.max(0, contentH - bodyH);
+  const bottom = L.barTop - 14, y = bottom - h;
+  HINT_META = { rect: { x, y, w, h }, max };
+  const scroll = clamp(state.ui.hscroll || 0, 0, max);
   panel(ctx, x, y, w, h, { r: 22, fill: 'rgba(255,246,228,0.97)', stroke: kindWatch ? '#1f9d8f' : '#d9a441' });
   ctx.fillStyle = C.vermDark; ctx.font = `700 ${Math.round(size * 0.92)}px ${FONT}`; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
-  ctx.fillText(title, x + 22, y + 18 + size * 0.9);
+  ctx.fillText(title, x + 22, y + 14 + size * 0.95);
+  ctx.save(); ctx.beginPath(); ctx.rect(x + 8, y + head - 6, w - 16, bodyH - 4); ctx.clip();
   ctx.fillStyle = C.ink; ctx.font = `500 ${size}px ${FONT}`;
-  lines.forEach((l, i) => ctx.fillText(l, x + 22, y + 22 + size * 1.7 + (i + 0.8) * size * 1.3 - size * 0.4));
-  void state;
+  lines.forEach((l, i) => ctx.fillText(l, x + 22, y + head + (i + 0.85) * size * 1.3 - scroll));
+  ctx.restore();
+  if (max > 0) {
+    const th = Math.max(40, bodyH * (bodyH / contentH)), ty = y + head + (scroll / max) * (bodyH - th - 8);
+    roundPath(ctx, x + w - 16, y + head, 7, bodyH - 8, 3); ctx.fillStyle = 'rgba(43,26,16,0.12)'; ctx.fill();
+    roundPath(ctx, x + w - 16, ty, 7, th, 3); ctx.fillStyle = 'rgba(168,48,31,0.75)'; ctx.fill();
+  }
 }
 
 function drawBanner(ctx, state, rd, L) {

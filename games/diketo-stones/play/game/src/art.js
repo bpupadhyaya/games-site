@@ -84,7 +84,7 @@ export function drawFloor(ctx, W = GW, H = GH) {
 }
 
 // The chalk circle, the hole and the resting place of the hand (world coordinates).
-export function drawYard(ctx) {
+export function drawYard(ctx, pitR = PIT.r) {
   // chalk circle: three uneven passes
   ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
   const passes = [[7, 0.55, 0], [3.6, 0.5, 1], [2, 0.4, 2]];
@@ -99,11 +99,11 @@ export function drawYard(ctx) {
   }
   for (const d of CHALK_DUST) { ctx.fillStyle = `rgba(252,246,230,${d.al})`; ctx.beginPath(); ctx.arc(PIT.x + Math.cos(d.a) * (YARD_R + d.off), PIT.y + Math.sin(d.a) * (YARD_R + d.off), d.r, 0, TAU); ctx.fill(); }
   ctx.restore();
-  drawPit(ctx);
+  drawPit(ctx, pitR);
 }
 
-export function drawPit(ctx) {
-  const { x, y, r } = PIT;
+export function drawPit(ctx, r = PIT.r) {
+  const { x, y } = PIT;
   ctx.save();
   // packed earth around the lip
   const rim = ctx.createRadialGradient(x, y, r - 4, x, y, r + 22);
@@ -206,7 +206,7 @@ export function drawTrail(ctx, trail) {
   ctx.restore();
 }
 export function drawHand(ctx, x, y, o = {}) {
-  const r = (o.r ?? 30) * (1 - 0.22 * (o.closed ?? 0)), a = o.alpha ?? 1;
+  const r = (o.r ?? 34) * (1 - 0.22 * (o.closed ?? 0)), a = o.alpha ?? 1;
   ctx.save(); ctx.globalAlpha = a;
   soft(ctx, x + 3, y + 22, r * 1.1, r * 0.7, 0.35);
   const g = ctx.createRadialGradient(x, y, r * 0.2, x, y, r * 1.9);

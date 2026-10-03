@@ -65,17 +65,31 @@ function feetChips(ctx, G, s, tD, view) {
   const src = r && r.resolved ? r : null;
   if (!src || !view.overlay || !view.overlay.feet || !view.overlay.feet[0]) return;
   const age = tD - src.tb;
-  if (age < -0.02 || age > 1.1) return;
+  if (age < -0.08 || age > 1.1) return;
   const res = src.result;
   for (let i = 0; i < 2; i++) {
     const f = res.feet[i]; if (f === null) continue;
     const pt = view.overlay.feet[i] && view.overlay.feet[i][f === 0 ? 0 : 1]; if (!pt) continue;
-    const a = Math.min(1, age / 0.08) * (age > 0.8 ? Math.max(0, 1 - (age - 0.8) / 0.3) : 1);
+    const a = Math.min(1, (age + 0.08) / 0.1) * (age > 0.8 ? Math.max(0, 1 - (age - 0.8) / 0.3) : 1);
+    const col = i === 0 ? '#ffc94d' : '#35d1bd', dark = i === 0 ? '#9a6a00' : '#14756b';
+    const lead = src.result.lead === i;
     ctx.save(); ctx.globalAlpha = a;
-    const rr = 26;
-    ctx.beginPath(); ctx.arc(pt.x, pt.y - 34, rr, 0, TAU); ctx.fillStyle = i === 0 ? '#c48a00' : '#1f8f84'; ctx.fill();
-    ctx.lineWidth = 3; ctx.strokeStyle = '#fff6e4'; ctx.stroke();
-    ctx.fillStyle = '#fffaf0'; ctx.font = `700 30px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(f === 0 ? 'L' : 'R', pt.x, pt.y - 33);
+    // a glowing halo round the thrown foot, in the player's colour, so the foot reads at a glance
+    const hr = 58 * (1 + 0.08 * Math.sin(age * 18));
+    const gr = ctx.createRadialGradient(pt.x, pt.y, 6, pt.x, pt.y, hr);
+    gr.addColorStop(0, col + 'cc'); gr.addColorStop(0.6, col + '55'); gr.addColorStop(1, col + '00');
+    ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(pt.x, pt.y, hr, 0, TAU); ctx.fill();
+    ctx.lineWidth = 4; ctx.strokeStyle = col; ctx.beginPath(); ctx.arc(pt.x, pt.y, 40, 0, TAU); ctx.stroke();
+    // chip: big letter, then who it is (LEADER / FOLLOWER)
+    const rr = 32, cy = pt.y - 78;
+    ctx.beginPath(); ctx.arc(pt.x, cy, rr, 0, TAU); ctx.fillStyle = dark; ctx.fill();
+    ctx.lineWidth = 3.5; ctx.strokeStyle = '#fff6e4'; ctx.stroke();
+    ctx.fillStyle = '#fffaf0'; ctx.font = `700 38px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(f === 0 ? 'L' : 'R', pt.x, cy + 1);
+    const tag = lead ? 'LEADER' : 'FOLLOWER';
+    ctx.font = `700 20px ${FONT}`;
+    const tw = ctx.measureText(tag).width + 20;
+    roundPath(ctx, pt.x - tw / 2, cy - rr - 28, tw, 26, 13); ctx.fillStyle = 'rgba(30,14,4,0.82)'; ctx.fill();
+    ctx.fillStyle = col; ctx.fillText(tag, pt.x, cy - rr - 14);
     ctx.restore();
   }
 }
@@ -162,21 +176,34 @@ export function renderHud(ctx, G, S, view) {
 function renderWatch(ctx, G, S) {
   const s = S.s, w = G.watch;
   const sc = [1, 1.2, 1.4, 1.6, 1.8][G.settings.textIdx];
-  const x = 14, wd = W - 28, y = 905, h = 270;
-  panel(ctx, x, y - 30 * (sc - 1), wd, h + 30 * (sc - 1), { r: 24, fill: 'rgba(40,20,8,0.9)', stroke: 'rgba(255,246,228,0.4)' });
+  const x = 14, wd = W - 28, top = Math.round(895 - (sc - 1) * 100), bot = 1184;
+  panel(ctx, x, top, wd, bot - top, { r: 24, fill: 'rgba(40,20,8,0.92)', stroke: 'rgba(255,246,228,0.4)' });
   const phase = s.phase === 'hold' ? w.phase : 'ACT';
   const col = phase === 'think' ? '#ffe9a0' : phase === 'reveal' ? '#7fe8d6' : '#ffb59a';
   const label = phase === 'think' ? `THINK  ${Math.max(0, Math.ceil(w.timer))}s` : phase === 'reveal' ? 'REVEAL' : 'ACT';
-  text(ctx, label, W / 2, y + 36 * sc * 0.9 - 10 * (sc - 1), Math.round(30 * sc), col, 700);
-  ctx.save(); ctx.font = `400 ${Math.round(22 * sc)}px ${FONT}`; ctx.fillStyle = '#fff6e4'; ctx.textAlign = 'center';
-  const lines = wrapLines(ctx, G.watchText || '', wd - 50);
-  lines.slice(0, 6).forEach((l, k) => ctx.fillText(l, W / 2, y + 36 * sc + 24 * sc * (k + 1) - 10 * (sc - 1)));
+  const ly = top + 14 + 30 * sc;
+  text(ctx, label, W / 2, ly, Math.round(30 * sc), col, 700);
+  // the explanation scrolls (drag or wheel) when it is longer than the panel, and shows a scroll bar
+  const fs = Math.round(23 * sc), lh = fs * 1.28, tt = ly + 14, tb = bot - 12, viewH = tb - tt;
+  ctx.save(); ctx.font = `400 ${fs}px ${FONT}`;
+  const lines = wrapLines(ctx, G.watchText || '', wd - 70);
+  const total = lines.length * lh + 6, maxS = Math.max(0, total - viewH);
+  if (G.watchKey !== G.watchText) { G.watchKey = G.watchText; G.watchScroll = 0; }
+  G.watchScroll = Math.max(0, Math.min(G.watchScroll || 0, maxS)); G.watchMax = maxS; G.watchBox = { x, y: top, w: wd, h: bot - top };
+  ctx.beginPath(); ctx.rect(x + 8, tt, wd - 16, viewH); ctx.clip();
+  ctx.fillStyle = '#fff6e4'; ctx.textAlign = 'left';
+  lines.forEach((l, k) => { const yy = tt + lh * (k + 0.85) - G.watchScroll; if (yy > tt - lh && yy < tb + lh) ctx.fillText(l, x + 26, yy); });
   ctx.restore();
+  if (maxS > 0) {
+    const th = Math.max(40, viewH * (viewH / total)), ty = tt + (G.watchScroll / maxS) * (viewH - th);
+    roundPath(ctx, x + wd - 20, tt, 6, viewH, 3); ctx.fillStyle = 'rgba(255,246,228,0.16)'; ctx.fill();
+    roundPath(ctx, x + wd - 20, ty, 6, th, 3); ctx.fillStyle = 'rgba(255,217,122,0.9)'; ctx.fill();
+  }
   drawButton(ctx, W_RECTS.pause, w.paused ? 'Resume' : 'Pause', { dark: true, size: 26 });
   drawButton(ctx, W_RECTS.shorter, 'Faster', { dark: true, size: 24 });
   drawButton(ctx, W_RECTS.longer, 'Slower', { dark: true, size: 24 });
   drawButton(ctx, W_RECTS.quit, 'Quit', { dark: true, size: 26 });
-  if (w.paused) text(ctx, 'PAUSED', W / 2, 860, 44, '#fff6e4', 700);
+  if (w.paused) text(ctx, 'PAUSED', W / 2, top - 22, 44, '#fff6e4', 700);
 }
 
 // ---- 2D fallback (no WebGL): flat figures on the same beat ------------------------------------------------------------------------

@@ -42,60 +42,57 @@ export const HOWTO = [
   ] },
 ];
 
-const lv = LEVELS.map((l) => `${'★'.repeat(l.stars)}${'☆'.repeat(5 - l.stars)} ${l.name}`);
 export const RULES = [
   { title: 'The pitch and the goals', art: 'pitch', p: [
-    `The pitch is ${PITCH_TEXT}, a shortened pitch for six a side (the full pitch is far bigger). Each end has a goal: two posts ${m(GOAL_HW * 2)} m apart and ${POST_H} m high, a crossbar ${BAR} m above the ground and a net below it. The ball is in play inside the sidelines and end lines.`,
-    `Markings: a small rectangle ${SMALL_D} m deep in front of each goal, and lines ${LINE_13} m and ${LINE_20} m from each end line.`,
+    `The pitch is ${PITCH_TEXT}, shortened for six a side. Each end has a goal: two posts ${m(GOAL_HW * 2)} m apart and ${POST_H} m high, a crossbar ${BAR} m above the ground and a net below it. A small rectangle ${SMALL_D} m deep is marked in front of each goal, with lines ${LINE_13} m and ${LINE_20} m from each end line.`,
   ] },
   { title: 'Teams and roles', p: [
-    'Each team has six players: goalkeeper, two backs, midfielder, half forward and full forward. You pick one role (full forward, midfielder, back or goalkeeper) and control that player; all other players are computer-controlled. Your teammates and the rivals each have their own level. You cannot change role during a match.',
+    'Six players a side: goalkeeper, two backs, midfielder, half forward, full forward. You pick one role and control that player for the whole match; everyone else is computer-controlled, teammates and rivals each at their own level.',
   ] },
   { title: 'Time and winning', p: [
-    `A match is two halves of ${HALF_SEC / 60} minutes; a Quick match is one half. The clock runs in play and during restarts, and stops during the pause after a score. The match ends the moment time is up; more points wins, equal totals are a draw. Ends are not changed at half time: your team always attacks the far goal. Each half starts with a throw-in at the centre.`,
+    `A match is two halves of ${HALF_SEC / 60} minutes; a Quick match is one half. The clock stops during the pause after a score. More points wins; equal totals are a draw. Your team always attacks the far goal, and each half starts with a throw-in at the centre.`,
   ] },
   { title: 'Scoring', art: 'goal', p: [
-    'Between the posts and over the crossbar: a point (1). Between the posts and under the crossbar into the net: a goal (3). Scores read goals-points: 1-05 is 8 points, and the total is shown under it.',
-    'A ball that hits a post or the crossbar plays on. A ball over the end line outside the posts is a wide (puck-out). If the defence puts it over its own end line outside the posts, the attackers get a long free (see Restarts).',
+    'Between the posts and over the crossbar: a point (1). Between the posts and under the crossbar: a goal (3). Scores read goals-points, so 1-05 is 8 points.',
+    'A ball that hits a post or the crossbar plays on. Over the end line outside the posts is a wide (puck-out); if the defence does it, the attackers get a long free.',
   ] },
   { title: 'In the hand and the solo run', art: 'solo', p: [
-    `A caught or picked-up ball stays in the hand for up to ${HAND_MAX_STEPS} steps or ${HAND_MAX_SEC} seconds, then settles on the hurley. Carried on the hurley (the solo run) it bounces up and drops back every ${SOLO_PERIOD} seconds.`,
-    'Catches are automatic when a ball flies within reach at chest or head height. Slow balls and balls meant for that player are caught more often; fast shots are often only knocked down.',
+    `A caught or picked-up ball stays in the hand for up to ${HAND_MAX_STEPS} steps or ${HAND_MAX_SEC} seconds, then settles on the hurley. Carried on the hurley (the solo run) it bounces every ${SOLO_PERIOD} seconds.`,
+    'Catches are automatic within reach at chest or head height; slow balls and balls meant for that player are caught more often, fast shots are often only knocked down.',
   ] },
   { title: 'Rising the ball', p: [
-    `A ball on the ground is picked up with the hurley, not the hand: the bas goes under it and flicks it up. It takes ${GROUND_SEC} seconds and needs the ball low and not too fast. If the ball moves away or a rival is first, it misses.`,
+    `A ball on the ground is flicked up with the hurley. It takes ${GROUND_SEC} seconds and needs the ball low and not too fast; if it moves away or a rival is first, it misses.`,
   ] },
   { title: 'Striking', art: 'bar', p: [
-    `STRIKE from the hand tosses the ball up and hits it ${TOSS_SEC} seconds later; from the ground it hits a loose ball in reach after ${GROUND_SEC} seconds. Hold the button: the bar fills in ${CHARGE_SEC} seconds. Released below the middle it is a drive (fast, low: a goal try); past the middle it is a loft (high, for a point, farther the later you release). The closer to a zone's centre, the more accurate and faster the strike.`,
-    `A strike aimed within ${ASSIST_DEG} degrees of the goal mouth is pulled towards it (aim assist, see Settings). Rivals strike with the same rules.`,
+    `STRIKE from the hand tosses the ball up and hits it ${TOSS_SEC} seconds later; from the ground it hits a loose ball in reach after ${GROUND_SEC} seconds. The bar fills in ${CHARGE_SEC} seconds. Released below the middle it is a drive (fast, low: a goal try); past the middle it is a loft (high, for a point, farther the later you release). Nearer a zone's centre is more accurate and faster.`,
+    `A strike aimed within ${ASSIST_DEG} degrees of the goal mouth is pulled towards it (aim assist, see Settings). Rivals follow the same rules.`,
   ] },
   { title: 'Hand-pass', p: [
-    `PASS hits the ball with the hand to the teammate nearest the stick direction (within ${ASSIST_DEG} degrees, else straight ahead). It takes ${PASS_SEC} seconds. The receiver catches it automatically, more reliably than any other ball.`,
+    `PASS goes to the teammate nearest the stick direction (within ${ASSIST_DEG} degrees, else straight ahead). It takes ${PASS_SEC} seconds and is caught more reliably than any other ball.`,
   ] },
   { title: 'Hook, block, shoulder', art: 'hook', p: [
-    `HOOK is one swing (${HOOK_SEC} seconds) that does what the moment needs. Hook: a rival solo runner's ball is exposed while it is up in the air, ${pct(EXPOSE_TO - EXPOSE_FROM)} percent of each bounce; a swing that lands then, with the ball within ${HOOK_REACH} m of where the stick meets it (about a metre in front of you), knocks it loose. A burst protects the runner for a moment. Block: a ball in flight near you is knocked down, more often when slow and for better players; a defender can also block down a rival's strike while it is being wound up. Shoulder: within ${SHOULDER_REACH} m of a rival who has the ball or is near it, a clean shoulder pushes them back and can win the ball.`,
-    `Fouls: a hook when the ball is not exposed is called a high stick ${pct(FOUL_HOOK_P)} percent of the time; a shoulder on a rival far from the ball is always a foul. The other team takes a free from that spot.`,
+    `HOOK is one swing (${HOOK_SEC} seconds). Hook: a rival solo runner's ball is exposed while it is up in the air, ${pct(EXPOSE_TO - EXPOSE_FROM)} percent of each bounce; a swing then, with the ball within ${HOOK_REACH} m of where the stick meets it (about a metre in front of you), knocks it loose. A burst protects the runner for a moment. Block: a ball in flight near you is knocked down, more often when slow; a defender can also block down a strike being wound up. Shoulder: within ${SHOULDER_REACH} m of a rival who has the ball or is near it, a clean shoulder pushes them back and can win the ball.`,
+    `Fouls: a hook when the ball is not exposed is a high stick ${pct(FOUL_HOOK_P)} percent of the time; a shoulder on a rival far from the ball is always a foul. The other team takes a free.`,
   ] },
   { title: 'Goalkeeper', p: [
-    `SAVE blocks about ${KEEPER_REACH} m around the hurley; a dive reaches ${KEEPER_DIVE} m to the side. A keeper reads a striker's wind-up. After a score, a wide or a ball collected in the small rectangle, the keeper takes the puck-out with the STRIKE bar.`,
+    `SAVE blocks about ${KEEPER_REACH} m around the hurley; a dive reaches ${KEEPER_DIVE} m to the side. A keeper reads a striker's wind-up and takes the puck-out with the STRIKE bar.`,
   ] },
   { title: 'Restarts', p: [
-    'Puck-out: after a point, goal or wide the keeper of the team that did not score takes the ball in the hand in front of the goal and strikes it out.',
-    `Free: after a foul the other team takes a free from the spot, rivals ${FREE_BACK_M} m back. A ball over the sideline gives the other team a free from the line. A long free is taken from the ${LINE_20} m line after a defender puts the ball over his own end line. Play restarts anyway after ${RESTART_MAX_SEC} seconds.`,
+    'Puck-out: after a point, goal or wide the other team\'s keeper strikes the ball out from in front of the goal.',
+    `Free: after a foul the other team takes a free from the spot, rivals ${FREE_BACK_M} m back; a ball over the sideline is a free from the line; a long free is taken from the ${LINE_20} m line. Play restarts anyway after ${RESTART_MAX_SEC} seconds.`,
   ] },
   { title: 'Stamina and burst', p: [
-    `Sprinting drains stamina and slows you a little when low; it refills when you slow down. BURST (while carrying) is a dodge of ${BURST_SEC} seconds, usable every ${BURST_CD} seconds, and makes a hook against you miss.`,
+    `Sprinting drains stamina; it refills when you slow down. BURST (while carrying) is a dodge of ${BURST_SEC} seconds, usable every ${BURST_CD} seconds, and makes a hook against you miss.`,
   ] },
   { title: 'Rival levels', p: [
-    ...lv,
-    'Rivals use the same rules, physics and strikes as you. Stronger teams react faster, run quicker, choose better passes and shots, strike more accurately and time hooks and saves better. Each level beats the one below in simulation.',
+    `${LEVELS.map((l) => l.name).join(', ')}: five levels, weakest to strongest. Rivals use the same rules; stronger teams react faster, run quicker and strike, hook and save better.`,
   ] },
   { title: 'Think and Watch & Learn', art: 'think', p: [
-    'Think pauses the match and shows what a good player in your role would do, with the real numbers behind it. It never acts for you.',
-    'Watch & Learn plays a full match between two computer teams. At each key decision (a pass, a shot, a puck-out) the play freezes for Think (5 seconds by default, 2 to 10 in Settings), then Reveal (2 seconds: the choice and the reason), then Act. Pause stops everything.',
+    'Think pauses the match and shows what a good player in your role would do, and why. It never acts for you.',
+    'Watch & Learn plays two computer teams. At each key decision the play freezes for Think (5 seconds by default, 2 to 10 in Settings), then Reveal (2 seconds: the choice and the reason), then Act. Pause stops everything.',
   ] },
   { title: 'What this game simplifies', p: [
-    'Six a side on a shortened pitch (the traditional game is fifteen a side on a far larger one); goal 4 m wide. No substitutions, cards or change of ends. Steps in the hand are counted for you, the free taker is the nearest player, and the solo bounce is automatic. Contact is clean and non-violent.',
+    'Six a side on a shortened pitch (the traditional game is fifteen a side); goal 4 m wide. No substitutions, cards or change of ends. Steps in the hand are counted for you, the free taker is the nearest player, and the solo bounce is automatic.',
   ] },
 ];
 

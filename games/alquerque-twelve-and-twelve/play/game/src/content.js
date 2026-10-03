@@ -282,28 +282,28 @@ const RULES_DEF = [
     ] } },
   { art: 'chain',
     en: { title: 'Multiple jumps', body: [
-      'After a jump, if the same piece can jump again from where it landed, it must. It may choose which jump to make if there is more than one, and it may even jump back over the point it started from, because that point is now empty. The turn ends when the piece cannot jump any more.',
+      'After a jump, if the same piece can jump again from where it landed, it must. It may choose which jump to make if there is more than one, and it may even land back on the point it started from, because that point is now empty. The turn ends when the piece cannot jump any more.',
       'Pieces are removed as they are jumped, so a piece can never be jumped twice in one turn. You may not stop a chain early, and you may not change to another piece.',
     ] },
     es: { title: 'Saltos múltiples', body: [
-      'Tras un salto, si la misma pieza puede volver a saltar desde donde cayó, debe hacerlo. Puede elegir qué salto hacer si hay más de uno, e incluso volver a saltar sobre el punto de partida, porque ahora está vacío. El turno acaba cuando la pieza ya no puede saltar.',
+      'Tras un salto, si la misma pieza puede volver a saltar desde donde cayó, debe hacerlo. Puede elegir qué salto hacer si hay más de uno, e incluso caer de nuevo en el punto de partida, porque ahora está vacío. El turno acaba cuando la pieza ya no puede saltar.',
       'Las piezas se retiran según se saltan, así que una pieza nunca puede ser saltada dos veces en un turno. No puedes detener una cadena antes de tiempo ni cambiar a otra pieza.',
     ] },
     ar: { title: 'القفزات المتتالية', body: [
-      'بعد القفزة، إذا استطاعت القطعة نفسها القفز مرة أخرى من حيث هبطت وجب عليها ذلك. ولها أن تختار القفزة إن كانت هناك أكثر من واحدة، وقد تقفز حتى فوق النقطة التي بدأت منها لأنها صارت فارغة. ينتهي الدور حين لا تستطيع القطعة القفز بعد ذلك.',
+      'بعد القفزة، إذا استطاعت القطعة نفسها القفز مرة أخرى من حيث هبطت وجب عليها ذلك. ولها أن تختار القفزة إن كانت هناك أكثر من واحدة، وقد تهبط حتى على النقطة التي بدأت منها لأنها صارت فارغة. ينتهي الدور حين لا تستطيع القطعة القفز بعد ذلك.',
       'تُزال القطع فور القفز فوقها، فلا يمكن القفز فوق القطعة مرتين في دور واحد. ولا يجوز إيقاف السلسلة مبكرًا ولا الانتقال إلى قطعة أخرى.',
     ] } },
   { art: 'back',
     en: { title: 'Jumps go any way, steps do not', body: [
-      'This is the key difference between the two kinds of move. A step can only go forward or sideways, so pieces cannot retreat and the game always makes progress. A jump can go in any direction, so a piece that has run ahead can capture backward and a back piece can strike forward.',
+      'This is the key difference between the two kinds of move. A step can only go forward or sideways, so pieces cannot retreat. A jump can go in any direction, so a piece that has run ahead can capture backward and a back piece can strike forward.',
       'That is why a piece that advances alone is in danger: it can be jumped from behind or from the side as well as from the front.',
     ] },
     es: { title: 'Los saltos van a cualquier lado, los pasos no', body: [
-      'Esta es la diferencia clave entre los dos tipos de jugada. Un paso solo puede ir hacia delante o de lado, así que las piezas no pueden retroceder y la partida siempre avanza. Un salto puede ir en cualquier dirección, así que una pieza adelantada puede capturar hacia atrás y una pieza de la retaguardia puede golpear hacia delante.',
+      'Esta es la diferencia clave entre los dos tipos de jugada. Un paso solo puede ir hacia delante o de lado, así que las piezas no pueden retroceder. Un salto puede ir en cualquier dirección, así que una pieza adelantada puede capturar hacia atrás y una pieza de la retaguardia puede golpear hacia delante.',
       'Por eso una pieza que avanza sola corre peligro: puede ser saltada por detrás o de lado, además de por delante.',
     ] },
     ar: { title: 'القفزات في أي اتجاه والخطوات لا', body: [
-      'هذا هو الفرق الجوهري بين نوعي الحركة. الخطوة لا تكون إلا إلى الأمام أو الجانب، فلا تستطيع القطع التراجع وتتقدم اللعبة دائمًا. أما القفزة فتكون في أي اتجاه، فتستطيع القطعة المتقدمة الأسر إلى الخلف، وتستطيع القطعة الخلفية الضرب إلى الأمام.',
+      'هذا هو الفرق الجوهري بين نوعي الحركة. الخطوة لا تكون إلا إلى الأمام أو الجانب، فلا تستطيع القطع التراجع. أما القفزة فتكون في أي اتجاه، فتستطيع القطعة المتقدمة الأسر إلى الخلف، وتستطيع القطعة الخلفية الضرب إلى الأمام.',
       'لذلك تتعرض القطعة التي تتقدم وحدها للخطر: إذ يمكن القفز فوقها من الخلف أو من الجانب كما من الأمام.',
     ] } },
   { art: 'blocked',
@@ -347,16 +347,16 @@ const RULES_DEF = [
     ] } },
   { art: 'levels',
     en: { title: 'Opponent levels', body: [
-      'Novice picks any legal move. Casual looks about two moves ahead and slips now and then. Skilled looks about four moves ahead. Expert looks about six moves ahead and follows whole chains of captures. Master searches deepest, within a fixed amount of effort.',
-      'Each level beat the one below it in our own test games, so the ladder is real. The same position always gives the same answers to the same moves. No win is guaranteed at any level: the side that moves first has an edge.',
+      'Novice picks any legal move. Casual looks about two moves ahead and slips now and then. Skilled looks about three moves ahead. Expert looks about five moves ahead and follows whole chains of captures. Master searches deepest, remembering the positions it has seen, within a fixed amount of effort.',
+      'Each level beat the one below it in our own test games, so the ladder is real. No win is guaranteed at any level.',
     ] },
     es: { title: 'Niveles del rival', body: [
-      'El Novato elige cualquier jugada legal. El Aficionado mira unas dos jugadas adelante y falla de vez en cuando. El Hábil mira unas cuatro. El Experto mira unas seis y sigue cadenas enteras de capturas. El Maestro busca más a fondo, con una cantidad fija de esfuerzo.',
-      'Cada nivel venció al de abajo en nuestras partidas de prueba, así que la escalera es real. La misma posición da siempre las mismas respuestas a las mismas jugadas. Ninguna victoria está garantizada en ningún nivel: el bando que mueve primero tiene ventaja.',
+      'El Novato elige cualquier jugada legal. El Aficionado mira unas dos jugadas adelante y falla de vez en cuando. El Hábil mira unas tres. El Experto mira unas cinco y sigue cadenas enteras de capturas. El Maestro busca más a fondo y recuerda las posiciones ya vistas, con una cantidad fija de esfuerzo.',
+      'Cada nivel venció al de abajo en nuestras partidas de prueba, así que la escalera es real. Ninguna victoria está garantizada en ningún nivel.',
     ] },
     ar: { title: 'مستويات الخصم', body: [
-      'المبتدئ يختار أي حركة قانونية. والهاوي ينظر نحو حركتين إلى الأمام ويخطئ بين حين وآخر. والماهر ينظر نحو أربع حركات. والخبير ينظر نحو ست حركات ويتتبّع سلاسل الأسر كاملة. والأستاذ يبحث أعمق ما يمكن ضمن جهد ثابت.',
-      'تغلّب كل مستوى على الذي دونه في مباريات الاختبار التي أجريناها، فالسلّم حقيقي. والموضع نفسه يعطي دائمًا الإجابات نفسها على الحركات نفسها. ولا يُضمن الفوز في أي مستوى: فالجانب الذي يتحرك أولًا له أفضلية.',
+      'المبتدئ يختار أي حركة قانونية. والهاوي ينظر نحو حركتين إلى الأمام ويخطئ بين حين وآخر. والماهر ينظر نحو ثلاث حركات. والخبير ينظر نحو خمس حركات ويتتبّع سلاسل الأسر كاملة. والأستاذ يبحث أعمق ما يمكن ويتذكّر المواضع التي رآها، ضمن جهد ثابت.',
+      'تغلّب كل مستوى على الذي دونه في مباريات الاختبار التي أجريناها، فالسلّم حقيقي. ولا يُضمن الفوز في أي مستوى.',
     ] } },
   { art: 'think',
     en: { title: 'Think', body: [

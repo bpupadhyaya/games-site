@@ -9,13 +9,13 @@ import {
 export const LEVELS = [
   { id: 1, name: 'Sprout', stars: 1, react: 0.4, gap: 0.2, jit: 0.07, slip: 0.14, pick: 1.6, hErr: 0.17, tErr: 0.13, margin: 0.2 },
   { id: 2, name: 'Pebble', stars: 2, react: 0.35, gap: 0.18, jit: 0.06, slip: 0.09, pick: 1.0, hErr: 0.13, tErr: 0.11, margin: 0.15 },
-  { id: 3, name: 'Stream', stars: 3, react: 0.3, gap: 0.16, jit: 0.05, slip: 0.06, pick: 0.55, hErr: 0.09, tErr: 0.085, margin: 0.1 },
-  { id: 4, name: 'Mountain', stars: 4, react: 0.25, gap: 0.145, jit: 0.04, slip: 0.03, pick: 0.2, hErr: 0.06, tErr: 0.06, margin: 0.06 },
-  { id: 5, name: 'Master', stars: 5, react: 0.225, gap: 0.135, jit: 0.035, slip: 0.02, pick: 0.05, hErr: 0.05, tErr: 0.055, margin: 0.05 },
+  { id: 3, name: 'Stream', stars: 3, react: 0.31, gap: 0.165, jit: 0.055, slip: 0.065, pick: 0.6, hErr: 0.1, tErr: 0.095, margin: 0.1 },
+  { id: 4, name: 'Mountain', stars: 4, react: 0.255, gap: 0.15, jit: 0.045, slip: 0.04, pick: 0.25, hErr: 0.07, tErr: 0.075, margin: 0.07 },
+  { id: 5, name: 'Master', stars: 5, react: 0.225, gap: 0.14, jit: 0.04, slip: 0.025, pick: 0.06, hErr: 0.055, tErr: 0.06, margin: 0.05 },
 ];
 export const PERFECT = { react: TAP_REACT, gap: TAP_GAP, jit: 0, slip: 0, pick: 0.0001, hErr: 0, tErr: 0.03, margin: 0.05 };
 // The Think hint plans for a steady human pace with room to spare, not for the fastest possible hand.
-export const HINT = { react: 0.25, gap: 0.16, jit: 0, slip: 0, pick: 0.0001, hErr: 0, tErr: 0.05, margin: 0.4 };
+export const HINT = { react: 0.32, gap: 0.2, jit: 0, slip: 0, pick: 0.0001, hErr: 0, tErr: 0.06, margin: 0.6 };
 export const TAGS = ['Just learning', 'Steady hands', 'Clean and calm', 'Sharp and quick', 'Rarely drops one'];
 
 // ---- numbers --------------------------------------------------------------------------------------

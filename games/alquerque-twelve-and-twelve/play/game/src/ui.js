@@ -6,12 +6,14 @@
 export const TEXT_SCALES = [1, 1.5, 2, 2.5, 3];
 
 const CJK = /[⺀-鿿＀-￯　-〿]/;
+const MARK = /[\u064B-\u065F\u0670\u0300-\u036F]/;
 const NARROW = new Set("iIl.,'!:;|`·".split(''));
 const MID = new Set('fjrt()[]/\\-"“”’'.split(''));
 const WIDE = new Set('mwMW@%'.split(''));
 
 export function charW(ch) {
   if (CJK.test(ch)) return 1;
+  if (MARK.test(ch)) return 0; // Arabic vowel signs and other combining marks add no width
   if (ch === ' ') return 0.29;
   if (NARROW.has(ch)) return 0.3;
   if (MID.has(ch)) return 0.4;

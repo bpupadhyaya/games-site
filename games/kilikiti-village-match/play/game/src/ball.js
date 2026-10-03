@@ -3,7 +3,7 @@
 import { G, DEG, PITCH, STUMP, FIELD, BALL_R, clamp, lerp } from './core.js';
 
 // A hard rubber ball: bouncy, a little draggy, rolls a long way on grass.
-const B = { kd: 0.026, e: 0.7, tang: 0.8, decel: 8.5, power: 0.95 };
+const B = { kd: 0.038, e: 0.52, tang: 0.62, decel: 12, power: 0.86 };
 
 export const DELIVERIES = {
   straight: { name: 'Straight', cue: 'Comes on straight at the bounce spot.', swing: 0 },
@@ -48,8 +48,8 @@ export function flyDelivery(spec) {
     vy -= G * h;
     x += vx * h; y += vy * h; z += vz * h;
     t += h;
-    if (!bounced && y <= 0 && vy < 0) { bounced = true; y = 0; vy = -vy * B.e * 1.05; vz *= 0.84; bounceT = t; }
-    else if (bounced && y <= 0 && vy < 0) { y = 0; vy = -vy * B.e; }
+    if (!bounced && y <= 0 && vy < 0) { bounced = true; y = 0; vy = -vy * 0.735; vz *= 0.84; bounceT = t; }
+    else if (bounced && y <= 0 && vy < 0) { y = 0; vy = -vy * 0.7; }
     if (Math.round(t / h) % 2 === 0) { pts.push(r3(x), r3(y), r3(z)); n++; }
   }
   const N = pts.length / 3;

@@ -3,7 +3,7 @@ import { SCREEN, inRect, BACK_BTN, PAUSE_BTN, TOOLBAR_IDS, autoLayout, playLayou
 import { TEXT_SCALES, hitDoc, clampScroll } from './ui.js';
 import { buildUi, THINK_STEPS, demoLevelLocked, demoOver, recKey } from './screens.js';
 import { NN, N, QUIET_LIMIT, legalMoves, applyMove, countOf, other } from './rules.js';
-import { LEVELS, seeded, thinkTask, chooseMove } from './ai.js';
+import { LEVELS, seeded, thinkTask } from './ai.js';
 import { thinkAdvice, reasonFor } from './explain.js';
 import { LESSONS, lessonStart, judge } from './lessons.js';
 import { createMatch, playMove, undoMatch, tapPoint, stepMatch, spawn, canUndo, humanTurn, settled } from './match.js';
@@ -14,7 +14,7 @@ import { render, playGeo } from './view.js';
 
 export const meta = { width: SCREEN.width, height: SCREEN.height };
 
-const VERSION = '1.0.0';
+const VERSION = '1.0.1';
 const WIN_NOTES = [523, 659, 784, 1047, 1319];
 // Watch & Learn: Master plays Light and Expert plays Dark: a real, well-played game with captures and a finish.
 const AUTO_LEVEL = { 1: 'master', 2: 'expert' };
@@ -85,7 +85,9 @@ export async function createGame(env) {
   // ------------------------------------------------------------------------------ geometry helpers
   const geoNow = () => (S.match ? playGeo(S, S.match).geo : playGeo(S, { two: true }).geo);
   const cellAt = (x, y) => {
-    const g = geoNow(), r = g.u * 0.5;
+    // the nearest point wins, out to 0.75 of the spacing: every tap inside the grid (even in the middle of a square) and a little
+    // outside its edge lands on a point, which matters on small boards (small phones, large text)
+    const g = geoNow(), r = g.u * 0.75;
     let best = -1, bd = Infinity;
     for (let i = 0; i < NN; i++) { const [cx, cy] = g.centers[i]; const d = Math.hypot(x - cx, y - cy); if (d <= r && d < bd) { bd = d; best = i; } }
     return best;
@@ -258,17 +260,19 @@ export async function createGame(env) {
   }
 
   // ------------------------------------------------------------------------------ store screenshots
-  // `tools/arc shots` loads ?shot=1&seed=N. Seeds 900001..900099 stage a real moment (played by the engine from a fixed seed) instead
+  // `tools/arc shots` loads ?shot=1&seed=N. Seeds 900001..900099 stage a real moment (random legal moves from a fixed seed) instead
   // of random play; 901001+ / 902001+ show the English Rules pages at 100 / 300 percent, 903001+ / 904001+ Spanish, 905001+ / 906001+ Arabic.
   function thinkAdviceNow(st) { const g = thinkAdvice(st); for (;;) { const r = g.next(); if (r.done) return r.value; } }
   function runPlan(st) { const g = planGen(st); for (;;) { const r = g.next(); if (r.done) return r.value; } }
   function stageShot(n) {
     const settle = (M, secs) => { for (let i = 0; i < secs * 60; i++) stepMatch(M, 1 / 60, rng); M.events.length = 0; M.parts.length = 0; };
     const mk = (level = 'skilled', side = 1, two = false) => { S.setup = { level: two ? 'two' : level, side }; startMatch({ level: two ? 'two' : level, side }, false); S.match.freeze = true; return S.match; };
-    // play `plies` engine moves silently (a fixed seed, so the staged position is the same every time)
+    // play `plies` moves silently: a uniformly random legal move from a fixed seed. Staged positions depend only on the rules engine
+    // and the seed, never on the opponent levels, so retuning an opponent cannot change a store screenshot. (`level` is unused.)
     const ff = (M, plies, level = 'casual', seed = 7) => {
+      void level;
       const r = seeded(seed);
-      for (let i = 0; i < plies && !M.over; i++) playMove(M, chooseMove(M.st, level, r), true);
+      for (let i = 0; i < plies && !M.over; i++) { const ms = legalMoves(M.st); playMove(M, ms[r.int(ms.length)], true); }
       M.anim = {}; M.ghosts = []; M.events.length = 0; M.last = M.st.last;
     };
     const forcedFor = (st, who) => st.turn === who && st.chain < 0 && legalMoves(st).some((m) => m.cap >= 0);
@@ -570,6 +574,10 @@ export async function createGame(env) {
     if (ui.layout && ui.region) {
       if (keys.down.has('ArrowDown') || keys.down.has('PageDown')) setScroll(ui, getScroll(ui) + 18);
       if (keys.down.has('ArrowUp') || keys.down.has('PageUp')) setScroll(ui, getScroll(ui) - 18);
+      if (has('WheelDown')) setScroll(ui, getScroll(ui) + 150);
+      if (has('WheelUp')) setScroll(ui, getScroll(ui) - 150);
+      if (has('Home')) setScroll(ui, 0);
+      if (has('End')) setScroll(ui, 1e9);
     }
     if (has('Escape') && ['setup', 'learn', 'howto', 'rules', 'about', 'settings', 'demo-limit'].includes(S.scene)) gotoScene('title');
     if (S.scene === 'howto' || S.scene === 'rules') {

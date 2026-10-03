@@ -144,7 +144,7 @@ export function createSim(cfg, rootRng) {
     if (B.claim >= 0) {                                   // being scooped up: the ball is drawn into the gatherer's hands
       const p = P[B.claim], f = faceVec(p), k = 0.3;
       B.vx *= 0.7; B.vz *= 0.7; B.vy = 0;
-      B.x += (p.x + f.x * 0.32 - B.x) * k; B.z += (p.z + f.z * 0.32 - B.z) * k; B.y += (0.3 - B.y) * k;
+      B.x += (p.x + f.x * 0.34 + p.vx * 0.08 - B.x) * k; B.z += (p.z + f.z * 0.34 + p.vz * 0.08 - B.z) * k; B.y += (0.3 - B.y) * k;
       return;
     }
     B.vy -= G * dt;
@@ -185,13 +185,13 @@ export function createSim(cfg, rootRng) {
     for (const p of P) { if (p.act && p.act.kind !== 'celebrate') p.act = null; if (p.st !== 'free') p.st = 'free'; p.jt = -1; p.jh = 0; p.celeb = 0; }
     if (kind === 'goal') {
       s.next = { type: 'ballup', x: 0, z: 0, why: 'center' };
-      for (const p of P) if (p.team === team) p.celeb = 1;
     } else {
       const other = 1 - team, sgn = dirOf(team);
       s.next = { type: 'kickin', team: other, x: 0, z: sgn * (ZG - 6.5) };
     }
     for (const p of P) { p.goto = null; }
     afterScoreGoto();
+    if (kind === 'goal') for (const p of P) if (p.team === team) p.celeb = 1;       // after the restart formation is planned (it clears everything): the scoring team celebrates where it stands
     if (s.siren) { /* the quarter ends after the score */ }
   }
   function afterScoreGoto() {
@@ -252,6 +252,29 @@ export function createSim(cfg, rootRng) {
     if (p.act && p.act.kind !== 'jump' && p.act.kind !== 'celebrate') return false;
     return true;
   }
+  // the ball is in front of the chest, within easy reach of both palms (the 3D bodies can put both palms exactly on it): checked when the contest opens AND again when it resolves
+  function inEasyReach(p, ballup, slack = 0, back = 0) {
+    const f = faceVec(p), sx = p.x + f.x * 0.1, sz = p.z + f.z * 0.1, sy = K.SHOULDER + p.jh;
+    const d = Math.sqrt((B.x - sx) * (B.x - sx) + (B.z - sz) * (B.z - sz) + (B.y - sy) * (B.y - sy));
+    const fw = (B.x - sx) * f.x + (B.z - sz) * f.z, lt = (B.x - sx) * f.z - (B.z - sz) * f.x;
+    return d <= K.ARM * 0.74 + (ballup ? 0.2 : 0) + slack && (ballup || (fw > 0.26 - slack - back && fw < 0.56 + slack && Math.abs(lt) < 0.32 + slack && B.y - sy < 0.42 && B.y - sy > -0.72 && !(B.y - sy > 0.2 && Math.hypot(fw, lt) < 0.22)));
+  }
+  // A catch resolves a few ticks after the contest opened, and a fast ball has moved on. If the ball is only a little outside the easy-reach zone, the catch point is nudged
+  // (at most 0.4 m) onto the nearest point inside it, so the palms still meet the ball exactly; further out, the catcher does not get it.
+  function snapIntoReach(p, ballup) {
+    if (inEasyReach(p, ballup)) return true;
+    if (ballup) return false;
+    const f = faceVec(p), sx = p.x + f.x * 0.1, sz = p.z + f.z * 0.1, sy = K.SHOULDER + p.jh;
+    let fw = (B.x - sx) * f.x + (B.z - sz) * f.z, lt = (B.x - sx) * f.z - (B.z - sz) * f.x, dy = B.y - sy;
+    const o = { fw, lt, dy };
+    fw = clamp(fw, 0.3, 0.4); lt = clamp(lt, -0.2, 0.2); dy = clamp(dy, -0.5, 0.2);
+    const r = Math.hypot(fw, lt, dy), lim = K.ARM * 0.6; if (r > lim) { const k = lim / r; fw *= k; lt *= k; dy *= k; }
+    if (Math.hypot(fw - o.fw, lt - o.lt, dy - o.dy) > 0.3) return false;
+    const nx = sx + f.x * fw + f.z * lt, nz = sz + f.z * fw - f.x * lt, ny = sy + dy;
+    const ox = B.x, oy = B.y, oz = B.z; B.x = nx; B.y = ny; B.z = nz;
+    if (!inEasyReach(p, false)) { B.x = ox; B.y = oy; B.z = oz; return false; }
+    return true;
+  }
   function candidates() {
     const out = [];
     const ballup = B.kind === 'ballup';
@@ -284,6 +307,7 @@ export function createSim(cfg, rootRng) {
     if (sp && sp !== win && sp.sc >= win.sc - 0.28) win = sp;
     const p = win.p;
     if (B.kind === 'ballup') { doTap(p); return; }
+    if (!(p.spoil && p.team !== B.kteam) && !snapIntoReach(p, false)) { if (s.t - C.t0 < 0.14) s.contest = C; return; }      // not yet (or no longer) in easy reach: keep the contest open a few more ticks
     { const f = faceVec(p), dd = Math.sqrt((B.x - p.x - f.x * 0.1) ** 2 + (B.z - p.z - f.z * 0.1) ** 2 + (B.y - K.SHOULDER - p.jh) ** 2); if (dd > K.ARM * 0.95 && !(p.spoil && p.team !== B.kteam)) { doFumble(p); return; } }
     if (p.spoil && p.team !== B.kteam) { doSpoil(p); return; }
     const fast = hyp(B.vx, B.vy, B.vz) > 21 ? 0.1 : 0;
@@ -748,7 +772,7 @@ export function createSim(cfg, rootRng) {
         break;
       }
       case 'dead': {
-        for (const p of P) { if (p.celeb) { p.in.mx = p.in.mz = 0; p.in.sprint = false; if (!p.act) p.act = { kind: 'celebrate', t0: s.t, t1: s.t + 2.4 }; } else gotoIntent(p, 1); }
+        for (const p of P) { if (s.phaseT < 1.4 && s.next && s.next.type === 'ballup') { p.in.mx = p.in.mz = 0; p.in.sprint = false; if (p.celeb && !p.act) p.act = { kind: 'celebrate', t0: s.t, t1: s.t + 1.4 }; } else if (p.celeb && p.act) { p.in.mx = p.in.mz = 0; p.in.sprint = false; } else gotoIntent(p, 1); }      // after a goal everybody stands for a moment (the scoring team celebrates), then all walk back together: symmetric for both teams
         for (const p of P) if (p.celeb && p.act && p.act.kind === 'celebrate' && s.t >= p.act.t1) { p.act = null; p.celeb = 0; }
         movePlayers(dt); ballPhysics(dt);
         if (s.phaseT >= 2.9) {

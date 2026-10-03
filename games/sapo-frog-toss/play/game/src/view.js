@@ -1,7 +1,7 @@
 // The play screen: the table scene, the scoreboard above it, the controls below, banners and cards on top.
 // Pure drawing and pure layout; game.js owns the state. computeLayout() is called by game.js for hit-testing (no canvas, text widths
 // estimated) and by render (real text widths), and gives the same rectangles to both.
-import { W, H, TEXT_SCALES, COMPACT, TRAY, SCENE_Y0, SCENE_H, playLayout } from './layout.js';
+import { W, H, TEXT_SCALES, COMPACT, TRAY, SCENE_Y0, SCENE_H, PULL, playLayout } from './layout.js';
 import { FONT, NUM, roundPath, drawButton, paintButton, panel, wrapLines, textShadow, ease } from './ui.js';
 import { drawRoom, drawTable, drawHoles, drawActors, drawRing, drawArc, drawRestMark, drawParts, proj, TAU, DISC_COL } from './scene.js';
 import { PROFILES, pname } from './ai.js';
@@ -296,9 +296,16 @@ function drawPull(ctx, S, lay) {
   ctx.strokeStyle = 'rgba(255,224,138,0.5)'; ctx.lineWidth = 10; ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
   ctx.strokeStyle = '#ffe08a'; ctx.lineWidth = 3; ctx.setLineDash([2, 10]); ctx.stroke(); ctx.setLineDash([]);
   ctx.beginPath(); ctx.arc(a.x, a.y, 10, 0, TAU); ctx.fillStyle = 'rgba(255,224,138,0.5)'; ctx.fill();
+  // the small circle round the start is the cancel zone: let go inside it and nothing is thrown
+  ctx.beginPath(); ctx.arc(a.x, a.y, PULL.min * lay.s, 0, TAU); ctx.setLineDash([6, 8]); ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(255,240,204,0.55)'; ctx.stroke(); ctx.setLineDash([]);
   const col = DISC_COL[turnSide(S.m) === 1 ? 1 : 0];
   const g = ctx.createRadialGradient(b.x - 10, b.y - 10, 4, b.x, b.y, 38); g.addColorStop(0, col.top0); g.addColorStop(0.6, col.top1); g.addColorStop(1, col.top2);
   ctx.beginPath(); ctx.arc(b.x, b.y, 36, 0, TAU); ctx.fillStyle = g; ctx.fill(); ctx.lineWidth = 4; ctx.strokeStyle = col.ring; ctx.stroke();
+  // how far it will land, written beside the finger (kept inside the screen)
+  const cm = Math.round(S.plan.az * 100), tx = tr(`Lands ${cm} cm out`, `Cae a ${cm} cm`);
+  ctx.font = `700 22px ${FONT}`; ctx.textBaseline = 'middle'; ctx.textAlign = 'center';
+  const tw = ctx.measureText(tx).width + 30, lx = Math.max(tw / 2 + 8, Math.min(W - tw / 2 - 8, b.x)), ly = b.y - 66;
+  roundPath(ctx, lx - tw / 2, ly - 18, tw, 36, 18); ctx.fillStyle = 'rgba(18,11,6,0.86)'; ctx.fill(); ctx.fillStyle = '#fff3d6'; ctx.fillText(tx, lx, ly + 1);
   ctx.restore();
 }
 // The thrower's hand: a lit paddle with the next disc on it (nothing else of the thrower is drawn).

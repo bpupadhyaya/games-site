@@ -82,22 +82,39 @@ export function text(ctx, str, x, y, size, color = '#fff', o = {}) {
 // ---------------------------------------------------------------------------------------------------- background
 const FLECKS = Array.from({ length: 30 }, (_, i) => [((i * 97) % 211) / 211 * W, ((i * 53) % 173) / 173 * H, 0.6 + ((i * 31) % 7) / 7, ((i * 13) % 11) / 11]);
 
-export function background(ctx, th, t, glowY = 700) {
+// The three full-screen gradients (sky, glow, vignette) never change, so they are painted once into an off-screen picture (1x, the
+// gradients are smooth) and copied; only the drifting flecks are drawn live. Without an off-screen canvas everything is drawn live.
+const BGS = new Map();
+function paintBackdrop(ctx, th, glowY) {
   const g = ctx.createLinearGradient(0, 0, 0, H);
   g.addColorStop(0, th.bg[0]); g.addColorStop(0.5, th.bg[1]); g.addColorStop(1, th.bg[2]);
   ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
   const hg = ctx.createRadialGradient(W / 2, glowY, 40, W / 2, glowY, 640);
   hg.addColorStop(0, th.glow); hg.addColorStop(1, 'rgba(0,0,0,0)');
   ctx.fillStyle = hg; ctx.fillRect(0, 0, W, H);
+  const vg = ctx.createRadialGradient(W / 2, H / 2, 560, W / 2, H / 2, 1020);
+  vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,0.5)');
+  ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
+}
+export function background(ctx, th, t, glowY = 700) {
+  let drawn = false;
+  if (typeof OffscreenCanvas !== 'undefined') {
+    const key = `${th.id}|${glowY}`;
+    let cv = BGS.get(key);
+    if (!cv) {
+      cv = new OffscreenCanvas(W, H);
+      const g = cv.getContext('2d');
+      if (g) { paintBackdrop(g, th, glowY); BGS.set(key, cv); while (BGS.size > 3) BGS.delete(BGS.keys().next().value); } else cv = null;
+    }
+    if (cv) { ctx.drawImage(cv, 0, 0, W, H); drawn = true; }
+  }
+  if (!drawn) paintBackdrop(ctx, th, glowY);
   for (const [x, y, s, ph] of FLECKS) {
     const yy = (y + t * (3 + s * 3)) % H;
     const a = 0.06 + 0.12 * (0.5 + 0.5 * Math.sin(t * 0.7 + ph * 9));
     ctx.fillStyle = `rgba(${th.fleck},${a})`;
     ctx.fillRect(x, yy, 2.2 * s, 2.2 * s);
   }
-  const vg = ctx.createRadialGradient(W / 2, H / 2, 560, W / 2, H / 2, 1020);
-  vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,0.5)');
-  ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
 }
 
 // ---------------------------------------------------------------------------------------------------- panels and buttons
@@ -409,7 +426,7 @@ export function drawStick(ctx, th, cx, cy, L, Wd, yaw, roll, z = 0) {
   ctx.translate(cx, cy); ctx.rotate(yaw); ctx.scale(sc, sc);
   const hw = span / 2, mid = (umin + umax) / 2;
   // lighting from the upper left of the screen, expressed in the stick's own frame
-  const lu = -0.5 * Math.cos(yaw) - 0.5 * Math.sin(yaw) * -1 * -1, lv = 0.8;
+  const lu = -0.5, lv = 0.8;           // the light is fixed in the stick's own frame, so a cached picture of the stick is exact
   const ln = Math.hypot(lu, lv), LU = lu / ln, LV = lv / ln;
   ctx.beginPath(); ctx.roundRect(mid - hw, -L / 2, span, L, [hw * 0.9, hw * 0.9, hw * 0.9, hw * 0.9]); ctx.save(); ctx.clip();
   const du = span / STRIPS;
@@ -448,6 +465,47 @@ export function drawStick(ctx, th, cx, cy, L, Wd, yaw, roll, z = 0) {
   ctx.strokeStyle = 'rgba(25,12,4,0.65)'; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.roundRect(mid - hw, -L / 2, span, L, [hw * 0.9, hw * 0.9, hw * 0.9, hw * 0.9]); ctx.stroke();
   ctx.restore();
   return { span: span * sc, flat: fb > fa };
+}
+
+// ---- cached stick pictures --------------------------------------------------------------------------------------------------
+// A stick costs about 40 canvas operations (strips, clip, gradient, notches). A throw draws four of them every frame, so each
+// roll angle (72 steps; two neighbours are blended, so the turn stays smooth) is painted once into a small off-screen picture and
+// drawn with a single image copy. The pictures are baked a few per frame in the background (`bakeSticks`); until a set is complete
+// the live drawing is used, so nothing ever waits. Where no off-screen canvas exists (tests) the live drawing is always used.
+const SPR_STEPS = 72, SPR_S = 1.5, SPR_PAD = 6, TAU_ = Math.PI * 2;
+const SPRITES = new Map();
+export const stickDims = (matH) => { const L = Math.min(250, matH * 0.64); return { L, Wd: L * 0.19 }; };
+const sprKey = (th, L, Wd) => `${th.id}|${Math.round(L)}|${Math.round(Wd * 10)}`;
+// Paints up to `n` missing pictures of the set for this theme and size. Returns how many are still missing.
+export function bakeSticks(th, L, Wd, n = 6) {
+  if (typeof OffscreenCanvas === 'undefined') return 0;
+  const key = sprKey(th, L, Wd);
+  let set = SPRITES.get(key);
+  if (!set) {
+    set = { list: new Array(SPR_STEPS).fill(null), done: 0, w: Wd + SPR_PAD * 2, h: L + SPR_PAD * 2 };
+    SPRITES.set(key, set);
+    while (SPRITES.size > 2) SPRITES.delete(SPRITES.keys().next().value);
+  }
+  for (let k = 0; k < SPR_STEPS && n > 0; k++) {
+    if (set.list[k]) continue;
+    const cv = new OffscreenCanvas(Math.ceil(set.w * SPR_S), Math.ceil(set.h * SPR_S)), g = cv.getContext('2d');
+    if (!g) return SPR_STEPS - set.done;
+    g.scale(SPR_S, SPR_S); g.translate(set.w / 2, set.h / 2);
+    drawStick(g, th, 0, 0, L, Wd, 0, (k / SPR_STEPS) * TAU_, 0);
+    set.list[k] = cv; set.done++; n--;
+  }
+  return SPR_STEPS - set.done;
+}
+export function drawStickCached(ctx, th, cx, cy, L, Wd, yaw, roll, z = 0) {
+  const set = SPRITES.get(sprKey(th, L, Wd));
+  if (!set || set.done < SPR_STEPS) { drawStick(ctx, th, cx, cy, L, Wd, yaw, roll, z); return; }
+  const u = ((((roll / TAU_) % 1) + 1) % 1) * SPR_STEPS, k0 = Math.floor(u) % SPR_STEPS, f = u - Math.floor(u), k1 = (k0 + 1) % SPR_STEPS;
+  const sc = 1 + 0.26 * z;
+  ctx.save();
+  ctx.translate(cx, cy); ctx.rotate(yaw); ctx.scale(sc, sc);
+  ctx.drawImage(set.list[k0], -set.w / 2, -set.h / 2, set.w, set.h);
+  if (f > 0.03) { ctx.globalAlpha = f; ctx.drawImage(set.list[k1], -set.w / 2, -set.h / 2, set.w, set.h); }
+  ctx.restore();
 }
 
 // Shadow of a stick on the felt. The higher it is, the further it falls and the softer it gets.

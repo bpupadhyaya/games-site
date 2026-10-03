@@ -10,17 +10,17 @@ export const HAND = { x: 0, y: 0.8, z: -1.8 };
 export const BOARD_H = 0.32;                      // height of the back board
 export const FROG = { x: 0, z: 0.77, r: 0.115, h: 0.17 };
 export const FLOOR_Y = -0.75;
-export const MOUTH = { id: 'mouth', x: 0, z: 0.555, R: 0.048, v: 500 };
+export const MOUTH = { id: 'mouth', x: 0, z: 0.555, R: 0.040, v: 400 };
 // The holes. `v` is the score of a disc that drops in; smaller or harder holes are worth more.
 export const HOLES = [
   MOUTH,
-  { id: 'mill', x: 0, z: 0.31, R: 0.046, v: 200 },
-  { id: 'bridgeL', x: -0.285, z: 0.14, R: 0.06, v: 100 },
-  { id: 'bridgeR', x: 0.285, z: 0.14, R: 0.06, v: 100 },
-  { id: 'sideL', x: -0.31, z: 0.44, R: 0.062, v: 50 },
-  { id: 'sideR', x: 0.31, z: 0.44, R: 0.062, v: 50 },
-  { id: 'cornerL', x: -0.335, z: 0.77, R: 0.062, v: 100 },
-  { id: 'cornerR', x: 0.335, z: 0.77, R: 0.062, v: 100 },
+  { id: 'mill', x: 0, z: 0.31, R: 0.042, v: 300 },
+  { id: 'bridgeL', x: -0.285, z: 0.14, R: 0.052, v: 200 },
+  { id: 'bridgeR', x: 0.285, z: 0.14, R: 0.052, v: 200 },
+  { id: 'sideL', x: -0.31, z: 0.44, R: 0.05, v: 150 },
+  { id: 'sideR', x: 0.31, z: 0.44, R: 0.05, v: 150 },
+  { id: 'cornerL', x: -0.335, z: 0.77, R: 0.042, v: 250 },
+  { id: 'cornerR', x: 0.335, z: 0.77, R: 0.042, v: 250 },
 ];
 export const holeById = (id) => HOLES.find((h) => h.id === id);
 export const STYLES = [{ id: 'lob', T0: 0.68, T1: 0.1 }, { id: 'drive', T0: 0.55, T1: 0.06 }];
@@ -77,7 +77,7 @@ function hitFixtures(sim, d) {
     if (dist < min && dist > 1e-6) {
       const nx = dx / dist, nz = dz / dist, vn = d.vx * nx + d.vz * nz;
       d.x = FROG.x + nx * min; d.z = FROG.z + nz * min;
-      if (vn < 0) { d.vx -= 1.55 * vn * nx; d.vz -= 1.55 * vn * nz; d.hit++; ev(sim, 'frog', d, { s: -vn }); }
+      if (vn < 0) { d.vx -= 1.0 * vn * nx; d.vz -= 1.0 * vn * nz; d.hit++; ev(sim, 'frog', d, { s: -vn }); }
     }
   }
 }

@@ -153,8 +153,8 @@ TECH.throw = (ctx) => {
   const w = ctx.wind;
   const hand = (side) => [
     { t: -w - 0.02, f: 'b', p: [side * 0.30, 0.1, 0.35], pole: [side * 0.5, -1, -0.2] },
-    { t: -w * 0.55, f: 'hb', back: 0.1, up: -0.02, e: 'io' },
-    { t: 0, f: 'hb', back: 0.0, up: 0, e: 'in' },
+    { t: -w * 0.55, f: 'hb', s: 1.5, back: 0.1, up: -0.06, e: 'io' },
+    { t: 0, f: 'hb', s: 1.5, back: 0.04, up: -0.1, e: 'in' },
     { t: 0.12, f: 'b', p: [side * 0.2, 0.7, 0.75], pole: [side * 0.3, 0.2, 1], e: 'out' },
     { t: 0.5, f: 'b', p: [side * 0.34, -0.08, 0.10], pole: [side * 0.5, -1, -0.2], e: 'io' },
   ];

@@ -601,7 +601,7 @@ export function createSim(cfg, rng) {
         if (sp < 1.2) continue;
         q.catchCd = 0.6;
         const mine = B.intended === q.id;
-        const pc = clamp(0.42 + 0.55 * skillOf(q) - sp * 0.0175 + (mine ? 0.32 : 0) + (q.human ? 0.1 : 0), 0.08, 0.97);
+        const pc = clamp(0.42 + 0.55 * skillOf(q) - sp * 0.0175 + (mine ? 0.32 : 0) + (q.role === 0 ? 0.14 : 0) + (q.human ? 0.1 : 0), 0.08, 0.97);
         if (R.chance(pc)) {
           giveBall(q, 'hand');
           ev('catch', { by: q.id, team: q.team, mine, shot: B.shotBy });
@@ -682,7 +682,7 @@ export function createSim(cfg, rng) {
     if (a.variant !== 'dive' && dist2(B.x, B.z, p.x, p.z) < 0.55) return;      // a ball inside the player's own body cannot be met with the stick
     if (B.vx * B.vx + B.vy * B.vy + B.vz * B.vz < 4) return;
     const sp = Math.hypot(B.vx, B.vy, B.vz);
-    const pb = clamp(0.55 + 0.42 * skillOf(p) - sp * 0.006 + (p.human ? 0.12 : 0), 0.15, 0.96);
+    const pb = clamp(0.55 + 0.42 * skillOf(p) - sp * 0.006 + (gk ? 0.14 : 0) + (p.human ? 0.12 : 0), 0.15, 0.96);
     a.blocked = true;
     if (R.chance(pb)) {
       const away = p.team === 0 ? 1 : -1;

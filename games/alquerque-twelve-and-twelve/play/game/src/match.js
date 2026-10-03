@@ -4,6 +4,7 @@
 import { startState, applyMove, legalMoves, mustCapture, forwardOf, other, NN } from './rules.js';
 import { thinkTask } from './ai.js';
 
+export const THINK_BUDGET = 3.5;
 export const STEP_T = 0.34, JUMP_T = 0.5, CAP_AT = 0.24, CAP_T = 0.5;
 
 export function createMatch(o) {
@@ -12,7 +13,7 @@ export function createMatch(o) {
     level: o.level ?? 'skilled', human: o.human ?? 1, two: Boolean(o.two), lesson: o.lesson ?? null, auto: Boolean(o.auto),
     st, hist: [], sel: -1, cur: 12, hint: null, hintTask: null, task: null, anim: {}, ghosts: [], parts: [], t: 0, over: null, overT: 0, winT: 0,
     last: null, aiT: 0.7, flash: -1, flashT: 0, events: [], pal: o.pal ?? { 1: '240,225,190', 2: '200,110,60' }, thinking: false,
-    freeze: false, gate: null,
+    freeze: false, gate: null, ctl: null, thinkT: 0,
   };
 }
 
@@ -136,9 +137,13 @@ export function stepMatch(M, dt, rng) {
     M.thinking = true;
     if (!M.task && settled(M)) {
       M.aiT -= dt;
-      if (M.aiT <= 0) M.task = thinkTask(M.st, M.level, rng);
+      if (M.aiT <= 0) { M.ctl = { stop: false }; M.thinkT = 0; M.task = thinkTask(M.st, M.level, rng, M.ctl); }
     }
     if (M.task) {
+      // Time budget (counted in frame time, never a clock): a slow phone that has thought for THINK_BUDGET seconds keeps the last
+      // finished depth and plays it, so no level ever makes the player wait much longer than on a fast one.
+      M.thinkT += dt;
+      if (M.thinkT > THINK_BUDGET) M.ctl.stop = true;
       const r = M.task.next();
       if (r.done) { const mv = r.value; M.task = null; if (mv) playMove(M, mv); }
     }

@@ -25,7 +25,7 @@ export function createGame(env) {
     scene: 'title', mode: 'none', demo, loaded: false,
     settings: { textIdx: 0, sound: true, thinkIdx: 1, tags: true },
     setup: { role: 'ST', side: 'L', opp: 3, half: 180, watch: false, watchA: 3, watchB: 3, lastMode: 'play' },
-    ui: { scroll: 0, drag: null }, page: 0, back: 'title', pagesKey: 'about', setupMsg: '', restoreMsg: '',
+    ui: { scroll: 0, drag: null, vel: 0 }, page: 0, back: 'title', pagesKey: 'about', setupMsg: '', restoreMsg: '',
     learn: { cur: 0, qi: 0, qscore: 0, done: {}, result: null, tally: null },
     saved: null, record: { demoMatches: 0, wins: 0, played: 0, coach: 0 },
     sim: null, cam: initialCam(), viewW: 720, viewH: 1280, paused: false, pauseMenu: false, think: null, thinkRects: null, banner: null, coach: null, ctxMsg: '',
@@ -272,6 +272,19 @@ export function createGame(env) {
     d.moved = Math.max(d.moved, Math.abs(ptr.y - d.y0));
     if (d.moved >= 10 && mt.lay) { const max = Math.max(0, mt.lay.contentH - (mt.bottom - mt.top)); G.ui.scroll = clamp(d.s0 - (ptr.y - d.y0), 0, max); }
   }
+  // keyboard + mouse wheel scrolling shared by every scrolling screen: arrows, PageUp/PageDown, Space, Home/End and the wheel
+  const takeWheel = () => (env.touches && env.touches.takeWheel ? env.touches.takeWheel() : 0);
+  function scrollKeys(input, cur, max, page) {
+    const k = input.keys;
+    let v = cur + takeWheel();
+    if (k.down.has('ArrowDown')) v += 14;
+    if (k.down.has('ArrowUp')) v -= 14;
+    if (k.pressed.has('PageDown') || k.pressed.has('Space')) v += page;
+    if (k.pressed.has('PageUp')) v -= page;
+    if (k.pressed.has('Home')) v = 0;
+    if (k.pressed.has('End')) v = max;
+    return clamp(v, 0, max);
+  }
   const updateFlowScene = (dt, input, handler, key) => {
     const ptr = input.pointer;
     if (key) MN.ensureLayout(G, key);
@@ -288,10 +301,9 @@ export function createGame(env) {
     const max = mt.lay ? Math.max(0, mt.lay.contentH - (mt.bottom - mt.top)) : 0;
     if (input.keys.pressed.has('Equal') || input.keys.pressed.has('NumpadAdd')) { G.settings.textIdx = Math.min(TEXT_SCALES.length - 1, G.settings.textIdx + 1); MN.dropLayout(); saveSettings(); }
     if (input.keys.pressed.has('Minus') || input.keys.pressed.has('NumpadSubtract')) { G.settings.textIdx = Math.max(0, G.settings.textIdx - 1); MN.dropLayout(); saveSettings(); }
-    if (input.keys.down.has('ArrowDown')) G.ui.scroll = clamp(G.ui.scroll + 14, 0, max);
-    if (input.keys.down.has('ArrowUp')) G.ui.scroll = clamp(G.ui.scroll - 14, 0, max);
+    G.ui.scroll = scrollKeys(input, G.ui.scroll, max, Math.max(200, (mt.bottom - mt.top) - 90));
   };
-  const go = (scene) => { G.scene = scene; G.ui.scroll = 0; G.page = 0; MN.dropLayout(); };
+  const go = (scene) => { G.scene = scene; G.ui.scroll = 0; G.ui.vel = 0; G.page = 0; MN.dropLayout(); };
   function handleTitle(id) {
     if (!id) return;
     sfx.tick();
@@ -392,18 +404,25 @@ export function createGame(env) {
   };
   const updatePages = (input) => {
     const ptr = input.pointer, keys = input.keys;
-    const n = MN.pageCount();
-    const close = () => { G.scene = G.back === 'play' ? 'play' : G.back === 'setup' ? 'setup' : 'title'; G.page = 0; MN.dropLayout(); };
-    const next = () => { if (G.page >= n - 1) close(); else G.page++; };
-    const prev = () => { if (G.page <= 0) close(); else G.page--; };
+    const dm = MN.docMeta();
+    const close = () => { G.scene = G.back === 'play' ? 'play' : G.back === 'setup' ? 'setup' : 'title'; G.page = 0; G.ui.scroll = 0; G.ui.drag = null; MN.dropLayout(); };
+    const down = () => { if (G.ui.scroll >= dm.max - 2) close(); else G.ui.scroll = clamp(G.ui.scroll + dm.step, 0, dm.max); };
+    const up = () => { if (G.ui.scroll <= 2) close(); else G.ui.scroll = clamp(G.ui.scroll - dm.step, 0, dm.max); };
     if (ptr.pressed) {
-      if (inRect(REF_NEXT, ptr.x, ptr.y)) next();
-      else if (inRect(REF_BACK, ptr.x, ptr.y)) prev();
-      else if (inRect(TEXT_DEC, ptr.x, ptr.y)) { G.settings.textIdx = Math.max(0, G.settings.textIdx - 1); G.page = 0; saveSettings(); }
-      else if (inRect(TEXT_INC, ptr.x, ptr.y)) { G.settings.textIdx = Math.min(TEXT_SCALES.length - 1, G.settings.textIdx + 1); G.page = 0; saveSettings(); }
+      if (inRect(REF_NEXT, ptr.x, ptr.y)) down();
+      else if (inRect(REF_BACK, ptr.x, ptr.y)) up();
+      else if (inRect(TEXT_DEC, ptr.x, ptr.y)) { G.settings.textIdx = Math.max(0, G.settings.textIdx - 1); G.ui.scroll = 0; saveSettings(); }
+      else if (inRect(TEXT_INC, ptr.x, ptr.y)) { G.settings.textIdx = Math.min(TEXT_SCALES.length - 1, G.settings.textIdx + 1); G.ui.scroll = 0; saveSettings(); }
+      else if (ptr.y >= dm.top - 10 && ptr.y <= dm.bottom + 10) G.ui.drag = { y0: ptr.y, s0: G.ui.scroll, v: 0, ly: ptr.y };
     }
-    if (keys.pressed.has('ArrowRight')) next();
-    if (keys.pressed.has('ArrowLeft')) prev();
+    // drag / swipe anywhere on the page, with a little momentum after the finger lifts
+    const d = G.ui.drag;
+    if (d && ptr.down) { const ny = clamp(d.s0 - (ptr.y - d.y0), 0, dm.max); d.v = (ny - G.ui.scroll) * 0.6 + d.v * 0.4; G.ui.scroll = ny; }
+    if (d && ptr.released) { G.ui.drag = null; G.ui.vel = Math.abs(d.v) > 3 ? d.v * 60 : 0; }
+    const before = G.ui.scroll; G.ui.scroll = scrollKeys(input, G.ui.scroll, dm.max, dm.step); if (G.ui.scroll !== before) G.ui.vel = 0;
+    if (!G.ui.drag && G.ui.vel) { G.ui.scroll = clamp(G.ui.scroll + G.ui.vel * (1 / 60), 0, dm.max); G.ui.vel *= 0.92; if (Math.abs(G.ui.vel) < 12) G.ui.vel = 0; }
+    if (keys.pressed.has('ArrowRight')) down();
+    if (keys.pressed.has('ArrowLeft')) up();
     if (keys.pressed.has('Escape')) close();
   };
   const updateSetup = (dt, input) => {
@@ -419,7 +438,7 @@ export function createGame(env) {
 
   return {
     // Menus, Rules, About, settings, Learn, Watch & Learn and pauses are free: only real play of a match counts against the preview.
-    isPreviewExempt: () => !(G.scene === 'play' && G.mode === 'play') || G.paused || G.pauseMenu || !!G.think || !S || S.s.over || S.s.phase === 'full',
+    isPreviewExempt: () => !(G.scene === 'play' && G.mode === 'play') || G.paused || G.pauseMenu || !!G.think || !S || S.s.over || S.s.phase !== 'play',
     update(dt, input) {
       setPress(input.pointer);
       G.t += dt;

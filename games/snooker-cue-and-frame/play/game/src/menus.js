@@ -14,10 +14,9 @@ import { ABOUT, HOWTO, RULES } from './content.js';
 const TAU = Math.PI * 2;
 
 // ---- flow screens ------------------------------------------------------------------------------------
-let PAGE_COUNT = 1;
 let LAID = { key: '', lay: null, top: 0, bottom: H };
 export const flowMeta = () => LAID;
-export function resetMenus() { LAID = { key: '', lay: null, top: 0, bottom: H }; PAGE_COUNT = 1; }
+export function resetMenus() { LAID = { key: '', lay: null, top: 0, bottom: H } }
 const estCtx = { font: '', measureText(t) { const m = /(\d+)px/.exec(this.font); return { width: String(t).length * (m ? +m[1] : 20) * 0.55 }; } };
 const DEFS = () => ({
   title: [titleWidgets, 0, H], setup: [setupWidgets, 0, 1130], settings: [settingsWidgets, 0, H], learn: [learnWidgets, 0, H],
@@ -302,85 +301,74 @@ export const renderReason = (ctx, state) => modal(ctx, state, 'reason', reasonWi
 export const renderLessonResult = (ctx, state) => modal(ctx, state, 'lessonres', lessonWidgets(state));
 
 // ---- reference pages --------------------------------------------------------------------------------
-export const pageCount = () => PAGE_COUNT;
 const PANEL = { x: 34, y: 100, w: 652, h: 1030 };
-
-function buildPages(ctx, list, scale) {
-  const fs = Math.round(28 * scale), lh = fs * 1.28, tw = PANEL.w - 80;
+// Text readers (Rules, How to Play, About) are one long document that scrolls inside the panel at every text size.
+const VIEW = { y0: PANEL.y + 92, y1: PANEL.y + PANEL.h - 64 };
+function buildDoc(ctx, list, scale) {
+  const fs = Math.round(28 * scale), lh = fs * 1.28, tw = PANEL.w - 96;
   const secFs = Math.round(34 * Math.min(scale, 1.3));
-  const top = PANEL.y + 120, limit = PANEL.y + PANEL.h - 70;
-  const pages = [];
-  let cur = null, used = 0;
-  const newPage = () => { cur = { blocks: [], fs, lh, secFs }; used = 0; pages.push(cur); };
-  list.forEach((sec) => {
+  const items = []; let y = 14;
+  list.forEach((sec, si) => {
+    if (si > 0) { items.push({ k: 'rule', y: y + 6 }); y += 22; }
     ctx.font = `700 ${secFs}px ${FONT}`;
     const tl = wrapLines(ctx, sec.title, tw);
-    const titleH = tl.length * secFs * 1.2 + 16;
+    items.push({ k: 'title', y, tl });
+    y += tl.length * secFs * 1.2 + 14;
+    if (sec.art) { items.push({ k: 'art', y, art: sec.art, h: 210 }); y += 210; }
     ctx.font = `400 ${fs}px ${FONT}`;
-    const lines = [];
-    sec.p.forEach((para, pi) => { wrapLines(ctx, para, tw).forEach((l, k) => lines.push({ text: l, gapBefore: k === 0 && pi > 0 })); });
-    const lineH = (l, n) => lh + (l.gapBefore && n > 0 ? lh * 0.45 : 0);
-    const artH = sec.art ? 210 : 0;
-    let full = titleH + artH + 26;
-    lines.forEach((l, k) => { full += lineH(l, k); });
-    if (!cur || used + full > limit - top) newPage();
-    let i = 0, part = 0;
-    while (true) {
-      const blk = { title: sec.title, tl, titleH, art: part === 0 ? sec.art : null, artH: part === 0 ? artH : 0, lines: [], part };
-      let h = titleH + blk.artH + 26;
-      while (i < lines.length) {
-        const add = lineH(lines[i], blk.lines.length);
-        if (used + h + add > limit - top && (blk.lines.length > 0 || used > 0)) break;
-        blk.lines.push({ ...lines[i] }); h += add; i++;
-      }
-      cur.blocks.push(blk); used += h;
-      part++;
-      if (i >= lines.length) break;
-      newPage();
-    }
+    sec.p.forEach((para, pi) => {
+      if (pi > 0) y += lh * 0.45;
+      wrapLines(ctx, para, tw).forEach((l) => { items.push({ k: 'line', y, text: l }); y += lh; });
+    });
+    y += 14;
   });
-  return pages;
+  return { items, h: y + 10, fs, lh, secFs };
 }
-
-const pageCache = new Map();
+const docCache = new Map();
+let DOC = { max: 0, view: VIEW.y1 - VIEW.y0 };
+export const docMeta = () => DOC;
 export function renderPages(ctx, state, list, header) {
   attract(ctx, state); scrim(ctx, 0.78);
   const sc = TEXT_SCALES[state.settings.textIdx];
   const pkey = `${header}:${sc}`;
-  let pages = pageCache.get(pkey);
-  if (!pages) { pages = buildPages(ctx, list, sc); pageCache.set(pkey, pages); }
-  PAGE_COUNT = pages.length;
-  const idx = Math.min(state.page, pages.length - 1);
-  const pg = pages[idx];
+  let doc = docCache.get(pkey);
+  if (!doc) { doc = buildDoc(ctx, list, sc); docCache.set(pkey, doc); }
+  const view = VIEW.y1 - VIEW.y0, max = Math.max(0, doc.h - view);
+  DOC = { max, view };
+  state.page = Math.max(0, Math.min(max, state.page));
+  const off = state.page;
   panel(ctx, PANEL.x, PANEL.y, PANEL.w, PANEL.h, { r: 30, fill: 'rgba(246,240,220,0.98)', stroke: 'rgba(120,90,30,0.7)' });
   ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
   ctx.fillStyle = C.terraDark; ctx.font = `800 ${Math.round(40 * Math.min(sc, 1.15))}px ${FONT}`;
   ctx.fillText(header, W / 2, PANEL.y + 58);
   ctx.strokeStyle = 'rgba(120,90,30,0.4)'; ctx.lineWidth = 2;
   ctx.beginPath(); ctx.moveTo(PANEL.x + 60, PANEL.y + 78); ctx.lineTo(PANEL.x + PANEL.w - 60, PANEL.y + 78); ctx.stroke();
-  let y = PANEL.y + 120;
-  pg.blocks.forEach((blk, bi) => {
-    if (bi > 0) { ctx.strokeStyle = 'rgba(120,90,30,0.25)'; ctx.beginPath(); ctx.moveTo(PANEL.x + 80, y - 8); ctx.lineTo(PANEL.x + PANEL.w - 80, y - 8); ctx.stroke(); y += 8; }
-    ctx.textAlign = 'center'; ctx.fillStyle = C.sky; ctx.font = `800 ${pg.secFs}px ${FONT}`;
-    blk.tl.forEach((l, k) => ctx.fillText(l + (blk.part > 0 && k === blk.tl.length - 1 ? ' (cont.)' : ''), W / 2, y + pg.secFs * (0.9 + k * 1.2) - 8));
-    y += blk.titleH;
-    if (blk.art) { ctx.save(); ctx.beginPath(); ctx.rect(PANEL.x + 20, y, PANEL.w - 40, blk.artH); ctx.clip(); drawArt(blk.art, ctx, PANEL.x + 40, y, PANEL.w - 80, blk.artH - 12); ctx.restore(); y += blk.artH; }
-    ctx.fillStyle = C.ink; ctx.font = `400 ${pg.fs}px ${FONT}`; ctx.textAlign = 'left';
-    blk.lines.forEach((l, k) => {
-      if (l.gapBefore && k > 0) y += pg.lh * 0.45;
-      ctx.fillText(l.text, PANEL.x + 40, y + pg.fs * 0.85);
-      y += pg.lh;
-    });
-    y += 26;
-  });
-  ctx.textAlign = 'center'; ctx.font = `400 22px ${FONT}`; ctx.fillStyle = 'rgba(30,60,40,0.7)';
-  ctx.fillText(`Page ${idx + 1} of ${pages.length}`, W / 2, PANEL.y + PANEL.h - 28);
+  ctx.save(); ctx.beginPath(); ctx.rect(PANEL.x + 8, VIEW.y0, PANEL.w - 16, view); ctx.clip();
+  for (const it of doc.items) {
+    const y = VIEW.y0 + it.y - off;
+    const hh = it.k === 'art' ? it.h : it.k === 'title' ? it.tl.length * doc.secFs * 1.2 : doc.lh;
+    if (y + hh < VIEW.y0 - 4 || y > VIEW.y1 + 4) continue;
+    if (it.k === 'rule') { ctx.strokeStyle = 'rgba(120,90,30,0.25)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(PANEL.x + 80, y); ctx.lineTo(PANEL.x + PANEL.w - 80, y); ctx.stroke(); }
+    else if (it.k === 'title') { ctx.textAlign = 'center'; ctx.fillStyle = C.sky; ctx.font = `800 ${doc.secFs}px ${FONT}`; it.tl.forEach((l, k) => ctx.fillText(l, W / 2, y + doc.secFs * (0.9 + k * 1.2))); }
+    else if (it.k === 'art') { ctx.save(); ctx.beginPath(); ctx.rect(PANEL.x + 20, y, PANEL.w - 40, it.h); ctx.clip(); drawArt(it.art, ctx, PANEL.x + 40, y, PANEL.w - 80, it.h - 12); ctx.restore(); }
+    else { ctx.fillStyle = C.ink; ctx.font = `400 ${doc.fs}px ${FONT}`; ctx.textAlign = 'left'; ctx.fillText(it.text, PANEL.x + 44, y + doc.fs * 0.85); }
+  }
+  ctx.restore();
+  if (max > 0) {                                  // scroll indicator: a bar along the edge, soft fades and a hint
+    const th = Math.max(48, view * (view / doc.h)), ty = VIEW.y0 + (view - th) * (off / max);
+    roundPath(ctx, PANEL.x + PANEL.w - 18, VIEW.y0, 8, view, 4); ctx.fillStyle = 'rgba(120,90,30,0.16)'; ctx.fill();
+    roundPath(ctx, PANEL.x + PANEL.w - 18, ty, 8, th, 4); ctx.fillStyle = 'rgba(120,90,30,0.75)'; ctx.fill();
+    if (off < max - 4) { const g = ctx.createLinearGradient(0, VIEW.y1 - 50, 0, VIEW.y1); g.addColorStop(0, 'rgba(246,240,220,0)'); g.addColorStop(1, 'rgba(246,240,220,0.95)'); ctx.fillStyle = g; ctx.fillRect(PANEL.x + 8, VIEW.y1 - 50, PANEL.w - 30, 50); }
+    if (off > 4) { const g = ctx.createLinearGradient(0, VIEW.y0, 0, VIEW.y0 + 40); g.addColorStop(0, 'rgba(246,240,220,0.95)'); g.addColorStop(1, 'rgba(246,240,220,0)'); ctx.fillStyle = g; ctx.fillRect(PANEL.x + 8, VIEW.y0, PANEL.w - 30, 40); }
+  }
+  ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'; ctx.font = `600 22px ${FONT}`; ctx.fillStyle = 'rgba(30,60,40,0.75)';
+  ctx.fillText(max <= 0 ? 'All shown' : off >= max - 4 ? '▲ Drag down to go back up · end of text' : `Drag up to read on  ▼  ·  ${Math.round((off / max) * 100)}%`, W / 2, PANEL.y + PANEL.h - 24);
   drawButton(ctx, TEXT_DEC, 'A−', { disabled: state.settings.textIdx === 0, size: 30 });
   drawButton(ctx, TEXT_INC, 'A+', { disabled: state.settings.textIdx === TEXT_SCALES.length - 1, size: 30 });
   ctx.fillStyle = '#f6f0dc'; ctx.font = `700 24px ${FONT}`; ctx.textAlign = 'center';
   ctx.fillText(`${Math.round(sc * 100)}%`, W / 2, 56);
-  drawButton(ctx, REF_BACK, idx === 0 ? 'Close' : 'Back', { size: 32 });
-  drawButton(ctx, REF_NEXT, idx === pages.length - 1 ? 'Done' : 'Next', { primary: true, size: 32 });
+  drawButton(ctx, REF_BACK, off > 4 ? '▲ Up' : 'Close', { size: 32 });
+  drawButton(ctx, REF_NEXT, off >= max - 4 ? 'Done' : 'Next ▼', { primary: true, size: 32 });
 }
 
 // ---- illustrations ----------------------------------------------------------------------------------

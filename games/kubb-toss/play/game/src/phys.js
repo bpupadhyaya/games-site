@@ -6,9 +6,11 @@ export const G = 9.81;
 export const DT = 1 / 240;
 export const SUB = 4;                                   // physics steps per 60 Hz game tick
 export const FIELD = { W: 3.6, L: 6.4, MID: 3.2 };
-export const KUBB = { w: 0.158, h: 0.34, m: 4.18 };
-export const KING = { w: 0.2, h: 0.675, m: 13.9 };
-export const BATON = { len: 0.675, r: 0.05, m: 3.18 };
+// Every piece is SZ times the size of the real one (kept in proportion: mass grows with the cube of the size) so it reads on a phone.
+export const SZ = 1.5;
+export const KUBB = { w: 0.1264 * SZ, h: 0.272 * SZ, m: 2.14 * SZ ** 3 };
+export const KING = { w: 0.16 * SZ, h: 0.54 * SZ, m: 9.5 * SZ ** 3 };
+export const BATON = { len: 0.54 * SZ, r: 0.04 * SZ, m: 1.628 * SZ ** 3 };
 export const BASE_STEP = 0.64;                          // spacing of base kubbs along a baseline
 const TAU = Math.PI * 2;
 
@@ -50,8 +52,8 @@ function batonSpheres() {
   return sp;
 }
 const SHAPES = {
-  kubb: { spheres: boxSpheres(KUBB.w, KUBB.h, 0.04), m: KUBB.m, I: [KUBB.m * (KUBB.w ** 2 + KUBB.h ** 2) / 12, KUBB.m * (KUBB.w ** 2 + KUBB.h ** 2) / 12, KUBB.m * (2 * KUBB.w ** 2) / 12], rad: Math.hypot(KUBB.w / 2, KUBB.w / 2, KUBB.h / 2) + 0.04, mu: 0.6 },
-  king: { spheres: boxSpheres(KING.w, KING.h, 0.05), m: KING.m, I: [KING.m * (KING.w ** 2 + KING.h ** 2) / 12, KING.m * (KING.w ** 2 + KING.h ** 2) / 12, KING.m * (2 * KING.w ** 2) / 12], rad: Math.hypot(KING.w / 2, KING.w / 2, KING.h / 2) + 0.05, mu: 0.6 },
+  kubb: { spheres: boxSpheres(KUBB.w, KUBB.h, 0.032 * SZ), m: KUBB.m, I: [KUBB.m * (KUBB.w ** 2 + KUBB.h ** 2) / 12, KUBB.m * (KUBB.w ** 2 + KUBB.h ** 2) / 12, KUBB.m * (2 * KUBB.w ** 2) / 12], rad: Math.hypot(KUBB.w / 2, KUBB.w / 2, KUBB.h / 2) + 0.032 * SZ, mu: 0.6 },
+  king: { spheres: boxSpheres(KING.w, KING.h, 0.04 * SZ), m: KING.m, I: [KING.m * (KING.w ** 2 + KING.h ** 2) / 12, KING.m * (KING.w ** 2 + KING.h ** 2) / 12, KING.m * (2 * KING.w ** 2) / 12], rad: Math.hypot(KING.w / 2, KING.w / 2, KING.h / 2) + 0.04 * SZ, mu: 0.6 },
   baton: { spheres: batonSpheres(), m: BATON.m, I: [0.5 * BATON.m * BATON.r ** 2, BATON.m * (3 * BATON.r ** 2 + BATON.len ** 2) / 12, BATON.m * (3 * BATON.r ** 2 + BATON.len ** 2) / 12], rad: BATON.len / 2 + 0.01, mu: 0.5 },
 };
 export const halfHeight = (kind) => (kind === 'king' ? KING.h / 2 : kind === 'kubb' ? KUBB.h / 2 : 0);
@@ -265,7 +267,9 @@ export function kubbsAtRest(world) {
 
 // ---- the throw ---------------------------------------------------------------------------------------------------------------
 export const LOFTS = [{ name: 'Low', a: 0.66 }, { name: 'Medium', a: 0.9 }, { name: 'High', a: 1.15 }];
-export const SPINS = [{ name: 'Slow', rev: 1.0 }, { name: 'Medium', rev: 1.25 }, { name: 'Fast', rev: 1.5 }];
+// att = how steeply the baton comes down at the moment its lower end touches the grass (radians from flat): Slow lands almost on its end, Fast lands nearly flat
+// and skids on, Medium in between. The launch is solved so that this holds at every distance.
+export const SPINS = [{ name: 'Slow', rev: 1.0, att: 1.05 }, { name: 'Medium', rev: 1.5, att: 0.68 }, { name: 'Fast', rev: 2.0, att: 0.35 }];
 export const H0 = 0.72;      // release height
 export const MAX_REACH = 6.9;
 // Where the baton leaves the hand: just behind the throw line, at x.
@@ -294,12 +298,14 @@ export function contactOf(L) {
 export function launchOf(sx, lineY, dir, ax, ay, loft, spin, err = {}) {
   const r = releasePoint(sx, lineY, dir);
   const dx = ax - r.x, dy = ay - r.y, Dt = Math.max(0.6, Math.hypot(dx, dy)), ang = Math.atan2(dx, dy);
-  const a = LOFTS[loft].a, rev = SPINS[spin].rev, th0 = 1.3;
-  let Dh = Dt + 0.25, L = buildLaunch(r, ang, a, rev, th0, dir, Dh);
-  for (let i = 0; i < 7; i++) {
-    const c = contactOf(L), d = Math.hypot(c.x - r.x, c.y - r.y);
-    if (Math.abs(Dt - d) < 0.004) break;
-    Dh = Math.max(0.4, Dh + (Dt - d)); L = buildLaunch(r, ang, a, rev, th0, dir, Dh);
+  const a = LOFTS[loft].a, rev = SPINS[spin].rev, want = SPINS[spin].att;
+  let th0 = 1.3, Dh = Dt + 0.25, L = buildLaunch(r, ang, a, rev, th0, dir, Dh);
+  for (let i = 0; i < 40; i++) {
+    const c = contactOf(L), d = Math.hypot(c.x - r.x, c.y - r.y), om = (TAU * rev) / L.t;
+    let dth = ((want - om * c.t - th0) % TAU + TAU) % TAU; if (dth > Math.PI) dth -= TAU;       // shortest turn that fixes the landing angle
+    if (Math.abs(Dt - d) < 0.004 && Math.abs(dth) < 0.012) break;
+    const k = i < 12 ? 1 : 0.5;
+    th0 = th0 + dth * k; Dh = Math.max(0.4, Dh + (Dt - d) * k); L = buildLaunch(r, ang, a, rev, th0, dir, Dh);
   }
   L.tc = contactOf(L).t;
   return { ...L, ang: L.ang + (err.lat ?? 0), v: L.v * (1 + (err.spd ?? 0)), a: L.a + (err.loft ?? 0), rev: L.rev + (err.rev ?? 0), th0: L.th0 + (err.th0 ?? 0) };

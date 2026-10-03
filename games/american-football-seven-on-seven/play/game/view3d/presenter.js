@@ -12,6 +12,9 @@ const BLOCK_OK = [];
 for (const h of ['L hand', 'R hand', 'L forearm', 'R forearm']) for (const c of ['chest', 'chest2', 'abdomen', 'L shoulder', 'R shoulder', 'L upper arm', 'R upper arm', 'pelvis', 'L hand', 'R hand', 'L forearm', 'R forearm']) BLOCK_OK.push([h, c]);
 let blockWorst = -9, blockWhy = '';
 const STEP = 1 / 60;
+const nowMs = () => globalThis.performance.now();
+const QP = (k, d) => { try { const m = new RegExp('[?&]' + k + '=([0-9.]+)').exec(globalThis.location.search); return m ? Number(m[1]) : d; } catch { return d; } };
+
 const frac = (n) => ((Math.imul(n | 0, 2654435761) >>> 0) / 4294967296);
 const KITS = [
   { top: '#2f6fd6', bottoms: '#f4f4f4', socks: '#f4f4f4', shoes: '#f4f4f4', trim: '#d6e4ff' },
@@ -52,15 +55,15 @@ export async function createPresenter({ kitCanvas, quality }) {
   // ---- the field ------------------------------------------------------------------------------------------------------------------------------------
   const field = buildField(THREE);
   stage.add(field);
-  const ball = buildFootball(); ball.scale.setScalar(2.0); ball.visible = false; stage.add(ball);
+  const ball = buildFootball(); ball.scale.setScalar(QP('bs', 1.6)); ball.visible = false; stage.add(ball);
   // ---- the fourteen players ---------------------------------------------------------------------------------------------------------------------------
   // one instanced draw call for the fourteen soft shadows and the ball's
   const blobs = createBlobShadows(15, { radius: 0.5, opacity: 1 }); stage.scene.add(blobs.mesh); blobs.mesh.count = 15; blobs.mesh.visible = true;
   for (let i = 0; i < 15; i++) blobs.set(i, 0, -50, 0.1);
-  const PSCALE = 1.4;
-  const ents = []; let ready = false, loading = false, womenLoaded = null;
+  const PSCALE = QP('ps', 1.75);
+  const ents = []; let ready = false, loading = false, womenLoaded = null, warmed = false, warmMs = 0;
   async function loadAll(women) {
-    if (loading) return; loading = true;
+    if (loading) return; loading = true; ready = false;
     for (const e of ents.splice(0)) { stage.remove(e.h); }
     const char = women ? 'mannequin_f' : 'mannequin_m';
     const hs = await Promise.all(Array.from({ length: 14 }, (_, id) => loadHuman({ character: char, kit: KITS[id < 7 ? 0 : 1], skin: SKINS[id < 7 ? 0 : 1][id % 7], hair: KITS[id < 7 ? 0 : 1].top, quality: quality === 'high' ? 'high' : 'low', scale: PSCALE, silhouette: 0.55, stripes: true })));
@@ -75,13 +78,19 @@ export async function createPresenter({ kitCanvas, quality }) {
       ents.push({ h, ctl: createCtl(h, id, ball), id });
     });
     womenLoaded = women; ready = true; loading = false;
-    try { stage.renderer.compile?.(stage.scene, camera); } catch { /* optional */ }
+    // warm-up behind the menu: compile every shader and upload every texture while the players are visible to the renderer (three skips hidden objects), then hide them again
+    try {
+      for (const e of ents) e.h.root.visible = true;
+      camera.updateMatrixWorld(true); stage.renderer.compile?.(stage.scene, camera);
+      if (!warmed) { warmed = true; const t0 = nowMs(); stage.render(); warmMs = nowMs() - t0; }
+      for (const e of ents) e.h.root.visible = false;
+    } catch { /* optional */ }
     stage.invalidate();
   }
   loadAll(false).catch((e) => { loading = false; console.warn('3D players failed to load; keeping the 2D field', e); });
 
   // ---- the fixed camera: the whole field, seen from behind the user's end, high ---------------------------------------------------------------------------------
-  const CAM = { h: 58, back: 8, look: 26 * YD, fovMargin: 1.0 };
+  const CAM = { h: QP('ch', 36), back: QP('cb', 11), look: 26 * YD, fovMargin: QP('fm', 0.97) };
   let cssW = 0, cssH = 0, scaleV = 1, fitKey = '', laidOut = null;
   function layout(viewRect) {
     const r = kitCanvas.getBoundingClientRect();
@@ -126,8 +135,7 @@ export async function createPresenter({ kitCanvas, quality }) {
 
   // ---- per frame ---------------------------------------------------------------------------------------------------------------------------------------------
   let markedP = null, lastE = null, lastP = null, lastSimT = -1, wallAt = 0, animT = 0, seen = 0, shown = false;
-  const nowMs = () => globalThis.performance.now();
-  const proj = V();
+    const proj = V();
   const F = { P: null, E: null, alpha: 1, dt: 0, simT: 0, ball: null, ctl: [] };
   const vyAt = (b) => { const f = b.fly; if (!f) return 0; return (f.y1 - f.y0) / f.T; };
   const fakePlay = (E) => ({ phase: 'result', t: E.t, actors: E.m.actors, ball: { st: 'ground', holder: -1, x: 0, y: 0, z: 0, px: 0, py: 0, pz: 0 }, events: [], dead: true, deadReason: '', off: E.m.poss, dir: 1, losZ: 0, kick: null, try: false });
@@ -135,6 +143,8 @@ export async function createPresenter({ kitCanvas, quality }) {
   function frame(game, ctx) {
     const s = game.getState();
     const E = s.E;
+    // the look of the players (men / women) is switched behind the menus, never at the first live frame
+    { const want = !!(s.settings && s.settings.women); if (ready && want !== womenLoaded && !loading) loadAll(want).catch(() => { loading = false; }); }
     const active = s.scene === 'play' && E && ready && !lost && !s.hide3d;
     if (!active) {
       if (shown) { canvas.style.visibility = 'hidden'; shown = false; game.setView3d?.(false); }
@@ -172,7 +182,7 @@ export async function createPresenter({ kitCanvas, quality }) {
     // wrapped pairs: push the tackler out until no limb passes through the carrier (a few centimetres at most)
     for (const e of ents) { const tk = e.ctl.st.tackle; if (tk && tk.role === 'tackler') { const o = ents[tk.carrier]; if (o) { resolvePenetration(o.h, e.h, { move: 'b', tolerance: 0.004, iterations: 8 }); blobs.set(e.id, e.h.root.position.x, e.h.root.position.z, 0.5 * PSCALE); } } }
     // blocking pairs: the two hands on the other's chest are meant to touch; nothing else may pass through
-    if (P && P.pairs && P.pairs.length) for (const pr of P.pairs) { const A = ents[pr.a], B = ents[pr.b]; if (A && B) { const w = resolvePenetration(A.h, B.h, { move: 'b', tolerance: 0.004, iterations: 60, ignore: BLOCK_OK }); if (w.depth > blockWorst) { blockWorst = w.depth; blockWhy = w.a + ' / ' + w.b; } } }
+    if (P && P.pairs && P.pairs.length) for (const pr of P.pairs) { const A = ents[pr.a], B = ents[pr.b]; if (A && B && !A.ctl.st.lying && !B.ctl.st.lying && !A.ctl.st.tackle && !B.ctl.st.tackle) { const w = resolvePenetration(A.h, B.h, { move: 'both', tolerance: 0.004, iterations: 60, ignore: BLOCK_OK }); if (w.depth > blockWorst) { blockWorst = w.depth; blockWhy = w.a + ' / ' + w.b + ' ' + A.id + ',' + B.id + ' ' + (A.ctl.st.clip) + '/' + (B.ctl.st.clip); } } }
     // ball mesh and its shadow
     if (b && (b.st !== 'ground' || P.phase !== 'lineup')) {
       const w = toWorld(F.ball.x, F.ball.z);
@@ -203,7 +213,7 @@ export async function createPresenter({ kitCanvas, quality }) {
   }
 
   return {
-    blockWorst: () => [blockWorst, blockWhy], stage, ready: () => ready, ents: () => ents, frame, camera, THREE,
+    blockWorst: () => [blockWorst, blockWhy], warmMs: () => warmMs, stage, ready: () => ready, ents: () => ents, frame, camera, THREE,
     screen: toScreen,
     wrap(game) {
       const r = game.render.bind(game);

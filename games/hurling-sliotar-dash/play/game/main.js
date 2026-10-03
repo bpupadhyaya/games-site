@@ -7,6 +7,7 @@ import { createPresenter } from './view3d/presenter.js';
 const canvas = document.getElementById('game');
 let presenter = null;
 try { presenter = await createPresenter({ kitCanvas: canvas }); } catch (e) { console.warn('3D presenter unavailable', e); }
+if (presenter && new URLSearchParams(location.search).has('dev')) window.__presenter = presenter;   // dev only: load-time measurement
 
 // Real-time play needs two fingers at once (stick + a button). The kit's input has one pointer, so the shell tracks every touch itself and hands
 // the list to the game once per tick; each finger is bound by the game to the control it started on (see src/controls.js).
@@ -28,7 +29,10 @@ const snapshot = () => {
   return list;
 };
 
+let live = null;
+canvas.addEventListener('wheel', (e) => { if (live && live.wheel) { live.wheel(e.deltaMode === 1 ? e.deltaY * 40 : e.deltaY); e.preventDefault(); } }, { passive: false });
 const wrap = (game) => {
+  live = game;
   if (new URLSearchParams(location.search).has('dev')) window.__game = game;   // dev only: lets the test harness read the state
   const upd = game.update.bind(game);
   game.update = (dt, input) => { game.setTouches(snapshot()); upd(dt, input); };

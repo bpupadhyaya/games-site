@@ -308,9 +308,9 @@ export async function createGame(env) {
       for (let trial = 0, k = 4; trial < 160 && !mv; trial++, k = 3 + (trial % 8)) {
         M = mk({}); warm(M, k, 'casual');
         if (M.st.over || M.st.turn !== 1) continue;
-        mv = legalMoves(M.st).find((m) => { const o = outcome(M.st, m); return o.got >= 4 && !o.after.over; }) ?? null;
+        mv = legalMoves(M.st).find((m) => { const o = outcome(M.st, m); return o.got >= 4 && !o.after.over && o.ev.length <= 22; }) ?? null;
       }
-      if (mv) { beginMove(M); startMove(M, mv); let seen = 0; for (let i = 0; i < 900; i++) { setTargets(M); stepMatch(M, 1 / 60, rng); if (M.fx.some((e) => e.t === 'capture')) seen = 1; handleFx(M); if (seen && ++seen > 40) break; } }
+      if (mv) { beginMove(M); startMove(M, mv); let seen = 0; for (let i = 0; i < 2400; i++) { setTargets(M); stepMatch(M, 1 / 60, rng); if (M.fx.some((e) => e.t === 'capture')) seen = 1; handleFx(M); if (seen && ++seen > 30) break; } M.freeze = true; M.aiT = 99;  }
     }
     else if (n === 4) { const M = mk({}); warm(M, 4); mine(M); showHint(M); settle(M, 0.5); }
     else if (n === 5) { S.thinkIdx = 0; startAuto(); S.auto.k = 1; startAutoGame(); const M = S.match; warm(M, 5); settle(M, 0.3); S.auto.phase = 'reveal'; S.auto.t = 1; planAuto(); }
@@ -607,6 +607,11 @@ export async function createGame(env) {
       if (ptr.down || ptr.pressed) { S.lastPtr.x = ptr.x; S.lastPtr.y = ptr.y; }
       if (!S.shot && (input.keys.pressed.size || input.keys.down.size)) onKeys(input.keys);
 
+      if (env.wheel && env.wheel.dy) {
+        const ui = buildUi(S);
+        if (ui.layout && ui.region) { setScroll(ui, getScroll(ui) + env.wheel.dy); S.scrollVel = {}; }
+        env.wheel.dy = 0;
+      }
       for (const k of Object.keys(S.scrollVel)) {
         const v = S.scrollVel[k];
         if (Math.abs(v) < 8) { delete S.scrollVel[k]; continue; }

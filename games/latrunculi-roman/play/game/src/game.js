@@ -3,7 +3,7 @@
 import { SCREEN, inRect, BACK_BTN, PAUSE_BTN, TOOLBAR_IDS, autoLayout, playLayout } from './layout.js';
 import { TEXT_SCALES, hitDoc, clampScroll } from './ui.js';
 import { buildUi, THINK_STEPS, demoLevelLocked, demoOver, recKey } from './screens.js';
-import { NN, N, QUIET_LIMIT, SIDE, legalMoves, applyMove, countOf } from './rules.js';
+import { NN, N, QUIET_LIMIT, SIDE, legalMoves, applyMove, countOf, roomOf } from './rules.js';
 import { LEVELS, levelOf, seeded, movementSearch, chooseMove } from './ai.js';
 import { thinkAdvice, describeMove, explainMove } from './explain.js';
 import { LESSONS, lessonStart, judge } from './lessons.js';
@@ -14,7 +14,7 @@ import { render } from './view.js';
 
 export const meta = { width: SCREEN.width, height: SCREEN.height };
 
-const VERSION = '1.0.0';
+const VERSION = '1.0.1';
 const WIN_NOTES = [523, 659, 784, 1047, 1319];
 // Watch & Learn: Skilled plays Ivory and Casual plays Jet, which gives a lively game with captures and a finish.
 const AUTO_LEVEL = { 1: 'skilled', 2: 'casual' };
@@ -151,6 +151,12 @@ export async function createGame(env) {
       const lead = tr('stallLead', { n: QUIET_LIMIT });
       const hi = w === 1 ? a : b, lo = w === 1 ? b : a;
       if (w === 0) body = tr('endEqual', { lead, n: piecesText(a) });
+      else if (e.by === 'room') {
+        const ra = roomOf(M.st.cells, 1), rb = roomOf(M.st.cells, 2), hiR = w === 1 ? ra : rb, loR = w === 1 ? rb : ra;
+        if (named(M)) body = tr('endRoomSide', { lead, side: sideLabel(w), n: piecesText(a), a: hiR, b: loR });
+        else if (w === M.human) body = tr('endRoomYou', { lead, n: piecesText(a), a: hiR, b: loR });
+        else body = tr('endRoomOne', { lead, name: lvName(M.level), n: piecesText(a), a: hiR, b: loR });
+      }
       else if (named(M)) body = tr('endMoreSide', { lead, side: sideLabel(w), a: hi, b: lo });
       else if (w === M.human) body = tr('endMoreYou', { lead, a: hi, b: lo });
       else body = tr('endMoreOne', { lead, name: lvName(M.level), a: hi, b: lo });
@@ -344,6 +350,13 @@ export async function createGame(env) {
   const sd = config?.seed ?? 0;
   const shotSeed = wantsShot && ((sd >= 900001 && sd <= 900080) || (sd >= 901001 && sd <= 901040) || (sd >= 902001 && sd <= 902040)) ? sd - 900000 : 0;
   if (shotSeed) stageShot(shotSeed);
+
+  // Mouse wheel / trackpad scrolling for the text screens (the kit forwards only pointer and keys): the delta is gathered here and
+  // applied once per update.
+  let wheel = 0;
+  if (typeof globalThis.addEventListener === 'function' && typeof globalThis.document !== 'undefined') {
+    globalThis.addEventListener('wheel', (e) => { wheel += e.deltaY * (e.deltaMode === 1 ? 24 : 1.6); }, { passive: true });
+  }
 
   // ------------------------------------------------------------------------------ ui plumbing
   const getScroll = (ui) => S.scroll[ui.scrollKey] ?? 0;
@@ -578,6 +591,10 @@ export async function createGame(env) {
       if (ptr.down || ptr.pressed) { S.lastPtr.x = ptr.x; S.lastPtr.y = ptr.y; }
       if (!S.shot && (input.keys.pressed.size || input.keys.down.size)) onKeys(input.keys);
 
+      if (wheel) {
+        const w = wheel; wheel = 0;
+        if (!S.shot && !(S.scene === 'play' && !S.overlay) && !(S.scene === 'auto' && !S.overlay)) { const wui = buildUi(S); if (wui.layout && wui.region) { setScroll(wui, getScroll(wui) + w); S.scrollVel = {}; } }
+      }
       for (const k of Object.keys(S.scrollVel)) {
         const v = S.scrollVel[k];
         if (Math.abs(v) < 8) { delete S.scrollVel[k]; continue; }
@@ -632,6 +649,6 @@ export async function createGame(env) {
 
     // The preview clock counts real play only. Menus, setup, Learn, Rules / How to Play / About, Settings, every overlay (pause, result,
     // lesson, Watch & Learn summary), the demo card, the lessons and Watch & Learn are all free time.
-    isPreviewExempt: () => S.shot || S.scene !== 'play' || Boolean(S.overlay) || Boolean(S.match && S.match.lesson),
+    isPreviewExempt: () => S.shot || S.scene !== 'play' || Boolean(S.overlay) || Boolean(S.match && (S.match.lesson || S.match.over || S.match.hist.length === 0)),
   };
 }

@@ -47,8 +47,6 @@ export function buildField(stage) {
   });
   const ground = new THREE.Mesh(new THREE.PlaneGeometry(2 * TW, 2 * TL), new THREE.MeshStandardMaterial({ map: tex, roughness: 1, metalness: 0 }));
   ground.rotation.x = -Math.PI / 2; g.add(ground);
-  const outer = new THREE.Mesh(new THREE.PlaneGeometry(400, 400), new THREE.MeshStandardMaterial({ color: '#1c4d2a', roughness: 1 }));
-  outer.rotation.x = -Math.PI / 2; outer.position.y = -0.02; g.add(outer);
 
   // --- posts: 4 per end (goal posts 6 m, behind posts 3 m) as ONE merged mesh
   const posts = [];
@@ -78,14 +76,17 @@ export function buildField(stage) {
     const cols = ['#c45a4a', '#e0b84c', '#3f86c9', '#e8e8ea', '#52a37a', '#8f5ec2', '#d98b3a', '#2a2f36'];
     for (let row = 0; row < 7; row++) for (let i = 0; i < 180; i++) { c.fillStyle = cols[Math.floor(r() * cols.length)]; c.globalAlpha = 0.7; c.beginPath(); c.arc(i * 5.7 + r() * 3, 10 + row * 17 + r() * 4, 3 + r() * 1.5, 0, 6.3); c.fill(); }
     c.globalAlpha = 1; c.fillStyle = '#2a3340'; c.fillRect(0, h - 76, w, 8);
+    c.fillStyle = '#1c4d2a'; c.fillRect(w - 32, 0, 32, 32);                 // a flat patch for the far grass beyond the ground (the same material, so no extra draw call)
     const y0 = h - 68; c.fillStyle = '#f6f2e6'; c.fillRect(0, y0, w, 4);
     const bcols = ['#c8372d', '#f2b705', '#1f7a4d', '#2a62c9', '#f4f4f0'];
     for (let i = 0; i < 16; i++) { c.fillStyle = bcols[i % bcols.length]; c.fillRect(i * 64, y0 + 4, 64, 64); c.fillStyle = i % 5 === 4 ? '#222' : '#fff'; c.font = '700 26px sans-serif'; c.textAlign = 'center'; c.fillText(['FOOTY', 'MARK', 'KICK', 'GOAL', 'PLAY', 'TEAM', 'SPORT', 'GAME'][i % 8], i * 64 + 32, y0 + 46); }
   });
-  const fenceGeo = ringGeo(HW + 2.2, HL + 2.2, 1.0, 0, 96, 5, 0, Math.PI * 2, AD_V * 0.93, 0.003);
-  const roofGeo = ringGeo(HW + 11, HL + 11, 1.4, 9.8, 96, 1, -0.28, Math.PI + 0.28); { const u = roofGeo.getAttribute('uv'); for (let i = 0; i < u.count; i++) u.setY(i, AD_V + 0.03); }
-  const standGeo = ringGeo(HW + 9, HL + 9, 9, 0.6, 96, 3, -0.28, Math.PI + 0.28, 1, AD_V + 0.05);
-  const stands = new THREE.Mesh(mergeGeo([fenceGeo, pgeo, standGeo, roofGeo]), new THREE.MeshStandardMaterial({ map: atlas, roughness: 0.9, side: THREE.DoubleSide }));
+  const fenceGeo = ringGeo(HW + 2.2, HL + 2.2, 1.0, 0, 72, 5, 0, Math.PI * 2, AD_V * 0.93, 0.003);
+  const roofGeo = ringGeo(HW + 11, HL + 11, 1.4, 9.8, 60, 1, -0.28, Math.PI + 0.28); { const u = roofGeo.getAttribute('uv'); for (let i = 0; i < u.count; i++) u.setY(i, AD_V + 0.03); }
+  const standGeo = ringGeo(HW + 9, HL + 9, 9, 0.6, 60, 3, -0.28, Math.PI + 0.28, 1, AD_V + 0.05);
+  const farGeo = new THREE.BufferGeometry(); farGeo.setAttribute('position', new THREE.Float32BufferAttribute([-200, -0.02, -200, 200, -0.02, -200, 200, -0.02, 200, -200, -0.02, 200], 3));
+  farGeo.setAttribute('uv', new THREE.Float32BufferAttribute([0.99, 0.95, 0.99, 0.95, 0.99, 0.95, 0.99, 0.95], 2)); farGeo.setIndex([0, 2, 1, 0, 3, 2]);
+  const stands = new THREE.Mesh(mergeGeo([fenceGeo, pgeo, standGeo, roofGeo, farGeo]), new THREE.MeshStandardMaterial({ map: atlas, roughness: 0.9, side: THREE.DoubleSide }));
   g.add(stands);
   stage.add(g);
   return g;
@@ -101,7 +102,7 @@ export function buildBall() {
     c.lineWidth = 3; for (let i = 0; i < 4; i++) for (let y = 14; y < h; y += 20) { c.beginPath(); c.moveTo(i * w / 4 - 8, y); c.lineTo(i * w / 4 + 8, y); c.stroke(); }
     c.fillStyle = '#f4efe2'; c.fillRect(0, h / 2 - 5, w, 10);
   });
-  const geo = new THREE.SphereGeometry(1, 28, 18); geo.rotateX(Math.PI / 2);          // poles along +Z
+  const geo = new THREE.SphereGeometry(1, 20, 10); geo.rotateX(Math.PI / 2);          // poles along +Z
   const m = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ map: tex, roughness: 0.55, metalness: 0 }));
   m.scale.set(0.095 * BALL_VIS, 0.095 * BALL_VIS, 0.14 * BALL_VIS);
   m.name = 'ball';

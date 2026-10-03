@@ -195,14 +195,47 @@ const TIPS = {
   ruck: 'You are the gold ring. Stand under the ball-up and press TAP as it comes down; steer with the stick. Then drop back behind the play.',
 };
 
+// The goal replay: a framed picture of the play drawn through the SAME fixed camera maths, with figures (head, shirt, shorts, legs and shadows) and the ball's trail
+// instead of dots. The main pitch never moves; only this panel is centred on the ball.
+function replayPanel(ctx, G, s, lay, fr, label, fr2, k) {
+  const pw = 460, ph = 300, px = W - pw - 16, py = KC_CTRL - ph - 14, zoom = 1.9;
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const at = (i) => { const q = fr.p[i], q2 = fr2 ? fr2.p[i] : q; return [lerp(q[0], q2[0], k), lerp(q[1], q2[1], k), q2[0] - q[0], q2[1] - q[1]]; };
+  const bw = fr2 ? [lerp(fr.b[0], fr2.b[0], k), lerp(fr.b[1], fr2.b[1], k), lerp(fr.b[2], fr2.b[2], k)] : fr.b;
+  const bp = P(G, bw[0], 0, bw[1]); if (!bp) return;
+  const mapPt = (x, y, z) => { const q = P(G, x, y, z); return q ? [px + pw / 2 + (q.x - bp.x) * zoom, py + ph * 0.66 + (q.y - bp.y) * zoom] : null; };
+  ctx.save(); roundPath(ctx, px, py, pw, ph, 16); ctx.clip();
+  const g = ctx.createLinearGradient(0, py, 0, py + ph); g.addColorStop(0, '#6da7d6'); g.addColorStop(0.2, '#b9d6e8'); g.addColorStop(0.22, '#3e9a57'); g.addColorStop(1, '#2a7a40'); ctx.fillStyle = g; ctx.fillRect(px, py, pw, ph);
+  // mown stripes every 5 m, drawn through the camera so they converge like the real ones
+  for (let z = -60; z < 60; z += 10) { const a = mapPt(-40, 0, z), b = mapPt(40, 0, z), c = mapPt(40, 0, z + 5), d = mapPt(-40, 0, z + 5); if (a && b && c && d) { ctx.fillStyle = 'rgba(255,255,255,0.06)'; ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.lineTo(c[0], c[1]); ctx.lineTo(d[0], d[1]); ctx.fill(); } }
+  for (const gz of [-KC.ZG, KC.ZG]) for (const x of [-KC.BHW, -KC.GHW, KC.GHW, KC.BHW]) { const a = mapPt(x, 0, gz), b = mapPt(x, Math.abs(x) < 4 ? 6 : 3, gz); if (a && b) { ctx.strokeStyle = '#fff6e4'; ctx.lineWidth = Math.abs(x) < 4 ? 4 : 3; ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke(); } }
+  const order = fr.p.map((q, i) => ({ i, q: at(i) })).map((o) => ({ ...o, m: mapPt(o.q[0], 0, o.q[1]) })).filter((o) => o.m).sort((a, b) => a.m[1] - b.m[1]);
+  for (const o of order) {
+    const [x, y] = o.m, top = P(G, o.q[0], 1.8, o.q[1]), base = P(G, o.q[0], 0, o.q[1]); if (!top || !base) continue;
+    const hgt = Math.abs(base.y - top.y) * zoom, sp = Math.hypot(o.q[2], o.q[3]) * 20, ph2 = (G.t * 9 + o.i * 1.7) % TAU, sw = Math.min(1, sp / 5) * Math.sin(ph2) * hgt * 0.12;
+    const col = TEAM_COL[o.i < 6 ? 0 : 1], lw = hgt * 0.075;
+    ctx.fillStyle = 'rgba(0,0,0,0.28)'; ctx.beginPath(); ctx.ellipse(x, y, hgt * 0.2, hgt * 0.06, 0, 0, TAU); ctx.fill();
+    ctx.lineCap = 'round'; ctx.strokeStyle = '#d9a37a'; ctx.lineWidth = lw;                                  // legs swing with the run
+    ctx.beginPath(); ctx.moveTo(x - hgt * 0.05, y - hgt * 0.5); ctx.lineTo(x - hgt * 0.05 + sw, y - hgt * 0.02); ctx.moveTo(x + hgt * 0.05, y - hgt * 0.5); ctx.lineTo(x + hgt * 0.05 - sw, y - hgt * 0.02); ctx.stroke();
+    ctx.strokeStyle = '#f2f2f2'; ctx.lineWidth = lw * 1.1; ctx.beginPath(); ctx.moveTo(x - hgt * 0.05, y - hgt * 0.5); ctx.lineTo(x - hgt * 0.05 + sw * 0.4, y - hgt * 0.34); ctx.moveTo(x + hgt * 0.05, y - hgt * 0.5); ctx.lineTo(x + hgt * 0.05 - sw * 0.4, y - hgt * 0.34); ctx.stroke();
+    ctx.strokeStyle = col; ctx.lineWidth = lw * 0.9; ctx.beginPath(); ctx.moveTo(x - hgt * 0.16, y - hgt * 0.8); ctx.lineTo(x - hgt * 0.2 - sw * 0.6, y - hgt * 0.56); ctx.moveTo(x + hgt * 0.16, y - hgt * 0.8); ctx.lineTo(x + hgt * 0.2 + sw * 0.6, y - hgt * 0.56); ctx.stroke();   // arms
+    ctx.fillStyle = col; roundPath(ctx, x - hgt * 0.15, y - hgt * 0.86, hgt * 0.3, hgt * 0.37, hgt * 0.07); ctx.fill();
+    ctx.fillStyle = '#d9a37a'; ctx.beginPath(); ctx.arc(x, y - hgt * 0.94, hgt * 0.085, 0, TAU); ctx.fill();
+  }
+  const bm = mapPt(bw[0], bw[2], bw[1]); if (bm) { ctx.fillStyle = '#b8321f'; ctx.beginPath(); ctx.ellipse(bm[0], bm[1], 8, 5.5, -0.4, 0, TAU); ctx.fill(); ctx.strokeStyle = '#fff6e4'; ctx.lineWidth = 1.5; ctx.stroke(); }
+  ctx.restore();
+  roundPath(ctx, px, py, pw, ph, 16); ctx.lineWidth = 4; ctx.strokeStyle = '#ffd54a'; ctx.stroke();
+  ctx.fillStyle = '#ffd54a'; ctx.font = `800 20px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText(label, px + pw / 2, py - 6);
+}
+const KC_CTRL = 860;
 // the fixed top-down inset: live positions, and the replay of the last goal. It never moves.
 function miniMap(ctx, G, s, lay) {
   const w = 92, h = Math.round(w * (KC.HL / KC.HW)), x = Math.round(W / 2 - w / 2), y = lay.topH + 6, sx = (w - 8) / (2 * KC.HW), cx = x + w / 2, cy = y + h / 2;
   let players = s.players.map((p) => [p.x, p.z]), ball = [s.ball.x, s.ball.z, s.ball.y], label = '';
-  const R = G.replay;
+  const R = G.replay; let rep = null, rep2 = null, repK = 0;
   if (R && G.replayFrames.length) {
-    const i = Math.floor((s.t - R.t0) / 0.05);
-    if (i >= R.n) G.replay = null; else if (i >= 0) { const f = G.replayFrames[i]; players = f.p; ball = f.b; label = 'REPLAY'; }
+    const fi = (s.t - R.t0) / 0.05, i = Math.floor(fi);
+    if (i >= R.n) G.replay = null; else if (i >= 0) { const f = G.replayFrames[i]; players = f.p; ball = f.b; label = 'REPLAY'; rep = f; rep2 = G.replayFrames[Math.min(R.n - 1, i + 1)]; repK = fi - i; }
   }
   ctx.save(); roundPath(ctx, x, y, w, h, 12); ctx.fillStyle = label ? 'rgba(20,30,50,0.82)' : 'rgba(6,24,16,0.62)'; ctx.fill(); ctx.lineWidth = label ? 3 : 1.5; ctx.strokeStyle = label ? '#ffd54a' : 'rgba(255,246,228,0.5)'; ctx.stroke();
   ctx.beginPath(); ctx.ellipse(cx, cy, KC.HW * sx, KC.HL * sx, 0, 0, TAU); ctx.fillStyle = 'rgba(47,138,74,0.8)'; ctx.fill(); ctx.strokeStyle = 'rgba(255,255,255,0.7)'; ctx.stroke();
@@ -214,6 +247,7 @@ function miniMap(ctx, G, s, lay) {
   const bm = mp(ball[0], ball[1]); ctx.fillStyle = '#fff6e4'; ctx.beginPath(); ctx.arc(bm[0], bm[1], 2.6, 0, TAU); ctx.fill();
   if (label) { ctx.fillStyle = '#ffd54a'; ctx.font = `800 13px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText(label, cx, y + h + 15); }
   ctx.restore();
+  if (rep) replayPanel(ctx, G, s, lay, rep, 'GOAL REPLAY', rep2, repK);
 }
 
 export function renderPlayHud(ctx, G, view, cs) {
@@ -222,6 +256,7 @@ export function renderPlayHud(ctx, G, view, cs) {
   scoreboard(ctx, G, s, lay);
   pitchMarkers(ctx, G, s, lay, view);
   miniMap(ctx, G, s, lay);
+  whistleMark(ctx, G, view);
   const prompt = promptLine(G, s);
   let by = banner(ctx, G, s, lay, m);
   if (prompt) {
@@ -278,20 +313,33 @@ export function renderThink(ctx, G) {
   const t = G.think;
   ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(0, 0, W, H);
   const m = PLAY_M[G.settings.textIdx];
-  const x = 30, w = W - 60, size = Math.round(26 * Math.min(m, 2));
+  const x = 30, w = W - 60, size = Math.round(26 * Math.min(m, 2)), sl = 34 * Math.min(m, 1.6);
   ctx.font = `400 ${size}px ${FONT}`;
-  const lines = wrapLines(ctx, t.reason, w - 60);
-  const hh = size * 1.3 * lines.length + 60, bh = Math.round(84 * Math.min(m, 1.5));
-  const total = Math.min(H - 120, 70 + size * 1.5 + hh + bh + 50);
+  const lines = wrapLines(ctx, t.reason, w - 80);
+  ctx.font = `700 ${Math.round(28 * Math.min(m, 1.6))}px ${FONT}`;
+  const sm = wrapLines(ctx, t.summary, w - 70);
+  const bh = Math.round(84 * Math.min(m, 1.5));
+  const contentH = sm.length * sl + 12 + size * 1.3 * lines.length + 16;
+  const head = 88, total = Math.min(H - 120, head + contentH + bh + 60);
   const y = Math.max(40, (H - total) / 2);
+  const vtop = y + head, vh = total - head - bh - 50, max = Math.max(0, contentH - vh);
+  G.thinkScroll = Math.max(0, Math.min(G.thinkScroll || 0, max)); G.thinkView = { top: vtop, bottom: vtop + vh, max, vh };
   panel(ctx, x, y, w, total, { r: 26, fill: 'rgba(14,48,36,0.97)', stroke: 'rgba(255,246,228,0.5)' });
   ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'; ctx.fillStyle = '#ffe9a0'; ctx.font = `800 ${Math.round(34 * Math.min(m, 1.6))}px ${FONT}`; ctx.fillText('Coach says', W / 2, y + 56);
-  ctx.fillStyle = '#7fe8d6'; ctx.font = `700 ${Math.round(28 * Math.min(m, 1.6))}px ${FONT}`;
-  const sm = wrapLines(ctx, t.summary, w - 50); sm.forEach((l, i) => ctx.fillText(l, W / 2, y + 108 + i * 34 * Math.min(m, 1.6)));
-  const off = y + 108 + sm.length * 34 * Math.min(m, 1.6) + 6;
+  ctx.save(); ctx.beginPath(); ctx.rect(x + 6, vtop, w - 12, vh); ctx.clip();
+  const o = vtop - G.thinkScroll;
+  ctx.fillStyle = '#7fe8d6'; ctx.font = `700 ${Math.round(28 * Math.min(m, 1.6))}px ${FONT}`; ctx.textAlign = 'center';
+  sm.forEach((l, i) => ctx.fillText(l, W / 2, o + sl * (0.8 + i)));
+  const off = o + sm.length * sl + 12;
   ctx.textAlign = 'left'; ctx.fillStyle = '#fff6e4'; ctx.font = `400 ${size}px ${FONT}`;
-  lines.forEach((l, i) => ctx.fillText(l, x + 30, off + size * (1 + i * 1.3)));
-  const by = y + total - bh - 30;
+  lines.forEach((l, i) => ctx.fillText(l, x + 36, off + size * (1 + i * 1.3) - size * 0.2));
+  ctx.restore();
+  if (max > 0) {
+    const th = Math.max(50, vh * vh / contentH), ty = vtop + (G.thinkScroll / max) * (vh - th);
+    roundPath(ctx, x + w - 18, vtop, 8, vh, 4); ctx.fillStyle = 'rgba(255,246,228,0.15)'; ctx.fill(); roundPath(ctx, x + w - 18, ty, 8, th, 4); ctx.fillStyle = 'rgba(255,246,228,0.7)'; ctx.fill();
+    if (G.thinkScroll < max - 4) { ctx.fillStyle = 'rgba(255,246,228,0.9)'; ctx.font = `700 20px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText('▼ scroll for more', W / 2, vtop + vh + 24); }
+  }
+  const by = y + total - bh - 22;
   G.thinkRects = { close: { x: x + 24, y: by, w: w - 48, h: bh } };
   drawButton(ctx, G.thinkRects.close, 'Got it: back to the game', { primary: true, size: Math.round(28 * Math.min(m, 1.5)) });
 }
@@ -315,3 +363,18 @@ export function renderFallback(ctx, G, view) {
   ctx.restore();
 }
 export { ROLE_NAME, QUARTER, dirOf, inside };
+
+// the umpire blows the whistle: a small whistle icon and sound rings above him for a moment (drawn through the fixed camera, so it sits on him)
+function whistleMark(ctx, G, view) {
+  const u = view && view.umpire, age = G.t - (G.whistleT ?? -9);
+  if (!u || age < 0 || age > 1.1) return;
+  const p = P(G, u.x, 2.7, u.z); if (!p) return;
+  const k = age / 1.1, a = 1 - k;
+  ctx.save(); ctx.globalAlpha = Math.min(1, a * 1.6);
+  ctx.strokeStyle = '#fff6e4'; ctx.lineWidth = 3;
+  for (let i = 0; i < 2; i++) { const r = 12 + (k * 26) + i * 10; ctx.globalAlpha = Math.max(0, a - i * 0.25); ctx.beginPath(); ctx.arc(p.x, p.y, r, -2.2, -0.9); ctx.stroke(); }
+  ctx.globalAlpha = Math.min(1, a * 2);
+  ctx.fillStyle = '#e8e8ea'; ctx.strokeStyle = '#13283a'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(p.x, p.y, 8, 0, TAU); ctx.fill(); ctx.stroke(); ctx.fillRect(p.x - 2, p.y - 13, 14, 7); ctx.strokeRect(p.x - 2, p.y - 13, 14, 7);
+  ctx.restore();
+}

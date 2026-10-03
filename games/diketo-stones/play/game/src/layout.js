@@ -39,6 +39,7 @@ export const toWorld = (v, x, y) => ({ x: (x - v.ox) / v.s, y: (y - v.oy) / v.s 
 export const toScreen = (v, x, y) => ({ x: v.ox + x * v.s, y: v.oy + y * v.s });
 
 // ---- reference pages (About / How to play / Rules) and settings --------------------------------
+export const CLOSE_BTN = { x: 20, y: 1164, w: 680, h: 100 };
 export const REF_BACK = { x: 20, y: 1164, w: 332, h: 100 };
 export const REF_NEXT = { x: 368, y: 1164, w: 332, h: 100 };
 export const TEXT_DEC = { x: 20, y: 18, w: 120, h: 60 };

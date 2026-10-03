@@ -24,11 +24,11 @@ export const TRAY = {
 };
 // The mini board: a fixed top-down picture of the far board that never moves (scene coordinates).
 export const MINI = { x: 16, y: 252, w: 128, h: 256 };
-export const PULL_ZONE_Y0 = 430;   // a drag that starts below this line (scene coordinates) is a throw
+export const PULL_ZONE_Y0 = 250;   // a drag that starts below this line (scene coordinates) is a throw
 
 export function playLayout(z, hudH, trayH) {
   if (z <= COMPACT) return { compact: true, s: 1, vx: 0, vy: SCENE_Y0, clip: null, hudH, trayTop: 956 };
-  const top = Math.min(hudH + 40, 560), bottom = H - Math.min(trayH + 36, 600);
+  const top = Math.min(hudH + 6, 560), bottom = H - Math.min(trayH + 8, 600);
   const h = Math.max(260, bottom - top), s = Math.min(1, h / SCENE_H);
   return { compact: false, s, vx: (W - W * s) / 2, vy: top + (h - SCENE_H * s) / 2, clip: { x: 0, y: top, w: W, h }, hudH, trayTop: bottom };
 }

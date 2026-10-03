@@ -4,7 +4,7 @@
   "tagline": "Call the play, then play your position: seven-a-side football in 3D.",
   "genre": "team sport with play-calling",
   "orientation": "portrait",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "monetization": {
     "model": "premium",
     "priceUsd": 3.99,

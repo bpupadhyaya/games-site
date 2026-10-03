@@ -119,7 +119,11 @@ function guardPoint(w, prof, b) {
     const k = Math.min(1.35, d * 0.5);
     gx = dx / d * k; gz = CAN.z + dz / d * k;
   }
-  gx += Math.sin(b.wt * 1.3) * 0.45 * prof.wander; gz += Math.cos(b.wt * 0.9) * 0.3 * prof.wander;
+  else {
+    // nothing lying in the yard: stand ready just in front of the can, leaning towards the side the throws will come from
+    const armed = w.agents.filter((q) => q.role === 'thrower' && q.hasSlip && !q.tagged);
+    if (armed.length) gx = clamp(armed.reduce((q, a) => q + a.x, 0) / armed.length * 0.3, -0.9, 0.9);
+  }
   return { x: clamp(gx, -2.2, 2.2), z: clamp(gz, LINE_Z + 0.9, CAN.z + 1.6) };
 }
 
@@ -160,8 +164,12 @@ function tayaStep(w, T, b, prof, rng, dt, cmds, gate) {
     }
     cmds[T.id] = { mx: clamp(gx, FIELD.x0 + 0.3, FIELD.x1 - 0.3), mz: Math.max(LINE_Z + 0.55, gz) };
   } else {
+    // a purposeful stance: it eases to the best spot (slower for weaker guards) and then stands still, no wandering about
     const g = guardPoint(w, prof, b);
-    cmds[T.id] = { mx: g.x, mz: g.z };
+    if (b.gx === undefined) { b.gx = T.x; b.gz = T.z; }
+    const rate = 1.2 + 4 * (1 - prof.wander);
+    b.gx += (g.x - b.gx) * Math.min(1, rate * dt); b.gz += (g.z - b.gz) * Math.min(1, rate * dt);
+    if (Math.hypot(g.x - T.x, g.z - T.z) > 0.18) cmds[T.id] = { mx: b.gx, mz: b.gz };
   }
 }
 

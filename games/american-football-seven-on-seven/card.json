@@ -3,5 +3,11 @@
   "tagline": "Call the play, then play your position in seven-a-side football.",
   "description": "A simplified seven-on-seven game of American football in 3D. Pick a position, call plays and play it in real time: throw, run, catch, rush, cover and tackle. Five opponent levels, Watch & Learn, and a full Rules page.",
   "genre": "team sport with play-calling",
-  "demo": true
+  "demo": true,
+  "howToPlay": [
+    "Pick one position and a level, then kick off.",
+    "Each down, call a play or a defence from the diagrams.",
+    "Drag to run; tap the buttons to throw, catch, juke, tackle or swat.",
+    "Gain 10 yards in four downs and score more than the computer."
+  ]
 }

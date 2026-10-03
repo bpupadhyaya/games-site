@@ -8,8 +8,7 @@ export const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
 export const TEXT_SCALES = [1, 1.5, 2, 2.5, 3];
 export const THINK_STEPS = [2, 5, 8, 10];
-export const REF_BACK = { x: 20, y: 1164, w: 332, h: 100 };
-export const REF_NEXT = { x: 368, y: 1164, w: 332, h: 100 };
+export const REF_CLOSE = { x: 20, y: 1164, w: 680, h: 100 };
 export const TEXT_DEC = { x: 20, y: 18, w: 120, h: 60 };
 export const TEXT_INC = { x: W - 140, y: 18, w: 120, h: 60 };
 export const SETUP_PINS = {
@@ -58,6 +57,8 @@ export function playLayout(sc, spec) {
 export const BAR_SPECS = {
   thrower: [['lob', 'skim'], ['think', 'throw'], ['fetch', 'home']],
   taya: [['think', 'fix', 'chase']],
+  // at 200% text and above the thrower's bar is ONE row (so the yard stays big); what the two buttons do depends on the moment
+  big: [['ba', 'bb']],
   watch: [['wpause', 'wdec', 'winc'], ['wexit']],
 };
 export const BAR_LABELS = {

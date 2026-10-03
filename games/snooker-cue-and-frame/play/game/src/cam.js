@@ -4,7 +4,7 @@
 import { TW, TL, R } from './sim.js';
 import { W } from './layout.js';
 
-export const MARGIN = 0.13;            // visible wooden rail around the cushions (m)
+export const MARGIN = 0.10;            // visible wooden rail around the cushions (m)
 const DIST = 7.2;
 
 function frame(phi, dist) {

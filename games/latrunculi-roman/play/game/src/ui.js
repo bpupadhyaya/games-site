@@ -85,11 +85,17 @@ export function layoutDoc(blocks, scale, width, opts = {}) {
     const it = { b, y, h: 0, x: side, w: W, lines: null, size: 0, line: 0, btns: [] };
     if (b.t === 'h') {
       it.size = (b.size ?? 34) * (1 + (scale - 1) * 0.7);
+      // a heading never splits a word: the size shrinks until the longest word fits the line
+      const longestWord = Math.max(...String(b.text).split(/\s+/).map((wd) => tw(wd, it.size)));
+      if (longestWord > W) it.size *= W / longestWord;
       it.line = it.size * 1.25;
       it.lines = wrap(b.text, it.size, W);
       it.h = it.lines.length * it.line + sp(14, scale);
     } else if (b.t === 'p') {
       it.size = (b.size ?? 26) * scale;
+      // a word wider than the line shrinks the paragraph slightly (down to 82 percent) instead of being split
+      const lw = Math.max(...String(b.text).split(/\s+/).map((wd) => tw(wd.replace(/[,.;:!?)]+$/, ''), it.size)));
+      if (lw > W) it.size *= Math.max(0.82, W / lw);
       it.line = it.size * 1.4;
       it.lines = wrap(b.text, it.size, W);
       it.h = it.lines.length * it.line + sp(b.gap ?? 16, scale);

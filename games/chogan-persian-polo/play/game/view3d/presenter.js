@@ -5,10 +5,11 @@ import { createRider } from './rider.js';
 import { Actor } from './actor.js';
 import { HorseBatch, COATS, setHorseDetail } from './horse.js';
 import { buildField, buildBlobs, buildPuffs } from './field.js';
-import { CAM, fovFor } from '../src/camera.js';
-import { BALL_R, FIG } from '../src/consts.js';
+import { CAM, fovFor, SHOW_CAM } from '../src/camera.js';
+import { BALL_R, FIG, SPOTS } from '../src/consts.js';
 
 const LIB = '../vendor3d/index.js';
+const BALL_VIS = 1.65;      // the ball is DRAWN this much larger than the sim ball so it reads on a phone (22+ px radius near); contacts still use the sim ball centre
 const DT = 1 / 60;
 const SKINS = ['tan', 'peach', 'brown', 'clay', 'deep', 'ivory'];
 const KITS = [
@@ -101,13 +102,17 @@ export async function createPresenter({ kitCanvas, quality = pickQuality() }) {
     let dt = Tr - lastTr; if (dt < 0 || dt > 0.1) dt = 0; lastTr = Tr;
     // interpolated state
     const R = curSnap.r.map((c, i) => { const p = prevSnap.r[i]; return { x: lerp(p.x, c.x, alpha), z: lerp(p.z, c.z, alpha), h: wrapA(p.h + wrapA(c.h - p.h) * alpha), v: lerp(p.v, c.v, alpha), w: lerp(p.w, c.w, alpha) }; });
-    const pb = prevSnap.b, cb = curSnap.b;
+    const fm = G.artRect && (G.artRect.key === 'field' || G.artRect.key === 'roles');
+    if (fm) for (let i = 0; i < 6; i++) { const sp = SPOTS[i % 3], sg = i < 3 ? 1 : -1; Object.assign(R[i], { x: sp.x * sg, z: sp.z * sg, h: i < 3 ? 0 : Math.PI, v: 0, w: 0 }); }
+    if (fm !== P.formation) { P.formation = fm; for (const a of actors) { a.mode = 'ride'; a.seat = ''; a.h.play('ride', { fade: 0 }); } }
+    const pb = fm ? { x: 0, y: BALL_R, z: 0, vx: 0, vz: 0 } : prevSnap.b, cb = fm ? pb : curSnap.b;
     const B = { x: lerp(pb.x, cb.x, alpha), y: lerp(pb.y, cb.y, alpha), z: lerp(pb.z, cb.z, alpha) };
     ball3.set(-B.x, B.y, B.z);
     // events
     for (const e of s.events) {
       if (e.id <= seen) continue;
       seen = e.id;
+      if (fm) continue;
       P.events.push(e); if (P.events.length > 60) P.events.shift();
       const a = actors[e.rider];
       if (e.type === 'wind' && a) a.onWind(e, s);
@@ -130,14 +135,14 @@ export async function createPresenter({ kitCanvas, quality = pickQuality() }) {
       if (P.measure && a.mode === 'strike') measure(a, s, Tr);
       blobs.set(i, a.horse.x, a.horse.z, a.horse.heading, 1.35 * FIG, 0.62 * FIG);
     }
-    const showing = runShowcase(G, s);
+    const showing = runShowcase(G, s) && !fm;
     batch.commit();
     // ball
     const vx = (cb.x - pb.x) / DT, vz = (cb.z - pb.z) / DT;
     // rolling: rotate about the axis perpendicular to the (three-space) velocity
     { const wx = -vx, wz = vz, sp = Math.hypot(wx, wz); if (sp > 0.02 && dt > 0) { ax.set(wz, 0, -wx).normalize(); qa.setFromAxisAngle(ax, sp * dt / BALL_R); ballQ.premultiply(qa); } }
-    if (showing && P.show.ballPos) batch.writeBall(P.show.ballPos[0], P.show.ballPos[1], P.show.ballPos[2], BALL_R, [0, 0, 0, 1]);
-    else batch.writeBall(showing ? 0 : ball3.x, showing ? -5 : ball3.y, showing ? 0 : ball3.z, BALL_R, [ballQ.x, ballQ.y, ballQ.z, ballQ.w]);
+    if (showing && P.show.ballPos) batch.writeBall(P.show.ballPos[0], P.show.ballPos[1] + (BALL_VIS - 1) * BALL_R, P.show.ballPos[2], BALL_R * BALL_VIS, [0, 0, 0, 1]);
+    else batch.writeBall(showing ? 0 : ball3.x, showing ? -5 : ball3.y + (BALL_VIS - 1) * BALL_R, showing ? 0 : ball3.z, BALL_R * BALL_VIS, [ballQ.x, ballQ.y, ballQ.z, ballQ.w]);
     const hgt = Math.max(0, B.y - BALL_R);
     blobs.set(6, ball3.x, ball3.z, 0, 0.3 + hgt * 0.1, 0.3 + hgt * 0.1, 0.03);
     puffs.update(dt);
@@ -152,7 +157,7 @@ export async function createPresenter({ kitCanvas, quality = pickQuality() }) {
     const W = canvas.clientWidth || 720, H = canvas.clientHeight || 1280;
     const fov = fovFor(W / H);
     if (Math.abs(cam.fov - fov) > 1e-3) { cam.fov = fov; cam.updateProjectionMatrix(); }
-    if (!P.noRender) { stage.render(); if (showing) renderShowcase(G, W, H); P.drawCalls = stage.renderer.info.render.calls; P.tris = stage.renderer.info.render.triangles; }
+    if (!P.noRender) { stage.render(); if (showing || fm) renderShowcase(G, W, H); P.drawCalls = stage.renderer.info.render.calls; P.tris = stage.renderer.info.render.triangles; }
   }
 
   // ---- the showcase (Rules pages): the real horse and rider in a window of the 2D page -------------------------------------------------
@@ -162,6 +167,11 @@ export async function createPresenter({ kitCanvas, quality = pickQuality() }) {
   function runShowcase(G, s) {
     const S_ = P.show;
     const ar = G.artRect;
+    if (S_ && ar && (ar.key === 'field' || ar.key === 'roles')) {
+      S_.actor.rider.human.root.visible = false; S_.t = 0; scLast = 0;
+      scCam.fov = SHOW_CAM.fov; scCam.position.set(SHOW_CAM.x, SHOW_CAM.y, SHOW_CAM.z); scCam.up.set(0, 1, 0); scCam.lookAt(SHOW_CAM.lx, SHOW_CAM.ly, SHOW_CAM.lz);
+      return true;
+    }
     if (!S_ || !ar) { if (S_) S_.actor.rider.human.root.visible = false; if (S_) S_.t = 0; scLast = 0; return false; }
     const now = nowMs(); let dt = scLast ? (now - scLast) / 1000 : 0; scLast = now; dt = Math.min(Math.max(dt, 0), 0.05);
     const a = S_.actor, st = S_.st, r = st.riders[0];
@@ -208,7 +218,8 @@ export async function createPresenter({ kitCanvas, quality = pickQuality() }) {
     const left = P.pillar ? (winW - P.pillar) / 2 : 0;
     const u = (ar.x - 360) * sc + winW / 2 - left, v = (ar.y - 640) * sc + winH / 2, w = ar.w * sc, h = ar.h * sc;
     scCam.aspect = w / h; scCam.updateProjectionMatrix(); scCam.updateMatrixWorld(true);
-    r.setScissorTest(true); r.setViewport(u, H - v - h, w, h); r.setScissor(u, H - v - h, w, h);
+    const cy0 = ((ar.c0 ?? ar.y) - 640) * sc + winH / 2, cy1 = ((ar.c1 ?? ar.y + ar.h) - 640) * sc + winH / 2;
+    r.setScissorTest(true); r.setViewport(u, H - v - h, w, h); r.setScissor(u, H - cy1, w, Math.max(0, cy1 - cy0));
     r.render(stage.scene, scCam);
     r.setScissorTest(false); r.setViewport(0, 0, W, H); void ratio;
   }

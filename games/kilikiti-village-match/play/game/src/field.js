@@ -18,7 +18,7 @@ export const SLOTS = [
 export const CONTROL_SLOT = { inner: 4, deep: 7 };
 
 // Fielder reach radius around the body (horizontal), and the catching height band.
-export const REACH = { catchR: 0.8, diveR: 1.15, pickR: 0.7, catchLo: 0.35, catchHi: 2.05 };
+export const REACH = { catchR: 0.8, diveR: 1.15, pickR: 0.7, catchLo: 0.35, catchHi: 1.9 };
 
 export function makeFielders(level, names) {
   return SLOTS.map((s) => ({

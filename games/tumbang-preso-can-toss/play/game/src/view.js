@@ -170,7 +170,7 @@ export function drawScene(ctx, cam, S) {
     items.push({
       z: p.z + 0.1,
       draw: () => {
-        const r = drawPawn(ctx, cam, a, look, { pos: p, vx: a.vx, vz: a.vz, fx: Math.sin(a.face) * th, fz: Math.cos(a.face) * th, step: a.step, idle: Math.sin(S.t * 2 + a.id), lift: 0 });
+        const r = drawPawn(ctx, cam, a, look, { pos: p, vx: a.vx, vz: a.vz, fx: Math.sin(a.face) * th, fz: Math.cos(a.face) * th, step: a.step, t: S.t, lift: 0 });
         // the guard wears a red band; the can in hand is drawn by the can itself
         if (a.role === 'taya') drawTag(ctx, [r.base[0], r.base[1] + 44], a.id === S.humanId ? 'YOU: GUARD' : 'GUARD', '#d4322e', cam.k(p.z), S.t, true);
         else if (a.id === S.humanId) drawTag(ctx, r.top, 'YOU', '#e9a420', cam.k(p.z), S.t);
@@ -210,7 +210,13 @@ function drawTag(ctx, top, label, col, k, t = 0, plain = false) {
 // ---- the play screen: scoreboard, yard, control bar -------------------------------------------------------------------------------------
 export function barSpecFor(state) {
   if (state.m && state.m.cfg.mode === 'watch') return BAR_SPECS.watch;
-  return state.m && state.m.cfg.role === 'taya' ? BAR_SPECS.taya : BAR_SPECS.thrower;
+  if (state.m && state.m.cfg.role === 'taya') return BAR_SPECS.taya;
+  return textScale(state) >= 2 ? BAR_SPECS.big : BAR_SPECS.thrower;
+}
+// The two buttons of the one-row bar: Set up + Throw while holding the slipper at home, Fetch + Run home otherwise.
+export function bigBarIds(state) {
+  const you = state.human >= 0 && state.w ? state.w.agents.find((a) => a.id === state.human) : null;
+  return you && you.hasSlip && you.z <= 0.02 ? { ba: 'sheet', bb: 'throw' } : { ba: 'fetch', bb: 'home' };
 }
 export function layoutFor(state) { return playLayout(textScale(state), barSpecFor(state)); }
 export function camFor(state, lay) {
@@ -283,6 +289,14 @@ export function barButtons(state) {
     return out;
   }
   const canT = you && you.hasSlip && you.z <= 0.02 && w.phase === 'play';
+  if (sc >= 2) {
+    const ids = bigBarIds(state);
+    out.sheet = { label: 'Set up' };
+    out.throw = { label: 'Throw', primary: true, disabled: !canT || w.can.mode !== 'up' };
+    out.fetch = { label: 'Fetch', disabled: !you || you.hasSlip || you.tagged, active: state.auto === 'fetch' };
+    out.home = { label: 'Home', disabled: !you || you.z <= 0.02, active: state.auto === 'home' };
+    return { ba: out[ids.ba], bb: out[ids.bb] };
+  }
   out.lob = { label: 'Lob', active: state.aim.style === 'lob', dark: state.aim.style !== 'lob' };
   out.skim = { label: 'Skim', active: state.aim.style === 'skim', dark: state.aim.style !== 'skim' };
   out.think = { label: state.thinkBusy ? 'Thinking…' : 'Think', dark: true };
@@ -343,21 +357,20 @@ function drawOverlays(ctx, state, lay, cam) {
   state.cardRect = null;
   const watch = state.m.cfg.mode === 'watch';
   let card = null;
-  if (watch && state.card) { const th = state.think; card = { title: th ? th.ex.title : state.card.title, text: state.card.reveal && th ? th.ex.text : '', accent: state.card.reveal ? '#9dffb8' : '#ffd97a', edge: state.card.reveal ? 'rgba(120,255,190,0.9)' : 'rgba(240,194,74,0.8)', bg: 'rgba(20,10,6,0.9)' }; }
+  if (watch && state.card) { const th = state.think; card = { title: th ? th.ex.title : state.card.title, text: state.card.reveal && th ? th.ex.text : th ? `Think first: why is this a good choice? The reason appears in ${Math.max(1, Math.ceil(th.dur - th.t))} s.` : '', accent: state.card.reveal ? '#9dffb8' : '#ffd97a', edge: state.card.reveal ? 'rgba(120,255,190,0.9)' : 'rgba(240,194,74,0.8)', bg: 'rgba(20,10,6,0.9)' }; }
   else if (!watch && state.hint && state.hint.text) card = { title: state.hint.title, text: state.hint.text, accent: '#9dffb8', edge: 'rgba(120,255,190,0.9)', bg: 'rgba(14,34,26,0.93)' };
   if (card) {
-    const fs = Math.round(22 * sc);
+    const fs = Math.round(22 * textScale(state));   // what does not fit opens in a scrolling reader when the card is tapped
     ctx.save();
     ctx.font = `800 ${fs}px ${FONT}`;
     const head = wrapLines(ctx, card.title, W - 100).slice(0, 3);
     ctx.font = `400 ${fs}px ${FONT}`;
-    const room = textScale(state) > 1.5 ? 0 : Math.floor(((lay.regionBottom - lay.regionTop) * 0.46) / (fs * 1.25)) - head.length;
+    const room = Math.max(textScale(state) > 1.5 ? 2 : 3, Math.floor(((lay.regionBottom - lay.regionTop) * (textScale(state) > 1.5 ? 0.4 : 0.46)) / (fs * 1.25)) - head.length);
     const all = card.text ? wrapLines(ctx, card.text, W - 100) : [];
     const maxBody = Math.max(0, Math.min(all.length, room));
     const body = all.slice(0, maxBody);
     const more = all.length > body.length;
     if (more && body.length) { let t = body[body.length - 1].replace(/[ ,.;:]+$/, ''); while (t.length > 4 && ctx.measureText(`${t}… tap for more`).width > W - 100) t = t.slice(0, -1); body[body.length - 1] = `${t}… tap for more`; }
-    else if (more) body.push('Tap for the reason');
     const h = (head.length + body.length) * fs * 1.25 + 26, y = lay.regionBottom - h - 14;
     roundPath(ctx, 24, y, W - 48, h, 20); ctx.fillStyle = card.bg; ctx.fill();
     ctx.strokeStyle = card.edge; ctx.lineWidth = 2.5; ctx.stroke();

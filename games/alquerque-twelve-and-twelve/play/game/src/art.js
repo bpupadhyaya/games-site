@@ -4,8 +4,10 @@ import { NN, SEGMENTS, rc, CENTRE } from './rules.js';
 import { hasArabic } from './lang.js';
 
 export const W = 720, H = 1560;
-export const UI = '-apple-system, "SF Pro Text", "Segoe UI", Roboto, system-ui, sans-serif';
-export const DISPLAY = '"Palatino Linotype", Palatino, "Iowan Old Style", Georgia, "Times New Roman", serif';
+// The Arabic names come last in each stack: Geeza Pro (Apple), Noto Sans/Naskh Arabic and Droid Arabic Naskh (Android), Tahoma and
+// Segoe UI (Windows), so Arabic text is drawn with a real Arabic face on every platform instead of whatever the browser guesses.
+export const UI = '-apple-system, "SF Pro Text", "Segoe UI", Roboto, system-ui, "Geeza Pro", "Noto Sans Arabic", "Noto Naskh Arabic", "Droid Arabic Naskh", Tahoma, sans-serif';
+export const DISPLAY = '"Palatino Linotype", Palatino, "Iowan Old Style", Georgia, "Times New Roman", "Geeza Pro", "Noto Naskh Arabic", "Noto Sans Arabic", "Droid Arabic Naskh", serif';
 
 const hexRgb = (h) => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
 export function mix(h, o, t) {

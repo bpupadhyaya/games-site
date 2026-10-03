@@ -114,9 +114,23 @@ export const movesFrom = (st, i) => {
 };
 
 function finish(s, winner, why) { s.over = { winner, why }; return s; }
+// Moves open to `who` if it were `who`'s turn (the "room" count used to settle a drawn-out game).
+export function roomOf(cells, who) {
+  let n = 0;
+  for (let i = 0; i < NN; i++) {
+    if (SIDE[cells[i]] !== who) continue;
+    for (const ray of RAYS[i]) for (let k = 0; k < ray.length; k++) { if (cells[ray[k]] !== 0) break; n++; }
+  }
+  return n;
+}
+// 50 quiet plies: more pieces wins; equal pieces go to the side with more room (open moves); only equal on both is a draw.
 function settleStall(s) {
   const a = countOf(s.cells, 1), b = countOf(s.cells, 2);
-  return finish(s, a === b ? 0 : a > b ? 1 : 2, 'stall');
+  if (a !== b) return finish(s, a > b ? 1 : 2, 'stall');
+  const ra = roomOf(s.cells, 1), rb = roomOf(s.cells, 2);
+  const f = finish(s, ra === rb ? 0 : ra > rb ? 1 : 2, 'stall');
+  f.over.by = 'room';
+  return f;
 }
 
 // How good is this move at once? Counts the soldiers it would sandwich (9 for enclosing the dux) without building a new state.

@@ -135,7 +135,8 @@ export class Actor {
       if (!T || T.w <= 0) { this.lockW[s] = 0; continue; }
       this._solveLeg(s, T, F, P);
     }
-    // 4. arms
+    // 4. arms (the elbow swivels about the shoulder-wrist line so no arm goes through the torso, head or legs)
+    this._caps = this._bodyCaps();
     for (const s of ['L', 'R']) {
       const T = P.arms && P.arms[s];
       if (!T || T.w <= 0) continue;
@@ -154,7 +155,9 @@ export class Actor {
   /** P.fix = { bone: 'knee'|'chest'|'head', side, target: Vector3 (where that point must be at contact), w, up } */
   apply(P, dt) {
     this.snapshot();
+    this._dt = dt; this._swFreeze = false;
     this._run(P);
+    this._swFreeze = true;
     const fx = P.fix;
     this.out.fixShift = 0;
     if (fx && fx.w > 0.02) {
@@ -173,6 +176,7 @@ export class Actor {
       this.out.fixErr = fx.target.distanceTo(this._fixPoint(fx));
       this.out.fixShift = pel.distanceTo(P.pelvis); this.out.fixVec = pel.clone().sub(P.pelvis);
     }
+    this._swFreeze = false;
   }
   _fixPoint(fx) {
     const B = this.b;
@@ -288,13 +292,57 @@ export class Actor {
     const cur = B.foot.getWorldQuaternion(Q());
     setBoneWorldQuat(B.foot, cur.slerp(q, aw));
   }
+  // Body capsules (world, radii fitted to the mannequin mesh, scaled with the body) the arms must stay out of.
+  _bodyCaps() {
+    const B = this.b, K = this.h.root.scale.x || 1;
+    const p = (bn) => bn.getWorldPosition(V());
+    const pel = p(B.pelvis), sp = p(B.spine), sp1 = p(B.spine1), sp2 = p(B.spine2), nk = p(B.neck), hd = p(B.head);
+    const caps = [
+      { a: pel, b: sp, r: 0.12 * K }, { a: sp, b: sp1, r: 0.15 * K }, { a: sp1, b: sp2, r: 0.15 * K }, { a: sp2, b: nk, r: 0.11 * K },
+      { a: hd.clone().add(V(0, 0.06 * K, 0)), b: hd.clone().add(V(0, 0.1 * K, 0)), r: 0.1 * K },
+    ];
+    for (const s of ['L', 'R']) { const th = p(B[s].thigh), ca = p(B[s].calf), fo = p(B[s].foot); caps.push({ a: th, b: ca, r: 0.10 * K }, { a: ca, b: fo, r: 0.065 * K }); }
+    return caps;
+  }
+  /** deepest penetration (m) of the arm (shoulder -> elbow -> wrist) into the body capsules; the first third of the upper arm (the shoulder) is exempt */
+  _armDepth(s) {
+    const B = this.b[s], K = this.h.root.scale.x || 1;
+    const sh = B.up.getWorldPosition(V()), el = B.fore.getWorldPosition(V()), wr = B.hand.getWorldPosition(V());
+    const sh2 = sh.clone().lerp(el, 0.35);
+    let worst = -9;
+    for (const [a, b, r] of [[sh2, el, 0.06 * K], [el, wr, 0.055 * K]]) for (const c of this._caps) {
+      const d = c.r + r - segDistV(a, b, c.a, c.b);
+      if (d > worst) worst = d;
+    }
+    return worst;
+  }
   _solveArm(s, T, F) {
     const B = this.b[s];
     const tgt = this.toWorld(T.p, T.f || 'b', F);
     const sh = B.up.getWorldPosition(V());
     const pole = T.pole ? this.dirToWorld(T.pole, T.pf || T.f || 'b', F) : V(0, -1, -0.3).applyQuaternion(F.bq);
     const mid = sh.clone().add(tgt).multiplyScalar(0.5);
-    const poleP = mid.clone().add(pole.clone().multiplyScalar(0.6));
+    const rel = pole.clone().multiplyScalar(0.6);
+    this.swiv ??= { L: 0, R: 0 }; this.swivT ??= { L: 0, R: 0 };
+    if (!this._swFreeze && T.w > 0.05) {
+      const axis = tgt.clone().sub(sh).normalize();
+      const sU = B.up.quaternion.clone(), sF = B.fore.quaternion.clone();
+      let bestA = 0, bestC = 1e9;
+      for (const deg of [0, 20, -20, 40, -40, 65, -65, 90, -90, 120, -120, 150, -150]) {
+        const pp = mid.clone().add(rel.clone().applyAxisAngle(axis, deg * D2R));
+        B.up.quaternion.copy(sU); B.fore.quaternion.copy(sF); B.up.updateWorldMatrix(false, true);
+        solveTwoBone(B.up, B.fore, B.hand, tgt, { weight: T.w, pole: pp });
+        const depth = this._armDepth(s);
+        const c = Math.max(0, depth - 0.01) * 100 + Math.abs(deg - (this.swivT[s] || 0)) * 0.012 + Math.abs(deg) * 0.004;
+        if (c < bestC - 1e-9) { bestC = c; bestA = deg; }
+      }
+      B.up.quaternion.copy(sU); B.fore.quaternion.copy(sF); B.up.updateWorldMatrix(false, true);
+      this.swivT[s] = bestA;
+    }
+    // the working angle follows the chosen one at a limited speed, so the elbow never snaps
+    const want = this.swivT[s] * T.w, rate = this.swivSnap ? 1e9 : 600 * (this._dt || 0.016);
+    this.swiv[s] += Math.max(-rate, Math.min(rate, want - this.swiv[s]));
+    const poleP = mid.clone().add(rel.applyAxisAngle(tgt.clone().sub(sh).normalize(), this.swiv[s] * D2R));
     solveTwoBone(B.up, B.fore, B.hand, tgt, { weight: T.w, pole: poleP });
     if (T.handAim) {
       const n = this.dirToWorld(T.handAim.n, T.handAim.f || 'w', F), fx = this.dirToWorld(T.handAim.fx, T.handAim.f || 'w', F);
@@ -320,6 +368,22 @@ export class Actor {
     rotateBoneWorld(B.head, Q().setFromUnitVectors(cur2, d).slerp(Q(), 1 - w));
   }
   _initHead() { this._headFwdLocal = this.h.look.fwdLocal.clone(); }
+}
+
+function segDistV(p1, q1, p2, q2) {
+  const d1 = q1.clone().sub(p1), d2 = q2.clone().sub(p2), r = p1.clone().sub(p2);
+  const a = d1.dot(d1), e = d2.dot(d2), f = d2.dot(r);
+  let s, t;
+  if (a <= 1e-9 && e <= 1e-9) { s = t = 0; } else if (a <= 1e-9) { s = 0; t = Math.min(1, Math.max(0, f / e)); } else {
+    const c = d1.dot(r);
+    if (e <= 1e-9) { t = 0; s = Math.min(1, Math.max(0, -c / a)); } else {
+      const b = d1.dot(d2), den = a * e - b * b;
+      s = den > 1e-9 ? Math.min(1, Math.max(0, (b * f - c * e) / den)) : 0;
+      t = (b * s + f) / e;
+      if (t < 0) { t = 0; s = Math.min(1, Math.max(0, -c / a)); } else if (t > 1) { t = 1; s = Math.min(1, Math.max(0, (b - c) / a)); }
+    }
+  }
+  return p1.clone().addScaledVector(d1, s).distanceTo(p2.clone().addScaledVector(d2, t));
 }
 
 // quaternion whose rotation maps (1,0,0)->a (normalised), and (0,1,0)-ish -> perpendicular part of b; i.e. an orthonormal basis (a, y, z)

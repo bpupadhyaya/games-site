@@ -10,7 +10,7 @@ import { newMatch, applyThrow, tableDiscs, turnSide, leftFor, DISCS, LENGTHS, CL
 import { PROFILES, ASSIST, makeJob, choose, wobble, explain, holeName, pname } from './ai.js';
 import { onTablePlane, TAU } from './scene.js';
 import { renderPlay, computeLayout, sideName, statusText, whyTitle, phaseLine } from './view.js';
-import { renderTitle, renderSetup, renderSettings, renderLearn, renderResult, renderPause, renderSheet, renderWhy, renderPages, renderDemoLimit, hitScreen, flowMeta, pageCount, ensureLayout, invalidateLayout } from './menus.js';
+import { renderTitle, renderSetup, renderSettings, renderLearn, renderResult, renderPause, renderSheet, renderWhy, renderPages, renderDemoLimit, hitScreen, flowMeta, refMeta, ensureLayout, invalidateLayout } from './menus.js';
 import { ABOUT, HOWTO, RULES, LESSONS } from './content.js';
 import { setPress } from './ui.js';
 import { tr, pick, setLang, getLang } from './i18n.js';
@@ -209,10 +209,10 @@ export function createGame(env) {
       else if (e.k === 'in') {
         const h = HOLES.find((q) => q.id === e.hole);
         state.holeFlash[h.id] = 1;
-        addPart(list, { k: 'ring', x: h.x, y: 0.003, z: h.z, size: h.R + 0.02, max: 0.7, g: h.v >= 500 ? 190 : 225 });
-        addPart(list, { k: 'text', x: h.x, y: 0.14, z: h.z, text: `+${e.v}`, size: h.v >= 500 ? 66 : 46, max: 1.5, col: h.v >= 500 ? '#ffd36a' : '#fff0b8', vy: 0 });
-        sparks(list, h.x, h.z, h.v >= 500 ? 22 : h.v >= 200 ? 12 : 7, h.v >= 500 ? 1.6 : 1, 0.05);
-        sfx.drop(); if (h.v >= 500) sfx.big(); else sfx.chime(h.v >= 200 ? 3 : h.v >= 100 ? 2 : 0);
+        addPart(list, { k: 'ring', x: h.x, y: 0.003, z: h.z, size: h.R + 0.02, max: 0.7, g: h.id === 'mouth' ? 190 : 225 });
+        addPart(list, { k: 'text', x: h.x, y: 0.14, z: h.z, text: `+${e.v}`, size: h.id === 'mouth' ? 66 : 46, max: 1.5, col: h.id === 'mouth' ? '#ffd36a' : '#fff0b8', vy: 0 });
+        sparks(list, h.x, h.z, h.id === 'mouth' ? 22 : h.v >= 250 ? 12 : 7, h.id === 'mouth' ? 1.6 : 1, 0.05);
+        sfx.drop(); if (h.id === 'mouth') sfx.big(); else sfx.chime(h.v >= 250 ? 3 : h.v >= 150 ? 2 : 0);
       }
     }
     sim.events.length = 0;
@@ -430,7 +430,7 @@ export function createGame(env) {
         const py = d.cy - d.ay, px = d.cx - d.ax;
         if (py >= PULL.min) {
           d.pull = true;
-          setPlan({ az: AZ_MIN + clamp(py / PULL.max, 0, 1) * (AZ_MAX - AZ_MIN), ax: -px * 0.0029 });
+          setPlan({ az: AZ_MIN + clamp(py / PULL.max, 0, 1) * (AZ_MAX - AZ_MIN), ax: -px * 0.0026 });
           if (state.hint) state.hint = state.hint.busy ? state.hint : null;
         } else if (d.pull) { d.pull = false; state.plan = { ...d.plan0 }; }
       }
@@ -478,6 +478,7 @@ export function createGame(env) {
       if (flowMeta().key !== 'pause') return;
       if (ptr.pressed) state.ui.drag = { y0: ptr.y, s0: state.ui.scroll, moved: 0 };
       if (state.ui.drag && ptr.down) scrollFlow(ptr);
+      { const mt = flowMeta(); if (mt.lay) { const ch = Math.min(mt.lay.contentH + 20, mt.bottom - mt.top + 20); state.ui.scroll = scrollInput(input, Math.max(0, mt.lay.contentH - (mt.bottom - mt.top)), ch, state.ui.scroll); } }
       if (ptr.released && state.ui.drag) { const d = state.ui.drag; state.ui.drag = null; if (d.moved < 10) handlePauseTap(hitScreen(ptr.x, ptr.y, state.ui.scroll)); }
       return;
     }
@@ -534,8 +535,8 @@ export function createGame(env) {
     if (!id) return;
     sfx.tick();
     if (id === 'resume') closePause();
-    else if (id === 'p-rules') { state.back = 'play'; state.scene = 'rules'; state.page = 0; }
-    else if (id === 'p-howto') { state.back = 'play'; state.scene = 'howto'; state.page = 0; }
+    else if (id === 'p-rules') { state.back = 'play'; state.scene = 'rules'; state.ui.scroll = 0; }
+    else if (id === 'p-howto') { state.back = 'play'; state.scene = 'howto'; state.ui.scroll = 0; }
     else if (id === 'p-sound') { state.settings.sound = !state.settings.sound; audio.setMuted?.(!state.settings.sound); save(); }
     else if (id === 'quit') leaveMatch();
   }
@@ -557,7 +558,7 @@ export function createGame(env) {
     else if (id === 'watch') startWatch();
     else if (id === 'learn') { state.scene = 'learn'; state.ui.scroll = 0; }
     else if (id === 'continue') resumeMatch();
-    else if (id === 'howto' || id === 'rules' || id === 'about') { state.back = 'title'; state.scene = id; state.page = 0; }
+    else if (id === 'howto' || id === 'rules' || id === 'about') { state.back = 'title'; state.scene = id; state.ui.scroll = 0; }
     else if (id === 'settings') { state.scene = 'settings'; state.ui.scroll = 0; }
     else if (id === 'sound') { state.settings.sound = !state.settings.sound; audio.setMuted?.(!state.settings.sound); save(); }
     else if (id === 'lang-en') chooseLang('en'); else if (id === 'lang-es') chooseLang('es');
@@ -624,8 +625,7 @@ export function createGame(env) {
     const max = mt.lay ? Math.max(0, mt.lay.contentH - (mt.bottom - mt.top)) : 0;
     if (input.keys.pressed.has('Equal') || input.keys.pressed.has('NumpadAdd')) { state.settings.textIdx = Math.min(TEXT_SCALES.length - 1, state.settings.textIdx + 1); save(); }
     if (input.keys.pressed.has('Minus') || input.keys.pressed.has('NumpadSubtract')) { state.settings.textIdx = Math.max(0, state.settings.textIdx - 1); save(); }
-    if (input.keys.down.has('ArrowDown')) state.ui.scroll = clamp(state.ui.scroll + 14, 0, max);
-    if (input.keys.down.has('ArrowUp')) state.ui.scroll = clamp(state.ui.scroll - 14, 0, max);
+    state.ui.scroll = scrollInput(input, max, mt.lay ? mt.bottom - mt.top : 600, state.ui.scroll);
   };
   const updateSetup = (dt, input) => {
     const ptr = input.pointer, k = input.keys;
@@ -638,20 +638,34 @@ export function createGame(env) {
     }
     updateFlowScene(dt, input, handleSetup, 'setup');
   };
+  // Shared by every scrolling text screen: the mouse wheel and the scroll keys (arrows, Page Up/Down, Space, Home, End).
+  const scrollInput = (input, max, vh, scroll) => {
+    let v = scroll; const k = input.keys;
+    if (env.wheel && env.wheel.dy) { v += env.wheel.dy; env.wheel.dy = 0; }
+    if (k.down.has('ArrowDown')) v += 14;
+    if (k.down.has('ArrowUp')) v -= 14;
+    if (k.pressed.has('PageDown') || k.pressed.has('Space')) v += vh * 0.85;
+    if (k.pressed.has('PageUp')) v -= vh * 0.85;
+    if (k.pressed.has('Home')) v = 0;
+    if (k.pressed.has('End')) v = max;
+    return clamp(v, 0, max > 0 ? max : 1e9);   // (before the first drawing the size of the text is not known yet)
+  };
   const updatePages = (input) => {
-    const ptr = input.pointer, keys = input.keys, n = pageCount();
-    const close = () => { state.scene = state.back === 'play' ? 'play' : 'title'; state.page = 0; };
-    const next = () => { if (state.page >= n - 1) close(); else state.page++; };
-    const prev = () => { if (state.page <= 0) close(); else state.page--; };
+    const ptr = input.pointer, keys = input.keys, ref = refMeta();
+    const close = () => { state.scene = state.back === 'play' ? 'play' : 'title'; state.ui.scroll = 0; state.ui.drag = null; };
     if (ptr.pressed) {
-      if (inRect(REF_NEXT, ptr.x, ptr.y)) next();
-      else if (inRect(REF_BACK, ptr.x, ptr.y)) prev();
+      if (inRect(REF_NEXT, ptr.x, ptr.y)) { if (state.ui.scroll >= ref.max - 4) close(); else state.ui.scroll = clamp(state.ui.scroll + ref.vh * 0.85, 0, ref.max); }
+      else if (inRect(REF_BACK, ptr.x, ptr.y)) close();
       else if (inRect(TEXT_DEC, ptr.x, ptr.y)) { state.settings.textIdx = Math.max(0, state.settings.textIdx - 1); save(); }
       else if (inRect(TEXT_INC, ptr.x, ptr.y)) { state.settings.textIdx = Math.min(TEXT_SCALES.length - 1, state.settings.textIdx + 1); save(); }
+      else state.ui.drag = { y0: ptr.y, s0: state.ui.scroll };
     }
-    if (keys.pressed.has('ArrowRight')) next();
-    if (keys.pressed.has('ArrowLeft')) prev();
-    if (keys.pressed.has('Escape')) close();
+    if (state.ui.drag && ptr.down) state.ui.scroll = Math.max(0, state.ui.drag.s0 - (ptr.y - state.ui.drag.y0));
+    if (ptr.released) state.ui.drag = null;
+    state.ui.scroll = scrollInput(input, ref.max, ref.vh, state.ui.scroll);
+    if (keys.pressed.has('Equal') || keys.pressed.has('NumpadAdd')) { state.settings.textIdx = Math.min(TEXT_SCALES.length - 1, state.settings.textIdx + 1); save(); }
+    if (keys.pressed.has('Minus') || keys.pressed.has('NumpadSubtract')) { state.settings.textIdx = Math.max(0, state.settings.textIdx - 1); save(); }
+    if (keys.pressed.has('Escape') || keys.pressed.has('Enter')) close();
   };
 
   // ---- the live table behind the title and the menus ---------------------------------------------------------------------
@@ -720,21 +734,21 @@ export function createGame(env) {
     if (n === 4) { shotFlight(200, { ax: 0.0, az: 0.44, spin: 0, style: 1 }); state.ph = 'settle'; return; }
     if (n === 5) {
       shotMatch({ mode: 'ai', opp: 3, len: 1 }, SHOT_DISCS, [650, 400]); state.plan = { ax: -0.1, az: 0.4, spin: 0, style: 1 };
-      state.hint = { busy: false, plan: { ax: 0.0, az: 0.5, spin: 0, style: 0 }, text: tr('Land it on the centre line and 50 cm from the front edge, a high lob, no spin, to drop into the frog\'s mouth (500 points). 8 test throws with your usual hand averaged 210 points, the mouth 2 of 8 times.', 'Cae en la línea central y a 50 cm del borde delantero, un tiro alto, sin efecto, para caer en la boca del sapo (500 puntos). 8 tiros de prueba con tu pulso normal dieron 210 puntos de media, la boca 2 de 8 veces.') };
+      state.hint = { busy: false, plan: { ax: 0.0, az: 0.5, spin: 0, style: 0 }, text: tr('Land it on the centre line and 50 cm from the front edge, a high lob, no spin, to drop into the frog\'s mouth (400 points). 8 test throws with your usual hand averaged 210 points, the mouth 2 of 8 times.', 'Cae en la línea central y a 50 cm del borde delantero, un tiro alto, sin efecto, para caer en la boca del sapo (400 puntos). 8 tiros de prueba con tu pulso normal dieron 210 puntos de media, la boca 2 de 8 veces.') };
       setOverlay(); return;
     }
     if (n === 6) {
       startMatch({ mode: 'ai', opp: 2, len: 1, first: 0 }); const m = state.m;
-      m.scores = [1275, 1050]; m.round = m.rounds; m.stats = [{ in: 9, mouth: 1, mill: 2, best: 500, closest: 2 }, { in: 8, mouth: 0, mill: 1, best: 200, closest: 2 }]; m.over = { win: 0 }; state.scene = 'result'; return;
+      m.scores = [1275, 1050]; m.round = m.rounds; m.stats = [{ in: 9, mouth: 1, mill: 2, best: 400, closest: 2 }, { in: 8, mouth: 0, mill: 1, best: 200, closest: 2 }]; m.over = { win: 0 }; state.scene = 'result'; return;
     }
-    if (n === 7) { state.back = 'title'; state.scene = 'rules'; state.page = 0; return; }
-    if (n === 8) { state.back = 'title'; state.scene = 'howto'; state.page = 0; return; }
+    if (n === 7) { state.back = 'title'; state.scene = 'rules'; state.ui.scroll = 0; return; }
+    if (n === 8) { state.back = 'title'; state.scene = 'howto'; state.ui.scroll = 0; return; }
     if (n === 9) { state.scene = 'setup'; return; }
     if (n === 10) { state.scene = 'settings'; return; }
-    if (n === 11) { state.back = 'title'; state.scene = 'about'; return; }
+    if (n === 11) { state.back = 'title'; state.scene = 'about'; state.ui.scroll = 0; return; }
     if (n === 12) {
       startWatch(); state.m.cfg.watchA = 3; state.m.cfg.opp = 2; state.plan = { ax: 0.0, az: 0.5, spin: 0, style: 0 };
-      state.think = { t: 0.8, dur: 2, phase: 'reveal', plan: { ...state.plan }, text: tr('Land it on the centre line and 50 cm from the front edge, a high lob, no spin, to drop into the frog\'s mouth (500 points). 12 test throws with a steady hand averaged 140 points.', 'Cae en la línea central y a 50 cm del borde delantero, un tiro alto, sin efecto, para caer en la boca del sapo (500 puntos). 12 tiros de prueba con pulso firme dieron 140 puntos de media.'), from: { ...state.plan }, progress: 1 };
+      state.think = { t: 0.8, dur: 2, phase: 'reveal', plan: { ...state.plan }, text: tr('Land it on the centre line and 50 cm from the front edge, a high lob, no spin, to drop into the frog\'s mouth (400 points). 12 test throws with a steady hand averaged 140 points.', 'Cae en la línea central y a 50 cm del borde delantero, un tiro alto, sin efecto, para caer en la boca del sapo (400 puntos). 12 tiros de prueba con pulso firme dieron 140 puntos de media.'), from: { ...state.plan }, progress: 1 };
       state.ph = 'think'; state.banner = null; setOverlay(); return;
     }
     if (n === 13) { state.scene = 'learn'; return; }
@@ -742,29 +756,32 @@ export function createGame(env) {
     if (n === 15) { shotFlight(60, { ax: 0.0, az: 0.5, spin: 0, style: 0 }, [{ owner: 0, x: 0.06, z: 0.5 }, { owner: 1, x: -0.22, z: 0.6 }, { owner: 0, x: -0.1, z: 0.25 }]); state.ph = 'roundend'; state.hl = new Set([state.m.discs[0].id]); state.closestLine = { x: 0.06, z: 0.5 }; showBanner(tr('Closest disc', 'Ficha más cercana'), tr('You +25', 'Tú +25'), '', 99, 76); state.banner.t = 0.5; return; }
     if (n === 16) { state.settings.lang = 'es'; setLang('es'); state.scene = 'title'; return; }
     if (n === 17) { setLang('es'); shotMatch({ mode: 'ai', opp: 2, len: 1 }, SHOT_DISCS, [650, 400]); state.plan = { ax: 0.04, az: 0.5, spin: 1, style: 0 }; setOverlay(); state.pullHintT = 99; return; }
-    if (n === 18) { setLang('es'); state.back = 'title'; state.scene = 'rules'; state.page = 1; return; }
+    if (n === 18) { setLang('es'); state.back = 'title'; state.scene = 'rules'; state.ui.scroll = 700; return; }
     if (n === 19) { shotFlight(150, { ax: 0.0, az: 0.54, spin: 0, style: 1 }); state.ph = 'settle'; return; }
     if (n >= 20 && n <= 29) {
       state.settings.textIdx = 4;
-      if (n === 20) { state.back = 'title'; state.scene = 'rules'; state.page = 2; }
+      if (n === 20) { state.back = 'title'; state.scene = 'rules'; state.ui.scroll = 1400; }
       else if (n === 21) state.scene = 'title';
       else if (n === 22) { shotMatch({ mode: 'ai', opp: 2, len: 1 }, SHOT_DISCS, [650, 400]); setOverlay(); }
       else if (n === 23) state.scene = 'settings';
       else if (n === 24) state.scene = 'setup';
       else if (n === 25) { shotMatch({ mode: 'ai', opp: 2, len: 1 }, SHOT_DISCS, [650, 400]); state.sheet = true; }
-      else if (n === 26) { startMatch({ mode: 'ai', opp: 2, len: 1, first: 0 }); const m = state.m; m.scores = [1275, 1050]; m.stats = [{ in: 9, mouth: 1, mill: 2, best: 500, closest: 2 }, { in: 8, mouth: 0, mill: 1, best: 200, closest: 2 }]; m.over = { win: 0 }; state.scene = 'result'; }
+      else if (n === 26) { startMatch({ mode: 'ai', opp: 2, len: 1, first: 0 }); const m = state.m; m.scores = [1275, 1050]; m.stats = [{ in: 9, mouth: 1, mill: 2, best: 400, closest: 2 }, { in: 8, mouth: 0, mill: 1, best: 200, closest: 2 }]; m.over = { win: 0 }; state.scene = 'result'; }
       else if (n === 27) { state.back = 'title'; state.scene = 'about'; }
       else if (n === 28) { shotFlight(200, { ax: 0.0, az: 0.44, spin: 0, style: 1 }); state.ph = 'settle'; }
-      else if (n === 29) { state.back = 'title'; state.scene = 'howto'; state.page = 1; }
+      else if (n === 29) { state.back = 'title'; state.scene = 'howto'; state.ui.scroll = 700; }
       return;
     }
-    if (n >= 40 && n <= 59) { state.back = 'title'; state.scene = 'rules'; state.page = n - 40; }
+    if (n >= 40 && n <= 59) { state.back = 'title'; state.scene = 'rules'; state.ui.scroll = (n - 40) * 700; }
   };
 
   // ---- the object the kit and the shell see --------------------------------------------------------------------------------
   const game = {
     // Watch & Learn, the lessons and every menu are free; only real play counts against the free preview (a paused match does not).
-    isPreviewExempt: () => !(state.scene === 'play' && state.m && state.m.cfg.mode !== 'watch' && state.m.cfg.mode !== 'learn') || state.paused,
+    // Only live action uses up the free preview: a disc in the air or sliding on the table, or a pull in progress. Menus, setup, Rules,
+    // lessons, Watch & Learn, Think, pause, the computer's thinking, the aim-ready wait and the result screens cost nothing.
+    isPreviewExempt: () => !(state.scene === 'play' && state.m && state.m.cfg.mode !== 'watch' && state.m.cfg.mode !== 'learn')
+      || state.paused || state.pauseMenu || !!state.why || !!state.sheet || !(state.ph === 'fly' || state.ph === 'settle' || !!(state.drag && state.drag.pull)),
     update(dt, input) {
       if (state.showcase) input = NOINPUT;
       setPress(input.pointer);

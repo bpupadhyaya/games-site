@@ -4,12 +4,12 @@
 // jaws at the pockets. No clock and no randomness: the same shot always gives the same result.
 //
 // Table (playing area inside the cushions): TW x TL = 1.778 x 3.569 m. y runs from the baulk cushion (0, near the
-// player) to the top cushion (TL). Balls are drawn and played 1.7x their real size so they stay readable on a phone;
+// player) to the top cushion (TL). Balls are drawn and played 1.9x their real size so they stay readable on a phone;
 // pockets keep the real ratio to the ball. Coordinates: x right, y away from the player, z up (counter-clockwise
 // spin seen from above is positive wz).
 
 export const TW = 1.778, TL = 3.569;
-export const R = 0.0446;                       // ball radius (real 0.02625 m, played 1.7x)
+export const R = 0.050;                        // ball radius (real 0.02625 m, played 1.9x)
 export const STEP = 1 / 240;                   // physics sub-step (s)
 export const G = 9.81;
 

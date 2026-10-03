@@ -160,7 +160,7 @@ export function evalSwing(def, ctx, t, actor) {
   // balance arm in the body frame
   const bv = def.balance(t);
   const bs = m > 0 ? 1 : -1;                                       // balance arm = other side
-  P.arms[sideO] = { p: [bv.x * bs, bv.y, bv.z], f: 'b', w: wi, pole: [bs * 0.5, -1, -0.2], pf: 'b' };
+  P.arms[sideO] = { p: [bv.x * bs, bv.y, bv.z], f: 'b', w: wi, pole: [bs * 0.5, -1, -0.2], pf: 'b', noShift: true };   // the balance arm must never drag the body (it would pull the hitting palm off the ball)
   if (ctx.look) P.look = { target: ctx.look, w: 1 };
   P.w = wi;
   return P;

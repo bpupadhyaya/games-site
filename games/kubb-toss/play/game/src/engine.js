@@ -4,20 +4,20 @@
 // Blocks: ids 0..4 belong to team 0 (its baseline is y = 0, the near end of the screen), 5..9 to team 1 (y = FIELD.L), 10 is the king.
 // Roles of a kubb:  base (standing on its own side's baseline area), field (standing in the OPPONENT's half after being thrown in),
 // fallen (knocked down by the opponent, waiting to be thrown in at its owner's next turn), cleared (knocked down again as a field kubb: finished).
-import { FIELD, KUBB, KING, BASE_STEP } from './phys.js';
+import { FIELD, KUBB, KING, BATON, BASE_STEP } from './phys.js';
 
 export const KING_ID = 10;
-export const KING_RING = 0.675;                // a thrown-in or placed kubb must stay this far (one baton length) from the king
+export const KING_RING = BATON.len;                // a thrown-in or placed kubb must stay this far (one baton length) from the king
 export const SIDE_MARGIN = 0.2;
-export const SIZES = [{ id: 0, name: 'Quick', kubbs: 3, note: '3 kubbs each, a short game', turns: 24 }, { id: 1, name: 'Standard', kubbs: 5, note: '5 kubbs each, the full game', turns: 40 }];
+export const SIZES = [{ id: 0, name: 'Quick', kubbs: 3, note: '3 kubbs each, a short game', turns: 24 }, { id: 1, name: 'Medium', kubbs: 4, note: '4 kubbs each, a longer game', turns: 32 }, { id: 2, name: 'Standard', kubbs: 5, note: '5 kubbs each, the full game', turns: 40 }];
 export const batonsFor = (turnNo, opening = true) => (!opening ? 6 : turnNo === 0 ? 2 : turnNo === 1 ? 4 : 6);
 export const dirOf = (team) => (team === 0 ? 1 : -1);
 export const baselineY = (team) => (team === 0 ? 0 : FIELD.L);
 export const teamHalf = (y) => (y < FIELD.MID ? 0 : 1);
-export const baseXs = (size) => (size === 3 ? [-BASE_STEP, 0, BASE_STEP] : [-2 * BASE_STEP, -BASE_STEP, 0, BASE_STEP, 2 * BASE_STEP]);
+export const baseXs = (size) => (size === 3 ? [-BASE_STEP, 0, BASE_STEP] : size === 4 ? [-1.5 * BASE_STEP, -0.5 * BASE_STEP, 0.5 * BASE_STEP, 1.5 * BASE_STEP] : [-2 * BASE_STEP, -BASE_STEP, 0, BASE_STEP, 2 * BASE_STEP]);
 
 export function newMatch(cfg) {
-  const size = cfg.size === 3 ? 3 : 5, xs = baseXs(size), blocks = [];
+  const size = cfg.size === 3 ? 3 : cfg.size === 4 ? 4 : 5, xs = baseXs(size), blocks = [];
   for (let t = 0; t < 2; t++) for (let i = 0; i < 5; i++) {
     const id = t * 5 + i;
     if (i < size) blocks.push({ id, kind: 'kubb', team: t, role: 'base', x: xs[i], y: baselineY(t), yaw: 0, down: false, q: null, z: KUBB.h / 2 });

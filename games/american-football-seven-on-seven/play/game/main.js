@@ -12,12 +12,14 @@ try {
   presenter = await createPresenter({ kitCanvas: canvas });
 } catch (e) { console.warn('3D field unavailable, using the 2D field', e); }
 
+let theGame = null;
 const booted = boot({
   createGame: async (env) => {
-    const game = await createGame(env);
+    const game = await createGame(env); theGame = game;
     fetch('./vendor3d/LICENSES.md').then((r) => (r.status >= 400 ? '' : r.text())).then((t) => game.setCredits?.(t)).catch(() => {});
     return presenter.wrap(game);
   },
   meta, canvas, background: 'rgba(0,0,0,0)',
 });
 booted.then((b) => { if (/[?&]dbg/.test(location.search)) window.__k = { ...b, presenter }; });
+canvas.addEventListener('wheel', (e) => { if (theGame && theGame.scrollBy) { theGame.scrollBy(e.deltaY * (e.deltaMode === 1 ? 24 : 1) * 1.2); e.preventDefault(); } }, { passive: false });

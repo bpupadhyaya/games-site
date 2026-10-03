@@ -3,7 +3,7 @@
 // estimated) and by render (real text widths), and gives the same rectangles to both.
 import { W, H, TEXT_SCALES, COMPACT, TRAY, SCENE_Y0, MINI, playLayout, toScene } from './layout.js';
 import { FONT, NUM, roundPath, drawButton, paintButton, panel, wrapLines, textShadow, ease } from './ui.js';
-import { drawBackdrop, drawLawn, drawProps, drawBoard, drawBags, drawArc, drawLanding, drawParts, interpBags, fixedCam, TAU, BAG_COL } from './scene.js';
+import { drawStill, drawBags, drawArc, drawLanding, drawParts, interpBags, fixedCam, TAU, BAG_COL } from './scene.js';
 import { PROFILES } from './ai.js';
 import { STYLES, arcPoints, BOARD_W, BOARD_L, HOLE_V, HOLE_R, BAG_HALF, BOARD_Z0, COS_A } from './phys.js';
 import { pointsOf, bagIndex, turnOf, BAGS_EACH } from './engine.js';
@@ -52,13 +52,14 @@ export function hudMetrics(S, ctx) {
     const cardH = Math.round(20 + 24 * z * 1.1 + 18 * z * 1.2 + 12), fs = Math.round(24 * z);
     return { compact: true, z, cardH, y: 44, h: 44 + cardH + 8 + Math.round(fs * 1.35) + 10, fs };
   }
-  const fs = Math.round(26 * z), lines = [];
-  const m = S.m;
-  const pushWrapped = (text, o) => { cx.font = `${o.bold ? 700 : 400} ${fs}px ${FONT}`; wrapLines(cx, text, W - 72).forEach((l) => lines.push({ text: l, ...o })); };
-  if (m.cfg.mode === 'learn') { const li = lessonInfo(S); pushWrapped(`Bags left: ${li.left}`, { active: true, bold: true }); pushWrapped(`${li.goalName}: ${li.goalScore}`, { bold: true }); }
-  else [0, 1].forEach((sd) => pushWrapped(`${sideName(S, sd)}: ${m.score[sd]} (round ${pointsOf(m.bags, sd)})`, { active: turnOf(m) === sd, bold: true }));
-  pushWrapped(phaseLine(S), {});
-  return { compact: false, z, fs, lines, y: 40, h: 40 + lines.length * fs * 1.22 + 20 };
+  // Large text: two score rows (name and score) and one short line for the round. Everything else (the guide, the hint) lives in the Set up sheet,
+  // so the scene keeps its full size instead of shrinking into a small window.
+  const fs = Math.round(26 * z), m = S.m, rows = [];
+  if (m.cfg.mode === 'learn') { const li = lessonInfo(S); rows.push({ name: 'Bags left', score: String(li.left), active: true }, { name: li.goalName, score: String(li.goalScore), active: false }); }
+  else [0, 1].forEach((sd) => rows.push({ name: sideName(S, sd), score: String(m.score[sd]), active: turnOf(m) === sd && !m.over, side: sd }));
+  const sub = m.cfg.mode === 'learn' ? `Lesson ${m.lesson.idx + 1} of ${S.lessonCount}` : `Round ${m.round}, bag ${Math.min(bagIndex(m), 8)} of 8`;
+  const sfs = Math.round(fs * 0.64);
+  return { compact: false, z, fs, sfs, rows, sub, y: 40, h: 40 + rows.length * fs * 1.2 + sfs * 1.3 + 12 };
 }
 export function fitStatus(cx, text, fs, maxW, maxLines) {
   cx.font = `400 ${fs}px ${FONT}`;
@@ -71,11 +72,10 @@ export const whyTitle = (S) => (S.m.cfg.mode === 'watch' || S.ph === 'think' ? '
 function trayMetrics(S, ctx) {
   const z = zOf(S), cx = ctx ?? estCtx;
   const fs = Math.round(24 * z);
-  const maxLines = S.m.cfg.mode === 'watch' ? 2 : Math.max(2, Math.floor((H * 0.24) / (fs * 1.22)));
-  const { lines, more } = fitStatus(cx, statusText(S), fs, W - 110, maxLines);
+  const { lines, more } = { lines: [], more: false };
   const mfs = Math.round(fs * 0.8), moreH = more ? mfs * 1.3 : 0;
-  const bh = Math.round(26 * z * 1.15 + 38), rows = S.m.cfg.mode === 'watch' ? 2 : 1;
-  return { fs, lines, more, mfs, bh, rows, h: 24 + lines.length * fs * 1.22 + moreH + 16 + rows * bh + (rows - 1) * 12 + 28 };
+  const bh = Math.round(26 * z * 1.15 + 38), rows = 1;
+  return { fs, lines, more, mfs, bh, rows, h: (lines.length ? 24 + lines.length * fs * 1.22 + moreH + 16 : 8) + rows * bh + (rows - 1) * 12 + 28 };
 }
 function compactStatus(S, ctx, z) {
   if (S.ph === 'aim' || !S.m) return null;
@@ -108,7 +108,11 @@ function rectsFor(S, lay) {
   const m = S.m, ph = S.ph, mode = m.cfg.mode;
   const humanAim = ph === 'aim' && S.humanTurn;
   if (mode === 'watch') {
-    const h = lay.compact ? 72 : lay.tray.bh, y = lay.compact ? 1086 : H - 28 - 2 * h - 12;
+    if (!lay.compact) {   // large text: one row (Pause, Why, Exit); the thinking time lives in the Why sheet
+      Object.assign(R, row(H - 28 - lay.tray.bh, lay.tray.bh, [{ id: 'wpause', w: 1.25 }, { id: 'more', w: 0.9 }, { id: 'wexit', w: 0.85 }]));
+      return R;
+    }
+    const h = 72, y = 1086;
     Object.assign(R, row(y, h, [{ id: 'wdec', w: 1 }, { id: 'wlabel', w: 3 }, { id: 'winc', w: 1 }]));
     Object.assign(R, row(y + h + 12, h, [{ id: 'wpause', w: 2 }, { id: 'wexit', w: 1 }]));
     addMore(R, lay, y);
@@ -239,7 +243,7 @@ function drawMini(ctx, S, bags, guide) {
 
 export function drawScene(ctx, S) {
   const cam = S.cam, t = S.t;
-  drawBackdrop(ctx, cam, t); drawLawn(ctx, cam, t); drawProps(ctx, cam); drawBoard(ctx, cam);
+  drawStill(ctx, cam, t);
   const ov = S.overlay;
   if (ov) {
     if (ov.last) drawArc(ctx, cam, ov.last, 'rgba(255,255,255,0.55)', t, 3, 0.8);
@@ -299,13 +303,23 @@ function drawHud(ctx, S, lay) {
     textShadow(ctx, phaseLine(S), W / 2, hud.y + hud.cardH + 8 + hud.fs, '#fff3d6', 6);
   } else {
     let y = hud.y;
-    ctx.textAlign = 'left';
-    hud.lines.forEach((l) => { ctx.font = `${l.bold ? 700 : 400} ${hud.fs}px ${FONT}`; textShadow(ctx, l.text, 36, y + hud.fs, l.active ? '#ffe08a' : '#fff3d6', 6); y += hud.fs * 1.22; });
+    hud.rows.forEach((r) => {
+      const sfont = `800 ${Math.round(hud.fs * 1.1)}px ${NUM}`;
+      ctx.font = sfont; const sw = ctx.measureText(r.score).width;
+      const np = fitFont(ctx, r.name, hud.fs, W - 72 - sw - 24 - (r.side != null ? hud.fs * 0.9 : 0), 700);
+      let nx = 36;
+      if (r.side != null) { const mk = hud.fs * 0.34; bagMark(ctx, 36 + mk, y + hud.fs * 0.62, mk, r.side); nx += mk * 2 + 12; }
+      ctx.textAlign = 'left'; ctx.font = `700 ${np}px ${FONT}`; textShadow(ctx, r.name, nx, y + hud.fs, r.active ? '#ffe08a' : '#fff3d6', 6);
+      ctx.textAlign = 'right'; ctx.font = sfont; textShadow(ctx, r.score, W - 36, y + hud.fs, r.active ? '#ffe08a' : '#ffe7a8', 6);
+      y += hud.fs * 1.2;
+    });
+    ctx.textAlign = 'left'; ctx.font = `400 ${hud.sfs}px ${FONT}`; textShadow(ctx, hud.sub, 36, y + hud.sfs * 1.05, '#fff3d6', 6);
   }
 }
 function drawTrayText(ctx, lay) {
   const t = lay.tray;
   ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+  if (!t.lines.length) return;
   t.lines.forEach((l, i) => { ctx.font = `400 ${t.fs}px ${FONT}`; textShadow(ctx, l, W / 2, lay.trayTop + 16 + t.fs * (1 + i * 1.22), '#fff3d6', 6); });
   if (t.more) { ctx.font = `700 ${t.mfs}px ${FONT}`; textShadow(ctx, 'Tap here to read it all', W / 2, lay.trayTop + 16 + t.fs * (1 + t.lines.length * 1.22) + t.mfs * 0.2, '#7de8ff', 6); }
 }
@@ -317,11 +331,13 @@ function drawTray(ctx, S, lay) {
   const size = Math.round(26 * Math.min(z, 3)), humanAim = ph === 'aim' && S.humanTurn;
   const btn = (id, label, o = {}) => { if (R[id]) drawButton(ctx, R[id], label, { size, ...o }); };
   if (m.cfg.mode === 'watch') {
-    if (!lay.compact) drawTrayText(ctx, lay);
-    const big = !lay.compact;
-    btn('wdec', big ? '−' : 'Faster', { dark: true, disabled: S.settings.thinkIdx === 0, size: big ? size : Math.round(size * 0.85) });
-    btn('winc', big ? '+' : 'Slower', { dark: true, disabled: S.settings.thinkIdx === 3, size: big ? size : Math.round(size * 0.85) });
-    if (R.wlabel) { const r = R.wlabel, txt = big ? `Think ${S.thinkSecs} s` : `Thinking time ${S.thinkSecs} s`; ctx.fillStyle = '#ffe9bf'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; fitFont(ctx, txt, Math.round(24 * z), r.w - 8, 700); ctx.fillText(txt, r.x + r.w / 2, r.y + r.h / 2); }
+    if (!lay.compact) {
+      btn('wpause', S.paused ? 'Resume' : 'Pause', { primary: true }); btn('more', 'Why?', { dark: true }); btn('wexit', 'Exit', { dark: true });
+      return;
+    }
+    btn('wdec', 'Faster', { dark: true, disabled: S.settings.thinkIdx === 0, size: Math.round(size * 0.85) });
+    btn('winc', 'Slower', { dark: true, disabled: S.settings.thinkIdx === 3, size: Math.round(size * 0.85) });
+    if (R.wlabel) { const r = R.wlabel, txt = `Thinking time ${S.thinkSecs} s`; ctx.fillStyle = '#ffe9bf'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; fitFont(ctx, txt, Math.round(24 * z), r.w - 8, 700); ctx.fillText(txt, r.x + r.w / 2, r.y + r.h / 2); }
     btn('wpause', S.paused ? 'Resume' : 'Pause', { primary: true });
     btn('wexit', 'Exit', { dark: true });
     return;
@@ -388,19 +404,39 @@ export function renderPlay(ctx, S) {
     ctx.fillStyle = '#ffe9bf'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(S.toast, 360, lay.hud.h + 18 + 27 * Math.min(lay.z, 2));
   }
 }
+// The lesson card: a title, the lesson text and "Tap to start". At large text the text is longer than the card: it then scrolls (drag, wheel,
+// arrow keys) under a fixed title and a Start button, with a scroll bar.
+export function introGeom(S, ctx) {
+  const L = S.m.lesson, z = Math.min(zOf(S), 2), fs = Math.round(26 * z), cx = ctx ?? estCtx;
+  cx.font = `400 ${fs}px ${FONT}`;
+  const lines = wrapLines(cx, L.text, 580);
+  const tfs = fitFont(cx, `Lesson ${L.idx + 1}: ${L.title}`, Math.round(40 * z), 590, 800, NUM);
+  const lh = fs * 1.3, head = 24 + tfs + 24, textH = lines.length * lh;
+  const maxH = H - 140, natural = head + textH + 70, over = natural > maxH;
+  const h = over ? maxH : natural, y = Math.max(40, (H - h) / 2);
+  const view = { x: 40, y: y + head, w: 640, h: h - head - (over ? 110 : 60) };
+  return { L, fs, tfs, lines, lh, h, y, over, view, max: Math.max(0, textH - view.h + 10), start: { x: 200, y: y + h - 94, w: 320, h: 76 } };
+}
 function drawLessonIntro(ctx, S, lay) {
-  const L = S.m.lesson, z = lay.z, fs = Math.round(26 * Math.min(z, 2));
-  ctx.font = `400 ${fs}px ${FONT}`;
-  const lines = wrapLines(ctx, L.text, 580);
-  const tfs = fitFont(ctx, `Lesson ${L.idx + 1}: ${L.title}`, Math.round(40 * Math.min(z, 2)), 590, 800, NUM);
-  ctx.font = `400 ${fs}px ${FONT}`;
-  const h = Math.min(H - 120, 120 + tfs + lines.length * fs * 1.3), y = Math.max(40, (H - h) / 2);
-  panel(ctx, 40, y, 640, h, { r: 26, fill: 'rgba(16,26,12,0.97)', stroke: '#ffd36a' });
+  const g = introGeom(S, ctx), L = g.L, z = lay.z;
+  panel(ctx, 40, g.y, 640, g.h, { r: 26, fill: 'rgba(16,26,12,0.97)', stroke: '#ffd36a' });
   ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
-  ctx.font = `800 ${tfs}px ${NUM}`; ctx.fillStyle = '#ffe08a'; ctx.fillText(`Lesson ${L.idx + 1}: ${L.title}`, 360, y + 24 + tfs);
-  ctx.font = `400 ${fs}px ${FONT}`; ctx.fillStyle = '#fff3d6';
-  lines.forEach((l, i) => ctx.fillText(l, 360, y + 40 + tfs + fs * (1 + i * 1.3)));
-  ctx.font = `700 ${Math.round(22 * Math.min(z, 2))}px ${FONT}`; ctx.fillStyle = '#bfe8ff'; ctx.fillText('Tap to start', 360, y + h - 20);
+  ctx.font = `800 ${g.tfs}px ${NUM}`; ctx.fillStyle = '#ffe08a'; ctx.fillText(`Lesson ${L.idx + 1}: ${L.title}`, 360, g.y + 24 + g.tfs);
+  const sc = Math.min(g.max, Math.max(0, S.introScroll || 0));
+  ctx.save(); ctx.beginPath(); ctx.rect(g.view.x, g.view.y, g.view.w, g.view.h); ctx.clip();
+  ctx.font = `400 ${g.fs}px ${FONT}`; ctx.fillStyle = '#fff3d6';
+  g.lines.forEach((l, i) => ctx.fillText(l, 360, g.view.y + g.fs * (1 + i * 1.3) - sc));
+  ctx.restore();
+  if (g.over) {
+    const th = Math.max(40, g.view.h * (g.view.h / (g.view.h + g.max))), ty = g.view.y + (g.max ? (sc / g.max) * (g.view.h - th) : 0);
+    roundPath(ctx, 664, g.view.y, 6, g.view.h, 3); ctx.fillStyle = 'rgba(255,240,204,0.15)'; ctx.fill();
+    roundPath(ctx, 664, ty, 6, th, 3); ctx.fillStyle = 'rgba(255,240,204,0.6)'; ctx.fill();
+    if (sc < g.max - 4) { const gr = ctx.createLinearGradient(0, g.view.y + g.view.h - 40, 0, g.view.y + g.view.h); gr.addColorStop(0, 'rgba(16,26,12,0)'); gr.addColorStop(1, 'rgba(16,26,12,0.95)'); ctx.fillStyle = gr; ctx.fillRect(g.view.x, g.view.y + g.view.h - 40, g.view.w, 40); }
+    drawButton(ctx, g.start, 'Start', { primary: true, size: Math.round(28 * Math.min(z, 2)) });
+    ctx.font = `400 ${Math.round(18 * Math.min(z, 2))}px ${FONT}`; ctx.fillStyle = 'rgba(191,232,255,0.9)'; ctx.fillText('Drag the text to read more', 360, g.start.y - 12);
+  } else {
+    ctx.font = `700 ${Math.round(22 * Math.min(z, 2))}px ${FONT}`; ctx.fillStyle = '#bfe8ff'; ctx.fillText('Tap to start', 360, g.y + g.h - 20);
+  }
 }
 function drawStatus(ctx, S, lay) {
   if (S.m.cfg.mode === 'learn' && S.ph === 'intro') { drawLessonIntro(ctx, S, lay); return; }

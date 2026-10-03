@@ -13,6 +13,8 @@ const KITS = [
 const SKINS = ['brown', 'tan'];
 const HAIRS = ['black', 'black'];
 export const SPOT = [{ x: 0, z: -0.78 }, { x: 0, z: 0.78 }];     // where the two players stand (metres); they face each other
+// title screen cut: a steady, wider shot with the players in the middle band (menu text above, buttons below)
+export const TITLE_CAM = { x: 5.5, y: 2.5, z: -4.1, lx: 0, ly: -0.12, lz: 0, fov: 46 };
 export const CAM = { x: 4.4, y: 2.5, z: -3.2, lx: 0, ly: 0.7, lz: 0, fov: 46 };
 
 function pickQuality() {
@@ -103,7 +105,7 @@ export async function createPresenter({ kitCanvas, quality = pickQuality() }) {
     const g0 = want.hero === 'f' ? 'f' : 'm', g1 = g0 === 'm' ? 'f' : 'm';
     if ((g0 !== P.gender[0]) && !building) { building = true; build(g0, g1).finally(() => { building = false; }); return; }
     stage.setVisible(true);
-    const dim = G.scene === 'play' || G.scene === 'result' ? '' : 'brightness(0.62) saturate(0.9)';
+    const dim = G.scene === 'play' || G.scene === 'result' || G.scene === 'title' ? '' : 'brightness(0.62) saturate(0.9)';
     const now = nowOverride ?? globalThis.performance.now();
     const realDt = Math.min(0.1, Math.max(0, (now - lastNow) / 1000)); lastNow = now;
     P.idleT += realDt;
@@ -140,7 +142,7 @@ export async function createPresenter({ kitCanvas, quality = pickQuality() }) {
     const W = canvas.clientWidth || 720, H_ = canvas.clientHeight || 1280;
     const th = Math.tan((CAM.fov * Math.PI) / 360) * Math.max(1, 0.5625 / Math.max(0.2, W / H_));
     const fov = (2 * Math.atan(th) * 180) / Math.PI;
-    const cam = stage.camera, co = P.camOverride || CAM;
+    const cam = stage.camera, co = P.camOverride || (G.scene === 'title' ? TITLE_CAM : CAM);
     const key = `${fov.toFixed(3)}:${co.x},${co.y},${co.z},${co.lx},${co.ly},${co.lz}`;
     if (key !== camKey) {
       camKey = key;

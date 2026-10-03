@@ -55,7 +55,7 @@ function makeCanvas(w, h) {
 }
 
 // ---- the backdrop: grass, mowing stripes, the pitch, chalk lines, stakes, fence, forest, cottage ----------------------------------
-const BS = 2;                       // bake scale (2x so it stays crisp on dense phone screens)
+const BS = 1.5;                     // bake scale (1.5x: 8 MB of canvas instead of 15 MB, still about one pixel per screen pixel on a phone)
 const GX = 9;                       // the lawn is drawn out to +-GX metres
 function quadPath(c, a, b, d, e) { const p = [proj(...a), proj(...b), proj(...d), proj(...e)]; c.beginPath(); p.forEach((q, i) => (i ? c.lineTo(q.x, q.y) : c.moveTo(q.x, q.y))); c.closePath(); }
 
@@ -389,28 +389,29 @@ export function drawBatonShadow(ctx, p, q) {
 }
 
 function roundPath(ctx, x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
-// ---- the thrower's paddle: a simple lit wooden paddle on a stand marker, no person ----------------------------------------------------
-// lean: -1..1 (pulled back .. swung forward), team, held (a baton rests in it). dir: +1 faces up the screen.
+// ---- the thrower's marker: a team-coloured stand disc with a baton standing in a small wooden holder, no person -------------------------------------
+// lean: -1..1 (pulled back .. swung forward), team, held (a baton waits in the holder). dir: +1 faces up the screen.
 export function drawPaddle(ctx, x, y, dir, team, lean, held = true, scale = 1) {
-  const T = TEAM[team], base = proj(x, y, 0), s = base.s * scale, u = s * 0.16;
+  const T = TEAM[team], base = proj(x, y, 0), s = base.s * scale;
   ctx.save();
-  // stand marker on the grass
-  ctx.fillStyle = 'rgba(8,30,10,0.3)'; ctx.beginPath(); ctx.ellipse(base.x + s * 0.06, base.y + s * 0.03, s * 0.2, s * 0.075, 0, 0, TAU); ctx.fill();
-  ctx.beginPath(); ctx.ellipse(base.x, base.y, s * 0.17, s * 0.063, 0, 0, TAU); ctx.fillStyle = T.main; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = T.hi; ctx.stroke();
-  ctx.beginPath(); ctx.ellipse(base.x, base.y, s * 0.1, s * 0.037, 0, 0, TAU); ctx.fillStyle = T.dark; ctx.fill();
-  // the paddle: a rounded wooden blade on a short handle, leaning along the throw (dir < 0 faces down the screen)
-  ctx.translate(base.x, base.y - 1); ctx.rotate(lean * 0.75);
-  const hl = u * 1.15, bw = u * 0.62, bh = u * 1.55, r = bw;
-  const g = ctx.createLinearGradient(-bw, 0, bw, 0); g.addColorStop(0, '#b4793a'); g.addColorStop(0.35, '#f6d894'); g.addColorStop(1, '#a56f30');
-  ctx.fillStyle = '#6e4420'; roundPath(ctx, -u * 0.13, -hl, u * 0.26, hl, u * 0.1); ctx.fill();
-  roundPath(ctx, -bw, -hl - bh, bw * 2, bh, r); ctx.fillStyle = g; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = '#5a3516'; ctx.stroke();
-  ctx.fillStyle = T.main; roundPath(ctx, -bw * 0.9, -hl - bh * 0.36, bw * 1.8, bh * 0.14, 3); ctx.fill();
-  ctx.strokeStyle = 'rgba(255,248,220,0.55)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(-bw * 0.55, -hl - bh * 0.9); ctx.lineTo(-bw * 0.55, -hl - bh * 0.55); ctx.stroke();
-  if (held) {   // the baton rests against the blade
-    ctx.lineCap = 'round'; const bl = u * 2.1;
-    ctx.strokeStyle = '#4a2c12'; ctx.lineWidth = u * 0.5 + 2; ctx.beginPath(); ctx.moveTo(bw * 1.05, -hl - bh * 0.1); ctx.lineTo(bw * 1.05 + u * 0.25, -hl - bh * 0.1 - bl); ctx.stroke();
-    ctx.strokeStyle = '#d9a85c'; ctx.lineWidth = u * 0.5; ctx.beginPath(); ctx.moveTo(bw * 1.05, -hl - bh * 0.1); ctx.lineTo(bw * 1.05 + u * 0.25, -hl - bh * 0.1 - bl); ctx.stroke();
-    ctx.strokeStyle = T.main; ctx.lineWidth = u * 0.5; ctx.beginPath(); ctx.moveTo(bw * 1.05 + u * 0.1, -hl - bh * 0.1 - bl * 0.12); ctx.lineTo(bw * 1.05 + u * 0.15, -hl - bh * 0.1 - bl * 0.26); ctx.stroke();
+  ctx.fillStyle = 'rgba(8,30,10,0.3)'; ctx.beginPath(); ctx.ellipse(base.x + s * 0.07, base.y + s * 0.03, s * 0.24, s * 0.085, 0, 0, TAU); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(base.x, base.y, s * 0.21, s * 0.078, 0, 0, TAU); ctx.fillStyle = T.main; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = T.hi; ctx.stroke();
+  ctx.beginPath(); ctx.ellipse(base.x, base.y, s * 0.13, s * 0.048, 0, 0, TAU); ctx.fillStyle = T.dark; ctx.fill();
+  if (held) {   // the baton stands in its holder, leaning a little along the throw
+    const len = BATON.len * s * 0.82, w = Math.max(9, BATON.r * 2 * s * 1.1);
+    ctx.translate(base.x, base.y - 2); ctx.rotate(lean * 0.4 + 0.08);
+    const g = ctx.createLinearGradient(-w / 2, 0, w / 2, 0); g.addColorStop(0, '#b4793a'); g.addColorStop(0.4, '#f6d894'); g.addColorStop(1, '#a56f30');
+    roundPath(ctx, -w / 2, -len, w, len, w * 0.45); ctx.fillStyle = g; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = '#5a3516'; ctx.stroke();
+    ctx.fillStyle = T.main; ctx.fillRect(-w / 2 + 1, -len * 0.82, w - 2, len * 0.11);
+    ctx.rotate(-(lean * 0.4 + 0.08));
+    // the holder: a short wooden ring around the foot of the baton
+    ctx.beginPath(); ctx.ellipse(0, 0, w * 0.95, w * 0.36, 0, 0, TAU); ctx.lineWidth = Math.max(3, w * 0.32); ctx.strokeStyle = '#7a4c22'; ctx.stroke();
+    ctx.lineWidth = Math.max(1.5, w * 0.1); ctx.strokeStyle = '#d9a85c'; ctx.stroke();
+  } else {
+    const w = Math.max(9, BATON.r * 2 * s * 1.1);
+    ctx.translate(base.x, base.y - 2);
+    ctx.beginPath(); ctx.ellipse(0, 0, w * 0.95, w * 0.36, 0, 0, TAU); ctx.lineWidth = Math.max(3, w * 0.32); ctx.strokeStyle = '#7a4c22'; ctx.stroke();
+    ctx.lineWidth = Math.max(1.5, w * 0.1); ctx.strokeStyle = '#d9a85c'; ctx.stroke();
   }
   void dir;
   ctx.restore();

@@ -9,7 +9,7 @@ const lerp = (a, b, t) => a + (b - a) * t;
 
 // THE camera. It never moves, zooms, tilts or shakes: the lawn, fence and board keep the same screen position in every frame.
 // Tuning: F = focal length in pixels, Hc = eye height (m), D0 = distance behind the throwing line (m), YH = screen y of the horizon.
-export const CAM = { F: 3400, Hc: 2.8, D0: 6.0, YH: 60, x: 0 };
+export const CAM = { F: 5400, Hc: 2.5, D0: 8.5, YH: 100, x: 0 };
 export const fixedCam = () => ({ ...CAM });
 export const scaleAt = (cam, z) => cam.F / Math.max(0.35, z + cam.D0);
 export function proj(cam, x, y, z) {
@@ -119,6 +119,32 @@ export function drawLawn(ctx, cam, t) {
   ctx.fillStyle = rg; ctx.fillRect(0, bc.y - 340, 720, 680); ctx.restore();
 }
 
+
+// ---------------------------------------------------------------------------------------------------------------
+// The still picture (sky, trees, fence, lawn, props, board) never changes, so it is painted ONCE into an off-screen bitmap at the screen's own
+// resolution and then copied each frame: one drawImage instead of several hundred path operations. Bags, arcs, dust and every other moving
+// thing are still drawn live on top. Without OffscreenCanvas (headless tests, very old web views) or if anything fails, the same pictures are drawn directly.
+let baked = null;
+export const bakeOn = { v: true };
+export function drawStill(ctx, cam, t) {
+  const direct = () => { drawBackdrop(ctx, cam, t); drawLawn(ctx, cam, t); drawProps(ctx, cam); drawBoard(ctx, cam); };
+  let k = 0;
+  try { const tr = ctx.getTransform ? ctx.getTransform() : null; k = tr ? Math.hypot(tr.a, tr.b) : 0; } catch { k = 0; }
+  if (!bakeOn.v || !(k > 0.2) || typeof OffscreenCanvas === 'undefined') { direct(); return; }
+  k = Math.min(3, Math.round(k * 20) / 20);
+  const key = `${k}|${cam.F}|${cam.Hc}|${cam.D0}|${cam.YH}|${cam.x}`;
+  if (!baked || baked.key !== key) {
+    try {
+      const w = Math.round(720 * k), h = Math.round(1280 * k);
+      const cv = new OffscreenCanvas(w, h);
+      const bc = cv.getContext('2d');
+      bc.setTransform(k, 0, 0, k, 0, 0);
+      drawBackdrop(bc, cam, 0); drawLawn(bc, cam, 0); drawProps(bc, cam); drawBoard(bc, cam);
+      baked = { key, cv };
+    } catch { baked = null; direct(); return; }
+  }
+  ctx.drawImage(baked.cv, 0, 0, 720, 1280);
+}
 
 // A box seen in true perspective: lit top, front and the side that faces the camera. (x, z) is the centre of the base.
 function drawBox(ctx, cam, x, z, w, h, d, col, o = {}) {

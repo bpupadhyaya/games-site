@@ -26,6 +26,7 @@ const fx = makeFx();
 const clock = () => globalThis.performance.now();
 const params = new URLSearchParams(location.search);
 const wrap = (game) => {
+  gameRef = game;
   if (params.has('dev')) { window.__game = game; window.__presenter = presenter; }
   document.addEventListener('visibilitychange', () => { if (document.hidden) game.autoPause?.(); });
   if (presenter && presenter.stage) return presenter.wrap(game);
@@ -34,5 +35,7 @@ const wrap = (game) => {
   return game;
 };
 const shot = params.has('shot');
+let gameRef = null;
+canvas.addEventListener('wheel', (e) => { if (!gameRef) return; e.preventDefault(); const k = e.deltaMode === 1 ? 24 : e.deltaMode === 2 ? 600 : 1; const r = canvas.getBoundingClientRect(); gameRef.wheel?.(e.deltaY * k * (720 / Math.max(1, Math.min(r.width, r.height * 0.5625)))); }, { passive: false });
 if (fx) canvas.addEventListener('pointerdown', () => { fx.hat(0); }, { once: true });
 boot({ createGame: async (env) => wrap(await createGame({ ...env, fx, clock, config: shot ? { ...env.config, shot: true } : env.config })), meta, canvas, background: 'rgba(0,0,0,0)' });

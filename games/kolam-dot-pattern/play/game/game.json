@@ -4,7 +4,7 @@
   "tagline": "One line. Every dot.",
   "genre": "dot-pattern drawing puzzle",
   "orientation": "portrait",
-  "version": "1.0.0",
+  "version": "1.0.2",
   "monetization": {
     "model": "premium",
     "priceUsd": 2.99,

@@ -13,7 +13,7 @@ export const FIELD = { x0: -3.2, x1: 3.2, z0: -1.8, z1: 8.2 };
 export const LINE_Z = 0;
 export const CAN = { z: 4.6, r: 0.3, h: 0.62, hitR: 0.28, circle: 0.85 };
 export const HAND_Y = 1.05;
-export const SLIP = { r: 0.13, floor: 0.03 };
+export const SLIP = { r: 0.16, floor: 0.03 };
 export const TAG_R = 0.62;
 export const PICK_R = 0.6;
 export const SPEED = { thrower: 3.4, taya: 3.3, carry: 0.74 };
@@ -110,7 +110,7 @@ function stepCan(w, dt) {
   if (c.mode === 'up') { c.tilt = Math.max(0, c.tilt - dt * 9); return; }
   if (c.mode === 'carried') {
     const t = taya(w);
-    c.x = t.x + Math.sin(t.face) * 0.28; c.z = t.z + Math.cos(t.face) * 0.28; c.y = 0.78; c.tilt = Math.max(0, c.tilt - dt * 9); c.vx = c.vz = c.vy = 0;
+    c.x = t.x + Math.sin(t.face) * 0.37; c.z = t.z + Math.cos(t.face) * 0.37; c.y = 0.72; c.tilt = Math.max(0, c.tilt - dt * 9); c.vx = c.vz = c.vy = 0;
     return;
   }
   c.tilt = Math.min(1, c.tilt + dt * 5);
@@ -145,7 +145,7 @@ function stepSlip(w, s, dt) {
   s.px = s.x; s.py = s.y; s.pz = s.z; s.pyaw = s.yaw; s.ppitch = s.pitch;
   if (s.mode === 'held') {
     const a = w.agents.find((q) => q.id === s.held);
-    if (a) { s.x = a.x + Math.cos(a.face) * 0.42; s.z = a.z - Math.sin(a.face) * 0.42; s.y = 0.7; }
+    if (a) { s.x = a.x + Math.cos(a.face) * 0.45; s.z = a.z - Math.sin(a.face) * 0.45; s.y = 1.0; }
     s.pitch = 1.3; s.yaw = a ? -a.face + 1.2 : 0;
     return;
   }

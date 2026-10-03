@@ -11,7 +11,7 @@ export const SIN_A = (H_BACK - H_FRONT) / BOARD_L, COS_A = Math.sqrt(1 - SIN_A *
 export const HOLE_R = 0.0762, HOLE_V = BOARD_L - 0.2286;
 export const BAG_R = 0.082, BAG_HALF = 0.0762, BAG_T = 0.032;   // collision radius on the board, half side, thickness
 export const V_CAP = 4.0;
-export const SHOVE = 0.4;
+export const SHOVE = 0.4, REACT = 0.6;
 export const MU_K = 0.46, MU_LAND = 0.35, E_BAG = 0.2;
 export const RELEASE = { x: 0, y: 1.2, z: 0.5 };
 export const STYLES = [
@@ -83,19 +83,24 @@ function landOnBoard(sim, b) {
   const e = flat ? 0.03 : 0.2, grip = flat ? 1 : 0.55 + 0.45 * flatness;
   const imp = Math.max(0, -vn);
   let s = Math.hypot(vt, vu);
-  const raw = Math.max(0, s * (1 - 0.4 * grip) - MU_LAND * (1 + e) * imp * grip), ns = V_CAP * (1 - Math.exp(-raw / V_CAP));
-  const k = s > 1e-6 ? ns / s : 0;
-  // A bag that lands on or against another bag shoves it along, with part of the speed it arrived with (before the cloth soaks it up).
+  const raw = Math.max(0, s * (1 - 0.4 * grip) - MU_LAND * (1 + e) * imp * grip);
+  let ns = V_CAP * (1 - Math.exp(-raw / V_CAP));
+  // A bag that lands on or against another bag shoves it along: part of its sliding speed passes to the bag it hits (a hard slide pushes a blocker
+  // off, a soft lob barely moves it) and the lander loses what it gave (momentum is kept, like two equal bags). This is a house simplification of
+  // a real landing (bag on bag friction), documented in Rules.
+  let give = 0;
   for (const c of sim.bags) {
     if (c === b || c.st !== 'board') continue;
     const dx = c.u - p.u, dy = c.v - p.v, d = Math.hypot(dx, dy);
     if (d >= 2 * BAG_R * 1.05) continue;
     const mx = s > 1e-6 ? vu / s : 0, my = s > 1e-6 ? vt / s : 1, ax = d > 1e-6 ? dx / d : mx, ay = d > 1e-6 ? dy / d : my;
     let ux = 0.6 * mx + 0.4 * ax, uy = 0.6 * my + 0.4 * ay; const un = Math.hypot(ux, uy) || 1; ux /= un; uy /= un;
-    const k = SHOVE * Math.min(s, 10) * (1 - d / (2 * BAG_R * 1.05) * 0.5);
-    c.vu += ux * k; c.vv += uy * k; c.wyaw += ux * 2;
-    ev(sim, { k: 'bump', x: c.u, v: c.v, s: Math.min(1.4, k / 2) });
+    const kk = SHOVE * Math.min(s, 10) * (1 - d / (2 * BAG_R * 1.05) * 0.5);
+    c.vu += ux * kk; c.vv += uy * kk; c.wyaw += ux * 2; give += kk;
+    ev(sim, { k: 'bump', x: c.u, v: c.v, s: Math.min(1.4, kk / 2) });
   }
+  if (give > 0) ns = Math.max(0, ns - REACT * give);
+  const k = s > 1e-6 ? ns / s : 0;
   b.st = 'board'; b.u = p.u; b.v = p.v; b.vu = vu * k; b.vv = vt * k + (flat ? 0 : 0.35 * flatnessFlop(flatness));
   b.vy = 0; b.vx = 0; b.vz = 0;
   b.sq = 1; b.hop = e * imp * 0.04; b.landStrength = imp; b.flat = flat; b.landV = p.v; b.landU = p.u; b.lf = { yaw: b.yaw, pitch: b.pitch };

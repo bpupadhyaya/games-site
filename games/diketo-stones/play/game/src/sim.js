@@ -53,7 +53,10 @@ export const SLOTS = (() => {
   for (const deg of [30, 150, 270]) { const a = deg * TAU / 360; s.push({ x: Math.cos(a) * 88, y: Math.sin(a) * 88 }); }
   return s;
 })();
-export const slotPos = (id) => ({ x: PIT.x + SLOTS[id].x, y: PIT.y + SLOTS[id].y });
+// A six-stone pile (Quick) sits in a smaller hole with its stones packed closer.
+export const SLOTS6 = (() => { const s = [{ x: 0, y: 0 }]; for (let i = 0; i < 5; i++) { const a = i * TAU / 5 + 0.3; s.push({ x: Math.cos(a) * 50, y: Math.sin(a) * 50 }); } return s; })();
+export const pitRadius = (n) => (n <= 6 ? 92 : PIT.r);
+export const slotPos = (id, n = 10) => { const t = n <= 6 ? SLOTS6 : SLOTS; return { x: PIT.x + t[id].x, y: PIT.y + t[id].y }; };
 export const stoneRot = (id) => (id * 1.37) % 3.14;
 
 // A player's progress. pit = ids resting in the hole, ground = stones on the yard.
@@ -140,7 +143,7 @@ export const legTime = (d) => LEG + d / SPEED;
 
 // The stones a toss may take right now, with their positions. dir 'out': the stones in the hole; 'in': the stones on the ground.
 export function takeable(p) {
-  return p.dir === 'out' ? p.pit.map((id) => ({ id, ...slotPos(id) })) : p.ground.map((g) => ({ id: g.id, x: g.x, y: g.y }));
+  return p.dir === 'out' ? p.pit.map((id) => ({ id, ...slotPos(id, p.pit.length + p.ground.length) })) : p.ground.map((g) => ({ id: g.id, x: g.x, y: g.y }));
 }
 
 // The hand's timeline for a list of taps [{ t, id }] (time since the toss left the hand). ctx: { dir, take, sweep, stones, L }.

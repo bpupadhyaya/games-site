@@ -404,7 +404,8 @@ export function drawSlipper(ctx, cam, s, o = {}) {
   const [main, dark] = SLIP_COLORS[s.owner] ?? SLIP_COLORS[2];
   const cy = Math.cos(s.yaw), sy = Math.sin(s.yaw), cp = Math.cos(s.pitch), sp = Math.sin(s.pitch);
   // local (lx along length, lz across) -> world, with pitch about the across axis
-  const W = (lx, ly, lz) => { const x1 = lx * cp - ly * sp, y1 = lx * sp + ly * cp; return [s.x + x1 * cy - lz * sy, s.y + y1, s.z + x1 * sy + lz * cy]; };
+  const SS = 1.28;   // slippers are drawn generously so they read on a phone (the hit window below matches)
+  const W = (lx, ly, lz) => { lx *= SS; lz *= SS; ly *= SS; const x1 = lx * cp - ly * sp, y1 = lx * sp + ly * cp; return [s.x + x1 * cy - lz * sy, s.y + y1, s.z + x1 * sy + lz * cy]; };
   const thick = 0.045;
   // face-down check: the top face normal after pitch
   const ny = cp;
@@ -439,31 +440,139 @@ export function drawSlipper(ctx, cam, s, o = {}) {
   ctx.restore();
 }
 
-// ---- the round token players ------------------------------------------------------------------------------------------------
-// A chess-pawn style token: flared base, bell body, collar and a ball head, lit from the upper left. The lean pushes the head ahead of
-// the feet while running; the body squashes a little with each stride. No faces, no limbs: a clean marker that moves smoothly.
-const PAWN_PROFILE = [
-  { y: 0, r: 0.0 }, { y: 0.0, r: 0.3 }, { y: 0.03, r: 0.33 }, { y: 0.07, r: 0.31 }, { y: 0.11, r: 0.25 }, { y: 0.22, r: 0.2 }, { y: 0.45, r: 0.15 }, { y: 0.62, r: 0.12 },
-  { y: 0.68, r: 0.2 }, { y: 0.72, r: 0.21 }, { y: 0.75, r: 0.14 },
-  { y: 0.79, r: 0.1 }, { y: 0.84, r: 0.2 }, { y: 0.92, r: 0.27 }, { y: 1.02, r: 0.28 }, { y: 1.12, r: 0.25 }, { y: 1.19, r: 0.18 }, { y: 1.23, r: 0.08 }, { y: 1.24, r: 0.0 },
-];
+// ---- the players: stylised wooden-mannequin figures ----------------------------------------------------------------------------
+// Smooth limbs (capsules) with round heads and mitten hands, built from a small skeleton and projected through the one fixed camera:
+// the lowest foot always stands on the ground, the legs and arms swing with the stride, a thrower holds the slipper in the right
+// hand, a guard carries the can with both hands, and a thrower's arm follows through after a throw. No faces, no fingers. Each
+// player has a kit colour (shirt, shorts, white trim), a skin tone and hair of their own, and a slow idle sway with its own phase.
+const SKINS = ['#e0ae84', '#d49a6a', '#8d5a3b', '#b87a52'];
+const HAIRS = ['#2a1a12', '#1a1210', '#4a2f1c', '#241a16'];
+const v3 = { add: (p, q) => [p[0] + q[0], p[1] + q[1], p[2] + q[2]], sub: (p, q) => [p[0] - q[0], p[1] - q[1], p[2] - q[2]], mul: (p, k) => [p[0] * k, p[1] * k, p[2] * k], dot: (p, q) => p[0] * q[0] + p[1] * q[1] + p[2] * q[2], len: (p) => Math.hypot(p[0], p[1], p[2]) };
+const lerp3 = (p, q, t) => [p[0] + (q[0] - p[0]) * t, p[1] + (q[1] - p[1]) * t, p[2] + (q[2] - p[2]) * t];
+// two-bone reach: the elbow (or knee) bends towards `pole`
+function reach(S, T, l1, l2, pole) {
+  let d = v3.sub(T, S); let len = v3.len(d) || 1e-6;
+  const lim = l1 + l2 - 0.004; if (len > lim) { d = v3.mul(d, lim / len); len = lim; }
+  const dir = v3.mul(d, 1 / len);
+  const aa = (l1 * l1 - l2 * l2 + len * len) / (2 * len), hh = Math.sqrt(Math.max(0, l1 * l1 - aa * aa));
+  let pd = v3.sub(pole, v3.mul(dir, v3.dot(pole, dir))); const pl = v3.len(pd) || 1; pd = v3.mul(pd, 1 / pl);
+  return { elbow: v3.add(S, v3.add(v3.mul(dir, aa), v3.mul(pd, hh))), end: v3.add(S, d) };
+}
+function capsule(ctx, cam, A, B, rA, rB, col, o = {}) {
+  const pa = cam.P(...A), pb = cam.P(...B), sA = Math.max(1, cam.F * rA / cam.depth(...A)), sB = Math.max(1, cam.F * rB / cam.depth(...B));
+  const dx = pb[0] - pa[0], dy = pb[1] - pa[1], dl = Math.hypot(dx, dy);
+  const nx = dl > 0.01 ? -dy / dl : 1, ny = dl > 0.01 ? dx / dl : 0;
+  const pass = (ex, fill) => {
+    ctx.fillStyle = fill;
+    ctx.beginPath(); ctx.arc(pa[0], pa[1], sA + ex, 0, TAU); ctx.fill();
+    ctx.beginPath(); ctx.arc(pb[0], pb[1], sB + ex, 0, TAU); ctx.fill();
+    if (dl > 0.01) { ctx.beginPath(); ctx.moveTo(pa[0] + nx * (sA + ex), pa[1] + ny * (sA + ex)); ctx.lineTo(pb[0] + nx * (sB + ex), pb[1] + ny * (sB + ex)); ctx.lineTo(pb[0] - nx * (sB + ex), pb[1] - ny * (sB + ex)); ctx.lineTo(pa[0] - nx * (sA + ex), pa[1] - ny * (sA + ex)); ctx.closePath(); ctx.fill(); }
+  };
+  pass(1.1, hex(col, 0.42));
+  pass(0, col);
+  // a lit band on the upper-left side and a darker lower-right edge, so every limb reads as round
+  ctx.save(); ctx.globalAlpha = 0.34; const hx = -0.34, hy = -0.4;
+  ctx.fillStyle = '#ffffff';
+  ctx.beginPath(); ctx.arc(pa[0] + hx * sA, pa[1] + hy * sA, sA * 0.42, 0, TAU); ctx.fill();
+  ctx.beginPath(); ctx.arc(pb[0] + hx * sB, pb[1] + hy * sB, sB * 0.42, 0, TAU); ctx.fill();
+  if (dl > 0.01) { ctx.beginPath(); ctx.moveTo(pa[0] + hx * sA + nx * sA * 0.2, pa[1] + hy * sA + ny * sA * 0.2); ctx.lineTo(pb[0] + hx * sB + nx * sB * 0.2, pb[1] + hy * sB + ny * sB * 0.2); ctx.lineTo(pb[0] + hx * sB - nx * sB * 0.2, pb[1] + hy * sB - ny * sB * 0.2); ctx.lineTo(pa[0] + hx * sA - nx * sA * 0.2, pa[1] + hy * sA - ny * sA * 0.2); ctx.closePath(); ctx.fill(); }
+  ctx.restore();
+  ctx.save(); ctx.globalAlpha = 0.22; ctx.fillStyle = '#000';
+  const kx = 0.55, ky = 0.5;
+  ctx.beginPath(); ctx.arc(pa[0] + kx * sA * 0.55, pa[1] + ky * sA * 0.55, sA * 0.5, 0, TAU); ctx.fill();
+  ctx.beginPath(); ctx.arc(pb[0] + kx * sB * 0.55, pb[1] + ky * sB * 0.55, sB * 0.5, 0, TAU); ctx.fill();
+  ctx.restore();
+  void o;
+}
 export function drawPawn(ctx, cam, a, look, o = {}) {
   const { x, z } = o.pos;
-  const y0 = o.lift ?? 0;
-  const spd = Math.hypot(o.vx ?? 0, o.vz ?? 0);
-  const lean = [(o.vx ?? 0) * 0.09 + (o.fx ?? 0), (o.vz ?? 0) * 0.09 + (o.fz ?? 0)];
-  const stride = Math.sin((o.step ?? 0) * Math.PI);
-  const bob = spd > 0.4 ? Math.abs(stride) * 0.06 : 0;
-  const sq = 1 - (spd > 0.4 ? 0.025 * (1 - Math.abs(stride)) : 0) + (o.idle ?? 0) * 0.012;
-  const PS = 1.3;
-  const colorFor = (i) => (i <= 2 ? look.dark : i >= 8 && i <= 10 ? '#f6efe0' : look.main);
-  drawLathe(ctx, cam, x, z, y0 + bob, PAWN_PROFILE, look.main, { facets: 40, lean, squash: sq * PS, colorFor, amb: 0.42, dif: 0.62 });
-  // soft gloss on the head and shoulder, so the token reads as a lit, smooth object
-  const hp = cam.P(x + lean[0] - 0.08, y0 + bob + 1.1 * sq * PS, z + lean[1] - 0.12), kk = cam.F / cam.depth(x, 1.0, z);
-  const g = ctx.createRadialGradient(hp[0], hp[1], 0, hp[0], hp[1], kk * 0.17);
-  g.addColorStop(0, 'rgba(255,255,255,0.55)'); g.addColorStop(1, 'rgba(255,255,255,0)');
-  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(hp[0], hp[1], kk * 0.17, 0, TAU); ctx.fill();
-  return { top: cam.P(x + lean[0], y0 + bob + 1.3 * sq * PS, z + lean[1]), base: cam.P(x, 0, z) };
+  const f = a.face ?? 0, id = a.id ?? 0;
+  const fwd = [Math.sin(f), 0, Math.cos(f)], rt = [Math.cos(f), 0, -Math.sin(f)];
+  const sp = Math.hypot(o.vx ?? 0, o.vz ?? 0), k = Math.min(1, sp / 3.1);
+  const t = o.t ?? 0, ph = (o.step ?? 0) * Math.PI, sw = Math.sin(ph);
+  const skin = SKINS[id % 4], hair = HAIRS[(id + 1) % 4], shirt = look.main, shorts = look.dark, trim = '#f6efe0', shoe = '#2a1d17';
+  const sway = (1 - k) * Math.sin(t * 1.3 + id * 2.1) * 0.012, breathe = (1 - k) * Math.sin(t * 2.4 + id) * 0.006;
+  const SC = 1.22;   // figures are drawn a little larger than life so they read on a phone
+  const L = (lat, up, fw) => [x + (rt[0] * lat + fwd[0] * fw) * SC, up * SC, z + (rt[2] * lat + fwd[2] * fw) * SC];   // local (right, up, forward) -> world
+  const thr = a.throwT > 0 && a.role === 'thrower' ? Math.min(1, Math.max(0, 1 - a.throwT / 0.6)) : -1;
+  const lean = k * 0.05 + (thr >= 0 ? Math.sin(Math.PI * Math.min(1, thr * 1.4)) * 0.1 : 0) + (a.carry ? -0.03 : 0);
+  // legs: angle from straight down towards forward; the knee bends backwards while the leg swings through
+  const legs = [-1, 1].map((sd) => {
+    const th = sd * sw * 0.62 * k, kn = k * (0.12 + 0.95 * Math.max(0, sd * Math.cos(ph))) + (1 - k) * 0.04;
+    const knee = [sd * 0.095, -Math.cos(th) * 0.4, Math.sin(th) * 0.4], th2 = th - kn;
+    const ank = [sd * 0.095, knee[1] - Math.cos(th2) * 0.4, knee[2] + Math.sin(th2) * 0.4];
+    return { sd, hip: [sd * 0.095, 0, 0], knee, ank };
+  });
+  const lowest = Math.min(...legs.map((l) => l.ank[1]));
+  const hipY = 0.055 - lowest + (o.lift ?? 0) + breathe * 0.4;
+  const H = (p) => L(p[0] + sway, p[1] + hipY, p[2]);
+  const parts = [];
+  const add = (A, B, rA, rB, col, extra) => { rA *= SC; rB *= SC; parts.push({ A, B, rA, rB, col, d: cam.depth((A[0] + B[0]) / 2, (A[1] + B[1]) / 2, (A[2] + B[2]) / 2) - (extra ?? 0) }); };
+  for (const l of legs) {
+    const hip = H(l.hip), knee = H(l.knee), ank = H(l.ank);
+    const mid = lerp3(hip, knee, 0.55);
+    add(mid, knee, 0.062, 0.052, skin); add(hip, mid, 0.092, 0.07, shorts);
+    add(knee, ank, 0.05, 0.04, skin);
+    const toe = H([l.sd * 0.095, l.ank[1] - 0.02, l.ank[2] + 0.15]);
+    add([ank[0], ank[1] - 0.012, ank[2]], toe, 0.052, 0.046, shoe);
+  }
+  // pelvis, torso, neck, head
+  const hipsL = H([-0.095, 0.02, 0]), hipsR = H([0.095, 0.02, 0]);
+  add(hipsL, hipsR, 0.12, 0.12, shorts, 0.0);
+  const chest = H([0, 0.45 + breathe, lean * 3.2]), pel = H([0, 0.1, lean * 0.6]);
+  add(pel, chest, 0.135, 0.185, shirt, 0);
+  const hem = lerp3(pel, chest, 0.04);
+  add(hem, lerp3(pel, chest, 0.12), 0.141, 0.147, trim, 0.001);   // white hem trim at the bottom of the shirt
+  const neck = H([0, 0.52, lean * 3.6]), head = H([0, 0.69 + breathe * 2, lean * 4.2]);
+  add(chest, neck, 0.06, 0.06, skin);
+  add(lerp3(chest, neck, 0.15), lerp3(chest, neck, 0.7), 0.08, 0.07, trim, -0.002);   // collar
+  // arms
+  const shoulder = (sd) => H([sd * 0.2, 0.43 + breathe, lean * 3.0]);
+  const holdSlip = a.hasSlip && a.role === 'thrower' && thr < 0 && !a.carry;
+  const arms = [-1, 1].map((sd) => {
+    const S = shoulder(sd);
+    const asym = ((id * 7 + (sd > 0 ? 3 : 0)) % 5 - 2) * 0.022;
+    let al = -sd * sw * 0.95 * k + (1 - k) * (0.07 + asym + Math.sin(t * 1.1 + id + sd) * 0.04), fl = 0.28 + 0.85 * k;
+    let elbow, hand;
+    if (a.carry) {
+      const T = H([sd * 0.27, 0.0, 0.3]); const r = reach(S, T, 0.31, 0.29, v3.add(v3.mul(rt, sd * 1.0), [0, -0.2, -0.4]));
+      elbow = r.elbow; hand = r.end;
+    } else if (sd > 0 && holdSlip) {
+      const T = H([0.37, -0.03, 0.02]); const r = reach(S, T, 0.31, 0.29, v3.add(v3.mul(rt, 0.4), [0, -0.3, -0.8]));
+      elbow = r.elbow; hand = r.end;
+    } else {
+      if (sd > 0 && thr >= 0) { const e = 1 - Math.pow(1 - thr, 2.2); al = 2.4 + (0.2 - 2.4) * e; fl = 0.35 + 0.5 * (1 - e); }
+      const dir1 = [0, -Math.cos(al), Math.sin(al)], el = [S[0] - S[0], 0, 0];
+      void el;
+      const upl = (vec) => v3.add(v3.mul(rt, vec[0]), v3.add([0, vec[1], 0], v3.mul(fwd, vec[2])));
+      elbow = v3.add(S, v3.mul(upl(dir1), 0.31));
+      const a2 = al + fl, dir2 = [0, -Math.cos(a2), Math.sin(a2)];
+      hand = v3.add(elbow, v3.mul(upl(dir2), 0.29));
+      // a hanging arm hangs a little away from the body
+      const out = v3.mul(rt, sd * 0.03 * (1 - k)); elbow = v3.add(elbow, out); hand = v3.add(hand, v3.mul(out, 1.6));
+    }
+    return { sd, S, elbow, hand };
+  });
+  for (const m of arms) {
+    const mid = lerp3(m.S, m.elbow, 0.62);
+    add(m.S, mid, 0.066, 0.058, shirt, -0.004); add(mid, m.elbow, 0.056, 0.05, skin);
+    add(m.elbow, m.hand, 0.05, 0.043, skin);
+    add(m.hand, m.hand, 0.056, 0.056, skin, 0);
+  }
+  parts.sort((p, q) => q.d - p.d);
+  // hair sits behind the head when the player faces the camera, over it when facing away
+  const faceAway = fwd[2] > 0;
+  const hairC = v3.add(head, v3.add(v3.mul(fwd, -0.035 * SC), [0, 0.02 * SC, 0]));
+  let drewHead = false;
+  const drawHead = () => { drewHead = true; if (!faceAway) capsule(ctx, cam, hairC, hairC, 0.128 * SC, 0.128 * SC, hair); capsule(ctx, cam, head, head, 0.118 * SC, 0.118 * SC, skin); if (faceAway) capsule(ctx, cam, hairC, hairC, 0.121 * SC, 0.121 * SC, hair); };
+  const hd = cam.depth(...head);
+  for (const p of parts) {
+    if (!drewHead && p.d < hd) drawHead();
+    capsule(ctx, cam, p.A, p.B, p.rA, p.rB, p.col);
+  }
+  if (!drewHead) drawHead();
+  const top = cam.P(head[0], head[1] + 0.13 * SC, head[2]);
+  return { top, base: cam.P(x, 0, z) };
 }
 
 // ---- small helpers for effects --------------------------------------------------------------------------------------------

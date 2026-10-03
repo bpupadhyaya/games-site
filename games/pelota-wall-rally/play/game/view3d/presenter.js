@@ -47,36 +47,51 @@ export async function createPresenter({ kitCanvas, quality = pickQuality() }) {
 
   // effect pool: puffs (soft discs) and chalk marks, positioned on the surface that was struck (no wall or camera shake)
   const fxTex = (() => { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'); const gr = g.createRadialGradient(32, 32, 2, 32, 32, 30); gr.addColorStop(0, 'rgba(255,255,255,0.95)'); gr.addColorStop(0.5, 'rgba(255,255,255,0.45)'); gr.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = gr; g.fillRect(0, 0, 64, 64); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; return t; })();
-  const FXN = 10;
-  for (let i = 0; i < FXN; i++) {
-    const m = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ map: fxTex, transparent: true, depthWrite: false, opacity: 0, color: 0xffffff }));
-    m.visible = false; m.renderOrder = 2; stage.add(m);
-    P.fx.push({ m, t0: -9, dur: 0.4, kind: 'puff', size: 0.4 });
-  }
+  // every puff and chalk mark is a quad of ONE merged mesh (one draw call however many are alive); per-vertex colour carries the tint and the fade
+  const FXN = 12;
+  const fxGeo = new THREE.BufferGeometry();
+  const fxPos = new Float32Array(FXN * 12), fxCol = new Float32Array(FXN * 16), fxUv = new Float32Array(FXN * 8), fxIdx = [];
+  for (let i = 0; i < FXN; i++) { fxUv.set([0, 0, 1, 0, 1, 1, 0, 1], i * 8); fxIdx.push(i * 4, i * 4 + 1, i * 4 + 2, i * 4, i * 4 + 2, i * 4 + 3); }
+  fxGeo.setAttribute('position', new THREE.BufferAttribute(fxPos, 3)); fxGeo.setAttribute('color', new THREE.BufferAttribute(fxCol, 4)); fxGeo.setAttribute('uv', new THREE.BufferAttribute(fxUv, 2)); fxGeo.setIndex(fxIdx);
+  const fxMesh = new THREE.Mesh(fxGeo, new THREE.MeshBasicMaterial({ map: fxTex, transparent: true, depthWrite: false, vertexColors: true }));
+  fxMesh.frustumCulled = false; fxMesh.renderOrder = 2; fxMesh.visible = false; stage.add(fxMesh);
+  for (let i = 0; i < FXN; i++) P.fx.push({ i, on: false, t0: -9, dur: 0.4, kind: 'puff', size: 0.4, pos: new THREE.Vector3(), q: new THREE.Quaternion(), rgb: [1, 1, 1] });
   let fxNext = 0;
+  const _e = new THREE.Euler(), _v = new THREE.Vector3(), CORNERS = [[-0.5, -0.5], [0.5, -0.5], [0.5, 0.5], [-0.5, 0.5]];
+  function fxWrite(f, scale, alpha) {
+    for (let c = 0; c < 4; c++) {
+      _v.set(CORNERS[c][0] * scale, CORNERS[c][1] * scale, 0).applyQuaternion(f.q).add(f.pos);
+      fxPos.set([_v.x, _v.y, _v.z], (f.i * 4 + c) * 3); fxCol.set([f.rgb[0], f.rgb[1], f.rgb[2], alpha], (f.i * 4 + c) * 4);
+    }
+  }
   function spawnFx(kind, e, tNow) {
     const f = P.fx[fxNext++ % FXN];
     const sp = Math.min(1.6, 0.5 + (e.speed || 0) * 0.05);
-    f.t0 = tNow; f.kind = kind;
-    const m = f.m; m.visible = true;
-    m.material.color.set(kind === 'tin' ? 0xbfe8ff : kind === 'mark' ? 0xe8e0c4 : 0xffffff);
-    if (e.kind === 'floor') { m.position.set(e.x, 0.025, e.z); m.rotation.set(-Math.PI / 2, 0, 0); }
-    else if (e.kind === 'front' || e.kind === 'tin' || e.kind === 'high') { m.position.set(e.x, e.y, 10.485); m.rotation.set(0, Math.PI, 0); }
-    else if (e.kind === 'left') { m.position.set(2.585, e.y, e.z); m.rotation.set(0, -Math.PI / 2, 0); }
-    else if (e.kind === 'back') { m.position.set(e.x, e.y, 0.02); m.rotation.set(0, 0, 0); }
-    else { m.position.set(e.x, e.y, e.z); m.rotation.set(0, 0, 0); }
+    f.t0 = tNow; f.kind = kind; f.on = true;
+    f.rgb = kind === 'tin' ? [0.75, 0.91, 1] : kind === 'mark' ? [0.91, 0.88, 0.77] : [1, 1, 1];
+    if (e.kind === 'floor') { f.pos.set(e.x, 0.025, e.z); _e.set(-Math.PI / 2, 0, 0); }
+    else if (e.kind === 'front' || e.kind === 'tin' || e.kind === 'high') { f.pos.set(e.x, e.y, 10.485); _e.set(0, Math.PI, 0); }
+    else if (e.kind === 'left') { f.pos.set(2.585, e.y, e.z); _e.set(0, -Math.PI / 2, 0); }
+    else if (e.kind === 'back') { f.pos.set(e.x, e.y, 0.02); _e.set(0, 0, 0); }
+    else { f.pos.set(e.x, e.y, e.z); _e.set(0, 0, 0); }
+    f.q.setFromEuler(_e);
     f.size = kind === 'mark' ? 0.34 : 0.5 * sp; f.dur = kind === 'mark' ? 2.2 : kind === 'tin' ? 0.3 : 0.45;
-    m.scale.set(f.size * 0.3, f.size * 0.3, 1);
+    fxWrite(f, f.size * 0.3, 0);
+    fxGeo.attributes.position.needsUpdate = fxGeo.attributes.color.needsUpdate = true;
   }
   function updateFx(tNow) {
+    let any = false;
     for (const f of P.fx) {
-      if (!f.m.visible) continue;
+      if (!f.on) continue;
       const u = (tNow - f.t0) / f.dur;
-      if (u >= 1) { f.m.visible = false; continue; }
+      if (u >= 1) { f.on = false; fxWrite(f, 0, 0); continue; }
+      any = true;
       if (u < 0) continue;
-      if (f.kind === 'mark') { f.m.scale.set(f.size, f.size, 1); f.m.material.opacity = 0.35 * (1 - u) * Math.min(1, u * 12); }
-      else { const k = 0.3 + 0.9 * Math.sqrt(u); f.m.scale.set(f.size * k, f.size * k, 1); f.m.material.opacity = 0.7 * (1 - u); }
+      if (f.kind === 'mark') fxWrite(f, f.size, 0.35 * (1 - u) * Math.min(1, u * 12));
+      else { const k = 0.3 + 0.9 * Math.sqrt(u); fxWrite(f, f.size * k, 0.7 * (1 - u)); }
     }
+    fxMesh.visible = any;
+    if (any || fxGeo.attributes.position.version >= 0) { fxGeo.attributes.position.needsUpdate = true; fxGeo.attributes.color.needsUpdate = true; }
   }
 
   // ---------------------------------------------------------------- humans
@@ -170,8 +185,9 @@ export async function createPresenter({ kitCanvas, quality = pickQuality() }) {
 
   function swingPoseAt(pa, sp, sw, tr, dt, ballPos) {
     const m = sp.lefty ? -1 : 1;
-    if (pa.swingId !== sw.id) {
-      pa.swingId = sw.id;
+    const ck = `${sw.cp.x.toFixed(4)},${sw.cp.y.toFixed(4)},${sw.cp.z.toFixed(4)}`;   // the stroke follows the sim's contact point even if it is re-planned
+    if (pa.swingId !== sw.id || pa.swingKey !== ck) {
+      pa.swingId = sw.id; pa.swingKey = ck;
       pa.def = strokeDef(sw, m, P.simRef.s.equip);
       pa.feet = stanceFeet(sw.S, sw.faceYaw ?? 0, m, sw.back);
     }

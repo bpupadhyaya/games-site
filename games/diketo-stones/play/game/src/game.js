@@ -8,12 +8,12 @@
 import {
   W, H, HOME, PIT, R, CHARGE_SECS, H_MIN, WIN_EARLY, WIN_LATE, TAP_REACT, TAP_GAP,
   MODES, winScale, clamp, dist, legTime, airtime, landing, newRoll, planLegs, handAt, catchResult, applyToss, dropSpots, freshPlayer, playerDone,
-  slotPos, stageCount,
+  slotPos, stageCount, pitRadius,
 } from './sim.js';
 import { LEVELS, HINT, tossCtx, rankPlans, aiToss, preTime } from './ai.js';
-import { inRect, playLayout, toWorld, TEXT_DEC, TEXT_INC, REF_BACK, REF_NEXT, TEXT_SCALES, THINK_STEPS, SETUP_PINS } from './layout.js';
-import { renderPlay } from './view.js';
-import { renderTitle, renderSetup, renderSettings, renderResult, renderPause, renderPages, renderDemoLimit, renderLessons, renderLessonIntro, hitScreen, flowMeta, pageCount, ensureLayout } from './menus.js';
+import { inRect, playLayout, toWorld, TEXT_DEC, TEXT_INC, CLOSE_BTN, TEXT_SCALES, THINK_STEPS, SETUP_PINS } from './layout.js';
+import { renderPlay, hintMeta } from './view.js';
+import { renderTitle, renderSetup, renderSettings, renderResult, renderPause, renderPages, renderDemoLimit, renderLessons, renderLessonIntro, hitScreen, flowMeta, readerMax, readerPage, ensureLayout } from './menus.js';
 import { LESSONS, DEMO_LESSONS } from './lessons.js';
 import { pagesFor, tx } from './content.js';
 import { explainPlan } from './explain.js';
@@ -37,7 +37,7 @@ export function createGame(env) {
     settings: { sound: true, calm: false, textIdx: 0, thinkIdx: 1 },
     record: { played: 0, wins: [0, 0, 0, 0, 0], streak: 0, bestStreak: 0, demoMatches: 0, lessons: LESSONS.map(() => false) },
     setup: { opp: 'cpu', lvl: 1, len: 'quick' }, setupMsg: '', restoreMsg: '',
-    ui: { scroll: 0, drag: null }, page: 0, lessonSel: 0,
+    ui: { scroll: 0, drag: null, hscroll: 0, hdrag: null }, page: 0, lessonSel: 0,
     match: null, rd: null, att: null, saved: null, toast: '', toastT: 0, loaded: false,
   };
   // wall-clock drawing helpers stay out of the enumerable state (hashes and saves never see them)
@@ -157,7 +157,7 @@ export function createGame(env) {
     };
     state.scene = 'play'; state.paused = false; state.pauseMenu = false; state.ui.scroll = 0;
     if (state.demo && (cfg.mode === 'cpu' || cfg.mode === 'pass')) { state.record.demoMatches++; saveSettings(); }
-    startTurn(0);
+    startTurn(cfg.mode === 'cpu' ? (state.record.played + (cfg.flip | 0)) % 2 : 0);   // the first turn alternates, so neither side always starts
   }
   function startTurn(who) {
     const m = state.match;
@@ -202,11 +202,11 @@ export function createGame(env) {
 
   // ---- the air: taps pick stones, the hand follows --------------------------------------------------------------
   const winOf = () => winScale(state.rd.h);
-  const originOf = (id) => { const rd = state.rd, p = state.match.ps[rd.who]; const g = p.ground.find((q) => q.id === id); return g ? { x: g.x, y: g.y } : slotPos(id); };
+  const originOf = (id) => { const rd = state.rd, p = state.match.ps[rd.who]; const g = p.ground.find((q) => q.id === id); return g ? { x: g.x, y: g.y } : slotPos(id, p.pit.length + p.ground.length); };
   function refreshTaken() {
     const rd = state.rd;
     rd.taken = rd.ev.picks.map((pk, i) => {
-      const to = rd.dir === 'in' ? slotPos(pk.id) : rd.spots[i];
+      const to = rd.dir === 'in' ? slotPos(pk.id, MODES[modeOf()].n) : rd.spots[i];
       return { id: pk.id, tPick: pk.t, from: originOf(pk.id), to, rot: rd.dir === 'out' ? rd.spots[i].rot : 0 };
     });
   }
@@ -215,12 +215,12 @@ export function createGame(env) {
     const rd = state.rd, ctx = rd.ctx;
     if (!ctx || !ctx.stones.length) return null;
     if (ctx.sweep) {
-      if (ctx.dir === 'out') return dist(wp.x, wp.y, PIT.x, PIT.y) <= PIT.r + 14 ? ctx.stones[0].id : null;
+      if (ctx.dir === 'out') return dist(wp.x, wp.y, PIT.x, PIT.y) <= pitRadius(MODES[modeOf()].n) + 14 ? ctx.stones[0].id : null;
       const cx = ctx.stones.reduce((a, s) => a + s.x, 0) / ctx.stones.length, cy = ctx.stones.reduce((a, s) => a + s.y, 0) / ctx.stones.length;
-      const near = ctx.stones.some((s) => dist(wp.x, wp.y, s.x, s.y) <= R * 1.9);
+      const near = ctx.stones.some((s) => dist(wp.x, wp.y, s.x, s.y) <= R * 2.2);
       return near || dist(wp.x, wp.y, cx, cy) <= 70 ? ctx.stones[0].id : null;
     }
-    let best = null, bd = R * 1.9;
+    let best = null, bd = R * 2.2;
     for (const s of ctx.stones) { const d = dist(wp.x, wp.y, s.x, s.y); if (d < bd) { bd = d; best = s; } }
     return best ? best.id : null;
   }
@@ -322,7 +322,7 @@ export function createGame(env) {
     const ctx = rd.ctx;
     const ranked = rankPlans(ctx, HINT);
     const plan = ranked[0];
-    rd.hint = { kind: 'plan', plan, text: explainPlan(ctx, plan), t: 0 };
+    rd.hint = { kind: 'plan', plan, text: explainPlan(ctx, plan), t: 0 }; state.ui.hscroll = 0;
   }
   const hintAllowed = () => !!state.rd && ['ready', 'charge'].includes(state.rd.phase);
 
@@ -345,7 +345,7 @@ export function createGame(env) {
     if (rd.beat && rd.beat.phase !== 'act') {
       const b = rd.beat;
       b.t += dt;
-      if (b.phase === 'think') { if (b.t >= b.dur) { b.phase = 'reveal'; b.t = 0; b.dur = REVEAL_SECS; sfx.tick(); b.reason = a.reason; } }
+      if (b.phase === 'think') { if (b.t >= b.dur) { b.phase = 'reveal'; b.t = 0; b.dur = REVEAL_SECS; sfx.tick(); b.reason = a.reason; state.ui.hscroll = 0; } }
       else if (b.t >= b.dur) { b.phase = 'act'; b.t = 0; sfx.tick(); }
       return;
     }
@@ -408,6 +408,16 @@ export function createGame(env) {
     }
     if (state.paused) return;
     if (keys.pressed.has('KeyH') && !ai && hintAllowed()) requestHint();
+    // a long Think / reveal card scrolls: drag on it, or use the arrow keys
+    const hm = hintMeta();
+    if ((rd.hint || (rd.beat && rd.beat.phase === 'reveal')) && hm.max > 0) {
+      if (ptr.pressed && inRect(hm.rect, ptr.x, ptr.y)) state.ui.hdrag = { y0: ptr.y, s0: state.ui.hscroll };
+      if (state.ui.hdrag && ptr.down) { state.ui.hscroll = clamp(state.ui.hdrag.s0 - (ptr.y - state.ui.hdrag.y0), 0, hm.max); if (rd.hint) rd.hint.t = 0; }
+      if (!ptr.down) state.ui.hdrag = null;
+      if (keys.down.has('ArrowDown')) state.ui.hscroll = clamp(state.ui.hscroll + 12, 0, hm.max);
+      if (keys.down.has('ArrowUp')) state.ui.hscroll = clamp(state.ui.hscroll - 12, 0, hm.max);
+    }
+    if (state.ui.hdrag) ptr.pressed = false;
     // ---- human input per phase
     const human = !ai && !state.shot;
     if (human && rd.banner && rd.banner.kind === 'turn' && ptr.pressed && rd.bannerT < 0.9) rd.bannerT = 0;
@@ -420,9 +430,11 @@ export function createGame(env) {
         }
         case 'charge': {
           chargeTick(rd, dt);
-          // the kit has one pointer: a stray second finger lifting elsewhere looks like a release, so a release outside the pad
-          // is ignored (the charge runs on to its cap) and only a release on the pad tosses
-          const held = rd.keyCharge ? keys.down.has('Space') : ptr.down || (!padHit(L, ptr.x, ptr.y) && rd.charge < CHARGE_SECS);
+          // the kit has one pointer: a stray second finger lifting elsewhere looks like a release. A release off the pad is
+          // ignored; if no real release comes by full charge the aim is simply cancelled (no surprise toss)
+          const stray = !rd.keyCharge && !ptr.down && !padHit(L, ptr.x, ptr.y);
+          if (stray && rd.charge >= CHARGE_SECS) { rd.phase = 'ready'; rd.charge = 0; rd.chargeH = H_MIN; rd.pt = 0; break; }
+          const held = rd.keyCharge ? keys.down.has('Space') : ptr.down || stray;
           if (!held) releaseToss(heightFor(rd.charge));
           break;
         }
@@ -492,8 +504,8 @@ export function createGame(env) {
     if (!id) return;
     sfx.tick();
     if (id === 'resume') closePause();
-    else if (id === 'p-rules') { state.back = 'play'; state.scene = 'rules'; state.page = 0; }
-    else if (id === 'p-howto') { state.back = 'play'; state.scene = 'howto'; state.page = 0; }
+    else if (id === 'p-rules') { state.back = 'play'; state.scene = 'rules'; state.page = 0; state.ui.scroll = 0; }
+    else if (id === 'p-howto') { state.back = 'play'; state.scene = 'howto'; state.page = 0; state.ui.scroll = 0; }
     else if (id === 'p-sound') { state.settings.sound = !state.settings.sound; audio.setMuted?.(!state.settings.sound); saveSettings(); }
     else if (id === 'p-calm') { state.settings.calm = !state.settings.calm; saveSettings(); }
     else if (id === 'p-txt-dec') { state.settings.textIdx = Math.max(0, state.settings.textIdx - 1); state.ui.scroll = 0; saveSettings(); }
@@ -507,7 +519,7 @@ export function createGame(env) {
     else if (id === 'play') { state.scene = 'setup'; state.ui.scroll = 0; state.setupMsg = ''; }
     else if (id === 'learn') { state.scene = 'lessons'; state.ui.scroll = 0; }
     else if (id === 'watch') startWatch();
-    else if (id === 'howto' || id === 'rules' || id === 'about') { state.back = 'title'; state.scene = id; state.page = 0; }
+    else if (id === 'howto' || id === 'rules' || id === 'about') { state.back = 'title'; state.scene = id; state.page = 0; state.ui.scroll = 0; }
     else if (id === 'settings') { state.scene = 'settings'; state.ui.scroll = 0; }
   };
   function startWatch() {
@@ -569,6 +581,7 @@ export function createGame(env) {
     else if (id === 'menu') { state.scene = 'title'; state.ui.scroll = 0; }
   };
 
+  let wheelQ = 0;
   const neutral = { x: 0, y: 0, down: false, pressed: false, released: false };
   const updateFlowScene = (dt, input, handler, key) => {
     const ptr = state.shot ? neutral : input.pointer;
@@ -598,20 +611,40 @@ export function createGame(env) {
   };
   const updatePages = (input) => {
     const ptr = state.shot ? neutral : input.pointer, keys = input.keys;
-    const n = pageCount();
-    const close = () => { state.scene = state.back === 'play' ? 'play' : 'title'; state.page = 0; };
-    const next = () => { if (state.page >= n - 1) close(); else state.page++; };
-    const prev = () => { if (state.page <= 0) close(); else state.page--; };
+    const close = () => { state.scene = state.back === 'play' ? 'play' : 'title'; state.page = 0; state.ui.scroll = 0; state.ui.drag = null; };
+    const max = readerMax(), step = readerPage() * 0.85;
     if (ptr.pressed) {
-      if (inRect(REF_NEXT, ptr.x, ptr.y)) next();
-      else if (inRect(REF_BACK, ptr.x, ptr.y)) prev();
-      else if (inRect(TEXT_DEC, ptr.x, ptr.y)) { state.settings.textIdx = Math.max(0, state.settings.textIdx - 1); saveSettings(); }
-      else if (inRect(TEXT_INC, ptr.x, ptr.y)) { state.settings.textIdx = Math.min(TEXT_SCALES.length - 1, state.settings.textIdx + 1); saveSettings(); }
+      if (inRect(CLOSE_BTN, ptr.x, ptr.y)) { close(); return; }
+      else if (inRect(TEXT_DEC, ptr.x, ptr.y)) { state.settings.textIdx = Math.max(0, state.settings.textIdx - 1); state.ui.scroll = 0; saveSettings(); }
+      else if (inRect(TEXT_INC, ptr.x, ptr.y)) { state.settings.textIdx = Math.min(TEXT_SCALES.length - 1, state.settings.textIdx + 1); state.ui.scroll = 0; saveSettings(); }
+      else state.ui.drag = { y0: ptr.y, s0: state.ui.scroll, moved: 0 };
     }
-    if (keys.pressed.has('ArrowRight')) next();
-    if (keys.pressed.has('ArrowLeft')) prev();
+    if (state.ui.drag && ptr.down) { const d = state.ui.drag; d.moved = Math.max(d.moved, Math.abs(ptr.y - d.y0)); state.ui.scroll = clamp(d.s0 - (ptr.y - d.y0), 0, max); }
+    if (ptr.released) state.ui.drag = null;
+    if (keys.down.has('ArrowDown')) state.ui.scroll = clamp(state.ui.scroll + 16, 0, max);
+    if (keys.down.has('ArrowUp')) state.ui.scroll = clamp(state.ui.scroll - 16, 0, max);
+    if (keys.pressed.has('PageDown') || keys.pressed.has('Space')) state.ui.scroll = clamp(state.ui.scroll + step, 0, max);
+    if (keys.pressed.has('PageUp')) state.ui.scroll = clamp(state.ui.scroll - step, 0, max);
+    if (keys.pressed.has('Home')) state.ui.scroll = 0;
+    if (keys.pressed.has('End')) state.ui.scroll = max;
+    if (keys.pressed.has('Equal') || keys.pressed.has('NumpadAdd')) { state.settings.textIdx = Math.min(TEXT_SCALES.length - 1, state.settings.textIdx + 1); state.ui.scroll = 0; saveSettings(); }
+    if (keys.pressed.has('Minus') || keys.pressed.has('NumpadSubtract')) { state.settings.textIdx = Math.max(0, state.settings.textIdx - 1); state.ui.scroll = 0; saveSettings(); }
     if (keys.pressed.has('Escape')) close();
   };
+
+  // mouse wheel / trackpad: scrolls whatever scrolls on this screen (readers, flow screens, pause sheet, Think / reveal cards)
+  function applyWheel(dy) {
+    const rd = state.rd;
+    if (state.scene === 'play') {
+      if (state.pauseMenu) { const mt = flowMeta(); if (mt.key === 'pause' && mt.lay) state.ui.scroll = clamp(state.ui.scroll + dy, 0, Math.max(0, mt.lay.contentH - (mt.bottom - mt.top))); return; }
+      const hm = hintMeta();
+      if (rd && (rd.hint || (rd.beat && rd.beat.phase === 'reveal')) && hm.max > 0) { state.ui.hscroll = clamp((state.ui.hscroll || 0) + dy, 0, hm.max); if (rd.hint) rd.hint.t = 0; }
+      return;
+    }
+    if (state.scene === 'howto' || state.scene === 'about' || state.scene === 'rules') { state.ui.scroll = clamp(state.ui.scroll + dy, 0, readerMax()); return; }
+    const mt = flowMeta();
+    if (mt.lay) state.ui.scroll = clamp(state.ui.scroll + dy, 0, Math.max(0, mt.lay.contentH - (mt.bottom - mt.top)));
+  }
 
   // ---- the yard behind the title: a computer hand playing stage 1 over and over -----------------------------------------
   function startAttract() {
@@ -632,7 +665,7 @@ export function createGame(env) {
       who: 0, phase: 'ready', ctx: pick.ctx, ev: pick.ev, h: pick.h, roll: pick.roll, L: pick.L, T: pick.T0, taps: [], dir: p.dir, et: -0.9, etPrev: -0.9, det: -0.9,
       res: null, resAt: null, catchAt: null, trail: [], parts: [], floats: [], hint: null, beat: null, ai: null, charge: 0, chargeH: 0.5, spots, picked: [], taken: null, dropped: false,
     };
-    rd.taken = pick.ev.picks.map((pk, i) => ({ id: pk.id, tPick: pk.t, from: (p.ground.find((q) => q.id === pk.id) ?? slotPos(pk.id)), to: p.dir === 'in' ? slotPos(pk.id) : spots[i], rot: spots ? spots[i].rot : 0 }));
+    rd.taken = pick.ev.picks.map((pk, i) => ({ id: pk.id, tPick: pk.t, from: (p.ground.find((q) => q.id === pk.id) ?? slotPos(pk.id, MODES[mode].n)), to: p.dir === 'in' ? slotPos(pk.id, MODES[mode].n) : spots[i], rot: spots ? spots[i].rot : 0 }));
     state.att = { p, rd, taps: pick.taps, spots, done: 0, mode };
   }
   function updateAttract(dt) {
@@ -686,8 +719,8 @@ export function createGame(env) {
     else if (n === 13) { state.scene = 'about'; state.back = 'title'; }
     else if (n === 14) { state.settings.textIdx = 4; go({}, (rd, p) => { p.stage = 2; scatterPlayer(p, 'in', 0); beginReady(); requestHint(); }); }
     else if (n === 15) { state.settings.textIdx = 4; state.scene = 'title'; }
-    else if (n === 16) { state.settings.textIdx = 4; state.scene = 'rules'; state.back = 'title'; state.page = 2; }
-    else if (n === 17) { state.scene = 'rules'; state.back = 'title'; state.page = 3; }
+    else if (n === 16) { state.settings.textIdx = 4; state.scene = 'rules'; state.back = 'title'; state.ui.scroll = 1200; }
+    else if (n === 17) { state.scene = 'rules'; state.back = 'title'; state.ui.scroll = 1800; }
     else if (n === 18) { state.settings.textIdx = 4; go({}, () => {}); state.paused = true; state.pauseMenu = true; }
     else if (n === 19) { state.settings.textIdx = 4; state.scene = 'setup'; }
     else if (n === 20) { state.settings.textIdx = 4; state.scene = 'settings'; }
@@ -697,7 +730,7 @@ export function createGame(env) {
     else if (n === 25) { state.settings.textIdx = 4; state.scene = 'lessonintro'; state.lessonSel = 3; }
     else if (n === 26) { state.settings.textIdx = 4; go({}, () => {}); state.match.turns = 5; state.match.stats = { tosses: [31, 26], faults: [6, 8] }; state.match.over = { win: 1 }; state.scene = 'result'; }
     else if (n === 27) { state.settings.textIdx = 4; state.scene = 'about'; state.back = 'title'; }
-    else if (n === 28) { state.settings.textIdx = 4; state.scene = 'howto'; state.back = 'title'; state.page = 2; }
+    else if (n === 28) { state.settings.textIdx = 4; state.scene = 'howto'; state.back = 'title'; state.ui.scroll = 600; }
     else if (n === 29) { state.settings.textIdx = 4; state.demo = true; state.scene = 'demolimit'; }
     else if (n === 30) { state.settings.textIdx = 4; go({}, (rd, p) => { p.stage = 3; scatterPlayer(p, 'in', 0); beginReady(); launch(rd, 0.7, 1.0, 0.7, rankPlans(rd.ctx, HINT)[0].ids, 0.5); }); }
     else if (n === 31) { go({}, (rd, p) => { p.stage = 3; scatterPlayer(p, 'in', 0); beginReady(); launch(rd, 0.4, 1.0, 0.8, p.ground.slice(0, 3).map((g) => g.id), 1.05); finishAir(catchResult(rd.ev, rd.T, rd.h, null)); rd.phase = 'turnend'; rd.banner = { kind: 'end', text: T('turnFault', { name: nameOf(0) }) }; rd.bannerT = 2; }); }
@@ -708,7 +741,7 @@ export function createGame(env) {
     // review aid: ?zoom=0..4 and ?page=N override the staged text size and reader page
     const q = (k) => { const m = new RegExp(`[?&]${k}=([a-z0-9]+)`).exec(location.search); return m ? m[1] : null; };
     if (q('zoom')) state.settings.textIdx = clamp(Number(q('zoom')) | 0, 0, 4);
-    if (q('page')) state.page = Number(q('page')) | 0;
+    if (q('page')) state.ui.scroll = (Number(q('page')) | 0) * 700;
     if (q('view')) { const v = q('view'); state.scene = v; state.back = 'title'; }
   }
 
@@ -729,6 +762,7 @@ export function createGame(env) {
       const input = state.shot ? { pointer: neutral, keys: { down: new Set(), pressed: new Set() } } : input0;
       setPress(input.pointer);
       state.updAt = nowMs(); state.alpha = 1;
+      if (wheelQ !== 0) { applyWheel(wheelQ); wheelQ = 0; }
       const frozen = state.paused && state.scene === 'play';
       if (!frozen) state.t += dt;
       if (state.att && state.scene !== 'play') updateAttract(dt);
@@ -766,6 +800,7 @@ export function createGame(env) {
         default: break;
       }
     },
+    wheel(dy) { if (Number.isFinite(dy)) wheelQ = clamp(wheelQ + dy, -4000, 4000); },
     getState: () => state,
   };
 }

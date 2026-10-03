@@ -25,6 +25,12 @@
     "description": "A simplified seven-on-seven game of American football in 3D. Pick a position, call plays and play it in real time: throw, run, catch, rush, cover and tackle. Five opponent levels, Watch & Learn, and a full Rules page.",
     "genre": "team sport with play-calling",
     "demo": true,
+    "howToPlay": [
+      "Pick one position and a level, then kick off.",
+      "Each down, call a play or a defence from the diagrams.",
+      "Drag to run; tap the buttons to throw, catch, juke, tackle or swat.",
+      "Gain 10 yards in four downs and score more than the computer."
+    ],
     "icon": "games/american-football-seven-on-seven/icon.svg",
     "play": "games/american-football-seven-on-seven/play/"
   },
@@ -87,24 +93,6 @@
     ],
     "icon": "games/bao-la-kiswahili/icon.svg",
     "play": "games/bao-la-kiswahili/play/"
-  },
-  {
-    "slug": "basketball-three-on-three",
-    "stage": "release-candidate",
-    "title": "Basketball 3x3",
-    "tagline": "Pick a role. Screen, drive, shoot, rebound.",
-    "description": "Play real 3x3 half-court basketball in 3D: pick guard, wing or big, and control that one player while the computer plays your two teammates and three opponents. Time your shot in the green zone, set screens, pass to the open player, steal, block and rebound. Five opponent levels, a Learn path, Think hints and Watch & Learn.",
-    "genre": "half-court basketball sport",
-    "demo": true,
-    "howToPlay": [
-      "Choose a role: guard, wing or big. You control that one player.",
-      "Left thumb moves. SHOOT: hold and release in the green zone. PASS to a teammate, CROSS to beat a defender.",
-      "Without the ball: CALL for a pass, hold SCREEN to free a teammate, CUT into space.",
-      "On defence: stay between your man and the hoop, STEAL when the ball is low, BLOCK a shooter, JUMP for rebounds.",
-      "First to 21 or the lead at 10:00 wins; overtime is first to 2."
-    ],
-    "icon": "games/basketball-three-on-three/icon.svg",
-    "play": "games/basketball-three-on-three/play/"
   },
   {
     "slug": "big-card-solitaire-large-print",
@@ -1219,13 +1207,13 @@
     "stage": "release-candidate",
     "title": "Sapo: Frog Toss",
     "tagline": "Toss brass discs at the open mouth of the frog.",
-    "description": "The classic tavern table game of Peru, Chile and Argentina. Pull back, aim, add spin and drop brass discs into the golden frog's mouth for 500.",
+    "description": "The classic tavern table game of Peru, Chile and Argentina. Pull back, aim, add spin and drop brass discs into the golden frog's mouth for 400.",
     "genre": "skill toss / tavern table game",
     "demo": true,
     "howToPlay": [
       "Drag down in the lower part of the screen to pull the disc back; the ring shows where it lands.",
       "Pick a high Lob or a low Drive, and a spin to the left or right.",
-      "A disc that drops into a hole scores: the frog's mouth is worth 500.",
+      "A disc that drops into a hole scores: the frog's mouth is worth 400.",
       "Loose discs stay on the table: knock your rival's away.",
       "After each round the loose disc nearest the mouth earns a bonus. Tap Think for a tested throw."
     ],
@@ -1435,7 +1423,7 @@
     "genre": "race board game, stick dice",
     "demo": true,
     "howToPlay": [
-      "Each side has seven stones (or four in a quick game). Bring every stone home before your rival does.",
+      "Each side has three stones in a short game (five or seven for a longer one). Bring every stone home before your rival does.",
       "Tap Throw: four sticks tumble. Flat sides up are your count: none flat is 6, one is 1, two is 2, three is 3, four is 4.",
       "After a 1, 4 or 6 you throw again. A 2 or 3 ends your throws. Keep every count and spend them in any order.",
       "A 1 brings a stone on. Spend a count: tap a stone, then the glowing square. Landing on a rival stone captures it.",
@@ -1617,13 +1605,14 @@
     "stage": "release-candidate",
     "title": "Tumbang Preso: Can Toss",
     "tagline": "Knock the can down. Fetch your slipper. Do not get tagged.",
-    "description": "A traditional street game from the Philippines in real time. Throw slippers at the can as a thrower, or guard it as the taya: stand it up again and tag the runners. Real flight and bounce physics, five computer players, short lessons, hints with the numbers behind them, and a Watch & Learn mode that explains every choice.",
+    "description": "A traditional street game from the Philippines in real time. Throw slippers at the can as a thrower, or guard it as the taya: stand it up again and tag the runners. Stylised mannequin players, real flight and bounce physics, five computer players, short lessons, hints with the numbers behind them, and a Watch & Learn mode that explains every choice.",
     "genre": "street toss and tag",
     "demo": true,
     "howToPlay": [
       "Drag on the yard to place the target ring on the can, choose Lob or Skim and press Throw.",
       "When the can falls, the guard has to fetch it and stand it up: that is your time to run for your slipper.",
       "Behind the toe line you are safe. Out in the yard you can be tagged while the can stands.",
+      "A tag ends the round, and you keep your role for the whole match.",
       "As the guard, press Fix can, then chase the runner most likely to be caught."
     ],
     "icon": "games/tumbang-preso-can-toss/icon.svg",

@@ -34,6 +34,11 @@ const touchSnapshot = () => {
   return out;
 };
 
+// mouse wheel / trackpad for the text readers (virtual pixels, read and cleared once per tick)
+let wheelAcc = 0;
+canvas.addEventListener('wheel', (e) => { const s = Math.min((canvas.clientWidth || 720) / 720, (canvas.clientHeight || 1280) / 1280); wheelAcc += e.deltaY * (e.deltaMode === 1 ? 32 : 1) / s; e.preventDefault(); }, { passive: false });
+const takeWheel = () => { const v = wheelAcc; wheelAcc = 0; return v; };
+
 const wrap = (game) => {
   if (qs.has('dev')) window.__game = game;
   if (presenter && presenter.stage) { window.__presenter = presenter; return presenter.wrap(game); }
@@ -43,4 +48,4 @@ const wrap = (game) => {
 };
 const shot = qs.has('shot');
 const clock = () => globalThis.performance.now();
-boot({ createGame: async (env) => wrap(await createGame({ ...env, touches: touchSnapshot, clock, config: shot ? { ...env.config, shot: true, shotSeed: qs.get('seed') } : env.config })), meta, canvas, background: 'rgba(0,0,0,0)' });
+boot({ createGame: async (env) => wrap(await createGame({ ...env, touches: touchSnapshot, wheel: takeWheel, clock, config: shot ? { ...env.config, shot: true, shotSeed: qs.get('seed') } : env.config })), meta, canvas, background: 'rgba(0,0,0,0)' });

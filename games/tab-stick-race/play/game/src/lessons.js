@@ -10,7 +10,7 @@ export const LESSONS = [
     en: { title: 'Throw the sticks', task: 'Tap Throw (or the felt). Watch how many sticks land flat side up. This lesson throws a 1 first (called tab: you throw again) and then a 3, which ends your throws.',
       done: 'Each count is the number of flat sides up: none flat is 6, one is 1, two is 2, three is 3, four is 4. A 1, 4 or 6 gives another throw; a 2 or 3 ends the turn. You keep every count and spend them in any order.' },
     ar: { title: 'ارمِ العيدان', task: 'اضغط «ارمِ» (أو البساط). انظر كم عوداً يقع بوجهه المسطح إلى أعلى. يرمي هذا الدرس 1 أولاً (ويسمى طاب: ترمي مرة أخرى) ثم 3 فتنتهي رمياتك.',
-      done: 'كل عدد هو عدد الأوجه المسطحة إلى أعلى: لا شيء مسطح = 6، واحد = 1، اثنان = 2، ثلاثة = 3، أربعة = 4. بعد 1 أو 4 أو 6 ترمي مرة أخرى، وبعد 2 أو 3 ينتهي الدور. تحتفظ بكل الأعداد وتصرفها بأي ترتيب.' } },
+      done: 'كل عدد هو عدد الأوجه المسطحة إلى أعلى: لا وجه مسطّح = 6، ووجه واحد = 1، ووجهان = 2، وثلاثة أوجه = 3، وأربعة أوجه = 4. بعد 1 أو 4 أو 6 ترمي مرة أخرى، وبعد 2 أو 3 ينتهي الدور. تحتفظ بكل الأعداد وتصرفها بأي ترتيب.' } },
   { id: 'enter', accept: 'enter', board: () => mk([W, W, W, W, W], [W, W, W, W, W], [1]),
     en: { title: 'Enter on a one', task: 'You threw a 1 (tab). All your stones are in the yard. Tap the glowing start square (the bottom-left corner of the board) to bring a stone on.',
       done: 'A stone enters only with a 1, onto your start square. Until a stone is on the board, only a 1 lets you move at all.' },
@@ -20,7 +20,7 @@ export const LESSONS = [
     en: { title: 'Move along the path', task: 'You threw a 3. Tap your stone on the board, then the glowing square three squares ahead of it.',
       done: 'A count of n moves a stone n squares along the path: along the row, then up and back along the next row. A stone may jump over anything; only the landing square matters.' },
     ar: { title: 'التحرك على المسار', task: 'رميت 3. اضغط على حجرك الذي على اللوح ثم على المربع المضيء الذي يبعد عنه ثلاثة مربعات.',
-      done: 'العدد n يحرّك الحجر n مربعاً على المسار: على طول الصف ثم صعوداً والعودة على الصف التالي. ويمكن للحجر أن يقفز فوق أي شيء؛ المهم المربع الذي ينزل عليه.' } },
+      done: 'العدد n يحرّك الحجر n مربعاً على المسار: على طول الصف، ثم يصعد إلى الصف التالي ويكمل فيه في الاتجاه المعاكس. ويمكن للحجر أن يقفز فوق أي شيء؛ المهم المربع الذي ينزل عليه.' } },
   { id: 'capture', accept: 'capture', board: () => mk([5, 12, W, W, W], [18, W, W, W, W], [4]),
     en: { title: 'Capture a stone', task: 'You threw a 4. A Clay stone stands exactly four squares further along the path from one of your stones. Select that stone and land on the Clay stone to capture it.',
       done: 'Landing on an enemy stone captures it. It goes back to its yard and must enter again with a 1, so it loses every square it had walked.' },
@@ -29,8 +29,8 @@ export const LESSONS = [
   { id: 'star', accept: 'safe', board: () => mk([1, 12, W, W, W], [W, W, W, W, W], [2]),
     en: { title: 'The star squares', task: 'You threw a 2. Move a stone onto a star square: the middle square of a row, marked with an eight-point star.',
       done: 'A stone on a star square cannot be captured, and an enemy stone cannot land there. Use the stars to rest a stone in safety.' },
-    ar: { title: 'مربعات النجمة', task: 'رميت 2. حرّك حجراً إلى مربع نجمة: المربع الأوسط في الصف وعليه نجمة بثماني رؤوس.',
-      done: 'الحجر الذي على مربع النجمة لا يمكن أسره، ولا يستطيع حجر الخصم النزول عليه. استعمل النجوم لتريح حجراً بأمان.' } },
+    ar: { title: 'مربعات النجمة', task: 'رميت 2. حرّك حجراً إلى مربع نجمة: المربع الأوسط في الصف وعليه نجمة بثمانية رؤوس.',
+      done: 'الحجر الذي على مربع النجمة لا يمكن أسره، ولا يستطيع حجر الخصم النزول عليه. استعمل النجوم لتُبقي حجراً في أمان.' } },
   { id: 'danger', accept: 'minrisk', board: () => mk([11, 2, W, W, W], [13, W, W, W, W], [4]),
     en: { title: 'Get out of danger', task: 'You threw a 4. A Clay stone stands three squares ahead of your stone on the path and walks towards it, so it can hit it on many throws. Use the 4 to jump your stone past the Clay stone. (Think shows the chances.)',
       done: 'Clay stones only walk the other way, so a stone that has jumped past an enemy stone cannot be hit by it any more. Before every move ask: what can reach the square I am leaving, and the one I am landing on?' },
@@ -45,7 +45,7 @@ export const LESSONS = [
     en: { title: 'Play a whole game', task: 'Play a quick game (4 stones each) as Ivory against the Casual opponent. Win by bringing all four stones home first.',
       done: 'Well played. Every game is a mix of what you have just practised: enter on ones, use the stars, hit when it is safe and watch the squares your stones leave behind.' },
     ar: { title: 'العب لعبة كاملة', task: 'العب لعبة سريعة (4 حجارة لكل طرف) بدور العاج ضد الخصم العادي. فز بإيصال كل الحجارة الأربعة إلى البيت أولاً.',
-      done: 'أحسنت. كل لعبة مزيج مما تدرّبت عليه للتو: ادخل بالأعداد واحد، واستعمل النجوم، واضرب حين يكون ذلك آمناً، وراقب المربعات التي تتركها حجارتك خلفها.' } },
+      done: 'أحسنت. كل لعبة مزيج مما تدرّبت عليه للتو: ادخل بالعدد واحد، واستعمل النجوم، واضرب حين يكون ذلك آمناً، وراقب المربعات التي تتركها حجارتك خلفها.' } },
 ];
 export const lessonText = (L, lang) => L[lang] ?? L.en;
 export const lessonStart = (L) => (L.board ? L.board() : null);

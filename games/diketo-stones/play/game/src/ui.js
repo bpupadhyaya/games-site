@@ -190,12 +190,12 @@ export function drawFlow(ctx, lay, top, bottom, scroll, o = {}) {
     if (wd.t === 'art') { ctx.save(); ctx.translate(it.x, y); wd.draw(ctx, it.wd, it.h); ctx.restore(); }
     else if (wd.t === 'h') {
       ctx.fillStyle = wd.color ?? '#fff6e4'; ctx.font = `700 ${it.fs}px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
-      it.lines.forEach((l, k) => textShadow(ctx, l, it.x + it.wd / 2, y + it.fs * (0.9 + k * 1.18), wd.color ?? '#fff6e4', 6));
+      it.lines.forEach((l, k) => { if (wd.flat) ctx.fillText(l, it.x + it.wd / 2, y + it.fs * (0.9 + k * 1.18)); else textShadow(ctx, l, it.x + it.wd / 2, y + it.fs * (0.9 + k * 1.18), wd.color ?? '#fff6e4', 6); });
     } else if (wd.t === 'p') {
       ctx.fillStyle = wd.color ?? 'rgba(255,246,228,0.96)'; ctx.font = `${wd.bold ? 700 : 400} ${it.fs}px ${FONT}`;
       ctx.textAlign = wd.align ?? 'center'; ctx.textBaseline = 'alphabetic';
       const px = wd.align === 'left' ? it.x + (wd.pad ?? 0) : it.x + it.wd / 2;
-      it.lines.forEach((l, k) => { ctx.save(); ctx.shadowColor = 'rgba(20,8,2,0.55)'; ctx.shadowBlur = 4; ctx.shadowOffsetY = 1; ctx.fillText(l, px, y + it.fs * (1 + k * 1.3)); ctx.restore(); });
+      it.lines.forEach((l, k) => { if (wd.flat) { ctx.fillText(l, px, y + it.fs * (1 + k * 1.3)); return; } ctx.save(); ctx.shadowColor = 'rgba(20,8,2,0.55)'; ctx.shadowBlur = 4; ctx.shadowOffsetY = 1; ctx.fillText(l, px, y + it.fs * (1 + k * 1.3)); ctx.restore(); });
     } else if (wd.t === 'btn') {
       drawButtonRect(ctx, { x: it.x, y, w: it.wd, h: it.h }, it, wd);
     }

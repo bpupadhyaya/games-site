@@ -3,6 +3,7 @@
 import { DT, HW, HL, GOAL_HW, V_BASE, STRIKE_MIN, STRIKE_MAX, WIND_MAX, REACH, LEVELS, MATE_LEVEL } from './consts.js';
 import { clamp, wrap, hyp } from './util.js';
 
+const NS = { pen: 0, n: 5 };       // near-side (left) approaches cost nothing extra and get five headings, so the computer riders use all three strokes
 const lvOf = (r) => LEVELS[clamp((r.level || MATE_LEVEL) - 1, 0, 4)];
 
 function goTo(r, tx, tz, frac = 1, stopR = 0.8) {
@@ -24,8 +25,10 @@ function eta(s, r) {
   return t + ang * 0.25 * (r.v > 3 ? 1.2 : 0.6);
 }
 
-export function aiTeamThink(s, team) {
+// Two-phase: both teams choose their chaser from the PREVIOUS tick's state, then commit together, so neither team sees the other's new choice first.
+export function aiTeamThink(s, team, commit) {
   const T = s.ai[team];
+  if (commit) { if (T.pending !== undefined) { T.chaser = T.pending; T.pending = undefined; } return; }
   if (s.tick < T.next) return;
   T.next = s.tick + 8;
   const dirZ = team === 0 ? 1 : -1, b = s.ball;
@@ -39,7 +42,7 @@ export function aiTeamThink(s, team) {
     if (r.id === T.chaser) t -= 0.45;
     if (t < bt) { bt = t; best = r; }
   }
-  T.chaser = best ? best.id : -1;
+  T.pending = best ? best.id : -1;
 }
 
 // ---- the shot a chaser plans -------------------------------------------------------------------------------------------------------
@@ -90,6 +93,7 @@ function claim(s, r) {
   if (sp > 4) { const ux = b.vx / sp, uz = b.vz / sp, rx = r.x - b.x, rz = r.z - b.z, along = rx * ux + rz * uz, off = Math.abs(rx * uz - rz * ux); if (along > 0 && off < 2.2) v += 4; }
   return v;
 }
+const AV = { R: 6, keep: 0.2, bend: 1.6, slow: 0.9 };
 function avoid(s, r, c, scale = 1) {
   let ax = 0, az = 0, slow = 1;
   const mine = claim(s, r);
@@ -102,16 +106,16 @@ function avoid(s, r, c, scale = 1) {
     const vv = vx * vx + vz * vz;
     const t = vv > 0.01 ? clamp(-(px * vx + pz * vz) / vv, 0, 1.3) : 0;
     const dx = px + vx * t, dz = pz + vz * t, d = hyp(dx, dz);
-    const R = 3.5;
+    const R = AV.R;
     if (d > R) continue;
     const theirs = claim(s, o);
     // the other rider yields to us when its claim is lower; a tie goes to the rider whose id is lower on team 0 and higher on team 1 (symmetrical)
     const iYield = mine < theirs - 0.01 || (Math.abs(mine - theirs) <= 0.01 && (r.team === 0 ? r.id > o.id : r.id < o.id));
-    const near = (R - d) / R * (iYield ? 1 : 0.3);
+    const near = (R - d) / R * (iYield ? 1 : AV.keep);
     // bend away from where they will be: perpendicular to the line to their future position, on the side that is already ours
     const fx = Math.sin(r.h), fz = Math.cos(r.h), side = (dx * fz - dz * fx) > 0 ? -1 : 1;     // dx*fz - dz*fx > 0: they are to the right of my heading
-    ax += fz * side * near * 1.1 * scale; az += -fx * side * near * 1.1 * scale;
-    if (iYield) slow = Math.min(slow, 1 - 0.6 * near * scale * (t < 0.6 ? 1 : 0.5));
+    ax += fz * side * near * AV.bend * scale; az += -fx * side * near * AV.bend * scale;
+    if (iYield) slow = Math.min(slow, 1 - AV.slow * near * scale * (t < 0.6 ? 1 : 0.5));
   }
   const an = hyp(ax, az); if (an > 0.9) { ax *= 0.9 / an; az *= 0.9 / an; }
   slow = Math.max(slow, 0.35);
@@ -197,12 +201,12 @@ function chase(S, r, c, L, rng) {
     const relF = (r.x - T.x) * sh + (r.z - T.z) * ch, relR = (r.x - T.x) * ch - (r.z - T.z) * sh;
     const behind = relF < 0.2 ? 0 : 7;
     const lat = Math.abs(relR) > 0.55 * Math.max(0.5, -relF) + 0.9 ? 3 : 0;
-    const kp = kind === 'L' ? 2.2 : kind === 'B' ? 3.2 : 0;
+    const kp = kind === 'L' ? NS.pen : kind === 'B' ? 3.2 : 0;
     return { hc, kind, T, ok, relF, relR, score: d + 1.1 * Math.abs(wrap(hc - r.h)) + 1.6 * Math.abs(wrap(ang - hc)) + behind + lat + kp + (ok ? 0 : 50) };
   };
   const cands = [];
   for (const dh of [0, 0.4, -0.4, 0.8, -0.8, 1.2, -1.2]) cands.push(mk(wrap(ang + dh), 'R'));
-  for (const dh of [0, 0.5, -0.5]) cands.push(mk(wrap(ang + dh), 'L'));
+  for (const dh of NS.n > 3 ? [0, 0.5, -0.5, 0.9, -0.9] : [0, 0.5, -0.5]) cands.push(mk(wrap(ang + dh), 'L'));
   for (const dh of [Math.PI, 2.6, -2.6, 2.0, -2.0]) cands.push(mk(wrap(ang + dh), 'B'));
   let best = cands[0]; for (const c2 of cands) if (c2.score < best.score) best = c2;
   const prev = th.cand && cands.find((c2) => Math.abs(wrap(c2.hc - th.cand.hc)) < 1e-6 && c2.kind === th.cand.kind);

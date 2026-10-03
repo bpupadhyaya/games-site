@@ -12,7 +12,7 @@ export function makeMatch(puz, o = {}) {
     puz, B, T: newTrail(B, puz.marks), cur: null, start: null, held: false, disp: 0, shape: new Map(), tipX: 0, tipY: 0,
     flashes: [], parts: [], toast: null, toastT: 0, hint: null, hints: 0, mistakes: 0, undos: 0, fail: null, reveal: null, run: null,
     ev: [], lesson: o.lesson ?? null, daily: Boolean(o.daily), auto: Boolean(o.auto), refused: '', clearArm: 0, wrap: new Float32Array(B.dots.length),
-    order: new Int32Array(B.dots.length).fill(-1), notes: 0, version: 0,
+    order: new Int32Array(B.dots.length).fill(-1), notes: 0, version: 0, trace: [], tapCand: null,
   };
 }
 
@@ -48,7 +48,7 @@ export function project(c, F) {
 
 export const len = (M) => M.T.arcs.length;
 export const total = (M) => M.B.nArc;
-const bump = (M) => { M.version++; };
+const bump = (M) => { M.version++; M.trace = []; };
 export const push = (M, k, v = 0) => M.ev.push({ k, v });
 export const toast = (M, msg, secs = 2.6) => { M.toast = msg; M.toastT = secs; };
 
@@ -82,6 +82,15 @@ export function pressAt(M, F, o = {}) {
     return;
   }
   if (M.T.closed) return;
+  M.tapCand = null;
+  { // a tap on one of the faint choices at the tip picks it (fallback to dragging)
+    const opts = exits(M.T).filter((q) => q.valid && !q.closing);
+    if (opts.length >= 2) {
+      let best = null;
+      for (const q of opts) { const c = optCurve(M, q), m = bezPoint(c, 0.5), d = Math.hypot(m[0] - F[0], m[1] - F[1]); if (d < 0.3 && (!best || d < best.d)) best = { o: q, d }; }
+      if (best) { M.tapCand = { o: best.o, F: [F[0], F[1]] }; M.held = true; return; }
+    }
+  }
   const tip = tipPoint(M);
   if (Math.hypot(tip[0] - F[0], tip[1] - F[1]) < 1.15) { M.held = true; }
   else toast(M, 'Touch the glowing tip to carry on drawing.');
@@ -99,6 +108,7 @@ const angDiff = (a, b) => { let d = Math.abs(a - b) % (Math.PI * 2); if (d > Mat
 
 export function dragTo(M, F, check) {
   if (!M.held || M.reveal || M.fail || M.run) return;
+  if (M.tapCand) { if (Math.hypot(F[0] - M.tapCand.F[0], F[1] - M.tapCand.F[1]) < 0.15) return; M.tapCand = null; }
   if (M.start) {
     const st = M.start;
     st.path.push([F[0], F[1]]);
@@ -129,6 +139,15 @@ export function dragTo(M, F, check) {
       if (steer(M, F, check) === 'cur') continue;
       return;
     }
+    if (M.cur.choice && !M.cur.first && M.cur.p < 0.55) {
+      M.trace.push([F[0], F[1]]); if (M.trace.length > 24) M.trace.shift();
+      if (M.trace.length >= 3) {
+        const dc = fit(M.cur.c, M.trace);
+        let alt = null;
+        for (const o of exits(M.T)) { if (!o.valid || o.closing || (o.arc === M.cur.arc && o.dir === M.cur.dir)) continue; const d = fit(optCurve(M, o), M.trace); if (d < dc - 0.09 && (!alt || d < alt.d)) alt = { o, d }; }
+        if (alt) { const was = M.cur; M.cur = null; if (!startOption(M, alt.o, F, check)) M.cur = was; continue; }
+      }
+    }
     const pr = project(M.cur.c, F);
     if (pr.d > 1.0) return; // the finger wandered off: wait for it to come back
     M.cur.p = Math.max(0, Math.min(1, pr.t));
@@ -137,7 +156,7 @@ export function dragTo(M, F, check) {
     const g = M.cur.first ? null : M.B.gates[M.cur.gate];
     const nearGate = g ? Math.hypot(F[0] - g.x, F[1] - g.y) < 0.09 : false;
     if (pr.t < 0.04 || nearGate) { // back at the gate it left
-      if (M.cur.first) { if (pr.t < 0.04) { M.cur = null; M.start = null; M.held = false; } return; }
+      if (M.cur.first) return; // the first arc stays until the finger lifts
       M.cur = null; bump(M); continue;
     }
     return;
@@ -145,30 +164,36 @@ export function dragTo(M, F, check) {
 }
 
 // the finger is at the tip's gate with nothing started: start the option it heads into, or take the last arc back
+// mean distance of the finger's path since it left the gate to a curve
+function fit(c, trace) {
+  let sum = 0;
+  for (const q of trace) sum += project(c, q).d;
+  return sum / trace.length;
+}
+
 function steer(M, F, check) {
   const T = M.T, G = M.B.gates[headGate(T)];
-  const vx = F[0] - G.x, vy = F[1] - G.y, dist = Math.hypot(vx, vy);
-  if (dist < 0.12) return 'idle';
-  const th = Math.atan2(vy, vx);
+  const dist = Math.hypot(F[0] - G.x, F[1] - G.y);
+  if (dist < 0.1) return 'idle';
+  M.trace.push([F[0], F[1]]);
+  if (M.trace.length > 24) M.trace.shift();
   const last = T.arcs.length - 1;
   const lc = trailCurve(M, last);
-  const cands = [{ type: 'back', ang: Math.atan2(lc[5] - lc[7], lc[4] - lc[6]) }];
-  for (const o of exits(T)) {
-    if (!o.valid || o.closing) continue;
-    const c = optCurve(M, o);
-    cands.push({ type: 'opt', o, ang: Math.atan2(c[3] - c[1], c[2] - c[0]) });
-  }
-  for (const c of cands) c.d = angDiff(c.ang, th);
+  const cands = [{ type: 'back', c: lc }];
+  for (const o of exits(T)) { if (o.valid && !o.closing) cands.push({ type: 'opt', o, c: optCurve(M, o) }); }
+  for (const c of cands) c.d = fit(c.c, M.trace);
   cands.sort((x, y) => x.d - y.d);
   const best = cands[0], second = cands[1];
   const margin = second ? second.d - best.d : 9;
-  if (margin < 0.2 && dist < 0.36) return 'idle';
+  // wait for evidence: a clear winner, or the finger well away from the gate
+  if (margin < 0.07 && dist < 0.45) return 'idle';
+  if (M.trace.length < 2 && dist < 0.3) return 'idle';
   if (best.type === 'back') {
     const pr = project(lc, F);
-    if (pr.t < 0.8 && pr.d < 0.75) return takeBack(M, pr.t) ? 'cur' : 'idle';
+    if (pr.t < 0.8 && pr.d < 0.9) return takeBack(M, pr.t) ? 'cur' : 'idle';
     return 'idle';
   }
-  if (best.d > 0.75 && dist > 0.3) { blockedFeedback(M, G); return 'idle'; }
+  if (best.d > 0.7 && dist > 0.3) { blockedFeedback(M, G); return 'idle'; }
   return startOption(M, best.o, F, check) ? 'cur' : 'idle';
 }
 
@@ -261,8 +286,15 @@ export function afterCommit(M) {
   return 'ok';
 }
 
-export function releaseFinger(M) {
+export function releaseFinger(M, check = false) {
   M.held = false; M.start = null; M.refused = '';
+  if (M.tapCand) {
+    const o = M.tapCand.o; M.tapCand = null;
+    const problem = check ? optionProblem(M.T, o) : null;
+    if (problem) { M.mistakes++; toast(M, explainRefusal(M.T, o).why, 4); M.flashes.push({ gate: headGate(M.T), t: 0, life: 1.4, kind: 'bad' }); push(M, 'refuse'); }
+    else runPlan(M, { seg: [{ arc: o.arc, dir: o.dir }] }, 5);
+    return;
+  }
   if (M.cur) {
     if (M.cur.p >= 0.5 || M.cur.p >= COMMIT_AT) { M.cur.p = 1; finishArc(M); }
     else if (M.cur.first) { M.cur = null; }

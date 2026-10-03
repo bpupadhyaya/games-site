@@ -192,22 +192,49 @@ export function createSim(cfg, rng) {
   X.canAct = (p) => !p.act && p.stun <= 0 && s.phase !== 'goal' && s.phase !== 'half' && s.phase !== 'full';
   // o: { tx, tz, ty, power, curve, tgt }
   // will the ball be within reach of the foot when the kick lands? (rolling ball predicted through the wind-up, the player slowed by it)
-  X.kickable = (p, kind) => {
+  // The body can only kick a ball that is ahead of the hips and a little to the kicking side (the support leg stands beside the ball, never through it).
+  // So a kick is planned: where the player must stand (standSpot), how long the pivot and the few steps there take, and which foot is used. A kick whose
+  // pivot would take too long is refused (kick() returns false), and the wind-up is lengthened when the player needs a moment to get round the ball.
+  const FOOT_F = 0.6, FOOT_L = 0.12, PIVOT_V = 3.4, PIVOT_EXTRA = 0.32;
+  const standSpot = (bx, bz, face, foot) => {
+    const fx = Math.sin(face), fz = Math.cos(face), lx = Math.cos(face), lz = -Math.sin(face), sg = foot === 'L' ? 1 : -1;
+    return { x: bx - fx * FOOT_F - lx * sg * FOOT_L, z: bz - fz * FOOT_F - lz * sg * FOOT_L };
+  };
+  function kickPlan(p, kind, o) {
+    let w = kickWind[kind] * (kind === 'shot' ? 1 - 0.18 * (o.power || 0) : 1);
+    let plan = null;
+    for (let it = 0; it < 2; it++) {
+      const n = TK(w), c = { x: B.x, y: B.y, z: B.z, vx: B.vx, vy: B.vy, vz: B.vz, sp: B.sp };
+      for (let i = 0; i < n; i++) stepBall(c, STEP);
+      const k = Math.min(w, 0.35) * 0.55, px = p.x + p.vx * k, pz = p.z + p.vz * k;
+      const hasAim = o.tx !== undefined && o.tz !== undefined && (o.tx !== 0 || o.tz !== 0);
+      const aimA = hasAim ? Math.atan2(o.tx - px, o.tz - pz) : p.face;
+      const bx = c.x - px, bz = c.z - pz;
+      const lat = bx * Math.cos(aimA) - bz * Math.sin(aimA);
+      const foot = lat > FOOT_L ? 'L' : lat < -FOOT_L ? 'R' : (p.id % 5 === 0 ? 'L' : 'R');
+      const sp = standSpot(c.x, c.z, aimA, foot);
+      const need = Math.max(Math.hypot(sp.x - px, sp.z - pz) / PIVOT_V, Math.abs(angDiff(aimA, p.face)) / 15);
+      plan = { w, foot, c, near: Math.hypot(bx, bz), ok: c.y <= (kind === 'volley' ? 0.85 : 0.6) && Math.hypot(bx, bz) <= 1.3 && need <= w + (Math.hypot(B.vx, B.vz) < 1 ? 0.9 : PIVOT_EXTRA) };
+      if (need <= w) break;
+      w = Math.min(w + (Math.hypot(B.vx, B.vz) < 1 ? 0.9 : PIVOT_EXTRA), need + 0.02);
+    }
+    return plan;
+  }
+  // will the ball be where a foot can meet it when the kick lands?
+  X.kickable = (p, kind, o = {}) => {
     if (kind === 'throw' || kind === 'gk') return B.held === p.id || B.owner === p.id;
-    const w = kickWind[kind] * 0.9, n = TK(w);
-    const c = { x: B.x, y: B.y, z: B.z, vx: B.vx, vy: B.vy, vz: B.vz, sp: B.sp };
-    for (let i = 0; i < n; i++) stepBall(c, STEP);
-    const k = Math.min(w, 0.35) * 0.55;
-    const px = p.x + p.vx * k, pz = p.z + p.vz * k;
-    return Math.hypot(c.x - px, c.z - pz) <= 0.95 && c.y <= 0.85;
+    return kickPlan(p, kind, o).ok;
   };
   X.kick = (p, kind, o = {}) => {
     if (!X.canAct(p)) return false;
-    if (!o.force && !X.kickable(p, kind)) return false;
-    const w = kickWind[kind] * (kind === 'shot' ? 1 - 0.18 * (o.power || 0) : 1);
+    let w = kickWind[kind] * (kind === 'shot' ? 1 - 0.18 * (o.power || 0) : 1), foot;
+    if (kind === 'throw' || kind === 'gk') { const bx = B.x - p.x, bz = B.z - p.z, lat = bx * Math.cos(p.face) - bz * Math.sin(p.face); foot = lat > 0.12 ? 'L' : lat < -0.12 ? 'R' : (p.id % 5 === 0 ? 'L' : 'R'); }
+    else {
+      const pl = kickPlan(p, kind, o);
+      if (!o.force && !pl.ok) return false;
+      w = pl.w; foot = pl.foot;
+    }
     const bx = B.x - p.x, bz = B.z - p.z;
-    const lat = bx * Math.cos(p.face) - bz * Math.sin(p.face);
-    const foot = lat > 0.12 ? 'L' : lat < -0.12 ? 'R' : (p.id % 5 === 0 ? 'L' : 'R');
     p.act = { k: 'kick', kind, t0: s.t, tck: s.tick + TK(w), tc: (s.tick + TK(w)) * STEP, t1: (s.tick + TK(w)) * STEP + (kind === 'throw' ? 0.35 : 0.32), tx: o.tx ?? 0, tz: o.tz ?? 0, ty: o.ty ?? 0.6, power: clamp(o.power ?? 0.5, 0, 1), curve: o.curve || 0, tgt: o.tgt ?? -1, foot, done: false, first: Math.hypot(bx, bz) > 0.9 };
     p.look = -1;
     return true;
@@ -357,17 +384,22 @@ export function createSim(cfg, rng) {
     if (p.tq) {
       if (s.tick >= p.tq.tck) {
         const t = p.tq; p.tq = null;
-        if (rd < 1.0) {
+        // the foot can only meet a ball that is still ahead of the hips, near the line of the legs and on the ground
+        const latNow = rx * hz - rz * hx;
+        if (rd < 1.0 && ahead >= 0.14 && Math.abs(latNow) <= 0.5 && B.y <= 0.3) {
           const cx = p.cmd.dx || hx, cz = p.cmd.dz || hz;
           const sprint = sp > p.st.vmax * 0.85;
-          const v = Math.max(sp * 1.02 + 1.3 + (sprint ? 1.3 : 0), 2.8);
+          const v = clamp(sp + 3.0 * (0.62 - clamp(ahead, 0, 1.2)) + (sprint ? 0.25 : 0), 2.0, sp + 1.7 + (sprint ? 0.4 : 0));   // a touch that keeps the ball about 0.6 m ahead of the hips
           B.vx = cx * v; B.vz = cz * v; B.sp = 0;
-          p.cd.touch = 0.2 + (sprint ? 0.14 : 0.06);
+          p.cd.touch = 0.14 + (sprint ? 0.08 : 0.04);
           ev('touch', { pid: p.id, foot: t.foot, x: B.x, z: B.z, vx: B.vx, vz: B.vz });
         }
       }
-    } else if (p.cd.touch <= 0 && rd < 0.62 && ahead > -0.15) {
-      p.tq = { tck: s.tick + 4, foot: ((p.id + s.tick) >> 3) % 2 ? 'L' : 'R' };
+    } else if (p.cd.touch <= 0 && rd < 0.95 && B.y <= 0.3) {
+      // announce the touch only when the ball will still be ahead of the hips (and near the line of the legs) when the foot arrives 4 ticks later
+      const ahead4 = ahead + ((B.vx - p.vx) * hx + (B.vz - p.vz) * hz) * (4 * STEP);
+      const lat4 = (rx + (B.vx - p.vx) * 4 * STEP) * hz - (rz + (B.vz - p.vz) * 4 * STEP) * hx;
+      if (ahead4 >= 0.2 && ahead4 <= 1.0 && Math.abs(lat4) <= 0.45) p.tq = { tck: s.tick + 4, foot: ((p.id + s.tick) >> 3) % 2 ? 'L' : 'R' };
     }
   }
   function ballInteract(dt) {
@@ -433,15 +465,16 @@ export function createSim(cfg, rng) {
       const ext = clamp((age - 0.1) / 0.3, 0, 1); const e = 1 - (1 - ext) * (1 - ext);
       const reach = a.jump ? 0 : (1.05 * e + 0.35) * (a.reach ?? 1);
       hx = g.x + a.dx * reach; hz = g.z + a.dz * reach;
-      hy = a.jump ? 0.9 + 1.2 * e : [0.35, 0.95, 1.65][a.h] ;
-      r = a.jump ? 0.85 : 0.52;
+      hy = a.jump ? 0.9 + 1.2 * e : (a.h === 2 && age > 0.4 ? 1.38 : [0.35, 0.95, 1.65][a.h]);
+      r = a.jump ? 0.6 : 0.24;
       a.hx = hx; a.hy = hy; a.hz = hz;
     } else {
       if (g.act) return;
-      if (B.y < 0.42 && bs > 7) return;          // a hard ground ball is beyond a standing keeper's hands: a dive (or the feet) must deal with it
-      hx = g.x + Math.sin(g.face) * 0.25; hz = g.z + Math.cos(g.face) * 0.25; hy = clamp(B.y, 0.25, 1.9); r = 0.5 + (hy > 1.5 ? -0.1 : 0);
+      if (B.y < 0.85 && bs > 7) return;          // a hard ground ball is beyond a standing keeper's hands: a dive (or the feet) must deal with it
+      hx = g.x + Math.sin(g.face) * 0.25; hz = g.z + Math.cos(g.face) * 0.25; hy = clamp(B.y, 0.25, 1.9); r = bs > 7 ? 0.35 : 0.5;
     }
     if (B.owner === g.id) return;
+    if (!a && bs > 7) return;     // a standing keeper's arms only reach so far from the shoulders
     const d = Math.hypot(B.x - hx, B.y - hy, B.z - hz);
     if (d > r + BR) return;
     if (B.cdG && B.cdG > s.t) return;
@@ -483,6 +516,7 @@ export function createSim(cfg, rng) {
       const aimA = a.kind === 'throw' || a.tz !== 0 || a.tx !== 0 ? Math.atan2(a.tx - p.x, a.tz - p.z) : p.face;
       if (!a.done) {
         const df = angDiff(aimA, p.face); const mx = (a.kind === 'throw' ? 7 : 15) * dt; p.face += clamp(df, -mx, mx);
+        if (a.kind !== 'throw' && a.kind !== 'gk') pivotStep(p, a, dt);
         if (s.tick >= a.tck) { a.done = true; doKickContact(p, a); }
       }
       if (tNow >= a.t1 - 1e-9) p.act = null;
@@ -501,13 +535,28 @@ export function createSim(cfg, rng) {
       if (tNow >= a.t1 - 1e-9) { p.act = null; p.stun = 0.1; }
     }
   }
+  // during the wind-up the player steps round the ball (at most PIVOT_V) so it lands ahead of the hips on the kicking side where the foot can meet it
+  function pivotStep(p, a, dt) {
+    const m = a.tck - s.tick;
+    if (m < 1) return;
+    const c = { x: B.x, y: B.y, z: B.z, vx: B.vx, vy: B.vy, vz: B.vz, sp: B.sp };
+    for (let i = 0; i < m; i++) stepBall(c, STEP);
+    const sp = standSpot(c.x, c.z, p.face, a.foot);
+    const dx = sp.x - p.x, dz = sp.z - p.z, d = Math.hypot(dx, dz);
+    if (d < 0.004) return;
+    const k = Math.min(1, PIVOT_V * dt / d);
+    p.x += dx * k; p.z += dz * k;
+    a.sx = sp.x; a.sz = sp.z;
+  }
   function doKickContact(p, a) {
     // can the foot reach the ball now?
     const dx = B.x - p.x, dz = B.z - p.z, d = Math.hypot(dx, dz);
     const owner = B.owner >= 0 ? P[B.owner] : null;
     const stolen = owner && owner.team !== p.team && Math.hypot(owner.x - B.x, owner.z - B.z) < 0.7;
     const reach = a.kind === 'volley' ? 1.2 : 1.1;
-    const ok = d <= reach && B.y <= (a.kind === 'throw' || a.kind === 'gk' ? 3 : 1.05) && !stolen && (B.held < 0 || B.held === p.id);
+    const thr = a.kind === 'throw' || a.kind === 'gk';
+    const fwdC = dx * Math.sin(p.face) + dz * Math.cos(p.face), latC = dx * Math.cos(p.face) - dz * Math.sin(p.face), lkC = a.foot === 'L' ? latC : -latC;
+    const ok = d <= reach && B.y <= (thr ? 3 : 1.05) && !stolen && (B.held < 0 || B.held === p.id) && (thr || (fwdC >= 0.05 && lkC >= -0.35 && Math.abs(latC) <= 0.75));
     if (!ok) { ev('whiff', { pid: p.id, x: B.x, z: B.z, kind: a.kind }); if (a.kind === 'throw' || a.kind === 'gk') { B.held = -1; } p.cd.ball = 0.25; return; }
     // a volley is taken on the full toe: raise the strength
     const o = { ...a, foot: a.foot };
@@ -520,7 +569,8 @@ export function createSim(cfg, rng) {
   function doHead(p, a) {
     const hx = p.x + Math.sin(p.face) * 0.15, hz = p.z + Math.cos(p.face) * 0.15, hy = 1.72 + p.jy;
     const d = Math.hypot(B.x - hx, B.y - hy, B.z - hz);
-    if (d > 0.85 || B.held >= 0) { ev('whiff', { pid: p.id, x: B.x, z: B.z, kind: 'head' }); return; }
+    const fH = (B.x - p.x) * Math.sin(p.face) + (B.z - p.z) * Math.cos(p.face);
+    if (d > 0.8 || Math.hypot(B.x - hx, B.z - hz) > 0.45 || fH < -0.05 || B.held >= 0) { ev('whiff', { pid: p.id, x: B.x, z: B.z, kind: 'head' }); return; }
     const dx = a.tx - B.x, dz = a.tz - B.z, l = Math.hypot(dx, dz) || 1;
     let ang = Math.atan2(dx, dz) + normal(rng) * (0.11 * (1 - p.st.shot) + 0.03) * (1 + 0.7 * press(p));
     const v = 6 + 10 * a.power;
@@ -641,7 +691,8 @@ export function createSim(cfg, rng) {
       for (let j = i + 1; j < 14; j++) {
         const b = P[j];
         const dx = b.x - a.x, dz = b.z - a.z, d2 = dx * dx + dz * dz;
-        const R = 2 * PR * 1.02;
+        const busyAct = (q) => q.act && (q.act.k === 'tackle' || q.act.k === 'kick' || q.act.k === 'head');
+        const R = 2 * PR * 1.12 + ((busyAct(a) && busyAct(b)) ? 0.45 : (busyAct(a) || busyAct(b)) ? 0.25 : 0);   // bodies mid-action (kick, tackle, header) keep more room
         if (d2 >= R * R || d2 < 1e-8) continue;
         const d = Math.sqrt(d2), push = (R - d) * 0.5, nx = dx / d, nz = dz / d;
         const ma = a.act && (a.act.k === 'slide' || a.act.k === 'dive') ? 0.2 : 1, mb = b.act && (b.act.k === 'slide' || b.act.k === 'dive') ? 0.2 : 1;
@@ -861,8 +912,16 @@ export function createSim(cfg, rng) {
     if (dv && !p.act) {
       const jump = dv.up || Math.hypot(dv.dx, dv.dz) < 0.35;
       // heights: a dive towards the goal-line direction (up the screen) is a high dive; sideways is mid; the ball's current height refines
-      const h = jump ? 2 : B.y > 1.3 ? 2 : B.y < 0.5 ? 0 : 1;
-      X.dive(p, jump ? 0 : dv.dx, jump ? 0 : dv.dz, h);
+      let h = jump ? 2 : B.y > 1.3 ? 2 : B.y < 0.5 ? 0 : 1, reach = 1;
+      // dive assist: the swipe picks the side; the dive length and height come from where the shot will cross the keeper's line
+      if (!jump && B.owner < 0 && Math.abs(B.vz) > 3) {
+        const path = predictBall(), sgk = p.team === 0 ? 1 : -1;
+        for (let i = 0; i < path.length; i++) {
+          const q = path[i];
+          if ((q.z - p.z) * sgk <= 0.2 && B.vz * sgk < 0) { const dxm = q.x - p.x; if (dxm * dv.dx >= 0 || Math.abs(dxm) < 0.4) { h = q.y > 1.45 ? 2 : q.y < 0.55 ? 0 : 1; reach = Math.max(0.25, (Math.abs(dxm) - 0.2) / 2.2); } break; }
+        }
+      }
+      X.dive(p, jump ? 0 : dv.dx, jump ? 0 : dv.dz, h, reach);
     }
     if (!p.act && pr(2)) X.callFor(p);
     if (!p.act && s.phase === 'play' && B.owner < 0 && B.held < 0 && Math.hypot(B.x - p.x, B.z - p.z) < 1.0 && B.y < 0.4 && !inBox(p.team, p.x, p.z)) { /* feet control handled by claim */ }
