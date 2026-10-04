@@ -682,3 +682,36 @@ section { padding: 90px 0; position: relative; }
 .footer-contact:hover, .footer-copy a:hover { color: #fff; }
 .footer-contact { order: 4; }
 @media (max-width: 720px) { .logo-word { font-size: 18px; } .header-inner { height: 68px; } }
+
+
+/* Header wordmark lockup: ARCFORGE (chunky italic, blue gradient, navy outline) + pill */
+.header-inner { height: 88px; }
+.logo { gap: 14px; }
+.logo-lockup { display: flex; flex-direction: column; align-items: flex-start; gap: 5px; line-height: 1; }
+.wm-title {
+  position: relative; display: inline-block; isolation: isolate;
+  font-family: 'Lilita One', var(--font-display); font-size: 36px; line-height: 1; letter-spacing: 0.01em;
+  font-style: italic; transform: skewX(-8deg); transform-origin: left bottom; padding-right: 4px;
+  filter: drop-shadow(0 0 10px rgba(96,140,255,0.55));
+}
+.wm-out {
+  position: absolute; left: 0; top: 0; color: #0a0b3d; -webkit-text-stroke: 6px #0a0b3d; paint-order: stroke fill;
+}
+.wm-fill {
+  position: relative; display: block;
+  background: linear-gradient(180deg, #f1f4ff 0%, #a9b9ff 38%, #5b8cff 72%, #2f6bff 100%);
+  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: transparent;
+}
+.wm-pill {
+  font-family: var(--font-display); font-size: 10px; font-weight: 700; letter-spacing: 0.2em; color: #fff;
+  padding: 5px 12px 5px 14px; border-radius: 8px; white-space: nowrap;
+  background: linear-gradient(180deg, #14164f, #0a0b36);
+  border: 1.5px solid #6b7bff; box-shadow: 0 0 12px rgba(107,123,255,0.45), inset 0 0 8px rgba(107,123,255,0.25);
+}
+.logo-icon { width: 52px; height: 52px; }
+@media (max-width: 720px) {
+  .header-inner { height: 72px; }
+  .logo-icon { width: 42px; height: 42px; }
+  .wm-title { font-size: 27px; }
+  .wm-pill { font-size: 8.5px; letter-spacing: 0.14em; padding: 4px 9px 4px 10px; }
+}
