@@ -74,3 +74,10 @@ pages were changed and which were intentionally skipped. Ask only about directio
 ## HOW AGENTS FIND THESE RULES (set up 2026-10-04)
 - In the repo: `os/bpupadhyaya.github.io/CLAUDE.md` (auto-loaded by Claude Code in that folder) -> `CHROME-README.md` -> this checklist. Run `python3 audit-chrome.py` before every commit there.
 - Globally: `~/.claude/CLAUDE.md` has a "Website header/footer/menu changes" bullet pointing here; `INDEX.md` lists this file.
+
+## CURRENT APPROVED LOCKUP (owner 2026-10-04, supersedes the CSS wordmark spec above) - USE THESE IMAGES, DO NOT REDRAW
+The Arcforge lockup is ONE IMAGE: AF icon + neon ARCFORGE wordmark (Google-Play style: Avenir Next Condensed Heavy Italic, lavender->blue->cyan gradient, thin dark inner line, soft violet/cyan glow, NO chunky dark outline, NO white outer ring) + WORLD HERITAGE GAMES pill (Space Grotesk, violet->blue->teal fill, lavender->cyan border, exactly as wide as ARCFORGE, spaced letters).
+Two variants (masters, generator and the full design history incl. rejected iterations: `release-ops/arcforge/brand-lockup-designs/` - README there):
+- **PLATE variant** `final/arcforge-lockup@master.png` (+ `arcforge-lockup.png` 1200w, `@1x/@2x/@3x`): the above on a dark navy rounded plate with a violet(top)->cyan(bottom) neon border, soft grayish-dark halo and inner blue glow (measured from the Google Play screenshot). Use in the APPS (iOS imageset ArcforgeLockup, Android drawable arcforge_lockup), store screenshots, anything on a bright/busy background.
+- **PLAIN variant** `final/arcforge-lockup-plain.png` (+ `@master`): same without the outer plate/border (icon keeps its own border, pill keeps its border). Use on the WEBSITES (games-site header/footer/preview pages, bpupadhyaya.github.io Arcforge banner) which are dark gradient.
+Rule: a new lockup/wordmark change = show previews to the owner and WAIT for the choice before any rollout. After a change, re-capture every hub screenshot (see "Hub app header + screenshot refresh").
