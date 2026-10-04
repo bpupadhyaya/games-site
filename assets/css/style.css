@@ -706,14 +706,14 @@ section { padding: 90px 0; position: relative; }
   font-family: var(--font-display); font-size: 11px; font-weight: 800; letter-spacing: 0.2em;
   padding: 5px 13px 5px 15px; border-radius: 8px; white-space: nowrap; border: 1.5px solid transparent;
   background:
-    linear-gradient(180deg, #14164f, #0a0b36) padding-box,
-    linear-gradient(90deg, #a78bfa 0%, #6a7dff 45%, #22d3ee 100%) border-box;
-  box-shadow: 0 0 14px rgba(110,130,255,0.45), inset 0 0 8px rgba(107,123,255,0.2);
+    linear-gradient(90deg, #6a45f2 0%, #3f62f5 52%, #1f9ad9 100%) padding-box,
+    linear-gradient(90deg, #c4b5fd 0%, #8fb0ff 50%, #67e8f9 100%) border-box;
+  box-shadow: 0 4px 16px rgba(60,90,245,0.5), inset 0 1px 0 rgba(255,255,255,0.28);
 }
 .wm-pill-text {
-  background: linear-gradient(90deg, #d9ccff 0%, #9fb2ff 40%, #5fe6ff 100%);
+  background: linear-gradient(90deg, #ffffff 0%, #ecf1ff 50%, #d2f7ff 100%);
   -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; color: transparent;
-  filter: drop-shadow(0 0 5px rgba(120,160,255,0.55));
+  filter: drop-shadow(0 1px 2px rgba(15,15,80,0.55));
 }
 .logo-icon { width: 52px; height: 52px; }
 @media (max-width: 720px) {
