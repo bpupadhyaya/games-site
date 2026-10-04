@@ -1,0 +1,6 @@
+# games-site (equalinformation.com/games-site/, Arcforge public marketing site) - rules for every agent
+
+- Branding: the Arcforge look ONLY (real AF icon, chunky italic ARCFORGE, violet->teal WORLD HERITAGE GAMES pill, indigo->blue->teal sticky header + footer). Spec and approved reference image: `~/coding_common/pvt/games/docs/ARCFORGE-BRAND.md` and `~/coding_common/pvt/dotfiles/global-memory/arcforge-brand-style.md`. Use it by default, never invent a new look.
+- Do NOT apply the EqualInformation navy/crimson chrome here (that is only for the `bpupadhyaya.github.io` repo). Full scope rules, procedure and lessons learned: `SITE-CHROME.md` in this repo.
+- The header/footer in `index.html` is the single source: the generated game preview pages (`games/<slug>/play/`) copy it at publish time (`tools/arc publish-site` in the games repo, `tools/lib/site.mjs siteChrome`). After changing the header/footer, regenerate the play pages WITHOUT a full publish (a full publish from the main checkout once generated 81 games vs 89 live and would have deleted games: check the count first).
+- Before committing: look at screenshots at desktop and phone width, then commit + push and tell the owner which files changed.
