@@ -23,6 +23,8 @@
     margin: 0; min-height: 100vh; position: relative; overflow-x: hidden;
   }
   
+  /* Page = full-height column: the (sticky) footer always sits at the very bottom, even when the content is short. */
+  html, body { min-height: 100%; } body { display: flex; flex-direction: column; min-height: 100vh; min-height: 100dvh; } .site-footer { margin-top: auto; flex: none; } .play-wrap { flex: 1 0 auto; width: 100%; }
   .play-wrap { position: relative; z-index: 1; max-width: 1140px; margin: 0 auto; padding: 28px 24px 80px; }
   .back-link {
     display: inline-flex; align-items: center; gap: 6px; margin-bottom: 28px; color: var(--text-dim);
