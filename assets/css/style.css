@@ -732,9 +732,7 @@ section { padding: 90px 0; position: relative; }
 
 /* ── Fixed footer: header and footer stay on screen while scrolling ── */
 :root { --footer-h: 78px; }
-body { padding-bottom: var(--footer-h); }
-html { scroll-padding-bottom: var(--footer-h); }
-.site-footer { position: fixed; left: 0; right: 0; bottom: 0; z-index: 50; padding: 8px 0; box-shadow: 0 -10px 40px rgba(20,20,90,0.35); }
+.site-footer { position: sticky; bottom: 0; z-index: 50; padding: 8px 0 6px; border-radius: 0; box-shadow: 0 -10px 40px rgba(20,20,90,0.35); }
 .site-footer .footer-inner { flex-wrap: nowrap; gap: 24px; min-height: 60px; }
 .site-footer .footer-brand { gap: 10px; flex: none; }
 .site-footer .footer-brand .logo-icon.small { width: 38px; height: 38px; }
@@ -746,15 +744,20 @@ html { scroll-padding-bottom: var(--footer-h); }
 .site-footer .footer-contact { order: 0; font-size: 12.5px; text-align: right; }
 .site-footer .footer-copy { order: 0; flex: none; flex-basis: auto; margin: 0; padding: 0; border: 0; font-size: 11px; opacity: .85; text-align: right; }
 .site-footer .footer-inner > .footer-copy + .footer-contact, .site-footer .footer-inner > .footer-contact { }
-.site-footer .footer-copy { display: none; }
+
 .site-footer .footer-nav { flex-wrap: nowrap; white-space: nowrap; }
 @media (max-width: 720px) {
   :root { --footer-h: 54px; }
   .site-footer { padding: 4px 0; }
-  .site-footer .footer-brand, .site-footer .footer-contact, .site-footer .footer-copy { display: none; }
+  .site-footer .footer-brand, .site-footer .footer-contact, 
   .site-footer .footer-inner { min-height: 44px; }
   .site-footer .footer-nav { justify-content: space-around; width: 100%; }
   .site-footer .footer-nav a { font-size: 13px; padding: 8px 8px; }
 }
 html { scroll-padding-top: 96px; }
 @media (max-width: 900px) { .site-footer .footer-contact { display: none; } .site-footer .footer-nav { margin-left: auto; } }
+
+/* Whole footer always visible: copyright row under the links (sticky footer, no hidden content) */
+.site-footer .footer-inner { flex-wrap: wrap; row-gap: 2px; }
+.site-footer .footer-copy { display: block; order: 9; flex: 0 0 100%; margin: 0; padding: 4px 0 0; border: 0; font-size: 11px; opacity: .85; text-align: center; }
+@media (max-width: 720px) { .site-footer .footer-copy { font-size: 10px; } .site-footer .footer-inner { min-height: 0; } }
