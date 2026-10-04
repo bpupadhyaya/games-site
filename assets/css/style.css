@@ -761,3 +761,10 @@ html { scroll-padding-top: 96px; }
 .site-footer .footer-inner { flex-wrap: wrap; row-gap: 2px; }
 .site-footer .footer-copy { display: block; order: 9; flex: 0 0 100%; margin: 0; padding: 4px 0 0; border: 0; font-size: 11px; opacity: .85; text-align: center; }
 @media (max-width: 720px) { .site-footer .footer-copy { font-size: 10px; } .site-footer .footer-inner { min-height: 0; } }
+
+/* Arcforge brand lockup = ONE image (icon + ARCFORGE neon wordmark + WORLD HERITAGE GAMES on the dark neon plate), see docs/ARCFORGE-BRAND.md */
+.logo { margin-right: auto; }
+.logo-img { display: block; height: 72px; width: auto; }
+.footer-logo-img { height: 48px; }
+.header-inner { height: 96px; }
+@media (max-width: 720px) { .header-inner { height: 80px; } .logo-img { height: 50px; } .footer-logo-img { height: 38px; } }
