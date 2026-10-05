@@ -768,3 +768,26 @@ html { scroll-padding-top: 96px; }
 .footer-logo-img { height: 48px; }
 .header-inner { height: 96px; }
 @media (max-width: 720px) { .header-inner { height: 80px; } .logo-img { height: 50px; } .footer-logo-img { height: 38px; } }
+
+/* Games pager (top + bottom of the game list) */
+.pager { display: flex; flex-direction: column; align-items: center; gap: 8px; margin: 26px 0 26px; }
+.pager[hidden] { display: none; }
+.pager-list { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; padding: 6px; border-radius: 999px;
+  background: linear-gradient(135deg, rgba(60,70,170,0.35), rgba(30,120,190,0.25) 55%, rgba(20,160,170,0.25));
+  border: 1px solid rgba(160,180,255,0.22); }
+.pager .pg { min-width: 40px; height: 40px; padding: 0 14px; display: inline-flex; align-items: center; justify-content: center;
+  border-radius: 999px; font: 600 14px/1 var(--font-display); color: var(--text); text-decoration: none; border: 1px solid transparent;
+  background: rgba(255,255,255,0.06); transition: background .15s, transform .15s; }
+.pager a.pg:hover { background: rgba(255,255,255,0.16); transform: translateY(-1px); }
+.pager a.pg:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+.pager .pg.is-current { background: linear-gradient(120deg, #8b5cf6, #22d3ee); color: #06070d; box-shadow: 0 2px 14px rgba(34,211,238,0.35); }
+.pager .pg.is-disabled { opacity: .38; cursor: default; }
+.pager .pg-gap { background: none; min-width: 20px; padding: 0; color: var(--text-dim); }
+.pager-caption { margin: 0; font-size: 13px; color: var(--text-dim); }
+@media (max-width: 520px) {
+  .pager { margin: 18px 0; }
+  .pager-list { gap: 4px; padding: 5px; flex-wrap: nowrap; max-width: 100%; }
+  .pager .pg { min-width: 32px; height: 36px; padding: 0 8px; font-size: 13px; }
+  .pager .pg-step { padding: 0 10px; }
+  .pager .pg-gap { min-width: 14px; }
+}

@@ -11,11 +11,15 @@ mainNav.querySelectorAll('a').forEach(link => {
   link.addEventListener('click', () => mainNav.classList.remove('open'));
 });
 
-// --- Search the games grid by name, genre, tagline or origin ---
+// --- Search + pagination for the games grid ---
+// Without JS every card shows. With JS the (search-filtered) cards are paged PAGE_SIZE at a time.
 (function () {
+  const PAGE_SIZE = 20;
   const input = document.getElementById('gameSearch');
   const empty = document.getElementById('gameSearchEmpty');
+  const grid = document.getElementById('gameGrid');
   const cards = Array.from(document.querySelectorAll('.game-card'));
+  const pagers = Array.from(document.querySelectorAll('[data-pager]'));
   if (!input || !cards.length) return;
 
   // Cache each card's searchable text once (title, genre, tagline, description, origin note).
@@ -25,16 +29,140 @@ mainNav.querySelectorAll('a').forEach(link => {
     return parts.join(' ').toLowerCase();
   });
 
-  input.addEventListener('input', () => {
-    const q = input.value.trim().toLowerCase();
-    let visible = 0;
-    cards.forEach((card, i) => {
-      const match = !q || haystacks[i].includes(q);
-      card.hidden = !match;
-      if (match) visible++;
+  let matched = cards.slice();
+  let page = 1;
+
+  const pageCount = () => Math.max(1, Math.ceil(matched.length / PAGE_SIZE));
+  const clamp = n => Math.min(Math.max(1, n || 1), pageCount());
+  const pageUrl = n => {
+    const u = new URL(location.href);
+    u.hash = '';
+    if (n > 1) u.searchParams.set('page', n); else u.searchParams.delete('page');
+    return u.pathname + u.search;
+  };
+
+  function pageItems(total, cur) {
+    const set = new Set([1, total, cur - 1, cur, cur + 1]);
+    if (cur <= 3) { set.add(2); set.add(3); }
+    if (cur >= total - 2) { set.add(total - 1); set.add(total - 2); }
+    const nums = Array.from(set).filter(n => n >= 1 && n <= total).sort((x, y) => x - y);
+    const out = [];
+    nums.forEach((n, i) => { if (i && n - nums[i - 1] > 1) out.push(0); out.push(n); });
+    return out;
+  }
+
+  function renderPagers() {
+    const total = pageCount();
+    const n = matched.length;
+    const from = n ? (page - 1) * PAGE_SIZE + 1 : 0;
+    const to = Math.min(page * PAGE_SIZE, n);
+    pagers.forEach(nav => {
+      nav.hidden = total <= 1;
+      nav.textContent = '';
+      if (total <= 1) return;
+      const mk = (tag, cls, text, label) => {
+        const el = document.createElement(tag);
+        el.className = cls; el.textContent = text;
+        if (label) el.setAttribute('aria-label', label);
+        return el;
+      };
+      const link = (target, cls, text, label) => {
+        const a = mk('a', cls, text, label);
+        a.href = pageUrl(target);
+        a.dataset.page = target;
+        return a;
+      };
+      const list = mk('div', 'pager-list');
+      list.appendChild(page > 1 ? link(page - 1, 'pg pg-step', '‹ Prev', 'Previous page')
+        : Object.assign(mk('span', 'pg pg-step is-disabled', '‹ Prev'), { ariaDisabled: 'true' }));
+      pageItems(total, page).forEach(i => {
+        if (!i) { const e = mk('span', 'pg pg-gap', '…'); e.setAttribute('aria-hidden', 'true'); list.appendChild(e); return; }
+        const a = link(i, 'pg pg-num' + (i === page ? ' is-current' : ''), String(i), 'Page ' + i);
+        if (i === page) a.setAttribute('aria-current', 'page');
+        list.appendChild(a);
+      });
+      list.appendChild(page < total ? link(page + 1, 'pg pg-step', 'Next ›', 'Next page')
+        : Object.assign(mk('span', 'pg pg-step is-disabled', 'Next ›'), { ariaDisabled: 'true' }));
+      nav.appendChild(list);
+      nav.appendChild(mk('p', 'pager-caption', 'Games ' + from + '–' + to + ' of ' + n));
     });
-    empty.hidden = visible !== 0;
+  }
+
+  function apply() {
+    page = clamp(page);
+    const start = (page - 1) * PAGE_SIZE;
+    const visible = new Set(matched.slice(start, start + PAGE_SIZE));
+    cards.forEach(c => { c.hidden = !visible.has(c); });
+    empty.hidden = matched.length !== 0;
+    renderPagers();
+  }
+
+  function scrollToList() {
+    const target = pagers[0] && !pagers[0].hidden ? pagers[0] : grid;
+    target.scrollIntoView({ block: 'start' });
+  }
+
+  function go(n, push, scroll) {
+    page = clamp(n);
+    apply();
+    if (push) history.pushState({ page }, '', pageUrl(page));
+    if (scroll) scrollToList();
+  }
+
+  function filter(q) {
+    q = q.trim().toLowerCase();
+    matched = cards.filter((c, i) => !q || haystacks[i].includes(q));
+  }
+
+  // Show the page holding a card (clearing the search if needed) and scroll to it.
+  function showCard(id) {
+    const card = id && cards.find(c => c.id === id);
+    if (!card) return false;
+    if (!matched.includes(card)) { input.value = ''; filter(''); }
+    page = Math.floor(matched.indexOf(card) / PAGE_SIZE) + 1;
+    apply();
+    card.scrollIntoView({ block: 'start' });
+    return true;
+  }
+
+  const readHash = () => { try { return decodeURIComponent(location.hash.slice(1)); } catch (e) { return ''; } };
+  const readPage = () => {
+    const q = new URLSearchParams(location.search).get('page');
+    const m = q || (/^page-(\d+)$/.exec(readHash()) || [])[1];
+    return parseInt(m, 10) || 1;
+  };
+
+  input.addEventListener('input', () => {
+    filter(input.value);
+    page = 1;
+    apply();
+    if (new URLSearchParams(location.search).has('page')) history.replaceState(null, '', pageUrl(1));
   });
+
+  pagers.forEach(nav => nav.addEventListener('click', e => {
+    const a = e.target.closest('a[data-page]');
+    if (!a || e.metaKey || e.ctrlKey || e.shiftKey || e.button) return;
+    e.preventDefault();
+    go(parseInt(a.dataset.page, 10), true, true);
+    const again = nav.querySelector('.is-current') || nav.querySelector('a');
+    if (again) again.focus({ preventScroll: true });
+  }));
+
+  window.addEventListener('popstate', () => {
+    if (!showCard(readHash())) go(readPage(), false, true);
+  });
+  window.addEventListener('hashchange', () => { showCard(readHash()); });
+
+  // Initial state: a #<slug> deep link wins, otherwise ?page=N (or #page-N).
+  apply();
+  if (readHash() && cards.some(c => c.id === readHash())) {
+    showCard(readHash());
+    // images above the card load lazily and can shift it; re-align once layout settles
+    window.addEventListener('load', () => showCard(readHash()), { once: true });
+  } else if (readPage() > 1) {
+    go(readPage(), false, true);
+    if (new URLSearchParams(location.search).get('page') == null) history.replaceState(null, '', pageUrl(page));
+  }
 })();
 
 // --- Tech-preview mini game: catch the falling orbs ---

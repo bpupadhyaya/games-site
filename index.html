@@ -9,7 +9,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Lilita+One&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="assets/css/style.css?v=20261004i">
+<link rel="stylesheet" href="assets/css/style.css?v=20261004k">
 </head>
 <body>
 
@@ -131,8 +131,9 @@
       </div>
       <p id="gameSearchEmpty" class="game-search-empty" hidden>No games match your search.</p>
 
-      <div class="game-grid game-grid-v2">
-        <article class="game-card gc" style="--c1:#3FAF7F;--c2:#1E6B4F">
+      <nav class="pager pager-top" aria-label="Games pages" data-pager hidden></nav>
+      <div class="game-grid game-grid-v2" id="gameGrid">
+        <article class="game-card gc" id="tiger-and-goat" style="--c1:#3FAF7F;--c2:#1E6B4F">
           <div class="gc-media">
             <span class="game-tag">Free Preview</span>
             <div class="gc-shots"><img loading="lazy" src="assets/img/games/tiger-and-goat/shot-1.jpg" alt="Tiger and Goat screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/tiger-and-goat/shot-2.jpg" alt="Tiger and Goat screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/tiger-and-goat/shot-3.jpg" alt="Tiger and Goat screenshot 3" width="420" height="910"></div>
@@ -156,7 +157,7 @@
             <span class="platform-row"><a class="plat" href="https://apps.apple.com/app/arcforge-polished-games/id6813746442" target="_blank" rel="noopener" style="text-decoration: none;">iOS — Arcforge</a><a class="plat" href="https://play.google.com/store/apps/details?id=com.equalinformation.arcforge.shell" target="_blank" rel="noopener" style="text-decoration: none;">Android — Arcforge</a><span class="plat soon" data-standalone="ios" title="Standalone Tiger and Goat app: submitted to Apple on October 3, 2026">iOS — Tiger and Goat app: in review</span><span class="plat soon" data-standalone="android" title="Standalone Tiger and Goat app: submitted to Google Play on October 3, 2026">Android — Tiger and Goat app: in review</span></span>
           </div>
         </article>
-        <article class="game-card gc" style="--c1:#7FA8DC;--c2:#2E4C86">
+        <article class="game-card gc" id="fox-and-geese" style="--c1:#7FA8DC;--c2:#2E4C86">
           <div class="gc-media">
             <span class="game-tag">Free Preview</span>
             <div class="gc-shots"><img loading="lazy" src="assets/img/games/fox-and-geese/shot-1.jpg" alt="Fox and Geese screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/fox-and-geese/shot-2.jpg" alt="Fox and Geese screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/fox-and-geese/shot-3.jpg" alt="Fox and Geese screenshot 3" width="420" height="910"></div>
@@ -180,7 +181,7 @@
             <span class="platform-row"><a class="plat" href="https://apps.apple.com/app/arcforge-polished-games/id6813746442" target="_blank" rel="noopener" style="text-decoration: none;">iOS — App Store</a><a class="plat" href="https://play.google.com/store/apps/details?id=com.equalinformation.arcforge.shell" target="_blank" rel="noopener" style="text-decoration: none;">Android — Google Play</a></span>
           </div>
         </article>
-        <article class="game-card gc" style="--c1:#E08A34;--c2:#8A4818">
+        <article class="game-card gc" id="hare-and-hounds" style="--c1:#E08A34;--c2:#8A4818">
           <div class="gc-media">
             <span class="game-tag">Free Preview</span>
             <div class="gc-shots"><img loading="lazy" src="assets/img/games/hare-and-hounds/shot-1.jpg" alt="Hare and Hounds screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/hare-and-hounds/shot-2.jpg" alt="Hare and Hounds screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/hare-and-hounds/shot-3.jpg" alt="Hare and Hounds screenshot 3" width="420" height="910"></div>
@@ -204,7 +205,7 @@
             <span class="platform-row"><a class="plat" href="https://apps.apple.com/app/arcforge-polished-games/id6813746442" target="_blank" rel="noopener" style="text-decoration: none;">iOS — App Store</a><a class="plat" href="https://play.google.com/store/apps/details?id=com.equalinformation.arcforge.shell" target="_blank" rel="noopener" style="text-decoration: none;">Android — Google Play</a></span>
           </div>
         </article>
-        <article class="game-card gc" style="--c1:#E0A030;--c2:#A55A14">
+        <article class="game-card gc" id="harvest-sling" style="--c1:#E0A030;--c2:#A55A14">
           <div class="gc-media">
             <span class="game-tag">Free Game</span>
             <div class="gc-shots"><img loading="lazy" src="assets/img/games/harvest-sling/shot-1.jpg" alt="Golden Sling screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/harvest-sling/shot-2.jpg" alt="Golden Sling screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/harvest-sling/shot-3.jpg" alt="Golden Sling screenshot 3" width="420" height="910"></div>
@@ -228,7 +229,7 @@
             <span class="platform-row"><a class="plat" href="https://apps.apple.com/app/arcforge-polished-games/id6813746442" target="_blank" rel="noopener" style="text-decoration: none;">iOS — App Store</a><a class="plat" href="https://play.google.com/store/apps/details?id=com.equalinformation.arcforge.shell" target="_blank" rel="noopener" style="text-decoration: none;">Android — Google Play</a><span class="plat soon" data-standalone="ios" title="Standalone Golden Sling app: submitted to Apple on October 4, 2026">iOS — Golden Sling app: in review</span><span class="plat soon" data-standalone="android" title="Standalone Golden Sling app: submitted to Google Play on October 4, 2026">Android — Golden Sling app: in review</span></span>
           </div>
         </article>
-        <article class="game-card gc" style="--c1:#E8B04A;--c2:#3A3F9E">
+        <article class="game-card gc" id="one-arrow-oath" style="--c1:#E8B04A;--c2:#3A3F9E">
           <div class="gc-media">
             <span class="game-tag">Free Preview</span>
             <div class="gc-shots"><img loading="lazy" src="assets/img/games/one-arrow-oath/shot-1.jpg" alt="One Arrow Oath screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/one-arrow-oath/shot-2.jpg" alt="One Arrow Oath screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/one-arrow-oath/shot-3.jpg" alt="One Arrow Oath screenshot 3" width="420" height="910"></div>
@@ -252,7 +253,7 @@
             <span class="platform-row"><a class="plat" href="https://apps.apple.com/app/arcforge-polished-games/id6813746442" target="_blank" rel="noopener" style="text-decoration: none;">iOS — App Store</a><a class="plat" href="https://play.google.com/store/apps/details?id=com.equalinformation.arcforge.shell" target="_blank" rel="noopener" style="text-decoration: none;">Android — Google Play</a></span>
           </div>
         </article>
-        <article class="game-card gc" style="--c1:#22B8D6;--c2:#0E6F8A">
+        <article class="game-card gc" id="word-game" style="--c1:#22B8D6;--c2:#0E6F8A">
           <div class="gc-media">
             <span class="game-tag">Free Preview</span>
             <div class="gc-shots"><img loading="lazy" src="assets/img/games/word-game/shot-1.jpg" alt="Word Game screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/word-game/shot-2.jpg" alt="Word Game screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/word-game/shot-3.jpg" alt="Word Game screenshot 3" width="420" height="910"></div>
@@ -276,7 +277,7 @@
             <span class="platform-row"><a class="plat" href="https://apps.apple.com/app/arcforge-polished-games/id6813746442" target="_blank" rel="noopener" style="text-decoration: none;">iOS — App Store</a><a class="plat" href="https://play.google.com/store/apps/details?id=com.equalinformation.arcforge.shell" target="_blank" rel="noopener" style="text-decoration: none;">Android — Google Play</a></span>
           </div>
         </article>
-        <article class="game-card gc" style="--c1:#5FA5F0;--c2:#2D6A4F">
+        <article class="game-card gc" id="perch" style="--c1:#5FA5F0;--c2:#2D6A4F">
           <div class="gc-media">
             <span class="game-tag">Free Preview</span>
             <div class="gc-shots"><img loading="lazy" src="assets/img/games/perch/shot-1.jpg" alt="Perch screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/perch/shot-2.jpg" alt="Perch screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/perch/shot-3.jpg" alt="Perch screenshot 3" width="420" height="910"></div>
@@ -300,7 +301,7 @@
             <span class="platform-row"><a class="plat" href="https://apps.apple.com/app/arcforge-polished-games/id6813746442" target="_blank" rel="noopener" style="text-decoration: none;">iOS — App Store</a><a class="plat" href="https://play.google.com/store/apps/details?id=com.equalinformation.arcforge.shell" target="_blank" rel="noopener" style="text-decoration: none;">Android — Google Play</a></span>
           </div>
         </article>
-        <article class="game-card gc" style="--c1:#C8A25E;--c2:#5C3B1A">
+        <article class="game-card gc" id="carrom-striker-and-queen" style="--c1:#C8A25E;--c2:#5C3B1A">
           <div class="gc-media">
             <span class="game-tag">Free Preview</span>
             <div class="gc-shots"><img loading="lazy" src="assets/img/games/carrom-striker-and-queen/shot-1.jpg" alt="Carrom screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/carrom-striker-and-queen/shot-2.jpg" alt="Carrom screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/carrom-striker-and-queen/shot-3.jpg" alt="Carrom screenshot 3" width="420" height="910"></div>
@@ -324,7 +325,7 @@
             <span class="platform-row"><a class="plat" href="https://apps.apple.com/app/arcforge-polished-games/id6813746442" target="_blank" rel="noopener" style="text-decoration: none;">iOS — App Store</a><a class="plat" href="https://play.google.com/store/apps/details?id=com.equalinformation.arcforge.shell" target="_blank" rel="noopener" style="text-decoration: none;">Android — Google Play</a></span>
           </div>
         </article>
-        <article class="game-card gc" style="--c1:#2E7D6B;--c2:#0F3D33">
+        <article class="game-card gc" id="congklak-sungka-shells" style="--c1:#2E7D6B;--c2:#0F3D33">
           <div class="gc-media">
             <span class="game-tag">Free Preview</span>
             <div class="gc-shots"><img loading="lazy" src="assets/img/games/congklak-sungka-shells/shot-1.jpg" alt="Congklak screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/congklak-sungka-shells/shot-2.jpg" alt="Congklak screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/congklak-sungka-shells/shot-3.jpg" alt="Congklak screenshot 3" width="420" height="910"></div>
@@ -348,7 +349,7 @@
             <span class="platform-row"><a class="plat" href="https://apps.apple.com/app/arcforge-polished-games/id6813746442" target="_blank" rel="noopener" style="text-decoration: none;">iOS — App Store</a><a class="plat" href="https://play.google.com/store/apps/details?id=com.equalinformation.arcforge.shell" target="_blank" rel="noopener" style="text-decoration: none;">Android — Google Play</a></span>
           </div>
         </article>
-        <article class="game-card gc" style="--c1:#B33A3A;--c2:#4A1616">
+        <article class="game-card gc" id="durak-na-dache" style="--c1:#B33A3A;--c2:#4A1616">
           <div class="gc-media">
             <span class="game-tag">Free Preview</span>
             <div class="gc-shots"><img loading="lazy" src="assets/img/games/durak-na-dache/shot-1.jpg" alt="Durak screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/durak-na-dache/shot-2.jpg" alt="Durak screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/durak-na-dache/shot-3.jpg" alt="Durak screenshot 3" width="420" height="910"></div>
@@ -372,7 +373,7 @@
             <span class="platform-row"><a class="plat" href="https://apps.apple.com/app/arcforge-polished-games/id6813746442" target="_blank" rel="noopener" style="text-decoration: none;">iOS — App Store</a><a class="plat" href="https://play.google.com/store/apps/details?id=com.equalinformation.arcforge.shell" target="_blank" rel="noopener" style="text-decoration: none;">Android — Google Play</a></span>
           </div>
         </article>
-        <article class="game-card gc" style="--c1:#1FB8B0;--c2:#0F6B72">
+        <article class="game-card gc" id="sure-sweep-no-guess" style="--c1:#1FB8B0;--c2:#0F6B72">
           <div class="gc-media">
             <span class="game-tag">Free Game</span>
             <div class="gc-shots"><img loading="lazy" src="assets/img/games/sure-sweep-no-guess/shot-1.jpg" alt="Sure Sweep screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/sure-sweep-no-guess/shot-2.jpg" alt="Sure Sweep screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/sure-sweep-no-guess/shot-3.jpg" alt="Sure Sweep screenshot 3" width="420" height="910"></div>
@@ -396,7 +397,7 @@
             <span class="platform-row"><a class="plat" href="https://apps.apple.com/app/arcforge-polished-games/id6813746442" target="_blank" rel="noopener" style="text-decoration: none;">iOS — App Store</a><a class="plat" href="https://play.google.com/store/apps/details?id=com.equalinformation.arcforge.shell" target="_blank" rel="noopener" style="text-decoration: none;">Android — Google Play</a></span>
           </div>
         </article>
-        <article class="game-card gc" style="--c1:#B8925A;--c2:#3A2A18">
+        <article class="game-card gc" id="go-stones-and-territory" style="--c1:#B8925A;--c2:#3A2A18">
           <div class="gc-media">
             <span class="game-tag">Free Preview</span>
             <div class="gc-shots"><img loading="lazy" src="assets/img/games/go-stones-and-territory/shot-1.jpg" alt="Go screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/go-stones-and-territory/shot-2.jpg" alt="Go screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/go-stones-and-territory/shot-3.jpg" alt="Go screenshot 3" width="420" height="910"></div>
@@ -420,7 +421,7 @@
             <span class="platform-row"><a class="plat" href="https://apps.apple.com/app/arcforge-polished-games/id6813746442" target="_blank" rel="noopener" style="text-decoration: none;">iOS — App Store</a><a class="plat" href="https://play.google.com/store/apps/details?id=com.equalinformation.arcforge.shell" target="_blank" rel="noopener" style="text-decoration: none;">Android — Google Play</a></span>
           </div>
         </article>
-        <article class="game-card gc" style="--c1:#5A6B8C;--c2:#20283D">
+        <article class="game-card gc" id="kings-table-tafl" style="--c1:#5A6B8C;--c2:#20283D">
           <div class="gc-media">
             <span class="game-tag">Free Preview</span>
             <div class="gc-shots"><img loading="lazy" src="assets/img/games/kings-table-tafl/shot-1.jpg" alt="Tafl screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/kings-table-tafl/shot-2.jpg" alt="Tafl screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/kings-table-tafl/shot-3.jpg" alt="Tafl screenshot 3" width="420" height="910"></div>
@@ -444,7 +445,7 @@
             <span class="platform-row"><a class="plat" href="https://apps.apple.com/app/arcforge-polished-games/id6813746442" target="_blank" rel="noopener" style="text-decoration: none;">iOS — App Store</a><a class="plat" href="https://play.google.com/store/apps/details?id=com.equalinformation.arcforge.shell" target="_blank" rel="noopener" style="text-decoration: none;">Android — Google Play</a></span>
           </div>
         </article>
-        <article class="game-card gc" style="--c1:#E0805A;--c2:#3B2F3A">
+        <article class="game-card gc" id="konane-hawaiian-jumps" style="--c1:#E0805A;--c2:#3B2F3A">
           <div class="gc-media">
             <span class="game-tag">Free Preview</span>
             <div class="gc-shots"><img loading="lazy" src="assets/img/games/konane-hawaiian-jumps/shot-1.jpg" alt="Konane screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/konane-hawaiian-jumps/shot-2.jpg" alt="Konane screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/konane-hawaiian-jumps/shot-3.jpg" alt="Konane screenshot 3" width="420" height="910"></div>
@@ -468,7 +469,7 @@
             <span class="platform-row"><a class="plat" href="https://apps.apple.com/app/arcforge-polished-games/id6813746442" target="_blank" rel="noopener" style="text-decoration: none;">iOS — App Store</a><a class="plat" href="https://play.google.com/store/apps/details?id=com.equalinformation.arcforge.shell" target="_blank" rel="noopener" style="text-decoration: none;">Android — Google Play</a></span>
           </div>
         </article>
-        <article class="game-card gc" style="--c1:#3EAE7E;--c2:#164A34">
+        <article class="game-card gc" id="mahjong-four-winds" style="--c1:#3EAE7E;--c2:#164A34">
           <div class="gc-media">
             <span class="game-tag">Free Preview</span>
             <div class="gc-shots"><img loading="lazy" src="assets/img/games/mahjong-four-winds/shot-1.jpg" alt="Mahjong screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/mahjong-four-winds/shot-2.jpg" alt="Mahjong screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/mahjong-four-winds/shot-3.jpg" alt="Mahjong screenshot 3" width="420" height="910"></div>
@@ -492,7 +493,7 @@
             <span class="platform-row"><a class="plat" href="https://apps.apple.com/app/arcforge-polished-games/id6813746442" target="_blank" rel="noopener" style="text-decoration: none;">iOS — App Store</a><a class="plat" href="https://play.google.com/store/apps/details?id=com.equalinformation.arcforge.shell" target="_blank" rel="noopener" style="text-decoration: none;">Android — Google Play</a></span>
           </div>
         </article>
-        <article class="game-card gc" style="--c1:#8A5A2E;--c2:#3A2510">
+        <article class="game-card gc" id="mill-nine-mens-morris" style="--c1:#8A5A2E;--c2:#3A2510">
           <div class="gc-media">
             <span class="game-tag">Free Preview</span>
             <div class="gc-shots"><img loading="lazy" src="assets/img/games/mill-nine-mens-morris/shot-1.jpg" alt="Nine Men&#x27;s Morris screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/mill-nine-mens-morris/shot-2.jpg" alt="Nine Men&#x27;s Morris screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/mill-nine-mens-morris/shot-3.jpg" alt="Nine Men&#x27;s Morris screenshot 3" width="420" height="910"></div>
@@ -516,7 +517,7 @@
             <span class="platform-row"><a class="plat" href="https://apps.apple.com/app/arcforge-polished-games/id6813746442" target="_blank" rel="noopener" style="text-decoration: none;">iOS — App Store</a><a class="plat" href="https://play.google.com/store/apps/details?id=com.equalinformation.arcforge.shell" target="_blank" rel="noopener" style="text-decoration: none;">Android — Google Play</a></span>
           </div>
         </article>
-        <article class="game-card gc" style="--c1:#8B5CF6;--c2:#4A2FA0">
+        <article class="game-card gc" id="crown-star-regions" style="--c1:#8B5CF6;--c2:#4A2FA0">
           <div class="gc-media">
             <span class="game-tag">Free Game</span>
             <div class="gc-shots"><img loading="lazy" src="assets/img/games/crown-star-regions/shot-1.jpg" alt="Crown Fields screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/crown-star-regions/shot-2.jpg" alt="Crown Fields screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/crown-star-regions/shot-3.jpg" alt="Crown Fields screenshot 3" width="420" height="910"></div>
@@ -540,7 +541,7 @@
             <span class="platform-row"><a class="plat" href="https://apps.apple.com/app/arcforge-polished-games/id6813746442" target="_blank" rel="noopener" style="text-decoration: none;">iOS — App Store</a><a class="plat" href="https://play.google.com/store/apps/details?id=com.equalinformation.arcforge.shell" target="_blank" rel="noopener" style="text-decoration: none;">Android — Google Play</a></span>
           </div>
         </article>
-        <article class="game-card gc" style="--c1:#B06A2E;--c2:#4A2A0F">
+        <article class="game-card gc" id="morabaraba-twelve-cows" style="--c1:#B06A2E;--c2:#4A2A0F">
           <div class="gc-media">
             <span class="game-tag">Free Preview</span>
             <div class="gc-shots"><img loading="lazy" src="assets/img/games/morabaraba-twelve-cows/shot-1.jpg" alt="Morabaraba screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/morabaraba-twelve-cows/shot-2.jpg" alt="Morabaraba screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/morabaraba-twelve-cows/shot-3.jpg" alt="Morabaraba screenshot 3" width="420" height="910"></div>
@@ -564,7 +565,7 @@
             <span class="platform-row"><a class="plat" href="https://apps.apple.com/app/arcforge-polished-games/id6813746442" target="_blank" rel="noopener" style="text-decoration: none;">iOS — App Store</a><a class="plat" href="https://play.google.com/store/apps/details?id=com.equalinformation.arcforge.shell" target="_blank" rel="noopener" style="text-decoration: none;">Android — Google Play</a></span>
           </div>
         </article>
-        <article class="game-card gc" style="--c1:#2E9E8E;--c2:#0D3B36">
+        <article class="game-card gc" id="mu-torere-star-board" style="--c1:#2E9E8E;--c2:#0D3B36">
           <div class="gc-media">
             <span class="game-tag">Free Preview</span>
             <div class="gc-shots"><img loading="lazy" src="assets/img/games/mu-torere-star-board/shot-1.jpg" alt="Mū Tōrere screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/mu-torere-star-board/shot-2.jpg" alt="Mū Tōrere screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/mu-torere-star-board/shot-3.jpg" alt="Mū Tōrere screenshot 3" width="420" height="910"></div>
@@ -588,7 +589,7 @@
             <span class="platform-row"><a class="plat" href="https://apps.apple.com/app/arcforge-polished-games/id6813746442" target="_blank" rel="noopener" style="text-decoration: none;">iOS — App Store</a><a class="plat" href="https://play.google.com/store/apps/details?id=com.equalinformation.arcforge.shell" target="_blank" rel="noopener" style="text-decoration: none;">Android — Google Play</a></span>
           </div>
         </article>
-        <article class="game-card gc" style="--c1:#C2603A;--c2:#6B2E1C">
+        <article class="game-card gc" id="oware-seed-sowing" style="--c1:#C2603A;--c2:#6B2E1C">
           <div class="gc-media">
             <span class="game-tag">Free Preview</span>
             <div class="gc-shots"><img loading="lazy" src="assets/img/games/oware-seed-sowing/shot-1.jpg" alt="Oware screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/oware-seed-sowing/shot-2.jpg" alt="Oware screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/oware-seed-sowing/shot-3.jpg" alt="Oware screenshot 3" width="420" height="910"></div>
@@ -612,7 +613,7 @@
             <span class="platform-row"><a class="plat" href="https://apps.apple.com/app/arcforge-polished-games/id6813746442" target="_blank" rel="noopener" style="text-decoration: none;">iOS — App Store</a><a class="plat" href="https://play.google.com/store/apps/details?id=com.equalinformation.arcforge.shell" target="_blank" rel="noopener" style="text-decoration: none;">Android — Google Play</a></span>
           </div>
         </article>
-        <article class="game-card gc" style="--c1:#C43C3C;--c2:#6B1E2E">
+        <article class="game-card gc" id="pachisi-cowries-and-cross" style="--c1:#C43C3C;--c2:#6B1E2E">
           <div class="gc-media">
             <span class="game-tag">Free Preview</span>
             <div class="gc-shots"><img loading="lazy" src="assets/img/games/pachisi-cowries-and-cross/shot-1.jpg" alt="Pachisi screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/pachisi-cowries-and-cross/shot-2.jpg" alt="Pachisi screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/pachisi-cowries-and-cross/shot-3.jpg" alt="Pachisi screenshot 3" width="420" height="910"></div>
@@ -636,7 +637,7 @@
             <span class="platform-row"><a class="plat" href="https://apps.apple.com/app/arcforge-polished-games/id6813746442" target="_blank" rel="noopener" style="text-decoration: none;">iOS — App Store</a><a class="plat" href="https://play.google.com/store/apps/details?id=com.equalinformation.arcforge.shell" target="_blank" rel="noopener" style="text-decoration: none;">Android — Google Play</a></span>
           </div>
         </article>
-        <article class="game-card gc" style="--c1:#2E5FA8;--c2:#12244A">
+        <article class="game-card gc" id="royal-game-of-ur-race" style="--c1:#2E5FA8;--c2:#12244A">
           <div class="gc-media">
             <span class="game-tag">Free Preview</span>
             <div class="gc-shots"><img loading="lazy" src="assets/img/games/royal-game-of-ur-race/shot-1.jpg" alt="The Royal Game of Ur screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/royal-game-of-ur-race/shot-2.jpg" alt="The Royal Game of Ur screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/royal-game-of-ur-race/shot-3.jpg" alt="The Royal Game of Ur screenshot 3" width="420" height="910"></div>
@@ -660,7 +661,7 @@
             <span class="platform-row"><a class="plat" href="https://apps.apple.com/app/arcforge-polished-games/id6813746442" target="_blank" rel="noopener" style="text-decoration: none;">iOS — App Store</a><a class="plat" href="https://play.google.com/store/apps/details?id=com.equalinformation.arcforge.shell" target="_blank" rel="noopener" style="text-decoration: none;">Android — Google Play</a></span>
           </div>
         </article>
-        <article class="game-card gc" style="--c1:#A82E4E;--c2:#4A1220">
+        <article class="game-card gc" id="scopa-delle-regioni" style="--c1:#A82E4E;--c2:#4A1220">
           <div class="gc-media">
             <span class="game-tag">Free Preview</span>
             <div class="gc-shots"><img loading="lazy" src="assets/img/games/scopa-delle-regioni/shot-1.jpg" alt="Scopa screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/scopa-delle-regioni/shot-2.jpg" alt="Scopa screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/scopa-delle-regioni/shot-3.jpg" alt="Scopa screenshot 3" width="420" height="910"></div>
@@ -684,7 +685,7 @@
             <span class="platform-row"><a class="plat" href="https://apps.apple.com/app/arcforge-polished-games/id6813746442" target="_blank" rel="noopener" style="text-decoration: none;">iOS — App Store</a><a class="plat" href="https://play.google.com/store/apps/details?id=com.equalinformation.arcforge.shell" target="_blank" rel="noopener" style="text-decoration: none;">Android — Google Play</a></span>
           </div>
         </article>
-        <article class="game-card gc" style="--c1:#E0508F;--c2:#9A1F5C">
+        <article class="game-card gc" id="big-card-solitaire-large-print" style="--c1:#E0508F;--c2:#9A1F5C">
           <div class="gc-media">
             <span class="game-tag">Free Game</span>
             <div class="gc-shots"><img loading="lazy" src="assets/img/games/big-card-solitaire-large-print/shot-1.jpg" alt="Big Card Solitaire screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/big-card-solitaire-large-print/shot-2.jpg" alt="Big Card Solitaire screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/big-card-solitaire-large-print/shot-3.jpg" alt="Big Card Solitaire screenshot 3" width="420" height="910"></div>
@@ -708,7 +709,7 @@
             <span class="platform-row"><a class="plat" href="https://apps.apple.com/app/arcforge-polished-games/id6813746442" target="_blank" rel="noopener" style="text-decoration: none;">iOS — App Store</a><a class="plat" href="https://play.google.com/store/apps/details?id=com.equalinformation.arcforge.shell" target="_blank" rel="noopener" style="text-decoration: none;">Android — Google Play</a></span>
           </div>
         </article>
-        <article class="game-card gc" style="--c1:#C9A227;--c2:#4A3A0E">
+        <article class="game-card gc" id="senet-pharaohs-path" style="--c1:#C9A227;--c2:#4A3A0E">
           <div class="gc-media">
             <span class="game-tag">Free Preview</span>
             <div class="gc-shots"><img loading="lazy" src="assets/img/games/senet-pharaohs-path/shot-1.jpg" alt="Senet screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/senet-pharaohs-path/shot-2.jpg" alt="Senet screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/senet-pharaohs-path/shot-3.jpg" alt="Senet screenshot 3" width="420" height="910"></div>
@@ -732,7 +733,7 @@
             <span class="platform-row"><a class="plat" href="https://apps.apple.com/app/arcforge-polished-games/id6813746442" target="_blank" rel="noopener" style="text-decoration: none;">iOS — App Store</a><a class="plat" href="https://play.google.com/store/apps/details?id=com.equalinformation.arcforge.shell" target="_blank" rel="noopener" style="text-decoration: none;">Android — Google Play</a></span>
           </div>
         </article>
-        <article class="game-card gc" style="--c1:#D9553A;--c2:#5B1F1A">
+        <article class="game-card gc" id="shogi-generals-and-drops" style="--c1:#D9553A;--c2:#5B1F1A">
           <div class="gc-media">
             <span class="game-tag">Free Preview</span>
             <div class="gc-shots"><img loading="lazy" src="assets/img/games/shogi-generals-and-drops/shot-1.jpg" alt="Shogi screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/shogi-generals-and-drops/shot-2.jpg" alt="Shogi screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/shogi-generals-and-drops/shot-3.jpg" alt="Shogi screenshot 3" width="420" height="910"></div>
@@ -756,7 +757,7 @@
             <span class="platform-row"><a class="plat" href="https://apps.apple.com/app/arcforge-polished-games/id6813746442" target="_blank" rel="noopener" style="text-decoration: none;">iOS — App Store</a><a class="plat" href="https://play.google.com/store/apps/details?id=com.equalinformation.arcforge.shell" target="_blank" rel="noopener" style="text-decoration: none;">Android — Google Play</a></span>
           </div>
         </article>
-        <article class="game-card gc" style="--c1:#9C4E8C;--c2:#3E1E38">
+        <article class="game-card gc" id="tarneeb-levant-table" style="--c1:#9C4E8C;--c2:#3E1E38">
           <div class="gc-media">
             <span class="game-tag">Free Preview</span>
             <div class="gc-shots"><img loading="lazy" src="assets/img/games/tarneeb-levant-table/shot-1.jpg" alt="Tarneeb screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/tarneeb-levant-table/shot-2.jpg" alt="Tarneeb screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/tarneeb-levant-table/shot-3.jpg" alt="Tarneeb screenshot 3" width="420" height="910"></div>
@@ -780,7 +781,7 @@
             <span class="platform-row"><a class="plat" href="https://apps.apple.com/app/arcforge-polished-games/id6813746442" target="_blank" rel="noopener" style="text-decoration: none;">iOS — App Store</a><a class="plat" href="https://play.google.com/store/apps/details?id=com.equalinformation.arcforge.shell" target="_blank" rel="noopener" style="text-decoration: none;">Android — Google Play</a></span>
           </div>
         </article>
-        <article class="game-card gc" style="--c1:#A5673A;--c2:#3B2214">
+        <article class="game-card gc" id="tavla-dice-and-points" style="--c1:#A5673A;--c2:#3B2214">
           <div class="gc-media">
             <span class="game-tag">Free Preview</span>
             <div class="gc-shots"><img loading="lazy" src="assets/img/games/tavla-dice-and-points/shot-1.jpg" alt="Tavla screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/tavla-dice-and-points/shot-2.jpg" alt="Tavla screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/tavla-dice-and-points/shot-3.jpg" alt="Tavla screenshot 3" width="420" height="910"></div>
@@ -804,7 +805,7 @@
             <span class="platform-row"><a class="plat" href="https://apps.apple.com/app/arcforge-polished-games/id6813746442" target="_blank" rel="noopener" style="text-decoration: none;">iOS — App Store</a><a class="plat" href="https://play.google.com/store/apps/details?id=com.equalinformation.arcforge.shell" target="_blank" rel="noopener" style="text-decoration: none;">Android — Google Play</a></span>
           </div>
         </article>
-        <article class="game-card gc" style="--c1:#3E4E9E;--c2:#1B2557">
+        <article class="game-card gc" id="toguz-kumalak-nine-pits" style="--c1:#3E4E9E;--c2:#1B2557">
           <div class="gc-media">
             <span class="game-tag">Free Preview</span>
             <div class="gc-shots"><img loading="lazy" src="assets/img/games/toguz-kumalak-nine-pits/shot-1.jpg" alt="Toguz Kumalak screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/toguz-kumalak-nine-pits/shot-2.jpg" alt="Toguz Kumalak screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/toguz-kumalak-nine-pits/shot-3.jpg" alt="Toguz Kumalak screenshot 3" width="420" height="910"></div>
@@ -828,7 +829,7 @@
             <span class="platform-row"><a class="plat" href="https://apps.apple.com/app/arcforge-polished-games/id6813746442" target="_blank" rel="noopener" style="text-decoration: none;">iOS — App Store</a><a class="plat" href="https://play.google.com/store/apps/details?id=com.equalinformation.arcforge.shell" target="_blank" rel="noopener" style="text-decoration: none;">Android — Google Play</a></span>
           </div>
         </article>
-        <article class="game-card gc" style="--c1:#B8382A;--c2:#3B1210">
+        <article class="game-card gc" id="xiangqi-river-and-palace" style="--c1:#B8382A;--c2:#3B1210">
           <div class="gc-media">
             <span class="game-tag">Free Preview</span>
             <div class="gc-shots"><img loading="lazy" src="assets/img/games/xiangqi-river-and-palace/shot-1.jpg" alt="Xiangqi screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/xiangqi-river-and-palace/shot-2.jpg" alt="Xiangqi screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/xiangqi-river-and-palace/shot-3.jpg" alt="Xiangqi screenshot 3" width="420" height="910"></div>
@@ -852,7 +853,7 @@
             <span class="platform-row"><a class="plat" href="https://apps.apple.com/app/arcforge-polished-games/id6813746442" target="_blank" rel="noopener" style="text-decoration: none;">iOS — App Store</a><a class="plat" href="https://play.google.com/store/apps/details?id=com.equalinformation.arcforge.shell" target="_blank" rel="noopener" style="text-decoration: none;">Android — Google Play</a></span>
           </div>
         </article>
-        <article class="game-card gc" style="--c1:#D8C9A8;--c2:#3A2415">
+        <article class="game-card gc" id="chess-royal-sixty-four" style="--c1:#D8C9A8;--c2:#3A2415">
           <div class="gc-media">
             <span class="game-tag">Free Game</span>
             <div class="gc-shots"><img loading="lazy" src="assets/img/games/chess-royal-sixty-four/shot-1.jpg" alt="Chess screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/chess-royal-sixty-four/shot-2.jpg" alt="Chess screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/chess-royal-sixty-four/shot-3.jpg" alt="Chess screenshot 3" width="420" height="910"></div>
@@ -876,7 +877,7 @@
             <span class="platform-row"><a class="plat" href="https://apps.apple.com/app/arcforge-polished-games/id6813746442" target="_blank" rel="noopener" style="text-decoration: none;">iOS — App Store</a><a class="plat" href="https://play.google.com/store/apps/details?id=com.equalinformation.arcforge.shell" target="_blank" rel="noopener" style="text-decoration: none;">Android — Google Play</a></span>
           </div>
         </article>
-        <article class="game-card gc" style="--c1:#5A6B8C;--c2:#20283D">
+        <article class="game-card gc" id="yut-nori-four-sticks" style="--c1:#5A6B8C;--c2:#20283D">
           <div class="gc-media">
             <span class="game-tag">Free Preview</span>
             <div class="gc-shots"><img loading="lazy" src="assets/img/games/yut-nori-four-sticks/shot-1.jpg" alt="Yut Nori screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/yut-nori-four-sticks/shot-2.jpg" alt="Yut Nori screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/yut-nori-four-sticks/shot-3.jpg" alt="Yut Nori screenshot 3" width="420" height="910"></div>
@@ -900,7 +901,7 @@
             <span class="platform-row"><a class="plat" href="https://apps.apple.com/app/arcforge-polished-games/id6813746442" target="_blank" rel="noopener" style="text-decoration: none;">iOS — App Store</a><a class="plat" href="https://play.google.com/store/apps/details?id=com.equalinformation.arcforge.shell" target="_blank" rel="noopener" style="text-decoration: none;">Android — Google Play</a></span>
           </div>
         </article>
-        <article class="game-card gc" style="--c1:#2E8FA0;--c2:#123B44">
+        <article class="game-card gc" id="baloot-sun-hokum-table" style="--c1:#2E8FA0;--c2:#123B44">
           <div class="gc-media">
             <span class="game-tag">Free Preview</span>
             <div class="gc-shots"><img loading="lazy" src="assets/img/games/baloot-sun-hokum-table/shot-1.jpg" alt="Baloot screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/baloot-sun-hokum-table/shot-2.jpg" alt="Baloot screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/baloot-sun-hokum-table/shot-3.jpg" alt="Baloot screenshot 3" width="420" height="910"></div>
@@ -924,7 +925,7 @@
             <span class="platform-row"><a class="plat" href="https://apps.apple.com/app/arcforge-polished-games/id6813746442" target="_blank" rel="noopener" style="text-decoration: none;">iOS — App Store</a><a class="plat" href="https://play.google.com/store/apps/details?id=com.equalinformation.arcforge.shell" target="_blank" rel="noopener" style="text-decoration: none;">Android — Google Play</a></span>
           </div>
         </article>
-        <article class="game-card gc" style="--c1:#C8683A;--c2:#2A1410">
+        <article class="game-card gc" id="domino-cubano-doble-nueve" style="--c1:#C8683A;--c2:#2A1410">
           <div class="gc-media">
             <span class="game-tag">Free Preview</span>
             <div class="gc-shots"><img loading="lazy" src="assets/img/games/domino-cubano-doble-nueve/shot-1.jpg" alt="Dominó Cubano screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/domino-cubano-doble-nueve/shot-2.jpg" alt="Dominó Cubano screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/domino-cubano-doble-nueve/shot-3.jpg" alt="Dominó Cubano screenshot 3" width="420" height="910"></div>
@@ -948,7 +949,7 @@
             <span class="platform-row"><a class="plat" href="https://apps.apple.com/app/arcforge-polished-games/id6813746442" target="_blank" rel="noopener" style="text-decoration: none;">iOS — App Store</a><a class="plat" href="https://play.google.com/store/apps/details?id=com.equalinformation.arcforge.shell" target="_blank" rel="noopener" style="text-decoration: none;">Android — Google Play</a></span>
           </div>
         </article>
-        <article class="game-card gc" style="--c1:#E8863A;--c2:#5A1E4A">
+        <article class="game-card gc" id="golden-isle-journey" style="--c1:#E8863A;--c2:#5A1E4A">
           <div class="gc-media">
             <span class="game-tag">Free Preview</span>
             <div class="gc-shots"><img loading="lazy" src="assets/img/games/golden-isle-journey/shot-1.jpg" alt="The Road to Lanka screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/golden-isle-journey/shot-2.jpg" alt="The Road to Lanka screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/golden-isle-journey/shot-3.jpg" alt="The Road to Lanka screenshot 3" width="420" height="910"></div>
@@ -972,7 +973,7 @@
             <span class="platform-row"><a class="plat" href="https://apps.apple.com/app/arcforge-polished-games/id6813746442" target="_blank" rel="noopener" style="text-decoration: none;">iOS — App Store</a><a class="plat" href="https://play.google.com/store/apps/details?id=com.equalinformation.arcforge.shell" target="_blank" rel="noopener" style="text-decoration: none;">Android — Google Play</a></span>
           </div>
         </article>
-        <article class="game-card gc" style="--c1:#1C8A4F;--c2:#0A3A26">
+        <article class="game-card gc" id="truco-brasileiro-manilha" style="--c1:#1C8A4F;--c2:#0A3A26">
           <div class="gc-media">
             <span class="game-tag">New · Free Preview</span>
             <div class="gc-shots"><img loading="lazy" src="assets/img/games/truco-brasileiro-manilha/shot-1.jpg" alt="Truco Brasileiro: Manilha screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/truco-brasileiro-manilha/shot-2.jpg" alt="Truco Brasileiro: Manilha screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/truco-brasileiro-manilha/shot-3.jpg" alt="Truco Brasileiro: Manilha screenshot 3" width="420" height="910"></div>
@@ -996,7 +997,7 @@
             <span class="platform-row"><span class="plat soon">iOS — Coming soon</span><a class="plat" href="https://play.google.com/store/apps/details?id=com.equalinformation.arcforge.shell" target="_blank" rel="noopener" style="text-decoration: none;">Android — Google Play</a></span>
           </div>
         </article>
-        <article class="game-card gc" style="--c1:#E0653A;--c2:#2F0C48">
+        <article class="game-card gc" id="loteria-cantada-tablas" style="--c1:#E0653A;--c2:#2F0C48">
           <div class="gc-media">
             <span class="game-tag">New · Free Preview</span>
             <div class="gc-shots"><img loading="lazy" src="assets/img/games/loteria-cantada-tablas/shot-1.jpg" alt="Lotería Cantada screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/loteria-cantada-tablas/shot-2.jpg" alt="Lotería Cantada screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/loteria-cantada-tablas/shot-3.jpg" alt="Lotería Cantada screenshot 3" width="420" height="910"></div>
@@ -1020,7 +1021,7 @@
             <span class="platform-row"><span class="plat soon">iOS — Coming soon</span><a class="plat" href="https://play.google.com/store/apps/details?id=com.equalinformation.arcforge.shell" target="_blank" rel="noopener" style="text-decoration: none;">Android — Google Play</a></span>
           </div>
         </article>
-        <article class="game-card gc" style="--c1:#1E8577;--c2:#06201F">
+        <article class="game-card gc" id="okey-tile-rummy-offline" style="--c1:#1E8577;--c2:#06201F">
           <div class="gc-media">
             <span class="game-tag">New · Free Preview</span>
             <div class="gc-shots"><img loading="lazy" src="assets/img/games/okey-tile-rummy-offline/shot-1.jpg" alt="Okey Offline screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/okey-tile-rummy-offline/shot-2.jpg" alt="Okey Offline screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/okey-tile-rummy-offline/shot-3.jpg" alt="Okey Offline screenshot 3" width="420" height="910"></div>
@@ -1044,7 +1045,7 @@
             <span class="platform-row"><span class="plat soon">iOS — Coming soon</span><a class="plat" href="https://play.google.com/store/apps/details?id=com.equalinformation.arcforge.shell" target="_blank" rel="noopener" style="text-decoration: none;">Android — Google Play</a></span>
           </div>
         </article>
-        <article class="game-card gc" style="--c1:#3B5BA9;--c2:#1B2658">
+        <article class="game-card gc" id="moksha-patam-snakes-ladders" style="--c1:#3B5BA9;--c2:#1B2658">
           <div class="gc-media">
             <span class="game-tag">New · Free Preview</span>
             <div class="gc-shots"><img loading="lazy" src="assets/img/games/moksha-patam-snakes-ladders/shot-1.jpg" alt="Snakes &amp; Ladders Cloth Board screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/moksha-patam-snakes-ladders/shot-2.jpg" alt="Snakes &amp; Ladders Cloth Board screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/moksha-patam-snakes-ladders/shot-3.jpg" alt="Snakes &amp; Ladders Cloth Board screenshot 3" width="420" height="910"></div>
@@ -1068,7 +1069,7 @@
             <span class="platform-row"><span class="plat soon">iOS — Coming soon</span><a class="plat" href="https://play.google.com/store/apps/details?id=com.equalinformation.arcforge.shell" target="_blank" rel="noopener" style="text-decoration: none;">Android — Google Play</a></span>
           </div>
         </article>
-        <article class="game-card gc" style="--c1:#F4C20D;--c2:#16397F">
+        <article class="game-card gc" id="parques-colombiano-carcel" style="--c1:#F4C20D;--c2:#16397F">
           <div class="gc-media">
             <span class="game-tag">New · Free Preview</span>
             <div class="gc-shots"><img loading="lazy" src="assets/img/games/parques-colombiano-carcel/shot-1.jpg" alt="Parqués: Salida y Cárcel screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/parques-colombiano-carcel/shot-2.jpg" alt="Parqués: Salida y Cárcel screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/parques-colombiano-carcel/shot-3.jpg" alt="Parqués: Salida y Cárcel screenshot 3" width="420" height="910"></div>
@@ -1092,7 +1093,7 @@
             <span class="platform-row"><span class="plat soon">iOS — Coming soon</span><a class="plat" href="https://play.google.com/store/apps/details?id=com.equalinformation.arcforge.shell" target="_blank" rel="noopener" style="text-decoration: none;">Android — Google Play</a></span>
           </div>
         </article>
-        <article class="game-card gc" style="--c1:#1F6BB0;--c2:#0A2447">
+        <article class="game-card gc" id="tavli-kafeneio-trio" style="--c1:#1F6BB0;--c2:#0A2447">
           <div class="gc-media">
             <span class="game-tag">New · Free Preview</span>
             <div class="gc-shots"><img loading="lazy" src="assets/img/games/tavli-kafeneio-trio/shot-1.jpg" alt="Tavli: Portes Plakoto Fevga screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/tavli-kafeneio-trio/shot-2.jpg" alt="Tavli: Portes Plakoto Fevga screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/tavli-kafeneio-trio/shot-3.jpg" alt="Tavli: Portes Plakoto Fevga screenshot 3" width="420" height="910"></div>
@@ -1116,7 +1117,7 @@
             <span class="platform-row"><span class="plat soon">iOS — Coming soon</span><a class="plat" href="https://play.google.com/store/apps/details?id=com.equalinformation.arcforge.shell" target="_blank" rel="noopener" style="text-decoration: none;">Android — Google Play</a></span>
           </div>
         </article>
-        <article class="game-card gc" style="--c1:#E5659A;--c2:#2A1F5C">
+        <article class="game-card gc" id="tangram-seven-pieces" style="--c1:#E5659A;--c2:#2A1F5C">
           <div class="gc-media">
             <span class="game-tag">New · Free Preview</span>
             <div class="gc-shots"><img loading="lazy" src="assets/img/games/tangram-seven-pieces/shot-1.jpg" alt="Tangram: Seven Pieces screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/tangram-seven-pieces/shot-2.jpg" alt="Tangram: Seven Pieces screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/tangram-seven-pieces/shot-3.jpg" alt="Tangram: Seven Pieces screenshot 3" width="420" height="910"></div>
@@ -1140,7 +1141,7 @@
             <span class="platform-row"><span class="plat soon">iOS — Coming soon</span><a class="plat" href="https://play.google.com/store/apps/details?id=com.equalinformation.arcforge.shell" target="_blank" rel="noopener" style="text-decoration: none;">Android — Google Play</a></span>
           </div>
         </article>
-        <article class="game-card gc" style="--c1:#D9632F;--c2:#4A1220">
+        <article class="game-card gc" id="fanorona-approach-withdraw" style="--c1:#D9632F;--c2:#4A1220">
           <div class="gc-media">
             <span class="game-tag">New · Free Preview</span>
             <div class="gc-shots"><img loading="lazy" src="assets/img/games/fanorona-approach-withdraw/shot-1.jpg" alt="Fanorona: Approach &amp; Withdraw screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/fanorona-approach-withdraw/shot-2.jpg" alt="Fanorona: Approach &amp; Withdraw screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/fanorona-approach-withdraw/shot-3.jpg" alt="Fanorona: Approach &amp; Withdraw screenshot 3" width="420" height="910"></div>
@@ -1164,7 +1165,7 @@
             <span class="platform-row"><span class="plat soon">iOS — Coming soon</span><a class="plat" href="https://play.google.com/store/apps/details?id=com.equalinformation.arcforge.shell" target="_blank" rel="noopener" style="text-decoration: none;">Android — Google Play</a></span>
           </div>
         </article>
-        <article class="game-card gc" style="--c1:#C9A56A;--c2:#6B4A24">
+        <article class="game-card gc" id="jack-and-boule-petanque" style="--c1:#C9A56A;--c2:#6B4A24">
           <div class="gc-media">
             <span class="game-tag">New · Free Preview</span>
             <div class="gc-shots"><img loading="lazy" src="assets/img/games/jack-and-boule-petanque/shot-1.jpg" alt="Jack and Boule screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/jack-and-boule-petanque/shot-2.jpg" alt="Jack and Boule screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/jack-and-boule-petanque/shot-3.jpg" alt="Jack and Boule screenshot 3" width="420" height="910"></div>
@@ -1188,7 +1189,7 @@
             <span class="platform-row"><span class="plat soon">iOS — Coming soon</span><a class="plat" href="https://play.google.com/store/apps/details?id=com.equalinformation.arcforge.shell" target="_blank" rel="noopener" style="text-decoration: none;">Android — Google Play</a></span>
           </div>
         </article>
-        <article class="game-card gc" style="--c1:#F08A3E;--c2:#2B3F7A">
+        <article class="game-card gc" id="timing-six-cricket-chase" style="--c1:#F08A3E;--c2:#2B3F7A">
           <div class="gc-media">
             <span class="game-tag">New · Free Preview</span>
             <div class="gc-shots"><img loading="lazy" src="assets/img/games/timing-six-cricket-chase/shot-1.jpg" alt="Golden Hour Cricket screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/timing-six-cricket-chase/shot-2.jpg" alt="Golden Hour Cricket screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/timing-six-cricket-chase/shot-3.jpg" alt="Golden Hour Cricket screenshot 3" width="420" height="910"></div>
@@ -1212,7 +1213,7 @@
             <span class="platform-row"><span class="plat soon">iOS — Coming soon</span><a class="plat" href="https://play.google.com/store/apps/details?id=com.equalinformation.arcforge.shell" target="_blank" rel="noopener" style="text-decoration: none;">Android — Google Play</a></span>
           </div>
         </article>
-        <article class="game-card gc" style="--c1:#C9A56A;--c2:#8E1B24">
+        <article class="game-card gc" id="crokinole-disc-flick" style="--c1:#C9A56A;--c2:#8E1B24">
           <div class="gc-media">
             <span class="game-tag">New · Free Preview</span>
             <div class="gc-shots"><img loading="lazy" src="assets/img/games/crokinole-disc-flick/shot-1.jpg" alt="Disc Flick Table screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/crokinole-disc-flick/shot-2.jpg" alt="Disc Flick Table screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/crokinole-disc-flick/shot-3.jpg" alt="Disc Flick Table screenshot 3" width="420" height="910"></div>
@@ -1236,7 +1237,7 @@
             <span class="platform-row"><span class="plat soon">iOS — Coming soon</span><a class="plat" href="https://play.google.com/store/apps/details?id=com.equalinformation.arcforge.shell" target="_blank" rel="noopener" style="text-decoration: none;">Android — Google Play</a></span>
           </div>
         </article>
-        <article class="game-card gc" style="--c1:#2F86D6;--c2:#8F2A26">
+        <article class="game-card gc" id="shagai-anklebone-flicks" style="--c1:#2F86D6;--c2:#8F2A26">
           <div class="gc-media">
             <span class="game-tag">New · Free Preview</span>
             <div class="gc-shots"><img loading="lazy" src="assets/img/games/shagai-anklebone-flicks/shot-1.jpg" alt="Shagai screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/shagai-anklebone-flicks/shot-2.jpg" alt="Shagai screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/shagai-anklebone-flicks/shot-3.jpg" alt="Shagai screenshot 3" width="420" height="910"></div>
@@ -1260,7 +1261,7 @@
             <span class="platform-row"><span class="plat soon">iOS — Coming soon</span><a class="plat" href="https://play.google.com/store/apps/details?id=com.equalinformation.arcforge.shell" target="_blank" rel="noopener" style="text-decoration: none;">Android — Google Play</a></span>
           </div>
         </article>
-        <article class="game-card gc" style="--c1:#2FA38F;--c2:#0B2F2D">
+        <article class="game-card gc" id="makruk-thai-chess-tutor" style="--c1:#2FA38F;--c2:#0B2F2D">
           <div class="gc-media">
             <span class="game-tag">New · Free Preview</span>
             <div class="gc-shots"><img loading="lazy" src="assets/img/games/makruk-thai-chess-tutor/shot-1.jpg" alt="Makruk: Thai Chess screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/makruk-thai-chess-tutor/shot-2.jpg" alt="Makruk: Thai Chess screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/makruk-thai-chess-tutor/shot-3.jpg" alt="Makruk: Thai Chess screenshot 3" width="420" height="910"></div>
@@ -1284,7 +1285,7 @@
             <span class="platform-row"><span class="plat soon">iOS — Coming soon</span><a class="plat" href="https://play.google.com/store/apps/details?id=com.equalinformation.arcforge.shell" target="_blank" rel="noopener" style="text-decoration: none;">Android — Google Play</a></span>
           </div>
         </article>
-        <article class="game-card gc" style="--c1:#D2553A;--c2:#1A2B4D">
+        <article class="game-card gc" id="bao-la-kiswahili" style="--c1:#D2553A;--c2:#1A2B4D">
           <div class="gc-media">
             <span class="game-tag">New · Free Preview</span>
             <div class="gc-shots"><img loading="lazy" src="assets/img/games/bao-la-kiswahili/shot-1.jpg" alt="Bao la Kiswahili screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/bao-la-kiswahili/shot-2.jpg" alt="Bao la Kiswahili screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/bao-la-kiswahili/shot-3.jpg" alt="Bao la Kiswahili screenshot 3" width="420" height="910"></div>
@@ -1308,7 +1309,7 @@
             <span class="platform-row"><span class="plat soon">iOS — Coming soon</span><a class="plat" href="https://play.google.com/store/apps/details?id=com.equalinformation.arcforge.shell" target="_blank" rel="noopener" style="text-decoration: none;">Android — Google Play</a></span>
           </div>
         </article>
-        <article class="game-card gc" style="--c1:#E2503C;--c2:#26307A">
+        <article class="game-card gc" id="kite-duel-sky-fight" style="--c1:#E2503C;--c2:#26307A">
           <div class="gc-media">
             <span class="game-tag">New · Free Preview</span>
             <div class="gc-shots"><img loading="lazy" src="assets/img/games/kite-duel-sky-fight/shot-1.jpg" alt="Kite Duel screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/kite-duel-sky-fight/shot-2.jpg" alt="Kite Duel screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/kite-duel-sky-fight/shot-3.jpg" alt="Kite Duel screenshot 3" width="420" height="910"></div>
@@ -1332,7 +1333,7 @@
             <span class="platform-row"><span class="plat soon">iOS — Coming soon</span><a class="plat" href="https://play.google.com/store/apps/details?id=com.equalinformation.arcforge.shell" target="_blank" rel="noopener" style="text-decoration: none;">Android — Google Play</a></span>
           </div>
         </article>
-        <article class="game-card gc" style="--c1:#C5322C;--c2:#0E1A16">
+        <article class="game-card gc" id="oche-darts-501" style="--c1:#C5322C;--c2:#0E1A16">
           <div class="gc-media">
             <span class="game-tag">New · Free Preview</span>
             <div class="gc-shots"><img loading="lazy" src="assets/img/games/oche-darts-501/shot-1.jpg" alt="Oche Darts 501 screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/oche-darts-501/shot-2.jpg" alt="Oche Darts 501 screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/oche-darts-501/shot-3.jpg" alt="Oche Darts 501 screenshot 3" width="420" height="910"></div>
@@ -1356,7 +1357,7 @@
             <span class="platform-row"><span class="plat soon">iOS — Coming soon</span><a class="plat" href="https://play.google.com/store/apps/details?id=com.equalinformation.arcforge.shell" target="_blank" rel="noopener" style="text-decoration: none;">Android — Google Play</a></span>
           </div>
         </article>
-        <article class="game-card gc" style="--c1:#3F5FB0;--c2:#1B2556">
+        <article class="game-card gc" id="kendama-ken-and-ball" style="--c1:#3F5FB0;--c2:#1B2556">
           <div class="gc-media">
             <span class="game-tag">New · Free Preview</span>
             <div class="gc-shots"><img loading="lazy" src="assets/img/games/kendama-ken-and-ball/shot-1.jpg" alt="Ken and Ball screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/kendama-ken-and-ball/shot-2.jpg" alt="Ken and Ball screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/kendama-ken-and-ball/shot-3.jpg" alt="Ken and Ball screenshot 3" width="420" height="910"></div>
@@ -1380,7 +1381,7 @@
             <span class="platform-row"><span class="plat soon">iOS — Coming soon</span><a class="plat" href="https://play.google.com/store/apps/details?id=com.equalinformation.arcforge.shell" target="_blank" rel="noopener" style="text-decoration: none;">Android — Google Play</a></span>
           </div>
         </article>
-        <article class="game-card gc" style="--c1:#C7372C;--c2:#2A0E0E">
+        <article class="game-card gc" id="huarong-dao-sliding-puzzle" style="--c1:#C7372C;--c2:#2A0E0E">
           <div class="gc-media">
             <span class="game-tag">New · Free Preview</span>
             <div class="gc-shots"><img loading="lazy" src="assets/img/games/huarong-dao-sliding-puzzle/shot-1.jpg" alt="Huarong Dao: Sliding Puzzle screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/huarong-dao-sliding-puzzle/shot-2.jpg" alt="Huarong Dao: Sliding Puzzle screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/huarong-dao-sliding-puzzle/shot-3.jpg" alt="Huarong Dao: Sliding Puzzle screenshot 3" width="420" height="910"></div>
@@ -1404,7 +1405,7 @@
             <span class="platform-row"><span class="plat soon">iOS — Coming soon</span><a class="plat" href="https://play.google.com/store/apps/details?id=com.equalinformation.arcforge.shell" target="_blank" rel="noopener" style="text-decoration: none;">Android — Google Play</a></span>
           </div>
         </article>
-        <article class="game-card gc" style="--c1:#D9472D;--c2:#2A0F16">
+        <article class="game-card gc" id="hanoi-tower-discs" style="--c1:#D9472D;--c2:#2A0F16">
           <div class="gc-media">
             <span class="game-tag">New · Free Preview</span>
             <div class="gc-shots"><img loading="lazy" src="assets/img/games/hanoi-tower-discs/shot-1.jpg" alt="Tower of Hanoi screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/hanoi-tower-discs/shot-2.jpg" alt="Tower of Hanoi screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/hanoi-tower-discs/shot-3.jpg" alt="Tower of Hanoi screenshot 3" width="420" height="910"></div>
@@ -1428,7 +1429,7 @@
             <span class="platform-row"><span class="plat soon">iOS — Coming soon</span><a class="plat" href="https://play.google.com/store/apps/details?id=com.equalinformation.arcforge.shell" target="_blank" rel="noopener" style="text-decoration: none;">Android — Google Play</a></span>
           </div>
         </article>
-        <article class="game-card gc" style="--c1:#1FA3B5;--c2:#F2A04B">
+        <article class="game-card gc" id="matkot-beach-rally" style="--c1:#1FA3B5;--c2:#F2A04B">
           <div class="gc-media">
             <span class="game-tag">New · Free Preview</span>
             <div class="gc-shots"><img loading="lazy" src="assets/img/games/matkot-beach-rally/shot-1.jpg" alt="Matkot Beach Rally screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/matkot-beach-rally/shot-2.jpg" alt="Matkot Beach Rally screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/matkot-beach-rally/shot-3.jpg" alt="Matkot Beach Rally screenshot 3" width="420" height="910"></div>
@@ -1452,7 +1453,7 @@
             <span class="platform-row"><span class="plat soon">iOS — Coming soon</span><a class="plat" href="https://play.google.com/store/apps/details?id=com.equalinformation.arcforge.shell" target="_blank" rel="noopener" style="text-decoration: none;">Android — Google Play</a></span>
           </div>
         </article>
-        <article class="game-card gc" style="--c1:#38B3A0;--c2:#261C15">
+        <article class="game-card gc" id="noughts-crosses-three-in-a-row" style="--c1:#38B3A0;--c2:#261C15">
           <div class="gc-media">
             <span class="game-tag">New · Free Preview</span>
             <div class="gc-shots"><img loading="lazy" src="assets/img/games/noughts-crosses-three-in-a-row/shot-1.jpg" alt="Noughts &amp; Crosses screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/noughts-crosses-three-in-a-row/shot-2.jpg" alt="Noughts &amp; Crosses screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/noughts-crosses-three-in-a-row/shot-3.jpg" alt="Noughts &amp; Crosses screenshot 3" width="420" height="910"></div>
@@ -1476,7 +1477,7 @@
             <span class="platform-row"><span class="plat soon">iOS — Coming soon</span><a class="plat" href="https://play.google.com/store/apps/details?id=com.equalinformation.arcforge.shell" target="_blank" rel="noopener" style="text-decoration: none;">Android — Google Play</a></span>
           </div>
         </article>
-        <article class="game-card gc" style="--c1:#9B5A2C;--c2:#3A2112">
+        <article class="game-card gc" id="seega-custodian-siege" style="--c1:#9B5A2C;--c2:#3A2112">
           <div class="gc-media">
             <span class="game-tag">New · Free Preview</span>
             <div class="gc-shots"><img loading="lazy" src="assets/img/games/seega-custodian-siege/shot-1.jpg" alt="Seega: Desert Siege screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/seega-custodian-siege/shot-2.jpg" alt="Seega: Desert Siege screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/seega-custodian-siege/shot-3.jpg" alt="Seega: Desert Siege screenshot 3" width="420" height="910"></div>
@@ -1500,7 +1501,7 @@
             <span class="platform-row"><span class="plat soon">iOS — Coming soon</span><a class="plat" href="https://play.google.com/store/apps/details?id=com.equalinformation.arcforge.shell" target="_blank" rel="noopener" style="text-decoration: none;">Android — Google Play</a></span>
           </div>
         </article>
-        <article class="game-card gc" style="--c1:#E7B54E;--c2:#2C1A10">
+        <article class="game-card gc" id="surakarta-looped-capture" style="--c1:#E7B54E;--c2:#2C1A10">
           <div class="gc-media">
             <span class="game-tag">New · Free Preview</span>
             <div class="gc-shots"><img loading="lazy" src="assets/img/games/surakarta-looped-capture/shot-1.jpg" alt="Surakarta screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/surakarta-looped-capture/shot-2.jpg" alt="Surakarta screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/surakarta-looped-capture/shot-3.jpg" alt="Surakarta screenshot 3" width="420" height="910"></div>
@@ -1524,7 +1525,7 @@
             <span class="platform-row"><span class="plat soon">iOS — Coming soon</span><a class="plat" href="https://play.google.com/store/apps/details?id=com.equalinformation.arcforge.shell" target="_blank" rel="noopener" style="text-decoration: none;">Android — Google Play</a></span>
           </div>
         </article>
-        <article class="game-card gc" style="--c1:#F2B84B;--c2:#3B1219">
+        <article class="game-card gc" id="dudo-andean-liars-dice" style="--c1:#F2B84B;--c2:#3B1219">
           <div class="gc-media">
             <span class="game-tag">New · Free Preview</span>
             <div class="gc-shots"><img loading="lazy" src="assets/img/games/dudo-andean-liars-dice/shot-1.jpg" alt="Dudo: Andean Bluff Dice screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/dudo-andean-liars-dice/shot-2.jpg" alt="Dudo: Andean Bluff Dice screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/dudo-andean-liars-dice/shot-3.jpg" alt="Dudo: Andean Bluff Dice screenshot 3" width="420" height="910"></div>
@@ -1548,7 +1549,7 @@
             <span class="platform-row"><span class="plat soon">iOS — Coming soon</span><a class="plat" href="https://play.google.com/store/apps/details?id=com.equalinformation.arcforge.shell" target="_blank" rel="noopener" style="text-decoration: none;">Android — Google Play</a></span>
           </div>
         </article>
-        <article class="game-card gc" style="--c1:#2F3350;--c2:#2A211A">
+        <article class="game-card gc" id="nonogram-picture-grid" style="--c1:#2F3350;--c2:#2A211A">
           <div class="gc-media">
             <span class="game-tag">New · Free Preview</span>
             <div class="gc-shots"><img loading="lazy" src="assets/img/games/nonogram-picture-grid/shot-1.jpg" alt="Nonogram screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/nonogram-picture-grid/shot-2.jpg" alt="Nonogram screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/nonogram-picture-grid/shot-3.jpg" alt="Nonogram screenshot 3" width="420" height="910"></div>
@@ -1572,7 +1573,7 @@
             <span class="platform-row"><span class="plat soon">iOS — Coming soon</span><a class="plat" href="https://play.google.com/store/apps/details?id=com.equalinformation.arcforge.shell" target="_blank" rel="noopener" style="text-decoration: none;">Android — Google Play</a></span>
           </div>
         </article>
-        <article class="game-card gc" style="--c1:#D8683C;--c2:#2D3A7A">
+        <article class="game-card gc" id="gonggi-five-stones" style="--c1:#D8683C;--c2:#2D3A7A">
           <div class="gc-media">
             <span class="game-tag">New · Free Preview</span>
             <div class="gc-shots"><img loading="lazy" src="assets/img/games/gonggi-five-stones/shot-1.jpg" alt="Gonggi: Five Stones screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/gonggi-five-stones/shot-2.jpg" alt="Gonggi: Five Stones screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/gonggi-five-stones/shot-3.jpg" alt="Gonggi: Five Stones screenshot 3" width="420" height="910"></div>
@@ -1596,7 +1597,7 @@
             <span class="platform-row"><span class="plat soon">iOS — Coming soon</span><a class="plat" href="https://play.google.com/store/apps/details?id=com.equalinformation.arcforge.shell" target="_blank" rel="noopener" style="text-decoration: none;">Android — Google Play</a></span>
           </div>
         </article>
-        <article class="game-card gc" style="--c1:#2F78B8;--c2:#0B1B2E">
+        <article class="game-card gc" id="curling-stone-and-sweep" style="--c1:#2F78B8;--c2:#0B1B2E">
           <div class="gc-media">
             <span class="game-tag">New · Free Preview</span>
             <div class="gc-shots"><img loading="lazy" src="assets/img/games/curling-stone-and-sweep/shot-1.jpg" alt="Stone and Sweep screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/curling-stone-and-sweep/shot-2.jpg" alt="Stone and Sweep screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/curling-stone-and-sweep/shot-3.jpg" alt="Stone and Sweep screenshot 3" width="420" height="910"></div>
@@ -1620,7 +1621,7 @@
             <span class="platform-row"><span class="plat soon">iOS — Coming soon</span><a class="plat" href="https://play.google.com/store/apps/details?id=com.equalinformation.arcforge.shell" target="_blank" rel="noopener" style="text-decoration: none;">Android — Google Play</a></span>
           </div>
         </article>
-        <article class="game-card gc" style="--c1:#C98A44;--c2:#2A1A10">
+        <article class="game-card gc" id="kegeln-nine-pin-skittles" style="--c1:#C98A44;--c2:#2A1A10">
           <div class="gc-media">
             <span class="game-tag">New · Free Preview</span>
             <div class="gc-shots"><img loading="lazy" src="assets/img/games/kegeln-nine-pin-skittles/shot-1.jpg" alt="Kegeln screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/kegeln-nine-pin-skittles/shot-2.jpg" alt="Kegeln screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/kegeln-nine-pin-skittles/shot-3.jpg" alt="Kegeln screenshot 3" width="420" height="910"></div>
@@ -1644,7 +1645,7 @@
             <span class="platform-row"><span class="plat soon">iOS — Coming soon</span><a class="plat" href="https://play.google.com/store/apps/details?id=com.equalinformation.arcforge.shell" target="_blank" rel="noopener" style="text-decoration: none;">Android — Google Play</a></span>
           </div>
         </article>
-        <article class="game-card gc" style="--c1:#C4472B;--c2:#4A2A1A">
+        <article class="game-card gc" id="spinning-tops-arena" style="--c1:#C4472B;--c2:#4A2A1A">
           <div class="gc-media">
             <span class="game-tag">New · Free Preview</span>
             <div class="gc-shots"><img loading="lazy" src="assets/img/games/spinning-tops-arena/shot-1.jpg" alt="Spinning Tops Arena screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/spinning-tops-arena/shot-2.jpg" alt="Spinning Tops Arena screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/spinning-tops-arena/shot-3.jpg" alt="Spinning Tops Arena screenshot 3" width="420" height="910"></div>
@@ -1668,7 +1669,7 @@
             <span class="platform-row"><span class="plat soon">iOS — Coming soon</span><a class="plat" href="https://play.google.com/store/apps/details?id=com.equalinformation.arcforge.shell" target="_blank" rel="noopener" style="text-decoration: none;">Android — Google Play</a></span>
           </div>
         </article>
-        <article class="game-card gc" style="--c1:#D8453A;--c2:#0B1A22">
+        <article class="game-card gc" id="kabaddi-raid-and-tag" style="--c1:#D8453A;--c2:#0B1A22">
           <div class="gc-media">
             <span class="game-tag">New · Free Preview</span>
             <div class="gc-shots"><img loading="lazy" src="assets/img/games/kabaddi-raid-and-tag/shot-1.jpg" alt="Kabaddi: Raid and Tag screenshot 1" width="420" height="747"><img loading="lazy" src="assets/img/games/kabaddi-raid-and-tag/shot-2.jpg" alt="Kabaddi: Raid and Tag screenshot 2" width="420" height="747"><img loading="lazy" src="assets/img/games/kabaddi-raid-and-tag/shot-3.jpg" alt="Kabaddi: Raid and Tag screenshot 3" width="420" height="747"></div>
@@ -1692,7 +1693,7 @@
             <span class="platform-row"><span class="plat soon">iOS — Coming soon</span><a class="plat" href="https://play.google.com/store/apps/details?id=com.equalinformation.arcforge.shell" target="_blank" rel="noopener" style="text-decoration: none;">Android — Google Play</a></span>
           </div>
         </article>
-        <article class="game-card gc" style="--c1:#2F7FA8;--c2:#10202F">
+        <article class="game-card gc" id="sepak-takraw-rally" style="--c1:#2F7FA8;--c2:#10202F">
           <div class="gc-media">
             <span class="game-tag">New · Free Preview</span>
             <div class="gc-shots"><img loading="lazy" src="assets/img/games/sepak-takraw-rally/shot-1.jpg" alt="Sepak Takraw screenshot 1" width="420" height="829"><img loading="lazy" src="assets/img/games/sepak-takraw-rally/shot-2.jpg" alt="Sepak Takraw screenshot 2" width="420" height="829"><img loading="lazy" src="assets/img/games/sepak-takraw-rally/shot-3.jpg" alt="Sepak Takraw screenshot 3" width="420" height="829"></div>
@@ -1716,7 +1717,7 @@
             <span class="platform-row"><span class="plat soon">iOS — Coming soon</span><a class="plat" href="https://play.google.com/store/apps/details?id=com.equalinformation.arcforge.shell" target="_blank" rel="noopener" style="text-decoration: none;">Android — Google Play</a></span>
           </div>
         </article>
-        <article class="game-card gc" style="--c1:#E39A3B;--c2:#3A1E10">
+        <article class="game-card gc" id="ampe-jump-and-clap" style="--c1:#E39A3B;--c2:#3A1E10">
           <div class="gc-media">
             <span class="game-tag">New · Free Preview</span>
             <div class="gc-shots"><img loading="lazy" src="assets/img/games/ampe-jump-and-clap/shot-1.jpg" alt="Ampe screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/ampe-jump-and-clap/shot-2.jpg" alt="Ampe screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/ampe-jump-and-clap/shot-3.jpg" alt="Ampe screenshot 3" width="420" height="910"></div>
@@ -1740,7 +1741,7 @@
             <span class="platform-row"><span class="plat soon">iOS — Coming soon</span><a class="plat" href="https://play.google.com/store/apps/details?id=com.equalinformation.arcforge.shell" target="_blank" rel="noopener" style="text-decoration: none;">Android — Google Play</a></span>
           </div>
         </article>
-        <article class="game-card gc" style="--c1:#3C8F7A;--c2:#10251F">
+        <article class="game-card gc" id="pelota-wall-rally" style="--c1:#3C8F7A;--c2:#10251F">
           <div class="gc-media">
             <span class="game-tag">New · Free Preview</span>
             <div class="gc-shots"><img loading="lazy" src="assets/img/games/pelota-wall-rally/shot-1.jpg" alt="Pelota Vasca screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/pelota-wall-rally/shot-2.jpg" alt="Pelota Vasca screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/pelota-wall-rally/shot-3.jpg" alt="Pelota Vasca screenshot 3" width="420" height="910"></div>
@@ -1764,7 +1765,7 @@
             <span class="platform-row"><span class="plat soon">iOS — Coming soon</span><a class="plat" href="https://play.google.com/store/apps/details?id=com.equalinformation.arcforge.shell" target="_blank" rel="noopener" style="text-decoration: none;">Android — Google Play</a></span>
           </div>
         </article>
-        <article class="game-card gc" style="--c1:#B5651D;--c2:#2A1A10">
+        <article class="game-card gc" id="o-an-quan-mandarin-squares" style="--c1:#B5651D;--c2:#2A1A10">
           <div class="gc-media">
             <span class="game-tag">New · Free Preview</span>
             <div class="gc-shots"><img loading="lazy" src="assets/img/games/o-an-quan-mandarin-squares/shot-1.jpg" alt="O An Quan screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/o-an-quan-mandarin-squares/shot-2.jpg" alt="O An Quan screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/o-an-quan-mandarin-squares/shot-3.jpg" alt="O An Quan screenshot 3" width="420" height="910"></div>
@@ -1788,7 +1789,7 @@
             <span class="platform-row"><span class="plat soon">iOS — Coming soon</span><a class="plat" href="https://play.google.com/store/apps/details?id=com.equalinformation.arcforge.shell" target="_blank" rel="noopener" style="text-decoration: none;">Android — Google Play</a></span>
           </div>
         </article>
-        <article class="game-card gc" style="--c1:#A8562E;--c2:#2A1812">
+        <article class="game-card gc" id="alquerque-twelve-and-twelve" style="--c1:#A8562E;--c2:#2A1812">
           <div class="gc-media">
             <span class="game-tag">New · Free Preview</span>
             <div class="gc-shots"><img loading="lazy" src="assets/img/games/alquerque-twelve-and-twelve/shot-1.jpg" alt="Alquerque screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/alquerque-twelve-and-twelve/shot-2.jpg" alt="Alquerque screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/alquerque-twelve-and-twelve/shot-3.jpg" alt="Alquerque screenshot 3" width="420" height="910"></div>
@@ -1812,7 +1813,7 @@
             <span class="platform-row"><span class="plat soon">iOS — Coming soon</span><a class="plat" href="https://play.google.com/store/apps/details?id=com.equalinformation.arcforge.shell" target="_blank" rel="noopener" style="text-decoration: none;">Android — Google Play</a></span>
           </div>
         </article>
-        <article class="game-card gc" style="--c1:#B9783A;--c2:#2B1B12">
+        <article class="game-card gc" id="gabata-three-row-mancala" style="--c1:#B9783A;--c2:#2B1B12">
           <div class="gc-media">
             <span class="game-tag">New · Free Preview</span>
             <div class="gc-shots"><img loading="lazy" src="assets/img/games/gabata-three-row-mancala/shot-1.jpg" alt="Gabata screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/gabata-three-row-mancala/shot-2.jpg" alt="Gabata screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/gabata-three-row-mancala/shot-3.jpg" alt="Gabata screenshot 3" width="420" height="910"></div>
@@ -1836,7 +1837,7 @@
             <span class="platform-row"><span class="plat soon">iOS — Coming soon</span><a class="plat" href="https://play.google.com/store/apps/details?id=com.equalinformation.arcforge.shell" target="_blank" rel="noopener" style="text-decoration: none;">Android — Google Play</a></span>
           </div>
         </article>
-        <article class="game-card gc" style="--c1:#3B6FB5;--c2:#0F1A2E">
+        <article class="game-card gc" id="volleyball-rotation-rally" style="--c1:#3B6FB5;--c2:#0F1A2E">
           <div class="gc-media">
             <span class="game-tag">New · Free Preview</span>
             <div class="gc-shots"><img loading="lazy" src="assets/img/games/volleyball-rotation-rally/shot-1.jpg" alt="Volleyball screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/volleyball-rotation-rally/shot-2.jpg" alt="Volleyball screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/volleyball-rotation-rally/shot-3.jpg" alt="Volleyball screenshot 3" width="420" height="910"></div>
@@ -1860,7 +1861,7 @@
             <span class="platform-row"><span class="plat soon">iOS — Coming soon</span><a class="plat" href="https://play.google.com/store/apps/details?id=com.equalinformation.arcforge.shell" target="_blank" rel="noopener" style="text-decoration: none;">Android — Google Play</a></span>
           </div>
         </article>
-        <article class="game-card gc" style="--c1:#3E8E4A;--c2:#10240F">
+        <article class="game-card gc" id="hurling-sliotar-dash" style="--c1:#3E8E4A;--c2:#10240F">
           <div class="gc-media">
             <span class="game-tag">New · Free Preview</span>
             <div class="gc-shots"><img loading="lazy" src="assets/img/games/hurling-sliotar-dash/shot-1.jpg" alt="Hurling screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/hurling-sliotar-dash/shot-2.jpg" alt="Hurling screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/hurling-sliotar-dash/shot-3.jpg" alt="Hurling screenshot 3" width="420" height="910"></div>
@@ -1884,7 +1885,7 @@
             <span class="platform-row"><span class="plat soon">iOS — Coming soon</span><a class="plat" href="https://play.google.com/store/apps/details?id=com.equalinformation.arcforge.shell" target="_blank" rel="noopener" style="text-decoration: none;">Android — Google Play</a></span>
           </div>
         </article>
-        <article class="game-card gc" style="--c1:#D9792B;--c2:#1A2238">
+        <article class="game-card gc" id="basketball-three-on-three" style="--c1:#D9792B;--c2:#1A2238">
           <div class="gc-media">
             <span class="game-tag">New · Free Preview</span>
             <div class="gc-shots"><img loading="lazy" src="assets/img/games/basketball-three-on-three/shot-1.jpg" alt="Basketball 3x3 screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/basketball-three-on-three/shot-2.jpg" alt="Basketball 3x3 screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/basketball-three-on-three/shot-3.jpg" alt="Basketball 3x3 screenshot 3" width="420" height="910"></div>
@@ -1908,7 +1909,7 @@
             <span class="platform-row"><span class="plat soon">iOS — Coming soon</span><a class="plat" href="https://play.google.com/store/apps/details?id=com.equalinformation.arcforge.shell" target="_blank" rel="noopener" style="text-decoration: none;">Android — Google Play</a></span>
           </div>
         </article>
-        <article class="game-card gc" style="--c1:#B0623A;--c2:#1E2A14">
+        <article class="game-card gc" id="chogan-persian-polo" style="--c1:#B0623A;--c2:#1E2A14">
           <div class="gc-media">
             <span class="game-tag">New · Free Preview</span>
             <div class="gc-shots"><img loading="lazy" src="assets/img/games/chogan-persian-polo/shot-1.jpg" alt="Chogan screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/chogan-persian-polo/shot-2.jpg" alt="Chogan screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/chogan-persian-polo/shot-3.jpg" alt="Chogan screenshot 3" width="420" height="910"></div>
@@ -1932,7 +1933,7 @@
             <span class="platform-row"><span class="plat soon">iOS — Coming soon</span><a class="plat" href="https://play.google.com/store/apps/details?id=com.equalinformation.arcforge.shell" target="_blank" rel="noopener" style="text-decoration: none;">Android — Google Play</a></span>
           </div>
         </article>
-        <article class="game-card gc" style="--c1:#2E9C8A;--c2:#12301E">
+        <article class="game-card gc" id="kilikiti-village-match" style="--c1:#2E9C8A;--c2:#12301E">
           <div class="gc-media">
             <span class="game-tag">New · Free Preview</span>
             <div class="gc-shots"><img loading="lazy" src="assets/img/games/kilikiti-village-match/shot-1.jpg" alt="Kilikiti screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/kilikiti-village-match/shot-2.jpg" alt="Kilikiti screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/kilikiti-village-match/shot-3.jpg" alt="Kilikiti screenshot 3" width="420" height="910"></div>
@@ -1956,7 +1957,7 @@
             <span class="platform-row"><span class="plat soon">iOS — Coming soon</span><a class="plat" href="https://play.google.com/store/apps/details?id=com.equalinformation.arcforge.shell" target="_blank" rel="noopener" style="text-decoration: none;">Android — Google Play</a></span>
           </div>
         </article>
-        <article class="game-card gc" style="--c1:#C94A3A;--c2:#10301F">
+        <article class="game-card gc" id="footy-kick-and-mark" style="--c1:#C94A3A;--c2:#10301F">
           <div class="gc-media">
             <span class="game-tag">New · Free Preview</span>
             <div class="gc-shots"><img loading="lazy" src="assets/img/games/footy-kick-and-mark/shot-1.jpg" alt="Footy screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/footy-kick-and-mark/shot-2.jpg" alt="Footy screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/footy-kick-and-mark/shot-3.jpg" alt="Footy screenshot 3" width="420" height="910"></div>
@@ -1980,7 +1981,7 @@
             <span class="platform-row"><span class="plat soon">iOS — Coming soon</span><a class="plat" href="https://play.google.com/store/apps/details?id=com.equalinformation.arcforge.shell" target="_blank" rel="noopener" style="text-decoration: none;">Android — Google Play</a></span>
           </div>
         </article>
-        <article class="game-card gc" style="--c1:#6B8E3A;--c2:#13241A">
+        <article class="game-card gc" id="american-football-seven-on-seven" style="--c1:#6B8E3A;--c2:#13241A">
           <div class="gc-media">
             <span class="game-tag">New · Free Preview</span>
             <div class="gc-shots"><img loading="lazy" src="assets/img/games/american-football-seven-on-seven/shot-1.jpg" alt="American Football screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/american-football-seven-on-seven/shot-2.jpg" alt="American Football screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/american-football-seven-on-seven/shot-3.jpg" alt="American Football screenshot 3" width="420" height="910"></div>
@@ -2004,7 +2005,7 @@
             <span class="platform-row"><span class="plat soon">iOS — Coming soon</span><a class="plat" href="https://play.google.com/store/apps/details?id=com.equalinformation.arcforge.shell" target="_blank" rel="noopener" style="text-decoration: none;">Android — Google Play</a></span>
           </div>
         </article>
-        <article class="game-card gc" style="--c1:#2F9A5A;--c2:#0F2A1A">
+        <article class="game-card gc" id="football-seven-a-side" style="--c1:#2F9A5A;--c2:#0F2A1A">
           <div class="gc-media">
             <span class="game-tag">New · Free Preview</span>
             <div class="gc-shots"><img loading="lazy" src="assets/img/games/football-seven-a-side/shot-1.jpg" alt="Football screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/football-seven-a-side/shot-2.jpg" alt="Football screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/football-seven-a-side/shot-3.jpg" alt="Football screenshot 3" width="420" height="910"></div>
@@ -2028,7 +2029,7 @@
             <span class="platform-row"><span class="plat soon">iOS — Coming soon</span><a class="plat" href="https://play.google.com/store/apps/details?id=com.equalinformation.arcforge.shell" target="_blank" rel="noopener" style="text-decoration: none;">Android — Google Play</a></span>
           </div>
         </article>
-        <article class="game-card gc" style="--c1:#C9A23C;--c2:#1F3A33">
+        <article class="game-card gc" id="sapo-frog-toss" style="--c1:#C9A23C;--c2:#1F3A33">
           <div class="gc-media">
             <span class="game-tag">New · Free Preview</span>
             <div class="gc-shots"><img loading="lazy" src="assets/img/games/sapo-frog-toss/shot-1.jpg" alt="Sapo screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/sapo-frog-toss/shot-2.jpg" alt="Sapo screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/sapo-frog-toss/shot-3.jpg" alt="Sapo screenshot 3" width="420" height="910"></div>
@@ -2052,7 +2053,7 @@
             <span class="platform-row"><span class="plat soon">iOS — Coming soon</span><a class="plat" href="https://play.google.com/store/apps/details?id=com.equalinformation.arcforge.shell" target="_blank" rel="noopener" style="text-decoration: none;">Android — Google Play</a></span>
           </div>
         </article>
-        <article class="game-card gc" style="--c1:#3F8F55;--c2:#1A2A14">
+        <article class="game-card gc" id="kubb-toss" style="--c1:#3F8F55;--c2:#1A2A14">
           <div class="gc-media">
             <span class="game-tag">New · Free Preview</span>
             <div class="gc-shots"><img loading="lazy" src="assets/img/games/kubb-toss/shot-1.jpg" alt="Kubb screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/kubb-toss/shot-2.jpg" alt="Kubb screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/kubb-toss/shot-3.jpg" alt="Kubb screenshot 3" width="420" height="910"></div>
@@ -2076,7 +2077,7 @@
             <span class="platform-row"><span class="plat soon">iOS — Coming soon</span><a class="plat" href="https://play.google.com/store/apps/details?id=com.equalinformation.arcforge.shell" target="_blank" rel="noopener" style="text-decoration: none;">Android — Google Play</a></span>
           </div>
         </article>
-        <article class="game-card gc" style="--c1:#B5803A;--c2:#1A2A22">
+        <article class="game-card gc" id="tab-stick-race" style="--c1:#B5803A;--c2:#1A2A22">
           <div class="gc-media">
             <span class="game-tag">New · Free Preview</span>
             <div class="gc-shots"><img loading="lazy" src="assets/img/games/tab-stick-race/shot-1.jpg" alt="Tab screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/tab-stick-race/shot-2.jpg" alt="Tab screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/tab-stick-race/shot-3.jpg" alt="Tab screenshot 3" width="420" height="910"></div>
@@ -2100,7 +2101,7 @@
             <span class="platform-row"><span class="plat soon">iOS — Coming soon</span><a class="plat" href="https://play.google.com/store/apps/details?id=com.equalinformation.arcforge.shell" target="_blank" rel="noopener" style="text-decoration: none;">Android — Google Play</a></span>
           </div>
         </article>
-        <article class="game-card gc" style="--c1:#C2693A;--c2:#2A1D14">
+        <article class="game-card gc" id="tumbang-preso-can-toss" style="--c1:#C2693A;--c2:#2A1D14">
           <div class="gc-media">
             <span class="game-tag">New · Free Preview</span>
             <div class="gc-shots"><img loading="lazy" src="assets/img/games/tumbang-preso-can-toss/shot-1.jpg" alt="Tumbang Preso screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/tumbang-preso-can-toss/shot-2.jpg" alt="Tumbang Preso screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/tumbang-preso-can-toss/shot-3.jpg" alt="Tumbang Preso screenshot 3" width="420" height="910"></div>
@@ -2124,7 +2125,7 @@
             <span class="platform-row"><span class="plat soon">iOS — Coming soon</span><a class="plat" href="https://play.google.com/store/apps/details?id=com.equalinformation.arcforge.shell" target="_blank" rel="noopener" style="text-decoration: none;">Android — Google Play</a></span>
           </div>
         </article>
-        <article class="game-card gc" style="--c1:#1F7A4A;--c2:#0F1F16">
+        <article class="game-card gc" id="snooker-cue-and-frame" style="--c1:#1F7A4A;--c2:#0F1F16">
           <div class="gc-media">
             <span class="game-tag">New · Free Preview</span>
             <div class="gc-shots"><img loading="lazy" src="assets/img/games/snooker-cue-and-frame/shot-1.jpg" alt="Snooker screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/snooker-cue-and-frame/shot-2.jpg" alt="Snooker screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/snooker-cue-and-frame/shot-3.jpg" alt="Snooker screenshot 3" width="420" height="910"></div>
@@ -2148,7 +2149,7 @@
             <span class="platform-row"><span class="plat soon">iOS — Coming soon</span><a class="plat" href="https://play.google.com/store/apps/details?id=com.equalinformation.arcforge.shell" target="_blank" rel="noopener" style="text-decoration: none;">Android — Google Play</a></span>
           </div>
         </article>
-        <article class="game-card gc" style="--c1:#7FA84A;--c2:#1F2A14">
+        <article class="game-card gc" id="cornhole-bag-toss" style="--c1:#7FA84A;--c2:#1F2A14">
           <div class="gc-media">
             <span class="game-tag">New · Free Preview</span>
             <div class="gc-shots"><img loading="lazy" src="assets/img/games/cornhole-bag-toss/shot-1.jpg" alt="Cornhole screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/cornhole-bag-toss/shot-2.jpg" alt="Cornhole screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/cornhole-bag-toss/shot-3.jpg" alt="Cornhole screenshot 3" width="420" height="910"></div>
@@ -2172,7 +2173,7 @@
             <span class="platform-row"><span class="plat soon">iOS — Coming soon</span><a class="plat" href="https://play.google.com/store/apps/details?id=com.equalinformation.arcforge.shell" target="_blank" rel="noopener" style="text-decoration: none;">Android — Google Play</a></span>
           </div>
         </article>
-        <article class="game-card gc" style="--c1:#9C8A6A;--c2:#1E1B16">
+        <article class="game-card gc" id="latrunculi-roman" style="--c1:#9C8A6A;--c2:#1E1B16">
           <div class="gc-media">
             <span class="game-tag">New · Free Preview</span>
             <div class="gc-shots"><img loading="lazy" src="assets/img/games/latrunculi-roman/shot-1.jpg" alt="Ludus Latrunculorum screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/latrunculi-roman/shot-2.jpg" alt="Ludus Latrunculorum screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/latrunculi-roman/shot-3.jpg" alt="Ludus Latrunculorum screenshot 3" width="420" height="910"></div>
@@ -2196,7 +2197,7 @@
             <span class="platform-row"><span class="plat soon">iOS — Coming soon</span><a class="plat" href="https://play.google.com/store/apps/details?id=com.equalinformation.arcforge.shell" target="_blank" rel="noopener" style="text-decoration: none;">Android — Google Play</a></span>
           </div>
         </article>
-        <article class="game-card gc" style="--c1:#C98A44;--c2:#2A1A10">
+        <article class="game-card gc" id="diketo-stones" style="--c1:#C98A44;--c2:#2A1A10">
           <div class="gc-media">
             <span class="game-tag">New · Free Preview</span>
             <div class="gc-shots"><img loading="lazy" src="assets/img/games/diketo-stones/shot-1.jpg" alt="Diketo screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/diketo-stones/shot-2.jpg" alt="Diketo screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/diketo-stones/shot-3.jpg" alt="Diketo screenshot 3" width="420" height="910"></div>
@@ -2220,7 +2221,7 @@
             <span class="platform-row"><span class="plat soon">iOS — Coming soon</span><a class="plat" href="https://play.google.com/store/apps/details?id=com.equalinformation.arcforge.shell" target="_blank" rel="noopener" style="text-decoration: none;">Android — Google Play</a></span>
           </div>
         </article>
-        <article class="game-card gc" style="--c1:#8A8A9A;--c2:#141420">
+        <article class="game-card gc" id="kolam-dot-pattern" style="--c1:#8A8A9A;--c2:#141420">
           <div class="gc-media">
             <span class="game-tag">New · Free Preview</span>
             <div class="gc-shots"><img loading="lazy" src="assets/img/games/kolam-dot-pattern/shot-1.jpg" alt="Kolam screenshot 1" width="420" height="910"><img loading="lazy" src="assets/img/games/kolam-dot-pattern/shot-2.jpg" alt="Kolam screenshot 2" width="420" height="910"><img loading="lazy" src="assets/img/games/kolam-dot-pattern/shot-3.jpg" alt="Kolam screenshot 3" width="420" height="910"></div>
@@ -2245,6 +2246,7 @@
           </div>
         </article>
       </div>
+      <nav class="pager pager-bottom" aria-label="Games pages" data-pager hidden></nav>
     </div>
   </section>
 
@@ -2363,6 +2365,6 @@
   </div>
 </footer>
 
-<script src="assets/js/main.js?v=20260921a"></script>
+<script src="assets/js/main.js?v=20261004k"></script>
 </body>
 </html>
