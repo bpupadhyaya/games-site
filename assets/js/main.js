@@ -19,6 +19,7 @@ mainNav.querySelectorAll('a').forEach(link => {
   const empty = document.getElementById('gameSearchEmpty');
   const grid = document.getElementById('gameGrid');
   const cards = Array.from(document.querySelectorAll('.game-card'));
+  const note = document.getElementById('gameSearchNote');
   const pagers = Array.from(document.querySelectorAll('[data-pager]'));
   if (!input || !cards.length) return;
 
@@ -29,6 +30,7 @@ mainNav.querySelectorAll('a').forEach(link => {
     return parts.join(' ').toLowerCase();
   });
 
+  input.placeholder = 'Search all ' + cards.length + ' games\u2026';
   let matched = cards.slice();
   let page = 1;
 
@@ -94,6 +96,11 @@ mainNav.querySelectorAll('a').forEach(link => {
     const visible = new Set(matched.slice(start, start + PAGE_SIZE));
     cards.forEach(c => { c.hidden = !visible.has(c); });
     empty.hidden = matched.length !== 0;
+    const q = input.value.trim();
+    note.hidden = false;
+    note.textContent = q
+      ? matched.length + ' of ' + cards.length + ' games match \u201c' + q + '\u201d (all pages)'
+      : 'Searching all ' + cards.length + ' games, not just this page';
     renderPagers();
   }
 
@@ -137,6 +144,10 @@ mainNav.querySelectorAll('a').forEach(link => {
     page = 1;
     apply();
     if (new URLSearchParams(location.search).has('page')) history.replaceState(null, '', pageUrl(1));
+  });
+
+  input.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && input.value) { input.value = ''; input.dispatchEvent(new Event('input')); }
   });
 
   pagers.forEach(nav => nav.addEventListener('click', e => {

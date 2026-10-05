@@ -791,3 +791,5 @@ html { scroll-padding-top: 96px; }
   .pager .pg-step { padding: 0 10px; }
   .pager .pg-gap { min-width: 14px; }
 }
+.game-search-note { text-align: center; color: var(--text-dim); font-size: 13px; margin: -8px auto 4px; padding: 0 8px; }
+.game-search-note[hidden] { display: none; }
