@@ -2,16 +2,18 @@
 // (place / lift / capture / drop / note); `state.anim` replays those events seed by seed against `state.shown` (what the
 // player sees) and only then commits the new position. Part-way choices (which kichwa, safari) pause the replay and ask.
 // Drawing is view.js; the computer is engine.js; text is content.js; lessons.js holds the guided positions.
-import { W, H, BTN, setRows, titleRows, inRect, pitNear, pitPos, trayPos, TEXT_SCALES, AP_THINK_STEPS, PITCH } from './layout.js';
+import { BTN, setRows, titleRows, titleBrand, creditHit, inRect, pitNear, pitPos, pitLocal, trayPos, TEXT_SCALES, AP_THINK_STEPS, PITCH, use, cur } from './layout.js';
 import { newGame, clone, simulate, legalMoves, kutActive, NYUMBA } from './rules.js';
 import { LEVELS, createThinker } from './engine.js';
 import { LESSONS } from './lessons.js';
 import { RULES, HOWTO, ABOUT } from './content.js';
 import { render } from './view.js';
 
-export const meta = { width: W, height: H };
+// Fluid viewport (kit 1.7): the short side is always 720 units, the long side follows the screen. The kit updates meta.width/height live.
+export const meta = { width: 720, height: 1560, fluid: { short: 720 } };
 const DEMO_GAMES = 2, HINT_LEVEL = 2, SEEDSETS = ['mbono', 'cowries', 'amber'], WOODS = ['teak', 'ebony'], AP_LEVEL = 2;
 const NODES_PER_TICK = 5000;
+export const wheelInput = { dy: 0 };
 const DOCLEN = { about: ABOUT.length, howto: HOWTO.length, rules: RULES.length };
 
 export function createGame(env) {
@@ -20,10 +22,12 @@ export function createGame(env) {
     scene: 'title', t: 0, game: newGame(), shown: null, two: false, level: 1, sound: true, calm: false, textScaleIdx: 0, seeds: 'mbono', wood: 'teak',
     anim: null, msg: null, coach: null, think: 0, thinking: false, undo: [], hint: null, hintBusy: false, sel: null, prompt: null,
     legal: [], legalMarks: [], legalKey: '', kbPit: null, shake: null, stats: { games: 0, wins: 0, badges: {} }, saved: null, learned: false, demoGames: 0,
-    lesson: null, page: 0, pageCount: 1e9, dev: config.dev === true, apThinkIdx: 1, ap: null, apPaused: false, apMarks: null,
+    lesson: null, page: 0, pageCount: 1e9, scroll: 0, scrollMax: 0, drag: null, dev: config.dev === true, apThinkIdx: 1, ap: null, apPaused: false, apMarks: null,
   };
   state.shown = { pits: [state.game.pits[0].slice(), state.game.pits[1].slice()], stock: state.game.stock.slice(), hand: null };
   let thinker = null, hintThinker = null, apThinker = null;
+  // while a question (kichwa / safari / direction) is open in a bar-style layout, Menu is the narrow first slot of that bar
+  const menuRect = () => (state.prompt && BTN.menuPrompt ? BTN.menuPrompt : BTN.menu);
   const isAutoplay = () => state.scene === 'autoplay' || state.scene === 'autoplay-over';
 
   storage.get('prefs', null).then((v) => {
@@ -119,9 +123,9 @@ export function createGame(env) {
   const durOf = (A, e) => (e.k === 'place' ? durf(0.36) : e.k === 'lift' ? durf(0.26) : e.k === 'cap' ? durf(0.5) : e.k === 'drop' ? A.sd : durf(0.5));
   function enter(A, e) {
     const sh = state.shown;
-    if (e.k === 'lift') { sh.pits[e.p][e.r] -= e.n; sh.hand = { p: e.p, n: e.n }; A.from = pitPos(e.p, e.r); clack(520); }
+    if (e.k === 'lift') { sh.pits[e.p][e.r] -= e.n; sh.hand = { p: e.p, n: e.n }; A.from = pitLocal(e.p, e.r); clack(520); }
     else if (e.k === 'cap') {
-      sh.pits[e.p][e.r] = 0; sh.hand = { p: e.by, n: e.n }; A.from = pitPos(e.p, e.r); chime(0); A.capSeen = true;
+      sh.pits[e.p][e.r] = 0; sh.hand = { p: e.by, n: e.n }; A.from = pitLocal(e.p, e.r); chime(0); A.capSeen = true;
       if (e.r === NYUMBA && A.S0.house[e.p] && !A.houseSeen) { A.houseSeen = true; say('A nyumba (house) was captured.', 3); }
     } else if (e.k === 'note') {
       const m = { kut: 'Kutakatia: that pit is protected, so the move stops there.', 'house-stop': 'The sowing ended in the nyumba, so the turn stops.', 'house-stay': 'Stopped in the nyumba: the house stays closed.', safari: 'Safari: the nyumba is opened and sown on.' }[e.t];
@@ -134,16 +138,16 @@ export function createGame(env) {
     if (e.k === 'place') { sh.stock[e.p] -= 1; sh.pits[e.p][e.r] += 1; A.last = { p: e.p, r: e.r, t: 0 }; clack(380); }
     else if (e.k === 'drop') {
       sh.pits[e.p][e.r] += 1; if (sh.hand) { sh.hand.n -= 1; if (sh.hand.n <= 0) sh.hand = null; }
-      A.from = pitPos(e.p, e.r); A.last = { p: e.p, r: e.r, t: 0 }; A.drops++; seedTick(A.drops);
+      A.from = pitLocal(e.p, e.r); A.last = { p: e.p, r: e.r, t: 0 }; A.drops++; seedTick(A.drops);
     }
   }
   function visual(A, e, f) {
     const sh = state.shown, V = {};
-    if (e.k === 'place') { const a = trayPos(e.p), b = pitPos(e.p, e.r); V.place = { f, x0: a.x, y0: a.y, x1: b.x, y1: b.y }; }
-    else if (e.k === 'lift') { const q = pitPos(e.p, e.r); if (sh.hand) V.hand = { x: q.x, y: q.y, hop: 12 * f, n: sh.hand.n }; }
-    else if (e.k === 'cap') { const q = pitPos(e.p, e.r); V.cap = { q, f, n: e.n }; if (sh.hand) V.hand = { x: q.x, y: q.y, hop: 10 + 10 * f, n: sh.hand.n }; }
+    if (e.k === 'place') { const a = trayPos(e.p), b = pitLocal(e.p, e.r); V.place = { f, x0: a.x, y0: a.y, x1: b.x, y1: b.y }; }
+    else if (e.k === 'lift') { const q = pitLocal(e.p, e.r); if (sh.hand) V.hand = { x: q.x, y: q.y, hop: 12 * f, n: sh.hand.n }; }
+    else if (e.k === 'cap') { const q = pitLocal(e.p, e.r); V.cap = { q, f, n: e.n }; if (sh.hand) V.hand = { x: q.x, y: q.y, hop: 10 + 10 * f, n: sh.hand.n }; }
     else if (e.k === 'drop') {
-      const from = A.from || pitPos(e.p, e.r), to = pitPos(e.p, e.r), k = f * f * (3 - 2 * f);
+      const from = A.from || pitLocal(e.p, e.r), to = pitLocal(e.p, e.r), k = f * f * (3 - 2 * f);
       const far = Math.hypot(to.x - from.x, to.y - from.y) > PITCH * 1.5;
       if (sh.hand) V.hand = { x: from.x + (to.x - from.x) * k, y: from.y + (to.y - from.y) * k, hop: state.calm ? 0 : Math.sin(Math.PI * f) * (far ? 60 : 26), n: sh.hand.n };
     } else if (sh.hand && A.from) V.hand = { x: A.from.x, y: A.from.y, hop: 6, n: sh.hand.n };
@@ -313,7 +317,7 @@ export function createGame(env) {
     if (state.shake) { state.shake.t += dt; if (state.shake.t > 0.6) state.shake = null; }
     const A = state.anim;
     // Menu works at any moment: the game is only committed when a move finishes, so the saved position is the one before it
-    if (tap && inRect(BTN.menu, tap.x, tap.y)) { saveGame(); thinker = hintThinker = null; Object.assign(state, { anim: null, prompt: null, sel: null, thinking: false, hintBusy: false, scene: 'title' }); syncShown(); return; }
+    if (tap && inRect(menuRect(), tap.x, tap.y)) { saveGame(); thinker = hintThinker = null; Object.assign(state, { anim: null, prompt: null, sel: null, thinking: false, hintBusy: false, scene: 'title' }); syncShown(); return; }
     if (A) {
       const st = stepAnim(dt);
       if (st === 'done') afterMove(A);
@@ -343,7 +347,7 @@ export function createGame(env) {
     const L = state.lesson;
     if (state.shake) { state.shake.t += dt; if (state.shake.t > 0.6) state.shake = null; }
     if (state.anim) { const A = state.anim, st = stepAnim(dt); if (st === 'done') afterMove(A); else if (st === 'wait' && tap && state.prompt) promptTap(tap); return; }
-    if (tap && inRect(BTN.menu, tap.x, tap.y)) { state.scene = 'title'; return; }
+    if (tap && inRect(menuRect(), tap.x, tap.y)) { state.scene = 'title'; return; }
     if (L.done) {
       if (tap && inRect(BTN.next, tap.x, tap.y)) {
         if (L.i + 1 < LESSONS.length) startLesson(L.i + 1);
@@ -400,15 +404,16 @@ export function createGame(env) {
   // ---- menus and pages ----------------------------------------------------------------------------------------------
   function updateTitle(tap) {
     if (!tap) return;
-    const R = titleRows(!!state.saved, TEXT_SCALES[state.textScaleIdx]), hit = (r) => r && inRect(r, tap.x, tap.y);
-    if (hit(R.resume)) resume();
+    const R = titleRows(!!state.saved, TEXT_SCALES[state.textScaleIdx]), hit = (r) => r && inRect(r, tap.x, tap.y), tb = titleBrand(!!state.saved, TEXT_SCALES[state.textScaleIdx]);
+    if (tb && hit(creditHit(tb))) { state.afFlash = 0.18; env.openArcforgeHome?.(); }
+    else if (hit(R.resume)) resume();
     else if (hit(R.learn)) startLesson(0);
     else if (hit(R.play)) start(false);
     else if (hit(R.two)) start(true);
     else if (hit(R.autoplay)) startAutoPlay();
-    else if (hit(R.howto)) { state.scene = 'howto'; state.page = 0; }
-    else if (hit(R.rules)) { state.scene = 'rules'; state.page = 0; }
-    else if (hit(R.about)) { state.scene = 'about'; state.page = 0; }
+    else if (hit(R.howto)) { state.scene = 'howto'; state.page = 0; state.scroll = 0; }
+    else if (hit(R.rules)) { state.scene = 'rules'; state.page = 0; state.scroll = 0; }
+    else if (hit(R.about)) { state.scene = 'about'; state.page = 0; state.scroll = 0; }
     else if (hit(R.settings)) state.scene = 'settings';
   }
   function updateSettings(tap) {
@@ -425,13 +430,21 @@ export function createGame(env) {
     else return;
     clack(); savePrefs();
   }
-  function updatePage(tap) {
+  function updatePage(tap, input) {
+    const DL = cur().docs, vh = Math.max(40, DL.body.bottom - DL.body.top), p = input.pointer, k = input.keys.pressed;
+    const inBody = (x, y) => x >= DL.panel.x && x <= DL.panel.x + DL.panel.w && y >= DL.body.top && y <= DL.body.bottom;
+    if (p.pressed && inBody(p.x, p.y)) state.drag = { y: p.y };
+    else if (state.drag && p.down) { state.scroll -= p.y - state.drag.y; state.drag.y = p.y; }
+    else if (!p.down) state.drag = null;
+    if (wheelInput.dy) { state.scroll += wheelInput.dy; wheelInput.dy = 0; }
+    if (k.has('ArrowDown')) state.scroll += 90; if (k.has('ArrowUp')) state.scroll -= 90;
+    if (k.has('PageDown')) state.scroll += vh * 0.85; if (k.has('PageUp')) state.scroll -= vh * 0.85;
+    state.scroll = Math.max(0, Math.min(state.scrollMax || 0, state.scroll));
     if (!tap) return;
-    const n = state.pageCount;
-    if (inRect(BTN.textDec, tap.x, tap.y) && state.textScaleIdx > 0) { state.textScaleIdx--; state.page = 0; savePrefs(); clack(); }
-    else if (inRect(BTN.textInc, tap.x, tap.y) && state.textScaleIdx < TEXT_SCALES.length - 1) { state.textScaleIdx++; state.page = 0; savePrefs(); clack(); }
-    else if (inRect(BTN.pgBack, tap.x, tap.y)) { if (state.page > 0) state.page--; else state.scene = 'title'; }
-    else if (inRect(BTN.pgNext, tap.x, tap.y)) { if (state.page >= n - 1) state.scene = 'title'; else state.page++; }
+    if (inRect(BTN.textDec, tap.x, tap.y) && state.textScaleIdx > 0) { state.textScaleIdx--; state.scroll = 0; savePrefs(); clack(); }
+    else if (inRect(BTN.textInc, tap.x, tap.y) && state.textScaleIdx < TEXT_SCALES.length - 1) { state.textScaleIdx++; state.scroll = 0; savePrefs(); clack(); }
+    else if (inRect(BTN.pgBack, tap.x, tap.y)) { if (state.scroll > 1) state.scroll = Math.max(0, state.scroll - vh * 0.85); else state.scene = 'title'; }
+    else if (inRect(BTN.pgNext, tap.x, tap.y)) { if (state.scroll >= state.scrollMax - 1) state.scene = 'title'; else state.scroll = Math.min(state.scrollMax, state.scroll + vh * 0.85); }
   }
 
   // Keyboard (web): arrows move along the glowing pits, Enter/Space plays, 1/2 or Left/Right answer a question, T think, U undo, Esc menu.
@@ -445,7 +458,7 @@ export function createGame(env) {
     if (DOCLEN[sc]) { if (k.has('Escape')) return at(BTN.pgBack); if (k.has('Enter') || k.has('Space') || k.has('ArrowRight')) return at(BTN.pgNext); if (k.has('ArrowLeft')) return at(BTN.pgBack); return null; }
     if (sc === 'autoplay') { if (k.has('Escape')) return at(BTN.apExit); if (k.has('Space') || k.has('KeyP')) return at(BTN.apPause); return null; }
     if (sc !== 'play' && sc !== 'lesson') return null;
-    if (k.has('Escape')) return at(BTN.menu);
+    if (k.has('Escape')) return at(menuRect());
     if (state.prompt) { if (k.has('Digit1') || k.has('ArrowLeft')) return at(BTN.pick1); if (k.has('Digit2') || k.has('ArrowRight')) return at(BTN.pick2); return null; }
     if (sc === 'lesson' && state.lesson.done && (k.has('Enter') || k.has('Space'))) return at(BTN.next);
     if (k.has('KeyU')) return at(BTN.undo);
@@ -462,6 +475,8 @@ export function createGame(env) {
 
   return {
     update(dt, input) {
+      if (state.afFlash > 0) state.afFlash -= dt;
+      use(meta.width, meta.height);
       state.t += dt;
       if (state.msg && !(state.scene === 'autoplay' && state.apPaused)) { state.msg.t += dt; if (state.msg.t > state.msg.hold) state.msg = null; }
       const p = input.pointer, kbd = keyboard(input);
@@ -469,11 +484,11 @@ export function createGame(env) {
       const sc = state.scene;
       if (sc === 'title') updateTitle(tap);
       else if (sc === 'settings') updateSettings(tap);
-      else if (DOCLEN[sc]) updatePage(tap);
+      else if (DOCLEN[sc]) updatePage(tap, input);
       else if (sc === 'play') updatePlay(dt, tap);
       else if (sc === 'lesson') updateLesson(dt, tap);
       else if (sc === 'autoplay') updateAutoPlay(dt, tap);
-      else if (sc === 'demo-limit') { if (tap && inRect(BTN.back, tap.x, tap.y)) state.scene = 'title'; }
+      else if (sc === 'demo-limit') { if (tap && inRect(BTN.demoMenu, tap.x, tap.y)) state.scene = 'title'; }
       else if (sc === 'over' && tap) {
         if (inRect(BTN.again, tap.x, tap.y)) start(state.two);
         else if (inRect(BTN.back, tap.x, tap.y)) state.scene = 'title';
@@ -482,10 +497,9 @@ export function createGame(env) {
         else if (inRect(BTN.back, tap.x, tap.y)) state.scene = 'title';
       }
     },
-    render(ctx) { render(ctx, state); },
+    render(ctx) { render(ctx, state, use(meta.width, meta.height)); },
     getState: () => state,
     // Everything except real play (menus, Rules/About/How to Play, settings, lessons, Watch & Learn, result screens) is free.
     isPreviewExempt: () => state.scene !== 'play',
   };
 }
-void H;

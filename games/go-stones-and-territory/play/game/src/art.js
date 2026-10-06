@@ -100,21 +100,26 @@ export function paintBoard(c, L, th) {
 
 const layers = {};
 export function drawTable(ctx) {
-  if (!layers.table) {
+  const key = `${W}x${H}`;
+  if (!layers.table || layers.tableKey !== key) {
+    layers.tableKey = key;
     const cv = mk(W, H);
     if (cv) { paintTable(cv.getContext('2d')); layers.table = cv; }
     else layers.table = { direct: true };
   }
   if (layers.table.direct) { if (ctx.fillRect) paintTable(ctx); } else ctx.drawImage(layers.table, 0, 0);
 }
+const boardKeys = [];
 export function drawBoardLayer(ctx, L, th) {
-  const key = `${th}${L.n}:${L.x}:${L.y}:${L.size}${L.plain ? 'p' : ''}`;
+  const key = `${th}${L.n}:${Math.round(L.x)}:${Math.round(L.y)}:${Math.round(L.size)}${L.plain ? 'p' : ''}`;
   if (!layers[key]) {
     const pad = 100, cv = mk((L.size + pad * 2) * 1, (L.size + pad * 2 + 60) * 1);
     if (cv) {
       const c = cv.getContext('2d'); c.translate(pad - L.x, pad - L.y);
       paintBoard(c, L, th); layers[key] = { cv, pad };
     } else layers[key] = { direct: true };
+    boardKeys.push(key);
+    while (boardKeys.length > 10) delete layers[boardKeys.shift()];   // rotations / resizes make new frames: keep memory bounded
   }
   const e = layers[key];
   if (e.direct) paintBoard(ctx, L, th); else ctx.drawImage(e.cv, L.x - e.pad, L.y - e.pad);

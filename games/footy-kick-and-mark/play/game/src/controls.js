@@ -2,12 +2,13 @@
 // down at once (stick + button): main.js hands over every touch by id. A stray extra finger never becomes a second stick or moves a button.
 // Keyboard (web): WASD or arrows move, Space/J = action 1, K = action 2, Shift = sprint, P/Escape pause, T think.
 import { inRect, inCircle, hudLayout } from './layout.js';
+const PORTRAIT_DIRS = { rx: -1, rz: 0, ux: 0, uz: 1 };       // ground directions of screen right / screen up (the camera decides: camera.js camFor)
 import { clamp, hyp } from './util.js';
 
 export function createControls() {
   const st = { stick: null, a1: null, a2: null, spr: null, mx: 0, mz: 0, sx: 0, sy: 0, ids: new Map() };
   // touches: [{ id, x, y, down, pressed, released }] for this tick
-  function read(touches, keys, lay, enabled) {
+  function read(touches, keys, lay, enabled, dirs = PORTRAIT_DIRS) {
     const out = { mx: 0, mz: 0, sprint: false, a1: false, a2: false, think: false, pause: false, taps: [] };
     for (const t of touches) {
       if (t.pressed) {
@@ -32,7 +33,7 @@ export function createControls() {
     const live = new Set(touches.filter((t) => t.down || t.pressed).map((t) => t.id));
     if (st.stick && !live.has(st.stick.id)) st.stick = null;
     for (const k of ['a1', 'a2', 'spr']) if (st[k] && !live.has(st[k].id)) st[k] = null;
-    // stick vector (virtual px -> -1..1): screen right is world -x, screen up is world +z
+    // stick vector (virtual px -> -1..1): the camera says which way screen right / up point on the pitch (portrait: right is world -x, up is +z; landscape: right is +z, up is +x)
     let vx = 0, vy = 0;
     if (st.stick) {
       let dx = st.sx - st.stick.ox, dy = st.sy - st.stick.oy; const d = hyp(dx, dy), R = 78;
@@ -48,7 +49,7 @@ export function createControls() {
     if (kd.has('ArrowUp') || kd.has('KeyW')) ky -= 1;
     if (kd.has('ArrowDown') || kd.has('KeyS')) ky += 1;
     if (kx || ky) { const l = hyp(kx, ky); vx = kx / l; vy = ky / l; }
-    out.mx = -vx; out.mz = -vy; out.sx = vx; out.sy = vy;
+    out.mx = dirs.rx * vx - dirs.ux * vy; out.mz = dirs.rz * vx - dirs.uz * vy; out.sx = vx; out.sy = vy;
     out.sprint = !!st.spr || kd.has('ShiftLeft') || kd.has('ShiftRight');
     if (enabled) {
       if (keys.pressed.has('Space') || keys.pressed.has('KeyJ')) out.a1 = true;

@@ -2,7 +2,9 @@
 // Plain canvas 2D, no images, nothing here changes game state.
 import { N, NN, SIDE, isDux, parse } from './rules.js';
 
-export const W = 720, H = 1560;
+// The live canvas size in virtual units (view.js calls setSize each frame; the kit's fluid viewport changes it on rotation).
+export let W = 720, H = 1560;
+export function setSize(w, h) { W = w; H = h; }
 export const UI = '-apple-system, "SF Pro Text", "Segoe UI", Roboto, system-ui, sans-serif';
 export const DISPLAY = '"Palatino Linotype", Palatino, "Iowan Old Style", Georgia, "Times New Roman", serif';
 
@@ -70,33 +72,33 @@ export function text(ctx, str, x, y, size, color = '#fff', o = {}) {
 }
 
 // ---------------------------------------------------------------------------------------------------- background
-const FLECKS = Array.from({ length: 30 }, (_, i) => [((i * 97) % 211) / 211 * W, ((i * 53) % 173) / 173 * H, 0.6 + ((i * 31) % 7) / 7, ((i * 13) % 11) / 11]);
+const FLECKS = Array.from({ length: 30 }, (_, i) => [((i * 97) % 211) / 211, ((i * 53) % 173) / 173, 0.6 + ((i * 31) % 7) / 7, ((i * 13) % 11) / 11]);
 
 // A soft backdrop: deep colour, a warm glow behind the board, slow dust motes and (on the menu) the faint outline of an arch.
-export function background(ctx, th, t, glowY = 700, arches = false) {
+export function background(ctx, th, t, glowY = 700, arches = false, glowX = W / 2) {
   const g = ctx.createLinearGradient(0, 0, 0, H);
   g.addColorStop(0, th.bg[0]); g.addColorStop(0.5, th.bg[1]); g.addColorStop(1, th.bg[2]);
   ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
-  const hg = ctx.createRadialGradient(W / 2, glowY, 40, W / 2, glowY, 680);
+  const hg = ctx.createRadialGradient(glowX, glowY, 40, glowX, glowY, 680);
   hg.addColorStop(0, th.glow); hg.addColorStop(1, 'rgba(0,0,0,0)');
   ctx.fillStyle = hg; ctx.fillRect(0, 0, W, H);
   if (arches) {
     // a colonnade of arches, very faint, behind the board
     ctx.save();
     ctx.strokeStyle = 'rgba(255,236,200,0.07)'; ctx.lineWidth = 3;
-    for (let k = 0; k < 4; k++) {
-      const x0 = -40 + k * 200, w = 160, top = 1080;
+    for (let k = 0; k < Math.ceil(W / 200) + 1; k++) {
+      const x0 = -40 + k * 200, w = 160, top = H - 480;
       ctx.beginPath(); ctx.moveTo(x0, H); ctx.lineTo(x0, top + w / 2); ctx.arc(x0 + w / 2, top + w / 2, w / 2, Math.PI, 0); ctx.lineTo(x0 + w, H); ctx.stroke();
     }
     ctx.restore();
   }
-  for (const [x, y, s, ph] of FLECKS) {
-    const xx = (x + t * (4 + s * 3)) % W, yy = (y - t * (2 + s * 2) + H * 4) % H;
+  for (const [fx, fy, s, ph] of FLECKS) {
+    const xx = (fx * W + t * (4 + s * 3)) % W, yy = (fy * H - t * (2 + s * 2) + H * 4) % H;
     const a = 0.05 + 0.1 * (0.5 + 0.5 * Math.sin(t * 0.7 + ph * 9));
     ctx.fillStyle = `rgba(${th.fleck},${a})`;
     ctx.fillRect(xx, yy, 2 * s, 2 * s);
   }
-  const vg = ctx.createRadialGradient(W / 2, H / 2, 560, W / 2, H / 2, 1020);
+  const vr = Math.max(W, H) * 0.65, vg = ctx.createRadialGradient(W / 2, H / 2, vr * 0.55, W / 2, H / 2, vr);
   vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,0.5)');
   ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
 }

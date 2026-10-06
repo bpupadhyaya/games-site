@@ -3,8 +3,8 @@
   "title": "Tavla",
   "tagline": "The dice game of the coffeehouse",
   "genre": "backgammon board game",
-  "orientation": "portrait",
-  "version": "0.9.1",
+  "orientation": "any",
+  "version": "0.10.3",
   "monetization": {
     "model": "premium",
     "priceUsd": 2.99,

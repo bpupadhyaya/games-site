@@ -16,6 +16,8 @@ export const STR = {
   levels: { en: 'Levels', zh: '关卡' },
   next: { en: 'Next', zh: '下一页' },
   prev: { en: 'Previous', zh: '上一页' },
+  done: { en: 'Done', zh: '完成' },
+  up: { en: 'Back up', zh: '向上' },
   nextLevel: { en: 'Next Level', zh: '下一关' },
   replay: { en: 'Play Again', zh: '再玩一次' },
   think: { en: 'Think', zh: '思考' },

@@ -122,7 +122,10 @@ function builder() {
   return B;
 }
 
-export function buildScenery(THREE) {
+// mode 'end' = the portrait view from behind the near baseline (the approved look); 'side' = the landscape view from the near touchline:
+// no stand or boards between the camera and the pitch, and a second rear stand behind the other goal.
+export function buildScenery(THREE, mode = 'end') {
+  const side = mode === 'side';
   const B = builder();
   const R = REG;
   // ---- goals: posts, crossbar, nets (both ends) --------------------------------------------------------------------------------------------
@@ -148,25 +151,26 @@ export function buildScenery(THREE) {
   // far end
   const bu = (i, n) => [[i / n, 0], [(i + 1) / n, 0], [(i + 1) / n, 1], [i / n, 1]];
   const nF = 8;
-  for (let i = 0; i < nF; i++) { const x0 = bx - (2 * bx) * i / nF, x1 = bx - (2 * bx) * (i + 1) / nF; B.quad([x0, 0, bzF], [x1, 0, bzF], [x1, bh, bzF], [x0, bh, bzF], R.boards, 0.98, bu(i, nF)); }
+  for (let i = 0; i < nF; i++) { const x0 = bx - (2 * bx) * i / nF, x1 = bx - (2 * bx) * (i + 1) / nF; B.quad([x0, 0, bzF], [x1, 0, bzF], [x1, bh, bzF], [x0, bh, bzF], R.boards, 0.98, bu(i, nF)); if (side) B.quad([x1, 0, -bzF], [x0, 0, -bzF], [x0, bh, -bzF], [x1, bh, -bzF], R.boards, 0.98, bu(i, nF)); }
   // sides
   const zl = -HL - gap, nS = 14;
-  for (let i = 0; i < nS; i++) { const z0 = zl + (bzF - zl) * i / nS, z1 = zl + (bzF - zl) * (i + 1) / nS; B.quad([bx, 0, z1], [bx, 0, z0], [bx, bh, z0], [bx, bh, z1], R.boards, 0.98, bu(i % 8, 8)); B.quad([-bx, 0, z0], [-bx, 0, z1], [-bx, bh, z1], [-bx, bh, z0], R.boards, 0.98, bu((i + 3) % 8, 8)); }
+  for (let i = 0; i < nS; i++) { const z0 = zl + (bzF - zl) * i / nS, z1 = zl + (bzF - zl) * (i + 1) / nS; B.quad([bx, 0, z1], [bx, 0, z0], [bx, bh, z0], [bx, bh, z1], R.boards, 0.98, bu(i % 8, 8)); if (!side) B.quad([-bx, 0, z0], [-bx, 0, z1], [-bx, bh, z1], [-bx, bh, z0], R.boards, 0.98, bu((i + 3) % 8, 8)); }
   // ---- stands ----------------------------------------------------------------------------------------------------------------------------------------
   // rear stand: a raked crowd face, a concrete base, side walls, roof
-  { const z0 = HL + 4.2, z1 = HL + 17, y0 = 0.6, y1 = 11.5, xw = 27;
+  for (const sg of side ? [1, -1] : [1]) { const z0 = sg * (HL + 4.2), z1 = sg * (HL + 17), y0 = 0.6, y1 = 11.5, xw = 27;
     B.quad([xw, y0, z0], [-xw, y0, z0], [-xw, y1, z1], [xw, y1, z1], R.crowdRear, [0.85, 0.85, 0.34, 0.34], [[0, 0], [1, 0], [1, 1], [0, 1]]);
     B.quad([xw, 0, z0], [-xw, 0, z0], [-xw, y0, z0], [xw, y0, z0], R.concrete, 0.8);
     B.quad([xw, y1, z1], [-xw, y1, z1], [-xw, y1 + 2.2, z1], [xw, y1 + 2.2, z1], R.dark, 0.75);           // rear wall
     // a slim canopy lip along the top edge
-    B.quad([xw, y1 + 2.2, z1 - 2.2], [-xw, y1 + 2.2, z1 - 2.2], [-xw, y1 + 2.2, z1 + 0.4], [xw, y1 + 2.2, z1 + 0.4], R.roofTop, 0.95);
-    B.quad([-xw, y1 + 2.0, z1 - 2.2], [xw, y1 + 2.0, z1 - 2.2], [xw, y1 + 2.0, z1 + 0.4], [-xw, y1 + 2.0, z1 + 0.4], R.dark, 0.6);
+    B.quad([xw, y1 + 2.2, z1 - sg * 2.2], [-xw, y1 + 2.2, z1 - sg * 2.2], [-xw, y1 + 2.2, z1 + sg * 0.4], [xw, y1 + 2.2, z1 + sg * 0.4], R.roofTop, 0.95);
+    B.quad([-xw, y1 + 2.0, z1 - sg * 2.2], [xw, y1 + 2.0, z1 - sg * 2.2], [xw, y1 + 2.0, z1 + sg * 0.4], [-xw, y1 + 2.0, z1 + sg * 0.4], R.dark, 0.6);
     // side walls of the stand
     B.quad([xw, y0, z0], [xw, y1, z1], [xw, y1 + 2.2, z1], [xw, y0, z1], R.dark, 0.7); B.quad([-xw, y0, z1], [-xw, y1 + 2.2, z1], [-xw, y1, z1], [-xw, y0, z0], R.dark, 0.7);
   }
   // side stands along the touchlines (both sides), from behind the near goal to the rear stand
   for (const s of [-1, 1]) {
-    const x0 = s * (HW + 3.4), x1 = s * (HW + 15), z0 = -HL - 10, z1 = HL + 4.2, y0 = 0.6, y1 = 10;
+    if (side && s < 0) continue;
+    const x0 = s * (HW + 3.4), x1 = s * (HW + 15), z0 = side ? -HL - 4.2 : -HL - 10, z1 = HL + 4.2, y0 = 0.6, y1 = 10;
     if (s > 0) B.quad([x0, y0, z1], [x0, y0, z0], [x1, y1, z0], [x1, y1, z1], R.crowdSide, [0.8, 0.8, 0.4, 0.4], [[0, 0], [1, 0], [1, 1], [0, 1]]);
     else B.quad([x0, y0, z0], [x0, y0, z1], [x1, y1, z1], [x1, y1, z0], R.crowdSide, [0.8, 0.8, 0.4, 0.4], [[0, 0], [1, 0], [1, 1], [0, 1]]);
     // concrete base wall and a back wall
@@ -175,6 +179,7 @@ export function buildScenery(THREE) {
   }
   // ---- floodlight masts at the four corners -------------------------------------------------------------------------------------------------------
   for (const sx of [-1, 1]) for (const sz of [-1, 1]) {
+    if (side && sx < 0) continue;
     const x = sx * (HW + 5.5), z = sz * (HL + 6), h = 24;
     B.box(x - 0.18, 0, z - 0.18, x + 0.18, h, z + 0.18, R.steel, 0.9);
     // lamp panel facing the pitch centre
@@ -182,6 +187,7 @@ export function buildScenery(THREE) {
     B.box(x - 1.7, h - 0.2, z - 0.35, x + 1.7, h, z + 0.35, R.dark, 0.9);
   }
   // ---- the sky: a big backdrop beyond the stand, and a horizon haze strip ------------------------------------------------------------------------------
+  if (side) B.quad([-260, -5, -HL - 45], [260, -5, -HL - 45], [260, 160, -HL - 45], [-260, 160, -HL - 45], R.sky, 1.0, [[0, 0], [1, 0], [1, 1], [0, 1]]);
   B.quad([260, -5, HL + 45], [-260, -5, HL + 45], [-260, 160, HL + 45], [260, 160, HL + 45], R.sky, 1.0, [[0, 0], [1, 0], [1, 1], [0, 1]]);
   const { P, U, C, I } = B.arrays();
   const geo = new THREE.BufferGeometry();

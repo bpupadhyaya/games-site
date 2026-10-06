@@ -2,8 +2,8 @@
   "slug": "dudo-andean-liars-dice",
   "title": "Dudo: Andean Bluff Dice",
   "genre": "bluffing dice game",
-  "orientation": "portrait",
-  "version": "1.0.1",
+  "orientation": "any",
+  "version": "1.1.4",
   "monetization": {
     "model": "premium",
     "priceUsd": 2.99,

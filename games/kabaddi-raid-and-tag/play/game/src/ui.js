@@ -1,5 +1,6 @@
 // Shared drawing helpers for every screen: panels, flat buttons, wrapped text, the flow layout that scales with the
 // player's text size and scrolls when it no longer fits (so nothing can overflow or clip at 300%).
+export const FLOORPX = { v: 18 };   // smallest text (virtual units) that is still ~11 css px; layout.js keeps it current
 export const FONT = "'Avenir Next', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif";
 export const NUM = "'Avenir Next Condensed', 'Arial Narrow', 'Helvetica Neue', Arial, sans-serif";
 export const C = {
@@ -52,9 +53,9 @@ export function drawButton(ctx, r, label, opts = {}) {
   let px = sub ? Math.round(size * 0.9) : size;
   const maxW = r.w - 24;
   ctx.font = `700 ${px}px ${FONT}`;
-  while (ctx.measureText(label).width > maxW && px > 13) { px -= 1; ctx.font = `700 ${px}px ${FONT}`; }
+  while (ctx.measureText(label).width > maxW && px > FLOORPX.v) { px -= 1; ctx.font = `700 ${px}px ${FONT}`; }
   ctx.fillText(label, r.x + r.w / 2, r.y + dy + r.h / 2 - (sub ? 11 : 0));
-  if (sub) { ctx.font = `400 ${Math.round(size * 0.62)}px ${FONT}`; ctx.globalAlpha = 0.85; ctx.fillText(sub, r.x + r.w / 2, r.y + dy + r.h / 2 + size * 0.5); ctx.globalAlpha = 1; }
+  if (sub) { ctx.font = `400 ${Math.max(FLOORPX.v, Math.round(size * 0.62))}px ${FONT}`; ctx.globalAlpha = 0.85; ctx.fillText(sub, r.x + r.w / 2, r.y + dy + r.h / 2 + size * 0.5); ctx.globalAlpha = 1; }
   ctx.restore();
 }
 
@@ -159,7 +160,7 @@ export function flowLayout(ctx, widgets, scale, o = {}) {
 
 export function drawFlow(ctx, lay, top, bottom, scroll) {
   ctx.save();
-  ctx.beginPath(); ctx.rect(0, top, 720, bottom - top); ctx.clip();
+  ctx.beginPath(); ctx.rect(0, top, 4096, bottom - top); ctx.clip();
   for (const it of lay.items) {
     const y = top + it.y - scroll;
     if (y > bottom || y + it.h < top) continue;
@@ -184,19 +185,20 @@ function drawButtonRect(ctx, r, it, wd) {
   ctx.fillStyle = disabled ? 'rgba(255,255,255,0.35)' : light ? '#fff7e6' : C.ink;
   ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
   ctx.font = `700 ${it.fs}px ${FONT}`;
-  const subLines = wd.sub ? (() => { ctx.font = `400 ${Math.round(it.fs * 0.72)}px ${FONT}`; const l = wrapLines(ctx, wd.sub, r.w - 28); ctx.font = `700 ${it.fs}px ${FONT}`; return l; })() : [];
-  const total = it.lines.length * it.fs * 1.15 + subLines.length * it.fs * 0.72;
+  const subPx = Math.max(FLOORPX.v, Math.round(it.fs * 0.72));
+  const subLines = wd.sub ? (() => { ctx.font = `400 ${subPx}px ${FONT}`; const l = wrapLines(ctx, wd.sub, r.w - 28); ctx.font = `700 ${it.fs}px ${FONT}`; return l; })() : [];
+  const total = it.lines.length * it.fs * 1.15 + subLines.length * Math.max(subPx, it.fs * 0.72);
   const starsH = wd.stars && it.fs > 30 ? it.fs * 0.85 : 0;
   let y = r.y + dy + (r.h - total - starsH) / 2 + it.fs * 0.88;
   it.lines.forEach((l) => { ctx.fillText(l, r.x + r.w / 2, y); y += it.fs * 1.15; });
   if (subLines.length) {
-    ctx.font = `400 ${Math.round(it.fs * 0.72)}px ${FONT}`; ctx.globalAlpha = 0.85;
+    ctx.font = `400 ${subPx}px ${FONT}`; ctx.globalAlpha = 0.85;
     y -= it.fs * 0.2;
-    subLines.forEach((l) => { ctx.fillText(l, r.x + r.w / 2, y); y += it.fs * 0.72; });
+    subLines.forEach((l) => { ctx.fillText(l, r.x + r.w / 2, y); y += Math.max(subPx, it.fs * 0.72); });
     ctx.globalAlpha = 1;
   }
   if (wd.stars) {
-    ctx.font = `400 ${Math.round(it.fs * 0.7)}px ${FONT}`; ctx.fillStyle = light ? '#ffe9a0' : '#b8431c';
+    ctx.font = `400 ${Math.max(FLOORPX.v, Math.round(it.fs * 0.7))}px ${FONT}`; ctx.fillStyle = light ? '#ffe9a0' : '#b8431c';
     const row = '★'.repeat(wd.stars) + '☆'.repeat(5 - wd.stars);
     if (starsH) { ctx.textAlign = 'center'; ctx.fillText(row, r.x + r.w / 2, r.y + dy + r.h - (r.h - total - starsH) / 2 - starsH * 0.2); }
     else { ctx.textAlign = 'right'; ctx.fillText(row, r.x + r.w - 16, r.y + dy + it.fs * 0.95); }

@@ -1,10 +1,14 @@
 // A small text-zoom-aware UI kit for canvas screens: wrapped text, buttons, chips, cards and a scrolling
 // column with page snapping. Every size is multiplied by `scale` (100%..300%) so nothing clips at 300%.
-import { W, H, clamp } from './core.js';
-import { PAL, FONT, SANS, rr, shade, wrapLines, textFill } from './art.js';
+import { clamp } from './core.js';
+import { LY } from './layout.js';
+import { drawMoreLine } from './brand.js';
+import { PAL, FONT, SANS, rr, shade, wrapLines, wrapCacheCheck, textFill } from './art.js';
 
 export const TEXT_SCALES = [1, 1.25, 1.5, 2, 2.5, 3];
-export const inRect = (r, x, y) => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
+export const inRect = (r, x, y) => !!r && x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
+// Smallest text on screen (about 11 css px): secondary lines never fall below it, whatever the fraction of the button text they started as.
+export const subSizeOf = (size) => Math.max(Math.round(size * 0.62), LY ? LY.minText : 16);
 
 // Where a finger is currently held down (virtual coords), so a button under it draws its pressed state.
 let press = null;
@@ -38,7 +42,7 @@ export function drawButton(ctx, r, label, o = {}) {
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.font = `700 ${size}px ${FONT}`;
   const lines = wrapLines(ctx, label, r.w - 28);
-  const lh = size * 1.18, subSize = Math.round(size * 0.62), subLh = subSize * 1.25;
+  const lh = size * 1.18, subSize = subSizeOf(size), subLh = subSize * 1.25;
   let subLines = [];
   if (sub) { ctx.font = `400 ${subSize}px ${SANS}`; subLines = wrapLines(ctx, sub, r.w - 28); ctx.font = `700 ${size}px ${FONT}`; }
   const total = lines.length * lh + (subLines.length ? subLines.length * subLh + 4 : 0);
@@ -62,11 +66,21 @@ export function panel(ctx, r, o = {}) {
 
 // ---- column layout ---------------------------------------------------------------------------------------------------
 // items -> ops with absolute y (relative to column top). width = content width.
-export function layoutColumn(ctx, items, width, s) {
+// `opts.cols = 2` lays consecutive cards out two per row (landscape menus); everything else spans the full width.
+export function layoutColumn(ctx, items, width, s, opts = {}) {
+  wrapCacheCheck(ctx);
   const ops = [];
   let y = 0;
-  const gap = 14 * s;
+  const gap = 14 * s, cols = opts.cols ?? 1, cgap = 14 * s, cwid = cols === 2 ? (width - cgap) / 2 : width;
+  let row = [];
+  const flushRow = () => {
+    if (!row.length) return;
+    const rh = Math.max(...row.map((o) => o.h));
+    for (const o of row) { o.h = rh; o.bottom = o.y + rh; }
+    y += rh + gap; row = [];
+  };
   for (const it of items) {
+    if (cols === 2 && it.t !== 'card') flushRow();
     const op = { it, y, h: 0, lines: null, chips: null };
     switch (it.t) {
       case 'title': {
@@ -86,14 +100,16 @@ export function layoutColumn(ctx, items, width, s) {
         const size = (it.size ?? 31) * s; ctx.font = `700 ${size}px ${FONT}`;
         const n = wrapLines(ctx, it.label, width - 28).length;
         let sn = 0;
-        if (it.sub) { ctx.font = `400 ${Math.round(size * 0.62)}px ${SANS}`; sn = wrapLines(ctx, it.sub, width - 28).length; }
-        op.h = Math.max((it.h ?? 84), n * size * 1.18 + sn * size * 0.62 * 1.25 + (sn ? 4 : 0) + 36);
+        const ssz = subSizeOf(size);
+        if (it.sub) { ctx.font = `400 ${ssz}px ${SANS}`; sn = wrapLines(ctx, it.sub, width - 28).length; }
+        op.h = Math.max((it.h ?? 84), n * size * 1.18 + sn * ssz * 1.25 + (sn ? 4 : 0) + 36);
         op.size = size; break;
       }
       case 'card': {
         const ts = 33 * s, bs = 24 * s;
-        ctx.font = `700 ${ts}px ${FONT}`; op.tl = wrapLines(ctx, it.title, width - 40 * s);
-        ctx.font = `400 ${bs}px ${SANS}`; op.bl = wrapLines(ctx, it.text ?? '', width - 40 * s);
+        op.w = cwid; op.x = cols === 2 ? row.length * (cwid + cgap) : 0;
+        ctx.font = `700 ${ts}px ${FONT}`; op.tl = wrapLines(ctx, it.title, cwid - 40 * s);
+        ctx.font = `400 ${bs}px ${SANS}`; op.bl = wrapLines(ctx, it.text ?? '', cwid - 40 * s);
         op.ts = ts; op.bs = bs; op.h = 22 * s + op.tl.length * ts * 1.15 + (it.text ? 8 * s + op.bl.length * bs * 1.3 : 0) + (it.tag ? bs * 1.5 : 0) + 20 * s; break;
       }
       case 'chips': {
@@ -121,16 +137,19 @@ export function layoutColumn(ctx, items, width, s) {
         op.ll = wrapLines(ctx, it.label, width * 0.56); ctx.font = `700 ${size}px ${SANS}`; op.vl = wrapLines(ctx, String(it.value), width * 0.36);
         op.size = size; op.h = Math.max(op.ll.length, op.vl.length) * size * 1.25 + 28 * s; break;
       }
-      case 'stat': { const size = (it.size ?? 27) * s; ctx.font = `600 ${size}px ${SANS}`; op.size = size; op.ll = wrapLines(ctx, it.label, width * 0.6); op.vl = wrapLines(ctx, String(it.value), width * 0.38); op.h = Math.max(op.ll.length, op.vl.length) * size * 1.25 + 8 * s; break; }
+      case 'stat': { const size = (it.size ?? 27) * s; ctx.font = `600 ${size}px ${SANS}`; op.size = size; op.ll = wrapLines(ctx, it.label, width * (it.wide ? 0.3 : 0.6)); op.vl = wrapLines(ctx, String(it.value), width * (it.wide ? 0.68 : 0.38)); op.h = Math.max(op.ll.length, op.vl.length) * size * 1.25 + 8 * s; break; }
       case 'gap': op.h = (it.h ?? 20) * s; break;
       case 'rule': op.h = 14 * s; break;
+      case 'more': op.h = 52 * Math.min(s, 1.5); break;
       case 'fig': op.h = (it.h ?? 240); break;
       default: break;
     }
     ops.push(op);
-    y += op.h + (it.t === 'gap' || it.t === 'rule' ? 0 : gap);
     op.bottom = op.y + op.h;
+    if (cols === 2 && it.t === 'card') { row.push(op); if (row.length === 2) flushRow(); continue; }
+    y += op.h + (it.t === 'gap' || it.t === 'rule' ? 0 : gap);
   }
+  flushRow();
   return { ops, total: y };
 }
 
@@ -158,14 +177,14 @@ export function drawColumn(ctx, lay, rect, scroll, s, st = {}, clipH = null) {
       drawButton(ctx, { x: x0, y: top, w: rect.w, h: op.h }, it.label, { primary: it.primary, disabled: it.disabled, active: it.active, sub: it.sub, size: op.size, danger: it.danger });
       pushHits(hits, op, x0, top, rect);
     } else if (it.t === 'card') {
-      const r = { x: x0, y: top, w: rect.w, h: op.h };
+      const r = { x: x0 + (op.x ?? 0), y: top, w: op.w ?? rect.w, h: op.h }, tx = r.x + 24 * s;
       panel(ctx, r, { radius: 24 * s, top: it.hot ? 'rgba(60,70,90,0.92)' : 'rgba(44,34,72,0.92)' });
       if (it.accent) { rr(ctx, r.x, r.y, 10 * s, r.h, 5 * s); ctx.fillStyle = it.accent; ctx.fill(); }
       let y = top + 18 * s;
       ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic'; ctx.font = `700 ${op.ts}px ${FONT}`; ctx.fillStyle = PAL.gold;
-      for (const l of op.tl) { ctx.fillText(l, x0 + 24 * s, y + op.ts * 0.9); y += op.ts * 1.15; }
-      if (it.text) { y += 6 * s; ctx.font = `400 ${op.bs}px ${SANS}`; ctx.fillStyle = 'rgba(255,244,224,0.9)'; for (const l of op.bl) { ctx.fillText(l, x0 + 24 * s, y + op.bs); y += op.bs * 1.3; } }
-      if (it.tag) { ctx.font = `600 ${op.bs * 0.92}px ${SANS}`; ctx.fillStyle = PAL.teal; ctx.fillText(it.tag, x0 + 24 * s, y + op.bs * 1.1); }
+      for (const l of op.tl) { ctx.fillText(l, tx, y + op.ts * 0.9); y += op.ts * 1.15; }
+      if (it.text) { y += 6 * s; ctx.font = `400 ${op.bs}px ${SANS}`; ctx.fillStyle = 'rgba(255,244,224,0.9)'; for (const l of op.bl) { ctx.fillText(l, tx, y + op.bs); y += op.bs * 1.3; } }
+      if (it.tag) { ctx.font = `600 ${op.bs * 0.92}px ${SANS}`; ctx.fillStyle = PAL.teal; ctx.fillText(it.tag, tx, y + op.bs * 1.1); }
       pushHits(hits, op, x0, top, rect);
     } else if (it.t === 'chips') {
       if (op.labLines) { ctx.font = `600 ${24 * s}px ${SANS}`; ctx.fillStyle = 'rgba(255,214,150,0.9)'; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic'; let y = top; for (const l of op.labLines) { ctx.fillText(l, x0, y + 24 * s); y += 24 * s * 1.3; } }
@@ -186,6 +205,8 @@ export function drawColumn(ctx, lay, rect, scroll, s, st = {}, clipH = null) {
       ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'left'; ctx.font = `600 ${op.size}px ${SANS}`; ctx.fillStyle = 'rgba(255,244,224,0.8)';
       let y = top; for (const l of op.ll) { ctx.fillText(l, x0, y + op.size); y += op.size * 1.25; }
       ctx.textAlign = 'right'; ctx.font = `700 ${op.size}px ${SANS}`; ctx.fillStyle = it.color ?? PAL.gold; y = top; for (const l of op.vl) { ctx.fillText(l, x0 + rect.w, y + op.size); y += op.size * 1.25; }
+    } else if (it.t === 'more') {
+      drawMoreLine(ctx, x0 + rect.w / 2, top + op.h * 0.72, Math.max(LY ? LY.minText : 16, 20) * Math.min(s, 1.5));
     } else if (it.t === 'rule') {
       ctx.fillStyle = 'rgba(255,214,140,0.25)'; ctx.fillRect(x0, top + op.h / 2, rect.w, 2);
     } else if (it.t === 'fig') {
@@ -199,7 +220,7 @@ export function drawColumn(ctx, lay, rect, scroll, s, st = {}, clipH = null) {
 function pushHits(hits, op, x0, top, rect) {
   const it = op.it;
   if (it.t === 'btn' && !it.disabled) hits.push({ id: it.id, rect: { x: x0, y: top, w: rect.w, h: op.h } });
-  else if (it.t === 'card' || it.t === 'row') hits.push({ id: it.id, rect: { x: x0, y: top, w: rect.w, h: op.h } });
+  else if (it.t === 'card' || it.t === 'row') hits.push({ id: it.id, rect: { x: x0 + (op.x ?? 0), y: top, w: op.w ?? rect.w, h: op.h } });
   else if (it.t === 'chips') for (const c of op.chips) if (!c.o.disabled) hits.push({ id: `${it.id}:${c.o.v}`, rect: { x: x0 + c.x, y: top + c.y, w: c.w, h: c.h } });
 }
 
@@ -223,60 +244,14 @@ function drawChip(ctx, r, lines, on, size, disabled) {
   ctx.restore();
 }
 
-// How many whole lines of a text item starting inside the page (at y) can sit on that page, or 0 when it should
-// move to the next page whole. Splits when at least 2 lines fit here, so a page is never left mostly blank,
-// and carries two lines over rather than orphaning a single one.
-function splitLines(op, pageTop, viewH) {
-  if (!op.lh || op.y <= pageTop + 1) return 0;
-  const room = pageTop + viewH - op.y;
-  let k = Math.floor(room / op.lh);
-  const n = Math.round(op.h / op.lh);
-  if (k >= n) return 0;
-  if (n - k < 2 && k >= 3) k -= 1; // carry two lines over rather than orphan one
-  return k >= 2 ? k : 0;
-}
-
-// Page starts for snapped paging through a laid-out column. Pages break between items; a text item that does not
-// fit is continued line by line on the next page; headings never end a page on their own.
-export function pageStarts(lay, viewH) {
-  const starts = [0];
-  let cur = 0;
-  for (let guard = 0; guard < 4000; guard++) {
-    const next = lay.ops.find((op) => op.bottom > cur + viewH + 1);
-    if (!next) break;
-    if (next.y > cur + 1) {
-      const k = splitLines(next, cur, viewH);
-      if (k) { cur = next.y + k * next.lh; starts.push(cur); continue; }
-      let i = lay.ops.indexOf(next);
-      while (i > 0 && lay.ops[i - 1].it.t === 'h' && lay.ops[i - 1].y > cur + 1) i--;
-      cur = lay.ops[i].y; starts.push(cur); continue;
-    }
-    const lh = next.lh ?? null;
-    const step = lh ? Math.max(1, Math.floor(viewH / lh)) * lh : viewH * 0.9;
-    cur += step; starts.push(cur);
-  }
-  return starts;
-}
-// How tall the visible page really is at scroll `sc` (so a half-visible line or item is clipped away).
-export function pageClip(lay, sc, viewH) {
-  const tall = lay.ops.find((op) => op.y <= sc + 1 && op.bottom > sc + viewH + 1);
-  if (tall) { const lh = tall.lh ?? null; return lh ? Math.max(1, Math.floor(viewH / lh)) * lh + 2 : viewH; }
-  const nextOp = lay.ops.find((op) => op.bottom > sc + viewH + 1);
-  const k = nextOp ? splitLines(nextOp, sc, viewH) : 0;
-  if (k) return nextOp.y - sc + k * nextOp.lh + 2;
-  // fully visible items; a heading left at the bottom moves to the next page with its text
-  const vis = lay.ops.filter((op) => op.bottom <= sc + viewH + 1 && op.bottom > sc);
-  while (nextOp && vis.length && vis[vis.length - 1].it.t === 'h') vis.pop();
-  const end = vis.length ? vis[vis.length - 1].bottom : sc;
-  return end - sc >= 40 ? Math.min(viewH, end - sc + 6) : viewH;
-}
 export const maxScroll = (lay, viewH) => Math.max(0, lay.total - viewH);
 
-export function scrollbar(ctx, rect, scroll, total) {
-  if (total <= rect.h + 1) return;
-  const th = Math.max(36, rect.h * rect.h / total);
-  const ty = rect.y + (rect.h - th) * (scroll / Math.max(1, total - rect.h));
-  ctx.fillStyle = 'rgba(255,214,140,0.35)'; rr(ctx, rect.x + rect.w + 6, ty, 6, th, 3); ctx.fill();
+// A scroll bar in the right gutter of a scrolling screen: a faint track and a thumb. Returns the thumb rectangle (null when everything fits).
+export function scrollbar(ctx, bar, scroll, total, viewH) {
+  if (total <= viewH + 1) return null;
+  const th = Math.max(44, bar.h * viewH / total);
+  const ty = bar.y + (bar.h - th) * (scroll / Math.max(1, total - viewH));
+  ctx.fillStyle = 'rgba(255,214,140,0.12)'; rr(ctx, bar.x, bar.y, bar.w, bar.h, bar.w / 2); ctx.fill();
+  ctx.fillStyle = 'rgba(255,214,140,0.5)'; rr(ctx, bar.x, ty, bar.w, th, bar.w / 2); ctx.fill();
+  return { x: bar.x, y: ty, w: bar.w, h: th };
 }
-
-export { W, H };

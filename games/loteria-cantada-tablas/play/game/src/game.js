@@ -6,8 +6,7 @@
 // bean (while that call is still "open"); press ¡LOTERÍA! when your pattern is complete. Computer players
 // react with human-like delays. Watch & Learn plays a whole round itself: THINK -> REVEAL -> ACT.
 import {
-  W, H, inRect, TEXT_SCALES, THINK_STEPS, AUTO_REVEAL_SECS, AUTO_ACT_SECS, BACK, SOUND, TEXT_DEC, TEXT_INC, REF_BACK, REF_NEXT,
-  menuRows, setupRows, SETUP_KEYS, DUO_SETUP_KEYS, SOLO, DUO, CALLER, PICK, PAUSE, RESULT, AUTO, SETTINGS_ROWS, DEMO_LIMIT, cellAt, cellRect, rot180,
+  inRect, TEXT_SCALES, THINK_STEPS, AUTO_REVEAL_SECS, AUTO_ACT_SECS, SETUP_KEYS, DUO_SETUP_KEYS, cellAt, cellRect, layoutFor,
 } from './layout.js';
 import {
   SCORE, HINTS_PER_ROUND, LOCKOUT_SECS, PATTERNS, CONCRETE, PACES, SKILLS, STYLES, byId,
@@ -18,7 +17,8 @@ import { THEME_IDS } from './art.js';
 import { t as tr } from './strings.js';
 import { render } from './view.js';
 
-export const meta = { width: W, height: H };
+// `meta.width/height` are updated live by the kit on every resize (fluid viewport: the short side is always 720 units).
+export const meta = { width: 720, height: 1560, fluid: { short: 720 } };
 const DEMO_ROUNDS = 3;
 const SHOWCASE_SEED_MIN = 777000; // reserved seeds that open a staged screen for store screenshots
 
@@ -32,6 +32,8 @@ export function createGame(env) {
     paused: false, toast: null, parts: [], thinkIdx: 1, resetDone: 0, frozen: false, showcaseInit: false,
   };
   let sfx = [], lastPointer = null;
+  const lay = () => layoutFor(meta.width, meta.height);
+  const lay2 = (v) => layoutFor(v?.width ?? meta.width, v?.height ?? meta.height);
 
   // ---- persistence ------------------------------------------------------------------------------------------
   const savePrefs = () => storage.set('prefs', { lang: state.lang, theme: state.theme, sound: state.sound, textIdx: state.textIdx, cfg: state.cfg, thinkIdx: state.thinkIdx, coach: state.coach });
@@ -81,7 +83,19 @@ export function createGame(env) {
     const cols = ['#ffd24a', '#fff3dc', '#ff9ad0', '#7af0c8'];
     for (let i = 0; i < n; i++) { const a = rng.range(0, Math.PI * 2), v = rng.range(60, 190); state.parts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 60, rot: rng.range(0, 6.28), vr: rng.range(-6, 6), t: 0, max: rng.range(0.45, 0.9), c: cols[i % cols.length], s: rng.range(5, 9), kind: 'petal' }); }
   };
-  const go = (scene) => { state.scene = scene; state.paused = false; state.page = 0; state.toast = null; };
+  // About / How to Play / Rules are one continuous scrolling reader: drag, wheel, arrow / page keys.
+  let wheelHooked = false, refDrag = null;
+  const REF_SCENES = new Set(['about', 'howto', 'rules']);
+  function refInput(input) {
+    const p = input.pointer, k = input.keys.pressed, set = (v) => { state.refScroll = Math.max(0, Math.min(state.refMax || 0, v)); };
+    const d = lay().d, q = d.to(p.x, p.y), pn = d.panel;
+    if (p.pressed && !state.paused && q.x >= pn.x && q.x <= pn.x + pn.w && q.y >= pn.y + 90 && q.y <= pn.y + pn.maxH) refDrag = { y0: q.y, s0: state.refScroll || 0 };
+    if (refDrag) { if (p.down) set(refDrag.s0 - (q.y - refDrag.y0)); else refDrag = null; }
+    if (k.has('ArrowDown')) set((state.refScroll || 0) + 70); if (k.has('ArrowUp')) set((state.refScroll || 0) - 70);
+    if (k.has('PageDown') || k.has('Space')) set((state.refScroll || 0) + (state.refView || 400) * 0.9); if (k.has('PageUp')) set((state.refScroll || 0) - (state.refView || 400) * 0.9);
+    if (k.has('Home')) set(0); if (k.has('End')) set(1e9);
+  }
+  const go = (scene) => { state.scene = scene; state.paused = false; state.page = 0; state.refScroll = 0; state.toast = null; };
 
   // ---- rounds ----------------------------------------------------------------------------------------------------
   const mkPlayer = (kind, name, tabla, skill = 'normal') => ({ kind, name, tabla, marks: emptyMarks(), dead: Array(16).fill(false), beanT: Array(16).fill(9), lock: 0, stats: { beans: 0, wrong: 0, falses: 0 }, hints: HINTS_PER_ROUND, hintCell: -1, hintT: 0, flash: null, pending: [], claimAt: -1, skill });
@@ -107,7 +121,7 @@ export function createGame(env) {
     for (const p of r.players) refreshDead(p.tabla, p.marks, p.dead, r.called, r.window);
     if (r.mode !== 'auto') for (const p of r.players) if (p.kind === 'cpu') cpuHear(rng, p, id, r.clock);
     sound('call', id);
-    if (r.mode === 'duo') sparkle(W / 2, 640, 10); else sparkle(SOLO.card.x + SOLO.card.w / 2, SOLO.card.y + SOLO.card.h / 2, 12);
+    { const L = lay(); if (r.mode === 'duo') sparkle(L.w / 2, L.h / 2, 10); else { const c = (r.mode === 'auto' ? L.auto : L.play).card; sparkle(c.x + c.w / 2, c.y + c.h / 2, 12); } }
     return true;
   }
   function startRound(mode, tablas, pool) {
@@ -134,7 +148,7 @@ export function createGame(env) {
     if (status === 'won') {
       r.winSet = completedSet(r.players[winner].marks, r.pattern);
       const humanWon = r.players[winner].kind === 'human';
-      sound(humanWon ? 'win' : 'lose'); confetti(W / 2, 420, humanWon ? 90 : 20, true);
+      sound(humanWon ? 'win' : 'lose'); confetti(meta.width / 2, meta.height * 0.3, humanWon ? 90 : 20, true);
     } else sound('lose');
     if (r.mode === 'solo' && r.result[0]) { state.score += r.result[0].total; state.best = Math.max(state.best, r.result[0].total); saveStats(); }
   }
@@ -146,7 +160,7 @@ export function createGame(env) {
     if (out === 'bean') {
       p.marks[cell] = true; p.beanT[cell] = 0; p.stats.beans++; p.flash = { cell, t: 0, kind: 'ok' };
       sound('bean'); if (p.hintCell === cell) p.hintCell = -1;
-      { const cr = cellRect(r.mode === 'duo' ? DUO.tabla : SOLO.tabla, cell); let q = { x: cr.x + cr.w / 2, y: cr.y + cr.h / 2 }; if (r.mode === 'duo' && pi === 1) q = rot180(q.x, q.y); sparkle(q.x, q.y, 8); }
+      { const L = lay(), cr = cellRect(r.mode === 'duo' ? L.duo.tabla : L.play.tabla, cell); let q = { x: cr.x + cr.w / 2, y: cr.y + cr.h / 2 }; if (r.mode === 'duo' && pi === 1) q = L.duo.rot(q.x, q.y); sparkle(q.x, q.y, 8); }
       if (isComplete(p.marks, r.pattern)) { say(tr(L(), 'complete'), 'good', 2.2); sound('ok'); }
     } else if (out === 'wrong') {
       p.stats.wrong++; p.flash = { cell, t: 0, kind: 'wrong' }; sound('wrong'); say(tr(L(), 'wrongTap'), 'warn');
@@ -270,14 +284,19 @@ export function createGame(env) {
     else if (key === 'theme') state.theme = cyc(THEME_IDS, state.theme, d);
     savePrefs(); sound('ok');
   }
-  function backFromRef() { const s = state.returnScene; state.returnScene = null; if (s) { state.scene = s; state.page = 0; } else go('menu'); }
+  function backFromRef() { const s = state.returnScene; state.returnScene = null; if (s) { state.scene = s; state.page = 0; state.refScroll = 0; } else go('menu'); }
 
-  function tap(x, y) {
+  function tap(x0, y0) {
     const sc = state.scene;
     if (state.frozen) return;
+    if (sc === 'play') return playTap(x0, y0);
+    if (sc === 'duo') return duoTap(x0, y0);
+    if (sc === 'auto') return autoTap(x0, y0);
+    const L = lay(), d = L.d, { x, y } = d.to(x0, y0);          // every other screen is a design screen
     if (sc === 'menu') {
-      const m = menuRows(TEXT_SCALES[state.textIdx] ?? 1);
-      if (hit(SOUND, x, y)) { state.sound = !state.sound; audio.setMuted(!state.sound); savePrefs(); sound('ok'); }
+      const m = L.menuRows(TEXT_SCALES[state.textIdx] ?? 1);
+      if (hit(L.lockTap(m), x0, y0)) { env.openArcforgeHome?.(); return; }
+      if (hit(d.sound, x, y)) { state.sound = !state.sound; audio.setMuted(!state.sound); savePrefs(); sound('ok'); }
       else if (hit(m.play, x, y)) { state.mode = 'solo'; go('setup'); sound('ok'); }
       else if (hit(m.duo, x, y)) { state.mode = 'duo'; go('setup'); sound('ok'); }
       else if (hit(m.caller, x, y)) { newCaller(); sound('ok'); }
@@ -289,93 +308,92 @@ export function createGame(env) {
       else if (hit(m.en, x, y)) { state.lang = 'en'; savePrefs(); sound('ok'); }
       else if (hit(m.settings, x, y)) { go('settings'); sound('ok'); }
     } else if (sc === 'setup') {
-      const rows = setupRows(setupKeys());
-      if (hit(BACK, x, y)) { go('menu'); sound('ok'); return; }
+      const rows = L.setupRows(setupKeys());
+      if (hit(d.back, x, y)) { go('menu'); sound('ok'); return; }
       for (const k of setupKeys()) if (hit(rows[k], x, y)) { adjust(k, x < rows[k].x + rows[k].w / 2 ? -1 : 1); return; }
       if (hit(rows.start, x, y)) { sound('ok'); if (state.mode === 'duo') startDuo(); else startPick(); }
     } else if (sc === 'pick') {
-      if (hit(BACK, x, y)) { go('setup'); sound('ok'); return; }
-      for (let i = 0; i < 3; i++) if (hit(PICK.slots[i], x, y)) { state.pick.sel = i; sound('ok'); return; }
-      if (hit(PICK.deal, x, y)) { dealPick(false); sound('call', 3); return; }
-      if (hit(PICK.play, x, y) && state.pick.sel >= 0) startRound('solo', [state.pick.tablas[state.pick.sel]], state.pick.pool);
-    } else if (sc === 'play') playTap(x, y);
-    else if (sc === 'duo') duoTap(x, y);
-    else if (sc === 'caller') {
-      const c = state.caller;
-      if (hit(CALLER.menu, x, y)) { go('menu'); sound('ok'); }
-      else if (hit(CALLER.next, x, y)) callerNext();
-      else if (hit(CALLER.prev, x, y)) { if (c.idx > 0) { c.idx--; c.flipT = 0; c.timer = CALLER_SECS[c.speedIdx]; sound('ok'); } }
-      else if (hit(CALLER.auto, x, y)) { c.auto = !c.auto; c.timer = CALLER_SECS[c.speedIdx]; if (c.auto && c.idx < 0) callerNext(); sound('ok'); }
-      else if (hit(CALLER.reshuffle, x, y)) { newCaller(); sound('call', 1); }
-      else if (hit(CALLER.speed, x, y)) { c.speedIdx = (c.speedIdx + 1) % CALLER_SECS.length; c.timer = CALLER_SECS[c.speedIdx]; sound('ok'); }
-    } else if (sc === 'auto') autoTap(x, y);
-    else if (sc === 'about' || sc === 'howto' || sc === 'rules') {
-      const n = state.pageCount;
-      if (hit(TEXT_DEC, x, y) && state.textIdx > 0) { state.textIdx--; state.page = 0; savePrefs(); sound('ok'); }
-      else if (hit(TEXT_INC, x, y) && state.textIdx < TEXT_SCALES.length - 1) { state.textIdx++; state.page = 0; savePrefs(); sound('ok'); }
-      else if (hit(REF_BACK, x, y)) { if (state.page > 0) { state.page--; sound('ok'); } else backFromRef(); }
-      else if (hit(REF_NEXT, x, y)) { if (state.page < n - 1) { state.page++; sound('ok'); } else backFromRef(); }
+      const P = d.pick;
+      if (hit(d.back, x, y)) { go('setup'); sound('ok'); return; }
+      for (let i = 0; i < 3; i++) if (hit(P.slots[i], x, y)) { state.pick.sel = i; sound('ok'); return; }
+      if (hit(P.deal, x, y)) { dealPick(false); sound('call', 3); return; }
+      if (hit(P.play, x, y) && state.pick.sel >= 0) startRound('solo', [state.pick.tablas[state.pick.sel]], state.pick.pool);
+    } else if (sc === 'caller') {
+      const c = state.caller, C = d.caller;
+      if (hit(C.menu, x, y)) { go('menu'); sound('ok'); }
+      else if (hit(C.next, x, y)) callerNext();
+      else if (hit(C.prev, x, y)) { if (c.idx > 0) { c.idx--; c.flipT = 0; c.timer = CALLER_SECS[c.speedIdx]; sound('ok'); } }
+      else if (hit(C.auto, x, y)) { c.auto = !c.auto; c.timer = CALLER_SECS[c.speedIdx]; if (c.auto && c.idx < 0) callerNext(); sound('ok'); }
+      else if (hit(C.reshuffle, x, y)) { newCaller(); sound('call', 1); }
+      else if (hit(C.speed, x, y)) { c.speedIdx = (c.speedIdx + 1) % CALLER_SECS.length; c.timer = CALLER_SECS[c.speedIdx]; sound('ok'); }
+    } else if (sc === 'about' || sc === 'howto' || sc === 'rules') {
+      if (hit(d.textDec, x, y) && state.textIdx > 0) { state.textIdx--; state.refScroll = 0; savePrefs(); sound('ok'); }
+      else if (hit(d.textInc, x, y) && state.textIdx < TEXT_SCALES.length - 1) { state.textIdx++; state.refScroll = 0; savePrefs(); sound('ok'); }
+      else if (hit(d.refBack, x, y) || hit(d.refNext, x, y)) { backFromRef(); sound('ok'); }   // one continuous reader: Back and Done both leave
     } else if (sc === 'settings') {
-      const rows = SETTINGS_ROWS;
-      if (hit(BACK, x, y)) { go('menu'); sound('ok'); return; }
+      const rows = d.settings;
+      if (hit(d.back, x, y)) { go('menu'); sound('ok'); return; }
       const left = (r) => x < r.x + r.w / 2;
       if (hit(rows.lang, x, y)) { state.lang = left(rows.lang) ? 'es' : 'en'; savePrefs(); sound('ok'); }
       else if (hit(rows.sound, x, y)) { state.sound = !state.sound; audio.setMuted(!state.sound); savePrefs(); sound('ok'); }
       else if (hit(rows.text, x, y)) { state.textIdx = Math.min(TEXT_SCALES.length - 1, Math.max(0, state.textIdx + (left(rows.text) ? -1 : 1))); savePrefs(); sound('ok'); }
       else if (hit(rows.theme, x, y)) adjust('theme', left(rows.theme) ? -1 : 1);
       else if (hit(rows.reset, x, y)) { state.best = 0; state.score = 0; saveStats(); state.resetDone = 2; sound('ok'); }
-    } else if (sc === 'demolimit') { if (hit(DEMO_LIMIT.back, x, y)) go('menu'); }
+    } else if (sc === 'demolimit') { if (hit(d.demo.back, x, y)) go('menu'); }
   }
-  // Pause panel and result panel for solo / duo rounds. Returns true when the tap was consumed.
-  function overlayTap(x, y, r) {
+  // Pause panel and result panel for solo / duo rounds (design screens). Returns true when the tap was consumed.
+  function overlayTap(x0, y0, r) {
+    const d = lay().d, { x, y } = d.to(x0, y0);
     if (state.paused) {
-      if (hit(PAUSE.resume, x, y)) { state.paused = false; sound('ok'); }
-      else if (hit(PAUSE.rules, x, y)) { state.returnScene = state.scene; state.scene = 'rules'; state.page = 0; sound('ok'); }
-      else if (hit(PAUSE.menu, x, y)) { go('menu'); sound('ok'); }
+      const P = d.pause;
+      if (hit(P.resume, x, y)) { state.paused = false; sound('ok'); }
+      else if (hit(P.rules, x, y)) { state.returnScene = state.scene; state.scene = 'rules'; state.page = 0; state.refScroll = 0; sound('ok'); }
+      else if (hit(P.menu, x, y)) { go('menu'); sound('ok'); }
       return true;
     }
     if (r.status !== 'running') {
       if (r.endT > 1.2) {
-        if (hit(RESULT.again, x, y)) { if (r.mode === 'duo') startDuo(); else startPick(); }
-        else if (hit(RESULT.menu, x, y)) { go('menu'); sound('ok'); }
-        else if (hit(RESULT.rules, x, y)) { state.returnScene = state.scene; state.scene = 'rules'; state.page = 0; sound('ok'); }
+        const RS = d.result;
+        if (hit(RS.again, x, y)) { if (r.mode === 'duo') startDuo(); else startPick(); }
+        else if (hit(RS.menu, x, y)) { go('menu'); sound('ok'); }
+        else if (hit(RS.rules, x, y)) { state.returnScene = state.scene; state.scene = 'rules'; state.page = 0; state.refScroll = 0; sound('ok'); }
       }
       return true;
     }
     return false;
   }
   function playTap(x, y) {
-    const r = state.round;
+    const r = state.round, P = lay().play;
     if (overlayTap(x, y, r)) return;
-    if (hit(SOLO.pause, x, y)) { state.paused = true; sound('ok'); return; }
-    if (hit(SOLO.hint, x, y)) { useHint(r, 0); return; }
-    if (hit(SOLO.claim, x, y)) { claim(r, 0); return; }
-    const c = cellAt(SOLO.tabla, x, y); if (c >= 0) tapCell(r, 0, c);
+    if (hit(P.head.pause, x, y)) { state.paused = true; sound('ok'); return; }
+    if (hit(P.bar.hint, x, y)) { useHint(r, 0); return; }
+    if (hit(P.bar.claim, x, y)) { claim(r, 0); return; }
+    const c = cellAt(P.tabla, x, y); if (c >= 0) tapCell(r, 0, c);
   }
   function duoTap(x, y) {
-    const r = state.round;
+    const r = state.round, D = lay().duo;
     if (overlayTap(x, y, r)) return;
-    if (hit(DUO.pause, x, y)) { state.paused = true; sound('ok'); return; }
-    const bottom = y > H / 2;
+    if (hit(D.pause, x, y)) { state.paused = true; sound('ok'); return; }
+    const bottom = y > D.cy;
     let px = x, py = y;
-    if (!bottom) { const q = rot180(x, y); px = q.x; py = q.y; }
-    if (py < DUO.band.y + DUO.band.h) return;
+    if (!bottom) { const q = D.rot(x, y); px = q.x; py = q.y; }
+    if (py < D.band.y + D.band.h) return;
     const pi = bottom ? 0 : 1;
-    if (hit(DUO.claim, px, py)) { claim(r, pi); return; }
-    const c = cellAt(DUO.tabla, px, py); if (c >= 0) tapCell(r, pi, c);
+    if (hit(D.claim, px, py)) { claim(r, pi); return; }
+    const c = cellAt(D.tabla, px, py); if (c >= 0) tapCell(r, pi, c);
   }
   function autoTap(x, y) {
-    const r = state.round, a = r.auto;
+    const r = state.round, a = r.auto, B = lay().auto.bar;
     if (r.status !== 'running') {
-      if (r.endT > 1.2) { if (hit(RESULT.again, x, y)) startAuto(); else if (hit(RESULT.menu, x, y)) { go('menu'); sound('ok'); } }
+      if (r.endT > 1.2) { const RS = lay().d.result, q = lay().d.to(x, y); if (hit(RS.again, q.x, q.y)) startAuto(); else if (hit(RS.menu, q.x, q.y)) { go('menu'); sound('ok'); } }
       return;
     }
-    if (hit(AUTO.exit, x, y)) { go('menu'); sound('ok'); }
-    else if (hit(AUTO.pause, x, y)) { state.paused = !state.paused; sound('ok'); }
+    if (hit(B.exit, x, y)) { go('menu'); sound('ok'); }
+    else if (hit(B.pause, x, y)) { state.paused = !state.paused; sound('ok'); }
     else if (state.paused) return;
-    else if (hit(AUTO.dec, x, y)) { if (state.thinkIdx > 0) { state.thinkIdx--; savePrefs(); sound('ok'); } }
-    else if (hit(AUTO.inc, x, y)) { if (state.thinkIdx < THINK_STEPS.length - 1) { state.thinkIdx++; savePrefs(); sound('ok'); } }
-    else if (hit(AUTO.speed, x, y)) { if (a.phase !== 'intro') a.timer = Math.min(a.timer, 0.01); }
+    else if (hit(B.dec, x, y)) { if (state.thinkIdx > 0) { state.thinkIdx--; savePrefs(); sound('ok'); } }
+    else if (hit(B.inc, x, y)) { if (state.thinkIdx < THINK_STEPS.length - 1) { state.thinkIdx++; savePrefs(); sound('ok'); } }
+    else if (hit(B.speed, x, y)) { if (a.phase !== 'intro') a.timer = Math.min(a.timer, 0.01); }
   }
   function keyboard(keys) {
     const sc = state.scene, r = state.round;
@@ -423,6 +441,9 @@ export function createGame(env) {
   const api = {
     update(dt, input) {
       lastPointer = input.pointer;
+      { const L0 = lay(), ip = input.pointer; state.lkDown = state.scene === 'menu' && !!ip.down && hit(L0.lockTap(L0.menuRows(TEXT_SCALES[state.textIdx] ?? 1)), ip.x, ip.y); }
+      if (!wheelHooked && input.onWheel) { wheelHooked = true; input.onWheel(({ dy }) => { if (REF_SCENES.has(state.scene)) state.refScroll = Math.max(0, Math.min(state.refMax || 0, (state.refScroll || 0) + dy)); }); }
+      if (REF_SCENES.has(state.scene)) refInput(input);
       if (!state.showcaseInit) { state.showcaseInit = true; if (config.seed >= SHOWCASE_SEED_MIN && config.seed < SHOWCASE_SEED_MIN + 100) showcase(config.seed - SHOWCASE_SEED_MIN + 1); }
       // Pause freezes EVERYTHING (timers, the auto-play loop, animations): only the pause controls are read.
       if (state.paused) {
@@ -449,7 +470,7 @@ export function createGame(env) {
         if (c.auto) { c.timer -= dt; if (c.timer <= 0) callerNext(); }
       }
     },
-    render(ctx) { render(ctx, state, lastPointer); },
+    render(ctx, view) { render(ctx, state, lastPointer, lay2(view)); },
     getState() { return state; },
     // Only real play counts against the free preview: a running, unpaused solo/duo round or Caller mode.
     // Menus, setup, Rules/About/How to play, Settings, Watch & Learn, paused and finished rounds, and the

@@ -1,6 +1,7 @@
 // Drawing helpers: background, lacquered pieces, silhouette cut-out, panels, buttons, icons.
 // Everything is plain canvas 2D; nothing here changes game state.
 
+import { host } from './layout.js';
 export const W = 720, H = 1560;
 export const UI = '-apple-system, "SF Pro Text", "PingFang SC", "Noto Sans SC", "Segoe UI", Roboto, system-ui, sans-serif';
 export const DISPLAY = '"Songti SC", "Noto Serif SC", "STSong", "Palatino Linotype", Georgia, "Times New Roman", serif';
@@ -25,6 +26,7 @@ export function rr(ctx, x, y, w, h, r) {
 }
 
 export function text(ctx, str, x, y, size, color = PAPER, o = {}) {
+  size = Math.max(size, 11 / Math.max(0.3, host.px));   // never below ~11 css px on any screen
   ctx.font = `${o.weight ?? 600} ${size}px ${o.font ?? UI}`;
   ctx.textAlign = o.align ?? 'center';
   ctx.textBaseline = o.base ?? 'alphabetic';
@@ -40,18 +42,21 @@ export function polyPath(ctx, poly) {
   ctx.closePath();
 }
 
-// ---- background: ink-wash mountains under a pale moon ------------------------------------------------
-const STARS = Array.from({ length: 46 }, (_, i) => [((i * 97) % 211) / 211 * W, ((i * 53) % 173) / 173 * 620, 0.6 + ((i * 31) % 7) / 7]);
+// ---- background: ink-wash mountains under a pale moon (any screen size) ---------------------------------------------------------
+const STAR_SEEDS = Array.from({ length: 60 }, (_, i) => [((i * 97) % 211) / 211, ((i * 53) % 173) / 173, 0.6 + ((i * 31) % 7) / 7]);
 
-export function background(ctx, t, mood = 0, moon = [590, 170]) {
-  const g = ctx.createLinearGradient(0, 0, 0, H);
+export function background(ctx, t, mood = 0, moon = [590, 170], w = W, h = H) {
+  const g = ctx.createLinearGradient(0, 0, 0, h);
   g.addColorStop(0, '#0b0e24');
   g.addColorStop(0.45, '#1d1a45');
   g.addColorStop(0.8, '#34254d');
   g.addColorStop(1, '#46304f');
   ctx.fillStyle = g;
-  ctx.fillRect(0, 0, W, H);
-  for (const [x, y, s] of STARS) {
+  ctx.fillRect(0, 0, w, h);
+  const nStars = Math.round(46 * Math.min(2, (w * h) / (720 * 1560)) + 14);
+  for (let i = 0; i < nStars; i++) {
+    const [fx, fy, s] = STAR_SEEDS[i % STAR_SEEDS.length];
+    const x = fx * w, y = fy * h * 0.4;
     ctx.fillStyle = `rgba(255,240,210,${0.18 + 0.2 * Math.sin(t * 0.8 + x) * s + 0.12})`;
     ctx.fillRect(x, y, 2.2, 2.2);
   }
@@ -65,27 +70,28 @@ export function background(ctx, t, mood = 0, moon = [590, 170]) {
   ctx.fillStyle = 'rgba(255,238,200,0.9)';
   ctx.beginPath(); ctx.arc(moon[0], moon[1], 40, 0, Math.PI * 2); ctx.fill();
   // far-to-near mountain ridges
+  const k = Math.max(0.45, h / 1560);
   const layers = [
-    { base: 1000, amp: 160, col: 'rgba(63,48,92,0.55)', f: 0.011, sp: 0.04 },
-    { base: 1130, amp: 130, col: 'rgba(40,32,74,0.7)', f: 0.016, sp: 0.07 },
-    { base: 1280, amp: 110, col: 'rgba(24,20,52,0.85)', f: 0.021, sp: 0.1 },
+    { base: h * 0.64, amp: 160 * k, col: 'rgba(63,48,92,0.55)', f: 0.011, sp: 0.04 },
+    { base: h * 0.725, amp: 130 * k, col: 'rgba(40,32,74,0.7)', f: 0.016, sp: 0.07 },
+    { base: h * 0.82, amp: 110 * k, col: 'rgba(24,20,52,0.85)', f: 0.021, sp: 0.1 },
   ];
   layers.forEach((L, li) => {
     ctx.beginPath();
-    ctx.moveTo(0, H);
-    for (let x = 0; x <= W; x += 20) {
-      const y = L.base - L.amp * (0.5 + 0.5 * Math.sin(x * L.f + li * 2.1 + t * L.sp * 0)) * (0.55 + 0.45 * Math.sin(x * L.f * 2.3 + li));
+    ctx.moveTo(0, h);
+    for (let x = 0; x <= w + 20; x += 20) {
+      const y = L.base - L.amp * (0.5 + 0.5 * Math.sin(x * L.f + li * 2.1)) * (0.55 + 0.45 * Math.sin(x * L.f * 2.3 + li));
       ctx.lineTo(x, y);
     }
-    ctx.lineTo(W, H);
+    ctx.lineTo(w, h);
     ctx.closePath();
     ctx.fillStyle = L.col;
     ctx.fill();
   });
   // drifting mist
   for (let i = 0; i < 3; i++) {
-    const x = ((t * (8 + i * 5) + i * 300) % (W + 500)) - 250;
-    const y = 880 + i * 150;
+    const x = ((t * (8 + i * 5) + i * 300) % (w + 500)) - 250;
+    const y = h * (0.56 + i * 0.096);
     const mg2 = ctx.createRadialGradient(x, y, 10, x, y, 260);
     mg2.addColorStop(0, 'rgba(200,190,230,0.09)');
     mg2.addColorStop(1, 'rgba(200,190,230,0)');
@@ -94,11 +100,11 @@ export function background(ctx, t, mood = 0, moon = [590, 170]) {
   }
   void mood;
   // vignette
-  const vg = ctx.createRadialGradient(W / 2, H / 2, 520, W / 2, H / 2, 1000);
+  const vg = ctx.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.7, w / 2, h / 2, Math.max(w, h) * 0.65);
   vg.addColorStop(0, 'rgba(0,0,0,0)');
   vg.addColorStop(1, 'rgba(0,0,0,0.45)');
   ctx.fillStyle = vg;
-  ctx.fillRect(0, 0, W, H);
+  ctx.fillRect(0, 0, w, h);
 }
 
 export function panel(ctx, x, y, w, h, o = {}) {
@@ -127,13 +133,8 @@ export function button(ctx, r, lines, kind = 'normal', o = {}) {
   const press = o.pressed ? 1 : 0;
   const y = r.y + press * 3;
   ctx.shadowColor = 'rgba(0,0,0,0.45)'; ctx.shadowBlur = press ? 4 : 14; ctx.shadowOffsetY = press ? 1 : 5;
-  const g = ctx.createLinearGradient(0, y, 0, y + r.h);
-  if (kind === 'primary') { g.addColorStop(0, '#f2cf72'); g.addColorStop(1, '#d9a443'); }
-  else if (kind === 'on') { g.addColorStop(0, '#3fb596'); g.addColorStop(1, '#217a68'); }
-  else if (kind === 'danger') { g.addColorStop(0, '#d65a4c'); g.addColorStop(1, '#8e2b27'); }
-  else if (kind === 'ghost') { g.addColorStop(0, 'rgba(255,255,255,0.06)'); g.addColorStop(1, 'rgba(255,255,255,0.02)'); }
-  else { g.addColorStop(0, '#3c3777'); g.addColorStop(1, '#2d2961'); }
-  ctx.fillStyle = g;
+  const FACE = { primary: '#e6b957', on: '#2e9780', danger: '#b9433a', ghost: 'rgba(255,255,255,0.04)', normal: '#35306c' };   // flat faces
+  ctx.fillStyle = FACE[kind] ?? FACE.normal;
   rr(ctx, r.x, y, r.w, r.h, o.radius ?? 18); ctx.fill();
   ctx.shadowColor = 'transparent';
   ctx.strokeStyle = kind === 'primary' ? 'rgba(255,236,170,0.85)' : 'rgba(232,196,106,0.45)';

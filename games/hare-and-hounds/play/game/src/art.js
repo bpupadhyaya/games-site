@@ -1,13 +1,12 @@
 // The forest floor and the hunt map. One light, from the upper left. Painted ONCE into a cached layer per board.
 // The board is a map of the hunt (parchment on a leather mat) lying on the ground; the eleven points are clearings
 // joined by worn trails. The pieces live in pieces.js.
-import { W, H, project, UNIT } from './layout.js';
+import { KINDS, UNIT, GROUND } from './layout.js';
 import { AX, LAT, STEPS } from './rules.js';
 
 const TAU = Math.PI * 2;
 function lcg(seed) { let s = seed >>> 0; return () => ((s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 4294967296); }
 function poly(ctx, pts) { ctx.beginPath(); pts.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y))); ctx.closePath(); }
-const rect = (U, V0, V1) => [project(-U, V0), project(U, V0), project(U, V1), project(-U, V1)];
 
 // Every line of the board once, as pairs of points.
 export function boardSegments() {
@@ -45,28 +44,28 @@ function leafShape(ctx, x, y, size, rot, fill, vein, a) {
 }
 
 function paintGround(ctx, T) {
-  const rnd = lcg(20260921);
+  const rnd = lcg(20260921), W = GROUND, H = GROUND, A = (W * H) / (720 * 1560);      // the floor is one square painting; counts scale with its area
   const bg = ctx.createLinearGradient(0, 0, 0, H); bg.addColorStop(0, T.ground[0]); bg.addColorStop(0.55, T.ground[1]); bg.addColorStop(1, T.ground[2]);
   ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
   const blob = (x, y, rx, ry, rgb, a) => { ctx.save(); ctx.translate(x, y); ctx.scale(1, ry / rx); const g = ctx.createRadialGradient(0, 0, 0, 0, 0, rx); g.addColorStop(0, `rgba(${rgb},${a})`); g.addColorStop(1, `rgba(${rgb},0)`); ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, rx, 0, TAU); ctx.fill(); ctx.restore(); };
-  for (let i = 0; i < 26; i++) blob(rnd() * W, rnd() * H, 60 + rnd() * 120, 40 + rnd() * 90, T.moss, 0.16 + rnd() * 0.16);       // moss / snow drifts
-  for (let i = 0; i < 16; i++) blob(rnd() * W, rnd() * H, 90 + rnd() * 150, 60 + rnd() * 110, '0,0,0', 0.16 + rnd() * 0.14);      // canopy shadow
+  for (let i = 0; i < Math.round(26 * A); i++) blob(rnd() * W, rnd() * H, 60 + rnd() * 120, 40 + rnd() * 90, T.moss, 0.16 + rnd() * 0.16);       // moss / snow drifts
+  for (let i = 0; i < Math.round(16 * A); i++) blob(rnd() * W, rnd() * H, 90 + rnd() * 150, 60 + rnd() * 110, '0,0,0', 0.16 + rnd() * 0.14);      // canopy shadow
   // twigs and needles
   ctx.lineCap = 'round';
-  for (let i = 0; i < 70; i++) {
+  for (let i = 0; i < Math.round(70 * A); i++) {
     const x = rnd() * W, y = rnd() * H, a = rnd() * TAU, l = 20 + rnd() * 60;
     ctx.strokeStyle = `rgba(${T.ink === '#b9d0e3' ? '20,40,40' : '50,32,18'},${0.3 + rnd() * 0.3})`; ctx.lineWidth = 1 + rnd() * 2;
     ctx.beginPath(); ctx.moveTo(x, y); ctx.quadraticCurveTo(x + Math.cos(a + 0.5) * l * 0.5, y + Math.sin(a + 0.5) * l * 0.5, x + Math.cos(a) * l, y + Math.sin(a) * l); ctx.stroke();
   }
   // leaf litter: overlapping leaves, darker ones underneath
-  for (let i = 0; i < 520; i++) {
+  for (let i = 0; i < Math.round(520 * A); i++) {
     const size = 9 + rnd() * 22, f = T.leaves[Math.floor(rnd() * T.leaves.length)];
     leafShape(ctx, rnd() * W, rnd() * H, size, rnd() * TAU, f, 'rgba(30,14,4,0.45)', T.leafA * (0.55 + rnd() * 0.45));
   }
   // sun through the canopy: pools of light falling from the upper left, and a soft diagonal shaft
-  for (let i = 0; i < 12; i++) blob(80 + rnd() * 560, 60 + rnd() * 1400, 80 + rnd() * 120, 50 + rnd() * 80, T.light, 0.10 + rnd() * 0.10);
+  for (let i = 0; i < Math.round(12 * A); i++) blob(80 + rnd() * (W - 160), 60 + rnd() * (H - 160), 80 + rnd() * 120, 50 + rnd() * 80, T.light, 0.10 + rnd() * 0.10);
   const sh = ctx.createLinearGradient(0, 0, W, H * 0.7); sh.addColorStop(0, `rgba(${T.light},0.18)`); sh.addColorStop(0.5, `rgba(${T.light},0)`); ctx.fillStyle = sh; ctx.fillRect(0, 0, W, H);
-  const vg = ctx.createRadialGradient(360, 800, 300, 360, 800, 1000); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,0.5)'); ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
+  const vg = ctx.createRadialGradient(W / 2, H / 2, 380, W / 2, H / 2, 1150); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,0.5)'); ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
 }
 
 function pine(ctx, x, y, s, ink) {
@@ -75,15 +74,18 @@ function pine(ctx, x, y, s, ink) {
   ctx.fillRect(x - s * 0.06, y - s * 0.1, s * 0.12, s * 0.3); ctx.globalAlpha = 1;
 }
 
-function paintStatic(ctx, name) {
-  const T = BOARDS[name] ?? BOARDS.autumn, rnd = lcg(777);
-  paintGround(ctx, T);
+function paintStatic(ctx, name, kind) {
+  const T = BOARDS[name] ?? BOARDS.autumn, rnd = lcg(777), project = KINDS[kind].project, vert = kind === 'v';
+  const rect = (U, V0, V1) => [project(-U, V0), project(U, V0), project(U, V1), project(-U, V1)];
+  // the four corners are [far-left, far-right, near-right, near-left] in board terms; on screen, `E` names the edges: the thick
+  // front edge, the lit edge (upper left) and the shaded edge (lower right) for each way the board is turned
+  const E = vert ? { front: [3, 2], lit: [3, 0, 1], shade: [1, 2] } : { front: [1, 2], lit: [2, 3, 0], shade: [0, 1] };
   const outer = rect(1.5, -0.55, 4.55), inner = rect(1.37, -0.42, 4.42);
   // soft shadow of the mat on the ground, thrown down and to the right
   for (let i = 0; i < 8; i++) { ctx.fillStyle = 'rgba(0,0,0,0.075)'; poly(ctx, outer.map((p) => ({ x: p.x + 8 + i * 2.6 + (p.x > 360 ? i * 2 : -i), y: p.y + 26 + i * 4 }))); ctx.fill(); }
   // the front edge: the mat has thickness
-  const TH = 30, front = ctx.createLinearGradient(0, outer[3].y, 0, outer[3].y + TH); front.addColorStop(0, T.edge[0]); front.addColorStop(1, T.edge[1]);
-  ctx.fillStyle = front; poly(ctx, [outer[3], outer[2], { x: outer[2].x - 3, y: outer[2].y + TH }, { x: outer[3].x + 3, y: outer[3].y + TH }]); ctx.fill();
+  const TH = 30, front = ctx.createLinearGradient(0, outer[E.front[0]].y, 0, outer[E.front[0]].y + TH); front.addColorStop(0, T.edge[0]); front.addColorStop(1, T.edge[1]);
+  ctx.fillStyle = front; const fa = outer[E.front[0]], fb = outer[E.front[1]]; poly(ctx, [fa, fb, { x: fb.x + (fb.x > fa.x ? -3 : 3), y: fb.y + TH }, { x: fa.x + (fb.x > fa.x ? 3 : -3), y: fa.y + TH }]); ctx.fill();
   // the leather mat
   const fr = ctx.createLinearGradient(outer[0].x, outer[0].y, outer[2].x, outer[2].y); fr.addColorStop(0, T.frame[0]); fr.addColorStop(0.5, T.frame[1]); fr.addColorStop(1, T.frame[2]);
   ctx.fillStyle = fr; ctx.lineJoin = 'round'; poly(ctx, outer); ctx.fill(); ctx.strokeStyle = fr; ctx.lineWidth = 10; ctx.stroke();
@@ -91,15 +93,15 @@ function paintStatic(ctx, name) {
   for (let n = 0; n < 900; n++) { const p = project(-1.5 + rnd() * 3, -0.55 + rnd() * 5.1); ctx.fillStyle = `rgba(0,0,0,${0.05 + rnd() * 0.09})`; ctx.beginPath(); ctx.ellipse(p.x, p.y, (1 + rnd() * 2.6) * p.s, (0.8 + rnd() * 1.6) * p.s, 0, 0, TAU); ctx.fill(); }
   for (let n = 0; n < 60; n++) { const p = project(-1.5 + rnd() * 3, -0.55 + rnd() * 5.1), q = project(-1.5 + rnd() * 3, -0.55 + rnd() * 5.1); ctx.strokeStyle = `rgba(255,236,200,${0.03 + rnd() * 0.05})`; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x + (q.x - p.x) * 0.12, p.y + (q.y - p.y) * 0.12); ctx.stroke(); }
   ctx.restore();
-  ctx.lineWidth = 2.5; ctx.strokeStyle = 'rgba(255,224,180,0.5)'; ctx.beginPath(); ctx.moveTo(outer[3].x - 4, outer[3].y); ctx.lineTo(outer[0].x - 4, outer[0].y - 4); ctx.lineTo(outer[1].x + 4, outer[1].y - 4); ctx.stroke();
-  ctx.strokeStyle = 'rgba(10,4,0,0.55)'; ctx.beginPath(); ctx.moveTo(outer[1].x + 5, outer[1].y); ctx.lineTo(outer[2].x + 5, outer[2].y + 3); ctx.stroke();
+  ctx.lineWidth = 2.5; ctx.strokeStyle = 'rgba(255,224,180,0.5)'; { const [a, b, c] = E.lit.map((i) => outer[i]); ctx.beginPath(); ctx.moveTo(a.x - 4, a.y); ctx.lineTo(b.x - 4, b.y - 4); ctx.lineTo(c.x + 4, c.y - 4); ctx.stroke(); }
+  ctx.strokeStyle = 'rgba(10,4,0,0.55)'; { const [a, b] = E.shade.map((i) => outer[i]); ctx.beginPath(); ctx.moveTo(a.x + 5, a.y); ctx.lineTo(b.x + 5, b.y + 3); ctx.stroke(); }
   // stitching just inside the mat's edge
   const st = rect(1.445, -0.5, 4.5); ctx.strokeStyle = T.stitch; ctx.lineWidth = 2; ctx.setLineDash([9, 7]); poly(ctx, st); ctx.stroke(); ctx.setLineDash([]);
 
   // the map: parchment, lit from the upper left, stained and creased
   ctx.save(); poly(ctx, inner); ctx.clip();
   const su = ctx.createLinearGradient(inner[0].x, inner[0].y, inner[2].x, inner[2].y); su.addColorStop(0, T.paper[0]); su.addColorStop(0.5, T.paper[1]); su.addColorStop(1, T.paper[2]);
-  ctx.fillStyle = su; ctx.fillRect(0, inner[0].y - 10, W, inner[2].y - inner[0].y + 20);
+  ctx.fillStyle = su; ctx.fillRect(-100, -100, 2000, 2000);
   for (let n = 0; n < 9; n++) { const p = project(-1.4 + rnd() * 2.8, -0.4 + rnd() * 4.8); const g = ctx.createRadialGradient(p.x, p.y, 2, p.x, p.y, (40 + rnd() * 90) * p.s); g.addColorStop(0, `rgba(${T.stain},${0.12 + rnd() * 0.12})`); g.addColorStop(1, `rgba(${T.stain},0)`); ctx.fillStyle = g; ctx.fillRect(p.x - 160, p.y - 160, 320, 320); }
   for (let n = 0; n < 500; n++) { const p = project(-1.4 + rnd() * 2.8, -0.4 + rnd() * 4.8); ctx.fillStyle = `rgba(${T.stain},${0.04 + rnd() * 0.08})`; ctx.fillRect(p.x, p.y, 1 + rnd() * 2, 1); }          // paper fibres
   ctx.strokeStyle = 'rgba(0,0,0,0.10)'; ctx.lineWidth = 1.5;                                                  // fold creases: one across, one along
@@ -110,10 +112,10 @@ function paintStatic(ctx, name) {
   ctx.strokeStyle = T.ink; ctx.globalAlpha = 0.35; ctx.lineWidth = 2;
   for (const [u, v] of [[-1.0, 1.9], [1.05, 1.9], [-1.05, 3.05], [1.0, 1.05]]) { const p = project(u, v), w = 26 * UNIT * p.s; ctx.beginPath(); ctx.moveTo(p.x - w, p.y + w * 0.3); ctx.quadraticCurveTo(p.x - w * 0.3, p.y - w * 0.7, p.x, p.y - w * 0.2); ctx.quadraticCurveTo(p.x + w * 0.4, p.y - w * 0.9, p.x + w, p.y + w * 0.3); ctx.stroke(); }
   ctx.globalAlpha = 1;
-  const sheen = ctx.createRadialGradient(200, inner[0].y + 40, 20, 260, inner[0].y + 140, 560); sheen.addColorStop(0, 'rgba(255,248,220,0.32)'); sheen.addColorStop(1, 'rgba(255,248,220,0)'); ctx.fillStyle = sheen; ctx.fillRect(0, inner[0].y - 10, W, 700);
+  { const sx = Math.min(...inner.map((p) => p.x)), sy = Math.min(...inner.map((p) => p.y)); const sheen = ctx.createRadialGradient(sx + 200, sy + 40, 20, sx + 260, sy + 140, 560); sheen.addColorStop(0, 'rgba(255,248,220,0.32)'); sheen.addColorStop(1, 'rgba(255,248,220,0)'); ctx.fillStyle = sheen; ctx.fillRect(sx - 20, sy - 10, 800, 700); }
   ctx.restore();
   ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(30,12,2,0.55)'; poly(ctx, inner); ctx.stroke();
-  ctx.lineWidth = 1.5; ctx.strokeStyle = 'rgba(255,236,190,0.4)'; ctx.beginPath(); ctx.moveTo(inner[1].x - 2, inner[1].y + 3); ctx.lineTo(inner[2].x - 3, inner[2].y - 2); ctx.lineTo(inner[3].x + 2, inner[3].y - 2); ctx.stroke();
+  ctx.lineWidth = 1.5; ctx.strokeStyle = 'rgba(255,236,190,0.4)'; { const [a, b, c] = vert ? [1, 2, 3] : [0, 3, 2]; const A = inner[a], B = inner[b], C = inner[c]; ctx.beginPath(); ctx.moveTo(A.x - 2, A.y + 3); ctx.lineTo(B.x - 3, B.y - 2); ctx.lineTo(C.x + 2, C.y - 2); ctx.stroke(); }
 
   // trails: a worn path with darker edges and pebbles
   ctx.lineCap = 'round';
@@ -151,18 +153,39 @@ function paintStatic(ctx, name) {
   }
 }
 
-const layers = {};     // one cached layer per board, painted the first time it is needed
-export function drawTableAndBoard(ctx, name = 'autumn') {
-  if (!(name in layers)) {
-    layers[name] = null;
+const layers = {};     // one cached layer per board theme and way round, painted the first time it is needed
+const SC = 2;
+// The forest floor: one square painting, drawn "cover" so it fills any screen (no bars) at any aspect.
+export function drawGround(ctx, name, w, h) {
+  const key = 'g-' + name;
+  if (!(key in layers)) {
+    layers[key] = null;
     try {
       if (typeof OffscreenCanvas !== 'undefined') {
-        const c = new OffscreenCanvas(W * 2, H * 2), lctx = c.getContext('2d');
-        lctx.scale(2, 2); paintStatic(lctx, name); layers[name] = c;
+        const k = 1.25, c = new OffscreenCanvas(Math.round(GROUND * k), Math.round(GROUND * k)), lctx = c.getContext('2d');
+        lctx.scale(k, k); paintGround(lctx, BOARDS[name] ?? BOARDS.autumn); layers[key] = c;
       }
-    } catch { layers[name] = null; }
+    } catch { layers[key] = null; }
   }
-  if (layers[name]) ctx.drawImage(layers[name], 0, 0, W, H); else paintStatic(ctx, name);
+  const s = Math.max(1, w / GROUND, h / GROUND);
+  ctx.save(); ctx.translate((w - GROUND * s) / 2, (h - GROUND * s) / 2); ctx.scale(s, s);
+  if (layers[key]) ctx.drawImage(layers[key], 0, 0, GROUND, GROUND); else paintGround(ctx, BOARDS[name] ?? BOARDS.autumn);
+  ctx.restore();
+}
+// The map (leather mat + parchment + trails) for the board placement B = layout.board: canonical coordinates times B.s plus (B.ox, B.oy).
+export function drawBoard(ctx, name, B) {
+  const key = name + '|' + B.kind, ly = KINDS[B.kind].layer;
+  if (!(key in layers)) {
+    layers[key] = null;
+    try {
+      if (typeof OffscreenCanvas !== 'undefined') {
+        const c = new OffscreenCanvas(Math.round(ly.w * SC), Math.round(ly.h * SC)), lctx = c.getContext('2d');
+        lctx.scale(SC, SC); lctx.translate(-ly.x, -ly.y); paintStatic(lctx, name, B.kind); layers[key] = c;
+      }
+    } catch { layers[key] = null; }
+  }
+  if (layers[key]) ctx.drawImage(layers[key], B.ox + ly.x * B.s, B.oy + ly.y * B.s, ly.w * B.s, ly.h * B.s);
+  else { ctx.save(); ctx.translate(B.ox, B.oy); ctx.scale(B.s, B.s); paintStatic(ctx, name, B.kind); ctx.restore(); }
 }
 // A leaf for the drifting-leaves layer (a cached sprite, drawn a few per frame).
 const leafSprites = {};

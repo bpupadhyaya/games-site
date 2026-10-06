@@ -2,7 +2,9 @@
 // Plain canvas 2D, no images, nothing here changes game state.
 import { COLS, ROWS, cellOf, isSafe } from './rules.js';
 
-export const W = 720, H = 1560;
+// The live virtual size (fluid viewport): the short side is 720 units, the long side follows the screen. `setSize` is called by the game each frame.
+export let W = 720, H = 1560;
+export function setSize(w, h) { W = Math.round(w); H = Math.round(h); }
 export const UI = '-apple-system, "SF Pro Text", "Segoe UI", Roboto, "Geeza Pro", "Noto Sans Arabic", system-ui, sans-serif';
 export const DISPLAY = '"Palatino Linotype", Palatino, "Iowan Old Style", Georgia, "Geeza Pro", "Noto Naskh Arabic", "Times New Roman", serif';
 
@@ -80,7 +82,7 @@ export function text(ctx, str, x, y, size, color = '#fff', o = {}) {
 }
 
 // ---------------------------------------------------------------------------------------------------- background
-const FLECKS = Array.from({ length: 30 }, (_, i) => [((i * 97) % 211) / 211 * W, ((i * 53) % 173) / 173 * H, 0.6 + ((i * 31) % 7) / 7, ((i * 13) % 11) / 11]);
+const FLECKS = Array.from({ length: 30 }, (_, i) => [((i * 97) % 211) / 211, ((i * 53) % 173) / 173, 0.6 + ((i * 31) % 7) / 7, ((i * 13) % 11) / 11]);
 
 // The three full-screen gradients (sky, glow, vignette) never change, so they are painted once into an off-screen picture (1x, the
 // gradients are smooth) and copied; only the drifting flecks are drawn live. Without an off-screen canvas everything is drawn live.
@@ -92,14 +94,15 @@ function paintBackdrop(ctx, th, glowY) {
   const hg = ctx.createRadialGradient(W / 2, glowY, 40, W / 2, glowY, 640);
   hg.addColorStop(0, th.glow); hg.addColorStop(1, 'rgba(0,0,0,0)');
   ctx.fillStyle = hg; ctx.fillRect(0, 0, W, H);
-  const vg = ctx.createRadialGradient(W / 2, H / 2, 560, W / 2, H / 2, 1020);
+  const vr = Math.max(W, H) * 0.65;
+  const vg = ctx.createRadialGradient(W / 2, H / 2, vr * 0.55, W / 2, H / 2, vr);
   vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,0.5)');
   ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
 }
 export function background(ctx, th, t, glowY = 700) {
   let drawn = false;
   if (typeof OffscreenCanvas !== 'undefined') {
-    const key = `${th.id}|${glowY}`;
+    const key = `${th.id}|${glowY}|${W}x${H}`;
     let cv = BGS.get(key);
     if (!cv) {
       cv = new OffscreenCanvas(W, H);
@@ -109,8 +112,8 @@ export function background(ctx, th, t, glowY = 700) {
     if (cv) { ctx.drawImage(cv, 0, 0, W, H); drawn = true; }
   }
   if (!drawn) paintBackdrop(ctx, th, glowY);
-  for (const [x, y, s, ph] of FLECKS) {
-    const yy = (y + t * (3 + s * 3)) % H;
+  for (const [fx, fy, s, ph] of FLECKS) {
+    const x = fx * W, yy = (fy * H + t * (3 + s * 3)) % H;
     const a = 0.06 + 0.12 * (0.5 + 0.5 * Math.sin(t * 0.7 + ph * 9));
     ctx.fillStyle = `rgba(${th.fleck},${a})`;
     ctx.fillRect(x, yy, 2.2 * s, 2.2 * s);

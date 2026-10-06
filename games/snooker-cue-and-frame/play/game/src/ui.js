@@ -108,7 +108,7 @@ export const ease = {
 //   widget: { t: 'h'|'p'|'btn'|'gap'|'art', id, label, sub, row, primary, active, disabled, dark, h, draw }
 const GAP = 14;
 export function flowLayout(ctx, widgets, scale, o = {}) {
-  const x0 = o.x ?? 40, w0 = o.w ?? 640;
+  const x0 = o.x ?? 40, w0 = o.w ?? 640, MINH = o.minH ?? 0;
   let y = 0;
   const out = [];
   let i = 0;
@@ -123,7 +123,7 @@ export function flowLayout(ctx, widgets, scale, o = {}) {
       const cw0 = (w0 - GAP * (group.length - 1)) / group.length;
       const tooWide = group.some((g) => g.label.split(' ').some((word) => ctx.measureText(word).width > cw0 - 28));
       if (tooWide || (scale > 1.5 && group.length > 1)) {
-        widgets.splice(i, 0, ...group.map((g) => ({ ...g, row: undefined, h: g.h ?? 76 })));
+        widgets.splice(i, 0, ...group.map((g) => ({ ...g, row: undefined, h: Math.max(g.h ?? 76, MINH) })));
         continue;
       }
       const cw = cw0;
@@ -132,7 +132,7 @@ export function flowLayout(ctx, widgets, scale, o = {}) {
         ctx.font = `700 ${fs}px ${FONT}`;
         const lines = wrapLines(ctx, g.label, cw - 28);
         const sub = g.sub ? wrapLines(ctx, g.sub, cw - 28).length : 0;
-        const h = Math.max(g.h ?? 76, lines.length * fs * 1.15 + sub * fs * 0.72 + 34);
+        const h = Math.max(g.h ?? 76, MINH, lines.length * fs * 1.15 + sub * fs * 0.72 + 34);
         hmax = Math.max(hmax, h);
         return { g, lines, h, subLines: sub };
       });
@@ -164,7 +164,7 @@ export function flowLayout(ctx, widgets, scale, o = {}) {
       ctx.font = `700 ${fs}px ${FONT}`;
       const lines = wrapLines(ctx, wd.label, w0 - 28);
       const sub = wd.sub ? wrapLines(ctx, wd.sub, w0 - 28).length : 0;
-      const h = Math.max(wd.h ?? 84, lines.length * fs * 1.15 + sub * fs * 0.72 + 34);
+      const h = Math.max(wd.h ?? 84, MINH, lines.length * fs * 1.15 + sub * fs * 0.72 + 34);
       out.push({ w: wd, x: x0, y, wd: w0, h, fs, lines }); y += h + GAP;
     }
   }
@@ -173,7 +173,7 @@ export function flowLayout(ctx, widgets, scale, o = {}) {
 
 export function drawFlow(ctx, lay, top, bottom, scroll, o = {}) {
   ctx.save();
-  ctx.beginPath(); ctx.rect(0, top, 720, bottom - top); ctx.clip();
+  ctx.beginPath(); ctx.rect(0, top, 100000, bottom - top); ctx.clip();
   for (const it of lay.items) {
     const y = top + it.y - scroll;
     if (y > bottom || y + it.h < top) continue;
@@ -218,8 +218,10 @@ function drawButtonRect(ctx, r, it, wd) {
 }
 export function flowHit(lay, top, scroll, x, y) {
   for (const it of lay.items) {
-    if (it.w.t !== 'btn' || it.w.disabled && !it.w.hitDisabled) continue;
+    const tapArt = it.w.t === 'art' && it.w.id;
+    if (!tapArt && (it.w.t !== 'btn' || it.w.disabled && !it.w.hitDisabled)) continue;
     const yy = top + it.y - scroll;
+    if (tapArt) { const hw = Math.min(it.wd, it.w.hitW ?? it.wd) / 2, cx = it.x + it.wd / 2; if (x >= cx - hw && x <= cx + hw && y >= yy && y <= yy + it.h) return it.w.id; continue; }
     if (x >= it.x && x <= it.x + it.wd && y >= yy && y <= yy + it.h) return it.w.id;
   }
   return null;

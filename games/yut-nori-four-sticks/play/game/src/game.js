@@ -2,47 +2,53 @@
 //
 // A turn: THROW (TAP or SWIPE the pad; yut and mo throw again) -> SPEND the held throws (TAP a chip to choose a throw,
 // TAP a token, TAP a glowing point) -> a capture earns one more throw. A refused tap always says why.
-import { W, H, PAD, BTN, CHIP, POINTS, TRAY, titleRows, PAGE_BACK, inRect, pointNear } from './layout.js';
+import { layoutFor, creditHit, toLocal, toWorld, rectWorld, GC, PAD, CHIP, POINTS, TRAY, inRect, pointNear, ZOOMS, AP_SPEEDS } from './layout.js';
 import { newGame, clone, throwSticks, sticksFor, recordThrow, settle, applyMove, movesFor, whyNot, HOME, NAMES, moveKey } from './rules.js';
 import { LEVELS, createThinker, reasonFor } from './ai.js';
 import { LESSONS, lessonGame } from './lessons.js';
 import { createPuzzleMaker, rate, dayIsWeekend } from './puzzle.js';
 import { render } from './view.js';
 
-export const meta = { width: W, height: H };
+// Fluid viewport (kit 1.7): the short side is always 720 units; `meta.width/height` are updated live by the kit on every resize and
+// every position comes from layoutFor(meta.width, meta.height).
+export const meta = { width: 720, height: 1560, fluid: { short: 720 } };
+// Mouse wheel / trackpad scrolling for the About and How to play pages (main.js adds to dy, in virtual units).
+export const wheelInput = { dy: 0 };
 const DEMO_GAMES = 2, HINTS = 3;
 const TEAM_NAME = ['Blue', 'Red'];
 
 export function createGame(env) {
   const { rng, storage, audio, monetization, config } = env;
+  const lay = () => layoutFor(meta.width, meta.height);
   const restSticks = () => [0, 1, 2, 3].map((i) => ({ x: 360 + (i - 1.5) * 128, y: PAD.y + PAD.h / 2 + (i % 2 ? 12 : -12), rot: (i - 1.5) * 0.09, flat: false }));
   const state = {
     scene: 'title', t: 0, game: newGame(), two: false, level: 2, sound: true, calm: false, big: false,
     sel: null, selV: null, selK: -1, anim: null, msg: null, undo: [], hint: null, hintsLeft: HINTS, kb: false, kbTarget: null, kbIdx: 0,
     throwAnim: null, grip: null, rest: restSticks(), result: null, chipPop: 0, fx: [], think: 0, thinking: false,
-    stats: { games: 0, wins: 0, badges: {} }, saved: null, learned: false, demoGames: 0,
-    lesson: null, force: [], pz: null, daily: { day: config.day ?? 0, solvedDay: -1, streak: 0 }, dev: config.dev === true,
+    ap: null, stats: { games: 0, wins: 0, badges: {} }, saved: null, learned: false, demoGames: 0,
+    lesson: null, force: [], pz: null, zoom: 0, doc: { scroll: 0, max: 0 }, drag: null, daily: { day: config.day ?? 0, solvedDay: -1, streak: 0 }, dev: config.dev === true,
   };
   let thinker = null, hintThinker = null, puzzleToday = null, frozen = false, thinkStep = 0;
   const maker = createPuzzleMaker(state.daily.day);
 
-  storage.get('prefs', null).then((v) => { if (v) { state.level = v.level ?? 2; state.sound = v.sound ?? true; state.calm = v.calm ?? false; state.big = v.big ?? false; audio.setMuted?.(!state.sound); } });
+  storage.get('prefs', null).then((v) => { if (v) { state.level = v.level ?? 2; state.sound = v.sound ?? true; state.calm = v.calm ?? false; state.big = v.big ?? false; state.zoom = Math.max(0, Math.min(ZOOMS.length - 1, v.zoom ?? 0)); audio.setMuted?.(!state.sound); } });
   storage.get('stats', null).then((v) => { if (v) state.stats = { ...state.stats, ...v, badges: { ...(v.badges || {}) } }; });
   storage.get('learned', false).then((v) => { state.learned = state.learned || !!v; });
   storage.get('daily', null).then((v) => { if (v) { state.daily.solvedDay = v.solvedDay ?? -1; state.daily.streak = v.streak ?? 0; } });
   storage.get('demoGames', 0).then((v) => { state.demoGames = Math.max(state.demoGames, v); });
   storage.get('save', null).then((v) => { if (v && v.game && v.game.winner < 0 && state.scene === 'title') state.saved = v; });
-  const savePrefs = () => storage.set('prefs', { level: state.level, sound: state.sound, calm: state.calm, big: state.big });
+  const savePrefs = () => storage.set('prefs', { level: state.level, sound: state.sound, calm: state.calm, big: state.big, zoom: state.zoom });
   const saveGame = () => { if (state.scene === 'play' && state.game.winner < 0 && !state.anim && !state.throwAnim) { state.saved = { game: clone(state.game), two: state.two, level: state.level, hintsLeft: state.hintsLeft }; storage.set('save', state.saved); } };
   const clearSave = () => { state.saved = null; storage.remove('save'); };
 
   const dur = (d) => (state.calm ? d * 0.6 : d);
   const say = (text, hold = 4.5) => { state.msg = { text, t: 0, hold }; };
-  const tone = (o) => { if (state.sound) audio.tone(o); };
+  const tone = (o) => { if (state.sound && state.scene !== 'autoplay') audio.tone(o); };   // Auto Play (Watch & Learn) is silent
   const clack = (f = 520, v = 0.11) => tone({ freq: f, to: f * 0.42, dur: 0.07, type: 'triangle', vol: v });
-  const spark = (x, y, rgb, n = 14) => { if (state.calm) return; for (let k = 0; k < n; k++) { const a = rng.range(0, Math.PI * 2), sp = rng.range(60, 220); state.fx.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 120, r: rng.range(3, 6.5), rgb, t: 0, dur: rng.range(0.5, 0.9) }); } };
+  const spark = (x, y, rgb, n = 14, g = 'board') => { if (state.calm) return; for (let k = 0; k < n; k++) { const a = rng.range(0, Math.PI * 2), sp = rng.range(60, 220); state.fx.push({ x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp - 120, r: rng.range(3, 6.5), rgb, g, t: 0, dur: rng.range(0.5, 0.9) }); } };
 
-  const humanTurn = () => state.game.winner < 0 && (state.two || state.game.turn === 0);
+  const humanTurn = () => state.scene !== 'autoplay' && state.game.winner < 0 && (state.two || state.game.turn === 0);
+  const named = () => state.two || state.scene === 'autoplay';          // team names (Blue/Red) instead of You/Red
   const reset = (extra) => Object.assign(state, { sel: null, selV: null, selK: -1, anim: null, msg: null, undo: [], hint: null, hintsLeft: HINTS, throwAnim: null, grip: null, result: null, fx: [], think: 0.5, thinking: false, rest: restSticks(), force: [] }, extra);
 
   function start(two) {
@@ -52,6 +58,14 @@ export function createGame(env) {
     reset({ scene: 'play', game: newGame(0), two });
     say(two ? 'Blue throws first. TAP the pad or SWIPE up to throw the sticks.' : 'You are Blue and you throw first. TAP the pad or SWIPE up.', 6);
     monetization.track('game_start', { two, level: state.level });
+  }
+  // Auto Play (Watch & Learn): a whole computer-vs-computer game with narrated Think text. Free, silent, never touches saves or stats.
+  // Pause freezes every timer, animation and search; Resume continues. Slower/Faster scales the pace; Exit returns to the menu.
+  function startAutoPlay() {
+    thinker = hintThinker = null;
+    const speed = state.ap ? state.ap.speed : 1;
+    reset({ scene: 'autoplay', game: newGame(0), two: false, ap: { paused: false, speed, restart: 0 } });
+    say('Watch & Learn: both teams are played by the computer. Each Think line says why a move was chosen.', 6);
   }
   function resume() {
     const v = state.saved; thinker = hintThinker = null;
@@ -115,14 +129,14 @@ export function createGame(env) {
   function finishThrow(a) {
     const g = state.game, v = a.v, team = g.turn;
     state.result = { v, t: 0 }; state.chipPop = 1;
-    if (v >= 4) { tone({ freq: 523, to: 1046, dur: 0.35, type: 'triangle', vol: 0.1 }); spark(360, PAD.y + 110, '255,215,110', 22); }
+    if (v >= 4) { tone({ freq: 523, to: 1046, dur: 0.35, type: 'triangle', vol: 0.1 }); spark(360, PAD.y + 110, '255,215,110', 22, 'pad'); }
     else if (v === -1) tone({ freq: 300, to: 180, dur: 0.25, type: 'sawtooth', vol: 0.05 });
     else tone({ freq: 440 + v * 60, to: 660 + v * 60, dur: 0.14, type: 'sine', vol: 0.06 });
     if (state.lesson) state.lesson.throws += 1;
     const res = recordThrow(g, v);
-    const who = state.two ? TEAM_NAME[team] : team === 0 ? 'You' : 'Red';
+    const who = named() ? TEAM_NAME[team] : team === 0 ? 'You' : 'Red';
     if (res.dropped.length) {
-      say(v === -1 && !g.g[team].length ? `Back-do, but ${state.two ? TEAM_NAME[team] : team === 0 ? 'you have' : 'Red has'} no token on the board to step back. The throw is lost.` : `${NAMES[v]} cannot move any token now. The turn passes.`, 5);
+      say(v === -1 && !g.g[team].length ? `Back-do, but ${named() ? TEAM_NAME[team] : team === 0 ? 'you have' : 'Red has'} no token on the board to step back. The throw is lost.` : `${NAMES[v]} cannot move any token now. The turn passes.`, 5);
     } else if (g.phase === 'throw' && g.turn === team) say(`${NAMES[v]}! ${who === 'You' ? 'You throw' : who + ' throws'} again.`, 3);
     else if (v === -1) say('Back-do: one step BACK for a token.', 3.5);
     if (state.scene === 'lesson') { lessonCheck({ throwMade: true }); }
@@ -155,9 +169,10 @@ export function createGame(env) {
     if (a.cap) {
       clack(210, 0.14); tone({ freq: 180, to: 70, dur: 0.24, type: 'sawtooth', vol: 0.06 }); spark(p.x, p.y, a.team === 0 ? '90,140,255' : '255,110,80', 26);
       const what = a.cap.n > 1 ? 'a stack of ' + a.cap.n : 'a token';
-      say(state.two ? `${TEAM_NAME[a.team]} captured ${what}! It goes back to the start and ${TEAM_NAME[a.team]} throws again.` : a.team === 0 ? 'Captured! The red token goes back to the start and you throw again.' : `Red captured your ${a.cap.n > 1 ? 'stack of ' + a.cap.n : 'token'}! It goes back to the start. Red throws again.`, 5);
+      say(named() ? `${TEAM_NAME[a.team]} captured ${what}! It goes back to the start and ${TEAM_NAME[a.team]} throws again.` : a.team === 0 ? 'Captured! The red token goes back to the start and you throw again.' : `Red captured your ${a.cap.n > 1 ? 'stack of ' + a.cap.n : 'token'}! It goes back to the start. Red throws again.`, 5);
     } else if (a.home) { tone({ freq: 523, to: 784, dur: 0.3, type: 'triangle', vol: 0.09 }); spark(POINTS[0].x, POINTS[0].y, '255,215,110', 18); }
     else if (a.info.stack) { clack(380, 0.1); say('Stacked: they now move as one.', 3); }
+    if (g.winner >= 0 && state.scene === 'autoplay') { state.ap.restart = 5; say(`${TEAM_NAME[g.winner]} gets every token home and wins. A new demo game starts soon.`, 5); return; }
     if (g.winner >= 0 && state.scene !== 'lesson') { finish(); return; }
     if (state.scene !== 'lesson') settle(g);
     if (state.scene === 'lesson') { lessonCheck({ move: a }); if (!state.lesson.done) afterSettle(); return; }
@@ -167,7 +182,8 @@ export function createGame(env) {
 
   // ---- taps on the board ---------------------------------------------------------------------------
   function stackAt(i) { const g = state.game; return g.g[g.turn].find((x) => x.pos === i); }
-  function tapBoard(x, y) {
+  function tapBoard(wx, wy) {
+    const { x, y } = toLocal(lay().board, wx, wy);
     const g = state.game, me = g.turn;
     if (g.phase === 'throw') { say('First throw the sticks: TAP the pad or SWIPE up on it.'); return null; }
     if (g.phase !== 'move') return null;
@@ -200,7 +216,8 @@ export function createGame(env) {
   }
   function tapChip(x, y) {
     const g = state.game, n = g.pending.length;
-    for (let k = 0; k < n; k++) if (inRect(CHIP(k, n), x, y)) { chooseChip(k); return true; }
+    const q = toLocal(lay().chips, x, y);
+    for (let k = 0; k < n; k++) if (inRect(CHIP(k, n), q.x, q.y)) { chooseChip(k); return true; }
     return false;
   }
   function humanAct(m) {
@@ -246,11 +263,13 @@ export function createGame(env) {
   function updateTitle(tap) {
     for (let k = 0; k < 2 && !puzzleToday; k++) puzzleToday = maker.step().puzzle;
     if (!tap) return;
-    const R = titleRows(!!state.saved), hit = (r) => inRect(r, tap.x, tap.y);
-    if (hit(R.resume)) resume();
+    const TT = lay().title(!!state.saved), R = TT.rows, hit = (r) => inRect(r, tap.x, tap.y);
+    if (hit(creditHit(TT.lock))) { state.afFlash = 0.18; env.openArcforgeHome?.(); }
+    else if (hit(R.resume)) resume();
     else if (hit(R.learn)) startLesson(0);
     else if (hit(R.play)) start(false);
     else if (hit(R.two)) start(true);
+    else if (hit(R.auto)) startAutoPlay();
     else if (hit(R.daily)) startPuzzle();
     else if (hit(R.level)) { state.level = (state.level + 1) % LEVELS.length; savePrefs(); clack(); }
     else if (hit(R.sound)) { state.sound = !state.sound; audio.setMuted?.(!state.sound); savePrefs(); clack(); }
@@ -266,14 +285,26 @@ export function createGame(env) {
     if (!can) { state.grip = null; return false; }
     const cx = PAD.x + PAD.w / 2, by = PAD.y + PAD.h - 30;
     if (kbThrow) { beginThrow(0.6, cx, by); return true; }
-    if (p.pressed && inRect(PAD, p.x, p.y)) { state.grip = { x: p.x, y: p.y, sx: p.x, sy: p.y, t: 0 }; return true; }
+    const q = toLocal(lay().pad, p.x, p.y);                            // the pad lives in its own scaled space: grips and throws work in it
+    if (p.pressed && inRect(PAD, q.x, q.y)) { state.grip = { x: q.x, y: q.y, sx: q.x, sy: q.y, t: 0 }; return true; }
     if (state.grip) {
-      const gp = state.grip; gp.t += dt; gp.x = p.x; gp.y = p.y;
-      const rise = gp.sy - p.y;
+      const gp = state.grip; gp.t += dt; gp.x = q.x; gp.y = q.y;
+      const rise = gp.sy - q.y;
       if (rise > 90) { beginThrow(Math.min(1, 0.3 + rise / 380 + 0.5 / Math.max(0.05, gp.t) * 0.04), gp.x, gp.y); return true; }
-      if (p.released || !p.down) { const moved = Math.hypot(p.x - gp.sx, p.y - gp.sy); beginThrow(moved < 40 ? 0.55 : Math.min(1, 0.4 + moved / 300), gp.x, Math.min(gp.y, by)); return true; }
+      if (p.released || !p.down) { const moved = Math.hypot(q.x - gp.sx, q.y - gp.sy); beginThrow(moved < 40 ? 0.55 : Math.min(1, 0.4 + moved / 300), gp.x, Math.min(gp.y, by)); return true; }
     }
     return false;
+  }
+  function updateAutoPlay(dt, tap) {
+    const BTN = lay().btn, A = state.ap;
+    if (tap && inRect(BTN.menu, tap.x, tap.y)) { thinker = null; state.thinking = false; state.ap = null; state.scene = 'title'; return; }
+    if (tap && inRect(BTN.undo, tap.x, tap.y)) { A.paused = !A.paused; return; }
+    if (tap && inRect(BTN.hint, tap.x, tap.y)) { A.speed = (A.speed + 1) % AP_SPEEDS.length; return; }
+    if (A.paused) return;
+    const d = dt * AP_SPEEDS[A.speed].mul;
+    if (state.game.winner >= 0 && !state.anim && !state.throwAnim) { A.restart -= d; if (A.restart <= 0) startAutoPlay(); return; }
+    computerTurn(d);
+    if (state.throwAnim) updateThrow(d); else if (state.anim) updateAnim(d);
   }
   function computerTurn(dt) {
     const g = state.game;
@@ -282,10 +313,10 @@ export function createGame(env) {
     if (g.phase === 'throw') { beginThrow(rng.range(0.4, 0.95), PAD.x + PAD.w / 2 + rng.range(-60, 60), PAD.y + PAD.h - 20); return; }
     if (!thinker) { thinker = createThinker(g, state.level, rng); state.thinking = true; }
     const r = thinker.step(60);
-    if (r.done) { thinker = null; state.thinking = false; if (r.move) { play(r.move); } }
+    if (r.done) { thinker = null; state.thinking = false; if (r.move) { if (state.scene === 'autoplay') say(`Think: ${TEAM_NAME[g.turn]} plays ${NAMES[r.move.v]}. ${reasonFor(g, r.move)}`, 6); play(r.move); } }
   }
   function updateSceneGame(dt, input, tap, sc) {
-    const g = state.game;
+    const g = state.game, BTN = lay().btn;
     if (state.throwAnim) { updateThrow(dt); return; }
     if (state.anim) { updateAnim(dt); return; }
     if (sc === 'lesson' && state.lesson.done) { if (tap && inRect(BTN.next, tap.x, tap.y)) { if (state.lesson.i + 1 < LESSONS.length) startLesson(state.lesson.i + 1); else { state.learned = true; storage.set('learned', true); state.scene = 'title'; say('You know the game. Try the computer at Beginner or Cautious.', 7); } } else if (tap && inRect(BTN.menu, tap.x, tap.y)) state.scene = 'title'; return; }
@@ -312,17 +343,35 @@ export function createGame(env) {
       else { state.hintsLeft -= 1; hintThinker = createThinker(g, 4, rng); state.thinking = true; }
       return;
     }
-    if (g.phase !== 'move') { if (g.phase === 'throw') { if (inRect(PAD, tap.x, tap.y)) return; } return; }
+    if (g.phase !== 'move') return;
     if (tapChip(tap.x, tap.y)) return;
     const m = tapBoard(tap.x, tap.y);
     if (m) humanAct(m);
   }
+  // About / How to play: drag, wheel and arrow keys scroll; A- / A+ zoom the text (100% to 300%); Back returns to the menu.
+  function updatePage(dt, input, tap, kbd) {
+    const L = lay(), pg = L.page, p = input.pointer, d = state.doc, k = input.keys.pressed, kd = input.keys.down;
+    const setZoom = (z) => { z = Math.max(0, Math.min(ZOOMS.length - 1, z)); if (z !== state.zoom) { state.zoom = z; d.scroll = 0; savePrefs(); clack(); } };
+    if (p.pressed && inRect(pg.body, p.x, p.y)) state.drag = { sy: p.y, s0: d.scroll };
+    if (state.drag) { if (p.down) d.scroll = Math.max(0, Math.min(d.max, state.drag.s0 - (p.y - state.drag.sy))); else state.drag = null; }
+    if (wheelInput.dy) { d.scroll = Math.max(0, Math.min(d.max, d.scroll + wheelInput.dy)); wheelInput.dy = 0; }
+    const step = (k.has('ArrowDown') || k.has('WheelDown') ? 1 : 0) - (k.has('ArrowUp') || k.has('WheelUp') ? 1 : 0) + (k.has('PageDown') ? 6 : 0) - (k.has('PageUp') ? 6 : 0);
+    if (step) d.scroll = Math.max(0, Math.min(d.max, d.scroll + step * 60));
+    if (kd && kd.has && kd.has('ArrowDown') && !k.has('ArrowDown')) d.scroll = Math.min(d.max, d.scroll + 14);
+    if (kd && kd.has && kd.has('ArrowUp') && !k.has('ArrowUp')) d.scroll = Math.max(0, d.scroll - 14);
+    if (!tap) return;
+    if (inRect(pg.back, tap.x, tap.y)) { state.scene = 'title'; state.drag = null; d.scroll = 0; }
+    else if (inRect(pg.dec, tap.x, tap.y)) setZoom(state.zoom - 1);
+    else if (inRect(pg.inc, tap.x, tap.y)) setZoom(state.zoom + 1);
+  }
   function keyboard(input) {
-    const k = input.keys.pressed, g = state.game, sc = state.scene;
+    const k = input.keys.pressed, g = state.game, sc = state.scene, Lt = lay(), BTN = Lt.btn;
     if (input.pointer.pressed) { state.kb = false; return null; }
-    if (sc === 'title') { if (k.has('Enter') || k.has('Space')) { const R = titleRows(!!state.saved); return { x: R.play.x + 5, y: R.play.y + 5 }; } return null; }
-    if (sc === 'over') { if (k.has('Enter') || k.has('Space')) return { x: BTN.again.x + 5, y: BTN.again.y + 5 }; return null; }
-    if (sc === 'about' || sc === 'how') { if (k.has('Escape') || k.has('Enter')) return { x: PAGE_BACK.x + 5, y: PAGE_BACK.y + 5 }; return null; }
+    if (sc === 'title') { if (k.has('Enter') || k.has('Space')) { const R = Lt.title(!!state.saved).rows; return { x: R.play.x + 5, y: R.play.y + 5 }; } return null; }
+    if (sc === 'over') { if (k.has('Enter') || k.has('Space')) return { x: Lt.over.again.x + 5, y: Lt.over.again.y + 5 }; return null; }
+    if (sc === 'about' || sc === 'how') { if (k.has('Escape') || k.has('Enter')) return { x: Lt.page.back.x + 5, y: Lt.page.back.y + 5 }; return null; }
+    if (sc === 'demo-limit') { if (k.has('Escape') || k.has('Enter')) return { x: Lt.page.back.x + 5, y: Lt.page.back.y + 5 }; return null; }
+    if (sc === 'autoplay') { if (k.has('Escape')) return { x: BTN.menu.x + 5, y: BTN.menu.y + 5 }; if (k.has('Space') || k.has('KeyP')) return { x: BTN.undo.x + 5, y: BTN.undo.y + 5 }; return null; }
     if (sc !== 'play' && sc !== 'lesson' && sc !== 'puzzle') return null;
     if (k.has('Escape')) return { x: BTN.menu.x + 5, y: BTN.menu.y + 5 };
     if (sc === 'lesson' && state.lesson.done && (k.has('Enter') || k.has('Space'))) return { x: BTN.next.x + 5, y: BTN.next.y + 5 };
@@ -337,7 +386,7 @@ export function createGame(env) {
     if (k.has('ArrowUp') || k.has('ArrowDown')) { state.kb = true; if (!dests.length) return null; state.kbIdx = (state.kbIdx + (k.has('ArrowDown') ? 1 : -1) + dests.length) % dests.length; const m = dests[state.kbIdx]; state.kbTarget = m.to === HOME || m.to === 'wait' ? 0 : m.to; return null; }
     if (k.has('Enter') || k.has('Space')) {
       state.kb = true;
-      if (state.sel != null && dests.length) { const m = dests[state.kbIdx % dests.length]; const p = POINTS[m.to === HOME || m.to === 'wait' ? 0 : m.to]; return { x: p.x, y: p.y }; }
+      if (state.sel != null && dests.length) { const m = dests[state.kbIdx % dests.length]; const p = POINTS[m.to === HOME || m.to === 'wait' ? 0 : m.to]; return toWorld(Lt.board, p.x, p.y); }
       if (origins.length) { state.sel = origins[0]; state.kbTarget = state.sel < 0 ? 0 : state.sel; }
     }
     return null;
@@ -362,7 +411,8 @@ export function createGame(env) {
   return {
     update(dt, input) {
       state.t += dt;
-      if (state.msg) { state.msg.t += dt; if (state.msg.t > state.msg.hold) state.msg = null; }
+      if (state.afFlash > 0) state.afFlash -= dt;
+      if (state.msg && !(state.scene === 'autoplay' && state.ap.paused)) { state.msg.t += dt; if (state.msg.t > state.msg.hold) state.msg = null; }
       if (state.result) state.result.t += dt;
       if (state.chipPop > 0) state.chipPop = Math.max(0, state.chipPop - dt * 3);
       for (const f of state.fx) f.t += dt; state.fx = state.fx.filter((f) => f.t < f.dur);
@@ -372,16 +422,19 @@ export function createGame(env) {
       const tap = p.pressed ? { x: p.x, y: p.y } : kbd && kbd.x !== undefined ? kbd : null;
       const sc = state.scene;
       if (sc === 'title') updateTitle(tap);
-      else if (sc === 'about' || sc === 'how') { if (tap && inRect(PAGE_BACK, tap.x, tap.y)) state.scene = 'title'; }
+      else if (sc === 'autoplay') updateAutoPlay(dt, tap);
+      else if (sc === 'about' || sc === 'how') updatePage(dt, input, tap, kbd);
+      else if (sc === 'demo-limit') { if (tap && inRect(lay().page.back, tap.x, tap.y)) state.scene = 'title'; }
       else if (sc === 'play' || sc === 'lesson' || sc === 'puzzle') {
-        if (sc === 'puzzle' && state.pz.status === 'making') { for (let k = 0; k < 2 && !puzzleToday; k++) puzzleToday = maker.step().puzzle; if (puzzleToday) startPuzzle(); if (tap && inRect(BTN.menu, tap.x, tap.y)) state.scene = 'title'; return; }
+        if (sc === 'puzzle' && state.pz.status === 'making') { for (let k = 0; k < 2 && !puzzleToday; k++) puzzleToday = maker.step().puzzle; if (puzzleToday) startPuzzle(); if (tap && inRect(lay().btn.menu, tap.x, tap.y)) state.scene = 'title'; return; }
         updateSceneGame(dt, input, tap, sc);
       } else if (sc === 'over' && tap) {
-        if (inRect(BTN.again, tap.x, tap.y)) start(state.two);
-        else if (inRect(BTN.back, tap.x, tap.y)) state.scene = 'title';
-      } else if (sc === 'demo-limit' && tap) { /* nothing else is playable in the preview */ }
+        const O = lay().over;
+        if (inRect(O.again, tap.x, tap.y)) start(state.two);
+        else if (inRect(O.back, tap.x, tap.y)) state.scene = 'title';
+      }
     },
-    render(ctx) { render(ctx, state); },
+    render(ctx) { render(ctx, state, lay()); },
     getState: () => state,
     // The preview clock counts real play only: a match (play) or the daily challenge once it is set. Menu, About, How to Play,
     // lessons, the result card and the demo-limit card are free time.

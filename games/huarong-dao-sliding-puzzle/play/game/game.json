@@ -2,8 +2,8 @@
   "slug": "huarong-dao-sliding-puzzle",
   "title": "Huarong Dao: Sliding Puzzle",
   "genre": "sliding block puzzle",
-  "orientation": "portrait",
-  "version": "1.0.2",
+  "orientation": "any",
+  "version": "1.1.4",
   "monetization": {
     "model": "premium",
     "priceUsd": 2.99,

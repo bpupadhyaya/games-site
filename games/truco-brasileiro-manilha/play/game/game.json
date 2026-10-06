@@ -3,8 +3,8 @@
   "title": "Truco Brasileiro: Manilha",
   "tagline": "Shout Truco, bluff the table, win with the manilha",
   "genre": "vying trick-taking card game",
-  "orientation": "portrait",
-  "version": "1.0.2",
+  "orientation": "any",
+  "version": "1.1.7",
   "monetization": {
     "model": "premium",
     "priceUsd": 2.99,

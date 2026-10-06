@@ -94,6 +94,14 @@ export function richLines(ctx, text, maxW, size) {
   const lines = []; let cur = [], cw = 0;
   for (const w of words(text)) {
     const ww = measure(ctx, w, size);
+    if (ww > maxW && cmdKind(w) && maxW > 40) {
+      // a command word (RELEASE, HOLD...) wider than a very narrow column (top text size next to a portrait) cannot wrap:
+      // shrink just this word to fit, so it never runs under the panel border.
+      if (cw + maxW > maxW && cur.length) { lines.push(cur); cur = []; cw = 0; }
+      const fit = size * (maxW - 6) / ww;
+      cur.push({ w, ww: maxW, fit }); cw += maxW;
+      continue;
+    }
     if (ww > maxW && !/^\[.+\]/.test(w) && !cmdKind(w)) {
       if (cur.length) { lines.push(cur); cur = []; cw = 0; }
       const parts = splitLongWord(ctx, w, size, maxW);
@@ -113,7 +121,7 @@ export function rich(ctx, text, x, y, maxW, { size = 30, lh = size * 1.34, align
     const total = ln.reduce((a, q) => a + q.ww, 0);
     let px = align === 'center' ? x - total / 2 : align === 'right' ? x - total : x;
     const py = y + i * lh;
-    for (const { w, ww } of ln) {
+    for (const { w, ww, fit } of ln) {
       const key = w.match(/^\[(.+?)\](.*)$/);
       if (key) {
         ctx.font = font(size * 0.78, SANS, 800);
@@ -125,7 +133,7 @@ export function rich(ctx, text, x, y, maxW, { size = 30, lh = size * 1.34, align
         ctx.fillStyle = '#fff1cf'; ctx.textAlign = 'center'; ctx.fillText(key[1], px + kw / 2, py - size * 0.12);
         ctx.font = font(size, SANS, 600); ctx.fillStyle = color; ctx.textAlign = 'left'; ctx.fillText(key[2], px + kw + size * 0.08, py);
       } else if (cmdKind(w)) {
-        ctx.font = font(size, SANS, 800); ctx.lineWidth = 5; ctx.strokeStyle = DARK; ctx.lineJoin = 'round'; ctx.strokeText(w, px, py);
+        ctx.font = font(fit ?? size, SANS, 800); ctx.lineWidth = 5; ctx.strokeStyle = DARK; ctx.lineJoin = 'round'; ctx.strokeText(w, px, py);
         ctx.fillStyle = GOLD_HI; ctx.fillText(w, px, py);
       } else {
         ctx.font = font(size, SANS, 600); ctx.fillStyle = color; ctx.fillText(w, px, py);
@@ -164,16 +172,16 @@ export function stepRow(ctx, st, i, x, y, w, { active = true, size = 30, numbere
 }
 
 // The demo caption: kicker, numbered steps (the active one lit), optional note and keyboard line.
-export function demoCaption(ctx, { kicker, steps, active = -1, kbd = null, y = 116, bottom = false, size = 30 }) {
-  const x = 30, w = W - 60, inner = w - 52;
+export function demoCaption(ctx, { kicker, steps, active = -1, kbd = null, y = 116, bottom = false, bottomY = null, box = null, size = 30 }) {
+  const x = box ? box.x : 30, w = box ? box.w : W - 60, inner = w - 52, cxm = x + w / 2;
   const rows = steps.map((s) => stepRowHeight(ctx, s, inner, size));
   const kbdH = kbd ? richLines(ctx, kbd, w - 60, size - 4).length * 35 + 14 : 0;
   const h = 78 + rows.reduce((a, b) => a + b + 8, 0) + kbdH + 10;
-  if (bottom) y = 1560 - h - 36;
+  if (bottom) y = (bottomY ?? 1560) - h - 36;
   panel(ctx, x, y, w, h, 0.95);
   ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
   ctx.fillStyle = GOLD; ctx.font = font(22, SANS, 700);
-  ctx.fillText(String(kicker).toUpperCase().split('').join(' '), W / 2, y + 40);
+  ctx.fillText(String(kicker).toUpperCase().split('').join(' '), cxm, y + 40);
   let ry = y + 58;
   steps.forEach((s, i) => { stepRow(ctx, s, i, x + 26, ry, inner, { active: steps.length === 1 ? false : i === active, size }); ry += rows[i] + 8; });
   if (kbd) { ctx.strokeStyle = 'rgba(242,196,106,0.35)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(x + 40, ry + 2); ctx.lineTo(x + w - 40, ry + 2); ctx.stroke(); rich(ctx, kbd, x + 34, ry + 34, w - 68, { size: size - 4 }); }

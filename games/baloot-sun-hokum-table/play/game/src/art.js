@@ -1,6 +1,6 @@
 // All painted art: majlis carpet, card table, lanterns, coffee pot (pure decoration), card faces and backs, buttons.
 // Static art is painted ONCE into cached layers; a frame only draws them. The geometric ornament is decoration only.
-import { W, H, CW, CH } from './layout.js';
+import { W, H, CW, CH, TABLE } from './layout.js';
 import { suitOf, rankOf, RANK_LABEL } from './rules.js';
 
 export const FONT = '"Cormorant Garamond", Georgia, "Times New Roman", serif';
@@ -67,7 +67,7 @@ export function suitPath(ctx, suit, cx, cy, s) {
 export const drawSuit = (ctx, suit, cx, cy, s, col) => { ctx.fillStyle = col; suitPath(ctx, suit, cx, cy, s); };
 
 // ---- backgrounds ------------------------------------------------------------------------------------------
-let bgLayer = null;
+let bgLayer = null, bgKey = '';
 function paintBackground(g) {
   const gr = g.createLinearGradient(0, 0, 0, H); gr.addColorStop(0, '#3a0f18'); gr.addColorStop(0.5, '#5b1a22'); gr.addColorStop(1, '#2e0d15');
   g.fillStyle = gr; g.fillRect(0, 0, W, H);
@@ -79,14 +79,13 @@ function paintBackground(g) {
   const v = g.createRadialGradient(W / 2, H * 0.48, 200, W / 2, H * 0.48, 1000); v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(0,0,0,0.55)');
   g.fillStyle = v; g.fillRect(0, 0, W, H);
 }
-let tableLayer = null;
-const TABLE = { x: 96, y: 470, w: 528, h: 570 };
+let tableLayer = null, tableKey = '';
 export { TABLE };
 function octPath(g, x, y, w, h, c) {
   g.beginPath(); g.moveTo(x + c, y); g.lineTo(x + w - c, y); g.lineTo(x + w, y + c); g.lineTo(x + w, y + h - c); g.lineTo(x + w - c, y + h); g.lineTo(x + c, y + h); g.lineTo(x, y + h - c); g.lineTo(x, y + c); g.closePath();
 }
 function paintTable(g) {
-  const { x, y, w, h } = TABLE, c = 120;
+  const { x, y, w, h } = TABLE, rs = Math.max(0.5, Math.min(1.5, Math.min(w, h) / 528)), c = Math.max(50, Math.min(150, Math.min(w, h) * 0.227));
   g.save(); g.shadowColor = 'rgba(0,0,0,0.6)'; g.shadowBlur = 36; g.shadowOffsetY = 14; octPath(g, x - 22, y - 22, w + 44, h + 44, c + 20); g.fillStyle = '#3a2210'; g.fill(); g.restore();
   // wooden rim
   octPath(g, x - 22, y - 22, w + 44, h + 44, c + 20);
@@ -97,14 +96,14 @@ function paintTable(g) {
   octPath(g, x - 6, y - 6, w + 12, h + 12, c + 4); g.strokeStyle = BRASS; g.lineWidth = 4; g.stroke();
   // felt
   octPath(g, x, y, w, h, c);
-  const f = g.createRadialGradient(x + w / 2, y + h / 2, 30, x + w / 2, y + h / 2, 380); f.addColorStop(0, '#1f7a55'); f.addColorStop(1, '#0d4030');
+  const f = g.createRadialGradient(x + w / 2, y + h / 2, 30 * rs, x + w / 2, y + h / 2, 380 * rs); f.addColorStop(0, '#1f7a55'); f.addColorStop(1, '#0d4030');
   g.fillStyle = f; g.fill();
   g.save(); octPath(g, x, y, w, h, c); g.clip();
   for (let i = 0; i < 4200; i++) { g.fillStyle = `rgba(${rnd() < 0.5 ? '255,255,255' : '0,0,0'},0.035)`; g.fillRect(x + rnd() * w, y + rnd() * h, 2, 1); }
   // inlaid rosette in the middle
   const cx = x + w / 2, cy = y + h / 2 + 4;
-  g.strokeStyle = 'rgba(232,190,110,0.30)'; g.lineWidth = 2; rosette(g, cx, cy, 250, 'rgba(232,190,110,0.26)', 2);
-  g.beginPath(); g.arc(cx, cy, 262, 0, TAU); g.stroke();
+  g.strokeStyle = 'rgba(232,190,110,0.30)'; g.lineWidth = 2; rosette(g, cx, cy, 250 * rs, 'rgba(232,190,110,0.26)', 2);
+  g.beginPath(); g.arc(cx, cy, 262 * rs, 0, TAU); g.stroke();
   g.restore();
   octPath(g, x, y, w, h, c); g.strokeStyle = 'rgba(0,0,0,0.5)'; g.lineWidth = 3; g.stroke();
 }
@@ -137,16 +136,19 @@ function dallah(g, x, y, s) {   // an Arabian coffee pot on a small brass tray w
 }
 
 export function drawBackground(ctx, t) {
-  if (!bgLayer) bgLayer = layer(W, H, 1.5, paintBackground);
+  const bk = `${W}x${H}`;
+  if (bgKey !== bk) { bgKey = bk; bgLayer = layer(W, H, 1.5, paintBackground); }
   if (bgLayer) ctx.drawImage(bgLayer, 0, 0, W, H); else { ctx.fillStyle = '#4a1520'; ctx.fillRect(0, 0, W, H); }
   lantern(ctx, 52, 0, 0.8, t); lantern(ctx, W - 52, 0, 0.8, t + 1.7);
 }
 export function drawTable(ctx, t) {
-  if (!tableLayer) tableLayer = layer(W, H, 1.5, paintTable);
+  const tk = `${W}x${H}|${TABLE.x | 0},${TABLE.y | 0},${TABLE.w | 0},${TABLE.h | 0}`;
+  if (tableKey !== tk) { tableKey = tk; tableLayer = layer(W, H, 1.5, paintTable); }
   if (tableLayer) ctx.drawImage(tableLayer, 0, 0, W, H);
   // warm light pool that breathes slowly
-  const cx = W / 2, cy = 760, f = 0.9 + 0.1 * Math.sin(t * 1.3);
-  const g = ctx.createRadialGradient(cx, cy, 20, cx, cy, 380); g.addColorStop(0, `rgba(255,214,140,${0.16 * f})`); g.addColorStop(1, 'rgba(255,214,140,0)');
+  const rs = Math.max(0.5, Math.min(1.5, Math.min(TABLE.w, TABLE.h) / 528));
+  const cx = TABLE.x + TABLE.w / 2, cy = TABLE.y + TABLE.h / 2, f = 0.9 + 0.1 * Math.sin(t * 1.3);
+  const g = ctx.createRadialGradient(cx, cy, 20, cx, cy, 380 * rs); g.addColorStop(0, `rgba(255,214,140,${0.16 * f})`); g.addColorStop(1, 'rgba(255,214,140,0)');
   ctx.fillStyle = g; ctx.fillRect(TABLE.x, TABLE.y, TABLE.w, TABLE.h);
 }
 export function drawCoffee(ctx, x, y, t, s = 0.55) {
@@ -258,9 +260,10 @@ export function button(ctx, r, label, o = {}) {
   if (o.primary) { g.addColorStop(0, '#f6d47f'); g.addColorStop(1, '#c48a2a'); } else if (o.danger) { g.addColorStop(0, '#8b2a2a'); g.addColorStop(1, '#4d1414'); } else { g.addColorStop(0, '#6e2a35'); g.addColorStop(1, '#3d1119'); }
   ctx.fillStyle = g; rr(ctx, r.x, r.y, r.w, r.h, 20); ctx.fill();
   ctx.strokeStyle = o.glow ? `rgba(255,236,150,${0.6 + 0.4 * press})` : 'rgba(255,214,140,0.6)'; ctx.lineWidth = o.glow ? 5 : 2.5; if (o.glow) { ctx.shadowColor = '#ffe08a'; ctx.shadowBlur = 16 * (0.5 + press); } rr(ctx, r.x, r.y, r.w, r.h, 20); ctx.stroke();
-  ctx.shadowBlur = 0; ctx.strokeStyle = 'rgba(255,214,140,0.25)'; ctx.lineWidth = 1.2; rr(ctx, r.x + 6, r.y + 6, r.w - 12, r.h - 12, 15); ctx.stroke();
+  ctx.shadowBlur = 0;
   ctx.fillStyle = o.primary ? '#2a1606' : '#f8e6bd'; ctx.textAlign = 'center';
-  const size = o.size ?? 32;
+  let size = o.size ?? 32;
+  { ctx.font = `800 ${size}px ${UI}`; const mw = ctx.measureText(label).width, room = r.w - 28; if (mw > room && room > 0) size = Math.max(14, Math.floor(size * room / mw)); }
   if (o.sub) { ctx.font = `800 ${size}px ${UI}`; ctx.fillText(label, r.x + r.w / 2, r.y + r.h / 2 - 2); ctx.font = `600 ${Math.round(size * 0.55)}px ${UI}`; ctx.fillStyle = o.primary ? 'rgba(42,22,6,0.8)' : 'rgba(248,230,189,0.8)'; ctx.fillText(o.sub, r.x + r.w / 2, r.y + r.h / 2 + size * 0.75); }
   else { ctx.font = `800 ${size}px ${UI}`; ctx.fillText(label, r.x + r.w / 2, r.y + r.h / 2 + size * 0.35); }
   ctx.restore();

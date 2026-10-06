@@ -1,13 +1,15 @@
 // In-play HUD: scoreboard, prompts, aim marker, timing ring, choice buttons, Think and Pause. Everything follows the text size
 // (through PLAY_M) and is laid out by layout.hudLayout so hit-testing and drawing agree.
-import { W, H, PLAY_M, hudLayout, inRect } from './layout.js';
-import { FONT, C, roundPath, drawButton, panel, wrapLines, fitPx } from './ui.js';
+import { W, H, PLAY_M, hudLayout, inRect, host, G as LG } from './layout.js';
+import { FONT, C, roundPath, drawButton, panel, wrapLines, fitPx, fl } from './ui.js';
 import { ATTACKS, ATTACK_IDS, SERVES, SERVE_IDS, BLOCKS, BLOCK_IDS, ZONES } from './consts.js';
 import { projectV } from './camera.js';
 
 import { LESSONS } from './content.js';
 const LESSONS_TITLE = (G) => `${LESSONS[G.learn.cur].title.replace(/^\d+\. /, '')} (${G.learn.tally.n}/${LESSONS[G.learn.cur].n})`;
 const TAU = Math.PI * 2;
+// last drawn HUD geometry (read by the layout checks; kept out of the game state)
+export const HUDX = { lay: null, rects: null, think: null };
 export const ROLE_NAME = ['Back', 'Left', 'Right'];
 
 // Which human team is being asked for something right now, and what.
@@ -50,12 +52,13 @@ export function hudRects(G, sim, view) {
   let cf = G.mode === 'watch' ? { list: [], action: null, perRow: 0 } : choicesFor(G, sim, cs);
   if (cs.team >= 0 && G.settings.decision === 'wait' && G.goKey !== goKeyOf(cs) && G.mode !== 'watch') cf = { ...cf, action: { label: 'GO', go: true } };
   const lay = hudLayout(G.settings.textIdx, cf.list.length, !!cf.action, cf.perRow);
+  HUDX.lay = lay;
   return { cs, cf, lay };
 }
 
 const PROMPT = { serve: 'Tap the court to aim, pick a serve, press SERVE when the ring closes', recv: 'Choose who attacks', set: 'Choose where and how to set', attack: 'Tap the court to aim, pick an attack, press SMASH when the ring closes', block: 'Choose how to block' };
 
-function projPt(G, view, x, y, z) { const cam = G.sim.cam; return projectV(cam, view.cssW || 720, view.cssH || 1280, x, y, z); }
+function projPt(G, view, x, y, z) { const cam = G.sim.cam; return projectV(cam, view.cssW || W, view.cssH || H, x, y, z); }
 
 function aimMarker(ctx, G, view, aim, col = '#ffd54a', lbl) {
   if (!aim) return;
@@ -66,7 +69,7 @@ function aimMarker(ctx, G, view, aim, col = '#ffd54a', lbl) {
   ctx.lineWidth = 4; ctx.strokeStyle = col; ctx.fillStyle = 'rgba(255,213,74,0.25)';
   ctx.beginPath(); ctx.ellipse(c.x, c.y, rx, ry, 0, 0, TAU); ctx.fill(); ctx.stroke();
   ctx.beginPath(); ctx.moveTo(c.x - rx * 0.6, c.y); ctx.lineTo(c.x + rx * 0.6, c.y); ctx.moveTo(c.x, c.y - ry * 0.6); ctx.lineTo(c.x, c.y + ry * 0.6); ctx.lineWidth = 3; ctx.stroke();
-  if (lbl) { ctx.font = `700 22px ${FONT}`; ctx.textAlign = 'center'; ctx.fillStyle = '#fff6e4'; ctx.shadowColor = 'rgba(0,0,0,0.7)'; ctx.shadowBlur = 4; ctx.fillText(lbl, c.x, c.y - ry - 8); }
+  if (lbl) { ctx.font = `700 ${fl(22)}px ${FONT}`; ctx.textAlign = 'center'; ctx.fillStyle = '#fff6e4'; ctx.shadowColor = 'rgba(0,0,0,0.7)'; ctx.shadowBlur = 4; ctx.fillText(lbl, c.x, c.y - ry - 8); }
   ctx.restore();
 }
 
@@ -76,28 +79,31 @@ function badge(ctx, x, y, text, col = '#ffd54a', size = 24) {
   ctx.fillStyle = '#fff6e4'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(text, x, y - size * 0.25 + 2); ctx.restore();
 }
 
-function scoreboard(ctx, G, s, m) {
+function scoreboard(ctx, G, s, m, lay) {
   const mt = s.match, tm = s.teams;
-  const th = hudLayout(G.settings.textIdx, 0, false).topH;
+  const th = lay.topH - host.t;
+  ctx.save(); ctx.translate(0, host.t);
   const g = ctx.createLinearGradient(0, 0, 0, th + 30); g.addColorStop(0, 'rgba(6,14,26,0.86)'); g.addColorStop(1, 'rgba(6,14,26,0)');
-  ctx.fillStyle = g; ctx.fillRect(0, 0, W, th + 30);
-  const colw = 250, cx = W / 2;
-  const nameOf = (i) => { let n = tm[i].name; ctx.font = `700 ${Math.round(24 * m)}px ${FONT}`; if (ctx.measureText(n).width > colw - 30) { const mm = /^(\S+).*(\((?:red|blue)\))$/.exec(n); n = mm ? `${mm[1]} ${mm[2]}` : n.split(' ')[0]; } return n; };
+  ctx.fillStyle = g; ctx.fillRect(0, -host.t, W, th + 30 + host.t);
+  // the block sits clear of the host's floating back button and the safe areas; in landscape it is a centred strip
+  const lo = Math.max(18, host.l + 8, host.back ? LG.backBox.x + LG.backBox.w + 6 : 0), hi = W - Math.max(18, host.r + 8);
+  const tw = Math.min(hi - lo, lay.land ? 760 : W), x00 = (lo + hi) / 2 - tw / 2, cx = (lo + hi) / 2;
+  const centerW = 184, colw = Math.max(150, (tw - centerW) / 2);
+  const nameOf = (i) => { let n = tm[i].name; ctx.font = `700 ${Math.round(24 * m)}px ${FONT}`; if (ctx.measureText(n).width > colw - 34) { const mm = /^(\S+).*(\((?:red|blue)\))$/.exec(n); n = mm ? `${mm[1]} ${mm[2]}` : n.split(' ')[0]; } return n; };
   for (const i of [0, 1]) {
     const left = i === 0;
-    const x0 = left ? 18 : W - 18 - colw;
+    const x0 = left ? x00 : x00 + tw - colw;
     ctx.fillStyle = i === 0 ? '#e0443a' : '#2a79d4';
     roundPath(ctx, x0, 14, 10, th - 44, 5); ctx.fill();
     ctx.textAlign = left ? 'left' : 'right'; ctx.textBaseline = 'alphabetic';
     const ax = left ? x0 + 22 : x0 + colw - 22;
-    ctx.fillStyle = '#fff6e4'; ctx.font = `700 ${Math.round(24 * m)}px ${FONT}`; ctx.fillText(nameOf(i), left ? x0 + 22 : x0 + colw - 22, 14 + 26 * m);
+    ctx.fillStyle = '#fff6e4'; ctx.font = `700 ${Math.round(24 * m)}px ${FONT}`; ctx.fillText(nameOf(i), ax, 14 + 26 * m);
     ctx.font = `800 ${Math.round(58 * m)}px ${FONT}`; ctx.fillText(String(mt.pts[i]), ax, 14 + 26 * m + 56 * m);
     if (mt.serving === i) { ctx.fillStyle = '#ffd54a'; ctx.beginPath(); ctx.arc(left ? x0 + colw - 20 : x0 + 20, 14 + 16 * m, 7 * Math.min(m, 1.4), 0, TAU); ctx.fill(); }
   }
-  ctx.textAlign = 'center'; ctx.fillStyle = '#fff6e4'; ctx.font = `800 ${Math.round(40 * m)}px ${FONT}`; ctx.fillText(`${mt.sets[0]} – ${mt.sets[1]}`, cx, 14 + 24 * m + 40 * m);
-  ctx.fillStyle = '#ffd97a'; ctx.font = `700 ${Math.round(20 * m)}px ${FONT}`; ctx.fillText(mt.setsToWin === 1 ? 'Quick match' : `Set ${mt.setNo}`, cx, 14 + 24 * m + 40 * m + 24 * m);
-  const dm = G.cfgMode;
-  void dm;
+  ctx.textAlign = 'center'; ctx.fillStyle = '#fff6e4'; ctx.font = `800 ${Math.round(40 * m)}px ${FONT}`; ctx.fillText(`${mt.sets[0]} \u2013 ${mt.sets[1]}`, cx, 14 + 24 * m + 40 * m);
+  ctx.fillStyle = '#ffd97a'; ctx.font = `700 ${Math.max(Math.round(20 * m), fl(20))}px ${FONT}`; ctx.fillText(mt.setsToWin === 1 ? 'Quick match' : `Set ${mt.setNo}`, cx, 14 + 24 * m + 40 * m + 24 * m);
+  ctx.restore();
 }
 
 function wrapped(ctx, text, x, y, maxW, size, color = '#fff6e4', lh = 1.25, align = 'left', weight = 600) {
@@ -110,10 +116,18 @@ export function renderHud(ctx, G, sim, view) {
   const s = sim.s;
   const { cs, cf, lay } = hudRects(G, sim, view);
   const m = lay.m;
-  scoreboard(ctx, G, s, m);
-  // the bottom bar background
-  const bg = ctx.createLinearGradient(0, lay.barTop - 40, 0, H); bg.addColorStop(0, 'rgba(6,14,26,0)'); bg.addColorStop(0.25, 'rgba(6,14,26,0.55)'); bg.addColorStop(1, 'rgba(6,14,26,0.85)');
-  ctx.fillStyle = bg; ctx.fillRect(0, lay.barTop - 40, W, H - lay.barTop + 40);
+  scoreboard(ctx, G, s, m, lay);
+  if (!lay.land) {
+    // the bottom bar background
+    const bg = ctx.createLinearGradient(0, lay.barTop - 40, 0, H); bg.addColorStop(0, 'rgba(6,14,26,0)'); bg.addColorStop(0.25, 'rgba(6,14,26,0.55)'); bg.addColorStop(1, 'rgba(6,14,26,0.85)');
+    ctx.fillStyle = bg; ctx.fillRect(0, lay.barTop - 40, W, H - lay.barTop + 40);
+  } else {
+    // landscape: the court sits in the middle; soft shading behind the side panels keeps the buttons readable
+    const rg = ctx.createLinearGradient(lay.panelX - 40, 0, W, 0); rg.addColorStop(0, 'rgba(6,14,26,0)'); rg.addColorStop(0.3, 'rgba(6,14,26,0.5)'); rg.addColorStop(1, 'rgba(6,14,26,0.8)');
+    ctx.fillStyle = rg; ctx.fillRect(lay.panelX - 40, 0, W - lay.panelX + 40, H);
+    const lw = lay.util.think.x + lay.util.think.w + 30, lg = ctx.createLinearGradient(0, 0, lw, 0); lg.addColorStop(0, 'rgba(6,14,26,0.8)'); lg.addColorStop(0.7, 'rgba(6,14,26,0.5)'); lg.addColorStop(1, 'rgba(6,14,26,0)');
+    ctx.fillStyle = lg; ctx.fillRect(0, 0, lw, H);
+  }
   // aim markers
   if (G.mode !== 'watch' && cs.human >= 0) {
     const ch = s.choice[cs.human];
@@ -127,7 +141,7 @@ export function renderHud(ctx, G, sim, view) {
     for (const r of [0, 1, 2]) {
       if (r === rec) continue;
       const p = s.players[cs.team * 3 + r], pt = projPt(G, view, p.x, 2.15, p.z);
-      if (pt) badge(ctx, pt.x, pt.y, r === 0 ? 'Back' : r === 1 ? 'Left' : 'Right', s.choice[cs.team].attacker === r ? '#7fe8d6' : '#ffd54a', Math.round(20 * Math.min(m, 1.5)));
+      if (pt) badge(ctx, pt.x, pt.y, r === 0 ? 'Back' : r === 1 ? 'Left' : 'Right', s.choice[cs.team].attacker === r ? '#7fe8d6' : '#ffd54a', Math.max(fl(21), Math.round(20 * Math.min(m, 1.5))));
     }
   }
   if (G.mode === 'watch' && s.hold && G.watch.phase !== 'think') {
@@ -142,28 +156,31 @@ export function renderHud(ctx, G, sim, view) {
   else if (cs.team >= 0) promptText = (s.cfg.humans[0] && s.cfg.humans[1] ? `Player ${cs.team + 1}: ` : '') + (PROMPT[cs.pend.kind] || '');
   else if (s.phase === 'ready') promptText = `${s.teams[s.match.serving].name} to serve`;
   if (promptText) {
-    const pw = W - 60, ps = Math.round(24 * Math.min(m, 1.6));
+    const P = lay.prompt, pw = P.w, ps = Math.max(Math.round(24 * P.m), fl(22));
     ctx.font = `700 ${ps}px ${FONT}`; const lines = wrapLines(ctx, promptText, pw - 36);
-    const ph = lines.length * ps * 1.25 + 18, py = lay.topH + 6;
-    roundPath(ctx, 30, py, pw, ph, 16); ctx.fillStyle = 'rgba(8,18,30,0.72)'; ctx.fill();
-    ctx.fillStyle = '#fff6e4'; ctx.textAlign = 'center'; lines.forEach((l, i) => ctx.fillText(l, W / 2, py + 12 + ps * (0.95 + i * 1.25)));
+    const ph = lines.length * ps * 1.25 + 18, py = P.y;
+    roundPath(ctx, P.x, py, pw, ph, 16); ctx.fillStyle = 'rgba(8,18,30,0.72)'; ctx.fill();
+    ctx.fillStyle = '#fff6e4'; ctx.textAlign = 'center'; lines.forEach((l, i) => ctx.fillText(l, P.cx, py + 12 + ps * (0.95 + i * 1.25)));
+    lay.promptRect = { x: P.x, y: py, w: pw, h: ph };
   }
   // announce / point banner
   const showLast = s.last && s.phase === 'dead' && s.t - s.last.t < 2.3;
   if (showLast) {
-    const txt = s.last.text, big = Math.round(44 * Math.min(m, 1.5));
-    ctx.font = `800 ${big}px ${FONT}`; const lines = wrapLines(ctx, txt, W - 90);
-    const ph = lines.length * big * 1.2 + 26, py = Math.round(H * 0.265 - ph / 2);
-    roundPath(ctx, 40, py, W - 80, ph, 20); ctx.fillStyle = 'rgba(8,18,30,0.78)'; ctx.fill();
+    const B = lay.banner, txt = s.last.text, big = Math.round(44 * Math.min(m, 1.5));
+    ctx.font = `800 ${big}px ${FONT}`; const lines = wrapLines(ctx, txt, B.w - 10);
+    const ph = lines.length * big * 1.2 + 26, py = Math.round(B.y - ph / 2);
+    roundPath(ctx, B.cx - B.w / 2, py, B.w, ph, 20); ctx.fillStyle = 'rgba(8,18,30,0.78)'; ctx.fill();
     ctx.lineWidth = 3; ctx.strokeStyle = s.last.winner === 0 ? '#e0443a' : '#2a79d4'; ctx.stroke();
-    ctx.fillStyle = '#fff6e4'; ctx.textAlign = 'center'; ctx.font = `800 ${big}px ${FONT}`; lines.forEach((l, i) => ctx.fillText(l, W / 2, py + 14 + big * (0.95 + i * 1.2)));
+    ctx.fillStyle = '#fff6e4'; ctx.textAlign = 'center'; ctx.font = `800 ${big}px ${FONT}`; lines.forEach((l, i) => ctx.fillText(l, B.cx, py + 14 + big * (0.95 + i * 1.2)));
+    lay.bannerRect = { x: B.cx - B.w / 2, y: py, w: B.w, h: ph };
   } else if (G.feedback && s.t - G.feedback.t < 1.3) {
     const f = G.feedback, big = Math.round(48 * Math.min(m, 1.5));
     ctx.font = `800 ${big}px ${FONT}`; ctx.textAlign = 'center'; ctx.fillStyle = f.col; ctx.shadowColor = 'rgba(0,0,0,0.75)'; ctx.shadowBlur = 8;
-    ctx.fillText(f.text, W / 2, Math.round(H * 0.27)); ctx.shadowBlur = 0;
+    ctx.fillText(f.text, lay.banner.cx, lay.banner.y); ctx.shadowBlur = 0;
   }
   // buttons
   if (G.mode === 'watch') return renderWatchButtons(ctx, G, s, lay, m);
+  HUDX.rects = { util: lay.util, action: lay.action, choices: lay.choices.map((c) => c.rect) };
   cf.list.forEach((c, i) => { const r = lay.choices[i].rect; drawButton(ctx, r, c.label, { active: c.active, size: Math.round(26 * Math.min(m, 1.7)) }); });
   if (cf.action) {
     const r = lay.action;
@@ -194,8 +211,7 @@ function ringOverlay(ctx, s, r, cs) {
 function renderWatchButtons(ctx, G, s, lay, m) {
   const w = G.watch;
   const sz = Math.round(24 * Math.min(m, 1.7));
-  const u = lay.util;
-  // reveal / think panel above the buttons
+  // reveal / think panel
   let msg = '';
   if (s.hold) {
     const d = s.hold.decision, tn = s.teams[s.hold.team].name;
@@ -203,47 +219,63 @@ function renderWatchButtons(ctx, G, s, lay, m) {
     else if (w.phase === 'reveal') msg = `REVEAL: ${tn}: ${d.reason}`;
     else msg = `ACT: ${d.summary}`;
   } else msg = 'ACT: the play continues.';
-  const ps = Math.round(22 * Math.min(m, 1.5)), pw = W - 40;
+  const I = lay.winfo, ps = Math.max(Math.round(22 * Math.min(m, 1.5)), fl(22)), pw = I.w;
   ctx.font = `600 ${ps}px ${FONT}`; const lines = wrapLines(ctx, msg, pw - 30);
-  const ph = Math.min(lines.length, 9) * ps * 1.25 + 20, py = lay.util.think.y - ph - 12 - (lay.m > 1.4 ? lay.util.think.h + 10 : 0);
-  roundPath(ctx, 20, py, pw, ph, 16); ctx.fillStyle = 'rgba(8,18,30,0.85)'; ctx.fill();
-  ctx.fillStyle = w.phase === 'think' ? '#ffe9a0' : w.phase === 'reveal' ? '#7fe8d6' : '#ff9a86'; ctx.textAlign = 'left';
-  lines.slice(0, 9).forEach((l, i) => ctx.fillText(l, 36, py + 10 + ps * (0.95 + i * 1.25)));
-  // buttons: Pause/Resume, - think, + think, Exit  (two rows when text is large)
-  const big = m >= 1.5;
-  const bh = u.think.h, y1 = u.think.y;
-  const rects = big ? [[14, y1 - bh - 10, 345, bh], [361, y1 - bh - 10, 345, bh], [14, y1, 345, bh], [361, y1, 345, bh]] : [[14, y1, 170, bh], [194, y1, 170, bh], [374, y1, 170, bh], [554, y1, 152, bh]];
-  const labels = [w.paused ? 'Resume' : 'Pause', 'Think −', 'Think +', 'Exit'];
+  const maxLines = lay.land ? Math.max(3, Math.floor((I.bottom - I.top - 20) / (ps * 1.25))) : 9;
+  const shown = lines.slice(0, maxLines);
+  const ph = shown.length * ps * 1.25 + 20, py = I.bottom - ph;
+  roundPath(ctx, I.x, py, pw, ph, 16); ctx.fillStyle = 'rgba(8,18,30,0.85)'; ctx.fill();
+  ctx.fillStyle = w.phase === 'think' ? '#ffe9a0' : w.phase === 'reveal' ? '#7fe8d6' : '#ff9a86'; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+  shown.forEach((l, i) => ctx.fillText(l, I.x + 16, py + 10 + ps * (0.95 + i * 1.25)));
+  lay.infoRect = { x: I.x, y: py, w: pw, h: ph };
+  // buttons: Pause/Resume, - think, + think, Exit
+  const labels = [w.paused ? 'Resume' : 'Pause', 'Think \u2212', 'Think +', 'Exit'];
   W_RECTS.length = 0;
-  rects.forEach((r, i) => { const rc = { x: r[0], y: r[1], w: r[2], h: r[3] }; W_RECTS.push(rc); drawButton(ctx, rc, labels[i], { primary: i === 0, dark: i > 0, size: sz }); });
+  lay.watchRects.forEach((rc, i) => { W_RECTS.push(rc); drawButton(ctx, rc, labels[i], { primary: i === 0, dark: i > 0, size: sz }); });
+  HUDX.rects = { watch: lay.watchRects.slice(), info: lay.infoRect };
 }
 export const W_RECTS = [];
 export function watchHit(x, y) { return W_RECTS.findIndex((r) => inRect(r, x, y)); }
 
-// Think panel (modal)
+// Think panel (modal). The text scale steps down until the whole panel fits the screen (landscape is only 720 units high); the two buttons sit side by side when it is wide.
+function thinkLayout(ctx, t, m, pw) {
+  const size = Math.max(fl(22), Math.round(26 * Math.min(m, 2))), tsz = Math.max(fl(24), Math.round(34 * Math.min(m, 1.6))), ssz = Math.max(fl(24), Math.round(28 * Math.min(m, 1.6)));
+  ctx.font = `400 ${size}px ${FONT}`;
+  const lines = wrapLines(ctx, t.reason, pw - 60);
+  ctx.font = `700 ${ssz}px ${FONT}`;
+  const sm = wrapLines(ctx, t.summary, pw - 50);
+  const bh = Math.max(60, Math.min(100, Math.round(46 / Math.max(0.3, host.px))), Math.round(84 * Math.min(m, 1.5))), side = pw >= 600;
+  const head = tsz + 34, sumH = sm.length * ssz * 1.2 + 8, bodyH = size * 1.3 * lines.length + 20, btnH = side ? bh + 40 : bh * 2 + 54;
+  return { size, tsz, ssz, lines, sm, bh, side, head, sumH, bodyH, total: 20 + head + sumH + bodyH + btnH };
+}
 export function renderThink(ctx, G, view) {
   const t = G.think;
   ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(0, 0, W, H);
-  const m = PLAY_M[G.settings.textIdx];
-  const x = 30, w = W - 60;
-  const size = Math.round(26 * Math.min(m, 2));
-  ctx.font = `400 ${size}px ${FONT}`;
-  const lines = wrapLines(ctx, t.reason, w - 60);
-  const hh = size * 1.3 * lines.length + 60;
-  const bh = Math.round(84 * Math.min(m, 1.5));
-  const total = Math.min(H - 120, 70 + size * 1.5 + hh + bh * 2 + 50);
-  const y = Math.max(40, (H - total) / 2);
-  panel(ctx, x, y, w, total, { r: 26, fill: 'rgba(14,34,52,0.96)', stroke: 'rgba(255,246,228,0.5)' });
-  ctx.textAlign = 'center'; ctx.fillStyle = '#ffe9a0'; ctx.font = `800 ${Math.round(34 * Math.min(m, 1.6))}px ${FONT}`; ctx.fillText('Coach says', W / 2, y + 56);
-  ctx.fillStyle = '#7fe8d6'; ctx.font = `700 ${Math.round(28 * Math.min(m, 1.6))}px ${FONT}`;
-  const sm = wrapLines(ctx, t.summary, w - 50); sm.forEach((l, i) => ctx.fillText(l, W / 2, y + 108 + i * 34 * Math.min(m, 1.6)));
-  const off = y + 108 + sm.length * 34 * Math.min(m, 1.6) + 6;
-  ctx.textAlign = 'left'; ctx.fillStyle = '#fff6e4'; ctx.font = `400 ${size}px ${FONT}`;
-  lines.forEach((l, i) => ctx.fillText(l, x + 30, off + size * (1 + i * 1.3)));
-  const by = y + total - bh * 2 - 40;
-  G.thinkRects = { use: { x: x + 24, y: by, w: w - 48, h: bh }, close: { x: x + 24, y: by + bh + 14, w: w - 48, h: bh } };
-  drawButton(ctx, G.thinkRects.use, 'Use it', { primary: true, size: Math.round(30 * Math.min(m, 1.5)) });
-  drawButton(ctx, G.thinkRects.close, 'Close', { dark: true, size: Math.round(28 * Math.min(m, 1.5)) });
+  const pw = Math.min(W - 60, 820), x = (W - pw) / 2;
+  const avail = H - Math.max(24, host.t + 12) - Math.max(24, host.b + 12);
+  let m = PLAY_M[G.settings.textIdx], L = thinkLayout(ctx, t, m, pw);
+  while (L.total > avail && m > 0.75) { m = Math.max(0.75, m - 0.125); L = thinkLayout(ctx, t, m, pw); }
+  const total = Math.min(avail, L.total), y = Math.max(Math.max(24, host.t + 12), (H - total) / 2);
+  panel(ctx, x, y, pw, total, { r: 26, fill: 'rgba(14,34,52,0.96)', stroke: 'rgba(255,246,228,0.5)' });
+  ctx.save(); ctx.beginPath(); ctx.rect(x, y, pw, total); ctx.clip();
+  ctx.textAlign = 'center'; ctx.fillStyle = '#ffe9a0'; ctx.font = `800 ${L.tsz}px ${FONT}`; ctx.fillText('Coach says', W / 2, y + 20 + L.tsz);
+  ctx.fillStyle = '#7fe8d6'; ctx.font = `700 ${L.ssz}px ${FONT}`;
+  L.sm.forEach((l, i) => ctx.fillText(l, W / 2, y + 20 + L.head + L.ssz * (0.9 + i * 1.2)));
+  const off = y + 20 + L.head + L.sumH;
+  ctx.textAlign = 'left'; ctx.fillStyle = '#fff6e4'; ctx.font = `400 ${L.size}px ${FONT}`;
+  L.lines.forEach((l, i) => ctx.fillText(l, x + 30, off + L.size * (0.95 + i * 1.3)));
+  ctx.restore();
+  const bh = L.bh;
+  if (L.side) {
+    const by = y + total - bh - 22, hw = (pw - 48 - 16) / 2;
+    G.thinkRects = { use: { x: x + 24, y: by, w: hw, h: bh }, close: { x: x + 24 + hw + 16, y: by, w: hw, h: bh } };
+  } else {
+    const by = y + total - bh * 2 - 36;
+    G.thinkRects = { use: { x: x + 24, y: by, w: pw - 48, h: bh }, close: { x: x + 24, y: by + bh + 14, w: pw - 48, h: bh } };
+  }
+  drawButton(ctx, G.thinkRects.use, 'Use it', { primary: true, size: Math.round(30 * Math.min(Math.max(m, 1), 1.5)) });
+  drawButton(ctx, G.thinkRects.close, 'Close', { dark: true, size: Math.round(28 * Math.min(Math.max(m, 1), 1.5)) });
+  HUDX.think = { x, y, w: pw, h: total };
 }
 
 // 2D fallback when WebGL is missing: a simple top-down-in-perspective court drawn through the same camera maths.

@@ -1,7 +1,11 @@
+import { host } from './layout.js';
+
 // Drawing helpers: lacquer background, discs, pegs, platform, panels, buttons, icons.
 // Everything is plain canvas 2D; nothing here changes game state.
 
 export const W = 720, H = 1560;
+// The live canvas size in virtual units (kit fluid viewport); view.js copies meta.width/height here every frame.
+export const view = { w: 720, h: 1560, local: 1 };   // local: an extra scale the current drawing is under (the title art)
 export const UI = '-apple-system, "SF Pro Text", "Segoe UI", Roboto, system-ui, sans-serif';
 export const DISPLAY = '"Palatino Linotype", Palatino, "Iowan Old Style", Georgia, "Times New Roman", serif';
 
@@ -25,6 +29,7 @@ export function rr(ctx, x, y, w, h, r) {
 }
 
 export function text(ctx, str, x, y, size, color = PAPER, o = {}) {
+  size = Math.max(size, 11 / (host.px * view.local));      // never below ~11 css px on any screen
   ctx.font = `${o.weight ?? 600} ${size}px ${o.font ?? UI}`;
   ctx.textAlign = o.align ?? 'center';
   ctx.textBaseline = o.base ?? 'alphabetic';
@@ -66,13 +71,8 @@ export function button(ctx, r, lines, kind = 'normal', o = {}) {
   const press = o.pressed ? 1 : 0;
   const y = r.y + press * 3;
   ctx.shadowColor = 'rgba(0,0,0,0.45)'; ctx.shadowBlur = press ? 4 : 14; ctx.shadowOffsetY = press ? 1 : 5;
-  const g = ctx.createLinearGradient(0, y, 0, y + r.h);
-  if (kind === 'primary') { g.addColorStop(0, '#f2cf72'); g.addColorStop(1, '#d9a443'); }
-  else if (kind === 'on') { g.addColorStop(0, '#3fb596'); g.addColorStop(1, '#217a68'); }
-  else if (kind === 'danger') { g.addColorStop(0, '#d65a4c'); g.addColorStop(1, '#8e2b27'); }
-  else if (kind === 'ghost') { g.addColorStop(0, 'rgba(255,255,255,0.06)'); g.addColorStop(1, 'rgba(255,255,255,0.02)'); }
-  else { g.addColorStop(0, '#5a2a33'); g.addColorStop(1, '#40191f'); }
-  ctx.fillStyle = g;
+  const FACE = { primary: '#e6b957', on: '#2e9780', danger: '#b9433a', ghost: 'rgba(255,255,255,0.04)', normal: '#4d2129' };   // flat faces
+  ctx.fillStyle = FACE[kind] ?? FACE.normal;
   rr(ctx, r.x, y, r.w, r.h, o.radius ?? 18); ctx.fill();
   ctx.shadowColor = 'transparent';
   ctx.strokeStyle = kind === 'primary' ? 'rgba(255,236,170,0.85)' : 'rgba(232,196,106,0.45)';
@@ -187,32 +187,33 @@ export function drawParticles(ctx, parts) {
 }
 
 // ---- background: dark red lacquer with drifting gold-leaf flecks ----------------------------------------------
-const FLECKS = Array.from({ length: 38 }, (_, i) => [((i * 97) % 211) / 211 * W, ((i * 53) % 173) / 173 * H, 0.6 + ((i * 31) % 7) / 7, ((i * 13) % 11) / 11]);
+const FLECKS = Array.from({ length: 56 }, (_, i) => [((i * 97) % 211) / 211, ((i * 53) % 173) / 173, 0.6 + ((i * 31) % 7) / 7, ((i * 13) % 11) / 11]);
 
 export function background(ctx, t, glowY = 760) {
-  const g = ctx.createLinearGradient(0, 0, 0, H);
+  const vw = view.w, vh = view.h, m = Math.max(vw, vh);
+  const g = ctx.createLinearGradient(0, 0, 0, vh);
   g.addColorStop(0, '#12070b');
   g.addColorStop(0.5, '#2a0f16');
   g.addColorStop(1, '#190a0f');
   ctx.fillStyle = g;
-  ctx.fillRect(0, 0, W, H);
-  const hg = ctx.createRadialGradient(W / 2, glowY, 40, W / 2, glowY, 620);
+  ctx.fillRect(0, 0, vw, vh);
+  const hg = ctx.createRadialGradient(vw / 2, glowY, 40, vw / 2, glowY, 620);
   hg.addColorStop(0, 'rgba(214,120,70,0.30)');
   hg.addColorStop(0.5, 'rgba(150,60,50,0.12)');
   hg.addColorStop(1, 'rgba(150,60,50,0)');
   ctx.fillStyle = hg;
-  ctx.fillRect(0, 0, W, H);
-  for (const [x, y, s, ph] of FLECKS) {
-    const yy = (y + t * (3 + s * 3)) % H;
+  ctx.fillRect(0, 0, vw, vh);
+  for (const [fx, fy, s, ph] of FLECKS) {
+    const yy = (fy * vh + t * (3 + s * 3)) % vh;
     const a = 0.1 + 0.16 * (0.5 + 0.5 * Math.sin(t * 0.7 + ph * 9));
     ctx.fillStyle = `rgba(240,200,120,${a})`;
-    ctx.fillRect(x, yy, 2.2 * s, 2.2 * s);
+    ctx.fillRect(fx * vw, yy, 2.2 * s, 2.2 * s);
   }
-  const vg = ctx.createRadialGradient(W / 2, H / 2, 560, W / 2, H / 2, 1020);
+  const vg = ctx.createRadialGradient(vw / 2, vh / 2, m * 0.36, vw / 2, vh / 2, m * 0.66);
   vg.addColorStop(0, 'rgba(0,0,0,0)');
   vg.addColorStop(1, 'rgba(0,0,0,0.5)');
   ctx.fillStyle = vg;
-  ctx.fillRect(0, 0, W, H);
+  ctx.fillRect(0, 0, vw, vh);
 }
 
 // ---- tower pieces -----------------------------------------------------------------------------------------------

@@ -112,6 +112,7 @@ const sprites = new Map();
 export function drawBoardAt(ctx, cx, cy, R, o = {}) {
   setHost(ctx);
   const key = Math.round(R);
+  if (sprites.size >= 8 && !sprites.has(key)) sprites.clear();
   let sp = sprites.get(key);
   if (!sp && canBake() && sprites.size < 8) {
     const S = 2, half = Math.ceil(R * 1.3);
@@ -128,7 +129,7 @@ export function drawBoardAt(ctx, cx, cy, R, o = {}) {
 }
 
 // ---- the pub wall ---------------------------------------------------------------------------------
-let wallSprite = null;
+let wallSprite = null, wallKey = '';
 function drawWall(ctx) {
   const g = ctx.createLinearGradient(0, 0, 0, H);
   g.addColorStop(0, '#0c1713'); g.addColorStop(0.55, '#14261f'); g.addColorStop(1, '#0a120f');
@@ -146,7 +147,7 @@ function drawWall(ctx) {
   l.addColorStop(0, 'rgba(255,214,140,0.30)'); l.addColorStop(0.45, 'rgba(255,196,110,0.10)'); l.addColorStop(1, 'rgba(0,0,0,0.55)');
   ctx.fillStyle = l; ctx.fillRect(0, 0, W, H);
   // wooden dado rail and panelling at the bottom
-  const y0 = 1118;
+  const y0 = H - 162;
   const wd = ctx.createLinearGradient(0, y0, 0, H);
   wd.addColorStop(0, '#4a2e1b'); wd.addColorStop(0.06, '#3a2314'); wd.addColorStop(1, '#22150c');
   ctx.fillStyle = wd; ctx.fillRect(0, y0, W, H - y0);
@@ -157,6 +158,8 @@ function drawWall(ctx) {
 }
 export function drawBackdrop(ctx) {
   setHost(ctx);
+  const wk = `${W}x${H}|${BOARD.cx},${BOARD.cy}`;
+  if (wallKey !== wk) { wallSprite = null; wallKey = wk; }
   if (!wallSprite && canBake()) {
     const cv = newCanvas(W, H), c = cv && cv.getContext('2d');
     if (c) { drawWall(c); wallSprite = cv; }

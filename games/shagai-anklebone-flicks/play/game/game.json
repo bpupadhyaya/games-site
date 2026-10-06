@@ -3,8 +3,8 @@
   "title": "Shagai",
   "tagline": "Toss four ankle bones, hold the best, gallop the felt trail",
   "genre": "dice and flick race",
-  "orientation": "portrait",
-  "version": "1.0.0",
+  "orientation": "any",
+  "version": "1.1.4",
   "monetization": {
     "model": "premium",
     "priceUsd": 2.99,

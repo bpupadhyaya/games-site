@@ -1,8 +1,9 @@
 // Everything drawn each frame. Reads state, changes nothing.
-import { W, H, UI, DISPLAY, themeById, text, rr, panel, button, floor, star, icon, drawParticles, alpha, clamp01, ease, easeInOut } from './art.js';
-import { TEXT_SCALES, wrap, tw } from './ui.js';
+import { UI, DISPLAY, themeById, text, rr, panel, button, floor, star, icon, drawParticles, alpha, clamp01, ease, easeInOut } from './art.js';
+import { TEXT_SCALES, wrap, tw, clampScroll } from './ui.js';
 import { STR as X } from './content.js';
-import { hudOf, playLayout, autoLayout, sandboxLayout, SB_TOOLS } from './layout.js';
+import { hudOf, playLayout, autoLayout, sandboxLayout, SB_TOOLS, screen, minText } from './layout.js';
+import { drawCredit, drawMoreLine } from './brand.js';
 import { THINK_STEPS } from './screens.js';
 import { boardGeo, drawPad, drawRings, drawDots, drawMarks, linePath, powder, patternSeq, drawPattern, toScreen } from './boardview.js';
 import { drawArt } from './arts.js';
@@ -16,6 +17,7 @@ import { bezPoint } from './board.js';
 const theme = (S) => themeById(S.themeId);
 
 export function fitText(str, w, h, start, min = 16, lh = 1.28, wf = 1) {
+  min = Math.max(min, minText()); start = Math.max(start, min);
   let size = start;
   for (; size > min; size -= 2) {
     const lines = wrap(str, size * wf, w);
@@ -23,12 +25,13 @@ export function fitText(str, w, h, start, min = 16, lh = 1.28, wf = 1) {
   }
   return { lines: wrap(str, min * wf, w), size: min, line: min * lh };
 }
-const fitOne = (str, w, start, min = 14) => { let s = start; while (s > min && tw(str, s) > w) s -= 1; return s; };
+const fitOne = (str, w, start, min = 14) => { min = Math.max(min, minText()); start = Math.max(start, min); let s = start; while (s > min && tw(str, s) > w) s -= 1; return s; };
 
 // ----------------------------------------------------------------------------------------- documents
 function drawDocBlocks(ctx, S, ui, scroll) {
   const th = theme(S);
   const { region, layout } = ui;
+  scroll = clampScroll(scroll, layout.height, region.h);
   ctx.save();
   rr(ctx, region.x - 6, region.y - 4, region.w + 12, region.h + 8, 18); ctx.clip();
   const ox = region.x, oy = region.y - scroll + (ui.offY || 0);
@@ -43,7 +46,7 @@ function drawDocBlocks(ctx, S, ui, scroll) {
     } else if (b.t === 'img') drawArt(ctx, S, b.name, ox, top, it.w, b.h, b, th);
     else if (b.t === 'btn') {
       const bt = it.btns[0];
-      button(ctx, th, { x: ox + bt.x, y: oy + bt.y, w: bt.w, h: bt.h }, it.lines, b.kind ?? 'normal', { size: it.size, line: it.line, sub: it.sub, disabled: bt.disabled, pressed: S.press && S.press.id === bt.id && S.press.active });
+      button(ctx, th, { x: ox + bt.x, y: oy + bt.y, w: bt.w, h: bt.h }, it.lines, b.kind ?? 'normal', { size: it.size, line: it.line, sub: it.sub, subSize: it.subSize, disabled: bt.disabled, pressed: S.press && S.press.id === bt.id && S.press.active });
     } else if (b.t === 'row') {
       for (const bt of it.btns) {
         if (bt.id == null) text(ctx, bt.label, ox + bt.x + bt.w / 2, oy + bt.y + bt.h / 2 + it.size * 0.34, it.size, th.ink, { weight: 700 });
@@ -63,6 +66,12 @@ function drawDocBlocks(ctx, S, ui, scroll) {
 function drawFixed(ctx, S, list) {
   const th = theme(S);
   for (const f of list) {
+    if (f.lockup) {   // the themed Arcforge lockup on a soft plate; dims while pressed
+      const k = f.lockup, pr = S.press && S.press.id === f.id && S.press.active;
+      ctx.save(); ctx.fillStyle = 'rgba(8,8,10,0.5)'; rr(ctx, k.x - k.w / 2 - 10, k.y - 4, k.w + 20, k.h + 8, 14); ctx.fill(); ctx.restore();
+      drawCredit(ctx, k.x, k.y + k.h, k.h, pr ? 0.5 : 0.95);
+      continue;
+    }
     if (f.static) { text(ctx, f.label, f.rect.x + f.rect.w / 2, f.rect.y + f.rect.h / 2 + 10, f.size, 'rgba(244,239,228,0.8)', { weight: 700 }); continue; }
     const pressed = S.press && S.press.id === f.id && S.press.active;
     if (f.icon) {
@@ -97,18 +106,23 @@ function drawPatternCell(ctx, S, r, c, pressed) {
 }
 
 // --------------------------------------------------------------------------------------- title
-function drawTitleScene(ctx, S) {
-  const th = theme(S);
-  const g0 = ctx.createLinearGradient(0, 100, 0, 300);
+function drawTitleScene(ctx, S, ui) {
+  const th = theme(S), z = ui.zone;
+  if (!z || z.h < 120) return;
+  const land = Boolean(z.land);                            // the zone sits beside the menu column
+  const ts = Math.max(0.45, Math.min(1.1, land ? Math.min(z.h / 700, z.w / 560) : z.h / 640)), cx = z.x + z.w / 2;
+  const y0 = z.y + (land ? Math.max(0, (z.h - 640 * ts) / 2 - 20 * ts) : 0);
+  const g0 = ctx.createLinearGradient(0, y0 + 100 * ts, 0, y0 + 300 * ts);
   g0.addColorStop(0, '#ffffff'); g0.addColorStop(0.5, th.accent); g0.addColorStop(1, '#a8884a');
   ctx.save();
-  ctx.shadowColor = 'rgba(0,0,0,0.65)'; ctx.shadowBlur = 24; ctx.shadowOffsetY = 8;
-  ctx.font = `800 112px ${DISPLAY}`; ctx.textAlign = 'center'; ctx.fillStyle = g0; ctx.fillText(X.title, 360, 172);
+  ctx.shadowColor = 'rgba(0,0,0,0.65)'; ctx.shadowBlur = 24 * ts; ctx.shadowOffsetY = 8 * ts;
+  ctx.font = `800 ${Math.round(112 * ts)}px ${DISPLAY}`; ctx.textAlign = 'center'; ctx.fillStyle = g0; ctx.fillText(X.title, cx, y0 + 172 * ts);
   ctx.restore();
-  text(ctx, X.tagline, 360, 232, 28, 'rgba(244,239,228,0.82)', { weight: 600 });
+  text(ctx, X.tagline, cx, y0 + 232 * ts, Math.max(minText(), 28 * ts), 'rgba(244,239,228,0.82)', { weight: 600 });
   const A = S.attract;
   if (!A) return;
-  const area = { x: 110, y: 262, w: 500, h: 360 };
+  const area = { x: z.x + 10, y: y0 + 262 * ts, w: z.w - 20, h: Math.min(z.y + z.h - (y0 + 262 * ts) - 8, land ? 640 : 372) };
+  if (area.h < 80) return;
   const g = boardGeo(A.puz.B, area, 10);
   const cyc = 9, tt = S.t % cyc;
   const k = clamp01(tt / 5.2);
@@ -116,27 +130,28 @@ function drawTitleScene(ctx, S) {
   const fin = clamp01((tt - 5.2) / 1.2);
   const lit = new Float32Array(A.puz.B.dots.length).fill(fin * (0.5 + 0.3 * Math.sin(S.t * 2)));
   drawPattern(ctx, th, g, A.seq, easeInOut(k), Math.max(3, g.S * 0.06), 1 + fin * 0.4);
-  const fade = tt > 8 ? 1 - clamp01((tt - 8)) : 1; void fade;
   drawDots(ctx, th, A.puz.B, g, new Float32Array(A.puz.B.dots.length).fill(k), lit);
 }
 
 function drawTitle(ctx, S, ui) {
-  floor(ctx, theme(S), S.t, 560);
-  drawTitleScene(ctx, S);
+  floor(ctx, theme(S), S.t, screen.h * 0.36, screen.w, screen.h);
+  drawTitleScene(ctx, S, ui);
   drawDocBlocks(ctx, S, ui, S.scroll[ui.scrollKey] ?? 0);
+  drawFixed(ctx, S, ui.fixed);
 }
 
 function drawDocScreen(ctx, S, ui) {
   const th = theme(S);
-  floor(ctx, th, S.t);
+  floor(ctx, th, S.t, screen.h * 0.49, screen.w, screen.h);
   if (ui.panel) panel(ctx, th, ui.panel.x, ui.panel.y, ui.panel.w, ui.panel.h, {});
   drawDocBlocks(ctx, S, ui, S.scroll[ui.scrollKey] ?? 0);
   drawFixed(ctx, S, ui.fixed);
-  if (ui.nav) { drawFixed(ctx, S, [ui.nav.prev, ui.nav.next]); text(ctx, ui.nav.label, 360, 1500, 26, 'rgba(244,239,228,0.75)', { weight: 600 }); }
+  if (ui.nav) { drawFixed(ctx, S, [ui.nav.prev, ui.nav.next]); text(ctx, ui.nav.label, ui.nav.counter.x, ui.nav.counter.y + 9, Math.max(22, minText()), 'rgba(244,239,228,0.75)', { weight: 600 }); }
 }
 
 function drawOverlay(ctx, S, ui) {
   const th = theme(S);
+  const W = screen.w, H = screen.h;
   ctx.fillStyle = `rgba(6,6,8,${(S.overlay === 'end' ? 0.3 : 0.62) * clamp01(S.ovT / 0.25)})`; ctx.fillRect(0, 0, W, H);
   const k = ease(clamp01(S.ovT / 0.3));
   ctx.save();
@@ -145,6 +160,7 @@ function drawOverlay(ctx, S, ui) {
   panel(ctx, th, ui.panel.x, ui.panel.y, ui.panel.w, ui.panel.h, {});
   drawDocBlocks(ctx, S, ui, S.scroll[ui.scrollKey] ?? 0);
   drawFixed(ctx, S, ui.fixed);
+  if (S.overlay === 'end' && !(S.endInfo && S.endInfo.lesson)) drawMoreLine(ctx, ui.panel.x + ui.panel.w / 2, ui.panel.y + ui.panel.h - 16, Math.max(17, minText()));
   ctx.restore();
 }
 
@@ -190,7 +206,7 @@ function drawStatus(ctx, S, rect, head, body, o = {}) {
   ctx.fillStyle = 'rgba(0,0,0,0.3)'; rr(ctx, rect.x, rect.y, rect.w, rect.h, 20); ctx.fill();
   ctx.strokeStyle = o.hint ? th.hint : 'rgba(255,255,255,0.12)'; ctx.lineWidth = o.hint ? 2.5 : 1.5; rr(ctx, rect.x, rect.y, rect.w, rect.h, 20); ctx.stroke();
   const z = TEXT_SCALES[S.textIdx];
-  const innerW = rect.w - 40 - (o.rightReserve ?? 0), innerH = rect.h - 24;
+  const innerW = rect.w - 40 - (o.rightReserve ?? 0), innerH = rect.h - 24 - (o.bottomReserve ?? 0);
   const hs = head ? fitText(head, innerW, innerH * (body ? 0.4 : 1), 32 * z, 18, 1.2, 1.12) : null;
   const rest = innerH - (hs ? hs.lines.length * hs.line : 0);
   const bs = body ? fitText(body, innerW, rest, 26 * z, 16, 1.25, 1.04) : null;
@@ -300,13 +316,13 @@ const rev = (c) => [c[6], c[7], c[4], c[5], c[2], c[3], c[0], c[1]];
 
 function drawPlay(ctx, S) {
   const th = theme(S), M = S.match, z = TEXT_SCALES[S.textIdx], lay = playLayout(z);
-  floor(ctx, th, S.t, 760);
+  floor(ctx, th, S.t, screen.h * 0.487, screen.w, screen.h);
   hudBar(ctx, S, M.lesson !== null ? `Lesson ${M.lesson + 1}` : M.daily ? X.dailyHead : `Pattern ${orderOf(M.puz.id)}`, `${M.puz.name} · ${M.puz.dots} dots${M.puz.markCount ? ` · ${M.puz.markCount} marks` : ''}`, false);
   drawFocusBar(ctx, S, M, lay);
   drawBoardPlay(ctx, S, M, lay.area, { ghost: S.kbd });
   let head = '', body = '', o = {};
   if (M.reveal) { head = X.endHead; body = ''; }
-  else if (M.hint) { head = M.hint.head; body = z >= 2 && M.hint.seg && M.hint.seg.length ? '' : M.hint.why; o = { hint: true, rightReserve: M.hint.seg && M.hint.seg.length ? 210 * Math.min(1, z / 1.5) : 0 }; }
+  else if (M.hint) { const has = Boolean(M.hint.seg && M.hint.seg.length); head = M.hint.head; body = z >= 2 && has ? '' : M.hint.why; o = lay.applyBottom ? { hint: true, bottomReserve: has ? lay.applyBtn.h + 8 : 0 } : { hint: true, rightReserve: has ? 210 * Math.min(1, z / 1.5) : 0 }; }
   else if (M.toast) { head = M.toast; o = { headColor: th.hint }; }
   else if (M.lessonTask) head = M.lessonTask;
   else head = M.T.arcs.length ? X.tipTip : X.tipDraw;
@@ -323,7 +339,7 @@ function drawPlay(ctx, S) {
 
 function drawAuto(ctx, S) {
   const th = theme(S), M = S.match, a = S.auto, z = TEXT_SCALES[S.textIdx], lay = autoLayout(z);
-  floor(ctx, th, S.t, 760);
+  floor(ctx, th, S.t, screen.h * 0.487, screen.w, screen.h);
   hudBar(ctx, S, X.autoSession, `${M.puz.name} · ${M.puz.dots} dots`, true);
   const fr = lay.focus;
   ctx.fillStyle = 'rgba(0,0,0,0.28)'; rr(ctx, fr.x, fr.y, fr.w, fr.h, 18); ctx.fill();
@@ -350,12 +366,14 @@ function drawAuto(ctx, S) {
   button(ctx, th, lay.slower, [X.autoSlower], 'normal', { size: 22 * Math.min(z, 1.5) * sm, disabled: S.thinkIdx === 0, pressed: pressed('slower') });
   button(ctx, th, lay.pause, [a.paused ? X.autoPlay : X.autoPause], 'primary', { size: 30 * Math.min(z, 1.6) * sm, pressed: pressed('pause') });
   button(ctx, th, lay.faster, [X.autoFaster], 'normal', { size: 22 * Math.min(z, 1.5) * sm, disabled: S.thinkIdx === THINK_STEPS.length - 1, pressed: pressed('faster') });
-  text(ctx, `${X.thinkTime}: ${THINK_STEPS[S.thinkIdx]}${X.seconds}`, 360, lay.labelY, 20 * Math.min(z, 1.4), 'rgba(244,239,228,0.7)', { weight: 600 });
+  const labW = lay.slower.w + lay.faster.w + 12 - 8, longLab = `${X.thinkTime}: ${THINK_STEPS[S.thinkIdx]}${X.seconds}`;
+  const thinkLabel = tw(longLab, Math.max(14, minText())) <= labW ? longLab : `Think time: ${THINK_STEPS[S.thinkIdx]}${X.seconds}`;
+  text(ctx, thinkLabel, lay.labelX, lay.labelY, fitOne(thinkLabel, labW, 20 * Math.min(z, 1.4), 12), 'rgba(244,239,228,0.7)', { weight: 600 });
 }
 
 function drawSandbox(ctx, S) {
   const th = theme(S), SB = S.sb, z = TEXT_SCALES[S.textIdx], lay = sandboxLayout(z);
-  floor(ctx, th, S.t, 700);
+  floor(ctx, th, S.t, screen.h * 0.45, screen.w, screen.h);
   hudBar(ctx, S, X.sandboxBtn, `${SB.B.dots.length} dots · Mirror ${modeLabel(SB)}`, false);
   const g = boardGeo(SB.B, lay.area, 30);
   drawPad(ctx, th, SB.B, g); drawRings(ctx, th, SB.B, g);
@@ -384,15 +402,15 @@ export function render(ctx, S, ui) {
     case 'title': drawTitle(ctx, S, ui); break;
     case 'chapters': case 'patterns': case 'learn': case 'lesson': case 'howto': case 'rules': case 'about': case 'settings': drawDocScreen(ctx, S, ui); break;
     case 'daily': case 'demo-limit':
-      floor(ctx, theme(S), S.t);
+      floor(ctx, theme(S), S.t, screen.h * 0.49, screen.w, screen.h);
       panel(ctx, theme(S), ui.panel.x, ui.panel.y, ui.panel.w, ui.panel.h, {});
       drawDocBlocks(ctx, S, ui, S.scroll[ui.scrollKey] ?? 0);
       drawFixed(ctx, S, ui.fixed);
       break;
-    case 'play': if (!S.match) floor(ctx, theme(S), S.t); else drawPlay(ctx, S); break;
-    case 'auto': if (!S.match || !S.auto) floor(ctx, theme(S), S.t); else drawAuto(ctx, S); break;
-    case 'sandbox': if (!S.sb) floor(ctx, theme(S), S.t); else drawSandbox(ctx, S); break;
-    default: floor(ctx, theme(S), S.t);
+    case 'play': if (!S.match) floor(ctx, theme(S), S.t, screen.h * 0.49, screen.w, screen.h); else drawPlay(ctx, S); break;
+    case 'auto': if (!S.match || !S.auto) floor(ctx, theme(S), S.t, screen.h * 0.49, screen.w, screen.h); else drawAuto(ctx, S); break;
+    case 'sandbox': if (!S.sb) floor(ctx, theme(S), S.t, screen.h * 0.49, screen.w, screen.h); else drawSandbox(ctx, S); break;
+    default: floor(ctx, theme(S), S.t, screen.h * 0.49, screen.w, screen.h);
   }
   if (S.overlay) drawOverlay(ctx, S, ui);
 }

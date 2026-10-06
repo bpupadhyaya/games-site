@@ -5,10 +5,14 @@
 // Camera frame: yaw is always 0 (looking down the pitch toward -world z); `pitch` tilts it down. Virtual units are the 720x1280 canvas.
 import { PITCH } from './core.js';
 
-export const CAMS = {
+// FLUID LAYOUT: f / cx / cy below are the 720x1280 design values. layout.js rewrites them in place for the live virtual size (a similarity
+// transform of the design picture: focal length scaled, principal point moved), so the 3D layer, the cues and the touch un-projection always agree.
+export const CAMS0 = {
   bat: { x: 0, y: 1.95, z: -4.2, pitch: 0, f: 1050, cx: 360, cy: 455 },
   field: { x: 0, y: 16, z: -58, pitch: 0.5, f: 2275, cx: 360, cy: 1139 },
 };
+export const CAMS = { bat: { ...CAMS0.bat }, field: { ...CAMS0.field } };
+export const VIEW = { w: 720, h: 1280 };   // the live virtual canvas (what the 3D camera is fitted to)
 
 // sim point (x, y, z) -> virtual canvas coords { x, y, k } (k = pixels per metre at that depth), or null when behind the camera
 export function project(cam, x, y, z) {

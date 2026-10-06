@@ -3,8 +3,8 @@
   "title": "Tafl",
   "tagline": "The king's table of the North",
   "genre": "tafl / hnefatafl family",
-  "orientation": "portrait",
-  "version": "1.0.1",
+  "orientation": "any",
+  "version": "1.1.6",
   "monetization": {
     "model": "premium",
     "priceUsd": 2.99,

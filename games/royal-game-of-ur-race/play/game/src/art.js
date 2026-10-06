@@ -115,17 +115,17 @@ function tile(ctx, lane, c, rnd) {
   ctx.restore();
 }
 
-function paintTable(ctx) {
-  // the table: bitumen-dark wood with a faint grain, and pooled lamp light
-  const bg = ctx.createLinearGradient(0, 0, 0, H); bg.addColorStop(0, '#1b130c'); bg.addColorStop(0.5, '#100b07'); bg.addColorStop(1, '#070504');
-  ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
-  const rnd = lcg(4600);
-  for (let n = 0; n < 160; n++) { ctx.strokeStyle = `rgba(${90 + Math.floor(rnd() * 60)},${60 + Math.floor(rnd() * 30)},30,${0.012 + rnd() * 0.026})`; ctx.lineWidth = 1 + rnd() * 2; const x = rnd() * W; ctx.beginPath(); ctx.moveTo(x, 0); ctx.bezierCurveTo(x + 30, H * 0.3, x - 30, H * 0.6, x + rnd() * 20 - 10, H); ctx.stroke(); }
-  const lamp = ctx.createRadialGradient(600, 160, 30, 420, 560, 1100); lamp.addColorStop(0, 'rgba(255,190,100,0.26)'); lamp.addColorStop(0.5, 'rgba(255,170,80,0.08)'); lamp.addColorStop(1, 'rgba(255,170,80,0)');
-  ctx.fillStyle = lamp; ctx.fillRect(0, 0, W, H);
+function paintTable(ctx, w, h, topY, botY) {
+  // the table: bitumen-dark wood with a faint grain, and pooled lamp light. Fills any screen size.
+  const bg = ctx.createLinearGradient(0, 0, 0, h); bg.addColorStop(0, '#1b130c'); bg.addColorStop(0.5, '#100b07'); bg.addColorStop(1, '#070504');
+  ctx.fillStyle = bg; ctx.fillRect(0, 0, w, h);
+  const rnd = lcg(4600), n = Math.round(160 * Math.max(1, w / 720));
+  for (let k = 0; k < n; k++) { ctx.strokeStyle = `rgba(${90 + Math.floor(rnd() * 60)},${60 + Math.floor(rnd() * 30)},30,${0.012 + rnd() * 0.026})`; ctx.lineWidth = 1 + rnd() * 2; const x = rnd() * w; ctx.beginPath(); ctx.moveTo(x, 0); ctx.bezierCurveTo(x + 30, h * 0.3, x - 30, h * 0.6, x + rnd() * 20 - 10, h); ctx.stroke(); }
+  const lr = Math.max(1100, w * 0.7), lamp = ctx.createRadialGradient(w - 120, 160, 30, w * 0.58, h * 0.36, lr); lamp.addColorStop(0, 'rgba(255,190,100,0.26)'); lamp.addColorStop(0.5, 'rgba(255,170,80,0.08)'); lamp.addColorStop(1, 'rgba(255,170,80,0)');
+  ctx.fillStyle = lamp; ctx.fillRect(0, 0, w, h);
   // wedge friezes top and bottom
-  wedgeBand(ctx, 10, 104, W - 10, 22, 11, 'rgba(226,178,74,0.30)');
-  wedgeBand(ctx, 10, 1548, W - 10, 18, 29, 'rgba(226,178,74,0.22)');
+  wedgeBand(ctx, 10, topY, w - 10, 22, 11, 'rgba(226,178,74,0.30)');
+  wedgeBand(ctx, 10, botY, w - 10, 18, 29, 'rgba(226,178,74,0.22)');
 }
 function paintBoard(ctx) {
 
@@ -159,15 +159,23 @@ function paintBoard(ctx) {
 }
 
 const layers = {};
-function cached(key, paint) {
+// One cached layer per key (an OffscreenCanvas painted once); where that is not available the paint runs every frame.
+function layer(key, w, h, scale, paint) {
   if (!(key in layers)) {
     layers[key] = null;
-    try { if (typeof OffscreenCanvas !== 'undefined') { const c = new OffscreenCanvas(W * 2, H * 2), lc = c.getContext('2d'); lc.scale(2, 2); paint(lc); layers[key] = c; } } catch { layers[key] = null; }
+    try { if (typeof OffscreenCanvas !== 'undefined') { const c = new OffscreenCanvas(Math.round(w * scale), Math.round(h * scale)), lc = c.getContext('2d'); lc.scale(scale, scale); paint(lc); layers[key] = c; } } catch { layers[key] = null; }
   }
-  if (layers[key]) return (ctx) => ctx.drawImage(layers[key], 0, 0, W, H);
-  return paint;
+  return layers[key];
 }
-export function drawTableAndBoard(ctx, withBoard = true) {
-  cached('table', paintTable)(ctx);
-  if (withBoard) cached('board', paintBoard)(ctx);
+// The table fills the whole screen (w x h units); cached per screen size.
+export function drawTable(ctx, w, h, topY = 12, botY = h - 10) {
+  const key = `table:${Math.round(w)}x${Math.round(h)}`;
+  for (const k of Object.keys(layers)) if (k.startsWith('table:') && k !== key) delete layers[k];
+  const c = layer(key, w, h, 1.5, (lc) => paintTable(lc, w, h, topY, botY));
+  if (c) ctx.drawImage(c, 0, 0, w, h); else paintTable(ctx, w, h, topY, botY);
+}
+// The inlaid board, in BOARD space (x 0..720, y 298..1322 is the part that matters). The caller sets the transform.
+export function drawBoardLayer(ctx) {
+  const c = layer('board', W, H, 2, paintBoard);
+  if (c) ctx.drawImage(c, 0, 290 * 2, W * 2, 1040 * 2, 0, 290, W, 1040); else paintBoard(ctx);
 }

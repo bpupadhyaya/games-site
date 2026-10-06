@@ -34,27 +34,34 @@ export function tw(str, size) {
 const TOKEN = /[⺀-鿿＀-￯　-〿]|[^\s⺀-鿿＀-￯　-〿]+|\s+/g;
 
 // Wraps into lines no wider than maxW (a single over-long word is allowed to overflow, then broken).
+// tw() is an estimate (no canvas here) and runs a few percent short for long hyphenated words at 300% text, so wrapping keeps a safety margin.
+export const WRAP_SAFETY = 1.2;
+const tws = (str, size) => tw(str, size) * WRAP_SAFETY;
 export function wrap(text, size, maxW) {
   const lines = [];
   for (const para of String(text).split('\n')) {
     const tokens = para.match(TOKEN) ?? [''];
     let line = '';
+    // place a token on an empty line; one wider than the line is split by characters (only the last piece stays open)
+    const startWith = (tok) => {
+      if (tws(tok, size) > maxW) {
+        let part = '';
+        for (const ch of tok) {
+          if (tws(part + ch, size) > maxW && part) { lines.push(part); part = ch; } else part += ch;
+        }
+        line = part;
+      } else line = tok;
+    };
     for (const tok of tokens) {
       const isSpace = /^\s+$/.test(tok);
       if (isSpace && !line) continue;
+      if (!line) { startWith(tok); continue; }
       const trial = line + tok;
-      if (tw(trial.trimEnd(), size) <= maxW || !line) {
-        // a lone token wider than the line: split by characters
-        if (!line && !isSpace && tw(tok, size) > maxW) {
-          let part = '';
-          for (const ch of tok) {
-            if (tw(part + ch, size) > maxW && part) { lines.push(part); part = ch; } else part += ch;
-          }
-          line = part;
-        } else line = trial;
-      } else {
+      if (tws(trial.trimEnd(), size) <= maxW) line = trial;
+      else {
         lines.push(line.trimEnd());
-        line = isSpace ? '' : tok;
+        line = '';
+        if (!isSpace) startWith(tok);
       }
     }
     lines.push(line.trimEnd());

@@ -1,8 +1,8 @@
 // The play screen: the world (mat, pebbles, palm marker, routes), the HUD, the toss pad and the overlays.
 // Pure drawing; game.js owns state.
-import { W, H, HOME, R, FIELD, STAGES, SET_MIN_HOME, KK, CHARGE_SECS, H_MIN, FLICK_T, WIN_EARLY, WIN_LATE, airtime, winScale, clamp, handAt, kkPos, clusterAt } from './sim.js';
+import { HOME, R, FIELD, STAGES, SET_MIN_HOME, KK, CHARGE_SECS, H_MIN, FLICK_T, WIN_EARLY, WIN_LATE, airtime, winScale, clamp, handAt, kkPos, clusterAt } from './sim.js';
 import { drawFloor, drawMat, drawHomeMark, drawStone, drawShadow, drawHand, drawTrail, drawRoute, drawBadge, drawRing, drawParticles } from './art.js';
-import { playLayout, TEXT_SCALES, toScreen } from './layout.js';
+import { playLayout, TEXT_SCALES, toScreen, screen, safeArea, backClear, isWide } from './layout.js';
 import { FONT, DISPLAY, C, roundPath, drawButton, panel, wrapLines, fitPx } from './ui.js';
 import { tx, stageName } from './content.js';
 import { THINK_STEPS } from './layout.js';
@@ -258,8 +258,13 @@ function drawKk(ctx, state, rd, hp) {
 }
 
 // ---- the attract mat behind the title ---------------------------------------------------------------------
-export function drawAttract(ctx, state, ox = 30, oy = 70, s = 1) {
-  drawFloor(ctx, W, H);
+export function drawAttract(ctx, state, spot = null) {
+  drawFloor(ctx, screen.w, screen.h);
+  // the demo mat: portrait = centred a little above the middle; landscape = fitted to the height, centred (or in the left half for the title)
+  const U = safeArea();
+  let s = 1, ox, oy;
+  if (isWide()) { s = Math.min(1, (U.h - 30) / 800); const cx = spot === 'left' ? U.x0 + U.w / 4 : U.x0 + U.w / 2; ox = cx - 330 * s; oy = U.y0 + (U.h - 800 * s) / 2; }
+  else { s = Math.min(1, (U.w - 20) / 660); ox = U.x0 + (U.w - 660 * s) / 2; oy = U.y0 + Math.max(10, (U.h - 800 * s) * 0.15); }
   const a = state.att;
   ctx.save(); ctx.translate(ox, oy); ctx.scale(s, s);
   drawMat(ctx, state.t);
@@ -282,7 +287,6 @@ export function drawAttract(ctx, state, ox = 30, oy = 70, s = 1) {
   }
   ctx.restore();
 }
-export function renderAttract(ctx, state) { drawAttract(ctx, state); }
 
 // ---- the HUD -------------------------------------------------------------------------------------------------
 function coachText(state, hp, rd, T) {
@@ -331,6 +335,7 @@ function drawHud(ctx, state, hp, L) {
   const rd = state.rd, m = state.match, lang = state.settings.lang;
   const T = (k, v, soft) => tx(lang, k, v, soft);
   const mm = L.m;
+  const narrowCard = L.cards[0].w < 300;
   // player cards
   for (let i = 0; i < 2; i++) {
     const c = L.cards[i];
@@ -338,35 +343,42 @@ function drawHud(ctx, state, hp, L) {
     if (learn && i === 1) continue;
     const active = rd.who === i;
     panel(ctx, c.x, c.y, c.w, c.h, { r: 20, fill: 'rgba(30,22,60,0.86)', stroke: active ? '#ffd45e' : 'rgba(255,246,228,0.28)' });
-    if (active) { ctx.fillStyle = '#ffd45e'; ctx.beginPath(); ctx.arc(c.x + 20, c.y + c.h / 2, 7 * Math.min(mm, 1.4), 0, TAU); ctx.fill(); }
-    const nameFs = fitPx(ctx, hp.nameOf(i), 700, 24 * mm, c.w * 0.5 - 34);
+    if (active) { ctx.fillStyle = '#ffd45e'; ctx.beginPath(); ctx.arc(c.x + 20, c.y + (narrowCard ? c.h * 0.3 : c.h / 2), 7 * Math.min(mm, 1.4), 0, TAU); ctx.fill(); }
+    const nameFs = fitPx(ctx, hp.nameOf(i), 700, 24 * mm, narrowCard ? c.w - 62 : c.w * 0.5 - 34, 18);
     ctx.fillStyle = '#fff6e4'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.font = `700 ${nameFs}px ${FONT}`;
-    ctx.fillText(hp.nameOf(i), c.x + 40, c.y + c.h * 0.36);
+    ctx.fillText(hp.nameOf(i), c.x + 40, c.y + c.h * (narrowCard ? 0.3 : 0.36));
     if (m.cfg.mode !== 'learn') {
-      ctx.fillStyle = 'rgba(255,246,228,0.72)'; ctx.font = `400 ${Math.round(17 * mm)}px ${FONT}`;
-      ctx.fillText(T('stageShort', { n: Math.min(m.stage[i], 5) }), c.x + 40, c.y + c.h * 0.74);
       const sc = `${m.scores[i]}`, tg = `/${m.cfg.target}`;
-      ctx.textAlign = 'right'; ctx.font = `700 ${Math.round(46 * mm)}px ${DISPLAY}`; ctx.fillStyle = '#ffe28a';
-      const tgW = (ctx.font = `400 ${Math.round(22 * mm)}px ${FONT}`, ctx.measureText(tg).width);
-      ctx.fillText(tg, c.x + c.w - 16, c.y + c.h * 0.62);
-      ctx.font = `700 ${Math.round(46 * mm)}px ${DISPLAY}`; ctx.fillText(sc, c.x + c.w - 20 - tgW, c.y + c.h * 0.55);
+      ctx.fillStyle = 'rgba(255,246,228,0.72)'; ctx.font = `400 ${Math.round(18 * mm)}px ${FONT}`; ctx.textAlign = 'left';
+      ctx.fillText(T('stageShort', { n: Math.min(m.stage[i], 5) }), c.x + (narrowCard ? 20 : 40), c.y + c.h * (narrowCard ? 0.76 : 0.74));
+      ctx.textAlign = 'right'; ctx.fillStyle = '#ffe28a';
+      const big = Math.round((narrowCard ? 38 : 46) * mm), small = Math.round((narrowCard ? 20 : 22) * mm);
+      const tgW = (ctx.font = `400 ${small}px ${FONT}`, ctx.measureText(tg).width);
+      ctx.fillText(tg, c.x + c.w - 16, c.y + c.h * (narrowCard ? 0.74 : 0.62));
+      ctx.font = `700 ${big}px ${DISPLAY}`; ctx.fillText(sc, c.x + c.w - 20 - tgW, c.y + c.h * (narrowCard ? 0.7 : 0.55));
     } else {
       ctx.textAlign = 'right'; ctx.fillStyle = '#ffe28a'; ctx.font = `700 ${Math.round(24 * mm)}px ${FONT}`;
-      ctx.fillText(T('lessonLabel', { n: m.cfg.lesson + 1 }), c.x + c.w - 16, c.y + c.h / 2);
+      ctx.fillText(T('lessonLabel', { n: m.cfg.lesson + 1 }), c.x + c.w - 16, c.y + (narrowCard ? c.h * 0.74 : c.h / 2));
     }
   }
-  if (m.cfg.mode === 'learn') { /* the second card slot carries the stage */ const c = L.cards[1]; panel(ctx, c.x, c.y, c.w, c.h, { r: 20, fill: 'rgba(30,22,60,0.86)', stroke: 'rgba(255,246,228,0.28)' }); ctx.fillStyle = '#fff6e4'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; const s = stageName(lang, rd.stage); ctx.font = `700 ${fitPx(ctx, s, 700, 24 * mm, c.w - 28)}px ${FONT}`; ctx.fillText(s, c.x + c.w / 2, c.y + c.h / 2); }
-  // stage strip
+  if (m.cfg.mode === 'learn') { /* the second card slot carries the stage */ const c = L.cards[1]; panel(ctx, c.x, c.y, c.w, c.h, { r: 20, fill: 'rgba(30,22,60,0.86)', stroke: 'rgba(255,246,228,0.28)' }); ctx.fillStyle = '#fff6e4'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; const s = stageName(lang, rd.stage); ctx.font = `700 ${fitPx(ctx, s, 700, 24 * mm, c.w - 28, 16)}px ${FONT}`; ctx.fillText(s, c.x + c.w / 2, c.y + c.h / 2); }
+  // stage strip (narrow: the label on one line, the round pips on a second)
   const st = L.strip;
   panel(ctx, st.x, st.y, st.w, st.h, { r: 16, fill: 'rgba(30,22,60,0.78)', stroke: 'rgba(255,246,228,0.22)', shadow: false });
   const label = `${T('stageShort', { n: rd.stage })} · ${stageName(lang, rd.stage)}`;
   ctx.fillStyle = '#fff6e4'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-  const rounds = STAGES[rd.stage - 1].rounds;
-  const pipsW = rounds.length * 22 * Math.min(mm, 1.4) + 10;
-  const fs = fitPx(ctx, label, 700, 22 * mm, st.w - pipsW - 36);
-  ctx.font = `700 ${fs}px ${FONT}`; ctx.fillText(label, st.x + 16, st.y + st.h / 2 + 1);
+  const rounds = STAGES[rd.stage - 1].rounds, pipD = 22 * Math.min(mm, 1.4), stack = L.mode === 'wide';
+  const pipsW = rounds.length * pipD + 10;
+  if (stack) {      // narrow column: the label may take two lines, the round pips go underneath
+    let fs2 = Math.round(22 * mm), ll;
+    for (;;) { ctx.font = `700 ${fs2}px ${FONT}`; ll = wrapLines(ctx, label, st.w - 28); if (ll.length <= 2 || fs2 <= 16) break; fs2 -= 1; }
+    ll.slice(0, 3).forEach((l, k) => ctx.fillText(l, st.x + 16, st.y + 10 + fs2 * (0.62 + k * 1.15)));
+  } else {
+    const fs = fitPx(ctx, label, 700, 22 * mm, st.w - pipsW - 36, 16);
+    ctx.font = `700 ${fs}px ${FONT}`; ctx.fillText(label, st.x + 16, st.y + st.h / 2 + 1);
+  }
   rounds.forEach((_, i) => {
-    const px = st.x + st.w - 18 - (rounds.length - 1 - i) * 22 * Math.min(mm, 1.4), py = st.y + st.h / 2, done = i < rd.ri || (i === rd.ri && rd.res && rd.res.ok && rd.phase === 'resolve');
+    const px = stack ? st.x + 22 + i * pipD : st.x + st.w - 18 - (rounds.length - 1 - i) * pipD, py = stack ? st.y + st.h - 16 : st.y + st.h / 2, done = i < rd.ri || (i === rd.ri && rd.res && rd.res.ok && rd.phase === 'resolve');
     ctx.beginPath(); ctx.arc(px, py, 7 * Math.min(mm, 1.4), 0, TAU); ctx.fillStyle = done ? '#ffd45e' : i === rd.ri ? 'rgba(255,246,228,0.9)' : 'rgba(255,246,228,0.25)'; ctx.fill();
   });
   // coach line
@@ -374,7 +386,7 @@ function drawHud(ctx, state, hp, L) {
   panel(ctx, cr.x, cr.y, cr.w, cr.h, { r: 16, fill: 'rgba(255,246,228,0.95)', stroke: 'rgba(28,37,82,0.45)', shadow: false });
   ctx.fillStyle = C.ink; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   let size = Math.round(22 * Math.min(mm, 1.6)), lines;
-  for (;;) { ctx.font = `600 ${size}px ${FONT}`; lines = wrapLines(ctx, text, cr.w - 28); if ((lines.length * size * 1.18 <= cr.h - 8) || size <= 13) break; size -= 1; }
+  for (;;) { ctx.font = `600 ${size}px ${FONT}`; lines = wrapLines(ctx, text, cr.w - 28); if ((lines.length * size * 1.18 <= cr.h - 8) || size <= 15) break; size -= 1; }
   lines.forEach((l, i) => ctx.fillText(l, cr.x + cr.w / 2, cr.y + cr.h / 2 + (i - (lines.length - 1) / 2) * size * 1.18));
 }
 
@@ -398,8 +410,9 @@ function drawGauge(ctx, pad, rd, hp, mm, T) {
 
 function drawPad(ctx, state, hp, L) {
   const rd = state.rd, lang = state.settings.lang, T = (k, v) => tx(lang, k, v);
-  const pad = L.pad, mm = L.m, phase = rd.phase, ai = hp.actorIsAI();
+  const mm = L.m, phase = rd.phase, ai = hp.actorIsAI();
   const watch = hp.isWatch();
+  const pad = watch ? L.watchPad : L.pad;
   let label = '', sub = '', active = false, dim = false;
   const rdef = ['plan', 'charge'].includes(phase) ? hp.roundDef() : null;
   if (watch && rd.beat) {
@@ -407,13 +420,21 @@ function drawPad(ctx, state, hp, L) {
     // THINK / REVEAL / ACT progress
     panel(ctx, pad.x, pad.y, pad.w, pad.h, { r: 22, fill: 'rgba(30,22,60,0.9)', stroke: 'rgba(255,246,228,0.3)' });
     const names = [T('beatThink'), T('beatReveal'), T('beatAct')], idx = b.phase === 'think' ? 0 : b.phase === 'reveal' ? 1 : 2;
-    const w3 = (pad.w - 40) / 3;
+    const stacked = pad.w < 320 && pad.h > pad.w * 0.6;   // narrow column (landscape): three rows instead of three columns
+    const w3 = (pad.w - 40) / 3, h3 = (pad.h - 28 - 16) / 3;
     names.forEach((n, i) => {
-      const x = pad.x + 20 + i * w3;
-      roundPath(ctx, x + 4, pad.y + 14, w3 - 8, pad.h - 28, 16); ctx.fillStyle = i === idx ? (i === 0 ? '#ffd45e' : i === 1 ? '#7fe8d6' : '#ff9a86') : 'rgba(255,246,228,0.12)'; ctx.fill();
-      ctx.fillStyle = i === idx ? '#1c2552' : 'rgba(255,246,228,0.7)'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = `700 ${fitPx(ctx, n, 700, 24 * Math.min(mm, 1.5), w3 - 24)}px ${FONT}`;
-      ctx.fillText(n, x + w3 / 2, pad.y + pad.h / 2 - (i === idx && idx < 2 ? 8 : 0));
-      if (i === idx && idx < 2) { const left = Math.max(0, Math.ceil(b.dur - b.t)); ctx.font = `600 ${Math.round(18 * Math.min(mm, 1.5))}px ${FONT}`; ctx.fillText(`${left} s`, x + w3 / 2, pad.y + pad.h / 2 + 20 * Math.min(mm, 1.5)); }
+      const rx = stacked ? pad.x + 14 : pad.x + 20 + i * w3 + 4, ry = stacked ? pad.y + 14 + i * (h3 + 8) : pad.y + 14, rw = stacked ? pad.w - 28 : w3 - 8, rh = stacked ? h3 : pad.h - 28;
+      roundPath(ctx, rx, ry, rw, rh, 16); ctx.fillStyle = i === idx ? (i === 0 ? '#ffd45e' : i === 1 ? '#7fe8d6' : '#ff9a86') : 'rgba(255,246,228,0.12)'; ctx.fill();
+      ctx.fillStyle = i === idx ? '#1c2552' : 'rgba(255,246,228,0.7)'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      const left = Math.max(0, Math.ceil(b.dur - b.t)), withSec = i === idx && idx < 2;
+      if (stacked) {
+        const txt = withSec ? `${n} · ${left} s` : n;
+        ctx.font = `700 ${fitPx(ctx, txt, 700, 24 * Math.min(mm, 1.5), rw - 20, 16)}px ${FONT}`; ctx.fillText(txt, rx + rw / 2, ry + rh / 2);
+      } else {
+        ctx.font = `700 ${fitPx(ctx, n, 700, 24 * Math.min(mm, 1.5), rw - 16, 16)}px ${FONT}`;
+        ctx.fillText(n, rx + rw / 2, pad.y + pad.h / 2 - (withSec ? 8 : 0));
+        if (withSec) { ctx.font = `600 ${Math.round(18 * Math.min(mm, 1.5))}px ${FONT}`; ctx.fillText(`${left} s`, rx + rw / 2, pad.y + pad.h / 2 + 20 * Math.min(mm, 1.5)); }
+      }
     });
     return;
   }
@@ -434,16 +455,19 @@ function drawPad(ctx, state, hp, L) {
   panel(ctx, pad.x, pad.y, pad.w, pad.h, { r: 22, fill: active ? 'rgba(226,80,60,0.95)' : dim ? 'rgba(30,22,60,0.82)' : 'rgba(30,22,60,0.9)', stroke: active ? 'rgba(255,230,190,0.9)' : 'rgba(255,246,228,0.3)' });
   ctx.fillStyle = active ? '#fffaf0' : 'rgba(255,246,228,0.85)'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   const hasGauge = ['plan', 'charge', 'kcharge', 'kcharging', 'exec', 'resolve'].includes(phase) && !ai;
-  const fs = fitPx(ctx, label, 700, 32 * Math.min(mm, 1.5), pad.w - 40);
-  ctx.font = `700 ${fs}px ${FONT}`;
-  ctx.fillText(label, pad.x + pad.w / 2, pad.y + (hasGauge ? pad.h * 0.34 : pad.h / 2));
+  const ih = Math.min(pad.h, Math.round(180 * Math.min(mm, 1.5))), inner = { x: pad.x, w: pad.w, y: pad.y + (pad.h - ih) / 2, h: ih };   // tall pads (landscape): the content stays together in the middle
+  // the label wraps (never overflows the pad): one line where it fits (portrait), up to 2 lines with the gauge / 4 without in a narrow column
+  let fs = Math.round(32 * Math.min(mm, 1.5)), lines;
+  for (;;) { ctx.font = `700 ${fs}px ${FONT}`; lines = wrapLines(ctx, label, pad.w - 40); if (lines.length <= (hasGauge ? 2 : 4) || fs <= 18) break; fs -= 1; }
+  const ly = inner.y + (hasGauge ? inner.h * 0.34 : inner.h / 2) - (hasGauge ? 0 : 0);
+  lines.forEach((l, k) => ctx.fillText(l, inner.x + inner.w / 2, ly + (k - (lines.length - 1) / 2) * fs * 1.15));
   if (hasGauge) {
-    drawGauge(ctx, pad, rd, hp, mm, T);
+    drawGauge(ctx, inner, rd, hp, mm, T);
     // caption: air time and route time
     let cap = '';
     if ((phase === 'plan' || phase === 'charge') && rd.pv) cap = T('pad_cap', { route: rd.pv.need.toFixed(2), air: airtime(phase === 'charge' ? clamp(H_MIN + (1 - H_MIN) * rd.charge / CHARGE_SECS, H_MIN, 1) : 0.6).toFixed(2) });
     if (cap && phase === 'plan') cap = T('pad_cap0', { route: rd.pv.need.toFixed(2) });
-    if (cap) { ctx.font = `500 ${Math.round(17 * Math.min(mm, 1.4))}px ${FONT}`; ctx.fillStyle = 'rgba(255,246,228,0.8)'; ctx.fillText(cap, pad.x + pad.w / 2, pad.y + pad.h * 0.58 - 4); }
+    if (cap) { ctx.font = `500 ${fitPx(ctx, cap, 500, 17 * Math.min(mm, 1.4), pad.w - 28, 15)}px ${FONT}`; ctx.fillStyle = 'rgba(255,246,228,0.8)'; ctx.fillText(cap, inner.x + inner.w / 2, inner.y + inner.h * 0.58 - 4); }
   }
 }
 
@@ -469,16 +493,16 @@ function drawBar(ctx, state, hp, L) {
 function drawHintCard(ctx, state, L, text, title, kindWatch) {
   const lang = state.settings.lang;
   const zoom = Math.min(L.m, 1.8);
-  const x = 22, w = W - 44;
+  const x = L.hint.x, w = L.hint.w;
   let size = Math.round(24 * zoom), lines, h;
-  const maxH = Math.max(160, (L.barTop - 8) - (L.hudBottom + 8) - 20);
+  const maxH = L.hint.maxH;
   for (;;) {
     ctx.font = `500 ${size}px ${FONT}`; lines = wrapLines(ctx, text, w - 44);
     h = lines.length * size * 1.3 + size * 1.7 + 34;
-    if (h <= maxH || size <= 14) break;
+    if (h <= maxH || size <= 16) break;
     size -= 1;
   }
-  const bottom = L.barTop - 14;
+  const bottom = L.hint.bottom;
   const y = bottom - h;
   panel(ctx, x, y, w, h, { r: 22, fill: 'rgba(255,246,228,0.97)', stroke: kindWatch ? '#1f9d8f' : '#d9a441' });
   ctx.fillStyle = C.vermDark; ctx.font = `700 ${Math.round(size * 0.92)}px ${FONT}`; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
@@ -494,25 +518,26 @@ function drawBanner(ctx, state, rd, L) {
   const k = clamp(rd.bannerT / 0.3, 0, 1), a = Math.min(1, k);
   const zoom = Math.min(L.m, 1.8);
   let size = Math.round(40 * zoom), lines;
-  for (;;) { ctx.font = `700 ${size}px ${FONT}`; lines = wrapLines(ctx, b.text, 560); if (lines.length * size * 1.2 <= 260 || size <= 18) break; size -= 1; }
-  const h = lines.length * size * 1.2 + 50, y = L.hudBottom + 40 + (L.barTop - L.hudBottom - 80) * 0.3 - h / 2;
+  const bw = L.banner.w, bx = L.banner.x, cx = bx + bw / 2;
+  for (;;) { ctx.font = `700 ${size}px ${FONT}`; lines = wrapLines(ctx, b.text, bw - 40); if (lines.length * size * 1.2 <= 260 || size <= 18) break; size -= 1; }
+  const h = lines.length * size * 1.2 + 50, y = L.banner.cy - h / 2;
   ctx.save(); ctx.globalAlpha = a;
-  roundPath(ctx, 60, y, W - 120, h, 28);
+  roundPath(ctx, bx, y, bw, h, 28);
   ctx.fillStyle = b.kind === 'end' ? 'rgba(60,24,40,0.94)' : b.kind === 'clear' ? 'rgba(20,70,66,0.94)' : 'rgba(30,22,60,0.94)'; ctx.fill();
   ctx.lineWidth = 3; ctx.strokeStyle = b.kind === 'clear' ? '#7fe8d6' : b.kind === 'end' ? '#ff9a86' : '#ffd45e'; ctx.stroke();
   ctx.fillStyle = '#fff6e4'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  lines.forEach((l, i) => ctx.fillText(l, W / 2, y + 25 + size * 0.6 + i * size * 1.2));
+  lines.forEach((l, i) => ctx.fillText(l, cx, y + 25 + size * 0.6 + i * size * 1.2));
   ctx.restore();
 }
 
 export function renderPlay(ctx, state, hp) {
   const rd = state.rd, L = playLayout(state.settings.textIdx);
-  drawFloor(ctx, W, H);
+  drawFloor(ctx, screen.w, screen.h);
   ctx.save();
   ctx.translate(L.view.ox, L.view.oy); ctx.scale(L.view.s, L.view.s);
   drawWorld(ctx, state, rd, hp);
   ctx.restore();
-  if (rd.flash > 0 && !state.settings.calm) { ctx.fillStyle = `rgba(255,90,70,${0.18 * rd.flash})`; ctx.fillRect(0, 0, W, H); }
+  if (rd.flash > 0 && !state.settings.calm) { ctx.fillStyle = `rgba(255,90,70,${0.18 * rd.flash})`; ctx.fillRect(0, 0, screen.w, screen.h); }
   drawHud(ctx, state, hp, L);
   drawBar(ctx, state, hp, L);
   const lang = state.settings.lang;

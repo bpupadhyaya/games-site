@@ -2,6 +2,7 @@
 // scenic vignette behind every stop) and blitted per frame. See ui.js `road`.
 import { sprite, stats, mix } from './paint/kit.js';
 import { skylineP, ridgeP, treeP, hallP, softBlob, parseCol } from './scenery.js';
+import { FR } from './frame.js';
 
 const W = 720, TAU = Math.PI * 2;
 const hash = (n) => { const s = Math.sin(n * 127.1 + 311.7) * 43758.5453; return s - Math.floor(s); };
@@ -55,5 +56,11 @@ export function roadBackdrop(ctx, { n, RH, nodeY, region, scroll }) {
       softBlob(g, W / 2, y, 380, 100, '10,4,10', 0.28);
     }
   });
-  if (sp.c) { stats.blits++; ctx.drawImage(sp.c, 0, -scroll, W, RH); }
+  if (sp.c) {
+    stats.blits++;
+    for (let k = Math.floor(FR.x0 / W); k * W < FR.x1; k++) {   // sides: the same painted map, mirrored (seamless)
+      if (k === 0) ctx.drawImage(sp.c, 0, -scroll, W, RH);
+      else { ctx.save(); ctx.translate(k * W + (k % 2 ? W : 0), 0); ctx.scale(k % 2 ? -1 : 1, 1); ctx.drawImage(sp.c, 0, -scroll, W, RH); ctx.restore(); }
+    }
+  }
 }

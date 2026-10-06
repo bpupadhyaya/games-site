@@ -1,9 +1,13 @@
 // Chapter 3: guarding the hermitage. Raiders come along the ground from both sides and swoop from
 // the upper corners; tap one to loose an arrow. The quiver is small, so choose who to stop first.
 // Deer and birds must never be targeted.
-import { W, H, TAU, PAL, INK, GOLD, clamp, lerp, smooth, hash, sky, light, ridge, treeline, stars, motes, finish, shadow, shakeOffset, rays, banyan } from '../stage.js';
+import { FR, W, H, TAU, PAL, INK, GOLD, clamp, lerp, smooth, hash, sky, light, ridge, treeline, stars, motes, finish, shadow, shakeOffset, rays, banyan } from '../stage.js';
 import { figure, poses, stridePose, deer, bird } from '../puppets.js';
 import { label, caption, pips, meter } from '../ui.js';
+
+// Landscape: the window shows y 600..1450; flyers and birds are kept inside it (see skyY).
+export const LAND_Y1 = 1450;
+const skyY = (v, lo, hi) => (FR.y0 > 200 ? FR.y0 + 90 + ((v - lo) / (hi - lo)) * 330 : v);   // remaps a design sky height into the visible window
 
 const LENGTH = 75, GROUND = 1262, HUT_X = 410, AX = 292, AY = 1196;
 const TYPES = { runner: { hp: 1, speed: 92, s: 1.0 }, brute: { hp: 2, speed: 46, s: 1.5 }, flyer: { hp: 1, dur: 7.5, s: 1.0 } };
@@ -20,8 +24,8 @@ export function create(env, shared) {
   function spawn(forceKind) {
     const roll = rng.next(), side = rng.chance(0.5) ? -1 : 1;
     const kind = forceKind ?? (roll < 0.3 ? 'flyer' : roll < 0.55 && s.time > 12 ? 'brute' : 'runner');
-    const r = { id: s.nextId++, kind, side, hp: TYPES[kind].hp, u: 0, x: side < 0 ? -70 : W + 70, y: GROUND, flash: 0, ph: rng.range(0, 6) };
-    if (kind === 'flyer') { r.sx = side < 0 ? -80 : W + 80; r.sy = rng.range(230, 620); r.x = r.sx; r.y = r.sy; }
+    const r = { id: s.nextId++, kind, side, hp: TYPES[kind].hp, u: 0, x: side < 0 ? FR.x0 - 70 : FR.x1 + 70, y: GROUND, flash: 0, ph: rng.range(0, 6) };
+    if (kind === 'flyer') { r.sx = side < 0 ? FR.x0 - 80 : FR.x1 + 80; r.sy = skyY(rng.range(230, 620), 230, 620); r.x = r.sx; r.y = r.sy; }
     s.raiders.push(r);
   }
   if (shared.showcase) { spawn('runner'); spawn('brute'); spawn('flyer'); spawn('flyer'); s.raiders.forEach((r, i) => { r.u = 0.3 + i * 0.1; if (r.kind !== 'flyer') r.x += -r.side * (140 + i * 70); }); }
@@ -44,11 +48,11 @@ export function create(env, shared) {
     s.critterIn -= dt;
     if (s.critterIn <= 0) {
       const d = rng.chance(0.5) ? 1 : -1, isDeer = rng.chance(0.55);
-      s.critters.push({ kind: isDeer ? 'deer' : 'bird', dir: d, x: d > 0 ? -90 : W + 90, y: isDeer ? GROUND - 8 : rng.range(330, 820), v: isDeer ? 70 : 150 });
+      s.critters.push({ kind: isDeer ? 'deer' : 'bird', dir: d, x: d > 0 ? FR.x0 - 90 : FR.x1 + 90, y: isDeer ? GROUND - 8 : skyY(rng.range(330, 820), 330, 820), v: isDeer ? 70 : 150 });
       s.critterIn = rng.range(7, 12);
     }
     for (const c of s.critters) c.x += c.dir * c.v * dt;
-    s.critters = s.critters.filter((c) => c.x > -140 && c.x < W + 140);
+    s.critters = s.critters.filter((c) => c.x > FR.x0 - 140 && c.x < FR.x1 + 140);
     // raiders advance
     for (const r of s.raiders) {
       r.flash = Math.max(0, r.flash - dt);
@@ -117,11 +121,11 @@ export function create(env, shared) {
     light(ctx, HUT_X, 1120, 560, '255,200,120', 0.5);
     treeline(ctx, { base: 1150, scroll: 80 + sway * 0.6, color: PAL.forest.mid, seed: 6, h: 760, gap: 230, cut: 'rgba(238,230,150,0.3)' });
     rays(ctx, { x: 520, y: 300, dir: Math.PI / 2 + 0.25, n: 7, len: 1300, spread: 1.0, rgb: '238,236,170', alpha: 0.14, t, rm });
-    banyan(ctx, { x: -30, base: 1300, h: 1000, side: 1, t, rm, seed: 1 }); banyan(ctx, { x: W + 30, base: 1300, h: 900, side: -1, t, rm, seed: 5 });
+    banyan(ctx, { x: FR.x0 - 30, base: 1300, h: 1000, side: 1, t, rm, seed: 1 }); banyan(ctx, { x: FR.x1 + 30, base: 1300, h: 900, side: -1, t, rm, seed: 5 });
     // ground with the rise the hermitage stands on
-    ctx.fillStyle = PAL.forest.near; ctx.beginPath(); ctx.moveTo(0, H); ctx.lineTo(0, GROUND - 10);
-    ctx.quadraticCurveTo(140, GROUND - 6, 210, GROUND - 56); ctx.quadraticCurveTo(360, GROUND - 96, 560, GROUND - 50); ctx.quadraticCurveTo(620, GROUND - 8, W, GROUND - 12); ctx.lineTo(W, H); ctx.fill();
-    ctx.strokeStyle = 'rgba(238,230,150,0.25)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(0, GROUND - 10); ctx.quadraticCurveTo(140, GROUND - 6, 210, GROUND - 56); ctx.quadraticCurveTo(360, GROUND - 96, 560, GROUND - 50); ctx.quadraticCurveTo(620, GROUND - 8, W, GROUND - 12); ctx.stroke();
+    ctx.fillStyle = PAL.forest.near; ctx.beginPath(); ctx.moveTo(FR.x0 - 2, H); ctx.lineTo(FR.x0 - 2, GROUND - 10); ctx.lineTo(0, GROUND - 10);
+    ctx.quadraticCurveTo(140, GROUND - 6, 210, GROUND - 56); ctx.quadraticCurveTo(360, GROUND - 96, 560, GROUND - 50); ctx.quadraticCurveTo(620, GROUND - 8, W, GROUND - 12); ctx.lineTo(FR.x1 + 2, GROUND - 12); ctx.lineTo(FR.x1 + 2, H); ctx.fill();
+    ctx.strokeStyle = 'rgba(238,230,150,0.25)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(FR.x0 - 2, GROUND - 10); ctx.lineTo(0, GROUND - 10); ctx.quadraticCurveTo(140, GROUND - 6, 210, GROUND - 56); ctx.quadraticCurveTo(360, GROUND - 96, 560, GROUND - 50); ctx.quadraticCurveTo(620, GROUND - 8, W, GROUND - 12); ctx.lineTo(FR.x1 + 2, GROUND - 12); ctx.stroke();
     // the leaf hut, a hearth, the two who wait by it
     const hx = HUT_X + 40, hy = GROUND - 66;
     ctx.fillStyle = INK; ctx.beginPath(); ctx.moveTo(hx - 130, hy); ctx.lineTo(hx - 100, hy - 120); ctx.lineTo(hx, hy - 215); ctx.lineTo(hx + 110, hy - 120); ctx.lineTo(hx + 140, hy); ctx.fill();

@@ -1,9 +1,9 @@
 // In-play HUD: scoreboard, controlled-player marker, strike bar, prompts, banners, the four round buttons and the floating stick,
 // Think and Watch & Learn panels, and the flat 2D pitch used when WebGL is missing. Everything follows the text size (PLAY_M).
-import { W, H, PLAY_M, hudLayout, inRect } from './layout.js';
+import { SW, H, host, PLAY_M, hudLayout, inRect } from './layout.js';
 import { FONT, C, roundPath, drawButton, panel, wrapLines, fitPx } from './ui.js';
 import { HW, HL, GOAL_HW, BAR, ROLES, CHARGE_SEC, SWEET, LEVELS } from './consts.js';
-import { projectV } from './camera.js';
+import { projectV, camFor } from './camera.js';
 import { LESSONS } from './content.js';
 
 const TAU = Math.PI * 2;
@@ -43,32 +43,35 @@ function scrollBox(ctx, G, rect, rows, key) {
   }
 }
 
-const proj = (G, view, x, y, z) => projectV(G.sim.cam, view.cssW || 720, view.cssH || 1280, x, y, z);
+// Court point -> virtual units, through the camera for the live screen shape (the same one the 3D presenter renders with).
+const proj = (G, view, x, y, z) => { const cw = view.cssW || SW, ch = view.cssH || H; return projectV(camFor(cw / ch), cw, ch, SW, H, x, y, z); };
+const minU = () => Math.ceil(11 / Math.max(0.2, host.px));        // 11 css px in virtual units
 
 function scoreboard(ctx, G, s, m0) {
-  const th = hudLayout(G.settings.textIdx).topH;
-  const m = m0, big = m0 > 1.3;
-  const g = ctx.createLinearGradient(0, 0, 0, th + 24); g.addColorStop(0, 'rgba(4,16,10,0.9)'); g.addColorStop(1, 'rgba(4,16,10,0)');
-  ctx.fillStyle = g; ctx.fillRect(0, 0, W, th + 24);
-  const colw = big ? 320 : 250;
+  const lay = hudLayout(G.settings.textIdx), th = lay.topH, T = lay.T, sb = lay.score;
+  const m = lay.m, big = lay.big;
+  const g = ctx.createLinearGradient(0, 0, 0, T + th + 24); g.addColorStop(0, 'rgba(4,16,10,0.9)'); g.addColorStop(1, 'rgba(4,16,10,0)');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, SW, T + th + 24);
+  const colw = sb.colw;
   for (const i of [0, 1]) {
-    const left = i === 0, x0 = left ? 16 : W - 16 - colw;
-    ctx.fillStyle = TEAM_COL[i]; roundPath(ctx, x0, 14, 10, th - 40, 5); ctx.fill();
+    const left = i === 0, x0 = left ? sb.lx0 : sb.rx1 - colw;
+    ctx.fillStyle = TEAM_COL[i]; roundPath(ctx, x0, T + 14, 10, th - 40, 5); ctx.fill();
     ctx.textAlign = left ? 'left' : 'right'; ctx.textBaseline = 'alphabetic';
-    const ax = left ? x0 + 22 : x0 + colw - 22;
-    ctx.fillStyle = '#fff6e4'; ctx.font = `700 ${Math.round(22 * m)}px ${FONT}`;
+    const ax = left ? x0 + 22 : x0 + colw - 22, aw = colw - 30;
     const nm = i === 0 ? (s.cfg.watch ? TEAM_NAME[0] : 'You') : TEAM_NAME[1];
-    ctx.fillText(nm, ax, 14 + 24 * m);
-    ctx.font = `800 ${Math.round(50 * m)}px ${FONT}`; ctx.fillText(fmtScore(s.score[i]), ax, 14 + 24 * m + 50 * m);
-    ctx.font = `600 ${Math.round(18 * m)}px ${FONT}`; ctx.fillStyle = 'rgba(255,246,228,0.8)'; ctx.fillText(`${totalPts(s.score[i])} pts`, ax, 14 + 24 * m + 50 * m + 20 * m);
+    ctx.fillStyle = '#fff6e4'; ctx.font = `700 ${fitPx(ctx, nm, 700, Math.round(22 * m), aw, 14)}px ${FONT}`;
+    ctx.fillText(nm, ax, T + 14 + 24 * m);
+    const sc = fmtScore(s.score[i]);
+    ctx.font = `800 ${fitPx(ctx, sc, 800, Math.round(50 * m), aw, 20)}px ${FONT}`; ctx.fillText(sc, ax, T + 14 + 24 * m + 50 * m);
+    ctx.font = `600 ${Math.max(minU(), Math.round(18 * m))}px ${FONT}`; ctx.fillStyle = 'rgba(255,246,228,0.8)'; ctx.fillText(`${totalPts(s.score[i])} pts`, ax, T + 14 + 24 * m + 50 * m + 20 * m);
   }
-  const cm = big ? m * 0.8 : m, cy = big ? 14 + 24 * m + 50 * m + 20 * m + 44 * cm : 14 + 24 * m + 40 * m;
+  const cm = big ? m * 0.8 : m, cy = T + (big ? 14 + 24 * m + 50 * m + 20 * m + 44 * cm : 14 + 24 * m + 40 * m);
   ctx.textAlign = 'center'; ctx.fillStyle = '#fff6e4'; ctx.font = `800 ${Math.round(46 * cm)}px ${FONT}`;
   const left = s.cfg.drill ? 0 : Math.max(0, s.cfg.halfSec - s.clock);
-  ctx.fillText(s.cfg.drill ? '' : fmtClock(left), W / 2, cy);
-  ctx.fillStyle = '#ffd97a'; ctx.font = `700 ${Math.round(19 * cm)}px ${FONT}`;
+  ctx.fillText(s.cfg.drill ? '' : fmtClock(left), sb.cx, cy);
+  ctx.fillStyle = '#ffd97a'; ctx.font = `700 ${Math.max(minU(), Math.round(19 * cm))}px ${FONT}`;
   const lbl = s.cfg.drill ? 'Practice' : s.cfg.halves === 1 ? 'Quick match' : s.half === 1 ? 'First half' : 'Second half';
-  ctx.fillText(lbl, W / 2, big ? cy + 26 * cm : cy + 24 * m);
+  ctx.fillText(lbl, sb.cx, big ? cy + 26 * cm : cy + 24 * m);
 }
 
 // a thin ring around the ball so it never gets lost against the grass; the ring tightens with height
@@ -86,13 +89,13 @@ function ballRing(ctx, G, s, view) {
 }
 
 function wrappedBox(ctx, text, y, size, o = {}) {
-  const pw = o.w ?? W - 40;
+  const pw = o.w ?? Math.min(SW - 40 - host.l - host.r, 760), cx = (SW + host.l - host.r) / 2;
   ctx.font = `${o.weight ?? 700} ${size}px ${FONT}`;
   const lines = wrapLines(ctx, text, pw - 32);
   const ph = lines.length * size * 1.25 + 18;
-  roundPath(ctx, (W - pw) / 2, y, pw, ph, 16); ctx.fillStyle = o.bg ?? 'rgba(4,16,10,0.72)'; ctx.fill();
+  roundPath(ctx, cx - pw / 2, y, pw, ph, 16); ctx.fillStyle = o.bg ?? 'rgba(4,16,10,0.72)'; ctx.fill();
   ctx.fillStyle = o.color ?? '#fff6e4'; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
-  lines.forEach((l, i) => ctx.fillText(l, W / 2, y + 10 + size * (0.95 + i * 1.25)));
+  lines.forEach((l, i) => ctx.fillText(l, cx, y + 10 + size * (0.95 + i * 1.25)));
   return ph;
 }
 
@@ -144,7 +147,7 @@ function playerMarkers(ctx, G, s, view, m) {
     for (const [k, col, lbl] of [['drive', '#ff9a6a', 'GOAL'], ['loft', '#7fe8d6', 'POINT']]) {
       const cx = bx + bw * SWEET[k], zw = bw * 0.2;
       roundPath(ctx, cx - zw / 2, by, zw, bh, 8); ctx.fillStyle = col; ctx.globalAlpha = 0.55; ctx.fill(); ctx.globalAlpha = 1;
-      ctx.fillStyle = '#fff6e4'; ctx.font = `800 14px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText(lbl, cx, by - 5);
+      ctx.fillStyle = '#fff6e4'; ctx.font = `800 ${Math.max(14, minU())}px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText(lbl, cx, by - 5);
     }
     roundPath(ctx, bx, by, Math.max(10, bw * f), bh, 10); ctx.fillStyle = '#fff6e4'; ctx.fill();
     ctx.strokeStyle = 'rgba(255,246,228,0.9)'; ctx.lineWidth = 2; roundPath(ctx, bx, by, bw, bh, 10); ctx.stroke();
@@ -164,7 +167,7 @@ function circleButton(ctx, c, label, o = {}) {
   ctx.fillStyle = disabled ? 'rgba(235,238,255,0.5)' : '#fffaf0'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   const px = fitPx(ctx, label, 800, Math.round(c.r * 0.36), c.r * 1.55, 12);
   ctx.font = `800 ${px}px ${FONT}`; ctx.fillText(label, c.x, c.y - (sub ? px * 0.35 : 0));
-  if (sub) { const sp = Math.max(11, Math.round(px * 0.55)); ctx.font = `600 ${sp}px ${FONT}`; ctx.globalAlpha = 0.85; ctx.fillText(sub, c.x, c.y + px * 0.62); ctx.globalAlpha = 1; }
+  if (sub) { const sp = Math.max(minU(), Math.round(px * 0.55)); ctx.font = `600 ${sp}px ${FONT}`; ctx.globalAlpha = 0.85; ctx.fillText(sub, c.x, c.y + px * 0.62); ctx.globalAlpha = 1; }
   ctx.restore();
 }
 
@@ -192,7 +195,7 @@ function controls(ctx, G, s, lay, ui) {
   let kx = bx, ky = by;
   if (st) { const dx = st.x - st.ox, dy = st.y - st.oy, d = Math.hypot(dx, dy) || 1, k = Math.min(1, R / d); kx = bx + dx * k; ky = by + dy * k; }
   ctx.beginPath(); ctx.arc(kx, ky, R * 0.42, 0, TAU); ctx.fillStyle = st ? 'rgba(255,246,228,0.85)' : 'rgba(255,246,228,0.5)'; ctx.fill();
-  if (!st) { ctx.fillStyle = 'rgba(255,246,228,0.8)'; ctx.font = `700 ${Math.round(18 * Math.min(lay.m, 1.5))}px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText('MOVE', bx, by + R + 24 * Math.min(lay.m, 1.5)); }
+  if (!st) { ctx.fillStyle = 'rgba(255,246,228,0.8)'; ctx.font = `700 ${Math.max(minU(), Math.round(18 * Math.min(lay.m, 1.5)))}px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText('MOVE', bx, Math.min(by + R + 24 * Math.min(lay.m, 1.5), H - 6 - host.b)); }
   ctx.restore();
   circleButton(ctx, lay.strike, L.strike, { primary: true, held: held.strike, glow: has || (loose && !has) });
   circleButton(ctx, lay.pass, L.pass, { held: held.pass, glow: has, disabled: !has || (p && p.role === 0 && false) });
@@ -219,7 +222,7 @@ export function renderHud(ctx, G, view, ui) {
   // prompt
   const pr = promptFor(G, s);
   let y = lay.util.pause.y + lay.util.pause.h + 12;
-  if (pr) { const ps = Math.round(22 * Math.min(m, 1.6)); y += wrappedBox(ctx, pr, y, ps, { w: W - 40 }) + 8; }
+  if (pr) { const ps = Math.max(minU(), Math.round(22 * Math.min(m, 1.6))); y += wrappedBox(ctx, pr, y, ps) + 8; }
   // banner for the last event
   const showLast = s.last && s.t - s.last.t < 2.6 && (s.phase === 'dead' || s.phase === 'restart' || s.phase === 'play');
   if (showLast) {
@@ -229,15 +232,16 @@ export function renderHud(ctx, G, view, ui) {
     const txt = s.last.text;
     ctx.font = `900 ${big}px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
     const col = s.last.kind === 'goal' || s.last.kind === 'point' ? TEAM_COL[s.last.team] : '#fff6e4';
-    const lines = wrapLines(ctx, txt, W - 90);
+    const bw = Math.min(SW - 80 - host.l - host.r, 680), bcx = (SW + host.l - host.r) / 2;
+    const lines = wrapLines(ctx, txt, bw - 10);
     const ph = lines.length * big * 1.15 + 24, py = y + 4;
-    roundPath(ctx, 40, py, W - 80, ph, 20); ctx.fillStyle = 'rgba(4,16,10,0.8)'; ctx.fill(); ctx.lineWidth = 4; ctx.strokeStyle = col; ctx.stroke();
-    ctx.fillStyle = '#fff6e4'; lines.forEach((l, i) => ctx.fillText(l, W / 2, py + 14 + big * (0.95 + i * 1.15)));
+    roundPath(ctx, bcx - bw / 2, py, bw, ph, 20); ctx.fillStyle = 'rgba(4,16,10,0.8)'; ctx.fill(); ctx.lineWidth = 4; ctx.strokeStyle = col; ctx.stroke();
+    ctx.fillStyle = '#fff6e4'; lines.forEach((l, i) => ctx.fillText(l, bcx, py + 14 + big * (0.95 + i * 1.15)));
     ctx.restore();
   } else if (G.feedback && s.t - G.feedback.t < 1.2) {
     const f = G.feedback, big = Math.round(46 * Math.min(m, 1.5));
     ctx.font = `800 ${big}px ${FONT}`; ctx.textAlign = 'center'; ctx.fillStyle = f.col; ctx.shadowColor = 'rgba(0,0,0,0.75)'; ctx.shadowBlur = 8;
-    ctx.fillText(f.text, W / 2, Math.max(y + big, 350)); ctx.shadowBlur = 0;
+    ctx.fillText(f.text, (SW + host.l - host.r) / 2, Math.max(y + big, Math.round(H * (lay.land ? 0.27 : 0.27)))); ctx.shadowBlur = 0;
   }
   if (watch) renderWatchPanel(ctx, G, s, lay, m);
   else controls(ctx, G, s, lay, ui || {});
@@ -256,23 +260,26 @@ function renderWatchPanel(ctx, G, s, lay, m) {
     else if (w.phase === 'reveal') msg = `REVEAL: ${d.summary}. ${d.reason}`;
     else msg = `ACT: ${d.summary}`;
   } else msg = 'ACT: the play continues.';
-  const bh = Math.round(66 * Math.min(m, 1.6));
-  const rows = m >= 1.4 ? 2 : 1;
-  const bottom = H - 14;
+  const bh = Math.max(Math.round(66 * Math.min(m, 1.6)), Math.min(90, Math.ceil(44 / Math.max(0.3, host.px))));
+  const land = lay.land;
+  // the panel and its four buttons live in a bar along the bottom: full width on a portrait screen, a centred strip (at most 860) on a landscape one
+  const barW = land ? Math.min(SW - 28 - host.l - host.r, 860) : SW - 28 - host.l - host.r, barX = (SW + host.l - host.r) / 2 - barW / 2;
+  const rows = !land && m >= 1.4 ? 2 : (land && barW < 560 ? 2 : 1);
+  const bottom = H - 14 - host.b;
   const byTop = bottom - rows * bh - (rows - 1) * 10;
-  const ps = Math.round(21 * Math.min(m, 1.5)), pw = W - 40;
+  const ps = Math.max(minU(), Math.round(21 * Math.min(m, 1.5))), pw = barW;
   ctx.font = `600 ${ps}px ${FONT}`;
   const lines = wrapLines(ctx, msg, pw - 56);
-  const maxPh = Math.min(H * 0.34, byTop - 260);                 // the pitch stays visible; longer text scrolls inside the panel
-  const ph = Math.min(maxPh, lines.length * ps * 1.25 + 20), py = byTop - ph - 12;
-  roundPath(ctx, 20, py, pw, ph, 16); ctx.fillStyle = 'rgba(4,16,10,0.88)'; ctx.fill();
+  const maxPh = land ? Math.min(H * 0.26, byTop - H * 0.62) : Math.min(H * 0.34, byTop - 260);   // the pitch stays visible; longer text scrolls inside the panel
+  const ph = Math.max(ps * 1.25 + 20, Math.min(maxPh, lines.length * ps * 1.25 + 20)), py = byTop - ph - 12;
+  roundPath(ctx, barX, py, pw, ph, 16); ctx.fillStyle = 'rgba(4,16,10,0.88)'; ctx.fill();
   const wcol = w.phase === 'think' ? '#ffe9a0' : w.phase === 'reveal' ? '#7fe8d6' : '#ff9a86';
-  scrollBox(ctx, G, { x: 36, y: py + 8, w: pw - 56, h: ph - 16 }, lines.map((t) => ({ text: t, font: `600 ${ps}px ${FONT}`, color: wcol, lh: ps * 1.25 })), msg.replace(/^THINK \d+s/, 'THINK'));
+  scrollBox(ctx, G, { x: barX + 16, y: py + 8, w: pw - 56, h: ph - 16 }, lines.map((t) => ({ text: t, font: `600 ${ps}px ${FONT}`, color: wcol, lh: ps * 1.25 })), msg.replace(/^THINK \d+s/, 'THINK'));
   const labels = [w.paused ? 'Resume' : 'Pause', 'Think −', 'Think +', 'Exit'];
-  const cols = rows === 2 ? 2 : 4, cw = (W - 28 - (cols - 1) * 10) / cols;
+  const cols = rows === 2 ? 2 : 4, cw = (barW - (cols - 1) * 10) / cols;
   W_RECTS.length = 0;
   labels.forEach((lb, i) => {
-    const r = { x: 14 + (i % cols) * (cw + 10), y: byTop + Math.floor(i / cols) * (bh + 10), w: cw, h: bh };
+    const r = { x: barX + (i % cols) * (cw + 10), y: byTop + Math.floor(i / cols) * (bh + 10), w: cw, h: bh };
     W_RECTS.push(r); drawButton(ctx, r, lb, { primary: i === 0, dark: i > 0, size: sz });
   });
   // highlight the decision's target on the pitch while revealed
@@ -282,9 +289,9 @@ function renderWatchPanel(ctx, G, s, lay, m) {
 // ---- Think -----------------------------------------------------------------------------------------------------
 export function renderThink(ctx, G, view) {
   const t = G.think;
-  ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(0, 0, SW, H);
   const m = PLAY_M[G.settings.textIdx];
-  const x = 30, w = W - 60;
+  const w = Math.min(SW - 60 - host.l - host.r, 760), x = (SW + host.l - host.r) / 2 - w / 2, cxm = x + w / 2;
   const size = Math.round(26 * Math.min(m, 2)), sumS = Math.round(28 * Math.min(m, 1.6));
   ctx.font = `400 ${size}px ${FONT}`;
   const lines = wrapLines(ctx, t.reason, w - 80);
@@ -296,7 +303,7 @@ export function renderThink(ctx, G, view) {
   const total = Math.min(H - 100, headH + textH + bh + 70);
   const y = Math.max(30, (H - total) / 2);
   panel(ctx, x, y, w, total, { r: 26, fill: 'rgba(14,38,26,0.97)', stroke: 'rgba(255,246,228,0.5)' });
-  ctx.textAlign = 'center'; ctx.fillStyle = '#ffe9a0'; ctx.font = `800 ${Math.round(34 * Math.min(m, 1.6))}px ${FONT}`; ctx.fillText('Coach says', W / 2, y + 56);
+  ctx.textAlign = 'center'; ctx.fillStyle = '#ffe9a0'; ctx.font = `800 ${Math.round(34 * Math.min(m, 1.6))}px ${FONT}`; ctx.fillText('Coach says', cxm, y + 56);
   const by = y + total - bh - 26;
   const box = { x: x + 28, y: y + headH + 24, w: w - 70, h: by - (y + headH + 24) - 14 };
   const rows = [...sm.map((l) => ({ text: l, font: `700 ${sumS}px ${FONT}`, color: '#7fe8d6', lh: sumS * 1.25 })), ...lines.map((l, i) => ({ text: l, font: `400 ${size}px ${FONT}`, color: '#fff6e4', lh: size * 1.3, gap: i === 0 ? 14 : 0 }))];
@@ -322,10 +329,10 @@ export function renderMarks(ctx, G, view) {
 // ---- 2D fallback when WebGL is missing ----------------------------------------------------------------------------
 export function renderFallback(ctx, G, view) {
   const s = G.sim; if (!s) return;
-  const Wd = view.cssW || 720, Hd = view.cssH || 1280;
-  const P = (x, y, z) => projectV(s.cam, Wd, Hd, x, y, z);
+  const Wd = view.cssW || SW, Hd = view.cssH || H;
+  const P = (x, y, z) => projectV(camFor(Wd / Hd), Wd, Hd, SW, H, x, y, z);
   ctx.save();
-  ctx.fillStyle = '#0c2216'; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = '#0c2216'; ctx.fillRect(0, 0, SW, H);
   const corners = [[-HW, -HL], [HW, -HL], [HW, HL], [-HW, HL]].map(([x, z]) => P(x, 0, z));
   if (corners.every(Boolean)) {
     ctx.beginPath(); corners.forEach((c, i) => (i ? ctx.lineTo(c.x, c.y) : ctx.moveTo(c.x, c.y))); ctx.closePath();

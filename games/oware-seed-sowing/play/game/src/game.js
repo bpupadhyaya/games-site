@@ -1,16 +1,16 @@
 // Oware: state and flow. Drawing is view.js; the rule book is rules.js; the computer is engine.js; lessons.js and puzzles.js are
 // content. The rule book applies a move to `state.game` at once; `state.anim` then PLAYS it (lift, sow pit by pit, capture)
 // while `state.shown` (the pit counts the player sees) catches up. Input is ignored while an animation runs.
-import { W, H, BTN, SET, titleRows, inRect, pitNear, pitPos, TEXT_SCALES, AP_THINK_STEPS } from './layout.js';
+import { layoutFor, creditHit, inRect, TEXT_SCALES, AP_THINK_STEPS } from './layout.js';
 import { newGame, clone, applyMove, tryMove, legalMoves, sow, sideOf } from './rules.js';
 import { LEVELS, createThinker } from './engine.js';
 import { LESSONS } from './lessons.js';
 import { puzzleFor, puzzleGame, gains, isWeekend } from './puzzles.js';
-import { RULES } from './content.js';
-import { ABOUT } from './about.js';
-import { render } from './view.js';
+import { render, readerMetrics } from './view.js';
 
-export const meta = { width: W, height: H };
+// `meta.width/height` are updated live by the kit on every resize; every position comes from layoutFor(meta.width, meta.height).
+export const meta = { width: 720, height: 1560, fluid: { short: 720 } };
+export const wheelInput = { dy: 0 };
 const DEMO_GAMES = 2, HINTS = 3, SEEDSETS = ['nuts', 'cowries', 'glass'], WOODS = ['iroko', 'ebony'];
 const NODES_PER_TICK = 3500;
 // Auto Play: a whole AI-vs-AI teaching game driven by the SAME engine.js thinker used for the real
@@ -23,11 +23,13 @@ const AP_LEVEL = 1, AP_REVEAL_TIME = 2;
 
 export function createGame(env) {
   const { rng, storage, audio, monetization, config } = env;
+  const lay = () => layoutFor(meta.width, meta.height);
   const state = {
     scene: 'title', t: 0, game: newGame(), shown: null, two: false, level: 1, sound: true, calm: false, big: false, seeds: 'nuts', wood: 'iroko',
     cursor: 2, kb: false, anim: null, msg: null, think: 0, thinking: false, undo: [], hintsLeft: HINTS, hint: null,
     stats: { games: 0, wins: 0, badges: {} }, saved: null, learned: false, demoGames: 0, lesson: null, pz: null, ref: null,
     daily: { day: config.day ?? 0, solvedDay: -1, streak: 0 }, dev: config.dev === true, page: 0,
+    scroll: 0, // reader (About / Rules) scroll offset in units
     textScaleIdx: 0, // index into TEXT_SCALES; the About/Rules reference pages' own text size
     apThinkIdx: 1, // index into AP_THINK_STEPS; the Auto Play THINK-phase pause, default 5s
     ap: null, // transient Auto Play loop state: { phase: 'think'|'reveal', timer, legal, move }
@@ -103,6 +105,7 @@ export function createGame(env) {
   }
   function apFinish() { apThinker = null; state.scene = 'autoplay-over'; }
   function updateAutoPlay(dt, tap) {
+    const BTN = lay().BTN;
     if (tap && inRect(BTN.apExit, tap.x, tap.y)) { apThinker = null; state.scene = 'title'; return; }
     // Pause freezes the WHOLE loop exactly where it is - mid-THINK, mid-REVEAL, mid-move-animation
     // or mid-engine-search - by simply not calling any of the time/step advances below at all while
@@ -203,19 +206,21 @@ export function createGame(env) {
 
   function updateTitle(tap) {
     if (!tap) return;
-    const R = titleRows(!!state.saved), hit = (r) => r && inRect(r, tap.x, tap.y);
-    if (hit(R.resume)) resume();
+    const TT = lay().title(!!state.saved), R = TT.rows, hit = (r) => r && inRect(r, tap.x, tap.y);
+    if (TT.lockup && hit(creditHit(TT.lockup))) { state.afFlash = 0.18; env.openArcforgeHome?.(); }
+    else if (hit(R.resume)) resume();
     else if (hit(R.learn)) startLesson(0);
     else if (hit(R.play)) start(false);
     else if (hit(R.two)) start(true);
     else if (hit(R.daily)) startPuzzle();
     else if (hit(R.autoplay)) startAutoPlay();
-    else if (hit(R.about)) { state.scene = 'about'; state.page = 0; }
+    else if (hit(R.about)) { state.scene = 'about'; state.page = 0; state.scroll = 0; }
     else if (hit(R.settings)) state.scene = 'settings';
-    else if (hit(R.rules)) { state.scene = 'rules'; state.page = 0; }
+    else if (hit(R.rules)) { state.scene = 'rules'; state.page = 0; state.scroll = 0; }
   }
   function updateSettings(tap) {
     if (!tap) return;
+    const SET = { ...lay().settings.rows, back: lay().settings.back };
     if (inRect(SET.level, tap.x, tap.y)) { state.level = (state.level + 1) % LEVELS.length; clack(); }
     else if (inRect(SET.sound, tap.x, tap.y)) { state.sound = !state.sound; audio.setMuted?.(!state.sound); clack(); }
     else if (inRect(SET.calm, tap.x, tap.y)) { state.calm = !state.calm; clack(); }
@@ -257,6 +262,7 @@ export function createGame(env) {
   }
 
   function updatePlay(dt, tap) {
+    const L = lay(), BTN = L.BTN;
     if (state.hint) { state.hint.t += dt; if (state.hint.t > 6) state.hint = null; }
     if (state.ref) { state.ref.t += dt; if (state.ref.t > 0.6) state.ref = null; }
     if (state.anim) { const rr = state.anim.r; if (stepAnim(dt)) afterMove(rr); return; }
@@ -273,13 +279,13 @@ export function createGame(env) {
       return;
     }
     if (!tap) return;
-    const i = pitNear(tap.x, tap.y); if (i < 0) return;
+    const i = lay().pitNear(tap.x, tap.y); if (i < 0) return;
     const m = tapPit(i);
     if (m !== null) { state.undo.push(clone(state.game)); play(m); }
   }
 
   function updateLesson(dt, tap) {
-    const L = state.lesson, l = LESSONS[L.i];
+    const L = state.lesson, l = LESSONS[L.i], BTN = lay().BTN;
     if (state.ref) { state.ref.t += dt; if (state.ref.t > 0.6) state.ref = null; }
     if (state.anim) { const A = state.anim; if (stepAnim(dt)) { const r = A.r; const t = describe(r, 'You'); L.done = true; say(l.done + (t && !r.slam ? '' : ''), 12); tone({ freq: 660, to: 990, dur: 0.2, type: 'triangle', vol: 0.08 }); } return; }
     if (tap && inRect(BTN.menu, tap.x, tap.y)) { state.scene = 'title'; return; }
@@ -291,13 +297,13 @@ export function createGame(env) {
       return;
     }
     if (!tap) return;
-    const i = pitNear(tap.x, tap.y); if (i < 0) return;
+    const i = lay().pitNear(tap.x, tap.y); if (i < 0) return;
     const m = tapPit(i); if (m === null) return;
     if (l.want.includes(m)) { play(m); } else say(l.hint ?? 'That is a real move, but not the one this lesson teaches. TAP the glowing pit.', 6);
   }
 
   function updatePuzzle(dt, tap) {
-    const P = state.pz;
+    const P = state.pz, BTN = lay().BTN;
     if (state.ref) { state.ref.t += dt; if (state.ref.t > 0.6) state.ref = null; }
     if (tap && inRect(BTN.menu, tap.x, tap.y)) { state.scene = 'title'; return; }
     if (state.anim) {
@@ -312,7 +318,7 @@ export function createGame(env) {
     if (P.wrong > 0) { P.wrong -= dt; if (P.wrong <= 0) { state.game = puzzleGame(P.puzzle); syncShown(); P.wrong = 0; say('Set up again. Count where each pit’s last seed lands.'); } return; }
     if (P.status === 'solved') { if (tap && inRect(BTN.share, tap.x, tap.y)) env.share(`Oware daily puzzle: solved${P.tries ? ' after ' + P.tries + ' wrong tr' + (P.tries === 1 ? 'y' : 'ies') : ' first try'}. Streak ${state.daily.streak}.`); return; }
     if (!tap) return;
-    const i = pitNear(tap.x, tap.y); if (i < 0) return;
+    const i = lay().pitNear(tap.x, tap.y); if (i < 0) return;
     const m = tapPit(i); if (m === null) return;
     if (m === P.puzzle.best) play(m);
     else {
@@ -322,18 +328,17 @@ export function createGame(env) {
     }
   }
 
-  // Keyboard (web): Left/Right along your row, Enter/Space sows, U undo, H hint, Esc menu.
+  // Keyboard (web): Left/Right along your row, Enter/Space sows, U undo, H hint, Esc menu; Up/Down/PageUp/PageDown scroll the reader.
   function keyboard(input) {
-    const k = input.keys.pressed, sc = state.scene;
+    const k = input.keys.pressed, sc = state.scene, L = lay(), BTN = L.BTN;
     if (input.pointer.pressed) { state.kb = false; return null; }
     const at = (r) => ({ x: r.x + 5, y: r.y + 5 });
-    if (sc === 'title') { const R = titleRows(!!state.saved); if (k.has('Enter') || k.has('Space')) return at(R.resume || R.play); return null; }
-    if (sc === 'over') { if (k.has('Enter') || k.has('Space')) return at(BTN.again); if (k.has('Escape')) return at(BTN.back); return null; }
-    if (sc === 'settings') { if (k.has('Escape')) return at(SET.back); return null; }
-    if (sc === 'about') { if (k.has('Escape')) return at(BTN.aboutBack); if (k.has('Enter') || k.has('Space')) return at(BTN.aboutNext); return null; }
-    if (sc === 'rules') { if (k.has('Escape')) return at(BTN.rulesBack); if (k.has('Enter') || k.has('Space')) return at(BTN.rulesNext); return null; }
+    if (sc === 'title') { const R = L.title(!!state.saved).rows; if (k.has('Enter') || k.has('Space')) return at(R.resume || R.play); return null; }
+    if (sc === 'over') { if (k.has('Enter') || k.has('Space')) return at(L.over.again); if (k.has('Escape')) return at(L.over.back); return null; }
+    if (sc === 'settings') { if (k.has('Escape')) return at(L.settings.back); return null; }
+    if (sc === 'about' || sc === 'rules') { if (k.has('Escape')) return at(L.reader.back); if (k.has('Enter') || k.has('Space')) return at(L.reader.next); return null; }
     if (sc === 'autoplay') { if (k.has('Escape')) return at(BTN.apExit); return null; }
-    if (sc === 'autoplay-over') { if (k.has('Enter') || k.has('Space')) return at(BTN.again); if (k.has('Escape')) return at(BTN.back); return null; }
+    if (sc === 'autoplay-over') { if (k.has('Enter') || k.has('Space')) return at(L.over.again); if (k.has('Escape')) return at(L.over.back); return null; }
     if (sc !== 'play' && sc !== 'lesson' && sc !== 'puzzle') return null;
     if (k.has('Escape')) return at(BTN.menu);
     if (k.has('KeyU')) return at(BTN.undo);
@@ -341,59 +346,71 @@ export function createGame(env) {
     if (sc === 'lesson' && state.lesson.done && (k.has('Enter') || k.has('Space'))) return at(BTN.next);
     if (k.has('ArrowLeft')) { state.kb = true; state.cursor = Math.max(0, state.cursor - 1); return null; }
     if (k.has('ArrowRight')) { state.kb = true; state.cursor = Math.min(5, state.cursor + 1); return null; }
-    if (k.has('Enter') || k.has('Space')) { state.kb = true; const p = pitPos(state.game.turn === 0 ? state.cursor : 11 - state.cursor); return { x: p.x, y: p.y }; }
+    if (k.has('Enter') || k.has('Space')) { state.kb = true; const p = L.pitScreen(state.game.turn === 0 ? state.cursor : 11 - state.cursor); return { x: p.x, y: p.y }; }
     return null;
+  }
+
+  // About / Rules: Back / Next / text size, and a scrolling body (drag, wheel, keys, scroll bar). Pages that fit never move.
+  let drag = null;
+  function updateReader(isAbout, tap, input) {
+    const RD = lay().reader, p = input.pointer, keys = input.keys.pressed;
+    const max = () => Math.max(0, readerMetrics.content - readerMetrics.view);
+    const setScroll = (v) => { state.scroll = Math.max(0, Math.min(v, max())); };
+    if (wheelInput.dy) { setScroll(state.scroll + wheelInput.dy); wheelInput.dy = 0; }
+    if (keys.has('ArrowDown')) setScroll(state.scroll + 70);
+    if (keys.has('ArrowUp')) setScroll(state.scroll - 70);
+    if (keys.has('PageDown')) setScroll(state.scroll + readerMetrics.view * 0.9);
+    if (keys.has('PageUp')) setScroll(state.scroll - readerMetrics.view * 0.9);
+    if (keys.has('Home')) setScroll(0);
+    if (keys.has('End')) setScroll(max());
+    if (p.pressed) {
+      if (inRect(RD.scrollbar, p.x, p.y)) drag = { bar: true };
+      else if (inRect(RD.viewport, p.x, p.y)) drag = { y0: p.y, s0: state.scroll };
+    }
+    if (drag) {
+      if (!p.down) drag = null;
+      else if (drag.bar) setScroll(((p.y - RD.scrollbar.y) / RD.scrollbar.h) * max());
+      else setScroll(drag.s0 - (p.y - drag.y0));
+    }
+    setScroll(state.scroll);
+    if (!tap) return;
+    if (inRect(RD.textDec, tap.x, tap.y) && state.textScaleIdx > 0) { state.textScaleIdx--; state.scroll = 0; savePrefs(); clack(); }
+    else if (inRect(RD.textInc, tap.x, tap.y) && state.textScaleIdx < TEXT_SCALES.length - 1) { state.textScaleIdx++; state.scroll = 0; savePrefs(); clack(); }
+    // Back always leaves. Next moves down a screenful and reads "Done" at the end (view.js), which leaves too.
+    else if (inRect(RD.back, tap.x, tap.y)) { state.scene = 'title'; state.scroll = 0; drag = null; }
+    else if (inRect(RD.next, tap.x, tap.y)) {
+      if (state.scroll >= max() - 1) { state.scene = 'title'; state.scroll = 0; drag = null; }
+      else { setScroll(state.scroll + readerMetrics.view * 0.85); clack(); }
+    }
   }
 
   return {
     update(dt, input) {
       state.t += dt;
+      if (state.afFlash > 0) state.afFlash -= dt;
       if (state.msg) { state.msg.t += dt; if (state.msg.t > state.msg.hold) state.msg = null; }
-      const p = input.pointer, kbd = keyboard(input);
+      const p = input.pointer, kbd = keyboard(input), O = lay().over;
       const tap = p.pressed ? { x: p.x, y: p.y } : kbd;
       const sc = state.scene;
+      if (sc !== 'about' && sc !== 'rules') { wheelInput.dy = 0; drag = null; }
       if (sc === 'title') updateTitle(tap);
       else if (sc === 'settings') updateSettings(tap);
-      else if (sc === 'about') {
-        if (tap && inRect(BTN.textDec, tap.x, tap.y) && state.textScaleIdx > 0) { state.textScaleIdx--; savePrefs(); clack(); }
-        else if (tap && inRect(BTN.textInc, tap.x, tap.y) && state.textScaleIdx < TEXT_SCALES.length - 1) { state.textScaleIdx++; savePrefs(); clack(); }
-        else if (tap && inRect(BTN.aboutBack, tap.x, tap.y)) {
-          if (state.page > 0) state.page -= 1;
-          else state.scene = 'title';
-        }
-        // Next reads "Done" on the last page (see view.js) and exits to the title instead of
-        // silently wrapping back to page one, so it's never a dead-end tap.
-        else if (tap && inRect(BTN.aboutNext, tap.x, tap.y)) {
-          if (state.page === ABOUT.pages.length - 1) state.scene = 'title';
-          else state.page += 1;
-        }
-      }
-      else if (sc === 'rules') {
-        if (tap && inRect(BTN.textDec, tap.x, tap.y) && state.textScaleIdx > 0) { state.textScaleIdx--; savePrefs(); clack(); }
-        else if (tap && inRect(BTN.textInc, tap.x, tap.y) && state.textScaleIdx < TEXT_SCALES.length - 1) { state.textScaleIdx++; savePrefs(); clack(); }
-        else if (tap && inRect(BTN.rulesBack, tap.x, tap.y)) {
-          if (state.page > 0) state.page -= 1;
-          else state.scene = 'title';
-        }
-        else if (tap && inRect(BTN.rulesNext, tap.x, tap.y)) {
-          if (state.page === RULES.length - 1) state.scene = 'title';
-          else state.page += 1;
-        }
-      }
+      else if (sc === 'about') updateReader(true, tap, input);
+      else if (sc === 'rules') updateReader(false, tap, input);
       else if (sc === 'play') updatePlay(dt, tap);
       else if (sc === 'lesson') updateLesson(dt, tap);
       else if (sc === 'puzzle') updatePuzzle(dt, tap);
       else if (sc === 'autoplay') updateAutoPlay(dt, tap);
       else if (sc === 'over' && tap) {
-        if (inRect(BTN.again, tap.x, tap.y)) start(state.two);
-        else if (inRect(BTN.back, tap.x, tap.y)) state.scene = 'title';
+        if (inRect(O.again, tap.x, tap.y)) start(state.two);
+        else if (inRect(O.back, tap.x, tap.y)) state.scene = 'title';
       }
       else if (sc === 'autoplay-over' && tap) {
-        if (inRect(BTN.again, tap.x, tap.y)) startAutoPlay();
-        else if (inRect(BTN.back, tap.x, tap.y)) state.scene = 'title';
+        if (inRect(O.again, tap.x, tap.y)) startAutoPlay();
+        else if (inRect(O.back, tap.x, tap.y)) state.scene = 'title';
       }
     },
-    render(ctx) { render(ctx, state); },
+    render(ctx, view) { render(ctx, state, layoutFor(view?.width ?? meta.width, view?.height ?? meta.height)); },
     getState: () => state,
     // Auto Play is a free teaching demo, not real play: exempt from the kit's whole-app
     // free-preview timer the same way the menu's own attract-mode preview would be.

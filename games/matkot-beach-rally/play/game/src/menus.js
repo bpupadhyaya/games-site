@@ -1,13 +1,16 @@
-// Every screen that is not the play screen: title, setup, settings, result, pause, demo limit, and the paginated About /
+// Every screen that is not the play screen: title, setup, settings, result, pause, demo limit, and the scrolling About /
 // How to Play / Rules reader with illustrations drawn with the game's own figures, paddle and ball. Pure drawing; game.js owns state.
+// All geometry comes from layout.js (a pure function of the live screen size): tall screens use one centred column, wide screens use
+// two columns (art / stats left, buttons right).
 import { W, H } from './cam.js';
 import { lightAt } from './art.js';
 import { drawFigure, drawPaddle, LOOKS } from './figure.js';
 import { renderScene, drawBall, outlineText, tierOf, TIER_AT, TIER_NAMES } from './view.js';
-import { TEXT_SCALES, TEXT_DEC, TEXT_INC, REF_BACK, REF_NEXT, THINK_STEPS, SETUP_PINS } from './layout.js';
+import { TEXT_SCALES, THINK_STEPS, liveLayout, host } from './layout.js';
 import { FONT, C, roundPath, drawButton, panel, wrapLines, textShadow, flowLayout, drawFlow, flowHit } from './ui.js';
 import { PROFILES } from './opponents.js';
 import { ABOUT, HOWTO, RULES } from './content.js';
+import { drawLockup, drawMoreLine, LOCKUP_RATIO } from './brand.js';
 
 const TAU = Math.PI * 2;
 export const OPP_TAGS = PROFILES.map((p) => p.tag);
@@ -15,16 +18,54 @@ const WIND_NAMES = ['None', 'Breeze', 'Gusty'];
 const LIGHT_NAMES = ['Morning', 'Afternoon', 'Golden hour'];
 
 // ---- flow screens ------------------------------------------------------------------------------------------------------------
-let LAID = { key: '', lay: null, top: 0, bottom: H };
+let titleLockTap = null;
+export const getLockTap = () => titleLockTap;
+let LAID = { key: '', lay: null, top: 0, bottom: 0, sk: '' };
 export const flowMeta = () => LAID;
 const estCtx = { font: '', measureText(t) { const m = /(\d+)px/.exec(this.font); return { width: String(t).length * (m ? +m[1] : 20) * 0.55 }; } };
+const lockupW = (L) => Math.round(Math.min(300, Math.max(210, L.w * 0.42)));
+const SPLIT = new Set(['title', 'result', 'settings', 'setup']);
+
+function widgetsFor(key, state, wide) {
+  switch (key) {
+    case 'title': return titleWidgets(state, wide);
+    case 'setup': return setupWidgets(state, wide);
+    case 'settings': return settingsWidgets(state, wide);
+    case 'result': return resultWidgets(state, wide);
+    case 'demolimit': return demoLimitWidgets();
+    default: return null;
+  }
+}
+// Lays a flow screen out for the live size. Returns { key, lay, top, bottom }. Items carry absolute x; y is relative to `top`.
+function flowFor(ctx, state, key) {
+  const L = liveLayout(), sc = TEXT_SCALES[state.settings.textIdx], wide = L.wide, F = L.flow;
+  let top = F.top, bottom = F.bottom;
+  if (key === 'title') bottom -= Math.round(lockupW(L) * LOCKUP_RATIO) + 30;
+  if (key === 'setup') bottom = L.setupBottom;
+  const avail = bottom - top;
+  const wd = widgetsFor(key, state, wide);
+  const cf = key === 'title' || key === 'result' || key === 'demolimit' ? (wide ? 0.5 : 0.3) : wide ? 0.5 : 0;
+  const shift = (l) => { if (l.contentH < avail && cf) { const dy = (avail - l.contentH) * cf; l.items.forEach((i) => { i.y += dy; }); } };
+  let lay;
+  if (wide && SPLIT.has(key)) {
+    const c2 = L.cols, bw = Math.min(c2.lw, key === 'title' ? 520 : 600);
+    const A = wd.filter((x) => x.col !== 'R'), B = wd.filter((x) => x.col === 'R');
+    const bf = bw < 520 ? 22 : 26;
+    const la = flowLayout(ctx, A, sc, { x: c2.x + (c2.lw - (key === 'title' ? c2.lw : bw)) / 2, w: key === 'title' ? c2.lw : bw, btn: bf });
+    const lb = flowLayout(ctx, B, sc, { x: c2.x + c2.lw + c2.gap + (c2.lw - bw) / 2, w: bw, btn: bf });
+    shift(la); shift(lb);
+    lay = { items: [...la.items, ...lb.items], contentH: Math.max(la.contentH, lb.contentH) };
+  } else {
+    lay = flowLayout(ctx, wd, sc, { x: F.x0, w: F.w0 });
+    shift(lay);
+  }
+  return { key, lay, top, bottom, h: lay.contentH, sk: `${L.key}|${sc}` };
+}
 export function ensureLayout(state, key) {
-  if (LAID.key === key && LAID.lay) return;
-  const defs = { title: [titleWidgets, 0, H], setup: [setupWidgets, 0, 1130], settings: [settingsWidgets, 0, H], result: [resultWidgets, 0, H], demolimit: [demoLimitWidgets, 0, H] };
-  const d = defs[key];
-  if (!d) return;
-  const lay = flowLayout(estCtx, d[0](state), TEXT_SCALES[state.settings.textIdx]);
-  LAID = { key, lay, top: d[1], bottom: d[2], h: lay.contentH };
+  const sk = `${liveLayout().key}|${TEXT_SCALES[state.settings.textIdx]}`;
+  if (LAID.key === key && LAID.lay && LAID.sk === sk) return;
+  if (!['title', 'setup', 'settings', 'result', 'demolimit'].includes(key)) return;
+  LAID = flowFor(estCtx, state, key);
 }
 export function hitScreen(x, y, scroll) { return LAID.lay ? flowHit(LAID.lay, LAID.top, scroll, x, y) : null; }
 
@@ -48,11 +89,11 @@ export function drawMark(ctx, cx, cy, u) {
   ctx.restore();
 }
 
-const heroArt = () => ({
-  t: 'art', h: 400,
+const heroArt = (k = 1) => ({
+  t: 'art', h: Math.round(400 * k),
   draw(ctx, w) {
-    ctx.save(); ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
-    const cx = w / 2;
+    ctx.save(); ctx.translate(w / 2, 0); ctx.scale(k, k); ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+    const cx = 0;
     drawMark(ctx, cx, 120, 70);
     ctx.font = `900 124px ${FONT}`;
     const word = 'MATKOT';
@@ -68,73 +109,81 @@ const heroArt = () => ({
   },
 });
 
-export function titleWidgets(state) {
+export function titleWidgets(state, wide = false) {
   const sound = state.settings.sound, rec = state.record;
-  const wd = [heroArt()];
-  wd.push({ t: 'btn', id: 'coop', label: 'Beach Rally', sub: rec.bestRally ? `Keep it going with Dana · best ${rec.bestRally}` : 'Keep it going with Dana', primary: true, h: 100 });
-  wd.push({ t: 'btn', id: 'match', label: 'Match', sub: 'Play a rival to 7 or 11', h: 90 });
-  wd.push({ t: 'btn', id: 'watch', label: 'Watch & Learn', sub: 'See why every shot is chosen', h: 90 });
-  wd.push({ t: 'btn', id: 'howto', label: 'How to Play', row: 2 });
-  wd.push({ t: 'btn', id: 'rules', label: 'Rules', row: 2 });
-  wd.push({ t: 'btn', id: 'about', label: 'About', row: 2 });
-  wd.push({ t: 'btn', id: 'settings', label: 'Settings', row: 3 });
-  wd.push({ t: 'btn', id: 'sound', label: sound ? 'Sound: On' : 'Sound: Off', row: 3 });
+  const R = wide ? 'R' : undefined;
+  // the hero art shrinks to fit narrow columns and short screens
+  const L = liveLayout(), lockH = Math.round(lockupW(L) * LOCKUP_RATIO) + 30;
+  const k = wide ? Math.max(0.5, Math.min(1, L.cols.lw / 560, (L.h - L.ins.t - L.ins.b - lockH - 90) / 400)) : Math.max(0.4, Math.min(1, (L.flow.bottom - L.flow.top - lockH - 640) / 400));
+  const wd = [{ ...heroArt(k), col: 'L' }];
+  wd.push({ t: 'btn', id: 'coop', label: 'Beach Rally', sub: rec.bestRally ? `Keep it going with Dana · best ${rec.bestRally}` : 'Keep it going with Dana', primary: true, h: 100, col: R });
+  wd.push({ t: 'btn', id: 'match', label: 'Match', sub: 'Play a rival to 7 or 11', h: 90, col: R });
+  wd.push({ t: 'btn', id: 'watch', label: 'Watch & Learn', sub: 'See why every shot is chosen', h: 90, col: R });
+  wd.push({ t: 'btn', id: 'howto', label: 'How to Play', row: 2, col: R });
+  wd.push({ t: 'btn', id: 'rules', label: 'Rules', row: 2, col: R });
+  wd.push({ t: 'btn', id: 'about', label: 'About', row: 2, col: R });
+  wd.push({ t: 'btn', id: 'settings', label: 'Settings', row: 3, col: R });
+  wd.push({ t: 'btn', id: 'sound', label: sound ? 'Sound: On' : 'Sound: Off', row: 3, col: R });
   return wd;
 }
 
-export function setupWidgets(state) {
+export function setupWidgets(state, wide = false) {
   const s = state.setup, demo = state.demo, rec = state.record;
+  const R = wide ? 'R' : undefined;
   const wd = [{ t: 'gap', h: 14 }, { t: 'h', label: 'Match', size: 52 }];
   wd.push({ t: 'p', label: 'Choose your rival', bold: true, color: '#ffe9bf', size: 26 });
   PROFILES.forEach((pf, i) => {
     const won = rec.wins[i] | 0, locked = demo && i > 1;
-    wd.push({ t: 'btn', id: `opp${i}`, label: pf.name, sub: locked ? 'In the full game' : `${'★'.repeat(pf.stars)}${'☆'.repeat(5 - pf.stars)}  ${pf.tag}${won ? ` · won ${won}` : ''}`, active: s.opp === i && !locked, disabled: locked, hitDisabled: true, h: 92 });
+    const info = locked ? 'In the full game' : `${'★'.repeat(pf.stars)}${'☆'.repeat(5 - pf.stars)}  ${pf.tag}${won ? ` · won ${won}` : ''}`;
+    wd.push({ t: 'btn', id: `opp${i}`, label: wide ? `${pf.name}   ${info}` : pf.name, sub: wide ? undefined : info, active: s.opp === i && !locked, disabled: locked, hitDisabled: true, h: wide ? 82 : 92 });
   });
-  wd.push({ t: 'p', label: 'Match length', bold: true, color: '#ffe9bf', size: 26 });
-  wd.push({ t: 'btn', id: 'to7', label: 'To 7 points', row: 8, active: s.to === 7 });
-  wd.push({ t: 'btn', id: 'to11', label: 'To 11 points', row: 8, active: s.to === 11 });
-  wd.push({ t: 'p', label: 'Light', bold: true, color: '#ffe9bf', size: 26 });
-  LIGHT_NAMES.forEach((n, i) => wd.push({ t: 'btn', id: `lt${i}`, label: n, row: 9, active: s.light === i && !(demo && i !== 1), disabled: demo && i !== 1, hitDisabled: true }));
-  wd.push({ t: 'p', label: 'Wind', bold: true, color: '#ffe9bf', size: 26 });
-  WIND_NAMES.forEach((n, i) => wd.push({ t: 'btn', id: `wd${i}`, label: n, row: 10, active: s.wind === i && !(demo && i !== 0), disabled: demo && i !== 0, hitDisabled: true }));
-  wd.push({ t: 'gap', h: 24 });
+  wd.push({ t: 'p', label: 'Match length', bold: true, color: '#ffe9bf', size: 26, col: R });
+  wd.push({ t: 'btn', id: 'to7', label: 'To 7 points', row: 8, active: s.to === 7, col: R });
+  wd.push({ t: 'btn', id: 'to11', label: 'To 11 points', row: 8, active: s.to === 11, col: R });
+  wd.push({ t: 'p', label: 'Light', bold: true, color: '#ffe9bf', size: 26, col: R });
+  LIGHT_NAMES.forEach((n, i) => wd.push({ t: 'btn', id: `lt${i}`, label: n, row: 9, active: s.light === i && !(demo && i !== 1), disabled: demo && i !== 1, hitDisabled: true, col: R }));
+  wd.push({ t: 'p', label: 'Wind', bold: true, color: '#ffe9bf', size: 26, col: R });
+  WIND_NAMES.forEach((n, i) => wd.push({ t: 'btn', id: `wd${i}`, label: n, row: 10, active: s.wind === i && !(demo && i !== 0), disabled: demo && i !== 0, hitDisabled: true, col: R }));
+  wd.push({ t: 'gap', h: 24, col: R });
   return wd;
 }
 
-export function settingsWidgets(state) {
+export function settingsWidgets(state, wide = false) {
   const st = state.settings, sc = TEXT_SCALES[st.textIdx];
+  const R = wide ? 'R' : undefined;
   return [
     { t: 'gap', h: 14 }, { t: 'h', label: 'Settings', size: 52 },
     { t: 'btn', id: 'set-sound', label: st.sound ? 'Sound: On' : 'Sound: Off' },
     { t: 'btn', id: 'set-calm', label: st.calm ? 'Calm mode: On' : 'Calm mode: Off', sub: 'Wider paddle reach, slower ball, no wind', active: st.calm },
     { t: 'btn', id: 'set-guides', label: st.guides ? 'Aim guide: On' : 'Aim guide: Off', sub: 'The gold ring where a swing would land', active: st.guides },
-    { t: 'p', label: `Text size: ${Math.round(sc * 100)}%`, bold: true, color: '#ffe9bf', size: 26 },
-    { t: 'btn', id: 'txt-dec', label: 'A−  Smaller', row: 4, disabled: st.textIdx === 0 },
-    { t: 'btn', id: 'txt-inc', label: 'A+  Larger', row: 4, disabled: st.textIdx === TEXT_SCALES.length - 1 },
-    { t: 'p', label: `Watch & Learn thinking time: ${THINK_STEPS[st.thinkIdx]} s`, bold: true, color: '#ffe9bf', size: 26 },
-    { t: 'btn', id: 'think-dec', label: 'Shorter', row: 5, disabled: st.thinkIdx === 0 },
-    { t: 'btn', id: 'think-inc', label: 'Longer', row: 5, disabled: st.thinkIdx === THINK_STEPS.length - 1 },
-    ...(state.demo ? [] : [{ t: 'btn', id: 'restore', label: 'Restore purchase', dark: true }]),
-    ...(state.restoreMsg ? [{ t: 'p', label: state.restoreMsg, size: 24, color: '#ffe9bf' }] : []),
-    { t: 'gap', h: 10 },
-    { t: 'btn', id: 'back', label: 'Back', primary: true, h: 84 },
-    { t: 'gap', h: 30 },
+    { t: 'p', label: `Text size: ${Math.round(sc * 100)}%`, bold: true, color: '#ffe9bf', size: 26, col: R },
+    { t: 'btn', id: 'txt-dec', label: 'A−  Smaller', row: 4, disabled: st.textIdx === 0, col: R },
+    { t: 'btn', id: 'txt-inc', label: 'A+  Larger', row: 4, disabled: st.textIdx === TEXT_SCALES.length - 1, col: R },
+    { t: 'p', label: `Watch & Learn thinking time: ${THINK_STEPS[st.thinkIdx]} s`, bold: true, color: '#ffe9bf', size: 26, col: R },
+    { t: 'btn', id: 'think-dec', label: 'Shorter', row: 5, disabled: st.thinkIdx === 0, col: R },
+    { t: 'btn', id: 'think-inc', label: 'Longer', row: 5, disabled: st.thinkIdx === THINK_STEPS.length - 1, col: R },
+    ...(state.demo ? [] : [{ t: 'btn', id: 'restore', label: 'Restore purchase', dark: true, col: R }]),
+    ...(state.restoreMsg ? [{ t: 'p', label: state.restoreMsg, size: 24, color: '#ffe9bf', col: R }] : []),
+    { t: 'gap', h: 10, col: R },
+    { t: 'btn', id: 'back', label: 'Back', primary: true, h: 84, col: R },
+    { t: 'gap', h: 30, col: R },
   ];
 }
 
-export function resultWidgets(state) {
+export function resultWidgets(state, wide = false) {
   const r = state.run, o = r.over;
   const big = TEXT_SCALES[state.settings.textIdx] > 1.5;
-  const wd = [{ t: 'gap', h: big ? 24 : 80 }];
+  const R = wide ? 'R' : undefined;
+  const wd = [{ t: 'gap', h: big || wide ? 24 : 80 }];
   if (r.mode === 'coop') {
     wd.push({ t: 'h', label: o.newBest ? 'New best rally!' : 'Rally over', size: 56, cap: big ? 1.1 : 1.4, color: o.newBest ? '#ffd36a' : '#ffffff' });
     wd.push({ t: 'h', label: String(o.rally), size: 150, cap: big ? 1 : 1.2, color: '#ffffff' });
     wd.push({ t: 'p', label: `${TIER_NAMES[o.tier]} · score ${o.points}`, bold: true, color: '#ffe9bf', size: 30, cap: 2 });
     wd.push({ t: 'p', label: `Best rally ${state.record.bestRally} · best score ${state.record.bestScore}`, size: 26, cap: 2.2 });
     wd.push({ t: 'p', label: `${r.stats.sweet} sweet hits${r.stats.hints ? ` · ${r.stats.hints} hint${r.stats.hints > 1 ? 's' : ''}` : ''}`, size: 24, cap: 2.2 });
-    wd.push({ t: 'gap', h: 24 });
-    wd.push({ t: 'btn', id: 'again', label: 'Rally again', primary: true, h: 92 });
-    wd.push({ t: 'btn', id: 'menu', label: 'Main menu', dark: true });
+    wd.push({ t: 'gap', h: 24, col: R });
+    wd.push({ t: 'btn', id: 'again', label: 'Rally again', primary: true, h: 92, col: R });
+    wd.push({ t: 'btn', id: 'menu', label: 'Main menu', dark: true, col: R });
   } else {
     const winner = o.win;
     const title = r.mode === 'watch' ? `${r.names[winner]} wins` : winner === 0 ? 'You win!' : `${r.names[1]} wins`;
@@ -142,12 +191,15 @@ export function resultWidgets(state) {
     wd.push({ t: 'h', label: `${o.score[0]} – ${o.score[1]}`, size: 96, cap: big ? 1.1 : 1.3, color: '#ffd36a' });
     const rec = r.mode === 'match' ? ` · your wins against ${r.names[1]}: ${state.record.wins[r.cfg.opp] | 0}` : '';
     wd.push({ t: 'p', label: `Longest rally ${r.stats.longest} · ${r.stats.sweet} sweet hits${r.stats.hints ? ` · ${r.stats.hints} hint${r.stats.hints > 1 ? 's' : ''}` : ''}${rec}`, size: 26, cap: big ? 2 : 3 });
-    wd.push({ t: 'gap', h: 24 });
-    wd.push({ t: 'btn', id: 'again', label: r.mode === 'watch' ? 'Watch again' : 'Rematch', primary: true, h: 92 });
-    if (r.mode === 'match') wd.push({ t: 'btn', id: 'new', label: 'New match', row: 6 });
-    wd.push({ t: 'btn', id: 'menu', label: 'Main menu', row: r.mode === 'match' ? 6 : undefined, dark: true });
+    wd.push({ t: 'gap', h: 24, col: R });
+    wd.push({ t: 'btn', id: 'again', label: r.mode === 'watch' ? 'Watch again' : 'Rematch', primary: true, h: 92, col: R });
+    if (r.mode === 'match') wd.push({ t: 'btn', id: 'new', label: 'New match', row: 6, col: R });
+    wd.push({ t: 'btn', id: 'menu', label: 'Main menu', row: r.mode === 'match' ? 6 : undefined, dark: true, col: R });
   }
-  wd.push({ t: 'gap', h: 30 });
+  wd.push({ t: 'gap', h: 14, col: R });
+  // quiet brand line (text only): never over gameplay, never recolours the game
+  wd.push({ t: 'art', h: 44, col: R, draw(ctx, w) { drawMoreLine(ctx, w / 2, 24, 22); } });
+  wd.push({ t: 'gap', h: 30, col: R });
   return wd;
 }
 
@@ -166,7 +218,7 @@ export function pauseWidgets(state) {
 
 export function demoLimitWidgets() {
   return [
-    { t: 'gap', h: 220 }, { t: 'h', label: 'That is the free web preview', size: 48 },
+    { t: 'gap', h: 120 }, { t: 'h', label: 'That is the free web preview', size: 48 },
     { t: 'p', label: 'You have played the free rallies of the web demo. The full game on iPhone and Android has every rival, every light, wind, and unlimited rallies.', size: 28 },
     { t: 'gap', h: 20 },
     { t: 'btn', id: 'menu', label: 'Main menu', primary: true },
@@ -180,21 +232,20 @@ function scrollHint(ctx, top, bottom, scroll, maxScroll, x0 = 0, w = W) {
   if (scroll < maxScroll - 4) {
     const g = ctx.createLinearGradient(0, bottom - 90, 0, bottom); g.addColorStop(0, 'rgba(8,28,44,0)'); g.addColorStop(1, 'rgba(8,28,44,0.7)');
     ctx.fillStyle = g; ctx.fillRect(x0, bottom - 90, w, 90);
-    roundPath(ctx, cx - 44, bottom - 40, 88, 32, 16); ctx.fillStyle = 'rgba(255,249,234,0.95)'; ctx.fill();
-    ctx.fillStyle = C.ink; ctx.font = `800 20px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('▼ more', cx, bottom - 23);
+    roundPath(ctx, cx - 54, bottom - 44, 108, 36, 18); ctx.fillStyle = 'rgba(255,249,234,0.95)'; ctx.fill();
+    ctx.fillStyle = C.ink; ctx.font = `800 20px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('▼ more', cx, bottom - 25);
   } else if (scroll > 4) {
-    roundPath(ctx, cx - 44, top + 8, 88, 32, 16); ctx.fillStyle = 'rgba(255,249,234,0.95)'; ctx.fill();
-    ctx.fillStyle = C.ink; ctx.font = `800 20px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('▲ up', cx, top + 24);
+    roundPath(ctx, cx - 54, top + 8, 108, 36, 18); ctx.fillStyle = 'rgba(255,249,234,0.95)'; ctx.fill();
+    ctx.fillStyle = C.ink; ctx.font = `800 20px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('▲ up', cx, top + 26);
   }
 }
 
-function drawFlowScreen(ctx, state, key, widgets, top, bottom) {
-  const sc = TEXT_SCALES[state.settings.textIdx];
-  const lay = flowLayout(ctx, widgets, sc);
-  LAID = { key, lay, top, bottom, h: lay.contentH };
+function drawFlowScreen(ctx, state, key) {
+  LAID = flowFor(ctx, state, key);
+  const { lay, top, bottom } = LAID;
   const maxScroll = Math.max(0, lay.contentH - (bottom - top));
   const scroll = Math.min(state.ui.scroll, maxScroll);
-  drawFlow(ctx, lay, top, bottom, scroll);
+  drawFlow(ctx, lay, top, bottom, scroll, W);
   if (maxScroll > 0) {
     const th = Math.max(60, (bottom - top) * ((bottom - top) / lay.contentH)), ty = top + (scroll / maxScroll) * (bottom - top - th);
     roundPath(ctx, W - 10, ty, 5, th, 3); ctx.fillStyle = 'rgba(255,255,255,0.5)'; ctx.fill();
@@ -203,148 +254,176 @@ function drawFlowScreen(ctx, state, key, widgets, top, bottom) {
 }
 
 export function renderTitle(ctx, state) {
+  const L = liveLayout();
   bgScene(ctx, state, state.att, 1.7);
   scrim(ctx, 0.3);
-  const g = ctx.createRadialGradient(W / 2, 250, 40, W / 2, 250, 460);
+  const gx = L.wide ? L.cols.x + L.cols.lw / 2 : W / 2, gy = L.wide ? H * 0.42 : 250;
+  const g = ctx.createRadialGradient(gx, gy, 40, gx, gy, 460);
   g.addColorStop(0, 'rgba(8,28,44,0.45)'); g.addColorStop(1, 'rgba(8,28,44,0)');
-  ctx.fillStyle = g; ctx.fillRect(0, 0, W, 760);
-  drawFlowScreen(ctx, state, 'title', titleWidgets(state), 0, H);
-  ctx.textAlign = 'center'; ctx.font = `600 18px ${FONT}`; ctx.fillStyle = 'rgba(255,255,255,0.6)';
-  if (state.demo) ctx.fillText('Web demo', W / 2, H - 14);
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  drawFlowScreen(ctx, state, 'title');
+  // themed lockup: bottom centre, directly under the last row of menu buttons
+  const btns = LAID.lay.items.filter((i) => i.w.t === 'btn');
+  const lw0 = lockupW(L), x0 = Math.min(...btns.map((i) => i.x)), x1 = Math.max(...btns.map((i) => i.x + i.wd));
+  const lw = Math.min(lw0, Math.max(200, x1 - x0)), lh = Math.round(lw * LOCKUP_RATIO), lx = (x0 + x1) / 2;
+  const under = LAID.top + Math.max(...btns.map((i) => i.y + i.h)) + 22;
+  const ly = Math.min(under, H - Math.max(L.safe.b, 14) - lh - 8);
+  const m = 44 / Math.max(0.2, host.px || 1), tw = Math.max(lw + 24, m), th = Math.max(lh + 12, m);
+  titleLockTap = { x: lx - tw / 2, y: ly + lh + 6 - th, w: tw, h: th };
+  ctx.save(); ctx.fillStyle = state.lockDown > state.t ? 'rgba(255,226,122,0.5)' : 'rgba(8,28,44,0.55)'; roundPath(ctx, lx - lw / 2 - 12, ly - 6, lw + 24, lh + 12, (lh + 12) / 2); ctx.fill(); ctx.restore();
+  drawLockup(ctx, lx, ly, lw, 1);
+  if (state.demo) { ctx.textAlign = 'center'; ctx.font = `600 20px ${FONT}`; ctx.fillStyle = 'rgba(255,255,255,0.7)'; ctx.fillText('Web demo', lx, ly - 14); }
 }
 export function renderSetup(ctx, state) {
+  const L = liveLayout();
   bgScene(ctx, state, state.att, 1.7);
   scrim(ctx, 0.66);
-  drawFlowScreen(ctx, state, 'setup', setupWidgets(state), 0, 1130);
-  const g = ctx.createLinearGradient(0, 1100, 0, H);
+  drawFlowScreen(ctx, state, 'setup');
+  const y0 = L.pins.start.y - 40;
+  const g = ctx.createLinearGradient(0, y0, 0, H);
   g.addColorStop(0, 'rgba(8,28,44,0)'); g.addColorStop(0.2, 'rgba(8,28,44,0.88)'); g.addColorStop(1, 'rgba(8,28,44,0.96)');
-  ctx.fillStyle = g; ctx.fillRect(0, 1100, W, H - 1100);
-  drawButton(ctx, SETUP_PINS.start, 'Start the match', { primary: true, size: 32 });
-  drawButton(ctx, SETUP_PINS.back, 'Back', { dark: true, size: 28 });
-  if (state.setupMsg) { ctx.textAlign = 'center'; ctx.font = `800 22px ${FONT}`; ctx.fillStyle = '#ffd9a0'; ctx.fillText(state.setupMsg, W / 2, 1142); }
+  ctx.fillStyle = g; ctx.fillRect(0, y0, W, H - y0);
+  drawButton(ctx, L.pins.start, 'Start the match', { primary: true, size: L.wide ? 28 : 32 });
+  drawButton(ctx, L.pins.back, 'Back', { dark: true, size: L.wide ? 26 : 28 });
+  if (state.setupMsg) { ctx.textAlign = 'center'; ctx.font = `800 22px ${FONT}`; ctx.fillStyle = '#ffd9a0'; ctx.fillText(state.setupMsg, W / 2, L.pins.start.y - 12); }
 }
 export function renderSettings(ctx, state) {
   bgScene(ctx, state, state.att, 1.7);
   scrim(ctx, 0.7);
-  drawFlowScreen(ctx, state, 'settings', settingsWidgets(state), 0, H);
+  drawFlowScreen(ctx, state, 'settings');
 }
 export function renderResult(ctx, state) {
   const r = state.run;
   const L = lightAt(r.light);
   renderScene(ctx, state, { w: r.w, L, parts: [], trail: [], looks: r.looks, t: state.t, cue: false, guides: null });
   scrim(ctx, 0.62);
-  drawFlowScreen(ctx, state, 'result', resultWidgets(state), 0, H);
+  drawFlowScreen(ctx, state, 'result');
 }
 export function renderDemoLimit(ctx, state) {
   bgScene(ctx, state, state.att, 1.7);
   scrim(ctx, 0.72);
-  drawFlowScreen(ctx, state, 'demolimit', demoLimitWidgets(), 0, H);
+  drawFlowScreen(ctx, state, 'demolimit');
 }
 export function renderPause(ctx, state) {
+  const L = liveLayout();
   scrim(ctx, 0.5);
   const wd = pauseWidgets(state);
   const sc = TEXT_SCALES[state.settings.textIdx];
-  const lay = flowLayout(ctx, wd, sc, { x: 60, w: 600 });
-  const top = 70, bottom = H - 70;
+  const pw = Math.min(660, W - 40), px = (W - pw) / 2;
+  const lay = flowLayout(ctx, wd, sc, { x: px + 30, w: pw - 60 });
+  const top = Math.max(50, L.ins.t + 34), bottom = H - Math.max(50, L.ins.b + 34);
   const ch = Math.min(lay.contentH + 20, bottom - top);
   const y0 = Math.max(top, (H - ch) / 2);
-  panel(ctx, 30, y0 - 20, 660, ch + 40, { r: 30, fill: 'rgba(11,34,54,0.94)', stroke: 'rgba(255,255,255,0.3)' });
-  LAID = { key: 'pause', lay, top: y0, bottom: y0 + ch, h: lay.contentH };
+  panel(ctx, px, y0 - 20, pw, ch + 40, { r: 30, fill: 'rgba(11,34,54,0.94)', stroke: 'rgba(255,255,255,0.3)' });
+  LAID = { key: 'pause', lay, top: y0, bottom: y0 + ch, h: lay.contentH, sk: '' };
   const maxScroll = Math.max(0, lay.contentH - ch);
   const sc0 = Math.min(state.ui.scroll, maxScroll);
-  drawFlow(ctx, lay, y0, y0 + ch, sc0);
-  scrollHint(ctx, y0, y0 + ch, sc0, maxScroll, 30, 660);
+  drawFlow(ctx, lay, y0, y0 + ch, sc0, W);
+  scrollHint(ctx, y0, y0 + ch, sc0, maxScroll, px, pw);
 }
 
-// ---- reference pages --------------------------------------------------------------------------------------------------------------
-let PAGE_COUNT = 1;
-export const pageCount = () => PAGE_COUNT;
-const PANEL = { x: 34, y: 100, w: 652, h: 1030 };
-const ART_H = 230;
-const artH = (scale) => (scale > 2 ? 160 : ART_H);
-
-function buildPages(ctx, list, scale) {
-  const fs = Math.round(28 * scale), lh = fs * 1.28, tw = PANEL.w - 80;
-  const secFs = Math.round(34 * Math.min(scale, 1.3));
-  const top = PANEL.y + 120, limit = PANEL.y + PANEL.h - 70;
-  const pages = [];
-  let cur = null, used = 0;
-  const newPage = () => { cur = { blocks: [], fs, lh, secFs }; used = 0; pages.push(cur); };
-  list.forEach((sec) => {
+// ---- reference reader: ONE scrolling card (drag, wheel, keys, scroll bar), any text size -----------------------------------------
+// state.page holds the scroll offset in px. readerMeta() tells game.js the geometry it needs for input.
+const READER = { max: 0, h: 0, view: 0, key: '' };
+export const readerMeta = () => READER;
+const docCache = new Map();
+function buildDoc(ctx, list, scale, textW) {
+  const fs = Math.round(28 * scale), lh = fs * 1.28, secFs = Math.round(34 * Math.min(scale, 1.3));
+  const blocks = [];
+  let y = 0;
+  list.forEach((sec, si) => {
+    if (si > 0) { blocks.push({ t: 'rule', y }); y += 28; }
     ctx.font = `800 ${secFs}px ${FONT}`;
-    const tl = wrapLines(ctx, sec.title, tw);
-    const titleH = tl.length * secFs * 1.2 + 16;
+    const tl = wrapLines(ctx, sec.title, textW);
+    blocks.push({ t: 'title', y, lines: tl, fs: secFs }); y += tl.length * secFs * 1.2 + 14;
+    if (sec.art) { blocks.push({ t: 'art', y, key: sec.art, h: 230 }); y += 230 + 20; }
     ctx.font = `500 ${fs}px ${FONT}`;
-    const lines = [];
-    sec.p.forEach((para, pi) => wrapLines(ctx, para, tw).forEach((l, k) => lines.push({ text: l, gapBefore: k === 0 && pi > 0 })));
-    const lineH = (l, n) => lh + (l.gapBefore && n > 0 ? lh * 0.45 : 0);
-    const artHt = sec.art ? artH(scale) : 0;
-    let full = titleH + artHt + 26;
-    lines.forEach((l, k) => { full += lineH(l, k); });
-    if (!cur || used + full > limit - top) newPage();
-    let i = 0, part = 0;
-    while (true) {
-      const blk = { title: sec.title, tl, titleH, art: part === 0 ? sec.art : null, artH: part === 0 ? artHt : 0, lines: [], part };
-      let h = titleH + blk.artH + 26;
-      while (i < lines.length) {
-        const add = lineH(lines[i], blk.lines.length);
-        if (used + h + add > limit - top && (blk.lines.length > 0 || used > 0)) break;
-        blk.lines.push({ ...lines[i] }); h += add; i++;
-      }
-      cur.blocks.push(blk); used += h;
-      part++;
-      if (i >= lines.length) break;
-      newPage();
-    }
+    sec.p.forEach((para) => { const ls = wrapLines(ctx, para, textW); blocks.push({ t: 'p', y, lines: ls, fs, lh }); y += ls.length * lh + lh * 0.45; });
+    y += 8;
   });
-  return pages;
+  return { blocks, h: y + 20 };
 }
 
-const pageCache = new Map();
 export function renderPages(ctx, state, list, header) {
+  const L = liveLayout(), Rf = L.ref, vp = Rf.viewport;
   bgScene(ctx, state, state.att, 1.7);
   scrim(ctx, 0.66);
   const sc = TEXT_SCALES[state.settings.textIdx];
-  const pkey = `${header}:${sc}`;
-  let pages = pageCache.get(pkey);
-  if (!pages) { pages = buildPages(ctx, list, sc); pageCache.set(pkey, pages); }
-  PAGE_COUNT = pages.length;
-  const idx = Math.min(state.page, pages.length - 1);
-  const pg = pages[idx];
-  panel(ctx, PANEL.x, PANEL.y, PANEL.w, PANEL.h, { r: 30, fill: 'rgba(255,249,234,0.97)', stroke: 'rgba(16,50,74,0.4)' });
-  ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
-  ctx.fillStyle = C.coralDark; ctx.font = `900 ${Math.round(40 * Math.min(sc, 1.15))}px ${FONT}`;
-  ctx.fillText(header, W / 2, PANEL.y + 58);
+  const key = `${header}:${sc}:${Math.round(Rf.textW)}`;
+  let doc = docCache.get(key);
+  if (!doc) { doc = buildDoc(ctx, list, sc, Rf.textW); docCache.set(key, doc); if (docCache.size > 30) docCache.delete(docCache.keys().next().value); }
+  const view = vp.h - 16, max = Math.max(0, doc.h - view);
+  if (READER.key !== key && READER.h > 0 && READER.key.startsWith(header + ':')) state.page = state.page * (doc.h / READER.h);   // text size changed: keep the place
+  READER.key = key; READER.h = doc.h; READER.max = max; READER.view = view;
+  state.page = Math.max(0, Math.min(max, state.page));
+  const scroll = state.page;
+  panel(ctx, Rf.card.x, Rf.card.y, Rf.card.w, Rf.card.h, { r: 30, fill: 'rgba(255,249,234,0.97)', stroke: 'rgba(16,50,74,0.4)' });
+  ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+  ctx.fillStyle = C.coralDark; ctx.font = `900 ${Math.round(40 * Math.min(sc, 1.1))}px ${FONT}`;
+  ctx.fillText(header, Rf.title.x, Rf.title.y);
   ctx.strokeStyle = 'rgba(16,50,74,0.25)'; ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.moveTo(PANEL.x + 60, PANEL.y + 78); ctx.lineTo(PANEL.x + PANEL.w - 60, PANEL.y + 78); ctx.stroke();
-  let y = PANEL.y + 120;
-  pg.blocks.forEach((blk, bi) => {
-    if (bi > 0) { ctx.strokeStyle = 'rgba(16,50,74,0.15)'; ctx.beginPath(); ctx.moveTo(PANEL.x + 80, y - 8); ctx.lineTo(PANEL.x + PANEL.w - 80, y - 8); ctx.stroke(); y += 8; }
-    ctx.textAlign = 'center'; ctx.fillStyle = C.seaDark; ctx.font = `800 ${pg.secFs}px ${FONT}`;
-    blk.tl.forEach((l, k) => ctx.fillText(l + (blk.part > 0 && k === blk.tl.length - 1 ? ' (cont.)' : ''), W / 2, y + pg.secFs * (0.9 + k * 1.2) - 8));
-    y += blk.titleH;
-    if (blk.art) { ctx.save(); ctx.beginPath(); ctx.rect(PANEL.x + 20, y, PANEL.w - 40, blk.artH); ctx.clip(); drawArt(blk.art, ctx, PANEL.x + 40, y, PANEL.w - 80, blk.artH - 12, state); ctx.restore(); y += blk.artH; }
-    ctx.fillStyle = C.ink; ctx.font = `500 ${pg.fs}px ${FONT}`; ctx.textAlign = 'left';
-    blk.lines.forEach((l, k) => {
-      if (l.gapBefore && k > 0) y += pg.lh * 0.45;
-      ctx.fillText(l.text, PANEL.x + 40, y + pg.fs * 0.85);
-      y += pg.lh;
-    });
-    y += 26;
-  });
-  ctx.textAlign = 'center'; ctx.font = `500 22px ${FONT}`; ctx.fillStyle = 'rgba(16,50,74,0.65)';
-  ctx.fillText(`Page ${idx + 1} of ${pages.length}`, W / 2, PANEL.y + PANEL.h - 28);
-  drawButton(ctx, TEXT_DEC, 'A−', { disabled: state.settings.textIdx === 0, size: 30 });
-  drawButton(ctx, TEXT_INC, 'A+', { disabled: state.settings.textIdx === TEXT_SCALES.length - 1, size: 30 });
-  ctx.fillStyle = '#ffffff'; ctx.font = `800 24px ${FONT}`; ctx.textAlign = 'center';
-  ctx.fillText(`${Math.round(sc * 100)}%`, W / 2, 56);
-  drawButton(ctx, REF_BACK, idx === 0 ? 'Close' : 'Back', { size: 32 });
-  drawButton(ctx, REF_NEXT, idx === pages.length - 1 ? 'Done' : 'Next', { primary: true, size: 32 });
+  ctx.beginPath(); ctx.moveTo(Rf.card.x + 24, Rf.card.y + Rf.hdrH - 6); ctx.lineTo(Rf.card.x + Rf.card.w - 24, Rf.card.y + Rf.hdrH - 6); ctx.stroke();
+  // scrolling body
+  ctx.save();
+  ctx.beginPath(); ctx.rect(vp.x, vp.y, vp.w, vp.h - 6); ctx.clip();
+  const x0 = Rf.cx - Rf.textW / 2, top = vp.y + 8 - scroll;
+  for (const b of doc.blocks) {
+    const y = top + b.y;
+    if (b.t === 'rule') { if (y > vp.y - 10 && y < vp.y + vp.h) { ctx.strokeStyle = 'rgba(16,50,74,0.15)'; ctx.beginPath(); ctx.moveTo(x0 + 20, y + 4); ctx.lineTo(x0 + Rf.textW - 20, y + 4); ctx.stroke(); } continue; }
+    const bh = b.t === 'art' ? b.h : b.t === 'title' ? b.lines.length * b.fs * 1.2 : b.lines.length * b.lh;
+    if (y + bh < vp.y - 10 || y > vp.y + vp.h + 10) continue;
+    if (b.t === 'title') {
+      ctx.textAlign = 'center'; ctx.fillStyle = C.seaDark; ctx.font = `800 ${b.fs}px ${FONT}`;
+      b.lines.forEach((l, k) => ctx.fillText(l, Rf.cx, y + b.fs * (0.9 + k * 1.2)));
+    } else if (b.t === 'art') {
+      const aw = Math.min(Rf.textW, 620);
+      ctx.save(); ctx.beginPath(); ctx.rect(Rf.cx - aw / 2 - 6, y, aw + 12, b.h); ctx.clip();
+      drawArt(b.key, ctx, Rf.cx - aw / 2, y, aw, b.h - 12, state); ctx.restore();
+    } else {
+      ctx.fillStyle = C.ink; ctx.font = `500 ${b.fs}px ${FONT}`; ctx.textAlign = 'left';
+      b.lines.forEach((l, k) => ctx.fillText(l, x0, y + b.fs * 0.85 + k * b.lh));
+    }
+  }
+  ctx.restore();
+  // scroll bar + cue
+  if (max > 0) {
+    const sb = Rf.scrollbar, th = Math.max(48, sb.h * (view / doc.h)), ty = sb.y + (scroll / max) * (sb.h - th);
+    roundPath(ctx, sb.x, sb.y, sb.w, sb.h, 4); ctx.fillStyle = 'rgba(16,50,74,0.10)'; ctx.fill();
+    roundPath(ctx, sb.x, ty, sb.w, th, 4); ctx.fillStyle = 'rgba(16,50,74,0.45)'; ctx.fill();
+    if (scroll < max - 6) {
+      const g = ctx.createLinearGradient(0, vp.y + vp.h - 80, 0, vp.y + vp.h - 6); g.addColorStop(0, 'rgba(255,249,234,0)'); g.addColorStop(1, 'rgba(255,249,234,0.97)');
+      ctx.fillStyle = g; ctx.fillRect(vp.x, vp.y + vp.h - 80, vp.w, 74);
+      roundPath(ctx, Rf.cx - 110, vp.y + vp.h - 50, 220, 38, 19); ctx.fillStyle = 'rgba(16,50,74,0.82)'; ctx.fill();
+      ctx.fillStyle = '#fff'; ctx.font = `800 20px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('▼ scroll for more', Rf.cx, vp.y + vp.h - 30); ctx.textBaseline = 'alphabetic';
+    }
+  }
+  drawButton(ctx, Rf.dec, 'A−', { disabled: state.settings.textIdx === 0, size: 30 });
+  drawButton(ctx, Rf.inc, 'A+', { disabled: state.settings.textIdx === TEXT_SCALES.length - 1, size: 30 });
+  ctx.fillStyle = C.ink; ctx.font = `800 24px ${FONT}`; ctx.textAlign = 'center';
+  ctx.fillText(`${Math.round(sc * 100)}%`, Rf.pct.x, Rf.pct.y + 8);
+  drawButton(ctx, Rf.close, 'Close', { primary: true, size: 32 });
 }
 
 // ---- illustrations ------------------------------------------------------------------------------------------------------------------
+// Width of the illustration being drawn (set by drawArt): a caption that is wider than the picture shrinks to fit and is kept inside it.
+let ART_W = Infinity;
 function label(ctx, t, x, y, size = 19, col = C.ink, align = 'center') {
-  ctx.fillStyle = col; ctx.font = `800 ${size}px ${FONT}`; ctx.textAlign = align; ctx.textBaseline = 'alphabetic'; ctx.fillText(t, x, y);
+  let px = Math.max(size, 20);
+  ctx.fillStyle = col; ctx.font = `800 ${px}px ${FONT}`; ctx.textAlign = align; ctx.textBaseline = 'alphabetic';
+  const room = ART_W - 12;
+  let tw = ctx.measureText(t).width;
+  if (tw > room) { px = Math.max(16, Math.floor(px * room / tw)); ctx.font = `800 ${px}px ${FONT}`; tw = ctx.measureText(t).width; }
+  if (tw > room) {
+    // still too wide at the smallest size: two lines, split at the space nearest the middle (the last line keeps the baseline)
+    const sp = [...t].map((ch, k) => (ch === ' ' ? k : -1)).filter((k) => k >= 0).sort((a, b) => Math.abs(a - t.length / 2) - Math.abs(b - t.length / 2))[0];
+    if (sp > 0) { label(ctx, t.slice(0, sp), x, y - px * 1.1, px / 1, col, align); label(ctx, t.slice(sp + 1), x, y, px / 1, col, align); return; }
+  }
+  if (ART_W < Infinity) {
+    if (align === 'center') x = Math.max(6 + tw / 2, Math.min(ART_W - 6 - tw / 2, x));
+    else if (align === 'left') x = Math.max(6, Math.min(ART_W - 6 - tw, x));
+    else x = Math.max(6 + tw, Math.min(ART_W - 6, x));
+  }
+  ctx.fillText(t, x, y);
 }
 function sandStrip(ctx, x, y, w, h) {
   const g = ctx.createLinearGradient(0, y, 0, y + h);
@@ -373,7 +452,7 @@ function miniCourt(ctx, x, y, w, h) {
 }
 
 export function drawArt(key, ctx, x, y, w, h) {
-  ctx.save(); ctx.translate(x, y);
+  ctx.save(); ctx.translate(x, y); ART_W = w;
   const A = {
     figures() {
       sandStrip(ctx, 0, 0, w, h);
@@ -514,13 +593,14 @@ export function drawArt(key, ctx, x, y, w, h) {
       steps.forEach(([a, b, col], i) => {
         const x0 = 10 + i * (bw + 20);
         roundPath(ctx, x0, h * 0.2, bw, h * 0.52, 20); ctx.fillStyle = col; ctx.fill();
-        ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.font = `900 28px ${FONT}`; ctx.fillText(a, x0 + bw / 2, h * 0.2 + 54); ctx.font = `700 18px ${FONT}`; ctx.fillText(b, x0 + bw / 2, h * 0.2 + 88);
+        ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.font = `900 28px ${FONT}`; ctx.fillText(a, x0 + bw / 2, h * 0.2 + 54); ctx.font = `700 20px ${FONT}`; ctx.fillText(b, x0 + bw / 2, h * 0.2 + 88);
         if (i < 2) arrow(ctx, x0 + bw + 2, h * 0.46, x0 + bw + 18, h * 0.46, C.ink, 4);
       });
       label(ctx, 'Pause freezes the whole loop, including the timer', w / 2, h - 12, 16, C.ink);
     },
   };
   (A[key] ?? A.court)();
+  ART_W = Infinity;
   ctx.restore();
 }
 void LOOKS; void tierOf;

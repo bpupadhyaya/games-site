@@ -1,8 +1,8 @@
 // In-play HUD: scoreboard, pitch markers (you, your target, the landing spot), the stick and buttons, the set-shot meter, banners,
 // Think and Pause. Everything follows the text size (through PLAY_M) and is laid out by layout.hudLayout so hit-testing and drawing agree.
-import { W, H, PLAY_M, hudLayout, inRect } from './layout.js';
+import { W, H, PLAY_M, hudLayout, watchLayout, inRect, isWide, minFont, host } from './layout.js';
 import { FONT, C, roundPath, drawButton, panel, wrapLines } from './ui.js';
-import { projectV } from './camera.js';
+import { projectV, camFor } from './camera.js';
 import { predictBall, dirOf, inside } from './model.js';
 import { ROLE_NAME, QUARTER } from './consts.js';
 import * as KC from './consts.js';
@@ -15,7 +15,7 @@ export const watchHit = (x, y) => W_RECTS.findIndex((r) => inRect(r, x, y));
 const fmtClock = (sec) => { const s = Math.max(0, Math.ceil(sec)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`; };
 const pts = (sc) => sc.g * 6 + sc.b;
 
-function P(G, x, y, z) { return projectV(G.viewW || 720, G.viewH || 1280, x, y, z); }
+function P(G, x, y, z) { return projectV(camFor(W, H), W, H, x, y, z); }
 function groundEllipse(ctx, G, x, z, r, fill, stroke, lw = 3) {
   const c = P(G, x, 0.02, z), a = P(G, x + r, 0.02, z), b = P(G, x, 0.02, z + r);
   if (!c || !a || !b) return null;
@@ -27,31 +27,31 @@ function groundEllipse(ctx, G, x, z, r, fill, stroke, lw = 3) {
   return { c, rx, ry };
 }
 function tag(ctx, x, y, text, col = '#ffd54a', size = 20) {
+  size = minFont(size);
   ctx.save(); ctx.font = `800 ${size}px ${FONT}`; const w = ctx.measureText(text).width + 18;
   roundPath(ctx, x - w / 2, y - size * 0.95, w, size * 1.4, 10); ctx.fillStyle = 'rgba(6,24,16,0.86)'; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = col; ctx.stroke();
   ctx.fillStyle = '#fff6e4'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(text, x, y - size * 0.25 + 1); ctx.restore();
 }
 
 function scoreboard(ctx, G, s, lay) {
-  const m = lay.m, th = lay.topH;
+  const m = lay.m, th = lay.topH, wide = lay.wide, kw = wide ? 0.85 : 1;
   const g = ctx.createLinearGradient(0, 0, 0, th + 30); g.addColorStop(0, 'rgba(4,16,10,0.9)'); g.addColorStop(1, 'rgba(4,16,10,0)');
   ctx.fillStyle = g; ctx.fillRect(0, 0, W, th + 30);
-  const colw = 240;
+  const m1 = Math.min(m, 1.6) * kw, ms = wide ? lay.sm : m, y0 = wide ? host.t + 8 : 14;
   for (const i of [0, 1]) {
-    const left = i === 0, x0 = left ? 16 : W - 16 - colw;
-    ctx.fillStyle = TEAM_COL[i]; roundPath(ctx, x0, 14, 9, th - 40, 4); ctx.fill();
-    const ax = left ? x0 + 20 : x0 + colw - 20;
+    const left = i === 0, col = left ? lay.board.left : lay.board.right, x0 = col.x;
+    ctx.fillStyle = TEAM_COL[i]; roundPath(ctx, x0, y0, 9, wide ? th - y0 - 16 : th - 40, 4); ctx.fill();
+    const ax = left ? x0 + 20 : x0 + col.w - 6;
     ctx.textAlign = left ? 'left' : 'right'; ctx.textBaseline = 'alphabetic';
-    const m1 = Math.min(m, 1.6);
-    ctx.fillStyle = '#fff6e4'; ctx.font = `700 ${Math.round(21 * m1)}px ${FONT}`;
-    ctx.fillText(`${s.teams[i].name} ${s.score[i].g}.${s.score[i].b}`, ax, 14 + 22 * m1);
-    ctx.font = `800 ${Math.round(54 * m)}px ${FONT}`; ctx.fillText(String(pts(s.score[i])), ax, 14 + 22 * m1 + 52 * m);
+    ctx.fillStyle = '#fff6e4'; ctx.font = `700 ${minFont(Math.round(21 * m1))}px ${FONT}`;
+    ctx.fillText(`${s.teams[i].name} ${s.score[i].g}.${s.score[i].b}`, ax, y0 + 22 * m1);
+    ctx.font = `800 ${Math.round(54 * ms)}px ${FONT}`; ctx.fillText(String(pts(s.score[i])), ax, y0 + 22 * m1 + 52 * ms);
   }
-  const mc = Math.min(m, 1.5);
+  const mc = Math.min(m, 1.5) * kw, cx = lay.board.clock.x + lay.board.clock.w / 2, yb = (wide ? host.t + 26 : 40) + 30 * mc;
   ctx.textAlign = 'center'; ctx.fillStyle = '#fff6e4'; ctx.font = `800 ${Math.round(42 * mc)}px ${FONT}`;
-  ctx.fillText(fmtClock(s.clock), W / 2, 40 + 30 * mc);
-  ctx.fillStyle = '#ffd97a'; ctx.font = `700 ${Math.round(19 * mc)}px ${FONT}`;
-  ctx.fillText(s.siren ? 'Last play' : `Q${s.q + 1} of ${s.quarters}`, W / 2, 40 + 30 * mc + 24 * mc);
+  ctx.fillText(fmtClock(s.clock), cx, yb);
+  ctx.fillStyle = '#ffd97a'; ctx.font = `700 ${minFont(Math.round(19 * mc))}px ${FONT}`;
+  ctx.fillText(s.siren ? 'Last play' : `Q${s.q + 1} of ${s.quarters}`, cx, yb + 24 * mc);
 }
 
 function stickAndButtons(ctx, G, s, lay, cs, ctxInfo) {
@@ -75,9 +75,9 @@ function stickAndButtons(ctx, G, s, lay, cs, ctxInfo) {
     if (down) { ctx.fillStyle = 'rgba(4,16,10,0.18)'; ctx.fill(); }
     ctx.fillStyle = on ? '#fffaf0' : 'rgba(235,245,238,0.6)'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     let px = Math.round(c.r * 0.36); ctx.font = `800 ${px}px ${FONT}`;
-    while (ctx.measureText(label).width > c.r * 1.7 && px > 11) { px--; ctx.font = `800 ${px}px ${FONT}`; }
+    while (ctx.measureText(label).width > c.r * 1.7 && px > Math.max(11, minFont(11))) { px--; ctx.font = `800 ${px}px ${FONT}`; }
     ctx.fillText(label, c.cx, c.cy + pressed - (sub ? c.r * 0.08 : 0));
-    if (sub) { ctx.font = `600 ${Math.round(c.r * 0.2)}px ${FONT}`; ctx.globalAlpha = 0.85; ctx.fillText(sub, c.cx, c.cy + pressed + c.r * 0.34); }
+    if (sub) { ctx.font = `600 ${minFont(Math.round(c.r * 0.2))}px ${FONT}`; ctx.globalAlpha = 0.85; ctx.fillText(sub, c.cx, c.cy + pressed + c.r * 0.34); }
     ctx.restore();
   };
   btn(lay.a1, ctxInfo.a1 || 'ACT', '', !!ctxInfo.a1, true, dn.a1);
@@ -142,7 +142,7 @@ function pitchMarkers(ctx, G, s, lay, view) {
   for (const q of s.players) {
     if (q.team !== 0 || (hp && q.id === hp.id)) continue;
     const hd = P(G, q.x, 2.3 + q.jh, q.z); if (!hd) continue;
-    ctx.save(); ctx.globalAlpha = 0.85; ctx.fillStyle = 'rgba(224,68,58,0.9)'; ctx.beginPath(); ctx.arc(hd.x, hd.y - 8, 7, 0, TAU); ctx.fill(); ctx.fillStyle = '#fff'; ctx.font = `800 10px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(LET[q.role], hd.x, hd.y - 7); ctx.restore();
+    const lf = minFont(10); ctx.save(); ctx.globalAlpha = 0.85; ctx.fillStyle = 'rgba(224,68,58,0.9)'; ctx.beginPath(); ctx.arc(hd.x, hd.y - 8, lf * 0.62, 0, TAU); ctx.fill(); ctx.fillStyle = '#fff'; ctx.font = `800 ${lf}px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(LET[q.role], hd.x, hd.y - 7); ctx.restore();
   }
   if (!hp) return;
   const you = groundEllipse(ctx, G, hp.x, hp.z, 1.2, 'rgba(255,213,74,0.22)', '#ffd54a', 4);
@@ -161,18 +161,19 @@ function pitchMarkers(ctx, G, s, lay, view) {
   if (G.think && G.think.tx !== undefined) { groundEllipse(ctx, G, G.think.tx, G.think.tz, 1.4, 'rgba(255,233,160,0.25)', '#ffe9a0', 4); const q = P(G, G.think.tx, 0.1, G.think.tz); if (q) tag(ctx, q.x, q.y - 24, 'HERE', '#ffe9a0', 18); }
 }
 
-function banner(ctx, G, s, lay, m) {
+function banner(ctx, G, s, lay, m, baseY) {
   const showLast = s.last && s.t - s.last.t < 2.3;
   if (showLast) {
-    const big = Math.round(44 * Math.min(m, 1.5)); ctx.font = `800 ${big}px ${FONT}`;
-    const lines = wrapLines(ctx, s.last.text, W - 110);
-    const ph = lines.length * big * 1.2 + 24, py = lay.bannerY;
-    roundPath(ctx, 50, py, W - 100, ph, 20); ctx.fillStyle = 'rgba(6,24,16,0.82)'; ctx.fill();
+    const big = minFont(Math.round(44 * Math.min(m, 1.5) * (lay.wide ? 0.8 : 1))); ctx.font = `800 ${big}px ${FONT}`;
+    const bx = lay.banner.x, bw = lay.banner.w;
+    const lines = wrapLines(ctx, s.last.text, bw - 10);
+    const ph = lines.length * big * 1.2 + 24, py = baseY;
+    roundPath(ctx, bx, py, bw, ph, 20); ctx.fillStyle = 'rgba(6,24,16,0.82)'; ctx.fill();
     ctx.lineWidth = 3; ctx.strokeStyle = s.last.team >= 0 ? TEAM_COL[s.last.team] : '#ffd54a'; ctx.stroke();
-    ctx.fillStyle = '#fff6e4'; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'; lines.forEach((l, i) => ctx.fillText(l, W / 2, py + 12 + big * (0.95 + i * 1.2)));
+    ctx.fillStyle = '#fff6e4'; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'; lines.forEach((l, i) => ctx.fillText(l, bx + bw / 2, py + 12 + big * (0.95 + i * 1.2)));
     return py + ph;
   }
-  return lay.bannerY;
+  return baseY;
 }
 
 function promptLine(G, s, ctxInfo) {
@@ -198,7 +199,7 @@ const TIPS = {
 // The goal replay: a framed picture of the play drawn through the SAME fixed camera maths, with figures (head, shirt, shorts, legs and shadows) and the ball's trail
 // instead of dots. The main pitch never moves; only this panel is centred on the ball.
 function replayPanel(ctx, G, s, lay, fr, label, fr2, k) {
-  const pw = 460, ph = 300, px = W - pw - 16, py = KC_CTRL - ph - 14, zoom = 1.9;
+  const { x: px, y: py, w: pw, h: ph } = lay.replay, zoom = 1.9 * pw / 460;
   const lerp = (a, b, t) => a + (b - a) * t;
   const at = (i) => { const q = fr.p[i], q2 = fr2 ? fr2.p[i] : q; return [lerp(q[0], q2[0], k), lerp(q[1], q2[1], k), q2[0] - q[0], q2[1] - q[1]]; };
   const bw = fr2 ? [lerp(fr.b[0], fr2.b[0], k), lerp(fr.b[1], fr2.b[1], k), lerp(fr.b[2], fr2.b[2], k)] : fr.b;
@@ -225,12 +226,12 @@ function replayPanel(ctx, G, s, lay, fr, label, fr2, k) {
   const bm = mapPt(bw[0], bw[2], bw[1]); if (bm) { ctx.fillStyle = '#b8321f'; ctx.beginPath(); ctx.ellipse(bm[0], bm[1], 8, 5.5, -0.4, 0, TAU); ctx.fill(); ctx.strokeStyle = '#fff6e4'; ctx.lineWidth = 1.5; ctx.stroke(); }
   ctx.restore();
   roundPath(ctx, px, py, pw, ph, 16); ctx.lineWidth = 4; ctx.strokeStyle = '#ffd54a'; ctx.stroke();
-  ctx.fillStyle = '#ffd54a'; ctx.font = `800 20px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText(label, px + pw / 2, py - 6);
+  ctx.fillStyle = '#ffd54a'; ctx.font = `800 ${minFont(20)}px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText(label, px + pw / 2, py - 6);
 }
-const KC_CTRL = 860;
 // the fixed top-down inset: live positions, and the replay of the last goal. It never moves.
 function miniMap(ctx, G, s, lay) {
-  const w = 92, h = Math.round(w * (KC.HL / KC.HW)), x = Math.round(W / 2 - w / 2), y = lay.topH + 6, sx = (w - 8) / (2 * KC.HW), cx = x + w / 2, cy = y + h / 2;
+  const { x, y, w, h } = lay.minimap, side = camFor(W, H).side, cx = x + w / 2, cy = y + h / 2;
+  const sx = side ? (w - 8) / (2 * KC.HL) : (w - 8) / (2 * KC.HW);
   let players = s.players.map((p) => [p.x, p.z]), ball = [s.ball.x, s.ball.z, s.ball.y], label = '';
   const R = G.replay; let rep = null, rep2 = null, repK = 0;
   if (R && G.replayFrames.length) {
@@ -238,51 +239,58 @@ function miniMap(ctx, G, s, lay) {
     if (i >= R.n) G.replay = null; else if (i >= 0) { const f = G.replayFrames[i]; players = f.p; ball = f.b; label = 'REPLAY'; rep = f; rep2 = G.replayFrames[Math.min(R.n - 1, i + 1)]; repK = fi - i; }
   }
   ctx.save(); roundPath(ctx, x, y, w, h, 12); ctx.fillStyle = label ? 'rgba(20,30,50,0.82)' : 'rgba(6,24,16,0.62)'; ctx.fill(); ctx.lineWidth = label ? 3 : 1.5; ctx.strokeStyle = label ? '#ffd54a' : 'rgba(255,246,228,0.5)'; ctx.stroke();
-  ctx.beginPath(); ctx.ellipse(cx, cy, KC.HW * sx, KC.HL * sx, 0, 0, TAU); ctx.fillStyle = 'rgba(47,138,74,0.8)'; ctx.fill(); ctx.strokeStyle = 'rgba(255,255,255,0.7)'; ctx.stroke();
-  // the screen shows the far end at the top and screen-right is world -x: draw it the same way
-  const mp = (px, pz) => [cx - px * sx, cy - pz * sx];
+  ctx.beginPath(); ctx.ellipse(cx, cy, (side ? KC.HL : KC.HW) * sx, (side ? KC.HW : KC.HL) * sx, 0, 0, TAU); ctx.fillStyle = 'rgba(47,138,74,0.8)'; ctx.fill(); ctx.strokeStyle = 'rgba(255,255,255,0.7)'; ctx.stroke();
+  // drawn the way the screen shows the pitch: portrait has the far end at the top and screen-right is world -x; landscape has the far end on the right and the far touchline on top
+  const mp = side ? (px, pz) => [cx + pz * sx, cy - px * sx] : (px, pz) => [cx - px * sx, cy - pz * sx];
   ctx.strokeStyle = 'rgba(255,255,255,0.7)'; ctx.beginPath(); for (const gz of [-KC.ZG, KC.ZG]) { const a = mp(-KC.BHW, gz), b = mp(KC.BHW, gz); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); } ctx.stroke();
   const hp = G.S.humanPlayer();
   players.forEach((q, i) => { const m = mp(q[0], q[1]); ctx.fillStyle = TEAM_COL[i < 6 ? 0 : 1]; ctx.beginPath(); ctx.arc(m[0], m[1], 3.2, 0, TAU); ctx.fill(); if (!label && hp && i === hp.id) { ctx.strokeStyle = '#ffd54a'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(m[0], m[1], 5.5, 0, TAU); ctx.stroke(); } });
   const bm = mp(ball[0], ball[1]); ctx.fillStyle = '#fff6e4'; ctx.beginPath(); ctx.arc(bm[0], bm[1], 2.6, 0, TAU); ctx.fill();
-  if (label) { ctx.fillStyle = '#ffd54a'; ctx.font = `800 13px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText(label, cx, y + h + 15); }
+  if (label) { ctx.fillStyle = '#ffd54a'; ctx.font = `800 ${minFont(13)}px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText(label, cx, y + h + minFont(13) + 2); }
   ctx.restore();
   if (rep) replayPanel(ctx, G, s, lay, rep, 'GOAL REPLAY', rep2, repK);
 }
 
 export function renderPlayHud(ctx, G, view, cs) {
-  const S = G.S, s = S.s, lay = hudLayout(G.settings.textIdx), m = lay.m;
+  const S = G.S, s = S.s, lay = hudLayout(G.settings.textIdx, W, H), m = lay.m;
   const hp = S.humanPlayer();
   scoreboard(ctx, G, s, lay);
   pitchMarkers(ctx, G, s, lay, view);
   miniMap(ctx, G, s, lay);
   whistleMark(ctx, G, view);
   const prompt = promptLine(G, s);
-  let by = banner(ctx, G, s, lay, m);
+  const showMeter = !!(s.set && hp && s.set.id === hp.id && s.phase === 'setshot') && G.mode !== 'watch';
+  const drillExtra = lay.wide && G.mode === 'drill' && G.tally ? 34 : 0;
+  const baseY = lay.wide ? (showMeter ? lay.meter.y + lay.meter.h + 10 : lay.bannerY) + drillExtra : lay.bannerY;
+  const by = banner(ctx, G, s, lay, m, baseY);
   if (prompt) {
-    const ps = Math.round(22 * Math.min(m, 1.6)); ctx.font = `700 ${ps}px ${FONT}`;
-    const lines = wrapLines(ctx, prompt, W - 80), ph = lines.length * ps * 1.25 + 16;
-    const py = by + 8 > lay.bannerY + 8 && by !== lay.bannerY ? by + 10 : lay.bannerY + 0;
-    const y2 = (s.last && s.t - s.last.t < 2.3) ? py : lay.bannerY;
-    roundPath(ctx, 30, y2, W - 60, ph, 14); ctx.fillStyle = 'rgba(6,24,16,0.74)'; ctx.fill();
-    ctx.fillStyle = '#fff6e4'; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'; lines.forEach((l, i) => ctx.fillText(l, W / 2, y2 + 8 + ps * (0.95 + i * 1.25)));
+    const ps = minFont(Math.round(22 * Math.min(m, 1.6) * (lay.wide ? 0.85 : 1))); ctx.font = `700 ${ps}px ${FONT}`;
+    const lines = wrapLines(ctx, prompt, lay.prompt.w - 20), ph = lines.length * ps * 1.25 + 16;
+    const y2 = (s.last && s.t - s.last.t < 2.3) ? by + 10 : baseY;
+    roundPath(ctx, lay.prompt.x, y2, lay.prompt.w, ph, 14); ctx.fillStyle = 'rgba(6,24,16,0.74)'; ctx.fill();
+    ctx.fillStyle = '#fff6e4'; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'; lines.forEach((l, i) => ctx.fillText(l, lay.prompt.x + lay.prompt.w / 2, y2 + 8 + ps * (0.95 + i * 1.25)));
   }
   if (G.mode === 'watch') { watchButtons(ctx, G, s, lay, m); return; }
   const ctxInfo = hp ? S.contextOf(hp) : { a1: null, a2: null };
-  const bg = ctx.createLinearGradient(0, lay.stick.y - 30, 0, H); bg.addColorStop(0, 'rgba(4,16,10,0)'); bg.addColorStop(0.3, 'rgba(4,16,10,0.55)'); bg.addColorStop(1, 'rgba(4,16,10,0.82)');
-  ctx.fillStyle = bg; ctx.fillRect(0, lay.stick.y - 30, W, H - lay.stick.y + 30);
-  meter(ctx, G, s, lay);
+  if (!lay.wide) {
+    const bg = ctx.createLinearGradient(0, lay.stick.y - 30, 0, H); bg.addColorStop(0, 'rgba(4,16,10,0)'); bg.addColorStop(0.3, 'rgba(4,16,10,0.55)'); bg.addColorStop(1, 'rgba(4,16,10,0.82)');
+    ctx.fillStyle = bg; ctx.fillRect(0, lay.stick.y - 30, W, H - lay.stick.y + 30);
+  } else {
+    const gl = ctx.createLinearGradient(0, 0, lay.stick.cx + 130, 0); gl.addColorStop(0, 'rgba(4,16,10,0.5)'); gl.addColorStop(1, 'rgba(4,16,10,0)'); ctx.fillStyle = gl; ctx.fillRect(0, lay.think.y - 6, lay.stick.cx + 130, H - lay.think.y + 6);
+    const gr = ctx.createLinearGradient(W, 0, lay.a2.cx - lay.a2.r - 40, 0); gr.addColorStop(0, 'rgba(4,16,10,0.5)'); gr.addColorStop(1, 'rgba(4,16,10,0)'); const gx0 = lay.a2.cx - lay.a2.r - 40, gy0 = lay.spr.cy - lay.spr.r - 20; ctx.fillStyle = gr; ctx.fillRect(gx0, gy0, W - gx0, H - gy0);
+  }
+  if (showMeter) meter(ctx, G, s, lay);
   stickAndButtons(ctx, G, s, lay, cs, ctxInfo);
-  const sz = Math.round(24 * Math.min(m, 1.6));
+  const sz = minFont(Math.round(24 * Math.min(m, 1.6) * (lay.wide ? 0.9 : 1)));
   drawButton(ctx, lay.think, 'Think', { dark: true, size: sz });
   drawButton(ctx, lay.pause, 'Pause', { dark: true, size: sz });
   if (G.mode === 'drill') {
-    const t = G.tally; if (t) { ctx.textAlign = 'center'; ctx.font = `700 ${Math.round(22 * Math.min(m, 1.6))}px ${FONT}`; ctx.fillStyle = '#ffe9a0'; ctx.fillText(`${G.lessonTitle}: ${t.ok} good of ${t.n} tried`, W / 2, lay.topH + 4 + 0); }
+    const t = G.tally; if (t) { ctx.textAlign = 'center'; ctx.font = `700 ${minFont(Math.round(22 * Math.min(m, 1.6)))}px ${FONT}`; ctx.fillStyle = '#ffe9a0'; ctx.fillText(`${G.lessonTitle}: ${t.ok} good of ${t.n} tried`, lay.wide ? lay.prompt.x + lay.prompt.w / 2 : W / 2, lay.wide ? lay.bannerY + 24 : lay.topH + 4); }
   }
 }
 
 function watchButtons(ctx, G, s, lay, m) {
-  const w = G.watch, sz = Math.round(22 * Math.min(m, 1.7));
+  const w = G.watch, wl = watchLayout(G.settings.textIdx, W, H), sz = minFont(Math.round(22 * Math.min(m, 1.7) * (lay.wide ? 0.9 : 1)));
   let msg;
   if (s.hold) {
     const tn = s.teams[s.hold.team].name;
@@ -290,45 +298,44 @@ function watchButtons(ctx, G, s, lay, m) {
     else if (w.phase === 'reveal') msg = `REVEAL: ${tn}: ${s.hold.reason}`;
     else msg = `ACT: ${s.hold.summary}`;
   } else msg = 'ACT: the play continues.';
-  const ps = Math.round(21 * Math.min(m, 1.5)), pw = W - 40;
+  const ps = minFont(Math.round(21 * Math.min(m, 1.5) * (lay.wide ? 0.9 : 1))), pw = wl.panel.w;
   ctx.font = `600 ${ps}px ${FONT}`; const lines = wrapLines(ctx, msg, pw - 30).slice(0, 10);
-  const ph = lines.length * ps * 1.25 + 20, py = 880;
-  roundPath(ctx, 20, py, pw, ph, 16); ctx.fillStyle = 'rgba(6,24,16,0.88)'; ctx.fill();
+  const ph = lines.length * ps * 1.25 + 20, py = wl.panel.bottom - ph;
+  roundPath(ctx, wl.panel.x, py, pw, ph, 16); ctx.fillStyle = 'rgba(6,24,16,0.88)'; ctx.fill();
   ctx.fillStyle = w.phase === 'think' ? '#ffe9a0' : w.phase === 'reveal' ? '#7fe8d6' : '#ff9a86'; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
-  lines.forEach((l, i) => ctx.fillText(l, 36, py + 10 + ps * (0.95 + i * 1.25)));
+  lines.forEach((l, i) => ctx.fillText(l, wl.panel.x + 16, py + 10 + ps * (0.95 + i * 1.25)));
   if (s.hold) { const hp0 = s.players[s.hold.id]; groundEllipse(ctx, G, hp0.x, hp0.z, 1.3, 'rgba(255,213,74,0.22)', '#ffd54a', 4); }
   if (s.hold && w.phase !== 'think') {
     const opts = s.hold.options || [];
     opts.forEach((o) => { if (o.tx === undefined) return; const chosen = s.hold.choice && o.label === s.hold.choice.label; const q = P(G, o.tx, 0.1, o.tz); if (!q) return; groundEllipse(ctx, G, o.tx, o.tz, chosen ? 1.5 : 1.0, chosen ? 'rgba(127,232,214,0.25)' : 'rgba(255,255,255,0.1)', chosen ? '#7fe8d6' : 'rgba(255,255,255,0.7)', chosen ? 4 : 2); tag(ctx, q.x, q.y - 20, `${o.label.replace('Kick to ', '').replace('Handball to ', 'HB ')}${chosen ? ' *' : ''}`, chosen ? '#7fe8d6' : '#fff6e4', 15); });
   }
-  const y1 = Math.max(py + ph + 14, 1100), bh = Math.round(66 + 14 * (m - 1)), big = m >= 1.5;
-  const rects = big ? [[14, y1, 345, bh], [361, y1, 345, bh], [14, y1 + bh + 10, 345, bh], [361, y1 + bh + 10, 345, bh]] : [[14, y1, 170, bh], [194, y1, 170, bh], [374, y1, 170, bh], [554, y1, 152, bh]];
   const labels = [w.paused ? 'Resume' : 'Pause', 'Think −', 'Think +', 'Exit'];
   W_RECTS.length = 0;
-  rects.forEach((r, i) => { const rc = { x: r[0], y: r[1], w: r[2], h: r[3] }; W_RECTS.push(rc); drawButton(ctx, rc, labels[i], { primary: i === 0, dark: i > 0, size: sz }); });
+  wl.rects.forEach((rc, i) => { W_RECTS.push(rc); drawButton(ctx, rc, labels[i], { primary: i === 0, dark: i > 0, size: sz }); });
 }
 
 // Think panel (modal): the coach's advice and its reason
 export function renderThink(ctx, G) {
-  const t = G.think;
+  const t = G.think, wide = isWide();
   ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(0, 0, W, H);
-  const m = PLAY_M[G.settings.textIdx];
-  const x = 30, w = W - 60, size = Math.round(26 * Math.min(m, 2)), sl = 34 * Math.min(m, 1.6);
+  const m = PLAY_M[G.settings.textIdx], km = wide ? 0.9 : 1;
+  const w = wide ? Math.min(820, W - 2 * (Math.max(host.l, host.r) + 40)) : W - 60, x = Math.round((W - w) / 2);
+  const size = minFont(Math.round(26 * Math.min(m, 2) * km)), sl = 34 * Math.min(m, 1.6) * km;
   ctx.font = `400 ${size}px ${FONT}`;
   const lines = wrapLines(ctx, t.reason, w - 80);
-  ctx.font = `700 ${Math.round(28 * Math.min(m, 1.6))}px ${FONT}`;
+  ctx.font = `700 ${minFont(Math.round(28 * Math.min(m, 1.6) * km))}px ${FONT}`;
   const sm = wrapLines(ctx, t.summary, w - 70);
-  const bh = Math.round(84 * Math.min(m, 1.5));
+  const bh = Math.round(84 * Math.min(m, 1.5) * (wide ? 0.8 : 1));
   const contentH = sm.length * sl + 12 + size * 1.3 * lines.length + 16;
-  const head = 88, total = Math.min(H - 120, head + contentH + bh + 60);
-  const y = Math.max(40, (H - total) / 2);
+  const head = wide ? 76 : 88, total = Math.min(H - (wide ? 40 : 120) - host.t - host.b, head + contentH + bh + 60);
+  const y = Math.max(20 + host.t, (H - total) / 2);
   const vtop = y + head, vh = total - head - bh - 50, max = Math.max(0, contentH - vh);
   G.thinkScroll = Math.max(0, Math.min(G.thinkScroll || 0, max)); G.thinkView = { top: vtop, bottom: vtop + vh, max, vh };
   panel(ctx, x, y, w, total, { r: 26, fill: 'rgba(14,48,36,0.97)', stroke: 'rgba(255,246,228,0.5)' });
-  ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'; ctx.fillStyle = '#ffe9a0'; ctx.font = `800 ${Math.round(34 * Math.min(m, 1.6))}px ${FONT}`; ctx.fillText('Coach says', W / 2, y + 56);
+  ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'; ctx.fillStyle = '#ffe9a0'; ctx.font = `800 ${minFont(Math.round(34 * Math.min(m, 1.6) * km))}px ${FONT}`; ctx.fillText('Coach says', W / 2, y + (wide ? 50 : 56));
   ctx.save(); ctx.beginPath(); ctx.rect(x + 6, vtop, w - 12, vh); ctx.clip();
   const o = vtop - G.thinkScroll;
-  ctx.fillStyle = '#7fe8d6'; ctx.font = `700 ${Math.round(28 * Math.min(m, 1.6))}px ${FONT}`; ctx.textAlign = 'center';
+  ctx.fillStyle = '#7fe8d6'; ctx.font = `700 ${minFont(Math.round(28 * Math.min(m, 1.6) * km))}px ${FONT}`; ctx.textAlign = 'center';
   sm.forEach((l, i) => ctx.fillText(l, W / 2, o + sl * (0.8 + i)));
   const off = o + sm.length * sl + 12;
   ctx.textAlign = 'left'; ctx.fillStyle = '#fff6e4'; ctx.font = `400 ${size}px ${FONT}`;
@@ -337,30 +344,31 @@ export function renderThink(ctx, G) {
   if (max > 0) {
     const th = Math.max(50, vh * vh / contentH), ty = vtop + (G.thinkScroll / max) * (vh - th);
     roundPath(ctx, x + w - 18, vtop, 8, vh, 4); ctx.fillStyle = 'rgba(255,246,228,0.15)'; ctx.fill(); roundPath(ctx, x + w - 18, ty, 8, th, 4); ctx.fillStyle = 'rgba(255,246,228,0.7)'; ctx.fill();
-    if (G.thinkScroll < max - 4) { ctx.fillStyle = 'rgba(255,246,228,0.9)'; ctx.font = `700 20px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText('▼ scroll for more', W / 2, vtop + vh + 24); }
+    if (G.thinkScroll < max - 4) { ctx.fillStyle = 'rgba(255,246,228,0.9)'; ctx.font = `700 ${minFont(20)}px ${FONT}`; ctx.textAlign = 'center'; ctx.fillText('▼ scroll for more', W / 2, vtop + vh + 24); }
   }
   const by = y + total - bh - 22;
   G.thinkRects = { close: { x: x + 24, y: by, w: w - 48, h: bh } };
-  drawButton(ctx, G.thinkRects.close, 'Got it: back to the game', { primary: true, size: Math.round(28 * Math.min(m, 1.5)) });
+  drawButton(ctx, G.thinkRects.close, 'Got it: back to the game', { primary: true, size: minFont(Math.round(28 * Math.min(m, 1.5) * (wide ? 0.85 : 1))) });
 }
 
 // 2D fallback when WebGL is missing: the oval and the players drawn through the same camera maths.
 export function renderFallback(ctx, G, view) {
   const s = G.sim; if (!s) return;
-  const Wd = view.cssW || 720, Hd = view.cssH || 1280;
+  const cam = camFor(W, H), pj = (x, y, z) => projectV(cam, W, H, x, y, z);
   ctx.save();
   const bgc = ctx.createLinearGradient(0, 0, 0, H); bgc.addColorStop(0, '#16324a'); bgc.addColorStop(0.3, '#1d4a38'); bgc.addColorStop(1, '#10321f');
   ctx.fillStyle = bgc; ctx.fillRect(0, 0, W, H);
   const HW = KC.HW, HL = KC.HL;
   ctx.beginPath(); let first = true;
-  for (let a = 0; a <= 360; a += 6) { const r = a * Math.PI / 180, q = projectV(Wd, Hd, HW * Math.cos(r), 0, HL * Math.sin(r)); if (!q) continue; if (first) { ctx.moveTo(q.x, q.y); first = false; } else ctx.lineTo(q.x, q.y); }
+  for (let a = 0; a <= 360; a += 6) { const r = a * Math.PI / 180, q = pj(HW * Math.cos(r), 0, HL * Math.sin(r)); if (!q) continue; if (first) { ctx.moveTo(q.x, q.y); first = false; } else ctx.lineTo(q.x, q.y); }
   ctx.closePath(); ctx.fillStyle = '#2f8a4a'; ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = '#f6f7fb'; ctx.stroke();
-  for (const z of [-KC.ZG, KC.ZG]) for (const x of [-KC.BHW, -KC.GHW, KC.GHW, KC.BHW]) { const a = projectV(Wd, Hd, x, 0, z), b = projectV(Wd, Hd, x, Math.abs(x) < 4 ? 6 : 3, z); if (a && b) { ctx.strokeStyle = '#fff6e4'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); } }
-  const list = s.players.map((p) => ({ p, a: projectV(Wd, Hd, p.x, 0, p.z), b: projectV(Wd, Hd, p.x, 1.8 + p.jh, p.z) })).filter((o) => o.a && o.b).sort((u, v) => v.a.depth - u.a.depth);
+  for (const z of [-KC.ZG, KC.ZG]) for (const x of [-KC.BHW, -KC.GHW, KC.GHW, KC.BHW]) { const a = pj(x, 0, z), b = pj(x, Math.abs(x) < 4 ? 6 : 3, z); if (a && b) { ctx.strokeStyle = '#fff6e4'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); } }
+  const list = s.players.map((p) => ({ p, a: pj(p.x, 0, p.z), b: pj(p.x, 1.8 + p.jh, p.z) })).filter((o) => o.a && o.b).sort((u, v) => v.a.depth - u.a.depth);
   for (const { p, a, b } of list) { ctx.strokeStyle = TEAM_COL[p.team]; ctx.lineWidth = Math.max(7, (a.y - b.y) * 0.3); ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); ctx.fillStyle = '#f2c9a0'; ctx.beginPath(); ctx.arc(b.x, b.y - 5, Math.max(5, (a.y - b.y) * 0.13), 0, TAU); ctx.fill(); }
-  const B = s.ball, bp = projectV(Wd, Hd, B.x, B.y, B.z);
-  if (bp) { const sh = projectV(Wd, Hd, B.x, 0, B.z); if (sh) { ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.beginPath(); ctx.ellipse(sh.x, sh.y, 9, 4, 0, 0, TAU); ctx.fill(); } ctx.fillStyle = '#c8412e'; ctx.beginPath(); ctx.ellipse(bp.x, bp.y, 11, 7, 0.4, 0, TAU); ctx.fill(); }
+  const B = s.ball, bp = pj(B.x, B.y, B.z);
+  if (bp) { const sh = pj(B.x, 0, B.z); if (sh) { ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.beginPath(); ctx.ellipse(sh.x, sh.y, 9, 4, 0, 0, TAU); ctx.fill(); } ctx.fillStyle = '#c8412e'; ctx.beginPath(); ctx.ellipse(bp.x, bp.y, 11, 7, 0.4, 0, TAU); ctx.fill(); }
   ctx.restore();
+  void view;
 }
 export { ROLE_NAME, QUARTER, dirOf, inside };
 

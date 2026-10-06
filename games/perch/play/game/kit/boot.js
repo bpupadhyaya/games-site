@@ -8,7 +8,7 @@ import { createRng } from './rng.js';
 import { createLoop, STEP } from './loop.js';
 import { createInput } from './input.js';
 import { createView } from './view.js';
-import { createBridge } from './bridge.js';
+import { createBridge, openArcforgeHomeVia } from './bridge.js';
 import { createStorage } from './storage.js';
 import { createMonetization } from './monetization.js';
 import { createAudio } from './audio.js';
@@ -44,9 +44,15 @@ export async function boot({ createGame, meta, canvas, background }) {
     else globalThis.location.assign(`../../${slug}/play/`);
   };
 
+  // Kit 1.9.0: tap on the title-screen Arcforge lockup. Hub app: back to the Arcforge home page (top of the
+  // store main screen). Standalone app: that app's own Arcforge store listing. Plain browser: public hub page.
+  const openArcforgeHome = () => openArcforgeHomeVia(bridge);
+
+  const input = createInput();
   const env = {
     share,
     openGame,
+    openArcforgeHome,
     rng: createRng(seed),
     storage: createStorage({ bridge, namespace: manifest.slug }),
     monetization: createMonetization({ bridge, manifest, mode: bridge.native ? 'native' : demo ? 'demo' : 'mock' }),
@@ -57,15 +63,17 @@ export async function boot({ createGame, meta, canvas, background }) {
     // or, in the browser, when the URL has ?dev=1. Games use it to show tester tools (level pickers, skips).
     config: { seed, demo, day: Math.floor(Date.now() / 86400000), dev },
     manifest,
+    // Kit 1.8.1: the live input object and its wheel subscribe function (also on the per-tick snapshot as input.onWheel / input.wheel).
+    input,
+    onWheel: input.onWheel,
   };
   // Ownership arrives via monetization.onChange; never hold the game hostage to a slow store.
   await Promise.race([env.monetization.init().catch(() => {}), new Promise((resolve) => setTimeout(resolve, 3000))]);
 
   const rawGame = await createGame(env);
   // game.json `monetization.previewSeconds` = free play time before the unlock screen (kit/preview.js).
-  const game = createPreviewGate({ game: rawGame, meta, storage: env.storage, monetization: env.monetization, manifest, demo });
-  const view = createView(canvas, { width: meta.width, height: meta.height, background });
-  const input = createInput();
+  const game = createPreviewGate({ game: rawGame, meta, storage: env.storage, monetization: env.monetization, manifest, demo, textScale: () => env.config.textScale ?? env.config.zoom });
+  const view = createView(canvas, { width: meta.width, height: meta.height, background, meta });
   const draw = () => view.frame((ctx) => game.render(ctx, view));
 
   if (params.has('shot')) {

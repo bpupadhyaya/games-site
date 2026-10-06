@@ -1,5 +1,8 @@
-// The table and the inlaid board: painted ONCE into a cached layer (2x resolution). One lamp, from the upper left.
-import { W, H, FRAME, IN, CH, SLOT, PLEN, TRAY, DICE, MID, pointGeom } from './layout.js';
+// The table and the inlaid board, each painted into a cached layer. One lamp, from the upper left.
+//   paintBoard  the board in CANONICAL coordinates (tall, 720 wide); drawn by drawStatic with the layout's matrix, so it can be
+//               placed upright or turned a quarter turn at any scale. Painted once.
+//   paintTable  the table, the lamp and the dice tray in SCREEN coordinates; repainted when the screen size changes.
+import { LR, FRAME, IN, CH, SLOT, PLEN, TRAYC as TRAY, MID, pointGeom } from './layout.js';
 
 const TAU = Math.PI * 2;
 function lcg(seed) { let s = seed >>> 0; return () => ((s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 4294967296); }
@@ -100,17 +103,30 @@ function coffeeSet(c) {
   c.restore();
 }
 
-export function paintStatic(c) {
-  // ---- the table under a warm lamp -------------------------------------------------------------------
+// ---- the table (screen coordinates), the lamp and the dice tray -------------------------------------------------
+export function paintTable(c, Ld) {
+  const W = Ld.w, H = Ld.h;
   c.fillStyle = lin(c, 0, 0, 0, H, [[0, '#2c1a10'], [0.5, '#22130b'], [1, '#150b06']]); c.fillRect(0, 0, W, H);
-  grain(c, 0, 0, W, H, { seed: 7, n: 240, amp: 5, a: 0.07 });
+  grain(c, 0, 0, W, H, { seed: 7, n: Math.round(240 * Math.max(1, W * H / (720 * 1560))), amp: 5, a: 0.07 });
   const lamp = c.createRadialGradient(140, 40, 20, 240, 240, 820);
   lamp.addColorStop(0, 'rgba(255,200,120,0.45)'); lamp.addColorStop(0.5, 'rgba(255,170,90,0.12)'); lamp.addColorStop(1, 'rgba(255,170,90,0)');
   c.fillStyle = lamp; c.fillRect(0, 0, W, H);
-  const vg = c.createRadialGradient(360, 780, 420, 360, 780, 1000); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,0.55)');
+  const cx = W / 2, cy = H / 2, vg = c.createRadialGradient(cx, cy, Math.min(W, H) * 0.58, cx, cy, Math.max(W, H) * 0.64); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,0.55)');
   c.fillStyle = vg; c.fillRect(0, 0, W, H);
-  coffeeSet(c);
+  if (Ld.coffee) coffeeSet(c);
+  // ---- the dice tray: burgundy leather in a walnut rim ---------------------------------------------------
+  const Dt = Ld.dice;
+  for (let i = 0; i < 5; i++) { c.fillStyle = 'rgba(0,0,0,0.08)'; rr(c, Dt.x + 4 + i, Dt.y + 8 + i * 2, Dt.w, Dt.h, 18); c.fill(); }
+  rr(c, Dt.x - 10, Dt.y - 10, Dt.w + 20, Dt.h + 20, 20); c.fillStyle = lin(c, 0, Dt.y - 10, 0, Dt.y + Dt.h + 10, [[0, '#7a4a2b'], [1, '#3e2114']]); c.fill();
+  c.strokeStyle = 'rgba(255,225,170,0.4)'; c.lineWidth = 1.5; c.stroke();
+  rr(c, Dt.x, Dt.y, Dt.w, Dt.h, 12); c.fillStyle = lin(c, 0, Dt.y, 0, Dt.y + Dt.h, [[0, '#5a1219'], [1, '#7c222a']]); c.fill();
+  const rp = lcg(3); c.fillStyle = 'rgba(0,0,0,0.13)'; for (let i = 0; i < 520; i++) c.fillRect(Dt.x + rp() * Dt.w, Dt.y + rp() * Dt.h, 1.6, 1.6);
+  c.fillStyle = lin(c, 0, Dt.y, 0, Dt.y + 22, [[0, 'rgba(0,0,0,0.55)'], [1, 'rgba(0,0,0,0)']]); rr(c, Dt.x, Dt.y, Dt.w, 22, 12); c.fill();
+  c.strokeStyle = 'rgba(232,196,106,0.7)'; c.lineWidth = 1.2; rr(c, Dt.x + 7, Dt.y + 7, Dt.w - 14, Dt.h - 14, 8); c.stroke();
+}
 
+// ---- the board, in canonical coordinates ------------------------------------------------------------------------------
+export function paintBoard(c) {
   // ---- the board: drop shadow, walnut frame, marquetry band ----------------------------------------------
   const F = FRAME;
   for (let i = 0; i < 9; i++) { c.fillStyle = 'rgba(0,0,0,0.07)'; rr(c, F.x + 6 + i * 2, F.y + 12 + i * 3, F.w, F.h, 22); c.fill(); }
@@ -146,10 +162,6 @@ export function paintStatic(c) {
   c.fillStyle = lin(c, 0, IN.y1, 0, IN.y1 - 10, [[0, 'rgba(255,220,160,0.25)'], [1, 'rgba(255,220,160,0)']]); c.fillRect(IN.x0, IN.y1 - 10, iw, 10);
 
   for (let i = 0; i < 24; i++) point(c, i);
-  // point numbers, small and engraved, at the tip of each point
-  c.font = '600 15px system-ui, -apple-system, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
-  for (let i = 0; i < 24; i++) { const g = pointGeom(i), x = g.edge + g.dir * (PLEN + 15); c.fillStyle = 'rgba(0,0,0,0.5)'; c.fillText(String(i + 1), x + 0.8, g.y + 1); c.fillStyle = 'rgba(250,232,190,0.72)'; c.fillText(String(i + 1), x, g.y); }
-  c.textBaseline = 'alphabetic';
 
   // ---- the bar: a dark walnut strip with inlaid stars and brass hinges -------------------------------------
   c.fillStyle = lin(c, CH.x0, 0, CH.x1, 0, [[0, '#2a150b'], [0.5, '#4a2914'], [1, '#2a150b']]); c.fillRect(CH.x0, IN.y0, CH.x1 - CH.x0, ih);
@@ -172,22 +184,24 @@ export function paintStatic(c) {
     rr(c, T.x, T.y, T.w, T.h, 8); c.fillStyle = lin(c, 0, T.y, 0, T.y + T.h, [[0, '#3a0f14'], [1, '#5e1c22']]); c.fill();
     c.fillStyle = lin(c, 0, T.y, 0, T.y + 12, [[0, 'rgba(0,0,0,0.55)'], [1, 'rgba(0,0,0,0)']]); rr(c, T.x, T.y, T.w, 12, 8); c.fill();
   }
-  // ---- the dice tray: burgundy leather in a walnut rim ---------------------------------------------------
-  const Dt = DICE;
-  for (let i = 0; i < 5; i++) { c.fillStyle = 'rgba(0,0,0,0.08)'; rr(c, Dt.x + 4 + i, Dt.y + 8 + i * 2, Dt.w, Dt.h, 18); c.fill(); }
-  rr(c, Dt.x - 10, Dt.y - 10, Dt.w + 20, Dt.h + 20, 20); c.fillStyle = lin(c, 0, Dt.y - 10, 0, Dt.y + Dt.h + 10, [[0, '#7a4a2b'], [1, '#3e2114']]); c.fill();
-  c.strokeStyle = 'rgba(255,225,170,0.4)'; c.lineWidth = 1.5; c.stroke();
-  rr(c, Dt.x, Dt.y, Dt.w, Dt.h, 12); c.fillStyle = lin(c, 0, Dt.y, 0, Dt.y + Dt.h, [[0, '#5a1219'], [1, '#7c222a']]); c.fill();
-  const rp = lcg(3); c.fillStyle = 'rgba(0,0,0,0.13)'; for (let i = 0; i < 520; i++) c.fillRect(Dt.x + rp() * Dt.w, Dt.y + rp() * Dt.h, 1.6, 1.6);
-  c.fillStyle = lin(c, 0, Dt.y, 0, Dt.y + 22, [[0, 'rgba(0,0,0,0.55)'], [1, 'rgba(0,0,0,0)']]); rr(c, Dt.x, Dt.y, Dt.w, 22, 12); c.fill();
-  c.strokeStyle = 'rgba(232,196,106,0.7)'; c.lineWidth = 1.2; rr(c, Dt.x + 7, Dt.y + 7, Dt.w - 14, Dt.h - 14, 8); c.stroke();
 }
 
-// One cached layer. Falls back to painting directly where OffscreenCanvas does not exist (Node tests).
-let layer = null;
-export function drawStatic(ctx) {
-  if (!layer && typeof OffscreenCanvas !== 'undefined') {
-    try { const cv = new OffscreenCanvas(W * 2, H * 2), lc = cv.getContext('2d'); lc.scale(2, 2); paintStatic(lc); layer = cv; } catch { layer = null; }
+// Two cached layers: the table (rebuilt when the screen size changes) and the board (painted once, drawn with the layout's matrix).
+// Both fall back to painting directly where OffscreenCanvas does not exist (Node tests).
+let boardLayer = null, tableLayer = null, tableKey = '';
+const BSC = 2;
+export function drawStatic(ctx, Ld) {
+  const off = typeof OffscreenCanvas !== 'undefined';
+  if (!boardLayer && off) {
+    try { const cv = new OffscreenCanvas(LR.w * BSC, LR.h * BSC), lc = cv.getContext('2d'); lc.scale(BSC, BSC); lc.translate(-LR.x, -LR.y); paintBoard(lc); boardLayer = cv; } catch { boardLayer = null; }
   }
-  if (layer) ctx.drawImage(layer, 0, 0, W, H); else paintStatic(ctx);
+  const key = Ld.key;
+  if (off && tableKey !== key) {
+    tableLayer = null; tableKey = key;
+    try { const sc = 1.5, cv = new OffscreenCanvas(Math.round(Ld.w * sc), Math.round(Ld.h * sc)), lc = cv.getContext('2d'); lc.scale(sc, sc); paintTable(lc, Ld); tableLayer = cv; } catch { tableLayer = null; }
+  }
+  if (tableLayer) ctx.drawImage(tableLayer, 0, 0, Ld.w, Ld.h); else paintTable(ctx, Ld);
+  ctx.save(); ctx.transform(...Ld.map.m);
+  if (boardLayer) ctx.drawImage(boardLayer, LR.x, LR.y, LR.w, LR.h); else paintBoard(ctx);
+  ctx.restore();
 }

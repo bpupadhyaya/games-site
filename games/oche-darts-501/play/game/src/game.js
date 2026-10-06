@@ -3,16 +3,19 @@
 //
 // Scenes: title, setup, settings, play (also Watch & Learn), result, howto / about / rules, demolimit.
 // Throwing: touch and hold in the play area, the aim point sways (tightens, then tires), release to throw.
-import { W, H, BOARD, BOARD_R0, PX_PER_MM, AIM, HUD, setPlayLayout, THINK_BTN, MENU_BTN, WATCH, inRect, TEXT_DEC, TEXT_INC, REF_BACK, REF_NEXT, TEXT_SCALES, THINK_STEPS, REVEAL_SECS, SETUP_PINS } from './layout.js';
+import { W, H, BOARD, BOARD_R0, PX_PER_MM, AIM, HUD, setView, setPlayLayout, THINK_BTN, MENU_BTN, WATCH, inRect, TEXT_DEC, TEXT_INC, REF_BACK, REF_NEXT, TEXT_SCALES, THINK_STEPS, REVEAL_SECS, SETUP_PINS } from './layout.js';
 import { hitAt, wireDistance, newMatch, applyDart, closeVisit, nextTurn, winLeg, startNextLeg, dartsLeft, suggest, bestRoute, targetByLabel } from './engine.js';
 import { PROFILES, skillTable, chooseAim, explain, throwAt, newVisitBias, newForm, gauss } from './ai.js';
 import { ASSIST, swayAmp, swayOffset, spreadSigma, steadiness, tired } from './aim.js';
 import { renderPlay } from './view.js';
-import { renderTitle, renderSetup, renderSettings, renderResult, renderPause, renderPages, renderDemoLimit, hitScreen, flowMeta, pageCount, ensureLayout } from './menus.js';
+import { renderTitle, renderSetup, renderSettings, renderResult, renderPause, renderPages, renderDemoLimit, hitScreen, flowMeta, READER, refCloseRect, ensureLayout, lockupZone } from './menus.js';
 import { ABOUT, HOWTO, RULES } from './content.js';
 import { setPress } from './ui.js';
 
-export const meta = { width: W, height: H };
+// Fluid viewport (kit 1.7): the kit keeps meta.width / meta.height live; every position comes from layout.js for that size.
+export const meta = { width: W, height: H, fluid: { short: 720 } };
+// The mouse wheel / trackpad scroll fed by main.js (virtual units), used by the scrolling menus.
+export const wheelInput = { dy: 0 };
 const DEMO_LEG_CAP = 2;
 const TAU = Math.PI * 2;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -44,7 +47,29 @@ export function createGame(env) {
   let tables = [null, null];
   // The play layout follows the text-size setting (and Watch & Learn's different bottom bar). Called before anything reads
   // BOARD / the button rectangles, including when a match starts or resumes, so positions are never computed on a stale layout.
-  const syncLayout = () => setPlayLayout(state.settings.textIdx, !!(state.m && state.m.cfg.mode === 'watch'));
+  const syncLayout = () => {
+    const b0 = { cx: BOARD.cx, cy: BOARD.cy, R: BOARD.R };
+    setView(meta.width, meta.height);
+    setPlayLayout(state.settings.textIdx, !!(state.m && state.m.cfg.mode === 'watch'));
+    if (b0.cx !== BOARD.cx || b0.cy !== BOARD.cy || b0.R !== BOARD.R) remapBoard(b0);
+  };
+  // The device was turned, resized or the text size changed: everything that sits ON the board (darts, impact effects, the computer's
+  // aim) moves with it, in board units; a hand-held aim is let go (the finger is no longer where the board is).
+  const remapBoard = (b0) => {
+    const k = BOARD.R / b0.R, X = (x) => BOARD.cx + (x - b0.cx) * k, Y = (y) => BOARD.cy + (y - b0.cy) * k;
+    for (const d of state.darts) { d.x = X(d.x); d.y = Y(d.y); if (d.fall) { d.fall.vx *= k; d.fall.vy *= k; } }
+    for (const p of state.pops) { p.x = X(p.x); p.y = Y(p.y); }
+    for (const p of state.parts) if (p.k !== 'conf') { p.x = X(p.x); p.y = Y(p.y); }
+    const f = state.flight;
+    if (f) { f.ex = X(f.ex); f.ey = Y(f.ey); f.sx = AIM.originX + (f.sx - b0.cx) * k; f.sy = AIM.originY; }
+    const th = state.think;
+    if (th) { for (const q of ['tx', 'lx']) th[q] = X(th[q]); for (const q of ['ty', 'ly']) th[q] = Y(th[q]); th.x0 = X(th.x0); th.y0 = Y(th.y0); th.sigma *= k; }
+    if (state.reticle && !state.aim) { state.reticle.x = X(state.reticle.x); state.reticle.y = Y(state.reticle.y); state.reticle.sigma *= k; }
+    if (state.aim) { state.aim = null; state.reticle = null; if (state.phase === 'aiming') state.phase = 'ready'; }
+    state.kb = { x: BOARD.cx, y: BOARD.cy };
+  };
+  // Where the aim point sits above the finger: 150 units, closing in near the bottom edge so the lowest rings stay reachable.
+  const aimOff = (fy) => -clamp(AIM.bottom - fy, 24, -AIM.offsetY);
   // Aim quantities are drawn in pixels but mean millimetres of board, so they scale with the board: the same hold gives the
   // same spread on the board whatever the text size.
   const boardK = () => BOARD.R / BOARD_R0;
@@ -195,7 +220,7 @@ export function createGame(env) {
 
   // ---- throwing ------------------------------------------------------------------------------------------
   const launchDart = (side, lx, ly) => {
-    const ex = clamp(lx, 12, W - 12), ey = clamp(ly, AIM.top - 50, AIM.maxY);
+    const ex = clamp(lx, AIM.x0 + 12, AIM.x1 - 12), ey = clamp(ly, AIM.top - 50, AIM.maxY);
     const mx = (ex - BOARD.cx) / PX_PER_MM, my = (ey - BOARD.cy) / PX_PER_MM;
     const hit = hitAt(mx, my);
     let bounced = false, why = '';
@@ -206,7 +231,7 @@ export function createGame(env) {
         if (!d.fall && Math.hypot(d.x - ex, d.y - ey) < 7 && fx.next() < 0.38) { bounced = true; why = 'Deflected'; break; }
       }
     }
-    state.flight = { sx: 360 + (fx.next() - 0.5) * 50, sy: AIM.bottom - 16, ex, ey, t: 0, dur: 0.26, hit, bounced, why, side };
+    state.flight = { sx: AIM.originX + (fx.next() - 0.5) * 50, sy: AIM.originY, ex, ey, t: 0, dur: 0.26, hit, bounced, why, side };
     state.phase = 'flying'; state.pt = 0; state.aim = null; state.reticle = null; state.hint = null; state.think = null;
     sfx.whoosh();
     if (!isAI(side)) state.record.thrown = (state.record.thrown | 0) + 1;
@@ -250,7 +275,7 @@ export function createGame(env) {
   };
   const cancelAim = () => { state.aim = null; state.reticle = null; state.phase = 'ready'; };
   const beginAim = (fxp, fyp, kb) => {
-    state.aim = { t: 0, fx: fxp, fy: fyp, bx: clamp(fxp, 24, W - 24), by: clamp(fyp + (kb ? 0 : AIM.offsetY), AIM.top + 10, AIM.maxY), ph: [hn() * TAU, hn() * TAU, hn() * TAU, hn() * TAU], speed: 0, cancel: false, kb: !!kb, lx: fxp, ly: fyp };
+    state.aim = { t: 0, fx: fxp, fy: fyp, bx: clamp(fxp, AIM.x0 + 24, AIM.x1 - 24), by: clamp(fyp + (kb ? 0 : aimOff(fyp)), AIM.top + 10, AIM.maxY), ph: [hn() * TAU, hn() * TAU, hn() * TAU, hn() * TAU], speed: 0, cancel: false, kb: !!kb, lx: fxp, ly: fyp };
     state.phase = 'aiming';
   };
   const updateAimPose = () => {
@@ -394,7 +419,7 @@ export function createGame(env) {
       if (state.humanTurn) {
         if (ptr.pressed) {
           if (inRect(THINK_BTN, ptr.x, ptr.y)) requestHint();
-          else if (ptr.y >= AIM.top && ptr.y <= AIM.bottom) beginAim(ptr.x, ptr.y, false);
+          else if (ptr.y >= AIM.top && ptr.y <= AIM.bottom && ptr.x >= AIM.x0 && ptr.x <= AIM.x1) beginAim(ptr.x, ptr.y, false);
         } else if (keys.pressed.has('KeyH')) requestHint();
         else if (keys.pressed.has('Space')) beginAim(state.kb.x, state.kb.y, true);
       } else updateThink(dt);
@@ -408,7 +433,7 @@ export function createGame(env) {
         if (keys.down.has('ArrowRight')) a.bx += sp;
         if (keys.down.has('ArrowUp')) a.by -= sp;
         if (keys.down.has('ArrowDown')) a.by += sp;
-        a.bx = clamp(a.bx, 24, W - 24); a.by = clamp(a.by, AIM.top + 10, AIM.maxY); state.kb.x = a.bx; state.kb.y = a.by;
+        a.bx = clamp(a.bx, AIM.x0 + 24, AIM.x1 - 24); a.by = clamp(a.by, AIM.top + 10, AIM.maxY); state.kb.x = a.bx; state.kb.y = a.by;
         a.speed = 0;
         updateAimPose();
         if (keys.pressed.has('Space') && a.t > AIM.minHold) doRelease();
@@ -416,8 +441,8 @@ export function createGame(env) {
         if (ptr.down) {
           a.speed = a.speed * 0.75 + (Math.hypot(ptr.x - a.lx, ptr.y - a.ly) / Math.max(dt, 1e-3)) * 0.25;
           a.lx = a.fx = ptr.x; a.ly = a.fy = ptr.y;
-          a.bx = clamp(ptr.x, 24, W - 24); a.by = clamp(ptr.y + AIM.offsetY, AIM.top + 10, AIM.maxY);
-          a.cancel = ptr.y > AIM.bottom;
+          a.bx = clamp(ptr.x, AIM.x0 + 24, AIM.x1 - 24); a.by = clamp(ptr.y + aimOff(ptr.y), AIM.top + 10, AIM.maxY);
+          a.cancel = ptr.y > AIM.bottom || ptr.x > AIM.x1 + 8;
         } else a.speed *= 0.5;
         updateAimPose();
         if (ptr.released) {
@@ -450,8 +475,8 @@ export function createGame(env) {
     if (!id) return;
     sfx.tick();
     if (id === 'resume') closePause();
-    else if (id === 'p-rules') { state.back = 'play'; state.scene = 'rules'; state.page = 0; }
-    else if (id === 'p-howto') { state.back = 'play'; state.scene = 'howto'; state.page = 0; }
+    else if (id === 'p-rules') { state.back = 'play'; state.scene = 'rules'; state.page = 0; state.ui.scroll = 0; }
+    else if (id === 'p-howto') { state.back = 'play'; state.scene = 'howto'; state.page = 0; state.ui.scroll = 0; }
     else if (id === 'p-sound') { state.settings.sound = !state.settings.sound; audio.setMuted?.(!state.settings.sound); save(); }
     else if (id === 'p-coach') { state.settings.coach = !state.settings.coach; save(); }
     else if (id === 'quit') leaveMatch();
@@ -468,12 +493,13 @@ export function createGame(env) {
   }
   const handleTitle = (id) => {
     if (!id) return;
+    if (id === 'arcforge') { env.openArcforgeHome?.(); return; }
     sfx.tick();
     if (id === 'play') { state.setup.mode = 'ai'; state.scene = 'setup'; state.ui.scroll = 0; state.setupMsg = ''; }
     else if (id === 'two') { state.setup.mode = 'two'; state.scene = 'setup'; state.ui.scroll = 0; state.setupMsg = ''; }
     else if (id === 'watch') startWatch();
     else if (id === 'continue') resumeMatch();
-    else if (id === 'howto' || id === 'rules' || id === 'about') { state.back = 'title'; state.scene = id; state.page = 0; }
+    else if (id === 'howto' || id === 'rules' || id === 'about') { state.back = 'title'; state.scene = id; state.page = 0; state.ui.scroll = 0; }
     else if (id === 'settings') { state.scene = 'settings'; state.ui.scroll = 0; }
     else if (id === 'sound') { state.settings.sound = !state.settings.sound; audio.setMuted?.(!state.settings.sound); save(); }
   };
@@ -530,6 +556,7 @@ export function createGame(env) {
     const max = mt.lay ? Math.max(0, mt.lay.contentH - (mt.bottom - mt.top)) : 0;
     if (input.keys.pressed.has('Equal') || input.keys.pressed.has('NumpadAdd')) { state.settings.textIdx = Math.min(TEXT_SCALES.length - 1, state.settings.textIdx + 1); save(); }
     if (input.keys.pressed.has('Minus') || input.keys.pressed.has('NumpadSubtract')) { state.settings.textIdx = Math.max(0, state.settings.textIdx - 1); save(); }
+    if (wheelInput.dy) { state.ui.scroll = clamp(state.ui.scroll + wheelInput.dy, 0, max); wheelInput.dy = 0; }
     if (input.keys.down.has('ArrowDown')) state.ui.scroll = clamp(state.ui.scroll + 14, 0, max);
     if (input.keys.down.has('ArrowUp')) state.ui.scroll = clamp(state.ui.scroll - 14, 0, max);
   };
@@ -545,19 +572,26 @@ export function createGame(env) {
     updateFlowScene(dt, input, handleSetup, 'setup');
   };
   const updatePages = (input) => {
-    const ptr = input.pointer, keys = input.keys, n = pageCount();
-    const close = () => { state.scene = state.back === 'play' ? 'play' : 'title'; state.page = 0; };
-    const next = () => { if (state.page >= n - 1) close(); else state.page++; };
-    const prev = () => { if (state.page <= 0) close(); else state.page--; };
+    const ptr = input.pointer, keys = input.keys;
+    const close = () => { state.scene = state.back === 'play' ? 'play' : 'title'; state.page = 0; state.ui.scroll = 0; state.ui.drag = null; };
+    const setScroll = (v) => { state.ui.scroll = clamp(v, 0, READER.max); };
     if (ptr.pressed) {
-      if (inRect(REF_NEXT, ptr.x, ptr.y)) next();
-      else if (inRect(REF_BACK, ptr.x, ptr.y)) prev();
+      if (inRect(refCloseRect(), ptr.x, ptr.y)) { close(); return; }
       else if (inRect(TEXT_DEC, ptr.x, ptr.y)) { state.settings.textIdx = Math.max(0, state.settings.textIdx - 1); save(); }
       else if (inRect(TEXT_INC, ptr.x, ptr.y)) { state.settings.textIdx = Math.min(TEXT_SCALES.length - 1, state.settings.textIdx + 1); save(); }
+      else if (ptr.y >= READER.y0 && ptr.y <= READER.y1) state.ui.drag = { y0: ptr.y, s0: state.ui.scroll };
     }
-    if (keys.pressed.has('ArrowRight')) next();
-    if (keys.pressed.has('ArrowLeft')) prev();
-    if (keys.pressed.has('Escape')) close();
+    if (state.ui.drag && ptr.down) setScroll(state.ui.drag.s0 - (ptr.y - state.ui.drag.y0));
+    if (ptr.released) state.ui.drag = null;
+    if (wheelInput.dy) { setScroll(state.ui.scroll + wheelInput.dy); wheelInput.dy = 0; }
+    const step = 70, pg = Math.max(100, READER.view - 80);
+    if (keys.pressed.has('ArrowDown')) setScroll(state.ui.scroll + step);
+    if (keys.pressed.has('ArrowUp')) setScroll(state.ui.scroll - step);
+    if (keys.pressed.has('PageDown') || keys.pressed.has('Space')) setScroll(state.ui.scroll + pg);
+    if (keys.pressed.has('PageUp')) setScroll(state.ui.scroll - pg);
+    if (keys.pressed.has('Home')) setScroll(0);
+    if (keys.pressed.has('End')) setScroll(READER.max);
+    if (keys.pressed.has('Escape') || keys.pressed.has('Enter')) close();
   };
 
   // ---- the attract board behind the title and menus ---------------------------------------------------------------------
@@ -643,8 +677,8 @@ export function createGame(env) {
       state.m.over = { win: 0 }; state.m.legNo = 3; state.record.wins = [1, 0, 1, 0, 0]; state.record.played = 3;
       state.scene = 'result'; state.ui.scroll = 0; return;
     }
-    if (n === 7) { state.back = 'title'; state.scene = 'rules'; state.page = 1; return; }
-    if (n === 8) { state.back = 'title'; state.scene = 'howto'; state.page = 0; return; }
+    if (n === 7) { state.back = 'title'; state.scene = 'rules'; state.ui.scroll = 1100; return; }
+    if (n === 8) { state.back = 'title'; state.scene = 'howto'; state.ui.scroll = 0; return; }
     if (n === 9) { state.scene = 'setup'; return; }
     if (n === 10) { state.scene = 'settings'; return; }
     if (n === 11) { state.back = 'title'; state.scene = 'about'; return; }
@@ -663,7 +697,7 @@ export function createGame(env) {
     }
     if (n >= 15 && n <= 19) {
       state.settings.textIdx = 4;
-      if (n === 15) { state.back = 'title'; state.scene = 'rules'; state.page = 3; }
+      if (n === 15) { state.back = 'title'; state.scene = 'rules'; state.ui.scroll = 3000; }
       else if (n === 16) state.scene = 'title';
       else if (n === 17) { applyPresetResult(); }
       else if (n === 18) state.scene = 'settings';
@@ -716,6 +750,7 @@ export function createGame(env) {
       }
     },
     getState: () => state,
+    lockupZone: () => lockupZone(),
   };
   if (shotMode) applyPreset();
   return game;

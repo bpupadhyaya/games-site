@@ -108,23 +108,28 @@ export function buildField(stage, opts = {}) {
   }, [1, 1]);
   const crowdMat = new THREE.MeshStandardMaterial({ map: crowdTex, roughness: 1 });
   {
-    // three banked strips (behind the far goal and along both sides) as ONE mesh
-    const pos = [], nor = [], uv = [], idx = [];
-    const quad = (cx, cy, cz, w, h, ry, tilt, u) => {
-      const base = pos.length / 3, c = Math.cos(ry), sn = Math.sin(ry);
-      for (const [px, py, tu, tv] of [[-w / 2, -h / 2, 0, 0], [w / 2, -h / 2, u, 0], [w / 2, h / 2, u, 1], [-w / 2, h / 2, 0, 1]]) {
-        const yy = py * Math.cos(tilt), zz = py * Math.sin(tilt);
-        pos.push(cx + px * c + zz * sn, cy + yy, cz - px * sn + zz * c); nor.push(-sn * 0.2 - sn * 0, 0.2, 0); uv.push(tu, tv);
-      }
-      idx.push(base, base + 1, base + 2, base, base + 2, base + 3);
+    // banked strips: behind both ends and along both sides. The strip nearest the landscape (side line) camera is its own mesh, 'crowdSide',
+    // which the presenter hides in that view; 'crowdLeft' (the end behind the portrait camera) is shown only from the side line.
+    const mk = (quads, name) => {
+      const pos = [], nor = [], uv = [], idx = [];
+      const quad = (cx, cy, cz, w, h, ry, tilt, u) => {
+        const base = pos.length / 3, c = Math.cos(ry), sn = Math.sin(ry);
+        for (const [px, py, tu, tv] of [[-w / 2, -h / 2, 0, 0], [w / 2, -h / 2, u, 0], [w / 2, h / 2, u, 1], [-w / 2, h / 2, 0, 1]]) {
+          const yy = py * Math.cos(tilt), zz = py * Math.sin(tilt);
+          pos.push(cx + px * c + zz * sn, cy + yy, cz - px * sn + zz * c); nor.push(0, 1, 0); uv.push(tu, tv);
+        }
+        idx.push(base, base + 1, base + 2, base, base + 2, base + 3);
+      };
+      quads.forEach((q) => quad(...q));
+      const cg = new THREE.BufferGeometry();
+      cg.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); cg.setAttribute('normal', new THREE.Float32BufferAttribute(nor, 3)); cg.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); cg.setIndex(idx);
+      const mesh = new THREE.Mesh(cg, crowdMat); mesh.name = name; g.add(mesh);
     };
+    crowdMat.side = THREE.DoubleSide;
     const rise = 0.2;
-    quad(0, 3.4, HL + 8, 36, 7, Math.PI, -rise, 3);
-    quad(HW + 7.5, 3.0, 2, 44, 6, -Math.PI / 2, -rise, 3.6); quad(-HW - 7.5, 3.0, 2, 44, 6, Math.PI / 2, -rise, 3.6);
-    const cg = new THREE.BufferGeometry();
-    cg.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3)); cg.setAttribute('normal', new THREE.Float32BufferAttribute(nor.map((v, i) => (i % 3 === 1 ? 1 : 0)), 3)); cg.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2)); cg.setIndex(idx);
-    crowdTex.repeat.set(1, 1); crowdMat.side = THREE.DoubleSide;
-    const crowd = new THREE.Mesh(cg, crowdMat); crowd.name = 'crowd'; g.add(crowd);
+    mk([[0, 3.4, HL + 8, 36, 7, Math.PI, -rise, 3], [HW + 7.5, 3.0, 2, 44, 6, -Math.PI / 2, -rise, 3.6]], 'crowd');
+    mk([[-HW - 7.5, 3.0, 2, 44, 6, Math.PI / 2, -rise, 3.6]], 'crowdSide');       // between the side-line camera and the field: hidden there
+    mk([[0, 3.4, -HL - 8, 36, 7, 0, -rise, 3]], 'crowdLeft');                       // behind the camera in the end view: shown only from the side line
   }
   stage.add(g);
   return g;

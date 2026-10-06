@@ -10,7 +10,7 @@ const S = {
   es: ['Español', 'Español'], en: ['English', 'English'],
   setupTitle: ['Set the table', 'Prepara la mesa'],
   pattern: ['Pattern', 'Patrón'], pace: ['Pace', 'Ritmo'], opps: ['Opponents', 'Rivales'], skill: ['Skill', 'Nivel'], style: ['Canto', 'Canto'], theme: ['Look', 'Estilo'],
-  start: ['Choose a tabla', 'Elegir tabla'], back: ['Back', 'Atrás'], next: ['Next', 'Siguiente'],
+  start: ['Choose a tabla', 'Elegir tabla'], back: ['Back', 'Atrás'], doneBtn: ['Done', 'Listo'], next: ['Next', 'Siguiente'],
   pickTitle: ['Choose your tabla', 'Elige tu tabla'], deal: ['Deal again', 'Otras tablas'], letsPlay: ["Let's play!", '¡A jugar!'], pickHint: ['Tap a tabla', 'Toca una tabla'],
   lotto: ['¡LOTERÍA!', '¡LOTERÍA!'], hint: ['Hint', 'Pista'], pause: ['Pause', 'Pausa'], resume: ['Resume', 'Seguir'], menu: ['Menu', 'Menú'],
   paused: ['Paused', 'En pausa'], round: ['Round', 'Ronda'], score: ['Score', 'Puntos'], open: ['Open', 'Abiertas'],

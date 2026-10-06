@@ -1,5 +1,6 @@
 // Everything drawn each frame. Reads `state` (game.js) and changes nothing. The table and card faces are cached (art.js).
-import { W, H, HAND, BTN, SET, CLOTH, DECK, PILE, MSG, deckPos, pilePos, handPos, seatPos, tableGrid, slotPos, titleRows, inRect, TEXT_SCALES, AP_THINK_STEPS } from './layout.js';
+import { W, H, HAND, BTN, SET, CLOTH, DECK, PILE, MSG, HDR, INSTR, SEAT, OPP, LV, READER, ROUND, POSTER, deckPos, pilePos, handPos, seatPos, tableGrid, slotPos, titleRows, inRect, TEXT_SCALES, AP_THINK_STEPS } from './layout.js';
+import { drawCredit, drawMoreLine, drawLockupImage } from './brand.js';
 import { drawTable, drawCard, drawSuitIcon, CW, CH, TAU } from './art.js';
 import { captures, rankOf, teamOf, RANK_NAMES } from './rules.js';
 import { LEVELS } from './engine.js';
@@ -23,7 +24,15 @@ export function tableCardAt(state, x, y) {
 }
 const ease = (p) => p * p * (3 - 2 * p);
 
+export const readerMetrics = { max: 0, view: 0 };
+// Wrapped-line cache: a paragraph is measured once per (font, size, width, text) and reused every frame (the reader used to re-wrap its whole
+// document each frame). Dropped when a web font finishes loading. readerStats.wraps counts cache misses (tests read it).
+const wrapMemo = new Map(); let wrapFontsKey = '';
+export const readerStats = { wraps: 0 };   // set by the reader page each frame: how far its body can scroll
+
 export function render(ctx, state) {
+  { ctx.font = `700 40px ${FONT}`; const a = ctx.measureText('Hamburgefonstiv').width; ctx.font = `600 40px ${UI}`; const k = a + '/' + ctx.measureText('Hamburgefonstiv').width; if (k !== wrapFontsKey || wrapMemo.size > 3000) { wrapMemo.clear(); wrapFontsKey = k; } }
+  const w = LV.w, h = LV.h, wide = LV.wide;
   const scene = state.scene, big = state.big, g = state.g, french = state.french;
   const boardScene = scene === 'play' || scene === 'lesson' || scene === 'puzzle' || scene === 'autoplay' || scene === 'autoplay-over';
   const pulse = state.calm ? 0.7 : 0.5 + 0.5 * Math.sin(state.t * 5);
@@ -34,10 +43,12 @@ export function render(ctx, state) {
     if (shadow) { ctx.fillStyle = 'rgba(30,8,0,0.6)'; ctx.fillText(str, x + 1.5, y + 2.5); }
     ctx.fillStyle = color; ctx.fillText(str, x, y);
   };
-  const lines = (str, maxW, size, weight = 600) => {
-    ctx.font = `${weight} ${size}px ${UI}`; const words = str.split(' '), out = []; let cur = '';
+  const lines = (str, maxW, size, weight = 600, font = UI) => {
+    const mk = `${weight}|${size}|${maxW}|${font}|${str}`, hit = wrapMemo.get(mk); if (hit) return hit;
+    readerStats.wraps++;
+    ctx.font = `${weight} ${size}px ${font}`; const words = str.split(' '), out = []; let cur = '';
     for (const w of words) { const t2 = cur ? cur + ' ' + w : w; if (ctx.measureText(t2).width > maxW && cur) { out.push(cur); cur = w; } else cur = t2; }
-    out.push(cur); return out;
+    out.push(cur); wrapMemo.set(mk, out); return out;
   };
   const wrap = (str, x, y, size, maxW, color = CREAM, lh = size * 1.3, align = 'center') => { const L = lines(str, maxW, size); L.forEach((ln, i) => text(ln, x, y + i * lh, size, color, UI, 600, align)); return L.length; };
   const fitBox = (str, x, y, w, h, size0, color = '#fff3d6') => {
@@ -51,7 +62,6 @@ export function render(ctx, state) {
     if (o.primary) { gr.addColorStop(0, '#ffe08e'); gr.addColorStop(0.55, '#e3a63a'); gr.addColorStop(1, '#b3701a'); } else { gr.addColorStop(0, '#7a3a22'); gr.addColorStop(0.5, '#56241a'); gr.addColorStop(1, '#361410'); }
     ctx.fillStyle = gr; rrect(r.x, r.y, r.w, r.h, 22); ctx.fill();
     ctx.strokeStyle = o.primary ? 'rgba(255,244,196,0.9)' : 'rgba(243,207,122,0.6)'; ctx.lineWidth = 2.5; ctx.stroke();
-    ctx.strokeStyle = 'rgba(255,255,255,0.18)'; ctx.lineWidth = 1.5; rrect(r.x + 5, r.y + 4, r.w - 10, r.h * 0.44, 17); ctx.stroke();
     const sz = o.size ?? 30;
     ctx.textAlign = 'center'; ctx.font = `700 ${sz}px ${UI}`;
     ctx.fillStyle = o.primary ? 'rgba(255,240,200,0.5)' : 'rgba(0,0,0,0.5)'; ctx.fillText(label, r.x + r.w / 2, r.y + r.h / 2 + sz * 0.36 + 1.5);
@@ -64,7 +74,8 @@ export function render(ctx, state) {
   const backStack = (x, y, w, n) => { for (let k = Math.min(n, 3) - 1; k >= 0; k--) card(-1, x + k * 3, y - k * 3, w, 0, { shadow: k === 0 }); };
 
   // ---- table --------------------------------------------------------------------------------------------------------
-  drawTable(ctx, state.t, state.calm);
+  const decor = !boardScene && wide ? { x: 20, y: LV.sky + 14, w: w - 40, h: h - LV.sky - 28 } : CLOTH;
+  drawTable(ctx, state.t, state.calm, { w, h, cloth: decor, sky: LV.sky });
 
   if (boardScene) {
     const gr = gridOf(state), S = state.sel;
@@ -74,38 +85,55 @@ export function render(ctx, state) {
     const humanTurn = scene === 'play' ? g.turn === 0 && g.phase === 'play' : true;
     const busy = state.fly.length > 0;
 
-    // ---- header plaque
-    panel(30, 100, 660, 70, 0.8);
+    // ---- header plaque (tall: a strip across the top; wide: a score card in the left panel)
+    panel(HDR.x, HDR.y, HDR.w, HDR.h, 0.8);
+    const hx = (x) => HDR.x + (x - 30) * HDR.w / 660, hyy = (y) => HDR.y + (y - 100);
+    const fitText = (str, x, y, maxW, size, color, font, weight, align) => { let sz = size; ctx.font = `${weight} ${sz}px ${font}`; while (sz > 12 && ctx.measureText(str).width > maxW) { sz -= 1; ctx.font = `${weight} ${sz}px ${font}`; } text(str, x, y, sz, color, font, weight, align); };
     if (scene === 'play' || scene === 'over' || scene === 'autoplay' || scene === 'autoplay-over') {
       const ap = scene === 'autoplay' ? state.ap : null, apOver = scene === 'autoplay-over';
       const A = apOver || scene === 'autoplay' ? 'Player A' : scene === 'play' ? (state.n === 2 ? 'You' : 'Us') : 'You';
       const B = apOver || scene === 'autoplay' ? 'Player B' : state.n === 2 ? 'Computer' : 'Them';
-      text(A, 62, 145, 24, CREAM, UI, 700, 'left'); text(String(g.score[0]), 222, 152, 44, GOLD, NUM, 800, 'center');
-      text(B, 658, 145, 24, CREAM, UI, 700, 'right'); text(String(g.score[1]), 498, 152, 44, GOLD, NUM, 800, 'center');
-      text(`Round ${g.round}`, 360, 133, 24, CREAM, UI, 700);
       const apTime = `pause ${AP_THINK_STEPS[state.apThinkIdx]}s`;
-      const sub = ap ? (ap.phase === 'think' ? `Thinking… · ${apTime}` : ap.phase === 'reveal' ? 'Here is the move' : `Watching… · ${apTime}`) : apOver ? 'Auto Play · Watch & Learn' : `first to ${g.target}`;
-      text(sub, 360, 158, 19, 'rgba(251,232,191,0.85)', UI, 600);
-    } else if (scene === 'lesson') { text(`Lesson ${state.lesson.i + 1} of ${LESSONS.length}`, 360, 128, 22, 'rgba(251,232,191,0.85)', UI, 600); text(LESSONS[state.lesson.i].title, 360, 158, 38, CREAM, FONT); }
-    else { text('Daily deal' + (state.pz.p.hard ? ' (weekend)' : ''), 360, 128, 22, 'rgba(251,232,191,0.85)', UI, 600); text(`Streak: ${state.daily.streak} day${state.daily.streak === 1 ? '' : 's'}`, 360, 158, 28, GOLD, UI, 700); }
+      const sub = ap ? (state.apPaused ? 'Paused' : ap.phase === 'think' ? `Thinking… · ${apTime}` : ap.phase === 'reveal' ? 'Here is the move' : `Watching… · ${apTime}`) : apOver ? 'Auto Play · Watch & Learn' : `first to ${g.target}`;
+      if (!wide) {
+        text(A, hx(62), hyy(145), 24, CREAM, UI, 700, 'left'); text(String(g.score[0]), hx(222), hyy(152), 44, GOLD, NUM, 800, 'center');
+        text(B, hx(658), hyy(145), 24, CREAM, UI, 700, 'right'); text(String(g.score[1]), hx(498), hyy(152), 44, GOLD, NUM, 800, 'center');
+        text(`Round ${g.round}`, HDR.x + HDR.w / 2, hyy(133), 24, CREAM, UI, 700);
+        fitText(sub, HDR.x + HDR.w / 2, hyy(158), HDR.w * 0.3, 19, 'rgba(251,232,191,0.85)', UI, 600, 'center');
+      } else {
+        const cx = HDR.x + HDR.w / 2;
+        text(`Round ${g.round}`, cx, HDR.y + 36, 26, CREAM, UI, 700);
+        fitText(sub, cx, HDR.y + 62, HDR.w - 16, 18, 'rgba(251,232,191,0.85)', UI, 600, 'center');
+        fitText(A, HDR.x + 16, HDR.y + 112, HDR.w * 0.5 - 20, 22, CREAM, UI, 700, 'left'); text(String(g.score[0]), HDR.x + HDR.w - 16, HDR.y + 118, 46, GOLD, NUM, 800, 'right');
+        fitText(B, HDR.x + 16, HDR.y + 160, HDR.w * 0.5 - 20, 22, CREAM, UI, 700, 'left'); text(String(g.score[1]), HDR.x + HDR.w - 16, HDR.y + 166, 46, GOLD, NUM, 800, 'right');
+      }
+    } else if (scene === 'lesson') {
+      const t1 = `Lesson ${state.lesson.i + 1} of ${LESSONS.length}`, t2 = LESSONS[state.lesson.i].title;
+      if (!wide) { text(t1, HDR.x + HDR.w / 2, hyy(128), 22, 'rgba(251,232,191,0.85)', UI, 600); fitText(t2, HDR.x + HDR.w / 2, hyy(158), HDR.w - 24, 38, CREAM, FONT, 700, 'center'); }
+      else { text(t1, HDR.x + HDR.w / 2, HDR.y + 34, 22, 'rgba(251,232,191,0.85)', UI, 600); wrap(t2, HDR.x + HDR.w / 2, HDR.y + 82, 30, HDR.w - 20, CREAM, 36); }
+    } else {
+      const t1 = 'Daily deal' + (state.pz.p.hard ? ' (weekend)' : ''), t2 = `Streak: ${state.daily.streak} day${state.daily.streak === 1 ? '' : 's'}`;
+      if (!wide) { text(t1, HDR.x + HDR.w / 2, hyy(128), 22, 'rgba(251,232,191,0.85)', UI, 600); text(t2, HDR.x + HDR.w / 2, hyy(158), 28, GOLD, UI, 700); }
+      else { text(t1, HDR.x + HDR.w / 2, HDR.y + 40, 22, 'rgba(251,232,191,0.85)', UI, 600); wrap(t2, HDR.x + HDR.w / 2, HDR.y + 96, 28, HDR.w - 20, GOLD, 34); }
+    }
 
     // ---- the other seats
     if (scene === 'play' || scene === 'autoplay') {
       for (let s = 1; s < g.n; s++) {
         const p = seatPos(g.n, s), n = state.seatShown[s], active = g.turn === s && g.phase === 'play';
         if (active) { const gl = ctx.createRadialGradient(p.x, p.y, 10, p.x, p.y, 90); gl.addColorStop(0, `rgba(255,214,120,${0.4 + 0.25 * pulse})`); gl.addColorStop(1, 'rgba(255,214,120,0)'); ctx.fillStyle = gl; ctx.fillRect(p.x - 90, p.y - 90, 180, 180); }
-        for (let k = 0; k < n; k++) { const a = (k - (n - 1) / 2) * 0.22; card(-1, p.x + (k - (n - 1) / 2) * 34, p.y + Math.abs(a) * 24 - 4, 54, a); }
+        for (let k = 0; k < n; k++) { const a = (k - (n - 1) / 2) * 0.22; card(-1, p.x + (k - (n - 1) / 2) * SEAT.w * 0.63, p.y + Math.abs(a) * SEAT.w * 0.44 - 4, SEAT.w, a); }
         const label = scene === 'autoplay' ? 'Player B' : g.n === 2 ? `Computer · ${LEVELS[state.level].name}` : s === 2 ? 'Partner' : s === 1 ? 'Left' : 'Right';
-        text(label, p.x, p.y + 68 + (g.n === 2 ? -2 : 0), g.n === 2 ? 24 : 21, active ? GOLD : CREAM, UI, 700);
-        if (active && state.thinking && !busy) { const dots = '.'.repeat(1 + (Math.floor(state.t * 3) % 3)); text('thinking' + dots, p.x, p.y + 92, 18, 'rgba(251,232,191,0.85)', UI, 500); }
+        fitText(label, p.x, p.y + SEAT.dl + (g.n === 2 && !wide ? -2 : 0), g.n === 2 ? 340 : (wide ? SEAT.span - 10 : 150), g.n === 2 ? 24 : 21, active ? GOLD : CREAM, UI, 700, 'center');
+        if (active && state.thinking && !busy) { const dots = '.'.repeat(1 + (Math.floor(state.t * 3) % 3)); text('thinking' + dots, p.x, p.y + SEAT.dt, 18, 'rgba(251,232,191,0.85)', UI, 500); }
       }
       // opponent team's pile
-      const on = state.pileShown[1]; backStack(70, 268, 44, on > 0 ? 3 : 0); text(String(on), 70, 330, 24, GOLD, NUM, 800); text(g.n === 2 ? 'theirs' : 'their pile', 70, 214, 15, 'rgba(251,232,191,0.8)', UI, 700);
+      const on = state.pileShown[1]; backStack(OPP.x, OPP.y, OPP.w, on > 0 ? 3 : 0); text(String(on), OPP.x, OPP.count, 24, GOLD, NUM, 800); text(g.n === 2 ? 'theirs' : 'their pile', OPP.x, OPP.label, 15, 'rgba(251,232,191,0.8)', UI, 700);
     }
     if (scene === 'lesson' || scene === 'puzzle') {
-      panel(30, 202, 660, 112, 0.86);
+      panel(INSTR.x, INSTR.y, INSTR.w, INSTR.h, 0.86);
       const tx = scene === 'lesson' ? LESSONS[state.lesson.i].text : `Which play is worth the most? Value: each card 1, each coin +1, each 7 +1, the 7 of coins +4, a scopa +3.`;
-      fitBox(tx, 30, 202, 660, 112, big ? 28 : 25, '#fff3d6');
+      fitBox(tx, INSTR.x, INSTR.y, INSTR.w, INSTR.h, big ? 28 : 25, '#fff3d6');
     }
 
     // ---- table cards
@@ -155,7 +183,7 @@ export function render(ctx, state) {
       if (state.hint && state.hint.card === c) ring(p.x, p.y - lift, HAND.w, HAND.h, '110,255,170', 0.6 + 0.4 * pulse, 6);
       if (state.kb && state.curZone === 'hand') { /* keys 1-3 select; nothing to draw */ }
     }
-    if (state.kb && (scene === 'play' || scene === 'lesson' || scene === 'puzzle') && !S) text('Keys 1 2 3: pick a card', 360, 1450, 20, 'rgba(255,240,200,0.75)', UI, 600);
+    if (state.kb && (scene === 'play' || scene === 'lesson' || scene === 'puzzle') && !S) text('Keys 1 2 3: pick a card', MSG.x + MSG.w / 2, MSG.y - 8, 20, 'rgba(255,240,200,0.75)', UI, 600);
 
     // ---- buttons
     if (scene === 'play') { button(BTN.menu, 'Menu', { size: 28 }); button(BTN.undo, 'Undo', { size: 28, dim: !state.undo }); button(BTN.hint, `Hint (${state.hintsLeft})`, { size: 28, dim: state.hintsLeft <= 0 }); }
@@ -165,7 +193,8 @@ export function render(ctx, state) {
       // The current think-time value is shown in the header caption above (not here): the hand
       // cards' own art reaches down almost to this button row, leaving no clear room for a second
       // text line between them without overlapping the cards.
-      button(BTN.apExit, 'Exit', { size: 28 });
+      button(BTN.apExit, 'Exit', { size: 26 });
+      button(BTN.apPause, state.apPaused ? 'Resume' : 'Pause', { size: 26, primary: !!state.apPaused });
       button(BTN.apDec, 'Think −', { size: 24, dim: state.apThinkIdx === 0 });
       button(BTN.apInc, 'Think +', { size: 24, dim: state.apThinkIdx === AP_THINK_STEPS.length - 1 });
     }
@@ -182,22 +211,28 @@ export function render(ctx, state) {
     for (const f of state.fx) {
       if (f.kind !== 'scopa') continue;
       const p = f.t / f.d, sc = state.calm ? 1 : 0.6 + 0.5 * Math.min(1, p * 4) + 0.06 * Math.sin(p * 20), a = Math.min(1, (1 - p) * 3);
-      ctx.save(); ctx.globalAlpha = a; ctx.translate(360, 640); ctx.scale(sc, sc);
+      const fcx = CLOTH.x + CLOTH.w / 2, fcy = CLOTH.y + CLOTH.h / 2, fk = Math.min(1, (CLOTH.w - 20) / 520, (CLOTH.h - 10) / 200);
+      ctx.save(); ctx.globalAlpha = a; ctx.translate(fcx, fcy); ctx.scale(sc * fk, sc * fk);
       ctx.fillStyle = 'rgba(30,8,0,0.6)'; rrect(-260, -100, 520, 200, 30); ctx.fill(); ctx.strokeStyle = GOLD; ctx.lineWidth = 4; ctx.stroke();
       text('SCOPA!', 0, 22, 108, '#ffe6a0', FONT, 700); text(f.team === 0 ? 'the table is swept: +1 point' : 'swept by the other side: +1 point', 0, 70, 24, CREAM, UI, 600);
       ctx.restore();
-      if (!state.calm) for (let k = 0; k < 22; k++) { const ang = k * 2.4 + 0.3, r = 60 + p * (200 + (k % 5) * 40), x = 360 + Math.cos(ang) * r, y = 640 + Math.sin(ang) * r * 0.7, s = (1 - p) * 9; ctx.fillStyle = `rgba(255,${200 + (k % 3) * 20},110,${a})`; ctx.beginPath(); ctx.moveTo(x, y - s); ctx.lineTo(x + s * 0.4, y); ctx.lineTo(x, y + s); ctx.lineTo(x - s * 0.4, y); ctx.fill(); }
+      if (!state.calm) for (let k = 0; k < 22; k++) { const ang = k * 2.4 + 0.3, r = 60 + p * (200 + (k % 5) * 40), x = fcx + Math.cos(ang) * r * fk, y = fcy + Math.sin(ang) * r * 0.7 * fk, s = (1 - p) * 9; ctx.fillStyle = `rgba(255,${200 + (k % 3) * 20},110,${a})`; ctx.beginPath(); ctx.moveTo(x, y - s); ctx.lineTo(x + s * 0.4, y); ctx.lineTo(x, y + s); ctx.lineTo(x - s * 0.4, y); ctx.fill(); }
     }
-    if (scene === 'play' && state.dev) text('DEV', 40, 190, 20, '#7dff9a', UI, 700, 'left');
+    if (scene === 'play' && state.dev) text('DEV', LV.U.x1 - 12, LV.U.y0 + 20, 18, '#7dff9a', UI, 700, 'right');
   }
 
   // ---- round scoring panel -------------------------------------------------------------------------------------------
   if (boardScene && state.panel === 'round' && g.summary) {
-    ctx.fillStyle = 'rgba(14,4,0,0.72)'; ctx.fillRect(0, 0, W, H);
-    panel(40, 200, 640, 1040, 0.94);
+    ctx.fillStyle = 'rgba(14,4,0,0.72)'; ctx.fillRect(0, 0, w, h);
+    const P = ROUND.P, k = ROUND.k, K = (v) => v * k, S = (v, mn) => Math.max(mn, Math.round(v * k));
+    panel(P.x, P.y, P.w, P.h, 0.94);
     const s = g.summary, per = s.per, T = per.length, names = scene === 'lesson' ? ['You', 'Opponent'] : scene === 'autoplay' ? ['Player A', 'Player B'] : state.n === 4 ? ['Your team', 'Opponents'] : ['You', 'Computer'];
-    text(scene === 'lesson' ? 'How a round is scored' : `Round ${g.round}`, 360, 285, 62, CREAM, FONT);
-    text(names[0], 430, 350, 26, GOLD, UI, 700); text(names[1], 590, 350, 26, GOLD, UI, 700);
+    const c0 = P.x + P.w * 0.61, c1 = P.x + P.w * 0.86, lx = P.x + P.w * 0.066, colX = (t) => (t === 0 ? c0 : c1);
+    const ttl = scene === 'lesson' ? 'How a round is scored' : `Round ${g.round}`;
+    let y;
+    if (!wide) { text(ttl, P.x + P.w / 2, P.y + K(85), S(62, 40), CREAM, FONT); text(names[0], c0, P.y + K(150), S(26, 18), GOLD, UI, 700); text(names[1], c1, P.y + K(150), S(26, 18), GOLD, UI, 700); y = P.y + K(200); }
+    else { text(ttl, lx, P.y + K(62), S(50, 34), CREAM, FONT, 700, 'left'); text(names[0], c0, P.y + K(62), S(26, 18), GOLD, UI, 700); text(names[1], c1, P.y + K(62), S(26, 18), GOLD, UI, 700); y = P.y + K(108); }
+    const pitch = wide ? K(70) : K(92);
     const rows = [
       ['Cards (carte)', 'most cards', per.map((x) => String(x.cards)), s.winners.carte],
       ['Coins (denari)', 'most coins', per.map((x) => String(x.coins)), s.winners.denari],
@@ -205,129 +240,178 @@ export function render(ctx, state) {
       ['Primiera', 'best card per suit', per.map((x) => (x.prim ? String(x.prim) : '-')), s.winners.primiera],
       ['Scopa (broom)', 'tables swept', per.map((x) => String(x.scope)), -2],
     ];
-    let y = 400;
-    rows.forEach(([a, b, vals, win], k) => {
-      if (k % 2 === 0) { ctx.fillStyle = 'rgba(255,220,150,0.06)'; rrect(60, y - 44, 600, 84, 10); ctx.fill(); }
-      text(a, 82, y - 4, 28, CREAM, UI, 700, 'left'); text(b, 82, y + 24, 19, 'rgba(251,232,191,0.7)', UI, 500, 'left');
+    rows.forEach(([a, b, vals, win], kk) => {
+      if (kk % 2 === 0) { ctx.fillStyle = 'rgba(255,220,150,0.06)'; rrect(P.x + 20, y - pitch * 0.48, P.w - 40, pitch * 0.92, 10); ctx.fill(); }
+      text(a, lx, y - K(4), S(28, 19), CREAM, UI, 700, 'left'); text(b, lx, y + K(24), S(19, 13), 'rgba(251,232,191,0.7)', UI, 500, 'left');
       for (let t = 0; t < T; t++) {
-        const x = t === 0 ? 430 : 590, won = win === t || (win === -2 && per[t].scope > 0);
-        if (won) { ctx.fillStyle = 'rgba(243,207,122,0.25)'; rrect(x - 56, y - 38, 112, 70, 14); ctx.fill(); ctx.strokeStyle = GOLD; ctx.lineWidth = 2; ctx.stroke(); }
-        text(vals[t], x, y + 12, 36, won ? '#ffe9a8' : CREAM, NUM, 800);
+        const x = colX(t), won = win === t || (win === -2 && per[t].scope > 0);
+        if (won) { ctx.fillStyle = 'rgba(243,207,122,0.25)'; rrect(x - K(56), y - K(38), K(112), K(70), 14); ctx.fill(); ctx.strokeStyle = GOLD; ctx.lineWidth = 2; ctx.stroke(); }
+        text(vals[t], x, y + K(12), S(36, 24), won ? '#ffe9a8' : CREAM, NUM, 800);
       }
-      y += 92;
+      y += pitch;
     });
-    ctx.strokeStyle = 'rgba(243,207,122,0.6)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(70, y - 24); ctx.lineTo(650, y - 24); ctx.stroke();
-    text('Points this round', 82, y + 34, 28, CREAM, UI, 700, 'left'); per.forEach((x, t) => text(String(x.pts), t === 0 ? 430 : 590, y + 40, 50, '#ffe9a8', NUM, 800));
-    y += 96;
-    if (scene !== 'lesson') { text('Match score', 82, y + 12, 26, CREAM, UI, 700, 'left'); g.score.forEach((sc, t) => text(String(sc), t === 0 ? 430 : 590, y + 16, 44, GOLD, NUM, 800)); text(`first to ${g.target}`, 360, y + 62, 20, 'rgba(251,232,191,0.75)', UI, 600); y += 90; }
-    const notes = []; if (s.winners.carte < 0) notes.push('Equal cards: no point for cards.'); if (s.winners.denari < 0) notes.push('Equal coins: no point for coins.'); if (s.winners.primiera < 0) notes.push('Primiera needs a card in every suit, and the higher total wins.');
-    if (notes.length) wrap(notes[0], 360, y + 30, 21, 540, 'rgba(251,232,191,0.8)');
+    ctx.strokeStyle = 'rgba(243,207,122,0.6)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(P.x + P.w * 0.1, y - K(24)); ctx.lineTo(P.x + P.w * 0.9, y - K(24)); ctx.stroke();
+    text('Points this round', lx, y + K(34), S(28, 19), CREAM, UI, 700, 'left'); per.forEach((x, t) => text(String(x.pts), colX(t), y + K(40), S(50, 32), '#ffe9a8', NUM, 800));
+    y += wide ? K(78) : K(96);
+    if (scene !== 'lesson') {
+      text('Match score', lx, y + K(12), S(26, 18), CREAM, UI, 700, 'left'); g.score.forEach((sc, t) => text(String(sc), colX(t), y + K(16), S(44, 28), GOLD, NUM, 800));
+      if (!wide) text(`first to ${g.target}`, P.x + P.w / 2, y + K(62), S(20, 14), 'rgba(251,232,191,0.75)', UI, 600);
+      y += wide ? K(52) : K(90);
+    }
+    if (!wide) {
+      const notes = []; if (s.winners.carte < 0) notes.push('Equal cards: no point for cards.'); if (s.winners.denari < 0) notes.push('Equal coins: no point for coins.'); if (s.winners.primiera < 0) notes.push('Primiera needs a card in every suit, and the higher total wins.');
+      if (notes.length) wrap(notes[0], P.x + P.w / 2, y + K(30), S(21, 14), P.w - 100, 'rgba(251,232,191,0.8)');
+    }
     // Auto Play's round panel auto-advances on its own timer (updateAutoPlay), so it shows a plain
     // status label here rather than a button implying a tap.
-    if (scene === 'autoplay') text(g.phase === 'over' ? 'Finishing…' : 'Next round starting…', 360, BTN.cont.y + BTN.cont.h / 2 + 12, 30, 'rgba(251,232,191,0.85)', UI, 700);
+    if (scene === 'autoplay') text(g.phase === 'over' ? 'Finishing…' : 'Next round starting…', w / 2, BTN.cont.y + BTN.cont.h / 2 + 12, 30, 'rgba(251,232,191,0.85)', UI, 700);
     else button(BTN.cont, scene === 'lesson' ? 'Continue' : g.phase === 'over' ? 'See the result' : 'Next round', { primary: true, size: 34 });
   }
 
   // ---- other screens -------------------------------------------------------------------------------------------------
-  if (scene === 'title' || scene === 'demo-limit') {
-    // hanging fan of cards, gently swaying
-    const fan = [[9, 10, 0], [16, 7, 1], [9, 1, 2], [7, 7, 3], [39, 10, 3]]; void fan;
+  // The title art (hanging fan of cards + the name), drawn in its own 720-wide design space (y 200..780) and scaled/placed by the caller.
+  const titleArt = () => {
     const ids = [29, 6, 19, 39, 8]; // Re/7/etc drawn from the deck (suit*10+rank-1)
     ids.forEach((id, i) => { const a = (i - 2) * 0.24 + (state.calm ? 0 : Math.sin(state.t * 1.1 + i) * 0.025), x = 360 + (i - 2) * 112, y = 590 + Math.abs(i - 2) * 24 + (state.calm ? 0 : Math.sin(state.t * 1.4 + i * 1.3) * 5); card(id, x, y, 158, a, { lift: true }); });
     text('Scopa', 360, 330, 150, CREAM, FONT); ctx.fillStyle = 'rgba(24,8,4,0.7)'; rrect(120, 350, 480, 46, 23); ctx.fill(); text('The Italian card game of the broom', 360, 383, 26, 'rgba(251,232,191,0.97)', FONT, 700);
-  }
+  };
   if (scene === 'title') {
-    const R = titleRows(!!state.saved), solved = state.daily.solvedDay === state.daily.day;
+    const R = titleRows(!!state.saved), solved = state.daily.solvedDay === state.daily.day, M = R.meta;
+    // art: tall = above the buttons, aligned to the bottom of its box; wide = left of the button column
+    let artCx, artTop, s, statsY, lockY;
+    if (!wide) {
+      const bottom = M.top - 20; s = Math.min(1, (bottom - Math.max(LV.U.y0, 20)) / 580); artCx = w / 2; artTop = bottom - 580 * s;
+      statsY = M.bottom + 40; lockY = M.bottom + 78;
+    } else {
+      const areaW = M.x - 16 - LV.U.x0 - 16; artCx = LV.U.x0 + 16 + areaW / 2; s = Math.min(1, areaW / 700, (LV.U.h - 24 - 210) / 580);
+      const total = 580 * s + 84 + 80 + 40, top0 = LV.U.y0 + (LV.U.h - total) / 2; artTop = top0; statsY = top0 + 580 * s + 84; lockY = top0 + 580 * s + 84 + 80 - 8;
+    }
+    ctx.save(); ctx.translate(artCx - 360 * s, artTop - 200 * s); ctx.scale(s, s); titleArt(); ctx.restore();
     if (R.resume) button(R.resume, 'Continue your game', { primary: true, size: 32 });
-    button(R.learn, 'Learn to play (imparare)', { primary: !state.learned && !R.resume, size: 30 });
-    button(R.play, 'Play the computer', { primary: state.learned && !R.resume, size: 32 });
-    button(R.four, 'Four players, in partnership', { size: 30 });
-    button(R.daily, solved ? `Daily deal: solved · streak ${state.daily.streak}` : state.daily.streak ? `Daily deal · streak ${state.daily.streak}` : 'Daily deal', { size: 30 });
-    button(R.autoplay, 'Auto Play · Watch & Learn', { size: 28 });
+    const bs = (v) => Math.round(v * Math.min(1, R.learn.h / 84 + 0.12));
+    button(R.learn, 'Learn to play (imparare)', { primary: !state.learned && !R.resume, size: bs(30) });
+    button(R.play, 'Play the computer', { primary: state.learned && !R.resume, size: bs(32) });
+    button(R.four, 'Four players, in partnership', { size: bs(30) });
+    button(R.daily, solved ? `Daily deal: solved · streak ${state.daily.streak}` : state.daily.streak ? `Daily deal · streak ${state.daily.streak}` : 'Daily deal', { size: bs(30) });
+    button(R.autoplay, 'Auto Play · Watch & Learn', { size: bs(28) });
     button(R.about, 'About', { size: 22 }); button(R.controls, 'Controls', { size: 22 });
     button(R.rules, 'Rules', { size: 22 }); button(R.settings, 'Settings', { size: 22 });
-    const y = R.about.y + 130;
-    text(`Games played: ${state.stats.games} · won: ${state.stats.wins}`, 360, y, 22, 'rgba(251,232,191,0.9)', UI, 500);
+    const sx = wide ? artCx : w / 2;
+    text(`Games played: ${state.stats.games} · won: ${state.stats.wins}`, sx, statsY, 22, 'rgba(251,232,191,0.9)', UI, 500);
     let stars = ''; for (let l = 0; l < LEVELS.length; l++) stars += state.stats.badges['L' + l] ? '★ ' : '☆ ';
-    text(stars.trim(), 360, y + 38, 30, GOLD, UI, 700);
-    if (state.msg) wrap(state.msg.text, 360, 1490, 22, 620, '#ffe9b0');
+    text(stars.trim(), sx, statsY + 38, 30, GOLD, UI, 700);
+    if (state.msg) wrap(state.msg.text, sx, lockY + 22, 20, Math.min(620, wide ? M.x - 40 : 620), '#ffe9b0');
+    { const q = R.lock, dn = state.lkDown;      // the themed Arcforge lockup under the menu; a tap opens the Arcforge home
+      ctx.save(); ctx.fillStyle = 'rgba(24,8,4,0.62)'; rrect(q.x - 10, q.y - 5, q.w + 20, q.h + 10, (q.h + 10) / 2); ctx.fill(); ctx.restore();
+      if (dn) { ctx.save(); drawLockupImage(ctx, q.x + q.w / 2, q.y + 1, q.h * 0.96, 0.7); ctx.restore(); } else drawLockupImage(ctx, q.x + q.w / 2, q.y, q.h, 1); }
   } else if (scene === 'demo-limit') {
+    const s = Math.min(1, (LV.U.h - 24) / 900, (LV.U.w - 24) / 720);
+    ctx.save(); ctx.translate((w - 720 * s) / 2, LV.U.y0 + LV.U.h / 2 - 650 * s); ctx.scale(s, s);
+    titleArt();
     panel(60, 700, 600, 380, 0.9);
     text('That was the free taste.', 360, 820, 54, CREAM, FONT);
     text('Get Scopa on iPhone and Android', 360, 910, 30, '#fff3d6', UI, 600); text('for unlimited games.', 360, 952, 30, '#fff3d6', UI, 600);
+    ctx.restore();
   } else if (scene === 'settings') {
-    panel(40, 120, 640, 1290, 0.6);
-    text('Settings', 360, 215, 70, CREAM, FONT);
-    const lv = LEVELS[state.level];
-    button(SET.level, `Computer level: ${lv.name}`, { size: 30 });
-    button(SET.sound, state.sound ? 'Sound: on' : 'Sound: off', { size: 30 });
-    button(SET.calm, state.calm ? 'Reduced motion: on' : 'Reduced motion: off', { size: 30 });
-    button(SET.big, state.big ? 'Large text: on' : 'Large text: off', { size: 30 });
-    button(SET.deck, state.french ? 'Cards: French suits' : 'Cards: Italian suits', { size: 30 });
-    button(SET.target, `Play to ${state.target} points`, { size: 30 });
-    wrap(lv.blurb, 360, 870, 25, 580, '#ffe9b0');
-    [4, 34, 10, 20].forEach((id, i) => card(id, 150 + i * 140, 1120, 120, (i - 1.5) * 0.06));
-    text(state.french ? 'French suits: diamonds, hearts, spades, clubs' : 'Coins, cups, swords, batons', 360, 1270, 22, 'rgba(251,232,191,0.85)', UI, 600);
+    panel(SET.panel.x, SET.panel.y, SET.panel.w, SET.panel.h, 0.6);
+    if (wide && !SET.titleCenter) text('Settings', SET.panel.x + 36, SET.titleY, 52, CREAM, FONT, 700, 'left'); else if (wide) text('Settings', w / 2, SET.titleY, 52, CREAM, FONT); else text('Settings', w / 2, SET.titleY, 70, CREAM, FONT);
+    const lv = LEVELS[state.level], sz = wide ? 26 : 30;
+    button(SET.level, `Computer level: ${lv.name}`, { size: sz });
+    button(SET.sound, state.sound ? 'Sound: on' : 'Sound: off', { size: sz });
+    button(SET.calm, state.calm ? 'Reduced motion: on' : 'Reduced motion: off', { size: sz });
+    button(SET.big, state.big ? 'Large text: on' : 'Large text: off', { size: sz });
+    button(SET.deck, state.french ? 'Cards: French suits' : 'Cards: Italian suits', { size: sz });
+    button(SET.target, `Play to ${state.target} points`, { size: sz });
+    wrap(lv.blurb, SET.blurbX, SET.blurbY, wide ? 23 : 25, SET.blurbW, '#ffe9b0');
+    if (SET.cardsY) {
+      [4, 34, 10, 20].forEach((id, i) => card(id, w / 2 + (i - 1.5) * (SET.cardsW + 20), SET.cardsY, SET.cardsW, (i - 1.5) * 0.06));
+      text(state.french ? 'French suits: diamonds, hearts, spades, clubs' : 'Coins, cups, swords, batons', w / 2, SET.capY, 22, 'rgba(251,232,191,0.85)', UI, 600);
+    }
     button(SET.back, 'Back', { primary: true, size: 32 });
   } else if (scene === 'about' || scene === 'rules' || scene === 'controls') {
-    // About, Controls and Rules all share this one reader-page layout: a framed panel (already
-    // this game's own dark translucent card, `panel()`), a page per single concept, and a text-size
-    // stepper right here in the header row so anyone - glasses or not - can bump it up where they
-    // are actually reading, rather than hunting for it in Settings.
+    // About, Controls and Rules share one reader page: a framed panel, one concept per page, a text-size stepper, and a body that
+    // scrolls (drag, wheel, arrow keys) whenever the text is bigger than the window - at any size, in either orientation.
     const list = scene === 'about' ? ABOUT : scene === 'rules' ? RULES : CONTROLS;
     const headerTitle = scene === 'about' ? 'About Scopa' : scene === 'rules' ? 'Rules' : 'Controls';
     const scale = TEXT_SCALES[state.textScaleIdx] ?? 1; // guarded: an out-of-range saved index must never yield NaN sizes.
-    panel(36, 100, 648, 1310, 0.92);
-    const headerSize = Math.round(64 * Math.min(scale, 1.15));
-    text(headerTitle, 360, 190, headerSize, CREAM, FONT);
-    const pg = list[state.page % list.length];
-    const titleSize = Math.round(31 * scale), titleY = 190 + Math.round(58 * Math.min(scale, 1.15));
-    text(pg.title, 360, titleY, titleSize, GOLD, FONT, 700);
-    // Body size is needed below before the cards block too: the gap after a card's fixed-size label
-    // (or caption) must grow with the body font that follows it, or a bigger text-size step crowds
-    // the body text straight into the label/caption above it - the same fixed-gap-vs-growing-font
-    // bug this game family keeps needing to fix wherever a diagram sits above the body text.
-    const bodySize = Math.round(29 * scale), lh = Math.round(bodySize * 1.4), lineGap = Math.round(16 * scale);
-    let y = titleY + Math.round(52 * scale);
-    if (pg.cards && pg.cards.length) {
-      const n = pg.cards.length, cw = n >= 4 ? 118 : 132, gap = 22, totalW = n * cw + (n - 1) * gap, x0 = 360 - totalW / 2 + cw / 2, cy = y + 108;
-      pg.cards.forEach((cd, i) => {
-        const cx = x0 + i * (cw + gap);
-        card(cd.id, cx, cy, cw, 0);
-        if (cd.label) wrap(cd.label, cx, cy + cw * 1.0, 15, cw + 28, 'rgba(251,232,191,0.85)', 18);
-      });
-      y = cy + cw * 1.0 + 26 + Math.round(bodySize * 0.6);
-      if (pg.cardsCaption) { text(pg.cardsCaption, 360, y, 19, 'rgba(251,232,191,0.75)', UI, 600); y += 18 + Math.round(bodySize * 0.6); }
+    const P = READER.P, VP = READER.VP;
+    panel(P.x, P.y, P.w, P.h, 0.92);
+    text(headerTitle, READER.titleX, READER.titleY, wide ? 44 : Math.round(64 * Math.min(scale, 1.15)), CREAM, FONT, 700, READER.titleAlign);
+    const titleSize = Math.round(31 * scale), bodySize = Math.round(29 * scale), lh = Math.round(bodySize * 1.4), lineGap = Math.round(16 * scale);
+    const scroll = Math.max(0, Math.min(state.scrollY || 0, readerMetrics.max));
+    ctx.save(); ctx.beginPath(); ctx.rect(VP.x - 8, VP.y, VP.w + 16, VP.h); ctx.clip(); ctx.translate(0, -scroll);
+    const bw = VP.w - 18, bx = VP.x + 4, mid = VP.x + (VP.w - 14) / 2;
+    let y = VP.y; const visTop = VP.y + scroll - 120, visBot = VP.y + scroll + VP.h + 120;   // only the visible slice is drawn
+    // One continuous reader: every section in order, separated by a thin rule.
+    list.forEach((pg, idx) => {
+      if (idx > 0) {
+        y += Math.round(bodySize * 0.3);
+        ctx.save(); ctx.strokeStyle = 'rgba(243,207,122,0.3)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(VP.x + 12, y); ctx.lineTo(VP.x + VP.w - 26, y); ctx.stroke(); ctx.restore();
+        y += Math.round(bodySize * 0.5);
+      }
+      // the section title, wrapped (it can be long at 300%)
+      const tl = lines(pg.title, bw, titleSize, 700, FONT);
+      y += titleSize + 4;
+      if (y + tl.length * titleSize * 1.2 > visTop && y - titleSize < visBot) tl.forEach((ln, i) => text(ln, mid, y + i * titleSize * 1.12, titleSize, GOLD, FONT, 700)); y += (tl.length - 1) * titleSize * 1.12 + Math.round(52 * scale);
+      if (pg.cards && pg.cards.length) {
+        const n = pg.cards.length, gap = 22; let cw = n >= 4 ? 118 : 132; cw = Math.min(cw, (bw - (n - 1) * gap) / n);
+        const totalW = n * cw + (n - 1) * gap, x0 = mid - totalW / 2 + cw / 2, cy = y + cw * 0.8, capW = cw + gap - 6;
+        const capLines = Math.max(0, ...pg.cards.map((cd) => (cd.label ? lines(cd.label, capW, 15).length : 0)));
+        if (cy + cw * 1.4 > visTop && cy - cw * 1.4 < visBot) pg.cards.forEach((cd, i) => {
+          const cx = x0 + i * (cw + gap);
+          card(cd.id, cx, cy, cw, 0);
+          if (cd.label) wrap(cd.label, cx, cy + cw * 1.0, 15, capW, 'rgba(251,232,191,0.85)', 18);
+        });
+        // the row's height counts every caption line (measured whether or not the row is on screen), and the text below starts a full
+        // text line (which grows with the text size) under the lowest caption baseline, so nothing can overlap at any text size
+        const capBase = cy + cw * 1.0 + (Math.max(1, capLines) - 1) * 18;
+        y = Math.max(cy + cw * 1.0 + 26 + Math.round(bodySize * 0.6), capBase + 12 + Math.round(bodySize * 0.85));
+        if (pg.cardsCaption) { text(pg.cardsCaption, mid, y, 19, 'rgba(251,232,191,0.75)', UI, 600); y += 14 + Math.round(bodySize * 0.85); }
+      }
+      for (const line of pg.lines) {
+        const Ls = lines(line, bw, bodySize);
+        if (y + Ls.length * lh > visTop && y - bodySize < visBot) Ls.forEach((ln, i) => text(ln, bx, y + i * lh, bodySize, '#fff3d6', UI, 600, 'left'));
+        y += Ls.length * lh + lineGap;
+      }
+    });
+    ctx.restore();
+    readerMetrics.view = VP.h; readerMetrics.max = Math.max(0, Math.round(y - VP.y - VP.h + 8));
+    if (readerMetrics.max > 0) {
+      const bar = READER.bar, th = Math.max(36, bar.h * VP.h / (VP.h + readerMetrics.max)), ty = bar.y + (bar.h - th) * (scroll / readerMetrics.max);
+      ctx.fillStyle = 'rgba(243,207,122,0.18)'; rrect(bar.x, bar.y, bar.w, bar.h, 4); ctx.fill(); ctx.fillStyle = 'rgba(243,207,122,0.85)'; rrect(bar.x, ty, bar.w, th, 4); ctx.fill();
     }
-    for (const line of pg.lines) { const n = wrap(line, 70, y, bodySize, 580, '#fff3d6', lh, 'left'); y += n * lh + lineGap; }
-    text(`Page ${(state.page % list.length) + 1} of ${list.length}`, 360, 1398, 20, 'rgba(251,232,191,0.7)', UI, 600);
-    // Back is the neutral/secondary action (always exits to the title); Next is the primary,
-    // forward-reading action, and reads as a clear exit affordance ("Done") on the last page rather
-    // than a dead-end "Next" that just wraps back to page one.
-    const isLast = state.page % list.length === list.length - 1;
+    // Back is the neutral action (steps back, or exits to the title from page 1); Next is the primary forward action and reads "Done" on the last page.
     button(BTN.pageBack, 'Back', { size: 30 });
-    button(BTN.pageNext, isLast ? 'Done' : 'Next', { primary: true, size: 30 });
+    button(BTN.pageNext, 'Done', { primary: true, size: 30 });
     button(BTN.textDec, 'A−', { size: 28, dim: state.textScaleIdx === 0 });
     button(BTN.textInc, 'A+', { size: 28, dim: state.textScaleIdx === TEXT_SCALES.length - 1 });
-  } else if (scene === 'over') {
-    ctx.fillStyle = 'rgba(20,6,0,0.55)'; ctx.fillRect(0, 0, W, H);
-    const won = g.winner === 0, T = state.n === 4;
-    text(won ? (T ? 'Your team wins!' : 'You win!') : T ? 'They win this time' : 'The computer wins', 360, 470, 84, CREAM, FONT);
-    text(`${g.score[0]} : ${g.score[1]}`, 360, 680, 130, GOLD, NUM, 800);
-    text(T ? 'Your team : Opponents' : 'You : Computer', 360, 735, 24, 'rgba(251,232,191,0.9)', UI, 600);
-    text(`${g.round} round${g.round === 1 ? '' : 's'}`, 360, 785, 24, 'rgba(251,232,191,0.75)', UI, 500);
-    if (won && !T) text(`★ ${LEVELS[state.level].name} beaten`, 360, 870, 32, GOLD, UI, 700);
-    if (won && !state.calm) for (let k = 0; k < 18; k++) { const ph = (state.t * 0.3 + k * 0.11) % 1, x = 360 + Math.sin(k * 2.4) * (200 + 90 * ph), y = 640 - ph * 460; card(k % 3 === 0 ? 6 : 29, x, y, 60 * (1 - ph * 0.4), ph * 5, { shadow: false }); }
-    button(BTN.again, 'Play again', { primary: true, size: 36 }); button(BTN.back, 'Menu', { size: 32 });
-  } else if (scene === 'autoplay-over') {
-    ctx.fillStyle = 'rgba(20,6,0,0.55)'; ctx.fillRect(0, 0, W, H);
-    const won = g.winner === 0;
-    text('Auto Play complete', 360, 420, 50, CREAM, FONT);
-    text(won ? 'Player A wins!' : 'Player B wins!', 360, 500, 74, CREAM, FONT);
-    text(`${g.score[0]} : ${g.score[1]}`, 360, 680, 130, GOLD, NUM, 800);
-    text('Player A : Player B', 360, 735, 24, 'rgba(251,232,191,0.9)', UI, 600);
-    text(`${g.round} round${g.round === 1 ? '' : 's'}`, 360, 785, 24, 'rgba(251,232,191,0.75)', UI, 500);
-    button(BTN.again, 'Watch again', { primary: true, size: 36 }); button(BTN.back, 'Exit to menu', { size: 32 });
+  } else if (scene === 'over' || scene === 'autoplay-over') {
+    ctx.fillStyle = 'rgba(20,6,0,0.78)'; ctx.fillRect(0, 0, w, h);
+    const ap = scene === 'autoplay-over', won = g.winner === 0, T = state.n === 4, P = POSTER;
+    // the text block: tall = design coordinates under the poster transform; wide = explicit rows around the vertical centre
+    const Y = wide
+      ? { t1: P.cy - 175, t2: P.cy - 115, score: P.cy - 5, who: P.cy + 35, rounds: P.cy + 68, star: P.cy + 108, more: P.cy + 250, ts: ap ? 44 : 70, ts2: 62, ss: 112 }
+      : { t1: 420, t2: 500, score: 680, who: 735, rounds: 785, star: 870, more: 1355, ts: ap ? 50 : 84, ts2: 74, ss: 130 };
+    ctx.save(); if (!wide) { ctx.translate(P.ox, P.oy); ctx.scale(P.s, P.s); } const cx = wide ? w / 2 : 360;
+    if (!ap) {
+      text(won ? (T ? 'Your team wins!' : 'You win!') : T ? 'They win this time' : 'The computer wins', cx, wide ? Y.t2 : 470, Y.ts, CREAM, FONT);
+      text(`${g.score[0]} : ${g.score[1]}`, cx, Y.score, Y.ss, GOLD, NUM, 800);
+      text(T ? 'Your team : Opponents' : 'You : Computer', cx, Y.who, 24, 'rgba(251,232,191,0.9)', UI, 600);
+      text(`${g.round} round${g.round === 1 ? '' : 's'}`, cx, Y.rounds, 24, 'rgba(251,232,191,0.75)', UI, 500);
+      if (won && !T) text(`★ ${LEVELS[state.level].name} beaten`, cx, Y.star, 32, GOLD, UI, 700);
+      if (won && !state.calm) for (let k = 0; k < 18; k++) { const ph = (state.t * 0.3 + k * 0.11) % 1, x = cx + Math.sin(k * 2.4) * (200 + 90 * ph), y = (wide ? P.cy - 60 : 640) - ph * (wide ? 300 : 460); card(k % 3 === 0 ? 6 : 29, x, y, 60 * (1 - ph * 0.4), ph * 5, { shadow: false }); }
+    } else {
+      text('Auto Play complete', cx, Y.t1, wide ? 40 : 50, CREAM, FONT);
+      text(won ? 'Player A wins!' : 'Player B wins!', cx, Y.t2, Y.ts2, CREAM, FONT);
+      text(`${g.score[0]} : ${g.score[1]}`, cx, Y.score, Y.ss, GOLD, NUM, 800);
+      text('Player A : Player B', cx, Y.who, 24, 'rgba(251,232,191,0.9)', UI, 600);
+      text(`${g.round} round${g.round === 1 ? '' : 's'}`, cx, Y.rounds, 24, 'rgba(251,232,191,0.75)', UI, 500);
+    }
+    drawMoreLine(ctx, cx, Y.more, 18);
+    ctx.restore();
+    const bz = wide ? 1 : P.s;
+    button(BTN.again, ap ? 'Watch again' : 'Play again', { primary: true, size: Math.round(36 * bz) });
+    button(BTN.back, ap ? 'Exit to menu' : 'Menu', { size: Math.round(32 * bz) });
   }
-  void H; void TAU; void CH; void RANK_NAMES; void teamOf; void inRect;
+  void H; void W; void TAU; void CH; void RANK_NAMES; void teamOf; void inRect;
 }

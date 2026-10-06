@@ -1,6 +1,5 @@
 // Painted art: the cafe table (felt, walnut rail, geometric star border) and the cards. Static art is drawn once into
 // cached layers/sprites (OffscreenCanvas), so a frame costs a handful of drawImage calls.
-import { W, H } from './layout.js';
 import { suitOf, rankOf, RANK_CH } from './rules.js';
 
 const TAU = Math.PI * 2;
@@ -57,9 +56,10 @@ function band(ctx, x, y, w, h, vertical) {
     star8(ctx, cx, cy, Math.min(w, h) * 0.46, 'rgba(240,205,130,0.85)', i % 2 ? 'rgba(20,60,50,0.55)' : 'rgba(110,30,30,0.5)');
   }
 }
-function paintTable(c) {
+function paintTable(c, W, H, B, star, rail) {
   // felt: deep green with a warm lamp pool in the middle
-  const g = c.createRadialGradient(360, 820, 60, 360, 820, 980);
+  const R0 = Math.max(W, H) * 0.65;
+  const g = c.createRadialGradient(star.x, star.y, 60, star.x, star.y, R0);
   g.addColorStop(0, '#2f7a56'); g.addColorStop(0.55, '#1d5a41'); g.addColorStop(1, '#0d3527');
   c.fillStyle = g; c.fillRect(0, 0, W, H);
   // woven texture: fine crossing diagonals
@@ -68,19 +68,22 @@ function paintTable(c) {
   c.strokeStyle = 'rgba(255,255,255,0.035)';
   c.beginPath(); for (let i = 0; i < W + H; i += 7) { c.moveTo(i, 0); c.lineTo(i - H, H); } c.stroke();
   // central inlay: a large star ring under the trick area
-  c.save(); c.lineWidth = 2.4; c.globalAlpha = 0.5; star8(c, 360, 812, 300, 'rgba(240,205,130,0.55)'); c.lineWidth = 1.4; star8(c, 360, 812, 220, 'rgba(240,205,130,0.4)'); c.beginPath(); c.arc(360, 812, 330, 0, TAU); c.stroke(); c.restore();
+  c.save(); c.lineWidth = 2.4; c.globalAlpha = 0.5; star8(c, star.x, star.y, star.r, 'rgba(240,205,130,0.55)'); c.lineWidth = 1.4; star8(c, star.x, star.y, star.r * 0.73, 'rgba(240,205,130,0.4)'); c.beginPath(); c.arc(star.x, star.y, star.r * 1.1, 0, TAU); c.stroke(); c.restore();
   // walnut frame with a star band
-  const B = 46; band(c, 0, 0, W, B, false); band(c, 0, H - B, W, B, false); band(c, 0, B, B, H - 2 * B, true); band(c, W - B, B, B, H - 2 * B, true);
+  band(c, 0, 0, W, B, false); band(c, 0, H - B, W, B, false); band(c, 0, B, B, H - 2 * B, true); band(c, W - B, B, B, H - 2 * B, true);
   c.strokeStyle = '#e8c377'; c.lineWidth = 3; c.strokeRect(B, B, W - 2 * B, H - 2 * B); c.strokeStyle = 'rgba(0,0,0,0.5)'; c.lineWidth = 6; c.strokeRect(B + 4, B + 4, W - 2 * B - 8, H - 2 * B - 8);
   // corner medallions
+  const mr = 34 * B / 46;
   for (const [x, y] of [[B, B], [W - B, B], [B, H - B], [W - B, H - B]]) {
-    c.fillStyle = '#3a2411'; c.beginPath(); c.arc(x, y, 34, 0, TAU); c.fill(); c.strokeStyle = '#e8c377'; c.lineWidth = 3; c.stroke(); c.lineWidth = 1.6; star8(c, x, y, 26, 'rgba(240,205,130,0.9)');
+    c.fillStyle = '#3a2411'; c.beginPath(); c.arc(x, y, mr, 0, TAU); c.fill(); c.strokeStyle = '#e8c377'; c.lineWidth = 3; c.stroke(); c.lineWidth = 1.6; star8(c, x, y, mr * 0.76, 'rgba(240,205,130,0.9)');
   }
-  // walnut rail at the bottom for the buttons, with a brass edge
-  const r = c.createLinearGradient(0, 1462, 0, H); r.addColorStop(0, '#4d2f16'); r.addColorStop(1, '#2a180a');
-  c.fillStyle = r; c.fillRect(B, 1462, W - 2 * B, H - 1462 - B); c.fillStyle = '#e8c377'; c.fillRect(B, 1460, W - 2 * B, 3);
+  // walnut rail at the bottom for the buttons, with a brass edge (portrait layouts)
+  if (rail > 0) {
+    const r = c.createLinearGradient(0, rail, 0, H); r.addColorStop(0, '#4d2f16'); r.addColorStop(1, '#2a180a');
+    c.fillStyle = r; c.fillRect(B, rail, W - 2 * B, H - rail - B); c.fillStyle = '#e8c377'; c.fillRect(B, rail - 2, W - 2 * B, 3);
+  }
   // vignette
-  const v = c.createRadialGradient(360, 780, 420, 360, 780, 1000); v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(0,0,0,0.45)');
+  const v = c.createRadialGradient(star.x, star.y, R0 * 0.42, star.x, star.y, R0 * 1.0); v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(0,0,0,0.45)');
   c.fillStyle = v; c.fillRect(0, 0, W, H);
 }
 const cache = {};
@@ -91,12 +94,20 @@ function layer(key, w, h, scale, paint, fallback) {
   }
   return cache[key];
 }
-export function drawTable(ctx) {
-  const l = layer('table', W, H, 2, paintTable);
-  if (l) ctx.drawImage(l, 0, 0, W, H); else paintTable(ctx);
+// The felt table for the live screen size: painted once per size (a few sizes are kept), then one drawImage per frame.
+const tableKeys = [];
+export function drawTable(ctx, Lo, star, rail) {
+  const W = Lo.w, H = Lo.h, B = Lo.frameB, key = `table${W}x${H}|${B}|${Math.round(star.x)},${Math.round(star.y)},${Math.round(star.r)}|${Math.round(rail)}`;
+  const sc = W * H > 1.6e6 ? 1.5 : 2;
+  if (!(key in cache)) {
+    cache[key] = null; tableKeys.push(key); while (tableKeys.length > 3) delete cache[tableKeys.shift()];
+    try { if (typeof OffscreenCanvas !== 'undefined') { const c = new OffscreenCanvas(Math.round(W * sc), Math.round(H * sc)), cx = c.getContext('2d'); cx.scale(sc, sc); paintTable(cx, W, H, B, star, rail); cache[key] = c; } } catch { cache[key] = null; }
+  }
+  const l = cache[key];
+  if (l) ctx.drawImage(l, 0, 0, W, H); else paintTable(ctx, W, H, B, star, rail);
 }
 // warm lantern glow at the two top corners (animated by the caller through `t`)
-export function drawLanterns(ctx, t, calm) {
+export function drawLanterns(ctx, t, calm, W) {
   for (const x of [92, W - 92]) {
     const f = calm ? 1 : 0.85 + Math.sin(t * 2.3 + x) * 0.1 + Math.sin(t * 5.1 + x * 3) * 0.05;
     const g = ctx.createRadialGradient(x, 108, 4, x, 108, 150); g.addColorStop(0, `rgba(255,205,120,${0.42 * f})`); g.addColorStop(1, 'rgba(255,190,90,0)');

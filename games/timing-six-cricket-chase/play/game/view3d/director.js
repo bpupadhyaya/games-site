@@ -3,6 +3,7 @@
 // 2D overhead field while the ball is live: the finish of the shot, the chase, the pick-up, the throw, the keeper).
 import { THEMES, clamp } from '../src/core.js';
 import { CAM } from '../src/scene.js';
+import { LY } from '../src/layout.js';
 import { toWorld, World, makeBackdrop, yawOfSim } from './world.js';
 import { makeActor, equipBat, setActorLod } from './cast.js';
 import { buildBall } from './gear.js';
@@ -133,8 +134,8 @@ export function createDirector(P) {
     }
     P.cam.updateMatrixWorld(true);
     P.cam.matrixWorldInverse.copy(P.cam.matrixWorld).invert();
-    const key = `${m.theme}:${P.size.w}x${P.size.h}`;
-    if (c.backdropKey !== key) { c.backdropKey = key; c.backdrop = makeBackdrop(globalThis.document, m.theme, P.size.w, P.size.h, Math.min(globalThis.devicePixelRatio || 1, 2)); }
+    const key = `${m.theme}:${P.size.w}x${P.size.h}:${LY.w}x${LY.h}:${Math.round(CAM.hy)}`;
+    if (c.backdropKey !== key) { c.backdropKey = key; if (c.backdrop && c.backdrop.dispose) c.backdrop.dispose(); c.backdrop = makeBackdrop(globalThis.document, m.theme, P.size.w, P.size.h, Math.min(globalThis.devicePixelRatio || 1, 2), { w: LY.w, h: LY.h }); }
     stage.scene.background = c.backdrop;
     stage.scene.fog = setupFog();
     stage._shadowOffset.set(-4.5, 7.5, 6.5);

@@ -231,18 +231,20 @@ export function drawBoard(ctx, themeName, flip, res = 1) {
 export const BOARD_SPRITE = { margin: MARGIN, size: BOARD_SIZE + MARGIN * 2 };
 
 // ---- the table under everything: a felt surface with a soft pool of light -----------------------------
-function paintBackdropInto(ctx, T, hue) {
+function paintBackdropInto(ctx, T, hue, W, H) {
   const g = ctx.createLinearGradient(0, 0, 0, H);
   g.addColorStop(0, hue[0]); g.addColorStop(1, hue[1]);
   ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
-  const pool = ctx.createRadialGradient(W * 0.42, BOARD_Y + BOARD_SIZE * 0.35, 40, W * 0.5, BOARD_Y + BOARD_SIZE * 0.5, W * 0.95);
+  const land = W > H, py = land ? H * 0.5 : BOARD_Y + BOARD_SIZE * 0.35, pr = land ? W * 0.62 : W * 0.95;
+  const pool = ctx.createRadialGradient(W * 0.42, py, 40, W * 0.5, land ? H * 0.5 : BOARD_Y + BOARD_SIZE * 0.5, pr);
   pool.addColorStop(0, T.pool); pool.addColorStop(0.55, T.pool.replace(/[\d.]+\)$/, '0.06)')); pool.addColorStop(1, 'rgba(0,0,0,0.35)');
   ctx.fillStyle = pool; ctx.fillRect(0, 0, W, H);
-  // felt: a fine speckle, seeded (a texture rather than a flat fill)
+  // felt: a fine speckle, seeded (a texture rather than a flat fill); the dot count follows the area
+  const dots = Math.round((W * H) / 102.4);
   const rnd = lcg(0x5eed); ctx.fillStyle = T.felt;
-  for (let i = 0; i < 9000; i++) { const x = rnd() * W, y = rnd() * H, r = 0.6 + rnd() * 1.2; ctx.fillRect(x, y, r, r); }
+  for (let i = 0; i < dots; i++) { const x = rnd() * W, y = rnd() * H, r = 0.6 + rnd() * 1.2; ctx.fillRect(x, y, r, r); }
   ctx.fillStyle = 'rgba(0,0,0,0.05)';
-  for (let i = 0; i < 6000; i++) { const x = rnd() * W, y = rnd() * H, r = 0.6 + rnd() * 1.4; ctx.fillRect(x, y, r, r); }
+  for (let i = 0; i < dots * 0.66; i++) { const x = rnd() * W, y = rnd() * H, r = 0.6 + rnd() * 1.4; ctx.fillRect(x, y, r, r); }
   // dither: break the 8-bit banding a large dark radial gradient always shows (seeded, once)
   try {
     const id = ctx.getImageData(0, 0, W, H), d = id.data, r2 = lcg(0xd17e);
@@ -250,15 +252,18 @@ function paintBackdropInto(ctx, T, hue) {
     ctx.putImageData(id, 0, 0);
   } catch { /* no ImageData in this environment: the plain gradient is still fine */ }
 }
-export function drawBackdrop(ctx, themeName, hue) {
-  const T = boardThemeOf(themeName), key = `${themeName}|${hue[0]}|${hue[1]}`;
+// The table fills the live screen (w x h virtual units); one baked canvas per size.
+export function drawBackdrop(ctx, themeName, hue, w = W, h = H) {
+  w = Math.round(w); h = Math.round(h);
+  const T = boardThemeOf(themeName), key = `${themeName}|${hue[0]}|${hue[1]}|${w}x${h}`;
   let c = backdropCache.get(key);
   if (c === undefined) {
     c = null;
-    try { const cv = newCanvas(W, H); if (cv) { paintBackdropInto(cv.getContext('2d'), T, hue); c = cv; } } catch { c = null; }
+    if (backdropCache.size > 8) backdropCache.clear();
+    try { const cv = newCanvas(w, h); if (cv) { paintBackdropInto(cv.getContext('2d'), T, hue, w, h); c = cv; } } catch { c = null; }
     backdropCache.set(key, c);
   }
-  if (c) ctx.drawImage(c, 0, 0); else paintBackdropInto(ctx, T, hue);
+  if (c) ctx.drawImage(c, 0, 0, w, h); else paintBackdropInto(ctx, T, hue, w, h);
 }
 
 // ---- overlays: legal-move dots/rings, last-move marks, selection glow, check glow ----------------------

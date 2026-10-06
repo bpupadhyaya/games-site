@@ -1,6 +1,6 @@
 // Ampe: the game shell. Scenes, input, persistence, preview wiring, Learn, Watch & Learn, sound. The match itself lives in sim.js.
 import { createSim } from './sim.js';
-import { W, H, TEXT_DEC, TEXT_INC, REF_BACK, REF_NEXT, SETUP_PINS, inRect, hudLayout, clamp } from './layout.js';
+import { scr, setScreen, useColumn, colFor, readerGeom, setupPins, inRect, hudFor, host, clamp } from './layout.js';
 import { setPress } from './ui.js';
 import { ABOUT, HOWTO, rulesPages, LESSONS } from './content.js';
 import * as MN from './menus.js';
@@ -8,7 +8,8 @@ import { renderHud, renderFallback, watchHit } from './hud.js';
 import { STEP, TEXT_SCALES, THINK_STEPS, POINT_NAMES, DEMO_MATCH_CAP, SAVE_VERSION, LEVELS, TARGETS } from './consts.js';
 import { predictHint } from './ai.js';
 
-export const meta = { width: W, height: H };
+// fluid: the short side is always 720 units, the long side follows the screen (kit 1.7 fluid viewport); layout.js lays everything out from the live size
+export const meta = { width: 720, height: 1280, fluid: { short: 720 } };
 const GRADE_COL = { perfect: '#7fe8d6', good: '#ffe9a0', ok: '#fff6e4', early: '#ffb59a', late: '#ffb59a', miss: '#ff9a86' };
 
 export function createGame(env) {
@@ -217,10 +218,10 @@ export function createGame(env) {
     G.thinkData = S.hint(0); G.thinkOpen = true; G.paused = true; G.pauseMenu = true; G.ui.scroll = 0; MN.invalidate();
   }
   function playInput(input) {
-    const ptr = input.pointer, keys = input.keys, lay = hudLayout(G.settings.textIdx);
+    const ptr = input.pointer, keys = input.keys, lay = hudFor(G.settings.textIdx, false);
     if (G.mode === 'watch') {
       if (ptr.pressed) {
-        const i = watchHit(ptr.x, ptr.y);
+        const i = watchHit(G.settings.textIdx, ptr.x, ptr.y);
         if (i === 0) { G.watch.paused = !G.watch.paused; sfx.tick(); }
         else if (i === 1) { G.settings.thinkIdx = Math.max(0, G.settings.thinkIdx - 1); saveSettings(); }
         else if (i === 2) { G.settings.thinkIdx = Math.min(THINK_STEPS.length - 1, G.settings.thinkIdx + 1); saveSettings(); }
@@ -355,18 +356,19 @@ export function createGame(env) {
   }
   const updatePages = (input) => {
     const ptr = input.pointer, keys = input.keys;
-    const di = MN.docInfo();
+    MN.readerMetrics();
+    const di = MN.docInfo(), RG = readerGeom();
     const close = () => { G.scene = G.back === 'play' ? 'play' : 'title'; G.page = 0; G.ui.scroll = 0; G.ui.drag = null; MN.invalidate(); };
     const by = (d) => { G.ui.scroll = clamp(G.ui.scroll + d, 0, di.max); };
     const pgH = Math.max(100, di.view * 0.88);
     const next = () => { if (G.ui.scroll >= di.max - 2) close(); else by(pgH); };
     const prev = () => { if (G.ui.scroll < 2) close(); else by(-pgH); };
-    const onBtn = (x, y) => inRect(REF_NEXT, x, y) || inRect(REF_BACK, x, y) || inRect(TEXT_DEC, x, y) || inRect(TEXT_INC, x, y);
+    const onBtn = (x, y) => inRect(RG.next, x, y) || inRect(RG.back, x, y) || inRect(RG.dec, x, y) || inRect(RG.inc, x, y);
     if (ptr.pressed) {
-      if (inRect(REF_NEXT, ptr.x, ptr.y)) next();
-      else if (inRect(REF_BACK, ptr.x, ptr.y)) prev();
-      else if (inRect(TEXT_DEC, ptr.x, ptr.y)) { G.settings.textIdx = Math.max(0, G.settings.textIdx - 1); G.ui.scroll = 0; saveSettings(); }
-      else if (inRect(TEXT_INC, ptr.x, ptr.y)) { G.settings.textIdx = Math.min(TEXT_SCALES.length - 1, G.settings.textIdx + 1); G.ui.scroll = 0; saveSettings(); }
+      if (inRect(RG.next, ptr.x, ptr.y)) next();
+      else if (inRect(RG.back, ptr.x, ptr.y)) prev();
+      else if (inRect(RG.dec, ptr.x, ptr.y)) { G.settings.textIdx = Math.max(0, G.settings.textIdx - 1); G.ui.scroll = 0; saveSettings(); }
+      else if (inRect(RG.inc, ptr.x, ptr.y)) { G.settings.textIdx = Math.min(TEXT_SCALES.length - 1, G.settings.textIdx + 1); G.ui.scroll = 0; saveSettings(); }
       else if (!onBtn(ptr.x, ptr.y)) G.ui.drag = { y0: ptr.y, s0: G.ui.scroll };
     }
     if (G.ui.drag && ptr.down) G.ui.scroll = clamp(G.ui.drag.s0 - (ptr.y - G.ui.drag.y0), 0, di.max);
@@ -385,7 +387,8 @@ export function createGame(env) {
     const ptr = input.pointer, k = input.keys;
     if (k.pressed.has('Enter')) { handleSetup('start'); return; }
     if (k.pressed.has('Escape')) { handleSetup('back'); return; }
-    if (ptr.pressed && (inRect(SETUP_PINS.start, ptr.x, ptr.y) || inRect(SETUP_PINS.back, ptr.x, ptr.y))) { handleSetup(inRect(SETUP_PINS.start, ptr.x, ptr.y) ? 'start' : 'back'); return; }
+    const PN = setupPins();
+    if (ptr.pressed && (inRect(PN.start, ptr.x, ptr.y) || inRect(PN.back, ptr.x, ptr.y))) { handleSetup(inRect(PN.start, ptr.x, ptr.y) ? 'start' : 'back'); return; }
     updateFlowScene(dt, input, handleSetup, 'setup');
   };
 
@@ -427,18 +430,39 @@ export function createGame(env) {
   function startup() { if (config.shot) startShot(); else startBg(); }
   startup();
 
+  // Where the two players should appear on screen (virtual units): the 3D camera frames them inside this rectangle.
+  function camBand() {
+    const { vw, vh } = scr, R = (x, y, w, h) => ({ x, y, w, h });
+    const play = hudFor(G.settings.textIdx, G.mode === 'watch').band;
+    if (G.scene === 'play') return play;
+    if (G.scene === 'title' || G.scene === 'result') {
+      const col = colFor(G.scene);
+      if (scr.land) { const lw = col.x - 16; return lw >= 300 ? R(host.l + 10, host.t + 20, lw - host.l - 10, vh - host.t - host.b - 40) : play; }
+      if (G.scene === 'title') { const tb = MN.titleBand(); return tb.gap >= 100 ? R(0, tb.top, vw, tb.gap) : play; }
+    }
+    return play;
+  }
+
   const api = {
     // Menus, Rules, About, settings, Learn, Practice, Watch & Learn, the count-in before the first beat, pause and results are free;
     // only live rounds of a match count against the preview.
     isPreviewExempt: () => dev || !(G.scene === 'play' && G.mode === 'match') || G.paused || G.pauseMenu || !S || S.s.over || S.s.phase === 'count',
     autoPause() { if (G.scene === 'play' && !G.paused && !G.pauseMenu && G.mode !== 'shot') { if (G.mode === 'watch') G.watch.paused = true; else doPause(); } },
     update(dt, input) {
+      setScreen(meta.width, meta.height);
+      const col = useColumn(G.scene === 'play' && !G.pauseMenu ? 'play' : G.scene === 'play' ? 'pause' : G.scene, G.scene === 'play' && G.pauseMenu);
+      // menu screens draw in a column; pointer positions are translated into that column's space
+      if (col.x) input = { keys: input.keys, pointer: { ...input.pointer, x: input.pointer.x - col.x } };
       setPress(input.pointer);
       G.t += dt;
       for (let i = delayed.length - 1; i >= 0; i--) { delayed[i].t -= dt; if (delayed[i].t <= 0) { delayed[i].f(); delayed.splice(i, 1); } }
       if (G.scene !== 'play') { S.update(dt); updAt = now(); }
       switch (G.scene) {
-        case 'title': updateFlowScene(dt, input, handleTitle, 'title'); break;
+        case 'title': {
+          const lt = MN.getLockTap(), pp = input.pointer;
+          if (lt && pp.pressed && pp.x >= lt.x && pp.x <= lt.x + lt.w && pp.y >= lt.y && pp.y <= lt.y + lt.h) { G.lockDown = G.t + 0.25; env.openArcforgeHome?.(); break; }
+          updateFlowScene(dt, input, handleTitle, 'title'); break;
+        }
         case 'setup': updateSetup(dt, input); break;
         case 'settings': updateFlowScene(dt, input, handleSettings, 'settings'); break;
         case 'learn': updateFlowScene(dt, input, handleLearn, 'learn'); break;
@@ -452,7 +476,11 @@ export function createGame(env) {
       }
     },
     render(ctx, view) {
-      ctx.clearRect(0, 0, W, H);
+      setScreen(meta.width, meta.height);
+      ctx.clearRect(-2, -2, scr.vw + 4, scr.vh + 4);
+      const col = useColumn(G.scene === 'play' && !G.pauseMenu ? 'play' : G.scene === 'play' ? 'pause' : G.scene, G.scene === 'play' && G.pauseMenu);
+      if (view) view.band = camBand();
+      ctx.save(); ctx.translate(col.x, 0);
       const running = !G.paused && !(G.mode === 'watch' && G.watch.paused) && (G.scene !== 'play' || true);
       const el = env.clock ? now() - updAt : 0;
       G.dispT = S ? S.s.t + (running && env.clock && el < 45 ? clamp(el / (STEP * 1000), 0, 1) * STEP : 0) : 0;
@@ -470,12 +498,16 @@ export function createGame(env) {
         case 'about': MN.renderPages(ctx, G, aboutList, 'About'); break;
         case 'rules': MN.renderPages(ctx, G, rulesPages(), 'Rules'); break;
         case 'play':
+          ctx.translate(-col.x, 0);                        // the HUD uses whole-screen coordinates; the pause panel sits in its column
           renderHud(ctx, G, S, view || {});
+          ctx.translate(col.x, 0);
           if (G.pauseMenu) MN.renderPause(ctx, G);
           break;
         default: break;
       }
+      ctx.restore();
     },
+    camBand,
     // mouse wheel / trackpad: scrolls whichever reader or menu is on screen
     wheel(dy) {
       if (G.scene === 'howto' || G.scene === 'about' || G.scene === 'rules') { G.ui.scroll = clamp(G.ui.scroll + dy, 0, MN.docInfo().max); return; }

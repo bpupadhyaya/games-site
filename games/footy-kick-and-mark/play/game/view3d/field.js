@@ -23,7 +23,7 @@ const rnd = (seed) => () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 42949
 
 export function buildField(stage) {
   const g = new THREE.Group(); g.name = 'field';
-  const M = 14;                                              // margin of mown grass beyond the boundary (m)
+  const M = 24;                                              // margin of mown grass beyond the boundary (m)
   const TW = HW + M, TL = HL + M;
   // --- ground: mown stripes, boundary line, centre circle and squares, goal squares, all in one texture (1 draw call)
   const PXM = 14, tw = Math.round(2 * TW * PXM), th = Math.round(2 * TL * PXM);
@@ -86,8 +86,15 @@ export function buildField(stage) {
   const standGeo = ringGeo(HW + 9, HL + 9, 9, 0.6, 60, 3, -0.28, Math.PI + 0.28, 1, AD_V + 0.05);
   const farGeo = new THREE.BufferGeometry(); farGeo.setAttribute('position', new THREE.Float32BufferAttribute([-200, -0.02, -200, 200, -0.02, -200, 200, -0.02, 200, -200, -0.02, 200], 3));
   farGeo.setAttribute('uv', new THREE.Float32BufferAttribute([0.99, 0.95, 0.99, 0.95, 0.99, 0.95, 0.99, 0.95], 2)); farGeo.setIndex([0, 2, 1, 0, 3, 2]);
-  const stands = new THREE.Mesh(mergeGeo([fenceGeo, pgeo, standGeo, roofGeo, farGeo]), new THREE.MeshStandardMaterial({ map: atlas, roughness: 0.9, side: THREE.DoubleSide }));
+  const mat = new THREE.MeshStandardMaterial({ map: atlas, roughness: 0.9, side: THREE.DoubleSide });
+  const stands = new THREE.Mesh(mergeGeo([fenceGeo, pgeo, standGeo, roofGeo, farGeo]), mat);
   g.add(stands);
+  // landscape view looks along the pitch's short axis: the stands stand along the far touchline (+x) instead of behind the far goal. One of the two meshes is visible at a time (one draw call).
+  const sideRoof = ringGeo(HW + 11, HL + 11, 1.4, 9.8, 60, 1, -1.25, 1.25); { const u = sideRoof.getAttribute('uv'); for (let i = 0; i < u.count; i++) u.setY(i, AD_V + 0.03); }
+  const sideStand = ringGeo(HW + 9, HL + 9, 9, 0.6, 60, 3, -1.25, 1.25, 1, AD_V + 0.05);
+  const standsSide = new THREE.Mesh(mergeGeo([fenceGeo, pgeo, sideStand, sideRoof, farGeo]), mat);
+  standsSide.visible = false; g.add(standsSide);
+  g.userData.setSide = (side) => { stands.visible = !side; standsSide.visible = !!side; };
   stage.add(g);
   return g;
 }

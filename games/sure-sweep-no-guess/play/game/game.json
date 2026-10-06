@@ -3,8 +3,8 @@
   "title": "Sure Sweep",
   "tagline": "No-guess minesweeper. Every board solves by logic alone.",
   "genre": "no-guess minesweeper / logic puzzle",
-  "orientation": "portrait",
-  "version": "0.1.1",
+  "orientation": "any",
+  "version": "1.1.5",
   "monetization": {
     "model": "free"
   },

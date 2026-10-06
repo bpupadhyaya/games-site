@@ -1,11 +1,17 @@
 // Chapter 4: the regency. The throne holds only a pair of sandals; the regent sits below it and
 // hears four petitions. Each judgement moves the "kingdom in good order" meter.
-import { W, H, TAU, PAL, INK, GOLD, clamp, lerp, smooth, sky, light, hall, motes, finish, shadow, rr, dome } from '../stage.js';
+import { FR, W, H, TAU, PAL, INK, GOLD, clamp, lerp, smooth, sky, light, hall, motes, finish, shadow, rr, dome } from '../stage.js';
 import { figure, poses, throne } from '../puppets.js';
 import { label, meter, panel, paragraph, button, hit, font, SANS } from '../ui.js';
+import { mode, hudX, hudY } from '../frame.js';
+
+// Landscape: the window shows y 680..1530 (the regent, the petitioner and the two answers).
+export const LAND_Y1 = 1530;
 
 const FLOOR = 1140, STOP = 520, MAX = 12;
-const BTN = [{ x: 56, y: 1346, w: W - 112, h: 84 }, { x: 56, y: 1446, w: W - 112, h: 84 }];
+const BTN0 = [{ x: 56, y: 1346, w: W - 112, h: 84 }, { x: 56, y: 1446, w: W - 112, h: 84 }];
+// the answer buttons sit at the bottom centre of the window in landscape (same rule as the other HUD)
+const BTN = () => BTN0.map((b) => ({ ...b, x: hudX(b.x, b.w), y: hudY(b.y, b.h) }));
 const LOOKS = [['citizen', null], ['citizen', null], ['citizen', 'spear'], ['citizen', 'staff'], ['woman', null], ['hermit', 'staff']];
 
 export function create(env, shared) {
@@ -23,7 +29,7 @@ export function create(env, shared) {
     const p = input.pointer, keys = input.keys;
     if (s.phase === 'enter' && s.phaseT > 2) { s.phase = 'ask'; s.phaseT = 0; }
     else if (s.phase === 'ask' && s.phaseT > 0.4) {
-      if (p.pressed) { if (hit(BTN[0], p)) choose(0); else if (hit(BTN[1], p)) choose(1); }
+      if (p.pressed) { if (hit(BTN()[0], p)) choose(0); else if (hit(BTN()[1], p)) choose(1); }
       else if (keys.pressed.has('ArrowLeft') || keys.pressed.has('ArrowUp')) choose(0);
       else if (keys.pressed.has('ArrowRight') || keys.pressed.has('ArrowDown')) choose(1);
     } else if (s.phase === 'answer' && s.phaseT > 2.8) { s.phase = 'leave'; s.phaseT = 0; }
@@ -35,10 +41,10 @@ export function create(env, shared) {
   function render(ctx) {
     const t = s.t, rm = shared.rm(), P = PAL.palace;
     sky(ctx, ['#1c0a14', '#5a2222', '#b8642c', '#f0b860'], { x: 360, y: 700, r: 640, color: P.glow, alpha: 0.6 });
-    for (let i = 0; i < 3; i++) { const x = 40 + i * 240; ctx.fillStyle = 'rgba(255,214,140,0.13)'; ctx.beginPath(); ctx.moveTo(x + 50, FLOOR - 100); ctx.lineTo(x + 50, 520); ctx.arc(x + 110, 520, 60, Math.PI, 0); ctx.lineTo(x + 170, FLOOR - 100); ctx.fill(); }
+    for (let i = Math.floor(FR.x0 / 240) - 1; i < Math.ceil(FR.x1 / 240) + 1; i++) { const x = 40 + i * 240; ctx.fillStyle = 'rgba(255,214,140,0.13)'; ctx.beginPath(); ctx.moveTo(x + 50, FLOOR - 100); ctx.lineTo(x + 50, 520); ctx.arc(x + 110, 520, 60, Math.PI, 0); ctx.lineTo(x + 170, FLOOR - 100); ctx.fill(); }
     hall(ctx, { scroll: 90, color: P.mid, top: 120, floor: FLOOR - 90, gap: 240, t, lampRgb: P.glow });
     const fg = ctx.createLinearGradient(0, FLOOR - 100, 0, H); fg.addColorStop(0, '#54221f'); fg.addColorStop(0.3, '#2a1016'); fg.addColorStop(1, '#10060b');
-    ctx.fillStyle = fg; ctx.fillRect(0, FLOOR - 100, W, H);
+    ctx.fillStyle = fg; ctx.fillRect(FR.x0 - 1, FLOOR - 100, FR.w + 2, H);
     // the dais and the empty throne
     const tx = 330, ty = FLOOR - 70;
     light(ctx, tx, ty - 200, 420, '255,220,150', 0.55 + (rm ? 0 : 0.05 * Math.sin(t * 2)));
@@ -58,8 +64,8 @@ export function create(env, shared) {
     // the petitioner
     const [kind, prop] = LOOKS[s.i % LOOKS.length];
     let px = STOP, pose = poses.stand(t), dir = -1;
-    if (s.phase === 'enter') { const u = smooth(s.phaseT / 2); px = lerp(W + 120, STOP, u); if (u < 1) pose = poses.walk(t, 5); }
-    else if (s.phase === 'leave') { const u = smooth((s.phaseT - 0.7) / 1.5); px = lerp(STOP, W + 140, u); if (s.phaseT < 0.7) pose = { ...poses.stand(t), lean: 0.5 * Math.sin((s.phaseT / 0.7) * Math.PI), head: 0.3 }; else { pose = poses.walk(t, 5); dir = 1; } }
+    if (s.phase === 'enter') { const u = smooth(s.phaseT / 2); px = lerp(FR.x1 + 120, STOP, u); if (u < 1) pose = poses.walk(t, 5); }
+    else if (s.phase === 'leave') { const u = smooth((s.phaseT - 0.7) / 1.5); px = lerp(STOP, FR.x1 + 140, u); if (s.phaseT < 0.7) pose = { ...poses.stand(t), lean: 0.5 * Math.sin((s.phaseT / 0.7) * Math.PI), head: 0.3 }; else { pose = poses.walk(t, 5); dir = 1; } }
     if (!s.done) {
       const n = s.i === 1 ? 2 : 1;
       for (let k = 0; k < n; k++) { shadow(ctx, px + k * 86, FLOOR + 26, 44, 0.35); figure(ctx, { x: px + k * 86, y: FLOOR + 26, s: 1.5, dir, kind, prop, pose: prop ? { ...pose, shF: 0.7, elF: 0.9, propA: 3.1 } : { ...pose, t: t + k } }); }
@@ -67,18 +73,20 @@ export function create(env, shared) {
     motes(ctx, { n: 20, t, rgb: P.glow, kind: 'dust', top: 250, bottom: 1100, rm });
     finish(ctx, 0.78);
 
-    meter(ctx, 110, 322, W - 220, 22, s.shownOrder / MAX, '255,214,130', L.meter, `${Math.round(s.order)} / ${MAX}`);
+    meter(ctx, 110, FR.land ? 170 : 322, W - 220, 22, s.shownOrder / MAX, '255,214,130', L.meter, `${Math.round(s.order)} / ${MAX}`);
     // the petition
     if (!s.done && (s.phase === 'ask' || s.phase === 'answer')) {
       const q = Q[s.i], a = clamp(s.phaseT * 3, 0, 1);
       ctx.save(); ctx.globalAlpha = a;
+      ctx.translate(hudX(0, W), hudY(1184, 150) - 1184);          // the petition panel moves with the window (identity in portrait)
+      const hm = mode.hud; mode.hud = false;
       panel(ctx, 36, 1184, W - 72, s.phase === 'ask' ? 150 : 190, 0.82);
       label(ctx, q.who.toUpperCase(), W / 2, 1222, 20, 'center', GOLD, SANS, 700);
       ctx.fillStyle = '#fff1cf'; ctx.font = font(30);
       paragraph(ctx, s.phase === 'ask' ? `"${q.text}"` : (s.choice === 0 ? q.ra : q.rb), W / 2, 1264, W - 140, 38);
-      if (s.phase === 'ask') { button(ctx, { ...BTN[0], label: q.a }, { size: 28 }); button(ctx, { ...BTN[1], label: q.b }, { size: 28 }); }
+      if (s.phase === 'ask') { button(ctx, { ...BTN0[0], label: q.a }, { size: 28 }); button(ctx, { ...BTN0[1], label: q.b }, { size: 28 }); }
       else { const v = s.choice === 0 ? q.va : q.vb; label(ctx, `+${v}`, W / 2, 1352, 34, 'center', v >= 2 ? '#9fe0a0' : GOLD, SANS, 700); }
-      ctx.restore();
+      mode.hud = hm; ctx.restore();
     }
   }
 

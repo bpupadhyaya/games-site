@@ -1,22 +1,26 @@
 // Everything drawn each frame. Reads state, changes nothing. The board never moves: effects are local to a square.
 import {
-  W, H, DISPLAY, THEMES, themeById, text, rr, panel, button, background, icon, drawParticles, drawPiece, boardGeo, drawSlab, drawField,
+  W, H, setSize, DISPLAY, THEMES, themeById, text, rr, panel, button, background, icon, drawParticles, drawPiece, boardGeo, drawSlab, drawField,
   drawMiniBoard, drawCross, arrow, alpha, clamp01, ease, backOut,
 } from './art.js';
-import { TEXT_SCALES, wrap, tw } from './ui.js';
+import { TEXT_SCALES, wrap, tw, clampScroll } from './ui.js';
 import { NN, QUIET_LIMIT, SIDE, DUX, ADJ, startState, applyMove, legalMoves, movesFrom, soldiersOf, countOf, other, parse } from './rules.js';
 import { LEVELS } from './ai.js';
 import { LESSONS, lessonTitle, lessonTask } from './lessons.js';
 import { tr, getRules, soldiersText, sideLabel, lvName, themeShort } from './content.js';
-import { BACK_BTN, PAUSE_BTN, TOOLBAR_IDS, autoLayout, DOC_PANEL, NAV_PREV, NAV_NEXT, playLayout } from './layout.js';
+import { SCREEN, TOOLBAR_IDS, host, playFrame, titleFrame } from './layout.js';
+import { drawLockup } from './brand.js';
 import { THINK_STEPS } from './screens.js';
 import { CAP_T, targetsOf, previewMove, humanTurn } from './match.js';
 
 const theme = (S) => themeById(S.themeId);
 
 // Largest text size (<= start) whose wrapped lines fit w x h. Used by every HUD text so zoom never overflows.
+// Text never goes below about 11 css pixels: `floor` converts that to virtual units with the host's live scale (main.js sets host.px).
+const floor = (min) => Math.max(min, Math.ceil(11 / Math.max(0.3, host.px)));
 export function fitText(str, w, h, start, min = 18, lh = 1.28) {
-  let size = start;
+  min = floor(min);
+  let size = Math.max(start, min);
   for (; size > min; size -= 2) {
     const lines = wrap(str, size, w);
     if (lines.length * size * lh <= h) return { lines, size, line: size * lh };
@@ -24,12 +28,13 @@ export function fitText(str, w, h, start, min = 18, lh = 1.28) {
   const lines = wrap(str, min, w);
   return { lines, size: min, line: min * lh };
 }
-const fitOne = (str, w, start, min = 16) => { let s = start; while (s > min && tw(str, s) > w) s -= 1; return s; };
+const fitOne = (str, w, start, min = 16) => { min = floor(min); let s = Math.max(start, min); while (s > min && tw(str, s) > w) s -= 1; return s; };
 
 // ----------------------------------------------------------------------------------------- documents
 function drawDocBlocks(ctx, S, ui, scroll) {
   const th = theme(S);
   const { region, layout } = ui;
+  scroll = clampScroll(scroll, layout.height, region.h);
   ctx.save();
   rr(ctx, region.x - 6, region.y - 4, region.w + 12, region.h + 8, 18);
   ctx.clip();
@@ -43,7 +48,7 @@ function drawDocBlocks(ctx, S, ui, scroll) {
     } else if (b.t === 'p') {
       const center = b.center || b.align === 'center';
       for (let i = 0; i < it.lines.length; i++) {
-        text(ctx, it.lines[i], center ? ox + it.w / 2 : ox, top + i * it.line + it.size * 0.98, it.size, 'rgba(250,240,222,0.94)', { weight: 500, align: center ? 'center' : 'left' });
+        text(ctx, it.lines[i], center ? ox + it.w / 2 : ox, top + i * it.line + it.size * 0.98, it.size, b.dim ? 'rgba(246,236,214,0.5)' : 'rgba(250,240,222,0.94)', { weight: 500, align: center ? 'center' : 'left' });
       }
     } else if (b.t === 'img') {
       drawArt(ctx, S, b.name, ox, top, it.w, b.h, b);
@@ -247,16 +252,18 @@ const ATTRACT_PLAN = (() => {
   return out;
 })();
 
-function drawAttract(ctx, S) {
+function drawAttract(ctx, S, A) {
   const th = theme(S), t = S.t;
-  const side = 400, bx = (W - side) / 2, by = 368;
+  const side = 400, bx = (720 - side) / 2, by = 368;
   const steps = ATTRACT_PLAN.length - 1;
   const cycle = steps * ATTRACT_STEP + 1.6;
   const tt = t % cycle;
   const geo = boardGeo(bx, by, side);
-  const glow = ctx.createRadialGradient(W / 2, by + side / 2, 30, W / 2, by + side / 2, 360);
+  ctx.save();
+  ctx.translate(A.x, A.y); ctx.scale(A.s, A.s);
+  const glow = ctx.createRadialGradient(360, by + side / 2, 30, 360, by + side / 2, 360);
   glow.addColorStop(0, th.glow); glow.addColorStop(1, 'rgba(0,0,0,0)');
-  ctx.fillStyle = glow; ctx.fillRect(0, by - 140, W, side + 280);
+  ctx.fillStyle = glow; ctx.fillRect(0, by - 140, 720, side + 280);
   drawSlab(ctx, th, bx, by, side);
   drawField(ctx, th, geo);
   const k = Math.min(steps, Math.floor(tt / ATTRACT_STEP));
@@ -297,14 +304,17 @@ function drawAttract(ctx, S) {
   ctx.restore();
   text(ctx, tr('tagline'), 360, 304, 28, 'rgba(250,238,214,0.88)', { weight: 600 });
   text(ctx, tr('taglineSub'), 360, 338, 24, 'rgba(250,238,214,0.62)', { weight: 500 });
+  ctx.restore();
 }
 const light2 = (c) => (c.length === 7 ? `rgb(${Math.min(255, parseInt(c.slice(1, 3), 16) + 70)},${Math.min(255, parseInt(c.slice(3, 5), 16) + 70)},${Math.min(255, parseInt(c.slice(5, 7), 16) + 70)})` : '#fff3c4');
 
 function drawTitle(ctx, S, ui) {
-  background(ctx, theme(S), S.t, 560, true);
-  drawAttract(ctx, S);
+  const T = ui.title ?? titleFrame(S.w, S.h);
+  background(ctx, theme(S), S.t, T.art.y + 560 * T.art.s, true, T.art.x + 360 * T.art.s);
+  drawAttract(ctx, S, T.art);
   drawDocBlocks(ctx, S, ui, S.scroll[ui.scrollKey] ?? 0);
   drawFixed(ctx, S, ui.fixed);
+  drawLockup(ctx, T.lock, 0.9, Boolean(S.press && S.press.id === 'af:home' && S.press.active));
 }
 
 function drawDocScreen(ctx, S, ui) {
@@ -315,7 +325,7 @@ function drawDocScreen(ctx, S, ui) {
   drawFixed(ctx, S, ui.fixed);
   if (ui.nav) {
     drawFixed(ctx, S, [ui.nav.prev, ui.nav.next]);
-    text(ctx, ui.nav.label, 360, 1500, 26, 'rgba(246,236,214,0.75)', { weight: 600 });
+    if (ui.nav.at) text(ctx, ui.nav.label, ui.nav.at.x, ui.nav.at.y, ui.nav.at.size, 'rgba(246,236,214,0.78)', { weight: 600 });
   }
 }
 
@@ -324,8 +334,9 @@ function drawOverlay(ctx, S, ui) {
   ctx.fillStyle = `rgba(6,6,10,${0.62 * clamp01(S.ovT / 0.25)})`;
   ctx.fillRect(0, 0, W, H);
   const k = ease(clamp01(S.ovT / 0.3));
+  const cx = ui.panel.x + ui.panel.w / 2, cy = ui.panel.y + ui.panel.h / 2;
   ctx.save();
-  ctx.translate(W / 2, H / 2); ctx.scale(0.92 + 0.08 * k, 0.92 + 0.08 * k); ctx.translate(-W / 2, -H / 2);
+  ctx.translate(cx, cy); ctx.scale(0.92 + 0.08 * k, 0.92 + 0.08 * k); ctx.translate(-cx, -cy);
   ctx.globalAlpha = k;
   panel(ctx, th, ui.panel.x, ui.panel.y, ui.panel.w, ui.panel.h, {});
   drawDocBlocks(ctx, S, ui, S.scroll[ui.scrollKey] ?? 0);
@@ -343,19 +354,25 @@ export function animPiece(ctx, th, code, x, y, d, a, o = {}) {
 }
 
 // ------------------------------------------------------------------------------------------ play
-function drawHud(ctx, S, title, sub, showPause) {
-  const th = theme(S);
-  button(ctx, th, BACK_BTN, [], 'normal', { pressed: S.press && S.press.id === 'hud:back' && S.press.active });
-  icon(ctx, 'back', BACK_BTN.x + BACK_BTN.w / 2, BACK_BTN.y + BACK_BTN.h / 2, 34, th.ink);
-  if (showPause) {
-    button(ctx, th, PAUSE_BTN, [], 'normal', { pressed: S.press && S.press.id === 'hud:pause' && S.press.active });
-    icon(ctx, 'pause', PAUSE_BTN.x + PAUSE_BTN.w / 2, PAUSE_BTN.y + PAUSE_BTN.h / 2, 34, th.ink);
+function drawHud(ctx, S, L, title, sub, showPause) {
+  const th = theme(S), z = TEXT_SCALES[S.textIdx], tb = L.titleBox, cx = tb.x + tb.w / 2;
+  if (L.mode === 'stack') {
+    if (showPause) {
+      button(ctx, th, L.pause, [], 'normal', { pressed: S.press && S.press.id === 'hud:pause' && S.press.active });
+      icon(ctx, 'pause', L.pause.x + L.pause.w / 2, L.pause.y + L.pause.h / 2, 34, th.ink);
+    }
+    const tSize = fitOne(title, tb.w, 38 * (1 + (z - 1) * 0.25), 22);
+    text(ctx, title, cx, tb.y + 36, tSize, th.ink, { font: DISPLAY, weight: 800, shadow: 'rgba(0,0,0,0.6)' });
+    const sSize = fitOne(sub, tb.w, 24 * (1 + (z - 1) * 0.3), 18);
+    text(ctx, sub, cx, tb.y + 74, sSize, 'rgba(250,238,214,0.72)', { weight: 500 });
+    return;
   }
-  const z = TEXT_SCALES[S.textIdx];
-  const tSize = fitOne(title, 480, 38 * (1 + (z - 1) * 0.25), 22);
-  text(ctx, title, 360, 58, tSize, th.ink, { font: DISPLAY, weight: 800, shadow: 'rgba(0,0,0,0.6)' });
-  const sSize = fitOne(sub, 480, 24 * (1 + (z - 1) * 0.3), 16);
-  text(ctx, sub, 360, 96, sSize, 'rgba(250,238,214,0.72)', { weight: 500 });
+  // wide: a header inside the left card (the title may wrap, the line below says who plays and the quiet-move count)
+  const tf = fitText(title, tb.w, tb.h * 0.5, 32, 22, 1.15), sf = fitText(sub, tb.w, tb.h * 0.42, 22, 18, 1.2);
+  const total = tf.lines.length * tf.line + 4 + sf.lines.length * sf.line, top = tb.y + (tb.h - total) / 2;
+  tf.lines.forEach((ln, i) => text(ctx, ln, cx, top + i * tf.line + tf.size * 0.85, tf.size, th.ink, { font: DISPLAY, weight: 800, shadow: 'rgba(0,0,0,0.6)' }));
+  const sy = top + tf.lines.length * tf.line + 4;
+  sf.lines.forEach((ln, i) => text(ctx, ln, cx, sy + i * sf.line + sf.size * 0.85, sf.size, 'rgba(250,238,214,0.72)', { weight: 500 }));
 }
 
 function drawPlate(ctx, S, r, who, name, sub, active) {
@@ -369,11 +386,11 @@ function drawPlate(ctx, S, r, who, name, sub, active) {
   const md = Math.min(r.h - 28, 74);
   drawPiece(ctx, th, who, r.x + 14 + md / 2, r.y + r.h / 2, md * 0.8, { noShadow: true, glow: active ? 0.4 : 0 });
   const tx = r.x + 24 + md, avail = r.w - md - 40;
-  const ns = fitOne(name, avail, 30 * (1 + (z - 1) * 0.55), 16);
-  const ss = fitOne(sub, avail, 21 * (1 + (z - 1) * 0.55), 14);
-  const total = ns + ss + 8, ty = r.y + (r.h - total) / 2 + ns * 0.88;
+  const ns = fitOne(name, avail, 30 * (1 + (z - 1) * 0.55), 18);
+  const sf = fitText(sub || ' ', avail, Math.max(24, r.h - 28 - ns * 1.2), 21 * (1 + (z - 1) * 0.55), 16, 1.2);
+  const total = ns + sf.lines.length * sf.line + 6, ty = r.y + (r.h - total) / 2 + ns * 0.88;
   text(ctx, name, tx, ty, ns, th.ink, { weight: 800, align: 'left', font: DISPLAY });
-  text(ctx, sub, tx, ty + ss + 8, ss, active ? th.accent : 'rgba(246,236,214,0.64)', { weight: 600, align: 'left' });
+  sf.lines.forEach((ln, i) => text(ctx, ln, tx, ty + 8 + sf.size + i * sf.line, sf.size, active ? th.accent : 'rgba(246,236,214,0.64)', { weight: 600, align: 'left' }));
 }
 
 function drawStatus(ctx, S, r, head, body, col) {
@@ -502,8 +519,29 @@ const nudge = (a, b, pad) => {
   return [a[0] + (dx / len) * pad, a[1] + (dy / len) * pad, b[0] - (dx / len) * pad, b[1] - (dy / len) * pad];
 };
 
-function drawToolbar(ctx, S, M, lay) {
+// One button of the play bar: icon over label on tall buttons, icon beside label on wide or short ones.
+function toolButton(ctx, S, r, ic, label, { off = false, kind = 'normal', pressed = false, big = 0 } = {}) {
   const th = theme(S), z = TEXT_SCALES[S.textIdx];
+  button(ctx, th, r, [], kind, { disabled: off, pressed, radius: 22 });
+  const yy = r.y + (pressed ? 2 : 0), ink = kind === 'primary' ? th.primaryInk : th.ink;
+  ctx.save();
+  if (off) ctx.globalAlpha = 0.4;
+  const horiz = r.h < 100 || r.w > r.h * 1.6 || r.w < 150;
+  const is = horiz ? Math.min(40 * (1 + (z - 1) * 0.35), r.h * 0.5, r.w * 0.28) : (44 + big) * (1 + (z - 1) * 0.35);
+  if (horiz) {
+    const ls = fitOne(label, Math.max(40, r.w - is - 44), (kind === 'primary' ? 30 : 26) * (1 + (z - 1) * 0.5), 18);
+    const total = is + 12 + tw(label, ls), x0 = r.x + (r.w - total) / 2;
+    icon(ctx, ic, x0 + is / 2, yy + r.h / 2, is, ink);
+    text(ctx, label, x0 + is + 12, yy + r.h / 2 + ls * 0.34, ls, ink, { weight: 800, align: 'left' });
+  } else {
+    const ls = fitOne(label, r.w - 20, 24 * (1 + (z - 1) * 0.6), 18), total = is + ls + 10;
+    icon(ctx, ic, r.x + r.w / 2, yy + (r.h - total) / 2 + is / 2, is, ink);
+    text(ctx, label, r.x + r.w / 2, yy + (r.h - total) / 2 + is + 10 + ls * 0.85, ls, ink, { weight: 700 });
+  }
+  ctx.restore();
+}
+
+function drawToolbar(ctx, S, M, lay) {
   const lesson = Boolean(M.lesson);
   const defs = {
     undo: { icon: 'undo', label: tr('undo'), off: M.over || lesson || !S.canUndo },
@@ -511,40 +549,18 @@ function drawToolbar(ctx, S, M, lay) {
     restart: { icon: 'reset', label: tr('restart'), off: lesson && !M.hist.length },
   };
   TOOLBAR_IDS.forEach((id, i) => {
-    const r = lay.tool[i], d = defs[id];
-    const pressed = S.press && S.press.id === `tool:${id}` && S.press.active;
-    button(ctx, th, r, [], id === 'think' ? 'primary' : 'normal', { disabled: d.off, pressed, radius: 22 });
-    const yy = r.y + (pressed ? 2 : 0);
-    ctx.save();
-    if (d.off) ctx.globalAlpha = 0.4;
-    const ink = id === 'think' ? th.primaryInk : th.ink;
-    const is = 44 * (1 + (z - 1) * 0.35);
-    const ls = fitOne(d.label, r.w - 20, 24 * (1 + (z - 1) * 0.6), 16);
-    const total = is + ls + 10;
-    icon(ctx, d.icon, r.x + r.w / 2, yy + (r.h - total) / 2 + is / 2, is, ink);
-    text(ctx, d.label, r.x + r.w / 2, yy + (r.h - total) / 2 + is + 10 + ls * 0.85, ls, ink, { weight: 700 });
-    ctx.restore();
+    const d = defs[id];
+    toolButton(ctx, S, lay.tool[i], d.icon, d.label, { off: d.off, kind: id === 'think' ? 'primary' : 'normal', pressed: S.press && S.press.id === `tool:${id}` && S.press.active });
   });
+  if (lay.mode === 'wide') toolButton(ctx, S, lay.pause, 'pause', tr('autoPause'), { pressed: S.press && S.press.id === 'hud:pause' && S.press.active });
 }
 
-function drawAutoBar(ctx, S, auto) {
-  const th = theme(S), z = TEXT_SCALES[S.textIdx], b = autoLayout(z);
-  const pr = (id) => S.press && S.press.id === id && S.press.active;
-  const side = (r, ic, label, off, id) => {
-    button(ctx, th, r, [], 'normal', { disabled: off, pressed: pr(id), radius: 22 });
-    ctx.save(); if (off) ctx.globalAlpha = 0.4;
-    const is = 40 * (1 + (z - 1) * 0.35), ls = fitOne(label, r.w - 20, 22 * (1 + (z - 1) * 0.6), 14), total = is + ls + 10, yy = r.y + (r.h - total) / 2;
-    icon(ctx, ic, r.x + r.w / 2, yy + is / 2, is, th.ink);
-    text(ctx, label, r.x + r.w / 2, yy + is + 10 + ls * 0.85, ls, th.ink, { weight: 700 });
-    ctx.restore();
-  };
-  side(b.slower, 'minus', tr('autoSlower'), S.thinkIdx === 0, 'auto:slower');
-  side(b.faster, 'plus', tr('autoFaster'), S.thinkIdx === THINK_STEPS.length - 1, 'auto:faster');
-  button(ctx, th, b.pause, [], 'primary', { pressed: pr('auto:pause'), radius: 22 });
-  const lab = auto.paused ? tr('autoPlay') : tr('autoPause');
-  const ps = fitOne(lab, b.pause.w - 140, 32 * (1 + (z - 1) * 0.5), 18), is = 44 * (1 + (z - 1) * 0.3);
-  icon(ctx, auto.paused ? 'play' : 'pause', b.pause.x + 52 + is / 2, b.pause.y + b.pause.h / 2, is, th.primaryInk);
-  text(ctx, lab, b.pause.x + 52 + is + (b.pause.w - 52 - is) / 2 - 16, b.pause.y + b.pause.h / 2 + ps * 0.35, ps, th.primaryInk, { weight: 800 });
+function drawAutoBar(ctx, S, auto, lay) {
+  const b = lay.auto, pr = (id) => S.press && S.press.id === id && S.press.active;
+  toolButton(ctx, S, b.exit, 'back', tr('autoExit'), { pressed: pr('auto:exit') });
+  toolButton(ctx, S, b.slower, 'minus', tr('autoSlower'), { off: S.thinkIdx === 0, pressed: pr('auto:slower') });
+  toolButton(ctx, S, b.faster, 'plus', tr('autoFaster'), { off: S.thinkIdx === THINK_STEPS.length - 1, pressed: pr('auto:faster') });
+  toolButton(ctx, S, b.pause, auto.paused ? 'play' : 'pause', auto.paused ? tr('autoPlay') : tr('autoPause'), { kind: 'primary', pressed: pr('auto:pause') });
 }
 
 const nameOf = (M, who) => {
@@ -578,13 +594,14 @@ function statusText(S, M, auto) {
 
 function drawPlay(ctx, S) {
   const th = theme(S), M = S.match, z = TEXT_SCALES[S.textIdx];
-  background(ctx, th, S.t, 800);
   const auto = S.scene === 'auto' ? S.auto : null;
-  const lay = playLayout(z);
+  const lay = playFrame(S.w, S.h, z);
+  background(ctx, th, S.t, lay.board.y + lay.board.side / 2, false, lay.board.x + lay.board.side / 2);
+  for (const c of lay.cards) { ctx.fillStyle = 'rgba(8,8,12,0.28)'; rr(ctx, c.x, c.y, c.w, c.h, 24); ctx.fill(); ctx.strokeStyle = th.stroke; ctx.globalAlpha = 0.5; ctx.lineWidth = 1.5; rr(ctx, c.x, c.y, c.w, c.h, 24); ctx.stroke(); ctx.globalAlpha = 1; }
   const title = M.lesson ? lessonTitle(M.lesson) : tr('latrunculorum');
   const quiet = !M.lesson ? tr('noCapture', { q: M.st.quiet, m: QUIET_LIMIT }) : '';
   const sub = M.lesson ? tr('lessonOf', { n: S.lessonIdx + 1, m: LESSONS.length }) : auto ? tr('watchSub', { n: THINK_STEPS[S.thinkIdx] }) + quiet : (M.two ? tr('twoPlayers') : tr('vsLevel', { level: lvName(M.level) })) + quiet;
-  drawHud(ctx, S, title, sub, !auto);
+  drawHud(ctx, S, lay, title, sub, !auto);
   const st = M.st;
   const toMove = M.over ? 0 : st.turn;
   const plateSub = (who) => {
@@ -605,10 +622,11 @@ function drawPlay(ctx, S) {
     ctx.fillStyle = 'rgba(255,255,255,0.14)'; rr(ctx, lay.status.x + 24, lay.status.y + lay.status.h - 16, lay.status.w - 48, 7, 3.5); ctx.fill();
     ctx.fillStyle = th.accent; rr(ctx, lay.status.x + 24, lay.status.y + lay.status.h - 16, (lay.status.w - 48) * frac, 7, 3.5); ctx.fill();
   }
-  if (auto) drawAutoBar(ctx, S, auto); else drawToolbar(ctx, S, M, lay);
+  if (auto) drawAutoBar(ctx, S, auto, lay); else drawToolbar(ctx, S, M, lay);
 }
 
 export function render(ctx, S, ui) {
+  setSize(S.w ?? SCREEN.width, S.h ?? SCREEN.height);
   ctx.textBaseline = 'alphabetic';
   switch (S.scene) {
     case 'title': drawTitle(ctx, S, ui); break;
@@ -628,4 +646,4 @@ export function render(ctx, S, ui) {
   if (S.overlay) drawOverlay(ctx, S, ui);
 }
 
-export { getRules, DOC_PANEL, NAV_PREV, NAV_NEXT, H, W, targetsOf, countOf, parse, movesFrom };
+export { getRules, H, W, targetsOf, countOf, parse, movesFrom };

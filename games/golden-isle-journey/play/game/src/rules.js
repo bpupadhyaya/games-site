@@ -7,9 +7,21 @@
 // bust already used on its story card and its token on the road - so nothing here is a separate,
 // invented icon set. Draws the whole document and returns its height, exactly like renderControls.
 import { W, H, GOLD, clamp } from './stage.js';
+import { FR, DOC } from './frame.js';
 import { font, SERIF, SANS, panel, paragraph } from './ui.js';
 import { portrait } from './portraits.js';
-import { rich, richLines } from './howto.js';
+import { rich, richLines as richLinesRaw } from './howto.js';
+
+// Wrapped-line cache: the document's section and field heights are measured every frame, but the wrapping only changes with
+// (text, width, size, font). rulesStats.wraps counts real (uncached) wraps; tests read it.
+export const rulesStats = { wraps: 0 };
+const wrapCache = new Map(); let wrapEpoch = '';
+function richLines(ctx, text, w, size) {
+  const k = `${size}|${Math.round(w * 100)}|${text}`;
+  let v = wrapCache.get(k);
+  if (!v) { rulesStats.wraps++; v = richLinesRaw(ctx, text, w, size); wrapCache.set(k, v); }
+  return v;
+}
 
 const PR = 56;                       // portrait radius used on this page
 const PORT_TOP = 135 * (PR / 90), PORT_BOT = 112 * (PR / 90);   // portrait's own vertical reach (portraits.js)
@@ -45,13 +57,16 @@ function drawField(ctx, capt, text, x, y, w, size) {
 // is later drawn with, so a page that fits at scale 1 keeps fitting - it just wraps into more, taller
 // rows at the top step instead of clipping.
 export function renderRules(ctx, { T, scroll, t = 0, scale = 1 }) {
-  const R = T.rules, x = 40, w = W - 80;
+  const R = T.rules, DW = DOC.w, x = 40, w = DW - 80;
+  // a font finishing loading changes the probe widths: drop the cache then
+  ctx.font = font(40, SERIF, 700); const e1 = ctx.measureText('Hamburgefonstiv').width; ctx.font = font(40, SANS, 700);
+  const epoch = e1 + '|' + ctx.measureText('Hamburgefonstiv').width; if (epoch !== wrapEpoch) { wrapEpoch = epoch; wrapCache.clear(); }
   const S = (n) => Math.round(n * scale);
   const hScale = Math.min(scale, 1.15); // the big page title is already far above the target size; cap its own growth so a long heading can never crowd the canvas edges
   ctx.save(); ctx.translate(0, -scroll);
   let y = 150;
   ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
-  ctx.fillStyle = '#fff1cf'; ctx.font = font(Math.round(64 * hScale)); ctx.fillText(R.title, W / 2, y + 40);
+  ctx.fillStyle = '#fff1cf'; ctx.font = font(Math.round(64 * hScale)); ctx.fillText(R.title, DW / 2, y + 40);
   // This gap was a fixed 84px - fine while the intro paragraph below was a similarly-fixed small
   // size, but once its own font (introSize) grows with `scale`, a fixed gap left the intro's first
   // line so close to the title that its ascenders overlapped the title's own descenders at the top
@@ -60,7 +75,7 @@ export function renderRules(ctx, { T, scroll, t = 0, scale = 1 }) {
 
   const introSize = S(28), introLh = S(36);
   ctx.font = font(introSize, SERIF, 600); ctx.fillStyle = 'rgba(255,241,207,0.8)';
-  y += paragraph(ctx, R.intro, W / 2, y + S(10), w - 60, introLh) + S(26);
+  y += paragraph(ctx, R.intro, DW / 2, y + S(10), w - 60, introLh) + S(26);
 
   // ---- campaign-wide systems, one panel with a heading per section ----
   // Each section reserves: 30px down to its heading baseline, 36px more down to the body start,
@@ -72,9 +87,10 @@ export function renderRules(ctx, { T, scroll, t = 0, scale = 1 }) {
   const secSize = S(28), secW = w - S(20) - 20, secLh = Math.round(secSize * 1.34);
   const secH = R.campaign.map((c) => S(66) + richLines(ctx, c.t, secW, secSize).length * secLh + S(30));
   const campH = S(74) + secH.reduce((a, b) => a + b, 0) + S(16);
+  if (y - scroll < FR.h + 60 && y - scroll + campH > -60) {
   panel(ctx, x - 10, y, w + 20, campH, 0.86);
   ctx.textAlign = 'center'; ctx.fillStyle = GOLD; ctx.font = font(S(23), SANS, 700);
-  ctx.fillText(R.campaignHead.toUpperCase().split('').join(' '), W / 2, y + S(46));
+  ctx.fillText(R.campaignHead.toUpperCase().split('').join(' '), DW / 2, y + S(46));
   let sy = y + S(74);
   R.campaign.forEach((c, i) => {
     ctx.textAlign = 'left'; ctx.fillStyle = '#fff1cf';
@@ -90,6 +106,7 @@ export function renderRules(ctx, { T, scroll, t = 0, scale = 1 }) {
     rich(ctx, c.t, x + S(20), sy + S(66), secW, { size: secSize, lh: secLh, color: '#e8d3ac' });
     sy += secH[i];
   });
+  }
   y += campH + S(40);
 
   // ---- one panel per chapter: portrait + mechanic / win / lose / stars ----
@@ -121,7 +138,7 @@ export function renderRules(ctx, { T, scroll, t = 0, scale = 1 }) {
     const textH = fh.reduce((a, b) => a + b, 0);
     const portH = PORT_TOP + PORT_BOT + 30;
     const h = S(92) + Math.max(textH, portH) + S(20);
-    if (y - scroll < H + 60 && y - scroll + h > -60) {
+    if (y - scroll < FR.h + 60 && y - scroll + h > -60) {
       panel(ctx, x - 10, y, w + 20, h, 0.84);
       ctx.textAlign = 'left'; ctx.fillStyle = GOLD; ctx.font = font(S(30), SANS, 800); ctx.fillText(String(i + 1), x + S(24), y + S(62));
       // Shrink-to-fit: a one-line chapter title (e.g. "The Forest Years") drawn at the full S(42) ran

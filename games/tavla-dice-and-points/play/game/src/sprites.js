@@ -62,12 +62,14 @@ export function drawChecker(ctx, set, side, x, y, s = 1, lift = 0) {
   ctx.drawImage(sp, x - S / 2, y - lift - S / 2 + 2, S, S);
 }
 // a checker seen edge-on (in the off trays)
-export function drawChip(ctx, set, side, x, y) {
+export function drawChip(ctx, set, side, x0, y0, k = 1) {
   const p = (SETS[set] || SETS.classic)[side];
+  ctx.save(); ctx.translate(x0, y0); ctx.scale(k, k); const x = 0, y = 0;
   ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.fillRect(x - 15, y - 14, 34, 32);
   ctx.fillStyle = lin(ctx, x - 16, 0, x + 16, 0, [[0, p.lo], [0.3, p.hi], [0.7, p.mid], [1, p.lo]]); ctx.beginPath(); ctx.roundRect ? ctx.roundRect(x - 17, y - 16, 34, 32, 5) : ctx.rect(x - 17, y - 16, 34, 32); ctx.fill();
   ctx.strokeStyle = p.edge; ctx.lineWidth = 1.2; ctx.stroke();
   ctx.strokeStyle = p.groove; ctx.beginPath(); ctx.moveTo(x - 17, y - 5); ctx.lineTo(x + 17, y - 5); ctx.moveTo(x - 17, y + 5); ctx.lineTo(x + 17, y + 5); ctx.stroke();
+  ctx.restore();
 }
 
 // ---- dice ----------------------------------------------------------------------------------------------------
@@ -96,11 +98,11 @@ export function dieSprite(v, ivory = true) {
   return (dcache[k] = cv);
 }
 // draw a die: rotation, squash (to fake the tumble) and a lift that also moves the shadow
-export function drawDie(ctx, v, x, y, { rot = 0, sq = 1, lift = 0, dim = false, ivory = true } = {}) {
+export function drawDie(ctx, v, x, y, { rot = 0, sq = 1, lift = 0, dim = false, ivory = true, k = 1 } = {}) {
   const sp = dieSprite(v, ivory); if (!sp) return;
   const S = DIE + 30;
   ctx.save(); if (dim) ctx.globalAlpha = 0.38;
-  ctx.translate(x, y - lift); ctx.rotate(rot); ctx.scale(1, sq);
+  ctx.translate(x, y - lift * k); ctx.rotate(rot); ctx.scale(k, k * sq);
   ctx.drawImage(sp, -S / 2, -S / 2, S, S);
   ctx.restore();
 }

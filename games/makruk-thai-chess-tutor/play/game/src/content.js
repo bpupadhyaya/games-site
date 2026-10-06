@@ -12,7 +12,8 @@ function dia({ win = 'a1:h8', p = '', from = null, side = 1, arrows = '', rings 
   const [a, b] = win.split(':'), s0 = parseSq(a), s1 = parseSq(b);
   const f0 = s0 & 7, r0 = s0 >> 3, f1 = s1 & 7, r1 = s1 >> 3;
   const bd = board || parseSetup(p), pieces = [];
-  bd.forEach((v, s) => { if (v) pieces.push([s, v]); });
+  // only pieces inside the diagram's window are drawn: a window smaller than the board must not draw the rest of the board outside it
+  bd.forEach((v, s) => { const f = s & 7, r = s >> 3; if (v && f >= f0 && f <= f1 && r >= r0 && r <= r1) pieces.push([s, v]); });
   const marks = [];
   if (from) {
     const fs = parseSq(from), n = genInto(bd, bd[fs] > 0 ? 1 : -1, pad, 0, false);

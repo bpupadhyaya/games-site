@@ -77,6 +77,8 @@ export function layoutDoc(blocks, scale, width, opts = {}) {
     const it = { b, y, h: 0, x: side, w: W, lines: null, size: 0, line: 0, btns: [] };
     if (b.t === 'h') {
       it.size = (b.size ?? 34) * scale;
+      const longest = Math.max(1, ...String(b.text).split(/\s+/).map((wd) => tw(wd, 1)));   // a heading never breaks inside a word: it shrinks to fit a narrow panel
+      if (longest * it.size > W) it.size = Math.max(it.size * 0.5, W / longest);
       it.line = it.size * 1.25;
       it.lines = wrap(b.text, it.size, W);
       it.h = it.lines.length * it.line + sp(14, scale);
@@ -94,9 +96,10 @@ export function layoutDoc(blocks, scale, width, opts = {}) {
       it.line = it.size * 1.22;
       const padX = sp(26, scale);
       it.lines = wrap(b.label, it.size, W - padX * 2);
-      const subLines = b.sub ? wrap(b.sub, it.size * 0.62, W - padX * 2) : [];
+      it.subSize = Math.max(it.size * 0.7, opts.minSub ?? 0);
+      const subLines = b.sub ? wrap(b.sub, it.subSize, W - padX * 2) : [];
       it.sub = subLines;
-      const inner = it.lines.length * it.line + (subLines.length ? subLines.length * it.size * 0.78 + sp(4, scale) : 0);
+      const inner = it.lines.length * it.line + (subLines.length ? subLines.length * it.subSize * 1.23 + sp(4, scale) : 0);
       const h = Math.max(sp(b.minH ?? 84, scale), inner + sp(34, scale));
       it.h = h + sp(16, scale);
       it.btns.push({ id: b.id, x: side, y, w: W, h, disabled: b.disabled });
@@ -111,7 +114,7 @@ export function layoutDoc(blocks, scale, width, opts = {}) {
       const pad = sp(20, scale);
       const longest = (label) => Math.max(...String(label).split(/\s+/).map((wd) => tw(wd, it.size)));
       // when a word will not fit its share of the row (large text), stack the buttons instead
-      const stack = b.items.some((q) => longest(q.label) > unit * (q.flex ?? 1) - pad || (scale >= 2 && /\s/.test(q.label)));
+      const stack = b.items.some((q) => longest(q.label) > unit * (q.flex ?? 1) - pad || (!opts.dense && scale >= 2 && /\s/.test(q.label)));
       if (stack) {
         let yy = y;
         for (const q of b.items) {

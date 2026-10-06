@@ -1,5 +1,8 @@
 // Shared drawing helpers for every screen: rounded panels, buttons, wrapped text, the palette (copied pattern from the
 // other physics games so every Arcforge game's menus behave the same).
+// Smallest text the screen allows (about 11 css px), in virtual units; layout.js keeps it current.
+export let FLOOR = 18;
+export const setFloor = (v) => { FLOOR = Math.max(11, Math.round(v)); };
 export const FONT = "'Avenir Next', 'Trebuchet MS', 'Segoe UI', Roboto, Arial, sans-serif";
 export const SERIF = "Georgia, 'Times New Roman', serif";
 export const C = {
@@ -52,13 +55,13 @@ export function drawButton(ctx, r, label, opts = {}) {
   ctx.save();
   ctx.fillStyle = disabled ? 'rgba(200,220,240,0.45)' : light ? '#ffffff' : C.ink;
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  let px = sub ? Math.round(size * 0.9) : size;
+  let px = Math.max(FLOOR, sub ? Math.round(size * 0.9) : size);
   const maxW = r.w - (icon ? 84 : 24);
   ctx.font = `700 ${px}px ${FONT}`;
-  while (ctx.measureText(label).width > maxW && px > 13) { px -= 1; ctx.font = `700 ${px}px ${FONT}`; }
+  while (ctx.measureText(label).width > maxW && px > FLOOR) { px -= 1; ctx.font = `700 ${px}px ${FONT}`; }
   const cx = r.x + r.w / 2 + (icon ? 24 : 0);
-  ctx.fillText(label, cx, r.y + dy + r.h / 2 - (sub ? 11 : 0));
-  if (sub) { ctx.font = `400 ${Math.round(size * 0.62)}px ${FONT}`; ctx.globalAlpha = 0.85; ctx.fillText(sub, cx, r.y + dy + r.h / 2 + size * 0.5); ctx.globalAlpha = 1; }
+  ctx.fillText(label, cx, r.y + dy + r.h / 2 - (sub ? Math.max(11, FLOOR * 0.5) : 0));
+  if (sub) { const sp = Math.max(FLOOR, Math.round(size * 0.62)); ctx.font = `400 ${sp}px ${FONT}`; ctx.globalAlpha = 0.85; ctx.fillText(sub, cx, r.y + dy + r.h / 2 + Math.max(size * 0.5, sp * 0.95)); ctx.globalAlpha = 1; }
   if (icon) icon(ctx, r.x + 32, r.y + dy + r.h / 2, light && !disabled ? '#ffffff' : C.ink);
   ctx.restore();
 }
@@ -107,6 +110,7 @@ export const ease = {
 // so nothing can overflow or clip at 300%.
 //   widget: { t: 'h'|'p'|'btn'|'gap'|'art', id, label, sub, row, primary, active, disabled, dark, h, draw }
 const GAP = 14;
+const subSize = (fs) => Math.max(FLOOR, Math.round(fs * 0.72));
 export function flowLayout(ctx, widgets, scale, o = {}) {
   const x0 = o.x ?? 40, w0 = o.w ?? 640;
   let y = 0;
@@ -117,7 +121,7 @@ export function flowLayout(ctx, widgets, scale, o = {}) {
     if (wd.t === 'btn' && wd.row !== undefined) {
       const group = [];
       while (i < widgets.length && widgets[i].t === 'btn' && widgets[i].row === wd.row) group.push(widgets[i++]);
-      const fs = Math.round((o.btn ?? 26) * Math.min(scale, 3));
+      const fs = Math.max(FLOOR, Math.round((o.btn ?? 26) * Math.min(scale, 3)));
       // a row of side-by-side buttons falls back to a stack when the text no longer fits
       ctx.font = `700 ${fs}px ${FONT}`;
       const cw0 = (w0 - GAP * (group.length - 1)) / group.length;
@@ -132,7 +136,7 @@ export function flowLayout(ctx, widgets, scale, o = {}) {
         ctx.font = `700 ${fs}px ${FONT}`;
         const lines = wrapLines(ctx, g.label, cw - 28);
         const sub = g.sub ? wrapLines(ctx, g.sub, cw - 28).length : 0;
-        const h = Math.max(g.h ?? 76, lines.length * fs * 1.15 + sub * fs * 0.72 + 34);
+        const h = Math.max(o.minH ?? 0, g.h ?? 76, lines.length * fs * 1.15 + sub * subSize(fs) + 34);
         hmax = Math.max(hmax, h);
         return { g, lines, h, subLines: sub };
       });
@@ -144,7 +148,7 @@ export function flowLayout(ctx, widgets, scale, o = {}) {
     if (wd.t === 'gap') { y += wd.h ?? 20; continue; }
     if (wd.t === 'art') { out.push({ w: wd, x: x0, y, wd: w0, h: wd.h }); y += wd.h + GAP; continue; }
     if (wd.t === 'h') {
-      const fs = Math.round((wd.size ?? 44) * Math.min(scale, wd.cap ?? 1.7));
+      const fs = Math.max(FLOOR, Math.round((wd.size ?? 44) * Math.min(scale, wd.cap ?? 1.7)));
       ctx.font = `700 ${fs}px ${FONT}`;
       const lines = wrapLines(ctx, wd.label, w0);
       const h = lines.length * fs * 1.18;
@@ -152,7 +156,7 @@ export function flowLayout(ctx, widgets, scale, o = {}) {
       continue;
     }
     if (wd.t === 'p') {
-      const fs = Math.round((wd.size ?? 26) * Math.min(scale, wd.cap ?? 3));
+      const fs = Math.max(FLOOR, Math.round((wd.size ?? 26) * Math.min(scale, wd.cap ?? 3)));
       ctx.font = `${wd.bold ? 700 : 400} ${fs}px ${FONT}`;
       const lines = wrapLines(ctx, wd.label, w0 - (wd.pad ?? 0) * 2);
       const h = lines.length * fs * 1.3;
@@ -160,11 +164,11 @@ export function flowLayout(ctx, widgets, scale, o = {}) {
       continue;
     }
     if (wd.t === 'btn') {
-      const fs = Math.round((o.btn ?? 26) * Math.min(scale, 3));
+      const fs = Math.max(FLOOR, Math.round((o.btn ?? 26) * Math.min(scale, 3)));
       ctx.font = `700 ${fs}px ${FONT}`;
       const lines = wrapLines(ctx, wd.label, w0 - 28);
       const sub = wd.sub ? wrapLines(ctx, wd.sub, w0 - 28).length : 0;
-      const h = Math.max(wd.h ?? 84, lines.length * fs * 1.15 + sub * fs * 0.72 + 34);
+      const h = Math.max(o.minH ?? 0, wd.h ?? 84, lines.length * fs * 1.15 + sub * subSize(fs) + 34);
       out.push({ w: wd, x: x0, y, wd: w0, h, fs, lines }); y += h + GAP;
     }
   }
@@ -173,7 +177,7 @@ export function flowLayout(ctx, widgets, scale, o = {}) {
 
 export function drawFlow(ctx, lay, top, bottom, scroll, o = {}) {
   ctx.save();
-  ctx.beginPath(); ctx.rect(0, top, 720, bottom - top); ctx.clip();
+  ctx.beginPath(); ctx.rect(0, top, 8192, bottom - top); ctx.clip();
   for (const it of lay.items) {
     const y = top + it.y - scroll;
     if (y > bottom || y + it.h < top) continue;
@@ -200,14 +204,15 @@ function drawButtonRect(ctx, r, it, wd) {
   ctx.fillStyle = disabled ? 'rgba(200,220,240,0.45)' : light ? '#ffffff' : C.ink;
   ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
   ctx.font = `700 ${it.fs}px ${FONT}`;
-  const subLines = wd.sub ? (() => { ctx.font = `400 ${Math.round(it.fs * 0.72)}px ${FONT}`; const l = wrapLines(ctx, wd.sub, r.w - 28); ctx.font = `700 ${it.fs}px ${FONT}`; return l; })() : [];
-  const total = it.lines.length * it.fs * 1.15 + subLines.length * it.fs * 0.72;
+  const sfs = subSize(it.fs);
+  const subLines = wd.sub ? (() => { ctx.font = `400 ${sfs}px ${FONT}`; const l = wrapLines(ctx, wd.sub, r.w - 28); ctx.font = `700 ${it.fs}px ${FONT}`; return l; })() : [];
+  const total = it.lines.length * it.fs * 1.15 + subLines.length * sfs;
   let y = r.y + dy + (r.h - total) / 2 + it.fs * 0.88;
   it.lines.forEach((l) => { ctx.fillText(l, r.x + r.w / 2, y); y += it.fs * 1.15; });
   if (subLines.length) {
-    ctx.font = `400 ${Math.round(it.fs * 0.72)}px ${FONT}`; ctx.globalAlpha = 0.85;
+    ctx.font = `400 ${sfs}px ${FONT}`; ctx.globalAlpha = 0.85;
     y -= it.fs * 0.2;
-    subLines.forEach((l) => { ctx.fillText(l, r.x + r.w / 2, y); y += it.fs * 0.72; });
+    subLines.forEach((l) => { ctx.fillText(l, r.x + r.w / 2, y); y += sfs; });
     ctx.globalAlpha = 1;
   }
   if (wd.stars) {

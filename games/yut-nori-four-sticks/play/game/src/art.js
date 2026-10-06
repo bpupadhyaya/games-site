@@ -1,13 +1,13 @@
 // The table: woven straw mat, indigo cloth binding, a hanji-paper board with the inked circle-and-cross track,
 // a felt throwing pad and the two token trays. Painted ONCE into a cached layer (never per frame).
-import { W, H, POINTS, BX0, BX1, BY0, BY1, PAD, TRAY, isBig } from './layout.js';
+import { POINTS, BX0, BX1, BY0, BY1, PAD, TRAY, isBig, LAYER_BOARD, LAYER_PAD } from './layout.js';
 
 const TAU = Math.PI * 2;
 const FONT = '"Cormorant Garamond", Georgia, "Times New Roman", serif';
 function lcg(seed) { let s = seed >>> 0; return () => ((s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 4294967296); }
 const rr = (ctx, x, y, w, h, r) => { ctx.beginPath(); ctx.roundRect(x, y, w, h, r); };
 
-function paintMat(ctx) {
+function paintMat(ctx, W, H) {
   const r = lcg(11);
   const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#8d6a3a'); g.addColorStop(0.5, '#b58f52'); g.addColorStop(1, '#8a6535');
   ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
@@ -30,7 +30,7 @@ function paintMat(ctx) {
   }
   // fine fibres
   ctx.lineWidth = 1;
-  for (let k = 0; k < 900; k++) { const x = r() * W, y = r() * H, l = 10 + r() * 30, v = r() < 0.5; ctx.strokeStyle = r() < 0.5 ? 'rgba(255,235,170,0.10)' : 'rgba(60,35,10,0.10)'; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(v ? x : x + l, v ? y + l : y); ctx.stroke(); }
+  for (let k = 0, nf = Math.round(900 * W * H / 1123200); k < nf; k++) { const x = r() * W, y = r() * H, l = 10 + r() * 30, v = r() < 0.5; ctx.strokeStyle = r() < 0.5 ? 'rgba(255,235,170,0.10)' : 'rgba(60,35,10,0.10)'; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(v ? x : x + l, v ? y + l : y); ctx.stroke(); }
 }
 
 function paintBoard(ctx) {
@@ -138,18 +138,35 @@ function paintTrays(ctx) {
   }
 }
 
-export function paintStatic(ctx) {
-  paintMat(ctx);
-  const v = ctx.createRadialGradient(360, 700, 260, 360, 700, 1000); v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(20,8,0,0.62)');
-  ctx.fillStyle = v; ctx.fillRect(0, 0, W, H);
-  paintBoard(ctx); paintTrack(ctx); paintPad(ctx); paintTrays(ctx);
+// The mat is full-bleed and painted once per screen size; the board+trays and the pad are painted once in LOCAL space.
+function makeLayer(rect, paint, sc = 2) {
+  try {
+    if (typeof OffscreenCanvas === 'undefined') return null;
+    const c = new OffscreenCanvas(Math.ceil(rect.w * sc), Math.ceil(rect.h * sc)), l = c.getContext('2d');
+    l.scale(sc, sc); l.translate(-rect.x, -rect.y); paint(l); return c;
+  } catch { return null; }
 }
+function paintMatAll(ctx, W, H) {
+  paintMat(ctx, W, H);
+  const v = ctx.createRadialGradient(W / 2, H * 0.45, Math.min(W, H) * 0.36, W / 2, H * 0.45, Math.max(W, H) * 0.64); v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(20,8,0,0.62)');
+  ctx.fillStyle = v; ctx.fillRect(0, 0, W, H);
+}
+const paintBoardAll = (ctx) => { paintBoard(ctx); paintTrack(ctx); paintTrays(ctx); };
 
-let layer, tried = false;
-export function drawTable(ctx) {
-  if (!tried) {
-    tried = true;
-    try { if (typeof OffscreenCanvas !== 'undefined') { const c = new OffscreenCanvas(W * 2, H * 2), l = c.getContext('2d'); l.scale(2, 2); paintStatic(l); layer = c; } } catch { layer = null; }
-  }
-  if (layer) ctx.drawImage(layer, 0, 0, W, H); else paintStatic(ctx);
+let matLayer = null, matKey = '', boardLayer, padLayer, boardTried = false;
+// Draw the mat (full screen, WORLD space).
+export function drawTable(ctx, W, H) {
+  const key = `${W}x${H}`;
+  if (key !== matKey) { matKey = key; matLayer = makeLayer({ x: 0, y: 0, w: W, h: H }, (l) => paintMatAll(l, W, H), 1.5); }
+  if (matLayer) ctx.drawImage(matLayer, 0, 0, W, H); else paintMatAll(ctx, W, H);
+}
+// Draw the board frame, track and trays (LOCAL space: call inside the board group transform).
+export function drawBoardArt(ctx) {
+  if (!boardTried) { boardTried = true; boardLayer = makeLayer(LAYER_BOARD, paintBoardAll); padLayer = makeLayer(LAYER_PAD, paintPad); }
+  if (boardLayer) ctx.drawImage(boardLayer, LAYER_BOARD.x, LAYER_BOARD.y, LAYER_BOARD.w, LAYER_BOARD.h); else paintBoardAll(ctx);
+}
+// Draw the throwing pad (LOCAL space: inside the pad group transform).
+export function drawPadArt(ctx) {
+  if (!boardTried) drawBoardArt(ctx);
+  if (padLayer) ctx.drawImage(padLayer, LAYER_PAD.x, LAYER_PAD.y, LAYER_PAD.w, LAYER_PAD.h); else paintPad(ctx);
 }

@@ -4,6 +4,10 @@
 import { BOARD_W, BOARD_L, BOARD_Z0, H_FRONT, H_BACK, SIN_A, COS_A, HOLE_R, HOLE_V, BAG_HALF, BAG_T, boardToWorld, surfaceH } from './phys.js';
 
 export const TAU = Math.PI * 2;
+// The area (in scene units) the still picture must cover. The default is the original 720 x 1280 portrait frame; the screens set it to the
+// whole live screen (fluid layout: wider or taller than the design frame) before drawing, so there are never bars at the sides.
+export const EXT = { x0: 0, y0: 0, x1: 720, y1: 1280 };
+export function setExtent(x0, y0, x1, y1) { EXT.x0 = Math.floor(Math.min(x0, 0)); EXT.y0 = Math.floor(Math.min(y0, 0)); EXT.x1 = Math.ceil(Math.max(x1, 720)); EXT.y1 = Math.ceil(Math.max(y1, 1280)); }
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const lerp = (a, b, t) => a + (b - a) * t;
 
@@ -28,50 +32,52 @@ const hash = (n) => { const s = Math.sin(n * 127.1 + 311.7) * 43758.5453; return
 // ---------------------------------------------------------------------------------------------------------------
 // The backyard: sky and trees, a wooden fence with string lights, a mown lawn with stripes, flower beds, long evening light.
 const FENCE_Z = 15.4, FENCE_H = 1.8, TREE_Z = 22;
+// Fence posts every 1.9 m, as many as the area to cover needs (the original five, plus more on wide screens).
+const fencePosts = (cam) => { const s = cam.F / (FENCE_Z - 0.2 + cam.D0), a = Math.floor((EXT.x0 - 360) / s / 1.9) - 1, b = Math.ceil((EXT.x1 - 360) / s / 1.9) + 1, out = []; for (let k = a; k <= b; k++) out.push(Math.round(k * 19) / 10); return out; };
 export function drawBackdrop(ctx, cam, t) {
   // sky: warm evening
   let g = ctx.createLinearGradient(0, 0, 0, cam.YH + 160);
   g.addColorStop(0, '#5f8fc4'); g.addColorStop(0.55, '#f0c88c'); g.addColorStop(1, '#f6dcae');
-  ctx.fillStyle = g; ctx.fillRect(0, 0, 720, 1280);
+  ctx.fillStyle = g; ctx.fillRect(EXT.x0, EXT.y0, EXT.x1 - EXT.x0, EXT.y1 - EXT.y0);
   // soft clouds
   ctx.save(); ctx.globalAlpha = 0.5;
-  for (let i = 0; i < 4; i++) { const cx = 90 + i * 190 + hash(i) * 40, cy = 62 + hash(i + 9) * 34; const cg = ctx.createRadialGradient(cx, cy, 4, cx, cy, 90); cg.addColorStop(0, 'rgba(255,248,232,0.9)'); cg.addColorStop(1, 'rgba(255,248,232,0)'); ctx.fillStyle = cg; ctx.beginPath(); ctx.ellipse(cx, cy, 120, 26, 0, 0, TAU); ctx.fill(); }
+  for (let i = Math.floor(EXT.x0 / 190) - 1; i < Math.ceil(EXT.x1 / 190); i++) { const cx = 90 + i * 190 + hash(i) * 40, cy = 62 + hash(i + 9) * 34; const cg = ctx.createRadialGradient(cx, cy, 4, cx, cy, 90); cg.addColorStop(0, 'rgba(255,248,232,0.9)'); cg.addColorStop(1, 'rgba(255,248,232,0)'); ctx.fillStyle = cg; ctx.beginPath(); ctx.ellipse(cx, cy, 120, 26, 0, 0, TAU); ctx.fill(); }
   ctx.restore();
   // rows of trees behind the fence (layered blobs, deterministic)
   const hz = proj(cam, 0, 0, TREE_Z), top = proj(cam, 0, 7, TREE_Z);
   for (let layer = 0; layer < 2; layer++) {
     const base = hz.y - layer * 6, col = layer === 0 ? [44, 92, 54] : [70, 120, 70];
-    for (let i = -1; i < 12; i++) {
+    for (let i = Math.floor(EXT.x0 / 70) - 2; i < Math.ceil(EXT.x1 / 70) + 2; i++) {
       const cx = i * 70 + hash(i + layer * 20) * 40, r = 70 + hash(i * 3 + layer) * 60, cy = base - r * (0.55 + hash(i + 40) * 0.3) - layer * 24;
       const gg = ctx.createRadialGradient(cx - r * 0.3, cy - r * 0.35, r * 0.1, cx, cy, r);
       gg.addColorStop(0, rgb(mixc(col, [150, 190, 90], 0.45))); gg.addColorStop(1, rgb(col, 0.8));
       ctx.fillStyle = gg; ctx.beginPath(); ctx.arc(cx, cy, r, 0, TAU); ctx.fill();
     }
-    ctx.fillStyle = rgb(col, 0.8); ctx.fillRect(0, base - 8, 720, hz.y - base + 12);
+    ctx.fillStyle = rgb(col, 0.8); ctx.fillRect(EXT.x0, base - 8, EXT.x1 - EXT.x0, hz.y - base + 12);
   }
   void top;
   // fence: a wall of upright boards seen in perspective, a top rail, posts
   const fb = proj(cam, 0, 0, FENCE_Z).y, ft = proj(cam, 0, FENCE_H, FENCE_Z).y, fs = proj(cam, 0, 0, FENCE_Z).s;
   g = ctx.createLinearGradient(0, ft, 0, fb); g.addColorStop(0, '#9a6e44'); g.addColorStop(1, '#6e4a2a');
-  ctx.fillStyle = g; ctx.fillRect(0, ft, 720, fb - ft);
+  ctx.fillStyle = g; ctx.fillRect(EXT.x0, ft, EXT.x1 - EXT.x0, fb - ft);
   const bw = 0.14 * fs;
-  for (let x = 0; x < 720 + bw; x += bw) {
+  for (let x = Math.floor(EXT.x0 / bw) * bw; x < EXT.x1 + bw; x += bw) {
     const k = hash(Math.floor(x / bw) + 3);
     ctx.fillStyle = `rgba(${k > 0.5 ? '255,226,170' : '40,22,8'},${0.05 + k * 0.1})`; ctx.fillRect(x, ft, bw - 1.5, fb - ft);
     ctx.fillStyle = 'rgba(30,16,6,0.55)'; ctx.fillRect(x + bw - 1.5, ft, 1.5, fb - ft);
   }
-  ctx.fillStyle = 'rgba(255,230,170,0.12)'; ctx.fillRect(0, ft, 720, 6);
+  ctx.fillStyle = 'rgba(255,230,170,0.12)'; ctx.fillRect(EXT.x0, ft, EXT.x1 - EXT.x0, 6);
   // rails
-  for (const yy of [0.35, 1.35]) { const y0 = proj(cam, 0, yy + 0.09, FENCE_Z).y, y1 = proj(cam, 0, yy, FENCE_Z).y; ctx.fillStyle = '#5a3a20'; ctx.fillRect(0, y0, 720, y1 - y0); ctx.fillStyle = 'rgba(255,220,160,0.18)'; ctx.fillRect(0, y0, 720, 2); }
+  for (const yy of [0.35, 1.35]) { const y0 = proj(cam, 0, yy + 0.09, FENCE_Z).y, y1 = proj(cam, 0, yy, FENCE_Z).y; ctx.fillStyle = '#5a3a20'; ctx.fillRect(EXT.x0, y0, EXT.x1 - EXT.x0, y1 - y0); ctx.fillStyle = 'rgba(255,220,160,0.18)'; ctx.fillRect(EXT.x0, y0, EXT.x1 - EXT.x0, 2); }
   // posts with caps
-  for (const px of [-1.9, 0.0, 1.9, 3.8, -3.8]) {
+  const posts = fencePosts(cam);
+  for (const px of posts) {
     const a = proj(cam, px - 0.07, FENCE_H + 0.14, FENCE_Z - 0.2), b = proj(cam, px + 0.07, 0, FENCE_Z - 0.2);
     ctx.fillStyle = '#7a5230'; ctx.fillRect(a.x, a.y, b.x - a.x, b.y - a.y);
     ctx.fillStyle = 'rgba(255,230,170,0.22)'; ctx.fillRect(a.x, a.y, (b.x - a.x) * 0.3, b.y - a.y);
     ctx.fillStyle = '#4a2e18'; ctx.fillRect(a.x - 3, a.y - 5, b.x - a.x + 6, 7);
   }
   // string lights: warm bulbs hanging between the posts
-  const posts = [-3.8, -1.9, 0.0, 1.9, 3.8];
   for (let i = 0; i + 1 < posts.length; i++) {
     const a = proj(cam, posts[i], FENCE_H + 0.1, FENCE_Z - 0.4), b = proj(cam, posts[i + 1], FENCE_H + 0.1, FENCE_Z - 0.4);
     const sag = 0.28 * a.s;
@@ -86,27 +92,28 @@ export function drawBackdrop(ctx, cam, t) {
 }
 
 export function drawLawn(ctx, cam, t) {
-  const zf = FENCE_Z - 0.0, yTop = proj(cam, 0, 0, zf).y, yBot = 1280;
+  const zf = FENCE_Z - 0.0, yTop = proj(cam, 0, 0, zf).y, yBot = EXT.y1, xw = EXT.x1 - EXT.x0;
   let g = ctx.createLinearGradient(0, yTop, 0, yBot);
   g.addColorStop(0, '#4f8a3a'); g.addColorStop(0.45, '#5fa044'); g.addColorStop(1, '#79b653');
-  ctx.fillStyle = g; ctx.fillRect(0, yTop, 720, yBot - yTop);
+  ctx.fillStyle = g; ctx.fillRect(EXT.x0, yTop, xw, yBot - yTop);
   // mown stripes across the lawn, every 1.2 m (true perspective: they narrow with distance)
   for (let z = -4, i = 0; z < zf; z += 1.2, i++) {
     if (i % 2) continue;
     const y0 = proj(cam, 0, 0, z).y, y1 = proj(cam, 0, 0, Math.min(z + 1.2, zf)).y;
-    if (y0 < yTop - 2 || y1 > 1280) continue;
-    ctx.fillStyle = 'rgba(255,255,200,0.07)'; ctx.fillRect(0, Math.min(y0, y1), 720, Math.abs(y0 - y1) + 0.5);
+    if (y0 < yTop - 2 || y1 > yBot) continue;
+    ctx.fillStyle = 'rgba(255,255,200,0.07)'; ctx.fillRect(EXT.x0, Math.min(y0, y1), xw, Math.abs(y0 - y1) + 0.5);
   }
   // grass texture: short blades scattered deterministically, sized by depth
   ctx.strokeStyle = 'rgba(30,70,20,0.18)'; ctx.lineWidth = 1.2;
-  for (let i = 0; i < 160; i++) {
-    const z = 1 + hash(i) * 14, x = (hash(i + 77) - 0.5) * 9;
-    const p = proj(cam, x, 0, z); if (p.y > 1000 || p.x < -5 || p.x > 725) continue;
+  for (let i = 0, n = Math.round(160 * xw / 720); i < n; i++) {
+    const z = 1 + hash(i) * 14, sx = EXT.x0 + hash(i + 77) * xw;
+    const sc = scaleAt(cam, z), p = { x: sx, y: cam.YH + cam.Hc * sc, s: sc }; if (p.y > Math.min(1000, yBot)) continue;
     ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x + 2, p.y - 0.05 * p.s * 0.4); ctx.stroke();
   }
   // flower bed along the fence
-  for (let i = 0; i < 46; i++) {
-    const x = -4.6 + hash(i + 5) * 9.2, z = FENCE_Z - 0.5 - hash(i + 11) * 0.5;
+  const fs0 = scaleAt(cam, FENCE_Z - 0.75), xa = (EXT.x0 - 360) / fs0 - 0.2, xb = (EXT.x1 - 360) / fs0 + 0.2;
+  for (let i = 0, n = Math.round(46 * (xb - xa) / 9.2); i < n; i++) {
+    const x = xa + hash(i + 5) * (xb - xa), z = FENCE_Z - 0.5 - hash(i + 11) * 0.5;
     const p = proj(cam, x, 0.1, z), r = 0.1 * p.s * (0.7 + hash(i) * 0.8);
     const col = [[226, 92, 112], [250, 214, 90], [240, 240, 240], [150, 110, 220]][i % 4];
     ctx.fillStyle = 'rgba(40,96,40,0.95)'; ctx.beginPath(); ctx.ellipse(p.x, p.y + r * 0.4, r * 1.3, r * 0.8, 0, 0, TAU); ctx.fill();
@@ -116,7 +123,7 @@ export function drawLawn(ctx, cam, t) {
   const bc = proj(cam, 0, 0.1, BOARD_Z0 + 0.6);
   ctx.save(); ctx.globalCompositeOperation = 'lighter';
   const rg = ctx.createRadialGradient(bc.x, bc.y, 10, bc.x, bc.y, 340); rg.addColorStop(0, 'rgba(255,220,150,0.28)'); rg.addColorStop(1, 'rgba(255,200,120,0)');
-  ctx.fillStyle = rg; ctx.fillRect(0, bc.y - 340, 720, 680); ctx.restore();
+  ctx.fillStyle = rg; ctx.fillRect(bc.x - 340, bc.y - 340, 680, 680); ctx.restore();
 }
 
 
@@ -132,18 +139,19 @@ export function drawStill(ctx, cam, t) {
   try { const tr = ctx.getTransform ? ctx.getTransform() : null; k = tr ? Math.hypot(tr.a, tr.b) : 0; } catch { k = 0; }
   if (!bakeOn.v || !(k > 0.2) || typeof OffscreenCanvas === 'undefined') { direct(); return; }
   k = Math.min(3, Math.round(k * 20) / 20);
-  const key = `${k}|${cam.F}|${cam.Hc}|${cam.D0}|${cam.YH}|${cam.x}`;
+  const bw = EXT.x1 - EXT.x0, bh = EXT.y1 - EXT.y0;
+  const kb = Math.min(k, Math.sqrt(1.3e7 / (bw * bh)));   // very wide screens: cap the bitmap size
+  const key = `${kb.toFixed(3)}|${cam.F}|${cam.Hc}|${cam.D0}|${cam.YH}|${cam.x}|${EXT.x0},${EXT.y0},${EXT.x1},${EXT.y1}`;
   if (!baked || baked.key !== key) {
     try {
-      const w = Math.round(720 * k), h = Math.round(1280 * k);
-      const cv = new OffscreenCanvas(w, h);
+      const cv = new OffscreenCanvas(Math.round(bw * kb), Math.round(bh * kb));
       const bc = cv.getContext('2d');
-      bc.setTransform(k, 0, 0, k, 0, 0);
+      bc.setTransform(kb, 0, 0, kb, -EXT.x0 * kb, -EXT.y0 * kb);
       drawBackdrop(bc, cam, 0); drawLawn(bc, cam, 0); drawProps(bc, cam); drawBoard(bc, cam);
       baked = { key, cv };
     } catch { baked = null; direct(); return; }
   }
-  ctx.drawImage(baked.cv, 0, 0, 720, 1280);
+  ctx.drawImage(baked.cv, EXT.x0, EXT.y0, bw, bh);
 }
 
 // A box seen in true perspective: lit top, front and the side that faces the camera. (x, z) is the centre of the base.
@@ -358,7 +366,7 @@ export function drawLanding(ctx, cam, x, z, col, t, label) {
   ctx.save(); ctx.strokeStyle = col; ctx.lineWidth = 3.2;
   poly(ctx, ring(0.1 * (1 + 0.05 * Math.sin(t * 5)))); ctx.stroke();
   poly(ctx, ring(0.045)); ctx.stroke();
-  if (label) { const c = P3(cam, [x, y, z]); ctx.font = '700 18px Georgia, serif'; ctx.fillStyle = col; ctx.textAlign = 'center'; ctx.fillText(label, c.x, c.y - 26); }
+  if (label) { const c = P3(cam, [x, y, z]); ctx.font = '700 22px Georgia, serif'; ctx.fillStyle = col; ctx.textAlign = 'center'; ctx.fillText(label, c.x, c.y - 26); }
   ctx.restore();
 }
 function worldRing(x, z, r, a) { const v = (z - BOARD_Z0) / COS_A; const w = boardToWorld(x + Math.cos(a) * r, v + Math.sin(a) * r); return [w.x, w.y + 0.004, w.z]; }

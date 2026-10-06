@@ -1,6 +1,7 @@
 // Screen geometry shared by input handling (game.js) and drawing (render.js), so a thing is
 // always tappable exactly where it is drawn. All values are in the 720x1560 virtual space.
 import { W } from './theme.js';
+import { host } from './frame.js';
 
 export const CARD_W = 156;
 export const CARD_H = 232;
@@ -21,7 +22,7 @@ export const HEADER_CX = (HEADER_BAND.left + HEADER_BAND.right) / 2;
 export const HEADER_W = HEADER_BAND.right - HEADER_BAND.left;
 
 export const BTN = {
-  menu: { x: 632, y: 100, w: 64, h: 60 },
+  menu: { x: 628, y: 92, w: 76, h: 76 },
   foul: { x: 20, y: 1434, w: 120, h: 70 },
   quiver: { x: 150, y: 1434, w: 122, h: 70 },
   spent: { x: 282, y: 1434, w: 112, h: 70 },
@@ -78,10 +79,16 @@ export function trioRects(n, y = 600, w = 212) {
 export function titleRects(n) {
   const h = n >= 5 ? 70 : n >= 4 ? 84 : 98;
   const gap = n >= 5 ? 12 : n >= 4 ? 14 : 18;
-  const top = n >= 5 ? 1104 : n >= 4 ? 1126 : 1140;
+  const top = (n >= 5 ? 1104 : n >= 4 ? 1126 : 1140) - 76;   // the Arcforge lockup sits directly under the last row (titleLockup)
   const rects = [];
   for (let i = 0; i < n; i++) rects.push({ x: 104, y: top + i * (h + gap), w: W - 208, h });
   return rects;
+}
+// The Arcforge lockup under the title menu (design space): 250 x 68, directly under the last button; its tap zone is padded to >= 44 css px.
+export function titleLockup(n) {
+  const rows = titleRects(n), last = rows[rows.length - 1], w = 250, h = Math.round(w * 327 / 1200), y = last.y + last.h + 8;
+  const m = Math.ceil(44 / (host.px || 0.6)), pw = Math.max(w, m), ph = Math.max(h, m);
+  return { x: W / 2 - w / 2, y, w, h, hit: { x: W / 2 - pw / 2, y: y + h / 2 - ph / 2, w: pw, h: ph } };
 }
 // The New Run picker: choose who you are and how heavy a vow you carry.
 export const NEWRUN = {
@@ -91,7 +98,7 @@ export const NEWRUN = {
   oathPrev: { x: 66, y: 860, w: 84, h: 84 },
   oathNext: { x: W - 150, y: 860, w: 84, h: 84 },
   begin: { x: 140, y: 1096, w: 440, h: 96 },
-  cancel: { x: 190, y: 1218, w: 340, h: 60 },
+  cancel: { x: 190, y: 1210, w: 340, h: 76 },
 };
 // Was a 2-column row (How to Play | About); now 3 columns at the same y and overall span
 // (60..660), to make room for the Rules tab (Rules-page addition; nothing else moves).
@@ -126,7 +133,7 @@ export const TUNER_TRIO_Y = 520;
 export const TUNER_REMOVE = { x: 90, y: 960, w: 540, h: 92 };
 
 export const CONFIRM = { x: 140, y: 1300, w: 440, h: 96 };
-export const SECONDARY = { x: 190, y: 1416, w: 340, h: 72 };
+export const SECONDARY = { x: 190, y: 1412, w: 340, h: 80 };
 
 // Scrollable card grid used by the Quiver / Spent / pick-a-card overlays.
 export const GRID = { x: 24, y: 300, w: W - 48, h: 1000, cols: 4, cellW: 168, cellH: 250 };
@@ -146,8 +153,8 @@ export const AUTO_ACT_SECONDS = 0.9;
 // caption/stepper band top and bottom and hands the rest of the canvas to whatever is being
 // decided, rather than fighting the real header/bottomBar for room.
 export const AUTO_HUD = { x: 40, y: 100, w: W - 80, h: 172 };
-export const AUTO_STEP_DEC = { x: 66, y: 212, w: 78, h: 54 };
-export const AUTO_STEP_INC = { x: W - 144, y: 212, w: 78, h: 54 };
+export const AUTO_STEP_DEC = { x: 60, y: 196, w: 84, h: 72 };
+export const AUTO_STEP_INC = { x: W - 144, y: 196, w: 84, h: 72 };
 export const AUTO_CONTENT_TOP = 300;
 export const AUTO_CONTENT_BOTTOM = 1404;
 // Three even buttons across the same span the old Skip/Exit pair used (was two 300-wide buttons

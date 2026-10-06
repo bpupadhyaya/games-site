@@ -3,8 +3,8 @@
   "title": "Makruk: Thai Chess",
   "tagline": "The chess of Thailand, with a tutor beside you",
   "genre": "Thai chess",
-  "orientation": "portrait",
-  "version": "1.0.0",
+  "orientation": "any",
+  "version": "1.1.5",
   "monetization": {
     "model": "premium",
     "priceUsd": 2.99,

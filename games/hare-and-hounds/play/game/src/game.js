@@ -4,7 +4,7 @@
 // How a move is made (owner's spec): tap a piece (it lifts, its legal points glow), then tap where it should go.
 // A legal move glides there. An illegal one visibly TRIES: the piece travels toward the point, shudders, comes
 // back, and a message says why.
-import { W, H, BTN, LOOK, RULES_NAV, RULES_HEADER, TEXT_SCALES, TILE, THINK_STEPS, REVEAL_TIME, AUTOPLAY, titleRows, inRect, pointNear, pointAt, overButtons } from './layout.js';
+import { W, H, lockHit, layoutFor, TEXT_SCALES, THINK_STEPS, REVEAL_TIME, inRect, overButtons } from './layout.js';
 import { RULES } from './content.js';
 import { newGame, clone, applyMove, tryMove, legalMoves, DEFAULT_LIMIT } from './rules.js';
 import { LEVELS, createThinker, bestMove, chooseMove, forcingMoves } from './engine.js';
@@ -12,15 +12,18 @@ import { LESSONS, boardOf } from './lessons.js';
 import { CAMPAIGN } from './campaign.js';
 import { dailyPuzzle, puzzleGame, PUZZLE_TEXT } from './puzzles.js';
 import { UNLOCKS, unlocked } from './unlocks.js';
-import { render } from './view.js';
+import { render, rulesMetrics } from './view.js';
 
-export const meta = { width: W, height: H };
+// `meta.width/height` are updated live by the kit on every resize; every position comes from layoutFor(meta.width, meta.height).
+export const meta = { width: W, height: H, fluid: { short: 720 } };
+export const wheelInput = { dy: 0 };
 const DEMO_GAMES = 2, HINTS_PER_GAME = 3;
 const SIDE = { H: 'hare', D: 'hounds' };
 const same = (a, b) => a.to === b.to && a.from === b.from;
 
 export function createGame(env) {
   const { rng, storage, audio, monetization, config } = env;
+  const lay = () => layoutFor(meta.width, meta.height);
   const state = {
     scene: 'title', t: 0, game: newGame(), human: 'D', two: false, level: 1, marks: true, sound: true, calm: false,
     look: { board: 'autumn', set: 'wild', big: false },     // cosmetics and message size (unlocked by wins, see UNLOCKS)
@@ -28,7 +31,7 @@ export function createGame(env) {
     sel: -1, anim: null, msg: null, think: 0, thinking: false, undo: [], hintsLeft: HINTS_PER_GAME, hint: null,
     stats: { games: 0, wins: 0, badges: {}, camp: {} }, saved: null, learned: false, demoGames: 0,
     lesson: null,                                   // { i, done }
-    rulesPage: 0, textScaleIdx: 0,                   // index into TEXT_SCALES; the Rules reference page's text size
+    rulesPage: 0, textScaleIdx: 0, rulesScroll: 0,   // index into TEXT_SCALES; the Rules reference page's text size; pixels scrolled on this page
     pz: null,                                       // { status: 'making' | 'ready' | 'solved', puzzle, n, tries, wrong }
     camp: -1, result: null,                         // the campaign level being played, and the result shown on the last screen
     daily: { day: config.day ?? 0, solvedDay: -1, streak: 0 },
@@ -115,13 +118,13 @@ export function createGame(env) {
   }
   function finishAutoplay() { state.scene = 'over'; state.overFromAutoplay = true; }
   function updateAutoplay(dt, tap) {
-    const A = state.ap;
-    if (tap && inRect(AUTOPLAY.exit, tap.x, tap.y)) { state.scene = 'title'; return; }
-    if (tap && inRect(AUTOPLAY.dec, tap.x, tap.y) && state.apThinkIdx > 0) { state.apThinkIdx--; savePrefs(); }
-    else if (tap && inRect(AUTOPLAY.inc, tap.x, tap.y) && state.apThinkIdx < THINK_STEPS.length - 1) { state.apThinkIdx++; savePrefs(); }
-    else if (tap && inRect(AUTOPLAY.pause, tap.x, tap.y)) A.paused = !A.paused;
+    const A = state.ap, AU = lay().BTN.auto;
+    if (tap && inRect(AU.exit, tap.x, tap.y)) { state.scene = 'title'; return; }
+    if (tap && inRect(AU.dec, tap.x, tap.y) && state.apThinkIdx > 0) { state.apThinkIdx--; savePrefs(); }
+    else if (tap && inRect(AU.inc, tap.x, tap.y) && state.apThinkIdx < THINK_STEPS.length - 1) { state.apThinkIdx++; savePrefs(); }
+    else if (tap && inRect(AU.pause, tap.x, tap.y)) A.paused = !A.paused;
     if (A.paused) return;
-    const skip = tap && inRect(AUTOPLAY.skip, tap.x, tap.y);
+    const skip = tap && inRect(AU.skip, tap.x, tap.y);
     if (state.anim) {
       state.anim.t += dt; if (skip) state.anim.t = state.anim.dur;
       if (state.anim.t >= state.anim.dur) {
@@ -195,7 +198,8 @@ export function createGame(env) {
   // ---- per-scene updates ----------------------------------------------------------------------------------
   function updateTitle(tap) {
     if (!tap) return;
-    const R = titleRows(!!state.saved), hit = (r) => inRect(r, tap.x, tap.y);
+    const T = lay().title(!!state.saved), R = T.rows, hit = (r) => inRect(r, tap.x, tap.y);
+    if (hit(lockHit(lay(), T))) { state.lockPress = 0.18; env.openArcforgeHome?.(); return; }
     if (hit(R.resume)) resume();
     else if (hit(R.learn)) startLesson(0);
     else if (hit(R.campaign)) state.scene = 'campaign';
@@ -208,28 +212,47 @@ export function createGame(env) {
     else if (hit(R.marks)) { state.marks = !state.marks; savePrefs(); pat(); }
     else if (hit(R.calm)) { state.calm = !state.calm; savePrefs(); pat(); }
     else if (hit(R.look)) state.scene = 'look';
-    else if (hit(R.rules)) { state.rulesPage = 0; state.scene = 'rules'; }
+    else if (hit(R.rules)) { state.rulesPage = 0; state.rulesScroll = 0; drag = null; state.scene = 'rules'; }
     else if (hit(R.auto)) startAutoplay();
   }
 
-  function updateRules(tap) {
+  // Rules: Back / Next / text size, and a scrolling body (drag, wheel, keys, scroll bar). A page that fits never moves.
+  let drag = null;
+  function updateRules(tap, input) {
+    const RL = lay().rules, p = input.pointer, keys = input.keys.pressed, max = () => rulesMetrics.max;
+    const setScroll = (v) => { state.rulesScroll = Math.max(0, Math.min(v, max())); };
+    if (wheelInput.dy) { setScroll(state.rulesScroll + wheelInput.dy); wheelInput.dy = 0; }
+    if (keys.has('ArrowDown')) setScroll(state.rulesScroll + 70);
+    if (keys.has('ArrowUp')) setScroll(state.rulesScroll - 70);
+    if (keys.has('PageDown')) setScroll(state.rulesScroll + rulesMetrics.view * 0.9);
+    if (keys.has('PageUp')) setScroll(state.rulesScroll - rulesMetrics.view * 0.9);
+    if (keys.has('Home')) setScroll(0);
+    if (keys.has('End')) setScroll(max());
+    if (p.pressed && max() > 0) {
+      if (inRect(RL.scrollbar, p.x, p.y)) drag = { bar: true };
+      else if (inRect(RL.viewport, p.x, p.y)) drag = { y0: p.y, s0: state.rulesScroll, moved: false };
+    }
+    if (drag) {
+      if (!p.down) drag = null;
+      else if (drag.bar) setScroll(((p.y - RL.scrollbar.y) / RL.scrollbar.h) * max());
+      else setScroll(drag.s0 - (p.y - drag.y0));
+    }
+    state.rulesScroll = Math.max(0, Math.min(state.rulesScroll, max()));
     if (!tap) return;
-    if (inRect(RULES_NAV.back, tap.x, tap.y)) {
-      if (state.rulesPage > 0) state.rulesPage--; else state.scene = 'title';
+    if (inRect(RL.nav.back, tap.x, tap.y)) { state.scene = 'title'; state.rulesScroll = 0; pat(); }
+    else if (inRect(RL.nav.next, tap.x, tap.y)) {
+      if (state.rulesScroll >= max() - 2) { state.scene = 'title'; state.rulesScroll = 0; } else setScroll(state.rulesScroll + rulesMetrics.view * 0.85);
       pat();
     }
-    else if (inRect(RULES_NAV.next, tap.x, tap.y)) {
-      if (state.rulesPage >= RULES.length - 1) { state.scene = 'title'; state.rulesPage = 0; } else state.rulesPage++;
-      pat();
-    }
-    else if (inRect(RULES_HEADER.textDec, tap.x, tap.y) && state.textScaleIdx > 0) { state.textScaleIdx--; savePrefs(); pat(); }
-    else if (inRect(RULES_HEADER.textInc, tap.x, tap.y) && state.textScaleIdx < TEXT_SCALES.length - 1) { state.textScaleIdx++; savePrefs(); pat(); }
+    else if (inRect(RL.header.textDec, tap.x, tap.y) && state.textScaleIdx > 0) { state.textScaleIdx--; state.rulesScroll = 0; savePrefs(); pat(); }
+    else if (inRect(RL.header.textInc, tap.x, tap.y) && state.textScaleIdx < TEXT_SCALES.length - 1) { state.textScaleIdx++; state.rulesScroll = 0; savePrefs(); pat(); }
   }
   const campaignOpen = (i) => i === 0 || (state.stats.camp[i - 1] || 0) > 0 || state.dev;
   function updateCampaign(tap) {
     if (!tap) return;
-    if (inRect(BTN.menu, tap.x, tap.y)) { state.scene = 'title'; return; }
-    CAMPAIGN.forEach((c, i) => { if (inRect(TILE(i), tap.x, tap.y)) { if (campaignOpen(i)) startCampaign(i); else say('Win the level before it to open this one.', 3); } });
+    const C = lay().camp;
+    if (inRect(C.menu, tap.x, tap.y)) { state.scene = 'title'; return; }
+    CAMPAIGN.forEach((c, i) => { if (inRect(C.tile(i), tap.x, tap.y)) { if (campaignOpen(i)) startCampaign(i); else say('Win the level before it to open this one.', 3); } });
   }
 
   function updatePlay(dt, tap) {
@@ -239,7 +262,7 @@ export function createGame(env) {
       if (state.anim.t >= state.anim.dur) { state.anim = null; if (state.game.winner) finish(); else { saveGame(); if (!humanTurn()) state.think = 0.45; } }
       return;
     }
-    if (tap && inRect(BTN.menu, tap.x, tap.y)) { saveGame(); state.scene = 'title'; state.msg = null; state.thinking = false; return; }
+    if (tap && inRect(lay().BTN.menu, tap.x, tap.y)) { saveGame(); state.scene = 'title'; state.msg = null; state.thinking = false; return; }
     if (!humanTurn()) {                                                       // the computer answers after a short think
       state.think -= dt;
       if (state.think > 0) return;
@@ -248,18 +271,18 @@ export function createGame(env) {
       if (m) play(m);
       return;
     }
-    if (tap && inRect(BTN.undo, tap.x, tap.y)) {
+    if (tap && inRect(lay().BTN.undo, tap.x, tap.y)) {
       // the stack holds the position before each HUMAN move, so one pop also takes back the computer's reply
       if (state.undo.length) { state.game = state.undo.pop(); state.sel = -1; state.hint = null; say('Move taken back.'); pat(360); saveGame(); } else say('Nothing to take back yet.');
       return;
     }
-    if (tap && inRect(BTN.hint, tap.x, tap.y)) {
+    if (tap && inRect(lay().BTN.hint, tap.x, tap.y)) {
       if (state.hintsLeft <= 0) say('No hints left in this game.');
       else { state.hintsLeft -= 1; const m = bestMove(state.game, rng); state.sel = -1; if (m) { state.hint = { from: m.from, to: m.to, t: 0 }; say('Hint: move the glowing piece to the glowing point.'); } }
       return;
     }
     if (!tap) return;
-    const i = pointNear(tap.x, tap.y);
+    const i = lay().pointNear(tap.x, tap.y);
     if (i < 0) { state.sel = -1; return; }
     const m = tapBoard(i);
     if (m) { state.undo.push(clone(state.game)); play(m); }
@@ -268,16 +291,16 @@ export function createGame(env) {
   function updateLesson(dt, tap) {
     const L = state.lesson, l = LESSONS[L.i];
     if (state.anim) { state.anim.t += dt; if (state.anim.t >= state.anim.dur) state.anim = null; return; }
-    if (tap && inRect(BTN.menu, tap.x, tap.y)) { state.scene = 'title'; return; }
+    if (tap && inRect(lay().BTN.menu, tap.x, tap.y)) { state.scene = 'title'; return; }
     if (L.done) {
-      if (tap && inRect(BTN.next, tap.x, tap.y)) {
+      if (tap && inRect(lay().BTN.next, tap.x, tap.y)) {
         if (L.i + 1 < LESSONS.length) startLesson(L.i + 1);
         else { state.learned = true; storage.set('learned', true); state.scene = 'title'; say('You know the game. Try the hounds against the Easy computer.', 7); }
       }
       return;
     }
     if (!tap) return;
-    const i = pointNear(tap.x, tap.y);
+    const i = lay().pointNear(tap.x, tap.y);
     if (i < 0) { state.sel = -1; return; }
     const m = tapBoard(i);
     if (!m) return;
@@ -290,7 +313,7 @@ export function createGame(env) {
 
   function updatePuzzle(dt, tap) {
     const P = state.pz;
-    if (tap && inRect(BTN.menu, tap.x, tap.y)) { state.scene = 'title'; return; }
+    if (tap && inRect(lay().BTN.menu, tap.x, tap.y)) { state.scene = 'title'; return; }
     if (state.anim) {
       state.anim.t += dt;
       if (state.anim.t < state.anim.dur) return;
@@ -305,9 +328,9 @@ export function createGame(env) {
       return;
     }
     if (P.wrong > 0) { P.wrong -= dt; if (P.wrong <= 0) { state.game = puzzleGame(P.puzzle); P.n = P.puzzle.n; P.wrong = 0; say('Set up again. Look for the move that leaves no escape.'); } return; }
-    if (P.status === 'solved') { if (tap && inRect(BTN.share, tap.x, tap.y)) env.share(`Hare and Hounds daily puzzle: solved${P.tries ? ' after ' + P.tries + ' wrong tr' + (P.tries === 1 ? 'y' : 'ies') : ' first try'}. Streak ${state.daily.streak}.`); return; }
+    if (P.status === 'solved') { if (tap && inRect(lay().BTN.share, tap.x, tap.y)) env.share(`Hare and Hounds daily puzzle: solved${P.tries ? ' after ' + P.tries + ' wrong tr' + (P.tries === 1 ? 'y' : 'ies') : ' first try'}. Streak ${state.daily.streak}.`); return; }
     if (!tap) return;
-    const i = pointNear(tap.x, tap.y);
+    const i = lay().pointNear(tap.x, tap.y);
     if (i < 0) { state.sel = -1; return; }
     const m = tapBoard(i);
     if (!m) return;
@@ -321,17 +344,20 @@ export function createGame(env) {
     if (!tap) return;
     const pick = (group, key, set) => { if (unlocked(state, group, key)) { state.look[set] = key; savePrefs(); pat(); } else say(UNLOCKS[group][key].need + ' Then it is yours.', 4); };
     const B3 = ['autumn', 'winter', 'night'], S2 = ['wild', 'snow'];
-    LOOK.boards.forEach((r, i) => { if (inRect(r, tap.x, tap.y)) pick('board', B3[i], 'board'); });
-    LOOK.sets.forEach((r, i) => { if (inRect(r, tap.x, tap.y)) pick('set', S2[i], 'set'); });
-    LOOK.text.forEach((r, i) => { if (inRect(r, tap.x, tap.y)) { state.look.big = i === 1; savePrefs(); pat(); } });
-    if (inRect(LOOK.back, tap.x, tap.y)) state.scene = 'title';
+    const LK = lay().look;
+    LK.woods.forEach((r, i) => { if (inRect(r, tap.x, tap.y)) pick('board', B3[i], 'board'); });
+    LK.sets.forEach((r, i) => { if (inRect(r, tap.x, tap.y)) pick('set', S2[i], 'set'); });
+    LK.text.forEach((r, i) => { if (inRect(r, tap.x, tap.y)) { state.look.big = i === 1; savePrefs(); pat(); } });
+    if (inRect(LK.back, tap.x, tap.y)) state.scene = 'title';
   }
 
   function updateOver(tap) {
     if (!tap) return;
     const g = state.game, won = !state.two && g.winner === state.human, hasNext = state.camp >= 0 && state.camp + 1 < CAMPAIGN.length;
-    for (const b of overButtons(state.camp, won, hasNext)) {
-      if (!inRect(b.rect, tap.x, tap.y)) continue;
+    const bs = overButtons(state.camp, won, hasNext), rs = lay().over.rects(bs.length);
+    for (let i = 0; i < bs.length; i++) {
+      const b = bs[i];
+      if (!inRect(rs[i], tap.x, tap.y)) continue;
       if (b.id === 'next') startCampaign(state.camp + 1);
       else if (b.id === 'again') { if (state.overFromAutoplay) startAutoplay(); else if (state.camp >= 0) startCampaign(state.camp); else start(state.human, state.two); }
       else if (b.id === 'levels') state.scene = 'campaign';
@@ -341,37 +367,38 @@ export function createGame(env) {
 
   // Keyboard (web demo): arrows move a cursor over the board, Space or Enter is a tap on that point, Escape is Menu.
   function keyboard(input) {
-    const k = input.keys.pressed, sc = state.scene;
+    const k = input.keys.pressed, sc = state.scene, L = lay(), at = (r) => ({ x: r.x + 5, y: r.y + 5 });
     if (input.pointer.pressed) { state.kb = false; return null; }
     if (sc === 'title') { if (k.has('Enter') || k.has('Space')) return { key: 'start' }; return null; }
-    if (sc === 'over') { if (k.has('Enter') || k.has('Space')) return { x: BTN.again.x + 5, y: BTN.again.y + 5 }; return null; }
-    if (sc === 'look') { if (k.has('Escape')) return { x: LOOK.back.x + 5, y: LOOK.back.y + 5 }; return null; }
-    if (sc === 'rules') { if (k.has('Escape')) return { x: RULES_NAV.back.x + 5, y: RULES_NAV.back.y + 5 }; return null; }
-    if (sc === 'campaign') { if (k.has('Escape')) return { x: BTN.menu.x + 5, y: BTN.menu.y + 5 }; return null; }
-    if (sc === 'autoplay') { if (k.has('Escape')) return { x: AUTOPLAY.exit.x + 5, y: AUTOPLAY.exit.y + 5 }; return null; }
+    if (sc === 'over') { if (k.has('Enter') || k.has('Space')) return at(L.over.rects(1)[0]); return null; }
+    if (sc === 'look') { if (k.has('Escape')) return at(L.look.back); return null; }
+    if (sc === 'rules') { if (k.has('Escape')) return at(L.rules.nav.back); return null; }
+    if (sc === 'campaign') { if (k.has('Escape')) return at(L.camp.menu); return null; }
+    if (sc === 'autoplay') { if (k.has('Escape')) return at(L.BTN.auto.exit); return null; }
     if (sc !== 'play' && sc !== 'lesson' && sc !== 'puzzle') return null;
-    if (k.has('Escape')) return { x: BTN.menu.x + 5, y: BTN.menu.y + 5 };
+    if (k.has('Escape')) return at(L.BTN.menu);
     let dx = 0, dy = 0;
     if (k.has('ArrowLeft')) dx = -1; else if (k.has('ArrowRight')) dx = 1; else if (k.has('ArrowUp')) dy = -1; else if (k.has('ArrowDown')) dy = 1;
     if (dx || dy) {                                            // the nearest point in that direction on the screen
-      state.kb = true; const c = pointAt(state.cursor); let best = -1, bs = Infinity;
-      for (let j = 0; j < 11; j++) { if (j === state.cursor) continue; const p = pointAt(j), along = (p.x - c.x) * dx + (p.y - c.y) * dy, perp = Math.abs((p.x - c.x) * dy) + Math.abs((p.y - c.y) * dx); if (along > 20 && along + perp * 1.5 < bs) { bs = along + perp * 1.5; best = j; } }
+      state.kb = true; const c = L.pointAt(state.cursor); let best = -1, bs = Infinity;
+      for (let j = 0; j < 11; j++) { if (j === state.cursor) continue; const p = L.pointAt(j), along = (p.x - c.x) * dx + (p.y - c.y) * dy, perp = Math.abs((p.x - c.x) * dy) + Math.abs((p.y - c.y) * dx); if (along > 20 * L.board.s && along + perp * 1.5 < bs) { bs = along + perp * 1.5; best = j; } }
       if (best >= 0) state.cursor = best; return null;
     }
-    if (k.has('Enter') || k.has('Space')) { state.kb = true; const p = pointAt(state.cursor); return { x: p.x, y: p.y }; }
+    if (k.has('Enter') || k.has('Space')) { state.kb = true; const p = L.pointAt(state.cursor); return { x: p.x, y: p.y }; }
     return null;
   }
 
   return {
     update(dt, input) {
-      state.t += dt;
+      state.t += dt; if (state.lockPress > 0) state.lockPress = Math.max(0, state.lockPress - dt);
+      if (state.scene !== 'rules') wheelInput.dy = 0;
       if (state.msg) { state.msg.t += dt; if (state.msg.t > state.msg.hold) state.msg = null; }
       const p = input.pointer, kbd = keyboard(input);
       let tap = p.pressed ? { x: p.x, y: p.y } : kbd && kbd.x !== undefined ? kbd : null;
-      if (kbd && kbd.key === 'start') tap = { x: titleRows(!!state.saved).hound.x + 5, y: titleRows(!!state.saved).hound.y + 5 };
+      if (kbd && kbd.key === 'start') { const r = lay().title(!!state.saved).rows.hound; tap = { x: r.x + 5, y: r.y + 5 }; }
       if (state.scene === 'title') updateTitle(tap);
       else if (state.scene === 'look') updateLook(tap);
-      else if (state.scene === 'rules') updateRules(tap);
+      else if (state.scene === 'rules') updateRules(tap, input);
       else if (state.scene === 'campaign') updateCampaign(tap);
       else if (state.scene === 'play') updatePlay(dt, tap);
       else if (state.scene === 'lesson') updateLesson(dt, tap);
@@ -379,7 +406,7 @@ export function createGame(env) {
       else if (state.scene === 'autoplay') updateAutoplay(dt, tap);
       else if (state.scene === 'over') updateOver(tap);
     },
-    render(ctx) { render(ctx, state); },
+    render(ctx, view) { render(ctx, state, layoutFor(view?.width ?? meta.width, view?.height ?? meta.height)); },
     getState: () => state,
     // Only a human playing a live game counts against the free preview (kit 1.6.1+). Title, Look, Rules, Learn,
     // Campaign map, daily puzzle, Auto Play and every result screen are exempt.

@@ -286,6 +286,175 @@ export const RULES = [
     ],
   },
   {
+    title: 'Golden finch',
+    bird: 'goldfinch',
+    lines: [
+      'A rare golden bird worth 150 points. It zips between random points',
+    ],
+  },
+  {
+    title: 'Golden reward',
+    lines: [
+      'for a few seconds and never perches. Hit it and you win 2 bonus stones.',
+    ],
+  },
+  {
+    title: 'Golden finch range',
+    lines: [
+      'It can appear from level 6 onward, and never more than one at a time.',
+    ],
+  },
+  {
+    title: 'Falcon and hawk',
+    lines: [
+      'A falcon or a hawk may hunt the flock, from level 7 on (not on boss levels).',
+    ],
+  },
+  {
+    title: 'Hunt warning',
+    lines: [
+      'A gold warning sign and a cry tell you a hunt is starting.',
+    ],
+  },
+  {
+    title: 'The stoop',
+    lines: [
+      'The predator climbs high, then dives steeply onto a bird and pulls up.',
+    ],
+  },
+  {
+    title: 'Easy prey',
+    lines: [
+      'Sparrows, pigeons, parrots, ducks and the golden finch are caught easily.',
+    ],
+  },
+  {
+    title: 'Hard prey',
+    lines: [
+      'Crows are clever: they usually dodge at the last moment and the falcon misses.',
+    ],
+  },
+  {
+    title: 'Crow herds',
+    lines: [
+      'From level 7 crows arrive in herds, and settle or take off together.',
+    ],
+  },
+  {
+    title: 'Mobbing',
+    lines: [
+      'With enough crows about, they mob the predator, which gives up and leaves.',
+    ],
+  },
+  {
+    title: 'Noise',
+    lines: [
+      'Mobbing crows caw loudly, and the noise sends nearby birds flying.',
+    ],
+  },
+  {
+    title: 'Helping hand',
+    lines: [
+      'A caught bird counts toward the quota, but for half the points,',
+    ],
+  },
+  {
+    title: 'No combo',
+    lines: [
+      'with no combo and no stone refund. You are still the main hunter.',
+    ],
+  },
+  {
+    title: 'Crop guard',
+    lines: [
+      'Each catch also stops the crop draining for a few seconds.',
+    ],
+  },
+  {
+    title: 'Spare the falcon',
+    lines: [
+      'It hunts the birds that raid your harvest. Hitting it costs points and brings more birds.',
+    ],
+  },
+  {
+    title: 'Falcon penalty',
+    lines: [
+      'It flees, the birds return in a wave, and the crop drains faster for a few seconds. Each repeat costs more.',
+    ],
+  },
+  {
+    title: 'Falcons in trees',
+    lines: [
+      'Falcons wait in the trees: they watch, lock on to a bird, and strike, often in mid-air.',
+    ],
+  },
+  {
+    title: 'Lock-on warning',
+    lines: [
+      'A short alarm call and a crouch tell you a sitting falcon has picked its target.',
+    ],
+  },
+  {
+    title: 'Careful near perches',
+    lines: [
+      'Spare them: they hunt the birds that raid your harvest. Be careful near perches.',
+    ],
+  },
+  {
+    title: 'A moment to rest',
+    lines: [
+      'Now and then, look at a far cloud or bird for a moment. It is a good time to rest your eyes.',
+    ],
+  },
+  {
+    title: 'Butterfly decoy',
+    lines: [
+      'A butterfly is a decoy: hitting it costs a stone and breaks your combo.',
+    ],
+  },
+  {
+    title: 'Big crow',
+    lines: [
+      'The big crow needs two hits, and it hops away after the first.',
+    ],
+  },
+  {
+    title: 'Swallow',
+    lines: [
+      'The swallow swoops low across the field and climbs out again.',
+    ],
+  },
+  {
+    title: 'Wide stone',
+    lines: [
+      'Five hits in a row give a Wide stone: bigger, and it hits for double.',
+    ],
+  },
+  {
+    title: 'Slow time',
+    lines: [
+      'Eight hits in a row give four seconds of slow time for the birds.',
+    ],
+  },
+  {
+    title: 'Calm mode',
+    lines: [
+      'Calm on the title screen turns off shake, hit-stop and flashes.',
+    ],
+  },
+  {
+    title: 'Daily streak',
+    lines: [
+      'Come back on consecutive days to earn new stone skins on days 3, 7, 14 and 30.',
+    ],
+  },
+  {
+    title: 'Bigger screens',
+    lines: [
+      'A wide or tall screen gives a bigger field with more birds, perches and flights.',
+    ],
+  },
+  {
     title: 'Near misses',
     lines: [
       'A stone does not have to hit a bird to affect it.',
@@ -661,3 +830,26 @@ export const RULES = [
     ],
   },
 ];
+
+// The reader scrolls ONE continuous document: the short pages above are merged into topic sections. SECTION_STARTS lists the
+// index of the first page of each section (its title becomes the heading); a bird or demo illustration is drawn once, inline,
+// at the top of the section that carries it. A line that stops mid-sentence continues in the next line, so a sentence cut
+// across pages is read whole.
+const SECTION_STARTS = [0, 2, 5, 8, 10, 16, 20, 23, 27, 33, 38, 44, 47, 55, 58, 60, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72, 78, 80, 84, 88, 89, 94, 99, 103, 105, 108, 112, 116, 118, 121, 125, 127, 129];
+let flowCache = null;
+export function flowRules() {
+  if (flowCache) return flowCache;
+  const out = [];
+  RULES.forEach((pg, i) => {
+    let sec = out[out.length - 1];
+    if (!sec || SECTION_STARTS.includes(i)) { sec = { title: pg.title, bird: null, demo: null, paras: [] }; out.push(sec); }
+    if (pg.bird && !sec.bird) sec.bird = pg.bird;
+    if (pg.demo && !sec.demo) sec.demo = pg.demo;
+    for (const line of pg.lines) {
+      const last = sec.paras.length - 1;
+      if (last >= 0 && !/[.!?]["')]?$/.test(sec.paras[last])) sec.paras[last] += ' ' + line; else sec.paras.push(line);
+    }
+  });
+  flowCache = out;
+  return out;
+}

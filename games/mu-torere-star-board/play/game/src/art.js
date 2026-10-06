@@ -35,45 +35,51 @@ export function band(ctx, x0, x1, y, size, color, width) {
   for (let x = x0 + step / 2; x < x1; x += step, i++) koru(ctx, x, y, size * 0.5, i % 2 ? Math.PI : 0, color, width, i % 2 ? -1 : 1);
 }
 
-// ---- sky and sea (cached) -----------------------------------------------------------------------------------------
-function paintBackground(c) {
-  const g = c.createLinearGradient(0, 0, 0, H);
+// ---- sky and sea (cached per screen size: the canvas is fluid, so it is painted for the live w x h) ---------------------
+function paintBackground(c, w, h) {
+  const g = c.createLinearGradient(0, 0, 0, h);
   g.addColorStop(0, '#1e4a5a'); g.addColorStop(0.28, '#2b6a72'); g.addColorStop(0.5, '#215a62'); g.addColorStop(0.78, '#12343c'); g.addColorStop(1, '#0a1e24');
-  c.fillStyle = g; c.fillRect(0, 0, W, H);
+  c.fillStyle = g; c.fillRect(0, 0, w, h);
+  // the horizon sits at the same height on a phone (y 470 of 1560); on short screens it keeps its proportion
+  const hz = Math.round(h * 0.30), sx = Math.min(w * 0.2, 260), sy = h * 0.16, rad = Math.min(560, Math.max(w, h) * 0.5);
   // low warm sun, seen through haze
-  let r = c.createRadialGradient(150, 250, 10, 150, 250, 560);
+  let r = c.createRadialGradient(sx, sy, 10, sx, sy, rad);
   r.addColorStop(0, 'rgba(255,224,168,0.55)'); r.addColorStop(0.4, 'rgba(255,196,140,0.16)'); r.addColorStop(1, 'rgba(255,196,140,0)');
-  c.fillStyle = r; c.fillRect(0, 0, W, 900);
+  c.fillStyle = r; c.fillRect(0, 0, w, h * 0.6);
   // far hills
-  c.fillStyle = 'rgba(14,44,52,0.55)'; c.beginPath(); c.moveTo(0, 470);
-  for (let x = 0; x <= W; x += 20) c.lineTo(x, 430 + Math.sin(x * 0.012) * 26 + Math.sin(x * 0.03 + 1) * 10);
-  c.lineTo(W, 520); c.lineTo(0, 520); c.fill();
+  c.fillStyle = 'rgba(14,44,52,0.55)'; c.beginPath(); c.moveTo(0, hz);
+  for (let x = 0; x <= w; x += 20) c.lineTo(x, hz - 40 + Math.sin(x * 0.012) * 26 + Math.sin(x * 0.03 + 1) * 10);
+  c.lineTo(w, hz + 50); c.lineTo(0, hz + 50); c.fill();
   // sea swell lines
-  for (let k = 0; k < 40; k++) {
-    const y = 520 + k * 27; c.strokeStyle = `rgba(190,235,230,${0.03 + (k / 40) * 0.02})`; c.lineWidth = 1.5; c.beginPath();
-    for (let x = 0; x <= W; x += 16) { const yy = y + Math.sin(x * 0.02 + k * 1.7) * (3 + k * 0.15); if (x === 0) c.moveTo(x, yy); else c.lineTo(x, yy); }
+  for (let k = 0; hz + 50 + k * 27 < h + 30; k++) {
+    const y = hz + 50 + k * 27; c.strokeStyle = `rgba(190,235,230,${0.03 + Math.min(1, k / 40) * 0.02})`; c.lineWidth = 1.5; c.beginPath();
+    for (let x = 0; x <= w; x += 16) { const yy = y + Math.sin(x * 0.02 + k * 1.7) * (3 + k * 0.15); if (x === 0) c.moveTo(x, yy); else c.lineTo(x, yy); }
     c.stroke();
   }
   // vignette
-  r = c.createRadialGradient(W / 2, H * 0.55, 380, W / 2, H * 0.55, 1000);
-  r.addColorStop(0, 'rgba(0,0,0,0)'); r.addColorStop(1, 'rgba(0,10,14,0.55)'); c.fillStyle = r; c.fillRect(0, 0, W, H);
+  const vr = Math.max(w, h) * 0.65;
+  r = c.createRadialGradient(w / 2, h * 0.55, vr * 0.38, w / 2, h * 0.55, vr);
+  r.addColorStop(0, 'rgba(0,0,0,0)'); r.addColorStop(1, 'rgba(0,10,14,0.55)'); c.fillStyle = r; c.fillRect(0, 0, w, h);
 }
-let bg = null, bgTried = false;
-export function drawBackground(ctx, t, calm) {
-  if (!bgTried) { bgTried = true; bg = layer(W, H, 1, paintBackground); }
-  if (bg) ctx.drawImage(bg, 0, 0, W, H); else paintBackground(ctx);
+let bg = null, bgKey = '';
+export function drawBackground(ctx, t, calm, w = W, h = H) {
+  w = Math.round(w); h = Math.round(h);
+  const key = w + 'x' + h;
+  if (key !== bgKey) { bgKey = key; bg = layer(w, h, 1, (c) => paintBackground(c, w, h)); }
+  if (bg) ctx.drawImage(bg, 0, 0, w, h); else paintBackground(ctx, w, h);
   // drifting glints on the water and slow light bands (cheap: a few strokes)
   ctx.save();
-  const sp = calm ? 0.2 : 1;
-  for (let k = 0; k < 7; k++) {
-    const y = 560 + k * 170 + Math.sin(t * 0.3 * sp + k) * 10, x = ((k * 233 + t * 14 * sp) % (W + 200)) - 100, a = 0.05 + 0.05 * Math.sin(t * 0.8 * sp + k * 2);
+  const sp = calm ? 0.2 : 1, nl = Math.max(3, Math.round(7 * h / H)), y0 = h * 0.36, dy = (h - y0 - 60) / nl;
+  for (let k = 0; k < nl; k++) {
+    const y = y0 + k * dy + Math.sin(t * 0.3 * sp + k) * 10, x = ((k * 233 + t * 14 * sp) % (w + 200)) - 100, a = 0.05 + 0.05 * Math.sin(t * 0.8 * sp + k * 2);
     ctx.strokeStyle = `rgba(255,236,200,${Math.max(0.01, a)})`; ctx.lineWidth = 3; ctx.lineCap = 'round';
     ctx.beginPath(); ctx.moveTo(x - 50, y); ctx.quadraticCurveTo(x, y - 5, x + 50, y); ctx.stroke();
   }
   // a few motes of light drifting up from the water
-  for (let k = 0; k < 16; k++) {
-    const x = (k * 97 + Math.sin(t * 0.25 * sp + k) * 30) % W, y = H - ((k * 211 + t * 12 * sp) % (H - 500)), a2 = 0.10 + 0.08 * Math.sin(t * 0.9 + k * 1.3);
-    ctx.fillStyle = `rgba(255,240,205,${Math.max(0.02, a2)})`; ctx.beginPath(); ctx.arc(x < 0 ? x + W : x, y, 2 + (k % 3), 0, TAU); ctx.fill();
+  const nm = Math.max(8, Math.round(16 * w / W));
+  for (let k = 0; k < nm; k++) {
+    const x = (k * 97 + Math.sin(t * 0.25 * sp + k) * 30) % w, y = h - ((k * 211 + t * 12 * sp) % Math.max(200, h - h * 0.32)), a2 = 0.10 + 0.08 * Math.sin(t * 0.9 + k * 1.3);
+    ctx.fillStyle = `rgba(255,240,205,${Math.max(0.02, a2)})`; ctx.beginPath(); ctx.arc(x < 0 ? x + w : x, y, 2 + (k % 3), 0, TAU); ctx.fill();
   }
   ctx.restore();
 }

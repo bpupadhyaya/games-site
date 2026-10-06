@@ -1,10 +1,11 @@
 // The world behind the game: a dusk sky over the veld, the board scratched into red earth, painted geometric bands.
 // Static layers are painted once into cached canvases; a few things (herd, dust, clouds) move every frame.
 // One light, from the upper left (the low sun is behind the hills, so the board is lit softly from the left).
-import { W, H, project } from './layout.js';
+import { project, BOARD_LAYER } from './layout.js';
 import { POINT_UV, RULES } from './morabaraba.js';
 
 const TAU = Math.PI * 2;
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 export const lcg = (seed) => { let s = seed >>> 0; return () => ((s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 4294967296); };
 const poly = (ctx, pts) => { ctx.beginPath(); pts.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y))); ctx.closePath(); };
 // earth pigments used by the bands (decoration only)
@@ -26,56 +27,59 @@ export function band(ctx, x, y, w, h, seed = 1) {
 }
 
 // ---- the backdrop: sky, sun, hills, acacia, earth ----
-export const HORIZON = 372;
-function paintBackdrop(ctx) {
+export const horizonFor = (w, h) => Math.round(w > h ? h * 0.36 : h * 0.2385);
+function paintBackdrop(ctx, W, H) {
+  const HORIZON = horizonFor(W, H), k = clamp(HORIZON / 372, 0.62, 1.2);
   const sky = ctx.createLinearGradient(0, 0, 0, HORIZON + 10);
   sky.addColorStop(0, '#2a1a3e'); sky.addColorStop(0.35, '#7a2f4c'); sky.addColorStop(0.68, '#d8613a'); sky.addColorStop(0.9, '#f2a24c'); sky.addColorStop(1, '#f9cf7a');
   ctx.fillStyle = sky; ctx.fillRect(0, 0, W, HORIZON + 10);
   const rnd = lcg(11);
-  for (let i = 0; i < 46; i++) { ctx.fillStyle = `rgba(255,236,210,${0.15 + rnd() * 0.5})`; ctx.fillRect(rnd() * W, rnd() * 130, 1.6, 1.6); }        // first stars in the dark of the sky
+  for (let i = 0; i < Math.round(46 * W / 720); i++) { ctx.fillStyle = `rgba(255,236,210,${0.15 + rnd() * 0.5})`; ctx.fillRect(rnd() * W, rnd() * HORIZON * 0.35, 1.6, 1.6); }        // first stars in the dark of the sky
   // long cloud streaks lit from below
   for (let i = 0; i < 9; i++) {
-    const y = 120 + i * 24 + rnd() * 10, x = rnd() * W, w = 180 + rnd() * 320;
+    const y = HORIZON * (0.32 + i * 0.065) + rnd() * 10 * k, x = rnd() * W, w = (180 + rnd() * 320) * Math.max(1, W / 720 * 0.8);
     const g = ctx.createLinearGradient(0, y - 6, 0, y + 8); g.addColorStop(0, 'rgba(255,190,120,0)'); g.addColorStop(0.5, `rgba(255,${170 + i * 8},120,${0.18 + rnd() * 0.16})`); g.addColorStop(1, 'rgba(120,40,70,0)');
-    ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(x, y, w, 7 + rnd() * 5, 0, 0, TAU); ctx.fill();
+    ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(x, y, w, (7 + rnd() * 5) * k, 0, 0, TAU); ctx.fill();
   }
   // the low sun
-  const sx = 520, sy = HORIZON - 34;
-  const halo = ctx.createRadialGradient(sx, sy, 10, sx, sy, 330); halo.addColorStop(0, 'rgba(255,224,150,0.85)'); halo.addColorStop(0.3, 'rgba(255,170,90,0.42)'); halo.addColorStop(1, 'rgba(255,120,60,0)');
+  const sx = W * 0.72, sy = HORIZON - 34 * k;
+  const halo = ctx.createRadialGradient(sx, sy, 10 * k, sx, sy, 330 * k); halo.addColorStop(0, 'rgba(255,224,150,0.85)'); halo.addColorStop(0.3, 'rgba(255,170,90,0.42)'); halo.addColorStop(1, 'rgba(255,120,60,0)');
   ctx.fillStyle = halo; ctx.fillRect(0, 0, W, HORIZON + 10);
-  ctx.fillStyle = '#fff2c4'; ctx.beginPath(); ctx.arc(sx, sy, 46, 0, TAU); ctx.fill();
+  ctx.fillStyle = '#fff2c4'; ctx.beginPath(); ctx.arc(sx, sy, 46 * k, 0, TAU); ctx.fill();
   // hills: far to near, each darker and warmer
-  const ridge = (base, amp, seed, color, flat) => {
+  const ridge = (base, amp, seed, color) => {
     const r = lcg(seed); ctx.fillStyle = color; ctx.beginPath(); ctx.moveTo(0, HORIZON + 40);
     let y = base; for (let x = 0; x <= W + 20; x += 20) { y += (r() - 0.5) * amp; y = Math.max(base - amp * 2.2, Math.min(base + amp * 2.2, y)); ctx.lineTo(x, y); }
     ctx.lineTo(W, HORIZON + 40); ctx.closePath(); ctx.fill();
-    return flat;
   };
-  ridge(HORIZON - 40, 8, 5, '#a04a58'); ridge(HORIZON - 22, 9, 8, '#7b3550');
+  ridge(HORIZON - 40 * k, 8 * k, 5, '#a04a58'); ridge(HORIZON - 22 * k, 9 * k, 8, '#7b3550');
   // a flat-topped kopje on the left
-  ctx.fillStyle = '#5e2a44'; ctx.beginPath(); ctx.moveTo(-10, HORIZON + 6); ctx.lineTo(30, HORIZON - 70); ctx.lineTo(70, HORIZON - 96); ctx.lineTo(150, HORIZON - 98); ctx.lineTo(196, HORIZON - 70); ctx.lineTo(250, HORIZON - 14); ctx.lineTo(300, HORIZON + 6); ctx.closePath(); ctx.fill();
-  ctx.fillStyle = 'rgba(255,170,110,0.26)'; ctx.beginPath(); ctx.moveTo(70, HORIZON - 96); ctx.lineTo(150, HORIZON - 98); ctx.lineTo(160, HORIZON - 88); ctx.lineTo(64, HORIZON - 86); ctx.closePath(); ctx.fill();
-  ridge(HORIZON - 4, 7, 21, '#4a2036');
+  ctx.save(); ctx.translate(0, HORIZON); ctx.scale(k, k);
+  ctx.fillStyle = '#5e2a44'; ctx.beginPath(); ctx.moveTo(-10, 6); ctx.lineTo(30, -70); ctx.lineTo(70, -96); ctx.lineTo(150, -98); ctx.lineTo(196, -70); ctx.lineTo(250, -14); ctx.lineTo(300, 6); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = 'rgba(255,170,110,0.26)'; ctx.beginPath(); ctx.moveTo(70, -96); ctx.lineTo(150, -98); ctx.lineTo(160, -88); ctx.lineTo(64, -86); ctx.closePath(); ctx.fill();
+  ctx.restore();
+  ridge(HORIZON - 4 * k, 7 * k, 21, '#4a2036');
   // an acacia with a flat crown
-  const ax = 610, ay = HORIZON - 2;
-  ctx.strokeStyle = '#231018'; ctx.lineCap = 'round'; ctx.lineWidth = 9; ctx.beginPath(); ctx.moveTo(ax, ay); ctx.quadraticCurveTo(ax - 8, ay - 44, ax - 22, ay - 82); ctx.stroke();
-  ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(ax - 12, ay - 58); ctx.quadraticCurveTo(ax + 6, ay - 76, ax + 34, ay - 92); ctx.stroke();
+  ctx.save(); ctx.translate(W - 110, HORIZON - 2 * k); ctx.scale(k, k);
+  ctx.strokeStyle = '#231018'; ctx.lineCap = 'round'; ctx.lineWidth = 9; ctx.beginPath(); ctx.moveTo(0, 0); ctx.quadraticCurveTo(-8, -44, -22, -82); ctx.stroke();
+  ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(-12, -58); ctx.quadraticCurveTo(6, -76, 34, -92); ctx.stroke();
   ctx.fillStyle = '#231018';
-  for (const [dx, dy, rx, ry] of [[-24, -96, 58, 14], [12, -104, 46, 12], [-56, -88, 36, 10], [40, -96, 40, 10], [-8, -112, 34, 8]]) { ctx.beginPath(); ctx.ellipse(ax + dx, ay + dy, rx, ry, -0.04, 0, TAU); ctx.fill(); }
+  for (const [dx, dy, rx, ry] of [[-24, -96, 58, 14], [12, -104, 46, 12], [-56, -88, 36, 10], [40, -96, 40, 10], [-8, -112, 34, 8]]) { ctx.beginPath(); ctx.ellipse(dx, dy, rx, ry, -0.04, 0, TAU); ctx.fill(); }
+  ctx.restore();
   // the earth
   const gr = ctx.createLinearGradient(0, HORIZON, 0, H);
   gr.addColorStop(0, '#6d2a1c'); gr.addColorStop(0.12, '#8d3d24'); gr.addColorStop(0.55, '#7a3220'); gr.addColorStop(1, '#4e1d14');
   ctx.fillStyle = gr; ctx.fillRect(0, HORIZON + 8, W, H - HORIZON - 8);
-  const rg = lcg(77);
-  for (let i = 0; i < 2600; i++) { const x = rg() * W, y = HORIZON + 10 + rg() * (H - HORIZON), l = rg() < 0.5; ctx.fillStyle = l ? `rgba(230,150,100,${0.05 + rg() * 0.1})` : `rgba(30,8,4,${0.06 + rg() * 0.12})`; ctx.fillRect(x, y, 1 + rg() * 2.6, 1 + rg() * 1.6); }
-  for (let i = 0; i < 40; i++) { const x = rg() * W, y = HORIZON + 30 + rg() * (H - HORIZON - 40), r = 2 + rg() * 5; ctx.fillStyle = 'rgba(30,10,6,0.28)'; ctx.beginPath(); ctx.ellipse(x + 1.5, y + 1.6, r, r * 0.6, 0, 0, TAU); ctx.fill(); ctx.fillStyle = `rgba(190,110,80,${0.35 + rg() * 0.3})`; ctx.beginPath(); ctx.ellipse(x, y, r, r * 0.62, 0, 0, TAU); ctx.fill(); }
+  const rg = lcg(77), area = (W * (H - HORIZON)) / (720 * 1188);
+  for (let i = 0; i < Math.round(2600 * area); i++) { const x = rg() * W, y = HORIZON + 10 + rg() * (H - HORIZON), l = rg() < 0.5; ctx.fillStyle = l ? `rgba(230,150,100,${0.05 + rg() * 0.1})` : `rgba(30,8,4,${0.06 + rg() * 0.12})`; ctx.fillRect(x, y, 1 + rg() * 2.6, 1 + rg() * 1.6); }
+  for (let i = 0; i < Math.round(40 * area); i++) { const x = rg() * W, y = HORIZON + 30 + rg() * (H - HORIZON - 40), r = 2 + rg() * 5; ctx.fillStyle = 'rgba(30,10,6,0.28)'; ctx.beginPath(); ctx.ellipse(x + 1.5, y + 1.6, r, r * 0.6, 0, 0, TAU); ctx.fill(); ctx.fillStyle = `rgba(190,110,80,${0.35 + rg() * 0.3})`; ctx.beginPath(); ctx.ellipse(x, y, r, r * 0.62, 0, 0, TAU); ctx.fill(); }
   // horizon dust haze
   const hz = ctx.createLinearGradient(0, HORIZON - 12, 0, HORIZON + 46); hz.addColorStop(0, 'rgba(255,190,120,0)'); hz.addColorStop(0.4, 'rgba(255,170,100,0.5)'); hz.addColorStop(1, 'rgba(255,150,90,0)');
   ctx.fillStyle = hz; ctx.fillRect(0, HORIZON - 12, W, 60);
   // low-sun light across the ground (from the upper left, warm) and a dark vignette at the edges
-  const lit = ctx.createRadialGradient(150, HORIZON + 40, 20, 150, HORIZON + 40, 900); lit.addColorStop(0, 'rgba(255,190,120,0.22)'); lit.addColorStop(1, 'rgba(255,190,120,0)');
+  const lit = ctx.createRadialGradient(150, HORIZON + 40, 20, 150, HORIZON + 40, Math.max(W, H) * 0.6); lit.addColorStop(0, 'rgba(255,190,120,0.22)'); lit.addColorStop(1, 'rgba(255,190,120,0)');
   ctx.fillStyle = lit; ctx.fillRect(0, HORIZON, W, H - HORIZON);
-  const vg = ctx.createRadialGradient(W / 2, H * 0.55, 400, W / 2, H * 0.55, 1000); vg.addColorStop(0, 'rgba(20,4,2,0)'); vg.addColorStop(1, 'rgba(20,4,2,0.55)');
+  const diag = Math.hypot(W, H), vg = ctx.createRadialGradient(W / 2, H * 0.55, diag * 0.233, W / 2, H * 0.55, diag * 0.58); vg.addColorStop(0, 'rgba(20,4,2,0)'); vg.addColorStop(1, 'rgba(20,4,2,0.55)');
   ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
 }
 
@@ -135,16 +139,28 @@ function paintBoard(ctx) {
 }
 
 // ---- cached layers ----
-const layers = {};
+const layers = new Map();
 function cached(name, w, h, scale, paint) {
-  if (!(name in layers)) {
-    layers[name] = null;
-    try { if (typeof OffscreenCanvas !== 'undefined') { const c = new OffscreenCanvas(w * scale, h * scale), l = c.getContext('2d'); l.scale(scale, scale); paint(l); layers[name] = c; } } catch { layers[name] = null; }
+  if (!layers.has(name)) {
+    layers.set(name, null);
+    try { if (typeof OffscreenCanvas !== 'undefined') { const c = new OffscreenCanvas(Math.ceil(w * scale), Math.ceil(h * scale)), l = c.getContext('2d'); l.scale(scale, scale); paint(l); layers.set(name, c); } } catch { layers.set(name, null); }
   }
-  return layers[name];
+  return layers.get(name);
 }
-export function drawBackdrop(ctx) { const c = cached('back', W, H, 2, paintBackdrop); if (c) ctx.drawImage(c, 0, 0, W, H); else paintBackdrop(ctx); }
-export function drawBoard(ctx) { const c = cached('board', W, H, 2, paintBoard); if (c) ctx.drawImage(c, 0, 0, W, H); else paintBoard(ctx); }
+// The backdrop is painted once per screen size (a rotation repaints it once); the board once, in canonical coordinates, and drawn scaled.
+export function drawBackdrop(ctx, w, h) {
+  const key = `back${Math.round(w)}x${Math.round(h)}`;
+  const c = cached(key, w, h, 1.5, (l) => paintBackdrop(l, w, h));
+  if (layers.size > 5) for (const k of layers.keys()) if (k.startsWith('back') && k !== key) { layers.delete(k); break; }
+  if (c) ctx.drawImage(c, 0, 0, w, h); else paintBackdrop(ctx, w, h);
+}
+export function drawBoard(ctx, B) {
+  const Lr = BOARD_LAYER;
+  const c = cached('board', Lr.w, Lr.h, 2.4, (l) => { l.translate(-Lr.x, -Lr.y); paintBoard(l); });
+  ctx.save(); ctx.translate(B.tx, B.ty); ctx.scale(B.s, B.s);
+  if (c) ctx.drawImage(c, Lr.x, Lr.y, Lr.w, Lr.h); else paintBoard(ctx);
+  ctx.restore();
+}
 
 // ---- things that move every frame ----
 // A herd walking along the far ridge; each cow's legs swing. Silhouettes only, so they stay readable at any size.
@@ -159,18 +175,18 @@ function herdCow(ctx, x, y, s, ph, dir) {
   ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(-26, -26); ctx.quadraticCurveTo(-34, -20, -32, -8 + Math.sin(ph) * 2); ctx.stroke();
   ctx.restore();
 }
-export function drawLife(ctx, t, calm) {
-  const k = calm ? 0.25 : 1;
+export function drawLife(ctx, t, calm, W, H) {
+  const k = calm ? 0.25 : 1, HORIZON = horizonFor(W, H), sk = clamp(HORIZON / 372, 0.62, 1.2);
   // drifting dust in the low light
   const r = lcg(5);
-  for (let i = 0; i < 26; i++) {
-    const sp = 6 + r() * 10, x = ((r() * W + t * sp * k) % (W + 40)) - 20, y = HORIZON - 60 + r() * 130 + Math.sin(t * 0.7 + i) * 6 * k, a = 0.12 + r() * 0.2;
+  for (let i = 0; i < Math.round(26 * W / 720); i++) {
+    const sp = 6 + r() * 10, x = ((r() * W + t * sp * k) % (W + 40)) - 20, y = HORIZON - 60 * sk + r() * 130 * sk + Math.sin(t * 0.7 + i) * 6 * k, a = 0.12 + r() * 0.2;
     ctx.fillStyle = `rgba(255,214,150,${a})`; ctx.beginPath(); ctx.arc(x, y, 1.4 + r() * 2, 0, TAU); ctx.fill();
   }
   // the herd
   const y0 = HORIZON + 4;
-  for (let i = 0; i < 6; i++) {
-    const s = 0.5 + (i % 3) * 0.06, x = ((i * 148 + t * 9 * k) % (W + 200)) - 100, ph = t * 3.2 * k + i * 1.7;
+  for (let i = 0; i < Math.max(6, Math.round(6 * W / 720)); i++) {
+    const s = (0.5 + (i % 3) * 0.06) * sk, x = ((i * 148 + t * 9 * k) % (W + 200)) - 100, ph = t * 3.2 * k + i * 1.7;
     herdCow(ctx, x, y0 + (i % 2) * 5, s, ph, 1);
   }
 }

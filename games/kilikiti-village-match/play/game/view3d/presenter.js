@@ -1,6 +1,8 @@
 // 3D presenter: READS the simulation (game.getState().sim) and draws the ground, the wickets and the players behind the kit's transparent 2D canvas.
 // It never writes back. If WebGL2 or the 3D assets are unavailable, `info.active` stays false and the game keeps its flat 2D picture.
+import { VIEW } from '../src/camera.js';
 const LIB = '../vendor3d/index.js';
+const PIXEL_BUDGET = 2.4e6;   // css width x height x pixel ratio^2: big tablets render at a lower ratio (never below 1) so they stay smooth
 
 function pickQuality(q) {
   if (q) return q;
@@ -32,7 +34,8 @@ export function createPresenter({ kitCanvas, quality, canvasParent = null } = {}
     if (!stage.supported) { canvas.remove(); info.failed = true; return; }
     P.canvas = canvas; P.stage = stage; P.cam = stage.camera;
     stage.onContextLost(() => { info.active = false; });
-    stage.onContextRestored(() => { stage.invalidate(); });
+    // after a context restore the size / pixel ratio / backdrop pass runs again (the GL state is gone)
+    stage.onContextRestored(() => { P.size = { w: 0, h: 0 }; P.dir && (P.dir.epoch = 0); P.epoch = (P.epoch || 0) + 1; stage.invalidate(); });
     stage.setLighting('day', { exposure: 1.08, hemi: 1.05 });
     const mod = await import('./director.js');
     P.dir = await mod.createDirector(P);
@@ -40,9 +43,20 @@ export function createPresenter({ kitCanvas, quality, canvasParent = null } = {}
   }
   P.ready = init().catch((e) => { info.failed = true; info.active = false; info.error = String((e && e.stack) || e); console.warn('view3d: staying with the flat 2D picture', info.error); });
 
+  // Fluid layout: the 3D canvas always fills the whole screen (CSS 100vw x 100dvh). Whenever the css size or the live virtual size changes
+  // (rotation, resize, split screen) the renderer is resized, the pixel ratio re-budgeted and the camera is re-fitted from VIEW in renderView.
   const sizeCheck = () => {
     const w = kitCanvas.clientWidth || globalThis.innerWidth, h = kitCanvas.clientHeight || globalThis.innerHeight;
-    if (w !== P.size.w || h !== P.size.h) { P.size = { w, h }; P.cssW = w; P.cssH = h; P.stage.setSize(w, h); }
+    const vk = `${VIEW.w}x${VIEW.h}`;
+    if (w !== P.size.w || h !== P.size.h || vk !== P.vk) {
+      P.size = { w, h }; P.cssW = w; P.cssH = h; P.vk = vk;
+      P.stage.setSize(w, h);
+      const r = P.stage.renderer, cur = r.getPixelRatio();
+      const dpr = Math.max(1, Math.min(cur, Math.sqrt(PIXEL_BUDGET / Math.max(1, w * h))));
+      if (Math.abs(dpr - cur) > 0.01) { r.setPixelRatio(dpr); r.setSize(w, h, false); }
+      P.dpr = dpr; perfLevel = 0; perfN = 0; perfSum = 0;
+      P.stage.invalidate();
+    }
   };
 
   // adaptive quality: if frames run long, drop the pixel ratio
@@ -64,7 +78,10 @@ export function createPresenter({ kitCanvas, quality, canvasParent = null } = {}
     const want = !!(s && G.show3d);
     if (!want) { if (P.shade && P.shade.style.opacity !== '0') P.shade.style.opacity = '0'; info.active = false; if (P.visible) { P.canvas.style.visibility = 'hidden'; P.visible = false; P.dir.setVisibleWorld(false); } return; }
     sizeCheck();
-    if (P.shade) { const o = G.shade ? '1' : '0'; if (P.shade.style.opacity !== o) P.shade.style.opacity = o; }
+    if (P.shade) {
+      const o = G.shade ? '1' : '0'; if (P.shade.style.opacity !== o) P.shade.style.opacity = o;
+      const wide = !!G.land; if (P.shadeWide !== wide) { P.shadeWide = wide; P.shade.style.background = wide ? 'linear-gradient(to right,rgba(2,24,32,0.78),rgba(2,24,32,0.45) 50%,rgba(2,24,32,0.78))' : 'linear-gradient(to bottom,rgba(2,24,32,0.1),rgba(2,24,32,0.55) 45%,rgba(2,24,32,0.92))'; }
+    }
     if (!P.visible) { P.canvas.style.visibility = 'visible'; P.visible = true; }
     P.dir.world.group.visible = true;
     info.active = true;

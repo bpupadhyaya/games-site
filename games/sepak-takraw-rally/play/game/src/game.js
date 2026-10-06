@@ -1,7 +1,7 @@
 // Sepak Takraw: the game shell. Scenes, input, persistence, preview wiring, Learn, Watch & Learn. The match itself lives in sim.js.
 import { createSim } from './sim.js';
-import { W, H, TEXT_SCALES, THINK_STEPS, REF_BACK, REF_NEXT, TEXT_DEC, TEXT_INC, SETUP_PINS, inRect, hudLayout } from './layout.js';
-import { setPress } from './ui.js';
+import { W, H, TEXT_SCALES, THINK_STEPS, REF_BACK, REF_NEXT, TEXT_DEC, TEXT_INC, SETUP_PINS, inRect, hudLayout, setSize, host, readerMeta, clampN, G as LG } from './layout.js';
+import { setPress, FLOOR } from './ui.js';
 import { ABOUT, HOWTO, RULES, LESSONS, QUIZ } from './content.js';
 import * as MN from './menus.js';
 import { renderHud, renderFallback, hudRects, controlState, goKeyOf, renderThink, watchHit, W_RECTS } from './hud.js';
@@ -10,7 +10,8 @@ import { HW, HL, LEVELS } from './consts.js';
 import { clamp } from './util.js';
 import { dirOf, W as WT } from './model.js';
 
-export const meta = { width: W, height: H };
+// Fluid screen (kit 1.7): meta.width / meta.height are kept live by the view (short side 720); every update and render brings the layout up to date first.
+export const meta = { width: 720, height: 1280, fluid: { short: 720 } };
 const DEMO_MATCH_CAP = 2;
 const SAVE_VERSION = 1;
 
@@ -35,6 +36,15 @@ export function createGame(env) {
     }).catch(() => {});
   }
   let S = null, evSeen = 0, snap = null, simRng = rng.fork(), audioSeen = 0;
+  // A size change (rotation, resize) drops a drag in progress (its coordinates are stale) but keeps every other bit of state: the match, scores, menus.
+  const syncSize = (w, h) => {
+    FLOOR.v = Math.max(11, 11 / Math.max(0.25, host.px));
+    if (setSize(w, h)) { G.ui.drag = null; MN.resetLayout(); return true; }
+    return false;
+  };
+  const shotMode = !!config.shot;
+  let wheel = 0, flingV = 0;
+  try { if (typeof globalThis.addEventListener === 'function' && !shotMode) globalThis.addEventListener('wheel', (e) => { wheel += e.deltaY * (e.deltaMode === 1 ? 32 : 1); }, { passive: true }); } catch { /* no DOM */ }
 
   // ---- persistence -------------------------------------------------------------------------------
   const saveSettings = () => { storage.set('settings', G.settings); storage.set('learn', { done: G.learn.done }); storage.set('record', G.record); };
@@ -242,19 +252,34 @@ export function createGame(env) {
       return;
     }
     for (let i = 0; i < cf.list.length; i++) if (inRect(lay.choices[i].rect, x, y)) { applyChoiceId(cs.team, cf.list[i].id); sfx.tick(); return; }
-    if (y > lay.topH && y < lay.barTop) { const team = cs.team >= 0 ? cs.team : S.s.teams[0].human ? 0 : 1; courtTap(x, y, team); }
+    const inCourt = !lay.land ? (y > lay.topH && y < lay.barTop) : (y > lay.topH && x < lay.panelX - 6 && x > lay.util.think.x + lay.util.think.w + 6);
+    if (inCourt) { const team = cs.team >= 0 ? cs.team : S.s.teams[0].human ? 0 : 1; courtTap(x, y, team); }
   }
 
   // ---- menus -----------------------------------------------------------------------------------------------
+  // Shared scrolling input for every scrolling screen: arrow keys, PageUp / PageDown / Space, Home / End, the mouse wheel and the fling after a drag.
+  function scrollKeys(dt, input, max, viewH) {
+    const k = input.keys; let sc = G.ui.scroll;
+    if (k.down.has('ArrowDown')) sc += 18;
+    if (k.down.has('ArrowUp')) sc -= 18;
+    if (k.pressed.has('PageDown') || k.pressed.has('Space')) sc += viewH * 0.88;
+    if (k.pressed.has('PageUp')) sc -= viewH * 0.88;
+    if (k.pressed.has('Home')) { sc = 0; flingV = 0; }
+    if (k.pressed.has('End')) { sc = max; flingV = 0; }
+    if (k.pressed.has('PageDown') || k.pressed.has('PageUp') || k.pressed.has('Space')) flingV = 0;
+    if (wheel) { sc += wheel; wheel = 0; }
+    if (flingV && !G.ui.drag) { sc += flingV * dt; flingV *= 0.92; if (Math.abs(flingV) < 25) flingV = 0; }
+    G.ui.scroll = clamp(sc, 0, Math.max(0, max));
+  }
   function scrollFlow(ptr) {
     const d = G.ui.drag, mt = MN.flowMeta();
     d.moved = Math.max(d.moved, Math.abs(ptr.y - d.y0));
-    if (d.moved >= 10 && mt.lay) { const max = Math.max(0, mt.lay.contentH - (mt.bottom - mt.top)); G.ui.scroll = clamp(d.s0 - (ptr.y - d.y0), 0, max); }
+    if (d.moved >= 10 && mt.lay) { const max = Math.max(0, mt.lay.contentH - (mt.bottom - mt.top)); G.ui.scroll = clamp(d.s0 - (ptr.y - d.y0), 0, max); d.v = 0.6 * d.v + 0.4 * ((d.ly - ptr.y) / (1 / 60)); d.ly = ptr.y; }
   }
   const updateFlowScene = (dt, input, handler, key) => {
     const ptr = input.pointer;
     if (key) MN.ensureLayout(G, key);
-    if (ptr.pressed) G.ui.drag = { y0: ptr.y, x0: ptr.x, s0: G.ui.scroll, moved: 0 };
+    if (ptr.pressed) { G.ui.drag = { y0: ptr.y, x0: ptr.x, s0: G.ui.scroll, moved: 0, ly: ptr.y, v: 0 }; flingV = 0; }
     if (G.ui.drag && ptr.down) scrollFlow(ptr);
     if (ptr.released && G.ui.drag) {
       const d = G.ui.drag; G.ui.drag = null;
@@ -262,15 +287,15 @@ export function createGame(env) {
       const scrollable = lay.lay && lay.lay.contentH > lay.bottom - lay.top;
       if (d.moved < 10) handler(MN.hitScreen(ptr.x, ptr.y, G.ui.scroll));
       else if (!scrollable) handler(MN.hitScreen(d.x0, d.y0, G.ui.scroll));
+      else flingV = clamp(d.v, -2500, 2500);
     }
     const mt = MN.flowMeta();
     const max = mt.lay ? Math.max(0, mt.lay.contentH - (mt.bottom - mt.top)) : 0;
     if (input.keys.pressed.has('Equal') || input.keys.pressed.has('NumpadAdd')) { G.settings.textIdx = Math.min(TEXT_SCALES.length - 1, G.settings.textIdx + 1); saveSettings(); }
     if (input.keys.pressed.has('Minus') || input.keys.pressed.has('NumpadSubtract')) { G.settings.textIdx = Math.max(0, G.settings.textIdx - 1); saveSettings(); }
-    if (input.keys.down.has('ArrowDown')) G.ui.scroll = clamp(G.ui.scroll + 14, 0, max);
-    if (input.keys.down.has('ArrowUp')) G.ui.scroll = clamp(G.ui.scroll - 14, 0, max);
+    scrollKeys(dt, input, max, mt.bottom - mt.top);
   };
-  const go = (scene) => { G.scene = scene; G.ui.scroll = 0; G.page = 0; };
+  const go = (scene) => { G.scene = scene; G.ui.scroll = 0; G.page = 0; flingV = 0; };
   const refresh = () => { G.women = !!G.settings.women; G.venue = G.settings.venue === 'beach' ? 'beach' : 'hall'; };
   function handleTitle(id) {
     if (!id) return;
@@ -363,21 +388,31 @@ export function createGame(env) {
     else if (id === 'p-txt-inc') { G.settings.textIdx = Math.min(TEXT_SCALES.length - 1, G.settings.textIdx + 1); G.ui.scroll = 0; saveSettings(); }
     else if (id === 'quit') leaveMatch();
   }
-  const updatePages = (input) => {
-    const ptr = input.pointer, keys = input.keys;
-    const n = MN.pageCount();
-    const close = () => { G.scene = G.back === 'play' ? 'play' : 'title'; G.page = 0; };
-    const next = () => { if (G.page >= n - 1) close(); else G.page++; };
-    const prev = () => { if (G.page <= 0) close(); else G.page--; };
+  // One continuous document: drag or fling it, mouse wheel, arrow keys, PageUp / PageDown / Space, Home / End, or the Next page button.
+  const updatePages = (dt, input) => {
+    const ptr = input.pointer, keys = input.keys, R = readerMeta();
+    const close = () => { G.scene = G.back === 'play' ? 'play' : 'title'; G.page = 0; G.ui.scroll = 0; G.ui.drag = null; flingV = 0; };
+    const zoom = (d) => { const f = R.max > 0 ? G.ui.scroll / R.max : 0; G.settings.textIdx = clamp(G.settings.textIdx + d, 0, TEXT_SCALES.length - 1); G.ui.keepFrac = f; saveSettings(); };
+    const next = () => { if (R.max <= 0 || G.ui.scroll >= R.max - 4) close(); else G.ui.scroll = clamp(G.ui.scroll + R.h * 0.88, 0, R.max); };
     if (ptr.pressed) {
       if (inRect(REF_NEXT, ptr.x, ptr.y)) next();
-      else if (inRect(REF_BACK, ptr.x, ptr.y)) prev();
-      else if (inRect(TEXT_DEC, ptr.x, ptr.y)) { G.settings.textIdx = Math.max(0, G.settings.textIdx - 1); saveSettings(); }
-      else if (inRect(TEXT_INC, ptr.x, ptr.y)) { G.settings.textIdx = Math.min(TEXT_SCALES.length - 1, G.settings.textIdx + 1); saveSettings(); }
+      else if (inRect(REF_BACK, ptr.x, ptr.y)) close();
+      else if (inRect(TEXT_DEC, ptr.x, ptr.y)) zoom(-1);
+      else if (inRect(TEXT_INC, ptr.x, ptr.y)) zoom(1);
+      else if (inRect(R, ptr.x, ptr.y)) { G.ui.drag = { y0: ptr.y, s0: G.ui.scroll, moved: 0, ly: ptr.y, v: 0 }; flingV = 0; }
     }
+    const d = G.ui.drag;
+    if (d && ptr.down) {
+      d.moved = Math.max(d.moved, Math.abs(ptr.y - d.y0));
+      G.ui.scroll = clamp(d.s0 - (ptr.y - d.y0), 0, R.max);
+      d.v = 0.6 * d.v + 0.4 * ((d.ly - ptr.y) / Math.max(dt, 1 / 120)); d.ly = ptr.y;
+    }
+    if (d && ptr.released) { flingV = d.moved >= 10 ? clamp(d.v, -2500, 2500) : 0; G.ui.drag = null; }
+    scrollKeys(dt, input, R.max, R.h);
+    if (keys.pressed.has('Equal') || keys.pressed.has('NumpadAdd')) zoom(1);
+    if (keys.pressed.has('Minus') || keys.pressed.has('NumpadSubtract')) zoom(-1);
     if (keys.pressed.has('ArrowRight')) next();
-    if (keys.pressed.has('ArrowLeft')) prev();
-    if (keys.pressed.has('Escape')) close();
+    if (keys.pressed.has('ArrowLeft') || keys.pressed.has('Escape')) close();
   };
   const updateSetup = (dt, input) => {
     const ptr = input.pointer, k = input.keys;
@@ -427,12 +462,17 @@ export function createGame(env) {
     // Menus, Rules, About, settings, Learn text and Watch & Learn are free; only real play counts against the preview.
     isPreviewExempt: () => !((G.scene === 'play' && (G.mode === 'ai' || G.mode === 'pass' || G.mode === 'drill')) ) || G.paused || G.pauseMenu || (S && S.s.phase === 'dead'),
     update(dt, input) {
+      syncSize(meta.width, meta.height);
       setPress(input.pointer);
       G.t += dt;
       for (let i = delayed.length - 1; i >= 0; i--) { delayed[i].t -= dt; if (delayed[i].t <= 0) { delayed[i].f(); delayed.splice(i, 1); } }
       if (G.scene !== 'play') S.update(dt);
       switch (G.scene) {
-        case 'title': updateFlowScene(dt, input, handleTitle, 'title'); break;
+        case 'title': {
+          const lt = MN.getLockTap(), pp = input.pointer;
+          if (lt && pp.pressed && pp.x >= lt.x && pp.x <= lt.x + lt.w && pp.y >= lt.y && pp.y <= lt.y + lt.h) { G.lockDown = G.t + 0.25; env.openArcforgeHome?.(); break; }
+          updateFlowScene(dt, input, handleTitle, 'title'); break;
+        }
         case 'setup': updateSetup(dt, input); break;
         case 'settings': updateFlowScene(dt, input, handleSettings, 'settings'); break;
         case 'learn': updateFlowScene(dt, input, handleLearn, 'learn'); break;
@@ -441,13 +481,14 @@ export function createGame(env) {
         case 'lessonresult': updateFlowScene(dt, input, handleLessonResult, 'lessonresult'); break;
         case 'result': updateFlowScene(dt, input, handleResult, 'result'); break;
         case 'demolimit': updateFlowScene(dt, input, (id) => { if (id === 'menu') { go('title'); } }, 'demolimit'); break;
-        case 'howto': case 'about': case 'rules': updatePages(input); break;
+        case 'howto': case 'about': case 'rules': updatePages(dt, input); break;
         case 'play': updatePlay(dt, input); break;
         default: break;
       }
     },
     render(ctx, view) {
-      G.viewW = (view && view.cssW) || 720; G.viewH = (view && view.cssH) || 1280;
+      syncSize(meta.width, meta.height);
+      G.viewW = (view && view.cssW) || meta.width; G.viewH = (view && view.cssH) || meta.height;
       ctx.clearRect(0, 0, W, H);
       if (view && view.noGL) renderFallback(ctx, G, view);
       switch (G.scene) {

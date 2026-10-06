@@ -1,9 +1,11 @@
-// All drawing for the game. Pure: reads `state`, never mutates it (game.js owns every mutation).
+// All drawing for the game. Pure: reads `state`, never mutates it (game.js owns every mutation). Geometry comes from layout.js
+// (live bindings, re-laid out for the current screen shape), so every screen works in portrait and in landscape.
 import {
   W, H, SQ, FRAME, BOARD, GX, GY, PIECE_K, HDR, PLATE_TOP, PLATE_BOT, COUNT, MSG, BAR_Y, BAR_H, BTN, INFO_STRIP, PROMO_BANNER, TITLE_SOUND, titleRows,
-  TEXT_SCALES, TEXT_DEC, TEXT_INC, REF_BACK, REF_NEXT, REF_PANEL, RESULT, LIMIT, SETTINGS_ROW, SETTINGS_BACK, SETTINGS_ROWS, AUTO, LEARN_BAR, THINK_STEPS,
-  SIBLINGS, chipRect, squareXY, squareCentre, squareFoot,
+  TEXT_SCALES, TEXT_DEC, TEXT_INC, REF_BACK, REF_NEXT, REF_PANEL, RESULT, LIMIT, SETTINGS_ROW, SETTINGS_BACK, SETTINGS_TITLE, SETTINGS_ROWS, settingsTall, AUTO, LEARN_BAR, THINK_STEPS,
+  SIBLINGS, chipRect, squareXY, squareCentre, squareFoot, LAY,
 } from './layout.js';
+import { drawMoreLine, drawLockupImage } from './brand.js';
 import { BIA, MET, KHON, MA, RUA, KHUN, NGAI, WHITE, BLACK, TYPE_NAME, SIDE_NAME, PROMO_RANK, LIMIT_TABLE, sideStats, sqName } from './rules.js';
 import { LEVELS } from './engine.js';
 import {
@@ -110,11 +112,22 @@ function drawBoardScene(ctx, state, T) {
 }
 
 // ---- header, plates, count strip, message, buttons ------------------------------------------------------------------------
+// Draw `fn(q)` in a box whose base height is `baseH`: when the real rect is shorter, everything scales down to fit (never up).
+function inBase(ctx, r, baseH, fn) {
+  const s = Math.min(1, r.h / baseH);
+  ctx.save(); ctx.translate(r.x, r.y); ctx.scale(s, s); fn({ x: 0, y: 0, w: r.w / s, h: r.h / s }, s); ctx.restore();
+}
 function header(ctx, state, T, titleText) {
   drawButton(ctx, HDR.menu, 'Menu', T, { px: 26 });
   drawButton(ctx, HDR.sound, state.sound ? 'On' : 'Off', T, { px: 26 });
-  ctx.save(); ctx.fillStyle = T.ink; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = `700 44px ${DISPLAY}`; ctx.shadowColor = 'rgba(0,0,0,0.6)'; ctx.shadowBlur = 8;
-  ctx.fillText(titleText || 'Makruk', W / 2, 58); ctx.restore();
+  let x0, x1, y = HDR.menu.y + 40;
+  if (LAY.land) {
+    if (LAY.wide1) return;            // the card is crowded: Menu / Sound sit beside the back button, no title
+    x0 = PLATE_TOP.x + (LAY.backBox.w ? LAY.backBox.x + LAY.backBox.w - PLATE_TOP.x + 6 : 0); x1 = PLATE_TOP.x + PLATE_TOP.w; y = LAY.U.y0 + 12 + 40;
+  } else { x0 = HDR.menu.x + HDR.menu.w + 8; x1 = HDR.sound.x - 8; }
+  ctx.save(); ctx.fillStyle = T.ink; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.shadowColor = 'rgba(0,0,0,0.6)'; ctx.shadowBlur = 8;
+  const txt = titleText || 'Makruk'; ctx.font = `700 ${fitFont(ctx, txt, 700, 44, x1 - x0, 20, DISPLAY)}px ${DISPLAY}`;
+  ctx.fillText(txt, (x0 + x1) / 2, y); ctx.restore();
 }
 // captured pieces of `side` (what the other side has taken), as small icons
 function capturedOf(state, side) {
@@ -131,21 +144,31 @@ function capturedOf(state, side) {
   return out;
 }
 function plate(ctx, r, side, label, sub, active, T, state, thinking, noCaps) {
+  const narrow = r.w < 520;
   ctx.save();
   rr(ctx, r.x, r.y, r.w, r.h, 20); ctx.fillStyle = T.panel; ctx.fill();
   ctx.lineWidth = active ? 3 : 1.6; ctx.strokeStyle = active ? GOLD : T.panelEdge;
   if (active) { ctx.shadowColor = 'rgba(255,200,100,0.6)'; ctx.shadowBlur = 14; }
-  ctx.stroke(); ctx.shadowColor = 'transparent';
-  ctx.beginPath(); ctx.arc(r.x + 40, r.y + r.h / 2, 24, 0, TAU); ctx.fillStyle = side === WHITE ? '#f0d58a' : '#b72a33'; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.stroke();
-  drawPiece(ctx, KHUN, side, r.x + 40, r.y + r.h / 2 + 22, 0.3);
-  ctx.fillStyle = T.ink; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-  fitFont(ctx, label, 700, 27, 230, 15); ctx.fillText(label, r.x + 78, r.y + r.h / 2 - (sub ? 11 : 0));
-  if (sub) { ctx.fillStyle = T.sub; fitFont(ctx, sub, 400, 21, 230, 12); ctx.fillText(sub, r.x + 78, r.y + r.h / 2 + 15); }
-  const cap = noCaps ? [] : capturedOf(state, -side); // pieces this side has taken
-  const n = cap.length, step = Math.min(30, 330 / Math.max(1, n));
-  for (let i = 0; i < n; i++) drawPiece(ctx, cap[i], -side, r.x + r.w - 40 - (n - 1 - i) * step, r.y + r.h - 8, 0.27);
-  if (thinking) { ctx.fillStyle = GOLD; for (let i = 0; i < 3; i++) { ctx.globalAlpha = 0.3 + 0.7 * Math.max(0, Math.sin(state.t * 7 - i * 0.9)); ctx.beginPath(); ctx.arc(r.x + 290 + i * 14, r.y + r.h / 2, 4.5, 0, TAU); ctx.fill(); } }
-  ctx.restore();
+  ctx.stroke(); ctx.shadowColor = 'transparent'; ctx.restore();
+  inBase(ctx, r, narrow ? 108 : 70, (q, s) => {
+    ctx.fillStyle = side === WHITE ? '#f0d58a' : '#b72a33';
+    const cy = narrow ? 38 : q.h / 2;
+    ctx.beginPath(); ctx.arc(40, cy, 24, 0, TAU); ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.stroke();
+    drawPiece(ctx, KHUN, side, 40, cy + 22, 0.3);
+    ctx.fillStyle = T.ink; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    const tw = narrow ? q.w - 78 - 16 : 230;
+    const ly = narrow ? 30 : q.h / 2 - (sub ? 11 : 0), sy = narrow ? 58 : q.h / 2 + 15;
+    fitFont(ctx, label, 700, 27, tw, 15); ctx.fillText(label, 78, ly);
+    if (sub) { ctx.fillStyle = T.sub; fitFont(ctx, sub, 400, 21, tw, 12); ctx.fillText(sub, 78, sy); }
+    const cap = noCaps ? [] : capturedOf(state, -side); // pieces this side has taken
+    const n = cap.length, step = Math.min(30, (narrow ? q.w - 60 : 330) / Math.max(1, n));
+    for (let i = 0; i < n; i++) drawPiece(ctx, cap[i], -side, q.w - 40 - (n - 1 - i) * step, q.h - 8, 0.27);
+    if (thinking) {
+      ctx.fillStyle = GOLD;
+      const dx = narrow ? q.w - 50 : 290, dy = narrow ? 30 : q.h / 2;
+      for (let i = 0; i < 3; i++) { ctx.globalAlpha = 0.3 + 0.7 * Math.max(0, Math.sin(state.t * 7 - i * 0.9)); ctx.beginPath(); ctx.arc(dx + i * 14, dy, 4.5, 0, TAU); ctx.fill(); }
+    }
+  });
 }
 function names(state) {
   const top = state.flip ? WHITE : BLACK, bot = -top;
@@ -166,31 +189,37 @@ const left = (c) => { const n = Math.max(1, c.limit - c.n + 1); return `${n} mov
 function countStrip(ctx, state, T) {
   const g = state.g, c = g.count, r = COUNT;
   drawPanel(ctx, r, T, { round: 22 });
-  ctx.save(); ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
-  drawIcon(ctx, 'count', r.x + 44, r.y + 38, 38, c ? GOLD : T.sub);
-  let title, sub, frac = 0;
-  if (!c) {
-    const w = sideStats(g.board, WHITE), k = sideStats(g.board, BLACK);
-    title = 'Counting not started'; sub = `Starts when no Bia are left. Bia now: Gold ${w.bia}, Ruby ${k.bia}.`;
-  } else if (c.kind === 'board') {
-    title = `Board's honour: ${c.n} of ${c.limit}`; sub = `${SIDE_NAME[c.chaser]} must mate by count ${c.limit}: ${left(c)}.`; frac = (c.n - 1) / c.limit;
-  } else {
-    title = `Pieces' honour: ${c.n} of ${c.limit}`; sub = `${SIDE_NAME[c.chaser]} must mate by count ${c.limit}: ${left(c)}.`; frac = (c.n - 1) / c.limit;
-  }
-  ctx.fillStyle = c ? GOLD : T.ink; fitFont(ctx, title, 700, 30, r.w - 110, 15); ctx.fillText(title, r.x + 78, r.y + 34);
-  ctx.fillStyle = T.sub; fitFont(ctx, sub, 400, 22, r.w - 100, 11); ctx.fillText(sub, r.x + 78, r.y + 64);
-  // progress bar
-  const bx = r.x + 78, bw = r.w - 110, by = r.y + 84;
-  rr(ctx, bx, by, bw, 9, 4.5); ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.fill();
-  if (c && frac > 0) { rr(ctx, bx, by, Math.max(9, bw * clamp(frac, 0, 1)), 9, 4.5); ctx.fillStyle = frac > 0.75 ? RED : GOLD; ctx.fill(); }
-  ctx.restore();
+  inBase(ctx, r, 104, (q) => {
+    ctx.save(); ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
+    drawIcon(ctx, 'count', 44, 38, 38, c ? GOLD : T.sub);
+    let title, sub, frac = 0;
+    if (!c) {
+      const w = sideStats(g.board, WHITE), k = sideStats(g.board, BLACK);
+      title = 'Counting not started'; sub = `Starts when no Bia are left. Bia now: Gold ${w.bia}, Ruby ${k.bia}.`;
+    } else if (c.kind === 'board') {
+      title = `Board's honour: ${c.n} of ${c.limit}`; sub = `${SIDE_NAME[c.chaser]} must mate by count ${c.limit}: ${left(c)}.`; frac = (c.n - 1) / c.limit;
+    } else {
+      title = `Pieces' honour: ${c.n} of ${c.limit}`; sub = `${SIDE_NAME[c.chaser]} must mate by count ${c.limit}: ${left(c)}.`; frac = (c.n - 1) / c.limit;
+    }
+    ctx.fillStyle = c ? GOLD : T.ink; fitFont(ctx, title, 700, 30, q.w - 110, 15); ctx.fillText(title, 78, 34);
+    ctx.fillStyle = T.sub; ctx.font = `400 22px ${FONT}`;
+    let by = 84;
+    if (ctx.measureText(sub).width <= q.w - 100) { fitFont(ctx, sub, 400, 22, q.w - 100, 11); ctx.fillText(sub, 78, 64); }
+    else { let spx = 21, ls; for (;;) { ctx.font = `400 ${spx}px ${FONT}`; ls = wrapLines(ctx, sub, q.w - 100); if (ls.length <= 2 || spx <= 15) break; spx--; } ls.slice(0, 2).forEach((l, i) => ctx.fillText(l, 78, 58 + i * (spx + 3))); by = 58 + (spx + 3) + 18; }
+    const bx = 78, bw = q.w - 110;
+    rr(ctx, bx, by, bw, 9, 4.5); ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.fill();
+    if (c && frac > 0) { rr(ctx, bx, by, Math.max(9, bw * clamp(frac, 0, 1)), 9, 4.5); ctx.fillStyle = frac > 0.75 ? RED : GOLD; ctx.fill(); }
+    ctx.restore();
+  });
 }
 function goalStrip(ctx, state, T, L) {
   const r = COUNT; drawPanel(ctx, r, T, { round: 22 });
-  ctx.save(); ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
-  ctx.fillStyle = T.sub; ctx.font = `700 21px ${FONT}`; ctx.fillText('G O A L', r.x + 30, r.y + 32);
-  ctx.fillStyle = state.lesson.done ? '#bdf0b0' : GOLD; fitFont(ctx, L.goalText, 700, 34, r.w - 60, 16); ctx.fillText(state.lesson.done ? 'Done: ' + L.goalText : L.goalText, r.x + 30, r.y + 70);
-  ctx.restore();
+  inBase(ctx, r, 104, (q) => {
+    ctx.save(); ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
+    ctx.fillStyle = T.sub; ctx.font = `700 21px ${FONT}`; ctx.fillText('G O A L', 30, 32);
+    ctx.fillStyle = state.lesson.done ? '#bdf0b0' : GOLD; fitFont(ctx, L.goalText, 700, 34, q.w - 60, 16); ctx.fillText(state.lesson.done ? 'Done: ' + L.goalText : L.goalText, 30, 70);
+    ctx.restore();
+  });
 }
 function message(ctx, state, T) {
   drawPanel(ctx, MSG, T, { round: 24 });
@@ -199,29 +228,30 @@ function message(ctx, state, T) {
   const sc = Math.min(TEXT_SCALES[state.textIdx], 1.6);
   ctx.save(); ctx.fillStyle = col; ctx.textBaseline = 'middle';
   let px = Math.round(27 * sc), lines;
-  for (;;) { ctx.font = `400 ${px}px ${FONT}`; lines = wrapLines(ctx, m.text, MSG.w - 56); if (lines.length * px * 1.2 <= MSG.h - 22 || px <= 15) break; px -= 1; }
+  for (;;) { ctx.font = `400 ${px}px ${FONT}`; lines = wrapLines(ctx, m.text, MSG.w - 40); if (lines.length * px * 1.2 <= MSG.h - 18 || px <= 15) break; px -= 1; }
   const lh = px * 1.2, y0 = MSG.y + MSG.h / 2 - ((lines.length - 1) * lh) / 2;
-  ctx.textAlign = 'center'; lines.forEach((l, i) => ctx.fillText(l, W / 2, y0 + i * lh));
+  ctx.textAlign = 'center'; lines.forEach((l, i) => ctx.fillText(l, MSG.x + MSG.w / 2, y0 + i * lh));
   ctx.restore();
 }
 function infoStrip(ctx, state, T, text) {
-  ctx.save(); ctx.fillStyle = T.sub; ctx.globalAlpha = 0.85; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; fitFont(ctx, text, 400, 24, INFO_STRIP.w, 13);
-  ctx.fillText(text, W / 2, INFO_STRIP.y + INFO_STRIP.h / 2); ctx.restore();
+  if (INFO_STRIP.h <= 0) return;
+  ctx.save(); ctx.fillStyle = T.sub; ctx.globalAlpha = 0.85; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; fitFont(ctx, text, 400, 24, INFO_STRIP.w, 11);
+  ctx.fillText(text, INFO_STRIP.x + INFO_STRIP.w / 2, INFO_STRIP.y + INFO_STRIP.h / 2); ctx.restore();
 }
 function iconButton(ctx, r, icon, label, T, o = {}) {
   drawButton(ctx, r, '', T, o);
-  const col = o.primary ? T.accentText : T.ink;
+  const col = o.primary ? T.accentText : T.ink, isz = Math.min(34, r.h * 0.4);
   ctx.save(); if (o.disabled) ctx.globalAlpha = 0.45;
-  drawIcon(ctx, icon, r.x + r.w / 2, r.y + r.h * 0.38, 34, col);
+  drawIcon(ctx, icon, r.x + r.w / 2, r.y + r.h * 0.38, isz, col);
   ctx.fillStyle = col; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; fitFont(ctx, label, 700, 24, r.w - 14, 12); ctx.fillText(label, r.x + r.w / 2, r.y + r.h * 0.78); ctx.restore();
 }
 function banner(ctx, state) {
   const b = state.banner; if (!b) return;
   const k = b.t / 1.5, a = k < 0.15 ? k / 0.15 : k > 0.75 ? 1 - (k - 0.75) / 0.25 : 1;
   ctx.save(); ctx.globalAlpha = clamp(a, 0, 1);
-  const w = 540, h = 112, x = (W - w) / 2, y = BOARD.y + BOARD.h / 2 - h / 2 + (1 - easeOut(Math.min(k * 4, 1))) * 24;
+  const w = Math.min(540, BOARD.w - 24), h = Math.min(112, w * 0.21), cx = BOARD.x + BOARD.w / 2, x = cx - w / 2, y = BOARD.y + BOARD.h / 2 - h / 2 + (1 - easeOut(Math.min(k * 4, 1))) * 24;
   rr(ctx, x, y, w, h, 30); ctx.fillStyle = 'rgba(10,30,28,0.94)'; ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = GOLD; ctx.stroke();
-  ctx.fillStyle = GOLD; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; fitFont(ctx, b.text, 700, 56, w - 50, 20, DISPLAY); ctx.fillText(b.text, W / 2, y + h / 2 + 2);
+  ctx.fillStyle = GOLD; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; fitFont(ctx, b.text, 700, Math.round(h * 0.5), w - 50, 20, DISPLAY); ctx.fillText(b.text, cx, y + h / 2 + 2);
   ctx.restore();
 }
 
@@ -260,22 +290,25 @@ function renderResult(ctx, state, T) {
   ctx.save(); ctx.fillStyle = 'rgba(2,10,9,0.72)'; ctx.fillRect(0, 0, W, H);
   drawPanel(ctx, P, T, { round: 36 });
   ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+  const Z = RESULT.title, zx = Z.x + Z.w / 2;
   let tpx = Math.round(70 * Math.min(sc, 1.6)), tl;
-  for (;;) { ctx.font = `700 ${tpx}px ${DISPLAY}`; tl = wrapLines(ctx, title, P.w - 100); if (tl.length * tpx * 1.1 <= RESULT.titleZone.h || tpx <= 24) break; tpx -= 2; }
-  ctx.fillStyle = GOLD; tl.forEach((l, i) => ctx.fillText(l, W / 2, RESULT.titleZone.y + tpx * 0.95 + i * tpx * 1.1));
-  const cy = RESULT.art.y + RESULT.art.h / 2 + 80, r = state.g.result;
-  const rg = ctx.createRadialGradient(W / 2, cy - 60, 10, W / 2, cy - 60, 160); rg.addColorStop(0, 'rgba(255,214,120,0.5)'); rg.addColorStop(1, 'rgba(255,160,60,0)'); ctx.fillStyle = rg; ctx.fillRect(W / 2 - 170, cy - 230, 340, 340);
+  for (;;) { ctx.font = `700 ${tpx}px ${DISPLAY}`; tl = wrapLines(ctx, title, Z.w); if (tl.length * tpx * 1.1 <= Z.h || tpx <= 24) break; tpx -= 2; }
+  ctx.fillStyle = GOLD; tl.forEach((l, i) => ctx.fillText(l, zx, Z.y + tpx * 0.95 + i * tpx * 1.1));
+  const A = RESULT.art, ax = A.x + A.w / 2, ks = clamp(A.h / 210, 0.7, 1.5), cy = A.y + A.h / 2 + 80 * ks, r = state.g.result;
+  const rg = ctx.createRadialGradient(ax, cy - 60 * ks, 10, ax, cy - 60 * ks, 160 * ks); rg.addColorStop(0, 'rgba(255,214,120,0.5)'); rg.addColorStop(1, 'rgba(255,160,60,0)'); ctx.fillStyle = rg; ctx.fillRect(ax - 170 * ks, cy - 230 * ks, 340 * ks, 340 * ks);
   const sp = Math.sin(state.t * 2) * 4;
-  if (r.winner === 0) { drawPiece(ctx, KHUN, WHITE, W / 2 - 80, cy + sp, 1.35); drawPiece(ctx, KHUN, BLACK, W / 2 + 80, cy - sp, 1.35); }
-  else drawPiece(ctx, KHUN, r.winner, W / 2, cy + sp, 1.9, { glow: 'rgba(255,224,150,0.9)' });
+  if (r.winner === 0) { drawPiece(ctx, KHUN, WHITE, ax - 80 * ks, cy + sp, 1.35 * ks); drawPiece(ctx, KHUN, BLACK, ax + 80 * ks, cy - sp, 1.35 * ks); }
+  else drawPiece(ctx, KHUN, r.winner, ax, cy + sp, 1.9 * ks, { glow: 'rgba(255,224,150,0.9)' });
+  const S = RESULT.sub, sx = S.x + S.w / 2;
   let spx = Math.round(31 * sc), sl;
-  for (;;) { ctx.font = `400 ${spx}px ${FONT}`; sl = wrapLines(ctx, sub, P.w - 90); if (sl.length * spx * 1.25 <= RESULT.subZone.h || spx <= 15) break; spx -= 1; }
-  ctx.fillStyle = T.ink; sl.forEach((l, i) => ctx.fillText(l, W / 2, RESULT.subZone.y + spx * 0.95 + i * spx * 1.25));
+  for (;;) { ctx.font = `400 ${spx}px ${FONT}`; sl = wrapLines(ctx, sub, S.w); if (sl.length * spx * 1.25 <= S.h || spx <= 15) break; spx -= 1; }
+  ctx.fillStyle = T.ink; sl.forEach((l, i) => ctx.fillText(l, sx, S.y + spx * 0.95 + i * spx * 1.25));
   drawButton(ctx, RESULT.again, auto ? 'Watch again' : 'Play again', T, { primary: true, px: 40 });
   drawButton(ctx, RESULT.menu, 'Menu', T, { px: 38 });
   if (!auto) {
-    ctx.fillStyle = T.sub; ctx.font = `400 22px ${FONT}`; ctx.fillText('More from Arcforge', W / 2, RESULT.chipsY - 14);
-    SIBLINGS.forEach((sb, i) => drawButton(ctx, chipRect(i, RESULT.chipsY), sb.title, T, { px: 26 }));
+    const L = RESULT.chipsLabel;
+    ctx.fillStyle = T.sub; drawMoreLine(ctx, L.x + L.w / 2, L.y + 22, 21);
+    SIBLINGS.forEach((sb, i) => drawButton(ctx, chipRect(i), sb.title, T, { px: 26 }));
   }
   drawButton(ctx, RESULT.dec, 'A-', T, { px: 26, disabled: state.textIdx === 0 }); drawButton(ctx, RESULT.inc, 'A+', T, { px: 26, disabled: state.textIdx === TEXT_SCALES.length - 1 });
   ctx.restore();
@@ -284,44 +317,49 @@ function renderResult(ctx, state, T) {
 // ---- title ---------------------------------------------------------------------------------------------------------------------
 const TIPS = ['A Khon steps forward or diagonally, but never backward or sideways.', 'Push your Bia to the sixth rank: each one becomes a Bia-ngai.', 'When no Bia remain, the count begins. Check the Count strip.', 'Two Rua can force mate against a lone Khun. One Ma often cannot.', 'The Met is slow but a good guard: keep it beside your Khun.', 'A Ma jumps over pieces, so it is strongest where the board is crowded.', 'Tap Think to see a strong move and the reason for it.', 'Gold and Ruby start with their Khun and Met on opposite files.'];
 const SHOW = [KHUN, MET, KHON, MA, RUA, BIA, NGAI];
-function renderHero(ctx, state, T) {
-  const t = state.t;
-  const sky = ctx.createLinearGradient(0, 0, 0, 640);
+function renderHero(ctx, state, T, Rr) {
+  const t = state.t, s = Rr.heroScale, land = Rr.land;
+  // the sky fills the hero's whole region; the title block is drawn in a 720-wide local space, scaled to fit it
+  const sh = land ? H * 0.95 : Rr.hero.h, sw = land ? Rr.hero.w : W;
+  const sky = ctx.createLinearGradient(0, 0, 0, sh);
   sky.addColorStop(0, '#07201f'); sky.addColorStop(0.62, '#0e3d3a'); sky.addColorStop(1, 'rgba(20,86,79,0)');
-  ctx.fillStyle = sky; ctx.fillRect(0, 0, W, 640);
+  ctx.fillStyle = sky; ctx.fillRect(0, 0, sw, sh);
+  ctx.save(); ctx.translate(Rr.heroCx - 360 * s, Rr.heroTop); ctx.scale(s, s);
+  const LW = 720;
   // a halo of gold behind the title
-  const sg = ctx.createRadialGradient(W / 2, 190, 10, W / 2, 190, 360); sg.addColorStop(0, 'rgba(255,214,120,0.38)'); sg.addColorStop(0.5, 'rgba(255,190,90,0.12)'); sg.addColorStop(1, 'rgba(255,160,60,0)');
-  ctx.fillStyle = sg; ctx.fillRect(0, 0, W, 560);
+  const sg = ctx.createRadialGradient(LW / 2, 190, 10, LW / 2, 190, 360); sg.addColorStop(0, 'rgba(255,214,120,0.38)'); sg.addColorStop(0.5, 'rgba(255,190,90,0.12)'); sg.addColorStop(1, 'rgba(255,160,60,0)');
+  ctx.fillStyle = sg; ctx.fillRect(0, -200, LW, 760);
   // slowly turning ring of flame-leaves
-  ctx.save(); ctx.translate(W / 2, 190); ctx.fillStyle = 'rgba(240,200,120,0.10)';
+  ctx.save(); ctx.translate(LW / 2, 190); ctx.fillStyle = 'rgba(240,200,120,0.10)';
   for (let k = 0; k < 24; k++) { ctx.rotate(TAU / 24); flameLeaf(ctx, 0, -250, 74, 0); }
   ctx.restore();
   const rnd = lcg(9); ctx.fillStyle = 'rgba(255,240,210,0.8)';
-  for (let i = 0; i < 36; i++) { const x = rnd() * W, y = rnd() * 150; ctx.globalAlpha = 0.2 + 0.5 * Math.abs(Math.sin(t * 0.8 + i)); ctx.beginPath(); ctx.arc(x, y, 1 + rnd() * 1.4, 0, TAU); ctx.fill(); }
+  for (let i = 0; i < 36; i++) { const x = rnd() * LW, y = rnd() * 150; ctx.globalAlpha = 0.2 + 0.5 * Math.abs(Math.sin(t * 0.8 + i)); ctx.beginPath(); ctx.arc(x, y, 1 + rnd() * 1.4, 0, TAU); ctx.fill(); }
   ctx.globalAlpha = 1;
   // the title
   ctx.save(); ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'; ctx.shadowColor = 'rgba(0,20,15,0.8)'; ctx.shadowBlur = 20; ctx.shadowOffsetY = 6;
   const tg = ctx.createLinearGradient(0, 80, 0, 200); tg.addColorStop(0, '#fff3c4'); tg.addColorStop(0.55, '#f5cd6a'); tg.addColorStop(1, '#c8892c');
-  ctx.fillStyle = tg; ctx.font = `700 ${fitFont(ctx, 'Makruk', 700, 172, 600, 60, DISPLAY)}px ${DISPLAY}`; ctx.fillText('Makruk', W / 2, 190);
+  ctx.fillStyle = tg; ctx.font = `700 ${fitFont(ctx, 'Makruk', 700, 172, 600, 60, DISPLAY)}px ${DISPLAY}`; ctx.fillText('Makruk', LW / 2, 190);
   ctx.shadowColor = 'transparent'; ctx.fillStyle = '#ffeec4'; ctx.font = `400 34px ${FONT}`;
-  const sub = 'T H A I   C H E S S'; fitFont(ctx, sub, 400, 31, 560, 16); ctx.fillText(sub, W / 2, 244);
-  ctx.fillStyle = 'rgba(255,238,196,0.85)'; ctx.font = `400 30px ${FONT}`; ctx.fillText('หมากรุก', W / 2, 286);
+  const sub = 'T H A I   C H E S S'; fitFont(ctx, sub, 400, 31, 560, 16); ctx.fillText(sub, LW / 2, 244);
+  ctx.fillStyle = 'rgba(255,238,196,0.85)'; ctx.font = `400 30px ${FONT}`; ctx.fillText('หมากรุก', LW / 2, 286);
   ctx.strokeStyle = 'rgba(255,230,170,0.55)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(170, 308); ctx.lineTo(550, 308); ctx.stroke();
-  for (const dx of [-1, 0, 1]) { ctx.save(); ctx.translate(W / 2 + dx * 40, 308); ctx.rotate(Math.PI / 4); ctx.fillStyle = '#ffeec4'; ctx.fillRect(-5, -5, 10, 10); ctx.restore(); }
+  for (const dx of [-1, 0, 1]) { ctx.save(); ctx.translate(LW / 2 + dx * 40, 308); ctx.rotate(Math.PI / 4); ctx.fillStyle = '#ffeec4'; ctx.fillRect(-5, -5, 10, 10); ctx.restore(); }
   ctx.restore();
   // two rows of pieces facing each other on a lacquer shelf
   const shelf = (y, side) => {
-    ctx.save(); rr(ctx, 40, y + 4, W - 80, 14, 7); ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fill(); rr(ctx, 40, y - 2, W - 80, 14, 7); const g = ctx.createLinearGradient(0, y, 0, y + 12); g.addColorStop(0, '#d8a94a'); g.addColorStop(1, '#8a5f1c'); ctx.fillStyle = g; ctx.fill(); ctx.restore();
+    ctx.save(); rr(ctx, 40, y + 4, LW - 80, 14, 7); ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.fill(); rr(ctx, 40, y - 2, LW - 80, 14, 7); const g = ctx.createLinearGradient(0, y, 0, y + 12); g.addColorStop(0, '#d8a94a'); g.addColorStop(1, '#8a5f1c'); ctx.fillStyle = g; ctx.fill(); ctx.restore();
     SHOW.forEach((tp, i) => { const x = 76 + i * 94, bob = Math.max(0, Math.sin(t * 2.4 - i * 0.9 + (side > 0 ? 0 : 1.7))) * 9; drawPiece(ctx, tp, side, x, y - 2 - bob, 0.74, { lift: bob / 10 }); });
   };
   shelf(470, WHITE); shelf(600, BLACK);
-  ctx.save(); ctx.fillStyle = 'rgba(255,238,196,0.55)'; ctx.font = `400 21px ${FONT}`; ctx.textAlign = 'center';
-  ctx.fillText('Khun · Met · Khon · Ma · Rua · Bia · Bia-ngai', W / 2, 342); ctx.restore();
+  ctx.save(); ctx.fillStyle = 'rgba(255,238,196,0.55)'; ctx.font = `400 24px ${FONT}`; ctx.textAlign = 'center';
+  ctx.fillText('Khun · Met · Khon · Ma · Rua · Bia · Bia-ngai', LW / 2, 342); ctx.restore();
+  ctx.restore();
 }
 function renderTitle(ctx, state, T) {
   drawBackdrop(ctx, state.theme);
-  renderHero(ctx, state, T);
   const tall = state.textIdx >= 3, R = titleRows(!!state.saved, tall), sc = tall ? TEXT_SCALES[state.textIdx] : Math.min(TEXT_SCALES[state.textIdx], 1.4);
+  renderHero(ctx, state, T, R);
   const cap = (base, max) => Math.round(Math.min(base * sc, tall ? max : 1e9));
   if (R.resume) drawButton(ctx, R.resume, 'Continue game', T, { px: cap(32, 44), active: true });
   drawButton(ctx, R.play, 'Play', T, { primary: true, px: cap(46, 60), sub: `vs the computer · ${LEVELS[state.level].name}`, subPx: cap(24, 32) });
@@ -334,16 +372,21 @@ function renderTitle(ctx, state, T) {
   drawButton(ctx, R.howto, 'How to Play', T, { px: cap(24, 50) });
   drawButton(ctx, R.rules, 'Rules', T, { px: cap(26, 50) });
   drawButton(ctx, R.about, 'About', T, { px: cap(26, 50) });
-  drawButton(ctx, TITLE_SOUND, '', T); drawIcon(ctx, state.sound ? 'sound' : 'mute', TITLE_SOUND.x + 60, TITLE_SOUND.y + 31, 30, T.ink);
-  if (!tall) {
-    const tp = { x: 50, y: R.bottom + 26, w: 620, h: 112 };
+  drawButton(ctx, TITLE_SOUND, '', T); drawIcon(ctx, state.sound ? 'sound' : 'mute', TITLE_SOUND.x + TITLE_SOUND.w / 2, TITLE_SOUND.y + 31, 30, T.ink);
+  if (R.tip) {
+    const tp = R.tip;
     drawPanel(ctx, tp, T, { round: 22, alpha: 0.7 });
-    ctx.save(); ctx.textAlign = 'center'; ctx.fillStyle = GOLD; ctx.font = `700 22px ${FONT}`; ctx.fillText('T U T O R   T I P', W / 2, tp.y + 32);
-    ctx.fillStyle = T.ink; ctx.font = `400 25px ${FONT}`; const tip = TIPS[Math.floor(state.t / 9) % TIPS.length]; textBlock(ctx, tip, W / 2, tp.y + 66, tp.w - 50, 30); ctx.restore();
+    ctx.save(); ctx.textAlign = 'center'; ctx.fillStyle = GOLD; ctx.font = `700 22px ${FONT}`; ctx.fillText('T U T O R   T I P', tp.x + tp.w / 2, tp.y + 32);
+    ctx.fillStyle = T.ink; ctx.font = `400 25px ${FONT}`; const tip = TIPS[Math.floor(state.t / 9) % TIPS.length]; textBlock(ctx, tip, tp.x + tp.w / 2, tp.y + 66, tp.w - 50, 30); ctx.restore();
   }
-  ctx.save(); ctx.fillStyle = T.sub; ctx.globalAlpha = 0.8; ctx.textAlign = 'center'; ctx.font = `400 22px ${FONT}`;
-  ctx.fillText(state.progress.played ? `${state.progress.wins} wins in ${state.progress.played} games` : 'The chess of Thailand', W / 2, Math.min(H - 40, R.bottom + (tall ? 52 : 176)));
-  ctx.restore();
+  // footer: progress line + the quiet Arcforge credit (never over the play area)
+  const played = state.progress.played ? `${state.progress.wins} wins in ${state.progress.played} games` : 'The chess of Thailand';
+  const lim = H - LAY.ins.b - 8;
+  if (!R.land) {
+    ctx.save(); ctx.fillStyle = T.sub; ctx.globalAlpha = 0.8; ctx.textAlign = 'center'; ctx.font = `400 22px ${FONT}`; if (R.footY <= lim && R.footY - 22 >= R.lock.y + R.lock.w * 327 / 1200 * 1.12 + 6) ctx.fillText(played, W / 2, R.footY); ctx.restore();
+  }
+  { const c = R.lock, lh = c.w * 327 / 1200, pad = lh * 0.12; ctx.save(); ctx.globalAlpha = state.lockPress > 0 ? 0.7 : 1; ctx.fillStyle = 'rgba(10,8,24,0.55)'; ctx.beginPath(); ctx.roundRect(c.x - c.w / 2 - pad, c.y - pad, c.w + 2 * pad, lh + 2 * pad, (lh + 2 * pad) * 0.3); ctx.fill(); ctx.restore();
+    drawLockupImage(ctx, c.x, c.y, lh, state.lockPress > 0 ? 0.7 : 1); }
 }
 
 // ---- reference pages (How to Play / About / Rules) ----------------------------------------------------------------------------------
@@ -361,57 +404,83 @@ function drawDiagram(ctx, state, d, cx, top, Sd) {
   for (const s of d.rings || []) ring(ctx, at(s), Sd * 0.42, RED, 4, 0.95);
   return h;
 }
-const diagS = (d, scale) => Math.min(Math.round(d.S * (scale <= 1 ? 1.5 : scale <= 1.5 ? 1.25 : scale <= 2 ? 1 : scale <= 2.5 ? 0.75 : 0.6)), Math.floor(580 / (d.f1 - d.f0 + 1.4)));
-const diagHeight = (d, scale) => { const S = diagS(d, scale); return boardBox({ S, F: Math.max(10, Math.round(S * 0.2)), f0: d.f0, f1: d.f1, r0: d.r0, r1: d.r1 }).h; };
-export function pageLayout(ctx, entry, scale) {
-  const maxW = REF_PANEL.w - 80, titlePx = Math.round(38 * Math.min(scale, 1.3));
-  ctx.font = `700 ${titlePx}px ${DISPLAY}`;
-  const titleLines = wrapLines(ctx, entry.title, REF_PANEL.w - 80).length;
-  const diagH = entry.diagram ? diagHeight(entry.diagram, scale) + 24 : 0;
-  const avail = REF_PANEL.h - 66 - titleLines * titlePx * 1.15 - 30 - diagH - 20;
-  let px = Math.round(30 * scale * (scale <= 1.5 ? 1.25 : 1)), lines;
-  for (;;) {
-    ctx.font = `400 ${px}px ${FONT}`; lines = [];
-    for (const para of entry.lines) { const w = wrapLines(ctx, para, maxW); w.forEach((t, i) => lines.push({ text: t, end: i === w.length - 1 })); }
-    const h = lines.reduce((a, l) => a + px * 1.28 + (l.end ? px * 0.32 : 0), 0);
-    if (h <= avail || px <= 14) break;
-    px -= 1;
-  }
-  return { px, lines, titlePx };
+// How tall the reference diagram may be: its natural size for the text zoom, limited by the panel's width and height.
+const diagS = (d, scale, panel) => {
+  const natural = Math.round(d.S * (scale <= 1 ? 1.5 : scale <= 1.5 ? 1.25 : scale <= 2 ? 1 : scale <= 2.5 ? 0.75 : 0.6));
+  const byW = Math.floor(Math.min(580, panel.w - 100) / (d.f1 - d.f0 + 1.4)), byH = Math.floor(Math.max(120, (panel.h - 72) * 0.72) / (d.r1 - d.r0 + 1.4));
+  return Math.max(20, Math.min(natural, byW, byH));
+};
+const diagHeight = (d, scale, panel) => { const S = diagS(d, scale, panel); return boardBox({ S, F: Math.max(10, Math.round(S * 0.2)), f0: d.f0, f1: d.f1, r0: d.r0, r1: d.r1 }).h; };
+// One continuous document: every entry is a section (title, optional diagram, text). Sizes depend only on the text zoom and the
+// panel, so the whole layout is measured once per (list, zoom, panel) and cached.
+const docCache = new Map();
+function docLayout(ctx, list, scale, panel) {
+  const key = `${scale}:${panel.w}:${panel.h}`, hit = docCache.get(list);
+  if (hit && hit.key === key) return hit;
+  const maxW = panel.w - 80, titlePx = Math.round(38 * Math.min(scale, 1.3)), px = Math.round(30 * scale * (scale <= 1.5 ? 1.25 : 1));
+  const items = []; let y = 0;
+  list.forEach((entry, i) => {
+    if (i) y += Math.round(34 * Math.min(scale, 1.5));
+    ctx.font = `700 ${titlePx}px ${DISPLAY}`;
+    const titleLines = wrapLines(ctx, entry.title, panel.w - 80);
+    ctx.font = `400 ${px}px ${FONT}`;
+    const lines = [];
+    for (const para of entry.lines) { const w = wrapLines(ctx, para, maxW); w.forEach((t, k) => lines.push({ text: t, end: k === w.length - 1 })); }
+    const tH = titleLines.length * titlePx * 1.15, dS = entry.diagram ? diagS(entry.diagram, scale, panel) : 0, dH = entry.diagram ? diagHeight(entry.diagram, scale, panel) + 24 : 0;
+    const textH = lines.reduce((a, l) => a + px * 1.28 + (l.end ? px * 0.32 : 0), 0);
+    const h = titlePx * 0.9 + tH + dH + px + textH;
+    items.push({ entry, y, h, titleLines, tH, dS, dH, lines }); y += h;
+  });
+  const doc = { key, items, total: y + 20, px, titlePx, offsets: items.map((it) => it.y) };
+  docCache.set(list, doc); return doc;
 }
+// How far the document can scroll (set by renderPage each frame; game.js clamps the scroll offset to it).
+export const pageScroll = { max: 0, view: 0, offsets: [] };
 function renderPage(ctx, state, list, heading, T) {
   drawBackdrop(ctx, state.theme);
-  const scale = TEXT_SCALES[state.textIdx], entry = list[clamp(state.page, 0, list.length - 1)], panel = REF_PANEL;
-  const { px, lines, titlePx } = pageLayout(ctx, entry, scale);
+  const scale = TEXT_SCALES[state.textIdx], panel = REF_PANEL;
+  const doc = docLayout(ctx, list, scale, panel), { px, titlePx } = doc;
   drawPanel(ctx, panel, T, { round: 30 });
+  const pcx = panel.x + panel.w / 2;
   ctx.save(); ctx.textAlign = 'center'; ctx.fillStyle = T.sub; ctx.font = `700 ${Math.round(26 * Math.min(scale, 1.2))}px ${FONT}`; ctx.textBaseline = 'alphabetic';
-  ctx.fillText(heading.toUpperCase(), W / 2, panel.y + 48);
+  ctx.fillText(heading.toUpperCase(), pcx, panel.y + 48);
   ctx.strokeStyle = 'rgba(255,225,180,0.28)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(panel.x + 60, panel.y + 66); ctx.lineTo(panel.x + panel.w - 60, panel.y + 66); ctx.stroke();
-  ctx.font = `700 ${titlePx}px ${DISPLAY}`;
-  const tH = wrapLines(ctx, entry.title, panel.w - 80).length * titlePx * 1.15, dH = entry.diagram ? diagHeight(entry.diagram, scale) + 24 : 0;
-  const bH = lines.reduce((a, l) => a + px * 1.28 + (l.end ? px * 0.32 : 0), 0) + px;
-  const extra = Math.max(0, panel.h - 66 - 30 - tH - dH - bH);
-  let y = panel.y + 66 + extra * 0.3;
-  ctx.fillStyle = GOLD; ctx.font = `700 ${titlePx}px ${DISPLAY}`;
-  y += titlePx * 1.05; wrapLines(ctx, entry.title, panel.w - 80).forEach((l) => { ctx.fillText(l, W / 2, y); y += titlePx * 1.15; }); y -= titlePx * 0.15;
-  if (entry.diagram) { y += 12; const d = entry.diagram, Sd = diagS(d, scale); drawDiagram(ctx, state, d, W / 2, y, Sd); y += diagHeight(d, scale) + 12; }
-  ctx.fillStyle = '#f7eeda'; ctx.font = `400 ${px}px ${FONT}`; ctx.textAlign = 'center';
-  y += px * 1.0;
-  for (const l of lines) { ctx.fillText(l.text, W / 2, y); y += px * 1.28 + (l.end ? px * 0.32 : 0); }
   ctx.restore();
-  ctx.save(); ctx.fillStyle = T.sub; ctx.textAlign = 'center'; ctx.font = `400 24px ${FONT}`;
-  ctx.fillText(`Page ${state.page + 1} of ${list.length}`, W / 2, REF_BACK.y - 14); ctx.restore();
+  const top = panel.y + 70, view = panel.h - 80, total = doc.total + 10;
+  const maxScroll = Math.max(0, Math.ceil(total - view)); pageScroll.max = maxScroll; pageScroll.view = view; pageScroll.offsets = doc.offsets;
+  // Store-shot staging only (game.js stageShot): scroll to a given section once, on the first draw.
+  if (state.jump != null) { state.scroll = doc.offsets[Math.min(state.jump, doc.offsets.length - 1)] || 0; state.jump = null; }
+  const scroll = clamp(state.scroll || 0, 0, maxScroll);
+  ctx.save();
+  ctx.beginPath(); ctx.rect(panel.x + 4, top, panel.w - 8, view); ctx.clip();
+  for (const it of doc.items) {
+    const y0 = top + 4 + it.y - scroll;
+    if (y0 + it.h < top - 20 || y0 > top + view + 20) continue;
+    let y = y0;
+    ctx.fillStyle = GOLD; ctx.font = `700 ${titlePx}px ${DISPLAY}`; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+    y += titlePx * 1.05; it.titleLines.forEach((l) => { ctx.fillText(l, pcx, y); y += titlePx * 1.15; }); y -= titlePx * 0.15;
+    if (it.entry.diagram) { y += 12; drawDiagram(ctx, state, it.entry.diagram, pcx, y, it.dS); y += it.dH - 12; }
+    ctx.fillStyle = '#f7eeda'; ctx.font = `400 ${px}px ${FONT}`; ctx.textAlign = 'center';
+    y += px * 1.0;
+    for (const l of it.lines) { ctx.fillText(l.text, pcx, y); y += px * 1.28 + (l.end ? px * 0.32 : 0); }
+  }
+  ctx.restore();
+  if (maxScroll > 0) {   // scroll bar
+    const bx = panel.x + panel.w - 14, by = panel.y + 76, bh = panel.h - 92, th = Math.max(40, bh * (view / total));
+    rr(ctx, bx, by, 6, bh, 3); ctx.fillStyle = 'rgba(255,255,255,0.12)'; ctx.fill();
+    rr(ctx, bx, by + (bh - th) * (scroll / maxScroll), 6, th, 3); ctx.fillStyle = 'rgba(255,224,150,0.65)'; ctx.fill();
+  }
   drawButton(ctx, TEXT_DEC, 'A-', T, { px: 34, disabled: state.textIdx === 0 }); drawButton(ctx, TEXT_INC, 'A+', T, { px: 34, disabled: state.textIdx === TEXT_SCALES.length - 1 });
-  ctx.save(); ctx.fillStyle = T.ink; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = `700 26px ${FONT}`; ctx.fillText(`${Math.round(scale * 100)}%`, W / 2, TEXT_DEC.y + TEXT_DEC.h / 2); ctx.restore();
-  drawButton(ctx, REF_BACK, state.page === 0 ? 'Menu' : 'Back', T, { px: 38 });
-  drawButton(ctx, REF_NEXT, state.page >= list.length - 1 ? 'Done' : 'Next', T, { primary: true, px: 38 });
+  ctx.save(); ctx.fillStyle = T.ink; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = `700 26px ${FONT}`; ctx.fillText(`${Math.round(scale * 100)}%`, (TEXT_DEC.x + TEXT_DEC.w + TEXT_INC.x) / 2, TEXT_DEC.y + TEXT_DEC.h / 2); ctx.restore();
+  drawButton(ctx, REF_BACK, 'Back', T, { px: 38 });
+  drawButton(ctx, REF_NEXT, scroll >= maxScroll - 2 ? 'Done' : 'Next', T, { primary: true, px: 38 });
 }
 
 // ---- settings -----------------------------------------------------------------------------------------------------------------
 function renderSettings(ctx, state, T) {
   drawBackdrop(ctx, state.theme);
-  const tall = state.textIdx >= 3;
-  ctx.save(); ctx.fillStyle = GOLD; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = `700 58px ${DISPLAY}`; ctx.fillText('Settings', W / 2, 80); ctx.restore();
+  const tall = settingsTall(state.textIdx);
+  ctx.save(); ctx.fillStyle = GOLD; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = `700 58px ${DISPLAY}`; ctx.fillText('Settings', W / 2, SETTINGS_TITLE.y + 40 - (LAY.land ? 14 : 0)); ctx.restore();
   const sc = tall ? TEXT_SCALES[state.textIdx] : Math.min(TEXT_SCALES[state.textIdx], 1.5);
   const rows = [
     ['Sound', state.sound ? 'On' : 'Off'],
@@ -426,13 +495,13 @@ function renderSettings(ctx, state, T) {
     const rect = SETTINGS_ROW(i, tall);
     drawButton(ctx, rect, '', T);
     ctx.save(); ctx.textBaseline = 'middle'; ctx.fillStyle = T.ink; ctx.textAlign = 'left';
-    const sub = r[2], titleY = sub ? rect.h * (tall ? 0.24 : 0.3) : rect.h * 0.5, capT = tall ? 60 : 1e9;
+    const two = tall || LAY.land, sub = r[2], titleY = sub ? rect.h * (two ? 0.24 : 0.3) : rect.h * 0.5, capT = tall ? 60 : 1e9;
     ctx.textAlign = 'right'; ctx.fillStyle = GOLD; fitFont(ctx, r[1], 700, Math.min(Math.round(32 * sc), capT), rect.w * 0.42, 14); const vw = ctx.measureText(r[1]).width; ctx.fillText(r[1], rect.x + rect.w - 28, rect.y + titleY);
     ctx.textAlign = 'left'; ctx.fillStyle = T.ink; fitFont(ctx, r[0], 700, Math.min(Math.round(30 * sc), capT), rect.w - 56 - vw - 16, 13); ctx.fillText(r[0], rect.x + 28, rect.y + titleY);
     if (sub) {
-      ctx.fillStyle = T.sub; const lines = tall ? 2 : 1; let px = Math.min(Math.round(21 * sc), tall ? 40 : 1e9);
+      ctx.fillStyle = T.sub; const lines = tall || LAY.land ? 2 : 1; let px = Math.min(Math.round(21 * sc), tall ? 40 : 1e9);
       for (;;) { ctx.font = `400 ${px}px ${FONT}`; if (wrapLines(ctx, sub, rect.w - 56).length <= lines || px <= 12) break; px--; }
-      const ls = wrapLines(ctx, sub, rect.w - 56), lh = px * 1.08, y0 = rect.y + (tall ? rect.h * 0.55 : rect.h * 0.72);
+      const ls = wrapLines(ctx, sub, rect.w - 56), lh = px * 1.08, y0 = rect.y + (two ? rect.h * 0.55 : rect.h * 0.72);
       ls.forEach((l, k) => ctx.fillText(l, rect.x + 28, y0 + k * lh));
     }
     ctx.restore();
@@ -449,17 +518,20 @@ function renderAuto(ctx, state, T) {
   drawBoardScene(ctx, state, T);
   countStrip(ctx, state, T);
   message(ctx, state, T);
-  const ap = state.ap;
+  const ap = state.ap, P = AUTO.pause;
   drawButton(ctx, AUTO.exit, 'Exit', T, { px: 30 });
-  drawButton(ctx, AUTO.pause, '', T, { primary: state.apPaused });
-  drawIcon(ctx, state.apPaused ? 'play' : 'pause', AUTO.pause.x + 48, AUTO.pause.y + AUTO.pause.h / 2, 38, state.apPaused ? T.accentText : T.ink);
-  ctx.save(); ctx.fillStyle = state.apPaused ? T.accentText : T.ink; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.font = `700 30px ${FONT}`; ctx.fillText(state.apPaused ? 'Resume' : 'Pause', AUTO.pause.x + 82, AUTO.pause.y + AUTO.pause.h / 2 + 1); ctx.restore();
+  drawButton(ctx, P, '', T, { primary: state.apPaused });
+  const pc = state.apPaused ? T.accentText : T.ink, pl = state.apPaused ? 'Resume' : 'Pause', pfs = Math.min(30, P.h * 0.3), isz = Math.min(38, P.h * 0.38);
+  ctx.save(); ctx.fillStyle = pc; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.font = `700 ${pfs}px ${FONT}`;
+  const tw = ctx.measureText(pl).width, total = isz + 14 + tw, x0 = P.x + (P.w - total) / 2;
+  drawIcon(ctx, state.apPaused ? 'play' : 'pause', x0 + isz / 2, P.y + P.h / 2, isz, pc); ctx.fillText(pl, x0 + isz + 14, P.y + P.h / 2 + 1); ctx.restore();
   drawButton(ctx, AUTO.dec, '-', T, { px: 48, disabled: state.thinkIdx === 0 }); drawButton(ctx, AUTO.inc, '+', T, { px: 48, disabled: state.thinkIdx === THINK_STEPS.length - 1 });
-  ctx.save(); ctx.fillStyle = T.ink; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = `700 30px ${FONT}`; ctx.fillText(`${THINK_STEPS[state.thinkIdx]}s`, AUTO.val.x + AUTO.val.w / 2, AUTO.val.y + AUTO.val.h * 0.38);
-  ctx.font = `400 19px ${FONT}`; ctx.fillStyle = T.sub; ctx.fillText('think time', AUTO.val.x + AUTO.val.w / 2, AUTO.val.y + AUTO.val.h * 0.74); ctx.restore();
+  const V = AUTO.val;
+  ctx.save(); ctx.fillStyle = T.ink; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = `700 ${Math.min(30, V.h * 0.3)}px ${FONT}`; ctx.fillText(`${THINK_STEPS[state.thinkIdx]}s`, V.x + V.w / 2, V.y + V.h * 0.38);
+  ctx.font = `400 ${Math.min(21, V.h * 0.22)}px ${FONT}`; ctx.fillStyle = T.sub; ctx.fillText('think time', V.x + V.w / 2, V.y + V.h * 0.74); ctx.restore();
   const ph = ap && ap.phase;
   const label = state.apPaused ? 'PAUSED' : ph === 'think' ? `THINK  ${Math.max(0, Math.ceil(ap.timer))}s` : ph === 'reveal' ? 'REVEAL' : ph === 'act' ? 'ACT' : '';
-  infoStrip(ctx, state, T, `${label}   ·   THINK, then REVEAL the options and the choice, then ACT`);
+  infoStrip(ctx, state, T, INFO_STRIP.w < 760 ? label : `${label}   ·   THINK, then REVEAL the options and the choice, then ACT`);
   banner(ctx, state);
   if (state.g.result && state.overOpen) renderResult(ctx, state, T);
 }
@@ -469,15 +541,15 @@ function renderLearn(ctx, state, T) {
   drawBackdrop(ctx, state.theme);
   const L = LESSONS[state.lesson.i];
   header(ctx, state, T, 'Learn');
-  const r = { x: 18, y: 104, w: W - 36, h: 70 }; drawPanel(ctx, r, T, { round: 20 });
-  ctx.save(); ctx.fillStyle = GOLD; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; const label = `${state.lesson.i + 1}/${LESSONS.length}  ${L.title}`; fitFont(ctx, label, 700, 34, r.w - 40, 16); ctx.fillText(label, W / 2, r.y + r.h / 2 + 1); ctx.restore();
+  const r = PLATE_TOP; drawPanel(ctx, r, T, { round: 20 });
+  ctx.save(); ctx.fillStyle = GOLD; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; const label = `${state.lesson.i + 1}/${LESSONS.length}  ${L.title}`; fitFont(ctx, label, 700, 34, r.w - 40, 14); ctx.fillText(label, r.x + r.w / 2, r.y + r.h / 2 + 1); ctx.restore();
   drawBoardScene(ctx, state, T);
   const n = names(state);
   plate(ctx, PLATE_BOT, n.bot, 'You', 'Gold', state.g.turn === WHITE && !state.g.result, T, state, false, true);
   if (L.play) countStrip(ctx, state, T); else goalStrip(ctx, state, T, L);
   message(ctx, state, T);
   const done = state.lesson.done;
-  drawButton(ctx, LEARN_BAR.menu, 'Menu', T, { px: 28 });
+  if (!LAY.land) drawButton(ctx, LEARN_BAR.menu, 'Menu', T, { px: 28 });
   drawButton(ctx, LEARN_BAR.hint, 'Show me', T, { px: 26, disabled: done });
   drawButton(ctx, LEARN_BAR.reset, 'Reset', T, { px: 28 });
   drawButton(ctx, LEARN_BAR.next, state.lesson.i === LESSONS.length - 1 && done ? 'Finish' : 'Next', T, { primary: done, px: 32, disabled: !done && !state.learned.includes(state.lesson.i) });
@@ -487,14 +559,14 @@ function renderLearn(ctx, state, T) {
 
 function renderLimit(ctx, state, T) {
   drawBackdrop(ctx, state.theme);
-  const r = LIMIT.panel, sc = TEXT_SCALES[state.textIdx];
+  const r = LIMIT.panel, sc = TEXT_SCALES[state.textIdx], cx = r.x + r.w / 2;
   drawPanel(ctx, r, T, { round: 34 });
   ctx.save(); ctx.textAlign = 'center'; ctx.fillStyle = GOLD;
-  fitFont(ctx, 'That was the free taste', 700, 58, r.w - 60, 26, DISPLAY); ctx.fillText('That was the free taste', W / 2, r.y + 100);
+  fitFont(ctx, 'That was the free taste', 700, 58, r.w - 60, 26, DISPLAY); ctx.fillText('That was the free taste', cx, r.y + 100);
   const text = 'Get the full game on iPhone and Android: every level, two-player games, and all the lessons.';
   let px = Math.round(32 * Math.min(sc, 2.4)), lines;
   for (;;) { ctx.font = `400 ${px}px ${FONT}`; lines = wrapLines(ctx, text, r.w - 80); if (lines.length * px * 1.3 <= LIMIT.btn.y - (r.y + 140) - 20 || px <= 18) break; px -= 1; }
-  ctx.fillStyle = T.ink; ctx.textBaseline = 'alphabetic'; lines.forEach((l, i) => ctx.fillText(l, W / 2, r.y + 150 + px + i * px * 1.3));
+  ctx.fillStyle = T.ink; ctx.textBaseline = 'alphabetic'; lines.forEach((l, i) => ctx.fillText(l, cx, r.y + 150 + px + i * px * 1.3));
   ctx.restore();
   drawButton(ctx, LIMIT.btn, 'Menu', T, { primary: true, px: 38 });
 }

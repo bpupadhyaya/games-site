@@ -3,8 +3,8 @@
   "title": "Oware",
   "tagline": "The seed-sowing game of West Africa",
   "genre": "abstract strategy board game",
-  "orientation": "portrait",
-  "version": "0.1.1",
+  "orientation": "any",
+  "version": "0.2.3",
   "monetization": {
     "model": "premium",
     "priceUsd": 2.99,

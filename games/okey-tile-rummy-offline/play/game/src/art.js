@@ -1,7 +1,7 @@
 // All the drawing primitives: tiles (ivory, lit and shaded, with a pip per colour), tile backs, the felt table with
 // its walnut rack, tulip lattice, avatars. Original art, drawn procedurally. Heavy things are painted once into
 // cached sprites (OffscreenCanvas) and blitted per frame.
-import { W, H, RACK, COLS, slotRect } from './layout.js';
+import { W, H, RACK, COLS, slotRect, LAY, PILE_C, TILE_S } from './layout.js';
 
 export const NUM_FONT = "'Trebuchet MS','Avenir Next','Segoe UI',Verdana,sans-serif";
 export const DISPLAY = "Georgia,'Times New Roman',serif";
@@ -10,6 +10,9 @@ export const INK_LIGHT = ['#e8524f', '#4a8be0', '#4d4a5c', '#f0ad22'];
 export const COLOR_LABEL = ['Red', 'Blue', 'Black', 'Yellow'];
 
 const RES = 2;
+// Smallest text the layout may draw, in virtual units (about 11 css px; view.render sets it from the live screen scale).
+export let FLOOR = 0;
+export const setTextFloor = (n) => { FLOOR = n; };
 const newCanvas = (w, h) => (typeof OffscreenCanvas !== 'undefined' ? new OffscreenCanvas(Math.ceil(w), Math.ceil(h)) : null);
 
 export function roundPath(ctx, x, y, w, h, r) {
@@ -189,30 +192,33 @@ function lattice(ctx, w, h, size, fill, stroke) {
 
 // ---- cached backgrounds ----------------------------------------------------------------------------------------------
 const bgCache = new Map();
+// Backgrounds are painted once per live layout (size + safe areas + scene kind) and blitted every frame.
 function bake(name, res, paint) {
-  if (bgCache.has(name)) return bgCache.get(name);
+  const key = `${name}|${LAY.key}`;
+  if (bgCache.has(key)) return bgCache.get(key);
   const cv = newCanvas(W * res, H * res);
   let out = null;
   if (cv) { const cx = cv.getContext('2d'); cx.scale(res, res); paint(cx); out = cv; }
-  bgCache.set(name, out);
+  bgCache.set(key, out);
+  if (bgCache.size > 6) bgCache.delete(bgCache.keys().next().value);
   return out;
 }
 
 function paintTable(ctx) {
-  const g = ctx.createRadialGradient(W / 2, 470, 60, W / 2, 560, 900);
+  const g = ctx.createRadialGradient(W / 2, H * 0.37, 60, W / 2, H * 0.44, Math.max(W, H) * 0.7);
   g.addColorStop(0, '#1b7468'); g.addColorStop(0.55, '#0f4d48'); g.addColorStop(1, '#06201f');
   ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
   ctx.globalAlpha = 0.07; lattice(ctx, W, H, 92, '#8be0cf', '#8be0cf'); ctx.globalAlpha = 1;
   // the playing mat
-  roundPath(ctx, 60, 150, W - 120, 640, 36);
+  const M = LAY.mat;
+  roundPath(ctx, M.x, M.y, M.w, M.h, 36);
   ctx.fillStyle = 'rgba(0,0,0,0.16)'; ctx.fill();
   ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(233,196,106,0.35)'; ctx.stroke();
-  roundPath(ctx, 70, 160, W - 140, 620, 30); ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(233,196,106,0.16)'; ctx.stroke();
+  roundPath(ctx, M.x + 10, M.y + 10, M.w - 20, M.h - 20, 30); ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(233,196,106,0.16)'; ctx.stroke();
   // pile spots
-  const spots = [[360, 652], [566, 470], [360, 288], [154, 470]];
-  for (const [x, y] of spots) { roundPath(ctx, x - 34, y - 46, 68, 92, 11); ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.fill(); ctx.lineWidth = 1.5; ctx.strokeStyle = 'rgba(233,196,106,0.3)'; ctx.stroke(); }
+  for (const c of PILE_C) { const sw = TILE_S.w + 14, sh = TILE_S.h + 16; roundPath(ctx, c.x - sw / 2, c.y - sh / 2, sw, sh, 11); ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.fill(); ctx.lineWidth = 1.5; ctx.strokeStyle = 'rgba(233,196,106,0.3)'; ctx.stroke(); }
   // vignette
-  const v = ctx.createRadialGradient(W / 2, H / 2, 380, W / 2, H / 2, 900);
+  const v = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.5, W / 2, H / 2, Math.max(W, H) * 0.7);
   v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(0,0,0,0.5)');
   ctx.fillStyle = v; ctx.fillRect(0, 0, W, H);
 
@@ -257,11 +263,11 @@ export function drawTable(ctx) {
 }
 
 function paintTitleBg(ctx) {
-  const g = ctx.createRadialGradient(W / 2, 360, 40, W / 2, 520, 980);
+  const g = ctx.createRadialGradient(W / 2, H * 0.28, 40, W / 2, H * 0.4, Math.max(W, H) * 0.76);
   g.addColorStop(0, '#1e8577'); g.addColorStop(0.5, '#0e4c47'); g.addColorStop(1, '#041a19');
   ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
   ctx.globalAlpha = 0.09; lattice(ctx, W, H, 110, '#9ff0dd', '#9ff0dd'); ctx.globalAlpha = 1;
-  const v = ctx.createRadialGradient(W / 2, H / 2, 420, W / 2, H / 2, 960);
+  const v = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.55, W / 2, H / 2, Math.max(W, H) * 0.75);
   v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(0,0,0,0.55)');
   ctx.fillStyle = v; ctx.fillRect(0, 0, W, H);
 }
@@ -274,7 +280,8 @@ export function drawTitleBg(ctx) {
 // ---- UI pieces --------------------------------------------------------------------------------------------------------
 // Pick a font size so `text` fits maxW, starting at `size` (scaled by the player's text zoom, capped to fit).
 export function fitFont(ctx, text, weight, size, maxW, family = NUM_FONT, min = 12) {
-  let s = size;
+  min = Math.max(min, FLOOR);
+  let s = Math.max(size, min);
   ctx.font = `${weight} ${s}px ${family}`;
   while (s > min && ctx.measureText(text).width > maxW) { s -= 1; ctx.font = `${weight} ${s}px ${family}`; }
   return s;
@@ -282,6 +289,7 @@ export function fitFont(ctx, text, weight, size, maxW, family = NUM_FONT, min = 
 
 // Largest font (<= base) at which `text` wraps into lines that fit maxW x maxH. Returns { fs, lines }.
 export function fitWrap(ctx, text, weight, base, maxW, maxH, family = NUM_FONT, min = 11) {
+  min = Math.max(min, FLOOR);
   for (let fs = Math.round(base); fs >= min; fs--) {
     ctx.font = `${weight} ${fs}px ${family}`;
     const lines = wrapLines(ctx, text, maxW);
@@ -329,11 +337,30 @@ export function pill(ctx, x, y, w, h, fill, stroke) {
   if (stroke) { ctx.lineWidth = 1.5; ctx.strokeStyle = stroke; ctx.stroke(); }
 }
 
+// A single word wider than the line (a long hyphenated word at 300% text) is broken after a hyphen where one fits, else at a letter, so a line never runs out of its panel.
+function breakWord(ctx, word, maxW) {
+  const parts = []; let cur = '';
+  for (const ch of word) {
+    if (cur && ctx.measureText(cur + ch).width > maxW) {
+      const h = cur.lastIndexOf('-');
+      if (h > 0 && h < cur.length - 1) { parts.push(cur.slice(0, h + 1)); cur = cur.slice(h + 1) + ch; } else { parts.push(cur); cur = ch; }
+    } else cur += ch;
+  }
+  if (cur) parts.push(cur);
+  return parts;
+}
 export function wrapLines(ctx, text, maxW) {
   const out = [];
   for (const para of String(text).split('\n')) {
     let line = '';
     for (const word of para.split(' ')) {
+      if (ctx.measureText(word).width > maxW) {
+        if (line) { out.push(line); line = ''; }
+        const parts = breakWord(ctx, word, maxW);
+        for (let i = 0; i < parts.length - 1; i++) out.push(parts[i]);
+        line = parts[parts.length - 1] || '';
+        continue;
+      }
       const t = line ? `${line} ${word}` : word;
       if (line && ctx.measureText(t).width > maxW) { out.push(line); line = word; } else line = t;
     }

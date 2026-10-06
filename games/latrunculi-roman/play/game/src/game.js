@@ -1,6 +1,6 @@
 // GAME CONTRACT (docs/GAME-CONTRACT.md). Ludus Latrunculorum: rook-style slides, custodian capture, a dux lost by enclosure,
 // five opponent levels, a tutor path. The board never moves; all feedback is local to a square.
-import { SCREEN, inRect, BACK_BTN, PAUSE_BTN, TOOLBAR_IDS, autoLayout, playLayout } from './layout.js';
+import { SCREEN, inRect, TOOLBAR_IDS, playFrame, titleFrame, creditHit } from './layout.js';
 import { TEXT_SCALES, hitDoc, clampScroll } from './ui.js';
 import { buildUi, THINK_STEPS, demoLevelLocked, demoOver, recKey } from './screens.js';
 import { NN, N, QUIET_LIMIT, SIDE, legalMoves, applyMove, countOf, roomOf } from './rules.js';
@@ -12,9 +12,10 @@ import { RULE_COUNT, HOWTO_COUNT, tr, sideLabel, lvName, soldiersObj, piecesText
 import { boardGeo, themeById, THEMES } from './art.js';
 import { render } from './view.js';
 
-export const meta = { width: SCREEN.width, height: SCREEN.height };
+// Fluid viewport (kit 1.7): the short side is 720 units, the long side follows the screen. meta.width/height are live.
+export const meta = { width: SCREEN.width, height: SCREEN.height, fluid: { short: 720 } };
 
-const VERSION = '1.0.1';
+const VERSION = '1.1.0';
 const WIN_NOTES = [523, 659, 784, 1047, 1319];
 // Watch & Learn: Skilled plays Ivory and Casual plays Jet, which gives a lively game with captures and a finish.
 const AUTO_LEVEL = { 1: 'skilled', 2: 'casual' };
@@ -26,8 +27,8 @@ export async function createGame(env) {
     scene: 'title', overlay: null, t: 0, ovT: 0, sound: true, themeId: 'carrara', textIdx: 0, thinkIdx: 1,
     setup: { level: 'skilled', side: 1 }, stats: {}, lessons: {}, save: null, demoGames: 0, progress: { games: 0, wins: 0 },
     page: { howto: 0, rules: 0 }, scroll: {}, scrollVel: {}, press: null, match: null, auto: null, lessonIdx: 0, endInfo: null, lessonInfo: null,
-    toast: null, toastT: 0, kbd: false, canUndo: false, winSeq: null, lessonWait: -1, lessonOk: null, lastOpts: null,
-    demo: Boolean(config?.demo), dev: Boolean(config?.dev), owns: false, price: '', resetArm: false, version: VERSION, shot: false, lastPtr: { x: 0, y: 0 },
+    w: SCREEN.width, h: SCREEN.height, sizeKey: '', toast: null, toastT: 0, kbd: false, canUndo: false, winSeq: null, lessonWait: -1, lessonOk: null, lastOpts: null,
+    demo: Boolean(config?.demo), dev: Boolean(config?.dev), owns: false, price: '', resetArm: false, version: env.manifest?.version || VERSION, shot: false, lastPtr: { x: 0, y: 0 },
   };
 
   const [set, stats, les, save, dg, prog] = await Promise.all([storage.get('lt.settings', null), storage.get('lt.stats', null), storage.get('lt.lessons', null), storage.get('lt.save', null), storage.get('lt.demo', 0), storage.get('lt.progress', null)]);
@@ -85,7 +86,13 @@ export async function createGame(env) {
   };
 
   // ------------------------------------------------------------------------------ geometry helpers
-  const lay = () => playLayout(TEXT_SCALES[S.textIdx]);
+  const syncSize = () => {
+    const w = Math.round(meta.width || SCREEN.width), h = Math.round(meta.height || SCREEN.height), key = `${w}x${h}`;
+    S.w = w; S.h = h;
+    if (key !== S.sizeKey) { S.sizeKey = key; S.press = null; S.scrollVel = {}; }   // a rotation: drop a half-made tap, keep everything else
+  };
+  syncSize();
+  const lay = () => playFrame(S.w, S.h, TEXT_SCALES[S.textIdx]);
   const geoNow = () => { const l = lay(); return boardGeo(l.board.x, l.board.y, l.board.side, Boolean(S.match?.flip)); };
   const cellAt = (x, y) => {
     const g = geoNow(), r = g.cell / 2 + 2;
@@ -392,6 +399,7 @@ export async function createGame(env) {
 
   function activate(id) {
     if (id == null) return;
+    if (id === 'af:home') { env.openArcforgeHome?.(); return; }
     if (id === 'zoom-') { setText(-1); return; }
     if (id === 'zoom+') { setText(1); return; }
     if (id.startsWith('lv:')) { const l = id.slice(3); if (demoLevelLocked(S, l)) return; S.setup.level = l; saveSettings(); SOUNDS.ui(); return; }
@@ -450,6 +458,10 @@ export async function createGame(env) {
     if (S.scene === 'auto' && !S.overlay) { autoDown(x, y); return; }
     const ui = buildUi(S);
     if (!ui.layout) return;
+    if (S.scene === 'title') {
+      const T = ui.title ?? titleFrame(S.w, S.h), zone = T.lock ? creditHit(T.lock) : null;
+      if (zone && inRect(x, y, zone)) { S.press = { id: 'af:home', active: true, kind: 'fixed', rect: zone }; return; }
+    }
     const f = fixedHit(ui, x, y);
     if (f) { S.press = { id: f.id, active: true, kind: 'fixed', rect: f.rect }; return; }
     const reg = ui.region;
@@ -500,8 +512,8 @@ export async function createGame(env) {
   // ---- play
   function playDown(x, y) {
     const l = lay();
-    if (inRect(x, y, BACK_BTN)) { S.press = { id: 'hud:back', active: true, kind: 'hud', rect: BACK_BTN }; return; }
-    if (inRect(x, y, PAUSE_BTN)) { S.press = { id: 'hud:pause', active: true, kind: 'hud', rect: PAUSE_BTN }; return; }
+    if (l.mode === 'stack' && inRect(x, y, l.pause)) { S.press = { id: 'hud:pause', active: true, kind: 'hud', rect: l.pause }; return; }
+    if (l.mode === 'wide' && inRect(x, y, l.pause)) { S.press = { id: 'hud:pause', active: true, kind: 'hud', rect: l.pause }; return; }
     for (let i = 0; i < TOOLBAR_IDS.length; i++) {
       if (inRect(x, y, l.tool[i])) { S.press = { id: `tool:${TOOLBAR_IDS[i]}`, active: true, kind: 'tool', rect: l.tool[i] }; return; }
     }
@@ -509,8 +521,7 @@ export async function createGame(env) {
     if (c >= 0) S.press = { id: c, active: true, kind: 'cell' };
   }
   function hudAction(id) {
-    if (id === 'hud:back') leaveToMenu();
-    else if (id === 'hud:pause') { S.overlay = 'pause'; S.ovT = 0; }
+    if (id === 'hud:pause') { S.overlay = 'pause'; S.ovT = 0; }
   }
   function toolAction(id) {
     const M = S.match;
@@ -522,10 +533,9 @@ export async function createGame(env) {
 
   // ---- auto
   function autoDown(x, y) {
-    if (inRect(x, y, BACK_BTN)) { S.press = { id: 'auto:exit', active: true, kind: 'auto', rect: BACK_BTN }; return; }
-    const l = autoLayout(TEXT_SCALES[S.textIdx]);
-    for (const id of ['slower', 'pause', 'faster']) {
-      if (inRect(x, y, l[id])) { S.press = { id: `auto:${id}`, active: true, kind: 'auto', rect: l[id] }; return; }
+    const l = lay();
+    for (const id of ['exit', 'slower', 'pause', 'faster']) {
+      if (inRect(x, y, l.auto[id])) { S.press = { id: `auto:${id}`, active: true, kind: 'auto', rect: l.auto[id] }; return; }
     }
   }
   function autoAction(id) {
@@ -563,17 +573,16 @@ export async function createGame(env) {
     if (ui.layout && ui.region) {
       if (keys.down.has('ArrowDown') || keys.down.has('PageDown')) setScroll(ui, getScroll(ui) + 18);
       if (keys.down.has('ArrowUp') || keys.down.has('PageUp')) setScroll(ui, getScroll(ui) - 18);
+      if (has('Home')) setScroll(ui, 0);
+      if (has('End')) setScroll(ui, 1e9);
     }
     if (has('Escape') && ['setup', 'learn', 'howto', 'rules', 'about', 'settings', 'demo-limit'].includes(S.scene)) gotoScene('title');
-    if (S.scene === 'howto' || S.scene === 'rules') {
-      if (has('ArrowRight')) activate('next');
-      if (has('ArrowLeft')) activate('prev');
-    }
   }
 
   // ------------------------------------------------------------------------------ main loop
   return {
     update(dt, input) {
+      syncSize();
       // Watch & Learn's Pause (and the in-game pause card) freezes the whole loop: timers, search, animations, particles, the ambient clock.
       const frozen = (S.scene === 'auto' && S.auto && S.auto.paused) || S.overlay === 'pause';
       if (!frozen) S.t += dt;
@@ -631,13 +640,14 @@ export async function createGame(env) {
     },
 
     render(ctx) {
+      syncSize();
       render(ctx, S, buildUi(S));
     },
 
     getState() {
       const M = S.match;
       return {
-        scene: S.scene, overlay: S.overlay, textIdx: S.textIdx, thinkIdx: S.thinkIdx, sound: S.sound, theme: S.themeId, setup: S.setup,
+        size: [S.w, S.h], scene: S.scene, overlay: S.overlay, textIdx: S.textIdx, thinkIdx: S.thinkIdx, sound: S.sound, theme: S.themeId, setup: S.setup,
         stats: S.stats, lessons: Object.keys(S.lessons).length, lessonIdx: S.lessonIdx, page: S.page, scroll: S.scroll, demoGames: S.demoGames,
         auto: S.auto ? { phase: S.auto.phase, t: Math.round(S.auto.t * 100) / 100, paused: S.auto.paused } : null,
         match: M ? {

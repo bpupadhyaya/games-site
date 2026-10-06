@@ -3,7 +3,7 @@
 import { Actor } from './actor.js';
 import { buildHall, buildBall } from './court.js';
 import { poseFor } from './poses.js';
-import { CAM } from '../src/camera.js';
+import { CAM, CAMV, vfovOf } from '../src/camera.js';
 import { HOOP } from '../src/consts.js';
 
 const LIB = '../vendor3d/index.js';
@@ -170,7 +170,7 @@ export async function createPresenter({ kitCanvas, quality = pickQuality() }) {
     }
     bm.visible = true;
     // net
-    P.hall.net.update(Math.abs(b.x) < 1 && b.y < 3.5 && b.y > 2.2 ? { x: b.x, y: b.y, z: b.z, r: BR } : null, dt);
+    P.hall.net.update(Math.abs(b.x) < 1 && b.y < 3.5 && b.y > 2.2 ? { x: b.x, y: b.y, z: b.z, r: BR } : null, Math.min(dt, 0.025));   // the net spring solver blows up with big steps (slow frames): cap it
     // decals
     for (let i = 0; i < 6; i++) { const sp = s.players[i], d = D.p[i]; if (sp.out) { setDecal(i, 0, 0, 0, 0); continue; } setDecal(i, d.x, d.z, 0.62 + d.jy * 0.1, 0.4 + d.jy * 0.06); }
     { const h = Math.max(0, b.y - 0.12); const k = 0.2 + h * 0.06; setDecal(6, b.x, b.z, k, k * 0.65); }
@@ -181,31 +181,47 @@ export async function createPresenter({ kitCanvas, quality = pickQuality() }) {
     stage.setShadowTarget(0, 0, 3);
     if (!P.noRender) { stage.render(); perfTick(); }
   }
+  // FLUID FRAMING: the camera position and direction never change; the field of view and a small principal-point shift are solved from the live
+  // screen size (src/camera.js fitCamera, set by game.js each frame) so the whole half court fills the free part of the screen, never stretched.
   let camKey = '';
   function positionCamera() {
     const c = P.camOverride || P.cam, cam = stage.camera;
     const W = canvas.clientWidth || 720, Hh = canvas.clientHeight || 1280;
-    const aspect = W / Hh;
-    const thx = Math.tan((c.hfov * Math.PI) / 360);
-    const vfov = (2 * Math.atan(thx / aspect) * 180) / Math.PI;
-    const key = `${W}x${Hh}`;
-    if (key !== camKey || Math.abs(cam.fov - vfov) > 1e-3) { cam.fov = vfov; cam.updateProjectionMatrix(); camKey = key; }
+    const key = `${W}x${Hh}|${CAMV.key}`;
+    if (key !== camKey) {
+      camKey = key;
+      const aspect = W / Hh;
+      cam.aspect = aspect;
+      if (P.camOverride) { cam.fov = (2 * Math.atan(Math.tan((c.hfov * Math.PI) / 360) / aspect) * 180) / Math.PI; cam.clearViewOffset(); }
+      else {
+        cam.fov = vfovOf(CAMV);
+        // principal-point shift (NDC) -> a view offset in css pixels: content moves right by ox/2 * W, up by oy/2 * H
+        cam.setViewOffset(W, Hh, (-CAMV.ox / 2) * W, (CAMV.oy / 2) * Hh, W, Hh);
+      }
+      cam.updateProjectionMatrix();
+    }
     cam.position.set(c.x, c.y, c.z); cam.lookAt(c.lx, c.ly, c.lz);
   }
 
+  // The 3D canvas sits exactly under the kit canvas's virtual rectangle (the whole screen; only beyond the kit's maximum aspect are there bars).
+  function placeCanvas(view) {
+    const cw = kitCanvas.clientWidth || globalThis.innerWidth, ch = kitCanvas.clientHeight || globalThis.innerHeight;
+    const vw = (view && view.width) || 720, vh = (view && view.height) || 1280;
+    const sc = Math.min(cw / vw, ch / vh), w = Math.round(vw * sc), h = Math.round(vh * sc);
+    const key = `${cw}x${ch}|${w}x${h}`;
+    if (key === P.placeKey) return;
+    P.placeKey = key;
+    const full = Math.abs(w - cw) <= 1 && Math.abs(h - ch) <= 1;
+    canvas.style.cssText = full ? 'position:fixed;inset:0;width:100vw;height:100dvh;display:block;pointer-events:none;z-index:0'
+      : `position:fixed;left:${Math.round((cw - w) / 2)}px;top:${Math.round((ch - h) / 2)}px;width:${w}px;height:${h}px;display:block;pointer-events:none;z-index:0`;
+    stage.resize();
+  }
   P.wrap = (game) => {
     const r = game.render.bind(game);
     game.render = (ctx, view) => {
       view.cssW = kitCanvas.clientWidth || 720; view.cssH = kitCanvas.clientHeight || 1280;
       r(ctx, view);
-      // pillarbox: on screens wider than 9:16 the 3D picture gets the same rectangle as the HUD
-      const winW = kitCanvas.clientWidth || 720, winH = kitCanvas.clientHeight || 1280;
-      const wantW = winW / winH > 0.5625 ? Math.round(winH * 0.5625) : 0;
-      if (wantW !== P.pillar) {
-        P.pillar = wantW;
-        canvas.style.cssText = wantW ? `position:fixed;top:0;left:50%;transform:translateX(-50%);width:${wantW}px;height:100dvh;display:block;pointer-events:none;z-index:0` : 'position:fixed;inset:0;width:100vw;height:100dvh;display:block;pointer-events:none;z-index:0';
-        stage.resize();
-      }
+      placeCanvas(view);
       frame(game, view);
     };
     return game;

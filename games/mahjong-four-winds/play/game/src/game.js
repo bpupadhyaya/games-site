@@ -4,7 +4,7 @@
 //   layout.js   table geometry                    view.js    table drawing        draw.js  shared drawing, tiles.js tile art
 //   screens.js  menus, lessons, daily             lessons.js / puzzles.js / content.js  content as data
 // This file: scenes, settings, storage, sound, lessons and the daily challenge.
-import { W, H, inRect, TEXT_SCALES, AUTO_THINK_STEPS } from './layout.js';
+import { inRect, TEXT_SCALES, AUTO_THINK_STEPS, setSize, GEO, callPos } from './layout.js';
 import { createPlay } from './play.js';
 import { renderPlay, renderResult, renderMatchEnd, MATCHEND_BTNS } from './view.js';
 import { LESSONS, fakeState, withDraw, classify, NEED_COUNT, textOf } from './lessons.js';
@@ -14,7 +14,11 @@ import { STYLES, setLang } from './tiles.js';
 import { GOLD, tx, DISPLAY } from './draw.js';
 import * as SC from './screens.js';
 
-export const meta = { width: W, height: H };
+// Fluid viewport (kit 1.7.x): the short side is always 720 units and the long side follows the screen, in portrait and in landscape.
+// `meta.width/height` are updated live by the kit on every resize; every position comes from layout.js `setSize(meta.width, meta.height)`.
+export const meta = { width: 720, height: 1560, fluid: { short: 720 } };
+// Mouse wheel / trackpad scroll for the reference pages (main.js feeds it, in virtual units).
+export const wheelInput = { dy: 0 };
 const DEMO_HANDS = 3;
 const PREF_DEFAULTS = { level: 1, sound: true, calm: false, big: false, style: 'traditional', lang: 'zh', timer: true, pace: 'normal', minFan: 1, hints: true, textScaleIdx: 0, autoThinkIdx: 1 };
 
@@ -36,12 +40,17 @@ export function createGame(env) {
   const S = {
     scene: 'title', t: 0, prefs: { ...PREF_DEFAULTS }, stats: { played: 0, wins: 0, bestFan: 0, hands: 0 }, learned: {},
     daily: { day: config.day ?? 0, results: [null, null, null], streak: 0, doneDay: -1 }, demoHands: 0,
-    match: null, h: null, ui: null, matchWins: 0, saved: null, page: 0, lesson: null, lessonPlay: false, kb: false, cursorId: -1, dev: config.dev === true,
+    match: null, h: null, ui: null, matchWins: 0, saved: null, page: 0, scroll: 0, scrollMax: 0, scrollKey: '', lesson: null, lessonPlay: false, kb: false, cursorId: -1, dev: config.dev === true,
   };
   const vis = new Map(), rs = { vis, ptr: { x: 0, y: 0, down: false }, T: new Map(), cursorPos: null };
   const sq = [];
   const puzzles = [];
   let pd = null;                                                 // where the current press started
+  let drag = null;                                               // a scroll drag on the reference pages
+  // Lay everything out for the live screen size (a no-op until it changes), and re-aim the fixed-name button rects.
+  let lastKey = '';
+  const lay = (w = meta.width, h = meta.height) => { setSize(w, h); if (GEO.key !== lastKey) { lastKey = GEO.key; SC.syncScreens(); } };
+  lay();
 
   // Auto Play plays itself continuously with no player to hear it for - silent by design,
   // regardless of the real Sound preference, the same way the menu's own attract-mode preview
@@ -193,6 +202,7 @@ export function createGame(env) {
   function menuTap(x, y) {
     const sc = S.scene;
     if (sc === 'title') {
+      if (inRect(SC.titleLayout(S).lockTap, x, y)) { env.openArcforgeHome?.(); return; }
       for (const b of SC.titleRects(S)) if (inRect(b.r, x, y)) {
         sfx('click');
         if (b.chip !== undefined) { S.prefs.level = b.chip; savePrefs(); return; }
@@ -222,10 +232,9 @@ export function createGame(env) {
         savePrefs();
       });
     } else if (sc === 'how' || sc === 'about' || sc === 'rules') {
-      const n = SC.pageCount(sc), hasPrev = S.page > 0, hasNext = S.page < n - 1;
-      const P = SC.pagerRects(hasPrev, hasNext);
-      if (hasPrev && inRect(P.prev, x, y)) S.page--;
-      else if (hasNext && inRect(P.next, x, y)) S.page++;
+      const P = SC.pagerRects(true, true), vh = SC.pagesGeo().panel.h * 0.8;
+      if (inRect(P.prev, x, y)) S.scroll = 0;                                   // "Top"
+      else if (inRect(P.next, x, y)) S.scroll = Math.min(S.scrollMax, S.scroll + vh);   // "More"
       else if (inRect(P.back, x, y)) toTitle();
       else if (inRect(SC.TEXT_STEPPER.dec, x, y) && S.prefs.textScaleIdx > 0) { S.prefs.textScaleIdx--; savePrefs(); sfx('click'); }
       else if (inRect(SC.TEXT_STEPPER.inc, x, y) && S.prefs.textScaleIdx < TEXT_SCALES.length - 1) { S.prefs.textScaleIdx++; savePrefs(); sfx('click'); }
@@ -244,14 +253,18 @@ export function createGame(env) {
     if (!keys || !keys.pressed || !keys.pressed.size) return;
     const p = (c) => keys.pressed.has(c);
     if (S.scene === 'title' && (p('Enter') || p('Space'))) { if (S.saved) { play.resume(S.saved); S.scene = 'play'; } else startMatch('round'); }
-    else if ((S.scene === 'how' || S.scene === 'about' || S.scene === 'rules') && (p('ArrowRight') || p('Enter'))) { if (S.page < SC.pageCount(S.scene) - 1) S.page++; else toTitle(); }
-    else if ((S.scene === 'how' || S.scene === 'about' || S.scene === 'rules') && p('ArrowLeft')) S.page = Math.max(0, S.page - 1);
+    else if ((S.scene === 'how' || S.scene === 'about' || S.scene === 'rules') && (p('PageDown') || p('Space'))) S.scroll = Math.min(S.scrollMax, S.scroll + SC.pagesGeo().panel.h * 0.8);
+    else if ((S.scene === 'how' || S.scene === 'about' || S.scene === 'rules') && p('PageUp')) S.scroll = Math.max(0, S.scroll - SC.pagesGeo().panel.h * 0.8);
+    else if ((S.scene === 'how' || S.scene === 'about' || S.scene === 'rules') && p('Home')) S.scroll = 0;
+    else if ((S.scene === 'how' || S.scene === 'about' || S.scene === 'rules') && p('End')) S.scroll = S.scrollMax;
+    else if ((S.scene === 'how' || S.scene === 'about' || S.scene === 'rules') && p('Enter')) toTitle();
     else if (p('Escape') && ['settings', 'how', 'about', 'rules', 'learn', 'daily'].includes(S.scene)) toTitle();
     else if (S.scene === 'lesson' && (p('Enter') || p('Space')) && (S.lesson.done || ['info', 'score'].includes(S.lesson.step.type))) lessonNext();
   }
 
   // ------------------------------------------------------------------------------------------------ frame
   function update(dt, input) {
+    lay();
     S.t += dt;
     const ptr = input.pointer; rs.ptr.x = ptr.x; rs.ptr.y = ptr.y; rs.ptr.down = ptr.down;
     for (let i = sq.length - 1; i >= 0; i--) if (sq[i].at <= S.t) { audio.tone(sq[i].o); sq.splice(i, 1); }
@@ -263,21 +276,32 @@ export function createGame(env) {
       if (L.clearAt > 0) { L.clearAt -= dt; if (L.clearAt <= 0) L.sel = []; }
     }
     if (input.keys) menuKeys(input.keys);
+    // Reference pages scroll when the text is taller than the panel: drag, wheel, Up/Down keys.
+    let scrolled = false;
+    if (S.scene === 'how' || S.scene === 'about' || S.scene === 'rules') {
+      if (wheelInput.dy) { S.scroll = Math.max(0, Math.min(S.scrollMax, S.scroll + wheelInput.dy)); wheelInput.dy = 0; }
+      if (ptr.pressed) drag = { y: ptr.y, s: S.scroll, moved: false };
+      if (ptr.down && drag) { const dy = ptr.y - drag.y; if (Math.abs(dy) > 8) drag.moved = true; if (drag.moved) S.scroll = Math.max(0, Math.min(S.scrollMax, drag.s - dy)); }
+      if (drag && drag.moved) scrolled = true;
+      if (input.keys && input.keys.pressed) { if (input.keys.pressed.has('ArrowDown')) S.scroll = Math.min(S.scrollMax, S.scroll + 80); if (input.keys.pressed.has('ArrowUp')) S.scroll = Math.max(0, S.scroll - 80); }
+      if (ptr.released) drag = null;
+    } else { drag = null; wheelInput.dy = 0; }
     if (ptr.released && pd) {
       const start = pd; pd = null;
       if (S.scene === 'lesson') lessonTap(ptr.x, ptr.y, ptr.y - start.y < -70 && Math.abs(ptr.x - start.x) < 60);
-      else if (Math.hypot(ptr.x - start.x, ptr.y - start.y) < 40) menuTap(ptr.x, ptr.y);
+      else if (!scrolled && Math.hypot(ptr.x - start.x, ptr.y - start.y) < 40) menuTap(ptr.x, ptr.y);
     }
   }
 
-  function render(ctx) {
+  function render(ctx, view) {
+    lay(view?.width ?? meta.width, view?.height ?? meta.height);
     setLang(S.prefs.lang);
     const sc = S.scene;
     if (sc === 'play' || sc === 'auto') {
       renderPlay(ctx, S, rs);
       const ui = S.ui;
       if (ui.call) {
-        const c = ui.call, a = Math.min(1, c.t * 6) * Math.max(0, 1 - Math.max(0, c.t - 0.9) / 0.5), pos = [[360, 1030], [560, 720], [360, 400], [160, 720]][c.seat];
+        const c = ui.call, a = Math.min(1, c.t * 6) * Math.max(0, 1 - Math.max(0, c.t - 0.9) / 0.5), cp = callPos(c.seat), pos = [cp.x, cp.y];
         ctx.save(); ctx.globalAlpha = a; const s = 1 + (1 - Math.min(1, c.t * 5)) * 0.5;
         ctx.translate(pos[0], pos[1]); ctx.scale(s, s);
         tx(ctx, c.text, 0, 0, c.text.length > 6 ? 70 : 84, GOLD, { font: DISPLAY, shadow: true }); ctx.restore();
@@ -295,6 +319,9 @@ export function createGame(env) {
     else if (sc === 'matchend') renderMatchEnd(ctx, S, rs);
     else if (sc === 'demo-limit') SC.renderDemoLimit(ctx, S);
   }
+
+  // Dev tools only (?dev=1 / the app's Developer toggle): handles for the layout verification scripts.
+  if (config.dev) config.devHandles = { S, startLesson, loadStep, startMatch, startAutoMatch, play, lessons: LESSONS };
 
   // Auto Play is a free teaching/marketing demo, not real play: kit 1.6.1's preview gate skips both
   // time-accrual and the countdown badge while this is true, so watching it never eats into (or

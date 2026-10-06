@@ -5,9 +5,7 @@ import { HOWTO, RULES, ABOUT, LANGS, tr, pageOf } from './content.js';
 import { LEVELS } from './ai.js';
 import { LESSONS, lessonText } from './lessons.js';
 import { THEMES } from './art.js';
-import {
-  DOC_BACK, ZOOM_DEC, ZOOM_INC, DOC_PANEL, DOC_BODY, DOC_BODY_NAV, DOC_BODY_START, START_BTN, NAV_PREV, NAV_NEXT, MENU_REGION, OVERLAY,
-} from './layout.js';
+import { docLayout, bodyOf, titleLayout, overlayLayout } from './layout.js';
 
 export const DEMO_GAMES = 2;
 export const THINK_STEPS = [2, 5, 8, 10];
@@ -24,11 +22,12 @@ const pctLabel = (S) => `${Math.round(TEXT_SCALES[S.textIdx] * 100)}%`;
 const rtl = (S) => S.lang === 'ar';
 
 function fixedBar(S) {
+  const D = docLayout();
   return [
-    { id: 'back', rect: DOC_BACK, kind: 'normal', icon: 'back', label: T(S, 'back'), size: 26 },
-    { id: 'zoom-', rect: ZOOM_DEC, kind: 'normal', label: 'A-', size: 30, disabled: S.textIdx === 0 },
-    { id: 'zoom+', rect: ZOOM_INC, kind: 'normal', label: 'A+', size: 30, disabled: S.textIdx === TEXT_SCALES.length - 1 },
-    { id: null, rect: { x: 480, y: 20, w: 140, h: 76 }, label: pctLabel(S), size: 28, static: true },
+    { id: 'back', rect: D.back, kind: 'normal', icon: 'back', label: T(S, 'back'), size: 26 },
+    { id: 'zoom-', rect: D.dec, kind: 'normal', label: 'A-', size: 30, disabled: S.textIdx === 0 },
+    { id: 'zoom+', rect: D.inc, kind: 'normal', label: 'A+', size: 30, disabled: S.textIdx === TEXT_SCALES.length - 1 },
+    { id: null, rect: D.pct, label: pctLabel(S), size: 28, static: true },
   ];
 }
 
@@ -44,26 +43,39 @@ export function buildUi(S) {
   const scale = TEXT_SCALES[S.textIdx];
   const ui = { scale, fixed: [], blocks: [], panel: null, region: null, kind: 'doc', scrollKey: S.scene, rtl: rtl(S) };
   if (S.overlay) return overlayUi(S, scale);
+  const D = docLayout();
+  const docPanel = (p) => { ui.panel = p; ui.region = bodyOf(p); };
 
   switch (S.scene) {
     case 'title': {
       ui.kind = 'menu';
-      ui.region = MENU_REGION;
+      const TL = titleLayout();
+      ui.region = TL.menu;
       const b = [];
-      if (S.save) b.push({ t: 'btn', id: 'continue', label: T(S, 'continueBtn'), kind: 'primary', size: 32, sub: S.save.two ? T(S, 'twoPlayers') : lvName(S, LEVELS.find((l) => l.id === S.save.level) ?? LEVELS[2]), minH: 104 });
+      const contSub = S.save ? (S.save.two ? T(S, 'twoPlayers') : lvName(S, LEVELS.find((l) => l.id === S.save.level) ?? LEVELS[2])) : '';
       const playSub = S.demo ? T(S, 'demoLeft', { n: Math.max(0, DEMO_GAMES - S.demoGames) }) : undefined;
-      b.push({ t: 'btn', id: 'play', label: T(S, 'playBtn'), kind: S.save ? 'normal' : 'primary', size: 36, sub: playSub, minH: S.save ? 92 : 118 });
-      b.push({ t: 'btn', id: 'learn', label: T(S, 'learnBtn'), size: 30, sub: `${lessonsDone(S)} / ${LESSONS.length}`, minH: 92 });
-      b.push({ t: 'btn', id: 'auto', label: T(S, 'autoBtn'), size: 30, minH: 88 });
-      b.push({ t: 'row', size: 28, minH: 88, items: [{ id: 'howto', label: T(S, 'howtoBtn') }, { id: 'rules', label: T(S, 'rulesBtn') }] });
-      b.push({ t: 'row', size: 28, minH: 88, items: [{ id: 'about', label: T(S, 'aboutBtn') }, { id: 'settings', label: T(S, 'settingsBtn') }] });
+      if (!TL.dense) {
+        if (S.save) b.push({ t: 'btn', id: 'continue', label: T(S, 'continueBtn'), kind: 'primary', size: 32, sub: contSub, minH: 104 });
+        b.push({ t: 'btn', id: 'play', label: T(S, 'playBtn'), kind: S.save ? 'normal' : 'primary', size: 36, sub: playSub, minH: S.save ? 92 : 118 });
+        b.push({ t: 'btn', id: 'learn', label: T(S, 'learnBtn'), size: 30, sub: `${lessonsDone(S)} / ${LESSONS.length}`, minH: 92 });
+        b.push({ t: 'btn', id: 'auto', label: T(S, 'autoBtn'), size: 30, minH: 88 });
+        b.push({ t: 'row', size: 28, minH: 88, items: [{ id: 'howto', label: T(S, 'howtoBtn') }, { id: 'rules', label: T(S, 'rulesBtn') }] });
+        b.push({ t: 'row', size: 28, minH: 88, items: [{ id: 'about', label: T(S, 'aboutBtn') }, { id: 'settings', label: T(S, 'settingsBtn') }] });
+      } else {
+        // tighter menu for tablets and landscape: paired buttons, every row still at least 80 units tall (about 44 css px on a small phone)
+        if (S.save) b.push({ t: 'btn', id: 'continue', label: T(S, 'continueBtn'), kind: 'primary', size: 30, sub: contSub, minH: 92 });
+        b.push({ t: 'btn', id: 'play', label: T(S, 'playBtn'), kind: S.save ? 'normal' : 'primary', size: 34, sub: playSub, minH: S.save ? 84 : 100 });
+        b.push({ t: 'row', size: 26, minH: 84, items: [{ id: 'learn', label: `${T(S, 'learnBtn')} ${lessonsDone(S)}/${LESSONS.length}` }, { id: 'auto', label: T(S, 'autoBtn') }] });
+        b.push({ t: 'row', size: 26, minH: 84, items: [{ id: 'howto', label: T(S, 'howtoBtn') }, { id: 'rules', label: T(S, 'rulesBtn') }] });
+        b.push({ t: 'row', size: 26, minH: 84, items: [{ id: 'about', label: T(S, 'aboutBtn') }, { id: 'settings', label: T(S, 'settingsBtn') }] });
+      }
       b.push(langRow(S, 26));
       ui.blocks = b;
       break;
     }
     case 'setup': {
-      ui.panel = DOC_PANEL; ui.region = DOC_BODY_START;
-      ui.fixed = [...fixedBar(S), { id: 'start', rect: START_BTN, kind: 'primary', label: T(S, 'startGame'), size: 34 }];
+      docPanel(D.panelStart);
+      ui.fixed = [...fixedBar(S), { id: 'start', rect: D.start, kind: 'primary', label: T(S, 'startGame'), size: 34 }];
       const b = [];
       const lv = S.setup.level;
       b.push({ t: 'h', text: T(S, 'opponentTitle'), size: 34 });
@@ -86,7 +98,7 @@ export function buildUi(S) {
       break;
     }
     case 'learn': {
-      ui.panel = DOC_PANEL; ui.region = DOC_BODY;
+      docPanel(D.panelFull);
       ui.fixed = fixedBar(S);
       const b = [{ t: 'h', text: T(S, 'lessonsTitle'), size: 36 }, { t: 'p', text: `${lessonsDone(S)} / ${LESSONS.length}`, size: 24, gap: 10, align: 'center' }];
       LESSONS.forEach((l, i) => {
@@ -98,23 +110,26 @@ export function buildUi(S) {
     }
     case 'howto':
     case 'rules': {
+      // ONE continuous scrolling reader: every page in order (title, picture, text), no Next/Previous. How to Play ends with a Play button.
       const isRules = S.scene === 'rules';
       const pages = isRules ? RULES : HOWTO;
-      const pi = Math.min(S.page[S.scene], pages.length - 1);
-      const pg = pageOf(pages, pi, S.lang);
-      ui.panel = DOC_PANEL; ui.region = DOC_BODY_NAV;
+      docPanel(D.panelFull);
       ui.fixed = fixedBar(S);
-      ui.nav = { label: `${pi + 1} / ${pages.length}`, prev: { id: 'prev', rect: NAV_PREV, label: T(S, 'prev'), disabled: pi === 0, kind: 'normal', size: 26 }, next: { id: 'next', rect: NAV_NEXT, label: isRules || pi < pages.length - 1 ? T(S, 'next') : T(S, 'playBtn'), disabled: isRules && pi === pages.length - 1, kind: 'primary', size: 26 } };
-      ui.scrollKey = `${S.scene}:${pi}`;
-      const b = [{ t: 'h', text: pg.title, size: 40 }];
-      if (pg.art) b.push({ t: 'img', name: pg.art, h: isRules ? 400 : 420 });
-      if (isRules) for (const para of pg.body) b.push({ t: 'p', text: para, size: 29 });
-      else b.push({ t: 'p', text: pg.body, size: 32 });
+      const b = [];
+      pages.forEach((_, pi) => {
+        const pg = pageOf(pages, pi, S.lang);
+        b.push({ t: 'h', text: pg.title, size: pi === 0 ? 40 : 34, anchor: pi });
+        if (pg.art) b.push({ t: 'img', name: pg.art, h: isRules ? 400 : 420 });
+        if (isRules) for (const para of pg.body) b.push({ t: 'p', text: para, size: 29 });
+        else b.push({ t: 'p', text: pg.body, size: 32 });
+        b.push({ t: 'gap', h: 28 });
+      });
+      if (!isRules) b.push({ t: 'btn', id: 'play', label: T(S, 'playBtn'), kind: 'primary', size: 30 });
       ui.blocks = b;
       break;
     }
     case 'about': {
-      ui.panel = DOC_PANEL; ui.region = DOC_BODY;
+      docPanel(D.panelFull);
       ui.fixed = fixedBar(S);
       const b = [{ t: 'img', name: 'logo', h: 330 }];
       ABOUT.forEach((s, i) => { const pg = s[S.lang] ?? s.en; b.push({ t: 'h', text: pg.title, size: i === 0 ? 38 : 30 }); b.push({ t: 'p', text: pg.body, size: 26 }); });
@@ -123,7 +138,7 @@ export function buildUi(S) {
       break;
     }
     case 'settings': {
-      ui.panel = DOC_PANEL; ui.region = DOC_BODY;
+      docPanel(D.panelFull);
       ui.fixed = fixedBar(S);
       const b = [];
       b.push({ t: 'h', text: T(S, 'settingsBtn'), size: 36 });
@@ -175,9 +190,10 @@ export const LEVEL_BLURB_AR = {
   master: 'يلعب كل دور بأفضل طريقة يجدها، ويقدّر مربعات النجمة وإدخال الحجارة.',
 };
 
-function overlayUi(S, scale) {
-  const ui = { scale, fixed: [], blocks: [], kind: 'card', panel: OVERLAY, scrollKey: `ov:${S.overlay}`, overlay: true, rtl: rtl(S) };
-  ui.region = { x: OVERLAY.x + 24, y: OVERLAY.y + 24, w: OVERLAY.w - 48, h: OVERLAY.h - 48 };
+function overlayUi(S, scale0) {
+  // a landscape card is only ~700 units tall: its own text stays at 100 percent there (the game text behind it keeps the zoom)
+  const scale = overlayLayout().wide ? 1 : scale0;
+  const ui = { scale, fixed: [], blocks: [], kind: 'card', panel: null, scrollKey: `ov:${S.overlay}`, overlay: true, rtl: rtl(S) };
   const b = [];
   const hs = (n) => (scale >= 2 ? n * 0.72 : n);
   const ps = (n) => (scale >= 2 ? n * 0.62 : n);
@@ -197,6 +213,7 @@ function overlayUi(S, scale) {
     b.push({ t: 'img', name: 'endmark', h: scale >= 2 ? 90 : 150, data: e });
     b.push({ t: 'p', text: e.body, size: ps(26), center: true });
     if (e.rec) b.push({ t: 'p', text: e.rec, size: ps(22), center: true });
+    if (!(S.match && S.match.lesson)) b.push({ t: 'img', name: 'more', h: 30 });
     if (S.match && S.match.lesson) {
       if (e.lessonOk) b.push({ t: 'btn', id: 'ov:lessonnext', label: T(S, 'lessonNext'), kind: 'primary', size: bs(30), minH: bmin });
       else b.push({ t: 'btn', id: 'ov:lessonagain', label: T(S, 'lessonRetry'), kind: 'primary', size: bs(30), minH: bmin });
@@ -228,17 +245,31 @@ function overlayUi(S, scale) {
   return ui;
 }
 
+// Landscape cards pair up the plain buttons (two per row) so every action stays on the card; the main action keeps a full row.
+function pairUp(blocks) {
+  const out = [];
+  for (const b of blocks) {
+    const last = out[out.length - 1];
+    if (b.t === 'btn' && b.kind !== 'primary' && last && last.t === 'btn' && last.kind !== 'primary' && !last.paired) {
+      out[out.length - 1] = { t: 'row', size: Math.min(last.size ?? 28, b.size ?? 28, 26), minH: Math.min(last.minH ?? 84, b.minH ?? 84), paired: true, items: [{ id: last.id, label: last.label, kind: last.kind }, { id: b.id, label: b.label, kind: b.kind }] };
+    } else out.push(b);
+  }
+  return out;
+}
+
 function fitCard(ui, scale) {
-  const innerW = OVERLAY.w - 48;
+  const O = overlayLayout();
+  const innerW = O.w - 48;
   const bodyBlocks = ui.blocks.filter((b) => b.t !== 'btn' && b.t !== 'row');
-  const actBlocks = ui.blocks.filter((b) => b.t === 'btn' || b.t === 'row');
+  let actBlocks = ui.blocks.filter((b) => b.t === 'btn' || b.t === 'row');
+  if (O.wide) actBlocks = pairUp(actBlocks);
   const body = layoutDoc(bodyBlocks, scale, innerW);
   const act = layoutDoc(actBlocks, scale, innerW);
-  const h = Math.min(OVERLAY.h + 120, Math.max(420, body.height + act.height + 72));
-  const y = Math.round(780 - h / 2);
-  const x0 = OVERLAY.x + 24;
+  const h = Math.min(O.maxH, Math.max(Math.min(420, O.maxH), body.height + act.height + 72));
+  const y = Math.round(O.cy - h / 2);
+  const x0 = O.x + 24;
   const actTop = y + h - 28 - act.height;
-  ui.panel = { x: OVERLAY.x, y, w: OVERLAY.w, h };
+  ui.panel = { x: O.x, y, w: O.w, h };
   ui.region = { x: x0, y: y + 28, w: innerW, h: Math.max(160, h - 56 - act.height - 8) };
   ui.layout = body;
   ui.fixed = act.items.flatMap((it) => it.btns.map((bt) => ({

@@ -1,4 +1,5 @@
 // Shared drawing helpers for every screen: rounded panels, flat buttons, wrapped text, the palette.
+import { W as LIVE_W, host } from './layout.js';
 export const FONT = "'Avenir Next', 'Segoe UI', 'Trebuchet MS', system-ui, sans-serif";
 export const DISPLAY = "Georgia, 'Times New Roman', serif";
 export const C = {
@@ -182,7 +183,7 @@ export function flowLayout(ctx, widgets, scale, o = {}) {
 
 export function drawFlow(ctx, lay, top, bottom, scroll, o = {}) {
   ctx.save();
-  ctx.beginPath(); ctx.rect(0, top, 720, bottom - top); ctx.clip();
+  ctx.beginPath(); ctx.rect(0, top, LIVE_W, bottom - top); ctx.clip();
   for (const it of lay.items) {
     const y = top + it.y - scroll;
     if (y > bottom || y + it.h < top) continue;
@@ -232,4 +233,22 @@ export function flowHit(lay, top, scroll, x, y) {
     if (x >= it.x && x <= it.x + it.wd && y >= yy && y <= yy + it.h) return it.w.id;
   }
   return null;
+}
+
+// Text never smaller than about 11 css px: every font the game sets passes through this floor (virtual units per css px come from host.px).
+// Installed once on the 2D context; harmless where the context has no font accessor (the headless test harness).
+export function installFontFloor(ctx) {
+  if (!ctx || ctx.__fontFloor) return;
+  const proto = Object.getPrototypeOf(ctx), d = proto && Object.getOwnPropertyDescriptor(proto, 'font');
+  if (!d || !d.set || !d.get) { ctx.__fontFloor = true; return; }
+  const re = /(\d+(?:\.\d+)?)px/;
+  Object.defineProperty(ctx, 'font', {
+    configurable: true,
+    get() { return d.get.call(ctx); },
+    set(v) {
+      const floor = Math.max(11, 11 / Math.max(0.3, host.px || 0.6));
+      d.set.call(ctx, typeof v === 'string' ? v.replace(re, (m, n) => (+n < floor ? `${floor.toFixed(1)}px` : m)) : v);
+    },
+  });
+  ctx.__fontFloor = true;
 }

@@ -205,8 +205,10 @@ function drawButtonRect(ctx, r, it, wd) {
 }
 export function flowHit(lay, top, scroll, x, y) {
   for (const it of lay.items) {
-    if (it.w.t !== 'btn' || (it.w.disabled && !it.w.hitDisabled)) continue;
+    const tapArt = it.w.t === 'art' && it.w.id;
+    if (!tapArt && (it.w.t !== 'btn' || (it.w.disabled && !it.w.hitDisabled))) continue;
     const yy = top + it.y - scroll;
+    if (tapArt) { const hw = Math.min(it.wd, it.w.hitW ?? it.wd) / 2, cx = it.x + it.wd / 2; if (x >= cx - hw && x <= cx + hw && y >= yy && y <= yy + it.h) return it.w.id; continue; }
     if (x >= it.x && x <= it.x + it.wd && y >= yy && y <= yy + it.h) return it.w.id;
   }
   return null;

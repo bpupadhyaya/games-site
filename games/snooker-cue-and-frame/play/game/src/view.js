@@ -3,7 +3,7 @@
 // shrinks to make room instead of clipping.
 import { TW, TL, R, CUE, POCKETS, GEOM, BAULK_Y, D_R, MID_X, SPOT, nameOf, ballById } from './sim.js';
 import { makeCamera } from './cam.js';
-import { W, H, TEXT_SCALES, playLayout, inRect } from './layout.js';
+import { W, H, TEXT_SCALES, playLayout, inRect, host } from './layout.js';
 import { FONT, SERIF, C, roundPath, drawButton, panel, wrapLines, textShadow } from './ui.js';
 import { drawBall, drawShadow, drawTable, bakedTable, drawCue, drawBridge, drawSpinFace, setHost, ballStyle, BALL } from './art.js';
 import { onLabel, pointsLeft } from './rules.js';
@@ -17,17 +17,17 @@ export function layoutFor(state) {
   const kind = m && m.cfg.mode === 'watch' ? 'watch' : state.ctl === 'roll' ? 'roll' : state.ctl === 'verdict' ? 'verdict' : 'aim';
   return playLayout(textScale(state), kind);
 }
-let camKey = '', camCache = null;
+let camLay = null, camCache = null, camKey = '';
 export function camFor(state) {
-  const sc = textScale(state);
-  const key = String(sc);
-  if (camKey !== key || !camCache) {
-    const lay = playLayout(sc, 'aim');
-    camCache = makeCamera(lay.regionTop, lay.regionBottom);
-    camKey = key;
+  const lay = playLayout(textScale(state), 'aim');
+  if (camLay !== lay || !camCache) {
+    camCache = makeCamera(lay.region, lay.orient);
+    camLay = lay;
+    camKey = `${textScale(state)}|${W}x${H}|${lay.mode}|${host.t},${host.b},${host.l},${host.r}`;
   }
   return camCache;
 }
+export const camKeyOf = () => camKey;
 export const FINGER_LIFT = 58;
 // Screen point (a finger) to a table point: the aim target sits a little above the finger so the finger never hides it.
 export function aimToTable(cam, px, py) { return cam.unproj(px, py - FINGER_LIFT); }
@@ -55,7 +55,7 @@ function drawBalls(ctx, cam, state) {
   // shadows first so no shadow falls on a neighbouring ball
   for (const it of list) {
     if (it.falling) continue;
-    const pr = cam.px(it.x, it.y), r = cam.ballR(it.y);
+    const pr = cam.px(it.x, it.y), r = cam.ballR(it.y, it.x);
     drawShadow(ctx, pr[0], pr[1], r, 0.8, 0.4);
   }
   const hl = state.hl;
@@ -71,11 +71,11 @@ function drawBalls(ctx, cam, state) {
       ctx.closePath();
       for (let i = 0; i < 6; i++) { const h = holeOf(i); for (let j = 0; j < 24; j++) { const a = (j / 24) * TAU; const [qx, qy] = cam.px(h.x + Math.cos(a) * h.r, h.y + Math.sin(a) * h.r); j ? ctx.lineTo(qx, qy) : ctx.moveTo(qx, qy); } ctx.closePath(); }
       ctx.clip();
-      drawBall(ctx, X, Y, cam.ballR(y) * (1 - 0.55 * e), b.id, { alpha: 1 - 0.85 * e, mark: [b.mx, b.my, b.mz] });
+      drawBall(ctx, X, Y, cam.ballR(y, x) * (1 - 0.55 * e), b.id, { alpha: 1 - 0.85 * e, mark: [b.mx, b.my, b.mz] });
       ctx.restore();
       continue;
     }
-    const [X, Y] = cam.px(it.x, it.y, R), r = cam.ballR(it.y);
+    const [X, Y] = cam.px(it.x, it.y, R), r = cam.ballR(it.y, it.x);
     let alpha = 1;
     if (b.respotted && b.rt !== undefined && b.rt < 0.5) alpha = 0.3 + 1.4 * b.rt;
     const glow = hl && hl.has && hl.has(b.id) ? 1 : 0;
@@ -114,14 +114,14 @@ function drawGuide(ctx, cam, state) {
     const pv = gd.pv;
     dotted(ctx, cam, pv.cuePath, 'rgba(255,255,255,0.8)', 3, [4, 9]);
     if (pv.objPath.length > 1) dotted(ctx, cam, pv.objPath, 'rgba(255,214,90,0.95)', 3.4, [3, 8]);
-    if (pv.cueEnd) { const [X, Y] = cam.px(pv.cueEnd.x, pv.cueEnd.y, R); drawBall(ctx, X, Y, cam.ballR(pv.cueEnd.y), 0, { ghost: true, alpha: 0.7 }); }
-    if (ray.ghost) { const [X, Y] = cam.px(ray.ghost.x, ray.ghost.y, R); drawBall(ctx, X, Y, cam.ballR(ray.ghost.y), 0, { ghost: true, alpha: 0.9 }); }
+    if (pv.cueEnd) { const [X, Y] = cam.px(pv.cueEnd.x, pv.cueEnd.y, R); drawBall(ctx, X, Y, cam.ballR(pv.cueEnd.y, pv.cueEnd.x), 0, { ghost: true, alpha: 0.7 }); }
+    if (ray.ghost) { const [X, Y] = cam.px(ray.ghost.x, ray.ghost.y, R); drawBall(ctx, X, Y, cam.ballR(ray.ghost.y, ray.ghost.x), 0, { ghost: true, alpha: 0.9 }); }
     if (pv.potted && pv.potted.id !== CUE) {
       const hole = holeOf(pv.potted.p), [X, Y] = cam.px(hole.x, hole.y);
-      ctx.save(); ctx.strokeStyle = 'rgba(120,255,170,0.95)'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(X, Y, cam.scaleAt(hole.y) * 0.1, 0, TAU); ctx.stroke(); ctx.restore();
+      ctx.save(); ctx.strokeStyle = 'rgba(120,255,170,0.95)'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(X, Y, cam.scaleAt(hole.y, hole.x) * 0.1, 0, TAU); ctx.stroke(); ctx.restore();
     } else if (pv.potted && pv.potted.id === CUE) {
       const hole = holeOf(pv.potted.p), [X, Y] = cam.px(hole.x, hole.y);
-      ctx.save(); ctx.strokeStyle = 'rgba(255,120,100,0.95)'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(X, Y, cam.scaleAt(hole.y) * 0.1, 0, TAU); ctx.stroke(); ctx.restore();
+      ctx.save(); ctx.strokeStyle = 'rgba(255,120,100,0.95)'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(X, Y, cam.scaleAt(hole.y, hole.x) * 0.1, 0, TAU); ctx.stroke(); ctx.restore();
     }
     return;
   }
@@ -130,12 +130,12 @@ function drawGuide(ctx, cam, state) {
   dotted(ctx, cam, pts, 'rgba(255,255,255,0.92)', 3.2, [11, 9]);
   if (ray.ghost) {
     const [X, Y] = cam.px(ray.ghost.x, ray.ghost.y, R);
-    drawBall(ctx, X, Y, cam.ballR(ray.ghost.y), 0, { ghost: true, alpha: 0.9 });
+    drawBall(ctx, X, Y, cam.ballR(ray.ghost.y, ray.ghost.x), 0, { ghost: true, alpha: 0.9 });
     if (gd.obj) {
       dotted(ctx, cam, [[gd.obj.from.x, gd.obj.from.y], [gd.obj.to.x, gd.obj.to.y]], 'rgba(255,214,90,0.95)', 3.4, [3, 8]);
       if (gd.obj.pocket >= 0) {
         const hole = holeOf(gd.obj.pocket), [hx, hy] = cam.px(hole.x, hole.y);
-        ctx.save(); ctx.strokeStyle = 'rgba(120,255,170,0.95)'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(hx, hy, cam.scaleAt(hole.y) * 0.1, 0, TAU); ctx.stroke(); ctx.restore();
+        ctx.save(); ctx.strokeStyle = 'rgba(120,255,170,0.95)'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(hx, hy, cam.scaleAt(hole.y, hole.x) * 0.1, 0, TAU); ctx.stroke(); ctx.restore();
       }
     }
     // the white's path after a plain (centre) strike: along the tangent
@@ -146,7 +146,7 @@ function drawGuide(ctx, cam, state) {
     dotted(ctx, cam, [[ray.ghost.x, ray.ghost.y], [ray.ghost.x + tx * sgn * len, ray.ghost.y + ty * sgn * len]], 'rgba(255,255,255,0.55)', 2.2, [4, 7]);
   } else {
     const [X, Y] = cam.px(ray.end.x, ray.end.y, R);
-    ctx.save(); ctx.strokeStyle = 'rgba(255,255,255,0.7)'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(X, Y, cam.ballR(ray.end.y) * 0.6, 0, TAU); ctx.stroke(); ctx.restore();
+    ctx.save(); ctx.strokeStyle = 'rgba(255,255,255,0.7)'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(X, Y, cam.ballR(ray.end.y, ray.end.x) * 0.6, 0, TAU); ctx.stroke(); ctx.restore();
   }
 }
 
@@ -201,34 +201,33 @@ export function insetFocus(state) {
   const a = state.aim.angle;
   return { x: c.x + Math.cos(a) * 0.3, y: c.y + Math.sin(a) * 0.3 };
 }
-function drawInset(ctx, state, r, fs) {
+function drawInset(ctx, state, r, fs, orient = 'v') {
   const w = state.w, c = w && ballById(w, CUE);
   ctx.save();
   roundPath(ctx, r.x, r.y, r.w, r.h, 18); ctx.clip();
   const g = ctx.createLinearGradient(0, r.y, 0, r.y + r.h);
   g.addColorStop(0, '#118045'); g.addColorStop(1, '#0a5c32');
-  ctx.fillStyle = g; ctx.fillRect(r.x, r.y, r.w, r.h);
+  ctx.fillStyle = '#5b3016'; ctx.fillRect(r.x, r.y, r.w, r.h);
   const fo = insetFocus(state);
-  const Z = INSET_ZOOM, cx = r.x + r.w / 2, cy = r.y + r.h / 2;
-  const X = (x) => cx + (x - fo.x) * Z, Y = (y) => cy - (y - fo.y) * Z;
-  // cloth edge and rails, if the window reaches them
-  const rail = (x0, y0, x1, y1) => { ctx.fillStyle = '#5b3016'; ctx.fillRect(Math.min(x0, x1), Math.min(y0, y1), Math.abs(x1 - x0), Math.abs(y1 - y0)); };
-  const left = X(0), right = X(TW), bot = Y(0), top = Y(TL);
-  if (left > r.x) { rail(r.x, r.y, left, r.y + r.h); ctx.fillStyle = '#0a5a32'; ctx.fillRect(left - 0.058 * Z, r.y, 0.058 * Z, r.h); }
-  if (right < r.x + r.w) { rail(right, r.y, r.x + r.w, r.y + r.h); ctx.fillStyle = '#0a5a32'; ctx.fillRect(right, r.y, 0.058 * Z, r.h); }
-  if (bot < r.y + r.h) { rail(r.x, bot, r.x + r.w, r.y + r.h); ctx.fillStyle = '#0a5a32'; ctx.fillRect(r.x, bot, r.w, 0.058 * Z); }
-  if (top > r.y) { rail(r.x, r.y, r.x + r.w, top); ctx.fillStyle = '#0a5a32'; ctx.fillRect(r.x, top - 0.058 * Z, r.w, 0.058 * Z); }
+  const Z = INSET_ZOOM, cx = r.x + r.w / 2, cy = r.y + r.h / 2, hz = orient === 'h';
+  // the picture is turned like the table on screen: 'v' = up the table is up; 'h' = right is up the table (baulk end on the left)
+  const SX = (x, y) => (hz ? cx + (y - fo.y) * Z : cx + (x - fo.x) * Z), SY = (x, y) => (hz ? cy + (x - fo.x) * Z : cy - (y - fo.y) * Z);
+  const X = (x, y) => SX(x, y), Y = (x, y) => SY(x, y);
+  const quad = (x0, y0, x1, y1) => { ctx.beginPath(); [[x0, y0], [x1, y0], [x1, y1], [x0, y1]].forEach(([qx, qy], k) => (k ? ctx.lineTo(X(qx, qy), Y(qx, qy)) : ctx.moveTo(X(qx, qy), Y(qx, qy)))); ctx.closePath(); };
+  quad(-0.058, -0.058, TW + 0.058, TL + 0.058); ctx.fillStyle = '#0a5a32'; ctx.fill();          // cushion band
+  quad(0, 0, TW, TL); ctx.fillStyle = g; ctx.fill();                                              // cloth
+  const near = (bx, by) => bx >= r.x - 40 && bx <= r.x + r.w + 40 && by >= r.y - 40 && by <= r.y + r.h + 40;
   if (w) {
     for (const b of w.b) {
       if (!b.on) continue;
-      const bx = X(b.x), by = Y(b.y);
-      if (bx < r.x - 40 || bx > r.x + r.w + 40 || by < r.y - 40 || by > r.y + r.h + 40) continue;
+      const bx = X(b.x, b.y), by = Y(b.x, b.y);
+      if (!near(bx, by)) continue;
       drawShadow(ctx, bx, by, R * Z, 0.9, 0.35);
     }
     for (const b of w.b) {
       if (!b.on) continue;
-      const bx = X(b.x), by = Y(b.y);
-      if (bx < r.x - 40 || bx > r.x + r.w + 40 || by < r.y - 40 || by > r.y + r.h + 40) continue;
+      const bx = X(b.x, b.y), by = Y(b.x, b.y);
+      if (!near(bx, by)) continue;
       drawBall(ctx, bx, by, R * Z, b.id, { mark: [b.mx, b.my, b.mz] });
     }
   }
@@ -236,21 +235,21 @@ function drawInset(ctx, state, r, fs) {
   if (gd && gd.ray && c && c.on && state.settings.guide !== 0) {
     const ray = gd.ray;
     ctx.save(); ctx.setLineDash([9, 8]); ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(255,255,255,0.95)'; ctx.lineCap = 'round';
-    ctx.beginPath(); ctx.moveTo(X(c.x), Y(c.y)); ctx.lineTo(X(ray.end.x), Y(ray.end.y)); ctx.stroke(); ctx.restore();
+    ctx.beginPath(); ctx.moveTo(X(c.x, c.y), Y(c.x, c.y)); ctx.lineTo(X(ray.end.x, ray.end.y), Y(ray.end.x, ray.end.y)); ctx.stroke(); ctx.restore();
     if (ray.ghost) {
-      drawBall(ctx, X(ray.ghost.x), Y(ray.ghost.y), R * Z, 0, { ghost: true, alpha: 0.95 });
-      if (gd.obj) { ctx.save(); ctx.setLineDash([4, 8]); ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(255,214,90,0.95)'; ctx.beginPath(); ctx.moveTo(X(gd.obj.from.x), Y(gd.obj.from.y)); ctx.lineTo(X(gd.obj.to.x), Y(gd.obj.to.y)); ctx.stroke(); ctx.restore(); }
+      drawBall(ctx, X(ray.ghost.x, ray.ghost.y), Y(ray.ghost.x, ray.ghost.y), R * Z, 0, { ghost: true, alpha: 0.95 });
+      if (gd.obj) { ctx.save(); ctx.setLineDash([4, 8]); ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(255,214,90,0.95)'; ctx.beginPath(); ctx.moveTo(X(gd.obj.from.x, gd.obj.from.y), Y(gd.obj.from.x, gd.obj.from.y)); ctx.lineTo(X(gd.obj.to.x, gd.obj.to.y), Y(gd.obj.to.x, gd.obj.to.y)); ctx.stroke(); ctx.restore(); }
     }
   } else if (c && c.on) {
     ctx.save(); ctx.setLineDash([9, 8]); ctx.lineWidth = 2.5; ctx.strokeStyle = 'rgba(255,255,255,0.5)';
-    ctx.beginPath(); ctx.moveTo(X(c.x), Y(c.y)); ctx.lineTo(X(c.x + Math.cos(state.aim.angle) * 2), Y(c.y + Math.sin(state.aim.angle) * 2)); ctx.stroke(); ctx.restore();
+    ctx.beginPath(); { const ex = c.x + Math.cos(state.aim.angle) * 2, ey = c.y + Math.sin(state.aim.angle) * 2; ctx.moveTo(X(c.x, c.y), Y(c.x, c.y)); ctx.lineTo(X(ex, ey), Y(ex, ey)); } ctx.stroke(); ctx.restore();
   }
   ctx.restore();
   roundPath(ctx, r.x, r.y, r.w, r.h, 18); ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(255,224,150,0.85)'; ctx.stroke();
   // caption and drag arrows
-  ctx.save(); ctx.font = `700 ${Math.max(13, Math.round(fs * 0.62))}px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  roundPath(ctx, r.x + 8, r.y + 7, r.w - 16, Math.max(26, fs * 0.9), 10); ctx.fillStyle = 'rgba(6,24,16,0.72)'; ctx.fill();
-  ctx.fillStyle = '#ffe9a8'; ctx.fillText('◄ Fine aim ►', r.x + r.w / 2, r.y + 7 + Math.max(26, fs * 0.9) / 2);
+  ctx.save(); ctx.font = `700 ${Math.max(21, Math.round(fs * 0.62))}px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  roundPath(ctx, r.x + 8, r.y + 7, r.w - 16, Math.max(30, fs * 0.9), 10); ctx.fillStyle = 'rgba(6,24,16,0.72)'; ctx.fill();
+  ctx.fillStyle = '#ffe9a8'; ctx.fillText('◄ Fine aim ►', r.x + r.w / 2, r.y + 7 + Math.max(30, fs * 0.9) / 2);
   ctx.restore();
 }
 
@@ -259,7 +258,7 @@ export function drawHud(ctx, state, lay) {
   const { hud } = lay, f = state.f, m = state.m;
   if (!f || !m) return;
   const names = state.names, cur = f.turn;
-  const x0 = 10, w0 = W - 20;
+  const x0 = hud.x, w0 = hud.w, cxm = x0 + w0 / 2;
   panel(ctx, x0, hud.y, w0, hud.h - 4, { r: 22, fill: 'rgba(6,26,18,0.92)', stroke: 'rgba(214,170,80,0.55)' });
   const fs = hud.fs;
   const clip = (t, mw, px) => { ctx.font = `700 ${px}px ${FONT}`; let s = t; while (ctx.measureText(s).width > mw && s.length > 3) s = s.slice(0, -2); return s === t ? t : `${s}…`; };
@@ -272,7 +271,7 @@ export function drawHud(ctx, state, lay) {
     // two halves: name + score
     for (const side of [0, 1]) {
       const mine = side === cur;
-      const bx = side === 0 ? x0 + 8 : W / 2 + 4, bw = w0 / 2 - 12;
+      const bx = side === 0 ? x0 + 8 : cxm + 4, bw = w0 / 2 - 12;
       if (mine && !f.over) { roundPath(ctx, bx, hud.y + 6, bw, 58 * (fs / 24), 16); ctx.fillStyle = 'rgba(214,170,80,0.22)'; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(255,214,120,0.9)'; ctx.stroke(); }
       ctx.textBaseline = 'middle';
       ctx.fillStyle = '#f4eed8'; ctx.textAlign = side === 0 ? 'left' : 'right';
@@ -286,12 +285,12 @@ export function drawHud(ctx, state, lay) {
       ctx.fillText(String(f.scores[side]), side === 0 ? bx + bw - 12 : bx + 12, hud.y + 6 + 29 * (fs / 24));
     }
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = `600 ${Math.round(fs * 0.86)}px ${FONT}`; ctx.fillStyle = '#cfe8d8';
-    ctx.fillText(clip(`${frameTxt}${info1} · ${info2}`, w0 - 24, Math.round(fs * 0.86)), W / 2, hud.y + hud.h - 22 * (fs / 24));
+    ctx.fillText(clip(`${frameTxt}${info1} · ${info2}`, w0 - 24, Math.round(fs * 0.86)), cxm, hud.y + hud.h - 22 * (fs / 24));
   } else {
     const row = hud.row;
     for (const side of [0, 1]) {
       const mine = side === cur;
-      const bx = side === 0 ? x0 + 8 : W / 2 + 4, bw = w0 / 2 - 12;
+      const bx = side === 0 ? x0 + 8 : cxm + 4, bw = w0 / 2 - 12;
       if (mine && !f.over) { roundPath(ctx, bx, hud.y + 6, bw, row, 14); ctx.fillStyle = 'rgba(214,170,80,0.22)'; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(255,214,120,0.9)'; ctx.stroke(); }
       ctx.textBaseline = 'middle'; ctx.fillStyle = '#f4eed8'; ctx.textAlign = side === 0 ? 'left' : 'right';
       ctx.font = `700 ${Math.round(fs * 0.8)}px ${FONT}`;
@@ -304,21 +303,22 @@ export function drawHud(ctx, state, lay) {
       ctx.fillText(sc, side === 0 ? bx + bw - 10 : bx + 10, hud.y + 6 + row / 2);
     }
     ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = `700 ${Math.round(fs * 0.86)}px ${FONT}`; ctx.fillStyle = '#ffe9a8';
-    ctx.fillText(clip(info1 + (f.visit > 0 ? ` · Break ${f.visit}` : ''), w0 - 24, Math.round(fs * 0.86)), W / 2, hud.y + 6 + row * 1.5 + 4);
+    ctx.fillText(clip(info1 + (f.visit > 0 ? ` · Break ${f.visit}` : ''), w0 - 24, Math.round(fs * 0.86)), cxm, hud.y + 6 + row * 1.5 + 4);
     if (hud.rows !== 2) {
       ctx.font = `600 ${Math.round(fs * 0.78)}px ${FONT}`; ctx.fillStyle = '#cfe8d8';
-      ctx.fillText(clip(`${frameTxt}${left} left`, w0 - 24, Math.round(fs * 0.78)), W / 2, hud.y + 6 + row * 2.5 + 2);
+      ctx.fillText(clip(`${frameTxt}${left} left`, w0 - 24, Math.round(fs * 0.78)), cxm, hud.y + 6 + row * 2.5 + 2);
     }
   }
 }
 
 // ---- controls -----------------------------------------------------------------------------------------------------------------------------------
 function drawPower(ctx, state, r, fs) {
-  const a = state.aim;
+  const a = state.aim, narrow = r.w < 520;
   panel(ctx, r.x, r.y, r.w, r.h, { r: 20, fill: 'rgba(8,30,22,0.94)', stroke: a.pulling ? 'rgba(255,214,120,0.95)' : 'rgba(214,170,80,0.5)' });
   const disabled = !state.humanTurn || state.paused || state.ctl !== 'aim';
-  const x0 = r.x + Math.round(fs * 3.4), x1 = r.x + r.w - 18, cy = r.y + r.h / 2;
-  const T = x1 - x0 - 120;
+  // narrow (landscape side panel): label row on top, the meter below it; wide strips keep the label on the left
+  const x0 = narrow ? r.x + 16 : r.x + Math.round(fs * 3.4), x1 = r.x + r.w - 18, cy = narrow ? r.y + r.h - 26 : r.y + r.h / 2;
+  const T = Math.max(60, x1 - x0 - (narrow ? 60 : 120));
   const pull = Math.max(0, Math.min(1, a.pulling ? a.pull : 0));
   // meter bed
   roundPath(ctx, x0, cy - 12, x1 - x0, 24, 12); ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.fill();
@@ -333,7 +333,7 @@ function drawPower(ctx, state, r, fs) {
   ctx.save();
   roundPath(ctx, r.x + 6, r.y + 4, r.w - 12, r.h - 8, 16); ctx.clip();
   const cy2 = cy;
-  const bw = Math.max(6, r.h * 0.12);
+  const bw = Math.max(6, (narrow ? 60 : r.h) * 0.12);
   const grad = ctx.createLinearGradient(tipX - 380, 0, tipX, 0);
   grad.addColorStop(0, '#2a1408'); grad.addColorStop(0.45, '#5c3217'); grad.addColorStop(0.62, '#e0bc84'); grad.addColorStop(1, '#f2dcae');
   ctx.beginPath(); ctx.moveTo(tipX - 380, cy2 - bw * 1.6); ctx.lineTo(tipX - 12, cy2 - bw * 0.6); ctx.lineTo(tipX - 12, cy2 + bw * 0.6); ctx.lineTo(tipX - 380, cy2 + bw * 1.6); ctx.closePath();
@@ -345,16 +345,25 @@ function drawPower(ctx, state, r, fs) {
   drawBall(ctx, x1 + 4, cy, 12, 0, {});
   // suggested power marker
   if (a.hint !== null && a.hint !== undefined) {
-    const hx = x1 - 14 - a.hint * T + 0; ctx.fillStyle = '#ffe08a'; ctx.beginPath(); ctx.moveTo(hx, cy - 22); ctx.lineTo(hx - 9, cy - 36); ctx.lineTo(hx + 9, cy - 36); ctx.closePath(); ctx.fill();
+    const hx = x1 - 14 - a.hint * T + 0; ctx.fillStyle = '#ffe08a'; ctx.beginPath(); ctx.moveTo(hx, cy - 14); ctx.lineTo(hx - 9, cy - 28); ctx.lineTo(hx + 9, cy - 28); ctx.closePath(); ctx.fill();
   }
   // text
+  const fPow = Math.max(21, Math.round(fs * 0.62));
   ctx.fillStyle = disabled ? 'rgba(200,225,210,0.5)' : '#f4eed8'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-  ctx.font = `700 ${Math.round(fs * 0.62)}px ${FONT}`;
+  ctx.font = `700 ${fPow}px ${FONT}`;
+  const val = pull > 0.005 ? `${Math.round(pull * 100)}%` : '--';
+  if (narrow) {
+    ctx.fillText('Power', r.x + 16, r.y + 24);
+    ctx.font = `800 ${Math.round(fs * 0.85)}px ${SERIF}`; ctx.textAlign = 'right'; ctx.fillStyle = disabled ? 'rgba(200,225,210,0.5)' : pull > 0.005 ? '#ffe08a' : '#f4eed8';
+    if (pull > 0.005 || disabled) ctx.fillText(val, x1, r.y + 24);
+    else { ctx.font = `600 ${fPow}px ${FONT}`; ctx.fillStyle = 'rgba(244,238,216,0.85)'; ctx.fillText('Pull back, release', x1, r.y + 24); }
+    return;
+  }
   ctx.fillText('Power', r.x + 16, cy - fs * 0.45);
   ctx.font = `800 ${Math.round(fs * 0.95)}px ${SERIF}`; ctx.fillStyle = disabled ? 'rgba(200,225,210,0.5)' : pull > 0.005 ? '#ffe08a' : '#f4eed8';
-  ctx.fillText(pull > 0.005 ? `${Math.round(pull * 100)}%` : '--', r.x + 16, cy + fs * 0.35);
+  ctx.fillText(val, r.x + 16, cy + fs * 0.35);
   if (pull <= 0.005 && !disabled) {
-    ctx.font = `600 ${Math.round(fs * 0.62)}px ${FONT}`; ctx.textAlign = 'center'; ctx.fillStyle = 'rgba(244,238,216,0.85)';
+    ctx.font = `600 ${fPow}px ${FONT}`; ctx.textAlign = 'center'; ctx.fillStyle = 'rgba(244,238,216,0.85)';
     ctx.fillText('Pull back, release to shoot', (x0 + x1) / 2 - 20, cy - r.h * 0.3);
   }
 }
@@ -371,14 +380,19 @@ export function drawControls(ctx, state, lay) {
   const c = lay.ctrl, kind = state.ctl;
   const watch = state.m && state.m.cfg.mode === 'watch';
   // bar background
-  const bg = ctx.createLinearGradient(0, c.top, 0, H);
-  bg.addColorStop(0, 'rgba(5,20,14,0.95)'); bg.addColorStop(1, 'rgba(4,14,10,1)');
-  ctx.fillStyle = bg; ctx.fillRect(0, c.top - 2, W, H - c.top + 2);
-  ctx.fillStyle = 'rgba(214,170,80,0.5)'; ctx.fillRect(0, c.top - 2, W, 2);
+  const bx = c.box, wideP = c.mode === 'wide', tx = bx.x + 20, tw = bx.w - 40, tcx = bx.x + bx.w / 2;
+  if (wideP) {
+    panel(ctx, bx.x, bx.y, bx.w, bx.h, { r: 22, fill: 'rgba(5,20,14,0.96)', stroke: 'rgba(214,170,80,0.55)', shadow: false });
+  } else {
+    const bg = ctx.createLinearGradient(0, c.top, 0, H);
+    bg.addColorStop(0, 'rgba(5,20,14,0.95)'); bg.addColorStop(1, 'rgba(4,14,10,1)');
+    ctx.fillStyle = bg; ctx.fillRect(0, c.top - 2, W, H - c.top + 2);
+    ctx.fillStyle = 'rgba(214,170,80,0.5)'; ctx.fillRect(0, c.top - 2, W, 2);
+  }
   const fs = c.fs, fsG = Math.min(c.fs, 40);
   if (watch) {
     ctx.textBaseline = 'alphabetic';
-    drawCtrlText(ctx, state.wlabel || 'Watch & Learn', 20, c.labelY + fs * 0.9, W - 40, Math.round(fs * 0.82), '#ffe9a8');
+    drawCtrlText(ctx, state.wlabel || 'Watch & Learn', tx, c.labelY + fs * 0.9, tw, Math.round(fs * 0.82), '#ffe9a8');
     drawButton(ctx, c.pause, state.paused ? 'Resume' : 'Pause', { primary: !state.paused, active: state.paused, size: Math.round(fs * 1.05) });
     drawButton(ctx, c.dec, 'Think −', { dark: true, size: Math.round(fs * 0.9) });
     drawButton(ctx, c.exit, 'Exit', { dark: true, size: Math.round(fs * 0.9) });
@@ -386,7 +400,7 @@ export function drawControls(ctx, state, lay) {
     return;
   }
   if (kind === 'roll') {
-    drawCtrlText(ctx, state.rollLabel || 'The balls are rolling', 20, c.labelY + fs * 0.95, W - 40, Math.round(fs * 0.9), '#ffe9a8');
+    drawCtrlText(ctx, state.rollLabel || 'The balls are rolling', tx, c.labelY + fs * 0.95, tw, Math.round(fs * 0.9), '#ffe9a8');
     drawButton(ctx, c.pause, 'Pause', { dark: true, size: Math.round(fs * 1.0) });
     drawButton(ctx, c.fast, state.ff ? 'Fast ▶▶' : 'Hold for fast', { dark: true, size: Math.round(fs * 0.9) });
     return;
@@ -398,19 +412,19 @@ export function drawControls(ctx, state, lay) {
     const vt = c.textTop - 2, vb = btop - 10;
     const rows = [];                                   // the text is laid out once, clipped to its box and scrollable (drag) at any text size
     ctx.font = `800 ${Math.round(fs * 1.12)}px ${FONT}`;
-    for (const l of wrapLines(ctx, v.title, W - 40)) rows.push({ t: l, f: `800 ${Math.round(fs * 1.12)}px ${FONT}`, col: v.tone === 'bad' ? '#ffb6a0' : v.tone === 'good' ? '#9af0c0' : '#ffe9a8', h: fs * 1.25 });
-    for (const ln of v.lines) { ctx.font = `600 ${Math.round(fs * 0.82)}px ${FONT}`; for (const l of wrapLines(ctx, ln, W - 40)) rows.push({ t: l, f: `600 ${Math.round(fs * 0.82)}px ${FONT}`, col: '#e6f2ea', h: Math.round(fs * 0.82) * 1.25 }); }
+    for (const l of wrapLines(ctx, v.title, tw)) rows.push({ t: l, f: `800 ${Math.round(fs * 1.12)}px ${FONT}`, col: v.tone === 'bad' ? '#ffb6a0' : v.tone === 'good' ? '#9af0c0' : '#ffe9a8', h: fs * 1.25 });
+    for (const ln of v.lines) { ctx.font = `600 ${Math.round(fs * 0.82)}px ${FONT}`; for (const l of wrapLines(ctx, ln, tw)) rows.push({ t: l, f: `600 ${Math.round(fs * 0.82)}px ${FONT}`, col: '#e6f2ea', h: Math.round(fs * 0.82) * 1.25 }); }
     const total = rows.reduce((a, r) => a + r.h, 0) + fs * 0.3;
     verdictScroll.max = Math.max(0, total - (vb - vt)); verdictScroll.top = vt; verdictScroll.bottom = vb;
     v.scroll = Math.max(0, Math.min(verdictScroll.max, v.scroll ?? 0));
-    ctx.save(); ctx.beginPath(); ctx.rect(0, vt, W, vb - vt); ctx.clip();
+    ctx.save(); ctx.beginPath(); ctx.rect(bx.x, vt, bx.w, vb - vt); ctx.clip();
     let y = vt + fs * 0.95 - v.scroll; ctx.textAlign = 'center';
-    for (const r of rows) { ctx.font = r.f; ctx.fillStyle = r.col; ctx.fillText(r.t, W / 2, y); y += r.h; }
+    for (const r of rows) { ctx.font = r.f; ctx.fillStyle = r.col; ctx.fillText(r.t, tcx, y); y += r.h; }
     ctx.restore();
     if (verdictScroll.max > 0) {
       const th = Math.max(36, (vb - vt) * ((vb - vt) / total)), ty = vt + (v.scroll / verdictScroll.max) * (vb - vt - th);
-      roundPath(ctx, W - 12, ty, 6, th, 3); ctx.fillStyle = 'rgba(241,233,208,0.6)'; ctx.fill();
-      ctx.font = `700 22px ${FONT}`; ctx.fillStyle = 'rgba(255,233,168,0.95)'; ctx.textAlign = 'right'; ctx.fillText(v.scroll < verdictScroll.max - 4 ? 'drag up for more ▼' : '▲ drag down', W - 22, vb - 4);
+      roundPath(ctx, bx.x + bx.w - 12, ty, 6, th, 3); ctx.fillStyle = 'rgba(241,233,208,0.6)'; ctx.fill();
+      ctx.font = `700 22px ${FONT}`; ctx.fillStyle = 'rgba(255,233,168,0.95)'; ctx.textAlign = 'right'; ctx.fillText(v.scroll < verdictScroll.max - 4 ? 'drag up for more ▼' : '▲ drag down', bx.x + bx.w - 22, vb - 4);
     }
     const n = v.buttons.length;
     const rects = n === 1 ? [c.go] : n === 2 ? [c.half1, c.half2] : [c.go2, c.go];
@@ -419,8 +433,8 @@ export function drawControls(ctx, state, lay) {
   }
   // aim
   drawPower(ctx, state, c.power, fsG);
-  if (c.inset) drawInset(ctx, state, c.inset, fsG);
-  const guideLbl = ['Guide: Off', 'Guide: Line', 'Guide: Preview'][state.settings.guide];
+  if (c.inset) drawInset(ctx, state, c.inset, fsG, lay.orient);
+  const guideLbl = (c.guide && c.guide.w < 190 ? ['Guide: Off', 'Guide: Line', 'Guide: Shot'] : ['Guide: Off', 'Guide: Line', 'Guide: Preview'])[state.settings.guide];
   const dis = !state.humanTurn || state.paused;
   if (c.small) {
     const S = c.spin;
@@ -449,7 +463,7 @@ function drawTarget(ctx, cam, state) {
 export function renderPlay(ctx, state) {
   const lay = layoutFor(state), cam = camFor(state);
   setHost(ctx);
-  const baked = bakedTable(ctx, cam, String(textScale(state)));
+  const baked = bakedTable(ctx, cam, camKey);
   if (baked) ctx.drawImage(baked, 0, 0); else drawTable(ctx, cam);
   if (state.f && state.f.inHand && state.humanTurn && state.ctl !== 'roll') drawD(ctx, cam, state);
   drawTarget(ctx, cam, state);
@@ -462,8 +476,8 @@ export function renderPlay(ctx, state) {
   drawToast(ctx, state, lay);
   drawCard(ctx, state, lay);
   if (state.paused && !state.pauseMenu && state.m && state.m.cfg.mode === 'watch') {
-    ctx.save(); ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fillRect(0, lay.regionTop, W, lay.regionBottom - lay.regionTop);
-    ctx.font = `800 54px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; textShadow(ctx, 'Paused', W / 2, (lay.regionTop + lay.regionBottom) / 2, '#ffffff', 8); ctx.restore();
+    ctx.save(); ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fillRect(lay.region.x, lay.region.y, lay.region.w, lay.region.h);
+    ctx.font = `800 54px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; textShadow(ctx, 'Paused', lay.region.x + lay.region.w / 2, (lay.regionTop + lay.regionBottom) / 2, '#ffffff', 8); ctx.restore();
   }
 }
 
@@ -471,7 +485,8 @@ export function cardRect(state, lay) {
   const big = lay.fs > 38;
   const fs = Math.round(26 * Math.min(lay.fs / 26, 2.0) * 0.78);
   const h = Math.round(fs * (big ? 2.6 : 3.7));
-  return { x: 22, y: lay.regionTop + 8, w: W - 44, h, fs, big };
+  const rg = lay.region, w = Math.min(rg.w - 24, 760);
+  return { x: rg.x + (rg.w - w) / 2, y: lay.regionTop + 8, w, h, fs, big };
 }
 function drawCard(ctx, state, lay) {
   const k = state.card;
@@ -498,30 +513,32 @@ function drawToast(ctx, state, lay) {
   if (state.toastT <= 0 || !state.toast || state.card) return;
   const fs = Math.round(lay.fs * 0.85);
   ctx.font = `700 ${fs}px ${FONT}`;
-  const lines = wrapLines(ctx, state.toast, W - 90);
-  const h = lines.length * fs * 1.25 + 24, w = Math.min(W - 40, Math.max(...lines.map((l) => ctx.measureText(l).width)) + 44);
-  const y = lay.regionTop + 10, x = (W - w) / 2;
+  const rg = lay.region, rcx = rg.x + rg.w / 2, lines = wrapLines(ctx, state.toast, Math.min(rg.w - 70, 700));
+  const h = lines.length * fs * 1.25 + 24, w = Math.min(rg.w - 20, Math.max(...lines.map((l) => ctx.measureText(l).width)) + 44);
+  const y = lay.regionTop + 10, x = rcx - w / 2;
   ctx.save(); ctx.globalAlpha = Math.min(1, state.toastT * 3);
   roundPath(ctx, x, y, w, h, 20); ctx.fillStyle = 'rgba(6,26,18,0.9)'; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(255,214,120,0.7)'; ctx.stroke();
   ctx.fillStyle = '#f4eed8'; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
-  lines.forEach((l, i) => ctx.fillText(l, W / 2, y + 12 + fs * (1 + i * 1.25) - 4));
+  lines.forEach((l, i) => ctx.fillText(l, rcx, y + 12 + fs * (1 + i * 1.25) - 4));
   ctx.restore();
 }
 
 // ---- attract table for the menus ---------------------------------------------------------------------------------------------------------------------
 // A slowly drifting still life behind the menus: the baked table at a fixed place, a few balls, no motion.
+let attractLay = null, attractCam = null;
 export function drawAttract(ctx, state) {
   const lay = playLayout(1, 'aim');
-  const cam = makeCamera(lay.regionTop, lay.regionBottom);
+  if (attractLay !== lay || !attractCam) { attractCam = makeCamera(lay.region, lay.orient); attractLay = lay; }
+  const cam = attractCam;
   setHost(ctx);
   ctx.fillStyle = '#07120d'; ctx.fillRect(0, 0, W, H);
-  const baked = bakedTable(ctx, cam, 'attract');
+  const baked = bakedTable(ctx, cam, `attract|${W}x${H}|${lay.mode}|${host.t},${host.b},${host.l},${host.r}`);
   if (baked) ctx.drawImage(baked, 0, 0); else drawTable(ctx, cam);
   const balls = state.attract ?? [];
   for (const b of balls) {
-    const [X, Y] = cam.px(b.x, b.y, R), r = cam.ballR(b.y);
+    const [X, Y] = cam.px(b.x, b.y, R), r = cam.ballR(b.y, b.x);
     drawShadow(ctx, X, Y, r, 0.8, 0.4);
   }
-  for (const b of balls) { const [X, Y] = cam.px(b.x, b.y, R); drawBall(ctx, X, Y, cam.ballR(b.y), b.id, { mark: [b.mx ?? 0, b.my ?? 0, b.mz ?? 1] }); }
+  for (const b of balls) { const [X, Y] = cam.px(b.x, b.y, R); drawBall(ctx, X, Y, cam.ballR(b.y, b.x), b.id, { mark: [b.mx ?? 0, b.my ?? 0, b.mz ?? 1] }); }
 }
 void nameOf; void SPOT; void ballStyle; void BALL; void C; void drawButton; void inRect; void GEOM;

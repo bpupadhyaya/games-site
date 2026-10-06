@@ -53,10 +53,10 @@ export function drawButton(ctx, r, label, opts = {}) {
   let px = sub ? Math.round(size * 0.9) : size;
   const maxW = r.w - (icon ? 84 : 24);
   ctx.font = `700 ${px}px ${FONT}`;
-  while (ctx.measureText(label).width > maxW && px > 13) { px -= 1; ctx.font = `700 ${px}px ${FONT}`; }
+  while (ctx.measureText(label).width > maxW && px > 16) { px -= 1; ctx.font = `700 ${px}px ${FONT}`; }
   const cx = r.x + r.w / 2 + (icon ? 24 : 0);
   ctx.fillText(label, cx, r.y + dy + r.h / 2 - (sub ? 11 : 0));
-  if (sub) { ctx.font = `400 ${Math.round(size * 0.62)}px ${FONT}`; ctx.globalAlpha = 0.85; ctx.fillText(sub, cx, r.y + dy + r.h / 2 + size * 0.5); ctx.globalAlpha = 1; }
+  if (sub) { ctx.font = `400 ${Math.max(20, Math.round(size * 0.62))}px ${FONT}`; ctx.globalAlpha = 0.85; ctx.fillText(sub, cx, r.y + dy + r.h / 2 + size * 0.5); ctx.globalAlpha = 1; }
   if (icon) icon(ctx, r.x + 32, r.y + dy + r.h / 2, light && !disabled ? '#fff8e8' : C.ink);
   ctx.restore();
 }
@@ -121,7 +121,7 @@ export function flowLayout(ctx, widgets, scale, o = {}) {
       const cw0 = (w0 - GAP * (group.length - 1)) / group.length;
       const tooWide = group.some((g) => g.label.split(' ').some((word) => ctx.measureText(word).width > cw0 - 28));
       if (tooWide || (scale > 1.5 && group.length > 1)) {
-        widgets.splice(i, 0, ...group.map((g) => ({ ...g, row: undefined, h: g.h ?? 76 })));
+        widgets.splice(i, 0, ...group.map((g) => ({ ...g, row: undefined, h: g.h ?? 84 })));
         continue;
       }
       const cw = cw0;
@@ -130,7 +130,7 @@ export function flowLayout(ctx, widgets, scale, o = {}) {
         ctx.font = `700 ${fs}px ${FONT}`;
         const lines = wrapLines(ctx, g.label, cw - 28);
         const sub = g.sub ? wrapLines(ctx, g.sub, cw - 28).length : 0;
-        const h = Math.max(g.h ?? 76, lines.length * fs * 1.15 + sub * fs * 0.72 + 34);
+        const h = Math.max(g.h ?? 84, lines.length * fs * 1.15 + sub * Math.max(20, fs * 0.72) + 34);
         hmax = Math.max(hmax, h);
         return { g, lines, h, subLines: sub };
       });
@@ -162,7 +162,7 @@ export function flowLayout(ctx, widgets, scale, o = {}) {
       ctx.font = `700 ${fs}px ${FONT}`;
       const lines = wrapLines(ctx, wd.label, w0 - 28);
       const sub = (wd.sub ? wrapLines(ctx, wd.sub, w0 - 28).length : 0) + (wd.starMax ? 1 : 0);
-      const h = Math.max(wd.h ?? 84, lines.length * fs * 1.15 + sub * fs * 0.72 + 34);
+      const h = Math.max(wd.h ?? 84, lines.length * fs * 1.15 + sub * Math.max(20, fs * 0.72) + 34);
       out.push({ w: wd, x: x0, y, wd: w0, h, fs, lines }); y += h + GAP;
     }
   }
@@ -171,7 +171,7 @@ export function flowLayout(ctx, widgets, scale, o = {}) {
 
 export function drawFlow(ctx, lay, top, bottom, scroll, o = {}) {
   ctx.save();
-  ctx.beginPath(); ctx.rect(0, top, 720, bottom - top); ctx.clip();
+  ctx.beginPath(); ctx.rect(-2000, top, 8000, bottom - top); ctx.clip();
   for (const it of lay.items) {
     const y = top + it.y - scroll;
     if (y > bottom || y + it.h < top) continue;
@@ -198,15 +198,15 @@ function drawButtonRect(ctx, r, it, wd) {
   ctx.fillStyle = disabled ? 'rgba(60,60,80,0.55)' : light ? '#fffaf0' : C.ink;
   ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
   ctx.font = `700 ${it.fs}px ${FONT}`;
-  const subLines = wd.sub ? (() => { ctx.font = `400 ${Math.round(it.fs * 0.72)}px ${FONT}`; const l = wrapLines(ctx, wd.sub, r.w - 28); ctx.font = `700 ${it.fs}px ${FONT}`; return l; })() : [];
+  const subLines = wd.sub ? (() => { ctx.font = `400 ${Math.max(20, Math.round(it.fs * 0.72))}px ${FONT}`; const l = wrapLines(ctx, wd.sub, r.w - 28); ctx.font = `700 ${it.fs}px ${FONT}`; return l; })() : [];
   if (wd.starMax) subLines.push('\u2605'.repeat(wd.stars | 0) + '\u2606'.repeat(wd.starMax - (wd.stars | 0)));
-  const total = it.lines.length * it.fs * 1.15 + subLines.length * it.fs * 0.72;
+  const subFs = Math.max(20, Math.round(it.fs * 0.72)), total = it.lines.length * it.fs * 1.15 + subLines.length * subFs;
   let y = r.y + dy + (r.h - total) / 2 + it.fs * 0.88;
   it.lines.forEach((l) => { ctx.fillText(l, r.x + r.w / 2, y); y += it.fs * 1.15; });
   if (subLines.length) {
-    ctx.font = `400 ${Math.round(it.fs * 0.72)}px ${FONT}`; ctx.globalAlpha = 0.85;
+    ctx.font = `400 ${subFs}px ${FONT}`; ctx.globalAlpha = 0.85;
     y -= it.fs * 0.2;
-    subLines.forEach((l) => { ctx.fillText(l, r.x + r.w / 2, y); y += it.fs * 0.72; });
+    subLines.forEach((l) => { ctx.fillText(l, r.x + r.w / 2, y); y += subFs; });
     ctx.globalAlpha = 1;
   }
   ctx.restore();

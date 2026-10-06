@@ -3,8 +3,8 @@
   "title": "Parqués: Salida y Cárcel",
   "tagline": "Colombian parqués: break out of jail, split your dice, capture rivals",
   "genre": "cross-and-circle race game",
-  "orientation": "portrait",
-  "version": "1.0.2",
+  "orientation": "any",
+  "version": "1.1.4",
   "monetization": {
     "model": "premium",
     "priceUsd": 2.99,

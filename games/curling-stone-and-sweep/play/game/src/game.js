@@ -14,16 +14,19 @@ import { PROFILES, createPlanner, sweepDecision } from './ai.js';
 import { throwNoise, applyNoise, HUMAN } from './noise.js';
 import { explainShot, situation } from './explain.js';
 import { LESSONS, lessonById, lessonIndex } from './lessons.js';
-import { W, H, inRect, REF_BACK, REF_NEXT, TEXT_DEC, TEXT_INC, TEXT_SCALES, THINK_STEPS, SETUP_PINS } from './layout.js';
+import { inRect, setSize, REF_BACK, REF_NEXT, TEXT_DEC, TEXT_INC, TEXT_SCALES, THINK_STEPS, SETUP_PINS } from './layout.js';
 import { renderPlay, layoutFor, makeCam, aimToWorld, cardRect } from './view.js';
 import {
   renderTitle, renderSetup, renderSettings, renderLearn, renderQuiz, renderResult, renderPause, renderShotOptions, renderReason, renderLessonResult, renderPages, renderDemoLimit,
-  hitScreen, flowMeta, pageCount, ensureLayout, resetMenus,
+  hitScreen, flowMeta, READER, refCloseRect, ensureLayout, resetMenus,
+  lockupZone,
 } from './menus.js';
 import { ABOUT, HOWTO, RULES } from './content.js';
 import { setPress } from './ui.js';
 
-export const meta = { width: W, height: H };
+// Fluid viewport (kit 1.7.x): the short side is always 720 units; meta.width / meta.height follow the real screen (portrait and landscape).
+export const wheelInput = { dy: 0 };
+export const meta = { width: 720, height: 1280, fluid: { short: 720 } };
 const DEMO_END_CAP = 2;
 const SHOT_MODE = (() => { try { return /[?&]shot=/.test(globalThis.location.search); } catch { return false; } })();
 
@@ -343,7 +346,7 @@ export function createGame(env) {
     const ptr = input.pointer, keys = input.keys, si = state.sweepIn;
     const lay = state.cam.lay;
     let tgt = 0;
-    const onIce = lay && ptr.y >= lay.regionTop && ptr.y <= lay.regionBottom;
+    const onIce = lay && inRect(lay.sheet, ptr.x, ptr.y);
     if (ptr.down && onIce) {
       if (state.settings.easy) tgt = 0.8;
       else {
@@ -591,8 +594,8 @@ export function createGame(env) {
     sfx.tick();
     const st = state.settings;
     if (id === 'resume') closePause();
-    else if (id === 'p-rules') { state.back = 'play'; state.scene = 'rules'; state.page = 0; }
-    else if (id === 'p-howto') { state.back = 'play'; state.scene = 'howto'; state.page = 0; }
+    else if (id === 'p-rules') { state.back = 'play'; state.scene = 'rules'; state.page = 0; state.ui.scroll = 0; }
+    else if (id === 'p-howto') { state.back = 'play'; state.scene = 'howto'; state.page = 0; state.ui.scroll = 0; }
     else if (id === 'p-sound') { st.sound = !st.sound; audio.setMuted?.(!st.sound); save(); }
     else if (id === 'p-guide') { st.guide = (st.guide + 1) % 3; save(); previewKey = ''; }
     else if (id === 'p-txtdec') { st.textIdx = Math.max(0, st.textIdx - 1); save(); }
@@ -655,7 +658,7 @@ export function createGame(env) {
           } else if (inRect(c.shot, ptr.x, ptr.y)) { state.shotOpts = true; state.ui.scroll = 0; sfx.tick(); return; }
           if (inRect(c.think, ptr.x, ptr.y)) { requestHint(); sfx.tick(); }
           else if (inRect(c.throw, ptr.x, ptr.y)) { humanThrow(); return; }
-          else if (ptr.y >= lay.regionTop && ptr.y <= lay.regionBottom && !(state.lesson && state.lesson.def.fixed)) state.drag = { moved: false };
+          else if (inRect(lay.sheet, ptr.x, ptr.y) && !(state.lesson && state.lesson.def.fixed)) state.drag = { moved: false };
         }
       }
       if (state.drag && state.humanTurn && !state.paused) {
@@ -713,13 +716,14 @@ export function createGame(env) {
   // ---- menus ----------------------------------------------------------------------------------------------------------
   const handleTitle = (id) => {
     if (!id) return;
+    if (id === 'arcforge') { env.openArcforgeHome?.(); return; }
     sfx.tick();
     if (id === 'resume') resumeMatch();
     else if (id === 'play') { state.setup.mode = 'ai'; state.scene = 'setup'; state.ui.scroll = 0; state.setupMsg = ''; }
     else if (id === 'two') { state.setup.mode = 'two'; state.scene = 'setup'; state.ui.scroll = 0; state.setupMsg = ''; }
     else if (id === 'watch') startWatch();
     else if (id === 'learn') { state.scene = 'learn'; state.ui.scroll = 0; }
-    else if (id === 'howto' || id === 'rules' || id === 'about') { state.back = 'title'; state.scene = id; state.page = 0; }
+    else if (id === 'howto' || id === 'rules' || id === 'about') { state.back = 'title'; state.scene = id; state.page = 0; state.ui.scroll = 0; }
     else if (id === 'settings') { state.scene = 'settings'; state.ui.scroll = 0; }
     else if (id === 'sound') { state.settings.sound = !state.settings.sound; audio.setMuted?.(!state.settings.sound); save(); }
   };
@@ -794,6 +798,7 @@ export function createGame(env) {
     const max = mt.lay ? Math.max(0, mt.lay.contentH - (mt.bottom - mt.top)) : 0;
     if (input.keys.pressed.has('Equal') || input.keys.pressed.has('NumpadAdd')) { state.settings.textIdx = Math.min(TEXT_SCALES.length - 1, state.settings.textIdx + 1); save(); }
     if (input.keys.pressed.has('Minus') || input.keys.pressed.has('NumpadSubtract')) { state.settings.textIdx = Math.max(0, state.settings.textIdx - 1); save(); }
+    if (wheelInput.dy) { state.ui.scroll = clamp(state.ui.scroll + wheelInput.dy, 0, max); wheelInput.dy = 0; }
     if (input.keys.down.has('ArrowDown')) state.ui.scroll = clamp(state.ui.scroll + 14, 0, max);
     if (input.keys.down.has('ArrowUp')) state.ui.scroll = clamp(state.ui.scroll - 14, 0, max);
   };
@@ -806,19 +811,26 @@ export function createGame(env) {
   };
   const updatePages = (input) => {
     const ptr = input.pointer, keys = input.keys;
-    const n = pageCount();
-    const close = () => { state.scene = state.back === 'play' ? 'play' : 'title'; state.page = 0; };
-    const next = () => { if (state.page >= n - 1) close(); else state.page++; };
-    const prev = () => { if (state.page <= 0) close(); else state.page--; };
+    const close = () => { state.scene = state.back === 'play' ? 'play' : 'title'; state.page = 0; state.ui.scroll = 0; state.ui.drag = null; };
+    const setScroll = (v) => { state.ui.scroll = clamp(v, 0, READER.max); };
+    
     if (ptr.pressed) {
-      if (inRect(REF_NEXT, ptr.x, ptr.y)) next();
-      else if (inRect(REF_BACK, ptr.x, ptr.y)) prev();
+      if (inRect(refCloseRect(), ptr.x, ptr.y)) { close(); return; }
       else if (inRect(TEXT_DEC, ptr.x, ptr.y)) { state.settings.textIdx = Math.max(0, state.settings.textIdx - 1); save(); }
       else if (inRect(TEXT_INC, ptr.x, ptr.y)) { state.settings.textIdx = Math.min(TEXT_SCALES.length - 1, state.settings.textIdx + 1); save(); }
+      else if (ptr.y >= READER.y0 && ptr.y <= READER.y1) state.ui.drag = { y0: ptr.y, s0: state.ui.scroll };
     }
-    if (keys.pressed.has('ArrowRight')) next();
-    if (keys.pressed.has('ArrowLeft')) prev();
-    if (keys.pressed.has('Escape')) close();
+    if (state.ui.drag && ptr.down) setScroll(state.ui.drag.s0 - (ptr.y - state.ui.drag.y0));
+    if (ptr.released) state.ui.drag = null;
+    if (wheelInput.dy) { setScroll(state.ui.scroll + wheelInput.dy); wheelInput.dy = 0; }
+    const step = 70, pgs = Math.max(100, READER.view - 80);
+    if (keys.pressed.has('ArrowDown')) setScroll(state.ui.scroll + step);
+    if (keys.pressed.has('ArrowUp')) setScroll(state.ui.scroll - step);
+    if (keys.pressed.has('PageDown') || keys.pressed.has('Space')) setScroll(state.ui.scroll + pgs);
+    if (keys.pressed.has('PageUp')) setScroll(state.ui.scroll - pgs);
+    if (keys.pressed.has('Home')) setScroll(0);
+    if (keys.pressed.has('End')) setScroll(READER.max);
+    if (keys.pressed.has('Escape') || keys.pressed.has('Enter')) close();
   };
 
   // ---- showcase (store screenshots: ?shot=1 plays a scripted, real position instead of the random player) ------------
@@ -871,7 +883,7 @@ export function createGame(env) {
       else if (v === 'lessonres') { startLesson('draw'); state.lessonRes = { ok: false, msg: 'Light: the stone stopped 1.2 m short of the button.' }; state.m.phase = 'lessonres'; state.shotMode = null; }
       else if (v === 'result') { state.m.over = { win: 0, extra: false }; state.m.scores = [6, 3]; state.m.log = [{ end: 1, team: 0, pts: 2, steal: false }, { end: 2, team: 1, pts: 1, steal: true }]; state.scene = 'result'; }
       else if (v === 'quiz') { startLesson('count'); }
-      else if (v === 'rules' || v === 'about' || v === 'howto') { state.scene = v; state.back = 'title'; state.page = Number(q('page')) | 0; }
+      else if (v === 'rules' || v === 'about' || v === 'howto') { state.scene = v; state.back = 'title'; state.page = 0; state.ui.scroll = (Number(q('page')) | 0) * 900; }
       else if (v === 'watch') { startWatch(); state.shotMode = null; }
       else state.scene = v;
     }
@@ -886,6 +898,7 @@ export function createGame(env) {
     // Watch & Learn, lessons and every menu are free; only real play counts against the free preview (a paused match does not).
     isPreviewExempt: () => !(state.scene === 'play' && state.m && state.m.cfg.mode !== 'watch' && state.m.cfg.mode !== 'lesson') || state.paused,
     update(dt, input) {
+      setSize(meta.width, meta.height);
       state.stepped = false; state.updAt = nowMs();
       setPress(input.pointer);
       state.t += state.paused && state.scene === 'play' ? 0 : dt;
@@ -908,8 +921,10 @@ export function createGame(env) {
         case 'play': updatePlay(dt, input); break;
         default: break;
       }
+      wheelInput.dy = 0;
     },
-    render(ctx) {
+    render(ctx, view) {
+      setSize(view?.width ?? meta.width, view?.height ?? meta.height);
       state.alpha = state.stepped && env.clock ? Math.max(0, Math.min(1, (nowMs() - state.updAt) / (STEP * 1000))) : 1;
       switch (state.scene) {
         case 'title': renderTitle(ctx, state); break;
@@ -933,5 +948,6 @@ export function createGame(env) {
       }
     },
     getState: () => state,
+    lockupZone: () => lockupZone(),
   };
 }

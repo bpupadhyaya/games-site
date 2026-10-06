@@ -94,9 +94,10 @@ export function layoutDoc(blocks, scale, width, opts = {}) {
       it.line = it.size * 1.22;
       const padX = sp(26, scale);
       it.lines = wrap(b.label, it.size, W - padX * 2);
-      const subLines = b.sub ? wrap(b.sub, it.size * 0.62, W - padX * 2) : [];
+      const ss = Math.max(it.size * 0.62, Math.min(22, it.size * 0.8));
+      const subLines = b.sub ? wrap(b.sub, ss, W - padX * 2) : [];
       it.sub = subLines;
-      const inner = it.lines.length * it.line + (subLines.length ? subLines.length * it.size * 0.78 + sp(4, scale) : 0);
+      const inner = it.lines.length * it.line + (subLines.length ? subLines.length * ss * 1.26 + sp(4, scale) : 0);
       const h = Math.max(sp(b.minH ?? 84, scale), inner + sp(34, scale));
       it.h = h + sp(16, scale);
       it.btns.push({ id: b.id, x: side, y, w: W, h, disabled: b.disabled });

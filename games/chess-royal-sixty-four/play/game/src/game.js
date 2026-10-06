@@ -4,9 +4,7 @@
 // How a move is made: TAP a piece (its legal squares light up), then TAP a lit square; or DRAG the
 // piece and drop it on a square. Castling: TAP/DRAG the king two squares toward the rook. Promotion
 // opens a picker. An illegal attempt visibly tries, shudders back, and a message says why.
-import {
-  W, H, squareAt, pointXY, inRect, titleRows, BTN, BTN4, HEADER, REF_BACK, REF_NEXT, TEXT_DEC, TEXT_INC, RESULT_PANEL, PROMO, SIBLINGS, chipRect, TEXT_SCALES, THINK_STEPS, DEMO_THINK, DEMO_PAUSE,
-} from './layout.js';
+import { W, H, squareAt, pointXY, inRect, lockHit, layoutFor, SIBLINGS, TEXT_SCALES, THINK_STEPS } from './layout.js';
 import {
   newGame, applyMove, undoMove, tryMove, legalTargets, inCheck, WHITE, BLACK,
   TYPE_NAME, QUEEN, ROOK, BISHOP, KNIGHT, moveFrom, moveTo, moveFlag,
@@ -14,12 +12,14 @@ import {
 import { LEVEL_COUNT, createThinker } from './engine.js';
 import { LESSONS, loadStep, wantMatches, lessonTargets, miniGameReply } from './lessons.js';
 import { DEMO_GAMES, demoRng } from './demo.js';
-import { ABOUT, HOWTO, RULES } from './content.js';
 import { invalidateArt } from './art.js';
 import { invalidatePieces, warmPiece } from './pieces.js';
-import { render } from './view.js';
+import { render, pageView } from './view.js';
 
-export const meta = { width: W, height: H };
+// Fluid: the kit keeps meta.width / meta.height equal to the live screen (short side 720); every position comes from layoutFor().
+export const meta = { width: W, height: H, fluid: { short: 720 } };
+// Mouse-wheel travel (virtual units) collected by main.js and consumed by the reader pages; empty in headless runs.
+export const wheelInput = { dy: 0 };
 const HINTS_PER_GAME = 3, BOARD_THEMES = ['walnut', 'marble', 'rosewood'];
 
 export function createGame(env) {
@@ -48,10 +48,13 @@ export function createGame(env) {
     demoFinished: false,
     progress: { played: 0, wins: 0 }, learned: [],
     coach: { seen: false }, coachBubble: null,
+    scroll: 0, pageDrag: null,
     textScaleIdx: 0, // index into TEXT_SCALES; the About/Controls/Rules reference pages' text size
   };
   let thinker = null, hinter = null, pending = null, warmI = 0, fontFix = 0, miniRng = null, demoGameRng = null;
   const sfx = [];
+  const lay = () => layoutFor(meta.width, meta.height);
+  const sceneL = () => lay().scene(state.scene === 'lesson' ? 'lesson' : state.scene === 'demo' ? 'demo' : 'play');
 
   // ---- storage --------------------------------------------------------------------------------
   const savePrefs = () => storage.set('prefs', { level: state.level, sound: state.sound, boardTheme: state.boardTheme, textScaleIdx: state.textScaleIdx, demoThinkIdx: state.demoThinkIdx });
@@ -339,7 +342,10 @@ export function createGame(env) {
   };
   const KEYMOVE = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, 1], ArrowDown: [0, -1] };
 
-  function boardPointer(p) {
+  function boardPointer(pScreen) {
+    // Pointer positions arrive in screen units; the board code works in canonical board units.
+    const bm = sceneL().board, c = bm.toCanon(pScreen.x, pScreen.y);
+    const p = { ...pScreen, x: c.x, y: c.y };
     const d = state.drag;
     if (p.pressed && !busy()) {
       const s = squareAt(p.x, p.y, flip());
@@ -359,7 +365,7 @@ export function createGame(env) {
 
   // ---- update -------------------------------------------------------------------------------------------
   function update(dt, input) {
-    state.t += dt;
+    state.t += dt; if (state.lockPress > 0) state.lockPress = Math.max(0, state.lockPress - dt);
     const p = input.pointer, keys = input.keys;
     if (fontFix < 2 && state.t > (fontFix === 0 ? 0.8 : 2.6)) { fontFix++; invalidateArt(); invalidatePieces(); warmI = 0; }
     if (warmI < 12) { const type = 1 + (warmI % 6), white = warmI < 6; warmPiece(type, white, state.boardTheme, 34); warmI++; }
@@ -408,10 +414,10 @@ export function createGame(env) {
       } else if (keys.pressed.has('Escape')) state.scene = 'title';
     }
 
-    const hit = (r) => p.pressed && inRect(r, p.x, p.y);
+    const LY = lay(), hit = (r) => p.pressed && inRect(r, p.x, p.y);
     if (state.promoPending) {
       if (p.pressed) {
-        const idx = PROMO.pieces.findIndex((r) => inRect(r, p.x, p.y));
+        const idx = LY.promo.pieces.findIndex((r) => inRect(r, p.x, p.y));
         if (idx >= 0) choosePromo([QUEEN, ROOK, BISHOP, KNIGHT][idx]);
       }
       return;
@@ -419,49 +425,60 @@ export function createGame(env) {
     switch (state.scene) {
       case 'title': {
         if (!p.pressed) break;
-        const rows = titleRows(false);
+        const rows = LY.title.rows;
+        if (hit(lockHit(LY, LY.title))) { state.lockPress = 0.18; env.openArcforgeHome?.(); break; }
         if (hit(rows.playWhite)) startGame(WHITE, 'ai');
         else if (hit(rows.playBlack)) startGame(BLACK, 'ai');
         else if (hit(rows.twoPlayer)) startGame(WHITE, 'two');
         else if (hit(rows.watch)) startDemo();
         else if (hit(rows.learn)) { const open = LESSONS.map((_, i) => i).filter((i) => !state.learned.includes(i)); startLesson(open.length ? open[0] : 0); }
-        else if (hit(rows.howto)) { state.scene = 'howto'; state.page = 0; }
-        else if (hit(rows.about)) { state.scene = 'about'; state.page = 0; }
-        else if (hit(rows.rules)) { state.scene = 'rules'; state.page = 0; }
+        else if (hit(rows.howto)) { state.scene = 'howto'; state.scroll = 0; }
+        else if (hit(rows.about)) { state.scene = 'about'; state.scroll = 0; }
+        else if (hit(rows.rules)) { state.scene = 'rules'; state.scroll = 0; }
         else if (hit(rows.level)) { state.level = (state.level % LEVEL_COUNT) + 1; savePrefs(); }
         else if (hit(rows.theme)) { state.boardTheme = BOARD_THEMES[(BOARD_THEMES.indexOf(state.boardTheme) + 1) % BOARD_THEMES.length]; warmI = 0; savePrefs(); }
-        else if (hit(HEADER.sound)) { state.sound = !state.sound; audio.setMuted(!state.sound); savePrefs(); }
+        else if (hit(LY.title.sound)) { state.sound = !state.sound; audio.setMuted(!state.sound); savePrefs(); }
         break;
       }
       case 'howto': case 'about': case 'rules': {
-        const list = state.scene === 'howto' ? HOWTO : state.scene === 'about' ? ABOUT : RULES;
-        if (hit(REF_BACK)) { if (state.page > 0) state.page -= 1; else state.scene = 'title'; }
-        else if (hit(REF_NEXT)) { if (state.page >= list.length - 1) { state.scene = 'title'; state.page = 0; } else state.page += 1; }
-        else if (hit(TEXT_DEC) && state.textScaleIdx > 0) { state.textScaleIdx--; savePrefs(); sound('ok'); }
-        else if (hit(TEXT_INC) && state.textScaleIdx < TEXT_SCALES.length - 1) { state.textScaleIdx++; savePrefs(); sound('ok'); }
+        const PG = LY.page;
+        const setScroll = (v) => { state.scroll = Math.max(0, Math.min(pageView.max, v)); };
+        const screenful = () => Math.max(120, (pageView.vp ? pageView.vp.h : 400) * 0.85);
+        if (hit(PG.nav.back)) state.scene = 'title';
+        else if (hit(PG.nav.next)) { if (state.scroll >= pageView.max - 2) state.scene = 'title'; else setScroll(state.scroll + screenful()); }
+        else if (hit(PG.nav.dec) && state.textScaleIdx > 0) { state.textScaleIdx--; savePrefs(); sound('ok'); }
+        else if (hit(PG.nav.inc) && state.textScaleIdx < TEXT_SCALES.length - 1) { state.textScaleIdx++; savePrefs(); sound('ok'); }
+        // scrolling the body: drag it, use the wheel, or the arrow / page keys (a page that fits never moves)
+        const vp = pageView.vp;
+        if (p.pressed && vp && inRect(vp, p.x, p.y)) state.pageDrag = { y: p.y, scroll: state.scroll };
+        if (state.pageDrag && p.down) setScroll(state.pageDrag.scroll - (p.y - state.pageDrag.y));
+        if (!p.down) state.pageDrag = null;
+        if (wheelInput.dy) { setScroll(state.scroll + wheelInput.dy); wheelInput.dy = 0; }
+        for (const c of keys.pressed) { if (c === 'ArrowDown') setScroll(state.scroll + 60); else if (c === 'ArrowUp') setScroll(state.scroll - 60); else if (c === 'PageDown') setScroll(state.scroll + screenful()); else if (c === 'PageUp') setScroll(state.scroll - screenful()); else if (c === 'Home') setScroll(0); else if (c === 'End') setScroll(1e9); }
         break;
       }
       case 'demo': {
         if (state.demoFinished) {
           // Same cross-promo moment the real game-over screen offers - see demoStep()'s comment.
-          if (hit(RESULT_PANEL.again)) startDemo();
-          else if (hit(RESULT_PANEL.menu)) { thinker = null; state.scene = 'title'; clearSel(); state.demoPaused = false; }
-          else SIBLINGS.forEach((sib, i) => hit(chipRect(i)) && env.openGame(sib.slug));
+          if (hit(LY.result.again)) startDemo();
+          else if (hit(LY.result.menu)) { thinker = null; state.scene = 'title'; clearSel(); state.demoPaused = false; }
+          else SIBLINGS.forEach((sib, i) => hit(LY.result.chips[i]) && env.openGame(sib.slug));
           break;
         }
-        if (hit(HEADER.back)) { thinker = null; state.scene = 'title'; clearSel(); state.demoPhase = null; state.demoPendingMove = undefined; state.demoChosen = -1; state.demoPaused = false; }
-        else if (hit(HEADER.next)) { state.demoSpeed = state.demoSpeed >= 4 ? 1 : state.demoSpeed * 2; }
-        else if (hit(DEMO_PAUSE)) { state.demoPaused = !state.demoPaused; sound('ok'); }
-        else if (hit(DEMO_THINK.dec)) { if (state.demoThinkIdx > 0) { state.demoThinkIdx--; savePrefs(); sound('ok'); } }
-        else if (hit(DEMO_THINK.inc)) { if (state.demoThinkIdx < THINK_STEPS.length - 1) { state.demoThinkIdx++; savePrefs(); sound('ok'); } }
+        const DB = LY.scene('demo').bar;
+        if (hit(DB.exit)) { thinker = null; state.scene = 'title'; clearSel(); state.demoPhase = null; state.demoPendingMove = undefined; state.demoChosen = -1; state.demoPaused = false; }
+        else if (hit(DB.speed)) { state.demoSpeed = state.demoSpeed >= 4 ? 1 : state.demoSpeed * 2; }
+        else if (hit(DB.pause)) { state.demoPaused = !state.demoPaused; sound('ok'); }
+        else if (hit(DB.dec)) { if (state.demoThinkIdx > 0) { state.demoThinkIdx--; savePrefs(); sound('ok'); } }
+        else if (hit(DB.inc)) { if (state.demoThinkIdx < THINK_STEPS.length - 1) { state.demoThinkIdx++; savePrefs(); sound('ok'); } }
         break;
       }
       case 'lesson': {
-        const L = state.lesson, l = LESSONS[L.i];
-        if (hit(BTN4.menu)) { toMenu(); break; }
-        if (hit(BTN4.flip)) { state.flipManual = !state.flipManual; break; }
-        if (hit(BTN4.hint) && !L.done) { L.showSol = true; say(l.steps[L.s].hint, 'good'); break; }
-        if (hit(BTN4.next)) {
+        const L = state.lesson, l = LESSONS[L.i], B4 = LY.scene('lesson').bar;
+        if (hit(B4.menu)) { toMenu(); break; }
+        if (hit(B4.flip)) { state.flipManual = !state.flipManual; break; }
+        if (hit(B4.hint) && !L.done) { L.showSol = true; say(l.steps[L.s].hint, 'good'); break; }
+        if (hit(B4.next)) {
           if (!L.done) loadLessonStep();
           else if (L.s + 1 < l.steps.length) { L.s++; loadLessonStep(); }
           else if (L.i + 1 < LESSONS.length) startLesson(L.i + 1);
@@ -472,18 +489,18 @@ export function createGame(env) {
         break;
       }
       case 'play': {
-        const g = state.g;
+        const g = state.g, B = LY.scene('play').bar;
         if (state.overOpen) {
-          if (hit(RESULT_PANEL.again)) startGame(state.human, state.mode);
-          else if (hit(RESULT_PANEL.menu)) toMenu();
-          else SIBLINGS.forEach((sib, i) => hit(chipRect(i)) && env.openGame(sib.slug));
+          if (hit(LY.result.again)) startGame(state.human, state.mode);
+          else if (hit(LY.result.menu)) toMenu();
+          else SIBLINGS.forEach((sib, i) => hit(LY.result.chips[i]) && env.openGame(sib.slug));
           break;
         }
-        if (hit(BTN.menu)) { toMenu(); break; }
-        if (hit(BTN.flip)) { state.flipManual = !state.flipManual; break; }
-        if (hit(BTN.undo)) { takeBack(); break; }
-        if (hit(BTN.hint)) { useHint(); break; }
-        if (hit(BTN.resign)) {
+        if (hit(B.menu)) { toMenu(); break; }
+        if (hit(B.flip)) { state.flipManual = !state.flipManual; break; }
+        if (hit(B.undo)) { takeBack(); break; }
+        if (hit(B.hint)) { useHint(); break; }
+        if (hit(B.resign)) {
           if (g.result) { startGame(state.human, state.mode); break; }
           if (state.mode === 'ai') { g.result = { winner: -state.human, why: 'resign' }; finishGame(); sound('lose'); }
           break;
@@ -497,7 +514,7 @@ export function createGame(env) {
 
   return {
     update,
-    render(ctx) { render(ctx, state); },
+    render(ctx, view) { render(ctx, state, layoutFor(view?.width ?? meta.width, view?.height ?? meta.height)); },
     getState() {
       const { g, ...rest } = state;
       return { ...rest, g: { board: g.st.board.slice(), turn: g.st.turn, moves: g.log.length, result: g.result } };

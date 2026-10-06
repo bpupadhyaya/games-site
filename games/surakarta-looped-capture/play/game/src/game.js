@@ -1,5 +1,5 @@
 // GAME CONTRACT (docs/GAME-CONTRACT.md). Surakarta: the looped-circuit capture game, five opponents, a Learn path.
-import { SCREEN, inRect, BACK_BTN, PAUSE_BTN, TOOLBAR_IDS, autoLayout } from './layout.js';
+import { inRect, lockHit, layoutFor } from './layout.js';
 import { TEXT_SCALES, hitDoc, clampScroll } from './ui.js';
 import { buildUi, THINK_STEPS, demoOver } from './screens.js';
 import { parse, genMoves, captureRoute, sideName, countOf, other, QUIET_LIMIT, NN } from './rules.js';
@@ -11,9 +11,10 @@ import { RULE_COUNT, HOWTO_COUNT, tr } from './content.js';
 import { themeById, THEMES, pointXY } from './art.js';
 import { render, playGeo } from './view.js';
 
-export const meta = { width: SCREEN.width, height: SCREEN.height };
+// `meta.width/height` are updated live by the kit on every resize; every position comes from layoutFor(meta.width, meta.height).
+export const meta = { width: 720, height: 1560, fluid: { short: 720 } };
 
-const VERSION = '1.0.0';
+const VERSION = '1.1.2';   // fallback only: the About page shows env.manifest.version (game.json) when the kit provides it
 const WIN_NOTES = [523, 659, 784, 1047, 1319];
 const AUTO_LV = ['master', 'expert'];
 
@@ -25,7 +26,8 @@ export async function createGame(env) {
     setup: { level: 'skilled', side: 1 }, stats: {}, lessons: {}, save: null, demoGames: 0, progress: { games: 0, wins: 0 },
     page: { howto: 0, rules: 0 }, scroll: {}, scrollVel: {}, press: null, match: null, auto: null, lessonIdx: 0, endInfo: null, lessonInfo: null,
     toast: null, toastT: 0, kbd: false, canUndo: false, winSeq: null, lessonWait: -1, lessonOk: null, lastOpts: null, hintBusy: false, hintSearch: null,
-    demo: Boolean(config?.demo), dev: Boolean(config?.dev), owns: false, price: '', resetArm: false, version: VERSION, shot: false, lastPtr: { x: 0, y: 0 },
+    vw: meta.width, vh: meta.height, L: layoutFor(meta.width, meta.height),
+    demo: Boolean(config?.demo), dev: Boolean(config?.dev), owns: false, price: '', resetArm: false, version: env.manifest?.version ?? VERSION, shot: false, lastPtr: { x: 0, y: 0 },
   };
 
   const [set, stats, les, save, dg, prog] = await Promise.all([storage.get('su.settings', null), storage.get('su.stats', null), storage.get('su.lessons', null), storage.get('su.save', null), storage.get('su.demo', 0), storage.get('su.progress', null)]);
@@ -51,6 +53,13 @@ export async function createGame(env) {
   refreshOwns();
   env.monetization?.onChange?.(refreshOwns);
 
+  // Live screen size -> layout. On a resize (rotation, split window) taps in flight are dropped and scroll offsets re-clamped; game state is untouched.
+  function syncSize(w = meta.width, h = meta.height) {
+    if (w === S.vw && h === S.vh && S.L) return;
+    S.vw = w; S.vh = h; S.L = layoutFor(w, h); S.press = null;
+    const ui = buildUi(S, S.L);
+    if (ui.layout && ui.region) S.scroll[ui.scrollKey] = clampScroll(S.scroll[ui.scrollKey] ?? 0, ui.layout.height, ui.region.h);
+  }
   const th = () => themeById(S.themeId);
   const pal = () => ({ 1: th().light.glow, 2: th().dark.glow });
   const saveSettings = () => storage.set('su.settings', { sound: S.sound, themeId: S.themeId, textIdx: S.textIdx, thinkIdx: S.thinkIdx, threats: S.threats, setup: S.setup });
@@ -331,6 +340,13 @@ export async function createGame(env) {
   const shotSeed = wantsShot && ((sd >= 900001 && sd <= 900050) || (sd >= 901001 && sd <= 901030) || (sd >= 902001 && sd <= 902030)) ? sd - 900000 : 0;
   if (shotSeed) stageShot(shotSeed);
 
+  // Mouse wheel / trackpad scrolling for the text screens (the kit forwards only pointer and keys): the delta is gathered here and
+  // applied once per update.
+  let wheel = 0;
+  if (typeof globalThis.addEventListener === 'function' && typeof globalThis.document !== 'undefined') {
+    globalThis.addEventListener('wheel', (e) => { wheel += e.deltaY * (e.deltaMode === 1 ? 24 : 1.6); }, { passive: true });
+  }
+
   // ------------------------------------------------------------------------------ ui plumbing
   const getScroll = (ui) => S.scroll[ui.scrollKey] ?? 0;
   const setScroll = (ui, v) => { if (ui.layout && ui.region) S.scroll[ui.scrollKey] = clampScroll(v, ui.layout.height, ui.region.h); };
@@ -415,8 +431,9 @@ export async function createGame(env) {
     S.toast = null;
     if (S.scene === 'play' && !S.overlay && S.match) { playDown(x, y); return; }
     if (S.scene === 'auto' && !S.overlay) { autoDown(x, y); return; }
-    const ui = buildUi(S);
+    const ui = buildUi(S, S.L);
     if (!ui.layout) return;
+    if (S.scene === 'title') { const hz = lockHit(S.L); if (inRect(x, y, hz)) { S.press = { id: 'lock', active: true, kind: 'lock', rect: hz }; return; } }
     const f = fixedHit(ui, x, y);
     if (f) { S.press = { id: f.id, active: true, kind: 'fixed', rect: f.rect }; return; }
     const reg = ui.region;
@@ -433,7 +450,7 @@ export async function createGame(env) {
     if (!pr) return;
     if (pr.kind === 'cell') { pr.active = S.match ? pointAt(S.match, x, y) === pr.id : false; return; }
     if (pr.kind === 'doc') {
-      const ui = buildUi(S);
+      const ui = buildUi(S, S.L);
       if (!ui.layout || !ui.region) { S.press = null; return; }
       if (!pr.scrolling && Math.abs(y - pr.y0) > 10) { pr.scrolling = true; pr.active = false; }
       if (pr.scrolling) {
@@ -452,48 +469,38 @@ export async function createGame(env) {
       if (S.scene === 'play' && S.match && !S.overlay && pointAt(S.match, x, y) === pr.id) { S.kbd = false; S.match.cur = pr.id; tapPoint(S.match, pr.id); }
       return;
     }
+    if (pr.kind === 'lock') { if (inRect(x, y, pr.rect)) env.openArcforgeHome?.(); return; }
     if (pr.kind === 'doc') {
-      const ui = buildUi(S);
+      const ui = buildUi(S, S.L);
       if (!ui.layout || !ui.region) return;
       if (pr.scrolling) { S.scrollVel[ui.scrollKey] = pr.vel; return; }
       const hit = hitDoc(ui.layout, x - ui.region.x, y - ui.region.y - (ui.offY || 0) + getScroll(ui));
       if (hit && hit.id === pr.id && !hit.disabled) activate(hit.id);
     } else if (pr.kind === 'fixed') { if (inRect(x, y, pr.rect)) activate(pr.id); }
-    else if (pr.kind === 'hud') { if (inRect(x, y, pr.rect)) hudAction(pr.id); }
-    else if (pr.kind === 'auto') { if (inRect(x, y, pr.rect)) autoAction(pr.id); }
-    else if (pr.kind === 'tool') { if (inRect(x, y, pr.rect)) toolAction(pr.id.slice(5)); }
+    else if (pr.kind === 'tool') { if (inRect(x, y, pr.rect)) { const id = pr.id.slice(5); if (AUTO_IDS[id]) autoAction(AUTO_IDS[id]); else toolAction(id); } }
   }
 
   // ---- play
   function playDown(x, y) {
     const { lay } = playGeo(S, S.match);
-    if (inRect(x, y, BACK_BTN)) { S.press = { id: 'hud:back', active: true, kind: 'hud', rect: BACK_BTN }; return; }
-    if (inRect(x, y, PAUSE_BTN)) { S.press = { id: 'hud:pause', active: true, kind: 'hud', rect: PAUSE_BTN }; return; }
-    for (let i = 0; i < TOOLBAR_IDS.length; i++) {
-      if (inRect(x, y, lay.tool[i])) { S.press = { id: `tool:${TOOLBAR_IDS[i]}`, active: true, kind: 'tool', rect: lay.tool[i] }; return; }
-    }
+    for (const b of lay.buttons) if (inRect(x, y, b.rect)) { S.press = { id: `tool:${b.id}`, active: true, kind: 'tool', rect: b.rect }; return; }
     const c = pointAt(S.match, x, y);
     if (c >= 0) S.press = { id: c, active: true, kind: 'cell' };
-  }
-  function hudAction(id) {
-    if (id === 'hud:back') leaveToMenu();
-    else if (id === 'hud:pause') { S.overlay = 'pause'; S.ovT = 0; }
   }
   function toolAction(id) {
     const M = S.match;
     if (!M) return;
-    if (id === 'undo') { if (S.canUndo) { cancelHint(); undoMatch(M); } else toast('Nothing to undo'); }
+    if (id === 'back' || id === 'menu') leaveToMenu();
+    else if (id === 'pause') { S.overlay = 'pause'; S.ovT = 0; }
+    else if (id === 'undo') { if (S.canUndo) { cancelHint(); undoMatch(M); } else toast('Nothing to undo'); }
     else if (id === 'think') doThink();
     else if (id === 'threats') { S.threats = !S.threats; saveSettings(); SOUNDS.ui(); }
   }
 
   // ---- auto
   function autoDown(x, y) {
-    if (inRect(x, y, BACK_BTN)) { S.press = { id: 'auto:exit', active: true, kind: 'auto', rect: BACK_BTN }; return; }
-    const lay = autoLayout(TEXT_SCALES[S.textIdx]);
-    for (const id of ['slower', 'pause', 'faster']) {
-      if (inRect(x, y, lay[id])) { S.press = { id: `auto:${id}`, active: true, kind: 'auto', rect: lay[id] }; return; }
-    }
+    const { lay } = playGeo(S, S.match);
+    for (const b of lay.buttons) if (inRect(x, y, b.rect)) { S.press = { id: `tool:${b.id}`, active: true, kind: 'tool', rect: b.rect }; return; }
   }
   function autoAction(id) {
     if (id === 'auto:exit') { S.auto = null; S.match = null; gotoScene('title'); }
@@ -501,6 +508,7 @@ export async function createGame(env) {
     else if (id === 'auto:slower') { S.thinkIdx = Math.max(0, S.thinkIdx - 1); saveSettings(); }
     else if (id === 'auto:faster') { S.thinkIdx = Math.min(THINK_STEPS.length - 1, S.thinkIdx + 1); saveSettings(); }
   }
+  const AUTO_IDS = { exit: 'auto:exit', apause: 'auto:pause', slower: 'auto:slower', faster: 'auto:faster' };
 
   // ---- keyboard
   function onKeys(keys) {
@@ -525,21 +533,20 @@ export async function createGame(env) {
       if (has('Escape') && !S.overlay) autoAction('auto:exit');
       return;
     }
-    const ui = buildUi(S);
+    const ui = buildUi(S, S.L);
     if (ui.layout && ui.region) {
       if (keys.down.has('ArrowDown') || keys.down.has('PageDown')) setScroll(ui, getScroll(ui) + 18);
       if (keys.down.has('ArrowUp') || keys.down.has('PageUp')) setScroll(ui, getScroll(ui) - 18);
+      if (has('Home')) setScroll(ui, 0);
+      if (has('End')) setScroll(ui, 1e9);
     }
     if (has('Escape') && ['setup', 'learn', 'howto', 'rules', 'about', 'settings', 'demo-limit'].includes(S.scene)) gotoScene('title');
-    if (S.scene === 'howto' || S.scene === 'rules') {
-      if (has('ArrowRight')) activate('next');
-      if (has('ArrowLeft')) activate('prev');
-    }
   }
 
   // ------------------------------------------------------------------------------ main loop
   return {
     update(dt, input) {
+      syncSize();
       // Watch & Learn's Pause (and the in-game pause card) freezes the whole loop: timers, search, animations, particles, the clock.
       const frozen = (S.scene === 'auto' && S.auto && S.auto.paused) || S.overlay === 'pause';
       if (!frozen) S.t += dt;
@@ -557,10 +564,14 @@ export async function createGame(env) {
       if (ptr.down || ptr.pressed) { S.lastPtr.x = ptr.x; S.lastPtr.y = ptr.y; }
       if (!S.shot && (input.keys.pressed.size || input.keys.down.size)) onKeys(input.keys);
 
+      if (wheel) {
+        const w = wheel; wheel = 0;
+        if (!S.shot && !(S.scene === 'play' && !S.overlay) && !(S.scene === 'auto' && !S.overlay)) { const wui = buildUi(S, S.L); if (wui.layout && wui.region) { setScroll(wui, getScroll(wui) + w); S.scrollVel = {}; } }
+      }
       for (const k of Object.keys(S.scrollVel)) {
         const v = S.scrollVel[k];
         if (Math.abs(v) < 8) { delete S.scrollVel[k]; continue; }
-        const ui = buildUi(S);
+        const ui = buildUi(S, S.L);
         if (ui.scrollKey === k && ui.layout && ui.region) setScroll(ui, (S.scroll[k] ?? 0) + v * dt);
         S.scrollVel[k] = v * Math.exp(-dt * 5);
       }
@@ -590,14 +601,15 @@ export async function createGame(env) {
       }
     },
 
-    render(ctx) {
-      render(ctx, S, buildUi(S));
+    render(ctx, view) {
+      syncSize(view?.width ?? meta.width, view?.height ?? meta.height);
+      render(ctx, S, buildUi(S, S.L));
     },
 
     getState() {
       const M = S.match;
       return {
-        scene: S.scene, overlay: S.overlay, textIdx: S.textIdx, thinkIdx: S.thinkIdx, sound: S.sound, theme: S.themeId, setup: S.setup, threats: S.threats,
+        size: [S.vw, S.vh], mode: S.L.mode, scene: S.scene, overlay: S.overlay, textIdx: S.textIdx, thinkIdx: S.thinkIdx, sound: S.sound, theme: S.themeId, setup: S.setup, threats: S.threats,
         stats: S.stats, lessons: Object.keys(S.lessons).length, lessonIdx: S.lessonIdx, page: S.page, scroll: S.scroll, demoGames: S.demoGames, saved: Boolean(S.save),
         auto: S.auto ? { phase: S.auto.phase, t: Math.round(S.auto.t * 100) / 100, paused: S.auto.paused } : null,
         match: M ? {

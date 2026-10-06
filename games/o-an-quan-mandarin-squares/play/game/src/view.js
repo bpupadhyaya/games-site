@@ -1,6 +1,6 @@
 // Everything drawn each frame. Reads state, changes nothing.
 import {
-  W, H, UI, DISPLAY, THEMES, themeById, text, rr, panel, button, background, icon, alpha, clamp01, ease, backOut,
+  W, H, VIEW, UI, DISPLAY, THEMES, themeById, text, rr, panel, button, background, icon, alpha, clamp01, ease, backOut,
   BW, BH, CELLS, boardGeo, drawBoardBase, drawBoardStones, drawBoardMarks, drawDan, drawQuan, drawHand, ringCell, fillCell, dirArrow, slotPos,
 } from './art.js';
 import { TEXT_SCALES, wrap, tw } from './ui.js';
@@ -8,7 +8,8 @@ import { SIDE, play, scoreOf, startState } from './engine.js';
 import { LEVELS } from './ai.js';
 import { LESSONS, lessonText } from './lessons.js';
 import { tr, levelName, getLang, howtoPages, rulesPages } from './content.js';
-import { BACK_BTN, PAUSE_BTN, TOOLBAR_IDS, autoLayout, DOC_PANEL, NAV_PREV, NAV_NEXT, playLayout, dirLayout, trayStone, trayQuan } from './layout.js';
+import { BACK_BTN, PAUSE_BTN, HDR, L, NAV_LABEL, CARD, TOOLBAR_IDS, autoLayout, playLayout, dirLayout, trayStone, trayQuan } from './layout.js';
+import { drawLockup, drawMoreLine } from './brand.js';
 import { THINK_STEPS } from './screens.js';
 import { humanTurn, flightPos, fromState } from './match.js';
 import { moveWords } from './explain.js';
@@ -150,7 +151,7 @@ function drawStaticBoard(ctx, th, geo, st, o = {}) {
   drawBoardBase(ctx, th);
   for (const i of o.fills ?? []) fillCell(ctx, i, th.accent, 0.22);
   drawBoardStones(ctx, th, viewOf(st));
-  drawBoardMarks(ctx, th, { ...viewOf(st), zoom: 1 }, text);
+  drawBoardMarks(ctx, th, { ...viewOf(st), zoom: 1, sc: geo.sc }, text);
   if (o.ev) drawPathMarks(ctx, th, o.ev);
   for (const i of o.rings ?? []) ringCell(ctx, i, th.accent, 5, 1, 1);
   if (o.ghost) for (const i of SIDE[1]) { const [x, y] = slotPos(i, 0, false); drawDan(ctx, th, x, y, i * 53, { alpha: 0.5 }); }
@@ -174,6 +175,7 @@ const ILLUS = {
 };
 
 function drawArt(ctx, S, name, x, y, w, h, b) {
+  if (name === 'more') { drawMoreLine(ctx, x + w / 2, y + h / 2, 22, w); return; }
   const th = theme(S), t = S.t, vi = getLang() === 'vi';
   const cx = x + w / 2, cy = y + h / 2;
   ctx.save();
@@ -253,38 +255,51 @@ function drawArt(ctx, S, name, x, y, w, h, b) {
 }
 
 // --------------------------------------------------------------------------------------- title
-function drawTitle(ctx, S, ui) {
-  const th = theme(S);
-  background(ctx, th, S.t, 560);
+// The title block (name, subtitle, tagline), the attract board and the quiet lockup credit, placed by layout.js titleLayout().
+function drawTitleArt(ctx, S, T, withBoard) {
+  const th = theme(S), t = T.title;
   const M = S.attract;
-  if (M) {
-    const geo = boardGeo(60, 366, 600);
-    drawMatchBoard(ctx, S, M, geo, null, { noCounts: false });
-  }
-  const g = ctx.createLinearGradient(0, 110, 0, 250);
+  if (M && T.board && withBoard) drawMatchBoard(ctx, S, M, boardGeo(T.board.x, T.board.y, T.board.w), null, { noCounts: T.board.w < 340 });
+  const g = ctx.createLinearGradient(0, t.y1 - 90, 0, t.y1 + 50);
   g.addColorStop(0, '#fff3c4'); g.addColorStop(0.5, th.accent); g.addColorStop(1, '#a8782a');
   ctx.save();
   ctx.shadowColor = 'rgba(0,0,0,0.65)'; ctx.shadowBlur = 24; ctx.shadowOffsetY = 8;
-  ctx.font = `800 ${tw('Ô Ăn Quan', 120) > 640 ? 96 : 118}px ${DISPLAY}`; ctx.textAlign = 'center'; ctx.fillStyle = g;
-  ctx.fillText('Ô Ăn Quan', 360, 200);
+  let ts = t.s1; const maxTw = (t.wt ?? t.w3) - 20;
+  for (; ts > 40; ts -= 2) { ctx.font = `800 ${ts}px ${DISPLAY}`; if (ctx.measureText('Ô Ăn Quan').width <= maxTw) break; }   // measured in the font it is drawn in
+  ctx.font = `800 ${ts}px ${DISPLAY}`; ctx.textAlign = 'center'; ctx.fillStyle = g;
+  ctx.fillText('Ô Ăn Quan', t.tcx ?? t.cx, t.y1);
   ctx.restore();
-  text(ctx, getLang() === 'vi' ? 'Ô Quan' : 'Mandarin Squares', 360, 262, 38, 'rgba(246,236,214,0.9)', { font: DISPLAY, weight: 700 });
-  const tg = fitText(tr("tagline"), 660, 40, 24, 14);
-  tg.lines.forEach((ln, i) => text(ctx, ln, 360, 300 + i * tg.line, tg.size, 'rgba(246,236,214,0.62)', { weight: 500 }));
+  return t;
+}
+function drawCredit(ctx, S, T) {
+  const c = T.credit; if (!c) return;
+  const down = S.press && S.press.id === 'af:home' && S.press.active, k = down ? 0.95 : 1, w = c.w * k;
+  const lh = w * (327 / 1200), px = c.cx - w / 2, py = c.y + (c.w * (327 / 1200) - lh) / 2, pad = lh * 0.16;
+  ctx.save(); ctx.globalAlpha = down ? 0.7 : 0.9; ctx.fillStyle = 'rgba(8,5,3,0.66)';
+  ctx.beginPath(); ctx.roundRect(px - pad * 1.5, py - pad, w + pad * 3, lh + pad * 2, lh * 0.5); ctx.fill(); ctx.restore();
+  ctx.save(); ctx.shadowColor = 'rgba(0,0,0,0.9)'; ctx.shadowBlur = lh * 0.06;
+  drawLockup(ctx, c.cx, py, w, down ? 0.8 : 1); ctx.restore();
+}
+
+function drawTitle(ctx, S, ui) {
+  const th = theme(S), T = ui.title, t = T.title;
+  background(ctx, th, S.t, 560);
+  drawTitleArt(ctx, S, T, true);
+  text(ctx, getLang() === 'vi' ? 'Ô Quan' : 'Mandarin Squares', t.cx, t.y2, t.s2, 'rgba(246,236,214,0.9)', { font: DISPLAY, weight: 700 });
+  const tg = fitText(tr('tagline'), t.w3, 64, t.s3, 18);
+  tg.lines.forEach((ln, i) => text(ctx, ln, t.cx, t.y3 + i * tg.line, tg.size, 'rgba(246,236,214,0.62)', { weight: 500 }));
+  drawCredit(ctx, S, T);
   drawDocBlocks(ctx, S, ui, S.scroll[ui.scrollKey] ?? 0);
   drawFixed(ctx, S, ui.fixed);
 }
 
 function drawLang(ctx, S, ui) {
-  const th = theme(S);
+  const th = theme(S), T = ui.title;
   background(ctx, th, S.t, 560);
-  const M = S.attract;
-  if (M) drawMatchBoard(ctx, S, M, boardGeo(60, 366, 600), null, {});
-  const g = ctx.createLinearGradient(0, 110, 0, 250);
-  g.addColorStop(0, '#fff3c4'); g.addColorStop(0.5, th.accent); g.addColorStop(1, '#a8782a');
-  ctx.save(); ctx.shadowColor = 'rgba(0,0,0,0.65)'; ctx.shadowBlur = 24; ctx.shadowOffsetY = 8;
-  ctx.font = `800 118px ${DISPLAY}`; ctx.textAlign = 'center'; ctx.fillStyle = g; ctx.fillText('Ô Ăn Quan', 360, 200); ctx.restore();
-  ctx.fillStyle = 'rgba(8,4,2,0.6)'; rr(ctx, 24, 730, 672, 700, 26); ctx.fill();
+  drawTitleArt(ctx, S, T, true);
+  drawCredit(ctx, S, T);
+  const c = ui.card;
+  ctx.fillStyle = 'rgba(8,4,2,0.6)'; rr(ctx, c.x, c.y, c.w, c.h, 26); ctx.fill();
   drawDocBlocks(ctx, S, ui, 0);
 }
 
@@ -296,17 +311,17 @@ function drawDocScreen(ctx, S, ui) {
   drawFixed(ctx, S, ui.fixed);
   if (ui.nav) {
     drawFixed(ctx, S, [ui.nav.prev, ui.nav.next]);
-    text(ctx, ui.nav.label, 360, 1500, 26, 'rgba(246,236,214,0.75)', { weight: 600 });
+    text(ctx, ui.nav.label, NAV_LABEL.x, NAV_LABEL.y, 26, 'rgba(246,236,214,0.75)', { weight: 600 });
   }
 }
 
 function drawOverlay(ctx, S, ui) {
   const th = theme(S);
   ctx.fillStyle = `rgba(6,4,4,${0.62 * clamp01(S.ovT / 0.25)})`;
-  ctx.fillRect(0, 0, W, H);
+  ctx.fillRect(0, 0, VIEW.w, VIEW.h);
   const k = ease(clamp01(S.ovT / 0.3));
   ctx.save();
-  ctx.translate(W / 2, H / 2); ctx.scale(0.92 + 0.08 * k, 0.92 + 0.08 * k); ctx.translate(-W / 2, -H / 2);
+  ctx.translate(CARD.cx, CARD.cy); ctx.scale(0.92 + 0.08 * k, 0.92 + 0.08 * k); ctx.translate(-CARD.cx, -CARD.cy);
   ctx.globalAlpha = k;
   panel(ctx, th, ui.panel.x, ui.panel.y, ui.panel.w, ui.panel.h, {});
   drawDocBlocks(ctx, S, ui, S.scroll[ui.scrollKey] ?? 0);
@@ -342,9 +357,9 @@ function drawMatchBoard(ctx, S, M, geo, auto, o = {}) {
       if (f.big) drawQuan(ctx, th, fx, fy, { lift: 6, scale: 1 - 0.18 * k });
       else drawDan(ctx, th, fx, fy, f.seed, { lift: 4 * Math.sin(k * Math.PI), scale: f.kind === 'drop' ? 1 : 1 - 0.3 * k });
     }
-    if (A.hand && A.hand.n > 0) { const al = S.alpha ?? 1, h = A.hand; drawHand(ctx, th, { ...h, x: h.px === undefined ? h.x : h.px + (h.x - h.px) * al, y: h.py === undefined ? h.y : h.py + (h.y - h.py) * al }, text); }
+    if (A.hand && A.hand.n > 0) { const al = S.alpha ?? 1, h = A.hand; drawHand(ctx, th, { ...h, sc: geo.sc, x: h.px === undefined ? h.x : h.px + (h.x - h.px) * al, y: h.py === undefined ? h.y : h.py + (h.y - h.py) * al }, text); }
   }
-  if (!o.noCounts) drawBoardMarks(ctx, th, { cells: D.cells, q: D.q, zoom: TEXT_SCALES[S.textIdx] ?? 1 }, text);
+  if (!o.noCounts) drawBoardMarks(ctx, th, { cells: D.cells, q: D.q, zoom: TEXT_SCALES[S.textIdx] ?? 1, sc: geo.sc }, text);
   // hints and Watch & Learn
   const arrow = (mv, a = 1, col = acc) => dirArrow(ctx, col, mv.cell, screenDx(mv.cell, mv.dir), a);
   if (M.hint && !M.over) { ringCell(ctx, M.hint.mv.cell, acc, 5, 0.6 + 0.4 * pl, 2); arrow(M.hint.mv, 0.7 + 0.3 * pl); }
@@ -379,15 +394,18 @@ function drawHud(ctx, S, title, sub, showPause) {
     button(ctx, th, PAUSE_BTN, [], 'normal', { pressed: S.press && S.press.id === 'hud:pause' && S.press.active });
     icon(ctx, 'pause', PAUSE_BTN.x + PAUSE_BTN.w / 2, PAUSE_BTN.y + PAUSE_BTN.h / 2, 34, th.ink);
   }
-  const z = TEXT_SCALES[S.textIdx];
-  const tSize = fitOne(title, 480, 40 * (1 + (z - 1) * 0.25), 22);
-  text(ctx, title, 360, 58, tSize, th.ink, { font: DISPLAY, weight: 800, shadow: 'rgba(0,0,0,0.6)' });
-  const sSize = fitOne(sub, 480, 24 * (1 + (z - 1) * 0.3), 16);
-  text(ctx, sub, 360, 96, sSize, 'rgba(246,236,214,0.7)', { weight: 500 });
+  const z = TEXT_SCALES[S.textIdx], cx = HDR.left ? HDR.x0 : (HDR.x0 + HDR.x1) / 2, mw = Math.min(480, HDR.x1 - HDR.x0), tall = L.mode === 'tall', al = HDR.left ? 'left' : 'center';
+  const tSize = fitOne(title, mw, Math.min(40 * (1 + (z - 1) * 0.25), tall ? 99 : HDR.h * 0.5), 20);
+  text(ctx, title, cx, HDR.ty, tSize, th.ink, { font: DISPLAY, weight: 800, shadow: 'rgba(0,0,0,0.6)', align: al });
+  const sSize = fitOne(sub, mw, Math.min(24 * (1 + (z - 1) * 0.3), tall ? 99 : HDR.h * 0.3), 21);
+  text(ctx, sub, cx, HDR.sy, sSize, 'rgba(246,236,214,0.7)', { weight: 500, align: al });
 }
 
 // A player's plate: who they are, whether it is their turn and the pile they have captured.
-export function plateIcons(r) { return { dan: [r.x + r.w - 350, r.y + r.h / 2], quan: [r.x + r.w - 210, r.y + r.h / 2] }; }
+export function plateIcons(r) {
+  if (r.w < 560) return { dan: [r.x + 38, r.y + r.h * 0.7], quan: [r.x + 150, r.y + r.h * 0.7] };   // narrow plate: two rows
+  return { dan: [r.x + r.w - 350, r.y + r.h / 2], quan: [r.x + r.w - 210, r.y + r.h / 2] };
+}
 
 function drawPlate(ctx, S, M, r, who, name, sub, active) {
   const th = theme(S), z = TEXT_SCALES[S.textIdx];
@@ -401,17 +419,29 @@ function drawPlate(ctx, S, M, r, who, name, sub, active) {
   const dan = D.pd[who - 1], quan = D.pq[who - 1];
   const total = dan + st.qv * quan;
   const ic = plateIcons(r);
+  const narrow = r.w < 560;
   // the pile: small stone count, mandarin count and the total
-  drawDan(ctx, th, ic.dan[0], ic.dan[1], 5 + who, { scale: 1.35 });
-  drawQuan(ctx, th, ic.quan[0], ic.quan[1], { scale: 0.62 });
-  const ns = fitOne(String(dan), 70, 30 * (1 + (z - 1) * 0.45), 16);
-  text(ctx, `${dan}`, ic.dan[0] + 26, ic.dan[1] + ns * 0.34, ns, th.ink, { weight: 800, align: 'left' });
-  text(ctx, `${quan}`, ic.quan[0] + 26, ic.quan[1] + ns * 0.34, ns, th.ink, { weight: 800, align: 'left' });
-  const ts = fitOne(`= ${total}`, 100, 34 * (1 + (z - 1) * 0.4), 16);
+  drawDan(ctx, th, ic.dan[0], ic.dan[1], 5 + who, { scale: narrow ? 1.1 : 1.35 });
+  drawQuan(ctx, th, ic.quan[0], ic.quan[1], { scale: narrow ? 0.52 : 0.62 });
+  const ns = fitOne(String(dan), narrow ? 60 : 70, 30 * (1 + (z - 1) * 0.45), 21);
+  text(ctx, `${dan}`, ic.dan[0] + (narrow ? 22 : 26), ic.dan[1] + ns * 0.34, ns, th.ink, { weight: 800, align: 'left' });
+  text(ctx, `${quan}`, ic.quan[0] + (narrow ? 22 : 26), ic.quan[1] + ns * 0.34, ns, th.ink, { weight: 800, align: 'left' });
+  if (narrow) {
+    const ts = fitOne(`= ${total}`, 100, 30 * (1 + (z - 1) * 0.4), 21), tot = `= ${total}`;
+    const y1 = r.y + r.h * 0.3;
+    text(ctx, tot, r.x + r.w - 18, y1 + ts * 0.34, ts, th.accent, { weight: 800, align: 'right' });
+    const nsz = fitOne(name, r.w - 36 - tw(tot, ts) - 10, 28 * (1 + (z - 1) * 0.4), 21);
+    text(ctx, name, r.x + 18, y1 + nsz * 0.34, nsz, th.ink, { weight: 800, align: 'left', font: DISPLAY });
+    const sAvail = r.x + r.w - 18 - (ic.quan[0] + 22 + ns * 1.2);
+    const ssz = fitOne(sub, Math.max(40, sAvail), 22 * (1 + (z - 1) * 0.4), 21);
+    text(ctx, sub, r.x + r.w - 18, r.y + r.h * 0.7 + ssz * 0.34, ssz, active ? th.accent : 'rgba(246,236,214,0.62)', { weight: 600, align: 'right' });
+    return;
+  }
+  const ts = fitOne(`= ${total}`, 100, 34 * (1 + (z - 1) * 0.4), 21);
   text(ctx, `= ${total}`, r.x + r.w - 20, r.y + r.h / 2 + ts * 0.34, ts, th.accent, { weight: 800, align: 'right' });
   const avail = r.w - 380 - 24;
-  const nsz = fitOne(name, avail, 30 * (1 + (z - 1) * 0.5), 16);
-  const ssz = fitOne(sub, avail, 21 * (1 + (z - 1) * 0.5), 14);
+  const nsz = fitOne(name, avail, 30 * (1 + (z - 1) * 0.5), 21);
+  const ssz = fitOne(sub, avail, 22 * (1 + (z - 1) * 0.5), 21);
   const tot = nsz + ssz + 8, ty = r.y + (r.h - tot) / 2 + nsz * 0.88;
   text(ctx, name, r.x + 24, ty, nsz, th.ink, { weight: 800, align: 'left', font: DISPLAY });
   text(ctx, sub, r.x + 24, ty + ssz + 8, ssz, active ? th.accent : 'rgba(246,236,214,0.62)', { weight: 600, align: 'left' });
@@ -445,7 +475,7 @@ function drawStatus(ctx, S, r, head, body, col, box) {
   const b = box ?? { x: r.x, y: r.y, w: r.w, h: r.h };
   const pad = 22, w = b.w - pad * 2;
   const full = body ? `${head}\n${body}` : head;
-  const f = fitText(full, w, b.h - 20, 30 * (1 + (z - 1) * 0.6), 16);
+  const f = fitText(full, w, b.h - 20, 30 * (1 + (z - 1) * 0.6), 21);
   const hl = wrap(head, f.size, w).length;
   const all = body ? [...wrap(head, f.size, w), ...wrap(body, f.size, w)] : wrap(head, f.size, w);
   const total = all.length * f.line;
@@ -470,7 +500,7 @@ function drawToolbar(ctx, S, M, lay) {
     if (d.off) ctx.globalAlpha = 0.4;
     const ink = id === 'think' ? th.primaryInk : th.ink;
     const is = 44 * (1 + (z - 1) * 0.35);
-    const ls = fitOne(d.label, r.w - 20, 24 * (1 + (z - 1) * 0.6), 16);
+    const ls = fitOne(d.label, r.w - 20, 24 * (1 + (z - 1) * 0.6), 21);
     const total = is + ls + 10;
     icon(ctx, d.icon, r.x + r.w / 2, yy + (r.h - total) / 2 + is / 2, is, ink);
     text(ctx, d.label, r.x + r.w / 2, yy + (r.h - total) / 2 + is + 10 + ls * 0.85, ls, ink, { weight: 700 });
@@ -484,7 +514,14 @@ function drawAutoBar(ctx, S, auto) {
   const side = (r, ic, label, off, id) => {
     button(ctx, th, r, [], 'normal', { disabled: off, pressed: pr(id), radius: 22 });
     ctx.save(); if (off) ctx.globalAlpha = 0.4;
-    const is = 40 * (1 + (z - 1) * 0.35), ls = fitOne(label, r.w - 20, 22 * (1 + (z - 1) * 0.6), 14), total = is + ls + 10, yy = r.y + (r.h - total) / 2;
+    if (r.h < 84) {   // short box (landscape): icon and label side by side
+      const is = Math.min(34, r.h * 0.6), ls = fitOne(label, r.w - is - 44, Math.min(22 * (1 + (z - 1) * 0.6), r.h * 0.5), 21);
+      const lw = tw(label, ls), x0 = r.x + (r.w - is - 10 - lw) / 2;
+      icon(ctx, ic, x0 + is / 2, r.y + r.h / 2, is, th.ink);
+      text(ctx, label, x0 + is + 10 + lw / 2, r.y + r.h / 2 + ls * 0.34, ls, th.ink, { weight: 700 });
+      ctx.restore(); return;
+    }
+    const is = 40 * (1 + (z - 1) * 0.35), ls = fitOne(label, r.w - 20, 22 * (1 + (z - 1) * 0.6), 21), total = is + ls + 10, yy = r.y + (r.h - total) / 2;
     icon(ctx, ic, r.x + r.w / 2, yy + is / 2, is, th.ink);
     text(ctx, label, r.x + r.w / 2, yy + is + 10 + ls * 0.85, ls, th.ink, { weight: 700 });
     ctx.restore();
@@ -505,7 +542,7 @@ function drawDirButtons(ctx, S, lay) {
     const pressed = S.press && S.press.id === id && S.press.active;
     button(ctx, th, r, [], 'primary', { pressed, radius: 22 });
     const yy = r.y + (pressed ? 2 : 0), is = 40 * (1 + (z - 1) * 0.3);
-    const ls = fitOne(label, r.w - is - 56, 28 * (1 + (z - 1) * 0.5), 14);
+    const ls = fitOne(label, r.w - is - 56, 28 * (1 + (z - 1) * 0.5), 21);
     ctx.save(); ctx.translate(right ? r.x + r.w - 36 : r.x + 36, yy + r.h / 2); if (right) ctx.scale(-1, 1);
     icon(ctx, 'back', 0, 0, is, th.primaryInk); ctx.restore();
     text(ctx, label, r.x + r.w / 2 + (right ? -14 : 14), yy + r.h / 2 + ls * 0.34, ls, th.primaryInk, { weight: 800 });

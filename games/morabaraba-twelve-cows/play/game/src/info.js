@@ -107,3 +107,24 @@ export const PAGES = {
     { title: "Draws (cont.)", lines: ["either side landing a shot draws the game."] },
   ],
 };
+
+// The reader scrolls ONE continuous document: the short pages above are merged into sections (a title plus paragraphs).
+// Pages with the same title ("(cont.)" fragments included) join one section, and a line that stops mid-sentence
+// continues in the next line, so a sentence cut across pages is read whole.
+const cache = new WeakMap();
+export function flow(pages) {
+  if (cache.has(pages)) return cache.get(pages);
+  const out = [];
+  for (const pg of pages) {
+    const title = pg.title.replace(/ \((cont\.|\d+)\)$/, '');
+    let sec = out[out.length - 1];
+    if (!sec || sec.title !== title) { sec = { title, paras: [], cows: false }; out.push(sec); }
+    if (pg.cows) sec.cows = true;
+    for (const line of pg.lines) {
+      const last = sec.paras.length - 1;
+      if (last >= 0 && !/[.!?)"]$/.test(sec.paras[last])) sec.paras[last] += ' ' + line; else sec.paras.push(line);
+    }
+  }
+  cache.set(pages, out);
+  return out;
+}

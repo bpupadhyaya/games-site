@@ -120,7 +120,7 @@ export const RULES = [
   {
     title: 'Until captured',
     lines: [
-      'is by being captured - the next pages explain exactly how.',
+      'is by being captured - the sections below explain exactly how.',
     ],
   },
   {
@@ -246,7 +246,7 @@ export const RULES = [
   {
     title: 'Check timing',
     lines: [
-      '(see the next page).',
+      '(see below).',
     ],
   },
   {
@@ -384,7 +384,7 @@ export const RULES = [
   {
     title: 'Superko',
     lines: [
-      'On top of the simple ko rule on the previous page,',
+      'On top of the simple ko rule above,',
     ],
   },
   {

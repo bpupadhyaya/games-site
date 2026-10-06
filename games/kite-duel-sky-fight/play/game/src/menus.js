@@ -1,39 +1,33 @@
-// Every screen that is not the play screen: title, setup, settings, result, pause, and the paginated
-// About / How to play / Rules reader with its illustrations (drawn with the game's own kites and
-// strings). Pure drawing; game.js owns state.
-import { W, H, K, SKIES, SKY_IDS, windAt } from './sim.js';
+// Every screen that is not the play screen: title, setup, settings, result, pause, and the scrolling About / How to
+// play / Rules reader with its illustrations (drawn with the game's own kites and strings). Pure drawing; game.js owns
+// state. Everything is laid out from the live screen (FL = layoutFor(width, height, textIdx)): portrait uses one
+// centred 720-unit column, landscape puts the art on one side and the buttons on the other. The backdrop (the attract
+// duel, or the round that just ended) is the real sky drawn to fill the whole screen.
+import { K, SKIES, SKY_IDS, windAt } from './sim.js';
 import { drawKite, KITE_PAL, SKY_PAL, stringColor } from './art.js';
 import { drawScene } from './view.js';
-import { TEXT_SCALES, TEXT_DEC, TEXT_INC, REF_BACK, REF_NEXT, THINK_STEPS, SETUP_PINS } from './layout.js';
+import { TEXT_SCALES, THINK_STEPS, visibleWorld, MIN_TXT, host } from './layout.js';
 import { FONT, DISPLAY, C, roundPath, drawButton, panel, wrapLines, textShadow, flowLayout, drawFlow, flowHit } from './ui.js';
 import { PROFILES } from './ai.js';
+import { drawLockupImage, lockupHeight, drawMoreLine } from './brand.js';
 
 const TAU = Math.PI * 2;
 
 // ---- flow screens ------------------------------------------------------------------------------
-let LAID = { key: '', lay: null, top: 0, bottom: H };
+// LAID is the screen being shown right now: parts (each a flow layout in its own region), pinned buttons, the scroll limit.
+let LAID = { key: '', fkey: '', parts: [], pins: [], top: 0, bottom: 0, maxScroll: 0 };
 export const flowMeta = () => LAID;
-// A layout for the scene being updated right now, before anything has been drawn (first frame after a
-// scene change, or headless runs): same widgets, text widths estimated instead of measured.
 const estCtx = { font: '', measureText(t) { const m = /(\d+)px/.exec(this.font); return { width: String(t).length * (m ? +m[1] : 20) * 0.52 }; } };
-export function ensureLayout(state, key) {
-  if (LAID.key === key && LAID.lay) return;
-  const defs = {
-    title: [titleWidgets, 0, H], setup: [setupWidgets, 0, 1130], settings: [settingsWidgets, 0, H],
-    result: [resultWidgets, 0, H], demolimit: [demoLimitWidgets, 0, H],
-  };
-  const d = defs[key];
-  if (!d) return;
-  const lay = flowLayout(estCtx, d[0](state), TEXT_SCALES[state.settings.textIdx]);
-  LAID = { key, lay, top: d[1], bottom: d[2], h: lay.contentH };
-}
-export function hitScreen(x, y, scroll) { return LAID.lay ? flowHit(LAID.lay, LAID.top, scroll, x, y) : null; }
 
-const heroArt = () => ({
-  t: 'art', h: 610,
+const heroArt = (hs, h) => ({
+  t: 'art', h: Math.round(610 * hs),
   draw(ctx, w) {
     ctx.save(); ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
-    const cx = w / 2;
+    ctx.scale(hs, hs);
+    const cx = w / hs / 2;
+    // dark backing panel: the title and tagline never sit directly over the moving attract-scene kites
+    const pw = Math.min(w / hs - 8, 500);
+    ctx.fillStyle = 'rgba(10,14,50,0.74)'; roundPath(ctx, cx - pw / 2, 28, pw, 358, 36); ctx.fill();
     ctx.font = `italic 700 150px ${DISPLAY}`;
     const g = ctx.createLinearGradient(0, 70, 0, 200); g.addColorStop(0, '#fffdf2'); g.addColorStop(1, '#ffd77a');
     ctx.save(); ctx.shadowColor = 'rgba(10,14,50,0.65)'; ctx.shadowBlur = 24; ctx.shadowOffsetY = 6;
@@ -51,14 +45,15 @@ const heroArt = () => ({
     ctx.beginPath(); ctx.moveTo(cx - 190, 360); ctx.lineTo(cx - 20, 360); ctx.moveTo(cx + 20, 360); ctx.lineTo(cx + 190, 360); ctx.stroke();
     ctx.fillStyle = '#fff6e4'; ctx.beginPath(); ctx.moveTo(cx, 348); ctx.lineTo(cx + 9, 360); ctx.lineTo(cx, 372); ctx.lineTo(cx - 9, 360); ctx.closePath(); ctx.fill();
     ctx.restore();
+    void h;
   },
 });
 
-export function titleWidgets(state) {
+export function titleWidgets(state, hero = null) {
   const sound = state.settings.sound;
   const sv = state.saved;
   return [
-    heroArt(),
+    ...(hero ? [hero] : []),
     ...(sv ? [{ t: 'btn', id: 'continue', label: 'Continue Duel', sub: `${sv.opp} · Round ${sv.round}${sv.rounds === 3 ? ` · ${sv.wins[0]}–${sv.wins[1]}` : ''}`, primary: true, h: 88 }] : []),
     { t: 'btn', id: 'play', label: 'Play a Duel', primary: !sv, h: 88 },
     { t: 'btn', id: 'watch', label: 'Watch & Learn', sub: 'Two rivals duel while you learn why' },
@@ -71,36 +66,36 @@ export function titleWidgets(state) {
 }
 
 const rivalSub = (pf, won, locked) => (locked ? 'In the full game' : `${'★'.repeat(pf.stars)}${'☆'.repeat(5 - pf.stars)}  ${pf.tag}${won ? ` · won ${won}` : ''}`);
-export function setupWidgets(state) {
+const LBL = { t: 'p', bold: true, color: '#ffe9a0', size: 26 };
+function setupParts(state, land) {
   const s = state.setup, demo = state.demo, rec = state.record ?? {};
-  const wd = [{ t: 'gap', h: 10 }, { t: 'h', label: 'New Duel', size: 48 }];
-  wd.push({ t: 'p', label: 'Choose your rival', bold: true, color: '#ffe9a0', size: 26 });
+  const rivals = [{ ...LBL, label: 'Choose your rival' }];
   PROFILES.forEach((pf, i) => {
     const locked = demo && i > 1;
-    wd.push({ t: 'btn', id: `opp${i}`, label: pf.name, sub: rivalSub(pf, (rec.wins ?? [])[i] ?? 0, locked), active: s.opp === i && !locked, disabled: locked, hitDisabled: true, h: 92 });
+    rivals.push({ t: 'btn', id: `opp${i}`, label: pf.name, sub: rivalSub(pf, (rec.wins ?? [])[i] ?? 0, locked), active: s.opp === i && !locked, disabled: locked, hitDisabled: true, h: 92 });
   });
-  wd.push({ t: 'p', label: 'Choose the sky', bold: true, color: '#ffe9a0', size: 26 });
-  SKY_IDS.forEach((id) => {
+  const skies = [{ ...LBL, label: 'Choose the sky' }];
+  SKY_IDS.forEach((id, k) => {
     const locked = demo && (id === 'dusk' || id === 'storm');
-    wd.push({ t: 'btn', id: `sky${id}`, label: SKIES[id].name, sub: locked ? 'In the full game' : SKIES[id].blurb, active: s.sky === id && !locked, disabled: locked, hitDisabled: true });
+    skies.push({ t: 'btn', id: `sky${id}`, label: SKIES[id].name, sub: locked ? 'In the full game' : SKIES[id].blurb, active: s.sky === id && !locked, disabled: locked, hitDisabled: true, ...(land ? { row: 11 + (k >> 1) } : {}) });
   });
-  wd.push({ t: 'p', label: 'Match length', bold: true, color: '#ffe9a0', size: 26 });
-  wd.push({ t: 'btn', id: 'len3', label: 'Best of 3', row: 9, active: s.rounds === 3 });
-  wd.push({ t: 'btn', id: 'len1', label: 'Quick Duel', row: 9, active: s.rounds === 1 });
-  wd.push({ t: 'gap', h: 24 });
-  return wd;
+  const len = [{ ...LBL, label: 'Match length' }, { t: 'btn', id: 'len3', label: 'Best of 3', row: 9, active: s.rounds === 3 }, { t: 'btn', id: 'len1', label: 'Quick Duel', row: 9, active: s.rounds === 1 }];
+  const head = [{ t: 'gap', h: 10 }, { t: 'h', label: 'New Duel', size: 48 }];
+  return land ? [[...head, ...rivals, { t: 'gap', h: 14 }], [{ t: 'gap', h: 10 }, ...skies, ...len, { t: 'gap', h: 14 }]] : [[...head, ...rivals, ...skies, ...len, { t: 'gap', h: 24 }]];
 }
+export const setupWidgets = (state) => setupParts(state, false)[0];
 
-export function settingsWidgets(state) {
+function settingsParts(state, land) {
   const st = state.settings, sc = TEXT_SCALES[st.textIdx];
-  return [
-    { t: 'gap', h: 10 }, { t: 'h', label: 'Settings', size: 48 },
+  const a = [
     { t: 'btn', id: 'set-sound', label: st.sound ? 'Sound: On' : 'Sound: Off' },
     { t: 'btn', id: 'set-calm', label: st.calm ? 'Calm effects: On' : 'Calm effects: Off', sub: 'No flashes', active: st.calm },
-    { t: 'p', label: `Text size: ${Math.round(sc * 100)}%`, bold: true, color: '#ffe9a0', size: 26 },
+    { ...LBL, label: `Text size: ${Math.round(sc * 100)}%` },
     { t: 'btn', id: 'txt-dec', label: 'A−  Smaller', row: 4, disabled: st.textIdx === 0 },
     { t: 'btn', id: 'txt-inc', label: 'A+  Larger', row: 4, disabled: st.textIdx === TEXT_SCALES.length - 1 },
-    { t: 'p', label: `Watch & Learn thinking time: ${THINK_STEPS[st.thinkIdx]} s`, bold: true, color: '#ffe9a0', size: 26 },
+  ];
+  const b = [
+    { ...LBL, label: `Watch & Learn thinking time: ${THINK_STEPS[st.thinkIdx]} s` },
     { t: 'btn', id: 'think-dec', label: 'Shorter', row: 5, disabled: st.thinkIdx === 0 },
     { t: 'btn', id: 'think-inc', label: 'Longer', row: 5, disabled: st.thinkIdx === THINK_STEPS.length - 1 },
     ...(state.demo ? [] : [{ t: 'btn', id: 'restore', label: 'Restore purchases', dark: true }]),
@@ -109,45 +104,35 @@ export function settingsWidgets(state) {
     { t: 'btn', id: 'back', label: 'Back', primary: true, h: 84 },
     { t: 'gap', h: 30 },
   ];
+  const head = [{ t: 'gap', h: 10 }, { t: 'h', label: 'Settings', size: 48 }];
+  return land ? [[...head, ...a], [{ t: 'gap', h: 10 }, ...b]] : [[...head, ...a, ...b]];
 }
+export const settingsWidgets = (state) => settingsParts(state, false)[0];
 
-export function resultWidgets(state) {
+function resultParts(state, land) {
   const m = state.match, o = m.over, mode = m.cfg.mode;
   const winner = o.win;
   const nm = (s) => (mode === 'watch' ? PROFILES[s === 0 ? m.cfg.watchA : m.cfg.opp].name : s === 0 ? 'You' : PROFILES[m.cfg.opp].name);
   const title = mode === 'watch' ? `${nm(winner)} wins` : winner === 0 ? 'You win the duel!' : `${nm(1)} wins`;
   const big = TEXT_SCALES[state.settings.textIdx] > 1.5;
-  const wd = [{ t: 'gap', h: big ? 24 : 200 }, { t: 'h', label: title, size: 60, cap: big ? 1.15 : 1.4 }, { t: 'h', label: `${m.wins[0]} – ${m.wins[1]}`, size: 84, cap: big ? 1.1 : 1.3, color: '#ffd97a' }];
+  const head = [{ t: 'h', label: title, size: 60, cap: big ? 1.15 : 1.4 }, { t: 'h', label: `${m.wins[0]} – ${m.wins[1]}`, size: 84, cap: big ? 1.1 : 1.3, color: '#ffd97a' }];
   if (mode === 'ai') {
     const best = Math.round(m.stats.worst);
     const l1 = `Strings cut: ${m.stats.cuts}. Your string at its thinnest: ${best} of 100.`;
     const l2 = `Against ${PROFILES[m.cfg.opp].name}, you have won ${(state.record?.wins ?? [])[m.cfg.opp] ?? 0}.`;
-    wd.push({ t: 'p', label: big ? `${l1} ${l2}` : l1, size: 26, cap: big ? 2 : 3 });
-    if (!big) wd.push({ t: 'p', label: l2, size: 26 });
+    head.push({ t: 'p', label: big ? `${l1} ${l2}` : l1, size: 26, cap: big ? 2 : 3 });
+    if (!big) head.push({ t: 'p', label: l2, size: 26 });
   }
-  wd.push({ t: 'gap', h: 24 });
-  wd.push({ t: 'btn', id: 'again', label: 'Rematch', primary: true, h: 92 });
-  wd.push({ t: 'btn', id: 'new', label: 'New duel', row: 6 });
-  wd.push({ t: 'btn', id: 'menu', label: 'Main menu', row: 6, dark: true });
-  wd.push({ t: 'gap', h: 30 });
-  return wd;
-}
-
-export function pauseWidgets(state) {
-  const st = state.settings;
-  return [
-    { t: 'h', label: 'Paused', size: 52 },
-    { t: 'btn', id: 'resume', label: 'Resume', primary: true, h: 88 },
-    { t: 'btn', id: 'p-rules', label: 'Rules', row: 7 },
-    { t: 'btn', id: 'p-howto', label: 'How to Play', row: 7 },
-    { t: 'btn', id: 'p-sound', label: st.sound ? 'Sound: On' : 'Sound: Off', row: 8 },
-    { t: 'btn', id: 'p-calm', label: st.calm ? 'Calm: On' : 'Calm: Off', row: 8, active: st.calm },
-    { t: 'p', label: `Text size: ${Math.round(TEXT_SCALES[st.textIdx] * 100)}%`, bold: true, color: '#ffe9a0', size: 24 },
-    { t: 'btn', id: 'p-txt-dec', label: 'A−  Smaller', row: 10, disabled: st.textIdx === 0 },
-    { t: 'btn', id: 'p-txt-inc', label: 'A+  Larger', row: 10, disabled: st.textIdx === TEXT_SCALES.length - 1 },
-    { t: 'btn', id: 'quit', label: 'Quit to menu', dark: true },
+  const btns = [
+    { t: 'btn', id: 'again', label: 'Rematch', primary: true, h: 92 },
+    { t: 'btn', id: 'new', label: 'New duel', row: 6 },
+    { t: 'btn', id: 'menu', label: 'Main menu', row: 6, dark: true },
+    { t: 'gap', h: 30 },
   ];
+  if (land) return [head, btns];
+  return [[{ t: 'gap', h: big ? 24 : 200 }, ...head, { t: 'gap', h: 24 }, ...btns]];
 }
+export const resultWidgets = (state) => resultParts(state, false)[0];
 
 export function demoLimitWidgets() {
   return [
@@ -158,188 +143,305 @@ export function demoLimitWidgets() {
   ];
 }
 
-function scrim(ctx, a = 0.55) {
-  const g = ctx.createLinearGradient(0, 0, 0, H);
+// Builds the layout of the flow screen `key` for the live screen FL. Returns the LAID record (not yet stored).
+function compose(ctx, state, key, FL) {
+  const M = FL.menu, sc = TEXT_SCALES[state.settings.textIdx], land = FL.land;
+  const parts = [], pins = [];
+  let top = M.top + 6, bottom = FL.h - FL.ins.b - 8;
+  const col = (widgets, o = {}) => parts.push({ widgets, x: M.colX, w: 720, o: { x: 40, w: 640 }, ...o });
+  const regions = (n, weights = null) => {   // n side-by-side regions inside the margins, with a 24 unit gutter
+    const gut = 24, tot = M.regionW - gut * (n - 1), ws = weights ?? Array(n).fill(1 / n);
+    let x = M.regionX0;
+    return ws.map((wt) => { const r = { x, w: Math.round(tot * wt) }; x += r.w + gut; return r; });
+  };
+  if (key === 'title') {
+    const strip = lockupHeight(LOCKUP_W) + 30;
+    if (!land) {
+      bottom = FL.h - FL.ins.b - strip;
+      const btnH = flowLayout(ctx, titleWidgets(state), sc).contentH;
+      const hs = Math.max(0.3, Math.min(1, (bottom - top - btnH - 70) / 610));
+      col(titleWidgets(state, heroArt(hs)));
+    } else {
+      const rw = Math.max(340, Math.min(480, Math.round(M.regionW * 0.4)));
+      const lw = M.regionW - rw - 24;
+      const hs = Math.max(0.5, Math.min(1, (FL.h - FL.ins.t - FL.ins.b - strip - 20) / 610));
+      parts.push({ widgets: [heroArt(hs)], x: M.regionX0, w: lw, o: { x: 0, w: lw }, center: true, top: M.top + 6, bottom: FL.h - FL.ins.b - strip });
+      parts.push({ widgets: titleWidgets(state), x: M.regionX0 + lw + 24, w: rw, o: { x: 0, w: rw }, center: true, top: M.top + 6, bottom: FL.h - FL.ins.b - strip });
+    }
+  } else if (key === 'setup') {
+    top = M.listTop; bottom = FL.pins.top - 10;
+    const ps = setupParts(state, land);
+    if (!land) col(ps[0]);
+    else regions(2).forEach((r, i) => parts.push({ widgets: ps[i], x: r.x, w: r.w, o: { x: 0, w: r.w }, top: M.top + 6 }));
+  } else if (key === 'settings') {
+    top = M.listTop;
+    const ps = settingsParts(state, land);
+    if (!land) col(ps[0]);
+    else regions(2).forEach((r, i) => parts.push({ widgets: ps[i], x: r.x, w: r.w, o: { x: 0, w: r.w }, center: true }));
+  } else if (key === 'result') {
+    bottom = FL.h - FL.ins.b - 48;
+    const ps = resultParts(state, land);
+    if (!land) col(ps[0]);
+    else regions(2).forEach((r, i) => parts.push({ widgets: ps[i], x: r.x, w: r.w, o: { x: 0, w: r.w }, center: true }));
+  } else if (key === 'demolimit') {
+    top = M.listTop; col(demoLimitWidgets(), { center: true });
+  } else if (key === 'pause') {
+    const sc2 = sc, pw = Math.min(660, FL.w - 2 * Math.max(20, FL.ins.l, FL.ins.r));
+    const px = Math.round((FL.w - pw) / 2);
+    const st = state.settings;
+    const wd = [
+      { t: 'h', label: 'Paused', size: 52 },
+      { t: 'btn', id: 'p-rules', label: 'Rules', row: 7 },
+      { t: 'btn', id: 'p-howto', label: 'How to Play', row: 7 },
+      { t: 'btn', id: 'p-sound', label: st.sound ? 'Sound: On' : 'Sound: Off', row: 8 },
+      { t: 'btn', id: 'p-calm', label: st.calm ? 'Calm: On' : 'Calm: Off', row: 8, active: st.calm },
+      { t: 'p', label: `Text size: ${Math.round(TEXT_SCALES[st.textIdx] * 100)}%`, bold: true, color: '#ffe9a0', size: 24 },
+      { t: 'btn', id: 'p-txt-dec', label: 'A−  Smaller', row: 10, disabled: st.textIdx === 0 },
+      { t: 'btn', id: 'p-txt-inc', label: 'A+  Larger', row: 10, disabled: st.textIdx === TEXT_SCALES.length - 1 },
+    ];
+    const lay = flowLayout(ctx, wd, sc2, { x: 0, w: pw - 60 });
+    const footH = 88 + 22, maxPanel = FL.h - FL.ins.t - FL.ins.b - 40;
+    const bodyH = Math.min(lay.contentH, maxPanel - footH - 40);
+    const panelH = bodyH + footH + 40;
+    const py = Math.round((FL.h - panelH) / 2);
+    const fy = py + panelH - 20 - 88, rw = Math.round((pw - 60) * 0.58);
+    pins.push({ id: 'resume', label: 'Resume', primary: true, rect: { x: px + 30, y: fy, w: rw, h: 88 } }, { id: 'quit', label: 'Quit to menu', dark: true, rect: { x: px + 30 + rw + 12, y: fy, w: pw - 60 - rw - 12, h: 88 } });
+    parts.push({ widgets: wd, lay, x: px + 30, w: pw - 60, o: { x: 0, w: pw - 60 }, top: py + 20, bottom: py + 20 + bodyH });
+    return finish(ctx, key, FL, parts, pins, sc, { panel: { x: px, y: py, w: pw, h: panelH } });
+  }
+  return finish(ctx, key, FL, parts, pins, sc, { top, bottom });
+}
+
+function finish(ctx, key, FL, parts, pins, sc, o) {
+  let maxScroll = 0;
+  for (const p of parts) {
+    p.top = p.top ?? o.top; p.bottom = p.bottom ?? o.bottom;
+    if (!p.lay) p.lay = flowLayout(ctx, p.widgets, sc, p.o);
+    const avail = p.bottom - p.top;
+    p.yoff = p.center ? Math.max(0, Math.round((avail - p.lay.contentH) / 2)) : 0;
+    p.max = Math.max(0, p.lay.contentH - avail);
+    maxScroll = Math.max(maxScroll, p.max);
+  }
+  return { key, fkey: FL.key, parts, pins, panel: o.panel ?? null, top: o.top ?? 0, bottom: o.bottom ?? 0, maxScroll };
+}
+
+export function ensureLayout(state, key, FL) {
+  if (LAID.key === key && LAID.fkey === FL.key && LAID.parts.length) return;
+  LAID = compose(estCtx, state, key, FL);
+}
+export function hitScreen(x, y, scroll) {
+  for (const p of LAID.pins) if (x >= p.rect.x && x <= p.rect.x + p.rect.w && y >= p.rect.y && y <= p.rect.y + p.rect.h) return p.id;
+  for (const p of LAID.parts) {
+    const id = flowHit(p.lay, p.top + p.yoff, Math.min(scroll, p.max), x - p.x, y);
+    if (id) return id;
+  }
+  return null;
+}
+// Every tappable rectangle of the screen being shown, in screen units (used by the layout checks).
+export function screenRects(scroll) {
+  const out = [];
+  for (const p of LAID.pins) out.push({ id: p.id, ...p.rect });
+  for (const p of LAID.parts) {
+    const s = Math.min(scroll, p.max);
+    for (const it of p.lay.items) if (it.w.t === 'btn') out.push({ id: it.w.id, x: p.x + it.x, y: p.top + p.yoff + it.y - s, w: it.wd, h: it.h, clip: { top: p.top + p.yoff, bottom: p.bottom } });
+  }
+  return out;
+}
+
+function scrim(ctx, FL, a = 0.55) {
+  const g = ctx.createLinearGradient(0, 0, 0, FL.h);
   g.addColorStop(0, `rgba(10,14,50,${a * 0.7})`); g.addColorStop(0.5, `rgba(10,14,50,${a})`); g.addColorStop(1, `rgba(10,14,50,${Math.min(0.92, a + 0.3)})`);
-  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = g; ctx.fillRect(0, 0, FL.w, FL.h);
 }
 
 // An obvious "there is more below / above" cue for any list that scrolls: soft fade plus a chevron pill.
-function scrollHint(ctx, top, bottom, scroll, maxScroll, x0 = 0, w = W) {
+function scrollHint(ctx, top, bottom, scroll, maxScroll, x0, w) {
   if (maxScroll <= 0) return;
   const cx = x0 + w / 2;
   if (scroll < maxScroll - 4) {
     const g = ctx.createLinearGradient(0, bottom - 90, 0, bottom); g.addColorStop(0, 'rgba(10,14,50,0)'); g.addColorStop(1, 'rgba(10,14,50,0.7)');
     ctx.fillStyle = g; ctx.fillRect(x0, bottom - 90, w, 90);
-    roundPath(ctx, cx - 44, bottom - 40, 88, 32, 16); ctx.fillStyle = 'rgba(255,246,228,0.92)'; ctx.fill();
-    ctx.fillStyle = C.ink; ctx.font = `700 22px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('▼ more', cx, bottom - 23);
+    roundPath(ctx, cx - 56, bottom - 44, 112, 36, 18); ctx.fillStyle = 'rgba(255,246,228,0.92)'; ctx.fill();
+    ctx.fillStyle = C.ink; ctx.font = `700 ${MIN_TXT}px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('▼ more', cx, bottom - 25);
   } else if (scroll > 4) {
-    roundPath(ctx, cx - 44, top + 8, 88, 32, 16); ctx.fillStyle = 'rgba(255,246,228,0.92)'; ctx.fill();
-    ctx.fillStyle = C.ink; ctx.font = `700 22px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('▲ up', cx, top + 24);
+    roundPath(ctx, cx - 56, top + 8, 112, 36, 18); ctx.fillStyle = 'rgba(255,246,228,0.92)'; ctx.fill();
+    ctx.fillStyle = C.ink; ctx.font = `700 ${MIN_TXT}px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('▲ up', cx, top + 26);
   }
 }
 
-function drawFlowScreen(ctx, state, key, widgets, top, bottom) {
-  const sc = TEXT_SCALES[state.settings.textIdx];
-  const lay = flowLayout(ctx, widgets, sc);
-  LAID = { key, lay, top, bottom, h: lay.contentH };
-  const maxScroll = Math.max(0, lay.contentH - (bottom - top));
-  const scroll = Math.min(state.ui.scroll, maxScroll);
-  drawFlow(ctx, lay, top, bottom, scroll);
-  if (maxScroll > 0) {
-    const th = Math.max(60, (bottom - top) * ((bottom - top) / lay.contentH)), ty = top + (scroll / maxScroll) * (bottom - top - th);
-    roundPath(ctx, W - 10, ty, 5, th, 3); ctx.fillStyle = 'rgba(255,246,228,0.5)'; ctx.fill();
-    scrollHint(ctx, top, bottom, scroll, maxScroll);
+function drawFlowScreen(ctx, state, key, FL) {
+  const L = compose(ctx, state, key, FL);
+  LAID = L;
+  const scroll = Math.min(state.ui.scroll, L.maxScroll);
+  for (const p of L.parts) {
+    const s = Math.min(scroll, p.max);
+    ctx.save(); ctx.translate(p.x, 0);
+    drawFlow(ctx, p.lay, p.top + p.yoff, p.bottom, s, { w: p.w });
+    ctx.restore();
+    if (p.max > 0) {
+      const th = Math.max(60, (p.bottom - p.top) * ((p.bottom - p.top) / p.lay.contentH)), ty = p.top + (s / p.max) * (p.bottom - p.top - th);
+      roundPath(ctx, p.x + p.w - 8, ty, 5, th, 3); ctx.fillStyle = 'rgba(255,246,228,0.5)'; ctx.fill();
+      scrollHint(ctx, p.top, p.bottom, s, p.max, p.x, p.w);
+    }
   }
-  return { scroll, maxScroll, lay };
+  return L;
 }
 
-const attScene = (ctx, state) => {
-  const a = state.att;
-  drawScene(ctx, a, a.w, a.sky, a.pals, { noFlyers: true });
-};
+// The backdrop: the real sky (attract duel, or the round that just ended) filling the screen, with the world centred in
+// `cx` (default: the screen centre). Portrait draws it at the original scale from the top.
+function backdrop(ctx, FL, st, w, sky, pals, cx = FL.w / 2) {
+  const z = FL.land ? Math.max(0.5, Math.min(1, (FL.h - FL.ins.t - FL.ins.b) / 1000)) : 1;
+  const ox = cx - 360 * z, oy = FL.land ? FL.h / 2 - 640 * z : 0;
+  ctx.save(); ctx.translate(ox, oy); ctx.scale(z, z);
+  drawScene(ctx, st, w, sky, pals, { noFlyers: true, vw: visibleWorld(FL.w, FL.h, ox, oy, z) });
+  ctx.restore();
+}
+const attScene = (ctx, state, FL, cx) => { const a = state.att; backdrop(ctx, FL, a, a.w, a.sky, a.pals, cx); };
 
-export function renderTitle(ctx, state) {
-  attScene(ctx, state);
-  scrim(ctx, 0.2);
-  const g = ctx.createRadialGradient(W / 2, 250, 40, W / 2, 250, 460);
+const LOCKUP_W = 300;
+export function renderTitle(ctx, state, FL) {
+  const M = FL.menu;
+  attScene(ctx, state, FL, FL.land ? M.regionX0 + (M.regionW - Math.max(340, Math.min(480, Math.round(M.regionW * 0.4))) - 24) / 2 : undefined);
+  scrim(ctx, FL, 0.2);
+  const g = ctx.createRadialGradient(FL.w / 2, 250, 40, FL.w / 2, 250, 460);
   g.addColorStop(0, 'rgba(10,14,50,0.42)'); g.addColorStop(1, 'rgba(10,14,50,0)');
-  ctx.fillStyle = g; ctx.fillRect(0, 0, W, 720);
-  drawFlowScreen(ctx, state, 'title', titleWidgets(state), 0, H);
-  if (state.demo) { ctx.textAlign = 'center'; ctx.font = `400 18px ${FONT}`; ctx.fillStyle = 'rgba(255,246,228,0.6)'; ctx.fillText('Web demo', W / 2, H - 14); }
+  if (!FL.land) { ctx.fillStyle = g; ctx.fillRect(0, 0, FL.w, 720); }
+  const L = drawFlowScreen(ctx, state, 'title', FL);
+  // the themed Arcforge lockup: bottom centre, directly under the last row of menu buttons (never over them)
+  const bp = L.parts[L.parts.length - 1], lw = LOCKUP_W, lh = lockupHeight(lw);
+  const cb = Math.min(bp.bottom, bp.top + bp.yoff + bp.lay.contentH), lcx = bp.x + bp.w / 2, ly = Math.min(FL.h - FL.ins.b - lh - 10, cb + 16);
+  const lm = 44 / Math.max(0.2, host.px || 0.6), tw = Math.max(lw + 24, lm), th = Math.max(lh + 12, lm);
+  state.lockTap = { x: lcx - tw / 2, y: ly + lh + 6 - th, w: tw, h: th };
+  ctx.save(); ctx.fillStyle = state.lockDown > state.t ? 'rgba(255,226,122,0.5)' : 'rgba(10,14,50,0.5)'; roundPath(ctx, lcx - lw / 2 - 12, ly - 6, lw + 24, lh + 12, (lh + 12) / 2); ctx.fill(); ctx.restore();
+  drawLockupImage(ctx, lcx, ly, lw, 1);
+  if (state.demo) { ctx.textAlign = 'right'; ctx.textBaseline = 'alphabetic'; ctx.font = `400 ${MIN_TXT}px ${FONT}`; ctx.fillStyle = 'rgba(255,246,228,0.6)'; ctx.fillText('Web demo', FL.w - FL.ins.r - 16, FL.ins.t + 30); }
 }
-export function renderSetup(ctx, state) {
-  attScene(ctx, state);
-  scrim(ctx, 0.62);
-  drawFlowScreen(ctx, state, 'setup', setupWidgets(state), 0, 1130);
-  const g = ctx.createLinearGradient(0, 1100, 0, H);
+export function renderSetup(ctx, state, FL) {
+  attScene(ctx, state, FL);
+  scrim(ctx, FL, 0.62);
+  drawFlowScreen(ctx, state, 'setup', FL);
+  const P = FL.pins, y0 = P.top - 30;
+  const g = ctx.createLinearGradient(0, y0, 0, FL.h);
   g.addColorStop(0, 'rgba(10,14,50,0)'); g.addColorStop(0.2, 'rgba(10,14,50,0.88)'); g.addColorStop(1, 'rgba(10,14,50,0.95)');
-  ctx.fillStyle = g; ctx.fillRect(0, 1100, W, H - 1100);
-  drawButton(ctx, SETUP_PINS.start, 'Start the duel', { primary: true, size: 32 });
-  drawButton(ctx, SETUP_PINS.back, 'Back', { dark: true, size: 28 });
-  if (state.setupMsg) { ctx.textAlign = 'center'; ctx.font = `700 22px ${FONT}`; ctx.fillStyle = '#ffd9a0'; ctx.fillText(state.setupMsg, W / 2, 1140); }
+  ctx.fillStyle = g; ctx.fillRect(0, y0, FL.w, FL.h - y0);
+  drawButton(ctx, P.start, 'Start the duel', { primary: true, size: 32 });
+  drawButton(ctx, P.back, 'Back', { dark: true, size: 28 });
+  if (state.setupMsg) { ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'; ctx.font = `700 ${MIN_TXT + 1}px ${FONT}`; ctx.fillStyle = '#ffd9a0'; ctx.fillText(state.setupMsg, FL.w / 2, P.top - 10); }
 }
-export function renderSettings(ctx, state) {
-  attScene(ctx, state);
-  scrim(ctx, 0.66);
-  drawFlowScreen(ctx, state, 'settings', settingsWidgets(state), 0, H);
+export function renderSettings(ctx, state, FL) {
+  attScene(ctx, state, FL);
+  scrim(ctx, FL, 0.66);
+  drawFlowScreen(ctx, state, 'settings', FL);
 }
-export function renderResult(ctx, state) {
-  drawScene(ctx, state, state.w, state.match.cfg.sky, state.pals);
-  scrim(ctx, 0.62);
-  drawFlowScreen(ctx, state, 'result', resultWidgets(state), 0, H);
+export function renderResult(ctx, state, FL) {
+  backdrop(ctx, FL, state, state.w, state.match.cfg.sky, state.pals);
+  scrim(ctx, FL, 0.62);
+  drawFlowScreen(ctx, state, 'result', FL);
+  drawMoreLine(ctx, FL.w / 2, FL.h - FL.ins.b - 24, 22);   // quiet, text only
 }
-export function renderDemoLimit(ctx, state) {
-  attScene(ctx, state);
-  scrim(ctx, 0.7);
-  drawFlowScreen(ctx, state, 'demolimit', demoLimitWidgets(), 0, H);
+export function renderDemoLimit(ctx, state, FL) {
+  attScene(ctx, state, FL);
+  scrim(ctx, FL, 0.7);
+  drawFlowScreen(ctx, state, 'demolimit', FL);
 }
-export function renderPause(ctx, state) {
-  scrim(ctx, 0.55);
-  const wd = pauseWidgets(state);
-  const sc = TEXT_SCALES[state.settings.textIdx];
-  const lay = flowLayout(ctx, wd, sc, { x: 60, w: 600 });
-  const top = 70, bottom = H - 70;
-  const ch = Math.min(lay.contentH + 20, bottom - top);
-  const y0 = Math.max(top, (H - ch) / 2);
-  panel(ctx, 30, y0 - 20, 660, ch + 40, { r: 30, fill: 'rgba(24,30,84,0.93)', stroke: 'rgba(255,246,228,0.45)' });
-  LAID = { key: 'pause', lay, top: y0, bottom: y0 + ch, h: lay.contentH };
-  const maxScroll = Math.max(0, lay.contentH - ch);
-  const sc0 = Math.min(state.ui.scroll, maxScroll);
-  drawFlow(ctx, lay, y0, y0 + ch, sc0);
-  scrollHint(ctx, y0, y0 + ch, sc0, maxScroll, 30, 660);
+export function renderPause(ctx, state, FL) {
+  scrim(ctx, FL, 0.55);
+  const L = compose(ctx, state, 'pause', FL);
+  LAID = L;
+  const P = L.panel;
+  panel(ctx, P.x, P.y, P.w, P.h, { r: 30, fill: 'rgba(24,30,84,0.93)', stroke: 'rgba(255,246,228,0.45)' });
+  const p = L.parts[0], s = Math.min(state.ui.scroll, p.max);
+  ctx.save(); ctx.translate(p.x, 0); drawFlow(ctx, p.lay, p.top, p.bottom, s, { w: p.w }); ctx.restore();
+  scrollHint(ctx, p.top, p.bottom, s, p.max, P.x, P.w);
+  for (const b of L.pins) drawButton(ctx, b.rect, b.label, { primary: !!b.primary, dark: !!b.dark, size: 30 * Math.min(TEXT_SCALES[state.settings.textIdx], 1.6) });
 }
 
-// ---- reference pages --------------------------------------------------------------------------
-let PAGE_COUNT = 1;
-export const pageCount = () => PAGE_COUNT;
-const PANEL = { x: 34, y: 100, w: 652, h: 1030 };
-
-function buildPages(ctx, list, scale) {
-  const fs = Math.round(28 * scale), lh = fs * 1.28, tw = PANEL.w - 80;
+// ---- reading pages: About / How to play / Rules, one scrolling panel -------------------------------------------
+export const READER = { maxScroll: 0, panel: null, track: null, thumb: null };
+const readerCache = new Map();
+function buildRead(ctx, list, scale, pw) {
+  const fs = Math.round(28 * scale), lh = fs * 1.28, tw = pw - 80;
   const secFs = Math.round(34 * Math.min(scale, 1.3));
-  const top = PANEL.y + 120, limit = PANEL.y + PANEL.h - 70;
-  const pages = [];
-  let cur = null, used = 0;
-  const newPage = () => { cur = { blocks: [], fs, lh, secFs }; used = 0; pages.push(cur); };
-  list.forEach((sec) => {
+  const items = [];
+  let y = 24;
+  list.forEach((sec, si) => {
+    if (si > 0) { items.push({ k: 'rule', y: y - 14 }); y += 8; }
     ctx.font = `700 ${secFs}px ${FONT}`;
     const tl = wrapLines(ctx, sec.title, tw);
-    const titleH = tl.length * secFs * 1.2 + 16;
+    items.push({ k: 'title', y, lines: tl, fs: secFs }); y += tl.length * secFs * 1.2 + 14;
+    if (sec.art && scale < 2) { items.push({ k: 'art', y, art: sec.art, h: 210 }); y += 222; }
     ctx.font = `400 ${fs}px ${FONT}`;
-    const lines = [];
     sec.p.forEach((para, pi) => {
+      if (pi > 0) y += lh * 0.45;
       const wl = wrapLines(ctx, para, tw);
-      wl.forEach((l, k) => lines.push({ text: l, gapBefore: k === 0 && pi > 0 }));
+      items.push({ k: 'text', y, lines: wl, fs, lh }); y += wl.length * lh;
     });
-    const lineH = (l, n) => lh + (l.gapBefore && n > 0 ? lh * 0.45 : 0);
-    const artH = sec.art && scale < 2 ? 210 : 0;
-    let full = titleH + artH + 26;
-    lines.forEach((l, k) => { full += lineH(l, k); });
-    const minNeed = titleH + artH + 26 + lh * 3;
-    if (!cur || (used + full > limit - top && used + minNeed > limit - top)) newPage();
-    let i = 0, part = 0;
-    while (true) {
-      const blk = { title: sec.title, tl, titleH, art: part === 0 ? sec.art : null, artH: part === 0 ? artH : 0, lines: [], part };
-      let h = titleH + blk.artH + 26;
-      while (i < lines.length) {
-        const add = lineH(lines[i], blk.lines.length);
-        if (used + h + add > limit - top && (blk.lines.length > 0 || used > 0)) break;
-        blk.lines.push({ ...lines[i] }); h += add; i++;
-      }
-      cur.blocks.push(blk); used += h;
-      part++;
-      if (i >= lines.length) break;
-      newPage();
-    }
+    y += 30;
   });
-  return pages;
+  return { items, total: y };
 }
 
-const pageCache = new Map();
-export function renderPages(ctx, state, list, header) {
-  attScene(ctx, state);
-  scrim(ctx, 0.66);
-  const sc = TEXT_SCALES[state.settings.textIdx];
-  const pkey = `${header}:${sc}`;
-  let pages = pageCache.get(pkey);
-  if (!pages) { pages = buildPages(ctx, list, sc); pageCache.set(pkey, pages); }
-  PAGE_COUNT = pages.length;
-  const idx = Math.min(state.page, pages.length - 1);
-  const pg = pages[idx];
-  panel(ctx, PANEL.x, PANEL.y, PANEL.w, PANEL.h, { r: 30, fill: 'rgba(255,246,228,0.97)', stroke: 'rgba(28,37,82,0.6)' });
-  ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
-  ctx.fillStyle = C.vermDark; ctx.font = `italic 700 ${Math.round(42 * Math.min(sc, 1.15))}px ${DISPLAY}`;
-  ctx.fillText(header, W / 2, PANEL.y + 58);
-  ctx.strokeStyle = 'rgba(28,37,82,0.3)'; ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.moveTo(PANEL.x + 60, PANEL.y + 78); ctx.lineTo(PANEL.x + PANEL.w - 60, PANEL.y + 78); ctx.stroke();
-  let y = PANEL.y + 120;
-  pg.blocks.forEach((blk, bi) => {
-    if (bi > 0) { ctx.strokeStyle = 'rgba(28,37,82,0.2)'; ctx.beginPath(); ctx.moveTo(PANEL.x + 80, y - 8); ctx.lineTo(PANEL.x + PANEL.w - 80, y - 8); ctx.stroke(); y += 8; }
-    ctx.textAlign = 'center'; ctx.fillStyle = C.indigo; ctx.font = `700 ${pg.secFs}px ${FONT}`;
-    blk.tl.forEach((l, k) => ctx.fillText(l + (blk.part > 0 && k === blk.tl.length - 1 ? ' (cont.)' : ''), W / 2, y + pg.secFs * (0.9 + k * 1.2) - 8));
-    y += blk.titleH;
-    if (blk.art) { ctx.save(); ctx.beginPath(); ctx.rect(PANEL.x + 20, y, PANEL.w - 40, blk.artH); ctx.clip(); drawArt(blk.art, ctx, PANEL.x + 40, y, PANEL.w - 80, blk.artH - 12, state); ctx.restore(); y += blk.artH; }
-    ctx.fillStyle = C.ink; ctx.font = `400 ${pg.fs}px ${FONT}`; ctx.textAlign = 'left';
-    blk.lines.forEach((l, k) => {
-      if (l.gapBefore && k > 0) y += pg.lh * 0.45;
-      ctx.fillText(l.text, PANEL.x + 40, y + pg.fs * 0.85);
-      y += pg.lh;
-    });
-    y += 26;
-  });
-  ctx.textAlign = 'center'; ctx.font = `400 22px ${FONT}`; ctx.fillStyle = 'rgba(28,37,82,0.7)';
-  ctx.fillText(`Page ${idx + 1} of ${pages.length}`, W / 2, PANEL.y + PANEL.h - 28);
-  drawButton(ctx, TEXT_DEC, 'A−', { disabled: state.settings.textIdx === 0, size: 30 });
-  drawButton(ctx, TEXT_INC, 'A+', { disabled: state.settings.textIdx === TEXT_SCALES.length - 1, size: 30 });
-  ctx.fillStyle = '#fff6e4'; ctx.font = `700 24px ${FONT}`; ctx.textAlign = 'center';
-  ctx.fillText(`${Math.round(sc * 100)}%`, W / 2, 56);
-  drawButton(ctx, REF_BACK, idx === 0 ? 'Close' : 'Back', { size: 32 });
-  drawButton(ctx, REF_NEXT, idx === pages.length - 1 ? 'Done' : 'Next', { primary: true, size: 32 });
+export function renderPages(ctx, state, list, header, FL) {
+  attScene(ctx, state, FL);
+  scrim(ctx, FL, 0.66);
+  const Rd = FL.reader, P = Rd.panel, sc = TEXT_SCALES[state.settings.textIdx];
+  const key = `${header}:${sc}:${P.w}`;
+  let book = readerCache.get(key);
+  if (!book) { book = buildRead(ctx, list, sc, P.w); readerCache.set(key, book); if (readerCache.size > 30) readerCache.delete(readerCache.keys().next().value); }
+  const viewH = P.h - 20;
+  const max = Math.max(0, book.total - viewH);
+  READER.maxScroll = max; READER.panel = P;
+  const scroll = Math.max(0, Math.min(state.ui.scroll, max));
+  panel(ctx, P.x, P.y, P.w, P.h, { r: 30, fill: 'rgba(255,246,228,0.97)', stroke: 'rgba(28,37,82,0.6)' });
+  ctx.save(); roundPath(ctx, P.x + 2, P.y + 10, P.w - 4, viewH, 20); ctx.clip();
+  ctx.translate(P.x, P.y + 10 - scroll);
+  const top = scroll - 40, bot = scroll + viewH + 40;
+  for (const it of book.items) {
+    if (it.k === 'rule') { ctx.strokeStyle = 'rgba(28,37,82,0.2)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(60, it.y); ctx.lineTo(P.w - 60, it.y); ctx.stroke(); continue; }
+    const h = it.k === 'art' ? it.h : it.lines.length * (it.k === 'title' ? it.fs * 1.2 : it.lh);
+    if (it.y > bot || it.y + h < top) continue;
+    if (it.k === 'title') {
+      ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'; ctx.fillStyle = C.indigo; ctx.font = `700 ${it.fs}px ${FONT}`;
+      it.lines.forEach((l, i) => ctx.fillText(l, P.w / 2, it.y + it.fs * (0.9 + i * 1.2)));
+    } else if (it.k === 'art') {
+      ctx.save(); ctx.beginPath(); ctx.rect(20, it.y, P.w - 40, it.h); ctx.clip(); drawArt(it.art, ctx, 40, it.y, P.w - 80, it.h - 12, state); ctx.restore();
+    } else {
+      ctx.fillStyle = C.ink; ctx.font = `400 ${it.fs}px ${FONT}`; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
+      it.lines.forEach((l, i) => ctx.fillText(l, 40, it.y + it.fs * 0.85 + i * it.lh));
+    }
+  }
+  ctx.restore();
+  // scroll bar (drag the thumb) and the up / down cue
+  if (max > 0) {
+    const tr = { x: P.x + P.w - 22, y: P.y + 24, w: 14, h: P.h - 48 };
+    const th = Math.max(48, tr.h * (viewH / book.total)), ty = tr.y + (scroll / max) * (tr.h - th);
+    roundPath(ctx, tr.x + 4, tr.y, 6, tr.h, 3); ctx.fillStyle = 'rgba(28,37,82,0.14)'; ctx.fill();
+    roundPath(ctx, tr.x + 2, ty, 10, th, 5); ctx.fillStyle = 'rgba(28,37,82,0.55)'; ctx.fill();
+    READER.track = tr; READER.thumb = { x: tr.x - 8, y: ty, w: tr.w + 16, h: th, travel: tr.h - th };
+  } else { READER.track = null; READER.thumb = null; }
+  // header: title, text size
+  // header: the title sits between the panel's left edge and the zoom % label (which stands left of A-); it shrinks to fit that gap
+  const pctTxt = `${Math.round(sc * 100)}%`;
+  ctx.font = `700 ${MIN_TXT + 2}px ${FONT}`;
+  const pctW = ctx.measureText(pctTxt).width;
+  const gapL = P.x + 8, gapR = Rd.pct.x - pctW - 14;
+  let tSize = Math.round(46 * Math.min(sc, 1.15));
+  ctx.font = `italic 700 ${tSize}px ${DISPLAY}`;
+  const tW = ctx.measureText(header).width;
+  if (tW > gapR - gapL) { tSize = Math.max(22, Math.floor(tSize * (gapR - gapL) / tW)); ctx.font = `italic 700 ${tSize}px ${DISPLAY}`; }
+  ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'; ctx.fillStyle = '#fff6e4';
+  textShadow(ctx, header, Math.min(Rd.title.x, (gapL + gapR) / 2), Rd.title.y, '#fff6e4', 8);
+  drawButton(ctx, Rd.dec, 'A−', { disabled: state.settings.textIdx === 0, size: 30 });
+  drawButton(ctx, Rd.inc, 'A+', { disabled: state.settings.textIdx === TEXT_SCALES.length - 1, size: 30 });
+  ctx.fillStyle = '#fff6e4'; ctx.font = `700 ${MIN_TXT + 2}px ${FONT}`; ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+  ctx.fillText(pctTxt, Rd.pct.x, Rd.pct.y);
+  ctx.textBaseline = 'alphabetic';
+  drawButton(ctx, Rd.close, 'Close', { primary: true, size: 32 });
 }
 
 // ---- illustrations ----------------------------------------------------------------------------
 function label(ctx, t, x, y, size = 20, col = '#fff6e4', align = 'center') {
+  size = Math.max(MIN_TXT, size);
   ctx.save(); ctx.fillStyle = col; ctx.font = `700 ${size}px ${FONT}`; ctx.textAlign = align; ctx.textBaseline = 'alphabetic';
   ctx.shadowColor = 'rgba(8,10,40,0.6)'; ctx.shadowBlur = 4; ctx.fillText(t, x, y); ctx.restore();
 }
@@ -434,10 +536,10 @@ export function drawArt(key, ctx, x, y, w, h) {
     },
     think() {
       const cw = (w - 40) / 3;
-      [['THINK', 'weigh the options', '#ffe9a0'], ['REVEAL', 'show the plan', '#7fe8d6'], ['ACT', 'fly the plan', '#ff9a86']].forEach(([nm, sub, col], i) => {
+      [['THINK', ['weigh the', 'options'], '#ffe9a0'], ['REVEAL', ['show the', 'plan'], '#7fe8d6'], ['ACT', ['fly the', 'plan'], '#ff9a86']].forEach(([nm, sub, col], i) => {
         const cx = i * (cw + 20);
         roundPath(ctx, cx, 20, cw, h - 40, 18); ctx.fillStyle = 'rgba(28,37,82,0.9)'; ctx.fill();
-        label(ctx, nm, cx + cw / 2, h / 2 - 2, 26, col); label(ctx, sub, cx + cw / 2, h / 2 + 30, 17, '#fff6e4');
+        label(ctx, nm, cx + cw / 2, h / 2 - 6, 26, col); sub.forEach((ln, k) => label(ctx, ln, cx + cw / 2, h / 2 + 24 + k * 28, 17, '#fff6e4'));
         if (i < 2) arrow(ctx, cx + cw + 3, h / 2, cx + cw + 17, h / 2, '#1c2552', 4);
       });
     },

@@ -119,3 +119,25 @@ export const RULES = [
   { title: 'The 100-ply rule (2)', lines: ['without either side forming a mill, the game is drawn. Every slide or flight that does not'] },
   { title: 'The 100-ply rule (3)', lines: ['close a mill counts toward this limit; forming a mill resets the count to zero.'] },
 ];
+
+// The reader scrolls one continuous document: the short pages above are merged into sections (a title plus paragraphs).
+// Pages that share a base title ("Mills", "Mills (2)", "Mills: safety") join one section; a line that stops mid-sentence
+// continues in the next line, so a sentence cut across pages is read whole.
+const baseTitle = (t) => t.replace(/ \(\d+\)$/, '').replace(/:.*$/, '');
+const cache = new WeakMap();
+export function flow(pages) {
+  if (cache.has(pages)) return cache.get(pages);
+  const out = [];
+  for (const pg of pages) {
+    const base = baseTitle(pg.title);
+    let sec = out[out.length - 1];
+    if (!sec || sec.base !== base) { sec = { base, title: base, paras: [], piece: false }; out.push(sec); }
+    if (pg.piece) sec.piece = true;
+    for (const line of pg.lines) {
+      const last = sec.paras.length - 1;
+      if (last >= 0 && !/[.!?)"]$/.test(sec.paras[last])) sec.paras[last] += ' ' + line; else sec.paras.push(line);
+    }
+  }
+  cache.set(pages, out);
+  return out;
+}

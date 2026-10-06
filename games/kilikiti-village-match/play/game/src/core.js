@@ -1,6 +1,9 @@
 // Shared constants and tiny pure helpers. No DOM, no clock, no randomness.
-export const W = 720;
-export const H = 1280;
+// The virtual canvas size. Fluid layout (kit 1.7): the short side is always 720, the long side follows the screen. Live bindings: layout.js
+// calls setSize() whenever the real size changes, so every importer sees the current value.
+export let W = 720;
+export let H = 1280;
+export function setSize(w, h) { W = w; H = h; }
 export const G = 9.81;
 export const DT = 1 / 60;
 export const DEG = Math.PI / 180;

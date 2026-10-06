@@ -9,35 +9,67 @@ const COATS = ['#c8553d', '#3d7ec8', '#8a5cc8', '#2f9e78', '#c89a3d', '#c84f8a',
 
 const mix = (a, b, f) => { const pa = parseInt(a.slice(1), 16), pb = parseInt(b.slice(1), 16), c = (sh) => Math.round(((pa >> sh) & 255) * (1 - f) + ((pb >> sh) & 255) * f); return `rgb(${c(16)},${c(8)},${c(0)})`; };
 
-function sky(ctx, t, prog = 0) {
+// V = the visible world rectangle { vx0, vx1, vy0, vy1 } (see layout.js): sky, hills and grass are drawn over all of it so no
+// screen shape ever shows a bar. Inside the authored 0..720 column everything looks exactly as it always did.
+const DEFAULT_V = { vx0: 0, vx1: W, vy0: 0, vy1: H };
+export const setViewEdge = (l, r) => { EDGE.l = l; EDGE.r = r; };
+const EDGE = { l: 0, r: W };   // the visible world edges of the frame being drawn (the dog runs in from just outside them)
+
+function sky(ctx, t, prog = 0, V = DEFAULT_V) {
   const g = ctx.createLinearGradient(0, 0, 0, HORIZON + 40);
   g.addColorStop(0, mix('#5fa3dc', '#3a4f9a', prog)); g.addColorStop(0.7, mix('#a9d3ea', '#f3a86a', prog)); g.addColorStop(1, mix('#f8dfae', '#ffd08a', prog));
-  ctx.fillStyle = g; ctx.fillRect(0, 0, W, HORIZON + 40);
+  ctx.fillStyle = g; ctx.fillRect(V.vx0 - 2, V.vy0 - 2, V.vx1 - V.vx0 + 4, HORIZON + 42 - V.vy0);
   // sun, upper left: it is the one light in the scene
   const sunY = 150 + prog * 190;
   const sg = ctx.createRadialGradient(120, sunY, 6, 120, sunY, 200);
   sg.addColorStop(0, 'rgba(255,248,214,0.95)'); sg.addColorStop(0.2, 'rgba(255,236,170,0.4)'); sg.addColorStop(1, 'rgba(255,236,170,0)');
-  ctx.fillStyle = sg; ctx.fillRect(0, Math.max(0, sunY - 200), 420, 420);
+  ctx.fillStyle = sg; ctx.fillRect(0, Math.max(V.vy0, sunY - 200), 420, 420);
   ctx.fillStyle = mix('#fffbe6', '#ffb86a', prog); ctx.beginPath(); ctx.arc(120, sunY, 34, 0, TAU); ctx.fill();
   ctx.fillStyle = 'rgba(255,255,255,0.75)';
-  for (let i = 0; i < 4; i++) {
-    const x = ((i * 230 + t * (6 + i * 3)) % (W + 240)) - 120, y = 210 + i * 62;
-    ctx.beginPath(); ctx.ellipse(x, y, 74, 17, 0, 0, TAU); ctx.ellipse(x + 34, y - 11, 42, 15, 0, 0, TAU); ctx.fill();
+  const span = V.vx1 - V.vx0, per = Math.max(1, Math.round(span / 900));
+  const rows = [0, 1, 2, 3];
+  for (let r = 1; 210 - r * 100 > V.vy0 + 40 && r < 8; r++) rows.push(-r * 100 / 62);
+  for (const row of rows) {
+    for (let i = 0; i < per; i++) {
+      const sp = 6 + ((i + row + 8) % 4) * 3, ph = i * (span + 240) / per + (row + 12) * 83;
+      const x = V.vx0 - 120 + ((ph + t * sp) % (span + 240)), y = 210 + row * 62;
+      ctx.beginPath(); ctx.ellipse(x, y, 74, 17, 0, 0, TAU); ctx.ellipse(x + 34, y - 11, 42, 15, 0, 0, TAU); ctx.fill();
+    }
   }
 }
 
-function ground(ctx) {
+function ground(ctx, V = DEFAULT_V) {
+  const yb = Math.max(H, V.vy1 + 2);
   for (const [y0, col, amp, ph] of [[HORIZON - 40, '#7fb069', 22, 0], [HORIZON - 4, '#6ba05a', 14, 2]]) {
-    ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(0, H);
-    for (let x = 0; x <= W; x += 20) ctx.lineTo(x, y0 - Math.sin(x * 0.011 + ph) * amp);
-    ctx.lineTo(W, H); ctx.fill();
+    ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(V.vx0 - 20, yb);
+    for (let x = Math.floor(V.vx0 / 20) * 20 - 20; x <= V.vx1 + 20; x += 20) ctx.lineTo(x, y0 - Math.sin(x * 0.011 + ph) * amp);
+    ctx.lineTo(V.vx1 + 20, yb); ctx.fill();
   }
   const g = ctx.createLinearGradient(0, HORIZON, 0, H);
   g.addColorStop(0, '#6ba05a'); g.addColorStop(0.5, '#4f8c48'); g.addColorStop(1, '#2f6a3a');
-  ctx.fillStyle = g; ctx.fillRect(0, HORIZON, W, H - HORIZON);
+  ctx.fillStyle = g; ctx.fillRect(V.vx0 - 2, HORIZON, V.vx1 - V.vx0 + 4, yb - HORIZON);
   // mown stripes that widen toward you: cheap perspective
   ctx.fillStyle = 'rgba(255,255,255,0.045)';
-  for (let i = 0; i < 9; i++) { const y = HORIZON + Math.pow(i / 9, 1.8) * (H - HORIZON), h = 4 + i * 5; ctx.fillRect(0, y, W, h); }
+  for (let i = 0; i < 9; i++) { const y = HORIZON + Math.pow(i / 9, 1.8) * (H - HORIZON), h = 4 + i * 5; ctx.fillRect(V.vx0 - 2, y, V.vx1 - V.vx0 + 4, h); }
+}
+
+// Extra trees (no perches, no gameplay) in the margins beside the authored column, so a wide or short-and-wide screen is
+// filled with the same orchard instead of bare grass. Positions are fixed numbers, so they never shimmer or move.
+const SIDE_ROWS = [{ y: 760, s: 0.7 }, { y: 1000, s: 0.95 }];
+function sideTrees(ctx, V, wind) {
+  if (V.vx0 > -60 && V.vx1 < W + 60) return;
+  const list = [];
+  for (let k = 0; k < 40; k++) {
+    const off = 90 + k * 230;
+    if (-off < V.vx0 - 130 && W + off > V.vx1 + 130) break;
+    for (const sgn of [-1, 1]) {
+      const x = sgn < 0 ? -off : W + off, row = SIDE_ROWS[(k + (sgn < 0 ? 0 : 1)) % 2];
+      if (x < V.vx0 - 130 || x > V.vx1 + 130) continue;
+      list.push({ x: x + ((k * 53) % 40) - 20, y: row.y + ((k * 29) % 3) * 24, s: row.s, offs: [], crown: 0.62 });
+    }
+  }
+  list.sort((a, b) => a.y - b.y);
+  for (const tr of list) drawTree(ctx, tr, wind);
 }
 
 export function drawTree(ctx, tr, wind = null) {
@@ -309,7 +341,7 @@ export function seeds(ctx, s, t) {
 export function beaters(ctx, s, t) {
   for (const bt of s.beaters) {
     const p = s.perches[bt.perch], tr = s.trees[p.tree], q = 1 - bt.timer / bt.total, e = q * q * (3 - 2 * q);
-    const sx = p.x < W / 2 ? -50 : W + 50, tx = tr.x + Math.sign(sx - tr.x) * 46 * tr.s, x = sx + (tx - sx) * e, k = Math.max(0.55, tr.s);
+    const sx = p.x < W / 2 ? EDGE.l - 50 : EDGE.r + 50, tx = tr.x + Math.sign(sx - tr.x) * 46 * tr.s, x = sx + (tx - sx) * e, k = Math.max(0.55, tr.s);
     const face = Math.sign(tx - sx) || 1, run = Math.sin(t * 22);
     ctx.save(); ctx.translate(x, tr.y + 6); ctx.scale(face * k, k);
     ctx.fillStyle = 'rgba(0,0,10,0.25)'; ctx.beginPath(); ctx.ellipse(0, 4, 34, 7, 0, 0, TAU); ctx.fill();
@@ -409,9 +441,14 @@ export function hud(ctx, s) {
   }
 }
 
-export function drawScene(ctx, s, fx, t, title = false) {
-  ctx.clearRect(0, 0, W, H);
-  sky(ctx, t, title ? 0 : Math.min(1, s.t / s.duration)); ground(ctx);
+// `L` is the live layout (layout.js): the world is drawn through its transform. Without one (the Rules art) the 720 x 1280 page.
+export function drawScene(ctx, s, fx, t, title = false, L = null) {
+  const V = L ? { ...L.V } : DEFAULT_V;
+  EDGE.l = V.vx0; EDGE.r = V.vx1;
+  ctx.save();
+  if (L) { ctx.translate(V.ox, V.oy); ctx.scale(V.z, V.z); }
+  sky(ctx, t, title ? 0 : Math.min(1, s.t / s.duration), V); ground(ctx, V);
+  sideTrees(ctx, V, s.feats.wind && !title ? { w: s.wind, t } : null);
   const shown = title ? 3 : Math.min(s.maxHunters, s.startHunters + s.wave);
   const hs = s.hunters.filter((h) => h.slot < shown || (!title && s.feats.boss && h.slot === BOSS_SLOT)).sort((a, b) => SLOTS[a.slot].y - SLOTS[b.slot].y);
   for (const h of hs) if (SLOTS[h.slot].s < 0.9) hunter(ctx, h, t, s.perches);
@@ -435,7 +472,7 @@ export function drawScene(ctx, s, fx, t, title = false) {
     ctx.restore();
   }
   ctx.globalAlpha = 1;
-  if (!title) hud(ctx, s);
+  ctx.restore();
 }
 
 export function drawText(ctx, str, x, y, size, color = '#fff', weight = 800) {

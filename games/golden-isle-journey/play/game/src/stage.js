@@ -3,6 +3,8 @@
 
 import { lighten, darken, mix, sprite, stats } from './paint/kit.js';
 import { skyP, ridgeP, treeP, skylineP, hallP, cloudP, banyanP } from './scenery.js';
+import { FR } from './frame.js';
+export { FR, hudX, hudY } from './frame.js';
 export { wall, gardenTree, moon, softBlob, banner } from './scenery.js';
 export { dome } from './scenery.js';
 export const W = 720;
@@ -46,8 +48,9 @@ export function sun(ctx, x, y, r, rgb = '255,236,190') {
 
 export function stars(ctx, alpha, t, top = 0, bottom = H * 0.6) {
   if (alpha <= 0.01) return;
-  for (let i = 0; i < 70; i++) {
-    const x = hash(i * 3 + 1) * W, y = top + hash(i * 3 + 2) * (bottom - top);
+  const n = Math.round(70 * Math.max(1, FR.w / W));
+  for (let i = 0; i < n; i++) {
+    const x = FR.x0 + hash(i * 3 + 1) * FR.w, y = top + hash(i * 3 + 2) * (bottom - top);
     const tw = 0.55 + 0.45 * Math.sin(t * (0.8 + hash(i) * 2) + i);
     ctx.fillStyle = `rgba(255,240,210,${alpha * tw * (0.4 + hash(i * 7) * 0.6)})`;
     const r = 1 + hash(i * 5) * 1.8;
@@ -57,8 +60,8 @@ export function stars(ctx, alpha, t, top = 0, bottom = H * 0.6) {
 
 // A row of repeating things along a scrolling strip. draw(i, x) is called for each visible index.
 export function strip(scroll, gap, draw, margin = 1) {
-  const first = Math.floor(scroll / gap) - margin;
-  const last = Math.floor((scroll + W) / gap) + margin;
+  const first = Math.floor((scroll + FR.x0) / gap) - margin;
+  const last = Math.floor((scroll + FR.x1) / gap) + margin;
   for (let i = first; i <= last; i++) draw(i, i * gap - scroll);
 }
 
@@ -73,18 +76,20 @@ export function lamp(ctx, x, y, s, t, rgb = '255,200,120', ink = INK) {
 
 // Layered sea with moving crests. y = horizon of this band.
 export function sea(ctx, { y, t = 0, scroll = 0, colors, crest = '255,220,170', bands = 5, bottom = H }) {
+  bottom = Math.max(bottom, FR.y1);
+  const xa = Math.floor(FR.x0 / 20) * 20 - 20, xb = FR.x1 + 20;
   for (let b = 0; b < bands; b++) {
     const by = y + ((bottom - y) * b * b) / (bands * bands) ;
     const amp = 5 + b * 5, wl = 70 + b * 50, sp = (0.3 + b * 0.25);
     ctx.fillStyle = colors[Math.min(b, colors.length - 1)];
-    ctx.beginPath(); ctx.moveTo(0, bottom);
-    for (let x = 0; x <= W + 20; x += 20) ctx.lineTo(x, by + Math.sin((x + scroll * sp) / wl + t * (0.8 + b * 0.2) + b * 2) * amp);
-    ctx.lineTo(W + 20, bottom); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(xa, bottom);
+    for (let x = xa; x <= xb; x += 20) ctx.lineTo(x, by + Math.sin((x + scroll * sp) / wl + t * (0.8 + b * 0.2) + b * 2) * amp);
+    ctx.lineTo(xb, bottom); ctx.closePath(); ctx.fill();
     ctx.strokeStyle = `rgba(${crest},${0.10 + b * 0.04})`; ctx.lineWidth = 2;
     ctx.beginPath();
-    for (let x = 0; x <= W + 20; x += 20) {
+    for (let x = xa; x <= xb; x += 20) {
       const yy = by + Math.sin((x + scroll * sp) / wl + t * (0.8 + b * 0.2) + b * 2) * amp;
-      if (x === 0) ctx.moveTo(x, yy); else ctx.lineTo(x, yy);
+      if (x === xa) ctx.moveTo(x, yy); else ctx.lineTo(x, yy);
     }
     ctx.stroke();
   }
@@ -92,16 +97,17 @@ export function sea(ctx, { y, t = 0, scroll = 0, colors, crest = '255,220,170', 
 
 // Drifting light motes. kind: 'ember' (rise), 'firefly' (wander), 'petal' (fall), 'dust' (slow drift).
 export function motes(ctx, { n = 30, t = 0, rgb = '255,200,120', kind = 'dust', top = 0, bottom = H, rm = false, scroll = 0 }) {
-  const count = rm ? Math.ceil(n / 3) : n;
+  const VW = FR.w, X0 = FR.x0;
+  const count = Math.round((rm ? Math.ceil(n / 3) : n) * Math.max(1, VW / W));
   for (let i = 0; i < count; i++) {
     const a = hash(i * 9 + 1), b = hash(i * 9 + 2), c = hash(i * 9 + 3);
     let x, y;
     const span = bottom - top;
-    if (kind === 'ember') { y = bottom - ((t * (40 + a * 90) + b * span) % span); x = a * W + Math.sin(t * (0.6 + c) + i) * 40; }
-    else if (kind === 'petal') { y = top + ((t * (50 + a * 70) + b * span) % span); x = c * W + Math.sin(t * (0.8 + a) + i) * 60; }
-    else if (kind === 'firefly') { x = a * W + Math.sin(t * (0.3 + b * 0.5) + i) * 90; y = top + b * span + Math.cos(t * (0.4 + c * 0.4) + i * 2) * 60; }
-    else { x = a * W + t * (6 + c * 10); y = top + b * span + Math.sin(t * 0.3 + i) * 30; }
-    x = (((x - scroll * (0.2 + c * 0.3)) % W) + W) % W;
+    if (kind === 'ember') { y = bottom - ((t * (40 + a * 90) + b * span) % span); x = a * VW + Math.sin(t * (0.6 + c) + i) * 40; }
+    else if (kind === 'petal') { y = top + ((t * (50 + a * 70) + b * span) % span); x = c * VW + Math.sin(t * (0.8 + a) + i) * 60; }
+    else if (kind === 'firefly') { x = a * VW + Math.sin(t * (0.3 + b * 0.5) + i) * 90; y = top + b * span + Math.cos(t * (0.4 + c * 0.4) + i * 2) * 60; }
+    else { x = a * VW + t * (6 + c * 10); y = top + b * span + Math.sin(t * 0.3 + i) * 30; }
+    x = X0 + (((x - scroll * (0.2 + c * 0.3)) % VW) + VW) % VW;
     const tw = 0.5 + 0.5 * Math.sin(t * (1 + c * 3) + i * 1.7);
     const r = kind === 'petal' ? 5 : 1.6 + c * 2.4;
     ctx.fillStyle = `rgba(${rgb},${(0.25 + 0.6 * tw) * (kind === 'dust' ? 0.5 : 1)})`;
@@ -116,22 +122,26 @@ export function cloth(ctx) {
   ctx.lineWidth = 1;
   ctx.strokeStyle = 'rgba(255,240,210,0.030)';
   ctx.beginPath();
-  for (let y = 0; y < H; y += 7) { ctx.moveTo(0, y + 0.5); ctx.lineTo(W, y + 0.5); }
+  for (let y = Math.floor(FR.y0 / 7) * 7; y < FR.y1; y += 7) { ctx.moveTo(FR.x0, y + 0.5); ctx.lineTo(FR.x1, y + 0.5); }
   ctx.stroke();
   ctx.strokeStyle = 'rgba(20,5,0,0.045)';
   ctx.beginPath();
-  for (let x = 0; x < W; x += 7) { ctx.moveTo(x + 0.5, 0); ctx.lineTo(x + 0.5, H); }
+  for (let x = Math.floor(FR.x0 / 7) * 7; x < FR.x1; x += 7) { ctx.moveTo(x + 0.5, FR.y0); ctx.lineTo(x + 0.5, FR.y1); }
   ctx.stroke();
 }
 
 export function vignette(ctx, strength = 0.72) {
-  const g = ctx.createRadialGradient(W / 2, H * 0.48, H * 0.26, W / 2, H * 0.5, H * 0.72);
+  const cx = (FR.x0 + FR.x1) / 2, vh = FR.h, vy = FR.y0;
+  const g = ctx.createRadialGradient(cx, vy + vh * 0.48, vh * 0.26, cx, vy + vh * 0.5, Math.max(vh * 0.72, FR.w * 0.5));
   g.addColorStop(0, 'rgba(8,2,6,0)');
   g.addColorStop(0.7, `rgba(8,2,6,${strength * 0.45})`);
   g.addColorStop(1, `rgba(8,2,6,${strength})`);
   ctx.fillStyle = g;
-  ctx.fillRect(0, 0, W, H);
+  fillView(ctx);
 }
+
+// Fills the whole visible rectangle of the current frame (use instead of fillRect(0, 0, W, H)).
+export function fillView(ctx) { ctx.fillRect(FR.x0 - 1, FR.y0 - 1, FR.w + 2, FR.h + 2); }
 
 export function finish(ctx, strength) { cloth(ctx); vignette(ctx, strength); }
 

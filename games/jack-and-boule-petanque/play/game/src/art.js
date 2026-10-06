@@ -2,7 +2,7 @@
 // markings) plus the boule/jack/dust sprites. All procedural, seeded, deterministic. Baking uses
 // OffscreenCanvas when the host has it (every browser/webview) and quietly does nothing in the
 // headless test harness.
-import { W, H, CX, project, groundY, scaleAt, depthScale } from './cam.js';
+import { W, H, CX, project, groundY, scaleAt, depthScale, getStage, setStage } from './cam.js';
 import { LANE, JACK_ZONE, slopeAt } from './sim.js';
 
 const TAU = Math.PI * 2;
@@ -47,15 +47,16 @@ export const palOf = (t) => PAL[t.pal] ?? PAL.village;
 function paintBackdrop(c, T) {
   const P = palOf(T), rnd = lcg(T.seed ^ 0x77aa);
   const wallBaseY = project(0, 668, 0).y, wallTopY = project(0, 668, 40).y;
+  const OX = (W - 720) / 2, WS = W / 720;   // placed scenery stays centred behind the lane when the stage is wider than a phone
   const g = c.createLinearGradient(0, 0, 0, wallBaseY);
   g.addColorStop(0, P.skyA); g.addColorStop(0.75, P.skyB); g.addColorStop(1, P.skyB);
   c.fillStyle = g; c.fillRect(0, 0, W, wallBaseY + 4);
-  const sun = c.createRadialGradient(130, 150, 6, 130, 150, 360);
+  const sunY = Math.max(40, wallTopY - 60), sun = c.createRadialGradient(130 + OX, sunY, 6, 130 + OX, sunY, 360);
   sun.addColorStop(0, 'rgba(255,244,205,0.9)'); sun.addColorStop(0.35, 'rgba(255,230,170,0.35)'); sun.addColorStop(1, 'rgba(255,230,170,0)');
   c.fillStyle = sun; c.fillRect(0, 0, W, wallBaseY);
   // soft clouds
   for (let i = 0; i < 6; i++) {
-    const x = rnd() * W, y = 30 + rnd() * 90, w = 90 + rnd() * 150;
+    const x = rnd() * W, y = 14 + rnd() * Math.max(40, Math.min(90, wallTopY - 80)), w = 90 + rnd() * 150;
     const cg = c.createRadialGradient(x, y, 4, x, y, w * 0.5);
     cg.addColorStop(0, 'rgba(255,255,255,0.55)'); cg.addColorStop(1, 'rgba(255,255,255,0)');
     c.fillStyle = cg; c.save(); c.translate(x, y); c.scale(1, 0.28); c.translate(-x, -y); c.fillRect(x - w, y - w, w * 2, w * 2); c.restore();
@@ -64,7 +65,7 @@ function paintBackdrop(c, T) {
   const ridge = (base, amp, col, alpha, seed) => {
     c.beginPath(); c.moveTo(0, wallBaseY);
     for (let x = 0; x <= W; x += 8) {
-      const y = base - amp * (0.55 * vnoise(x / 140, seed, T.seed) + 0.3 * vnoise(x / 45, seed + 3, T.seed) + 0.5 * Math.exp(-Math.pow((x - 520) / 150, 2)));
+      const y = base - amp * (0.55 * vnoise(x / 140, seed, T.seed) + 0.3 * vnoise(x / 45, seed + 3, T.seed) + 0.5 * Math.exp(-Math.pow((x - 520 - OX) / 150, 2)));
       c.lineTo(x, y);
     }
     c.lineTo(W, wallBaseY); c.closePath();
@@ -89,7 +90,7 @@ function paintBackdrop(c, T) {
       for (let wx = x + 7; wx < x + w - 8; wx += 14) for (let wy = y + 9; wy < y + h - 8; wy += 15) c.fillRect(wx, wy, 6, 9);
     }
     c.strokeStyle = 'rgba(70,55,40,0.85)'; c.lineWidth = 1.6;
-    for (let i = 0; i < 9; i++) {
+    for (let i = 0; i < Math.round(9 * WS); i++) {
       const x = 30 + i * 78 + rnd() * 30, h = 38 + rnd() * 30;
       c.beginPath(); c.moveTo(x, wallTopY + 2); c.lineTo(x, wallTopY - h); c.stroke();
       c.fillStyle = 'rgba(250,246,236,0.9)'; c.beginPath(); c.moveTo(x + 1, wallTopY - h + 4); c.lineTo(x + 14, wallTopY - 6); c.lineTo(x + 1, wallTopY - 6); c.fill();
@@ -101,14 +102,14 @@ function paintBackdrop(c, T) {
       c.fillStyle = i % 2 ? '#7d5aa0' : '#8e6bb4'; c.fillRect(0, y, W, 4);
     }
     c.fillStyle = 'rgba(120,90,160,0.4)'; c.fillRect(0, wallTopY - 40, W, 8);
-    const x = 470, y = wallTopY - 62;
+    const x = 470 + OX, y = wallTopY - 62;
     c.fillStyle = '#ead6aa'; c.fillRect(x, y, 90, 40); c.fillStyle = '#c2663c'; c.beginPath(); c.moveTo(x - 6, y); c.lineTo(x + 45, y - 22); c.lineTo(x + 96, y); c.fill();
     c.fillStyle = '#6b8aa6'; c.fillRect(x + 12, y + 12, 12, 18); c.fillRect(x + 62, y + 12, 12, 18);
   } else {
     // village on the hill (village / oliviers)
-    const bx0 = T.pal === 'village' ? 300 : 420;
-    for (let i = 0; i < (T.pal === 'village' ? 16 : 7); i++) {
-      const x = bx0 + (rnd() - 0.2) * 360, w = 30 + rnd() * 30, h = 26 + rnd() * 34, y = wallTopY - 12 - h * 0.6 - rnd() * 14;
+    const bx0 = (T.pal === 'village' ? 300 : 420) + OX;
+    for (let i = 0; i < Math.round((T.pal === 'village' ? 16 : 7) * WS); i++) {
+      const x = bx0 + (rnd() - 0.2) * 360 * WS, w = 30 + rnd() * 30, h = 26 + rnd() * 34, y = wallTopY - 12 - h * 0.6 - rnd() * 14;
       c.fillStyle = wall[Math.floor(rnd() * wall.length)]; c.fillRect(x, y, w, h);
       c.fillStyle = 'rgba(80,50,30,0.18)'; c.fillRect(x + w * 0.62, y, w * 0.38, h);
       c.fillStyle = roof[Math.floor(rnd() * roof.length)];
@@ -116,13 +117,13 @@ function paintBackdrop(c, T) {
       c.fillStyle = '#5a7ea0'; c.fillRect(x + 6, y + 10, 5, 8); if (w > 40) c.fillRect(x + w - 14, y + 10, 5, 8);
     }
     if (T.pal === 'village') {
-      c.fillStyle = '#e9d5a8'; c.fillRect(430, wallTopY - 108, 22, 80); c.fillStyle = '#b0522e'; c.beginPath(); c.moveTo(427, wallTopY - 108); c.lineTo(441, wallTopY - 128); c.lineTo(455, wallTopY - 108); c.fill();
-      c.fillStyle = '#4a3a2a'; c.beginPath(); c.arc(441, wallTopY - 92, 5, Math.PI, 0); c.fill();
+      c.fillStyle = '#e9d5a8'; c.fillRect(430 + OX, wallTopY - 108, 22, 80); c.fillStyle = '#b0522e'; c.beginPath(); c.moveTo(427 + OX, wallTopY - 108); c.lineTo(441 + OX, wallTopY - 128); c.lineTo(455 + OX, wallTopY - 108); c.fill();
+      c.fillStyle = '#4a3a2a'; c.beginPath(); c.arc(441 + OX, wallTopY - 92, 5, Math.PI, 0); c.fill();
     }
   }
   // cypress
-  for (let i = 0; i < 5; i++) {
-    const x = 40 + rnd() * 640, h = 44 + rnd() * 40;
+  for (let i = 0; i < Math.round(5 * WS); i++) {
+    const x = 40 + rnd() * (W - 80), h = 44 + rnd() * 40;
     c.fillStyle = 'rgba(38,62,40,0.9)'; c.beginPath(); c.ellipse(x, wallTopY - h * 0.45, 6 + rnd() * 3, h * 0.55, 0, 0, TAU); c.fill();
   }
   // the low stone wall that closes the far end
@@ -147,7 +148,15 @@ function paintBackdrop(c, T) {
 // Relative cost of each yield point (units of work; whole bake is roughly 8000 units).
 const WORK = { macroRow: 5, projRow: 1, pebbleGen: 6, pebblePaint: 8, backdrop: 40, markings: 40 };
 export const BAKE_BG = 280, BAKE_NEED = 1100;   // units per frame: pitch not needed yet / needed now
-const MX0 = -190, MX1 = 190, MY0 = -380, MY1 = 700, MS = 1.4;
+// The ground map covers world x in [MX0, MX1]: +-190 on a phone, wider on wide stages (set per bake by useBake).
+const MY0 = -380, MY1 = 700;
+let MX0 = -190, MX1 = 190, MS = 1.4;
+function bakeRange() {
+  const need = Math.ceil((W / 2 / scaleAt(MY1)) / 10) * 10 + 10;
+  const mx = Math.max(190, Math.min(600, need));
+  return { MX0: -mx, MX1: mx, MS: mx > 190 ? 1.0 : 1.4 };
+}
+const useRange = (r) => { MX0 = r.MX0; MX1 = r.MX1; MS = r.MS; };
 function* bakeMacro(T) {
   const P = palOf(T), w = Math.round((MX1 - MX0) * MS), h = Math.round((MY1 - MY0) * MS);
   const cv = newCanvas(w, h); if (!cv) return null;
@@ -253,7 +262,7 @@ function* paintPebbles(c, T) {
     }
     if (skip > 0 && q < skip) continue;
     const p = project(x, y, 0);
-    if (p.y < 240 || p.y > H + 10) continue;
+    if (p.y < project(0, MY1 - 120, 0).y || p.y > H + 10) continue;
     const ds = depthScale(y), rx = r * p.s, ry = Math.max(0.35, r * ds);
     if (rx < 0.35) continue;
     const t = tints[ti];
@@ -391,24 +400,34 @@ function* bakeSteps(T, res) {
 // Synchronous bake (shots, tools): runs to the end in one go.
 export function bakePitch(T, res) {
   budget = Infinity;
+  const keepR = { MX0, MX1, MS };
+  useRange(bakeRange());
   const g = bakeSteps(T, res);
   let r = g.next();
   while (!r.done) r = g.next();
+  useRange(keepR);
   return r.value;
 }
 // Start a sliced bake; call job.step(units) each frame until it returns the finished canvas (null while working).
 export function startBake(T, res) {
+  // the stage (camera) and ground range are snapshotted here; every step re-applies them, so a resize in the middle of a bake
+  // (rotation) cannot corrupt it. The finished canvas carries the stage it was baked for.
+  const stage = getStage(), range = bakeRange(), prev0 = { st: null };
+  useRange(range);
   const g = bakeSteps(T, res);
   const job = {
-    done: false, canvas: null, failed: false,
+    done: false, canvas: null, failed: false, stage,
     step(units) {
       if (job.done) return job.canvas;
+      const keep = getStage(), keepR = { MX0, MX1, MS };
+      setStage(stage); useRange(range);
       budget = units;
       try {
         const r = g.next();
         if (r.done) { job.done = true; job.canvas = r.value; if (!r.value) job.failed = true; }
       } catch (e) { job.done = true; job.failed = true; job.canvas = null; }
       budget = Infinity;
+      setStage(keep); useRange(keepR);
       return job.canvas;
     },
   };

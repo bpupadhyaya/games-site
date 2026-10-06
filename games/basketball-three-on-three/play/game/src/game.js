@@ -1,16 +1,17 @@
 // Basketball 3x3: the game shell. Scenes, touch / keyboard controls, persistence, preview wiring, Learn, Watch & Learn.
 // The match itself lives in sim.js; the 3D picture is drawn by view3d/ from the sim state.
 import { createSim } from './sim.js';
-import { W, H, TEXT_SCALES, THINK_STEPS, REF_BACK, REF_NEXT, TEXT_DEC, TEXT_INC, SETUP_PINS, inRect, inCircle, hudLayout } from './layout.js';
-import { setPress } from './ui.js';
+import { W, H, TEXT_SCALES, THINK_STEPS, inRect, inCircle, hudLayout, layoutFor, setViewport, fitFor } from './layout.js';
+import { setPress, UI } from './ui.js';
 import { ABOUT, HOWTO, RULES, LESSONS, QUIZ } from './content.js';
 import * as MN from './menus.js';
 import { renderHud, renderFallback, controlState, renderThink, watchHit } from './hud.js';
 import { LEVELS, ROLES, GAME_LEN } from './consts.js';
 import { clamp } from './util.js';
-import { screenToWorld } from './camera.js';
+import { screenToWorld, fitCamera, setCamera } from './camera.js';
 
-export const meta = { width: W, height: H };
+// Fluid viewport (kit 1.7): the short side is 720 units, the long side follows the screen; the kit keeps width / height live.
+export const meta = { width: 720, height: 1280, fluid: { short: 720 } };
 const DEMO_GAME_CAP = 2;
 const SAVE_VERSION = 1;
 
@@ -216,7 +217,7 @@ export function createGame(env) {
         let hit = null;
         for (const k of ['a', 'b', 'c', 'd']) if (cs[k] && inCircle(lay.btn[k], t.x, t.y, 14)) { hit = k; break; }
         if (hit) { if (c.bind[hit] === undefined) { c.bind[hit] = t.id; c.btn[hit].pressed = true; } }
-        else if (c.stickId === null && inRect(lay.stickZone, t.x, t.y)) { c.stickId = t.id; c.ox = clamp(t.x, 90, 290); c.oy = clamp(t.y, 990, 1190); c.stickOn = true; }
+        else if (c.stickId === null && inRect(lay.stickZone, t.x, t.y)) { const z = lay.stickZone; c.stickId = t.id; c.ox = clamp(t.x, z.x + 90, Math.max(z.x + 90, z.x + z.w - 90)); c.oy = clamp(t.y, z.y + 90, Math.max(z.y + 90, z.y + z.h - 90)); c.stickOn = true; }
       }
       if (t.down || t.pressed) alive.add(t.id);
     }
@@ -282,7 +283,7 @@ export function createGame(env) {
     if (input.keys.pressed.has('Equal') || input.keys.pressed.has('NumpadAdd')) { G.settings.textIdx = Math.min(TEXT_SCALES.length - 1, G.settings.textIdx + 1); saveSettings(); }
     if (input.keys.pressed.has('Minus') || input.keys.pressed.has('NumpadSubtract')) { G.settings.textIdx = Math.max(0, G.settings.textIdx - 1); saveSettings(); }
     { const k = input.keys, step = Math.max(40, mt.bottom - mt.top - 60), set = (v) => { G.ui.scroll = clamp(v, 0, max); };
-      if (input.wheel) set(G.ui.scroll + input.wheel);
+      if (input.wheel && input.wheel.dy) set(G.ui.scroll + input.wheel.dy);
       if (k.down.has('ArrowDown')) set(G.ui.scroll + 14);
       if (k.down.has('ArrowUp')) set(G.ui.scroll - 14);
       if (k.pressed.has('PageDown') || k.pressed.has('Space')) set(G.ui.scroll + step);
@@ -388,7 +389,7 @@ export function createGame(env) {
     let used = false;
     if (st.drag && ptr.down) { st.drag.moved = Math.max(st.drag.moved, Math.abs(ptr.y - st.drag.y0)); if (st.drag.moved >= 10) { set(st.drag.s0 - (ptr.y - st.drag.y0)); used = true; } }
     if (ptr.released && st.drag) { used = used || st.drag.moved >= 10; st.drag = null; }
-    if (input.wheel) set(st.scroll + input.wheel);
+    if (input.wheel && input.wheel.dy) set(st.scroll + input.wheel.dy);
     const step = Math.max(40, view - 60);
     if (keys.down.has('ArrowDown')) set(st.scroll + 14);
     if (keys.down.has('ArrowUp')) set(st.scroll - 14);
@@ -400,17 +401,17 @@ export function createGame(env) {
   }
   const updatePages = (input) => {
     const ptr = input.pointer, keys = input.keys;
-    const mt = MN.readerMeta();
+    const mt = MN.readerMeta(), RD = layoutFor(W, H, G.settings.textIdx).reader;
     const close = () => { G.scene = G.back === 'play' ? 'play' : 'title'; G.ui.scroll = 0; G.ui.drag = null; };
     const down = () => { if (G.ui.scroll >= mt.max - 2) close(); else G.ui.scroll = clamp(G.ui.scroll + mt.view - 70, 0, mt.max); };
     const up = () => { if (G.ui.scroll <= 2) close(); else G.ui.scroll = clamp(G.ui.scroll - (mt.view - 70), 0, mt.max); };
     const zoom = (d) => { const old = G.settings.textIdx; G.settings.textIdx = clamp(old + d, 0, TEXT_SCALES.length - 1); if (G.settings.textIdx !== old) G.ui.keepFrac = mt.max > 0 ? G.ui.scroll / mt.max : 0; saveSettings(); };
     const used = scrollInput(input, G.ui, mt.max, mt.view, mt.rect);
     if (ptr.pressed && !used) {
-      if (inRect(REF_NEXT, ptr.x, ptr.y)) down();
-      else if (inRect(REF_BACK, ptr.x, ptr.y)) close();
-      else if (inRect(TEXT_DEC, ptr.x, ptr.y)) zoom(-1);
-      else if (inRect(TEXT_INC, ptr.x, ptr.y)) zoom(1);
+      if (inRect(RD.next, ptr.x, ptr.y)) down();
+      else if (inRect(RD.back, ptr.x, ptr.y)) close();
+      else if (inRect(RD.dec, ptr.x, ptr.y)) zoom(-1);
+      else if (inRect(RD.inc, ptr.x, ptr.y)) zoom(1);
     }
     if (keys.pressed.has('ArrowRight')) down();
     if (keys.pressed.has('ArrowLeft')) up();
@@ -422,7 +423,8 @@ export function createGame(env) {
     const ptr = input.pointer, k = input.keys;
     if (k.pressed.has('Enter')) { handleSetup('start'); return; }
     if (k.pressed.has('Escape')) { handleSetup('back'); return; }
-    if (ptr.pressed && (inRect(SETUP_PINS.start, ptr.x, ptr.y) || inRect(SETUP_PINS.back, ptr.x, ptr.y))) { handleSetup(inRect(SETUP_PINS.start, ptr.x, ptr.y) ? 'start' : 'back'); return; }
+    const SP = layoutFor(W, H, G.settings.textIdx).setup;
+    if (ptr.pressed && (inRect(SP.start, ptr.x, ptr.y) || inRect(SP.back, ptr.x, ptr.y))) { handleSetup(inRect(SP.start, ptr.x, ptr.y) ? 'start' : 'back'); return; }
     updateFlowScene(dt, input, handleSetup, 'setup');
   };
 
@@ -482,20 +484,40 @@ export function createGame(env) {
     S.s.humanId = role;
     G.scene = 'play';
   }
+  // The live screen size: the kit keeps meta.width / height current (fluid viewport). When it changes (rotation, resize) the touch controls are
+  // released cleanly (a held stick or button never survives a rotation), the match itself is untouched, and the 3D framing is re-solved.
+  let sizeKey = '';
+  function syncSize(view) {
+    const w = (view && view.width) || meta.width, h = (view && view.height) || meta.height;
+    setViewport(w, h);
+    const L = layoutFor(W, H, G.settings.textIdx);
+    UI.minf = L.minf; UI.minb = L.minb;
+    // kit 1.8.0 preview pill: right edge, just under the Pause button (landscape) or under the prompt line (portrait): clear of the match clock and prompt
+    meta.previewBadge = { x: L.hud.util.pause.x + L.hud.util.pause.w, y: L.land ? L.hud.util.pause.y + L.hud.util.pause.h + 4 : L.hud.fit.y0 + 2, align: 'right' };
+    if (sizeKey !== `${W}x${H}`) { if (sizeKey) resetCtl(); sizeKey = `${W}x${H}`; }
+    // the framing the 3D picture and the HUD both use: the court fills the free rectangle of the screen for this scene
+    const watch = G.scene === 'play' && G.mode === 'watch';
+    setCamera(fitCamera(W, H, fitFor(L, watch ? 'watch' : 'play')));
+  }
   function startup() { if (config.shot) startShot(); else startDemoBg(); }
   startup();
-  if (config.dev) G.dev = { startMatch, go, startLesson, openThink, resume: resumeMatch, quit: leaveMatch, persist: persistMatch };   // tester hooks (debug builds / ?dev=1 only)
+  if (config.dev) G.dev = { startMatch, go, startLesson, openThink, resume: resumeMatch, quit: leaveMatch, persist: persistMatch, layout: () => layoutFor(W, H, G.settings.textIdx) };   // tester hooks (debug builds / ?dev=1 only)
 
   return {
     // Menus, Rules, About, settings, Learn and Watch & Learn are free; only real play counts against the preview.
     isPreviewExempt: () => !(G.scene === 'play' && G.mode === 'ai') || G.paused || G.pauseMenu || !!G.think || (S && (S.s.phase === 'dead' || S.s.phase === 'over')),
     update(dt, input) {
+      syncSize();
       setPress(input.pointer);
       G.t += dt;
       for (let i = delayed.length - 1; i >= 0; i--) { delayed[i].t -= dt; if (delayed[i].t <= 0) { delayed[i].f(); delayed.splice(i, 1); } }
       if (G.scene !== 'play') S.update(dt, {});
       switch (G.scene) {
-        case 'title': updateFlowScene(dt, input, handleTitle, 'title'); break;
+        case 'title': {
+          const lt = MN.getLockTap(), pp = input.pointer;
+          if (lt && pp.pressed && pp.x >= lt.x && pp.x <= lt.x + lt.w && pp.y >= lt.y && pp.y <= lt.y + lt.h) { G.lockDown = G.t + 0.25; env.openArcforgeHome?.(); break; }
+          updateFlowScene(dt, input, handleTitle, 'title'); break;
+        }
         case 'setup': updateSetup(dt, input); break;
         case 'settings': updateFlowScene(dt, input, handleSettings, 'settings'); break;
         case 'learn': updateFlowScene(dt, input, handleLearn, 'learn'); break;
@@ -510,6 +532,7 @@ export function createGame(env) {
       }
     },
     render(ctx, view) {
+      syncSize(view);
       G.viewW = (view && view.cssW) || 720; G.viewH = (view && view.cssH) || 1280;
       ctx.clearRect(0, 0, W, H);
       if (view && view.noGL) renderFallback(ctx, G, view);

@@ -1,8 +1,9 @@
 // Every screen that is not the play screen: title, setup, settings, learn list, result, pause, the set-up sheet, the quiz lesson, and the
 // paginated About / How to Play / Rules reader with its illustrations (drawn with the game's own board and bags). Pure drawing.
-import { W, H, TEXT_SCALES, TEXT_DEC, TEXT_INC, REF_BACK, REF_NEXT, THINK_STEPS, SETUP_PINS } from './layout.js';
+import { W, H, FR, RG, TEXT_SCALES, TEXT_DEC, TEXT_INC, REF_BACK, REF_NEXT, THINK_STEPS, SETUP_PINS, PLAY_WIN, setupBottom, titleCol, flowOrigin } from './layout.js';
+import { drawLockupImg, drawMoreLine } from './brand.js';
 import { FONT, NUM, C, roundPath, drawButton, panel, wrapLines, textShadow, flowLayout, drawFlow, flowHit } from './ui.js';
-import { drawStill, drawBags, drawParts, interpBags, TAU } from './scene.js';
+import { drawStill, drawBags, drawParts, interpBags, setExtent, TAU } from './scene.js';
 import { PROFILES, ASSIST } from './ai.js';
 import { LENGTHS, pointsOf, BAGS_EACH } from './engine.js';
 import { STYLES, BOARD_W, BOARD_L, HOLE_V, HOLE_R, BAG_HALF, G, RELEASE, arcPoints, BOARD_Z0, COS_A, holeWorld } from './phys.js';
@@ -13,17 +14,33 @@ import { SPIN_NAMES, sideName, bagMark } from './view.js';
 let LAID = { key: '', lay: null, top: 0, bottom: H };
 export const flowMeta = () => LAID;
 const estCtx = { font: '', measureText(t) { const m = /(\d+)px/.exec(this.font); return { width: String(t).length * (m ? +m[1] : 20) * 0.52 }; } };
+// One description per flow screen: its widgets, where it starts and ends vertically, the column it uses, and whether it is centred vertically
+// when it is shorter than the space. ensureLayout (before the first frame, estimated text widths) and the render functions (real widths) both use it.
+const topSafe = () => Math.max(0, FR.ins.t - 14);
+const botSafe = () => Math.max(0, FR.ins.b - 14);
+export function flowSpec(state, key) {
+  const land = FR.land, ins = FR.ins;
+  switch (key) {
+    case 'title':
+      if (land) return { wd: titleWidgets(state, true), top: Math.max(16, ins.t + 10), bottom: H - Math.max(14, ins.b + 6), opts: { x: 0, w: titleCol().colW }, center: true };
+      return { wd: titleWidgets(state, false), top: titleTop(), bottom: H };
+    case 'setup': return { wd: setupWidgets(state), top: topSafe(), bottom: setupBottom() };
+    case 'settings': return { wd: settingsWidgets(state), top: topSafe(), bottom: H - botSafe() };
+    case 'learn': return { wd: learnWidgets(state), top: topSafe(), bottom: H - botSafe() };
+    case 'quiz': return { wd: quizWidgets(state), top: topSafe(), bottom: H - botSafe() };
+    case 'result': return { wd: state.m.cfg.mode === 'learn' ? lessonResultWidgets(state) : resultWidgets(state), top: topSafe(), bottom: H - botSafe() };
+    case 'demolimit': return { wd: demoLimitWidgets(), top: topSafe(), bottom: H - botSafe() };
+    case 'sheet': return { wd: sheetWidgets(state), top: 90, bottom: H - 20, opts: { x: 50, w: 620 } };
+    case 'why': return { wd: whyWidgets(state), top: 90, bottom: H - 20, opts: { x: 50, w: 620 } };
+    default: return null;
+  }
+}
+const placeTop = (sp, contentH) => (sp.center && contentH < sp.bottom - sp.top ? sp.top + (sp.bottom - sp.top - contentH) / 2 : sp.top);
 export function ensureLayout(state, key) {
-  if (LAID.key === key && LAID.lay) return;
-  const defs = {
-    title: [titleWidgets, 0, H], setup: [setupWidgets, 0, 1130], settings: [settingsWidgets, 0, H], learn: [learnWidgets, 0, H],
-    result: [(st) => (st.m.cfg.mode === 'learn' ? lessonResultWidgets(st) : resultWidgets(st)), 0, H], demolimit: [demoLimitWidgets, 0, H], sheet: [sheetWidgets, 90, H - 20], why: [whyWidgets, 90, H - 20],
-    quiz: [quizWidgets, 0, H],
-  };
-  const d = defs[key];
-  if (!d) return;
-  const lay = flowLayout(estCtx, d[0](state), TEXT_SCALES[state.settings.textIdx], key === 'sheet' || key === 'why' ? { x: 50, w: 620 } : undefined);
-  LAID = { key, lay, top: d[1], bottom: d[2], h: lay.contentH };
+  const sp = flowSpec(state, key);
+  if (!sp) return;
+  const lay = flowLayout(estCtx, sp.wd, TEXT_SCALES[state.settings.textIdx], sp.opts);
+  LAID = { key, lay, top: placeTop(sp, lay.contentH), bottom: sp.bottom, h: lay.contentH };
 }
 export function hitScreen(x, y, scroll) { return LAID.lay ? flowHit(LAID.lay, LAID.top, scroll, x, y) : null; }
 
@@ -35,36 +52,52 @@ const spaced = (ctx, text, cx, y, gap) => {
 };
 
 // ---- the live backyard behind the title and the menus --------------------------------------------------------------------------
+// Drawn in FRAME coordinates (before any column translation) over the whole screen. Portrait: the scene sits in the design column.
+// Landscape: the part of the scene where the throws happen is fitted to the screen height and centred (on the title: in the left area).
+export function attractXf(state) {
+  if (!FR.land) return { sc: 1, tx: FR.fox, ty: 0 };
+  const cx = state.scene === 'title' ? titleCol().colX / 2 : FR.sw / 2;
+  const sc = 0.9, hgt = PLAY_WIN.y1 - PLAY_WIN.y0;
+  return { sc, tx: cx - 360 * sc, ty: (H - hgt * sc) / 2 - PLAY_WIN.y0 * sc };
+}
 export function drawAttract(ctx, state) {
-  const a = state.att, cam = a.cam;
+  const a = state.att, cam = a.cam, { sc, tx, ty } = attractXf(state);
+  setExtent(-tx / sc, -ty / sc, (FR.sw - tx) / sc, (H - ty) / sc);
+  ctx.save(); ctx.translate(tx, ty); ctx.scale(sc, sc);
   drawStill(ctx, cam, state.t);
   drawBags(ctx, cam, interpBags(a.sim, a.alpha));
   drawParts(ctx, cam, a.parts);
+  ctx.restore();
 }
 
+// The CORNHOLE name plate: portrait (inside the flow, 400 tall) or landscape (centred in the left area, scaled to fit).
+function drawHero(ctx, cx, top, k = 1) {
+  ctx.save(); ctx.translate(cx, top); ctx.scale(k, k);
+  ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+  ctx.font = `700 24px ${FONT}`; ctx.fillStyle = 'rgba(255,230,160,0.95)';
+  spaced(ctx, 'BACKYARD BAG TOSS', 0, 88, 8);
+  ctx.font = `800 138px ${NUM}`;
+  textShadow(ctx, 'CORNHOLE', 0, 214, '#fff8e4', 18);
+  bagMark(ctx, -96, 262, 22, 0); bagMark(ctx, 96, 262, 22, 1);
+  ctx.strokeStyle = 'rgba(255,230,160,0.85)'; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(-250, 262); ctx.lineTo(-140, 262); ctx.moveTo(140, 262); ctx.lineTo(250, 262); ctx.stroke();
+  ctx.beginPath(); ctx.arc(0, 262, 10, 0, TAU); ctx.fillStyle = '#ffe08a'; ctx.fill();
+  ctx.restore();
+}
 function heroArt() {
-  return {
-    t: 'art', h: 400,
-    draw(ctx, w) {
-      const cx = w / 2;
-      ctx.save();
-      ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
-      ctx.font = `700 24px ${FONT}`; ctx.fillStyle = 'rgba(255,230,160,0.95)';
-      spaced(ctx, 'BACKYARD BAG TOSS', cx, 88, 8);
-      ctx.font = `800 138px ${NUM}`;
-      textShadow(ctx, 'CORNHOLE', cx, 214, '#fff8e4', 18);
-      bagMark(ctx, cx - 96, 262, 22, 0); bagMark(ctx, cx + 96, 262, 22, 1);
-      ctx.strokeStyle = 'rgba(255,230,160,0.85)'; ctx.lineWidth = 3;
-      ctx.beginPath(); ctx.moveTo(cx - 250, 262); ctx.lineTo(cx - 140, 262); ctx.moveTo(cx + 140, 262); ctx.lineTo(cx + 250, 262); ctx.stroke();
-      ctx.beginPath(); ctx.arc(cx, 262, 10, 0, TAU); ctx.fillStyle = '#ffe08a'; ctx.fill();
-      ctx.restore();
-    },
-  };
+  return { t: 'art', h: 400, draw(ctx, w) { drawHero(ctx, w / 2, 0, 1); } };
 }
+const titleRowsH = (state) => (state.resume ? 200 : 106) + 360 + LOCK_H + 18;
+// Portrait title: the content block is moved down on tall screens, and its showcase gap shrinks (never below 150) so the brand lockup always fits.
+function titleTop() { return Math.max(0, (H - 1280) * 0.3) + Math.max(0, FR.ins.t - 30); }
+function titleGap(state) { return Math.max(150, Math.min(292, H - Math.max(0, FR.ins.b - 10) - 84 - (titleTop() + 414 + titleRowsH(state)))); }
 
-export function titleWidgets(state) {
+// The themed Arcforge lockup directly under the last row of buttons; a tap opens the Arcforge home.
+const LOCK_H = 68;
+const lockupWidget = () => ({ t: 'art', id: 'arcforge', hitW: 250, h: LOCK_H + 18, draw(ctx, w) { drawLockupImg(ctx, w / 2, 9, LOCK_H, { align: 'center' }); } });
+export function titleWidgets(state, land = false) {
   const sound = state.settings.sound;
-  const wd = [heroArt(), { t: 'gap', h: 292 }];
+  const wd = land ? [] : [heroArt(), { t: 'gap', h: titleGap(state) }];
   if (state.resume) {
     const r = state.resume, who = r.cfg.mode === 'two' ? 'Two players' : PROFILES[r.cfg.opp]?.name ?? 'Opponent';
     wd.push({ t: 'btn', id: 'continue', label: 'Continue game', sub: `${who}, ${r.score[0]} to ${r.score[1]}`, primary: true, h: 92 });
@@ -78,6 +111,7 @@ export function titleWidgets(state) {
   wd.push({ t: 'btn', id: 'about', label: 'About', row: 3 });
   wd.push({ t: 'btn', id: 'settings', label: 'Settings', row: 4 });
   wd.push({ t: 'btn', id: 'sound', label: sound ? 'Sound: On' : 'Sound: Off', row: 4 });
+  wd.push(lockupWidget());
   return wd;
 }
 
@@ -138,17 +172,22 @@ export function resultWidgets(state) {
   const big = TEXT_SCALES[state.settings.textIdx] > 1.5;
   const nm = (s) => sideName(state, s);
   const title = mode === 'two' ? `Player ${winner + 1} wins` : mode === 'watch' ? `${nm(winner)} wins` : winner === 0 ? 'You win!' : 'You lose';
-  const wd = [{ t: 'gap', h: big ? 20 : 50 }, { t: 'h', label: title, size: 62, cap: big ? 1.2 : 1.5 }, { t: 'h', label: `${m.score[0]} – ${m.score[1]}`, size: 84, cap: big ? 1.1 : 1.3, color: '#ffd97a' },
+  const wd = [{ t: 'gap', h: big || FR.land ? 8 : 50 }, { t: 'h', label: title, size: FR.land ? 50 : 62, cap: big ? 1.2 : 1.5 }, { t: 'h', label: `${m.score[0]} – ${m.score[1]}`, size: FR.land ? 66 : 84, cap: big ? 1.1 : 1.3, color: '#ffd97a' },
     { t: 'p', label: `${nm(0)}  vs  ${nm(1)}`, bold: true, color: '#ffe9bf', size: 24, cap: 2 }];
   const a = m.stats[0], b = m.stats[1];
   const rows = [['Rounds played', m.rounds.length, m.rounds.length], ['Bags in the hole', a.holes, b.holes], ['Bags on the board', a.boards, b.boards], ['Bags off the board', a.outs, b.outs]];
-  rows.forEach(([k, x, y]) => wd.push({ t: 'p', label: `${k}:  ${x}  –  ${y}`, size: 24, cap: 2.4 }));
+  if (FR.land && TEXT_SCALES[state.settings.textIdx] <= 1.5) wd.push({ t: 'art', h: 100, draw(ctx, w) {
+    ctx.font = `400 22px ${FONT}`; ctx.fillStyle = 'rgba(255,243,214,0.95)'; ctx.textBaseline = 'alphabetic';
+    rows.forEach(([k, x, y], i) => { ctx.textAlign = 'center'; ctx.fillText(`${k}:  ${x}  –  ${y}`, (i % 2 ? 0.75 : 0.25) * w, 34 + Math.floor(i / 2) * 44); });
+  } });
+  else rows.forEach(([k, x, y]) => wd.push({ t: 'p', label: `${k}:  ${x}  –  ${y}`, size: 24, cap: 2.4 }));
   if (mode === 'ai') wd.push({ t: 'p', label: `Games won against ${PROFILES[m.cfg.opp].name}: ${(state.record.wins ?? [])[m.cfg.opp] ?? 0}`, size: 22, cap: 2, color: '#ffe9bf' });
   wd.push({ t: 'gap', h: 16 });
   wd.push({ t: 'btn', id: 'again', label: mode === 'watch' ? 'Watch another' : 'Rematch', primary: true, h: 92 });
   wd.push({ t: 'btn', id: 'new', label: 'New game', row: 6 });
   wd.push({ t: 'btn', id: 'menu', label: 'Main menu', row: 6, dark: true });
-  wd.push({ t: 'gap', h: 30 });
+  wd.push({ t: 'art', h: 56, draw(ctx, w) { drawMoreLine(ctx, w / 2, 30, 22); } });
+  wd.push({ t: 'gap', h: 20 });
   return wd;
 }
 export function lessonResultWidgets(state) {
@@ -263,10 +302,11 @@ export function demoLimitWidgets() {
   ];
 }
 
+// Everything below draws in FRAME coordinates (the whole design screen); a flow screen is drawn inside its column (flowOrigin).
 export function scrim(ctx, a = 0.55) {
   const g = ctx.createLinearGradient(0, 0, 0, H);
   g.addColorStop(0, `rgba(8,16,8,${a * 0.7})`); g.addColorStop(0.5, `rgba(8,16,8,${a})`); g.addColorStop(1, `rgba(8,16,8,${Math.min(0.94, a + 0.3)})`);
-  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = g; ctx.fillRect(0, 0, FR.sw, H);
 }
 function scrollHint(ctx, top, bottom, scroll, maxScroll, x0 = 0, w = W) {
   if (maxScroll <= 0) return;
@@ -281,71 +321,113 @@ function scrollHint(ctx, top, bottom, scroll, maxScroll, x0 = 0, w = W) {
     ctx.fillStyle = '#2a1d10'; ctx.font = `700 22px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('▲ up', cx, top + 24);
   }
 }
-function drawFlowScreen(ctx, state, key, widgets, top, bottom, opts) {
-  const sc = TEXT_SCALES[state.settings.textIdx];
-  const lay = flowLayout(ctx, widgets, sc, opts);
+const inColumn = (ctx, key, fn) => { ctx.save(); ctx.translate(flowOrigin(key), 0); const r = fn(); ctx.restore(); return r; };
+// Draws one flow screen inside its column (the caller has NOT translated); registers its layout for hit-testing.
+function drawFlowScreen(ctx, state, key) {
+  const sp = flowSpec(state, key), sc = TEXT_SCALES[state.settings.textIdx];
+  return inColumn(ctx, key, () => {
+    const lay = flowLayout(ctx, sp.wd, sc, sp.opts);
+    const top = placeTop(sp, lay.contentH), bottom = sp.bottom;
+    LAID = { key, lay, top, bottom, h: lay.contentH };
+    const maxScroll = Math.max(0, lay.contentH - (bottom - top));
+    const scroll = Math.min(state.ui.scroll, maxScroll);
+    drawFlow(ctx, lay, top, bottom, scroll);
+    if (maxScroll > 0) {
+      const o = sp.opts ?? { x: 40, w: 640 }, bx = o.x + o.w + (o.x >= 40 ? 30 : 12), cx0 = o.x - 30, cw0 = o.w + 60;
+      const th = Math.max(60, (bottom - top) * ((bottom - top) / lay.contentH)), ty = top + (scroll / maxScroll) * (bottom - top - th);
+      roundPath(ctx, bx - 2, ty, 5, th, 3); ctx.fillStyle = 'rgba(255,240,204,0.5)'; ctx.fill();
+      scrollHint(ctx, top, bottom, scroll, maxScroll, o.x >= 40 ? 0 : cx0, o.x >= 40 ? W : cw0);
+    }
+    return { scroll, maxScroll, lay };
+  });
+}
+function backdrop(ctx, state, a) { drawAttract(ctx, state); scrim(ctx, a); }
+export function renderTitle(ctx, state) {
+  drawAttract(ctx, state);
+  const sw = FR.sw, ins = FR.ins;
+  if (!FR.land) {
+    const dy = titleTop();
+    const g = ctx.createLinearGradient(0, 560 + dy, 0, H); g.addColorStop(0, 'rgba(8,16,8,0)'); g.addColorStop(0.35, 'rgba(8,16,8,0.80)'); g.addColorStop(1, 'rgba(8,16,8,0.95)');
+    ctx.fillStyle = g; ctx.fillRect(0, 560 + dy, sw, H - 560 - dy);
+    const t = ctx.createLinearGradient(0, 0, 0, 330 + dy); t.addColorStop(0, 'rgba(8,16,8,0.82)'); t.addColorStop(1, 'rgba(8,16,8,0)'); ctx.fillStyle = t; ctx.fillRect(0, 0, sw, 330 + dy);
+    drawFlowScreen(ctx, state, 'title');
+  } else {
+    const { colW, colX } = titleCol();
+    // a soft dark panel behind the button column, a gentle vignette on the left
+    const g = ctx.createLinearGradient(colX - 90, 0, colX - 10, 0); g.addColorStop(0, 'rgba(8,16,8,0)'); g.addColorStop(1, 'rgba(8,16,8,0.82)');
+    ctx.fillStyle = g; ctx.fillRect(colX - 90, 0, 80, H); ctx.fillStyle = 'rgba(8,16,8,0.82)'; ctx.fillRect(colX - 10, 0, sw - colX + 10, H);
+    const l = ctx.createLinearGradient(0, 0, 0, H); l.addColorStop(0, 'rgba(8,16,8,0.55)'); l.addColorStop(0.5, 'rgba(8,16,8,0.15)'); l.addColorStop(1, 'rgba(8,16,8,0.55)'); ctx.fillStyle = l; ctx.fillRect(0, 0, colX - 90, H);
+    const cxL = colX / 2, k = Math.min(1, (colX - 40 - ins.l) / 560, (H - 80) / 420);
+    drawHero(ctx, cxL, Math.max(ins.t + 10, H * 0.5 - 150 * k - 60 * k), k);
+    drawFlowScreen(ctx, state, 'title');
+    void colW;
+  }
+  ctx.textAlign = 'center'; ctx.font = `400 20px ${FONT}`; ctx.fillStyle = 'rgba(255,233,191,0.6)'; ctx.textBaseline = 'alphabetic';
+  if (state.demo) ctx.fillText('Web demo', FR.land ? titleCol().colX / 2 : sw / 2, H - 6 - Math.max(0, ins.b - 10));
+}
+export function renderSetup(ctx, state) {
+  backdrop(ctx, state, 0.7);
+  drawFlowScreen(ctx, state, 'setup');
+  const y0 = SETUP_PINS.start.y - 34;
+  const g = ctx.createLinearGradient(0, y0, 0, H);
+  g.addColorStop(0, 'rgba(8,16,8,0)'); g.addColorStop(0.2, 'rgba(8,16,8,0.88)'); g.addColorStop(1, 'rgba(8,16,8,0.96)');
+  ctx.fillStyle = g; ctx.fillRect(0, y0, FR.sw, H - y0);
+  inColumn(ctx, 'setup', () => {
+    const zz = TEXT_SCALES[state.settings.textIdx];
+    drawButton(ctx, SETUP_PINS.start, 'Start the game', { primary: true, size: Math.round(32 * Math.min(zz, 1.7)) });
+    drawButton(ctx, SETUP_PINS.back, 'Back', { dark: true, size: Math.round(28 * Math.min(zz, 2)) });
+    if (state.setupMsg) { ctx.textAlign = 'center'; ctx.font = `700 22px ${FONT}`; ctx.fillStyle = '#ffd9a0'; ctx.fillText(state.setupMsg, W / 2, SETUP_PINS.start.y - 12 + (FR.land ? -4 : 0)); }
+  });
+}
+export function renderSettings(ctx, state) { backdrop(ctx, state, 0.74); drawFlowScreen(ctx, state, 'settings'); }
+export function renderLearn(ctx, state) { backdrop(ctx, state, 0.7); drawFlowScreen(ctx, state, 'learn'); }
+export function renderQuiz(ctx, state) { backdrop(ctx, state, 0.82); drawFlowScreen(ctx, state, 'quiz'); }
+export function renderResult(ctx, state) { backdrop(ctx, state, 0.84); drawFlowScreen(ctx, state, 'result'); }
+export function renderDemoLimit(ctx, state) { backdrop(ctx, state, 0.76); drawFlowScreen(ctx, state, 'demolimit'); }
+export function renderPause(ctx, state) {
+  scrim(ctx, 0.55);
+  inColumn(ctx, 'pause', () => {
+    const wd = pauseWidgets(state), sc = TEXT_SCALES[state.settings.textIdx];
+    const lay = flowLayout(ctx, wd, sc, { x: 60, w: 600 });
+    const top = FR.land ? 16 : 70, bottom = H - (FR.land ? 16 : 70);
+    const ch = Math.min(lay.contentH + 20, bottom - top);
+    const y0 = Math.max(top, (H - ch) / 2);
+    panel(ctx, 30, y0 - 20, 660, ch + 40, { r: 30, fill: 'rgba(18,28,14,0.95)', stroke: 'rgba(255,220,130,0.55)' });
+    LAID = { key: 'pause', lay, top: y0, bottom: y0 + ch, h: lay.contentH };
+    const maxScroll = Math.max(0, lay.contentH - ch);
+    const sc0 = Math.min(state.ui.scroll, maxScroll);
+    drawFlow(ctx, lay, y0, y0 + ch, sc0);
+    scrollHint(ctx, y0, y0 + ch, sc0, maxScroll, 30, 660);
+  });
+}
+export function renderWhy(ctx, state) {
+  scrim(ctx, 0.78);
+  inColumn(ctx, 'why', () => {
+    const top = 90, bottom = H - 20;
+    panel(ctx, 20, top - 20, 680, bottom - top + 30, { r: 28, fill: 'rgba(18,28,14,0.97)', stroke: 'rgba(125,232,255,0.55)' });
+    drawFlowScreenIn(ctx, state, 'why');
+  });
+}
+export function renderSheet(ctx, state) {
+  scrim(ctx, 0.7);
+  inColumn(ctx, 'sheet', () => {
+    const top = 90, bottom = H - 20;
+    panel(ctx, 20, top - 20, 680, bottom - top + 30, { r: 28, fill: 'rgba(18,28,14,0.96)', stroke: 'rgba(255,220,130,0.55)' });
+    drawFlowScreenIn(ctx, state, 'sheet');
+  });
+}
+// A flow screen whose column translation the caller already did (sheets and the why card sit on a panel).
+function drawFlowScreenIn(ctx, state, key) {
+  const sp = flowSpec(state, key), sc = TEXT_SCALES[state.settings.textIdx];
+  const lay = flowLayout(ctx, sp.wd, sc, sp.opts), top = sp.top, bottom = sp.bottom;
   LAID = { key, lay, top, bottom, h: lay.contentH };
-  const maxScroll = Math.max(0, lay.contentH - (bottom - top));
-  const scroll = Math.min(state.ui.scroll, maxScroll);
+  const maxScroll = Math.max(0, lay.contentH - (bottom - top)), scroll = Math.min(state.ui.scroll, maxScroll);
   drawFlow(ctx, lay, top, bottom, scroll);
   if (maxScroll > 0) {
     const th = Math.max(60, (bottom - top) * ((bottom - top) / lay.contentH)), ty = top + (scroll / maxScroll) * (bottom - top - th);
     roundPath(ctx, W - 10, ty, 5, th, 3); ctx.fillStyle = 'rgba(255,240,204,0.5)'; ctx.fill();
     scrollHint(ctx, top, bottom, scroll, maxScroll);
   }
-  return { scroll, maxScroll, lay };
-}
-function backdrop(ctx, state, a) { ctx.save(); drawAttract(ctx, state); ctx.restore(); scrim(ctx, a); }
-export function renderTitle(ctx, state) {
-  drawAttract(ctx, state);
-  const g = ctx.createLinearGradient(0, 560, 0, H); g.addColorStop(0, 'rgba(8,16,8,0)'); g.addColorStop(0.35, 'rgba(8,16,8,0.80)'); g.addColorStop(1, 'rgba(8,16,8,0.95)');
-  ctx.fillStyle = g; ctx.fillRect(0, 560, W, H - 560);
-  const t = ctx.createLinearGradient(0, 0, 0, 330); t.addColorStop(0, 'rgba(8,16,8,0.82)'); t.addColorStop(1, 'rgba(8,16,8,0)'); ctx.fillStyle = t; ctx.fillRect(0, 0, W, 330);
-  drawFlowScreen(ctx, state, 'title', titleWidgets(state), 0, H);
-  ctx.textAlign = 'center'; ctx.font = `400 18px ${FONT}`; ctx.fillStyle = 'rgba(255,233,191,0.6)'; ctx.textBaseline = 'alphabetic';
-  if (state.demo) ctx.fillText('Web demo', W / 2, H - 14);
-}
-export function renderSetup(ctx, state) {
-  backdrop(ctx, state, 0.7);
-  drawFlowScreen(ctx, state, 'setup', setupWidgets(state), 0, 1130);
-  const g = ctx.createLinearGradient(0, 1100, 0, H);
-  g.addColorStop(0, 'rgba(8,16,8,0)'); g.addColorStop(0.2, 'rgba(8,16,8,0.88)'); g.addColorStop(1, 'rgba(8,16,8,0.96)');
-  ctx.fillStyle = g; ctx.fillRect(0, 1100, W, H - 1100);
-  const zz = TEXT_SCALES[state.settings.textIdx];
-  drawButton(ctx, SETUP_PINS.start, 'Start the game', { primary: true, size: Math.round(32 * Math.min(zz, 1.7)) });
-  drawButton(ctx, SETUP_PINS.back, 'Back', { dark: true, size: Math.round(28 * Math.min(zz, 2)) });
-  if (state.setupMsg) { ctx.textAlign = 'center'; ctx.font = `700 22px ${FONT}`; ctx.fillStyle = '#ffd9a0'; ctx.fillText(state.setupMsg, W / 2, 1140); }
-}
-export function renderSettings(ctx, state) { backdrop(ctx, state, 0.74); drawFlowScreen(ctx, state, 'settings', settingsWidgets(state), 0, H); }
-export function renderLearn(ctx, state) { backdrop(ctx, state, 0.7); drawFlowScreen(ctx, state, 'learn', learnWidgets(state), 0, H); }
-export function renderQuiz(ctx, state) { backdrop(ctx, state, 0.82); drawFlowScreen(ctx, state, 'quiz', quizWidgets(state), 0, H); }
-export function renderResult(ctx, state) { backdrop(ctx, state, 0.84); drawFlowScreen(ctx, state, 'result', state.m.cfg.mode === 'learn' ? lessonResultWidgets(state) : resultWidgets(state), 0, H); }
-export function renderDemoLimit(ctx, state) { backdrop(ctx, state, 0.76); drawFlowScreen(ctx, state, 'demolimit', demoLimitWidgets(), 0, H); }
-export function renderPause(ctx, state) {
-  scrim(ctx, 0.55);
-  const wd = pauseWidgets(state), sc = TEXT_SCALES[state.settings.textIdx];
-  const lay = flowLayout(ctx, wd, sc, { x: 60, w: 600 });
-  const top = 70, bottom = H - 70;
-  const ch = Math.min(lay.contentH + 20, bottom - top);
-  const y0 = Math.max(top, (H - ch) / 2);
-  panel(ctx, 30, y0 - 20, 660, ch + 40, { r: 30, fill: 'rgba(18,28,14,0.95)', stroke: 'rgba(255,220,130,0.55)' });
-  LAID = { key: 'pause', lay, top: y0, bottom: y0 + ch, h: lay.contentH };
-  const maxScroll = Math.max(0, lay.contentH - ch);
-  const sc0 = Math.min(state.ui.scroll, maxScroll);
-  drawFlow(ctx, lay, y0, y0 + ch, sc0);
-  scrollHint(ctx, y0, y0 + ch, sc0, maxScroll, 30, 660);
-}
-export function renderWhy(ctx, state) {
-  scrim(ctx, 0.78);
-  const top = 90, bottom = H - 20;
-  panel(ctx, 20, top - 20, 680, bottom - top + 30, { r: 28, fill: 'rgba(18,28,14,0.97)', stroke: 'rgba(125,232,255,0.55)' });
-  drawFlowScreen(ctx, state, 'why', whyWidgets(state), top, bottom, { x: 50, w: 620 });
-}
-export function renderSheet(ctx, state) {
-  scrim(ctx, 0.7);
-  const top = 90, bottom = H - 20;
-  panel(ctx, 20, top - 20, 680, bottom - top + 30, { r: 28, fill: 'rgba(18,28,14,0.96)', stroke: 'rgba(255,220,130,0.55)' });
-  drawFlowScreen(ctx, state, 'sheet', sheetWidgets(state), top, bottom, { x: 50, w: 620 });
 }
 
 // ---- reference pages --------------------------------------------------------------------------
@@ -353,14 +435,13 @@ let PAGE_COUNT = 1;
 export const pageCount = () => PAGE_COUNT;
 // The reader is one continuous column: the pages are laid end to end, each one SLOT tall, and the window shows a part of it. The player can drag
 // (or use the wheel, the arrow keys, Page Up / Down) to scroll to any line; Back / Next jump a whole page. The scroll bar on the right shows where
-// the window is in the whole text.
+// the window is in the whole text. Its geometry (RG, layout.js) follows the live screen: in landscape the panel is wide and fills the height.
 export const READER = { slot: 1, view: 1, max: 0 };
-const PANEL = { x: 34, y: 100, w: 652, h: 1030 };
 
-function buildPages(ctx, list, scale) {
-  const fs = Math.round(28 * scale), lh = fs * 1.28, tw = PANEL.w - 80;
+function buildPages(ctx, list, scale, pageH, tw) {
+  const fs = Math.round(28 * scale), lh = fs * 1.28;
   const secFs = Math.round(34 * Math.min(scale, 1.3));
-  const top = PANEL.y + 120, limit = PANEL.y + PANEL.h - 70;
+  const avail = pageH;
   const pages = [];
   let cur = null, used = 0;
   const newPage = () => { cur = { blocks: [], fs, lh, secFs }; used = 0; pages.push(cur); };
@@ -372,17 +453,17 @@ function buildPages(ctx, list, scale) {
     const lines = [];
     sec.p.forEach((para, pi) => { wrapLines(ctx, para, tw).forEach((l, k) => lines.push({ text: l, gapBefore: k === 0 && pi > 0 })); });
     const lineH = (l, n) => lh + (l.gapBefore && n > 0 ? lh * 0.45 : 0);
-    const artH = sec.art ? 250 : 0;
+    const artH = sec.art ? Math.min(250, Math.max(150, avail * 0.6)) : 0;
     let full = titleH + artH + 26;
     lines.forEach((l, k) => { full += lineH(l, k); });
-    if (!cur || used + full > limit - top) newPage();
+    if (!cur || used + full > avail) newPage();
     let i = 0, part = 0;
     while (true) {
       const blk = { title: sec.title, tl, titleH, art: part === 0 ? sec.art : null, artH: part === 0 ? artH : 0, lines: [], part };
       let h = titleH + blk.artH + 26;
       while (i < lines.length) {
         const add = lineH(lines[i], blk.lines.length);
-        if (used + h + add > limit - top && (blk.lines.length > 0 || used > 0)) break;
+        if (used + h + add > avail && (blk.lines.length > 0 || used > 0)) break;
         blk.lines.push({ ...lines[i] }); h += add; i++;
       }
       cur.blocks.push(blk); used += h;
@@ -396,62 +477,68 @@ function buildPages(ctx, list, scale) {
 const pageCache = new Map();
 export function renderPages(ctx, state, list, header) {
   backdrop(ctx, state, 0.72);
-  const sc = TEXT_SCALES[state.settings.textIdx];
-  const pkey = `${header}:${sc}`;
+  inColumn(ctx, 'reader', () => drawReader(ctx, state, list, header));
+}
+function drawReader(ctx, state, list, header) {
+  const sc = TEXT_SCALES[state.settings.textIdx], P = RG.panel;
+  const tw = P.w - 80, pkey = `${header}:${sc}:${Math.round(RG.pageH)}:${Math.round(tw)}`;
   let pages = pageCache.get(pkey);
-  if (!pages) { pages = buildPages(ctx, list, sc); pageCache.set(pkey, pages); }
+  if (!pages) { pages = buildPages(ctx, list, sc, RG.pageH, tw); pageCache.set(pkey, pages); if (pageCache.size > 30) pageCache.delete(pageCache.keys().next().value); }
   PAGE_COUNT = pages.length;
-  const top = PANEL.y + 100, bottom = PANEL.y + PANEL.h - 52, slot = PANEL.h - 190 + 24;
+  const top = RG.vt, bottom = RG.vb, slot = RG.pageH + 24;
   READER.slot = slot; READER.view = bottom - top; READER.max = Math.max(0, pages.length * slot - READER.view);
   if (state.ui.rsKey !== pkey) { state.ui.rsKey = pkey; state.ui.rsPage = -1; }
   if (state.ui.rsPage !== state.page) { state.ui.rs = Math.min(READER.max, Math.max(0, Math.min(state.page, pages.length - 1) * slot)); state.ui.rsPage = state.page; }
   state.ui.rs = Math.min(READER.max, Math.max(0, state.ui.rs ?? 0));
   const rs = state.ui.rs;
   const idx = Math.min(pages.length - 1, Math.max(0, Math.round(rs / slot)));
-  panel(ctx, PANEL.x, PANEL.y, PANEL.w, PANEL.h, { r: 30, fill: 'rgba(250,244,224,0.97)', stroke: 'rgba(120,86,40,0.8)' });
+  panel(ctx, P.x, P.y, P.w, P.h, { r: 30, fill: 'rgba(250,244,224,0.97)', stroke: 'rgba(120,86,40,0.8)' });
   ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
   ctx.fillStyle = C.redDark; ctx.font = `700 ${Math.round(40 * Math.min(sc, 1.15))}px ${FONT}`;
-  ctx.fillText(header, W / 2, PANEL.y + 58);
+  ctx.fillText(header, RG.hdr.x, RG.hdr.y);
   ctx.strokeStyle = 'rgba(110,76,40,0.4)'; ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.moveTo(PANEL.x + 60, PANEL.y + 78); ctx.lineTo(PANEL.x + PANEL.w - 60, PANEL.y + 78); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(P.x + 60, RG.hdr.line); ctx.lineTo(P.x + P.w - 60, RG.hdr.line); ctx.stroke();
   // the window on the text
-  ctx.save(); ctx.beginPath(); ctx.rect(PANEL.x + 10, top, PANEL.w - 20, bottom - top); ctx.clip();
+  ctx.save(); ctx.beginPath(); ctx.rect(P.x + 10, top, P.w - 20, bottom - top); ctx.clip();
   pages.forEach((pg, pi) => {
-    const y0 = PANEL.y + 120 + pi * slot - rs;
+    const y0 = RG.y0 + pi * slot - rs;
     if (y0 > bottom || y0 + slot < top) return;
     drawReaderPage(ctx, pg, state, y0);
   });
   ctx.restore();
   // fade at the top and the bottom edge of the window when there is more text beyond it
-  if (rs > 2) { const g = ctx.createLinearGradient(0, top, 0, top + 26); g.addColorStop(0, 'rgba(250,244,224,0.95)'); g.addColorStop(1, 'rgba(250,244,224,0)'); ctx.fillStyle = g; ctx.fillRect(PANEL.x + 10, top, PANEL.w - 20, 26); }
-  if (rs < READER.max - 2) { const g = ctx.createLinearGradient(0, bottom - 26, 0, bottom); g.addColorStop(0, 'rgba(250,244,224,0)'); g.addColorStop(1, 'rgba(250,244,224,0.95)'); ctx.fillStyle = g; ctx.fillRect(PANEL.x + 10, bottom - 26, PANEL.w - 20, 26); }
+  if (rs > 2) { const g = ctx.createLinearGradient(0, top, 0, top + 26); g.addColorStop(0, 'rgba(250,244,224,0.95)'); g.addColorStop(1, 'rgba(250,244,224,0)'); ctx.fillStyle = g; ctx.fillRect(P.x + 10, top, P.w - 20, 26); }
+  if (rs < READER.max - 2) { const g = ctx.createLinearGradient(0, bottom - 26, 0, bottom); g.addColorStop(0, 'rgba(250,244,224,0)'); g.addColorStop(1, 'rgba(250,244,224,0.95)'); ctx.fillStyle = g; ctx.fillRect(P.x + 10, bottom - 26, P.w - 20, 26); }
   // the scroll bar
   if (READER.max > 0) {
     const th = Math.max(54, (bottom - top) * ((bottom - top) / (pages.length * slot))), ty = top + (rs / READER.max) * (bottom - top - th);
-    roundPath(ctx, PANEL.x + PANEL.w - 18, top, 8, bottom - top, 4); ctx.fillStyle = 'rgba(110,76,40,0.16)'; ctx.fill();
-    roundPath(ctx, PANEL.x + PANEL.w - 18, ty, 8, th, 4); ctx.fillStyle = 'rgba(140,31,27,0.7)'; ctx.fill();
+    roundPath(ctx, P.x + P.w - 18, top, 8, bottom - top, 4); ctx.fillStyle = 'rgba(110,76,40,0.16)'; ctx.fill();
+    roundPath(ctx, P.x + P.w - 18, ty, 8, th, 4); ctx.fillStyle = 'rgba(140,31,27,0.7)'; ctx.fill();
   }
   ctx.textAlign = 'center'; ctx.font = `400 22px ${FONT}`; ctx.fillStyle = 'rgba(70,50,30,0.7)';
-  ctx.fillText(`Page ${idx + 1} of ${pages.length}${READER.max > 0 ? '  ·  drag to scroll' : ''}`, W / 2, PANEL.y + PANEL.h - 22);
-  drawButton(ctx, TEXT_DEC, 'A−', { disabled: state.settings.textIdx === 0, size: 30 });
-  drawButton(ctx, TEXT_INC, 'A+', { disabled: state.settings.textIdx === TEXT_SCALES.length - 1, size: 30 });
-  ctx.fillStyle = '#fff3d6'; ctx.font = `700 24px ${FONT}`; ctx.textAlign = 'center';
-  ctx.fillText(`${Math.round(sc * 100)}%`, W / 2, 56);
-  drawButton(ctx, REF_BACK, idx === 0 && rs < 4 ? 'Close' : 'Back', { size: 32 });
-  drawButton(ctx, REF_NEXT, rs >= READER.max - 4 ? 'Done' : 'Next', { primary: true, size: 32 });
+  ctx.fillText(`Page ${idx + 1} of ${pages.length}${READER.max > 0 ? '  ·  drag to scroll' : ''}`, RG.counter.x, RG.counter.y);
+  const sz = RG.land ? 28 : 30;
+  drawButton(ctx, TEXT_DEC, 'A−', { disabled: state.settings.textIdx === 0, size: sz });
+  drawButton(ctx, TEXT_INC, 'A+', { disabled: state.settings.textIdx === TEXT_SCALES.length - 1, size: sz });
+  const pc = `${Math.round(sc * 100)}%`;
+  ctx.font = `700 24px ${FONT}`; ctx.textAlign = 'center';
+  if (RG.land) { ctx.fillStyle = C.redDark; ctx.fillText(pc, RG.pct.x, RG.pct.y); } else { ctx.fillStyle = '#fff3d6'; textShadow(ctx, pc, RG.pct.x, RG.pct.y, '#fff3d6', 4); }
+  drawButton(ctx, REF_BACK, idx === 0 && rs < 4 ? 'Close' : 'Back', { size: RG.land ? 28 : 32 });
+  drawButton(ctx, REF_NEXT, rs >= READER.max - 4 ? 'Done' : 'Next', { primary: true, size: RG.land ? 28 : 32 });
 }
 function drawReaderPage(ctx, pg, state, y0) {
+  const P = RG.panel, cx = P.x + P.w / 2;
   let y = y0;
   pg.blocks.forEach((blk, bi) => {
-    if (bi > 0) { ctx.strokeStyle = 'rgba(110,76,40,0.25)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(PANEL.x + 80, y - 8); ctx.lineTo(PANEL.x + PANEL.w - 80, y - 8); ctx.stroke(); y += 8; }
+    if (bi > 0) { ctx.strokeStyle = 'rgba(110,76,40,0.25)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(P.x + 80, y - 8); ctx.lineTo(P.x + P.w - 80, y - 8); ctx.stroke(); y += 8; }
     ctx.textAlign = 'center'; ctx.fillStyle = C.red; ctx.font = `700 ${pg.secFs}px ${FONT}`;
-    blk.tl.forEach((l, k) => ctx.fillText(blk.part > 0 || k < blk.tl.length - 1 ? l : l.replace(/ ?\(cont\.\)$/, ''), W / 2, y + pg.secFs * (0.9 + k * 1.2) - 8));
+    blk.tl.forEach((l, k) => ctx.fillText(blk.part > 0 || k < blk.tl.length - 1 ? l : l.replace(/ ?\(cont\.\)$/, ''), cx, y + pg.secFs * (0.9 + k * 1.2) - 8));
     y += blk.titleH;
-    if (blk.art) { ctx.save(); ctx.beginPath(); ctx.rect(PANEL.x + 20, y, PANEL.w - 40, blk.artH); ctx.clip(); drawArt(blk.art, ctx, PANEL.x + 40, y, PANEL.w - 80, blk.artH - 12, state); ctx.restore(); y += blk.artH; }
+    if (blk.art) { ctx.save(); ctx.beginPath(); ctx.rect(P.x + 20, y, P.w - 40, blk.artH); ctx.clip(); drawArt(blk.art, ctx, P.x + 40, y, P.w - 80, blk.artH - 12, state); ctx.restore(); y += blk.artH; }
     ctx.fillStyle = C.ink; ctx.font = `400 ${pg.fs}px ${FONT}`; ctx.textAlign = 'left';
     blk.lines.forEach((l, k) => {
       if (l.gapBefore && k > 0) y += pg.lh * 0.45;
-      ctx.fillText(l.text, PANEL.x + 40, y + pg.fs * 0.85);
+      ctx.fillText(l.text, P.x + 40, y + pg.fs * 0.85);
       y += pg.lh;
     });
     y += 26;
@@ -460,7 +547,7 @@ function drawReaderPage(ctx, pg, state, y0) {
 
 // ---- illustrations: drawn with the game's own board and bags -----------------------------------------------------------------
 function label(ctx, t, x, y, size = 20, col = C.ink, align = 'center') {
-  ctx.fillStyle = col; ctx.font = `700 ${size}px ${FONT}`; ctx.textAlign = align; ctx.textBaseline = 'alphabetic'; ctx.fillText(t, x, y);
+  ctx.fillStyle = col; ctx.font = `700 ${Math.max(size, 21)}px ${FONT}`; ctx.textAlign = align; ctx.textBaseline = 'alphabetic'; ctx.fillText(t, x, y);
 }
 const stage = (ctx, x, y, w, h) => {
   const g = ctx.createLinearGradient(0, y, 0, y + h);
@@ -533,15 +620,15 @@ export function drawArt(key, ctx, x, y, w, h) {
     },
     dead() {
       stage(ctx, 0, 0, w, h);
-      const sx = (h - 50) / BOARD_L, bx = w * 0.38;
+      const sx = (h - 50) / BOARD_L, bx = (w - BOARD_W * sx) / 2, gap = Math.min(110, bx - 62);
       topBoard(ctx, bx, 20, sx, [{ id: 1, side: 0, st: 'board', u: 0.1, v: 0.5, yaw: 0.2 }]);
-      bagMark(ctx, bx - 60, 20 + BOARD_L * sx * 0.5, BAG_HALF * sx, 1, 0.55);
-      bagMark(ctx, bx + BOARD_W * sx + 50, 20 + BOARD_L * sx * 0.3, BAG_HALF * sx, 0, 0.55);
+      bagMark(ctx, bx - gap, 20 + BOARD_L * sx * 0.5, BAG_HALF * sx, 1, 0.55);
+      bagMark(ctx, bx + BOARD_W * sx + gap, 20 + BOARD_L * sx * 0.3, BAG_HALF * sx, 0, 0.55);
       bagMark(ctx, bx + BOARD_W * sx / 2, h - 22, BAG_HALF * sx, 1, 0.55);
-      label(ctx, 'off the side', bx - 60, 20 + BOARD_L * sx * 0.5 + 44, 16, '#ffb4a0');
-      label(ctx, 'off the side', bx + BOARD_W * sx + 50, 20 + BOARD_L * sx * 0.3 + 44, 16, '#ffb4a0');
+      label(ctx, 'off the side', bx - gap, 20 + BOARD_L * sx * 0.5 + 44, 16, '#ffb4a0');
+      label(ctx, 'off the side', bx + BOARD_W * sx + gap, 20 + BOARD_L * sx * 0.3 + 44, 16, '#ffb4a0');
       label(ctx, 'hit the ground first', w * 0.2, h - 12, 16, '#ffb4a0');
-      label(ctx, 'Faded bags do not count.', w * 0.08, 56, 19, '#fff2cf', 'left');
+      label(ctx, 'Faded bags', 8, 30, 17, '#fff2cf', 'left'); label(ctx, 'do not count.', 8, 52, 17, '#fff2cf', 'left');
     },
     cancel() {
       stage(ctx, 0, 0, w, h);

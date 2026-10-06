@@ -2,6 +2,7 @@
 import { portrait } from './portraits.js';
 import { roadBackdrop } from './mapart.js';
 import { W, H, TAU, GOLD, INK, rr, filigree, light, hash, clamp, lerp, ridge, stars as starfield, finish, dome } from './stage.js';
+import { FR, host, hudX, hudY, mode } from './frame.js';
 
 export const SERIF = '"Cormorant Garamond", Georgia, "Times New Roman", serif';
 export const SANS = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
@@ -13,9 +14,8 @@ export const hit = (b, p, pad = 0) => p.x >= b.x - pad && p.x <= b.x + b.w + pad
 // never a raw float, so the stepper can cleanly disable at either end and a stale saved index from
 // a build with a different-length array can be clamped instead of producing NaN sizes.
 export const TEXT_SCALES = [1, 1.5, 2, 2.5, 3];
-// Fixed header-row position for the "A-"/"A+" stepper, shared by About/Controls/Rules so it always
-// lives in the same place. Sits above where Controls/Rules' own content starts (y=150) and clear of
-// the HUD back/mute icons (x 20-104 and x 616-700, y 28-100).
+// Header-row position for the "A-"/"A+" stepper, shared by About/Controls/Rules (screen units; layoutScreen() keeps it current).
+// Sits clear of the HUD back/mute icons.
 export const TEXT_STEP = {
   dec: { x: W / 2 - 96, y: 26, w: 86, h: 62 },
   inc: { x: W / 2 + 10, y: 26, w: 86, h: 62 },
@@ -29,16 +29,12 @@ export function button(ctx, b, { primary = false, disabled = false, size = 38, s
   ctx.save();
   ctx.globalAlpha = disabled ? 0.45 : 1;
   ctx.fillStyle = 'rgba(0,0,0,0.4)'; rr(ctx, b.x + 2, b.y + 7, b.w, b.h, 18); ctx.fill();
-  const g = ctx.createLinearGradient(0, b.y, 0, b.y + b.h);
-  if (primary) { g.addColorStop(0, '#ffe09a'); g.addColorStop(0.5, '#eeb752'); g.addColorStop(1, '#b97a22'); }
-  else { g.addColorStop(0, '#4a2230'); g.addColorStop(0.5, '#2e1320'); g.addColorStop(1, '#1c0a14'); }
-  ctx.fillStyle = g; rr(ctx, b.x, b.y, b.w, b.h, 18); ctx.fill();
+  ctx.fillStyle = primary ? '#eeb752' : '#2e1320'; rr(ctx, b.x, b.y, b.w, b.h, 18); ctx.fill();   // flat face
   ctx.strokeStyle = primary ? '#fff0c0' : 'rgba(242,196,106,0.85)'; ctx.lineWidth = 2.5; rr(ctx, b.x, b.y, b.w, b.h, 18); ctx.stroke();
-  ctx.strokeStyle = primary ? 'rgba(120,70,10,0.5)' : 'rgba(242,196,106,0.28)'; ctx.lineWidth = 1.2; rr(ctx, b.x + 7, b.y + 7, b.w - 14, b.h - 14, 12); ctx.stroke();
-  ctx.fillStyle = 'rgba(255,255,255,0.10)'; rr(ctx, b.x + 4, b.y + 3, b.w - 8, b.h * 0.42, 14); ctx.fill();
   ctx.fillStyle = primary ? '#2a1204' : '#f8e2b0';
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.font = font(size);
+  { const tw = ctx.measureText(b.label).width, room = b.w - 28; if (tw > room) { size = Math.max(16, Math.floor(size * room / tw)); ctx.font = font(size); } }
   ctx.fillText(b.label, b.x + b.w / 2, b.y + b.h / 2 + (sub ? -10 : 2));
   if (sub) { ctx.font = font(20, SANS, 500); ctx.fillText(sub, b.x + b.w / 2, b.y + b.h / 2 + 20); }
   ctx.restore();
@@ -101,7 +97,56 @@ export function panel(ctx, x, y, w, h, alpha = 0.78) {
 // `scale` (from TEXT_SCALES, via the reference-page text-size stepper) grows every font and the
 // vertical rhythm between them together, so nothing on the card can crowd or overlap as it grows -
 // callers that never pass it (the chapter card, result, lost, world) render exactly as before.
-export function storyCard(ctx, { kicker, title, text, y = 250, appear = 1, stars = -1, t = 0, who = null, note = null, scale = 1 }) {
+export function storyCard(ctx, o) { return FR.land && !o.tall ? storyCardWide(ctx, o) : storyCardTall(ctx, o); }
+
+// Landscape card: portrait (when there is one) on the left, kicker / title / text / note on the right, shrunk to fit `maxH`.
+// o.x / o.w place it (design units of the ui frame); o.y is the top (default: centred in the viewport). Returns the bottom edge;
+// `lastCard` keeps the rect so the caller can put its buttons next to it.
+export const lastCard = { x: 0, y: 0, w: 0, h: 0 };
+function storyCardWide(ctx, { kicker, title, text, appear = 1, stars = -1, t = 0, who = null, note = null, scale = 1, x = null, w = null, top = null, maxH = null }) {
+  const vh = FR.h, cw = w ?? clamp(FR.w - 80, 560, 980), cx = x ?? (W - cw) / 2;
+  const t0 = Math.max(top ?? 0, 40, host.t / FR.s + 20), availH = maxH ?? vh - t0 - Math.max(24, host.b / FR.s + 12);
+  const r = who ? clamp(Math.round(cw * 0.13), 70, 104) : 0, portCol = who ? r * 2 + 56 : 0;
+  const tx = cx + 36 + portCol, tw = cw - 72 - portCol;
+  let size = Math.round(34 * scale), lines = [], noteLines = [], lh = 0, nlh = 0, h = 0, S = 1;
+  for (;;) {
+    S = size / 34;
+    ctx.font = font(size); lines = wrap(ctx, text, tw - 20); lh = Math.round(size * 1.28);
+    const ns = Math.round(27 * S); ctx.font = font(ns, SERIF, 600); noteLines = note ? wrap(ctx, note, tw - 20) : []; nlh = Math.round(ns * 1.26);
+    h = Math.round(150 * S) + lines.length * lh + (stars >= 0 ? Math.round(80 * S) : 0) + (noteLines.length ? Math.round(34 * S) + noteLines.length * nlh : 0) + 24;
+    if (who) h = Math.max(h, r * 2 + 80);
+    if (h <= availH || size <= Math.max(22, 24 * Math.min(1, scale))) break;
+    size -= 2;
+  }
+  const yy0 = Math.max(t0, t0 + (availH - h) / 2) + (1 - clamp(appear, 0, 1)) * 24;
+  ctx.save(); ctx.globalAlpha = clamp(appear, 0, 1);
+  panel(ctx, cx, yy0, cw, h);
+  if (who) portrait(ctx, { who, x: cx + 36 + r + 8, y: yy0 + h / 2 + 10, r, t });
+  const mid = tx + tw / 2;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'; ctx.fillStyle = GOLD;
+  const kickerStr = String(kicker).toUpperCase().split('').join(' ');
+  let ks = Math.round(22 * S); ctx.font = font(ks, SANS, 600);
+  const kw = ctx.measureText(kickerStr).width; if (kw > tw) { ks = Math.max(13, Math.floor(ks * tw / kw)); ctx.font = font(ks, SANS, 600); }
+  ctx.fillText(kickerStr, mid, yy0 + Math.round(52 * S));
+  ctx.fillStyle = '#fff1cf'; let ts = Math.round(50 * S); ctx.font = font(ts);
+  const tww = ctx.measureText(title).width; if (tww > tw) { ts = Math.max(26, Math.floor(ts * tw / tww)); ctx.font = font(ts); }
+  ctx.fillText(title, mid, yy0 + Math.round(104 * S));
+  ctx.strokeStyle = 'rgba(242,196,106,0.7)'; ctx.lineWidth = 1.5; const ry = yy0 + Math.round(124 * S);
+  ctx.beginPath(); ctx.moveTo(mid - 110, ry); ctx.lineTo(mid + 110, ry); ctx.stroke();
+  ctx.fillStyle = GOLD; ctx.beginPath(); ctx.moveTo(mid, ry - 7); ctx.lineTo(mid + 7, ry); ctx.lineTo(mid, ry + 7); ctx.lineTo(mid - 7, ry); ctx.fill();
+  let ty = yy0 + Math.round(168 * S);
+  if (stars >= 0) { starRow(ctx, mid, yy0 + Math.round(176 * S), stars, 28, t); ty += Math.round(80 * S); }
+  ctx.fillStyle = '#f3dfc0'; ctx.font = font(size); lines.forEach((l, i) => ctx.fillText(l, mid, ty + i * lh));
+  if (noteLines.length) {
+    const ny = ty + lines.length * lh + Math.round(16 * S);
+    ctx.strokeStyle = 'rgba(242,196,106,0.4)'; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(mid - 80, ny - 18); ctx.lineTo(mid + 80, ny - 18); ctx.stroke();
+    ctx.fillStyle = GOLD; ctx.font = font(Math.round(27 * S), SERIF, 600); noteLines.forEach((l, i) => ctx.fillText(l, mid, ny + 8 + i * nlh));
+  }
+  ctx.restore();
+  Object.assign(lastCard, { x: cx, y: yy0, w: cw, h });
+  return yy0 + h;
+}
+function storyCardTall(ctx, { kicker, title, text, y = 250, appear = 1, stars = -1, t = 0, who = null, note = null, scale = 1 }) {
   ctx.save();
   ctx.globalAlpha = clamp(appear, 0, 1);
   const x = 50, w = W - 100;
@@ -163,18 +208,21 @@ export function storyCard(ctx, { kicker, title, text, y = 250, appear = 1, stars
 // A caption line inside a scene (storyteller's voice).
 export function caption(ctx, text, y, alpha = 1, size = 32) {
   if (alpha <= 0.01 || !text) return;
+  let cx = W / 2;
+  if (mode.hud) { cx = hudX(W / 2); y = hudY(y); }
   ctx.save(); ctx.globalAlpha = clamp(alpha, 0, 1);
   ctx.font = font(size);
   const lines = wrap(ctx, text, W - 120);
   const h = lines.length * (size + 8) + 30;
-  ctx.fillStyle = 'rgba(12,4,10,0.62)'; rr(ctx, 36, y - 38, W - 72, h, 16); ctx.fill();
-  ctx.strokeStyle = 'rgba(242,196,106,0.5)'; ctx.lineWidth = 1.5; rr(ctx, 36, y - 38, W - 72, h, 16); ctx.stroke();
+  ctx.fillStyle = 'rgba(12,4,10,0.62)'; rr(ctx, cx - W / 2 + 36, y - 38, W - 72, h, 16); ctx.fill();
+  ctx.strokeStyle = 'rgba(242,196,106,0.5)'; ctx.lineWidth = 1.5; rr(ctx, cx - W / 2 + 36, y - 38, W - 72, h, 16); ctx.stroke();
   ctx.fillStyle = '#ffeccc'; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
-  lines.forEach((l, i) => ctx.fillText(l, W / 2, y + i * (size + 8)));
+  lines.forEach((l, i) => ctx.fillText(l, cx, y + i * (size + 8)));
   ctx.restore();
 }
 
 export function meter(ctx, x, y, w, h, v, rgb = '242,196,106', label = null, right = null) {
+  if (mode.hud) { x = hudX(x, w); y = hudY(y); }
   ctx.fillStyle = 'rgba(10,4,8,0.6)'; rr(ctx, x, y, w, h, h / 2); ctx.fill();
   const fw = Math.max(h, w * clamp(v, 0, 1));
   if (v > 0.001) { const g = ctx.createLinearGradient(x, 0, x + w, 0); g.addColorStop(0, `rgba(${rgb},0.75)`); g.addColorStop(1, `rgba(${rgb},1)`); ctx.fillStyle = g; rr(ctx, x, y, fw, h, h / 2); ctx.fill(); }
@@ -185,6 +233,7 @@ export function meter(ctx, x, y, w, h, v, rgb = '242,196,106', label = null, rig
 }
 
 export function pips(ctx, x, y, n, of, rgb = '242,196,106', r = 9, gap = 26) {
+  if (mode.hud) { x = hudX(x, (of - 1) * gap); y = hudY(y); }
   for (let i = 0; i < of; i++) {
     ctx.beginPath(); ctx.arc(x + i * gap, y, r, 0, TAU);
     ctx.fillStyle = i < n ? `rgba(${rgb},1)` : 'rgba(10,4,8,0.6)'; ctx.fill();
@@ -193,17 +242,30 @@ export function pips(ctx, x, y, n, of, rgb = '242,196,106', r = 9, gap = 26) {
 }
 
 export function label(ctx, text, x, y, size = 24, align = 'left', color = '#f6e3bd', family = SANS, weight = 600) {
+  if (mode.hud) { x = hudX(x); y = hudY(y); }
   ctx.font = font(size, family, weight); ctx.textAlign = align; ctx.textBaseline = 'alphabetic';
   ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillText(text, x + 1, y + 2);
   ctx.fillStyle = color; ctx.fillText(text, x, y);
 }
 
 // ---- HUD ------------------------------------------------------------------------------------
+// Screen-space icons (back/pause, sound, dev skip). layoutScreen() re-fits them to the live screen, safe areas and the host's
+// floating back button; they are drawn and hit-tested in SCREEN units, never in a scene's own frame.
 export const HUD = {
-  back: { x: 20, y: 28, w: 84, h: 72 },
-  mute: { x: W - 104, y: 28, w: 84, h: 72 },
+  back: { x: 20, y: 28, w: 84, h: 80 },
+  mute: { x: W - 104, y: 28, w: 84, h: 80 },
   skip: { x: W / 2 - 110, y: 108, w: 220, h: 54, label: '' },
 };
+export function layoutScreen(sw, sh) {
+  const t = Math.max(0, host.t), l = Math.max(0, host.l), r = Math.max(0, host.r);
+  const y = Math.max(28, t + 14) - (host.t > 0 ? 0 : 0);
+  const bx = host.back > 0 ? l + host.back + 14 : Math.max(20, l + 12);
+  Object.assign(HUD.back, { x: bx, y, w: 84, h: 80 });
+  Object.assign(HUD.mute, { x: sw - Math.max(20, r + 12) - 84, y, w: 84, h: 80 });
+  Object.assign(HUD.skip, { x: HUD.mute.x + HUD.mute.w - 150, y: y + HUD.mute.h + 10, w: 150, h: 56 });   // dev-only: under the sound icon, top right
+  Object.assign(TEXT_STEP.dec, { x: sw / 2 - 96, y: y - 4, w: 86, h: 88 });
+  Object.assign(TEXT_STEP.inc, { x: sw / 2 + 10, y: y - 4, w: 86, h: 88 });
+}
 
 function roundIcon(ctx, b, draw) {
   ctx.fillStyle = 'rgba(14,5,12,0.62)'; rr(ctx, b.x, b.y, b.w, b.h, 20); ctx.fill();
@@ -219,8 +281,8 @@ export function hud(ctx, { title, muted, dev, skipLabel, showBack = true, pause 
     if (muted) { ctx.moveTo(9, -8); ctx.lineTo(21, 8); ctx.moveTo(21, -8); ctx.lineTo(9, 8); } else { ctx.arc(4, 0, 9, -0.9, 0.9); ctx.moveTo(14, -13); ctx.arc(4, 0, 17, -0.9, 0.9); }
     ctx.stroke();
   });
-  if (title) { label(ctx, title, W / 2, 76, 34, 'center', '#fff1cf', SERIF, 700); }
-  if (dev) button(ctx, { ...HUD.skip, label: skipLabel }, { size: 24 });
+  if (title) { label(ctx, title, FR.w / 2, HUD.back.y + 50, 34, 'center', '#fff1cf', SERIF, 700); }
+  if (dev) button(ctx, { ...HUD.skip, label: skipLabel }, { size: 22 });
 }
 
 // ---- The chapter road -------------------------------------------------------------------------
@@ -249,9 +311,9 @@ function glyph(ctx, key, x, y, c) {
 export function road(ctx, { chapters, progress, scroll, t, dev, rm }) {
   const n = chapters.length, RH = roadHeight(n);
   roadBackdrop(ctx, { n, RH, nodeY: (i) => roadNode(i, n).y, region: REGION, scroll });
-  const f = clamp((RH - H - scroll) / (RH - H), 0, 1) * (n - 1), a = REGION[Math.floor(f)], b = REGION[Math.min(n - 1, Math.floor(f) + 1)], u = f - Math.floor(f);
+  const VH = FR.h, f = clamp((RH - VH - scroll) / (RH - VH), 0, 1) * (n - 1), a = REGION[Math.floor(f)], b = REGION[Math.min(n - 1, Math.floor(f) + 1)], u = f - Math.floor(f);
   const c = a.map((v, i) => Math.round(lerp(v, b[i], u)));
-  light(ctx, W / 2, H * 0.72, 700, c.join(','), 0.16);
+  light(ctx, W / 2, VH * 0.72, 700 + Math.max(0, FR.w - W) / 2, c.join(','), 0.16);
   ctx.save(); ctx.translate(0, -scroll);
   // the path
   const pts = chapters.map((_, i) => roadNode(i, n));
@@ -264,7 +326,7 @@ export function road(ctx, { chapters, progress, scroll, t, dev, rm }) {
 
   ctx.textAlign = 'center';
   pts.forEach((p, i) => {
-    if (p.y - scroll < -200 || p.y - scroll > H + 200) return;
+    if (p.y - scroll < -200 || p.y - scroll > VH + 200) return;
     const open = dev || i + 1 <= progress.unlocked, st = progress.stars[String(i + 1)] ?? 0, current = i + 1 === progress.unlocked;
     if (open) light(ctx, p.x, p.y, current ? 170 + Math.sin(t * 3) * (rm ? 0 : 16) : 120, '255,210,130', current ? 0.75 : 0.4);
     ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.beginPath(); ctx.arc(p.x + 2, p.y + 8, 64, 0, TAU); ctx.fill();

@@ -1,15 +1,16 @@
 // Pelota Vasca: the game shell. Scenes, input, persistence, preview wiring, Learn, Watch & Learn. The match itself lives in sim.js.
 import { createSim } from './sim.js';
-import { W, H, TEXT_SCALES, THINK_STEPS, REF_BACK, REF_NEXT, TEXT_DEC, TEXT_INC, SETUP_PINS, inRect } from './layout.js';
+import { W, H, setSize, TEXT_SCALES, THINK_STEPS, readerLayout, setupPins, inRect } from './layout.js';
 import { setPress } from './ui.js';
 import { ABOUT, HOWTO, RULES, LESSONS, QUIZ, ROLEGUIDE } from './content.js';
 import * as MN from './menus.js';
 import { renderHud, renderFallback, hudRects, renderThink, watchHit } from './hud.js';
-import { rayAt } from './camera.js';
+import { rayAt, camFor } from './camera.js';
 import { HW, L, WALL_H, LEVELS, MATCH_POINTS, PACE_IDS } from './consts.js';
 import { clamp } from './util.js';
 
-export const meta = { width: W, height: H };
+// Fluid viewport (kit 1.7): the short side is 720 units, the long side follows the screen; the kit keeps meta.width / meta.height live.
+export const meta = { width: 720, height: 1280, fluid: { short: 720 } };
 const DEMO_MATCH_CAP = 2;
 const SAVE_VERSION = 1;
 const STEP_MS = 1000 / 60;
@@ -36,7 +37,7 @@ export function createGame(env) {
   }
   // mouse wheel / trackpad: collected here, applied by whichever text screen is open (CSS px -> the 720-wide canvas space)
   let wheelDy = 0;
-  if (typeof globalThis.addEventListener === 'function') globalThis.addEventListener('wheel', (e) => { wheelDy += e.deltaY * (e.deltaMode === 1 ? 32 : 1) * (720 / Math.max(240, G.viewW || 720)); }, { passive: true });
+  if (typeof globalThis.addEventListener === 'function') globalThis.addEventListener('wheel', (e) => { wheelDy += e.deltaY * (e.deltaMode === 1 ? 32 : 1) * (720 / Math.max(240, Math.min(G.viewW || 720, G.viewH || 1280))); }, { passive: true });
   const takeWheel = () => { const d = wheelDy; wheelDy = 0; return d; };
   // wheel + keys (arrows, Page Up/Down, Space, Home, End) -> new scroll offset
   function navScroll(input, cur, max, page) {
@@ -201,7 +202,7 @@ export function createGame(env) {
 
   // ---- play input ------------------------------------------------------------------------------------
   function aimFromTap(x, y) {
-    const r = rayAt(S.s.cam, G.viewW || 720, G.viewH || 1280, x, y);
+    const r = rayAt(camFor(W / H), W, H, x, y);
     let best = null;
     if (r.d.z > 1e-4) { const t = (L - r.o.z) / r.d.z; const px = r.o.x + r.d.x * t, py = r.o.y + r.d.y * t; if (t > 0 && Math.abs(px) <= HW + 0.4 && py >= 0.3 && py <= WALL_H) best = { t, a: { wall: 'front', x: clamp(px, -HW + 0.2, HW - 0.2), y: clamp(py, 0.6, 4.0) } }; }
     if (r.d.x > 1e-4) { const t = (HW - r.o.x) / r.d.x; const pz = r.o.z + r.d.z * t, py = r.o.y + r.d.y * t; if (t > 0 && pz >= 2.5 && pz <= L - 0.3 && py >= 0.3 && py <= WALL_H && (!best || t < best.t)) best = { t, a: { wall: 'left', z: clamp(pz, 4, L - 0.8), y: clamp(py, 0.8, 4.0) } }; }
@@ -423,15 +424,15 @@ export function createGame(env) {
     const ptr = input.pointer, keys = input.keys;
     const list = G.scene === 'howto' ? HOWTO : G.scene === 'about' ? aboutList : G.scene === 'rules' ? RULES : ROLEGUIDE;
     MN.ensureReader(G, list, G.scene === 'howto' ? 'How to Play' : G.scene === 'about' ? 'About' : G.scene === 'rules' ? 'Rules' : 'Role guide');
-    const rd = MN.readerMeta(), V = MN.READER_VIEW;
+    const rd = MN.readerMeta(), RL = readerLayout(), V = RL.view;
     const max = Math.max(0, rd.contentH - rd.viewH);
     const close = () => { G.scene = G.back === 'play' ? 'play' : G.back === 'setup' ? 'setup' : G.back === 'learn' ? 'learn' : 'title'; G.page = 0; G.ui.scroll = 0; G.ui.drag = null; };
     const next = () => { if (max <= 0) close(); else if (G.ui.scroll >= max - 4) G.ui.scroll = 0; else G.ui.scroll = clamp(G.ui.scroll + V.h * 0.85, 0, max); };
     if (ptr.pressed) {
-      if (inRect(REF_NEXT, ptr.x, ptr.y)) next();
-      else if (inRect(REF_BACK, ptr.x, ptr.y)) close();
-      else if (inRect(TEXT_DEC, ptr.x, ptr.y)) { G.settings.textIdx = Math.max(0, G.settings.textIdx - 1); G.ui.scroll = 0; saveSettings(); }
-      else if (inRect(TEXT_INC, ptr.x, ptr.y)) { G.settings.textIdx = Math.min(TEXT_SCALES.length - 1, G.settings.textIdx + 1); G.ui.scroll = 0; saveSettings(); }
+      if (inRect(RL.next, ptr.x, ptr.y)) next();
+      else if (inRect(RL.back, ptr.x, ptr.y)) close();
+      else if (inRect(RL.dec, ptr.x, ptr.y)) { G.settings.textIdx = Math.max(0, G.settings.textIdx - 1); G.ui.scroll = 0; saveSettings(); }
+      else if (inRect(RL.inc, ptr.x, ptr.y)) { G.settings.textIdx = Math.min(TEXT_SCALES.length - 1, G.settings.textIdx + 1); G.ui.scroll = 0; saveSettings(); }
       else if (inRect({ x: V.x - 6, y: V.y, w: V.w + 12, h: V.h }, ptr.x, ptr.y)) G.ui.drag = { y0: ptr.y, s0: G.ui.scroll };
     }
     if (G.ui.drag && ptr.down) G.ui.scroll = clamp(G.ui.drag.s0 - (ptr.y - G.ui.drag.y0), 0, max);
@@ -444,7 +445,8 @@ export function createGame(env) {
     const ptr = input.pointer, k = input.keys;
     if (k.pressed.has('Enter')) { handleSetup('start'); return; }
     if (k.pressed.has('Escape')) { handleSetup('back'); return; }
-    if (ptr.pressed && (inRect(SETUP_PINS.start, ptr.x, ptr.y) || inRect(SETUP_PINS.back, ptr.x, ptr.y))) { handleSetup(inRect(SETUP_PINS.start, ptr.x, ptr.y) ? 'start' : 'back'); return; }
+    const pins = setupPins();
+    if (ptr.pressed && (inRect(pins.start, ptr.x, ptr.y) || inRect(pins.back, ptr.x, ptr.y))) { handleSetup(inRect(pins.start, ptr.x, ptr.y) ? 'start' : 'back'); return; }
     updateFlowScene(dt, input, handleSetup, 'setup');
   };
 
@@ -455,6 +457,15 @@ export function createGame(env) {
     setSim(createSim({ mode: q.mode || '1v1', role: q.role || 'back', equip: q.equip || 'hand', level: 4, bot: true, points: 22, pace: 'normal' }, simRng.fork()));
     G.scene = 'play';
   }
+  // The live screen size (fluid viewport). When it changes (rotation, window resize) the thumb-stick and aim drags are dropped (their
+  // coordinates belong to the old layout); the match itself, its scores and its clock are untouched.
+  let sizeKey = '';
+  function syncSize() {
+    setSize(meta.width, meta.height);
+    const k = `${W}x${H}`;
+    if (k !== sizeKey) { if (sizeKey) { G.stick = { on: false, ox: 0, oy: 0, x: 0, y: 0 }; G.aimDrag = false; G.ui.drag = null; if (G.think) G.think.drag = null; } sizeKey = k; G.size = k; }
+  }
+  syncSize();
   function startup() { if (config.shot) startShot(); else startDemoBg(); }
   startup();
 
@@ -462,13 +473,18 @@ export function createGame(env) {
     // Menus, Rules, About, settings, Learn text and Watch & Learn are free; only real play counts against the preview.
     isPreviewExempt: () => !(G.scene === 'play' && (G.mode === 'ai' || G.mode === 'drill')) || G.paused || G.pauseMenu || !!G.think || (S && (S.s.phase === 'dead' || S.s.phase === 'over' || S.s.phase === 'ready' || S.s.phase === 'serve')),
     update(dt, input) {
+      syncSize();
       setPress(input.pointer);
       G.t += dt;
       stepped = false;
       for (let i = delayed.length - 1; i >= 0; i--) { delayed[i].t -= dt; if (delayed[i].t <= 0) { delayed[i].f(); delayed.splice(i, 1); } }
       if (G.scene !== 'play' && S && G.mode === 'none') { if (S.s.hold) S.release(); S.update(dt); stepped = true; }
       switch (G.scene) {
-        case 'title': updateFlowScene(dt, input, handleTitle, 'title'); break;
+        case 'title': {
+          const lt = MN.getLockTap(), pp = input.pointer;
+          if (lt && pp.pressed && pp.x >= lt.x && pp.x <= lt.x + lt.w && pp.y >= lt.y && pp.y <= lt.y + lt.h) { G.lockDown = G.t + 0.25; env.openArcforgeHome?.(); break; }
+          updateFlowScene(dt, input, handleTitle, 'title'); break;
+        }
         case 'setup': updateSetup(dt, input); break;
         case 'settings': updateFlowScene(dt, input, handleSettings, 'settings'); break;
         case 'learn': updateFlowScene(dt, input, handleLearn, 'learn'); break;
@@ -484,6 +500,7 @@ export function createGame(env) {
       if (stepped) updAt = nowMs();
     },
     render(ctx, view) {
+      syncSize();
       G.viewW = (view && view.cssW) || 720; G.viewH = (view && view.cssH) || 1280;
       G.alpha = stepped && env.clock ? clamp((nowMs() - updAt) / STEP_MS, 0, 1) : 1;
       ctx.clearRect(0, 0, W, H);

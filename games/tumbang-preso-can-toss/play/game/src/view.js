@@ -5,8 +5,9 @@ import { FIELD, CAN, LINE_Z, TAG_R, SLIP, STYLES, throwSolve, G, taya, throwers,
 import {
   setHost, canBake, startTextureBake, startBackdrop, drawCan, drawSlipper, drawPawn, drawShadow, groundRing, pawnLook, lcg, WALL_Z,
 } from './art.js';
-import { W, H, TEXT_SCALES, playLayout, BAR_SPECS, barLabel, inRect } from './layout.js';
+import { W, H, TEXT_SCALES, playLayout, BAR_SPECS, barLabel, inRect, host, minFont, safe, shape } from './layout.js';
 import { FONT, C, roundPath, drawButton, panel, wrapLines, textShadow } from './ui.js';
+import { drawCardEdge } from './brand.js';
 
 const TAU = Math.PI * 2;
 const SHOT_MODE = (() => { try { return /[?&]shot=/.test(globalThis.location.search); } catch { return false; } })();
@@ -32,7 +33,7 @@ export function makeCam(region, o = {}) {
   const F = Math.min(region.w / (x1 - x0), region.h / (y1 - y0));
   const cx = region.x + region.w / 2 - F * (x0 + x1) / 2, cy = region.y + region.h / 2 + F * (y0 + y1) / 2;
   const cam = {
-    F, cx, cy, region, pos: [0, CAM_H, CAM_Z],
+    F, cx, cy, region, pos: [0, CAM_H, CAM_Z], natAspect: (x1 - x0) / (y1 - y0), clip: null,
     P(x, y, z) { const dy = y - CAM_H, dz = z - CAM_Z, d = dy * FWD[1] + dz * FWD[2]; return [cx + F * x / d, cy - F * (dy * UP[1] + dz * UP[2]) / d]; },
     depth(x, y, z) { return (y - CAM_H) * FWD[1] + (z - CAM_Z) * FWD[2]; },
     depthAtZ(z) { return -CAM_H * FWD[1] + (z - CAM_Z) * FWD[2]; },
@@ -51,12 +52,12 @@ export function makeCam(region, o = {}) {
 
 // ---- the baked yard -----------------------------------------------------------------------------------------------------------------
 let texJob = null, tex = null;
-const backdrops = new Map();
+const backdrops = new Map();   // up to 4 baked yards (one per camera + screen size): rotating back and forth does not bake again
 function ensureBackdrop(ctx, cam) {
   setHost(ctx);
-  const key = `${cam.cx.toFixed(2)}|${cam.cy.toFixed(2)}|${cam.F.toFixed(3)}`;
+  const key = `${W}x${H}|${cam.cx.toFixed(2)}|${cam.cy.toFixed(2)}|${cam.F.toFixed(3)}`;
   let b = backdrops.get(key);
-  if (b && b.canvas) return b.canvas;
+  if (b && b.canvas) { backdrops.delete(key); backdrops.set(key, b); return b.canvas; }
   if (!canBake()) return null;
   if (!tex) {
     if (!texJob) texJob = startTextureBake();
@@ -65,7 +66,7 @@ function ensureBackdrop(ctx, cam) {
     if (!r) return null;
     tex = r;
   }
-  if (!b) { b = { job: startBackdrop(cam, tex), canvas: null }; backdrops.clear(); backdrops.set(key, b); }
+  if (!b) { b = { job: startBackdrop(cam, tex, W, H), canvas: null }; backdrops.set(key, b); for (const k of backdrops.keys()) { if (backdrops.size <= 4) break; if (k !== key) backdrops.delete(k); } }
   if (b.job.failed) return null;
   const r = b.job.step(SHOT_MODE ? 99999 : 150);
   if (r) b.canvas = r;
@@ -87,7 +88,10 @@ const HALO = (ctx, x, y, r, col) => { const g = ctx.createRadialGradient(x, y, 0
 export function drawScene(ctx, cam, S) {
   const w = S.w, al = S.alpha ?? 1;
   const bd = ensureBackdrop(ctx, cam);
+  ctx.save();
+  if (cam.clip) { ctx.beginPath(); ctx.rect(cam.clip.x, cam.clip.y, cam.clip.w, cam.clip.h); ctx.clip(); }
   if (bd) ctx.drawImage(bd, 0, 0); else fallbackYard(ctx, cam);
+  ctx.restore();
   const T = taya(w);
   // ground layer: shadows, rings and guide marks
   const can = w.can;
@@ -221,20 +225,19 @@ export function bigBarIds(state) {
 export function layoutFor(state) { return playLayout(textScale(state), barSpecFor(state)); }
 export function camFor(state, lay) {
   const l = lay ?? layoutFor(state);
-  return makeCam({ x: 12, y: l.regionTop, w: W - 24, h: l.regionBottom - l.regionTop });
+  const cam = makeCam(l.region);
+  cam.clip = l.mode === 'wide' ? l.region : null;   // in landscape the yard stops at its cards; in portrait it bleeds to the screen edges
+  return cam;
 }
 
-export function drawHud(ctx, state, lay) {
-  const sc = textScale(state), hb = lay.hud, m = state.m, w = state.w;
-  // translucent bar so the yard still shows through
-  ctx.save();
-  const g = ctx.createLinearGradient(0, 0, 0, hb.bottom + 6); g.addColorStop(0, 'rgba(24,12,8,0.86)'); g.addColorStop(1, 'rgba(24,12,8,0.62)');
-  ctx.fillStyle = g; ctx.fillRect(0, 0, W, hb.bottom + 4);
-  ctx.restore();
-  drawButton(ctx, hb.pause, '', { dark: true });
+const pauseIcon = (ctx, r) => {
+  drawButton(ctx, r, '', { dark: true });
   ctx.fillStyle = '#fff6e6';
-  const px = hb.pause.x + hb.pause.w / 2, py = hb.pause.y + hb.pause.h / 2, bw = hb.pause.w * 0.1, bh = hb.pause.h * 0.28;
+  const px = r.x + r.w / 2, py = r.y + r.h / 2, bw = r.w * 0.1, bh = r.h * 0.28;
   ctx.fillRect(px - bw * 2, py - bh, bw * 1.6, bh * 2); ctx.fillRect(px + bw * 0.4, py - bh, bw * 1.6, bh * 2);
+};
+export function drawHud(ctx, state, lay) {
+  const hb = lay.hud, m = state.m, w = state.w;
   const left = Math.max(0, Math.ceil(w.limit - w.t));
   const mode = m.cfg.mode, role = m.cfg.role;
   const line1 = mode === 'lesson' ? `Lesson: ${state.lesson ? state.lesson.def.title : ''}` : mode === 'watch' ? `Watch & Learn · ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}` : `Round ${m.round} of ${m.cfg.rounds} · ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`;
@@ -245,28 +248,60 @@ export function drawHud(ctx, state, lay) {
       : `Tags ${m.tags} of ${m.need} needed · Escapes ${m.escapes}`;
   } else if (mode === 'watch') line2 = 'Four rivals play a whole round';
   else line2 = state.lesson ? state.lesson.def.goal : '';
+  const frac = Math.max(0, 1 - w.t / w.limit);
+  if (hb.kind === 'card') return drawHudCard(ctx, hb, line1, line2, frac);
+  // translucent bar so the yard still shows through
+  ctx.save();
+  const g = ctx.createLinearGradient(0, 0, 0, hb.bottom + 6); g.addColorStop(0, 'rgba(24,12,8,0.86)'); g.addColorStop(1, 'rgba(24,12,8,0.62)');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, hb.bottom + 4);
+  ctx.restore();
+  pauseIcon(ctx, hb.pause);
   ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'left';
   const fs = hb.fs;
   if (!hb.stacked) {
-    ctx.font = `800 ${fs}px ${FONT}`; ctx.fillStyle = '#fff6e6'; ctx.fillText(fit(ctx, line1, hb.textW, fs, 800), hb.textX, 56);
-    ctx.font = `600 ${Math.round(fs * 0.86)}px ${FONT}`; ctx.fillStyle = '#e6cfa6'; ctx.fillText(fit(ctx, line2, hb.textW, Math.round(fs * 0.86), 600), hb.textX, 94);
+    ctx.font = `800 ${fs}px ${FONT}`; ctx.fillStyle = '#fff6e6'; ctx.fillText(fit(ctx, line1, hb.textW, fs, 800), hb.textX, hb.y + 46);
+    ctx.font = `600 ${Math.round(fs * 0.86)}px ${FONT}`; ctx.fillStyle = '#e6cfa6'; ctx.fillText(fit(ctx, line2, hb.textW, Math.round(fs * 0.86), 600), hb.textX, hb.y + 84);
   } else {
     ctx.font = `800 ${fs}px ${FONT}`; ctx.fillStyle = '#fff6e6';
-    const l1 = wrapLines(ctx, line1, hb.textW - hb.pause.w - 20).slice(0, 2);
-    l1.forEach((l, i) => ctx.fillText(l, hb.pause.x + hb.pause.w + 20, 30 + (i + 1) * hb.row * 0.8));
+    const l1 = wrapLines(ctx, line1, hb.textW).slice(0, 2);
+    l1.forEach((l, i) => ctx.fillText(l, hb.textX, hb.y + 30 + (i + 1) * hb.row * 0.8));
     ctx.font = `600 ${Math.round(fs * 0.86)}px ${FONT}`; ctx.fillStyle = '#e6cfa6';
-    const l2 = wrapLines(ctx, line2, hb.textW).slice(0, 3);
-    const y0 = Math.max(hb.pause.y + hb.pause.h, 30 + 2 * hb.row * 0.8) + 8;
-    l2.forEach((l, i) => ctx.fillText(l, hb.textX, y0 + (i + 1) * hb.row * 0.78));
+    const l2 = wrapLines(ctx, line2, hb.rowW).slice(0, 3);
+    const y0 = Math.max(hb.pause.y + hb.pause.h, hb.y + 30 + 2 * hb.row * 0.8) + 8;
+    l2.forEach((l, i) => ctx.fillText(l, hb.rowX, y0 + (i + 1) * hb.row * 0.78));
   }
   // round clock bar
-  const frac = Math.max(0, 1 - w.t / w.limit);
   ctx.fillStyle = 'rgba(255,255,255,0.14)'; ctx.fillRect(0, hb.bottom + 1, W, 5);
   ctx.fillStyle = frac < 0.2 ? '#ff7a5c' : '#f0c24a'; ctx.fillRect(0, hb.bottom + 1, W * frac, 5);
 }
+// Landscape: the scoreboard is a card on the left. The text follows the player's text size; it shrinks only as far as needed to fit.
+function drawHudCard(ctx, hb, line1, line2, frac) {
+  const c = hb.card;
+  roundPath(ctx, c.x, c.y, c.w, c.h, 22); ctx.fillStyle = 'rgba(24,12,8,0.9)'; ctx.fill();
+  drawCardEdge(ctx, c);
+  pauseIcon(ctx, hb.pause);
+  const top = hb.textTop, bottom = hb.textBottom - 26, min = minFont();
+  ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'left';
+  let fs = hb.fs, l1 = [], l2 = [];
+  for (; fs >= min; fs -= 2) {
+    ctx.font = `800 ${fs}px ${FONT}`; l1 = wrapLines(ctx, line1, hb.textW);
+    ctx.font = `600 ${Math.round(fs * 0.88)}px ${FONT}`; l2 = wrapLines(ctx, line2, hb.textW);
+    if (top + l1.length * fs * 1.25 + 10 + l2.length * fs * 0.88 * 1.25 <= bottom) break;
+  }
+  fs = Math.max(fs, min);
+  ctx.font = `800 ${fs}px ${FONT}`; ctx.fillStyle = '#fff6e6';
+  l1.forEach((l, i) => ctx.fillText(l, hb.textX, top + fs * (1 + i * 1.25)));
+  const y2 = top + l1.length * fs * 1.25 + 10, f2 = Math.round(fs * 0.88);
+  ctx.font = `600 ${f2}px ${FONT}`; ctx.fillStyle = '#e6cfa6';
+  l2.forEach((l, i) => ctx.fillText(l, hb.textX, y2 + f2 * (1 + i * 1.25)));
+  const by = hb.textBottom - 10;
+  roundPath(ctx, hb.textX, by, hb.textW, 8, 4); ctx.fillStyle = 'rgba(255,255,255,0.16)'; ctx.fill();
+  roundPath(ctx, hb.textX, by, Math.max(8, hb.textW * frac), 8, 4); ctx.fillStyle = frac < 0.2 ? '#ff7a5c' : '#f0c24a'; ctx.fill();
+}
 function fit(ctx, text, maxW, size, weight) {
   let px = size; ctx.font = `${weight} ${px}px ${FONT}`;
-  while (ctx.measureText(text).width > maxW && px > 14) { px -= 1; ctx.font = `${weight} ${px}px ${FONT}`; }
+  const min = minFont();
+  while (ctx.measureText(text).width > maxW && px > min) { px -= 1; ctx.font = `${weight} ${px}px ${FONT}`; }
   return text;
 }
 
@@ -307,8 +342,11 @@ export function barButtons(state) {
 }
 export function drawBar(ctx, state, lay) {
   const b = lay.bar;
-  const g = ctx.createLinearGradient(0, b.top - 6, 0, H); g.addColorStop(0, 'rgba(24,12,8,0.55)'); g.addColorStop(0.3, 'rgba(24,12,8,0.88)'); g.addColorStop(1, 'rgba(24,12,8,0.92)');
-  ctx.fillStyle = g; ctx.fillRect(0, b.top - 6, W, H - b.top + 6);
+  if (b.card) { roundPath(ctx, b.card.x, b.card.y, b.card.w, b.card.h, 22); ctx.fillStyle = 'rgba(24,12,8,0.9)'; ctx.fill(); drawCardEdge(ctx, b.card); }
+  else {
+    const g = ctx.createLinearGradient(0, b.top - 6, 0, H); g.addColorStop(0, 'rgba(24,12,8,0.55)'); g.addColorStop(0.3, 'rgba(24,12,8,0.88)'); g.addColorStop(1, 'rgba(24,12,8,0.92)');
+    ctx.fillStyle = g; ctx.fillRect(0, b.top - 6, W, H - b.top + 6);
+  }
   const bt = barButtons(state);
   for (const [id, r] of Object.entries(b.rects)) { const d = bt[id]; if (d) drawButton(ctx, r, d.label, { ...d, size: b.fs }); }
 }
@@ -317,6 +355,7 @@ export function renderPlay(ctx, state) {
   const lay = layoutFor(state), cam = camFor(state, lay);
   state.cam = { lay };
   ctx.fillStyle = '#14100e'; ctx.fillRect(0, 0, W, H);
+  if (lay.mode === 'wide') drawWideBackground(ctx);
   drawScene(ctx, cam, {
     w: state.w, alpha: state.alpha, humanId: state.human, fx: state.fx, aim: state.aim && state.humanTurnAim ? { ...state.aim, show: true } : null,
     guide: state.settings.guide, t: state.t, hintMark: state.hint && state.hint.mark, hlId: state.hl,
@@ -326,18 +365,24 @@ export function renderPlay(ctx, state) {
   drawOverlays(ctx, state, lay, cam);
 }
 
+// The strip behind the two cards of the landscape play screen: dusk gradient, so no flat black bars appear on very wide screens.
+function drawWideBackground(ctx) {
+  const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, '#1a2336'); g.addColorStop(0.55, '#33262e'); g.addColorStop(1, '#17131a');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+}
+
 function drawOverlays(ctx, state, lay, cam) {
-  const sc = Math.min(textScale(state), 2), w = state.w;
+  const sc = Math.min(textScale(state), 2), w = state.w, R = lay.region;
   // toast
   if (state.toastT > 0 && state.toast) {
-    const fs = Math.round(24 * sc), maxW = W - 80;
+    const fs = Math.round(24 * sc), maxW = R.w - 56;
     ctx.save(); ctx.font = `700 ${fs}px ${FONT}`;
     const lines = wrapLines(ctx, state.toast, maxW - 40).slice(0, 4);
-    const h = lines.length * fs * 1.25 + 22, y = lay.regionTop + 10;
+    const h = lines.length * fs * 1.25 + 22, y = lay.regionTop + (lay.mode === 'wide' ? 44 : 10);
     const a = Math.min(1, state.toastT * 3);
-    ctx.globalAlpha = a; roundPath(ctx, 30, y, W - 60, h, 22); ctx.fillStyle = 'rgba(20,10,6,0.82)'; ctx.fill();
+    ctx.globalAlpha = a; roundPath(ctx, R.x + 18, y, R.w - 36, h, 22); ctx.fillStyle = 'rgba(20,10,6,0.82)'; ctx.fill();
     ctx.fillStyle = '#fff6e6'; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
-    lines.forEach((l, i) => ctx.fillText(l, W / 2, y + 12 + fs * (1 + i * 1.25) - 4));
+    lines.forEach((l, i) => ctx.fillText(l, R.x + R.w / 2, y + 12 + fs * (1 + i * 1.25) - 4));
     ctx.restore();
   }
   // pops
@@ -350,7 +395,7 @@ function drawOverlays(ctx, state, lay, cam) {
   if (w.phase === 'play' && w.go > 0 && !state.paused) {
     const fs = Math.round(96 * Math.min(sc, 1.2)), n = w.go > 0.6 ? 'Ready' : 'Go!';
     ctx.save(); ctx.font = `900 ${fs}px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.globalAlpha = Math.min(1, w.go * 3);
-    textShadow(ctx, n, W / 2, lay.regionTop + (lay.regionBottom - lay.regionTop) * 0.42, '#ffe08a', 14); ctx.restore();
+    textShadow(ctx, n, R.x + R.w / 2, lay.regionTop + (lay.regionBottom - lay.regionTop) * 0.42, '#ffe08a', 14); ctx.restore();
   }
   // The explanation card: the choice in bold, then the reason with its numbers. It shows as much as fits above the control bar
   // and opens in full (Close button) when tapped, so it stays readable at every text size.
@@ -363,38 +408,45 @@ function drawOverlays(ctx, state, lay, cam) {
     const fs = Math.round(22 * textScale(state));   // what does not fit opens in a scrolling reader when the card is tapped
     ctx.save();
     ctx.font = `800 ${fs}px ${FONT}`;
-    const head = wrapLines(ctx, card.title, W - 100).slice(0, 3);
+    const head = wrapLines(ctx, card.title, R.w - 76).slice(0, 3);
     ctx.font = `400 ${fs}px ${FONT}`;
     const room = Math.max(textScale(state) > 1.5 ? 2 : 3, Math.floor(((lay.regionBottom - lay.regionTop) * (textScale(state) > 1.5 ? 0.4 : 0.46)) / (fs * 1.25)) - head.length);
-    const all = card.text ? wrapLines(ctx, card.text, W - 100) : [];
+    const all = card.text ? wrapLines(ctx, card.text, R.w - 76) : [];
     const maxBody = Math.max(0, Math.min(all.length, room));
     const body = all.slice(0, maxBody);
     const more = all.length > body.length;
-    if (more && body.length) { let t = body[body.length - 1].replace(/[ ,.;:]+$/, ''); while (t.length > 4 && ctx.measureText(`${t}… tap for more`).width > W - 100) t = t.slice(0, -1); body[body.length - 1] = `${t}… tap for more`; }
+    if (more && body.length) { let t = body[body.length - 1].replace(/[ ,.;:]+$/, ''); while (t.length > 4 && ctx.measureText(`${t}… tap for more`).width > R.w - 76) t = t.slice(0, -1); body[body.length - 1] = `${t}… tap for more`; }
     const h = (head.length + body.length) * fs * 1.25 + 26, y = lay.regionBottom - h - 14;
-    roundPath(ctx, 24, y, W - 48, h, 20); ctx.fillStyle = card.bg; ctx.fill();
+    roundPath(ctx, R.x + 12, y, R.w - 24, h, 20); ctx.fillStyle = card.bg; ctx.fill();
     ctx.strokeStyle = card.edge; ctx.lineWidth = 2.5; ctx.stroke();
     ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
     ctx.font = `800 ${fs}px ${FONT}`; ctx.fillStyle = card.accent;
-    head.forEach((l, i) => ctx.fillText(l, 44, y + 14 + fs * (1 + i * 1.25) - 4));
+    head.forEach((l, i) => ctx.fillText(l, R.x + 32, y + 14 + fs * (1 + i * 1.25) - 4));
     ctx.font = `400 ${fs}px ${FONT}`; ctx.fillStyle = '#fff6e6';
-    body.forEach((l, i) => ctx.fillText(l, 44, y + 14 + fs * (1 + (head.length + i) * 1.25) - 4));
+    body.forEach((l, i) => ctx.fillText(l, R.x + 32, y + 14 + fs * (1 + (head.length + i) * 1.25) - 4));
     ctx.restore();
-    state.cardRect = { x: 24, y, w: W - 48, h };
+    state.cardRect = { x: R.x + 12, y, w: R.w - 24, h };
     state.cardFull = { title: card.title, text: card.text };
   }
   // thinking-time bar in Watch & Learn
   if (state.think && state.m.cfg.mode === 'watch') {
     const th = state.think, fr = Math.min(1, th.t / th.dur);
-    ctx.fillStyle = 'rgba(255,255,255,0.16)'; ctx.fillRect(24, lay.regionBottom - 8, W - 48, 6);
-    ctx.fillStyle = th.phase === 'think' ? '#f0c24a' : '#7dffb4'; ctx.fillRect(24, lay.regionBottom - 8, (W - 48) * fr, 6);
+    ctx.fillStyle = 'rgba(255,255,255,0.16)'; ctx.fillRect(R.x + 12, lay.regionBottom - 8, R.w - 24, 6);
+    ctx.fillStyle = th.phase === 'think' ? '#f0c24a' : '#7dffb4'; ctx.fillRect(R.x + 12, lay.regionBottom - 8, (R.w - 24) * fr, 6);
   }
 }
 
 // ---- the attract yard behind the menus -----------------------------------------------------------------------------------------------------
-export function drawAttract(ctx, state, top = 300, bottom = 1180) {
-  const cam = makeCam({ x: 12, y: top, w: W - 24, h: bottom - top });
-  const a = state.att;
+// One camera for every non-play screen, so the yard behind the menus is baked once per screen size (not once per screen).
+export function attractCam() {
+  const u = safe();
+  if (shape() === 'wide') return makeCam({ x: u.x0 + 12, y: u.y0 + 8, w: u.w - 24, h: u.h - 16 });
+  const top = Math.round(H * 0.25), bottom = Math.round(H * 0.93);
+  return makeCam({ x: 12, y: top, w: W - 24, h: bottom - top });
+}
+export function drawAttract(ctx, state) {
+  const cam = attractCam(), a = state.att;
+  cam.clip = null;
   ctx.fillStyle = '#14100e'; ctx.fillRect(0, 0, W, H);
   if (!a) return;
   drawScene(ctx, cam, { w: a.w, alpha: state.alpha, humanId: -1, fx: a.fx, aim: null, guide: 2, t: state.t });

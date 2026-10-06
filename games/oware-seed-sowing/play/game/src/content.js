@@ -451,7 +451,7 @@ export const RULES = [
   {
     title: 'When you are free of that rule',
     lines: [
-      'That ends the game at once (see the next page).',
+      'That ends the game at once (see the next section).',
     ],
   },
   {
@@ -581,3 +581,15 @@ export const RULES = [
     ],
   },
 ];
+
+// ---- one continuous reader: consecutive short pages with the same title are joined into one section (same text, same order) ----
+export function docOf(items) {
+  const out = [];
+  for (const it of items) {
+    const last = out[out.length - 1];
+    if (last && last.title === it.title && !it.role) { last.lines[last.lines.length - 1] += ' ' + it.lines[0]; for (const l of it.lines.slice(1)) last.lines.push(l); }
+    else out.push({ title: it.title, role: it.role, lines: it.lines.slice() });
+  }
+  return out;
+}
+export const RULES_DOC = docOf(RULES);

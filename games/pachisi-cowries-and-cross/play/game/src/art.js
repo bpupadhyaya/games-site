@@ -1,7 +1,7 @@
 // Static art: the wooden floor, the embroidered cloth cross-board (chaupar), the brass yards and the throwing rug.
 // Painted ONCE into a cached layer (one per mode). One warm lamp light from the upper left.
 import { geo } from './rules.js';
-import { W, H, BOARD, MAT, cellSize, trackOffset, homeOffset, yardOffset, gridXY, rot } from './layout.js';
+import { W, H, L, BOARD, MAT, cellSize, trackOffset, homeOffset, yardOffset, gridXY, rot } from './layout.js';
 
 export const ARM_COLOURS = ['#b3202a', '#2e7d43', '#d9a21b', '#2a3b86'];
 export const ARM_LIGHT = ['#e0525a', '#5fb072', '#f3cc59', '#6577c4'];
@@ -51,9 +51,9 @@ function paintFloor(ctx) {
   ctx.save(); ctx.globalCompositeOperation = 'lighter';
   let g = ctx.createRadialGradient(90, 120, 20, 90, 120, 980); g.addColorStop(0, 'rgba(255,160,60,0.36)'); g.addColorStop(0.5, 'rgba(230,120,40,0.13)'); g.addColorStop(1, 'rgba(0,0,0,0)');
   ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
-  g = ctx.createRadialGradient(680, 1480, 10, 680, 1480, 780); g.addColorStop(0, 'rgba(255,150,50,0.22)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+  g = ctx.createRadialGradient(W - 40, H - 80, 10, W - 40, H - 80, 780); g.addColorStop(0, 'rgba(255,150,50,0.22)'); g.addColorStop(1, 'rgba(0,0,0,0)');
   ctx.fillStyle = g; ctx.fillRect(0, 0, W, H); ctx.restore();
-  g = ctx.createRadialGradient(W / 2, H / 2, 300, W / 2, H / 2, 1000); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,0.6)');
+  g = ctx.createRadialGradient(W / 2, H / 2, Math.min(300, H * 0.25), W / 2, H / 2, Math.max(1000, W * 0.75)); g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,0.6)');
   ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
 }
 
@@ -150,7 +150,10 @@ function paintBoard(ctx, mode) {
 }
 
 function paintMat(ctx) {
-  const { x, y, w, h } = MAT, r = lcg(5);
+  // painted at the design size (628 x 322 grows/shrinks with the live rug by scaling the whole weave, never stretching the border bands)
+  const ms = Math.min(1, MAT.h / 322, MAT.w / 500);
+  ctx.save(); ctx.translate(MAT.x, MAT.y); ctx.scale(ms, ms);
+  const x = 0, y = 0, w = MAT.w / ms, h = MAT.h / ms, r = lcg(5);
   // fringe on the short ends
   for (const ex of [x, x + w]) for (let yy = y + 6; yy < y + h - 4; yy += 5) { const dir = ex === x ? -1 : 1; ctx.strokeStyle = (yy / 5 | 0) % 2 ? OCHRE : '#efdcae'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(ex, yy); ctx.lineTo(ex + dir * (14 + r() * 5), yy + (r() - 0.5) * 3); ctx.stroke(); }
   ctx.save(); ctx.shadowColor = 'rgba(0,0,0,0.6)'; ctx.shadowBlur = 26; ctx.shadowOffsetY = 10; ctx.shadowOffsetX = 4;
@@ -173,29 +176,27 @@ function paintMat(ctx) {
   for (let yy = y; yy < y + h; yy += 2.5) { ctx.beginPath(); ctx.moveTo(x, yy); ctx.lineTo(x + w, yy); ctx.stroke(); }
   g = ctx.createLinearGradient(x, y, x + w, y + h); g.addColorStop(0, 'rgba(255,215,140,0.18)'); g.addColorStop(1, 'rgba(20,0,0,0.28)'); ctx.fillStyle = g; ctx.fillRect(x, y, w, h);
   ctx.restore();
+  ctx.restore();
 }
 
-const layers = {};
-export function drawStatic(ctx, mode) {
-  let L = layers[mode];
-  if (L === undefined) {
-    L = null;
-    const paint = (c) => { paintFloor(c); paintBoard(c, mode); paintMat(c); };
-    try {
-      if (typeof OffscreenCanvas !== 'undefined') { const c = new OffscreenCanvas(W * 2, H * 2), lc = c.getContext('2d'); lc.scale(2, 2); paint(lc); L = c; }
-    } catch { L = null; }
-    layers[mode] = L;
-  }
-  if (L) ctx.drawImage(L, 0, 0, W, H); else { paintFloor(ctx); paintBoard(ctx, mode); paintMat(ctx); }
+// Cached layers, painted at 2x. Only the layer for the current size is kept (a resize repaints it once).
+const layers = new Map();
+let floorLayer = null;
+const makeLayer = (paint) => {
+  try { if (typeof OffscreenCanvas !== 'undefined') { const c = new OffscreenCanvas(Math.round(W * 2), Math.round(H * 2)), lc = c.getContext('2d'); lc.scale(2, 2); paint(lc); return c; } } catch { /* fall through */ }
+  return null;
+};
+// variant 'title' paints the board where the title screen wants it (the caller has set BOARD) and no rug.
+export function drawStatic(ctx, mode, variant = '', withMat = true) {
+  const key = mode + '|' + L.key + '|' + Math.round(BOARD.cx) + ',' + Math.round(BOARD.cy) + ',' + Math.round(BOARD.S);
+  const paint = (c) => { paintFloor(c); paintBoard(c, mode); if (withMat) paintMat(c); };
+  let e = layers.get(variant + mode);
+  if (!e || e.key !== key) { e = { key, img: makeLayer(paint) }; layers.set(variant + mode, e); }
+  if (e.img) ctx.drawImage(e.img, 0, 0, W, H); else paint(ctx);
 }
-
-let floorLayer;
 export function drawFloorOnly(ctx) {
-  if (floorLayer === undefined) {
-    floorLayer = null;
-    try { if (typeof OffscreenCanvas !== 'undefined') { const c = new OffscreenCanvas(W * 2, H * 2), lc = c.getContext('2d'); lc.scale(2, 2); paintFloor(lc); floorLayer = c; } } catch { floorLayer = null; }
-  }
-  if (floorLayer) ctx.drawImage(floorLayer, 0, 0, W, H); else paintFloor(ctx);
+  if (!floorLayer || floorLayer.key !== L.key) floorLayer = { key: L.key, img: makeLayer(paintFloor) };
+  if (floorLayer.img) ctx.drawImage(floorLayer.img, 0, 0, W, H); else paintFloor(ctx);
 }
 
 // a cream embroidered panel (used by every text screen)

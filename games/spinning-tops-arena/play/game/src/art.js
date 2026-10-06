@@ -1,6 +1,7 @@
 // Drawing the table, the dish, the tops and the effects. Pure canvas, lit from the upper left.
 // The table and dish are painted once into a cached layer (OffscreenCanvas where there is one); tops are drawn live.
 import { ARENA, BODIES, TIPS, BALLAST, ARENAS, derive, tiltOf, clamp } from './sim.js';
+import { VIEW } from './layout.js';
 
 const TAU = Math.PI * 2;
 export const CAM = { sy: ARENA.sy };
@@ -13,27 +14,27 @@ export const shade = (c, k) => { const [r, g, b] = hex(c); const f = (v) => Math
 const WOOD = ['#e3b878', '#c28b4a', '#8d5a2a'];
 
 // ---- the table and the dish ----------------------------------------------------------------------------------------
-function drawTable(ctx) {
-  const g = ctx.createLinearGradient(0, 0, 0, 1280);
+function drawTable(ctx, TW = 720, TH = 1280) {
+  const g = ctx.createLinearGradient(0, 0, 0, TH);
   g.addColorStop(0, '#3a2216'); g.addColorStop(0.45, '#4d2f1d'); g.addColorStop(1, '#2a180f');
-  ctx.fillStyle = g; ctx.fillRect(0, 0, 720, 1280);
+  ctx.fillStyle = g; ctx.fillRect(0, 0, TW, TH);
   // plank grain: long gentle curves, a fixed pattern
   ctx.save();
   ctx.lineCap = 'round';
   for (let i = 0; i < 70; i++) {
-    const y0 = (i * 53 + 17) % 1300 - 10, amp = 4 + (i % 5) * 2.2, ph = i * 1.7;
+    const y0 = (i * 53 + 17) % (TH + 20) - 10, amp = 4 + (i % 5) * 2.2, ph = i * 1.7;
     ctx.strokeStyle = i % 3 === 0 ? 'rgba(255,214,160,0.05)' : 'rgba(10,4,0,0.12)';
     ctx.lineWidth = 1 + (i % 4) * 0.7;
     ctx.beginPath();
-    for (let x = -10; x <= 730; x += 24) { const y = y0 + Math.sin(x * 0.012 + ph) * amp + Math.sin(x * 0.041 + ph * 2) * 1.5; if (x === -10) ctx.moveTo(x, y); else ctx.lineTo(x, y); }
+    for (let x = -10; x <= TW + 10; x += 24) { const y = y0 + Math.sin(x * 0.012 + ph) * amp + Math.sin(x * 0.041 + ph * 2) * 1.5; if (x === -10) ctx.moveTo(x, y); else ctx.lineTo(x, y); }
     ctx.stroke();
   }
   // plank seams
-  for (const x of [180, 360, 540]) { ctx.strokeStyle = 'rgba(8,3,0,0.35)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, 1280); ctx.stroke(); ctx.strokeStyle = 'rgba(255,214,160,0.06)'; ctx.beginPath(); ctx.moveTo(x + 2, 0); ctx.lineTo(x + 2, 1280); ctx.stroke(); }
+  for (let x = 180; x < TW; x += 180) { ctx.strokeStyle = 'rgba(8,3,0,0.35)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, TH); ctx.stroke(); ctx.strokeStyle = 'rgba(255,214,160,0.06)'; ctx.beginPath(); ctx.moveTo(x + 2, 0); ctx.lineTo(x + 2, TH); ctx.stroke(); }
   ctx.restore();
-  const v = ctx.createRadialGradient(360, 640, 200, 360, 640, 900);
+  const v = ctx.createRadialGradient(TW / 2, TH / 2, 200, TW / 2, TH / 2, Math.max(900, Math.max(TW, TH) * 0.7));
   v.addColorStop(0, 'rgba(255,200,120,0.16)'); v.addColorStop(1, 'rgba(0,0,0,0.5)');
-  ctx.fillStyle = v; ctx.fillRect(0, 0, 720, 1280);
+  ctx.fillStyle = v; ctx.fillRect(0, 0, TW, TH);
 }
 
 const ellipse = (ctx, x, y, rx, ry) => { ctx.beginPath(); ctx.ellipse(x, y, rx, ry, 0, 0, TAU); };
@@ -93,34 +94,39 @@ function drawDish(ctx, arenaId) {
 
 const baked = {};
 let makeCanvasOk = null;
-function bakeOne(paint) {
+// Bake a layer of `bw` x `bh` units (origin at ox, oy) at `S` pixels per unit. Returns null where there is no OffscreenCanvas.
+function bakeOne(paint, bw, bh, ox = 0, oy = 0, S = 2) {
   if (makeCanvasOk === false) return null;
   if (typeof OffscreenCanvas === 'undefined') { makeCanvasOk = false; return null; }
   try {
-    const S = 1.5;
-    const c = new OffscreenCanvas(Math.round(720 * S), Math.round(1280 * S));
+    const c = new OffscreenCanvas(Math.round(bw * S), Math.round(bh * S));
     const x = c.getContext('2d');
-    x.scale(S, S);
+    x.scale(S, S); x.translate(-ox, -oy);
     paint(x);
     makeCanvasOk = true;
     return c;
   } catch (e) { makeCanvasOk = false; return null; }
 }
-// the table and the dish are two cached layers, so the menus can draw a smaller dish on the same table
-export function drawTableLayer(ctx) {
-  let L = baked.table;
-  if (L === undefined) { L = bakeOne(drawTable); baked.table = L; }
-  if (L) ctx.drawImage(L, 0, 0, 720, 1280); else drawTable(ctx);
+// The table fills the WHOLE screen (any size): one cached layer for the current screen size.
+let tableKey = '', tableLayer = null;
+const tableScale = (w, h) => Math.min(1.5, 2600 / Math.max(w, h));
+export function drawTableLayer(ctx, w = VIEW.w, h = VIEW.h) {
+  const key = `${Math.round(w)}x${Math.round(h)}`;
+  if (key !== tableKey) { tableKey = key; tableLayer = bakeOne((x) => drawTable(x, w, h), w, h, 0, 0, tableScale(w, h)); }
+  if (tableLayer) ctx.drawImage(tableLayer, 0, 0, w, h); else drawTable(ctx, w, h);
 }
+// The dish is baked once per kind, cropped to where it lives (design units), at 2 px per unit so it stays sharp when scaled up.
+const DISH_BOX = { x: 30, y: 380, w: 660, h: 650 };
 export function drawDishLayer(ctx, arenaId = 'shallow') {
   const key = `dish:${arenaId}`;
   let L = baked[key];
-  if (L === undefined) { L = bakeOne((x) => drawDish(x, arenaId)); baked[key] = L; }
-  if (L) ctx.drawImage(L, 0, 0, 720, 1280); else drawDish(ctx, arenaId);
+  if (L === undefined) { L = bakeOne((x) => drawDish(x, arenaId), DISH_BOX.w, DISH_BOX.h, DISH_BOX.x, DISH_BOX.y, 2); baked[key] = L; }
+  if (L) ctx.drawImage(L, DISH_BOX.x, DISH_BOX.y, DISH_BOX.w, DISH_BOX.h); else drawDish(ctx, arenaId);
 }
-export function drawBackdrop(ctx, arenaId = 'shallow') { drawTableLayer(ctx); drawDishLayer(ctx, arenaId); }
+// the dish alone (the caller has drawn the table and set the transform)
+export const drawBackdrop = (ctx, arenaId = 'shallow') => drawDishLayer(ctx, arenaId);
 // warm the caches (called while a menu is up, so tapping Play has nothing left to paint)
-export function prebake(arenaId) { if (baked.table === undefined) baked.table = bakeOne(drawTable); const key = `dish:${arenaId}`; if (baked[key] === undefined) baked[key] = bakeOne((x) => drawDish(x, arenaId)); }
+export function prebake(arenaId) { const key = `dish:${arenaId}`; if (baked[key] === undefined) baked[key] = bakeOne((x) => drawDish(x, arenaId), DISH_BOX.w, DISH_BOX.h, DISH_BOX.x, DISH_BOX.y, 2); }
 
 // ---- the tops --------------------------------------------------------------------------------------------------------
 // Profiles are (height share, radius share) from the shoulder at the tip end up to the crown.

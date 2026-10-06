@@ -5,6 +5,7 @@ import {
   raiderOf, defenderOf, describePlayer, pips, bonusLive, BONUS_MIN_DEFENDERS, SUPER_TACKLE_MAX, TOUCH_ACTIONS,
 } from './rules.js';
 import { LEVELS, explainFormation } from './ai.js';
+import { minFont } from './layout.js';
 
 const SHORT = { step: 'Step in', feintL: 'Feint ◀', feintR: 'Feint ▶', hand: 'Hand touch', toe: 'Toe touch', run: 'Running touch', bonus: 'Bonus line', retreat: 'Retreat' };
 const SUB_OFF = { step: 'Past the baulk line', bonus: '', retreat: 'Cross the baulk line first' };
@@ -60,12 +61,12 @@ export function panelWidgets(state) {
       wd.push({ t: 'btn', id: 'rprev', label: '◀', row: 1, h: 70 });
       wd.push({ t: 'btn', id: 'rinfo', label: `#${info.p.num}`, sub: info.line2, row: 1, active: true, hitDisabled: false, h: 70 });
       wd.push({ t: 'btn', id: 'rnext', label: '▶', row: 1, h: 70 });
-      wd.push({ t: 'p', label: info.line1, size: 20, color: 'rgba(255,243,214,0.9)' });
+      wd.push({ t: 'p', label: info.line1, size: minFont(20), color: 'rgba(255,243,214,0.9)' });
     }
     if (p.humanD) {
       wd.push({ t: 'p', label: 'Your formation', bold: true, color: '#ffe9bf', size: 22 });
       FORMATIONS.forEach((f, i) => wd.push({ t: 'btn', id: `form-${f}`, label: FORMATION_NAME[f], row: 2 + (i >> 1), active: p.formation === f, h: 70 }));
-      wd.push({ t: 'p', label: explainFormation(m, null, p.formation), size: 20, color: 'rgba(255,243,214,0.9)' });
+      wd.push({ t: 'p', label: explainFormation(m, null, p.formation), size: minFont(20), color: 'rgba(255,243,214,0.9)' });
     }
     wd.push({ t: 'btn', id: 'start', label: p.humanR && !p.humanD ? 'Start the raid' : 'Ready', primary: true, h: 84 });
     return wd;

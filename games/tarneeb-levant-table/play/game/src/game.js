@@ -2,7 +2,7 @@
 // lessons.js and puzzles.js are content. See design/GDD.md for the ruleset.
 //
 // Playing a card: TAP a card (it lifts), TAP it again, or DRAG it up onto the table. Illegal cards are refused with a reason.
-import { W, H as HEIGHT, BTN, BID, SLOT, SEAT, HAND_Y, handLayout, cardAt, inRect, titleRows, LESSON_ROWS, LESSONS_BACK, ABOUT_BACK, ABOUT_NEXT, RULES_BACK, RULES_NEXT, TEXT_DEC, TEXT_INC, TEXT_SCALES, THINK_STEPS } from './layout.js';
+import { L, BTN, applyLayout, handLayout, cardAt, inRect, titleRows, titleLock, LESSON_ROWS, LESSONS_BACK, ABOUT_BACK, ABOUT_NEXT, RULES_BACK, RULES_NEXT, TEXT_DEC, TEXT_INC, TEXT_SCALES, THINK_STEPS } from './layout.js';
 import { deal, bidAction, setTrump, playCard, legalPlays, canBid, whyNotBid, whyIllegal, scoreHand, matchWinner, cloneHand, cardName, SEAT_NAMES, SUIT_NAMES } from './rules.js';
 import { chooseBid, chooseTrump, pickCard, createThinker } from './ai.js';
 import { LESSONS } from './lessons.js';
@@ -11,7 +11,10 @@ import { RULES } from './rules-content.js';
 import { puzzleFor, puzzleHand, puzzleText, createPuzzleBrain } from './puzzles.js';
 import { render } from './view.js';
 
-export const meta = { width: W, height: HEIGHT };
+// Fluid viewport (kit >= 1.7): the short side is always 720 units; meta.width / height are live and follow the screen (layout.js applyLayout).
+export const meta = { width: 720, height: 1560, fluid: { short: 720 } };
+// The page's mouse wheel (main.js adds CSS px scaled to units) scrolls the About / Rules reader.
+export const wheelInput = { dy: 0 };
 const DEMO_MATCHES = 2, HINTS_PER_MATCH = 5, DEAL_TIME = 52 * 0.028 + 0.35;
 // Auto Play ("Watch & Learn") REVEAL phase length. THINK is configurable (THINK_STEPS, layout.js);
 // this is fixed, matching every other game's own auto-play pass this session.
@@ -19,6 +22,7 @@ const AUTO_REVEAL_SECS = 2;
 
 export function createGame(env) {
   const { rng, storage, audio, monetization, config } = env;
+  applyLayout(meta.width, meta.height);
   const state = {
     scene: 'title', t: 0, page: 0, level: 2, sound: true, calm: false, big: false, target: 31, back: 'garnet',
     textScaleIdx: 0, // index into TEXT_SCALES; the About/Rules reference pages' text size, some players wear glasses
@@ -26,7 +30,7 @@ export function createGame(env) {
     autoThinkIdx: 1,
     stats: { played: 0, wins: 0, hands: 0, maxLevel: 2 }, learned: LESSONS.map(() => false), learnedAll: false,
     daily: { day: config.day ?? 0, solvedDay: -1, streak: 0 }, demoMatches: 0, saved: null,
-    tb: null, lesson: null, puz: null, puzText: '', puzTarget: 0, dev: config.dev === true,
+    scroll: 0, scrollMax: 0, tb: null, lesson: null, puz: null, puzText: '', puzTarget: 0, dev: config.dev === true,
   };
   let thinker = null, brain = null, pz = null;
 
@@ -60,7 +64,7 @@ export function createGame(env) {
       // existing `!tb.auto` guard (humanTurn(), the bid/trump pickers below) already excludes it.
       auto: false,
       // Auto Play's own THINK -> REVEAL -> ACT state, unused by every other mode.
-      autoPhase: null, autoTimer: 0, autoChoice: null }, extra);
+      paused: false, autoPhase: null, autoTimer: 0, autoChoice: null }, extra);
   }
   function beginHand(dealer) {
     const tb = state.tb; thinker = null;
@@ -136,10 +140,11 @@ export function createGame(env) {
   }
   function doPlay(c) {
     const tb = state.tb, H = tb.H, p = H.turn;
-    let from = SEAT[p], k0 = 0.55;
-    if (p === 0) { const i = H.hands[0].indexOf(c), r = handLayout(H.hands[0].length)[i]; from = { x: r.x + r.w / 2, y: r.y + r.h / 2 - (tb.sel === i ? 48 : 0) }; k0 = 1.08; if (tb.mode !== 'auto') snapshot(); }
-    if (tb.drag && p === 0 && tb.drag.moved) from = { x: tb.drag.x, y: tb.drag.y };
-    tb.flights.push({ c, from, to: SLOT[p], t: 0, dur: state.calm ? 0.16 : 0.3, k0, k1: 1 });
+    // a flight stores WHERE it comes from logically (hand slot / seat / dragged point), so a rotation mid-flight lands correctly
+    const fl = { c, p, t: 0, dur: state.calm ? 0.16 : 0.3, k0: 0.55, k1: 1 };
+    if (p === 0) { const i = H.hands[0].indexOf(c); fl.hand = i; fl.n = H.hands[0].length; fl.lift = tb.sel === i ? 48 : 0; fl.k0 = 1.08 * (L.hand.cw / L.T[tb.mode].trick.w); if (tb.mode !== 'auto') snapshot(); }
+    if (tb.drag && p === 0 && tb.drag.moved) { fl.pos = { x: tb.drag.x, y: tb.drag.y }; delete fl.hand; }
+    tb.flights.push(fl);
     const res = playCard(H, c); tb.sel = -1; tb.hint = null; tb.wait = 0; tb.msg = null; thock();
     emit({ t: 'play', p, c });
     if (res.done) tb.collect = { cards: res.cards, winner: res.winner, t: -0.3 };
@@ -223,14 +228,15 @@ export function createGame(env) {
   // ---- input ---------------------------------------------------------------------------------------------------
   const hit = (r, x, y) => inRect(r, x, y);
   function pressTitle(x, y) {
+    if (hit(titleLock(!!state.saved), x, y)) { env.openArcforgeHome?.(); return; }
     const R = titleRows(!!state.saved);
     if (R.resume && hit(R.resume, x, y)) resume();
     else if (hit(R.learn, x, y)) state.scene = 'lessons';
     else if (hit(R.play, x, y)) startMatch();
     else if (hit(R.daily, x, y)) startPuzzle();
     else if (hit(R.auto, x, y)) startAutoMatch();
-    else if (hit(R.about, x, y)) { state.scene = 'about'; state.page = 0; }
-    else if (hit(R.rules, x, y)) { state.scene = 'rules'; state.page = 0; }
+    else if (hit(R.about, x, y)) { state.scene = 'about'; state.page = 0; state.scroll = 0; }
+    else if (hit(R.rules, x, y)) { state.scene = 'rules'; state.page = 0; state.scroll = 0; }
     else if (hit(R.level, x, y)) { let l = state.level; do { l = l % 4 + 1; } while (l > state.stats.maxLevel && !state.dev); state.level = l; savePrefs(); }
     else if (hit(R.sound, x, y)) { state.sound = !state.sound; audio.setMuted?.(!state.sound); savePrefs(); }
     else if (hit(R.calm, x, y)) { state.calm = !state.calm; savePrefs(); }
@@ -248,8 +254,8 @@ export function createGame(env) {
   function pressTable(x, y) {
     const tb = state.tb, H = tb.H;
     if (tb.leaving) {
-      if (hit({ x: 110, y: 760, w: 500, h: 76 }, x, y)) tb.leaving = false;
-      else if (hit({ x: 110, y: 850, w: 500, h: 70 }, x, y)) leave();
+      if (hit(L.ov.leave.keep, x, y)) tb.leaving = false;
+      else if (hit(L.ov.leave.out, x, y)) leave();
       return;
     }
     if (tb.summary) { if (hit(BTN.next, x, y)) nextAfterSummary(); return; }
@@ -260,20 +266,21 @@ export function createGame(env) {
     // this branch requires to already be closed via `!tb.summary` above), so reusing its rect here
     // is exactly the same "share a rect across mutually-exclusive screens" pattern already used by
     // BTN.back/BTN.lesson.
-    if (tb.over) { if (hit(BTN.next, x, y)) { if (tb.mode === 'auto') startAutoMatch(); else startMatch(); } else if (hit(BTN.back, x, y)) goTitle(); return; }
+    if (tb.over) { if (hit(BTN.again, x, y)) { if (tb.mode === 'auto') startAutoMatch(); else startMatch(); } else if (hit(BTN.back, x, y)) goTitle(); return; }
     if (tb.mode === 'auto') {
       // Auto Play's own bottom rail: Leave exits like any non-'play' mode already does (no
       // confirmation - there is nothing of the player's to lose), and the Undo/Hint slots become
       // the think-time stepper (same rects, no new layout). Every other tap - bid, trump, a card,
       // any seat - is ignored: the computer plays every seat, there is nothing here for a tap to do.
-      if (hit(BTN.leave, x, y)) { leave(); return; }
-      if (hit(BTN.undo, x, y)) { if (state.autoThinkIdx > 0) { state.autoThinkIdx--; savePrefs(); } return; }
-      if (hit(BTN.hint, x, y)) { if (state.autoThinkIdx < THINK_STEPS.length - 1) { state.autoThinkIdx++; savePrefs(); } return; }
+      if (hit(BTN.autoExit, x, y)) { leave(); return; }
+      if (hit(BTN.autoPause, x, y)) { tb.paused = !tb.paused; return; }
+      if (hit(BTN.autoDec, x, y)) { if (state.autoThinkIdx > 0) { state.autoThinkIdx--; savePrefs(); } return; }
+      if (hit(BTN.autoInc, x, y)) { if (state.autoThinkIdx < THINK_STEPS.length - 1) { state.autoThinkIdx++; savePrefs(); } return; }
       return;
     }
     if (tb.mode === 'puzzle' && state.puz.state !== 'play') {
-      if (hit({ x: 110, y: 900, w: 500, h: 80 }, x, y)) goTitle();
-      else if (state.puz.state === 'failed' && hit({ x: 110, y: 990, w: 500, h: 70 }, x, y)) startPuzzle(true);
+      if (hit(L.ov.puz.done, x, y)) goTitle();
+      else if (state.puz.state === 'failed' && hit(L.ov.puz.sol, x, y)) startPuzzle(true);
       return;
     }
     if (tb.mode === 'lesson' && (state.lesson.state === 'done' || state.lesson.state === 'retry')) {
@@ -287,31 +294,37 @@ export function createGame(env) {
     if (hit(BTN.undo, x, y)) { undo(); return; }
     if (hit(BTN.hint, x, y)) { hint(); return; }
     if (tb.deal) return;
+    const BIDm = L.BIDs[tb.mode];
     if (H.phase === 'bid' && H.bid.turn === 0 && !tb.blocked) {
-      if (hit(BID.pass, x, y)) { doBid(0, 0); return; }
-      for (const r of BID.nums) if (hit(r, x, y)) { if (canBid(H, r.n)) doBid(0, r.n); else say(whyNotBid(H, r.n), 3.5); return; }
+      if (hit(BIDm.pass, x, y)) { doBid(0, 0); return; }
+      for (const r of BIDm.nums) if (hit(r, x, y)) { if (canBid(H, r.n)) doBid(0, r.n); else say(whyNotBid(H, r.n), 3.5); return; }
     } else if (H.phase === 'trump' && H.declarer === 0 && !tb.blocked) {
-      for (const r of BID.suits) if (hit(r, x, y)) { doTrump(r.s); return; }
+      for (const r of BIDm.suits) if (hit(r, x, y)) { doTrump(r.s); return; }
     } else if (humanTurn()) {
       const i = cardAt(H.hands[0].length, tb.sel, x, y);
       if (i >= 0) tb.drag = { i, x, y, sx: x, sy: y, moved: false };
     }
   }
+  let readerDrag = null;
   function pointer(p) {
     const tb = state.tb;
+    if (readerDrag) { if (p.down) state.scroll = Math.max(0, Math.min(state.scrollMax, readerDrag.s - (p.y - readerDrag.y))); else readerDrag = null; }
+    state.lkDown = state.scene === 'title' && !!p.down && hit(titleLock(!!state.saved), p.x, p.y);
     if (p.pressed) {
       if (state.scene === 'title') pressTitle(p.x, p.y);
       else if (state.scene === 'about') {
         if (hit(ABOUT_BACK, p.x, p.y)) state.scene = 'title';
-        else if (hit(ABOUT_NEXT, p.x, p.y)) state.page = (state.page + 1) % ABOUT.length;
+        else if (hit(ABOUT_NEXT, p.x, p.y)) { state.scene = 'title'; state.scroll = 0; }
         else if (hit(TEXT_DEC, p.x, p.y) && state.textScaleIdx > 0) { state.textScaleIdx--; savePrefs(); }
         else if (hit(TEXT_INC, p.x, p.y) && state.textScaleIdx < TEXT_SCALES.length - 1) { state.textScaleIdx++; savePrefs(); }
+        else if (hit(L.reader.panel, p.x, p.y)) readerDrag = { y: p.y, s: state.scroll };
       }
       else if (state.scene === 'rules') {
         if (hit(RULES_BACK, p.x, p.y)) state.scene = 'title';
-        else if (hit(RULES_NEXT, p.x, p.y)) state.page = (state.page + 1) % RULES.length;
+        else if (hit(RULES_NEXT, p.x, p.y)) { state.scene = 'title'; state.scroll = 0; }
         else if (hit(TEXT_DEC, p.x, p.y) && state.textScaleIdx > 0) { state.textScaleIdx--; savePrefs(); }
         else if (hit(TEXT_INC, p.x, p.y) && state.textScaleIdx < TEXT_SCALES.length - 1) { state.textScaleIdx++; savePrefs(); }
+        else if (hit(L.reader.panel, p.x, p.y)) readerDrag = { y: p.y, s: state.scroll };
       }
       else if (state.scene === 'lessons') {
         if (hit(LESSONS_BACK(LESSONS.length), p.x, p.y)) state.scene = 'title';
@@ -321,15 +334,19 @@ export function createGame(env) {
     const t2 = state.tb;
     if (t2 && t2.drag && t2 === tb) {
       if (p.down) { t2.drag.x = p.x; t2.drag.y = p.y; if (!t2.drag.moved && Math.hypot(p.x - t2.drag.sx, p.y - t2.drag.sy) > 14) t2.drag.moved = true; }
-      if (p.released) { const d = t2.drag; t2.drag = null; if (d.moved) { if (p.y < HAND_Y - 70) dragPlay(d.i); } else tapCard(d.i); }
+      if (p.released) { const d = t2.drag; t2.drag = null; if (d.moved) { if (p.y < L.hand.y - 70) dragPlay(d.i); } else tapCard(d.i); }
     }
   }
   function keys(k) {
     const tb = state.tb; if (!k.pressed.size) return;
     if (state.scene === 'title') { if (k.pressed.has('Enter')) { const R = titleRows(!!state.saved), r = R.resume || (state.learnedAll ? R.play : R.learn); pressTitle(r.x + 10, r.y + 10); } return; }
-    if (!tb) { if (k.pressed.has('Escape')) state.scene = 'title'; return; }
+    if (!tb) {
+      if (k.pressed.has('Escape')) state.scene = 'title';
+      if (state.scene === 'about' || state.scene === 'rules') { if (k.pressed.has('ArrowDown')) state.scroll = Math.min(state.scrollMax, state.scroll + 80); if (k.pressed.has('ArrowUp')) state.scroll = Math.max(0, state.scroll - 80); }
+      return;
+    }
     if (k.pressed.has('Escape')) { if (tb.mode === 'play') tb.leaving = !tb.leaving; else leave(); return; }
-    if (tb.mode === 'auto') return; // no other keyboard shortcut applies - the computer plays every seat
+    if (tb.mode === 'auto') { if (k.pressed.has('KeyP') || k.pressed.has('Space')) tb.paused = !tb.paused; return; } // the computer plays every seat; P / Space pauses
     if (k.pressed.has('KeyH')) hint();
     if (k.pressed.has('KeyU')) undo();
     const H = tb.H, go = k.pressed.has('Enter') || k.pressed.has('Space'), right = k.pressed.has('ArrowRight'), left = k.pressed.has('ArrowLeft');
@@ -394,6 +411,7 @@ export function createGame(env) {
 
   function tick(dt) {
     const tb = state.tb, H = tb.H;
+    if (tb.mode === 'auto' && tb.paused) return;   // Auto Play Pause: nothing advances until Resume
     if (tb.msg) { tb.msg.t += dt; if (tb.msg.t > tb.msg.hold) tb.msg = null; }
     if (tb.shake) { tb.shake.t += dt; if (tb.shake.t > 0.5) tb.shake = null; }
     for (const f of tb.flights) f.t += dt;
@@ -438,10 +456,13 @@ export function createGame(env) {
   return {
     update(dt, input) {
       state.t += dt;
+      const before = L.key; applyLayout(meta.width, meta.height);
+      if (L.key !== before && state.tb) state.tb.drag = null;     // a rotation cancels a half-made drag (its point means something else now)
+      if (wheelInput.dy) { if (state.scene === 'about' || state.scene === 'rules') state.scroll = Math.max(0, Math.min(state.scrollMax, state.scroll + wheelInput.dy)); wheelInput.dy = 0; }
       pointer(input.pointer); keys(input.keys);
       if (state.tb) tick(dt);
     },
-    render(ctx) { render(ctx, state); },
+    render(ctx, view) { render(ctx, state, applyLayout(view?.width ?? meta.width, view?.height ?? meta.height)); },
     getState() { return state; },
     // kit 1.6.1: exempts Auto Play from this premium game's free-preview timer (both the
     // time-accrual and the countdown badge) - the same way the menu's own attract-mode preview is

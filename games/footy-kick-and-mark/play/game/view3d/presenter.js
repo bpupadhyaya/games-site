@@ -4,7 +4,7 @@
 // Rendering is interpolated between the sim's fixed steps so motion is smooth at 60 and 120 Hz.
 import { buildField, buildBall, BALL_VIS } from './field.js';
 import { addFootyClips } from './clips.js';
-import { CAM, fovFor } from '../src/camera.js';
+import { camFor } from '../src/camera.js';
 import { BR, KP, BS } from '../src/consts.js';
 
 const LIB = '../vendor3d/index.js';
@@ -28,7 +28,10 @@ function pickQuality(q) {
 }
 const sstep = (a, b, x) => { const t = Math.min(1, Math.max(0, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
 
-export async function createPresenter({ kitCanvas, quality }) {
+// Fluid layout: the 3D canvas covers exactly the kit's virtual rectangle (the whole screen up to 2.4:1, centred beyond that) and its camera is
+// camFor(virtual w, h) from src/camera.js (the same function the HUD projects with): end-on in portrait, side-on in landscape.
+const MAX_PIXELS = 2.4e6;     // render budget: the pixel ratio is lowered on big screens so the frame rate holds
+export async function createPresenter({ kitCanvas, meta = { width: 720, height: 1280 }, quality }) {
   quality = pickQuality(quality);
   const fallback = { stage: null, wrap: (g) => g };
   let V3;
@@ -42,13 +45,13 @@ export async function createPresenter({ kitCanvas, quality }) {
   if (!stage.supported) { canvas.remove(); return fallback; }
   let lost = false;
   stage.onContextLost(() => { lost = true; });
-  stage.onContextRestored(() => { lost = false; });
+  stage.onContextRestored(() => { lost = false; cssW = 0; pillar = ''; stage.resize(); stage.invalidate(); });
   stage.setLighting('day', { exposure: 1.0 });
   stage.setSky('#9fc6e6', '#b9d4e6', { near: 90, far: 230 });
   { const c = globalThis.document.createElement('canvas'); c.width = 4; c.height = 256; const g2 = c.getContext('2d'); const gr = g2.createLinearGradient(0, 0, 0, 256); gr.addColorStop(0, '#5f9bd6'); gr.addColorStop(0.7, '#a9cfea'); gr.addColorStop(1, '#d8e8f2'); g2.fillStyle = gr; g2.fillRect(0, 0, 4, 256); const tx = new THREE.CanvasTexture(c); tx.colorSpace = THREE.SRGBColorSpace; stage.scene.background = tx; }
   const camera = stage.camera; camera.near = 1; camera.far = 260; camera.updateProjectionMatrix();
   const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
-  buildField(stage);
+  const fieldGroup = buildField(stage);
   const ballMesh = buildBall(); stage.add(ballMesh);
   const blobs = stage.enableBlobShadows(16, { radius: 0.5, opacity: 0.9 });
 
@@ -118,31 +121,31 @@ export async function createPresenter({ kitCanvas, quality }) {
   }
 
   // ---- placing the picture --------------------------------------------------------------------------------------------------------------------------------
-  let cssW = 0, cssH = 0, pillar = -1;
+  let cssW = 0, cssH = 0, pillar = '';
   function layoutCanvas() {
-    const r = kitCanvas.getBoundingClientRect();
-    const cw = r.width || globalThis.innerWidth, ch = r.height || globalThis.innerHeight;
-    const want = cw / ch > 0.5625 ? Math.round(ch * 0.5625) : 0;       // wider than 9:16: pillarbox the picture to the HUD's rectangle
-    if (want !== pillar) {
-      pillar = want;
-      canvas.style.cssText = want ? `position:fixed;top:0;left:50%;transform:translateX(-50%);width:${want}px;height:100dvh;display:block;pointer-events:none;z-index:0` : 'position:fixed;inset:0;width:100vw;height:100dvh;display:block;pointer-events:none;z-index:0';
+    const cw = kitCanvas.clientWidth || globalThis.innerWidth || 720, ch = kitCanvas.clientHeight || globalThis.innerHeight || 1280;
+    const vw = meta.width || 720, vh = meta.height || 1280, k = Math.min(cw / vw, ch / vh), rw = Math.round(vw * k), rh = Math.round(vh * k);
+    const rectKey = `${cw}x${ch}:${rw}x${rh}`;
+    if (rectKey !== pillar) {
+      pillar = rectKey;
+      canvas.style.cssText = rw >= cw - 1 && rh >= ch - 1 ? 'position:fixed;inset:0;width:100vw;height:100dvh;display:block;pointer-events:none;z-index:0'
+        : `position:fixed;left:${Math.round((cw - rw) / 2)}px;top:${Math.round((ch - rh) / 2)}px;width:${rw}px;height:${rh}px;display:block;pointer-events:none;z-index:0`;
       cssW = 0;
     }
-    const w = want || cw;
-    // tall phones: the 9:16 HUD rectangle is centred, so the strip above it shows only extra sky; a dark top band (same colour as the scoreboard) takes its place
-    const extra = Math.max(0, Math.round((ch - w * 16 / 9) / 2));
-    if (!P.band) { P.band = globalThis.document.createElement('div'); P.band.style.cssText = 'position:fixed;top:0;pointer-events:none;z-index:0'; canvas.parentElement.insertBefore(P.band, kitCanvas); }
-    P.band.style.left = want ? '50%' : '0'; P.band.style.transform = want ? 'translateX(-50%)' : ''; P.band.style.width = w + 'px'; P.band.style.height = extra + 'px';
-    P.band.style.background = 'linear-gradient(#0b1a28 0%, #0f2233 85%, rgba(15,34,51,0.55) 100%)'; P.band.style.display = extra > 2 ? 'block' : 'none';
-    if (w !== cssW || ch !== cssH) { cssW = w; cssH = ch; stage.resize(); }
-    return { w, h: ch };
+    if (rw !== cssW || rh !== cssH) {
+      cssW = rw; cssH = rh; stage.resize();
+      const pr = stage.renderer.getPixelRatio();
+      if (rw * rh * pr * pr > MAX_PIXELS * 1.02) stage.renderer.setPixelRatio(Math.sqrt(MAX_PIXELS / (rw * rh)));
+    }
+    return { w: rw, h: rh };
   }
-  function placeCamera(w, h) {
-    const asp = w / h, fov = fovFor(asp);
-    if (Math.abs(camera.fov - fov) > 1e-3) { camera.fov = fov; camera.updateProjectionMatrix(); }
+  function placeCamera() {
+    const cc = camFor(meta.width || 720, meta.height || 1280);
+    if (Math.abs(camera.fov - cc.fov) > 1e-3) { camera.fov = cc.fov; camera.updateProjectionMatrix(); }
+    if (fieldGroup.userData.setSide) fieldGroup.userData.setSide(!!cc.side);
     const co = P.camOverride;
     if (co) { camera.position.set(co.x, co.y, co.z); camera.lookAt(co.lx, co.ly, co.lz); if (co.fov && Math.abs(camera.fov - co.fov) > 1e-3) { camera.fov = co.fov; camera.updateProjectionMatrix(); } return; }
-    camera.position.set(CAM.x, CAM.y, CAM.z); camera.lookAt(CAM.lx, CAM.ly, CAM.lz);
+    camera.position.set(cc.x, cc.y, cc.z); camera.lookAt(cc.lx, cc.ly, cc.lz);
   }
 
   // world-space helpers
@@ -153,13 +156,13 @@ export async function createPresenter({ kitCanvas, quality }) {
   function frame(game) {
     const G = game.getState();
     if (lost) return;
-    if (!ready) { const L0 = layoutCanvas(); placeCamera(L0.w, L0.h); stage.setVisible(true); if (!P.noRender) stage.render(); return; }      // the pitch shows while the players are still loading
+    if (!ready) { layoutCanvas(); placeCamera(); stage.setVisible(true); if (!P.noRender) stage.render(); return; }      // the pitch shows while the players are still loading
     const want = G.settings && G.settings.women ? 'f' : 'm';
     if (want !== builtKind && !loading) { loadPlayers(want === 'f'); }
     const s = G.sim;
     if (!s) { stage.setVisible(false); return; }
     stage.setVisible(true);
-    const L = layoutCanvas(); placeCamera(L.w, L.h);
+    layoutCanvas(); placeCamera();
     const nowMs = globalThis.performance ? globalThis.performance.now() : 0;
     const catching = lastT === null || s.t < lastT - 1e-6 || Math.abs(s.t - lastT) > 0.5;      // first frame, or the sim was replaced / jumped
     // new tick?
@@ -334,9 +337,7 @@ export async function createPresenter({ kitCanvas, quality }) {
   P.wrap = (game) => {
     const r = game.render.bind(game);
     game.render = (ctx, view) => {
-      const rr = kitCanvas.getBoundingClientRect();
-      const cw = rr.width || kitCanvas.clientWidth || 720, ch = rr.height || kitCanvas.clientHeight || 1280;
-      view.cssW = cw / ch > 0.5625 ? Math.round(ch * 0.5625) : cw; view.cssH = ch; view.umpire = P.umpire || null;
+      view.cssW = kitCanvas.clientWidth || 720; view.cssH = kitCanvas.clientHeight || 1280; view.umpire = P.umpire || null;
       r(ctx, view);
       try { frame(game); } catch (e) { console.warn('3D frame failed', e); }
     };

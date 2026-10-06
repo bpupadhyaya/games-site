@@ -3,17 +3,19 @@
 // Making a move: TAP a checker (its legal points glow), then TAP a point; or DRAG the checker and drop it. A move that is not allowed
 // visibly tries, shudders and comes back, and a plain-language reason is shown (rules.whyNot).
 // A MATCH rotates the three games (Portes, Plakoto, Fevga); each game is worth 1 point, 2 for a double win.
-import { W, H, BTN, DICE, SETUP, PBACK, DOC_BACK, DOC_NEXT, SET_ROWS, SET_TEXT, PAUSE, TRAY, OVER, inRect, targetAt, barPos, titleRows, TEXT_SCALES, TEXT_BTN, THINK_STEPS } from './layout.js';
+import { L, setSize, creditHit, inRect, targetAt, barPos, trayCenter, TEXT_SCALES, THINK_STEPS } from './layout.js';
 import { BAR, OFF, PORTES, VARIANTS, MATCH_ORDER, newGame, clone, expandRoll, beginTurn, legalSteps, playStep, turnCopy, whyNot, isOver, isDeadlocked, winner, resultValue, endTurn, top } from './rules.js';
 import { LEVELS, createThinker, reasonFor } from './ai.js';
 import { render, topSlot, landSlot } from './view.js';
 import { SET_NAMES } from './sprites.js';
 import { ABOUT, HOWTO, RULES } from './text.js';
 
-export const meta = { width: W, height: H };
+// Fluid viewport (kit 1.7): the kit keeps meta.width/height live (short side 720); setSize() re-lays everything out from them.
+export const meta = { width: 720, height: 1560, fluid: { short: 720 } };
+export const wheelInput = { dy: 0 };               // main.js adds mouse-wheel movement here (virtual units); the Rules pages scroll with it
 const DEMO_GAMES = 2, HINTS = 3, AUTO_REVEAL_SECS = 2, AUTO_LEVEL = 3;
 const SETS = Object.keys(SET_NAMES);
-const DOC_LIST = { howto: HOWTO, about: ABOUT, rules: RULES };
+
 
 export function createGame(env) {
   const { rng, storage, audio, monetization, config } = env;
@@ -23,7 +25,7 @@ export function createGame(env) {
     sound: true, calm: false, set: 'marble', auto: true, textScaleIdx: 0,
     // Watch & Learn (Auto Play): both sides computer-played. THINK -> REVEAL -> ACT per roll. autoThinkIdx indexes THINK_STEPS.
     autoMode: false, autoThinkIdx: 1, autoPhase: null, autoCand: null, autoReveal: null, autoTimer: 0,
-    paused: false, pt: 0,
+    paused: false, pt: 0, scroll: 0, docMax: 0,
     dice: { vals: null, side: 0, roll: null }, left: null, sel: -1, dests: [], sources: [], legal: [], anim: null, drag: null, hint: null, msg: null,
     status: '', canUndo: false, hintsLeft: HINTS, thinking: false, cursor: null, cursorOn: false, kbi: 0,
     result: null, stats: { games: 0, wins: 0 }, saved: null, demoGames: 0, page: 0, q: [], think: 0, endT: 0, autoT: 0, fx: [], fxSeed: 1, overT: 0, pauseT: 0,
@@ -223,7 +225,7 @@ export function createGame(env) {
     if (!state.autoMode) { clearSave(); monetization.track('game_end', { winner: w, points, variant: v, level: state.level }); }
     const win = w === 0 || !vsCpu;
     tone({ freq: win ? 523 : 330, to: win ? 784 : 262, dur: 0.45, type: 'triangle', vol: 0.1 });
-    if (win) { later(0.2, { freq: 784, to: 1046, dur: 0.4, type: 'triangle', vol: 0.08 }); for (let i = 0; i < 4; i++) later(i * 0.18, { fx: ['burst', 130 + i * 150, 560 + (i % 2) * 60, i % 2 ? '255,214,110' : '120,190,255'] }); }
+    if (win) { later(0.2, { freq: 784, to: 1046, dur: 0.4, type: 'triangle', vol: 0.08 }); for (let i = 0; i < 4; i++) later(i * 0.18, { fx: ['burst', L.board.x + L.board.w * (0.2 + i * 0.2), L.board.y + L.board.h * (0.35 + (i % 2) * 0.1), i % 2 ? '255,214,110' : '120,190,255'] }); }
     state.overT = state.autoMode ? 6 : 0;
   }
   function overAgain() {
@@ -247,7 +249,7 @@ export function createGame(env) {
   }
   function refuse(from, target, why) {
     const s = state.g.turn, fp = topSlot(state.g, s, from);
-    const tp = target === OFF ? { x: 360, y: TRAY.me.y + 20 } : landSlot(state.g, s, target);
+    const tp = target === OFF ? trayCenter(0) : landSlot(state.g, s, target);
     state.anim = { side: s, kind: 'refuse', from: fp, to: tp, t: 0, dur: dur(0.62), hide: from === BAR ? { kind: 'bar' } : { kind: 'pt', idx: from, side: s }, hit: null, ghost: null, hitDur: 0 };
     say(why, 6); tone({ freq: 190, to: 130, dur: 0.16, type: 'triangle', vol: 0.08 });
   }
@@ -329,44 +331,62 @@ export function createGame(env) {
   // ---- per-scene updates -----------------------------------------------------------------------------------------------------------
   function updateTitle(tap) {
     if (!tap) return;
-    const Rr = titleRows(!!state.saved), hit = (r) => inRect(r, tap.x, tap.y);
-    if (hit(Rr.resume)) resume();
+    const TT = L.titleFor(!!state.saved), Rr = TT.rows, hit = (r) => inRect(r, tap.x, tap.y);
+    if (hit(creditHit(TT.lockup))) { state.afFlash = 0.18; env.openArcforgeHome?.(); }
+    else if (hit(Rr.resume)) resume();
     else if (hit(Rr.play)) state.scene = 'setup';
     else if (hit(Rr.auto)) startMatch(true);
     else if (hit(Rr.settings)) state.scene = 'settings';
-    else if (hit(Rr.howto)) { state.scene = 'howto'; state.page = 0; }
-    else if (hit(Rr.about)) { state.scene = 'about'; state.page = 0; }
-    else if (hit(Rr.rules)) { state.scene = 'rules'; state.page = 0; }
+    else if (hit(Rr.howto)) { state.scene = 'howto'; state.page = 0; state.scroll = 0; }
+    else if (hit(Rr.about)) { state.scene = 'about'; state.page = 0; state.scroll = 0; }
+    else if (hit(Rr.rules)) { state.scene = 'rules'; state.page = 0; state.scroll = 0; }
   }
   function updateSetup(tap) {
     if (!tap) return;
     const su = state.setup, hit = (r) => inRect(r, tap.x, tap.y);
-    SETUP.modes.forEach((r, i) => { if (hit(r)) { su.mode = i; clack(); } });
-    SETUP.match.forEach((r, i) => { if (hit(r) && su.mode === 3) { su.target = i ? 7 : 5; clack(); } });
-    SETUP.opp.forEach((r, i) => { if (hit(r)) { su.two = i === 1; clack(); } });
-    SETUP.levels.forEach((r, i) => { if (hit(r) && !su.two) { su.level = i; clack(); } });
-    if (hit(SETUP.start)) { savePrefs(); startMatch(false); return; }
-    if (hit(SETUP.back)) state.scene = 'title';
+    const SU = L.setup;
+    SU.modes.forEach((r, i) => { if (hit(r)) { su.mode = i; clack(); } });
+    SU.match.forEach((r, i) => { if (hit(r) && su.mode === 3) { su.target = i ? 7 : 5; clack(); } });
+    SU.opp.forEach((r, i) => { if (hit(r)) { su.two = i === 1; clack(); } });
+    SU.levels.forEach((r, i) => { if (hit(r) && !su.two) { su.level = i; clack(); } });
+    if (hit(SU.start)) { savePrefs(); startMatch(false); return; }
+    if (hit(SU.back)) state.scene = 'title';
     savePrefs();
   }
-  function updateDoc(tap) {
+  // Reference pages: A-/A+ change the text zoom; a page taller than its card scrolls (drag, mouse wheel, Up/Down keys).
+  let docDrag = null;
+  const setScale = (i) => { state.textScaleIdx = i; state.scroll = 0; savePrefs(); clack(); };
+  function updateDoc(tap, input) {
+    const Dd = L.doc, p = input.pointer, max = state.docMax || 0;
+    if (p.pressed && inRect(Dd.body, p.x, p.y)) docDrag = { y: p.y, s: state.scroll, moved: false };
+    if (docDrag && p.down) { const dy = p.y - docDrag.y; if (Math.abs(dy) > 8) docDrag.moved = true; if (docDrag.moved) state.scroll = Math.min(max, Math.max(0, docDrag.s - dy)); }
+    if (p.released) docDrag = null;
+    if (wheelInput.dy) { state.scroll = Math.min(max, Math.max(0, state.scroll + wheelInput.dy)); wheelInput.dy = 0; }
+    const k = input.keys.pressed;
+    if (k.has('ArrowDown')) state.scroll = Math.min(max, state.scroll + 70);
+    if (k.has('ArrowUp')) state.scroll = Math.max(0, state.scroll - 70);
+    if (k.has('PageDown') || k.has('Space')) state.scroll = Math.min(max, state.scroll + 500);
+    if (k.has('PageUp')) state.scroll = Math.max(0, state.scroll - 500);
+    if (k.has('Home')) state.scroll = 0;
+    if (k.has('End')) state.scroll = max;
+    if (k.has('Escape')) { state.scene = 'title'; return; }
+    state.scroll = Math.min(max, Math.max(0, state.scroll));
     if (!tap) return;
-    if (inRect(TEXT_BTN.dec, tap.x, tap.y)) { if (state.textScaleIdx > 0) { state.textScaleIdx--; savePrefs(); clack(); } return; }
-    if (inRect(TEXT_BTN.inc, tap.x, tap.y)) { if (state.textScaleIdx < TEXT_SCALES.length - 1) { state.textScaleIdx++; savePrefs(); clack(); } return; }
-    const list = DOC_LIST[state.scene];
-    if (inRect(DOC_BACK, tap.x, tap.y)) { if (state.page > 0) state.page -= 1; else state.scene = 'title'; return; }
-    if (inRect(DOC_NEXT, tap.x, tap.y)) { if (state.page >= list.length - 1) { state.scene = 'title'; state.page = 0; } else state.page += 1; }
+    if (inRect(Dd.dec, tap.x, tap.y)) { if (state.textScaleIdx > 0) setScale(state.textScaleIdx - 1); return; }
+    if (inRect(Dd.inc, tap.x, tap.y)) { if (state.textScaleIdx < TEXT_SCALES.length - 1) setScale(state.textScaleIdx + 1); return; }
+    if (inRect(Dd.back, tap.x, tap.y)) { state.scene = 'title'; state.scroll = 0; return; }
+    if (inRect(Dd.next, tap.x, tap.y)) state.scroll = 0;                      // "Top"
   }
   function updateSettings(tap) {
     if (!tap) return;
-    const hit = (r) => inRect(r, tap.x, tap.y);
-    if (hit(SET_ROWS.sound)) { state.sound = !state.sound; audio.setMuted?.(!state.sound); clack(); }
-    else if (hit(SET_ROWS.calm)) state.calm = !state.calm;
-    else if (hit(SET_ROWS.set)) state.set = SETS[(SETS.indexOf(state.set) + 1) % SETS.length];
-    else if (hit(SET_ROWS.auto)) state.auto = !state.auto;
-    else if (hit(SET_TEXT.dec)) { if (state.textScaleIdx > 0) state.textScaleIdx--; }
-    else if (hit(SET_TEXT.inc)) { if (state.textScaleIdx < TEXT_SCALES.length - 1) state.textScaleIdx++; }
-    else if (hit(PBACK)) state.scene = 'title';
+    const hit = (r) => inRect(r, tap.x, tap.y), SS = L.settings;
+    if (hit(SS.rows.sound)) { state.sound = !state.sound; audio.setMuted?.(!state.sound); clack(); }
+    else if (hit(SS.rows.calm)) state.calm = !state.calm;
+    else if (hit(SS.rows.set)) state.set = SETS[(SETS.indexOf(state.set) + 1) % SETS.length];
+    else if (hit(SS.rows.auto)) state.auto = !state.auto;
+    else if (hit(SS.text.dec)) { if (state.textScaleIdx > 0) state.textScaleIdx--; }
+    else if (hit(SS.text.inc)) { if (state.textScaleIdx < TEXT_SCALES.length - 1) state.textScaleIdx++; }
+    else if (hit(SS.back)) state.scene = 'title';
     savePrefs();
   }
 
@@ -379,24 +399,26 @@ export function createGame(env) {
     }
     if (state.scene === 'over') {
       if (tap) {
-        if (inRect(OVER.again, tap.x, tap.y)) overAgain();
-        else if (inRect(OVER.menu, tap.x, tap.y)) { resetPlay(); state.scene = 'title'; state.phase = 'idle'; }
-        else if (inRect(OVER.share, tap.x, tap.y)) env.share(`Tavli: ${state.result.title} ${state.result.body} ${state.result.matchLine}`);
+        if (inRect(L.over.again, tap.x, tap.y)) overAgain();
+        else if (inRect(L.over.menu, tap.x, tap.y)) { resetPlay(); state.scene = 'title'; state.phase = 'idle'; }
+        else if (inRect(L.over.share, tap.x, tap.y)) env.share(`Tavli: ${state.result.title} ${state.result.body} ${state.result.matchLine}`);
       } else if (state.autoMode && state.overT > 0) { state.overT -= dt; if (state.overT <= 0 && !state.result.matchOver) overAgain(); }
       return;
     }
     if (tap) {
-      if (inRect(BTN.pause, tap.x, tap.y)) { setPaused(true); return; }
       if (state.autoMode) {
-        if (inRect(BTN.aMenu, tap.x, tap.y)) { toTitle(); return; }
-        if (inRect(BTN.aPause, tap.x, tap.y)) { setPaused(true); return; }
-        if (inRect(BTN.aLess, tap.x, tap.y)) { if (state.autoThinkIdx > 0) { state.autoThinkIdx--; savePrefs(); } return; }
-        if (inRect(BTN.aMore, tap.x, tap.y)) { if (state.autoThinkIdx < THINK_STEPS.length - 1) { state.autoThinkIdx++; savePrefs(); } return; }
+        const A = L.abtn;
+        if (inRect(A.menu, tap.x, tap.y)) { toTitle(); return; }
+        if (inRect(A.pause, tap.x, tap.y)) { setPaused(true); return; }
+        if (inRect(A.less, tap.x, tap.y)) { if (state.autoThinkIdx > 0) { state.autoThinkIdx--; savePrefs(); } return; }
+        if (inRect(A.more, tap.x, tap.y)) { if (state.autoThinkIdx < THINK_STEPS.length - 1) { state.autoThinkIdx++; savePrefs(); } return; }
         return;
       }
-      if (inRect(BTN.menu, tap.x, tap.y)) { toTitle(); return; }
-      if (inRect(BTN.undo, tap.x, tap.y) && (ph === 'move' || ph === 'end') && !state.anim) { doUndo(); return; }
-      if (inRect(BTN.hint, tap.x, tap.y)) { doHint(); return; }
+      const B = L.btn;
+      if (inRect(B.pause, tap.x, tap.y)) { setPaused(true); return; }
+      if (inRect(B.menu, tap.x, tap.y)) { toTitle(); return; }
+      if (inRect(B.undo, tap.x, tap.y) && (ph === 'move' || ph === 'end') && !state.anim) { doUndo(); return; }
+      if (inRect(B.hint, tap.x, tap.y)) { doHint(); return; }
     }
     if (input.keys.pressed.size) {
       const k = input.keys.pressed;
@@ -406,7 +428,7 @@ export function createGame(env) {
 
     switch (state.phase) {
       case 'roll': {
-        if (tap && inRect({ x: DICE.x, y: DICE.y - 6, w: DICE.w, h: DICE.h + 12 }, tap.x, tap.y)) roll();
+        if (tap && inRect(L.diceTap, tap.x, tap.y)) roll();
         break;
       }
       case 'rolling': {
@@ -471,9 +493,9 @@ export function createGame(env) {
     // Everything else is frozen: no timers, no search, no animation, no sound queue. Only the overlay's own clock runs.
     state.pt += dt;
     const p = input.pointer, tap = p.pressed ? { x: p.x, y: p.y } : null, hit = (r) => tap && inRect(r, tap.x, tap.y);
-    if (input.keys.pressed.has('KeyP') || input.keys.pressed.has('Escape') || input.keys.pressed.has('Space') || hit(PAUSE.resume)) { state.paused = false; return; }
-    if (hit(PAUSE.restart)) { const auto = state.autoMode; state.paused = false; if (auto) startMatch(true); else { clearSave(); resetPlay(); state.scene = 'title'; } return; }
-    if (hit(PAUSE.menu)) { state.paused = false; toTitle(); }
+    if (input.keys.pressed.has('KeyP') || input.keys.pressed.has('Escape') || input.keys.pressed.has('Space') || hit(L.pause.resume)) { state.paused = false; return; }
+    if (hit(L.pause.restart)) { const auto = state.autoMode; state.paused = false; if (auto) startMatch(true); else { clearSave(); resetPlay(); state.scene = 'title'; } return; }
+    if (hit(L.pause.menu)) { state.paused = false; toTitle(); }
   }
 
   // ---- showcase scenes for screenshots (only for the reserved seeds 7770001..7770040) ---------------------------------------------
@@ -510,15 +532,15 @@ export function createGame(env) {
       return;
     }
     if (n === 8) { state.scene = 'rules'; state.page = 0; return; }
-    if (n === 9) { state.scene = 'rules'; state.page = 36; return; }
+    if (n === 9) { state.scene = 'rules'; state.jump = 36; return; }
     if (n === 10) { startMatch(true); state.shot = true; return; }
     if (n === 11) { state.scene = 'settings'; return; }
-    if (n === 12) { state.scene = 'about'; state.page = 3; state.textScaleIdx = 4; return; }
-    if (n === 13) { state.scene = 'rules'; state.page = 50; state.textScaleIdx = 4; return; }
+    if (n === 12) { state.scene = 'about'; state.jump = 3; state.textScaleIdx = 4; return; }
+    if (n === 13) { state.scene = 'rules'; state.jump = 50; state.textScaleIdx = 4; return; }
     if (n === 14) { state.textScaleIdx = 4; return; }
     if (n === 15) { state.scene = 'setup'; state.textScaleIdx = 4; return; }
     if (n === 17) { board(0, 22, [5, 3], { mode: 3 }); state.paused = true; return; }
-    if (n === 18) { state.scene = 'howto'; state.page = 1; return; }
+    if (n === 18) { state.scene = 'howto'; state.jump = 1; return; }
     if (n === 19) { state.scene = 'settings'; state.textScaleIdx = 4; return; }
     if (n === 21) { showcase(7); state.textScaleIdx = 4; return; }
     if (n === 20) { board(1, 34, [6, 2], { mode: 3, pick: 0 }); state.textScaleIdx = 4; }
@@ -527,6 +549,8 @@ export function createGame(env) {
 
   return {
     update(dt, input) {
+      setSize(meta.width, meta.height);
+      if (state.afFlash > 0) state.afFlash -= dt;
       state.ptr = input.pointer.down ? { x: input.pointer.x, y: input.pointer.y } : null;
       if (state.paused) { updatePause(dt, input); return; }
       state.t += dt;
@@ -539,12 +563,12 @@ export function createGame(env) {
       if (input.keys.pressed.size && sc === 'title' && (input.keys.pressed.has('Enter') || input.keys.pressed.has('Space'))) { state.scene = 'setup'; return; }
       if (sc === 'title') updateTitle(tap);
       else if (sc === 'setup') updateSetup(tap);
-      else if (sc === 'howto' || sc === 'about' || sc === 'rules') updateDoc(tap);
+      else if (sc === 'howto' || sc === 'about' || sc === 'rules') updateDoc(tap, input);
       else if (sc === 'settings') updateSettings(tap);
-      else if (sc === 'demo-limit') { if (tap && tap.y > 800 && tap.y < 900) state.scene = 'title'; }
+      else if (sc === 'demo-limit') { if (tap && inRect(L.demo.button, tap.x, tap.y)) state.scene = 'title'; }
       else updateBoard(dt, input, tap);
     },
-    render(ctx) { render(ctx, state); },
+    render(ctx) { setSize(meta.width, meta.height); render(ctx, state); },
     getState: () => state,
     // Only real play on the board counts against the free preview. Menus, setup, Rules, How to play, About, Settings, the result
     // screens, Watch & Learn and the paused screen are all free.

@@ -1,6 +1,6 @@
 // GAME CONTRACT (docs/GAME-CONTRACT.md). Gabata (Three-Row Sowing): the Ethiopian and Eritrean three-row sowing game with a
 // five-level engine, a tutor path, Watch & Learn, English and an Amharic key-terms choice.
-import { SCREEN, inRect, BACK_BTN, PAUSE_BTN, TOOLBAR_IDS, autoLayout, playLayout } from './layout.js';
+import { meta, inRect, creditHit, TOOLBAR_IDS, layoutNow } from './layout.js';
 import { TEXT_SCALES, hitDoc, clampScroll } from './ui.js';
 import { buildUi, THINK_STEPS, demoOver, recKey } from './screens.js';
 import { legalMoves, CIRCUIT, outcome } from './engine.js';
@@ -13,9 +13,10 @@ import { CAL_EN } from './calibration.js';
 import { THEMES, boardGeo, cellAt, CELLS } from './art.js';
 import { render, plateIcons } from './view.js';
 
-export const meta = { width: SCREEN.width, height: SCREEN.height };
+// `meta` is the live size the kit keeps current (fluid layout); layout.js owns it.
+export { meta };
 
-const VERSION = '1.0.0';
+const VERSION = '1.1.2';
 const WIN_NOTES = [523, 659, 784, 1047, 1319];
 const AUTO_GAMES = [{ lv: ['master', 'master'] }, { lv: ['master', 'expert'] }];
 const KEY = 'gb';
@@ -91,7 +92,7 @@ export async function createGame(env) {
   };
 
   // ------------------------------------------------------------------------------ geometry
-  const layNow = () => playLayout(TEXT_SCALES[S.textIdx]);
+  const layNow = () => { const L = layoutNow(TEXT_SCALES[S.textIdx]); return S.scene === 'auto' ? L.auto : L.play; };
   const geoNow = () => { const lay = layNow(); return boardGeo(lay.board.x, lay.board.y, lay.board.w); };
   // Where captured stones fly to: the stone icon of each player's plate, in board units.
   const setTargets = (M) => {
@@ -351,6 +352,7 @@ export async function createGame(env) {
       else if (n === 38) { S.textIdx = 0; const M = mk({}); warm(M, 3); mine(M); next(M, 'master'); settle(M, 0.7); }
       else if (n === 39) { S.textIdx = 0; const M = mk({}); warm(M, 3); mine(M); next(M, 'master'); settle(M, 1.1); }
       else if (n === 40) { S.textIdx = 0; const M = mk({}); warm(M, 3); mine(M); next(M, 'master'); settle(M, 1.6); }
+      else if (n === 49) { S.textIdx = 0; const M = mk({}); warm(M, 80, 'master'); S.match.freeze = true; if (!M.over) { M.over = { winner: 1, a: 31, b: 23, capped: false }; } onEnd(M); S.overlay = 'end'; S.ovT = 1; }
       else if (n >= 42 && n <= 48) { S.textIdx = 0; S.scene = 'howto'; S.page.howto = n - 42; }
     } else if (n >= 1001 && n <= 1030) { S.scene = 'rules'; S.page.rules = n - 1001; }
     else if (n >= 2001 && n <= 2030) { S.scene = 'rules'; S.page.rules = n - 2001; S.textIdx = 4; }
@@ -398,6 +400,7 @@ export async function createGame(env) {
 
   function activate(id) {
     if (id == null) return;
+    if (id === 'af:home') { env.openArcforgeHome?.(); return; }
     if (id === 'zoom-') { setText(-1); return; }
     if (id === 'zoom+') { setText(1); return; }
     if (id.startsWith('lang:')) { const first = S.scene === 'lang'; setLanguage(id.slice(5)); if (first) gotoScene('title'); else SOUNDS.ui(); return; }
@@ -457,6 +460,10 @@ export async function createGame(env) {
     if (S.scene === 'auto' && !S.overlay) { autoDown(x, y); return; }
     const ui = buildUi(S);
     if (!ui.layout) return;
+    if ((S.scene === 'title' || S.scene === 'lang') && ui.title && ui.title.hero) {
+      const zone = creditHit(ui.title.hero.lockup);
+      if (inRect(x, y, zone)) { S.press = { id: 'af:home', active: true, kind: 'fixed', rect: zone }; return; }
+    }
     const f = fixedHit(ui, x, y);
     if (f) { S.press = { id: f.id, active: true, kind: 'fixed', rect: f.rect }; return; }
     const reg = ui.region;
@@ -513,9 +520,9 @@ export async function createGame(env) {
 
   // ---- play
   function playDown(x, y) {
-    const M = S.match, lay = layNow();
-    if (inRect(x, y, BACK_BTN)) { S.press = { id: 'hud:back', active: true, kind: 'hud', rect: BACK_BTN }; return; }
-    if (inRect(x, y, PAUSE_BTN)) { S.press = { id: 'hud:pause', active: true, kind: 'hud', rect: PAUSE_BTN }; return; }
+    const M = S.match, lay = layNow(), bar = layoutNow(TEXT_SCALES[S.textIdx]).bar;
+    if (inRect(x, y, bar.back)) { S.press = { id: 'hud:back', active: true, kind: 'hud', rect: bar.back }; return; }
+    if (inRect(x, y, bar.pause)) { S.press = { id: 'hud:pause', active: true, kind: 'hud', rect: bar.pause }; return; }
     for (let i = 0; i < TOOLBAR_IDS.length; i++) {
       if (inRect(x, y, lay.tool[i])) { S.press = { id: `tool:${TOOLBAR_IDS[i]}`, active: true, kind: 'tool', rect: lay.tool[i] }; return; }
     }
@@ -536,8 +543,8 @@ export async function createGame(env) {
 
   // ---- auto
   function autoDown(x, y) {
-    if (inRect(x, y, BACK_BTN)) { S.press = { id: 'auto:exit', active: true, kind: 'auto', rect: BACK_BTN }; return; }
-    const lay = autoLayout(TEXT_SCALES[S.textIdx]);
+    const L = layoutNow(TEXT_SCALES[S.textIdx]), lay = L.auto;
+    if (inRect(x, y, L.bar.back)) { S.press = { id: 'auto:exit', active: true, kind: 'auto', rect: L.bar.back }; return; }
     for (const id of ['slower', 'pause', 'faster']) {
       if (inRect(x, y, lay[id])) { S.press = { id: `auto:${id}`, active: true, kind: 'auto', rect: lay[id] }; return; }
     }

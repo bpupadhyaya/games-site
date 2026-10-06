@@ -1,5 +1,5 @@
 // GAME CONTRACT (docs/GAME-CONTRACT.md). Tab: the four-stick race of Egypt and the Arab world, five opponents, a Learn path.
-import { SCREEN, inRect, BACK_BTN, PAUSE_BTN, TOOLBAR_IDS, autoLayout, playLayout } from './layout.js';
+import { inRect, creditHit, titleLayout, TOOLBAR_IDS, autoLayout, playLayout, setLive } from './layout.js';
 import { TEXT_SCALES, hitDoc, clampScroll } from './ui.js';
 import { buildUi, THINK_STEPS, PACES, AUTO_SPEEDS, demoOver, lvName } from './screens.js';
 import { WAIT, HOME, N, makeState, applyThrow, legalMoves, posOf, sqOf, isSafe } from './rules.js';
@@ -7,12 +7,13 @@ import { LEVELS, levelById, startPick, finishPick, searchJob, sortRows, analyse,
 import { LESSONS, lessonStart, judge, REFUSALS, lessonText } from './lessons.js';
 import { createMatch, playMove, undoMatch, tapStone, tapTarget, stepMatch, spawn, canUndo, canThrow, humanTurn, settled, startThrow, refuse, movesOf, isHumanSide } from './match.js';
 import { RULE_COUNT, HOWTO_COUNT, tr, LANGS, SHORT } from './content.js';
-import { themeById, THEMES, bakeSticks, stickDims } from './art.js';
+import { themeById, THEMES, bakeSticks, stickDims, setSize } from './art.js';
 import { render, playGeo, squareAt, exitBadge, yardRect, slotXY } from './view.js';
 
-export const meta = { width: SCREEN.width, height: SCREEN.height };
+// Fluid viewport (kit 1.7.1): the short side is always 720 units, the long side follows the screen; the kit updates width/height live.
+export const meta = { width: 720, height: 1560, fluid: { short: 720 } };
 
-const VERSION = '1.0.1';
+const VERSION = '1.1.0';
 const STEP = 1 / 60;
 const WIN_NOTES = [523, 659, 784, 1047, 1319];
 const AUTO_LV = ['master', 'expert'];
@@ -29,7 +30,7 @@ export async function createGame(env) {
     setup: { level: 'skilled', side: 0, pieces: SHORT }, stats: {}, lessons: {}, save: null, demoGames: 0, progress: { games: 0, wins: 0 },
     page: { howto: 0, rules: 0 }, scroll: {}, scrollVel: {}, press: null, match: null, auto: null, lessonIdx: 0, endInfo: null, lessonInfo: null,
     toast: null, toastT: 0, canUndo: false, winSeq: null, lessonWait: -1, lessonOk: null, lastOpts: null, hintBusy: false, hintDelay: 0,
-    demo: Boolean(config?.demo), dev: Boolean(config?.dev), owns: false, price: '', resetArm: false, version: VERSION, shot: false, lastPtr: { x: 0, y: 0 },
+    demo: Boolean(config?.demo), dev: Boolean(config?.dev), owns: false, price: '', resetArm: false, version: env.manifest?.version || VERSION, shot: false, lastPtr: { x: 0, y: 0 },
     alpha: 1,
   };
   let updAt = 0, stepped = false;
@@ -410,6 +411,7 @@ export async function createGame(env) {
   const toast = (msg) => { S.toast = msg; S.toastT = 2.2; };
 
   function activate(id) {
+    if (id === 'af:home') { env.openArcforgeHome?.(); return; }
     if (id == null) return;
     if (id === 'zoom-') { setText(-1); return; }
     if (id === 'zoom+') { setText(1); return; }
@@ -473,6 +475,10 @@ export async function createGame(env) {
     if (S.scene === 'auto' && !S.overlay) { autoDown(x, y); return; }
     const ui = buildUi(S);
     if (!ui.layout) return;
+    if (S.scene === 'title') {
+      const lk = titleLayout().lockup, zone = lk ? creditHit(lk) : null;
+      if (zone && inRect(x, y, zone)) { S.press = { id: 'af:home', active: true, kind: 'fixed', rect: zone }; return; }
+    }
     const f = fixedHit(ui, x, y);
     if (f) { S.press = { id: f.id, active: true, kind: 'fixed', rect: f.rect }; return; }
     const reg = ui.region;
@@ -542,8 +548,8 @@ export async function createGame(env) {
 
   function playDown(x, y) {
     const { lay } = playGeo(S, S.match);
-    if (inRect(x, y, BACK_BTN)) { S.press = { id: 'hud:back', active: true, kind: 'hud', rect: BACK_BTN }; return; }
-    if (inRect(x, y, PAUSE_BTN)) { S.press = { id: 'hud:pause', active: true, kind: 'hud', rect: PAUSE_BTN }; return; }
+    if (inRect(x, y, lay.back)) { S.press = { id: 'hud:back', active: true, kind: 'hud', rect: lay.back }; return; }
+    if (inRect(x, y, lay.pause)) { S.press = { id: 'hud:pause', active: true, kind: 'hud', rect: lay.pause }; return; }
     for (let i = 0; i < TOOLBAR_IDS.length; i++) {
       if (inRect(x, y, lay.tool[i])) { S.press = { id: `tool:${TOOLBAR_IDS[i]}`, active: true, kind: 'tool', rect: lay.tool[i] }; return; }
     }
@@ -598,7 +604,8 @@ export async function createGame(env) {
 
   // ---- auto
   function autoDown(x, y) {
-    if (inRect(x, y, BACK_BTN)) { S.press = { id: 'auto:exit', active: true, kind: 'auto', rect: BACK_BTN }; return; }
+    const pl = playLayout(TEXT_SCALES[S.textIdx]);
+    if (inRect(x, y, pl.back)) { S.press = { id: 'auto:exit', active: true, kind: 'auto', rect: pl.back }; return; }
     const lay = autoLayout(TEXT_SCALES[S.textIdx]);
     for (const id of ['slower', 'pause', 'faster']) {
       if (inRect(x, y, lay[id])) { S.press = { id: `auto:${id}`, active: true, kind: 'auto', rect: lay[id] }; return; }
@@ -634,15 +641,33 @@ export async function createGame(env) {
     }
     if (has('Escape') && ['setup', 'learn', 'howto', 'rules', 'about', 'settings', 'demo-limit'].includes(S.scene)) gotoScene('title');
     if (S.scene === 'howto' || S.scene === 'rules') {
-      if (has('ArrowRight')) activate(S.lang === 'ar' ? 'prev' : 'next');
-      if (has('ArrowLeft')) activate(S.lang === 'ar' ? 'next' : 'prev');
+      const rui = buildUi(S);
+      if (rui.layout && rui.region) {
+        const by = (d) => setScroll(rui, getScroll(rui) + d);
+        if (has('PageDown') || has('Space')) by(rui.region.h * 0.85);
+        if (has('PageUp')) by(-rui.region.h * 0.85);
+        if (has('Home')) setScroll(rui, 0);
+        if (has('End')) setScroll(rui, 1e9);
+      }
     }
   }
+
+  // The live virtual size (rotation, window resize): everything is laid out from it. A press in flight belongs to the old layout.
+  let sizeKey = '';
+  function syncSize() {
+    setLive(meta.width, meta.height); setSize(meta.width, meta.height);
+    const k = `${meta.width}x${meta.height}`;
+    if (k === sizeKey) return;
+    if (sizeKey) { S.press = null; S.scrollVel = {}; }
+    sizeKey = k;
+  }
+  const keepScrollInRange = (ui) => { if (ui.layout && ui.region && S.scroll[ui.scrollKey] > 0) S.scroll[ui.scrollKey] = clampScroll(S.scroll[ui.scrollKey], ui.layout.height, ui.region.h); };
 
   // ------------------------------------------------------------------------------ main loop
   return {
     update(dt, input) {
       updAt = nowMs(); stepped = true;
+      syncSize();
       // pictures of the sticks are painted a few per frame in the background (fixed work per frame, no clock)
       { const d = stickDims(S.scene === 'play' || S.scene === 'auto' ? playLayout(TEXT_SCALES[S.textIdx]).mat.h : 318); bakeSticks(th(), d.L, d.Wd, S.shot ? 80 : 4); }
       // Watch & Learn's Pause (and the in-game pause card) freezes the whole loop: timers, search, animations, particles, the clock.
@@ -663,6 +688,10 @@ export async function createGame(env) {
       if (ptr.down || ptr.pressed) { S.lastPtr.x = ptr.x; S.lastPtr.y = ptr.y; }
       if (!S.shot && (input.keys.pressed.size || input.keys.down.size)) onKeys(input.keys);
 
+      if ((S.scene === 'howto' || S.scene === 'rules') && S.page[S.scene] > 0) {   // store-shot scenes open the reader at a given page
+        const ui = buildUi(S), it = ui.layout && ui.layout.items.find((q) => q.b.anchor === S.page[S.scene]);
+        S.page[S.scene] = 0; if (it) setScroll(ui, it.y);
+      }
       if (S.wheel) {
         const ui = buildUi(S);
         if (ui.layout && ui.region) setScroll(ui, getScroll(ui) + S.wheel);
@@ -708,11 +737,23 @@ export async function createGame(env) {
     },
 
     render(ctx) {
+      syncSize();
       S.alpha = stepped && env.clock ? Math.max(0, Math.min(1, (nowMs() - updAt) / (STEP * 1000))) : 1;
-      render(ctx, S, buildUi(S));
+      const ui = buildUi(S); keepScrollInRange(ui);
+      render(ctx, S, ui);
     },
 
-    scrollBy(px) { S.wheel += px; },        // the mouse wheel and the tests use the same path
+    scrollBy(px) { S.wheel += px; },
+    // Layout check hook (dev tools and the resize test): every tappable rectangle of the current screen, in screen units.
+    layoutInfo() {
+      const ui = buildUi(S), out = { scene: S.scene, overlay: S.overlay, size: [meta.width, meta.height], fixed: [], doc: [], region: ui.region ?? null, panel: ui.panel ?? null, play: null };
+      for (const f of ui.fixed) if (f.id != null) out.fixed.push({ id: f.id, ...f.rect });
+      if (ui.nav) for (const f of [ui.nav.prev, ui.nav.next]) out.fixed.push({ id: f.id, ...f.rect });
+      if (ui.layout && ui.region) for (const it of ui.layout.items) for (const b of it.btns) if (b.id != null) out.doc.push({ id: b.id, x: ui.region.x + b.x, y: ui.region.y + (ui.offY || 0) + b.y - (S.scroll[ui.scrollKey] ?? 0), w: b.w, h: b.h });
+      if (S.match && (S.scene === 'play' || S.scene === 'auto')) { const pl = playLayout(TEXT_SCALES[S.textIdx]); out.play = { mode: pl.mode, rects: pl.rects, auto: S.scene === 'auto', boardGeo: playGeo(S, S.match).geo.sqXY(0) }; }
+      return out;
+    },
+        // the mouse wheel and the tests use the same path
 
     getState() {
       const M = S.match;

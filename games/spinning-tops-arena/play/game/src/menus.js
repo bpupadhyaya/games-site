@@ -1,9 +1,10 @@
 // Every screen that is not the play screen: title, setup, workshop, settings, result, pause, learn, and the paginated
 // About / How to play / Rules reader with its illustrations (drawn with the game's own tops and dish). Pure drawing;
 // game.js owns state.
-import { W, H, ARENA, ARENAS, ARENA_IDS, BODIES, TIPS, BALLAST, BODY_IDS, TIP_IDS, BALLAST_IDS, WEIGHT, weightOf, legal, partStats, derive, K, STEP } from './sim.js';
+import { ARENA, ARENAS, ARENA_IDS, BODIES, TIPS, BALLAST, BODY_IDS, TIP_IDS, BALLAST_IDS, WEIGHT, weightOf, legal, partStats, derive, K, STEP } from './sim.js';
 import { drawTableLayer, drawDishLayer, drawTop, drawTopPreview, drawMiniDish, topHeight, lookOf, LOOKS, toScreen } from './art.js';
-import { TEXT_SCALES, TEXT_DEC, TEXT_INC, REF_BACK, REF_NEXT, THINK_STEPS, SETUP_PINS } from './layout.js';
+import { TEXT_SCALES, THINK_STEPS, curLayout, minFs } from './layout.js';
+import { drawLockup, drawMoreLine } from './brand.js';
 import { FONT, DISPLAY, C, roundPath, drawButton, panel, wrapLines, textShadow, flowLayout, drawFlow, flowHit } from './ui.js';
 import { PROFILES } from './ai.js';
 import { LESSONS } from './lessons.js';
@@ -12,32 +13,41 @@ const TAU = Math.PI * 2;
 export const LOOK_NAMES = ['Red and cream', 'Blue and cream', 'Amber and brown', 'Green and cream', 'Plum and gold', 'Night and gold'];
 
 // ---- flow screens ------------------------------------------------------------------------------
-let LAID = { key: '', lay: null, top: 0, bottom: H };
+// Every list screen is a scrolling flow of widgets laid out in a column (x, w, top, bottom). The column comes from the live
+// screen layout: centred on a phone, on the right of the screen in landscape (art or the dish on the left).
+let LAID = { key: '', sk: '', lay: null, top: 0, bottom: 0 };
 export const flowMeta = () => LAID;
 // A layout for the scene being updated right now, before anything has been drawn (first frame after a
-// scene change, or headless runs): same widgets, text widths estimated instead of measured.
+// scene change, a rotation, or headless runs): same widgets, text widths estimated instead of measured.
 const estCtx = { font: '', measureText(t) { const m = /(\d+)px/.exec(this.font); return { width: String(t).length * (m ? +m[1] : 20) * 0.52 }; } };
+const PINNED = new Set(['setup', 'workshop', 'learn', 'lessonbrief']);
+const WIDGETS = { title: (st) => titleWidgets(st), setup: (st) => setupWidgets(st), workshop: (st, S) => workshopWidgets(st, S.wide), settings: (st) => settingsWidgets(st), result: (st, S) => resultWidgets(st, S.wide), demolimit: () => demoLimitWidgets(), learn: (st) => learnWidgets(st), lessonbrief: (st) => briefWidgets(st) };
+// the column for a screen: { x, w, top, bottom }
+export function flowGeo(S, key, state) {
+  if (key === 'title') return S.titleGeo(!!state.saved).flow;
+  const c = S.col;
+  if (PINNED.has(key)) return { x: c.x, w: c.w, top: c.top, bottom: c.pinned };
+  if (key === 'result') return { x: c.x, w: c.w, top: c.top, bottom: c.bottom - 40 };
+  return { x: c.x, w: c.w, top: c.top, bottom: c.bottom };
+}
 export function ensureLayout(state, key) {
-  if (LAID.key === key && LAID.lay) return;
-  const defs = {
-    title: [titleWidgets, TITLE_TOP, H], setup: [setupWidgets, 0, 1130], workshop: [workshopWidgets, 0, 1130], settings: [settingsWidgets, 0, H],
-    result: [resultWidgets, 0, H], demolimit: [demoLimitWidgets, 0, H], learn: [learnWidgets, 0, 1130], lessonbrief: [briefWidgets, 0, 1130],
-  };
-  const d = defs[key];
-  if (!d) return;
-  const lay = flowLayout(estCtx, d[0](state), TEXT_SCALES[state.settings.textIdx]);
-  LAID = { key, lay, top: d[1], bottom: d[2], h: lay.contentH };
+  const S = curLayout();
+  if (LAID.key === key && LAID.lay && LAID.sk === S.key) return;
+  const mk = WIDGETS[key];
+  if (!mk) return;
+  const g = flowGeo(S, key, state);
+  const lay = flowLayout(estCtx, mk(state, S), TEXT_SCALES[state.settings.textIdx], { x: g.x, w: g.w });
+  LAID = { key, sk: S.key, lay, top: g.top, bottom: g.bottom, h: lay.contentH };
 }
 export function hitScreen(x, y, scroll) { return LAID.lay ? flowHit(LAID.lay, LAID.top, scroll, x, y) : null; }
 
-const TITLE_TOP = 660;
-
 // ---- the title: a dish with a duel in it, behind the name ----------------------------------------------------------
-export function drawAttract(ctx, state, cy = 475, sc = 0.72) {
+// The duel in the dish, drawn at screen position (cx, cy) with scale sc. The caller has drawn the table.
+export function drawAttract(ctx, state, cx, cy, sc = 0.72) {
   const a = state.att;
-  drawTableLayer(ctx);
+  if (!a) return;
   ctx.save();
-  ctx.translate(ARENA.cx, cy); ctx.scale(sc, sc); ctx.translate(-ARENA.cx, -ARENA.cy);
+  ctx.translate(cx, cy); ctx.scale(sc, sc); ctx.translate(-ARENA.cx, -ARENA.cy);
   drawDishLayer(ctx, a.arena);
   const order = a.w.tops.map((t, i) => ({ t, i })).sort((p, q) => p.t.y - q.t.y);
   for (const { t, i } of order) drawTop(ctx, t, a.looks[i], state.t);
@@ -51,12 +61,9 @@ export function drawAttract(ctx, state, cy = 475, sc = 0.72) {
   ctx.restore();
 }
 
-const heroArt = () => ({
-  t: 'art', h: TITLE_TOP === 590 ? 0 : 0, draw() {},
-});
-
+// "SPINNING TOPS ARENA" in the 720-wide design (centred on x = 360, top of the block at y = 0)
 export function drawTitleText(ctx) {
-  const cx = W / 2;
+  const cx = 360;
   ctx.save(); ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
   ctx.font = `italic 700 44px ${DISPLAY}`;
   textShadow(ctx, 'SPINNING', cx, 84, '#f4c95d', 8);
@@ -65,7 +72,7 @@ export function drawTitleText(ctx) {
   ctx.save(); ctx.shadowColor = 'rgba(18,8,2,0.7)'; ctx.shadowBlur = 14; ctx.shadowOffsetY = 4; ctx.fillStyle = g; ctx.fillText('TOPS', cx, 170); ctx.restore();
   ctx.font = `700 52px ${DISPLAY}`;
   ctx.save(); ctx.shadowColor = 'rgba(18,8,2,0.7)'; ctx.shadowBlur = 12; ctx.shadowOffsetY = 3; ctx.fillStyle = '#ff7a55'; ctx.fillText('ARENA', cx, 222); ctx.restore();
-  ctx.font = `500 24px ${FONT}`; textShadow(ctx, 'Wind it. Launch it. Last one spinning wins.', cx, 262, '#fff3dc', 8);
+  ctx.font = `500 28px ${FONT}`; textShadow(ctx, 'Wind it. Launch it. Last one spinning wins.', cx, 262, '#fff3dc', 8);
   ctx.restore();
 }
 
@@ -115,18 +122,21 @@ export function setupWidgets(state) {
 const statRow = (label, v, col, sub) => ({
   t: 'art', h: 0, label, v, col, sub,
 });
-export function workshopWidgets(state) {
+export function workshopWidgets(state, wide = false) {
   const p = state.wsIdx ?? 0, b = state.builds[p], sc = TEXT_SCALES[state.settings.textIdx];
   const friend = state.setup.mode === 'friend';
   const st = partStats(b);
   const wd = [{ t: 'gap', h: 8 }, { t: 'h', label: friend ? `Workshop · Player ${p + 1}` : 'Workshop', size: 46 }];
-  wd.push({ t: 'art', h: 330, draw: (ctx, w, h) => drawWorkshopPreview(ctx, w, h, b, state) });
-  const rowH = Math.round(46 * Math.min(sc, 3));
-  for (const [lab, val, col] of [['Attack', st.attack, '#ff7a55'], ['Defence', st.defence, '#4fc3a8'], ['Stamina', st.stamina, '#f4c95d']]) {
-    wd.push({ t: 'art', h: rowH, draw: (ctx, w, h) => drawStatRow(ctx, w, h, lab, val, col, sc) });
+  // landscape: the top, its three bars and the weight row live in a fixed pane on the left (drawWorkshopPane)
+  if (!wide) {
+    wd.push({ t: 'art', h: 330, draw: (ctx, w, h) => drawWorkshopPreview(ctx, w, h, b, state) });
+    const rowH = Math.round(46 * Math.min(sc, 3));
+    for (const [lab, val, col] of [['Attack', st.attack, '#ff7a55'], ['Defence', st.defence, '#4fc3a8'], ['Stamina', st.stamina, '#f4c95d']]) {
+      wd.push({ t: 'art', h: rowH, draw: (ctx, w, h) => drawStatRow(ctx, w, h, lab, val, col, sc) });
+    }
+    wd.push({ t: 'p', label: `Spin lasts about ${Math.round(st.life)} s if nothing touches it.`, size: 24, color: 'rgba(255,243,220,0.9)' });
+    wd.push({ t: 'art', h: Math.round(40 * Math.min(sc, 3)), draw: (ctx, w, h) => drawWeightRow(ctx, w, h, b, sc) });
   }
-  wd.push({ t: 'p', label: `Spin lasts about ${Math.round(st.life)} s if nothing touches it.`, size: 24, color: 'rgba(255,243,220,0.9)' });
-  wd.push({ t: 'art', h: Math.round(40 * Math.min(sc, 3)), draw: (ctx, w, h) => drawWeightRow(ctx, w, h, b, sc) });
   wd.push({ t: 'p', label: state.matchupText ?? '', size: 24, color: '#ffe9a0', bold: true });
   wd.push({ t: 'p', label: 'Body', bold: true, color: '#ffe9a0', size: 26 });
   for (const id of BODY_IDS) wd.push({ t: 'btn', id: `body:${id}`, label: BODIES[id].name, sub: BODIES[id].blurb, active: b.body === id, h: 90 });
@@ -179,6 +189,24 @@ function drawWeightRow(ctx, w, h, b, sc) {
   }
 }
 
+// Landscape workshop: the top on a bench with its bars, in the left pane (fixed, never scrolls).
+function drawWorkshopPane(ctx, state, r) {
+  const p = state.wsIdx ?? 0, b = state.builds[p], sc = Math.min(TEXT_SCALES[state.settings.textIdx], 1.6), st = partStats(b);
+  const pad = 20, w = r.w - 2 * pad, rowH = Math.round(46 * sc), rows = 3 * rowH + 24 + Math.round(40 * sc) + 20;
+  const previewH = Math.max(160, Math.min(380, r.h - rows - 70));
+  ctx.save(); ctx.translate(r.x + pad, r.y + 14);
+  drawWorkshopPreview(ctx, w, previewH, b, state);
+  let y = previewH + 10;
+  for (const [lab, val, col] of [['Attack', st.attack, '#ff7a55'], ['Defence', st.defence, '#4fc3a8'], ['Stamina', st.stamina, '#f4c95d']]) {
+    ctx.save(); ctx.translate(0, y); drawStatRow(ctx, w, rowH, lab, val, col, sc); ctx.restore(); y += rowH;
+  }
+  ctx.fillStyle = 'rgba(255,243,220,0.9)'; ctx.font = `400 ${Math.max(minFs(), Math.round(22 * sc))}px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+  const spinFs = Math.max(minFs(), Math.round(22 * sc)), spinLines = wrapLines(ctx, `Spin lasts about ${Math.round(st.life)} s if nothing touches it.`, w - 10);
+  spinLines.forEach((l, i) => ctx.fillText(l, w / 2, y + 26 + i * spinFs * 1.25)); y += 10 + spinLines.length * spinFs * 1.25;
+  ctx.save(); ctx.translate(0, y); drawWeightRow(ctx, w, Math.round(40 * sc), b, sc); ctx.restore();
+  ctx.restore();
+}
+
 export function settingsWidgets(state) {
   const st = state.settings, sc = TEXT_SCALES[st.textIdx];
   return [
@@ -199,13 +227,13 @@ export function settingsWidgets(state) {
   ];
 }
 
-export function resultWidgets(state) {
+export function resultWidgets(state, wide = false) {
   const m = state.match, o = m.over, mode = m.cfg.mode;
   const winner = o.win;
   const nm = (s) => m.cfg.names[s];
   const title = mode === 'watch' ? `${nm(winner)} wins` : mode === 'friend' ? `${nm(winner)} wins!` : winner === 0 ? 'You win the match!' : `${nm(1)} wins`;
   const big = TEXT_SCALES[state.settings.textIdx] > 1.5;
-  const wd = [{ t: 'gap', h: big ? 24 : 200 }, { t: 'h', label: title, size: 60, cap: big ? 1.15 : 1.4 }, { t: 'h', label: `${m.wins[0]} – ${m.wins[1]}`, size: 84, cap: big ? 1.1 : 1.3, color: '#ffd97a' }];
+  const wd = [{ t: 'gap', h: wide ? 24 : big ? 24 : 200 }, { t: 'h', label: title, size: 60, cap: big ? 1.15 : 1.4 }, { t: 'h', label: `${m.wins[0]} – ${m.wins[1]}`, size: 84, cap: big ? 1.1 : 1.3, color: '#ffd97a' }];
   if (mode === 'ai') {
     const l1 = `Knock-outs by ring-out: ${m.stats.outs}. Longest spin of yours: ${Math.round(m.stats.best)} s.`;
     const l2 = `Against ${PROFILES[m.cfg.opp].name}, you have won ${(state.record?.wins ?? [])[m.cfg.opp] ?? 0}.`;
@@ -257,14 +285,16 @@ export function demoLimitWidgets() {
   ];
 }
 
+const clampN = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 function scrim(ctx, a = 0.55) {
-  const g = ctx.createLinearGradient(0, 0, 0, H);
+  const S = curLayout();
+  const g = ctx.createLinearGradient(0, 0, 0, S.h);
   g.addColorStop(0, `rgba(24,10,4,${a * 0.7})`); g.addColorStop(0.5, `rgba(24,10,4,${a})`); g.addColorStop(1, `rgba(24,10,4,${Math.min(0.94, a + 0.3)})`);
-  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = g; ctx.fillRect(0, 0, S.w, S.h);
 }
 
 // An obvious "there is more below / above" cue for any list that scrolls: soft fade plus a chevron pill.
-function scrollHint(ctx, top, bottom, scroll, maxScroll, x0 = 0, w = W) {
+function scrollHint(ctx, top, bottom, scroll, maxScroll, x0, w) {
   if (maxScroll <= 0) return;
   const cx = x0 + w / 2;
   if (scroll < maxScroll - 4) {
@@ -278,106 +308,141 @@ function scrollHint(ctx, top, bottom, scroll, maxScroll, x0 = 0, w = W) {
   }
 }
 
-function drawFlowScreen(ctx, state, key, widgets, top, bottom) {
-  const sc = TEXT_SCALES[state.settings.textIdx];
-  const lay = flowLayout(ctx, widgets, sc);
-  LAID = { key, lay, top, bottom, h: lay.contentH };
+// landscape: the column sits on a dark card, the art or the dish fills the left
+function columnCard(ctx, S) {
+  if (!S.wide) return;
+  const c = S.col, U = S.U;
+  roundPath(ctx, c.x - 16, U.y0 + 4, c.w + 32, U.h - 8, 26); ctx.fillStyle = 'rgba(18,8,2,0.62)'; ctx.fill();
+  ctx.strokeStyle = 'rgba(255,243,220,0.2)'; ctx.lineWidth = 1.5; ctx.stroke();
+}
+// the duel from the title, large in the landscape left pane
+function paneDish(ctx, state, S) {
+  const p = S.col.pane;
+  if (!p || !state.att) return;
+  const sc = clampN(Math.min((p.w - 24) / 620, (p.h - 40) / 560), 0.3, 1.0);
+  drawAttract(ctx, state, p.x + p.w / 2, p.y + p.h / 2 + 10, sc);
+}
+function backdrop(ctx, state, dim, att) {
+  const S = curLayout();
+  drawTableLayer(ctx);
+  if (S.wide) { if (att !== null) paneDish(ctx, state, S); scrim(ctx, Math.min(dim, 0.4)); columnCard(ctx, S); } else { if (att && state.att) drawAttract(ctx, state, S.w / 2, 320, 0.4); scrim(ctx, dim); }
+  return S;
+}
+
+function drawFlowScreen(ctx, state, key, widgets, geo) {
+  const S = curLayout(), sc = TEXT_SCALES[state.settings.textIdx], { x, w, top, bottom } = geo;
+  const lay = flowLayout(ctx, widgets, sc, { x, w });
+  LAID = { key, sk: S.key, lay, top, bottom, h: lay.contentH };
   const maxScroll = Math.max(0, lay.contentH - (bottom - top));
   const scroll = Math.min(state.ui.scroll, maxScroll);
   drawFlow(ctx, lay, top, bottom, scroll);
   if (maxScroll > 0) {
     const th = Math.max(60, (bottom - top) * ((bottom - top) / lay.contentH)), ty = top + (scroll / maxScroll) * (bottom - top - th);
-    roundPath(ctx, W - 10, ty, 5, th, 3); ctx.fillStyle = 'rgba(255,243,220,0.5)'; ctx.fill();
-    scrollHint(ctx, top, bottom, scroll, maxScroll);
+    roundPath(ctx, Math.min(x + w + 8, S.w - 8), ty, 5, th, 3); ctx.fillStyle = 'rgba(255,243,220,0.5)'; ctx.fill();
+    scrollHint(ctx, top, bottom, scroll, maxScroll, x - 20, w + 40);
   }
   return { scroll, maxScroll, lay };
 }
 
-const attScene = (ctx, state, cy = 475, sc = 0.72) => drawAttract(ctx, state, cy, sc);
-
 export function renderTitle(ctx, state) {
-  attScene(ctx, state);
-  const g = ctx.createLinearGradient(0, 0, 0, 340); g.addColorStop(0, 'rgba(18,8,2,0.55)'); g.addColorStop(1, 'rgba(18,8,2,0)');
-  ctx.fillStyle = g; ctx.fillRect(0, 0, W, 340);
-  const g2 = ctx.createLinearGradient(0, TITLE_TOP - 50, 0, TITLE_TOP + 40); g2.addColorStop(0, 'rgba(18,8,2,0)'); g2.addColorStop(1, 'rgba(18,8,2,0.86)');
-  ctx.fillStyle = g2; ctx.fillRect(0, TITLE_TOP - 50, W, 90);
-  ctx.fillStyle = 'rgba(18,8,2,0.86)'; ctx.fillRect(0, TITLE_TOP + 40, W, H - TITLE_TOP - 40);
-  drawTitleText(ctx);
-  drawFlowScreen(ctx, state, 'title', titleWidgets(state), TITLE_TOP, H);
-  if (state.demo) { ctx.textAlign = 'center'; ctx.font = `400 18px ${FONT}`; ctx.fillStyle = 'rgba(255,243,220,0.6)'; ctx.fillText('Web demo', W / 2, H - 14); }
+  const S = curLayout(), g = S.titleGeo(!!state.saved), k = g.art.k;
+  drawTableLayer(ctx);
+  const px = g.split ? S.col.pane.x : 0, pw = g.split ? S.col.pane.w : S.w;
+  ctx.save(); ctx.translate(g.art.cx - 360 * k, g.art.y); ctx.scale(k, k);
+  drawAttract(ctx, state, 360, 475, 0.72);
+  ctx.restore();
+  const sh = ctx.createLinearGradient(0, 0, 0, g.art.y + 340 * k); sh.addColorStop(0, 'rgba(18,8,2,0.55)'); sh.addColorStop(1, 'rgba(18,8,2,0)');
+  ctx.fillStyle = sh; ctx.fillRect(px, 0, pw, g.art.y + 340 * k);
+  if (g.split) columnCard(ctx, S);
+  else {
+    const g2 = ctx.createLinearGradient(0, g.top - 50, 0, g.top + 40); g2.addColorStop(0, 'rgba(18,8,2,0)'); g2.addColorStop(1, 'rgba(18,8,2,0.86)');
+    ctx.fillStyle = g2; ctx.fillRect(0, g.top - 50, S.w, 90);
+    ctx.fillStyle = 'rgba(18,8,2,0.86)'; ctx.fillRect(0, g.top + 40, S.w, S.h - g.top - 40);
+  }
+  ctx.save(); ctx.translate(g.art.cx - 360 * k, g.art.y); ctx.scale(k, k); drawTitleText(ctx); ctx.restore();
+  drawFlowScreen(ctx, state, 'title', titleWidgets(state), g.flow);
+  drawLockup(ctx, g.lockup.cx, g.lockup.y, S.lockup.w);
+  if (state.demo) { ctx.textAlign = 'right'; ctx.textBaseline = 'alphabetic'; ctx.font = `400 ${minFs()}px ${FONT}`; ctx.fillStyle = 'rgba(255,243,220,0.6)'; ctx.fillText('Web demo', S.U.x1 - 14, S.U.y0 + minFs() + 8); }
 }
 export function renderSetup(ctx, state) {
-  attScene(ctx, state, 320, 0.4);
-  scrim(ctx, 0.74);
-  drawFlowScreen(ctx, state, 'setup', setupWidgets(state), 0, 1130);
+  const S = backdrop(ctx, state, 0.74, true);
+  drawFlowScreen(ctx, state, 'setup', setupWidgets(state), flowGeo(S, 'setup', state));
   pinnedBar(ctx, state, state.setup.mode === 'friend' ? 'Build the tops' : 'To the workshop', state.setupMsg);
 }
-function pinnedBar(ctx, state, startLabel, msg) {
-  const g = ctx.createLinearGradient(0, 1100, 0, H);
+function pinnedBar(ctx, state, startLabel, msg, backLabel = 'Back') {
+  const S = curLayout(), P = S.pins;
+  const g = ctx.createLinearGradient(0, P.gradY, 0, S.h);
   g.addColorStop(0, 'rgba(24,10,4,0)'); g.addColorStop(0.2, 'rgba(24,10,4,0.9)'); g.addColorStop(1, 'rgba(24,10,4,0.96)');
-  ctx.fillStyle = g; ctx.fillRect(0, 1100, W, H - 1100);
+  ctx.fillStyle = g; ctx.fillRect(P.x0, P.gradY, P.w, S.h - P.gradY);
   const z = Math.min(TEXT_SCALES[state.settings.textIdx], 1.5);
-  drawButton(ctx, SETUP_PINS.start, startLabel, { primary: true, size: Math.round(32 * z) });
-  drawButton(ctx, SETUP_PINS.back, 'Back', { dark: true, size: Math.round(28 * z) });
-  if (msg) { ctx.textAlign = 'center'; ctx.font = `700 22px ${FONT}`; ctx.fillStyle = '#ffd9a0'; ctx.fillText(msg, W / 2, 1140); }
+  drawButton(ctx, P.start, startLabel, { primary: true, size: Math.round(32 * z) });
+  if (backLabel) drawButton(ctx, P.back, backLabel, { dark: true, size: Math.round(28 * z) });
+  if (msg) { ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'; ctx.font = `700 ${Math.max(22, minFs())}px ${FONT}`; ctx.fillStyle = '#ffd9a0'; ctx.fillText(msg, S.col.x + S.col.w / 2, P.y - 16); }
 }
 export function renderWorkshop(ctx, state) {
-  drawTableLayer(ctx);
-  scrim(ctx, 0.62);
-  drawFlowScreen(ctx, state, 'workshop', workshopWidgets(state), 0, 1130);
+  const S = backdrop(ctx, state, 0.62, null);
+  if (S.wide) drawWorkshopPane(ctx, state, S.col.pane);
+  drawFlowScreen(ctx, state, 'workshop', workshopWidgets(state, S.wide), flowGeo(S, 'workshop', state));
   const friend = state.setup.mode === 'friend', p = state.wsIdx ?? 0;
   pinnedBar(ctx, state, friend && p === 0 ? 'Next: Player 2' : state.match?.cfg?.lesson != null ? 'Start the lesson' : 'Start the duel', state.setupMsg);
 }
 export function renderSettings(ctx, state) {
-  drawTableLayer(ctx); scrim(ctx, 0.7);
-  drawFlowScreen(ctx, state, 'settings', settingsWidgets(state), 0, H);
+  const S = backdrop(ctx, state, 0.7, false);
+  drawFlowScreen(ctx, state, 'settings', settingsWidgets(state), flowGeo(S, 'settings', state));
 }
 export function renderLearn(ctx, state) {
-  drawTableLayer(ctx); scrim(ctx, 0.7);
-  drawFlowScreen(ctx, state, 'learn', learnWidgets(state), 0, 1130);
-  const g = ctx.createLinearGradient(0, 1100, 0, H); g.addColorStop(0, 'rgba(24,10,4,0)'); g.addColorStop(0.2, 'rgba(24,10,4,0.9)'); g.addColorStop(1, 'rgba(24,10,4,0.96)');
-  ctx.fillStyle = g; ctx.fillRect(0, 1100, W, H - 1100);
-  drawButton(ctx, SETUP_PINS.start, 'Back', { primary: true, size: Math.round(32 * Math.min(TEXT_SCALES[state.settings.textIdx], 1.5)) });
+  const S = backdrop(ctx, state, 0.7, false);
+  drawFlowScreen(ctx, state, 'learn', learnWidgets(state), flowGeo(S, 'learn', state));
+  pinnedBar(ctx, state, 'Back', '', null);
 }
 export function renderBrief(ctx, state) {
-  drawTableLayer(ctx); scrim(ctx, 0.7);
-  drawFlowScreen(ctx, state, 'lessonbrief', briefWidgets(state), 0, 1130);
+  const S = backdrop(ctx, state, 0.7, false);
+  drawFlowScreen(ctx, state, 'lessonbrief', briefWidgets(state), flowGeo(S, 'lessonbrief', state));
   pinnedBar(ctx, state, 'Begin', '');
 }
+// `sceneDraw(ctx, xf)` paints the finished round (the dish and its tops) through the design -> screen transform
 export function renderResult(ctx, state, sceneDraw) {
-  sceneDraw(ctx);
-  scrim(ctx, 0.62);
-  drawFlowScreen(ctx, state, 'result', resultWidgets(state), 0, H);
+  const S = curLayout();
+  drawTableLayer(ctx);
+  let xf;
+  if (S.wide) { const p = S.col.pane, s = clampN(Math.min((p.w - 24) / 620, (p.h - 24) / 560), 0.3, 1.1); xf = { s, tx: p.x + p.w / 2 - 360 * s, ty: p.y + p.h / 2 - 700 * s }; } else xf = S.play(state.settings.textIdx).xf;
+  sceneDraw(ctx, xf);
+  scrim(ctx, S.wide ? 0.3 : 0.62);
+  columnCard(ctx, S);
+  drawFlowScreen(ctx, state, 'result', resultWidgets(state, S.wide), flowGeo(S, 'result', state));
+  drawMoreLine(ctx, S.footLine.cx, S.footLine.y, Math.max(20, minFs()));
 }
 export function renderDemoLimit(ctx, state) {
-  drawTableLayer(ctx); scrim(ctx, 0.75);
-  drawFlowScreen(ctx, state, 'demolimit', demoLimitWidgets(), 0, H);
+  const S = backdrop(ctx, state, 0.75, false);
+  drawFlowScreen(ctx, state, 'demolimit', demoLimitWidgets(), flowGeo(S, 'demolimit', state));
 }
 export function renderPause(ctx, state) {
+  const S = curLayout(), PG = S.pause;
   scrim(ctx, 0.55);
   const wd = pauseWidgets(state);
   const sc = TEXT_SCALES[state.settings.textIdx];
-  const lay = flowLayout(ctx, wd, sc, { x: 60, w: 600 });
-  const top = 70, bottom = H - 70;
+  const lay = flowLayout(ctx, wd, sc, { x: PG.x + 30, w: PG.w - 60 });
+  const top = PG.top, bottom = PG.bottom;
   const ch = Math.min(lay.contentH + 20, bottom - top);
-  const y0 = Math.max(top, (H - ch) / 2);
-  panel(ctx, 30, y0 - 20, 660, ch + 40, { r: 30, fill: 'rgba(52,30,16,0.95)', stroke: 'rgba(255,243,220,0.45)' });
-  LAID = { key: 'pause', lay, top: y0, bottom: y0 + ch, h: lay.contentH };
+  const y0 = top + (bottom - top - ch) / 2;
+  panel(ctx, PG.x, y0 - 20, PG.w, ch + 40, { r: 30, fill: 'rgba(52,30,16,0.95)', stroke: 'rgba(255,243,220,0.45)' });
+  LAID = { key: 'pause', sk: S.key, lay, top: y0, bottom: y0 + ch, h: lay.contentH };
   const maxScroll = Math.max(0, lay.contentH - ch);
   const sc0 = Math.min(state.ui.scroll, maxScroll);
   drawFlow(ctx, lay, y0, y0 + ch, sc0);
-  scrollHint(ctx, y0, y0 + ch, sc0, maxScroll, 30, 660);
+  scrollHint(ctx, y0, y0 + ch, sc0, maxScroll, PG.x, PG.w);
 }
 
 // ---- reference pages --------------------------------------------------------------------------
-let PAGE_COUNT = 1;
-export const pageCount = () => PAGE_COUNT;
-const PANEL = { x: 34, y: 100, w: 652, h: 1030 };
+// One continuous SCROLLING reader (drag, wheel, keys, scroll bar): READER is refreshed on every draw for the input code.
+export const READER = { max: 0, view: 0, y0: 0, y1: 0 };
+export const refCloseRect = () => { const RF = curLayout().ref; return { x: RF.back.x, y: RF.back.y, w: RF.next.x + RF.next.w - RF.back.x, h: RF.back.h }; };
 
-function buildPages(ctx, list, scale) {
+function buildPages(ctx, list, scale, PANEL) {
   const fs = Math.round(28 * scale), lh = fs * 1.28, tw = PANEL.w - 80;
   const secFs = Math.round(34 * Math.min(scale, 1.3));
-  const top = PANEL.y + 120, limit = PANEL.y + PANEL.h - 70;
+  const top = PANEL.y + 120, limit = Infinity;
+  const showArt = scale < 2 && PANEL.h >= 640;
   const pages = [];
   let cur = null, used = 0;
   const newPage = () => { cur = { blocks: [], fs, lh, secFs }; used = 0; pages.push(cur); };
@@ -392,14 +457,14 @@ function buildPages(ctx, list, scale) {
       wl.forEach((l, k) => lines.push({ text: l, gapBefore: k === 0 && pi > 0 }));
     });
     const lineH = (l, n) => lh + (l.gapBefore && n > 0 ? lh * 0.45 : 0);
-    const artH = sec.art && scale < 2 ? 210 : 0;
+    const artH = sec.art && showArt ? 210 : 0;
     let full = titleH + artH + 26;
     lines.forEach((l, k) => { full += lineH(l, k); });
     const minNeed = titleH + artH + 26 + lh * 3;
     if (!cur || (used + full > limit - top && used + minNeed > limit - top)) newPage();
     let i = 0, part = 0;
     while (true) {
-      const blk = { title: sec.title, tl, titleH, art: part === 0 ? sec.art : null, artH: part === 0 ? artH : 0, lines: [], part };
+      const blk = { title: sec.title, tl, titleH, art: part === 0 && artH ? sec.art : null, artH: part === 0 ? artH : 0, lines: [], part };
       let h = titleH + blk.artH + 26;
       while (i < lines.length) {
         const add = lineH(lines[i], blk.lines.length);
@@ -412,33 +477,37 @@ function buildPages(ctx, list, scale) {
       newPage();
     }
   });
+  pages.forEach((pg) => { pg.total = used; });
   return pages;
 }
 
 const pageCache = new Map();
 export function renderPages(ctx, state, list, header) {
+  const S = curLayout(), RF = S.ref, PANEL = RF.panel;
   drawTableLayer(ctx);
   scrim(ctx, 0.7);
   const sc = TEXT_SCALES[state.settings.textIdx];
-  const pkey = `${header}:${sc}`;
+  const pkey = `${header}:${sc}:${Math.round(PANEL.w)}x${Math.round(PANEL.h)}`;
   let pages = pageCache.get(pkey);
-  if (!pages) { pages = buildPages(ctx, list, sc); pageCache.set(pkey, pages); }
-  PAGE_COUNT = pages.length;
-  const idx = Math.min(state.page, pages.length - 1);
-  const pg = pages[idx];
+  if (!pages) { pages = buildPages(ctx, list, sc, PANEL); pageCache.set(pkey, pages); if (pageCache.size > 60) pageCache.delete(pageCache.keys().next().value); }
+  const pg = pages[0], pcx = PANEL.x + PANEL.w / 2;
   panel(ctx, PANEL.x, PANEL.y, PANEL.w, PANEL.h, { r: 30, fill: 'rgba(255,243,220,0.97)', stroke: 'rgba(46,26,15,0.6)' });
   ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
   ctx.fillStyle = C.vermDark; ctx.font = `italic 700 ${Math.round(42 * Math.min(sc, 1.15))}px ${DISPLAY}`;
-  ctx.fillText(header, W / 2, PANEL.y + 58);
+  ctx.fillText(header, pcx, PANEL.y + 58);
   ctx.strokeStyle = 'rgba(46,26,15,0.3)'; ctx.lineWidth = 2;
   ctx.beginPath(); ctx.moveTo(PANEL.x + 60, PANEL.y + 78); ctx.lineTo(PANEL.x + PANEL.w - 60, PANEL.y + 78); ctx.stroke();
-  let y = PANEL.y + 120;
+  const cy0 = PANEL.y + 112, cy1 = PANEL.y + PANEL.h - 62;
+  READER.max = Math.max(0, Math.ceil(pg.total - (cy1 - cy0 - 8))); READER.view = cy1 - cy0; READER.y0 = cy0; READER.y1 = cy1;
+  state.ui.scroll = Math.max(0, Math.min(READER.max, state.ui.scroll || 0));
+  ctx.save(); ctx.beginPath(); ctx.rect(PANEL.x + 4, cy0, PANEL.w - 8, cy1 - cy0); ctx.clip();
+  let y = PANEL.y + 120 - state.ui.scroll;
   pg.blocks.forEach((blk, bi) => {
     if (bi > 0) { ctx.strokeStyle = 'rgba(46,26,15,0.2)'; ctx.beginPath(); ctx.moveTo(PANEL.x + 80, y - 8); ctx.lineTo(PANEL.x + PANEL.w - 80, y - 8); ctx.stroke(); y += 8; }
     ctx.textAlign = 'center'; ctx.fillStyle = C.indigo; ctx.font = `700 ${pg.secFs}px ${FONT}`;
-    blk.tl.forEach((l, k) => ctx.fillText(l + (blk.part > 0 && k === blk.tl.length - 1 ? ' (cont.)' : ''), W / 2, y + pg.secFs * (0.9 + k * 1.2) - 8));
+    blk.tl.forEach((l, k) => ctx.fillText(l + (blk.part > 0 && k === blk.tl.length - 1 ? ' (cont.)' : ''), pcx, y + pg.secFs * (0.9 + k * 1.2) - 8));
     y += blk.titleH;
-    if (blk.art) { ctx.save(); ctx.beginPath(); ctx.rect(PANEL.x + 20, y, PANEL.w - 40, blk.artH); ctx.clip(); drawArt(blk.art, ctx, PANEL.x + 40, y, PANEL.w - 80, blk.artH - 12, state); ctx.restore(); y += blk.artH; }
+    if (blk.art) { const aw = Math.min(PANEL.w - 80, 700); ctx.save(); ctx.beginPath(); ctx.rect(PANEL.x + 20, y, PANEL.w - 40, blk.artH); ctx.clip(); drawArt(blk.art, ctx, pcx - aw / 2, y, aw, blk.artH - 12, state); ctx.restore(); y += blk.artH; }
     ctx.fillStyle = C.ink; ctx.font = `400 ${pg.fs}px ${FONT}`; ctx.textAlign = 'left';
     blk.lines.forEach((l, k) => {
       if (l.gapBefore && k > 0) y += pg.lh * 0.45;
@@ -447,19 +516,23 @@ export function renderPages(ctx, state, list, header) {
     });
     y += 26;
   });
-  ctx.textAlign = 'center'; ctx.font = `400 22px ${FONT}`; ctx.fillStyle = 'rgba(46,26,15,0.7)';
-  ctx.fillText(`Page ${idx + 1} of ${pages.length}`, W / 2, PANEL.y + PANEL.h - 28);
-  drawButton(ctx, TEXT_DEC, 'A−', { disabled: state.settings.textIdx === 0, size: 30 });
-  drawButton(ctx, TEXT_INC, 'A+', { disabled: state.settings.textIdx === TEXT_SCALES.length - 1, size: 30 });
+  ctx.restore();
+  if (READER.max > 0) {
+    const th = Math.max(50, (cy1 - cy0) * ((cy1 - cy0) / pg.total)), ty = cy0 + (state.ui.scroll / READER.max) * (cy1 - cy0 - th);
+    roundPath(ctx, PANEL.x + PANEL.w - 14, ty, 6, th, 3); ctx.fillStyle = 'rgba(46,26,15,0.5)'; ctx.fill();
+    ctx.textAlign = 'center'; ctx.font = `400 ${Math.max(22, minFs())}px ${FONT}`; ctx.fillStyle = 'rgba(46,26,15,0.7)';
+    ctx.fillText(state.ui.scroll < READER.max - 4 ? '▼' : '▲', pcx, PANEL.y + PANEL.h - 28);
+  }
+  drawButton(ctx, RF.dec, 'A−', { disabled: state.settings.textIdx === 0, size: 30 });
+  drawButton(ctx, RF.inc, 'A+', { disabled: state.settings.textIdx === TEXT_SCALES.length - 1, size: 30 });
   ctx.fillStyle = '#fff3dc'; ctx.font = `700 24px ${FONT}`; ctx.textAlign = 'center';
-  ctx.fillText(`${Math.round(sc * 100)}%`, W / 2, 56);
-  drawButton(ctx, REF_BACK, idx === 0 ? 'Close' : 'Back', { size: 32 });
-  drawButton(ctx, REF_NEXT, idx === pages.length - 1 ? 'Done' : 'Next', { primary: true, size: 32 });
+  ctx.fillText(`${Math.round(sc * 100)}%`, RF.pct.x, RF.pct.y);
+  drawButton(ctx, refCloseRect(), 'Close', { primary: true, size: 32 });
 }
 
 // ---- illustrations ----------------------------------------------------------------------------
 function label(ctx, t, x, y, size = 20, col = '#fff3dc', align = 'center') {
-  ctx.save(); ctx.fillStyle = col; ctx.font = `700 ${size}px ${FONT}`; ctx.textAlign = align; ctx.textBaseline = 'alphabetic';
+  ctx.save(); ctx.fillStyle = col; ctx.font = `700 ${Math.max(size, minFs())}px ${FONT}`; ctx.textAlign = align; ctx.textBaseline = 'alphabetic';
   ctx.shadowColor = 'rgba(18,8,2,0.6)'; ctx.shadowBlur = 4; ctx.fillText(t, x, y); ctx.restore();
 }
 function panelBg(ctx, w, h) {
@@ -481,7 +554,7 @@ export function drawArt(key, ctx, x, y, w, h) {
   const A = {
     dish() {
       panelBg(ctx, w, h); drawMiniDish(ctx, w, h);
-      tp(ctx, B0, 0, w * 0.32, h * 0.72, 0.7, { spin: 0.4 }); tp(ctx, { body: 'disc', tip: 'pebble', ballast: 'std', hand: -1 }, 1, w * 0.66, h * 0.4, 0.7, { spin: 0.4 });
+      tp(ctx, B0, 0, w * 0.32, h * 0.72, 0.7, { spin: 0.4 }); tp(ctx, { body: 'disc', tip: 'pebble', ballast: 'std', hand: -1 }, 1, w * 0.66, h * 0.56, 0.7, { spin: 0.4 });
       label(ctx, 'The dish pulls tops toward the middle', w / 2, 24, 19);
     },
     launch() {

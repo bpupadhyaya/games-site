@@ -1,5 +1,5 @@
 // GAME CONTRACT (docs/GAME-CONTRACT.md). Seega: placement, custodian capture, five opponent levels, a tutor path.
-import { SCREEN, inRect, BACK_BTN, PAUSE_BTN, TOOLBAR_IDS, autoLayout, playLayout } from './layout.js';
+import { SCREEN, lockHit, inRect, BACK_BTN, PAUSE_BTN, TOOLBAR_IDS, autoLayout, playLayout, setSize } from './layout.js';
 import { TEXT_SCALES, hitDoc, clampScroll } from './ui.js';
 import { buildUi, THINK_STEPS, demoLevelLocked, demoOver, recKey } from './screens.js';
 import { NN, N, CENTRE, STALL_LIMIT, legalMoves, applyMove, isPlacing, countOf, other } from './rules.js';
@@ -12,9 +12,12 @@ import { setLang, getLang } from './lang.js';
 import { boardGeo, themeById, THEMES } from './art.js';
 import { render } from './view.js';
 
-export const meta = { width: SCREEN.width, height: SCREEN.height };
+// Fluid viewport (kit 1.7): the short side is always 720 units, the long side follows the screen; the kit updates width / height live.
+export const meta = { width: SCREEN.width, height: SCREEN.height, fluid: { short: 720 } };
+// Mouse-wheel travel (virtual units) collected by main.js and consumed by the scrolling document screens; empty in headless runs.
+export const wheelInput = { dy: 0 };
 
-const VERSION = '1.0.0';
+const VERSION = '1.1.2';   // fallback only: the About page shows env.manifest.version (game.json) when the kit provides it
 const WIN_NOTES = [523, 659, 784, 1047, 1319];
 // Watch & Learn: Skilled plays the pebbles and Casual the date stones, which gives a lively game with captures and a finish.
 const AUTO_LEVEL = { 1: 'skilled', 2: 'casual' };
@@ -27,7 +30,7 @@ export async function createGame(env) {
     setup: { level: 'skilled', side: 1 }, stats: {}, lessons: {}, save: null, demoGames: 0, progress: { games: 0, wins: 0 },
     page: { howto: 0, rules: 0 }, scroll: {}, scrollVel: {}, press: null, match: null, auto: null, lessonIdx: 0, endInfo: null, lessonInfo: null,
     toast: null, toastT: 0, ghost: -1, ghostWho: 0, kbd: false, canUndo: false, firstGame: true, winSeq: null, lessonWait: -1, lessonOk: null, lastOpts: null,
-    demo: Boolean(config?.demo), dev: Boolean(config?.dev), owns: false, price: '', resetArm: false, version: VERSION, shot: false, lastPtr: { x: 0, y: 0 },
+    demo: Boolean(config?.demo), dev: Boolean(config?.dev), owns: false, price: '', resetArm: false, version: env.manifest?.version ?? VERSION, shot: false, lastPtr: { x: 0, y: 0 },
   };
 
   const [set, stats, les, save, dg, prog] = await Promise.all([storage.get('sg.settings', null), storage.get('sg.stats', null), storage.get('sg.lessons', null), storage.get('sg.save', null), storage.get('sg.demo', 0), storage.get('sg.progress', null)]);
@@ -483,6 +486,7 @@ export async function createGame(env) {
     if (S.scene === 'auto' && !S.overlay) { autoDown(x, y); return; }
     const ui = buildUi(S);
     if (!ui.layout) return;
+    if (S.scene === 'title') { const hz = lockHit(); if (inRect(x, y, hz)) { S.press = { id: 'lock', active: true, kind: 'lock', rect: hz }; return; } }
     const f = fixedHit(ui, x, y);
     if (f) { S.press = { id: f.id, active: true, kind: 'fixed', rect: f.rect }; return; }
     const reg = ui.region;
@@ -524,6 +528,7 @@ export async function createGame(env) {
       if (S.scene === 'play' && S.match && !S.overlay && cellAt(x, y) === pr.id) { S.kbd = false; S.match.cur = pr.id; tapCell(S.match, pr.id); }
       return;
     }
+    if (pr.kind === 'lock') { if (inRect(x, y, pr.rect)) env.openArcforgeHome?.(); return; }
     if (pr.kind === 'doc') {
       const ui = buildUi(S);
       if (!ui.layout || !ui.region) return;
@@ -611,17 +616,21 @@ export async function createGame(env) {
     if (ui.layout && ui.region) {
       if (keys.down.has('ArrowDown') || keys.down.has('PageDown')) setScroll(ui, getScroll(ui) + 18);
       if (keys.down.has('ArrowUp') || keys.down.has('PageUp')) setScroll(ui, getScroll(ui) - 18);
+      if (has('Home')) setScroll(ui, 0);
+      if (has('End')) setScroll(ui, 1e9);
     }
     if (has('Escape') && ['setup', 'learn', 'howto', 'rules', 'about', 'settings', 'demo-limit'].includes(S.scene)) gotoScene('title');
-    if (S.scene === 'howto' || S.scene === 'rules') {
-      if (has('ArrowRight')) activate('next');
-      if (has('ArrowLeft')) activate('prev');
-    }
   }
 
   // ------------------------------------------------------------------------------ main loop
   return {
     update(dt, input) {
+      setSize(meta.width, meta.height);
+      if (wheelInput.dy) {
+        const ui = buildUi(S);
+        if (ui.layout && ui.region) setScroll(ui, getScroll(ui) + wheelInput.dy);
+        wheelInput.dy = 0;
+      }
       // Watch & Learn's Pause (and the in-game pause card) freezes the whole loop: timers, search, animations, particles, the ambient clock.
       const frozen = (S.scene === 'auto' && S.auto && S.auto.paused) || S.overlay === 'pause';
       if (!frozen) S.t += dt;
@@ -676,6 +685,7 @@ export async function createGame(env) {
     },
 
     render(ctx) {
+      setSize(meta.width, meta.height);
       render(ctx, S, buildUi(S));
     },
 

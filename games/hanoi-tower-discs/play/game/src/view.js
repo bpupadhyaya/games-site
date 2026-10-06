@@ -1,14 +1,15 @@
 // Everything drawn each frame. Reads state, changes nothing.
 import {
-  W, H, UI, DISPLAY, DISC_COLORS, GOLD, PAPER, text, rr, panel, button, background, star, icon, drawParticles,
+  view, UI, DISPLAY, DISC_COLORS, GOLD, PAPER, text, rr, panel, button, background, star, icon, drawParticles,
   drawDisc, drawRod, drawSlab, drawMiniTower, ryOf, alpha, light, dark,
 } from './art.js';
-import { SCENE, squashOf, allRest, stackOf, topDisc, canMove, pegAt } from './puzzle.js';
+import { squashOf, allRest, stackOf, topDisc, canMove, pegAt } from './puzzle.js';
+import { drawMoreLine, drawLockup } from './brand.js';
 import { recursivePlan, classicMoves } from './solver.js';
 import { LEVELS, levelStart } from './levels.js';
 import { tr, RULES } from './content.js';
 import { TEXT_SCALES } from './ui.js';
-import { BACK_BTN, PAUSE_BTN, TOOLBAR_IDS, toolRect, AUTO_BTNS, DOC_PANEL, NAV_PREV, NAV_NEXT } from './layout.js';
+import { TOOLBAR_IDS, layoutFor } from './layout.js';
 import { THINK_STEPS } from './screens.js';
 
 const ease = (t) => 1 - (1 - t) ** 3;
@@ -19,6 +20,7 @@ const PEG = (i) => 'ABCD'[i];
 // ----------------------------------------------------------------------------------------- documents
 function drawDocBlocks(ctx, S, ui, scroll) {
   const { region, layout } = ui;
+  scroll = Math.min(Math.max(0, scroll), Math.max(0, layout.height - region.h));
   ctx.save();
   rr(ctx, region.x - 6, region.y - 4, region.w + 12, region.h + 8, 18);
   ctx.clip();
@@ -35,7 +37,11 @@ function drawDocBlocks(ctx, S, ui, scroll) {
         text(ctx, it.lines[i], center ? ox + it.w / 2 : ox, top + i * it.line + it.size * 0.98, it.size, 'rgba(246,236,214,0.93)', { weight: 500, align: center ? 'center' : 'left' });
       }
     } else if (b.t === 'img') {
-      drawArt(ctx, b.name, ox, top, it.w, b.h, S, b);
+      if (b.name === 'lockup') {
+        const lw = b.hitW ?? 250, lh = Math.round(lw * 327 / 1200), cy = top + it.h / 2 - 2, pr = S.press && S.press.id === 'arcforge' && S.press.active;
+        ctx.save(); ctx.fillStyle = 'rgba(14,5,8,0.5)'; rr(ctx, ox + it.w / 2 - lw / 2 - 10, cy - lh / 2 - 5, lw + 20, lh + 10, 14); ctx.fill(); ctx.restore();
+        drawLockup(ctx, ox + it.w / 2, cy, lh, pr ? 0.5 : 0.95);
+      } else drawArt(ctx, b.name, ox, top, it.w, b.h, S, b);
     } else if (b.t === 'btn') {
       const bt = it.btns[0];
       button(ctx, { x: ox + bt.x, y: oy + bt.y, w: bt.w, h: bt.h }, it.lines, b.kind ?? 'normal', { size: it.size, line: it.line, sub: it.sub, disabled: bt.disabled, pressed: S.press && S.press.id === bt.id && S.press.active });
@@ -259,7 +265,9 @@ function drawArt(ctx, name, x, y, w, h, S, b) {
 // --------------------------------------------------------------------------------------- title
 // The title's attract scene: a three-disc tower solves itself forever with the textbook recursion.
 const PLAN3 = recursivePlan(3, 0, 2, 1);
-function drawAttract(ctx, S) {
+function drawAttract(ctx, S, T) {
+  ctx.save();
+  ctx.translate(T.ox, T.oy); ctx.scale(T.k, T.k); view.local = T.k;
   const n = 3, P = 3, sp = 200, base = 770, sh = 46;
   const px = [360 - sp, 360, 360 + sp];
   const W3 = [74, 118, 164];
@@ -273,7 +281,7 @@ function drawAttract(ctx, S) {
   const seatY = (d, pegs) => { let c = 0; for (let e = d + 1; e < n; e++) if (pegs[e] === pegs[d]) c++; return base - c * sh; };
   const glow = ctx.createRadialGradient(360, 560, 30, 360, 560, 380);
   glow.addColorStop(0, 'rgba(255,170,100,0.20)'); glow.addColorStop(1, 'rgba(255,170,100,0)');
-  ctx.fillStyle = glow; ctx.fillRect(0, 380, W, 500);
+  ctx.fillStyle = glow; ctx.fillRect(0, 380, 720, 500);
   drawSlab(ctx, 40, 680, base, { h: 64 });
   const rodLen = 290;
   for (let i = 0; i < P; i++) drawRod(ctx, px[i], base + 18, rodLen + 18, 9, { glow: i === 2 && !moving ? 0.8 : 0 });
@@ -301,11 +309,13 @@ function drawAttract(ctx, S) {
   ctx.restore();
   text(ctx, 'Tháp Hà Nội  ·  Tour d’Hanoï', 360, 334, 30, 'rgba(246,236,214,0.82)', { weight: 600 });
   text(ctx, tr('tagline'), 360, 376, 26, 'rgba(246,236,214,0.6)', { weight: 500 });
+  view.local = 1;
+  ctx.restore();
 }
 
-function drawTitle(ctx, S, ui) {
-  background(ctx, S.t, 560);
-  drawAttract(ctx, S);
+function drawTitle(ctx, S, ui, L) {
+  background(ctx, S.t, L.land ? L.h * 0.5 : 560 * L.title.k + L.title.oy);
+  drawAttract(ctx, S, L.title);
   drawDocBlocks(ctx, S, ui, S.scroll[ui.scrollKey] ?? 0);
   drawFixed(ctx, S, ui.fixed);
 }
@@ -315,56 +325,57 @@ function drawDocScreen(ctx, S, ui) {
   if (ui.panel) panel(ctx, ui.panel.x, ui.panel.y, ui.panel.w, ui.panel.h, {});
   drawDocBlocks(ctx, S, ui, S.scroll[ui.scrollKey] ?? 0);
   drawFixed(ctx, S, ui.fixed);
-  if (ui.nav) {
-    drawFixed(ctx, S, [ui.nav.prev, ui.nav.next]);
-    text(ctx, ui.nav.label, 360, 1500, 26, 'rgba(246,236,214,0.75)', { weight: 600 });
-  }
 }
 
 function drawOverlay(ctx, S, ui) {
   ctx.fillStyle = `rgba(8,2,4,${0.62 * clamp01(S.ovT / 0.25)})`;
-  ctx.fillRect(0, 0, W, H);
+  ctx.fillRect(0, 0, view.w, view.h);
   const k = ease(clamp01(S.ovT / 0.3));
+  const ocx = ui.panel.x + ui.panel.w / 2, ocy = ui.panel.y + ui.panel.h / 2;
   ctx.save();
-  ctx.translate(W / 2, H / 2); ctx.scale(0.92 + 0.08 * k, 0.92 + 0.08 * k); ctx.translate(-W / 2, -H / 2);
+  ctx.translate(ocx, ocy); ctx.scale(0.92 + 0.08 * k, 0.92 + 0.08 * k); ctx.translate(-ocx, -ocy);
   ctx.globalAlpha = k;
   panel(ctx, ui.panel.x, ui.panel.y, ui.panel.w, ui.panel.h, {});
   drawDocBlocks(ctx, S, ui, S.scroll[ui.scrollKey] ?? 0);
   drawFixed(ctx, S, ui.fixed);
+  if (S.overlay === 'win' && ui.panel.y + ui.panel.h + 40 < view.h - 8) drawMoreLine(ctx, ui.panel.x + ui.panel.w / 2, ui.panel.y + ui.panel.h + 30, 15);
   ctx.restore();
 }
 
 // ------------------------------------------------------------------------------------------ play
-function drawHud(ctx, S, title, sub) {
-  button(ctx, BACK_BTN, [], 'normal', { pressed: S.press && S.press.id === 'hud:back' && S.press.active });
-  icon(ctx, 'back', BACK_BTN.x + BACK_BTN.w / 2, BACK_BTN.y + BACK_BTN.h / 2, 34);
+function drawHud(ctx, S, P, title, sub) {
+  button(ctx, P.back, [], 'normal', { pressed: S.press && S.press.id === (S.scene === 'play' ? 'hud:back' : 'auto:exit') && S.press.active });
+  icon(ctx, 'back', P.back.x + P.back.w / 2, P.back.y + P.back.h / 2, 34);
   if (S.scene === 'play') {
-    button(ctx, PAUSE_BTN, [], 'normal', { pressed: S.press && S.press.id === 'hud:pause' && S.press.active });
-    icon(ctx, 'pause', PAUSE_BTN.x + PAUSE_BTN.w / 2, PAUSE_BTN.y + PAUSE_BTN.h / 2, 34);
+    button(ctx, P.pause, [], 'normal', { pressed: S.press && S.press.id === 'hud:pause' && S.press.active });
+    icon(ctx, 'pause', P.pause.x + P.pause.w / 2, P.pause.y + P.pause.h / 2, 34);
   }
-  text(ctx, title, 360, 62, 40, PAPER, { font: DISPLAY, weight: 800, shadow: 'rgba(0,0,0,0.6)' });
-  text(ctx, sub, 360, 98, 24, 'rgba(246,236,214,0.65)', { weight: 500 });
+  text(ctx, title, P.hud.title.x, P.hud.title.y, P.hud.title.size, PAPER, { font: DISPLAY, weight: 800, shadow: 'rgba(0,0,0,0.6)' });
+  text(ctx, sub, P.hud.sub.x, P.hud.sub.y, P.hud.sub.size, 'rgba(246,236,214,0.65)', { weight: 500 });
 }
 
-function chip(ctx, x, y, w, label, value, hi) {
+function chip(ctx, r, label, value, hi) {
+  const { x, y, w, h } = r, sm = h < 60;
   ctx.save();
-  ctx.fillStyle = 'rgba(14,5,8,0.62)'; rr(ctx, x, y, w, 64, 16); ctx.fill();
-  ctx.strokeStyle = hi ? 'rgba(255,224,130,0.9)' : 'rgba(232,196,106,0.4)'; ctx.lineWidth = 1.6; rr(ctx, x, y, w, 64, 16); ctx.stroke();
-  text(ctx, label, x + w / 2, y + 22, 18, 'rgba(246,236,214,0.65)', { weight: 600 });
-  text(ctx, value, x + w / 2, y + 52, 30, hi ? GOLD : PAPER, { weight: 800, font: DISPLAY });
+  ctx.fillStyle = 'rgba(14,5,8,0.62)'; rr(ctx, x, y, w, h, 16); ctx.fill();
+  ctx.strokeStyle = hi ? 'rgba(255,224,130,0.9)' : 'rgba(232,196,106,0.4)'; ctx.lineWidth = 1.6; rr(ctx, x, y, w, h, 16); ctx.stroke();
+  text(ctx, label, x + w / 2, y + (sm ? 19 : 22), sm ? 16 : 18, 'rgba(246,236,214,0.65)', { weight: 600 });
+  text(ctx, value, x + w / 2, y + h - (sm ? 9 : 12), sm ? 26 : 30, hi ? GOLD : PAPER, { weight: 800, font: DISPLAY });
   ctx.restore();
 }
 
-function banner(ctx, str, y = 262) {
+function banner(ctx, str, B) {
   if (!str) return;
   ctx.font = `700 26px ${UI}`;
-  const w = Math.min(680, ctx.measureText(str).width + 56);
+  const full = ctx.measureText(str).width, fit = Math.max(120, B.maxW - 56);
+  const size = full > fit ? Math.max(15, Math.floor((26 * fit) / full)) : 26;
+  const w = Math.min(B.maxW, Math.min(full, fit) + 56), y = B.y;
   ctx.save();
   ctx.fillStyle = 'rgba(14,5,8,0.8)';
-  rr(ctx, 360 - w / 2, y - 26, w, 50, 25); ctx.fill();
-  ctx.strokeStyle = 'rgba(232,196,106,0.55)'; ctx.lineWidth = 1.6; rr(ctx, 360 - w / 2, y - 26, w, 50, 25); ctx.stroke();
+  rr(ctx, B.x - w / 2, y - 26, w, 50, 25); ctx.fill();
+  ctx.strokeStyle = 'rgba(232,196,106,0.55)'; ctx.lineWidth = 1.6; rr(ctx, B.x - w / 2, y - 26, w, 50, 25); ctx.stroke();
   ctx.restore();
-  text(ctx, str, 360, y + 9, 26, GOLD, { weight: 700 });
+  text(ctx, str, B.x, y + 9 - (26 - size) * 0.25, size, GOLD, { weight: 700 });
 }
 
 // peg front: the part of the rod above a disc's top face, redrawn over the disc so the peg passes through its hole
@@ -383,7 +394,7 @@ function drawScene(ctx, S, puz, auto) {
   const held = puz.sel >= 0 ? puz.sel : puz.ptr && puz.ptr.kind === 'src' ? puz.ptr.peg : -1;
   let over = -1;
   if (puz.ptr && puz.ptr.dragging && puz.ptr.fx != null) over = pegAt(puz, puz.ptr.fx, puz.ptr.fy - 20, true);
-  drawSlab(ctx, 24, 696, g.baseY);
+  drawSlab(ctx, g.slab[0], g.slab[1], g.baseY, { h: g.slabH });
   // goal marker
   const gx = g.pegX[puz.goal];
   ctx.save();
@@ -394,8 +405,8 @@ function drawScene(ctx, S, puz, auto) {
   for (let i = 0; i < puz.P; i++) {
     const px = g.pegX[i];
     const isGoal = i === puz.goal;
-    text(ctx, PEG(i), px, g.baseY + 100, 34, isGoal ? GOLD : 'rgba(246,236,214,0.7)', { weight: 800, font: DISPLAY });
-    if (isGoal) text(ctx, tr('goalWord').toUpperCase(), px, g.baseY + 126, 16, 'rgba(232,196,106,0.8)', { weight: 700 });
+    text(ctx, PEG(i), px, g.labelY, 34, isGoal ? GOLD : 'rgba(246,236,214,0.7)', { weight: 800, font: DISPLAY });
+    if (isGoal) text(ctx, tr('goalWord').toUpperCase(), px, g.goalY, 16, 'rgba(232,196,106,0.8)', { weight: 700 });
     // highlight
     let hl = null;
     if (held >= 0 && i !== held && canMove(puz, held, i) && (over < 0 || over === i)) hl = over === i ? '#6bd49a' : '#e8c46a';
@@ -465,7 +476,7 @@ function drawScene(ctx, S, puz, auto) {
   if (puz.done && allRest(puz)) {
     const k = (puz.doneT * 0.7) % 2.2;
     ctx.save();
-    const sx = 20 + (k / 1.2) * 680;
+    const sx = g.slab[0] + (k / 1.2) * (g.slab[1] - g.slab[0]);
     const sg = ctx.createLinearGradient(sx - 90, 0, sx + 90, 0);
     sg.addColorStop(0, 'rgba(255,255,255,0)'); sg.addColorStop(0.5, 'rgba(255,240,200,0.28)'); sg.addColorStop(1, 'rgba(255,255,255,0)');
     ctx.fillStyle = sg; ctx.fillRect(sx - 100, g.pegTop - 30, 200, g.baseY - g.pegTop + 60);
@@ -474,82 +485,95 @@ function drawScene(ctx, S, puz, auto) {
   drawParticles(ctx, puz.parts);
 }
 
-function drawToolbar(ctx, S, puz) {
+function drawToolbar(ctx, S, puz, P) {
   const defs = {
     undo: { icon: 'undo', label: tr('undo'), off: !puz.history.length || puz.done },
     think: { icon: 'hint', label: tr('think'), off: puz.done },
     restart: { icon: 'reset', label: tr('restart'), off: puz.done || (!puz.history.length && puz.sel < 0) },
   };
   TOOLBAR_IDS.forEach((id, i) => {
-    const r = toolRect(i), d = defs[id];
+    const r = P.tools[i], d = defs[id];
     const pressed = S.press && S.press.id === `tool:${id}` && S.press.active;
     button(ctx, r, [], id === 'think' ? 'primary' : 'normal', { disabled: d.off, pressed, radius: 22 });
-    const yy = r.y + (pressed ? 3 : 0);
+    const yy = r.y + (pressed ? 3 : 0), is = Math.min(44, r.h * 0.4);
     ctx.save();
     if (d.off) ctx.globalAlpha = 0.4;
-    icon(ctx, d.icon, r.x + r.w / 2, yy + 44, 44, id === 'think' ? '#3a2410' : PAPER);
-    text(ctx, d.label, r.x + r.w / 2, yy + 92, 24, id === 'think' ? '#3a2410' : 'rgba(246,236,214,0.88)', { weight: 700 });
+    icon(ctx, d.icon, r.x + r.w / 2, yy + r.h * 0.39, is, id === 'think' ? '#3a2410' : PAPER);
+    text(ctx, d.label, r.x + r.w / 2, yy + r.h * 0.82, 24, id === 'think' ? '#3a2410' : 'rgba(246,236,214,0.88)', { weight: 700 });
     ctx.restore();
   });
 }
 
-function drawAutoBar(ctx, S, auto) {
-  const b = AUTO_BTNS;
+function drawAutoBar(ctx, S, auto, P) {
+  const b = P.auto;
   const pr = (id) => S.press && S.press.id === id && S.press.active;
-  button(ctx, b.slower, [], 'normal', { disabled: S.thinkIdx === 0, pressed: pr('auto:slower'), radius: 22 });
-  icon(ctx, 'minus', b.slower.x + b.slower.w / 2, b.slower.y + 42, 40);
-  text(ctx, tr('autoSlower'), b.slower.x + b.slower.w / 2, b.slower.y + 92, 22, 'rgba(246,236,214,0.88)', { weight: 700 });
-  button(ctx, b.faster, [], 'normal', { disabled: S.thinkIdx === THINK_STEPS.length - 1, pressed: pr('auto:faster'), radius: 22 });
-  icon(ctx, 'plus', b.faster.x + b.faster.w / 2, b.faster.y + 42, 40);
-  text(ctx, tr('autoFaster'), b.faster.x + b.faster.w / 2, b.faster.y + 92, 22, 'rgba(246,236,214,0.88)', { weight: 700 });
+  const side = (r, id, ic, label, off) => {
+    button(ctx, r, [], 'normal', { disabled: off, pressed: pr(id), radius: 22 });
+    icon(ctx, ic, r.x + r.w / 2, r.y + r.h * 0.38, Math.min(40, r.h * 0.4));
+    text(ctx, label, r.x + r.w / 2, r.y + r.h * 0.82, 22, 'rgba(246,236,214,0.88)', { weight: 700 });
+  };
+  side(b.slower, 'auto:slower', 'minus', tr('autoSlower'), S.thinkIdx === 0);
+  side(b.faster, 'auto:faster', 'plus', tr('autoFaster'), S.thinkIdx === THINK_STEPS.length - 1);
   button(ctx, b.pause, [], 'primary', { pressed: pr('auto:pause'), radius: 22 });
-  icon(ctx, auto.paused ? 'play' : 'pause', b.pause.x + b.pause.w / 2 - 70, b.pause.y + b.pause.h / 2, 44, '#3a2410');
-  text(ctx, auto.paused ? tr('autoPlay') : tr('autoPause'), b.pause.x + b.pause.w / 2 + 28, b.pause.y + b.pause.h / 2 + 11, 32, '#3a2410', { weight: 800 });
-  text(ctx, `${tr('thinkTime')}: ${THINK_STEPS[S.thinkIdx]}${tr('seconds')}`, 360, 1376, 22, 'rgba(246,236,214,0.7)', { weight: 600 });
+  const lab = auto.paused ? tr('autoPlay') : tr('autoPause');
+  ctx.font = `800 32px ${UI}`;
+  const lw = ctx.measureText(lab).width, gx = b.pause.x + b.pause.w / 2 - (lw + 44 + 16) / 2;
+  icon(ctx, auto.paused ? 'play' : 'pause', gx + 22, b.pause.y + b.pause.h / 2, 44, '#3a2410');
+  text(ctx, lab, gx + 44 + 16 + lw / 2, b.pause.y + b.pause.h / 2 + 11, 32, '#3a2410', { weight: 800 });
+  text(ctx, `${tr('thinkTime')}: ${THINK_STEPS[S.thinkIdx]}${tr('seconds')}`, b.label.x, b.label.y, b.label.size, 'rgba(246,236,214,0.7)', { weight: 600, maxW: P.back && 0 });
 }
 
 const moveWords = (puz, a, b) => `disc ${topDisc(puz, a) + 1} from ${PEG(a)} to ${PEG(b)}`;
 
-function drawPlay(ctx, S) {
-  background(ctx, S.t, 830);
+function drawPlay(ctx, S, L) {
+  const P = L.play;
+  background(ctx, S.t, L.land ? L.h * 0.55 : P.scene.y + P.scene.h * 0.5);
   const puz = S.puz;
   const auto = S.scene === 'auto' ? S.auto : null;
   const lv = puz.level;
   const chapName = S.daily ? tr('dailyTitle') : `${lv.n} discs`;
   const sub = auto ? tr('autoSession') : S.daily ? `${lv.n} discs · ${lv.P} pegs · to ${PEG(lv.goal)}` : `${lv.ch === 1 ? 'Four pegs' : lv.ch === 2 ? lv.name : 'Classic'} · to ${PEG(lv.goal)}`;
-  drawHud(ctx, S, chapName, sub);
+  if (L.land) { ctx.save(); panelBack(ctx, P.panel); ctx.restore(); }
+  drawHud(ctx, S, P, chapName, sub);
   const best = S.daily ? 0 : (S.progress.stars[lv.id] ?? 0);
-  chip(ctx, 48, 124, 200, tr('moves'), String(puz.moves), false);
-  chip(ctx, 260, 124, 200, tr('minimum'), String(puz.min), true);
-  if (S.daily) chip(ctx, 472, 124, 200, tr('goalWord'), `Peg ${PEG(lv.goal)}`, false);
-  else chip(ctx, 472, 124, 200, tr('best'), best ? '★'.repeat(best) + '☆'.repeat(3 - best) : '☆☆☆', false);
+  chip(ctx, P.chips[0], tr('moves'), String(puz.moves), false);
+  chip(ctx, P.chips[1], tr('minimum'), String(puz.min), true);
+  if (S.daily) chip(ctx, P.chips[2], tr('goalWord'), `Peg ${PEG(lv.goal)}`, false);
+  else chip(ctx, P.chips[2], tr('best'), best ? '★'.repeat(best) + '☆'.repeat(3 - best) : '☆☆☆', false);
   drawScene(ctx, S, puz, auto);
   if (auto) {
-    drawAutoBar(ctx, S, auto);
+    drawAutoBar(ctx, S, auto, P);
     let msg = '';
     if (auto.phase === 'think') msg = `${tr('autoThink')} ${Math.max(0, Math.ceil(THINK_STEPS[S.thinkIdx] - auto.t))}`;
     else if (auto.phase === 'reveal' || auto.phase === 'act') msg = auto.note || tr('autoReveal');
     else if (auto.phase === 'celebrate') msg = tr('autoDone');
-    banner(ctx, auto.paused ? tr('paused') : msg);
+    banner(ctx, auto.paused ? tr('paused') : msg, P.banner);
     if (auto.phase === 'think' && !auto.paused) {
-      const frac = clamp01(auto.t / THINK_STEPS[S.thinkIdx]);
-      ctx.fillStyle = 'rgba(255,255,255,0.12)'; rr(ctx, 120, 304, 480, 8, 4); ctx.fill();
-      ctx.fillStyle = GOLD; rr(ctx, 120, 304, 480 * frac, 8, 4); ctx.fill();
+      const frac = clamp01(auto.t / THINK_STEPS[S.thinkIdx]), pg = P.progress;
+      ctx.fillStyle = 'rgba(255,255,255,0.12)'; rr(ctx, pg.x, pg.y, pg.w, pg.h, 4); ctx.fill();
+      ctx.fillStyle = GOLD; rr(ctx, pg.x, pg.y, pg.w * frac, pg.h, 4); ctx.fill();
     }
   } else {
-    drawToolbar(ctx, S, puz);
+    drawToolbar(ctx, S, puz, P);
     let msg = S.toast ?? '';
     if (!msg && puz.refused) msg = tr('refused');
     if (!msg && puz.hint) msg = `Move ${moveWords(puz, puz.hint.from, puz.hint.to)}`;
     if (!msg && !S.daily && S.levelIdx < 2 && !puz.done && puz.moves === 0) msg = puz.sel >= 0 ? tr('tipTap2') : tr('tipTap');
-    banner(ctx, msg);
+    banner(ctx, msg, P.banner);
   }
 }
 
-export function render(ctx, S, ui) {
+// the landscape control column: a quiet card behind the buttons and stats
+function panelBack(ctx, r) {
+  ctx.fillStyle = 'rgba(14,5,8,0.4)'; rr(ctx, r.x, r.y, r.w, r.h, 22); ctx.fill();
+  ctx.strokeStyle = 'rgba(232,196,106,0.22)'; ctx.lineWidth = 1.5; rr(ctx, r.x, r.y, r.w, r.h, 22); ctx.stroke();
+}
+
+export function render(ctx, S, ui, L = layoutFor()) {
   ctx.textBaseline = 'alphabetic';
+  view.w = L.w; view.h = L.h;
   switch (S.scene) {
-    case 'title': drawTitle(ctx, S, ui); break;
+    case 'title': drawTitle(ctx, S, ui, L); break;
     case 'levels': case 'howto': case 'rules': case 'about': case 'settings': drawDocScreen(ctx, S, ui); break;
     case 'demo-limit':
       background(ctx, S.t);
@@ -559,11 +583,11 @@ export function render(ctx, S, ui) {
       break;
     case 'play': case 'auto':
       if (!S.puz) { background(ctx, S.t); break; }
-      drawPlay(ctx, S);
+      drawPlay(ctx, S, L);
       break;
     default: background(ctx, S.t);
   }
   if (S.overlay) drawOverlay(ctx, S, ui);
 }
 
-export { RULES, DOC_PANEL, NAV_PREV, NAV_NEXT, light, dark, W, H };
+export { RULES, light, dark };

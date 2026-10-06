@@ -4,15 +4,19 @@
 // How a move is made: TAP a piece (its legal points glow), then TAP a glowing point. To drop a captured piece:
 // TAP it on your stand, then TAP an empty glowing point. A refused move visibly tries, shudders, comes back, and a
 // message says why.
-import { W, H, geom, sqAt, standSlot, STAND, STAND_ORDER, inRect, TEXT_SCALES, THINK_STEPS } from './layout.js';
+import { W, H, lockHit, layoutFor, sqAt, STAND_ORDER, inRect, TEXT_SCALES, THINK_STEPS } from './layout.js';
 import { newGame, applyMove, legalMoves, result, inCheck, mFrom, mTo, mPromo, mDrop, isDrop, dropMove, mk, whyNotMove, whyNotDrop, describe, fromRows, make, unmake, NAME, HINT, hasLegalMove } from './rules.js';
 import { createThinker } from './engine.js';
 import { LESSONS } from './lessons.js';
 import { puzzleForDay, puzzlePos, moveMates, mateMoves, bestDefence } from './tsume.js';
 import { buttonsFor } from './ui.js';
-import { render } from './view.js';
+import { render, readerMetrics } from './view.js';
 
-export const meta = { width: W, height: H };
+// Fluid viewport (kit 1.7): the short side is always 720 units and the long side follows the screen, in portrait and landscape.
+// `meta.width/height` are updated live by the kit on every resize; every position comes from layoutFor(meta.width, meta.height).
+export const meta = { width: W, height: H, fluid: { short: 720 } };
+// Mouse-wheel travel (virtual units) collected by main.js and consumed by the reader pages; empty in headless runs.
+export const wheelInput = { dy: 0 };
 const DEMO_GAMES = 2, DEMO_LESSONS = 4, HINTS = 3, STEP_NODES = 2000;
 const SHOWCASE = 777700000;      // seeds SHOWCASE+1..+9 open fixed scenes for the store pictures (tools/arc shots)
 const LETTER_T = { P: 1, L: 2, N: 3, S: 4, G: 5, B: 6, R: 7 };
@@ -27,7 +31,7 @@ export function createGame(env) {
   const state = {
     scene: 'title', t: 0, variant: 'standard', game: newGame(), moves: [], human: 0, humanPick: 0, two: false, level: 2,
     sel: null, targets: [], anim: null, msg: null, thinking: false, thinkT: 0, result: null, hintsLeft: HINTS, hint: null,
-    promo: null, menu: false, page: 0, cursor: 40, kb: false, lastMove: null, settingsFrom: null,
+    promo: null, menu: false, page: 0, scroll: 0, cursor: 40, kb: false, lastMove: null, settingsFrom: null,
     // Index into TEXT_SCALES; the About/How-to-play/Rules reference pages' text size, set by the
     // A-/A+ stepper that lives right on those pages. Separate from prefs.big, which still governs
     // other (gameplay-adjacent) screens: setup/settings blurbs, lesson/puzzle status text, result text.
@@ -46,7 +50,10 @@ export function createGame(env) {
   };
   let legalCache = null, thinker = null, hintThinker = null, autoThinker = null, pending = [], pendingShowcase = config.seed > SHOWCASE && config.seed < SHOWCASE + 10 ? config.seed - SHOWCASE : 0;
   let showcaseLang = null;         // a showcase scene's forced language choice always wins over the async prefs load below
-  const G = () => geom(state.game.n);
+  const lay = () => layoutFor(meta.width, meta.height);
+  const teachScene = () => state.scene === 'lesson' || state.scene === 'puzzle';
+  const BL = () => lay().board(state.game.n, teachScene());
+  const G = () => BL().g;
   const flip = () => !state.two && state.human === 1 && state.scene === 'play';
   const bottomSide = () => (flip() ? 1 : 0);
   const legal = () => (legalCache ??= legalMoves(state.game));
@@ -85,11 +92,11 @@ export function createGame(env) {
   const later = (t, fn) => pending.push({ t, fn });
   const humanTurn = () => state.two || state.game.turn === state.human;
   const changed = () => { legalCache = null; state.sel = null; state.targets = []; state.hint = null; hintThinker = null; };
-  const ui = () => ({ scene: state.scene, prefs: state.prefs, saved: state.saved, level: state.level, humanPick: state.humanPick, page: state.page, textScaleIdx: state.textScaleIdx, autoThinkIdx: state.autoThinkIdx, lessonsDone: state.lessonsDone, menu: state.menu, result: state.result, canUndo: state.moves.length > 0 && !state.two && !state.thinking, hintsLeft: state.hintsLeft, two: state.two, lesson: state.lesson, pz: state.pz, promo: state.promo });
+  const ui = () => ({ scene: state.scene, prefs: state.prefs, saved: state.saved, level: state.level, humanPick: state.humanPick, readEnd: state.scroll >= readerMetrics.max - 2, textScaleIdx: state.textScaleIdx, autoThinkIdx: state.autoThinkIdx, lessonsDone: state.lessonsDone, menu: state.menu, result: state.result, canUndo: state.moves.length > 0 && !state.two && !state.thinking, hintsLeft: state.hintsLeft, two: state.two, lesson: state.lesson, pz: state.pz, promo: state.promo, n: state.game.n });
 
   function replay(variant, moves) { const pos = newGame(variant); for (const m of moves) applyMove(pos, m); return pos; }
   function enter(scene) {
-    Object.assign(state, { scene, menu: false, promo: null, page: 0, anim: null, msg: null, thinking: false });
+    Object.assign(state, { scene, menu: false, promo: null, page: 0, scroll: 0, anim: null, msg: null, thinking: false });
     thinker = null; changed();
   }
 
@@ -260,9 +267,13 @@ export function createGame(env) {
     say(state.targets.length ? `Drop the ${NAME[t].toLowerCase()}: TAP an empty glowing point.` : `No legal place to drop the ${NAME[t].toLowerCase()} right now.`, 7);
   }
   function tapStandAt(x, y) {
+    const B = BL();
     for (const which of ['top', 'bot']) {
-      if (!inRect(STAND[which], x, y)) continue;
-      for (let i = 0; i < 7; i++) { const p = standSlot(which, i); if (Math.abs(x - p.x) < 44) { tapStand(which, i); break; } }
+      const st = B[which];
+      if (!st || !inRect(st.rect, x, y)) continue;
+      let best = 0, bd = Infinity;
+      for (let i = 0; i < 7; i++) { const p = st.slot(i), d = Math.hypot(x - p.x, (y - p.y) * 0.6); if (d < bd) { bd = d; best = i; } }
+      tapStand(which, best);
       return true;
     }
     return false;
@@ -395,8 +406,7 @@ export function createGame(env) {
       case 'langJP': state.prefs.lang = 'jp'; savePrefs(); break;
       case 'langEN': state.prefs.lang = 'en'; savePrefs(); break;
       case 'back': goBack(); break;
-      case 'prev': state.page = Math.max(0, state.page - 1); break;
-      case 'next': state.page++; break;
+      case 'next': state.scroll = Math.min(readerMetrics.max, state.scroll + readerMetrics.view * 0.85); break;
       case 'textDec': if (state.textScaleIdx > 0) { state.textScaleIdx--; savePrefs(); } break;
       case 'textInc': if (state.textScaleIdx < TEXT_SCALES.length - 1) { state.textScaleIdx++; savePrefs(); } break;
       case 'sideB': state.humanPick = 0; break;
@@ -424,7 +434,8 @@ export function createGame(env) {
     }
   }
   function handleTap(x, y) {
-    for (const b of buttonsFor(ui())) {
+    if (state.scene === 'title' && inRect(lockHit(lay(), lay().title(!!state.saved)), x, y)) { state.lockPress = 0.18; env.openArcforgeHome?.(); return; }
+    for (const b of buttonsFor(ui(), lay())) {
       if (!inRect(b, x, y)) continue;
       if (b.dim) { if (b.id === 'hint') say(state.two ? 'Hints are for games against the computer.' : 'No hints left in this game.', 3); else if (b.id === 'undo') say('Nothing to take back yet.', 3); return; }
       press(b.id);
@@ -498,9 +509,25 @@ export function createGame(env) {
     else if (k === 9) { showcaseLang = state.prefs.lang = 'en'; enter('settings'); }
   }
 
+  // ---- reader pages: the body scrolls (drag, wheel, keys) when it does not fit; a document that fits never moves -----------------------
+  let drag = null;
+  function readerScroll(pt, keys) {
+    const max = readerMetrics.max, vp = readerMetrics.vp, set = (v) => { state.scroll = Math.max(0, Math.min(v, max)); };
+    if (wheelInput.dy) { set(state.scroll + wheelInput.dy); wheelInput.dy = 0; }
+    if (keys.has('ArrowDown')) set(state.scroll + 70);
+    if (keys.has('ArrowUp')) set(state.scroll - 70);
+    if (keys.has('PageDown')) set(state.scroll + readerMetrics.view * 0.9);
+    if (keys.has('PageUp')) set(state.scroll - readerMetrics.view * 0.9);
+    if (keys.has('Home')) set(0);
+    if (keys.has('End')) set(1e9);
+    if (pt.pressed && vp && inRect(vp, pt.x, pt.y)) drag = { y0: pt.y, s0: state.scroll, moved: false };
+    if (drag) { if (!pt.down) drag = null; else { if (Math.abs(pt.y - drag.y0) > 4) drag.moved = true; set(drag.s0 - (pt.y - drag.y0)); } }
+    state.scroll = Math.max(0, Math.min(state.scroll, max));
+  }
+
   // ---- update ---------------------------------------------------------------------------------------------------------------
   function update(dt, input) {
-    state.t += dt;
+    state.t += dt; if (state.lockPress > 0) state.lockPress = Math.max(0, state.lockPress - dt);
     if (pendingShowcase) { const k = pendingShowcase; pendingShowcase = 0; showcase(k); }
     // Pause (state.menu) must freeze the WHOLE loop the instant it is tapped, not just stop new
     // moves: an in-flight move/capture animation, a fading message and any delayed sound queued via
@@ -518,6 +545,7 @@ export function createGame(env) {
     }
 
     const pt = input.pointer;
+    if (state.scene === 'about' || state.scene === 'howto' || state.scene === 'rules') readerScroll(pt, input.keys.pressed); else { wheelInput.dy = 0; drag = null; }
     if (pt.pressed) handleTap(pt.x, pt.y);
     if (input.keys.pressed.size) handleKeys([...input.keys.pressed]);
 
@@ -553,7 +581,11 @@ export function createGame(env) {
 
   return {
     update,
-    render(ctx, view) { render(ctx, state, { G: G(), flip: flip(), bottomSide: bottomSide(), buttons: buttonsFor(ui()), view }); },
+    render(ctx, view) {
+      const L = layoutFor(view?.width ?? meta.width, view?.height ?? meta.height), sc = state.scene;
+      const onBoard = sc === 'play' || sc === 'lesson' || sc === 'puzzle' || sc === 'auto';
+      render(ctx, state, { L, B: onBoard ? L.board(state.game.n, sc === 'lesson' || sc === 'puzzle') : null, flip: flip(), bottomSide: bottomSide(), buttons: buttonsFor(ui(), L), view });
+    },
     getState() { return state; },
     // The free-preview timer counts only real play (a match or the daily mate puzzle in progress). Menus, setup,
     // Learn, How to Play, About, Rules, Settings, Watch & Learn (Auto Play), the pause menu and result screens are exempt.

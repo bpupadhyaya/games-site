@@ -8,15 +8,18 @@
 import { W, H, ARENA, ARENAS, ARENA_IDS, K, STEP, newWorld, stepWorld, clamp, legal, BODIES, TIPS, predictPath, launchSpot } from './sim.js';
 import { PROFILES, COACH, createPlanner, executeLaunch, rivalBuild, tryLaunch } from './ai.js';
 import { lookOf, toScreen, prebake } from './art.js';
-import { inRect, playLayout, TEXT_DEC, TEXT_INC, REF_BACK, REF_NEXT, TEXT_SCALES, THINK_STEPS, SETUP_PINS } from './layout.js';
-import { renderPlay, drawBanner, preTops, aimAnchor, sceneOf, passButton, drawScene } from './view.js';
-import { renderTitle, renderSetup, renderWorkshop, renderSettings, renderResult, renderPause, renderPages, renderDemoLimit, renderLearn, renderBrief, hitScreen, flowMeta, pageCount, ensureLayout } from './menus.js';
+import { inRect, curLayout, VIEW, TEXT_SCALES, THINK_STEPS } from './layout.js';
+import { pressLockup } from './brand.js';
+import { renderPlay, drawBanner, preTops, aimAnchor, sceneOf, passButton, drawSceneAt } from './view.js';
+import { renderTitle, renderSetup, renderWorkshop, renderSettings, renderResult, renderPause, renderPages, renderDemoLimit, renderLearn, renderBrief, hitScreen, flowMeta, READER, refCloseRect, ensureLayout } from './menus.js';
 import { ABOUT, HOWTO, RULES } from './content.js';
 import { LESSONS } from './lessons.js';
 import { GAUGE, timingQuality } from './timing.js';
 import { setPress } from './ui.js';
 
-export const meta = { width: W, height: H };
+export const meta = { width: W, height: H, fluid: { short: 720 } };
+// Mouse-wheel scroll for the menu lists (CSS px converted to virtual units by main.js); consumed by update().
+export const wheelInput = { dy: 0 };
 const DEMO_ROUND_CAP = 3;
 const REVEAL_SECS = 2;
 const HINT_SECS = 7;
@@ -258,8 +261,9 @@ export function createGame(env) {
     a.path = predictPath(state.side, c.builds[state.side], { ang: a.ang, pow: a.pow, q: 0.97 }, c.arena);
   };
   const aimFromPointer = (x, y, L) => {
-    const a = state.aim, an = aimAnchor(state.side), pm = L.pullMax[state.side];
-    let dx = x - an.x, dy = y - an.y;
+    // the pointer is in screen units; the dish (and the pull) live in design units, so map it through the dish transform
+    const a = state.aim, an = aimAnchor(state.side), pm = L.pullMax[state.side], pt = L.toDesign(x, y);
+    let dx = pt.x - an.x, dy = pt.y - an.y;
     const len = Math.hypot(dx, dy);
     if (len > pm) { dx *= pm / len; dy *= pm / len; }
     a.fx = an.x + dx; a.fy = an.y + dy;
@@ -427,7 +431,7 @@ export function createGame(env) {
   const updatePlay = (dt, input) => {
     const ptr = input.pointer, keys = input.keys, m = state.match;
     const watch = m.cfg.mode === 'watch';
-    const L = playLayout(state.settings.textIdx);
+    const L = curLayout().play(state.settings.textIdx);
     if (keys.pressed.has('KeyP') || keys.pressed.has('Escape')) { if (state.pauseMenu) closePause(); else if (!watch) openPause(); else state.paused = !state.paused; }
     if (state.pauseMenu) {
       if (flowMeta().key !== 'pause') return;
@@ -455,7 +459,7 @@ export function createGame(env) {
       const a = state.aim;
       if (ptr.pressed) {
         if (inRect(L.pause, ptr.x, ptr.y)) { openPause(); return; }
-        if (inRect(L.tools[0], ptr.x, ptr.y)) { requestHint(); sfx.tick(); } else if (ptr.y > L.field.y && ptr.y < L.barTop) { a.drag = true; a.lx = ptr.x; a.ly = ptr.y; a.px = ptr.x; a.py = ptr.y; a.moved = 0; state.hint = null; }
+        if (inRect(L.tools[0], ptr.x, ptr.y)) { requestHint(); sfx.tick(); } else if (inRect(L.field, ptr.x, ptr.y)) { a.drag = true; a.lx = ptr.x; a.ly = ptr.y; a.px = ptr.x; a.py = ptr.y; a.moved = 0; state.hint = null; }
       }
       if (a.drag && ptr.down) {
         // a stray second touch can make the pointer jump: ignore a jump of more than a thumb's reach in one tick
@@ -545,8 +549,8 @@ export function createGame(env) {
     if (!id) return;
     sfx.tick();
     if (id === 'resume') closePause();
-    else if (id === 'p-rules') { state.back = 'play'; state.scene = 'rules'; state.page = 0; }
-    else if (id === 'p-howto') { state.back = 'play'; state.scene = 'howto'; state.page = 0; }
+    else if (id === 'p-rules') { state.back = 'play'; state.scene = 'rules'; state.page = 0; state.ui.scroll = 0; }
+    else if (id === 'p-howto') { state.back = 'play'; state.scene = 'howto'; state.page = 0; state.ui.scroll = 0; }
     else if (id === 'p-sound') { state.settings.sound = !state.settings.sound; audio.setMuted?.(!state.settings.sound); save(); }
     else if (id === 'p-calm') { state.settings.calm = !state.settings.calm; save(); }
     else if (id === 'p-txt-dec') { state.settings.textIdx = Math.max(0, state.settings.textIdx - 1); state.ui.scroll = 0; save(); }
@@ -573,13 +577,14 @@ export function createGame(env) {
 
   const handleTitle = (id) => {
     if (!id) return;
+    if (id === 'arcforge') { pressLockup(); env.openArcforgeHome?.(); return; }
     sfx.tick();
     if (id === 'continue') resumeMatch();
     else if (id === 'play') { state.setup.mode = 'ai'; state.scene = 'setup'; state.ui.scroll = 0; state.setupMsg = ''; }
     else if (id === 'friend') { state.setup.mode = 'friend'; state.scene = 'setup'; state.ui.scroll = 0; state.setupMsg = ''; }
     else if (id === 'watch') startWatch();
     else if (id === 'learn') { state.scene = 'learn'; state.ui.scroll = 0; }
-    else if (id === 'howto' || id === 'rules' || id === 'about') { state.back = 'title'; state.scene = id; state.page = 0; }
+    else if (id === 'howto' || id === 'rules' || id === 'about') { state.back = 'title'; state.scene = id; state.page = 0; state.ui.scroll = 0; }
     else if (id === 'settings') { state.scene = 'settings'; state.ui.scroll = 0; }
     else if (id === 'sound') { state.settings.sound = !state.settings.sound; audio.setMuted?.(!state.settings.sound); save(); }
   };
@@ -658,8 +663,9 @@ export function createGame(env) {
       const d = state.ui.drag; state.ui.drag = null;
       const lay = flowMeta();
       const scrollable = lay.lay && lay.lay.contentH > lay.bottom - lay.top;
-      if (d.moved < 10) handler(hitScreen(ptr.x, ptr.y, state.ui.scroll));
-      else if (!scrollable) handler(hitScreen(d.x0, d.y0, state.ui.scroll));
+      const hs = (x, y) => (key === 'title' && inRect(curLayout().titleGeo(!!state.saved).lockHit, x, y) ? 'arcforge' : hitScreen(x, y, state.ui.scroll));
+      if (d.moved < 10) handler(hs(ptr.x, ptr.y));
+      else if (!scrollable) handler(hs(d.x0, d.y0));
     }
     const mt = flowMeta();
     const max = mt.lay ? Math.max(0, mt.lay.contentH - (mt.bottom - mt.top)) : 0;
@@ -674,26 +680,34 @@ export function createGame(env) {
     if (key) ensureLayout(state, key);
     if (k.pressed.has('Enter')) { pins.go(); return; }
     if (k.pressed.has('Escape')) { pins.back(); return; }
-    if (ptr.pressed && inRect(SETUP_PINS.start, ptr.x, ptr.y)) { pins.go(); return; }
-    if (ptr.pressed && !pins.single && inRect(SETUP_PINS.back, ptr.x, ptr.y)) { pins.back(); return; }
+    const P = curLayout().pins;
+    if (ptr.pressed && inRect(P.start, ptr.x, ptr.y)) { pins.go(); return; }
+    if (ptr.pressed && !pins.single && inRect(P.back, ptr.x, ptr.y)) { pins.back(); return; }
     updateFlowScene(dt, input, handler, key);
   };
 
   const updatePages = (input) => {
     const ptr = input.pointer, keys = input.keys;
-    const n = pageCount();
-    const close = () => { state.scene = state.back === 'play' ? 'play' : 'title'; state.page = 0; };
-    const next = () => { if (state.page >= n - 1) close(); else state.page++; };
-    const prev = () => { if (state.page <= 0) close(); else state.page--; };
+    const close = () => { state.scene = state.back === 'play' ? 'play' : 'title'; state.page = 0; state.ui.scroll = 0; state.ui.drag = null; };
+    const setScroll = (v) => { state.ui.scroll = clamp(v, 0, READER.max); };
+    const RF = curLayout().ref;
     if (ptr.pressed) {
-      if (inRect(REF_NEXT, ptr.x, ptr.y)) next();
-      else if (inRect(REF_BACK, ptr.x, ptr.y)) prev();
-      else if (inRect(TEXT_DEC, ptr.x, ptr.y)) { state.settings.textIdx = Math.max(0, state.settings.textIdx - 1); save(); }
-      else if (inRect(TEXT_INC, ptr.x, ptr.y)) { state.settings.textIdx = Math.min(TEXT_SCALES.length - 1, state.settings.textIdx + 1); save(); }
+      if (inRect(refCloseRect(), ptr.x, ptr.y)) { close(); return; }
+      else if (inRect(RF.dec, ptr.x, ptr.y)) { state.settings.textIdx = Math.max(0, state.settings.textIdx - 1); save(); }
+      else if (inRect(RF.inc, ptr.x, ptr.y)) { state.settings.textIdx = Math.min(TEXT_SCALES.length - 1, state.settings.textIdx + 1); save(); }
+      else if (ptr.y >= READER.y0 && ptr.y <= READER.y1) state.ui.drag = { y0: ptr.y, s0: state.ui.scroll };
     }
-    if (keys.pressed.has('ArrowRight')) next();
-    if (keys.pressed.has('ArrowLeft')) prev();
-    if (keys.pressed.has('Escape')) close();
+    if (state.ui.drag && ptr.down) setScroll(state.ui.drag.s0 - (ptr.y - state.ui.drag.y0));
+    if (ptr.released) state.ui.drag = null;
+    if (wheelInput.dy) { setScroll(state.ui.scroll + wheelInput.dy); wheelInput.dy = 0; }
+    const step = 70, pgs = Math.max(100, READER.view - 80);
+    if (keys.pressed.has('ArrowDown')) setScroll(state.ui.scroll + step);
+    if (keys.pressed.has('ArrowUp')) setScroll(state.ui.scroll - step);
+    if (keys.pressed.has('PageDown') || keys.pressed.has('Space')) setScroll(state.ui.scroll + pgs);
+    if (keys.pressed.has('PageUp')) setScroll(state.ui.scroll - pgs);
+    if (keys.pressed.has('Home')) setScroll(0);
+    if (keys.pressed.has('End')) setScroll(READER.max);
+    if (keys.pressed.has('Escape') || keys.pressed.has('Enter')) close();
   };
 
   // ---- store screenshots: real staged moments (`?shot=1&seed=9000NN`) -----------------------------------
@@ -737,7 +751,7 @@ export function createGame(env) {
       startWatch(); state.settings.thinkIdx = 0;
       const idle = { pointer: { pressed: false, down: false, released: false, x: 0, y: 0 }, keys: { down: new Set(), pressed: new Set() } };
       for (let i = 0; i < 1500; i++) { updatePlay(1 / 60, idle); if (state.wl && state.wl.phase === 'reveal' && state.wl.t > 0.3) break; }
-    } else if (n === 8) { state.scene = 'rules'; state.back = 'title'; state.page = 3; }
+    } else if (n === 8) { state.scene = 'rules'; state.back = 'title'; state.ui.scroll = 2700; }
     else if (n === 9) state.scene = 'setup';
     else if (n === 10) {
       const c2 = { ...cfg('plate'), builds: [{ ...bs[1] }, { ...bs[0] }], looks: [4, 1], names: ['You', 'Haruto'] };
@@ -761,7 +775,13 @@ export function createGame(env) {
     // the round summary between rounds and the pass-the-device card do not).
     isPreviewExempt: () => state.shot || !(state.scene === 'play' && state.match && state.match.cfg.mode !== 'watch' && state.match.cfg.mode !== 'lesson') || state.paused || state.ph === 'between' || state.ph === 'pass',
     update(dt, input) {
+      VIEW.w = meta.width; VIEW.h = meta.height;
       setPress(input.pointer);
+      if (wheelInput.dy && !['rules', 'howto', 'about'].includes(state.scene)) {      // the mouse wheel scrolls whichever list is on screen (the reader handles its own)
+        const mt = flowMeta(), max = mt.lay ? Math.max(0, mt.lay.contentH - (mt.bottom - mt.top)) : 0;
+        if (['title', 'setup', 'workshop', 'settings', 'result', 'learn', 'lessonbrief', 'demolimit'].includes(state.scene) || (state.scene === 'play' && state.pauseMenu)) state.ui.scroll = clamp(state.ui.scroll + wheelInput.dy, 0, max);
+        wheelInput.dy = 0;
+      }
       if (state.shot) { state.t += dt; return; }
       const frozen = state.paused && (state.scene === 'play' || state.back === 'play');
       if (!frozen) state.t += dt;
@@ -780,7 +800,8 @@ export function createGame(env) {
         default: break;
       }
     },
-    render(ctx) {
+    render(ctx, view) {
+      if (view) { VIEW.w = view.width; VIEW.h = view.height; } else { VIEW.w = meta.width; VIEW.h = meta.height; }
       switch (state.scene) {
         case 'title': renderTitle(ctx, state); break;
         case 'setup': renderSetup(ctx, state); break;
@@ -788,7 +809,7 @@ export function createGame(env) {
         case 'settings': renderSettings(ctx, state); break;
         case 'learn': renderLearn(ctx, state); break;
         case 'lessonbrief': renderBrief(ctx, state); break;
-        case 'result': renderResult(ctx, state, (c) => { if (state.w) drawScene(c, sceneOf(state)); }); break;
+        case 'result': renderResult(ctx, state, (c, xf) => { if (state.w) drawSceneAt(c, sceneOf(state), xf); }); break;
         case 'demolimit': renderDemoLimit(ctx, state); break;
         case 'howto': renderPages(ctx, state, HOWTO, 'How to Play'); break;
         case 'about': renderPages(ctx, state, ABOUT, 'About'); break;

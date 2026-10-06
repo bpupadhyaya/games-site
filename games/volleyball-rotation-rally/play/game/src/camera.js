@@ -55,3 +55,56 @@ export function unprojectV(cam, W, H, vx, vy, h = 0) {
   if (t < 0) return null;
   return { x: cam.x + dirx * t, z: cam.z + dirz * t };
 }
+
+// ------------------------------------------------------------------------------------------------------------------------------
+// Fluid layout (1.1.0): the camera is a pure function of the live screen size. The picture always fills the whole screen; the 2D HUD
+// and the 3D presenter both read the same frame, so they can never disagree.
+//   tall  (portrait, aspect <= 9:16): the approved look, unchanged (fov follows the width).
+//   fit   (squarer portrait: tablets, 3:4): same camera spot, zoom and aim solved so the court fills the free area between the HUD bars.
+//   wide  (landscape): a lower, closer camera (still on the centre line behind the near baseline, so screen right stays world -x and up
+//         stays +z) and a zoom / aim solved so the whole court sits in the middle, between the side panels.
+const HWC = 4.5, HLC = 9.0;
+const WIDE_CAM = { x: 0, y: 17, z: -27 };
+function basis(cam) {
+  let fx = cam.lx - cam.x, fy = cam.ly - cam.y, fz = cam.lz - cam.z;
+  const fl = Math.hypot(fx, fy, fz); fx /= fl; fy /= fl; fz /= fl;
+  let rx = -fz, rz = fx; const rl = Math.hypot(rx, rz); rx /= rl; rz /= rl;
+  return { fx, fy, fz, rx, ry: 0, rz, ux: -rz * fy, uy: rz * fx - rx * fz, uz: rx * fy };
+}
+// Points that must stay on screen: the court with a little run-off, the far side at head height, the net posts.
+const FIT_PTS = [[-HWC - 1, 0, -HLC - 1.4], [HWC + 1, 0, -HLC - 1.4], [-HWC - 1, 2.3, HLC + 0.6], [HWC + 1, 2.3, HLC + 0.6], [-HWC - 0.6, 2.7, 0], [HWC + 0.6, 2.7, 0], [-HWC - 1, 0, 0], [HWC + 1, 0, 0]];
+function fitFov(cam, aspect, rn) {
+  const b = basis(cam); let th = 0;
+  for (const [x, y, z] of FIT_PTS) {
+    const dx = x - cam.x, dy = y - cam.y, dz = z - cam.z;
+    const zc = dx * b.fx + dy * b.fy + dz * b.fz; if (zc < 0.5) return Infinity;
+    const a = (dx * b.rx + dz * b.rz) / zc / aspect, c = (dx * b.ux + dy * b.uy + dz * b.uz) / zc;
+    if (a > 0) th = Math.max(th, a / rn.r); else th = Math.max(th, a / rn.l);
+    if (c > 0) th = Math.max(th, c / rn.t); else th = Math.max(th, c / rn.b);
+  }
+  return th;
+}
+// rect = where the court may be drawn, in virtual units {x0, y0, x1, y1} on a W x H screen.
+export function frameFor(W, H, rect, mode, baseOverride) {
+  const aspect = W / H;
+  if (mode === 'tall') return { ...initialCam(), fov: fovFor(aspect) };
+  const rn = { l: (2 * rect.x0) / W - 1, r: (2 * rect.x1) / W - 1, t: 1 - (2 * rect.y0) / H, b: 1 - (2 * rect.y1) / H };
+  const base = baseOverride || (mode === 'wide' ? WIDE_CAM : initialCam());
+  let best = null;
+  for (let lz = -12; lz <= 12.001; lz += 0.25) {
+    const cam = { x: base.x, y: base.y, z: base.z, lx: 0, ly: 0, lz };
+    const th = fitFov(cam, aspect, rn);
+    if (!isFinite(th)) continue;
+    if (!best || th < best.th) best = { th, cam };
+  }
+  const th = Math.max(Math.tan((12 * Math.PI) / 360), Math.min(best.th, Math.tan((60 * Math.PI) / 360)));
+  return { ...best.cam, fov: (2 * Math.atan(th) * 180) / Math.PI };
+}
+// World point -> virtual (HUD) coordinates for a frame; the virtual space is exactly the screen (no letterbox).
+export function projectF(fr, W, H, x, y, z) {
+  const aspect = W / H, b = basis(fr), th = Math.tan((fr.fov * Math.PI) / 360);
+  const dx = x - fr.x, dy = y - fr.y, dz = z - fr.z;
+  const zc = dx * b.fx + dy * b.fy + dz * b.fz; if (zc < 0.05) return null;
+  const nx = (dx * b.rx + dz * b.rz) / (zc * th * aspect), ny = (dx * b.ux + dy * b.uy + dz * b.uz) / (zc * th);
+  return { x: (nx + 1) * 0.5 * W, y: (1 - ny) * 0.5 * H, depth: zc };
+}

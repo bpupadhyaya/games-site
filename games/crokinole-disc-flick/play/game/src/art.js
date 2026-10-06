@@ -60,7 +60,7 @@ export function drawBackdrop(ctx, W, H) {
   for (let y = 0; y <= H; y += cell / 2) { ctx.moveTo(0, y); ctx.lineTo(W, y); }
   for (let x = 0; x <= W; x += cell / 2) { ctx.moveTo(x, 0); ctx.lineTo(x, H); }
   ctx.stroke();
-  const g = ctx.createRadialGradient(W / 2, 560, 120, W / 2, 600, 900);
+  const big = Math.max(W, H), g = ctx.createRadialGradient(W / 2, H * 0.4375, 120, W / 2, H * 0.469, big * 0.703);
   g.addColorStop(0, 'rgba(255,214,150,0.22)'); g.addColorStop(0.45, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(0,0,0,0.72)');
   ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
 }

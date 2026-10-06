@@ -1,19 +1,13 @@
 // Everything that is drawn each frame. Reads `state` (see game.js) and changes nothing.
 // The look: an enamel field map set in a gold frame, on royal violet. One light, from the upper
 // left. Static art (backdrop, board tiles and inlays) is painted once into cached layers.
-import {
-  SCREEN, BOARD_MARGIN, BOARD_TOP, BOARD_SIZE, inRect,
-  HINT_BUTTON, UNDO_BUTTON, PLAY7_BUTTON, PLAY10_BUTTON, DAILY_BUTTON, COLOR_BUTTON,
-  TITLE_COLOR_BUTTON, TITLE_RULES_BUTTON, RULES_BACK_BUTTON, RULES_NEXT_BUTTON,
-  RULES_TEXT_DEC_BUTTON, RULES_TEXT_INC_BUTTON, TEXT_SCALES,
-  TITLE_AUTO_BUTTON, AUTO_EXIT_BUTTON, AUTO_PAUSE_BUTTON, AUTO_SKIP_BUTTON, AUTO_AGAIN_BUTTON,
-  AUTO_EXIT2_BUTTON, AUTO_THINK_STEPS, AUTO_REVEAL_SECS, AUTO_DEC_BUTTON, AUTO_INC_BUTTON,
-  SIBLINGS, chipRect, chipRectAuto,
-} from './layout.js';
+import { inRect, host, TEXT_SCALES, AUTO_THINK_STEPS, SIBLINGS, layoutFor } from './layout.js';
 import { PALETTES, regionColor } from './palettes.js';
 import { RULES } from './content.js';
 
-const W = SCREEN.width, H = SCREEN.height, TAU = Math.PI * 2;
+// W/H follow the live screen size (set at the top of render()); static layers are cached per size.
+let W = 720, H = 1560;
+const TAU = Math.PI * 2;
 const DISPLAY = '"Cinzel", Georgia, "Times New Roman", serif';
 const UI = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
 const CREAM = '#f7ecd0';
@@ -49,7 +43,7 @@ function layer(ctx, key, x, y, w, h, paint) {
     } catch {
       c = null;
     }
-    if (layers.size > 10) layers.clear();
+    if (layers.size > 16) layers.clear();
     layers.set(key, c);
   }
   if (c) ctx.drawImage(c, x, y, w, h);
@@ -59,7 +53,10 @@ function layer(ctx, key, x, y, w, h, paint) {
 // ---------------------------------------------------------------------------------------------
 // Small drawing helpers
 // ---------------------------------------------------------------------------------------------
+// Text never goes below ~11 css px: host.px is css pixels per virtual unit (a small phone in landscape is ~0.54).
+const minSize = () => Math.min(26, Math.ceil(11 / Math.max(0.3, host.px)));
 function text(ctx, str, x, y, size, color = CREAM, font = UI, weight = 600, align = 'center') {
+  size = Math.max(size, minSize());
   ctx.textAlign = align;
   ctx.font = `${weight} ${size}px ${font}`;
   ctx.fillStyle = color;
@@ -263,7 +260,7 @@ function paintBackdrop(ctx, palette) {
 }
 
 function drawBackdrop(ctx, state, palette) {
-  layer(ctx, `bg:${state.palette}`, 0, 0, W, H, (l) => paintBackdrop(l, palette));
+  layer(ctx, `bg:${state.palette}:${W}x${H}`, 0, 0, W, H, (l) => paintBackdrop(l, palette));
   // slow gold motes drifting upward
   for (let k = 0; k < 16; k++) {
     const ph = (state.t * (0.018 + (k % 5) * 0.004) + k * 0.173) % 1;
@@ -627,41 +624,25 @@ function button(ctx, state, rect, label, o = {}) {
   ctx.fillStyle = primary ? '#7a4a06' : '#23105c';
   ctx.beginPath(); ctx.roundRect(0, depth, rect.w, fh, R); ctx.fill();
   // face
-  const g = ctx.createLinearGradient(0, push, 0, push + fh);
-  if (primary) { g.addColorStop(0, '#fff0a8'); g.addColorStop(0.5, '#f5c23f'); g.addColorStop(1, '#d08f17'); } else { g.addColorStop(0, '#9a72f7'); g.addColorStop(0.5, '#6d43d6'); g.addColorStop(1, '#4a2aa6'); }
-  ctx.fillStyle = g;
+  ctx.fillStyle = primary ? '#f5c23f' : '#6d43d6';   // flat face: no gloss, glint or inner outline
   ctx.beginPath(); ctx.roundRect(0, push, rect.w, fh, R); ctx.fill();
-  ctx.save();
-  ctx.clip();
-  // gloss on the upper half
-  const gl = ctx.createLinearGradient(0, push, 0, push + fh * 0.55);
-  gl.addColorStop(0, 'rgba(255,255,255,0.34)'); gl.addColorStop(1, 'rgba(255,255,255,0.02)');
-  ctx.fillStyle = gl;
-  ctx.beginPath(); ctx.roundRect(5, push + 4, rect.w - 10, fh * 0.5, [R - 4, R - 4, R * 2, R * 2]); ctx.fill();
-  // a glint crossing the primary button now and then
-  if (primary) {
-    const s = ((state.t * 0.32) % 1) * 2.4 - 0.4;
-    if (s < 1.3) {
-      ctx.fillStyle = 'rgba(255,255,255,0.38)';
-      ctx.beginPath();
-      const sx = s * rect.w;
-      ctx.moveTo(sx, push); ctx.lineTo(sx + 46, push); ctx.lineTo(sx + 6, push + fh); ctx.lineTo(sx - 40, push + fh);
-      ctx.closePath(); ctx.fill();
-    }
-  }
-  ctx.restore();
   ctx.strokeStyle = primary ? '#6b3f04' : '#f0c24c';
   ctx.lineWidth = primary ? 2 : 2.5;
   ctx.beginPath(); ctx.roundRect(0, push, rect.w, fh, R); ctx.stroke();
-  ctx.strokeStyle = primary ? 'rgba(255,255,255,0.7)' : 'rgba(255,255,255,0.28)';
-  ctx.lineWidth = 1.5;
-  ctx.beginPath(); ctx.roundRect(3.5, push + 3.5, rect.w - 7, fh - 7, R - 3); ctx.stroke();
 
   // label (+ icon)
-  const size = o.size ?? 34, ink = primary ? '#3a1d02' : CREAM;
+  let size = Math.min(o.size ?? 34, Math.max(minSize(), rect.h * 0.46)), ink = primary ? '#3a1d02' : CREAM;
   ctx.font = `700 ${size}px ${DISPLAY}`;
-  const iconS = o.icon ? size * 1.5 : 0, gap = o.icon ? 16 : 0;
-  const tw = ctx.measureText(label).width + (o.extra ?? 0);
+  let iconS = o.icon ? size * 1.5 : 0, gap = o.icon ? 16 : 0;
+  let tw = ctx.measureText(label).width + (o.extra ?? 0);
+  const maxTw = rect.w - 28 - iconS - gap;
+  if (tw > maxTw) {                                    // shrink the label to fit the button (never below the readable floor)
+    const k = Math.max(0.5, maxTw / tw);
+    size = Math.max(minSize() * 0.9, size * k);
+    ctx.font = `700 ${size}px ${DISPLAY}`;
+    iconS = o.icon ? size * 1.5 : 0; gap = o.icon ? 16 * k : 0;
+    tw = ctx.measureText(label).width + (o.extra ?? 0) * k;
+  }
   let x0 = rect.w / 2 - (tw + iconS + gap) / 2;
   const cy = push + fh / 2;
   if (o.icon) { ctx.save(); ICONS[o.icon](ctx, x0 + iconS / 2, cy, iconS, ink); ctx.restore(); x0 += iconS + gap; }
@@ -675,16 +656,24 @@ function button(ctx, state, rect, label, o = {}) {
   ctx.restore();
 }
 
-function chip(ctx, cx, y, w, label, value) {
+// A status chip filling `r`: small caps label on the left, value on the right.
+function chip(ctx, r, label, value) {
+  const hh = r.h, big = hh >= 58;
   ctx.save();
   ctx.fillStyle = 'rgba(14,5,44,0.72)';
   ctx.shadowColor = 'rgba(0,0,0,0.45)'; ctx.shadowBlur = 14; ctx.shadowOffsetY = 5;
-  ctx.beginPath(); ctx.roundRect(cx - w / 2, y, w, 62, 31); ctx.fill();
+  ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, hh, hh / 2); ctx.fill();
   ctx.restore();
   ctx.strokeStyle = 'rgba(240,194,76,0.75)'; ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.roundRect(cx - w / 2, y, w, 62, 31); ctx.stroke();
-  text(ctx, label, cx - w / 2 + 26, y + 40, 20, 'rgba(247,226,170,0.85)', DISPLAY, 700, 'left');
-  text(ctx, value, cx + w / 2 - 26, y + 42, 30, '#ffffff', UI, 700, 'right');
+  ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, hh, hh / 2); ctx.stroke();
+  const ls = big ? 20 : 18, vs = big ? 30 : 26, pad = hh * 0.45;
+  ctx.font = `700 ${Math.max(ls, minSize())}px ${DISPLAY}`;
+  const lw = ctx.measureText(label).width;
+  ctx.font = `700 ${vs}px ${UI}`;
+  const vw = ctx.measureText(value).width;
+  const k = Math.min(1, (r.w - 2 * pad - 8) / (lw + vw));
+  text(ctx, label, r.x + pad, r.y + hh / 2 + 7 * k, ls * k, 'rgba(247,226,170,0.85)', DISPLAY, 700, 'left');
+  text(ctx, value, r.x + r.w - pad, r.y + hh / 2 + 10 * k, vs * k, '#ffffff', UI, 700, 'right');
 }
 
 function swatches(palette, n) {
@@ -708,8 +697,6 @@ function panel(ctx, x, y, w, h) {
   ctx.restore();
   ctx.strokeStyle = '#f0c24c'; ctx.lineWidth = 4;
   ctx.beginPath(); ctx.roundRect(x, y, w, h, 34); ctx.stroke();
-  ctx.strokeStyle = 'rgba(255,240,190,0.35)'; ctx.lineWidth = 1.5;
-  ctx.beginPath(); ctx.roundRect(x + 10, y + 10, w - 20, h - 20, 26); ctx.stroke();
 }
 
 function rays(ctx, cx, cy, r, t, alpha) {
@@ -739,296 +726,6 @@ function wrapText(ctx, str, cx, y, maxWidth, lineHeight, size, color) {
 
 const clock = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 
-// ---------------------------------------------------------------------------------------------
-// Title screen hero: a small field that fills itself in, over and over
-// ---------------------------------------------------------------------------------------------
-const HERO = {
-  geo: { x: 150, y: 414, px: 420, n: 5 },
-  regions: [0, 0, 1, 1, 1, 0, 0, 1, 2, 2, 3, 0, 1, 2, 2, 3, 3, 4, 4, 2, 3, 3, 4, 4, 4],
-  crowns: [0, 7, 14, 16, 23],
-};
-
-function drawHero(ctx, state, palette) {
-  const { geo, regions, crowns } = HERO;
-  const cs = geo.px / geo.n;
-  const bob = Math.sin(state.t * 1.1) * 5;
-  ctx.save();
-  ctx.translate(0, bob);
-  rays(ctx, geo.x + geo.px / 2, geo.y + geo.px / 2, 420, state.t, 0.16);
-  drawBoardBase(ctx, geo, regions, palette, state.palette);
-  const phase = (state.t + 4.2) % 8.4;
-  const out = clamp01((phase - 7.6) / 0.6); // everything lifts away before the loop restarts
-  const ages = crowns.map((c, k) => phase - (0.5 + k * 0.7));
-  for (let i = 0; i < 25; i++) {
-    if (crowns.includes(i)) continue;
-    let f = 0;
-    crowns.forEach((c, k) => {
-      const dr = Math.abs(Math.floor(i / 5) - Math.floor(c / 5)), dc = Math.abs((i % 5) - (c % 5));
-      if (dr === 0 || dc === 0 || regions[i] === regions[c] || (dr <= 1 && dc <= 1)) f = Math.max(f, clamp01((ages[k] - 0.2 - Math.max(dr, dc) * 0.05) / 0.25));
-    });
-    drawRuledOut(ctx, geo.x + (i % 5) * cs, geo.y + Math.floor(i / 5) * cs, cs, f * (1 - out));
-  }
-  crowns.forEach((c, k) => {
-    if (ages[k] <= 0) return;
-    ctx.save();
-    ctx.globalAlpha = 1 - out;
-    drawPlacedCrown(ctx, geo.x + (c % 5) * cs + cs / 2, geo.y + Math.floor(c / 5) * cs + cs / 2 - out * 30, cs, ages[k]);
-    ctx.restore();
-  });
-  ctx.restore();
-}
-
-// ---------------------------------------------------------------------------------------------
-// Scenes
-// ---------------------------------------------------------------------------------------------
-function drawTitle(ctx, state, manifest, palette, demoLimit) {
-  const t = state.t;
-  // crest
-  rays(ctx, 360, 188, 210, -t * 0.7, 0.2);
-  drawCrown(ctx, 360, 185 + Math.sin(t * 1.6) * 4, 62, { lift: 4 - Math.sin(t * 1.6) * 4 });
-  const tw = (t * 0.8) % 1;
-  star4(ctx, 418, 140, 20 * Math.sin(tw * Math.PI), Math.sin(tw * Math.PI));
-  star4(ctx, 300, 170, 14 * Math.sin(((tw + 0.5) % 1) * Math.PI), Math.sin(((tw + 0.5) % 1) * Math.PI));
-  flourish(ctx, 360, 192, 110, 300);
-  goldText(ctx, manifest.title.toUpperCase(), 360, 328, 70, 640, 900);
-  text(ctx, manifest.tagline ?? '', 360, 374, 25, 'rgba(250,240,215,0.92)', UI, 500);
-
-  drawHero(ctx, state, palette);
-
-  button(ctx, state, PLAY7_BUTTON, 'Play 7 × 7', { primary: true, size: 42, icon: 'crown' });
-  button(ctx, state, PLAY10_BUTTON, state.expertUnlocked ? 'Expert 10 × 10' : 'Expert 10 × 10 (locked)', { size: 32, icon: 'grid', dim: !state.expertUnlocked });
-  button(ctx, state, DAILY_BUTTON, 'Daily Puzzle', { size: 32, icon: 'calendar' });
-  // Colours + Rules share the row the single full-width Colours button used to occupy (split in
-  // half; the in-play Colours button below the board is unchanged).
-  button(ctx, state, TITLE_COLOR_BUTTON, 'Colours', { id: 'color', size: 28 });
-  button(ctx, state, TITLE_RULES_BUTTON, 'Rules', { id: 'rules', size: 28 });
-  button(ctx, state, TITLE_AUTO_BUTTON, 'Auto Play — Watch & Learn', { id: 'auto', size: 24 });
-
-  if (state.lockMessageTimer > 0) text(ctx, 'Solve 5 puzzles or buy the Expert Pack to unlock 10x10', 360, 1500, 22, '#ffb3c0', UI, 600);
-  else text(ctx, 'Tap a square to rule it out. Tap again to crown it.', 360, 1500, 21, 'rgba(250,240,215,0.78)', UI, 500);
-  if (state.demo) pill(ctx, 360, 1536, `Free preview — ${demoLimit - state.demoSolves} puzzle(s) left`);
-  else if (state.totalSolved > 0) pill(ctx, 360, 1536, `Puzzles solved: ${state.totalSolved}`);
-}
-
-function pill(ctx, cx, y, str) {
-  ctx.font = `600 22px ${UI}`;
-  const w = ctx.measureText(str).width + 48;
-  ctx.fillStyle = 'rgba(14,5,44,0.7)';
-  ctx.beginPath(); ctx.roundRect(cx - w / 2, y - 22, w, 44, 22); ctx.fill();
-  ctx.strokeStyle = 'rgba(240,194,76,0.6)'; ctx.lineWidth = 1.5; ctx.stroke();
-  text(ctx, str, cx, y + 8, 22, 'rgba(250,240,215,0.92)', UI, 600);
-}
-
-function drawPlay(ctx, state, palette) {
-  const { size } = state;
-  const geo = { x: BOARD_MARGIN, y: BOARD_TOP, px: BOARD_SIZE, n: size };
-  const isAuto = state.scene === 'auto';
-  const A = isAuto ? state.auto : null;
-  const solved = state.scene === 'solved' || (isAuto && A && A.sub === 'over');
-  const enter = clamp01(state.sceneT / 0.45);
-
-  // header
-  const mode = state.mode === 'daily' ? 'Daily Puzzle' : size >= 10 ? 'Expert' : 'Endless';
-  flourish(ctx, 360, 128, 190, 330);
-  text(ctx, `${size} × ${size}`, 360, 137, 24, 'rgba(247,226,170,0.95)', DISPLAY, 700);
-  goldText(ctx, mode.toUpperCase(), 360, 196, 50, 600, 800);
-  chip(ctx, 232, 220, 232, 'TIME', clock(solved ? state.solveTime : state.time));
-  chip(ctx, 488, 220, 232, 'MOVES', String(solved ? state.solveMoves : state.moves));
-
-  // board (fixed surface: no settle-in scale)
-  ctx.save();
-  if (solved) rays(ctx, 360, geo.y + geo.px / 2, 560, state.t, 0.2 * clamp01(state.sceneT));
-  drawBoardBase(ctx, geo, state.regions, palette, state.palette);
-  drawBoardMarks(ctx, state, geo);
-  // Auto Play's REVEAL: a pulsing ring on the cell about to be crowned, the same visual language
-  // (a glowing ring) the board already uses elsewhere (conflicts, the finger-down cell).
-  if (isAuto && A && A.sub === 'reveal' && A.target >= 0) {
-    const cs = geo.px / size, col = A.target % size, row = Math.floor(A.target / size);
-    const cx = geo.x + col * cs + cs / 2, cy = geo.y + row * cs + cs / 2, pulse = 0.5 + 0.5 * Math.sin(state.t * 6);
-    ctx.strokeStyle = `rgba(120,220,255,${0.7 + 0.3 * pulse})`;
-    ctx.lineWidth = Math.max(4, cs * 0.08);
-    ctx.beginPath(); ctx.roundRect(cx - cs / 2 + 4, cy - cs / 2 + 4, cs - 8, cs - 8, cs * 0.14); ctx.stroke();
-  }
-  ctx.restore();
-
-  // crowns placed so far
-  const placed = state.cells.reduce((k, c) => k + (c === 'crown' ? 1 : 0), 0);
-  if (!solved) {
-    text(ctx, `CROWNS  ${placed} / ${size}`, 360, 1046, 21, 'rgba(247,226,170,0.9)', DISPLAY, 700);
-    const gap = Math.min(64, 560 / size);
-    for (let k = 0; k < size; k++) {
-      const px = 360 + (k - (size - 1) / 2) * gap;
-      if (k < placed) drawCrown(ctx, px, 1084, gap * 0.3, {});
-      else {
-        ctx.fillStyle = 'rgba(14,5,44,0.6)';
-        ctx.beginPath(); ctx.arc(px, 1088, gap * 0.2, 0, TAU); ctx.fill();
-        ctx.strokeStyle = 'rgba(240,194,76,0.55)'; ctx.lineWidth = 2; ctx.stroke();
-      }
-    }
-    if (isAuto) {
-      // Hint/Undo/Colours have no meaning in a spectator run — the same three slots become
-      // Exit/Pause/Skip, and a status strip + think-time stepper takes the header's top corners.
-      button(ctx, state, AUTO_EXIT_BUTTON, 'Exit', { id: 'autoExit', size: 30 });
-      button(ctx, state, AUTO_PAUSE_BUTTON, A.paused ? 'Resume' : 'Pause', { id: 'autoPause', size: 30 });
-      button(ctx, state, AUTO_SKIP_BUTTON, 'Skip', { id: 'autoSkip', size: 30 });
-      const label = A.paused ? 'Paused' : A.sub === 'think' ? 'Thinking...' : 'Revealing...';
-      text(ctx, label, 360, 1546, 20, A.paused ? '#ffd08a' : 'rgba(120,220,255,0.95)', UI, 600);
-      text(ctx, `Think ${AUTO_THINK_STEPS[state.autoThinkIdx]}s`, 360, 62, 22, 'rgba(247,226,170,0.9)', UI, 700);
-      button(ctx, state, AUTO_DEC_BUTTON, '−', { id: 'autoDec', size: 30 });
-      button(ctx, state, AUTO_INC_BUTTON, '+', { id: 'autoInc', size: 30 });
-    } else {
-      button(ctx, state, HINT_BUTTON, 'Hint', { id: 'hint', size: 36, icon: 'bulb' });
-      button(ctx, state, UNDO_BUTTON, 'Undo', { id: 'undo', size: 36, icon: 'undo', dim: state.history.length === 0 });
-      text(ctx, 'COLOURS', 360, COLOR_BUTTON.y - 12, 17, 'rgba(247,226,170,0.8)', DISPLAY, 700);
-      button(ctx, state, COLOR_BUTTON, palette.name, { id: 'color', size: 27, extra: 150, after: swatches(palette, size) });
-      const conflict = state.conflicts.length > 0;
-      text(ctx, conflict ? 'Two crowns clash. Move one of the glowing crowns.' : 'One crown in every row, column and colour. None may touch.', 360, 1450, 23, conflict ? '#ffb3c0' : 'rgba(250,240,215,0.78)', UI, conflict ? 600 : 500);
-    }
-  } else {
-    // gold sparks rising past the board
-    for (let k = 0; k < 26; k++) {
-      const ph = (state.sceneT * (0.22 + (k % 4) * 0.05) + k * 0.131) % 1;
-      const x = 60 + ((k * 149) % 600) + Math.sin(state.sceneT * 2 + k) * 18;
-      star4(ctx, x, 1000 - ph * 820, 7 + (k % 3) * 4, (1 - ph) * clamp01(state.sceneT * 2));
-    }
-    const f = easeOut(clamp01((state.sceneT - 0.25) / 0.55));
-    ctx.save();
-    ctx.globalAlpha = f;
-    ctx.translate(0, (1 - f) * 90);
-    // Shrunk from its old 400px height to 300px to leave room below it for the "More from
-    // Arcforge" chip row (real play only) — see SIBLINGS/chipRect in layout.js.
-    panel(ctx, 50, 1030, 620, 300);
-    drawCrown(ctx, 360, 1028 + Math.sin(state.t * 2) * 3, 58, {});
-    goldText(ctx, 'SOLVED', 360, 1160, 70, 520, 900);
-    flourish(ctx, 360, 1188, 120, 270);
-    text(ctx, `Time ${clock(state.solveTime)}`, 230, 1244, 30, '#ffffff', UI, 700);
-    text(ctx, `Moves ${state.solveMoves}`, 490, 1244, 30, '#ffffff', UI, 700);
-    text(ctx, state.hintsUsed ? `Hints used: ${state.hintsUsed}` : 'No hints used', 360, 1284, 23, 'rgba(247,226,170,0.85)', UI, 500);
-    // This free game's one natural advertising moment: a player (or a viewer who just watched
-    // Auto Play solve it) is deciding what to do next anyway. Paid games only, never another free
-    // game — see SIBLINGS in layout.js for why and which ones. Real play has room for the 2x2
-    // chipRect() grid below this panel; Auto Play's "over" sub-state has AUTO_AGAIN_BUTTON/
-    // AUTO_EXIT2_BUTTON starting right at y:1412, so it uses the single-row chipRectAuto() layout
-    // instead (replaces the old standalone "Solved!" line — the panel's own "SOLVED" title above
-    // already says that). Tap handling: game.js's 'solved' branch / updateAutoScene's 'over' branch.
-    text(ctx, 'MORE FROM ARCFORGE', 360, isAuto ? 1344 : 1362, isAuto ? 13 : 20, 'rgba(247,226,170,0.75)', DISPLAY, 700);
-    if (isAuto) {
-      SIBLINGS.forEach((g, i) => button(ctx, state, chipRectAuto(i), g.title, { size: 14, id: `chipAuto${i}` }));
-    } else {
-      SIBLINGS.forEach((g, i) => button(ctx, state, chipRect(i), g.title, { size: 20, id: `chip${i}` }));
-    }
-    ctx.globalAlpha = f * (0.65 + 0.35 * Math.sin(state.t * 3.2));
-    if (!isAuto) {
-      text(ctx, state.demoLimitReached ? 'Tap to continue' : 'Tap for a new puzzle', 360, 1546, 30, CREAM, DISPLAY, 700);
-    }
-    ctx.restore();
-    if (isAuto) {
-      button(ctx, state, AUTO_AGAIN_BUTTON, 'Play again', { id: 'autoAgain', size: 28 });
-      button(ctx, state, AUTO_EXIT2_BUTTON, 'Exit', { id: 'autoExit2', size: 26 });
-    }
-  }
-}
-
-function drawDemoLimit(ctx, state) {
-  const f = easeOut(clamp01(state.sceneT / 0.5));
-  ctx.save();
-  ctx.globalAlpha = f;
-  ctx.translate(0, (1 - f) * 60);
-  rays(ctx, 360, 520, 420, state.t, 0.18);
-  panel(ctx, 50, 520, 620, 470);
-  drawCrown(ctx, 360, 516 + Math.sin(state.t * 2) * 3, 64, {});
-  goldText(ctx, "THAT'S THE FREE PREVIEW", 360, 680, 40, 540, 800);
-  flourish(ctx, 360, 712, 120, 270);
-  wrapText(ctx, 'Get the full game on iPhone and Android for unlimited puzzles, the Expert board and hints.', 360, 780, 520, 42, 28, 'rgba(250,240,215,0.92)');
-  ctx.restore();
-}
-
-// ---------------------------------------------------------------------------------------------
-// Rules reference page (title screen only). Every illustration below reuses this file's own
-// board/crown/mark/button drawing functions (drawBoardBase, drawPlacedCrown, drawRuledOut,
-// drawCrown, button, chip, ICONS) — never a separate simplified icon set. Pure: reads only the
-// presentation clocks already on `state`, mutates nothing.
-//
-// A framed reader card (RULES_PANEL, drawn by drawRulesPanel) sits behind the header/title/art/
-// body so the page reads as a designed reference sheet rather than text floating loose on the
-// backdrop. A text-size stepper (RULES_TEXT_DEC_BUTTON/RULES_TEXT_INC_BUTTON, top corners) steps
-// state.textScaleIdx through TEXT_SCALES and enlarges the title + body proportionally; this
-// file's own pre-existing shrink-to-fit safety net (layoutRulesBody, below) still guarantees a
-// page can never spill past RULES_TEXT_BOTTOM even so — real overflow at the top text step is
-// fixed by splitting a page's content in content.js, never by lowering these base sizes.
-const RULES_PANEL = { x: 34, y: 90, w: W - 68, h: 1330 - 90 };
-const RULES_TEXT_TOP_WITH_ART = 900;
-const RULES_TEXT_TOP_NO_ART = 300;
-const RULES_TEXT_BOTTOM = 1290;
-const RULES_PAGE_LABEL_Y = 1312;
-const RULES_TEXT_MAXW = W - 108;
-// Base (scale 1) body sizes, largest first — real reading sizes now (was capped at 27/floor 18).
-const RULES_BODY_SIZES = [30, 28, 26, 24, 22, 20];
-
-function drawRulesPanel(ctx) {
-  const p = RULES_PANEL;
-  ctx.save();
-  ctx.beginPath();
-  ctx.roundRect(p.x, p.y, p.w, p.h, 28);
-  const g = ctx.createLinearGradient(0, p.y, 0, p.y + p.h);
-  g.addColorStop(0, 'rgba(32,18,78,0.6)');
-  g.addColorStop(1, 'rgba(11,6,30,0.76)');
-  ctx.fillStyle = g;
-  ctx.fill();
-  ctx.lineWidth = 2;
-  ctx.strokeStyle = 'rgba(247,205,85,0.32)';
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.roundRect(p.x + 6, p.y + 6, p.w - 12, p.h - 12, 22);
-  ctx.lineWidth = 1;
-  ctx.strokeStyle = 'rgba(247,205,85,0.12)';
-  ctx.stroke();
-  ctx.restore();
-}
-
-function wrapRulesParagraph(ctx, str, maxW) {
-  const words = str.split(' ');
-  const lines = [];
-  let line = '';
-  for (const w of words) {
-    const test = line ? `${line} ${w}` : w;
-    if (ctx.measureText(test).width > maxW && line) {
-      lines.push(line);
-      line = w;
-    } else line = test;
-  }
-  if (line) lines.push(line);
-  return lines;
-}
-
-// Picks the largest body size from `sizes` (and matching line/paragraph spacing) whose wrapped
-// paragraphs fit the given pixel budget, so a page can never overflow into the nav row no matter
-// how long it is. `sizes` is the scaled RULES_BODY_SIZES for the current text-size step.
-function layoutRulesBody(ctx, paragraphs, budget, sizes = RULES_BODY_SIZES) {
-  let best = null;
-  for (const size of sizes) {
-    ctx.font = `500 ${size}px ${UI}`;
-    const lh = Math.round(size * 1.34);
-    const pgap = Math.round(size * 0.85);
-    const blocks = paragraphs.map((p) => wrapRulesParagraph(ctx, p, RULES_TEXT_MAXW));
-    const lineCount = blocks.reduce((a, b) => a + b.length, 0);
-    const height = lineCount * lh + (blocks.length - 1) * pgap;
-    best = { size, lh, pgap, blocks, height };
-    if (height <= budget) break;
-  }
-  return best;
-}
-
-function fitRulesTitle(ctx, str, maxW, start, floor) {
-  let size = start;
-  ctx.font = `800 ${size}px ${DISPLAY}`;
-  while (ctx.measureText(str).width > maxW && size > floor) {
-    size -= 2;
-    ctx.font = `800 ${size}px ${DISPLAY}`;
-  }
-  return size;
-}
-
 function highlight(ctx, x, y, cs, alpha = 0.24) {
   ctx.fillStyle = `rgba(255,255,255,${alpha})`;
   ctx.fillRect(x, y, cs, cs);
@@ -1047,8 +744,8 @@ function drawRulesArt(ctx, name, state, palette) {
       drawPlacedCrown(ctx, geo.x + col * cs + cs / 2, geo.y + row * cs + cs / 2, cs, 1);
     });
     if (name === 'win') {
-      chip(ctx, cx - 130, geo.y + geo.px + 34, 210, 'TIME', '1:42');
-      chip(ctx, cx + 130, geo.y + geo.px + 34, 210, 'MOVES', '11');
+      chip(ctx, { x: cx - 235, y: geo.y + geo.px + 34, w: 210, h: 62 }, 'TIME', '1:42');
+      chip(ctx, { x: cx + 25, y: geo.y + geo.px + 34, w: 210, h: 62 }, 'MOVES', '11');
     }
   } else if (name === 'touch') {
     const n = 3, cell = 130;
@@ -1156,59 +853,402 @@ function drawRulesArt(ctx, name, state, palette) {
   }
 }
 
-function drawRulesPage(ctx, state, manifest, palette) {
-  const list = RULES;
-  const i = ((state.page % list.length) + list.length) % list.length;
-  const page = list[i];
-  // Guarded lookup: an out-of-range saved index (e.g. from a build with a longer/shorter
-  // TEXT_SCALES) falls back to 1 rather than producing a NaN font size.
-  const scale = TEXT_SCALES[state.textScaleIdx] ?? 1;
+// ---------------------------------------------------------------------------------------------
+// Small shared helpers for the fluid layout
+// ---------------------------------------------------------------------------------------------
+let lockup = null; // the themed ARCFORGE lockup (web/brand/arcforge-lockup.png), set by main.js once loaded
+export const setLockup = (img) => { lockup = img; };
+const LOCKUP_ASPECT = 1200 / 327;
 
-  drawRulesPanel(ctx);
-
-  text(ctx, `${(manifest.title ?? 'CROWN FIELDS').toUpperCase()} — RULES`, 360, 108, 21, 'rgba(247,226,170,0.85)', DISPLAY, 700);
-  flourish(ctx, 360, 128, 150, 330);
-  // Header/title grows with scale too, capped a little tighter than the body so it never crowds
-  // the flourish above it.
-  const titleStart = Math.round(48 * Math.min(scale, 1.15));
-  const titleFloor = Math.round(28 * scale);
-  const titleSize = fitRulesTitle(ctx, page.title, W - 100, titleStart, titleFloor);
-  goldText(ctx, page.title, 360, 196, titleSize, W - 80, 800);
-
-  drawRulesArt(ctx, page.art, state, palette);
-
-  const textTop = page.art ? RULES_TEXT_TOP_WITH_ART : RULES_TEXT_TOP_NO_ART;
-  const sizes = RULES_BODY_SIZES.map((s) => Math.round(s * scale));
-  const { size, lh, pgap, blocks } = layoutRulesBody(ctx, page.lines, RULES_TEXT_BOTTOM - textTop, sizes);
-  ctx.font = `500 ${size}px ${UI}`;
-  ctx.fillStyle = 'rgba(250,240,215,0.9)';
-  ctx.textAlign = 'center';
-  let y = textTop;
-  blocks.forEach((block, bi) => {
-    for (const ln of block) {
-      ctx.fillText(ln, 360, y);
-      y += lh;
+// Wraps `str` into lines no wider than maxW at the current font; returns the lines. A single word wider than maxW
+// (a long hyphenated word at 300% text) is broken after a hyphen, else by characters, so nothing runs outside its panel.
+export function wrapLines(ctx, str, maxW) {
+  const lines = [];
+  let line = '';
+  const put = (tok) => {
+    const test = line ? `${line} ${tok}` : tok;
+    if (ctx.measureText(test).width > maxW && line) { lines.push(line); line = tok; } else line = test;
+  };
+  for (const word of str.split(' ')) {
+    if (ctx.measureText(word).width <= maxW) { put(word); continue; }
+    let rest = word;
+    while (ctx.measureText(rest).width > maxW) {
+      let cut = 1;
+      while (cut < rest.length && ctx.measureText(rest.slice(0, cut + 1)).width <= maxW) cut++;
+      const h = rest.slice(0, cut).lastIndexOf('-');
+      if (h >= 1) cut = h + 1;
+      put(rest.slice(0, cut)); rest = rest.slice(cut);
+      lines.push(line); line = '';
     }
-    if (bi < blocks.length - 1) y += pgap;
-  });
-
-  text(ctx, `Page ${i + 1} of ${list.length}`, 360, RULES_PAGE_LABEL_Y, 20, 'rgba(247,226,170,0.7)', DISPLAY, 700);
-  // Back reads as the neutral/secondary action (the same purple every other menu button uses);
-  // Next as the primary action (the gold "PLAY" accent), so the two footer buttons are never
-  // visually identical — matches this game's own title-screen convention (gold = the main action).
-  button(ctx, state, RULES_BACK_BUTTON, 'Back', { id: 'rulesBack', size: 34 });
-  button(ctx, state, RULES_NEXT_BUTTON, i >= list.length - 1 ? 'Done' : 'Next', { id: 'rulesNext', size: 34, primary: true });
-  button(ctx, state, RULES_TEXT_DEC_BUTTON, 'A−', { id: 'textDec', size: 30, dim: state.textScaleIdx === 0 });
-  button(ctx, state, RULES_TEXT_INC_BUTTON, 'A+', { id: 'textInc', size: 30, dim: state.textScaleIdx === TEXT_SCALES.length - 1 });
+    put(rest);
+  }
+  if (line) lines.push(line);
+  return lines;
 }
 
-export function render(ctx, state, manifest, demoLimit) {
+// A short note centred in `r`: wraps, and steps the size down (never below the readable floor) until it fits the box.
+function note(ctx, str, r, size, color, weight = 500) {
+  let s = Math.max(size, minSize());
+  let lines;
+  for (;;) {
+    ctx.font = `${weight} ${s}px ${UI}`;
+    lines = wrapLines(ctx, str, r.w);
+    if (lines.length * s * 1.25 <= r.h + 1 || s <= minSize()) break;
+    s -= 1;
+  }
+  const lh = s * 1.25, y0 = r.y + (r.h - lines.length * lh) / 2 + s * 0.95;
+  lines.forEach((ln, i) => text(ctx, ln, r.x + r.w / 2, y0 + i * lh, s, color, UI, weight));
+}
+
+// A soft translucent card behind a group of controls (wide layouts).
+function card(ctx, r) {
+  ctx.save();
+  ctx.beginPath(); ctx.roundRect(r.x, r.y, r.w, r.h, 28);
+  const g = ctx.createLinearGradient(0, r.y, 0, r.y + r.h);
+  g.addColorStop(0, 'rgba(32,18,78,0.55)'); g.addColorStop(1, 'rgba(11,6,30,0.7)');
+  ctx.fillStyle = g; ctx.fill();
+  ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(247,205,85,0.3)'; ctx.stroke();
+  ctx.restore();
+}
+
+// ---------------------------------------------------------------------------------------------
+// Title screen hero: a small field that fills itself in, over and over
+// ---------------------------------------------------------------------------------------------
+const HERO = {
+  geo: { x: 150, y: 414, px: 420, n: 5 }, // the art blocks in the Rules reader use this size
+  regions: [0, 0, 1, 1, 1, 0, 0, 1, 2, 2, 3, 0, 1, 2, 2, 3, 3, 4, 4, 2, 3, 3, 4, 4, 4],
+  crowns: [0, 7, 14, 16, 23],
+};
+
+function drawHero(ctx, state, palette, geo) {
+  const { regions, crowns } = HERO;
+  const cs = geo.px / geo.n, k = geo.px / 420;
+  const bob = Math.sin(state.t * 1.1) * 5 * k;
+  ctx.save();
+  ctx.translate(0, bob);
+  rays(ctx, geo.x + geo.px / 2, geo.y + geo.px / 2, geo.px * 1.0, state.t, 0.16);
+  drawBoardBase(ctx, geo, regions, palette, state.palette);
+  const phase = (state.t + 4.2) % 8.4;
+  const out = clamp01((phase - 7.6) / 0.6); // everything lifts away before the loop restarts
+  const ages = crowns.map((c, k2) => phase - (0.5 + k2 * 0.7));
+  for (let i = 0; i < 25; i++) {
+    if (crowns.includes(i)) continue;
+    let f = 0;
+    crowns.forEach((c, k2) => {
+      const dr = Math.abs(Math.floor(i / 5) - Math.floor(c / 5)), dc = Math.abs((i % 5) - (c % 5));
+      if (dr === 0 || dc === 0 || regions[i] === regions[c] || (dr <= 1 && dc <= 1)) f = Math.max(f, clamp01((ages[k2] - 0.2 - Math.max(dr, dc) * 0.05) / 0.25));
+    });
+    drawRuledOut(ctx, geo.x + (i % 5) * cs, geo.y + Math.floor(i / 5) * cs, cs, f * (1 - out));
+  }
+  crowns.forEach((c, k2) => {
+    if (ages[k2] <= 0) return;
+    ctx.save();
+    ctx.globalAlpha = 1 - out;
+    drawPlacedCrown(ctx, geo.x + (c % 5) * cs + cs / 2, geo.y + Math.floor(c / 5) * cs + cs / 2 - out * 30 * k, cs, ages[k2]);
+    ctx.restore();
+  });
+  ctx.restore();
+}
+
+// ---------------------------------------------------------------------------------------------
+// Scenes
+// ---------------------------------------------------------------------------------------------
+function drawTitle(ctx, state, manifest, palette, demoLimit, L) {
+  const T = L.title, t = state.t, c = T.crown, k = c.r / 62;
+  rays(ctx, c.x, c.y, c.r * 3.4, -t * 0.7, 0.2);
+  drawCrown(ctx, c.x, c.y + Math.sin(t * 1.6) * 4 * k, c.r, { lift: (4 - Math.sin(t * 1.6) * 4) * k });
+  const tw = (t * 0.8) % 1;
+  star4(ctx, c.x + 58 * k, c.y - 45 * k, 20 * k * Math.sin(tw * Math.PI), Math.sin(tw * Math.PI));
+  star4(ctx, c.x - 60 * k, c.y - 15 * k, 14 * k * Math.sin(((tw + 0.5) % 1) * Math.PI), Math.sin(((tw + 0.5) % 1) * Math.PI));
+  const fo = Math.min(c.r * 4.8, T.titleMaxW / 2);
+  flourish(ctx, c.x, c.y + 6 * k, Math.min(c.r * 1.77, fo - 40), fo);
+  goldText(ctx, manifest.title.toUpperCase(), T.cx, T.titleY, T.titleSize, T.titleMaxW, 900);
+  note(ctx, manifest.tagline ?? '', { x: T.cx - T.titleMaxW / 2, y: T.tagY - 22, w: T.titleMaxW, h: 56 }, 24, 'rgba(250,240,215,0.92)');
+
+  if (T.hero) drawHero(ctx, state, palette, T.hero);
+
+  const big = T.big;
+  button(ctx, state, T.play7, 'Play 7 × 7', { primary: true, size: big ? 42 : 36, icon: 'crown' });
+  button(ctx, state, T.expert, state.expertUnlocked ? 'Expert 10 × 10' : 'Expert 10 × 10 (locked)', { size: big ? 32 : 26, icon: big ? 'grid' : null, dim: !state.expertUnlocked });
+  button(ctx, state, T.daily, 'Daily Puzzle', { size: big ? 32 : 26, icon: big ? 'calendar' : null });
+  button(ctx, state, T.colour, 'Colours', { id: 'color', size: big ? 28 : 26 });
+  button(ctx, state, T.rules, 'Rules', { id: 'rules', size: big ? 28 : 26 });
+  button(ctx, state, T.auto, 'Auto Play — Watch & Learn', { id: 'auto', size: big ? 24 : 22 });
+
+  const hintR = { x: T.footRow.x, y: T.hintY - 24, w: T.footRow.w, h: 30 };
+  const hasPill = state.demo || state.totalSolved > 0;
+  if (state.lockMessageTimer > 0) note(ctx, 'Solve 5 puzzles or buy the Expert Pack to unlock 10x10', hintR, 22, '#ffb3c0', 600);
+  else if (!hasPill) note(ctx, T.wide && T.footRow.w < 460 ? 'Tap to rule out, tap again to crown.' : 'Tap a square to rule it out. Tap again to crown it.', hintR, 21, 'rgba(250,240,215,0.78)');
+  // the themed ARCFORGE lockup directly under the last button (tap: Arcforge home), then the progress pill on the bottom line
+  const lk = T.lockup;
+  if (lockup && lockup.width) {
+    ctx.save(); ctx.globalAlpha = lockPress > 0 ? 0.5 : 0.95;
+    ctx.fillStyle = 'rgba(14,5,44,0.45)'; ctx.beginPath(); ctx.roundRect(lk.x - 10, lk.y - 4, lk.w + 20, lk.h + 8, 14); ctx.fill();
+    ctx.drawImage(lockup, lk.x, lk.y, lk.w, lk.h); ctx.restore();
+    if (lockPress > 0) lockPress--;
+  }
+  const fr = T.footRow;
+  const str = state.demo ? `Free preview — ${demoLimit - state.demoSolves} puzzle(s) left` : state.totalSolved > 0 ? `Puzzles solved: ${state.totalSolved}` : '';
+  if (str && !(state.lockMessageTimer > 0)) pill(ctx, fr, str);
+}
+export const pressLockup = () => { lockPress = 10; };
+let lockPress = 0;
+
+// A status pill right-aligned in `r`; the text shrinks to fit.
+function pill(ctx, r, str) {
+  let s = 22;
+  const floor = minSize() * 0.85;
+  ctx.font = `600 ${s}px ${UI}`;
+  while (ctx.measureText(str).width + 40 > r.w && s > floor) { s -= 1; ctx.font = `600 ${s}px ${UI}`; }
+  const w = Math.min(r.w, ctx.measureText(str).width + 40), h = Math.min(44, r.h);
+  const x = r.x + (r.w - w) / 2, y = r.y + (r.h - h) / 2;
+  ctx.fillStyle = 'rgba(14,5,44,0.7)';
+  ctx.beginPath(); ctx.roundRect(x, y, w, h, h / 2); ctx.fill();
+  ctx.strokeStyle = 'rgba(240,194,76,0.6)'; ctx.lineWidth = 1.5; ctx.stroke();
+  text(ctx, str, x + w / 2, y + h / 2 + s * 0.35, s, 'rgba(250,240,215,0.92)', UI, 600);
+}
+
+function drawPlay(ctx, state, palette, L) {
+  const { size } = state, P = L.play, B = P.board;
+  const geo = { x: B.x, y: B.y, px: B.px, n: size };
+  const isAuto = state.scene === 'auto';
+  const A = isAuto ? state.auto : null;
+  const solved = state.scene === 'solved' || (isAuto && A && A.sub === 'over');
+  const placed = state.cells.reduce((k, c) => k + (c === 'crown' ? 1 : 0), 0);
+
+  for (const r of P.panels) card(ctx, r);
+
+  // header
+  const mode = state.mode === 'daily' ? 'Daily Puzzle' : size >= 10 ? 'Expert' : 'Endless';
+  const T = P.title;
+  if (T.label) {
+    if (!P.wide) flourish(ctx, T.x, T.label.y - 8, 190, 330);
+    text(ctx, `${size} × ${size}`, T.x, T.label.y + 7, T.label.size, 'rgba(247,226,170,0.95)', DISPLAY, 700);
+    goldText(ctx, mode.toUpperCase(), T.x, T.y, T.size, T.maxW, 800);
+  } else goldText(ctx, `${mode.toUpperCase()}  ${size} × ${size}`, T.x, T.y, T.size, T.maxW, 800);
+  P.chips.forEach((r, i) => {
+    const kind = P.chipKinds[i];
+    if (kind === 'time') chip(ctx, r, 'TIME', clock(solved ? state.solveTime : state.time));
+    else if (kind === 'moves') chip(ctx, r, 'MOVES', String(solved ? state.solveMoves : state.moves));
+    else chip(ctx, r, 'CROWNS', `${placed} / ${size}`);
+  });
+
+  // board (fixed surface: no settle-in scale)
+  ctx.save();
+  if (solved) rays(ctx, geo.x + geo.px / 2, geo.y + geo.px / 2, geo.px * 0.9, state.t, 0.2 * clamp01(state.sceneT));
+  drawBoardBase(ctx, geo, state.regions, palette, state.palette);
+  drawBoardMarks(ctx, state, geo);
+  // Auto Play's REVEAL: a pulsing ring on the cell about to be crowned.
+  if (isAuto && A && A.sub === 'reveal' && A.target >= 0) {
+    const cs = geo.px / size, col = A.target % size, row = Math.floor(A.target / size);
+    const cx = geo.x + col * cs + cs / 2, cy = geo.y + row * cs + cs / 2, pulse = 0.5 + 0.5 * Math.sin(state.t * 6);
+    ctx.strokeStyle = `rgba(120,220,255,${0.7 + 0.3 * pulse})`;
+    ctx.lineWidth = Math.max(4, cs * 0.08);
+    ctx.beginPath(); ctx.roundRect(cx - cs / 2 + 4, cy - cs / 2 + 4, cs - 8, cs - 8, cs * 0.14); ctx.stroke();
+  }
+  ctx.restore();
+
+  if (solved) { drawSolvedCard(ctx, state, L, geo, isAuto); return; }
+
+  // crowns placed so far (tall portrait only: the other layouts show it as a chip)
+  if (P.tally) {
+    const tl = P.tally;
+    text(ctx, `CROWNS  ${placed} / ${size}`, tl.cx, tl.labelY, 21, 'rgba(247,226,170,0.9)', DISPLAY, 700);
+    const gap = Math.min(64, tl.maxW / size);
+    for (let k = 0; k < size; k++) {
+      const px = tl.cx + (k - (size - 1) / 2) * gap;
+      if (k < placed) drawCrown(ctx, px, tl.rowY, gap * 0.3, {});
+      else {
+        ctx.fillStyle = 'rgba(14,5,44,0.6)';
+        ctx.beginPath(); ctx.arc(px, tl.rowY + 4, gap * 0.2, 0, TAU); ctx.fill();
+        ctx.strokeStyle = 'rgba(240,194,76,0.55)'; ctx.lineWidth = 2; ctx.stroke();
+      }
+    }
+  }
+  const sz = (r) => Math.min(36, r.h * 0.42);
+  if (isAuto) {
+    // Hint/Undo/Colours/Menu have no meaning in a spectator run: the same four slots become Exit/Pause/Skip/Think.
+    const a = P.abtn;
+    button(ctx, state, a.exit, 'Exit', { id: 'autoExit', size: sz(a.exit) });
+    button(ctx, state, a.pause, A.paused ? 'Resume' : 'Pause', { id: 'autoPause', size: sz(a.pause) });
+    button(ctx, state, a.skip, 'Skip', { id: 'autoSkip', size: sz(a.skip) });
+    button(ctx, state, a.think, `Think ${AUTO_THINK_STEPS[state.autoThinkIdx]}s`, { id: 'autoThink', size: sz(a.think) });
+    const label = A.paused ? 'Paused' : A.sub === 'think' ? 'Thinking...' : 'Revealing...';
+    note(ctx, label, P.msg, 22, A.paused ? '#ffd08a' : 'rgba(120,220,255,0.95)', 600);
+  } else {
+    const b = P.btn;
+    button(ctx, state, b.hint, 'Hint', { id: 'hint', size: sz(b.hint), icon: b.hint.w >= 150 ? 'bulb' : null });
+    button(ctx, state, b.undo, 'Undo', { id: 'undo', size: sz(b.undo), icon: b.undo.w >= 150 ? 'undo' : null, dim: state.history.length === 0 });
+    button(ctx, state, b.menu, 'Menu', { id: 'menu', size: sz(b.menu) });
+    if (b.colour.w >= 300) button(ctx, state, b.colour, palette.name, { id: 'color', size: 27, extra: 150, after: swatches(palette, size) });
+    else button(ctx, state, b.colour, 'Colours', { id: 'color', size: sz(b.colour) });
+    const conflict = state.conflicts.length > 0;
+    note(ctx, conflict ? 'Two crowns clash. Move one of the glowing crowns.' : 'One crown in every row, column and colour. None may touch.', P.msg, 22, conflict ? '#ffb3c0' : 'rgba(250,240,215,0.78)', conflict ? 600 : 500);
+  }
+}
+
+// The finished-board card: crown, SOLVED, time and moves, "More from Arcforge" chips, and two buttons.
+function drawSolvedCard(ctx, state, L, geo, isAuto) {
+  const C = L.card, r = C.rect;
+  if (C.overlay) {                                       // compact portrait: the card sits over the board, which dims behind it
+    ctx.fillStyle = `rgba(8,3,26,${0.5 * clamp01(state.sceneT * 2)})`;
+    ctx.fillRect(0, 0, W, H);
+  }
+  // gold sparks rising past the board
+  for (let k = 0; k < 26; k++) {
+    const ph = (state.sceneT * (0.22 + (k % 4) * 0.05) + k * 0.131) % 1;
+    const x = geo.x + 30 + ((k * 149) % Math.max(60, geo.px - 60)) + Math.sin(state.sceneT * 2 + k) * 18;
+    star4(ctx, x, geo.y + geo.px - ph * geo.px * 1.1, 7 + (k % 3) * 4, (1 - ph) * clamp01(state.sceneT * 2));
+  }
+  const f = easeOut(clamp01((state.sceneT - 0.25) / 0.55));
+  ctx.save();
+  ctx.globalAlpha = f;
+  ctx.translate(0, (1 - f) * 70);
+  panel(ctx, r.x, r.y, r.w, r.h);
+  if (C.crown) drawCrown(ctx, C.crown.x, C.crown.y + Math.sin(state.t * 2) * 3, C.crown.r, {});
+  goldText(ctx, 'SOLVED', r.x + r.w / 2, C.solvedY, C.solvedSize, r.w - 80, 900);
+  if (r.w >= 420) {
+    text(ctx, `Time ${clock(state.solveTime)}`, r.x + r.w * 0.3, C.statsY, 30, '#ffffff', UI, 700);
+    text(ctx, `Moves ${state.solveMoves}`, r.x + r.w * 0.7, C.statsY, 30, '#ffffff', UI, 700);
+  } else note(ctx, `Time ${clock(state.solveTime)}   Moves ${state.solveMoves}`, { x: r.x + 12, y: C.statsY - 24, w: r.w - 24, h: 34 }, 26, '#ffffff', 700);
+  text(ctx, isAuto ? 'Watch & Learn' : state.hintsUsed ? `Hints used: ${state.hintsUsed}` : 'No hints used', r.x + r.w / 2, C.hintsY, 23, 'rgba(247,226,170,0.85)', UI, 500);
+  // This free game's one natural advertising moment (paid games only, see SIBLINGS in layout.js).
+  text(ctx, 'MORE FROM ARCFORGE', r.x + r.w / 2, C.moreY, 18, 'rgba(247,226,170,0.75)', DISPLAY, 700);
+  SIBLINGS.forEach((g, i) => button(ctx, state, C.chips[i], g.title, { size: 20, id: `chip${i}` }));
+  button(ctx, state, C.next, isAuto ? 'Play again' : state.demoLimitReached ? 'Continue' : 'Next puzzle', { id: 'next', size: 26, primary: true });
+  button(ctx, state, C.menu, isAuto ? 'Exit' : 'Menu', { id: 'solvedMenu', size: 26 });
+  ctx.restore();
+}
+
+function drawDemoLimit(ctx, state, L) {
+  const r = L.demo.card, cx = r.x + r.w / 2;
+  const f = easeOut(clamp01(state.sceneT / 0.5));
+  ctx.save();
+  ctx.globalAlpha = f;
+  ctx.translate(0, (1 - f) * 60);
+  rays(ctx, cx, r.y, 420, state.t, 0.18);
+  panel(ctx, r.x, r.y, r.w, r.h);
+  drawCrown(ctx, cx, r.y - 4 + Math.sin(state.t * 2) * 3, 64, {});
+  goldText(ctx, "THAT'S THE FREE PREVIEW", cx, r.y + 160, 40, r.w - 80, 800);
+  flourish(ctx, cx, r.y + 192, 120, Math.min(270, r.w / 2 - 20));
+  note(ctx, 'Get the full game on iPhone and Android for unlimited puzzles, the Expert board and hints.', { x: r.x + 50, y: r.y + 230, w: r.w - 100, h: 200 }, 28, 'rgba(250,240,215,0.92)');
+  ctx.restore();
+}
+
+// ---------------------------------------------------------------------------------------------
+// Rules reference: ONE scrolling reader (drag, wheel, keys, scroll bar) with text zoom to 300%. Consecutive RULES entries with
+// the same title (they were split into pages for the old paginated reader) are merged back into one section.
+// Every illustration reuses this file's own board/crown/mark/button drawing, never a separate icon set. Pure: reads only the
+// presentation clocks already on `state`, mutates nothing.
+// ---------------------------------------------------------------------------------------------
+export const rulesMetrics = { max: 0, view: 0 };
+const SECTIONS = [];
+for (const p of RULES) {
+  const last = SECTIONS[SECTIONS.length - 1];
+  if (last && last.title === p.title && !p.art) last.lines.push(...p.lines);
+  else SECTIONS.push({ title: p.title, art: p.art, lines: [...p.lines] });
+}
+// Art blocks use the old 720-wide absolute coordinates: y0 = where the art starts, h = how tall the block is.
+const ART = {
+  board: { y0: 250, h: 500 }, win: { y0: 250, h: 580 }, touch: { y0: 312, h: 500 }, cycle: { y0: 350, h: 240 },
+  autocross: { y0: 250, h: 500 }, conflict: { y0: 300, h: 550 }, hintundo: { y0: 440, h: 170 }, colours: { y0: 360, h: 220 },
+  modes: { y0: 400, h: 160 }, generate: { y0: 270, h: 530 },
+};
+
+const flowCache = new Map();
+function rulesFlow(ctx, scaleIdx, colW) {
+  const key = `${scaleIdx}:${Math.round(colW)}`;
+  let fl = flowCache.get(key);
+  if (fl) return fl;
+  const scale = TEXT_SCALES[scaleIdx] ?? 1;
+  const tSize = Math.round(40 * Math.min(scale, 2)), bSize = Math.round(28 * scale), lh = Math.round(bSize * 1.34), pgap = Math.round(bSize * 0.7);
+  const items = [];
+  let y = 8;
+  for (const sec of SECTIONS) {
+    ctx.font = `800 ${tSize}px ${DISPLAY}`;
+    const tl = wrapLines(ctx, sec.title, colW);
+    const th = Math.round(tSize * 1.2);
+    items.push({ kind: 'title', y: y + tSize, lines: tl, size: tSize, lh: th });
+    y += tl.length * th + 14;
+    if (sec.art && ART[sec.art]) {
+      items.push({ kind: 'art', y, name: sec.art, h: ART[sec.art].h, y0: ART[sec.art].y0 });
+      y += ART[sec.art].h + 10;
+    }
+    ctx.font = `500 ${bSize}px ${UI}`;
+    sec.lines.forEach((para) => {
+      const ls = wrapLines(ctx, para, colW);
+      items.push({ kind: 'text', y: y + bSize, lines: ls, size: bSize, lh });
+      y += ls.length * lh + pgap;
+    });
+    items.push({ kind: 'rule', y: y + 10 });
+    y += 50;
+  }
+  fl = { items, height: y };
+  if (flowCache.size > 12) flowCache.clear();
+  flowCache.set(key, fl);
+  return fl;
+}
+
+function drawRulesPage(ctx, state, manifest, palette, L) {
+  const RL = L.rules, p = RL.panel, vp = RL.vp;
+  const fl = rulesFlow(ctx, state.textScaleIdx, vp.w - 24);
+  rulesMetrics.view = vp.h;
+  rulesMetrics.max = fl.height - vp.h <= 8 ? 0 : Math.ceil(fl.height - vp.h);
+  const scroll = Math.max(0, Math.min(state.rulesScroll || 0, rulesMetrics.max));
+
+  // framed reader card
+  ctx.save();
+  ctx.beginPath(); ctx.roundRect(p.x, p.y, p.w, p.h, 28);
+  const g = ctx.createLinearGradient(0, p.y, 0, p.y + p.h);
+  g.addColorStop(0, 'rgba(32,18,78,0.6)'); g.addColorStop(1, 'rgba(11,6,30,0.76)');
+  ctx.fillStyle = g; ctx.fill();
+  ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(247,205,85,0.32)'; ctx.stroke();
+  ctx.restore();
+  text(ctx, `${(manifest.title ?? 'CROWN FIELDS').toUpperCase()} — RULES`, p.x + p.w / 2, p.y + 36, 21, 'rgba(247,226,170,0.85)', DISPLAY, 700);
+  flourish(ctx, p.x + p.w / 2, p.y + 52, 150, Math.min(330, p.w / 2 - 30));
+
+  ctx.save();
+  ctx.beginPath(); ctx.rect(vp.x, vp.y, vp.w, vp.h); ctx.clip();
+  const cx = vp.x + vp.w / 2 - 12;
+  for (const it of fl.items) {
+    const top = it.y - scroll + vp.y, hgt = it.kind === 'art' ? it.h : it.kind === 'rule' ? 4 : it.lines.length * it.lh + it.size;
+    if (top > vp.y + vp.h + 40 || top + hgt < vp.y - 40) continue;                         // off screen
+    if (it.kind === 'title') {
+      it.lines.forEach((ln, i) => goldText(ctx, ln, cx, vp.y + it.y - scroll + i * it.lh, it.size, vp.w - 24, 800));
+    } else if (it.kind === 'art') {
+      ctx.save();
+      ctx.translate(cx - 360, vp.y + it.y - scroll - it.y0);
+      drawRulesArt(ctx, it.name, state, palette);
+      ctx.restore();
+    } else if (it.kind === 'text') {
+      ctx.font = `500 ${it.size}px ${UI}`; ctx.fillStyle = 'rgba(250,240,215,0.9)'; ctx.textAlign = 'center';
+      it.lines.forEach((ln, i) => ctx.fillText(ln, cx, vp.y + it.y - scroll + i * it.lh));
+    } else {
+      flourish(ctx, cx, vp.y + it.y - scroll, 20, Math.min(220, vp.w / 2 - 40));
+    }
+  }
+  ctx.restore();
+  if (rulesMetrics.max > 0) {                                      // scroll bar
+    const sb = RL.sb, th = Math.max(48, (sb.h * vp.h) / fl.height), ty = sb.y + (scroll / rulesMetrics.max) * (sb.h - th);
+    ctx.fillStyle = 'rgba(255,255,255,0.12)';
+    ctx.beginPath(); ctx.roundRect(sb.x, sb.y, sb.w, sb.h, sb.w / 2); ctx.fill();
+    ctx.fillStyle = 'rgba(247,205,85,0.85)';
+    ctx.beginPath(); ctx.roundRect(sb.x, ty, sb.w, th, sb.w / 2); ctx.fill();
+  }
+  button(ctx, state, RL.dec, 'A−', { id: 'textDec', size: 30, dim: state.textScaleIdx === 0 });
+  button(ctx, state, RL.inc, 'A+', { id: 'textInc', size: 30, dim: state.textScaleIdx === TEXT_SCALES.length - 1 });
+  button(ctx, state, RL.done, 'Done', { id: 'rulesDone', size: 32, primary: true });
+}
+
+export function render(ctx, state, manifest, demoLimit, view) {
+  const L = layoutFor(view?.width ?? 720, view?.height ?? 1560);
+  W = L.w; H = L.h;
   const palette = PALETTES[state.palette] ?? PALETTES[0];
   drawBackdrop(ctx, state, palette);
-  if (state.scene === 'demo-limit') drawDemoLimit(ctx, state);
-  else if (state.scene === 'title') drawTitle(ctx, state, manifest, palette, demoLimit);
-  else if (state.scene === 'rules') drawRulesPage(ctx, state, manifest, palette);
-  else drawPlay(ctx, state, palette);
+  if (state.scene === 'demo-limit') drawDemoLimit(ctx, state, L);
+  else if (state.scene === 'title') drawTitle(ctx, state, manifest, palette, demoLimit, L);
+  else if (state.scene === 'rules') drawRulesPage(ctx, state, manifest, palette, L);
+  else drawPlay(ctx, state, palette, L);
   // eased fade between scenes
   const fade = 1 - clamp01(state.sceneT / 0.32);
   if (fade > 0 && state.scene !== 'solved') {

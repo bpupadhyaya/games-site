@@ -3,8 +3,8 @@
   "title": "Volleyball",
   "tagline": "Pick your role. Pass, set, spike and block.",
   "genre": "team volleyball sport",
-  "orientation": "portrait",
-  "version": "1.0.2",
+  "orientation": "any",
+  "version": "1.1.5",
   "monetization": {
     "model": "premium",
     "priceUsd": 3.99,

@@ -6,7 +6,7 @@ import {
 import {
   TEAM, drawBackdrop, drawBoardDirect, BOARD_STAGES, startBoardBake, SPRITE_SIZE, drawDisc, drawPeg, setHost, canBake, makeCanvas, leafPath,
 } from './art.js';
-import { W, H, BC, TEXT_SCALES, playLayout, PULL, inRect } from './layout.js';
+import { W, H, TEXT_SCALES, playLayout, PULL, inRect } from './layout.js';
 import { FONT, C, roundPath, drawButton, panel, textShadow, wrapLines } from './ui.js';
 import { PROFILES } from './opponents.js';
 import { PER_SIDE } from './match.js';
@@ -16,18 +16,20 @@ const FALL_T = 0.5;
 const SHOT_MODE = (() => { try { return /[?&]shot=/.test(globalThis.location.search); } catch { return false; } })();
 
 // ---- sprites (baked off-screen, a slice per frame) -------------------------------------------------------
-let backdrop = null, backdropJob = 0;
+let backdrop = null, backdropJob = 0, backdropKey = '';
 let boardSprite = null, boardJob = null;
 function artRes(ctx) {
   try { const a = typeof ctx.getTransform === 'function' ? ctx.getTransform().a : 2; return Math.min(2, Math.max(1, Math.ceil(a * 2) / 2)); } catch { return 2; }
 }
 function ensureBackdrop(ctx) {
   setHost(ctx);
-  if (backdrop || !canBake()) return backdrop;
+  const key = `${W}x${H}`;
+  if (backdrop && backdropKey === key) return backdrop;
+  if (!canBake()) return null;
   const cv = makeCanvas(W, H);
   if (!cv) return null;
   drawBackdrop(cv.getContext('2d'), W, H);
-  backdrop = cv;
+  backdrop = cv; backdropKey = key;
   backdropJob = 1;
   return backdrop;
 }
@@ -134,7 +136,7 @@ export function drawTable(ctx, state, w, parts, o = {}) {
   if (bg) ctx.drawImage(bg, 0, 0, W, H); else drawBackdrop(ctx, W, H);
   const spr = ensureBoard(ctx);
   ctx.save();
-  ctx.translate(o.cx ?? BC.x, o.cy ?? BC.y);
+  ctx.translate(o.cx ?? W / 2, o.cy ?? H / 2);
   ctx.rotate(o.rot ?? state.view?.rot ?? 0);
   if (o.scale) ctx.scale(o.scale, o.scale);
   if (spr) ctx.drawImage(spr, -SPRITE_SIZE / 2, -SPRITE_SIZE / 2, SPRITE_SIZE, SPRITE_SIZE);
@@ -266,12 +268,26 @@ function names(state) {
 function drawCard(ctx, state, side, board, L) {
   const m = state.m, r = L.cards[side], T = TEAM[side], active = m.phase === 'aim' && m.turn === side;
   const t = state.t, nm = names(state)[side];
-  panel(ctx, r.x, r.y, r.w, r.h, { r: L.stacked ? 22 : 24, fill: 'rgba(30,14,10,0.84)', stroke: active ? T.glow.replace('0.9', '0.95') : 'rgba(255,214,150,0.28)' });
+  panel(ctx, r.x, r.y, r.w, r.h, { r: L.rows ? 22 : 24, fill: 'rgba(30,14,10,0.84)', stroke: active ? T.glow.replace('0.9', '0.95') : 'rgba(255,214,150,0.28)' });
   if (active) {
     ctx.save(); roundPath(ctx, r.x - 3, r.y - 3, r.w + 6, r.h + 6, 25); ctx.lineWidth = 3; ctx.strokeStyle = T.glow.replace('0.9', String(0.35 + 0.25 * Math.sin(t * 5))); ctx.stroke(); ctx.restore();
   }
   ctx.textBaseline = 'alphabetic';
-  if (!L.stacked) {
+  if (L.compact) {
+    drawDisc(ctx, r.x + 34, r.y + 34, side, 0, { scale: 0.95 });
+    ctx.textAlign = 'left'; ctx.fillStyle = '#fff3d6';
+    const nmFit = fitText(ctx, [nm, shortName(nm)], 25, r.w - 34 * 2 - 100);
+    ctx.fillText(nmFit, r.x + 64, r.y + 42, r.w - 64 - 100);
+    ctx.textAlign = 'right'; ctx.fillStyle = '#ffd97a'; ctx.font = `700 50px ${FONT}`;
+    ctx.fillText(String(m.scores[side]), r.x + r.w - 18, r.y + 52);
+    for (let i = 0; i < PER_SIDE; i++) {
+      const x = r.x + 26 + i * 30, y = r.y + 86, has = i < m.hand[side];
+      if (has) drawDisc(ctx, x, y, side, 0, { scale: 0.5 });
+      else { ctx.save(); ctx.globalAlpha = 0.35; ctx.strokeStyle = '#fff3d6'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y, 8.5, 0, TAU); ctx.stroke(); ctx.restore(); }
+    }
+    return;
+  }
+  if (!L.rows) {
     drawDisc(ctx, r.x + 38, r.y + 38, side, 0, { scale: 1.05 });
     ctx.textAlign = 'left';
     ctx.fillStyle = '#fff3d6'; ctx.font = `700 26px ${FONT}`;
@@ -312,7 +328,7 @@ export function drawHud(ctx, state) {
   drawCard(ctx, state, 0, board, L);
   drawCard(ctx, state, 1, board, L);
   ctx.textBaseline = 'alphabetic';
-  if (!L.stacked) {
+  if (L.legacy) {
     const P = L.pill;
     panel(ctx, P.x, P.y, P.w, P.h, { r: 18, fill: 'rgba(30,14,10,0.84)', stroke: 'rgba(255,214,150,0.28)' });
     ctx.textAlign = 'center';
@@ -330,7 +346,7 @@ export function drawHud(ctx, state) {
   ctx.font = `700 ${px}px ${FONT}`;
   const rw = right ? ctx.measureText(right).width : 0;
   ctx.textAlign = right ? 'left' : 'center';
-  ctx.fillText(fitText(ctx, [left, `R ${m.round}/${m.rounds}`], px, I.w - rw - 24), right ? I.x + 8 : W / 2, y);
+  ctx.fillText(fitText(ctx, [left, `R ${m.round}/${m.rounds}`], px, I.w - rw - 24), right ? I.x + 8 : I.x + I.w / 2, y);
   if (right) { ctx.textAlign = 'right'; ctx.font = `400 ${px}px ${FONT}`; ctx.fillStyle = 'rgba(255,233,191,0.88)'; ctx.fillText(right, I.x + I.w - 8, y); }
 }
 
@@ -339,7 +355,7 @@ export function drawToast(ctx, state) {
   const L = layoutOf(state), a = Math.min(1, state.toastT / 0.4);
   ctx.save(); ctx.globalAlpha = a;
   ctx.fillStyle = '#fff3d6'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  if (!L.stacked) {
+  if (L.legacy) {
     ctx.font = `700 26px ${FONT}`;
     const tw = Math.min(660, ctx.measureText(state.toast).width + 56);
     roundPath(ctx, W / 2 - tw / 2, TOAST_Y_OF(L), tw, 52, 26); ctx.fillStyle = 'rgba(30,14,10,0.86)'; ctx.fill();
@@ -362,7 +378,7 @@ export function drawToast(ctx, state) {
   roundPath(ctx, I.x, I.y, I.w, I.h, 24); ctx.fillStyle = 'rgba(30,14,10,0.9)'; ctx.fill();
   ctx.lineWidth = 1.5; ctx.strokeStyle = 'rgba(255,214,150,0.45)'; ctx.stroke();
   ctx.fillStyle = '#fff3d6'; ctx.font = `700 ${px}px ${FONT}`;
-  lines.forEach((l, i) => ctx.fillText(l, W / 2, I.y + I.h / 2 + (i - (lines.length - 1) / 2) * px * 1.2, maxW));
+  lines.forEach((l, i) => ctx.fillText(l, I.x + I.w / 2, I.y + I.h / 2 + (i - (lines.length - 1) / 2) * px * 1.2, maxW));
   ctx.restore();
 }
 const TOAST_Y_OF = (L) => L.toastY;
@@ -370,13 +386,13 @@ const TOAST_Y_OF = (L) => L.toastY;
 export function drawBar(ctx, state) {
   const m = state.m, watch = m.cfg.mode === 'watch', L = layoutOf(state);
   if (L.bannerReplacesBar && m.phase === 'score' && m.roundInfo) return;   // the round banner takes this strip
-  const zoomed = L.stacked, F = L.fs;
+  const lg = L.legacy, F = L.fs;
   if (watch) {
-    const D = L.demo, sz = zoomed ? F.demoBtn : 24;
-    drawButton(ctx, D.dec, 'Think −', { size: zoomed ? sz : 24, sub: null });
-    drawButton(ctx, D.pause, state.paused ? 'Resume' : 'Pause', { primary: !state.paused, active: state.paused, size: zoomed ? Math.round(sz * 1.15) : 32 });
-    drawButton(ctx, D.inc, 'Think +', { size: zoomed ? sz : 24 });
-    drawButton(ctx, D.exit, zoomed && L.z > 2 ? 'Leave' : 'Leave Watch & Learn', { dark: true, size: zoomed ? sz : 26 });
+    const D = L.demo, sz = lg ? 24 : F.demoBtn;
+    drawButton(ctx, D.dec, 'Think −', { size: sz, sub: null });
+    drawButton(ctx, D.pause, state.paused ? 'Resume' : 'Pause', { primary: !state.paused, active: state.paused, size: lg ? 32 : Math.round(sz * 1.15) });
+    drawButton(ctx, D.inc, 'Think +', { size: sz });
+    drawButton(ctx, D.exit, !lg && L.z > 2 ? 'Leave' : 'Leave Watch & Learn', { dark: true, size: lg ? 26 : sz });
     return;
   }
   // shooting spot slider
@@ -387,20 +403,20 @@ export function drawBar(ctx, state) {
   ctx.lineWidth = 1.5; ctx.strokeStyle = 'rgba(255,214,150,0.3)'; ctx.stroke();
   ctx.globalAlpha = on ? 1 : 0.45;
   ctx.fillStyle = 'rgba(255,233,191,0.8)'; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
-  const lpx = zoomed ? F.slider : 18, lab = fitText(ctx, ['SHOOTING SPOT: drag along the line', 'SHOOTING SPOT', 'SPOT'], lpx, S.w - 30, 400);
-  ctx.fillText(lab, W / 2, S.y + (zoomed ? S.labelH - 10 : 22), S.w - 30);
+  const lpx = F.slider, lab = fitText(ctx, ['SHOOTING SPOT: drag along the line', 'SHOOTING SPOT', 'SPOT'], lpx, S.w - 30, 400);
+  ctx.fillText(lab, S.x + S.w / 2, S.y + L.labelH - 10, S.w - 30);
   ctx.strokeStyle = 'rgba(255,233,191,0.5)'; ctx.lineWidth = 4; ctx.lineCap = 'round';
   ctx.beginPath(); ctx.moveTo(TR.x0, TR.y); ctx.lineTo(TR.x1, TR.y); ctx.stroke();
-  for (let i = -4; i <= 4; i++) { const x = W / 2 + (i / 4) * 276; ctx.beginPath(); ctx.moveTo(x, TR.y - 8); ctx.lineTo(x, TR.y + 8); ctx.stroke(); }
-  const u = state.aim ? state.aim.u : 0, kx = W / 2 + sliderSign(state) * (u / MAX_U) * 276;
+  for (let i = -4; i <= 4; i++) { const x = TR.cx + (i / 4) * TR.half; ctx.beginPath(); ctx.moveTo(x, TR.y - 8); ctx.lineTo(x, TR.y + 8); ctx.stroke(); }
+  const u = state.aim ? state.aim.u : 0, kx = TR.cx + sliderSign(state) * (u / MAX_U) * TR.half;
   drawDisc(ctx, kx, TR.y, m.cfg.mode === 'two' ? m.turn : 0, 0, { scale: L.knob, glow: on ? 0.5 : 0 });
   ctx.restore();
   const waiting = !state.humanTurn;
-  drawButton(ctx, L.hint, state.hintBusy ? 'Thinking…' : 'Hint', { disabled: waiting || state.hintBusy || m.phase !== 'aim', size: zoomed ? F.btn : 28 });
-  drawButton(ctx, L.menu, 'Menu', { dark: true, size: zoomed ? F.btn : 28 });
-  if (!zoomed) {
+  drawButton(ctx, L.hint, state.hintBusy ? 'Thinking…' : 'Hint', { disabled: waiting || state.hintBusy || m.phase !== 'aim', size: lg ? 28 : F.btn });
+  drawButton(ctx, L.menu, 'Menu', { dark: true, size: lg ? 28 : F.btn });
+  if (lg) {
     ctx.fillStyle = 'rgba(255,233,191,0.85)'; ctx.font = `400 22px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.fillText(`Disc ${PER_SIDE - m.hand[m.turn] + (m.phase === 'aim' ? 1 : 0)} of ${PER_SIDE}`, W / 2, L.hint.y + 32);
+    ctx.fillText(`Disc ${PER_SIDE - m.hand[m.turn] + (m.phase === 'aim' ? 1 : 0)} of ${PER_SIDE}`, W / 2, L.hint.y + L.hint.h / 2);
   }
 }
 
@@ -448,7 +464,7 @@ function drawBanner(ctx, state) {
   roundPath(ctx, B.x, y, B.w, B.h, 28); ctx.fillStyle = 'rgba(28,12,10,0.94)'; ctx.fill();
   ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(255,214,150,0.5)'; ctx.stroke();
   ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
-  if (!L.stacked) {
+  if (L.legacy) {
     ctx.fillStyle = '#fff3d6'; ctx.font = `700 30px ${FONT}`; ctx.fillText(`Round ${info.round} counted`, W / 2, y + 34);
     ctx.font = `700 50px ${FONT}`;
     ctx.fillStyle = TEAM[0].face0; ctx.textAlign = 'right'; ctx.fillText(String(info.pts[0]), W / 2 - 40, y + 88);
@@ -483,11 +499,11 @@ function drawBanner(ctx, state) {
 function drawPass(ctx, state) {
   if (!state.pass || !state.m || state.m.phase !== 'aim') return;
   const L = layoutOf(state), side = state.pass.side;
-  const top = L.bar ? L.bar.y : L.slider.y, bot = H - 8, h = bot - top, x = 20, w = W - 40;
+  const C0 = L.ctrl, top = C0.y, h = C0.h, x = C0.x, w = C0.w;
   ctx.save();
   roundPath(ctx, x, top, w, h, 22); ctx.fillStyle = '#1e0e0a'; ctx.fill();
   ctx.lineWidth = 3; ctx.strokeStyle = TEAM[side].glow.replace('0.9', '0.9'); ctx.stroke();
-  const big = L.stacked ? L.fs.btn : 28;
+  const big = L.legacy ? 28 : L.fs.btn;
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   drawDisc(ctx, x + 56, top + h / 2, side, 0, { scale: 1.3, glow: 0.5 });
   const name = `Player ${side + 1}`, tx = x + 100, tw = w - 120;

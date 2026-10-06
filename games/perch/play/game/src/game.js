@@ -1,21 +1,23 @@
 // Perch: the bird's-eye reverse of a slingshot game. See design/GDD.md.
 import { newRun, step, stars, chooseTarget, threatened, perchPoint } from './rules.js';
-import { drawScene, drawText, W, H } from './render.js';
+import { drawScene, drawText, W, H, autoReveal } from './render.js';
 import { T, SLOTS, AUTO_THINK_STEPS, AUTO_REVEAL_SECS } from './tuning.js';
 import { RULES } from './content.js';
-import { renderRulesPage, RULES_ENTRY_BOX, RULES_BACK_BOX, RULES_NEXT_BOX, TEXT_DEC_BOX, TEXT_INC_BOX, TEXT_SCALES } from './rulesView.js';
-import { renderAutoChrome, AUTO_EXIT_BOX, AUTO_SKIP_BOX, AUTO_DEC_BOX, AUTO_INC_BOX, AUTO_AGAIN_BOX, AUTO_EXIT2_BOX } from './autoView.js';
+import { renderRules, rulesMetrics } from './rulesView.js';
+import { layoutFor, inRect, TEXT_SCALES } from './layout.js';
+import { drawHud, drawTitle, drawPause, drawResult, drawDemoLimit, renderAutoChrome } from './ui.js';
 
-// Auto Play ("Watch & Learn"): title-screen entry box, top-left, mirroring RULES_ENTRY_BOX's
-// top-right position and size exactly (this game's own established button style).
-const AUTO_ENTRY_BOX = { x0: 16, y0: 26, x1: 176, y1: 96 };
-
-export const meta = { width: W, height: H };
+// `meta.width/height` are updated live by the kit on every resize (fluid viewport, short side 720); every position comes from
+// layoutFor(meta.width, meta.height).
+export const meta = { width: W, height: H, fluid: { short: 720 } };
+export const wheelInput = { dy: 0 };   // fed by main.js (the kit has no wheel event); scrolls the Rules reader
+const LY = () => layoutFor(meta.width, meta.height);
 
 export function createGame(env) {
   const { rng, storage, audio, monetization, config } = env;
   const state = {
     scene: 'title', level: 1, unlocked: 1, stars: {}, run: newRun(1), best: 0, bestTime: 0, feathers: 0, runs: 0, demoRuns: 0, lock: 0, clock: 0, page: 0, textScaleIdx: 0,
+    land: LY().land, rulesScroll: 0,
     autoThinkIdx: 1, // index into AUTO_THINK_STEPS ([1,2,4,6]s); Auto Play's THINK pause, default 2s
     auto: null, // Auto Play ("Watch & Learn") run state while scene === 'auto'; see startAutoPlay()
   };
@@ -115,21 +117,24 @@ export function createGame(env) {
   // to arrive "late" relative to when a real player would have had to react.
   const startAutoPlay = () => {
     state.run = newRun(state.level); state.scene = 'auto'; fx.length = 0;
-    state.auto = { sub: 'watch', timer: 0, target: -1 };
+    state.auto = { sub: 'watch', timer: 0, target: -1, paused: false };
   };
-  const exitAuto = () => { state.scene = 'title'; state.auto = null; fx.length = 0; };
+  const exitAuto = () => { state.scene = 'title'; state.auto = null; fx.length = 0; state.run = newRun(state.level); };
   const updateAuto = (dt, tap) => {
-    const A = state.auto, at = typeof tap === 'object' && tap ? tap : null;
-    const inBox = (b) => at && at.x >= b.x0 && at.x <= b.x1 && at.y >= b.y0 && at.y <= b.y1;
-    if (inBox(AUTO_EXIT_BOX)) { exitAuto(); return; }
+    const A = state.auto, L = LY(), B = L.btn.auto, at = typeof tap === 'object' && tap ? tap : null;
+    const hit = (r) => at && inRect(r, at.x, at.y);
     if (A.sub === 'end') {
-      if (inBox(AUTO_AGAIN_BOX)) startAutoPlay();
-      else if (inBox(AUTO_EXIT2_BOX)) exitAuto();
+      const won = state.run.won;
+      if (hit(won ? L.btn.result.againW : L.btn.result.again)) startAutoPlay();
+      else if (hit(won ? L.btn.result.menuW : L.btn.result.menu)) exitAuto();
       return; // frozen at the result screen either way
     }
-    if (inBox(AUTO_SKIP_BOX)) { if (A.sub === 'think' || A.sub === 'reveal') A.timer = 0; }
-    if (inBox(AUTO_DEC_BOX)) { if (state.autoThinkIdx > 0) { state.autoThinkIdx--; storage.set('autoThinkIdx', state.autoThinkIdx); } return; }
-    if (inBox(AUTO_INC_BOX)) { if (state.autoThinkIdx < AUTO_THINK_STEPS.length - 1) { state.autoThinkIdx++; storage.set('autoThinkIdx', state.autoThinkIdx); } return; }
+    if (hit(B.exit)) { exitAuto(); return; }
+    if (hit(B.pause)) { A.paused = !A.paused; return; }
+    if (hit(B.dec)) { if (state.autoThinkIdx > 0) { state.autoThinkIdx--; storage.set('autoThinkIdx', state.autoThinkIdx); } return; }
+    if (hit(B.inc)) { if (state.autoThinkIdx < AUTO_THINK_STEPS.length - 1) { state.autoThinkIdx++; storage.set('autoThinkIdx', state.autoThinkIdx); } return; }
+    if (A.paused) return;                                  // a real pause: nothing advances, the run is frozen where it is
+    if (hit(B.skip)) { if (A.sub === 'think' || A.sub === 'reveal') A.timer = 0; }
 
     const s = state.run;
     if (A.sub === 'think' || A.sub === 'reveal') {
@@ -159,105 +164,121 @@ export function createGame(env) {
     }
   };
 
+  // ---------------------------------------------------------------- Rules reader (scrolling)
+  let drag = null;
+  const updateRules = (input, tap) => {
+    const L = LY(), RL = L.rules, B = L.btn.rules, p = input.pointer, keys = input.keys.pressed;
+    const max = () => rulesMetrics.max;
+    const setScroll = (v) => { state.rulesScroll = Math.max(0, Math.min(v, max())); };
+    if (wheelInput.dy) { setScroll(state.rulesScroll + wheelInput.dy); wheelInput.dy = 0; }
+    if (keys.has('ArrowDown')) setScroll(state.rulesScroll + 70);
+    if (keys.has('ArrowUp')) setScroll(state.rulesScroll - 70);
+    if (keys.has('PageDown')) setScroll(state.rulesScroll + rulesMetrics.view * 0.9);
+    if (keys.has('PageUp')) setScroll(state.rulesScroll - rulesMetrics.view * 0.9);
+    if (keys.has('Home')) setScroll(0);
+    if (keys.has('End')) setScroll(max());
+    if (keys.has('Escape')) { state.scene = 'title'; return; }
+    if (p.pressed) {
+      if (inRect(RL.scrollbar, p.x, p.y)) drag = { bar: true };
+      else if (inRect(RL.viewport, p.x, p.y)) drag = { y0: p.y, s0: state.rulesScroll };
+    }
+    if (drag) {
+      if (!p.down) drag = null;
+      else if (drag.bar) setScroll(((p.y - RL.scrollbar.y) / RL.scrollbar.h) * max());
+      else setScroll(drag.s0 - (p.y - drag.y0));
+    }
+    state.rulesScroll = Math.max(0, Math.min(state.rulesScroll, max()));
+    const at = typeof tap === 'object' && tap ? tap : null;
+    const hit = (r) => at && inRect(r, at.x, at.y);
+    if (hit(B.back)) { drag = null; state.scene = 'title'; }
+    else if (hit(B.next)) {
+      if (state.rulesScroll >= max() - 2) { drag = null; state.scene = 'title'; }   // at the end the label reads "Done"
+      else setScroll(state.rulesScroll + rulesMetrics.view * 0.85);
+    }
+    else if (hit(B.dec) && state.textScaleIdx > 0) { state.textScaleIdx--; storage.set('textScaleIdx', state.textScaleIdx); }
+    else if (hit(B.inc) && state.textScaleIdx < TEXT_SCALES.length - 1) { state.textScaleIdx++; storage.set('textScaleIdx', state.textScaleIdx); }
+    else if (tap === true) setScroll(state.rulesScroll + rulesMetrics.view * 0.85);   // keyboard Space/Enter: next screenful
+  };
+
+  const toMenu = (nextLevel = false) => {
+    if (nextLevel) state.level += 1;
+    state.run = newRun(state.level); state.scene = 'title'; fx.length = 0;
+  };
+
   return {
     update(dt, input) {
       state.clock += dt;
+      const L = LY();
+      // Rotating (or resizing across portrait/landscape) in the middle of a run pauses it: the player re-aims their thumb first.
+      if (L.land !== state.land) { state.land = L.land; drag = null; if (state.scene === 'play') state.scene = 'pause'; }
       const key = input.keys.pressed.has('Space') || input.keys.pressed.has('Enter');
-      // a pointer press carries its position (levels 2 and up: the tapped perch); a key press is just "go"
-      const tap = input.pointer.pressed ? { x: input.pointer.x, y: input.pointer.y } : key;
+      const esc = input.keys.pressed.has('Escape') || input.keys.pressed.has('KeyP');
+      // a pointer press carries its position (levels 2 and up: the tapped perch, in WORLD units); a key press is just "go"
+      const press = input.pointer.pressed ? { x: input.pointer.x, y: input.pointer.y } : key;
+      const hit = (r) => press && typeof press === 'object' && inRect(r, press.x, press.y);
       for (const f of fx) { f.life -= dt; if (f.net) continue; f.x += f.vx * dt; f.y += f.vy * dt; f.vy += 520 * dt; f.rot += f.vr * dt; }
       while (fx.length && fx[0].life <= 0) fx.shift();
       if (state.scene === 'play') {
+        if (esc || hit(L.btn.play.pause)) { state.scene = 'pause'; return; }
+        const tap = press && typeof press === 'object' ? L.toWorld(press.x, press.y) : press;
         step(state.run, dt, tap, rng);
         sound(state.run.events);
         if (state.run.over || state.run.won) endRun();
+      } else if (state.scene === 'pause') {
+        if (esc || hit(L.btn.pause.resume)) state.scene = 'play';
+        else if (hit(L.btn.pause.menu)) toMenu();
       } else if (state.scene === 'over' || state.scene === 'won') {
         state.lock -= dt;
-        if (tap && state.lock <= 0) {
-          if (state.scene === 'won') state.level = state.level + 1;
-          startRun();
+        if (press && state.lock <= 0) {
+          const won = state.scene === 'won';
+          if (hit(won ? L.btn.result.menuW : L.btn.result.menu)) toMenu(won);
+          else { if (won) state.level = state.level + 1; startRun(); }
         }
+      } else if (state.scene === 'demo-limit') {
+        if (hit(L.btn.demo.menu)) toMenu();
       } else if (state.scene === 'title') {
-        if (tap) {
-          const at = typeof tap === 'object' ? tap : null;
-          const inBox = (x0, y0, x1, y1) => at && at.x >= x0 && at.x <= x1 && at.y >= y0 && at.y <= y1;
-          if (inBox(RULES_ENTRY_BOX.x0, RULES_ENTRY_BOX.y0, RULES_ENTRY_BOX.x1, RULES_ENTRY_BOX.y1)) { state.scene = 'rules'; state.page = 0; }
-          else if (inBox(AUTO_ENTRY_BOX.x0, AUTO_ENTRY_BOX.y0, AUTO_ENTRY_BOX.x1, AUTO_ENTRY_BOX.y1)) { startAutoPlay(); }
+        if (press) {
+          const B = L.btn.title;
+          if (hit(L.title.lockupTap)) { state.lockFlash = state.clock + 0.25; env.openArcforgeHome?.(); }
+          else if (hit(B.rules)) { state.scene = 'rules'; state.rulesScroll = 0; drag = null; }
+          else if (hit(B.auto)) startAutoPlay();
           // tester level picker: only with the Developer toggle on, never in production
-          else if (dev && inBox(20, 1090, 200, 1270)) { state.level = state.level > 1 ? state.level - 1 : 12; state.run = newRun(state.level); }
-          else if (dev && inBox(520, 1090, 700, 1270)) { state.level = state.level < 12 ? state.level + 1 : 1; state.run = newRun(state.level); }
+          else if (dev && hit(B.devPrev)) { state.level = state.level > 1 ? state.level - 1 : 12; state.run = newRun(state.level); }
+          else if (dev && hit(B.devNext)) { state.level = state.level < 12 ? state.level + 1 : 1; state.run = newRun(state.level); }
           else { saveProgress(); startRun(); }
         }
       } else if (state.scene === 'rules') {
-        if (tap) {
-          const at = typeof tap === 'object' ? tap : null;
-          const inBox = (b) => at && at.x >= b.x0 && at.x <= b.x1 && at.y >= b.y0 && at.y <= b.y1;
-          // Steps back one page first (never discards where the player was mid-list); only exits
-          // to the title once already on page one.
-          if (inBox(RULES_BACK_BOX)) { if (state.page > 0) state.page--; else state.scene = 'title'; }
-          // On the last page the label reads "Done" (rulesView.js) and exits to the title instead
-          // of silently wrapping back to page one, so it's never a dead-end tap.
-          else if (inBox(RULES_NEXT_BOX)) { if (state.page === RULES.length - 1) { state.scene = 'title'; state.page = 0; } else state.page++; }
-          else if (inBox(TEXT_DEC_BOX) && state.textScaleIdx > 0) { state.textScaleIdx--; storage.set('textScaleIdx', state.textScaleIdx); }
-          else if (inBox(TEXT_INC_BOX) && state.textScaleIdx < TEXT_SCALES.length - 1) { state.textScaleIdx++; storage.set('textScaleIdx', state.textScaleIdx); }
-          else if (!at) { if (state.page === RULES.length - 1) { state.scene = 'title'; state.page = 0; } else state.page++; } // keyboard Space/Enter: next page
-        }
+        updateRules(input, press);
       } else if (state.scene === 'auto') {
-        updateAuto(dt, tap);
+        updateAuto(dt, press);
       }
     },
 
     render(ctx) {
-      const s = state.run, t = state.clock;
-      drawScene(ctx, s, fx, t, state.scene === 'title' || state.scene === 'demo-limit');
-      const starRow = (n, y) => { for (let i = 0; i < 3; i++) drawText(ctx, '★', W / 2 + (i - 1) * 96, y, 84, i < n ? '#ffe27a' : 'rgba(255,255,255,0.3)'); };
-      if (state.scene === 'title') {
-        drawText(ctx, 'Perch', W / 2, 250, 120);
-        drawText(ctx, 'Read the stone. Choose your moment.', W / 2, 320, 30, '#fff8e0', 700);
-        drawText(ctx, 'Rules', W - 96, 66, 30, '#fff8e0', 800);
-        drawText(ctx, 'Auto Play', 96, 66, 26, '#fff8e0', 800);
-        drawText(ctx, state.level > 1 || dev ? 'Level ' + state.level + ' · ' + s.name : 'Tap to play', W / 2, 1150, 40, '#ffe27a');
-        if (state.level > 1 || dev) drawText(ctx, 'Tap to play', W / 2, 1200, 30, '#fff', 700);
-        if (dev) { drawText(ctx, '‹', 110, 1175, 110, '#fff8e0'); drawText(ctx, '›', 610, 1175, 110, '#fff8e0'); drawText(ctx, 'TEST BUILD', W / 2, 1250, 22, '#9fe8ff', 700); }
-        if (state.best > 0) drawText(ctx, 'Best ' + state.best, W / 2, 1232, 30, '#fff', 700);
-      } else if (state.scene === 'rules') {
-        ctx.fillStyle = 'rgba(8,12,24,0.86)'; ctx.fillRect(0, 0, W, H);
-        renderRulesPage(ctx, RULES, state.page, t, state.textScaleIdx);
-      } else if (state.scene === 'over') {
-        ctx.fillStyle = 'rgba(15,25,45,0.55)'; ctx.fillRect(0, 0, W, H);
-        drawText(ctx, 'Ruffled!', W / 2, 400, 96);
-        drawText(ctx, 'Level ' + s.level + ' · ' + Math.round(s.t) + ' of ' + s.duration + ' s', W / 2, 500, 36, '#fff', 700);
-        drawText(ctx, String(s.score), W / 2, 660, 150, '#ffe27a');
-        drawText(ctx, `${s.dodges} dodges · ${s.closeCalls} close calls`, W / 2, 730, 30, '#fff', 700);
-        if (state.lock <= 0) drawText(ctx, 'Tap to try again', W / 2, 920, 48, '#ffe27a');
-      } else if (state.scene === 'won') {
-        ctx.fillStyle = 'rgba(30,20,50,0.5)'; ctx.fillRect(0, 0, W, H);
-        drawText(ctx, 'Sunset!', W / 2, 380, 100, '#ffd27a');
-        drawText(ctx, 'Level ' + s.level + ' cleared', W / 2, 460, 42);
-        starRow(stars(s), 610);
-        drawText(ctx, String(s.score), W / 2, 780, 120, '#ffe27a');
-        drawText(ctx, `${s.hits === 0 ? 'Not a feather ruffled' : s.hits + ' hit' + (s.hits > 1 ? 's' : '')} · ${s.closeCalls} close calls`, W / 2, 850, 30, '#fff', 700);
-        if (state.lock <= 0) drawText(ctx, 'Tap for level ' + (s.level + 1), W / 2, 1000, 48, '#ffe27a');
-      } else if (state.scene === 'demo-limit') {
-        ctx.fillStyle = 'rgba(15,25,45,0.7)'; ctx.fillRect(0, 0, W, H);
-        drawText(ctx, 'That was the taste.', W / 2, 520, 64);
-        drawText(ctx, 'Get Perch on iPhone and Android', W / 2, 610, 34, '#fff8e0', 700);
-        drawText(ctx, 'for every level.', W / 2, 656, 34, '#fff8e0', 700);
-      } else if (state.scene === 'auto') {
+      const L = LY(), s = state.run, t = state.clock, sc = state.scene;
+      drawScene(ctx, s, fx, t, sc === 'title' || sc === 'demo-limit' || sc === 'rules', L);
+      if (sc === 'title') {
+        drawTitle(ctx, L, { level: state.level, name: s.name, best: state.best, dev, lockDown: (state.lockFlash || 0) > t });
+      } else if (sc === 'play' || sc === 'pause') {
+        drawHud(ctx, s, L);
+        if (sc === 'play' && s.t < 6 && !s.blurb) drawText(ctx, 'Tap to flit when a red ring appears on you', L.hud.cx, L.hud.hintY, 30, '#fff', 700);
+        if (sc === 'pause') drawPause(ctx, L);
+      } else if (sc === 'rules') {
+        state.rulesScroll = renderRules(ctx, RULES, state.rulesScroll, state.textScaleIdx, t, L);
+      } else if (sc === 'over' || sc === 'won') {
+        drawResult(ctx, L, s, { won: sc === 'won', lock: state.lock, label: sc === 'won' ? 'Next level' : 'Try again', starsN: stars(s) });
+      } else if (sc === 'demo-limit') {
+        drawDemoLimit(ctx, L);
+      } else if (sc === 'auto') {
         const A = state.auto;
         if (A.sub === 'end') {
-          ctx.fillStyle = s.won ? 'rgba(30,20,50,0.5)' : 'rgba(15,25,45,0.55)'; ctx.fillRect(0, 0, W, H);
-          drawText(ctx, s.won ? 'Sunset!' : 'Ruffled!', W / 2, 380, 90, s.won ? '#ffd27a' : '#fff');
-          drawText(ctx, 'Auto Play · Level ' + s.level + ' · ' + s.name, W / 2, 460, 28, '#fff8e0', 700);
-          drawText(ctx, String(s.score), W / 2, 620, 110, '#ffe27a');
-          drawText(ctx, `${s.dodges} dodges · ${s.closeCalls} close calls`, W / 2, 690, 28, '#fff', 700);
-          drawText(ctx, 'Play again', 205, 1006, 34, '#ffe27a', 800);
-          drawText(ctx, 'Exit', 515, 1006, 34, '#fff', 800);
+          drawResult(ctx, L, s, { won: s.won, lock: 0, label: 'Play again', auto: true });
         } else {
-          renderAutoChrome(ctx, s, A, state.autoThinkIdx, t);
+          if (A.sub === 'reveal') { const V = L.V; ctx.save(); ctx.translate(V.ox, V.oy); ctx.scale(V.z, V.z); autoReveal(ctx, s, t, A.target); ctx.restore(); }
+          drawHud(ctx, s, L, { auto: true });
+          renderAutoChrome(ctx, L, s, A, state.autoThinkIdx, t);
         }
       }
-      if (state.scene === 'play' && state.run.t < 6 && !state.run.blurb) drawText(ctx, 'Tap to flit when a red ring appears on you', W / 2, 1190, 30, '#fff', 700);
     },
 
     getState: () => state,

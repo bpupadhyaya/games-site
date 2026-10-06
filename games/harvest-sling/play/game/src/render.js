@@ -1,58 +1,24 @@
 // Every pixel of Golden Sling. Reads state, never changes it. All art is drawn in code.
-import { W, H, SLING, STONE_R, CROP_MAX, CROP_DRAIN_FROM_LEVEL, DAILY, BIRDS, comboMultiplier, woodFor, stoneFor, SIBLINGS, AP_THINK_STEPS } from './tuning.js';
+// Two coordinate systems (layout.js): the WORLD (sky, trees, birds, sling; ctx scaled by V.z) and the SCREEN (HUD, buttons, text panels).
+import { V, SLING, STONE_R, CROP_MAX, CROP_DRAIN_FROM_LEVEL, DAILY, BIRDS, comboMultiplier, woodFor, stoneKind, SIBLINGS, AP_THINK_STEPS, skyY, STREAK_GIFTS, MISS_ASSIST } from './tuning.js';
 import { previewArc } from './physics.js';
-import { RULES } from './content.js';
+import { flowRules } from './content.js';
+import { TEXT_SCALES, inRect } from './layout.js';
+import { drawPredator, drawPerched } from './predator-art.js';
+import { drawLockup, drawMoreLine, drawBadge } from './brand.js';
 
-export const BUTTONS = {
-  play: { x: 140, y: 560, w: 440, h: 112 },
-  daily: { x: 140, y: 694, w: 440, h: 92 },
-  endless: { x: 140, y: 806, w: 440, h: 92 },
-  colors: { x: 140, y: 918, w: 440, h: 80 },
-  // Rules: a new row added below the existing title-screen stack (added for the Rules reference
-  // page) - every button above is untouched, same position and size.
-  rules: { x: 140, y: 1018, w: 440, h: 80 },
-  // Auto Play: one more row below Rules (Auto Play addition) - every row above stays exactly where
-  // it was.
-  auto: { x: 140, y: 1118, w: 440, h: 80 },
-  playColors: { x: 596, y: 1196, w: 108, h: 64 },
-  again: { x: 140, y: 1040, w: 440, h: 104 },
-  share: { x: 90, y: 1156, w: 250, h: 76 },
-  home: { x: 380, y: 1156, w: 250, h: 76 },
-  sound: { x: 476, y: 1196, w: 108, h: 64 },
-  soundTitle: { x: 610, y: 24, w: 84, h: 64 },
-  // Rules reference page navigation - same geometry as the tally screen's Share/Home row.
-  rulesBack: { x: 90, y: 1156, w: 250, h: 76 },
-  rulesNext: { x: 380, y: 1156, w: 250, h: 76 },
-  // Text-size stepper for the Rules reference page: top corners, clear of the reader card below
-  // (see TEXT_SCALES) and clear of the Back/Next row at the bottom.
-  textDec: { x: 24, y: 14, w: 110, h: 64 },
-  textInc: { x: W - 134, y: 14, w: 110, h: 64 },
-};
-
-// Auto Play controls: a band across the very top of the field (there is no free space anywhere
-// else in this game's own dense HUD/sling/ground layout - drawn OVER the real HUD on purpose, the
-// same "own band on top" approach the other autoplay-pro games use for a live-action scene).
-export const AUTOPLAY = {
-  exit: { x: 120, y: 50, w: 150, h: 52 }, pause: { x: 285, y: 50, w: 150, h: 52 }, skip: { x: 450, y: 50, w: 150, h: 52 },
-  dec: { x: 220, y: 114, w: 70, h: 46 }, inc: { x: 430, y: 114, w: 70, h: 46 },
-};
-
-// Text-size steps for the Rules reference page. Index into this, never a raw float, so "min"/
-// "max" are exact and the stepper can cleanly disable at either end. Every Rules page is paced
-// (content.js) to fit comfortably even at the top step.
-export const TEXT_SCALES = [1, 1.5, 2, 2.5, 3];
-
-// Tally screen: one tappable chip per sibling game (2 x 2 grid).
-export const chipRect = (i) => ({ x: 90 + (i % 2) * 280, y: 892 + Math.floor(i / 2) * 72, w: 260, h: 60 });
+export { TEXT_SCALES };
 
 // Light schemes (index 0 = default look; players can cycle). Colours: sky top/mid/bottom, sun,
 // far hill, near hill, light tint drawn over the whole scene.
 export const SCHEMES = [
-  { name: 'Golden hour', sky: ['#3b6fb5', '#f0a65a', '#ffd98a'], sun: '#fff1c2', hills: ['#7d8f5e', '#5f7a45'], tint: 'rgba(255,170,60,0.10)', ink: '#2a1c0e' },
-  { name: 'Dawn', sky: ['#2b3a67', '#e38b8b', '#ffd0a8'], sun: '#ffe3cf', hills: ['#6f7f86', '#4f6a5a'], tint: 'rgba(255,120,120,0.08)', ink: '#1f1a2a' },
-  { name: 'Clear noon', sky: ['#1e6fd0', '#6db7f2', '#cfeaff'], sun: '#ffffff', hills: ['#6fa05a', '#4c8a3f'], tint: 'rgba(255,255,255,0.0)', ink: '#10233a' },
-  { name: 'Misty morning', sky: ['#8fa6b5', '#c4d3d8', '#eef3f2'], sun: '#ffffff', hills: ['#93a79b', '#73907f'], tint: 'rgba(220,235,235,0.18)', ink: '#22313a' },
-  { name: 'Sunset', sky: ['#2a1f4f', '#c4456b', '#ff9a4a'], sun: '#ffd27a', hills: ['#5b4a63', '#3f3a4f'], tint: 'rgba(255,90,60,0.12)', ink: '#1a1024' },
+  { name: 'Golden hour', day: true, sky: ['#3b6fb5', '#f0a65a', '#ffd98a'], sun: '#fff1c2', hills: ['#7d8f5e', '#5f7a45'], tint: 'rgba(255,170,60,0.10)', ink: '#2a1c0e' },
+  { name: 'Dawn', deer: true, sky: ['#2b3a67', '#e38b8b', '#ffd0a8'], sun: '#ffe3cf', hills: ['#6f7f86', '#4f6a5a'], tint: 'rgba(255,120,120,0.08)', ink: '#1f1a2a' },
+  { name: 'Clear noon', day: true, sky: ['#1e6fd0', '#6db7f2', '#cfeaff'], sun: '#ffffff', hills: ['#6fa05a', '#4c8a3f'], tint: 'rgba(255,255,255,0.0)', ink: '#10233a' },
+  { name: 'Misty morning', deer: true, sky: ['#8fa6b5', '#c4d3d8', '#eef3f2'], sun: '#ffffff', hills: ['#93a79b', '#73907f'], tint: 'rgba(220,235,235,0.18)', ink: '#22313a' },
+  { name: 'Sunset', deer: true, sky: ['#2a1f4f', '#c4456b', '#ff9a4a'], sun: '#ffd27a', hills: ['#5b4a63', '#3f3a4f'], tint: 'rgba(255,90,60,0.12)', ink: '#1a1024' },
+  { name: 'Autumn', deer: true, sky: ['#6b5a8a', '#e8955a', '#ffd9a0'], sun: '#ffe2b0', hills: ['#a0743c', '#7a5430'], tint: 'rgba(255,140,40,0.12)', ink: '#2a1c0e', leaf: ['#8a3a1c', '#c4601f', '#e8a23a'], fall: 'leaf' },
+  { name: 'Rain-fresh', sky: ['#5d7894', '#9db4c6', '#d3e0e6'], sun: '#f4f8fb', hills: ['#6f8f7c', '#4f7a66'], tint: 'rgba(120,160,190,0.14)', ink: '#10233a', leaf: ['#2a6a4a', '#3f9060', '#6cbf7a'], rain: true },
   { name: 'Moonlit', sky: ['#060a1e', '#14204a', '#2f4577'], sun: '#dfe8ff', hills: ['#1d2a4a', '#15203a'], tint: 'rgba(40,60,140,0.22)', ink: '#05070f' },
 ];
 
@@ -81,9 +47,12 @@ const BIRD_LOOK = {
   duck: { body: '#7a5a3a', belly: '#e9dcc3', wing: '#2f6f4f', beak: '#f2a71b', scale: 1.0 },
   crow: { body: '#1d1f2a', belly: '#2d3040', wing: '#0f1018', beak: '#2a2a2a', scale: 0.95 },
   owl: { body: '#8a6a44', belly: '#e6d3b0', wing: '#5f452a', beak: '#d9a066', scale: 1.05 },
+  swallow: { body: '#2f4a8a', belly: '#f0e4d0', wing: '#1c2f5f', beak: '#2a2a2a', scale: 0.85 },
+  bigcrow: { body: '#1d1f2a', belly: '#2d3040', wing: '#0f1018', beak: '#3a3a3a', scale: 1.0 },
+  hawk: { body: '#6b4a2a', belly: '#e8d2b0', wing: '#3d2a18', beak: '#e0a020', scale: 1.0 },
+  goldfinch: { body: '#ffc93f', belly: '#fff3b0', wing: '#e08a1a', beak: '#c9701a', scale: 0.8 },
   hummingbird: { body: '#18b89a', belly: '#e9fff8', wing: 'rgba(255,255,255,0.55)', beak: '#22303a', scale: 0.5 },
 };
-
 function roundRect(ctx, x, y, w, h, r) {
   ctx.beginPath();
   ctx.moveTo(x + r, y);
@@ -92,6 +61,14 @@ function roundRect(ctx, x, y, w, h, r) {
   ctx.arcTo(x, y + h, x, y, r);
   ctx.arcTo(x, y, x + w, y, r);
   ctx.closePath();
+}
+
+// Fits `text` into maxW by shrinking the font (the font string's first "NNpx").
+function fitFont(ctx, text, font, maxW) {
+  ctx.font = font;
+  if (!maxW) return;
+  const w = ctx.measureText(text).width;
+  if (w > maxW) ctx.font = font.replace(/(\d+(?:\.\d+)?)px/, (m, n) => `${Math.max(9, Math.floor(n * (maxW / w)))}px`);
 }
 
 function button(ctx, r, label, style, disabled) {
@@ -116,7 +93,7 @@ function button(ctx, r, label, style, disabled) {
   ctx.lineWidth = 2;
   ctx.stroke();
   ctx.fillStyle = style === 'primary' ? '#3a1d05' : '#ffffff';
-  ctx.font = `700 ${Math.round(r.h * 0.36)}px system-ui, sans-serif`;
+  fitFont(ctx, label, `700 ${Math.round(r.h * 0.36)}px system-ui, sans-serif`, r.w - 30);
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   ctx.fillText(label, r.x + r.w / 2, r.y + r.h / 2 + 1);
@@ -124,25 +101,35 @@ function button(ctx, r, label, style, disabled) {
 }
 
 function drawSky(ctx, scheme, time) {
-  const g = ctx.createLinearGradient(0, 0, 0, 820);
+  const { WW, hy } = V, sh = hy + 40;
+  const g = ctx.createLinearGradient(0, 0, 0, sh);
   g.addColorStop(0, scheme.sky[0]);
   g.addColorStop(0.62, scheme.sky[1]);
   g.addColorStop(1, scheme.sky[2]);
   ctx.fillStyle = g;
-  ctx.fillRect(0, 0, W, 830);
-  const sunX = 540;
-  const sunY = 250;
+  ctx.fillRect(0, 0, WW, sh);
+  const sunX = WW * 0.75;
+  const sunY = hy * 0.316;
   const glow = ctx.createRadialGradient(sunX, sunY, 10, sunX, sunY, 330);
   glow.addColorStop(0, scheme.sun);
   glow.addColorStop(0.12, scheme.sun);
   glow.addColorStop(0.16, 'rgba(255,240,200,0.45)');
   glow.addColorStop(1, 'rgba(255,240,200,0)');
   ctx.fillStyle = glow;
-  ctx.fillRect(0, 0, W, 830);
+  ctx.fillRect(0, 0, WW, sh);
+  // soft god-rays from the low sun (a few translucent wedges that breathe slowly)
+  ctx.save();
+  for (let k = 0; k < (QUALITY.level >= 2 ? 0 : 5); k++) {
+    const a = 1.9 + k * 0.32 + Math.sin(time * 0.15 + k) * 0.03, w = 0.07, len = hy * 1.4;
+    ctx.fillStyle = `rgba(255,236,170,${0.045 + 0.02 * Math.sin(time * 0.4 + k * 2)})`;
+    ctx.beginPath(); ctx.moveTo(sunX, sunY); ctx.lineTo(sunX + Math.cos(a - w) * len, sunY + Math.sin(a - w) * len); ctx.lineTo(sunX + Math.cos(a + w) * len, sunY + Math.sin(a + w) * len); ctx.closePath(); ctx.fill();
+  }
+  ctx.restore();
   ctx.fillStyle = 'rgba(255,255,255,0.55)';
-  for (let i = 0; i < 4; i++) {
-    const cx = ((i * 230 + time * (6 + i * 2)) % (W + 300)) - 150;
-    const cy = 110 + i * 62;
+  const n = Math.max(4, Math.round(WW / 180)), ky = hy / 790;
+  for (let i = 0; i < n; i++) {
+    const cx = ((i * 230 + time * (6 + (i % 4) * 2)) % (WW + 300)) - 150;
+    const cy = (110 + (i % 4) * 62) * ky;
     for (let k = 0; k < 4; k++) {
       ctx.beginPath();
       ctx.ellipse(cx + k * 38 - 50, cy + (k % 2) * 8, 54 - k * 5, 20, 0, 0, Math.PI * 2);
@@ -151,31 +138,39 @@ function drawSky(ctx, scheme, time) {
   }
 }
 
-function drawHills(ctx, scheme) {
-  [[640, 70, 0.006, 0], [720, 50, 0.011, 2]].forEach(([base, amp, freq, phase], i) => {
+function drawHills(ctx, scheme, time = 0) {
+  const { WW, hy } = V;
+  ctx.save();
+  ctx.translate(0, hy - 790);
+  [[640, 70, 0.006, time * 0.03], [720, 50, 0.011, 2 + time * 0.12]].forEach(([base, amp, freq, phase], i) => {   // the two hill layers drift at different speeds (parallax)
     ctx.fillStyle = scheme.hills[i];
     ctx.beginPath();
     ctx.moveTo(0, 840);
-    for (let x = 0; x <= W; x += 12) ctx.lineTo(x, base - Math.sin(x * freq + phase) * amp - Math.sin(x * freq * 2.7 + phase) * amp * 0.35);
-    ctx.lineTo(W, 840);
+    for (let x = 0; x <= WW; x += 12) ctx.lineTo(x, base - Math.sin(x * freq + phase) * amp - Math.sin(x * freq * 2.7 + phase) * amp * 0.35);
+    ctx.lineTo(WW, 840);
     ctx.closePath();
     ctx.fill();
   });
+  ctx.restore();
 }
 
 function drawField(ctx, world, time, wind) {
+  const { WW, WH, hy } = V, o = hy - 790, H = WH - o, W = WW;
+  ctx.save();
+  ctx.translate(0, o);
   const f = FIELDS[world] ?? FIELDS.wheat;
   const g = ctx.createLinearGradient(0, 790, 0, H);
   g.addColorStop(0, f.top);
   g.addColorStop(1, f.bottom);
   ctx.fillStyle = g;
-  ctx.fillRect(0, 790, W, H - 790);
+  ctx.fillRect(0, 790, W, H - 790 + 2);
   ctx.strokeStyle = f.row;
   ctx.lineWidth = 3;
-  for (let i = -8; i <= 8; i++) {
+  const rows = Math.max(8, Math.round(W / 90));
+  for (let i = -rows; i <= rows; i++) {
     ctx.beginPath();
-    ctx.moveTo(360 + i * 14, 792);
-    ctx.lineTo(360 + i * 150, H);
+    ctx.moveTo(W / 2 + i * 14, 792);
+    ctx.lineTo(W / 2 + i * 150, H);
     ctx.stroke();
   }
   if (world === 'rice') {
@@ -186,11 +181,11 @@ function drawField(ctx, world, time, wind) {
       ctx.fillStyle = 'rgba(200,235,255,0.26)';
       ctx.fillRect(0, y, W, 16);
       const shine = ((time * 40 + i * 170) % (W + 200)) - 100;
-      const g = ctx.createLinearGradient(shine - 90, 0, shine + 90, 0);
-      g.addColorStop(0, 'rgba(255,255,255,0)');
-      g.addColorStop(0.5, 'rgba(255,255,255,0.55)');
-      g.addColorStop(1, 'rgba(255,255,255,0)');
-      ctx.fillStyle = g;
+      const g2 = ctx.createLinearGradient(shine - 90, 0, shine + 90, 0);
+      g2.addColorStop(0, 'rgba(255,255,255,0)');
+      g2.addColorStop(0.5, 'rgba(255,255,255,0.55)');
+      g2.addColorStop(1, 'rgba(255,255,255,0)');
+      ctx.fillStyle = g2;
       ctx.fillRect(shine - 90, y, 180, 16);
     }
   }
@@ -213,7 +208,8 @@ function drawField(ctx, world, time, wind) {
     ctx.fill();
   }
   if (world === 'snow') {
-    for (let i = 0; i < 14; i++) {
+    const dots = Math.round((14 * W) / 720);
+    for (let i = 0; i < dots; i++) {
       const a = 0.35 + 0.35 * Math.sin(time * 2.4 + i * 1.9);
       ctx.fillStyle = `rgba(255,255,255,${a})`;
       const sx = (i * 61 + 30) % W;
@@ -233,10 +229,14 @@ function drawField(ctx, world, time, wind) {
     ctx.quadraticCurveTo(x + sway * 0.5, 795, x + sway, 776);
     ctx.stroke();
   }
+  ctx.restore();
 }
 
-function drawFence(ctx, scene) {
-  const y = scene.fenceY;
+function drawFence(ctx, scene, wave = 0, time = 0) {
+  const W = V.WW;
+  ctx.save();
+  ctx.translate(0, V.hy - 790);
+  const y = 830;
   ctx.fillStyle = '#7a5433';
   for (let x = 30; x < W; x += 60) {
     roundRect(ctx, x - 7, y - 50, 14, 76, 4);
@@ -262,7 +262,10 @@ function drawFence(ctx, scene) {
   ctx.moveTo(sx, 850);
   ctx.lineTo(sx, 650);
   ctx.moveTo(sx - 64, 702);
-  ctx.lineTo(sx + 64, 702);
+  ctx.lineTo(sx - 4, 702);
+  ctx.moveTo(sx + 4, 702);
+  if (wave > 0) { const a = -0.9 + Math.sin(time * 18) * 0.35; ctx.lineTo(sx + 4 + Math.cos(a) * 62, 702 + Math.sin(a) * 62); }   // the scarecrow waves when a bird is scared off
+  else ctx.lineTo(sx + 64, 702);
   ctx.stroke();
   ctx.fillStyle = '#b5452f';
   roundRect(ctx, sx - 30, 700, 60, 78, 10);
@@ -277,8 +280,18 @@ function drawFence(ctx, scene) {
   ctx.fill();
   roundRect(ctx, sx - 20, 630, 40, 28, 8);
   ctx.fill();
+  // hay sheaves (only on wide fields): a stook of bound stalks, the top is a perch
+  for (const h of scene.sheaves || []) {
+    const hx = h.x, hyy = h.y - (V.hy - 790);
+    ctx.fillStyle = '#c99a3a'; ctx.beginPath(); ctx.moveTo(hx - 34, hyy + 10); ctx.lineTo(hx - 8, hyy - 52); ctx.lineTo(hx + 8, hyy - 52); ctx.lineTo(hx + 34, hyy + 10); ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = '#8a6a1a'; ctx.lineWidth = 3;
+    for (let k = -2; k <= 2; k++) { ctx.beginPath(); ctx.moveTo(hx + k * 12, hyy + 8); ctx.lineTo(hx + k * 3, hyy - 50); ctx.stroke(); }
+    ctx.strokeStyle = '#6b4a2a'; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(hx - 22, hyy - 14); ctx.lineTo(hx + 22, hyy - 14); ctx.stroke();
+  }
+  ctx.restore();
 }
 
+const LEAF = { cols: ['#2f6b2f', '#4c9a3f', '#7cc65a'] };   // leaf colours of the current look (set per frame from the scheme)
 function drawTree(ctx, tree, time, wind, world) {
   const topY = tree.groundY - tree.height;
   const trunk = ctx.createLinearGradient(tree.x - 22, 0, tree.x + 22, 0);
@@ -328,12 +341,13 @@ function drawTree(ctx, tree, time, wind, world) {
     return;
   }
   const crownDots = world === 'orchard';
+  const LC = LEAF.cols;
   const blobs = [[0, 0, 1], [-0.62, 0.28, 0.72], [0.62, 0.3, 0.74], [-0.3, -0.42, 0.7], [0.34, -0.38, 0.68]];
-  for (const [shade, dy] of [['#2f6b2f', 10], ['#4c9a3f', 0], ['#7cc65a', -12]]) {
+  for (const [shade, dy] of [[LC[0], 10], [LC[1], 0], [LC[2], -12]]) {
     ctx.fillStyle = shade;
     for (const [ox, oy, s] of blobs) {
       ctx.beginPath();
-      ctx.arc(tree.x + ox * tree.crown + sway, topY + oy * tree.crown + dy, tree.crown * s * (shade === '#7cc65a' ? 0.62 : 0.78), 0, Math.PI * 2);
+      ctx.arc(tree.x + ox * tree.crown + sway, topY + oy * tree.crown + dy, tree.crown * s * (shade === LC[2] ? 0.62 : 0.78), 0, Math.PI * 2);
       ctx.fill();
     }
   }
@@ -356,14 +370,52 @@ function drawTree(ctx, tree, time, wind, world) {
 }
 
 // Leaves / pollen specks drifting with the wind. Pure function of time and wind: no state, no rng.
-function drawWindSpecks(ctx, time, wind, scheme) {
+// Seasonal ambience by world: pink petals in the orchard, snowflakes in the snowy village, drifting rice-mist wisps. Pure functions of time.
+function drawSeason(ctx, world, time, scheme = {}) {
+  if (QUALITY.level >= 2) return;
+  if (scheme.rain) {   // a soft drizzle (thin slanted lines) and a wet shine on the field
+    ctx.save(); ctx.strokeStyle = 'rgba(210,230,245,0.35)'; ctx.lineWidth = 1.4; const nr = Math.round((46 * V.WW) / 720);
+    for (let i = 0; i < nr; i++) { const x = (((i * 131 + time * 60) % (V.WW + 80)) + V.WW + 80) % (V.WW + 80) - 40, y = (((i * 211 + time * 520) % (V.hy + 160)) + V.hy + 160) % (V.hy + 160); ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - 5, y + 16); ctx.stroke(); }
+    const wg = ctx.createLinearGradient(0, V.hy, 0, V.WH); wg.addColorStop(0, 'rgba(255,255,255,0.16)'); wg.addColorStop(1, 'rgba(255,255,255,0)'); ctx.fillStyle = wg; ctx.fillRect(0, V.hy, V.WW, V.WH - V.hy); ctx.restore();
+  }
+  const n = Math.round((14 * V.WW) / 720);
+  ctx.save();
+  for (let i = 0; i < n; i++) {
+    const sp = world === 'snow' ? 34 : 22, x = (((i * 173 + Math.sin(time * 0.6 + i) * 40 + time * 9) % (V.WW + 60)) + V.WW + 60) % (V.WW + 60) - 30;
+    const y = (((i * 97 + time * sp) % (V.hy + 40)) + V.hy + 40) % (V.hy + 40);
+    if (scheme.fall === 'leaf') { ctx.fillStyle = i % 2 ? 'rgba(214,110,40,0.85)' : 'rgba(232,170,60,0.85)'; ctx.translate(x, y); ctx.rotate(time * 1.1 + i); ctx.beginPath(); ctx.ellipse(0, 0, 7, 3.6, 0, 0, Math.PI * 2); ctx.fill(); ctx.rotate(-(time * 1.1 + i)); ctx.translate(-x, -y); }
+    else if (world === 'snow') { ctx.fillStyle = 'rgba(255,255,255,0.8)'; ctx.beginPath(); ctx.arc(x, y, 2.4 + (i % 3), 0, Math.PI * 2); ctx.fill(); }
+    else if (world === 'orchard') { ctx.fillStyle = i % 2 ? 'rgba(255,200,215,0.85)' : 'rgba(255,225,232,0.85)'; ctx.translate(x, y); ctx.rotate(time * 1.2 + i); ctx.beginPath(); ctx.ellipse(0, 0, 6, 3, 0, 0, Math.PI * 2); ctx.fill(); ctx.rotate(-(time * 1.2 + i)); ctx.translate(-x, -y); }
+    else if (world === 'rice') { ctx.fillStyle = 'rgba(235,245,255,0.10)'; ctx.beginPath(); ctx.ellipse(x, V.hy - 30 + Math.sin(i * 2.3) * 40, 120, 14, 0, 0, Math.PI * 2); ctx.fill(); }
+  }
+  ctx.restore();
+}
+
+function drawMotes(ctx, time) {   // golden dust motes rising slowly through the light
+  if (QUALITY.level >= 2) return;
+  const n = Math.round((16 * V.WW) / 720);
+  ctx.save();
+  for (let i = 0; i < n; i++) {
+    const x = ((i * 211 + time * (6 + (i % 3) * 3) + Math.sin(time * 0.5 + i) * 30) % (V.WW + 40) + V.WW + 40) % (V.WW + 40) - 20;
+    const y = V.hy - ((i * 137 + time * (14 + (i % 4) * 4)) % (V.hy - 40));
+    const a = 0.25 + 0.2 * Math.sin(time * 1.7 + i * 2.1);
+    ctx.fillStyle = `rgba(255,226,140,${a})`;
+    ctx.beginPath(); ctx.arc(x, y, 2 + (i % 3), 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.restore();
+}
+
+function drawWindSpecks(ctx, time, wind, scheme, world = 'wheat') {
+  drawMotes(ctx, time); drawSeason(ctx, world, time, scheme);
+  if (!AMBIENT.off && QUALITY.level < 2) { drawCat(ctx, time); drawDeer(ctx, time, scheme); drawDayButterflies(ctx, time, scheme); }
   const drift = wind === 0 ? 8 : wind * 0.9;
-  for (let i = 0; i < 12; i++) {
-    const span = W + 160;
+  const n = Math.round((12 * V.WW) / 720);
+  for (let i = 0; i < n; i++) {
+    const span = V.WW + 160;
     let x = (i * 137 + time * drift) % span;
     if (x < 0) x += span;
     x -= 80;
-    const y = 190 + ((i * 89) % 560) + Math.sin(time * 1.4 + i * 1.7) * 26;
+    const y = skyY(190 + ((i * 89) % 560)) + Math.sin(time * 1.4 + i * 1.7) * 26;
     const size = 5 + (i % 3) * 2;
     ctx.save();
     ctx.translate(x, y);
@@ -399,16 +451,82 @@ function drawPine(ctx, tree, topY, sway) {
   }
 }
 
+// Harmless ambient life: a rabbit hops across the foreground field for a few seconds every ~45 s (a pure function of time).
+function drawRabbit(ctx, time) {
+  const per = 45, t = time % per, dur = 9;
+  if (t > dur || time < 12) return;
+  const k = t / dur, x = -60 + k * (V.WW + 120), hop = Math.abs(Math.sin(t * 3.4)), y = V.hy + 150 - hop * 34, dir = 1;
+  ctx.save(); ctx.translate(x, y); ctx.scale(dir, 1);
+  ctx.fillStyle = 'rgba(30,20,0,0.18)'; ctx.beginPath(); ctx.ellipse(0, 22 + hop * 34, 22, 5, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#b89a78'; ctx.beginPath(); ctx.ellipse(0, 0, 20, 13, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(18, -8, 9, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(16, -24, 3.4, 11, 0.15, 0, Math.PI * 2); ctx.ellipse(23, -23, 3.4, 11, 0.35, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#f4efe6'; ctx.beginPath(); ctx.arc(-20, -2, 6, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = '#2a1c0e'; ctx.beginPath(); ctx.arc(22, -10, 1.6, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+}
+
+// Light-touch ambient life (harmless, off in Calm, pure functions of time): a cat stalking along the fence now and then, a deer at the treeline in the dawn / dusk / mist / autumn
+// looks, and a couple of small butterflies near the field in daylight looks.
+function drawCat(ctx, time) {
+  const per = 80, t = (time + 50) % per, dur = 16;
+  if (t > dur) return;
+  const k = t / dur, dir = (Math.floor((time + 50) / per) % 2) ? -1 : 1, x = dir > 0 ? -50 + k * (V.WW + 100) : V.WW + 50 - k * (V.WW + 100), y = V.hy - 18, step = Math.sin(t * 5);
+  ctx.save(); ctx.translate(x, y); ctx.scale(dir, 1); ctx.fillStyle = '#3a2f2a';
+  ctx.beginPath(); ctx.ellipse(0, 0, 22, 9, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(24, -6, 8.5, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(19, -12); ctx.lineTo(21, -22); ctx.lineTo(25, -13); ctx.moveTo(26, -13); ctx.lineTo(30, -21); ctx.lineTo(31, -10); ctx.fill();
+  ctx.lineWidth = 5; ctx.lineCap = 'round'; ctx.strokeStyle = '#3a2f2a'; ctx.beginPath(); ctx.moveTo(-20, -2); ctx.quadraticCurveTo(-42, -20 + step * 4, -34, -34); ctx.stroke();
+  ctx.lineWidth = 4; for (const [lx, ph] of [[-14, 0], [-6, 2], [10, 1], [18, 3]]) { ctx.beginPath(); ctx.moveTo(lx, 6); ctx.lineTo(lx + Math.sin(t * 5 + ph) * 5, 17); ctx.stroke(); }
+  ctx.fillStyle = '#f2c230'; ctx.beginPath(); ctx.arc(28, -8, 1.6, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+}
+function drawDeer(ctx, time, scheme) {
+  if (!scheme.deer) return;
+  const per = 100, t = (time + 75) % per, dur = 30;
+  if (t > dur) return;
+  const a = Math.min(1, t / 3, (dur - t) / 3) * 0.78, x = V.WW * 0.14, y = V.hy - 36, head = Math.sin(t * 0.8) * 0.18, graze = Math.sin(t * 0.25) > 0.5 ? 0.9 : 0;
+  ctx.save(); ctx.globalAlpha = a; ctx.translate(x, y); ctx.fillStyle = '#6b5a48';
+  ctx.beginPath(); ctx.ellipse(0, 0, 30, 14, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.lineWidth = 4; ctx.strokeStyle = '#6b5a48'; ctx.lineCap = 'round'; for (const lx of [-20, -12, 12, 20]) { ctx.beginPath(); ctx.moveTo(lx, 8); ctx.lineTo(lx, 36); ctx.stroke(); }
+  ctx.save(); ctx.translate(26, -6); ctx.rotate(head + graze); ctx.lineWidth = 9; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(10, -22 + graze * 30); ctx.stroke(); ctx.beginPath(); ctx.ellipse(14, -26 + graze * 40, 9, 6, 0.4, 0, Math.PI * 2); ctx.fill();
+  ctx.lineWidth = 2; ctx.strokeStyle = '#4a3b2c'; ctx.beginPath(); ctx.moveTo(12, -31 + graze * 40); ctx.lineTo(8, -46 + graze * 44); ctx.moveTo(10, -38 + graze * 42); ctx.lineTo(18, -44 + graze * 44); ctx.stroke(); ctx.restore();
+  ctx.restore();
+}
+function drawDayButterflies(ctx, time, scheme) {
+  if (!scheme.day) return;
+  for (let i = 0; i < 2; i++) {
+    const x = ((i * 0.43 + time * 0.012) % 1) * (V.WW + 80) - 40, y = V.hy + 95 + Math.sin(time * 0.9 + i * 2) * 26 + Math.sin(time * 3.1 + i) * 6;
+    const f = Math.abs(Math.sin(time * 9 + i)); ctx.save(); ctx.translate(x, y); ctx.scale(0.55, 0.55);
+    for (const [sx, c] of [[-1, '#fff3b0'], [1, '#ffe08a']]) { ctx.fillStyle = c; ctx.beginPath(); ctx.ellipse(sx * 9 * (0.3 + f * 0.7), -2, 11 * (0.3 + f * 0.7), 14, sx * 0.4, 0, Math.PI * 2); ctx.fill(); }
+    ctx.fillStyle = '#3a1d05'; ctx.fillRect(-1.5, -9, 3, 20); ctx.restore();
+  }
+}
+
 function drawWire(ctx) {
   ctx.strokeStyle = 'rgba(20,20,30,0.8)';
   ctx.lineWidth = 3;
   ctx.beginPath();
-  ctx.moveTo(-10, 282);
-  ctx.quadraticCurveTo(360, 330, W + 10, 282);
+  ctx.moveTo(-10, skyY(282));
+  ctx.quadraticCurveTo(V.WW / 2, skyY(330), V.WW + 10, skyY(282));
   ctx.stroke();
 }
 
-function drawBird(ctx, bird, time) {
+function drawButterfly(ctx, bird, time) {
+  const f = Math.abs(Math.sin(bird.flap * 0.6 + bird.id));
+  const gy = V.hy + 70, hgt = Math.max(0, Math.min(1, (gy - bird.y) / 500));   // a tiny fluttering shadow on the ground
+  ctx.fillStyle = `rgba(30,20,0,${0.16 * (1 - hgt * 0.6)})`; ctx.beginPath(); ctx.ellipse(bird.x, gy, (10 + 8 * f) * (1 - 0.4 * hgt), 3, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.save(); ctx.translate(bird.x, bird.y + Math.sin(time * 4 + bird.id) * 4); ctx.scale(0.8, 0.8);
+  for (const [sx, c] of [[-1, '#ff9f40'], [1, '#ff7a2e']]) {
+    ctx.fillStyle = c; ctx.beginPath(); ctx.ellipse(sx * 11 * (0.4 + f * 0.6), -4, 14 * (0.4 + f * 0.6), 18, sx * 0.4, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = '#8fd0ff'; ctx.beginPath(); ctx.ellipse(sx * 9 * (0.4 + f * 0.6), 8, 8 * (0.4 + f * 0.6), 10, -sx * 0.4, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.fillStyle = '#3a1d05'; roundRect(ctx, -2, -12, 4, 26, 2); ctx.fill();
+  ctx.restore();
+}
+
+export function drawBird(ctx, bird, time) {
+  if (bird.type === 'butterfly') { drawButterfly(ctx, bird, time); return; }
   const look = BIRD_LOOK[bird.type];
   const s = (bird.r / 30) * 1.15;
   const flying = bird.phase !== 'perched';
@@ -416,6 +534,11 @@ function drawBird(ctx, bird, time) {
   const bob = flying ? 0 : Math.sin(time * 3 + bird.id) * 1.5;
   ctx.save();
   ctx.translate(bird.x, bird.y + bob);
+  if (bird.type === 'goldfinch') {   // a soft golden halo so the rare bird reads at once
+    const halo = ctx.createRadialGradient(0, 0, 4, 0, 0, 60 * s);
+    halo.addColorStop(0, 'rgba(255,230,120,0.65)'); halo.addColorStop(1, 'rgba(255,230,120,0)');
+    ctx.fillStyle = halo; ctx.beginPath(); ctx.arc(0, 0, 60 * s, 0, Math.PI * 2); ctx.fill();
+  }
   ctx.scale(bird.facing * s, s);
   // tail
   ctx.fillStyle = look.wing;
@@ -502,8 +625,9 @@ function drawBird(ctx, bird, time) {
   ctx.restore();
 }
 
-function drawSlingshot(ctx, state) {
-  const { x, y } = SLING;
+// `pos` = where the sling stands (world units); `handleEnd` = how far the handle runs down (default: off the bottom of the world).
+function drawSlingshot(ctx, state, pos = SLING, handleEnd = V.WH + 30) {
+  const { x, y } = pos;
   const pull = state.aim ? state.aim.pull : { x: 0, y: 0, len: 0 };
   const overshoot = state.snap > 0 ? Math.sin((state.snap / 0.18) * Math.PI) * 26 : 0;
   const pouch = { x: x - pull.x, y: y - pull.y - overshoot };
@@ -530,7 +654,7 @@ function drawSlingshot(ctx, state) {
   ctx.lineJoin = 'round';
   ctx.lineWidth = 34;
   ctx.beginPath();
-  ctx.moveTo(x, H + 30);
+  ctx.moveTo(x, handleEnd);
   ctx.lineTo(x, y + 92);
   ctx.stroke();
   ctx.lineWidth = 27;
@@ -562,7 +686,8 @@ function drawSlingshot(ctx, state) {
   ctx.strokeStyle = '#3a2110';
   ctx.lineWidth = 2;
   ctx.stroke();
-  if (state.stonesLeft > 0 && state.snap <= 0) drawStone(ctx, pouch.x, pouch.y - 2, stoneFor(state.stars));
+  if (state.power === 'wide') { ctx.strokeStyle = 'rgba(255,215,90,0.85)'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(pouch.x, pouch.y - 2, 26 + Math.sin((state.time || 0) * 6) * 3, 0, Math.PI * 2); ctx.stroke(); }
+  if (state.stonesLeft > 0 && state.snap <= 0) drawStone(ctx, pouch.x, pouch.y - 2, stoneKind(state), state.power === 'wide' ? 1.9 : 1);
 }
 
 // Level-1 tutorial: a translucent finger repeatedly drags back from the pouch, shows the arc, and lets
@@ -608,18 +733,23 @@ export const STONES = [
   { name: 'River pebble', light: '#e6e6e6', dark: '#6f747c' },
   { name: 'Clay ball', light: '#f0b184', dark: '#8a4a24' },
   { name: 'River glass', light: '#d9fff8', dark: '#2a8f86' },
+  { name: 'Ember', light: '#ffd0a0', dark: '#c2410c' },
+  { name: 'Moonstone', light: '#f4f6ff', dark: '#6f7fb8' },
+  { name: 'Sunstone', light: '#fff2a8', dark: '#d98a00' },
+  { name: 'Starlight', light: '#ffffff', dark: '#b27cff' },
 ];
 
-function drawStone(ctx, x, y, kind = 0) {
+function drawStone(ctx, x, y, kind = 0, k = 1) {
   const st = STONES[kind] ?? STONES[0];
-  const g = ctx.createRadialGradient(x - 3, y - 3, 1, x, y, STONE_R + 2);
+  const R0 = STONE_R * k;
+  const g = ctx.createRadialGradient(x - 3, y - 3, 1, x, y, R0 + 2);
   g.addColorStop(0, st.light);
   g.addColorStop(1, st.dark);
   ctx.fillStyle = g;
   ctx.beginPath();
-  ctx.arc(x, y, STONE_R, 0, Math.PI * 2);
+  ctx.arc(x, y, R0, 0, Math.PI * 2);
   ctx.fill();
-  if (kind === 2) {
+  if (kind === 2 || kind >= 5) {
     ctx.fillStyle = 'rgba(255,255,255,0.75)';
     ctx.beginPath();
     ctx.arc(x - 3, y - 3, 2.6, 0, Math.PI * 2);
@@ -627,85 +757,76 @@ function drawStone(ctx, x, y, kind = 0) {
   }
 }
 
-function drawHud(ctx, state) {
+function drawHud(ctx, state, L) {
+  const H = L.hud, spec = state.spec;
   ctx.save();
-  ctx.fillStyle = 'rgba(10,12,20,0.42)';
-  roundRect(ctx, 14, 14, W - 28, 96, 22);
-  ctx.fill();
-  ctx.fillStyle = '#fff';
   ctx.textBaseline = 'middle';
-  ctx.textAlign = 'left';
-  ctx.font = '800 38px system-ui, sans-serif';
-  ctx.fillText(String(state.score), 34, 48);
-  ctx.font = '600 20px system-ui, sans-serif';
-  ctx.fillStyle = 'rgba(255,255,255,0.8)';
-  ctx.fillText(state.mode === 'daily' ? 'DAILY HUNT' : `LEVEL ${state.level}`, 34, 86);
-  // quota
-  ctx.textAlign = 'center';
-  ctx.fillStyle = '#fff';
-  ctx.font = '700 26px system-ui, sans-serif';
-  ctx.fillText(state.mode === 'daily' ? `${state.hits} birds` : `${Math.min(state.hits, state.spec.quota)} / ${state.spec.quota} birds`, W / 2, 46);
-  if (state.combo > 1) {
-    ctx.fillStyle = '#ffd75a';
-    ctx.font = '800 22px system-ui, sans-serif';
-    ctx.fillText(`COMBO x${comboMultiplier(state.combo)}`, W / 2, 84);
+  const pill = (r) => { ctx.fillStyle = 'rgba(10,12,20,0.42)'; roundRect(ctx, r.x, r.y, r.w, r.h, 22); ctx.fill(); };
+  const daily = state.mode === 'daily';
+  const hawk = state.boss && !state.boss.gone ? Math.max(0, state.boss.hp) : 0;
+  const quotaText = state.mode === 'zen' ? `${state.hits} birds sent off` : spec.boss && state.mode !== 'daily' ? `HAWK  ${'♥'.repeat(hawk)}${'♡'.repeat(Math.max(0, 5 - hawk))}` : daily ? `${state.hits} birds` : `${Math.min(state.hits, spec.quota)} / ${spec.quota} birds`;
+  if (!H.land) {
+    pill(H.bar);
+    ctx.textAlign = 'left'; ctx.fillStyle = '#fff'; ctx.font = '800 38px system-ui, sans-serif'; ctx.fillText(String(state.score), H.score.x, H.score.y);
+    ctx.font = '600 20px system-ui, sans-serif'; ctx.fillStyle = 'rgba(255,255,255,0.8)'; ctx.fillText(daily ? 'DAILY HUNT' : `LEVEL ${state.level}`, H.level.x, H.level.y);
+    ctx.textAlign = 'center'; ctx.fillStyle = '#fff'; ctx.font = '700 26px system-ui, sans-serif'; ctx.fillText(quotaText, H.quota.x, H.quota.y);
+    if (state.combo > 1) { ctx.fillStyle = '#ffd75a'; ctx.font = '800 22px system-ui, sans-serif'; ctx.fillText(`COMBO x${comboMultiplier(state.combo)}`, H.combo.x, H.combo.y); }
+  } else {
+    pill(H.lp); pill(H.cp);
+    ctx.textAlign = 'left'; ctx.fillStyle = '#fff'; ctx.font = '800 34px system-ui, sans-serif'; ctx.fillText(String(state.score), H.score.x, H.score.y);
+    ctx.font = '600 17px system-ui, sans-serif'; ctx.fillStyle = 'rgba(255,255,255,0.8)'; ctx.fillText(daily ? 'DAILY HUNT' : `LEVEL ${state.level}`, H.level.x, H.level.y);
+    ctx.textAlign = 'center'; ctx.fillStyle = '#fff'; ctx.font = '700 24px system-ui, sans-serif'; ctx.fillText(quotaText, H.quota.x, H.quota.y);
+    if (state.combo > 1) { ctx.fillStyle = '#ffd75a'; ctx.font = '800 20px system-ui, sans-serif'; ctx.fillText(`COMBO x${comboMultiplier(state.combo)}`, H.combo.x, H.combo.y); }
+    if (state.wind !== 0) pill(H.rp);
+  }
+  // a quiet cue while a predator is about (and while the crop is guarded)
+  if (state.predator || state.guardT > 0 || state.falconHits > 0) {
+    const base = state.predator && state.predator.phase !== 'flinch' ? (state.predator.kind === 'falcon' ? '🦅 Falcon hunting' : '🦅 Hawk hunting') : state.guardT > 0 ? '🛡 Crop guarded' : '🦅';
+    const label = state.falconHits > 0 ? `${base}${base === '🦅' ? ' ' : ' · '}hit ×${state.falconHits}` : base;
+    const x = H.land ? H.lp.x : H.bar.x, y = H.land ? H.lp.y + H.lp.h + 8 : H.bar.y + H.bar.h + (state.spec.n >= CROP_DRAIN_FROM_LEVEL && !state.spec.boss ? 32 : 8);
+    ctx.font = '700 18px system-ui, sans-serif'; const w = ctx.measureText(label).width + 28;
+    ctx.fillStyle = 'rgba(10,12,20,0.5)'; roundRect(ctx, x, y, w, 30, 15); ctx.fill();
+    ctx.fillStyle = '#ffe9b0'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillText(label, x + 14, y + 16);
   }
   // wind
   if (state.wind !== 0) {
     const dir = state.wind > 0 ? 1 : -1;
-    const cx = W - 92;
+    const cx = H.wind.x;
+    const ay = H.land ? H.wind.y : H.wind.y + 14;
     ctx.strokeStyle = '#bfe3ff';
     ctx.fillStyle = '#bfe3ff';
     ctx.lineWidth = 5;
     const len = 18 + (Math.abs(state.wind) / 140) * 34;
-    ctx.beginPath();
-    ctx.moveTo(cx - (dir * len) / 2, 46);
-    ctx.lineTo(cx + (dir * len) / 2, 46);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.moveTo(cx + (dir * len) / 2 + dir * 12, 46);
-    ctx.lineTo(cx + (dir * len) / 2, 36);
-    ctx.lineTo(cx + (dir * len) / 2, 56);
-    ctx.closePath();
-    ctx.fill();
-    ctx.font = '600 18px system-ui, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText('WIND', cx, 84);
+    ctx.beginPath(); ctx.moveTo(cx - (dir * len) / 2, ay); ctx.lineTo(cx + (dir * len) / 2, ay); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx + (dir * len) / 2 + dir * 12, ay); ctx.lineTo(cx + (dir * len) / 2, ay - 10); ctx.lineTo(cx + (dir * len) / 2, ay + 10); ctx.closePath(); ctx.fill();
+    ctx.font = '600 18px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.fillText('WIND', cx, H.wind.ly);
   }
   // crop meter
-  if (state.mode !== 'daily' && state.spec.n >= CROP_DRAIN_FROM_LEVEL) {
-    const bw = 300;
-    const bx = (W - bw) / 2;
-    ctx.fillStyle = 'rgba(10,12,20,0.42)';
-    roundRect(ctx, bx, 122, bw, 18, 9);
-    ctx.fill();
+  if (!daily && !spec.boss && spec.n >= CROP_DRAIN_FROM_LEVEL) {
+    const c = H.crop;
+    ctx.fillStyle = 'rgba(10,12,20,0.42)'; roundRect(ctx, c.x, c.y, c.w, c.h, c.h / 2); ctx.fill();
     const frac = state.crop / CROP_MAX;
     ctx.fillStyle = frac > 0.5 ? '#8fdc5a' : frac > 0.25 ? '#ffc93f' : '#ff6b5a';
-    roundRect(ctx, bx + 2, 124, Math.max(8, (bw - 4) * frac), 14, 7);
-    ctx.fill();
-    ctx.fillStyle = 'rgba(255,255,255,0.9)';
-    ctx.font = '600 16px system-ui, sans-serif';
-    ctx.textAlign = 'right';
-    ctx.fillText('CROP', bx - 10, 132);
+    roundRect(ctx, c.x + 2, c.y + 2, Math.max(8, (c.w - 4) * frac), c.h - 4, (c.h - 4) / 2); ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.9)'; ctx.font = '600 16px system-ui, sans-serif'; ctx.textAlign = 'right'; ctx.fillText('CROP', c.x - 10, c.y + c.h / 2);
   }
   // stones left
-  ctx.textAlign = 'left';
-  ctx.fillStyle = 'rgba(10,12,20,0.42)';
-  roundRect(ctx, 14, 1196, 300, 64, 22);
-  ctx.fill();
-  const shown = Math.min(state.stonesLeft, 12);
-  for (let i = 0; i < shown; i++) drawStone(ctx, 40 + i * 21, 1228, stoneFor(state.stars));
-  if (state.stonesLeft > 12) {
-    ctx.fillStyle = '#fff';
-    ctx.font = '700 20px system-ui, sans-serif';
-    ctx.fillText(`+${state.stonesLeft - 12}`, 40 + 12 * 21, 1229);
+  const sr = H.stones;
+  ctx.textAlign = 'left'; ctx.fillStyle = 'rgba(10,12,20,0.42)'; roundRect(ctx, sr.x, sr.y, state.mode === 'zen' ? 170 : sr.w, sr.h, 22); ctx.fill();
+  if (state.mode === 'zen') {
+    ctx.fillStyle = '#fff'; ctx.font = '800 26px system-ui, sans-serif'; ctx.textAlign = 'left'; ctx.fillText('∞  stones', sr.x + 20, sr.y + 33);
+    button(ctx, L.btn.zenDone, 'Done', 'ghost');
   }
-  button(ctx, BUTTONS.playColors, '🎨', 'ghost');
-  button(ctx, BUTTONS.sound, state.muted ? '🔇' : '🔊', 'ghost');
+  const shown = state.mode === 'zen' ? 0 : Math.min(state.stonesLeft, 12);
+  for (let i = 0; i < shown; i++) drawStone(ctx, sr.x + 26 + i * 21, sr.y + 32, stoneKind(state));
+  if (state.stonesLeft > 12 && state.mode !== 'zen') { ctx.fillStyle = '#fff'; ctx.font = '700 20px system-ui, sans-serif'; ctx.fillText(`+${state.stonesLeft - 12}`, sr.x + 26 + 12 * 21, sr.y + 33); }
+  button(ctx, L.btn.playColors, '🎨', 'ghost');
+  button(ctx, L.btn.sound, state.muted ? '🔇' : '🔊', 'ghost');
+  button(ctx, L.btn.menu, 'Menu', 'ghost');
   ctx.restore();
 }
 
-function title(ctx, text, y, size, scheme) {
+function title(ctx, text, x, y, size) {
   ctx.save();
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
@@ -714,9 +835,8 @@ function title(ctx, text, y, size, scheme) {
   ctx.shadowBlur = 16;
   ctx.shadowOffsetY = 6;
   ctx.fillStyle = '#fff6dc';
-  ctx.fillText(text, W / 2, y);
+  ctx.fillText(text, x, y);
   ctx.restore();
-  void scheme;
 }
 
 function panel(ctx, x, y, w, h) {
@@ -730,16 +850,16 @@ function panel(ctx, x, y, w, h) {
   ctx.restore();
 }
 
-function centered(ctx, text, y, font, color) {
-  ctx.font = font;
+function centered(ctx, text, x, y, font, color, maxW) {
+  fitFont(ctx, text, font, maxW);
   ctx.fillStyle = color;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
-  ctx.fillText(text, W / 2, y);
+  ctx.fillText(text, x, y);
 }
 
-// Wraps `text` centred at W/2 starting at y, returns the y just below the last line drawn.
-function wrapCentered(ctx, text, y, font, color, maxW = W - 100, lh = 32) {
+// Wraps `text` centred at cx starting at y, returns the y just below the last line drawn.
+function wrapCentered(ctx, text, cx, y, font, color, maxW, lh = 32) {
   ctx.font = font;
   ctx.fillStyle = color;
   ctx.textAlign = 'center';
@@ -748,27 +868,20 @@ function wrapCentered(ctx, text, y, font, color, maxW = W - 100, lh = 32) {
   let line = '', ly = y;
   for (const w of words) {
     const cand = line ? `${line} ${w}` : w;
-    if (ctx.measureText(cand).width > maxW && line) { ctx.fillText(line, W / 2, ly); line = w; ly += lh; }
+    if (ctx.measureText(cand).width > maxW && line) { ctx.fillText(line, cx, ly); line = w; ly += lh; }
     else line = cand;
   }
-  ctx.fillText(line, W / 2, ly);
+  ctx.fillText(line, cx, ly);
   return ly + lh;
 }
 
-// Auto Play: the real game is rendered by a completely separate instance (`apGame`, built in
-// game.js's startAutoplay() - its own state, storage, audio, never the real player's), so this
-// just draws that instance's own frame first, then a control band on top (the only free space in
-// this game's own dense HUD/sling/ground layout - drawn OVER the real HUD on purpose, the same
-// "own band on top of a live scene" approach the other autoplay-pro games use).
-function drawAutoplay(ctx, state, apGame) {
+// Auto Play: the real game is rendered by a completely separate instance (`apGame`, built in game.js's startAutoplay() - its own
+// state, storage, audio, never the real player's), then a control band is drawn on top.
+function drawAutoplay(ctx, state, apGame, L) {
   if (apGame) apGame.render(ctx);
   const A = state.ap;
   if (!A) return;
-  const apState = apGame ? apGame.getState() : null;
-  ctx.fillStyle = 'rgba(6,10,4,0.82)';
-  roundRect(ctx, 10, 4, W - 20, 164, 20);
-  ctx.fill();
-  centered(ctx, 'Auto Play — watch and learn', 26, '700 22px system-ui, sans-serif', '#ffe9b0');
+  const P = L.ap, apState = apGame ? apGame.getState() : null;
   const left = Math.max(0, AP_THINK_STEPS[state.apThinkIdx] - A.t);
   const phaseText = A.phase === 'finished' ? "That run is over - here's the tally below."
     : A.paused ? 'Paused'
@@ -776,35 +889,106 @@ function drawAutoplay(ctx, state, apGame) {
     : A.phase === 'think' ? `Think: what shot would you take? (${left.toFixed(1)}s)`
     : A.phase === 'reveal' ? 'Here is the aim about to be loosed…'
     : apState && apState.stones.length ? 'Loosed - watching it fly…' : 'Watching it land…';
-  centered(ctx, phaseText, 54, '600 20px system-ui, sans-serif', '#fff');
+  ctx.fillStyle = 'rgba(6,10,4,0.82)';
+  roundRect(ctx, P.band.x, P.band.y, P.band.w, P.band.h, 20);
+  ctx.fill();
+  centered(ctx, `Auto Play — ${phaseText}`, P.head.x, P.head.y, '700 20px system-ui, sans-serif', '#ffe9b0', P.band.w - 30);
   if (A.phase === 'finished') {
-    centered(ctx, 'Tap "Play again" for another run, or "Home" to leave (below).', 137, '600 19px system-ui, sans-serif', '#ffe9b0');
+    centered(ctx, L.land ? 'Tap "Play again" for another run, or "Home" to leave.' : 'Tap "Play again" for another run, or "Home" to leave (below).', P.hint.x, P.hint.y, '600 19px system-ui, sans-serif', '#ffe9b0', P.band.w - 30);
     return;
   }
-  button(ctx, AUTOPLAY.exit, 'Exit', 'ghost');
-  button(ctx, AUTOPLAY.pause, A.paused ? 'Resume' : 'Pause', A.paused ? 'primary' : 'ghost');
-  button(ctx, AUTOPLAY.skip, 'Skip', 'ghost');
-  button(ctx, AUTOPLAY.dec, '−', 'ghost', state.apThinkIdx === 0);
-  button(ctx, AUTOPLAY.inc, '+', 'ghost', state.apThinkIdx === AP_THINK_STEPS.length - 1);
-  centered(ctx, `Think time: ${AP_THINK_STEPS[state.apThinkIdx]}s`, 137, '700 20px system-ui, sans-serif', '#ffe9b0');
+  button(ctx, P.exit, 'Exit', 'ghost');
+  button(ctx, P.pause, A.paused ? 'Resume' : 'Pause', A.paused ? 'primary' : 'ghost');
+  button(ctx, P.skip, 'Skip', 'ghost');
+  button(ctx, P.dec, '−', 'ghost', state.apThinkIdx === 0);
+  button(ctx, P.inc, '+', 'ghost', state.apThinkIdx === AP_THINK_STEPS.length - 1);
+  centered(ctx, `Think time: ${AP_THINK_STEPS[state.apThinkIdx]}s`, P.think.x, P.think.y, '700 19px system-ui, sans-serif', '#ffe9b0', 146);
 }
 
-// The Rules reference page: a single framed "reader card" holds the header, page title, any
-// illustration and the body text, so the page reads as a designed reference sheet rather than
-// text floating loose on the backdrop. The text-size stepper (A-/A+, top corners, TEXT_SCALES)
-// lets anyone go up to two steps larger - some players wear glasses, some don't.
-function drawRules(ctx, state) {
+// Rules-page scroll limits, measured while drawing and read by game.js to clamp scrolling.
+export const rulesMetrics = { max: 0, view: 0 };
+// Rules layout cache (wrapped lines + total height). rulesStats.layouts counts rebuilds (tests read it).
+const rulesCache = { key: '', items: [], endY: 0 };
+export const rulesStats = { layouts: 0 };
+
+// One Rules illustration (bird portrait or a small demo), drawn live (the bird and slingshot animate) only while on screen.
+function drawRulesArt(ctx, state, RL, card, titleScale, page, boxTop, boxH) {
+  const cx = RL.cx;
+  if (page.bird) {
+    const def = BIRDS[page.bird];
+    drawBird(ctx, { type: page.bird, r: def.r, x: cx, y: boxTop + 110, phase: 'perched', flap: 0, facing: 1, id: 0 }, state.time);
+  } else if (page.demo === 'aim') {
+    // The real slingshot illustration, framed as a window onto the actual in-game view.
+    ctx.save();
+    roundRect(ctx, cx - Math.min(RL.textW, card.w - 20) / 2, boxTop, Math.min(RL.textW, card.w - 20), boxH, 18);
+    ctx.clip();
+    const pos = { x: cx, y: boxTop + 15 + 46 };
+    const pull = { x: 66, y: -96, len: 116 };
+    const dots = previewArc(pull, 0, 7, 0.06, pos);
+    dots.forEach((d, i) => {
+      ctx.fillStyle = `rgba(255,255,255,${0.9 - (i / dots.length) * 0.65})`;
+      ctx.beginPath();
+      ctx.arc(d.x, d.y, 6 - (i / dots.length) * 3, 0, Math.PI * 2);
+      ctx.fill();
+    });
+    drawSlingshot(ctx, { stars: 0, snap: 0, stonesLeft: 1, aim: { pull } }, pos, boxTop + boxH);
+    ctx.restore();
+  } else if (page.demo === 'combo') {
+    const labels = ['+10', '+15  x1.5', '+20  x2'];
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    labels.forEach((l, i) => {
+      const x = cx - 180 + i * 180;
+      drawStone(ctx, x, boxTop + 70, 0);
+      ctx.font = `800 ${Math.round(22 * titleScale)}px system-ui, sans-serif`;
+      ctx.fillStyle = i === 2 ? '#ffd75a' : '#fff';
+      ctx.fillText(l, x, boxTop + 120);
+    });
+  } else if (page.demo === 'wind') {
+    const cyy = boxTop + 80, len = 70;
+    ctx.strokeStyle = '#bfe3ff';
+    ctx.fillStyle = '#bfe3ff';
+    ctx.lineWidth = 6;
+    ctx.beginPath();
+    ctx.moveTo(cx - len / 2, cyy);
+    ctx.lineTo(cx + len / 2, cyy);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(cx + len / 2 + 16, cyy);
+    ctx.lineTo(cx + len / 2, cyy - 16);
+    ctx.lineTo(cx + len / 2, cyy + 16);
+    ctx.closePath();
+    ctx.fill();
+  } else if (page.demo === 'upgrades') {
+    const names = ['River pebble', 'Clay ball', 'River glass'];
+    names.forEach((n, i) => {
+      const x = cx - 180 + i * 180;
+      drawStone(ctx, x, boxTop + 70, i);
+      ctx.font = `600 ${Math.round(18 * titleScale)}px system-ui, sans-serif`;
+      ctx.fillStyle = 'rgba(255,255,255,0.85)';
+      ctx.textAlign = 'center';
+      ctx.fillText(n, x, boxTop + 110);
+    });
+  }
+}
+
+
+// The Rules reference page: one framed reader card (header with the A-/A+ stepper, fixed page title, a SCROLLING body, page counter)
+// and Back / Next below. Text zoom up to 300 % always stays reachable by scrolling.
+function drawRules(ctx, state, L) {
   const scheme = SCHEMES[state.scheme] ?? SCHEMES[0];
+  ctx.save(); ctx.scale(V.z, V.z);
   drawSky(ctx, scheme, state.time);
-  drawHills(ctx, scheme);
+  drawHills(ctx, scheme, state.time);
   drawField(ctx, 'wheat', state.time, 0);
+  ctx.restore();
   ctx.fillStyle = 'rgba(8,10,18,0.5)';
-  ctx.fillRect(0, 0, W, H);
+  ctx.fillRect(0, 0, L.w, L.h);
 
+  const RL = L.rules, card = RL.card, vp = RL.viewport, land = L.land;
   const scale = TEXT_SCALES[state.textScaleIdx] ?? 1;
-  const page = RULES[state.rulesPage % RULES.length];
+  const secs = flowRules();
 
-  const card = { x: 30, y: 96, w: W - 60, h: 1008 };
   roundRect(ctx, card.x, card.y, card.w, card.h, 30);
   const cardFill = ctx.createLinearGradient(0, card.y, 0, card.y + card.h);
   cardFill.addColorStop(0, 'rgba(14,18,32,0.6)');
@@ -819,120 +1003,121 @@ function drawRules(ctx, state) {
   ctx.lineWidth = 1;
   ctx.stroke();
 
-  centered(ctx, 'Rules', card.y + 58, `900 ${Math.round(46 * Math.min(scale, 1.15))}px system-ui, sans-serif`, '#fff6dc');
+  centered(ctx, 'Rules', RL.cx, RL.headerY, `900 ${Math.round((land ? 38 : 46) * Math.min(scale, 1.15))}px system-ui, sans-serif`, '#fff6dc');
   ctx.strokeStyle = 'rgba(255,246,220,0.28)';
   ctx.lineWidth = 2;
   ctx.beginPath();
-  ctx.moveTo(card.x + 60, card.y + 94);
-  ctx.lineTo(card.x + card.w - 60, card.y + 94);
+  ctx.moveTo(card.x + 60, card.y + RL.hdr.sepY);
+  ctx.lineTo(card.x + card.w - 60, card.y + RL.hdr.sepY);
   ctx.stroke();
-  // Title font is capped (like the header above): at the higher end of TEXT_SCALES a page title
-  // drawn as a single centered line (never wrapped) would run wider than the card and off the
-  // screen edges. Capping at the original 1.3x ceiling keeps every title (all <= 19 characters,
-  // the longest that still fits at that size - see content.js) safely within the card at any
-  // TEXT_SCALES top step.
+  // Section titles are inline in the scrolling body; their font is capped at 1.3x so every title stays inside the card at every zoom step.
   const titleScale = Math.min(scale, 1.3);
-  centered(ctx, page.title, card.y + 150, `800 ${Math.round(32 * titleScale)}px system-ui, sans-serif`, '#ffd75a');
 
-  // The gap from the title down to the body text is fixed at 1x scale (title and body fonts are
-  // both modest then), but body text keeps growing with `scale` past the title's own capped size -
-  // without scaling this gap too, a large body font's first line would climb back up and overlap
-  // the title. Scaling it with `scale` keeps a clear gap at every step (illustration pages are
-  // unaffected: they place their own text below a fixed-height illustration block instead).
-  let y = card.y + 150 + Math.round(50 * scale);
-  if (page.bird || page.demo) {
-    // Every illustration reserves the same 220px block right under the page title, so the card
-    // reads consistently whether the page shows a bird, a demo, or (below) picks up straight away.
-    const boxTop = card.y + 190, boxH = 220;
-    if (page.bird) {
-      const def = BIRDS[page.bird];
-      drawBird(ctx, { type: page.bird, r: def.r, x: W / 2, y: boxTop + 110, phase: 'perched', flap: 0, facing: 1, id: 0 }, state.time);
-    } else if (page.demo === 'aim') {
-      // The real slingshot illustration, pulled up (via translate) and clipped to this block so it
-      // reads as a framed window onto the actual in-game view instead of overflowing the card -
-      // the sling's own art is anchored to the real bottom-of-screen SLING position.
-      ctx.save();
-      roundRect(ctx, card.x + 10, boxTop, card.w - 20, boxH, 18);
-      ctx.clip();
-      ctx.translate(0, boxTop + 15 - (SLING.y - 46));
-      const pull = { x: 66, y: -96, len: 116 };
-      const dots = previewArc(pull, 0, 7);
-      dots.forEach((d, i) => {
-        ctx.fillStyle = `rgba(255,255,255,${0.9 - (i / dots.length) * 0.65})`;
-        ctx.beginPath();
-        ctx.arc(d.x, d.y, 6 - (i / dots.length) * 3, 0, Math.PI * 2);
-        ctx.fill();
-      });
-      drawSlingshot(ctx, { stars: 0, snap: 0, stonesLeft: 1, aim: { pull } });
-      ctx.restore();
-    } else if (page.demo === 'combo') {
-      const labels = ['+10', '+15  x1.5', '+20  x2'];
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      // These three labels sit in fixed 180px-wide slots side by side, so their font (unlike the
-      // main body text) is capped - same 1.3x ceiling as the title above - rather than scaling all
-      // the way to the top TEXT_SCALES step, or they would overlap each other well before that.
-      labels.forEach((l, i) => {
-        const x = W / 2 - 180 + i * 180;
-        drawStone(ctx, x, boxTop + 70, 0);
-        ctx.font = `800 ${Math.round(22 * titleScale)}px system-ui, sans-serif`;
-        ctx.fillStyle = i === 2 ? '#ffd75a' : '#fff';
-        ctx.fillText(l, x, boxTop + 120);
-      });
-    } else if (page.demo === 'wind') {
-      const cx = W / 2, cyy = boxTop + 80, len = 70;
-      ctx.strokeStyle = '#bfe3ff';
-      ctx.fillStyle = '#bfe3ff';
-      ctx.lineWidth = 6;
-      ctx.beginPath();
-      ctx.moveTo(cx - len / 2, cyy);
-      ctx.lineTo(cx + len / 2, cyy);
-      ctx.stroke();
-      ctx.beginPath();
-      ctx.moveTo(cx + len / 2 + 16, cyy);
-      ctx.lineTo(cx + len / 2, cyy - 16);
-      ctx.lineTo(cx + len / 2, cyy + 16);
-      ctx.closePath();
-      ctx.fill();
-    } else if (page.demo === 'upgrades') {
-      const names = ['River pebble', 'Clay ball', 'River glass'];
-      // Same fixed-slot reasoning as the combo labels above: capped, not scaled to the top step.
-      names.forEach((n, i) => {
-        const x = W / 2 - 180 + i * 180;
-        drawStone(ctx, x, boxTop + 70, i);
-        ctx.font = `600 ${Math.round(18 * titleScale)}px system-ui, sans-serif`;
-        ctx.fillStyle = 'rgba(255,255,255,0.85)';
-        ctx.textAlign = 'center';
-        ctx.fillText(n, x, boxTop + 110);
-      });
-    }
-    y = boxTop + boxH + 26;
+  // ---- scrolling body ----
+  const sc = Math.max(0, Math.min(state.rulesScroll || 0, rulesMetrics.max));
+  const origin = vp.y + 8;
+  const fontPx = Math.round(29 * scale), lh = Math.round(fontPx * 1.42), gap = Math.round(10 * scale);
+  // The wrapped document is laid out once per (text size, geometry, font) and reused; a frame draws only the visible slice.
+  ctx.font = '800 40px system-ui, sans-serif'; const fontKey = ctx.measureText('Hamburgefonstiv').width;   // changes if the system font changes
+  const key = [scale, vp.x, vp.y, vp.w, vp.h, card.w, RL.cx, RL.textW, fontKey].join('|');
+  if (rulesCache.key !== key) {
+    rulesStats.layouts++;
+    const items = []; let y = origin + 6;
+    secs.forEach((page, si) => {
+      if (si > 0) y += Math.round(30 * scale);
+      fitFont(ctx, page.title, `800 ${Math.round(32 * titleScale)}px system-ui, sans-serif`, card.w - 60);
+      items.push({ k: 't', str: page.title, y: y + Math.round(24 * titleScale), font: ctx.font });
+      y += Math.round(58 * titleScale);
+      if (page.bird || page.demo) {
+        items.push({ k: 'art', page, top: y, h: 220 + 26 });
+        y = y + 220 + 26;
+      } else y += Math.round(18 * scale);
+      y += lh / 2;
+      for (const line of page.paras) {
+        ctx.font = `500 ${fontPx}px system-ui, sans-serif`;
+        const ls = []; let cur = '';
+        for (const w of line.split(' ')) { const cand = cur ? `${cur} ${w}` : w; if (ctx.measureText(cand).width > RL.textW && cur) { ls.push(cur); cur = w; } else cur = cand; }
+        ls.push(cur);
+        items.push({ k: 'l', ls, y });
+        y += ls.length * lh + gap;
+      }
+      y -= lh / 2;
+    });
+    rulesCache.key = key; rulesCache.items = items; rulesCache.endY = y;
+  }
+  ctx.save();
+  ctx.beginPath(); ctx.rect(vp.x, vp.y, vp.w, vp.h); ctx.clip();
+  ctx.translate(0, -sc);
+  const vtop = vp.y + sc - 60, vbot = vp.y + vp.h + sc + 60;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  for (const it of rulesCache.items) {
+    if (it.k === 't') {
+      if (it.y < vtop || it.y > vbot) continue;
+      ctx.font = it.font; ctx.fillStyle = '#ffd75a'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(it.str, RL.cx, it.y);
+    } else if (it.k === 'l') {
+      if (it.y + it.ls.length * lh < vtop || it.y > vbot) continue;
+      ctx.font = `500 ${fontPx}px system-ui, sans-serif`; ctx.fillStyle = 'rgba(255,255,255,0.94)'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      it.ls.forEach((ln, i) => { const ly = it.y + i * lh; if (ly > vtop && ly < vbot) ctx.fillText(ln, RL.cx, ly); });
+    } else if (it.top + it.h >= vtop && it.top <= vbot) drawRulesArt(ctx, state, RL, card, titleScale, it.page, it.top, 220);
+  }
+  const y = rulesCache.endY;
+  ctx.restore();
+  const contentH = y - origin + 16;
+  rulesMetrics.max = contentH - vp.h <= 8 ? 0 : Math.ceil(contentH - vp.h);
+  rulesMetrics.view = vp.h;
+  if (rulesMetrics.max > 0) {   // scroll bar
+    const sb = RL.scrollbar, th = Math.max(48, (sb.h * vp.h) / contentH), ty = sb.y + (sc / rulesMetrics.max) * (sb.h - th);
+    ctx.fillStyle = 'rgba(255,255,255,0.14)'; roundRect(ctx, sb.x, sb.y, sb.w, sb.h, 5); ctx.fill();
+    ctx.fillStyle = 'rgba(255,215,90,0.75)'; roundRect(ctx, sb.x, ty, sb.w, th, 5); ctx.fill();
   }
 
-  const fontPx = Math.round(29 * scale), lh = Math.round(fontPx * 1.42), gap = Math.round(10 * scale);
-  for (const line of page.lines) y = wrapCentered(ctx, line, y, `500 ${fontPx}px system-ui, sans-serif`, 'rgba(255,255,255,0.94)', card.w - 90, lh) + gap;
-
-  centered(ctx, `Page ${(state.rulesPage % RULES.length) + 1} of ${RULES.length}`, 1120, '600 22px system-ui, sans-serif', 'rgba(255,255,255,0.65)');
-  button(ctx, BUTTONS.rulesBack, 'Back', 'ghost');
-  button(ctx, BUTTONS.rulesNext, state.rulesPage >= RULES.length - 1 ? 'Done' : 'Next', 'primary');
-  button(ctx, BUTTONS.textDec, 'A−', 'ghost', state.textScaleIdx === 0);
-  button(ctx, BUTTONS.textInc, 'A+', 'ghost', state.textScaleIdx === TEXT_SCALES.length - 1);
+  if (rulesMetrics.max > 0) centered(ctx, sc >= rulesMetrics.max - 1 ? 'End' : 'Scroll or tap Next for more', RL.cx, RL.counterY, '600 22px system-ui, sans-serif', 'rgba(255,255,255,0.65)');
+  button(ctx, RL.back, 'Back', 'ghost');
+  button(ctx, RL.next, rulesMetrics.max <= 0 || sc >= rulesMetrics.max - 1 ? 'Done' : 'Next', 'primary');
+  button(ctx, RL.dec, 'A−', 'ghost', state.textScaleIdx === 0);
+  button(ctx, RL.inc, 'A+', 'ghost', state.textScaleIdx === TEXT_SCALES.length - 1);
 }
 
-export function drawGame(ctx, state, manifest, day, apGame) {
-  if (state.scene === 'rules') { drawRules(ctx, state); return; }
-  if (state.scene === 'autoplay') { drawAutoplay(ctx, state, apGame); return; }
-  const scheme = SCHEMES[state.scheme] ?? SCHEMES[0];
+// Automatic quality degrade: the time between frames is averaged; when it rises (a slow phone with many birds + the predator) the motion ghosts go first, then the
+// dust motes and god-rays. It recovers when frames are fast again. Purely visual, never touches the simulation.
+export const QUALITY = { level: 0, ema: 16.7, last: 0 };
+const AMBIENT = { off: false };   // set per frame: ambient life is off in Calm
+function trackQuality() {
+  const now = globalThis.performance?.now?.() ?? 0;
+  if (QUALITY.last && now > QUALITY.last) {
+    const dt = Math.min(100, now - QUALITY.last);
+    QUALITY.ema += (dt - QUALITY.ema) * 0.05;
+    if (QUALITY.ema > 27) QUALITY.level = 2; else if (QUALITY.ema > 21) QUALITY.level = Math.max(QUALITY.level, 1); else if (QUALITY.ema < 18.5) QUALITY.level = 0;
+  }
+  QUALITY.last = now;
+}
+
+export function drawGame(ctx, state, manifest, day, apGame, L) {
+  trackQuality();
+  AMBIENT.off = !!state.calm;
+  if (state.scene === 'rules') { drawRules(ctx, state, L); return; }
+  if (state.scene === 'autoplay') { drawAutoplay(ctx, state, apGame, L); return; }
+  const scheme = state.mode === 'daily' && state.scene !== 'title' ? SCHEMES[(day * 3) % (SCHEMES.length - 1)] : (SCHEMES[state.scheme] ?? SCHEMES[0]);   // the Daily Hunt wears a different light each day
+  LEAF.cols = scheme.leaf ?? ['#2f6b2f', '#4c9a3f', '#7cc65a'];
   const time = state.time;
   const worldName = state.world?.world ?? 'wheat';
+  // ---- the world (scaled by z) ----
+  ctx.save();
+  ctx.scale(V.z, V.z);
+  const PR = state.predator;
+  if (PR && PR.push > 0.001) { const zz = 1 + 0.035 * PR.push, cx = SLING.x, cy = SLING.y; ctx.translate(cx, cy); ctx.scale(zz, zz); ctx.translate(-cx, -cy); }   // camera push (<= 3.5 %), centred on the sling so aiming stays true
+  if (state.shake > 0) ctx.translate(Math.sin(state.time * 90) * state.shake * 0.6, Math.cos(state.time * 77) * state.shake * 0.6);   // subtle: <= ~8 units
   drawSky(ctx, scheme, time);
-  drawHills(ctx, scheme);
+  drawHills(ctx, scheme, state.time);
   if (state.world?.hasWire) drawWire(ctx);
   if (state.world) for (const tree of state.world.trees) drawTree(ctx, tree, time, state.wind, worldName);
   drawField(ctx, worldName, time, state.wind);
-  if (state.world) drawFence(ctx, state.world);
-  drawWindSpecks(ctx, time, state.wind, scheme);
+  if (state.world) drawFence(ctx, state.world, state.scareT, time);
+  drawRabbit(ctx, time);
+  drawWindSpecks(ctx, time, state.wind, scheme, worldName);
+  for (const S of state.sitters || []) if (S.state !== 'gone' && S.state !== 'away') drawPerched(ctx, S, time, BIRD_LOOK, V);
   for (const bird of state.birds) drawBird(ctx, bird, time);
+  if (state.predator) drawPredator(ctx, state.predator, time, BIRD_LOOK, V, 0, QUALITY.level);
   for (const s of state.stones) {
     ctx.strokeStyle = 'rgba(255,255,255,0.35)';
     ctx.lineWidth = 5;
@@ -940,7 +1125,8 @@ export function drawGame(ctx, state, manifest, day, apGame) {
     ctx.moveTo(s.px - s.vx * 0.02, s.py - s.vy * 0.02);
     ctx.lineTo(s.x, s.y);
     ctx.stroke();
-    drawStone(ctx, s.x, s.y, stoneFor(state.stars));
+    if (s.trail) s.trail.forEach((t, i) => { ctx.fillStyle = `rgba(255,${s.wide ? 215 : 240},${s.wide ? 120 : 200},${(i / s.trail.length) * 0.4})`; ctx.beginPath(); ctx.arc(t.x, t.y, (s.wide ? 11 : 6) * (i / s.trail.length), 0, Math.PI * 2); ctx.fill(); });
+    drawStone(ctx, s.x, s.y, stoneKind(state), s.wide ? 1.9 : 1);
   }
   for (const p of state.particles) {
     ctx.save();
@@ -954,11 +1140,21 @@ export function drawGame(ctx, state, manifest, day, apGame) {
     ctx.restore();
   }
   ctx.fillStyle = scheme.tint;
-  ctx.fillRect(0, 0, W, H);
-
-  if (state.scene === 'playing' || state.scene === 'levelclear') {
+  ctx.fillRect(-20, -20, V.WW + 40, V.WH + 40);
+  if (state.flash > 0) { ctx.fillStyle = `rgba(255,236,160,${Math.min(0.4, state.flash)})`; ctx.fillRect(-20, -20, V.WW + 40, V.WH + 40); }
+  if (state.breathe && state.scene === 'playing') {   // Calm: breathe: a very slow glow (~5 s in, ~5 s out); nothing flashes, no sound
+    const ph = 0.5 - 0.5 * Math.cos((state.breatheT / 10) * Math.PI * 2);
+    const gg = ctx.createRadialGradient(SLING.x, SLING.y - 120, 20, SLING.x, SLING.y - 120, 420 + 120 * ph);
+    gg.addColorStop(0, `rgba(255,236,170,${0.05 + 0.1 * ph})`); gg.addColorStop(1, 'rgba(255,236,170,0)');
+    ctx.fillStyle = gg; ctx.fillRect(-20, -20, V.WW + 40, V.WH + 40);
+    ctx.strokeStyle = `rgba(255,243,190,${0.18 + 0.3 * ph})`; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(SLING.x, SLING.y, 52 + 26 * ph, 0, Math.PI * 2); ctx.stroke();
+  }
+  if (PR && PR.fx > 0) { ctx.fillStyle = `rgba(20,16,40,${0.1 * PR.fx * (PR.phase === 'leave' ? 0.4 : 1)})`; ctx.fillRect(-20, -20, V.WW + 40, V.WH + 40); }   // the sky darkens a hair
+  if (state.slowT > 0) { ctx.fillStyle = 'rgba(120,170,255,0.10)'; ctx.fillRect(-20, -20, V.WW + 40, V.WH + 40); }
+  const playing = state.scene === 'playing' || state.scene === 'levelclear';
+  if (playing) {
     if (state.aim && state.aim.pull.len >= SLING.minPull) {
-      const dots = previewArc(state.aim.pull, state.wind, state.spec.guideDots);
+      const dots = previewArc(state.aim.pull, state.wind, state.spec.guideDots + (state.missStreak >= MISS_ASSIST ? 8 : 0));
       dots.forEach((d, i) => {
         ctx.fillStyle = `rgba(255,255,255,${0.9 - (i / dots.length) * 0.65})`;
         ctx.beginPath();
@@ -969,74 +1165,106 @@ export function drawGame(ctx, state, manifest, day, apGame) {
     drawSlingshot(ctx, state);
     for (const p of state.popups) {
       ctx.globalAlpha = Math.min(1, p.life * 2);
-      ctx.font = '800 30px system-ui, sans-serif';
-      ctx.fillStyle = p.bad ? '#ff8a7a' : '#fff3b0';
+      ctx.font = `800 ${p.size ?? 30}px system-ui, sans-serif`;
+      ctx.fillStyle = p.bad ? '#ff8a7a' : p.gold ? '#ffd75a' : '#fff3b0';
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(p.text, Math.max(90, Math.min(W - 90, p.x)), p.y);
+      ctx.fillText(p.text, Math.max(90, Math.min(V.WW - 90, p.x)), p.y);
       ctx.globalAlpha = 1;
     }
-    drawHud(ctx, state);
     if (state.scene === 'playing' && state.level === 1 && state.tally.thrown === 0 && !state.aim) {
-      centered(ctx, 'Drag back from the slingshot, then release', 990, '600 26px system-ui, sans-serif', 'rgba(255,255,255,0.92)');
+      centered(ctx, 'Drag back from the slingshot, then release', SLING.x, SLING.y - 60, '600 26px system-ui, sans-serif', 'rgba(255,255,255,0.92)', V.WW - 60);
       if (state.mode === 'campaign') drawTutorialGhost(ctx, state);
+    } else if (state.scene === 'playing' && state.level === 1 && state.hits === 0 && !state.aim && state.mode === 'campaign') {
+      centered(ctx, 'Aim at a bird - the dots show your path', SLING.x, SLING.y - 60, '600 26px system-ui, sans-serif', 'rgba(255,255,255,0.92)', V.WW - 60);
     }
   }
+  if (state.scene === 'title' && L.title.sling) drawSlingshot(ctx, state, L.title.sling);
+  else if (state.scene === 'title') drawSlingshot(ctx, state);
+  ctx.restore();
+
+  // ---- screen furniture ----
+  if (playing) drawHud(ctx, state, L);
 
   if (state.scene === 'levelclear') {
-    panel(ctx, 90, 440, W - 180, 300);
-    centered(ctx, `Level ${state.level} clear!`, 510, '800 46px system-ui, sans-serif', '#fff');
-    centered(ctx, '★'.repeat(state.lastStars) + '☆'.repeat(3 - state.lastStars), 600, '700 80px system-ui, sans-serif', '#ffd75a');
-    centered(ctx, `+${state.stonesLeft * 5} for stones saved`, 690, '600 24px system-ui, sans-serif', 'rgba(255,255,255,0.8)');
-    if (state.newWood >= 0) centered(ctx, `New slingshot unlocked: ${WOODS[state.newWood].name}!`, 725, '700 26px system-ui, sans-serif', '#ffd75a');
-    else if (state.newStone >= 0) centered(ctx, `New stone unlocked: ${STONES[state.newStone].name}!`, 725, '700 26px system-ui, sans-serif', '#ffd75a');
+    const f = L.centerFrame;
+    ctx.save(); ctx.translate(f.ox, f.oy);
+    panel(ctx, 90, 440, 540, 300);
+    centered(ctx, `Level ${state.level} clear!`, 360, 510, '800 46px system-ui, sans-serif', '#fff');
+    centered(ctx, '★'.repeat(state.lastStars) + '☆'.repeat(3 - state.lastStars), 360, 600, '700 80px system-ui, sans-serif', '#ffd75a');
+    centered(ctx, `+${state.stonesLeft * 5} for stones saved`, 360, 690, '600 24px system-ui, sans-serif', 'rgba(255,255,255,0.8)');
+    if (state.restNote) centered(ctx, 'A moment to rest your eyes? Look far away for a little while.', 360, 760, '500 22px system-ui, sans-serif', 'rgba(200,230,255,0.95)', 520);
+    if (state.newWood >= 0) centered(ctx, `New slingshot unlocked: ${WOODS[state.newWood].name}!`, 360, 725, '700 26px system-ui, sans-serif', '#ffd75a', 500);
+    else if (state.newStone >= 0) centered(ctx, `New stone unlocked: ${STONES[state.newStone].name}!`, 360, 725, '700 26px system-ui, sans-serif', '#ffd75a', 500);
+    ctx.restore();
   }
 
   if (state.scene === 'title') {
-    drawSlingshot(ctx, state);
-    title(ctx, manifest.title, 250, 84, scheme);
-    centered(ctx, manifest.tagline ?? '', 330, '600 28px system-ui, sans-serif', 'rgba(255,255,255,0.92)');
-    centered(ctx, `★ ${state.stars}     Best ${state.best}     Level ${state.highestLevel}`, 470, '700 26px system-ui, sans-serif', '#fff3b0');
-    button(ctx, BUTTONS.play, state.highestLevel > 1 && !state.demo ? `Play — Level ${state.highestLevel}` : 'Play', 'primary');
+    const T = L.title, f = T.f, r = T.r;
+    ctx.save(); ctx.translate(f.ox, f.oy); ctx.scale(f.s, f.s);
+    title(ctx, manifest.title, T.title.x, T.title.y, T.title.size);
+    centered(ctx, manifest.tagline ?? '', T.tag.x, T.tag.y, `600 ${Math.round(T.tag.size)}px system-ui, sans-serif`, 'rgba(255,255,255,0.92)', L.land ? 480 : 640);
+    centered(ctx, `★ ${state.stars}     Best ${state.best}     Level ${state.highestLevel}${state.visit.count > 0 ? `     🔥 Day ${state.visit.count}` : ''}`, T.stats.x, T.stats.y, `700 ${Math.round(T.stats.size)}px system-ui, sans-serif`, '#fff3b0', L.land ? 480 : 640);
+    const nextGift = STREAK_GIFTS.find((d) => d > (state.bestVisit || 0));
+    const gift = state.giftNote || (nextGift ? `Come back each day: a new stone skin waits on day ${nextGift}` : '');
+    if (gift) centered(ctx, gift, T.stats.x, T.stats.y + (L.land ? 34 : 38), `600 ${L.land ? 17 : 20}px system-ui, sans-serif`, state.giftNote ? '#ffd75a' : 'rgba(255,243,176,0.8)', L.land ? 480 : 640);
+    button(ctx, r.play, state.highestLevel > 1 && !state.demo ? `Play — Level ${state.highestLevel}` : 'Play', 'primary');
     const playedToday = state.daily.day === day;
-    button(ctx, BUTTONS.daily, state.demo ? 'Daily Hunt — in the app' : playedToday ? `Daily done: ${state.daily.score}  🔥${state.daily.streak}` : `Daily Hunt${state.daily.streak ? `  🔥${state.daily.streak}` : ''}`, 'ghost', state.demo || playedToday);
-    button(ctx, BUTTONS.endless, state.demo ? 'Endless — in the app' : 'Endless', 'ghost', state.demo);
-    button(ctx, BUTTONS.colors, `🎨 Light: ${scheme.name}`, 'ghost');
-    button(ctx, BUTTONS.rules, '📖 Rules', 'ghost');
-    button(ctx, BUTTONS.auto, '🎬 Auto Play — watch and learn', 'ghost');
-    button(ctx, BUTTONS.soundTitle, state.muted ? '🔇' : '🔊', 'ghost');
+    button(ctx, r.daily, state.demo ? 'Daily Hunt — in the app' : playedToday ? `Daily done: ${state.daily.score}  🔥${state.daily.streak}` : `Daily Hunt${state.daily.streak ? `  🔥${state.daily.streak}` : ''}`, 'ghost', state.demo || playedToday);
+    button(ctx, r.endless, state.demo ? 'Endless' : 'Endless', 'ghost', state.demo);
+    button(ctx, r.zen, '🌿 Zen', 'ghost', state.demo);
+    button(ctx, r.colors, `🎨 Light: ${scheme.name}`, 'ghost');
+    button(ctx, r.rules, '📖 Rules', 'ghost');
+    button(ctx, r.calm, `🌿 Calm: ${state.calm ? (state.breathe ? 'breathe' : 'on') : 'off'}`, 'ghost');
+    button(ctx, r.auto, '🎬 Auto Play — watch and learn', 'ghost');
+    button(ctx, r.soundTitle, state.muted ? '🔇' : '🔊', 'ghost');
+    ctx.restore();
+    drawLockup(ctx, L.brand.x, L.brand.y, L.brand.size, { align: L.brand.align });
   }
 
   if (state.scene === 'tally') {
-    panel(ctx, 60, 190, W - 120, 1060);
-    centered(ctx, state.mode === 'daily' ? 'Daily Hunt' : "Day's Tally", 260, '800 52px system-ui, sans-serif', '#fff');
-    centered(ctx, String(state.score), 350, '900 84px system-ui, sans-serif', '#ffd75a');
-    centered(ctx, state.score >= state.best && state.score > 0 ? 'New best!' : `Best ${state.best}`, 420, '600 24px system-ui, sans-serif', 'rgba(255,255,255,0.8)');
+    const Tl = L.tally, f = Tl.f, r = Tl.r;
+    ctx.save(); ctx.translate(f.ox, f.oy); ctx.scale(f.s, f.s);
+    panel(ctx, r.panel.x, r.panel.y, r.panel.w, r.panel.h);
+    centered(ctx, state.mode === 'daily' ? 'Daily Hunt' : "Day's Tally", r.title.x, r.title.y, `800 ${r.title.size}px system-ui, sans-serif`, '#fff');
+    centered(ctx, String(state.score), r.score.x, r.score.y, `900 ${r.score.size}px system-ui, sans-serif`, '#ffd75a');
+    centered(ctx, state.score >= state.best && state.score > 0 && state.mode !== 'zen' ? 'New best!' : `Best ${state.best}`, r.best.x, r.best.y, '600 24px system-ui, sans-serif', 'rgba(255,255,255,0.8)');
     const acc = state.tally.thrown ? Math.round((state.tally.hit / state.tally.thrown) * 100) : 0;
     const lines = [`Reached level ${state.level}`, `Birds scared off: ${state.tally.hit}`, `Accuracy: ${acc}%`, `Best combo: ${state.bestCombo}`];
-    lines.forEach((l, i) => centered(ctx, l, 490 + i * 44, '600 28px system-ui, sans-serif', '#fff'));
+    lines.forEach((l, i) => centered(ctx, l, r.lines.x, r.lines.y0 + i * r.lines.dy, `600 ${r.lines.size}px system-ui, sans-serif`, '#fff'));
     const kinds = Object.entries(state.tally.byType).map(([k, v]) => `${k} ${v}`).join('   ');
-    centered(ctx, kinds, 680, '500 22px system-ui, sans-serif', 'rgba(255,255,255,0.75)');
+    centered(ctx, kinds, r.kinds.x, r.kinds.y, '500 22px system-ui, sans-serif', 'rgba(255,255,255,0.75)', r.panel.w * (L.land ? 0.5 : 0.9));
     // shot-by-shot squares (the Daily Hunt share pattern)
     const shots = state.shots.slice(0, DAILY.stones + 10);
     const per = 12;
     shots.forEach((s, i) => {
       ctx.fillStyle = s === 'hit' ? '#6fdc6a' : s === 'owl' ? '#ff6b5a' : 'rgba(255,255,255,0.28)';
-      roundRect(ctx, W / 2 - (per * 34) / 2 + (i % per) * 34, 730 + Math.floor(i / per) * 34, 28, 28, 6);
+      roundRect(ctx, r.squares.cx - (per * 34) / 2 + (i % per) * 34, r.squares.y + Math.floor(i / per) * 34, 28, 28, 6);
       ctx.fill();
+      // Colour-blind safe: every square also carries a mark (hit tick, owl cross, miss dot).
+      ctx.fillStyle = s === 'miss' ? 'rgba(255,255,255,0.7)' : '#0d2b12';
+      ctx.font = '800 18px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(s === 'hit' ? '✓' : s === 'owl' ? '✕' : '·', r.squares.cx - (per * 34) / 2 + (i % per) * 34 + 14, r.squares.y + Math.floor(i / per) * 34 + 15);
     });
-    centered(ctx, 'More from Arcforge', 868, '700 22px system-ui, sans-serif', 'rgba(255,255,255,0.85)');
-    SIBLINGS.forEach((g, i) => button(ctx, chipRect(i), g.title, 'ghost'));
-    button(ctx, BUTTONS.again, 'Play again', 'primary');
-    button(ctx, BUTTONS.share, state.shareNote || 'Share', 'ghost');
-    button(ctx, BUTTONS.home, 'Home', 'ghost');
+    if (state.summary) centered(ctx, state.summary, r.msg.x, r.msg.y, '600 20px system-ui, sans-serif', 'rgba(255,243,176,0.9)', r.panel.w * (L.land ? 0.46 : 0.88));
+    if (state.restNote) centered(ctx, 'A moment to rest your eyes? Look far away for a little while.', r.msg.x, r.msg.y + (L.land ? 26 : 28), '500 18px system-ui, sans-serif', 'rgba(200,230,255,0.9)', r.panel.w * (L.land ? 0.46 : 0.88));
+    drawMoreLine(ctx, r.more.x, r.more.y, L.land ? 19 : 22);
+    SIBLINGS.forEach((g, i) => button(ctx, r.chips[i], g.title, 'ghost'));
+    button(ctx, r.again, 'Play again', 'primary');
+    button(ctx, r.share, state.shareNote || 'Share', 'ghost');
+    button(ctx, r.home, 'Home', 'ghost');
+    if (r.badge) drawBadge(ctx, r.badge.x, r.badge.y, r.badge.size, 0.8);
+    ctx.restore();
   }
 
   if (state.scene === 'demo-limit') {
-    panel(ctx, 70, 430, W - 140, 330);
-    centered(ctx, "That's the free preview!", 510, '800 42px system-ui, sans-serif', '#fff');
-    centered(ctx, 'Get Golden Sling free on iPhone and', 590, '500 26px system-ui, sans-serif', 'rgba(255,255,255,0.85)');
-    centered(ctx, 'Android: every level, Endless and', 628, '500 26px system-ui, sans-serif', 'rgba(255,255,255,0.85)');
-    centered(ctx, 'the Daily Hunt.', 666, '500 26px system-ui, sans-serif', 'rgba(255,255,255,0.85)');
+    const f = L.centerFrame;
+    ctx.save(); ctx.translate(f.ox, f.oy);
+    panel(ctx, 70, 430, 580, 330);
+    centered(ctx, "That's the free preview!", 360, 510, '800 42px system-ui, sans-serif', '#fff', 540);
+    centered(ctx, 'Get Golden Sling free on iPhone and', 360, 590, '500 26px system-ui, sans-serif', 'rgba(255,255,255,0.85)', 540);
+    centered(ctx, 'Android: every level, Endless and', 360, 628, '500 26px system-ui, sans-serif', 'rgba(255,255,255,0.85)', 540);
+    centered(ctx, 'the Daily Hunt.', 360, 666, '500 26px system-ui, sans-serif', 'rgba(255,255,255,0.85)', 540);
+    ctx.restore();
   }
 }

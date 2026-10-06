@@ -1,9 +1,11 @@
 // Chapter 7: the leap across the sea. A long flight with altitude choices: wind streams in the
 // middle air build speed, the sea below hides jaws and the shadow-catcher, storms sit up high,
 // and a golden mountain rises to offer rest. The camera pulls back as speed grows.
-import { W, H, TAU, PAL, INK, clamp, lerp, smooth, hash, sky, sun, stars, clouds, sea, skyline, light, motes, finish, shakeOffset, rays } from '../stage.js';
+import { FR, W, H, TAU, PAL, INK, clamp, lerp, smooth, hash, sky, sun, stars, clouds, sea, skyline, light, motes, finish, shakeOffset, rays } from '../stage.js';
 import { figure, poses } from '../puppets.js';
 import { meter, label, caption } from '../ui.js';
+
+const camK = () => (FR.land ? SEA_Y - (FR.y0 + 170) : 930);   // landscape: the hero rides a little above the middle of the window
 
 const DIST = 34000, BASE = 300, TOP = 700, SEA_Y = H - 190;
 
@@ -74,7 +76,7 @@ export function create(env, shared) {
     }
     s.x += s.speed * dt;
     s.zoom = lerp(s.zoom, lerp(0.8, 0.56, (s.speed - BASE) / (TOP - BASE)), 1 - Math.pow(0.2, dt));
-    s.cam = lerp(s.cam, Math.max(0, s.alt * s.zoom - 930), 1 - Math.pow(0.03, dt));
+    s.cam = lerp(s.cam, Math.max(0, s.alt * s.zoom - camK()), 1 - Math.pow(0.03, dt));
     if (s.x > DIST * 0.62 && s.x - s.speed * dt <= DIST * 0.62) { say(L.sighted); shared.sfx('chime'); }
     if (s.x >= DIST) { s.done = true; shared.sfx('good'); }
   }
@@ -87,7 +89,7 @@ export function create(env, shared) {
     const [ox, oy] = shakeOffset(t, s.shake * 14, rm);
     ctx.save(); ctx.translate(ox, oy);
     sky(ctx, PAL.dusk.sky, null);
-    ctx.fillStyle = `rgba(8,10,40,${prog * 0.62})`; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = `rgba(8,10,40,${prog * 0.62})`; ctx.fillRect(FR.x0 - 1, 0, FR.w + 2, H);
     stars(ctx, 0.25 + prog * 0.75, t, 0, H * 0.7);
     const seaY = sy(0), horizon = seaY - 150 * z;
     sun(ctx, 520 - prog * 120, horizon - 190 + prog * 260, 66, '255,196,120');
@@ -97,7 +99,7 @@ export function create(env, shared) {
     // the far shore: golden towers grow on the horizon
     if (prog > 0.5) {
       const u = smooth((prog - 0.5) / 0.5), sc = 0.3 + u * 0.95;
-      ctx.save(); ctx.translate(W + 260 - u * 640, horizon + 14); ctx.scale(sc, sc);
+      ctx.save(); ctx.translate(FR.x1 + 260 - u * 640, horizon + 14); ctx.scale(sc, sc);
       light(ctx, 200, -120, 520, '255,190,90', 0.35 + u * 0.3);
       ctx.fillStyle = '#1a0e2c'; ctx.beginPath(); ctx.moveTo(-260, 10); ctx.quadraticCurveTo(200, -110, 760, 10); ctx.fill();
       skyline(ctx, { base: -40, scroll: 0, color: '#c8923a', seed: 5, h: 170, gap: 110, kind: 'lanka', lit: '255,240,180', t });
@@ -108,8 +110,8 @@ export function create(env, shared) {
     // world objects
     for (const o of s.objs) {
       const x = sx(o.x);
-      if (o.k === 'wind') { if (x < W + 100 && sx(o.x + o.len) > -100) wind(ctx, o, t, z); continue; }
-      if (x < -900 * z || x > W + 900 * z) { if (x > W && x < W + 1100 * z && o.k !== 'mount') warn(ctx, o.k === 'storm' ? sy(o.alt) : Math.min(H - 80, seaY - 60), t); continue; }
+      if (o.k === 'wind') { if (x < FR.x1 + 100 && sx(o.x + o.len) > FR.x0 - 100) wind(ctx, o, t, z); continue; }
+      if (x < FR.x0 - 900 * z || x > FR.x1 + 900 * z) { if (x > FR.x1 && x < FR.x1 + 1100 * z && o.k !== 'mount') warn(ctx, o.k === 'storm' ? sy(o.alt) : Math.min(H - 80, seaY - 60), t); continue; }
       if (o.k === 'jaws') jaws(ctx, x, seaY, o.h * smooth(o.rise) * z, z, t, o.rise);
       else if (o.k === 'shadow') shadowCatcher(ctx, x, seaY, o.len * z, z, t);
       else if (o.k === 'storm') storm(ctx, x, sy(o.alt), o.r * z, (t + o.ph) % 3.2, z);
@@ -137,7 +139,7 @@ export function create(env, shared) {
   }
 
   function wind(ctx, o, t, z) {
-    const x0 = Math.max(-40, sx(o.x)), x1 = Math.min(W + 40, sx(o.x + o.len)), y = sy(o.alt);
+    const x0 = Math.max(FR.x0 - 40, sx(o.x)), x1 = Math.min(FR.x1 + 40, sx(o.x + o.len)), y = sy(o.alt);
     const inside = s.x > o.x && s.x < o.x + o.len && Math.abs(s.alt - o.alt) < 120;
     const g = ctx.createLinearGradient(0, y - 120 * z, 0, y + 120 * z);
     g.addColorStop(0, 'rgba(190,230,255,0)'); g.addColorStop(0.5, `rgba(190,230,255,${inside ? 0.22 : 0.12})`); g.addColorStop(1, 'rgba(190,230,255,0)');
@@ -156,8 +158,8 @@ export function create(env, shared) {
   function warn(ctx, y, t) {
     const a = 0.5 + 0.5 * Math.sin(t * 9);
     ctx.fillStyle = `rgba(255,120,80,${0.5 + a * 0.5})`;
-    const yy = clamp(y, 220, H - 120);
-    ctx.beginPath(); ctx.moveTo(W - 14, yy); ctx.lineTo(W - 44, yy - 20); ctx.lineTo(W - 44, yy + 20); ctx.fill();
+    const yy = clamp(y, Math.max(220, FR.y0 + 120), H - 120);
+    ctx.beginPath(); ctx.moveTo(FR.x1 - 14, yy); ctx.lineTo(FR.x1 - 44, yy - 20); ctx.lineTo(FR.x1 - 44, yy + 20); ctx.fill();
   }
 
   function jaws(ctx, x, seaY, h, z, t, rise) {

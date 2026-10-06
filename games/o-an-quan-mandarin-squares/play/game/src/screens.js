@@ -6,7 +6,8 @@ import { LEVELS } from './ai.js';
 import { LESSONS, lessonText } from './lessons.js';
 import { THEMES } from './art.js';
 import {
-  DOC_BACK, ZOOM_DEC, ZOOM_INC, DOC_PANEL, DOC_BODY, DOC_BODY_NAV, DOC_BODY_START, START_BTN, NAV_PREV, NAV_NEXT, MENU_REGION, OVERLAY,
+  DOC_BACK, ZOOM_DEC, ZOOM_INC, ZOOM_LABEL, DOC_PANEL, DOC_PANEL_NAV, DOC_BODY, DOC_BODY_NAV, DOC_BODY_START, START_BTN, NAV_PREV, NAV_NEXT, OVERLAY, CARD, L,
+  titleLayout, titleMenuW, setSize,
 } from './layout.js';
 
 export const DEMO_GAMES = 3;
@@ -17,6 +18,9 @@ export const recKey = (setup) => `${setup.level}:${setup.qv}:${setup.young ? 1 :
 export const recOf = (S, key) => S.stats[key] ?? [0, 0, 0];
 export const lessonsDone = (S) => LESSONS.filter((l) => S.lessons[l.id]).length;
 
+// In landscape the text region is short: illustrations take at most about 60 percent of it.
+const imgH = (h, region) => (L.wide ? Math.round(Math.min(h, Math.max(220, region.h * 0.62))) : h);
+
 const pctLabel = (S) => `${Math.round(TEXT_SCALES[S.textIdx] * 100)}%`;
 
 function fixedBar(S) {
@@ -24,7 +28,7 @@ function fixedBar(S) {
     { id: 'back', rect: DOC_BACK, kind: 'normal', icon: 'back', label: tr('back'), size: S.lang === 'vi' ? 21 : 26 },
     { id: 'zoom-', rect: ZOOM_DEC, kind: 'normal', label: 'A-', size: 30, disabled: S.textIdx === 0 },
     { id: 'zoom+', rect: ZOOM_INC, kind: 'normal', label: 'A+', size: 30, disabled: S.textIdx === TEXT_SCALES.length - 1 },
-    { id: null, rect: { x: 480, y: 20, w: 140, h: 76 }, label: pctLabel(S), size: 28, static: true },
+    { id: null, rect: ZOOM_LABEL, label: pctLabel(S), size: 28, static: true },
   ];
 }
 
@@ -42,32 +46,42 @@ export function buildUi(S) {
     case 'lang': {
       ui.kind = 'card';
       ui.panel = null;
-      ui.region = { x: 48, y: 760, w: 624, h: 640 };
       ui.blocks = [
         { t: 'h', text: tr('langHead'), size: 36 },
         { t: 'btn', id: 'lang:en', label: 'Play in English', kind: 'primary', size: 34, minH: 112 },
         { t: 'btn', id: 'lang:vi', label: 'Chơi bằng tiếng Việt', kind: 'primary', size: 34, minH: 112 },
         { t: 'p', text: tr('langNote'), size: 22, center: true },
       ];
+      {
+        const rw = titleMenuW() - 48, lay = layoutDoc(ui.blocks, scale, rw);
+        const tl = titleLayout(lay.height + 48);
+        const ch = Math.min(lay.height + 48, tl.menu.h), cy = L.wide ? tl.menu.y + (tl.menu.h - ch) / 2 : tl.menu.y;
+        ui.title = tl; ui.card = { x: tl.menu.x, y: cy, w: tl.menu.w, h: ch };
+        ui.region = { x: tl.menu.x + 24, y: cy + 24, w: rw, h: ch - 48 };
+      }
       break;
     }
     case 'title': {
       ui.kind = 'menu';
-      ui.region = MENU_REGION;
+      const d = L.wide ? 0.72 : L.mode === 'compact' ? 0.8 : 1;
+      const m = (n) => Math.round(n * d);
       const b = [];
-      if (S.save) b.push({ t: 'btn', id: 'continue', label: tr('continueBtn'), kind: 'primary', size: 32, sub: `${levelLabel(S, S.save.two ? 'two' : S.save.level)}`, minH: 104 });
+      if (S.save) b.push({ t: 'btn', id: 'continue', label: tr('continueBtn'), kind: 'primary', size: 32, sub: `${levelLabel(S, S.save.two ? 'two' : S.save.level)}`, minH: m(104) });
       const playSub = S.demo ? tr('demoLeft', { n: Math.max(0, DEMO_GAMES - S.demoGames) }) : undefined;
-      b.push({ t: 'btn', id: 'play', label: tr('playBtn'), kind: S.save ? 'normal' : 'primary', size: 36, sub: playSub, minH: S.save ? 92 : 118 });
-      b.push({ t: 'btn', id: 'learn', label: tr('learnBtn'), size: 30, sub: `${lessonsDone(S)} / ${LESSONS.length}`, minH: 96 });
-      b.push({ t: 'btn', id: 'auto', label: tr('autoBtn'), size: 30, minH: 92 });
-      b.push({ t: 'row', size: 28, minH: 92, items: [{ id: 'howto', label: tr('howtoBtn') }, { id: 'rules', label: tr('rulesBtn') }] });
-      b.push({ t: 'row', size: 28, minH: 92, items: [{ id: 'about', label: tr('aboutBtn') }, { id: 'settings', label: tr('settingsBtn') }] });
-      b.push({ t: 'row', size: 26, minH: 84, items: [{ id: 'lang:en', label: 'Play in English', kind: S.lang === 'en' ? 'on' : 'normal' }, { id: 'lang:vi', label: 'Chơi bằng tiếng Việt', kind: S.lang === 'vi' ? 'on' : 'normal' }] });
+      b.push({ t: 'btn', id: 'play', label: tr('playBtn'), kind: S.save ? 'normal' : 'primary', size: 36, sub: playSub, minH: m(S.save ? 92 : 118) });
+      b.push({ t: 'btn', id: 'learn', label: tr('learnBtn'), size: 30, sub: `${lessonsDone(S)} / ${LESSONS.length}`, minH: m(96) });
+      b.push({ t: 'btn', id: 'auto', label: tr('autoBtn'), size: 30, minH: m(92) });
+      b.push({ t: 'row', size: 28, minH: m(92), items: [{ id: 'howto', label: tr('howtoBtn') }, { id: 'rules', label: tr('rulesBtn') }] });
+      b.push({ t: 'row', size: 28, minH: m(92), items: [{ id: 'about', label: tr('aboutBtn') }, { id: 'settings', label: tr('settingsBtn') }] });
+      b.push({ t: 'row', size: 26, minH: m(84), items: [{ id: 'lang:en', label: 'Play in English', kind: S.lang === 'en' ? 'on' : 'normal' }, { id: 'lang:vi', label: 'Chơi bằng tiếng Việt', kind: S.lang === 'vi' ? 'on' : 'normal' }] });
       ui.blocks = b;
+      const lay = layoutDoc(b, scale, titleMenuW());
+      ui.title = titleLayout(lay.height);
+      ui.region = ui.title.menu;
       break;
     }
     case 'setup': {
-      ui.panel = DOC_PANEL; ui.region = DOC_BODY_START;
+      ui.panel = DOC_PANEL_NAV; ui.region = DOC_BODY_START;
       ui.fixed = [...fixedBar(S), { id: 'start', rect: START_BTN, kind: 'primary', label: tr('startGame'), size: 34 }];
       const b = [];
       const st = S.setup;
@@ -110,12 +124,12 @@ export function buildUi(S) {
       const pages = isRules ? rulesPages() : howtoPages();
       const pi = Math.min(S.page[S.scene], pages.length - 1);
       const pg = pages[pi];
-      ui.panel = DOC_PANEL; ui.region = DOC_BODY_NAV;
+      ui.panel = DOC_PANEL_NAV; ui.region = DOC_BODY_NAV;
       ui.fixed = fixedBar(S);
       ui.nav = { label: `${pi + 1} / ${pages.length}`, prev: { id: 'prev', rect: NAV_PREV, label: tr('prev'), disabled: pi === 0, kind: 'normal', size: 26 }, next: { id: 'next', rect: NAV_NEXT, label: isRules || pi < pages.length - 1 ? tr('next') : tr('playBtn'), disabled: isRules && pi === pages.length - 1, kind: 'primary', size: 26 } };
       ui.scrollKey = `${S.scene}:${pi}`;
       const b = [{ t: 'h', text: pg.title, size: 40 }];
-      if (pg.art) b.push({ t: 'img', name: pg.art, h: 400 });
+      if (pg.art) b.push({ t: 'img', name: pg.art, h: imgH(400, ui.region) });
       if (isRules) for (const para of pg.body) b.push({ t: 'p', text: para, size: 29 });
       else b.push({ t: 'p', text: pg.body, size: 32 });
       ui.blocks = b;
@@ -124,7 +138,7 @@ export function buildUi(S) {
     case 'about': {
       ui.panel = DOC_PANEL; ui.region = DOC_BODY;
       ui.fixed = fixedBar(S);
-      const b = [{ t: 'img', name: 'logo', h: 300 }];
+      const b = [{ t: 'img', name: 'logo', h: imgH(300, ui.region) }];
       aboutSections().forEach((s, i) => { b.push({ t: 'h', text: s.title, size: i === 0 ? 38 : 30 }); b.push({ t: 'p', text: s.body, size: 26 }); });
       b.push({ t: 'p', text: `v${S.version}`, size: 22 });
       ui.blocks = b;
@@ -179,7 +193,6 @@ export function buildUi(S) {
 
 function overlayUi(S, scale) {
   const ui = { scale, fixed: [], blocks: [], kind: 'card', panel: OVERLAY, scrollKey: `ov:${S.overlay}`, overlay: true };
-  ui.region = { x: OVERLAY.x + 24, y: OVERLAY.y + 24, w: OVERLAY.w - 48, h: OVERLAY.h - 48 };
   const b = [];
   const hs = (n) => (scale >= 2 ? n * 0.72 : n);
   const ps = (n) => (scale >= 2 ? n * 0.62 : n);
@@ -199,6 +212,7 @@ function overlayUi(S, scale) {
     b.push({ t: 'img', name: 'endmark', h: scale >= 2 ? 90 : 150, data: e });
     b.push({ t: 'p', text: e.body, size: ps(26), center: true });
     if (e.rec) b.push({ t: 'p', text: e.rec, size: ps(22), center: true });
+    if (!(S.match && S.match.lesson)) b.push({ t: 'img', name: 'more', h: 44 });
     if (S.match && S.match.lesson) {
       if (e.lessonOk) b.push({ t: 'btn', id: 'ov:lessonnext', label: tr('lessonNext'), kind: 'primary', size: bs(30), minH: bmin });
       else b.push({ t: 'btn', id: 'ov:lessonagain', label: tr('lessonRetry'), kind: 'primary', size: bs(30), minH: bmin });
@@ -231,17 +245,36 @@ function overlayUi(S, scale) {
 }
 
 function fitCard(ui, scale) {
-  const innerW = OVERLAY.w - 48;
   const bodyBlocks = ui.blocks.filter((b) => b.t !== 'btn' && b.t !== 'row');
   const actBlocks = ui.blocks.filter((b) => b.t === 'btn' || b.t === 'row');
-  const body = layoutDoc(bodyBlocks, scale, innerW);
-  const act = layoutDoc(actBlocks, scale, innerW);
-  const h = Math.min(OVERLAY.h + 120, Math.max(420, body.height + act.height + 72));
-  const y = Math.round(780 - h / 2);
   const x0 = OVERLAY.x + 24;
+  if (L.wide) {
+    // landscape: the message on the left, the buttons on the right
+    const colW = Math.floor((OVERLAY.w - 72) / 2), ax = x0 + colW + 24;
+    const body = layoutDoc(bodyBlocks, scale, colW);
+    let sc = scale, act = layoutDoc(actBlocks, sc, colW);
+    while (act.height > OVERLAY.h - 56 && sc > 0.55) { sc *= 0.9; act = layoutDoc(actBlocks, sc, colW); }
+    const h = Math.min(OVERLAY.h, Math.max(300, Math.max(body.height, act.height) + 56));
+    const y = Math.round(CARD.cy - h / 2);
+    const actTop = y + Math.max(28, (h - act.height) / 2);
+    ui.panel = { x: OVERLAY.x, y, w: OVERLAY.w, h };
+    ui.region = { x: x0, y: y + 28, w: colW, h: h - 56 };
+    ui.layout = body;
+    ui.offY = Math.max(0, (ui.region.h - body.height) / 2);
+    ui.fixed = act.items.flatMap((it) => it.btns.map((bt) => ({
+      id: bt.id, rect: { x: ax + bt.x, y: actTop + bt.y, w: bt.w, h: bt.h }, kind: bt.kind ?? it.b.kind ?? 'normal', lines: bt.lines ?? it.lines, size: it.size, line: it.line, disabled: bt.disabled, static: bt.id == null, label: bt.label,
+    })));
+    return;
+  }
+  const innerW = OVERLAY.w - 48;
+  const body = layoutDoc(bodyBlocks, scale, innerW);
+  let sc = scale, act = layoutDoc(actBlocks, sc, innerW);
+  while (act.height > OVERLAY.h * 0.62 && sc > 0.55) { sc *= 0.9; act = layoutDoc(actBlocks, sc, innerW); }
+  const h = Math.min(OVERLAY.h, Math.max(Math.min(420, OVERLAY.h), body.height + act.height + 72));
+  const y = Math.round(CARD.cy - h / 2);
   const actTop = y + h - 28 - act.height;
   ui.panel = { x: OVERLAY.x, y, w: OVERLAY.w, h };
-  ui.region = { x: x0, y: y + 28, w: innerW, h: Math.max(160, h - 56 - act.height - 8) };
+  ui.region = { x: x0, y: y + 28, w: innerW, h: Math.max(Math.min(160, h - 80), h - 56 - act.height - 8) };
   ui.layout = body;
   ui.fixed = act.items.flatMap((it) => it.btns.map((bt) => ({
     id: bt.id, rect: { x: x0 + bt.x, y: actTop + bt.y, w: bt.w, h: bt.h }, kind: bt.kind ?? it.b.kind ?? 'normal', lines: bt.lines ?? it.lines, size: it.size, line: it.line, disabled: bt.disabled, static: bt.id == null, label: bt.label,

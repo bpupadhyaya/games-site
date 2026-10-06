@@ -3,8 +3,8 @@
   "title": "Ken and Ball",
   "tagline": "A string, a heavy ball and a steady hand.",
   "genre": "skill toy / string-and-ball physics",
-  "orientation": "portrait",
-  "version": "1.0.1",
+  "orientation": "any",
+  "version": "1.1.2",
   "monetization": {
     "model": "premium",
     "priceUsd": 2.99,

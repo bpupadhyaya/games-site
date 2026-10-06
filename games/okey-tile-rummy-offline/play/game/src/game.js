@@ -6,8 +6,8 @@
 // their turns with short, human-sized pauses. Watch & Learn plays a whole deal with the computer at your seat:
 // THINK (a timer) -> REVEAL (the options and the chosen move) -> ACT, with a real Pause that freezes everything.
 import {
-  W, H, RACK, slotRect, slotCenter, slotAt, TILE_S, STACK_C, INDICATOR_C, PILE_C, pileRect, stackRect, HUD_MENU, BTN, DISCARD_BTN, PAUSE, RESULT,
-  DEMO, THINK_STEPS, titleRows, SET_ROWS, SET_BACK, TEXT_DEC, TEXT_INC, REF_BACK, REF_NEXT, TEXT_SCALES, inRect,
+  W, H, ZOOM, use, RACK, slotRect, slotCenter, slotAt, TILE_S, STACK_C, INDICATOR_C, PILE_C, SEAT_POS, pileRect, stackRect, HUD_MENU, BTN, DISCARD_BTN, PAUSE, RESULT,
+  DEMO, THINK_STEPS, titleRows, SET_BACK, setBtnRect, stepRect, LIMIT_BTN, TEXT_DEC, TEXT_INC, REF_BACK, REF_NEXT, REF_PANEL, TEXT_SCALES, inRect,
 } from './layout.js';
 import {
   newDeal, drawStack, takePile, discard, finishingDiscards, dealScores, solveHand, isWild, prevSeat, rackChunks, sortRack, smartRack,
@@ -18,16 +18,19 @@ import { L, tileLabel } from './text.js';
 import { render } from './view.js';
 import { PRESS } from './art.js';
 
-export const meta = { width: W, height: H };
+// Fluid viewport (kit 1.7.x): the kit keeps meta.width/height at the live screen size (short side 720); layout.js lays everything out from it.
+// Mouse wheel / trackpad scrolling for the reference readers (main.js adds to dy, in virtual units).
+export const wheelInput = { dy: 0 };
+export const meta = { width: 720, height: 1560, fluid: { short: 720 } };
 const DEMO_DEALS = 2; // the public web demo plays this many real deals, then stops
 const MATCH_LENS = [1, 3, 5];
-const SEAT_POS = [{ x: 360, y: 900 }, { x: 682, y: 400 }, { x: 360, y: 156 }, { x: 38, y: 400 }];
 const SEAT_ROT = [0, Math.PI / 2, 0, Math.PI / 2];
 
 export function createGame(env) {
   const { rng, storage, audio, config } = env;
+  use(meta.width, meta.height, false);
   const S = {
-    scene: 'title', t: 0, page: 0, pageCount: 1,
+    scene: 'title', t: 0, page: 0, pageCount: 1, scroll: 0, scrollMax: 0, scrollKey: '',
     prefs: { sound: true, level: 1, matchLen: 3, assist: true, terms: 'en', textScaleIdx: 0, thinkIdx: 1 },
     stats: { deals: 0, wins: 0, matches: 0, matchWins: 0, best: 0 },
     match: { deal: 1, total: 3, scores: [0, 0, 0, 0], starter: 0 },
@@ -69,6 +72,7 @@ export function createGame(env) {
   storage.get('demoDeals', 0).then((n) => { S.demoDeals = Math.max(S.demoDeals, n | 0); });
 
   // ---- small helpers -----------------------------------------------------------------------------------------
+  const syncLayout = () => use(meta.width, meta.height, S.scene === 'demo');
   const tr = () => S.prefs.terms === 'tr';
   const names = () => (tr() ? SEAT_NAMES_TR : SEAT_NAMES);
   const say = (text, kind = 'info', secs = 4) => { S.hold = { text, kind, left: secs }; };
@@ -130,7 +134,7 @@ export function createGame(env) {
   };
   const startMatch = (mode) => {
     if (mode === 'play' && config.demo && S.demoDeals >= DEMO_DEALS) { S.scene = 'limit'; return; }
-    S.scene = mode;
+    S.scene = mode; syncLayout();
     const total = mode === 'demo' ? 1 : S.prefs.matchLen;
     S.match = { deal: 1, total, scores: [0, 0, 0, 0], starter: mode === 'demo' ? rng.int(4) : 0 };
     S.demo = { phase: 'think', timer: 0, speed: 1, paused: false, finished: false, plan: null };
@@ -157,7 +161,7 @@ export function createGame(env) {
     const sv = S.save;
     if (!sv) return;
     resetTable();
-    S.scene = 'play'; S.match = sv.match; S.d = sv.d;
+    S.scene = 'play'; syncLayout(); S.match = sv.match; S.d = sv.d;
     S.rack = syncRack(sv.rack, sv.d.hands[0], sv.d.okey);
     S.dealShow = [14, 14, 14, 14]; S.ui = 'busy';
     say(L(S, 'resumed'), 'info', 3);
@@ -423,12 +427,12 @@ export function createGame(env) {
 
   // ---- menus -----------------------------------------------------------------------------------------------------------
   const cycle = (arr, v) => arr[(arr.indexOf(v) + 1) % arr.length];
-  const stepRect = (row, right) => (right ? { x: SET_ROWS[row].x + SET_ROWS[row].w - 90, y: SET_ROWS[row].y + 8, w: 70, h: SET_ROWS[row].h - 16 } : { x: SET_ROWS[row].x + 330, y: SET_ROWS[row].y + 8, w: 70, h: SET_ROWS[row].h - 16 });
   function menuPointer(p) {
     const hit = (r) => p.pressed && inRect(r, p.x, p.y);
     switch (S.scene) {
       case 'title': {
         const r = titleRows(!!S.save);
+        if (hit(r.lockTap)) { env.openArcforgeHome?.(); break; }
         if (r.cont && hit(r.cont)) { sound('click'); resumeMatch(); }
         else if (hit(r.play)) { sound('click'); clearSave(); startMatch('play'); }
         else if (hit(r.watch)) { sound('click'); startMatch('demo'); }
@@ -440,15 +444,15 @@ export function createGame(env) {
         break;
       }
       case 'howto': case 'about': case 'rules': {
-        if (hit(REF_BACK)) { if (S.page > 0) S.page--; else toTitle(); sound('click'); }
-        else if (hit(REF_NEXT)) { if (S.page >= S.pageCount - 1) toTitle(); else S.page++; sound('click'); }
+        if (hit(REF_BACK)) { toTitle(); sound('click'); }
+        else if (hit(REF_NEXT)) { S.scroll = Math.min(S.scrollMax || 0, (S.scroll || 0) + REF_PANEL.h * 0.8); sound('click'); }
         else if (hit(TEXT_DEC) && S.prefs.textScaleIdx > 0) { S.prefs.textScaleIdx--; S.page = 0; savePrefs(); sound('click'); }
         else if (hit(TEXT_INC) && S.prefs.textScaleIdx < TEXT_SCALES.length - 1) { S.prefs.textScaleIdx++; S.page = 0; savePrefs(); sound('click'); }
         break;
       }
       case 'settings': {
         const P = S.prefs;
-        const btn = (i) => ({ x: SET_ROWS[i].x + 330, y: SET_ROWS[i].y + 8, w: SET_ROWS[i].w - 350, h: SET_ROWS[i].h - 16 });
+        const btn = setBtnRect;
         if (hit(btn(0))) { P.sound = !P.sound; audio.setMuted(!P.sound); }
         else if (hit(btn(1))) P.level = (P.level + 1) % 3;
         else if (hit(btn(2))) P.matchLen = cycle(MATCH_LENS, P.matchLen);
@@ -463,7 +467,7 @@ export function createGame(env) {
         savePrefs(); sound('click');
         break;
       }
-      case 'limit': if (hit({ x: 160, y: 720, w: 400, h: 84 })) toTitle(); break;
+      case 'limit': if (hit(LIMIT_BTN)) toTitle(); break;
       default: break;
     }
   }
@@ -489,12 +493,29 @@ export function createGame(env) {
   }
 
   // ---- update --------------------------------------------------------------------------------------------------------------
+  // the reference readers are ONE scrolling document: drag, mouse wheel and keys (Arrows, PageUp/PageDown, Space, Home, End)
+  let rdrag = null;
+  function readerScroll(p, keys) {
+    const max = S.scrollMax || 0, set = (v) => { S.scroll = Math.max(0, Math.min(max, v)); };
+    if (wheelInput.dy) { set(S.scroll + wheelInput.dy); wheelInput.dy = 0; }
+    if (p.pressed && inRect(REF_PANEL, p.x, p.y)) rdrag = { y: p.y, s0: S.scroll, moved: false };
+    if (rdrag && p.down) { const dy = p.y - rdrag.y; if (Math.abs(dy) > 8) rdrag.moved = true; if (rdrag.moved) set(rdrag.s0 - dy); }
+    if (!p.down && !p.released) rdrag = null;
+    const k = keys.pressed, page = REF_PANEL.h * 0.8;
+    if (k.has('ArrowDown')) set(S.scroll + 80); if (k.has('ArrowUp')) set(S.scroll - 80);
+    if (k.has('PageDown') || k.has('Space')) set(S.scroll + page); if (k.has('PageUp')) set(S.scroll - page);
+    if (k.has('Home')) set(0); if (k.has('End')) set(max);
+  }
   function update(dt, input) {
-    const p = input.pointer, keys = input.keys;
+    syncLayout();
+    const ip = input.pointer, keys = input.keys;
+    const p = ZOOM === 1 ? ip : { x: ip.x / ZOOM, y: ip.y / ZOOM, down: ip.down, pressed: ip.pressed, released: ip.released };
     PRESS.x = p.x; PRESS.y = p.y; PRESS.down = p.down;
     if (S.scene === 'title' || S.scene === 'settings' || S.scene === 'howto' || S.scene === 'about' || S.scene === 'rules' || S.scene === 'limit') {
       S.t += dt;
-      menuPointer(p);
+      if (S.scene === 'howto' || S.scene === 'about' || S.scene === 'rules') readerScroll(p, keys);
+      else { rdrag = null; wheelInput.dy = 0; }
+      if (!(rdrag && rdrag.moved)) menuPointer(p);
       if (keys.pressed.has('Escape') && S.scene !== 'title') toTitle();
       else if (S.scene === 'title' && (keys.pressed.has('Enter') || keys.pressed.has('Space'))) startMatch('play');
       return;
@@ -625,7 +646,11 @@ export function createGame(env) {
 
   return {
     update,
-    render(ctx) { if (S.scene === 'play' || S.scene === 'demo') { if (!S.d) return; } render(ctx, S, V); },
+    render(ctx) {
+      if (S.scene === 'play' || S.scene === 'demo') { if (!S.d) return; }
+      syncLayout();
+      if (ZOOM !== 1) { ctx.save(); ctx.scale(ZOOM, ZOOM); render(ctx, S, V); ctx.restore(); } else render(ctx, S, V);
+    },
     getState() { return S; },
     // Menus, rules, Watch & Learn, the pause menu and result screens do not use up the free preview; only real play does.
     isPreviewExempt: () => S.scene !== 'play' || S.paused || !!S.over,

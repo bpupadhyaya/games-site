@@ -1,8 +1,11 @@
 // Chapter 9: the fortress burns. An auto-run over the roofs with a burning tail: tap to leap,
 // hold for the high leap to the upper roofs where the towers stand. Fire follows close behind.
-import { W, H, TAU, PAL, INK, clamp, lerp, smooth, hash, sky, stars, skyline, sea, light, motes, finish, shakeOffset } from '../stage.js';
+import { FR, W, H, TAU, PAL, INK, clamp, lerp, smooth, hash, sky, stars, skyline, sea, light, motes, finish, shakeOffset } from '../stage.js';
 import { figure, poses } from '../puppets.js';
 import { label, caption, meter } from '../ui.js';
+
+// Landscape: the window shows y 550..1400 (the upper roofs and towers down to the street).
+export const LAND_Y1 = 1400;
 
 const LOW = 1150, UP = 800, GRAV = 2700, JUMP = 1450, CUT = 520, HERO_SX = 260, LENGTH = 30000;
 
@@ -89,18 +92,18 @@ export function create(env, shared) {
     ctx.save(); ctx.translate(ox, oy);
     sky(ctx, PAL.night.sky, null);
     const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, `rgba(60,8,10,${0.3 + prog * 0.6})`); g.addColorStop(0.6, `rgba(190,50,20,${0.35 + prog * 0.55})`); g.addColorStop(1, `rgba(255,150,60,${0.4 + prog * 0.5})`);
-    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = g; ctx.fillRect(FR.x0 - 1, 0, FR.w + 2, H);
     stars(ctx, 0.6 * (1 - prog), t, 0, 500);
     light(ctx, -60, 900, 900, '255,120,40', 0.55);
     // smoke
-    for (let i = 0; i < 7; i++) { const sx = ((i * 260 - cam * 0.1 - t * 20) % 1500 + 1500) % 1500 - 300; ctx.fillStyle = 'rgba(20,6,10,0.35)'; ctx.beginPath(); ctx.ellipse(sx, 260 + hash(i) * 330, 240, 60 + hash(i + 3) * 40, -0.2, 0, TAU); ctx.fill(); }
+    for (let i = 0; i < 9; i++) { const sx = ((i * 260 - cam * 0.1 - t * 20) % 2300 + 2300) % 2300 + FR.x0 - 300; ctx.fillStyle = 'rgba(20,6,10,0.35)'; ctx.beginPath(); ctx.ellipse(sx, 260 + hash(i) * 330, 240, 60 + hash(i + 3) * 40, -0.2, 0, TAU); ctx.fill(); }
     skyline(ctx, { base: 900, scroll: cam * 0.15, color: '#3a0c0e', seed: 4, h: 360, gap: 160, kind: 'lanka', lit: '255,170,80', t });
     skyline(ctx, { base: 1000, scroll: cam * 0.35 + 70, color: '#26080a', seed: 9, h: 300, gap: 210, kind: 'lanka', lit: '255,190,90', t });
     // burning far city behind the fire line
     for (let i = 0; i < 6; i++) { const fx = fireX - cam - 40 - i * 130; if (fx > -100) flame(ctx, fx * 0.6, 900 - hash(i) * 120, 120, t, i); }
 
     const drawPlat = (q) => {
-      const x = q.x - cam; if (x > W + 50 || x + q.w < -50) return;
+      const x = q.x - cam; if (x > FR.x1 + 50 || x + q.w < FR.x0 - 50) return;
       const upper = q.y === UP, burning = q.x < fireX + 250;
       ctx.fillStyle = upper ? '#1d0708' : '#0f0304';
       ctx.fillRect(x, q.y, q.w, H - q.y);
@@ -117,11 +120,11 @@ export function create(env, shared) {
       if (burning) for (let i = 0; i < q.w / 170; i++) { const fx = x + 60 + i * 170; if (fx + cam < fireX + 200) flame(ctx, fx, q.y - 2, 70 + hash(q.k + i) * 60, t, q.k + i); }
     };
     for (const q of s.plats) if (q.y === UP) drawPlat(q);
-    for (const tw of s.towers) if (tw.y === UP) { const x = tw.x - cam; if (x > -200 && x < W + 200) tower(ctx, tw, x, t); }
+    for (const tw of s.towers) if (tw.y === UP) { const x = tw.x - cam; if (x > FR.x0 - 200 && x < FR.x1 + 200) tower(ctx, tw, x, t); }
     for (const q of s.plats) if (q.y === LOW) drawPlat(q);
-    for (const tw of s.towers) if (tw.y === LOW) { const x = tw.x - cam; if (x > -200 && x < W + 200) tower(ctx, tw, x, t); }
+    for (const tw of s.towers) if (tw.y === LOW) { const x = tw.x - cam; if (x > FR.x0 - 200 && x < FR.x1 + 200) tower(ctx, tw, x, t); }
     // the sea beyond the last roof
-    const ex = s.END + 80 - cam; if (ex < W + 50) { ctx.save(); ctx.beginPath(); ctx.rect(Math.max(0, ex), 0, W, H); ctx.clip(); sea(ctx, { y: 1260, t, scroll: cam, colors: ['#3a1420', '#2a0e1c', '#1c0a18', '#120612', '#0a040c'], crest: '255,170,100' }); ctx.restore(); }
+    const ex = s.END + 80 - cam; if (ex < FR.x1 + 50) { ctx.save(); ctx.beginPath(); ctx.rect(Math.max(FR.x0, ex), 0, FR.x1 - Math.max(FR.x0, ex) + 10, H); ctx.clip(); sea(ctx, { y: 1260, t, scroll: cam, colors: ['#3a1420', '#2a0e1c', '#1c0a18', '#120612', '#0a040c'], crest: '255,170,100' }); ctx.restore(); }
 
     // the leaper with the burning tail
     const hx = s.x - cam;
@@ -135,7 +138,7 @@ export function create(env, shared) {
     const fw = fireX - cam;
     if (fw > -400) {
       const fg = ctx.createLinearGradient(fw - 300, 0, fw + 160, 0); fg.addColorStop(0, 'rgba(255,190,80,0.95)'); fg.addColorStop(0.6, 'rgba(255,90,30,0.75)'); fg.addColorStop(1, 'rgba(255,90,30,0)');
-      ctx.fillStyle = fg; ctx.fillRect(-20, 0, fw + 180, H);
+      ctx.fillStyle = fg; ctx.fillRect(FR.x0 - 20, 0, fw + 180 - FR.x0, H);
       for (let i = 0; i < 9; i++) flame(ctx, fw - 30 + Math.sin(i * 2.1) * 40, 300 + i * 150, 210, t, i * 5);
     }
     motes(ctx, { n: 46, t, rgb: '255,180,90', kind: 'ember', rm, scroll: cam * 0.6 });
@@ -143,7 +146,7 @@ export function create(env, shared) {
     finish(ctx, 0.74);
     meter(ctx, 130, 150, 300, 20, prog, '255,160,80', L.towers, `${s.lit} / ${s.total}`);
     if (s.msg > 0) caption(ctx, L.slip, 1380, Math.min(1, s.msg * 2), 30);
-    if (s.slip > 0) { ctx.fillStyle = `rgba(6,2,8,${Math.sin((s.slip / 0.7) * Math.PI) * 0.9})`; ctx.fillRect(0, 0, W, H); }
+    if (s.slip > 0) { ctx.fillStyle = `rgba(6,2,8,${Math.sin((s.slip / 0.7) * Math.PI) * 0.9})`; ctx.fillRect(FR.x0 - 1, 0, FR.w + 2, H); }
   }
 
   return { state: s, update, render, result: () => (s.lost ? { lost: true } : s.done ? { stars: s.lit >= s.total * 0.7 ? 3 : s.lit >= s.total * 0.4 ? 2 : 1 } : null) };

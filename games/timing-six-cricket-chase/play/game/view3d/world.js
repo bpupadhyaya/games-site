@@ -224,12 +224,12 @@ export class World {
 }
 
 // ---- projection matched to the 2D camera ---------------------------------------------------------------------------------------
-/** The 2D delivery camera (scene.js CAM) mapped through the kit's letterbox: focal length and principal point in CSS pixels. */
-export function fitProjection(camera, cssW, cssH, view = { w: 720, h: 1280 }, o = {}) {
+/** The 2D delivery camera (scene.js CAM, set live by layout.js for the current screen shape) mapped through the kit's viewport: focal length and principal point in CSS pixels. */
+export function fitProjection(camera, cssW, cssH, view = { w: CAM.w, h: CAM.h }, o = {}) {
   const s = Math.min(cssW / view.w, cssH / view.h);
   const ox = (cssW - view.w * s) / 2, oy = (cssH - view.h * s) / 2;
-  const zoom = o.zoom ?? 1, pivot = o.pivot ?? [360, 760];
-  let ppx = 360 + (o.sx ?? 0), ppy = CAM.hy + (o.sy ?? 0);
+  const zoom = o.zoom ?? 1, pivot = o.pivot ?? [CAM.cx, CAM.hy + 305];
+  let ppx = CAM.cx + (o.sx ?? 0), ppy = CAM.hy + (o.sy ?? 0);
   // zoom about the pivot (virtual units)
   ppx = pivot[0] + zoom * (ppx - pivot[0]); ppy = pivot[1] + zoom * (ppy - pivot[1]);
   const F = CAM.f * s * zoom;
@@ -254,7 +254,7 @@ export function worldToVirtual(camera, p, fit, view = { w: 720, h: 1280 }, out =
 }
 
 /** The static backdrop (sky, stands, house, palms) painted with the 2D art into a screen-space canvas texture. */
-export function makeBackdrop(doc, theme, cssW, cssH, dpr, view = { w: 720, h: 1280 }) {
+export function makeBackdrop(doc, theme, cssW, cssH, dpr, view = { w: CAM.w, h: CAM.h }) {
   const c = doc.createElement('canvas');
   c.width = Math.max(2, Math.round(cssW * dpr)); c.height = Math.max(2, Math.round(cssH * dpr));
   const g = c.getContext('2d');
@@ -266,7 +266,7 @@ export function makeBackdrop(doc, theme, cssW, cssH, dpr, view = { w: 720, h: 12
   g.fillStyle = '#e8c398'; g.fillRect(0, oy + (hzn + 8) * s - 1, c.width, c.height);
   g.save(); g.setTransform(s, 0, 0, s, ox, oy);
   g.beginPath(); g.rect(0, 0, view.w, hzn + 8); g.clip();
-  drawBackdrop(g, theme, hzn);
+  drawBackdrop(g, theme, hzn, view.w);
   g.restore();
   // sky continues above the rect (top row replicated)
   if (oy > 1) { g.drawImage(c, 0, oy, c.width, 1, 0, 0, c.width, oy); }

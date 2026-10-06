@@ -1,12 +1,28 @@
 // The match camera as pure maths, shared by the 3D presenter (which renders with it) and the 2D HUD (which projects court
-// positions through it). Everything is a function of the simulation state, so the HUD and the picture can never disagree.
+// positions through it). Everything is a function of the simulation state and the live screen shape, so the HUD and the picture can never disagree.
 import { clamp } from './util.js';
 
 export const FOV_BASE = 48;            // vertical degrees at the reference aspect 9:16
 export const ASPECT_REF = 720 / 1280;
 
-export function fovFor(aspect) {
-  const t = Math.tan((FOV_BASE * Math.PI) / 360) * Math.max(1, ASPECT_REF / Math.max(0.2, aspect));
+// Live shape of the HUD canvas in virtual units (layout.js keeps it current) and the share of the screen WIDTH that is free for the court
+// when side panels are shown (landscape). Both only affect drawing, never the simulation.
+export const VIRT = { w: 720, h: 1280, side: 1 };
+export function setVirtual(w, h, side = 1) { VIRT.w = w; VIRT.h = h; VIRT.side = side; }
+
+// Framing per aspect (the camera position never moves; only the lens does, so the court never pans or zooms during play):
+//  - portrait (aspect < 1): the horizontal field of view is held at its 9:16 value on narrow phones (more sky above and floor below on tall
+//    phones), and the vertical one at 48 degrees on squarer portrait screens, so both sides of the net stay in frame;
+//  - landscape: the court has to sit between the side control panels, so the lens is widened until the court (about 7.4 m with the
+//    players' reach) fits the middle `side` share of the width, between 48 and 62 degrees vertically.
+export function fovFor(aspect, side = VIRT.side) {
+  const t24 = Math.tan((FOV_BASE * Math.PI) / 360);
+  let t;
+  if (aspect < 1) t = t24 * Math.max(1, ASPECT_REF / Math.max(0.2, aspect));
+  else {
+    const need = 3.7 / 9.5 / clamp(side, 0.3, 1) / aspect;           // tan of the half vertical angle that fits the court in `side` of the width
+    t = clamp(need, t24, Math.tan((62 * Math.PI) / 360));
+  }
   return (2 * Math.atan(t) * 180) / Math.PI;
 }
 
@@ -35,9 +51,10 @@ export function project(cam, W, H, x, y, z) {
   const nx = xc / (zc * th * aspect), ny = yc / (zc * th);
   return { u: (nx + 1) * 0.5 * W, v: (1 - ny) * 0.5 * H, depth: zc };
 }
-// CSS pixels -> virtual (720x1280, letterboxed) coordinates and back
-export const toVirtual = (u, v, W, H) => { const s = Math.min(W / 720, H / 1280); return { x: (u - W / 2) / s + 360, y: (v - H / 2) / s + 640 }; };
-export const fromVirtual = (x, y, W, H) => { const s = Math.min(W / 720, H / 1280); return { u: (x - 360) * s + W / 2, v: (y - 640) * s + H / 2 }; };
+// CSS pixels -> virtual coordinates and back
+// (the kit's fluid view maps virtual units to CSS pixels with one uniform scale, centred; bars only appear beyond its maximum aspect)
+export const toVirtual = (u, v, W, H) => { const s = Math.min(W / VIRT.w, H / VIRT.h); return { x: (u - W / 2) / s + VIRT.w / 2, y: (v - H / 2) / s + VIRT.h / 2 }; };
+export const fromVirtual = (x, y, W, H) => { const s = Math.min(W / VIRT.w, H / VIRT.h); return { u: (x - VIRT.w / 2) * s + W / 2, v: (y - VIRT.h / 2) * s + H / 2 }; };
 export function projectV(cam, W, H, x, y, z) { const p = project(cam, W, H, x, y, z); if (!p) return null; const v = toVirtual(p.u, p.v, W, H); return { x: v.x, y: v.y, depth: p.depth }; }
 
 // Inverse: the point on the plane y = h under a virtual-coordinate tap

@@ -1,8 +1,8 @@
 // Drawing the play screen: the scene, the HUD, the aim and timing controls, the bottom bar and the overlays.
 // Pure drawing; game.js owns state.
-import { W, H, ARENA, K, derive, tiltOf, clamp, launchSpot } from './sim.js';
+import { ARENA, K, derive, tiltOf, clamp, launchSpot } from './sim.js';
 import { drawBackdrop, drawTableLayer, drawTop, drawTrails, drawParticles, toScreen, lookOf } from './art.js';
-import { THINK_STEPS, TEXT_SCALES, playLayout } from './layout.js';
+import { THINK_STEPS, TEXT_SCALES, VIEW, curLayout, minFs } from './layout.js';
 import { FONT, DISPLAY, C, roundPath, paintButton, drawButton, panel, textShadow, wrapLines, fitPx } from './ui.js';
 import { PROFILES } from './ai.js';
 import { GAUGE } from './timing.js';
@@ -35,6 +35,13 @@ export function drawScene(ctx, S, o = {}) {
   if (S.parts) drawParticles(ctx, S.parts);
 }
 
+// the dish and everything on it through the design -> screen transform (the caller has drawn the table)
+export function drawSceneAt(ctx, S, xf) {
+  ctx.save(); ctx.translate(xf.tx, xf.ty); ctx.scale(xf.s, xf.s);
+  drawScene(ctx, S);
+  ctx.restore();
+}
+
 // ---- HUD --------------------------------------------------------------------------------------
 function bar(ctx, x, y, bw, bh, frac, o = {}) {
   const f = clamp(frac, 0, 1);
@@ -49,12 +56,17 @@ function bar(ctx, x, y, bw, bh, frac, o = {}) {
   roundPath(ctx, x, y, bw, bh, bh / 2); ctx.strokeStyle = 'rgba(255,243,220,0.55)'; ctx.lineWidth = 1.5; ctx.stroke();
 }
 
+function drawCards(ctx, L) {
+  if (!L.cards) return;
+  for (const c of L.cards) { roundPath(ctx, c.x, c.y, c.w, c.h, 22); ctx.fillStyle = 'rgba(24,10,4,0.5)'; ctx.fill(); ctx.strokeStyle = 'rgba(255,243,220,0.28)'; ctx.lineWidth = 1.5; ctx.stroke(); }
+}
+
 function drawHud(ctx, state, L) {
-  const { match: m } = state, w = state.w, h = L.hud;
+  const { match: m } = state, w = state.w, H = L.hud;
   const tops = w ? w.tops : state.pre;
   ctx.textBaseline = 'alphabetic';
   [0, 1].forEach((side) => {
-    const t = tops[side], x = side === 0 ? h.lx : h.rx;
+    const t = tops[side], b = H.sides[side], x = b.x;
     const live = !t.pre;
     const spinF = live ? (t.st === 0 ? t.w / (t.w0 || 1) : 0) : 1;
     const steady = live ? (t.st === 0 ? 1 - tiltOf(t) / K.FALL : 0) : 1;
@@ -63,36 +75,36 @@ function drawHud(ctx, state, L) {
     const fitRow = (nm) => {
       ctx.font = `700 100px ${FONT}`; const wn = ctx.measureText(nm).width / 100;
       ctx.font = `700 92px ${FONT}`; const wm = ctx.measureText('100').width / 100;
-      return Math.max(12, Math.min(h.nameFs, Math.floor((h.bw - 14) / (wn + wm * 0.92))));
+      return Math.max(minFs(), Math.min(L.nameFs, Math.floor((b.w - 14) / (wn + wm * 0.92))));
     };
     let fs = fitRow(name);
-    if (fs < h.nameFs * 0.62 && name.includes(' ')) { name = name.split(' ')[0]; fs = fitRow(name); }
+    if (fs < L.nameFs * 0.62 && name.includes(' ')) { name = name.split(' ')[0]; fs = fitRow(name); }
     ctx.font = `700 ${fs}px ${FONT}`; ctx.textAlign = side === 0 ? 'left' : 'right';
-    textShadow(ctx, name, side === 0 ? x : x + h.bw, h.base, '#fff3dc', 5);
-    if (num) { ctx.font = `700 ${Math.round(fs * 0.92)}px ${FONT}`; ctx.textAlign = side === 0 ? 'right' : 'left'; textShadow(ctx, num, side === 0 ? x + h.bw : x, h.base, spinF < 0.25 ? '#ffb0a0' : '#fff3dc', 5); }
-    bar(ctx, x, h.barY, h.bw, h.barH, spinF, { right: side === 1 });
-    bar(ctx, x, h.tenY, h.bw, h.tenH, steady, { right: side === 1, col: steady > 0.6 ? '#4fc3a8' : steady > 0.3 ? '#ee8d3a' : '#e5513a' });
+    textShadow(ctx, name, side === 0 ? x : x + b.w, b.base, '#fff3dc', 5);
+    if (num) { ctx.font = `700 ${Math.round(fs * 0.92)}px ${FONT}`; ctx.textAlign = side === 0 ? 'right' : 'left'; textShadow(ctx, num, side === 0 ? x + b.w : x, b.base, spinF < 0.25 ? '#ffb0a0' : '#fff3dc', 5); }
+    bar(ctx, x, b.barY, b.w, b.barH, spinF, { right: side === 1 });
+    bar(ctx, x, b.tenY, b.w, b.tenH, steady, { right: side === 1, col: steady > 0.6 ? '#4fc3a8' : steady > 0.3 ? '#ee8d3a' : '#e5513a' });
   });
   // the clock and the round pips
   const secs = w ? w.t : 0, mm = Math.floor(secs / 60), ss = Math.floor(secs % 60);
-  const ttxt = `${mm}:${String(ss).padStart(2, '0')}`;
-  const tfs = fitPx(ctx, ttxt, 700, h.timerFs, h.centerW - 8);
+  const ttxt = `${mm}:${String(ss).padStart(2, '0')}`, T = H.timer, PP = H.pips;
+  const tfs = fitPx(ctx, ttxt, 700, L.timerFs, T.w, minFs());
   ctx.textAlign = 'center'; ctx.font = `700 ${tfs}px ${FONT}`;
-  textShadow(ctx, ttxt, W / 2, h.base + 6 * h.m, '#fff3dc', 6);
-  const cy = h.barY + h.barH + 4 + 8 * h.pm * 0.9;
+  textShadow(ctx, ttxt, T.cx, T.base, '#fff3dc', 6);
+  const cy = PP.cy;
   if (m.cfg.rounds === 3) {
-    const pp = Math.min(h.m, (h.centerW / 2 - 6) / 66);
+    const pp = Math.min(L.m, (PP.w / 2 - 6) / 66);
     for (let i = 0; i < 2; i++) {
       for (const [side, dx] of [[0, -(34 + i * 24) * pp], [1, (34 + i * 24) * pp]]) {
-        ctx.beginPath(); ctx.arc(W / 2 + dx, cy, 8 * pp, 0, TAU);
+        ctx.beginPath(); ctx.arc(PP.cx + dx, cy, 8 * pp, 0, TAU);
         ctx.fillStyle = m.wins[side] > i ? '#f4c95d' : 'rgba(18,8,2,0.5)'; ctx.fill();
         ctx.strokeStyle = 'rgba(255,243,220,0.7)'; ctx.lineWidth = 1.5; ctx.stroke();
       }
     }
   } else {
     const lab = m.cfg.mode === 'watch' ? 'Watch & Learn' : m.cfg.lesson != null ? 'Lesson' : 'Quick Duel';
-    const lfs = fitPx(ctx, lab, 600, 20 * h.m, h.centerW - 4);
-    ctx.font = `600 ${lfs}px ${FONT}`; textShadow(ctx, lab, W / 2, cy + lfs * 0.35, 'rgba(255,243,220,0.85)', 4);
+    const lfs = fitPx(ctx, lab, 600, 20 * L.m, PP.w - 4, minFs());
+    ctx.font = `600 ${lfs}px ${FONT}`; textShadow(ctx, lab, PP.cx, cy + lfs * 0.35, 'rgba(255,243,220,0.85)', 4);
   }
   drawStatusPanel(ctx, state, L);
 }
@@ -141,7 +153,7 @@ function drawStatusPanel(ctx, state, L) {
   for (;;) {
     ctx.font = `700 ${fs}px ${FONT}`;
     wrapped = wrapLines(ctx, text, P.w - 36);
-    if ((wrapped.length * fs * 1.2 <= P.h - 14) || fs <= 14) break;
+    if ((wrapped.length * fs * 1.2 <= P.h - 14) || fs <= minFs()) break;
     fs -= 1;
   }
   const total = wrapped.length * fs * 1.2;
@@ -225,7 +237,7 @@ export function drawGauge(ctx, state, L) {
   if (tm.locked) {
     const lab = tm.q >= 0.999 ? 'Perfect!' : tm.q > 0.9 ? 'Good' : 'Loose';
     const fs = Math.round(Math.min(34, G.h * 0.4));
-    ctx.font = `700 ${fs}px ${FONT}`; ctx.textAlign = 'center'; textShadow(ctx, lab, W / 2, by - 16, tm.q >= 0.999 ? '#ffe27a' : '#fff3dc', 6);
+    ctx.font = `700 ${fs}px ${FONT}`; ctx.textAlign = 'center'; textShadow(ctx, lab, G.x + G.w / 2, by - 16, tm.q >= 0.999 ? '#ffe27a' : '#fff3dc', 6);
   }
 }
 
@@ -252,41 +264,50 @@ export function drawWatchBar(ctx, state, L) {
 }
 
 export function caption(ctx, lines, y, o = {}) {
-  const w = o.w ?? 640, px = (W - w) / 2;
-  ctx.font = `600 ${o.size ?? 26}px ${FONT}`;
-  const wrapped = [];
-  lines.forEach((l) => wrapLines(ctx, l.text, w - 44).forEach((t, i) => wrapped.push({ text: t, col: l.col, bold: l.bold, i })));
-  const lh = (o.size ?? 26) * 1.32, h = wrapped.length * lh + 24;
+  const w = o.w ?? 640, px = o.x ?? (VIEW.w - w) / 2, cx = px + w / 2;
+  let size = o.size ?? 26, wrapped, lh, h;
+  for (;;) {
+    ctx.font = `600 ${size}px ${FONT}`;
+    wrapped = [];
+    lines.forEach((l) => wrapLines(ctx, l.text, w - 28).forEach((t, i) => wrapped.push({ text: t, col: l.col, bold: l.bold, i })));
+    lh = size * 1.32; h = wrapped.length * lh + 24;
+    if (!o.maxH || h <= o.maxH || size <= minFs()) break;
+    size -= 1;
+  }
   roundPath(ctx, px, y, w, h, 20); ctx.fillStyle = o.fill ?? 'rgba(24,10,4,0.8)'; ctx.fill();
   ctx.strokeStyle = 'rgba(255,243,220,0.35)'; ctx.lineWidth = 1.5; ctx.stroke();
   ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
-  wrapped.forEach((l, i) => { ctx.font = `${l.bold ? 700 : 500} ${o.size ?? 26}px ${FONT}`; ctx.fillStyle = l.col ?? '#fff3dc'; ctx.fillText(l.text, W / 2, y + 12 + (i + 0.85) * lh); });
+  wrapped.forEach((l, i) => { ctx.font = `${l.bold ? 700 : 500} ${size}px ${FONT}`; ctx.fillStyle = l.col ?? '#fff3dc'; ctx.fillText(l.text, cx, y + 12 + (i + 0.85) * lh); });
   return h;
 }
 
 // the cover card between two players (the first player's aim stays hidden)
-export function drawPassCard(ctx, state, L) {
-  const m = state.match, nm = m.cfg.names[state.side];
-  ctx.fillStyle = 'rgba(24,10,4,0.93)'; ctx.fillRect(0, 0, W, H);
-  const sc = TEXT_SCALES[state.settings.textIdx];
-  ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
-  const tfs = Math.round(52 * Math.min(sc, 1.5));
-  ctx.font = `italic 700 ${tfs}px ${DISPLAY}`;
-  const tl = wrapLines(ctx, `${nm}, your turn`, 620);
-  let y = 330;
-  ctx.fillStyle = '#ffe9a0';
-  tl.forEach((l) => { ctx.fillText(l, W / 2, y); y += tfs * 1.15; });
-  const bfs = Math.round(28 * sc);
-  ctx.font = `500 ${bfs}px ${FONT}`; ctx.fillStyle = '#fff3dc';
-  const lines = wrapLines(ctx, `Pass the device. ${m.cfg.names[1 - state.side]}'s launch is locked in and hidden.`, 600);
-  y += 20;
-  lines.forEach((l) => { ctx.fillText(l, W / 2, y); y += bfs * 1.3; });
-  const r = passButton(state);
-  drawButton(ctx, r, 'Ready', { primary: true, size: Math.round(34 * Math.min(sc, 2)) });
-}
 export function passButton(state) {
-  const sc = TEXT_SCALES[state.settings.textIdx];
-  return { x: 110, y: Math.min(1020, 560 + 160 * sc), w: 500, h: Math.round(100 + 30 * (sc - 1)) };
+  const S = curLayout(), sc = TEXT_SCALES[state.settings.textIdx], bh = Math.round(100 + 30 * (sc - 1));
+  const y = Math.min(S.h - Math.max(40, S.ins.b + 16) - bh, Math.round(S.h * 0.5625 + 160 * (sc - 1)));
+  return { x: S.w / 2 - 250, y, w: 500, h: bh };
+}
+export function drawPassCard(ctx, state) {
+  const S = curLayout(), m = state.match, nm = m.cfg.names[state.side], cx = S.w / 2;
+  ctx.fillStyle = 'rgba(24,10,4,0.93)'; ctx.fillRect(0, 0, S.w, S.h);
+  const r = passButton(state), top = Math.max(S.ins.t + 40, 60), room = r.y - 24 - top, tw = Math.min(S.w - 80, 760);
+  ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+  let sc = TEXT_SCALES[state.settings.textIdx], tfs, bfs, tl, lines, total;
+  for (;;) {
+    tfs = Math.round(52 * Math.min(sc, 1.5)); bfs = Math.round(28 * sc);
+    ctx.font = `italic 700 ${tfs}px ${DISPLAY}`; tl = wrapLines(ctx, `${nm}, your turn`, tw);
+    ctx.font = `500 ${bfs}px ${FONT}`; lines = wrapLines(ctx, `Pass the device. ${m.cfg.names[1 - state.side]}'s launch is locked in and hidden.`, tw - 20);
+    total = tl.length * tfs * 1.15 + 20 + lines.length * bfs * 1.3;
+    if (total <= room || sc <= 0.6) break;
+    sc -= 0.1;
+  }
+  let y = top + Math.max(0, (room - total) / 2) + tfs * 0.9;
+  ctx.font = `italic 700 ${tfs}px ${DISPLAY}`; ctx.fillStyle = '#ffe9a0';
+  tl.forEach((l) => { ctx.fillText(l, cx, y); y += tfs * 1.15; });
+  y += 20 - tfs * 0.1;
+  ctx.font = `500 ${bfs}px ${FONT}`; ctx.fillStyle = '#fff3dc';
+  lines.forEach((l) => { ctx.fillText(l, cx, y); y += bfs * 1.3; });
+  drawButton(ctx, r, 'Ready', { primary: true, size: Math.round(34 * Math.min(TEXT_SCALES[state.settings.textIdx], 2)) });
 }
 
 // ---- the whole play screen -------------------------------------------------------------------
@@ -296,11 +317,13 @@ export function sceneOf(state) {
 }
 
 export function renderPlay(ctx, state) {
-  const { match: m } = state;
-  const L = playLayout(state.settings.textIdx), cm = Math.min(L.m, 1.6), capY = L.hudBottom + 14;
+  const { match: m } = state, S = curLayout(), L = S.play(state.settings.textIdx), xf = L.xf;
+  const cm = Math.min(L.m, 1.6);
   const watch = m.cfg.mode === 'watch';
-  if (state.ph === 'pass') { drawTableLayer(ctx); drawPassCard(ctx, state, L); return; }
+  if (state.ph === 'pass') { drawTableLayer(ctx); drawPassCard(ctx, state); return; }
+  drawTableLayer(ctx);
   ctx.save();
+  ctx.translate(xf.tx, xf.ty); ctx.scale(xf.s, xf.s);
   drawScene(ctx, sceneOf(state));
   // the aim and the coach's suggestion
   if (!watch && (state.ph === 'aim' || state.ph === 'timing')) {
@@ -316,28 +339,31 @@ export function renderPlay(ctx, state) {
     drawAim(ctx, state, L);
   }
   if (watch && state.wl) drawWatchGhosts(ctx, state);
+  // the intro and the knock-out call are painted on the dish
+  if (state.ph === 'intro') {
+    const cs = Math.min(L.m, 1.3);
+    ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+    ctx.font = `italic 700 ${Math.round(88 * cs)}px ${DISPLAY}`; textShadow(ctx, `Round ${m.round}`, ARENA.cx, ARENA.cy - 50, '#fff3dc', 18);
+  }
+  if (state.ph === 'over' && state.w && state.w.over) drawKO(ctx, state, L);
   ctx.restore();
+  drawCards(ctx, L);
   drawHud(ctx, state, L);
   if (watch) drawWatchBar(ctx, state, L); else drawControls(ctx, state, L);
   if (state.ph === 'timing') drawGauge(ctx, state, L);
   if (watch) drawWatchOverlay(ctx, state, L);
+  const C0 = L.cap, cw = L.wide ? Math.min(cm, 1.2) : cm;
+  const capO = (size, extra = {}) => ({ x: C0.x, w: C0.w, size: size * cw * (L.wide ? 0.95 : 1), maxH: L.wide ? C0.h : undefined, ...extra });
   if (state.hint && state.hint.t < state.hint.dur && state.ph === 'aim' && !watch) {
     const deg = hintWords(state);
-    caption(ctx, [{ text: `Think: ${state.hint.reason}`, bold: true, col: '#ffe9a0' }, { text: deg, col: '#fff3dc' }], capY, { size: 22 * cm });
-  } else if (state.hintBusy) caption(ctx, [{ text: 'Thinking...', bold: true, col: '#ffe9a0' }], capY, { size: 24 * cm, w: 300 * cm });
-  else if (state.toastT > 0 && state.toast) caption(ctx, [{ text: state.toast, bold: true }], capY, { size: 24 * cm });
-  // the intro and the knock-out call
-  if (state.ph === 'intro') {
-    const cs = Math.min(L.m, 1.3);
-    ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
-    ctx.font = `italic 700 ${Math.round(88 * cs)}px ${DISPLAY}`; textShadow(ctx, `Round ${m.round}`, W / 2, ARENA.cy - 50, '#fff3dc', 18);
-  }
-  if (state.ph === 'over' && state.w && state.w.over) drawKO(ctx, state, L);
+    caption(ctx, [{ text: `Think: ${state.hint.reason}`, bold: true, col: '#ffe9a0' }, { text: deg, col: '#fff3dc' }], C0.y, capO(22));
+  } else if (state.hintBusy) caption(ctx, [{ text: 'Thinking...', bold: true, col: '#ffe9a0' }], C0.y, L.wide ? capO(24) : { size: 24 * cm, w: 300 * cm });
+  else if (state.toastT > 0 && state.toast) caption(ctx, [{ text: state.toast, bold: true }], C0.y, capO(24));
   if (state.paused && watch) {
-    ctx.fillStyle = 'rgba(24,10,4,0.35)'; ctx.fillRect(0, L.field.y, W, L.field.h);
-    ctx.textAlign = 'center'; ctx.font = `italic 700 ${Math.round(80 * Math.min(L.m, 1.3))}px ${DISPLAY}`; textShadow(ctx, 'Paused', W / 2, 650, '#fff3dc', 14);
+    ctx.fillStyle = 'rgba(24,10,4,0.35)'; ctx.fillRect(L.field.x, L.field.y, L.field.w, L.field.h);
+    ctx.textAlign = 'center'; ctx.font = `italic 700 ${Math.round(80 * Math.min(L.m, 1.3) * Math.min(1, xf.s + 0.1))}px ${DISPLAY}`; textShadow(ctx, 'Paused', L.dishC.x, L.dishC.y - 40, '#fff3dc', 14);
   }
-  if (state.flash > 0) { ctx.fillStyle = `rgba(255,248,230,${Math.min(0.5, state.flash)})`; ctx.fillRect(0, 0, W, H); }
+  if (state.flash > 0) { ctx.fillStyle = `rgba(255,248,230,${Math.min(0.5, state.flash)})`; ctx.fillRect(0, 0, S.w, S.h); }
 }
 
 function hintWords(state) {
@@ -352,9 +378,12 @@ function drawKO(ctx, state, L) {
   const cs = Math.min(L.m, 1.35);
   ctx.save(); ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
   const s = 0.7 + 0.3 * (1 - Math.pow(1 - k, 3));
-  ctx.translate(W / 2, ARENA.cy - 20); ctx.scale(s, s);
+  ctx.translate(ARENA.cx, ARENA.cy - 20); ctx.scale(s, s);
   ctx.globalAlpha = k;
-  ctx.font = `italic 700 ${Math.round(84 * cs)}px ${DISPLAY}`; textShadow(ctx, why, 0, 0, '#ffe27a', 18);
+  let kfs = Math.round(84 * cs); ctx.font = `italic 700 ${kfs}px ${DISPLAY}`;
+  const maxW = (VIEW.w - 40) / (L.xf.s * s);
+  const mw = ctx.measureText(why).width; if (mw > maxW) { kfs = Math.floor(kfs * maxW / mw); ctx.font = `italic 700 ${kfs}px ${DISPLAY}`; }
+  textShadow(ctx, why, 0, 0, '#ffe27a', 18);
   ctx.restore();
 }
 
@@ -383,37 +412,50 @@ function drawWatchGhosts(ctx, state) {
   }
 }
 
-// Watch & Learn overlay: the Think -> Reveal -> Act clock and what the players are weighing
+// Watch & Learn overlay: the Think -> Reveal -> Act clock and what the players are weighing. Stack: a strip over the top of the
+// dish. Wide: stacked in the left card (label and seconds on one row, the progress bar under them, then the captions).
 function drawWatchOverlay(ctx, state, L) {
   const wt = state.wl;
   if (!wt) return;
-  const col = ['#7fe8d6', '#ff9a86'], cm = Math.min(L.m, 1.6);
+  const cm = Math.min(L.m, 1.6);
   const label = wt.phase === 'think' ? 'THINK' : wt.phase === 'reveal' ? 'REVEAL' : 'ACT';
-  const secs = Math.max(0, wt.dur - wt.t);
-  const pw = 600, px = (W - pw) / 2, py = L.hudBottom + 16, ph = Math.round(62 * cm);
+  const secs = Math.max(0, wt.dur - wt.t), lcol = wt.phase === 'think' ? '#ffe9a0' : wt.phase === 'reveal' ? '#7fe8d6' : '#ff9a86';
   const lines = [];
   if (wt.phase === 'reveal' && wt.plans) {
     [0, 1].forEach((side) => { const p = wt.plans[side]; if (p) lines.push({ text: `${nameOf(state, side)}: ${p.reason}`, col: side === 0 ? '#aaf3e6' : '#ffc0b2', bold: true }); });
   } else if (wt.phase === 'think') lines.push({ text: 'Both players try launches in their heads and weigh what would happen.', col: '#fff3dc' });
   else lines.push({ text: 'Launch! The tops carry out the plans.', col: '#fff3dc' });
-  roundPath(ctx, px, py, pw, ph, 20); ctx.fillStyle = 'rgba(24,10,4,0.82)'; ctx.fill();
-  const lf = Math.round(28 * cm), sf = Math.round(26 * cm), by = py + ph / 2 + lf * 0.36;
-  ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
-  ctx.font = `700 ${lf}px ${FONT}`; ctx.fillStyle = wt.phase === 'think' ? '#ffe9a0' : wt.phase === 'reveal' ? '#7fe8d6' : '#ff9a86'; ctx.fillText(label, px + 24, by);
-  const lw = ctx.measureText('REVEAL').width;
-  ctx.font = `700 ${sf}px ${FONT}`; const sw = ctx.measureText('10.0 s').width;
-  const bx = px + 24 + lw + 18, bw = Math.max(40, pw - 24 - lw - 18 - sw - 40), bh = Math.round(14 * Math.min(cm, 1.3)), byy = py + ph / 2 - bh / 2;
   const prog = clamp(wt.t / wt.dur, 0, 1);
-  roundPath(ctx, bx, byy, bw, bh, bh / 2); ctx.fillStyle = 'rgba(255,243,220,0.2)'; ctx.fill();
-  ctx.save(); roundPath(ctx, bx, byy, bw, bh, bh / 2); ctx.clip(); ctx.fillStyle = '#f4c95d'; ctx.fillRect(bx, byy, bw * prog, bh); ctx.restore();
-  ctx.textAlign = 'right'; ctx.font = `700 ${sf}px ${FONT}`; ctx.fillStyle = '#fff3dc'; ctx.fillText(`${secs.toFixed(1)} s`, px + pw - 22, by);
-  caption(ctx, lines, py + ph + 12, { size: 23 * cm, w: pw });
+  const barOf = (bx, byy, bw, bh) => {
+    roundPath(ctx, bx, byy, bw, bh, bh / 2); ctx.fillStyle = 'rgba(255,243,220,0.2)'; ctx.fill();
+    ctx.save(); roundPath(ctx, bx, byy, bw, bh, bh / 2); ctx.clip(); ctx.fillStyle = '#f4c95d'; ctx.fillRect(bx, byy, bw * prog, bh); ctx.restore();
+  };
+  ctx.textBaseline = 'alphabetic';
+  if (!L.wide) {
+    const pw = 600, px = L.cap.x + 20, py = L.hudBottom + 16, ph = Math.round(62 * cm);
+    roundPath(ctx, px, py, pw, ph, 20); ctx.fillStyle = 'rgba(24,10,4,0.82)'; ctx.fill();
+    const lf = Math.round(28 * cm), sf = Math.round(26 * cm), by = py + ph / 2 + lf * 0.36;
+    ctx.textAlign = 'left'; ctx.font = `700 ${lf}px ${FONT}`; ctx.fillStyle = lcol; ctx.fillText(label, px + 24, by);
+    const lw = ctx.measureText('REVEAL').width;
+    ctx.font = `700 ${sf}px ${FONT}`; const sw = ctx.measureText('10.0 s').width;
+    const bx = px + 24 + lw + 18, bw = Math.max(40, pw - 24 - lw - 18 - sw - 40), bh = Math.round(14 * Math.min(cm, 1.3));
+    barOf(bx, py + ph / 2 - bh / 2, bw, bh);
+    ctx.textAlign = 'right'; ctx.font = `700 ${sf}px ${FONT}`; ctx.fillStyle = '#fff3dc'; ctx.fillText(`${secs.toFixed(1)} s`, px + pw - 22, by);
+    caption(ctx, lines, py + ph + 12, { size: 23 * cm, w: pw, x: px });
+    return;
+  }
+  const C0 = L.cap, lf = Math.round(26 * Math.min(cm, 1.25)), bh = 12;
+  ctx.textAlign = 'left'; ctx.font = `700 ${lf}px ${FONT}`; ctx.fillStyle = lcol; ctx.fillText(label, C0.x + 4, C0.y + lf);
+  ctx.textAlign = 'right'; ctx.fillStyle = '#fff3dc'; ctx.fillText(`${secs.toFixed(1)} s`, C0.x + C0.w - 4, C0.y + lf);
+  barOf(C0.x + 4, C0.y + lf + 10, C0.w - 8, bh);
+  const top = C0.y + lf + 10 + bh + 12;
+  caption(ctx, lines, top, { size: 22 * Math.min(cm, 1.2), w: C0.w, x: C0.x, maxH: Math.max(70, C0.y + C0.h - top) });
 }
 
 // The round banner follows the text-size setting up to 300%; if the panel would no longer fit the screen the text
 // steps down a notch until it does.
-export function bannerGeom(ctx, b, s) {
-  const pw = s > 1 ? 650 : 580;
+export function bannerGeom(ctx, b, s, maxH = 1190) {
+  const pw = Math.min(s > 1 ? 650 : 580, VIEW.w - 40);
   for (let sc = s; ; sc = Math.max(1, sc - 0.25)) {
     const tFs = Math.round(54 * Math.min(sc, 1.7)), lFs = Math.round(28 * sc), sFs = Math.round(28 * Math.min(sc, 2));
     ctx.font = `italic 700 ${tFs}px ${DISPLAY}`; const tl = wrapLines(ctx, b.title, pw - 60);
@@ -422,27 +464,28 @@ export function bannerGeom(ctx, b, s) {
     const bFs = Math.round(32 * Math.min(sc, 2.2)), bH = Math.max(92, Math.round(bFs * 1.15 + 44));
     const tH = tl.length * tFs * 1.14, lH = ll.length * lFs * 1.3, sH = sl.length * sFs * 1.2;
     const total = 34 + tH + 16 + lH + 14 + sH + 22 + (b.auto ? Math.round(24 * Math.min(sc, 2) * 1.5) : bH) + 30;
-    if (total <= 1190 || sc <= 1) return { pw, sc, tFs, lFs, sFs, bFs, bH, tl, ll, sl, tH, lH, sH, total };
+    if (total <= maxH || sc <= 1) return { pw, sc, tFs, lFs, sFs, bFs, bH, tl, ll, sl, tH, lH, sH, total };
   }
 }
 
 export function drawBanner(ctx, state) {
   const b = state.banner;
   if (!b) return;
-  const g = bannerGeom(ctx, b, TEXT_SCALES[state.settings.textIdx]);
-  ctx.fillStyle = 'rgba(24,10,4,0.5)'; ctx.fillRect(0, 0, W, H);
-  const px = (W - g.pw) / 2, py = Math.max(30, Math.min(320, (H - g.total) / 2));
+  const S = curLayout(), cx = S.w / 2;
+  const g = bannerGeom(ctx, b, TEXT_SCALES[state.settings.textIdx], Math.min(1190, S.h - Math.max(40, S.ins.t + S.ins.b + 20)));
+  ctx.fillStyle = 'rgba(24,10,4,0.5)'; ctx.fillRect(0, 0, S.w, S.h);
+  const px = cx - g.pw / 2, py = Math.max(S.ins.t + 20, Math.min(320, (S.h - g.total) / 2));
   panel(ctx, px, py, g.pw, g.total, { r: 30, fill: 'rgba(255,243,220,0.97)' });
   ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
   let y = py + 34;
   ctx.fillStyle = b.win ? C.tealDark : C.vermDark; ctx.font = `italic 700 ${g.tFs}px ${DISPLAY}`;
-  g.tl.forEach((l, i) => ctx.fillText(l, W / 2, y + g.tFs * (0.86 + i * 1.14))); y += g.tH + 16;
+  g.tl.forEach((l, i) => ctx.fillText(l, cx, y + g.tFs * (0.86 + i * 1.14))); y += g.tH + 16;
   ctx.fillStyle = C.ink; ctx.font = `500 ${g.lFs}px ${FONT}`;
-  g.ll.forEach((l, i) => ctx.fillText(l, W / 2, y + g.lFs * (0.95 + i * 1.3))); y += g.lH + 14;
+  g.ll.forEach((l, i) => ctx.fillText(l, cx, y + g.lFs * (0.95 + i * 1.3))); y += g.lH + 14;
   ctx.font = `700 ${g.sFs}px ${FONT}`; ctx.fillStyle = C.vermDark;
-  g.sl.forEach((l, i) => ctx.fillText(l, W / 2, y + g.sFs * (0.9 + i * 1.2))); y += g.sH + 22;
+  g.sl.forEach((l, i) => ctx.fillText(l, cx, y + g.sFs * (0.9 + i * 1.2))); y += g.sH + 22;
   if (!b.auto) drawButton(ctx, { x: px + 40, y, w: g.pw - 80, h: g.bH }, b.last ? (b.lessonNext ?? 'See result') : 'Next round', { primary: true, size: g.bFs });
-  else { const f = Math.round(24 * Math.min(g.sc, 2)); ctx.font = `500 ${f}px ${FONT}`; ctx.fillStyle = 'rgba(46,26,15,0.7)'; ctx.fillText('Continuing...', W / 2, y + f); }
+  else { const f = Math.round(24 * Math.min(g.sc, 2)); ctx.font = `500 ${f}px ${FONT}`; ctx.fillStyle = 'rgba(46,26,15,0.7)'; ctx.fillText('Continuing...', cx, y + f); }
 }
 
 export { PROFILES, lookOf };

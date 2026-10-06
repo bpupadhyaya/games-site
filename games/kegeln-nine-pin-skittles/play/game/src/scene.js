@@ -26,6 +26,8 @@ export function fixedCam() {
 // The small static close-up of the pin deck shown as an inset after a roll (never a move of the main view).
 export function pipCam() { const uc = U_PINS - 2.4, H = 1.0, spins = 420, f = spins * 2.4; return { uc, H, f, yh: 640 - H * spins, x: 0 }; }
 export const makeCam = fixedCam;
+// The on-screen scale of the lane picture (set by the play screen before it draws): in-scene text stays about 11 css px at any text size.
+export const sceneInfo = { s: 1, minU: 20 };
 export const scaleAt = (cam, z) => cam.f / Math.max(0.35, U(z) - cam.uc);
 export function proj(cam, x, y, z) {
   const s = scaleAt(cam, z);
@@ -48,7 +50,7 @@ export function drawRoom(ctx, cam, t) {
   // ceiling and background
   let g = ctx.createLinearGradient(0, 0, 0, cam.yh + 260);
   g.addColorStop(0, '#120a06'); g.addColorStop(0.6, '#2a1a0f'); g.addColorStop(1, '#3a2514');
-  ctx.fillStyle = g; ctx.fillRect(0, 0, 720, 1280);
+  ctx.fillStyle = g; ctx.fillRect(-4000, -4000, 8720, 9280);   // far beyond the 720 wide design canvas: bigger screens just see more room
   // back wall
   quad(ctx, cam, [-X, 0, z1], [X, 0, z1], [X, Hh, z1], [-X, Hh, z1]);
   g = ctx.createLinearGradient(0, proj(cam, 0, Hh, z1).y, 0, proj(cam, 0, 0, z1).y);
@@ -322,7 +324,7 @@ export function drawTarget(ctx, cam, x, z, col, t, label) {
   ctx.beginPath(); ctx.arc(0, 0, r * 0.45, 0, TAU); ctx.stroke();
   ctx.restore();
   ctx.beginPath(); ctx.moveTo(c.x - r * 1.5, c.y); ctx.lineTo(c.x - r * 0.7, c.y); ctx.moveTo(c.x + r * 0.7, c.y); ctx.lineTo(c.x + r * 1.5, c.y); ctx.stroke();
-  if (label) { ctx.font = '700 18px Georgia, serif'; ctx.fillStyle = col; ctx.textAlign = 'center'; ctx.fillText(label, c.x, c.y - r * 0.9 - 6); }
+  if (label) { ctx.font = `700 ${Math.max(22, sceneInfo.minU / sceneInfo.s)}px Georgia, serif`; ctx.fillStyle = col; ctx.textAlign = 'center'; ctx.fillText(label, c.x, c.y - r * 0.9 - 6); }
   ctx.restore();
 }
 export function drawParts(ctx, cam, parts) {

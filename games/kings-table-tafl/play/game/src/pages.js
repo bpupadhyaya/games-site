@@ -4,7 +4,7 @@
 // the base 100% step, so most pages are down to a single short sentence, and a single long sentence
 // often still needs splitting by clause across two or more pages. Never shrink the font to force a
 // fit - split into another single-concept page instead.
-export const PAGES = {
+const RAW_PAGES = {
   help: [
     { title: 'Controls', body: ['TAP a piece: it lifts and every square it may reach glows.'] },
     { title: 'Controls: tap to move', body: ['Then TAP a glowing square to move.'] },
@@ -69,7 +69,7 @@ export const PAGES = {
 // game's ruleset is a documented simplification (see design/GDD.md "Ruleset"), that is stated plainly
 // rather than glossed over. `piece` (when present) is the real in-game piece kind ('A'/'D'/'K') to draw
 // alongside that page, via the board's own drawPiece() - never a separate simplified icon.
-export const RULES = [
+const RAW_RULES = [
   {
     title: 'The board and setup', body: [
       'Tafl is a two-player game of unequal armies.',
@@ -262,7 +262,7 @@ export const RULES = [
   },
   {
     title: 'Corners count too', body: [
-      '(or a hostile corner or throne square, previous page).',
+      '(or a hostile corner or throne square, see above).',
     ],
   },
   {
@@ -367,7 +367,7 @@ export const RULES = [
   },
   {
     title: 'How attackers win', body: [
-      'Attackers win by taking the king (previous page),',
+      'Attackers win by taking the king (see above),',
     ],
   },
   {
@@ -436,12 +436,12 @@ export const RULES = [
     ],
   },
   {
-    title: 'What these pages cover', body: [
-      'Everything else on these pages -',
+    title: 'What this reference covers', body: [
+      'Everything else in this reference -',
     ],
   },
   {
-    title: 'Topics these pages cover', body: [
+    title: 'Topics this reference covers', body: [
       'movement, capturing, the throne and corners, taking the king, winning and draws -',
     ],
   },
@@ -451,3 +451,27 @@ export const RULES = [
     ],
   },
 ];
+
+// ONE continuous scrolling reader per document: the short pages above are merged into sections. Pages of the same topic
+// (same title before the colon, or "(cont.)") join one section, and a sentence cut across pages is re-joined, so the
+// text reads as written. Content and order are unchanged.
+const END = /[.!?]["')]?$/;
+function mergeSections(pages) {
+  const out = [];
+  for (const pg of pages) {
+    const key = pg.title.replace(/ \(cont\.\)$/, '').split(':')[0];
+    const last = out[out.length - 1];
+    const lastPara = last && last.body[last.body.length - 1];
+    const sameTopic = last && (last.key === key || /\(cont\.\)$/.test(pg.title));
+    const cut = last && !END.test(lastPara) && !pg.piece;
+    if (last && (sameTopic || cut) && !pg.piece) {
+      if (sameTopic && last.key === key && last.title !== key && !cut) last.title = key;
+      const [first, ...rest] = pg.body;
+      if (!END.test(lastPara)) last.body[last.body.length - 1] = `${lastPara} ${first}`; else last.body.push(first);
+      last.body.push(...rest);
+    } else out.push({ title: pg.title.replace(/ \(cont\.\)$/, ''), key, piece: pg.piece, body: pg.body.slice() });
+  }
+  return out;
+}
+export const PAGES = { help: mergeSections(RAW_PAGES.help), about: mergeSections(RAW_PAGES.about) };
+export const RULES = mergeSections(RAW_RULES);

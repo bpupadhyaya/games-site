@@ -7,13 +7,16 @@
 // logical deduction, from the very first tap. See design/GDD.md for the full design and
 // web/src/solver.js for exactly which deduction rules the generator/solver implement.
 import { neighbors } from './board.js';
-import { W, H, COLS, ROWS, CELL, BOARD_X, BOARD_Y, BOARD_W, BOARD_H, MODE_SWITCH, HINT_BTN, COLOR_BTN, NEW_BTN, SHIELD_BTN, TITLE_COLOR_BTN, TITLE_RULES_BTN, TITLE_AUTO_BTN, RULES_BACK_BTN, RULES_NEXT_BTN, TEXT_DEC_BTN, TEXT_INC_BTN, TEXT_SCALES, THINK_STEPS, SIBLINGS, chipRect, inRect } from './layout.js';
+import { COLS, ROWS, MODE_SWITCH, HINT_BTN, COLOR_BTN, NEW_BTN, MENU_BTN, PAUSE_BTN, AUTO_EXIT_BTN, SHIELD_BTN, RESULT_MENU_BTN, RESULT_MENU_BTN_WIDE, TITLE_COLOR_BTN, TITLE_RULES_BTN, TITLE_AUTO_BTN, RULES_BACK_BTN, RULES_PANEL, SCROLLBAR, TEXT_DEC_BTN, TEXT_INC_BTN, TEXT_SCALES, THINK_STEPS, SIBLINGS, chipRect, inRect, cellAt, useLayout, POS } from './layout.js';
 import { THEMES } from './themes.js';
-import { draw } from './render.js';
+import { draw, readerView, pressLockup } from './render.js';
 import { findForcedMoves, generateBoard } from './solver.js';
-import { RULES } from './content.js';
 
-export const meta = { width: W, height: H };
+// Fluid viewport (kit 1.7): the short side is always 720 units; the view updates width/height live from the real screen.
+// The width/height below are only the starting portrait shape (and what headless tests see).
+export const meta = { width: 720, height: 1560, fluid: { short: 720 } };
+// The page's wheel listener (main.js) feeds this; the Rules reader consumes it.
+export const wheelInput = { dy: 0 };
 
 const DIFFICULTY = { w: COLS, h: ROWS, mines: 10 };
 const MAX_GEN_ATTEMPTS = 500;
@@ -36,7 +39,7 @@ export function createGame(env) {
 
   const state = {
     scene: 'title',
-    page: 0, // current Rules-reference page, only meaningful while scene === 'rules'
+    rulesScroll: 0, // scroll offset (virtual units) of the Rules reader, only meaningful while scene === 'rules'
     textScaleIdx: 0, // index into TEXT_SCALES; the Rules reference page's own text size
     w,
     h,
@@ -71,6 +74,7 @@ export function createGame(env) {
     autoPhase: null,
     autoTimer: 0,
     autoThinkIdx: 1,
+    autoPaused: false, // Auto Play's Pause: freezes the THINK/REVEAL timers (the board stays as it is)
     autoForced: [],
     autoChosen: null,
     // Presentation-only bookkeeping (animation start times on the `pulse` clock). Nothing in
@@ -173,6 +177,7 @@ export function createGame(env) {
     state.auto = auto;
     state.autoPhase = null;
     state.autoTimer = 0;
+    state.autoPaused = false;
     state.autoForced = [];
     state.autoChosen = null;
     fx.revealAt = new Array(total).fill(-1);
@@ -293,7 +298,7 @@ export function createGame(env) {
   const AUTO_REVEAL_SECS = 2;
   const saveAutoThinkIdx = () => storage.set('autoThinkIdx', state.autoThinkIdx);
   function autoStep(dt) {
-    if (!state.auto || state.scene !== 'playing') return; // frozen on 'won'/'lost' waiting for a tap
+    if (!state.auto || state.scene !== 'playing' || state.autoPaused) return; // frozen on 'won'/'lost' waiting for a tap, or while paused
 
     if (state.autoPhase === 'reveal') {
       state.autoTimer -= dt;
@@ -359,10 +364,16 @@ export function createGame(env) {
   // Colours toggle, exit, and (once solved/lost) "Play again" / "Exit to menu".
   function handleAutoPointer(x, y) {
     if (state.scene === 'playing') {
-      if (inRect(x, y, MODE_SWITCH)) {
+      if (inRect(x, y, AUTO_EXIT_BTN)) {
         press('autoExit');
         state.auto = false;
+        state.autoPaused = false;
         state.scene = 'title';
+        return;
+      }
+      if (inRect(x, y, PAUSE_BTN)) {
+        press('autoPause');
+        state.autoPaused = !state.autoPaused;
         return;
       }
       if (inRect(x, y, HINT_BTN)) {
@@ -391,7 +402,7 @@ export function createGame(env) {
 
     // 'won' or 'lost'
     if (state.pulse - fx.sceneAt < RESULT_TAP_DELAY) return;
-    if (inRect(x, y, SHIELD_BTN)) {
+    if (inRect(x, y, RESULT_MENU_BTN_WIDE)) {
       press('autoExit');
       state.auto = false;
       state.scene = 'title';
@@ -412,12 +423,15 @@ export function createGame(env) {
     if (state.scene === 'demo-limit') return;
 
     if (state.scene === 'title') {
-      if (inRect(x, y, TITLE_COLOR_BTN)) {
+      if (inRect(x, y, POS.title.lockHit)) {
+        pressLockup();
+        env.openArcforgeHome?.();
+      } else if (inRect(x, y, TITLE_COLOR_BTN)) {
         press('colors');
         cycleTheme();
       } else if (inRect(x, y, TITLE_RULES_BTN)) {
         press('rules');
-        state.page = 0;
+        state.rulesScroll = 0;
         state.scene = 'rules';
       } else if (inRect(x, y, TITLE_AUTO_BTN)) {
         press('autoplay');
@@ -430,21 +444,10 @@ export function createGame(env) {
     }
 
     if (state.scene === 'rules') {
-      if (inRect(x, y, RULES_NEXT_BTN)) {
-        press('rulesNext');
-        if (state.page >= RULES.length - 1) {
-          state.scene = 'title';
-          state.page = 0;
-        } else {
-          state.page += 1;
-        }
-      } else if (inRect(x, y, RULES_BACK_BTN)) {
+      // Back / text size are tapped; the reader itself scrolls (drag, wheel, keys: see handleRulesScroll)
+      if (inRect(x, y, RULES_BACK_BTN)) {
         press('rulesBack');
-        if (state.page > 0) {
-          state.page -= 1;
-        } else {
-          state.scene = 'title';
-        }
+        state.scene = 'title';
       } else if (inRect(x, y, TEXT_DEC_BTN) && state.textScaleIdx > 0) {
         state.textScaleIdx -= 1;
         storage.set('textScaleIdx', state.textScaleIdx);
@@ -487,11 +490,14 @@ export function createGame(env) {
         newBoard();
         return;
       }
-      if (x >= BOARD_X && x < BOARD_X + BOARD_W && y >= BOARD_Y && y < BOARD_Y + BOARD_H) {
-        const c = Math.floor((x - BOARD_X) / CELL);
-        const r = Math.floor((y - BOARD_Y) / CELL);
-        handleCellTap(r * w + c);
+      if (inRect(x, y, MENU_BTN)) {
+        // The game's OWN way out of play (standalone builds have no host back button).
+        press('menu');
+        state.scene = 'title';
+        return;
       }
+      const cell = cellAt(x, y);
+      if (cell >= 0) handleCellTap(cell);
       return;
     }
 
@@ -508,6 +514,12 @@ export function createGame(env) {
         openGame(SIBLINGS[i].slug);
         return;
       }
+    }
+    // Menu: three across beside Undo on a fresh loss, two across (beside New board) otherwise
+    if (inRect(x, y, state.scene === 'lost' && !state.shieldOffered ? RESULT_MENU_BTN : RESULT_MENU_BTN_WIDE)) {
+      press('menu');
+      state.scene = 'title';
+      return;
     }
     press('again');
     newBoard();
@@ -540,10 +552,47 @@ export function createGame(env) {
     fx.delay = 0;
   }
 
+  // Rules reader: drag the page, mouse wheel, arrow / page keys, or drag the scroll bar.
+  let drag = null;
+  const setScroll = (v) => {
+    state.rulesScroll = Math.min(Math.max(v, 0), readerView.max);
+  };
+  function handleRulesScroll(input) {
+    const { pointer, keys } = input;
+    if (wheelInput.dy) {
+      setScroll(state.rulesScroll + wheelInput.dy);
+      wheelInput.dy = 0;
+    }
+    const page = Math.max(120, RULES_PANEL.h * 0.85);
+    if (keys.pressed.has('ArrowDown')) setScroll(state.rulesScroll + 90);
+    if (keys.pressed.has('ArrowUp')) setScroll(state.rulesScroll - 90);
+    if (keys.pressed.has('PageDown') || keys.pressed.has('Space')) setScroll(state.rulesScroll + page);
+    if (keys.pressed.has('PageUp')) setScroll(state.rulesScroll - page);
+    if (keys.pressed.has('Home')) setScroll(0);
+    if (keys.pressed.has('End')) setScroll(readerView.max);
+    if (keys.pressed.has('Escape')) state.scene = 'title';
+    if (pointer.pressed) {
+      if (inRect(pointer.x, pointer.y, { x: SCROLLBAR.x - 18, y: SCROLLBAR.y, w: SCROLLBAR.w + 36, h: SCROLLBAR.h })) drag = { bar: true };
+      else if (inRect(pointer.x, pointer.y, RULES_PANEL)) drag = { y0: pointer.y, s0: state.rulesScroll };
+      else drag = null;
+    }
+    if (drag && pointer.down) {
+      if (drag.bar) setScroll(((pointer.y - SCROLLBAR.y) / SCROLLBAR.h) * readerView.max);
+      else setScroll(drag.s0 - (pointer.y - drag.y0));
+    }
+    if (!pointer.down) drag = null;
+  }
+
   return {
     update(dt, input) {
+      useLayout(meta.width, meta.height);
       state.pulse += dt;
       const { pointer, keys } = input;
+      if (state.scene === 'rules') handleRulesScroll(input);
+      else {
+        wheelInput.dy = 0;
+        drag = null;
+      }
 
       if (state.scene === 'playing') {
         state.time += dt;
@@ -557,6 +606,11 @@ export function createGame(env) {
       }
 
       if (pointer.pressed) handlePointer(pointer.x, pointer.y);
+      if (keys.pressed.has('Escape') && (state.scene === 'playing' || state.scene === 'won' || state.scene === 'lost')) {
+        state.auto = false;
+        state.autoPaused = false;
+        state.scene = 'title';
+      }
       // Auto Play's whole loop is just this per-frame gate (autoStep no-ops unless
       // `state.auto && state.scene === 'playing'`) - there is no interval/timeout to leak, so
       // leaving the scene (handleAutoPointer above) or the board finishing (checkWin/triggerLoss
@@ -566,7 +620,7 @@ export function createGame(env) {
     },
 
     render(ctx) {
-      draw(ctx, state, { remainingFlags: remainingFlags(), demoLeft: Math.max(DEMO_BOARD_LIMIT - state.demoBoards, 0) });
+      draw(ctx, state, { w: meta.width, h: meta.height, remainingFlags: remainingFlags(), demoLeft: Math.max(DEMO_BOARD_LIMIT - state.demoBoards, 0) });
     },
 
     // JSON-serializable, complete description of the run. `mines` is exposed only so tests and

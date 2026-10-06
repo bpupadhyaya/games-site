@@ -1,53 +1,53 @@
 // The table, the two piece stands (komadai) and the board (shogiban). Painted ONCE into cached layers.
 // One light: a paper lantern above and slightly left of the board.
-import { W, H, geom, STAND } from './layout.js';
+import { geom } from './layout.js';
 import { JP } from './pieces.js';
 
 const TAU = Math.PI * 2;
 function lcg(seed) { let s = seed >>> 0; return () => ((s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 4294967296); }
 const rrect = (ctx, x, y, w, h, r) => { ctx.beginPath(); ctx.roundRect(x, y, w, h, r); };
 
-function paintTable(ctx) {
+function paintTable(ctx, W, H) {
   const g = ctx.createLinearGradient(0, 0, 0, H);
   g.addColorStop(0, '#1b1109'); g.addColorStop(0.45, '#2c1c10'); g.addColorStop(1, '#170e08');
   ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
   // table grain (long soft strokes)
-  const rnd = lcg(7);
-  for (let i = 0; i < 140; i++) {
+  const rnd = lcg(7), m = Math.max(W, H);
+  for (let i = 0, n = Math.round(140 * (W * H) / (720 * 1560)); i < n; i++) {
     const y = rnd() * H, x = rnd() * W - 100, len = 200 + rnd() * 520;
     ctx.strokeStyle = `rgba(${rnd() < 0.5 ? '255,200,130' : '0,0,0'},${0.018 + rnd() * 0.035})`; ctx.lineWidth = 1 + rnd() * 3;
     ctx.beginPath(); ctx.moveTo(x, y); ctx.bezierCurveTo(x + len * 0.3, y + (rnd() - 0.5) * 10, x + len * 0.7, y + (rnd() - 0.5) * 10, x + len, y + (rnd() - 0.5) * 6); ctx.stroke();
   }
   // the lantern: a warm pool of light on the table
-  const glow = ctx.createRadialGradient(330, 620, 40, 350, 700, 820);
+  const glow = ctx.createRadialGradient(W * 0.46, H * 0.4, 40, W * 0.49, H * 0.45, m * 0.53);
   glow.addColorStop(0, 'rgba(255,196,120,0.30)'); glow.addColorStop(0.5, 'rgba(240,150,70,0.10)'); glow.addColorStop(1, 'rgba(0,0,0,0)');
   ctx.fillStyle = glow; ctx.fillRect(0, 0, W, H);
-  const vg = ctx.createRadialGradient(360, 760, 380, 360, 780, 1000);
+  const vg = ctx.createRadialGradient(W / 2, H * 0.49, m * 0.24, W / 2, H * 0.5, m * 0.64);
   vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,0.6)');
   ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
 }
-function paintStands(ctx) { for (const which of ['top', 'bot']) paintStand(ctx, STAND[which], which === 'top'); }
 
-function paintStand(ctx, s, top) {
-  // a low walnut tray with a recessed felt-less bed for the captured pieces
+// A stand (komadai), painted in local coordinates (0,0 = top-left of its rect): a low walnut tray with a recessed bed.
+function paintStand(ctx, st, top) {
+  const w = st.rect.w, h = st.rect.h, k = st.k;
   ctx.save();
   ctx.shadowColor = 'rgba(0,0,0,0.55)'; ctx.shadowBlur = 22; ctx.shadowOffsetY = top ? -6 : 10;
-  const wood = ctx.createLinearGradient(0, s.y, 0, s.y + s.h);
+  const wood = ctx.createLinearGradient(0, 0, 0, h);
   wood.addColorStop(0, '#7a5028'); wood.addColorStop(1, '#4b2e14');
-  rrect(ctx, s.x, s.y, s.w, s.h, 18); ctx.fillStyle = wood; ctx.fill();
+  rrect(ctx, 0, 0, w, h, 18); ctx.fillStyle = wood; ctx.fill();
   ctx.restore();
-  ctx.strokeStyle = 'rgba(255,214,150,0.35)'; ctx.lineWidth = 2; rrect(ctx, s.x + 1, s.y + 1, s.w - 2, s.h - 2, 18); ctx.stroke();
-  const bed = ctx.createLinearGradient(0, s.y + 10, 0, s.y + s.h - 10);
+  ctx.strokeStyle = 'rgba(255,214,150,0.35)'; ctx.lineWidth = 2; rrect(ctx, 1, 1, w - 2, h - 2, 18); ctx.stroke();
+  const bed = ctx.createLinearGradient(0, 10, 0, h - 10);
   bed.addColorStop(0, '#2a180a'); bed.addColorStop(1, '#3d2411');
-  rrect(ctx, s.x + 12, s.y + 12, s.w - 24, s.h - 24, 12); ctx.fillStyle = bed; ctx.fill();
-  ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.lineWidth = 3; rrect(ctx, s.x + 12, s.y + 12, s.w - 24, s.h - 24, 12); ctx.stroke();
-  ctx.strokeStyle = 'rgba(255,205,140,0.18)'; ctx.lineWidth = 1.5; rrect(ctx, s.x + 13.5, s.y + s.h - 13.5 - 1, s.w - 27, 1, 1); ctx.stroke();
+  rrect(ctx, 12, 12, w - 24, h - 24, 12); ctx.fillStyle = bed; ctx.fill();
+  ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.lineWidth = 3; rrect(ctx, 12, 12, w - 24, h - 24, 12); ctx.stroke();
+  ctx.strokeStyle = 'rgba(255,205,140,0.18)'; ctx.lineWidth = 1.5; rrect(ctx, 13.5, h - 14.5, w - 27, 1, 1); ctx.stroke();
   // faint slots
   ctx.fillStyle = 'rgba(0,0,0,0.16)';
-  for (let i = 0; i < 7; i++) { const gap = (s.w - 60) / 7; ctx.beginPath(); ctx.ellipse(s.x + 30 + gap * (i + 0.5), s.y + s.h - 26, 28, 5, 0, 0, TAU); ctx.fill(); }
+  for (let i = 0; i < 7; i++) { const p = st.slot(i); ctx.beginPath(); ctx.ellipse(p.x - st.rect.x, p.y - st.rect.y + 22 * k + (st.vertical ? 4 : 0), 28 * k + 4, 5, 0, 0, TAU); ctx.fill(); }
   // title on the tray
   ctx.save();
-  ctx.translate(s.x + s.w - 34, s.y + s.h / 2); if (top) ctx.rotate(Math.PI);
+  ctx.translate(st.label.x - st.rect.x, st.label.y - st.rect.y); if (top) ctx.rotate(Math.PI);
   ctx.font = `700 22px ${JP}`; ctx.fillStyle = 'rgba(250,220,160,0.22)'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.fillText('持駒', 0, 0);
   ctx.restore();
@@ -109,19 +109,37 @@ function paintBoard(ctx, g) {
   for (const [r, c] of stars) { ctx.beginPath(); ctx.arc(gx + c * cell, gy + r * cell, 4.6, 0, TAU); ctx.fill(); }
 }
 
-const layers = {};
-export function paintLayers(ctx, kind, arg, draw) {
-  const key = kind + arg;
-  let l = layers[key];
+// Cached layers. A layer is painted once (offscreen, `K`x resolution) and drawn scaled; a handful are kept so resizing never leaks.
+const layers = new Map();
+function getLayer(key, w, h, K, draw) {
+  let l = layers.get(key);
   if (l === undefined) {
     l = null;
     try {
-      if (typeof OffscreenCanvas !== 'undefined') { const c = new OffscreenCanvas(W * 2, H * 2), lc = c.getContext('2d'); lc.scale(2, 2); draw(lc); l = c; }
+      if (typeof OffscreenCanvas !== 'undefined') { const c = new OffscreenCanvas(Math.ceil(w * K), Math.ceil(h * K)), lc = c.getContext('2d'); lc.scale(K, K); draw(lc); l = c; }
     } catch { l = null; }
-    layers[key] = l;
+    layers.set(key, l);
+    if (layers.size > 24) layers.delete(layers.keys().next().value);
   }
-  if (l) ctx.drawImage(l, 0, 0, W, H); else draw(ctx);
+  return l;
 }
-export const drawTable = (ctx) => paintLayers(ctx, 'table', '', paintTable);
-export const drawStands = (ctx) => paintLayers(ctx, 'stands', '', paintStands);
-export const drawBoard = (ctx, n) => paintLayers(ctx, 'board', n, (c) => paintBoard(c, geom(n)));
+// the table fills the whole screen; sizes are quantised so a drag-resize does not repaint it every frame
+export function drawTable(ctx, w, h) {
+  const qw = Math.max(16, Math.round(w / 32) * 32), qh = Math.max(16, Math.round(h / 32) * 32);
+  const l = getLayer(`table${qw}x${qh}`, qw, qh, 1.5, (c) => paintTable(c, qw, qh));
+  if (l) ctx.drawImage(l, 0, 0, w, h); else { ctx.save(); ctx.scale(w / qw, h / qh); paintTable(ctx, qw, qh); ctx.restore(); }
+}
+export function drawStand(ctx, st, top) {
+  const M = 30, r = st.rect, key = `stand${Math.round(r.w)}x${Math.round(r.h)}${top ? 't' : 'b'}${st.cols}${st.vertical ? 'v' : 'h'}`;
+  const l = getLayer(key, r.w + 2 * M, r.h + 2 * M, 2, (c) => { c.translate(M, M); paintStand(c, { ...st, rect: { x: 0, y: 0, w: r.w, h: r.h }, slot: (i) => { const p = st.slot(i); return { x: p.x - r.x, y: p.y - r.y }; }, label: { x: st.label.x - r.x, y: st.label.y - r.y } }, top); });
+  if (l) ctx.drawImage(l, r.x - M, r.y - M, r.w + 2 * M, r.h + 2 * M);
+  else { ctx.save(); ctx.translate(r.x, r.y); paintStand(ctx, { ...st, rect: { x: 0, y: 0, w: r.w, h: r.h }, slot: (i) => { const p = st.slot(i); return { x: p.x - r.x, y: p.y - r.y }; }, label: { x: st.label.x - r.x, y: st.label.y - r.y } }, top); ctx.restore(); }
+}
+// The board is painted once in canonical coordinates (geom(n)) and drawn at the live scale g.s with its slab at (g.bx, g.by).
+export function drawBoard(ctx, n, g) {
+  const c = geom(n), M = 80, bw = c.slab.w + 2 * M, bh = c.slab.h + c.thick + 2 * M;
+  const paint = (lc) => paintBoard(lc, c);
+  const l = getLayer(`board${n}`, bw, bh, 2, (lc) => { lc.translate(-(c.slab.x - M), -(c.slab.y - M)); paint(lc); });
+  if (l) ctx.drawImage(l, g.bx - M * g.s, g.by - M * g.s, bw * g.s, bh * g.s);
+  else { ctx.save(); ctx.translate(g.bx - c.slab.x * g.s, g.by - c.slab.y * g.s); ctx.scale(g.s, g.s); paint(ctx); ctx.restore(); }
+}

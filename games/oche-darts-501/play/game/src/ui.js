@@ -1,5 +1,6 @@
 // Shared drawing helpers for every screen: panels, flat buttons, wrapped text, the flow layout that scales with the
 // player's text size and scrolls when it no longer fits (so nothing can overflow or clip at 300%).
+import { W as VW } from './layout.js';
 export const FONT = "Georgia, 'Times New Roman', serif";
 export const NUM = "'Avenir Next Condensed', 'Arial Narrow', 'Helvetica Neue', Arial, sans-serif";
 export const C = {
@@ -159,7 +160,7 @@ export function flowLayout(ctx, widgets, scale, o = {}) {
 
 export function drawFlow(ctx, lay, top, bottom, scroll) {
   ctx.save();
-  ctx.beginPath(); ctx.rect(0, top, 720, bottom - top); ctx.clip();
+  ctx.beginPath(); ctx.rect(0, top, VW, bottom - top); ctx.clip();
   for (const it of lay.items) {
     const y = top + it.y - scroll;
     if (y > bottom || y + it.h < top) continue;

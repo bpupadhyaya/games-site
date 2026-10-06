@@ -8,7 +8,8 @@ import { SPECS, MODE_IDS, MODE_NAMES, legalMoves, isPlacing, wordsOf, countOf } 
 import { LEVELS } from './ai.js';
 import { LESSONS } from './lessons.js';
 import { tr, RULES } from './content.js';
-import { BACK_BTN, PAUSE_BTN, TOOLBAR_IDS, autoLayout, DOC_PANEL, NAV_PREV, NAV_NEXT, playLayout } from './layout.js';
+import { TOOLBAR_IDS, autoLayout, playLayout } from './layout.js';
+import { drawCredit, drawMoreLine, drawLockup, edgeStroke, drawBadgeStack } from './brand.js';
 import { THINK_STEPS, MODE_BLURB } from './screens.js';
 import { DROP_T, SLIDE_T, targetsOf, humanTurn } from './match.js';
 
@@ -46,7 +47,10 @@ function drawDocBlocks(ctx, S, ui, scroll) {
         text(ctx, it.lines[i], center ? ox + it.w / 2 : ox, top + i * it.line + it.size * 0.98, it.size, 'rgba(246,236,214,0.93)', { weight: 500, align: center ? 'center' : 'left' });
       }
     } else if (b.t === 'img') {
-      drawArt(ctx, S, b.name, ox, top, it.w, b.h, b);
+      const aw = Math.min(it.w, 640);
+      drawArt(ctx, S, b.name, ox + (it.w - aw) / 2, top, aw, b.h, b);
+    } else if (b.t === 'more') {
+      drawMoreLine(ctx, ox + it.w / 2, top + 34, 21);
     } else if (b.t === 'btn') {
       const bt = it.btns[0];
       button(ctx, th, { x: ox + bt.x, y: oy + bt.y, w: bt.w, h: bt.h }, it.lines, b.kind ?? 'normal', { size: it.size, line: it.line, sub: it.sub, disabled: bt.disabled, pressed: S.press && S.press.id === bt.id && S.press.active });
@@ -248,15 +252,19 @@ function drawArt(ctx, S, name, x, y, w, h, b) {
 const ATTRACT = [[1, 4], [2, 1], [1, 0], [2, 8], [1, 6], [2, 3], [1, 2]];
 const ATTRACT_STEP = 0.95;
 
-function drawAttract(ctx, S) {
-  const th = theme(S), t = S.t;
-  const side = 372, bx = (W - side) / 2, by = 392;
+// The hero (name, tagline, credit, attract board) is laid out in a 720 x 800 box at scale s from (hx, hy); small text keeps a minimum size.
+function drawHero(ctx, S, hx, hy, s) {
+  const th = theme(S), t = S.t, cx = hx + 360 * s;
+  const fs = (v) => Math.max(21, v * s);
+  const subY = hy + 316 * s, tagY = subY + Math.max(36 * s, fs(25) * 1.35), crY = tagY + Math.max(40 * s, 32);
+  const by = Math.max(hy + 424 * s, crY + 24);
+  const side = Math.max(60, Math.min(372 * s, hy + 790 * s - by)), bx = cx - side / 2;   // the board never runs past the hero box (the menu starts there)
   const cycle = ATTRACT.length * ATTRACT_STEP + 0.4 + 1.6 + 1.2;
   const tt = t % cycle;
   const geo = boardGeo('classic', bx, by, side);
-  const glow = ctx.createRadialGradient(W / 2, by + side / 2, 30, W / 2, by + side / 2, 340);
+  const glow = ctx.createRadialGradient(cx, by + side / 2, 30 * s, cx, by + side / 2, 340 * s);
   glow.addColorStop(0, th.glow); glow.addColorStop(1, 'rgba(0,0,0,0)');
-  ctx.fillStyle = glow; ctx.fillRect(0, by - 140, W, side + 280);
+  ctx.fillStyle = glow; ctx.fillRect(cx - 360 * s, by - 140 * s, 720 * s, side + 280 * s);
   drawSlab(ctx, th, bx, by, side);
   drawBoardLines(ctx, th, geo);
   const shown = Math.min(ATTRACT.length, Math.floor(tt / ATTRACT_STEP) + (tt >= 0 ? 1 : 0));
@@ -269,46 +277,50 @@ function drawAttract(ctx, S) {
   }
   const winK = clamp01((tt - (ATTRACT.length - 1) * ATTRACT_STEP - 0.5) / 0.55);
   if (winK > 0) ctx.save(), ctx.globalAlpha = fadeOut, drawWinLine(ctx, th, geo, [2, 4, 6], winK, 1), ctx.restore();
-  const g = ctx.createLinearGradient(0, 120, 0, 290);
+  const g = ctx.createLinearGradient(0, hy + 120 * s, 0, hy + 290 * s);
   g.addColorStop(0, light2(th.accent)); g.addColorStop(0.5, th.accent); g.addColorStop(1, '#a8782a');
   ctx.save();
-  ctx.shadowColor = 'rgba(0,0,0,0.65)'; ctx.shadowBlur = 24; ctx.shadowOffsetY = 8;
-  ctx.font = `800 100px ${DISPLAY}`; ctx.textAlign = 'center'; ctx.fillStyle = g;
-  ctx.fillText('Noughts', 360, 168);
-  ctx.font = `800 82px ${DISPLAY}`;
-  ctx.fillText('& Crosses', 360, 258);
+  ctx.shadowColor = 'rgba(0,0,0,0.65)'; ctx.shadowBlur = 24 * s; ctx.shadowOffsetY = 8 * s;
+  ctx.font = `800 ${100 * s}px ${DISPLAY}`; ctx.textAlign = 'center'; ctx.fillStyle = g;
+  ctx.fillText('Noughts', cx, hy + 168 * s);
+  ctx.font = `800 ${82 * s}px ${DISPLAY}`;
+  ctx.fillText('& Crosses', cx, hy + 258 * s);
   ctx.restore();
-  text(ctx, 'Tic-Tac-Toe  ·  Terni Lapilli  ·  Misère', 360, 316, 26, 'rgba(246,236,214,0.82)', { weight: 600 });
-  text(ctx, tr('tagline'), 360, 352, 25, 'rgba(246,236,214,0.6)', { weight: 500 });
+  text(ctx, 'Tic-Tac-Toe  ·  Terni Lapilli  ·  Misère', cx, subY, fs(26), 'rgba(246,236,214,0.82)', { weight: 600 });
+  text(ctx, tr('tagline'), cx, tagY, fs(25), 'rgba(246,236,214,0.6)', { weight: 500 });
 }
 const light2 = (c) => (c.length === 7 ? `rgb(${Math.min(255, parseInt(c.slice(1, 3), 16) + 70)},${Math.min(255, parseInt(c.slice(3, 5), 16) + 70)},${Math.min(255, parseInt(c.slice(5, 7), 16) + 70)})` : '#fff3c4');
 
-function drawTitle(ctx, S, ui) {
-  background(ctx, theme(S), S.t, 560);
-  drawAttract(ctx, S);
+function drawTitle(ctx, S, ui, L) {
+  const hr = ui.hero;
+  background(ctx, theme(S), S.t, hr.y + 560 * hr.s, L.w, L.h, hr.x + 360 * hr.s);
+  drawHero(ctx, S, hr.x, hr.y, hr.s);
+  if (L.wide) edgeStroke(ctx, { x: ui.region.x - 6, y: ui.region.y + 4, w: ui.region.w + 12, h: ui.region.h - 8 }, 26, 0.35);
   drawDocBlocks(ctx, S, ui, S.scroll[ui.scrollKey] ?? 0);
+  if (ui.lock) { const c = ui.lock, pad = c.h * 0.12, dim = S.press && S.press.kind === 'lock'; ctx.save(); ctx.globalAlpha = dim ? 0.7 : 1; ctx.fillStyle = 'rgba(10,8,24,0.55)'; ctx.beginPath(); ctx.roundRect(c.x - pad, c.y - pad, c.w + 2 * pad, c.h + 2 * pad, (c.h + 2 * pad) * 0.3); ctx.fill(); if (!drawLockup(ctx, c.x + c.w / 2, c.y + c.h, c.w, 1)) drawCredit(ctx, c.x + c.w / 2, c.y + c.h * 0.7, 20, { dim: 0.95 }); ctx.restore(); }
   drawFixed(ctx, S, ui.fixed);
 }
 
-function drawDocScreen(ctx, S, ui) {
+function drawDocScreen(ctx, S, ui, L) {
   const th = theme(S);
-  background(ctx, th, S.t);
+  background(ctx, th, S.t, 700, L.w, L.h);
   if (ui.panel) panel(ctx, th, ui.panel.x, ui.panel.y, ui.panel.w, ui.panel.h, {});
   drawDocBlocks(ctx, S, ui, S.scroll[ui.scrollKey] ?? 0);
   drawFixed(ctx, S, ui.fixed);
   if (ui.nav) {
     drawFixed(ctx, S, [ui.nav.prev, ui.nav.next]);
-    text(ctx, ui.nav.label, 360, 1500, 26, 'rgba(246,236,214,0.75)', { weight: 600 });
+    text(ctx, ui.nav.label, ui.nav.at.x, ui.nav.at.y, 26, 'rgba(246,236,214,0.75)', { weight: 600 });
   }
 }
 
-function drawOverlay(ctx, S, ui) {
+function drawOverlay(ctx, S, ui, L) {
   const th = theme(S);
   ctx.fillStyle = `rgba(6,4,4,${0.62 * clamp01(S.ovT / 0.25)})`;
-  ctx.fillRect(0, 0, W, H);
+  ctx.fillRect(0, 0, L.w, L.h);
   const k = ease(clamp01(S.ovT / 0.3));
+  const pcx = ui.panel.x + ui.panel.w / 2, pcy = ui.panel.y + ui.panel.h / 2;
   ctx.save();
-  ctx.translate(W / 2, H / 2); ctx.scale(0.92 + 0.08 * k, 0.92 + 0.08 * k); ctx.translate(-W / 2, -H / 2);
+  ctx.translate(pcx, pcy); ctx.scale(0.92 + 0.08 * k, 0.92 + 0.08 * k); ctx.translate(-pcx, -pcy);
   ctx.globalAlpha = k;
   panel(ctx, th, ui.panel.x, ui.panel.y, ui.panel.w, ui.panel.h, {});
   drawDocBlocks(ctx, S, ui, S.scroll[ui.scrollKey] ?? 0);
@@ -332,19 +344,20 @@ export function animMark(ctx, th, who, x, y, d, a, o = {}) {
 }
 
 // ------------------------------------------------------------------------------------------ play
-function drawHud(ctx, S, title, sub, showPause) {
+function drawHud(ctx, S, title, sub, P) {
   const th = theme(S);
+  const BACK_BTN = P.back;
   button(ctx, th, BACK_BTN, [], 'normal', { pressed: S.press && S.press.id === 'hud:back' && S.press.active });
   icon(ctx, 'back', BACK_BTN.x + BACK_BTN.w / 2, BACK_BTN.y + BACK_BTN.h / 2, 34, th.ink);
-  if (showPause) {
-    button(ctx, th, PAUSE_BTN, [], 'normal', { pressed: S.press && S.press.id === 'hud:pause' && S.press.active });
-    icon(ctx, 'pause', PAUSE_BTN.x + PAUSE_BTN.w / 2, PAUSE_BTN.y + PAUSE_BTN.h / 2, 34, th.ink);
+  if (P.hudPause) {
+    button(ctx, th, P.pause, [], 'normal', { pressed: S.press && S.press.id === 'hud:pause' && S.press.active });
+    icon(ctx, 'pause', P.pause.x + P.pause.w / 2, P.pause.y + P.pause.h / 2, 34, th.ink);
   }
-  const z = TEXT_SCALES[S.textIdx];
-  const tSize = fitOne(title, 480, 40 * (1 + (z - 1) * 0.25), 22);
-  text(ctx, title, 360, 58, tSize, th.ink, { font: DISPLAY, weight: 800, shadow: 'rgba(0,0,0,0.6)' });
-  const sSize = fitOne(sub, 480, 24 * (1 + (z - 1) * 0.3), 16);
-  text(ctx, sub, 360, 96, sSize, 'rgba(246,236,214,0.7)', { weight: 500 });
+  const z = TEXT_SCALES[S.textIdx], T = P.title, al = T.align;
+  const tSize = fitOne(title, T.w, 40 * (1 + (z - 1) * 0.25), 22);
+  text(ctx, title, T.x, T.y, tSize, th.ink, { font: DISPLAY, weight: 800, shadow: 'rgba(0,0,0,0.6)', align: al });
+  const sSize = fitOne(sub, T.w, 24 * (1 + (z - 1) * 0.3), 16);
+  text(ctx, sub, T.x, T.sub, sSize, 'rgba(246,236,214,0.7)', { weight: 500, align: al });
 }
 
 function drawPlate(ctx, S, r, who, name, sub, active, geoD) {
@@ -463,8 +476,24 @@ const nudge = (a, b, pad) => {
   return [a[0] + (dx / len) * pad, a[1] + (dy / len) * pad, b[0] - (dx / len) * pad, b[1] - (dy / len) * pad];
 };
 
-function drawToolbar(ctx, S, M, lay) {
+// One icon-over-label button (toolbar, Watch & Learn controls, landscape Pause). The icon shrinks to fit short buttons.
+function iconButton(ctx, S, r, id, ic, label, o = {}) {
   const th = theme(S), z = TEXT_SCALES[S.textIdx];
+  const pressed = S.press && S.press.id === id && S.press.active;
+  button(ctx, th, r, [], o.kind ?? 'normal', { disabled: o.off, pressed, radius: 22 });
+  const yy = r.y + (pressed ? 2 : 0);
+  ctx.save();
+  if (o.off) ctx.globalAlpha = 0.4;
+  const ink = o.kind === 'primary' ? th.primaryInk : th.ink;
+  const ls = fitOne(label, r.w - 16, (o.ls ?? 24) * (1 + (z - 1) * 0.6), 16);
+  const is = Math.max(22, Math.min((o.is ?? 44) * (1 + (z - 1) * 0.35), r.h - ls - 26));
+  const total = is + ls + 10;
+  icon(ctx, ic, r.x + r.w / 2, yy + (r.h - total) / 2 + is / 2, is, ink);
+  text(ctx, label, r.x + r.w / 2, yy + (r.h - total) / 2 + is + 10 + ls * 0.85, ls, ink, { weight: 700 });
+  ctx.restore();
+}
+
+function drawToolbar(ctx, S, M, lay) {
   const lesson = Boolean(M.lesson);
   const defs = {
     undo: { icon: 'undo', label: tr('undo'), off: M.over || lesson || !S.canUndo },
@@ -472,38 +501,20 @@ function drawToolbar(ctx, S, M, lay) {
     restart: { icon: 'reset', label: tr('restart'), off: lesson && !M.hist.length },
   };
   TOOLBAR_IDS.forEach((id, i) => {
-    const r = lay.tool[i], d = defs[id];
-    const pressed = S.press && S.press.id === `tool:${id}` && S.press.active;
-    button(ctx, th, r, [], id === 'think' ? 'primary' : 'normal', { disabled: d.off, pressed, radius: 22 });
-    const yy = r.y + (pressed ? 2 : 0);
-    ctx.save();
-    if (d.off) ctx.globalAlpha = 0.4;
-    const ink = id === 'think' ? th.primaryInk : th.ink;
-    const is = 44 * (1 + (z - 1) * 0.35);
-    const ls = fitOne(d.label, r.w - 20, 24 * (1 + (z - 1) * 0.6), 16);
-    const total = is + ls + 10;
-    icon(ctx, d.icon, r.x + r.w / 2, yy + (r.h - total) / 2 + is / 2, is, ink);
-    text(ctx, d.label, r.x + r.w / 2, yy + (r.h - total) / 2 + is + 10 + ls * 0.85, ls, ink, { weight: 700 });
-    ctx.restore();
+    const d = defs[id];
+    iconButton(ctx, S, lay.tool[i], `tool:${id}`, d.icon, d.label, { kind: id === 'think' ? 'primary' : 'normal', off: d.off });
   });
+  if (!lay.hudPause) iconButton(ctx, S, lay.pause, 'hud:pause', 'pause', tr('autoPause'), {});
 }
 
-function drawAutoBar(ctx, S, auto) {
-  const th = theme(S), z = TEXT_SCALES[S.textIdx], b = autoLayout(z);
+function drawAutoBar(ctx, S, auto, L) {
+  const th = theme(S), z = TEXT_SCALES[S.textIdx], b = autoLayout(L, z);
   const pr = (id) => S.press && S.press.id === id && S.press.active;
-  const side = (r, ic, label, off, id) => {
-    button(ctx, th, r, [], 'normal', { disabled: off, pressed: pr(id), radius: 22 });
-    ctx.save(); if (off) ctx.globalAlpha = 0.4;
-    const is = 40 * (1 + (z - 1) * 0.35), ls = fitOne(label, r.w - 20, 22 * (1 + (z - 1) * 0.6), 14), total = is + ls + 10, yy = r.y + (r.h - total) / 2;
-    icon(ctx, ic, r.x + r.w / 2, yy + is / 2, is, th.ink);
-    text(ctx, label, r.x + r.w / 2, yy + is + 10 + ls * 0.85, ls, th.ink, { weight: 700 });
-    ctx.restore();
-  };
-  side(b.slower, 'minus', tr('autoSlower'), S.thinkIdx === 0, 'auto:slower');
-  side(b.faster, 'plus', tr('autoFaster'), S.thinkIdx === THINK_STEPS.length - 1, 'auto:faster');
+  iconButton(ctx, S, b.slower, 'auto:slower', 'minus', tr('autoSlower'), { off: S.thinkIdx === 0, ls: 22, is: 40 });
+  iconButton(ctx, S, b.faster, 'auto:faster', 'plus', tr('autoFaster'), { off: S.thinkIdx === THINK_STEPS.length - 1, ls: 22, is: 40 });
   button(ctx, th, b.pause, [], 'primary', { pressed: pr('auto:pause'), radius: 22 });
   const lab = auto.paused ? tr('autoPlay') : tr('autoPause');
-  const ps = fitOne(lab, b.pause.w - 140, 32 * (1 + (z - 1) * 0.5), 18), is = 44 * (1 + (z - 1) * 0.3);
+  const ps = fitOne(lab, b.pause.w - 140, 32 * (1 + (z - 1) * 0.5), 18), is = Math.min(44 * (1 + (z - 1) * 0.3), b.pause.h - 24);
   icon(ctx, auto.paused ? 'play' : 'pause', b.pause.x + 52 + is / 2, b.pause.y + b.pause.h / 2, is, th.primaryInk);
   text(ctx, lab, b.pause.x + 52 + is + (b.pause.w - 52 - is) / 2 - 16, b.pause.y + b.pause.h / 2 + ps * 0.35, ps, th.primaryInk, { weight: 800 });
 }
@@ -515,14 +526,14 @@ const sideName = (M, who) => {
   return who === M.human ? tr('youWord') : LEVELS.find((l) => l.id === M.level)?.name ?? 'Computer';
 };
 
-function drawPlay(ctx, S) {
+function drawPlay(ctx, S, L) {
   const th = theme(S), M = S.match, z = TEXT_SCALES[S.textIdx];
-  background(ctx, th, S.t, 800);
+  const lay = playLayout(L, z);
+  background(ctx, th, S.t, lay.board.y + lay.board.side / 2, L.w, L.h, lay.board.x + lay.board.side / 2);
   const auto = S.scene === 'auto' ? S.auto : null;
-  const lay = playLayout(z);
   const title = M.lesson ? M.lesson.title : MODE_NAMES[M.mode];
   const sub = M.lesson ? `Lesson ${S.lessonIdx + 1} of ${LESSONS.length}` : auto ? `${tr('autoSession')} · ${tr('think')} ${THINK_STEPS[S.thinkIdx]}${tr('seconds')}` : M.two ? tr('twoPlayers') : `${tr('vsComputer')} · ${LEVELS.find((l) => l.id === M.level)?.name}`;
-  drawHud(ctx, S, title, sub, !auto);
+  drawHud(ctx, S, title, sub, auto ? { ...lay, hudPause: false } : lay);
   const st = M.st;
   const toMove = M.over ? 0 : st.turn;
   const plateSub = (who) => {
@@ -562,27 +573,28 @@ function drawPlay(ctx, S) {
     ctx.fillStyle = 'rgba(255,255,255,0.14)'; rr(ctx, lay.status.x + 24, lay.status.y + lay.status.h - 16, lay.status.w - 48, 7, 3.5); ctx.fill();
     ctx.fillStyle = th.accent; rr(ctx, lay.status.x + 24, lay.status.y + lay.status.h - 16, (lay.status.w - 48) * frac, 7, 3.5); ctx.fill();
   }
-  if (auto) drawAutoBar(ctx, S, auto); else drawToolbar(ctx, S, M, lay);
+  if (auto) drawAutoBar(ctx, S, auto, L); else drawToolbar(ctx, S, M, lay);
+  if (lay.badge) drawBadgeStack(ctx, lay.badge.x + lay.badge.w / 2, lay.badge.y + lay.badge.h - 4, Math.min(lay.badge.w - 30, 200));
 }
 
-export function render(ctx, S, ui) {
+export function render(ctx, S, ui, L) {
   ctx.textBaseline = 'alphabetic';
   switch (S.scene) {
-    case 'title': drawTitle(ctx, S, ui); break;
-    case 'setup': case 'learn': case 'howto': case 'rules': case 'about': case 'settings': drawDocScreen(ctx, S, ui); break;
+    case 'title': drawTitle(ctx, S, ui, L); break;
+    case 'setup': case 'learn': case 'howto': case 'rules': case 'about': case 'settings': drawDocScreen(ctx, S, ui, L); break;
     case 'demo-limit':
-      background(ctx, theme(S), S.t);
+      background(ctx, theme(S), S.t, 700, L.w, L.h);
       panel(ctx, theme(S), ui.panel.x, ui.panel.y, ui.panel.w, ui.panel.h, {});
       drawDocBlocks(ctx, S, ui, S.scroll[ui.scrollKey] ?? 0);
       drawFixed(ctx, S, ui.fixed);
       break;
     case 'play': case 'auto':
-      if (!S.match) { background(ctx, theme(S), S.t); break; }
-      drawPlay(ctx, S);
+      if (!S.match) { background(ctx, theme(S), S.t, 700, L.w, L.h); break; }
+      drawPlay(ctx, S, L);
       break;
-    default: background(ctx, theme(S), S.t);
+    default: background(ctx, theme(S), S.t, 700, L.w, L.h);
   }
-  if (S.overlay) drawOverlay(ctx, S, ui);
+  if (S.overlay) drawOverlay(ctx, S, ui, L);
 }
 
-export { RULES, DOC_PANEL, NAV_PREV, NAV_NEXT, H, W, UI, MODE_IDS, MODE_BLURB, legalMoves, wordsOf, countOf, star };
+export { RULES, UI, MODE_IDS, MODE_BLURB, legalMoves, wordsOf, countOf, star };

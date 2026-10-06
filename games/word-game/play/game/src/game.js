@@ -10,16 +10,15 @@
 import { WORDS } from './words.js';
 import { SCHEMES } from './schemes.js';
 import { RULES } from './content.js';
-import { render } from './render.js';
+import { render, pressLockup } from './render.js';
 import {
-  W, H, BAND_TOP, SLICE_H, SLICE_MARGIN, CHIP_H, slipWidth, inRect, REVIEW_PER_PAGE,
-  MODE_SYN_BTN, MODE_ANT_BTN, PLAY_BTN, TITLE_COLOR_BTN, TITLE_RULES_BTN, STOP_BTN, COLOR_BTN,
-  PREV_BTN, NEXT_BTN, PLAY_AGAIN_BTN, CHANGE_MODE_BTN, RULES_BACK_BTN, RULES_NEXT_BTN,
-  TEXT_SCALES, RULES_TEXT_DEC, RULES_TEXT_INC, TITLE_AUTOPLAY_BTN, THINK_STEPS, REVEAL_SECONDS,
-  AUTO_THINK_DEC, AUTO_THINK_INC, AUTO_STOP_BTN, AUTO_PAUSE_BTN, AUTO_COLOR_BTN,
+  W, H, BAND_TOP, SLICE_H, SLICE_MARGIN, slipWidth, inRect, layoutFor,
+  TEXT_SCALES, THINK_STEPS, REVEAL_SECONDS, wheelInput, rulesMetrics,
 } from './layout.js';
+export { wheelInput, rulesMetrics };
 
-export const meta = { width: W, height: H };
+// `meta.width/height` are updated live by the kit on every resize (fluid viewport); every rect comes from layoutFor().
+export const meta = { width: W, height: H, fluid: { short: 720 } };
 
 const SESSION_SECONDS = 90;
 // Web preview (env.config.demo) is a taste of the full iOS/Android game: only a couple of full
@@ -33,6 +32,7 @@ const SPEED_CAP_BONUS = 260;
 const SPEED_JITTER = 40;
 
 const KEY_CODES = ['Digit1', 'Digit2', 'Digit3'];
+const lay = () => layoutFor(meta.width, meta.height);
 
 export function createGame(env) {
   const { rng, storage, monetization, audio, config } = env;
@@ -50,7 +50,7 @@ export function createGame(env) {
     sessionsCompleted: 0,
     history: [], // this session's answers: { word, mode, answer, picked (null = drifted past), correct }
     reviewPage: 0,
-    rulesPage: 0,
+    rulesScroll: 0, // pixels scrolled in the Rules reader
     textScaleIdx: 0, // index into TEXT_SCALES (Rules reference text size), never a raw float
     scheme: 0,
     demo,
@@ -155,7 +155,7 @@ export function createGame(env) {
           // Auto Play never drifts words in from off-screen (updateAutoplay never moves them - the
           // whole point is that the state sits still for THINK/REVEAL) - it rests them on-screen,
           // centred, right away instead of spawning where real play's drift-in starts from.
-          x: state.autoPlay ? W / 2 : meta.width + 20 + driftX,
+          x: state.autoPlay ? W / 2 : W + 20 + driftX,
           y: rng.range(sliceTop, sliceBottom),
           vy: rng.range(-30, 30),
           sliceTop,
@@ -252,6 +252,7 @@ export function createGame(env) {
       kind: hit ? 'right' : picked === null ? 'miss' : 'wrong',
       x: picked === null ? 0 : Math.max(shown.w / 2 + 12, Math.min(W - shown.w / 2 - 12, shown.x)),
       y: shown.y,
+      slot: shown.slot,
       w: shown.w,
       text: shown.text,
       t: 0,
@@ -267,46 +268,71 @@ export function createGame(env) {
 
   const updateTitle = (input) => {
     if (!input.pointer.pressed) return;
-    const { x, y } = input.pointer;
-    if (inRect(x, y, MODE_SYN_BTN)) {
+    const { x, y } = input.pointer, T = lay().title;
+    if (inRect(x, y, T.lockHit)) {
+      pressLockup();
+      env.openArcforgeHome?.();
+    } else if (inRect(x, y, T.modeSyn)) {
       state.selectedMode = 'synonym';
       pressed('syn');
-    } else if (inRect(x, y, MODE_ANT_BTN)) {
+    } else if (inRect(x, y, T.modeAnt)) {
       state.selectedMode = 'antonym';
       pressed('ant');
-    } else if (inRect(x, y, PLAY_BTN)) startSession();
-    else if (inRect(x, y, TITLE_COLOR_BTN)) {
+    } else if (inRect(x, y, T.play)) startSession();
+    else if (inRect(x, y, T.colour)) {
       cycleScheme();
       pressed('colour');
-    } else if (inRect(x, y, TITLE_RULES_BTN)) {
-      state.rulesPage = 0;
+    } else if (inRect(x, y, T.rules)) {
+      state.rulesScroll = 0;
+      drag = null;
       setScene('rules');
       pressed('rules');
-    } else if (inRect(x, y, TITLE_AUTOPLAY_BTN)) {
+    } else if (inRect(x, y, T.auto)) {
       pressed('autoplay');
       startAutoplay();
     }
   };
 
-  // Back steps back one page, only returning to the title from page 1 (every platform shell also
-  // has its own native back button, so an in-canvas step-back can never strand a player). Next
-  // exits to the title ("Done") from the last page instead of wrapping back to page 1.
+  // Rules: a scrolling reader (drag, wheel, keys, scroll bar). Back leaves for the title; Next pages down and
+  // turns into "Done" at the bottom. Every platform shell may also have its own back button.
+  let drag = null;
   const updateRules = (input) => {
-    if (!input.pointer.pressed) return;
-    const { x, y } = input.pointer;
-    if (inRect(x, y, RULES_BACK_BTN)) {
-      if (state.rulesPage > 0) state.rulesPage -= 1;
-      else setScene('title');
-    } else if (inRect(x, y, RULES_NEXT_BTN)) {
-      if (state.rulesPage >= RULES.length - 1) setScene('title');
-      else state.rulesPage += 1;
+    const Q = lay().rules, p = input.pointer, keys = input.keys.pressed;
+    const setScroll = (v) => { state.rulesScroll = Math.max(0, Math.min(v, rulesMetrics.max)); };
+    if (wheelInput.dy) { setScroll(state.rulesScroll + wheelInput.dy); wheelInput.dy = 0; }
+    if (keys.has('ArrowDown')) setScroll(state.rulesScroll + 70);
+    if (keys.has('ArrowUp')) setScroll(state.rulesScroll - 70);
+    if (keys.has('PageDown') || keys.has('Space')) setScroll(state.rulesScroll + rulesMetrics.view * 0.9);
+    if (keys.has('PageUp')) setScroll(state.rulesScroll - rulesMetrics.view * 0.9);
+    if (keys.has('Home')) setScroll(0);
+    if (keys.has('End')) setScroll(rulesMetrics.max);
+    if (p.pressed) {
+      if (inRect(p.x, p.y, Q.scrollbar)) drag = { bar: true };
+      else if (inRect(p.x, p.y, Q.viewport)) drag = { y0: p.y, s0: state.rulesScroll };
+    }
+    if (drag) {
+      if (!p.down) drag = null;
+      else if (drag.bar) setScroll(((p.y - Q.scrollbar.y) / Q.scrollbar.h) * (rulesMetrics.max + rulesMetrics.view) - rulesMetrics.view / 2);
+      else setScroll(drag.s0 - (p.y - drag.y0));
+    }
+    state.rulesScroll = Math.max(0, Math.min(state.rulesScroll, rulesMetrics.max));
+    if (!p.pressed) return;
+    const { x, y } = p;
+    if (inRect(x, y, Q.back)) {
+      drag = null;
+      setScene('title');
+    } else if (inRect(x, y, Q.next)) {
+      if (state.rulesScroll >= rulesMetrics.max - 1) setScene('title');
+      else setScroll(state.rulesScroll + rulesMetrics.view * 0.85);
       pressed('rulesNext');
-    } else if (inRect(x, y, RULES_TEXT_DEC) && state.textScaleIdx > 0) {
+    } else if (inRect(x, y, Q.dec) && state.textScaleIdx > 0) {
       state.textScaleIdx -= 1;
+      state.rulesScroll = 0;
       storage.set('textScaleIdx', state.textScaleIdx);
       pressed('textDec');
-    } else if (inRect(x, y, RULES_TEXT_INC) && state.textScaleIdx < TEXT_SCALES.length - 1) {
+    } else if (inRect(x, y, Q.inc) && state.textScaleIdx < TEXT_SCALES.length - 1) {
       state.textScaleIdx += 1;
+      state.rulesScroll = 0;
       storage.set('textScaleIdx', state.textScaleIdx);
       pressed('textInc');
     }
@@ -336,16 +362,18 @@ export function createGame(env) {
     // second input in the same tick (e.g. a key alongside a tap) score twice on words that no
     // longer exist.
     if (input.pointer.pressed) {
-      if (inRect(input.pointer.x, input.pointer.y, COLOR_BTN)) {
+      const L = lay(), P = L.play;
+      if (inRect(input.pointer.x, input.pointer.y, P.colour)) {
         cycleScheme();
         pressed('colour');
         return;
       }
-      if (inRect(input.pointer.x, input.pointer.y, STOP_BTN)) {
+      if (inRect(input.pointer.x, input.pointer.y, P.stop)) {
         endSession();
         return;
       }
-      const hit = round.words.find((w) => input.pointer.x >= w.x - w.w / 2 && input.pointer.x <= w.x + w.w / 2 && input.pointer.y >= w.y - CHIP_H / 2 && input.pointer.y <= w.y + CHIP_H / 2);
+      // words are tested where they are drawn (lane space -> this screen), a little generously for fingers
+      const hit = round.words.find((w) => Math.abs(input.pointer.x - L.wordX(w.x)) <= L.slipW(w.text) / 2 + 6 && Math.abs(input.pointer.y - L.wordY(w.slot, w.y)) <= L.chipH / 2 + 8 && inRect(input.pointer.x, input.pointer.y, P.band));
       if (hit) {
         resolveRound(hit.text);
         return;
@@ -378,13 +406,14 @@ export function createGame(env) {
   // function; the shared presentation clocks (state.t/sceneT/press/fx) are withheld too, in the
   // top-level update() below, so a paused screenshot never looks subtly alive.
   const updateAutoplay = (dt, input) => {
+    const P = lay().play;
     if (input.pointer.pressed) {
-      if (inRect(input.pointer.x, input.pointer.y, AUTO_PAUSE_BTN)) {
+      if (inRect(input.pointer.x, input.pointer.y, P.apause)) {
         state.autoPaused = !state.autoPaused;
         pressed('autoPause');
         return;
       }
-      if (inRect(input.pointer.x, input.pointer.y, AUTO_STOP_BTN)) {
+      if (inRect(input.pointer.x, input.pointer.y, P.aexit)) {
         exitAutoplay();
         return;
       }
@@ -397,18 +426,18 @@ export function createGame(env) {
       return;
     }
     if (input.pointer.pressed) {
-      if (inRect(input.pointer.x, input.pointer.y, AUTO_COLOR_BTN)) {
+      if (inRect(input.pointer.x, input.pointer.y, P.acolour)) {
         cycleScheme();
         pressed('colour');
         return;
       }
-      if (inRect(input.pointer.x, input.pointer.y, AUTO_THINK_DEC) && state.autoThinkIdx > 0) {
+      if (inRect(input.pointer.x, input.pointer.y, P.dec) && state.autoThinkIdx > 0) {
         state.autoThinkIdx -= 1;
         storage.set('autoThinkIdx', state.autoThinkIdx);
         pressed('thinkDec');
         return;
       }
-      if (inRect(input.pointer.x, input.pointer.y, AUTO_THINK_INC) && state.autoThinkIdx < THINK_STEPS.length - 1) {
+      if (inRect(input.pointer.x, input.pointer.y, P.inc) && state.autoThinkIdx < THINK_STEPS.length - 1) {
         state.autoThinkIdx += 1;
         storage.set('autoThinkIdx', state.autoThinkIdx);
         pressed('thinkInc');
@@ -437,34 +466,25 @@ export function createGame(env) {
     const wrong = state.history.filter((h) => !h.correct);
     return wrong.concat(state.history.filter((h) => h.correct));
   };
-  const reviewPages = () => Math.max(1, Math.ceil(state.history.length / REVIEW_PER_PAGE));
+  const reviewPages = () => Math.max(1, Math.ceil(state.history.length / lay().over.perPage));
 
   const updateGameover = (input) => {
+    state.reviewPage = Math.min(state.reviewPage, reviewPages() - 1); // a rotation can change the page size
     if (!input.pointer.pressed) return;
-    const { x, y } = input.pointer;
-    if (state.autoPlay) {
-      // Auto Play's own end-of-session CTAs: "Watch Again" replays a fresh Auto Play session,
-      // "Exit to Menu" leaves Auto Play for good (both drawn in render.js's 'gameover' branch).
-      if (inRect(x, y, PLAY_AGAIN_BTN)) startAutoplay();
-      else if (inRect(x, y, CHANGE_MODE_BTN)) exitAutoplay();
-      else if (inRect(x, y, PREV_BTN)) {
-        state.reviewPage = Math.max(0, state.reviewPage - 1);
-        pressed('prev');
-      } else if (inRect(x, y, NEXT_BTN)) {
-        state.reviewPage = Math.min(reviewPages() - 1, state.reviewPage + 1);
-        pressed('next');
-      }
-      return;
-    }
-    if (inRect(x, y, PLAY_AGAIN_BTN)) startSession();
-    else if (inRect(x, y, CHANGE_MODE_BTN)) setScene('title');
-    else if (inRect(x, y, PREV_BTN)) {
+    const { x, y } = input.pointer, O = lay().over;
+    if (inRect(x, y, O.prev)) {
       state.reviewPage = Math.max(0, state.reviewPage - 1);
       pressed('prev');
-    } else if (inRect(x, y, NEXT_BTN)) {
+    } else if (inRect(x, y, O.next)) {
       state.reviewPage = Math.min(reviewPages() - 1, state.reviewPage + 1);
       pressed('next');
-    }
+    } else if (state.autoPlay) {
+      // Auto Play's own end-of-session CTAs: "Watch Again" replays a fresh Auto Play session,
+      // "Exit to Menu" leaves Auto Play for good (both drawn in render.js's 'gameover' branch).
+      if (inRect(x, y, O.again)) startAutoplay();
+      else if (inRect(x, y, O.change)) exitAutoplay();
+    } else if (inRect(x, y, O.again)) startSession();
+    else if (inRect(x, y, O.change)) setScene('title');
   };
 
   return {
@@ -485,11 +505,12 @@ export function createGame(env) {
       else if (state.scene === 'autoplay') updateAutoplay(dt, input);
       else if (state.scene === 'gameover') updateGameover(input);
       else if (state.scene === 'rules') updateRules(input);
+      if (state.scene !== 'rules') wheelInput.dy = 0;
       // 'demo-limit': input is a deliberate no-op — see design/GDD.md "Demo cut".
     },
 
     render(ctx) {
-      render(ctx, state, env.manifest.title, DEMO_SESSION_LIMIT);
+      render(ctx, state, env.manifest.title, DEMO_SESSION_LIMIT, layoutFor(meta.width, meta.height), env);
     },
 
     getState() {

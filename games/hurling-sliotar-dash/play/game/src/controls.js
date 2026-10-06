@@ -4,6 +4,10 @@
 // pointer is used the same way.
 import { hudLayout, inRect, inCircle } from './layout.js';
 
+// Screen direction (right, up) -> court direction (x, z). Portrait: the camera looks down the pitch (right = +x, up = +z). Landscape: the camera is on the
+// near sideline looking across it, own goal on the left (right = +z, up = -x), so the stick and arrow keys turn with the picture.
+const toWorld = (right, up, side) => (side ? [-up, right] : [right, up]);
+
 export function createControls() {
   const st = { binds: new Map(), stick: null, down: false, pending: { pass: false, rise: false, hook: false, burst: false, pause: false, think: false }, prevKeys: new Set() };
 
@@ -17,7 +21,7 @@ export function createControls() {
   }
 
   // touches: [{ id, x, y }] currently down (virtual coordinates). keys: Set of codes currently held; pressedKeys: codes pressed this tick.
-  function update(touches, lay, keys, pressedKeys) {
+  function update(touches, lay, keys, pressedKeys, side = false) {
     const live = new Set(touches.map((t) => t.id));
     for (const [id, b] of [...st.binds]) {
       if (!live.has(id)) {
@@ -45,12 +49,12 @@ export function createControls() {
     if (st.stick) {
       const dx = st.stick.x - st.stick.ox, dy = st.stick.y - st.stick.oy, R = lay.stick.r;
       const m = Math.min(1, Math.hypot(dx, dy) / R);
-      if (m > 0.08) { const a = Math.atan2(dy, dx); mx = Math.cos(a) * m; mz = -Math.sin(a) * m; }
+      if (m > 0.08) { const a = Math.atan2(dy, dx); [mx, mz] = toWorld(Math.cos(a) * m, -Math.sin(a) * m, side); }
     }
     // keyboard
     const kx = (keys.has('ArrowRight') || keys.has('KeyD') ? 1 : 0) - (keys.has('ArrowLeft') || keys.has('KeyA') ? 1 : 0);
     const kz = (keys.has('ArrowUp') || keys.has('KeyW') ? 1 : 0) - (keys.has('ArrowDown') || keys.has('KeyS') ? 1 : 0);
-    if (kx || kz) { const l = Math.hypot(kx, kz); mx = kx / l; mz = kz / l; }
+    if (kx || kz) { const l = Math.hypot(kx, kz); [mx, mz] = toWorld(kx / l, kz / l, side); }
     const strikeDown = st.strikeId != null || keys.has('Space');
     const out = {
       mx, mz, sprint: keys.has('ShiftLeft') || keys.has('ShiftRight'), down: strikeDown,

@@ -51,12 +51,12 @@ export const HOWTO = [
 
 export const RULES = [
   { title: 'The pitch and the goals', art: 'pitch', p: [
-    `The pitch is ${PL} m long and ${PW} m wide, drawn with the goals at the top and bottom. It never moves, zooms or turns. Each goal is ${GOAL_HW * 2} m wide and ${GOAL_H} m high with a net behind it.`,
+    `The pitch is ${PL} m long and ${PW} m wide, drawn with a goal at each end: at the top and bottom when you hold the phone upright, at the left and right when you turn it sideways. The view never pans, zooms or shakes. Each goal is ${GOAL_HW * 2} m wide and ${GOAL_H} m high with a net behind it.`,
     `Each penalty area is ${BOX_HW * 2} m wide and ${BOX_D} m deep. The penalty spot is ${SPOT} m from the goal line. The centre circle has a radius of ${CIRCLE_R} m.`,
   ] },
   { title: 'The teams', art: 'roles', p: [
     'Each team has seven players: a goalkeeper, two defenders (left and right), a central midfielder, two wingers (left and right) and a striker. You control one player for the whole match. Everyone else is a computer player.',
-    'Your team plays from the bottom of the screen towards the top. The opponents defend the top goal. Teams do not change ends at half time.',
+    'Your team plays from the bottom of the screen towards the top (from left to right when the phone is sideways). The opponents defend the far goal. Teams do not change ends at half time.',
   ] },
   { title: 'The match', p: [
     'A match has two halves of 2, 3 or 5 minutes. You choose before the match. The clock runs only while the ball is in play and stops during goals, restarts and fouls.',

@@ -523,3 +523,33 @@ export const ABOUT_PAGES = [
     { t: 'computer.' },
   ] },
 ];
+
+// ---- one continuous document per reader (no pages) --------------------------------------------------------------
+// The page lists above are cut mid-sentence to fit short pages. The scrolling readers re-join them: consecutive pages of the
+// same topic become one section, and text fragments that do not end a sentence are joined to the next one. Same words, same order.
+const endsSentence = (s) => /[.!?:]["')\]]?$/.test(s.trim());
+function mergeItems(pages, key, extra) {
+  const secs = [];
+  for (const pg of pages) {
+    const name = pg[key];
+    let sec = secs[secs.length - 1];
+    if (!sec || sec.name !== name) { sec = { name, items: [], open: false, pending: [] }; secs.push(sec); }
+    for (const it of (pg.items ?? pg.lines.map((t) => ({ t })))) {
+      if (it.h) { sec.items.push({ h: it.h }); sec.open = false; continue; }
+      if (sec.open) { const last = sec.items[sec.items.length - 1]; last.t += ' ' + it.t; } else sec.items.push({ t: it.t });
+      sec.open = !endsSentence(sec.items[sec.items.length - 1].t);
+    }
+    if (pg.pieces && !sec.pieces) sec.pieces = pg.pieces;
+    if (extra && pg[extra]) sec.pending.push(sec.items.length);   // the illustration goes after the paragraphs of that page
+  }
+  return secs;
+}
+export const flowOf = (sc) => {
+  if (flowOf.cache[sc]) return flowOf.cache[sc];
+  const secs = sc === 'rules' ? mergeItems(GAME_RULES.map((p) => ({ ...p, section: p.title })), 'section')
+    : sc === 'howto' ? mergeItems(HOWTO_PAGES, 'section', 'illustration')
+    : mergeItems(ABOUT_PAGES.map((p) => ({ ...p, section: 'about' })), 'section');
+  for (const s of secs) { if (s.pending.length) { const at = s.pending[0]; const k = s.items.findIndex((it, i) => i >= at - 1 && it.t); s.illusAt = Math.max(1, at); } }
+  return (flowOf.cache[sc] = secs);
+};
+flowOf.cache = {};

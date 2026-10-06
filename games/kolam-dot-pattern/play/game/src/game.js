@@ -1,6 +1,6 @@
 // GAME CONTRACT (docs/GAME-CONTRACT.md). Kolam: draw one unbroken line around every dot. 72 patterns, a solver behind Think and Watch & Learn,
 // a Learn path, a daily pattern and a free-draw Sandbox with mirrors.
-import { SCREEN, inRect, hudOf, playLayout, autoLayout, sandboxLayout } from './layout.js';
+import { inRect, hudOf, playLayout, autoLayout, sandboxLayout, setScreen } from './layout.js';
 import { TEXT_SCALES, hitDoc, clampScroll } from './ui.js';
 import { buildUi, THINK_STEPS, DEMO_PUZZLES, chapterStats } from './screens.js';
 import { CHAPTERS, ALL_IDS, chapterIds, puzzleById, chapterOf, lessonPuzzle, LESSON_COUNT, orderOf } from './puzzles.js';
@@ -11,9 +11,11 @@ import * as P from './play.js';
 import { SB_GRIDS, makeSandbox, pressSb, moveSb, releaseSb, undoSb, clearSb, weave, encodeSb, decodeSb, modeOf, drawnCount } from './sandbox.js';
 import { render } from './view.js';
 
-export const meta = { width: SCREEN.width, height: SCREEN.height };
+// Fluid viewport (kit 1.7.x): the short side is always 720 units, the long side follows the screen; the kit keeps meta.width/height live and
+// every rectangle comes from layout.js for that size.
+export const meta = { width: 720, height: 1560, fluid: { short: 720 } };
 
-const VERSION = '1.0.0';
+const VERSION = '1.1.0';
 const AUTO_PUZZLES = ['p1-4', 'p1-5', 'p2-3'];
 const ATTRACT_PUZZLE = 'p2-3';
 const STRAY_PX = 260;
@@ -26,7 +28,7 @@ export async function createGame(env) {
     scene: 'title', overlay: null, t: 0, ovT: 0, sound: true, themeId: 'stone', textIdx: 0, thinkIdx: 1, check: false,
     results: {}, saves: {}, openIds: {}, lastId: null, lessons: {}, daily: { streak: 0, last: -1 }, demoIds: [], demoCount: 0,
     page: { howto: 0, rules: 0 }, scroll: {}, scrollVel: {}, press: null, match: null, auto: null, chapterIdx: 0, lessonIdx: 0, endInfo: null,
-    demo: Boolean(config?.demo), dev: Boolean(config?.dev), owns: false, price: '', resetArm: false, version: VERSION, shot: false, lastPtr: { x: 0, y: 0 },
+    demo: Boolean(config?.demo), dev: Boolean(config?.dev), owns: false, price: '', resetArm: false, version: env.manifest?.version || VERSION, shot: false, lastPtr: { x: 0, y: 0 },
     cont: null, dailyDone: false, dailyId: null, attract: null, kbd: false, sb: null, sbClearArm: 0,
   };
 
@@ -283,7 +285,7 @@ export async function createGame(env) {
   if (shotSeed) stageShot(shotSeed);
 
   // ------------------------------------------------------------------------------ ui plumbing
-  const getScroll = (ui) => S.scroll[ui.scrollKey] ?? 0;
+  const getScroll = (ui) => (ui.layout && ui.region ? clampScroll(S.scroll[ui.scrollKey] ?? 0, ui.layout.height, ui.region.h) : 0);
   const setScroll = (ui, v) => { if (ui.layout && ui.region) S.scroll[ui.scrollKey] = clampScroll(v, ui.layout.height, ui.region.h); };
   function gotoScene(scene) {
     S.scene = scene; S.overlay = null; S.press = null; S.resetArm = false; S.scrollVel = {};
@@ -329,6 +331,7 @@ export async function createGame(env) {
 
   function activate(id) {
     if (id == null) return;
+    if (id === 'arcforge') { env.openArcforgeHome?.(); return; }
     if (id === 'zoom-') { setText(-1); return; }
     if (id === 'zoom+') { setText(1); return; }
     if (id.startsWith('theme:')) { S.themeId = id.slice(6); saveSettings(); SOUNDS.ui(); return; }
@@ -404,6 +407,9 @@ export async function createGame(env) {
     const f = fixedHit(ui, x, y);
     if (f) { S.press = { id: f.id, active: true, kind: 'fixed', rect: f.rect }; return; }
     const reg = ui.region;
+    if (ui.layout.height > reg.h && inRect(x, y, { x: reg.x + reg.w + 2, y: reg.y, w: 26, h: reg.h })) {       // grab the scroll bar
+      S.press = { id: null, active: false, kind: 'bar', ui }; S.scrollVel = {}; barTo(ui, y); return;
+    }
     if (inRect(x, y, { x: reg.x - 6, y: reg.y - 4, w: reg.w + 12, h: reg.h + 8 })) {
       const hit = hitDoc(ui.layout, x - reg.x, y - reg.y - (ui.offY || 0) + getScroll(ui));
       const ok = Boolean(hit && !hit.disabled);
@@ -412,10 +418,18 @@ export async function createGame(env) {
     } else S.press = null;
   }
 
+  // drag the scroll bar: the thumb follows the finger / mouse
+  function barTo(ui, y) {
+    const reg = ui.region, over = ui.layout.height - reg.h, track = reg.h - 8, tH = Math.max(48, (reg.h / ui.layout.height) * track);
+    const f = Math.min(1, Math.max(0, (y - reg.y - 4 - tH / 2) / Math.max(1, track - tH)));
+    setScroll(ui, f * over);
+  }
+
   function onMove(x, y, dt) {
     const pr = S.press;
     if (!pr) return;
     if (pr.kind === 'stroke') { strokeMove(x, y); return; }
+    if (pr.kind === 'bar') { const ui = buildUi(S); if (ui.layout && ui.region && ui.scrollKey === pr.ui.scrollKey) barTo(ui, y); return; }
     if (pr.kind === 'doc') {
       const ui = buildUi(S);
       if (!ui.layout || !ui.region) { S.press = null; return; }
@@ -429,6 +443,7 @@ export async function createGame(env) {
     S.press = null;
     if (!pr) return;
     if (pr.kind === 'stroke') { endStroke(); return; }
+    if (pr.kind === 'bar') return;
     if (pr.kind === 'doc') {
       const ui = buildUi(S);
       if (!ui.layout || !ui.region) return;
@@ -519,12 +534,28 @@ export async function createGame(env) {
     }
     if (has('Escape') && ['chapters', 'learn', 'howto', 'rules', 'about', 'settings', 'demo-limit', 'daily'].includes(S.scene)) gotoScene('title');
     if (has('Escape') && S.scene === 'patterns') gotoScene('chapters');
-    if (S.scene === 'howto' || S.scene === 'rules') { if (has('ArrowRight')) activate('next'); if (has('ArrowLeft')) activate('prev'); }
   }
+
+  // ------------------------------------------------------------------------------ live size (rotation, resizable windows)
+  // The layout follows meta.width/height. When the size changes while a finger is down, the stroke is cleanly ended (the drawn line, the saved
+  // progress and the open puzzle all stay); the player simply lifts and carries on in the new layout.
+  let sizeKey = '';
+  function syncSize() {
+    const k = `${meta.width}x${meta.height}`;
+    if (k === sizeKey) return;
+    const first = sizeKey === '';
+    setScreen(meta.width, meta.height);
+    sizeKey = k;
+    if (first) return;
+    if (S.press && (S.press.kind === 'stroke' || S.press.kind === 'bar')) { if (S.press.kind === 'stroke') endStroke(); S.press = null; }
+    else if (S.press) S.press = null;
+  }
+  setScreen(meta.width, meta.height);
 
   // ------------------------------------------------------------------------------ main loop
   return {
     update(dt, input) {
+      syncSize();
       const frozen = (S.scene === 'auto' && S.auto && S.auto.paused) || S.overlay === 'pause';
       if (!frozen) S.t += dt;
       if (S.overlay) S.ovT += dt;
@@ -557,7 +588,7 @@ export async function createGame(env) {
       } else if (S.scene === 'auto' && S.auto && M) { updateAuto(dt); if (M.reveal) stepReveal(M); }
     },
 
-    render(ctx) { render(ctx, S, buildUi(S)); },
+    render(ctx) { syncSize(); render(ctx, S, buildUi(S)); },
 
     getState() {
       const M = S.match;
@@ -576,6 +607,8 @@ export async function createGame(env) {
 
     // The preview clock counts real play only. Menus, chapter lists, Learn (lessons), Rules / How to Play / About, Settings, every overlay
     // (pause, result, Watch & Learn summary), the demo card, Watch & Learn and a finished pattern's celebration are all free time.
+    ...(S.dev ? { dbg: { S, stagePlay, stageShot, startAuto, puzzleById, makeSandbox, weave, rng } } : {}),
+
     isPreviewExempt: () => S.shot || (S.scene !== 'play' && S.scene !== 'sandbox') || Boolean(S.overlay) || Boolean(S.match && S.scene === 'play' && (S.match.lesson !== null || S.match.reveal)),
   };
 

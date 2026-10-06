@@ -242,3 +242,20 @@ export const RULES = [
     ],
   },
 ];
+
+// The reader scrolls ONE continuous document: the short pages above are merged into sections (a title plus paragraphs).
+// Pages whose titles share a base ("Setup", "Setup: the goats") join one section.
+let flowCache = null;
+export function flowRules() {
+  if (flowCache) return flowCache;
+  const out = [];
+  for (const pg of RULES) {
+    const base = pg.title.replace(/:.*$/, '');
+    let sec = out[out.length - 1];
+    if (!sec || sec.title !== base) { sec = { title: base, piece: null, lines: [] }; out.push(sec); }
+    if (pg.piece) sec.piece = pg.piece;
+    sec.lines.push(...pg.lines);
+  }
+  flowCache = out;
+  return out;
+}

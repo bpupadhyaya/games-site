@@ -4,7 +4,7 @@
 // only the first page of a section carries one, continuation pages carry none. A page that also
 // carries a title, `demo` or `stones` illustration gets an even shorter sentence, since that art
 // eats into the same fixed-height reader card.
-export const HELP_PAGES = [
+const RAW_HELP = [
   { title: 'The goal', demo: { cells: ['B', 'W', '.', 'W', '.'], hop: [0, [1, 3], 4] },
     body: ['Black and white stones fill the slab.'] },
   { body: ['Each turn you JUMP one of your stones over a touching enemy stone into the empty square right behind it.'] },
@@ -42,7 +42,7 @@ export const HELP_PAGES = [
 // Exhaustive rules reference (verified against web/src/rules.js, the authoritative rule book). Rulebook tone, not tutorial tone.
 // Split into short, single-concept pages (usually one sentence, occasionally a clause) so every
 // page still fits the reader card at 300% text size.
-export const RULES = [
+const RAW_RULES = [
   { title: 'The papamū and stones', body: ['This version is played on a square board (a papamū) of your choice: 6x6, 8x8 or 10x10 points,'] },
   { body: ['picked on the New game screen before a match starts.'] },
   { body: ['At the start every point is filled in a strict checkerboard pattern:'] },
@@ -101,7 +101,7 @@ export const RULES = [
 ];
 // Split into short, single-concept pages (usually one sentence) so every page still fits the
 // reader card at 300% text size.
-export const ABOUT = [
+const RAW_ABOUT = [
   { title: 'A game of Hawaii', body: ['Konane (written konane or with a macron, kōnane) is a'] },
   { body: ['traditional strategy game of Hawaii for two players.'] },
   { body: ['It is played on a rectangular grid with black and white pieces.'] },
@@ -121,3 +121,22 @@ export const ABOUT = [
   { body: ['White removes a neighbouring stone, and then the jumping begins.'] },
   { body: ['Everything else here, the lessons, the computer players, Auto Play and the daily puzzle, was made for this game.'] },
 ];
+
+// ONE continuous scrolling reader per document: the short pages above are merged into sections (a titled page plus the
+// untitled continuation pages after it), and a sentence cut across pages is re-joined. Content and order are unchanged.
+const END = /[.!?:]["')]?$/;
+function mergeSections(pages) {
+  const out = [];
+  for (const pg of pages) {
+    if (pg.title || !out.length) { out.push({ ...pg, body: pg.body.slice() }); continue; }
+    const last = out[out.length - 1];
+    for (const para of pg.body) {
+      const prev = last.body[last.body.length - 1];
+      if (!END.test(prev) || /^[a-z(]/.test(para)) last.body[last.body.length - 1] = `${prev} ${para}`; else last.body.push(para);
+    }
+  }
+  return out;
+}
+export const HELP_PAGES = mergeSections(RAW_HELP);
+export const RULES = mergeSections(RAW_RULES);
+export const ABOUT = mergeSections(RAW_ABOUT);

@@ -68,7 +68,22 @@ export function textFill(ctx, text, x, y, size, opts = {}) {
   ctx.restore();
 }
 
+// Wrapping depends only on (font, width, text), so results are kept and reused every frame; layoutColumn calls wrapCacheCheck() once per
+// layout to drop them if a web font finished loading. wrapStats.wraps counts real (uncached) wraps (tests read it).
+export const wrapStats = { wraps: 0 };
+const wrapCache = new Map(); let wrapEpoch = '';
+export function wrapCacheCheck(ctx) {
+  const f = ctx.font; ctx.font = `700 40px ${FONT}`; const a = ctx.measureText('Hamburgefonstiv').width; ctx.font = `400 40px ${SANS}`;
+  const e = `${a}|${ctx.measureText('Hamburgefonstiv').width}`; ctx.font = f;
+  if (e !== wrapEpoch) { wrapEpoch = e; wrapCache.clear(); }
+}
 export function wrapLines(ctx, text, maxW) {
+  const k = `${ctx.font}|${Math.round(maxW * 100)}|${text}`;
+  let v = wrapCache.get(k);
+  if (!v) { wrapStats.wraps++; v = wrapLinesRaw(ctx, text, maxW); if (wrapCache.size > 3000) wrapCache.clear(); wrapCache.set(k, v); }
+  return v;
+}
+function wrapLinesRaw(ctx, text, maxW) {
   const out = [];
   // a word wider than the line (a web address at 300% text) is broken at a character that fits; at "/" or "." where possible
   const pieces = (word) => {

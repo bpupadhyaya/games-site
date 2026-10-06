@@ -1,8 +1,12 @@
 // Chapter 6: the alliance in the hills. After the meeting on the hilltop the camera pans across
 // a terraced hillside; eight horn calls decide which bands of the vanara people join the search.
-import { W, H, TAU, PAL, clamp, smooth, hash, sky, sun, ridge, treeline, clouds, light, motes, finish, shadow } from '../stage.js';
+import { FR, W, H, TAU, PAL, clamp, smooth, hash, sky, sun, ridge, treeline, clouds, light, motes, finish, shadow } from '../stage.js';
 import { figure, poses } from '../puppets.js';
 import { label, caption, pips } from '../ui.js';
+
+// Landscape: the window shows y 610..1450; the bands' ledges are squeezed into it (BY).
+export const LAND_Y1 = 1450;
+export const BY = (y) => (FR.y0 > 300 ? FR.y0 + 280 + ((y - 430) / 900) * (1330 - FR.y0 - 280) : y);
 
 const TYPES = ['scouts', 'leapers', 'strong'];
 const RGB = { scouts: '130,225,255', leapers: '255,218,120', strong: '255,140,96' };
@@ -36,12 +40,12 @@ export function create(env, shared) {
       s.scroll += SPEED * dt;
       if (p.pressed && p.y > 230) {
         for (const b of s.bands) {
-          if (b.called || Math.hypot(p.x - (b.x - s.scroll), p.y - (b.y - 70)) > 125) continue;
+          if (b.called || Math.hypot(p.x - (b.x - s.scroll), p.y - (BY(b.y) - 70)) > 125) continue;
           if (s.calls > 0) { b.called = true; s.calls -= 1; s.counts[b.type] += 1; shared.sfx('horn'); } else shared.sfx('bad');
           break;
         }
       }
-      if (s.scroll > END - W * 0.4) {
+      if (s.scroll > END - W * 0.4 - FR.x0) {
         s.phase = 'bonus'; s.pt = 0;
         s.pick = TYPES.reduce((a, b) => (s.counts[b] > s.counts[a] ? b : a), 'scouts');
         shared.setAlly(s.pick); shared.sfx('good');
@@ -50,21 +54,21 @@ export function create(env, shared) {
   }
 
   function band(ctx, b, t) {
-    const x = b.x - s.scroll;
-    if (x < -260 || x > W + 260) return;
+    const x = b.x - s.scroll, by = BY(b.y);
+    if (x < FR.x0 - 260 || x > FR.x1 + 260) return;
     const rgb = RGB[b.type];
     // the ledge
     ctx.fillStyle = '#10241b';
-    ctx.beginPath(); ctx.moveTo(x - 170, b.y + 4); ctx.quadraticCurveTo(x, b.y - 14, x + 170, b.y + 4); ctx.quadraticCurveTo(x + 120, b.y + 60, x + 20, b.y + 74); ctx.quadraticCurveTo(x - 120, b.y + 56, x - 170, b.y + 4); ctx.fill();
-    ctx.strokeStyle = 'rgba(255,236,170,0.35)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x - 160, b.y + 2); ctx.quadraticCurveTo(x, b.y - 15, x + 160, b.y + 2); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x - 170, by + 4); ctx.quadraticCurveTo(x, by - 14, x + 170, by + 4); ctx.quadraticCurveTo(x + 120, by + 60, x + 20, by + 74); ctx.quadraticCurveTo(x - 120, by + 56, x - 170, by + 4); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,236,170,0.35)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(x - 160, by + 2); ctx.quadraticCurveTo(x, by - 15, x + 160, by + 2); ctx.stroke();
     const gone = b.called ? clamp((b.ct - 0.9) / 0.8, 0, 1) : 0;
     if (gone >= 1) return;
-    light(ctx, x, b.y - 80, 190, rgb, b.called ? 0.6 : 0.3 + 0.08 * Math.sin(t * 3 + b.x));
+    light(ctx, x, by - 80, 190, rgb, b.called ? 0.6 : 0.3 + 0.08 * Math.sin(t * 3 + b.x));
     // banner
-    ctx.strokeStyle = '#10241b'; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(x - 128, b.y); ctx.lineTo(x - 128, b.y - 230); ctx.stroke();
-    ctx.fillStyle = HEX[b.type]; ctx.beginPath(); ctx.moveTo(x - 126, b.y - 228); ctx.lineTo(x - 60 + Math.sin(t * 4 + b.x) * 6, b.y - 210); ctx.lineTo(x - 126, b.y - 186); ctx.fill();
+    ctx.strokeStyle = '#10241b'; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(x - 128, by); ctx.lineTo(x - 128, by - 230); ctx.stroke();
+    ctx.fillStyle = HEX[b.type]; ctx.beginPath(); ctx.moveTo(x - 126, by - 228); ctx.lineTo(x - 60 + Math.sin(t * 4 + b.x) * 6, by - 210); ctx.lineTo(x - 126, by - 186); ctx.fill();
     for (let i = 0; i < 3; i++) {
-      const fx = x - 66 + i * 72 + gone * 260, fy = b.y - gone * 520 + (gone > 0 ? Math.sin(gone * Math.PI) * -60 : 0);
+      const fx = x - 66 + i * 72 + gone * 260, fy = by - gone * 520 + (gone > 0 ? Math.sin(gone * Math.PI) * -60 : 0);
       let pose;
       if (gone > 0) pose = poses.leap(t);
       else if (b.called) pose = poses.cheer(t, i * 1.3);
@@ -72,11 +76,11 @@ export function create(env, shared) {
       else if (b.type === 'strong') pose = { ...poses.stand(t + i), shF: 2.7, elF: 0.3, shB: -2.7, elB: -0.3 };
       else pose = { ...poses.stand(t + i), shF: 2.2, elF: 1.4, head: -0.2 };
       ctx.globalAlpha = 1 - gone * 0.8;
-      if (gone === 0) shadow(ctx, fx, b.y + 4, 36, 0.3);
+      if (gone === 0) shadow(ctx, fx, by + 4, 36, 0.3);
       figure(ctx, { x: fx, y: fy, s: 0.82, kind: 'vanara', dir: i === 2 && !b.called ? -1 : 1, prop: b.type === 'strong' ? (b.called ? 'mace' : 'stone') : null, pose, gold: HEX[b.type] });
       ctx.globalAlpha = 1;
     }
-    if (!b.called && s.calls > 0 && s.phase === 'pan') { ctx.strokeStyle = `rgba(${rgb},${0.45 + 0.3 * Math.sin(t * 5)})`; ctx.lineWidth = 3; ctx.setLineDash([10, 12]); ctx.beginPath(); ctx.ellipse(x, b.y - 70, 150, 120, 0, 0, TAU); ctx.stroke(); ctx.setLineDash([]); }
+    if (!b.called && s.calls > 0 && s.phase === 'pan') { ctx.strokeStyle = `rgba(${rgb},${0.45 + 0.3 * Math.sin(t * 5)})`; ctx.lineWidth = 3; ctx.setLineDash([10, 12]); ctx.beginPath(); ctx.ellipse(x, by - 70, 150, 120, 0, 0, TAU); ctx.stroke(); ctx.setLineDash([]); }
   }
 
   function render(ctx) {

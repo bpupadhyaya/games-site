@@ -1,5 +1,6 @@
 // Browser/WebView entry point shared by every game. web/main.js calls boot() and nothing else.
 // URL flags:  ?demo=1            public web demo (nothing purchasable)
+//             ?dev=1             browser only: env.config.dev = true (tester tools)
 //             ?seed=N            fixed RNG seed
 //             ?shot=1&ticks=N    play N ticks with the seeded monkey, draw one frame, then set
 //                                document.title = "shot-ready" (used by `tools/arc shots`)
@@ -7,7 +8,7 @@ import { createRng } from './rng.js';
 import { createLoop, STEP } from './loop.js';
 import { createInput } from './input.js';
 import { createView } from './view.js';
-import { createBridge } from './bridge.js';
+import { createBridge, openArcforgeHomeVia } from './bridge.js';
 import { createStorage } from './storage.js';
 import { createMonetization } from './monetization.js';
 import { createAudio } from './audio.js';
@@ -20,6 +21,7 @@ export async function boot({ createGame, meta, canvas, background }) {
   const bridge = createBridge();
   // Bundles published to the public site carry demoOnly, so the demo cut cannot be bypassed via the URL.
   const demo = params.has('demo') || manifest.demoOnly === true;
+  const dev = !demo && (bridge.native ? (await bridge.call('app.dev').catch(() => null))?.dev === true : params.has('dev'));
   const seed = params.has('seed') ? Number(params.get('seed')) >>> 0 : Date.now() >>> 0;
 
   // Share text (Daily Hunt result etc.) and jump to another Arcforge game. Native: the shell's share
@@ -42,26 +44,36 @@ export async function boot({ createGame, meta, canvas, background }) {
     else globalThis.location.assign(`../../${slug}/play/`);
   };
 
+  // Kit 1.9.0: tap on the title-screen Arcforge lockup. Hub app: back to the Arcforge home page (top of the
+  // store main screen). Standalone app: that app's own Arcforge store listing. Plain browser: public hub page.
+  const openArcforgeHome = () => openArcforgeHomeVia(bridge);
+
+  const input = createInput();
   const env = {
     share,
     openGame,
+    openArcforgeHome,
     rng: createRng(seed),
     storage: createStorage({ bridge, namespace: manifest.slug }),
     monetization: createMonetization({ bridge, manifest, mode: bridge.native ? 'native' : demo ? 'demo' : 'mock' }),
     audio: createAudio(),
     // day = whole days since 1970 (UTC): lets a game seed a "daily" challenge that is identical for
     // every player on the same date without reading the clock itself (web/src must stay pure).
-    config: { seed, demo, day: Math.floor(Date.now() / 86400000) },
+    // dev: true only when the app's Developer toggle is on (debug builds only; compile-time false in release)
+    // or, in the browser, when the URL has ?dev=1. Games use it to show tester tools (level pickers, skips).
+    config: { seed, demo, day: Math.floor(Date.now() / 86400000), dev },
     manifest,
+    // Kit 1.8.1: the live input object and its wheel subscribe function (also on the per-tick snapshot as input.onWheel / input.wheel).
+    input,
+    onWheel: input.onWheel,
   };
   // Ownership arrives via monetization.onChange; never hold the game hostage to a slow store.
   await Promise.race([env.monetization.init().catch(() => {}), new Promise((resolve) => setTimeout(resolve, 3000))]);
 
   const rawGame = await createGame(env);
   // game.json `monetization.previewSeconds` = free play time before the unlock screen (kit/preview.js).
-  const game = createPreviewGate({ game: rawGame, meta, storage: env.storage, monetization: env.monetization, manifest, demo });
-  const view = createView(canvas, { width: meta.width, height: meta.height, background });
-  const input = createInput();
+  const game = createPreviewGate({ game: rawGame, meta, storage: env.storage, monetization: env.monetization, manifest, demo, textScale: () => env.config.textScale ?? env.config.zoom });
+  const view = createView(canvas, { width: meta.width, height: meta.height, background, meta });
   const draw = () => view.frame((ctx) => game.render(ctx, view));
 
   if (params.has('shot')) {

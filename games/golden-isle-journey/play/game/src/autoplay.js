@@ -13,6 +13,7 @@
 // keyboard path is simpler to drive correctly (e.g. a fixed-power keyboard shot in ch12, or ch10's
 // own "pick the carrier over the next gap" Space shortcut) these scripts prefer it over reproducing
 // the touch geometry.
+import { BY } from './chapters/06-allies.js';
 import { clamp, lerp, smooth } from './stage.js';
 import { tenHeadPos } from './puppets.js';
 import { T } from './text.js';
@@ -125,7 +126,7 @@ export const AP_SCRIPTS = {
   6(d, s) {
     if (s.phase !== 'pan' || d.input.pointer.down || s.calls <= 0) return;
     const b = s.bands.find((q) => !q.called && q.x - s.scroll > 250 && q.x - s.scroll < 470 && q.y > 300);
-    if (b) d.tap(b.x - s.scroll, b.y - 70);
+    if (b) d.tap(b.x - s.scroll, BY(b.y) - 70);
   },
   // 7: the leap (flagship, cannot be lost) - continuously re-aims at a safe altitude for whatever
   // hazard/wind is soonest ahead, re-evaluated every tick from LIVE state (demos.js's version only

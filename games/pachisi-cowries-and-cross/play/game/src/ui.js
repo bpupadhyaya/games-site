@@ -1,9 +1,10 @@
 // Every button on every screen, as data. `screenButtons(state)` is used both to draw (view.js) and to hit-test (game.js),
-// so what you see is exactly what you can tap.
+// so what you see is exactly what you can tap. All geometry comes from the LIVE layout (layout.js `L`, kept current by applyLayout),
+// so the same code serves a tall phone, a tablet and a landscape screen. At the tall phone size (720 x 1560) every rect is the original.
 import { LESSONS } from './lessons.js';
-import { LEVELS, LEVEL_NAMES } from './ai.js';
+import { LEVELS, LEVEL_NAMES, LEVEL_BLURB } from './ai.js';
+import { L, barRects } from './layout.js';
 
-export const PANEL = { x: 36, y: 118, w: 648, h: 1300 };
 // Text-size steps for the reference pages (How to play / About / Rules). An index into this array,
 // never a raw float, so the stepper can cleanly disable at either end and a stale saved index from a
 // build with a shorter/longer array is easy to clamp (see game.js prefs load). Top step is 3x (300%).
@@ -11,75 +12,187 @@ export const TEXT_SCALES = [1, 1.5, 2, 2.5, 3];
 // Auto Play THINK-phase steps, in seconds: an index into this array (never a raw float), default
 // 5s (index 1), hard-capped at 10s per the owner's instruction that a longer wait defeats the point.
 export const AP_THINK_STEPS = [2, 5, 8, 10];
-const row = (n, i, x0 = 60, w = 600, gap = 14) => { const cw = (w - gap * (n - 1)) / n; return { x: x0 + i * (cw + gap), w: cw }; };
-const chips = (ids, y, h, cur, labels, extra = {}) => ids.map((id, i) => ({ id, y, h, ...row(ids.length, i), label: labels[i], sel: cur === id, chip: true, ...extra }));
+export const SETUP_DESC = {
+  ludo: 'Ludo mode: one die, a smaller board, a 6 to enter and to throw again. No blocks. A friendly first step.',
+  pachisi: 'Pachisi: six cowrie shells, grace throws, safe squares, blocks and the home lane. The full royal race.',
+};
 
-export function screenButtons(s) {
-  const B = [];
-  const sc = s.scene;
-  if (sc === 'title') {
-    let y = 1030;
-    if (s.saved) { B.push({ id: 'continue', x: 60, y, w: 600, h: 78, label: 'Continue game', primary: true }); y += 90; B.push({ id: 'new', x: 60, y, w: 600, h: 68, label: 'New game' }); y += 80; }
-    else { B.push({ id: 'new', x: 60, y, w: 600, h: 84, label: 'Play', primary: true, size: 42 }); y += 98; }
-    B.push({ id: 'learn', y, h: 70, ...row(2, 0), label: 'Learn to play' }, { id: 'daily', y, h: 70, ...row(2, 1), label: 'Daily race' }); y += 84;
-    B.push({ id: 'autoplay', x: 60, y, w: 600, h: 66, label: 'Auto Play · Watch & Learn', size: 28 }); y += 80;
-    B.push({ id: 'about', y, h: 62, ...row(3, 0), label: 'About', size: 26 }, { id: 'how', y, h: 62, ...row(3, 1), label: 'How to play', size: 26 }, { id: 'settings', y, h: 62, ...row(3, 2), label: 'Settings', size: 26 });
-    y += 76; B.push({ id: 'rules', x: 60, y, w: 600, h: 66, label: 'Rules', size: 28 });
-  } else if (sc === 'setup') {
-    const t = s.setup;
-    B.push(...chips(['mode:pachisi', 'mode:ludo'], 292, 70, 'mode:' + t.mode, ['Pachisi', 'Ludo mode']));
-    B.push(...chips(['pl:2', 'pl:3', 'pl:4'], 430, 70, 'pl:' + t.players, ['2 players', '3 players', '4 players']));
-    B.push(...chips(['who:cpu', 'who:friends'], 568, 70, t.friends ? 'who:friends' : 'who:cpu', ['You vs computer', 'Friends, one phone']));
-    if (!t.friends) {
-      const ids = LEVELS.map((l) => 'opp:' + l).concat('opp:mixed');
-      B.push(...chips(ids.slice(0, 3), 706, 64, 'opp:' + t.opp, ids.slice(0, 3).map((id) => LEVEL_NAMES[id.slice(4)])));
-      B.push(...chips(ids.slice(3), 780, 64, 'opp:' + t.opp, ['Bold', 'Mixed']));
+const R = (x, y, w, h) => ({ x, y, w, h });
+const fit = (h, pad = 24) => Math.max(0.62, Math.min(1, (L.U.h - pad) / h));
+const rowAt = (n, i, x0, w, gap = 14) => { const cw = (w - gap * (n - 1)) / n; return { x: x0 + i * (cw + gap), w: cw }; };
+const chipRow = (ids, y, h, cur, labels, x0, w, extra = {}) => ids.map((id, i) => ({ id, y, h, ...rowAt(ids.length, i, x0, w), label: labels[i], sel: cur === id, chip: true, ...extra }));
+
+// ---- the title screen -------------------------------------------------------------------------------------------------------
+export function titleGeo(s) {
+  const has = !!s.saved, T = L.title, plate = T.plateFor(has), sc = T.rowScale(has), x0 = plate.x + 24, w = plate.w - 48, B = [];
+  let y = plate.y + 26;
+  const put = (b, gap) => { B.push(b); y += b.h + gap * sc; };
+  const H = (h) => Math.round(h * sc);
+  if (has) { put({ id: 'continue', x: x0, y, w, h: H(78), label: 'Continue game', primary: true }, 12); put({ id: 'new', x: x0, y, w, h: H(68), label: 'New game' }, 12); }
+  else put({ id: 'new', x: x0, y, w, h: H(84), label: 'Play', primary: true, size: 42 }, 14);
+  { const h = H(70); B.push({ id: 'learn', y, h, ...rowAt(2, 0, x0, w), label: 'Learn to play' }, { id: 'daily', y, h, ...rowAt(2, 1, x0, w), label: 'Daily race' }); y += h + 14 * sc; }
+  put({ id: 'autoplay', x: x0, y, w, h: H(66), label: 'Auto Play · Watch & Learn', size: 28 }, 14);
+  { const h = H(62); B.push({ id: 'about', y, h, ...rowAt(3, 0, x0, w), label: 'About', size: 26 }, { id: 'how', y, h, ...rowAt(3, 1, x0, w), label: 'How to play', size: 26 }, { id: 'settings', y, h, ...rowAt(3, 2, x0, w), label: 'Settings', size: 26 }); y += h + 14 * sc; }
+  put({ id: 'rules', x: x0, y, w, h: H(66), label: 'Rules', size: 28 }, 0);
+  return { plate, buttons: B, footY: plate.y + plate.h - 22 };
+}
+
+// ---- the set-up screen -----------------------------------------------------------------------------------------------------
+export function setupGeo(s) {
+  const P = L.panel, t = s.setup, x0 = P.x + 24, w = P.w - 48, B = [], labels = [], texts = [];
+  const inline = L.panelWide || P.h < 900, labW = L.panelWide ? 200 : 170, cw = w - labW, oneRow = cw >= 600;
+  const levelIds = LEVELS.map((l) => 'opp:' + l).concat('opp:mixed'), levelLab = LEVELS.map((l) => LEVEL_NAMES[l]).concat('Mixed');
+  const secs = [
+    { label: 'Game', rows: [[['mode:pachisi', 'mode:ludo'], 'mode:' + t.mode, ['Pachisi', 'Ludo mode'], 70]] },
+    { label: 'Players', rows: [[['pl:2', 'pl:3', 'pl:4'], 'pl:' + t.players, ['2 players', '3 players', '4 players'], 70]] },
+    { label: 'Who plays', rows: [[['who:cpu', 'who:friends'], t.friends ? 'who:friends' : 'who:cpu', ['You vs computer', 'Friends, one phone'], 70]] },
+  ];
+  const oneLevelRow = inline ? oneRow : false;
+  if (!t.friends) secs.push({ label: 'Computer level', rows: oneLevelRow ? [[levelIds, 'opp:' + t.opp, levelLab, 64]] : [[levelIds.slice(0, 3), 'opp:' + t.opp, levelLab.slice(0, 3), 64], [levelIds.slice(3), 'opp:' + t.opp, levelLab.slice(3), 64]] });
+  secs.push({ label: 'Pawns each', rows: [[['pcs:4', 'pcs:2'], 'pcs:' + t.pieces, ['4 pawns each', '2 pawns (short)'], 70]] });
+  const descStr = SETUP_DESC[t.mode];
+  const blurb = t.friends ? 'Friends: everyone takes turns on this phone. A pass-the-phone screen appears between turns.' : t.opp === 'mixed' ? 'Mixed: each computer player has a different personality.' : `${LEVEL_NAMES[t.opp]}: ${LEVEL_BLURB[t.opp]}`;
+  const top = P.y + 108, startH = 88, backH = 70, pad = 38;
+  if (L.panelWide && P.h < 520) {
+    // very short landscape screens: two columns, the label above its chips, Back / Start under the right column
+    const c2 = (w - 24) / 2, rx = x0 + c2 + 24, lh = 22, rh = 52, pitchY = lh + rh + 14, top2 = P.y + 84;
+    const place = (list, colX, y0) => { let y = y0; for (const c of list) { labels.push({ text: c.label, x: colX, y: y + 16, size: 22 }); for (const [ids, cur, labs] of c.rows) { B.push(...chipRow(ids, Math.round(y + lh), rh, cur, labs, colX, c2)); y += pitchY; } } return y; };
+    const lv = secs.filter((c) => c.label === 'Computer level').map((c) => ({ ...c, rows: [[levelIds, 'opp:' + t.opp, levelLab, 52]] }));
+    place(secs.slice(0, 3), x0, top2); const ry = place([...lv, secs[secs.length - 1]], rx, top2) - 4;
+    const bk = Math.round(c2 * 0.32); B.push({ id: 'back', x: rx, y: ry, w: bk, h: 56, label: 'Back' }, { id: 'start', x: rx + bk + 12, y: ry, w: c2 - bk - 12, h: 56, label: 'Start game', primary: true, size: 32 });
+  } else if (!inline) {
+    // single column: sections flow down; start / back at the foot of the panel
+    const foot = P.y + P.h - pad - (startH + 12 + backH);
+    const textH = 150, rowsH = secs.reduce((a, c) => a + 38 + c.rows.length * 74 + 28, 0);
+    const avail = foot - top - textH - 16, u = Math.max(0.6, Math.min(1.12, avail / rowsH));
+    let y = top;
+    for (const c of secs) {
+      labels.push({ text: c.label, x: x0, y: y + 22 * u + 6, size: 26 });
+      y += 38 * u;
+      for (const [ids, cur, labs, h] of c.rows) { B.push(...chipRow(ids, Math.round(y), Math.round(h * u), cur, labs, x0, w)); y += (h + 8) * u; }
+      y += 28 * u;
     }
-    B.push(...chips(['pcs:4', 'pcs:2'], 926, 70, 'pcs:' + t.pieces, ['4 pawns each', '2 pawns (short)']));
-    B.push({ id: 'start', x: 60, y: 1180, w: 600, h: 88, label: 'Start game', primary: true, size: 38 }, { id: 'back', x: 60, y: 1288, w: 600, h: 70, label: 'Back' });
-  } else if (sc === 'learn') {
-    LESSONS.forEach((l, i) => B.push({ id: 'lesson:' + i, x: 60, y: 226 + i * 96, w: 600, h: 82, label: `${i + 1}.  ${l.title}`, left: true, done: !!s.stats.lessons[i], locked: s.demo && i >= 3 }));
-    B.push({ id: 'back', x: 60, y: 1310, w: 600, h: 70, label: 'Back' });
-  } else if (sc === 'settings') {
-    const p = s.prefs;
-    [['sound', 'Sound', p.sound], ['calm', 'Reduced motion', p.calm], ['big', 'Large text', p.big], ['auto', 'Auto-move a single choice', p.auto]].forEach(([id, label, on], i) => B.push({ id: 'set:' + id, x: 60, y: 250 + i * 118, w: 600, h: 92, label, value: on ? 'On' : 'Off', sel: on, toggle: true }));
-    B.push({ id: 'back', x: 60, y: 1310, w: 600, h: 70, label: 'Back' });
-  } else if (sc === 'how' || sc === 'about' || sc === 'rules') {
-    const ti = s.prefs.textScaleIdx ?? 0;
-    // On the last page, "Next page" becomes "Done" and exits (see game.js) instead of silently
-    // wrapping back to page one, so it's never a dead-end tap.
-    const isLast = sc === 'how' ? s.howPage === HOW_PAGES.length - 1 : sc === 'rules' ? s.rulesPage === RULES_PAGES.length - 1 : s.aboutPage === ABOUT_PAGES.length - 1;
-    B.push(
-      { id: 'textDec', x: 60, y: 1256, w: 110, h: 46, label: 'A−', size: 24, dim: ti <= 0 },
-      { id: 'textInc', x: 550, y: 1256, w: 110, h: 46, label: 'A+', size: 24, dim: ti >= TEXT_SCALES.length - 1 },
-      { id: 'back', ...row(2, 0), y: 1310, h: 70, label: 'Back' }, { id: 'page', ...row(2, 1), y: 1310, h: 70, label: isLast ? 'Done' : 'Next page', primary: true },
-    );
-  } else if (sc === 'play' || sc === 'lesson' || sc === 'daily' || sc === 'autoplay') {
-    const L = s.lesson, ph = s.phase;
+    texts.push({ str: descStr, x: P.x + P.w / 2, y: y + 6, w: Math.min(580, P.w - 68), size: 22, lh: 30, color: 'ink' });
+    texts.push({ str: blurb, x: P.x + P.w / 2, y: y + 6 + 70 * Math.min(1, u + 0.2), w: Math.min(560, P.w - 88), size: 24, lh: 32, color: 'red' });
+    B.push({ id: 'start', x: x0, y: foot, w, h: startH, label: 'Start game', primary: true, size: 38 }, { id: 'back', x: x0, y: foot + startH + 12, w, h: backH, label: 'Back' });
+  } else {
+    // label on the left, chips on the right, one line per row; description + Back / Start along the foot
+    const cx0 = x0 + labW, footH = 74, foot = P.y + P.h - 22 - footH, textH = L.panelWide ? 104 : 96, avail = foot - top - textH - 6;
+    const lines = secs.reduce((a, c) => a + c.rows.length, 0), u = Math.max(0.5, Math.min(1, avail / (lines * 76)));
+    let y = top;
+    for (const c of secs) {
+      const h = Math.round(c.rows[0][3] * u);
+      labels.push({ text: c.label, x: x0, y: y + h / 2 + 9, size: 26 });
+      for (const [ids, cur, labs] of c.rows) { B.push(...chipRow(ids, Math.round(y), h, cur, labs, cx0, cw)); y += h + 10 * u; }
+      y += 4 * u;
+    }
+    if (L.panelWide) { texts.push({ str: descStr, x: x0, y: y + 14, w: w * 0.5 - 12, size: 21, lh: 27, color: 'ink', left: true }, { str: blurb, x: x0 + w * 0.5 + 12, y: y + 14, w: w * 0.5 - 12, size: 21, lh: 28, color: 'red', left: true }); }
+    else { texts.push({ str: descStr, x: x0, y: y + 8, w, size: 21, lh: 26, color: 'ink', left: true }, { str: blurb, x: x0, y: y + 8 + 56, w, size: 21, lh: 26, color: 'red', left: true }); }
+    const bk = Math.round(w * 0.28);
+    B.push({ id: 'back', x: x0, y: foot, w: bk, h: footH, label: 'Back' }, { id: 'start', x: x0 + bk + 16, y: foot, w: w - bk - 16, h: footH, label: 'Start game', primary: true, size: 36 });
+  }
+  return { buttons: B, labels, texts };
+}
+
+// ---- Learn / Settings ------------------------------------------------------------------------------------------------------
+export function learnGeo(s) {
+  const P = L.panel, wide = L.panelWide, x0 = P.x + 24, w = P.w - 48, B = [], n = LESSONS.length;
+  const backH = wide ? 64 : 70, backY = P.y + P.h - (wide ? 24 + backH : 108), top = P.y + (wide ? 118 : 150);
+  const cols = wide ? 2 : 1, rows = Math.ceil(n / cols), pitch = Math.min(96, (backY - 12 - top) / rows), h = Math.round(pitch * 0.85), cw = (w - 16 * (cols - 1)) / cols;
+  LESSONS.forEach((l, i) => { const c = wide ? Math.floor(i / rows) : 0, r = wide ? i % rows : i; B.push({ id: 'lesson:' + i, x: x0 + c * (cw + 16), y: Math.round(top + r * pitch), w: cw, h, label: `${i + 1}.  ${l.title}`, left: true, done: !!s.stats.lessons[i], locked: s.demo && i >= 3 }); });
+  B.push({ id: 'back', x: x0, y: backY, w, h: backH, label: 'Back' });
+  return { buttons: B, introY: P.y + (wide ? 100 : 114) };
+}
+export function settingsGeo(s) {
+  const P = L.panel, wide = L.panelWide, x0 = P.x + 24, w = P.w - 48, B = [], p = s.prefs;
+  const backH = wide ? 64 : 70, backY = P.y + P.h - (wide ? 24 + backH : 108), top = P.y + (wide ? 112 : 132);
+  const items = [['sound', 'Sound', p.sound], ['calm', 'Reduced motion', p.calm], ['big', 'Large text', p.big], ['auto', 'Auto-move a single choice', p.auto]];
+  const cols = wide ? 2 : 1, rows = Math.ceil(items.length / cols), room = backY - 12 - top - (wide ? 70 : 150), pitch = Math.min(118, room / rows), h = Math.round(pitch * 0.78), cw = (w - 16 * (cols - 1)) / cols;
+  items.forEach(([id, label, on], i) => { const c = wide ? Math.floor(i / rows) : 0, r = wide ? i % rows : i; B.push({ id: 'set:' + id, x: x0 + c * (cw + 16), y: Math.round(top + r * pitch), w: cw, h, label, value: on ? 'On' : 'Off', sel: on, toggle: true }); });
+  B.push({ id: 'back', x: x0, y: backY, w, h: backH, label: 'Back' });
+  return { buttons: B, textY: Math.round(top + rows * pitch + 30) };
+}
+
+// ---- the reference pages (How to play / About / Rules) ------------------------------------------------------------------
+export function readerGeo(s) {
+  const P = L.panel, wide = L.panelWide, sc = s.scene, ti = s.prefs.textScaleIdx ?? 0, x0 = P.x + 24, w = P.w - 48;
+  // On the last page, "Next page" becomes "Done" and exits (see game.js) instead of silently wrapping back to page one.
+  const isLast = !(s.scrollMax > 1) || s.scroll >= s.scrollMax - 1;   // one scrolling document: Next pages down, Done at the end
+  const B = [], titleY = P.y + (wide ? 62 : 78), titleSize = wide ? 54 : 66;
+  let region, counterY, counterX = P.x + P.w / 2;
+  if (!wide) {
+    const nav = P.y + P.h - 108, step = P.y + P.h - 162;
+    B.push({ id: 'textDec', x: x0, y: step, w: 110, h: 46, label: 'A−', size: 24, dim: ti <= 0 }, { id: 'textInc', x: x0 + w - 110, y: step, w: 110, h: 46, label: 'A+', size: 24, dim: ti >= TEXT_SCALES.length - 1 },
+      { id: 'back', ...rowAt(2, 0, x0, w), y: nav, h: 70, label: 'Back' }, { id: 'page', ...rowAt(2, 1, x0, w), y: nav, h: 70, label: isLast ? 'Done' : 'Next page', primary: true });
+    region = R(P.x + 40, P.y + 104, P.w - 80, step - 8 - (P.y + 104)); counterY = P.y + P.h - 128;
+  } else {
+    const nav = P.y + P.h - 24 - 64, bw = 160;
+    B.push({ id: 'back', x: x0, y: nav, w: bw, h: 64, label: 'Back' }, { id: 'page', x: x0 + w - bw, y: nav, w: bw, h: 64, label: isLast ? 'Done' : 'Next page', primary: true },
+      { id: 'textDec', x: P.x + P.w / 2 - 200, y: nav + 9, w: 90, h: 46, label: 'A−', size: 24, dim: ti <= 0 }, { id: 'textInc', x: P.x + P.w / 2 + 110, y: nav + 9, w: 90, h: 46, label: 'A+', size: 24, dim: ti >= TEXT_SCALES.length - 1 });
+    region = R(P.x + 40, P.y + 88, P.w - 80, nav - 10 - (P.y + 88)); counterY = nav + 40;
+  }
+  return { buttons: B, titleY, titleSize, region, counterY, counterX };
+}
+
+// ---- overlays and end screens (all centred on the live screen; compressed when the screen is short) ----------------------------
+export function overlayGeo(s) {
+  const o = {}, cx = L.cx, cy = L.cy, wide = L.mode === 'wide';
+  // pause menu
+  o.pause = R(cx - 280, cy - 235, 560, 470);
+  // pass the phone
+  { const c = fit(640); o.pass = { c, P: R(cx - 300, cy - 320 * c, 600, 640 * c) }; }
+  // game over
+  if (wide) o.over = { wide: true, P: R(cx - 440, cy - 250, 880, 500) };
+  else { const c = fit(920); o.over = { wide: false, c, P: R(cx - 300, cy - 460 * c, 600, 920 * c) }; }
+  // daily race complete
+  if (wide) o.daily = { wide: true, P: R(cx - 440, cy - 250, 880, 500) };
+  else { const c = fit(790); o.daily = { wide: false, c, P: R(cx - Math.min(324, L.w / 2 - 12), cy - 395 * c, Math.min(648, L.w - 24), 790 * c) }; }
+  // lesson complete: a plate over the foot of the play screen
+  { const bw = Math.min(648, L.col ? L.col.w : L.w - 24); const x = L.col ? L.col.x : (L.w - bw) / 2, bottom = L.bar.y + L.bar.h; o.lesson = R(x, bottom - 232, bw, 232); }
+  return o;
+}
+
+// ---- every screen's buttons ---------------------------------------------------------------------------------------------------
+export function screenButtons(s) {
+  const sc = s.scene, ph = s.phase;
+  if (sc === 'title') return titleGeo(s).buttons;
+  if (sc === 'setup') return setupGeo(s).buttons;
+  if (sc === 'learn') return learnGeo(s).buttons;
+  if (sc === 'settings') return settingsGeo(s).buttons;
+  if (sc === 'how' || sc === 'about' || sc === 'rules') return readerGeo(s).buttons;
+  const O = overlayGeo(s), B = [];
+  if (sc === 'play' || sc === 'lesson' || sc === 'daily' || sc === 'autoplay') {
+    const Lz = s.lesson;
     if (s.menuOpen) {
-      B.push({ id: 'resume', x: 110, y: 560, w: 500, h: 84, label: 'Resume', primary: true }, { id: 'sound', x: 110, y: 660, w: 500, h: 72, label: s.prefs.sound ? 'Sound: on' : 'Sound: off' },
-        { id: 'howmenu', x: 110, y: 748, w: 500, h: 72, label: 'How to play' }, { id: 'leave', x: 110, y: 836, w: 500, h: 72, label: sc === 'play' ? 'Leave game' : 'Leave' });
-    } else if (sc === 'lesson' && L && L.complete) {
-      B.push({ id: 'nextlesson', x: 60, y: 1156, w: 600, h: 84, label: L.i + 1 < LESSONS.length ? 'Next lesson' : 'Back to lessons', primary: true }, { id: 'lessons', x: 60, y: 1252, w: 290, h: 70, label: 'Lessons' }, { id: 'again', x: 370, y: 1252, w: 290, h: 70, label: 'Replay' });
+      const P = O.pause, x = P.x + 30, w = P.w - 60;
+      B.push({ id: 'resume', x, y: P.y + 90, w, h: 84, label: 'Resume', primary: true }, { id: 'sound', x, y: P.y + 190, w, h: 72, label: s.prefs.sound ? 'Sound: on' : 'Sound: off' },
+        { id: 'howmenu', x, y: P.y + 278, w, h: 72, label: 'How to play' }, { id: 'leave', x, y: P.y + 366, w, h: 72, label: sc === 'play' ? 'Leave game' : 'Leave' });
+    } else if (sc === 'lesson' && Lz && Lz.complete) {
+      const P = O.lesson, x = P.x + 24, w = P.w - 48, hw = (w - 14) / 2;
+      B.push({ id: 'nextlesson', x, y: P.y + 64, w, h: 64, label: Lz.i + 1 < LESSONS.length ? 'Next lesson' : 'Back to lessons', primary: true }, { id: 'lessons', x, y: P.y + 142, w: hw, h: 62, label: 'Lessons' }, { id: 'again', x: x + hw + 14, y: P.y + 142, w: hw, h: 62, label: 'Replay' });
     } else if (sc === 'daily' && s.dl && s.dl.finished) {
-      B.push({ id: 'again', x: 60, y: 1156, w: 600, h: 84, label: 'Try again for a better score', primary: true }, { id: 'leave', x: 60, y: 1252, w: 600, h: 70, label: 'Menu' });
+      const D = O.daily, P = D.P;
+      if (D.wide) { const x = P.x + 40, w = P.w - 80, hw = (w - 16) / 2; B.push({ id: 'again', x, y: P.y + P.h - 104, w: hw, h: 76, label: 'Try again', primary: true }, { id: 'leave', x: x + hw + 16, y: P.y + P.h - 104, w: hw, h: 76, label: 'Menu' }); }
+      else { const c = D.c, x = P.x + 24, w = P.w - 48; B.push({ id: 'again', x, y: P.y + 596 * c, w, h: 84 * c, label: 'Try again for a better score', primary: true }, { id: 'leave', x, y: P.y + 692 * c, w, h: 70 * c, label: 'Menu' }); }
     } else if (sc === 'autoplay') {
-      const ti = s.prefs.apThinkIdx ?? 1;
-      B.push({ id: 'menu', x: 38, y: 1392, w: 200, h: 78, label: 'Menu' });
-      B.push({ id: 'apDec', x: 260, y: 1392, w: 200, h: 78, label: 'Think −', dim: ti <= 0 });
-      B.push({ id: 'apInc', x: 482, y: 1392, w: 200, h: 78, label: 'Think +', dim: ti >= AP_THINK_STEPS.length - 1 });
+      const ti = s.prefs.apThinkIdx ?? 1, r = barRects(4);
+      B.push({ id: 'menu', ...r[0], label: 'Menu' }, { id: 'apPause', ...r[1], label: s.apPaused ? 'Resume' : 'Pause', sel: !!s.apPaused },
+        { id: 'apDec', ...r[2], label: 'Think −', dim: ti <= 0 }, { id: 'apInc', ...r[3], label: 'Think +', dim: ti >= AP_THINK_STEPS.length - 1 });
     } else {
-      B.push({ id: 'menu', x: 38, y: 1392, w: 200, h: 78, label: 'Menu' });
-      if (sc === 'play') B.push({ id: 'hint', x: 260, y: 1392, w: 200, h: 78, label: `Hint (${s.hintsLeft})`, dim: !(ph === 'choose' && s.hintsLeft > 0 && s.g.players[s.g.turn].human) });
-      else B.push({ id: 'hint', x: 260, y: 1392, w: 200, h: 78, label: 'Hint', dim: ph !== 'choose' });
-      B.push({ id: 'sound', x: 482, y: 1392, w: 200, h: 78, label: s.prefs.sound ? 'Sound on' : 'Sound off' });
+      const r = barRects(3);
+      B.push({ id: 'menu', ...r[0], label: 'Menu' });
+      if (sc === 'play') B.push({ id: 'hint', ...r[1], label: `Hint (${s.hintsLeft})`, dim: !(ph === 'choose' && s.hintsLeft > 0 && s.g.players[s.g.turn].human) });
+      else B.push({ id: 'hint', ...r[1], label: 'Hint', dim: ph !== 'choose' });
+      B.push({ id: 'sound', ...r[2], label: s.prefs.sound ? 'Sound on' : 'Sound off' });
     }
   } else if (sc === 'over' || sc === 'autoplay-over') {
-    B.push({ id: 'again', x: 90, y: 1000, w: 540, h: 88, label: sc === 'autoplay-over' ? 'Watch again' : 'Play again', primary: true, size: 38 }, { id: 'title', x: 90, y: 1104, w: 540, h: 72, label: 'Menu' });
+    const Ov = O.over, P = Ov.P, again = sc === 'autoplay-over' ? 'Watch again' : 'Play again';
+    if (Ov.wide) { const x = P.x + 40, w = P.w - 80, hw = (w - 16) / 2; B.push({ id: 'again', x, y: P.y + P.h - 150, w: hw, h: 84, label: again, primary: true, size: 36 }, { id: 'title', x: x + hw + 16, y: P.y + P.h - 150, w: hw, h: 84, label: 'Menu' }); }
+    else { const c = Ov.c, x = P.x + 30, w = P.w - 60; B.push({ id: 'again', x, y: P.y + 670 * c, w, h: 88 * c, label: again, primary: true, size: 38 }, { id: 'title', x, y: P.y + 774 * c, w, h: 72 * c, label: 'Menu' }); }
   } else if (sc === 'pass') {
-    B.push({ id: 'ready', x: 100, y: 900, w: 520, h: 100, label: 'I am ready', primary: true, size: 40 });
+    const { c, P } = O.pass; B.push({ id: 'ready', x: P.x + 40, y: P.y + 480 * c, w: P.w - 80, h: 100 * c, label: 'I am ready', primary: true, size: 40 });
   } else if (sc === 'demo-limit') {
-    B.push({ id: 'title', x: 100, y: 1000, w: 520, h: 80, label: 'Back to menu', primary: true });
+    const P = L.panel; B.push({ id: 'title', x: P.x + 64, y: Math.min(P.y + 882, P.y + P.h - 120), w: P.w - 128, h: 80, label: 'Back to menu', primary: true });
   }
   return B;
 }

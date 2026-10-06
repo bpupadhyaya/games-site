@@ -11,6 +11,10 @@
 </head>
 <body>
   <canvas id="game"></canvas>
+  <script>
+    /* Render at most 2x: phones report 3x, which is ~2x the pixels for no visible gain and costs frames. */
+    (function () { var real = window.devicePixelRatio || 1; if (real > 2) Object.defineProperty(window, 'devicePixelRatio', { get: function () { return 2; } }); })();
+  </script>
   <script type="module" src="./main.js"></script>
 </body>
 </html>

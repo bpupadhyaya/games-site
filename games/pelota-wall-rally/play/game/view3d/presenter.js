@@ -4,6 +4,7 @@
 import { Actor } from './actor.js';
 import { strokeDef, evalSwing, stanceFeet, SWING_SPAN } from './skills.js';
 import { buildCourt, buildBall, buildPaddle } from './court.js';
+import { camFor } from '../src/camera.js';
 
 const LIB = '../vendor3d/index.js';
 const SKINS = ['peach', 'brown', 'tan', 'clay'];
@@ -20,7 +21,10 @@ function pickQuality() {
   return weak ? 'medium' : 'high';
 }
 
-export async function createPresenter({ kitCanvas, quality = pickQuality() }) {
+// Fluid layout: the 3D canvas covers exactly the kit's virtual rectangle (the whole screen up to 2.4:1, centred beyond that), its camera is
+// camFor(aspect) from src/camera.js (the same function the HUD projects with), so portrait, landscape and every tablet shape agree.
+const MAX_PIXELS = 2.4e6;     // render budget: the pixel ratio is lowered on big screens (iPad, 10 inch tablets) so the frame rate holds
+export async function createPresenter({ kitCanvas, meta = { width: 720, height: 1280 }, quality = pickQuality() }) {
   let V3;
   try { V3 = await import(LIB); } catch (e) { console.warn('view3d failed to load; using the 2D fallback', e); return { stage: null, wrap: (g) => g, ready: Promise.resolve(false) }; }
   const { createStage, loadHuman, THREE } = V3;
@@ -35,7 +39,7 @@ export async function createPresenter({ kitCanvas, quality = pickQuality() }) {
   const P = { stage, THREE, humans: [], actors: [], ball: null, court: null, ready: false, lost: false, simRef: null, pillar: 0, fx: [], seenEv: 0, lastT: null };
   const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
   stage.onContextLost(() => { P.lost = true; });
-  stage.onContextRestored(() => { P.lost = false; });
+  stage.onContextRestored(() => { P.lost = false; P.rectKey = ''; stage.resize(); stage.invalidate(); });
 
   // ---------------------------------------------------------------- scene
   stage.setLighting('indoor', { exposure: 0.8, hemi: 0.75, keyI: 2.4 });
@@ -288,23 +292,23 @@ export async function createPresenter({ kitCanvas, quality = pickQuality() }) {
       const pulse = 1 + 0.08 * Math.sin(tr * 9);
       cueRing.scale.set(pulse, pulse, pulse);
     } else cueRing.visible = false;
-    // ---- camera. On screens wider than 9:16 the 3D picture is pillarboxed to the same rectangle as the HUD so both agree.
-    const winW = kitCanvas.clientWidth || 720, winH = kitCanvas.clientHeight || 1280;
-    const wantW = winW / winH > 0.5625 ? Math.round(winH * 0.5625) : 0;
-    if (wantW !== P.pillar) {
-      P.pillar = wantW;
-      canvas.style.cssText = wantW ? `position:fixed;top:0;left:50%;transform:translateX(-50%);width:${wantW}px;height:100dvh;display:block;pointer-events:none;z-index:0` : 'position:fixed;inset:0;width:100vw;height:100dvh;display:block;pointer-events:none;z-index:0';
+    // ---- canvas rectangle + camera: both follow the live screen (rotation, window resize, tablets)
+    const cw = kitCanvas.clientWidth || globalThis.innerWidth || 720, ch = kitCanvas.clientHeight || globalThis.innerHeight || 1280;
+    const vw = meta.width || 720, vh = meta.height || 1280, k = Math.min(cw / vw, ch / vh), rw = Math.round(vw * k), rh = Math.round(vh * k);
+    const rectKey = `${cw}x${ch}:${rw}x${rh}`;
+    if (rectKey !== P.rectKey) {
+      P.rectKey = rectKey;
+      canvas.style.cssText = rw >= cw - 1 && rh >= ch - 1 ? 'position:fixed;inset:0;width:100vw;height:100dvh;display:block;pointer-events:none;z-index:0'
+        : `position:fixed;left:${Math.round((cw - rw) / 2)}px;top:${Math.round((ch - rh) / 2)}px;width:${rw}px;height:${rh}px;display:block;pointer-events:none;z-index:0`;
       stage.resize();
     }
-    const cam = stage.camera, c = s.cam;
-    const W = canvas.clientWidth || 720, H_ = canvas.clientHeight || 1280;
-    const aspect = W / H_;
-    const th = Math.tan((48 * Math.PI) / 360) * Math.max(1, 0.5625 / Math.max(0.2, aspect));
-    const fov = (2 * Math.atan(th) * 180) / Math.PI;
-    if (Math.abs(cam.fov - fov) > 1e-3) { cam.fov = fov; cam.updateProjectionMatrix(); }
+    const pr = stage.renderer.getPixelRatio();
+    if (rw * rh * pr * pr > MAX_PIXELS * 1.02) stage.renderer.setPixelRatio(Math.sqrt(MAX_PIXELS / (rw * rh)));
+    const cam = stage.camera, cc = camFor(vw / vh);
+    if (Math.abs(cam.fov - cc.fov) > 1e-3) { cam.fov = cc.fov; cam.updateProjectionMatrix(); }
     const co = P.camOverride;
     if (co) { cam.position.set(co.x, co.y, co.z); cam.lookAt(co.lx, co.ly, co.lz); if (co.fov && cam.fov !== co.fov) { cam.fov = co.fov; cam.updateProjectionMatrix(); } }
-    else { cam.position.set(c.x, c.y, c.z); cam.lookAt(c.lx, c.ly, c.lz); }
+    else { cam.position.set(cc.x, cc.y, cc.z); cam.lookAt(cc.lx, cc.ly, cc.lz); }
     stage.setShadowTarget(0, 0, 6.5);
     if (!P.noRender) { stage.render(); perfTick(); }
   }

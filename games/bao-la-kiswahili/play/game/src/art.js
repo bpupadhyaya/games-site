@@ -1,7 +1,7 @@
 // Art: a kanga-style cloth table, a carved teak board with brass studs and chain-carved borders, and seed sprites.
 // Everything is painted ONCE into cached layers (OffscreenCanvas); per frame we only blit. Warm light from the upper left.
 // The patterns are original geometric decoration only.
-import { W, H, PIT_R, FRAME, TRAY, pitPos } from './layout.js';
+import { PIT_R, GEOMS, pitLocal, geom } from './layout.js';
 import { NYUMBA } from './rules.js';
 
 const TAU = Math.PI * 2, SS = 2;
@@ -29,7 +29,7 @@ function leaf(ctx, x, y, s, rot, fill, line) {
   ctx.beginPath(); ctx.arc(0, 0, 3.2, 0, TAU); ctx.fillStyle = line; ctx.fill();
   ctx.restore();
 }
-function border(ctx, y, h) {
+function border(ctx, W, y, h) {
   const g = ctx.createLinearGradient(0, y, 0, y + h); g.addColorStop(0, '#d2553a'); g.addColorStop(1, '#a93a26');
   ctx.fillStyle = g; ctx.fillRect(0, y, W, h);
   ctx.fillStyle = '#f6e7c4'; ctx.fillRect(0, y + 6, W, 3); ctx.fillRect(0, y + h - 9, W, 3);
@@ -40,7 +40,7 @@ function border(ctx, y, h) {
   for (let x = tw / 2; x < W + tw; x += tw) { ctx.beginPath(); ctx.arc(x, y + h / 2 + 4, 4, 0, TAU); ctx.fill(); }
   ctx.fillStyle = 'rgba(255,255,255,0.10)'; ctx.fillRect(0, y, W, 2); ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fillRect(0, y + h - 2, W, 2);
 }
-function paintTable(ctx) {
+function paintTable(ctx, W, H, bd) {
   const bg = ctx.createLinearGradient(0, 0, 0, H); bg.addColorStop(0, '#1f3459'); bg.addColorStop(0.5, '#182a4a'); bg.addColorStop(1, '#101e38');
   ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
   const rnd = lcg(11);
@@ -49,16 +49,22 @@ function paintTable(ctx) {
   // rows of leaf motifs alternating colour, with white dot rows between them (printed-cloth look)
   const fills = [['#e0a93a', '#7d4d10'], ['#d2553a', '#6e1f12'], ['#f2e4c0', '#8a6a3a']];
   let k = 0;
-  for (let y = 150; y < H - 130; y += 118, k++) {
+  for (let y = 32; y < H - 40; y += 118, k++) {
     for (let x = (k % 2) * 45 + 44; x < W; x += 90) { const f = fills[(k + Math.floor(x / 90)) % 3]; leaf(ctx, x, y, 0.82, (k % 2 ? 0.5 : -0.5) * 0.4 + ((x / 90) % 2 ? 0.25 : -0.25), f[0], f[1]); }
     ctx.fillStyle = 'rgba(246,231,196,0.55)';
     for (let x = 8; x < W; x += 24) { ctx.beginPath(); ctx.arc(x, y + 59, 2.4, 0, TAU); ctx.fill(); }
   }
   // gentle vignette so the board reads
-  const vg = ctx.createRadialGradient(W / 2, H / 2, 200, W / 2, H / 2, H * 0.72); vg.addColorStop(0, 'rgba(0,0,10,0)'); vg.addColorStop(1, 'rgba(0,0,10,0.5)');
+  const vg = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.28, W / 2, H / 2, Math.max(W, H) * 0.72); vg.addColorStop(0, 'rgba(0,0,10,0)'); vg.addColorStop(1, 'rgba(0,0,10,0.5)');
   ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
-  border(ctx, 0, 92); border(ctx, 1468, 92);
-  ctx.save(); ctx.globalAlpha = 0.5; ctx.fillStyle = '#000'; ctx.fillRect(0, 92, W, 10); ctx.fillRect(0, 1458, W, 10); ctx.restore();
+  if (bd.side === 'tb') {
+    border(ctx, W, 0, bd.t); border(ctx, W, H - bd.t, bd.t);
+    ctx.save(); ctx.globalAlpha = 0.5; ctx.fillStyle = '#000'; ctx.fillRect(0, bd.t, W, 10); ctx.fillRect(0, H - bd.t - 10, W, 10); ctx.restore();
+  } else {
+    ctx.save(); ctx.translate(bd.t, 0); ctx.rotate(Math.PI / 2); border(ctx, H, 0, bd.t); ctx.restore();
+    ctx.save(); ctx.translate(W, 0); ctx.rotate(Math.PI / 2); border(ctx, H, 0, bd.t); ctx.restore();
+    ctx.save(); ctx.globalAlpha = 0.5; ctx.fillStyle = '#000'; ctx.fillRect(bd.t, 0, 10, H); ctx.fillRect(W - bd.t - 10, 0, 10, H); ctx.restore();
+  }
 }
 
 // ---- the board ---------------------------------------------------------------------------------------------------
@@ -93,8 +99,8 @@ function carve(ctx, path, x, y, w, h, WD, k) {
   ctx.restore();
   ctx.save(); path(ctx); ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(10,3,0,0.55)'; ctx.stroke(); ctx.restore();
 }
-function paintBoard(ctx, wood) {
-  const WD = WOODS[wood] ?? WOODS.teak, F = FRAME;
+function paintBoard(ctx, wood, g) {
+  const WD = WOODS[wood] ?? WOODS.teak, F = g.FRAME, TRAY = g.TRAY, pitPos = (p, r) => pitLocal(p, r, g);
   ctx.save(); ctx.shadowColor = 'rgba(0,0,12,0.7)'; ctx.shadowBlur = 44; ctx.shadowOffsetX = 12; ctx.shadowOffsetY = 30;
   rr(ctx, F.x, F.y, F.w, F.h, 40); ctx.fillStyle = WD.b; ctx.fill(); ctx.restore();
   const fg = ctx.createLinearGradient(F.x, F.y, F.x + F.w, F.y + F.h); fg.addColorStop(0, WD.a); fg.addColorStop(0.5, WD.b); fg.addColorStop(1, WD.c);
@@ -155,19 +161,33 @@ function paintBoard(ctx, wood) {
 const layers = {};
 let baked = 0;
 export function beginFrame() { baked = 0; }
-export function artReady() { return layers.table !== undefined && layers.board_teak !== undefined; }
-function layer(key, paint) {
+export function artReady() { return [...Object.keys(layers)].some((k) => k.startsWith('table')) && Object.keys(layers).some((k) => k.startsWith('board_')); }
+// paint one layer lazily (at most one per frame); `w x h` virtual units, baked at SS x
+function layer(key, w, h, paint) {
   let L = layers[key];
-  if (L === undefined) { if (baked >= 1) return null; baked++; const m = makeCanvas(W * SS, H * SS); if (m) { m.x.scale(SS, SS); paint(m.x); L = m.c; } else L = null; layers[key] = L; }
+  if (L === undefined) {
+    if (baked >= 1) return null; baked++;
+    const m = makeCanvas(Math.ceil(w * SS), Math.ceil(h * SS)); if (m) { m.x.scale(SS, SS); paint(m.x); L = m.c; } else L = null;
+    layers[key] = L;
+    const tk = Object.keys(layers).filter((k) => k.startsWith('table')); if (tk.length > 3) delete layers[tk[0]];   // a rotation leaves the old size behind
+  }
   return L;
 }
-export function drawTable(ctx, calm = false) {
-  const t = layer('table', paintTable);
-  if (!t) { ctx.fillStyle = '#182a4a'; ctx.fillRect(0, 0, W, H); return; }
-  ctx.drawImage(t, 0, 0, W, H);
-  if (calm) { ctx.fillStyle = 'rgba(6,12,28,0.55)'; ctx.fillRect(0, 102, W, 1356); }
+// the cloth fills the whole screen of the current layout `L` (any size); `calm` dims it
+export function drawTable(ctx, L, calm = false) {
+  const w = L.w, h = L.h, bd = L.border, key = `table_${w}x${h}_${bd.side}${bd.t}`;
+  const t = layer(key, w, h, (c) => paintTable(c, w, h, bd));
+  if (!t) { ctx.fillStyle = '#182a4a'; ctx.fillRect(0, 0, w, h); return; }
+  ctx.drawImage(t, 0, 0, w, h);
+  if (calm) { ctx.fillStyle = 'rgba(6,12,28,0.55)'; if (bd.side === 'tb') ctx.fillRect(0, bd.t + 10, w, h - 2 * bd.t - 20); else ctx.fillRect(bd.t + 10, 0, w - 2 * bd.t - 20, h); }
 }
-export function drawBoard(ctx, wood = 'teak') { const b = layer('board_' + wood, (c) => paintBoard(c, wood)); if (b) ctx.drawImage(b, 0, 0, W, H); }
+// the board for the current group shape, in group space (call inside the group transform). Margin M leaves room for the drop shadow.
+const BM = 110;
+export function drawBoard(ctx, wood = 'teak') {
+  const g = geom(), F = g.FRAME;
+  const b = layer(`board_${wood}_${g.name}`, F.w + 2 * BM, F.h + 2 * BM, (c) => { c.translate(BM - F.x, BM - F.y); paintBoard(c, wood, g); });
+  if (b) ctx.drawImage(b, F.x - BM, F.y - BM, F.w + 2 * BM, F.h + 2 * BM);
+}
 
 // ---- seeds -------------------------------------------------------------------------------------------------------
 const SEED_BOX = 40, SEED_SC = 3;

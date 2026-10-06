@@ -1,20 +1,22 @@
 // GAME CONTRACT (docs/GAME-CONTRACT.md). Tangram: Seven Pieces — see design/GDD.md.
 import { createRng } from '../kit/rng.js';
-import { SCREEN, inRect, BACK_BTN, PAUSE_BTN, TOOLBAR_IDS, toolRect, AUTO_BTNS } from './layout.js';
+import { meta, inRect, layout, TOOLBAR_IDS, setBox, DEFAULT_BOX } from './layout.js';
 import { LEVELS, CHAPTER_RULES } from './levels.js';
 import { TEXT_SCALES, hitDoc, clampScroll } from './ui.js';
 import { buildUi, UNLOCK_NEED, THINK_STEPS, solvedIn, totalSolved, levelLocked, demoLocked, firstOpenLevel } from './screens.js';
 import {
   createPuzzle, pointerDown, pointerMove, pointerUp, rotatePiece, flipPiece, undo, resetPieces, requestHint, placeAtSlot, nextTarget,
-  updatePuzzle, isSettled, burst, selectNext, openSlots, logicalPolyPx, requestHint as askHint,
+  updatePuzzle, isSettled, burst, selectNext, openSlots, logicalPolyPx, requestHint as askHint, levelGeo, applyView, viewSnapshot, relayoutPuzzle, VIEW,
 } from './puzzle.js';
 import { randomAssembly, normalizeSolution, validateSolution, centroidOfPose } from './geom.js';
 import { PIECE_COLORS } from './art.js';
 import { render } from './view.js';
 
-export const meta = { width: SCREEN.width, height: SCREEN.height };
+export { meta };
+// The mouse wheel (fed by main.js, virtual units) scrolls the Rules / How to Play reader and any other scrolling document.
+export const wheelInput = { dy: 0 };
 
-const VERSION = '1.0.1';
+const VERSION = '1.1.0';
 const AUTO_IDS = ['trapezoidhouse', 'duck', 'lantern'];
 
 export async function createGame(env) {
@@ -30,7 +32,7 @@ export async function createGame(env) {
     levelIdx: 0, daily: false, puz: null, guides: false,
     auto: null, winInfo: null, winSeq: null, toast: null, toastT: 0,
     today: config?.day ?? 0, demo: Boolean(config?.demo), dev: Boolean(config?.dev), owns: false, resetArm: false,
-    version: VERSION, price: '', shot: false, lastPtr: { x: 0, y: 0 },
+    version: VERSION, price: '', shot: false, lastPtr: { x: 0, y: 0 }, viewSnap: null,
   };
 
   const [prog, set, daily] = await Promise.all([storage.get('tg.progress', null), storage.get('tg.settings', null), storage.get('daily', null)]);
@@ -52,6 +54,19 @@ export async function createGame(env) {
   const saveSettings = () => storage.set('tg.settings', { lang: S.lang, sound: S.sound, glow: S.glow, textIdx: S.textIdx, thinkIdx: S.thinkIdx });
   const saveProgress = () => storage.set('tg.progress', S.progress);
 
+  // ------------------------------------------------------------------------------ live layout
+  // The screen can change shape at any time (rotation, split screen, resize). The puzzle lives in puzzle units, so on a new
+  // layout the pieces keep their place in the puzzle and the tray pieces re-seat in the new tray; nothing else changes.
+  function syncLayout() {
+    const sz = S.puz ? S.puz.g.size : DEFAULT_BOX;
+    setBox(sz.w, sz.h);
+    if (applyView(layout())) {
+      if (S.puz && S.viewSnap) { relayoutPuzzle(S.puz, S.viewSnap); S.puzDown = false; S.press = null; }
+      S.viewSnap = viewSnapshot();
+    }
+  }
+  syncLayout();
+
   // ------------------------------------------------------------------------------ sound
   const sfx = (o) => { if (S.scene !== 'auto' && S.sound) audio.tone(o); };
   const SOUNDS = {
@@ -69,10 +84,14 @@ export async function createGame(env) {
   const WIN_NOTES = [523, 587, 659, 784, 880, 1047];
 
   // ------------------------------------------------------------------------------ levels
+  // Size the layout for this level's silhouette before the pieces are laid in the tray.
+  function prepareView(level) { const z = levelGeo(level).size; setBox(z.w, z.h); applyView(layout()); S.viewSnap = viewSnapshot(); }
+
   function startLevel(i) {
     S.levelIdx = i; S.daily = false;
     const lv = LEVELS[i];
     const rules = CHAPTER_RULES[lv.ch];
+    prepareView(lv);
     S.puz = createPuzzle(lv, rng.fork(), { mix: rules.mix, blind: rules.blind || !S.glow });
     S.guides = rules.guide;
     S.scene = 'play'; S.overlay = null; S.winInfo = null; S.winSeq = null; S.toast = null; S.puzDown = false;
@@ -100,16 +119,19 @@ export async function createGame(env) {
   function startDaily() {
     if (S.demo) { S.scene = 'demo-limit'; return; }
     S.daily = true;
-    S.puz = createPuzzle(dailyLevel(config.day ?? 0), rng.fork(), { mix: 1, blind: !S.glow });
+    const dl = dailyLevel(config.day ?? 0);
+    prepareView(dl);
+    S.puz = createPuzzle(dl, rng.fork(), { mix: 1, blind: !S.glow });
     S.guides = false;
     S.scene = 'play'; S.overlay = null; S.winInfo = null; S.winSeq = null; S.toast = null; S.puzDown = false;
   }
 
   function winBurst(puz) {
-    burst(puz, 180, 300, rng, 26, PIECE_COLORS, { shape: 'tile', min: 120, max: 520, up: 260, life: 1.9, size0: 5, size1: 10, g: 640 });
-    burst(puz, 540, 300, rng, 26, PIECE_COLORS, { shape: 'tile', min: 120, max: 520, up: 260, life: 1.9, size0: 5, size1: 10, g: 640 });
-    burst(puz, 360, 500, rng, 40, ['#ffe9a8', '#ffd45a', '#ffffff'], { shape: 'dot', min: 80, max: 420, up: 120, life: 1.4, size0: 3, size1: 7 });
-    burst(puz, 360, 170, rng, 36, ['#ffb3c7', '#ffd6e0', '#ff8fb0'], { shape: 'petal', min: 20, max: 140, up: -60, life: 3.2, size0: 5, size1: 9, g: 120, drag: 0.5 });
+    const B = layout().board, bx = (f) => B.x + B.w * f, by = (f) => B.y + B.h * f;
+    burst(puz, bx(0.25), by(0.2), rng, 26, PIECE_COLORS, { shape: 'tile', min: 120, max: 520, up: 260, life: 1.9, size0: 5, size1: 10, g: 640 });
+    burst(puz, bx(0.75), by(0.2), rng, 26, PIECE_COLORS, { shape: 'tile', min: 120, max: 520, up: 260, life: 1.9, size0: 5, size1: 10, g: 640 });
+    burst(puz, bx(0.5), by(0.5), rng, 40, ['#ffe9a8', '#ffd45a', '#ffffff'], { shape: 'dot', min: 80, max: 420, up: 120, life: 1.4, size0: 3, size1: 7 });
+    burst(puz, bx(0.5), by(0.05), rng, 36, ['#ffb3c7', '#ffd6e0', '#ff8fb0'], { shape: 'petal', min: 20, max: 140, up: -60, life: 3.2, size0: 5, size1: 9, g: 120, drag: 0.5 });
   }
 
   function onWin() {
@@ -144,6 +166,7 @@ export async function createGame(env) {
     const a = S.auto;
     const idx = a.ids[a.k];
     S.levelIdx = idx; S.daily = false;
+    prepareView(LEVELS[idx]);
     S.puz = createPuzzle(LEVELS[idx], rng.fork(), { mix: 1, blind: true });
     S.puz.glide = true;
     S.guides = false;
@@ -265,10 +288,7 @@ export async function createGame(env) {
   }
 
   function gotoScene(scene) {
-    S.scene = scene; S.overlay = null; S.press = null; S.resetArm = false; S.scrollVel = {};
-    if (scene === 'howto') S.page.howto = 0;
-    if (scene === 'rules') S.page.rules = 0;
-    S.scroll[scene] = 0;
+    S.scene = scene; S.overlay = null; S.press = null; S.resetArm = false; S.scrollVel = {}; S.scroll = {};
     SOUNDS.ui();
   }
 
@@ -286,6 +306,7 @@ export async function createGame(env) {
 
   function activate(id) {
     if (id == null) return;
+    if (id === 'arcforge') { env.openArcforgeHome?.(); return; }
     if (id.startsWith('lang:')) { setLang(id.slice(5)); return; }
     if (id === 'zoom-') { setText(-1); return; }
     if (id === 'zoom+') { setText(1); return; }
@@ -303,12 +324,6 @@ export async function createGame(env) {
       case 'auto': startAuto(); return;
       case 'howto': case 'rules': case 'about': case 'settings': gotoScene(id); return;
       case 'back': case 'menu': gotoScene('title'); return;
-      case 'prev': S.page[S.scene] = Math.max(0, S.page[S.scene] - 1); S.scroll = {}; SOUNDS.ui(); return;
-      case 'next': {
-        const total = S.scene === 'rules' ? 15 : 6;
-        if (S.scene === 'howto' && S.page.howto >= total - 1) { activate('play'); return; }
-        S.page[S.scene] = Math.min(total - 1, S.page[S.scene] + 1); S.scroll = {}; SOUNDS.ui(); return;
-      }
       case 'set:sound': S.sound = !S.sound; audio.setMuted(!S.sound); saveSettings(); if (S.sound) SOUNDS.ui(); return;
       case 'set:glow': S.glow = !S.glow; saveSettings(); return;
       case 'set:think-': S.thinkIdx = Math.max(0, S.thinkIdx - 1); saveSettings(); return;
@@ -350,7 +365,6 @@ export async function createGame(env) {
   // ------------------------------------------------------------------------------ pointer handling
   function fixedHit(ui, x, y) {
     const list = [...ui.fixed];
-    if (ui.nav) list.push(ui.nav.prev, ui.nav.next);
     for (const f of list) if (f.id != null && !f.disabled && inRect(x, y, f.rect)) return f;
     return null;
   }
@@ -410,10 +424,11 @@ export async function createGame(env) {
 
   // ---- play
   function playDown(x, y) {
-    if (inRect(x, y, BACK_BTN)) { S.press = { id: 'hud:back', active: true, kind: 'hud', rect: BACK_BTN }; return; }
-    if (inRect(x, y, PAUSE_BTN)) { S.press = { id: 'hud:pause', active: true, kind: 'hud', rect: PAUSE_BTN }; return; }
+    const L = layout();
+    if (inRect(x, y, L.back)) { S.press = { id: 'hud:back', active: true, kind: 'hud', rect: L.back }; return; }
+    if (inRect(x, y, L.pause)) { S.press = { id: 'hud:pause', active: true, kind: 'hud', rect: L.pause }; return; }
     for (let i = 0; i < TOOLBAR_IDS.length; i++) {
-      const r = toolRect(i);
+      const r = L.tools[i];
       if (inRect(x, y, r)) { toolAction(TOOLBAR_IDS[i]); S.press = { id: `tool:${TOOLBAR_IDS[i]}`, active: true, kind: 'tool', rect: r }; return; }
     }
     S.puzDown = pointerDown(S.puz, x, y);
@@ -439,9 +454,10 @@ export async function createGame(env) {
 
   // ---- auto
   function autoDown(x, y) {
-    if (inRect(x, y, BACK_BTN)) { S.press = { id: 'auto:exit', active: true, kind: 'auto', rect: BACK_BTN }; return; }
+    const L = layout();
+    if (inRect(x, y, L.back)) { S.press = { id: 'auto:exit', active: true, kind: 'auto', rect: L.back }; return; }
     for (const id of ['slower', 'pause', 'faster']) {
-      if (inRect(x, y, AUTO_BTNS[id])) { S.press = { id: `auto:${id}`, active: true, kind: 'auto', rect: AUTO_BTNS[id] }; return; }
+      if (inRect(x, y, L.auto[id])) { S.press = { id: `auto:${id}`, active: true, kind: 'auto', rect: L.auto[id] }; return; }
     }
   }
   function autoAction(id) {
@@ -473,14 +489,14 @@ export async function createGame(env) {
     }
     const ui = buildUi(S);
     if (ui.layout && ui.region) {
-      if (keys.down.has('ArrowDown') || keys.down.has('PageDown')) setScroll(ui, getScroll(ui) + 18);
-      if (keys.down.has('ArrowUp') || keys.down.has('PageUp')) setScroll(ui, getScroll(ui) - 18);
+      if (keys.down.has('ArrowDown')) setScroll(ui, getScroll(ui) + 18);
+      if (keys.down.has('ArrowUp')) setScroll(ui, getScroll(ui) - 18);
+      if (keys.pressed.has('PageDown')) setScroll(ui, getScroll(ui) + ui.region.h * 0.85);
+      if (keys.pressed.has('PageUp')) setScroll(ui, getScroll(ui) - ui.region.h * 0.85);
+      if (keys.pressed.has('Home')) setScroll(ui, 0);
+      if (keys.pressed.has('End')) setScroll(ui, 1e9);
     }
     if (has('Escape') && ['levels', 'howto', 'rules', 'about', 'settings', 'demo-limit'].includes(S.scene)) gotoScene('title');
-    if (S.scene === 'howto' || S.scene === 'rules') {
-      if (has('ArrowRight')) activate('next');
-      if (has('ArrowLeft')) activate('prev');
-    }
   }
 
   // ------------------------------------------------------------------------------ puzzle events
@@ -516,6 +532,11 @@ export async function createGame(env) {
   // ------------------------------------------------------------------------------ main loop
   return {
     update(dt, input) {
+      syncLayout();
+      if (wheelInput.dy) {
+        const dy = wheelInput.dy; wheelInput.dy = 0;
+        if (S.scene !== 'play' && S.scene !== 'auto' || S.overlay) { const ui = buildUi(S); if (ui.layout && ui.region) { setScroll(ui, getScroll(ui) + dy); delete S.scrollVel[ui.scrollKey]; } }
+      }
       // Watch & Learn's Pause freezes the whole loop: timers, the puzzle's springs, particles and the
       // ambient animation clock all stop, and resume exactly where they were.
       const frozen = S.scene === 'auto' && S.auto && S.auto.paused;
@@ -562,6 +583,7 @@ export async function createGame(env) {
       const puz = S.puz;
       return {
         scene: S.scene, overlay: S.overlay, lang: S.lang, textIdx: S.textIdx, thinkIdx: S.thinkIdx, sound: S.sound, level: S.levelIdx,
+        view: { s: Math.round(VIEW.s * 100) / 100, board: layout().board, tray: layout().tray, arr: layout().arr },
         daily: S.daily, solved: totalSolved(S), stars: S.progress.stars, streak: S.dailyRec.streak, page: S.page, scroll: S.scroll,
         auto: S.auto ? { k: S.auto.k, phase: S.auto.phase, t: Math.round(S.auto.t * 100) / 100, paused: S.auto.paused } : null,
         puzzle: puz ? {
@@ -570,6 +592,9 @@ export async function createGame(env) {
         } : null,
       };
     },
+
+    // Dev tools only (?dev=1): the check scripts drive screens and read layout rects through this.
+    dbg: config?.dev ? { S, buildUi: () => buildUi(S), goto: gotoScene, activate, startLevel, startAuto, startDaily, devSolve } : undefined,
 
     // The preview clock counts real play only. Menus, level select, Rules / How to Play / About, Settings,
     // every overlay (pause, win, Watch & Learn summary), the demo card and Watch & Learn are all free time.

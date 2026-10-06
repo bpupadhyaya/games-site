@@ -1,8 +1,9 @@
 // Everything drawn each frame. Reads `state` (game.js) and changes nothing. The heavy art is cached (art.js).
-import { W, H, TRAY, BONE_SPOTS, CHIP_Y, stationXY, pathPoint, STEP, slotOffset } from './layout.js';
+import { TRAY, BONE_SPOTS, CHIP_Y, stationXY, pathPoint, STEP, slotOffset, curLayout, host } from './layout.js';
 import { FINISH, TILES, TILE_NAMES, FACE_NAMES, FACE_VALUE, FACE_WEIGHT, previewGallop, scoreOf, comboLabel, ranking } from './rules.js';
-import { drawBackdrop, drawBoard, drawPanel, drawBone, drawToken, drawTileIcon, RIDER, RIDER_LIGHT, RIDER_DARK, FACE_COL, INK, ACC, lcg } from './art.js';
-import { screenButtons, screenLayout, readerPages, readerIndex, PANEL, BODY, zoomOf } from './ui.js';
+import { drawScenery, drawTrail, drawMat, drawPanel, drawBone, drawToken, drawTileIcon, RIDER, RIDER_LIGHT, RIDER_DARK, FACE_COL, INK, ACC, lcg } from './art.js';
+import { screenButtons, screenLayout, readerFlow, readerMax, zoomOf } from './ui.js';
+import { drawLockup, drawMoreLine } from './brand.js';
 import { ART_H } from './text.js';
 
 export const DISPLAY = '"Fredoka", "Trebuchet MS", "Segoe UI", system-ui, sans-serif';
@@ -12,33 +13,35 @@ const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
 const TITLE_G = { riders: [{ pos: 14, name: 'You' }, { pos: 23, name: 'Naran' }, { pos: 31, name: 'Saran' }, { pos: 8, name: 'Tuya' }], turn: 0, winner: -1 };
 
-export function render(ctx, state) {
+// Draw `fn` in a band's canonical coordinates (see layout.js).
+function inBand(ctx, B, fn) { ctx.save(); ctx.translate(B.tx, B.ty); ctx.scale(B.s, B.s); fn(); ctx.restore(); }
+
+export function render(ctx, state, L = curLayout()) {
   const sc = state.scene, z = zoomOf(state);
   const panelScene = ['setup', 'settings', 'how', 'about', 'rules', 'demo-limit'].includes(sc);
   PRESSED = state.press && !state.press.moved ? state.press.b : null;
   const R = makeText(ctx);
 
-  if (panelScene) { drawBackdrop(ctx); scrim(ctx, 0.28); drawPanelScene(ctx, state, R, z); return; }
-  drawBoard(ctx);
-  if (sc === 'title') { drawTitle(ctx, state, R); return; }
+  drawScenery(ctx, L.w, L.h);
+  if (panelScene) { scrim(ctx, L, 0.28); drawPanelScene(ctx, state, R, z, L); return; }
+  if (sc === 'title') { drawTitle(ctx, state, R, L); return; }
 
-  const g = state.g, auto = sc === 'autoplay' || sc === 'autoplay-over';
-  R.glowText(auto ? 'Auto Play · Watch & Learn' : 'Shagai', 360, auto ? 76 : 84, auto ? 38 : 64, '#fff4d6');
-  drawTrailOverlay(ctx, state, R);
-  drawTokens(ctx, state, g, true);
-  plaque(ctx, 36, 216, 648, 82);
-  R.fit(state.msg || '', 360, 218, 600, 78, 27 * Math.min(z, 1.4), 15, '#fff4d6');
-  drawChips(ctx, state, R);
-  drawBones(ctx, state, R);
-  drawParticles(ctx, state);
-  drawPops(ctx, state, R);
+  const P = L.play, g = state.g, auto = sc === 'autoplay' || sc === 'autoplay-over';
+  inBand(ctx, P.trail, () => drawTrail(ctx));
+  inBand(ctx, P.mat, () => drawMat(ctx));
+  inBand(ctx, P.ttl, () => R.glowText(auto ? 'Auto Play · Watch & Learn' : 'Shagai', 360, auto ? 76 : 84, auto ? 38 : 64, '#fff4d6'));
+  inBand(ctx, P.trail, () => { drawTrailOverlay(ctx, state, R); drawTokens(ctx, state, g, true); });
+  inBand(ctx, P.plaque, () => { plaque(ctx, 36, 216, 648, 82); R.fit(state.msg || '', 360, 218, 600, 78, 27 * Math.min(z, 1.4), 15, '#fff4d6'); });
+  inBand(ctx, P.chips, () => drawChips(ctx, state, R));
+  inBand(ctx, P.mat, () => drawBones(ctx, state, R));
+  drawFx(ctx, state, R, L, sc === 'over' || sc === 'autoplay-over');
 
   if (sc === 'play' || sc === 'autoplay') {
-    if (!state.menuOpen) { for (const b of screenButtons(state)) R.button(b); }
-    if (sc === 'autoplay' && state.ap.paused && !state.menuOpen) drawPausedBanner(ctx, R);
+    if (!state.menuOpen) { for (const b of screenButtons(state, L)) R.button(b); }
+    if (sc === 'autoplay' && state.ap.paused && !state.menuOpen) drawPausedBanner(ctx, R, L);
   }
-  if (state.menuOpen && (sc === 'play' || sc === 'autoplay')) { scrim(ctx, 0.62); drawStack(ctx, state, R, z); }
-  if (sc === 'over' || sc === 'autoplay-over') drawOver(ctx, state, R, z);
+  if (state.menuOpen && (sc === 'play' || sc === 'autoplay')) { scrim(ctx, L, 0.62); drawStack(ctx, state, R, z, L); }
+  if (sc === 'over' || sc === 'autoplay-over') drawOver(ctx, state, R, z, L);
 }
 
 // ---- text helpers ---------------------------------------------------------------------------------------------
@@ -74,6 +77,9 @@ function makeText(ctx) {
     const col = hot ? '#2a1b12' : '#fff4d6', lines = n.lines || [n.label];
     let size = n.size; const need = lines.length * size * 1.22;
     if (need > n.h - 12) size = Math.max(14, Math.floor((n.h - 12) / (lines.length * 1.22)));
+    // never smaller than ~11 css px when the button has room for it (small phones in landscape / tablets scaled down)
+    const floor = 11 / (host.px || 0.6);
+    if (size < floor) { let t = Math.min(floor, (n.h - 8) / (lines.length * 1.22)); ctx.font = `600 ${t}px ${DISPLAY}`; while (t > size && Math.max(...lines.map((l) => ctx.measureText(l).width)) > n.w - 14) { t -= 0.5; ctx.font = `600 ${t}px ${DISPLAY}`; } size = Math.max(size, t); }
     const lh = size * 1.22, top = n.y + n.h / 2 - (lines.length * lh) / 2 + size * 0.88;
     lines.forEach((ln, i) => text(ln, n.x + n.w / 2, top + i * lh, size, col, DISPLAY, 600));
     ctx.restore();
@@ -88,7 +94,7 @@ function plaque(ctx, x, y, w, h) {
   ctx.fillStyle = 'rgba(16,34,72,0.94)'; ctx.beginPath(); ctx.roundRect(x, y, w, h, 18); ctx.fill(); ctx.restore();
   ctx.strokeStyle = '#f0c24a'; ctx.lineWidth = 3; ctx.beginPath(); ctx.roundRect(x, y, w, h, 18); ctx.stroke();
 }
-const scrim = (ctx, a = 0.62) => { ctx.fillStyle = `rgba(10,5,3,${a})`; ctx.fillRect(0, 0, W, H); };
+const scrim = (ctx, L, a = 0.62) => { ctx.fillStyle = `rgba(10,5,3,${a})`; ctx.fillRect(0, 0, L.w, L.h); };
 
 // ---- the trail's live overlay: labels, the landing preview ----------------------------------------------------------------
 function drawTrailOverlay(ctx, state, R) {
@@ -115,7 +121,7 @@ function drawTrailOverlay(ctx, state, R) {
     else if (res.effect?.kind === 'stream') tag = 'Stream: -1 toss'; else if (res.effect?.kind === 'camp') tag = 'Camp: +1 toss';
     if (res.bumped.length) tag = `Flick ${g.riders[res.bumped[0].pl].name} back!`;
   }
-  ctx.save(); ctx.font = `600 21px ${DISPLAY}`; const w = ctx.measureText(tag).width + 26, tx = clamp(d.x, w / 2 + 8, W - w / 2 - 8), ty = d.y < 480 ? d.y + 40 : d.y - 66;
+  ctx.save(); ctx.font = `600 21px ${DISPLAY}`; const w = ctx.measureText(tag).width + 26, tx = clamp(d.x, w / 2 + 48, 672 - w / 2), ty = d.y < 480 ? d.y + 40 : d.y - 66;
   ctx.fillStyle = res.bumped.length ? '#c42a30' : res.effect?.kind === 'burrow' ? '#8a4a1a' : '#1d6a4a'; ctx.beginPath(); ctx.roundRect(tx - w / 2, ty, w, 32, 16); ctx.fill(); ctx.strokeStyle = '#fff2b0'; ctx.lineWidth = 2; ctx.stroke();
   ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.fillText(tag, tx, ty + 23); ctx.restore();
 }
@@ -217,48 +223,55 @@ function drawBones(ctx, state, R) {
   void TRAY;
 }
 
-function drawParticles(ctx, state) {
-  for (const p of state.parts) {
+// particles and pops live in canonical coordinates; each belongs to the band whose canonical area it is in
+function drawFx(ctx, state, R, L, over) {
+  const bands = over ? [{ s: 1, tx: (L.w - 720) / 2, ty: L.h / 2 - 360 - 0 }] : [L.play.trail, L.play.mat];
+  const pick = (y) => (over ? bands[0] : L.play.bandAt(y));
+  for (const B of bands) inBand(ctx, B, () => { drawParticles(ctx, state.parts.filter((p) => pick(p.y) === B)); drawPops(ctx, state.pops.filter((p) => pick(p.y) === B), R); });
+}
+function drawParticles(ctx, parts) {
+  for (const p of parts) {
     const a = clamp(p.life / p.max, 0, 1);
     ctx.save(); ctx.globalAlpha = a; ctx.fillStyle = p.col;
     if (p.rect) { ctx.translate(p.x, p.y); ctx.rotate(p.rot || 0); ctx.fillRect(-p.sz, -p.sz * 0.6, p.sz * 2, p.sz * 1.2); } else { ctx.beginPath(); ctx.arc(p.x, p.y, p.sz * (0.4 + 0.6 * a), 0, TAU); ctx.fill(); }
     ctx.restore();
   }
 }
-function drawPops(ctx, state, R) {
-  for (const p of state.pops) {
+function drawPops(ctx, pops, R) {
+  for (const p of pops) {
     const a = clamp(1 - Math.max(0, p.t - 0.9) / 0.6, 0, 1), up = ease(clamp(p.t / 0.5, 0, 1)) * 22;
-    ctx.save(); ctx.globalAlpha = a; ctx.font = `700 26px ${DISPLAY}`; const w = ctx.measureText(p.text).width + 28, x = clamp(p.x, w / 2 + 8, W - w / 2 - 8), y = p.y - up;
+    ctx.save(); ctx.globalAlpha = a; ctx.font = `700 26px ${DISPLAY}`; const w = ctx.measureText(p.text).width + 28, x = clamp(p.x, w / 2 + 48, 672 - w / 2), y = p.y - up;
     ctx.fillStyle = 'rgba(16,34,72,0.92)'; ctx.beginPath(); ctx.roundRect(x - w / 2, y - 26, w, 38, 19); ctx.fill(); ctx.strokeStyle = '#f0c24a'; ctx.lineWidth = 2.5; ctx.stroke();
     R.text(p.text, x, y + 2, 26, p.color, DISPLAY, 700); ctx.restore();
   }
 }
 
-function drawPausedBanner(ctx, R) {
-  scrim(ctx, 0.35);
-  ctx.save(); ctx.shadowColor = 'rgba(0,0,0,0.7)'; ctx.shadowBlur = 24; ctx.fillStyle = 'rgba(16,34,72,0.96)'; ctx.beginPath(); ctx.roundRect(150, 560, 420, 170, 28); ctx.fill(); ctx.restore();
-  ctx.strokeStyle = '#f0c24a'; ctx.lineWidth = 4; ctx.beginPath(); ctx.roundRect(150, 560, 420, 170, 28); ctx.stroke();
-  R.text('Paused', 360, 650, 72, '#ffe27a', DISPLAY, 700);
-  R.text('Everything is frozen. TAP Resume.', 360, 700, 24, '#fff4d6', DISPLAY, 500);
+function drawPausedBanner(ctx, R, L) {
+  scrim(ctx, L, 0.35);
+  const u = Math.min(1, (L.U.w - 16) / 420, (L.U.h - 16) / 170), bw = 420 * u, bh = 170 * u, x = L.U.x0 + (L.U.w - bw) / 2, y = L.U.y0 + (L.U.h - bh) / 2;
+  ctx.save(); ctx.shadowColor = 'rgba(0,0,0,0.7)'; ctx.shadowBlur = 24; ctx.fillStyle = 'rgba(16,34,72,0.96)'; ctx.beginPath(); ctx.roundRect(x, y, bw, bh, 28 * u); ctx.fill(); ctx.restore();
+  ctx.strokeStyle = '#f0c24a'; ctx.lineWidth = 4; ctx.beginPath(); ctx.roundRect(x, y, bw, bh, 28 * u); ctx.stroke();
+  R.text('Paused', x + bw / 2, y + 90 * u, 72 * u, '#ffe27a', DISPLAY, 700);
+  R.text('Everything is frozen. TAP Resume.', x + bw / 2, y + 140 * u, 24 * u, '#fff4d6', DISPLAY, 500);
 }
 
 // ---- panels and stacks ------------------------------------------------------------------------------------------------------
-function fitTitle(ctx, R, str, y, size) {
+function fitTitle(ctx, R, str, x, y, size, maxW) {
   let s = size; ctx.font = `700 ${s}px ${DISPLAY}`;
-  while (s > 28 && ctx.measureText(str).width > PANEL.w - 140) { s -= 2; ctx.font = `700 ${s}px ${DISPLAY}`; }
-  R.text(str, 360, y, s, ACC, DISPLAY, 700);
+  while (s > 26 && ctx.measureText(str).width > maxW) { s -= 2; ctx.font = `700 ${s}px ${DISPLAY}`; }
+  R.text(str, x, y, s, ACC, DISPLAY, 700);
 }
-function drawPanelScene(ctx, state, R, z) {
-  const sc = state.scene;
-  drawPanel(ctx, PANEL.x, PANEL.y, PANEL.w, PANEL.h);
-  if (sc === 'how' || sc === 'about' || sc === 'rules') { drawReader(ctx, state, R, z); return; }
-  const lay = screenLayout(state);
-  fitTitle(ctx, R, lay.st.title, 206, 62);
+function drawPanelScene(ctx, state, R, z, L) {
+  const sc = state.scene, P = L.panel;
+  drawPanel(ctx, P.x, P.y, P.w, P.h);
+  if (sc === 'how' || sc === 'about' || sc === 'rules') { drawReader(ctx, state, R, z, L); return; }
+  const lay = screenLayout(state, L);
+  fitTitle(ctx, R, lay.st.title, P.x + P.w / 2, P.titleY, P.titleSize, P.titleMaxW);
   drawStackBody(ctx, state, R, lay, z);
 }
-function drawStack(ctx, state, R, z) {
-  const lay = screenLayout(state), c = lay.st.card;
-  if (c) { drawPanel(ctx, c.x, c.y, c.w, c.h); if (c.title) R.text(c.title, 360, c.y + 98, 52, ACC, DISPLAY, 700); }
+function drawStack(ctx, state, R, z, L) {
+  const lay = screenLayout(state, L), c = lay.frame.card, u = lay.frame.u;
+  if (c) { drawPanel(ctx, c.x, c.y, c.w, c.h); if (lay.st.card?.title) R.text(lay.st.card.title, c.x + c.w / 2, c.y + 98 * u, 52 * u, ACC, DISPLAY, 700); }
   drawStackBody(ctx, state, R, lay, z);
 }
 function drawStackBody(ctx, state, R, lay) {
@@ -270,14 +283,14 @@ function drawStackBody(ctx, state, R, lay) {
       const x = n.align === 'left' ? n.x : n.x + n.w / 2;
       n.lines.forEach((ln, i) => R.text(ln, x, n.y + i * n.lh + n.size * 0.95, n.size, n.color, DISPLAY, n.weight ?? 600, n.align === 'left' ? 'left' : 'center'));
     } else if (n.k === 'btn') R.button(n);
-    else if (n.k === 'art') drawStackArt(ctx, state, R, n);
+    else if (n.k === 'art') { ctx.save(); ctx.translate(n.x, n.y); ctx.scale(lay.u, lay.u); drawStackArt(ctx, state, R, { ...n, x: 0, y: 0, w: n.w / lay.u, h: n.h / lay.u }); ctx.restore(); }
   }
   ctx.restore();
   if (lay.maxScroll > 0) { // a slim scroll thumb
     const th = Math.max(40, reg.h * reg.h / lay.total), ty = reg.y + (reg.h - th) * (lay.scroll / lay.maxScroll);
     ctx.fillStyle = 'rgba(40,30,60,0.35)'; ctx.beginPath(); ctx.roundRect(reg.x + reg.w + 6, reg.y, 6, reg.h, 3); ctx.fill();
     ctx.fillStyle = 'rgba(214,150,30,0.95)'; ctx.beginPath(); ctx.roundRect(reg.x + reg.w + 6, ty, 6, th, 3); ctx.fill();
-    if (lay.scroll < lay.maxScroll - 4) R.text('drag to scroll', reg.x + reg.w / 2, reg.y + reg.h - 4, 18, 'rgba(60,40,30,0.7)', DISPLAY, 500);
+    if (lay.scroll < lay.maxScroll - 4) R.text('drag to scroll', reg.x + reg.w / 2, reg.y + reg.h - 4, 18 * Math.min(1, lay.u), 'rgba(60,40,30,0.7)', DISPLAY, 500);
   }
   for (const f of lay.footer) R.button(f);
 }
@@ -294,16 +307,25 @@ function drawStackArt(ctx, state, R, n) {
 }
 
 // ---- reader pages ---------------------------------------------------------------------------------------------------------------
-function drawReader(ctx, state, R, z) {
-  const sc = state.scene, pages = readerPages(sc, z), idx = clamp(readerIndex(state), 0, pages.length - 1), pg = pages[idx];
-  const head = pg.parts > 1 ? `${pg.h} (${pg.part}/${pg.parts})` : pg.h;
-  fitTitle(ctx, R, head, 206, Math.round(58 * Math.min(1.25, z)));
-  let y = BODY.y;
-  if (pg.art) { drawRulesArt(ctx, pg.art, 360, BODY.y + ART_H / 2 - 4, state.t); y += ART_H + Math.round(pg.size * 0.3); }
-  pg.lines.forEach((ln) => { y += ln.gap; R.text(ln.str, BODY.x, y + pg.size * 0.95, pg.size, '#2a1b12', DISPLAY, 500, 'left'); y += pg.lh; });
-  R.text(`Page ${idx + 1} of ${pages.length}`, 360, 1236, 22, ACC, DISPLAY, 600);
-  R.text(`Text ${Math.round(z * 100)}%`, 360, 1297, 28, '#2a1b12', DISPLAY, 600);
-  for (const b of screenButtons(state)) R.button(b);
+function drawReader(ctx, state, R, z, L) {
+  const sc = state.scene, RD = L.reader, P = RD.P, body = RD.body, F = readerFlow(sc, z, L), max = readerMax(state, L);
+  if (state.jump != null) { const it = F.secs[Math.min(state.jump, F.secs.length - 1)]; state.scroll = Math.min(max, it ? it.y : 0); state.jump = null; }
+  const scroll = clamp(state.scroll || 0, 0, max);
+  fitTitle(ctx, R, sc === 'how' ? 'How to Play' : sc === 'about' ? 'About' : 'Rules', P.x + P.w / 2, P.titleY, Math.round(P.titleSize * 0.94 * Math.min(1.25, z)), P.titleMaxW);
+  ctx.save(); ctx.beginPath(); ctx.rect(body.x - 14, body.y, body.w + 28, body.h); ctx.clip();
+  for (const s of F.secs) {
+    const top = body.y + s.y - scroll;
+    if (top > body.y + body.h + 10 || top + s.hh < body.y - 10) continue;
+    let y = top;
+    R.text(s.h, body.x, y + s.hs * 1.05, s.hs, ACC, DISPLAY, 700, 'left'); y += Math.round(s.hs * 1.5);
+    if (s.art) { drawRulesArt(ctx, s.art, body.x + body.w / 2, y + ART_H / 2 - 4, state.t); y += ART_H + Math.round(s.size * 0.3); }
+    s.lines.forEach((ln) => { y += ln.gap; R.text(ln.str, body.x, y + s.size * 0.95, s.size, '#2a1b12', DISPLAY, 500, 'left'); y += s.lh; });
+  }
+  ctx.restore();
+  if (max > 0) { const th = Math.max(36, body.h * body.h / F.total), ty = body.y + (body.h - th) * (scroll / max); ctx.fillStyle = 'rgba(90,60,40,0.45)'; ctx.fillRect(body.x + body.w + 6, ty, 5, th); }
+  R.text(max > 0 ? (scroll >= max - 2 ? 'End' : 'Scroll: drag, wheel or arrow keys') : '', P.x + P.w / 2, RD.captionY, 22, ACC, DISPLAY, 600);
+  R.text(`Text ${Math.round(z * 100)}%`, RD.textX, RD.textY, RD.one ? 24 : 28, '#2a1b12', DISPLAY, 600);
+  for (const b of screenButtons(state, L)) R.button(b);
 }
 
 function cap(ctx, str, x, y, size = 20, col = ACC) { ctx.textAlign = 'center'; ctx.font = `500 ${size}px ${DISPLAY}`; ctx.fillStyle = col; ctx.fillText(str, x, y); }
@@ -334,37 +356,52 @@ function drawRulesArt(ctx, kind, cx, cy, T0) {
 }
 
 // ---- title ---------------------------------------------------------------------------------------------------------------------
-function drawTitle(ctx, state, R) {
-  const T0 = state.t;
-  drawTokens(ctx, { ...state, gal: null, fly: [] }, TITLE_G, false);
-  const lab = (str, x, y, size) => { ctx.save(); ctx.lineJoin = 'round'; ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(60,35,10,0.8)'; ctx.font = `700 ${size}px ${DISPLAY}`; ctx.textAlign = 'center'; ctx.strokeText(str, x, y); ctx.fillStyle = '#fff8e6'; ctx.fillText(str, x, y); ctx.restore(); };
-  lab('START', stationXY(0).x - 34 + 24, stationXY(0).y + 66, 17); lab('FINISH', stationXY(FINISH).x - 24, stationXY(FINISH).y + 52, 18);
+function drawTitle(ctx, state, R, L) {
+  const T0 = state.t, T = L.title, pr = T.plate.r;
+  inBand(ctx, T.trail, () => {
+    drawTrail(ctx);
+    drawTokens(ctx, { ...state, gal: null, fly: [] }, TITLE_G, false);
+    const lab = (str, x, y, size) => { ctx.save(); ctx.lineJoin = 'round'; ctx.lineWidth = 4; ctx.strokeStyle = 'rgba(60,35,10,0.8)'; ctx.font = `700 ${size}px ${DISPLAY}`; ctx.textAlign = 'center'; ctx.strokeText(str, x, y); ctx.fillStyle = '#fff8e6'; ctx.fillText(str, x, y); ctx.restore(); };
+    lab('START', stationXY(0).x - 34 + 24, stationXY(0).y + 66, 17); lab('FINISH', stationXY(FINISH).x - 24, stationXY(FINISH).y + 52, 18);
+  });
   // title on the sky
-  ctx.save(); ctx.shadowColor = 'rgba(255,200,80,0.7)'; ctx.shadowBlur = 30 + 8 * Math.sin(T0 * 2);
-  R.text('Shagai', 360, 150, 128, '#fff4d6', DISPLAY, 700); ctx.restore();
-  R.glowText('The ankle-bone race', 360, 252, 38, '#fff4d6');
-  // the four sides, floating over the menu plate
-  [0, 1, 2, 3].forEach((f, i) => drawBone(ctx, f, 360 + (i - 1.5) * 128, 944 + Math.sin(T0 * 2 + i * 1.3) * 4, (i % 2 ? 0.2 : -0.16), 0.62, 6));
+  inBand(ctx, T.tblk, () => {
+    ctx.save(); ctx.shadowColor = 'rgba(255,200,80,0.7)'; ctx.shadowBlur = 30 + 8 * Math.sin(T0 * 2);
+    R.text('Shagai', 360, 150, 128, '#fff4d6', DISPLAY, 700); ctx.restore();
+    R.glowText('The ankle-bone race', 360, 252, 38, '#fff4d6');
+  });
+  // the four sides, floating over the menu plate (phone-portrait only: there is no spare room elsewhere)
+  if (T.bones) inBand(ctx, T.bones, () => [0, 1, 2, 3].forEach((f, i) => drawBone(ctx, f, 360 + (i - 1.5) * 128, 944 + Math.sin(T0 * 2 + i * 1.3) * 4, (i % 2 ? 0.2 : -0.16), 0.62, 6)));
   // menu plate
-  ctx.save(); ctx.shadowColor = 'rgba(0,0,0,0.55)'; ctx.shadowBlur = 20; ctx.shadowOffsetY = 6; ctx.fillStyle = 'rgba(14,30,66,0.95)'; ctx.beginPath(); ctx.roundRect(36, 1004, 648, 400, 24); ctx.fill(); ctx.restore();
-  ctx.strokeStyle = '#f0c24a'; ctx.lineWidth = 3; ctx.beginPath(); ctx.roundRect(36, 1004, 648, 400, 24); ctx.stroke();
-  const lay = screenLayout(state), reg = lay.region;
+  const rad = 24 * T.plate.s;
+  ctx.save(); ctx.shadowColor = 'rgba(0,0,0,0.55)'; ctx.shadowBlur = 20; ctx.shadowOffsetY = 6; ctx.fillStyle = 'rgba(14,30,66,0.95)'; ctx.beginPath(); ctx.roundRect(pr.x, pr.y, pr.w, pr.h, rad); ctx.fill(); ctx.restore();
+  ctx.strokeStyle = '#f0c24a'; ctx.lineWidth = 3; ctx.beginPath(); ctx.roundRect(pr.x, pr.y, pr.w, pr.h, rad); ctx.stroke();
+  const lay = screenLayout(state, L), reg = lay.region;
   ctx.save(); ctx.beginPath(); ctx.rect(reg.x - 14, reg.y - 4, reg.w + 28, reg.h + 8); ctx.clip();
   for (const n of lay.nodes) if (n.k === 'btn') R.button(n);
   ctx.restore();
   if (lay.maxScroll > 0) { const th = Math.max(40, reg.h * reg.h / lay.total), ty = reg.y + (reg.h - th) * (lay.scroll / lay.maxScroll); ctx.fillStyle = 'rgba(255,214,90,0.95)'; ctx.beginPath(); ctx.roundRect(reg.x + reg.w + 8, ty, 6, th, 3); ctx.fill(); }
-  const s = state.stats; R.text(s.played ? `${s.played} races · ${s.wins} won` : (state.demo ? 'Free web preview' : 'Free preview: 90 seconds of play'), 360, 1448, 22, '#f1d79a', DISPLAY, 500);
+  const s = state.stats;
+  inBand(ctx, T.stats, () => R.text(s.played ? `${s.played} races · ${s.wins} won` : (state.demo ? 'Free web preview' : 'Free preview: 90 seconds of play'), 360, 1456, 22, '#f1d79a', DISPLAY, 500));
+  drawLockup(ctx, T.lock.r, Boolean(state.press && state.press.af && !state.press.moved));
 }
 
 // ---- end screen --------------------------------------------------------------------------------------------------------------
-function drawOver(ctx, state, R, z) {
+function drawOver(ctx, state, R, z, L) {
   const o = state.over; if (!o) return;
-  const T0 = state.t;
-  scrim(ctx, 0.66);
+  const T0 = state.t, W = L.w, H = L.h;
+  scrim(ctx, L, 0.66);
   for (let i = 0; i < 46; i++) {
     const r = lcg(i * 7919 + 3), x = r() * W, sp = 60 + r() * 120, y = ((T0 * sp + r() * H) % (H + 40)) - 20, rotA = T0 * (1 + r() * 2) + i;
     ctx.save(); ctx.translate(x + Math.sin(T0 + i) * 20, y); ctx.rotate(rotA); ctx.fillStyle = RIDER[i % 4]; ctx.globalAlpha = 0.85; ctx.fillRect(-5, -3, 10, 6); ctx.restore();
   }
-  drawStack(ctx, state, R, z);
+  drawStack(ctx, state, R, z, L);
+  // a quiet "More heritage games in Arcforge" line, only where it fits without touching the card
+  const card = screenLayout(state, L).frame.card;
+  if (card) {
+    const y = L.U.y1 - 12, size = 20, free = y - 14 - (card.y + card.h);
+    if (free >= 6) drawMoreLine(ctx, L.U.x0 + L.U.w / 2, y, size);
+    else if (card.x - L.U.x0 >= 380) drawMoreLine(ctx, L.U.x0 + (card.x - L.U.x0) / 2, y, size);
+  }
 }
-void RIDER_DARK; void FACE_COL; void ranking;
+void RIDER_DARK; void FACE_COL; void ranking; void host;

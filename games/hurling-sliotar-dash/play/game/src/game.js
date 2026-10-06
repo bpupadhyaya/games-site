@@ -1,6 +1,7 @@
 // Hurling: Sliotar Dash — the game shell. Scenes, input, persistence, preview wiring, Learn, Watch & Learn. The match lives in sim.js.
 import { createSim } from './sim.js';
-import { W, H, TEXT_SCALES, THINK_STEPS, REF_CLOSE, TEXT_DEC, TEXT_INC, SETUP_PINS, inRect, hudLayout } from './layout.js';
+import { SW, H, OX, PANEL, TEXT_SCALES, THINK_STEPS, REF_CLOSE, TEXT_DEC, TEXT_INC, SETUP_PINS, inRect, hudLayout, setScreen, column } from './layout.js';
+import { isSide } from './camera.js';
 import { setPress } from './ui.js';
 import { ABOUT, HOWTO, RULES, LESSONS, QUIZ } from './content.js';
 import * as MN from './menus.js';
@@ -11,7 +12,7 @@ import { createDrill } from './drills.js';
 import { ROLES, CHOICES } from './consts.js';
 import { clamp } from './util.js';
 
-export const meta = { width: W, height: H };
+export const meta = { width: 720, height: 1280, fluid: { short: 720 } };
 const DEMO_MATCH_CAP = 2;
 const SAVE_VERSION = 1;
 const ASSIST = { off: 0, normal: 0.7, strong: 0.92 };
@@ -28,7 +29,7 @@ export function createGame(env) {
     learn: { cur: 0, qi: 0, qscore: 0, done: {}, result: null, tally: null },
     saved: null, record: { demoMatches: 0 },
     sim: null, snap: null, alpha: 1, updAt: 0, paused: false, pauseMenu: false, think: null, thinkRects: null, feedback: null, mark: -1,
-    watch: { phase: 'think', timer: 0, paused: false, holdId: -1 }, t: 0, touches: [], multi: false, hud: null,
+    watch: { phase: 'think', timer: 0, paused: false, holdId: -1 }, t: 0, touches: [], multi: false, hud: null, aspect: 720 / 1280,
   };
   let aboutList = ABOUT;
   if (typeof fetch === 'function') {
@@ -323,12 +324,12 @@ export function createGame(env) {
       if (inRect(REF_CLOSE, ptr.x, ptr.y)) { close(); return; }
       else if (inRect(TEXT_DEC, ptr.x, ptr.y)) zoom(-1);
       else if (inRect(TEXT_INC, ptr.x, ptr.y)) zoom(1);
-      else if (ptr.x > 8 + 704 - 40 && ptr.y > 84 + 84 && ptr.y < 84 + 1066 - 14) G.ui.drag = { bar: true };
-      else if (ptr.y > 84 + 70 && ptr.y < 84 + 1066) G.ui.drag = { y0: ptr.y, s0: G.ui.scroll };
+      else if (ptr.x > PANEL.x + PANEL.w - 40 && ptr.y > PANEL.y + 84 && ptr.y < PANEL.y + PANEL.h - 14 && ptr.x < PANEL.x + PANEL.w + 8) G.ui.drag = { bar: true };
+      else if (ptr.y > PANEL.y + 60 && ptr.y < PANEL.y + PANEL.h) G.ui.drag = { y0: ptr.y, s0: G.ui.scroll };
     }
     if (G.ui.drag && ptr.down) {
       const d = G.ui.drag;
-      if (d.bar) G.ui.scroll = clamp(((ptr.y - (84 + 84)) / view) * (max + view) - view / 2, 0, max);
+      if (d.bar) G.ui.scroll = clamp(((ptr.y - (PANEL.y + 84)) / view) * (max + view) - view / 2, 0, max);
       else G.ui.scroll = clamp(d.s0 - (ptr.y - d.y0), 0, max);
     }
     if (ptr.released) G.ui.drag = null;
@@ -346,6 +347,15 @@ export function createGame(env) {
   };
 
   // ---- the play update ------------------------------------------------------------------------------
+  // pointer in the coordinates of the current menu column (menus and readers are drawn in a column centred on the screen in landscape)
+  function colInput(kind, input) {
+    column(kind);
+    const p = input.pointer;
+    const inp = OX ? { keys: input.keys, pointer: { x: p.x - OX, y: p.y, down: p.down, pressed: p.pressed, released: p.released } } : input;
+    setPress(inp.pointer);
+    return inp;
+  }
+  const COLUMN = { title: 'title', setup: 'menu', role: 'menu', settings: 'menu', learn: 'menu', lesson: 'menu', quiz: 'menu', lessonresult: 'menu', result: 'menu', demolimit: 'menu', howto: 'reader', about: 'reader', rules: 'reader' };
   const touchList = (input) => {
     if (G.multi) return G.touches;
     const p = input.pointer;
@@ -360,7 +370,7 @@ export function createGame(env) {
   function updatePlay(dt, input) {
     const s = S.s;
     if (G.mode === 'shot') { stepSim(dt); processEvents(); return; }
-    if (G.pauseMenu) { MN.ensureLayout(G, 'pause'); updateFlowScene(dt, input, handlePause, null); return; }
+    if (G.pauseMenu) { const inp = colInput('menu', input); MN.ensureLayout(G, 'pause'); updateFlowScene(dt, inp, handlePause, null); column('screen'); return; }
     const lay = hudLayout(G.settings.textIdx);
     const ts = touchList(input);
     if (G.mode === 'watch') {
@@ -382,7 +392,7 @@ export function createGame(env) {
       if (G.thinkRects && ((input.pointer.pressed && inRect(G.thinkRects.close, input.pointer.x, input.pointer.y)) || input.keys.pressed.has('Escape') || input.keys.pressed.has('KeyT'))) { G.think = null; sfx.tick(); ctl.beginPlay(ts); }
       return;
     }
-    const r = ctl.update(ts, lay, input.keys.down, input.keys.pressed);
+    const r = ctl.update(ts, lay, input.keys.down, input.keys.pressed, isSide(G.aspect));
     G.hud = r;
     if (r.ui.pause) { G.paused = true; G.pauseMenu = true; G.ui.scroll = 0; persistMatch(); ctl.reset(); return; }
     if (r.ui.think) { openThink(); ctl.reset(); if (G.think) return; }
@@ -408,13 +418,20 @@ export function createGame(env) {
     isPreviewExempt: () => !!config.dev || !(G.scene === 'play' && G.mode === 'ai') || G.paused || G.pauseMenu || !!G.think || !S || !(S.s.phase === 'play' || S.s.phase === 'restart') || S.s.over,
     setTouches(list) { G.multi = true; G.touches = list; },
     wheel(dy) { G.wheelAcc = (G.wheelAcc || 0) + dy; },
-    update(dt, input) {
-      setPress(input.pointer);
+    update(dt, raw) {
+      setScreen(meta.width, meta.height);
+      const kind = G.scene === 'play' ? 'screen' : (COLUMN[G.scene] || 'menu');
+      const input = kind === 'screen' ? (column('screen'), setPress(raw.pointer), raw) : colInput(kind, raw);
       G.t += dt;
       for (let i = delayed.length - 1; i >= 0; i--) { delayed[i].t -= dt; if (delayed[i].t <= 0) { delayed[i].f(); delayed.splice(i, 1); } }
       if (G.scene !== 'play') { stepSim(dt); if (G.sim.over) startDemoBg(); }
       switch (G.scene) {
-        case 'title': updateFlowScene(dt, input, handleTitle, 'title'); break;
+        case 'title': {
+          const lt = MN.getLockTap(), pp = input.pointer;
+          MN.setLockDown(G.lockDown > G.t);
+          if (lt && pp.pressed && pp.x >= lt.x && pp.x <= lt.x + lt.w && pp.y >= lt.y && pp.y <= lt.y + lt.h) { G.lockDown = G.t + 0.25; env.openArcforgeHome?.(); break; }
+          updateFlowScene(dt, input, handleTitle, 'title'); break;
+        }
         case 'setup': updatePinned(dt, input, 'setup', handleSetup); break;
         case 'role': updatePinned(dt, input, 'role', handleRole); break;
         case 'settings': updateFlowScene(dt, input, handleSettings, 'settings'); break;
@@ -431,11 +448,17 @@ export function createGame(env) {
       G.wheelAcc = 0;
     },
     render(ctx, view) {
-      G.viewW = (view && view.cssW) || 720; G.viewH = (view && view.cssH) || 1280;
+      setScreen(meta.width, meta.height);
+      G.viewW = (view && view.cssW) || SW; G.viewH = (view && view.cssH) || H;
+      G.aspect = G.viewW / G.viewH;
       G.alpha = env.clock && G.updAt ? Math.max(0, Math.min(1, (nowMs() - G.updAt) / (1000 / 60))) : 1;
-      ctx.clearRect(0, 0, W, H);
+      column('screen');
+      ctx.clearRect(0, 0, SW, H);
       const v = { cssW: G.viewW, cssH: G.viewH };
       if (view && view.noGL) renderFallback(ctx, G, v);
+      const kind = G.scene === 'play' ? 'screen' : (COLUMN[G.scene] || 'menu');
+      const ox = column(kind);
+      ctx.save(); ctx.translate(ox, 0);
       switch (G.scene) {
         case 'title': MN.renderTitle(ctx, G); break;
         case 'setup': MN.renderSetup(ctx, G); break;
@@ -454,10 +477,12 @@ export function createGame(env) {
           renderHud(ctx, G, v, G.hud);
           renderMarks(ctx, G, v);
           if (G.think) renderThink(ctx, G, v);
-          if (G.pauseMenu) MN.renderPause(ctx, G);
+          if (G.pauseMenu) { const ox2 = column('menu'); ctx.translate(ox2, 0); MN.renderPause(ctx, G); }
           break;
         default: break;
       }
+      ctx.restore();
+      column('screen');
     },
     getState: () => G,
   };

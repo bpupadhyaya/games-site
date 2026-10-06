@@ -8,6 +8,11 @@
 // `labels(d)` returns [{k, x, y, tx, ty}] (k = key into text.js howto.ch[n].labels).
 import { W, H, clamp, lerp, smooth } from './stage.js';
 import { tenHeadPos } from './puppets.js';
+import { hudX, hudY } from './frame.js';
+import { BY } from './chapters/06-allies.js';
+import { Yc } from './chapters/10-bridge.js';
+// HUD-attached points move with the landscape window (identity in portrait); a button GROUP shifts as one (centre anchored).
+const BX = (x) => x + hudX(360) - 360, BYy = (y) => hudY(y);
 
 export const IDLE = { pointer: { x: 0, y: 0, down: false, pressed: false, released: false }, keys: { down: new Set(), pressed: new Set() } };
 
@@ -95,8 +100,8 @@ export const DEMOS = {
   },
   4: { // the regency
     dur: 4.8, pre: 2.4,
-    script(d) { if (d.t > 1.9 && !d.mem.done) { d.mem.done = true; d.tap(360, 1388); } },
-    labels: () => [{ k: 'pick', x: 360, y: 1290, tx: 360, ty: 1360 }],
+    script(d) { if (d.t > 1.9 && !d.mem.done) { d.mem.done = true; d.tap(BX(360), BYy(1388)); } },
+    labels: () => [{ k: 'pick', x: BX(360), y: BYy(1290), tx: BX(360), ty: BYy(1360) }],
   },
   5: { // the golden deer: the chase, then (after a cut) the eagle and the glinting wheel
     dur: 6.6, cuts: [{ t: 3.0, fn(s) { s.phase = 'eagle'; s.pt = 4; s.cam = 640; s.chX = 400; s.hits = 3; s.glint = 1; s.glintT = 0.9; s.arrows = []; s.noHint = true; } }],
@@ -120,9 +125,9 @@ export const DEMOS = {
       const s = d.s;
       if ((d.mem.n ?? 0) >= 2) return;
       const b = s.bands.find((q) => !q.called && q.x - s.scroll > 250 && q.x - s.scroll < 470 && q.y > 300);
-      if (b && d.t - (d.mem.at ?? -9) > 1.6) { d.tap(b.x - s.scroll, b.y - 70); d.mem.n = (d.mem.n ?? 0) + 1; d.mem.at = d.t; d.mem.tgt = b; }
+      if (b && d.t - (d.mem.at ?? -9) > 1.6) { d.tap(b.x - s.scroll, BY(b.y) - 70); d.mem.n = (d.mem.n ?? 0) + 1; d.mem.at = d.t; d.mem.tgt = b; }
     },
-    labels: (d) => (d.mem.tgt && d.t - d.lastPress < 1.2 ? [{ k: 'band', x: 360, y: d.mem.tgt.y - 210, tx: d.mem.tgt.x - d.s.scroll, ty: d.mem.tgt.y - 70 }] : []),
+    labels: (d) => (d.mem.tgt && d.t - d.lastPress < 1.2 ? [{ k: 'band', x: 360, y: BY(d.mem.tgt.y) - 210, tx: d.mem.tgt.x - d.s.scroll, ty: BY(d.mem.tgt.y) - 70 }] : []),
   },
   7: { // the leap
     dur: 6, capBottom: true,
@@ -179,7 +184,7 @@ export const DEMOS = {
       if ((d.mem.n ?? 0) >= 3) return;
       for (const c of s.carriers) {
         if (!c.has || Math.abs(c.x - gx) > 14 || d.t - (d.mem.at ?? -9) < 0.8) continue;
-        const cy = c.y0 - Math.sin(clamp((c.x - c.born) / (W + 200), 0, 1) * Math.PI) * 130 - Math.abs(Math.sin((c.x - c.born) / 95 + c.ph)) * 46;
+        const cy = Yc(c.y0) - Math.sin(clamp((c.x - c.born) / (W + 200), 0, 1) * Math.PI) * 130 - Math.abs(Math.sin((c.x - c.born) / 95 + c.ph)) * 46;
         d.tap(c.x - s.cam, cy - 70); d.mem.n = (d.mem.n ?? 0) + 1; d.mem.at = d.t; d.mem.gx = gx; d.mem.cx = c.x; d.mem.cy = cy; d.step = 0; break;
       }
     },
@@ -190,9 +195,9 @@ export const DEMOS = {
     script(d) {
       const t = d.t, plan = [[0.6, 104, 1393, 0], [1.3, 360, 950, 1], [2.3, 274, 1393, 0], [3.0, 130, 950, 1], [4.0, 615, 1393, 2], [4.7, 590, 950, 2]];
       const n = d.mem.n ?? 0;
-      if (n < plan.length && t >= plan[n][0]) { d.tap(plan[n][1], plan[n][2]); d.mem.n = n + 1; d.step = plan[n][3]; d.mem.last = plan[n]; }
+      if (n < plan.length && t >= plan[n][0]) { d.tap(plan[n][2] > 1300 ? BX(plan[n][1]) : plan[n][1], plan[n][2] > 1300 ? BYy(plan[n][2]) : plan[n][2]); d.mem.n = n + 1; d.step = plan[n][3]; d.mem.last = plan[n]; }
     },
-    labels: (d) => [{ k: 'cards', x: 200, y: 1190, tx: 190, ty: 1330 }, ...(d.step >= 1 && d.step < 2 ? [{ k: 'lane', x: 360, y: 830, tx: d.mem.last[1], ty: d.mem.last[2] }] : []), ...(d.step === 2 ? [{ k: 'hanuman', x: 540, y: 1190, tx: 615, ty: 1330 }] : [])],
+    labels: (d) => [{ k: 'cards', x: BX(200), y: BYy(1190), tx: BX(190), ty: BYy(1330) }, ...(d.step >= 1 && d.step < 2 ? [{ k: 'lane', x: 360, y: 830, tx: d.mem.last[1], ty: d.mem.last[2] }] : []), ...(d.step === 2 ? [{ k: 'hanuman', x: 540, y: 1190, tx: 615, ty: 1330 }] : [])],
   },
   12: { // the duel
     dur: 5.8, pre: 0, capBottom: true, compact: true,
@@ -255,14 +260,14 @@ export const COACH = {
   1: { need: { hold: 0.6, rel: 1 }, hand: () => ({ x: 330, y: 820, mode: 'hold' }) },
   2: { need: { hold: 0.8 }, hand: () => ({ x: 200, y: 700, mode: 'hold' }) },
   3: { need: { taps: 1 }, y: 1300, hand: (s) => { const r = s.raiders.find((q) => q.kind !== 'flyer') ?? s.raiders[0]; return r ? { x: r.x, y: r.kind === 'flyer' ? r.y : r.y - 110, mode: 'tap' } : null; } },
-  4: { need: { taps: 1 }, y: 380, hand: (s) => (s.phase === 'ask' ? { x: 360, y: 1388, mode: 'tap' } : null) },
+  4: { need: { taps: 1 }, y: 380, hand: (s) => (s.phase === 'ask' ? { x: BX(360), y: BYy(1388), mode: 'tap' } : null) },
   5: { need: { taps: 1 }, hand: (s) => (s.phase === 'chase' ? { x: s.deerX, y: s.deerY - 70, mode: 'tap' } : s.phase === 'eagle' && s.glint >= 0 ? { x: s.chX + (s.glint === 0 ? -70 : 60), y: s.chY + 56, mode: 'tap' } : null) },
-  6: { need: { taps: 1 }, hand: (s) => { const b = s.bands.find((q) => !q.called && q.x - s.scroll > 240 && q.x - s.scroll < 600); return s.phase === 'pan' && b ? { x: b.x - s.scroll, y: b.y - 70, mode: 'tap' } : null; } },
+  6: { need: { taps: 1 }, hand: (s) => { const b = s.bands.find((q) => !q.called && q.x - s.scroll > 240 && q.x - s.scroll < 600); return s.phase === 'pan' && b ? { x: b.x - s.scroll, y: BY(b.y) - 70, mode: 'tap' } : null; } },
   7: { need: { drag: 60 }, dir: 'up', hand: () => ({ x: 250, y: 900, to: { x: 250, y: 600 }, mode: 'drag' }) },
   8: { need: { taps: 1 }, hand: (s) => { const cur = s.patches[s.at], q = s.patches.find((p) => p.r === cur.r + 1); return s.phase === 'hide' && q ? { x: q.x, y: 6400 - q.r * 320 - 20 - s.cam, mode: 'tap' } : null; } },
   9: { need: { taps: 1 }, hand: () => ({ x: 360, y: 950, mode: 'tap' }) },
   10: { need: { taps: 1 }, hand: () => ({ x: 330, y: 700, mode: 'tap' }) },
-  11: { need: { taps: 2 }, dir: 'right', y: 1160, hand: (s, c) => (c.taps === 0 ? { x: 104, y: 1393, mode: 'tap' } : { x: 360, y: 950, mode: 'tap' }) },
+  11: { need: { taps: 2 }, dir: 'right', y: 1160, hand: (s, c) => (c.taps === 0 ? { x: BX(104), y: BYy(1393), mode: 'tap' } : { x: 360, y: 950, mode: 'tap' }) },
   12: { need: { drag: 60, rel: 1 }, dir: 'dl', hand: () => ({ x: 470, y: 1120, to: { x: 380, y: 1290 }, mode: 'drag' }) },
   13: { need: { drag: 60 }, dir: 'up', y: 1290, hand: () => ({ x: 360, y: 900, to: { x: 360, y: 650 }, mode: 'drag' }) },
 };

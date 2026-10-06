@@ -5,9 +5,7 @@ import { getHowto, getRules, getAbout, tr, lvName, lvBlurb, themeName } from './
 import { LEVELS } from './ai.js';
 import { LESSONS, lessonTitle } from './lessons.js';
 import { THEMES } from './art.js';
-import {
-  DOC_BACK, ZOOM_DEC, ZOOM_INC, DOC_PANEL, DOC_BODY, DOC_BODY_NAV, DOC_BODY_START, START_BTN, NAV_PREV, NAV_NEXT, MENU_REGION, OVERLAY,
-} from './layout.js';
+import { SCREEN, docFrame, titleFrame, overlayArea } from './layout.js';
 
 export const DEMO_GAMES = 3;
 export const THINK_STEPS = [2, 5, 8, 10];
@@ -21,12 +19,15 @@ export const firstOpenLesson = (S) => { const i = LESSONS.findIndex((l) => !S.le
 
 const pctLabel = (S) => `${Math.round(TEXT_SCALES[S.textIdx] * 100)}%`;
 
-function fixedBar(S) {
+const sizeOf = (S) => [S.w ?? SCREEN.width, S.h ?? SCREEN.height];
+
+// The shared bar of every text screen: Back, the text-size stepper, and (from the frame) Previous / Next / Start.
+function fixedBar(S, F) {
   return [
-    { id: 'back', rect: DOC_BACK, kind: 'normal', icon: 'back', label: tr('back'), size: 26 },
-    { id: 'zoom-', rect: ZOOM_DEC, kind: 'normal', label: 'A-', size: 30, disabled: S.textIdx === 0 },
-    { id: 'zoom+', rect: ZOOM_INC, kind: 'normal', label: 'A+', size: 30, disabled: S.textIdx === TEXT_SCALES.length - 1 },
-    { id: null, rect: { x: 480, y: 20, w: 140, h: 76 }, label: pctLabel(S), size: 28, static: true },
+    { id: 'back', rect: F.back, kind: 'normal', icon: 'back', label: tr('back'), size: 26 },
+    { id: 'zoom-', rect: F.zoomDec, kind: 'normal', label: 'A-', size: 30, disabled: S.textIdx === 0 },
+    { id: 'zoom+', rect: F.zoomInc, kind: 'normal', label: 'A+', size: 30, disabled: S.textIdx === TEXT_SCALES.length - 1 },
+    { id: null, rect: F.zoomPct, label: pctLabel(S), size: 28, static: true },
   ];
 }
 
@@ -37,30 +38,40 @@ export function levelLabel(S) {
 
 export function buildUi(S) {
   const scale = TEXT_SCALES[S.textIdx];
+  const [w, h] = sizeOf(S);
   const ui = { scale, fixed: [], blocks: [], panel: null, region: null, kind: 'doc', scrollKey: S.scene };
-  if (S.overlay) return overlayUi(S, scale);
+  if (S.overlay) return overlayUi(S, scale, w, h);
 
   switch (S.scene) {
     case 'title': {
       ui.kind = 'menu';
-      ui.region = MENU_REGION;
-      const b = [];
-      if (S.save) b.push({ t: 'btn', id: 'continue', label: tr('continueBtn'), kind: 'primary', size: 32, sub: S.save.two ? tr('twoPlayers') : `${tr('vsComputer')} · ${lvName(S.save.level)}`, minH: 104 });
+      const T = titleFrame(w, h);
+      ui.region = T.menu; ui.title = T;
       const playSub = S.demo ? tr('demoLeft', { n: Math.max(0, DEMO_GAMES - S.demoGames) }) : undefined;
-      b.push({ t: 'btn', id: 'play', label: tr('playBtn'), kind: S.save ? 'normal' : 'primary', size: 36, sub: playSub, minH: S.save ? 92 : 118 });
-      b.push({ t: 'btn', id: 'learn', label: tr('learnBtn'), size: 30, sub: `${lessonsDone(S)} / ${LESSONS.length}`, minH: 96 });
-      b.push({ t: 'btn', id: 'auto', label: tr('autoBtn'), size: 30, minH: 92 });
-      b.push({ t: 'row', size: 28, minH: 92, items: [{ id: 'howto', label: tr('howtoBtn') }, { id: 'rules', label: tr('rulesBtn') }] });
-      b.push({ t: 'row', size: 28, minH: 92, items: [{ id: 'about', label: tr('aboutBtn') }, { id: 'settings', label: tr('settingsBtn') }] });
+      const full = [];
+      if (S.save) full.push({ t: 'btn', id: 'continue', label: tr('continueBtn'), kind: 'primary', size: 32, sub: S.save.two ? tr('twoPlayers') : `${tr('vsComputer')} · ${lvName(S.save.level)}`, minH: 104 });
+      full.push({ t: 'btn', id: 'play', label: tr('playBtn'), kind: S.save ? 'normal' : 'primary', size: 36, sub: playSub, minH: S.save ? 92 : 118 });
+      full.push({ t: 'btn', id: 'learn', label: tr('learnBtn'), size: 30, sub: `${lessonsDone(S)} / ${LESSONS.length}`, minH: 96 });
+      full.push({ t: 'btn', id: 'auto', label: tr('autoBtn'), size: 30, minH: 92 });
+      const rowA = { t: 'row', size: 28, minH: 92, items: [{ id: 'howto', label: tr('howtoBtn') }, { id: 'rules', label: tr('rulesBtn') }] };
+      const rowB = { t: 'row', size: 28, minH: 92, items: [{ id: 'about', label: tr('aboutBtn') }, { id: 'settings', label: tr('settingsBtn') }] };
+      full.push(rowA, rowB);
+      // shorter screens (and landscape) use the compact menu: Learn and Watch & Learn share a row
+      const compact = [];
+      if (S.save) compact.push(full[0]);
+      compact.push({ ...full[S.save ? 1 : 0], minH: S.save ? 84 : 100 });
+      compact.push({ t: 'row', size: 28, minH: 90, items: [{ id: 'learn', label: tr('learnBtn') }, { id: 'auto', label: tr('autoBtn') }] });
+      compact.push({ ...rowA, minH: 84 }, { ...rowB, minH: 84 });
+      let b = T.compact ? compact : full;
+      if (!T.compact && layoutDoc(b, scale, T.menu.w).height > T.menu.h) b = compact;
       ui.blocks = b;
       break;
     }
     case 'setup': {
-      ui.panel = DOC_PANEL; ui.region = DOC_BODY_START;
-      ui.fixed = [...fixedBar(S), { id: 'start', rect: START_BTN, kind: 'primary', label: tr('startGame'), size: 34 }];
+      { const F = docFrame(w, h, false, true); ui.panel = F.panel; ui.region = F.region; ui.frame = F; ui.fixed = [...fixedBar(S, F), { id: 'start', rect: F.start, kind: 'primary', label: tr('startGame'), size: 34 }]; }
       const b = [];
       const lv = S.setup.level;
-      if (scale <= 1.5) b.push({ t: 'img', name: 'sides', h: 230 });
+      if (scale <= 1.5) b.push({ t: 'img', name: 'sides', h: Math.min(230, Math.max(150, Math.round(ui.region.h * 0.3))) });
       b.push({ t: 'h', text: tr('opponentTitle'), size: 32 });
       const rows = [[LEVELS[0], LEVELS[1]], [LEVELS[2], LEVELS[3]], [LEVELS[4], { id: 'two', name: tr('twoPlayers') }]];
       for (const r of rows) {
@@ -80,8 +91,7 @@ export function buildUi(S) {
       break;
     }
     case 'learn': {
-      ui.panel = DOC_PANEL; ui.region = DOC_BODY;
-      ui.fixed = fixedBar(S);
+      { const F = docFrame(w, h, false, false); ui.panel = F.panel; ui.region = F.region; ui.frame = F; ui.fixed = fixedBar(S, F); }
       const b = [{ t: 'h', text: tr('lessonsTitle'), size: 36 }, { t: 'p', text: `${lessonsDone(S)} / ${LESSONS.length}`, size: 24, gap: 10 }];
       LESSONS.forEach((l, i) => {
         const locked = S.demo && i >= 3;
@@ -93,32 +103,34 @@ export function buildUi(S) {
     case 'howto':
     case 'rules': {
       const isRules = S.scene === 'rules';
+      // One continuous scrolling reader: every page of the old paginated reader is a section here, in the same order,
+      // each with its own heading and illustration (drag, wheel, keys; 100-300 percent text).
       const pages = isRules ? getRules() : getHowto();
-      const pi = Math.min(S.page[S.scene], pages.length - 1);
-      const pg = pages[pi];
-      ui.panel = DOC_PANEL; ui.region = DOC_BODY_NAV;
-      ui.fixed = fixedBar(S);
-      ui.nav = { label: `${pi + 1} / ${pages.length}`, prev: { id: 'prev', rect: NAV_PREV, label: tr('prev'), disabled: pi === 0, kind: 'normal', size: 26 }, next: { id: 'next', rect: NAV_NEXT, label: isRules || pi < pages.length - 1 ? tr('next') : tr('playBtn'), disabled: isRules && pi === pages.length - 1, kind: 'primary', size: 26 } };
-      ui.scrollKey = `${S.scene}:${pi}`;
-      const b = [{ t: 'h', text: pg.title, size: 40 }];
-      if (pg.art) b.push({ t: 'img', name: pg.art, h: ['capture', 'multi', 'edge', 'corner', 'enclose'].includes(pg.art) ? 340 : ['enclose2', 'reconstruct'].includes(pg.art) ? 310 : (isRules ? 400 : 420) });
-      if (isRules) for (const para of pg.body) b.push({ t: 'p', text: para, size: 29 });
-      else b.push({ t: 'p', text: pg.body, size: 32 });
+      const F = docFrame(w, h, false, false);
+      ui.panel = F.panel; ui.region = F.region; ui.frame = F;
+      ui.fixed = fixedBar(S, F);
+      ui.scrollKey = S.scene;
+      const b = [];
+      pages.forEach((pg, i) => {
+        b.push({ t: 'h', text: pg.title, size: i === 0 ? 40 : 34 });
+        if (pg.art) b.push({ t: 'img', name: pg.art, h: Math.min(['capture', 'multi', 'edge', 'corner', 'enclose'].includes(pg.art) ? 340 : ['enclose2', 'reconstruct'].includes(pg.art) ? 310 : (isRules ? 400 : 420), Math.max(200, Math.round(F.region.h * 0.5))) });
+        if (isRules) for (const para of pg.body) b.push({ t: 'p', text: para, size: 29 });
+        else b.push({ t: 'p', text: pg.body, size: 32 });
+      });
+      if (!isRules) b.push({ t: 'btn', id: 'play', label: tr('playBtn'), kind: 'primary', size: 28, minH: 90 });
       ui.blocks = b;
       break;
     }
     case 'about': {
-      ui.panel = DOC_PANEL; ui.region = DOC_BODY;
-      ui.fixed = fixedBar(S);
-      const b = [{ t: 'img', name: 'logo', h: 300 }];
+      { const F = docFrame(w, h, false, false); ui.panel = F.panel; ui.region = F.region; ui.frame = F; ui.fixed = fixedBar(S, F); }
+      const b = [{ t: 'img', name: 'logo', h: Math.min(300, Math.max(180, Math.round(ui.region.h * 0.45))) }];
       getAbout().forEach((s, i) => { b.push({ t: 'h', text: s.title, size: i === 0 ? 38 : 30 }); b.push({ t: 'p', text: s.body, size: 26 }); });
       b.push({ t: 'p', text: `v${S.version}`, size: 22 });
       ui.blocks = b;
       break;
     }
     case 'settings': {
-      ui.panel = DOC_PANEL; ui.region = DOC_BODY;
-      ui.fixed = fixedBar(S);
+      { const F = docFrame(w, h, false, false); ui.panel = F.panel; ui.region = F.region; ui.frame = F; ui.fixed = fixedBar(S, F); }
       const b = [];
       b.push({ t: 'h', text: tr('settingsBtn'), size: 36 });
       b.push({ t: 'p', text: tr('theme'), size: 24, gap: 6 });
@@ -145,7 +157,7 @@ export function buildUi(S) {
         { t: 'btn', id: 'auto', label: tr('autoBtn'), kind: 'primary', size: scale >= 2 ? 20 : 28, minH: scale >= 2 ? 56 : 84 },
         { t: 'btn', id: 'menu', label: tr('quitMenu'), size: scale >= 2 ? 20 : 28, minH: scale >= 2 ? 56 : 84 },
       ];
-      fitCard(ui, scale);
+      fitCard(ui, scale, w, h);
       return ui;
     }
     default:
@@ -156,9 +168,8 @@ export function buildUi(S) {
   return ui;
 }
 
-function overlayUi(S, scale) {
-  const ui = { scale, fixed: [], blocks: [], kind: 'card', panel: OVERLAY, scrollKey: `ov:${S.overlay}`, overlay: true };
-  ui.region = { x: OVERLAY.x + 24, y: OVERLAY.y + 24, w: OVERLAY.w - 48, h: OVERLAY.h - 48 };
+function overlayUi(S, scale, w, h) {
+  const ui = { scale, fixed: [], blocks: [], kind: 'card', panel: null, scrollKey: `ov:${S.overlay}`, overlay: true };
   const b = [];
   const hs = (n) => (scale >= 2 ? n * 0.66 : n);
   const ps = (n) => (scale >= 2 ? n * 0.5 : n);
@@ -178,6 +189,7 @@ function overlayUi(S, scale) {
     b.push({ t: 'img', name: 'endmark', h: scale >= 2 ? 100 : 150, data: e });
     b.push({ t: 'p', text: e.body, size: ps(26), center: true });
     if (e.rec) b.push({ t: 'p', text: e.rec, size: ps(22), center: true });
+    if (!(S.match && S.match.lesson)) b.push({ t: 'p', text: 'More heritage games in Arcforge', size: ps(20), center: true, dim: true, gap: 6 });
     if (S.match && S.match.lesson) {
       if (e.lessonOk) b.push({ t: 'btn', id: 'ov:lessonnext', label: tr('lessonNext'), kind: 'primary', size: bs(30), minH: bmin });
       else b.push({ t: 'btn', id: 'ov:lessonagain', label: tr('lessonRetry'), kind: 'primary', size: bs(30), minH: bmin });
@@ -205,24 +217,43 @@ function overlayUi(S, scale) {
     b.push({ t: 'btn', id: 'ov:autoexit', label: tr('autoExit'), size: bs(28), minH: bmin });
   }
   ui.blocks = b;
-  fitCard(ui, scale);
+  fitCard(ui, scale, w, h);
   return ui;
 }
 
-function fitCard(ui, scale) {
-  const innerW = OVERLAY.w - 48;
+// Sizes the card to its content and splits it into the scrolling words (ui.region / ui.layout) and the fixed buttons (ui.fixed).
+// Portrait: words on top, buttons below. Wide screens: words left, buttons right, so a short screen never runs out of height.
+function fitCard(ui, scale, w, h) {
+  const A = overlayArea(w, h);
   const bodyBlocks = ui.blocks.filter((b) => b.t !== 'btn' && b.t !== 'row');
   const actBlocks = ui.blocks.filter((b) => b.t === 'btn' || b.t === 'row');
-  const body = layoutDoc(bodyBlocks, scale, innerW);
-  const act = layoutDoc(actBlocks, scale, innerW);
-  const h = Math.min(OVERLAY.h + 120, Math.max(420, body.height + act.height + 72));
-  const y = Math.round(780 - h / 2);
-  const x0 = OVERLAY.x + 24;
-  const actTop = y + h - 28 - act.height;
-  ui.panel = { x: OVERLAY.x, y, w: OVERLAY.w, h };
-  ui.region = { x: x0, y: y + 28, w: innerW, h: Math.max(160, h - 56 - act.height - 8) };
+  const mk = (bt, it, x, y) => ({
+    id: bt.id, rect: { x: x + bt.x, y: y + bt.y, w: bt.w, h: bt.h }, kind: bt.kind ?? it.b.kind ?? 'normal', lines: bt.lines ?? it.lines, size: it.size, line: it.line, disabled: bt.disabled, static: bt.id == null, label: bt.label,
+  });
+  if (!A.wide) {
+    const innerW = A.w - 48;
+    const body = layoutDoc(bodyBlocks, scale, innerW);
+    let as = scale, act = layoutDoc(actBlocks, as, innerW);
+    while (as > 1 && act.height > A.maxH * 0.62) { as = Math.max(1, as - 0.25); act = layoutDoc(actBlocks, as, innerW); }
+    const ch = Math.min(A.maxH, Math.max(420, body.height + act.height + 72));
+    const y = Math.round(A.cy - ch / 2), x0 = Math.round(A.cx - A.w / 2) + 24;
+    const actTop = y + ch - 28 - act.height;
+    ui.panel = { x: x0 - 24, y, w: A.w, h: ch };
+    ui.region = { x: x0, y: y + 28, w: innerW, h: Math.max(120, ch - 56 - act.height - 8) };
+    ui.layout = body;
+    ui.fixed = act.items.flatMap((it) => it.btns.map((bt) => mk(bt, it, x0, actTop)));
+    return;
+  }
+  const colW = Math.floor((A.w - 72) / 2);
+  const body = layoutDoc(bodyBlocks, scale, colW);
+  let as = scale, act = layoutDoc(actBlocks, as, colW);
+  while (as > 1 && act.height > A.maxH - 64) { as = Math.max(1, as - 0.25); act = layoutDoc(actBlocks, as, colW); }
+  const ch = Math.min(A.maxH, Math.max(340, Math.max(body.height, act.height) + 64));
+  const y = Math.round(A.cy - ch / 2), x0 = Math.round(A.cx - A.w / 2) + 24;
+  ui.panel = { x: x0 - 24, y, w: A.w, h: ch };
+  ui.region = { x: x0, y: y + 32, w: colW, h: ch - 64 };
   ui.layout = body;
-  ui.fixed = act.items.flatMap((it) => it.btns.map((bt) => ({
-    id: bt.id, rect: { x: x0 + bt.x, y: actTop + bt.y, w: bt.w, h: bt.h }, kind: bt.kind ?? it.b.kind ?? 'normal', lines: bt.lines ?? it.lines, size: it.size, line: it.line, disabled: bt.disabled, static: bt.id == null, label: bt.label,
-  })));
+  ui.offY = body.height < ui.region.h ? (ui.region.h - body.height) / 2 : 0;
+  const rx = x0 + colW + 24, actTop = y + (ch - act.height) / 2;
+  ui.fixed = act.items.flatMap((it) => it.btns.map((bt) => mk(bt, it, rx, actTop)));
 }

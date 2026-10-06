@@ -1,6 +1,6 @@
 // The play screen: scoreboard, situation line, the buttons that suit what the user's player is doing, the result banner, the floating tags, and a flat 2D field
 // for when WebGL is not available. The 3D scene is drawn behind this canvas by view3d/presenter.js. All text follows the text-size setting.
-import { W, H, PLAY, TEXT_SCALES, setPlayLayout, inRect, estLines } from './layout.js';
+import { W, H, PLAY, LY, TEXT_SCALES, setPlayLayout, inRect, estLines } from './layout.js';
 import { FONT, NUM, C, roundPath, drawButton, paintButton, textShadow, wrapLines } from './ui.js';
 import { FIELD, NUMBERS, TEAM_FULL } from './consts.js';
 import { TEAM_COL, fieldMap, drawField, drawLiveFlat, TAU } from './art.js';
@@ -25,7 +25,7 @@ export function controlButtons(E) {
   return [{ id: 'tackle', label: 'Tackle', cd: cd('lunge') }, { id: 'swat', label: 'Swat' }, burst];
 }
 export function ctlRects(buttons, scroll = 0) {
-  const n = buttons.length || 1, cols = Math.max(1, Math.min(PLAY.cols, n)), g = 10;
+  const n = buttons.length || 1, cols = Math.max(1, Math.min(PLAY.cols, n)), g = PLAY.gap;
   const bw = (PLAY.scroll.w - g * (cols - 1)) / cols;
   return buttons.map((b, i) => ({ ...b, x: PLAY.scroll.x + (i % cols) * (bw + g), y: PLAY.scroll.y + Math.floor(i / cols) * (PLAY.btnH + g) - scroll, w: bw, h: PLAY.btnH }));
 }
@@ -45,9 +45,9 @@ export function situationText(E) {
 const clockText = (c) => `${Math.floor(c / 60)}:${String(Math.floor(c % 60)).padStart(2, '0')}`;
 function drawScoreboard(ctx, state) {
   const E = state.E, M = E.m, f = PLAY.fonts, r = PLAY.sb;
-  const colw = W / 3;
+  const colw = r.w / 3;
   ctx.save();
-  const boxes = [{ x: 8, w: colw - 12, t: 0 }, { x: colw + 4, w: colw - 8, t: -1 }, { x: 2 * colw + 4, w: colw - 12, t: 1 }];
+  const boxes = [{ x: r.x, w: colw - 6, t: 0 }, { x: r.x + colw + 3, w: colw - 6, t: -1 }, { x: r.x + 2 * colw + 6, w: colw - 6, t: 1 }];
   for (const b of boxes) {
     roundPath(ctx, b.x, r.y, b.w, r.h, 16);
     ctx.fillStyle = b.t < 0 ? 'rgba(14,26,32,0.92)' : TEAM_COL[b.t].dark; ctx.fill();
@@ -65,7 +65,7 @@ function drawScoreboard(ctx, state) {
   const ir = PLAY.info;
   ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'; ctx.fillStyle = '#fff3d6'; ctx.font = `700 ${f.info}px ${FONT}`;
   const lines = wrapLines(ctx, situationText(E), ir.w);
-  lines.forEach((l, i) => textShadow(ctx, l, W / 2, ir.y + f.info * (1.0 + i * 1.3) + 2, '#fff3d6', 4));
+  lines.forEach((l, i) => textShadow(ctx, l, ir.x + ir.w / 2, ir.y + f.info * (1.0 + i * 1.3) + 2, '#fff3d6', 4));
 }
 
 // ---- 2D field (fallback when there is no WebGL) --------------------------------------------------------------------------------------------------------------------------
@@ -112,19 +112,19 @@ function drawBanner(ctx, state) {
   const E = state.E, bn = E.banner;
   if (!bn || E.phase !== 'result') return;
   const hs = TEXT_SCALES[state.settings.textIdx];
-  const r = PLAY.view;
+  const r = PLAY.cam, bcx = r.x + r.w / 2;
   const k = Math.min(1, E.timer / 0.25);
-  const pw = 640, fs = Math.round(52 * Math.min(hs, 1.8)), fs2 = Math.round(24 * Math.min(hs, 2.2));
+  const pw = Math.min(640, r.w - 24), fs = Math.round(52 * Math.min(hs, 1.8)), fs2 = Math.round(24 * Math.min(hs, 2.2));
   ctx.save(); ctx.font = `600 ${fs2}px ${FONT}`;
   const lines = wrapLines(ctx, bn.sub, pw - 40);
   const ph = fs * 1.3 + lines.length * fs2 * 1.3 + 34;
-  const x = (W - pw) / 2, y = r.y + r.h * 0.38 - ph / 2 + (1 - k) * 30;
+  const x = bcx - pw / 2, y = r.y + r.h * 0.38 - ph / 2 + (1 - k) * 30;
   ctx.globalAlpha = k;
   roundPath(ctx, x, y, pw, ph, 22); ctx.fillStyle = 'rgba(12,22,28,0.9)'; ctx.fill();
   ctx.lineWidth = 3; ctx.strokeStyle = bn.tone === 'good' ? '#4ade80' : bn.tone === 'bad' ? '#f87171' : '#ffd24a'; ctx.stroke();
   ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
-  ctx.font = `800 ${fs}px ${NUM}`; ctx.fillStyle = bn.tone === 'good' ? '#9fe8b4' : bn.tone === 'bad' ? '#ffb4a0' : '#fff3d6'; ctx.fillText(bn.title, W / 2, y + fs * 1.05 + 10);
-  ctx.font = `600 ${fs2}px ${FONT}`; ctx.fillStyle = 'rgba(255,243,214,0.95)'; lines.forEach((l, i) => ctx.fillText(l, W / 2, y + fs * 1.3 + 22 + fs2 * (1.05 + i * 1.3)));
+  ctx.font = `800 ${fs}px ${NUM}`; ctx.fillStyle = bn.tone === 'good' ? '#9fe8b4' : bn.tone === 'bad' ? '#ffb4a0' : '#fff3d6'; ctx.fillText(bn.title, bcx, y + fs * 1.05 + 10);
+  ctx.font = `600 ${fs2}px ${FONT}`; ctx.fillStyle = 'rgba(255,243,214,0.95)'; lines.forEach((l, i) => ctx.fillText(l, bcx, y + fs * 1.3 + 22 + fs2 * (1.05 + i * 1.3)));
   ctx.restore();
 }
 
@@ -158,8 +158,9 @@ function drawStick(ctx, state) {
 
 export function playLayoutNow(state) {
   const n = Math.max(1, state.buttons ? state.buttons.length : 4);
-  const fi = Math.round(21 * Math.min(TEXT_SCALES[state.settings.textIdx], 2.4));
-  const lines = state.E ? estLines(situationText(state.E), fi, 692).length : 1;
+  const fi = Math.round(21 * Math.min(LY.land ? Math.min(TEXT_SCALES[state.settings.textIdx], 1.5) : TEXT_SCALES[state.settings.textIdx], 2.4));
+  const iw = LY.land ? Math.min(620, Math.max(440, Math.round(LY.U.w * 0.46))) : LY.U.w - 28;
+  const lines = state.E ? estLines(situationText(state.E), fi, iw).length : 1;
   setPlayLayout(state.settings.textIdx, n, lines);
 }
 
@@ -178,7 +179,7 @@ export function renderPlay(ctx, state) {
     drawControls(ctx, state, state.buttons || []);
     drawButton(ctx, PLAY.think, 'Think', { dark: true, size: PLAY.fonts.btn }); drawButton(ctx, PLAY.menu, 'Menu', { dark: true, size: PLAY.fonts.btn });
     if (E.phase === 'play' && E.P && E.P.phase !== 'live' && E.humanId >= 0) {
-      ctx.save(); ctx.textAlign = 'center'; ctx.font = `700 ${Math.round(PLAY.fonts.btn * 0.9)}px ${FONT}`; ctx.fillStyle = '#ffe9bf'; ctx.fillText(E.P.phase === 'lineup' ? 'Lining up...' : 'Set...', W / 2, PLAY.scroll.y + PLAY.scroll.h / 2); ctx.restore();
+      ctx.save(); ctx.textAlign = 'center'; ctx.font = `700 ${Math.round(PLAY.fonts.btn * 0.9)}px ${FONT}`; ctx.fillStyle = '#ffe9bf'; ctx.fillText(E.P.phase === 'lineup' ? 'Lining up...' : 'Set...', PLAY.land ? PLAY.cam.x + PLAY.cam.w / 2 : W / 2, PLAY.land ? LY.U.y1 - 40 : PLAY.scroll.y + PLAY.scroll.h / 2); ctx.restore();
     }
   }
   drawStick(ctx, state);

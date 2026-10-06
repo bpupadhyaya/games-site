@@ -8,7 +8,8 @@ import { HOME, WAIT, N, COLS, SAFE, FLAT_ODDS, FLAT_TO_VALUE, sqOf, cellOf, side
 import { LEVELS } from './ai.js';
 import { LESSONS, lessonText } from './lessons.js';
 import { tr, valueName } from './content.js';
-import { BACK_BTN, PAUSE_BTN, TOOLBAR_IDS, autoLayout, DOC_PANEL, NAV_PREV, NAV_NEXT, playLayout } from './layout.js';
+import { TOOLBAR_IDS, autoLayout, playLayout, titleLayout } from './layout.js';
+import { drawMoreLine, drawLockup } from './brand.js';
 import { THINK_STEPS, AUTO_SPEEDS, lvName, piecesLabel } from './screens.js';
 import { humanTurn, movesOf, canThrow, canUndo, isHumanSide } from './match.js';
 import { planThrow, stickPose, restPose } from './sticks.js';
@@ -131,6 +132,7 @@ const RED = '#ff6a5a';
 
 function drawArt(ctx, S, name, x, y, w, h, b) {
   const th = theme(S), lang = S.lang;
+  if (name === 'more') { drawMoreLine(ctx, x + w / 2, y + h * 0.7, 18); return; }
   const cx = x + w / 2, cy = y + h / 2, t = S.t;
   const tt = (k, v) => tr(k, v, lang);
   ctx.save();
@@ -250,23 +252,25 @@ function drawSticksOn(ctx, th, mat, plan, tm, S, yClip = true) {
 }
 
 function drawTitle(ctx, S, ui) {
-  const th = theme(S), ar = S.lang === 'ar';
+  const th = theme(S), ar = S.lang === 'ar', TL = titleLayout();
   background(ctx, th, S.t, 560);
-  const g = ctx.createLinearGradient(0, 100, 0, 290);
+  const g = ctx.createLinearGradient(0, TL.titleY - 122, 0, TL.titleY + 68);
   g.addColorStop(0, light2(th.accent)); g.addColorStop(0.5, th.accent); g.addColorStop(1, '#a8782a');
   ctx.save();
-  ctx.shadowColor = 'rgba(0,0,0,0.65)'; ctx.shadowBlur = 24; ctx.shadowOffsetY = 8;
-  ctx.font = `800 ${ar ? 150 : 150}px ${DISPLAY}`; ctx.textAlign = 'center'; ctx.fillStyle = g; ctx.direction = ar ? 'rtl' : 'ltr';
-  ctx.fillText(T(S, 'title'), 360, 222);
+  ctx.shadowColor = 'rgba(0,0,0,0.65)'; ctx.shadowBlur = 24 * (TL.size / 150); ctx.shadowOffsetY = 8 * (TL.size / 150);
+  ctx.font = `800 ${TL.size}px ${DISPLAY}`; ctx.textAlign = 'center'; ctx.fillStyle = g; ctx.direction = ar ? 'rtl' : 'ltr';
+  ctx.fillText(T(S, 'title'), TL.cx, TL.titleY);
   ctx.restore();
-  text(ctx, T(S, 'titleSub'), 360, 280, 40, 'rgba(246,236,214,0.92)', { weight: 600, font: DISPLAY });
-  text(ctx, T(S, 'tagline'), 360, 322, fitOne(T(S, 'tagline'), 640, 24, 16), 'rgba(246,236,214,0.62)', { weight: 500 });
-  const mat = { x: 60, y: 350, w: 600, h: 318 };
-  drawFelt(ctx, th, mat, S.t);
-  const plans = titlePlans(), cyc = 4.8, k = Math.floor(S.t / cyc) % plans.length, tm = S.t % cyc;
-  drawSticksOn(ctx, th, mat, plans[k], Math.min(tm, plans[k].dur), S);
+  text(ctx, T(S, 'titleSub'), TL.cx, TL.subY, fitOne(T(S, 'titleSub'), TL.maxW, TL.subSize, 20), 'rgba(246,236,214,0.92)', { weight: 600, font: DISPLAY });
+  text(ctx, T(S, 'tagline'), TL.cx, TL.tagY, fitOne(T(S, 'tagline'), TL.maxW, TL.tagSize, 16), 'rgba(246,236,214,0.62)', { weight: 500 });
+  if (TL.mat) {
+    drawFelt(ctx, th, TL.mat, S.t);
+    const plans = titlePlans(), cyc = 4.8, k = Math.floor(S.t / cyc) % plans.length, tm = S.t % cyc;
+    drawSticksOn(ctx, th, TL.mat, plans[k], Math.min(tm, plans[k].dur), S);
+  }
   drawDocBlocks(ctx, S, ui, S.scroll[ui.scrollKey] ?? 0);
   drawFixed(ctx, S, ui.fixed);
+  drawLockup(ctx, TL.lockup, Boolean(S.press && S.press.id === 'af:home' && S.press.active));
 }
 const light2 = (c) => (c.length === 7 ? `rgb(${Math.min(255, parseInt(c.slice(1, 3), 16) + 70)},${Math.min(255, parseInt(c.slice(3, 5), 16) + 70)},${Math.min(255, parseInt(c.slice(5, 7), 16) + 70)})` : '#fff3c4');
 
@@ -278,7 +282,7 @@ function drawDocScreen(ctx, S, ui) {
   drawFixed(ctx, S, ui.fixed);
   if (ui.nav) {
     drawFixed(ctx, S, [ui.nav.prev, ui.nav.next]);
-    text(ctx, ui.nav.label, 360, 1500, 26, 'rgba(246,236,214,0.75)', { weight: 600 });
+    text(ctx, ui.nav.label, ui.nav.rect.x, ui.nav.rect.y, 26, 'rgba(246,236,214,0.75)', { weight: 600 });
   }
 }
 
@@ -287,8 +291,9 @@ function drawOverlay(ctx, S, ui) {
   ctx.fillStyle = `rgba(6,4,4,${0.62 * clamp01(S.ovT / 0.25)})`;
   ctx.fillRect(0, 0, W, H);
   const k = ease(clamp01(S.ovT / 0.3));
+  const ocx = ui.panel.x + ui.panel.w / 2, ocy = ui.panel.y + ui.panel.h / 2;
   ctx.save();
-  ctx.translate(W / 2, H / 2); ctx.scale(0.92 + 0.08 * k, 0.92 + 0.08 * k); ctx.translate(-W / 2, -H / 2);
+  ctx.translate(ocx, ocy); ctx.scale(0.92 + 0.08 * k, 0.92 + 0.08 * k); ctx.translate(-ocx, -ocy);
   ctx.globalAlpha = k;
   panel(ctx, th, ui.panel.x, ui.panel.y, ui.panel.w, ui.panel.h, {});
   drawDocBlocks(ctx, S, ui, S.scroll[ui.scrollKey] ?? 0);
@@ -308,7 +313,8 @@ export const yardRect = (lay, flip, p) => ((p === 0) !== flip ? lay.yardBottom :
 export function slotXY(rect, n, k) {
   const slotS = Math.min(96, (rect.w - 40) / n), total = slotS * n;
   const x0 = rect.x + (rect.w - total) / 2;
-  return [x0 + (k + 0.5) * slotS, rect.y + rect.h - 33, Math.min(slotS * 0.8, 50)];
+  const d = Math.min(slotS * 0.8, 50, Math.max(28, rect.h - 52));
+  return [x0 + (k + 0.5) * slotS, rect.y + rect.h - 8 - d / 2, d];
 }
 export function exitBadge(geo, p) {
   const sq = p === 0 ? N - 1 : 0, [, cy] = geo.sqXY(sq);
@@ -345,19 +351,20 @@ export function pointOnRoute(pts, e) {
 export const smooth = (k) => k * k * (3 - 2 * k);
 
 // ------------------------------------------------------------------------------------------ play: pieces
-function drawHud(ctx, S, title, sub, showPause) {
+function drawHud(ctx, S, lay, title, sub, showPause) {
   const th = theme(S);
-  button(ctx, th, BACK_BTN, [], 'normal', { pressed: S.press && S.press.id === 'hud:back' && S.press.active });
-  icon(ctx, 'back', BACK_BTN.x + BACK_BTN.w / 2, BACK_BTN.y + BACK_BTN.h / 2, 34, th.ink);
+  const { back, pause, hud } = lay;
+  button(ctx, th, back, [], 'normal', { pressed: S.press && S.press.id === 'hud:back' && S.press.active });
+  icon(ctx, 'back', back.x + back.w / 2, back.y + back.h / 2, 34, th.ink);
   if (showPause) {
-    button(ctx, th, PAUSE_BTN, [], 'normal', { pressed: S.press && S.press.id === 'hud:pause' && S.press.active });
-    icon(ctx, 'pause', PAUSE_BTN.x + PAUSE_BTN.w / 2, PAUSE_BTN.y + PAUSE_BTN.h / 2, 34, th.ink);
+    button(ctx, th, pause, [], 'normal', { pressed: S.press && S.press.id === 'hud:pause' && S.press.active });
+    icon(ctx, 'pause', pause.x + pause.w / 2, pause.y + pause.h / 2, 34, th.ink);
   }
   const z = TEXT_SCALES[S.textIdx];
-  const tSize = fitOne(title, 480, 40 * (1 + (z - 1) * 0.25), 22);
-  text(ctx, title, 360, 58, tSize, th.ink, { font: DISPLAY, weight: 800, shadow: 'rgba(0,0,0,0.6)' });
-  const sSize = fitOne(sub, 480, 24 * (1 + (z - 1) * 0.3), 16);
-  text(ctx, sub, 360, 96, sSize, 'rgba(246,236,214,0.7)', { weight: 500 });
+  const tSize = fitOne(title, hud.maxW, 40 * (1 + (z - 1) * 0.25), 14);
+  text(ctx, title, hud.cx, hud.titleY, tSize, th.ink, { font: DISPLAY, weight: 800, shadow: 'rgba(0,0,0,0.6)' });
+  const sSize = fitOne(sub, hud.maxW, 24 * (1 + (z - 1) * 0.3), 14);
+  if (tw(sub, Math.min(sSize, 12)) <= hud.maxW) text(ctx, sub, hud.cx, hud.subY, sSize, 'rgba(246,236,214,0.7)', { weight: 500 });
 }
 
 function drawYard(ctx, S, M, lay, p, name, sub, active, geo) {
@@ -369,13 +376,23 @@ function drawYard(ctx, S, M, lay, p, name, sub, active, geo) {
   if (active) { ctx.shadowColor = alpha(acc(th), 0.7); ctx.shadowBlur = 16; }
   rr(ctx, r.x, r.y, r.w, r.h, 20); ctx.stroke();
   ctx.restore();
-  const textH = r.h - 70;
-  const ns = fitOne(name, r.w - 40, 30 * (1 + (z - 1) * 0.45), 16);
-  const ss = fitOne(sub, r.w - 40, 21 * (1 + (z - 1) * 0.45), 14);
-  const total = ns + ss + 6, ty = r.y + 4 + Math.max(0, (textH - total) / 3) + ns * 0.88;
   const left = S.lang === 'ar' ? r.x + r.w - 22 : r.x + 22, alg = S.lang === 'ar' ? 'right' : 'left';
-  text(ctx, name, left, ty, ns, th.ink, { weight: 800, align: alg, font: DISPLAY });
-  text(ctx, sub, left, ty + ss + 6, ss, active ? th.accent : 'rgba(246,236,214,0.66)', { weight: 600, align: alg });
+  const subCol = active ? th.accent : 'rgba(246,236,214,0.66)';
+  const sNs = fitOne(name, r.w - 40, 30 * (1 + (z - 1) * 0.45), 16), sSs = fitOne(sub, r.w - 40, 21 * (1 + (z - 1) * 0.45), 14);
+  if (r.h < 120 || sNs + sSs + 6 > r.h - 70 + 8) {
+    // short yard (tablet portrait, landscape): the name and the status share one line above the stones
+    const inner = r.w - 44, ns = fitOne(name, inner * 0.52, 28 + 4 * (z - 1), 14), ss = fitOne(sub, inner - tw(name, ns) - 16, 20 + 2 * (z - 1), 12);
+    const ty = r.y + 8 + Math.max(ns, ss) * 0.9;
+    text(ctx, name, left, ty, ns, th.ink, { weight: 800, align: alg, font: DISPLAY });
+    text(ctx, sub, S.lang === 'ar' ? r.x + 22 : r.x + r.w - 22, ty, ss, subCol, { weight: 600, align: S.lang === 'ar' ? 'left' : 'right' });
+  } else {
+    const textH = r.h - 70;
+    const ns = fitOne(name, r.w - 40, 30 * (1 + (z - 1) * 0.45), 16);
+    const ss = fitOne(sub, r.w - 40, 21 * (1 + (z - 1) * 0.45), 14);
+    const total = ns + ss + 6, ty = r.y + 4 + Math.max(0, (textH - total) / 3) + ns * 0.88;
+    text(ctx, name, left, ty, ns, th.ink, { weight: 800, align: alg, font: DISPLAY });
+    text(ctx, sub, left, ty + ss + 6, ss, subCol, { weight: 600, align: alg });
+  }
   // slots: waiting stones from the left, home stones from the right, empty sockets between
   let wait = st.pos[p].filter((x) => x === WAIT).length, home = st.pos[p].filter((x) => x === HOME).length;
   if (A && !A.landed) { if (A.p === p && A.off) home = A.homeBefore; }
@@ -548,7 +565,8 @@ function drawMat(ctx, S, M, r) {
     const k = backOut(clamp01(pop.t / 0.35)), fade = 1 - clamp01((pop.t - 2.2) / 0.6);
     if (fade > 0) {
       ctx.save(); ctx.globalAlpha = fade;
-      const cx = r.x + r.w / 2, cy = r.y + 56, big = 74 * k;
+      const sc = Math.max(0.5, Math.min(1, (r.w - 16) / 380, (r.h - 16) / 100)), cx = r.x + r.w / 2, cy = r.y + 8 + 48 * sc, big = 74 * k;
+      ctx.translate(cx, cy); ctx.scale(sc, sc); ctx.translate(-cx, -cy);
       ctx.fillStyle = 'rgba(8,10,8,0.7)'; rr(ctx, cx - 190, cy - 44, 380, 88, 44); ctx.fill();
       ctx.strokeStyle = th.accent; ctx.lineWidth = 2.5; rr(ctx, cx - 190, cy - 44, 380, 88, 44); ctx.stroke();
       text(ctx, `${pop.v}`, cx - 100, cy + big * 0.34, big, th.accent, { font: DISPLAY, weight: 800 });
@@ -558,7 +576,7 @@ function drawMat(ctx, S, M, r) {
       ctx.restore();
     }
   }
-  if (!A && M.over === null && canThrow(M) && !M.lastPlan) {
+  if (!A && M.over === null && canThrow(M) && !M.lastPlan && r.h >= 240) {   // on a short felt the status card below already says it, and the line would run through the sticks
     text(ctx, T(S, 'yourThrowBody'), r.x + r.w / 2, r.y + r.h - 26, fitOne(T(S, 'yourThrowBody'), r.w - 60, 22, 14), 'rgba(246,236,214,0.7)', { weight: 600 });
   }
 }
@@ -619,9 +637,16 @@ function drawAutoBar(ctx, S, auto) {
   side(b.faster, 'plus', T(S, 'autoFaster'), S.speedIdx === AUTO_SPEEDS.length - 1, 'auto:faster');
   button(ctx, th, b.pause, [], 'primary', { pressed: pr('auto:pause'), radius: 22 });
   const lab = auto.paused ? T(S, 'autoPlay') : T(S, 'autoPause');
-  const ps = fitOne(lab, b.pause.w - 140, 32 * (1 + (z - 1) * 0.5), 18), is = 44 * (1 + (z - 1) * 0.3);
-  icon(ctx, auto.paused ? 'play' : 'pause', b.pause.x + 52 + is / 2, b.pause.y + b.pause.h / 2, is, th.primaryInk);
-  text(ctx, lab, b.pause.x + 52 + is + (b.pause.w - 52 - is) / 2 - 16, b.pause.y + b.pause.h / 2 + ps * 0.35, ps, th.primaryInk, { weight: 800 });
+  if (b.pause.w < 240) {
+    // narrow button (landscape column): icon over label, like the side buttons
+    const is = 40 * (1 + (z - 1) * 0.3), ls = fitOne(lab, b.pause.w - 16, 24 * (1 + (z - 1) * 0.4), 14), total = is + ls + 8, yy = b.pause.y + (b.pause.h - total) / 2;
+    icon(ctx, auto.paused ? 'play' : 'pause', b.pause.x + b.pause.w / 2, yy + is / 2, is, th.primaryInk);
+    text(ctx, lab, b.pause.x + b.pause.w / 2, yy + is + 8 + ls * 0.85, ls, th.primaryInk, { weight: 800 });
+  } else {
+    const ps = fitOne(lab, b.pause.w - 140, 32 * (1 + (z - 1) * 0.5), 18), is = 44 * (1 + (z - 1) * 0.3);
+    icon(ctx, auto.paused ? 'play' : 'pause', b.pause.x + 52 + is / 2, b.pause.y + b.pause.h / 2, is, th.primaryInk);
+    text(ctx, lab, b.pause.x + 52 + is + (b.pause.w - 52 - is) / 2 - 16, b.pause.y + b.pause.h / 2 + ps * 0.35, ps, th.primaryInk, { weight: 800 });
+  }
 }
 
 const youName = (S, M, p) => {
@@ -669,7 +694,7 @@ function drawPlay(ctx, S) {
   const title = M.lesson ? lessonText(M.lesson, S.lang).title : T(S, 'title');
   const pcs = piecesLabel(S, M.pieces);
   const sub = M.lesson ? `${S.lang === 'ar' ? 'الدرس' : 'Lesson'} ${S.lessonIdx + 1} / ${LESSONS.length}` : auto ? `${T(S, 'autoSession')} · ${T(S, 'autoSpeed')} x${AUTO_SPEEDS[S.speedIdx]} · ${T(S, 'think')} ${THINK_STEPS[S.thinkIdx]}${T(S, 'seconds')}` : `${M.two ? T(S, 'twoPlayers') : `${T(S, 'vsComputer')} · ${lvName(S, LEVELS.find((l) => l.id === M.level) ?? LEVELS[2])}`} · ${pcs}`;
-  drawHud(ctx, S, title, sub, !auto);
+  drawHud(ctx, S, lay, title, sub, !auto);
   const st = M.st;
   const toMove = M.over ? -1 : st.turn;
   const plateSub = (p) => {
@@ -716,4 +741,4 @@ export function render(ctx, S, ui) {
   if (S.overlay) drawOverlay(ctx, S, ui);
 }
 
-export { DOC_PANEL, NAV_PREV, NAV_NEXT, H, W, COLS, SAFE, cellOf, sideName, isSafe, easeIO, canUndo };
+export { H, W, COLS, SAFE, cellOf, sideName, isSafe, easeIO, canUndo };

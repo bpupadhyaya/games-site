@@ -3,8 +3,8 @@
   "title": "Big Card Solitaire",
   "tagline": "Huge cards, tap to play, every deal winnable",
   "genre": "solitaire",
-  "orientation": "portrait",
-  "version": "0.1.0",
+  "orientation": "any",
+  "version": "0.2.4",
   "monetization": {
     "model": "free"
   },

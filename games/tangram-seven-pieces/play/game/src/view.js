@@ -1,16 +1,15 @@
 // Everything drawn each frame. Reads state, changes nothing.
 import {
-  W, H, UI, DISPLAY, PIECE_COLORS, GOLD, PAPER, text, rr, panel, button, background, star, drawPiece, drawCutout, outlinePath,
+  UI, DISPLAY, PIECE_COLORS, GOLD, PAPER, text, rr, panel, button, background, star, drawPiece, drawCutout, outlinePath,
   icon, drawParticles, polyPath, alpha, light, dark, mix,
 } from './art.js';
 import { polyFree, KINDS, centroidOfPose, polyOfPose, decodeSolution, bbox } from './geom.js';
-import { SCALE, BOARD_C, displayPolyPx, handlePos, snapPreview, levelGeo, pxPoly, openSlots, logicalPolyPx } from './puzzle.js';
+import { displayPolyPx, handlePos, snapPreview, levelGeo, pxPoly, openSlots, logicalPolyPx } from './puzzle.js';
 import { LEVELS } from './levels.js';
 import { tr, RULES, PIECE_SHORT } from './content.js';
 import { TEXT_SCALES } from './ui.js';
-import {
-  BACK_BTN, PAUSE_BTN, BOARD, TRAY_PANEL, TOOLBAR_IDS, toolRect, AUTO_BTNS, DOC_PANEL, NAV_PREV, NAV_NEXT,
-} from './layout.js';
+import { layout, TOOLBAR_IDS } from './layout.js';
+import { drawLockup, drawCredit, drawMoreLine } from './brand.js';
 import { levelName, pieceName, THINK_STEPS, chapterUnlocked } from './screens.js';
 
 const SQUARE_DISSECTION = [
@@ -44,7 +43,12 @@ function drawDocBlocks(ctx, S, ui, scroll) {
         text(ctx, it.lines[i], center ? ox + it.w / 2 : ox, top + i * it.line + it.size * 0.98, it.size, 'rgba(244,234,211,0.93)', { weight: 500, align: center ? 'center' : 'left' });
       }
     } else if (b.t === 'img') {
-      drawArt(ctx, b.name, ox, top, it.w, b.h, S, b);
+      if (b.name === 'lockup') {
+        const lw = b.hitW ?? 250, lh = Math.round(lw * 327 / 1200), cy = top + it.h / 2 - 2, pr = S.press && S.press.id === 'arcforge' && S.press.active;
+        ctx.save(); ctx.fillStyle = 'rgba(8,8,28,0.5)'; rr(ctx, ox + it.w / 2 - lw / 2 - 10, cy - lh / 2 - 5, lw + 20, lh + 10, 14); ctx.fill(); ctx.restore();
+        drawLockup(ctx, ox + it.w / 2, cy - lh / 2, lw, pr ? 0.5 : 0.95);
+      } else if (b.name === 'more') drawMoreLine(ctx, ox + it.w / 2, top + 24, 22);
+      else { const aw = Math.min(it.w, 640); drawArt(ctx, b.name, ox + (it.w - aw) / 2, top, aw, b.h, S, b); }
     } else if (b.t === 'btn') {
       const bt = it.btns[0];
       button(ctx, { x: ox + bt.x, y: oy + bt.y, w: bt.w, h: bt.h }, it.lines, b.kind ?? 'normal', { size: it.size, line: it.line, sub: it.sub, disabled: bt.disabled, pressed: S.press && S.press.id === bt.id && S.press.active });
@@ -260,7 +264,7 @@ function drawAttract(ctx, S) {
   // halo
   const hg = ctx.createRadialGradient(cx, cy, 20, cx, cy, 300);
   hg.addColorStop(0, 'rgba(232,196,106,0.16)'); hg.addColorStop(1, 'rgba(232,196,106,0)');
-  ctx.fillStyle = hg; ctx.fillRect(0, 380, W, 560);
+  ctx.fillStyle = hg; ctx.fillRect(0, 380, 720, 560);
   const pieces = g.poses.map((pose, i) => {
     const c = centroidOfPose(pose);
     const fx = cx + (c[0] - mid[0]) * s, fy = cy + (c[1] - mid[1]) * s;
@@ -295,7 +299,10 @@ function drawAttract(ctx, S) {
 }
 
 function drawTitle(ctx, S, ui) {
-  background(ctx, S.t, 0, [128, 168]);
+  const L = layout(), Tt = L.title;
+  background(ctx, S.t, 0, [Tt.tx + 128 * Tt.k, Tt.ty + 168 * Tt.k], L.w, L.h);
+  ctx.save();
+  ctx.translate(Tt.tx, Tt.ty); ctx.scale(Tt.k, Tt.k);
   drawAttract(ctx, S);
   const zh = S.lang === 'zh';
   const g = ctx.createLinearGradient(0, 190, 0, 330);
@@ -310,27 +317,26 @@ function drawTitle(ctx, S, ui) {
   if (zh) text(ctx, 'Tangram', 360, 372, 44, 'rgba(244,234,211,0.8)', { font: DISPLAY, weight: 600 });
   else text(ctx, '七巧板 · SEVEN PIECES', 360, 362, 36, 'rgba(244,234,211,0.82)', { weight: 600 });
   text(ctx, tr(S.lang, 'tagline'), 360, 416, 26, 'rgba(244,234,211,0.6)', { weight: 500 });
+  ctx.restore();
   drawDocBlocks(ctx, S, ui, S.scroll[ui.scrollKey] ?? 0);
   drawFixed(ctx, S, ui.fixed);
 }
 
 function drawDocScreen(ctx, S, ui) {
-  background(ctx, S.t);
+  const L = layout();
+  background(ctx, S.t, 0, [L.w - 130, 170], L.w, L.h);
   if (ui.panel) panel(ctx, ui.panel.x, ui.panel.y, ui.panel.w, ui.panel.h, {});
   drawDocBlocks(ctx, S, ui, S.scroll[ui.scrollKey] ?? 0);
   drawFixed(ctx, S, ui.fixed);
-  if (ui.nav) {
-    drawFixed(ctx, S, [ui.nav.prev, ui.nav.next]);
-    text(ctx, ui.nav.label, 360, 1500, 26, 'rgba(244,234,211,0.75)', { weight: 600 });
-  }
 }
 
 function drawOverlay(ctx, S, ui) {
+  const L = layout();
   ctx.fillStyle = `rgba(5,6,18,${0.62 * clamp01(S.ovT / 0.25)})`;
-  ctx.fillRect(0, 0, W, H);
-  const k = ease(clamp01(S.ovT / 0.3));
+  ctx.fillRect(0, 0, L.w, L.h);
+  const k = ease(clamp01(S.ovT / 0.3)), cx = ui.panel.x + ui.panel.w / 2, cy = ui.panel.y + ui.panel.h / 2;
   ctx.save();
-  ctx.translate(W / 2, H / 2); ctx.scale(0.92 + 0.08 * k, 0.92 + 0.08 * k); ctx.translate(-W / 2, -H / 2);
+  ctx.translate(cx, cy); ctx.scale(0.92 + 0.08 * k, 0.92 + 0.08 * k); ctx.translate(-cx, -cy);
   ctx.globalAlpha = k;
   panel(ctx, ui.panel.x, ui.panel.y, ui.panel.w, ui.panel.h, {});
   drawDocBlocks(ctx, S, ui, S.scroll[ui.scrollKey] ?? 0);
@@ -339,8 +345,7 @@ function drawOverlay(ctx, S, ui) {
 }
 
 // ------------------------------------------------------------------------------------------ play
-function drawBoardPanel(ctx) {
-  const r = BOARD;
+function drawBoardPanel(ctx, r) {
   ctx.save();
   ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 26; ctx.shadowOffsetY = 10;
   const g = ctx.createLinearGradient(0, r.y, 0, r.y + r.h);
@@ -352,7 +357,7 @@ function drawBoardPanel(ctx) {
   // cutting-mat dots
   ctx.fillStyle = 'rgba(255,255,255,0.07)';
   for (let y = r.y + 14; y < r.y + r.h; y += 56) for (let x = r.x + 14; x < r.x + r.w; x += 56) ctx.fillRect(x, y, 3, 3);
-  const sg = ctx.createRadialGradient(360, 470, 40, 360, 470, 460);
+  const sg = ctx.createRadialGradient(r.x + r.w / 2, r.y + r.h / 2, 40, r.x + r.w / 2, r.y + r.h / 2, Math.max(r.w, r.h) * 0.68);
   sg.addColorStop(0, 'rgba(120,110,200,0.18)'); sg.addColorStop(1, 'rgba(120,110,200,0)');
   ctx.fillStyle = sg; ctx.fillRect(r.x, r.y, r.w, r.h);
   ctx.restore();
@@ -360,8 +365,7 @@ function drawBoardPanel(ctx) {
   ctx.strokeStyle = 'rgba(232,196,106,0.18)'; ctx.lineWidth = 1; rr(ctx, r.x + 8, r.y + 8, r.w - 16, r.h - 16, 24); ctx.stroke();
 }
 
-function drawTrayPanel(ctx) {
-  const r = TRAY_PANEL;
+function drawTrayPanel(ctx, r) {
   ctx.save();
   ctx.shadowColor = 'rgba(0,0,0,0.55)'; ctx.shadowBlur = 24; ctx.shadowOffsetY = 10;
   const g = ctx.createLinearGradient(0, r.y, 0, r.y + r.h);
@@ -371,7 +375,7 @@ function drawTrayPanel(ctx) {
   ctx.save();
   rr(ctx, r.x, r.y, r.w, r.h, 30); ctx.clip();
   // wood grain
-  for (let i = 0; i < 34; i++) {
+  for (let i = 0; i * 15 < r.h; i++) {
     const yy = r.y + 8 + i * 15 + (hash(i) * 6);
     ctx.strokeStyle = `rgba(${i % 2 ? '255,214,170' : '30,12,6'},${0.05 + hash(i + 40) * 0.05})`;
     ctx.lineWidth = 1 + hash(i + 9) * 1.4;
@@ -389,27 +393,36 @@ function drawTrayPanel(ctx) {
 }
 
 function drawHud(ctx, S, T, title, sub) {
-  button(ctx, BACK_BTN, [], 'normal', { pressed: S.press && S.press.id === 'hud:back' && S.press.active });
-  icon(ctx, 'back', BACK_BTN.x + BACK_BTN.w / 2, BACK_BTN.y + BACK_BTN.h / 2, 34);
+  const L = layout();
+  button(ctx, L.back, [], 'normal', { pressed: S.press && S.press.id === 'hud:back' && S.press.active });
+  icon(ctx, 'back', L.back.x + L.back.w / 2, L.back.y + L.back.h / 2, 34);
   if (S.scene === 'play') {
-    button(ctx, PAUSE_BTN, [], 'normal', { pressed: S.press && S.press.id === 'hud:pause' && S.press.active });
-    icon(ctx, 'pause', PAUSE_BTN.x + PAUSE_BTN.w / 2, PAUSE_BTN.y + PAUSE_BTN.h / 2, 34);
+    button(ctx, L.pause, [], 'normal', { pressed: S.press && S.press.id === 'hud:pause' && S.press.active });
+    icon(ctx, 'pause', L.pause.x + L.pause.w / 2, L.pause.y + L.pause.h / 2, 34);
   }
   const zh = S.lang === 'zh';
-  text(ctx, title, 360, 62, zh ? 38 : 40, PAPER, { font: DISPLAY, weight: 800, shadow: 'rgba(0,0,0,0.6)' });
-  text(ctx, sub, 360, 98, 24, 'rgba(244,234,211,0.65)', { weight: 500 });
+  const free = L.pause.x - (L.back.x + L.back.w) - 24;
+  let size = zh ? 38 : 40;
+  ctx.font = `800 ${size}px ${DISPLAY}`;
+  const wpx = ctx.measureText(title).width;
+  if (wpx > free) size = Math.max(24, Math.floor(size * free / wpx));
+  text(ctx, title, L.titleC.x, L.titleC.y, size, PAPER, { font: DISPLAY, weight: 800, shadow: 'rgba(0,0,0,0.6)' });
+  text(ctx, sub, L.titleC.x, L.titleC.ySub, 24, 'rgba(244,234,211,0.65)', { weight: 500 });
 }
 
-function banner(ctx, str, y = 138) {
+function banner(ctx, str) {
   if (!str) return;
+  const L = layout(), st = L.strip;
   ctx.font = `700 26px ${UI}`;
-  const w = Math.min(640, ctx.measureText(str).width + 56);
+  const w = Math.min(st.w - 8, ctx.measureText(str).width + 56), cx = st.x + st.w / 2, y = st.y + 20;
   ctx.save();
   ctx.fillStyle = 'rgba(8,10,28,0.78)';
-  rr(ctx, 360 - w / 2, y - 24, w, 46, 23); ctx.fill();
-  ctx.strokeStyle = 'rgba(232,196,106,0.55)'; ctx.lineWidth = 1.6; rr(ctx, 360 - w / 2, y - 24, w, 46, 23); ctx.stroke();
+  rr(ctx, cx - w / 2, y - 20, w, 40, 20); ctx.fill();
+  ctx.strokeStyle = 'rgba(232,196,106,0.55)'; ctx.lineWidth = 1.6; rr(ctx, cx - w / 2, y - 20, w, 40, 20); ctx.stroke();
   ctx.restore();
-  text(ctx, str, 360, y + 8, 26, GOLD, { weight: 700 });
+  let size = 26;
+  while (size > 17 && (ctx.font = `700 ${size}px ${UI}`, ctx.measureText(str).width > w - 24)) size -= 1;
+  text(ctx, str, cx, y + size * 0.35, size, GOLD, { weight: 700 });
 }
 
 function drawGuides(ctx, puz) {
@@ -434,8 +447,8 @@ function drawGhost(ctx, puz, slotIdx, color, a, strong) {
 }
 
 function drawPuzzle(ctx, S, T, auto) {
-  const puz = S.puz;
-  drawBoardPanel(ctx);
+  const puz = S.puz, L = layout(), BOARD = L.board;
+  drawBoardPanel(ctx, BOARD);
   drawCutout(ctx, puz.g.loops.map((l) => l.map(puz.g.toPx)), { top: BOARD.y, bottom: BOARD.y + BOARD.h });
   if (S.guides) drawGuides(ctx, puz);
   // hint / auto-play ghosts
@@ -450,7 +463,7 @@ function drawPuzzle(ctx, S, T, auto) {
   if (auto && auto.phase === 'think' && auto.scan != null) {
     drawGhost(ctx, puz, auto.scan, '#ffffff', 0.05 + 0.1 * pulse, false);
   }
-  drawTrayPanel(ctx);
+  drawTrayPanel(ctx, L.tray);
   // snap preview ring
   const prev = snapPreview(puz);
   if (prev) {
@@ -494,7 +507,7 @@ function drawPuzzle(ctx, S, T, auto) {
     ctx.save();
     outlinePath(ctx, puz.g.loops.map((l) => l.map(puz.g.toPx))); ctx.clip();
     const k = (puz.doneT * 0.8) % 2.2;
-    const sx = 20 + k / 1.2 * 680;
+    const sx = BOARD.x + k / 1.2 * BOARD.w;
     const sg = ctx.createLinearGradient(sx - 90, 0, sx + 90, 0);
     sg.addColorStop(0, 'rgba(255,255,255,0)'); sg.addColorStop(0.5, 'rgba(255,255,255,0.5)'); sg.addColorStop(1, 'rgba(255,255,255,0)');
     ctx.fillStyle = sg; ctx.fillRect(sx - 100, BOARD.y, 200, BOARD.h);
@@ -518,37 +531,47 @@ function drawToolbar(ctx, S, T) {
     hint: { icon: 'hint', label: T('hint'), off: puz.done },
     reset: { icon: 'reset', label: T('reset'), off: puz.done },
   };
+  const L = layout();
   TOOLBAR_IDS.forEach((id, i) => {
-    const r = toolRect(i), d = defs[id];
+    const r = L.tools[i], d = defs[id];
     const pressed = S.press && S.press.id === `tool:${id}` && S.press.active;
     button(ctx, r, [], id === 'hint' ? 'primary' : 'normal', { disabled: d.off, pressed, radius: 20 });
-    const yy = r.y + (pressed ? 3 : 0);
+    const yy = r.y + (pressed ? 3 : 0), isz = Math.min(44, r.h * 0.4), col = id === 'hint' ? '#3a2410' : PAPER;
     ctx.save();
     if (d.off) ctx.globalAlpha = 0.4;
-    icon(ctx, d.icon, r.x + r.w / 2, yy + 46, 44, id === 'hint' ? '#3a2410' : PAPER);
-    text(ctx, d.label, r.x + r.w / 2, yy + 94, S.lang === 'zh' ? 24 : 20, id === 'hint' ? '#3a2410' : 'rgba(244,234,211,0.85)', { weight: 700 });
+    icon(ctx, d.icon, r.x + r.w / 2, yy + r.h * 0.42, isz, col);
+    text(ctx, d.label, r.x + r.w / 2, yy + r.h * 0.86, S.lang === 'zh' ? 24 : 21, id === 'hint' ? '#3a2410' : 'rgba(244,234,211,0.85)', { weight: 700 });
     ctx.restore();
   });
 }
 
 function drawAutoBar(ctx, S, T, auto) {
-  const b = AUTO_BTNS;
+  const b = layout().auto, L = layout();
   const pr = (id) => S.press && S.press.id === id && S.press.active;
-  button(ctx, b.slower, [], 'normal', { disabled: S.thinkIdx === 0, pressed: pr('auto:slower'), radius: 20 });
-  icon(ctx, 'minus', b.slower.x + b.slower.w / 2, b.slower.y + 42, 40);
-  text(ctx, T('autoSlower'), b.slower.x + b.slower.w / 2, b.slower.y + 92, 22, 'rgba(244,234,211,0.85)', { weight: 700 });
-  button(ctx, b.faster, [], 'normal', { disabled: S.thinkIdx === THINK_STEPS.length - 1, pressed: pr('auto:faster'), radius: 20 });
-  icon(ctx, 'plus', b.faster.x + b.faster.w / 2, b.faster.y + 42, 40);
-  text(ctx, T('autoFaster'), b.faster.x + b.faster.w / 2, b.faster.y + 92, 22, 'rgba(244,234,211,0.85)', { weight: 700 });
-  button(ctx, b.pause, [], 'primary', { pressed: pr('auto:pause'), radius: 20 });
-  icon(ctx, auto.paused ? 'play' : 'pause', b.pause.x + b.pause.w / 2 - 70, b.pause.y + b.pause.h / 2, 44, '#3a2410');
-  text(ctx, auto.paused ? T('autoPlay') : T('autoPause'), b.pause.x + b.pause.w / 2 + 28, b.pause.y + b.pause.h / 2 + 11, 32, '#3a2410', { weight: 800 });
-  text(ctx, `${THINK_STEPS[S.thinkIdx]}${T('seconds')}`, 360, 1400, 24, 'rgba(244,234,211,0.7)', { weight: 600 });
+  const sideBtn = (r, key, ic, label, off) => {
+    button(ctx, r, [], 'normal', { disabled: off, pressed: pr(key), radius: 20 });
+    icon(ctx, ic, r.x + r.w / 2, r.y + r.h * 0.38, Math.min(40, r.h * 0.36));
+    text(ctx, label, r.x + r.w / 2, r.y + r.h * 0.85, 22, 'rgba(244,234,211,0.85)', { weight: 700 });
+  };
+  sideBtn(b.slower, 'auto:slower', 'minus', T('autoSlower'), S.thinkIdx === 0);
+  sideBtn(b.faster, 'auto:faster', 'plus', T('autoFaster'), S.thinkIdx === THINK_STEPS.length - 1);
+  const p = b.pause;
+  button(ctx, p, [], 'primary', { pressed: pr('auto:pause'), radius: 20 });
+  const lab = auto.paused ? T('autoPlay') : T('autoPause');
+  let size = 32;
+  ctx.font = `800 ${size}px ${UI}`;
+  while (size > 20 && ctx.measureText(lab).width + 74 > p.w) { size -= 1; ctx.font = `800 ${size}px ${UI}`; }
+  const tw = ctx.measureText(lab).width, gx = p.x + p.w / 2 - (tw + 58) / 2;
+  icon(ctx, auto.paused ? 'play' : 'pause', gx + 22, p.y + p.h / 2, 44, '#3a2410');
+  text(ctx, lab, gx + 58 + tw / 2, p.y + p.h / 2 + size * 0.34, size, '#3a2410', { weight: 800 });
+  text(ctx, `${THINK_STEPS[S.thinkIdx]}${T('seconds')}`, b.label.x, b.label.y, 24, 'rgba(244,234,211,0.7)', { weight: 600 });
+  void L;
 }
 
 function drawPlay(ctx, S, ui) {
   const T = (k, v) => tr(S.lang, k, v);
-  background(ctx, S.t);
+  const L = layout();
+  background(ctx, S.t, 0, [L.w - 130, 150], L.w, L.h);
   const puz = S.puz;
   const auto = S.scene === 'auto' ? S.auto : null;
   const lv = puz.level;
@@ -566,9 +589,9 @@ function drawPlay(ctx, S, ui) {
     else if (auto.phase === 'celebrate') msg = T('autoDone');
     banner(ctx, auto.paused ? T('paused') : msg);
     if (auto.phase === 'think' && !auto.paused) {
-      const frac = clamp01(auto.t / THINK_STEPS[S.thinkIdx]);
-      ctx.fillStyle = 'rgba(255,255,255,0.12)'; rr(ctx, 120, 168, 480, 8, 4); ctx.fill();
-      ctx.fillStyle = GOLD; rr(ctx, 120, 168, 480 * frac, 8, 4); ctx.fill();
+      const frac = clamp01(auto.t / THINK_STEPS[S.thinkIdx]), bw = Math.min(480, L.strip.w - 120), bx = L.strip.x + (L.strip.w - bw) / 2, by = L.strip.y + 44;
+      ctx.fillStyle = 'rgba(255,255,255,0.12)'; rr(ctx, bx, by, bw, 7, 3.5); ctx.fill();
+      ctx.fillStyle = GOLD; rr(ctx, bx, by, bw * frac, 7, 3.5); ctx.fill();
     }
   } else {
     drawToolbar(ctx, S, T);
@@ -588,18 +611,18 @@ export function render(ctx, S, ui) {
     case 'title': drawTitle(ctx, S, ui); break;
     case 'levels': case 'howto': case 'rules': case 'about': case 'settings': drawDocScreen(ctx, S, ui); break;
     case 'demo-limit':
-      background(ctx, S.t);
+      background(ctx, S.t, 0, [layout().w - 130, 170], layout().w, layout().h);
       panel(ctx, ui.panel.x, ui.panel.y, ui.panel.w, ui.panel.h, {});
       drawDocBlocks(ctx, S, ui, S.scroll[ui.scrollKey] ?? 0);
       drawFixed(ctx, S, ui.fixed);
       break;
     case 'play': case 'auto':
-      if (!S.puz) { background(ctx, S.t); break; }
+      if (!S.puz) { background(ctx, S.t, 0, [layout().w - 130, 170], layout().w, layout().h); break; }
       drawPlay(ctx, S, ui);
       break;
-    default: background(ctx, S.t);
+    default: background(ctx, S.t, 0, [layout().w - 130, 170], layout().w, layout().h);
   }
   if (S.overlay) drawOverlay(ctx, S, ui);
 }
 
-export { TEXT_SCALES, bbox, decodeSolution, polyOfPose, light, dark, mix, chapterUnlocked, logicalPolyPx, RULES, DOC_PANEL, NAV_PREV, NAV_NEXT };
+export { TEXT_SCALES, bbox, decodeSolution, polyOfPose, light, dark, mix, chapterUnlocked, logicalPolyPx, RULES };

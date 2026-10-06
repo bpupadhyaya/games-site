@@ -5,7 +5,7 @@ import { alpha, clamp01, rr } from './art.js';
 // Where the board sits: scale S (pixels per dot spacing) and the offset so the board is centred in `area`.
 export function boardGeo(B, area, pad = 30) {
   const bw = B.bounds.w, bh = B.bounds.h;
-  const S = Math.max(14, Math.min((area.w - pad * 2) / bw, (area.h - pad * 2) / bh, B.dots.length <= 12 ? 150 : 112));
+  const S = Math.max(14, Math.min((area.w - pad * 2) / bw, (area.h - pad * 2) / bh, B.dots.length <= 12 ? 260 : 190));
   return { S, ox: area.x + area.w / 2 - B.cx * S, oy: area.y + area.h / 2 - B.cy * S, area };
 }
 export const toScreen = (g, x, y) => [g.ox + x * g.S, g.oy + y * g.S];

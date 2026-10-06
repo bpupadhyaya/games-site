@@ -44,3 +44,21 @@ export function createBridge(target = globalThis) {
     },
   };
 }
+
+// Public Arcforge hub page, opened in a new tab when a game runs in a plain browser (no native shell).
+export const ARCFORGE_HOME_URL = 'https://equalinformation.com/games-site/';
+
+// Kit 1.9.0 `env.openArcforgeHome()`. Native shells get the bridge method `app.home` (no params): the hub
+// returns to its main screen scrolled to the top, a standalone app opens the Arcforge store listing.
+// Never throws and never rejects.
+export function openArcforgeHomeVia(bridge, target = globalThis) {
+  if (bridge?.native) {
+    bridge.call('app.home').catch(() => {});
+    return;
+  }
+  try {
+    target.open?.(ARCFORGE_HOME_URL, '_blank', 'noopener');
+  } catch {
+    /* no window (headless): nothing to open */
+  }
+}

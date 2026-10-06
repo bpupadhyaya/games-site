@@ -46,7 +46,7 @@ const mix = (c1, c2, t) => {
 };
 
 // ---- the ground texture: a top-down picture of the yard, baked once, then laid onto the fixed camera in strips ---------------
-export const TEX = { ppm: 90, x0: -4.0, x1: 4.0, z0: -3.8, z1: 9.0 };
+export const TEX = { ppm: 90, x0: -6.4, x1: 6.4, z0: -3.8, z1: 9.0 };   // wide: landscape shows the street well beyond the kerbs
 const TW = Math.round((TEX.x1 - TEX.x0) * TEX.ppm), TH = Math.round((TEX.z1 - TEX.z0) * TEX.ppm);
 const tx = (x) => (x - TEX.x0) * TEX.ppm, tz = (z) => (z - TEX.z0) * TEX.ppm;
 
@@ -129,6 +129,11 @@ export function startTextureBake() {
         c.fillStyle = '#4a3e34'; c.fillRect(xa, 0, xb - xa, TH);
         c.fillStyle = 'rgba(0,0,0,0.25)'; c.fillRect(side < 0 ? xb - 10 : xa, 0, 10, TH);
         c.fillStyle = '#b8ab98'; c.fillRect(side < 0 ? xb : xa - 9, 0, 9, TH);
+        // paving beyond the kerb: slab seams and a little wear, so the wide sides of a landscape screen are not flat
+        c.strokeStyle = 'rgba(20,14,10,0.30)'; c.lineWidth = 2;
+        for (let zz = TEX.z0; zz < TEX.z1; zz += 0.7) { c.beginPath(); c.moveTo(xa, tz(zz)); c.lineTo(xb, tz(zz)); c.stroke(); }
+        for (let xx = Math.ceil(Math.min(xa, xb) / (0.9 * TEX.ppm)) * 0.9 * TEX.ppm; xx < Math.max(xa, xb); xx += 0.9 * TEX.ppm) { c.beginPath(); c.moveTo(xx, 0); c.lineTo(xx, TH); c.stroke(); }
+        for (let i = 0; i < 260; i++) { const wx = xa + r() * (xb - xa), wy = r() * TH; c.fillStyle = r() < 0.5 ? 'rgba(20,14,10,0.16)' : 'rgba(210,190,160,0.08)'; c.beginPath(); c.arc(wx, wy, 2 + r() * 6, 0, TAU); c.fill(); }
       }
       chalkLine(r, tx(-3.25), tz(0), tx(3.25), tz(0), 7);
       c.strokeStyle = 'rgba(250,246,236,0.42)'; c.lineWidth = 6; c.lineCap = 'round';
@@ -161,15 +166,16 @@ function wallQuad(ctx, cam, x0, y0, x1, y1, z) {
   ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.lineTo(c[0], c[1]); ctx.lineTo(d[0], d[1]); ctx.closePath();
 }
 export const WALL_Z = 8.55;
-function paintWall(ctx, cam) {
+const WX = 7.2;   // half length of the painted wall (landscape screens see far past the yard)
+function paintWall(ctx, cam, cw) {
   const z = WALL_Z;
   const r = lcg(515);
   // buildings behind the wall: dusk silhouettes with a few warm windows
   const top = cam.P(0, 1.5, z)[1];
   const sky = ctx.createLinearGradient(0, top - 330, 0, top + 8); sky.addColorStop(0, '#1a2336'); sky.addColorStop(0.55, '#4a3a4a'); sky.addColorStop(1, '#d08a58');
-  ctx.fillStyle = sky; ctx.fillRect(0, 0, 720, top + 8);
-  let x = -5.6;
-  while (x < 5.6) {
+  ctx.fillStyle = sky; ctx.fillRect(0, 0, cw, top + 8);
+  let x = -WX - 1.6;
+  while (x < WX + 1.6) {
     const w = 0.9 + r() * 1.4, h = 2.2 + r() * 3.6;
     wallQuad(ctx, cam, x, 1.5, x + w, 1.5 + h, z + 0.3); ctx.fillStyle = `rgb(${34 + (r() * 16) | 0},${30 + (r() * 14) | 0},${42 + (r() * 16) | 0})`; ctx.fill();
     for (let k = 0; k < 7; k++) {
@@ -180,14 +186,16 @@ function paintWall(ctx, cam) {
     x += w + 0.04;
   }
   // the wall: painted bands and a simple mural of shapes (no letters, no logos)
-  wallQuad(ctx, cam, -4.3, 0, 4.3, 1.5, z);
+  wallQuad(ctx, cam, -WX, 0, WX, 1.5, z);
   const wg = ctx.createLinearGradient(0, cam.P(0, 1.5, z)[1], 0, cam.P(0, 0, z)[1]); wg.addColorStop(0, '#d9c9a8'); wg.addColorStop(1, '#a48d6d');
   ctx.fillStyle = wg; ctx.fill();
-  const band = (y0, y1, col) => { wallQuad(ctx, cam, -4.3, y0, 4.3, y1, z); ctx.fillStyle = col; ctx.fill(); };
+  const band = (y0, y1, col) => { wallQuad(ctx, cam, -WX, y0, WX, y1, z); ctx.fillStyle = col; ctx.fill(); };
   band(0.0, 0.34, '#5c4a3b'); band(0.34, 0.4, '#e8d9b8');
   const shapes = [['#d4322e', 0.1], ['#25a39a', 0.85], ['#f2b632', 1.7], ['#8a62d6', 2.5], ['#d4322e', 3.2], ['#25a39a', 3.9]];
-  shapes.forEach(([col, off], i) => {
+  const reps = [-2, -1, 0, 1, 2].flatMap((rep) => shapes.map(([col, off], i) => [col, off + rep * 8.0, i]));
+  reps.forEach(([col, off, i]) => {
     const cx = -3.9 + off + (i % 2) * 0.15;
+    if (cx < -WX + 0.1 || cx + 0.6 > WX - 0.1) return;
     ctx.fillStyle = col; ctx.globalAlpha = 0.85;
     if (i % 3 === 0) { const a = cam.P(cx, 0.55, z), b = cam.P(cx + 0.55, 0.55, z), c = cam.P(cx + 0.27, 1.25, z); ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.lineTo(c[0], c[1]); ctx.closePath(); ctx.fill(); }
     else if (i % 3 === 1) { const p = cam.P(cx + 0.25, 0.9, z), q = cam.P(cx + 0.55, 0.9, z); ctx.beginPath(); ctx.arc(p[0], p[1], Math.abs(q[0] - p[0]) * 0.9, 0, TAU); ctx.fill(); }
@@ -196,20 +204,20 @@ function paintWall(ctx, cam) {
   });
   // brick seams
   ctx.strokeStyle = 'rgba(80,60,40,0.18)'; ctx.lineWidth = 1;
-  for (let y = 0.45; y < 1.5; y += 0.2) { const a = cam.P(-4.3, y, z), b = cam.P(4.3, y, z); ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke(); }
+  for (let y = 0.45; y < 1.5; y += 0.2) { const a = cam.P(-WX, y, z), b = cam.P(WX, y, z); ctx.beginPath(); ctx.moveTo(a[0], a[1]); ctx.lineTo(b[0], b[1]); ctx.stroke(); }
   // coping on top and the shadow it casts
-  wallQuad(ctx, cam, -4.4, 1.5, 4.4, 1.62, z); ctx.fillStyle = '#efe3c7'; ctx.fill();
-  wallQuad(ctx, cam, -4.3, 0, 4.3, 0.1, z); ctx.fillStyle = 'rgba(30,20,12,0.28)'; ctx.fill();
+  wallQuad(ctx, cam, -WX - 0.1, 1.5, WX + 0.1, 1.62, z); ctx.fillStyle = '#efe3c7'; ctx.fill();
+  wallQuad(ctx, cam, -WX, 0, WX, 0.1, z); ctx.fillStyle = 'rgba(30,20,12,0.28)'; ctx.fill();
 }
 
-export function startBackdrop(cam, tex) {
-  const cv = makeCanvas(720, 1280);
+export function startBackdrop(cam, tex, cw = 720, ch = 1280) {
+  const cv = makeCanvas(cw, ch);
   if (!cv) return { failed: true, step: () => null };
   const c = cv.getContext('2d');
-  c.fillStyle = '#17131a'; c.fillRect(0, 0, 720, 1280);
-  paintWall(c, cam);
+  c.fillStyle = '#17131a'; c.fillRect(0, 0, cw, ch);
+  paintWall(c, cam, cw);
   // ground rows, far to near
-  const yFar = Math.floor(cam.P(0, 0, TEX.z1)[1]), yNear = Math.min(1280, Math.ceil(cam.P(0, 0, TEX.z0)[1]));
+  const yFar = Math.floor(cam.P(0, 0, TEX.z1)[1]), yNear = Math.min(ch, Math.ceil(cam.P(0, 0, TEX.z0)[1]));
   let y = yFar;
   return {
     failed: false,
@@ -227,8 +235,8 @@ export function startBackdrop(cam, tex) {
       }
       if (y < yNear) return null;
       // the kerb faces, a dusk grade and the vignette
-      const dk = c.createLinearGradient(0, 0, 0, 1280); dk.addColorStop(0, 'rgba(255,170,90,0.10)'); dk.addColorStop(0.5, 'rgba(255,190,120,0.02)'); dk.addColorStop(1, 'rgba(20,10,30,0.22)');
-      c.fillStyle = dk; c.fillRect(0, 0, 720, 1280);
+      const dk = c.createLinearGradient(0, 0, 0, ch); dk.addColorStop(0, 'rgba(255,170,90,0.10)'); dk.addColorStop(0.5, 'rgba(255,190,120,0.02)'); dk.addColorStop(1, 'rgba(20,10,30,0.22)');
+      c.fillStyle = dk; c.fillRect(0, 0, cw, ch);
       return cv;
     },
   };

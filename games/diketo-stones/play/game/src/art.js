@@ -2,6 +2,7 @@
 // particles. Pure canvas drawing. World units: the yard is 660 x 800, the stones are R units in radius.
 import { R, GHO_R, PIT, YARD_R, HOME } from './sim.js';
 import { roundPath } from './ui.js';
+import { minU } from './layout.js';
 
 const TAU = Math.PI * 2;
 
@@ -38,7 +39,16 @@ const CHALK_N = 150;
 const CHALK = Array.from({ length: 3 }, () => Array.from({ length: CHALK_N }, () => (rnd() - 0.5) * 3.2));
 const CHALK_DUST = Array.from({ length: 70 }, () => ({ a: rnd() * TAU, off: (rnd() - 0.5) * 16, r: 0.7 + rnd() * 1.6, al: 0.15 + rnd() * 0.3 }));
 
-export function drawFloor(ctx, W = GW, H = GH) {
+export function drawFloor(ctx, W0 = GW, H0 = GH) {
+  // the ground is painted once in 720 x 1280 and scaled (uniformly, centred) to cover any screen shape
+  const k = Math.max(W0 / GW, H0 / GH), W = GW, H = GH;
+  ctx.save();
+  ctx.beginPath(); ctx.rect(0, 0, W0, H0); ctx.clip();
+  ctx.translate((W0 - GW * k) / 2, (H0 - GH * k) / 2); ctx.scale(k, k);
+  paintFloor(ctx, W, H);
+  ctx.restore();
+}
+function paintFloor(ctx, W, H) {
   const g = ctx.createLinearGradient(0, 0, 0, H);
   g.addColorStop(0, '#c98e55'); g.addColorStop(0.5, '#bb8049'); g.addColorStop(1, '#a96e3b');
   ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
@@ -233,12 +243,15 @@ export function drawRoute(ctx, pts, o = {}) {
   ctx.beginPath(); pts.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y))); ctx.stroke();
   ctx.restore();
 }
+// the yard is drawn scaled; the view tells art.js the scale so number badges keep a readable size on small screens
+export const worldScale = { s: 1 };
 export function drawBadge(ctx, x, y, label, o = {}) {
   ctx.save();
-  const r = o.r ?? 17;
+  const base = Math.round((o.r ?? 17) * 1.15), fs = Math.min(Math.max(base, Math.ceil(minU() / Math.max(0.25, worldScale.s))), Math.round(base * 2.2));
+  const r = Math.max(o.r ?? 17, fs / 1.15);
   ctx.fillStyle = o.fill ?? '#d5553a'; ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill();
   ctx.lineWidth = 2.5; ctx.strokeStyle = '#fffaf0'; ctx.stroke();
-  ctx.fillStyle = '#fffaf0'; ctx.font = `700 ${Math.round(r * 1.15)}px 'Avenir Next', 'Segoe UI', system-ui, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillStyle = '#fffaf0'; ctx.font = `700 ${fs}px 'Avenir Next', 'Segoe UI', system-ui, sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.fillText(label, x, y + 1);
   ctx.restore();
 }

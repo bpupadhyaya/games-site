@@ -51,11 +51,11 @@ export function drawButton(ctx, r, label, opts = {}) {
   ctx.fillStyle = text;
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   let px = sub ? Math.round(size * 0.9) : size;
-  const maxW = r.w - 24;
+  const maxW = r.w - (r.w < 140 ? 10 : 24);
   ctx.font = `800 ${px}px ${FONT}`;
-  while (ctx.measureText(label).width > maxW && px > 13) { px -= 1; ctx.font = `800 ${px}px ${FONT}`; }
+  while (ctx.measureText(label).width > maxW && px > 18) { px -= 1; ctx.font = `800 ${px}px ${FONT}`; }
   ctx.fillText(label, r.x + r.w / 2, r.y + dy + r.h / 2 - (sub ? 11 : 0));
-  if (sub) { ctx.font = `500 ${Math.round(size * 0.62)}px ${FONT}`; ctx.globalAlpha = 0.85; ctx.fillText(sub, r.x + r.w / 2, r.y + dy + r.h / 2 + size * 0.5); ctx.globalAlpha = 1; }
+  if (sub) { ctx.font = `500 ${Math.max(20, Math.round(size * 0.62))}px ${FONT}`; ctx.globalAlpha = 0.85; ctx.fillText(sub, r.x + r.w / 2, r.y + dy + r.h / 2 + size * 0.5); ctx.globalAlpha = 1; }
   ctx.restore();
   return disabled;
 }
@@ -97,6 +97,7 @@ export const ease = {
 // player's text size and scrolls when it no longer fits. widget: { t: 'h'|'p'|'btn'|'gap'|'art', id, label, sub,
 // row, primary, active, disabled, dark, h, draw }
 const GAP = 14;
+export const subFs = (fs) => Math.max(20, Math.round(fs * 0.72));
 export function flowLayout(ctx, widgets, scale, o = {}) {
   const x0 = o.x ?? 40, w0 = o.w ?? 640;
   let y = 0;
@@ -112,15 +113,15 @@ export function flowLayout(ctx, widgets, scale, o = {}) {
       const cw0 = (w0 - GAP * (group.length - 1)) / group.length;
       const tooWide = group.some((g) => g.label.split(' ').some((word) => ctx.measureText(word).width > cw0 - 28));
       if (tooWide || (scale > 1.5 && group.length > 1)) {
-        widgets.splice(i, 0, ...group.map((g) => ({ ...g, row: undefined, h: g.h ?? 76 })));
+        widgets.splice(i, 0, ...group.map((g) => ({ ...g, row: undefined, h: g.h ?? 82 })));
         continue;
       }
       let hmax = 0;
       const prepared = group.map((g) => {
         ctx.font = `800 ${fs}px ${FONT}`;
         const lines = wrapLines(ctx, g.label, cw0 - 28);
-        const sub = g.sub ? wrapLines(ctx, g.sub, cw0 - 28).length : 0;
-        const h = Math.max(g.h ?? 76, lines.length * fs * 1.15 + sub * fs * 0.72 + 34);
+        const sub = g.sub ? (ctx.font = `500 ${subFs(fs)}px ${FONT}`, wrapLines(ctx, g.sub, cw0 - 28).length) : 0;
+        const h = Math.max(g.h ?? 82, lines.length * fs * 1.15 + sub * subFs(fs) + 34);
         hmax = Math.max(hmax, h);
         return { g, lines, h };
       });
@@ -151,17 +152,17 @@ export function flowLayout(ctx, widgets, scale, o = {}) {
       const fs = Math.round((o.btn ?? 26) * Math.min(scale, 3));
       ctx.font = `800 ${fs}px ${FONT}`;
       const lines = wrapLines(ctx, wd.label, w0 - 28);
-      const sub = wd.sub ? wrapLines(ctx, wd.sub, w0 - 28).length : 0;
-      const h = Math.max(wd.h ?? 84, lines.length * fs * 1.15 + sub * fs * 0.72 + 34);
+      const sub = wd.sub ? (ctx.font = `500 ${subFs(fs)}px ${FONT}`, wrapLines(ctx, wd.sub, w0 - 28).length) : 0;
+      const h = Math.max(wd.h ?? 84, lines.length * fs * 1.15 + sub * subFs(fs) + 34);
       out.push({ w: wd, x: x0, y, wd: w0, h, fs, lines }); y += h + GAP;
     }
   }
   return { items: out, contentH: y };
 }
 
-export function drawFlow(ctx, lay, top, bottom, scroll) {
+export function drawFlow(ctx, lay, top, bottom, scroll, clipW = 4000) {
   ctx.save();
-  ctx.beginPath(); ctx.rect(0, top, 720, bottom - top); ctx.clip();
+  ctx.beginPath(); ctx.rect(0, top, clipW, bottom - top); ctx.clip();
   for (const it of lay.items) {
     const y = top + it.y - scroll;
     if (y > bottom || y + it.h < top) continue;
@@ -185,14 +186,14 @@ function drawButtonRect(ctx, r, it, wd) {
   ctx.fillStyle = text;
   ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
   ctx.font = `800 ${it.fs}px ${FONT}`;
-  const subLines = wd.sub ? (() => { ctx.font = `500 ${Math.round(it.fs * 0.72)}px ${FONT}`; const l = wrapLines(ctx, wd.sub, r.w - 28); ctx.font = `800 ${it.fs}px ${FONT}`; return l; })() : [];
-  const total = it.lines.length * it.fs * 1.15 + subLines.length * it.fs * 0.72;
+  const subLines = wd.sub ? (() => { ctx.font = `500 ${subFs(it.fs)}px ${FONT}`; const l = wrapLines(ctx, wd.sub, r.w - 28); ctx.font = `800 ${it.fs}px ${FONT}`; return l; })() : [];
+  const total = it.lines.length * it.fs * 1.15 + subLines.length * subFs(it.fs);
   let y = r.y + dy + (r.h - total) / 2 + it.fs * 0.88;
   it.lines.forEach((l) => { ctx.fillText(l, r.x + r.w / 2, y); y += it.fs * 1.15; });
   if (subLines.length) {
-    ctx.font = `500 ${Math.round(it.fs * 0.72)}px ${FONT}`; ctx.globalAlpha = 0.85;
+    ctx.font = `500 ${subFs(it.fs)}px ${FONT}`; ctx.globalAlpha = 0.85;
     y -= it.fs * 0.2;
-    subLines.forEach((l) => { ctx.fillText(l, r.x + r.w / 2, y); y += it.fs * 0.72; });
+    subLines.forEach((l) => { ctx.fillText(l, r.x + r.w / 2, y); y += subFs(it.fs); });
     ctx.globalAlpha = 1;
   }
   ctx.restore();

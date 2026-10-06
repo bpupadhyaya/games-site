@@ -2,8 +2,8 @@
   "slug": "tab-stick-race",
   "title": "Tab: Stick Race",
   "genre": "race board game",
-  "orientation": "portrait",
-  "version": "1.0.1",
+  "orientation": "any",
+  "version": "1.1.5",
   "monetization": {
     "model": "premium",
     "priceUsd": 2.99,

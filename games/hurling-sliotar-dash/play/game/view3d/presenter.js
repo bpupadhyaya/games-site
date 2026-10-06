@@ -3,7 +3,7 @@
 // the sim owns where and when each contact happens; the clip layer makes the bas meet the ball at exactly that time.
 import { buildPitch, buildBall, hurleyGeometry, helmetCapGeometry, helmetGuardGeometry, BALL_VIS_R } from './pitch.js';
 import { createAnimator, DT, HELMET_COL, GK_HELMET_COL } from './animator.js';
-import { fovFor } from '../src/camera.js';
+import { camFor } from '../src/camera.js';
 
 const LIB = '../vendor3d/index.js';
 
@@ -19,7 +19,7 @@ export async function createPresenter({ kitCanvas, quality = pickQuality() }) {
   try { V3 = await import(LIB); } catch (e) { console.warn('view3d failed to load; using the 2D fallback', e); return { stage: null, wrap: (g) => g, ready: Promise.resolve(false) }; }
   const { createStage, loadHuman, THREE } = V3;
   const canvas = document.createElement('canvas');
-  canvas.style.cssText = 'position:fixed;inset:0;width:100vw;height:100dvh;display:block;pointer-events:none;z-index:0';
+  canvas.style.cssText = 'position:fixed;inset:0;width:100vw;height:100vh;height:100dvh;display:block;pointer-events:none;z-index:0';
   kitCanvas.parentElement.insertBefore(canvas, kitCanvas);
   kitCanvas.style.position = 'relative'; kitCanvas.style.zIndex = '1';
   const stage = createStage({ canvas, quality, dprCap: 2, lighting: 'day', mode: 'continuous', shadows: false });
@@ -28,7 +28,7 @@ export async function createPresenter({ kitCanvas, quality = pickQuality() }) {
   const P = { stage, THREE, humans: [], hurleys: [], pitch: null, ball: null, ready: false, lost: false, st: [] };
   const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
   stage.onContextLost(() => { P.lost = true; });
-  stage.onContextRestored(() => { P.lost = false; });
+  stage.onContextRestored(() => { P.lost = false; sizeKey = ''; stage.resize(); stage.invalidate(); });
   stage.setLighting('day', { exposure: 0.95, hemi: 1.0, keyI: 2.6 });
   stage.setSky('#8fc6ee', '#bfdcef', { near: 90, far: 230 });
   P.pitch = buildPitch(stage);
@@ -109,6 +109,20 @@ export async function createPresenter({ kitCanvas, quality = pickQuality() }) {
   }
   P.ready_p = anim.build().then(() => { P.humans = anim.humans; P.hurleys = anim.hurleys; P.ready = true; stage.invalidate(); });
 
+  // Pixel budget: the canvas fills the whole screen, so on a big tablet the device pixel ratio is lowered until the drawing buffer is about as large as a
+  // phone's (about 1.7 million pixels), which keeps the frame rate where it was on a phone.
+  const PIXELS = 1.75e6;
+  let sizeKey = '', budgetR = 1;
+  function sizeBudget(w, h) {
+    const k = `${w}x${h}|${perfLevel}`;
+    if (k !== sizeKey) {
+      sizeKey = k; stage.resize();
+      const dpr = Math.min(globalThis.devicePixelRatio || 1, 2, perfLevel ? 1.25 : 2);
+      budgetR = Math.max(1, Math.min(dpr, Math.sqrt(PIXELS / Math.max(1, w * h))));
+    }
+    // stage.resize() (its own resize observer) resets the ratio to the tier default, so re-assert the budget every frame
+    if (Math.abs(stage.renderer.getPixelRatio() - budgetR) > 0.01) { stage.renderer.setPixelRatio(budgetR); stage.invalidate(); }
+  }
   let perfN = 0, perfSum = 0, perfLast = 0, perfLevel = 0;
   function perfTick() {
     const now = performance.now();
@@ -116,7 +130,7 @@ export async function createPresenter({ kitCanvas, quality = pickQuality() }) {
     perfLast = now;
     if (perfN >= 90) {
       const avg = perfSum / perfN; perfN = 0; perfSum = 0;
-      if (avg > 22 && perfLevel < 1) { perfLevel++; stage.renderer.setPixelRatio(Math.min(1.25, stage.renderer.getPixelRatio())); stage.invalidate(); }
+      if (avg > 22 && perfLevel < 1) { perfLevel++; sizeKey = ''; stage.invalidate(); }
     }
   }
 
@@ -145,21 +159,17 @@ export async function createPresenter({ kitCanvas, quality = pickQuality() }) {
     bm.position.copy(ballW);
     if (dt > 0) { bm.rotation.x += (s.ball.vz * dt) / BALL_VIS_R * 0.5; bm.rotation.z += (s.ball.vx * dt) / BALL_VIS_R * 0.5; }
     const hh = Math.max(0, ballW.y - BALL_VIS_R);
-    // --- camera: the fixed broadcast position from the sim (pillarboxed on screens wider than 9:16 so the picture matches the HUD)
-    const winW = kitCanvas.clientWidth || 720, winH = kitCanvas.clientHeight || 1280;
-    const wantW = winW / winH > 0.5625 ? Math.round(winH * 0.5625) : 0;
-    if (wantW !== P.pillar) {
-      P.pillar = wantW;
-      canvas.style.cssText = wantW ? `position:fixed;top:0;left:50%;transform:translateX(-50%);width:${wantW}px;height:100dvh;display:block;pointer-events:none;z-index:0` : 'position:fixed;inset:0;width:100vw;height:100dvh;display:block;pointer-events:none;z-index:0';
-      stage.resize();
-    }
-    const cam = stage.camera, c = s.cam;
+    // --- camera: a function of the screen shape only (portrait: behind the near end line; landscape: side-on). The canvas always fills the whole screen,
+    // so the aspect comes from the live canvas box and the HUD (which projects through the same camera) always matches the picture.
+    const cam = stage.camera;
     const W = canvas.clientWidth || 720, H_ = canvas.clientHeight || 1280;
-    const fov = fovFor(W / H_, c.fov);
-    if (Math.abs(cam.fov - fov) > 1e-3) { cam.fov = fov; cam.updateProjectionMatrix(); }
+    sizeBudget(W, H_);
+    const c = camFor(W / H_);
+    if (Math.abs(cam.fov - c.fov) > 1e-3 || Math.abs(cam.aspect - W / H_) > 1e-4) { cam.fov = c.fov; cam.aspect = W / H_; cam.updateProjectionMatrix(); }
     const co = P.camOverride;
     if (co) { cam.position.set(co.x, co.y, co.z); cam.lookAt(co.lx, co.ly, co.lz); if (co.fov && cam.fov !== co.fov) { cam.fov = co.fov; cam.updateProjectionMatrix(); } }
     else { cam.position.set(-c.x, c.y, c.z); cam.lookAt(-c.lx, c.ly, c.lz); }
+    if (P.lastCam !== c) { P.lastCam = c; P.camChanges = (P.camChanges || 0) + 1; }
     stage.update(dt, { renderNow: false }); anim.post(s, Tp); anim.fix(s, Tp, ballW); syncInstances(); blobs.set(12, ballW.x, ballW.z, BALL_VIS_R * (1.5 + hh * 0.25), 0.014); blobs.mesh.count = 13; if (!P.noRender) { stage.render(); perfTick(); }
   }
   P.frame = frame;

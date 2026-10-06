@@ -4,17 +4,19 @@
 // Placing a stone (taught in the game): TAP a crossing to aim (a ghost stone appears), TAP it again or press Place to
 // play it. DRAG slides the ghost; lifting keeps it there; dragging off the board cancels. "Quick place" in Settings
 // plays as soon as you lift. The computer thinks in slices (engine.js) so a frame is never blocked.
-import { W, H, R, pointNear, inRect, boardLayout } from './layout.js';
+import { W, H, R, pointNear, inRect, boardLayout, setSize, layout, lockHit, titleLay } from './layout.js';
 import { newGame, attempt, play, isOver, group, areaScore, opp, coord, nbs, KOMI, BLACK, WHITE } from './rules.js';
 import { LEVELS, PER_TICK, simsFor, createThinker, createScorer, quickMove, reasonFor } from './engine.js';
 import { LESSONS, boardOf } from './lessons.js';
 import { todaysPuzzle, fromRows, puzzleText } from './puzzles.js';
-import { render, setupRects, lessonRects, settingsRects, quizRect, ABOUT_TEXT, HOW_TEXT } from './view.js';
+import { render, setupRects, lessonRects, settingsRects, quizRect, readerInfo } from './view.js';
 import { titleButtons, PAGE_NAV, TEXT_SCALES, TEXT_BTN, THINK_STEPS, REVEAL_TIME, AUTOPLAY } from './layout.js';
-import { RULES } from './content.js';
 import { THEMES, warm } from './art.js';
 
-export const meta = { width: W, height: H };
+// Fluid viewport (kit 1.7): the short side is always 720 units and the long side follows the screen, in portrait and landscape.
+// `meta.width/height` are updated live by the kit on every resize; every position comes from layout.js (setSize(meta.width, meta.height)).
+export const meta = { width: W, height: H, fluid: { short: 720 } };
+export const wheelInput = { dy: 0 };    // main.js feeds the mouse wheel here (the kit's snapshot does not expose input.onWheel to update()); the readers scroll with it
 const DEMO_GAMES = 2, DEMO_LESSONS = 3;
 const NAMES = { 1: 'Black', 2: 'White' };
 
@@ -31,7 +33,6 @@ export function createGame(env) {
     pz: null, daily: { day: config.day ?? 0, solvedDay: -1, streak: 0 },
     stats: { played: 0, wins: 0 }, saved: null, demoGames: 0, demo: config.demo === true, dev: config.dev === true,
     tap: null, down: false, fromLesson: -1,
-    rulesPage: 0, aboutPage: 0, howPage: 0,
     // Auto Play: a free, silent, save/stats-untouched THINK -> REVEAL -> ACT demonstration (STATUS.md).
     ap: null,
   };
@@ -144,7 +145,8 @@ export function createGame(env) {
   }
   function spawnConfetti() {
     S.confetti = [];
-    for (let k = 0; k < 40; k++) S.confetti.push({ x: 60 + rng.range(0, 600), y: 360 + rng.range(0, 60), vx: rng.range(-40, 40), vy: rng.range(60, 220), t: rng.range(0, 0.6), col: ['#f3cf7a', '#e6533c', '#f6e3b4', '#7fc7a0'][rng.int(4)] });
+    const cf = layout().play.confetti;
+    for (let k = 0; k < 40; k++) S.confetti.push({ x: cf.x + rng.range(0, cf.w), y: cf.y + rng.range(0, 60), vx: rng.range(-40, 40), vy: rng.range(60, 220), t: rng.range(0, 0.6), col: ['#f3cf7a', '#e6533c', '#f6e3b4', '#7fc7a0'][rng.int(4)] });
   }
   function markLearned(id) {
     if (!S.learned.includes(id)) { S.learned.push(id); storage.set('learned', S.learned); }
@@ -414,32 +416,42 @@ export function createGame(env) {
   function updateTitle(p) {
     if (!p.released) return;
     const B = titleButtons(!!S.saved), on = (r) => r && inRect(r, p.x, p.y);
+    if (on(lockHit(layout(), titleLay(!!S.saved)))) { S.lockPress = 0.18; env.openArcforgeHome?.(); return; }
     if (on(B.resume)) resumeGame();
     else if (on(B.play)) { if (S.demo && S.demoGames >= DEMO_GAMES) S.scene = 'demo-limit'; else S.scene = 'setup'; }
     else if (on(B.learn)) S.scene = 'lessons';
     else if (on(B.daily)) startPuzzle();
-    else if (on(B.about)) { S.scene = 'about'; S.aboutPage = 0; }
-    else if (on(B.how)) { S.scene = 'how'; S.howPage = 0; }
+    else if (on(B.about)) S.scene = 'about';
+    else if (on(B.how)) S.scene = 'how';
     else if (on(B.settings)) S.scene = 'settings';
-    else if (on(B.rules)) { S.scene = 'rules'; S.rulesPage = 0; }
+    else if (on(B.rules)) S.scene = 'rules';
     else if (on(B.auto)) startAutoplay();
   }
-  // About, How to play and Rules are all paginated the same way (one topic per page: Next steps
-  // forward and exits to the title on the last page instead of wrapping, Back steps back and only
-  // exits to the title from page 0) and all share the same text-size stepper - one update handler
-  // for the three.
+  // About, How to play and Rules are continuous scrolling readers (drag, wheel, arrow / page / Home / End keys, scroll bar) with one
+  // text-size stepper. Next moves one screenful and becomes Done at the end (Done leaves); Back always leaves to the title.
   const TEXT_STEP_TONE = (up) => tone({ freq: up ? 680 : 560, to: up ? 880 : 460, dur: 0.09, type: 'sine', vol: 0.13 });
-  function updatePageNav(p, list, pageKey) {
+  const setScroll = (v) => { S.readScroll = Math.max(0, Math.min(readerInfo.max, v)); };
+  function updateReader(p, input) {
+    if (S.readKey !== S.scene) { S.readKey = S.scene; S.readScroll = 0; S.drag = null; }
+    const body = layout().reader.body;
+    if (wheelInput.dy) { setScroll(S.readScroll + wheelInput.dy); wheelInput.dy = 0; }
+    const ks = input?.keys?.pressed;
+    if (ks) {
+      if (ks.has('ArrowDown')) setScroll(S.readScroll + 80); if (ks.has('ArrowUp')) setScroll(S.readScroll - 80);
+      if (ks.has('PageDown')) setScroll(S.readScroll + body.h * 0.85); if (ks.has('PageUp')) setScroll(S.readScroll - body.h * 0.85);
+      if (ks.has('Home')) setScroll(0); if (ks.has('End')) setScroll(1e9);
+    }
+    if (p.pressed && inRect(body, p.x, p.y)) S.drag = { y: p.y, s: S.readScroll || 0 };
+    if (S.drag && p.down) setScroll(S.drag.s + (S.drag.y - p.y));
+    if (!p.down) S.drag = null;
     if (!p.released) return;
     const idx = S.prefs.textScaleIdx ?? 0;
     if (upHit(TEXT_BTN.dec, p) && idx > 0) { S.prefs.textScaleIdx = idx - 1; savePrefs(); TEXT_STEP_TONE(false); }
     else if (upHit(TEXT_BTN.inc, p) && idx < TEXT_SCALES.length - 1) { S.prefs.textScaleIdx = idx + 1; savePrefs(); TEXT_STEP_TONE(true); }
     else if (upHit(PAGE_NAV.next, p)) {
-      if (S[pageKey] >= list.length - 1) { S.scene = 'title'; S[pageKey] = 0; } else S[pageKey]++;
+      if ((S.readScroll || 0) >= readerInfo.max - 2) S.scene = 'title'; else setScroll(S.readScroll + body.h * 0.85);
     }
-    else if (upHit(PAGE_NAV.back, p)) {
-      if (S[pageKey] > 0) S[pageKey]--; else S.scene = 'title';
-    }
+    else if (upHit(PAGE_NAV.back, p)) S.scene = 'title';
   }
   function updateSetup(p) {
     if (!p.released) return;
@@ -453,7 +465,7 @@ export function createGame(env) {
   function updateLessons(p) {
     if (!p.released) return;
     lessonRects().forEach((r, i) => { if (inRect(r, p.x, p.y)) startLesson(i); });
-    if (inRect({ x: 110, y: 1230, w: 500, h: 84 }, p.x, p.y)) S.scene = 'title';
+    if (inRect(layout().lessonsFor(LESSONS.length).back, p.x, p.y)) S.scene = 'title';
   }
   function updateSettings(p) {
     if (!p.released) return;
@@ -535,7 +547,8 @@ export function createGame(env) {
 
   return {
     update(dt, input) {
-      S.t += dt;
+      setSize(meta.width, meta.height);
+      S.t += dt; if (S.lockPress > 0) S.lockPress = Math.max(0, S.lockPress - dt);
       const p = input.pointer; S.down = p.down; S.tap = p.down ? { x: p.x, y: p.y } : null;
       // timers — Pause must freeze the WHOLE Auto Play loop the instant it is tapped, including a
       // mid-flight stone drop/capture animation (this block used to run unconditionally every tick
@@ -556,9 +569,9 @@ export function createGame(env) {
         case 'title': updateTitle(p); break;
         case 'setup': updateSetup(p); break;
         case 'lessons': updateLessons(p); break;
-        case 'about': updatePageNav(p, ABOUT_TEXT, 'aboutPage'); break;
-        case 'how': updatePageNav(p, HOW_TEXT, 'howPage'); break;
-        case 'rules': updatePageNav(p, RULES, 'rulesPage'); break;
+        case 'about': updateReader(p, input); break;
+        case 'how': updateReader(p, input); break;
+        case 'rules': updateReader(p, input); break;
         case 'settings': updateSettings(p); break;
         case 'demo-limit': break;
         case 'play': updatePlay(dt, p, input); break;
@@ -568,7 +581,7 @@ export function createGame(env) {
         default: break;
       }
     },
-    render(ctx) { render(ctx, S); },
+    render(ctx, view) { setSize(view?.width ?? meta.width, view?.height ?? meta.height); render(ctx, S); },
     getState: () => S,
     // The preview clock counts real play only: a live match (placing stones, not the scoring/result card) or the daily puzzle
     // until it is solved. Menu, setup, lessons, About / How to Play / Rules, Settings, Auto Play (a free teaching demo) and the

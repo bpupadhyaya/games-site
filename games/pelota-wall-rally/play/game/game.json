@@ -3,8 +3,8 @@
   "title": "Pelota Vasca",
   "tagline": "Hit the wall. Read the angles. Win to 22.",
   "genre": "wall ball sport",
-  "orientation": "portrait",
-  "version": "1.0.2",
+  "orientation": "any",
+  "version": "1.1.3",
   "monetization": {
     "model": "premium",
     "priceUsd": 3.99,

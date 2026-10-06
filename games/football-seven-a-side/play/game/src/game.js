@@ -1,19 +1,20 @@
 // Football: Seven a Side. The game shell: scenes, input, persistence, preview wiring, Learn, Watch & Learn. The match itself lives in sim.js.
 import { createSim, dirOf } from './sim.js';
-import { W, H, TEXT_SCALES, THINK_STEPS, REF_BACK, REF_NEXT, TEXT_DEC, TEXT_INC, SETUP_PINS, inRect, hudLayout } from './layout.js';
-import { setPress } from './ui.js';
+import { W, H, TEXT_SCALES, THINK_STEPS, inRect, hudLayout, layoutFor, setViewport, fitFor } from './layout.js';
+import { setPress, UI } from './ui.js';
 import { ABOUT, HOWTO, RULES, ROLE_GUIDE, LESSONS, QUIZ } from './content.js';
 import * as MN from './menus.js';
 import { renderHud, renderFallback, renderThinkBox, renderHold } from './hud.js';
 import { createControls } from './controls.js';
-import { initialCam } from './camera.js';
+import { initialCam, fitCamera, setCamera, modeFor, CAMV } from './camera.js';
 import { makeHint } from './hint.js';
 import { setupDrill } from './drills.js';
 import { makeBot } from './bot.js';
 import { LEVELS, CHOICES, roleOf, ROLE_NAME, HALF_OPTIONS } from './consts.js';
 import { clamp } from './util.js';
 
-export const meta = { width: W, height: H };
+// Fluid viewport (kit 1.7): the short side is 720 units, the long side follows the screen; the kit keeps width / height live.
+export const meta = { width: 720, height: 1280, fluid: { short: 720 } };
 const DEMO_MATCH_CAP = 2;
 const SAVE_VERSION = 1;
 
@@ -253,7 +254,7 @@ export function createGame(env) {
     if (keys.pressed.has('KeyT')) { openThink(); return; }
     const hp = s.human >= 0 ? s.players[s.human] : null;
     const kb = ctl.keys(keys);
-    S.setInput(G.bot ? G.bot(S) : ctl.snapshot(kb, hp && hp.role === 'GK'));
+    S.setInput(G.bot ? G.bot(S) : ctl.snapshot(kb, hp && hp.role === 'GK', CAMV.mode));
     if (G.coach && s.t > G.coach.until) G.coach = null;
     S.update(dt);
     processEvents();
@@ -404,15 +405,16 @@ export function createGame(env) {
   };
   const updatePages = (input) => {
     const ptr = input.pointer, keys = input.keys;
-    const dm = MN.docMeta();
+    const dm = MN.docMeta(), RD = layoutFor(W, H, G.settings.textIdx).reader;
     const close = () => { G.scene = G.back === 'play' ? 'play' : G.back === 'setup' ? 'setup' : 'title'; G.page = 0; G.ui.scroll = 0; G.ui.drag = null; MN.dropLayout(); };
     const down = () => { if (G.ui.scroll >= dm.max - 2) close(); else G.ui.scroll = clamp(G.ui.scroll + dm.step, 0, dm.max); };
     const up = () => { if (G.ui.scroll <= 2) close(); else G.ui.scroll = clamp(G.ui.scroll - dm.step, 0, dm.max); };
+    const zoom = (d) => { const old = G.settings.textIdx; G.settings.textIdx = clamp(old + d, 0, TEXT_SCALES.length - 1); if (G.settings.textIdx !== old) G.ui.keepFrac = dm.max > 0 ? G.ui.scroll / dm.max : 0; saveSettings(); };
     if (ptr.pressed) {
-      if (inRect(REF_NEXT, ptr.x, ptr.y)) down();
-      else if (inRect(REF_BACK, ptr.x, ptr.y)) up();
-      else if (inRect(TEXT_DEC, ptr.x, ptr.y)) { G.settings.textIdx = Math.max(0, G.settings.textIdx - 1); G.ui.scroll = 0; saveSettings(); }
-      else if (inRect(TEXT_INC, ptr.x, ptr.y)) { G.settings.textIdx = Math.min(TEXT_SCALES.length - 1, G.settings.textIdx + 1); G.ui.scroll = 0; saveSettings(); }
+      if (inRect(RD.next, ptr.x, ptr.y)) down();
+      else if (inRect(RD.back, ptr.x, ptr.y)) up();
+      else if (inRect(RD.dec, ptr.x, ptr.y)) zoom(-1);
+      else if (inRect(RD.inc, ptr.x, ptr.y)) zoom(1);
       else if (ptr.y >= dm.top - 10 && ptr.y <= dm.bottom + 10) G.ui.drag = { y0: ptr.y, s0: G.ui.scroll, v: 0, ly: ptr.y };
     }
     // drag / swipe anywhere on the page, with a little momentum after the finger lifts
@@ -429,10 +431,25 @@ export function createGame(env) {
     const ptr = input.pointer, k = input.keys;
     if (k.pressed.has('Enter')) { handleSetup('start'); return; }
     if (k.pressed.has('Escape')) { handleSetup('back'); return; }
-    if (ptr.pressed && (inRect(SETUP_PINS.start, ptr.x, ptr.y) || inRect(SETUP_PINS.back, ptr.x, ptr.y))) { handleSetup(inRect(SETUP_PINS.start, ptr.x, ptr.y) ? 'start' : 'back'); return; }
+    const SP = layoutFor(W, H, G.settings.textIdx).setup;
+    if (ptr.pressed && (inRect(SP.start, ptr.x, ptr.y) || inRect(SP.back, ptr.x, ptr.y))) { handleSetup(inRect(SP.start, ptr.x, ptr.y) ? 'start' : 'back'); return; }
     updateFlowScene(dt, input, handleSetup, 'setup');
   };
 
+  // The live screen size: the kit keeps meta.width / height current (fluid viewport). When it changes (rotation, resize) the touch controls are
+  // released cleanly (a held stick or button never survives a rotation), the match itself is untouched, and the camera is re-fitted.
+  let sizeKey = '';
+  function syncSize(view) {
+    const w = (view && view.width) || meta.width, h = (view && view.height) || meta.height;
+    setViewport(w, h);
+    const L = layoutFor(W, H, G.settings.textIdx);
+    UI.minf = L.minf; UI.minb = L.minb;
+    // kit 1.8.0 preview pill: portrait keeps its default top-centre spot (clear of the scoreboard); landscape puts it at the right edge under Pause, clear of the clock
+    meta.previewBadge = L.land ? { x: L.hud.pause.x + L.hud.pause.w, y: L.hud.pause.y + L.hud.pause.h + 4, align: 'right' } : null;
+    if (sizeKey !== `${W}x${H}`) { if (sizeKey) { ctl.reset(); env.touches?.releaseAll?.(); } sizeKey = `${W}x${H}`; }
+    setCamera(fitCamera(modeFor(W, H), W, H, fitFor(L, G.scene === 'play' && G.mode === 'watch' ? 'watch' : 'play')));
+  }
+  if (config.dev) G.dev = { startMatch };   // tester hook (debug builds / ?dev=1 only)
   function startup() { if (config.shot) startShot(); else startDemoBg(); }
   startup();
 
@@ -440,12 +457,17 @@ export function createGame(env) {
     // Menus, Rules, About, settings, Learn, Watch & Learn and pauses are free: only real play of a match counts against the preview.
     isPreviewExempt: () => !(G.scene === 'play' && G.mode === 'play') || G.paused || G.pauseMenu || !!G.think || !S || S.s.over || S.s.phase !== 'play',
     update(dt, input) {
+      syncSize();
       setPress(input.pointer);
       G.t += dt;
       for (let i = delayed.length - 1; i >= 0; i--) { delayed[i].t -= dt; if (delayed[i].t <= 0) { delayed[i].f(); delayed.splice(i, 1); } }
       if (G.scene !== 'play' && S) { S.update(dt); S.setInput(null); }
       switch (G.scene) {
-        case 'title': updateFlowScene(dt, input, handleTitle, 'title'); break;
+        case 'title': {
+          const lt = MN.getLockTap(), pp = input.pointer;
+          if (lt && pp.pressed && pp.x >= lt.x && pp.x <= lt.x + lt.w && pp.y >= lt.y && pp.y <= lt.y + lt.h) { G.lockDown = G.t + 0.25; env.openArcforgeHome?.(); break; }
+          updateFlowScene(dt, input, handleTitle, 'title'); break;
+        }
         case 'setup': updateSetup(dt, input); break;
         case 'settings': updateFlowScene(dt, input, handleSettings, 'settings'); break;
         case 'learn': updateFlowScene(dt, input, handleLearn, 'learn'); break;
@@ -460,6 +482,7 @@ export function createGame(env) {
       }
     },
     render(ctx, view) {
+      syncSize(view);
       G.viewW = (view && view.cssW) || 720; G.viewH = (view && view.cssH) || 1280;
       ctx.clearRect(0, 0, W, H);
       G.noGL = !!(view && view.noGL); MN.setNoGL(G.noGL);

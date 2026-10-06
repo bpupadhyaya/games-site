@@ -1,5 +1,6 @@
 // Shared drawing helpers for every screen: rounded panels, buttons, wrapped text, the palette (same pattern as the other
 // Arcforge games so every game's menus behave the same).
+import { W, minFont } from './layout.js';
 export const FONT = "'Avenir Next', 'Trebuchet MS', 'Segoe UI', Roboto, Arial, sans-serif";
 export const SERIF = "Georgia, 'Times New Roman', serif";
 export const C = {
@@ -55,7 +56,7 @@ export function drawButton(ctx, r, label, opts = {}) {
   let px = sub ? Math.round(size * 0.9) : size;
   const maxW = r.w - (icon ? 84 : 24);
   ctx.font = `700 ${px}px ${FONT}`;
-  while (ctx.measureText(label).width > maxW && px > 13) { px -= 1; ctx.font = `700 ${px}px ${FONT}`; }
+  while (ctx.measureText(label).width > maxW && px > minFont()) { px -= 1; ctx.font = `700 ${px}px ${FONT}`; }
   const cx = r.x + r.w / 2 + (icon ? 24 : 0);
   ctx.fillText(label, cx, r.y + dy + r.h / 2 - (sub ? 11 : 0));
   if (sub) { ctx.font = `400 ${Math.round(size * 0.62)}px ${FONT}`; ctx.globalAlpha = 0.85; ctx.fillText(sub, cx, r.y + dy + r.h / 2 + size * 0.5); ctx.globalAlpha = 1; }
@@ -73,21 +74,30 @@ export function panel(ctx, x, y, w, h, opts = {}) {
   ctx.restore();
 }
 
+// Greedy word wrap. A single word wider than the column (a long hyphenated word at 300% text) is broken after a hyphen,
+// else by characters, so nothing ever runs outside its panel.
 export function wrapLines(ctx, text, maxW) {
-  const words = String(text).split(' '), lines = [];
+  const lines = [];
   let line = '';
-  for (const word of words) {
-    const next = line ? `${line} ${word}` : word;
-    if (line && ctx.measureText(next).width > maxW) { lines.push(line); line = word; } else line = next;
+  const put = (tok) => {
+    const next = line ? `${line} ${tok}` : tok;
+    if (!line || ctx.measureText(next).width <= maxW) line = next; else { lines.push(line); line = tok; }
+  };
+  for (const word of String(text).split(' ')) {
+    if (ctx.measureText(word).width <= maxW) { put(word); continue; }
+    let rest = word;
+    while (ctx.measureText(rest).width > maxW) {
+      let cut = 1;
+      while (cut < rest.length && ctx.measureText(rest.slice(0, cut + 1)).width <= maxW) cut++;
+      const h = rest.slice(0, cut).lastIndexOf('-');
+      if (h >= 1) cut = h + 1;
+      put(rest.slice(0, cut)); rest = rest.slice(cut);
+      lines.push(line); line = '';
+    }
+    put(rest);
   }
   if (line) lines.push(line);
   return lines;
-}
-export function drawWrapped(ctx, text, cx, y, maxW, lh, align = 'center') {
-  ctx.textAlign = align;
-  const x = align === 'center' ? cx : align === 'left' ? cx - maxW / 2 : cx + maxW / 2;
-  for (const l of wrapLines(ctx, text, maxW)) { ctx.fillText(l, x, y); y += lh; }
-  return y;
 }
 export function textShadow(ctx, text, x, y, fill = '#fff8ec', blur = 4) {
   ctx.save();
@@ -173,7 +183,7 @@ export function flowLayout(ctx, widgets, scale, o = {}) {
 
 export function drawFlow(ctx, lay, top, bottom, scroll, o = {}) {
   ctx.save();
-  ctx.beginPath(); ctx.rect(0, top, 720, bottom - top); ctx.clip();
+  ctx.beginPath(); ctx.rect(0, top, W, bottom - top); ctx.clip();
   for (const it of lay.items) {
     const y = top + it.y - scroll;
     if (y > bottom || y + it.h < top) continue;
@@ -218,8 +228,10 @@ function drawButtonRect(ctx, r, it, wd) {
 }
 export function flowHit(lay, top, scroll, x, y) {
   for (const it of lay.items) {
-    if (it.w.t !== 'btn' || it.w.disabled && !it.w.hitDisabled) continue;
+    const tapArt = it.w.t === 'art' && it.w.id;
+    if (!tapArt && (it.w.t !== 'btn' || it.w.disabled && !it.w.hitDisabled)) continue;
     const yy = top + it.y - scroll;
+    if (tapArt) { const hw = Math.min(it.wd, it.w.hitW ?? it.wd) / 2, cx = it.x + it.wd / 2; if (x >= cx - hw && x <= cx + hw && y >= yy && y <= yy + it.h) return it.w.id; continue; }
     if (x >= it.x && x <= it.x + it.wd && y >= yy && y <= yy + it.h) return it.w.id;
   }
   return null;

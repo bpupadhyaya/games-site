@@ -6,7 +6,7 @@
 // Watch & Learn (scene 'demo') runs the same machine with all seats played by the AI, adding the teaching
 // loop THINK -> REVEAL (options lit, chosen one gold) -> ACT, and a Pause that freezes everything.
 import {
-  W, H, TABLE, BAR, HEAD, MSG, DIE_HOME, DEMO_BAR, ZOOM_DEC, ZOOM_INC, REF_BACK, REF_NEXT, TEXT_SCALES, THINK_STEPS, inRect, squareAt, posXY, squareXY, startXY,
+  W, H, layoutFor, toCanon, tableAt, tableOffset, dieK, TEXT_SCALES, THINK_STEPS, inRect, squareAt, posXY, squareXY, startXY,
 } from './layout.js';
 import {
   newGame, optionsFor, applyMove, aiPick, bestOption, scoreOption, describeOption, lookAhead, classicBoard, generateBoard, seededRng, FINISH,
@@ -16,8 +16,12 @@ import { ABOUT, HOWTO, RULES } from './content.js';
 import { render, dieRects, msgItems } from './view.js';
 import { listPointer } from './ui.js';
 
-export const meta = { width: W, height: H };
+// `meta.width/height` are updated live by the kit on every resize (fluid viewport: short side 720); every rectangle comes from layoutFor().
+// Mouse wheel / trackpad scrolling for the reference pages (main.js adds to dy, in virtual units).
+export const wheelInput = { dy: 0 };
+export const meta = { width: W, height: H, fluid: { short: 720 } };
 const DEMO_LIMIT = 3;
+const EMPTY_LAY = { rows: [], total: 0, G: { x: 0, w: 1, top: 0, bottom: 1 }, side: 0 };
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
 export function createGame(env) {
@@ -33,7 +37,8 @@ export function createGame(env) {
     over: false, restored: false, paused: false, demo: { phase: 'think', timer: 0, speed: 1, finished: false }, gesture: null,
   };
   state.g = newGame({ players: 2, vsComputers: true, board: state.titleBoard });
-  let lay = null;
+  let lay = null;                         // the scrolling-list layout of the current scene (ui.js)
+  const LY = () => layoutFor(meta.width, meta.height, state.g.players.length);   // screen geometry for the live size
 
   const savePrefs = () => storage.set('prefs', { sound: state.sound, haptics: state.haptics, textIdx: state.textIdx, thinkIdx: state.thinkIdx, setup: state.setup });
   storage.get('prefs', null).then((p) => {
@@ -69,12 +74,12 @@ export function createGame(env) {
     if (!state.haptics || state.scene !== 'play') return;
     try { if (env.haptic) env.haptic(pattern); else globalThis.navigator?.vibrate?.(pattern); } catch { /* no haptics here */ }
   };
-  const burst = (x, y, n, cols, spd = 160, kind = 'spark', g = 380) => {
-    for (let k = 0; k < n; k++) { const a = vrng.range(0, Math.PI * 2), v = vrng.range(spd * 0.3, spd); state.parts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - spd * 0.3, t: 0, max: vrng.range(0.35, 0.8), size: vrng.range(2, 4.5), c: cols[k % cols.length], kind, g }); }
+  const burst = (x, y, n, cols, spd = 160, kind = 'spark', g = 380, scr = false) => {
+    for (let k = 0; k < n; k++) { const a = vrng.range(0, Math.PI * 2), v = vrng.range(spd * 0.3, spd); state.parts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - spd * 0.3, t: 0, max: vrng.range(0.35, 0.8), size: vrng.range(2, 4.5), c: cols[k % cols.length], kind, g, scr }); }
   };
   const confetti = () => {
     const cols = ['#ffd75a', '#ff6b5a', '#5ad0c0', '#b983ff', '#fff'];
-    for (let k = 0; k < 90; k++) state.parts.push({ x: vrng.range(0, W), y: vrng.range(-200, -10), vx: vrng.range(-60, 60), vy: vrng.range(60, 220), t: 0, max: vrng.range(2.2, 3.6), size: vrng.range(4, 8), c: cols[k % 5], kind: 'confetti', g: 120, rot: vrng.range(0, 6), spin: vrng.range(-8, 8) });
+    for (let k = 0; k < 90; k++) state.parts.push({ x: vrng.range(0, LY().w), y: vrng.range(-200, -10), vx: vrng.range(-60, 60), vy: vrng.range(60, 220), t: 0, max: vrng.range(2.2, 3.6), size: vrng.range(4, 8), c: cols[k % 5], kind: 'confetti', g: 120, scr: true, rot: vrng.range(0, 6), spin: vrng.range(-8, 8) });
   };
   const go = (scene) => { state.scene = scene; state.msgOpen = false; state.ui.scroll = 0; state.ui.drag = null; state.page = 0; };
   const banner = (text, color, color2) => { state.banner = { text, t: 0, color, color2 }; };
@@ -130,11 +135,13 @@ export function createGame(env) {
     const values = []; for (let i = 0; i < n; i++) values.push(1 + rng.int(6));
     state.values = values; state.restFace = values.slice(); state.msg = null; state.hintDie = -1; state.thinkRing = false;
     state.phase = 'toss'; state.toss = { t: 0, dur: 1.05 };
+    // dice positions are offsets from the table centre (design units), so rotating the device mid-throw cannot strand them
+    const Ly = LY(), k = dieK(Ly, n), fo = flick ? tableOffset(Ly, n, flick.x, flick.y) : null, lim = (Ly.table.w / 2 - 70 * k) / k;
     state.tossDice = values.map((v, i) => {
-      const sx = flick ? flick.x + (i ? 36 : -10) : DIE_HOME.x + (n === 1 ? 0 : i ? 60 : -60), sy = flick ? flick.y : TABLE.y + TABLE.h - 14;
-      const lane = n === 1 ? DIE_HOME.x + (flick ? clamp(flick.dx * 0.35, -120, 120) : 0) : DIE_HOME.x + (i ? 125 : -125);
+      const sx = fo ? fo.x + (i ? 36 : -10) / k : n === 1 ? 0 : i ? 60 : -60, sy = fo ? fo.y : (Ly.table.h / 2 - 18) / k;
+      const lane = n === 1 ? (flick ? clamp(flick.dx * 0.35 / k, -120, 120) : 0) : (i ? 125 : -125);
       const ang = vrng.range(-0.5, 0.5);
-      return { sx, sy, tx: clamp(lane + vrng.range(-22, 22), TABLE.x + 70, TABLE.x + TABLE.w - 70), ty: DIE_HOME.y + vrng.range(-16, 16) + (flick ? clamp(flick.dy * 0.1, -20, 8) : 0), value: v, a0: ang, aEnd: ang, spin: vrng.range(7, 13) * (vrng.chance(0.5) ? 1 : -1) };
+      return { sx, sy, tx: clamp(lane + vrng.range(-22, 22), -lim, lim), ty: vrng.range(-16, 16) + (flick ? clamp(flick.dy * 0.1 / k, -20, 8) : 0), value: v, a0: ang, aEnd: ang, spin: vrng.range(7, 13) * (vrng.chance(0.5) ? 1 : -1) };
     });
     sound('throw');
     const d = state.toss.dur;
@@ -144,7 +151,7 @@ export function createGame(env) {
   }
   function afterToss() {
     const g = state.g, p = cur(), demo = state.scene === 'demo';
-    for (const d of state.tossDice) burst(d.tx, d.ty + 40, 6, ['rgba(255,235,190,0.8)'], 90, 'dust', 60);
+    { const Ly = LY(), nn = state.tossDice.length; for (const d of state.tossDice) { const p = tableAt(Ly, nn, d.tx, d.ty); burst(p.x, p.y + 40, 6, ['rgba(255,235,190,0.8)'], 90, 'dust', 60, true); } }
     state.options = optionsFor(g, state.values);
     const human = !p.ai && !demo;
     if (g.opts.dice === 'two' && human) {
@@ -271,44 +278,46 @@ export function createGame(env) {
   function openMsg() { state.msgOpen = true; state.ui.scroll = 0; state.ui.drag = null; state.gesture = null; }
   function humanCanRoll() { return state.scene === 'play' && !state.over && !cur().ai && state.phase === 'idle' && !state.anim; }
   function pointPlay(p) {
-    const hit = (r) => p.pressed && inRect(r, p.x, p.y);
-    if (hit(MSG) && state.msg) { openMsg(); return; }
-    if (hit(HEAD.menu) || hit(BAR.menu)) { toMenu(); return; }
-    if (hit(HEAD.sound)) { state.sound = !state.sound; audio.setMuted(!state.sound); savePrefs(); return; }
-    if (hit(BAR.hint)) { useHint(); return; }
+    const Ly = LY(), hit = (r) => p.pressed && inRect(r, p.x, p.y);
+    if (hit(Ly.msg) && state.msg) { openMsg(); return; }
+    if (hit(Ly.head.menu) || hit(Ly.bar.menu)) { toMenu(); return; }
+    if (hit(Ly.head.sound) || hit(Ly.bar.sound)) { state.sound = !state.sound; audio.setMuted(!state.sound); savePrefs(); return; }
+    if (hit(Ly.bar.hint)) { useHint(); return; }
     if (humanCanRoll()) {
-      if (hit(BAR.roll)) { roll(); return; }
-      if (p.pressed && inRect(TABLE, p.x, p.y)) state.gesture = { x: p.x, y: p.y };
+      if (hit(Ly.bar.roll)) { roll(); return; }
+      if (p.pressed && inRect(Ly.table, p.x, p.y)) state.gesture = { x: p.x, y: p.y };
       if (p.released && state.gesture) {
         const g0 = state.gesture; state.gesture = null;
         const dx = p.x - g0.x, dy = p.y - g0.y, far = Math.hypot(dx, dy) > 45;
-        if (far || inRect(TABLE, p.x, p.y)) roll(far ? { x: g0.x, y: g0.y, dx, dy } : undefined);
+        if (far || inRect(Ly.table, p.x, p.y)) roll(far ? { x: g0.x, y: g0.y, dx, dy } : undefined);
       }
     } else if (state.phase === 'pick' && p.pressed) {
-      const rs = dieRects(state);
+      const rs = dieRects(state, Ly);
       let die = rs.findIndex((r) => inRect(r, p.x, p.y));
-      if (die < 0) { const sq = squareAt(p.x, p.y); if (sq > 0) die = state.options.findIndex((o) => !o.res.over && (o.res.land === sq || o.res.to === sq)); }
+      if (die < 0) { const cp = toCanon(Ly, p.x, p.y), sq = squareAt(cp.x, cp.y); if (sq > 0) die = state.options.findIndex((o) => !o.res.over && (o.res.land === sq || o.res.to === sq)); }
       if (die >= 0) { sound('pick'); buzz(8); commit(die); }
     }
   }
   function pointDemo(p) {
-    const hit = (r) => p.pressed && inRect(r, p.x, p.y);
-    if (state.demo.finished) { const tap = listPointer(state.ui, p, lay ?? { rows: [], total: 0 }); if (tap === 'watch') startDemo(); else if (tap === 'menu') toMenu(); return; }
-    if (hit(MSG) && state.msg) { openMsg(); return; }
-    if (hit(DEMO_BAR.exit) || hit(HEAD.menu)) { toMenu(); return; }
-    if (hit(DEMO_BAR.pause)) { state.paused = !state.paused; sound('ok'); return; }
-    if (hit(DEMO_BAR.speed)) { state.demo.speed = state.demo.speed >= 4 ? 1 : state.demo.speed * 2; return; }
-    if (hit(DEMO_BAR.tdec) && state.thinkIdx > 0) { state.thinkIdx--; savePrefs(); sound('ok'); }
-    if (hit(DEMO_BAR.tinc) && state.thinkIdx < THINK_STEPS.length - 1) { state.thinkIdx++; savePrefs(); sound('ok'); }
+    const Ly = LY(), hit = (r) => p.pressed && inRect(r, p.x, p.y);
+    if (state.demo.finished) { const tap = listPointer(state.ui, p, lay ?? EMPTY_LAY); if (tap === 'watch') startDemo(); else if (tap === 'menu') toMenu(); return; }
+    if (hit(Ly.msg) && state.msg) { openMsg(); return; }
+    if (hit(Ly.demo.exit) || hit(Ly.head.menu)) { toMenu(); return; }
+    if (hit(Ly.demo.pause)) { state.paused = !state.paused; sound('ok'); return; }
+    if (hit(Ly.demo.speed)) { state.demo.speed = state.demo.speed >= 4 ? 1 : state.demo.speed * 2; return; }
+    if (hit(Ly.demo.tdec) && state.thinkIdx > 0) { state.thinkIdx--; savePrefs(); sound('ok'); }
+    if (hit(Ly.demo.tinc) && state.thinkIdx < THINK_STEPS.length - 1) { state.thinkIdx++; savePrefs(); sound('ok'); }
   }
   function zoom(p) {
     if (!p.pressed) return false;
-    if (inRect(ZOOM_DEC, p.x, p.y)) { if (state.textIdx > 0) { state.textIdx--; state.ui.scroll = 0; savePrefs(); sound('ok'); } return true; }
-    if (inRect(ZOOM_INC, p.x, p.y)) { if (state.textIdx < TEXT_SCALES.length - 1) { state.textIdx++; state.ui.scroll = 0; savePrefs(); sound('ok'); } return true; }
+    const Ly = LY();
+    if (inRect(Ly.zoom.dec, p.x, p.y)) { if (state.textIdx > 0) { state.textIdx--; state.ui.scroll = 0; savePrefs(); sound('ok'); } return true; }
+    if (inRect(Ly.zoom.inc, p.x, p.y)) { if (state.textIdx < TEXT_SCALES.length - 1) { state.textIdx++; state.ui.scroll = 0; savePrefs(); sound('ok'); } return true; }
     return false;
   }
   function tapList(id) {
     const s = state.setup;
+    if (id === 'af:home') { env.openArcforgeHome?.(); return; }
     if (state.scene === 'title') {
       if (id === 'play') { go('setup'); sound('ok'); } else if (id === 'watch') startDemo();
       else if (id === 'howto' || id === 'rules' || id === 'about') go(id);
@@ -366,7 +375,7 @@ export function createGame(env) {
       }
       if (sc === 'play' && !state.over) pointPlay(p);
       else if (sc === 'demo') pointDemo(p);
-      else if (state.over) { const tap = listPointer(state.ui, p, lay ?? { rows: [], total: 0 }); if (tap) tapList(tap); }
+      else if (state.over) { const tap = listPointer(state.ui, p, lay ?? EMPTY_LAY); if (tap) tapList(tap); }
       if (sc === 'play' && !state.over && state.phase === 'pick') {
         if (keys.pressed.has('Digit1') || keys.pressed.has('Numpad1')) { sound('pick'); commit(0); }
         else if (keys.pressed.has('Digit2') || keys.pressed.has('Numpad2')) { sound('pick'); commit(1); }
@@ -385,13 +394,12 @@ export function createGame(env) {
       const list = sc === 'howto' ? HOWTO : sc === 'about' ? ABOUT : RULES;
       if (zoom(p)) return;
       if (lay) listPointer(state.ui, p, lay);     // long text at big zoom: drag to read more
-      const pg = state.page;
-      if (p.pressed && inRect(REF_BACK, p.x, p.y)) { if (state.page > 0) state.page--; else go('title'); }
-      else if (p.pressed && inRect(REF_NEXT, p.x, p.y)) { if (state.page >= list.length - 1) go('title'); else state.page++; }
-      if (keys.pressed.has('Escape')) go('title');
-      else if (keys.pressed.has('ArrowRight') || keys.pressed.has('Enter')) { if (state.page >= list.length - 1) go('title'); else state.page++; }
-      else if (keys.pressed.has('ArrowLeft') && state.page > 0) state.page--;
-      if (state.page !== pg) state.ui.scroll = 0;
+      const ms = lay ? Math.max(0, lay.total - 100) : 0, setS = (v) => { state.ui.scroll = Math.max(0, Math.min(ms, v)); };
+      if (wheelInput.dy) { setS(state.ui.scroll + wheelInput.dy); wheelInput.dy = 0; }
+      for (const [k, d] of [['ArrowDown', 70], ['ArrowUp', -70], ['PageDown', 500], ['PageUp', -500], ['Space', 500]]) if (keys.pressed.has(k)) setS(state.ui.scroll + d);
+      if (keys.pressed.has('Home')) setS(0); if (keys.pressed.has('End')) setS(ms);
+      if (p.pressed && inRect(LY().refWide, p.x, p.y)) go('title');
+      else if (keys.pressed.has('Escape') || keys.pressed.has('Enter')) go('title');
       return;
     }
     // list screens: title, setup, settings, demo-limit
@@ -404,9 +412,20 @@ export function createGame(env) {
     }
   }
 
+  // dev only (?dev=1 / Developer toggle): jump straight to the result screen for the layout checks. Never used in normal play.
+  const devWin = () => { if (!config.dev || state.scene !== 'play' || state.over) return; state.g.winner = 0; state.shown[0] = FINISH; finish(); };
+
   return {
+    devWin,
     update,
-    render(ctx) { lay = render(ctx, state); },
+    render(ctx, view) { lay = render(ctx, state, layoutFor(view?.width ?? meta.width, view?.height ?? meta.height, state.g.players.length)); },
+    // Centres of the current list screen's buttons ({ id: {x, y} }, screen units): for the scripted tests and the layout checks.
+    buttons() {
+      const out = {}, G = lay?.G; if (!lay) return out;
+      for (const row of lay.rows) for (const bx of (row.box ? [row.box] : row.boxes ?? [])) { const y = G.top + row.y - state.ui.scroll + (bx.h ?? row.h) / 2; if (y > G.top && y < G.bottom) out[bx.b.id] = { x: bx.x + bx.w / 2, y }; }
+      return out;
+    },
+    getUi: () => ({ scroll: state.ui.scroll }),
     isPreviewExempt: () => state.scene !== 'play' || state.over || state.msgOpen,
     getState() {
       const { g, ui, ...rest } = state;

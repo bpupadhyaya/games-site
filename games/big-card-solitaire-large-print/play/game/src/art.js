@@ -1,7 +1,7 @@
 // Everything that is painted: the felt table, the cards, the card backs, the wells and the
 // buttons. One light, from above. Static art is painted once into cached layers, so a frame
 // is cheap. Nothing here changes the game.
-import { W, H, CARD_W, CARD_H } from './layout.js';
+import { CARD_W, CARD_H } from './layout.js';
 import { rankLabel } from './deck.js';
 
 export const FONT = '"Cormorant Garamond", Georgia, "Times New Roman", serif';
@@ -78,7 +78,7 @@ export function rr(ctx, x, y, w, h, r) {
 // ---------------------------------------------------------------------------------------------
 // The table: felt with a fine weave, a warm lamp above the middle and a soft vignette.
 // ---------------------------------------------------------------------------------------------
-function paintTable(ctx, index) {
+function paintTable(ctx, index, W, H) {
   const [light, mid, dark] = TABLES[index].stops;
   // The brightest stop is pulled toward the middle one so the cloth stays rich, never glaring.
   const g = ctx.createRadialGradient(W / 2, H * 0.36, 80, W / 2, H * 0.5, H * 0.78);
@@ -95,7 +95,7 @@ function paintTable(ctx, index) {
   ctx.strokeStyle = 'rgba(0,0,0,0.045)';
   for (let x = 0; x < W + H; x += 7) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x - H, H); ctx.stroke(); }
   const rnd = lcg(7 + index);
-  for (let i = 0; i < 2600; i++) {
+  for (let i = 0; i < Math.round(2600 * (W * H) / (720 * 1560)); i++) {
     const x = rnd() * W, y = rnd() * H, a = rnd() * TAU, l = 2 + rnd() * 4;
     ctx.strokeStyle = rnd() < 0.5 ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.06)';
     ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l); ctx.stroke();
@@ -114,14 +114,15 @@ function paintTable(ctx, index) {
   ctx.fillRect(0, 0, W, H);
 }
 
-let tableLayer = null, tableLayerIndex = -1;
-export function drawTable(ctx, index) {
-  if (tableLayerIndex !== index) {
-    tableLayer = layer(W, H, 2, (l) => paintTable(l, index));
-    tableLayerIndex = index;
+let tableLayer = null, tableLayerKey = '';
+export function drawTable(ctx, index, W, H) {
+  const key = `${index}|${Math.round(W)}x${Math.round(H)}`;
+  if (tableLayerKey !== key) {
+    tableLayer = layer(Math.round(W), Math.round(H), 1.5, (l) => paintTable(l, index, W, H));
+    tableLayerKey = key;
   }
   if (tableLayer) ctx.drawImage(tableLayer, 0, 0, W, H);
-  else paintTable(ctx, index);
+  else paintTable(ctx, index, W, H);
 }
 
 // A small swatch of a table for the options sheet.
@@ -399,7 +400,20 @@ export function shadowText(ctx, str, x, y, size, color, font, weight) {
   text(ctx, str, x, y, size, color, font, weight);
 }
 
-export function wrapText(ctx, str, cx, y, size, maxWidth, lineHeight, color = CREAM, weight = 600) {
+// Wrapped-line cache: a paragraph is measured once per (font, size, width, text) and reused every frame (the Rules reader used to re-wrap its
+// whole document each frame). checkWrapFonts() drops it when a web font finishes loading. readerStats.wraps counts misses (tests read it).
+const wrapMemo = new Map(); let wrapFontsKey = '';
+export const readerStats = { wraps: 0 };
+export function checkWrapFonts(ctx) {
+  ctx.font = `700 40px ${FONT}`; const a = ctx.measureText('Hamburgefonstiv').width; ctx.font = `600 40px ${UI}`;
+  const k = a + '/' + ctx.measureText('Hamburgefonstiv').width;
+  if (k !== wrapFontsKey || wrapMemo.size > 3000) { wrapMemo.clear(); wrapFontsKey = k; }
+}
+// Cached shrink-to-fit sizes (and any other font-dependent measurement) share the same cache and invalidation.
+export function memoFit(key, fn) { let v = wrapMemo.get(key); if (v === undefined) { readerStats.wraps++; v = fn(); wrapMemo.set(key, v); } return v; }
+export function wrapLines(ctx, str, size, maxWidth, weight = 600) {
+  const mk = `${weight}|${size}|${maxWidth}|${str}`, hit = wrapMemo.get(mk); if (hit) return hit;
+  readerStats.wraps++;
   ctx.font = `${weight} ${size}px ${UI}`;
   const lines = [];
   let line = '';
@@ -408,6 +422,10 @@ export function wrapText(ctx, str, cx, y, size, maxWidth, lineHeight, color = CR
     if (ctx.measureText(test).width > maxWidth && line) { lines.push(line); line = word; } else line = test;
   }
   if (line) lines.push(line);
+  wrapMemo.set(mk, lines); return lines;
+}
+export function wrapText(ctx, str, cx, y, size, maxWidth, lineHeight, color = CREAM, weight = 600) {
+  const lines = wrapLines(ctx, str, size, maxWidth, weight);
   lines.forEach((ln, i) => text(ctx, ln, cx, y + i * lineHeight, size, color, UI, weight));
   return lines.length;
 }
@@ -418,25 +436,13 @@ const BUTTON_STYLES = {
   active: { top: '#ffe9a3', mid: '#ffd35c', bottom: '#d9a21e', lip: '#7a5505', rim: 'rgba(255,250,225,0.9)', label: '#2a1a00' },
 };
 
-// A raised key: a dark lip below, a lit face, a bright rim along the top.
+// A flat button: one solid fill with a soft drop shadow (no lip, gradient, inner outline or sheen).
 export function drawButton(ctx, r, label, { style = 'quiet', size = 32, radius = 22, sub = '' } = {}) {
   const s = BUTTON_STYLES[style];
-  ctx.fillStyle = 'rgba(0,0,0,0.38)';
-  rr(ctx, r.x + 2, r.y + 12, r.w - 4, r.h, radius); ctx.fill();
-  ctx.fillStyle = s.lip;
-  rr(ctx, r.x, r.y + 6, r.w, r.h, radius); ctx.fill();
-  const g = ctx.createLinearGradient(0, r.y, 0, r.y + r.h);
-  g.addColorStop(0, s.top); g.addColorStop(0.5, s.mid); g.addColorStop(1, s.bottom);
-  ctx.fillStyle = g;
+  ctx.fillStyle = 'rgba(0,0,0,0.30)';
+  rr(ctx, r.x + 2, r.y + 6, r.w - 4, r.h, radius); ctx.fill();
+  ctx.fillStyle = s.mid;
   rr(ctx, r.x, r.y, r.w, r.h, radius); ctx.fill();
-  ctx.save();
-  ctx.clip();
-  const shine = ctx.createLinearGradient(0, r.y, 0, r.y + r.h * 0.5);
-  shine.addColorStop(0, 'rgba(255,255,255,0.22)'); shine.addColorStop(1, 'rgba(255,255,255,0)');
-  ctx.fillStyle = shine; ctx.fillRect(r.x, r.y, r.w, r.h * 0.5);
-  ctx.restore();
-  ctx.strokeStyle = s.rim; ctx.lineWidth = 2;
-  rr(ctx, r.x + 1, r.y + 1, r.w - 2, r.h - 2, radius - 1); ctx.stroke();
   const cy = r.y + r.h / 2 + size * 0.35 - (sub ? 14 : 0);
   if (style !== 'active') text(ctx, label, r.x + r.w / 2, cy + 2, size, 'rgba(0,0,0,0.4)', UI, 800);
   text(ctx, label, r.x + r.w / 2, cy, size, s.label, UI, 800);

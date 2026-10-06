@@ -4,7 +4,7 @@
 // Scenes: title, ladder, play (modes: trick, run, practice, watch), result, settings, howto/about/rules, demolimit.
 // Hand: press in the play area and drag; the ken follows the finger relative to where it was. Pop (hold to charge, release)
 // is the same pull the planner uses. Flip turns the ken over. Think asks the planner for the catch you need.
-import { W, H, TEXT_SCALES, THINK_STEPS, PLAY_ZONE, POP_BTN, FLIP_BTN, HINT_BTN, MENU_BTN, WATCH_BAR, REF_BACK, REF_NEXT, TEXT_DEC, TEXT_INC, HUD, inRect } from './layout.js';
+import { W0, H0, TEXT_SCALES, THINK_STEPS, PLAY_ZONE, POP_BTN, FLIP_BTN, HINT_BTN, MENU_BTN, WATCH_BAR, REF_BACK, REF_NEXT, TEXT_DEC, TEXT_INC, LAY, relayout, toWorld, inRect } from './layout.js';
 import {
   createWorld, cloneWorld, settleHanging, stepWorld, setHand, toggleFlip, KEN_BOX, anchorOf, R, EVENT_STRIDE, isFlipped,
 } from './phys.js';
@@ -16,11 +16,13 @@ import {
 } from './ai.js';
 import { newRope, stepRope } from './art.js';
 import { renderPlay, tgtName } from './hud.js';
-import { renderTitle, renderLadder, renderSettings, renderResult, renderPause, renderPages, renderDemoLimit, hitScreen, flowMeta, pageCount, ensureLayout, resetMenus } from './menus.js';
+import { renderTitle, renderLadder, renderSettings, renderResult, renderPause, renderPages, renderDemoLimit, hitScreen, flowMeta, READER, refCloseRect, ensureLayout, resetMenus, lockupZone } from './menus.js';
 import { ABOUT, HOWTO, RULES } from './content.js';
 import { setPress } from './ui.js';
 
-export const meta = { width: W, height: H };
+// Fluid viewport (kit 1.7.1): the view keeps meta.width / meta.height live (short side 720); layout.js lays everything out from them.
+export const wheelInput = { dy: 0 };
+export const meta = { width: W0, height: H0, fluid: { short: 720 } };
 const DEMO_RUNS = 2;
 const POP_WOBBLE = 0.26;     // a hand is never perfectly straight: the pop leaves up to 0.13 rad off vertical
 const ATT_SEQ = ['big', 'small', 'spike', 'big', 'base', 'big', 'small', 'spike'];
@@ -97,11 +99,11 @@ export function createGame(env) {
     for (let i = parts.length - 1; i >= 0; i--) if (parts[i].t >= parts[i].max) parts.splice(i, 1);
   };
   // ambient petals drifting down behind everything
-  for (let i = 0; i < 9; i++) petals.push({ kind: 0, x: fx.next() * W, y: fx.next() * 1000, vx: 14 + fx.next() * 22, vy: 22 + fx.next() * 24, rot: fx.next() * 6, vr: (fx.next() - 0.5) * 1.6, t: 0, max: 1e9, size: 7 + fx.next() * 5, col: PETAL_COL[i % 4] });
+  for (let i = 0; i < 9; i++) petals.push({ kind: 0, x: fx.next() * W0, y: fx.next() * 1000, vx: 14 + fx.next() * 22, vy: 22 + fx.next() * 24, rot: fx.next() * 6, vr: (fx.next() - 0.5) * 1.6, t: 0, max: 1e9, size: 7 + fx.next() * 5, col: PETAL_COL[i % 4] });
   const stepPetals = (dt) => {
     for (const q of petals) {
       q.x += (q.vx + Math.sin(q.t * 1.3 + q.rot) * 14) * dt; q.y += q.vy * dt; q.rot += q.vr * dt; q.t += dt;
-      if (q.y > 1090 || q.x > W + 20) { q.y = -20; q.x = fx.next() * W - 60; }
+      if (q.y > 1090 || q.x > W0 + 20) { q.y = -20; q.x = fx.next() * W0 - 60; }
     }
   };
 
@@ -401,6 +403,7 @@ export function createGame(env) {
 
   const updateHuman = (dt, input) => {
     const ptr = input.pointer, keys = input.keys, w = state.w, p = state.pop;
+    const wp = toWorld(LAY, ptr.x, ptr.y);       // the stage maps the world to the screen; drags work in world units
     const kx = (keys.down.has('ArrowRight') ? 1 : 0) - (keys.down.has('ArrowLeft') ? 1 : 0);
     const ky = (keys.down.has('ArrowDown') ? 1 : 0) - (keys.down.has('ArrowUp') ? 1 : 0);
     if (!p.active && (kx || ky) && !state.drag && !p.holding) setHand(w, w.ken.tx + kx * 14, w.ken.ty + ky * 14);
@@ -413,10 +416,10 @@ export function createGame(env) {
       else if (inRect(FLIP_BTN, ptr.x, ptr.y)) { toggleFlip(w); sfx.flip(); state.hint = null; }
       else if (inRect(HINT_BTN, ptr.x, ptr.y)) { if (state.mode === 'run') bankRun(); else requestHint(); sfx.tick(); }
       else if (inRect(MENU_BTN, ptr.x, ptr.y)) { openPause(); return; }
-      else if (state.mode === 'practice' && inRect({ x: HUD.x + 24, y: HUD.y + 82, w: 250, h: 40 }, ptr.x, ptr.y)) {
+      else if (state.mode === 'practice' && inRect(LAY.practiceHit, ptr.x, ptr.y)) {
         const order = ['big', 'small', 'spike', 'base']; state.pr.target = order[(order.indexOf(state.pr.target) + 1) % 4]; sfx.tick();
       } else if (inRect(PLAY_ZONE, ptr.x, ptr.y) && !p.active && !p.holding) {
-        state.drag = { ox: w.ken.tx - ptr.x, oy: w.ken.ty - ptr.y, px: ptr.x, py: ptr.y };
+        state.drag = { ox: w.ken.tx - wp.x, oy: w.ken.ty - wp.y, px: wp.x, py: wp.y };
       }
     }
     if (p.holding) {
@@ -427,10 +430,10 @@ export function createGame(env) {
     if (state.drag) {
       if (ptr.down && !p.active) {
         const d = state.drag;
-        const tx = ptr.x + d.ox, ty = ptr.y + d.oy;
+        const tx = wp.x + d.ox, ty = wp.y + d.oy;
         const cx = clamp(tx, KEN_BOX.x0, KEN_BOX.x1), cy = clamp(ty, KEN_BOX.y0, KEN_BOX.y1);
         d.ox += cx - tx; d.oy += cy - ty;      // sticking at the edge: the finger and the ken stay together when it moves back
-        d.px = ptr.x; d.py = ptr.y;
+        d.px = wp.x; d.py = wp.y;
         setHand(w, cx, cy);
       }
       if (ptr.released || !ptr.down) state.drag = null;
@@ -506,8 +509,8 @@ export function createGame(env) {
     if (!id) return;
     sfx.tick();
     if (id === 'resume') closePause();
-    else if (id === 'p-rules') { state.back = 'play'; state.scene = 'rules'; state.page = 0; }
-    else if (id === 'p-howto') { state.back = 'play'; state.scene = 'howto'; state.page = 0; }
+    else if (id === 'p-rules') { state.back = 'play'; state.scene = 'rules'; state.page = 0; state.ui.scroll = 0; }
+    else if (id === 'p-howto') { state.back = 'play'; state.scene = 'howto'; state.page = 0; state.ui.scroll = 0; }
     else if (id === 'p-sound') { state.settings.sound = !state.settings.sound; audio.setMuted?.(!state.settings.sound); save(); }
     else if (id === 'p-assist') { state.settings.assist = (state.settings.assist + 1) % 3; state.w.assist = state.settings.assist; save(); }
     else if (id === 'p-restart') openTrick(state.trickId);
@@ -516,6 +519,7 @@ export function createGame(env) {
   }
   const handleTitle = (id) => {
     if (!id) return;
+    if (id === 'arcforge') { env.openArcforgeHome?.(); return; }
     sfx.tick();
     if (id === 'ladder') {
       state.scene = 'ladder'; state.ui.scroll = 0; state.ladderMsg = '';
@@ -524,7 +528,7 @@ export function createGame(env) {
     } else if (id === 'run') startRun();
     else if (id === 'practice') startPractice();
     else if (id === 'watch') startWatch();
-    else if (id === 'howto' || id === 'rules' || id === 'about') { state.back = 'title'; state.scene = id; state.page = 0; }
+    else if (id === 'howto' || id === 'rules' || id === 'about') { state.back = 'title'; state.scene = id; state.page = 0; state.ui.scroll = 0; }
     else if (id === 'settings') { state.scene = 'settings'; state.ui.scroll = 0; }
     else if (id === 'sound') { state.settings.sound = !state.settings.sound; audio.setMuted?.(!state.settings.sound); save(); }
   };
@@ -580,30 +584,37 @@ export function createGame(env) {
     const max = m.lay ? Math.max(0, m.lay.contentH - (m.bottom - m.top)) : 0;
     if (input.keys.pressed.has('Equal') || input.keys.pressed.has('NumpadAdd')) { state.settings.textIdx = Math.min(TEXT_SCALES.length - 1, state.settings.textIdx + 1); save(); }
     if (input.keys.pressed.has('Minus') || input.keys.pressed.has('NumpadSubtract')) { state.settings.textIdx = Math.max(0, state.settings.textIdx - 1); save(); }
+    if (wheelInput.dy) { state.ui.scroll = clamp(state.ui.scroll + wheelInput.dy, 0, max); wheelInput.dy = 0; }
     if (input.keys.down.has('ArrowDown')) state.ui.scroll = clamp(state.ui.scroll + 14, 0, max);
     if (input.keys.down.has('ArrowUp')) state.ui.scroll = clamp(state.ui.scroll - 14, 0, max);
   };
   const updateLadder = (dt, input) => {
     const ptr = input.pointer;
     if (input.keys.pressed.has('Escape')) { state.scene = 'title'; state.ui.scroll = 0; return; }
-    if (ptr.pressed && inRect({ x: 20, y: 1164, w: 680, h: 100 }, ptr.x, ptr.y)) { state.scene = 'title'; state.ui.scroll = 0; return; }
+    if (ptr.pressed && inRect(LAY.ladder.back, ptr.x, ptr.y)) { state.scene = 'title'; state.ui.scroll = 0; return; }
     updateFlowScene(dt, input, handleLadder, 'ladder');
   };
   const updatePages = (input) => {
     const ptr = input.pointer, keys = input.keys;
-    const n = pageCount();
-    const close = () => { state.scene = state.back === 'play' ? 'play' : 'title'; state.page = 0; };
-    const next = () => { if (state.page >= n - 1) close(); else state.page++; };
-    const prev = () => { if (state.page <= 0) close(); else state.page--; };
+    const close = () => { state.scene = state.back === 'play' ? 'play' : 'title'; state.page = 0; state.ui.scroll = 0; state.ui.drag = null; };
+    const setScroll = (v) => { state.ui.scroll = clamp(v, 0, READER.max); };
     if (ptr.pressed) {
-      if (inRect(REF_NEXT, ptr.x, ptr.y)) next();
-      else if (inRect(REF_BACK, ptr.x, ptr.y)) prev();
+      if (inRect(refCloseRect(), ptr.x, ptr.y)) { close(); return; }
       else if (inRect(TEXT_DEC, ptr.x, ptr.y)) { state.settings.textIdx = Math.max(0, state.settings.textIdx - 1); save(); }
       else if (inRect(TEXT_INC, ptr.x, ptr.y)) { state.settings.textIdx = Math.min(TEXT_SCALES.length - 1, state.settings.textIdx + 1); save(); }
+      else if (ptr.y >= READER.y0 && ptr.y <= READER.y1) state.ui.drag = { y0: ptr.y, s0: state.ui.scroll };
     }
-    if (keys.pressed.has('ArrowRight')) next();
-    if (keys.pressed.has('ArrowLeft')) prev();
-    if (keys.pressed.has('Escape')) close();
+    if (state.ui.drag && ptr.down) setScroll(state.ui.drag.s0 - (ptr.y - state.ui.drag.y0));
+    if (ptr.released) state.ui.drag = null;
+    if (wheelInput.dy) { setScroll(state.ui.scroll + wheelInput.dy); wheelInput.dy = 0; }
+    const step = 70, pg = Math.max(100, READER.view - 80);
+    if (keys.pressed.has('ArrowDown')) setScroll(state.ui.scroll + step);
+    if (keys.pressed.has('ArrowUp')) setScroll(state.ui.scroll - step);
+    if (keys.pressed.has('PageDown') || keys.pressed.has('Space')) setScroll(state.ui.scroll + pg);
+    if (keys.pressed.has('PageUp')) setScroll(state.ui.scroll - pg);
+    if (keys.pressed.has('Home')) setScroll(0);
+    if (keys.pressed.has('End')) setScroll(READER.max);
+    if (keys.pressed.has('Escape') || keys.pressed.has('Enter')) close();
   };
 
   resetAttract();
@@ -616,7 +627,7 @@ export function createGame(env) {
       if (k === 0) return;
       if (k === 1) { state.scene = 'ladder'; state.record.stars = { big: 3, small: 2 }; return; }
       if (k === 2) { state.scene = 'settings'; return; }
-      if (k === 3) { state.scene = 'rules'; state.page = 5; return; }
+      if (k === 3) { state.scene = 'rules'; state.ui.scroll = 3000; return; }
       if (k === 4) { openTrick('big'); state.tr.done = true; finishTrick(); state.resT = 0; state.scene = 'result'; return; }
       if (k === 5) { openTrick('big'); openPause(); return; }
       freshWorld(); state.res = { kind: 'run', bank: 128, best: 128, newBest: true, catches: 7 }; state.scene = 'result'; return;
@@ -627,7 +638,7 @@ export function createGame(env) {
     if (s === 3) { openTrick('big-small'); state.shotAuto = true; return; }
     if (s === 4) { startRun(); state.shotAuto = true; return; }
     if (s === 5) { startWatch(); return; }
-    if (s === 6) { state.scene = 'rules'; state.page = 3; return; }
+    if (s === 6) { state.scene = 'rules'; state.ui.scroll = 1100; return; }
     if (s === 7) { openTrick('big-spike'); state.shotAuto = true; return; }
     startPractice(); state.shotAuto = true;
   };
@@ -649,7 +660,9 @@ export function createGame(env) {
   return {
     // Watch & Learn and every menu are free; only real play counts against the free preview (a paused game does not).
     isPreviewExempt: () => !(state.scene === 'play' && state.mode !== 'watch') || state.paused,
-    update(dt, input) {
+    update(dt, rawInput) {
+      const L = relayout(meta.width, meta.height);
+      const input = L.s === 1 ? rawInput : { ...rawInput, pointer: { ...rawInput.pointer, x: rawInput.pointer.x / L.s, y: rawInput.pointer.y / L.s } };
       setPress(input.pointer);
       if (SHOT) {
         state.t += dt;
@@ -673,8 +686,12 @@ export function createGame(env) {
         case 'play': updatePlay(dt, input); break;
         default: break;
       }
+      wheelInput.dy = 0;
     },
     render(ctx) {
+      const L = relayout(meta.width, meta.height);
+      ctx.save();
+      if (L.s !== 1) ctx.scale(L.s, L.s);
       switch (state.scene) {
         case 'title': renderTitle(ctx, state); break;
         case 'ladder': renderLadder(ctx, state); break;
@@ -690,7 +707,31 @@ export function createGame(env) {
           break;
         default: break;
       }
+      ctx.restore();
     },
     getState: () => state,
+    lockupZone: () => lockupZone(),
+    // Dev / check scripts only: every tappable rectangle and info box of the screen being shown, in SCREEN units.
+    devRects() {
+      const L = LAY, k = L.s, out = {}, add = (n, r) => { if (r && r.w > 0) out[n] = { x: r.x * k, y: r.y * k, w: r.w * k, h: r.h * k }; };
+      const m = flowMeta();
+      const flow = (pfx) => m.lay && m.lay.items.forEach((it) => {
+        if (it.w.t !== 'btn') return;
+        const y = m.top + it.y - state.ui.scroll;
+        if (y >= m.top - 1 && y + it.h <= m.bottom + 1) add(`${pfx}${it.w.id}`, { x: it.x, y, w: it.wd, h: it.h });
+      });
+      if (state.scene === 'play') {
+        if (state.pauseMenu) flow('pause:');
+        else if (state.mode === 'watch') { ['dec', 'pause', 'inc', 'exit'].forEach((n) => add(n, L.watch[n])); }
+        else { add('pop', L.pop); add('flip', L.flip); add('hint', L.hint); add('menu', L.menu); if (state.mode === 'practice') add('chip', L.practiceHit); }
+        if (!state.pauseMenu) add('stage', L.st);
+        if (state.pauseMenu) { /* the pause card covers the goal card */ } else if (!L.land) add('hud', L.hud); else add('hud', { ...L.left, h: Math.min(L.left.h, state.mode === 'run' ? 360 : state.mode === 'practice' ? 262 : 112 + (state.tr?.steps?.length ?? 1) * 58) });
+      } else if (state.scene === 'howto' || state.scene === 'about' || state.scene === 'rules') {
+        add('back', REF_BACK); add('next', REF_NEXT); add('dec', TEXT_DEC); add('inc', TEXT_INC); add('panel', L.pages.panel);
+      } else if (state.scene === 'ladder') { flow('ladder:'); add('back', L.ladder.back); }
+      else if (state.scene === 'title') flow('');
+      else flow('');
+      return { rects: out, back: L.backBox.w ? { x: L.backBox.x * k, y: L.backBox.y * k, w: L.backBox.w * k, h: L.backBox.h * k } : null, ins: { t: L.ins.t * k, r: L.ins.r * k, b: L.ins.b * k, l: L.ins.l * k }, w: L.w, h: L.h, land: L.land, s: L.s };
+    },
   };
 }

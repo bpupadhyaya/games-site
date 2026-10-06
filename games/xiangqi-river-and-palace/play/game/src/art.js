@@ -1,6 +1,6 @@
 // The table, the board and the lanterns. One warm light from the upper left, lanterns at the top corners.
 // Static art is painted ONCE into cached layers. If fonts arrive late, game.js calls invalidateArt() and it repaints.
-import { W, H, D, GX, GY, BOARD } from './layout.js';
+import { D, GX, GY, BOARD } from './layout.js';
 import { CJK, LATIN, blob } from './pieces.js';
 
 const TAU = Math.PI * 2;
@@ -16,7 +16,7 @@ const BT = {
 
 function newCanvas(w, h) { return typeof OffscreenCanvas !== 'undefined' ? new OffscreenCanvas(w, h) : null; }
 const layers = {};
-export function invalidateArt() { for (const k of Object.keys(layers)) delete layers[k]; }
+export function invalidateArt() { for (const k of Object.keys(layers)) delete layers[k]; tableKey = ''; }
 function layer(key, w, h, res, paint) {
   if (!(key in layers)) {
     layers[key] = null;
@@ -26,7 +26,7 @@ function layer(key, w, h, res, paint) {
 }
 
 // ---- table --------------------------------------------------------------------------------------------------------
-function paintTable(ctx) {
+function paintTable(ctx, W, H) {
   const bg = ctx.createLinearGradient(0, 0, 0, H);
   bg.addColorStop(0, '#34160f'); bg.addColorStop(0.35, '#26100c'); bg.addColorStop(0.7, '#1a0b09'); bg.addColorStop(1, '#0f0605');
   ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
@@ -38,17 +38,17 @@ function paintTable(ctx) {
     ctx.beginPath(); ctx.moveTo(x, y); ctx.bezierCurveTo(x + len * 0.3, y + (rnd() - 0.5) * 16, x + len * 0.7, y + (rnd() - 0.5) * 16, x + len, y + (rnd() - 0.5) * 8); ctx.stroke();
   }
   // lamp light pooling on the table, and lantern glows in the corners
-  const lamp = ctx.createRadialGradient(340, 760, 40, 360, 800, 820);
+  const m = Math.max(W, H), lamp = ctx.createRadialGradient(W / 2 - 20, H * 0.49, 40, W / 2, H * 0.51, m * 0.53);
   lamp.addColorStop(0, 'rgba(255,190,120,0.20)'); lamp.addColorStop(0.55, 'rgba(255,150,80,0.06)'); lamp.addColorStop(1, 'rgba(255,150,80,0)');
   ctx.fillStyle = lamp; ctx.fillRect(0, 0, W, H);
-  for (const cx of [110, 610]) { const g = ctx.createRadialGradient(cx, 90, 10, cx, 110, 330); g.addColorStop(0, 'rgba(255,120,60,0.30)'); g.addColorStop(1, 'rgba(255,120,60,0)'); ctx.fillStyle = g; ctx.fillRect(0, 0, W, 460); }
+  for (const cx of (W > H ? [W * 0.12, W * 0.88] : [110, 610])) { const g = ctx.createRadialGradient(cx, 90, 10, cx, 110, 330); g.addColorStop(0, 'rgba(255,120,60,0.30)'); g.addColorStop(1, 'rgba(255,120,60,0)'); ctx.fillStyle = g; ctx.fillRect(0, 0, W, 460); }
   // vignette
-  const vg = ctx.createRadialGradient(360, 780, 420, 360, 780, 1000); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,0.5)');
+  const vg = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.58, W / 2, H / 2, m * 0.64); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,0.5)');
   ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
   // a thin key-fret band top and bottom
-  for (const y of [14, H - 22]) fret(ctx, y);
+  for (const y of [14, H - 22]) fret(ctx, y, W);
 }
-function fret(ctx, y) {
+function fret(ctx, y, W) {
   ctx.save(); ctx.strokeStyle = 'rgba(226,182,97,0.42)'; ctx.lineWidth = 1.6;
   ctx.beginPath(); ctx.moveTo(0, y + 4); ctx.lineTo(W, y + 4); ctx.moveTo(0, y + 14); ctx.lineTo(W, y + 14); ctx.stroke();
   ctx.lineWidth = 1.5;
@@ -122,13 +122,17 @@ function paintBoard(ctx, themeName, lang = 'zh') {
   ctx.fillStyle = sh; rr(ctx, x, y, w, h, 24); ctx.fill();
 }
 
-export function drawTable(ctx) {
-  const c = layer('table', W, H, 1.5, paintTable);
-  if (c) ctx.drawImage(c, 0, 0, W, H); else paintTable(ctx);
+// The table fills the live screen (any aspect): one cached layer per size, resolution capped so a big window stays cheap.
+let tableKey = '';
+export function drawTable(ctx, W, H) {
+  const key = `table-${Math.round(W)}x${Math.round(H)}`;
+  if (key !== tableKey) { delete layers[tableKey]; tableKey = key; }
+  const c = layer(key, W, H, Math.min(1.5, 2200 / Math.max(W, H)), (l) => paintTable(l, W, H));
+  if (c) ctx.drawImage(c, 0, 0, W, H); else paintTable(ctx, W, H);
 }
 export function drawBoard(ctx, theme = 'paper', lang = 'zh') {
-  const c = layer('board-' + theme + '-' + lang, W, BH, 2, (l) => paintBoard(l, theme, lang));
-  if (c) ctx.drawImage(c, 0, BY0, W, BH); else { ctx.save(); paintBoard(ctx, theme, lang); ctx.restore(); }
+  const c = layer('board-' + theme + '-' + lang, 720, BH, 2, (l) => paintBoard(l, theme, lang));
+  if (c) ctx.drawImage(c, 0, BY0, 720, BH); else { ctx.save(); paintBoard(ctx, theme, lang); ctx.restore(); }
 }
 
 // ---- lantern ------------------------------------------------------------------------------------------------------

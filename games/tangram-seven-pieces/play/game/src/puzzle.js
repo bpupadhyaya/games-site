@@ -5,15 +5,25 @@ import {
   centroidOfPose, validateSolution, evaluate, snapPose, anchorsFor, overlapArea, polyArea, pointInPoly, bbox, mod8,
 } from './geom.js';
 
-export const SCALE = 112; // pixels per unit
-export const BOARD_C = { x: 360, y: 492 };
-export const TRAY = { x: 24, y: 904, w: 672, h: 484 };
+import { layout } from './layout.js';
+
+// The live view: pixels per puzzle unit, where the silhouette centre sits, the tray panel and the play bounds. It is a pure
+// function of the screen layout (layout.js); the game calls applyView(layout()) whenever the size changes. Pieces are stored in
+// puzzle units, so rotating the device never moves a piece relative to the silhouette.
+export const VIEW = { key: '', s: 112, bx: 360, by: 492, tray: { x: 24, y: 904, w: 672, h: 484 }, bounds: { x0: 20, y0: 148, x1: 700, y1: 1396 }, slots: [] };
+export function applyView(L) {
+  if (VIEW.key === L.key) return false;
+  Object.assign(VIEW, { key: L.key, s: L.s, bx: L.boardC.x, by: L.boardC.y, tray: L.tray, bounds: L.bounds, slots: L.slots });
+  return true;
+}
+export const viewSnapshot = () => ({ s: VIEW.s, bx: VIEW.bx, by: VIEW.by, tray: { ...VIEW.tray }, bounds: { ...VIEW.bounds }, slots: VIEW.slots.map((q) => q.slice()) });
+applyView(layout());
 // Thumb ergonomics (virtual px; 720 wide = about 360-430 pt, so 1 px is roughly 0.5-0.6 pt):
-// SNAP_RADIUS 0.5 units = 56 px (about 28 pt, 4-5 mm): a drop that lands within a fingertip's width of a
+// snapR() 0.5 units = 56 px (about 28 pt, 4-5 mm): a drop that lands within a fingertip's width of a
 // corner still clicks in; snapPose only accepts a move that fits better, so a wide radius cannot misplace.
 // LIFT_PX: a held piece rides 58 px (about 31 pt) above the finger so the fingertip never hides it.
 // HANDLE_R / HANDLE_HIT: the rotate handle is a 72 px disc with a 52 px touch radius (about 28 pt).
-const SNAP_RADIUS = 0.5;
+const snapR = () => Math.min(0.75, Math.max(0.5, 56 / VIEW.s));   // about 56 virtual px whatever the scale
 export const LIFT_PX = 58;
 const HANDLE_R = 36, HANDLE_HIT = 52;
 const MOVE_SLOP = 14; // px of travel before a press becomes a drag (a shaky tap must not move a piece)
@@ -33,19 +43,15 @@ export function levelGeo(level) {
     poses, slots, loops: v.loops, box, ctr,
     anchors: anchorsFor(slots, v.loops, []),
     slotAreas: slots.map((p) => Math.abs(polyArea(p))),
-    toPx: ([x, y]) => [(x - ctr.x) * SCALE + BOARD_C.x, (y - ctr.y) * SCALE + BOARD_C.y],
-    fromPx: ([x, y]) => [(x - BOARD_C.x) / SCALE + ctr.x, (y - BOARD_C.y) / SCALE + ctr.y],
+    size: { w: box.x1 - box.x0, h: box.y1 - box.y0 },
+    toPx: ([x, y]) => [(x - ctr.x) * VIEW.s + VIEW.bx, (y - ctr.y) * VIEW.s + VIEW.by],
+    fromPx: ([x, y]) => [(x - VIEW.bx) / VIEW.s + ctr.x, (y - VIEW.by) / VIEW.s + ctr.y],
   };
   geoCache.set(level.id, g);
   return g;
 }
 export const pxPoly = (g, poly) => poly.map((p) => g.toPx(p));
 
-// Tray slot centres (pixels) for each kind, laid out so that any 90-degree turn still fits.
-const TRAY_SLOTS = [
-  [140, 1038], [384, 1038], [598, 1034], // L1 L2 M
-  [92, 1270], [226, 1270], [350, 1270], [560, 1282], // S1 S2 SQ PA
-];
 
 const ZERO = (kind) => ({ kind, f: 0, rot: 0, cx: 0, cy: 0 });
 
@@ -62,7 +68,7 @@ export function trayState(level, rng, mix) {
     // centre the piece's bounding box on the slot
     const poly = polyFree(k, f, rot, 0, 0);
     const b = bbox([poly]);
-    const [sx, sy] = TRAY_SLOTS[k];
+    const [sx, sy] = VIEW.slots[k];
     const [wx, wy] = g.fromPx([sx, sy]);
     p.cx = wx - (b.x0 + b.x1) / 2;
     p.cy = wy - (b.y0 + b.y1) / 2;
@@ -112,7 +118,8 @@ function makePiece(t, i) {
 
 const clampWorld = (puz, cx, cy) => {
   const [px, py] = puz.g.toPx([cx, cy]);
-  const x = Math.min(Math.max(px, 36), 684), y = Math.min(Math.max(py, 140), 1400);
+  const m = 0.3 * VIEW.s, B = VIEW.bounds;
+  const x = Math.min(Math.max(px, B.x0 + m), B.x1 - m), y = Math.min(Math.max(py, B.y0 + m), B.y1 - m);
   return puz.g.fromPx([x, y]);
 };
 
@@ -158,9 +165,10 @@ export function handlePos(puz) {
   const [pcx, pcy] = puz.g.toPx([p.dx, p.dy]);
   let r = 0;
   for (const q of poly) r = Math.max(r, Math.hypot(q[0] - pcx, q[1] - pcy));
+  const B = VIEW.bounds, lo = B.y0 + 22, hi = B.y1 - 30;
   let hy = pcy - r - 64;
-  if (hy < 170) hy = pcy + r + 64;
-  return { x: pcx, y: Math.min(Math.max(hy, 170), 1368), cx: pcx, cy: pcy, r: HANDLE_R };
+  if (hy < lo) hy = pcy + r + 64;
+  return { x: Math.min(Math.max(pcx, B.x0 + 30), B.x1 - 30), y: Math.min(Math.max(hy, lo), hi), cx: pcx, cy: pcy, r: HANDLE_R };
 }
 
 export function pointerDown(puz, x, y) {
@@ -233,7 +241,7 @@ export function snapPreview(puz) {
   const probe = { ...p, rot: Math.round(p.rot) };
   const pose = poseOfPiece(probe);
   const anchors = anchorsFor(puz.g.slots, puz.g.loops, others);
-  const snapped = snapPose(pose, puz.g.slots, others, anchors, SNAP_RADIUS * puz.snapStrength);
+  const snapped = snapPose(pose, puz.g.slots, others, anchors, snapR() * puz.snapStrength);
   if (snapped === pose) return null;
   return pxPoly(puz.g, polyOfPose(snapped));
 }
@@ -247,7 +255,7 @@ export function pointerUp(puz, x, y) {
     if (!d.moved) { rotatePiece(puz, d.i, 1); return; } // a tap on the handle turns one step
     puz.history.push(d.before);
     p.rot = Math.round(p.drot); // the displayed angle keeps going and the spring settles it
-    settleSnap(puz, p, SNAP_RADIUS);
+    settleSnap(puz, p, snapR());
     puz.events.push({ type: 'rotate', i: p.i });
     puz.moves += 1;
     afterChange(puz, p);
@@ -261,7 +269,7 @@ export function pointerUp(puz, x, y) {
   puz.history.push(d.before);
   if (puz.history.length > 120) puz.history.shift();
   p.rot = Math.round(p.rot);
-  const snapped = settleSnap(puz, p, SNAP_RADIUS);
+  const snapped = settleSnap(puz, p, snapR());
   puz.events.push({ type: snapped ? 'snap' : 'drop', i: p.i });
   puz.moves += 1;
   afterChange(puz, p);
@@ -271,7 +279,7 @@ export function rotatePiece(puz, i, dir) {
   const p = puz.pieces[i];
   pushHistory(puz);
   p.rot = Math.round(p.rot) + dir;
-  settleSnap(puz, p, SNAP_RADIUS * 0.8);
+  settleSnap(puz, p, snapR() * 0.8);
   puz.events.push({ type: 'rotate', i: p.i });
   puz.moves += 1;
   bringToTop(puz, i);
@@ -285,7 +293,7 @@ export function flipPiece(puz, i) {
   p.rot = -Math.round(p.rot);
   p.drot = -p.drot; p.vrot = -p.vrot; // the mirror image keeps its look; only the squash animates
   p.flipT = 1;
-  settleSnap(puz, p, SNAP_RADIUS * 0.8);
+  settleSnap(puz, p, snapR() * 0.8);
   puz.events.push({ type: 'flip', i: p.i });
   puz.moves += 1;
   bringToTop(puz, i);
@@ -502,6 +510,38 @@ export function burst(puz, x, y, rng, n, colors, opts = {}) {
       shape: opts.shape ?? 'dot', rot: rng.range(0, 6), spin: rng.range(-8, 8),
     });
   }
+}
+
+// ---- the screen changed shape (rotation, split screen, a new window size) ---------------------------------------------------------
+// Pieces are stored in puzzle units relative to the silhouette, so everything on or near the board keeps its place in the puzzle.
+// Pieces resting in the tray move to the matching slot of the NEW tray (the tray may now be a column instead of a strip), and
+// anything else is kept in the puzzle and nudged inside the new play area. `o` is the view before (viewSnapshot()), the live VIEW is the new one.
+export function relayoutPuzzle(puz, o) {
+  const g = puz.g, n = VIEW;
+  const toOld = ([x, y]) => [(x - g.ctr.x) * o.s + o.bx, (y - g.ctr.y) * o.s + o.by];
+  const inOldTray = (px, py) => px >= o.tray.x - 0.3 * o.s && px <= o.tray.x + o.tray.w + 0.3 * o.s && py >= o.tray.y - 0.3 * o.s && py <= o.tray.y + o.tray.h + 0.3 * o.s;
+  const slotWorld = (kind, f, rot) => {
+    const bb = bbox([polyFree(kind, f, rot, 0, 0)]);
+    const [wx, wy] = g.fromPx(n.slots[kind]);
+    return [wx - (bb.x0 + bb.x1) / 2, wy - (bb.y0 + bb.y1) / 2];
+  };
+  const mapOne = (kind, f, rot, cx, cy) => {
+    const [px, py] = toOld([cx, cy]);
+    if (inOldTray(px, py)) return slotWorld(kind, f, rot);
+    const [qx, qy] = g.toPx([cx, cy]);
+    const m = 0.3 * n.s, B = n.bounds;
+    const x = Math.min(Math.max(qx, B.x0 + m), B.x1 - m), y = Math.min(Math.max(qy, B.y0 + m), B.y1 - m);
+    return x === qx && y === qy ? [cx, cy] : g.fromPx([x, y]);
+  };
+  puz.drag = null;
+  for (const p of puz.pieces) {
+    const [cx, cy] = mapOne(p.kind, p.f, p.rot, p.cx, p.cy);
+    p.cx = cx; p.cy = cy; p.dx = cx; p.dy = cy; p.vx = 0; p.vy = 0; p.lift = 0;
+  }
+  for (const snap of puz.history) snap.forEach((q, i) => { const [cx, cy] = mapOne(puz.pieces[i].kind, q.f, q.rot, q.cx, q.cy); q.cx = cx; q.cy = cy; });
+  puz.home.forEach((h) => { const [cx, cy] = slotWorld(h.kind, h.f, h.rot); h.cx = cx; h.cy = cy; });
+  puz.parts.length = 0;
+  return puz;
 }
 
 export { KINDS, polyArea, centroid };

@@ -2,7 +2,7 @@
 // drawing in view.js. This is the only file that changes `state`.
 //
 // Controls (taught in the game): TAP a card to raise it, TAP it again to play it, or DRAG it up. TAP a big button to bid.
-import { W, H as HH, CW, HAND_Y, LIFT, BTN, TRICK, SEAT, DECK, handSlot, inRect, titleRows, bidButtons, bid2Buttons, ACT, OVERLAY_BTN, BACK, REF_BACK, REF_NEXT, TEXT_SCALES, TEXT_DEC, TEXT_INC, AUTO_THINK_STEPS, AUTO_REVEAL_SECS, AUTO_DEC, AUTO_INC } from './layout.js';
+import { CW, CH, HAND_Y, LIFT, HS, TG, LAY, BTN, TRICK, SEAT, DECK, handSlot, inRect, titleRows, titleLockTap, bidButtons, bid2Buttons, ACT, OVERLAY_BTN, OVERLAY_BTN2, BACK, REF_BACK, REF_NEXT, TEXT_SCALES, TEXT_DEC, TEXT_INC, AUTO_THINK_STEPS, AUTO_REVEAL_SECS, AUTO_DEC, AUTO_INC, TABLE, applySize, settingsRows, lessonRow } from './layout.js';
 import { RULES, ABOUT, HOWTO } from './rulesContent.js';
 import { newHand, bidOptions, applyBid, applyDouble, declOptions, declare, playCard, legalCards, matchWinner, whyNot, cardShort, cardName, suitOf, SUIT_NAMES, RUNG, teamOf, nextSeat, declValue, hasBaloot, TARGETS, legalFor, DECL } from './rules.js';
 import { LEVELS, createThinker, heuristicBid, bidReason } from './ai.js';
@@ -10,9 +10,14 @@ import { LESSONS } from './lessons.js';
 import { createDailyMaker, puzzleHand, makeSolver, bestReply } from './daily.js';
 import { render } from './view.js';
 
-export const meta = { width: W, height: HH };
+// Fluid viewport (kit 1.7.x): the short side is always 720 units, the long side follows the screen; meta.width / height are updated live.
+// Every position comes from layout.js (applySize(meta.width, meta.height, scene) at the top of update and render).
+export const meta = { width: 720, height: 1560, fluid: { short: 720 } };
 const DEMO_HANDS = 5, DEMO_LESSONS = 3, HINTS_PER_HAND = 3, HOLD = 1.25;
 const copy = (o) => JSON.parse(JSON.stringify(o));
+
+// Mouse wheel (main.js adds to it, in virtual units): scrolls the Rules / About / Controls page.
+export const wheelInput = { dy: 0 };
 
 export function createGame(env) {
   const { rng, storage, audio, monetization, config } = env;
@@ -28,10 +33,14 @@ export function createGame(env) {
     aboutPage: 0, howPage: 0, textScaleIdx: 0, // textScaleIdx indexes TEXT_SCALES for the About/Controls/Rules pages
     autoThinkIdx: 1, // indexes AUTO_THINK_STEPS ([2,5,8,10]s) for the Auto Play THINK pause; default 5s
     auto: null, autoMatch: null,
+    refScroll: 0, refMax: 0, refKey: '', refDrag: null,   // reference-page scroll (view.js publishes refMax)
   };
   if (config.dev) globalThis.__baloot = { state, start: () => startMatch(), lesson: (i) => startLesson(i), daily: () => startDaily(), auto: () => startAutoPlay() };   // tester hook (dev only)
   let thinker = null, thinkerKey = '', hintThinker = null, solver = null, maker = null, dailyPuzzle = null;
   const ui = state.ui;
+  let snap = false, snapFrame = false;   // after a resize / rotation every card jumps straight to its new slot (kept out of `state`: it depends on process history)
+  // Make the live viewport size the current layout (cheap: only does work when the size, insets or table variant changed).
+  const sizeNow = (view) => { if (applySize(view?.width ?? meta.width, view?.height ?? meta.height, state.scene)) snap = true; };
 
   // ---- storage ---------------------------------------------------------------------------------------------
   storage.get('prefs', null).then((v) => { if (v) { state.level = v.level ?? 2; state.targetIdx = v.targetIdx ?? 0; state.set = { ...state.set, ...(v.set || {}) }; audio.setMuted?.(!state.set.sound); state.textScaleIdx = Math.min(Math.max(v.textScaleIdx ?? 0, 0), TEXT_SCALES.length - 1); state.autoThinkIdx = Math.min(Math.max(v.autoThinkIdx ?? 1, 0), AUTO_THINK_STEPS.length - 1); } });
@@ -210,11 +219,12 @@ export function createGame(env) {
     const H = state.H; if (!H || H.phase === 'done') return -1;
     const hand = displayHand(); const n = hand.length; if (!n) return -1;
     const s = handSlot(0, n), step = s.step;
-    if (py < HAND_Y - LIFT - 4 || py > HAND_Y + 214) return -1;
-    if (px < s.x || px > s.x + CW + step * (n - 1)) return -1;
+    const cw = CW * HS, chh = CH * HS;
+    if (py < HAND_Y - LIFT - 4 || py > HAND_Y + chh + 6) return -1;
+    if (px < s.x || px > s.x + cw + step * (n - 1)) return -1;
     let i = step ? Math.min(n - 1, Math.floor((px - s.x) / step)) : 0;
     // the raised card is drawn on top of its neighbours
-    if (ui.sel >= 0) { const j = hand.indexOf(ui.sel); if (j >= 0) { const sx = handSlot(j, n).x; if (px >= sx && px <= sx + CW && py < HAND_Y + 30) i = j; } }
+    if (ui.sel >= 0) { const j = hand.indexOf(ui.sel); if (j >= 0) { const sx = handSlot(j, n).x; if (px >= sx && px <= sx + cw && py < HAND_Y + 30 * HS) i = j; } }
     return hand[i];
   }
   const displayHand = () => (state.H ? state.H.hands[0] : []);
@@ -404,7 +414,7 @@ export function createGame(env) {
         const r = bidButtons(opts.length, 1);
         opts.forEach((o, i) => P.push({ r: r[i], kind: 'bid', a: o, label: o.t === 'hokum' ? 'Hokum' : o.t === 'sun' ? 'Sun' : 'Pass', suit: o.t === 'hokum' ? o.suit : -1, primary: o.t !== 'pass' }));
       } else {
-        const b = bid2Buttons(); let k = 0;
+        const b = bid2Buttons(true); let k = 0;
         for (const o of opts) {
           if (o.t === 'hokum') P.push({ r: b.suits[k++], kind: 'bid', a: o, label: 'Hokum', suit: o.suit, primary: true });
           else if (o.t === 'sun') P.push({ r: b.sun, kind: 'bid', a: o, label: 'Sun', primary: true });
@@ -442,7 +452,7 @@ export function createGame(env) {
     if (tap && inRect(BTN.undo, tap.x, tap.y)) { A.paused = !A.paused; return; }
     if (A.phase === 'ended') {
       if (tap && inRect(OVERLAY_BTN, tap.x, tap.y)) startAutoPlay();
-      else if (tap && inRect({ x: 160, y: 1176, w: 400, h: 90 }, tap.x, tap.y)) { teardownAuto(); state.scene = 'title'; }
+      else if (tap && inRect(OVERLAY_BTN2, tap.x, tap.y)) { teardownAuto(); state.scene = 'title'; }
       return;
     }
     if (A.paused) return;
@@ -478,10 +488,12 @@ export function createGame(env) {
   }
 
   // ---- per-scene updates ---------------------------------------------------------------------------------------
-  function updateTitle(tap) {
+  function updateTitle(tap, ip) {
     if (!maker) maker = createDailyMaker(state.daily.day);
     for (let k = 0; k < 1 && !dailyPuzzle; k++) { const r = maker.step(); state.daily.made += 1; if (r.puzzle) dailyPuzzle = r.puzzle; }
+    state.lkDown = !!(ip && ip.down && inRect(titleLockTap(!!state.saved), ip.x, ip.y));
     if (!tap) return;
+    if (inRect(titleLockTap(!!state.saved), tap.x, tap.y)) { env.openArcforgeHome?.(); return; }
     const R = titleRows(!!state.saved), hit = (r) => r && inRect(r, tap.x, tap.y);
     if (hit(R.resume)) { if (state.saved.H) resumeMatch(); else { state.match = copy(state.saved.match); state.scene = 'play'; state.level = state.saved.level; nextHand(); } }
     else if (hit(R.play)) startMatch();
@@ -506,23 +518,33 @@ export function createGame(env) {
   // reading). Next steps forward and reads "Done" on the last page (see view.js), exiting there
   // instead of silently wrapping back to page 1. Shared shape across About/How/Rules below - each
   // uses its own page field/list.
+  // Scrolling the reference panel: drag, mouse wheel, arrow keys. The limit (`state.refMax`) is published by view.js each frame.
+  function refInput(input) {
+    const p = input.pointer, panel = LAY.ref.panel, rk = `${state.scene}:${state.page}:${state.aboutPage}:${state.howPage}:${state.textScaleIdx}`;
+    if (rk !== state.refKey) { state.refKey = rk; state.refScroll = 0; }
+    if (p.pressed && inRect(panel, p.x, p.y)) state.refDrag = { y: p.y };
+    else if (state.refDrag && p.down) { state.refScroll -= p.y - state.refDrag.y; state.refDrag.y = p.y; }
+    else if (!p.down) state.refDrag = null;
+    if (wheelInput.dy) { state.refScroll += wheelInput.dy; wheelInput.dy = 0; }
+    const k = input.keys.pressed;
+    if (k.has('ArrowDown')) state.refScroll += 90; if (k.has('ArrowUp')) state.refScroll -= 90;
+    if (k.has('PageDown')) state.refScroll += panel.h * 0.8; if (k.has('PageUp')) state.refScroll -= panel.h * 0.8;
+    state.refScroll = Math.max(0, Math.min(state.refMax || 0, state.refScroll));
+  }
   function updateAbout(tap) {
     if (!tap) return;
     if (stepText(tap)) return;
-    if (inRect(REF_BACK, tap.x, tap.y)) { if (state.aboutPage > 0) state.aboutPage -= 1; else state.scene = 'title'; return; }
-    if (inRect(REF_NEXT, tap.x, tap.y)) { if (state.aboutPage >= ABOUT.length - 1) { state.scene = 'title'; state.aboutPage = 0; } else state.aboutPage += 1; tick(); }
+    if (inRect(REF_BACK, tap.x, tap.y) || inRect(REF_NEXT, tap.x, tap.y)) { state.scene = 'title'; state.aboutPage = 0; tick(); }
   }
   function updateHow(tap) {
     if (!tap) return;
     if (stepText(tap)) return;
-    if (inRect(REF_BACK, tap.x, tap.y)) { if (state.howPage > 0) state.howPage -= 1; else state.scene = 'title'; return; }
-    if (inRect(REF_NEXT, tap.x, tap.y)) { if (state.howPage >= HOWTO.length - 1) { state.scene = 'title'; state.howPage = 0; } else state.howPage += 1; tick(); }
+    if (inRect(REF_BACK, tap.x, tap.y) || inRect(REF_NEXT, tap.x, tap.y)) { state.scene = 'title'; state.howPage = 0; tick(); }
   }
   function updateRules(tap) {
     if (!tap) return;
     if (stepText(tap)) return;
-    if (inRect(REF_BACK, tap.x, tap.y)) { if (state.page > 0) state.page -= 1; else state.scene = 'title'; return; }
-    if (inRect(REF_NEXT, tap.x, tap.y)) { if (state.page >= RULES.length - 1) { state.scene = 'title'; state.page = 0; } else state.page += 1; tick(); }
+    if (inRect(REF_BACK, tap.x, tap.y) || inRect(REF_NEXT, tap.x, tap.y)) { state.scene = 'title'; state.page = 0; tick(); }
   }
   function updateSettings(tap) {
     if (!tap) return;
@@ -601,7 +623,7 @@ export function createGame(env) {
 
   function updatePos(dt) {
     const H = state.H; if (!H) return;
-    const k = 1 - Math.exp(-dt * (state.set.calm ? 18 : 11));
+    const k = snapFrame ? 1 : 1 - Math.exp(-dt * (state.set.calm ? 18 : 11));   // after a resize / rotation every card jumps straight to its new slot
     const put = (card, tx, ty, ts) => {
       let p = state.pos[card];
       if (!p) p = state.pos[card] = { x: DECK.x - CW / 2, y: DECK.y - 100, sc: 0.35, born: state.t + 0.05 * Object.keys(state.pos).length };
@@ -610,12 +632,13 @@ export function createGame(env) {
     const hand = H.hands[0], n = hand.length;
     hand.forEach((c, i) => {
       const s = handSlot(i, n); let ty = s.y - (ui.sel === c ? LIFT : 0), tx = s.x;
-      if (ui.drag && ui.drag.card === c && ui.drag.moved) { tx = ui.drag.x - CW / 2; ty = ui.drag.y - 100; }
-      put(c, tx, ty, 1);
+      if (ui.drag && ui.drag.card === c && ui.drag.moved) { tx = ui.drag.x - CW * HS / 2; ty = ui.drag.y - 100 * HS; }
+      put(c, tx, ty, HS);
     });
     const tt = state.show ? state.show.plays : H.trick;
     for (const pl of tt) {
-      let tx = TRICK[pl.seat].x - CW * 0.757 / 2, ty = TRICK[pl.seat].y - 208 * 0.757 / 2, ts = 0.757;
+      const ts0 = TG.ts;
+      let tx = TRICK[pl.seat].x - CW * ts0 / 2, ty = TRICK[pl.seat].y - CH * ts0 / 2, ts = ts0;
       if (state.show && state.show.t > (state.set.calm ? 0.8 : HOLD)) { const w = SEAT[state.show.winner]; tx = w.x - CW * 0.2; ty = w.y - 40; ts = 0.25; }
       put(pl.card, tx, ty, ts);
     }
@@ -658,11 +681,10 @@ export function createGame(env) {
     return null;
   }
 
-  function settingsRows() { return ['sound', 'calm', 'big', 'four'].map((key, i) => ({ key, r: { x: 60, y: 300 + i * 150, w: 600, h: 116 } })); }
-  function lessonRow(i) { return { x: 40, y: 200 + i * 116, w: 640, h: 100 }; }
 
   return {
     update(dt, input) {
+      sizeNow(); snapFrame = snap; snap = false;
       // Auto Play's Pause is asked to freeze the WHOLE loop, not just its own THINK/REVEAL timers
       // — including every ambient, decorative animation driven off this one shared clock (the
       // title medallion, glows, pulses, the coffee-cup steam) so a paused frame is truly still.
@@ -671,12 +693,12 @@ export function createGame(env) {
       let tap = p.pressed ? { x: p.x, y: p.y } : kbd && kbd.x !== undefined ? kbd : null;
       const sc = state.scene;
       if (kbd && kbd.key === 'start' && sc === 'title') tap = { x: titleRows(!!state.saved).play.x + 5, y: titleRows(!!state.saved).play.y + 5 };
-      if (sc === 'title') updateTitle(tap);
+      if (sc === 'title') updateTitle(tap, p);
       else if (sc === 'settings') updateSettings(tap);
       else if (sc === 'lessons') updateLessons(tap);
-      else if (sc === 'about') updateAbout(tap);
-      else if (sc === 'how') updateHow(tap);
-      else if (sc === 'rules') updateRules(tap);
+      else if (sc === 'about') { refInput(input); updateAbout(tap); }
+      else if (sc === 'how') { refInput(input); updateHow(tap); }
+      else if (sc === 'rules') { refInput(input); updateRules(tap); }
       else if (sc === 'play' || sc === 'lesson' || sc === 'daily') {
         if (sc === 'daily' && state.daily.status === 'making') {
           if (!maker) maker = createDailyMaker(state.daily.day);
@@ -688,7 +710,7 @@ export function createGame(env) {
         }
       } else if (sc === 'over') {
         if (tap && inRect(OVERLAY_BTN, tap.x, tap.y)) { state.scene = 'title'; }
-        if (tap && inRect({ x: 160, y: 1176, w: 400, h: 90 }, tap.x, tap.y)) startMatch();
+        if (tap && inRect(OVERLAY_BTN2, tap.x, tap.y)) startMatch();
       } else if (sc === 'demo-limit') { if (tap && inRect(OVERLAY_BTN, tap.x, tap.y)) state.scene = 'title'; }
       else if (sc === 'auto') {
         updateAuto(dt, tap);
@@ -699,7 +721,7 @@ export function createGame(env) {
         if (state.H) updatePos(state.auto && state.auto.paused ? 0 : dt);
       }
     },
-    render(ctx) { render(ctx, state); },
+    render(ctx, view) { sizeNow(view); render(ctx, state); },
     getState: () => state,
     // The preview clock counts real play only: a live match hand (not the hand-result card) or the daily deal while it is open.
     // Menu, lessons, Rules / How to Play / About, Settings, Auto Play (a free teaching demo), result cards and the demo-limit

@@ -8,23 +8,15 @@ import { viewOf, DEAD_T, HOLD_VIEW } from './sim.js';
 import { deliveryPos, trackPos, DELIVERIES, DELIVERY_KEYS, SPEED, BOUNCE } from './ball.js';
 import { REACH } from './field.js';
 import { levelOf, MATE } from './ai.js';
+import { LY, R, PAUSE_BTNS, THINK_OK } from './layout.js';
 
-export const R = {
-  pause: { x: 640, y: 38, w: 62, h: 58 }, think: { x: 572, y: 38, w: 62, h: 58 },
-  run: { x: 110, y: 1112, w: 500, h: 128 }, ready: { x: 110, y: 1112, w: 500, h: 128 },
-  throwA: { x: 18, y: 1112, w: 338, h: 128 }, throwB: { x: 364, y: 1112, w: 338, h: 128 },
-  speed: { x: 18, y: 1180, w: 190, h: 72 }, skip: { x: 222, y: 1180, w: 190, h: 72 },
-  chips: [0, 1, 2].map((i) => ({ k: DELIVERY_KEYS[i], rect: { x: 18 + i * 232, y: 1176, w: 224, h: 76 } })),
-  radar: { x: 556, y: 168, w: 148, h: 196 },
-  autoPause: { x: 238, y: 1180, w: 244, h: 72 }, autoDec: { x: 492, y: 1180, w: 66, h: 72 }, autoInc: { x: 566, y: 1180, w: 66, h: 72 }, exit: { x: 18, y: 1180, w: 140, h: 72 }, autoSpeed: { x: 640, y: 1180, w: 66, h: 72 },
-  tapPad: { x: 0, y: 150, w: 720, h: 940 }, catchBtn: { x: 448, y: 1112, w: 254, h: 128 },
-};
+export { R, PAUSE_BTNS, THINK_OK } from './layout.js';
 export const THINK_STEPS = [2, 5, 8, 10];
 export const IN_PLAY_CAP = 2;
 export const scaleOf = (G) => TEXT_SCALES[clamp(G.settings.textIdx, 0, TEXT_SCALES.length - 1)];
 export const inPlayScale = (G) => Math.min(scaleOf(G), IN_PLAY_CAP);
 
-function fitFont(ctx, text, size, maxW, weight = 600, family = SANS, minSize = 12) {
+function fitFont(ctx, text, size, maxW, weight = 600, family = SANS, minSize = LY.minText) {
   let sz = size;
   ctx.font = `${weight} ${sz}px ${family}`;
   while (sz > minSize && ctx.measureText(text).width > maxW) { sz -= 1; ctx.font = `${weight} ${sz}px ${family}`; }
@@ -45,28 +37,29 @@ function scoreboard(ctx, G, s) {
   if (i.target != null) rows.push({ t: `Need ${Math.max(0, i.target - i.runs)} from ${left} ball${left === 1 ? '' : 's'}   (target ${i.target})`, size: 22 * zs, w: 700, col: PAL.gold });
   else rows.push({ t: `Balls ${fmtBalls(i)}   ${i.maxWk - i.wk} wicket${i.maxWk - i.wk === 1 ? '' : 's'} left`, size: 22 * zs, w: 700, col: PAL.gold });
   const st = i.batters[i.st];
-  rows.push({ t: `${st.name}* ${st.runs} (${st.balls})   Bowling: ${s.teams[1 - i.bat].name}`, size: 19 * zs, w: 500, col: 'rgba(255,244,224,0.85)' });
-  const maxW = 524;
+  rows.push({ t: `${st.name}* ${st.runs} (${st.balls})   Bowling: ${s.teams[1 - i.bat].name}`, size: 20 * zs, w: 500, col: 'rgba(255,244,224,0.85)' });
+  const maxW = LY.hud.textMaxW;
   let h = 20;
   for (const r of rows) { r.fs = fitFont(ctx, r.t, r.size, maxW, r.w); h += r.fs * 1.2; }
-  if (h > 205) { const k = 195 / h; h = 20; for (const r of rows) { r.fs = fitFont(ctx, r.t, r.size * k, maxW, r.w, SANS, 11); h += r.fs * 1.2; } }   // a fixed strip: it never grows over the picture
-  hudBottom = 34 + h;
-  panel(ctx, { x: 12, y: 34, w: 540 + 16, h }, { radius: 24, top: 'rgba(6,36,48,0.9)', bottom: 'rgba(4,24,32,0.92)' });
+  if (h > 205) { const k = 195 / h; h = 20; for (const r of rows) { r.fs = fitFont(ctx, r.t, r.size * k, maxW, r.w, SANS, LY.minText); h += r.fs * 1.2; } }   // a fixed strip: it never grows over the picture
+  const hd = LY.hud;
+  hudBottom = hd.y + h;
+  panel(ctx, { x: hd.x, y: hd.y, w: hd.w, h }, { radius: 24, top: 'rgba(6,36,48,0.9)', bottom: 'rgba(4,24,32,0.92)' });
   ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
-  let y = 34 + 10;
-  for (const r of rows) { y += r.fs * 1.2; ctx.font = `${r.w} ${r.fs}px ${SANS}`; ctx.fillStyle = r.col; ctx.fillText(r.t, 30, y - r.fs * 0.2); }
+  let y = hd.y + 10;
+  for (const r of rows) { y += r.fs * 1.2; ctx.font = `${r.w} ${r.fs}px ${SANS}`; ctx.fillStyle = r.col; ctx.fillText(r.t, hd.x + 18, y - r.fs * 0.2); }
   drawPill(ctx, R.pause, G.paused ? '▶' : 'II', { size: 28 });
   if (G.scene === 'play' && !G.watch) drawPill(ctx, R.think, `?${s.hints > 90 ? '∞' : s.hints}`, { size: 26, disabled: s.hints <= 0 });
 }
 
 function overStrip(ctx, s) {
-  const toks = s.inn.over.slice(-8);
-  const y = 1262, n = Math.max(6, toks.length), x0 = 360 - (n * 40) / 2 + 20;
+  const toks = s.inn.over.slice(-8), ov = LY.over;
+  const y = ov.y, n = Math.max(6, toks.length), x0 = ov.cx - (n * ov.step) / 2 + ov.step / 2;
   for (let k = 0; k < n; k++) {
-    const t = toks[k], x = x0 + k * 40;
+    const t = toks[k], x = x0 + k * ov.step;
     ctx.fillStyle = t ? (t === 'W' ? '#d8443a' : t === '6' ? '#9a52d9' : t === '4' ? '#2a8fd0' : t === '.' ? '#3d5a64' : t === 'Wd' ? '#d98a2a' : '#3f8f5a') : 'rgba(255,255,255,0.12)';
-    ctx.beginPath(); ctx.arc(x, y, 15, 0, 7); ctx.fill();
-    if (t) textFill(ctx, t, x, y + 6, t.length > 1 ? 13 : 17, { font: SANS, weight: 700, color: '#fff', shadow: false });
+    ctx.beginPath(); ctx.arc(x, y, ov.r, 0, 7); ctx.fill();
+    if (t) textFill(ctx, t, x, y + 6, t.length > 1 ? 16 : 19, { font: SANS, weight: 700, color: '#fff', shadow: false });
   }
 }
 
@@ -157,7 +150,7 @@ function drawCall(ctx, G, s, y) {
   const sc = c.big ? lerp(1.3, 1, ease.back(clamp(age / 0.3, 0, 1))) : lerp(0.92, 1, clamp(age / 0.2, 0, 1));
   const colors = { six: ['#fff3a8', '#ff9d2b'], four: ['#d4fff2', '#2ec4b6'], wicket: ['#ffd9d0', '#ff5a48'], run: ['#ffffff', '#ffe08a'], dot: ['#eeeaf6', '#b9b0d0'] };
   const col = colors[c.kind] ?? colors.run;
-  ctx.save(); ctx.globalAlpha = a; ctx.translate(360, y); ctx.scale(sc, sc);
+  ctx.save(); ctx.globalAlpha = a; ctx.translate(LY.call.x, y); ctx.scale(sc, sc);
   const size = c.big ? 78 : 44;
   const w = Math.min(640, fitFont(ctx, c.text, size, 600, 800, FONT) * 0 + 600);
   void w;
@@ -173,7 +166,7 @@ function timingChip(ctx, s, y) {
   const age = (s.phase === 'live' ? s.live.t : s.phase === 'dead' ? 1 + s.pt : s.ft - s.sw.T_c);
   if (age < 0 || age > 1.5) return;
   const col = r.label.startsWith('PERFECT') ? '#ffd34d' : r.label.startsWith('GOOD') ? '#8be07a' : r.label.includes('WAY') ? '#ff6b57' : '#ffb347';
-  ctx.save(); ctx.globalAlpha = clamp(1 - Math.max(0, age - 1.0) / 0.5, 0, 1); ctx.translate(360, y - Math.min(age, 0.4) * 30);
+  ctx.save(); ctx.globalAlpha = clamp(1 - Math.max(0, age - 1.0) / 0.5, 0, 1); ctx.translate(LY.chip.x, y - Math.min(age, 0.4) * 30);
   textFill(ctx, r.contact ? r.label : (r.why === 'out of reach' ? 'OUT OF REACH' : r.label), 0, 0, 36, { italic: true, color: col, stroke: 'rgba(20,10,10,0.8)' });
   ctx.restore();
 }
@@ -197,11 +190,12 @@ function roleBadge(ctx, G, s, y) {
   const idle = !(s.api.humanBats() || s.api.humanBowls() || s.api.humanFields());
   const txt = idle ? `${names[s.role]} (your side ${s.inn.bat === 0 ? 'bats' : 'fields'}: watching)` : names[s.role];
   const zs = inPlayScale(G);
-  const fs = fitFont(ctx, txt, 22 * zs, 600, 700);
+  const fs = fitFont(ctx, txt, 22 * zs, Math.min(600, LY.U.w - 60), 700);
   const tw = ctx.measureText(txt).width;
   y = Math.max(y, hudBottom + 14 + fs);   // always just under the score strip, whatever the text size
-  rr(ctx, 14, y - fs - 6, tw + 28, fs + 16, 14); ctx.fillStyle = 'rgba(4,24,32,0.78)'; ctx.fill();
-  ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic'; ctx.fillStyle = idle ? 'rgba(255,244,224,0.85)' : PAL.gold; ctx.fillText(txt, 28, y);
+  const bx = LY.hud.x + 2;
+  rr(ctx, bx, y - fs - 6, tw + 28, fs + 16, 14); ctx.fillStyle = 'rgba(4,24,32,0.78)'; ctx.fill();
+  ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic'; ctx.fillStyle = idle ? 'rgba(255,244,224,0.85)' : PAL.gold; ctx.fillText(txt, bx + 14, y);
 }
 
 function batterControls(ctx, G, s, t) {
@@ -210,10 +204,10 @@ function batterControls(ctx, G, s, t) {
   if (view === 'bat' && (s.phase === 'ready' || s.phase === 'runup' || s.phase === 'flight') && !s.hold) {
     const zs = inPlayScale(G);
     const msg = s.phase === 'flight' ? 'SWIPE NOW' : s.phase === 'runup' ? 'Watch the ball...' : 'Read the field. Swipe to hit. Tap to defend.';
-    fitFont(ctx, msg, 26 * zs, 680, 700); ctx.textAlign = 'center'; ctx.fillStyle = '#fff'; ctx.shadowColor = 'rgba(0,20,30,0.8)'; ctx.shadowBlur = 6; ctx.fillText(msg, 360, 1110); ctx.shadowBlur = 0;
+    fitFont(ctx, msg, 26 * zs, LY.hint.w, 700); ctx.textAlign = 'center'; ctx.fillStyle = '#fff'; ctx.shadowColor = 'rgba(0,20,30,0.8)'; ctx.shadowBlur = 6; ctx.fillText(msg, LY.hint.cx, LY.hint.bat); ctx.shadowBlur = 0;
     if ((G.prefs.coach ?? 0) < 5 && !tc.down && s.phase !== 'runup') {
       const u = (t * 0.8) % 1.5, k = clamp(u / 0.8, 0, 1), e = ease.out(k);
-      const x0 = 300, y0 = 960, x1 = 470, y1 = 740, gx = lerp(x0, x1, e), gy = lerp(y0, y1, e), al = u < 1.1 ? 1 : clamp(1 - (u - 1.1) / 0.4, 0, 1);
+      const { x0, y0, x1, y1 } = LY.coach, gx = lerp(x0, x1, e), gy = lerp(y0, y1, e), al = u < 1.1 ? 1 : clamp(1 - (u - 1.1) / 0.4, 0, 1);
       ctx.save(); ctx.globalAlpha = 0.85 * al; ctx.strokeStyle = 'rgba(255,255,255,0.7)'; ctx.lineWidth = 10; ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(gx, gy); ctx.stroke(); ctx.fillStyle = 'rgba(255,244,220,0.9)'; ctx.beginPath(); ctx.arc(gx, gy, 30, 0, 7); ctx.fill(); ctx.strokeStyle = PAL.gold; ctx.lineWidth = 4; ctx.stroke(); ctx.restore();
     }
   }
@@ -239,8 +233,8 @@ function bowlerControls(ctx, G, s, t) {
   // chips: the kind of delivery
   for (const c of R.chips) drawButton(ctx, c.rect, DELIVERIES[c.k].name, { active: G.aim.type === c.k, size: 24 * Math.min(1.3, inPlayScale(G)) });
   const zs = inPlayScale(G);
-  fitFont(ctx, 'Flick up the screen to bowl: far = full, short = short; sideways = line.', 24 * zs, 690, 700, SANS, 18);
-  ctx.textAlign = 'center'; ctx.fillStyle = '#fff'; ctx.shadowColor = 'rgba(0,20,30,0.8)'; ctx.shadowBlur = 6; ctx.fillText('Flick up the screen to bowl: far = full, short = short; sideways = line.', 360, 1150); ctx.shadowBlur = 0;
+  fitFont(ctx, 'Flick up the screen to bowl: far = full, short = short; sideways = line.', 24 * zs, LY.hint.w, 700, SANS, LY.minText);
+  ctx.textAlign = 'center'; ctx.fillStyle = '#fff'; ctx.shadowColor = 'rgba(0,20,30,0.8)'; ctx.shadowBlur = 6; ctx.fillText('Flick up the screen to bowl: far = full, short = short; sideways = line.', LY.hint.cx, LY.hint.bowl); ctx.shadowBlur = 0;
   // the predicted bounce spot
   const a = G.bowlPreview || { bx: G.aim.bx, bz: G.aim.bz, speed: G.aim.speed };
   const c = project('bat', a.bx, 0, a.bz);
@@ -265,7 +259,7 @@ function fielderControls(ctx, G, s, t) {
     drawButton(ctx, R.ready, 'READY: bowl the ball', { primary: true, size: 36 * Math.min(1.3, inPlayScale(G)) });
     const zs = inPlayScale(G);
     const msg = 'Drag your gold fielder to where the batter may hit.';
-    fitFont(ctx, msg, 24 * zs, 690, 700); ctx.textAlign = 'center'; ctx.fillStyle = '#fff'; ctx.shadowColor = 'rgba(0,20,30,0.8)'; ctx.shadowBlur = 6; ctx.fillText(msg, 360, 1090); ctx.shadowBlur = 0;
+    fitFont(ctx, msg, 24 * zs, LY.hint.w, 700); ctx.textAlign = 'center'; ctx.fillStyle = '#fff'; ctx.shadowColor = 'rgba(0,20,30,0.8)'; ctx.shadowBlur = 6; ctx.fillText(msg, LY.hint.cx, LY.hint.ready); ctx.shadowBlur = 0;
   }
   if (L && !L.dead && L.bs === 'held' && L.holder === uf.id) {
     const best = s.api.bestThrowEnd(uf);
@@ -283,7 +277,7 @@ function fielderControls(ctx, G, s, t) {
   if (L && !L.dead && view === 'field' && !(L.bs === 'held' && L.holder === uf.id)) {
     const zs = inPlayScale(G);
     const msg = L.claim ? 'Touch the field to run there. Press CATCH as the ball reaches you.' : 'Touch the field to run there.';
-    fitFont(ctx, msg, 24 * zs, 690, 700); ctx.textAlign = 'center'; ctx.fillStyle = '#fff'; ctx.shadowColor = 'rgba(0,20,30,0.8)'; ctx.shadowBlur = 6; ctx.fillText(msg, 360, 1080); ctx.shadowBlur = 0;
+    fitFont(ctx, msg, 24 * zs, LY.hint.w, 700); ctx.textAlign = 'center'; ctx.fillStyle = '#fff'; ctx.shadowColor = 'rgba(0,20,30,0.8)'; ctx.shadowBlur = 6; ctx.fillText(msg, LY.hint.cx, LY.hint.field); ctx.shadowBlur = 0;
   }
 }
 
@@ -296,38 +290,34 @@ function idleBar(ctx, G, s) {
 
 // ---- Think / pause / Watch & Learn -----------------------------------------------------------------------------------------------------------------
 export function drawThink(ctx, G) {
-  const th = G.think;
+  const th = G.think, tc = LY.thinkCard;
   const zs = inPlayScale(G);
-  const bottom = 1030, maxH = bottom - Math.max(hudBottom + 20, 200);
+  const bottom = tc.bottom, maxH = bottom - Math.max(hudBottom + 20, LY.land ? 0 : 200);
   let fs = 25 * zs, wrapped;
   for (;;) {
     ctx.font = `500 ${fs}px ${SANS}`;
-    wrapped = th.lines.map((line) => wrapLines(ctx, line, 620));
+    wrapped = th.lines.map((line) => wrapLines(ctx, line, tc.w - 52));
     const n = wrapped.reduce((a, w) => a + w.length, 0);
     const need = 96 + n * fs * 1.32 + wrapped.length * 8;
-    if (need <= maxH || fs <= 14) { wrapped.need = need; break; }
+    if (need <= maxH || fs <= LY.minText) { wrapped.need = need; break; }
     fs -= 1;
   }
-  const r = { x: 24, y: Math.min(700, bottom - wrapped.need - 10), w: 672, h: 0 };
-  r.h = 1130 - r.y;
+  const r = { x: tc.x, y: Math.max(Math.min(tc.cardBottom - 430, bottom - wrapped.need - 10), LY.U.y0 + 4), w: tc.w, h: 0 };
+  r.h = tc.cardBottom - r.y;
   const top0 = Math.max(190, hudBottom + 4);
-  ctx.fillStyle = 'rgba(2,14,20,0.55)'; ctx.fillRect(0, top0, W, H - top0);
+  ctx.fillStyle = 'rgba(2,14,20,0.55)'; ctx.fillRect(0, LY.land ? 0 : top0, W, H - (LY.land ? 0 : top0));
   panel(ctx, r, { radius: 30 });
-  textFill(ctx, 'THINK', 360, r.y + 52, 38, { italic: true, grad: [[0, '#d4fff2'], [1, '#2ec4b6']], stroke: 'rgba(0,40,40,0.5)' });
+  textFill(ctx, 'THINK', LY.cx, r.y + 52, 38, { italic: true, grad: [[0, '#d4fff2'], [1, '#2ec4b6']], stroke: 'rgba(0,40,40,0.5)' });
   ctx.font = `500 ${fs}px ${SANS}`; ctx.fillStyle = '#fff4dc'; ctx.textAlign = 'left'; ctx.textBaseline = 'alphabetic';
   let y = r.y + 100 + fs * 0.2;
-  for (const ws of wrapped) { for (const l of ws) { ctx.fillText(l, 48, y); y += fs * 1.32; } y += 8; }
-  drawButton(ctx, { x: 200, y: 1040, w: 320, h: 70 }, 'Got it', { primary: true, size: 30 });
+  for (const ws of wrapped) { for (const l of ws) { ctx.fillText(l, r.x + 24, y); y += fs * 1.32; } y += 8; }
+  drawButton(ctx, THINK_OK, 'Got it', { primary: true, size: 30 });
 }
-export const THINK_OK = { x: 200, y: 1040, w: 320, h: 70 };
 
-export const PAUSE_BTNS = {
-  resume: { x: 160, y: 380, w: 400, h: 92 }, sound: { x: 160, y: 486, w: 400, h: 92 }, textDec: { x: 160, y: 592, w: 190, h: 92 }, textInc: { x: 370, y: 592, w: 190, h: 92 },
-  rules: { x: 160, y: 698, w: 400, h: 92 }, quit: { x: 160, y: 804, w: 400, h: 92 },
-};
 export function drawPause(ctx, G) {
+  const pm = LY.pauseMenu;
   ctx.fillStyle = 'rgba(2,14,20,0.74)'; ctx.fillRect(0, 0, W, H);
-  textFill(ctx, 'Paused', 360, 310, 64, { italic: true, grad: [[0, '#fff3c2'], [1, '#ffb347']], stroke: 'rgba(60,20,10,0.5)' });
+  textFill(ctx, 'Paused', pm.title.x, pm.title.y, 64, { italic: true, grad: [[0, '#fff3c2'], [1, '#ffb347']], stroke: 'rgba(60,20,10,0.5)' });
   const fs = 30 * Math.min(inPlayScale(G), 1.5);
   drawButton(ctx, PAUSE_BTNS.resume, 'Resume', { primary: true, size: fs });
   drawButton(ctx, PAUSE_BTNS.sound, G.settings.sound ? 'Sound: On' : 'Sound: Off', { size: fs });
@@ -335,7 +325,7 @@ export function drawPause(ctx, G) {
   drawButton(ctx, PAUSE_BTNS.textInc, 'Text A+', { size: fs * 0.85, disabled: G.settings.textIdx === TEXT_SCALES.length - 1 });
   drawButton(ctx, PAUSE_BTNS.rules, 'Rules', { size: fs });
   drawButton(ctx, PAUSE_BTNS.quit, 'Save and quit', { danger: true, size: fs });
-  ctx.font = `600 26px ${SANS}`; ctx.fillStyle = 'rgba(255,244,224,0.9)'; ctx.textAlign = 'center'; ctx.fillText(`Text size ${Math.round(scaleOf(G) * 100)}%`, 360, 930);
+  ctx.font = `600 26px ${SANS}`; ctx.fillStyle = 'rgba(255,244,224,0.9)'; ctx.textAlign = 'center'; ctx.fillText(`Text size ${Math.round(scaleOf(G) * 100)}%`, pm.label.x, pm.label.y);
 }
 
 function drawWatchPanel(ctx, G, s) {
@@ -344,21 +334,22 @@ function drawWatchPanel(ctx, G, s) {
   drawButton(ctx, R.autoPause, G.paused ? 'RESUME' : 'PAUSE', { primary: G.paused, size: 28 });
   drawButton(ctx, R.autoDec, '−', { size: 32 }); drawButton(ctx, R.autoInc, '+', { size: 32 });
   drawButton(ctx, R.autoSpeed, `x${a.speed}`, { size: 24 });
-  ctx.font = `500 16px ${SANS}`; ctx.fillStyle = 'rgba(255,244,224,0.8)'; ctx.textAlign = 'center'; ctx.fillText(`think ${THINK_STEPS[G.settings.thinkIdx]}s`, 530, 1268);
+  ctx.font = `500 ${LY.minText}px ${SANS}`; ctx.fillStyle = 'rgba(255,244,224,0.8)'; ctx.textAlign = 'center'; ctx.fillText(`think ${THINK_STEPS[G.settings.thinkIdx]}s`, LY.auto.thinkX, LY.auto.thinkY);
   const lines = a.lines;
   if (!lines.length) return;
   const phaseName = a.revealing ? 'REVEAL' : a.phase === 'think' ? 'THINK' : 'ACT';
   const phaseCol = a.revealing ? PAL.gold : a.phase === 'think' ? PAL.teal : '#fff';
   const zs = inPlayScale(G);
   let fs = 21 * zs, wrapped;
-  const maxH = 1160 - Math.max(hudBottom + 160, 400);
+  const cd = LY.auto.card;
+  const maxH = cd.bottom - (LY.land ? hudBottom + 14 : Math.max(hudBottom + 160, 400));
   for (;;) {
     ctx.font = `500 ${fs}px ${SANS}`;
-    wrapped = []; for (const l of lines) wrapped.push(...wrapLines(ctx, l, 640));
-    if (58 + wrapped.length * fs * 1.33 + 14 <= maxH || fs <= 14) break;
+    wrapped = []; for (const l of lines) wrapped.push(...wrapLines(ctx, l, cd.w - 44));
+    if (58 + wrapped.length * fs * 1.33 + 14 <= maxH || fs <= LY.minText) break;
     fs -= 1;
   }
-  const r = { x: 18, y: 0, w: 684, h: 58 + wrapped.length * fs * 1.33 + 14 }; r.y = 1160 - r.h;
+  const r = { x: cd.x, y: 0, w: cd.w, h: 58 + wrapped.length * fs * 1.33 + 14 }; r.y = cd.bottom - r.h;
   panel(ctx, r, { radius: 22, top: 'rgba(4,22,30,0.88)', bottom: 'rgba(4,22,30,0.84)' });
   textFill(ctx, phaseName, r.x + 22, r.y + 42, 28, { align: 'left', color: phaseCol, italic: true, weight: 700 });
   const frac = a.total > 0 ? clamp(1 - a.timer / a.total, 0, 1) : 1;
@@ -366,7 +357,7 @@ function drawWatchPanel(ctx, G, s) {
   ctx.fillStyle = phaseCol; rr(ctx, r.x + 150, r.y + 28, (r.w - 180) * frac, 10, 5); ctx.fill();
   ctx.font = `500 ${fs}px ${SANS}`; ctx.fillStyle = '#fff4dc'; ctx.textAlign = 'left'; let y = r.y + 58 + fs * 1.05;
   for (const l of wrapped) { ctx.fillText(l, r.x + 22, y); y += fs * 1.33; }
-  if (G.paused) textFill(ctx, 'PAUSED', 360, 1000, 56, { italic: true, color: '#fff', stroke: 'rgba(10,30,40,0.7)' });
+  if (G.paused) textFill(ctx, 'PAUSED', LY.paused.x, LY.auto.pausedY, 56, { italic: true, color: '#fff', stroke: 'rgba(10,30,40,0.7)' });
 }
 
 // the flat picture used when WebGL is unavailable: the ground from above
@@ -402,10 +393,10 @@ export function renderPlay(ctx, G) {
     if (G.touch.aimDeg != null && s.api.humanBats()) o.aim = G.touch.aimDeg;
     if (G.watch && G.auto.revealing && s.plan && s.plan.kind === 'swing') o.aim = s.plan.angle;
     if (G.think && G.think.plan && G.think.plan.kind === 'swing') { o.aim = G.think.plan.angle; o.aimColor = 'rgba(120,255,200,0.9)'; }
-    drawRadar(ctx, G, s, { ...R.radar, y: Math.max(R.radar.y, hudBottom + 44) }, o);
+    drawRadar(ctx, G, s, { ...R.radar, y: LY.radarDyn ? Math.max(R.radar.y, hudBottom + 44) : R.radar.y }, o);
   }
-  timingChip(ctx, s, view === 'bat' ? 760 : 300);
-  if (!G.paused) drawCall(ctx, G, s, view === 'field' ? 960 : Math.max(330, hudBottom + 130));
+  timingChip(ctx, s, view === 'bat' ? LY.chip.bat : LY.chip.field);
+  if (!G.paused) drawCall(ctx, G, s, view === 'field' ? LY.call.field : LY.land ? LY.call.bat : Math.max(330, hudBottom + 130));
   overStrip(ctx, s);
   if (G.scene === 'play' && !G.watch) {
     if (s.api.humanBats()) batterControls(ctx, G, s, t);
@@ -419,8 +410,8 @@ export function renderPlay(ctx, G) {
   if (G.practice && !G.watch) {
     const pr = G.practice, zs = inPlayScale(G);
     const txt = `Practice: ${pr.goalText} (${pr.progress}/${pr.need})`;
-    const fs = fitFont(ctx, txt, 22 * zs, 600, 700);
-    ctx.textAlign = 'left'; ctx.fillStyle = PAL.teal; ctx.fillText(txt, 22, hudBottom + 28 + fs * 1.4);
+    const fs = fitFont(ctx, txt, 22 * zs, Math.min(600, LY.U.w - 60), 700);
+    ctx.textAlign = 'left'; ctx.fillStyle = PAL.teal; ctx.fillText(txt, LY.hud.x + 6, hudBottom + 28 + fs * 1.4);
   }
 }
 export { glow };

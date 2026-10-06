@@ -2,8 +2,8 @@
 // Plain canvas 2D, no images, nothing here changes game state.
 import { NN, SEGMENTS, rc, CENTRE } from './rules.js';
 import { hasArabic } from './lang.js';
+import { screen } from './layout.js';
 
-export const W = 720, H = 1560;
 // The Arabic names come last in each stack: Geeza Pro (Apple), Noto Sans/Naskh Arabic and Droid Arabic Naskh (Android), Tahoma and
 // Segoe UI (Windows), so Arabic text is drawn with a real Arabic face on every platform instead of whatever the browser guesses.
 export const UI = '-apple-system, "SF Pro Text", "Segoe UI", Roboto, system-ui, "Geeza Pro", "Noto Sans Arabic", "Noto Naskh Arabic", "Droid Arabic Naskh", Tahoma, sans-serif';
@@ -76,13 +76,14 @@ export function text(ctx, str, x, y, size, color = '#fff', o = {}) {
 }
 
 // ---------------------------------------------------------------------------------------------------- background
-const FLECKS = Array.from({ length: 34 }, (_, i) => [((i * 97) % 211) / 211 * W, ((i * 53) % 173) / 173 * H, 0.6 + ((i * 31) % 7) / 7, ((i * 13) % 11) / 11]);
+const FLECKS = Array.from({ length: 34 }, (_, i) => [((i * 97) % 211) / 211, ((i * 53) % 173) / 173, 0.6 + ((i * 31) % 7) / 7, ((i * 13) % 11) / 11]);
 
-export function background(ctx, th, t, glowY = 700, dunes = false) {
+export function background(ctx, th, t, glowY = 700, dunes = false, glowX = null) {
+  const W = screen.w, H = screen.h, gx = glowX ?? W / 2;
   const g = ctx.createLinearGradient(0, 0, 0, H);
   g.addColorStop(0, th.bg[0]); g.addColorStop(0.5, th.bg[1]); g.addColorStop(1, th.bg[2]);
   ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
-  const hg = ctx.createRadialGradient(W / 2, glowY, 40, W / 2, glowY, 660);
+  const hg = ctx.createRadialGradient(gx, glowY, 40, gx, glowY, 660);
   hg.addColorStop(0, th.glow); hg.addColorStop(1, 'rgba(0,0,0,0)');
   ctx.fillStyle = hg; ctx.fillRect(0, 0, W, H);
   if (dunes) {
@@ -96,13 +97,13 @@ export function background(ctx, th, t, glowY = 700, dunes = false) {
     }
     ctx.restore();
   }
-  for (const [x, y, s, ph] of FLECKS) {
-    const xx = (x + t * (6 + s * 5)) % W, yy = (y + t * (2 + s * 2)) % H;
+  for (const [fx, fy, s, ph] of FLECKS) {
+    const xx = (fx * W + t * (6 + s * 5)) % W, yy = (fy * H + t * (2 + s * 2)) % H;
     const a = 0.06 + 0.12 * (0.5 + 0.5 * Math.sin(t * 0.7 + ph * 9));
     ctx.fillStyle = `rgba(${th.fleck},${a})`;
     ctx.fillRect(xx, yy, 2.2 * s, 2.2 * s);
   }
-  const vg = ctx.createRadialGradient(W / 2, H / 2, 560, W / 2, H / 2, 1020);
+  const vg = ctx.createRadialGradient(W / 2, H / 2, 560, W / 2, H / 2, Math.max(1020, Math.hypot(W, H) * 0.62));
   vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,0.5)');
   ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
 }

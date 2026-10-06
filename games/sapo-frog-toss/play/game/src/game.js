@@ -4,18 +4,19 @@
 // Scenes: title, setup, settings, learn, play (also Watch & Learn and the lessons), result, howto / about / rules, demolimit.
 // Play phases: intro, aim (a person plans the throw), think (a computer plans it), fly (the disc is in the air and on the table),
 // settle (the throw is scored), roundend (the Closest bonus), clear.
-import { W, H, TEXT_SCALES, THINK_STEPS, REVEAL_SECS, TEXT_DEC, TEXT_INC, REF_BACK, REF_NEXT, SETUP_PINS, PULL, inRect, SCENE_Y0 } from './layout.js';
+import { W, H, TEXT_SCALES, THINK_STEPS, REVEAL_SECS, TEXT_DEC, TEXT_INC, REF_BACK, REF_NEXT, SETUP_PINS, PULL, inRect, SCENE_Y0, frameFor, setStage, host, screen } from './layout.js';
 import { DT, newSim, stepSim, snapSim, launchDisc, runThrow, resting, closestDisc, newDisc, MOUTH, HOLES, planPath, TD, HW } from './phys.js';
 import { newMatch, applyThrow, tableDiscs, turnSide, leftFor, DISCS, LENGTHS, CLOSEST_BONUS } from './engine.js';
 import { PROFILES, ASSIST, makeJob, choose, wobble, explain, holeName, pname } from './ai.js';
 import { onTablePlane, TAU } from './scene.js';
-import { renderPlay, computeLayout, sideName, statusText, whyTitle, phaseLine } from './view.js';
+import { renderPlay, computeLayout, playFrame, sideName, statusText, whyTitle, phaseLine } from './view.js';
+import { pressLockup } from './brand.js';
 import { renderTitle, renderSetup, renderSettings, renderLearn, renderResult, renderPause, renderSheet, renderWhy, renderPages, renderDemoLimit, hitScreen, flowMeta, refMeta, ensureLayout, invalidateLayout } from './menus.js';
 import { ABOUT, HOWTO, RULES, LESSONS } from './content.js';
 import { setPress } from './ui.js';
 import { tr, pick, setLang, getLang } from './i18n.js';
 
-export const meta = { width: W, height: H };
+export const meta = { width: 720, height: 1280, fluid: { short: 720 } };
 const DEMO_MATCH_CAP = 2;
 const STEP = 1 / 60;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -420,14 +421,14 @@ export function createGame(env) {
       const id = pressRect(R, ptr);
       if (id && handleTrayId(id)) return;
       const p = toScene(ptr.x, ptr.y);
-      const inView = lay.clip ? inRect(lay.clip, ptr.x, ptr.y) && p.y >= (lay.clip ? SCENE_Y0 + 380 : PULL.y0) : ptr.y >= PULL.y0 && ptr.y < lay.trayTop + 4;
+      const inView = lay.clip ? inRect(lay.clip, ptr.x, ptr.y) && p.y >= (lay.wide ? PULL.y0 : SCENE_Y0 + 380) : p.y >= PULL.y0 && ptr.y < lay.trayTop + 4;
       if (inView) state.drag = { ax: p.x, ay: p.y, cx: p.x, cy: p.y, pull: false, plan0: { ...state.plan }, lx: ptr.x, ly: ptr.y };
     }
     const d = state.drag;
     if (d && ptr.down) {
       if (Math.hypot(ptr.x - d.lx, ptr.y - d.ly) <= 200) {   // a second finger can make the pointer jump: ignore big jumps
         const p = toScene(ptr.x, ptr.y); d.cx = p.x; d.cy = p.y; d.lx = ptr.x; d.ly = ptr.y;
-        const py = d.cy - d.ay, px = d.cx - d.ax;
+        const gain = lay.gain || 1, py = (d.cy - d.ay) * gain, px = (d.cx - d.ax) * gain;   // gain: landscape has less room under the table, so the pull is amplified
         if (py >= PULL.min) {
           d.pull = true;
           setPlan({ az: AZ_MIN + clamp(py / PULL.max, 0, 1) * (AZ_MAX - AZ_MIN), ax: -px * 0.0026 });
@@ -437,7 +438,7 @@ export function createGame(env) {
     }
     if (d && ptr.released) {
       state.drag = null;
-      if (d.pull && d.cy - d.ay >= PULL.min) { doThrow(); return; }
+      if (d.pull && (d.cy - d.ay) * (lay.gain || 1) >= PULL.min) { doThrow(); return; }
       state.plan = { ...d.plan0 };
     }
     if (!ptr.down && state.drag) { state.drag = null; }
@@ -552,6 +553,7 @@ export function createGame(env) {
   }
   const handleTitle = (id) => {
     if (!id) return;
+    if (id === 'arcforge') { pressLockup(); env.openArcforgeHome?.(); return; }
     sfx.tick();
     if (id === 'play') { state.setup.mode = 'ai'; state.scene = 'setup'; state.ui.scroll = 0; state.setupMsg = ''; }
     else if (id === 'two') { state.setup.mode = 'two'; state.scene = 'setup'; state.ui.scroll = 0; state.setupMsg = ''; }
@@ -772,7 +774,48 @@ export function createGame(env) {
       else if (n === 29) { state.back = 'title'; state.scene = 'howto'; state.ui.scroll = 700; }
       return;
     }
+    if (n === 31) { shotMatch({ mode: 'ai', opp: 2, len: 1 }, SHOT_DISCS, [650, 400]); openPause(); return; }
+    if (n === 32) { startWatch(); state.m.cfg.watchA = 3; state.m.cfg.opp = 2; state.plan = { ax: 0.0, az: 0.5, spin: 0, style: 0 }; state.think = { t: 0.8, dur: 2, phase: 'reveal', plan: { ...state.plan }, text: tr('Land it on the centre line and 50 cm from the front edge, a high lob, no spin, to drop into the frog\'s mouth (400 points). 12 test throws with a steady hand averaged 140 points, and a lot more words so that the note runs long enough to need the read-it-all button on a small panel.', 'Cae en la línea central.'), from: { ...state.plan }, progress: 1 }; state.ph = 'think'; state.banner = null; setOverlay(); state.why = { text: state.think.text, title: tr('Why this throw?', '¿Por qué este tiro?'), wasPaused: false }; return; }
+    if (n === 33) { state.scene = 'demolimit'; return; }
+    if (n === 34) { shotMatch({ mode: 'ai', opp: 2, len: 1 }, SHOT_DISCS, [650, 400]); state.plan = { ax: 0.0, az: 0.5, spin: 0, style: 0 }; state.hint = { busy: true }; setOverlay(); return; }
+    if (n === 35) { shotMatch({ mode: 'ai', opp: 2, len: 1 }, SHOT_DISCS, [650, 400]); state.settings.textIdx = 4; state.hint = { busy: false, plan: { ax: 0.0, az: 0.5, spin: 0, style: 0 }, text: tr('Land it on the centre line.', 'Cae en la línea central.') }; setOverlay(); return; }
     if (n >= 40 && n <= 59) { state.back = 'title'; state.scene = 'rules'; state.ui.scroll = (n - 40) * 700; }
+  };
+
+  // ---- the screen frame: which part of the live screen the current scene is laid out in ----------------------------------------
+  // 'play' = the table screen (phone stage, scaled phone stage, or the landscape three-part layout); 'col' = a 720-wide text column
+  // (menus, results, pause, Rules ...), centred in landscape. Returns the transform from screen units to the scene's own units.
+  let lastSize = '';
+  const colKind = () => !(state.scene === 'play' && state.m) || state.pauseMenu || !!state.why || (state.sheet && state.ph === 'aim');
+  const applyFrame = (kind) => {
+    const w = Math.round(meta.width), h = Math.round(meta.height), land = w > h;
+    const pf = frameFor(w, h);
+    Object.assign(playFrame, pf);
+    const U0 = host.l, U1 = w - host.r;
+    let T;
+    if (kind === 'play') { T = { ox: pf.ox, oy: pf.oy, k: pf.k }; setStage(pf.mode === 'short' ? 1280 : h); screen.sceneCx = w / 2; }
+    else {
+      let ox = 0;
+      if (land) {
+        ox = Math.round((U0 + U1 - 720) / 2); screen.sceneCx = w / 2;
+        if (state.scene === 'title' && w >= 1250) { ox = Math.round(U1 - 720 - 28); screen.sceneCx = ox / 2; }
+      } else screen.sceneCx = w / 2;
+      T = { ox, oy: 0, k: 1 }; setStage(h);
+    }
+    Object.assign(screen, { w, h, ox: T.ox, oy: T.oy, k: T.k, land });
+    return T;
+  };
+  const localInput = (input, T) => {
+    if (T.ox === 0 && T.oy === 0 && T.k === 1) return input;
+    const p = input.pointer;
+    return { ...input, pointer: { ...p, x: (p.x - T.ox) / T.k, y: (p.y - T.oy) / T.k } };
+  };
+  // A new size (rotation, split screen): a pull in progress is dropped (its coordinates belong to the old layout); everything else
+  // is a pure function of the size and of the state, so the match, the pause, the hint and the scroll position carry over.
+  const noteSize = () => {
+    const key = `${Math.round(meta.width)}x${Math.round(meta.height)}`;
+    if (key === lastSize) return;
+    lastSize = key; state.drag = null; state.ui.drag = null; invalidateLayout();
   };
 
   // ---- the object the kit and the shell see --------------------------------------------------------------------------------
@@ -784,6 +827,8 @@ export function createGame(env) {
       || state.paused || state.pauseMenu || !!state.why || !!state.sheet || !(state.ph === 'fly' || state.ph === 'settle' || !!(state.drag && state.drag.pull)),
     update(dt, input) {
       if (state.showcase) input = NOINPUT;
+      noteSize();
+      input = localInput(input, applyFrame(colKind() ? 'col' : 'play'));
       setPress(input.pointer);
       if (state.shot) { state.t += dt; return; }
       state.t += state.paused && state.scene === 'play' ? 0 : dt;
@@ -802,32 +847,44 @@ export function createGame(env) {
       }
     },
     render(ctx) {
+      noteSize();
       const a = state.att;
       a.alpha = a.stepped && env.clock ? Math.max(0, Math.min(1, (nowMs() - a.updAt) / (STEP * 1000))) : 1;
       state.alpha = state.stepped && env.clock ? Math.max(0, Math.min(1, (nowMs() - state.updAt) / (STEP * 1000))) : 1;
+      const inFrame = (kind, fn) => {
+        const T = applyFrame(kind);
+        ctx.save();
+        if (kind === 'play' && playFrame.mode === 'short') { ctx.fillStyle = '#0b0705'; ctx.fillRect(0, 0, screen.w, screen.h); }
+        ctx.translate(T.ox, T.oy); ctx.scale(T.k, T.k);
+        try { fn(); } finally { ctx.restore(); }
+      };
       switch (state.scene) {
-        case 'title': renderTitle(ctx, state); break;
-        case 'setup': renderSetup(ctx, state); break;
-        case 'settings': renderSettings(ctx, state); break;
-        case 'learn': renderLearn(ctx, state); break;
-        case 'result': renderResult(ctx, state); break;
-        case 'demolimit': renderDemoLimit(ctx, state); break;
-        case 'howto': renderPages(ctx, state, HOWTO, tr('How to Play', 'Cómo jugar'), 'howto'); break;
-        case 'about': renderPages(ctx, state, ABOUT, tr('About', 'Acerca de'), 'about'); break;
-        case 'rules': renderPages(ctx, state, RULES, tr('Rules', 'Reglas'), 'rules'); break;
+        case 'title': inFrame('col', () => renderTitle(ctx, state)); break;
+        case 'setup': inFrame('col', () => renderSetup(ctx, state)); break;
+        case 'settings': inFrame('col', () => renderSettings(ctx, state)); break;
+        case 'learn': inFrame('col', () => renderLearn(ctx, state)); break;
+        case 'result': inFrame('col', () => renderResult(ctx, state)); break;
+        case 'demolimit': inFrame('col', () => renderDemoLimit(ctx, state)); break;
+        case 'howto': inFrame('col', () => renderPages(ctx, state, HOWTO, tr('How to Play', 'Cómo jugar'), 'howto')); break;
+        case 'about': inFrame('col', () => renderPages(ctx, state, ABOUT, tr('About', 'Acerca de'), 'about')); break;
+        case 'rules': inFrame('col', () => renderPages(ctx, state, RULES, tr('Rules', 'Reglas'), 'rules')); break;
         case 'play':
           if (state.m) {
             setOverlay();
-            renderPlay(ctx, state);
-            if (state.sheet && state.ph === 'aim') renderSheet(ctx, state);
-            if (state.why) renderWhy(ctx, state);
-            if (state.pauseMenu) renderPause(ctx, state);
+            inFrame('play', () => renderPlay(ctx, state));
+            if (state.sheet && state.ph === 'aim') inFrame('col', () => renderSheet(ctx, state));
+            if (state.why) inFrame('col', () => renderWhy(ctx, state));
+            if (state.pauseMenu) inFrame('col', () => renderPause(ctx, state));
           }
           break;
         default: break;
       }
     },
     getState: () => state,
+    // Dev / test hooks (read-only views of the current geometry; used by the layout checks)
+    getLayout: () => { applyFrame(colKind() ? 'col' : 'play'); return computeLayout(state, null); },
+    getFlow: () => flowMeta(),
+    getFrame: () => ({ ...screen, mode: playFrame.mode, stageH: H, pins: { TEXT_DEC: { ...TEXT_DEC }, TEXT_INC: { ...TEXT_INC }, REF_BACK: { ...REF_BACK }, REF_NEXT: { ...REF_NEXT }, start: { ...SETUP_PINS.start }, back: { ...SETUP_PINS.back } }, ref: refMeta() }),
   };
   updateAttract(0);
   if (shotMode) applyPreset();

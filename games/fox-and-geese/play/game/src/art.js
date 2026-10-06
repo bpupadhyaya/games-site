@@ -1,6 +1,6 @@
 // The table and the board: a cross-shaped slab lying on a moonlit snowfield. One light, from the upper left.
 // Everything here is static and painted ONCE into a cached layer; falling snow (view.js) is the only thing that moves.
-import { W, H, project, UNIT } from './layout.js';
+import { project, UNIT, LAYER } from './layout.js';
 import { onBoard, N } from './rules.js';
 
 const TAU = Math.PI * 2;
@@ -38,34 +38,46 @@ export const BOARDS = {
 };
 export const BOARD_NAMES = { frost: 'Frost', slate: 'Slate', moss: 'Moss' };
 
-function paintStatic(ctx, look) {
-  const B = BOARDS[look] ?? BOARDS.frost;
-  const rnd = lcg(20260921);
-  // ---- the snowfield at night ---------------------------------------------------------------------
+// The snowfield at night: painted for the LIVE screen size (it is cached per size), so it fills any aspect with no bars.
+function paintField(ctx, W, H) {
+  const rnd = lcg(20260921), sx = W / 720, sy = H / 1560, area = (W * H) / (720 * 1560);
   const bg = ctx.createLinearGradient(0, 0, 0, H);
   bg.addColorStop(0, '#0d2036'); bg.addColorStop(0.5, '#0a1a2c'); bg.addColorStop(1, '#050d17');
   ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
-  const moon = ctx.createRadialGradient(150, 60, 10, 210, 260, 900);
+  const R = Math.max(W, H * 0.46), moon = ctx.createRadialGradient(150 * sx, 60 * sy, 10, 210 * sx, 260 * sy, Math.min(R, 900 * Math.max(sx, sy)));
   moon.addColorStop(0, 'rgba(190,220,255,0.30)'); moon.addColorStop(0.45, 'rgba(140,180,230,0.10)'); moon.addColorStop(1, 'rgba(140,180,230,0)');
   ctx.fillStyle = moon; ctx.fillRect(0, 0, W, H);
   // drifts: long soft mounds of snow that catch the moon, heaped toward the corners
+  const m = Math.max(sx, sy);
   for (const [x, y, rx, ry, a] of [[80, 1500, 420, 130, 0.5], [660, 1470, 380, 120, 0.42], [360, 1560, 520, 110, 0.5], [-20, 900, 200, 380, 0.22], [750, 760, 200, 400, 0.2], [600, 120, 420, 90, 0.16], [40, 200, 300, 80, 0.18]]) {
+    const px = x < 0 ? x : x > 720 ? W + (x - 720) : x * sx, py = y * sy, RX = rx * m, RY = ry * m;
+    ctx.save(); ctx.translate(px, py); ctx.scale(1, RY / RX);
+    const g = ctx.createRadialGradient(-RX * 0.2, -RX * 0.25, 4, 0, 0, RX);
+    g.addColorStop(0, `rgba(226,240,255,${a})`); g.addColorStop(0.6, `rgba(150,182,222,${a * 0.5})`); g.addColorStop(1, 'rgba(120,150,200,0)');
+    ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, RX, 0, TAU); ctx.fill(); ctx.restore();
+  }
+  // wide screens: a pair of big drifts low in the corners so the sides are never empty
+  if (W > H) for (const [x, y, rx, ry, a] of [[W * 0.12, H * 1.02, 420, 120, 0.4], [W * 0.88, H * 1.0, 460, 130, 0.38], [W * 0.5, H * 1.05, 700, 110, 0.35]]) {
     ctx.save(); ctx.translate(x, y); ctx.scale(1, ry / rx);
     const g = ctx.createRadialGradient(-rx * 0.2, -rx * 0.25, 4, 0, 0, rx);
     g.addColorStop(0, `rgba(226,240,255,${a})`); g.addColorStop(0.6, `rgba(150,182,222,${a * 0.5})`); g.addColorStop(1, 'rgba(120,150,200,0)');
     ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0, 0, rx, 0, TAU); ctx.fill(); ctx.restore();
   }
-  // snow crystals glinting on the field
-  for (let i = 0; i < 420; i++) {
+  for (let i = 0, n = Math.round(420 * area); i < n; i++) {
     const x = rnd() * W, y = rnd() * H, r = 0.5 + rnd() * 1.3;
     ctx.fillStyle = `rgba(220,236,255,${0.10 + rnd() * 0.42})`; ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill();
   }
-  for (let i = 0; i < 34; i++) {
+  for (let i = 0, n = Math.round(34 * area); i < n; i++) {
     const x = rnd() * W, y = rnd() * H, r = 3 + rnd() * 5;
     ctx.strokeStyle = `rgba(235,246,255,${0.25 + rnd() * 0.4})`; ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(x - r, y); ctx.lineTo(x + r, y); ctx.moveTo(x, y - r); ctx.lineTo(x, y + r); ctx.stroke();
   }
+}
 
+// The board slab in canonical (phone) coordinates, on a transparent layer. The caller scales and places it.
+function paintBoard(ctx, look) {
+  const B = BOARDS[look] ?? BOARDS.frost, W = 720;
+  const rnd = lcg(20260922);
   const outer = crossPoly(0.62), inner = crossPoly(0.44), TH = 30;
   // soft shadow of the slab on the snow, thrown down and to the right
   for (let i = 0; i < 8; i++) {
@@ -176,16 +188,22 @@ function paintStatic(ctx, look) {
   }
 }
 
-const layers = {};     // one cached layer per board look, painted the first time it is needed
-export function drawTableAndBoard(ctx, look = 'frost') {
-  if (!(look in layers)) {
-    layers[look] = null;
-    try {
-      if (typeof OffscreenCanvas !== 'undefined') {
-        const c = new OffscreenCanvas(W * 2, H * 2), lctx = c.getContext('2d');
-        lctx.scale(2, 2); paintStatic(lctx, look); layers[look] = c;
-      }
-    } catch { layers[look] = null; }
-  }
-  if (layers[look]) ctx.drawImage(layers[look], 0, 0, W, H); else paintStatic(ctx, look);
+// Cached layers: the board per look (canonical coordinates, painted the first time it is needed), the snowfield per screen size.
+const layers = {}, fields = new Map();
+const offscreen = (w, h, paint) => {
+  try {
+    if (typeof OffscreenCanvas !== 'undefined') { const c = new OffscreenCanvas(w * 2, h * 2), x = c.getContext('2d'); x.scale(2, 2); paint(x); return c; }
+  } catch { /* falls through to direct painting */ }
+  return null;
+};
+export function drawField(ctx, w, h) {
+  const key = `${w}x${h}`;
+  if (!fields.has(key)) { fields.set(key, offscreen(w, h, (x) => paintField(x, w, h))); if (fields.size > 6) fields.delete(fields.keys().next().value); }
+  const c = fields.get(key);
+  if (c) ctx.drawImage(c, 0, 0, w, h); else paintField(ctx, w, h);
+}
+// Draws the board slab at its canonical position; wrap in ctx.save(); translate; scale for any other size.
+export function drawBoardLayer(ctx, look = 'frost') {
+  if (!(look in layers)) layers[look] = offscreen(LAYER.w, LAYER.h, (x) => { x.translate(-LAYER.x, -LAYER.y); paintBoard(x, look); });
+  if (layers[look]) ctx.drawImage(layers[look], LAYER.x, LAYER.y, LAYER.w, LAYER.h); else paintBoard(ctx, look);
 }

@@ -3,8 +3,8 @@
   "title": "Baloot",
   "tagline": "The partnership card game of the Gulf",
   "genre": "partnership trick-taking card game",
-  "orientation": "portrait",
-  "version": "1.0.1",
+  "orientation": "any",
+  "version": "1.1.6",
   "monetization": {
     "model": "premium",
     "priceUsd": 2.99,

@@ -129,6 +129,103 @@ export function paintBackdrop(ctx) {
   ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
 }
 
+// ---- the full-bleed surround (everything outside the stage) --------------------------------------
+// Portrait: the sky / floor gradients of the backdrop continue above and below the stage window, seamlessly (same colours at the
+// same world heights). Wide: the same palette stretched over the whole screen, with the stage as a framed window.
+export function drawOuter(ctx, L, map = null) {
+  const st = map ?? L.st;
+  const sw = L.W, sh = L.H;
+  let g;
+  if (!L.land) {
+    const y = (wy) => st.y + (wy - st.wy0) * st.s;
+    g = ctx.createLinearGradient(0, y(0), 0, y(H));
+    const fl = FLOOR_Y / H;
+    [[0, '#0f1538'], [0.34, '#243472'], [0.62, '#6a5a98'], [0.8, '#d98a82'], [fl, '#e6a186'], [fl + 0.0002, '#6b4a34'], [fl + 0.15 * (1 - fl), '#4a3226'], [1, '#2a1c18']].forEach(([o, c]) => g.addColorStop(o, c));
+  } else {
+    drawWideBack(ctx, L);
+    return;
+  }
+  ctx.fillStyle = g; ctx.fillRect(0, 0, sw, sh);
+}
+
+// A wide version of the dusk painting for landscape screens (the tall one cannot be stretched): same sky, moon, hills, bamboo and
+// veranda, painted at the live size once and cached.
+function paintWide(ctx, w, h) {
+  const rnd = lcg(11), fy = Math.round(h * 0.86), k = h / 720;
+  let g = ctx.createLinearGradient(0, 0, 0, h);
+  [[0, '#0f1538'], [0.34, '#243472'], [0.62, '#6a5a98'], [0.8, '#d98a82'], [0.86, '#e6a186']].forEach(([o, c]) => g.addColorStop(o, c));
+  ctx.fillStyle = g; ctx.fillRect(0, 0, w, fy);
+  for (let i = 0; i < Math.round(w / 12); i++) { ctx.fillStyle = `rgba(255,248,230,${0.25 + rnd() * 0.6})`; ctx.beginPath(); ctx.arc(rnd() * w, rnd() * fy * 0.6, 0.6 + rnd() * 1.4, 0, TAU); ctx.fill(); }
+  const mx = w * 0.64, my = h * 0.27, mr = 70 * k + 20;
+  g = ctx.createRadialGradient(mx, my, 10, mx, my, mr * 3.6);
+  g.addColorStop(0, 'rgba(255,236,196,0.55)'); g.addColorStop(0.35, 'rgba(255,214,170,0.16)'); g.addColorStop(1, 'rgba(255,214,170,0)');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, w, fy);
+  g = ctx.createRadialGradient(mx - mr * 0.26, my - mr * 0.3, 6, mx, my, mr * 1.04);
+  g.addColorStop(0, '#fffaf0'); g.addColorStop(0.75, '#f7e6c2'); g.addColorStop(1, '#ecd2a2');
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(mx, my, mr, 0, TAU); ctx.fill();
+  ctx.fillStyle = 'rgba(190,160,120,0.22)';
+  [[-0.33, -0.1, 0.24], [0.28, 0.3, 0.17], [0.1, -0.4, 0.13], [-0.08, 0.48, 0.1]].forEach(([dx, dy, r]) => { ctx.beginPath(); ctx.arc(mx + dx * mr, my + dy * mr, r * mr, 0, TAU); ctx.fill(); });
+  for (let i = 0; i < 4; i++) { const cy = h * (0.22 + i * 0.12) + rnd() * 20, cx = rnd() * w; ctx.fillStyle = `rgba(255,236,220,${0.05 + rnd() * 0.06})`; rr(ctx, cx - 260, cy, 520 + rnd() * 120, 12 + rnd() * 10, 12); ctx.fill(); }
+  const hill = (base, amp, col, seed) => {
+    const r2 = lcg(seed), steps = Math.max(36, Math.round(w / 30));
+    ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(0, fy + 4);
+    let ph = r2() * 6;
+    for (let i = 0; i <= steps; i++) { const x = (i / steps) * w; ctx.lineTo(x, base - amp * (0.5 + 0.5 * Math.sin(ph + i * 0.37 * 36 / steps * 1.4)) - amp * 0.5 * Math.sin(ph * 1.7 + i * 0.83 * 36 / steps * 1.4)); }
+    ctx.lineTo(w, fy + 4); ctx.closePath(); ctx.fill();
+  };
+  hill(fy - 40 * k, 70 * k, 'rgba(70,64,118,0.9)', 3);
+  hill(fy - 12 * k, 56 * k, 'rgba(46,42,92,0.95)', 7);
+  g = ctx.createLinearGradient(0, fy - 120 * k, 0, fy); g.addColorStop(0, 'rgba(255,214,190,0)'); g.addColorStop(0.5, 'rgba(255,214,190,0.2)'); g.addColorStop(1, 'rgba(255,214,190,0)');
+  ctx.fillStyle = g; ctx.fillRect(0, fy - 120 * k, w, 120 * k);
+  ctx.save(); ctx.beginPath(); ctx.rect(0, fy - 60 * k, w, 60 * k); ctx.clip(); ctx.lineWidth = 2;
+  for (let row = 0; row < 4; row++) for (let i = -1; i < w / 56 + 1; i++) {
+    const cx = i * 56 + (row % 2 ? 28 : 0), cy = fy - 56 * k + row * 22 * k;
+    for (let q = 3; q >= 1; q--) { ctx.strokeStyle = `rgba(250,226,204,${0.1 + 0.04 * q})`; ctx.beginPath(); ctx.arc(cx, cy + 28, q * 9, Math.PI, 0); ctx.stroke(); }
+  }
+  ctx.restore();
+  bamboo(ctx, 44, h * 0.08, fy + 10, 24, rnd, 0.012); bamboo(ctx, 92, h * 0.3, fy + 10, 16, rnd, 0.02);
+  bamboo(ctx, w - 48, h * 0.25, fy + 10, 20, rnd, -0.014); bamboo(ctx, w - 100, h * 0.5, fy + 10, 14, rnd, -0.02);
+  g = ctx.createLinearGradient(0, fy, 0, h); g.addColorStop(0, '#6b4a34'); g.addColorStop(0.15, '#4a3226'); g.addColorStop(1, '#2a1c18');
+  ctx.fillStyle = g; ctx.fillRect(0, fy, w, h - fy);
+  ctx.fillStyle = 'rgba(255,214,170,0.35)'; ctx.fillRect(0, fy, w, 3); ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fillRect(0, fy + 3, w, 6);
+  ctx.strokeStyle = 'rgba(255,200,150,0.07)'; ctx.lineWidth = 1;
+  for (let i = 0; i < 40; i++) { const y = fy + 10 + rnd() * (h - fy - 10), x = rnd() * w, ln = 60 + rnd() * 160; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + ln, y + (rnd() - 0.5) * 3); ctx.stroke(); }
+  g = ctx.createRadialGradient(w / 2, h * 0.5, h * 0.4, w / 2, h * 0.5, Math.max(w, h) * 0.7);
+  g.addColorStop(0, 'rgba(8,10,30,0)'); g.addColorStop(1, 'rgba(8,10,30,0.45)');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+}
+let wideBack = { key: '', cv: null };
+export function drawWideBack(ctx, L) {
+  const w = Math.round(L.W), h = Math.round(L.H), key = `${w}x${h}`;
+  if (wideBack.key !== key) {
+    setHost(ctx);
+    const cv = newCanvas(Math.round(w * 1.25), Math.round(h * 1.25));
+    wideBack = { key, cv: null };
+    if (cv) { const g = cv.getContext('2d'); g.scale(1.25, 1.25); paintWide(g, w, h); wideBack.cv = cv; }
+  }
+  if (wideBack.cv) ctx.drawImage(wideBack.cv, 0, 0, w, h); else paintWide(ctx, w, h);
+}
+
+// The painted 720 x 1280 backdrop through a stage map { x, y, s, wy0 }, clipped to `rect` (screen units, optional rounded corners).
+export function drawBackdropIn(ctx, m, rect, round = 0) {
+  ctx.save();
+  if (round) rr(ctx, rect.x, rect.y, rect.w, rect.h, round); else { ctx.beginPath(); ctx.rect(rect.x, rect.y, rect.w, rect.h); }
+  ctx.clip();
+  ctx.translate(m.x, m.y - m.wy0 * m.s); ctx.scale(m.s, m.s);
+  drawBackdrop(ctx);
+  ctx.restore();
+}
+// Backdrop for the menu screens: portrait = the whole painting centred (the surround continues it); wide = the wide painting.
+export function drawMenuBack(ctx, L) {
+  if (!L.land) {
+    const m = { x: (L.W - 720) / 2, y: (L.H - 1280) / 2, s: 1, wy0: 0 };
+    drawOuter(ctx, L, m);
+    drawBackdropIn(ctx, m, { x: m.x, y: Math.max(0, m.y), w: 720, h: Math.min(L.H, 1280) });
+  } else {
+    drawWideBack(ctx, L);
+  }
+}
+
 let backdrop = null;      // off-screen canvas, or false when this host cannot make one
 export function drawBackdrop(ctx) {
   if (backdrop === null) {

@@ -9,20 +9,19 @@
 import { generatePuzzle } from './generator.js';
 import { crownsFromCells, computeConflicts, isSolved } from './rules.js';
 import {
-  SCREEN, hitTestCell, HINT_BUTTON, UNDO_BUTTON, PLAY10_BUTTON, DAILY_BUTTON, COLOR_BUTTON,
-  TITLE_COLOR_BUTTON, TITLE_RULES_BUTTON, RULES_BACK_BUTTON, RULES_NEXT_BUTTON,
-  RULES_TEXT_DEC_BUTTON, RULES_TEXT_INC_BUTTON, TEXT_SCALES, inRect,
-  TITLE_AUTO_BUTTON, AUTO_EXIT_BUTTON, AUTO_PAUSE_BUTTON, AUTO_SKIP_BUTTON, AUTO_AGAIN_BUTTON,
-  AUTO_EXIT2_BUTTON, AUTO_THINK_STEPS, AUTO_REVEAL_SECS, AUTO_DEC_BUTTON, AUTO_INC_BUTTON,
-  SIBLINGS, chipRect, chipRectAuto,
+  layoutFor, hitTestCell, inRect, TEXT_SCALES, AUTO_THINK_STEPS, AUTO_REVEAL_SECS, SIBLINGS,
 } from './layout.js';
 import { PALETTES } from './palettes.js';
 import { RULES } from './content.js';
-import { render } from './view.js';
+import { render, rulesMetrics, pressLockup } from './view.js';
 
 export { PALETTES };
 
-export const meta = { width: SCREEN.width, height: SCREEN.height };
+// Kit 1.7 fluid viewport: the short side is always 720 units; width/height are updated live by the kit on every resize and
+// every position comes from layoutFor(meta.width, meta.height).
+export const meta = { width: 720, height: 1560, fluid: { short: 720 } };
+// Mouse-wheel travel (virtual units) collected by main.js and consumed by the Rules reader; empty in headless runs.
+export const wheelInput = { dy: 0 };
 
 const HISTORY_LIMIT = 60;
 // Web preview (env.config.demo): only a few puzzles are playable (docs/GAME-CONTRACT.md).
@@ -30,6 +29,8 @@ const DEMO_SOLVE_LIMIT = 3;
 
 export function createGame(env) {
   const { rng, storage, monetization, audio, config } = env;
+  const lay = () => layoutFor(meta.width, meta.height);
+  let drag = null; // Rules reader: the current finger/scroll-bar drag
 
   // Reserve the daily puzzle's rng stream first, before anything else draws from `rng`, so the
   // daily puzzle for a given seed never changes no matter how many endless puzzles are played.
@@ -38,7 +39,7 @@ export function createGame(env) {
 
   const state = {
     scene: 'title',
-    page: 0, // current Rules-reference page, only meaningful while scene === 'rules'
+    rulesScroll: 0, // scroll offset (virtual units) of the Rules reader, only meaningful while scene === 'rules'
     mode: null, // 'daily' | 'endless'
     size: 7,
     regions: [],
@@ -283,27 +284,26 @@ export function createGame(env) {
   function updateAutoScene(dt, tap) {
     const A = state.auto;
     if (!A) return;
+    const L = lay();
     if (tap) {
-      if (inRect(tap.x, tap.y, AUTO_DEC_BUTTON)) { if (state.autoThinkIdx > 0) { state.autoThinkIdx -= 1; storage.set('autoThinkIdx', state.autoThinkIdx); } return; }
-      if (inRect(tap.x, tap.y, AUTO_INC_BUTTON)) { if (state.autoThinkIdx < AUTO_THINK_STEPS.length - 1) { state.autoThinkIdx += 1; storage.set('autoThinkIdx', state.autoThinkIdx); } return; }
       if (A.sub === 'over') {
-        // "More from Arcforge" cross-promo chips (SIBLINGS/chipRectAuto in layout.js) — checked
-        // before Play again/Exit below, same pattern as the 'solved' scene's own chip check in
-        // step(), so a chip tap opens that sibling game instead of also starting a fresh run.
+        // "More from Arcforge" cross-promo chips come first, so a chip tap opens that sibling game instead of anything else.
         for (let i = 0; i < SIBLINGS.length; i++) {
-          if (inRect(tap.x, tap.y, chipRectAuto(i))) {
-            pressed(`chipAuto${i}`);
+          if (inRect(tap.x, tap.y, L.card.chips[i])) {
+            pressed(`chip${i}`);
             env.openGame(SIBLINGS[i].slug);
             return;
           }
         }
-        if (inRect(tap.x, tap.y, AUTO_AGAIN_BUTTON)) startAutoPlay();
-        else if (inRect(tap.x, tap.y, AUTO_EXIT2_BUTTON)) { teardownAuto(); state.scene = 'title'; }
+        if (inRect(tap.x, tap.y, L.card.next)) startAutoPlay();
+        else if (inRect(tap.x, tap.y, L.card.menu)) { teardownAuto(); state.scene = 'title'; }
         return;
       }
-      if (inRect(tap.x, tap.y, AUTO_EXIT_BUTTON)) { teardownAuto(); state.scene = 'title'; return; }
-      if (inRect(tap.x, tap.y, AUTO_PAUSE_BUTTON)) { A.paused = !A.paused; return; }
-      if (inRect(tap.x, tap.y, AUTO_SKIP_BUTTON)) { if (A.sub === 'think' || A.sub === 'reveal') A.timer = 999; return; }
+      const a = L.play.abtn;
+      if (inRect(tap.x, tap.y, a.think)) { state.autoThinkIdx = (state.autoThinkIdx + 1) % AUTO_THINK_STEPS.length; storage.set('autoThinkIdx', state.autoThinkIdx); return; }
+      if (inRect(tap.x, tap.y, a.exit)) { teardownAuto(); state.scene = 'title'; return; }
+      if (inRect(tap.x, tap.y, a.pause)) { A.paused = !A.paused; return; }
+      if (inRect(tap.x, tap.y, a.skip)) { if (A.sub === 'think' || A.sub === 'reveal') A.timer = 999; return; }
       return;
     }
     if (A.paused || A.sub === 'over') return;
@@ -333,89 +333,105 @@ export function createGame(env) {
       // Auto Play has its own per-frame timers (THINK/REVEAL), unlike every other scene here, which
       // only ever reacts to a fresh tap — so it bypasses step()'s tap-only gate.
       if (state.scene === 'auto') { state.time += dt; updateAutoScene(dt, input.pointer.pressed ? { x: input.pointer.x, y: input.pointer.y } : null); }
+      else if (state.scene === 'rules') { state.time += dt; updateRules(input); }
       else step(dt, input);
       if (state.scene !== sceneBefore) state.sceneT = 0;
     },
 
-    render(ctx) {
-      render(ctx, state, env.manifest, DEMO_SOLVE_LIMIT);
+    render(ctx, view) {
+      render(ctx, state, env.manifest, DEMO_SOLVE_LIMIT, { width: view?.width ?? meta.width, height: view?.height ?? meta.height });
     },
 
     // Must be JSON-serializable and fully describe the run (used for determinism checks).
     getState: () => state,
   };
 
+  // Rules reader: A- / A+ / Done, and a scrolling column (drag, wheel, keys, scroll bar). Content that fits never moves.
+  function updateRules(input) {
+    const RL = lay().rules, p = input.pointer, keys = input.keys.pressed, max = () => rulesMetrics.max;
+    const setScroll = (v) => { state.rulesScroll = Math.max(0, Math.min(v, max())); };
+    if (wheelInput.dy) { setScroll(state.rulesScroll + wheelInput.dy); wheelInput.dy = 0; }
+    if (keys.has('ArrowDown')) setScroll(state.rulesScroll + 70);
+    if (keys.has('ArrowUp')) setScroll(state.rulesScroll - 70);
+    if (keys.has('PageDown') || keys.has('Space')) setScroll(state.rulesScroll + rulesMetrics.view * 0.9);
+    if (keys.has('PageUp')) setScroll(state.rulesScroll - rulesMetrics.view * 0.9);
+    if (keys.has('Home')) setScroll(0);
+    if (keys.has('End')) setScroll(max());
+    if (keys.has('Escape')) { state.scene = 'title'; drag = null; return; }
+    if (p.pressed && max() > 0) {
+      if (inRect(p.x, p.y, RL.sb)) drag = { bar: true };
+      else if (inRect(p.x, p.y, RL.vp)) drag = { y0: p.y, s0: state.rulesScroll };
+    }
+    if (drag) {
+      if (!p.down) drag = null;
+      else if (drag.bar) setScroll(((p.y - RL.sb.y) / RL.sb.h) * max());
+      else setScroll(drag.s0 - (p.y - drag.y0));
+    }
+    state.rulesScroll = Math.max(0, Math.min(state.rulesScroll, max()));
+    if (!p.pressed) return;
+    const { x, y } = p;
+    if (inRect(x, y, RL.inc)) {
+      if (state.textScaleIdx < TEXT_SCALES.length - 1) { pressed('textInc'); state.textScaleIdx++; state.rulesScroll = 0; storage.set('textScaleIdx', state.textScaleIdx); }
+    } else if (inRect(x, y, RL.dec)) {
+      if (state.textScaleIdx > 0) { pressed('textDec'); state.textScaleIdx--; state.rulesScroll = 0; storage.set('textScaleIdx', state.textScaleIdx); }
+    } else if (inRect(x, y, RL.done)) {
+      pressed('rulesDone');
+      state.scene = 'title'; state.rulesScroll = 0; drag = null;
+    }
+  }
+
   function step(dt, input) {
       state.time += dt;
       if (state.lockMessageTimer > 0) state.lockMessageTimer = Math.max(0, state.lockMessageTimer - dt);
       if (!input.pointer.pressed) return;
       const { x, y } = input.pointer;
+      const L = lay();
 
       if (state.scene === 'title') {
         if (state.demoLimitReached) {
           state.scene = 'demo-limit';
           return;
         }
-        if (inRect(x, y, TITLE_COLOR_BUTTON)) {
+        const T = L.title;
+        if (inRect(x, y, T.lockHit)) {
+          pressLockup();
+          env.openArcforgeHome?.();
+        } else if (inRect(x, y, T.colour)) {
           pressed('color');
           cyclePalette();
-        } else if (inRect(x, y, TITLE_RULES_BUTTON)) {
+        } else if (inRect(x, y, T.rules)) {
           pressed('rules');
-          state.page = 0;
+          state.rulesScroll = 0;
+          drag = null;
           state.scene = 'rules';
-        } else if (inRect(x, y, PLAY10_BUTTON)) {
+        } else if (inRect(x, y, T.expert)) {
           if (state.expertUnlocked) startEndless(10);
           else state.lockMessageTimer = 1.6;
-        } else if (inRect(x, y, DAILY_BUTTON)) {
+        } else if (inRect(x, y, T.daily)) {
           startDaily();
-        } else if (inRect(x, y, TITLE_AUTO_BUTTON)) {
+        } else if (inRect(x, y, T.auto)) {
           startAutoPlay();
-        } else {
+        } else if (inRect(x, y, T.play7)) {
           startEndless(7);
         }
         return;
       }
 
-      if (state.scene === 'rules') {
-        if (inRect(x, y, RULES_TEXT_INC_BUTTON)) {
-          if (state.textScaleIdx < TEXT_SCALES.length - 1) {
-            pressed('textInc');
-            state.textScaleIdx++;
-            storage.set('textScaleIdx', state.textScaleIdx);
-          }
-        } else if (inRect(x, y, RULES_TEXT_DEC_BUTTON)) {
-          if (state.textScaleIdx > 0) {
-            pressed('textDec');
-            state.textScaleIdx--;
-            storage.set('textScaleIdx', state.textScaleIdx);
-          }
-        } else if (inRect(x, y, RULES_NEXT_BUTTON)) {
-          pressed('rulesNext');
-          if (state.page >= RULES.length - 1) { state.scene = 'title'; state.page = 0; }
-          else state.page++;
-        } else if (inRect(x, y, RULES_BACK_BUTTON)) {
-          pressed('rulesBack');
-          if (state.page > 0) state.page--;
-          else state.scene = 'title';
-        }
-        return;
-      }
-
       if (state.scene === 'solved') {
-        // "More from Arcforge" cross-promo chips (SIBLINGS/chipRect in layout.js) — checked before
-        // the tap-anywhere-continues catch-all below, so tapping one opens that game instead of
-        // also starting a new puzzle. Paid games only; see layout.js for why.
+        // "More from Arcforge" cross-promo chips: checked first, so tapping one opens that game instead of anything else.
         for (let i = 0; i < SIBLINGS.length; i++) {
-          if (inRect(x, y, chipRect(i))) {
+          if (inRect(x, y, L.card.chips[i])) {
             pressed(`chip${i}`);
             env.openGame(SIBLINGS[i].slug);
             return;
           }
         }
+        if (inRect(x, y, L.card.menu)) { pressed('solvedMenu'); state.scene = 'title'; return; }
         if (state.demoLimitReached) {
           state.scene = 'demo-limit';
           return;
         }
+        // "Next puzzle", or a tap anywhere else on the solved screen: a fresh puzzle of the same size.
         startEndless(state.mode === 'endless' ? state.size : 7);
         return;
       }
@@ -423,22 +439,24 @@ export function createGame(env) {
       if (state.scene === 'demo-limit') return;
 
       // scene === 'playing'
-      if (inRect(x, y, COLOR_BUTTON)) {
+      const b = L.play.btn;
+      if (inRect(x, y, b.menu)) { pressed('menu'); state.scene = 'title'; return; }
+      if (inRect(x, y, b.colour)) {
         pressed('color');
         cyclePalette();
         return;
       }
-      if (inRect(x, y, HINT_BUTTON)) {
+      if (inRect(x, y, b.hint)) {
         pressed('hint');
         requestHint();
         return;
       }
-      if (inRect(x, y, UNDO_BUTTON)) {
+      if (inRect(x, y, b.undo)) {
         pressed('undo');
         undo();
         return;
       }
-      const index = hitTestCell(x, y, state.size);
+      const index = hitTestCell(L, x, y, state.size);
       if (index >= 0) cycleCell(index);
   }
 }

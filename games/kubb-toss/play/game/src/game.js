@@ -4,18 +4,19 @@
 // Scenes: title, setup, settings, learn, play (also Watch & Learn and the lessons), result, howto / about / rules, demolimit.
 // Play phases: intro, toss (a person throws a kubb in), think (a computer plans a baton or a kubb), tossfly, place, aim (a person plans a baton),
 // flight (a baton and everything it moves), result.
-import { W, H, TEXT_SCALES, THINK_STEPS, REVEAL_SECS, TEXT_DEC, TEXT_INC, REF_BACK, REF_NEXT, SETUP_PINS, inRect, SCENE_Y0 } from './layout.js';
+import { W, H, TEXT_SCALES, THINK_STEPS, REVEAL_SECS, TEXT_DEC, TEXT_INC, REF_BACK, REF_NEXT, SETUP_PINS, inRect, SCENE_Y0, setSize, host, readerMeta, G, PANEL } from './layout.js';
 import { FIELD, KUBB, DT, SUB, savePrev, stepWorld, addBody, kubbsAtRest, pathOf, launchOf, batonFrom, qAxis, MAX_REACH, LOFTS, SPINS } from './phys.js';
 import { newMatch, startTurn, endTurn, applyThrow, turnOver, targets, throwLine, tossCheck, placeCheck, standField, tossFail, freeSpot, fieldOf, baseOf, dirOf, baselineY, KING_RING, SIZES, kingPos } from './engine.js';
 import { worldFromMatch, finalsOf, maskOf, errFor, launchFor, scatterAt } from './sim.js';
 import { PROFILES, ASSIST, overKing, batonJob, describeShot, tossSpots, tossError, tossAdvice, placeSpot, lcg } from './ai.js';
 import * as SC from './scene.js';
 import { renderPlay, computeLayout, sideName, statusText, whyTitle, setMeasureCtx } from './view.js';
-import { renderTitle, renderSetup, renderSettings, renderLearn, renderResult, renderPause, renderSheet, renderWhy, renderPages, renderDemoLimit, hitScreen, flowMeta, readerMeta, ensureLayout } from './menus.js';
+import { pressLockup } from './brand.js';
+import { renderTitle, renderSetup, renderSettings, renderLearn, renderResult, renderPause, renderSheet, renderWhy, renderPages, renderDemoLimit, hitScreen, flowMeta, ensureLayout } from './menus.js';
 import { ABOUT, HOWTO, RULES, LESSONS } from './content.js';
-import { setPress } from './ui.js';
+import { setPress, FLOOR } from './ui.js';
 
-export const meta = { width: W, height: H };
+export const meta = { width: 720, height: 1280, fluid: { short: 720 } };
 const DEMO_MATCH_CAP = 2;
 const TAU = Math.PI * 2;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -70,6 +71,13 @@ export function createGame(env) {
     return done;
   };
   const record = state.record;
+  // Fluid screen: the kit keeps meta.width / meta.height live (short side 720). Every update and render first brings the layout up to date; a size change
+  // drops a drag in progress (its pixel coordinates are stale) but keeps every other bit of state.
+  const syncSize = (w, h) => {
+    FLOOR.v = Math.max(11, 11 / Math.max(0.25, host.px));
+    if (setSize(w, h)) { if (state.drag) state.drag = null; if (state.ui.drag) state.ui.drag = null; return true; }
+    return false;
+  };
 
   // ---- persistence -----------------------------------------------------------------------------------------------------------
   const save = () => { storage.set('settings', state.settings); storage.set('record', state.record); };
@@ -764,6 +772,7 @@ export function createGame(env) {
   }
   const handleTitle = (id) => {
     if (!id) return;
+    if (id === 'arcforge') { pressLockup(); env.openArcforgeHome?.(); return; }
     sfx.tick();
     if (id === 'play') { state.setup.mode = 'ai'; state.scene = 'setup'; state.ui.scroll = 0; state.setupMsg = ''; }
     else if (id === 'two') { state.setup.mode = 'two'; state.scene = 'setup'; state.ui.scroll = 0; state.setupMsg = ''; }
@@ -1014,6 +1023,7 @@ export function createGame(env) {
     isPreviewExempt: () => !(state.scene === 'play' && state.m && state.m.cfg.mode !== 'watch' && state.m.cfg.mode !== 'learn') || state.paused,
     update(dt, input) {
       if (state.showcase) input = NOINPUT;
+      syncSize(meta.width, meta.height);
       setPress(input.pointer);
       stepped = false;
       if (state.shot) { state.t += dt; return; }
@@ -1035,8 +1045,9 @@ export function createGame(env) {
       state.wheel = 0;
       updAt = nowMs();
     },
-    render(ctx) {
+    render(ctx, view) {
       SC.setHost(ctx); setMeasureCtx(ctx);
+      syncSize(view && view.width ? view.width : meta.width, view && view.height ? view.height : meta.height);
       const alpha = stepped && env.clock ? clamp((nowMs() - updAt) / (DT * SUB * 1000), 0, 1) : 1;
       state.alpha = alpha; if (state.att.scene) state.att.scene.alpha = alpha;
       switch (state.scene) {
@@ -1062,6 +1073,27 @@ export function createGame(env) {
       }
     },
     getState: () => state,
+    // Dev / test aid: every tappable rectangle of the screen that is showing (screen units), the scroll viewport and the safe area.
+    debug() {
+      const out = [], scr = state.scene, push = (id, r) => { if (r && r.w > 0) out.push({ id, x: r.x, y: r.y, w: r.w, h: r.h }); };
+      let viewport = null;
+      const overlay = scr === 'play' && (state.why || state.sheet || state.pauseMenu);
+      const flowKeys = ['title', 'setup', 'settings', 'learn', 'result', 'demolimit'];
+      if (flowKeys.includes(scr) || overlay) {
+        const lm = flowMeta();
+        if (lm.lay) for (const it of lm.lay.items) if (it.w.t === 'btn') { const y = lm.top + it.y - state.ui.scroll, y0 = Math.max(y, lm.top), y1 = Math.min(y + it.h, lm.bottom); if (y1 - y0 > 8) push(it.w.id, { x: it.x, y: y0, w: it.wd, h: y1 - y0 }); }
+        viewport = { top: lm.top, bottom: lm.bottom, contentH: lm.lay ? lm.lay.contentH : 0 };
+        if (scr === 'setup') { push('start', SETUP_PINS.start); push('pinback', SETUP_PINS.back); }
+      } else if (scr === 'howto' || scr === 'about' || scr === 'rules') {
+        push('dec', TEXT_DEC); push('inc', TEXT_INC); push('back', REF_BACK); push('next', REF_NEXT);
+        const R = readerMeta(); viewport = { top: R.y, bottom: R.y + R.h, contentH: R.max + R.h, panel: { ...PANEL } };
+      } else if (scr === 'play' && state.m) {
+        const lay = computeLayout(state, null);
+        for (const id of Object.keys(lay.rects)) push(id, lay.rects[id]);
+        viewport = { clip: lay.clip, s: lay.s, wide: !!lay.wide, vx: lay.vx, vy: lay.vy };
+      }
+      return { W, H, scene: scr, mode: G.mode, rects: out, viewport, scroll: state.ui.scroll, safe: { ...G.U }, backBox: { ...G.backBox } };
+    },
   };
   updateAttract(0);
   if (shotMode) applyPreset();

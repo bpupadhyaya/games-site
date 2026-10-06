@@ -1,8 +1,12 @@
 // Chapter 1: the great bow. Three holds (lift, bend, string): gather strength while holding and
 // let go inside the gold band. A slip only resets the meter. Then the bow breaks and the hall rejoices.
-import { W, H, TAU, PAL, INK, GOLD, clamp, lerp, smooth, hash, sky, light, hall, motes, finish, shadow, shakeOffset, rr } from '../stage.js';
+import { FR, W, H, TAU, PAL, INK, GOLD, clamp, lerp, smooth, hash, sky, light, hall, motes, finish, shadow, shakeOffset, rr } from '../stage.js';
 import { figure, lodFigure, poses, stridePose } from '../puppets.js';
 import { label, caption } from '../ui.js';
+import { mode, hudX, hudY } from '../frame.js';
+
+// Landscape: the window shows y 560..1400 (the hall floor, the prince, the strength column).
+export const LAND_Y1 = 1400;
 
 const FLOOR = 1190, HALF = [0.09, 0.07, 0.055], CENTER = [0.58, 0.68, 0.74];
 
@@ -72,14 +76,14 @@ export function create(env, shared) {
     ctx.translate(W / 2 + ox, 900 + oy); ctx.scale(zoom, zoom); ctx.translate(-W / 2, -900);
     sky(ctx, P.sky, { x: W / 2, y: 760, r: 720, color: P.glow, alpha: 0.75 });
     // far wall: tall window arches full of evening light
-    for (let i = -1; i < 4; i++) {
+    for (let i = Math.floor(FR.x0 / 240) - 1; i < Math.ceil(FR.x1 / 240) + 1; i++) {
       const x = 60 + i * 240; ctx.fillStyle = 'rgba(255,214,140,0.16)';
       ctx.beginPath(); ctx.moveTo(x + 60, FLOOR - 120); ctx.lineTo(x + 60, 560); ctx.arc(x + 120, 560, 60, Math.PI, 0); ctx.lineTo(x + 180, FLOOR - 120); ctx.fill();
     }
     hall(ctx, { scroll: 60, color: P.mid, top: 120, floor: FLOOR - 110, gap: 240, t, lampRgb: P.glow });
     // floor with a lit carpet
     const fg = ctx.createLinearGradient(0, FLOOR - 120, 0, H); fg.addColorStop(0, '#5a2420'); fg.addColorStop(0.35, '#2c1016'); fg.addColorStop(1, '#12060c');
-    ctx.fillStyle = fg; ctx.fillRect(-40, FLOOR - 120, W + 80, H);
+    ctx.fillStyle = fg; ctx.fillRect(FR.x0 - 40, FLOOR - 120, FR.w + 80, H);
     ctx.fillStyle = 'rgba(200,70,50,0.35)'; ctx.beginPath(); ctx.moveTo(250, FLOOR - 120); ctx.lineTo(470, FLOOR - 120); ctx.lineTo(640, H); ctx.lineTo(80, H); ctx.fill();
     ctx.strokeStyle = 'rgba(242,196,106,0.5)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(250, FLOOR - 120); ctx.lineTo(80, H); ctx.moveTo(470, FLOOR - 120); ctx.lineTo(640, H); ctx.stroke();
     // the king on his dais, the princess beside him
@@ -111,12 +115,13 @@ export function create(env, shared) {
     if (celebrate) motes(ctx, { n: 46, t, rgb: '255,170,150', kind: 'petal', top: 100, bottom: H, rm });
     motes(ctx, { n: 18, t, rgb: P.glow, kind: 'dust', top: 300, bottom: 1100, rm });
     ctx.restore();
-    if (celebrate && s.phaseT < 0.5) { ctx.fillStyle = `rgba(255,244,210,${(0.5 - s.phaseT) * 1.6})`; ctx.fillRect(0, 0, W, H); }
+    if (celebrate && s.phaseT < 0.5) { ctx.fillStyle = `rgba(255,244,210,${(0.5 - s.phaseT) * 1.6})`; ctx.fillRect(FR.x0 - 1, 0, FR.w + 2, H); }
     finish(ctx, 0.75);
 
     if (s.phase === 'play') {
       // the strength meter: a tall gold-rimmed column on the right
-      const mx = 618, my = 470, mw = 46, mh = 640, c = bandC(), hw = HALF[s.stage], v = shown();
+      const hm = mode.hud; mode.hud = false;          // the column and its labels stay beside the prince (in the column), not at the screen edges
+      const mx = 618, my = Math.max(470, FR.y0 + 14), mw = 46, mh = 640, c = bandC(), hw = HALF[s.stage], v = shown();
       ctx.fillStyle = 'rgba(10,4,8,0.66)'; rr(ctx, mx, my, mw, mh, 22); ctx.fill();
       ctx.fillStyle = 'rgba(255,214,120,0.9)'; rr(ctx, mx + 3, my + mh * (1 - c - hw), mw - 6, mh * hw * 2, 8); ctx.fill();
       light(ctx, mx + mw / 2, my + mh * (1 - c), 90, '255,214,120', 0.35);
@@ -127,9 +132,11 @@ export function create(env, shared) {
       // the three stages
       [L.lift, L.bend, L.string].forEach((name, i) => {
         const on = i < s.stage, now = i === s.stage;
-        label(ctx, name, 60, 330 + i * 46, now ? 38 : 30, 'left', on ? GOLD : now ? '#fff1cf' : 'rgba(255,241,207,0.45)', '"Cormorant Garamond", Georgia, serif', 700);
-        ctx.fillStyle = on ? GOLD : 'rgba(255,241,207,0.35)'; ctx.beginPath(); ctx.arc(40, 320 + i * 46, now ? 8 : 6, 0, TAU); ctx.fill();
+        const ly = Math.max(330, FR.y0 + 80) + i * 46;
+        label(ctx, name, 60, ly, now ? 38 : 30, 'left', on ? GOLD : now ? '#fff1cf' : 'rgba(255,241,207,0.45)', '"Cormorant Garamond", Georgia, serif', 700);
+        ctx.fillStyle = on ? GOLD : 'rgba(255,241,207,0.35)'; ctx.beginPath(); ctx.arc(40, ly - 10, now ? 8 : 6, 0, TAU); ctx.fill();
       });
+      mode.hud = hm;
     }
     caption(ctx, s.msg, 1400, Math.min(1, s.msgT * 2), 32);
   }

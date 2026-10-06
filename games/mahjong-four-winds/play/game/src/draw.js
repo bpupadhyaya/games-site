@@ -1,5 +1,5 @@
 // Shared drawing helpers: fonts, text, buttons, the felt table, tile placement. Nothing here changes game state.
-import { W, H } from './layout.js';
+import { W, H, GEO, host } from './layout.js';
 import { tileSprite, backSprite, FW, FH, SPRITE_W, SPRITE_H, PAD, getLang } from './tiles.js';
 import { kindOf } from './rules.js';
 
@@ -9,19 +9,46 @@ export const CJKF = '"Noto Serif SC", "Songti SC", serif';
 export const GOLD = '#f1cf7a', IVORY = '#f7efd6', INK = '#2a1a05';
 export const TAU = Math.PI * 2;
 
+// Text never renders below ~10.5 css px: `host.px` is css pixels per virtual unit (about 0.54 on a 390-wide phone), so tiny design sizes grow on small screens.
+let tscale = 1;                                   // set while a screen is drawn under a uniform scale (result sheet, final scores) so the floor stays 10.5 css px
+export const setTextScale = (k) => { tscale = k > 0 ? k : 1; };
+export const minUnits = () => 10.5 / Math.max(0.3, host.px || 0.6) / tscale;
 export function tx(ctx, str, x, y, size, color = IVORY, o = {}) {
   const { font = UI, weight = 700, align = 'center', alpha = 1, shadow = false, base = 'alphabetic' } = o;
+  size = Math.max(size, minUnits());
   ctx.save(); if (alpha !== 1) ctx.globalAlpha = alpha;
   ctx.font = `${weight} ${size}px ${font}`; ctx.textAlign = align; ctx.textBaseline = base;
   if (shadow) { ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillText(str, x + 1.5, y + 2.5); }
   ctx.fillStyle = color; ctx.fillText(str, x, y); ctx.restore();
 }
+// Single-line text that shrinks (never below `min`) until it fits `maxW`.
+export function txFit(ctx, str, x, y, size, color, maxW, o = {}) {
+  const { min = 11, font = UI, weight = 700 } = o, floor = Math.max(min, minUnits()); let s = Math.max(size, floor), text = String(str);
+  ctx.save();
+  while (s > floor) { ctx.font = `${weight} ${s}px ${font}`; if (ctx.measureText(text).width <= maxW) break; s -= 1; }
+  ctx.font = `${weight} ${s}px ${font}`;
+  if (ctx.measureText(text).width > maxW) { while (text.length > 3 && ctx.measureText(text + '…').width > maxW) text = text.slice(0, -1); text = text.trimEnd() + '…'; }   // still too long at the smallest size: ellipsis
+  ctx.restore();
+  tx(ctx, text, x, y, s, color, o);
+  return s;
+}
 // Word-wrapped text. Returns the number of lines.
 export function wrap(ctx, str, x, y, size, maxW, color = IVORY, o = {}) {
+  size = Math.max(size, minUnits());
   const { lh = size * 1.32, align = 'center', weight = 600, font = UI, alpha = 1 } = o;
   ctx.save(); ctx.font = `${weight} ${size}px ${font}`;
   const words = String(str).split(' '), lines = []; let cur = '';
-  for (const w of words) { const t2 = cur ? cur + ' ' + w : w; if (ctx.measureText(t2).width > maxW && cur) { lines.push(cur); cur = w; } else cur = t2; }
+  for (const w of words) {
+    if (ctx.measureText(w).width > maxW) {                      // a word wider than the line (e.g. "number-and-letter" at 300% text): break after a hyphen, else at a letter
+      if (cur) { lines.push(cur); cur = ''; }
+      let part = '';
+      for (const ch of w) {
+        if (part && ctx.measureText(part + ch).width > maxW) { const h = part.lastIndexOf('-'); if (h > 0 && h < part.length - 1) { lines.push(part.slice(0, h + 1)); part = part.slice(h + 1) + ch; } else { lines.push(part); part = ch; } } else part += ch;
+      }
+      cur = part; continue;
+    }
+    const t2 = cur ? cur + ' ' + w : w; if (ctx.measureText(t2).width > maxW && cur) { lines.push(cur); cur = w; } else cur = t2;
+  }
   lines.push(cur); ctx.restore();
   lines.forEach((ln, i) => tx(ctx, ln, x, y + i * lh, size, color, { align, weight, font, alpha }));
   return lines.length;
@@ -41,15 +68,13 @@ export function btn(ctx, r, label, o = {}) {
   ctx.save(); if (off) ctx.globalAlpha = 0.45;
   if (pulse > 0) { ctx.fillStyle = `rgba(255,224,130,${0.16 + 0.16 * pulse})`; rr(ctx, r.x - 8, r.y - 8, r.w + 16, r.h + 16, R + 8); ctx.fill(); }
   ctx.fillStyle = 'rgba(0,0,0,0.42)'; rr(ctx, r.x + 1, r.y + 7 - dy * 0.6, r.w, r.h, R); ctx.fill();
-  const g = ctx.createLinearGradient(0, r.y, 0, r.y + r.h); g.addColorStop(0, c[0]); g.addColorStop(0.5, c[1]); g.addColorStop(1, c[2]);
-  ctx.fillStyle = g; rr(ctx, r.x, r.y + dy, r.w, r.h, R); ctx.fill();
-  ctx.save(); rr(ctx, r.x, r.y + dy, r.w, r.h, R); ctx.clip();
-  const gl = ctx.createLinearGradient(0, r.y, 0, r.y + r.h * 0.55); gl.addColorStop(0, 'rgba(255,255,255,0.34)'); gl.addColorStop(1, 'rgba(255,255,255,0)');
-  ctx.fillStyle = gl; ctx.fillRect(r.x, r.y + dy, r.w, r.h * 0.55); ctx.restore();
+  ctx.fillStyle = pressed ? c[2] : c[1]; rr(ctx, r.x, r.y + dy, r.w, r.h, R); ctx.fill();
   ctx.strokeStyle = c[4]; ctx.lineWidth = 2; rr(ctx, r.x + 1, r.y + dy + 1, r.w - 2, r.h - 2, R - 1); ctx.stroke();
-  const ty = r.y + dy + r.h / 2 + size * 0.32 - (sub ? 8 : 0);
-  tx(ctx, label, r.x + r.w / 2, ty, size, c[3], { font, weight: 700, shadow: kind !== 'gold' });
-  if (sub) tx(ctx, sub, r.x + r.w / 2, ty + size * 0.62, Math.max(14, size * 0.4), c[3], { font: UI, weight: 600, alpha: 0.85 });
+  let fs = size;                                       // long labels shrink to fit the button (never below 12)
+  if (label) { ctx.save(); const floor = Math.max(12, minUnits()); while (fs > floor) { ctx.font = `700 ${fs}px ${font}`; if (ctx.measureText(label).width <= r.w - 20) break; fs -= 1; } ctx.restore(); }
+  const ty = r.y + dy + r.h / 2 + fs * 0.32 - (sub ? 8 : 0);
+  tx(ctx, label, r.x + r.w / 2, ty, fs, c[3], { font, weight: 700, shadow: kind !== 'gold' });
+  if (sub) tx(ctx, sub, r.x + r.w / 2, ty + fs * 0.62, Math.max(13, fs * 0.4), c[3], { font: UI, weight: 600, alpha: 0.85 });
   ctx.restore();
 }
 export function panel(ctx, x, y, w, h, o = {}) {
@@ -60,30 +85,37 @@ export function panel(ctx, x, y, w, h, o = {}) {
   ctx.strokeStyle = edge; ctx.lineWidth = 2; rr(ctx, x + 1, y + 1, w - 2, h - 2, r); ctx.stroke(); ctx.restore();
 }
 
-// ---- the felt table, painted once
-let tableCache;
-export function drawTable(ctx) {
-  if (tableCache === undefined) {
-    tableCache = null;
+// ---- the felt table, painted once per screen size (and inlay rectangle)
+let tableCache = null, tableKey = '';
+export function drawTable(ctx, inlay = undefined) {
+  if (inlay === undefined) inlay = GEO.variant === 'tall' && !GEO.wide ? GEO.inlay : null;
+  const key = `${W}x${H}|${inlay ? [inlay.x, inlay.y, inlay.w, inlay.h].map(Math.round).join(',') : '-'}`;
+  if (key !== tableKey) {
+    tableKey = key; tableCache = null;
     try {
       if (typeof OffscreenCanvas !== 'undefined') {
         const c = new OffscreenCanvas(W, H), g = c.getContext('2d');
-        const bg = g.createRadialGradient(W / 2, 700, 40, W / 2, 760, 980);
+        const bg = g.createRadialGradient(W / 2, H * 0.45, 40, W / 2, H * 0.49, Math.max(W, H) * 0.63);
         bg.addColorStop(0, '#1d8266'); bg.addColorStop(0.55, '#116048'); bg.addColorStop(1, '#06281f');
         g.fillStyle = bg; g.fillRect(0, 0, W, H);
         // woven felt: fine deterministic speckle and faint cross-hatch
         let seed = 12345; const rnd = () => ((seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296);
-        for (let i = 0; i < 26000; i++) { const x = rnd() * W, y = rnd() * H, a = rnd() * 0.06; g.fillStyle = rnd() < 0.5 ? `rgba(255,255,255,${a})` : `rgba(0,20,10,${a * 1.4})`; g.fillRect(x, y, 1.4, 1.4); }
+        const specks = Math.round(26000 * (W * H) / (720 * 1560));
+        for (let i = 0; i < specks; i++) { const x = rnd() * W, y = rnd() * H, a = rnd() * 0.06; g.fillStyle = rnd() < 0.5 ? `rgba(255,255,255,${a})` : `rgba(0,20,10,${a * 1.4})`; g.fillRect(x, y, 1.4, 1.4); }
         g.strokeStyle = 'rgba(255,255,255,0.018)'; g.lineWidth = 1;
         for (let y = 0; y < H; y += 3) { g.beginPath(); g.moveTo(0, y); g.lineTo(W, y); g.stroke(); }
-        // the playing area: a soft inlaid square with a gold hairline
-        g.save(); g.shadowColor = 'rgba(0,0,0,0.35)'; g.shadowBlur = 30; g.fillStyle = 'rgba(0,30,20,0.18)'; g.beginPath(); g.roundRect(16, 340, W - 32, 720, 40); g.fill(); g.restore();
-        g.strokeStyle = 'rgba(241,207,122,0.22)'; g.lineWidth = 2; g.beginPath(); g.roundRect(24, 348, W - 48, 704, 34); g.stroke();
-        g.strokeStyle = 'rgba(241,207,122,0.1)'; g.lineWidth = 1; g.beginPath(); g.roundRect(34, 358, W - 68, 684, 28); g.stroke();
+        // the playing area: a soft inlaid panel with a gold hairline
+        if (inlay) {
+          const { x, y, w, h } = inlay;
+          g.save(); g.shadowColor = 'rgba(0,0,0,0.35)'; g.shadowBlur = 30; g.fillStyle = 'rgba(0,30,20,0.18)'; g.beginPath(); g.roundRect(x, y, w, h, 40); g.fill(); g.restore();
+          g.strokeStyle = 'rgba(241,207,122,0.22)'; g.lineWidth = 2; g.beginPath(); g.roundRect(x + 8, y + 8, w - 16, h - 16, 34); g.stroke();
+          g.strokeStyle = 'rgba(241,207,122,0.1)'; g.lineWidth = 1; g.beginPath(); g.roundRect(x + 18, y + 18, w - 36, h - 36, 28); g.stroke();
+        }
         // wooden rim
         const rim = 20, wd = g.createLinearGradient(0, 0, W, 0); wd.addColorStop(0, '#3a1d10'); wd.addColorStop(0.5, '#5b3320'); wd.addColorStop(1, '#3a1d10');
         g.fillStyle = wd; g.fillRect(0, 0, W, rim); g.fillRect(0, H - rim, W, rim); g.fillRect(0, 0, rim, H); g.fillRect(W - rim, 0, rim, H);
-        for (let i = 0; i < 140; i++) { g.strokeStyle = `rgba(20,8,2,${0.08 + rnd() * 0.12})`; g.lineWidth = 1; const y = rnd() * H; g.beginPath(); g.moveTo(0, y); g.lineTo(rim, y + rnd() * 6 - 3); g.moveTo(W - rim, y); g.lineTo(W, y + rnd() * 6 - 3); g.stroke(); }
+        const grain = Math.round(140 * Math.max(W, H) / 1560);
+        for (let i = 0; i < grain; i++) { g.strokeStyle = `rgba(20,8,2,${0.08 + rnd() * 0.12})`; g.lineWidth = 1; const y = rnd() * H; g.beginPath(); g.moveTo(0, y); g.lineTo(rim, y + rnd() * 6 - 3); g.moveTo(W - rim, y); g.lineTo(W, y + rnd() * 6 - 3); g.stroke(); }
         g.strokeStyle = 'rgba(241,207,122,0.55)'; g.lineWidth = 2; g.strokeRect(rim, rim, W - rim * 2, H - rim * 2);
         g.strokeStyle = 'rgba(0,0,0,0.5)'; g.lineWidth = 6; g.strokeRect(rim + 4, rim + 4, W - rim * 2 - 8, H - rim * 2 - 8);
         tableCache = c;

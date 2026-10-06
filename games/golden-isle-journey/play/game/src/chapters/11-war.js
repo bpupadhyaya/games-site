@@ -1,11 +1,17 @@
 // Chapter 11: the war before the gate. Three lanes run up the screen to the gate. Choose a unit,
 // tap a lane. Every enemy wears the colour of the unit that beats it. The leaper hero can be
 // called once to sweep a lane. Midway: the night flight for the healing herb.
-import { W, H, TAU, PAL, INK, GOLD, clamp, lerp, smooth, hash, sky, stars, skyline, ridge, light, motes, finish, shakeOffset, rr, clouds, sun, rays, banner } from '../stage.js';
+import { FR, W, H, TAU, PAL, INK, GOLD, clamp, lerp, smooth, hash, sky, stars, skyline, ridge, light, motes, finish, shakeOffset, rr, clouds, sun, rays, banner } from '../stage.js';
 import { figure, lodFigure, poses, boulder } from '../puppets.js';
 import { meter, pips, label, caption, panel, hit, font, wrap, SANS } from '../ui.js';
+import { mode, hudX, hudY } from '../frame.js';
 
-const Y0 = 1225, Y1 = 500, GATE0 = 72;
+
+// Landscape: the lanes are shorter (the gate sits just above the window top) and the buttons stay at the window bottom.
+let Y1 = 500;
+const Y0 = 1225, GATE0 = 72;
+const setY1 = () => { Y1 = FR.land ? FR.y0 + 240 : 500; };
+const HY = (y) => (FR.y0 > 300 ? FR.y0 + 120 + ((y - 330) / 920) * (1250 - FR.y0 - 120) : y);   // herb flight heights squeezed into the window
 const VAN = {
   leaper:  { hp: 30, dmg: 10, spd: 0.12, range: 0.05, cost: 2, beats: 'archer', rgb: '110,225,200', kind: 'vanara', prop: null },
   thrower: { hp: 42, dmg: 14, spd: 0.05, range: 0.24, cost: 4, beats: 'brute', rgb: '255,184,84', kind: 'vanara', prop: 'stone' },
@@ -24,8 +30,11 @@ const COUNTER_RGB = { archer: VAN.leaper.rgb, brute: VAN.thrower.rgb, giant: VAN
 // instead of the buttons paying to build them the first time the chapter is actually drawn.
 export const WARM_LOOKS = [...Object.values(VAN).map((u) => [u.kind, `rgb(${u.rgb})`]), ['raider', '#e0633a']];
 const ORDER = ['leaper', 'thrower', 'rallyer'];
-const BTN = ORDER.map((id, i) => ({ id, x: 24 + i * 170, y: 1318, w: 160, h: 150 }));
-const CALL = { x: 24 + 3 * 170, y: 1318, w: 162, h: 150 };
+const BTN0 = ORDER.map((id, i) => ({ id, x: 24 + i * 170, y: 1318, w: 160, h: 150 }));
+const CALL0 = { x: 24 + 3 * 170, y: 1318, w: 162, h: 150 };
+// the button row moves as one group with the window (identity in portrait)
+const grp = (r) => (mode.hud ? { ...r, x: r.x + hudX(360) - 360, y: r.y + hudY(1318, 150) - 1318 } : r);
+const BTN = () => BTN0.map(grp), CALL = () => grp(CALL0);
 
 const laneX = (lane, p) => W / 2 + (lane - 1) * lerp(218, 112, p);
 const laneY = (p) => lerp(Y0, Y1, p);
@@ -64,13 +73,13 @@ export function create(env, shared) {
   }
 
   function updateBattle(dt, input) {
-    const p = input.pointer;
+    const p = input.pointer; setY1();
     s.time += dt;
     s.energy = Math.min(10, s.energy + dt * (ally === 'scouts' ? 1.3 : 1.0));
     if (p.pressed) {
-      const b = BTN.find((k) => hit(k, p));
+      const b = BTN().find((k) => hit(k, p));
       if (b) { s.pick = b.id; s.calling = false; shared.sfx('tap'); }
-      else if (hit(CALL, p)) { if (!s.called) { s.calling = !s.calling; shared.sfx('tap'); } }
+      else if (hit(CALL(), p)) { if (!s.called) { s.calling = !s.calling; shared.sfx('tap'); } }
       else if (p.y > Y1 - 60 && p.y < Y0 + 60) {
         const lane = p.x < W / 3 ? 0 : p.x < (2 * W) / 3 ? 1 : 2;
         if (s.calling && !s.called) { s.called = true; s.calling = false; s.sweep = { lane, p: 0 }; shared.sfx('horn'); }
@@ -138,15 +147,15 @@ export function create(env, shared) {
   }
 
   function updateHerb(dt, input) {
-    const h = s.herb, p = input.pointer;
+    const h = s.herb, p = input.pointer; setY1();
     h.x += 430 * dt; h.safe = Math.max(0, h.safe - dt);
     let target = null;
     if (p.down) target = p.y - 90;
     if (input.keys.down.has('ArrowUp')) target = h.y - 300;
     if (input.keys.down.has('ArrowDown')) target = h.y + 300;
     h.vy = lerp(h.vy, target === null ? 0 : clamp((target - h.y) * 4, -900, 900), 1 - Math.pow(0.001, dt));
-    h.y = clamp(h.y + h.vy * dt, 330, 1250);
-    for (const c of s.herbClouds) if (h.safe <= 0 && Math.hypot(c.x - h.x - 230, c.y - h.y) < c.r + 40) { h.hits += 1; h.safe = 1.2; s.shake = 0.3; shared.sfx('bad'); }
+    h.y = clamp(h.y + h.vy * dt, HY(330), 1250);
+    for (const c of s.herbClouds) if (h.safe <= 0 && Math.hypot(c.x - h.x - 230, HY(c.y) - h.y) < c.r + 40) { h.hits += 1; h.safe = 1.2; s.shake = 0.3; shared.sfx('bad'); }
     if (s.phaseT > 14) { s.phase = 'herbEnd'; s.phaseT = 0; s.herbDone = true; s.line = Math.min(8, s.line + Math.max(1, 4 - h.hits)); s.energy = 10; shared.sfx('chime'); }
   }
 
@@ -163,6 +172,9 @@ export function create(env, shared) {
 
   // ---- drawing ----
   function backdrop(ctx, t, rm) {
+    setY1();
+    const GY = Y1 - 500;
+    ctx.save(); ctx.translate(0, GY);
     sky(ctx, PAL.ember.sky, null);
     stars(ctx, 0.5, t, 0, 300);
     light(ctx, W / 2, 470, 620, '255,120,50', 0.55);
@@ -172,7 +184,7 @@ export function create(env, shared) {
     const gx = Math.sin(t * 50) * s.gateHit * (rm ? 0 : 10);
     const broken = 1 - s.gate / GATE0;
     ctx.fillStyle = '#1a0608';
-    ctx.fillRect(0, 380, W, 150);
+    ctx.fillRect(FR.x0 - 1, 380, FR.w + 2, 150);
     for (let i = 0; i < 15; i++) ctx.fillRect(i * 50 + 6, 356, 30, 28);
     for (const tx of [150, 570]) { ctx.fillStyle = '#1a0608'; ctx.fillRect(tx - 50, 270, 100, 260); for (let i = 0; i < 3; i++) ctx.fillRect(tx - 50 + i * 38, 246, 24, 26); light(ctx, tx, 300, 120, '255,150,60', 0.5); }
     ctx.save(); ctx.translate(W / 2 + gx, 0);
@@ -189,9 +201,10 @@ export function create(env, shared) {
     ctx.strokeStyle = 'rgba(255,170,70,0.9)'; ctx.lineWidth = 3;
     for (let i = 0; i < Math.floor(broken * 9); i++) { let cx = (hash(i * 3) - 0.5) * 150, cy = 340 + hash(i * 3 + 1) * 60; ctx.beginPath(); ctx.moveTo(cx, cy); for (let k = 0; k < 4; k++) { cx += (hash(i * 7 + k) - 0.5) * 40; cy += 34; ctx.lineTo(cx, cy); } ctx.stroke(); }
     ctx.restore();
-    const g = ctx.createLinearGradient(0, 520, 0, H);
+    ctx.restore();
+    const g = ctx.createLinearGradient(0, 520 + GY, 0, H);
     g.addColorStop(0, '#4a1812'); g.addColorStop(0.5, '#260c0e'); g.addColorStop(1, '#0c0406');
-    ctx.fillStyle = g; ctx.fillRect(0, 528, W, H - 528);
+    ctx.fillStyle = g; ctx.fillRect(FR.x0 - 1, 528 + GY, FR.w + 2, H - 528 - GY);
     for (let lane = 0; lane < 3; lane++) {
       const w0 = 96, w1 = 50;
       const lg = ctx.createLinearGradient(0, Y1, 0, Y0);
@@ -250,10 +263,10 @@ export function create(env, shared) {
     ridge(ctx, { base: 1330, amp: 150, wl: 300, scroll: h.x * 0.15, color: '#141c44', seed: 2 });
     ridge(ctx, { base: 1450, amp: 110, wl: 220, scroll: h.x * 0.35, color: '#0a1030', seed: 6 });
     for (const c of s.herbClouds) {
-      const x = c.x - h.x; if (x < -300 || x > W + 300) continue;
+      const x = c.x - h.x, cyy = HY(c.y); if (x < FR.x0 - 300 || x > FR.x1 + 300) continue;
       ctx.fillStyle = 'rgba(16,18,50,0.95)';
-      for (let i = 0; i < 5; i++) { ctx.beginPath(); ctx.ellipse(x + (hash(i + c.r) - 0.5) * c.r * 1.4, c.y + (hash(i * 3 + c.r) - 0.5) * c.r * 0.6, c.r * 0.7, c.r * 0.45, 0, 0, TAU); ctx.fill(); }
-      ctx.strokeStyle = 'rgba(190,200,255,0.3)'; ctx.lineWidth = 2; ctx.setLineDash([8, 12]); ctx.beginPath(); ctx.arc(x, c.y, c.r, 0, TAU); ctx.stroke(); ctx.setLineDash([]);
+      for (let i = 0; i < 5; i++) { ctx.beginPath(); ctx.ellipse(x + (hash(i + c.r) - 0.5) * c.r * 1.4, cyy + (hash(i * 3 + c.r) - 0.5) * c.r * 0.6, c.r * 0.7, c.r * 0.45, 0, 0, TAU); ctx.fill(); }
+      ctx.strokeStyle = 'rgba(190,200,255,0.3)'; ctx.lineWidth = 2; ctx.setLineDash([8, 12]); ctx.beginPath(); ctx.arc(x, cyy, c.r, 0, TAU); ctx.stroke(); ctx.setLineDash([]);
     }
     const hx = 230, hy = h.y;
     light(ctx, hx + 20, hy - 120, 260, '170,255,180', 0.4);
@@ -285,7 +298,7 @@ export function create(env, shared) {
       if (sh.kind === 'stone') boulder(ctx, x, y, 12); else { ctx.strokeStyle = '#ffb070'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + (sh.x0 - sh.x1) * 0.08, y + (sh.y0 - sh.y1) * 0.08 - 6); ctx.stroke(); }
     }
     for (const f of s.puffs) { const a = 1 - f.t / 0.8; for (let i = 0; i < (f.big ? 16 : 7); i++) { ctx.fillStyle = `rgba(255,${150 + i * 6},90,${a * 0.7})`; ctx.beginPath(); ctx.arc(f.x + Math.cos(i * 2.4) * f.t * (f.big ? 200 : 90), f.y - 50 + Math.sin(i * 2.4) * f.t * (f.big ? 200 : 90) - f.t * 60, (f.big ? 16 : 8) * a + 2, 0, TAU); ctx.fill(); } }
-    ctx.fillStyle = '#0a0306'; ctx.beginPath(); ctx.moveTo(0, 1296); ctx.quadraticCurveTo(W / 2, 1262, W, 1296); ctx.lineTo(W, H); ctx.lineTo(0, H); ctx.fill();
+    ctx.fillStyle = '#0a0306'; ctx.beginPath(); ctx.moveTo(FR.x0 - 2, 1296); ctx.lineTo(0, 1296); ctx.quadraticCurveTo(W / 2, 1262, W, 1296); ctx.lineTo(FR.x1 + 2, 1296); ctx.lineTo(FR.x1 + 2, H); ctx.lineTo(FR.x0 - 2, H); ctx.fill();
     motes(ctx, { n: 34, t, rgb: '255,160,80', kind: 'ember', top: 300, bottom: 1300, rm });
     ctx.restore();
     finish(ctx, 0.72);
@@ -293,23 +306,28 @@ export function create(env, shared) {
     meter(ctx, 130, 150, 300, 20, s.gate / GATE0, '255,120,70', L.gate);
     label(ctx, L.line, 470, 142, 22); pips(ctx, 478, 161, s.line, 8, '160,230,170', 8, 17);
     meter(ctx, 24, 1284, W - 48, 18, s.energy / 10, '255,214,120', L.energy, `${Math.floor(s.energy)}`);
-    for (const b of BTN) unitButton(ctx, b, t);
+    const hm0 = mode.hud; mode.hud = false;          // the buttons are already placed (BTN / CALL): their own labels must not be moved again
+    for (const b of BTN()) unitButton(ctx, b, t);
+    const CALL_ = CALL();
     ctx.globalAlpha = s.called ? 0.35 : 1;
-    ctx.fillStyle = s.calling ? 'rgba(90,60,20,0.95)' : 'rgba(16,6,12,0.85)'; rr(ctx, CALL.x, CALL.y, CALL.w, CALL.h, 18); ctx.fill();
-    ctx.strokeStyle = s.calling ? '#fff2c0' : GOLD; ctx.lineWidth = s.calling ? 5 : 2.5; rr(ctx, CALL.x, CALL.y, CALL.w, CALL.h, 18); ctx.stroke();
-    if (!s.called) light(ctx, CALL.x + CALL.w / 2, CALL.y + 60, 100, '255,210,120', 0.3 + 0.15 * Math.sin(t * 3));
-    figure(ctx, { x: CALL.x + CALL.w / 2 - 8, y: CALL.y + 100, s: 0.44, kind: 'leaper', prop: 'mace', pose: poses.stand(t) });
-    label(ctx, L.call, CALL.x + CALL.w / 2, CALL.y + 134, 20, 'center', '#fff1cf');
+    ctx.fillStyle = s.calling ? 'rgba(90,60,20,0.95)' : 'rgba(16,6,12,0.85)'; rr(ctx, CALL_.x, CALL_.y, CALL_.w, CALL_.h, 18); ctx.fill();
+    ctx.strokeStyle = s.calling ? '#fff2c0' : GOLD; ctx.lineWidth = s.calling ? 5 : 2.5; rr(ctx, CALL_.x, CALL_.y, CALL_.w, CALL_.h, 18); ctx.stroke();
+    if (!s.called) light(ctx, CALL_.x + CALL_.w / 2, CALL_.y + 60, 100, '255,210,120', 0.3 + 0.15 * Math.sin(t * 3));
+    figure(ctx, { x: CALL_.x + CALL_.w / 2 - 8, y: CALL_.y + 100, s: 0.44, kind: 'leaper', prop: 'mace', pose: poses.stand(t) });
+    label(ctx, L.call, CALL_.x + CALL_.w / 2, CALL_.y + 134, 20, 'center', '#fff1cf');
     ctx.globalAlpha = 1;
+    mode.hud = hm0;
     if (s.phase === 'battle' && s.time < 7 && !shared.showcase) caption(ctx, shared.text.hint, 236, clamp(Math.min(s.time * 2, 7 - s.time), 0, 1), 28);
-    caption(ctx, s.msg, 640, Math.min(1, s.msgT * 2), 32);
+    caption(ctx, s.msg, FR.land ? 300 : 640, Math.min(1, s.msgT * 2), 32);
     if (s.phase === 'herbCard') {
-      ctx.fillStyle = 'rgba(6,2,8,0.7)'; ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = 'rgba(6,2,8,0.7)'; ctx.fillRect(FR.x0 - 1, 0, FR.w + 2, H);
       ctx.font = font(34); const lines = wrap(ctx, L.herbCard, W - 190);
+      ctx.save(); ctx.translate(hudX(0, W), hudY(420, 150) - 420); const hm = mode.hud; mode.hud = false;
       panel(ctx, 50, 420, W - 100, 150 + lines.length * 44);
       ctx.fillStyle = '#f3dfc0'; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'; ctx.font = font(34);
       lines.forEach((ln, i) => ctx.fillText(ln, W / 2, 500 + i * 44));
       if (s.phaseT > 1) label(ctx, shared.T.ui.tapToContinue, W / 2, 530 + lines.length * 44, 24, 'center', GOLD);
+      mode.hud = hm; ctx.restore();
     }
   }
 

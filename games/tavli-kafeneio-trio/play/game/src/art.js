@@ -1,6 +1,6 @@
 // The kafeneio table and the inlaid board: painted ONCE into a cached layer (2x resolution). One lamp, from the upper left.
 // Palette: Aegean blue, limestone cream, terracotta clay, olive wood, walnut, bronze.
-import { W, H, FRAME, IN, CH, SLOT, PLEN, TRAY, DICE, MID, pointGeom } from './layout.js';
+import { L, applyBoard, FRAME, IN, CH, SLOT, PLEN, TRAY, MID, pointGeom } from './layout.js';
 
 const TAU = Math.PI * 2;
 function lcg(seed) { let s = seed >>> 0; return () => ((s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 4294967296); }
@@ -90,27 +90,42 @@ function bronze(c, x, y, w, h, r = 4) {
 }
 function screw(c, x, y) { c.fillStyle = '#7b5518'; c.beginPath(); c.arc(x, y, 3.2, 0, TAU); c.fill(); c.strokeStyle = '#f4d98a'; c.lineWidth = 1; c.beginPath(); c.arc(x, y, 3.2, 0, TAU); c.stroke(); c.strokeStyle = '#3a2508'; c.beginPath(); c.moveTo(x - 2, y + 1); c.lineTo(x + 2, y - 1); c.stroke(); }
 
-// the wall behind the header: Aegean-blue painted plaster with a cream frieze
-function wall(c) {
-  c.fillStyle = lin(c, 0, 0, 0, 270, [[0, '#0b2d52'], [0.7, '#134a80'], [1, '#0e3a68']]); c.fillRect(0, 0, W, 270);
+// the wall behind the header: Aegean-blue painted plaster with a cream frieze along its lower edge. `len` runs along the frieze,
+// `th` is the thickness (the frieze sits at the far edge)
+function wall(c, len, th) {
+  c.fillStyle = lin(c, 0, 0, 0, th, [[0, '#0b2d52'], [0.7, '#134a80'], [1, '#0e3a68']]); c.fillRect(0, 0, len, th);
   const r = lcg(31);                                     // plaster mottling
-  for (let i = 0; i < 380; i++) { c.fillStyle = r() < 0.5 ? 'rgba(255,255,255,0.035)' : 'rgba(0,10,30,0.07)'; const s = 6 + r() * 34; c.beginPath(); c.ellipse(r() * W, r() * 270, s, s * (0.3 + r() * 0.5), r() * 3, 0, TAU); c.fill(); }
-  const lamp = c.createRadialGradient(150, 30, 10, 220, 160, 560); lamp.addColorStop(0, 'rgba(255,214,150,0.5)'); lamp.addColorStop(0.5, 'rgba(255,190,110,0.12)'); lamp.addColorStop(1, 'rgba(255,170,90,0)');
-  c.fillStyle = lamp; c.fillRect(0, 0, W, 270);
+  c.save(); c.beginPath(); c.rect(0, 0, len, th); c.clip();
+  for (let i = 0; i < 380; i++) { c.fillStyle = r() < 0.5 ? 'rgba(255,255,255,0.035)' : 'rgba(0,10,30,0.07)'; const s = 6 + r() * 34; c.beginPath(); c.ellipse(r() * len, r() * th, s, s * (0.3 + r() * 0.5), r() * 3, 0, TAU); c.fill(); }
+  c.restore();
+  const lamp = c.createRadialGradient(150, 30, 10, 220, Math.min(160, th * 0.6), 560); lamp.addColorStop(0, 'rgba(255,214,150,0.5)'); lamp.addColorStop(0.5, 'rgba(255,190,110,0.12)'); lamp.addColorStop(1, 'rgba(255,170,90,0)');
+  c.fillStyle = lamp; c.fillRect(0, 0, len, th);
   // cream frieze with a meander along the lower edge of the wall
-  c.fillStyle = lin(c, 0, 236, 0, 262, [[0, '#f3e9cf'], [1, '#d9c9a0']]); c.fillRect(0, 238, W, 22);
-  meander(c, 6, 241, W - 12, 16, { color: '#15487c', width: 1.8, shadow: false });
-  c.fillStyle = 'rgba(0,0,0,0.5)'; c.fillRect(0, 260, W, 4);
+  const fy = th - 32;
+  c.fillStyle = lin(c, 0, fy - 2, 0, fy + 24, [[0, '#f3e9cf'], [1, '#d9c9a0']]); c.fillRect(0, fy, len, 22);
+  meander(c, 6, fy + 3, len - 12, 16, { color: '#15487c', width: 1.8, shadow: false });
+  c.fillStyle = 'rgba(0,0,0,0.5)'; c.fillRect(0, fy + 22, len, 4);
 }
 
 export function paintStatic(c) {
+  const W = L.w, H = L.h, wl = L.wall, side = L.arr === 'side';
   // ---- wall and tabletop ------------------------------------------------------------------------------------------------
   c.fillStyle = lin(c, 0, 0, 0, H, [[0, '#2b1a0f'], [0.5, '#22140a'], [1, '#150b05']]); c.fillRect(0, 0, W, H);
-  grain(c, 0, 1290, W, 280, { seed: 7, n: 220, amp: 5, a: 0.1, vertical: false });
-  wall(c);
-  const lampT = c.createRadialGradient(160, 1300, 20, 260, 1400, 700); lampT.addColorStop(0, 'rgba(255,200,130,0.22)'); lampT.addColorStop(1, 'rgba(255,200,130,0)'); c.fillStyle = lampT; c.fillRect(0, 1290, W, 270);
-  const vg = c.createRadialGradient(360, 800, 460, 360, 800, 1050); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,0.45)'); c.fillStyle = vg; c.fillRect(0, 0, W, H);
+  if (side) grain(c, wl.w, 0, W - wl.w, H, { seed: 7, n: 320, amp: 5, a: 0.1, vertical: false });
+  else grain(c, 0, wl.h, W, H - wl.h, { seed: 7, n: 220, amp: 5, a: 0.1, vertical: false });
+  c.save();
+  if (side) { c.translate(0, H); c.rotate(-Math.PI / 2); wall(c, H, wl.w); } else wall(c, W, wl.h);
+  c.restore();
+  const lx = side ? wl.w + 160 : 160, ly = side ? H - 200 : H - 260;
+  const lampT = c.createRadialGradient(lx, ly, 20, lx + 100, ly + 100, 700); lampT.addColorStop(0, 'rgba(255,200,130,0.22)'); lampT.addColorStop(1, 'rgba(255,200,130,0)'); c.fillStyle = lampT; c.fillRect(side ? wl.w : 0, side ? 0 : wl.h, side ? W - wl.w : W, side ? H : H - wl.h);
+  const vg = c.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.64, W / 2, H / 2, Math.max(W, H) * 0.68); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,0.45)'); c.fillStyle = vg; c.fillRect(0, 0, W, H);
 
+  // ---- everything on the board is painted in board space and drawn through the board transform --------------------------------
+  c.save(); applyBoard(c); paintBoard(c); c.restore();
+  paintDiceTray(c);
+}
+
+function paintBoard(c) {
   // ---- the board: drop shadow, walnut frame, meander inlay ------------------------------------------------------------------
   const F = FRAME;
   for (let i = 0; i < 9; i++) { c.fillStyle = 'rgba(0,0,0,0.07)'; rr(c, F.x + 6 + i * 2, F.y + 12 + i * 3, F.w, F.h, 22); c.fill(); }
@@ -140,8 +155,14 @@ export function paintStatic(c) {
   c.fillStyle = lin(c, 0, IN.y1, 0, IN.y1 - 10, [[0, 'rgba(255,225,170,0.25)'], [1, 'rgba(255,225,170,0)']]); c.fillRect(IN.x0, IN.y1 - 10, iw, 10);
 
   for (let i = 0; i < 24; i++) point(c, i);
-  c.font = '600 15px system-ui, -apple-system, sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
-  for (let i = 0; i < 24; i++) { const g = pointGeom(i), x = g.edge + g.dir * (PLEN + 15); c.fillStyle = 'rgba(0,0,0,0.5)'; c.fillText(String(i + 1), x + 0.8, g.y + 1); c.fillStyle = 'rgba(250,236,196,0.74)'; c.fillText(String(i + 1), x, g.y); }
+  // point numbers: kept upright whichever way the board is turned (and a little bigger when the board is scaled down)
+  const nz = Math.round(Math.max(15, 15 / Math.max(0.5, L.s) * 0.82));
+  c.font = `700 ${nz}px system-ui, -apple-system, sans-serif`; c.textAlign = 'center'; c.textBaseline = 'middle';
+  for (let i = 0; i < 24; i++) {
+    const g = pointGeom(i), x = g.edge + g.dir * (PLEN + 15);
+    c.save(); c.translate(x, g.y); if (L.rot) c.rotate(Math.PI / 2);
+    c.fillStyle = 'rgba(0,0,0,0.5)'; c.fillText(String(i + 1), 0.8, 1); c.fillStyle = 'rgba(250,236,196,0.74)'; c.fillText(String(i + 1), 0, 0); c.restore();
+  }
   c.textBaseline = 'alphabetic';
 
   // ---- the channel: dark walnut with a meander spine and two medallions ---------------------------------------------------------
@@ -163,8 +184,11 @@ export function paintStatic(c) {
     rr(c, T.x, T.y, T.w, T.h, 8); c.fillStyle = lin(c, 0, T.y, 0, T.y + T.h, [[0, '#0a2540'], [1, '#164a7c']]); c.fill();
     c.fillStyle = lin(c, 0, T.y, 0, T.y + 12, [[0, 'rgba(0,0,0,0.55)'], [1, 'rgba(0,0,0,0)']]); rr(c, T.x, T.y, T.w, 12, 8); c.fill();
   }
+}
+
+function paintDiceTray(c) {
   // ---- the dice tray: blue felt in a walnut rim ---------------------------------------------------------------------------------
-  const Dt = DICE;
+  const Dt = L.dice;
   for (let i = 0; i < 5; i++) { c.fillStyle = 'rgba(0,0,0,0.08)'; rr(c, Dt.x + 4 + i, Dt.y + 8 + i * 2, Dt.w, Dt.h, 18); c.fill(); }
   rr(c, Dt.x - 10, Dt.y - 10, Dt.w + 20, Dt.h + 20, 20); c.fillStyle = lin(c, 0, Dt.y - 10, 0, Dt.y + Dt.h + 10, [[0, '#6e4325'], [1, '#34190f']]); c.fill();
   c.strokeStyle = 'rgba(255,225,170,0.4)'; c.lineWidth = 1.5; c.stroke();
@@ -174,11 +198,13 @@ export function paintStatic(c) {
   c.strokeStyle = 'rgba(240,214,140,0.7)'; c.lineWidth = 1.2; rr(c, Dt.x + 7, Dt.y + 7, Dt.w - 14, Dt.h - 14, 8); c.stroke();
 }
 
-// One cached layer. Falls back to painting directly where OffscreenCanvas does not exist (Node tests).
-let layer = null;
+
+// One cached layer per layout. Falls back to painting directly where OffscreenCanvas does not exist (Node tests).
+let layer = null, layerKey = '';
 export function drawStatic(ctx) {
+  if (layerKey !== L.key) { layer = null; layerKey = L.key; }
   if (!layer && typeof OffscreenCanvas !== 'undefined') {
-    try { const cv = new OffscreenCanvas(W * 2, H * 2), lc = cv.getContext('2d'); lc.scale(2, 2); paintStatic(lc); layer = cv; } catch { layer = null; }
+    try { const cv = new OffscreenCanvas(Math.ceil(L.w * 2), Math.ceil(L.h * 2)), lc = cv.getContext('2d'); lc.scale(2, 2); paintStatic(lc); layer = cv; } catch { layer = null; }
   }
-  if (layer) ctx.drawImage(layer, 0, 0, W, H); else paintStatic(ctx);
+  if (layer) ctx.drawImage(layer, 0, 0, L.w, L.h); else paintStatic(ctx);
 }

@@ -1,6 +1,7 @@
 // Drawing helpers: Andean woven themes, carved dice, the leather cup, panels, flat buttons, icons.
 // Plain canvas 2D, no images. Nothing here changes game state.
-export const W = 720, H = 1560;
+import { scr } from './layout.js';
+export const W = 720, H = 1560;   // the phone design canvas; live screen size is `scr` (layout.js)
 export const UI = '-apple-system, "SF Pro Text", "Segoe UI", Roboto, system-ui, sans-serif';
 export const DISPLAY = '"Palatino Linotype", Palatino, "Iowan Old Style", Georgia, "Times New Roman", serif';
 
@@ -88,30 +89,30 @@ function stripe(ctx, th, x, y, w, h) {
 }
 
 // ---------------------------------------------------------------------------------------------------- background
-const FLECKS = Array.from({ length: 26 }, (_, i) => [((i * 97) % 211) / 211 * W, ((i * 53) % 173) / 173 * H, 0.6 + ((i * 31) % 7) / 7, ((i * 13) % 11) / 11]);
-
-export function background(ctx, th, t, glowY = 700) {
-  const g = ctx.createLinearGradient(0, 0, 0, H);
+const FLECKS = Array.from({ length: 26 }, (_, i) => [((i * 97) % 211) / 211, ((i * 53) % 173) / 173, 0.6 + ((i * 31) % 7) / 7, ((i * 13) % 11) / 11]);
+export function background(ctx, th, t, glowY = 700, glowX = scr.w / 2) {
+  const w = scr.w, h = scr.h;
+  const g = ctx.createLinearGradient(0, 0, 0, h);
   g.addColorStop(0, th.bg[0]); g.addColorStop(0.5, th.bg[1]); g.addColorStop(1, th.bg[2]);
-  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
   // woven cloth: faint horizontal threads
   ctx.fillStyle = 'rgba(255,255,255,0.025)';
-  for (let y = 0; y < H; y += 8) ctx.fillRect(0, y, W, 2);
-  const hg = ctx.createRadialGradient(W / 2, glowY, 40, W / 2, glowY, 660);
+  for (let y = 0; y < h; y += 8) ctx.fillRect(0, y, w, 2);
+  const hg = ctx.createRadialGradient(glowX, glowY, 40, glowX, glowY, 660);
   hg.addColorStop(0, th.glow); hg.addColorStop(1, 'rgba(0,0,0,0)');
-  ctx.fillStyle = hg; ctx.fillRect(0, 0, W, H);
-  for (const [x, y, s, ph] of FLECKS) {
-    const yy = (y + t * (3 + s * 3)) % H;
+  ctx.fillStyle = hg; ctx.fillRect(0, 0, w, h);
+  for (const [fx, fy, s, ph] of FLECKS) {
+    const yy = (fy * h + t * (3 + s * 3)) % h;
     const a = 0.05 + 0.1 * (0.5 + 0.5 * Math.sin(t * 0.7 + ph * 9));
     ctx.fillStyle = `rgba(${th.fleck},${a})`;
-    ctx.fillRect(x, yy, 2.2 * s, 2.2 * s);
+    ctx.fillRect(fx * w, yy, 2.2 * s, 2.2 * s);
   }
-  const vg = ctx.createRadialGradient(W / 2, H / 2, 560, W / 2, H / 2, 1020);
+  const vg = ctx.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.78, w / 2, h / 2, Math.hypot(w, h) * 0.5 + 120);
   vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,0.5)');
-  ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = vg; ctx.fillRect(0, 0, w, h);
   ctx.globalAlpha = 0.9;
-  weaveBand(ctx, th, 0, 0, W, 16, {});
-  weaveBand(ctx, th, 0, H - 16, W, 16, {});
+  weaveBand(ctx, th, 0, 0, w, 16, {});
+  weaveBand(ctx, th, 0, h - 16, w, 16, {});
   ctx.globalAlpha = 1;
 }
 

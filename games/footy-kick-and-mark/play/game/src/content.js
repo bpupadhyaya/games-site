@@ -50,7 +50,7 @@ export const HOWTO = [
 const pct = (v) => `${q(v * 100)}%`;
 export const RULES = [
   { title: 'The pitch', art: 'pitch', p: [
-    `The pitch is an oval ${K.HW * 2} m wide and ${K.HL * 2} m long (a much smaller ground than the real sport; the players are drawn 1.25 times life size so they read on a phone). A goal line runs across each end ${K.ZG} m from the centre. Four posts stand on it: two goal posts ${K.GHW * 2} m apart in the middle, and a behind post ${K.BHW - K.GHW} m outside each of them.`,
+    `The pitch is an oval ${K.HW * 2} m wide and ${K.HL * 2} m long (a much smaller ground than the real sport; the players are drawn 1.25 times life size so they read on a phone). A goal line runs across each end ${K.ZG} m from the centre. Four posts stand on it: two goal posts ${K.GHW * 2} m apart in the middle, and a behind post ${+(K.BHW - K.GHW).toFixed(2)} m outside each of them.`,
     'You attack the far end. The computer team attacks the near end. Ends are never swapped.',
   ] },
   { title: 'Teams and roles', p: [

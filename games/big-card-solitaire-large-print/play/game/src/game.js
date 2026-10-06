@@ -16,13 +16,15 @@ import {
 } from './rules.js';
 import { generateWinnableDeal } from './solver.js';
 import { rankLabel, suitGlyph } from './deck.js';
-import { computeLayout, hitTest, contains, BTN, HERO, OPT, W, H, TEXT_SCALES, AUTO_THINK_STEPS, AUTO_REVEAL_SECS, SIBLINGS, chipRect, chipRectAuto } from './layout.js';
+import { layoutFor, hitTest, contains, TEXT_SCALES, AUTO_THINK_STEPS, AUTO_REVEAL_SECS, SIBLINGS } from './layout.js';
 import { THEMES, TABLES } from './art.js';
 import { createFx } from './fx.js';
-import { render } from './view.js';
+import { render, rulesMetrics } from './view.js';
 import { RULES } from './content.js';
 
-export const meta = { width: W, height: H };
+export const meta = { width: 720, height: 1560, fluid: { short: 720 } };
+// Mouse-wheel scrolling for the Rules page (main.js adds to it, in virtual units).
+export const wheelInput = { dy: 0 };
 
 // Web preview (env.config.demo) is marketing for the full iOS/Android game, not a substitute
 // for it — cap how many deals are playable for free. See docs/GAME-CONTRACT.md's "Web preview".
@@ -30,7 +32,8 @@ const DEMO_DEAL_LIMIT = 3;
 
 export function createGame(env) {
   const { rng, storage, monetization, audio, config } = env;
-  const layout = computeLayout(meta);
+  // Geometry follows the live screen size (kit fluid viewport); Auto Play has its own status bar, so it has its own layout.
+  const lay = () => layoutFor(meta.width, meta.height, state.scene === 'auto');
   const demo = Boolean(config?.demo);
 
   const state = {
@@ -38,6 +41,7 @@ export function createGame(env) {
     demo,
     demoDeals: 0,
     rulesPage: 0,
+    rulesScroll: 0, // pixels scrolled on the current Rules page (0 when the page fits)
     demoLimitReached: false,
     board: null,
     dealVerified: false,
@@ -205,9 +209,10 @@ export function createGame(env) {
 
   // The options sheet: table colour, card back, suit colours, motion. Opens over the title or a hand.
   const handleOptionsTap = (x, y) => {
-    for (let i = 0; i < TABLES.length; i++) if (contains(OPT.tableRect(i), x, y)) return tick(), setTable(i);
+    const OPT = lay().opt.r;
+    for (let i = 0; i < TABLES.length; i++) if (contains(OPT.table[i], x, y)) return tick(), setTable(i);
     for (let i = 0; i < THEMES.length; i++) {
-      if (!contains(OPT.themeRect(i), x, y) || !themeOwned(THEMES[i])) continue;
+      if (!contains(OPT.theme[i], x, y) || !themeOwned(THEMES[i])) continue;
       state.activeTheme = THEMES[i].id;
       storage.set('activeTheme', state.activeTheme);
       return tick();
@@ -226,6 +231,14 @@ export function createGame(env) {
         startNewDeal();
         return;
       }
+      if (contains(OPT.menu, x, y)) {
+        // The in-game way out (standalone builds have no host back button): abandon the hand and return to the title.
+        state.options = false;
+        state.scene = 'title';
+        state.selected = null;
+        state.hint = false;
+        return tick();
+      }
       if (contains(OPT.doneAfterHand, x, y)) {
         state.options = false;
         tick();
@@ -239,17 +252,20 @@ export function createGame(env) {
   };
 
   const handleTitleTap = (x, y) => {
-    if (contains(BTN.titleOptions, x, y)) {
+    if (contains(lay().title.lockTap, x, y)) { env.openArcforgeHome?.(); return; }
+    const T = lay().title.r;
+    if (contains(T.options, x, y)) {
       state.options = true;
       return tick();
     }
-    if (contains(BTN.titleRules, x, y)) {
+    if (contains(T.rules, x, y)) {
       state.scene = 'rules';
       state.rulesPage = 0;
+      state.rulesScroll = 0;
       return tick();
     }
-    if (contains(BTN.titleAuto, x, y)) return startAutoPlay();
-    if (contains(BTN.deal, x, y) || contains(HERO, x, y)) startNewDeal();
+    if (contains(T.auto, x, y)) return startAutoPlay();
+    if (contains(T.deal, x, y) || contains(T.hero, x, y)) startNewDeal();
   };
 
   // The Rules reference page: Back steps to the previous page, or exits to the title from page 1
@@ -258,28 +274,27 @@ export function createGame(env) {
   // game's Rules reference uses). Next steps forward and reads "Done" on the last page, exiting
   // there instead of silently wrapping back to page 1.
   const handleRulesTap = (x, y) => {
-    if (contains(BTN.rulesBack, x, y)) {
-      if (state.rulesPage > 0) state.rulesPage -= 1;
-      else state.scene = 'title';
+    const RL = lay().rules;
+    if (contains(RL.back, x, y) || contains(RL.next, x, y)) {   // Back and Done both leave
+      state.scene = 'title'; state.rulesPage = 0; state.rulesScroll = 0;
       return tick();
     }
-    if (contains(BTN.rulesNext, x, y)) {
-      if (state.rulesPage >= RULES.length - 1) { state.scene = 'title'; state.rulesPage = 0; } else state.rulesPage += 1;
-      return tick();
-    }
-    if (contains(BTN.textDec, x, y) && state.textScaleIdx > 0) {
+    if (contains(RL.textDec, x, y) && state.textScaleIdx > 0) {
       state.textScaleIdx -= 1;
+      state.rulesScroll = 0;
       storage.set('textScaleIdx', state.textScaleIdx);
       return tick();
     }
-    if (contains(BTN.textInc, x, y) && state.textScaleIdx < TEXT_SCALES.length - 1) {
+    if (contains(RL.textInc, x, y) && state.textScaleIdx < TEXT_SCALES.length - 1) {
       state.textScaleIdx += 1;
+      state.rulesScroll = 0;
       storage.set('textScaleIdx', state.textScaleIdx);
       return tick();
     }
   };
 
   const handlePlayingTap = (x, y) => {
+    const layout = lay(), BTN = layout.btn;
     if (contains(BTN.options, x, y)) {
       state.options = true;
       state.selected = null;
@@ -290,7 +305,7 @@ export function createGame(env) {
       state.selected = null;
       return;
     }
-    const target = hitTest(meta, layout, state.board, x, y);
+    const target = hitTest(layout, state.board, x, y);
     if (!target) {
       state.selected = null;
       return;
@@ -375,6 +390,7 @@ export function createGame(env) {
   const updateAuto = (dt, x, y, tapped) => {
     const A = state.auto;
     if (!A) return;
+    const L = lay(), BTN = L.btn;
     if (tapped) {
       if (contains(BTN.autoExit, x, y)) return teardownAuto(), void (state.scene = 'title');
       if (contains(BTN.autoDec, x, y)) { if (state.autoThinkIdx > 0) { state.autoThinkIdx -= 1; storage.set('autoThinkIdx', state.autoThinkIdx); } return; }
@@ -383,7 +399,7 @@ export function createGame(env) {
         // "More from Arcforge" chips (layout.js SIBLINGS/chipRectAuto) sit in the empty band
         // below the ended sheet — check them first, same reasoning as the real 'won' screen.
         for (let i = 0; i < SIBLINGS.length; i++) {
-          if (contains(chipRectAuto(i), x, y)) { env.openGame(SIBLINGS[i].slug); return; }
+          if (contains(L.ended.chips[i], x, y)) { env.openGame(SIBLINGS[i].slug); return; }
         }
         // The Skip button's own spot doubles as "Play again" once the run has ended.
         if (contains(BTN.autoSkip, x, y)) startAutoPlay();
@@ -446,7 +462,7 @@ export function createGame(env) {
       // being swallowed by the catch-all "any tap deals again" below.
       let openedGame = false;
       for (let i = 0; i < SIBLINGS.length; i++) {
-        if (contains(chipRect(i), x, y)) {
+        if (contains(lay().won.chips[i], x, y)) {
           env.openGame(SIBLINGS[i].slug);
           openedGame = true;
           break;
@@ -459,13 +475,26 @@ export function createGame(env) {
     else if (state.scene === 'playing') handlePlayingTap(x, y);
   };
 
-  const fx = createFx(layout);
+  let drag = null;
+  const fx = createFx(lay);
 
   return {
     update(dt, input) {
       // Turn-based tap game: there are no timers in the rules. dt only moves the visuals (cards
       // sliding to their places), and never decides anything. Only the rising edge of a tap acts.
+      { const lt = state.scene === 'title' && lay().title.lockTap; const ip = input.pointer; state.lkDown = !!(lt && ip.down && ip.x >= lt.x && ip.x <= lt.x + lt.w && ip.y >= lt.y && ip.y <= lt.y + lt.h); }
       if (input.pointer.pressed) handleTap(input.pointer.x, input.pointer.y);
+      // Rules reader: drag, wheel and arrow keys scroll a page taller than the panel; a page that fits never moves.
+      if (state.scene === 'rules' && !state.options) {
+        const p = input.pointer, RL = lay().rules;
+        if (wheelInput.dy) { state.rulesScroll += wheelInput.dy; wheelInput.dy = 0; }
+        if (p.pressed && contains(RL.panel, p.x, p.y)) drag = { y: p.y, s: state.rulesScroll };
+        if (drag && p.down) state.rulesScroll = drag.s - (p.y - drag.y);
+        if (!p.down) drag = null;
+        if (input.keys.down.has('ArrowDown')) state.rulesScroll += 600 * dt;
+        if (input.keys.down.has('ArrowUp')) state.rulesScroll -= 600 * dt;
+        state.rulesScroll = Math.max(0, Math.min(state.rulesScroll, Math.max(0, rulesMetrics.contentH - rulesMetrics.viewH)));
+      } else { wheelInput.dy = 0; drag = null; }
       if (state.scene === 'playing' && !state.options && input.keys.pressed.has('KeyH')) {
         state.hint = !state.hint;
         state.selected = null;
@@ -483,7 +512,7 @@ export function createGame(env) {
     },
 
     render(ctx) {
-      render(ctx, env, state, layout, fx, { hintMoves: state.hint && state.board ? allLegalMoves(state.board) : [], demoLimit: DEMO_DEAL_LIMIT });
+      render(ctx, env, state, lay(), fx, { hintMoves: state.hint && state.board ? allLegalMoves(state.board) : [], demoLimit: DEMO_DEAL_LIMIT });
     },
 
     // JSON-serializable and complete: exposes tableau/foundations/stock/waste directly so

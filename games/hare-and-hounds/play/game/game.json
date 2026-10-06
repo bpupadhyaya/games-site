@@ -3,8 +3,8 @@
   "title": "Hare and Hounds",
   "tagline": "One hare. Three hounds. One narrow board.",
   "genre": "board",
-  "orientation": "portrait",
-  "version": "1.0.1",
+  "orientation": "any",
+  "version": "1.1.5",
   "monetization": {
     "model": "premium",
     "priceUsd": 2.99,

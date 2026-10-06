@@ -1,5 +1,5 @@
 // GAME CONTRACT (docs/GAME-CONTRACT.md). Huarong Dao: Sliding Puzzle — see design/GDD.md.
-import { SCREEN, inRect, BACK_BTN, PAUSE_BTN, TOOLBAR_IDS, toolRect, AUTO_BTNS, CELL } from './layout.js';
+import { inRect, BACK_BTN, PAUSE_BTN, TOOLBAR_IDS, toolRect, AUTO_BTNS, CELL, LAY, applyLayout } from './layout.js';
 import { LEVELS } from './levels.js';
 import { TEXT_SCALES, hitDoc, clampScroll } from './ui.js';
 import { buildUi, UNLOCK_NEED, THINK_STEPS, solvedIn, totalSolved, levelLocked, demoLocked, firstOpenLevel } from './screens.js';
@@ -9,9 +9,14 @@ import {
 } from './puzzle.js';
 import { render } from './view.js';
 
-export const meta = { width: SCREEN.width, height: SCREEN.height };
+// Fluid viewport (kit 1.7): the short side is always 720 units and the long side follows the screen, in portrait and landscape.
+// `meta.width/height` are updated live by the kit; every rectangle comes from applyLayout(width, height) (layout.js).
+export const meta = { width: 720, height: 1560, fluid: { short: 720 } };
 
-const VERSION = '1.0.0';
+// Mouse-wheel travel (virtual units) collected by main.js and consumed by whichever text screen is scrolling; empty in headless runs.
+export const wheelInput = { dy: 0 };
+
+const VERSION = '1.1.0';
 const AUTO_IDS = ['dawn-patrol', 'two-guards', 'red-cliffs'];
 const GOLDS = ['#fbe6a6', '#e4bd68', '#ffffff', '#ffcf6a'];
 const REDS = ['#c7372c', '#e4bd68', '#f6ead2', '#d9604a'];
@@ -29,7 +34,7 @@ export async function createGame(env) {
     levelIdx: 0, puz: null,
     auto: null, winInfo: null, winSeq: null, toast: null, toastT: 0,
     demo: Boolean(config?.demo), dev: Boolean(config?.dev), owns: false, resetArm: false,
-    version: VERSION, price: '', shot: false, lastPtr: { x: 0, y: 0 },
+    version: env.manifest?.version || VERSION, price: '', shot: false, lastPtr: { x: 0, y: 0 },
   };
 
   const [prog, set, run] = await Promise.all([storage.get('hd.progress', null), storage.get('hd.settings', null), storage.get('hd.run', null)]);
@@ -248,6 +253,7 @@ export async function createGame(env) {
 
   function activate(id) {
     if (id == null) return;
+    if (id === 'arcforge') { env.openArcforgeHome?.(); return; }
     if (id.startsWith('lang:')) { setLang(id.slice(5)); return; }
     if (id === 'zoom-') { setText(-1); return; }
     if (id === 'zoom+') { setText(1); return; }
@@ -264,11 +270,12 @@ export async function createGame(env) {
       case 'auto': startAuto(); return;
       case 'howto': case 'rules': case 'about': case 'settings': gotoScene(id); return;
       case 'back': case 'menu': gotoScene('title'); return;
-      case 'prev': S.page[S.scene] = Math.max(0, S.page[S.scene] - 1); S.scroll = {}; sound('ui'); return;
-      case 'next': {
-        const total = S.scene === 'rules' ? 13 : 6;
-        if (S.scene === 'howto' && S.page.howto >= total - 1) { activate('play'); return; }
-        S.page[S.scene] = Math.min(total - 1, S.page[S.scene] + 1); S.scroll = {}; sound('ui'); return;
+      case 'prev': case 'next': {
+        if (S.scene !== 'howto') return;
+        const ui = buildUi(S); if (!ui.layout || !ui.region) return;
+        const max = Math.max(0, ui.layout.height - ui.region.h), sc = getScroll(ui);
+        if (id === 'next' && sc >= max - 1) { gotoScene('title'); return; }
+        setScroll(ui, sc + (id === 'next' ? 1 : -1) * ui.region.h * 0.88); sound('ui'); return;
       }
       case 'set:sound': S.sound = !S.sound; audio.setMuted(!S.sound); saveSettings(); if (S.sound) sound('ui'); return;
       case 'set:think-': S.thinkIdx = Math.max(0, S.thinkIdx - 1); saveSettings(); return;
@@ -426,11 +433,15 @@ export async function createGame(env) {
     }
     const ui = buildUi(S);
     if (ui.layout && ui.region) {
-      if (keys.down.has('ArrowDown') || keys.down.has('PageDown')) setScroll(ui, getScroll(ui) + 18);
-      if (keys.down.has('ArrowUp') || keys.down.has('PageUp')) setScroll(ui, getScroll(ui) - 18);
+      if (keys.down.has('ArrowDown')) setScroll(ui, getScroll(ui) + 18);
+      if (keys.down.has('ArrowUp')) setScroll(ui, getScroll(ui) - 18);
+      if (has('PageDown')) setScroll(ui, getScroll(ui) + ui.region.h * 0.88);
+      if (has('PageUp')) setScroll(ui, getScroll(ui) - ui.region.h * 0.88);
+      if (has('Home')) setScroll(ui, 0);
+      if (has('End')) setScroll(ui, 1e9);
     }
     if (has('Escape') && ['levels', 'howto', 'rules', 'about', 'settings', 'demo-limit'].includes(S.scene)) gotoScene('title');
-    if (S.scene === 'howto' || S.scene === 'rules') {
+    if (S.scene === 'howto') {
       if (has('ArrowRight')) activate('next');
       if (has('ArrowLeft')) activate('prev');
     }
@@ -473,9 +484,59 @@ export async function createGame(env) {
     if (w.i >= WIN_NOTES.length) S.winSeq = null;
   }
 
+  // ------------------------------------------------------------------------------ rotation / resize
+  // A new screen size re-lays everything out. Positions live in cell units, so the puzzle keeps its state; only things
+  // measured in pixels are dropped: a block held by a finger goes back to its cell, scattered particles disappear.
+  let layKey = '';
+  function relayout(w, h) {
+    applyLayout(w, h);
+    if (LAY.key === layKey) return;
+    if (layKey) {
+      S.press = null; S.scrollVel = {};
+      if (S.puz) { S.puz.drag = null; S.puz.parts = []; for (const p of S.puz.pieces) p.pending = null; }
+      S.puzDown = false;
+      if (S.puz && S.scene === 'play') S.puz.selected = S.puz.selected;
+    }
+    layKey = LAY.key;
+  }
+  relayout(meta.width, meta.height);
+
+  // every tappable rectangle of the current screen (dev tools and the layout check scripts)
+  function rects() {
+    const out = [];
+    const ui = buildUi(S);
+    const add = (id, r, kind) => { if (r && r.w) out.push({ id: String(id), x: r.x, y: r.y, w: r.w, h: r.h, kind }); };
+    if ((S.scene === 'play' || S.scene === 'auto') && !S.overlay) {
+      add('back', BACK_BTN, 'hud');
+      if (S.scene === 'play') { add('pause', PAUSE_BTN, 'hud'); TOOLBAR_IDS.forEach((id, i) => add(id, toolRect(i), 'tool')); } else for (const id of ['slower', 'pause', 'faster']) add(`auto:${id}`, AUTO_BTNS[id], 'auto');
+      add('board', LAY.frame, 'board');
+    } else {
+      for (const f of ui.fixed) add(f.id ?? 'label', f.rect, 'fixed');
+      if (ui.nav) { add('prev', ui.nav.prev.rect, 'fixed'); add('next', ui.nav.next.rect, 'fixed'); }
+      if (ui.layout && ui.region) {
+        const sc = getScroll(ui);
+        for (const it of ui.layout.items) for (const bt of it.btns) if (bt.id != null) add(bt.id, { x: ui.region.x + bt.x, y: ui.region.y + (ui.offY || 0) + bt.y - sc, w: bt.w, h: bt.h }, 'doc');
+      }
+    }
+    return out;
+  }
+
   // ------------------------------------------------------------------------------ main loop
   return {
+    rects,
+    layout: () => LAY,
+    debugGo(scene) {
+      if (scene === 'play') startLevel(0);
+      else if (scene === 'auto') startAuto();
+      else if (scene === 'pause') { startLevel(0); S.overlay = 'pause'; S.ovT = 1; }
+      else if (scene === 'win') { startLevel(0); devSolve(); S.puz.doneT = 2; S.overlay = 'win'; S.ovT = 1; }
+      else if (scene === 'autosum') { startAuto(); S.overlay = 'autosum'; S.ovT = 1; }
+      else { S.puz = null; S.overlay = null; gotoScene(scene); }
+    },
+    setText(i) { S.textIdx = i; S.scroll = {}; },
+    setLang(l) { S.lang = l; S.scroll = {}; },
     update(dt, input) {
+      relayout(meta.width, meta.height);
       // Watch & Learn's Pause freezes the whole loop: timers, the blocks' springs and slides, particles and the
       // ambient animation clock all stop, and resume exactly where they were.
       const frozen = S.scene === 'auto' && S.auto && S.auto.paused;
@@ -494,6 +555,11 @@ export async function createGame(env) {
       }
       if (ptr.down || ptr.pressed) { S.lastPtr.x = ptr.x; S.lastPtr.y = ptr.y; }
       if (!S.shot && (input.keys.pressed.size || input.keys.down.size)) onKeys(input.keys);
+      if (wheelInput.dy) {
+        const ui = buildUi(S);
+        if (ui.layout && ui.region && S.scene !== 'play' && S.scene !== 'auto' || S.overlay) { if (ui.layout && ui.region) setScroll(ui, getScroll(ui) + wheelInput.dy); }
+        wheelInput.dy = 0;
+      }
 
       for (const k of Object.keys(S.scrollVel)) {
         const v = S.scrollVel[k];
@@ -514,14 +580,15 @@ export async function createGame(env) {
       }
     },
 
-    render(ctx) {
-      render(ctx, S, buildUi(S));
+    render(ctx, view) {
+      relayout(meta.width, meta.height);   // the kit keeps meta.width/height equal to the live view size
+      render(ctx, S, buildUi(S), view);
     },
 
     getState() {
       const puz = S.puz;
       return {
-        scene: S.scene, overlay: S.overlay, lang: S.lang, textIdx: S.textIdx, thinkIdx: S.thinkIdx, sound: S.sound, level: S.levelIdx,
+        layout: LAY.mode, scene: S.scene, overlay: S.overlay, lang: S.lang, textIdx: S.textIdx, thinkIdx: S.thinkIdx, sound: S.sound, level: S.levelIdx,
         solved: totalSolved(S), stars: S.progress.stars, best: S.progress.best, page: S.page, scroll: S.scroll,
         auto: S.auto ? { k: S.auto.k, phase: S.auto.phase, t: Math.round(S.auto.t * 100) / 100, paused: S.auto.paused, n: S.auto.n } : null,
         puzzle: puz ? {
@@ -533,6 +600,9 @@ export async function createGame(env) {
 
     // The preview clock counts real play only. Menus, level select, Rules / How to Play / About, Settings,
     // every overlay (pause, win, Watch & Learn summary), the demo card and Watch & Learn are all free time.
+    // Dev tools only (?dev=1): the layout checks read the rects of the screen that is showing through this.
+    dbg: config?.dev ? { buildUi: () => buildUi(S) } : undefined,
+
     isPreviewExempt: () => S.shot || S.scene !== 'play' || Boolean(S.overlay),
   };
 }

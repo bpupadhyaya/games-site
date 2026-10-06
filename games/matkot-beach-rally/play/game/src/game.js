@@ -9,12 +9,13 @@ import { newAI, aiTick, coachPlan } from './ai.js';
 import { PROFILES, PARTNER, COACH } from './opponents.js';
 import { lightAt } from './art.js';
 import { renderScene, drawHud, drawBanner, drawThink, drawPlan, drawReticle, dropPoint, ring, tierOf, TIER_NAMES } from './view.js';
-import { inRect, PAUSE_BTN, HINT_BTN, WATCH_BAR, TEXT_DEC, TEXT_INC, REF_BACK, REF_NEXT, TEXT_SCALES, THINK_STEPS, SETUP_PINS } from './layout.js';
-import { renderTitle, renderSetup, renderSettings, renderResult, renderPause, renderPages, renderDemoLimit, hitScreen, flowMeta, pageCount, ensureLayout } from './menus.js';
+import { inRect, TEXT_SCALES, THINK_STEPS, syncLayout, liveLayout } from './layout.js';
+import { renderTitle, renderSetup, renderSettings, renderResult, renderPause, renderPages, renderDemoLimit, hitScreen, getLockTap, flowMeta, readerMeta, ensureLayout } from './menus.js';
 import { ABOUT, HOWTO, RULES } from './content.js';
-import { setPress } from './ui.js';
+import { setPress, FONT } from './ui.js';
 
-export const meta = { width: W, height: H };
+export const meta = { width: W, height: H, fluid: { short: 720 } };
+export const wheelInput = { dy: 0 };   // fed by main.js (the kit has no wheel event); scrolls the reader and the long menus
 export const DEMO_RALLY_CAP = 6;
 const SHOT = (() => { try { return /[?&]shot=/.test(globalThis.location.search); } catch { return false; } })();
 const SHOT_SC = (() => { try { return new URLSearchParams(globalThis.location.search).get('sc'); } catch { return null; } })();
@@ -41,6 +42,13 @@ export function createGame(env) {
     hintOk: false, thinkSecs: THINK_STEPS[1], loaded: false, toast: '', toastT: 0,
   };
   let ais = [null, null], attAIs = [null, null];
+  // The live layout (a pure function of the screen size). A new size (rotation, window resize) cancels any half-made drag so no stale
+  // finger offset survives; the match itself (positions, score, timers) lives in court metres and is untouched.
+  let L = syncLayout(meta.width, meta.height), lastKey = L.key;
+  const sync = () => {
+    L = syncLayout(meta.width, meta.height);
+    if (L.key !== lastKey) { lastKey = L.key; state.hold = null; state.ui.drag = null; state.btnPress = false; }
+  };
 
   // ---- persistence ---------------------------------------------------------------------------------------
   const save = () => { storage.set('settings', state.settings); storage.set('record', state.record); };
@@ -378,13 +386,13 @@ export function createGame(env) {
     if (ptr.pressed) {
       if (watch) {
         state.btnPress = true;
-        if (inRect(WATCH_BAR.pause, ptr.x, ptr.y)) { state.paused = !state.paused; sfx.tick(); }
-        else if (inRect(WATCH_BAR.dec, ptr.x, ptr.y)) { state.settings.thinkIdx = Math.max(0, state.settings.thinkIdx - 1); state.thinkSecs = THINK_STEPS[state.settings.thinkIdx]; sfx.tick(); save(); }
-        else if (inRect(WATCH_BAR.inc, ptr.x, ptr.y)) { state.settings.thinkIdx = Math.min(THINK_STEPS.length - 1, state.settings.thinkIdx + 1); state.thinkSecs = THINK_STEPS[state.settings.thinkIdx]; sfx.tick(); save(); }
-        else if (inRect(WATCH_BAR.exit, ptr.x, ptr.y)) { leaveRun(); return; }
+        if (inRect(L.watch.pause, ptr.x, ptr.y)) { state.paused = !state.paused; sfx.tick(); }
+        else if (inRect(L.watch.dec, ptr.x, ptr.y)) { state.settings.thinkIdx = Math.max(0, state.settings.thinkIdx - 1); state.thinkSecs = THINK_STEPS[state.settings.thinkIdx]; sfx.tick(); save(); }
+        else if (inRect(L.watch.inc, ptr.x, ptr.y)) { state.settings.thinkIdx = Math.min(THINK_STEPS.length - 1, state.settings.thinkIdx + 1); state.thinkSecs = THINK_STEPS[state.settings.thinkIdx]; sfx.tick(); save(); }
+        else if (inRect(L.watch.exit, ptr.x, ptr.y)) { leaveRun(); return; }
         else state.btnPress = false;
-      } else if (inRect(PAUSE_BTN, ptr.x, ptr.y)) { state.btnPress = true; openPause(); sfx.tick(); return; }
-      else if (inRect(HINT_BTN, ptr.x, ptr.y)) { state.btnPress = true; requestHint(); sfx.tick(); }
+      } else if (inRect(L.pause, ptr.x, ptr.y)) { state.btnPress = true; openPause(); sfx.tick(); return; }
+      else if (inRect(L.hint, ptr.x, ptr.y)) { state.btnPress = true; requestHint(); sfx.tick(); }
     }
     if (keys.pressed.has('KeyH') && !watch) requestHint();
     if (state.paused) return;   // paused: nothing below advances (timers, plans, animations)
@@ -529,26 +537,34 @@ export function createGame(env) {
     const ptr = input.pointer, k = input.keys;
     if (k.pressed.has('Enter')) { handleSetup('start'); return; }
     if (k.pressed.has('Escape')) { handleSetup('back'); return; }
-    if (ptr.pressed && (inRect(SETUP_PINS.start, ptr.x, ptr.y) || inRect(SETUP_PINS.back, ptr.x, ptr.y))) {
-      handleSetup(inRect(SETUP_PINS.start, ptr.x, ptr.y) ? 'start' : 'back');
+    if (ptr.pressed && (inRect(L.pins.start, ptr.x, ptr.y) || inRect(L.pins.back, ptr.x, ptr.y))) {
+      handleSetup(inRect(L.pins.start, ptr.x, ptr.y) ? 'start' : 'back');
       return;
     }
     updateFlowScene(dt, input, handleSetup, 'setup');
   };
   const updatePages = (input) => {
-    const ptr = input.pointer, keys = input.keys;
-    const n = pageCount();
-    const close = () => { state.scene = state.back === 'play' ? 'play' : 'title'; state.page = 0; };
-    const next = () => { if (state.page >= n - 1) close(); else state.page++; };
-    const prev = () => { if (state.page <= 0) close(); else state.page--; };
+    const ptr = input.pointer, keys = input.keys, Rf = L.ref, RM = readerMeta();
+    const close = () => { state.scene = state.back === 'play' ? 'play' : 'title'; state.page = 0; state.ui.drag = null; };
+    const setScroll = (v) => { state.page = clamp(v, 0, RM.max); };
+    const setText = (i) => { state.settings.textIdx = clamp(i, 0, TEXT_SCALES.length - 1); save(); };
+    if (wheelInput.dy) { setScroll(state.page + wheelInput.dy); wheelInput.dy = 0; }
     if (ptr.pressed) {
-      if (inRect(REF_NEXT, ptr.x, ptr.y)) next();
-      else if (inRect(REF_BACK, ptr.x, ptr.y)) prev();
-      else if (inRect(TEXT_DEC, ptr.x, ptr.y)) { state.settings.textIdx = Math.max(0, state.settings.textIdx - 1); save(); }
-      else if (inRect(TEXT_INC, ptr.x, ptr.y)) { state.settings.textIdx = Math.min(TEXT_SCALES.length - 1, state.settings.textIdx + 1); save(); }
+      if (inRect(Rf.close, ptr.x, ptr.y)) { close(); return; }
+      if (inRect(Rf.dec, ptr.x, ptr.y)) setText(state.settings.textIdx - 1);
+      else if (inRect(Rf.inc, ptr.x, ptr.y)) setText(state.settings.textIdx + 1);
+      else if (inRect(Rf.card, ptr.x, ptr.y)) state.ui.drag = { y0: ptr.y, s0: state.page };
     }
-    if (keys.pressed.has('ArrowRight')) next();
-    if (keys.pressed.has('ArrowLeft')) prev();
+    if (state.ui.drag && ptr.down) setScroll(state.ui.drag.s0 - (ptr.y - state.ui.drag.y0));
+    if (!ptr.down) state.ui.drag = null;
+    if (keys.down.has('ArrowDown')) setScroll(state.page + 16);
+    if (keys.down.has('ArrowUp')) setScroll(state.page - 16);
+    if (keys.pressed.has('PageDown') || keys.pressed.has('Space')) setScroll(state.page + RM.view * 0.9);
+    if (keys.pressed.has('PageUp')) setScroll(state.page - RM.view * 0.9);
+    if (keys.pressed.has('Home')) setScroll(0);
+    if (keys.pressed.has('End')) setScroll(RM.max);
+    if (keys.pressed.has('Equal') || keys.pressed.has('NumpadAdd')) setText(state.settings.textIdx + 1);
+    if (keys.pressed.has('Minus') || keys.pressed.has('NumpadSubtract')) setText(state.settings.textIdx - 1);
     if (keys.pressed.has('Escape')) close();
   };
 
@@ -573,13 +589,23 @@ export function createGame(env) {
     // Watch & Learn and every menu are free; only real play counts against the free preview (a paused game does not).
     isPreviewExempt: () => SHOT || !(state.scene === 'play' && state.run && state.run.mode !== 'watch') || state.paused || !!(state.run && state.run.think),
     update(dt, input) {
+      sync();
       if (SHOT) input = blank;
+      if (wheelInput.dy && !['howto', 'about', 'rules'].includes(state.scene)) {
+        const m = flowMeta();
+        if (m.lay && (state.scene !== 'play' || state.pauseMenu)) { const max = Math.max(0, m.lay.contentH - (m.bottom - m.top)); state.ui.scroll = clamp(state.ui.scroll + wheelInput.dy, 0, max); }
+        wheelInput.dy = 0;
+      }
       setPress(input.pointer);
       if (!(state.scene === 'play' && state.paused)) state.t += dt;
       if (state.att && state.scene !== 'play') updateAttract(dt);
       if (state.toastT > 0 && state.scene !== 'play') state.toastT -= dt;
       switch (state.scene) {
-        case 'title': updateFlowScene(dt, input, handleTitle, 'title'); break;
+        case 'title': {
+          const lt = getLockTap(), pp = input.pointer;
+          if (lt && pp.pressed && pp.x >= lt.x && pp.x <= lt.x + lt.w && pp.y >= lt.y && pp.y <= lt.y + lt.h) { state.lockDown = state.t + 0.25; env.openArcforgeHome?.(); break; }
+          updateFlowScene(dt, input, handleTitle, 'title'); break;
+        }
         case 'setup': updateSetup(dt, input); break;
         case 'settings': updateFlowScene(dt, input, handleSettings, 'settings'); break;
         case 'result': updateFlowScene(dt, input, handleResult, 'result'); break;
@@ -590,6 +616,7 @@ export function createGame(env) {
       }
     },
     render(ctx) {
+      sync();
       switch (state.scene) {
         case 'title': renderTitle(ctx, state); break;
         case 'setup': renderSetup(ctx, state); break;
@@ -650,10 +677,10 @@ function renderPlay(ctx, st) {
   if (th) drawThink(ctx, st, st.t);
   drawBanner(ctx, r);
   if (st.toastT > 0) {
-    ctx.save(); ctx.globalAlpha = Math.min(1, st.toastT / 0.3); ctx.font = '800 24px sans-serif'; ctx.textAlign = 'center';
+    ctx.save(); ctx.globalAlpha = Math.min(1, st.toastT / 0.3); const LY = liveLayout(); ctx.font = `800 24px ${FONT}`; ctx.textAlign = 'center';
     const tw = ctx.measureText(st.toast).width + 44;
-    ctx.fillStyle = 'rgba(8,28,44,0.78)'; ctx.beginPath(); ctx.roundRect(W / 2 - tw / 2, 1010, tw, 54, 27); ctx.fill();
-    ctx.fillStyle = '#fff'; ctx.textBaseline = 'middle'; ctx.fillText(st.toast, W / 2, 1038);
+    ctx.fillStyle = 'rgba(8,28,44,0.78)'; ctx.beginPath(); ctx.roundRect(LY.toast.x - tw / 2, LY.toast.y, tw, 54, 27); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.textBaseline = 'middle'; ctx.fillText(st.toast, LY.toast.x, LY.toast.y + 28);
     ctx.restore();
   }
 }

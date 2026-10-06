@@ -3,8 +3,8 @@
   "title": "Bao la Kiswahili",
   "tagline": "The great board game of the Swahili coast",
   "genre": "mancala strategy board game",
-  "orientation": "portrait",
-  "version": "1.0.0",
+  "orientation": "any",
+  "version": "1.1.3",
   "monetization": {
     "model": "premium",
     "priceUsd": 3.99,

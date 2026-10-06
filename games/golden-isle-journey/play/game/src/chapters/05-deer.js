@@ -1,9 +1,12 @@
 // Chapter 5: the golden deer, the flying chariot, and the eagle king's stand.
 // A: chase - tap ahead of the bounding deer. B: the camera tilts to the sky as the chariot crosses.
 // C: tap the glinting wheel so the eagle strikes it. The chariot escapes south: that is the story.
-import { W, H, TAU, PAL, clamp, lerp, smooth, hash, sky, sun, ridge, treeline, clouds, light, motes, finish, shadow, shakeOffset } from '../stage.js';
+import { FR, W, H, TAU, PAL, clamp, lerp, smooth, hash, sky, sun, ridge, treeline, clouds, light, motes, finish, shadow, shakeOffset } from '../stage.js';
 import { figure, poses, stridePose, deer, eagle, chariot, bird } from '../puppets.js';
 import { label, caption, pips } from '../ui.js';
+
+// Landscape: the window shows y 450..1300 so the chariot, the eagle and the forest floor are all inside it.
+export const LAND_Y1 = 1300;
 
 const GROUND = 1210, LANES = [1200, 1010, 830], CHASE_MAX = 25, EAGLE_TIME = 15, TILT = 640;
 
@@ -76,7 +79,7 @@ export function create(env, shared) {
     const [ox, oy] = shakeOffset(t, s.shud * 8, rm);
     ctx.save(); ctx.translate(ox, oy);
     sky(ctx, PAL.forest.sky, null);
-    ctx.fillStyle = `rgba(60,16,50,${k * 0.55})`; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = `rgba(60,16,50,${k * 0.55})`; ctx.fillRect(FR.x0 - 1, 0, FR.w + 2, H);
     sun(ctx, 520, 520 + cam * 0.35, 60, '255,238,170');
     clouds(ctx, { y: 160 + cam * 0.3, h: 500, scroll: s.scroll * 0.03 + t * 8, color: 'rgba(30,70,56,0.4)', n: 6, seed: 4, scale: 1.3 });
     ridge(ctx, { base: 900 + cam * 0.5, amp: 90, wl: 380, scroll: s.scroll * 0.05, color: PAL.forest.far, seed: 2 });
@@ -95,13 +98,14 @@ export function create(env, shared) {
     // forest floor
     const gy = GROUND + cam;
     if (gy < H + 300) {
-      ctx.fillStyle = PAL.forest.near; ctx.fillRect(0, gy - 6, W, H);
+      ctx.fillStyle = PAL.forest.near; ctx.fillRect(FR.x0 - 1, gy - 6, FR.w + 2, H);
       ridge(ctx, { base: gy + 4, amp: 10, wl: 160, scroll: s.scroll, color: PAL.forest.near, seed: 5 });
       // ledges the deer bounds along
       for (let li = 1; li < 3; li++) {
         const ly = LANES[li] + cam;
         ctx.fillStyle = 'rgba(10,26,20,0.9)';
-        for (let i = -1; i < 4; i++) { const x = ((i * 330 - s.scroll * (0.8 + li * 0.05)) % 1320 + 1320) % 1320 - 300; ctx.beginPath(); ctx.ellipse(x + 150, ly + 8, 170, 14, 0, 0, TAU); ctx.fill(); }
+        const span = Math.ceil((FR.w + 700) / 330) * 330;
+        for (let i = -1; i < span / 330; i++) { const x = ((i * 330 - s.scroll * (0.8 + li * 0.05)) % span + span) % span + FR.x0 - 300; ctx.beginPath(); ctx.ellipse(x + 150, ly + 8, 170, 14, 0, 0, TAU); ctx.fill(); }
       }
       if (s.phase === 'chase') {
         light(ctx, s.deerX, s.deerY - 60 + cam, 200, '255,220,120', 0.35 + s.hitFlash * 0.5);
@@ -124,7 +128,7 @@ export function create(env, shared) {
       // undergrowth rushing past
       treeline(ctx, { base: gy + 330, scroll: s.scroll * 1.5, color: '#06100c', seed: 12, h: 300, gap: 420 });
     }
-    for (let i = 0; i < 3; i++) bird(ctx, ((i * 300 + t * 40) % 900) - 80, 330 + i * 70 + cam * 0.4, 0.8, t + i);
+    for (let i = 0; i < 3; i++) bird(ctx, ((i * 300 + t * 40) % 900) - 80 + (i === 1 ? FR.x0 : 0), 330 + i * 70 + cam * 0.4, 0.8, t + i);
     motes(ctx, { n: 24, t, rgb: k > 0.5 ? '255,170,110' : '238,240,170', kind: 'firefly', top: 300, bottom: 1300, rm, scroll: s.scroll * 0.3 });
     ctx.restore();
     finish(ctx, 0.72);

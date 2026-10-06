@@ -8,9 +8,13 @@ import { SPEED, BOUNCE, DELIVERY_KEYS } from './ball.js';
 import { TEXT_SCALES, inRect, setPress } from './ui.js';
 import { R, THINK_STEPS, renderPlay, THINK_OK, PAUSE_BTNS } from './hud.js';
 import { renderScreen, Z } from './screens.js';
+import { LY, syncLayout } from './layout.js';
 import { LESSONS, ROLE_INFO } from './content.js';
 
-export const meta = { width: W, height: H };
+// Fluid layout (kit 1.7): the short side is always 720 virtual units, the long side follows the screen; the kit keeps meta.width / height live.
+export const meta = { width: W, height: H, fluid: { short: 720 } };
+// mouse wheel input for the readers is converted from css px to virtual units here
+const wheelScale = () => { try { return 720 / Math.max(1, Math.min(globalThis.innerWidth, globalThis.innerHeight)); } catch { return 1; } };
 const DEMO_MATCHES = 2;
 const SAVE_VERSION = 1;
 const hid = (o, k, v) => Object.defineProperty(o, k, { value: v, enumerable: false, writable: true, configurable: true });
@@ -35,7 +39,7 @@ export function createGame(env) {
   hid(G, 'env', env);
   hid(G, '_ui', { hits: [], footer: [], view: { x: 0, y: 0, w: W, h: H }, pages: null, maxS: 0 });
   // mouse wheel / trackpad scrolls the text screens (the kit input has no wheel event); consumed in uiInput
-  try { globalThis.addEventListener?.('wheel', (e) => { if (G.scene !== 'play') { G.wheel = (G.wheel || 0) + Math.max(-400, Math.min(400, e.deltaY)); e.preventDefault?.(); } }, { passive: false }); } catch { /* no DOM */ }
+  try { globalThis.addEventListener?.('wheel', (e) => { if (G.scene !== 'play') { G.wheel = (G.wheel || 0) + Math.max(-400, Math.min(400, e.deltaY)) * wheelScale() * (e.deltaMode === 1 ? 16 : 1); e.preventDefault?.(); } }, { passive: false }); } catch { /* no DOM */ }
   let S = null;                  // the running sim API (not part of the serializable state)
   let lastPt = null, ghost = null;
   let attract = null, bot = null, evSeen = 0, snap = null, updAt = 0, stepped = false;
@@ -260,7 +264,8 @@ export function createGame(env) {
     const v = Math.hypot(b[0] - a[0], b[1] - a[1]) * 60 / Math.max(1, Math.min(4, n - 1));
     return clamp((v - 900) / 3400, 0, 1);
   };
-  const aimOf = (tc, p) => { const dy = tc.sy - p.y, dx = p.x - tc.sx; return { dy, dx, bx: clamp(dx * 0.006, -BOUNCE.xMax, BOUNCE.xMax), bz: lerp(9.6, 1.0, clamp((dy - 60) / 520, 0, 1)) }; };
+  // a shorter screen needs a shorter flick for the same delivery (dy scaled by 1280 / H, 1 on the original portrait frame)
+  const aimOf = (tc, p) => { const dy = (tc.sy - p.y) * clamp(1280 / H, 1, 1.8), dx = p.x - tc.sx; return { dy, dx, bx: clamp(dx * 0.006, -BOUNCE.xMax, BOUNCE.xMax), bz: lerp(9.6, 1.0, clamp((dy - 60) / 520, 0, 1)) }; };
   function bowlInput(input) {
     const p = input.pointer, tc = G.touch, s = S.s, tick = G.tick;
     if (s.phase !== 'aim') { tc.down = false; tc.path = []; G.bowlPreview = null; return; }
@@ -419,11 +424,18 @@ export function createGame(env) {
   // ---- menus ----------------------------------------------------------------------------------------------------------------------------------------------------------------
   function uiInput(input) {
     const p = input.pointer, ui = G.ui, U = G._ui;
-    if (p.pressed) ui.drag = { y0: p.y, s0: ui.scroll, moved: false, x0: p.x };
+    if (p.pressed) {
+      ui.drag = { y0: p.y, s0: ui.scroll, moved: false, x0: p.x };
+      const b = U.bar;
+      if (b && p.x >= b.x && p.x <= b.x + b.w && p.y >= b.y && p.y <= b.y + b.h) ui.drag.bar = true;   // grabbed the scroll bar
+    }
     if (ui.drag && p.down) {
       const dy = p.y - ui.drag.y0;
-      if (Math.abs(dy) > 12) ui.drag.moved = true;
-      if (ui.drag.moved) ui.scroll = clamp(ui.drag.s0 - dy, 0, U.maxS);
+      if (ui.drag.bar) { ui.drag.moved = true; ui.scroll = clamp(ui.drag.s0 + dy * (U.maxS / Math.max(1, U.bar.h - U.bar.th)), 0, U.maxS); }
+      else {
+        if (Math.abs(dy) > 12) ui.drag.moved = true;
+        if (ui.drag.moved) ui.scroll = clamp(ui.drag.s0 - dy, 0, U.maxS);
+      }
     }
     if (G.wheel) { ui.scroll = clamp(ui.scroll + G.wheel, 0, U.maxS); G.wheel = 0; }
     for (const k of input.keys.pressed) {
@@ -431,8 +443,10 @@ export function createGame(env) {
       if (k === 'PageUp') ui.scroll = clamp(ui.scroll - U.view.h * 0.85, 0, U.maxS);
       if (k === 'ArrowDown') ui.scroll = clamp(ui.scroll + 80, 0, U.maxS);
       if (k === 'ArrowUp') ui.scroll = clamp(ui.scroll - 80, 0, U.maxS);
+      if (k === 'Home') ui.scroll = 0;
+      if (k === 'End') ui.scroll = U.maxS;
       if (k === 'Escape') uiTap('back');
-      if (k === 'Enter' || k === 'Space') { const prim = U.footer.find((f) => ['start', 'next', 'again', 'go'].includes(f.id)); if (prim) uiTap(prim.id); }
+      if (k === 'Enter' || k === 'Space') { const prim = U.footer.find((f) => ['start', 'next', 'again', 'go', 'close'].includes(f.id)); if (prim) uiTap(prim.id); }
       if (k === 'Equal' || k === 'NumpadAdd') { G.settings.textIdx = clamp(G.settings.textIdx + 1, 0, TEXT_SCALES.length - 1); saveSettings(); }
       if (k === 'Minus' || k === 'NumpadSubtract') { G.settings.textIdx = clamp(G.settings.textIdx - 1, 0, TEXT_SCALES.length - 1); saveSettings(); }
     }
@@ -444,6 +458,7 @@ export function createGame(env) {
       const x = p.x, y = p.y;
       if (inRect(Z.zoomDec, x, y)) { G.settings.textIdx = clamp(G.settings.textIdx - 1, 0, TEXT_SCALES.length - 1); saveSettings(); return; }
       if (inRect(Z.zoomInc, x, y)) { G.settings.textIdx = clamp(G.settings.textIdx + 1, 0, TEXT_SCALES.length - 1); saveSettings(); return; }
+      if (U.lockTap && G.scene === 'title' && inRect(U.lockTap, x, y)) { G.lockDown = G.t + 0.25; env.openArcforgeHome?.(); return; }
       for (const f of U.footer) if (inRect(f.rect, x, y)) { uiTap(f.id); return; }
       if (y >= U.view.y && y <= U.view.y + U.view.h) for (const h of U.hits) if (inRect(h.rect, x, y)) { uiTap(h.id); return; }
     }
@@ -454,7 +469,7 @@ export function createGame(env) {
     sfx('ui');
     if (id === 'back') {
       if (sc === 'setup') go('role'); else if (sc === 'roleinfo') go('setup'); else if (sc === 'role' || sc === 'learn' || sc === 'watchsetup' || sc === 'settings') toTitle();
-      else if (sc === 'howto' || sc === 'about' || sc === 'rules') uiTap('prev');
+      else if (sc === 'howto' || sc === 'about' || sc === 'rules') uiTap('close');
       return;
     }
     switch (sc) {
@@ -485,10 +500,8 @@ export function createGame(env) {
         saveSettings();
         break;
       case 'howto': case 'about': case 'rules': {
-        const U = G._ui, pages = U.pages ?? [0], idx = G.ui.pageIdx;
-        const close = () => { if (G.back === 'play') { G.scene = 'play'; G.show3d = true; G.ui.scroll = 0; } else toTitle(); };
-        if (id === 'next') { if (idx >= pages.length - 1) close(); else G.ui.scroll = clamp(pages[idx + 1], 0, U.maxS); }
-        else if (id === 'prev') { if (idx <= 0) close(); else G.ui.scroll = clamp(pages[idx - 1], 0, U.maxS); }
+        // the readers are one scrolling page (drag, wheel, keys, scroll bar); Back always leaves
+        if (id === 'close' || id === 'prev' || id === 'next') { if (G.back === 'play') { G.scene = 'play'; G.show3d = true; G.ui.scroll = 0; } else toTitle(); }
         break;
       }
       case 'break': if (id === 'go') { S.nextInnings(); G.scene = 'play'; G.paused = false; G.breakShown = false; evSeen = S.s.evId; persistMatch(); } break;
@@ -525,6 +538,13 @@ export function createGame(env) {
     },
     update(dt, input) {
       G.tick++;
+      // the live virtual size (rotation / resize): re-lay out, and drop any touch that started in the old coordinates; the match state is untouched
+      {
+        const prev = LY;
+        syncLayout(meta.width, meta.height);
+        hid(G, 'land', LY.land);
+        if (prev !== LY) { G.touch = { down: false, path: [], committed: false, fired: false, aimDeg: null }; G.bowlPreview = null; lastPt = null; ghost = null; G.ui.drag = null; if (G.sim) G.ringPos = null; }
+      }
       // The kit has ONE pointer: a second finger landing makes it jump, and a second finger lifting reports "released" for the first finger too.
       // The game works on its own copy: a jump of more than 260 px in one tick is ignored (the position stays), and a release that comes with such a jump
       // is a stray finger lifting: the first finger is kept as "still down" (a ghost touch) while it keeps moving, and let go 0.25 s after it stops.
@@ -556,6 +576,8 @@ export function createGame(env) {
       if (stepped) updAt = nowMs();
     },
     render(ctx) {
+      syncLayout(meta.width, meta.height);
+      hid(G, 'land', LY.land);
       G.shade = G.scene === 'title';
       G.alpha = (stepped || G.shot) && env.clock ? clamp((nowMs() - updAt) / (DT * 1000), 0, 1) : 1;
       ctx.clearRect(0, 0, W, H);

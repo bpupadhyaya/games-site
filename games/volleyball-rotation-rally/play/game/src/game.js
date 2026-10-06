@@ -1,16 +1,17 @@
 // Volleyball: the game shell. Scenes, input (one-finger stick + press + flick), persistence, preview wiring, Learn, Watch & Learn.
 // The match itself lives in sim.js.
 import { createSim } from './sim.js';
-import { W, H, TEXT_SCALES, THINK_STEPS, REF_BACK, REF_NEXT, TEXT_DEC, TEXT_INC, SETUP_PINS, inRect } from './layout.js';
-import { setPress } from './ui.js';
+import { W, H, setSize, playFrame, readerLayout, pinRects, TEXT_SCALES, THINK_STEPS, inRect } from './layout.js';
+import { setPress, installFontFloor } from './ui.js';
 import { ABOUT, HOWTO, RULES, LESSONS, QUIZ, ROLE_TUT } from './content.js';
 import * as MN from './menus.js';
-import { renderHud, renderFallback, hudRects, renderThink, watchHit, ROT_CLOSE } from './hud.js';
+import { renderHud, renderFallback, hudRects, renderThink, watchHit, rotClose } from './hud.js';
 import { ROLES, MODES } from './consts.js';
 import { clamp } from './util.js';
 import { tmLabel } from './physics.js';
 
-export const meta = { width: W, height: H };
+// Fluid viewport (kit 1.7): the short side is 720 units, the long side follows the screen; meta.width / meta.height are live.
+export const meta = { width: 720, height: 1280, fluid: { short: 720 } };
 const DEMO_MATCH_CAP = 2;
 const SAVE_VERSION = 1;
 const STICK_R = 80, STICK_DEAD = 12, FLICK_PX = 46, FLICK_REF = 120;
@@ -213,12 +214,12 @@ export function createGame(env) {
     const s = S.s, lay = rects.lay;
     if (ptr.pressed) {
       const x = ptr.x, y = ptr.y;
-      if (G.showRot) { if (inRect(ROT_CLOSE, x, y)) G.showRot = false; return; }
+      if (G.showRot) { if (inRect(rotClose(), x, y)) G.showRot = false; return; }
       if (inRect(lay.util[1], x, y)) { G.paused = true; G.pauseMenu = true; G.ui.scroll = 0; persistMatch(); S.setMove(0, 0); gest.on = false; return; }
       if (inRect(lay.util[0], x, y)) { openThink(); return; }
       if (inRect(lay.util[2], x, y)) { G.showRot = true; return; }
       for (let i = 0; i < rects.cx.list.length; i++) if (inRect(lay.choices[i].rect, x, y)) { applyPick(rects.cx.list[i].id); sfx.tick(); return; }
-      if (y > lay.barTop - 4) return;
+      if (lay.blocked(x, y)) return;
       startGesture(ptr);
     }
     if (gest.on) {
@@ -405,10 +406,11 @@ export function createGame(env) {
     const next = () => { if (G.ui.scroll >= max - 4) close(); else to(G.ui.scroll + step); };
     const prev = () => { if (G.ui.scroll <= 4) close(); else to(G.ui.scroll - step); };
     if (ptr.pressed) {
-      if (inRect(REF_NEXT, ptr.x, ptr.y)) next();
-      else if (inRect(REF_BACK, ptr.x, ptr.y)) prev();
-      else if (inRect(TEXT_DEC, ptr.x, ptr.y)) { G.settings.textIdx = Math.max(0, G.settings.textIdx - 1); G.ui.scroll = 0; saveSettings(); }
-      else if (inRect(TEXT_INC, ptr.x, ptr.y)) { G.settings.textIdx = Math.min(TEXT_SCALES.length - 1, G.settings.textIdx + 1); G.ui.scroll = 0; saveSettings(); }
+      const RL = readerLayout();
+      if (inRect(RL.next, ptr.x, ptr.y)) next();
+      else if (inRect(RL.back, ptr.x, ptr.y)) prev();
+      else if (inRect(RL.dec, ptr.x, ptr.y)) { G.settings.textIdx = Math.max(0, G.settings.textIdx - 1); G.ui.scroll = 0; saveSettings(); }
+      else if (inRect(RL.inc, ptr.x, ptr.y)) { G.settings.textIdx = Math.min(TEXT_SCALES.length - 1, G.settings.textIdx + 1); G.ui.scroll = 0; saveSettings(); }
       else { G.ui.drag = { y0: ptr.y, s0: G.ui.scroll, last: ptr.y, moved: 0 }; G.ui.vel = 0; }
     }
     if (G.ui.drag && ptr.down) {
@@ -434,7 +436,8 @@ export function createGame(env) {
     const ptr = input.pointer, k = input.keys;
     if (k.pressed.has('Enter')) { handleSetup('start'); return; }
     if (k.pressed.has('Escape')) { handleSetup('back'); return; }
-    if (ptr.pressed && (inRect(SETUP_PINS.start, ptr.x, ptr.y) || inRect(SETUP_PINS.back, ptr.x, ptr.y))) { handleSetup(inRect(SETUP_PINS.start, ptr.x, ptr.y) ? 'start' : 'back'); return; }
+    const PN = pinRects();
+    if (ptr.pressed && (inRect(PN.start, ptr.x, ptr.y) || inRect(PN.back, ptr.x, ptr.y))) { handleSetup(inRect(PN.start, ptr.x, ptr.y) ? 'start' : 'back'); return; }
     updateFlowScene(dt, input, handleSetup, 'setup');
   };
 
@@ -513,12 +516,17 @@ export function createGame(env) {
     // Menus, Rules, About, settings, Learn, lessons and Watch & Learn are free; only real play counts against the preview.
     isPreviewExempt: () => !(G.scene === 'play' && G.mode === 'ai') || G.paused || G.pauseMenu || !!G.think || G.showRot || (S && (S.s.phase === 'dead' || S.s.phase === 'pre' || !!(S.s.prompt && S.s.prompt.kind === 'serveWait'))),
     update(dt, input) {
+      setSize(meta.width, meta.height); G.frame = playFrame();
       setPress(input.pointer);
       G.t += dt;
       for (let i = delayed.length - 1; i >= 0; i--) { delayed[i].t -= dt; if (delayed[i].t <= 0) { delayed[i].f(); delayed.splice(i, 1); } }
       if (G.scene !== 'play') { if (!(G.scene === 'pages' && G.back === 'play')) S.update(dt); S.setMove(0, 0); if (gest.on) gest.on = false; }
       switch (G.scene) {
-        case 'title': updateFlowScene(dt, input, handleTitle, 'title'); break;
+        case 'title': {
+          const lt = MN.getLockTap(), pp = input.pointer;
+          if (lt && pp.pressed && pp.x >= lt.x && pp.x <= lt.x + lt.w && pp.y >= lt.y && pp.y <= lt.y + lt.h) { G.lockDown = G.t + 0.25; env.openArcforgeHome?.(); break; }
+          updateFlowScene(dt, input, handleTitle, 'title'); break;
+        }
         case 'setup': updateSetup(dt, input); break;
         case 'settings': updateFlowScene(dt, input, handleSettings, 'settings'); break;
         case 'learn': updateFlowScene(dt, input, handleLearn, 'learn'); break;
@@ -534,7 +542,9 @@ export function createGame(env) {
       }
     },
     render(ctx, view) {
-      G.viewW = (view && view.cssW) || 720; G.viewH = (view && view.cssH) || 1280;
+      setSize(meta.width, meta.height);
+      installFontFloor(ctx);
+      G.viewW = W; G.viewH = H; G.frame = playFrame();
       ctx.clearRect(0, 0, W, H);
       if (view && view.noGL) renderFallback(ctx, G, view);
       switch (G.scene) {
@@ -550,7 +560,7 @@ export function createGame(env) {
         case 'demolimit': MN.renderDemoLimit(ctx, G); break;
         case 'pages': MN.renderPages(ctx, G, G.pageList || ABOUT, G.pageTitle); break;
         case 'play':
-          renderHud(ctx, G, S, { cssW: G.viewW, cssH: G.viewH });
+          renderHud(ctx, G, S, view);
           if (G.think) renderThink(ctx, G, G.think.title, G.think.lines, G.think.choice ? 'Use it' : null);
           else if (G.mode === 'watch' && S.s.hold && G.watch.phase !== 'act') renderWatchCard(ctx);
           if (G.pauseMenu) MN.renderPause(ctx, G);

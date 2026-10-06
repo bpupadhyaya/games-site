@@ -3,8 +3,8 @@
   "title": "Carrom",
   "tagline": "Flick, pocket, cover the queen",
   "genre": "flick physics board game",
-  "orientation": "portrait",
-  "version": "1.0.2",
+  "orientation": "any",
+  "version": "1.1.3",
   "monetization": {
     "model": "premium",
     "priceUsd": 2.99,

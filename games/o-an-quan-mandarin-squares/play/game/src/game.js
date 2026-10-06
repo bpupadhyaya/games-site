@@ -1,6 +1,6 @@
 // GAME CONTRACT (docs/GAME-CONTRACT.md). Ô Ăn Quan (Mandarin Squares): the Vietnamese sowing game with a five-level engine,
 // a tutor path, Watch & Learn, English and Vietnamese.
-import { SCREEN, inRect, BACK_BTN, PAUSE_BTN, TOOLBAR_IDS, autoLayout, playLayout, dirLayout } from './layout.js';
+import { SCREEN, inRect, creditHit, BACK_BTN, PAUSE_BTN, TOOLBAR_IDS, autoLayout, playLayout, dirLayout, setSize } from './layout.js';
 import { TEXT_SCALES, hitDoc, clampScroll } from './ui.js';
 import { buildUi, THINK_STEPS, demoOver, recKey } from './screens.js';
 import { startState, legalMoves, scoreOf, SIDE, outcome } from './engine.js';
@@ -14,9 +14,10 @@ import { THEMES, boardGeo, cellAt, CELLS } from './art.js';
 import { trayStone, trayQuan } from './layout.js';
 import { render, plateIcons } from './view.js';
 
-export const meta = { width: SCREEN.width, height: SCREEN.height };
+// Kit 1.7 fluid viewport: width/height are updated live by the kit on every resize; every position comes from layout.js.
+export const meta = { width: SCREEN.width, height: SCREEN.height, fluid: { short: 720 } };
 
-const VERSION = '1.0.1';
+const VERSION = '1.1.3';
 const WIN_NOTES = [523, 659, 784, 1047, 1319];
 const AUTO_GAMES = [{ lv: ['master', 'master'] }, { lv: ['master', 'expert'] }];
 const KEY = 'oq';
@@ -412,6 +413,7 @@ export async function createGame(env) {
   const play = (M, cell, dir) => { beginMove(M); if (chooseDir(M, dir, cell)) { saveGame(); return true; } return false; };
 
   function activate(id) {
+    if (id === 'af:home') { env.openArcforgeHome?.(); return; }
     if (id == null) return;
     if (id === 'zoom-') { setText(-1); return; }
     if (id === 'zoom+') { setText(1); return; }
@@ -474,6 +476,10 @@ export async function createGame(env) {
     if (S.scene === 'auto' && !S.overlay) { autoDown(x, y); return; }
     const ui = buildUi(S);
     if (!ui.layout) return;
+    if ((S.scene === 'title' || S.scene === 'lang') && ui.title) {
+      const ch = creditHit(ui.title.credit);
+      if (ch && inRect(x, y, ch)) { S.press = { id: 'af:home', active: true, kind: 'fixed', rect: ch }; return; }
+    }
     const f = fixedHit(ui, x, y);
     if (f) { S.press = { id: f.id, active: true, kind: 'fixed', rect: f.rect }; return; }
     const reg = ui.region;
@@ -623,6 +629,7 @@ export async function createGame(env) {
   return {
     update(dt, input) {
       // Watch & Learn's Pause (and the in-game pause card) freezes the whole loop: timers, animations, particles, the ambient clock.
+      setSize(meta.width, meta.height);
       S.updAt = nowMs(); S.stepped = true;
       const frozen = (S.scene === 'auto' && S.auto && S.auto.paused) || S.overlay === 'pause';
       if (!frozen) S.t += dt;
@@ -681,6 +688,7 @@ export async function createGame(env) {
     },
 
     render(ctx) {
+      setSize(meta.width, meta.height);
       // How far between two fixed updates this frame is drawn: moving stones and the hand are drawn that far along, so motion is smooth on 120 Hz screens.
       const frozenNow = (S.scene === 'auto' && S.auto && S.auto.paused) || S.overlay === 'pause';
       S.alpha = S.stepped && env.clock && !frozenNow ? Math.max(0, Math.min(1, (nowMs() - S.updAt) / (1000 / 60))) : 1;
@@ -691,6 +699,39 @@ export async function createGame(env) {
     wheel(dy) {
       const ui = buildUi(S);
       if (ui.layout && ui.region) { S.scrollVel = {}; setScroll(ui, getScroll(ui) + dy); }
+    },
+
+    // QA hook (dev builds, headless layout checks): every tappable rectangle and layout panel of the current screen, in screen units.
+    devRects() {
+      const out = [], add = (id, r, kind = 'btn', label = '') => { if (r) out.push({ id, kind, x: r.x, y: r.y, w: r.w, h: r.h, label }); };
+      const M = S.match;
+      if ((S.scene === 'play' || S.scene === 'auto') && !S.overlay && M) {
+        const lay = layNow(), geo = geoNow();
+        add(S.scene === 'auto' ? 'auto:exit' : 'back', BACK_BTN); if (S.scene === 'play') add('pause', PAUSE_BTN);
+        lay.chips.forEach((r, i) => add(`chip${i}`, r, 'panel')); lay.trays.forEach((r, i) => add(`tray${i}`, r, 'panel'));
+        add('board', { x: geo.x, y: geo.y, w: geo.w, h: geo.h }, 'panel'); add('status', lay.status, 'panel');
+        if (S.scene === 'auto') { const a = autoLayout(TEXT_SCALES[S.textIdx]); for (const id of ['slower', 'pause', 'faster']) add(`auto:${id}`, a[id]); }
+        else {
+          lay.tool.forEach((r, i) => add(`tool:${TOOLBAR_IDS[i]}`, r));
+          if (M.sel >= 0 && humanTurn(M)) { const d = dirLayout(lay.status, TEXT_SCALES[S.textIdx]); add('dir:-1', d.left); add('dir:1', d.right); }
+        }
+        for (let i = 0; i < 12; i++) { const c = CELLS[i], [x, y] = geo.toScreen(c.x, c.y); add(`cell${i}`, { x, y, w: c.w * geo.sc, h: c.h * geo.sc }, 'cell'); }
+      } else {
+        const ui = buildUi(S);
+        for (const f of [...(ui.fixed ?? []), ...(ui.nav ? [ui.nav.prev, ui.nav.next] : [])]) if (f.id != null) add(f.id, f.rect, 'btn', f.label ?? (f.lines ? f.lines.join(' ') : ''));
+        if (ui.panel) add('panel', ui.panel, 'panel');
+        if (ui.region) add('region', ui.region, 'panel');
+        if (ui.layout && ui.region) {
+          const sc = S.scroll[ui.scrollKey] ?? 0, R = ui.region;
+          for (const it of ui.layout.items) for (const bt of it.btns) {
+            if (bt.id == null) continue;
+            const r = { x: R.x + bt.x, y: R.y + (ui.offY || 0) + bt.y - sc, w: bt.w, h: bt.h };
+            const y0 = Math.max(r.y, R.y), y1 = Math.min(r.y + r.h, R.y + R.h);
+            if (y1 - y0 >= r.h * 0.5) add(bt.id, { x: r.x, y: y0, w: r.w, h: y1 - y0 }, 'btn', bt.label ?? it.b.label ?? '');
+          }
+        }
+      }
+      return { scene: S.scene, overlay: S.overlay, screen: { w: meta.width, h: meta.height }, rects: out };
     },
 
     getState() {

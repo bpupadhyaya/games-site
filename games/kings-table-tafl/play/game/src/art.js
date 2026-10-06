@@ -1,6 +1,9 @@
 // The room, the board and the pieces. Everything static is painted ONCE into cached layers/sprites.
 // One light: a hearth low on the left, so highlights sit up-left of every shape and shadows fall down-right.
-import { W, H, BX, BY, BS, cell, centerOf } from './layout.js';
+import { CANON } from './layout.js';
+const BX = CANON.BX, BY = CANON.BY, BS = CANON.BS;
+const cell = (n) => BS / n;
+const centerOf = (n, i) => ({ x: BX + ((i % n) + 0.5) * cell(n), y: BY + (((i / n) | 0) + 0.5) * cell(n) });
 import { throne, corners, isCorner } from './rules.js';
 
 const TAU = Math.PI * 2;
@@ -27,7 +30,7 @@ export function braid(ctx, x0, y0, len, amp, wid, cols, period = 46) {
 }
 
 // ---- static scene ----------------------------------------------------------------------------------------
-function paintRoom(ctx) {
+function paintRoom(ctx, W, H, thin) {
   const rnd = lcg(7);
   // timber wall: vertical planks in dark smoked oak
   const plank = 90;
@@ -40,12 +43,13 @@ function paintRoom(ctx) {
     for (let k = 0; k < 26; k++) { ctx.strokeStyle = `rgba(${rnd() < 0.5 ? '10,5,2' : '80,55,30'},${0.10 + rnd() * 0.12})`; ctx.lineWidth = 1 + rnd(); const gx = x + 6 + rnd() * (plank - 12); ctx.beginPath(); ctx.moveTo(gx, rnd() * H); ctx.bezierCurveTo(gx + 6, rnd() * H, gx - 6, rnd() * H, gx + 2, rnd() * H); ctx.stroke(); }
   }
   // roof beam across the top with a braid band, and a hearth-stone ledge at the bottom
-  const beam = ctx.createLinearGradient(0, 0, 0, 120);
+  const bh = thin ? 64 : 118, bsc = bh / 118;          // landscape: a slimmer beam, the height is precious
+  const beam = ctx.createLinearGradient(0, 0, 0, bh + 2);
   beam.addColorStop(0, '#1a0f09'); beam.addColorStop(0.6, '#3a2415'); beam.addColorStop(1, '#180d07');
-  ctx.fillStyle = beam; ctx.fillRect(0, 0, W, 118);
-  ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(0, 118, W, 8);
-  ctx.save(); ctx.beginPath(); ctx.rect(0, 20, W, 78); ctx.clip();
-  braid(ctx, -10, 59, W + 20, 15, 11, ['#1a0e06', '#8c6a34', '#d9b56a'], 60); ctx.restore();
+  ctx.fillStyle = beam; ctx.fillRect(0, 0, W, bh);
+  ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(0, bh, W, 8 * bsc);
+  ctx.save(); ctx.beginPath(); ctx.rect(0, 20 * bsc, W, 78 * bsc); ctx.clip();
+  braid(ctx, -10, 59 * bsc, W + 20, 15 * bsc, 11 * bsc, ['#1a0e06', '#8c6a34', '#d9b56a'], 60 * bsc); ctx.restore();
   const floor = ctx.createLinearGradient(0, H - 190, 0, H);
   floor.addColorStop(0, 'rgba(0,0,0,0)'); floor.addColorStop(1, 'rgba(0,0,0,0.6)'); ctx.fillStyle = floor; ctx.fillRect(0, H - 190, W, 190);
 }
@@ -118,29 +122,34 @@ function paintBoard(ctx, n) {
   mark(throne(n), 'rgba(140,90,20,0.30)', true);
 }
 
-// Cached layers, one per board size (2x resolution).
-const layers = {};
-function layer(n) {
-  if (n in layers) return layers[n];
-  layers[n] = null;
+// Cached layers (2x resolution), keyed by board size n, screen size and board placement. Only the last few are kept.
+const layers = new Map();
+function layer(n, L) {
+  const key = `${n}|${L.mode}|${L.w}x${L.h}|${Math.round(L.bx)},${Math.round(L.by)},${L.k.toFixed(3)}`;
+  if (layers.has(key)) return layers.get(key);
+  let out = null;
   try {
     if (typeof OffscreenCanvas !== 'undefined') {
-      const c = new OffscreenCanvas(W * 2, H * 2), l = c.getContext('2d'); l.scale(2, 2);
-      paintRoom(l); if (n) paintBoard(l, n); layers[n] = c;
+      const c = new OffscreenCanvas(L.w * 2, L.h * 2), l = c.getContext('2d'); l.scale(2, 2);
+      paintRoom(l, L.w, L.h, !L.tall);
+      if (n) { l.save(); l.translate(L.bx - BX * L.k, L.by - BY * L.k); l.scale(L.k, L.k); paintBoard(l, n); l.restore(); }
+      out = c;
     }
-  } catch { layers[n] = null; }
-  return layers[n];
+  } catch { out = null; }
+  layers.set(key, out); if (layers.size > 6) layers.delete(layers.keys().next().value);
+  return out;
 }
-export function drawScene(ctx, n, t, calm) {
-  const c = layer(n);
-  if (c) ctx.drawImage(c, 0, 0, W, H); else { paintRoom(ctx); if (n) paintBoard(ctx, n); }
+export function drawScene(ctx, n, t, calm, L) {
+  const W = L.w, H = L.h, c = layer(n, L);
+  if (c) ctx.drawImage(c, 0, 0, W, H);
+  else { paintRoom(ctx, W, H, !L.tall); if (n) { ctx.save(); ctx.translate(L.bx - BX * L.k, L.by - BY * L.k); ctx.scale(L.k, L.k); paintBoard(ctx, n); ctx.restore(); } }
   // the hearth: a slow flicker of warm light from the lower left, and a few drifting embers
   const fl = calm ? 1 : 0.93 + 0.05 * Math.sin(t * 7.3) + 0.03 * Math.sin(t * 13.1 + 1);
-  const g = ctx.createRadialGradient(40, 1420, 20, 40, 1420, 900);
+  const hy = H - 140, g = ctx.createRadialGradient(40, hy, 20, 40, hy, 900);
   g.addColorStop(0, `rgba(255,150,60,${0.30 * fl})`); g.addColorStop(0.5, `rgba(255,110,30,${0.09 * fl})`); g.addColorStop(1, 'rgba(255,90,20,0)');
   ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
   if (!calm) for (let k = 0; k < 9; k++) {
-    const ph = (t * (0.05 + (k % 3) * 0.02) + k * 0.113) % 1, x = 30 + ((k * 97) % 260) + Math.sin(t * 0.8 + k) * 22, y = 1500 - ph * 900;
+    const ph = (t * (0.05 + (k % 3) * 0.02) + k * 0.113) % 1, x = 30 + ((k * 97) % 260) + Math.sin(t * 0.8 + k) * 22, y = H - 60 - ph * Math.min(900, H * 0.6);
     ctx.fillStyle = `rgba(255,${150 + (k % 4) * 20},70,${0.55 * (1 - ph) * Math.min(1, ph * 8)})`; ctx.beginPath(); ctx.arc(x, y, 1.6 + (k % 3), 0, TAU); ctx.fill();
   }
 }

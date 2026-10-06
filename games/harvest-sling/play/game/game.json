@@ -3,8 +3,8 @@
   "title": "Golden Sling",
   "tagline": "Pull, aim, release. Guard the harvest.",
   "genre": "slingshot arcade",
-  "orientation": "portrait",
-  "version": "0.1.0",
+  "orientation": "any",
+  "version": "1.8.5",
   "monetization": {
     "model": "free"
   },

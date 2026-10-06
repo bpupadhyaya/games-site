@@ -1,7 +1,6 @@
 // Art: the Italian suit pictures, the three court figures, the card back, a French-suit alternative, and the
 // trattoria table. ALL of it is original vector drawing done here in code (no copied artwork). Faces and the
 // table are painted once into cached layers; per frame we only blit.
-import { W, H } from './layout.js';
 import { suitOf, rankOf } from './rules.js';
 
 export const CW = 200, CH = 320, TAU = Math.PI * 2, CS = 1.5;
@@ -333,26 +332,31 @@ export function warm(n, french) { let i = 0; for (; i < 4; i++) { const id = n +
 export function drawSuitIcon(ctx, suit, x, y, s, french) { ctx.save(); ctx.translate(x, y); if (french) frSuit(ctx, suit, s); else suitPic(ctx, suit, s); ctx.restore(); }
 
 // ---- the trattoria table -----------------------------------------------------------------------------------------
-let tableLayer = null, tableKey = '';
-function paintTable(c) {
+const tableLayers = new Map();
+function paintTable(c, W, H, cl, SKY) {
+  const T0 = SKY - 10;
   const rnd = lcg(11);
   // night sky and rooftops of a small piazza
-  c.fillStyle = lin(c, 0, 0, 0, 200, [[0, '#0f1330'], [0.55, '#3a2650'], [1, '#c8683c']]); c.fillRect(0, 0, W, 200);
-  for (let i = 0; i < 40; i++) { c.fillStyle = `rgba(255,240,200,${0.25 + rnd() * 0.5})`; c.fillRect(rnd() * W, rnd() * 80, 1.6, 1.6); }
+  c.fillStyle = lin(c, 0, 0, 0, SKY, [[0, '#0f1330'], [0.55, '#3a2650'], [1, '#c8683c']]); c.fillRect(0, 0, W, SKY);
+  for (let i = 0; i < 40; i++) { c.fillStyle = `rgba(255,240,200,${0.25 + rnd() * 0.5})`; c.fillRect(rnd() * W, rnd() * Math.min(80, SKY - 8), 1.6, 1.6); }
+  if (SKY >= 150) for (let ox = 0; ox < W; ox += 720) {
+    c.save(); c.translate(ox, 0);
   const bld = (x, y, w, h, col) => { c.fillStyle = col; c.fillRect(x, y, w, 200 - y); c.fillStyle = 'rgba(0,0,0,0.25)'; c.fillRect(x, y, w, 4); };
   for (const [x, y, w, col] of [[0, 96, 90, '#2a1a30'], [80, 70, 74, '#33203a'], [150, 110, 96, '#241628'], [240, 60, 84, '#301c34'], [318, 92, 100, '#261730'], [412, 66, 80, '#341e38'], [488, 104, 90, '#241628'], [574, 74, 146, '#2e1a32']]) {
     bld(x, y, w, 0, col); c.fillStyle = col; c.fillRect(x, y, w, 200 - y);
     for (let wx = x + 12; wx < x + w - 14; wx += 26) for (let wy = y + 16; wy < 176; wy += 30) { const lit = rnd() < 0.55; c.fillStyle = lit ? 'rgba(255,196,96,0.9)' : 'rgba(20,10,30,0.7)'; c.fillRect(wx, wy, 11, 16); if (lit) { c.fillStyle = 'rgba(255,196,96,0.16)'; c.fillRect(wx - 4, wy - 3, 19, 22); } }
   }
+    c.restore();
+  }
   // wooden table: planks
-  const wood = lin(c, 0, 190, 0, H, [[0, '#7a4524'], [0.5, '#5e3216'], [1, '#3e200c']]); c.fillStyle = wood; c.fillRect(0, 190, W, H - 190);
-  for (let x = 0; x < W; x += 120) { c.fillStyle = 'rgba(0,0,0,0.32)'; c.fillRect(x, 190, 3, H - 190); c.fillStyle = 'rgba(255,200,140,0.1)'; c.fillRect(x + 3, 190, 2, H - 190); }
-  for (let i = 0; i < 260; i++) { const x = rnd() * W, y = 200 + rnd() * (H - 200), l = 60 + rnd() * 260; c.strokeStyle = `rgba(${rnd() < 0.5 ? '30,12,2' : '255,200,140'},${0.05 + rnd() * 0.07})`; c.lineWidth = 1 + rnd() * 1.6; c.beginPath(); c.moveTo(x, y); c.bezierCurveTo(x + 2, y + l * 0.3, x - 3, y + l * 0.6, x + 1, y + l); c.stroke(); }
+  const wood = lin(c, 0, T0, 0, H, [[0, '#7a4524'], [0.5, '#5e3216'], [1, '#3e200c']]); c.fillStyle = wood; c.fillRect(0, T0, W, H - T0);
+  for (let x = 0; x < W; x += 120) { c.fillStyle = 'rgba(0,0,0,0.32)'; c.fillRect(x, T0, 3, H - T0); c.fillStyle = 'rgba(255,200,140,0.1)'; c.fillRect(x + 3, T0, 2, H - T0); }
+  for (let i = 0; i < 260; i++) { const x = rnd() * W, y = SKY + rnd() * (H - SKY), l = 60 + rnd() * 260; c.strokeStyle = `rgba(${rnd() < 0.5 ? '30,12,2' : '255,200,140'},${0.05 + rnd() * 0.07})`; c.lineWidth = 1 + rnd() * 1.6; c.beginPath(); c.moveTo(x, y); c.bezierCurveTo(x + 2, y + l * 0.3, x - 3, y + l * 0.6, x + 1, y + l); c.stroke(); }
   // the table's far edge
-  c.fillStyle = lin(c, 0, 178, 0, 214, [[0, '#a56a38'], [0.25, '#7a4524'], [1, '#3a1e0c']]); c.fillRect(0, 178, W, 32);
-  c.fillStyle = 'rgba(255,220,160,0.5)'; c.fillRect(0, 178, W, 3); c.fillStyle = 'rgba(0,0,0,0.4)'; c.fillRect(0, 210, W, 8);
+  c.fillStyle = lin(c, 0, SKY - 22, 0, SKY + 14, [[0, '#a56a38'], [0.25, '#7a4524'], [1, '#3a1e0c']]); c.fillRect(0, SKY - 22, W, 32);
+  c.fillStyle = 'rgba(255,220,160,0.5)'; c.fillRect(0, SKY - 22, W, 3); c.fillStyle = 'rgba(0,0,0,0.4)'; c.fillRect(0, SKY + 10, W, 8);
   // gingham cloth
-  const CX = 26, CY = 356, CWd = 668, CHt = 674, sq = 38;
+  const CX = cl.x, CY = cl.y, CWd = cl.w, CHt = cl.h, sq = 38;
   c.save(); c.fillStyle = 'rgba(0,0,0,0.4)'; c.beginPath(); c.roundRect(CX + 4, CY + 10, CWd, CHt, 26); c.fill();
   c.beginPath(); c.roundRect(CX, CY, CWd, CHt, 24); c.clip();
   c.fillStyle = '#f5ead0'; c.fillRect(CX, CY, CWd, CHt);
@@ -370,14 +374,19 @@ function paintTable(c) {
   c.strokeStyle = 'rgba(120,20,26,0.9)'; c.lineWidth = 3.5; c.beginPath(); c.roundRect(CX + 12, CY + 12, CWd - 24, CHt - 24, 16); c.stroke();
   c.strokeStyle = 'rgba(255,240,210,0.7)'; c.lineWidth = 1.5; c.beginPath(); c.roundRect(CX + 18, CY + 18, CWd - 36, CHt - 36, 12); c.stroke();
   // light: warm pools from the festoon lights, dark vignette
-  const g = rad(c, W / 2, 700, 40, 900, [[0, 'rgba(255,200,120,0.16)'], [0.5, 'rgba(255,170,90,0.04)'], [1, 'rgba(10,2,10,0.62)']]); c.fillStyle = g; c.fillRect(0, 190, W, H - 190);
-  const v = rad(c, W / 2, H / 2, 500, 1100, [[0, 'rgba(0,0,0,0)'], [1, 'rgba(6,0,10,0.55)']]); c.fillStyle = v; c.fillRect(0, 0, W, H);
+  const g = rad(c, W / 2, H * 0.45, 40, Math.max(W, H) * 0.58, [[0, 'rgba(255,200,120,0.16)'], [0.5, 'rgba(255,170,90,0.04)'], [1, 'rgba(10,2,10,0.62)']]); c.fillStyle = g; c.fillRect(0, T0, W, H - T0);
+  const v = rad(c, W / 2, H / 2, Math.min(W, H) * 0.7, Math.hypot(W, H) * 0.62, [[0, 'rgba(0,0,0,0)'], [1, 'rgba(6,0,10,0.55)']]); c.fillStyle = v; c.fillRect(0, 0, W, H);
 }
-export function drawTable(ctx, t = 0, calm = false) {
-  if (!tableLayer) { const L = mk(Math.round(W * CS), Math.round(H * CS)); if (L) { L.x.scale(CS, CS); paintTable(L.x); tableLayer = L.c; } }
+export function drawTable(ctx, t = 0, calm = false, V = { w: 720, h: 1560, cloth: { x: 26, y: 356, w: 668, h: 674 }, sky: 200 }) {
+  const W = V.w, H = V.h, cl = V.cloth, key = `${W}|${H}|${Math.round(cl.x)},${Math.round(cl.y)},${Math.round(cl.w)},${Math.round(cl.h)}|${V.sky}`;
+  let tableLayer = tableLayers.get(key);
+  if (!tableLayer) {
+    const cs = Math.min(CS, 3000 / Math.max(W, H)), L = mk(Math.round(W * cs), Math.round(H * cs));
+    if (L) { L.x.scale(cs, cs); paintTable(L.x, W, H, cl, V.sky); tableLayer = L.c; tableLayers.set(key, tableLayer); if (tableLayers.size > 4) tableLayers.delete(tableLayers.keys().next().value); }
+  }
   if (tableLayer) ctx.drawImage(tableLayer, 0, 0, W, H); else { ctx.fillStyle = '#4a2810'; ctx.fillRect(0, 0, W, H); }
-  // festoon lights: a swaying string of bulbs with a soft flicker, and a candle lantern flame
-  for (let row = 0; row < 2; row++) {
+  // festoon lights: a swaying string of bulbs with a soft flicker
+  for (let row = 0; row < (V.sky >= 150 ? 2 : 1); row++) {
     const y0 = 18 + row * 34;
     ctx.strokeStyle = 'rgba(20,10,10,0.9)'; ctx.lineWidth = 2; ctx.beginPath();
     for (let x = 0; x <= W; x += 20) { const y = y0 + Math.sin((x / W) * Math.PI * (3 - row)) * 14 + 22 * (1 - Math.abs(x / W - 0.5) * 2) * 0; if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); }

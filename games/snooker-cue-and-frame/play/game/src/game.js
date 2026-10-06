@@ -14,7 +14,7 @@ import { PROFILES, createPlanner, execNoise, bestPlacement, wantsReplay } from '
 import { aimRay, objectLine, previewShot, snapAim } from './guide.js';
 import { explainShot, situation } from './explain.js';
 import { LESSONS, lessonById, lessonIndex, lessonWorld } from './lessons.js';
-import { W, H, inRect, REF_BACK, REF_NEXT, TEXT_DEC, TEXT_INC, TEXT_SCALES, THINK_STEPS, SETUP_PINS } from './layout.js';
+import { inRect, REF_BACK, REF_NEXT, TEXT_DEC, TEXT_INC, TEXT_SCALES, THINK_STEPS, SETUP_PINS } from './layout.js';
 import { renderPlay, layoutFor, camFor, aimToTable, cardRect, verdictScroll } from './view.js';
 import {
   renderTitle, renderSetup, renderSettings, renderLearn, renderQuiz, renderResult, renderPause, renderSpin, renderReason, renderLessonResult, renderPages, renderDemoLimit,
@@ -22,8 +22,9 @@ import {
 } from './menus.js';
 import { ABOUT, HOWTO, RULES } from './content.js';
 import { setPress } from './ui.js';
+import { pressLockup } from './brand.js';
 
-export const meta = { width: W, height: H };
+export { meta } from './layout.js';
 const DEMO_FRAME_CAP = 2;
 const SHOT_MODE = (() => { try { return /[?&]shot=/.test(globalThis.location.search); } catch { return false; } })();
 const PACE = 4;                 // physics steps per update: 4 x 1/240 s = real time at 60 updates per second
@@ -638,7 +639,7 @@ export function createGame(env) {
       if (ptr.pressed && inRect(c.pause, ptr.x, ptr.y)) { openPause(); sfx.tick(); }
     } else if (state.ctl === 'verdict') {
       const v = state.verdict;
-      if (v && ptr.pressed && ptr.y >= verdictScroll.top && ptr.y <= verdictScroll.bottom) state.vdrag = { y0: ptr.y, s0: v.scroll ?? 0 };
+      if (v && ptr.pressed && ptr.y >= verdictScroll.top && ptr.y <= verdictScroll.bottom && inRect(c.box, ptr.x, ptr.y)) state.vdrag = { y0: ptr.y, s0: v.scroll ?? 0 };
       if (v && state.vdrag && ptr.down) v.scroll = clamp(state.vdrag.s0 - (ptr.y - state.vdrag.y0), 0, verdictScroll.max);
       if (!ptr.down) state.vdrag = null;
       if (v && ptr.pressed) {
@@ -674,7 +675,7 @@ export function createGame(env) {
         else if (c.spin && inRect(c.spin, ptr.x, ptr.y)) state.drag = { kind: 'spin' };
         else if (inRect(c.power, ptr.x, ptr.y)) { if (cue().on) { state.drag = { kind: 'pull', x0: ptr.x, last: 0 }; state.aim.pulling = true; state.aim.pull = 0; } }
         else if (inRect(c.inset, ptr.x, ptr.y)) state.drag = { kind: 'fine', x0: ptr.x, a0: state.aim.angle };
-        else if (ptr.y >= lay.regionTop && ptr.y <= lay.regionBottom) {
+        else if (inRect(lay.region, ptr.x, ptr.y)) {
           const cb = cue();
           if (state.f.inHand && cb.on) {
             const [sx, sy] = cam.px(cb.x, cb.y, R);
@@ -699,7 +700,7 @@ export function createGame(env) {
         const cb = cue(); cb.x = p.x; cb.y = p.y; cb.ox = p.x; cb.oy = p.y;
       } else if (d.kind === 'pull') {
         if (ptr.down) {
-          const T = c.power.w - 150;
+          const T = c.pullT;
           let want = clamp((d.x0 - ptr.x) / T, 0, 1);
           want = clamp(want, d.last - 0.35, d.last + 0.35);       // a stray second finger cannot make the cue jump
           d.last = want; state.aim.pull = want;
@@ -746,6 +747,7 @@ export function createGame(env) {
   // ---- menus ------------------------------------------------------------------------------------------------------------------------------------------------------------
   const handleTitle = (id) => {
     if (!id) return;
+    if (id === 'arcforge') { pressLockup(); env.openArcforgeHome?.(); return; }
     sfx.tick();
     if (id === 'resume') resumeMatch();
     else if (id === 'play') { state.setup.mode = 'ai'; state.scene = 'setup'; state.ui.scroll = 0; state.setupMsg = ''; }
@@ -836,7 +838,7 @@ export function createGame(env) {
     if (ptr.pressed && (inRect(SETUP_PINS.start, ptr.x, ptr.y) || inRect(SETUP_PINS.back, ptr.x, ptr.y))) { handleSetup(inRect(SETUP_PINS.start, ptr.x, ptr.y) ? 'start' : 'back'); return; }
     updateFlowScene(dt, input, handleSetup, 'setup');
   };
-  // Reference pages scroll like any long page: drag, mouse wheel, arrow / page keys, and the Up / Next buttons (a screenful at a time).
+  // Reference pages scroll like any long page: drag, mouse wheel, arrow / page keys, and the Next button (a screenful at a time); the left button is always Close.
   let pageDrag = null, wheelAcc = 0;
   try { globalThis.addEventListener('wheel', (e) => { if (state.scene === 'rules' || state.scene === 'howto' || state.scene === 'about') wheelAcc += e.deltaY; }, { passive: true }); } catch { /* no window */ }
   Object.defineProperty(state, 'pageDragging', { get: () => !!pageDrag, enumerable: false });
@@ -847,7 +849,7 @@ export function createGame(env) {
     const screenful = () => Math.round(dm.view * 0.85);
     if (ptr.pressed) {
       if (inRect(REF_NEXT, ptr.x, ptr.y)) { if (state.page >= dm.max - 4) close(); else go(screenful()); pageDrag = null; }
-      else if (inRect(REF_BACK, ptr.x, ptr.y)) { if (state.page > 4) go(-screenful()); else close(); pageDrag = null; }
+      else if (inRect(REF_BACK, ptr.x, ptr.y)) { close(); pageDrag = null; }   // always leaves the reader; scrolling up is drag / wheel / keys
       else if (inRect(TEXT_DEC, ptr.x, ptr.y)) { state.settings.textIdx = Math.max(0, state.settings.textIdx - 1); save(); }
       else if (inRect(TEXT_INC, ptr.x, ptr.y)) { state.settings.textIdx = Math.min(TEXT_SCALES.length - 1, state.settings.textIdx + 1); save(); }
       else pageDrag = { y0: ptr.y, s0: state.page };

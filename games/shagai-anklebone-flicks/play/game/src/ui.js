@@ -2,31 +2,45 @@
 // so what you see is exactly what you can tap. Menu-like screens are "stacks": a list of items laid out top to bottom at
 // the current text zoom (up to 300%), scrolled by dragging when they are taller than their box.
 import { HOW, ABOUT, RULES } from './content.js';
-import { wrapLines, estW, paginate } from './text.js';
+import { wrapLines, estW, paginate, ART_H, CHAR_W } from './text.js';
 import { LEVELS, LEVEL_NAMES } from './ai.js';
 import { scoreOf, tossesFor } from './rules.js';
-import { HUD_Y, ACT_Y } from './layout.js';
+import { curLayout, stackFrame } from './layout.js';
 
 export const TEXT_SCALES = [1, 1.5, 2, 2.5, 3];
 export const AP_THINK_STEPS = [2, 5, 8, 10]; // Auto Play THINK pause, seconds (default index 1 = 5 s, capped at 10 s)
-export const PANEL = { x: 36, y: 100, w: 648, h: 1360 };
-export const BODY = { x: 90, y: 270, w: 540, h: 890 };       // reader text box
 export const zoomOf = (s) => TEXT_SCALES[s.prefs.textScaleIdx ?? 0] ?? 1;
 export const ACC = '#8a1f26';
 
 // ---- reader documents (How to play / About / Rules) -------------------------------------------------------
 const DOCS = { how: HOW, about: ABOUT, rules: RULES };
 const pageCache = {};
-export function readerPages(sc, z) {
-  const key = sc + '|' + z;
-  return (pageCache[key] ||= paginate(DOCS[sc], z, BODY.w, BODY.h));
+export function readerPages(sc, z, L = curLayout()) {
+  const b = L.reader.body, key = `${sc}|${z}|${Math.round(b.w)}|${Math.round(b.h)}`;
+  if (!pageCache[key]) { if (Object.keys(pageCache).length > 60) for (const k of Object.keys(pageCache)) delete pageCache[k]; pageCache[key] = paginate(DOCS[sc], z, b.w, b.h); }
+  return pageCache[key];
 }
+// One continuous scrolling document (no pages): every section in order, heading + art + text, laid out at the current zoom.
+const flowCache = {};
+export function readerFlow(sc, z, L = curLayout()) {
+  const w = Math.round(L.reader.body.w), key = sc + '|' + z + '|' + w;
+  if (flowCache[key]) return flowCache[key];
+  const secs = []; let y = 0;
+  for (const pg of paginate(DOCS[sc], z, w, 1e9)) {
+    const hs = Math.max(22, Math.round(pg.size * 0.3), Math.min(Math.round(pg.size * 1.15), Math.floor(w / (Math.max(1, String(pg.h || '').length) * CHAR_W * 1.2)))), s = { h: pg.h, art: pg.art, lines: pg.lines, size: pg.size, lh: pg.lh, hs, y };
+    s.hh = Math.round(hs * 1.5) + (pg.art ? ART_H + Math.round(pg.size * 0.3) : 0) + pg.lines.reduce((a, ln) => a + ln.gap + pg.lh, 0);
+    y += s.hh + Math.round(pg.size * 1.1); secs.push(s);
+  }
+  return (flowCache[key] = { secs, total: y });
+}
+export const readerMax = (s, L = curLayout()) => (s.scene === 'how' || s.scene === 'about' || s.scene === 'rules' ? Math.max(0, readerFlow(s.scene, zoomOf(s), L).total - L.reader.body.h) : 0);
 export const readerIndex = (s) => (s.scene === 'how' ? s.howPage : s.scene === 'about' ? s.aboutPage : s.rulesPage);
 
 // ---- stack layout ---------------------------------------------------------------------------------------------------
 const UI_LH = 1.3;
 // Lay items out top to bottom. Returns { nodes, total } where every node has absolute x, y (scroll applied), w, h.
-export function layoutStack(items, z, region, scroll = 0) {
+export function layoutStack(items, z, frame, scroll = 0, u = 1) {
+  const region = { x: 0, y: 0, w: frame.w / u, h: frame.h / u }; scroll /= u;
   const nodes = []; let y = 0;
   const push = (n) => { n.y = region.y + y - scroll; n.x = n.x ?? region.x; n.w = n.w ?? region.w; nodes.push(n); y += n.h + (n.after ?? 12); };
   for (const it of items) {
@@ -57,23 +71,21 @@ export function layoutStack(items, z, region, scroll = 0) {
       y += h + (it.after ?? 12);
     }
   }
-  return { nodes, total: y };
+  for (const n of nodes) { // map from the stack's own units to the screen
+    n.x = frame.x + n.x * u; n.y = frame.y + n.y * u; n.w *= u; n.h *= u;
+    if (n.size) n.size *= u; if (n.lh) n.lh *= u;
+  }
+  return { nodes, total: y * u };
 }
 
 // ---- the stack for each menu-like screen ----------------------------------------------------------------------------
-export const REGION = {
-  title: { x: 60, y: 1022, w: 600, h: 440 },
-  panel: { x: 90, y: 262, w: 540, h: 1000 },
-  over: { x: 90, y: 372, w: 540, h: 640 },
-  menu: { x: 100, y: 500, w: 520, h: 480 },
-};
 const LEVEL_BLURB = { beginner: 'Often hurries or holds bones at random. Good for learning.', steady: 'Always picks the best expected strides.', sharp: 'Also reads the trail: tailwinds, burrows, streams and bumps.' };
 
 export function stackFor(s) {
   const sc = s.scene, p = s.prefs, t = s.setup;
   const label = (str, size = 26, color = '#2a1b12', extra = {}) => ({ k: 'text', str, size, color, weight: 700, align: 'left', font: 'ui', after: 6, ...extra });
   if (s.menuOpen && (sc === 'play' || sc === 'autoplay')) {
-    return { key: 'menu', region: REGION.menu, card: { x: 80, y: 430, w: 560, h: 640, title: 'Paused' }, footer: [], items: [
+    return { key: 'menu', card: { title: 'Paused' }, footer: [], items: [
       { k: 'btn', id: 'resume', label: 'Resume', h: 80, size: 32, primary: true },
       { k: 'btn', id: 'sound', label: p.sound ? 'Sound: on' : 'Sound: off', h: 66, size: 28 },
       { k: 'btn', id: 'howmenu', label: 'How to play', h: 66, size: 28 },
@@ -88,7 +100,7 @@ export function stackFor(s) {
     items.push({ k: 'btn', id: 'autoplay', label: 'Auto Play · Watch & Learn', h: 64, size: 26 });
     items.push({ k: 'chips', ids: ['how', 'rules'], labels: ['How to Play', 'Rules'], cur: '', h: 62, size: 26 });
     items.push({ k: 'chips', ids: ['about', 'settings'], labels: ['About', 'Settings'], cur: '', h: 62, size: 26 });
-    return { key: 'title', region: REGION.title, items, footer: [] };
+    return { key: 'title', items, footer: [] };
   }
   if (sc === 'setup') {
     const lv = t.opp, ids = LEVELS.map((l) => 'opp:' + l).concat('opp:mixed');
@@ -100,7 +112,7 @@ export function stackFor(s) {
       { k: 'text', str: t.players === 2 ? 'You are rider 1 (blue). Naran is rider 2 (red).' : t.players === 3 ? 'You are rider 1 (blue). Naran (red) and Saran (gold) are the computers.' : 'You are rider 1 (blue). Naran (red), Saran (gold) and Tuya (green) are the computers.', size: 22, color: '#5a4636', weight: 600, align: 'center', font: 'ui' },
       { k: 'text', str: `First to the finish wins. Nothing is staked.`, size: 22, color: '#5a4636', weight: 600, align: 'center', font: 'ui' },
     ];
-    return { key: 'setup', title: 'New race', region: REGION.panel, items, footer: [{ id: 'start', label: 'Start race', primary: true, size: 36 }, { id: 'back', label: 'Back', size: 28 }] };
+    return { key: 'setup', title: 'New race', items, footer: [{ id: 'start', label: 'Start race', primary: true, size: 36 }, { id: 'back', label: 'Back', size: 28 }] };
   }
   if (sc === 'settings') {
     const items = [
@@ -111,17 +123,17 @@ export function stackFor(s) {
       label('Auto Play thinking time'), { k: 'stepper', idDec: 'apDec', idInc: 'apInc', label: `${AP_THINK_STEPS[p.apThinkIdx ?? 1]} seconds`, size: 30, color: ACC, decDim: (p.apThinkIdx ?? 1) <= 0, incDim: (p.apThinkIdx ?? 1) >= AP_THINK_STEPS.length - 1 },
       { k: 'text', str: 'Every rider has a number as well as a colour. Races played and won are kept on this device.', size: 22, color: '#5a4636', weight: 600, align: 'center', font: 'ui' },
     ];
-    return { key: 'settings', title: 'Settings', region: REGION.panel, items, footer: [{ id: 'back', label: 'Back', size: 28, primary: true }] };
+    return { key: 'settings', title: 'Settings', items, footer: [{ id: 'back', label: 'Back', size: 28, primary: true }] };
   }
   if (sc === 'over' || sc === 'autoplay-over') {
     const o = s.over; if (!o) return null;
     const g = s.g, items = [{ k: 'art', name: 'winner', h: 130 }];
     items.push({ k: 'text', str: o.youWon ? 'You win!' : `${g.riders[o.winner].name} wins!`, size: 54, color: ACC, weight: 700, align: 'center', font: 'display', after: 10 });
     o.rank.forEach((r, k) => items.push({ k: 'art', name: 'rank', r, rank: k, h: Math.round(56 * Math.max(1, Math.min(1.6, zoomOf(s) * 0.7))), after: 6 }));
-    return { key: 'over', region: REGION.over, card: { x: 60, y: 330, w: 600, h: 840 }, items, footer: [{ id: 'again', label: sc === 'autoplay-over' ? 'Watch again' : 'Race again', primary: true, size: 34 }, { id: 'title', label: 'Menu', size: 28 }] };
+    return { key: 'over', card: {}, items, footer: [{ id: 'again', label: sc === 'autoplay-over' ? 'Watch again' : 'Race again', primary: true, size: 34 }, { id: 'title', label: 'Menu', size: 28 }] };
   }
   if (sc === 'demo-limit') {
-    return { key: 'demo', title: 'Thank you for playing', region: REGION.panel, items: [
+    return { key: 'demo', title: 'Thank you for playing', items: [
       { k: 'text', str: 'That is the end of the free web preview. Get Shagai on iPhone and Android for unlimited races, every computer level and every setting.', size: 30, color: '#2a1b12', weight: 600, align: 'center', font: 'ui' },
       { k: 'art', name: 'bones4', h: 130 },
     ], footer: [{ id: 'title', label: 'Back to menu', primary: true, size: 30 }] };
@@ -129,26 +141,37 @@ export function stackFor(s) {
   return null;
 }
 
-// Footer buttons sit in a fixed row at the bottom of their card / panel.
-export function footerRects(stack, footer) {
-  const card = stack.card, bottom = card ? card.y + card.h - 40 : PANEL.y + PANEL.h - 56, w = card ? card.w - 80 : 540, x = card ? card.x + 40 : 90;
-  const out = []; let y = bottom;
-  for (let i = footer.length - 1; i >= 0; i--) { const f = footer[i], h = i === 0 ? 76 : 64; y -= h; out.unshift({ ...f, x, y, w, h, lines: [f.label] }); y -= 10; }
+// Footer buttons sit at the bottom of their card / panel: stacked, or side by side on a wide panel (primary on the right).
+function footerRects(footer, f, u) {
+  const out = [];
+  if (f.row && footer.length > 1) {
+    const n = footer.length, gap = 12 * u, w = (f.w - gap * (n - 1)) / n, h = 70 * u, y = f.bottom - h;
+    footer.forEach((fo, i) => out.push({ ...fo, x: f.x + (n - 1 - i) * (w + gap), y, w, h, lines: [fo.label] }));
+    return { rects: out, top: y - 10 * u };
+  }
+  let y = f.bottom;
+  for (let i = footer.length - 1; i >= 0; i--) { const fo = footer[i], h = (i === 0 ? 76 : 64) * u; y -= h; out.unshift({ ...fo, x: f.x, y, w: f.w, h, lines: [fo.label] }); y -= 10 * u; }
   return { rects: out, top: y };
 }
 
 // The whole layout of a stack screen at the current zoom and scroll: { nodes, footer, region, total, maxScroll }.
-export function screenLayout(s) {
+export function screenLayout(s, L = curLayout()) {
   const st = stackFor(s); if (!st) return null;
-  const z = zoomOf(s);
-  let region = st.region;
-  const f = footerRects(st, st.footer);
-  if (st.footer.length) region = { ...region, h: Math.min(region.h, f.top - region.y - 6) };
-  const first = layoutStack(st.items, z, region, 0);
+  const z = zoomOf(s), fr = stackFrame(L, st.key);
+  let region = { ...fr.region }, u = fr.u, foot = [];
+  if (st.footer.length) {
+    const f = footerRects(st.footer, fr.footer, fr.u);
+    region.h = Math.min(region.h || 1e9, f.top - region.y - 6 * fr.u);
+    foot = f.rects.map((r) => { const size = r.size * Math.min(z, 1.5) * fr.u; return { ...r, size, lines: wrapLines(r.label, size, r.w - 30) }; });
+  }
+  if (fr.panel && z <= 1) { // panels: at the normal text size shrink the list a little (never below 85%) so it fits without scrolling
+    const t = layoutStack(st.items, z, region, 0, 1).total;
+    if (t > region.h) u = Math.max(0.85, region.h / t);
+  }
+  const first = layoutStack(st.items, z, region, 0, u);
   const maxScroll = Math.max(0, first.total - region.h), scroll = Math.min(Math.max(s.scroll || 0, 0), maxScroll);
-  const lay = scroll ? layoutStack(st.items, z, region, scroll) : first;
-  const foot = f.rects.map((r) => ({ ...r, size: Math.round(r.size * Math.min(z, 1.5)), lines: wrapLines(r.label, Math.round(r.size * Math.min(z, 1.5)), r.w - 30) }));
-  return { st, nodes: lay.nodes, footer: foot, region, total: first.total, maxScroll, scroll };
+  const lay = scroll ? layoutStack(st.items, z, region, scroll, u) : first;
+  return { st, frame: fr, nodes: lay.nodes, footer: foot, region, total: first.total, maxScroll, scroll, u };
 }
 
 const visible = (n, region) => n.y + n.h > region.y && n.y < region.y + region.h;
@@ -162,32 +185,30 @@ export function rideInfo(s) {
   return { mine, canToss: mine && left > 0 && free, canGallop: mine, strides: scoreOf(R.faces).total, left, total: tossesFor(g, g.turn) };
 }
 
-export function screenButtons(s) {
+export function screenButtons(s, L = curLayout()) {
   const sc = s.scene, B = [];
   if (sc === 'how' || sc === 'about' || sc === 'rules') {
-    const pages = readerPages(sc, zoomOf(s)), last = readerIndex(s) >= pages.length - 1, ti = s.prefs.textScaleIdx ?? 0;
-    B.push({ id: 'textDec', x: 90, y: 1262, w: 110, h: 52, label: 'A−', size: 26, dim: ti <= 0, lines: ['A−'] }, { id: 'textInc', x: 520, y: 1262, w: 110, h: 52, label: 'A+', size: 26, dim: ti >= TEXT_SCALES.length - 1, lines: ['A+'] });
-    B.push({ id: 'back', x: 90, y: 1336, w: 262, h: 78, label: 'Back', size: 30, lines: ['Back'] }, { id: 'page', x: 368, y: 1336, w: 262, h: 78, label: last ? 'Done' : 'Next page', primary: true, size: 30, lines: [last ? 'Done' : 'Next page'] });
+    const ti = s.prefs.textScaleIdx ?? 0, rb = L.reader.btn;
+    B.push({ id: 'textDec', ...rb.textDec, label: 'A−', size: 26, dim: ti <= 0, lines: ['A−'] }, { id: 'textInc', ...rb.textInc, label: 'A+', size: 26, dim: ti >= TEXT_SCALES.length - 1, lines: ['A+'] });
+    B.push({ id: 'back', ...rb.back, label: 'Back', size: 30, lines: ['Back'] }, { id: 'page', ...rb.page, label: 'Top', primary: true, dim: (s.scroll || 0) < 4, size: 30, lines: ['Top'] });
     return B;
   }
-  const lay = screenLayout(s);
+  const lay = screenLayout(s, L);
   if (lay) {
     for (const n of lay.nodes) if (n.k === 'btn' && visible(n, lay.region)) B.push({ ...n, clip: lay.region });
     for (const f of lay.footer) B.push(f);
     return B;
   }
   if (sc === 'play' || sc === 'autoplay') {
+    const pb = L.play.btn, fs = pb.fs, mk = (id, r, label, size, extra = {}) => B.push({ id, ...r, label, size: size * fs, lines: [label], ...extra });
     if (sc === 'autoplay') {
       const ti = s.prefs.apThinkIdx ?? 1, ap = s.ap;
       const row = [['menu', 'Menu'], [ap.paused ? 'apresume' : 'appause', ap.paused ? 'Resume' : 'Pause'], ['apDec', 'Think −'], ['apInc', 'Think +']];
-      row.forEach(([id, label], i) => B.push({ id, x: 24 + i * 172, y: HUD_Y, w: 156, h: 82, label, size: 24, lines: [label], primary: id === 'apresume', dim: (id === 'apDec' && ti <= 0) || (id === 'apInc' && ti >= AP_THINK_STEPS.length - 1) }));
+      row.forEach(([id, label], i) => mk(id, pb.ap[i], label, 24, { primary: id === 'apresume', dim: (id === 'apDec' && ti <= 0) || (id === 'apInc' && ti >= AP_THINK_STEPS.length - 1) }));
     } else {
-      const ri = rideInfo(s);
-      B.push({ id: 'toss', x: 36, y: ACT_Y, w: 316, h: 84, label: ri.mine ? `Toss again (${ri.left})` : 'Toss again', size: 30, lines: [ri.mine ? `Toss again (${ri.left})` : 'Toss again'], dim: !ri.canToss });
-      B.push({ id: 'gallop', x: 368, y: ACT_Y, w: 316, h: 84, label: ri.mine ? `Gallop +${ri.strides}` : 'Gallop', size: 32, lines: [ri.mine ? `Gallop +${ri.strides}` : 'Gallop'], primary: true, dim: !ri.canGallop });
-      B.push({ id: 'menu', x: 38, y: HUD_Y, w: 200, h: 82, label: 'Menu', size: 28, lines: ['Menu'] });
-      B.push({ id: 'hint', x: 260, y: HUD_Y, w: 200, h: 82, label: 'Hint', size: 28, lines: ['Hint'], dim: !ri.mine });
-      B.push({ id: 'sound', x: 482, y: HUD_Y, w: 200, h: 82, label: s.prefs.sound ? 'Sound on' : 'Sound off', size: 28, lines: [s.prefs.sound ? 'Sound on' : 'Sound off'] });
+      const ri = rideInfo(s), tl = ri.mine ? `Toss again (${ri.left})` : 'Toss again', gl = ri.mine ? `Gallop +${ri.strides}` : 'Gallop';
+      mk('toss', pb.toss, tl, 30, { dim: !ri.canToss }); mk('gallop', pb.gallop, gl, 32, { primary: true, dim: !ri.canGallop });
+      mk('menu', pb.menu, 'Menu', 28); mk('hint', pb.hint, 'Hint', 28, { dim: !ri.mine }); mk('sound', pb.sound, s.prefs.sound ? 'Sound on' : 'Sound off', 28);
     }
   }
   return B;

@@ -2,8 +2,8 @@
 // Plain canvas 2D, no images, nothing here changes game state.
 import { N, NN, CENTRE } from './rules.js';
 import { hasArabic } from './lang.js';
+import { SCREEN } from './layout.js';
 
-export const W = 720, H = 1560;
 export const UI = '-apple-system, "SF Pro Text", "Segoe UI", Roboto, system-ui, sans-serif';
 export const DISPLAY = '"Palatino Linotype", Palatino, "Iowan Old Style", Georgia, "Times New Roman", serif';
 
@@ -72,33 +72,36 @@ export function text(ctx, str, x, y, size, color = '#fff', o = {}) {
 }
 
 // ---------------------------------------------------------------------------------------------------- background
-const FLECKS = Array.from({ length: 34 }, (_, i) => [((i * 97) % 211) / 211 * W, ((i * 53) % 173) / 173 * H, 0.6 + ((i * 31) % 7) / 7, ((i * 13) % 11) / 11]);
+const FLECKS = Array.from({ length: 34 }, (_, i) => [((i * 97) % 211) / 211, ((i * 53) % 173) / 173, 0.6 + ((i * 31) % 7) / 7, ((i * 13) % 11) / 11]);
 
 export function background(ctx, th, t, glowY = 700, dunes = false) {
+  const W = SCREEN.width, H = SCREEN.height, half = Math.hypot(W, H) / 2;
+  glowY = Math.min(glowY, H * 0.5);
   const g = ctx.createLinearGradient(0, 0, 0, H);
   g.addColorStop(0, th.bg[0]); g.addColorStop(0.5, th.bg[1]); g.addColorStop(1, th.bg[2]);
   ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
-  const hg = ctx.createRadialGradient(W / 2, glowY, 40, W / 2, glowY, 660);
+  const hg = ctx.createRadialGradient(W / 2, glowY, 40, W / 2, glowY, 660 * Math.max(1, W / 720));
   hg.addColorStop(0, th.glow); hg.addColorStop(1, 'rgba(0,0,0,0)');
   ctx.fillStyle = hg; ctx.fillRect(0, 0, W, H);
   if (dunes) {
     // two soft dune ridges at the foot of the screen
     ctx.save();
+    const dh = Math.min(260, H * 0.3);
     for (let k = 0; k < 2; k++) {
-      const y0 = H - 260 + k * 70, c = k ? 'rgba(0,0,0,0.30)' : 'rgba(0,0,0,0.18)';
+      const y0 = H - dh + k * dh * 0.27, c = k ? 'rgba(0,0,0,0.30)' : 'rgba(0,0,0,0.18)';
       ctx.fillStyle = c; ctx.beginPath(); ctx.moveTo(0, H);
       for (let x = 0; x <= W; x += 20) ctx.lineTo(x, y0 + Math.sin(x * 0.011 + k * 2.1) * 34 + Math.sin(x * 0.027 + k) * 12);
       ctx.lineTo(W, H); ctx.closePath(); ctx.fill();
     }
     ctx.restore();
   }
-  for (const [x, y, s, ph] of FLECKS) {
-    const xx = (x + t * (6 + s * 5)) % W, yy = (y + t * (2 + s * 2)) % H;
+  for (const [fx, fy, s, ph] of FLECKS) {
+    const xx = (fx * W + t * (6 + s * 5)) % W, yy = (fy * H + t * (2 + s * 2)) % H;
     const a = 0.06 + 0.12 * (0.5 + 0.5 * Math.sin(t * 0.7 + ph * 9));
     ctx.fillStyle = `rgba(${th.fleck},${a})`;
     ctx.fillRect(xx, yy, 2.2 * s, 2.2 * s);
   }
-  const vg = ctx.createRadialGradient(W / 2, H / 2, 560, W / 2, H / 2, 1020);
+  const vg = ctx.createRadialGradient(W / 2, H / 2, half * 0.65, W / 2, H / 2, half * 1.19);
   vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,0.5)');
   ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
 }

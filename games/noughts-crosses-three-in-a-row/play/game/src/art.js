@@ -70,22 +70,23 @@ export function text(ctx, str, x, y, size, color = '#fff', o = {}) {
 }
 
 // ---------------------------------------------------------------------------------------------------- background
-const FLECKS = Array.from({ length: 30 }, (_, i) => [((i * 97) % 211) / 211 * W, ((i * 53) % 173) / 173 * H, 0.6 + ((i * 31) % 7) / 7, ((i * 13) % 11) / 11]);
+const FLECKS = Array.from({ length: 30 }, (_, i) => [((i * 97) % 211) / 211, ((i * 53) % 173) / 173, 0.6 + ((i * 31) % 7) / 7, ((i * 13) % 11) / 11]);
 
-export function background(ctx, th, t, glowY = 700) {
+export function background(ctx, th, t, glowY = 700, W = 720, H = 1560, glowX = W / 2) {
   const g = ctx.createLinearGradient(0, 0, 0, H);
   g.addColorStop(0, th.bg[0]); g.addColorStop(0.5, th.bg[1]); g.addColorStop(1, th.bg[2]);
   ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
-  const hg = ctx.createRadialGradient(W / 2, glowY, 40, W / 2, glowY, 640);
+  const hg = ctx.createRadialGradient(glowX, glowY, 40, glowX, glowY, Math.max(640, W * 0.5));
   hg.addColorStop(0, th.glow); hg.addColorStop(1, 'rgba(0,0,0,0)');
   ctx.fillStyle = hg; ctx.fillRect(0, 0, W, H);
   for (const [x, y, s, ph] of FLECKS) {
-    const yy = (y + t * (3 + s * 3)) % H;
+    const yy = (y * H + t * (3 + s * 3)) % H;
     const a = 0.06 + 0.12 * (0.5 + 0.5 * Math.sin(t * 0.7 + ph * 9));
     ctx.fillStyle = `rgba(${th.fleck},${a})`;
-    ctx.fillRect(x, yy, 2.2 * s, 2.2 * s);
+    ctx.fillRect(x * W, yy, 2.2 * s, 2.2 * s);
   }
-  const vg = ctx.createRadialGradient(W / 2, H / 2, 560, W / 2, H / 2, 1020);
+  const vr = Math.hypot(W, H) / 2;
+  const vg = ctx.createRadialGradient(W / 2, H / 2, vr * 0.652, W / 2, H / 2, vr * 1.187);
   vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,0.5)');
   ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
 }

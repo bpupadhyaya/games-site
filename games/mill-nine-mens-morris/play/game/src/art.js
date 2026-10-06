@@ -1,12 +1,11 @@
 // The tavern: a stone wall with a round arch, an oak table, and the carved board. Painted ONCE into cached layers.
 // Light comes from the two candles (left and right) and from the upper left.
-import { W, H, project, PT, pointAt, UNIT } from './layout.js';
+import { project, pointAt, UNIT } from './layout.js';
 
 const TAU = Math.PI * 2;
 function lcg(seed) { let s = seed >>> 0; return () => ((s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 4294967296); }
 const poly = (ctx, pts) => { ctx.beginPath(); pts.forEach((p, i) => (i ? ctx.lineTo(p.x, p.y) : ctx.moveTo(p.x, p.y))); ctx.closePath(); };
 const rect = (U0, U1, V0, V1) => [project(U0, V0), project(U1, V0), project(U1, V1), project(U0, V1)];
-export const TABLE_TOP = 690;
 
 // Board woods: face gradient, frame, grain colour, groove colour
 export const WOODS = {
@@ -27,83 +26,74 @@ function stone(ctx, x, y, w, h, rnd, tone) {
   ctx.fillStyle = 'rgba(255,235,200,0.07)'; ctx.fillRect(x + 4, y + 3, w - 8, 2);
 }
 
-function paintWall(ctx) {
+// The room is three independent layers so it can fill ANY screen shape: the stone wall (painted for the live size), the plank table
+// (the same), and the arch (painted once, placed by the layout). The table top line `tt` and the arch centre are chosen by the layout.
+const ARCH = { R: 262, H: 560, PAD: 44 };       // arch radius, recess height above the table, voussoir band
+function paintWall(ctx, w, h) {
   const rnd = lcg(7);
-  ctx.fillStyle = '#1b1612'; ctx.fillRect(0, 0, W, TABLE_TOP + 40);
+  ctx.fillStyle = '#1b1612'; ctx.fillRect(0, 0, w, h);
   // ashlar blocks, running bond
-  const rows = Math.ceil(TABLE_TOP / 58) + 1;
+  const rows = Math.ceil(h / 58) + 1;
   for (let r = 0; r < rows; r++) {
     let x = -((r % 2) * 46) - rnd() * 20; const y = r * 58;
-    while (x < W) { const w = 92 + rnd() * 70; stone(ctx, x, y, w, 58, rnd, (r < 3 ? -8 : 0)); x += w; }
+    while (x < w) { const bw = 92 + rnd() * 70; stone(ctx, x, y, bw, 58, rnd, (r < 3 ? -8 : 0)); x += bw; }
   }
-  // the arch: a deep recess with voussoirs
-  const cx = 360, cy = 392, R = 262, baseY = TABLE_TOP;
+}
+// The arch in local coordinates: x = 0 is its centre, y = 0 is the table top line (so the recess rises to y = -ARCH.H).
+function paintArch(ctx) {
+  const rnd = lcg(11), { R, H, PAD } = ARCH, cy = -H + R, baseY = 0, cx = 0;
   ctx.save();
   ctx.beginPath(); ctx.moveTo(cx - R, baseY); ctx.lineTo(cx - R, cy); ctx.arc(cx, cy, R, Math.PI, 0); ctx.lineTo(cx + R, baseY); ctx.closePath(); ctx.clip();
   const rec = ctx.createLinearGradient(0, cy - R, 0, baseY); rec.addColorStop(0, '#0a0706'); rec.addColorStop(0.6, '#1a110c'); rec.addColorStop(1, '#2c1c11');
-  ctx.fillStyle = rec; ctx.fillRect(cx - R, cy - R, R * 2, baseY);
-  // rough back wall inside the recess
-  for (let i = 0; i < 26; i++) { ctx.fillStyle = `rgba(90,66,44,${0.03 + rnd() * 0.04})`; ctx.fillRect(cx - R + rnd() * R * 2, cy - R + rnd() * (baseY - cy + R), 60 + rnd() * 80, 24); }
+  ctx.fillStyle = rec; ctx.fillRect(cx - R, cy - R, R * 2, H);
+  for (let i = 0; i < 26; i++) { ctx.fillStyle = `rgba(90,66,44,${0.03 + rnd() * 0.04})`; ctx.fillRect(cx - R + rnd() * R * 2, cy - R + rnd() * H, 60 + rnd() * 80, 24); }
   ctx.restore();
-  // voussoir ring
   for (let i = 0; i < 15; i++) {
-    const a0 = Math.PI + (i / 15) * Math.PI, a1 = Math.PI + ((i + 1) / 15) * Math.PI, r0 = R, r1 = R + 44;
+    const a0 = Math.PI + (i / 15) * Math.PI, a1 = Math.PI + ((i + 1) / 15) * Math.PI, r0 = R, r1 = R + PAD;
     const gr = ctx.createLinearGradient(cx + Math.cos(a0) * r0, cy + Math.sin(a0) * r0, cx + Math.cos(a1) * r1, cy + Math.sin(a1) * r1);
     const t = 74 + rnd() * 24; gr.addColorStop(0, `rgb(${t + 26},${t + 20},${t + 6})`); gr.addColorStop(1, `rgb(${t - 12},${t - 16},${t - 24})`);
     ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(cx, cy, r1, a0 + 0.012, a1 - 0.012); ctx.arc(cx, cy, r0, a1 - 0.012, a0 + 0.012, true); ctx.closePath(); ctx.fill();
   }
-  // jambs
-  for (let y = baseY - 62; y > cy - 10; y -= 62) for (const sx of [-1, 1]) { const x = sx < 0 ? cx - R - 44 : cx + R; stone(ctx, x, y, 44, 62, rnd, 14); }
-  // a shallow stone shelf at the table's back edge
-  const shelf = ctx.createLinearGradient(0, TABLE_TOP - 26, 0, TABLE_TOP + 20); shelf.addColorStop(0, '#8b7b62'); shelf.addColorStop(0.5, '#5e5040'); shelf.addColorStop(1, '#221912');
-  ctx.fillStyle = shelf; ctx.fillRect(0, TABLE_TOP - 26, W, 46);
-  ctx.fillStyle = 'rgba(255,240,205,0.25)'; ctx.fillRect(0, TABLE_TOP - 26, W, 2);
-  // an iron lantern hook and a hanging herb bundle in the arch, for life
+  for (let y = baseY - 62; y > cy - 10; y -= 62) for (const sx of [-1, 1]) { const x = sx < 0 ? cx - R - PAD : cx + R; stone(ctx, x, y, PAD, 62, rnd, 14); }
   ctx.strokeStyle = '#0d0907'; ctx.lineWidth = 5; ctx.beginPath(); ctx.moveTo(cx, cy - R + 4); ctx.lineTo(cx, cy - R + 80); ctx.stroke();
 }
-
-function paintTable(ctx) {
+// Planks, painted from local y = 0 (the table top line) down for height `h`.
+function paintTable(ctx, w, h) {
   const rnd = lcg(21);
-  let y = TABLE_TOP + 20, i = 0;
+  let y = 20, i = 0;
   const bands = [];
-  while (y < H + 40) { const h = 88 + i * 14 + rnd() * 16; bands.push([y, h]); y += h; i++; }
-  for (const [y0, h] of bands) {
+  while (y < h + 40) { const bh = 88 + Math.min(i, 8) * 14 + rnd() * 16; bands.push([y, bh]); y += bh; i++; }
+  ctx.fillStyle = '#4a2c14'; ctx.fillRect(0, 0, w, 40);
+  for (const [y0, bh] of bands) {
     const t = rnd() * 16;
-    const gr = ctx.createLinearGradient(0, y0, 0, y0 + h);
+    const gr = ctx.createLinearGradient(0, y0, 0, y0 + bh);
     gr.addColorStop(0, `rgb(${92 + t},${58 + t * 0.6},${28 + t * 0.3})`); gr.addColorStop(0.45, `rgb(${112 + t},${72 + t * 0.6},${36 + t * 0.3})`); gr.addColorStop(1, `rgb(${70 + t},${43 + t * 0.5},${20 + t * 0.3})`);
-    ctx.fillStyle = gr; ctx.fillRect(0, y0, W, h);
-    // grain
+    ctx.fillStyle = gr; ctx.fillRect(0, y0, w, bh);
     for (let k = 0; k < 34; k++) {
-      const gy = y0 + 6 + rnd() * (h - 12), amp = 1.5 + rnd() * 3.5, ph = rnd() * 6, len = 200 + rnd() * 520, gx = rnd() * (W - len * 0.4) - 40;
+      const gy = y0 + 6 + rnd() * (bh - 12), amp = 1.5 + rnd() * 3.5, ph = rnd() * 6, len = 200 + rnd() * 520, gx = rnd() * (w - len * 0.4) - 40;
       ctx.strokeStyle = rnd() < 0.5 ? `rgba(40,20,6,${0.10 + rnd() * 0.16})` : `rgba(230,170,100,${0.04 + rnd() * 0.07})`; ctx.lineWidth = 0.8 + rnd() * 1.4;
       ctx.beginPath(); ctx.moveTo(gx, gy); for (let s = 1; s <= 12; s++) ctx.lineTo(gx + (len * s) / 12, gy + Math.sin(ph + s * 0.7) * amp); ctx.stroke();
     }
-    // plank joint
-    ctx.fillStyle = 'rgba(8,4,1,0.75)'; ctx.fillRect(0, y0, W, 3); ctx.fillStyle = 'rgba(255,215,160,0.16)'; ctx.fillRect(0, y0 + 3, W, 2);
-    // knots
-    if (rnd() < 0.7) { const kx = 40 + rnd() * 640, ky = y0 + h * (0.3 + rnd() * 0.4), kr = 8 + rnd() * 10; for (let q = 3; q >= 0; q--) { ctx.strokeStyle = `rgba(35,17,5,${0.2 + (3 - q) * 0.08})`; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.ellipse(kx, ky, kr * (0.4 + q * 0.3) * 1.8, kr * (0.4 + q * 0.3), 0, 0, TAU); ctx.stroke(); } }
+    ctx.fillStyle = 'rgba(8,4,1,0.75)'; ctx.fillRect(0, y0, w, 3); ctx.fillStyle = 'rgba(255,215,160,0.16)'; ctx.fillRect(0, y0 + 3, w, 2);
+    if (rnd() < 0.7) { const kx = 40 + rnd() * (w - 80), ky = y0 + bh * (0.3 + rnd() * 0.4), kr = 8 + rnd() * 10; for (let q = 3; q >= 0; q--) { ctx.strokeStyle = `rgba(35,17,5,${0.2 + (3 - q) * 0.08})`; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.ellipse(kx, ky, kr * (0.4 + q * 0.3) * 1.8, kr * (0.4 + q * 0.3), 0, 0, TAU); ctx.stroke(); } }
   }
-  // wear: scratches, a mug ring, a wax drip
-  ctx.strokeStyle = 'rgba(20,10,4,0.28)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(628, 1490, 44, 0.3, 5.7); ctx.stroke();
-  ctx.strokeStyle = 'rgba(255,220,170,0.10)'; ctx.lineWidth = 1; for (let k = 0; k < 60; k++) { const x = rnd() * W, yy = TABLE_TOP + 40 + rnd() * (H - TABLE_TOP - 40); ctx.beginPath(); ctx.moveTo(x, yy); ctx.lineTo(x + (rnd() - 0.5) * 60, yy + (rnd() - 0.5) * 12); ctx.stroke(); }
-  // shadow under the stone shelf
-  const sh = ctx.createLinearGradient(0, TABLE_TOP + 20, 0, TABLE_TOP + 110); sh.addColorStop(0, 'rgba(0,0,0,0.6)'); sh.addColorStop(1, 'rgba(0,0,0,0)'); ctx.fillStyle = sh; ctx.fillRect(0, TABLE_TOP + 20, W, 90);
+  ctx.strokeStyle = 'rgba(20,10,4,0.28)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(w - 92, h - 70, 44, 0.3, 5.7); ctx.stroke();
+  ctx.strokeStyle = 'rgba(255,220,170,0.10)'; ctx.lineWidth = 1; for (let k = 0; k < Math.round(w * h / 15000); k++) { const x = rnd() * w, yy = 40 + rnd() * (h - 40); ctx.beginPath(); ctx.moveTo(x, yy); ctx.lineTo(x + (rnd() - 0.5) * 60, yy + (rnd() - 0.5) * 12); ctx.stroke(); }
 }
 
-// A brass candlestick with a wax candle; the flame is drawn each frame (view.js).
-export const CANDLES = [{ x: 74, y: 720, top: 610 }, { x: 646, y: 720, top: 610 }];
-function paintCandles(ctx) {
-  for (const c of CANDLES) {
-    ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.beginPath(); ctx.ellipse(c.x + 14, c.y + 8, 44, 12, 0, 0, TAU); ctx.fill();
-    const wax = ctx.createLinearGradient(c.x - 12, 0, c.x + 12, 0); wax.addColorStop(0, '#d9c7a0'); wax.addColorStop(0.45, '#f6ead0'); wax.addColorStop(1, '#a8946a');
-    ctx.fillStyle = wax; ctx.beginPath(); ctx.roundRect(c.x - 12, c.top, 24, c.y - c.top - 14, 4); ctx.fill();
-    ctx.fillStyle = 'rgba(246,234,208,0.9)'; ctx.beginPath(); ctx.ellipse(c.x, c.top, 12, 4, 0, 0, TAU); ctx.fill();
-    ctx.strokeStyle = '#2a2016'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(c.x, c.top); ctx.lineTo(c.x, c.top - 8); ctx.stroke();
-    const br = ctx.createLinearGradient(c.x - 34, 0, c.x + 34, 0); br.addColorStop(0, '#6a4a12'); br.addColorStop(0.35, '#f0cf78'); br.addColorStop(1, '#5a3d0c');
-    ctx.fillStyle = br; ctx.beginPath(); ctx.ellipse(c.x, c.y, 34, 10, 0, 0, TAU); ctx.fill();
-    ctx.beginPath(); ctx.roundRect(c.x - 9, c.y - 30, 18, 30, 4); ctx.fill();
-    ctx.beginPath(); ctx.ellipse(c.x, c.y - 30, 17, 5, 0, 0, TAU); ctx.fill();
-  }
+// A brass candlestick with a wax candle, local coordinates: x = 0 centre, y = 0 base (the candle top is at CANDLE_TOP). The flame is drawn each frame (view.js).
+export const CANDLE_TOP = -110;
+function paintCandle(ctx) {
+  const c = { x: 0, y: 0, top: CANDLE_TOP };
+  ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.beginPath(); ctx.ellipse(c.x + 14, c.y + 8, 44, 12, 0, 0, TAU); ctx.fill();
+  const wax = ctx.createLinearGradient(c.x - 12, 0, c.x + 12, 0); wax.addColorStop(0, '#d9c7a0'); wax.addColorStop(0.45, '#f6ead0'); wax.addColorStop(1, '#a8946a');
+  ctx.fillStyle = wax; ctx.beginPath(); ctx.roundRect(c.x - 12, c.top, 24, c.y - c.top - 14, 4); ctx.fill();
+  ctx.fillStyle = 'rgba(246,234,208,0.9)'; ctx.beginPath(); ctx.ellipse(c.x, c.top, 12, 4, 0, 0, TAU); ctx.fill();
+  ctx.strokeStyle = '#2a2016'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(c.x, c.top); ctx.lineTo(c.x, c.top - 8); ctx.stroke();
+  const br = ctx.createLinearGradient(c.x - 34, 0, c.x + 34, 0); br.addColorStop(0, '#6a4a12'); br.addColorStop(0.35, '#f0cf78'); br.addColorStop(1, '#5a3d0c');
+  ctx.fillStyle = br; ctx.beginPath(); ctx.ellipse(c.x, c.y, 34, 10, 0, 0, TAU); ctx.fill();
+  ctx.beginPath(); ctx.roundRect(c.x - 9, c.y - 30, 18, 30, 4); ctx.fill();
+  ctx.beginPath(); ctx.ellipse(c.x, c.y - 30, 17, 5, 0, 0, TAU); ctx.fill();
 }
 
 function paintBoard(ctx, wood) {
@@ -121,7 +111,7 @@ function paintBoard(ctx, wood) {
   ctx.strokeStyle = 'rgba(255,220,160,0.35)'; ctx.lineWidth = 2; poly(ctx, outer); ctx.stroke();
   // the carved panel face
   const pg = ctx.createLinearGradient(face[0].x, face[0].y, face[2].x, face[2].y); pg.addColorStop(0, WD.face[1]); pg.addColorStop(0.5, WD.face[0]); pg.addColorStop(1, WD.face[2]);
-  ctx.save(); poly(ctx, face); ctx.clip(); ctx.fillStyle = pg; ctx.fillRect(0, 0, W, H);
+  ctx.save(); poly(ctx, face); ctx.clip(); ctx.fillStyle = pg; ctx.fillRect(-60, 600, 840, 860);
   // grain along the board
   const [gr, gg, gb] = WD.grain;
   for (let k = 0; k < 120; k++) {
@@ -130,8 +120,8 @@ function paintBoard(ctx, wood) {
     ctx.beginPath(); for (let s = 0; s <= 12; s++) { const u = u0 + ((u1 - u0) * s) / 12, p = project(u, v0 + Math.sin(ph + s * 0.8) * amp); if (s) ctx.lineTo(p.x, p.y); else ctx.moveTo(p.x, p.y); } ctx.stroke();
   }
   // candle warmth, brighter at the far corners, and dark edges of use
-  for (const [u, v] of [[-3.4, -0.4], [3.4, -0.4]]) { const p = project(u, v), g2 = ctx.createRadialGradient(p.x, p.y, 10, p.x, p.y, 380); g2.addColorStop(0, 'rgba(255,214,140,0.30)'); g2.addColorStop(1, 'rgba(255,214,140,0)'); ctx.fillStyle = g2; ctx.fillRect(0, 0, W, H); }
-  const ctr = project(0, 3), vg = ctx.createRadialGradient(ctr.x, ctr.y, 150, ctr.x, ctr.y, 470); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(40,18,4,0.32)'); ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
+  for (const [u, v] of [[-3.4, -0.4], [3.4, -0.4]]) { const p = project(u, v), g2 = ctx.createRadialGradient(p.x, p.y, 10, p.x, p.y, 380); g2.addColorStop(0, 'rgba(255,214,140,0.30)'); g2.addColorStop(1, 'rgba(255,214,140,0)'); ctx.fillStyle = g2; ctx.fillRect(-60, 600, 840, 860); }
+  const ctr = project(0, 3), vg = ctx.createRadialGradient(ctr.x, ctr.y, 150, ctr.x, ctr.y, 470); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(40,18,4,0.32)'); ctx.fillStyle = vg; ctx.fillRect(-60, 600, 840, 860);
   // fine cracks and dents
   for (let k = 0; k < 26; k++) { const u = -3.3 + rnd() * 6.6, v = -0.3 + rnd() * 6.6, p = project(u, v); ctx.strokeStyle = 'rgba(40,20,6,0.2)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x + (rnd() - 0.5) * 34, p.y + (rnd() - 0.5) * 8); ctx.stroke(); }
   ctx.restore();
@@ -165,19 +155,47 @@ function paintBoard(ctx, wood) {
   }
 }
 
+// Cached layers: painted once into an OffscreenCanvas (2x) and drawn scaled. `region` is the area (in the layer's own coordinates) it covers.
 const layers = {};
-function cached(key, paint) {
+function cached(key, region, paint, K = 2) {
   if (!(key in layers)) {
     layers[key] = null;
-    try { if (typeof OffscreenCanvas !== 'undefined') { const c = new OffscreenCanvas(W * 2, H * 2), l = c.getContext('2d'); l.scale(2, 2); paint(l); layers[key] = c; } } catch { layers[key] = null; }
+    try { if (typeof OffscreenCanvas !== 'undefined') { const c = new OffscreenCanvas(Math.ceil(region.w * K), Math.ceil(region.h * K)), l = c.getContext('2d'); l.scale(K, K); l.translate(-region.x, -region.y); paint(l); layers[key] = c; } } catch { layers[key] = null; }
   }
   return layers[key];
 }
-export function drawRoom(ctx) {
-  const c = cached('room', (l) => { paintWall(l); paintTable(l); paintCandles(l); });
-  if (c) ctx.drawImage(c, 0, 0, W, H); else { paintWall(ctx); paintTable(ctx); paintCandles(ctx); }
+const roomKeys = [];
+const keepRooms = (key) => { if (!roomKeys.includes(key)) { roomKeys.push(key); while (roomKeys.length > 4) { const old = roomKeys.shift(); for (const k of Object.keys(layers)) if (k.endsWith('|' + old)) delete layers[k]; } } };
+// The whole room for a w x h screen. `tt` = y of the table's back edge, `cx` = x centre of the arch (skipped when there is no room for it).
+export function drawRoom(ctx, w, h, tt, cx) {
+  w = Math.round(w); h = Math.round(h); const size = `${w}x${h}`; keepRooms(size);
+  const wall = cached('wall|' + size, { x: 0, y: 0, w, h }, (l) => paintWall(l, w, h));
+  const table = cached('table|' + size, { x: 0, y: 0, w, h }, (l) => paintTable(l, w, h));
+  const archOk = tt > ARCH.H * 0.62;
+  ctx.save(); ctx.beginPath(); ctx.rect(0, 0, w, tt + 30); ctx.clip();
+  if (wall) ctx.drawImage(wall, 0, 0, w, wall.height / 2); else paintWall(ctx, w, h);
+  if (archOk) { const a = cached('arch', { x: -ARCH.R - ARCH.PAD, y: -ARCH.H - ARCH.PAD, w: (ARCH.R + ARCH.PAD) * 2, h: ARCH.H + ARCH.PAD + 4 }, paintArch); if (a) ctx.drawImage(a, cx - ARCH.R - ARCH.PAD, tt - ARCH.H - ARCH.PAD, a.width / 2, a.height / 2); else { ctx.save(); ctx.translate(cx, tt); paintArch(ctx); ctx.restore(); } }
+  ctx.restore();
+  // the table from its back edge down
+  ctx.save(); ctx.beginPath(); ctx.rect(0, tt, w, h - tt); ctx.clip();
+  if (table) ctx.drawImage(table, 0, tt, w, table.height / 2); else { ctx.translate(0, tt); paintTable(ctx, w, h); }
+  ctx.restore();
+  // a shallow stone shelf at the table's back edge, and its shadow on the planks
+  const shelf = ctx.createLinearGradient(0, tt - 26, 0, tt + 20); shelf.addColorStop(0, '#8b7b62'); shelf.addColorStop(0.5, '#5e5040'); shelf.addColorStop(1, '#221912');
+  ctx.fillStyle = shelf; ctx.fillRect(0, tt - 26, w, 46);
+  ctx.fillStyle = 'rgba(255,240,205,0.25)'; ctx.fillRect(0, tt - 26, w, 2);
+  const sh = ctx.createLinearGradient(0, tt + 20, 0, tt + 110); sh.addColorStop(0, 'rgba(0,0,0,0.6)'); sh.addColorStop(1, 'rgba(0,0,0,0)'); ctx.fillStyle = sh; ctx.fillRect(0, tt + 20, w, 90);
 }
+// A candlestick standing on the table at (x, y) on screen, scale s.
+export function drawCandleBody(ctx, x, y, s) {
+  const c = cached('candle', { x: -60, y: -170, w: 120, h: 200 }, paintCandle);
+  ctx.save(); ctx.translate(x, y); ctx.scale(s, s);
+  if (c) ctx.drawImage(c, -60, -170, 120, 200); else paintCandle(ctx);
+  ctx.restore();
+}
+// The board, in canonical stage coordinates (the caller sets the stage transform).
+const BOARD_REGION = { x: -40, y: 690, w: 800, h: 720 };
 export function drawBoard(ctx, wood = 'oak') {
-  const c = cached('board-' + wood, (l) => paintBoard(l, wood));
-  if (c) ctx.drawImage(c, 0, 0, W, H); else paintBoard(ctx, wood);
+  const c = cached('board-' + wood, BOARD_REGION, (l) => paintBoard(l, wood));
+  if (c) ctx.drawImage(c, BOARD_REGION.x, BOARD_REGION.y, BOARD_REGION.w, BOARD_REGION.h); else paintBoard(ctx, wood);
 }

@@ -6,10 +6,10 @@ import { TEXT_SCALES, drawButton, drawPill, panel, layoutColumn, drawColumn, pag
 import { ABOUT, HOWTO, RULES, ROLE_INFO, LESSONS } from './content.js';
 import { WINDOWS } from './ball.js';
 import { SLOTS } from './field.js';
+import { LY, Z, host } from './layout.js';
+import { drawLockup, drawMoreLine } from './brand.js';
 
-export const Z = {
-  zoomDec: { x: 16, y: 14, w: 100, h: 58 }, zoomInc: { x: 604, y: 14, w: 100, h: 58 },
-};
+export { Z };
 export const scaleOf = (G) => TEXT_SCALES[clamp(G.settings.textIdx, 0, TEXT_SCALES.length - 1)];
 const hidden = (o, k, v) => { Object.defineProperty(o, k, { value: v, enumerable: false, writable: true, configurable: true }); };
 function setUi(G, ui) { if (!('_ui' in G)) hidden(G, '_ui', ui); else G._ui = ui; }
@@ -21,7 +21,7 @@ export function drawBackdrop(ctx, G, transparentTop = false) {
   }
   ctx.fillStyle = vGrad(ctx, 0, H, [[0, '#0c4a5e'], [0.5, '#0a3a4c'], [1, '#062a38']]); ctx.fillRect(0, 0, W, H);
   ctx.globalAlpha = 0.07; ctx.strokeStyle = '#bff3ff'; ctx.lineWidth = 3;
-  for (let k = 0; k < 14; k++) { const y = 80 + k * 90 + Math.sin(G.t * 0.6 + k) * 4; ctx.beginPath(); for (let x = 0; x <= W; x += 20) ctx.lineTo(x, y + Math.sin(x * 0.02 + k + G.t * 0.8) * 8); ctx.stroke(); }
+  for (let k = 0; k < Math.ceil(H / 90); k++) { const y = 80 + k * 90 + Math.sin(G.t * 0.6 + k) * 4; ctx.beginPath(); for (let x = 0; x <= W; x += 20) ctx.lineTo(x, y + Math.sin(x * 0.02 + k + G.t * 0.8) * 8); ctx.stroke(); }
   ctx.globalAlpha = 1;
 }
 
@@ -30,29 +30,34 @@ function zoomPills(ctx, G) {
   drawPill(ctx, Z.zoomDec, 'A−', { disabled: s === 0 });
   drawPill(ctx, Z.zoomInc, 'A+', { disabled: s === TEXT_SCALES.length - 1 });
   ctx.font = `600 22px ${SANS}`; ctx.fillStyle = 'rgba(255,244,220,0.85)'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.fillText(`${Math.round(TEXT_SCALES[s] * 100)}%`, W / 2, 43);
+  ctx.fillText(`${Math.round(TEXT_SCALES[s] * 100)}%`, LY.zoom.label.x, LY.zoom.label.y);
 }
 
-function footerLayout(ctx, btns, s) {
-  if (!btns.length) return { top: H - 30, buttons: [] };
-  const m = 24, gapx = 14;
-  const stack = s >= 2 && btns.length > 1;
-  const size = 30 * s;
+function lockupBox(col) { const w = clamp(col.w * 0.5, 240, LY.land ? 260 : 340); return { w, h: Math.round(w * 327 / 1200) }; }
+
+function footerLayout(ctx, btns, s, col) {
+  const U = LY.U, bottom = U.y1 - 24, land = LY.land;
+  if (!btns.length) return { top: bottom + 24 - 30, buttons: [] };
+  const gapx = 14;
+  const x0 = col.x - 10, aw = col.w + 20;
+  const stack = !land && s >= 2 && btns.length > 1;
+  const size = 30 * Math.min(s, land ? 1.5 : 2.2);
+  const minH = Math.max(92, LY.tap);
   const out = [];
   let top;
   ctx.font = `700 ${size}px ${FONT}`;
   if (stack) {
-    const hs = btns.map((b) => Math.max(88, wrapLines(ctx, b.label, W - m * 2 - 28).length * size * 1.2 + 44));
+    const hs = btns.map((b) => Math.max(minH, wrapLines(ctx, b.label, aw - 28).length * size * 1.2 + 44));
     const total = hs.reduce((a, b) => a + b + gapx, 0);
-    top = H - 24 - total + gapx;
+    top = bottom - total + gapx;
     let y = top;
-    btns.forEach((b, i) => { out.push({ ...b, size, rect: { x: m, y, w: W - m * 2, h: hs[i] } }); y += hs[i] + gapx; });
+    btns.forEach((b, i) => { out.push({ ...b, size, rect: { x: x0, y, w: aw, h: hs[i] } }); y += hs[i] + gapx; });
   } else {
-    const n = btns.length, bw = (W - m * 2 - gapx * (n - 1)) / n;
-    const hs = btns.map((b) => Math.max(92, wrapLines(ctx, b.label, bw - 28).length * size * 1.2 + 44));
+    const n = btns.length, bw = (aw - gapx * (n - 1)) / n;
+    const hs = btns.map((b) => Math.max(minH, wrapLines(ctx, b.label, bw - 28).length * size * 1.2 + 44));
     const hh = Math.max(...hs);
-    top = H - 24 - hh;
-    btns.forEach((b, i) => out.push({ ...b, size, rect: { x: m + i * (bw + gapx), y: top, w: bw, h: hh } }));
+    top = bottom - hh;
+    btns.forEach((b, i) => out.push({ ...b, size, rect: { x: x0 + i * (bw + gapx), y: top, w: bw, h: hh } }));
   }
   return { top, buttons: out };
 }
@@ -61,28 +66,32 @@ function columnScreen(ctx, G, spec) {
   const s = scaleOf(G);
   if (!spec.over3d) drawBackdrop(ctx, G, false);
   zoomPills(ctx, G);
-  const fy = footerLayout(ctx, spec.footer ?? [], s);
-  const pgSize = 24 * Math.min(s, 1.5), top = 90, bottom = fy.top - 10 - (spec.paged ? pgSize + 14 : 0);
-  const view = { x: 34, y: top, w: W - 68, h: bottom - top };
+  const col = spec.col ?? LY.col;
+  const fy = footerLayout(ctx, spec.footer ?? [], s, LY.col);
+  const extra = spec.more ? 34 : 0;
+  const lk = spec.lockup ? lockupBox(col) : null;
+  const top = col.top, bottom = fy.top - 10 - extra - (lk ? lk.h + 24 : 0);
+  const view = { x: col.x, y: top, w: col.w, h: Math.max(80, bottom - top) };
+  if (spec.hero) { const hr = LY.title.hero; ctx.save(); ctx.translate(hr.x, hr.y); heroFig(ctx, hr.w, hr.h, G); ctx.restore(); }
   const lay = layoutColumn(ctx, spec.items, view.w - 10, s);
-  const pages = spec.paged ? pageStarts(lay, view.h) : null;
-  let sc = clamp(G.ui.scroll, 0, maxScroll(lay, view.h));
-  let pi = 0;
-  if (pages) {
-    // readers scroll freely (drag, wheel, keys, scroll bar); Back / Next jump a page at a time and the counter follows the scroll position
-    for (let i = 0; i < pages.length; i++) if (sc >= pages[i] - 2) pi = i;
-    if (sc >= maxScroll(lay, view.h) - 2) pi = pages.length - 1;
-  }
+  const sc = clamp(G.ui.scroll, 0, maxScroll(lay, view.h));
   G.ui.scroll = sc;
+  // wide title: the button block is centred vertically next to the hero
+  if (spec.hero && lay.total < view.h) { view.y += Math.round((view.h - lay.total) / 2); view.h = lay.total; }
   const hits = drawColumn(ctx, lay, view, sc, s, G, null);
-  scrollbar(ctx, view, sc, lay.total);
+  const bar = scrollbar(ctx, view, sc, lay.total);
   for (const b of fy.buttons) drawButton(ctx, b.rect, b.label, { primary: b.primary, disabled: b.disabled, size: b.size, sub: b.sub, active: b.active, danger: b.danger });
-  setUi(G, { hits, footer: fy.buttons.filter((b) => !b.disabled).map((b) => ({ id: b.id, rect: b.rect })), view, lay, pages, maxS: maxScroll(lay, view.h) });
-  if (pages) {
-    ctx.font = `600 ${pgSize}px ${SANS}`; ctx.fillStyle = 'rgba(255,244,220,0.9)'; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
-    ctx.fillText(`Page ${pi + 1} of ${pages.length}`, W / 2, fy.top - 14);
-    G.ui.pageIdx = pi; G.ui.pageN = pages.length;
+  if (spec.more) drawMoreLine(ctx, LY.col.x + LY.col.w / 2, fy.top - 16, Math.max(LY.minText, 20));
+  let lockTap = null;
+  if (lk) {   // bottom centre, directly under the last row of buttons (pinned to the bottom when the menu scrolls)
+    const ly = Math.min(view.y + Math.min(lay.total, view.h) + 12, bottom + 10);
+    const lx = col.x + col.w / 2, m = 44 / Math.max(0.2, host.px || 0.54);
+    ctx.save(); ctx.fillStyle = G.lockDown > G.t ? 'rgba(255,226,122,0.5)' : 'rgba(20,12,40,0.55)'; rr(ctx, lx - lk.w / 2 - 12, ly - 6, lk.w + 24, lk.h + 12, (lk.h + 12) / 2); ctx.fill(); ctx.restore();
+    drawLockup(ctx, lx, ly, lk.w, 1);
+    const tw = Math.max(lk.w + 24, m), th = Math.max(lk.h + 12, m);
+    lockTap = { x: lx - tw / 2, y: ly + lk.h + 6 - th, w: tw, h: th };
   }
+  setUi(G, { lockTap, hits, footer: fy.buttons.filter((b) => !b.disabled).map((b) => ({ id: b.id, rect: b.rect })), view, lay, pages: null, maxS: maxScroll(lay, view.h), bar });
 }
 
 // ---- figures (the game's own art: field dots, the swipe, the catch ring) -----------------------------------------------------------------------------
@@ -157,13 +166,16 @@ export function sceneSpec(G) {
   const demo = G.env.config.demo;
   switch (G.scene) {
     case 'title': {
-      const items = [{ t: 'fig', h: s >= 2 ? 250 : 340, draw: (ctx, w, h) => heroFig(ctx, w, h, G) }];
+      const wide = LY.title.half;
+      const items = wide ? [] : [{ t: 'fig', h: s >= 2 ? 290 : LY.h < 1100 ? 230 : 340, draw: (ctx, w, h) => heroFig(ctx, w, h, G) }];
+      const tight = !wide && LY.h < 1200 && s < 2;
+      const hf = wide ? { half: true, h: 76 } : tight ? { half: true } : {};
       if (G.saved) items.push({ t: 'btn', id: 'continue', label: 'Continue', sub: `${G.saved.roleName}, innings ${G.saved.innNo + 1}: ${G.saved.line}`, primary: true });
       items.push({ t: 'btn', id: 'play', label: 'Play', sub: 'Pick a role and play a match', primary: !G.saved });
-      items.push({ t: 'btn', id: 'learn', label: 'Learn', sub: 'A short practice for each role' });
-      items.push({ t: 'btn', id: 'watch', label: 'Watch & Learn', sub: 'The computer plays and explains' });
-      items.push({ t: 'btn', id: 'howto', label: 'How to Play' }, { t: 'btn', id: 'rules', label: 'Rules' }, { t: 'btn', id: 'about', label: 'About' }, { t: 'btn', id: 'settings', label: 'Settings' });
-      return { items, footer: [], over3d: true };
+      items.push({ t: 'btn', id: 'learn', label: 'Learn', sub: 'A short practice for each role', ...hf, h: wide ? 100 : undefined });
+      items.push({ t: 'btn', id: 'watch', label: 'Watch & Learn', sub: 'The computer plays and explains', ...hf, h: wide ? 100 : undefined });
+      items.push({ t: 'btn', id: 'howto', label: 'How to Play', ...hf }, { t: 'btn', id: 'rules', label: 'Rules', ...hf }, { t: 'btn', id: 'about', label: 'About', ...hf }, { t: 'btn', id: 'settings', label: 'Settings', ...hf });
+      return { lockup: true, items, footer: [], over3d: true, hero: wide, col: LY.title.col };
     }
     case 'role': {
       const items = [{ t: 'title', text: 'Choose your role', size: 40, sub: 'You play one player in your team. The computer plays everyone else. You can change role between matches.' }];
@@ -223,7 +235,7 @@ export function sceneSpec(G) {
     case 'howto': case 'about': case 'rules': {
       const doc = G.scene === 'howto' ? HOWTO : G.scene === 'about' ? ABOUT.concat(G.credits ?? []) : RULES;
       const items = doc.map((it) => (it.t === 'fig' ? { ...it, draw: (ctx, w, h) => FIGS[it.key](ctx, w, h) } : it));
-      return { items, paged: true, footer: [{ id: 'prev', label: 'Back' }, { id: 'next', label: G.ui.pageIdx >= G.ui.pageN - 1 ? 'Done' : 'Next', primary: true }] };
+      return { items, footer: [{ id: 'close', label: 'Back', primary: true }] };
     }
     case 'break': {
       const r = G.breakInfo;
@@ -248,7 +260,7 @@ export function sceneSpec(G) {
       const footer = [{ id: 'again', label: 'Play again', primary: true }];
       if (r.practice) footer.push({ id: 'learn', label: 'Learn' });
       footer.push({ id: 'menu', label: 'Menu' });
-      return { items, footer };
+      return { items, footer, more: true };
     }
     case 'demolimit': {
       const items = [

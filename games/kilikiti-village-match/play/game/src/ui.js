@@ -1,7 +1,7 @@
 // A small text-zoom-aware UI kit for canvas screens: wrapped text, buttons, chips, cards and a scrolling
 // column with page snapping. Every size is multiplied by `scale` (100%..300%) so nothing clips at 300%.
 import { W, H, clamp } from './core.js';
-import { PAL, FONT, SANS, rr, shade, wrapLines, textFill } from './art.js';
+import { PAL, FONT, SANS, rr, shade, wrapLines, wrapCacheCheck, textFill } from './art.js';
 
 export const TEXT_SCALES = [1, 1.25, 1.5, 2, 2.5, 3];
 export const inRect = (r, x, y) => x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
@@ -63,10 +63,20 @@ export function panel(ctx, r, o = {}) {
 // ---- column layout ---------------------------------------------------------------------------------------------------
 // items -> ops with absolute y (relative to column top). width = content width.
 export function layoutColumn(ctx, items, width, s) {
+  wrapCacheCheck(ctx);
   const ops = [];
   let y = 0;
   const gap = 14 * s;
-  for (const it of items) {
+  for (let ii = 0; ii < items.length; ii++) {
+    const it = items[ii];
+    // two half-width buttons side by side (wide screens, text zoom below 200%)
+    if (it.t === 'btn' && it.half && items[ii + 1] && items[ii + 1].t === 'btn' && items[ii + 1].half && s < 2) {
+      const hw = (width - 12) / 2;
+      const a = layoutColumn(ctx, [{ ...it, half: false }], hw, s).ops[0], b = layoutColumn(ctx, [{ ...items[ii + 1], half: false }], hw, s).ops[0];
+      const hh = Math.max(a.h, b.h);
+      a.h = b.h = hh; a.y = b.y = y; a.bottom = b.bottom = y + hh; a.cx = 0; a.cw = hw; b.cx = hw + 12; b.cw = hw;
+      ops.push(a, b); y += hh + gap; ii++; continue;
+    }
     const op = { it, y, h: 0, lines: null, chips: null };
     switch (it.t) {
       case 'title': {
@@ -156,7 +166,7 @@ export function drawColumn(ctx, lay, rect, scroll, s, st = {}, clipH = null) {
       ctx.font = `400 ${op.size}px ${SANS}`; ctx.fillStyle = it.color ?? 'rgba(255,244,224,0.94)'; ctx.textAlign = it.center ? 'center' : 'left'; ctx.textBaseline = 'alphabetic';
       let y = top; for (const l of op.lines) { ctx.fillText(l, it.center ? x0 + rect.w / 2 : x0 + (it.indent ?? 0) * s, y + op.size * 1.0); y += op.lh; }
     } else if (it.t === 'btn') {
-      drawButton(ctx, { x: x0, y: top, w: rect.w, h: op.h }, it.label, { primary: it.primary, disabled: it.disabled, active: it.active, sub: it.sub, size: op.size, danger: it.danger });
+      drawButton(ctx, { x: x0 + (op.cx ?? 0), y: top, w: op.cw ?? rect.w, h: op.h }, it.label, { primary: it.primary, disabled: it.disabled, active: it.active, sub: it.sub, size: op.size, danger: it.danger });
       pushHits(hits, op, x0, top, rect);
     } else if (it.t === 'card') {
       const r = { x: x0, y: top, w: rect.w, h: op.h };
@@ -201,7 +211,7 @@ export function drawColumn(ctx, lay, rect, scroll, s, st = {}, clipH = null) {
 
 function pushHits(hits, op, x0, top, rect) {
   const it = op.it;
-  if (it.t === 'btn' && !it.disabled) hits.push({ id: it.id, rect: { x: x0, y: top, w: rect.w, h: op.h } });
+  if (it.t === 'btn' && !it.disabled) hits.push({ id: it.id, rect: { x: x0 + (op.cx ?? 0), y: top, w: op.cw ?? rect.w, h: op.h } });
   else if (it.t === 'card' || it.t === 'row') hits.push({ id: it.id, rect: { x: x0, y: top, w: rect.w, h: op.h } });
   else if (it.t === 'chips') for (const c of op.chips) if (!c.o.disabled) hits.push({ id: `${it.id}:${c.o.v}`, rect: { x: x0 + c.x, y: top + c.y, w: c.w, h: c.h } });
 }
@@ -276,11 +286,13 @@ export function pageClip(lay, sc, viewH) {
 export const maxScroll = (lay, viewH) => Math.max(0, lay.total - viewH);
 
 export function scrollbar(ctx, rect, scroll, total) {
-  if (total <= rect.h + 1) return;
-  const th = Math.max(36, rect.h * rect.h / total);
+  if (total <= rect.h + 1) return null;
+  const th = Math.max(44, rect.h * rect.h / total);
   const ty = rect.y + (rect.h - th) * (scroll / Math.max(1, total - rect.h));
-  ctx.fillStyle = 'rgba(255,255,255,0.14)'; rr(ctx, rect.x + rect.w + 5, rect.y, 8, rect.h, 4); ctx.fill();
-  ctx.fillStyle = 'rgba(255,214,140,0.8)'; rr(ctx, rect.x + rect.w + 5, ty, 8, th, 4); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.14)'; rr(ctx, rect.x + rect.w + 5, rect.y, 10, rect.h, 5); ctx.fill();
+  ctx.fillStyle = 'rgba(255,214,140,0.85)'; rr(ctx, rect.x + rect.w + 5, ty, 10, th, 5); ctx.fill();
+  // a generous grab area around the bar (the track is drawn thin): { x, y, w, h, th } in virtual units
+  return { x: rect.x + rect.w - 8, y: rect.y, w: 36, h: rect.h, th };
 }
 
 export { W, H };

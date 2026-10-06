@@ -2,8 +2,8 @@
   "slug": "noughts-crosses-three-in-a-row",
   "title": "Noughts & Crosses",
   "genre": "abstract strategy, three in a row",
-  "orientation": "portrait",
-  "version": "1.0.1",
+  "orientation": "any",
+  "version": "1.1.5",
   "monetization": {
     "model": "premium",
     "priceUsd": 2.99,

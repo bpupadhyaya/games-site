@@ -3,8 +3,8 @@
   "title": "Basketball 3x3",
   "tagline": "Pick a role. Screen, drive, shoot, rebound.",
   "genre": "half-court basketball sport",
-  "orientation": "portrait",
-  "version": "1.0.4",
+  "orientation": "any",
+  "version": "1.1.4",
   "monetization": {
     "model": "premium",
     "priceUsd": 3.99,

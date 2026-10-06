@@ -74,24 +74,28 @@ export function text(ctx, str, x, y, size, color = '#fff', o = {}) {
 }
 
 // ---------------------------------------------------------------------------------------------------- background
-const FLECKS = Array.from({ length: 30 }, (_, i) => [((i * 97) % 211) / 211 * W, ((i * 53) % 173) / 173 * H, 0.6 + ((i * 31) % 7) / 7, ((i * 13) % 11) / 11]);
+const FLECKS = Array.from({ length: 40 }, (_, i) => [((i * 97) % 211) / 211, ((i * 53) % 173) / 173, 0.6 + ((i * 31) % 7) / 7, ((i * 13) % 11) / 11]);
 
-export function background(ctx, th, t, glowY = 700) {
-  const g = ctx.createLinearGradient(0, 0, 0, H);
+// Full-screen backdrop for any live size (w, h in virtual units).
+export function background(ctx, th, t, glowY = 700, w = W, h = H, glowX = w / 2) {
+  const g = ctx.createLinearGradient(0, 0, 0, h);
   g.addColorStop(0, th.bg[0]); g.addColorStop(0.5, th.bg[1]); g.addColorStop(1, th.bg[2]);
-  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
-  const hg = ctx.createRadialGradient(W / 2, glowY, 40, W / 2, glowY, 640);
+  ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+  const hg = ctx.createRadialGradient(glowX, glowY, 40, glowX, glowY, Math.max(640, w * 0.5));
   hg.addColorStop(0, th.glow); hg.addColorStop(1, 'rgba(0,0,0,0)');
-  ctx.fillStyle = hg; ctx.fillRect(0, 0, W, H);
-  for (const [x, y, s, ph] of FLECKS) {
-    const yy = (y + t * (3 + s * 3)) % H;
+  ctx.fillStyle = hg; ctx.fillRect(0, 0, w, h);
+  const n = Math.round(30 * Math.max(1, (w * h) / (W * H)) ** 0.5);
+  for (let i = 0; i < Math.min(n, FLECKS.length); i++) {
+    const [fx, fy, s, ph] = FLECKS[i];
+    const yy = (fy * h + t * (3 + s * 3)) % h;
     const a = 0.06 + 0.12 * (0.5 + 0.5 * Math.sin(t * 0.7 + ph * 9));
     ctx.fillStyle = `rgba(${th.fleck},${a})`;
-    ctx.fillRect(x, yy, 2.2 * s, 2.2 * s);
+    ctx.fillRect(fx * w, yy, 2.2 * s, 2.2 * s);
   }
-  const vg = ctx.createRadialGradient(W / 2, H / 2, 560, W / 2, H / 2, 1020);
+  const r1 = Math.max(w, h) * 0.65;
+  const vg = ctx.createRadialGradient(w / 2, h / 2, r1 * 0.55, w / 2, h / 2, r1);
   vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,0.5)');
-  ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = vg; ctx.fillRect(0, 0, w, h);
 }
 
 // ---------------------------------------------------------------------------------------------------- panels and buttons

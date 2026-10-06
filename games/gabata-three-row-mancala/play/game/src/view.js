@@ -8,7 +8,8 @@ import { CIRCUIT, play, scoreOf, startState } from './engine.js';
 import { LEVELS } from './ai.js';
 import { LESSONS, lessonText } from './lessons.js';
 import { tr, levelName, getLang, howtoPages, rulesPages } from './content.js';
-import { BACK_BTN, PAUSE_BTN, TOOLBAR_IDS, autoLayout, DOC_PANEL, NAV_PREV, NAV_NEXT, playLayout } from './layout.js';
+import { TOOLBAR_IDS, layoutNow } from './layout.js';
+import { drawLockup, drawMoreLine } from './brand.js';
 import { THINK_STEPS } from './screens.js';
 import { humanTurn, flightPos, fromState } from './match.js';
 import { moveWords } from './explain.js';
@@ -154,6 +155,7 @@ export const ILLUS = {
 function drawArt(ctx, S, name, x, y, w, h, b) {
   const th = theme(S), t = S.t;
   const cx = x + w / 2, cy = y + h / 2;
+  if (name === 'more') { drawMoreLine(ctx, cx, cy, 20); return; }   // the quiet Arcforge line on the result card (no frame)
   ctx.save();
   ctx.fillStyle = 'rgba(10,6,4,0.5)'; rr(ctx, x, y, w, h, 18); ctx.fill();
   ctx.strokeStyle = 'rgba(255,255,255,0.14)'; ctx.lineWidth = 1.5; rr(ctx, x, y, w, h, 18); ctx.stroke();
@@ -220,60 +222,59 @@ function drawArt(ctx, S, name, x, y, w, h, b) {
 }
 
 // --------------------------------------------------------------------------------------- title
-function drawTitle(ctx, S, ui) {
-  const th = theme(S);
-  background(ctx, th, S.t, 560);
-  const M = S.attract;
-  if (M) {
-    const geo = boardGeo(70, 346, 580);
-    drawMatchBoard(ctx, S, M, geo, null, { noCounts: false });
-  }
-  const g = ctx.createLinearGradient(0, 110, 0, 250);
+function drawHero(ctx, S, T, th) {
+  const h = T.hero, g = ctx.createLinearGradient(0, h.nameY - h.nameSize * 0.85, 0, h.nameY + h.nameSize * 0.2);
   g.addColorStop(0, '#fff3c4'); g.addColorStop(0.5, th.accent); g.addColorStop(1, '#a8782a');
   ctx.save();
   ctx.shadowColor = 'rgba(0,0,0,0.65)'; ctx.shadowBlur = 24; ctx.shadowOffsetY = 8;
-  ctx.font = `800 130px ${DISPLAY}`; ctx.textAlign = 'center'; ctx.fillStyle = g;
-  ctx.fillText(tr('appName'), 360, 200);
+  ctx.font = `800 ${h.nameSize}px ${DISPLAY}`; ctx.textAlign = 'center'; ctx.fillStyle = g;
+  ctx.fillText(tr('appName'), h.cx, h.nameY);
   ctx.restore();
-  text(ctx, tr('appSub'), 360, 262, 38, 'rgba(246,236,214,0.9)', { font: DISPLAY, weight: 700 });
-  const tg = fitText(tr('tagline'), 660, 40, 24, 14);
-  tg.lines.forEach((ln, i) => text(ctx, ln, 360, 300 + i * tg.line, tg.size, 'rgba(246,236,214,0.62)', { weight: 500 }));
+  text(ctx, tr('appSub'), h.cx, h.subY, h.subSize, 'rgba(246,236,214,0.9)', { font: DISPLAY, weight: 700 });
+  const tg = fitText(tr('tagline'), h.tagW, 40, h.tagSize, 14);
+  tg.lines.forEach((ln, i) => text(ctx, ln, h.cx, h.tagY + i * tg.line, tg.size, 'rgba(246,236,214,0.62)', { weight: 500 }));
+  drawLockup(ctx, h.lockup.cx, h.lockup.y, h.lockup.w, 0.92, Boolean(S.press && S.press.id === 'af:home' && S.press.active));   // themed Arcforge credit, bottom-centre under the menu
+}
+
+function drawTitle(ctx, S, ui) {
+  const th = theme(S), L = ui.L, T = ui.title;
+  background(ctx, th, S.t, T.board ? T.board.y + 200 : L.h * 0.4, L.w, L.h);
+  const M = S.attract;
+  if (M && T.board) drawMatchBoard(ctx, S, M, boardGeo(T.board.x, T.board.y, T.board.w), null, { noCounts: false });
+  drawHero(ctx, S, T, th);
   drawDocBlocks(ctx, S, ui, S.scroll[ui.scrollKey] ?? 0);
   drawFixed(ctx, S, ui.fixed);
 }
 
 function drawLang(ctx, S, ui) {
-  const th = theme(S);
-  background(ctx, th, S.t, 560);
+  const th = theme(S), L = ui.L, T = ui.title;
+  background(ctx, th, S.t, T.board ? T.board.y + 200 : L.h * 0.4, L.w, L.h);
   const M = S.attract;
-  if (M) drawMatchBoard(ctx, S, M, boardGeo(70, 346, 580), null, {});
-  const g = ctx.createLinearGradient(0, 110, 0, 250);
-  g.addColorStop(0, '#fff3c4'); g.addColorStop(0.5, th.accent); g.addColorStop(1, '#a8782a');
-  ctx.save(); ctx.shadowColor = 'rgba(0,0,0,0.65)'; ctx.shadowBlur = 24; ctx.shadowOffsetY = 8;
-  ctx.font = `800 130px ${DISPLAY}`; ctx.textAlign = 'center'; ctx.fillStyle = g; ctx.fillText(tr('appName'), 360, 200); ctx.restore();
-  ctx.fillStyle = 'rgba(8,4,2,0.6)'; rr(ctx, 24, 730, 672, 700, 26); ctx.fill();
+  if (M && T.board) drawMatchBoard(ctx, S, M, boardGeo(T.board.x, T.board.y, T.board.w), null, {});
+  drawHero(ctx, S, T, th);
+  ctx.fillStyle = 'rgba(8,4,2,0.6)'; rr(ctx, T.panel.x, T.panel.y, T.panel.w, T.panel.h, 26); ctx.fill();
   drawDocBlocks(ctx, S, ui, 0);
 }
 
 function drawDocScreen(ctx, S, ui) {
-  const th = theme(S);
-  background(ctx, th, S.t);
+  const th = theme(S), L = ui.L;
+  background(ctx, th, S.t, 700, L.w, L.h);
   if (ui.panel) panel(ctx, th, ui.panel.x, ui.panel.y, ui.panel.w, ui.panel.h, {});
   drawDocBlocks(ctx, S, ui, S.scroll[ui.scrollKey] ?? 0);
   drawFixed(ctx, S, ui.fixed);
   if (ui.nav) {
     drawFixed(ctx, S, [ui.nav.prev, ui.nav.next]);
-    text(ctx, ui.nav.label, 360, 1500, 26, 'rgba(246,236,214,0.75)', { weight: 600 });
+    text(ctx, ui.nav.label, ui.nav.labelX, ui.nav.labelY, 26, 'rgba(246,236,214,0.75)', { weight: 600 });
   }
 }
 
 function drawOverlay(ctx, S, ui) {
   const th = theme(S);
   ctx.fillStyle = `rgba(6,4,4,${0.62 * clamp01(S.ovT / 0.25)})`;
-  ctx.fillRect(0, 0, W, H);
-  const k = ease(clamp01(S.ovT / 0.3));
+  ctx.fillRect(0, 0, ui.L.w, ui.L.h);
+  const k = ease(clamp01(S.ovT / 0.3)), pcx = ui.panel.x + ui.panel.w / 2, pcy = ui.panel.y + ui.panel.h / 2;
   ctx.save();
-  ctx.translate(W / 2, H / 2); ctx.scale(0.92 + 0.08 * k, 0.92 + 0.08 * k); ctx.translate(-W / 2, -H / 2);
+  ctx.translate(pcx, pcy); ctx.scale(0.92 + 0.08 * k, 0.92 + 0.08 * k); ctx.translate(-pcx, -pcy);
   ctx.globalAlpha = k;
   panel(ctx, th, ui.panel.x, ui.panel.y, ui.panel.w, ui.panel.h, {});
   drawDocBlocks(ctx, S, ui, S.scroll[ui.scrollKey] ?? 0);
@@ -331,25 +332,30 @@ function drawMatchBoard(ctx, S, M, geo, auto, o = {}) {
 
 // ------------------------------------------------------------------------------------------ play
 function drawHud(ctx, S, title, sub, showPause) {
-  const th = theme(S);
+  const th = theme(S), bar = layoutNow(TEXT_SCALES[S.textIdx]).bar, BACK_BTN = bar.back, PAUSE_BTN = bar.pause;
   button(ctx, th, BACK_BTN, [], 'normal', { pressed: S.press && S.press.id === 'hud:back' && S.press.active });
   icon(ctx, 'back', BACK_BTN.x + BACK_BTN.w / 2, BACK_BTN.y + BACK_BTN.h / 2, 34, th.ink);
   if (showPause) {
     button(ctx, th, PAUSE_BTN, [], 'normal', { pressed: S.press && S.press.id === 'hud:pause' && S.press.active });
     icon(ctx, 'pause', PAUSE_BTN.x + PAUSE_BTN.w / 2, PAUSE_BTN.y + PAUSE_BTN.h / 2, 34, th.ink);
   }
-  const z = TEXT_SCALES[S.textIdx];
-  const tSize = fitOne(title, 480, 40 * (1 + (z - 1) * 0.25), 22);
-  text(ctx, title, 360, 58, tSize, th.ink, { font: DISPLAY, weight: 800, shadow: 'rgba(0,0,0,0.6)' });
-  const sSize = fitOne(sub, 480, 24 * (1 + (z - 1) * 0.3), 16);
-  text(ctx, sub, 360, 96, sSize, 'rgba(246,236,214,0.7)', { weight: 500 });
+  const z = TEXT_SCALES[S.textIdx], cx = bar.titleX, y0 = BACK_BTN.y;
+  const tSize = fitOne(title, bar.titleW, 40 * (1 + (z - 1) * 0.25), 22);
+  text(ctx, title, cx, y0 + 36, tSize, th.ink, { font: DISPLAY, weight: 800, shadow: 'rgba(0,0,0,0.6)' });
+  const sSize = fitOne(sub, bar.titleW, 24 * (1 + (z - 1) * 0.3), 16);
+  text(ctx, sub, cx, y0 + 74, sSize, 'rgba(246,236,214,0.7)', { weight: 500 });
 }
 
 // A player's plate: who they are, whether it is their turn, the seeds they have captured and the seeds still in their own holes.
-export function plateIcons(r) { return { dan: [r.x + r.w - 372, r.y + r.h * 0.38], own: [r.x + r.w - 232, r.y + r.h * 0.38] }; }
+// Wide plates (a full-width row) keep the approved phone look; narrow ones (side cards, tablet pairs) stack the numbers under the name.
+const plateVertical = (r) => r.w < 560;
+export function plateIcons(r) {
+  if (plateVertical(r)) return { dan: [r.x + 38, r.y + r.h * 0.6], own: [r.x + r.w * 0.55, r.y + r.h * 0.6] };
+  return { dan: [r.x + r.w - 372, r.y + r.h * 0.38], own: [r.x + r.w - 232, r.y + r.h * 0.38] };
+}
 
 function drawPlate(ctx, S, M, r, who, name, sub, active) {
-  const th = theme(S), z = TEXT_SCALES[S.textIdx];
+  const th = theme(S), z = TEXT_SCALES[S.textIdx], mt = layoutNow(z).minText, vert = plateVertical(r);
   ctx.save();
   ctx.fillStyle = 'rgba(8,6,6,0.55)'; rr(ctx, r.x, r.y, r.w, r.h, 20); ctx.fill();
   ctx.strokeStyle = active ? th.accent : 'rgba(255,255,255,0.14)'; ctx.lineWidth = active ? 3 : 1.5;
@@ -368,10 +374,19 @@ function drawPlate(ctx, S, M, r, who, name, sub, active) {
   const ns = fitOne('00', 70, 30 * (1 + (z - 1) * 0.45), 16);
   text(ctx, `${cap}`, ic.dan[0] + 24, ic.dan[1] + ns * 0.34, ns, th.ink, { weight: 800, align: 'left' });
   text(ctx, `${own}`, ic.own[0] + 24, ic.own[1] + ns * 0.34, ns, th.ink, { weight: 800, align: 'left' });
-  const ls = fitOne(tr('pileBoard'), 130, 16 * (1 + (z - 1) * 0.4), 11);
-  text(ctx, tr('pileCap'), ic.dan[0] + 24, r.y + r.h - 12, fitOne(tr('pileCap'), 120, 16 * (1 + (z - 1) * 0.4), 11), 'rgba(246,236,214,0.6)', { weight: 600, align: 'center' });
-  text(ctx, tr('pileBoard'), ic.own[0] + 24, r.y + r.h - 12, ls, 'rgba(246,236,214,0.6)', { weight: 600, align: 'center' });
+  const capW = vert ? Math.max(80, r.w * 0.4) : 130, lMax = 16 * (1 + (z - 1) * 0.4), lMin = Math.min(mt, 14);
+  const capY = r.y + r.h - (vert ? 14 : 12);
+  text(ctx, tr('pileCap'), ic.dan[0] + 24, capY, fitOne(tr('pileCap'), capW - 10, lMax, lMin), 'rgba(246,236,214,0.6)', { weight: 600, align: 'center' });
+  text(ctx, tr('pileBoard'), ic.own[0] + 24, capY, fitOne(tr('pileBoard'), capW - 10, lMax, lMin), 'rgba(246,236,214,0.6)', { weight: 600, align: 'center' });
   const ts = fitOne(`= ${total}`, 100, 34 * (1 + (z - 1) * 0.4), 16);
+  if (vert) {
+    text(ctx, `= ${total}`, r.x + r.w - 18, r.y + 18 + ts * 0.9, ts, th.accent, { weight: 800, align: 'right' });
+    const avail = r.w - 24 - 18 - ts * 2.6;
+    const nsz = fitOne(name, avail, 30 * (1 + (z - 1) * 0.4), 16), ssz = fitOne(sub, r.w - 40, 21 * (1 + (z - 1) * 0.4), 14);
+    text(ctx, name, r.x + 28, r.y + 16 + nsz * 0.88, nsz, th.ink, { weight: 800, align: 'left', font: DISPLAY });
+    text(ctx, sub, r.x + 28, r.y + 16 + nsz + ssz + 4, ssz, active ? th.accent : 'rgba(246,236,214,0.62)', { weight: 600, align: 'left' });
+    return;
+  }
   text(ctx, `= ${total}`, r.x + r.w - 20, r.y + r.h / 2 + ts * 0.34, ts, th.accent, { weight: 800, align: 'right' });
   const avail = r.w - 380 - 24;
   const nsz = fitOne(name, avail, 30 * (1 + (z - 1) * 0.5), 16);
@@ -398,8 +413,28 @@ function drawStatus(ctx, S, r, head, body, col, box) {
   all.forEach((ln, i) => { text(ctx, ln, b.x + b.w / 2, ty, f.size, i < hl ? (col ?? th.accent) : 'rgba(246,236,214,0.92)', { weight: i < hl ? 800 : 500 }); ty += f.line; });
 }
 
-function drawToolbar(ctx, S, M, lay) {
+// An icon + label button. Tall-and-narrow rectangles stack the icon over the label (the phone toolbar); long ones put them side by side.
+function iconButton(ctx, S, r, ic, label, o) {
   const th = theme(S), z = TEXT_SCALES[S.textIdx];
+  button(ctx, th, r, [], o.kind ?? 'normal', { disabled: o.off, pressed: o.pressed, radius: 22 });
+  const yy = r.y + (o.pressed ? 2 : 0), ink = o.ink ?? th.ink;
+  ctx.save();
+  if (o.off) ctx.globalAlpha = 0.4;
+  if (r.w / r.h >= 2.4) {
+    const is = Math.min(44 * (1 + (z - 1) * 0.35), r.h * 0.55), ls = fitOne(label, r.w - is - 56, 26 * (1 + (z - 1) * 0.5), 15), total = is + 14 + tw(label, ls);
+    const x0 = r.x + (r.w - total) / 2;
+    icon(ctx, ic, x0 + is / 2, yy + r.h / 2, is, ink);
+    text(ctx, label, x0 + is + 14, yy + r.h / 2 + ls * 0.34, ls, ink, { weight: 700, align: 'left' });
+  } else {
+    const is = Math.min(44 * (1 + (z - 1) * 0.35), r.h * 0.42), ls = fitOne(label, r.w - 14, 24 * (1 + (z - 1) * 0.6), 13), total = is + ls + 10;
+    icon(ctx, ic, r.x + r.w / 2, yy + (r.h - total) / 2 + is / 2, is, ink);
+    text(ctx, label, r.x + r.w / 2, yy + (r.h - total) / 2 + is + 10 + ls * 0.85, ls, ink, { weight: 700 });
+  }
+  ctx.restore();
+}
+
+function drawToolbar(ctx, S, M, lay) {
+  const th = theme(S);
   const lesson = Boolean(M.lesson);
   const defs = {
     undo: { icon: 'undo', label: tr('undo'), off: M.over || lesson || !S.canUndo },
@@ -407,40 +442,22 @@ function drawToolbar(ctx, S, M, lay) {
     restart: { icon: 'reset', label: tr('restart'), off: lesson && !M.hist.length },
   };
   TOOLBAR_IDS.forEach((id, i) => {
-    const r = lay.tool[i], d = defs[id];
-    const pressed = S.press && S.press.id === `tool:${id}` && S.press.active;
-    button(ctx, th, r, [], id === 'think' ? 'primary' : 'normal', { disabled: d.off, pressed, radius: 22 });
-    const yy = r.y + (pressed ? 2 : 0);
-    ctx.save();
-    if (d.off) ctx.globalAlpha = 0.4;
-    const ink = id === 'think' ? th.primaryInk : th.ink;
-    const is = 44 * (1 + (z - 1) * 0.35);
-    const ls = fitOne(d.label, r.w - 20, 24 * (1 + (z - 1) * 0.6), 16);
-    const total = is + ls + 10;
-    icon(ctx, d.icon, r.x + r.w / 2, yy + (r.h - total) / 2 + is / 2, is, ink);
-    text(ctx, d.label, r.x + r.w / 2, yy + (r.h - total) / 2 + is + 10 + ls * 0.85, ls, ink, { weight: 700 });
-    ctx.restore();
+    const d = defs[id];
+    iconButton(ctx, S, lay.tool[i], d.icon, d.label, { off: d.off, kind: id === 'think' ? 'primary' : 'normal', ink: id === 'think' ? th.primaryInk : th.ink, pressed: S.press && S.press.id === `tool:${id}` && S.press.active });
   });
 }
 
-function drawAutoBar(ctx, S, auto) {
-  const th = theme(S), z = TEXT_SCALES[S.textIdx], b = autoLayout(z);
+function drawAutoBar(ctx, S, auto, b) {
+  const th = theme(S), z = TEXT_SCALES[S.textIdx];
   const pr = (id) => S.press && S.press.id === id && S.press.active;
-  const side = (r, ic, label, off, id) => {
-    button(ctx, th, r, [], 'normal', { disabled: off, pressed: pr(id), radius: 22 });
-    ctx.save(); if (off) ctx.globalAlpha = 0.4;
-    const is = 40 * (1 + (z - 1) * 0.35), ls = fitOne(label, r.w - 20, 22 * (1 + (z - 1) * 0.6), 14), total = is + ls + 10, yy = r.y + (r.h - total) / 2;
-    icon(ctx, ic, r.x + r.w / 2, yy + is / 2, is, th.ink);
-    text(ctx, label, r.x + r.w / 2, yy + is + 10 + ls * 0.85, ls, th.ink, { weight: 700 });
-    ctx.restore();
-  };
-  side(b.slower, 'minus', tr('autoSlower'), S.thinkIdx === 0, 'auto:slower');
-  side(b.faster, 'plus', tr('autoFaster'), S.thinkIdx === THINK_STEPS.length - 1, 'auto:faster');
+  iconButton(ctx, S, b.slower, 'minus', tr('autoSlower'), { off: S.thinkIdx === 0, pressed: pr('auto:slower') });
+  iconButton(ctx, S, b.faster, 'plus', tr('autoFaster'), { off: S.thinkIdx === THINK_STEPS.length - 1, pressed: pr('auto:faster') });
   button(ctx, th, b.pause, [], 'primary', { pressed: pr('auto:pause'), radius: 22 });
   const lab = auto.paused ? tr('autoPlay') : tr('autoPause');
-  const ps = fitOne(lab, b.pause.w - 140, 32 * (1 + (z - 1) * 0.5), 18), is = 44 * (1 + (z - 1) * 0.3);
-  icon(ctx, auto.paused ? 'play' : 'pause', b.pause.x + 52 + is / 2, b.pause.y + b.pause.h / 2, is, th.primaryInk);
-  text(ctx, lab, b.pause.x + 52 + is + (b.pause.w - 52 - is) / 2 - 16, b.pause.y + b.pause.h / 2 + ps * 0.35, ps, th.primaryInk, { weight: 800 });
+  const is = Math.min(44 * (1 + (z - 1) * 0.3), b.pause.h * 0.5), ps = fitOne(lab, b.pause.w - is - 80, 32 * (1 + (z - 1) * 0.5), 18);
+  const total = is + 16 + tw(lab, ps), x0 = b.pause.x + (b.pause.w - total) / 2, cy = b.pause.y + b.pause.h / 2 + (pr('auto:pause') ? 2 : 0);
+  icon(ctx, auto.paused ? 'play' : 'pause', x0 + is / 2, cy, is, th.primaryInk);
+  text(ctx, lab, x0 + is + 16, cy + ps * 0.35, ps, th.primaryInk, { weight: 800, align: 'left' });
 }
 
 const nameOf = (S, M, who) => {
@@ -451,13 +468,15 @@ const nameOf = (S, M, who) => {
 };
 
 export function playGeo(S) {
-  const lay = playLayout(TEXT_SCALES[S.textIdx]);
+  const Lx = layoutNow(TEXT_SCALES[S.textIdx]), lay = S.scene === 'auto' ? Lx.auto : Lx.play;
   return { lay, geo: boardGeo(lay.board.x, lay.board.y, lay.board.w) };
 }
 
+const lay0y = (L) => (L.land ? L.h * 0.5 : Math.min(800, L.h * 0.51));
 function drawPlay(ctx, S) {
   const th = theme(S), M = S.match, z = TEXT_SCALES[S.textIdx];
-  background(ctx, th, S.t, 800);
+  const Lv = layoutNow(z);
+  background(ctx, th, S.t, lay0y(Lv), Lv.w, Lv.h);
   const auto = S.scene === 'auto' ? S.auto : null;
   const { lay, geo } = playGeo(S);
   const title = M.lesson ? lessonText(M.lesson.id).title : tr('appName');
@@ -500,26 +519,27 @@ function drawPlay(ctx, S) {
     ctx.fillStyle = 'rgba(255,255,255,0.14)'; rr(ctx, lay.status.x + 24, lay.status.y + lay.status.h - 16, lay.status.w - 48, 7, 3.5); ctx.fill();
     ctx.fillStyle = th.accent; rr(ctx, lay.status.x + 24, lay.status.y + lay.status.h - 16, (lay.status.w - 48) * frac, 7, 3.5); ctx.fill();
   }
-  if (auto) drawAutoBar(ctx, S, auto); else drawToolbar(ctx, S, M, lay);
+  if (auto) drawAutoBar(ctx, S, auto, lay); else drawToolbar(ctx, S, M, lay);
 }
 
 export function render(ctx, S, ui) {
   ctx.textBaseline = 'alphabetic';
+  const L = ui.L ?? layoutNow(TEXT_SCALES[S.textIdx]);
   switch (S.scene) {
     case 'lang': drawLang(ctx, S, ui); break;
     case 'title': drawTitle(ctx, S, ui); break;
     case 'setup': case 'learn': case 'howto': case 'rules': case 'about': case 'settings': drawDocScreen(ctx, S, ui); break;
     case 'demo-limit':
-      background(ctx, theme(S), S.t);
+      background(ctx, theme(S), S.t, 700, L.w, L.h);
       panel(ctx, theme(S), ui.panel.x, ui.panel.y, ui.panel.w, ui.panel.h, {});
       drawDocBlocks(ctx, S, ui, S.scroll[ui.scrollKey] ?? 0);
       drawFixed(ctx, S, ui.fixed);
       break;
     case 'play': case 'auto':
-      if (!S.match) { background(ctx, theme(S), S.t); break; }
+      if (!S.match) { background(ctx, theme(S), S.t, 700, L.w, L.h); break; }
       drawPlay(ctx, S);
       break;
-    default: background(ctx, theme(S), S.t);
+    default: background(ctx, theme(S), S.t, 700, L.w, L.h);
   }
   if (S.overlay) drawOverlay(ctx, S, ui);
 }

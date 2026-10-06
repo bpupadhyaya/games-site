@@ -1,6 +1,6 @@
 // The table, the board and the pieces. Everything here is painted ONCE into cached layers (never per frame).
 // One light, from the upper left, warm. The board is plywood in a wooden frame with a printed red circle.
-import { W, H, K, BX, BY, PLAY, CX, CY, FRAME, sx, sy } from './layout.js';
+import { K, BX, BY, PLAY, CX, CY, FRAME, sx, sy } from './layout.js';
 import { S, R_COIN, R_STR, R_POCKET, POCKETS, BASE_Y, BASE_X0, BASE_X1 } from './physics.js';
 
 const TAU = Math.PI * 2;
@@ -21,7 +21,7 @@ const mk = (w, h, scale, fn) => {
 };
 
 // --- the room ---------------------------------------------------------------------------------------------
-function paintTable(g) {
+function paintTable(g, W, H) {
   const r = lcg(11);
   g.fillStyle = '#24140a'; g.fillRect(0, 0, W, H);
   // planks
@@ -33,9 +33,10 @@ function paintTable(g) {
     g.fillStyle = 'rgba(0,0,0,0.5)'; g.fillRect(0, y, W, 2.5); g.fillStyle = 'rgba(255,190,120,0.06)'; g.fillRect(0, y + 2.5, W, 1.5);
   }
   // warm light from the upper left and a vignette
-  let l = g.createRadialGradient(140, 300, 40, 140, 300, 1200); l.addColorStop(0, 'rgba(255,196,120,0.34)'); l.addColorStop(0.5, 'rgba(255,170,90,0.08)'); l.addColorStop(1, 'rgba(0,0,0,0)');
+  const mx = Math.max(W, H);
+  let l = g.createRadialGradient(W * 0.2, H * 0.2, 40, W * 0.2, H * 0.2, mx * 0.8); l.addColorStop(0, 'rgba(255,196,120,0.34)'); l.addColorStop(0.5, 'rgba(255,170,90,0.08)'); l.addColorStop(1, 'rgba(0,0,0,0)');
   g.fillStyle = l; g.fillRect(0, 0, W, H);
-  l = g.createRadialGradient(CX, CY, 320, CX, CY, 1000); l.addColorStop(0, 'rgba(0,0,0,0)'); l.addColorStop(1, 'rgba(6,2,0,0.72)'); g.fillStyle = l; g.fillRect(0, 0, W, H);
+  l = g.createRadialGradient(W / 2, H / 2, mx * 0.25, W / 2, H / 2, mx * 0.7); l.addColorStop(0, 'rgba(0,0,0,0)'); l.addColorStop(1, 'rgba(6,2,0,0.72)'); g.fillStyle = l; g.fillRect(0, 0, W, H);
 }
 
 // --- the board --------------------------------------------------------------------------------------------
@@ -150,15 +151,21 @@ function paintBoard(g, th) {
 }
 
 const layers = {};
-export function drawTable(ctx) {
-  if (!layers.table && layers.table !== 0) layers.table = mk(W, H, 2, paintTable) || 0;
-  if (layers.table) ctx.drawImage(layers.table, 0, 0, W, H); else paintTable(ctx);
+// The room fills the whole screen at any size: one cached layer per size (at most a few: portrait, landscape, a tablet).
+const tables = new Map();
+export function drawTable(ctx, W = 720, H = 1560) {
+  const key = `${Math.round(W)}x${Math.round(H)}`;
+  if (!tables.has(key)) { const sc = Math.min(2, Math.sqrt(2.6e6 / (W * H))); tables.set(key, mk(W, H, sc, (g) => paintTable(g, W, H)) || 0); if (tables.size > 4) tables.delete(tables.keys().next().value); }
+  const t = tables.get(key);
+  if (t) ctx.drawImage(t, 0, 0, W, H); else paintTable(ctx, W, H);
 }
+// The framed board with its shadow, painted once per wood in canonical space (only the board's own box is cached).
+const BOARD_BOX = { x: CX - PLAY / 2 - FRAME - 60, y: CY - PLAY / 2 - FRAME - 40, w: PLAY + FRAME * 2 + 120, h: PLAY + FRAME * 2 + 120 };
 export function drawBoardOnly(ctx, theme = 'plywood') {
-  if (!(theme in layers)) layers[theme] = mk(W, H, 2, (g) => paintBoard(g, theme)) || 0;
-  if (layers[theme]) ctx.drawImage(layers[theme], 0, 0, W, H); else paintBoard(ctx, theme);
+  const B = BOARD_BOX;
+  if (!(theme in layers)) layers[theme] = mk(B.w, B.h, 2.5, (g) => { g.translate(-B.x, -B.y); paintBoard(g, theme); }) || 0;
+  if (layers[theme]) ctx.drawImage(layers[theme], B.x, B.y, B.w, B.h); else paintBoard(ctx, theme);
 }
-export function drawBoard(ctx, theme = 'plywood') { drawTable(ctx); drawBoardOnly(ctx, theme); }
 
 // --- pieces -----------------------------------------------------------------------------------------------
 const SC = 3, sprites = {};

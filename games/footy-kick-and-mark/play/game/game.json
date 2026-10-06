@@ -3,8 +3,8 @@
   "title": "Footy: Kick and Mark",
   "tagline": "Kick, mark and tackle: six-a-side on a whole oval.",
   "genre": "team sport / kick-and-mark ball game",
-  "orientation": "portrait",
-  "version": "1.0.3",
+  "orientation": "any",
+  "version": "1.1.4",
   "monetization": {
     "model": "premium",
     "priceUsd": 3.99,

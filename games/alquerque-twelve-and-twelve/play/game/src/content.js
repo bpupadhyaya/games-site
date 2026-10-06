@@ -36,6 +36,7 @@ export const STR = {
   demoLeft: L('{n} free games left', 'Quedan {n} partidas gratis', 'متبقٍ {n} ألعاب مجانية'),
   alquerque: L('Alquerque', 'Alquerque', 'القِرقات'), twelve: L('Twelve and Twelve', 'Doce contra doce', 'اثنتا عشرة لكل جانب'),
   fromWhere: L('An old game of Spain and the Arab world', 'Un juego antiguo de España y del mundo árabe', 'لعبة قديمة من إسبانيا والعالم العربي'),
+  moreGames: L('More heritage games in Arcforge', 'Más juegos de herencia en Arcforge', 'المزيد من ألعاب التراث في أركفورج'),
   tagline: L('Step  ·  Jump  ·  Capture', 'Paso  ·  Salto  ·  Captura', 'خطوة  ·  قفزة  ·  أسر'),
   record: L('Record', 'Récord', 'السجل'), recordLine: L('{label} ({level}): {w} W  {d} D  {l} L', '{label} ({level}): {w} G  {d} E  {l} P', '{label} ({level}): {w} فوز  {d} تعادل  {l} خسارة'),
   lessonsTitle: L('Learn', 'Aprender', 'تعلّم'), lessonDone: L('Done', 'Hecho', 'تم'), lessonMove: L('Lesson', 'Lección', 'درس'), lessonGame: L('Whole game', 'Partida completa', 'لعبة كاملة'),

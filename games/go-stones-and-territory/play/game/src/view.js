@@ -1,5 +1,6 @@
 // Everything drawn each frame. Reads `state` (game.js) and changes nothing. Static art is cached (art.js).
-import { W, H, R, px, py, stoneR, boardLayout, titleButtons, PAGE_NAV, TEXT_SCALES, TEXT_BTN, THINK_STEPS, REVEAL_TIME, AUTOPLAY, PLAYBOARD } from './layout.js';
+import { W, H, R, px, py, stoneR, boardLayout, PAGE_NAV, TEXT_SCALES, TEXT_BTN, THINK_STEPS, REVEAL_TIME, AUTOPLAY, layout, titleLay, quizRectAt } from './layout.js';
+import { drawLockup, drawMoreLine } from './brand.js';
 import { drawTable, drawBoardLayer, drawLamp, drawStone, drawShadow, drawBowl, THEMES } from './art.js';
 import { LEVELS } from './engine.js';
 import { LESSONS } from './lessons.js';
@@ -9,19 +10,16 @@ import { RULES } from './content.js';
 
 const FONT = '"Cormorant Garamond", Georgia, "Times New Roman", serif', UI = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
 const TAU = Math.PI * 2;
-export const TITLE_L = { ...boardLayout(9, 136, 404, 448), plain: true };
-// Each entry is one short, single-concept page - split fine enough (one clause or short sentence
-// each) to still fit the reader panel at the top text-size step (see layout.js's TEXT_SCALES, now
-// reaching 3.0 / 300%). Wording is unchanged from the original longer paragraphs; only regrouped.
+// Short entries; toSections() below joins consecutive entries with the same heading into one section of the continuous reader.
 export const ABOUT_TEXT = [
   ['Go, the game of stones and territory', 'Go is one of the oldest board games still played today.'],
   ['Where Go began', 'It began in China more than 2,500 years ago, where it is called Weiqi.'],
-  ['Go travels to Korea', 'It travelled to Korea, where it is called Baduk,'],
-  ['Go travels to Japan', 'and to Japan, where it is called Igo.'],
+  ['Where Go began', 'It travelled to Korea, where it is called Baduk,'],
+  ['Where Go began', 'and to Japan, where it is called Igo.'],
   ['In the culture', 'In China, Go (qi) was counted among the four arts of the scholar,'],
-  ['The four arts', 'beside the zither, calligraphy and painting.'],
+  ['In the culture', 'beside the zither, calligraphy and painting.'],
   ['Played everywhere', 'Across East Asia it has long been played at home, in tea houses and in clubs,'],
-  ['Played by everyone', 'by children and by grandparents.'],
+  ['Played everywhere', 'by children and by grandparents.'],
   ['Why it lasts', 'The rules fit on one page: place stones, surround space, capture what has no liberties.'],
   ['Bigger than the universe', 'Yet on a 19 x 19 board the number of possible'],
   ['Bigger than the universe, continued', 'positions is larger than the number of atoms'],
@@ -31,20 +29,20 @@ export const ABOUT_TEXT = [
   ['Fine boards', 'Fine boards are carved from a single block of wood, often kaya,'],
   ['Fine boards, continued', 'and are prized for their grain.'],
   ['Counting the score', 'China uses area scoring (stones plus territory), which is what this game uses.'],
-  ['Territory and prisoners', 'Japan and Korea count territory and prisoners instead.'],
-  ['Usually the same winner', 'The winner is usually the same either way.'],
+  ['Counting the score', 'Japan and Korea count territory and prisoners instead.'],
+  ['Counting the score', 'The winner is usually the same either way.'],
 ];
 export const HOW_TEXT = [
   ['Placing a stone', 'TAP a crossing: a ghost stone appears.'],
-  ['Confirming a placement', 'TAP the same crossing again, or press PLACE, to play it.'],
-  ['Dragging to aim', 'DRAG to slide the ghost, then let go: it stays until you confirm.'],
-  ['Cancelling a placement', 'Drag off the board to cancel.'],
-  ['Quick place', '(Settings: turn on Quick place to play as soon as you let go.)'],
-  ['Buttons: Pass', 'PASS: skip your turn.'],
-  ['Buttons: Pass ends the game', 'Two passes in a row end the game.'],
-  ['Buttons: Undo', 'UNDO: takes back your last move (and the reply).'],
-  ['Buttons: Hint', 'HINT: shows a good move with a reason.'],
-  ['Buttons: Menu', 'MENU: leave the game (it is saved).'],
+  ['Placing a stone', 'TAP the same crossing again, or press PLACE, to play it.'],
+  ['Placing a stone', 'DRAG to slide the ghost, then let go: it stays until you confirm.'],
+  ['Placing a stone', 'Drag off the board to cancel.'],
+  ['Placing a stone', '(Settings: turn on Quick place to play as soon as you let go.)'],
+  ['The buttons', 'PASS: skip your turn.'],
+  ['The buttons', 'Two passes in a row end the game.'],
+  ['The buttons', 'UNDO: takes back your last move (and the reply).'],
+  ['The buttons', 'HINT: shows a good move with a reason.'],
+  ['The buttons', 'MENU: leave the game (it is saved).'],
   ['Keyboard', 'Arrow keys move the aim, Enter or Space plays it,'],
   ['Keyboard, continued', 'P passes, U undoes, H gives a hint.'],
   ['The rules', 'Surround stones to capture them.'],
@@ -65,6 +63,12 @@ export function render(ctx, S) {
   drawLamp(ctx, S.t, calm);
   const big = S.prefs.big;
   const text = (str, x, y, size, color = '#f6e3b4', font = FONT, weight = 700, align = 'center') => { ctx.textAlign = align; ctx.font = `${weight} ${size}px ${font}`; ctx.fillStyle = color; ctx.fillText(str, x, y); };
+  // a heading that shrinks to fit maxW (never wraps, never runs under the host's back button)
+  const title = (str, x, y, size, maxW, color = '#f6e3b4', font = FONT, weight = 700) => {
+    let sz = size; ctx.font = `${weight} ${sz}px ${font}`;
+    while (sz > 26 && ctx.measureText(str).width > maxW) { sz -= 2; ctx.font = `${weight} ${sz}px ${font}`; }
+    text(str, x, y, sz, color, font, weight, 'center');
+  };
   const wrap = (str, x, y, size, maxW, color, lh = size * 1.32, align = 'center', weight = 500, font = UI) => {
     ctx.font = `${weight} ${size}px ${font}`; const words = str.split(' '), lines = []; let cur = '';
     for (const w of words) { const t2 = cur ? cur + ' ' + w : w; if (ctx.measureText(t2).width > maxW && cur) { lines.push(cur); cur = w; } else cur = t2; }
@@ -79,8 +83,9 @@ export function render(ctx, S) {
     else { gr.addColorStop(0, '#523229'); gr.addColorStop(0.5, '#33201a'); gr.addColorStop(1, '#1f120e'); }
     ctx.fillStyle = gr; ctx.beginPath(); ctx.roundRect(r.x, r.y + press, r.w, r.h - press, 20); ctx.fill();
     ctx.strokeStyle = o.primary ? 'rgba(255,245,210,0.9)' : 'rgba(240,200,120,0.55)'; ctx.lineWidth = 2; ctx.stroke();
-    ctx.strokeStyle = o.primary ? 'rgba(120,70,10,0.5)' : 'rgba(240,200,120,0.18)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.roundRect(r.x + 6, r.y + 6 + press, r.w - 12, r.h - 12, 15); ctx.stroke();
-    const sz = (o.size ?? 32) * (big ? 1.12 : 1);
+    let sz = Math.min((o.size ?? 32) * (big ? 1.12 : 1), r.h * 0.5);
+    ctx.font = `700 ${sz}px ${o.font ?? UI}`;
+    while (sz > 17 && ctx.measureText(label).width > r.w - 26) { sz -= 1; ctx.font = `700 ${sz}px ${o.font ?? UI}`; }
     text(label, r.x + r.w / 2, r.y + r.h / 2 + sz * 0.34 + press, sz, o.primary ? '#2d1808' : '#f6e3b4', o.font ?? UI, 700);
     ctx.restore();
   };
@@ -97,15 +102,15 @@ export function render(ctx, S) {
   const isPress = (r) => tap && S.down && tap.x >= r.x && tap.x <= r.x + r.w && tap.y >= r.y && tap.y <= r.y + r.h;
 
   const scene = S.scene;
-  if (scene === 'title') return drawTitle(ctx, S, { text, wrap, button, panel, isPress });
-  if (scene === 'setup') return drawSetup(ctx, S, { text, wrap, button, panel, isPress });
-  if (scene === 'lessons') return drawLessonList(ctx, S, { text, wrap, button, panel, isPress });
-  if (scene === 'about') return drawReader(ctx, S, { text, wrap, button, panel, isPress }, 'About Go', ABOUT_TEXT, S.aboutPage);
-  if (scene === 'how') return drawReader(ctx, S, { text, wrap, button, panel, isPress }, 'How to play', HOW_TEXT, S.howPage);
-  if (scene === 'rules') return drawRules(ctx, S, { text, wrap, button, panel, isPress });
-  if (scene === 'settings') return drawSettings(ctx, S, { text, wrap, button, panel });
-  if (scene === 'demo-limit') return drawDemoLimit(ctx, S, { text, wrap, button, panel });
-  drawBoardScene(ctx, S, { text, wrap, button, panel, isPress });
+  if (scene === 'title') return drawTitle(ctx, S, { text, wrap, button, panel, isPress, title });
+  if (scene === 'setup') return drawSetup(ctx, S, { text, wrap, button, panel, isPress, title });
+  if (scene === 'lessons') return drawLessonList(ctx, S, { text, wrap, button, panel, isPress, title });
+  if (scene === 'about') return drawSections(ctx, S, { text, wrap, button, panel, isPress, title }, 'About Go', ABOUT_SECTIONS);
+  if (scene === 'how') return drawSections(ctx, S, { text, wrap, button, panel, isPress, title }, 'How to play', HOW_SECTIONS);
+  if (scene === 'rules') return drawRules(ctx, S, { text, wrap, button, panel, isPress, title });
+  if (scene === 'settings') return drawSettings(ctx, S, { text, wrap, button, panel, title });
+  if (scene === 'demo-limit') return drawDemoLimit(ctx, S, { text, wrap, button, panel, title });
+  drawBoardScene(ctx, S, { text, wrap, button, panel, isPress, title });
 }
 
 // ---- board, stones, marks ------------------------------------------------------------------------------------------------
@@ -232,30 +237,36 @@ function paintBanner(c) {
   c.restore();
 }
 function drawTitle(ctx, S, u) {
-  const { text, button, isPress } = u, t = S.t, calm = S.prefs.calm;
+  const { button, isPress } = u, t = S.t, calm = S.prefs.calm, T = titleLay(!!S.saved);
   if (banner.cv === undefined || banner.cv === null) {
-    banner.cv = typeof OffscreenCanvas !== 'undefined' ? new OffscreenCanvas(W, 400) : false;
+    banner.cv = typeof OffscreenCanvas !== 'undefined' ? new OffscreenCanvas(720, 400) : false;
     if (banner.cv) paintBanner(banner.cv.getContext('2d'));
   }
   // the banner unrolls (ink is laid down left to right), then stays
-  const rev = calm ? 1 : ease(clamp(t / 1.4, 0, 1));
-  ctx.save(); ctx.beginPath(); ctx.rect(0, 0, 40 + (W - 40) * rev, 400); ctx.clip();
+  const rev = calm ? 1 : ease(clamp(t / 1.4, 0, 1)), bn = T.banner;
+  ctx.save(); ctx.translate(bn.x, bn.y); ctx.scale(bn.s, bn.s);
+  ctx.beginPath(); ctx.rect(0, 0, 40 + (720 - 40) * rev, 400); ctx.clip();
   ctx.globalAlpha = calm ? 1 : clamp(t / 0.5, 0, 1);
   if (banner.cv) ctx.drawImage(banner.cv, 0, 0); else paintBanner(ctx);
   ctx.globalAlpha = 1; ctx.restore();
   // a demonstration game on the board, stones appearing one by one
-  const L = TITLE_L;
-  const g = { n: 9, b: new Array(81).fill(0), last: -1, ko: -1 };
-  const seq = DEMO_SEQ, count = Math.min(seq.length, Math.floor(t * 1.5) % (seq.length + 6));
-  const inAnim = [];
-  for (let k = 0; k < Math.min(count, seq.length); k++) g.b[seq[k][0]] = seq[k][1];
-  const fresh = count > 0 && count <= seq.length ? seq[count - 1][0] : -1;
-  const f = (t * 1.5) % 1;
-  if (fresh >= 0) { g.last = -1; inAnim.push({ type: 'drop', i: fresh, t: f * 0.66, dur: 0.22 }); }
-  const saved = S.anim; S.anim = calm ? [] : inAnim;
-  drawBoardPieces(ctx, S, L, { g, noMarks: true });
-  S.anim = saved;
-  const R2 = titleButtons(!!S.saved);
+  if (T.board) {
+    const L = { ...boardLayout(9, T.board.x, T.board.y, T.board.size), plain: true };
+    const g = { n: 9, b: new Array(81).fill(0), last: -1, ko: -1 };
+    const seq = DEMO_SEQ, count = Math.min(seq.length, Math.floor(t * 1.5) % (seq.length + 6));
+    const inAnim = [];
+    for (let k = 0; k < Math.min(count, seq.length); k++) g.b[seq[k][0]] = seq[k][1];
+    const fresh = count > 0 && count <= seq.length ? seq[count - 1][0] : -1;
+    const f = (t * 1.5) % 1;
+    if (fresh >= 0) { g.last = -1; inAnim.push({ type: 'drop', i: fresh, t: f * 0.66, dur: 0.22 }); }
+    const saved = S.anim; S.anim = calm ? [] : inAnim;
+    drawBoardPieces(ctx, S, L, { g, noMarks: true });
+    S.anim = saved;
+  }
+  // the discreet Arcforge credit (themed lockup), never over the game
+  { const c = T.credit, lh = c.w * 327 / 1200, pad = lh * 0.12; ctx.save(); ctx.globalAlpha = S.lockPress > 0 ? 0.7 : 1; ctx.fillStyle = 'rgba(10,8,24,0.55)'; ctx.beginPath(); ctx.roundRect(c.x - c.w / 2 - pad, c.y - pad, c.w + 2 * pad, lh + 2 * pad, (lh + 2 * pad) * 0.3); ctx.fill(); ctx.restore(); }
+  drawLockup(ctx, T.credit.x, T.credit.y, T.credit.w, S.lockPress > 0 ? 0.7 : 1);
+  const R2 = T.buttons;
   if (R2.resume) button(R2.resume, 'Resume game', { primary: true, size: 34, press: isPress(R2.resume) });
   button(R2.play, 'Play', { primary: !R2.resume, size: 36, press: isPress(R2.play) });
   button(R2.learn, `Learn to play  ${S.learned.length}/${LESSONS.length}`, { press: isPress(R2.learn) });
@@ -270,192 +281,222 @@ const DEMO_SEQ = [[40, 1], [22, 2], [58, 1], [50, 2], [23, 1], [31, 2], [41, 1],
 export const demoSequence = () => DEMO_SEQ;
 
 // ---- setup -----------------------------------------------------------------------------------------------------------------
-export const SETUP = {
-  size: [{ n: 9, x: 60 }, { n: 13, x: 262 }, { n: 19, x: 464 }].map((o) => ({ ...o, r: { x: o.x, y: 0, w: 196, h: 96 } })),
-};
 export function setupRects() {
-  return {
-    sizes: [9, 13, 19].map((n, i) => ({ n, r: { x: 36 + i * 220, y: 358, w: 208, h: 92 } })),
-    levels: LEVELS.map((l, i) => ({ i, r: { x: 36 + (i % 2) * 330, y: 578 + Math.floor(i / 2) * 90, w: 318, h: 78 } })),
-    sides: [{ v: 1, label: 'Black (first)' }, { v: 2, label: 'White' }, { v: 0, label: 'Two players' }].map((o, i) => ({ ...o, r: { x: 36 + i * 220, y: 952, w: 208, h: 88 } })),
-    start: { x: 110, y: 1160, w: 500, h: 100 }, back: { x: 110, y: 1284, w: 500, h: 80 },
-  };
+  const o = layout().setup;
+  return { sizes: o.sizes, levels: o.levels, sides: o.sides, start: o.start, back: o.back };
 }
 function drawSetup(ctx, S, u) {
-  const { text, wrap, button, panel } = u, Rs = setupRects(), st = S.setup;
-  text('New game', 360, 190, 76, '#f6e3b4');
-  text('Board size', 60, 340, 30, '#f0d9a0', UI, 700, 'left');
-  for (const o of Rs.sizes) button(o.r, `${o.n} x ${o.n}`, { primary: st.n === o.n, size: 34 });
+  const { text, wrap, button, panel, title } = u, o = layout().setup, C = o.C, st = S.setup, k = Math.max(0.8, o.k);
+  title('New game', C.cx, C.titleY, C.titleSize + (C.titleSize === 70 ? 6 : 0), C.maxW);
+  text('Board size', o.l.size.x, o.l.size.y, 30 * k, '#f0d9a0', UI, 700, 'left');
+  for (const s of o.sizes) button(s.r, `${s.n} x ${s.n}`, { primary: st.n === s.n, size: 34 });
   const note = st.n === 9 ? 'Small and quick: the best place to start.' : st.n === 13 ? 'A medium board. The computer sees less of it, so it plays weaker.' : 'The full board. The computer is weakest here: a friendly place to practise.';
-  wrap(note, 360, 490, 24, 620, 'rgba(246,227,180,0.85)');
-  text('Computer level', 60, 558, 30, '#f0d9a0', UI, 700, 'left');
-  for (const o of Rs.levels) button(o.r, LEVELS[o.i].name, { primary: st.level === o.i, size: 32 });
-  panel({ x: 36, y: 772, w: 648, h: 112 });
-  wrap(LEVELS[st.level].blurb, 360, 814, 25, 600, '#f6e3b4');
-  text('You play', 60, 932, 30, '#f0d9a0', UI, 700, 'left');
-  for (const o of Rs.sides) button(o.r, o.label, { primary: st.human === o.v, size: 26 });
-  text('Chinese area scoring, komi ' + (KOMI[st.n] ?? 7.5), 360, 1096, 26, 'rgba(246,227,180,0.8)', UI, 500);
-  button(Rs.start, 'Start game', { primary: true, size: 40, press: u.isPress(Rs.start) });
-  button(Rs.back, 'Back', { press: u.isPress(Rs.back) });
+  wrap(note, o.note.x, o.note.y, 24 * k, o.note.maxW, 'rgba(246,227,180,0.85)');
+  text('Computer level', o.l.level.x, o.l.level.y, 30 * k, '#f0d9a0', UI, 700, 'left');
+  for (const l of o.levels) button(l.r, LEVELS[l.i].name, { primary: st.level === l.i, size: 32 });
+  panel(o.blurb);
+  wrap(LEVELS[st.level].blurb, o.blurbText.x, o.blurbText.y, 25 * k, o.blurbText.maxW, '#f6e3b4');
+  text('You play', o.l.you.x, o.l.you.y, 30 * k, '#f0d9a0', UI, 700, 'left');
+  for (const sd of o.sides) button(sd.r, sd.label, { primary: st.human === sd.v, size: 26 });
+  text('Chinese area scoring, komi ' + (KOMI[st.n] ?? 7.5), o.score.x, o.score.y, 26 * k, 'rgba(246,227,180,0.8)', UI, 500);
+  button(o.start, 'Start game', { primary: true, size: 40, press: u.isPress(o.start) });
+  button(o.back, 'Back', { press: u.isPress(o.back) });
 }
 
 // ---- lesson list, reader pages, settings, demo limit ------------------------------------------------------------------------
-export const lessonRects = () => LESSONS.map((_, i) => ({ x: 36, y: 250 + i * 88, w: 648, h: 78 }));
+export const lessonRects = () => layout().lessonsFor(LESSONS.length).rects;
 function drawLessonList(ctx, S, u) {
-  const { text, button } = u;
-  text('Learn to play', 360, 190, 70, '#f6e3b4');
-  lessonRects().forEach((r, i) => {
+  const { button, title } = u, Ls = layout().lessonsFor(LESSONS.length), C = Ls.C;
+  title('Learn to play', C.cx, C.titleY, C.titleSize, C.maxW);
+  Ls.rects.forEach((r, i) => {
     const done = S.learned.includes(LESSONS[i].id), locked = S.demo && i >= 3;
     button(r, `${i + 1}.  ${LESSONS[i].title}${done ? '   ✓' : locked ? '   (full game)' : ''}`, { primary: !done && i === S.learned.length, size: 30, dim: locked, press: u.isPress(r) });
   });
-  button({ x: 110, y: 1230, w: 500, h: 84 }, 'Back', { press: u.isPress({ x: 110, y: 1230, w: 500, h: 84 }) });
+  button(Ls.back, 'Back', { press: u.isPress(Ls.back) });
 }
-// About, How to play and Rules all share this one reference-page shape: a big title, a framed
-// reader-card panel, a text-size stepper ("A-"/"A+") flanking the title so it is right where a
-// player is reading, and a Back/Next footer that pages one topic at a time (same convention for
-// all three, and the same one chess-royal-sixty-four uses for its own reference pages).
+// About, How to play and Rules all share this one reference shape: a title, a framed reader panel with the text-size stepper
+// ("A-"/"A+", up to 300%) in its top row, ONE continuous scrolling document (drag, wheel, keys, scroll bar), and a Back/Next footer.
+// Next moves one screenful and becomes Done at the end; Back always leaves.
 function readerScale(S) { return TEXT_SCALES[S.prefs.textScaleIdx ?? 0] ?? 1; }
-function drawPageHeader(ctx, u, S, title) {
-  const { button, isPress } = u, idx = S.prefs.textScaleIdx ?? 0;
-  // The banner title shrinks to fit the gap between the two stepper buttons - "How to play" is
-  // wide enough at the usual 70px to otherwise run under "A+"/"A-".
-  const maxW = TEXT_BTN.inc.x - (TEXT_BTN.dec.x + TEXT_BTN.dec.w) - 40;
-  let size = 70;
-  ctx.font = `700 ${size}px ${FONT}`;
-  while (ctx.measureText(title).width > maxW && size > 38) { size -= 2; ctx.font = `700 ${size}px ${FONT}`; }
-  ctx.textAlign = 'center'; ctx.fillStyle = '#f6e3b4'; ctx.fillText(title, 360, 176);
-  button(TEXT_BTN.dec, 'A−', { dim: idx === 0, press: isPress ? isPress(TEXT_BTN.dec) : false, size: 30 });
-  button(TEXT_BTN.inc, 'A+', { dim: idx === TEXT_SCALES.length - 1, press: isPress ? isPress(TEXT_BTN.inc) : false, size: 30 });
+export const readerInfo = { max: 0 };      // how far the document can scroll (set while drawing, read by game.js)
+// The source lists are cut into very short pages; consecutive entries with the same heading (a trailing ", continued" / ", still"
+// ignored) are one section, and fragments that do not end a sentence run on into one paragraph.
+export function toSections(items) {
+  const out = [];
+  for (const it of items) {
+    const heading = Array.isArray(it) ? it[0] : it.title, lines = Array.isArray(it) ? [it[1]] : it.lines, stone = Array.isArray(it) ? null : it.stone;
+    const base = heading.replace(/,\s*(continued|still)$/i, ''), last = out[out.length - 1];
+    if (last && last.title === base) {
+      for (const ln of lines) {
+        if (last.lines.length && !/[.!?:]["')]?$/.test(last.lines[last.lines.length - 1])) last.lines[last.lines.length - 1] += ' ' + ln; else last.lines.push(ln);
+      }
+      if (stone && !last.stone) last.stone = stone;
+    } else out.push({ title: base, lines: lines.slice(), stone });
+  }
+  return out;
 }
-function drawPageFooter(ctx, u, idx, total) {
-  const { text, button, isPress } = u;
-  text(`Page ${idx + 1} of ${total}`, 360, 1320, 21, 'rgba(246,227,180,0.65)', UI, 500);
-  button(PAGE_NAV.back, 'Back', { press: isPress ? isPress(PAGE_NAV.back) : false });
-  button(PAGE_NAV.next, idx >= total - 1 ? 'Done' : 'Next', { primary: true, press: isPress ? isPress(PAGE_NAV.next) : false });
+export const ABOUT_SECTIONS = toSections(ABOUT_TEXT), HOW_SECTIONS = toSections(HOW_TEXT), RULES_SECTIONS = toSections(RULES);
+function drawReaderFrame(ctx, S, u, titleStr, content) {
+  const { button, panel, isPress, title } = u, Q = layout().reader, sidx = S.prefs.textScaleIdx ?? 0;
+  title(titleStr, Q.title.x, Q.title.y, Q.title.size, Q.title.maxW);
+  panel(Q.panel);
+  button(Q.dec, 'A−', { dim: sidx === 0, press: isPress(Q.dec), size: 28 });
+  button(Q.inc, 'A+', { dim: sidx === TEXT_SCALES.length - 1, press: isPress(Q.inc), size: 28 });
+  // scrolling content, clipped to the body
+  const body = Q.body, scroll = clamp(S.readScroll || 0, 0, readerInfo.max);
+  ctx.save(); ctx.beginPath(); ctx.rect(body.x + 6, body.y, body.w - 12, body.h); ctx.clip();
+  ctx.translate(0, -scroll);
+  const endY = content(Q, readerScale(S));
+  ctx.restore();
+  readerInfo.max = Math.max(0, Math.ceil(endY + 14 - (body.y + body.h)));
+  if (readerInfo.max > 0) {
+    const th = Math.max(36, body.h * body.h / (body.h + readerInfo.max)), ty = body.y + (body.h - th) * (scroll / readerInfo.max);
+    ctx.fillStyle = 'rgba(246,227,180,0.12)'; ctx.beginPath(); ctx.roundRect(Q.panel.x + Q.panel.w - 16, body.y, 6, body.h, 3); ctx.fill();
+    ctx.fillStyle = 'rgba(246,227,180,0.55)'; ctx.beginPath(); ctx.roundRect(Q.panel.x + Q.panel.w - 16, ty, 6, th, 3); ctx.fill();
+  }
+  button(PAGE_NAV.back, 'Back', { press: isPress(PAGE_NAV.back) });
+  button(PAGE_NAV.next, scroll >= readerInfo.max - 2 ? 'Done' : 'Next', { primary: true, press: isPress(PAGE_NAV.next) });
 }
-// The in-panel page/section title: WRAPPED (never a single fixed-width line), because a few of
-// these headings ("Go, the game of stones and territory") are too long to fit on one line once
-// the top text-size step makes the font big - wrapping instead of overflowing keeps every title on
-// screen and inside the panel. Returns the y where the body content below it can safely start.
-function drawPageTitle(ctx, u, titleStr, scale) {
-  const { wrap } = u, size = Math.round(32 * scale), lh = Math.round(size * 1.22);
-  // The first title line's baseline has to move down as `size` grows, or its own cap-height pokes
-  // up above the reader panel's top edge (y=214) at a big scale - this keeps the same ~28px margin
-  // above the panel top that the old hardcoded "268" baseline (scale 1) happened to give it.
-  const startY = 214 + 28 + Math.round(size * 0.8);
-  const lines = wrap(titleStr, 360, startY, size, 604, '#f3cf7a', lh, 'center', 700, FONT);
-  return startY + lines * lh + Math.round(16 * scale);
+// Reader layout cache: the wrapped document (lines + total height) is laid out once per (screen, text size, geometry, font) and reused;
+// a frame draws only the visible slice. readerStats.layouts counts rebuilds (tests read it).
+const readerCache = { key: '', items: [], endY: 0 };
+export const readerStats = { layouts: 0 };
+function wrapLines(ctx, str, maxW, size, weight, font) {
+  ctx.font = `${weight} ${size}px ${font}`; const words = str.split(' '), out = []; let cur = '';
+  for (const w of words) { const t2 = cur ? cur + ' ' + w : w; if (ctx.measureText(t2).width > maxW && cur) { out.push(cur); cur = w; } else cur = t2; }
+  out.push(cur); return out;
 }
-// About / How to play: one topic per page (each [heading, body] entry in ABOUT_TEXT/HOW_TEXT is
-// already a single self-contained concept), paginated like Rules below: Next steps forward and
-// exits ("Done") from the last page, Back steps back and exits only from the first page.
-function drawReader(ctx, S, u, title, items, page) {
-  const { wrap, panel } = u, scale = readerScale(S);
-  const idx = ((page % items.length) + items.length) % items.length, [heading, body] = items[idx];
-  drawPageHeader(ctx, u, S, title);
-  panel({ x: 36, y: 214, w: 648, h: 1132 });
-  const bodyY = drawPageTitle(ctx, u, heading, scale);
-  const sz = Math.round(29 * scale), lh = Math.round(sz * 1.4);
-  wrap(body, 64, bodyY, sz, 592, '#f2e6cc', lh, 'left', 500);
-  drawPageFooter(ctx, u, idx, items.length);
-}
-// One topic per screen, paginated: Back steps back a page (exiting to the title only from page 0),
-// Next steps forward and exits to the title ("Done") on the last page instead of wrapping.
-export function rulesPageCount() { return RULES.length; }
-function drawRules(ctx, S, u) {
-  const { text, wrap, panel } = u, scale = readerScale(S);
-  const idx = ((S.rulesPage % RULES.length) + RULES.length) % RULES.length, page = RULES[idx];
-  drawPageHeader(ctx, u, S, 'Rules');
-  panel({ x: 36, y: 214, w: 648, h: 1132 });
-  let y = drawPageTitle(ctx, u, page.title, scale);
-  if (page.stone) {
-    // The stone art, its fixed 300/420 x-positions and its "Black"/"White" caption all stay a
-    // fixed size at every text-size step (this is a small picture with a label, not primary
-    // reading text - and at a big scale a caption that grew with `scale` would itself be too wide
-    // for the 120px gap between the two stones' fixed centres). Only the gap between the caption
-    // and the body text below it has to grow, to clear the bigger body text's own taller ascent.
-    const r = 46, cy = y + 58, labelSz = 20, gap1 = 30;
-    const gap2 = 62 + Math.round(23 * (scale - 1));
-    if (page.stone === 'both') {
-      drawStone(ctx, 1, 300, cy, r, { seed: 1 });
-      drawStone(ctx, 2, 420, cy, r, { seed: 2 });
-      text('Black', 300, cy + r + gap1, labelSz, 'rgba(246,227,180,0.75)', UI, 600);
-      text('White', 420, cy + r + gap1, labelSz, 'rgba(246,227,180,0.75)', UI, 600);
-    } else {
-      drawStone(ctx, page.stone, 360, cy, r, { seed: page.stone });
+function layoutSections(ctx, Q, sc, sections) {
+  const items = []; let y = Q.body.y + 8;
+  sections.forEach((sec, si) => {
+    if (si) y += Math.round(30 * sc);
+    // A section heading, WRAPPED (a few are too long for one line at the top text size).
+    const size = Math.round(32 * sc), tlh = Math.round(size * 1.22), startY = y + Math.round(size * 0.8);
+    const tl = wrapLines(ctx, sec.title, Q.textW - 6, size, 700, FONT);
+    items.push({ k: 'l', ls: tl, x: Q.panel.x + Q.panel.w / 2, y: startY, size, lh: tlh, color: '#f3cf7a', align: 'center', weight: 700, font: FONT });
+    y = startY + tl.length * tlh + Math.round(16 * sc);
+    if (sec.stone) {
+      // The stone art and its captions stay a fixed size at every text-size step; only the gap below grows with the text size.
+      const cx = Q.panel.x + Q.panel.w / 2, r = 46, cy = y + 58, labelSz = 20, gap1 = 30, gap2 = 62 + Math.round(23 * (sc - 1));
+      items.push({ k: 'stone', stone: sec.stone, cx, cy, r, labelSz, gap1, top: y, h: gap2 + 104 });
+      y = cy + r + gap2;
     }
-    y = cy + r + gap2;
-  }
-  const sz = Math.round(29 * scale), lh = Math.round(sz * 1.4);
-  for (const para of page.lines) {
-    const lines = wrap(para, 64, y, sz, 592, '#f2e6cc', lh, 'left', 500);
-    y += lines * lh + Math.round(22 * scale);
-  }
-  drawPageFooter(ctx, u, idx, RULES.length);
+    const sz = Math.round(29 * sc), lh = Math.round(sz * 1.4);
+    for (const para of sec.lines) {
+      const ls = wrapLines(ctx, para, Q.textW, sz, 500, UI);
+      items.push({ k: 'l', ls, x: Q.textX, y, size: sz, lh, color: '#f2e6cc', align: 'left', weight: 500, font: UI });
+      y += ls.length * lh + Math.round(22 * sc);
+    }
+  });
+  readerCache.items = items; readerCache.endY = y;
 }
-export function settingsRects() {
-  const names = ['sound', 'calm', 'big', 'quick', 'theme'];
-  const out = {}; names.forEach((k, i) => { out[k] = { x: 60, y: 260 + i * 118, w: 600, h: 96 }; });
-  out.back = { x: 110, y: 1000, w: 500, h: 84 }; return out;
+function drawSections(ctx, S, u, titleStr, sections) {
+  const { text } = u;
+  drawReaderFrame(ctx, S, u, titleStr, (Q, sc) => {
+    ctx.font = `800 40px ${UI}`; const fk1 = ctx.measureText('Hamburgefonstiv').width;   // changes when a web font finishes loading
+    ctx.font = `800 40px ${FONT}`; const fk2 = ctx.measureText('Hamburgefonstiv').width;
+    const key = [titleStr, sc, Q.body.x, Q.body.y, Q.body.w, Q.textX, Q.textW, Q.panel.x, Q.panel.w, fk1, fk2].join('|');
+    if (readerCache.key !== key) { readerStats.layouts++; layoutSections(ctx, Q, sc, sections); readerCache.key = key; }
+    const scroll = clamp(S.readScroll || 0, 0, readerInfo.max), top = Q.body.y + scroll - 120, bot = Q.body.y + Q.body.h + scroll + 120;
+    for (const it of readerCache.items) {
+      if (it.k === 'l') {
+        if (it.y + it.ls.length * it.lh < top || it.y - it.size > bot) continue;
+        it.ls.forEach((ln, i) => { const ly = it.y + i * it.lh; if (ly > top - it.size && ly - it.size < bot) text(ln, it.x, ly, it.size, it.color, it.font, it.weight, it.align); });
+      } else if (it.top + it.h >= top && it.top <= bot) {
+        const { cx, cy, r, labelSz, gap1 } = it;
+        if (it.stone === 'both') {
+          drawStone(ctx, 1, cx - 60, cy, r, { seed: 1 }); drawStone(ctx, 2, cx + 60, cy, r, { seed: 2 });
+          text('Black', cx - 60, cy + r + gap1, labelSz, 'rgba(246,227,180,0.75)', UI, 600);
+          text('White', cx + 60, cy + r + gap1, labelSz, 'rgba(246,227,180,0.75)', UI, 600);
+        } else drawStone(ctx, it.stone, cx, cy, r, { seed: it.stone });
+      }
+    }
+    return readerCache.endY;
+  });
 }
+const drawRules = (ctx, S, u) => drawSections(ctx, S, u, 'Rules', RULES_SECTIONS);
+
+export function settingsRects() { return layout().settings.rects; }
 function drawSettings(ctx, S, u) {
-  const { text, wrap, button } = u, Rs = settingsRects(), p = S.prefs;
-  text('Settings', 360, 176, 70, '#f6e3b4');
+  const { wrap, button, title } = u, st = layout().settings, Rs = st.rects, p = S.prefs, C = st.C;
+  title('Settings', C.cx, C.titleY, C.titleSize, C.maxW);
   button(Rs.sound, `Sound: ${p.sound ? 'On' : 'Muted'}`);
   button(Rs.calm, `Reduced motion: ${p.calm ? 'On' : 'Off'}`);
   button(Rs.big, `Large text: ${p.big ? 'On' : 'Off'}`);
   button(Rs.quick, `Placing stones: ${p.quick ? 'Quick (lift to play)' : 'Confirm (tap twice)'}`, { size: 27 });
   button(Rs.theme, `Board: ${THEMES[p.theme].name}`);
   button(Rs.back, 'Back', { primary: true });
-  wrap('Quick place plays the stone as soon as you lift your finger. Confirm mode lets you aim first, which is easier on big boards.', 360, 866, 24, 600, 'rgba(246,227,180,0.8)');
+  wrap('Quick place plays the stone as soon as you lift your finger. Confirm mode lets you aim first, which is easier on big boards.', st.note.x, st.note.y, 24 * Math.max(0.85, C.k), st.note.maxW, 'rgba(246,227,180,0.8)');
 }
 function drawDemoLimit(ctx, S, u) {
-  const { text, wrap, button, panel } = u;
-  panel({ x: 60, y: 420, w: 600, h: 520 });
-  text('That is the free preview', 360, 520, 50, '#f6e3b4');
-  wrap('You have used the free games in this web preview. Get the full game on iPhone and Android for every lesson, every level, all board sizes and a new puzzle each day.', 360, 590, 28, 520, '#f2e6cc');
+  const { wrap, panel, title } = u, d = layout().demo;
+  panel(d.panel);
+  title('That is the free preview', d.cx, d.panel.y + 100 * d.k, 50, d.panel.w - 40);
+  wrap('You have used the free games in this web preview. Get the full game on iPhone and Android for every lesson, every level, all board sizes and a new puzzle each day.', d.cx, d.panel.y + 170 * d.k, 28, d.panel.w - 80, '#f2e6cc');
 }
 
-// ---- board scenes: play / lesson / puzzle ---------------------------------------------------------------------------------
+// ---- board scenes: play / lesson / puzzle / auto play ---------------------------------------------------------------------------
 export const boardLayoutFor = (n) => boardLayout(n);
 function drawBoardScene(ctx, S, u) {
-  const { text, wrap, button, panel, isPress } = u, g = S.g, n = g.n, L = boardLayoutFor(n), scene = S.scene, calm = S.prefs.calm, big = S.prefs.big;
+  const { text, wrap, button, panel, isPress, title } = u, g = S.g, n = g.n, L = boardLayoutFor(n), scene = S.scene, calm = S.prefs.calm, big = S.prefs.big;
+  const P = layout().play, tall = P.mode === 'tall';
   const lesson = scene === 'lesson' ? LESSONS[S.lesson.i] : null;
   const step = lesson ? lesson.steps[S.lesson.step] : null;
   const scoring = S.phase === 'scoring' || S.phase === 'over';
+  let statusBottom = 0;     // baseline-ish bottom of the status block in the side card, so the footer caption is placed under it, never over it
+  const dim = 'rgba(246,227,180,0.85)';
+  for (const c of P.cards) panel(c);
   // ---- header
   if (scene === 'play' || scene === 'autoplay') {
     const names = S.two ? ['Black', 'White'] : S.human === 1 ? ['You', LEVELS[S.level].name] : [LEVELS[S.level].name, 'You'];
     [1, 2].forEach((c) => {
-      const x = c === 1 ? 24 : 372, active = !scoring && g.turn === c;
-      panel({ x, y: 118, w: 324, h: 112 });
-      if (active) { ctx.strokeStyle = `rgba(255,214,110,${calm ? 0.95 : 0.7 + 0.3 * Math.sin(S.t * 4)})`; ctx.lineWidth = 4; ctx.beginPath(); ctx.roundRect(x, 118, 324, 112, 22); ctx.stroke(); }
-      drawShadow(ctx, x + 62, 174, 34); drawStone(ctx, c, x + 62, 174, 34, { seed: c });
-      text(names[c - 1], x + 116, 160, 34, '#f6e3b4', FONT, 700, 'left');
-      text(`Captured ${g.caps[c]}`, x + 116, 198, 24, 'rgba(246,227,180,0.85)', UI, 500, 'left');
-      if (c === 2) text(`+${g.komi}`, x + 296, 198, 22, 'rgba(246,227,180,0.6)', UI, 500, 'right');
+      const pr = P.players[c - 1], active = !scoring && g.turn === c, sr = Math.min(34, pr.h * 0.3), cx = pr.x + 18 + sr, ty = pr.y + pr.h * 0.5;
+      panel(pr);
+      if (active) { ctx.strokeStyle = `rgba(255,214,110,${calm ? 0.95 : 0.7 + 0.3 * Math.sin(S.t * 4)})`; ctx.lineWidth = 4; ctx.beginPath(); ctx.roundRect(pr.x, pr.y, pr.w, pr.h, 22); ctx.stroke(); }
+      drawShadow(ctx, cx, ty, sr); drawStone(ctx, c, cx, ty, sr, { seed: c });
+      const tx = cx + sr + 20, big2 = pr.h >= 100, komi = c === 2 ? `+${g.komi}` : '';
+      ctx.font = `500 22px ${UI}`;
+      const komiW = komi ? ctx.measureText(komi).width + 10 : 0, avail = pr.x + pr.w - 16 - tx - komiW;
+      let nsz = big2 ? 34 : 30; ctx.font = `700 ${nsz}px ${FONT}`;
+      while (nsz > 20 && ctx.measureText(names[c - 1]).width > avail) { nsz -= 2; ctx.font = `700 ${nsz}px ${FONT}`; }
+      text(names[c - 1], tx, ty - (big2 ? 14 : 7), nsz, '#f6e3b4', FONT, 700, 'left');
+      text(`Captured ${g.caps[c]}`, tx, ty + 24, big2 ? 24 : 22, dim, UI, 500, 'left');
+      if (komi) text(komi, pr.x + pr.w - 14, ty - (big2 ? 14 : 7), 22, 'rgba(246,227,180,0.6)', UI, 500, 'right');
     });
     const apLeft = scene === 'autoplay' ? Math.max(0, THINK_STEPS[S.prefs.apThinkIdx] - S.ap.t) : 0;
+    const dead = !tall && S.phase === 'scoring' && !S.scorer ? 'Tap a group to mark it dead or alive' : '';
     const status = scene === 'autoplay'
-      ? (scoring ? (S.phase === 'over' ? 'Game over' : S.scorer ? 'Counting' : 'Counting the board') : S.ap.paused ? 'Paused' : S.ap.phase === 'think' ? `Think: what would ${g.turn === 1 ? 'Black' : 'White'} play? (${apLeft.toFixed(0)}s)` : S.ap.phase === 'reveal' ? 'Here is the move about to be played…' : 'Playing…')
-      : scoring ? (S.phase === 'over' ? 'Game over' : S.scorer ? 'Counting' : 'Check the count') : S.thinking ? 'Thinking...' : `${g.turn === 1 ? 'Black' : 'White'} to play`;
-    text(scene === 'autoplay' ? status : `${status}   ·   Move ${g.moves + 1}`, 360, 278, scene === 'autoplay' ? 24 : 27, 'rgba(246,227,180,0.9)', UI, 600);
-    if (scene === 'autoplay') text('Auto Play — watch and learn', 360, 306, 20, 'rgba(246,227,180,0.65)', UI, 600);
+      ? (scoring ? (S.phase === 'over' ? 'Game over' : S.scorer ? 'Counting' : dead || 'Counting the board') : S.ap.paused ? 'Paused' : S.ap.phase === 'think' ? `Think: what would ${g.turn === 1 ? 'Black' : 'White'} play? (${apLeft.toFixed(0)}s)` : S.ap.phase === 'reveal' ? 'Here is the move about to be played' : 'Playing')
+      : scoring ? (S.phase === 'over' ? 'Game over' : S.scorer ? 'Counting' : dead || 'Check the count') : S.thinking ? 'Thinking...' : `${g.turn === 1 ? 'Black' : 'White'} to play`;
+    const st = P.status, line = scene === 'autoplay' ? status : `${status}   ·   Move ${g.moves + 1}`, ssz = scene === 'autoplay' ? Math.min(st.size, 24) : st.size;
+    if (st.card) {
+      const cw = P.players[0].w, nl = wrap(line, st.x, st.y - 8, ssz, cw, dim, ssz * 1.25, 'center', 600);
+      statusBottom = st.y - 8 + (nl - 1) * ssz * 1.25 + 8;
+      if (scene === 'autoplay') { text('Auto Play — watch and learn', st.x, st.y - 8 + nl * ssz * 1.25 + 8, 20, 'rgba(246,227,180,0.65)', UI, 600); statusBottom += 28; }
+    } else {
+      title(line, st.x, st.y, ssz, w0() - 2 * Math.max(40, layout().F.bk + 16), dim, UI, 600);
+      if (scene === 'autoplay' && tall) text('Auto Play — watch and learn', st.x, st.sub, 20, 'rgba(246,227,180,0.65)', UI, 600);
+    }
   } else if (lesson) {
-    text(`Lesson ${S.lesson.i + 1} of ${LESSONS.length}`, 360, 152, 26, 'rgba(246,227,180,0.8)', UI, 600);
-    text(lesson.title, 360, 226, 64, '#f6e3b4');
-    if (lesson.steps.length > 1) text(`Step ${S.lesson.step + 1} of ${lesson.steps.length}`, 360, 282, 26, 'rgba(246,227,180,0.8)', UI, 600);
+    const hd = P.head;
+    if (hd.compact) {
+      title(`Lesson ${S.lesson.i + 1} of ${LESSONS.length}${lesson.steps.length > 1 ? `  ·  Step ${S.lesson.step + 1} of ${lesson.steps.length}` : ''}`, hd.cx, hd.cap, hd.capSize, hd.maxW, 'rgba(246,227,180,0.8)', UI, 600);
+      title(lesson.title, hd.cx, hd.title, hd.titleSize, hd.maxW);
+    } else {
+      title(`Lesson ${S.lesson.i + 1} of ${LESSONS.length}`, hd.cx, hd.cap, hd.capSize, hd.maxW, 'rgba(246,227,180,0.8)', UI, 600);
+      title(lesson.title, hd.cx, hd.title, hd.titleSize, hd.maxW);
+      if (lesson.steps.length > 1) title(`Step ${S.lesson.step + 1} of ${lesson.steps.length}`, hd.cx, hd.step, hd.capSize, hd.maxW, 'rgba(246,227,180,0.8)', UI, 600);
+    }
   } else {
-    text('Daily puzzle', 360, 200, 68, '#f6e3b4');
-    text(S.daily.streak > 0 ? `Streak ${S.daily.streak}` : 'A new one every day', 360, 262, 27, 'rgba(246,227,180,0.85)', UI, 600);
+    const hd = P.head;
+    title('Daily puzzle', hd.cx, hd.puz, hd.puzSize, hd.maxW);
+    title(S.daily.streak > 0 ? `Streak ${S.daily.streak}` : 'A new one every day', hd.cx, hd.streak, hd.compact ? 22 : 27, hd.maxW, dim, UI, 600);
   }
   // ---- board
   let glow = [];
-  if (lesson && !S.lesson.done && S.lesson.showAt && step.want.at) glow = step.want.at.map(([x, y]) => y * n + x);
-  // Auto Play REVEAL: Go's own branching factor makes "every legal point" (often 50-70+ empty
-  // crossings) too dense to usefully compare against - unlike a board game with a handful of legal
-  // moves, that would just be most of the board. So only the ONE point about to be played is shown,
-  // reusing this same glow ring (a pass has nothing to glow: the status line above says so instead).
+  if (lesson && !S.lesson.done && S.lesson.showAt && step.want.at) glow = (Array.isArray(step.want.at[0]) ? step.want.at : [step.want.at]).map(([x, y]) => y * n + x);
+  // Auto Play REVEAL: Go's own branching factor makes "every legal point" too dense to usefully compare against, so only the ONE point
+  // about to be played is shown, reusing this same glow ring (a pass has nothing to glow: the status line says so instead).
   if (scene === 'autoplay' && S.ap.phase === 'reveal' && S.ap.chosen != null && S.ap.chosen >= 0) glow = [S.ap.chosen];
   const opts = { g, glow };
   if (scoring && S.score) { opts.dead = S.deadList; opts.owner = S.score.owner; }
@@ -464,39 +505,50 @@ function drawBoardScene(ctx, S, u) {
   drawBoardPieces(ctx, S, L, opts);
   // ---- message panel
   const apMsg = S.ap && S.ap.phase === 'reveal' ? (S.ap.chosen != null && S.ap.chosen < 0 ? `${g.turn === 1 ? 'Black' : 'White'} is about to pass.` : 'The glowing point is the move about to be played.') : 'Auto Play: the computer plays both Black and White so you can learn by watching a whole game.';
-  const msg = S.msg ? S.msg.text : lesson ? step.text : scene === 'puzzle' ? puzzleText(S.pz.p) : scene === 'autoplay' ? apMsg : S.thinking ? 'The computer is thinking...' : S.g.turn === S.human || S.two ? 'Your move. TAP a crossing to aim, then TAP it again (or press Place).' : '';
   const showMsg = !(scoring && (scene === 'play' || scene === 'autoplay'));
-  if (showMsg) panel(R.msg, { paper: true });
+  let M = P.msg;
+  // single-card landscape shape: the status block (a wrapped status + the Auto Play line) can run past the card's reserved band, so the
+  // message panel starts below it instead of being drawn over it
+  if (scene === 'autoplay' && !scoring && P.status.card && !P.caption && statusBottom + 10 > M.y) { const d = statusBottom + 10 - M.y; M = { x: M.x, y: M.y + d, w: M.w, h: Math.max(60, M.h - d) }; }
+  const msg = S.msg ? S.msg.text : lesson ? step.text : scene === 'puzzle' ? puzzleText(S.pz.p) : scene === 'autoplay' ? (M.h < 150 && S.ap.phase !== 'reveal' ? 'Auto Play: the computer plays both sides. Watch and learn.' : apMsg) : S.thinking ? 'The computer is thinking...' : S.g.turn === S.human || S.two ? 'Your move. TAP a crossing to aim, then TAP it again (or press Place).' : '';
+  if (showMsg) panel(M, { paper: true });
   const fs = big ? 29 : 25;
   if (showMsg) {
-  ctx.save(); ctx.beginPath(); ctx.roundRect(R.msg.x + 10, R.msg.y + 6, R.msg.w - 20, R.msg.h - 12, 14); ctx.clip();
-  const lh = fs * 1.28;
-  ctx.font = `600 ${fs}px ${UI}`;
-  let lines = wrapCount(ctx, msg, R.msg.w - 56);
-  let size = fs; while (lines * size * 1.28 > R.msg.h - 24 && size > 17) { size -= 1.5; ctx.font = `600 ${size}px ${UI}`; lines = wrapCount(ctx, msg, R.msg.w - 56); }
-  wrap(msg, 360, R.msg.y + (R.msg.h - lines * size * 1.28) / 2 + size * 0.98, size, R.msg.w - 56, '#2a1a0a', size * 1.28, 'center', 600);
-  ctx.restore();
+    ctx.save(); ctx.beginPath(); ctx.roundRect(M.x + 10, M.y + 6, M.w - 20, M.h - 12, 14); ctx.clip();
+    ctx.font = `600 ${fs}px ${UI}`;
+    let lines = wrapCount(ctx, msg, M.w - 56);
+    let size = fs; while (lines * size * 1.28 > M.h - 24 && size > P.msgMin) { size -= 1.5; ctx.font = `600 ${size}px ${UI}`; lines = wrapCount(ctx, msg, M.w - 56); }
+    wrap(msg, M.x + M.w / 2, M.y + (M.h - lines * size * 1.28) / 2 + size * 0.98, size, M.w - 56, '#2a1a0a', size * 1.28, 'center', 600);
+    ctx.restore();
   }
-  // ---- bowls (Auto Play repurposes this band for the think-time stepper - see the centre-button
-  // block below - so the bowls would otherwise sit right under the stepper buttons and clash)
-  if (scene !== 'autoplay') { drawBowl(ctx, 1, 128, 1178, 0.62 + (g.caps[2] ? 0 : 0)); drawBowl(ctx, 2, 592, 1178, 0.62); }
+  // ---- bowls (the tall layout's Auto Play uses this band for the think-time stepper, so no bowls there)
   const cap1 = g.caps[1], cap2 = g.caps[2];
-  if (scene === 'play' && (cap1 || cap2)) {
-    // prisoners: white stones Black has captured sit by Black's bowl, black stones White has captured by White's bowl
-    for (let k = 0; k < Math.min(cap1, 10); k++) drawStone(ctx, 2, 62 + k * 13, 1254, 12, { seed: k });
-    for (let k = 0; k < Math.min(cap2, 10); k++) drawStone(ctx, 1, 658 - k * 13, 1254, 12, { seed: k });
+  if (P.bowls && (scene !== 'autoplay' || !tall)) {
+    drawBowl(ctx, 1, P.bowls.a.x, P.bowls.a.y, P.bowls.a.s); drawBowl(ctx, 2, P.bowls.b.x, P.bowls.b.y, P.bowls.b.s);
+    if (scene === 'play' && (cap1 || cap2)) {
+      // prisoners: white stones Black has captured sit by Black's bowl, black stones White has captured by White's bowl
+      const sr = tall ? 12 : 9;
+      for (let k = 0; k < Math.min(cap1, 10); k++) drawStone(ctx, 2, P.bowls.a.pr.x + k * P.bowls.a.pr.dx, P.bowls.a.pr.y, sr, { seed: k });
+      for (let k = 0; k < Math.min(cap2, 10); k++) drawStone(ctx, 1, P.bowls.b.pr.x + k * P.bowls.b.pr.dx, P.bowls.b.pr.y, sr, { seed: k });
+    }
   }
-  // ---- centre button / bottom row (Auto Play is its own thing: nothing here is ever tapped on
-  // the board, so it gets its own controls entirely rather than threading into the chains below)
-  const cx = R.place;
+  // ---- centre button / bottom row (Auto Play is its own thing: nothing here is ever tapped on the board)
+  const cx = R.place, bsz = P.slots[0].h < 80 ? 26 : 32;
+  const sizeB = (v) => Math.min(v, bsz + 4);
   if (scene === 'autoplay' && S.phase === 'over') {
     button(R.done, 'Play again', { primary: true, size: 34, press: isPress(R.done) });
     button(R.menu, 'Exit to menu', { size: 26, press: isPress(R.menu) });
   } else if (scene === 'autoplay') {
-    // The stepper takes over the centre "Place" band.
     button(AUTOPLAY.dec, '−', { size: 40, dim: S.prefs.apThinkIdx === 0, press: isPress(AUTOPLAY.dec) });
     button(AUTOPLAY.inc, '+', { size: 40, dim: S.prefs.apThinkIdx === THINK_STEPS.length - 1, press: isPress(AUTOPLAY.inc) });
-    text(`Think time: ${THINK_STEPS[S.prefs.apThinkIdx]}s`, 360, 1174, 25, '#f6e3b4');
+    {
+      // the label lives between the - and + buttons: shrink it to fit that gap, and stack it on two lines when even that is too wide
+      const gap = AUTOPLAY.inc.x - (AUTOPLAY.dec.x + AUTOPLAY.dec.w) - 16, lab = `Think time: ${THINK_STEPS[S.prefs.apThinkIdx]}s`;
+      let tz = P.apText.size; ctx.font = `700 ${tz}px ${FONT}`;
+      while (tz > 16 && ctx.measureText(lab).width > gap) { tz -= 1; ctx.font = `700 ${tz}px ${FONT}`; }
+      if (ctx.measureText(lab).width > gap) { tz = Math.min(P.apText.size, 20); ctx.font = `700 ${tz}px ${FONT}`; while (tz > 12 && ctx.measureText('Think time').width > gap) { tz -= 1; ctx.font = `700 ${tz}px ${FONT}`; } text('Think time', P.apText.x, P.apText.y - tz * 0.5, tz, '#f6e3b4'); text(`${THINK_STEPS[S.prefs.apThinkIdx]}s`, P.apText.x, P.apText.y + tz * 0.75, tz, '#f6e3b4'); }
+      else text(lab, P.apText.x, P.apText.y, tz, '#f6e3b4');
+    }
     button(AUTOPLAY.exit, 'Exit', { press: isPress(AUTOPLAY.exit) });
     button(AUTOPLAY.pause, S.ap.paused ? 'Resume' : 'Pause', { primary: S.ap.paused, press: isPress(AUTOPLAY.pause) });
     button(AUTOPLAY.skip, 'Skip', { dim: S.phase === 'scoring' && !!S.scorer, press: isPress(AUTOPLAY.skip) });
@@ -506,8 +558,8 @@ function drawBoardScene(ctx, S, u) {
       else button(R.done, 'New game', { primary: true, size: 34, press: isPress(R.done) });
     } else if (lesson && S.lesson.done) button(R.next, S.lesson.step + 1 >= lesson.steps.length ? 'Finish lesson' : 'Next step', { primary: true, size: 36, press: isPress(R.next) });
     else if (lesson && step.want.kind === 'quiz') {
-      const opts2 = step.want.options; const w = Math.min(210, (600 - (opts2.length - 1) * 12) / opts2.length), tot = opts2.length * w + (opts2.length - 1) * 12;
-      opts2.forEach((o, i) => button({ x: 360 - tot / 2 + i * (w + 12), y: 1118, w, h: 104 }, o, { size: 38, press: isPress(quizRect(step, i)) }));
+      const opts2 = step.want.options;
+      opts2.forEach((o, i) => button(quizRectAt(opts2.length, i), o, { size: 38, press: isPress(quizRect(step, i)) }));
     } else if (lesson && (step.want.kind === 'libs' || step.want.kind === 'pass' || step.want.kind === 'undo' || step.want.kind === 'hint')) { /* no centre button */ }
     else {
       const has = S.pend >= 0 && !g.b[S.pend];
@@ -522,40 +574,49 @@ function drawBoardScene(ctx, S, u) {
       button(R.menu, scene === 'play' ? 'Menu' : 'Back', { press: isPress(R.menu) });
     } else if (S.phase === 'scoring') {
       if (!S.scorer) {
-        button({ x: 36, y: 1290, w: 300, h: 84 }, 'Keep playing', { size: 28, press: isPress({ x: 36, y: 1290, w: 300, h: 84 }) });
-        button({ x: 384, y: 1290, w: 300, h: 84 }, 'Menu', { press: isPress({ x: 384, y: 1290, w: 300, h: 84 }) });
+        button(P.halves[0], 'Keep playing', { size: 28, press: isPress(P.halves[0]) });
+        button(P.halves[1], 'Menu', { press: isPress(P.halves[1]) });
       }
     } else button(R.menu, 'Menu', { press: isPress(R.menu) });
   }
-  // ---- score plaque
+  // ---- score plaque (takes the message panel's place)
   if (scoring && S.score && (scene === 'play' || scene === 'autoplay')) {
-    const sc = S.score, b = sc.black, w = sc.white, k = sc.komi, win = sc.winner;
-    const by = Math.abs(sc.diff);
+    const sc = S.score, b = sc.black, w = sc.white, k = sc.komi, win = sc.winner, by = Math.abs(sc.diff), f = Math.min(1, M.h / 122);
     const line = S.phase === 'over' ? `${win === 1 ? 'Black' : 'White'} wins by ${by}` : `${win === 1 ? 'Black' : 'White'} is ahead by ${by}`;
-    ctx.fillStyle = 'rgba(20,12,8,0.8)'; ctx.beginPath(); ctx.roundRect(36, 972, 648, 122, 22); ctx.fill();
+    ctx.fillStyle = 'rgba(20,12,8,0.8)'; ctx.beginPath(); ctx.roundRect(M.x, M.y, M.w, M.h, 22); ctx.fill();
     ctx.strokeStyle = 'rgba(240,200,120,0.6)'; ctx.lineWidth = 2; ctx.stroke();
-    text(line, 360, 1024, 40, '#f3cf7a', FONT, 700);
-    text(`Black ${b}    White ${w} + ${k} komi = ${sc.whiteTotal}`, 360, 1062, 25, '#f2e6cc', UI, 600);
-    if (S.phase === 'scoring') text(S.scorer ? 'Finding dead stones...' : 'Tap a group to mark it dead or alive', 360, 1086, 20, 'rgba(246,227,180,0.75)', UI, 500);
+    const three = tall;       // the third line (what to tap) moves to the status line in the shorter shapes
+    title(line, M.x + M.w / 2, M.y + (three ? 52 : M.h * 0.42), Math.round(40 * Math.max(0.85, f)), M.w - 40, '#f3cf7a');
+    title(`Black ${b}    White ${w} + ${k} komi = ${sc.whiteTotal}`, M.x + M.w / 2, M.y + (three ? 90 : M.h * 0.76), 25, M.w - 30, '#f2e6cc', UI, 600);
+    if (three && S.phase === 'scoring') text(S.scorer ? 'Finding dead stones...' : 'Tap a group to mark it dead or alive', M.x + M.w / 2, M.y + 114, 20, 'rgba(246,227,180,0.75)', UI, 500);
   }
   // ---- footer caption
-  if (scene === 'play') text(`${n} x ${n}  ·  Chinese area scoring  ·  komi ${g.komi}`, 360, 1440, 24, 'rgba(246,227,180,0.6)', UI, 500);
-  else if (scene === 'puzzle') text(S.pz.status === 'solved' ? 'Solved. Come back tomorrow for a new one.' : 'Tap a point, then Place.', 360, 1440, 24, 'rgba(246,227,180,0.7)', UI, 600);
-  else if (scene === 'autoplay' && S.phase !== 'over') text(`${n} x ${n}  ·  Free, silent, never counted against your progress`, 360, 1440, 21, 'rgba(246,227,180,0.6)', UI, 500);
-  if (S.thinking && scene === 'play' && !scoring) {
-    const p = S.thinkProg;
-    ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.beginPath(); ctx.roundRect(210, 1478, 300, 12, 6); ctx.fill();
-    ctx.fillStyle = '#e8b85c'; ctx.beginPath(); ctx.roundRect(210, 1478, Math.max(12, 300 * p), 12, 6); ctx.fill();
+  const cp = P.caption;
+  if (cp) {
+    let line = '', col = 'rgba(246,227,180,0.6)', wt = 500, sz = cp.size;
+    if (scene === 'play') line = `${n} x ${n}  ·  Chinese area scoring  ·  komi ${g.komi}`;
+    else if (scene === 'puzzle') { line = S.pz.status === 'solved' ? 'Solved. Come back tomorrow for a new one.' : 'Tap a point, then Place.'; col = 'rgba(246,227,180,0.7)'; wt = 600; }
+    else if (scene === 'autoplay' && S.phase !== 'over') { line = `${n} x ${n}  ·  Free, silent, never counted against your progress`; sz = Math.min(sz, 21); }
+    if (line) wrap(line, cp.x, Math.max(cp.y, statusBottom + 14 + sz), sz, cp.maxW, col, sz * 1.25, 'center', wt);
   }
+  if (S.thinking && scene === 'play' && !scoring) {
+    const p = S.thinkProg, tb = P.think;
+    ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.beginPath(); ctx.roundRect(tb.x, tb.y, tb.w, tb.h, tb.h / 2); ctx.fill();
+    ctx.fillStyle = '#e8b85c'; ctx.beginPath(); ctx.roundRect(tb.x, tb.y, Math.max(tb.h, tb.w * p), tb.h, tb.h / 2); ctx.fill();
+  }
+  // the quiet "More heritage games in Arcforge" line on the finished-game screen (in the button row's free slots)
+  if (scene === 'play' && S.phase === 'over') drawMore(ctx, P);
   if (S.confetti && !calm) {
     for (const c of S.confetti) { ctx.fillStyle = c.col; ctx.globalAlpha = clamp(1 - c.t / 2.4, 0, 1); ctx.fillRect(c.x, c.y, 8, 12); }
     ctx.globalAlpha = 1;
   }
 }
-export function quizRect(step, i) {
-  const opts2 = step.want.options; const w = Math.min(210, (600 - (opts2.length - 1) * 12) / opts2.length), tot = opts2.length * w + (opts2.length - 1) * 12;
-  return { x: 360 - tot / 2 + i * (w + 12), y: 1118, w, h: 104 };
+const w0 = () => layout().w;
+function drawMore(ctx, P) {
+  const a = P.slots[0], z = P.slots[P.mode === 'wide' ? 1 : 2];
+  drawMoreLine(ctx, (a.x + z.x + z.w) / 2, a.y + a.h / 2, 20, z.x + z.w - a.x - 8);
 }
+export function quizRect(step, i) { return quizRectAt(step.want.options.length, i); }
 function wrapCount(ctx, str, maxW) {
   const words = str.split(' '); let cur = '', n = 1;
   for (const w of words) { const t2 = cur ? cur + ' ' + w : w; if (ctx.measureText(t2).width > maxW && cur) { n++; cur = w; } else cur = t2; }

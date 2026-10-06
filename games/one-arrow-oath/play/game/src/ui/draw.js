@@ -6,10 +6,15 @@ const TAU = Math.PI * 2;
 
 // Where the finger currently is (set once per frame by render.js) so buttons can look pressed.
 let pressPoint = null;
+// Smallest text size (design units) to draw: the frame sets it so type is never below about 11 css px on the live screen.
+let textFloor = 0;
+export function setTextFloor(u) {
+  textFloor = u;
+}
 export function setPress(pt) {
   pressPoint = pt;
 }
-const isPressed = (r) => !!pressPoint && pressPoint.x >= r.x && pressPoint.x <= r.x + r.w && pressPoint.y >= r.y && pressPoint.y <= r.y + r.h;
+export const isPressed = (r) => !!pressPoint && pressPoint.x >= r.x && pressPoint.x <= r.x + r.w && pressPoint.y >= r.y && pressPoint.y <= r.y + r.h;
 
 export function roundRect(ctx, x, y, w, h, r) {
   const rr = Math.max(0, Math.min(r, w / 2, h / 2));
@@ -22,7 +27,8 @@ export function roundRect(ctx, x, y, w, h, r) {
   ctx.closePath();
 }
 
-export function text(ctx, str, x, y, { size = 28, weight = 400, color = C.ink, align = 'center', alpha: a = 1, display = false, glow = null } = {}) {
+export function text(ctx, str, x, y, { size: size0 = 28, weight = 400, color = C.ink, align = 'center', alpha: a = 1, display = false, glow = null } = {}) {
+  const size = Math.max(size0, textFloor);
   ctx.save();
   ctx.globalAlpha *= a;
   ctx.font = font(size, weight, display);
@@ -39,7 +45,8 @@ export function text(ctx, str, x, y, { size = 28, weight = 400, color = C.ink, a
 
 // Capitals with extra letter spacing, drawn glyph by glyph so it works on every browser.
 // `maxWidth` shrinks the whole line (type and spacing together) so it never runs past its space.
-export function tracked(ctx, str, x, y, { size = 24, weight = 700, color = C.gold, spacing = 3, alpha: a = 1, display = true, glow = null, fill = null, maxWidth = 0 } = {}) {
+export function tracked(ctx, str, x, y, { size: size0 = 24, weight = 700, color = C.gold, spacing = 3, alpha: a = 1, display = true, glow = null, fill = null, maxWidth = 0 } = {}) {
+  const size = Math.max(size0, textFloor);
   const s = String(str).toUpperCase();
   ctx.save();
   ctx.globalAlpha *= a;
@@ -148,13 +155,12 @@ export function makeSky(rng) {
   return { stars, nebula, ridges, towers, motes, layer: null, layerTried: false };
 }
 
+// The sky gradient over the 720 x 1560 design height; frame.js repeats it to fill the margins of any screen shape.
+export const SKY_STOPS = [[0, C.skyTop], [0.45, C.skyMid], [0.72, C.skyLow], [0.73, '#0a0c22'], [1, '#05071a']];
+
 function drawStaticScene(ctx, sky) {
   const g = ctx.createLinearGradient(0, 0, 0, H);
-  g.addColorStop(0, C.skyTop);
-  g.addColorStop(0.45, C.skyMid);
-  g.addColorStop(0.72, C.skyLow);
-  g.addColorStop(0.73, '#0a0c22');
-  g.addColorStop(1, '#05071a');
+  for (const [at, color] of SKY_STOPS) g.addColorStop(at, color);
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, W, H);
 
@@ -1380,19 +1386,7 @@ export function button(ctx, rect, label, { primary = false, danger = false, quie
   ctx.shadowBlur = primary ? 24 : 14;
   ctx.shadowOffsetY = down ? 1 : 6;
   roundRect(ctx, rect.x, rect.y + oy, rect.w, rect.h, r);
-  const g = ctx.createLinearGradient(0, rect.y, 0, rect.y + rect.h);
-  if (primary) {
-    g.addColorStop(0, C.goldLight);
-    g.addColorStop(0.5, C.gold);
-    g.addColorStop(1, C.goldDeep);
-  } else if (danger) {
-    g.addColorStop(0, 'rgba(92, 26, 48, 0.96)');
-    g.addColorStop(1, 'rgba(30, 8, 20, 0.97)');
-  } else {
-    g.addColorStop(0, quiet ? 'rgba(22, 27, 62, 0.9)' : 'rgba(44, 52, 112, 0.96)');
-    g.addColorStop(1, 'rgba(10, 13, 34, 0.97)');
-  }
-  ctx.fillStyle = g;
+  ctx.fillStyle = primary ? C.gold : danger ? 'rgba(62, 17, 34, 0.97)' : quiet ? 'rgba(16, 20, 48, 0.95)' : 'rgba(26, 32, 78, 0.97)';   // flat face
   ctx.fill();
   ctx.shadowColor = 'transparent';
   ctx.shadowBlur = 0;
@@ -1400,17 +1394,13 @@ export function button(ctx, rect, label, { primary = false, danger = false, quie
   ctx.lineWidth = primary ? 2 : 2.2;
   ctx.strokeStyle = primary ? '#fff3cf' : danger ? C.damage : quiet ? alpha(C.gold, 0.45) : goldFoil(ctx, rect.x, rect.y, rect.x + rect.w, rect.y + rect.h);
   ctx.stroke();
-  // top highlight
-  ctx.save();
-  roundRect(ctx, rect.x, rect.y + oy, rect.w, rect.h, r);
-  ctx.clip();
-  ctx.fillStyle = primary ? 'rgba(255,255,255,0.28)' : 'rgba(255,255,255,0.07)';
-  ctx.fillRect(rect.x, rect.y + oy, rect.w, rect.h * 0.42);
   if (down) {
+    ctx.save();
+    roundRect(ctx, rect.x, rect.y + oy, rect.w, rect.h, r);
     ctx.fillStyle = 'rgba(0,0,0,0.22)';
-    ctx.fillRect(rect.x, rect.y, rect.w, rect.h + 4);
+    ctx.fill();
+    ctx.restore();
   }
-  ctx.restore();
   const ink = primary ? '#231804' : C.ink;
   const cy = rect.y + oy + rect.h / 2;
   if (sub) {
@@ -1437,11 +1427,14 @@ export function panel(ctx, rect, { edge = null, r = 24, hot = false, ornaments =
   ctx.lineWidth = hot ? 2.6 : 1.8;
   ctx.strokeStyle = edge ?? (hot ? goldFoil(ctx, rect.x, rect.y, rect.x + rect.w, rect.y + rect.h) : C.panelEdge);
   ctx.stroke();
-  ctx.lineWidth = 1;
-  ctx.strokeStyle = alpha(C.gold, 0.16);
-  roundRect(ctx, rect.x + 7, rect.y + 7, rect.w - 14, rect.h - 14, Math.max(4, r - 6));
-  ctx.stroke();
-  if (ornaments && rect.h > 90) {
+  // large cards (overlays, result sheets) keep the inner hairline and corner ornaments; small tappable cards are one flat shape
+  if (rect.h >= 260) {
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = alpha(C.gold, 0.16);
+    roundRect(ctx, rect.x + 7, rect.y + 7, rect.w - 14, rect.h - 14, Math.max(4, r - 6));
+    ctx.stroke();
+  }
+  if (ornaments && rect.h >= 260) {
     ctx.fillStyle = alpha(C.gold, 0.8);
     for (const [ox, oy] of [[18, 18], [rect.w - 18, 18], [18, rect.h - 18], [rect.w - 18, rect.h - 18]]) {
       diamond(ctx, rect.x + ox, rect.y + oy, 3.4);

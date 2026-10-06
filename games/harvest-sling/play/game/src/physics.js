@@ -22,12 +22,12 @@ export function stepStone(stone, dt, wind) {
 }
 
 // Points along the start of the flight path, for the dotted aim guide.
-export function previewArc(pull, wind, dots, spacing = 0.06) {
+export function previewArc(pull, wind, dots, spacing = 0.06, origin = SLING) {
   const { vx, vy } = launchVelocity(pull);
   const out = [];
   for (let i = 1; i <= dots; i++) {
     const t = i * spacing;
-    out.push({ x: SLING.x + vx * t + 0.5 * wind * t * t, y: SLING.y + vy * t + 0.5 * GRAVITY * t * t });
+    out.push({ x: origin.x + vx * t + 0.5 * wind * t * t, y: origin.y + vy * t + 0.5 * GRAVITY * t * t });
   }
   return out;
 }

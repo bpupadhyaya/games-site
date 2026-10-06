@@ -1,6 +1,6 @@
 // All the pictures: cards (cream faces, Gzhel-blue or Khokhloma backs), the veranda, samovar, linen and embroidery,
 // lacquer buttons. Pure canvas paths; static pieces are cached to OffscreenCanvas when the browser has one.
-import { W, H, CARD, FONT } from './layout.js';
+import { CARD, FONT } from './layout.js';
 import { suitOf, rankOf, RANK_LABELS } from './rules.js';
 
 export const SPR = 2;                       // cached sprite resolution multiplier
@@ -255,73 +255,98 @@ export function crossStitch(ctx, x, y, w, h, seed = 3) {
   while (cx + 7 * cell < x + w - cell) { px(k % 2 ? star : motif, cx); cx += 8 * cell; k++; }
   ctx.fillStyle = '#b3242c'; ctx.fillRect(x, y + 2, w, 3); ctx.fillRect(x, y + h - 5, w, 3);
 }
-function tableTop(ctx) {
+function tableTop(ctx, w, h, wall, mat, band) {
   // wooden table rim then woven cloth
-  planks(ctx, 0, 296, W, 40, ['#5b3417', '#3b210e'], 5);
-  const hl = ctx.createLinearGradient(0, 296, 0, 340); hl.addColorStop(0, 'rgba(255,220,150,0.35)'); hl.addColorStop(0.3, 'rgba(255,220,150,0)'); ctx.fillStyle = hl; ctx.fillRect(0, 296, W, 44);
-  const cl = ctx.createLinearGradient(0, 336, 0, H); cl.addColorStop(0, '#2a5a49'); cl.addColorStop(0.5, '#1d4a3b'); cl.addColorStop(1, '#123328'); ctx.fillStyle = cl; ctx.fillRect(0, 336, W, H - 336);
-  ctx.lineWidth = 1; for (let x = 0; x < W; x += 5) { ctx.strokeStyle = x % 10 ? 'rgba(255,255,255,0.028)' : 'rgba(0,0,0,0.05)'; ctx.beginPath(); ctx.moveTo(x, 336); ctx.lineTo(x, H); ctx.stroke(); }
-  for (let y = 336; y < H; y += 5) { ctx.strokeStyle = y % 10 ? 'rgba(255,255,255,0.025)' : 'rgba(0,0,0,0.05)'; ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
-  crossStitch(ctx, 0, 340, W, 46);
-  // cast shadow under the band
-  const sh = ctx.createLinearGradient(0, 386, 0, 420); sh.addColorStop(0, 'rgba(0,0,0,0.3)'); sh.addColorStop(1, 'rgba(0,0,0,0)'); ctx.fillStyle = sh; ctx.fillRect(0, 386, W, 34);
-  // play mat outline: stitched double line
-  ctx.setLineDash([9, 7]); ctx.strokeStyle = 'rgba(232,220,190,0.28)'; ctx.lineWidth = 3; rr(ctx, 22, 552, W - 44, 494, 30); ctx.stroke(); ctx.setLineDash([]);
-  ctx.strokeStyle = 'rgba(232,220,190,0.14)'; ctx.lineWidth = 1.5; rr(ctx, 30, 560, W - 60, 478, 24); ctx.stroke();
-  const mat = ctx.createRadialGradient(360, 780, 40, 360, 780, 420); mat.addColorStop(0, 'rgba(255,240,200,0.10)'); mat.addColorStop(1, 'rgba(255,240,200,0)'); ctx.fillStyle = mat; rr(ctx, 22, 552, W - 44, 494, 30); ctx.fill();
+  planks(ctx, 0, wall - 4, w, 40, ['#5b3417', '#3b210e'], 5);
+  const hl = ctx.createLinearGradient(0, wall - 4, 0, wall + 40); hl.addColorStop(0, 'rgba(255,220,150,0.35)'); hl.addColorStop(0.3, 'rgba(255,220,150,0)'); ctx.fillStyle = hl; ctx.fillRect(0, wall - 4, w, 44);
+  const c0 = wall + 36;
+  const cl = ctx.createLinearGradient(0, c0, 0, h); cl.addColorStop(0, '#2a5a49'); cl.addColorStop(0.5, '#1d4a3b'); cl.addColorStop(1, '#123328'); ctx.fillStyle = cl; ctx.fillRect(0, c0, w, h - c0);
+  ctx.lineWidth = 1; for (let x = 0; x < w; x += 5) { ctx.strokeStyle = x % 10 ? 'rgba(255,255,255,0.028)' : 'rgba(0,0,0,0.05)'; ctx.beginPath(); ctx.moveTo(x, c0); ctx.lineTo(x, h); ctx.stroke(); }
+  for (let y = c0; y < h; y += 5) { ctx.strokeStyle = y % 10 ? 'rgba(255,255,255,0.025)' : 'rgba(0,0,0,0.05)'; ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke(); }
+  if (band) {
+    crossStitch(ctx, 0, wall + 40, w, 46);
+    const sh = ctx.createLinearGradient(0, wall + 86, 0, wall + 120); sh.addColorStop(0, 'rgba(0,0,0,0.3)'); sh.addColorStop(1, 'rgba(0,0,0,0)'); ctx.fillStyle = sh; ctx.fillRect(0, wall + 86, w, 34);
+  }
+  if (mat) {
+    // play mat outline: stitched double line
+    ctx.setLineDash([9, 7]); ctx.strokeStyle = 'rgba(232,220,190,0.28)'; ctx.lineWidth = 3; rr(ctx, mat.x, mat.y, mat.w, mat.h, 30); ctx.stroke(); ctx.setLineDash([]);
+    ctx.strokeStyle = 'rgba(232,220,190,0.14)'; ctx.lineWidth = 1.5; rr(ctx, mat.x + 8, mat.y + 8, mat.w - 16, mat.h - 16, 24); ctx.stroke();
+    const mg = ctx.createRadialGradient(mat.x + mat.w / 2, mat.y + mat.h / 2, 40, mat.x + mat.w / 2, mat.y + mat.h / 2, Math.max(mat.w, mat.h) * 0.6); mg.addColorStop(0, 'rgba(255,240,200,0.10)'); mg.addColorStop(1, 'rgba(255,240,200,0)'); ctx.fillStyle = mg; rr(ctx, mat.x, mat.y, mat.w, mat.h, 30); ctx.fill();
+  }
 }
-export function drawSceneStatic(ctx) {
-  planks(ctx, 0, 0, W, 300, ['#d8c497', '#b89e6a'], 21);
-  // wainscot line
-  ctx.fillStyle = 'rgba(255,255,255,0.08)'; ctx.fillRect(0, 0, W, 300);
+// The veranda for a w x h screen: the 300-unit wall art is scaled to `wall` units high (window pinned to the right, shelf and
+// samovar to the left), the cloth fills the rest. At wall = 300 and w = 720 it is exactly the approved phone picture.
+export function drawSceneStatic(ctx, w = 720, h = 1560, wall = 300, mat = null, band = true) {
+  const k = wall / 300, wk = w / k;
+  ctx.save(); ctx.beginPath(); ctx.rect(0, 0, w, wall + 4); ctx.clip(); ctx.scale(k, k);
+  planks(ctx, 0, 0, wk, 300, ['#d8c497', '#b89e6a'], 21);
+  ctx.fillStyle = 'rgba(255,255,255,0.08)'; ctx.fillRect(0, 0, wk, 300);
+  ctx.save(); ctx.translate(wk - 720, 0);
   birchWindow(ctx, 470, 44, 214, 190);
-  // curtain (linen with an embroidered hem)
   const cg = ctx.createLinearGradient(430, 0, 480, 0); cg.addColorStop(0, '#efe4cb'); cg.addColorStop(1, '#d8c8a4');
   ctx.fillStyle = cg; ctx.beginPath(); ctx.moveTo(436, 22); ctx.lineTo(492, 22); ctx.quadraticCurveTo(504, 130, 486, 248); ctx.lineTo(430, 248); ctx.quadraticCurveTo(446, 130, 436, 22); ctx.fill();
   ctx.strokeStyle = 'rgba(120,90,50,0.25)'; ctx.lineWidth = 2; for (let i = 0; i < 4; i++) { ctx.beginPath(); ctx.moveTo(444 + i * 12, 24); ctx.quadraticCurveTo(452 + i * 12, 130, 440 + i * 14, 246); ctx.stroke(); }
   ctx.save(); ctx.beginPath(); ctx.moveTo(430, 226); ctx.lineTo(486, 226); ctx.lineTo(486, 250); ctx.lineTo(430, 250); ctx.closePath(); ctx.clip(); crossStitch(ctx, 428, 226, 62, 24); ctx.restore();
   ctx.fillStyle = '#6b4520'; rr(ctx, 410, 14, 330, 10, 5); ctx.fill();
-  // sideboard shelf with samovar and tea
+  ctx.restore();
   ctx.fillStyle = '#4a2c12'; rr(ctx, 16, 244, 300, 22, 5); ctx.fill(); ctx.fillStyle = 'rgba(255,220,150,0.3)'; ctx.fillRect(16, 244, 300, 3);
   ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.beginPath(); ctx.ellipse(120, 246, 76, 8, 0, 0, 7); ctx.fill();
   samovar(ctx, 118, 108, 0.86);
   teaGlass(ctx, 236, 176, 0.9);
-  // jam jar
   ctx.fillStyle = '#7a1f28'; rr(ctx, 268, 208, 34, 36, 7); ctx.fill(); ctx.fillStyle = '#efe4cb'; rr(ctx, 266, 200, 38, 10, 4); ctx.fill(); ctx.fillStyle = 'rgba(255,255,255,0.3)'; ctx.fillRect(272, 214, 5, 24);
-  tableTop(ctx);
+  ctx.restore();
+  tableTop(ctx, w, h, wall, mat, band);
 }
+// o.L is the live layout (size, wall height, mat); without it the original 720 x 1560 phone picture is drawn.
 export function drawScene(ctx, t, o = {}) {
-  const sp = sprite('scene', W, H, drawSceneStatic);
-  if (sp) ctx.drawImage(sp, 0, 0, W, H); else drawSceneStatic(ctx);
-  const calm = !!o.calm;
+  const w = o.w ?? 720, h = o.h ?? 1560, wall = o.wall ?? 300, mat = o.mat ?? null, band = o.band ?? true;
+  const key = `scene|${w}|${h}|${wall}|${band ? 1 : 0}|${mat ? [mat.x, mat.y, mat.w, mat.h].map(Math.round).join(',') : 'x'}`;
+  const sp = scenePic(key, w, h, wall, mat, band);
+  if (sp) ctx.drawImage(sp, 0, 0, w, h); else drawSceneStatic(ctx, w, h, wall, mat, band);
+  const calm = !!o.calm, k = wall / 300, big = Math.max(w, h);
   // window light falling across the wall and the table
   ctx.save(); ctx.globalCompositeOperation = 'screen';
-  const k = calm ? 0.5 : 0.5 + Math.sin(t * 0.35) * 0.12 + Math.sin(t * 0.9) * 0.05;
-  const lg = ctx.createLinearGradient(560, 40, 220, 900); lg.addColorStop(0, `rgba(255,236,170,${0.34 * k})`); lg.addColorStop(1, 'rgba(255,236,170,0)');
-  ctx.fillStyle = lg; ctx.beginPath(); ctx.moveTo(470, 44); ctx.lineTo(684, 44); ctx.lineTo(500, 1000); ctx.lineTo(-100, 900); ctx.closePath(); ctx.fill();
+  const wx0 = w - 250 * k, wx1 = w - 36 * k;
+  const lk = calm ? 0.5 : 0.5 + Math.sin(t * 0.35) * 0.12 + Math.sin(t * 0.9) * 0.05;
+  const lg = ctx.createLinearGradient(wx1, 40 * k, wx0 - 340, h * 0.58); lg.addColorStop(0, `rgba(255,236,170,${0.34 * lk})`); lg.addColorStop(1, 'rgba(255,236,170,0)');
+  ctx.fillStyle = lg; ctx.beginPath(); ctx.moveTo(wx0, 44 * k); ctx.lineTo(wx1, 44 * k); ctx.lineTo(wx0 + 30, h * 0.64); ctx.lineTo(Math.max(-100, wx0 - 560), h * 0.58); ctx.closePath(); ctx.fill();
   ctx.restore();
-  // steam from the samovar and the glass
   if (!calm) {
+    // steam from the samovar and the glass
+    ctx.save(); ctx.scale(k, k);
     for (let i = 0; i < 5; i++) {
       const p = ((t * 0.16 + i * 0.2) % 1), a = Math.sin(p * Math.PI) * 0.22;
       ctx.beginPath(); ctx.arc(118 + Math.sin(t * 0.8 + i * 2) * 10 + p * 16, 26 - p * 42, 8 + p * 22, 0, 7); ctx.fillStyle = `rgba(255,255,255,${a})`; ctx.fill();
     }
     for (let i = 0; i < 3; i++) { const p = ((t * 0.2 + i * 0.33) % 1); ctx.beginPath(); ctx.arc(236 + Math.sin(t * 1.2 + i) * 5, 158 - p * 34, 5 + p * 12, 0, 7); ctx.fillStyle = `rgba(255,255,255,${Math.sin(p * Math.PI) * 0.18})`; ctx.fill(); }
+    ctx.restore();
     // dust motes in the light
-    const r = lcg(9);
+    const r = lcg(9), mh = h * 0.58;
     for (let i = 0; i < 26; i++) {
-      const bx = r() * 560 + 100, by = r() * 900 + 60, ph = r() * 6.28, sp2 = 0.2 + r() * 0.4;
-      const x = bx + Math.sin(t * sp2 + ph) * 22, y = ((by - t * 6 * sp2) % 900 + 900) % 900 + 40;
+      const bx = r() * (w * 0.78) + w * 0.14, by = r() * mh + 60, ph = r() * 6.28, sp2 = 0.2 + r() * 0.4;
+      const x = bx + Math.sin(t * sp2 + ph) * 22, y = ((by - t * 6 * sp2) % mh + mh) % mh + 40;
       ctx.beginPath(); ctx.arc(x, y, 1.6 + r() * 1.6, 0, 7); ctx.fillStyle = `rgba(255,244,200,${0.15 + 0.15 * Math.sin(t * 1.3 + ph)})`; ctx.fill();
     }
   }
   // soft vignette
-  const v = ctx.createRadialGradient(W / 2, H / 2, 380, W / 2, H / 2, 1000); v.addColorStop(0, 'rgba(10,6,2,0)'); v.addColorStop(1, 'rgba(10,6,2,0.42)'); ctx.fillStyle = v; ctx.fillRect(0, 0, W, H);
+  const v = ctx.createRadialGradient(w / 2, h / 2, big * 0.24, w / 2, h / 2, big * 0.64); v.addColorStop(0, 'rgba(10,6,2,0)'); v.addColorStop(1, 'rgba(10,6,2,0.42)'); ctx.fillStyle = v; ctx.fillRect(0, 0, w, h);
+}
+// The static scene is cached as one picture per (size, wall, mat); only the last two are kept so a window being resized does not pile up memory.
+const scenePics = [];
+function scenePic(key, w, h, wall, mat, band) {
+  if (typeof OffscreenCanvas === 'undefined') return null;
+  const hit = scenePics.find((e) => e.key === key); if (hit) return hit.pic;
+  const sc = Math.min(SPR, 4096 / Math.max(w, h));
+  const pic = new OffscreenCanvas(Math.ceil(w * sc), Math.ceil(h * sc));
+  const c = pic.getContext('2d'); c.scale(sc, sc); drawSceneStatic(c, w, h, wall, mat, band);
+  scenePics.unshift({ key, pic }); if (scenePics.length > 2) scenePics.pop();
+  return pic;
 }
 
 // ---- lacquer UI -----------------------------------------------------------------------------------------------------
 export function lacquer(ctx, r, o = {}) {
   const { x, y, w, h } = r, down = !!o.down, dis = !!o.disabled;
+  if (globalThis.__rects) globalThis.__rects.push({ x, y, w, h, label: o.label || '' });   // dev check scripts only
   ctx.save();
   ctx.translate(0, down ? 2 : 0);
   if (!down) { ctx.fillStyle = 'rgba(0,0,0,0.38)'; rr(ctx, x + 2, y + 6, w, h, h / 2.6); ctx.fill(); }
@@ -329,9 +354,7 @@ export function lacquer(ctx, r, o = {}) {
   const g = ctx.createLinearGradient(0, y, 0, y + h); g.addColorStop(0, base[0]); g.addColorStop(1, base[1]);
   rr(ctx, x, y, w, h, h / 2.6); ctx.fillStyle = g; ctx.fill();
   ctx.lineWidth = 3; ctx.strokeStyle = o.kind === 'gold' ? '#7d5a14' : GOLD; ctx.stroke();
-  rr(ctx, x + 6, y + 6, w - 12, h - 12, h / 2.6 - 4); ctx.lineWidth = 1.2; ctx.strokeStyle = o.kind === 'gold' ? 'rgba(255,255,255,0.5)' : 'rgba(226,180,85,0.5)'; ctx.stroke();
-  const gl = ctx.createLinearGradient(0, y, 0, y + h * 0.5); gl.addColorStop(0, 'rgba(255,255,255,0.22)'); gl.addColorStop(1, 'rgba(255,255,255,0)'); rr(ctx, x + 4, y + 3, w - 8, h * 0.5, h / 3); ctx.fillStyle = gl; ctx.fill();
-  if (w > 200) { ctx.save(); ctx.globalAlpha = 0.9; khokhloma(ctx, x + 34, y + h / 2 + 6, 0.34, -Math.PI / 2); khokhloma(ctx, x + w - 34, y + h / 2 + 6, 0.34, Math.PI / 2); ctx.restore(); }
+  // flat button: one fill and one outline, no ornament or inner shape inside it
   if (o.label) {
     const dark = o.kind === 'gold';
     txt(ctx, o.label, x + w / 2, y + h / 2 + (o.sub ? -10 : 1), { size: o.size || Math.min(44, h * 0.5), color: dark ? '#3a2408' : dis ? 'rgba(247,239,220,0.45)' : CREAM, shadow: dark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.5)' });

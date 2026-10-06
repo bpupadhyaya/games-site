@@ -19,43 +19,46 @@ const soft = (ctx, x, y, rx, ry, rgb, a) => { ctx.save(); ctx.translate(x, y); c
 
 // ---- the sky (animated parts are drawn each frame in drawWorld) -------------------------------------------
 export const SUN = { x: 500, y: 372 };
-function paintSky(ctx) {
-  ctx.fillStyle = lin(ctx, 0, 0, 0, 440, [[0, '#15163f'], [0.3, '#3d2170'], [0.55, '#a63d7f'], [0.78, '#f0745a'], [1, '#ffc27a']]);
-  ctx.fillRect(0, 0, W, 460);
-  const r = lcg(7);
-  for (let i = 0; i < 46; i++) { ctx.fillStyle = `rgba(255,240,220,${0.15 + r() * 0.5})`; const s = 0.8 + r() * 1.4; ctx.fillRect(r() * W, r() * 190, s, s); }
+// The static backdrop is painted once per screen size into one cached canvas (sky, far island and ridges, sea, dark ground), at 2x
+// so it stays crisp. `hz` is the horizon's y. Far ridges anchor to the left edge and the island to the right edge.
+function paintSky(ctx, w, hz) {
+  ctx.fillStyle = lin(ctx, 0, 0, 0, hz - 4, [[0, '#15163f'], [0.3, '#3d2170'], [0.55, '#a63d7f'], [0.78, '#f0745a'], [1, '#ffc27a']]);
+  ctx.fillRect(0, 0, w, hz + 24);
+  const r = lcg(7), n = Math.round(46 * (w * hz) / (720 * 440));
+  for (let i = 0; i < n; i++) { ctx.fillStyle = `rgba(255,240,220,${0.15 + r() * 0.5})`; const s = 0.8 + r() * 1.4; ctx.fillRect(r() * w, r() * hz * 0.43, s, s); }
 }
-// ---- ridges, sea, ground, slab (one cached layer per board size) ---------------------------------------
 function ridge(ctx, pts, base, fill) {
   ctx.beginPath(); ctx.moveTo(pts[0][0], base);
   for (let i = 0; i < pts.length; i++) { const p = pts[i], q = pts[i + 1] || p; if (i === 0) ctx.lineTo(p[0], p[1]); ctx.quadraticCurveTo(p[0], p[1], (p[0] + q[0]) / 2, (p[1] + q[1]) / 2); }
   ctx.lineTo(pts[pts.length - 1][0], base); ctx.closePath(); ctx.fillStyle = fill; ctx.fill();
 }
-function paintLand(ctx, n) {
-  // far island and headland, lit from behind by the dawn
-  ridge(ctx, [[300, 392], [380, 372], [440, 368], [520, 376], [600, 366], [720, 380]], 420, '#7a3b6a');
+function paintLand(ctx, w, h, hz) {
+  const dy = hz - 440;
+  // far island and headland, lit from behind by the dawn (island hugs the right edge, headland the left)
+  ctx.save(); ctx.translate(w - 720, dy); ridge(ctx, [[300, 392], [380, 372], [440, 368], [520, 376], [600, 366], [720, 380]], 420, '#7a3b6a'); ctx.restore();
+  ctx.save(); ctx.translate(0, dy);
   ridge(ctx, [[0, 210], [60, 205], [130, 240], [200, 300], [280, 350], [340, 392]], 420, '#2c1a45');
-  ridge(ctx, [[0, 300], [90, 300], [170, 340], [240, 385]], 420, '#1a1030');
+  ridge(ctx, [[0, 300], [90, 300], [170, 340], [240, 385]], 420, '#1a1030'); ctx.restore();
   // the sea
-  ctx.fillStyle = lin(ctx, 0, 384, 0, 440, [[0, '#ffb26a'], [0.3, '#c45a72'], [1, '#2a2857']]); ctx.fillRect(0, 386, W, 60);
-  ctx.fillStyle = 'rgba(255,210,150,0.45)'; ctx.beginPath(); ctx.moveTo(SUN.x - 46, 386); ctx.lineTo(SUN.x + 46, 386); ctx.lineTo(SUN.x + 120, 446); ctx.lineTo(SUN.x - 120, 446); ctx.fill();
+  ctx.fillStyle = lin(ctx, 0, hz - 54, 0, hz + 0, [[0, '#ffb26a'], [0.3, '#c45a72'], [1, '#2a2857']]); ctx.fillRect(0, hz - 54, w, 60);
   // ground: dark volcanic rock with a warm rim where the dawn touches it
-  const r = lcg(31);
-  ctx.beginPath(); ctx.moveTo(0, 444);
-  for (let x = 0; x <= W; x += 24) ctx.lineTo(x, 436 + Math.sin(x * 0.05) * 5 + r() * 8);
-  ctx.lineTo(W, H); ctx.lineTo(0, H); ctx.closePath();
-  ctx.fillStyle = lin(ctx, 0, 430, 0, H, [[0, '#4a2f33'], [0.08, '#2b1f22'], [0.5, '#1c1516'], [1, '#0f0b0c']]); ctx.fill();
-  ctx.strokeStyle = 'rgba(255,170,110,0.55)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(0, 440); for (let x = 0; x <= W; x += 24) ctx.lineTo(x, 437 + Math.sin(x * 0.05) * 5); ctx.stroke();
+  const r = lcg(31), gy = hz - 4, gh = h - gy;
+  ctx.beginPath(); ctx.moveTo(0, hz + 4);
+  for (let x = 0; x <= w + 24; x += 24) ctx.lineTo(x, gy + Math.sin(x * 0.05) * 5 + r() * 8);
+  ctx.lineTo(w, h); ctx.lineTo(0, h); ctx.closePath();
+  ctx.fillStyle = lin(ctx, 0, gy - 6, 0, h, [[0, '#4a2f33'], [0.08, '#2b1f22'], [0.5, '#1c1516'], [1, '#0f0b0c']]); ctx.fill();
+  ctx.strokeStyle = 'rgba(255,170,110,0.55)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(0, hz); for (let x = 0; x <= w + 24; x += 24) ctx.lineTo(x, hz - 3 + Math.sin(x * 0.05) * 5); ctx.stroke();
   ctx.save(); ctx.clip();
-  for (let i = 0; i < 900; i++) { const x = r() * W, y = 440 + r() * (H - 440), s = 1 + r() * 3; ctx.fillStyle = r() < 0.5 ? `rgba(255,190,140,${0.03 + r() * 0.06})` : `rgba(0,0,0,${0.15 + r() * 0.25})`; ctx.fillRect(x, y, s * 1.6, s); }
+  const dots = Math.round(900 * (w * gh) / (720 * 1120));
+  for (let i = 0; i < dots; i++) { const x = r() * w, y = hz + r() * (h - hz), s = 1 + r() * 3; ctx.fillStyle = r() < 0.5 ? `rgba(255,190,140,${0.03 + r() * 0.06})` : `rgba(0,0,0,${0.15 + r() * 0.25})`; ctx.fillRect(x, y, s * 1.6, s); }
   ctx.restore();
-  // coral fragments and a few fern leaves lying on the ground below the slab
-  for (let i = 0; i < 9; i++) {
-    const x = r() * W, y = 1110 + r() * 430, s = 3 + r() * 9; ctx.fillStyle = `rgba(0,0,0,0.35)`; ctx.beginPath(); ctx.ellipse(x + 2, y + 3, s, s * 0.6, 0, 0, TAU); ctx.fill();
+  // coral fragments and a few fern leaves lying on the ground
+  const nc = Math.max(9, Math.round(9 * w / 720));
+  for (let i = 0; i < nc; i++) {
+    const x = r() * w, y = h * (0.71 + r() * 0.28), s = 3 + r() * 9; ctx.fillStyle = `rgba(0,0,0,0.35)`; ctx.beginPath(); ctx.ellipse(x + 2, y + 3, s, s * 0.6, 0, 0, TAU); ctx.fill();
     ctx.fillStyle = lin(ctx, x - s, y - s, x + s, y + s, [[0, '#fff3dc'], [1, '#c9b48e']]); ctx.beginPath(); ctx.ellipse(x, y, s, s * 0.72, r() * 3, 0, TAU); ctx.fill();
   }
-  fern(ctx, 0, 1300, 1.0, 0.5, '#1d3a2a'); fern(ctx, W, 1250, -1.0, 0.55, '#1d3a2a'); fern(ctx, 30, 1560, 0.85, -0.5, '#245038');
-  if (n) paintSlab(ctx, n);
+  fern(ctx, 0, h * 0.83, 1.0, 0.5, '#1d3a2a'); fern(ctx, w, h * 0.8, -1.0, 0.55, '#1d3a2a'); fern(ctx, 30, h, 0.85, -0.5, '#245038');
 }
 function fern(ctx, x, y, dir, tilt, col) {
   ctx.save(); ctx.translate(x, y); ctx.scale(dir, 1); ctx.rotate(-tilt);
@@ -180,35 +183,47 @@ export function drawSquareRing(ctx, x, y, r, rgb, a, fillA = 0.22) {
 }
 
 // ---- the whole world, animated ---------------------------------------------------------------------------
-export function drawWorld(ctx, t, n, calm) {
-  const sky = layer('sky', W, 460, paintSky);
-  if (sky) ctx.drawImage(sky, 0, 0); else paintSky(ctx);
-  const k = calm ? 0 : t;
-  // sun: soft glow that breathes, and slow rays
+const bgKeys = [];
+function backdrop(w, h, hz) {
+  const key = `bg${w}x${h}x${hz}`;
+  if (!(key in cached)) {
+    bgKeys.push(key); if (bgKeys.length > 3) delete cached[bgKeys.shift()];
+    const k = 2, c = mkCanvas(w * k, h * k); cached[key] = null;
+    if (c) { try { const g = c.getContext('2d'); g.scale(k, k); paintSky(g, w, hz); paintLand(g, w, h, hz); cached[key] = c; } catch { cached[key] = null; } }
+  }
+  return cached[key];
+}
+// Draws sky, ridges, sea and ground to fill a w x h screen with the horizon at hz, plus the animated sun, clouds, shimmer and gulls.
+export function drawBackdrop(ctx, w, h, hz, t, calm) {
+  const bg = backdrop(w, h, hz);
+  if (bg) ctx.drawImage(bg, 0, 0, w, h); else { paintSky(ctx, w, hz); paintLand(ctx, w, h, hz); }
+  const k = calm ? 0 : t, sx = w * 0.69, sy = hz - 68, yk = hz / 440;
   const pulse = 0.85 + 0.15 * Math.sin(k * 0.8);
-  ctx.save(); ctx.globalCompositeOperation = 'lighter';
-  ctx.fillStyle = rad(ctx, SUN.x, SUN.y, 10, 230 * pulse, [[0, 'rgba(255,220,150,0.95)'], [0.25, 'rgba(255,150,90,0.5)'], [1, 'rgba(255,90,90,0)']]); ctx.fillRect(SUN.x - 240, SUN.y - 240, 480, 300);
-  for (let i = 0; i < 7; i++) { const a = -Math.PI + (i + 0.5) * (Math.PI / 7) + Math.sin(k * 0.3 + i) * 0.03; ctx.fillStyle = 'rgba(255,190,120,0.07)'; ctx.beginPath(); ctx.moveTo(SUN.x, SUN.y); ctx.arc(SUN.x, SUN.y, 420, a - 0.06, a + 0.06); ctx.fill(); }
+  ctx.save(); ctx.beginPath(); ctx.rect(0, 0, w, hz); ctx.clip();
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.fillStyle = rad(ctx, sx, sy, 10, 230 * pulse, [[0, 'rgba(255,220,150,0.95)'], [0.25, 'rgba(255,150,90,0.5)'], [1, 'rgba(255,90,90,0)']]); ctx.fillRect(sx - 240, sy - 240, 480, 300);
+  for (let i = 0; i < 7; i++) { const a = -Math.PI + (i + 0.5) * (Math.PI / 7) + Math.sin(k * 0.3 + i) * 0.03; ctx.fillStyle = 'rgba(255,190,120,0.07)'; ctx.beginPath(); ctx.moveTo(sx, sy); ctx.arc(sx, sy, 420, a - 0.06, a + 0.06); ctx.fill(); }
   ctx.restore();
-  ctx.fillStyle = rad(ctx, SUN.x, SUN.y, 6, 48, [[0, '#fff4d0'], [0.7, '#ffd07a'], [1, 'rgba(255,190,110,0)']]); ctx.beginPath(); ctx.arc(SUN.x, SUN.y, 48, Math.PI, TAU); ctx.fill();
+  ctx.save(); ctx.beginPath(); ctx.rect(0, 0, w, hz + 10); ctx.clip();
+  ctx.fillStyle = rad(ctx, sx, sy, 6, 48, [[0, '#fff4d0'], [0.7, '#ffd07a'], [1, 'rgba(255,190,110,0)']]); ctx.beginPath(); ctx.arc(sx, sy, 48, Math.PI, TAU); ctx.fill();
   // drifting clouds
+  const span = w + 180;
   for (let i = 0; i < 5; i++) {
-    const cx = ((i * 190 + k * (5 + i * 2.2)) % 900) - 90, cy = 120 + i * 46 + (i % 2) * 14, s = 1 + (i % 3) * 0.4;
+    const cx = ((i * (span / 5) + k * (5 + i * 2.2)) % span) - 90, cy = (120 + i * 46 + (i % 2) * 14) * yk, s = 1 + (i % 3) * 0.4;
     ctx.fillStyle = `rgba(255,${170 + i * 10},${150 + i * 6},${0.16 + (i % 3) * 0.05})`;
     for (const [dx, dy, rx, ry] of [[0, 0, 70, 12], [-40, 4, 50, 9], [45, 3, 56, 10]]) { ctx.beginPath(); ctx.ellipse(cx + dx * s, cy + dy, rx * s, ry * s, 0, 0, TAU); ctx.fill(); }
   }
-  const land = layer('land' + n, W, H, (c) => paintLand(c, n));
-  if (land) ctx.drawImage(land, 0, 0); else paintLand(ctx, n);
+  ctx.restore();
   // sea shimmer and two gulls
   ctx.fillStyle = 'rgba(255,225,170,0.5)';
-  for (let i = 0; i < 12; i++) { const y = 392 + i * 4.4, w = 8 + (i % 4) * 8 + Math.sin(k * 1.4 + i * 2) * 6, x = SUN.x + Math.sin(k * 0.7 + i * 1.7) * (14 + i * 6); ctx.fillRect(x - w / 2, y, w, 1.6); }
+  for (let i = 0; i < 12; i++) { const y = hz - 48 + i * 4.4, ww = 8 + (i % 4) * 8 + Math.sin(k * 1.4 + i * 2) * 6, x = sx + Math.sin(k * 0.7 + i * 1.7) * (14 + i * 6); ctx.fillRect(x - ww / 2, y, ww, 1.6); }
   ctx.strokeStyle = 'rgba(40,16,40,0.75)'; ctx.lineWidth = 2.4;
-  for (let i = 0; i < 2; i++) { const bx = ((k * 12 + i * 260) % 900) - 90, by = 250 + i * 44 + Math.sin(k * 1.3 + i) * 6, fl = Math.sin(k * 5 + i * 2) * 4; ctx.beginPath(); ctx.moveTo(bx - 14, by - 4 + fl); ctx.quadraticCurveTo(bx - 6, by - 8, bx, by); ctx.quadraticCurveTo(bx + 6, by - 8, bx + 14, by - 4 + fl); ctx.stroke(); }
+  for (let i = 0; i < 2; i++) { const bx = ((k * 12 + i * 260) % span) - 90, by = (250 + i * 44) * yk + Math.sin(k * 1.3 + i) * 6, fl = Math.sin(k * 5 + i * 2) * 4; ctx.beginPath(); ctx.moveTo(bx - 14, by - 4 + fl); ctx.quadraticCurveTo(bx - 6, by - 8, bx, by); ctx.quadraticCurveTo(bx + 6, by - 8, bx + 14, by - 4 + fl); ctx.stroke(); }
 }
-// Petals drifting past in front of everything (skipped in reduced motion).
-export function drawPetals(ctx, t) {
+// Petals drifting past (skipped in reduced motion); drawn right after the backdrop so everything solid paints over them.
+export function drawPetals(ctx, t, w, h) {
   for (let i = 0; i < 6; i++) {
-    const ph = (t * 0.045 + i * 0.167) % 1, x = ((i * 137) % 700) + Math.sin(t * 0.8 + i * 2) * 36, y = -30 + ph * (H + 60), a = t * 1.3 + i;
+    const ph = (t * 0.045 + i * 0.167) % 1, x = ((i * 137) % 700) * (w / 720) + Math.sin(t * 0.8 + i * 2) * 36, y = -30 + ph * (h + 60), a = t * 1.3 + i;
     ctx.save(); ctx.translate(x, y); ctx.rotate(a); ctx.fillStyle = i % 2 ? 'rgba(255,240,215,0.55)' : 'rgba(255,190,200,0.5)';
     ctx.beginPath(); ctx.ellipse(0, 0, 9, 4.5 + Math.sin(a * 2) * 1.5, 0, 0, TAU); ctx.fill(); ctx.fillStyle = 'rgba(255,214,90,0.6)'; ctx.beginPath(); ctx.arc(-4, 0, 2, 0, TAU); ctx.fill(); ctx.restore();
   }
@@ -217,5 +232,5 @@ export { stoneRadius };
 // The slab on its own (the title screen draws it smaller, with a live demonstration game on it).
 export function drawSlab(ctx, n) {
   const c = layer('slab' + n, W, H, (b) => paintSlab(b, n));
-  if (c) ctx.drawImage(c, 0, 0); else paintSlab(ctx, n);
+  if (c) ctx.drawImage(c, 0, 384, W, 816, 0, 384, W, 816); else paintSlab(ctx, n);
 }

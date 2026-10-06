@@ -57,30 +57,37 @@ export function text(ctx, str, x, y, size, color = '#fff', o = {}) {
 // ---------------------------------------------------------------------------------------------------- the floor
 let seedv = 7;
 const lcg = () => { seedv = (Math.imul(seedv, 1664525) + 1013904223) >>> 0; return seedv / 4294967296; };
-const BLOTS = Array.from({ length: 16 }, () => [lcg() * W, lcg() * H, 90 + lcg() * 190, 0.025 + lcg() * 0.05]);
-const SPECKS = Array.from({ length: 420 }, () => [lcg() * W, lcg() * H, 0.6 + lcg() * 1.5, 0.05 + lcg() * 0.16]);
-const SCRATCH = Array.from({ length: 14 }, () => [lcg() * W, lcg() * H, (lcg() - 0.5) * 80, (lcg() - 0.5) * 40, 0.03 + lcg() * 0.04]);
+const BLOTS = Array.from({ length: 40 }, () => [lcg(), lcg(), 90 + lcg() * 190, 0.025 + lcg() * 0.05]);
+const SPECKS = Array.from({ length: 1000 }, () => [lcg(), lcg(), 0.6 + lcg() * 1.5, 0.05 + lcg() * 0.16]);
+const SCRATCH = Array.from({ length: 30 }, () => [lcg(), lcg(), (lcg() - 0.5) * 80, (lcg() - 0.5) * 40, 0.03 + lcg() * 0.04]);
 
-// A worn stone / clay floor: mottled patches, grain and a few scratches. Fixed (it never moves); only a very slow warm light breathes.
-export function floor(ctx, th, t, glowY = 760) {
-  const g = ctx.createLinearGradient(0, 0, 0, H);
+// A worn stone / clay floor: mottled patches, grain and a few scratches, drawn over the whole live screen (w x h). Fixed (it never moves);
+// only a very slow warm light breathes. The number of patches follows the area so wide screens look the same as phones.
+export function floor(ctx, th, t, glowY = 760, w = W, h = H) {
+  const area = (w * h) / (W * H);
+  const g = ctx.createLinearGradient(0, 0, 0, h);
   g.addColorStop(0, th.bg[0]); g.addColorStop(0.5, th.bg[1]); g.addColorStop(1, th.bg[2]);
-  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
-  for (const [x, y, r, a] of BLOTS) {
+  ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+  const nb = Math.min(40, Math.max(12, Math.round(16 * area)));
+  for (let i = 0; i < nb; i++) {
+    const [fx, fy, r, a] = BLOTS[i], x = fx * w, y = fy * h;
     const rg = ctx.createRadialGradient(x, y, 0, x, y, r);
     rg.addColorStop(0, `rgba(${th.blot},${a})`); rg.addColorStop(1, `rgba(${th.blot},0)`);
     ctx.fillStyle = rg; ctx.fillRect(x - r, y - r, r * 2, r * 2);
   }
-  for (const [x, y, s, a] of SPECKS) { ctx.fillStyle = `rgba(${th.speck},${a})`; ctx.fillRect(x, y, s, s); }
+  const ns = Math.min(1000, Math.max(300, Math.round(420 * area)));
+  for (let i = 0; i < ns; i++) { const [fx, fy, sz, a] = SPECKS[i]; ctx.fillStyle = `rgba(${th.speck},${a})`; ctx.fillRect(fx * w, fy * h, sz, sz); }
   ctx.lineWidth = 1;
-  for (const [x, y, dx, dy, a] of SCRATCH) { ctx.strokeStyle = `rgba(${th.speck},${a})`; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + dx, y + dy); ctx.stroke(); }
+  const nc = Math.min(30, Math.max(10, Math.round(14 * area)));
+  for (let i = 0; i < nc; i++) { const [fx, fy, dx, dy, a] = SCRATCH[i], x = fx * w, y = fy * h; ctx.strokeStyle = `rgba(${th.speck},${a})`; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + dx, y + dy); ctx.stroke(); }
   const breathe = 0.85 + 0.15 * Math.sin(t * 0.35);
-  const hg = ctx.createRadialGradient(W / 2, glowY, 40, W / 2, glowY, 700);
+  const hg = ctx.createRadialGradient(w / 2, glowY, 40, w / 2, glowY, Math.max(700, w * 0.6));
   hg.addColorStop(0, th.glow.replace(/[\d.]+\)$/, (m) => `${parseFloat(m) * breathe})`)); hg.addColorStop(1, 'rgba(0,0,0,0)');
-  ctx.fillStyle = hg; ctx.fillRect(0, 0, W, H);
-  const vg = ctx.createRadialGradient(W / 2, H / 2, 560, W / 2, H / 2, 1020);
+  ctx.fillStyle = hg; ctx.fillRect(0, 0, w, h);
+  const vr = Math.max(w, h) * 0.66;
+  const vg = ctx.createRadialGradient(w / 2, h / 2, vr * 0.55, w / 2, h / 2, vr);
   vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,0.5)');
-  ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = vg; ctx.fillRect(0, 0, w, h);
 }
 
 // ---------------------------------------------------------------------------------------------------- panels and buttons
@@ -110,10 +117,10 @@ export function button(ctx, th, r, lines, kind = 'normal', o = {}) {
   rr(ctx, r.x, y, r.w, r.h, rad); ctx.stroke();
   const color = kind === 'primary' ? th.primaryInk : th.ink;
   const size = o.size ?? 28, line = o.line ?? size * 1.22, subs = o.sub ?? [];
-  const total = lines.length * line + (subs.length ? subs.length * size * 0.78 + 4 : 0);
+  const ss = o.subSize ?? size * 0.7, total = lines.length * line + (subs.length ? subs.length * ss * 1.23 + 4 : 0);
   let ty = y + (r.h - total) / 2 + size * 0.9;
   for (const ln of lines) { text(ctx, ln, r.x + r.w / 2, ty, size, color, { weight: 700 }); ty += line; }
-  for (const ln of subs) { ty += size * 0.04; text(ctx, ln, r.x + r.w / 2, ty, size * 0.62, kind === 'primary' ? alpha(th.primaryInk, 0.78) : 'rgba(244,239,228,0.72)', { weight: 500 }); ty += size * 0.78; }
+  for (const ln of subs) { ty += size * 0.04; text(ctx, ln, r.x + r.w / 2, ty, ss, kind === 'primary' ? alpha(th.primaryInk, 0.78) : 'rgba(244,239,228,0.72)', { weight: 500 }); ty += ss * 1.23; }
   ctx.restore();
 }
 

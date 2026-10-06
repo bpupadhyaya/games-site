@@ -3,6 +3,9 @@
 // The geometric bands, horn scrolls and lattice are decoration only.
 import { W, H, RX, RY, FRAME, TRAY, MID_Y, pitPos } from './layout.js';
 
+// Width of the strip being painted (kilim / lattice bands run the full width of whatever table size is being painted).
+let PW = W;
+
 const TAU = Math.PI * 2, SS = 2;                      // layers are painted at 2x for crisp phones
 function lcg(seed) { let s = seed >>> 0; return () => ((s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 4294967296); }
 const rr = (c, x, y, w, h, r) => { c.beginPath(); c.roundRect(x, y, w, h, r); };
@@ -37,14 +40,14 @@ export function horn(ctx, x, y, s, color, lw = 2, flip = 1) {
 // woven kilim band: a dark red ground, cream stepped medallions, ochre hooks, sawtooth edges (decoration only)
 function kilim(ctx, y, h) {
   const g = ctx.createLinearGradient(0, y, 0, y + h); g.addColorStop(0, '#5a1d18'); g.addColorStop(1, '#42130f');
-  ctx.fillStyle = g; ctx.fillRect(0, y, W, h);
+  ctx.fillStyle = g; ctx.fillRect(0, y, PW, h);
   // sawtooth edges
-  const tooth = (yy, dir) => { ctx.fillStyle = '#e6c98a'; for (let x = 0; x < W; x += 16) { ctx.beginPath(); ctx.moveTo(x, yy); ctx.lineTo(x + 8, yy + dir * 9); ctx.lineTo(x + 16, yy); ctx.closePath(); ctx.fill(); } };
+  const tooth = (yy, dir) => { ctx.fillStyle = '#e6c98a'; for (let x = 0; x < PW; x += 16) { ctx.beginPath(); ctx.moveTo(x, yy); ctx.lineTo(x + 8, yy + dir * 9); ctx.lineTo(x + 16, yy); ctx.closePath(); ctx.fill(); } };
   tooth(y + 7, 1); tooth(y + h - 7, -1);
-  ctx.fillStyle = '#d29a3c'; ctx.fillRect(0, y + 4, W, 3); ctx.fillRect(0, y + h - 7, W, 3);
+  ctx.fillStyle = '#d29a3c'; ctx.fillRect(0, y + 4, PW, 3); ctx.fillRect(0, y + h - 7, PW, 3);
   const cy = y + h / 2, u = (h - 34) / 2;
   const dia = (r, col) => { ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(0, -r); ctx.lineTo(r, 0); ctx.lineTo(0, r); ctx.lineTo(-r, 0); ctx.closePath(); ctx.fill(); };
-  for (let x = u + 10; x < W + u; x += u * 3.4) {
+  for (let x = u + 10; x < PW + u; x += u * 3.4) {
     ctx.save(); ctx.translate(x, cy);
     dia(u, '#1e2a4d'); dia(u * 0.86, '#ecd9b0'); dia(u * 0.62, '#b03a2a'); dia(u * 0.4, '#1e2a4d'); dia(u * 0.2, '#d29a3c');
     // stepped shoulders on the medallion
@@ -53,31 +56,31 @@ function kilim(ctx, y, h) {
     horn(ctx, x + u * 1.7, cy, u * 0.5, '#e6c98a', 2.2);
   }
   ctx.strokeStyle = 'rgba(255,255,255,0.05)'; ctx.lineWidth = 1;
-  for (let x = 0; x < W; x += 3) { ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y + h); ctx.stroke(); }
-  ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fillRect(0, y + h - 2, W, 2);
+  for (let x = 0; x < PW; x += 3) { ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y + h); ctx.stroke(); }
+  ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.fillRect(0, y + h - 2, PW, 2);
 }
 
 // the folding lattice wall of a yurt (kerege): crossed wooden slats pinned together, over dark felt
 function lattice(ctx, y, h) {
-  ctx.fillStyle = '#1b120d'; ctx.fillRect(0, y, W, h);
-  ctx.save(); ctx.beginPath(); ctx.rect(0, y, W, h); ctx.clip();
+  ctx.fillStyle = '#1b120d'; ctx.fillRect(0, y, PW, h);
+  ctx.save(); ctx.beginPath(); ctx.rect(0, y, PW, h); ctx.clip();
   const step = 46, slat = (x0, y0, x1, y1) => {
     ctx.lineCap = 'butt';
     ctx.strokeStyle = '#100906'; ctx.lineWidth = 13; ctx.beginPath(); ctx.moveTo(x0, y0 + 2); ctx.lineTo(x1, y1 + 2); ctx.stroke();
     ctx.strokeStyle = '#6a4225'; ctx.lineWidth = 10; ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke();
     ctx.strokeStyle = '#a86f3e'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(x0 - 1.5, y0 - 2); ctx.lineTo(x1 - 1.5, y1 - 2); ctx.stroke();
   };
-  for (let a = -4; a < W / step + 4; a++) slat(a * step, y - 8, a * step + h + 16, y + h + 8);           // one way
-  for (let b = 0; b < W / step + 6; b++) slat(b * step + h + 16, y - 8, b * step, y + h + 8);           // the other, over the first
+  for (let a = -4; a < PW / step + 4; a++) slat(a * step, y - 8, a * step + h + 16, y + h + 8);           // one way
+  for (let b = 0; b < PW / step + 6; b++) slat(b * step + h + 16, y - 8, b * step, y + h + 8);           // the other, over the first
   // hide-thong ties at the crossings
-  for (let a = -4; a < W / step + 6; a++) for (let b = 0; b < W / step + 8; b++) {
+  for (let a = -4; a < PW / step + 6; a++) for (let b = 0; b < PW / step + 8; b++) {
     // slat A: x = a*step + t, y = (y-8) + t ; slat B: x = b*step + h + 16 - t2, y = (y-8) + t2  ->  t = (b*step + h + 16 - a*step) / 2
     const t = (b * step + h + 16 - a * step) / 2, cx = a * step + t, cy = y - 8 + t;
-    if (cy > y + 6 && cy < y + h - 6 && cx > -6 && cx < W + 6) { ctx.fillStyle = '#e8d3a2'; ctx.beginPath(); ctx.arc(cx, cy, 3.2, 0, TAU); ctx.fill(); ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.beginPath(); ctx.arc(cx + 0.8, cy + 1, 1.4, 0, TAU); ctx.fill(); }
+    if (cy > y + 6 && cy < y + h - 6 && cx > -6 && cx < PW + 6) { ctx.fillStyle = '#e8d3a2'; ctx.beginPath(); ctx.arc(cx, cy, 3.2, 0, TAU); ctx.fill(); ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.beginPath(); ctx.arc(cx + 0.8, cy + 1, 1.4, 0, TAU); ctx.fill(); }
   }
   ctx.restore();
-  ctx.fillStyle = '#4a2c18'; ctx.fillRect(0, y, W, 5); ctx.fillRect(0, y + h - 5, W, 5);
-  ctx.fillStyle = 'rgba(255,214,150,0.35)'; ctx.fillRect(0, y + 5, W, 1.5);
+  ctx.fillStyle = '#4a2c18'; ctx.fillRect(0, y, PW, 5); ctx.fillRect(0, y + h - 5, PW, 5);
+  ctx.fillStyle = 'rgba(255,214,150,0.35)'; ctx.fillRect(0, y + 5, PW, 1.5);
 }
 
 // the smoke-ring crown of a yurt (shanyrak), painted on its own small layer for the title
@@ -97,28 +100,30 @@ function paintShanyrak(ctx, R) {
 }
 
 // ---- the felt table ----------------------------------------------------------------------------------------------
-function paintTable(ctx) {
-  const bg = ctx.createLinearGradient(0, 0, 0, H); bg.addColorStop(0, '#2b3d68'); bg.addColorStop(0.5, '#26365e'); bg.addColorStop(1, '#1b2748');
-  ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+function paintTable(ctx, w, h, bt, bb) {
+  PW = w;
+  const bg = ctx.createLinearGradient(0, 0, 0, h); bg.addColorStop(0, '#2b3d68'); bg.addColorStop(0.5, '#26365e'); bg.addColorStop(1, '#1b2748');
+  ctx.fillStyle = bg; ctx.fillRect(0, 0, w, h);
   // felt: short crossing wool fibres, with a slow irregular tint
-  const rnd = lcg(11);
-  for (let k = 0; k < 9000; k++) {
-    const x = rnd() * W, y = rnd() * H, a = rnd() * Math.PI, l = 3 + rnd() * 7;
+  const rnd = lcg(11), n = Math.round(9000 * (w * h) / (W * H));
+  for (let k = 0; k < n; k++) {
+    const x = rnd() * w, y = rnd() * h, a = rnd() * Math.PI, l = 3 + rnd() * 7;
     ctx.strokeStyle = rnd() < 0.5 ? `rgba(190,205,240,${0.03 + rnd() * 0.05})` : `rgba(8,12,30,${0.05 + rnd() * 0.08})`; ctx.lineWidth = 0.8 + rnd() * 0.9;
     ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l); ctx.stroke();
   }
   // a stitched appliqué border in ochre wool, running round the felt
+  const top = bt + 16, bot = h - bb - 15;
   ctx.save(); ctx.strokeStyle = 'rgba(214,168,86,0.55)'; ctx.lineWidth = 2; ctx.setLineDash([9, 7]);
-  rr(ctx, 14, 108, W - 28, 1345, 26); ctx.stroke(); ctx.restore();
-  kilim(ctx, 1468, 92);
-  lattice(ctx, 0, 92);
-  ctx.save(); ctx.globalAlpha = 0.5; ctx.fillStyle = '#000'; ctx.fillRect(0, 92, W, 10); ctx.restore();
-  ctx.save(); ctx.globalAlpha = 0.5; ctx.fillStyle = '#000'; ctx.fillRect(0, 1458, W, 10); ctx.restore();
+  rr(ctx, 14, top, w - 28, bot - top, 26); ctx.stroke(); ctx.restore();
+  if (bb >= 50) { kilim(ctx, h - bb, bb); ctx.save(); ctx.globalAlpha = 0.5; ctx.fillStyle = '#000'; ctx.fillRect(0, h - bb - 10, w, 10); ctx.restore(); }
+  lattice(ctx, 0, bt);
+  ctx.save(); ctx.globalAlpha = 0.5; ctx.fillStyle = '#000'; ctx.fillRect(0, bt, w, 10); ctx.restore();
   // lamplight from above the board, and a soft dark edge to the felt
-  const lamp = ctx.createRadialGradient(360, 720, 60, 360, 720, 980); lamp.addColorStop(0, 'rgba(255,196,110,0.34)'); lamp.addColorStop(0.45, 'rgba(255,170,80,0.12)'); lamp.addColorStop(1, 'rgba(255,170,80,0)');
-  ctx.fillStyle = lamp; ctx.fillRect(0, 102, W, 1356);
-  const vg = ctx.createRadialGradient(360, 780, 420, 360, 780, 1000); vg.addColorStop(0, 'rgba(4,6,18,0)'); vg.addColorStop(1, 'rgba(4,6,18,0.6)');
-  ctx.fillStyle = vg; ctx.fillRect(0, 102, W, 1356);
+  const y0 = bt + 10, hh = h - bb - bt - 10, R = Math.max(w, h) * 0.63;
+  const lamp = ctx.createRadialGradient(w / 2, h / 2, 60, w / 2, h / 2, R); lamp.addColorStop(0, 'rgba(255,196,110,0.34)'); lamp.addColorStop(0.45, 'rgba(255,170,80,0.12)'); lamp.addColorStop(1, 'rgba(255,170,80,0)');
+  ctx.fillStyle = lamp; ctx.fillRect(0, y0, w, hh);
+  const vg = ctx.createRadialGradient(w / 2, h / 2 + 60, Math.min(w, h) * 0.58, w / 2, h / 2 + 60, Math.max(w, h) * 0.64); vg.addColorStop(0, 'rgba(4,6,18,0)'); vg.addColorStop(1, 'rgba(4,6,18,0.6)');
+  ctx.fillStyle = vg; ctx.fillRect(0, y0, w, hh);
 }
 
 // ---- the carved board -----------------------------------------------------------------------------------------------
@@ -231,13 +236,21 @@ function layer(key, paint, w = W, h = H) {
   if (L === undefined) { const m = makeCanvas(w * SS, h * SS); if (m) { m.x.scale(SS, SS); paint(m.x); L = m.c; } else L = null; layers[key] = L; }
   return L;
 }
-export function drawTable(ctx) {
-  const t = layer('table', paintTable);
-  if (!t) { ctx.fillStyle = '#26365e'; ctx.fillRect(0, 0, W, H); return; }
-  ctx.drawImage(t, 0, 0, W, H);
+// The felt table, painted for the live screen size and cached (only the latest size is kept). bt / bb = heights of the lattice (top) and kilim (bottom) bands.
+let tableCache = { key: '', c: null };
+export function drawTable(ctx, w = W, h = H, bt = 92, bb = 92) {
+  const key = `${w}x${h}x${bt}x${bb}`;
+  if (tableCache.key !== key) {
+    const m = makeCanvas(Math.ceil(w * SS), Math.ceil(h * SS));
+    if (m) { m.x.scale(SS, SS); paintTable(m.x, w, h, bt, bb); }
+    tableCache = { key, c: m ? m.c : null };
+  }
+  const t = tableCache.c;
+  if (!t) { ctx.fillStyle = '#26365e'; ctx.fillRect(0, 0, w, h); return; }
+  ctx.drawImage(t, 0, 0, w, h);
 }
 export function drawBoard(ctx, wood = 'walnut') {
-  const b = layer('board_' + wood, (c) => paintBoard(c, wood)); if (b) ctx.drawImage(b, 0, 0, W, H);
+  const b = layer('board_' + wood, (c) => paintBoard(c, wood)); if (b) ctx.drawImage(b, 0, 300 * SS, W * SS, 950 * SS, 0, 300, W, 950);   // only the board's own region (frame + its shadow)
 }
 export function drawShanyrak(ctx, x, y, R, rot, alpha = 1) {
   const s = layer('shanyrak', (c) => paintShanyrak(c, 250), 500, 500);

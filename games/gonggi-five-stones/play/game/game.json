@@ -3,8 +3,8 @@
   "title": "Gonggi: Five Stones",
   "tagline": "Toss one, take the rest, catch it before it falls.",
   "genre": "five-stones toss and catch skill game",
-  "orientation": "portrait",
-  "version": "1.0.1",
+  "orientation": "any",
+  "version": "1.1.2",
   "monetization": {
     "model": "premium",
     "priceUsd": 2.99,

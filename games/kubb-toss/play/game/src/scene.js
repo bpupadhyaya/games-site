@@ -3,6 +3,7 @@
 // one image); only the blocks, the batons, the thrower's paddle, the dust and the overlays move. Everything is drawn from the world in metres:
 // x across the pitch, y along it, z up. Pure drawing, no clock, no randomness (seeded LCGs only).
 import { FIELD, KUBB, KING, BATON, matOf, nlerp } from './phys.js';
+import { BAKE } from './layout.js';
 
 export const TAU = Math.PI * 2;
 const PITCH = (50 * Math.PI) / 180, CH = 8, CB = 3.5, YN = 1050, YF = 296;
@@ -55,14 +56,14 @@ function makeCanvas(w, h) {
 }
 
 // ---- the backdrop: grass, mowing stripes, the pitch, chalk lines, stakes, fence, forest, cottage ----------------------------------
-const BS = 1.5;                     // bake scale (1.5x: 8 MB of canvas instead of 15 MB, still about one pixel per screen pixel on a phone)
+const BS = 1.2;                     // bake scale: the picture covers BAKE (1240 x 1800 scene units: grass for tall phones and wide windows), about one pixel per screen pixel
 const GX = 9;                       // the lawn is drawn out to +-GX metres
 function quadPath(c, a, b, d, e) { const p = [proj(...a), proj(...b), proj(...d), proj(...e)]; c.beginPath(); p.forEach((q, i) => (i ? c.lineTo(q.x, q.y) : c.moveTo(q.x, q.y))); c.closePath(); }
 
 function paintGround(c) {
   // beyond the screen edges and far up: one big lawn
   quadPath(c, [-GX, -6, 0], [GX, -6, 0], [GX, 22, 0], [-GX, 22, 0]);
-  let g = c.createLinearGradient(0, 0, 0, 1280);
+  let g = c.createLinearGradient(0, BAKE.y, 0, BAKE.y + BAKE.h);
   g.addColorStop(0, '#3f7e45'); g.addColorStop(0.5, '#4a9a4e'); g.addColorStop(1, '#43904a');
   c.fillStyle = g; c.fill();
   // mowing stripes across the lawn (every 0.8 m), softly alternating
@@ -88,7 +89,7 @@ function paintBlades(c, seed, n) {
   c.lineCap = 'round';
   for (let i = 0; i < n; i++) {
     const x = (r() - 0.5) * 2 * GX, y = -5.5 + r() * 26.5, p = proj(x, y, 0);
-    if (p.y < -20 || p.y > 1300 || p.x < -10 || p.x > 730) continue;
+    if (p.y < BAKE.y - 20 || p.y > BAKE.y + BAKE.h + 20 || p.x < BAKE.x - 10 || p.x > BAKE.x + BAKE.w + 10) continue;
     const len = (0.05 + r() * 0.08) * p.s * 0.8, a = (r() - 0.5) * 0.7, t = r();
     c.strokeStyle = t < 0.45 ? `rgba(20,70,25,${0.1 + r() * 0.16})` : t < 0.8 ? `rgba(150,215,95,${0.08 + r() * 0.15})` : `rgba(235,235,150,${0.05 + r() * 0.08})`;
     c.lineWidth = Math.max(0.5, p.s * 0.006 + r() * 0.5);
@@ -206,24 +207,24 @@ function paintScenery(c) {
 }
 function paintFinish(c) {
   // atmosphere: the far end fades into a warm haze; a soft vignette pulls the eye to the pitch
-  let g = c.createLinearGradient(0, 0, 0, 420);
+  let g = c.createLinearGradient(0, -60, 0, 420);
   g.addColorStop(0, 'rgba(228,214,170,0.36)'); g.addColorStop(1, 'rgba(228,214,170,0)');
-  c.fillStyle = g; c.fillRect(0, 0, 720, 420);
-  g = c.createRadialGradient(360, 640, 380, 360, 640, 900);
-  g.addColorStop(0, 'rgba(0,20,0,0)'); g.addColorStop(1, 'rgba(0,18,8,0.42)');
-  c.fillStyle = g; c.fillRect(0, 0, 720, 1280);
+  c.fillStyle = g; c.fillRect(BAKE.x, BAKE.y, BAKE.w, 420 - BAKE.y);
+  g = c.createRadialGradient(360, 640, 380, 360, 640, 1150);
+  g.addColorStop(0, 'rgba(0,20,0,0)'); g.addColorStop(1, 'rgba(0,18,8,0.5)');
+  c.fillStyle = g; c.fillRect(BAKE.x, BAKE.y, BAKE.w, BAKE.h);
 }
 const STAGES = [
-  (c) => paintGround(c), (c) => paintBlades(c, 11, 3500), (c) => paintBlades(c, 12, 3500), (c) => paintBlades(c, 13, 3500), (c) => paintBlades(c, 14, 3500), (c) => paintBlades(c, 15, 3500), (c) => paintBlades(c, 16, 3500), (c) => paintFlowers(c),
+  (c) => paintGround(c), (c) => paintBlades(c, 11, 6000), (c) => paintBlades(c, 12, 6000), (c) => paintBlades(c, 13, 6000), (c) => paintBlades(c, 14, 6000), (c) => paintBlades(c, 15, 6000), (c) => paintBlades(c, 16, 6000), (c) => paintFlowers(c),
   (c) => paintMarkings(c), (c) => paintScenery(c), (c) => paintFinish(c),
 ];
 const LAST = STAGES.length - 1, MARK = STAGES.length - 3;
 // The backdrop is baked in slices (one stage per call) so tapping Play never waits for it; the fallback draws the same layout with flat colours.
 export function startBake() {
   let cv = null, c = null;
-  try { cv = makeCanvas(720 * BS, 1280 * BS); c = cv && cv.getContext('2d'); } catch { cv = null; c = null; }
+  try { cv = makeCanvas(Math.round(BAKE.w * BS), Math.round(BAKE.h * BS)); c = cv && cv.getContext('2d'); } catch { cv = null; c = null; }
   if (!cv || !c) return { failed: true, step: () => null, done: false };
-  c.scale(BS, BS);
+  c.scale(BS, BS); c.translate(-BAKE.x, -BAKE.y);
   let i = 0;
   const job = {
     failed: false, canvas: cv, get done() { return i >= STAGES.length; }, get progress() { return i / STAGES.length; },
@@ -235,9 +236,9 @@ export function startBake() {
   return job;
 }
 export function drawBackdrop(ctx, baked) {
-  if (baked) { ctx.drawImage(baked, 0, 0, 720, 1280); return; }
+  if (baked) { ctx.drawImage(baked, BAKE.x, BAKE.y, BAKE.w, BAKE.h); return; }
   // flat fallback: same layout, no texture
-  ctx.fillStyle = '#47914b'; ctx.fillRect(0, 0, 720, 1280);
+  ctx.fillStyle = '#47914b'; ctx.fillRect(BAKE.x, BAKE.y, BAKE.w, BAKE.h);
   STAGES[0](ctx); STAGES[MARK](ctx); STAGES[LAST](ctx);
 }
 

@@ -1,7 +1,7 @@
 // The chamber and the board, painted ONCE into a cached layer (plaster wall, woven reed mat, ebony-and-ivory board with gilded inlay),
 // plus cached sprites for the pieces and the throw sticks. All ornament is pure geometry: no writing, no figures.
 // One light: a warm lamp from the upper left, so every bevel and highlight agrees.
-import { W, H, CW, CH, BX, BY, cell, TRAY, EXIT } from './layout.js';
+import { CW, CH, BX, BY, cell, TRAYS, EXIT, BOX } from './layout.js';
 
 const TAU = Math.PI * 2;
 export const lcg = (seed) => { let s = seed >>> 0; return () => ((s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 4294967296); };
@@ -21,18 +21,20 @@ function goldGrad(c, y0, y1) { const g = c.createLinearGradient(0, y0, 0, y1); g
 // ---------------------------------------------------------------------------------------------------------------------
 // Wall and mat
 // ---------------------------------------------------------------------------------------------------------------------
-function paintWall(c) {
-  const R = lcg(7);
+// The plaster wall, `w` wide and `wallH` tall: the top frieze is anchored to the top and the dado to the bottom, so a shorter wall crops the frieze.
+function paintWall(c, W, wallH) {
+  const R = lcg(7), dy = wallH - 317;
+  c.save(); c.beginPath(); c.rect(0, 0, W, wallH); c.clip();
   // painted plaster: warm sand, mottled, darker toward the edges
   const g = c.createLinearGradient(0, 0, 0, 340); g.addColorStop(0, '#b98a58'); g.addColorStop(0.5, '#d7b283'); g.addColorStop(1, '#a87b4c');
-  c.fillStyle = g; c.fillRect(0, 0, W, 340);
-  for (let i = 0; i < 260; i++) {
+  c.fillStyle = g; c.fillRect(0, 0, W, Math.max(340, wallH));
+  for (let i = 0; i < Math.round(260 * W / 720); i++) {
     const x = R() * W, y = R() * 340, r = 10 + R() * 46;
     c.fillStyle = R() < 0.5 ? `rgba(255,236,190,${0.05 + R() * 0.06})` : `rgba(96,58,28,${0.05 + R() * 0.07})`;
     c.beginPath(); c.ellipse(x, y, r, r * (0.4 + R() * 0.5), R() * 3, 0, TAU); c.fill();
   }
   c.strokeStyle = 'rgba(80,46,20,0.22)'; c.lineWidth = 1.2;                    // hairline cracks
-  for (let k = 0; k < 7; k++) { let x = R() * W, y = R() * 300; c.beginPath(); c.moveTo(x, y); for (let j = 0; j < 6; j++) { x += (R() - 0.5) * 34; y += 8 + R() * 16; c.lineTo(x, y); } c.stroke(); }
+  for (let k = 0; k < Math.round(7 * W / 720); k++) { let x = R() * W, y = R() * 300; c.beginPath(); c.moveTo(x, y); for (let j = 0; j < 6; j++) { x += (R() - 0.5) * 34; y += 8 + R() * 16; c.lineTo(x, y); } c.stroke(); }
   // top frieze: a row of painted rectangles with rounded tops (blue, red, green, gold), between black-and-gold rules
   const rule = (y, h) => { c.fillStyle = '#231710'; c.fillRect(0, y, W, h); c.fillStyle = goldGrad(c, y, y + h); c.fillRect(0, y + h * 0.3, W, h * 0.4); };
   rule(12, 8);
@@ -52,22 +54,24 @@ function paintWall(c) {
     c.restore();
   }
   rule(154, 7);
+  c.translate(0, dy);
   // dado: broad red field with a thin blue-and-white stripe above the table
   c.fillStyle = '#8f2f22'; c.fillRect(0, 168, W, 120);
-  for (let i = 0; i < 120; i++) { c.fillStyle = `rgba(${R() < 0.5 ? '255,200,150' : '40,10,6'},${0.03 + R() * 0.05})`; c.fillRect(R() * W, 168 + R() * 120, 20 + R() * 60, 2 + R() * 4); }
+  for (let i = 0; i < Math.round(120 * W / 720); i++) { c.fillStyle = `rgba(${R() < 0.5 ? '255,200,150' : '40,10,6'},${0.03 + R() * 0.05})`; c.fillRect(R() * W, 168 + R() * 120, 20 + R() * 60, 2 + R() * 4); }
   c.strokeStyle = 'rgba(232,190,90,0.85)'; c.lineWidth = 3; c.lineJoin = 'miter';
   for (const y0 of [186, 268]) { c.beginPath(); for (let x = 0; x <= W; x += 24) c.lineTo(x, y0 + ((x / 24) % 2 ? 9 : -9)); c.stroke(); }
   for (let x = 12; x < W; x += 72) { c.fillStyle = 'rgba(30,16,8,0.35)'; c.fillRect(x, 208, 26, 42); c.fillStyle = 'rgba(232,190,90,0.6)'; c.fillRect(x + 8, 216, 10, 26); }
   c.fillStyle = '#231710'; c.fillRect(0, 288, W, 8); c.fillStyle = goldGrad(c, 288, 296); c.fillRect(0, 290, W, 3);
   for (let x = 0; x < W; x += 26) { c.fillStyle = (x / 26) % 2 ? '#1f5f9e' : '#f0e2bd'; c.fillRect(x, 300, 26, 12); }
   c.fillStyle = '#231710'; c.fillRect(0, 312, W, 5);
+  c.restore();
 }
-function paintMat(c) {
+function paintMat(c, W, H, y0) {
   const R = lcg(19);
-  c.fillStyle = '#a97d43'; c.fillRect(0, 317, W, H - 317);
+  c.fillStyle = '#a97d43'; c.fillRect(0, y0, W, H - y0);
   // basket weave of reed strips, 15 px cells, alternate direction
-  for (let gy = 0; gy * 15 + 317 < H; gy++) for (let gx = 0; gx * 15 < W; gx++) {
-    const x = gx * 15, y = 317 + gy * 15, horiz = (gx + gy) % 2 === 0, t = R();
+  for (let gy = 0; gy * 15 + y0 < H; gy++) for (let gx = 0; gx * 15 < W; gx++) {
+    const x = gx * 15, y = y0 + gy * 15, horiz = (gx + gy) % 2 === 0, t = R();
     const g = horiz ? c.createLinearGradient(0, y, 0, y + 15) : c.createLinearGradient(x, 0, x + 15, 0);
     const tone = 150 + t * 40;
     g.addColorStop(0, `rgb(${tone + 30},${tone - 10},${tone - 70})`); g.addColorStop(0.5, `rgb(${tone + 8},${tone - 32},${tone - 92})`); g.addColorStop(1, `rgb(${tone - 34},${tone - 62},${tone - 112})`);
@@ -78,12 +82,11 @@ function paintMat(c) {
     c.stroke();
   }
   // the ledge where the wall meets the table, with a soft shadow on the mat
-  const sh = c.createLinearGradient(0, 317, 0, 380); sh.addColorStop(0, 'rgba(20,8,2,0.6)'); sh.addColorStop(1, 'rgba(20,8,2,0)');
-  c.fillStyle = sh; c.fillRect(0, 317, W, 63);
+  const sh = c.createLinearGradient(0, y0, 0, y0 + 63); sh.addColorStop(0, 'rgba(20,8,2,0.6)'); sh.addColorStop(1, 'rgba(20,8,2,0)');
+  c.fillStyle = sh; c.fillRect(0, y0, W, 63);
 }
-const LAMPS = [[44, 800], [676, 800], [44, 1180], [676, 1180]];
-function paintLamps(c) {
-  for (const [x, y] of LAMPS) {
+function paintLamps(c, lamps) {
+  for (const [x, y] of lamps) {
     c.fillStyle = 'rgba(20,8,0,0.5)'; c.beginPath(); c.ellipse(x + 5, y + 26, 28, 9, 0, 0, TAU); c.fill();
     const g = c.createLinearGradient(x - 20, 0, x + 20, 0); g.addColorStop(0, '#b9a37a'); g.addColorStop(0.4, '#f6ead0'); g.addColorStop(1, '#a58f66');
     c.fillStyle = g; c.beginPath(); c.moveTo(x - 20, y + 24); c.lineTo(x - 7, y + 2); c.lineTo(x + 7, y + 2); c.lineTo(x + 20, y + 24); c.ellipse(x, y + 24, 20, 6, 0, 0, Math.PI); c.closePath(); c.fill();
@@ -94,15 +97,16 @@ function paintLamps(c) {
     c.strokeStyle = goldGrad(c, y - 10, y + 6); c.lineWidth = 2.2; c.beginPath(); c.ellipse(x, y - 4, 26, 8, 0, 0.1, Math.PI - 0.1); c.stroke();
   }
 }
-function paintVignette(c) {
-  const v = c.createRadialGradient(W / 2, 800, 380, W / 2, 800, 1000); v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(10,3,0,0.62)');
+function paintVignette(c, W, H) {
+  const out = Math.hypot(W / 2, H / 2) * 1.15, v = c.createRadialGradient(W / 2, H * 0.513, out * 0.38, W / 2, H * 0.513, out);
+  v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(10,3,0,0.62)');
   c.fillStyle = v; c.fillRect(0, 0, W, H);
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
 // The board
 // ---------------------------------------------------------------------------------------------------------------------
-const goldStroke = (c, w) => { c.strokeStyle = goldGrad(c, 0, H); c.lineWidth = w; };
+const goldStroke = (c, w) => { c.strokeStyle = goldGrad(c, 0, 1560); c.lineWidth = w; };
 function rosette(c, x, y, r) {                        // eight petals and a boss, pure geometry
   c.save(); c.translate(x, y);
   for (let k = 0; k < 8; k++) { c.save(); c.rotate((k * TAU) / 8); c.beginPath(); c.moveTo(0, -r * 0.25); c.quadraticCurveTo(r * 0.45, -r * 0.65, 0, -r); c.quadraticCurveTo(-r * 0.45, -r * 0.65, 0, -r * 0.25); c.fillStyle = goldGrad(c, -r, 0); c.fill(); c.strokeStyle = 'rgba(60,34,8,0.7)'; c.lineWidth = 1; c.stroke(); c.restore(); }
@@ -181,15 +185,14 @@ function paintSquare(c, i, R) {
   if (i === 14 || i === 25) { const f = i === 14 ? rosette : diamond; f(c, lx, cy, i === 14 ? 24 : 21); f(c, rx, cy, i === 14 ? 24 : 21); }
   else if (i === 26) { zigzag(c, lx, cy, 40); zigzag(c, rx, cy, 40); }
   else if (i >= 27) { const n = 30 - i; dots(c, lx, cy, n); dots(c, rx, cy, n); }
-  c.font = '600 15px system-ui, sans-serif'; c.textAlign = 'left'; c.textBaseline = 'alphabetic';
-  c.fillStyle = 'rgba(90,58,26,0.62)'; c.fillText(String(sq), x + 9, y + 20);
+  // (the square number is drawn live by view.js, at a readable size)
 }
 
 // ---------------------------------------------------------------------------------------------------------------------
 // The stick tray
 // ---------------------------------------------------------------------------------------------------------------------
-function paintTray(c) {
-  const t = TRAY, R = lcg(41);
+function paintTray(c, v) {
+  const t = { x: 0, y: 0, w: TRAYS[v].w, h: TRAYS[v].h }, R = lcg(41);
   c.save(); c.shadowColor = 'rgba(10,3,0,0.7)'; c.shadowBlur = 22; c.shadowOffsetY = 10; c.fillStyle = '#1a110b'; rr(c, t.x, t.y, t.w, t.h, 22); c.fill(); c.restore();
   const g = c.createLinearGradient(0, t.y, 0, t.y + t.h); g.addColorStop(0, '#5b2418'); g.addColorStop(1, '#3a140d');
   c.fillStyle = g; rr(c, t.x + 6, t.y + 6, t.w - 12, t.h - 12, 18); c.fill();
@@ -202,20 +205,40 @@ function paintTray(c) {
   c.strokeStyle = 'rgba(255,225,180,0.35)'; c.lineWidth = 1.5; rr(c, t.x + 1, t.y + 1, t.w - 2, t.h - 2, 22); c.stroke();
 }
 
-let layers = null;
-export function drawScene(ctx, t, calm = false) {
-  if (!layers) layers = bitmap(W, H, 2, (c) => { paintWall(c); paintMat(c); paintLamps(c); paintBoard(c); paintTray(c); paintVignette(c); }) || 'none';
-  if (layers === 'none') { ctx.fillStyle = '#5a3a20'; ctx.fillRect(0, 0, W, H); return; }
-  ctx.drawImage(layers, 0, 0, W, H);
-  lampLight(ctx, t, calm);
+// Cached layers: the chamber (wall + mat + lamps + vignette) per screen size, the board once, each tray shape once.
+const backs = new Map();
+let boardLayer = null; const trayLayers = {};
+const placed = (ctx, bmp, x, y, s, w, h) => { if (bmp) ctx.drawImage(bmp, x, y, w * s, h * s); };
+export function drawBackdrop(ctx, t, calm, L, lamps) {
+  const key = `${L.w}x${L.h}|${Math.round(L.wallH)}|${lamps.map((p) => p.map(Math.round)).join(',')}`;
+  let bmp = backs.get(key);
+  if (bmp === undefined) {
+    bmp = bitmap(L.w, L.h, 1.5, (c) => { paintWall(c, L.w, Math.round(L.wallH)); paintMat(c, L.w, L.h, Math.round(L.wallH)); paintLamps(c, lamps); paintVignette(c, L.w, L.h); }) || 'none';
+    backs.set(key, bmp); if (backs.size > 4) backs.delete(backs.keys().next().value);
+  }
+  if (bmp === 'none') { ctx.fillStyle = '#5a3a20'; ctx.fillRect(0, 0, L.w, L.h); return; }
+  ctx.drawImage(bmp, 0, 0, L.w, L.h);
+  lampLight(ctx, t, calm, L, lamps);
+}
+// The board: B = { s, ox, oy } places the canonical board layer on the screen.
+export function drawBoardLayer(ctx, B) {
+  if (boardLayer === null) boardLayer = bitmap(BOX.w, BOX.h, 2.5, (c) => { c.translate(-BOX.x, -BOX.y); paintBoard(c); }) || 'none';
+  if (boardLayer !== 'none') placed(ctx, boardLayer, B.ox + BOX.x * B.s, B.oy + BOX.y * B.s, B.s, BOX.w, BOX.h);
+}
+// A tray T = { v, s, x, y }.
+export function drawTrayLayer(ctx, T) {
+  const M = 32, tw = TRAYS[T.v].w, th = TRAYS[T.v].h;                // a margin so the soft shadow is not cut off
+  if (!(T.v in trayLayers)) trayLayers[T.v] = bitmap(tw + 2 * M, th + 2 * M + 10, 3, (c) => { c.translate(M, M); paintTray(c, T.v); }) || 'none';
+  const b = trayLayers[T.v]; if (b !== 'none') placed(ctx, b, T.x - M * T.s, T.y - M * T.s, T.s, tw + 2 * M, th + 2 * M + 10);
 }
 // Lamp: a warm pool of light that breathes; a few motes of dust drift through it. Drawn every frame (one gradient, cheap).
-export function lampLight(ctx, t, calm = false) {
+export function lampLight(ctx, t, calm, L, lamps) {
+  const W = L.w, H = L.h;
   const fl = calm ? 0.16 : 0.13 + 0.025 * Math.sin(t * 5.3) + 0.015 * Math.sin(t * 13.1 + 1) + 0.01 * Math.sin(t * 2.1);
   ctx.save(); ctx.globalCompositeOperation = 'lighter';
-  const g = ctx.createRadialGradient(250, 260, 30, 330, 700, 900); g.addColorStop(0, `rgba(255,190,100,${fl * 1.5})`); g.addColorStop(1, 'rgba(255,170,80,0)');
+  const g = ctx.createRadialGradient(W * 0.35, H * 0.17, 30, W * 0.46, H * 0.45, Math.max(900, Math.max(W, H) * 0.6)); g.addColorStop(0, `rgba(255,190,100,${fl * 1.5})`); g.addColorStop(1, 'rgba(255,170,80,0)');
   ctx.fillStyle = g; ctx.fillRect(0, 0, W, H); ctx.restore();
-  for (const [i, [x, y]] of LAMPS.entries()) {                    // four small flames on the mat, each with its own flicker
+  for (const [i, [x, y]] of lamps.entries()) {                    // four small flames on the mat, each with its own flicker
     const f = calm ? 1 : 1 + 0.12 * Math.sin(t * 9 + i * 2) + 0.08 * Math.sin(t * 17 + i);
     ctx.save(); ctx.globalCompositeOperation = 'lighter';
     const gl = ctx.createRadialGradient(x, y - 24, 2, x, y - 24, 90 * f); gl.addColorStop(0, 'rgba(255,190,90,0.22)'); gl.addColorStop(1, 'rgba(255,170,70,0)'); ctx.fillStyle = gl; ctx.fillRect(x - 100, y - 124, 200, 200);

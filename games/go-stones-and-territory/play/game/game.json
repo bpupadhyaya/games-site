@@ -3,8 +3,8 @@
   "title": "Go",
   "tagline": "The game of stones and territory",
   "genre": "abstract strategy board game",
-  "orientation": "portrait",
-  "version": "1.0.1",
+  "orientation": "any",
+  "version": "1.1.5",
   "monetization": {
     "model": "premium",
     "priceUsd": 2.99,

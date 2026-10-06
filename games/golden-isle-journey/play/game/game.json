@@ -3,8 +3,8 @@
   "title": "The Road to Lanka",
   "tagline": "An exiled prince. A stolen princess. A leap across the sea.",
   "genre": "story adventure",
-  "orientation": "portrait",
-  "version": "0.1.2",
+  "orientation": "any",
+  "version": "0.2.4",
   "monetization": {
     "model": "premium",
     "priceUsd": 4.99,

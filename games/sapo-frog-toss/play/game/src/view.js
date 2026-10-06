@@ -1,7 +1,8 @@
 // The play screen: the table scene, the scoreboard above it, the controls below, banners and cards on top.
 // Pure drawing and pure layout; game.js owns the state. computeLayout() is called by game.js for hit-testing (no canvas, text widths
 // estimated) and by render (real text widths), and gives the same rectangles to both.
-import { W, H, TEXT_SCALES, COMPACT, TRAY, SCENE_Y0, SCENE_H, PULL, playLayout } from './layout.js';
+import { W, H, TEXT_SCALES, COMPACT, TRAY, SCENE_Y0, SCENE_H, PULL, playLayout, wideLayout, host, screen } from './layout.js';
+
 import { FONT, NUM, roundPath, drawButton, paintButton, panel, wrapLines, textShadow, ease } from './ui.js';
 import { drawRoom, drawTable, drawHoles, drawActors, drawRing, drawArc, drawRestMark, drawParts, proj, TAU, DISC_COL } from './scene.js';
 import { PROFILES, pname } from './ai.js';
@@ -16,6 +17,8 @@ export const sideName = (S, side) => {
   if (c.mode === 'learn') return tr('You', 'Tú');
   return side === 0 ? tr('You', 'Tú') : pname(PROFILES[c.opp]);
 };
+// The play frame the game last chose for this screen (see layout.frameFor); set by game.js before every update and render.
+export const playFrame = { mode: 'tall', sw: 720, sh: 1280 };
 const estCtx = { font: '', measureText(t) { const m = /(\d+)px/.exec(this.font); return { width: String(t).length * (m ? +m[1] : 20) * 0.54 }; } };
 const zOf = (S) => TEXT_SCALES[S.settings.textIdx];
 export const SPIN_NAMES = () => [tr('strong left spin', 'efecto fuerte a la izquierda'), tr('left spin', 'efecto a la izquierda'), tr('no spin', 'sin efecto'), tr('right spin', 'efecto a la derecha'), tr('strong right spin', 'efecto fuerte a la derecha')];
@@ -69,25 +72,28 @@ function trayMetrics(S, ctx) {
   const bh = Math.round(26 * z * 1.15 + 38), rows = S.m.cfg.mode === 'watch' ? 2 : 1;
   return { fs, lines, more, mfs, bh, rows, h: 24 + lines.length * fs * 1.22 + moreH + 16 + rows * bh + (rows - 1) * 12 + 28 };
 }
-function compactStatus(S, ctx, z) {
+function compactStatus(S, ctx, z, ty = 0) {
   if (S.ph === 'aim' || !S.m) return null;
   const text = statusText(S);
   if (!text) return null;
   const cx = ctx ?? estCtx, fs = Math.round(22 * z);
   const { lines, more } = fitStatus(cx, text, fs, W - 70, 4);
-  const mfs = Math.round(fs * 0.8), h = lines.length * fs * 1.25 + (more ? mfs * 1.3 : 0) + 18, y = (S.m.cfg.mode === 'watch' ? 1070 : 1010) - h;
+  const mfs = Math.round(fs * 0.8), h = lines.length * fs * 1.25 + (more ? mfs * 1.3 : 0) + 18, y = (S.m.cfg.mode === 'watch' ? 1070 : 1010) - h + ty;
   return { fs, lines, more, mfs, h, y, rect: { x: 24, y, w: W - 48, h } };
 }
 export function computeLayout(S, ctx) {
+  if (playFrame.mode === 'wide') return computeWide(S, ctx);
   const z = zOf(S), hud = hudMetrics(S, ctx);
   let tray = null, trayH = 0;
   if (z > COMPACT) { tray = trayMetrics(S, ctx); trayH = tray.h; }
-  const lay = playLayout(z, hud.h, trayH);
+  const lay = playLayout(z, hud.h, trayH, playFrame);
   lay.hud = hud; lay.tray = tray; lay.z = z;
-  lay.status = z <= COMPACT ? compactStatus(S, ctx, z) : null;
+  lay.status = z <= COMPACT ? compactStatus(S, ctx, z, lay.ty) : null;
+  lay.gain = 1; lay.paddleY = 960; lay.bounds = { x0: 0, x1: W };
   lay.rects = rectsFor(S, lay);
   return lay;
 }
+const bottomPad = () => Math.max(28, Math.round(host.b) + 8);
 const row = (y, h, items, x0 = 16, w = 688, gap = 10) => {
   const total = items.reduce((a, it) => a + it.w, 0), avail = w - gap * (items.length - 1), out = {};
   let x = x0;
@@ -99,7 +105,7 @@ function rectsFor(S, lay) {
   const m = S.m, ph = S.ph, mode = m.cfg.mode;
   const humanAim = ph === 'aim' && S.humanTurn;
   if (mode === 'watch') {
-    const h = lay.compact ? 72 : lay.tray.bh, y = lay.compact ? 1086 : H - 28 - 2 * h - 12;
+    const h = lay.compact ? 72 : lay.tray.bh, y = lay.compact ? 1086 + lay.ty : H - bottomPad() - 2 * h - 12;
     Object.assign(R, row(y, h, [{ id: 'wdec', w: 1 }, { id: 'wlabel', w: 3 }, { id: 'winc', w: 1 }]));
     Object.assign(R, row(y + h + 12, h, [{ id: 'wpause', w: 2 }, { id: 'wexit', w: 1 }]));
     addMore(R, lay, y);
@@ -107,16 +113,16 @@ function rectsFor(S, lay) {
   }
   if (lay.compact) {
     if (humanAim) {
-      const t = TRAY.mode;
-      Object.assign(R, row(t.y, t.h, [{ id: 'style0', w: 1.35 }, { id: 'style1', w: 1.35 }, { id: 'spin0', w: 1 }, { id: 'spin1', w: 1 }, { id: 'spin2', w: 1 }, { id: 'spin3', w: 1 }, { id: 'spin4', w: 1 }], 16, 688, 6));
-      Object.assign(R, row(TRAY.act.y, TRAY.act.h, [{ id: 'think', w: 150 }, { id: 'throw', w: 260 }, { id: 'menu', w: 130 }], 16, 688, 10));
+      const t = TRAY.mode, ty = lay.ty;
+      Object.assign(R, row(t.y + ty, t.h, [{ id: 'style0', w: 1.35 }, { id: 'style1', w: 1.35 }, { id: 'spin0', w: 1 }, { id: 'spin1', w: 1 }, { id: 'spin2', w: 1 }, { id: 'spin3', w: 1 }, { id: 'spin4', w: 1 }], 16, 688, 6));
+      Object.assign(R, row(TRAY.act.y + ty, TRAY.act.h, [{ id: 'think', w: 150 }, { id: 'throw', w: 260 }, { id: 'menu', w: 130 }], 16, 688, 10));
       if (S.hint && !S.hint.busy) R.use = hintGeom(S, lay).use;
-    } else if (ph === 'fly') Object.assign(R, row(TRAY.act.y, TRAY.act.h, [{ id: 'skip', w: 1.6 }, { id: 'menu', w: 0.9 }]));
-    else Object.assign(R, row(TRAY.act.y, TRAY.act.h, [{ id: 'menu', w: 1 }]));
+    } else if (ph === 'fly') Object.assign(R, row(TRAY.act.y + lay.ty, TRAY.act.h, [{ id: 'skip', w: 1.6 }, { id: 'menu', w: 0.9 }]));
+    else Object.assign(R, row(TRAY.act.y + lay.ty, TRAY.act.h, [{ id: 'menu', w: 1 }]));
     addMore(R, lay, 0);
     return R;
   }
-  const t = lay.tray, y = H - 28 - t.bh;
+  const t = lay.tray, y = H - bottomPad() - t.bh;
   const ids = humanAim ? [{ id: 'setup', w: 1 }, { id: 'throw', w: 1 }] : ph === 'fly' ? [{ id: 'skip', w: 1 }, { id: 'menu', w: 1 }] : [{ id: 'menu', w: 1 }];
   Object.assign(R, row(y, t.bh, ids));
   addMore(R, lay, y);
@@ -131,7 +137,7 @@ export function hintGeom(S, lay) {
   const z = Math.min(lay.z, COMPACT), fs = Math.round(19 * z);
   estCtx.font = `400 ${fs}px ${FONT}`;
   const lines = wrapLines(estCtx, S.hint.text, W - 80);
-  const y = lay.hud.h + 6, h = 16 + lines.length * fs * 1.25 + 14 + 58;
+  const y = lay.hudH + 6, h = 16 + lines.length * fs * 1.25 + 14 + 58;
   return { y, h, fs, lines, use: { x: W / 2 - 130, y: y + h - 64, w: 260, h: 54 } };
 }
 
@@ -158,7 +164,7 @@ function drawCardRaw(ctx, x, y, w, h, z, name, score, sub, active, side, left) {
   const np = fitFont(ctx, name, 24 * z, w - sw - 40, 700);
   ctx.textAlign = 'left'; ctx.fillStyle = active ? '#fff3d6' : 'rgba(255,243,214,0.75)'; ctx.fillText(name, x + 14, y + 14 + np * 0.95);
   if (left !== undefined) pips(ctx, x + 22, y + h - 18, left, DISCS, side);
-  else { fitFont(ctx, sub, 17 * z, w - 28, 400); ctx.fillStyle = 'rgba(255,233,191,0.72)'; ctx.fillText(sub, x + 14, y + h - 14); }
+  else { fitFont(ctx, sub, 19 * z, w - 28, 400); ctx.fillStyle = 'rgba(255,233,191,0.72)'; ctx.fillText(sub, x + 14, y + h - 14); }
 }
 export function lessonInfo(S) {
   const L = S.m.lesson, left = L.tries - L.used, g = L.goal;
@@ -186,7 +192,7 @@ function drawBanner(ctx, S, lay) {
   const b = S.banner;
   if (!b) return;
   const k = Math.min(1, b.t / 0.28), e = ease.outBack(k), fade = b.dur - b.t < 0.3 ? Math.max(0, (b.dur - b.t) / 0.3) : 1;
-  const z = lay.z, cy = lay.compact ? 330 : lay.vy + 140 * lay.s;
+  const z = lay.z, cy = lay.vy + (lay.compact ? 150 : 140 * lay.s), bx = lay.bx ?? 360, bsc = lay.bs ?? 1;
   ctx.save();
   ctx.globalAlpha = fade;
   const pw = 640, size = Math.round((b.size ?? 76) * Math.min(1.3, 0.85 + z * 0.2));
@@ -196,7 +202,7 @@ function drawBanner(ctx, S, lay) {
   ctx.font = `400 ${subSize}px ${FONT}`;
   const subLines = b.sub ? wrapLines(ctx, b.sub, pw - 60) : [];
   const ph = px * 1.3 + subLines.length * subSize * 1.25 + 34;
-  ctx.translate(360, cy); ctx.scale(0.8 + 0.2 * e, 0.8 + 0.2 * e);
+  ctx.translate(bx, cy); ctx.scale(bsc * (0.8 + 0.2 * e), bsc * (0.8 + 0.2 * e));
   roundPath(ctx, -pw / 2, -ph / 2, pw, ph, 26); ctx.fillStyle = 'rgba(18,11,6,0.9)'; ctx.fill();
   ctx.lineWidth = 3; ctx.strokeStyle = b.kind === 'bad' ? '#d96a5a' : '#e9c15f'; ctx.stroke();
   ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
@@ -208,9 +214,11 @@ function drawBanner(ctx, S, lay) {
 }
 function drawHud(ctx, S, lay) {
   const hud = lay.hud, m = S.m;
-  const g = ctx.createLinearGradient(0, 0, 0, hud.h + 30);
+  const hy = lay.hy || 0;
+  const g = ctx.createLinearGradient(0, 0, 0, hud.h + hy + 30);
   g.addColorStop(0, 'rgba(8,5,3,0.92)'); g.addColorStop(0.85, 'rgba(8,5,3,0.6)'); g.addColorStop(1, 'rgba(8,5,3,0)');
-  ctx.fillStyle = g; ctx.fillRect(0, 0, W, hud.h + 30);
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, hud.h + hy + 30);
+  ctx.save(); ctx.translate(0, hy);
   ctx.textBaseline = 'alphabetic';
   if (hud.compact) {
     if (m.cfg.mode === 'learn') {
@@ -228,6 +236,7 @@ function drawHud(ctx, S, lay) {
     ctx.textAlign = 'left';
     hud.lines.forEach((l) => { ctx.font = `${l.bold ? 700 : 400} ${hud.fs}px ${FONT}`; textShadow(ctx, l.text, 36, y + hud.fs, l.active ? '#ffe08a' : '#fff3d6', 6); y += hud.fs * 1.22; });
   }
+  ctx.restore();
 }
 function drawTrayText(ctx, lay) {
   const t = lay.tray;
@@ -252,9 +261,9 @@ function drawTray(ctx, S, lay) {
   const R = lay.rects, z = lay.z, m = S.m, ph = S.ph;
   const humanAim = ph === 'aim' && S.humanTurn;
   if (lay.compact && !humanAim && ph !== 'fly') {
-    const bar = ctx.createLinearGradient(0, 1060, 0, H); bar.addColorStop(0, 'rgba(8,5,3,0)'); bar.addColorStop(0.3, 'rgba(8,5,3,0.8)'); bar.addColorStop(1, 'rgba(8,5,3,0.95)'); ctx.fillStyle = bar; ctx.fillRect(0, 1060, W, H - 1060);
+    const y0 = 1060 + lay.ty, bar = ctx.createLinearGradient(0, y0, 0, H); bar.addColorStop(0, 'rgba(8,5,3,0)'); bar.addColorStop(0.3, 'rgba(8,5,3,0.8)'); bar.addColorStop(1, 'rgba(8,5,3,0.95)'); ctx.fillStyle = bar; ctx.fillRect(0, y0, W, H - y0);
   } else {
-    const top = lay.compact ? 1010 : lay.trayTop - 24;
+    const top = lay.compact ? 1010 + lay.ty : lay.trayTop - 24;
     const bar = ctx.createLinearGradient(0, top, 0, H);
     bar.addColorStop(0, 'rgba(8,5,3,0)'); bar.addColorStop(0.2, 'rgba(8,5,3,0.82)'); bar.addColorStop(1, 'rgba(8,5,3,0.96)');
     ctx.fillStyle = bar; ctx.fillRect(0, top, W, H - top);
@@ -297,22 +306,23 @@ function drawPull(ctx, S, lay) {
   ctx.strokeStyle = '#ffe08a'; ctx.lineWidth = 3; ctx.setLineDash([2, 10]); ctx.stroke(); ctx.setLineDash([]);
   ctx.beginPath(); ctx.arc(a.x, a.y, 10, 0, TAU); ctx.fillStyle = 'rgba(255,224,138,0.5)'; ctx.fill();
   // the small circle round the start is the cancel zone: let go inside it and nothing is thrown
-  ctx.beginPath(); ctx.arc(a.x, a.y, PULL.min * lay.s, 0, TAU); ctx.setLineDash([6, 8]); ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(255,240,204,0.55)'; ctx.stroke(); ctx.setLineDash([]);
+  ctx.beginPath(); ctx.arc(a.x, a.y, PULL.min * lay.s / (lay.gain || 1), 0, TAU); ctx.setLineDash([6, 8]); ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(255,240,204,0.55)'; ctx.stroke(); ctx.setLineDash([]);
   const col = DISC_COL[turnSide(S.m) === 1 ? 1 : 0];
   const g = ctx.createRadialGradient(b.x - 10, b.y - 10, 4, b.x, b.y, 38); g.addColorStop(0, col.top0); g.addColorStop(0.6, col.top1); g.addColorStop(1, col.top2);
   ctx.beginPath(); ctx.arc(b.x, b.y, 36, 0, TAU); ctx.fillStyle = g; ctx.fill(); ctx.lineWidth = 4; ctx.strokeStyle = col.ring; ctx.stroke();
   // how far it will land, written beside the finger (kept inside the screen)
   const cm = Math.round(S.plan.az * 100), tx = tr(`Lands ${cm} cm out`, `Cae a ${cm} cm`);
   ctx.font = `700 22px ${FONT}`; ctx.textBaseline = 'middle'; ctx.textAlign = 'center';
-  const tw = ctx.measureText(tx).width + 30, lx = Math.max(tw / 2 + 8, Math.min(W - tw / 2 - 8, b.x)), ly = b.y - 66;
+  const bd = lay.bounds || { x0: 0, x1: W }, tw = ctx.measureText(tx).width + 30, lx = Math.max(bd.x0 + tw / 2 + 8, Math.min(bd.x1 - tw / 2 - 8, b.x)), ly = b.y - 66;
   roundPath(ctx, lx - tw / 2, ly - 18, tw, 36, 18); ctx.fillStyle = 'rgba(18,11,6,0.86)'; ctx.fill(); ctx.fillStyle = '#fff3d6'; ctx.fillText(tx, lx, ly + 1);
   ctx.restore();
 }
 // The thrower's hand: a lit paddle with the next disc on it (nothing else of the thrower is drawn).
 function drawHand(ctx, S, lay) {
-  if (!(S.ph === 'aim' && S.humanTurn) || S.drag?.pull || !lay.compact) return;
-  const col = DISC_COL[turnSide(S.m) === 1 ? 1 : 0], x = 360, y = 960 + Math.sin(S.t * 3) * 3;
+  if (!(S.ph === 'aim' && S.humanTurn) || S.drag?.pull || !(lay.compact || lay.wide)) return;
+  const col = DISC_COL[turnSide(S.m) === 1 ? 1 : 0], x = 360, y = lay.paddleY + Math.sin(S.t * 3) * 3;
   ctx.save();
+  ctx.translate(lay.vx, lay.vy - SCENE_Y0 * lay.s); ctx.scale(lay.s, lay.s);   // drawn in table (scene) units, like the pull
   const gl = ctx.createRadialGradient(x, y, 20, x, y, 130); gl.addColorStop(0, 'rgba(255,224,138,0.35)'); gl.addColorStop(1, 'rgba(255,224,138,0)'); ctx.fillStyle = gl; ctx.beginPath(); ctx.arc(x, y, 130, 0, TAU); ctx.fill();
   roundPath(ctx, x - 62, y + 6, 124, 26, 13); ctx.fillStyle = '#5a3418'; ctx.fill(); ctx.strokeStyle = '#d9ae52'; ctx.lineWidth = 2.5; ctx.stroke();
   const g = ctx.createRadialGradient(x - 10, y - 10, 4, x, y, 38); g.addColorStop(0, col.top0); g.addColorStop(0.6, col.top1); g.addColorStop(1, col.top2);
@@ -323,13 +333,17 @@ function drawHand(ctx, S, lay) {
 }
 export function renderPlay(ctx, S) {
   const lay = computeLayout(S, ctx);
+  if (lay.wide) { renderPlayWide(ctx, S, lay); return; }
   ctx.fillStyle = '#0b0705'; ctx.fillRect(0, 0, W, H);
+  if (lay.compact && lay.sy > 0) {   // tall screen: the wall and floor colours carry on above and below the room picture
+    ctx.fillStyle = '#3a2216'; ctx.fillRect(0, 0, W, lay.sy + 2); ctx.fillStyle = '#4e3324'; ctx.fillRect(0, lay.sy + 1278, W, H - lay.sy - 1278);
+  }
   ctx.save();
   if (lay.clip) { ctx.beginPath(); ctx.rect(lay.clip.x, lay.clip.y, lay.clip.w, lay.clip.h); ctx.clip(); }
   ctx.translate(lay.vx, lay.vy - SCENE_Y0 * lay.s); ctx.scale(lay.s, lay.s);
   drawScene(ctx, S);
   ctx.restore();
-  const vg = ctx.createRadialGradient(360, 600, 280, 360, 600, 860); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,0.34)');
+  const vg = ctx.createRadialGradient(360, 600 + lay.sy, 280, 360, 600 + lay.sy, 860); vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,0.34)');
   ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
   drawHud(ctx, S, lay);
   if (!(S.m.cfg.mode === 'learn' && S.ph === 'intro')) drawBanner(ctx, S, lay);
@@ -337,11 +351,167 @@ export function renderPlay(ctx, S) {
   drawPull(ctx, S, lay);
   drawTray(ctx, S, lay);
   drawStatus(ctx, S, lay);
-  if (S.toastT > 0 && S.toast) {
-    ctx.font = `700 ${Math.round(22 * Math.min(lay.z, 2))}px ${FONT}`; const tw = Math.min(660, ctx.measureText(S.toast).width + 44);
-    roundPath(ctx, 360 - tw / 2, lay.hud.h + 18, tw, 54 * Math.min(lay.z, 2), 16); ctx.fillStyle = 'rgba(18,11,6,0.92)'; ctx.fill();
-    ctx.fillStyle = '#ffe9bf'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(S.toast, 360, lay.hud.h + 18 + 27 * Math.min(lay.z, 2));
+  drawToast(ctx, S, lay, 360, lay.hudH + 18);
+}
+function drawToast(ctx, S, lay, cx, y) {
+  if (!(S.toastT > 0 && S.toast)) return;
+  const z = Math.min(lay.z, 2);
+  ctx.save();
+  ctx.font = `700 ${Math.round(22 * z)}px ${FONT}`; const tw = Math.min(660, ctx.measureText(S.toast).width + 44);
+  roundPath(ctx, cx - tw / 2, y, tw, 54 * z, 16); ctx.fillStyle = 'rgba(18,11,6,0.92)'; ctx.fill();
+  ctx.fillStyle = '#ffe9bf'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(S.toast, cx, y + 27 * z);
+  ctx.restore();
+}
+
+// ---- landscape: the table in the middle, the score board and the notes on the left, the controls on the right -------------------------
+const WIDE_PAD = 10;
+function wideCardH(zc) { return Math.round(Math.max(84, 20 + 24 * zc * 1.1 + 18 * zc * 1.2 + 12)); }
+function computeWide(S, ctx) {
+  const WL = wideLayout(playFrame.sw, playFrame.sh);
+  const z = zOf(S), m = S.m, cx = ctx ?? estCtx;
+  // roomy side panels get bigger cards, type and buttons (up to 1.45x); the text-size setting still applies on top (up to 1.5x)
+  const pz = Math.max(1, Math.min(1.45, Math.min(WL.left.w, WL.right.w) / 250));
+  const zc = Math.min(z, 1.5) * pz;
+  const lay = Object.assign({}, WL, { compact: false, wide: true, z, zc, pz, sy: 0, hy: 0, ty: 0, E: 0 });
+  const Lp = WL.left, Rp = WL.right;
+  lay.bounds = { x0: WL.scene.x, x1: WL.scene.x + WL.scene.w }; lay.bx = WL.scene.x + WL.scene.w / 2; lay.bs = Math.min(1, WL.scene.w / 680);
+  const R = {}, humanAim = S.ph === 'aim' && S.humanTurn, watch = m.cfg.mode === 'watch';
+  // ---- left panel: two cards, the phase line, then the note / hint text
+  const lw = Math.max(120, Lp.w), cardH = wideCardH(Math.min(zc, 1.2));
+  const cards = [{ x: Lp.x, y: Lp.y, w: lw, h: cardH }, { x: Lp.x, y: Lp.y + cardH + 8, w: lw, h: cardH }];
+  const fs = Math.max(19, Math.round(20 * zc)), phaseTxt = phaseLine(S);
+  cx.font = `400 ${fs}px ${FONT}`;
+  const phaseLines = wrapLines(cx, phaseTxt, lw - 4);
+  const py = cards[1].y + cardH + 14, phaseH = phaseLines.length * fs * 1.25;
+  const noteTop = py + phaseH + 12, noteH = Math.max(0, Lp.y + Lp.h - noteTop);
+  lay.hud = { compact: false, h: cards[1].y + cardH, cards, fs, phaseLines, phaseX: Lp.x + lw / 2, phaseY: py, wide: true, lw };
+  lay.hudH = cards[1].y + cardH; lay.tray = null; lay.status = null; lay.hint = null;
+  const note = { x: Lp.x, y: noteTop, w: lw, h: noteH };
+  const nfs = Math.max(19, Math.round(19 * zc));
+  if (humanAim && S.hint && !S.hint.busy) {
+    cx.font = `400 ${nfs}px ${FONT}`;
+    const lines = wrapLines(cx, S.hint.text, lw - 24), btnH = 60, maxLines = Math.max(1, Math.floor((noteH - 16 - 14 - btnH - 10) / (nfs * 1.25)));
+    const shown = lines.slice(0, maxLines);
+    if (lines.length > maxLines) shown[maxLines - 1] = shown[maxLines - 1].replace(/[ ,.;:]*$/, '') + '...';
+    const h = Math.min(Lp.y + Lp.h - noteTop, 16 + shown.length * nfs * 1.25 + 14 + btnH + 10);
+    lay.hint = { x: Lp.x, y: noteTop, w: lw, h, lines: shown, fs: nfs, use: { x: Lp.x + 10, y: noteTop + h - btnH - 10, w: lw - 20, h: btnH } };
+    R.use = lay.hint.use;
+  } else if (S.ph === 'aim' && S.hint && S.hint.busy) {
+    lay.note = { rect: note, lines: [tr('Testing throws on the real table...', 'Probando tiros en la mesa real...')], fs: nfs, more: false };
+  } else if (S.ph !== 'aim' || !humanAim) {
+    const text = statusText(S);
+    if (text) {
+      const { lines, more } = fitStatus(cx, text, nfs, lw - 24, Math.max(2, Math.floor((noteH - 40) / (nfs * 1.25))));
+      const h = lines.length * nfs * 1.25 + (more ? nfs * 1.4 : 0) + 22;
+      lay.note = { rect: { x: Lp.x, y: noteTop, w: lw, h: Math.min(noteH, h) }, lines, fs: nfs, more };
+      if (more) R.more = lay.note.rect;
+    }
   }
+  // ---- right panel: a stack anchored to the bottom, menu lowest
+  const rw = Math.max(120, Rp.w), bw = Math.min(rw, 360), bx = Rp.x + (rw - bw) / 2, g = 10;
+  const tall = (bw >= 150 ? 1 : 0.8) * Math.min(pz, 1.3), bh = Math.round(72 * tall), small = Math.round(64 * tall);
+  let yb = Rp.y + Rp.h;
+  const place = (id, h, x = bx, w = bw) => { yb -= h; R[id] = { x, y: yb, w, h }; yb -= g; return R[id]; };
+  if (watch) {
+    place('wexit', small); place('wpause', bh);
+    const hh = small; yb -= 0;
+    const rowY = yb - hh; const gp = 8, side = Math.max(52, Math.round(bw * 0.24)), mid = bw - 2 * side - 2 * gp;
+    R.wdec = { x: bx, y: rowY, w: side, h: hh }; R.wlabel = { x: bx + side + gp, y: rowY, w: mid, h: hh }; R.winc = { x: bx + side + gp + mid + gp, y: rowY, w: side, h: hh };
+  } else if (humanAim) {
+    place('menu', small);
+    place('throw', Math.round(96 * tall));
+    place('think', bh);
+    // spin: one row of five when the panel is wide enough, otherwise 3 + 2
+    const sp = 5, one = bw >= 300;
+    if (one) { const sw = (bw - 4 * 6) / 5; yb -= small; for (let i = 0; i < sp; i++) R[`spin${i}`] = { x: bx + i * (sw + 6), y: yb, w: sw, h: small }; yb -= g; }
+    else {
+      const sw = (bw - 2 * 6) / 3; yb -= small; for (let i = 3; i < 5; i++) R[`spin${i}`] = { x: bx + (i - 3) * (sw + 6) + (sw + 6) / 2, y: yb, w: sw, h: small }; yb -= 6;
+      yb -= small; for (let i = 0; i < 3; i++) R[`spin${i}`] = { x: bx + i * (sw + 6), y: yb, w: sw, h: small }; yb -= g;
+    }
+    yb -= small; R.style0 = { x: bx, y: yb, w: (bw - 8) / 2, h: small }; R.style1 = { x: bx + (bw + 8) / 2, y: yb, w: (bw - 8) / 2, h: small }; yb -= g;
+  } else if (S.ph === 'fly') { place('menu', small); place('skip', bh); } else place('menu', small);
+  // the stack was built upwards from the bottom of the panel: centre it vertically in the panel
+  const free = (yb + g) - Rp.y;
+  if (free > 24) { const dyc = Math.round(free / 2); for (const k of Object.keys(R)) if (k !== 'use' && k !== 'more') R[k] = { ...R[k], y: R[k].y - dyc }; }
+  lay.stackTop = yb + g;
+  lay.rects = R;
+  return lay;
+}
+function drawPanelBack(ctx, x, y, w, h) {
+  const g = ctx.createLinearGradient(0, y, 0, y + h); g.addColorStop(0, '#2a1a10'); g.addColorStop(0.5, '#1c120b'); g.addColorStop(1, '#120a06');
+  ctx.fillStyle = g; ctx.fillRect(x, y, w, h);
+  ctx.fillStyle = 'rgba(217,174,82,0.06)'; for (let i = 0; i < 6; i++) ctx.fillRect(x, y + (i + 0.5) * h / 6, w, 2);   // faint plank lines
+}
+function renderPlayWide(ctx, S, lay) {
+  const w = lay.w, h = lay.h, sc = lay.scene;
+  ctx.fillStyle = '#0b0705'; ctx.fillRect(0, 0, w, h);
+  ctx.save(); ctx.beginPath(); ctx.rect(sc.x, sc.y, sc.w, sc.h); ctx.clip();
+  ctx.translate(lay.vx, lay.vy - SCENE_Y0 * lay.s); ctx.scale(lay.s, lay.s);
+  drawScene(ctx, S);
+  ctx.restore();
+  // a hairline round the table and soft edges so the room reads as a framed window between the panels
+  ctx.save(); ctx.strokeStyle = 'rgba(217,174,82,0.45)'; ctx.lineWidth = 2; ctx.strokeRect(sc.x - 1, sc.y - 1, sc.w + 2, sc.h + 2); ctx.restore();
+  drawWideHud(ctx, S, lay);
+  if (!(S.m.cfg.mode === 'learn' && S.ph === 'intro')) drawBanner(ctx, S, lay);
+  drawHand(ctx, S, lay);
+  drawPull(ctx, S, lay);
+  drawWideTray(ctx, S, lay);
+  if (S.m.cfg.mode === 'learn' && S.ph === 'intro') {
+    ctx.save(); ctx.translate((lay.w - 720) / 2, 0); drawLessonIntro(ctx, S, lay); ctx.restore();
+  }
+  drawToast(ctx, S, lay, sc.x + sc.w / 2, sc.y + 8);
+}
+function drawWideHud(ctx, S, lay) {
+  const m = S.m, hud = lay.hud, Lp = lay.left;
+  drawPanelBack(ctx, lay.U.x0, lay.U.y0, Lp.x + Lp.w + 8 - lay.U.x0, lay.U.y1 - lay.U.y0);
+  ctx.textBaseline = 'alphabetic';
+  const [c0, c1] = hud.cards, z = Math.min(lay.zc, 1.3);
+  if (m.cfg.mode === 'learn') {
+    const li = lessonInfo(S);
+    drawCardRaw(ctx, c0.x, c0.y, c0.w, c0.h, z, tr('Throws left', 'Tiros que quedan'), li.left, tr(`Lesson ${m.lesson.idx + 1} of 6`, `Lección ${m.lesson.idx + 1} de 6`), true, 0);
+    drawCardRaw(ctx, c1.x, c1.y, c1.w, c1.h, z, li.goalName, li.goalScore, li.goalSub, false, 1);
+  } else [c0, c1].forEach((c, sd) => drawCardRaw(ctx, c.x, c.y, c.w, c.h, z, sideName(S, sd), m.scores[sd], '', turnSide(m) === sd && !m.over, sd, leftFor(m, sd)));
+  ctx.textAlign = 'center'; ctx.font = `400 ${hud.fs}px ${FONT}`; ctx.fillStyle = '#fff3d6';
+  hud.phaseLines.forEach((l, i) => ctx.fillText(l, hud.phaseX, hud.phaseY + hud.fs * (1 + i * 1.25) - 4));
+  if (lay.hint) {
+    const g = lay.hint;
+    roundPath(ctx, g.x, g.y, g.w, g.h, 16); ctx.fillStyle = 'rgba(14,9,5,0.95)'; ctx.fill(); ctx.strokeStyle = 'rgba(125,232,255,0.6)'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.font = `400 ${g.fs}px ${FONT}`; ctx.fillStyle = '#e8fbff'; ctx.textAlign = 'center';
+    g.lines.forEach((l, i) => ctx.fillText(l, g.x + g.w / 2, g.y + 16 + g.fs * (1 + i * 1.25) - 4));
+    drawButton(ctx, g.use, tr('Use this line', 'Usar esta jugada'), { primary: true, size: 22 });
+  } else if (lay.note) {
+    const n = lay.note, r = n.rect;
+    roundPath(ctx, r.x, r.y, r.w, r.h, 14); ctx.fillStyle = 'rgba(18,11,6,0.86)'; ctx.fill(); ctx.strokeStyle = 'rgba(125,232,255,0.5)'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.font = `400 ${n.fs}px ${FONT}`; ctx.fillStyle = '#e8fbff'; ctx.textAlign = 'center';
+    n.lines.forEach((l, i) => ctx.fillText(l, r.x + r.w / 2, r.y + 10 + n.fs * (1 + i * 1.25) - 4));
+    if (n.more) { ctx.font = `700 ${Math.round(n.fs * 0.9)}px ${FONT}`; ctx.fillStyle = '#7de8ff'; ctx.fillText(tr('Tap here to read it all', 'Toca aquí para leerlo todo'), r.x + r.w / 2, r.y + 10 + n.fs * (1 + n.lines.length * 1.25) + 2); }
+  }
+}
+function drawWideTray(ctx, S, lay) {
+  const R = lay.rects, m = S.m, Rp = lay.right, zc = lay.zc;
+  drawPanelBack(ctx, Rp.x - 8, lay.U.y0, lay.U.x1 - Rp.x + 8, lay.U.y1 - lay.U.y0);
+  const size = Math.round(24 * Math.min(zc, 1.3)), btn = (id, label, o = {}) => { if (R[id]) drawButton(ctx, R[id], label, { size, ...o }); };
+  if (m.cfg.mode === 'watch') {
+    btn('wdec', '−', { dark: true, disabled: S.settings.thinkIdx === 0 });
+    btn('winc', '+', { dark: true, disabled: S.settings.thinkIdx === 3 });
+    if (R.wlabel) { const r = R.wlabel, txt = tr(`Think ${S.thinkSecs} s`, `Pensar ${S.thinkSecs} s`); ctx.fillStyle = '#ffe9bf'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; fitFont(ctx, txt, 22, r.w - 4, 700); ctx.fillText(txt, r.x + r.w / 2, r.y + r.h / 2); }
+    btn('wpause', S.paused ? tr('Resume', 'Seguir') : tr('Pause', 'Pausa'), { primary: true });
+    btn('wexit', tr('Exit', 'Salir'), { dark: true });
+    return;
+  }
+  const humanAim = S.ph === 'aim' && S.humanTurn;
+  if (humanAim) {
+    const sn = STYLE_NAMES();
+    btn('style0', sn[0], { active: S.plan.style === 0, dark: S.plan.style !== 0, size: Math.round(size * 0.95) });
+    btn('style1', sn[1], { active: S.plan.style === 1, dark: S.plan.style !== 1, size: Math.round(size * 0.95) });
+    for (let i = 0; i < 5; i++) drawSpinBtn(ctx, R[`spin${i}`], i, S.plan.spin === i - 2);
+    btn('think', S.hint && S.hint.busy ? tr('Think...', 'Pensar...') : tr('Think', 'Pensar'), { dark: true });
+    btn('throw', tr('Throw', 'Lanzar'), { primary: true, size: Math.round(32 * Math.min(zc, 1.2)) });
+    btn('menu', tr('Menu', 'Menú'), { dark: true, size: Math.round(size * 0.95) });
+    return;
+  }
+  btn('skip', tr('Skip', 'Saltar'), { dark: true });
+  btn('menu', tr('Menu', 'Menú'), { dark: true });
 }
 function drawLessonIntro(ctx, S, lay) {
   const L = S.m.lesson, z = lay.z, fs = Math.round(26 * Math.min(z, 2));
@@ -372,7 +542,7 @@ function drawStatus(ctx, S, lay) {
   }
   if (S.ph === 'aim' && S.hint && S.hint.busy) {
     ctx.font = `700 22px ${FONT}`; ctx.fillStyle = '#bff3ff'; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
-    ctx.fillText(tr('Testing throws on the real table...', 'Probando tiros en la mesa real...'), W / 2, lay.hud.h + 30); return;
+    ctx.fillText(tr('Testing throws on the real table...', 'Probando tiros en la mesa real...'), W / 2, lay.hudH + 30); return;
   }
   const st = lay.status;
   if (!st) return;

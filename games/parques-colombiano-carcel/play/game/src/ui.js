@@ -2,22 +2,37 @@
 // so what you see is exactly what you can tap. Menu-like screens are "stacks": a list of items laid out top to bottom at
 // the current text zoom (up to 300%), scrolled by dragging when they are taller than their box.
 import { HOW, ABOUT, RULES } from './content.js';
-import { wrapLines, estW, paginate } from './text.js';
+import { wrapLines, estW, paginate, ART_H, CHAR_W } from './text.js';
 import { LEVELS, LEVEL_NAMES } from './ai.js';
+import { PANEL, BODY, REGION, G } from './layout.js';
+export { PANEL, BODY, REGION };
 
 export const TEXT_SCALES = [1, 1.5, 2, 2.5, 3];
 export const AP_THINK_STEPS = [2, 5, 8, 10]; // Auto Play THINK pause, seconds (default index 1 = 5 s, capped at 10 s)
-export const PANEL = { x: 36, y: 100, w: 648, h: 1360 };
-export const BODY = { x: 76, y: 268, w: 568, h: 880 };       // reader text box
 export const zoomOf = (s) => TEXT_SCALES[s.prefs.textScaleIdx ?? 0] ?? 1;
 
 // ---- reader documents (How to play / About / Rules) -------------------------------------------------------
 const DOCS = { how: HOW, about: ABOUT, rules: RULES };
 const pageCache = {};
 export function readerPages(sc, z) {
-  const key = sc + '|' + z;
+  const key = sc + '|' + z + '|' + BODY.w + '|' + BODY.h;
   return (pageCache[key] ||= paginate(DOCS[sc], z, BODY.w, BODY.h));
 }
+// One continuous scrolling document (no pages): every section in order, heading + art + text, laid out at the current zoom.
+const flowCache = {};
+export function readerFlow(sc, z) {
+  const key = sc + '|' + z + '|' + BODY.w;
+  if (flowCache[key]) return flowCache[key];
+  const secs = []; let y = 0;
+  for (const pg of paginate(DOCS[sc], z, BODY.w, 1e9)) {
+    const hs = Math.max(22, Math.round(pg.size * 0.3), Math.min(Math.round(pg.size * 1.15), Math.floor(BODY.w / (Math.max(1, String(pg.h || '').length) * CHAR_W * 1.2)))), s = { h: pg.h, art: pg.art, lines: pg.lines, size: pg.size, lh: pg.lh, hs, y };
+    y += Math.round(hs * 1.5) + (pg.art ? ART_H + Math.round(pg.size * 0.3) : 0);
+    for (const ln of pg.lines) y += ln.gap + pg.lh;
+    y += Math.round(pg.size * 1.1); secs.push(s);
+  }
+  return (flowCache[key] = { secs, total: y });
+}
+export const readerMax = (s) => (s.scene === 'how' || s.scene === 'about' || s.scene === 'rules' ? Math.max(0, readerFlow(s.scene, zoomOf(s)).total - BODY.h) : 0);
 export const readerIndex = (s) => (s.scene === 'how' ? s.howPage : s.scene === 'about' ? s.aboutPage : s.rulesPage);
 
 // ---- stack layout ---------------------------------------------------------------------------------------------------
@@ -58,20 +73,13 @@ export function layoutStack(items, z, region, scroll = 0) {
 }
 
 // ---- the stack for each menu-like screen ----------------------------------------------------------------------------
-export const REGION = {
-  title: { x: 60, y: 1020, w: 600, h: 440 },
-  panel: { x: 64, y: 250, w: 592, h: 1070 },
-  card: { x: 100, y: 420, w: 520, h: 620 },
-  over: { x: 90, y: 560, w: 540, h: 520 },
-  menu: { x: 100, y: 500, w: 520, h: 480 },
-};
 const ACC = '#8a1f26';
 
 export function stackFor(s) {
   const sc = s.scene, p = s.prefs, t = s.setup;
   const label = (str, size = 26, color = '#2a1b12', extra = {}) => ({ k: 'text', str, size, color, weight: 700, align: 'left', font: 'ui', after: 6, ...extra });
   if (s.menuOpen && (sc === 'play' || sc === 'autoplay')) {
-    return { key: 'menu', region: REGION.menu, card: { x: 80, y: 430, w: 560, h: 640, title: 'Paused' }, footer: [], items: [
+    return { key: 'menu', region: REGION.menu, card: G.cards.menu, footer: [], items: [
       { k: 'btn', id: 'resume', label: 'Resume', h: 80, size: 32, primary: true },
       { k: 'btn', id: 'sound', label: p.sound ? 'Sound: on' : 'Sound: off', h: 66, size: 28 },
       { k: 'btn', id: 'howmenu', label: 'How to play', h: 66, size: 28 },
@@ -121,7 +129,7 @@ export function stackFor(s) {
     const g = s.g, items = [{ k: 'art', name: 'winner', h: 130 }];
     items.push({ k: 'text', str: o.youWon ? 'You win!' : `${g.players[o.winner].name} wins!`, size: 54, color: ACC, weight: 700, align: 'center', font: 'display', after: 10 });
     o.rank.forEach((r, k) => items.push({ k: 'art', name: 'rank', r, rank: k, h: Math.round(56 * Math.max(1, Math.min(1.6, zoomOf(s) * 0.7))), after: 6 }));
-    return { key: 'over', region: REGION.over, card: { x: 60, y: 330, w: 600, h: 840 }, items, footer: [{ id: 'again', label: sc === 'autoplay-over' ? 'Watch again' : 'Play again', primary: true, size: 34 }, { id: 'title', label: 'Menu', size: 28 }] };
+    return { key: 'over', region: REGION.over, card: G.cards.over, items, footer: [{ id: 'again', label: sc === 'autoplay-over' ? 'Watch again' : 'Play again', primary: true, size: 34 }, { id: 'title', label: 'Menu', size: 28 }] };
   }
   if (sc === 'demo-limit') {
     return { key: 'demo', title: 'Thank you for playing', region: REGION.panel, items: [
@@ -133,11 +141,15 @@ export function stackFor(s) {
 }
 const LEVEL_BLURB = { beginner: 'Often plays any legal move. Good for learning.', cautious: 'Hides on seguros, builds barriers, avoids risk.', balanced: 'Weighs risk, captures and progress.', bold: 'Hunts captures and sprints, ignoring risk.' };
 
-// Footer buttons sit in a fixed row at the bottom of their card / panel.
+// Footer buttons sit at the bottom of their card / panel: a row in landscape, stacked in portrait.
 export function footerRects(stack, footer) {
-  const card = stack.card, bottom = card ? card.y + card.h - 40 : PANEL.y + PANEL.h - 36, w = (card ? card.w : 592) - (card ? 80 : 0), x = card ? card.x + 40 : 64;
+  const reg = stack.region, box = stack.card || PANEL, bottom = box.y + box.h - (stack.card ? 36 : 30);
+  if (G.footRow) {
+    const n = footer.length, gap = 12, w = (reg.w - gap * (n - 1)) / n, h = 68, y = bottom - h;
+    return { rects: footer.map((f, i) => ({ ...f, x: reg.x + i * (w + gap), y, w, h, lines: [f.label] })), top: y - 10 };
+  }
   const out = []; let y = bottom;
-  for (let i = footer.length - 1; i >= 0; i--) { const f = footer[i], h = i === 0 ? 76 : 64; y -= h; out.unshift({ ...f, x, y, w, h, lines: [f.label] }); y -= 10; }
+  for (let i = footer.length - 1; i >= 0; i--) { const f = footer[i], h = i === 0 ? 76 : 64; y -= h; out.unshift({ ...f, x: reg.x, y, w: reg.w, h, lines: [f.label] }); y -= 10; }
   return { rects: out, top: y };
 }
 
@@ -156,14 +168,13 @@ export function screenLayout(s) {
 }
 
 const visible = (n, region) => n.y + n.h > region.y && n.y < region.y + region.h;
-export const HUD_Y = 1396;
 
 export function screenButtons(s) {
   const sc = s.scene, B = [];
   if (sc === 'how' || sc === 'about' || sc === 'rules') {
-    const pages = readerPages(sc, zoomOf(s)), last = readerIndex(s) >= pages.length - 1, ti = s.prefs.textScaleIdx ?? 0;
-    B.push({ id: 'textDec', x: 64, y: 1262, w: 110, h: 52, label: 'A−', size: 26, dim: ti <= 0, lines: ['A−'] }, { id: 'textInc', x: 546, y: 1262, w: 110, h: 52, label: 'A+', size: 26, dim: ti >= TEXT_SCALES.length - 1, lines: ['A+'] });
-    B.push({ id: 'back', x: 64, y: 1342, w: 280, h: 78, label: 'Back', size: 30, lines: ['Back'] }, { id: 'page', x: 376, y: 1342, w: 280, h: 78, label: last ? 'Done' : 'Next page', primary: true, size: 30, lines: [last ? 'Done' : 'Next page'] });
+    const ti = s.prefs.textScaleIdx ?? 0, rd = G.reader;
+    B.push({ id: 'textDec', ...rd.dec, label: 'A−', size: 26, dim: ti <= 0, lines: ['A−'] }, { id: 'textInc', ...rd.inc, label: 'A+', size: 26, dim: ti >= TEXT_SCALES.length - 1, lines: ['A+'] });
+    B.push({ id: 'back', ...rd.back, label: 'Back', size: 30, lines: ['Back'] }, { id: 'page', ...rd.next, label: 'Top', primary: true, dim: (s.scroll || 0) < 4, size: 30, lines: ['Top'] });
     return B;
   }
   const lay = screenLayout(s);
@@ -175,13 +186,14 @@ export function screenButtons(s) {
   if (sc === 'pass') return B;
   if (sc === 'play' || sc === 'autoplay') {
     if (sc === 'autoplay') {
-      const ti = s.prefs.apThinkIdx ?? 1, ap = s.ap;
-      const row = [['menu', 'Menu'], [ap.paused ? 'apresume' : 'appause', ap.paused ? 'Resume' : 'Pause'], ['apDec', 'Think −'], ['apInc', 'Think +']];
-      row.forEach(([id, label], i) => B.push({ id, x: 24 + i * 172, y: HUD_Y, w: 156, h: 82, label, size: 24, lines: [label], primary: id === 'apresume', dim: (id === 'apDec' && ti <= 0) || (id === 'apInc' && ti >= AP_THINK_STEPS.length - 1) }));
+      const ti = s.prefs.apThinkIdx ?? 1, ap = s.ap, A = G.btns.auto;
+      const row = [['menu', 'Menu', A.menu], [ap.paused ? 'apresume' : 'appause', ap.paused ? 'Resume' : 'Pause', A.pause], ['apDec', 'Think −', A.dec], ['apInc', 'Think +', A.inc]];
+      for (const [id, label, r] of row) B.push({ id, ...r, label, size: 24, lines: [label], primary: id === 'apresume', dim: (id === 'apDec' && ti <= 0) || (id === 'apInc' && ti >= AP_THINK_STEPS.length - 1) });
     } else {
-      B.push({ id: 'menu', x: 38, y: HUD_Y, w: 200, h: 82, label: 'Menu', size: 28, lines: ['Menu'] });
-      B.push({ id: 'hint', x: 260, y: HUD_Y, w: 200, h: 82, label: 'Hint', size: 28, lines: ['Hint'], dim: !(s.phase === 'choose' && s.g.players[s.g.turn].human) });
-      B.push({ id: 'sound', x: 482, y: HUD_Y, w: 200, h: 82, label: s.prefs.sound ? 'Sound on' : 'Sound off', size: 28, lines: [s.prefs.sound ? 'Sound on' : 'Sound off'] });
+      const P = G.btns.play;
+      B.push({ id: 'menu', ...P.menu, label: 'Menu', size: 28, lines: ['Menu'] });
+      B.push({ id: 'hint', ...P.hint, label: 'Hint', size: 28, lines: ['Hint'], dim: !(s.phase === 'choose' && s.g.players[s.g.turn].human) });
+      B.push({ id: 'sound', ...P.sound, label: s.prefs.sound ? 'Sound on' : 'Sound off', size: 28, lines: [s.prefs.sound ? 'Sound on' : 'Sound off'] });
     }
   }
   return B;

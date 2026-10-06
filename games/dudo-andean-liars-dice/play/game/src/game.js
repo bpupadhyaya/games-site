@@ -1,10 +1,10 @@
 // GAME CONTRACT (docs/GAME-CONTRACT.md). Dudo: Andean bluff dice. Real Dudo rules, five computer levels, pass-and-play, Think with exact odds.
-import { SCREEN, inRect, BACK_BTN, PAUSE_BTN, autoLayout, playLayout } from './layout.js';
+import { inRect, hud, autoLayout, playLayout, setScreen } from './layout.js';
 import { TEXT_SCALES, hitDoc, clampScroll } from './ui.js';
 import { buildUi, THINK_STEPS, demoOver, recKey, specsFromSetup, AUTO_SPECS, MAX_PLAYERS } from './screens.js';
 import { LEVELS, decide } from './ai.js';
 import { LESSONS } from './lessons.js';
-import { setLang, tr, HOWTO_COUNT, RULE_COUNT } from './content.js';
+import { setLang, tr } from './content.js';
 import { THEMES } from './art.js';
 import { describeMove } from './explain.js';
 import {
@@ -13,9 +13,11 @@ import {
 } from './match.js';
 import { render } from './view.js';
 
-export const meta = { width: SCREEN.width, height: SCREEN.height };
+// Fluid viewport (kit 1.7.1): the short side is 720 units, the long side follows the screen. meta.width/height are live (the kit updates them).
+export const meta = { width: 720, height: 1560, fluid: { short: 720 } };
+export const wheelInput = { dy: 0 };   // main.js adds mouse-wheel distance here (virtual units); update() scrolls the open text screen
 
-const VERSION = '1.0.0';
+const VERSION = '1.1.0';
 const WIN_NOTES = [523, 659, 784, 1047, 1319];
 const isDigit = /^(Digit|Numpad)([1-6])$/;
 
@@ -26,7 +28,7 @@ export async function createGame(env) {
     scene: 'title', overlay: null, t: 0, ovT: 0, sound: true, themeId: 'aguayo', textIdx: 0, thinkIdx: 1, lang: 'en',
     setup: { humans: 1, cpus: 3, level: 2 }, stats: {}, lessons: {}, save: null, demoGames: 0, progress: { games: 0, wins: 0 },
     page: { howto: 0, rules: 0 }, scroll: {}, scrollVel: {}, press: null, match: null, auto: null, lq: { i: 0, q: 0, picked: -1 }, endInfo: null,
-    toast: null, toastT: 0, winSeq: null, demo: Boolean(config?.demo), dev: Boolean(config?.dev), owns: false, price: '', resetArm: false, version: VERSION,
+    toast: null, toastT: 0, winSeq: null, demo: Boolean(config?.demo), dev: Boolean(config?.dev), owns: false, price: '', resetArm: false, version: env.manifest?.version || VERSION,
     shot: false, lastPtr: { x: 0, y: 0 }, firstGame: true, ended: false, lastSpecs: null,
   };
 
@@ -220,7 +222,7 @@ export async function createGame(env) {
   }
 
   // ------------------------------------------------------------------------------ store screenshots
-  // `tools/arc shots` loads ?shot=1&seed=N. Seeds 900001..900060 stage a real moment of play; 901001+ and 902001+ show the Rules pages at 100 and 300 percent.
+  // `tools/arc shots` loads ?shot=1&seed=N. Seeds 900001..900070 stage a real moment of play; 901001+ and 902001+ show the Rules pages at 100 and 300 percent.
   function settle(M, secs) { for (let i = 0; i < secs * 60; i++) stepMatch(M, 1 / 60, rng); M.events.length = 0; M.parts.length = 0; }
   function stageShot(n) {
     S.shot = true;
@@ -264,23 +266,37 @@ export async function createGame(env) {
       else if (n === 26) { mk({ humans: 1, cpus: 3, level: 3 }, [[4, 1, 6, 4, 2], [3, 3, 5, 2, 6], [1, 5, 5, 2, 4], [6, 6, 3, 1, 4]], [[0, 3, 4], [1, 3, 5], [2, 4, 5], [3, 5, 5]], { opener: 0, turn: 0 }); S.overlay = 'pause'; S.ovT = 1; }
       else if (n === 27) { mk({ humans: 1, cpus: 3, level: 3 }, [[4, 1, 6, 4, 2], [3, 3, 5, 2, 6], [1, 5, 5, 2, 4], [6, 6, 3, 1, 4]], [[0, 3, 4], [1, 3, 5], [2, 4, 5], [3, 5, 5]], { opener: 0, turn: 0 }); S.endInfo = { head: tr('youWin'), body: tr('matchOverBody'), rec: `${tr('record')}: 5 ${tr('wins')}, 2 ${tr('losses')}`, win: true }; S.overlay = 'end'; S.ovT = 1; }
       else if (n === 28) S.scene = 'demo-limit';
-      else if (n === 29) { S.scene = 'howto'; S.page.howto = 2; }
+      else if (n === 29) { S.scene = 'howto'; S.page.howto = 2; scrollToPage(); }
       else if (n === 30) { const M = mk({ humans: 1, cpus: 5, level: 'mixed' }, [[2, 3, 3, 5, 1], [4, 4], [6, 5, 5, 3], [1, 1, 2, 6, 5], [3, 4, 6], [5, 5, 5, 6, 6]], [[0, 4, 3], [1, 4, 5], [2, 6, 3], [3, 7, 3]], { opener: 0, turn: 0 }); M.freeze = true; }
       else if (n === 31) { const M = mk({ humans: 1, cpus: 5, level: 'mixed' }, [[2, 3, 3, 5, 1], [4, 4], [6, 5, 5, 3], [1, 1, 2, 6, 5], [3, 4, 6], [5, 5, 5, 6, 6]], [[0, 4, 3], [1, 4, 5], [2, 6, 3], [3, 7, 3]], { opener: 0, turn: 0 }); M.freeze = false; doCall(M, 'dudo', rng); settle(M, 1.2 + 6 * 0.5 + 0.9); }
       else if (n === 32) { const M = mk({ humans: 1, cpus: 3, level: 3 }, [[4, 1, 6, 4, 2], [3, 3, 5, 2, 6], [1, 5, 5, 2, 4], [6, 6, 3, 1, 4]], [[0, 3, 4], [1, 3, 5], [2, 4, 5], [3, 6, 5]], { opener: 0, turn: 0 }); think(M); M.events.length = 0; }
       else if (n === 33) { S.scene = 'lesson'; S.lq = { i: 1, q: 1, picked: 0 }; }
-      else if (n === 34) { S.scene = 'rules'; S.page.rules = 4; }
+      else if (n === 34) { S.scene = 'rules'; S.page.rules = 4; scrollToPage(); }
       else if (n === 35) { startAuto(); S.thinkIdx = 0; const M = S.match; skipToTurn(M); M.st.players.forEach((p, i) => { p.hand = [[2, 4, 4, 1, 6], [5, 5, 3, 1, 2], [6, 3, 4, 4, 1]][i]; }); M.st.turn = 0; doBid(M, 4, 4); M.gapT = 1; settle(M, 0.8); M.freeze = true; S.auto.phase = 'reveal'; S.auto.t = 1; const st = M.st; S.auto.plan = decide(st, st.turn, rng); S.auto.note = { head: `${st.players[st.turn].name}: ${describeMove(st, st.turn, S.auto.plan).head}`, why: describeMove(st, st.turn, S.auto.plan).why }; M.phase = 'autowait'; S.auto.paused = true; }
       else if (n === 36) { mk({ humans: 2, cpus: 1, level: 3 }, [[3, 1, 5, 5, 2], [4, 6, 6], [2, 2, 3, 5, 5]], [[0, 3, 5]], { opener: 0, turn: 1 }); S.match.phase = 'handoff'; S.match.ack = false; }
-    } else if (n >= 1001 && n <= 1030) { S.scene = 'rules'; S.page.rules = n - 1001; }
-    else if (n >= 2001 && n <= 2030) { S.scene = 'rules'; S.page.rules = n - 2001; S.textIdx = 4; }
+    } else if (n >= 61 && n <= 70) { // layout QA at 100 percent (overlays and the screens that only had a 300 percent seed)
+      const four = () => mk({ humans: 1, cpus: 3, level: 3 }, [[4, 1, 6, 4, 2], [3, 3, 5, 2, 6], [1, 5, 5, 2, 4], [6, 6, 3, 1, 4]], [[0, 3, 4], [1, 3, 5], [2, 4, 5], [3, 5, 5]], { opener: 0, turn: 0 });
+      if (n === 61) { four(); S.overlay = 'pause'; S.ovT = 1; }
+      else if (n === 62) { four(); S.endInfo = { head: tr('youWin'), body: tr('matchOverBody'), rec: `${tr('record')}: 5 ${tr('wins')}, 2 ${tr('losses')}`, win: true }; S.overlay = 'end'; S.ovT = 1; }
+      else if (n === 63) { startAuto(); S.overlay = 'autosum'; S.ovT = 1; }
+      else if (n === 64) S.scene = 'demo-limit';
+      else if (n === 65) S.scene = 'settings';
+      else if (n === 66) S.scene = 'learn';
+      else if (n === 67) S.scene = 'about';
+      else if (n === 68) { S.setup = { humans: 2, cpus: 4, level: 'mixed' }; S.scene = 'setup'; }
+      else if (n === 69) { const M = four(); M.freeze = false; doCall(M, 'dudo', rng); settle(M, 1.2 + 4 * 0.5 + 0.9); }
+      else if (n === 70) { S.save = { specs: AUTO_SPECS, snap: { round: 3, players: [{}, {}, {}] } }; S.scene = 'title'; S.t = 2.4; }
+    } else if (n >= 1001 && n <= 1030) { S.scene = 'rules'; S.page.rules = n - 1001; scrollToPage(); }
+    else if (n >= 2001 && n <= 2030) { S.scene = 'rules'; S.page.rules = n - 2001; S.textIdx = 4; scrollToPage(); }
   }
   const wantsShot = typeof location !== 'undefined' && /[?&]shot=1/.test(location.search);
   const sd = config?.seed ?? 0;
-  const shotSeed = wantsShot && ((sd >= 900001 && sd <= 900060) || (sd >= 901001 && sd <= 901030) || (sd >= 902001 && sd <= 902030)) ? sd - 900000 : 0;
+  const shotSeed = wantsShot && ((sd >= 900001 && sd <= 900070) || (sd >= 901001 && sd <= 901030) || (sd >= 902001 && sd <= 902030)) ? sd - 900000 : 0;
   if (shotSeed) stageShot(shotSeed);
 
   // ------------------------------------------------------------------------------ ui plumbing
+  // QA seeds: jump the continuous reader to the section that used to be a separate page.
+  function scrollToPage() { const ui = buildUi(S); if (ui.pageStart && ui.layout) { const it = ui.layout.items[ui.pageStart[Math.min(S.page[S.scene], ui.pageStart.length - 1)]]; if (it) S.scroll[ui.scrollKey] = clampScroll(it.y, ui.layout.height, ui.region.h); } }
   const getScroll = (ui) => S.scroll[ui.scrollKey] ?? 0;
   const setScroll = (ui, v) => { if (ui.layout && ui.region) S.scroll[ui.scrollKey] = clampScroll(v, ui.layout.height, ui.region.h); };
 
@@ -311,6 +327,7 @@ export async function createGame(env) {
 
   function activate(id) {
     if (id == null) return;
+    if (id === 'arcforge') { env.openArcforgeHome?.(); return; }
     if (id === 'zoom-') { setText(-1); return; }
     if (id === 'zoom+') { setText(1); return; }
     if (id.startsWith('hum:')) { setPlayers('hum', Number(id.slice(4))); return; }
@@ -341,12 +358,6 @@ export async function createGame(env) {
         const n = S.lq.i + 1;
         if (n >= LESSONS.length || (S.demo && n >= 3)) gotoScene('learn'); else startLesson(n);
         return;
-      }
-      case 'prev': S.page[S.scene] = Math.max(0, S.page[S.scene] - 1); S.scroll = {}; SOUNDS.ui(); return;
-      case 'next': {
-        const total = S.scene === 'rules' ? RULE_COUNT : HOWTO_COUNT;
-        if (S.scene === 'howto' && S.page.howto >= total - 1) { activate('play'); return; }
-        S.page[S.scene] = Math.min(total - 1, S.page[S.scene] + 1); S.scroll = {}; SOUNDS.ui(); return;
       }
       case 'set:sound': S.sound = !S.sound; audio.setMuted(!S.sound); saveSettings(); if (S.sound) SOUNDS.ui(); return;
       case 'set:think-': S.thinkIdx = Math.max(0, S.thinkIdx - 1); saveSettings(); return;
@@ -436,8 +447,9 @@ export async function createGame(env) {
   }
   function playDown(x, y) {
     const M = S.match;
-    if (inRect(x, y, BACK_BTN)) { S.press = { id: 'hud:back', active: true, kind: 'hud', rect: BACK_BTN }; return; }
-    if (inRect(x, y, PAUSE_BTN)) { S.press = { id: 'hud:pause', active: true, kind: 'hud', rect: PAUSE_BTN }; return; }
+    const Hd = hud();
+    if (inRect(x, y, Hd.back)) { S.press = { id: 'hud:back', active: true, kind: 'hud', rect: Hd.back }; return; }
+    if (inRect(x, y, Hd.pause)) { S.press = { id: 'hud:pause', active: true, kind: 'hud', rect: Hd.pause }; return; }
     for (const h of playHits(M)) if (inRect(x, y, h.rect)) { S.press = { id: h.id, active: true, kind: 'play', rect: h.rect }; return; }
   }
   function hudAction(id) {
@@ -460,7 +472,8 @@ export async function createGame(env) {
 
   // ---- auto
   function autoDown(x, y) {
-    if (inRect(x, y, BACK_BTN)) { S.press = { id: 'auto:exit', active: true, kind: 'auto', rect: BACK_BTN }; return; }
+    const back = hud().back;
+    if (inRect(x, y, back)) { S.press = { id: 'auto:exit', active: true, kind: 'auto', rect: back }; return; }
     const lay = autoLayout(TEXT_SCALES[S.textIdx], seatOrder(S.match).length);
     for (const id of ['slower', 'pause', 'faster']) {
       if (inRect(x, y, lay[id])) { S.press = { id: `auto:${id}`, active: true, kind: 'auto', rect: lay[id] }; return; }
@@ -501,15 +514,13 @@ export async function createGame(env) {
       if (keys.down.has('ArrowUp') || keys.down.has('PageUp')) setScroll(ui, getScroll(ui) - 18);
     }
     if (has('Escape') && ['setup', 'learn', 'lesson', 'howto', 'rules', 'about', 'settings', 'demo-limit'].includes(S.scene)) activate('back');
-    if (S.scene === 'howto' || S.scene === 'rules') {
-      if (has('ArrowRight')) activate('next');
-      if (has('ArrowLeft')) activate('prev');
-    }
   }
 
   // ------------------------------------------------------------------------------ main loop
   return {
     update(dt, input) {
+      setScreen(meta.width, meta.height);
+      if (wheelInput.dy) { const ui = buildUi(S); if (ui.layout && ui.region) setScroll(ui, getScroll(ui) + wheelInput.dy); wheelInput.dy = 0; }
       const frozen = (S.scene === 'auto' && S.auto && S.auto.paused) || S.overlay === 'pause';
       if (!frozen) S.t += dt;
       if (S.overlay) S.ovT += dt;
@@ -548,7 +559,10 @@ export async function createGame(env) {
     },
 
     render(ctx) {
-      render(ctx, S, buildUi(S));
+      setScreen(meta.width, meta.height);
+      const ui = buildUi(S);
+      if (ui.layout && ui.region && S.scroll[ui.scrollKey]) S.scroll[ui.scrollKey] = clampScroll(S.scroll[ui.scrollKey], ui.layout.height, ui.region.h);   // a rotation can shrink the scroll range
+      render(ctx, S, ui);
     },
 
     getState() {

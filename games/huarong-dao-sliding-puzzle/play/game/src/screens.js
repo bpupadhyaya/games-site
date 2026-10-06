@@ -4,7 +4,7 @@ import { LEVELS } from './levels.js';
 import { TEXT_SCALES, layoutDoc } from './ui.js';
 import { CHAPTERS, HOWTO, RULES, ABOUT, tr } from './content.js';
 import {
-  DOC_BACK, ZOOM_DEC, ZOOM_INC, DOC_PANEL, DOC_BODY, DOC_BODY_NAV, NAV_PREV, NAV_NEXT, LANG_EN, LANG_ZH, MENU_REGION, OVERLAY,
+  DOC_BACK, ZOOM_DEC, ZOOM_INC, ZOOM_PCT, DOC_PANEL, DOC_BODY, DOC_BODY_NAV, NAV_PREV, NAV_NEXT, LANG_EN, LANG_ZH, MENU_REGION, LAY,
 } from './layout.js';
 
 export const DEMO_LEVELS = 6;
@@ -36,7 +36,7 @@ function fixedBar(S, T, backLabel = 'back') {
     { id: 'back', rect: DOC_BACK, kind: 'normal', icon: 'back', label: T(backLabel), size: 26 },
     { id: 'zoom-', rect: ZOOM_DEC, kind: 'normal', label: 'A-', size: 30, disabled: S.textIdx === 0 },
     { id: 'zoom+', rect: ZOOM_INC, kind: 'normal', label: 'A+', size: 30, disabled: S.textIdx === TEXT_SCALES.length - 1 },
-    { id: null, rect: { x: 480, y: 20, w: 140, h: 76 }, label: pctLabel(S), size: 28, static: true, scale },
+    { id: null, rect: ZOOM_PCT, label: pctLabel(S), size: 28, static: true, scale },
   ];
 }
 
@@ -57,10 +57,12 @@ export function buildUi(S) {
       const b = [];
       const solved = totalSolved(S);
       const playSub = S.demo ? T('demoLeft', { n: Math.max(0, DEMO_LEVELS - solved) }) : (solved ? `${solved} / ${LEVELS.length} · ${totalStars(S)} ★` : undefined);
-      b.push({ t: 'btn', id: 'play', label: T('playBtn'), kind: 'primary', size: 36, sub: playSub, minH: 118 });
-      b.push({ t: 'btn', id: 'auto', label: T('autoBtn'), size: 30, minH: 96 });
-      b.push({ t: 'row', size: 28, minH: 96, items: [{ id: 'howto', label: T('howtoBtn') }, { id: 'rules', label: T('rulesBtn') }] });
-      b.push({ t: 'row', size: 28, minH: 96, items: [{ id: 'about', label: T('aboutBtn') }, { id: 'settings', label: T('settingsBtn') }] });
+      const cp = LAY.title.compact, tn = cp === 2, tp = LAY.tap;   // every title button is at least ~44 css px tall (tp, in units)
+      b.push({ t: 'btn', id: 'play', label: T('playBtn'), kind: 'primary', size: cp ? 32 : 36, sub: playSub, minH: Math.max(tp, tn ? 84 : cp ? 96 : 118) });
+      b.push({ t: 'btn', id: 'auto', label: T('autoBtn'), size: cp ? 28 : 30, minH: Math.max(tp, tn ? 64 : cp ? 76 : 96) });
+      b.push({ t: 'row', size: cp ? 26 : 28, minH: Math.max(tp, tn ? 64 : cp ? 76 : 96), items: [{ id: 'howto', label: T('howtoBtn') }, { id: 'rules', label: T('rulesBtn') }] });
+      b.push({ t: 'row', size: cp ? 26 : 28, minH: Math.max(tp, tn ? 64 : cp ? 76 : 96), items: [{ id: 'about', label: T('aboutBtn') }, { id: 'settings', label: T('settingsBtn') }] });
+      b.push({ t: 'img', name: 'lockup', id: 'arcforge', h: 78, hitW: 250 });
       ui.blocks = b;
       ui.fixed = [
         { id: 'lang:en', rect: LANG_EN, kind: S.lang === 'en' ? 'on' : 'normal', label: 'Play in English', size: 25 },
@@ -71,7 +73,8 @@ export function buildUi(S) {
     case 'levels': {
       ui.panel = DOC_PANEL; ui.region = DOC_BODY;
       ui.fixed = fixedBar(S, T);
-      const cols = scale <= 1 ? 4 : scale <= 2 ? 3 : 2;
+      const tgt = scale <= 1 ? 140 : scale <= 2 ? 190 : 300;
+      const cols = Math.max(1, Math.floor((DOC_BODY.w + 14) / (tgt + 14)));
       const b = [];
       b.push({ t: 'p', text: `${T('solvedCount')}: ${totalSolved(S)} / ${LEVELS.length}    ${T('stars')}: ${totalStars(S)} / ${LEVELS.length * 3}`, size: 24, gap: 12 });
       CHAPTERS.forEach((c, ci) => {
@@ -93,23 +96,39 @@ export function buildUi(S) {
       ui.blocks = b;
       break;
     }
-    case 'howto':
     case 'rules': {
-      const isRules = S.scene === 'rules';
-      const pages = isRules ? RULES[S.lang] : HOWTO[S.lang];
-      const pi = Math.min(S.page[S.scene], pages.length - 1);
-      const pg = pages[pi];
+      // Rules: one continuous scrolling reader (drag, wheel, keys, scroll bar) instead of many short pages.
+      const pages = RULES[S.lang];
+      ui.panel = LAY.doc.panelFull; ui.region = LAY.doc.bodyFull;
+      ui.fixed = fixedBar(S, T);
+      ui.scrollKey = `rules:${S.lang}`;
+      const b = [];
+      pages.forEach((pg, pi) => {
+        if (pi) b.push({ t: 'gap', h: 30 });
+        b.push({ t: 'h', text: pg.title, size: 40 });
+        if (pg.art) b.push({ t: 'img', name: pg.art, h: 300 });
+        for (const para of pg.body) b.push({ t: 'p', text: para, size: 29 });
+      });
+      ui.blocks = b;
+      break;
+    }
+    case 'howto': {
+      // How to Play: one continuous scrolling reader (drag, wheel, keys, scroll bar). Prev/Next move a screenful; Next reads Done at the end.
+      const pages = HOWTO[S.lang];
       ui.panel = DOC_PANEL; ui.region = DOC_BODY_NAV;
       ui.fixed = fixedBar(S, T);
-      ui.nav = { label: `${pi + 1} / ${pages.length}`, prev: { id: 'prev', rect: NAV_PREV, label: T('prev'), disabled: pi === 0, kind: 'normal', size: 26 }, next: { id: 'next', rect: NAV_NEXT, label: isRules || pi < pages.length - 1 ? T('next') : T('playBtn'), disabled: isRules && pi === pages.length - 1, kind: 'primary', size: 26 } };
-      ui.scrollKey = `${S.scene}:${pi}:${S.lang}`;
+      ui.scrollKey = `howto:${S.lang}`;
       const b = [];
-      b.push({ t: 'h', text: pg.title, size: 40 });
-      const art = isRules ? pg.art : HOWTO_ART[pi];
-      if (art) b.push({ t: 'img', name: art, h: isRules ? 300 : 340 });
-      if (isRules) for (const para of pg.body) b.push({ t: 'p', text: para, size: 29 });
-      else b.push({ t: 'p', text: pg.body, size: 32 });
+      pages.forEach((pg, pi) => {
+        if (pi) b.push({ t: 'gap', h: 30 });
+        b.push({ t: 'h', text: pg.title, size: 40 });
+        const art = HOWTO_ART[pi];
+        if (art) b.push({ t: 'img', name: art, h: 340 });
+        b.push({ t: 'p', text: pg.body, size: 32 });
+      });
       ui.blocks = b;
+      const lay = layoutDoc(b, scale, ui.region.w), max = Math.max(0, lay.height - ui.region.h), sc = Math.min(S.scroll[ui.scrollKey] ?? 0, max);
+      ui.nav = { label: max > 0 ? `${Math.round(100 * sc / max)}%` : '', inBar: LAY.doc.inBar, prev: { id: 'prev', rect: NAV_PREV, label: T('prev'), disabled: sc <= 0, kind: 'normal', size: 26 }, next: { id: 'next', rect: NAV_NEXT, label: sc >= max - 1 ? T('done') : T('next'), kind: 'primary', size: 26 } };
       break;
     }
     case 'about': {
@@ -161,57 +180,83 @@ export function buildUi(S) {
 }
 
 function overlayUi(S, T, scale) {
-  const ui = { scale, fixed: [], blocks: [], kind: 'card', panel: OVERLAY, scrollKey: `ov:${S.overlay}`, overlay: true };
-  ui.region = { x: OVERLAY.x + 24, y: OVERLAY.y + 24, w: OVERLAY.w - 48, h: OVERLAY.h - 48 };
+  const OV = LAY.ov.rect;
+  const ui = { scale, fixed: [], blocks: [], kind: 'card', panel: OV, scrollKey: `ov:${S.overlay}`, overlay: true };
+  ui.region = { x: OV.x + 24, y: OV.y + 24, w: OV.w - 48, h: OV.h - 48 };
   const b = [];
   const hs = (n) => (scale >= 2 ? n * 0.72 : n); // card headings stay readable without eating the whole card at 200%+
+  const acts = [];
+  const act = (id, label, kind, size) => acts.push({ id, label, kind, size });
   if (S.overlay === 'pause') {
     b.push({ t: 'h', text: T('paused'), size: hs(40) });
-    b.push({ t: 'btn', id: 'ov:resume', label: T('resume'), kind: 'primary', size: 30 });
-    b.push({ t: 'btn', id: 'ov:restart', label: T('restartLevel'), size: 28 });
-    b.push({ t: 'btn', id: 'set:sound', label: S.sound ? T('soundOn') : T('soundOff'), kind: S.sound ? 'on' : 'normal', size: 26 });
-    b.push({ t: 'btn', id: 'ov:levels', label: T('levels'), size: 28 });
-    if (S.dev) b.push({ t: 'btn', id: 'ov:devsolve', label: 'Dev: solve now', size: 24 });
+    act('ov:resume', T('resume'), 'primary', 30);
+    act('ov:restart', T('restartLevel'), 'normal', 28);
+    act('set:sound', S.sound ? T('soundOn') : T('soundOff'), S.sound ? 'on' : 'normal', 26);
+    act('ov:levels', T('levels'), 'normal', 28);
+    if (S.dev) act('ov:devsolve', 'Dev: solve now', 'normal', 24);
   } else if (S.overlay === 'win') {
     const info = S.winInfo ?? { stars: 1, moves: 0, min: 0, best: false };
     b.push({ t: 'h', text: T('solved'), size: hs(40) });
-    b.push({ t: 'img', name: 'winstars', h: 150, data: info.stars });
+    b.push({ t: 'img', name: 'winstars', h: LAY.ov.row ? 110 : 150, data: info.stars });
     b.push({ t: 'p', text: S.puz ? levelName(S, S.puz.level) : '', size: 28, center: true });
     b.push({ t: 'p', text: T('solvedIn', { n: info.moves }) + `  ·  ${T('minimum')}: ${info.min}`, size: 24, center: true });
     b.push({ t: 'p', text: info.moves <= info.min ? T('perfect') : info.stars >= 3 ? T('stars3') : info.stars === 2 ? T('stars2') : T('stars1'), size: 24 });
     if (info.best) b.push({ t: 'p', text: T('newBest'), size: 24, center: true });
     if (info.newChapter != null) b.push({ t: 'p', text: `${T('chapter')}: ${CHAPTERS[info.newChapter][S.lang]}`, size: 24 });
+    b.push({ t: 'img', name: 'more', h: 30 });
     const nxt = S.levelIdx + 1;
-    if (nxt < LEVELS.length) b.push({ t: 'btn', id: 'ov:next', label: T('nextLevel'), kind: 'primary', size: 30 });
-    b.push({ t: 'btn', id: 'ov:replay', label: T('replay'), size: 28 });
-    b.push({ t: 'btn', id: 'ov:levels', label: T('levels'), size: 28 });
+    if (nxt < LEVELS.length) act('ov:next', T('nextLevel'), 'primary', 30);
+    act('ov:replay', T('replay'), 'normal', 28);
+    act('ov:levels', T('levels'), 'normal', 28);
   } else if (S.overlay === 'autosum') {
     b.push({ t: 'h', text: T('autoSession'), size: hs(38) });
     b.push({ t: 'p', text: T('autoSummary'), size: 26 });
-    b.push({ t: 'btn', id: 'ov:autoagain', label: T('autoAgain'), kind: 'primary', size: 28 });
-    b.push({ t: 'btn', id: 'ov:autoexit', label: T('autoExit'), size: 28 });
+    act('ov:autoagain', T('autoAgain'), 'primary', 28);
+    act('ov:autoexit', T('autoExit'), 'normal', 28);
   }
   ui.blocks = b;
+  ui.acts = acts;
   fitCard(ui, scale);
   return ui;
 }
 
 // Size a centred card to its content (never taller than the screen allows). The buttons are pinned to the
 // bottom of the card and never scroll away; everything above them scrolls when the text is large.
+// In landscape the buttons sit side by side in rows so the card stays short.
+function actBlocks(acts, rowMode) {
+  if (!rowMode || acts.length < 2) return acts.map((a) => ({ t: 'btn', id: a.id, label: a.label, kind: a.kind, size: a.size }));
+  const per = acts.length <= 3 ? acts.length : Math.ceil(acts.length / 2);
+  const rows = [];
+  for (let i = 0; i < acts.length; i += per) rows.push({ t: 'row', size: Math.min(...acts.slice(i, i + per).map((a) => a.size)), items: acts.slice(i, i + per).map((a) => ({ id: a.id, label: a.label, kind: a.kind })) });
+  return rows;
+}
+
 function fitCard(ui, scale) {
-  const innerW = OVERLAY.w - 48;
+  const OV = LAY.ov;
+  const innerW = OV.w - 48;
   const bodyBlocks = ui.blocks.filter((b) => b.t !== 'btn');
-  const actBlocks = ui.blocks.filter((b) => b.t === 'btn');
+  const acts = ui.acts ?? ui.blocks.filter((b) => b.t === 'btn').map((b) => ({ id: b.id, label: b.label, kind: b.kind, size: b.size }));
+  const actB = actBlocks(acts, OV.row);
   const body = layoutDoc(bodyBlocks, scale, innerW);
-  const act = layoutDoc(actBlocks, scale, innerW);
-  const h = Math.min(OVERLAY.h + 120, Math.max(420, body.height + act.height + 72));
-  const y = Math.round(780 - h / 2);
-  const x0 = OVERLAY.x + 24;
+  const act = layoutDoc(actB, scale, innerW);
+  if (act.height > (Math.min(OV.maxH, 1180) - 56) * 0.5) {
+    // large text: the buttons would not fit pinned under the text, so the whole card is one scrolling page
+    const all = layoutDoc([...bodyBlocks, ...actB], scale, innerW);
+    const hh = Math.min(OV.maxH, 1180, all.height + 56);
+    const yy = Math.round(OV.cy - hh / 2);
+    ui.panel = { x: OV.rect.x, y: yy, w: OV.rect.w, h: hh };
+    ui.region = { x: OV.rect.x + 24, y: yy + 28, w: innerW, h: hh - 56 };
+    ui.layout = all; ui.fixed = [];
+    return;
+  }
+  const h = Math.min(OV.maxH, 1180, Math.max(Math.min(420, OV.maxH), body.height + act.height + 72));
+  const y = Math.round(OV.cy - h / 2);
+  const x0 = OV.rect.x + 24;
   const actTop = y + h - 28 - act.height;
-  ui.panel = { x: OVERLAY.x, y, w: OVERLAY.w, h };
-  ui.region = { x: x0, y: y + 28, w: innerW, h: Math.max(160, h - 56 - act.height - 8) };
+  ui.panel = { x: OV.rect.x, y, w: OV.rect.w, h };
+  ui.region = { x: x0, y: y + 28, w: innerW, h: Math.max(120, h - 56 - act.height - 8) };
   ui.layout = body;
   ui.fixed = act.items.flatMap((it) => it.btns.map((bt) => ({
-    id: bt.id, rect: { x: x0 + bt.x, y: actTop + bt.y, w: bt.w, h: bt.h }, kind: it.b.kind ?? 'normal', lines: it.lines, size: it.size, line: it.line, disabled: bt.disabled,
+    id: bt.id, rect: { x: x0 + bt.x, y: actTop + bt.y, w: bt.w, h: bt.h }, kind: bt.kind ?? it.b.kind ?? 'normal', lines: bt.lines ?? it.lines, size: it.size, line: it.line, disabled: bt.disabled,
   })));
 }

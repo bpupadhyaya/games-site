@@ -29,7 +29,7 @@ function kawung(ctx, cx, cy, r, fill, line) {
   ctx.beginPath(); ctx.arc(0, 0, r * 0.1, 0, TAU); ctx.fillStyle = line; ctx.fill();
   ctx.restore();
 }
-function paintGround(ctx) {
+function paintGround(ctx, W, H) {
   const bg = ctx.createLinearGradient(0, 0, W, H); bg.addColorStop(0, '#1f2f5c'); bg.addColorStop(0.5, '#182449'); bg.addColorStop(1, '#241d3d');
   ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
   const rnd = lcg(3), R = 66;
@@ -39,13 +39,14 @@ function paintGround(ctx) {
     if (rnd() < 0.25) { ctx.fillStyle = 'rgba(232,206,150,0.28)'; ctx.beginPath(); ctx.arc(cx + R / 2, cy + R / 2, 3, 0, TAU); ctx.fill(); }
   }
   // fine wax-resist crackle
-  for (let k = 0; k < 500; k++) { const x = rnd() * W, y = rnd() * H, a = rnd() * TAU, l = 6 + rnd() * 24; ctx.strokeStyle = `rgba(230,210,160,${0.03 + rnd() * 0.05})`; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l * 0.4); ctx.stroke(); }
+  for (let k = 0; k < Math.round(500 * W * H / (720 * 1560)); k++) { const x = rnd() * W, y = rnd() * H, a = rnd() * TAU, l = 6 + rnd() * 24; ctx.strokeStyle = `rgba(230,210,160,${0.03 + rnd() * 0.05})`; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l * 0.4); ctx.stroke(); }
   // warm light pooling in from the upper left, and shade toward the lower right
   const sun = ctx.createRadialGradient(120, 160, 30, 200, 300, 1100); sun.addColorStop(0, 'rgba(255,200,110,0.42)'); sun.addColorStop(0.5, 'rgba(255,170,80,0.10)'); sun.addColorStop(1, 'rgba(255,170,80,0)');
   ctx.fillStyle = sun; ctx.fillRect(0, 0, W, H);
   const sh = ctx.createLinearGradient(0, H * 0.5, W, H); sh.addColorStop(0, 'rgba(8,6,20,0)'); sh.addColorStop(1, 'rgba(8,6,20,0.5)'); ctx.fillStyle = sh; ctx.fillRect(0, 0, W, H);
   // parang-style diagonal bands top and bottom
-  for (const [y, h] of [[0, 92], [H - 54, 54]]) {
+  const bT = W > H ? 44 : 92, bB = W > H ? 30 : 54;
+  for (const [y, h] of [[0, bT], [H - bB, bB]]) {
     ctx.save(); ctx.beginPath(); ctx.rect(0, y, W, h); ctx.clip();
     const g = ctx.createLinearGradient(0, y, 0, y + h); g.addColorStop(0, '#5a2f17'); g.addColorStop(1, '#3a1c0d'); ctx.fillStyle = g; ctx.fillRect(0, y, W, h);
     for (let x = -h; x < W + h; x += 46) {
@@ -55,7 +56,7 @@ function paintGround(ctx) {
     ctx.restore();
     ctx.fillStyle = '#e6b24e'; ctx.fillRect(0, y === 0 ? h - 5 : y, W, 5);
   }
-  ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.fillRect(0, 92, W, 8); ctx.fillRect(0, H - 62, W, 8);
+  ctx.fillStyle = 'rgba(0,0,0,0.4)'; ctx.fillRect(0, bT, W, 8); ctx.fillRect(0, H - bB - 8, W, 8);
 }
 
 // ---- the hull -----------------------------------------------------------------------------------------------------------
@@ -175,10 +176,18 @@ function layer(key, paint) {
   if (L === undefined) { const m = makeCanvas(W * SS, H * SS); if (m) { m.x.scale(SS, SS); paint(m.x); L = m.c; } else L = null; layers[key] = L; }
   return L;
 }
-export function drawGround(ctx) {
-  const t = layer('ground', paintGround);
-  if (!t) { ctx.fillStyle = '#1b2850'; ctx.fillRect(0, 0, W, H); return; }
-  ctx.drawImage(t, 0, 0, W, H);
+// The ground is painted for the live screen size (cached per size; only the last few sizes are kept).
+const grounds = new Map();
+export function drawGround(ctx, w = W, h = H) {
+  w = Math.round(w); h = Math.round(h);
+  const key = w + 'x' + h; let t = grounds.get(key);
+  if (t === undefined) {
+    const ss = w * h > 1500000 ? 1.5 : SS, m = makeCanvas(Math.ceil(w * ss), Math.ceil(h * ss));
+    if (m) { m.x.scale(ss, ss); paintGround(m.x, w, h); t = m.c; } else t = null;
+    grounds.set(key, t); if (grounds.size > 4) grounds.delete(grounds.keys().next().value);
+  }
+  if (!t) { ctx.fillStyle = '#1b2850'; ctx.fillRect(0, 0, w, h); return; }
+  ctx.drawImage(t, 0, 0, w, h);
 }
 export function drawBoard(ctx, wood = 'teak') { const b = layer('board_' + wood, (c) => paintBoard(c, wood)); if (b) ctx.drawImage(b, 0, 0, W, H); }
 

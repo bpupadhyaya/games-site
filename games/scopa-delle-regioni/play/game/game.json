@@ -3,8 +3,8 @@
   "title": "Scopa",
   "tagline": "The Italian card game of the broom",
   "genre": "card game",
-  "orientation": "portrait",
-  "version": "1.0.1",
+  "orientation": "any",
+  "version": "1.1.5",
   "monetization": {
     "model": "premium",
     "priceUsd": 2.99,

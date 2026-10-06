@@ -4,15 +4,16 @@
 // How a move is made: PLACING = TAP an empty point. SLIDING = TAP a cow (its legal points glow) then TAP a point, or DRAG the cow
 // onto a point. A mill lets you shoot: the other side's unprotected cows glow red and you TAP one. An illegal move visibly TRIES
 // (the cow travels toward the point, shudders, comes back) and a message says why.
-import { W, H, BTN, TEXT_STEPPER, TEXT_SCALES, AUTO_THINK_STEPS, AUTO_REVEAL_SECONDS, titleRows, inRect, pointNear, pointAt, infoFooterRects } from './layout.js';
+import { layoutFor, lockHit, TEXT_SCALES, AUTO_THINK_STEPS, AUTO_REVEAL_SECONDS, inRect } from './layout.js';
 import { RULES as R, POINT_UV } from './morabaraba.js';
 import { LEVELS, createThinker, chooseMove } from './engine.js';
 import { LESSONS, boardOf } from './lessons.js';
 import { createPuzzleMaker, puzzleGame, forcingFirst } from './puzzles.js';
-import { PAGES } from './info.js';
-import { render } from './view.js';
+import { render, sceneKind, infoMetrics } from './view.js';
 
-export const meta = { width: W, height: H };
+// `meta.width/height` are updated live by the kit on every resize (fluid viewport: the short side is 720 units); every position comes from layoutFor().
+export const meta = { width: 720, height: 1560, fluid: { short: 720 } };
+export const wheelInput = { dy: 0 };
 const DEMO_GAMES = 2, HINTS_PER_GAME = 3;
 const NAME = { 1: 'Dark', 2: 'Light' };
 const sameMove = (a, b) => a.type === b.type && a.to === b.to && (a.from ?? -1) === (b.from ?? -1) && (a.take ?? -1) === (b.take ?? -1);
@@ -24,13 +25,15 @@ export function createGame(env) {
     cursor: 12, kb: false, sel: -1, drag: null, take: null, anim: null, msg: null, think: 0, thinking: false, undo: [], hintsLeft: HINTS_PER_GAME, hint: null,
     threats: [], lessonGlow: null,
     stats: { games: 0, wins: 0, badges: {} }, saved: null, learned: false, demoGames: 0,
-    lesson: null, pz: null, daily: { day: config.day ?? 0, solvedDay: -1, streak: 0 }, info: { which: 'howto', page: 0 }, dev: config.dev === true,
+    lesson: null, pz: null, daily: { day: config.day ?? 0, solvedDay: -1, streak: 0 }, info: { which: 'howto', page: 0, scroll: 0 }, dev: config.dev === true,
     textScaleIdx: 0, // index into TEXT_SCALES; the How to play/About/Rules reference pages' own text size
     // Auto Play ("Watch & Learn"): a full, silent, start-to-finish demonstration game. `auto` is null
     // except while `scene === 'auto'`; it never touches `state.game`/`state.saved`/`state.stats`.
     autoThinkIdx: 1, auto: null,
   };
-  let thinker = null, hintThinker = null, puzzleToday = null, pendingReply = null;
+  let thinker = null, hintThinker = null, puzzleToday = null, pendingReply = null, infoDrag = null, sizeKey = '';
+  const lay = () => layoutFor(meta.width, meta.height);
+  const geo = () => lay().scene(sceneKind(state.scene));
   const maker = createPuzzleMaker(state.daily.day);
 
   storage.get('prefs', null).then((v) => {
@@ -226,7 +229,7 @@ export function createGame(env) {
   function enterAuto() {
     thinker = hintThinker = null; pendingReply = null;
     Object.assign(state, { scene: 'auto', sel: -1, take: null, drag: null, hint: null, lessonGlow: null, threats: [], msg: null, kb: false });
-    state.auto = { game: R.newGame(), phase: 'think', timer: AUTO_THINK_STEPS[state.autoThinkIdx], thinker: null, pendingMove: undefined, moves: null, chosen: null, anim: null };
+    state.auto = { game: R.newGame(), phase: 'think', timer: AUTO_THINK_STEPS[state.autoThinkIdx], thinker: null, pendingMove: undefined, moves: null, chosen: null, anim: null, paused: false };
   }
   function exitAuto() { state.auto = null; state.scene = 'title'; }
   // Executes a move exactly the way normal play does (same animOf() + R.apply()), but on the auto
@@ -241,15 +244,21 @@ export function createGame(env) {
   }
   function updateAuto(dt, tap) {
     const D = state.auto; if (!D) return;
-    if (tap && inRect(BTN.menu, tap.x, tap.y)) { exitAuto(); return; }
-    if (tap && inRect(TEXT_STEPPER.dec, tap.x, tap.y) && state.autoThinkIdx > 0) { state.autoThinkIdx--; savePrefs(); }
-    else if (tap && inRect(TEXT_STEPPER.inc, tap.x, tap.y) && state.autoThinkIdx < AUTO_THINK_STEPS.length - 1) { state.autoThinkIdx++; savePrefs(); }
-    else if (tap && (D.phase === 'think' || D.phase === 'reveal') && inRect(BTN.undo, tap.x, tap.y)) { D.timer = 0; }
+    const G = geo(), A = G.BTN.auto, hit = (r) => tap && inRect(r, tap.x, tap.y);
+    if (D.phase !== 'over') {
+      if (hit(A.exit)) { exitAuto(); return; }
+      if (hit(A.pause)) D.paused = !D.paused;
+      if (hit(G.think.dec) && state.autoThinkIdx > 0) { state.autoThinkIdx--; savePrefs(); }
+      else if (hit(G.think.inc) && state.autoThinkIdx < AUTO_THINK_STEPS.length - 1) { state.autoThinkIdx++; savePrefs(); }
+      else if (hit(A.skip) && !D.paused && (D.phase === 'think' || D.phase === 'reveal')) { D.timer = 0; }
+    }
     if (D.phase === 'over') {
-      if (tap && inRect(BTN.again, tap.x, tap.y)) enterAuto();
-      else if (tap && inRect(BTN.back, tap.x, tap.y)) exitAuto();
+      const O = lay().over;
+      if (tap && inRect(O.again, tap.x, tap.y)) enterAuto();
+      else if (tap && inRect(O.back, tap.x, tap.y)) exitAuto();
       return;
     }
+    if (D.paused) return;
     if (D.phase === 'act') {
       if (D.anim) { D.anim.t += dt; if (D.anim.t < D.anim.mdur + D.anim.sdur) return; D.anim = null; }
       D.phase = D.game.winner ? 'over' : 'think'; D.timer = AUTO_THINK_STEPS[state.autoThinkIdx]; D.thinker = null; D.pendingMove = undefined; D.moves = null; D.chosen = null;
@@ -272,15 +281,15 @@ export function createGame(env) {
   function updateDrag(input) {
     const p = input.pointer, g = state.game;
     if (p.pressed && !state.take && humanTurn() && R.phase(g, g.turn) !== 'place') {
-      const i = pointNear(p.x, p.y);
+      const i = geo().board.pointNear(p.x, p.y);
       if (i >= 0 && g.board[i] === g.turn && R.canMoveFrom(g, i).length) state.drag = { from: i, x: p.x, y: p.y, moved: false, wasSel: state.sel === i };
     }
     if (state.drag) {
-      if (p.down) { state.drag.x = p.x; state.drag.y = p.y; if (Math.hypot(p.x - pointAt(state.drag.from).x, p.y - pointAt(state.drag.from).y) > 26) { state.drag.moved = true; state.sel = state.drag.from; } }
+      if (p.down) { state.drag.x = p.x; state.drag.y = p.y; if (Math.hypot(p.x - geo().board.pointAt(state.drag.from).x, p.y - geo().board.pointAt(state.drag.from).y) > 26 * geo().bs) { state.drag.moved = true; state.sel = state.drag.from; } }
       if (p.released) {
         const d = state.drag; state.drag = null;
         if (d.moved) {
-          const i = pointNear(p.x, p.y);
+          const i = geo().board.pointNear(p.x, p.y);
           if (i >= 0 && i !== d.from) { const m = R.basicMoves(g).find((x) => x.from === d.from && x.to === i); if (m) return { move: m }; refuse(d.from, i, R.whyNotMove(g, d.from, i)); }
           return { handled: true };
         }
@@ -293,7 +302,8 @@ export function createGame(env) {
   function updateTitle(tap) {
     for (let k = 0; k < 2 && !puzzleToday; k++) puzzleToday = maker.step().puzzle;
     if (!tap) return;
-    const RW = titleRows(!!state.saved), hit = (r) => inRect(r, tap.x, tap.y);
+    const TT = lay().title(!!state.saved), RW = TT.rows, hit = (r) => inRect(r, tap.x, tap.y);
+    if (hit(lockHit(lay(), TT))) { state.lockPress = 0.18; env.openArcforgeHome?.(); return; }
     if (hit(RW.resume)) resume();
     else if (hit(RW.learn)) startLesson(0);
     else if (hit(RW.dark)) start(1, false);
@@ -305,20 +315,39 @@ export function createGame(env) {
     else if (hit(RW.marks)) { state.marks = !state.marks; savePrefs(); clack(); }
     else if (hit(RW.calm)) { state.calm = !state.calm; savePrefs(); clack(); }
     else if (hit(RW.big)) { state.big = !state.big; savePrefs(); clack(); }
-    else if (hit(RW.howto)) { state.info = { which: 'howto', page: 0 }; state.scene = 'info'; }
-    else if (hit(RW.about)) { state.info = { which: 'about', page: 0 }; state.scene = 'info'; }
-    else if (hit(RW.rules)) { state.info = { which: 'rules', page: 0 }; state.scene = 'info'; }
+    else if (hit(RW.howto)) { state.info = { which: 'howto', page: 0, scroll: 0 }; infoDrag = null; state.scene = 'info'; }
+    else if (hit(RW.about)) { state.info = { which: 'about', page: 0, scroll: 0 }; infoDrag = null; state.scene = 'info'; }
+    else if (hit(RW.rules)) { state.info = { which: 'rules', page: 0, scroll: 0 }; infoDrag = null; state.scene = 'info'; }
     else if (hit(RW.auto)) enterAuto();
   }
-  function updateInfo(tap) {
-    if (!tap) return; const pages = PAGES[state.info.which];
-    const hasBack = state.info.page > 0, hasNext = state.info.page + 1 < pages.length;
-    const F = infoFooterRects(hasBack, hasNext);
-    if (inRect(F.menu, tap.x, tap.y)) state.scene = 'title';
-    else if (hasBack && inRect(F.back, tap.x, tap.y)) state.info.page -= 1;
-    else if (hasNext && inRect(F.next, tap.x, tap.y)) state.info.page += 1;
-    else if (inRect(TEXT_STEPPER.dec, tap.x, tap.y) && state.textScaleIdx > 0) { state.textScaleIdx--; savePrefs(); clack(); }
-    else if (inRect(TEXT_STEPPER.inc, tap.x, tap.y) && state.textScaleIdx < TEXT_SCALES.length - 1) { state.textScaleIdx++; savePrefs(); clack(); }
+  function updateInfo(tap, input) {
+    const I = lay().info, p = input.pointer, keys = input.keys.pressed;
+    const max = () => infoMetrics.max, setScroll = (v) => { state.info.scroll = Math.max(0, Math.min(v, max())); };
+    // scrolling: wheel, drag, scroll bar, arrow / page keys. Pages that fit never move.
+    if (wheelInput.dy) { setScroll((state.info.scroll || 0) + wheelInput.dy); wheelInput.dy = 0; }
+    if (keys.has('ArrowDown')) setScroll((state.info.scroll || 0) + 70);
+    if (keys.has('ArrowUp')) setScroll((state.info.scroll || 0) - 70);
+    if (keys.has('PageDown')) setScroll((state.info.scroll || 0) + infoMetrics.view * 0.9);
+    if (keys.has('PageUp')) setScroll((state.info.scroll || 0) - infoMetrics.view * 0.9);
+    if (keys.has('Home')) setScroll(0);
+    if (keys.has('End')) setScroll(max());
+    if (p.pressed && max() > 0) {
+      if (inRect(I.scrollbar, p.x, p.y)) infoDrag = { bar: true };
+      else if (inRect(I.viewport, p.x, p.y)) infoDrag = { y0: p.y, s0: state.info.scroll || 0 };
+    }
+    if (infoDrag) {
+      if (!p.down) infoDrag = null;
+      else if (infoDrag.bar) setScroll(((p.y - I.scrollbar.y) / I.scrollbar.h) * max());
+      else setScroll(infoDrag.s0 - (p.y - infoDrag.y0));
+    }
+    state.info.scroll = Math.max(0, Math.min(state.info.scroll || 0, max()));
+    if (!tap) return;
+    const F = I.footer(true, true), step = infoMetrics.view * 0.85;
+    if (inRect(F.menu, tap.x, tap.y)) { state.scene = 'title'; infoDrag = null; }
+    else if (inRect(F.back, tap.x, tap.y)) setScroll((state.info.scroll || 0) - step);
+    else if (inRect(F.next, tap.x, tap.y)) { if (max() <= 0 || (state.info.scroll || 0) >= max() - 1) { state.scene = 'title'; infoDrag = null; } else setScroll((state.info.scroll || 0) + step); }
+    else if (inRect(I.header.textDec, tap.x, tap.y) && state.textScaleIdx > 0) { state.textScaleIdx--; state.info.scroll = 0; savePrefs(); clack(); }
+    else if (inRect(I.header.textInc, tap.x, tap.y) && state.textScaleIdx < TEXT_SCALES.length - 1) { state.textScaleIdx++; state.info.scroll = 0; savePrefs(); clack(); }
   }
 
   // shared by play, lesson and puzzle: the human's board input. Returns nothing; may start a move.
@@ -328,7 +357,7 @@ export function createGame(env) {
     if (d?.handled) return;
     if (!tap) return;
     if (state.drag?.moved) return;
-    const i = pointNear(tap.x, tap.y);
+    const i = geo().board.pointNear(tap.x, tap.y);
     if (i < 0) { if (!state.take) state.sel = -1; return; }
     if (state.drag && state.drag.wasSel && state.sel === i && !state.take) { state.drag = null; state.sel = -1; return; }
     const r = tapBoard(i);
@@ -342,6 +371,7 @@ export function createGame(env) {
       if (state.anim.t >= state.anim.mdur + state.anim.sdur) { const wasRefuse = state.anim.type === 'refuse'; state.anim = null; if (wasRefuse) return; if (state.take) return; if (state.game.winner) finish(); else { saveGame(); if (!humanTurn()) state.think = 0.5; } }
       return;
     }
+    const BTN = geo().BTN;
     if (tap && inRect(BTN.menu, tap.x, tap.y)) { saveGame(); state.scene = 'title'; thinker = hintThinker = null; state.thinking = false; state.drag = null; return; }
     if (!humanTurn() && !state.game.winner) {
       state.think -= dt; if (state.think > 0) return;
@@ -377,6 +407,7 @@ export function createGame(env) {
       }
       return;
     }
+    const BTN = geo().BTN;
     if (tap && inRect(BTN.menu, tap.x, tap.y)) { state.scene = 'title'; return; }
     if (L.done) {
       if (tap && inRect(BTN.next, tap.x, tap.y)) {
@@ -389,8 +420,8 @@ export function createGame(env) {
   }
 
   function updatePuzzle(dt, tap, input) {
-    const P = state.pz;
-    if (tap && inRect(BTN.menu, tap.x, tap.y)) { state.scene = 'title'; return; }
+    const P = state.pz, BTN = geo().BTN;
+    if (tap && inRect(P.status === 'making' ? lay().misc.menu : BTN.menu, tap.x, tap.y)) { state.scene = 'title'; return; }
     if (P.status === 'making') { for (let k = 0; k < 2 && !puzzleToday; k++) puzzleToday = maker.step().puzzle; if (puzzleToday) startPuzzle(); return; }
     if (state.anim) {
       state.anim.t += dt;
@@ -422,22 +453,24 @@ export function createGame(env) {
 
   // Keyboard (web demo): arrows move a cursor to the nearest point in that direction; Space/Enter TAP it; Escape = Menu.
   function keyboard(input) {
-    const k = input.keys.pressed, sc = state.scene;
+    const k = input.keys.pressed, sc = state.scene, L = lay(), G = geo(), BTN = G.BTN, mid = (r) => ({ x: r.x + 5, y: r.y + 5 });
     if (input.pointer.pressed) { state.kb = false; return null; }
     if (sc === 'title') { if (k.has('Enter') || k.has('Space')) return { key: 'start' }; return null; }
-    if (sc === 'over') { if (k.has('Enter') || k.has('Space')) return { x: BTN.again.x + 5, y: BTN.again.y + 5 }; return null; }
+    if (sc === 'over') { if (k.has('Enter') || k.has('Space')) return mid(L.over.again); return null; }
     if (sc === 'info') {
-      const pages = PAGES[state.info.which];
-      const F = infoFooterRects(state.info.page > 0, state.info.page + 1 < pages.length);
-      if (k.has('Escape')) return { x: F.menu.x + 5, y: F.menu.y + 5 };
-      if (k.has('ArrowRight') && F.next) return { x: F.next.x + 5, y: F.next.y + 5 };
+      const F = L.info.footer(true, true);
+      if (k.has('Escape')) return mid(F.menu);
+      if (k.has('ArrowRight') && F.next) return mid(F.next);
       return null;
     }
-    if (sc === 'demo-limit') { if (k.has('Escape')) return { x: BTN.menu.x + 5, y: BTN.menu.y + 5 }; return null; }
-    if (sc === 'auto') { if (k.has('Escape')) return { x: BTN.menu.x + 5, y: BTN.menu.y + 5 }; if (k.has('Space')) return { x: BTN.undo.x + 5, y: BTN.undo.y + 5 }; return null; }
+    if (sc === 'demo-limit') { if (k.has('Escape')) return mid(L.misc.menu); return null; }
+    if (sc === 'auto') {
+      if (state.auto?.phase === 'over') { if (k.has('Escape')) return mid(L.over.back); return null; }
+      if (k.has('Escape')) return mid(BTN.auto.exit); if (k.has('Space')) return mid(BTN.auto.skip); if (k.has('KeyP')) return mid(BTN.auto.pause); return null;
+    }
     if (sc !== 'play' && sc !== 'lesson' && sc !== 'puzzle') return null;
-    if (k.has('Escape')) return { x: BTN.menu.x + 5, y: BTN.menu.y + 5 };
-    if (sc === 'lesson' && state.lesson.done && (k.has('Enter') || k.has('Space'))) return { x: BTN.next.x + 5, y: BTN.next.y + 5 };
+    if (k.has('Escape')) return mid(sc === 'puzzle' && state.pz.status === 'making' ? L.misc.menu : BTN.menu);
+    if (sc === 'lesson' && state.lesson.done && (k.has('Enter') || k.has('Space'))) return mid(BTN.next);
     let dx = 0, dy = 0;
     if (k.has('ArrowLeft')) dx = -1; else if (k.has('ArrowRight')) dx = 1; else if (k.has('ArrowUp')) dy = -1; else if (k.has('ArrowDown')) dy = 1;
     if (dx || dy) {
@@ -445,30 +478,33 @@ export function createGame(env) {
       for (let i = 0; i < 24; i++) { if (i === state.cursor) continue; const du = POINT_UV[i][0] - cu, dv = POINT_UV[i][1] - cv, along = du * dx + dv * dy, across = Math.abs(du * dy) + Math.abs(dv * dx); if (along <= 0) continue; const sc2 = along + across * 2.2; if (sc2 < bs) { bs = sc2; best = i; } }
       if (best >= 0) state.cursor = best; return null;
     }
-    if (k.has('Enter') || k.has('Space')) { state.kb = true; const p = pointAt(state.cursor); return { x: p.x, y: p.y }; }
+    if (k.has('Enter') || k.has('Space')) { state.kb = true; const p = G.board.pointAt(state.cursor); return { x: p.x, y: p.y }; }
     return null;
   }
 
   return {
     update(dt, input) {
-      state.t += dt;
+      state.t += dt; if (state.lockPress > 0) state.lockPress = Math.max(0, state.lockPress - dt);
+      if (state.scene !== 'info') wheelInput.dy = 0;
+      { const k = lay().key; if (k !== sizeKey) { sizeKey = k; state.drag = null; infoDrag = null; } }   // a rotation / resize mid-gesture drops the gesture, never the game
       if (state.msg) { state.msg.t += dt; if (state.msg.t > state.msg.hold) state.msg = null; }
       const p = input.pointer, kbd = keyboard(input);
       let tap = p.pressed ? { x: p.x, y: p.y } : kbd && kbd.x !== undefined ? kbd : null;
-      if (kbd && kbd.key === 'start') { const r = titleRows(!!state.saved); tap = { x: (r.resume || r.learn).x + 5, y: (r.resume || r.learn).y + 5 }; if (!r.resume && state.learned) tap = { x: r.dark.x + 5, y: r.dark.y + 5 }; }
+      if (kbd && kbd.key === 'start') { const r = lay().title(!!state.saved).rows; tap = { x: (r.resume || r.learn).x + 5, y: (r.resume || r.learn).y + 5 }; if (!r.resume && state.learned) tap = { x: r.dark.x + 5, y: r.dark.y + 5 }; }
       if (state.scene === 'title') updateTitle(tap);
-      else if (state.scene === 'info') updateInfo(tap);
+      else if (state.scene === 'info') updateInfo(tap, input);
       else if (state.scene === 'play') updatePlay(dt, tap, input);
       else if (state.scene === 'lesson') updateLesson(dt, tap, input);
       else if (state.scene === 'puzzle') updatePuzzle(dt, tap, input);
       else if (state.scene === 'auto') updateAuto(dt, tap);
-      else if (state.scene === 'demo-limit') { if (tap && inRect(BTN.menu, tap.x, tap.y)) state.scene = 'title'; }
+      else if (state.scene === 'demo-limit') { if (tap && inRect(lay().misc.menu, tap.x, tap.y)) state.scene = 'title'; }
       else if (state.scene === 'over' && tap) {
-        if (inRect(BTN.again, tap.x, tap.y)) start(state.human, state.two);
-        else if (inRect(BTN.back, tap.x, tap.y)) state.scene = 'title';
+        const O = lay().over;
+        if (inRect(O.again, tap.x, tap.y)) start(state.human, state.two);
+        else if (inRect(O.back, tap.x, tap.y)) state.scene = 'title';
       }
     },
-    render(ctx) { render(ctx, state); },
+    render(ctx) { render(ctx, state, lay()); },
     getState: () => state,
     // Auto Play is a free teaching/marketing demo, not real play: kit 1.6.1's preview gate skips
     // both time-accrual and the countdown badge while this is true.

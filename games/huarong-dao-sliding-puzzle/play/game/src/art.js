@@ -1,7 +1,9 @@
 // Drawing helpers: lacquer background, carved blocks, panels, buttons, icons. Plain canvas 2D; nothing
 // here changes game state. Palette: black-red lacquer, antique gold, jade, ivory.
 
-export const W = 720, H = 1560;
+// The live drawing size (virtual units); view.js sets it every frame from the kit's fluid viewport.
+export const SZ = { w: 720, h: 1560 };
+export const setSize = (w, h) => { SZ.w = w; SZ.h = h; };
 export const UI = '-apple-system, "SF Pro Text", "PingFang SC", "Noto Sans SC", "Segoe UI", Roboto, system-ui, sans-serif';
 export const DISPLAY = '"Songti SC", "Noto Serif SC", "STSong", "Palatino Linotype", Georgia, "Times New Roman", serif';
 export const CARVE = '"Kaiti SC", "STKaiti", "KaiTi", "Noto Serif SC", "Songti SC", "STSong", Georgia, serif';
@@ -57,9 +59,10 @@ export function text(ctx, str, x, y, size, color = PAPER, o = {}) {
 }
 
 // ---- background: lacquer, lattice window, drifting embers ---------------------------------------------------
-const EMBERS = Array.from({ length: 26 }, (_, i) => [((i * 137) % 719) + 1, ((i * 89) % 1500) + 20, 0.5 + ((i * 31) % 9) / 9, 6 + ((i * 17) % 11)]);
+const EMBERS = Array.from({ length: 40 }, (_, i) => [(((i * 137) % 719) + 1) / 720, (((i * 89) % 1500) + 20) / 1560, 0.5 + ((i * 31) % 9) / 9, 6 + ((i * 17) % 11)]);
 
 function lattice(ctx, a) {
+  const W = SZ.w, H = SZ.h;
   // a square window lattice with a small diamond at every crossing
   ctx.strokeStyle = `rgba(228,189,104,${a})`;
   ctx.lineWidth = 1.5;
@@ -89,6 +92,7 @@ function cloudCorner(ctx, x, y, s, flipX, flipY) {
 }
 
 export function background(ctx, t, glowY = 640) {
+  const W = SZ.w, H = SZ.h, d = Math.hypot(W, H);
   const g = ctx.createLinearGradient(0, 0, 0, H);
   g.addColorStop(0, '#0f0606');
   g.addColorStop(0.35, '#220a0b');
@@ -97,7 +101,8 @@ export function background(ctx, t, glowY = 640) {
   ctx.fillStyle = g;
   ctx.fillRect(0, 0, W, H);
   lattice(ctx, 0.05);
-  const rg = ctx.createRadialGradient(W / 2, glowY, 60, W / 2, glowY, 620);
+  const gy = Math.min(glowY, H * 0.6);
+  const rg = ctx.createRadialGradient(W / 2, gy, 60, W / 2, gy, 620);
   rg.addColorStop(0, 'rgba(200,60,40,0.30)');
   rg.addColorStop(0.5, 'rgba(120,30,24,0.12)');
   rg.addColorStop(1, 'rgba(120,30,24,0)');
@@ -105,13 +110,16 @@ export function background(ctx, t, glowY = 640) {
   ctx.fillRect(0, 0, W, H);
   cloudCorner(ctx, 0, 0, 1, false, false); cloudCorner(ctx, W, 0, 1, true, false);
   cloudCorner(ctx, 0, H, 1, false, true); cloudCorner(ctx, W, H, 1, true, true);
-  for (const [x, y0, s, sp] of EMBERS) {
+  const n = Math.round(26 * Math.max(1, (W * H) / (720 * 1560)));
+  for (let i = 0; i < Math.min(n, EMBERS.length); i++) {
+    const [fx, fy, s, sp] = EMBERS[i];
+    const x = fx * W, y0 = fy * H;
     const y = ((y0 - t * sp * 3) % H + H) % H;
     const xx = x + Math.sin(t * 0.5 + y0) * 10;
     ctx.fillStyle = `rgba(255,205,120,${0.1 + 0.25 * (0.5 + 0.5 * Math.sin(t * 1.3 + x)) * s * 0.7})`;
     ctx.beginPath(); ctx.arc(xx, y, 1.6 + s, 0, Math.PI * 2); ctx.fill();
   }
-  const vg = ctx.createRadialGradient(W / 2, H / 2, 560, W / 2, H / 2, 1020);
+  const vg = ctx.createRadialGradient(W / 2, H / 2, d * 0.326, W / 2, H / 2, d * 0.594);
   vg.addColorStop(0, 'rgba(0,0,0,0)');
   vg.addColorStop(1, 'rgba(0,0,0,0.5)');
   ctx.fillStyle = vg;
@@ -144,13 +152,8 @@ export function button(ctx, r, lines, kind = 'normal', o = {}) {
   const press = o.pressed ? 1 : 0;
   const y = r.y + press * 3;
   ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = press ? 4 : 14; ctx.shadowOffsetY = press ? 1 : 5;
-  const g = ctx.createLinearGradient(0, y, 0, y + r.h);
-  if (kind === 'primary') { g.addColorStop(0, '#ecc874'); g.addColorStop(1, '#d4a549'); }
-  else if (kind === 'on') { g.addColorStop(0, '#2f9776'); g.addColorStop(1, '#1f6a55'); }
-  else if (kind === 'danger') { g.addColorStop(0, '#b8392d'); g.addColorStop(1, '#7c231f'); }
-  else if (kind === 'ghost') { g.addColorStop(0, 'rgba(255,255,255,0.06)'); g.addColorStop(1, 'rgba(255,255,255,0.02)'); }
-  else { g.addColorStop(0, '#4c1a19'); g.addColorStop(1, '#3a1212'); }
-  ctx.fillStyle = g;
+  const FACE = { primary: '#e0b862', on: '#27826a', danger: '#9b2f27', ghost: 'rgba(255,255,255,0.04)', normal: '#431615' };   // flat faces
+  ctx.fillStyle = FACE[kind] ?? FACE.normal;
   rr(ctx, r.x, y, r.w, r.h, o.radius ?? 18); ctx.fill();
   ctx.shadowColor = 'transparent';
   ctx.strokeStyle = kind === 'primary' ? 'rgba(255,238,184,0.9)' : 'rgba(228,189,104,0.5)';

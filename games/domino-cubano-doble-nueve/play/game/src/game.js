@@ -1,16 +1,17 @@
 // GAME CONTRACT (docs/GAME-CONTRACT.md). Dominó Cubano: Doble Nueve — see design/GDD.md.
-import { SCREEN, inRect, BACK_BUTTON, PASS_BUTTON, HINT_BUTTON, UNDO_BUTTON, MEMORY_TOGGLE,
-  rackTileRect, LINE_BOUNDS, difficultyCardRect, START_BUTTON, TITLE_PLAY_BUTTON,
-  TITLE_HOWTO_BUTTON, TITLE_RULES_BUTTON, TITLE_AUTO_BUTTON, OVERLAY_CONTINUE_BUTTON,
-  RULES_BACK_BUTTON, RULES_PREV_BUTTON, RULES_NEXT_BUTTON, TEXT_DEC, TEXT_INC, TEXT_SCALES,
-  HOWTO_RULES_PANEL, AUTO_THINK_STEPS } from './layout.js';
+import { SCREEN, inRect as inR, layoutFor, TEXT_SCALES, AUTO_THINK_STEPS } from './layout.js';
 import { dealHands, findOpener } from './tiles.js';
 import { legalPlays, placeTile, scoreHand } from './rules.js';
 import { createPassModel, recordPass, chooseAIPlay, DIFFICULTY } from './ai.js';
 import { HOWTO_STEPS, DIFFICULTIES, RULES_PAGES } from './content.js';
 import { render } from './view.js';
 
-export const meta = { width: SCREEN.width, height: SCREEN.height };
+// `meta.width/height` are updated live by the kit's fluid viewport on every resize; every position comes from layoutFor().
+export const meta = { width: SCREEN.width, height: SCREEN.height, fluid: { short: 720 } };
+
+// Mouse-wheel scroll for the Rules / How to Play pages (main.js adds to dy; consumed in update()).
+export const wheelInput = { dy: 0 };
+const inRect = (x, y, r) => inR(x, y, r);
 
 const MATCH_TARGET = 100;
 const DEMO_MATCH_LIMIT = 2;
@@ -19,6 +20,7 @@ const AI_THINK_MAX = 0.85;
 
 export async function createGame(env) {
   const { rng, storage, audio, config } = env;
+  const lay = () => layoutFor(meta.width, meta.height);
 
   const state = {
     scene: 'title',
@@ -226,71 +228,69 @@ export async function createGame(env) {
 
   // ------------------------------------------------------------------------------- Tap routing
   function handleTitle(x, y) {
+    if (inRect(x, y, lay().title.lockTap)) { env.openArcforgeHome?.(); return; }
     // Auto Play is checked before the demo-limit gate on purpose: it's a free, unlimited
     // teaching/marketing demo (see startAutoMatch), so someone who has used up their real demo
     // matches can still watch it — arguably the best moment to show it.
-    if (inRect(x, y, TITLE_AUTO_BUTTON)) { startAutoMatch(); return; }
+    if (inRect(x, y, lay().title.auto)) { startAutoMatch(); return; }
     if (state.demo && state.demoLimitReached) { state.scene = 'demo-limit'; return; }
-    if (inRect(x, y, TITLE_PLAY_BUTTON)) {
+    if (inRect(x, y, lay().title.play)) {
       // Play always goes straight to the lobby — How to Play is its own button, never a forced
       // gate in front of Play. A first-time player who wants the tutorial taps that button
       // instead; nothing here should block someone who already knows dominoes.
       state.scene = 'lobby';
-    } else if (inRect(x, y, TITLE_HOWTO_BUTTON)) { state.scene = 'howto'; state.howtoStep = 0; state.howtoScroll = 0; }
-    else if (inRect(x, y, TITLE_RULES_BUTTON)) { state.scene = 'rules'; state.rulesPage = 0; state.rulesScroll = 0; }
+    } else if (inRect(x, y, lay().title.howto)) { state.scene = 'howto'; state.howtoStep = 0; state.howtoScroll = 0; }
+    else if (inRect(x, y, lay().title.rules)) { state.scene = 'rules'; state.rulesPage = 0; state.rulesScroll = 0; }
   }
 
   function handleRules(x, y) {
-    if (inRect(x, y, RULES_BACK_BUTTON)) { state.scene = 'title'; return; }
-    if (inRect(x, y, TEXT_DEC) && state.textScaleIdx > 0) {
+    if (inRect(x, y, lay().ref.back)) { state.scene = 'title'; return; }
+    if (inRect(x, y, lay().ref.dec) && state.textScaleIdx > 0) {
       state.textScaleIdx -= 1;
       state.rulesScroll = 0;
       storage.set('textScaleIdx', state.textScaleIdx);
       return;
     }
-    if (inRect(x, y, TEXT_INC) && state.textScaleIdx < TEXT_SCALES.length - 1) {
+    if (inRect(x, y, lay().ref.inc) && state.textScaleIdx < TEXT_SCALES.length - 1) {
       state.textScaleIdx += 1;
       state.rulesScroll = 0;
       storage.set('textScaleIdx', state.textScaleIdx);
       return;
     }
-    if (inRect(x, y, RULES_PREV_BUTTON) && state.rulesPage > 0) { state.rulesPage -= 1; state.rulesScroll = 0; return; }
-    if (inRect(x, y, RULES_NEXT_BUTTON) && state.rulesPage < RULES_PAGES.length - 1) { state.rulesPage += 1; state.rulesScroll = 0; return; }
+    if (inRect(x, y, lay().ref.prev)) { state.rulesScroll = 0; return; }                                   // "Top"
+    if (inRect(x, y, lay().ref.next)) { state.rulesScroll += lay().ref.panel.h * 0.8; return; }            // "More" (clamped when drawn)
     // Not a button — if the press landed on the panel itself, it's the start of a scroll drag
     // (only meaningful once the current page actually overflows; view.js clamps to 0 otherwise).
-    if (inRect(x, y, HOWTO_RULES_PANEL)) state.scrollDrag = { startY: y, startScroll: state.rulesScroll };
+    if (inRect(x, y, lay().ref.panel)) state.scrollDrag = { startY: y, startScroll: state.rulesScroll };
   }
 
   // Same navigation model as Rules Reference: Back always returns to the title, Prev/Next step
   // through the pages, and the last page's Next becomes the actual way into the game.
   function handleHowto(x, y) {
-    if (inRect(x, y, RULES_BACK_BUTTON)) { state.scene = 'title'; return; }
-    if (inRect(x, y, TEXT_DEC) && state.textScaleIdx > 0) {
+    if (inRect(x, y, lay().ref.back)) { state.scene = 'title'; return; }
+    if (inRect(x, y, lay().ref.dec) && state.textScaleIdx > 0) {
       state.textScaleIdx -= 1;
       state.howtoScroll = 0;
       storage.set('textScaleIdx', state.textScaleIdx);
       return;
     }
-    if (inRect(x, y, TEXT_INC) && state.textScaleIdx < TEXT_SCALES.length - 1) {
+    if (inRect(x, y, lay().ref.inc) && state.textScaleIdx < TEXT_SCALES.length - 1) {
       state.textScaleIdx += 1;
       state.howtoScroll = 0;
       storage.set('textScaleIdx', state.textScaleIdx);
       return;
     }
-    if (inRect(x, y, RULES_PREV_BUTTON) && state.howtoStep > 0) { state.howtoStep -= 1; state.howtoScroll = 0; return; }
-    if (inRect(x, y, RULES_NEXT_BUTTON)) {
-      if (state.howtoStep < HOWTO_STEPS.length - 1) { state.howtoStep += 1; state.howtoScroll = 0; return; }
-      state.scene = 'lobby';
-      return;
-    }
-    if (inRect(x, y, HOWTO_RULES_PANEL)) state.scrollDrag = { startY: y, startScroll: state.howtoScroll };
+    if (inRect(x, y, lay().ref.prev)) { state.howtoScroll = 0; return; }                                   // "Top"
+    if (inRect(x, y, lay().ref.next)) { state.scene = 'lobby'; return; }                                   // "Start Playing"
+    if (inRect(x, y, lay().ref.panel)) state.scrollDrag = { startY: y, startScroll: state.howtoScroll };
   }
 
   function handleLobby(x, y) {
+    if (inRect(x, y, lay().lobby.menu)) { state.scene = 'title'; return; }
     for (let i = 0; i < DIFFICULTIES.length; i++) {
-      if (inRect(x, y, difficultyCardRect(i))) { state.difficulty = i; return; }
+      if (inRect(x, y, lay().lobby.cards[i])) { state.difficulty = i; return; }
     }
-    if (inRect(x, y, START_BUTTON)) startMatch();
+    if (inRect(x, y, lay().lobby.start)) startMatch();
   }
 
   function tryPlayerDrop(x, y) {
@@ -304,7 +304,7 @@ export async function createGame(env) {
     const matchesRight = tile.a === state.ends.right || tile.b === state.ends.right;
     if (!matchesLeft && !matchesRight) return; // snaps back — not over a valid end
     let side;
-    if (matchesLeft && matchesRight) side = x < SCREEN.width / 2 ? 'left' : 'right';
+    if (matchesLeft && matchesRight) side = x < meta.width / 2 ? 'left' : 'right';
     else side = matchesLeft ? 'left' : 'right';
     state.undoSnapshot = {
       hands: state.hands.map((h) => h.slice()),
@@ -316,19 +316,19 @@ export async function createGame(env) {
 
   function handlePlayingDown(x, y) {
     if (state.matchResult) {
-      if (inRect(x, y, OVERLAY_CONTINUE_BUTTON)) continueAfterMatch();
+      if (inRect(x, y, lay().overlay.cont)) continueAfterMatch();
       return;
     }
     if (state.handResult) {
-      if (inRect(x, y, OVERLAY_CONTINUE_BUTTON)) continueAfterHand();
+      if (inRect(x, y, lay().overlay.cont)) continueAfterHand();
       return;
     }
-    if (inRect(x, y, BACK_BUTTON)) { state.scene = 'lobby'; return; }
-    if (inRect(x, y, MEMORY_TOGGLE)) { state.showMemory = !state.showMemory; return; }
+    if (inRect(x, y, lay().play.back)) { state.scene = 'lobby'; return; }
+    if (inRect(x, y, lay().play.memory)) { state.showMemory = !state.showMemory; return; }
     // Every one of Hint/Pass/Undo is checked here regardless of whether it's currently usable,
     // and each says why when it isn't, rather than the tap just silently doing nothing — that
     // silence was read as the button being broken, not as "not applicable right now."
-    if (inRect(x, y, UNDO_BUTTON)) {
+    if (inRect(x, y, lay().play.undo)) {
       if (state.undoSnapshot) {
         state.hands = state.undoSnapshot.hands;
         state.line = state.undoSnapshot.line;
@@ -340,13 +340,13 @@ export async function createGame(env) {
       }
       return;
     }
-    if (inRect(x, y, PASS_BUTTON)) {
+    if (inRect(x, y, lay().play.pass)) {
       if (state.turn !== 0) { showToast('Wait for your turn to pass.'); return; }
       if (legalPlays(state.hands[0], state.ends).length === 0) applyPass(0);
       else showToast("You still have a legal play — Pass isn't available.");
       return;
     }
-    if (inRect(x, y, HINT_BUTTON)) {
+    if (inRect(x, y, lay().play.hint)) {
       if (state.turn !== 0) { showToast('Wait for your turn to get a hint.'); return; }
       const play = chooseAIPlay(0, state.hands[0], state.ends, state.missing, DIFFICULTY.TORNEO, rng);
       // The gold ring alone read as nothing happening (subtle against the tile, and the button
@@ -366,7 +366,7 @@ export async function createGame(env) {
     if (state.turn !== 0) return;
     const hand = state.hands[0];
     for (let i = 0; i < hand.length; i++) {
-      const r = rackTileRect(i, hand.length);
+      const r = lay().play.rackRect(i, hand.length);
       if (inRect(x, y, r)) { state.drag = { index: i, x, y }; state.hint = null; return; }
     }
   }
@@ -377,20 +377,20 @@ export async function createGame(env) {
   // Pass/Hint/Undo — Hint/Undo's rects become the think-time -/+ stepper instead.
   function handleAutoDown(x, y) {
     if (state.handResult) {
-      if (inRect(x, y, OVERLAY_CONTINUE_BUTTON)) exitAutoMatch();
+      if (inRect(x, y, lay().overlay.cont)) exitAutoMatch();
       return;
     }
-    if (inRect(x, y, BACK_BUTTON)) { exitAutoMatch(); return; }
-    if (inRect(x, y, MEMORY_TOGGLE)) { state.showMemory = !state.showMemory; return; }
+    if (inRect(x, y, lay().play.back)) { exitAutoMatch(); return; }
+    if (inRect(x, y, lay().play.memory)) { state.showMemory = !state.showMemory; return; }
     // The pace stepper's own middle button doubles as Pause/Resume — a player watching to learn
     // the partner-inference reasoning needs to be able to just stop and look at the table.
-    if (inRect(x, y, PASS_BUTTON)) { state.autoPaused = !state.autoPaused; return; }
-    if (inRect(x, y, HINT_BUTTON) && state.autoThinkIdx > 0) {
+    if (inRect(x, y, lay().play.pass)) { state.autoPaused = !state.autoPaused; return; }
+    if (inRect(x, y, lay().play.hint) && state.autoThinkIdx > 0) {
       state.autoThinkIdx -= 1;
       storage.set('autoThinkIdx', state.autoThinkIdx);
       return;
     }
-    if (inRect(x, y, UNDO_BUTTON) && state.autoThinkIdx < AUTO_THINK_STEPS.length - 1) {
+    if (inRect(x, y, lay().play.undo) && state.autoThinkIdx < AUTO_THINK_STEPS.length - 1) {
       state.autoThinkIdx += 1;
       storage.set('autoThinkIdx', state.autoThinkIdx);
     }
@@ -428,6 +428,21 @@ export async function createGame(env) {
         if (input.pointer.released) state.scrollDrag = null;
       }
 
+      if (wheelInput.dy) {
+        if (state.scene === 'howto') state.howtoScroll = Math.max(0, state.howtoScroll + wheelInput.dy);
+        else if (state.scene === 'rules') state.rulesScroll = Math.max(0, state.rulesScroll + wheelInput.dy);
+        wheelInput.dy = 0;
+      }
+
+      if ((state.scene === 'howto' || state.scene === 'rules') && input.keys && input.keys.pressed) {
+        const k = input.keys.pressed, key = state.scene === 'howto' ? 'howtoScroll' : 'rulesScroll', page = lay().ref.panel.h * 0.8, max = state.readerMax ?? 0;
+        if (k.has('ArrowDown')) state[key] += 80; if (k.has('ArrowUp')) state[key] = Math.max(0, state[key] - 80);
+        if (k.has('PageDown') || k.has('Space')) state[key] += page; if (k.has('PageUp')) state[key] = Math.max(0, state[key] - page);
+        if (k.has('Home')) state[key] = 0; if (k.has('End')) state[key] = max + 1;
+        if (k.has('Escape')) state.scene = 'title';
+      }
+
+      state.lkDown = state.scene === 'title' && !!input.pointer.down && inRect(input.pointer.x, input.pointer.y, lay().title.lockTap);
       if (input.pointer.pressed) {
         if (state.scene === 'title') handleTitle(input.pointer.x, input.pointer.y);
         else if (state.scene === 'howto') handleHowto(input.pointer.x, input.pointer.y);
@@ -442,8 +457,8 @@ export async function createGame(env) {
       if (state.scene !== before) state.sceneT = 0;
     },
 
-    render(ctx) {
-      render(ctx, state, env.manifest, { HOWTO_STEPS, DIFFICULTIES, RULES_PAGES });
+    render(ctx, view) {
+      render(ctx, state, env.manifest, { HOWTO_STEPS, DIFFICULTIES, RULES_PAGES }, layoutFor(view?.width ?? meta.width, view?.height ?? meta.height));
     },
 
     // Must be JSON-serializable and fully describe the run (used for determinism checks).

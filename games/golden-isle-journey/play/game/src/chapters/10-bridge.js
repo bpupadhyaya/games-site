@@ -1,9 +1,13 @@
 // Chapter 10: the bridge of stones. Carriers leap overhead in rhythm; tap one to drop his stone.
 // A stone on the next gap extends the bridge, a stone on a built span strengthens it, and the
 // big waves break any plain span they reach. Extend, or strengthen first?
-import { W, H, PAL, INK, GOLD, clamp, lerp, smooth, hash, sky, sun, clouds, sea, skyline, light, motes, finish, shakeOffset, treeline } from '../stage.js';
+import { FR, W, H, PAL, INK, GOLD, clamp, lerp, smooth, hash, sky, sun, clouds, sea, skyline, light, motes, finish, shakeOffset, treeline } from '../stage.js';
 import { figure, poses, stridePose, boulder } from '../puppets.js';
 import { meter, label, caption } from '../ui.js';
+
+// Landscape: the window shows y 400..1250: the carriers' hops are squeezed into it (Yc) and the deck sits near the bottom.
+export const LAND_Y1 = 1250;
+export const Yc = (y0) => (FR.y0 > 250 ? FR.y0 + 170 + ((y0 - 340) / 420) * 420 : y0);
 
 const SPANS = 14, SW = 110, SHORE = 220, DECK = 1090, HORIZON = 900;
 const CARRY_SPEED = 200, FALL = 0.5, WAVE_EVERY = 12, WAVE_WARN = 4, GIVE_UP = 130;
@@ -26,7 +30,7 @@ export function create(env, shared) {
   const front = () => { let i = 0; while (i < SPANS && s.spans[i] > 0) i++; return i; };
   const spanAt = (x) => Math.floor((x - SHORE) / SW);
   const fillable = (i) => i >= 0 && i < SPANS && s.spans[i] === 0 && (i === 0 || s.spans[i - 1] > 0);
-  const carrierY = (c) => c.y0 - Math.sin(clamp((c.x - c.born) / (W + 200), 0, 1) * Math.PI) * 130 - Math.abs(Math.sin((c.x - c.born) / 95 + c.ph)) * 46;
+  const carrierY = (c) => Yc(c.y0) - Math.sin(clamp((c.x - c.born) / (FR.w + 200), 0, 1) * Math.PI) * 130 - Math.abs(Math.sin((c.x - c.born) / 95 + c.ph)) * 46;
   const drop = (c) => { c.has = false; const y = carrierY(c) - 120; s.stones.push({ x: c.x, y, y0: y, t: 0 }); shared.sfx('tap'); };
 
   function land(st) {
@@ -45,7 +49,7 @@ export function create(env, shared) {
     for (const sp of s.splashes) sp.t += dt;
     s.splashes = s.splashes.filter((sp) => sp.t < 0.8);
     const fx = SHORE + front() * SW;
-    s.cam = lerp(s.cam, clamp(fx - 330, 0, SHORE + SPANS * SW - W + 160), 1 - Math.pow(0.12, dt));
+    s.cam = lerp(s.cam, clamp(fx - 330, 0, SHORE + SPANS * SW - FR.x1 + 160), 1 - Math.pow(0.12, dt));
     if (s.done) { s.doneT += dt; return; }
     s.time += dt;
 
@@ -53,10 +57,10 @@ export function create(env, shared) {
     s.spawnIn -= dt;
     if (s.spawnIn <= 0) {
       s.spawnIn = 1.25 + rng.range(0, 0.5);
-      s.carriers.push({ id: s.nextId++, x: s.cam - 90, born: s.cam - 90, y0: rng.range(340, 760), has: true, ph: rng.range(0, 6) });
+      s.carriers.push({ id: s.nextId++, x: s.cam + FR.x0 - 90, born: s.cam + FR.x0 - 90, y0: rng.range(340, 760), has: true, ph: rng.range(0, 6) });
     }
     for (const c of s.carriers) c.x += CARRY_SPEED * dt;
-    s.carriers = s.carriers.filter((c) => c.x < s.cam + W + 140);
+    s.carriers = s.carriers.filter((c) => c.x < s.cam + FR.x1 + 140);
 
     // tap a carrier to drop his stone
     const p = input.pointer;
@@ -121,7 +125,7 @@ export function create(env, shared) {
     clouds(ctx, { y: 600, h: 220, scroll: s.cam * 0.16 + t * 10, color: 'rgba(255,190,150,0.22)', n: 5, seed: 11 });
     // the far fortress grows as the bridge does
     const sc = 0.45 + prog * 0.75;
-    ctx.save(); ctx.translate(W - 250 - prog * 140 - s.cam * 0.04, HORIZON + 10); ctx.scale(sc, sc);
+    ctx.save(); ctx.translate(FR.x1 - 250 - prog * 140 - s.cam * 0.04, HORIZON + 10); ctx.scale(sc, sc);
     light(ctx, 160, -120, 460, '255,190,110', 0.4);
     ctx.fillStyle = '#2a1e50'; ctx.beginPath(); ctx.moveTo(-220, 8); ctx.quadraticCurveTo(170, -90, 620, 8); ctx.fill();
     skyline(ctx, { base: -30, scroll: 0, color: '#3a2860', seed: 5, h: 190, gap: 105, kind: 'lanka', lit: '255,220,150', t });
@@ -146,13 +150,13 @@ export function create(env, shared) {
 
     // home shore with its trees and the waiting army
     if (s.cam < SHORE + 420) {
-      ctx.save(); ctx.beginPath(); ctx.rect(0, 0, Math.max(0, SHORE - 60 - s.cam), H); ctx.clip();
+      ctx.save(); ctx.beginPath(); ctx.rect(FR.x0 - 1, 0, Math.max(0, SHORE - 60 - s.cam) - FR.x0 + 1, H); ctx.clip();
       treeline(ctx, { base: DECK - 50, scroll: s.cam + 600, color: INK, seed: 3, h: 300, gap: 160 });
       ctx.restore();
     }
     ctx.save(); ctx.translate(-s.cam, 0);
     ctx.fillStyle = INK;
-    ctx.beginPath(); ctx.moveTo(-400, H); ctx.lineTo(-400, DECK - 70); ctx.quadraticCurveTo(40, DECK - 90, SHORE, DECK - 14); ctx.lineTo(SHORE, H); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(-4000, H); ctx.lineTo(-4000, DECK - 70); ctx.quadraticCurveTo(40, DECK - 90, SHORE, DECK - 14); ctx.lineTo(SHORE, H); ctx.fill();
     for (let i = 0; i < 4; i++) figure(ctx, { x: -30 + i * 58, y: DECK - 66 + i * 14, s: 0.9, kind: 'vanara', pose: s.done ? poses.cheer(t, i) : poses.stand(t + i), prop: i % 2 ? 'staff' : null });
     for (let i = 0; i < SPANS; i++) if (s.spans[i] > 0) span(ctx, i, SHORE + i * SW, s.spans[i]);
     // gaps that will take a stone
@@ -207,9 +211,9 @@ export function create(env, shared) {
 
     // a near wave laps over the bridge foot
     ctx.fillStyle = 'rgba(14,14,50,0.88)';
-    ctx.beginPath(); ctx.moveTo(0, H);
-    for (let x = 0; x <= W + 20; x += 20) ctx.lineTo(x, DECK + 130 + Math.sin((x + s.cam * 1.2) / 90 + t * 1.6) * 14);
-    ctx.lineTo(W + 20, H); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(FR.x0 - 21, H);
+    for (let x = Math.floor(FR.x0 / 20) * 20 - 20; x <= FR.x1 + 20; x += 20) ctx.lineTo(x, DECK + 130 + Math.sin((x + s.cam * 1.2) / 90 + t * 1.6) * 14);
+    ctx.lineTo(FR.x1 + 20, H); ctx.fill();
     motes(ctx, { n: 18, t, rgb: '255,230,190', kind: 'dust', scroll: s.cam, rm, top: 200, bottom: 1000 });
     ctx.restore();
     finish(ctx, 0.7);

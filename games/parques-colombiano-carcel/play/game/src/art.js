@@ -171,17 +171,20 @@ function paintTray(ctx) {
 
 const layers = {};
 function layer(key, paint, ss = 2) {
+  key += `|${W}x${H}|${Math.round(BOARD.cx)},${Math.round(BOARD.cy)},${Math.round(BOARD.S)}|${Math.round(TRAY.x)},${Math.round(TRAY.y)},${Math.round(TRAY.w)},${Math.round(TRAY.h)}`;
   let L = layers[key];
   if (L === undefined) {
     L = null;
+    for (const k of Object.keys(layers)) if (Object.keys(layers).length >= 4) delete layers[k]; // keep only the few most recent sizes
     try { if (typeof OffscreenCanvas !== 'undefined') { const c = new OffscreenCanvas(W * ss, H * ss), lc = c.getContext('2d'); lc.scale(ss, ss); paint(lc); L = c; } } catch { L = null; }
     layers[key] = L;
   }
   return L;
 }
-export function drawStatic(ctx) {
-  const L = layer('board', (c) => { paintFloor(c); paintBoard(c); paintTray(c); });
-  if (L) ctx.drawImage(L, 0, 0, W, H); else { paintFloor(ctx); paintBoard(ctx); paintTray(ctx); }
+export function drawStatic(ctx, withTray = true) {
+  const paint = (c) => { paintFloor(c); paintBoard(c); if (withTray) paintTray(c); };
+  const L = layer(withTray ? 'board' : 'boardNoTray', paint);
+  if (L) ctx.drawImage(L, 0, 0, W, H); else paint(ctx);
 }
 export function drawFloorOnly(ctx) {
   const L = layer('floor', paintFloor);

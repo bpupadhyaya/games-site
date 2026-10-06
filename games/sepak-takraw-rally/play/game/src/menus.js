@@ -1,43 +1,74 @@
 // Every screen that is not the play screen: title, setup, learn, settings, result, pause and the paginated About / How to Play /
 // Rules reader with its diagrams. Pure drawing; game.js owns state. All text follows the 100-300% text size.
-import { W, H, TEXT_SCALES, TEXT_DEC, TEXT_INC, REF_BACK, REF_NEXT, THINK_STEPS, SETUP_PINS } from './layout.js';
-import { FONT, DISPLAY, C, roundPath, drawButton, panel, wrapLines, textShadow, flowLayout, drawFlow, flowHit } from './ui.js';
+import { W, H, TEXT_SCALES, TEXT_DEC, TEXT_INC, REF_BACK, REF_NEXT, THINK_STEPS, SETUP_PINS, G, host, PANEL, READER, clampN } from './layout.js';
+import { FONT, DISPLAY, C, roundPath, drawButton, panel, wrapLines, textShadow, flowLayout, drawFlow, flowHit, FLOOR, fl } from './ui.js';
 import { LEVELS } from './consts.js';
 import { LESSONS, QUIZ } from './content.js';
+import { drawLockupH, lockupSize, drawMoreLine } from './brand.js';
+export { readerMeta } from './layout.js';
 
 const TAU = Math.PI * 2;
-let LAID = { key: '', lay: null, top: 0, bottom: H };
+const LOCK_H = 64;
+const LOCK_STRIP = LOCK_H + 26;
+let titleLockTap = null;
+export const getLockTap = () => titleLockTap;
+let LAID = { key: '', lay: null, top: 0, bottom: 0, sk: '', tk: -1 };
 export const flowMeta = () => LAID;
+export const resetLayout = () => { LAID = { key: '', lay: null, top: 0, bottom: 0, sk: '', tk: -1 }; };
 const estCtx = { font: '', measureText(t) { const m = /(\d+)px/.exec(this.font); return { width: String(t).length * (m ? +m[1] : 20) * 0.52 }; } };
+
+// Where each flow screen sits: a centred column (portrait: 640 wide; landscape: narrower or wider by screen), the title in landscape keeps its buttons on the right.
+function titleParams(state) {
+  const F = G.flow, U = G.U;
+  if (G.land) {
+    const cut = Math.round(U.x0 + U.w * 0.44), w = clampN(U.x1 - cut - 56, 360, 540), x = (cut + U.x1) / 2 - w / 2;
+    return { wide: true, cut, x, w, heroH: 0, topGap: 0 };
+  }
+  const B = flowLayout(estCtx, titleWidgets(state, { bare: true }), TEXT_SCALES[state.settings.textIdx], { x: F.x1, w: F.w1, bk: F.bk }).contentH;
+  const avail = F.bottom - F.top - LOCK_STRIP;
+  const heroH = clampN(avail - B - 24, 250, 400), extra = Math.max(0, avail - heroH - B - 24);
+  return { wide: false, cut: 0, x: F.x1, w: F.w1, heroH, topGap: Math.min(extra * 0.5, 200) };
+}
+function geom(key, state) {
+  const F = G.flow, o = { top: F.top, bottom: F.bottom, x: F.x1, w: F.w1, bk: F.bk };
+  if (key === 'setup') { o.x = F.x2; o.w = F.w2; o.bottom = F.setupBottom; }
+  else if (key === 'title') { const T = titleParams(state); o.x = T.x; o.w = T.w; o.bottom = F.bottom - LOCK_STRIP; }
+  return o;
+}
+const DEFS = { title: titleWidgets, setup: setupWidgets, settings: settingsWidgets, result: resultWidgets, demolimit: demoLimitWidgets, learn: learnWidgets, lesson: lessonWidgets, quiz: quizWidgets, lessonresult: lessonResultWidgets };
 export function ensureLayout(state, key) {
-  if (LAID.key === key && LAID.lay) return;
-  const defs = { title: [titleWidgets, 0, H], setup: [setupWidgets, 0, 1130], settings: [settingsWidgets, 0, H], result: [resultWidgets, 0, H], demolimit: [demoLimitWidgets, 0, H], learn: [learnWidgets, 0, H], lesson: [lessonWidgets, 0, H], quiz: [quizWidgets, 0, H], lessonresult: [lessonResultWidgets, 0, H] };
-  const d = defs[key];
+  const tk = state.settings.textIdx;
+  if (LAID.key === key && LAID.lay && LAID.sk === G.key && LAID.tk === tk) return;
+  const d = DEFS[key];
   if (!d) return;
-  const lay = flowLayout(estCtx, d[0](state), TEXT_SCALES[state.settings.textIdx]);
-  LAID = { key, lay, top: d[1], bottom: d[2], h: lay.contentH };
+  const o = geom(key, state);
+  const lay = flowLayout(estCtx, d(state), TEXT_SCALES[tk], { x: o.x, w: o.w, bk: o.bk });
+  LAID = { key, lay, top: o.top, bottom: o.bottom, h: lay.contentH, sk: G.key, tk };
 }
 export function hitScreen(x, y, scroll) { return LAID.lay ? flowHit(LAID.lay, LAID.top, scroll, x, y) : null; }
 
-const heroArt = () => ({
-  t: 'art', h: 400,
-  draw(ctx, w) {
-    ctx.save(); ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
-    const cx = w / 2;
-    ctx.font = `700 40px ${FONT}`; ctx.fillStyle = '#ffd97a'; ctx.shadowColor = 'rgba(0,0,0,0.6)'; ctx.shadowBlur = 8; ctx.shadowOffsetY = 2;
-    ctx.fillText('KICK VOLLEYBALL', cx, 118);
-    ctx.font = `700 118px ${DISPLAY}`; ctx.fillStyle = '#fff6e4'; ctx.shadowBlur = 14; ctx.shadowOffsetY = 4;
-    ctx.fillText('Sepak', cx, 236); ctx.fillText('Takraw', cx, 346);
-    ctx.restore();
-  },
-});
+// The title block (400 units high, drawn scaled by k and centred on cx): tagline, the two-line name and the small themed Arcforge lockup.
+function drawHero(ctx, cx, y0, k) {
+  ctx.save(); ctx.translate(cx, y0); ctx.scale(k, k);
+  ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+  ctx.font = `700 ${Math.max(40, Math.ceil(FLOOR.v / k))}px ${FONT}`; ctx.fillStyle = '#ffd97a'; ctx.shadowColor = 'rgba(0,0,0,0.6)'; ctx.shadowBlur = 8; ctx.shadowOffsetY = 2;
+  ctx.fillText('KICK VOLLEYBALL', 0, 76);
+  ctx.font = `700 118px ${DISPLAY}`; ctx.fillStyle = '#fff6e4'; ctx.shadowBlur = 14; ctx.shadowOffsetY = 4;
+  ctx.fillText('Sepak', 0, 190); ctx.fillText('Takraw', 0, 300);
+  ctx.shadowColor = 'transparent';
+  ctx.restore();
+}
+const heroArt = (h) => ({ t: 'art', h, draw(ctx, w) { drawHero(ctx, w / 2, 0, Math.min(1, h / 400)); } });
+// Quiet brand line on a result screen: "More heritage games in Arcforge" (text only).
+const moreLine = () => ({ t: 'art', h: 44, draw(ctx, w) { drawMoreLine(ctx, w / 2, 30, Math.max(20, Math.ceil(FLOOR.v))); } });
 
-export function titleWidgets(state) {
+export function titleWidgets(state, o = {}) {
   const sv = state.saved;
+  const P = o.bare ? null : titleParams(state);
   return [
-    heroArt(),
-    ...(sv ? [{ t: 'btn', id: 'continue', label: 'Continue match', sub: `${sv.oppName} · Set ${sv.setNo} · ${sv.pts[0]}-${sv.pts[1]}`, primary: true, h: 88 }] : []),
-    { t: 'btn', id: 'play', label: 'Play a match', primary: !sv, h: 88 },
+    ...(o.bare || P.wide ? [] : [{ t: 'gap', h: P.topGap }, heroArt(P.heroH)]),
+    ...(sv ? [{ t: 'btn', id: 'continue', label: 'Continue match', sub: `${sv.oppName} · Set ${sv.setNo} · ${sv.pts[0]}-${sv.pts[1]}`, primary: true, h: G.land ? 66 : 88 }] : []),
+    { t: 'btn', id: 'play', label: 'Play a match', primary: !sv, h: G.land ? 66 : 88 },
     { t: 'btn', id: 'quick', label: 'Quick match', sub: 'One short set', row: 1 },
     { t: 'btn', id: 'pass', label: 'Pass and play', sub: 'Two players', row: 1 },
     { t: 'btn', id: 'learn', label: 'Learn to play', sub: 'Six short lessons' },
@@ -103,12 +134,12 @@ export function settingsWidgets(state) {
 
 export function resultWidgets(state) {
   const m = state.sim.match, st = state.sim.teams;
-  const big = TEXT_SCALES[state.settings.textIdx] > 1.5;
+  const big = TEXT_SCALES[state.settings.textIdx] > 1.5 || G.land;
   const win = m.winner;
   const mode = state.setup.lastMode;
   const youWin = win === 0 && st[0].human;
   const title = mode === 'watch' ? `${st[win].name} win` : st[1].human ? `${win === 0 ? 'Player 1' : 'Player 2'} wins` : youWin ? 'You win the match!' : `${st[win].name} win`;
-  const wd = [{ t: 'gap', h: big ? 24 : 150 }, { t: 'h', label: title, size: 56, cap: big ? 1.15 : 1.4 }];
+  const wd = [{ t: 'gap', h: big ? 24 : 110 }, { t: 'h', label: title, size: 56, cap: big ? 1.15 : 1.4 }];
   wd.push({ t: 'h', label: `${m.sets[0]} – ${m.sets[1]}`, size: 84, cap: big ? 1.1 : 1.3, color: '#ffd97a' });
   const ss = m.history.length;
   const l1 = `Rallies: ${ss}. Your aces ${m.stats[0].aces}, spike points ${m.stats[0].kills}, blocks ${m.stats[0].blocks}, errors ${m.stats[0].errors}.`;
@@ -117,6 +148,7 @@ export function resultWidgets(state) {
   wd.push({ t: 'btn', id: 'again', label: 'Rematch', primary: true, h: 92 });
   wd.push({ t: 'btn', id: 'new', label: 'New match', row: 6 });
   wd.push({ t: 'btn', id: 'menu', label: 'Main menu', row: 6, dark: true });
+  wd.push({ t: 'gap', h: 10 }, moreLine());
   wd.push({ t: 'gap', h: 30 });
   return wd;
 }
@@ -201,23 +233,25 @@ function scrollHint(ctx, top, bottom, scroll, maxScroll, x0 = 0, w = W) {
     const g = ctx.createLinearGradient(0, bottom - 90, 0, bottom); g.addColorStop(0, 'rgba(6,14,26,0)'); g.addColorStop(1, 'rgba(6,14,26,0.7)');
     ctx.fillStyle = g; ctx.fillRect(x0, bottom - 90, w, 90);
     roundPath(ctx, cx - 44, bottom - 40, 88, 32, 16); ctx.fillStyle = 'rgba(255,246,228,0.92)'; ctx.fill();
-    ctx.fillStyle = C.ink; ctx.font = `700 22px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('▼ more', cx, bottom - 23);
+    ctx.fillStyle = C.ink; ctx.font = `700 ${fl(22)}px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('▼ more', cx, bottom - 23);
   } else if (scroll > 4) {
     roundPath(ctx, cx - 44, top + 8, 88, 32, 16); ctx.fillStyle = 'rgba(255,246,228,0.92)'; ctx.fill();
-    ctx.fillStyle = C.ink; ctx.font = `700 22px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('▲ up', cx, top + 24);
+    ctx.fillStyle = C.ink; ctx.font = `700 ${fl(22)}px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('▲ up', cx, top + 24);
   }
 }
-function drawFlowScreen(ctx, state, key, widgets, top, bottom) {
+function drawFlowScreen(ctx, state, key, widgets, top, bottom, o = {}) {
   const sc = TEXT_SCALES[state.settings.textIdx];
-  const lay = flowLayout(ctx, widgets, sc);
-  LAID = { key, lay, top, bottom, h: lay.contentH };
+  const gm = geom(key, state);
+  const x = o.x ?? gm.x, w = o.w ?? gm.w;
+  const lay = flowLayout(ctx, widgets, sc, { x, w, bk: gm.bk });
+  LAID = { key, lay, top, bottom, h: lay.contentH, sk: G.key, tk: state.settings.textIdx };
   const maxScroll = Math.max(0, lay.contentH - (bottom - top));
   const scroll = Math.min(state.ui.scroll, maxScroll);
   drawFlow(ctx, lay, top, bottom, scroll);
   if (maxScroll > 0) {
     const th = Math.max(60, (bottom - top) * ((bottom - top) / lay.contentH)), ty = top + (scroll / maxScroll) * (bottom - top - th);
-    roundPath(ctx, W - 10, ty, 5, th, 3); ctx.fillStyle = 'rgba(255,246,228,0.5)'; ctx.fill();
-    scrollHint(ctx, top, bottom, scroll, maxScroll);
+    roundPath(ctx, W - Math.max(10, host.r + 6), ty, 5, th, 3); ctx.fillStyle = 'rgba(255,246,228,0.5)'; ctx.fill();
+    scrollHint(ctx, top, bottom, scroll, maxScroll, x, w);
   }
   return { scroll, maxScroll, lay };
 }
@@ -225,123 +259,151 @@ const bg = (ctx, a) => { ctx.clearRect(0, 0, W, H); scrim(ctx, a); };
 
 export function renderTitle(ctx, state) {
   ctx.clearRect(0, 0, W, H);
-  const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, 'rgba(6,14,26,0.15)'); g.addColorStop(0.35, 'rgba(6,14,26,0.45)'); g.addColorStop(1, 'rgba(6,14,26,0.9)');
-  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
-  drawFlowScreen(ctx, state, 'title', titleWidgets(state), 0, H);
-  if (state.demo) { ctx.textAlign = 'center'; ctx.font = `400 18px ${FONT}`; ctx.fillStyle = 'rgba(255,246,228,0.6)'; ctx.fillText('Web demo', W / 2, H - 14); }
+  const T = titleParams(state), F = G.flow;
+  if (T.wide) {
+    // landscape: the live court on the left under a light shade, the title block in the left half, the buttons in a panel on the right
+    const g = ctx.createLinearGradient(0, 0, W, 0); g.addColorStop(0, 'rgba(6,14,26,0.55)'); g.addColorStop(0.45, 'rgba(6,14,26,0.25)'); g.addColorStop(0.55, 'rgba(6,14,26,0.6)'); g.addColorStop(1, 'rgba(6,14,26,0.88)');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    const k = Math.min(1, (T.cut - G.U.x0 - 24) / 440, (H - 60) / 400);
+    drawHero(ctx, (G.U.x0 + T.cut) / 2, (H - 400 * k) / 2, k);
+  } else {
+    const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, 'rgba(6,14,26,0.15)'); g.addColorStop(0.35, 'rgba(6,14,26,0.45)'); g.addColorStop(1, 'rgba(6,14,26,0.9)');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  }
+  drawFlowScreen(ctx, state, 'title', titleWidgets(state), F.top, F.bottom - LOCK_STRIP);
+  {   // themed lockup: bottom centre, directly under the last row of menu buttons (pinned to the bottom when the menu scrolls)
+    const btns = LAID.lay.items.filter((i) => i.w.t === 'btn'), lcx = T.x + T.w / 2;
+    const ly = Math.min(F.bottom - LOCK_H - 6, LAID.top + Math.max(0, ...btns.map((i) => i.y + i.h)) + 20);
+    const lw = lockupSize(LOCK_H) || Math.round(LOCK_H * 3.67), m = 44 / Math.max(0.2, host.px), tw = Math.max(lw + 24, m), th = Math.max(LOCK_H + 12, m);
+    titleLockTap = { x: lcx - tw / 2, y: ly + LOCK_H + 6 - th, w: tw, h: th };
+    ctx.save(); ctx.fillStyle = state.lockDown > state.t ? 'rgba(255,226,122,0.5)' : 'rgba(6,14,26,0.55)'; roundPath(ctx, lcx - lw / 2 - 12, ly - 6, lw + 24, LOCK_H + 12, (LOCK_H + 12) / 2); ctx.fill(); ctx.restore();
+    drawLockupH(ctx, lcx, ly, LOCK_H);
+  }
+  if (state.demo) { ctx.textAlign = 'center'; ctx.font = `400 ${fl(18)}px ${FONT}`; ctx.fillStyle = 'rgba(255,246,228,0.6)'; ctx.fillText('Web demo', W / 2, H - Math.max(14, host.b + 6)); }
 }
 export function renderSetup(ctx, state) {
   bg(ctx, 0.78);
-  drawFlowScreen(ctx, state, 'setup', setupWidgets(state), 0, 1130);
-  const g = ctx.createLinearGradient(0, 1100, 0, H);
+  const F = G.flow;
+  drawFlowScreen(ctx, state, 'setup', setupWidgets(state), F.top, F.setupBottom);
+  const y0 = F.setupBottom - 30;
+  const g = ctx.createLinearGradient(0, y0, 0, H);
   g.addColorStop(0, 'rgba(6,14,26,0)'); g.addColorStop(0.2, 'rgba(6,14,26,0.88)'); g.addColorStop(1, 'rgba(6,14,26,0.95)');
-  ctx.fillStyle = g; ctx.fillRect(0, 1100, W, H - 1100);
+  ctx.fillStyle = g; ctx.fillRect(0, y0, W, H - y0);
   drawButton(ctx, SETUP_PINS.start, state.setup.watch ? 'Watch the match' : 'Start the match', { primary: true, size: 32 });
   drawButton(ctx, SETUP_PINS.back, 'Back', { dark: true, size: 28 });
-  if (state.setupMsg) { ctx.textAlign = 'center'; ctx.font = `700 22px ${FONT}`; ctx.fillStyle = '#ffd9a0'; ctx.fillText(state.setupMsg, W / 2, 1140); }
+  if (state.setupMsg) { ctx.textAlign = 'center'; ctx.font = `700 ${fl(22)}px ${FONT}`; ctx.fillStyle = '#ffd9a0'; ctx.fillText(state.setupMsg, W / 2, SETUP_PINS.start.y - 12); }
 }
-export const renderSettings = (ctx, state) => { bg(ctx, 0.8); drawFlowScreen(ctx, state, 'settings', settingsWidgets(state), 0, H); };
-export const renderResult = (ctx, state) => { ctx.clearRect(0, 0, W, H); scrim(ctx, 0.62); drawFlowScreen(ctx, state, 'result', resultWidgets(state), 0, H); };
-export const renderDemoLimit = (ctx, state) => { bg(ctx, 0.8); drawFlowScreen(ctx, state, 'demolimit', demoLimitWidgets(), 0, H); };
-export const renderLearn = (ctx, state) => { bg(ctx, 0.8); drawFlowScreen(ctx, state, 'learn', learnWidgets(state), 0, H); };
-export const renderLesson = (ctx, state) => { bg(ctx, 0.8); drawFlowScreen(ctx, state, 'lesson', lessonWidgets(state), 0, H); };
-export const renderQuiz = (ctx, state) => { bg(ctx, 0.8); drawFlowScreen(ctx, state, 'quiz', quizWidgets(state), 0, H); };
-export const renderLessonResult = (ctx, state) => { bg(ctx, 0.8); drawFlowScreen(ctx, state, 'lessonresult', lessonResultWidgets(state), 0, H); };
+const flowScr = (key, widgets, a) => (ctx, state) => { if (a < 0) { ctx.clearRect(0, 0, W, H); scrim(ctx, 0.62); } else bg(ctx, a); drawFlowScreen(ctx, state, key, widgets(state), G.flow.top, G.flow.bottom); };
+export const renderSettings = flowScr('settings', settingsWidgets, 0.8);
+export const renderResult = flowScr('result', resultWidgets, -1);
+export const renderDemoLimit = flowScr('demolimit', demoLimitWidgets, 0.8);
+export const renderLearn = flowScr('learn', learnWidgets, 0.8);
+export const renderLesson = flowScr('lesson', lessonWidgets, 0.8);
+export const renderQuiz = flowScr('quiz', quizWidgets, 0.8);
+export const renderLessonResult = flowScr('lessonresult', lessonResultWidgets, 0.8);
 export function renderPause(ctx, state) {
   scrim(ctx, 0.55);
   const wd = pauseWidgets(state);
   const sc = TEXT_SCALES[state.settings.textIdx];
-  const lay = flowLayout(ctx, wd, sc, { x: 60, w: 600 });
-  const top = 70, bottom = H - 70;
+  const pw = Math.min(W - 60, G.land ? 720 : 660), px = (W - pw) / 2, bk = G.flow.bk;
+  const lay = flowLayout(ctx, wd, sc, { x: px + 30, w: pw - 60, bk });
+  const top = Math.max(G.land ? 14 : 70, host.t + 10), bottom = H - Math.max(G.land ? 14 : 70, host.b + 10);
   const ch = Math.min(lay.contentH + 20, bottom - top);
-  const y0 = Math.max(top, (H - ch) / 2);
-  panel(ctx, 30, y0 - 20, 660, ch + 40, { r: 30, fill: 'rgba(14,34,52,0.94)', stroke: 'rgba(255,246,228,0.45)' });
-  LAID = { key: 'pause', lay, top: y0, bottom: y0 + ch, h: lay.contentH };
+  const y0 = Math.max(top, Math.min((H - ch) / 2, bottom - ch));
+  panel(ctx, px, y0 - 20, pw, ch + 40, { r: 30, fill: 'rgba(14,34,52,0.94)', stroke: 'rgba(255,246,228,0.45)' });
+  LAID = { key: 'pause', lay, top: y0, bottom: y0 + ch, h: lay.contentH, sk: G.key, tk: state.settings.textIdx };
   const maxScroll = Math.max(0, lay.contentH - ch);
   const sc0 = Math.min(state.ui.scroll, maxScroll);
-  drawFlow(ctx, lay, y0, y0 + ch, sc0);
-  scrollHint(ctx, y0, y0 + ch, sc0, maxScroll, 30, 660);
+  drawFlow(ctx, lay, y0, y0 + ch, sc0, { x0: px, w: pw });
+  scrollHint(ctx, y0, y0 + ch, sc0, maxScroll, px, pw);
 }
 
-// ---- reference pages --------------------------------------------------------------------------
-let PAGE_COUNT = 1;
-export const pageCount = () => PAGE_COUNT;
-const PANEL = { x: 34, y: 100, w: 652, h: 1030 };
-
-function buildPages(ctx, list, scale) {
-  const fs = Math.round(28 * scale), lh = fs * 1.28, tw = PANEL.w - 80;
+// ---- reference pages: one continuous, scrollable document (About / How to Play / Rules) -------------------------------------------------------------
+// The text is laid out once per text size as a tall column and drawn through a window (drag, wheel, keys, Next/Back scroll it), so any text size fits.
+const ART_H = 230;
+function buildDoc(ctx, list, scale) {
+  const fs = Math.round(28 * scale), lh = Math.round(fs * 1.28), tw = PANEL.w - 80;
   const secFs = Math.round(34 * Math.min(scale, 1.3));
-  const top = PANEL.y + 120, limit = PANEL.y + PANEL.h - 70;
-  const pages = [];
-  let cur = null, used = 0;
-  const newPage = () => { cur = { blocks: [], fs, lh, secFs }; used = 0; pages.push(cur); };
-  list.forEach((sec) => {
+  const items = [];
+  let y = 14;
+  list.forEach((sec, si) => {
+    if (si > 0) { items.push({ k: 'rule', y: y + 6 }); y += 30; }
     ctx.font = `700 ${secFs}px ${FONT}`;
-    const tl = wrapLines(ctx, sec.title, tw);
-    const titleH = tl.length * secFs * 1.2 + 16;
+    const tl = wrapLines(ctx, sec.title, tw), th = tl.length * secFs * 1.2 + 14;
+    items.push({ k: 'title', y, lines: tl, h: th }); y += th;
+    if (sec.art) { items.push({ k: 'art', y, key: sec.art }); y += ART_H; }
     ctx.font = `400 ${fs}px ${FONT}`;
     const lines = [];
-    sec.p.forEach((para, pi) => { wrapLines(ctx, para, tw).forEach((l, k) => lines.push({ text: l, gapBefore: k === 0 && pi > 0 })); });
-    const lineH = (l, n) => lh + (l.gapBefore && n > 0 ? lh * 0.45 : 0);
-    const artH = sec.art && scale < 2 ? 210 : 0;
-    let full = titleH + artH + 26;
-    lines.forEach((l, k) => { full += lineH(l, k); });
-    const minNeed = titleH + artH + 26 + lh * 3;
-    if (!cur || (used + full > limit - top && used + minNeed > limit - top)) newPage();
-    let i = 0, part = 0;
-    while (true) {
-      const blk = { title: sec.title, tl, titleH, art: part === 0 && artH > 0 ? sec.art : null, artH: part === 0 ? artH : 0, lines: [], part };
-      let h = titleH + blk.artH + 26;
-      while (i < lines.length) {
-        const add = lineH(lines[i], blk.lines.length);
-        if (used + h + add > limit - top && (blk.lines.length > 0 || used > 0)) break;
-        blk.lines.push({ ...lines[i] }); h += add; i++;
-      }
-      cur.blocks.push(blk); used += h;
-      part++;
-      if (i >= lines.length) break;
-      newPage();
-    }
+    sec.p.forEach((para, pi) => { wrapLines(ctx, para, tw).forEach((l, k) => lines.push({ text: l, gap: k === 0 && pi > 0 })); });
+    lines.forEach((l, k) => { if (l.gap && k > 0) y += lh * 0.45; items.push({ k: 'line', y, text: l.text }); y += lh; });
+    y += 14;
   });
-  return pages;
+  return { items, contentH: y + 8, fs, lh, secFs };
 }
-const pageCache = new Map();
+const docCache = new Map();
 export function renderPages(ctx, state, list, header) {
   bg(ctx, 0.8);
   const sc = TEXT_SCALES[state.settings.textIdx];
-  const pkey = `${header}:${sc}:${list.length}`;
-  let pages = pageCache.get(pkey);
-  if (!pages) { pages = buildPages(ctx, list, sc); pageCache.set(pkey, pages); }
-  PAGE_COUNT = pages.length;
-  const idx = Math.min(state.page, pages.length - 1);
-  const pg = pages[idx];
+  const pkey = `${header}:${sc}:${Math.round(PANEL.w)}:${list.length}`;
+  let doc = docCache.get(pkey);
+  if (!doc) { doc = buildDoc(ctx, list, sc); docCache.set(pkey, doc); if (docCache.size > 24) docCache.delete(docCache.keys().next().value); }
+  const R = READER;
+  R.max = Math.max(0, doc.contentH - R.h);
+  if (state.ui.keepFrac != null) { state.ui.scroll = state.ui.keepFrac * R.max; state.ui.keepFrac = null; }
+  state.ui.scroll = Math.max(0, Math.min(R.max, state.ui.scroll));
+  const scroll = state.ui.scroll;
   panel(ctx, PANEL.x, PANEL.y, PANEL.w, PANEL.h, { r: 30, fill: 'rgba(255,246,228,0.97)', stroke: 'rgba(19,40,58,0.6)' });
   ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+  const pcx = PANEL.x + PANEL.w / 2;
   ctx.fillStyle = C.vermDark; ctx.font = `italic 700 ${Math.round(42 * Math.min(sc, 1.15))}px ${DISPLAY}`;
-  ctx.fillText(header, W / 2, PANEL.y + 58);
+  ctx.fillText(header, pcx, PANEL.y + 58);
   ctx.strokeStyle = 'rgba(19,40,58,0.3)'; ctx.lineWidth = 2;
   ctx.beginPath(); ctx.moveTo(PANEL.x + 60, PANEL.y + 78); ctx.lineTo(PANEL.x + PANEL.w - 60, PANEL.y + 78); ctx.stroke();
-  let y = PANEL.y + 120;
-  pg.blocks.forEach((blk, bi) => {
-    if (bi > 0) { ctx.strokeStyle = 'rgba(19,40,58,0.2)'; ctx.beginPath(); ctx.moveTo(PANEL.x + 80, y - 8); ctx.lineTo(PANEL.x + PANEL.w - 80, y - 8); ctx.stroke(); y += 8; }
-    ctx.textAlign = 'center'; ctx.fillStyle = C.indigo; ctx.font = `700 ${pg.secFs}px ${FONT}`;
-    blk.tl.forEach((l, k) => ctx.fillText(l + (blk.part > 0 && k === blk.tl.length - 1 ? ' (cont.)' : ''), W / 2, y + pg.secFs * (0.9 + k * 1.2) - 8));
-    y += blk.titleH;
-    if (blk.art) { ctx.save(); ctx.beginPath(); ctx.rect(PANEL.x + 20, y, PANEL.w - 40, blk.artH); ctx.clip(); drawArt(blk.art, ctx, PANEL.x + 40, y, PANEL.w - 80, blk.artH - 12); ctx.restore(); y += blk.artH; }
-    ctx.fillStyle = C.ink; ctx.font = `400 ${pg.fs}px ${FONT}`; ctx.textAlign = 'left';
-    blk.lines.forEach((l, k) => { if (l.gapBefore && k > 0) y += pg.lh * 0.45; ctx.fillText(l.text, PANEL.x + 40, y + pg.fs * 0.85); y += pg.lh; });
-    y += 26;
-  });
-  ctx.textAlign = 'center'; ctx.font = `400 22px ${FONT}`; ctx.fillStyle = 'rgba(19,40,58,0.7)';
-  ctx.fillText(`Page ${idx + 1} of ${pages.length}`, W / 2, PANEL.y + PANEL.h - 28);
+  ctx.save(); ctx.beginPath(); ctx.rect(R.x, R.y, R.w, R.h); ctx.clip();
+  for (const it of doc.items) {
+    const y = R.y + it.y - scroll;
+    if (it.k === 'line') {
+      if (y > R.y + R.h || y + doc.lh < R.y) continue;
+      ctx.fillStyle = C.ink; ctx.font = `400 ${doc.fs}px ${FONT}`; ctx.textAlign = 'left'; ctx.fillText(it.text, PANEL.x + 40, y + doc.fs * 0.85);
+    } else if (it.k === 'title') {
+      if (y > R.y + R.h || y + it.h < R.y) continue;
+      ctx.textAlign = 'center'; ctx.fillStyle = C.indigo; ctx.font = `700 ${doc.secFs}px ${FONT}`;
+      it.lines.forEach((l, k) => ctx.fillText(l, pcx, y + doc.secFs * (0.9 + k * 1.2) - 4));
+    } else if (it.k === 'rule') {
+      ctx.strokeStyle = 'rgba(19,40,58,0.2)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(PANEL.x + 80, y); ctx.lineTo(PANEL.x + PANEL.w - 80, y); ctx.stroke();
+    } else if (it.k === 'art') {
+      if (y > R.y + R.h || y + ART_H < R.y) continue;
+      ctx.save(); ctx.beginPath(); ctx.rect(PANEL.x + 20, y, PANEL.w - 40, ART_H - 6); ctx.clip(); drawArt(it.key, ctx, PANEL.x + 40, y, PANEL.w - 80, ART_H - 14); ctx.restore();
+    }
+  }
+  ctx.restore();
+  if (R.max > 0) {
+    // scroll bar, a fade and a "more" / "up" pill so it is obvious that the text goes on
+    const th = Math.max(60, R.h * (R.h / doc.contentH)), ty = R.y + (scroll / R.max) * (R.h - th);
+    roundPath(ctx, PANEL.x + PANEL.w - 14, ty, 6, th, 3); ctx.fillStyle = 'rgba(19,40,58,0.5)'; ctx.fill();
+    const cx = pcx;
+    if (scroll < R.max - 4) {
+      const g = ctx.createLinearGradient(0, R.y + R.h - 80, 0, R.y + R.h); g.addColorStop(0, 'rgba(255,246,228,0)'); g.addColorStop(1, 'rgba(255,246,228,0.96)');
+      ctx.fillStyle = g; ctx.fillRect(R.x + 4, R.y + R.h - 80, R.w - 24, 78);
+      roundPath(ctx, cx - 56, R.y + R.h - 44, 112, 34, 17); ctx.fillStyle = 'rgba(19,40,58,0.88)'; ctx.fill();
+      ctx.fillStyle = '#fff6e4'; ctx.font = `700 ${fl(22)}px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('▼ more', cx, R.y + R.h - 26);
+    }
+    if (scroll > 4) {
+      const g2 = ctx.createLinearGradient(0, R.y, 0, R.y + 56); g2.addColorStop(0, 'rgba(255,246,228,0.97)'); g2.addColorStop(1, 'rgba(255,246,228,0)');
+      ctx.fillStyle = g2; ctx.fillRect(R.x + 4, R.y, R.w - 24, 56);
+      roundPath(ctx, cx - 44, R.y + 6, 88, 34, 17); ctx.fillStyle = 'rgba(19,40,58,0.88)'; ctx.fill();
+      ctx.fillStyle = '#fff6e4'; ctx.font = `700 ${fl(22)}px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('▲ up', cx, R.y + 23);
+    }
+  }
   drawButton(ctx, TEXT_DEC, 'A−', { disabled: state.settings.textIdx === 0, size: 30 });
   drawButton(ctx, TEXT_INC, 'A+', { disabled: state.settings.textIdx === TEXT_SCALES.length - 1, size: 30 });
-  ctx.fillStyle = '#fff6e4'; ctx.font = `700 24px ${FONT}`; ctx.textAlign = 'center';
-  ctx.fillText(`${Math.round(sc * 100)}%`, W / 2, 56);
-  drawButton(ctx, REF_BACK, idx === 0 ? 'Close' : 'Back', { size: 32 });
-  drawButton(ctx, REF_NEXT, idx === pages.length - 1 ? 'Done' : 'Next', { primary: true, size: 32 });
+  ctx.textBaseline = 'alphabetic';
+  ctx.fillStyle = '#fff6e4'; ctx.font = `700 ${fl(24)}px ${FONT}`; ctx.textAlign = 'center';
+  ctx.fillText(`${Math.round(sc * 100)}%`, G.zoomLabel.x, G.zoomLabel.y);
+  const atEnd = R.max <= 0 || scroll >= R.max - 4, bsz = G.land ? 28 : 32;
+  drawButton(ctx, REF_BACK, 'Back', { size: bsz });
+  drawButton(ctx, REF_NEXT, atEnd ? 'Done' : 'Next page', { primary: true, size: bsz });
 }
-export function pageCountFor(list, header, scale, ctx) { return buildPages(ctx, list, scale).length; }
 
 // ---- diagrams: a top-down court drawn with the game's own geometry ---------------------------------
 function courtBox(ctx, x, y, w, h) {
@@ -364,19 +426,19 @@ function arrow(ctx, x0, y0, x1, y1, col = '#ffc94d', wd = 4) {
   ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x1 - 11 * Math.cos(a - 0.45), y1 - 11 * Math.sin(a - 0.45)); ctx.lineTo(x1 - 11 * Math.cos(a + 0.45), y1 - 11 * Math.sin(a + 0.45)); ctx.closePath(); ctx.fill();
 }
 function label(ctx, t, x, y, size = 18, col = '#fff6e4', align = 'center') {
-  ctx.save(); ctx.fillStyle = col; ctx.font = `700 ${size}px ${FONT}`; ctx.textAlign = align; ctx.textBaseline = 'alphabetic'; ctx.shadowColor = 'rgba(0,0,0,0.6)'; ctx.shadowBlur = 3; ctx.fillText(t, x, y); ctx.restore();
+  ctx.save(); ctx.fillStyle = col; ctx.font = `700 ${Math.max(size, Math.ceil(FLOOR.v))}px ${FONT}`; ctx.textAlign = align; ctx.textBaseline = 'alphabetic'; ctx.shadowColor = 'rgba(0,0,0,0.6)'; ctx.shadowBlur = 3; ctx.fillText(t, x, y); ctx.restore();
 }
 export function drawArt(key, ctx, x, y, w, h) {
   ctx.save();
   roundPath(ctx, x, y, w, h, 16); ctx.fillStyle = 'rgba(19,40,58,0.92)'; ctx.fill();
   const B = courtBox(ctx, x, y, w, h);
   const A = {
-    court() { drawCourt(ctx, B); label(ctx, 'net', B.x0 + B.w + 26, B.pz(0) + 6, 16); label(ctx, '6.1 m', B.px(0), B.y0 - 4, 16); for (const [px, pz, c] of [[0, -4.25, '#e44'], [-2.3, -2.2, '#e44'], [2.3, -2.2, '#e44'], [0, 4.25, '#37c'], [-2.3, 2.2, '#37c'], [2.3, 2.2, '#37c']]) dot(ctx, B.px(px), B.pz(pz), c); },
+    court() { drawCourt(ctx, B); label(ctx, 'net', B.x0 + B.w + 26, B.pz(0) + 6, 16); label(ctx, '6.1 m', B.x0 - 8, B.y0 + 16, 16, '#fff6e4', 'right'); for (const [px, pz, c] of [[0, -4.25, '#e44'], [-2.3, -2.2, '#e44'], [2.3, -2.2, '#e44'], [0, 4.25, '#37c'], [-2.3, 2.2, '#37c'], [2.3, 2.2, '#37c']]) dot(ctx, B.px(px), B.pz(pz), c); },
     serve() { drawCourt(ctx, B); dot(ctx, B.px(0), B.pz(-4.25), '#e44'); dot(ctx, B.px(2.6), B.pz(-0.7), '#e44'); arrow(ctx, B.px(2.4), B.pz(-0.8), B.px(0.2), B.pz(-4.0), '#fff', 3); arrow(ctx, B.px(0), B.pz(-4.25), B.px(-1.8), B.pz(5.4), '#ffc94d', 5); dot(ctx, B.px(-1.8), B.pz(5.4), '#ffc94d', 6); },
     receive() { drawCourt(ctx, B); dot(ctx, B.px(0), B.pz(-4.5), '#e44'); dot(ctx, B.px(-1.6), B.pz(-2.0), '#e44'); dot(ctx, B.px(1.6), B.pz(-1.6), '#e44'); arrow(ctx, B.px(0.4), B.pz(-4.2), B.px(-1.3), B.pz(-2.2), '#fff', 3); arrow(ctx, B.px(-1.5), B.pz(-2.2), B.px(1.5), B.pz(-1.0), '#fff', 3); arrow(ctx, B.px(1.6), B.pz(-1.8), B.px(0.5), B.pz(3.6), '#ffc94d', 5); label(ctx, '1', B.px(0), B.pz(-4.9), 16); label(ctx, '2', B.px(-2.3), B.pz(-2.0), 16); label(ctx, '3', B.px(2.3), B.pz(-1.4), 16); },
-    set() { drawCourt(ctx, B); dot(ctx, B.px(-1, ), B.pz(-2.3), '#e44'); for (const lat of [-2, 0, 2]) { dot(ctx, B.px(lat), B.pz(-0.95), 'rgba(255,201,77,0.9)', 7); } arrow(ctx, B.px(-1), B.pz(-2.3), B.px(1.9), B.pz(-1.1), '#fff', 3); label(ctx, 'left', B.px(2), B.pz(-0.2), 15); label(ctx, 'middle', B.px(0), B.pz(-0.2), 15); label(ctx, 'right', B.px(-2), B.pz(-0.2), 15); dot(ctx, B.px(-1.0), B.pz(1.0), '#37c'); dot(ctx, B.px(1.4), B.pz(1.0), '#37c'); },
-    attack() { drawCourt(ctx, B); dot(ctx, B.px(1.8), B.pz(-1.1), '#e44'); dot(ctx, B.px(1.4), B.pz(0.8), '#37c'); dot(ctx, B.px(-1.0), B.pz(2.6), '#37c'); dot(ctx, B.px(0), B.pz(4.6), '#37c'); arrow(ctx, B.px(1.8), B.pz(-1.1), B.px(-2.0), B.pz(5.4), '#ffc94d', 5); ctx.strokeStyle = '#ffe9a0'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(B.px(-2.0), B.pz(5.4), 12, 0, TAU); ctx.stroke(); label(ctx, 'open corner', B.px(-2.0) + 20, B.pz(5.4) + 22, 15, '#ffe9a0', 'left'); },
-    block() { drawCourt(ctx, B); dot(ctx, B.px(1.2), B.pz(0.7), '#37c'); dot(ctx, B.px(-0.4), B.pz(0.7), '#37c'); dot(ctx, B.px(0), B.pz(4.6), '#37c'); dot(ctx, B.px(0.4), B.pz(-1.0), '#e44'); arrow(ctx, B.px(0.4), B.pz(-1.1), B.px(0.7), B.pz(0.5), '#ffc94d', 4); label(ctx, 'double block', B.px(1.0), B.pz(1.6), 15, '#ffe9a0'); },
+    set() { drawCourt(ctx, B); dot(ctx, B.px(-1, ), B.pz(-2.3), '#e44'); for (const lat of [-2, 0, 2]) { dot(ctx, B.px(lat), B.pz(-0.95), 'rgba(255,201,77,0.9)', 7); } arrow(ctx, B.px(-1), B.pz(-2.3), B.px(1.9), B.pz(-1.1), '#fff', 3); label(ctx, 'L', B.px(2), B.pz(-0.2), 15); label(ctx, 'M', B.px(0), B.pz(-0.2), 15); label(ctx, 'R', B.px(-2), B.pz(-0.2), 15); dot(ctx, B.px(-1.0), B.pz(1.0), '#37c'); dot(ctx, B.px(1.4), B.pz(1.0), '#37c'); },
+    attack() { drawCourt(ctx, B); dot(ctx, B.px(1.8), B.pz(-1.1), '#e44'); dot(ctx, B.px(1.4), B.pz(0.8), '#37c'); dot(ctx, B.px(-1.0), B.pz(2.6), '#37c'); dot(ctx, B.px(0), B.pz(4.6), '#37c'); arrow(ctx, B.px(1.8), B.pz(-1.1), B.px(-2.0), B.pz(5.4), '#ffc94d', 5); ctx.strokeStyle = '#ffe9a0'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(B.px(-2.0), B.pz(5.4), 12, 0, TAU); ctx.stroke(); label(ctx, 'open corner', B.px(-2.0) - 22, B.pz(5.4) + 5, 15, '#ffe9a0', 'right'); },
+    block() { drawCourt(ctx, B); dot(ctx, B.px(1.2), B.pz(0.7), '#37c'); dot(ctx, B.px(-0.4), B.pz(0.7), '#37c'); dot(ctx, B.px(0), B.pz(4.6), '#37c'); dot(ctx, B.px(0.4), B.pz(-1.0), '#e44'); arrow(ctx, B.px(0.4), B.pz(-1.1), B.px(0.7), B.pz(0.5), '#ffc94d', 4); label(ctx, 'double block', B.x0 + B.w + 14, B.pz(0.9) + 5, 15, '#ffe9a0', 'left'); },
     spikes() {
       const cw = (w - 40) / 3;
       [['Roll', 0], ['Sunback', 1], ['Scissor', 2]].forEach(([nm, i]) => {

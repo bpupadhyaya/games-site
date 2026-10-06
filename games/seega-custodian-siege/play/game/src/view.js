@@ -1,6 +1,6 @@
 // Everything drawn each frame. Reads state, changes nothing.
 import {
-  W, H, DISPLAY, THEMES, themeById, text, rr, panel, button, background, icon, drawParticles, drawStone, boardGeo, drawSlab, drawPits,
+  DISPLAY, THEMES, themeById, text, rr, panel, button, background, icon, drawParticles, drawStone, boardGeo, drawSlab, drawPits,
   drawMiniBoard, drawCross, arrow, alpha, clamp01, ease, backOut, dateAngle,
 } from './art.js';
 import { TEXT_SCALES, wrap, tw } from './ui.js';
@@ -9,14 +9,15 @@ import { LEVELS } from './ai.js';
 import { LESSONS, lessonTitle, lessonTask } from './lessons.js';
 import { tr, getRules, stonesText, sideLabel, lvName, themeShort, themeName } from './content.js';
 import { hasArabic } from './lang.js';
-import { BACK_BTN, PAUSE_BTN, TOOLBAR_IDS, autoLayout, DOC_PANEL, NAV_PREV, NAV_NEXT, playLayout } from './layout.js';
+import { BACK_BTN, PAUSE_BTN, TOOLBAR_IDS, autoLayout, DOC_PANEL, NAV_PREV, NAV_NEXT, NAV_LABEL, playLayout, SCREEN, HUD, TITLE } from './layout.js';
+import { drawCredit, drawMoreLine, drawLockup } from './brand.js';
 import { THINK_STEPS } from './screens.js';
 import { DROP_T, SLIDE_T, CAP_AT, CAP_T, targetsOf, previewCaps, humanTurn } from './match.js';
 
 const theme = (S) => themeById(S.themeId);
 
 // Largest text size (<= start) whose wrapped lines fit w x h. Used by every HUD text so zoom never overflows.
-export function fitText(str, w, h, start, min = 18, lh = 1.28) {
+export function fitText(str, w, h, start, min = 20, lh = 1.28) {
   let size = start;
   for (; size > min; size -= 2) {
     const lines = wrap(str, size, w);
@@ -25,7 +26,7 @@ export function fitText(str, w, h, start, min = 18, lh = 1.28) {
   const lines = wrap(str, min, w);
   return { lines, size: min, line: min * lh };
 }
-const fitOne = (str, w, start, min = 16) => { let s = start; while (s > min && tw(str, s) > w) s -= 1; return s; };
+const fitOne = (str, w, start, min = 19) => { let s = start; while (s > min && tw(str, s) > w) s -= 1; return s; };
 
 // ----------------------------------------------------------------------------------------- documents
 function drawDocBlocks(ctx, S, ui, scroll) {
@@ -227,7 +228,10 @@ const ATTRACT = [[2, 7, [6], 1], [17, 22, [23], 2], [9, 14, [], 1], [13, 12, [],
 const ATTRACT_STEP = 1.5;
 
 function drawAttract(ctx, S) {
-  const th = theme(S), t = S.t;
+  const th = theme(S), t = S.t, W = 720;
+  ctx.save();
+  // the art block is authored in a 720-wide space (local y 90..732) and scaled / placed by the title layout
+  ctx.translate(TITLE.cx, TITLE.top); ctx.scale(TITLE.s, TITLE.s); ctx.translate(-360, -90);
   const side = 344, bx = (W - side) / 2, by = 388;
   const cycle = ATTRACT.length * ATTRACT_STEP + 1.4;
   const tt = t % cycle;
@@ -276,6 +280,7 @@ function drawAttract(ctx, S) {
   ctx.restore();
   text(ctx, tr('fromEgypt'), 360, 316, 26, 'rgba(250,238,214,0.84)', { weight: 600 });
   text(ctx, tr('tagline'), 360, 352, 25, 'rgba(250,238,214,0.62)', { weight: 500 });
+  ctx.restore();
 }
 const light2 = (c) => (c.length === 7 ? `rgb(${Math.min(255, parseInt(c.slice(1, 3), 16) + 70)},${Math.min(255, parseInt(c.slice(3, 5), 16) + 70)},${Math.min(255, parseInt(c.slice(5, 7), 16) + 70)})` : '#fff3c4');
 
@@ -284,6 +289,7 @@ function drawTitle(ctx, S, ui) {
   drawAttract(ctx, S);
   drawDocBlocks(ctx, S, ui, S.scroll[ui.scrollKey] ?? 0);
   drawFixed(ctx, S, ui.fixed);
+  { const c = TITLE.lock, pad = c.h * 0.12, dim = S.press && S.press.kind === 'lock'; ctx.save(); ctx.globalAlpha = dim ? 0.7 : 1; ctx.fillStyle = 'rgba(10,8,24,0.55)'; ctx.beginPath(); ctx.roundRect(c.x - pad, c.y - pad, c.w + 2 * pad, c.h + 2 * pad, (c.h + 2 * pad) * 0.3); ctx.fill(); if (!drawLockup(ctx, c.x + c.w / 2, c.y + c.h, c.w, 1)) drawCredit(ctx, TITLE.creditX, TITLE.creditY, 20); ctx.restore(); }
 }
 
 function drawDocScreen(ctx, S, ui) {
@@ -294,12 +300,12 @@ function drawDocScreen(ctx, S, ui) {
   drawFixed(ctx, S, ui.fixed);
   if (ui.nav) {
     drawFixed(ctx, S, [ui.nav.prev, ui.nav.next]);
-    text(ctx, ui.nav.label, 360, 1500, 26, 'rgba(246,236,214,0.75)', { weight: 600 });
+    text(ctx, ui.nav.label, NAV_LABEL.x, NAV_LABEL.y, 26, 'rgba(246,236,214,0.75)', { weight: 600 });
   }
 }
 
 function drawOverlay(ctx, S, ui) {
-  const th = theme(S);
+  const th = theme(S), W = SCREEN.width, H = SCREEN.height;
   ctx.fillStyle = `rgba(8,4,2,${0.62 * clamp01(S.ovT / 0.25)})`;
   ctx.fillRect(0, 0, W, H);
   const k = ease(clamp01(S.ovT / 0.3));
@@ -309,6 +315,7 @@ function drawOverlay(ctx, S, ui) {
   panel(ctx, th, ui.panel.x, ui.panel.y, ui.panel.w, ui.panel.h, {});
   drawDocBlocks(ctx, S, ui, S.scroll[ui.scrollKey] ?? 0);
   drawFixed(ctx, S, ui.fixed);
+  if (ui.more) drawMoreLine(ctx, ui.more.x, ui.more.y, 19);
   ctx.restore();
 }
 
@@ -337,10 +344,10 @@ function drawHud(ctx, S, title, sub, showPause) {
     icon(ctx, 'pause', PAUSE_BTN.x + PAUSE_BTN.w / 2, PAUSE_BTN.y + PAUSE_BTN.h / 2, 34, th.ink);
   }
   const z = TEXT_SCALES[S.textIdx];
-  const tSize = fitOne(title, 480, 40 * (1 + (z - 1) * 0.25), 22);
-  text(ctx, title, 360, 58, tSize, th.ink, { font: DISPLAY, weight: 800, shadow: 'rgba(0,0,0,0.6)' });
-  const sSize = fitOne(sub, 480, 24 * (1 + (z - 1) * 0.3), 16);
-  text(ctx, sub, 360, 96, sSize, 'rgba(250,238,214,0.72)', { weight: 500 });
+  const tSize = fitOne(title, HUD.title.maxW, (SCREEN.land ? 34 : 40) * (1 + (z - 1) * 0.25), 22);
+  text(ctx, title, HUD.title.x, HUD.title.y, tSize, th.ink, { font: DISPLAY, weight: 800, shadow: 'rgba(0,0,0,0.6)' });
+  const sSize = fitOne(sub, HUD.sub.maxW, 24 * (1 + (z - 1) * 0.3), 18);
+  text(ctx, sub, HUD.sub.x, HUD.sub.y, sSize, 'rgba(250,238,214,0.72)', { weight: 500 });
 }
 
 function drawPlate(ctx, S, r, who, name, sub, active) {
@@ -354,8 +361,8 @@ function drawPlate(ctx, S, r, who, name, sub, active) {
   const md = Math.min(r.h - 28, 74);
   drawStone(ctx, th, who, r.x + 14 + md / 2, r.y + r.h / 2, md * 0.85, { noShadow: true, glow: active ? 0.4 : 0, cell: 3 });
   const tx = r.x + 24 + md, avail = r.w - md - 40;
-  const ns = fitOne(name, avail, 30 * (1 + (z - 1) * 0.55), 16);
-  const ss = fitOne(sub, avail, 21 * (1 + (z - 1) * 0.55), 14);
+  const ns = fitOne(name, avail, 30 * (1 + (z - 1) * 0.55), 20);
+  const ss = fitOne(sub, avail, 21 * (1 + (z - 1) * 0.55), 18);
   const total = ns + ss + 8, ty = r.y + (r.h - total) / 2 + ns * 0.88;
   text(ctx, name, tx, ty, ns, th.ink, { weight: 800, align: 'left', font: DISPLAY });
   text(ctx, sub, tx, ty + ss + 8, ss, active ? th.accent : 'rgba(246,236,214,0.64)', { weight: 600, align: 'left' });
@@ -369,7 +376,7 @@ function drawStatus(ctx, S, r, head, body, col) {
   ctx.restore();
   const pad = 22, w = r.w - pad * 2;
   const full = body ? `${head}\n${body}` : head;
-  const f = fitText(full, w, r.h - 24, 32 * (1 + (z - 1) * 0.6), 16);
+  const f = fitText(full, w, r.h - 24, 32 * (1 + (z - 1) * 0.6), 20);
   const hl = wrap(head, f.size, w).length;
   const all = body ? [...wrap(head, f.size, w), ...wrap(body, f.size, w)] : wrap(head, f.size, w);
   const total = all.length * f.line;
@@ -486,7 +493,7 @@ function drawToolbar(ctx, S, M, lay) {
     if (d.off) ctx.globalAlpha = 0.4;
     const ink = id === 'think' ? th.primaryInk : th.ink;
     const is = 44 * (1 + (z - 1) * 0.35);
-    const ls = fitOne(d.label, r.w - 20, 24 * (1 + (z - 1) * 0.6), 16);
+    const ls = fitOne(d.label, r.w - 14, 24 * (1 + (z - 1) * 0.6), 18);
     const total = is + ls + 10;
     icon(ctx, d.icon, r.x + r.w / 2, yy + (r.h - total) / 2 + is / 2, is, ink);
     text(ctx, d.label, r.x + r.w / 2, yy + (r.h - total) / 2 + is + 10 + ls * 0.85, ls, ink, { weight: 700 });
@@ -495,7 +502,7 @@ function drawToolbar(ctx, S, M, lay) {
   if (lay.endBtn) {
     const r = lay.endBtn, pressed = S.press && S.press.id === 'hud:end' && S.press.active;
     button(ctx, th, r, [], 'primary', { pressed, radius: 22 });
-    const ls = fitOne(tr('endTurn'), r.w - 24, 28 * (1 + (z - 1) * 0.4), 16), is = 40 * (1 + (z - 1) * 0.3), yy = r.y + (pressed ? 2 : 0);
+    const ls = fitOne(tr('endTurn'), r.w - 24, 28 * (1 + (z - 1) * 0.4), 18), is = 40 * (1 + (z - 1) * 0.3), yy = r.y + (pressed ? 2 : 0);
     const total = is + ls + 8;
     icon(ctx, 'check', r.x + r.w / 2, yy + (r.h - total) / 2 + is / 2, is, th.primaryInk);
     text(ctx, tr('endTurn'), r.x + r.w / 2, yy + (r.h - total) / 2 + is + 8 + ls * 0.85, ls, th.primaryInk, { weight: 800 });
@@ -508,7 +515,7 @@ function drawAutoBar(ctx, S, auto) {
   const side = (r, ic, label, off, id) => {
     button(ctx, th, r, [], 'normal', { disabled: off, pressed: pr(id), radius: 22 });
     ctx.save(); if (off) ctx.globalAlpha = 0.4;
-    const is = 40 * (1 + (z - 1) * 0.35), ls = fitOne(label, r.w - 20, 22 * (1 + (z - 1) * 0.6), 14), total = is + ls + 10, yy = r.y + (r.h - total) / 2;
+    const is = 40 * (1 + (z - 1) * 0.35), ls = fitOne(label, r.w - 14, 22 * (1 + (z - 1) * 0.6), 18), total = is + ls + 10, yy = r.y + (r.h - total) / 2;
     icon(ctx, ic, r.x + r.w / 2, yy + is / 2, is, th.ink);
     text(ctx, label, r.x + r.w / 2, yy + is + 10 + ls * 0.85, ls, th.ink, { weight: 700 });
     ctx.restore();
@@ -517,9 +524,16 @@ function drawAutoBar(ctx, S, auto) {
   side(b.faster, 'plus', tr('autoFaster'), S.thinkIdx === THINK_STEPS.length - 1, 'auto:faster');
   button(ctx, th, b.pause, [], 'primary', { pressed: pr('auto:pause'), radius: 22 });
   const lab = auto.paused ? tr('autoPlay') : tr('autoPause');
-  const ps = fitOne(lab, b.pause.w - 140, 32 * (1 + (z - 1) * 0.5), 18), is = 44 * (1 + (z - 1) * 0.3);
-  icon(ctx, auto.paused ? 'play' : 'pause', b.pause.x + 52 + is / 2, b.pause.y + b.pause.h / 2, is, th.primaryInk);
-  text(ctx, lab, b.pause.x + 52 + is + (b.pause.w - 52 - is) / 2 - 16, b.pause.y + b.pause.h / 2 + ps * 0.35, ps, th.primaryInk, { weight: 800 });
+  const is = 44 * (1 + (z - 1) * 0.3);
+  if (b.pause.w < 260 || b.pause.h > 120) {   // narrow slot (landscape column): icon over label
+    const ps = fitOne(lab, b.pause.w - 14, 28 * (1 + (z - 1) * 0.4), 18), total = is + ps + 10, yy = b.pause.y + (b.pause.h - total) / 2;
+    icon(ctx, auto.paused ? 'play' : 'pause', b.pause.x + b.pause.w / 2, yy + is / 2, is, th.primaryInk);
+    text(ctx, lab, b.pause.x + b.pause.w / 2, yy + is + 10 + ps * 0.85, ps, th.primaryInk, { weight: 800 });
+  } else {
+    const ps = fitOne(lab, b.pause.w - 140, 32 * (1 + (z - 1) * 0.5), 19);
+    icon(ctx, auto.paused ? 'play' : 'pause', b.pause.x + 52 + is / 2, b.pause.y + b.pause.h / 2, is, th.primaryInk);
+    text(ctx, lab, b.pause.x + 52 + is + (b.pause.w - 52 - is) / 2 - 16, b.pause.y + b.pause.h / 2 + ps * 0.35, ps, th.primaryInk, { weight: 800 });
+  }
 }
 
 const nameOf = (M, who) => {
@@ -610,4 +624,4 @@ export function render(ctx, S, ui) {
   if (S.overlay) drawOverlay(ctx, S, ui);
 }
 
-export { getRules, DOC_PANEL, NAV_PREV, NAV_NEXT, H, W, CENTRE, dateAngle, targetsOf, SLIDE_T };
+export { getRules, DOC_PANEL, NAV_PREV, NAV_NEXT, CENTRE, dateAngle, targetsOf, SLIDE_T };

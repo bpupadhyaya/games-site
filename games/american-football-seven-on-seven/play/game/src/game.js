@@ -1,18 +1,18 @@
 // American Football: 7 on 7. State and flow. The play engine is in sim.js / match.js / engine.js, the computer's coach in coach.js, drawing in view.js / menus.js / art.js.
 // Scenes: title, setup, settings, learn, howto / about / rules, demolimit, play (a real game, Watch & Learn and the lessons), result.
 // The 3D presenter (web/view3d, web/main.js) only reads getState(): state.E (the engine: match, play, ball, events).
-import { W, H, PLAY, TEXT_SCALES, THINK_STEPS, REVEAL_SECS, TEXT_DEC, TEXT_INC, REF_BACK, REF_NEXT, SETUP_PINS, inRect, resetPlayLayout } from './layout.js';
+import { W, H, PLAY, TEXT_SCALES, THINK_STEPS, REVEAL_SECS, TEXT_DEC, TEXT_INC, REF_BACK, REF_NEXT, SETUP_PINS, READ, LY, syncLayout, inRect, resetPlayLayout } from './layout.js';
 import { LEVELS, ROLES, roleById, FIELD, TEAM_LEVEL } from './consts.js';
 import { OFF_PLAYS, DEF_CALLS } from './plays.js';
 import { createEngine, step as engineStep, choose, exportSave, importSave, validSave, aiPick } from './engine.js';
 import { receiverRead } from './sim.js';
 import { thinkOffense, thinkDefense, callName } from './coach.js';
 import { controlButtons, ctlHit, ctlRects, renderPlay, playLayoutNow, drawOverlayFor } from './view.js';
-import { renderTitle, renderSetup, renderSettings, renderResult, renderPause, renderPages, renderDemoLimit, renderLearn, renderHint, renderLesson, renderCall, renderWatchCall, renderRoleIntro, hitScreen, flowMeta, readerMeta, ensureLayout, resetMenus, resetPages, PAIRS } from './menus.js';
+import { renderTitle, renderSetup, renderSettings, renderResult, renderPause, renderPages, renderDemoLimit, renderLearn, renderHint, renderLesson, renderCall, renderWatchCall, renderRoleIntro, hitScreen, flowMeta, readerMeta, ensureLayout, resetMenus, resetPages, PAIRS, getLockTap, setLockDown } from './menus.js';
 import { ABOUT, HOWTO, RULES, LESSONS } from './content.js';
 import { setPress } from './ui.js';
 
-export const meta = { width: W, height: H };
+export const meta = { width: W, height: H, fluid: { short: 720 } };
 const DEMO_GAME_CAP = 1;
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
@@ -32,7 +32,7 @@ export function createGame(env) {
     setup: { level: 0, quarter: 1, role: 'QB' },
     ui: { scroll: 0, drag: null, stick: null, press: null, holdT: 0, cscroll: 0 },
     page: 0, resume: null, loaded: false, E: null, mode: 'ai', hint: null, watch: null, lesson: null, over: null, toast: '', toastT: 0, restoreMsg: '', setupMsg: '', sel: null, roleIntro: false,
-    buttons: [], viewRect: { x: 0, y: 176, w: W, h: 880 }, shot: false, seenSeq: 0, lastPhase: '', evSeen: 0, evP: null, hide3d: false,
+    buttons: [], viewRect: { x: 0, y: 176, w: W, h: 880 }, lyKey: '', shot: false, seenSeq: 0, lastPhase: '', evSeen: 0, evP: null, hide3d: false,
   };
 
   // ---- persistence -----------------------------------------------------------------------------------------------------------------------------------
@@ -203,11 +203,10 @@ export function createGame(env) {
     if (!P || P.phase !== 'live' || E.humanId < 0) return;
     const I = P.intent, k = input.keys;
     let mx = 0, mz = 0;
-    if (state.ui.stick) { mx = state.ui.stick.dx / 70; mz = -state.ui.stick.dy / 70; }
-    if (k.down.has('ArrowLeft') || k.down.has('KeyA')) mx -= 1;
-    if (k.down.has('ArrowRight') || k.down.has('KeyD')) mx += 1;
-    if (k.down.has('ArrowUp') || k.down.has('KeyW')) mz += 1;
-    if (k.down.has('ArrowDown') || k.down.has('KeyS')) mz -= 1;
+    const side = state.v3 && LY.land;      // landscape 3D: the camera is on the sideline, so the controls turn with the picture (screen right = downfield)
+    if (state.ui.stick) { if (side) { mx = state.ui.stick.dy / 70; mz = state.ui.stick.dx / 70; } else { mx = state.ui.stick.dx / 70; mz = -state.ui.stick.dy / 70; } }
+    const kl = k.down.has('ArrowLeft') || k.down.has('KeyA'), kr = k.down.has('ArrowRight') || k.down.has('KeyD'), ku = k.down.has('ArrowUp') || k.down.has('KeyW'), kd = k.down.has('ArrowDown') || k.down.has('KeyS');
+    if (side) { if (kl) mz -= 1; if (kr) mz += 1; if (ku) mx -= 1; if (kd) mx += 1; } else { if (kl) mx -= 1; if (kr) mx += 1; if (ku) mz += 1; if (kd) mz -= 1; }
     const l = Math.hypot(mx, mz); if (l > 1) { mx /= l; mz /= l; }
     I.mx = mx; I.mz = mz;
     const a = P.actors[E.humanId];
@@ -262,12 +261,13 @@ export function createGame(env) {
   function scrollFlow(ptr) {
     const d = state.ui.drag, mt = flowMeta();
     d.moved = Math.max(d.moved, Math.abs(ptr.y - d.y0));
-    if (d.moved >= 10 && mt.lay) { const max = Math.max(0, mt.lay.contentH - (mt.bottom - mt.top)); state.ui.scroll = clamp(d.s0 - (ptr.y - d.y0), 0, max); }
+    const P = d.left && mt.left ? mt.left : mt;
+    if (d.moved >= 10 && P.lay) { const max = Math.max(0, P.lay.contentH - (P.bottom - P.top)); const v = clamp(d.s0 - (ptr.y - d.y0), 0, max); if (d.left) state.ui.scrollL = v; else state.ui.scroll = v; }
   }
   const updateFlowOverlay = (input, key, handler) => {
     const ptr = input.pointer;
     ensureLayout(state, key);
-    if (ptr.pressed) state.ui.drag = { y0: ptr.y, x0: ptr.x, s0: state.ui.scroll, moved: 0 };
+    if (ptr.pressed) { const lf = !!(flowMeta().left && ptr.x < flowMeta().left.box.x + flowMeta().left.box.w + 12); state.ui.drag = { y0: ptr.y, x0: ptr.x, s0: lf ? (state.ui.scrollL || 0) : state.ui.scroll, moved: 0, left: lf }; }
     if (state.ui.drag && ptr.down) scrollFlow(ptr);
     if (ptr.released && state.ui.drag) { const d = state.ui.drag; state.ui.drag = null; if (d.moved < 10) handler(hitScreen(ptr.x, ptr.y, state.ui.scroll)); }
     const mt = flowMeta(), max = mt && mt.lay ? Math.max(0, mt.lay.contentH - (mt.bottom - mt.top)) : 0;
@@ -309,6 +309,7 @@ export function createGame(env) {
     const ptr = input.pointer, k = input.keys, need = state.E.need;
     const key = need.kind === 'fourth' ? 'fourth' : need.kind === 'try' ? 'try' : 'call';
     if (state.hint) { updateFlowOverlay(input, 'hint', (id) => { if (id === 'hint-do') applyHint(); else if (id === 'hint-close') closeHint(); }); return; }
+    ensureLayout(state, key);
     if (key === 'call') {
       if (k.pressed.has('Enter') || k.pressed.has('Space')) { runSelected(); return; }
       if (ptr.pressed && inRect(SETUP_PINS.start, ptr.x, ptr.y)) { runSelected(); return; }
@@ -319,7 +320,7 @@ export function createGame(env) {
   };
   const updateWatchCall = (input, dt) => {
     const ptr = input.pointer;
-    if (ptr.pressed && inRect({ x: 480, y: 1196, w: 220, h: 64 }, ptr.x, ptr.y)) { state.paused = !state.paused; sfx.tick(); return; }
+    if (ptr.pressed && inRect(LY.watchPause, ptr.x, ptr.y)) { state.paused = !state.paused; sfx.tick(); return; }
     if (input.keys.pressed.has('KeyP')) state.paused = !state.paused;
     if (state.paused) return;
     watchStep(dt);
@@ -421,7 +422,7 @@ export function createGame(env) {
   function updateFlowScene(input, handler, key) {
     const ptr = input.pointer;
     if (key) ensureLayout(state, key);
-    if (ptr.pressed) state.ui.drag = { y0: ptr.y, x0: ptr.x, s0: state.ui.scroll, moved: 0 };
+    if (ptr.pressed) { const lf = !!(flowMeta().left && ptr.x < flowMeta().left.box.x + flowMeta().left.box.w + 12); state.ui.drag = { y0: ptr.y, x0: ptr.x, s0: lf ? (state.ui.scrollL || 0) : state.ui.scroll, moved: 0, left: lf }; }
     if (state.ui.drag && ptr.down) scrollFlow(ptr);
     if (ptr.released && state.ui.drag) {
       const d = state.ui.drag; state.ui.drag = null;
@@ -450,9 +451,11 @@ export function createGame(env) {
       if (inRect(REF_NEXT, ptr.x, ptr.y)) { if (state.page >= R.max - 4) close(); else setS(state.page + R.view * 0.85); state.ui.drag = null; }
       else if (inRect(REF_BACK, ptr.x, ptr.y)) close();
       else if (inRect(TEXT_DEC, ptr.x, ptr.y)) zoom(-1); else if (inRect(TEXT_INC, ptr.x, ptr.y)) zoom(1);
+      else if (R.max > 0 && ptr.x >= READ.bar.x - 14 && ptr.x <= READ.bar.x + READ.bar.w + 14 && ptr.y >= READ.view.y && ptr.y <= READ.view.y + READ.view.h) state.ui.drag = { bar: true };
       else state.ui.drag = { y0: ptr.y, s0: state.page };
     }
-    if (state.ui.drag && ptr.down) setS(state.ui.drag.s0 - (ptr.y - state.ui.drag.y0));
+    if (state.ui.drag && state.ui.drag.bar && ptr.down) setS(((ptr.y - READ.view.y) / READ.view.h) * R.max);
+    else if (state.ui.drag && ptr.down) setS(state.ui.drag.s0 - (ptr.y - state.ui.drag.y0));
     if (ptr.released) state.ui.drag = null;
     if (state.wheel) { setS(state.page + state.wheel); state.wheel = 0; }
     if (keys.down.has('ArrowDown')) setS(state.page + 36); if (keys.down.has('ArrowUp')) setS(state.page - 36);
@@ -507,7 +510,15 @@ export function createGame(env) {
     else if (state.roleIntro) renderRoleIntro(ctx, state);
     else if (state.hint) renderHint(ctx, state);
     else if (state.lesson && state.lesson.phase !== 'play') renderLesson(ctx, state);
-    if (state.toast) { ctx.save(); ctx.fillStyle = 'rgba(12,22,28,0.9)'; ctx.fillRect(60, 1090, 600, 52); ctx.fillStyle = '#ffe9bf'; ctx.font = '600 24px sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'; ctx.fillText(state.toast, W / 2, 1124); ctx.restore(); }
+    if (state.toast) { ctx.save(); ctx.fillStyle = 'rgba(12,22,28,0.9)'; ctx.fillRect(LY.toast.x, LY.toast.y, LY.toast.w, LY.toast.h); ctx.fillStyle = '#ffe9bf'; ctx.font = `600 ${Math.max(24, LY.minText)}px sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'; ctx.fillText(state.toast, LY.toast.x + LY.toast.w / 2, LY.toast.y + 36); ctx.restore(); }
+  }
+  // the live size follows the kit's fluid viewport; on a change (rotation, resize) a held touch is released cleanly and the layouts are rebuilt
+  function relayout() {
+    syncLayout(meta.width, meta.height);
+    if (state.lyKey !== LY.key) {
+      if (state.lyKey) { state.ui.stick = null; state.ui.press = null; state.ui.holdT = 0; state.ui.keyHold = null; state.ui.drag = null; state.pendingPress = null; resetPages(); }
+      state.lyKey = LY.key; resetPlayLayout();
+    }
   }
   const game = {
     // Everything except the live play is free: menus, calls, Rules, About, Learn, Watch & Learn, pause.
@@ -523,11 +534,17 @@ export function createGame(env) {
       if (paras.length) { state.creditsList = [...ABOUT, { title: 'Credits', p: paras }]; resetPages(); }
     },
     update(dt, input) {
+      relayout();
       setPress(input.pointer);
       if (state.shot) { state.t += dt; return; }
       state.t += state.paused && state.scene === 'play' ? 0 : dt;
       switch (state.scene) {
-        case 'title': updateFlowScene(input, handleTitle, 'title'); break;
+        case 'title': {
+          const lt = getLockTap(), pp = input.pointer;
+          setLockDown(state.lockDown > state.t);
+          if (lt && pp.pressed && pp.x >= lt.x && pp.x <= lt.x + lt.w && pp.y >= lt.y && pp.y <= lt.y + lt.h) { state.lockDown = state.t + 0.25; env.openArcforgeHome?.(); break; }
+          updateFlowScene(input, handleTitle, 'title'); break;
+        }
         case 'setup': updateSetup(input); break;
         case 'settings': updateFlowScene(input, handleSettings, 'settings'); break;
         case 'learn': updateFlowScene(input, handleLearn, 'learn'); break;
@@ -539,6 +556,7 @@ export function createGame(env) {
       }
     },
     render(ctx) {
+      relayout();
       ctx.clearRect(0, 0, W, H);
       switch (state.scene) {
         case 'title': renderTitle(ctx, state); break;
@@ -553,7 +571,7 @@ export function createGame(env) {
         case 'play': if (state.E) renderPlayScene(ctx); break;
         default: break;
       }
-      state.viewRect = { x: PLAY.view.x, y: PLAY.view.y, w: PLAY.view.w, h: PLAY.view.h };
+      state.viewRect = { x: PLAY.cam.x, y: PLAY.cam.y, w: PLAY.cam.w, h: PLAY.cam.h };
       state.hide3d = state.scene === 'play' && !!state.E && (state.E.phase === 'call' || state.E.phase === 'over' || state.roleIntro);
     },
     getState: () => state,

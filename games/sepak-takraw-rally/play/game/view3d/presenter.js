@@ -4,6 +4,7 @@
 import { Actor } from './actor.js';
 import { TECH, evalPose } from './skills.js';
 import { buildCourt, buildBall } from './court.js';
+import { fovFor } from '../src/camera.js';
 
 const LIB = '../vendor3d/index.js';
 const SKINS = ['peach', 'clay', 'wood', 'ivory', 'tan', 'brown'];
@@ -38,7 +39,7 @@ export async function createPresenter({ kitCanvas, quality = pickQuality() }) {
   const P = { stage, THREE, humans: [], actors: [], ball: null, court: null, ready: false, venue: null, women: null, lost: false };
   const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
   stage.onContextLost(() => { P.lost = true; });
-  stage.onContextRestored(() => { P.lost = false; });
+  stage.onContextRestored(() => { P.lost = false; P.sized = ''; stage.resize(); stage.invalidate(); });
 
   const blobMat = new THREE.MeshStandardMaterial({ color: 0x000000, transparent: true, opacity: 0.32, roughness: 1, depthWrite: false });
   const blobGeo = new THREE.CylinderGeometry(0.42, 0.42, 0.01, 16);
@@ -196,25 +197,18 @@ export async function createPresenter({ kitCanvas, quality = pickQuality() }) {
       const sp = Math.hypot(s.ball.vx, s.ball.vz);
       if (sp > 0.05) { bm.rotation.x += (s.ball.vz * dt) / 0.067 * 0.6; bm.rotation.z -= (s.ball.vx * dt) / 0.067 * 0.6; }
     }
-    // --- camera + lights. On screens wider than 9:16 the 3D picture is pillarboxed to the same rectangle as the HUD so both agree.
-    const winW = kitCanvas.clientWidth || 720, winH = kitCanvas.clientHeight || 1280;
-    const wantW = winW / winH > 0.5625 ? Math.round(winH * 0.5625) : 0;
-    if (wantW !== P.pillar) {
-      P.pillar = wantW;
-      canvas.style.cssText = wantW ? `position:fixed;top:0;left:50%;transform:translateX(-50%);width:${wantW}px;height:100dvh;display:block;pointer-events:none;z-index:0` : 'position:fixed;inset:0;width:100vw;height:100dvh;display:block;pointer-events:none;z-index:0';
-      stage.resize();
-    }
+    // --- camera + lights. The 3D canvas always fills the whole screen (portrait and landscape); the lens is derived from the live aspect by
+    // src/camera.js, the same function the HUD projects with, so the picture and the HUD markers always agree. The camera position never moves.
     const cam = stage.camera, c = s.cam;
     const W = canvas.clientWidth || 720, H_ = canvas.clientHeight || 1280;
-    const aspect = W / H_;
-    const th = Math.tan((48 * Math.PI) / 360) * Math.max(1, 0.5625 / Math.max(0.2, aspect));
-    const fov = (2 * Math.atan(th) * 180) / Math.PI;
+    if (P.sized !== W + 'x' + H_) { P.sized = W + 'x' + H_; stage.resize(); }
+    const fov = fovFor(W / H_);
     if (Math.abs(cam.fov - fov) > 1e-3) { cam.fov = fov; cam.updateProjectionMatrix(); }
     const co = P.camOverride;
     if (co) { cam.position.set(co.x, co.y, co.z); cam.lookAt(co.lx, co.ly, co.lz); if (co.fov && cam.fov !== co.fov) { cam.fov = co.fov; cam.updateProjectionMatrix(); } }
     else { cam.position.set(c.x, c.y, c.z); cam.lookAt(c.lx, c.ly, c.lz); }
     stage.setShadowTarget(0, 0, 0);
-    if (!P.noRender) { stage.render(); perfTick(); }
+    if (!P.noRender && !P.lost) { stage.render(); perfTick(); }
   }
 
   P.wrap = (game) => {

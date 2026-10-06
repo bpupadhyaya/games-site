@@ -23,16 +23,20 @@ export const KITE_PAL = [
 
 const lerp = (a, b, t) => a + (b - a) * t;
 
-export function drawSky(ctx, skyId, t) {
+// vw = the visible world rectangle { x0, y0, x1, y1 } (world units). The art fills all of it, so the sky reaches every
+// edge of the screen in any shape; the default is the original 720 x 1280 frame.
+const VW0 = { x0: 0, y0: 0, x1: W, y1: H };
+export function drawSky(ctx, skyId, t, vw = VW0) {
   const P = SKY_PAL[skyId] ?? SKY_PAL.dawn;
-  const g = ctx.createLinearGradient(0, 0, 0, H);
+  const vh = vw.y1 - vw.y0, vwid = vw.x1 - vw.x0;
+  const g = ctx.createLinearGradient(0, vw.y0, 0, vw.y1);
   g.addColorStop(0, P.top); g.addColorStop(0.52, P.mid); g.addColorStop(1, P.low);
-  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = g; ctx.fillRect(vw.x0 - 2, vw.y0 - 2, vwid + 4, vh + 4);
   // sun or moon glow
-  const sx = P.sun[0] * W, sy = P.sun[1] * H;
+  const sx = vw.x0 + P.sun[0] * vwid, sy = vw.y0 + P.sun[1] * vh;
   const gg = ctx.createRadialGradient(sx, sy, 10, sx, sy, 520);
   gg.addColorStop(0, P.glow); gg.addColorStop(1, 'rgba(255,255,255,0)');
-  ctx.fillStyle = gg; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = gg; ctx.fillRect(vw.x0 - 2, vw.y0 - 2, vwid + 4, vh + 4);
   ctx.fillStyle = P.sunCol; ctx.globalAlpha = skyId === 'storm' ? 0.35 : 0.95;
   ctx.beginPath(); ctx.arc(sx, sy, skyId === 'noon' ? 34 : 52, 0, TAU); ctx.fill(); ctx.globalAlpha = 1;
   void t;
@@ -45,14 +49,15 @@ const CLOUDS = [];
   for (let i = 0; i < 14; i++) CLOUDS.push({ x: r() * W, y: 90 + r() * 900, sc: 0.5 + r() * 1.1, sp: 4 + r() * 12, a: 0.25 + r() * 0.4, ph: r() * 6 });
 }
 // phase: the game's integrated wind (so clouds speed up with gusts and stop when paused); dir: wind direction
-export function drawClouds(ctx, skyId, phase, dir) {
+export function drawClouds(ctx, skyId, phase, dir, vw = VW0) {
   const P = SKY_PAL[skyId] ?? SKY_PAL.dawn;
   const [r, g, b] = P.cloud;
+  const vwid = vw.x1 - vw.x0, yTop = vw.y0 + 50, yBot = Math.min(vw.y1 - 150, 1000);
   for (const c of CLOUDS) {
-    const span = W + 520;
-    let x = (c.x + dir * phase * c.sp * 6) % span; if (x < 0) x += span; x -= 260;
-    const y = c.y, sc = c.sc;
-    const depth = 0.55 + 0.45 * (y / 1000);
+    const span = vwid + 520;
+    let x = (c.x / W * vwid + dir * phase * c.sp * 6) % span; if (x < 0) x += span; x += vw.x0 - 260;
+    const y = yTop + (c.y - 90) / 900 * Math.max(200, yBot - yTop), sc = c.sc;
+    const depth = 0.55 + 0.45 * (clamp(y, 0, 1000) / 1000);
     for (let k = 0; k < 3; k++) {
       ctx.fillStyle = `rgba(${r},${g},${b},${c.a * (0.5 - k * 0.12)})`;
       const w = (180 - k * 36) * sc * depth, h = (46 - k * 9) * sc * depth;
@@ -73,49 +78,60 @@ const STREAKS = [];
   const r = () => { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s / 4294967296; };
   for (let i = 0; i < 26; i++) STREAKS.push({ x: r() * W, y: 160 + r() * 880, len: 60 + r() * 150, sp: 14 + r() * 26, a: 0.12 + r() * 0.22, th: 1 + r() * 1.4 });
 }
-export function drawWindStreaks(ctx, phase, dir, wind) {
-  const n = Math.round(clamp((wind - 0.15) / 0.9, 0, 1) * STREAKS.length);
+export function drawWindStreaks(ctx, phase, dir, wind, vw = VW0) {
+  const vwid = vw.x1 - vw.x0, yTop = vw.y0 + 100, yBot = Math.min(vw.y1 - 200, 1040), cnt = Math.min(STREAKS.length, Math.round(STREAKS.length * Math.max(1, vwid / W)));
+  const n = Math.round(clamp((wind - 0.15) / 0.9, 0, 1) * cnt);
   ctx.lineCap = 'round';
   for (let i = 0; i < n; i++) {
-    const s = STREAKS[i];
-    let x = (s.x + dir * phase * s.sp * 8) % (W + 300); if (x < 0) x += W + 300; x -= 150;
-    const y = s.y + Math.sin(phase * 0.4 + i) * 10;
+    const s = STREAKS[i % STREAKS.length];
+    let x = ((s.x + (i >= STREAKS.length ? 97 * i : 0)) / W * vwid + dir * phase * s.sp * 8) % (vwid + 300); if (x < 0) x += vwid + 300; x += vw.x0 - 150;
+    const y = yTop + (s.y - 160) / 880 * Math.max(200, yBot - yTop) + Math.sin(phase * 0.4 + i) * 10;
     ctx.strokeStyle = `rgba(255,255,255,${s.a * clamp(wind, 0.3, 1.2)})`; ctx.lineWidth = s.th;
     ctx.beginPath(); ctx.moveTo(x, y); ctx.quadraticCurveTo(x + dir * s.len * 0.5, y - 6, x + dir * s.len, y); ctx.stroke();
   }
 }
 
 // hills, terrace rooftops and trees along the bottom; the wind bends the grass and trees a little
-export function drawLand(ctx, skyId, phase, dir, wind) {
+export function drawLand(ctx, skyId, phase, dir, wind, vw = VW0) {
   const P = SKY_PAL[skyId] ?? SKY_PAL.dawn;
+  const x0 = vw.x0 - 4, x1 = vw.x1 + 4, bot = Math.max(H, vw.y1 + 4);
+  // the village scenery repeats every 720 units to the sides; the hills and ridge are continuous curves
+  const t0 = Math.floor(x0 / W), t1 = Math.floor(x1 / W);
+  const startX = Math.floor(x0 / 40) * 40;
   // mist
   const mg = ctx.createLinearGradient(0, 930, 0, 1130);
   mg.addColorStop(0, 'rgba(255,255,255,0)'); mg.addColorStop(1, P.mist);
-  ctx.fillStyle = mg; ctx.fillRect(0, 930, W, 200);
+  ctx.fillStyle = mg; ctx.fillRect(x0, 930, x1 - x0, 200);
   // far hills
   ctx.fillStyle = P.hill[0];
-  ctx.beginPath(); ctx.moveTo(0, 1280); ctx.lineTo(0, 1070);
-  for (let x = 0; x <= W; x += 40) ctx.lineTo(x, 1060 + Math.sin(x * 0.011 + 1) * 26 + Math.sin(x * 0.027) * 12);
-  ctx.lineTo(W, 1280); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(x0, bot); ctx.lineTo(x0, 1070);
+  for (let x = startX; x <= x1 + 40; x += 40) ctx.lineTo(x, 1060 + Math.sin(x * 0.011 + 1) * 26 + Math.sin(x * 0.027) * 12);
+  ctx.lineTo(x1 + 40, bot); ctx.closePath(); ctx.fill();
   // rooftops: flat terrace roofs with parapets on the left, low tiled roofs on the right
-  ctx.fillStyle = P.hill[1];
   const roofs = [[-10, 1096, 120, 60], [96, 1108, 90, 48], [190, 1088, 70, 70], [452, 1100, 80, 56], [540, 1090, 100, 66], [650, 1104, 90, 52]];
-  for (const [x, y, w, h] of roofs) {
-    ctx.fillRect(x, y, w, h);
-    ctx.fillRect(x - 3, y - 6, w + 6, 8);
-    for (let p = 0; p < w; p += 22) ctx.fillRect(x + p, y - 14, 12, 8);
+  for (let tile = t0; tile <= t1; tile++) {
+    ctx.save(); ctx.translate(tile * W, 0);
+    ctx.fillStyle = P.hill[1];
+    for (const [x, y, w, h] of roofs) {
+      ctx.fillRect(x, y, w, h);
+      ctx.fillRect(x - 3, y - 6, w + 6, 8);
+      for (let p = 0; p < w; p += 22) ctx.fillRect(x + p, y - 14, 12, 8);
+    }
+    ctx.fillStyle = P.roof;
+    ctx.beginPath(); ctx.moveTo(300, 1112); ctx.lineTo(332, 1084); ctx.lineTo(400, 1084); ctx.lineTo(432, 1112); ctx.closePath(); ctx.fill();
+    ctx.fillRect(312, 1112, 108, 40);
+    ctx.restore();
   }
-  ctx.fillStyle = P.roof;
-  ctx.beginPath(); ctx.moveTo(300, 1112); ctx.lineTo(332, 1084); ctx.lineTo(400, 1084); ctx.lineTo(432, 1112); ctx.closePath(); ctx.fill();
-  ctx.fillRect(312, 1112, 108, 40);
   // foreground ridge
   ctx.fillStyle = P.roof;
-  ctx.beginPath(); ctx.moveTo(0, 1280); ctx.lineTo(0, 1140);
-  for (let x = 0; x <= W; x += 30) ctx.lineTo(x, 1138 + Math.sin(x * 0.02 + 2) * 10);
-  ctx.lineTo(W, 1280); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(x0, bot); ctx.lineTo(x0, 1140);
+  for (let x = Math.floor(x0 / 30) * 30; x <= x1 + 30; x += 30) ctx.lineTo(x, 1138 + Math.sin(x * 0.02 + 2) * 10);
+  ctx.lineTo(x1 + 30, bot); ctx.closePath(); ctx.fill();
   // trees that lean with the wind
   const lean = dir * clamp(wind, 0, 1.2) * 14;
-  for (const [x, y, s] of [[40, 1140, 1], [330, 1146, 0.8], [660, 1138, 1.1], [700, 1150, 0.7]]) {
+  const trees = [];
+  for (let tile = t0; tile <= t1; tile++) for (const [x, y, s] of [[40, 1140, 1], [330, 1146, 0.8], [660, 1138, 1.1], [700, 1150, 0.7]]) trees.push([x + tile * W, y, s]);
+  for (const [x, y, s] of trees) {
     const sw = Math.sin(phase * 0.8 + x) * 2.5;
     ctx.strokeStyle = P.roof; ctx.lineWidth = 6 * s; ctx.lineCap = 'round';
     ctx.beginPath(); ctx.moveTo(x, y + 6); ctx.quadraticCurveTo(x + lean * 0.3 * s, y - 40 * s, x + (lean + sw) * s, y - 80 * s); ctx.stroke();
@@ -253,7 +269,7 @@ export function drawParticles(ctx, parts) {
       ctx.strokeStyle = `rgba(255,240,200,${k * 0.8})`; ctx.lineWidth = 4 * k + 1;
       ctx.beginPath(); ctx.arc(p.x, p.y, (1 - k) * p.size + 6, 0, TAU); ctx.stroke();
     } else if (p.kind === 'flash') {
-      ctx.fillStyle = `rgba(255,255,240,${k * 0.55})`; ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = `rgba(255,255,240,${k * 0.55})`; ctx.fillRect(-2000, -2000, 5000, 6000);
     } else if (p.kind === 'shred') {
       ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.rot); ctx.fillStyle = p.col; ctx.globalAlpha = Math.min(1, k * 1.6);
       ctx.fillRect(-p.size / 2, -p.size / 4, p.size, p.size / 2); ctx.restore();

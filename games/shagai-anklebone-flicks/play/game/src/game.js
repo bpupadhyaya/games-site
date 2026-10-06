@@ -1,14 +1,18 @@
 // GAME CONTRACT (docs/GAME-CONTRACT.md): exports meta and createGame(env) -> { update, render, getState }.
 // This file owns state and flow (scenes, input, rides, saving). Rules live in rules.js, the computer in ai.js, everything
 // drawn in view.js. `state` is plain JSON: closures hold nothing that matters.
-import { W, TRAY, BONE_SPOTS, inRect, stationXY } from './layout.js';
+import { W, H, TRAY, BONE_SPOTS, creditHit, inRect, stationXY, layoutFor, live, toCanon } from './layout.js';
 import { FINISH, BONES, newGame, tossBones, scoreOf, comboLabel, previewGallop, applyGallop, beginRide, nextTurn, ranking, deepClone } from './rules.js';
 import { chooseAction, bestAction, describeAction } from './ai.js';
-import { screenButtons, screenLayout, readerPages, TEXT_SCALES, AP_THINK_STEPS, zoomOf, rideInfo } from './ui.js';
+import { screenButtons, screenLayout, readerMax, TEXT_SCALES, AP_THINK_STEPS, zoomOf, rideInfo } from './ui.js';
 import { render as draw } from './view.js';
 import { RIDER } from './art.js';
 
-export const meta = { width: W, height: 1560 };
+// `meta.width/height` are updated live by the kit on every resize (fluid viewport: the short side is always 720 units);
+// every position comes from layoutFor(meta.width, meta.height).
+// Mouse wheel / trackpad scrolling for the readers and lists (main.js adds to dy, in virtual units).
+export const wheelInput = { dy: 0 };
+export const meta = { width: W, height: H, fluid: { short: 720 } };
 
 const DEMO_RACES = 2;
 const RIDE_CAP = 500;
@@ -22,6 +26,7 @@ const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 export function createGame(env) {
   const { rng, storage, audio, config } = env;
   const fx = rng.fork(); // visual randomness never shifts the bone stream
+  const lay = () => { live.w = meta.width; live.h = meta.height; return layoutFor(meta.width, meta.height); };
 
   const state = {
     scene: 'title', t: 0, demo: !!config.demo, demoRaces: 0,
@@ -268,6 +273,7 @@ export function createGame(env) {
     return best;
   }
   function tapBoard(x, y) {
+    ({ x, y } = toCanon(lay().play.mat, x, y));   // the bones live in the mat's canonical coordinates
     if (state.phase === 'throw') { if (isHuman()) say('TAP or SWIPE UP on the felt mat to toss the bones.'); return; }
     if (state.phase !== 'decide') return;
     const i = boneAt(x, y);
@@ -283,15 +289,12 @@ export function createGame(env) {
     else if (id === 'rules') { go('rules'); s.rulesPage = 0; s.refFrom = 'title'; }
     else if (id === 'settings') go('settings');
     else if (id === 'back') {
-      if (s.scene === 'how') { if (s.howPage > 0) s.howPage -= 1; else leaveReader(); }
-      else if (s.scene === 'rules') { if (s.rulesPage > 0) s.rulesPage -= 1; else leaveReader(); }
-      else if (s.scene === 'about') { if (s.aboutPage > 0) s.aboutPage -= 1; else leaveReader(); }
+      if (s.scene === 'how' || s.scene === 'rules' || s.scene === 'about') leaveReader();
       else go('title');
     }
     else if (id === 'title') go('title');
     else if (id === 'page') {
-      const pages = readerPages(s.scene, zoomOf(s)), k = s.scene === 'how' ? 'howPage' : s.scene === 'rules' ? 'rulesPage' : 'aboutPage';
-      if (s[k] >= pages.length - 1) leaveReader(); else s[k] += 1;
+      s.scroll = 0;                                                  // "Top" in the readers
     }
     else if (id === 'textDec') { if (s.prefs.textScaleIdx > 0) { s.prefs.textScaleIdx--; savePrefs(); clampPages(); } }
     else if (id === 'textInc') { if (s.prefs.textScaleIdx < TEXT_SCALES.length - 1) { s.prefs.textScaleIdx++; savePrefs(); clampPages(); } }
@@ -316,9 +319,7 @@ export function createGame(env) {
   }
   function leaveReader() { go(state.refFrom || 'title'); }
   function clampPages() {
-    const sc = state.scene; if (sc !== 'how' && sc !== 'rules' && sc !== 'about') return;
-    const k = sc === 'how' ? 'howPage' : sc === 'rules' ? 'rulesPage' : 'aboutPage', n = readerPages(sc, zoomOf(state)).length;
-    state[k] = Math.min(state[k], n - 1);
+    state.scroll = Math.min(state.scroll || 0, readerMax(state));
   }
 
   // ---- update -----------------------------------------------------------------------------------------------------------------------
@@ -375,7 +376,7 @@ export function createGame(env) {
     const S = SHOWCASE[name]; if (!S) return;
     state.prefs.auto = false; state.prefs.calm = false;
     if (S.scene === 'autoplay') { startAutoPlay(); return; }
-    if (S.scene) { state.setup.players = S.players || 3; state.prefs.textScaleIdx = S.z || 0; go(S.scene); state.rulesPage = S.page || 0; state.t = 12; return; }
+    if (S.scene) { state.setup.players = S.players || 3; state.prefs.textScaleIdx = S.z || 0; go(S.scene); state.jump = S.page || 0; state.t = 12; return; }
     state.g = newGame({ humans: Array.from({ length: S.players }, (_, i) => i === 0), levels: ['steady', 'sharp', 'beginner'] });
     S.pos.forEach((p, i) => { state.g.riders[i].pos = p; }); state.g.rides = 14;
     go('play'); resetView(); beginTurn(); state.wait = 0; state.showcase = S;
@@ -391,22 +392,24 @@ export function createGame(env) {
     if (S.gallop) { startGallop(); state.gal.t = state.gal.dur * 0.55; state.gal.step = state.gal.res.from + Math.floor(state.gal.res.strides * 0.5); }
   }
 
-  const btnAt = (x, y) => screenButtons(state).find((b) => inRect(b, x, y) && (!b.clip || inRect(b.clip, x, y)));
+  const btnAt = (x, y) => screenButtons(state, lay()).find((b) => inRect(b, x, y) && (!b.clip || inRect(b.clip, x, y)));
 
   if (config.showcase) applyShowcase(config.showcase);
 
   return {
     update(dt, input) {
       const sc = state.scene, ptr = input.pointer, keys = input.keys.pressed;
-      const inPlay = sc === 'play' || sc === 'autoplay';
+      const inPlay = sc === 'play' || sc === 'autoplay', L = lay();
+      if (sc === 'how' || sc === 'rules' || sc === 'about') clampPages(); // a rotation can change the scroll range
       const paused = sc === 'autoplay' && state.ap.paused;
 
       // pointer: buttons act on release (so a drag can scroll), board taps act on press
       if (ptr.pressed) {
-        const b = btnAt(ptr.x, ptr.y);
-        state.press = { x: ptr.x, y: ptr.y, moved: false, s0: state.scroll, b: b && !b.dim ? b.id : null };
+        const b = btnAt(ptr.x, ptr.y), afZone = sc === 'title' && L.title.lock ? creditHit(L.title.lock.r) : null;
+        state.press = { x: ptr.x, y: ptr.y, moved: false, s0: state.scroll, b: b && !b.dim ? b.id : null, af: Boolean(afZone && inRect(afZone, ptr.x, ptr.y)) };
         if (!b && inPlay && !state.menuOpen && !paused) {
-          if (canThrow() && inRect({ x: TRAY.x, y: TRAY.y - 20, w: TRAY.w, h: TRAY.h + 40 }, ptr.x, ptr.y)) { doToss(); state.press = null; }
+          const cm = toCanon(L.play.mat, ptr.x, ptr.y);
+          if (canThrow() && inRect({ x: TRAY.x, y: TRAY.y - 20, w: TRAY.w, h: TRAY.h + 40 }, cm.x, cm.y)) { doToss(); state.press = null; }
           else if (aiTurn() && sc === 'play' && state.phase !== 'won') state.fast = true;
           else if (sc === 'play') tapBoard(ptr.x, ptr.y);
         }
@@ -414,13 +417,15 @@ export function createGame(env) {
       if (ptr.down && state.press) {
         const pr = state.press, dy = ptr.y - pr.y;
         if (Math.abs(dy) > 14 || Math.abs(ptr.x - pr.x) > 14) pr.moved = true;
-        const lay = screenLayout(state);
-        if (pr.moved && lay && lay.maxScroll > 0) state.scroll = Math.min(Math.max(pr.s0 - dy, 0), lay.maxScroll);
+        const sl = screenLayout(state, L);
+        const mx = sl ? sl.maxScroll : readerMax(state);
+        if (pr.moved && mx > 0) state.scroll = Math.min(Math.max(pr.s0 - dy, 0), mx);
       }
       if (ptr.released && state.press) {
         const pr = state.press; state.press = null;
         if (!pr.moved && pr.b) { const b = btnAt(ptr.x, ptr.y); if (b && b.id === pr.b) act(b.id); }
-        if (!state.menuOpen && sc === 'play' && pr.y > 900 && pr.y - ptr.y > 70) { if (canThrow()) doToss(); else if (state.phase === 'decide') tossAgain(); }
+        if (!pr.moved && pr.af && sc === 'title' && L.title.lock && inRect(creditHit(L.title.lock.r), ptr.x, ptr.y)) env.openArcforgeHome?.();
+        if (!state.menuOpen && sc === 'play' && inRect(L.play.swipe, pr.x, pr.y) && pr.y - ptr.y > 70) { if (canThrow()) doToss(); else if (state.phase === 'decide') tossAgain(); }
       }
       // keyboard
       if (inPlay) {
@@ -433,9 +438,16 @@ export function createGame(env) {
           if (keys.has('KeyH')) useHint();
         }
       } else {
-        const lay = screenLayout(state);
-        if (lay && lay.maxScroll > 0) { if (keys.has('ArrowDown')) state.scroll = Math.min(lay.maxScroll, (state.scroll || 0) + 80); if (keys.has('ArrowUp')) state.scroll = Math.max(0, (state.scroll || 0) - 80); }
-        if (sc === 'how' || sc === 'about' || sc === 'rules') { if (keys.has('ArrowRight')) act('page'); if (keys.has('ArrowLeft')) act('back'); }
+        const sl = screenLayout(state, L);
+        if (sl && sl.maxScroll > 0) { if (keys.has('ArrowDown')) state.scroll = Math.min(sl.maxScroll, (state.scroll || 0) + 80); if (keys.has('ArrowUp')) state.scroll = Math.max(0, (state.scroll || 0) - 80); }
+        if (sc === 'how' || sc === 'about' || sc === 'rules') {
+          const rmx = readerMax(state), set = (v) => { state.scroll = Math.max(0, Math.min(rmx, v)); };
+          if (wheelInput.dy) { set((state.scroll || 0) + wheelInput.dy); wheelInput.dy = 0; }
+          for (const [k, d] of [['ArrowDown', 80], ['ArrowUp', -80], ['PageDown', 500], ['PageUp', -500], ['Space', 500]]) if (keys.has(k)) set((state.scroll || 0) + d);
+          if (keys.has('Home')) set(0); if (keys.has('End')) set(rmx);
+          if (keys.has('Escape')) act('back');
+        } else if (sl && wheelInput.dy) state.scroll = Math.max(0, Math.min(sl.maxScroll, (state.scroll || 0) + wheelInput.dy));
+        wheelInput.dy = 0;
       }
 
       // everything below is the simulation: a paused Auto Play freezes ALL of it (timers, bones, gallop, particles)
@@ -455,7 +467,7 @@ export function createGame(env) {
       if (inPlay && !state.menuOpen) flow(dt * (state.fast && aiTurn() && sc === 'play' ? 2.8 : 1));
       showcaseStep();
     },
-    render(ctx) { draw(ctx, state); },
+    render(ctx, view) { live.w = view?.width ?? meta.width; live.h = view?.height ?? meta.height; draw(ctx, state, layoutFor(live.w, live.h)); },
     getState: () => state,
     // Only real play counts against the kit's free-preview timer. Menus, setup, settings, How/Rules/About, the pause menu,
     // result screens and Auto Play (a free teaching demo) are all exempt.

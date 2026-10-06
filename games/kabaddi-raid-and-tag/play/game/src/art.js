@@ -3,6 +3,7 @@
 import { COURT, formationSlots } from './rules.js';
 import { toLocal } from './sim.js';
 import { FONT, C, roundPath } from './ui.js';
+import { W, H, minFont } from './layout.js';
 
 export const TAU = Math.PI * 2;
 export const TEAM_COL = [{ main: '#2f6fd6', dark: '#1d4590', light: '#8fb5f5', name: 'Blue', bottoms: '#f2f2f2' }, { main: '#d8453a', dark: '#8c231c', light: '#f5a199', name: 'Red', bottoms: '#2a2a2e' }];
@@ -36,7 +37,7 @@ export function drawMat(ctx, mp, o = {}) {
   ctx.strokeStyle = 'rgba(255,255,255,0.85)'; ctx.lineWidth = lw;
   for (const x of [COURT.LOBBY, COURT.W - COURT.LOBBY]) { ctx.beginPath(); ctx.moveTo(mp.sx(x), mp.sy(0)); ctx.lineTo(mp.sx(x), mp.sy(COURT.HALF)); ctx.stroke(); }
   if (o.labels) {
-    const fs = Math.max(11, Math.min(17, Math.round(mp.k * 0.3)));
+    const fs = Math.max(minFont(11), Math.min(17, Math.round(mp.k * 0.3)));
     ctx.font = `800 ${fs}px ${FONT}`; ctx.textAlign = 'right'; ctx.textBaseline = 'bottom';
     const lx = rect.x + rect.w - mp.kx * COURT.LOBBY - 6;
     ctx.fillStyle = 'rgba(70,40,10,0.85)';
@@ -102,19 +103,20 @@ export function drawFormationPreview(ctx, mp, form, n, team, o = {}) {
 }
 
 export function drawBackdrop(ctx, t = 0) {
-  const g = ctx.createLinearGradient(0, 0, 0, 1280);
+  const w = W, h = H, k = Math.max(1, w / 720), kh = h / 1280;
+  const g = ctx.createLinearGradient(0, 0, 0, h);
   g.addColorStop(0, '#0b1a22'); g.addColorStop(0.55, '#10303a'); g.addColorStop(1, '#0a1a20');
-  ctx.fillStyle = g; ctx.fillRect(0, 0, 720, 1280);
+  ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
   // stadium lights: soft pools, no shapes with edges
-  const lights = [[120, 90], [600, 120], [360, 40]];
-  for (const [x, y] of lights) { const rg = ctx.createRadialGradient(x, y, 0, x, y, 360); rg.addColorStop(0, 'rgba(255,214,140,0.18)'); rg.addColorStop(1, 'rgba(255,214,140,0)'); ctx.fillStyle = rg; ctx.fillRect(0, 0, 720, 800); }
+  const lights = [[0.167, 0.07], [0.833, 0.094], [0.5, 0.031]];
+  for (const [fx, fy] of lights) { const x = fx * w, y = fy * h, rr = 360 * Math.max(1, k * 0.8); const rg = ctx.createRadialGradient(x, y, 0, x, y, rr); rg.addColorStop(0, 'rgba(255,214,140,0.18)'); rg.addColorStop(1, 'rgba(255,214,140,0)'); ctx.fillStyle = rg; ctx.fillRect(0, 0, w, h * 0.65); }
   // the mat in perspective at the bottom, lines only
   ctx.save();
-  const horizon = 760, base = 1280;
+  const horizon = h * 0.594, base = h, cx = w / 2, sx = k * Math.min(1, 0.5 + kh);
   const mg = ctx.createLinearGradient(0, horizon, 0, base); mg.addColorStop(0, 'rgba(196,150,92,0.0)'); mg.addColorStop(0.25, 'rgba(196,150,92,0.35)'); mg.addColorStop(1, 'rgba(206,164,108,0.55)');
-  ctx.fillStyle = mg; ctx.beginPath(); ctx.moveTo(300, horizon); ctx.lineTo(420, horizon); ctx.lineTo(820, base); ctx.lineTo(-100, base); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = mg; ctx.beginPath(); ctx.moveTo(cx - 60 * sx, horizon); ctx.lineTo(cx + 60 * sx, horizon); ctx.lineTo(cx + 460 * sx, base); ctx.lineTo(cx - 460 * sx, base); ctx.closePath(); ctx.fill();
   ctx.strokeStyle = 'rgba(255,255,255,0.20)'; ctx.lineWidth = 3;
-  for (const f of [0.0, 0.18, 0.42, 0.74]) { const y = horizon + (base - horizon) * f, half = 60 + 330 * (0.1 + f * 0.9); ctx.beginPath(); ctx.moveTo(360 - half, y); ctx.lineTo(360 + half, y); ctx.stroke(); }
+  for (const f of [0.0, 0.18, 0.42, 0.74]) { const y = horizon + (base - horizon) * f, half = (60 + 330 * (0.1 + f * 0.9)) * sx; ctx.beginPath(); ctx.moveTo(cx - half, y); ctx.lineTo(cx + half, y); ctx.stroke(); }
   ctx.restore();
 }
 

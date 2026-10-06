@@ -1,8 +1,11 @@
 // Chapter 2: the exile. Hold to walk from the palace gate, through the city, over the river and
 // into the forest. Pausing beside the people who wait with lamps receives their farewell.
-import { W, H, TAU, PAL, INK, clamp, lerp, smooth, hash, sky, sun, light, ridge, strip, treeline, skyline, sea, motes, finish, shadow, dome } from '../stage.js';
+import { FR, W, H, TAU, PAL, INK, clamp, lerp, smooth, hash, sky, sun, light, ridge, strip, treeline, skyline, sea, motes, finish, shadow, dome } from '../stage.js';
 import { figure, poses, stridePose } from '../puppets.js';
 import { label, caption, pips } from '../ui.js';
+
+// Landscape: the window shows y 560..1400 (gate top to the road).
+export const LAND_Y1 = 1400;
 
 const GROUND = 1190, END = 5000, SPEED = 125, BANK0 = 3080, BANK1 = 3840;
 const GROUPS = [650, 1350, 1950, 2500, 2940];
@@ -49,7 +52,7 @@ export function create(env, shared) {
     const t = s.t, rm = shared.rm(), cam = clamp(s.x - 300, 0, END - 420), prog = clamp(s.x / END, 0, 1);
     sky(ctx, PAL.palace.sky, null);
     const F = PAL.forest.sky, g = ctx.createLinearGradient(0, 0, 0, H); F.forEach((c, i) => g.addColorStop(i / 3, c));
-    ctx.globalAlpha = smooth((prog - 0.45) / 0.45) * 0.9; ctx.fillStyle = g; ctx.fillRect(0, 0, W, H); ctx.globalAlpha = 1;
+    ctx.globalAlpha = smooth((prog - 0.45) / 0.45) * 0.9; ctx.fillStyle = g; ctx.fillRect(FR.x0 - 1, 0, FR.w + 2, H); ctx.globalAlpha = 1;
     sun(ctx, 520 - prog * 200, 640 + prog * 120, 70, '255,222,160');
     ridge(ctx, { base: 900, amp: 90, wl: 380, scroll: cam * 0.08, color: 'rgba(70,30,50,0.55)', seed: 2 });
     const aPal = 1 - smooth((cam - 1500) / 1000), aCity = smooth((cam - 500) / 600) * (1 - smooth((cam - 2300) / 500)), aWood = smooth((cam - 2500) / 900);
@@ -63,12 +66,12 @@ export function create(env, shared) {
     ctx.globalAlpha = 1;
     // ground
     const gg = ctx.createLinearGradient(0, GROUND - 30, 0, H); gg.addColorStop(0, prog > 0.7 ? '#23402c' : '#5a2a26'); gg.addColorStop(0.3, '#23121a'); gg.addColorStop(1, '#0c050a');
-    ctx.fillStyle = gg; ctx.fillRect(0, GROUND - 30, W, H);
+    ctx.fillStyle = gg; ctx.fillRect(FR.x0 - 1, GROUND - 30, FR.w + 2, H);
     light(ctx, W / 2, GROUND + 30, 520, '255,190,110', 0.22);
     // the river, cut into the ground
     const r0 = BANK0 + 60 - cam, r1 = BANK1 - 60 - cam;
-    if (r1 > 0 && r0 < W) {
-      ctx.save(); ctx.beginPath(); ctx.rect(Math.max(0, r0), GROUND - 60, Math.min(W, r1) - Math.max(0, r0), H); ctx.clip();
+    if (r1 > FR.x0 && r0 < FR.x1) {
+      ctx.save(); ctx.beginPath(); ctx.rect(Math.max(FR.x0, r0), GROUND - 60, Math.min(FR.x1, r1) - Math.max(FR.x0, r0), H); ctx.clip();
       sea(ctx, { y: GROUND - 34, t, scroll: cam, colors: ['#6a5a8a', '#4a4478', '#2e2c5c', '#1c1a40', '#100e28'], crest: '255,220,170' });
       light(ctx, (r0 + r1) / 2, GROUND + 60, 400, '255,210,150', 0.3);
       ctx.restore();

@@ -5,7 +5,7 @@ import { createRider } from './rider.js';
 import { Actor } from './actor.js';
 import { HorseBatch, COATS, setHorseDetail } from './horse.js';
 import { buildField, buildBlobs, buildPuffs } from './field.js';
-import { CAM, fovFor, SHOW_CAM } from '../src/camera.js';
+import { CAM, rigFor, SHOW_CAM } from '../src/camera.js';
 import { BALL_R, FIG, SPOTS } from '../src/consts.js';
 
 const LIB = '../vendor3d/index.js';
@@ -47,7 +47,8 @@ export async function createPresenter({ kitCanvas, quality = pickQuality() }) {
   stage.onContextLost(() => { P.lost = true; });
   stage.onContextRestored(() => { P.lost = false; });
 
-  buildField(stage);
+  const fieldGroup = buildField(stage);
+  const crowdSide = fieldGroup.getObjectByName('crowdSide'), crowdLeft = fieldGroup.getObjectByName('crowdLeft');
   const blobs = buildBlobs(8); stage.add(blobs.mesh);
   const camQ = new THREE.Quaternion();
   setHorseDetail(quality);
@@ -147,16 +148,18 @@ export async function createPresenter({ kitCanvas, quality = pickQuality() }) {
     blobs.set(6, ball3.x, ball3.z, 0, 0.3 + hgt * 0.1, 0.3 + hgt * 0.1, 0.03);
     puffs.update(dt);
     // camera and size
-    const winW = kitCanvas.clientWidth || 720, winH = kitCanvas.clientHeight || 1280;
-    const wantW = winW / winH > 0.5625 ? Math.round(winH * 0.5625) : 0;
-    if (wantW !== P.pillar) {
-      P.pillar = wantW;
-      canvas.style.cssText = wantW ? `position:fixed;top:0;left:50%;transform:translateX(-50%);width:${wantW}px;height:100dvh;display:block;pointer-events:none;z-index:0` : 'position:fixed;inset:0;width:100vw;height:100dvh;display:block;pointer-events:none;z-index:0';
-      stage.resize();
-    }
+    // camera and size: the 3D canvas always fills the whole screen; the rig (end-on for portrait, side line for landscape) and its field of view
+    // follow the live aspect, so nothing is stretched and the whole field stays in view after a resize or rotation
     const W = canvas.clientWidth || 720, H = canvas.clientHeight || 1280;
-    const fov = fovFor(W / H);
-    if (Math.abs(cam.fov - fov) > 1e-3) { cam.fov = fov; cam.updateProjectionMatrix(); }
+    const rig = rigFor(W / H);
+    if (P.rig !== rig.key) {
+      P.rig = rig.key;
+      const c = rig.cam; cam.position.set(c.x, c.y, c.z); cam.up.set(0, 1, 0); cam.lookAt(c.lx, c.ly, c.lz); cam.updateMatrixWorld(true); camQ.copy(cam.quaternion);
+      if (crowdSide) crowdSide.visible = rig.key === 'end'; if (crowdLeft) crowdLeft.visible = rig.key === 'side';
+      stage.lights.key.position.set(rig.key === 'end' ? -14 : 14, 26, rig.key === 'end' ? -12 : -6);
+      stage.invalidate();
+    }
+    if (Math.abs(cam.fov - rig.fov) > 1e-3 || Math.abs(cam.aspect - W / H) > 1e-4) { cam.fov = rig.fov; cam.aspect = W / H; cam.updateProjectionMatrix(); }
     if (!P.noRender) { stage.render(); if (showing || fm) renderShowcase(G, W, H); P.drawCalls = stage.renderer.info.render.calls; P.tris = stage.renderer.info.render.triangles; }
   }
 
@@ -214,11 +217,10 @@ export async function createPresenter({ kitCanvas, quality = pickQuality() }) {
   }
   function renderShowcase(G, W, H) {
     const ar = G.artRect, r = stage.renderer, ratio = r.getPixelRatio();
-    const winW = kitCanvas.clientWidth || 720, winH = kitCanvas.clientHeight || 1280, sc = Math.min(winW / 720, winH / 1280);
-    const left = P.pillar ? (winW - P.pillar) / 2 : 0;
-    const u = (ar.x - 360) * sc + winW / 2 - left, v = (ar.y - 640) * sc + winH / 2, w = ar.w * sc, h = ar.h * sc;
+    const winW = kitCanvas.clientWidth || 720, winH = kitCanvas.clientHeight || 1280, vw = G.vw || 720, vh = G.vh || 1280, sc = Math.min(winW / vw, winH / vh);
+    const u = (ar.x - vw / 2) * sc + winW / 2, v = (ar.y - vh / 2) * sc + winH / 2, w = ar.w * sc, h = ar.h * sc;
     scCam.aspect = w / h; scCam.updateProjectionMatrix(); scCam.updateMatrixWorld(true);
-    const cy0 = ((ar.c0 ?? ar.y) - 640) * sc + winH / 2, cy1 = ((ar.c1 ?? ar.y + ar.h) - 640) * sc + winH / 2;
+    const cy0 = ((ar.c0 ?? ar.y) - vh / 2) * sc + winH / 2, cy1 = ((ar.c1 ?? ar.y + ar.h) - vh / 2) * sc + winH / 2;
     r.setScissorTest(true); r.setViewport(u, H - v - h, w, h); r.setScissor(u, H - cy1, w, Math.max(0, cy1 - cy0));
     r.render(stage.scene, scCam);
     r.setScissorTest(false); r.setViewport(0, 0, W, H); void ratio;

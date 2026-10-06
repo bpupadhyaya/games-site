@@ -1,20 +1,24 @@
 // Everything drawn each frame. Reads state, changes nothing.
 import {
-  W, H, DISPLAY, THEMES, themeById, text, rr, panel, button, background, mat, icon, drawParticles, drawDie, drawBack, drawCup, weaveBand, tumbleFace,
+  DISPLAY, THEMES, themeById, text, rr, panel, button, background, mat, icon, drawParticles, drawDie, drawBack, drawCup, weaveBand, tumbleFace,
   alpha, clamp01, ease, backOut,
 } from './art.js';
 import { TEXT_SCALES, wrap, tw } from './ui.js';
 import { LEVELS } from './ai.js';
 import { tr, getLang, faceWord, bidWords } from './content.js';
-import { BACK_BTN, PAUSE_BTN, autoLayout, playLayout } from './layout.js';
+import { autoLayout, playLayout, hud, scr, frame, host, clamp } from './layout.js';
+import { drawLockup, drawMoreLine } from './brand.js';
 import { THINK_STEPS } from './screens.js';
 import { countIn, wildApplies, prevBid, totalDice, canCalzo } from './rules.js';
 import { handVisible, bottomSeat, seatOrder, faceAllowed, selLegal, qtyMin } from './match.js';
 
+const W = 720;   // the design width of the title attract scene (drawn scaled into the art area)
 const theme = (S) => themeById(S.themeId);
 
 // Largest text size (<= start) whose wrapped lines fit w x h. Used by every HUD text so zoom never overflows.
+const minU = () => clamp(11 / (host.px || 0.6), 12, 22);   // ~11 css px, in virtual units (tablets: 12, phones: up to 22)
 export function fitText(str, w, h, start, min = 16, lh = 1.28) {
+  min = Math.min(Math.max(min, minU()), start);
   let size = start;
   for (; size > min; size -= 2) {
     const lines = wrap(str, size, w);
@@ -23,7 +27,7 @@ export function fitText(str, w, h, start, min = 16, lh = 1.28) {
   const lines = wrap(str, min, w);
   return { lines, size: min, line: min * lh };
 }
-export const fitOne = (str, w, start, min = 14) => { let s = start; while (s > min && tw(str, s) > w) s -= 1; return s; };
+export const fitOne = (str, w, start, min = 14) => { min = Math.min(Math.max(min, minU()), start); let s = start; while (s > min && tw(str, s) > w) s -= 1; return s; };
 const zf = (S) => TEXT_SCALES[S.textIdx];
 const grow = (z, base, k = 0.5) => base * (1 + (z - 1) * k);
 
@@ -72,6 +76,11 @@ function drawDocBlocks(ctx, S, ui, scroll) {
 function drawFixed(ctx, S, list) {
   const th = theme(S);
   for (const f of list) {
+    if (f.lockup) {
+      const q = f.lockup, dn = S.press && S.press.id === f.id && S.press.active;
+      ctx.save(); ctx.fillStyle = 'rgba(20,6,8,0.62)'; ctx.beginPath(); ctx.roundRect(q.x - 10, q.y - 5, q.w + 20, q.h + 10, (q.h + 10) / 2); ctx.fill(); ctx.restore();
+      drawLockup(ctx, q.x + q.w / 2, q.y + (dn ? 1 : 0), q.w * (dn ? 0.96 : 1), dn ? 0.7 : 1); continue;
+    }
     if (f.static) { text(ctx, f.label, f.rect.x + f.rect.w / 2, f.rect.y + f.rect.h / 2 + 10, f.size, 'rgba(246,236,214,0.8)', { weight: 700 }); continue; }
     const pressed = S.press && S.press.id === f.id && S.press.active;
     if (f.icon) {
@@ -198,7 +207,7 @@ function drawAttract(ctx, S) {
   // the cup shakes, then lifts and the dice tumble out and settle
   const shaking = tt < 1.5;
   const lift = tt < 1.5 ? 0 : Math.min(1, (tt - 1.5) / 0.4) * 150;
-  drawCup(ctx, th, W / 2, 470, 190, 220, { tilt: shaking ? Math.sin(tt * 34) * 0.16 : 0, lift, alpha: tt > 1.9 ? Math.max(0, 1 - (tt - 1.9) / 0.5) * 0.9 + 0.1 : 1 });
+  drawCup(ctx, th, W / 2, 492, 190, 220, { tilt: shaking ? Math.sin(tt * 34) * 0.16 : 0, lift, alpha: tt > 1.9 ? Math.max(0, 1 - (tt - 1.9) / 0.5) * 0.9 + 0.1 : 1 });
   const faces = [5, 1, 3, 1, 6];
   if (tt > 1.6) faces.forEach((f, i) => {
     const a = tt - 1.6 - i * 0.06;
@@ -220,8 +229,12 @@ function drawAttract(ctx, S) {
 }
 
 function drawTitle(ctx, S, ui) {
-  background(ctx, theme(S), S.t, 520);
-  drawAttract(ctx, S);
+  const th = theme(S), F = frame(), art = ui.art;
+  const top = F.cols ? art.y : art.y + 80, hh = art.h - 80;
+  const sc = clamp(Math.min(art.w / 700, hh / 580), 0.3, F.cols ? 1.2 : 1);
+  const cx = art.x + art.w / 2, cy = top + hh / 2;
+  background(ctx, th, S.t, cy, cx);
+  ctx.save(); ctx.translate(cx - 360 * sc, cy - 410 * sc); ctx.scale(sc, sc); drawAttract(ctx, S); ctx.restore();
   drawDocBlocks(ctx, S, ui, S.scroll[ui.scrollKey] ?? 0);
   drawFixed(ctx, S, ui.fixed);
 }
@@ -234,22 +247,27 @@ function drawDocScreen(ctx, S, ui) {
   drawFixed(ctx, S, ui.fixed);
   if (ui.nav) {
     drawFixed(ctx, S, [ui.nav.prev, ui.nav.next]);
-    text(ctx, ui.nav.label, 360, 1500, 26, 'rgba(246,236,214,0.75)', { weight: 600 });
+    text(ctx, ui.nav.label, ui.nav.labelAt.x, ui.nav.labelAt.y, 26, 'rgba(246,236,214,0.75)', { weight: 600 });
   }
 }
 
 function drawOverlay(ctx, S, ui) {
   const th = theme(S);
   ctx.fillStyle = `rgba(6,4,4,${0.62 * clamp01(S.ovT / 0.25)})`;
-  ctx.fillRect(0, 0, W, H);
+  ctx.fillRect(0, 0, scr.w, scr.h);
   const k = ease(clamp01(S.ovT / 0.3));
+  const ocx = ui.panel.x + ui.panel.w / 2, ocy = ui.panel.y + ui.panel.h / 2;
   ctx.save();
-  ctx.translate(W / 2, H / 2); ctx.scale(0.92 + 0.08 * k, 0.92 + 0.08 * k); ctx.translate(-W / 2, -H / 2);
+  ctx.translate(ocx, ocy); ctx.scale(0.92 + 0.08 * k, 0.92 + 0.08 * k); ctx.translate(-ocx, -ocy);
   ctx.globalAlpha = k;
   panel(ctx, th, ui.panel.x, ui.panel.y, ui.panel.w, ui.panel.h, {});
   drawDocBlocks(ctx, S, ui, S.scroll[ui.scrollKey] ?? 0);
   drawFixed(ctx, S, ui.fixed);
   ctx.restore();
+  if (S.overlay === 'end') { // a quiet pointer to the rest of the collection, under the card, only when there is room
+    const y = ui.panel.y + ui.panel.h + 34;
+    if (y < frame().U.y1 - 6) { ctx.save(); ctx.globalAlpha = k; drawMoreLine(ctx, ocx, y, 21); ctx.restore(); }
+  }
 }
 
 // ------------------------------------------------------------------------------------------ play
@@ -268,18 +286,20 @@ const bidOfSeat = (M, seat) => {
 const turnPhase = (M) => ['human', 'cpu', 'gap', 'autowait', 'handoff'].includes(M.phase);
 
 function drawHud(ctx, S, title, sub, showPause) {
-  const th = theme(S);
-  button(ctx, th, BACK_BTN, [], 'normal', { pressed: S.press && S.press.id === 'hud:back' && S.press.active });
-  icon(ctx, 'back', BACK_BTN.x + BACK_BTN.w / 2, BACK_BTN.y + BACK_BTN.h / 2, 34, th.ink);
+  const th = theme(S), Hd = hud();
+  button(ctx, th, Hd.back, [], 'normal', { pressed: S.press && S.press.id === 'hud:back' && S.press.active });
+  icon(ctx, 'back', Hd.back.x + Hd.back.w / 2, Hd.back.y + Hd.back.h / 2, 34, th.ink);
   if (showPause) {
-    button(ctx, th, PAUSE_BTN, [], 'normal', { pressed: S.press && S.press.id === 'hud:pause' && S.press.active });
-    icon(ctx, 'pause', PAUSE_BTN.x + PAUSE_BTN.w / 2, PAUSE_BTN.y + PAUSE_BTN.h / 2, 34, th.ink);
+    button(ctx, th, Hd.pause, [], 'normal', { pressed: S.press && S.press.id === 'hud:pause' && S.press.active });
+    icon(ctx, 'pause', Hd.pause.x + Hd.pause.w / 2, Hd.pause.y + Hd.pause.h / 2, 34, th.ink);
   }
+  // the kit's preview clock sits at the top centre by default: park it in the title row, left of the pause button, clear of the title
+  globalThis.__previewBadge = { x: Hd.pause.x - 10, y: Hd.pause.y + 4, align: 'right' };
   const z = zf(S);
-  const tSize = fitOne(title, 480, 40 * (1 + (z - 1) * 0.1), 22);
-  text(ctx, title, 360, 58, tSize, th.ink, { font: DISPLAY, weight: 800, shadow: 'rgba(0,0,0,0.6)' });
-  const sSize = fitOne(sub, 480, 24 * (1 + (z - 1) * 0.2), 15);
-  text(ctx, sub, 360, 96, sSize, 'rgba(246,236,214,0.7)', { weight: 500 });
+  const tSize = fitOne(title, Hd.titleMaxW, 40 * (1 + (z - 1) * 0.1), 22);
+  text(ctx, title, Hd.titleCx, Hd.titleY, tSize, th.ink, { font: DISPLAY, weight: 800, shadow: 'rgba(0,0,0,0.6)' });
+  const sSize = fitOne(sub, Hd.titleMaxW, 24 * (1 + (z - 1) * 0.2), 15);
+  text(ctx, sub, Hd.titleCx, Hd.subY, sSize, 'rgba(246,236,214,0.7)', { weight: 500 });
 }
 
 function drawSeat(ctx, S, M, r, seat) {
@@ -375,33 +395,38 @@ function drawTable(ctx, S, M, lay) {
   mat(ctx, th, T.x, T.y, T.w, T.h);
   const prev = prevBid(st);
   const cx = T.x + T.w / 2;
-  text(ctx, `${tr('roundN', { n: st.round })}  ·  ${tr('diceInPlay', { n: totalDice(st) })}`, T.x + 24, T.y + 52, fitOne(`${tr('roundN', { n: st.round })}  ·  ${tr('diceInPlay', { n: totalDice(st) })}`, 440, grow(z, 21, 0.3), 14), 'rgba(246,236,214,0.7)', { weight: 600, align: 'left' });
-  if (st.palifico) { const ps = fitOne(tr('palTag'), 170, grow(z, 22, 0.3), 14); text(ctx, tr('palTag'), T.x + T.w - 24, T.y + 52, ps, th.accent, { weight: 800, align: 'right' }); }
-  const shH = Math.max(100, Math.min(T.h - 300, grow(z, 150, 0.7)));
+  const roomy = T.h >= 500, topPad = roomy ? 62 : 48;
+  const info = `${tr('roundN', { n: st.round })}  ·  ${tr('diceInPlay', { n: totalDice(st) })}`;
+  text(ctx, info, T.x + 24, T.y + (roomy ? 52 : 38), fitOne(info, T.w * 0.62, grow(z, 21, 0.3), 14), 'rgba(246,236,214,0.7)', { weight: 600, align: 'left' });
+  if (st.palifico) { const ps = fitOne(tr('palTag'), T.w * 0.25, grow(z, 22, 0.3), 14); text(ctx, tr('palTag'), T.x + T.w - 24, T.y + (roomy ? 52 : 38), ps, th.accent, { weight: 800, align: 'right' }); }
+  const shMax = grow(z, 150, 0.7);
+  let shH = clamp(Math.min(shMax, T.h - topPad - 140), 78, shMax);
+  if (!roomy) shH = Math.min(shH, Math.max(T.h < 260 ? 46 : 78, T.h * (T.h < 260 ? 0.3 : 0.36)));
   const sr = { x: T.x + 16, y: T.y + T.h - 16 - shH, w: T.w - 32, h: shH };
-  const mid = T.y + 62 + (sr.y - (T.y + 62)) / 2;
-  const hasHist = st.bids.length > 1 && sr.y - T.y > 330 && z < 2;
-  const bigS = Math.max(104, Math.min(150, (sr.y - T.y - 140) * 0.42));
-  const by = mid - (hasHist ? 34 : 14) - (bigS - 104) * 0.3;
+  const midTop = T.y + topPad, midH = sr.y - midTop, mid = midTop + midH / 2;
+  const hasHist = st.bids.length > 1 && midH > 250 && z < 2;
+  const bigS = clamp(Math.max((sr.y - T.y - 140) * 0.42, midH * 0.5), Math.min(60, midH * 0.6), 150) * Math.min(1, T.w / 420);
+  const by = mid - (hasHist ? 34 : 14) - Math.max(0, bigS - 104) * 0.3 + (bigS < 104 ? 8 : 0);
   if (M.phase === 'shake') {
-    drawCup(ctx, th, cx, mid, 170, 200, { tilt: Math.sin(M.t * 34) * 0.2, lift: Math.abs(Math.sin(M.t * 17)) * 14 });
+    const cs = Math.min(1, midH / 260);
+    drawCup(ctx, th, cx, mid, 170 * cs, 200 * cs, { tilt: Math.sin(M.t * 34) * 0.2, lift: Math.abs(Math.sin(M.t * 17)) * 14 * cs });
   } else if (prev) {
     const pop = M.bidT < 0.45 ? backOut(clamp01(M.bidT / 0.3)) : 1;
     ctx.save(); ctx.translate(cx, by); ctx.scale(pop, pop);
-    bidChip(ctx, th, 0, 0, prev.q, prev.f, Math.max(104, Math.min(150, (sr.y - T.y - 140) * 0.42)), { glow: prev.f === 1 ? 0.5 : 0.25 });
+    bidChip(ctx, th, 0, 0, prev.q, prev.f, bigS, { glow: prev.f === 1 ? 0.5 : 0.25 });
     ctx.restore();
     const nm = st.players[prev.p].name;
-    text(ctx, tr('bidBy', { name: nm }), cx, by + bigS * 0.83, fitOne(tr('bidBy', { name: nm }), 560, grow(z, 24, 0.3), 14), 'rgba(246,236,214,0.75)', { weight: 600 });
+    if (midH > 110) text(ctx, tr('bidBy', { name: nm }), cx, by + bigS * 0.83, fitOne(tr('bidBy', { name: nm }), T.w - 112, grow(z, 24, 0.3), 14), 'rgba(246,236,214,0.75)', { weight: 600 });
     if (hasHist) {
-      const hist = st.bids.slice(-5, -1);
-      hist.forEach((b, i) => { ctx.globalAlpha = 0.55; bidChip(ctx, th, T.x + T.w / 2 + (i - (hist.length - 1) / 2) * 120, by + bigS * 0.83 + 48, b.q, b.f, 30, { noShadow: true }); ctx.globalAlpha = 1; });
+      const hist = st.bids.slice(-5, -1), sp = Math.min(120, (T.w - 80) / Math.max(1, hist.length));
+      hist.forEach((b, i) => { ctx.globalAlpha = 0.55; bidChip(ctx, th, cx + (i - (hist.length - 1) / 2) * sp, by + bigS * 0.83 + 48, b.q, b.f, 30, { noShadow: true }); ctx.globalAlpha = 1; });
     }
   } else {
-    text(ctx, tr('noBid'), cx, mid + 12, 40, 'rgba(246,236,214,0.6)', { font: DISPLAY, weight: 700 });
+    text(ctx, tr('noBid'), cx, mid + 12, fitOne(tr('noBid'), T.w - 60, 40, 18), 'rgba(246,236,214,0.6)', { font: DISPLAY, weight: 700 });
   }
   const sx = statusFor(S, M);
   if (M.phase === 'handoff') return;
-  if (sr.h > 60 && !M.auto) statusCard(ctx, S, sr, sx.head, sx.body);
+  if (sr.h > 40 && !M.auto) statusCard(ctx, S, sr, sx.head, sx.body);
   if (M.phase === 'cpu' || M.phase === 'autowait') {
     for (let i = 0; i < 3; i++) { ctx.fillStyle = `rgba(242,184,75,${0.35 + 0.5 * Math.max(0, Math.sin(S.t * 6 - i * 0.9))})`; ctx.beginPath(); ctx.arc(cx - 20 + i * 20, sr.y - 14, 5, 0, Math.PI * 2); ctx.fill(); }
   }
@@ -410,15 +435,19 @@ function drawTable(ctx, S, M, lay) {
 function drawHandoff(ctx, S, M, lay) {
   const th = theme(S), T = lay.table, z = zf(S);
   const name = M.st.players[M.st.turn].name;
+  const sc = clamp(T.h / 608, 0.5, 1);
   mat(ctx, th, T.x, T.y, T.w, T.h); ctx.fillStyle = 'rgba(6,4,4,0.94)'; rr(ctx, T.x + 12, T.y + 12, T.w - 24, T.h - 24, 20); ctx.fill();
-  drawCup(ctx, th, T.x + T.w / 2, T.y + 112, 90, 106, { tilt: Math.sin(S.t * 2) * 0.04 });
-  const tf = fitText(tr('handoffTitle', { name }), T.w - 80, 110, grow(z, 38, 0.5), 20, 1.2);
-  tf.lines.forEach((ln, i) => text(ctx, ln, T.x + T.w / 2, T.y + 204 + i * tf.line, tf.size, th.accent, { font: DISPLAY, weight: 800 }));
-  const bt = T.y + 204 + tf.lines.length * tf.line + 10;
-  const bf = fitText(tr('handoffBody', { name }), T.w - 90, Math.max(40, lay.handoff.y - bt - 10), grow(z, 25, 0.5), 15);
-  bf.lines.forEach((ln, i) => text(ctx, ln, T.x + T.w / 2, bt + bf.size + i * bf.line, bf.size, 'rgba(246,236,214,0.88)', { weight: 500 }));
+  drawCup(ctx, th, T.x + T.w / 2, T.y + 112 * sc, 90 * sc, 106 * sc, { tilt: Math.sin(S.t * 2) * 0.04 });
+  const tf = fitText(tr('handoffTitle', { name }), T.w - 80, 110 * sc, grow(z, 38, 0.5) * Math.max(0.7, sc), 20, 1.2);
+  tf.lines.forEach((ln, i) => text(ctx, ln, T.x + T.w / 2, T.y + 204 * sc + i * tf.line, tf.size, th.accent, { font: DISPLAY, weight: 800 }));
+  const bt = T.y + 204 * sc + tf.lines.length * tf.line + 10, bh = lay.handoff.y - bt - 10;
+  if (bh >= 44) {
+    const bf = fitText(tr('handoffBody', { name }), T.w - 90, bh, grow(z, 25, 0.5), 15);
+    bf.lines.forEach((ln, i) => text(ctx, ln, T.x + T.w / 2, bt + bf.size + i * bf.line, bf.size, 'rgba(246,236,214,0.88)', { weight: 500 }));
+  }
   const r = lay.handoff, pressed = S.press && S.press.id === 'hand:ack' && S.press.active;
-  button(ctx, th, r, fitText(tr('handoffBtn'), r.w - 30, r.h - 20, grow(z, 32, 0.5), 16).lines, 'primary', { size: fitText(tr('handoffBtn'), r.w - 30, r.h - 20, grow(z, 32, 0.5), 16).size, pressed });
+  const bf2 = fitText(tr('handoffBtn'), r.w - 30, r.h - 20, grow(z, 32, 0.5), 16);
+  button(ctx, th, r, bf2.lines, 'primary', { size: bf2.size, pressed });
 }
 
 function drawBottomDice(ctx, S, M, lay) {
@@ -485,13 +514,20 @@ function drawControls(ctx, S, M, lay) {
   icon(ctx, 'plus', lay.plus.x + lay.plus.w / 2, lay.plus.y + lay.plus.h / 2, 44, th.ink);
   ctx.fillStyle = 'rgba(6,4,4,0.55)'; rr(ctx, lay.qty.x, lay.qty.y, lay.qty.w, lay.qty.h, 18); ctx.fill();
   ctx.strokeStyle = 'rgba(255,255,255,0.14)'; ctx.lineWidth = 1.5; rr(ctx, lay.qty.x, lay.qty.y, lay.qty.w, lay.qty.h, 18); ctx.stroke();
-  text(ctx, String(on ? M.sel.q : '–'), lay.qty.x + lay.qty.w / 2, lay.qty.y + lay.qty.h / 2 + grow(z, 22, 0.3), grow(z, 56, 0.3), th.ink, { font: DISPLAY, weight: 800 });
+  const qs = Math.min(grow(z, 56, 0.3), lay.qty.h * 0.72);
+  text(ctx, String(on ? M.sel.q : '–'), lay.qty.x + lay.qty.w / 2, lay.qty.y + lay.qty.h / 2 + qs * 0.39, qs, th.ink, { font: DISPLAY, weight: 800 });
   // the Bid button: label and the chosen bid
   const b = lay.bid, bp = on && pr('bid');
   button(ctx, th, b, [], 'primary', { disabled: !on || !selLegal(M), pressed: bp });
-  const bl = fitOne(tr('bid'), b.w * 0.42, grow(z, 32, 0.4), 16);
-  text(ctx, tr('bid'), b.x + 18 + (b.w * 0.42) / 2, b.y + b.h / 2 + bl * 0.34 + (bp ? 2 : 0), bl, th.primaryInk, { weight: 800 });
-  if (on) bidChip(ctx, { ...th, ink: th.primaryInk }, b.x + b.w * 0.72, b.y + b.h / 2 + (bp ? 2 : 0), M.sel.q, M.sel.f, Math.min(b.h * 0.5, 56), { color: th.primaryInk, noShadow: true });
+  if (b.w < 240) { // narrow button (landscape card): the word above, the chosen bid below
+    const bl = fitOne(tr('bid'), b.w - 24, Math.min(grow(z, 30, 0.4), b.h * 0.3), 13);
+    text(ctx, tr('bid'), b.x + b.w / 2, b.y + b.h * 0.34 + bl * 0.3 + (bp ? 2 : 0), bl, th.primaryInk, { weight: 800 });
+    if (on) bidChip(ctx, { ...th, ink: th.primaryInk }, b.x + b.w / 2, b.y + b.h * 0.68 + (bp ? 2 : 0), M.sel.q, M.sel.f, Math.min(b.h * 0.34, b.w * 0.21), { color: th.primaryInk, noShadow: true });
+  } else {
+    const bl = fitOne(tr('bid'), b.w * 0.42, grow(z, 32, 0.4), 16);
+    text(ctx, tr('bid'), b.x + 18 + (b.w * 0.42) / 2, b.y + b.h / 2 + bl * 0.34 + (bp ? 2 : 0), bl, th.primaryInk, { weight: 800 });
+    if (on) bidChip(ctx, { ...th, ink: th.primaryInk }, b.x + b.w * 0.72, b.y + b.h / 2 + (bp ? 2 : 0), M.sel.q, M.sel.f, Math.min(b.h * 0.5, 56), { color: th.primaryInk, noShadow: true });
+  }
   // Dudo / Calzo / Think
   const hintAct = on && M.hint ? M.hint.act : '';
   const act = (r, id, label, kind, extra = {}) => {
@@ -499,7 +535,7 @@ function drawControls(ctx, S, M, lay) {
     const fs = fitOne(label, r.w - 28, grow(z, 32, 0.45), 15);
     const ic = extra.icon;
     if (ic) {
-      const is = grow(z, 38, 0.3), total = is + fs + 8, yy = r.y + (r.h - total) / 2;
+      const is = Math.min(grow(z, 38, 0.3), r.h * 0.42), total = is + fs + 8, yy = r.y + (r.h - total) / 2;
       icon(ctx, ic, r.x + r.w / 2, yy + is / 2, is, extra.ink ?? th.ink);
       text(ctx, label, r.x + r.w / 2, yy + is + 8 + fs * 0.85, fs, extra.ink ?? th.ink, { weight: 800 });
     } else text(ctx, label, r.x + r.w / 2, r.y + r.h / 2 + fs * 0.34 + (on && pr(id) ? 2 : 0), fs, th.ink, { weight: 800 });
@@ -514,16 +550,15 @@ function drawControls(ctx, S, M, lay) {
 
 function drawReveal(ctx, S, M, lay) {
   const th = theme(S), z = zf(S), s = M.snap, st = M.st;
-  const T = { x: 24, y: 112, w: 672, h: 1534 - 112 };
+  const RV = lay.rev, T = RV.T;
   mat(ctx, th, T.x, T.y, T.w, T.h);
   const f = s.bid.f, wild = !s.palifico && f !== 1;
   const alive = s.dice.map((d, i) => (d > 0 ? i : -1)).filter((i) => i >= 0);
-  const statusH = T.h >= 900 ? 200 : 160, nextH = 120;
   const headerY = T.y + 70;
   const callPhase = M.phase === 'call';
   // header: the bid and the running count
   bidChip(ctx, th, T.x + 150, headerY, s.bid.q, f, grow(z, 54, 0.15), {});
-  const rowsTop0 = T.y + 120, rowsH = T.h - 120 - statusH - nextH - 40;
+  const rowsTop0 = RV.rowsTop, rowsH = RV.rowsBottom - RV.rowsTop;
   const rh = Math.min(104, rowsH / Math.max(1, alive.length));
   const ds = Math.min(66, rh - 12, (T.w - 214 - 100) / 5 - 8);
   const rowsTop = rowsTop0 + Math.max(0, (rowsH - rh * alive.length) / 6);
@@ -562,7 +597,7 @@ function drawReveal(ctx, S, M, lay) {
   const shown = done ? s.res.actual : running;
   text(ctx, `${shown}`, T.x + T.w - 90, headerY + grow(z, 24, 0.3), grow(z, 70, 0.3), done ? (s.res.actual >= s.bid.q ? th.accent : '#ff8d7a') : th.ink, { font: DISPLAY, weight: 800 });
   text(ctx, '≥', T.x + T.w - 190, headerY + grow(z, 20, 0.3), grow(z, 40, 0.2), 'rgba(246,236,214,0.55)', { weight: 700 });
-  const sr = { x: T.x + 16, y: T.y + T.h - nextH - 28 - statusH, w: T.w - 32, h: statusH };
+  const sr = RV.status;
   if (callPhase) {
     const sx = statusFor(S, M);
     statusCard(ctx, S, sr, sx.head, sx.body);
@@ -613,7 +648,7 @@ function drawPlay(ctx, S) {
   if (auto) {
     const b = drawAutoBar(ctx, S, M, auto, lay);
     const sx = statusFor(S, M);
-    const nr = { x: 24, y: lay.face[0].y, w: 672, h: b.slower.y - 30 - lay.face[0].y };
+    const nr = b.status;
     if (!reveal || M.phase === 'result') {
       let head = sx.head, body = sx.body;
       if (reveal) { head = tr('nextRound'); body = ''; }
@@ -636,7 +671,12 @@ function drawPlay(ctx, S) {
     }
   } else drawControls(ctx, S, M, lay);
   drawParticles(ctx, M.parts);
-  if (S.toast) { const tf = fitText(S.toast, 560, 80, grow(z, 26, 0.4), 14); ctx.fillStyle = 'rgba(10,6,6,0.9)'; rr(ctx, 60, lay.table.y + lay.table.h - 110, 600, 90, 20); ctx.fill(); tf.lines.forEach((ln, i) => text(ctx, ln, 360, lay.table.y + lay.table.h - 110 + 45 - ((tf.lines.length - 1) * tf.line) / 2 + i * tf.line + tf.size * 0.34, tf.size, th.ink, { weight: 600 })); }
+  if (S.toast) {
+    const T = lay.table, tw2 = Math.min(600, T.w - 24), tx = T.x + (T.w - tw2) / 2, ty = T.y + T.h - 110, cx = tx + tw2 / 2;
+    const tf = fitText(S.toast, tw2 - 40, 80, grow(z, 26, 0.4), 14);
+    ctx.fillStyle = 'rgba(10,6,6,0.9)'; rr(ctx, tx, ty, tw2, 90, 20); ctx.fill();
+    tf.lines.forEach((ln, i) => text(ctx, ln, cx, ty + 45 - ((tf.lines.length - 1) * tf.line) / 2 + i * tf.line + tf.size * 0.34, tf.size, th.ink, { weight: 600 }));
+  }
 }
 
 export function render(ctx, S, ui) {

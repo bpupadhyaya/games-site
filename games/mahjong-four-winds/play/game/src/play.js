@@ -3,7 +3,8 @@
 import { newHand, drawTile, discard, claim, passAll, declareWin, selfWin, makeKong, ownKongs, hasClaim, kindOf, kindName, kindCounts, shanten, wallLeft, seatWind, sortTiles } from './rules.js';
 import { settleClaims, applyClaim, aiTurn } from './flow.js';
 import { chooseClaim, discardHint, stepsText } from './ai.js';
-import { tileTargets, wallPos, handMetrics, handTileX, HAND_Y, inRect, BTN, RING, ROT, AUTO_STEP, AUTO_THINK_STEPS, AUTO_REVEAL_SECONDS } from './layout.js';
+import { tileTargets, wallPos, handMetrics, handTileX, HAND_Y, HANDZONE_Y, inRect, BTN, RING, ROT, AUTO_STEP, AUTO_THINK_STEPS, AUTO_REVEAL_SECONDS, chowSlots } from './layout.js';
+import { PAUSE_RECTS } from './screens.js';
 import { claimList, ownList, claimRects, NAMES, RESULT_BTN, AUTO_AGAIN_BTN, AUTO_EXIT_BTN, seatName } from './view.js';
 
 const CLAIM_TIME = 9;
@@ -349,9 +350,9 @@ export function createPlay(ctx) {
     if (ui.ph === 'claim' && ui.claim.human) {
       const c = ui.claim;
       if (c.chowPick) {
-        const n = c.chowPick.length, w = 200;
-        c.chowPick.forEach((pair, i) => { const r = { x: 360 - (n * w + (n - 1) * 12) / 2 + i * (w + 12), y: 1164, w, h: 78 }; if (inRect(r, x, y)) { c.choices[0] = { type: 'chow', pair }; resolveClaims(); } });
-        if (inRect({ x: 258, y: 1256, w: 204, h: 62 }, x, y)) c.chowPick = null;
+        const cs = chowSlots(c.chowPick.length);
+        c.chowPick.forEach((pair, i) => { if (inRect(cs.picks[i], x, y)) { c.choices[0] = { type: 'chow', pair }; resolveClaims(); } });
+        if (inRect(cs.back, x, y)) c.chowPick = null;
         return;
       }
       for (const o of claimRects(claimList(c))) if (inRect(o.r, x, y)) { humanClaim(o.id); return; }
@@ -364,14 +365,14 @@ export function createPlay(ctx) {
       if (up === down.id) tapTile(down.id);
       return;
     }
-    if (ui.selId >= 0 && y > 1100) { ui.selId = -1; ui.sel = -1; }
+    if (ui.selId >= 0 && y > HANDZONE_Y) { ui.selId = -1; ui.sel = -1; }
   }
 
   function pauseTap(x, y) {
     const ui = S.ui;
-    if (inRect({ x: 130, y: 640, w: 460, h: 88 }, x, y)) ui.pause = false;
-    else if (inRect({ x: 130, y: 750, w: 460, h: 88 }, x, y)) { S.prefs.sound = !S.prefs.sound; ctx.audio.setMuted?.(!S.prefs.sound); ctx.savePrefs(); }
-    else if (inRect({ x: 130, y: 860, w: 460, h: 88 }, x, y)) { ui.pause = false; ctx.toTitle(); }
+    if (inRect(PAUSE_RECTS.resume, x, y)) ui.pause = false;
+    else if (inRect(PAUSE_RECTS.sound, x, y)) { S.prefs.sound = !S.prefs.sound; ctx.audio.setMuted?.(!S.prefs.sound); ctx.savePrefs(); }
+    else if (inRect(PAUSE_RECTS.quit, x, y)) { ui.pause = false; ctx.toTitle(); }
   }
 
   // ----------------------------------------------------------------------------------------------- tiles fly

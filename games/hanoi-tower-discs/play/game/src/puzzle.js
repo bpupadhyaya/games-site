@@ -4,28 +4,49 @@
 import { levelStart, levelMin, stars as starsFor } from './levels.js';
 import { legalMoves, bestMove, isSolved, topOf, movesLeft } from './solver.js';
 import { ryOf } from './art.js';
+import { layoutFor } from './layout.js';
 
-export const SCENE = { baseY: 1190, top: 330 };
 export const DRAG_SLOP = 16;
 export const DRAG_LIFT = 70;
 
-export function geometry(n, P) {
-  const spacing = P === 3 ? 230 : 176;
-  const x0 = 360 - (spacing * (P - 1)) / 2;
-  const pegX = Array.from({ length: P }, (_, i) => x0 + i * spacing);
+// The scene fits the live area: pegs spread over its width, disc thickness `sh` and peg length follow its height.
+// `area` = { x, y, w, h } (layoutFor().play.scene / sceneAuto); the default is the current play scene.
+export function geometry(n, P, area = layoutFor().play.scene) {
+  const compact = area.h < 700;
+  const below = compact ? 108 : 134;                         // under the pegs: base slab + peg letters + the GOAL word
+  const spacing = Math.min(P === 3 ? (area.w - 30) / 3 : (area.w - 16) / 4, 380);
+  const cx = area.x + area.w / 2;
+  const pegX = Array.from({ length: P }, (_, i) => cx - (spacing * (P - 1)) / 2 + i * spacing);
   const maxW = spacing - 16;
-  const minW = P === 3 ? 66 : 54;
-  const sh = Math.min(72, Math.floor(580 / n));
+  const minW = spacing * (P === 3 ? 0.287 : 0.307);
+  const units = Math.max(n + 2.4, 6.5) + 1.9;               // pegs + headroom + the lifted disc, in disc thicknesses
+  const avail = Math.max(120, area.h - below);
+  const sh = Math.max(14, Math.min(72, Math.floor(avail / units), Math.floor(spacing * 0.42)));
   const w = (d) => (n === 1 ? maxW : minW + ((maxW - minW) * d) / (n - 1));
-  const len = Math.max(n * sh + 170, 470);
-  const rodR = P === 3 ? 11 : 9;
-  // short towers sit a little higher so the scene stays centred between the stat chips and the toolbar
-  const baseY = SCENE.baseY - Math.round(Math.max(0, 780 - (len + 100)) * 0.5);
-  return { spacing, pegX, w, sh, len, rodR, baseY, pegTop: baseY - len, hoverY: baseY - len - 54 };
+  const len = Math.max((n + 2.4) * sh, 6.5 * sh);
+  const rodR = Math.max(6, Math.min(P === 3 ? 11 : 9, sh * 0.16));
+  const free = avail - units * sh;                           // spare height: centre the scene between the header and the toolbar
+  const baseY = Math.round(area.y + area.h - below - Math.max(0, free) * 0.5);
+  const slabW = Math.min(area.w - 48, spacing * P - 12);
+  return {
+    spacing, pegX, w, sh, len, rodR, baseY, pegTop: baseY - len, hoverY: baseY - len - sh * 0.75, below, area,
+    slab: [cx - slabW / 2, cx + slabW / 2], labelY: baseY + (compact ? 76 : 100), goalY: baseY + (compact ? 100 : 126), slabH: compact ? 70 : 96,
+  };
+}
+
+// The screen changed shape (rotation, split window): recompute the geometry from the new area and keep the position.
+export function refit(puz, area) {
+  puz.g = geometry(puz.n, puz.P, area);
+  if (puz.ptr && puz.ptr.dragging) cancelHold(puz);
+  puz.parts = [];
+  for (const d of puz.discs) {
+    if (d.mode === 'lift') { d.x = puz.g.pegX[d.dst]; d.y = puz.g.hoverY; d.vx = d.vy = 0; continue; }
+    const s = seat(puz, d.id); Object.assign(d, { x: s.x, y: s.y, vx: 0, vy: 0, mode: 'rest', dst: puz.pegOf[d.id] });
+  }
 }
 
 export function createPuzzle(level, rng, opts = {}) {
-  const g = geometry(level.n, level.P);
+  const g = geometry(level.n, level.P, opts.area);
   const start = levelStart(level);
   const puz = {
     level, n: level.n, P: level.P, goal: level.goal, g,
@@ -127,7 +148,7 @@ export function think(puz) {
 
 // ---------------------------------------------------------------------------------------------- input
 export function pegAt(puz, x, y, loose = false) {
-  if (!loose && (y < puz.g.pegTop - 120 || y > puz.g.baseY + 150)) return -1;
+  if (!loose && (y < puz.g.pegTop - 120 || y > puz.g.baseY + puz.g.below + 20)) return -1;
   let best = -1, bd = Infinity;
   puz.g.pegX.forEach((px, i) => { const d = Math.abs(px - x); if (d < bd) { bd = d; best = i; } });
   return bd <= puz.g.spacing / 2 + 4 ? best : -1;

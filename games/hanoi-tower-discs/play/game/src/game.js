@@ -1,18 +1,20 @@
 // GAME CONTRACT (docs/GAME-CONTRACT.md). Tower of Hanoi — see design/GDD.md.
-import { SCREEN, inRect, BACK_BTN, PAUSE_BTN, TOOLBAR_IDS, toolRect, AUTO_BTNS } from './layout.js';
+import { meta, inRect, TOOLBAR_IDS, layoutFor } from './layout.js';
 import { LEVELS, dailyLevel } from './levels.js';
 import { TEXT_SCALES, hitDoc, clampScroll } from './ui.js';
 import { buildUi, UNLOCK_NEED, THINK_STEPS, solvedIn, totalSolved, levelLocked, demoLocked, firstOpenLevel } from './screens.js';
 import {
-  createPuzzle, pointerDown, pointerMove, pointerUp, tapPeg, undo, restart, think, updatePuzzle, allRest, commit, winBurst, cancel,
+  createPuzzle, refit, pointerDown, pointerMove, pointerUp, tapPeg, undo, restart, think, updatePuzzle, allRest, commit, winBurst, cancel,
 } from './puzzle.js';
 import { bestMove, legalMoves, topOf } from './solver.js';
-import { RULE_COUNT, HOWTO_COUNT, tr } from './content.js';
+import { tr } from './content.js';
 import { render } from './view.js';
 
-export const meta = { width: SCREEN.width, height: SCREEN.height };
+export { meta };
+// Mouse wheel / trackpad scrolling for the text readers: main.js adds CSS-pixel deltas converted to virtual units, update() consumes them.
+export const wheelInput = { dy: 0 };
 
-const VERSION = '1.0.0';
+const VERSION = '1.1.0';
 const PEG = (i) => 'ABCD'[i];
 const PENTA = [1047, 880, 784, 659, 587, 523, 440, 392, 330, 294];
 const WIN_NOTES = [523, 587, 659, 784, 880, 1047];
@@ -74,7 +76,7 @@ export async function createGame(env) {
 
   // ------------------------------------------------------------------------------ levels
   function openPuzzle(level, history) {
-    S.puz = createPuzzle(level, rng.fork(), { history });
+    S.puz = createPuzzle(level, rng.fork(), { history, area: layoutFor().play.scene });
     S.scene = 'play'; S.overlay = null; S.winInfo = null; S.winSeq = null; S.toast = null; S.puzDown = false;
   }
   function startLevel(i, fresh = false) {
@@ -113,7 +115,7 @@ export async function createGame(env) {
   function startAutoPuzzle() {
     const a = S.auto;
     S.levelIdx = a.ids[a.k]; S.daily = false;
-    S.puz = createPuzzle(LEVELS[S.levelIdx], rng.fork());
+    S.puz = createPuzzle(LEVELS[S.levelIdx], rng.fork(), { area: layoutFor().play.sceneAuto });
     S.winSeq = null;
     Object.assign(a, { phase: 'intro', t: 0, target: null, scan: null, legal: [], note: '' });
   }
@@ -199,14 +201,14 @@ export async function createGame(env) {
       else if (n === 14) { S.scene = 'levels'; }
       else if (n === 15) { startLevel(idxOf('c3'), true); play(S.puz, 2); S.overlay = 'pause'; S.ovT = 1; }
       else if (n === 16) { S.scene = 'demo-limit'; }
-      else if (n === 17) { S.scene = 'howto'; S.page.howto = 1; }
+      else if (n === 17) { S.scene = 'howto'; S.jump = { scene: 'howto', page: 1 }; }
       else if (n === 18) { startAuto(); S.auto.paused = true; S.overlay = null; }
       else if (n === 19) { S.demo = true; S.scene = 'title'; S.textIdx = 0; }
       else if (n === 20) { S.textIdx = 0; startLevel(idxOf('c10'), true); play(S.puz, 300); }
       else if (n === 21) { S.textIdx = 0; startLevel(idxOf('f8'), true); play(S.puz, 14); }
       else if (n === 22) { S.textIdx = 0; S.dailyRec = { day: S.today - 1, streak: 4 }; startDaily(); play(S.puz, 2); }
-    } else if (n >= 1001 && n <= 1020) { S.scene = 'rules'; S.page.rules = n - 1001; }
-    else if (n >= 2001 && n <= 2020) { S.scene = 'rules'; S.page.rules = n - 2001; S.textIdx = 4; }
+    } else if (n >= 1001 && n <= 1020) { S.scene = 'rules'; S.jump = { scene: 'rules', page: n - 1001 }; }
+    else if (n >= 2001 && n <= 2020) { S.scene = 'rules'; S.jump = { scene: 'rules', page: n - 2001 }; S.textIdx = 4; }
   }
   const wantsShot = typeof location !== 'undefined' && /[?&]shot=1/.test(location.search);
   const sd = config?.seed ?? 0;
@@ -228,8 +230,6 @@ export async function createGame(env) {
 
   function gotoScene(scene) {
     S.scene = scene; S.overlay = null; S.press = null; S.resetArm = false; S.scrollVel = {};
-    if (scene === 'howto') S.page.howto = 0;
-    if (scene === 'rules') S.page.rules = 0;
     S.scroll[scene] = 0;
     SOUNDS.ui();
   }
@@ -248,6 +248,7 @@ export async function createGame(env) {
 
   function activate(id) {
     if (id == null) return;
+    if (id === 'arcforge') { env.openArcforgeHome?.(); return; }
     if (id === 'zoom-') { setText(-1); return; }
     if (id === 'zoom+') { setText(1); return; }
     if (id.startsWith('lvl:')) {
@@ -264,12 +265,6 @@ export async function createGame(env) {
       case 'auto': startAuto(); return;
       case 'howto': case 'rules': case 'about': case 'settings': gotoScene(id); return;
       case 'back': case 'menu': gotoScene('title'); return;
-      case 'prev': S.page[S.scene] = Math.max(0, S.page[S.scene] - 1); S.scroll = {}; SOUNDS.ui(); return;
-      case 'next': {
-        const total = S.scene === 'rules' ? RULE_COUNT : HOWTO_COUNT;
-        if (S.scene === 'howto' && S.page.howto >= total - 1) { activate('play'); return; }
-        S.page[S.scene] = Math.min(total - 1, S.page[S.scene] + 1); S.scroll = {}; SOUNDS.ui(); return;
-      }
       case 'set:sound': S.sound = !S.sound; audio.setMuted(!S.sound); saveSettings(); if (S.sound) SOUNDS.ui(); return;
       case 'set:numbers': S.numbers = !S.numbers; saveSettings(); return;
       case 'set:think-': S.thinkIdx = Math.max(0, S.thinkIdx - 1); saveSettings(); return;
@@ -309,7 +304,6 @@ export async function createGame(env) {
   // ------------------------------------------------------------------------------ pointer handling
   function fixedHit(ui, x, y) {
     const list = [...ui.fixed];
-    if (ui.nav) list.push(ui.nav.prev, ui.nav.next);
     for (const f of list) if (f.id != null && !f.disabled && inRect(x, y, f.rect)) return f;
     return null;
   }
@@ -370,10 +364,11 @@ export async function createGame(env) {
 
   // ---- play
   function playDown(x, y) {
-    if (inRect(x, y, BACK_BTN)) { S.press = { id: 'hud:back', active: true, kind: 'hud', rect: BACK_BTN }; return; }
-    if (inRect(x, y, PAUSE_BTN)) { S.press = { id: 'hud:pause', active: true, kind: 'hud', rect: PAUSE_BTN }; return; }
+    const P = layoutFor().play;
+    if (inRect(x, y, P.back)) { S.press = { id: 'hud:back', active: true, kind: 'hud', rect: P.back }; return; }
+    if (inRect(x, y, P.pause)) { S.press = { id: 'hud:pause', active: true, kind: 'hud', rect: P.pause }; return; }
     for (let i = 0; i < TOOLBAR_IDS.length; i++) {
-      const r = toolRect(i);
+      const r = P.tools[i];
       if (inRect(x, y, r)) { S.press = { id: `tool:${TOOLBAR_IDS[i]}`, active: true, kind: 'tool', rect: r }; return; }
     }
     S.puzDown = pointerDown(S.puz, x, y);
@@ -393,9 +388,10 @@ export async function createGame(env) {
 
   // ---- auto
   function autoDown(x, y) {
-    if (inRect(x, y, BACK_BTN)) { S.press = { id: 'auto:exit', active: true, kind: 'auto', rect: BACK_BTN }; return; }
+    const P = layoutFor().play;
+    if (inRect(x, y, P.back)) { S.press = { id: 'auto:exit', active: true, kind: 'auto', rect: P.back }; return; }
     for (const id of ['slower', 'pause', 'faster']) {
-      if (inRect(x, y, AUTO_BTNS[id])) { S.press = { id: `auto:${id}`, active: true, kind: 'auto', rect: AUTO_BTNS[id] }; return; }
+      if (inRect(x, y, P.auto[id])) { S.press = { id: `auto:${id}`, active: true, kind: 'auto', rect: P.auto[id] }; return; }
     }
   }
   function autoAction(id) {
@@ -425,14 +421,14 @@ export async function createGame(env) {
     }
     const ui = buildUi(S);
     if (ui.layout && ui.region) {
-      if (keys.down.has('ArrowDown') || keys.down.has('PageDown')) setScroll(ui, getScroll(ui) + 18);
-      if (keys.down.has('ArrowUp') || keys.down.has('PageUp')) setScroll(ui, getScroll(ui) - 18);
+      if (keys.down.has('ArrowDown')) setScroll(ui, getScroll(ui) + 18);
+      if (keys.down.has('ArrowUp')) setScroll(ui, getScroll(ui) - 18);
+      if (has('PageDown') || has('Space')) setScroll(ui, getScroll(ui) + ui.region.h * 0.9);
+      if (has('PageUp')) setScroll(ui, getScroll(ui) - ui.region.h * 0.9);
+      if (has('Home')) setScroll(ui, 0);
+      if (has('End')) setScroll(ui, 1e9);
     }
     if (has('Escape') && ['levels', 'howto', 'rules', 'about', 'settings', 'demo-limit'].includes(S.scene)) gotoScene('title');
-    if (S.scene === 'howto' || S.scene === 'rules') {
-      if (has('ArrowRight')) activate('next');
-      if (has('ArrowLeft')) activate('prev');
-    }
   }
 
   // ------------------------------------------------------------------------------ puzzle events
@@ -491,6 +487,24 @@ export async function createGame(env) {
         S.scrollVel[k] = v * Math.exp(-dt * 5);
       }
 
+      // wheel / trackpad on the text screens
+      if (wheelInput.dy) {
+        const ui = buildUi(S);
+        if (ui.layout && ui.region) setScroll(ui, getScroll(ui) + wheelInput.dy);
+        wheelInput.dy = 0;
+      }
+      // a shot / QA seed asked for a particular Rules page: scroll the reader to it
+      if (S.jump && S.jump.scene === S.scene && !S.overlay) {
+        const ui = buildUi(S);
+        if (ui.layout && ui.pageMarks) { const it = ui.layout.items[ui.pageMarks[Math.min(S.jump.page, ui.pageMarks.length - 1)]]; setScroll(ui, it ? it.y : 0); }
+        S.jump = null;
+      }
+      // the screen changed shape (rotation, split window): re-fit the towers, the position is kept
+      if (S.puz && (S.scene === 'play' || S.scene === 'auto')) {
+        const L = layoutFor(), area = S.scene === 'auto' ? L.play.sceneAuto : L.play.scene;
+        if (S.puz.g.area !== area) refit(S.puz, area);
+      }
+
       if (S.puz) {
         if (S.scene === 'play' && S.overlay !== 'pause') updatePuzzle(S.puz, dt);
         else if (S.scene === 'auto' && !frozen) { updatePuzzle(S.puz, dt); updateAuto(dt); }
@@ -503,14 +517,36 @@ export async function createGame(env) {
     },
 
     render(ctx) {
-      render(ctx, S, buildUi(S));
+      render(ctx, S, buildUi(S), layoutFor());
+    },
+
+    // Check scripts only: every tappable rect on the current screen (screen coordinates), to test overlap / bounds programmatically.
+    layoutRects() {
+      const L = layoutFor(), out = [], add = (id, r) => { if (r && r.w != null) out.push({ id, x: r.x, y: r.y, w: r.w, h: r.h }); };
+      const ui = buildUi(S);
+      if (S.overlay || !(S.scene === 'play' || S.scene === 'auto')) {
+        for (const f of ui.fixed) if (f.id != null) add(f.id, f.rect);
+        if (ui.layout && ui.region) {
+          const sc = getScroll(ui);
+          for (const it of ui.layout.items) for (const bt of it.btns) if (bt.id != null) {
+            const r = { x: ui.region.x + bt.x, y: ui.region.y + (ui.offY || 0) + bt.y - sc, w: bt.w, h: bt.h };
+            const y0 = Math.max(r.y, ui.region.y), y1 = Math.min(r.y + r.h, ui.region.y + ui.region.h);
+            if (y1 > y0) add(bt.id, { x: r.x, y: y0, w: r.w, h: y1 - y0 });
+          }
+        }
+      } else if (S.scene === 'play') {
+        add('back', L.play.back); add('pause', L.play.pause); TOOLBAR_IDS.forEach((id, i) => add(id, L.play.tools[i]));
+      } else {
+        add('back', L.play.back); for (const k of ['slower', 'pause', 'faster']) add(k, L.play.auto[k]);
+      }
+      return { w: L.w, h: L.h, mode: L.mode, rects: out, region: ui.region || null, panel: ui.panel || null, scene: S.puz ? S.puz.g.area : null, ins: L.ins, chips: S.puz && !S.overlay ? L.play.chips : [] };
     },
 
     getState() {
       const puz = S.puz;
       const r = (v) => Math.round(v * 10) / 10;
       return {
-        scene: S.scene, overlay: S.overlay, textIdx: S.textIdx, thinkIdx: S.thinkIdx, sound: S.sound, level: S.levelIdx,
+        scene: S.scene, overlay: S.overlay, w: meta.width, h: meta.height, textIdx: S.textIdx, thinkIdx: S.thinkIdx, sound: S.sound, level: S.levelIdx,
         daily: S.daily, solved: totalSolved(S), stars: S.progress.stars, streak: S.dailyRec.streak, page: S.page, scroll: S.scroll,
         auto: S.auto ? { k: S.auto.k, phase: S.auto.phase, t: Math.round(S.auto.t * 100) / 100, paused: S.auto.paused } : null,
         puzzle: puz ? {
@@ -522,6 +558,9 @@ export async function createGame(env) {
 
     // The preview clock counts real play only. Menus, level select, Rules / How to Play / About, Settings,
     // every overlay (pause, win, Watch & Learn summary), the demo card and Watch & Learn are all free time.
+    // Dev tools only (?dev=1): the layout checks read the rects of the screen that is showing through this.
+    dbg: config?.dev ? { buildUi: () => buildUi(S) } : undefined,
+
     isPreviewExempt: () => S.shot || S.scene !== 'play' || Boolean(S.overlay),
   };
 }

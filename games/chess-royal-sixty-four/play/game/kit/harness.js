@@ -28,10 +28,27 @@ export function createNullContext() {
   });
 }
 
-export function createHeadlessEnv({ seed = 1, manifest, demo = false, day = 20000 }) {
+// Feeds a mouse-wheel / trackpad event into a headless input (use inside script(tick, input, game)):
+// the game sees it through env.onWheel handlers and as input.wheel on that tick's update().
+export function wheel(input, dy, dx = 0) {
+  input.inject({ type: 'wheel', dx, dy });
+}
+
+export function createHeadlessEnv({ seed = 1, manifest, demo = false, day = 20000, input = createInput() }) {
+  // Kit 1.9.0: env.__calls records navigation requests so scenario tests can observe them,
+  // e.g. env.__calls.filter((c) => c.name === 'openArcforgeHome').length.
+  const calls = [];
   return {
+    input,
+    onWheel: input.onWheel,
     share: async () => ({ shared: false }),
-    openGame() {},
+    openGame(slug) {
+      calls.push({ name: 'openGame', slug });
+    },
+    openArcforgeHome() {
+      calls.push({ name: 'openArcforgeHome' });
+    },
+    __calls: calls,
     rng: createRng(seed),
     storage: createStorage({ bridge: null, namespace: manifest.slug }),
     monetization: createMonetization({ bridge: null, manifest, mode: demo ? 'demo' : 'mock' }),
@@ -75,9 +92,9 @@ export function createMonkey(seed, meta) {
 // Drives the game for `ticks` fixed steps. script(tick, input, game) may inject scripted
 // input; with monkey=true a seeded random player is layered on top.
 export async function runHeadless({ createGame, meta, manifest, seed = 1, ticks = 1800, monkey = true, script = null, demo = false, day }) {
-  const env = createHeadlessEnv({ seed, manifest, demo, day });
-  const game = await createGame(env);
   const input = createInput();
+  const env = createHeadlessEnv({ seed, manifest, demo, day, input });
+  const game = await createGame(env);
   const ctx = createNullContext();
   const view = { width: meta.width, height: meta.height };
   const monkeyStep = monkey ? createMonkey(seed, meta) : null;

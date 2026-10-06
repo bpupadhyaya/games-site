@@ -3,8 +3,8 @@
   "title": "Diketo: Stones",
   "tagline": "Toss one, take the rest, catch it before it falls.",
   "genre": "stone toss and pick-up skill game",
-  "orientation": "portrait",
-  "version": "1.0.2",
+  "orientation": "any",
+  "version": "1.1.2",
   "monetization": {
     "model": "premium",
     "priceUsd": 2.99,

@@ -117,7 +117,7 @@ export function flowLayout(ctx, widgets, scale, o = {}) {
         ctx.font = `700 ${fs}px ${FONT}`;
         const lines = wrapLines(ctx, g.label, cw0 - 28);
         const sub = g.sub ? wrapLines(ctx, g.sub, cw0 - 28).length : 0;
-        const h = Math.max(g.h ?? 76, lines.length * fs * 1.15 + sub * fs * 0.72 + 34);
+        const h = Math.max(g.h ?? 76, lines.length * fs * 1.15 + sub * fs * 0.8 + 34);
         hmax = Math.max(hmax, h);
         return { g, lines, h };
       });
@@ -150,7 +150,7 @@ export function flowLayout(ctx, widgets, scale, o = {}) {
       const lines = wrapLines(ctx, wd.label, w0 - 28);
       const sub = wd.sub ? wrapLines(ctx, wd.sub, w0 - 28).length : 0;
       const starsH = wd.stars && fs > 30 ? fs * 0.85 : 0;   // big text: the stars get a line of their own
-      const h = Math.max(wd.h ?? 84, lines.length * fs * 1.15 + sub * fs * 0.72 + starsH + 34);
+      const h = Math.max(wd.h ?? 84, lines.length * fs * 1.15 + sub * fs * 0.8 + starsH + 34);
       out.push({ w: wd, x: x0, y, wd: w0, h, fs, lines }); y += h + GAP;
     }
   }
@@ -159,7 +159,7 @@ export function flowLayout(ctx, widgets, scale, o = {}) {
 
 export function drawFlow(ctx, lay, top, bottom, scroll) {
   ctx.save();
-  ctx.beginPath(); ctx.rect(0, top, 720, bottom - top); ctx.clip();
+  ctx.beginPath(); ctx.rect(-4000, top, 8000, bottom - top); ctx.clip();
   for (const it of lay.items) {
     const y = top + it.y - scroll;
     if (y > bottom || y + it.h < top) continue;
@@ -184,19 +184,19 @@ function drawButtonRect(ctx, r, it, wd) {
   ctx.fillStyle = disabled ? 'rgba(255,255,255,0.35)' : light ? '#fff7e6' : C.ink;
   ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
   ctx.font = `700 ${it.fs}px ${FONT}`;
-  const subLines = wd.sub ? (() => { ctx.font = `400 ${Math.round(it.fs * 0.72)}px ${FONT}`; const l = wrapLines(ctx, wd.sub, r.w - 28); ctx.font = `700 ${it.fs}px ${FONT}`; return l; })() : [];
-  const total = it.lines.length * it.fs * 1.15 + subLines.length * it.fs * 0.72;
+  const subLines = wd.sub ? (() => { ctx.font = `400 ${Math.round(it.fs * 0.8)}px ${FONT}`; const l = wrapLines(ctx, wd.sub, r.w - 28); ctx.font = `700 ${it.fs}px ${FONT}`; return l; })() : [];
+  const total = it.lines.length * it.fs * 1.15 + subLines.length * it.fs * 0.8;
   const starsH = wd.stars && it.fs > 30 ? it.fs * 0.85 : 0;
   let y = r.y + dy + (r.h - total - starsH) / 2 + it.fs * 0.88;
   it.lines.forEach((l) => { ctx.fillText(l, r.x + r.w / 2, y); y += it.fs * 1.15; });
   if (subLines.length) {
-    ctx.font = `400 ${Math.round(it.fs * 0.72)}px ${FONT}`; ctx.globalAlpha = 0.85;
+    ctx.font = `400 ${Math.round(it.fs * 0.8)}px ${FONT}`; ctx.globalAlpha = 0.85;
     y -= it.fs * 0.2;
-    subLines.forEach((l) => { ctx.fillText(l, r.x + r.w / 2, y); y += it.fs * 0.72; });
+    subLines.forEach((l) => { ctx.fillText(l, r.x + r.w / 2, y); y += it.fs * 0.8; });
     ctx.globalAlpha = 1;
   }
   if (wd.stars) {
-    ctx.font = `400 ${Math.round(it.fs * 0.7)}px ${FONT}`; ctx.fillStyle = light ? '#ffe9a0' : '#b8431c';
+    ctx.font = `400 ${Math.round(it.fs * 0.8)}px ${FONT}`; ctx.fillStyle = light ? '#ffe9a0' : '#b8431c';
     const row = '★'.repeat(wd.stars) + '☆'.repeat(5 - wd.stars);
     if (starsH) { ctx.textAlign = 'center'; ctx.fillText(row, r.x + r.w / 2, r.y + dy + r.h - (r.h - total - starsH) / 2 - starsH * 0.2); }
     else { ctx.textAlign = 'right'; ctx.fillText(row, r.x + r.w - 16, r.y + dy + it.fs * 0.95); }
@@ -205,8 +205,10 @@ function drawButtonRect(ctx, r, it, wd) {
 }
 export function flowHit(lay, top, scroll, x, y) {
   for (const it of lay.items) {
-    if (it.w.t !== 'btn' || (it.w.disabled && !it.w.hitDisabled)) continue;
+    const tapArt = it.w.t === 'art' && it.w.id;
+    if (!tapArt && (it.w.t !== 'btn' || (it.w.disabled && !it.w.hitDisabled))) continue;
     const yy = top + it.y - scroll;
+    if (tapArt) { const hw = Math.min(it.wd, it.w.hitW ?? it.wd) / 2, cx = it.x + it.wd / 2; if (x >= cx - hw && x <= cx + hw && y >= yy && y <= yy + it.h) return it.w.id; continue; }
     if (x >= it.x && x <= it.x + it.wd && y >= yy && y <= yy + it.h) return it.w.id;
   }
   return null;

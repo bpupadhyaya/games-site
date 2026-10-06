@@ -1,11 +1,12 @@
 // All painted art: boteco wall with azulejo tiles, festive bunting, hanging bulbs, the felt table, the 40-card
 // deck (faces, backs, manilha glow), gesture faces, buttons. Static art is painted ONCE into cached layers; a frame
 // only draws them. No images: everything is canvas drawing.
-import { W, H, CW, CH, TABLE } from './layout.js';
+import { CW, CH } from './layout.js';
 import { suitOf, rankOf, RANKS } from './rules.js';
 
 export const FONT = '"Rockwell", "Rockwell Extra Bold", "Roboto Slab", Georgia, "Times New Roman", serif';
 export const UI = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
+export const fontMin = { v: 12 };   // smallest font (virtual units) any label may shrink to: ~11 css px, set each frame by the view
 export const GOLD = '#ffd23f', GOLD_D = '#c48a10', CREAM = '#fff6dd', GREEN = '#0f7a3f', BLUE = '#1c4fa0', INK = '#17120f', RED = '#c8102e';
 const TAU = Math.PI * 2;
 
@@ -79,8 +80,8 @@ export function leaf(g, x, y, len, ang, col) {
 }
 
 // ---- backgrounds ----------------------------------------------------------------------------------------------------
-let bgLayer = null, tableLayer = null;
-function paintBackground(g) {
+let bgLayer = null, bgKey = '', tableLayer = null, tableKey = '';
+function paintBackground(g, W, H) {
   const gr = g.createLinearGradient(0, 0, 0, H); gr.addColorStop(0, '#062f2a'); gr.addColorStop(0.55, '#0a4a3c'); gr.addColorStop(1, '#04221f');
   g.fillStyle = gr; g.fillRect(0, 0, W, H);
   tilePattern(g, 0, 0, W, H, 120, 'rgba(120,180,255,0.17)', 1.6);
@@ -95,10 +96,10 @@ function paintBackground(g) {
   g.strokeStyle = GOLD; g.lineWidth = 3; g.strokeRect(10, 10, W - 20, H - 20); g.strokeStyle = 'rgba(255,210,63,0.4)'; g.lineWidth = 1.5; g.strokeRect(22, 22, W - 44, H - 44);
 }
 const FLAGS = ['#ffd23f', '#1c4fa0', '#fff6dd', '#0f9a4f', '#e8452c', '#ffd23f', '#1c4fa0', '#fff6dd', '#0f9a4f', '#e8452c'];
-export function bunting(ctx, t, y0 = 0, amp = 1) {
+export function bunting(ctx, t, y0 = 0, amp = 1, W = 720) {
   // two sagging strings of triangular flags
   for (const [ya, yb, sag, off] of [[18, 40, 46, 0], [10, 26, 34, 3]]) {
-    const n = 13;
+    const n = Math.max(13, Math.round(W / 55));
     ctx.strokeStyle = 'rgba(255,246,221,0.65)'; ctx.lineWidth = 2; ctx.beginPath();
     for (let i = 0; i <= 40; i++) { const u = i / 40, x = u * W, y = y0 + ya + (yb - ya) * u + Math.sin(u * Math.PI) * sag; ctx[i ? 'lineTo' : 'moveTo'](x, y); }
     ctx.stroke();
@@ -121,13 +122,14 @@ function bulb(g, cx, top, s, t) {
   const b = g.createRadialGradient(cx - 6 * s, top + 44 * s, 2, cx, top + 52 * s, 30 * s); b.addColorStop(0, '#fffbe0'); b.addColorStop(0.5, `rgba(255,${200 + flick * 30},110,1)`); b.addColorStop(1, 'rgba(255,170,60,0.95)');
   g.fillStyle = b; g.beginPath(); g.arc(cx, top + 50 * s, 24 * s, 0, TAU); g.fill();
 }
-export function drawBackground(ctx, t) {
-  if (!bgLayer) bgLayer = layer(W, H, 1.5, paintBackground);
+export function drawBackground(ctx, t, W, H) {
+  const k = `${W}x${H}`;
+  if (!bgLayer || bgKey !== k) { bgLayer = layer(W, H, 1.5, (g) => paintBackground(g, W, H)); bgKey = k; }
   if (bgLayer) ctx.drawImage(bgLayer, 0, 0, W, H); else { ctx.fillStyle = '#073a31'; ctx.fillRect(0, 0, W, H); }
   bulb(ctx, 36, 84, 0.55, t); bulb(ctx, W - 36, 84, 0.55, t + 1.9);
 }
-function paintTable(g) {
-  const { x, y, w, h } = TABLE, c = 90;
+function paintTable(g, TABLE) {
+  const { x, y, w, h } = TABLE, c = Math.min(90, h / 3, w / 3);
   g.save(); g.shadowColor = 'rgba(0,0,0,0.6)'; g.shadowBlur = 36; g.shadowOffsetY = 14; rr(g, x - 22, y - 22, w + 44, h + 44, c + 20); g.fillStyle = '#2a170a'; g.fill(); g.restore();
   rr(g, x - 22, y - 22, w + 44, h + 44, c + 20);
   const wood = g.createLinearGradient(x, y, x + w, y + h); wood.addColorStop(0, '#9a5f2c'); wood.addColorStop(0.5, '#62381a'); wood.addColorStop(1, '#85502a'); g.fillStyle = wood; g.fill();
@@ -140,17 +142,21 @@ function paintTable(g) {
   for (let i = 0; i < 4200; i++) { g.fillStyle = `rgba(${rnd() < 0.5 ? '255,255,255' : '0,0,0'},0.035)`; g.fillRect(x + rnd() * w, y + rnd() * h, 2, 1); }
   // inlaid rhombus and disc (colours of the flag, very soft)
   const cx = x + w / 2, cy = y + h / 2;
-  g.strokeStyle = 'rgba(255,210,63,0.34)'; g.lineWidth = 3; g.beginPath(); g.moveTo(cx, cy - 235); g.lineTo(cx + 275, cy); g.lineTo(cx, cy + 235); g.lineTo(cx - 275, cy); g.closePath(); g.stroke();
-  g.strokeStyle = 'rgba(28,79,160,0.5)'; g.lineWidth = 3; g.beginPath(); g.arc(cx, cy, 130, 0, TAU); g.stroke();
-  g.strokeStyle = 'rgba(255,255,255,0.12)'; g.beginPath(); g.arc(cx, cy, 142, 0, TAU); g.stroke();
+  g.strokeStyle = 'rgba(255,210,63,0.34)'; g.lineWidth = 3; g.beginPath(); const rx = Math.min(275, w * 0.46), ry = Math.min(235, h * 0.42); g.moveTo(cx, cy - ry); g.lineTo(cx + rx, cy); g.lineTo(cx, cy + ry); g.lineTo(cx - rx, cy); g.closePath(); g.stroke();
+  g.strokeStyle = 'rgba(28,79,160,0.5)'; g.lineWidth = 3; g.beginPath(); g.arc(cx, cy, Math.min(130, h * 0.23, w * 0.22), 0, TAU); g.stroke();
+  g.strokeStyle = 'rgba(255,255,255,0.12)'; g.beginPath(); g.arc(cx, cy, Math.min(142, h * 0.25, w * 0.24), 0, TAU); g.stroke();
   g.fillStyle = 'rgba(255,210,63,0.12)'; star8(g, cx, cy, 40, 0, 0.5); g.fill();
   g.restore();
   rr(g, x, y, w, h, c); g.strokeStyle = 'rgba(0,0,0,0.5)'; g.lineWidth = 3; g.stroke();
 }
-export function drawTable(ctx, t) {
-  if (!tableLayer) tableLayer = layer(W, H, 1.5, paintTable);
-  if (tableLayer) ctx.drawImage(tableLayer, 0, 0, W, H);
-  const cx = W / 2, cy = TABLE.y + TABLE.h / 2, f = 0.9 + 0.1 * Math.sin(t * 1.3);
+export function drawTable(ctx, t, TABLE) {
+  const k = [TABLE.x, TABLE.y, TABLE.w, TABLE.h].map(Math.round).join(',');
+  if (!tableLayer || tableKey !== k) {
+    const pad = 70, T2 = { x: pad, y: pad, w: TABLE.w, h: TABLE.h };
+    tableLayer = layer(TABLE.w + 2 * pad, TABLE.h + 2 * pad, 1.5, (g) => paintTable(g, T2)); tableKey = k;
+  }
+  if (tableLayer) ctx.drawImage(tableLayer, TABLE.x - 70, TABLE.y - 70, TABLE.w + 140, TABLE.h + 140);
+  const cx = TABLE.x + TABLE.w / 2, cy = TABLE.y + TABLE.h / 2, f = 0.9 + 0.1 * Math.sin(t * 1.3);
   const g = ctx.createRadialGradient(cx, cy, 20, cx, cy, 340); g.addColorStop(0, `rgba(255,224,150,${0.15 * f})`); g.addColorStop(1, 'rgba(255,224,150,0)');
   ctx.fillStyle = g; ctx.fillRect(TABLE.x, TABLE.y, TABLE.w, TABLE.h);
 }
@@ -314,11 +320,11 @@ export function button(ctx, r, label, o = {}) {
   ctx.fillStyle = o.primary ? '#2a1606' : '#fff6dd'; ctx.textAlign = 'center';
   let size = o.size ?? 32;
   ctx.font = `800 ${size}px ${UI}`;
-  while (size > 12 && ctx.measureText(label).width > r.w - 24) { size -= 1; ctx.font = `800 ${size}px ${UI}`; }
+  while (size > Math.max(12, fontMin.v) && ctx.measureText(label).width > r.w - 24) { size -= 1; ctx.font = `800 ${size}px ${UI}`; }
   const cy = r.y + dy;
   if (o.sub) {
     ctx.fillText(label, r.x + r.w / 2, cy + r.h / 2 - 2);
-    let ss = Math.round(size * 0.56); ctx.font = `600 ${ss}px ${UI}`; while (ss > 10 && ctx.measureText(o.sub).width > r.w - 24) { ss -= 1; ctx.font = `600 ${ss}px ${UI}`; }
+    let ss = Math.max(Math.round(size * 0.56), Math.min(fontMin.v, size * 0.8)); ctx.font = `600 ${ss}px ${UI}`; while (ss > Math.max(10, fontMin.v) && ctx.measureText(o.sub).width > r.w - 24) { ss -= 1; ctx.font = `600 ${ss}px ${UI}`; }
     ctx.fillStyle = o.primary ? 'rgba(42,22,6,0.8)' : 'rgba(255,246,221,0.88)'; ctx.fillText(o.sub, r.x + r.w / 2, cy + r.h / 2 + size * 0.78);
   } else ctx.fillText(label, r.x + r.w / 2, cy + r.h / 2 + size * 0.35);
   ctx.restore();

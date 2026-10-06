@@ -3,8 +3,8 @@
   "title": "Word Game",
   "tagline": "Tap the matching word before it drifts away.",
   "genre": "vocabulary",
-  "orientation": "portrait",
-  "version": "1.0.1",
+  "orientation": "any",
+  "version": "1.1.3",
   "monetization": {
     "model": "premium",
     "priceUsd": 2.99,

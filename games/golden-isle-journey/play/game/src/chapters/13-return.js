@@ -1,8 +1,12 @@
 // Chapter 13: reunion, the flight home over every place visited, the city lighting its lamps,
 // and the crowning. Phases: reunion -> flight -> lamps -> crown.
-import { W, H, TAU, PAL, INK, GOLD, clamp, lerp, smooth, hash, sky, sun, stars, clouds, sea, ridge, treeline, skyline, hall, lamp, light, motes, finish, shadow, dome, wall, moon } from '../stage.js';
+import { FR, W, H, TAU, PAL, INK, GOLD, clamp, lerp, smooth, hash, sky, sun, stars, clouds, sea, ridge, treeline, skyline, hall, lamp, light, motes, finish, shadow, dome, wall, moon } from '../stage.js';
 import { figure, poses, stridePose, chariot, boulder, throne } from '../puppets.js';
 import { label, caption, meter } from '../ui.js';
+import { mode } from '../frame.js';
+
+// Landscape: each phase picks the part of the column it needs (reunion on the shore, the flight band, the city, the crowning).
+export const LAND_Y1 = (st) => (st?.phase === 'flight' ? 1130 : st?.phase === 'lamps' ? 1560 : 1400);
 
 const FLIGHT_T = 30, FLY_SPEED = 260, REGION = (FLIGHT_T * FLY_SPEED) / 5;
 const CITY_H = 2600, LAMP_T = 35, ROWS = 20, ROW_STEP = 118, REACH = 78;
@@ -15,15 +19,15 @@ export function create(env, shared) {
   const rows = [], lamps = [], folk = [];
   for (let r = 0; r < ROWS; r++) {
     const y = 2480 - r * ROW_STEP, blocks = [];
-    let x = -rng.range(10, 90);
-    while (x < W) { const w = rng.range(130, 230); blocks.push({ x, w, h: rng.range(26, 96), door: rng.chance(0.7), steps: rng.chance(0.3) }); x += w; }
+    let x = -900 - rng.range(10, 90);
+    while (x < 1700) { const w = rng.range(130, 230); blocks.push({ x, w, h: rng.range(26, 96), door: rng.chance(0.7), steps: rng.chance(0.3) }); x += w; }
     rows.push({ y, blocks });
     for (let k = 0; k < 3; k++) {
       const lx = clamp(120 + k * 240 + rng.range(-80, 80), 40, W - 40);
       const b = blocks.find((q) => lx >= q.x && lx < q.x + q.w) ?? blocks[0];
       lamps.push({ x: lx, y: y - b.h, lit: false });
     }
-    if (r % 2 === 1) { const b = blocks[1 + rng.int(Math.max(1, blocks.length - 2))]; folk.push({ x: b.x + b.w * 0.5, y: y - b.h, kind: rng.chance(0.5) ? 'woman' : 'citizen', dir: rng.chance(0.5) ? 1 : -1 }); }
+    if (r % 2 === 1) { const colB = blocks.filter((q) => q.x > 20 && q.x + q.w < W - 20), b = colB[rng.int(colB.length)] ?? blocks[1]; folk.push({ x: b.x + b.w * 0.5, y: y - b.h, kind: rng.chance(0.5) ? 'woman' : 'citizen', dir: rng.chance(0.5) ? 1 : -1 }); }
   }
   const lights = [];
   for (let i = 0; i < 30; i++) lights.push({ x: 700 + i * 235 + rng.range(-40, 40), y: 640 + Math.sin(i * 0.7) * 250 + rng.range(-60, 60), got: false });
@@ -49,7 +53,7 @@ export function create(env, shared) {
       if (keys.down.has('ArrowUp')) want = -500;
       if (keys.down.has('ArrowDown')) want = 500;
       s.vy = lerp(s.vy, want, 1 - Math.pow(0.002, dt));
-      s.carY = clamp(s.carY + s.vy * dt, 300, 980);
+      s.carY = clamp(s.carY + s.vy * dt, FR.land ? FR.y0 + 90 : 300, 980);
       const wx = s.phaseT * FLY_SPEED + 260;
       for (const q of s.lights) if (!q.got && Math.abs(q.x - wx) < 110 && Math.abs(q.y - s.carY) < 100) { q.got = true; s.gathered += 1; s.glowT = 0.5; shared.sfx('chime'); }
       if (s.phaseT >= FLIGHT_T) { go('lamps'); shared.sfx('good'); }
@@ -123,19 +127,19 @@ export function create(env, shared) {
   function drawFlight(ctx, t) {
     const u = clamp(s.phaseT / FLIGHT_T, 0, 1), scroll = s.phaseT * FLY_SPEED, rm = shared.rm();
     sky(ctx, PAL.dusk.sky, null);
-    ctx.fillStyle = `rgba(6,8,34,${u * 0.7})`; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = `rgba(6,8,34,${u * 0.7})`; ctx.fillRect(FR.x0 - 1, 0, FR.w + 2, H);
     stars(ctx, u, t, 0, 900);
     sun(ctx, 520 - u * 100, 900 + u * 320, 70, '255,196,120');
     clouds(ctx, { y: 200, h: 500, scroll: scroll * 0.05, color: 'rgba(120,60,110,0.4)', n: 7, seed: 2, scale: 1.3 });
     clouds(ctx, { y: 640, h: 300, scroll: scroll * 0.12, color: 'rgba(60,30,90,0.5)', n: 6, seed: 9 });
     ridge(ctx, { base: 1090, amp: 60, wl: 520, scroll: scroll * 0.2, color: 'rgba(40,26,70,0.9)', seed: 1 });
-    for (let i = 0; i < 6; i++) { const x0 = i * REGION - scroll, x1 = x0 + REGION; if (x1 > -200 && x0 < W + 200) region(ctx, Math.min(i, 4), Math.max(x0, -10), Math.min(x1, W + 10), scroll, t, u > 0.5); }
+    for (let i = 0; i < 6; i++) { const x0 = i * REGION - scroll, x1 = x0 + REGION; if (x1 > FR.x0 - 200 && x0 < FR.x1 + 200) region(ctx, Math.min(i, 4), Math.max(x0, FR.x0 - 10), Math.min(x1, FR.x1 + 10), scroll, t, u > 0.5); }
     ridge(ctx, { base: 1440, amp: 36, wl: 260, scroll: scroll * 1.3, color: '#07040c', seed: 14 });
     // drifting lights
     for (const q of s.lights) {
       if (q.got) continue;
       const x = q.x - scroll - 260 + 260, y = q.y + Math.sin(t * 2 + q.x) * 12;
-      if (x < -60 || x > W + 60) continue;
+      if (x < FR.x0 - 60 || x > FR.x1 + 60) continue;
       light(ctx, x, y, 70, '255,220,140', 0.8);
       ctx.fillStyle = '#fff2c4'; ctx.beginPath(); ctx.arc(x, y, 7, 0, TAU); ctx.fill();
     }
@@ -170,6 +174,7 @@ export function create(env, shared) {
       if (row.y - s.cam < -160 || row.y - s.cam > H + 420) continue;
       const k = r / ROWS, col = '#' + [16 + k * 22, 9 + k * 14, 22 + k * 36].map((v) => Math.round(v).toString(16).padStart(2, '0')).join('');
       for (const b of row.blocks) {
+        if (b.x + b.w < FR.x0 - 40 || b.x > FR.x1 + 40) continue;
         const top = row.y - b.h;
         wall(ctx, b.x, top, b.w + 1, b.h + 330, col, { glow: '255,196,110', top: 0.06 });
         ctx.fillStyle = col; ctx.fillRect(b.x - 4, top - 7, b.w + 9, 9);
@@ -192,7 +197,7 @@ export function create(env, shared) {
       }
     }
     ctx.restore();
-    ctx.fillStyle = `rgba(255,160,70,${ratio * 0.13})`; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = `rgba(255,160,70,${ratio * 0.13})`; ctx.fillRect(FR.x0 - 1, 0, FR.w + 2, H);
     motes(ctx, { n: Math.round(10 + ratio * 40), t, rgb: '255,210,130', kind: 'ember', rm });
     finish(ctx, 0.78 - ratio * 0.2);
     meter(ctx, 130, 150, 460, 20, ratio, '255,200,110', L.lit, `${s.lit} / ${s.lamps.length}`);
@@ -205,8 +210,8 @@ export function create(env, shared) {
     sky(ctx, P.sky, null);
     light(ctx, W / 2, 760, 700, '255,214,140', 0.65);
     hall(ctx, { scroll: -120, color: P.mid, top: 120, floor, gap: 240, t });
-    ctx.fillStyle = P.near; ctx.fillRect(0, floor, W, H - floor);
-    ctx.strokeStyle = 'rgba(242,196,106,0.5)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(0, floor + 3); ctx.lineTo(W, floor + 3); ctx.stroke();
+    ctx.fillStyle = P.near; ctx.fillRect(FR.x0 - 1, floor, FR.w + 2, H - floor);
+    ctx.strokeStyle = 'rgba(242,196,106,0.5)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(FR.x0 - 1, floor + 3); ctx.lineTo(FR.x1 + 1, floor + 3); ctx.stroke();
     // the throne: a wide seat for two under a domed back
     const tx = 440, seat = floor - 96;
     throne(ctx, tx, floor + 4, 400, 470, false);
@@ -239,7 +244,7 @@ export function create(env, shared) {
     else drawCrown(ctx, s.t);
     ctx.restore();
     const f = Math.max(0, 1 - s.phaseT * 2);
-    if (f > 0 && !(shared.showcase && s.phase === 'lamps')) { ctx.fillStyle = `rgba(6,2,8,${f})`; ctx.fillRect(0, 0, W, H); }
+    if (f > 0 && !(shared.showcase && s.phase === 'lamps')) { ctx.fillStyle = `rgba(6,2,8,${f})`; ctx.fillRect(FR.x0 - 1, 0, FR.w + 2, H); }
   }
 
   return {

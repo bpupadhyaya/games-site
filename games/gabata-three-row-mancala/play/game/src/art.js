@@ -59,24 +59,28 @@ export function text(ctx, str, x, y, size, color = '#fff', o = {}) {
 }
 
 // ---------------------------------------------------------------------------------------------------- background
-const FLECKS = Array.from({ length: 30 }, (_, i) => [((i * 97) % 211) / 211 * W, ((i * 53) % 173) / 173 * H, 0.6 + ((i * 31) % 7) / 7, ((i * 13) % 11) / 11]);
+const FLECKS = Array.from({ length: 30 }, (_, i) => [((i * 97) % 211) / 211, ((i * 53) % 173) / 173, 0.6 + ((i * 31) % 7) / 7, ((i * 13) % 11) / 11]);
 
-export function background(ctx, th, t, glowY = 700) {
-  const g = ctx.createLinearGradient(0, 0, 0, H);
+// Fills the whole live screen (w x h, default the phone canvas); glowY is the height of the soft light behind the board.
+export function background(ctx, th, t, glowY = 700, w = W, h = H) {
+  const g = ctx.createLinearGradient(0, 0, 0, h);
   g.addColorStop(0, th.bg[0]); g.addColorStop(0.5, th.bg[1]); g.addColorStop(1, th.bg[2]);
-  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
-  const hg = ctx.createRadialGradient(W / 2, glowY, 40, W / 2, glowY, 640);
+  ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+  const hg = ctx.createRadialGradient(w / 2, glowY, 40, w / 2, glowY, Math.max(640, w * 0.62));
   hg.addColorStop(0, th.glow); hg.addColorStop(1, 'rgba(0,0,0,0)');
-  ctx.fillStyle = hg; ctx.fillRect(0, 0, W, H);
-  for (const [x, y, s, ph] of FLECKS) {
-    const yy = (y + t * (3 + s * 3)) % H;
+  ctx.fillStyle = hg; ctx.fillRect(0, 0, w, h);
+  const n = Math.round(FLECKS.length * Math.max(1, (w * h) / (W * H)));
+  for (let i = 0; i < n; i++) {
+    const f = FLECKS[i % FLECKS.length], s = f[2], ph = f[3] + Math.floor(i / FLECKS.length) * 0.37;
+    const x = ((f[0] + Math.floor(i / FLECKS.length) * 0.618) % 1) * w, yy = (f[1] * h + t * (3 + s * 3)) % h;
     const a = 0.06 + 0.12 * (0.5 + 0.5 * Math.sin(t * 0.7 + ph * 9));
     ctx.fillStyle = `rgba(${th.fleck},${a})`;
     ctx.fillRect(x, yy, 2.2 * s, 2.2 * s);
   }
-  const vg = ctx.createRadialGradient(W / 2, H / 2, 560, W / 2, H / 2, 1020);
+  const hy = Math.hypot(w, h);
+  const vg = ctx.createRadialGradient(w / 2, h / 2, hy * 0.33, w / 2, h / 2, hy * 0.6);
   vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,0.5)');
-  ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = vg; ctx.fillRect(0, 0, w, h);
 }
 
 // ---------------------------------------------------------------------------------------------------- panels and buttons

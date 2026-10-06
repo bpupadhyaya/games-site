@@ -27,6 +27,7 @@ function pickQuality(q) {
 export async function createPresenter({ kitCanvas, quality }) {
   quality = pickQuality(quality);
   const fallback = { stage: null, wrap: (g) => g };
+  try { if (/[?&]no3d/.test(globalThis.location.search)) return fallback; } catch { /* ignore */ }   // dev: menus without loading the 3D court
   let V3;
   try { V3 = await import(LIB); } catch (e) { console.warn('view3d failed to load; using the 2D fallback', e); return fallback; }
   const { createStage, loadHuman, THREE } = V3;
@@ -42,7 +43,7 @@ export async function createPresenter({ kitCanvas, quality }) {
   if (!stage.supported) { canvas.remove(); return fallback; }
   let lost = false;
   stage.onContextLost(() => { lost = true; });
-  stage.onContextRestored(() => { lost = false; });
+  stage.onContextRestored(() => { lost = false; cssW = 0; cssH = 0; stage.resize(); stage.invalidate(); director.snap(); });
   stage.setLighting('indoor');
   stage.setSky(0x0e1a21, 0x0e1a21, { near: 22, far: 60 });
   const court = buildCourt(THREE);
@@ -234,24 +235,28 @@ export async function createPresenter({ kitCanvas, quality }) {
 
   // ---- placing the picture inside the HUD's view region ---------------------------------------------------------------------------------------------------------
   let cssW = 0, cssH = 0, scaleV = 1;
-  function layoutCanvas(viewRect) {
+  // The 3D canvas always fills the whole screen (CSS 100vw x 100dvh). The camera frames only the HUD's view region (`viewRect`, in the game's
+  // live virtual units: portrait = a band between the scoreboard and the buttons, landscape = the area left of the button card), by shifting
+  // the projection's centre (setViewOffset) and scaling the vertical field of view so the region, not the whole canvas, shows `fovRegion`.
+  function layoutCanvas(viewRect, scr) {
     const r = kitCanvas.getBoundingClientRect();
     const cw = r.width || globalThis.innerWidth, ch = r.height || globalThis.innerHeight;
     if (cw !== cssW || ch !== cssH) { cssW = cw; cssH = ch; stage.resize(); }
-    scaleV = Math.min(cw / 720, ch / 1280);
-    const ox = (cw - 720 * scaleV) / 2, oy = (ch - 1280 * scaleV) / 2;
-    // the picture lives inside the virtual screen only: the letterbox bars stay black like every other screen
-    canvas.style.clipPath = `inset(${Math.max(0, oy)}px ${Math.max(0, ox)}px ${Math.max(0, oy)}px ${Math.max(0, ox)}px)`;
-    const top = oy + viewRect.y * scaleV, h = viewRect.h * scaleV, w = 720 * scaleV;
-    return { cw, ch, top, h, w, ox, oy };
+    const vw = (scr && scr.w) || 720, vh = (scr && scr.h) || 1280;
+    scaleV = Math.min(cw / vw, ch / vh);
+    const ox = (cw - vw * scaleV) / 2, oy = (ch - vh * scaleV) / 2;
+    // beyond the widest supported aspect the kit letterboxes: the picture stays inside the virtual screen and the bars stay black
+    canvas.style.clipPath = ox > 0.5 || oy > 0.5 ? `inset(${Math.max(0, oy)}px ${Math.max(0, ox)}px ${Math.max(0, oy)}px ${Math.max(0, ox)}px)` : 'none';
+    const left = ox + viewRect.x * scaleV, top = oy + viewRect.y * scaleV, h = viewRect.h * scaleV, w = viewRect.w * scaleV;
+    return { cw, ch, left, top, h, w, ox, oy };
   }
   function applyView(L, fovRegion) {
     const c = camera;
     const fullFov = (2 * Math.atan(Math.tan((fovRegion * Math.PI) / 360) * (L.ch / L.h)) * 180) / Math.PI;
     c.fov = Math.min(100, fullFov);
     c.aspect = L.cw / L.ch;
-    const centre = L.top + L.h / 2;
-    if (c.setViewOffset) c.setViewOffset(L.cw, L.ch, 0, -(centre - L.ch / 2), L.cw, L.ch);
+    const cx = L.left + L.w / 2, cy = L.top + L.h / 2;
+    if (c.setViewOffset) c.setViewOffset(L.cw, L.ch, -(cx - L.cw / 2), -(cy - L.ch / 2), L.cw, L.ch);
     c.updateProjectionMatrix();
   }
 
@@ -323,7 +328,7 @@ export async function createPresenter({ kitCanvas, quality }) {
         else e.human.lookAt(null);
       }
     }
-    const L = layoutCanvas(s.viewRect || { y: 200, h: 500 });
+    const L = layoutCanvas(s.viewRect || { x: 0, y: 200, w: 720, h: 500 }, s.screen);
     const rt = sc.raid ? sc.raid.team : sc.pre ? sc.pre.team : 0, rid = sc.raid ? sc.raid.raider : sc.pre ? sc.pre.raider : 0;
     const dir = rt === 0 ? 1 : -1;
     const Ra = sc.actors[rt * 7 + rid];
@@ -359,7 +364,7 @@ export async function createPresenter({ kitCanvas, quality }) {
     ctx.save();
     ctx.font = '800 22px "Avenir Next","Segoe UI",Arial,sans-serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     const tgt = s.ui ? s.ui.target : null;
-    const top = s.viewRect ? s.viewRect.y + 74 : 0, bot = s.viewRect ? s.viewRect.y + s.viewRect.h : 1280;
+    const vr = s.viewRect || { x: 0, y: 0, w: 720, h: 1280 }, top = vr.y + 74, bot = vr.y + vr.h;
     for (const [g, e] of byG) {
       const a = sc.actors[g];
       if (a.role !== 'def' && a.role !== 'raider') continue;
@@ -367,7 +372,7 @@ export async function createPresenter({ kitCanvas, quality }) {
       proj.project(camera);
       if (proj.z > 1 || Math.abs(proj.x) > 1.1) continue;
       const x = sx(proj), y = sy(proj);
-      if (y < top + 14 || y > bot - 12) continue;
+      if (y < top + 14 || y > bot - 12 || x < vr.x + 14 || x > vr.x + vr.w - 14) continue;
       const isT = a.team === raid.def && tgt === a.idx && sc.phase === 'decide';
       const label = String(a.num), w = 34 + (label.length > 1 ? 8 : 0);
       ctx.fillStyle = a.team === 0 ? '#1d4590' : '#8c231c';

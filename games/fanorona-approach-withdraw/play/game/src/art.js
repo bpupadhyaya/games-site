@@ -3,7 +3,6 @@
 // an OffscreenCanvas and blitted; where OffscreenCanvas does not exist (the headless crash test) they paint directly.
 // Seeded LCG, never Math.random, so a frame is a pure function of its inputs.
 import { ROWS, COLS, DIRS, isStrong, idx, NEI } from './rules.js';
-import { W, H } from './layout.js';
 
 export const FONT = 'Georgia, "Times New Roman", serif';
 export const THEME_ORDER = ['rosewood', 'ebony', 'paper'];
@@ -56,10 +55,10 @@ const bakeCache = new Map();
 export function invalidateArt() { bakeCache.clear(); }
 // Paint `paint(ctx)` (drawing in local 0..w x 0..h) once, then blit at (x, y). `scale` bakes at higher resolution.
 export function baked(ctx, key, x, y, w, h, paint, scale = 1) {
-  const cv = newCanvas(Math.ceil(w * scale), Math.ceil(h * scale));
-  if (!cv) { ctx.save(); ctx.translate(x, y); paint(ctx); ctx.restore(); return; }
   let img = bakeCache.get(key);
   if (!img) {
+    const cv = newCanvas(Math.ceil(w * scale), Math.ceil(h * scale));
+    if (!cv) { ctx.save(); ctx.translate(x, y); paint(ctx); ctx.restore(); return; }
     const c = cv.getContext('2d'); c.scale(scale, scale); paint(c); img = cv; bakeCache.set(key, img);
   }
   ctx.drawImage(img, x, y, w, h);
@@ -85,9 +84,11 @@ function paintBackdrop(c, T, w, h) {
   vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,0.5)');
   c.fillStyle = vg; c.fillRect(0, 0, w, h);
 }
-export function drawBackdrop(ctx, themeName) {
-  const T = themeOf(themeName);
-  baked(ctx, `bd:${themeName}`, 0, 0, W, H, (c) => paintBackdrop(c, T, W, H), 0.5);
+// The backdrop fills the live screen; it is baked once per (theme, size) and older sizes are dropped.
+export function drawBackdrop(ctx, themeName, W, H) {
+  const T = themeOf(themeName), key = `bd:${themeName}:${Math.round(W)}x${Math.round(H)}`;
+  if (!bakeCache.has(key)) for (const k of [...bakeCache.keys()]) if (k.startsWith('bd:')) bakeCache.delete(k);
+  baked(ctx, key, 0, 0, W, H, (c) => paintBackdrop(c, T, W, H), 0.5);
 }
 
 // A baobab silhouette (the tree the island is known for): a swollen bottle trunk and a flat crown of branches.
@@ -214,7 +215,7 @@ export function drawBoard(ctx, themeName, x, y, o) {
   const T = themeOf(themeName), { w, h } = boardBox(o);
   // soft drop shadow onto the table
   ctx.save(); ctx.shadowColor = 'rgba(0,0,0,0.6)'; ctx.shadowBlur = 36; ctx.shadowOffsetY = 14; rr(ctx, x, y, w, h, 26); ctx.fillStyle = '#000'; ctx.fill(); ctx.restore();
-  baked(ctx, `board:${themeName}:${o.S}:${o.F}:${o.r0 ?? 0}${o.r1 ?? 4}${o.c0 ?? 0}${o.c1 ?? 8}${o.inlay === false ? 'n' : 'i'}`, x, y, w, h, (c) => paintBoard(c, T, o), 1);
+  baked(ctx, `board:${themeName}:${o.S}:${o.F}:${o.r0 ?? 0}${o.r1 ?? 4}${o.c0 ?? 0}${o.c1 ?? 8}${o.inlay === false ? 'n' : 'i'}`, x, y, w, h, (c) => paintBoard(c, T, o), 2);
 }
 
 // ---- stones --------------------------------------------------------------------------------------------------------
@@ -258,7 +259,12 @@ export function wrapLines(ctx, text, maxW) {
   return out;
 }
 // Set a font and shrink it until `text` fits one line of maxW (never below minPx).
+// The smallest type, in virtual units, that is still about 11 css pixels on this device (set each frame by view.js).
+let MIN_PX = 12;
+export const setMinPx = (v) => { MIN_PX = Math.max(11, v); };
+export const minPx = () => MIN_PX;
 export function fitFont(ctx, text, weight, px, maxW, minPx = 12) {
+  minPx = Math.min(Math.max(minPx, MIN_PX), px);
   let s = px;
   for (;;) { ctx.font = `${weight} ${s}px ${FONT}`; if (ctx.measureText(text).width <= maxW || s <= minPx) break; s -= 1; }
   return s;

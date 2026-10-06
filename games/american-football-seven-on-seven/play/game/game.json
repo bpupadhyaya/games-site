@@ -3,8 +3,8 @@
   "title": "American Football: 7 on 7",
   "tagline": "Call the play, then play your position: seven-a-side football in 3D.",
   "genre": "team sport with play-calling",
-  "orientation": "portrait",
-  "version": "1.0.1",
+  "orientation": "any",
+  "version": "1.1.2",
   "monetization": {
     "model": "premium",
     "priceUsd": 3.99,

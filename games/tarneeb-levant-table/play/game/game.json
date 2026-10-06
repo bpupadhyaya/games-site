@@ -3,8 +3,8 @@
   "title": "Tarneeb",
   "tagline": "The partnership card game of the Levant",
   "genre": "trick-taking card game",
-  "orientation": "portrait",
-  "version": "1.0.1",
+  "orientation": "any",
+  "version": "1.1.4",
   "monetization": {
     "model": "premium",
     "priceUsd": 2.99,

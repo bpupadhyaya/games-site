@@ -2,7 +2,8 @@
 // The kit hands the game ONE pointer; main.js adds a multi-touch hub (env.touches) so the stick and a button can be held together. Without the
 // hub (headless tests, plain mouse) the single pointer is used. Every touch is assigned to one control when it starts and keeps it until it ends,
 // so a stray second finger can never grab the stick or press a button that another finger is using.
-import { inCircle, inRect, hudLayout } from './layout.js';
+import { inCircle, inRect } from './layout.js';
+import { screenToWorldDir } from './camera.js';
 
 export function createControls() {
   const C = {
@@ -74,7 +75,7 @@ export function createControls() {
     return out;
   };
   // the abstract input the simulation reads
-  C.snapshot = (kb, wantSwipe) => {
+  C.snapshot = (kb, wantSwipe, mode = 'end') => {
     const stick = C.stick.mag > 0.12 ? C.stick : kb && kb.mag ? kb : { x: 0, y: 0, mag: 0 };
     const sprint = C.sprintT || (kb && kb.sprint) || C.stick.mag > 0.94;
     const b = C.btn.map((x, i) => {
@@ -83,10 +84,16 @@ export function createControls() {
     });
     C.keyPrev = new Set(kb ? kb.btn.map((x, i) => (x.down ? i : -1)).filter((i) => i >= 0) : []);
     let dive = null;
-    if (wantSwipe && C.swipe) { const l = Math.hypot(C.swipe.dx, C.swipe.dy) || 1; dive = { dx: -C.swipe.dx / l, dz: -C.swipe.dy / l * 0.6, up: C.swipe.dy / l < -0.75 && Math.abs(C.swipe.dx) < 40 }; }
+    if (wantSwipe && C.swipe) {
+      const l = Math.hypot(C.swipe.dx, C.swipe.dy) || 1, wd = screenToWorldDir(mode, C.swipe.dx / l, C.swipe.dy / l);
+      // end-on camera: sideways swipes dive, an upward swipe jumps. side-on camera: the goal mouth runs up and down the screen, so a vertical swipe
+      // dives sideways across it (the JUMP button still jumps).
+      dive = mode === 'side' ? { dx: wd.x, dz: wd.z * 0.6, up: false } : { dx: wd.x, dz: wd.z * 0.6, up: C.swipe.dy / l < -0.75 && Math.abs(C.swipe.dx) < 40 };
+    }
     const bt0 = C.btn[0];
-    // screen right = world -x, screen up = world +z
-    return { mx: -stick.x, mz: -stick.y, mag: stick.mag, spr: sprint, b, dive, curve: bt0.down || bt0.released ? -Math.max(-1, Math.min(1, bt0.dx / 60)) : 0 };
+    // the stick as a world direction for the camera mode: (screen right, screen down) -> (x, z)
+    const wv = screenToWorldDir(mode, stick.x, stick.y);
+    return { mx: wv.x, mz: wv.z, mag: stick.mag, spr: sprint, b, dive, curve: bt0.down || bt0.released ? -Math.max(-1, Math.min(1, bt0.dx / 60)) : 0 };
   };
   return C;
 }

@@ -1,14 +1,17 @@
 // GAME CONTRACT (docs/GAME-CONTRACT.md): exports meta and createGame(env) -> { update, render, getState }.
 // This file owns state and flow (scenes, input, turns, saving). Rules live in rules.js, the computer in ai.js,
 // everything drawn in view.js. `state` is plain JSON: closures hold nothing that matters.
-import { W, H, TRAY, DICE_SPOTS, inRect, posXY, hopPath } from './layout.js';
+import { W, H, UNIT, BOARD, TRAY, DICE_SPOTS, G, creditHit, useLayout, inRect, posXY, hopPath } from './layout.js';
 import { TRIES, SEAT_NAMES, newGame, legalMoves, checkMove, noMoveReason, applyMove, nextTurn, pairPenalty, onBoard, deepClone, homeCount, progressOf } from './rules.js';
 import { chooseMove, hintMove, describeMove } from './ai.js';
-import { screenButtons, screenLayout, readerPages, TEXT_SCALES, AP_THINK_STEPS, zoomOf } from './ui.js';
+import { screenButtons, screenLayout, readerMax, TEXT_SCALES, AP_THINK_STEPS, zoomOf } from './ui.js';
 import { render as draw } from './view.js';
 import { SEAT } from './art.js';
 
-export const meta = { width: W, height: H };
+// `meta.width/height` are updated live by the kit on every resize (fluid viewport, short side = 720); every position comes from layout.js.
+// Mouse wheel / trackpad scrolling for the readers and lists (main.js adds to dy, in virtual units).
+export const wheelInput = { dy: 0 };
+export const meta = { width: 720, height: 1560, fluid: { short: 720 } };
 
 const DEMO_GAMES = 2;
 const TURN_CAP = 2000;
@@ -30,6 +33,24 @@ export function createGame(env) {
     g: newGame({ humans: [true, false] }), phase: 'throw', wait: 0, msg: '', roll: null, opts: [], sel: -1, dieSel: 0, hop: null, fly: [], parts: [], sfx: [],
     tries: 0, run: 0, aiMove: null, apMove: null, ap: { paused: false }, autoT: null, res: null, over: null, shake: null, jailShake: [0, 0, 0, 0], fast: false, hintOn: false,
   };
+
+  // ---- layout follows the live size; screen-space animations are remapped when it changes (rotate / resize mid-game) ----------------
+  let seen = { cx: 0, cy: 0, S: 0, tx: 0, ty: 0, tw: 0 };
+  function ensureLayout(view) {
+    void view; const w = meta.width, h = meta.height;   // meta is live (the kit updates it on every resize)
+    useLayout(w, h, state.scene === 'title' ? 'title' : 'play');
+    if (seen.S && (Math.abs(seen.cx - BOARD.cx) + Math.abs(seen.cy - BOARD.cy) + Math.abs(seen.S - BOARD.S) > 0.5)) remap(seen);
+    seen = { cx: BOARD.cx, cy: BOARD.cy, S: BOARD.S, tx: TRAY.x + TRAY.w / 2, ty: TRAY.y + TRAY.h / 2, tw: TRAY.w };
+  }
+  function remap(o) {
+    const k = BOARD.S / o.S, f = (p) => { p.x = BOARD.cx + (p.x - o.cx) * k; p.y = BOARD.cy + (p.y - o.cy) * k; };
+    if (state.hop) state.hop.pts.forEach(f);
+    state.fly.forEach((q) => { f(q.from); f(q.to); });
+    if (state.hop) state.hop.fly.forEach((q) => { f(q.from); f(q.to); });
+    state.parts.forEach(f);
+    if (state.roll) state.roll.items.forEach((it) => { it.x0 = TRAY.x + TRAY.w / 2 + it.rx0; it.y0 = TRAY.y + TRAY.h + 40; });
+  }
+  ensureLayout();
 
   // ---- storage ----------------------------------------------------------------------------------------------
   storage.get('prefs', null).then((v) => {
@@ -135,7 +156,7 @@ export function createGame(env) {
     const g = state.g, calm = state.prefs.calm;
     const d = force ? force.slice() : [rng.int(6) + 1, rng.int(6) + 1], dbl = d[0] === d[1];
     g.rolls++; state.run = dbl ? state.run + 1 : 0;
-    const items = d.map((_, k) => ({ x0: 250 + k * 220 + (fx.next() - 0.5) * 40, y0: 1520, tx: DICE_SPOTS[k].x + (fx.next() - 0.5) * 36, ty: DICE_SPOTS[k].y + (fx.next() - 0.5) * 26, r0: fx.next() * 6.28, r1: (fx.next() - 0.5) * 0.7, face0: fx.int(6), dl: k * 0.06 }));
+    const items = d.map((_, k) => { const jx = (fx.next() - 0.5) * 36, jy = (fx.next() - 0.5) * 26, rx0 = (k - 0.5) * 220 + (fx.next() - 0.5) * 40; return { rx0, jx, jy, x0: TRAY.x + TRAY.w / 2 + rx0, y0: TRAY.y + TRAY.h + 40, r0: fx.next() * 6.28, r1: (fx.next() - 0.5) * 0.7, face0: fx.int(6), dl: k * 0.06 }; });
     state.roll = { t: 0, dur: calm ? 0.45 : 1.15, dice: d, rem: d.slice(), dbl, used: 0, items, pl: g.turn };
     state.phase = 'roll'; state.wait = 0; state.sel = -1; state.opts = []; state.autoT = null; state.hintOn = false;
     sounds.rattle();
@@ -253,9 +274,9 @@ export function createGame(env) {
 
   // ---- hitting things --------------------------------------------------------------------------------------------------------------
   function pawnAt(x, y) {
-    const g = state.g; let best = null, bd = 40;
+    const g = state.g; let best = null, bd = Math.max(36, 40 * UNIT);
     g.players.forEach((_, q) => g.pos[q].forEach((p, i) => {
-      const s = posXY(g, q, i, p), d = Math.hypot(s.x - x, s.y - 18 - y);
+      const s = posXY(g, q, i, p), d = Math.hypot(s.x - x, s.y - 18 * UNIT - y);
       if (d < bd) { bd = d; best = { pl: q, i, p }; }
     }));
     return best;
@@ -281,7 +302,7 @@ export function createGame(env) {
     const cur2 = dieOpts(state.dieSel);
     if (state.sel >= 0) {
       const m = cur2.find((o) => o.i === state.sel);
-      if (m) { const d = posXY(g, m.pl, m.i, m.to); if (Math.hypot(d.x - x, d.y - 14 - y) < 30) { play(m); return; } }
+      if (m) { const d = posXY(g, m.pl, m.i, m.to); if (Math.hypot(d.x - x, d.y - 14 * UNIT - y) < Math.max(26, 30 * UNIT)) { play(m); return; } }
     }
     const pw = pawnAt(x, y);
     if (!pw) { state.sel = -1; say('TAP one of the glowing pieces, or TAP a die to switch.'); return; }
@@ -322,15 +343,12 @@ export function createGame(env) {
     else if (id === 'rules') { go('rules'); s.rulesPage = 0; s.refFrom = 'title'; }
     else if (id === 'settings') go('settings');
     else if (id === 'back') {
-      if (s.scene === 'how') { if (s.howPage > 0) s.howPage -= 1; else leaveReader(); }
-      else if (s.scene === 'rules') { if (s.rulesPage > 0) s.rulesPage -= 1; else leaveReader(); }
-      else if (s.scene === 'about') { if (s.aboutPage > 0) s.aboutPage -= 1; else leaveReader(); }
+      if (s.scene === 'how' || s.scene === 'rules' || s.scene === 'about') leaveReader();
       else go('title');
     }
     else if (id === 'title') go('title');
     else if (id === 'page') {
-      const pages = readerPages(s.scene, zoomOf(s)), k = s.scene === 'how' ? 'howPage' : s.scene === 'rules' ? 'rulesPage' : 'aboutPage';
-      if (s[k] >= pages.length - 1) leaveReader(); else s[k] += 1;
+      s.scroll = 0;                                                  // "Top" in the readers
     }
     else if (id === 'textDec') { if (s.prefs.textScaleIdx > 0) { s.prefs.textScaleIdx--; savePrefs(); clampPages(); } }
     else if (id === 'textInc') { if (s.prefs.textScaleIdx < TEXT_SCALES.length - 1) { s.prefs.textScaleIdx++; savePrefs(); clampPages(); } }
@@ -354,9 +372,7 @@ export function createGame(env) {
   }
   function leaveReader() { go(state.refFrom || 'title'); }
   function clampPages() {
-    const sc = state.scene; if (sc !== 'how' && sc !== 'rules' && sc !== 'about') return;
-    const k = sc === 'how' ? 'howPage' : sc === 'rules' ? 'rulesPage' : 'aboutPage', n = readerPages(sc, zoomOf(state)).length;
-    state[k] = Math.min(state[k], n - 1);
+    state.scroll = Math.min(state.scroll || 0, readerMax(state));
   }
 
   // ---- update ---------------------------------------------------------------------------------------------------------------------------
@@ -422,22 +438,24 @@ export function createGame(env) {
     if (S.pick) { const m = state.opts.find(S.pick); if (m) selectMove(m); }
   }
 
+  const trayZone = () => ({ x: TRAY.x, y: TRAY.y - 20, w: TRAY.w, h: TRAY.h + 40 });
   const btnAt = (x, y) => screenButtons(state).find((b) => inRect(b, x, y) && (!b.clip || inRect(b.clip, x, y)));
 
   if (config.showcase) applyShowcase(config.showcase);
 
   return {
     update(dt, input) {
+      ensureLayout();
       const sc = state.scene, ptr = input.pointer, keys = input.keys.pressed;
       const inPlay = sc === 'play' || sc === 'autoplay';
       const paused = sc === 'autoplay' && state.ap.paused;
 
       // pointer: buttons act on release (so a drag can scroll), board taps act on press
       if (ptr.pressed) {
-        const b = btnAt(ptr.x, ptr.y);
-        state.press = { x: ptr.x, y: ptr.y, moved: false, s0: state.scroll, b: b && !b.dim ? b.id : null };
+        const b = btnAt(ptr.x, ptr.y), afZone = sc === 'title' && G.tt && G.tt.lockup ? creditHit(G.tt.lockup) : null;
+        state.press = { x: ptr.x, y: ptr.y, moved: false, s0: state.scroll, b: b && !b.dim ? b.id : null, af: Boolean(afZone && inRect(afZone, ptr.x, ptr.y)) };
         if (!b && inPlay && !state.menuOpen && !paused) {
-          if (canThrow() && inRect({ x: TRAY.x, y: TRAY.y - 20, w: TRAY.w, h: TRAY.h + 40 }, ptr.x, ptr.y)) { doThrow(); state.press = null; }
+          if (canThrow() && inRect(trayZone(), ptr.x, ptr.y)) { doThrow(); state.press = null; }
           else if (aiTurn() && sc === 'play' && state.phase !== 'won') state.fast = true;
           else if (sc === 'play') tapBoard(ptr.x, ptr.y);
         }
@@ -446,12 +464,14 @@ export function createGame(env) {
         const pr = state.press, dy = ptr.y - pr.y;
         if (Math.abs(dy) > 14 || Math.abs(ptr.x - pr.x) > 14) pr.moved = true;
         const lay = screenLayout(state);
-        if (pr.moved && lay && lay.maxScroll > 0) state.scroll = Math.min(Math.max(pr.s0 - dy, 0), lay.maxScroll);
+        const mx = lay ? lay.maxScroll : readerMax(state);
+        if (pr.moved && mx > 0) state.scroll = Math.min(Math.max(pr.s0 - dy, 0), mx);
       }
       if (ptr.released && state.press) {
         const pr = state.press; state.press = null;
         if (!pr.moved && pr.b) { const b = btnAt(ptr.x, ptr.y); if (b && b.id === pr.b) act(b.id); }
-        if (!state.menuOpen && canThrow() && pr.y > 900 && pr.y - ptr.y > 70) doThrow();
+        if (!pr.moved && pr.af && state.scene === 'title' && G.tt && inRect(creditHit(G.tt.lockup), ptr.x, ptr.y)) env.openArcforgeHome?.();
+        if (!state.menuOpen && canThrow() && inRect(trayZone(), pr.x, pr.y) && Math.hypot(ptr.x - pr.x, ptr.y - pr.y) > 70) doThrow();
       }
       // keyboard
       if (inPlay) {
@@ -466,7 +486,15 @@ export function createGame(env) {
       } else {
         const lay = screenLayout(state);
         if (lay && lay.maxScroll > 0) { if (keys.has('ArrowDown')) state.scroll = Math.min(lay.maxScroll, (state.scroll || 0) + 80); if (keys.has('ArrowUp')) state.scroll = Math.max(0, (state.scroll || 0) - 80); }
-        if (sc === 'how' || sc === 'about' || sc === 'rules') { if (keys.has('ArrowRight')) act('page'); if (keys.has('ArrowLeft')) act('back'); }
+        const rmx = readerMax(state);
+        if (sc === 'how' || sc === 'about' || sc === 'rules') {
+          const set = (v) => { state.scroll = Math.max(0, Math.min(rmx, v)); };
+          if (wheelInput.dy) { set((state.scroll || 0) + wheelInput.dy); wheelInput.dy = 0; }
+          for (const [k, d] of [['ArrowDown', 80], ['ArrowUp', -80], ['PageDown', 500], ['PageUp', -500], ['Space', 500]]) if (keys.has(k)) set((state.scroll || 0) + d);
+          if (keys.has('Home')) set(0); if (keys.has('End')) set(rmx);
+          if (keys.has('Escape')) act('back');
+        } else if (lay && wheelInput.dy) { state.scroll = Math.max(0, Math.min(lay.maxScroll, (state.scroll || 0) + wheelInput.dy)); wheelInput.dy = 0; }
+        wheelInput.dy = 0;
       }
 
       // everything below is the simulation: a paused Auto Play freezes ALL of it (timers, dice, hops, particles)
@@ -481,15 +509,15 @@ export function createGame(env) {
       for (const e of state.sfx) e.t -= dt;
       for (const e of state.sfx.filter((q) => q.t <= 0)) audio.tone(e.o);
       state.sfx = state.sfx.filter((q) => q.t > 0);
-      if ((sc === 'over' || sc === 'autoplay-over') && state.over && state.t % 1.2 < dt) burst(180 + fx.next() * 360, 420, [SEAT[state.g.players[state.over.winner].arm], '#ffe27a', '#fff4d6'], 14, 240, 6);
+      if ((sc === 'over' || sc === 'autoplay-over') && state.over && state.t % 1.2 < dt) burst(W * 0.25 + fx.next() * W * 0.5, G.cards.over.y + 90, [SEAT[state.g.players[state.over.winner].arm], '#ffe27a', '#fff4d6'], 14, 240, 6);
       if (inPlay && !state.menuOpen) flow(dt * (state.fast && aiTurn() && sc === 'play' ? 2.8 : 1));
       showcaseStep();
     },
-    render(ctx) { draw(ctx, state); },
+    render(ctx, view) { ensureLayout(view); draw(ctx, state); },
     getState: () => state,
     // Only real play counts against the kit's free-preview timer. Menus, setup, settings, How/Rules/About, the pause menu,
     // result screens and Auto Play (a free teaching demo) are all exempt.
     isPreviewExempt: () => !(state.scene === 'play' && !state.menuOpen),
   };
 }
-void H;
+void H; void W;

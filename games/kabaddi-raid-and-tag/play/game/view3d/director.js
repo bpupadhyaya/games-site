@@ -23,7 +23,9 @@ export function createDirector(THREE, camera) {
     const tanH = Math.tan((wantFov * Math.PI) / 360) * ctx.regionAspect;     // half horizontal extent per unit distance
     const fitDist = (pts, margin = 1.1, minD = 4.5, maxD = 13, lift = 0) => {
       const b = bbox(pts), w = Math.max(1.8, b.x1 - b.x0 + margin * 2), dz = Math.max(1, b.z1 - b.z0);
-      return Math.min(maxD, Math.max(minD, (w / 2) / tanH + dz / 2));
+      // a wide, short view region (landscape) shows less height per unit of distance: back off a little so the near court and the feet stay in frame
+      const boost = 1 + Math.min(0.35, Math.max(0, ctx.regionAspect - 1.6) * 0.5);
+      return Math.min(maxD * boost, Math.max(minD * boost, ((w / 2) / tanH + dz / 2) * boost));
     };
     let k = 0.35;
     if (shot === 'wide') {

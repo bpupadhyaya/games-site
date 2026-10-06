@@ -87,6 +87,7 @@ export function layoutDoc(blocks, scale, width, opts = {}) {
       it.h = it.lines.length * it.line + sp(b.gap ?? 16, scale);
     } else if (b.t === 'img') {
       it.h = b.h + sp(14, scale);
+      if (b.id) { const hw = Math.min(W, b.hitW ?? W); it.btns.push({ id: b.id, x: side + (W - hw) / 2, y, w: hw, h: it.h }); }
     } else if (b.t === 'gap') {
       it.h = sp(b.h, scale);
     } else if (b.t === 'btn') {

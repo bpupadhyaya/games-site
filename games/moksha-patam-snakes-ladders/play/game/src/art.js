@@ -40,26 +40,29 @@ function sprite(key, w, h, res, paint) {
 }
 
 // ---- backdrop: a dark teak table with a pool of lamp light -------------------------------------------------
-export function drawBackdrop(ctx) {
-  const res = Math.min(resOf(ctx), 2);
-  const cv = sprite('backdrop', W, H, res, (c) => paintBackdrop(c));
-  if (cv) ctx.drawImage(cv, 0, 0, W, H); else paintBackdrop(ctx);
+export function drawBackdrop(ctx, w = W, h = H) {
+  w = Math.round(w); h = Math.round(h);
+  const res = Math.min(resOf(ctx), 1.5);
+  const cv = sprite(`backdrop:${w}x${h}`, w, h, res, (c) => paintBackdrop(c, w, h));
+  if (cv) ctx.drawImage(cv, 0, 0, w, h); else paintBackdrop(ctx, w, h);
 }
-function paintBackdrop(c) {
+function paintBackdrop(c, W, H) {
   const g = c.createLinearGradient(0, 0, 0, H);
   g.addColorStop(0, '#2c1b12'); g.addColorStop(0.5, '#1f120b'); g.addColorStop(1, '#130a06');
   c.fillStyle = g; c.fillRect(0, 0, W, H);
   const rnd = lcg(77);
   c.lineCap = 'round';
-  for (let i = 0; i < 70; i++) { // long soft wood grain
+  const grains = Math.round(70 * Math.max(1, (W * H) / (720 * 1280)));
+  for (let i = 0; i < grains; i++) { // long soft wood grain
     const x = rnd() * W, y = rnd() * H, len = 200 + rnd() * 500;
     c.strokeStyle = rnd() < 0.5 ? 'rgba(255,200,140,0.035)' : 'rgba(0,0,0,0.10)'; c.lineWidth = 1 + rnd() * 3;
     c.beginPath(); c.moveTo(x, y); c.bezierCurveTo(x + 30, y + len * 0.3, x - 25, y + len * 0.6, x + 8, y + len); c.stroke();
   }
-  const pool = c.createRadialGradient(W / 2, 470, 60, W / 2, 470, 760);
+  const cy = Math.min(H * 0.4, 520), rr = Math.max(W, H) * 0.6;
+  const pool = c.createRadialGradient(W / 2, cy, 60, W / 2, cy, rr);
   pool.addColorStop(0, 'rgba(255,190,110,0.20)'); pool.addColorStop(1, 'rgba(255,190,110,0)');
   c.fillStyle = pool; c.fillRect(0, 0, W, H);
-  const v = c.createRadialGradient(W / 2, H / 2, 380, W / 2, H / 2, 900);
+  const v = c.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.5, W / 2, H / 2, Math.max(W, H) * 0.72);
   v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(0,0,0,0.55)');
   c.fillStyle = v; c.fillRect(0, 0, W, H);
 }
@@ -362,17 +365,30 @@ export function drawButton(ctx, r, label, o = {}) {
   if (pressed) { ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.fill(); }
   ctx.lineWidth = 2; ctx.strokeStyle = primary ? '#ffd88c' : active ? '#8fa7e6' : 'rgba(244,222,180,0.45)'; ctx.stroke();
   ctx.fillStyle = primary ? '#2b1204' : '#f9ecd0'; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
-  ctx.font = `700 ${fontPx}px ${FONT}`;
-  const ls = lines ?? [label], lh = Math.round(fontPx * 1.2), total = ls.length * lh + (sub ? Math.round(fontPx * 0.9) : 0);
-  let y = r.y + dy + (r.h - total) / 2 + fontPx * 0.92;
+  let fp = fontPx; ctx.font = `700 ${fp}px ${FONT}`;
+  if (!lines) while (fp > 12 && ctx.measureText(label).width > r.w - 14) { fp -= 1; ctx.font = `700 ${fp}px ${FONT}`; }
+  const ls = lines ?? [label], lh = Math.round(fp * 1.2), total = ls.length * lh + (sub ? Math.round(fp * 0.9) : 0);
+  let y = r.y + dy + (r.h - total) / 2 + fp * 0.92;
   for (const l of ls) { ctx.fillText(l, r.x + r.w / 2, y); y += lh; }
   if (sub) { ctx.font = `400 ${Math.round(fontPx * 0.62)}px ${FONT}`; ctx.globalAlpha *= 0.85; ctx.fillText(sub, r.x + r.w / 2, y - fontPx * 0.1); }
   ctx.restore();
 }
 
+// Word wrap. A single word wider than the line (e.g. "ladder-and-serpent" at 300% text) is broken after a hyphen where one fits, else at a letter.
 export function wrapLines(ctx, text, maxW) {
   const words = String(text).split(' '), out = []; let line = '';
-  for (const w of words) { const t = line ? line + ' ' + w : w; if (ctx.measureText(t).width > maxW && line) { out.push(line); line = w; } else line = t; }
+  for (const w of words) {
+    if (ctx.measureText(w).width > maxW) {
+      if (line) { out.push(line); line = ''; }
+      let part = '';
+      for (const ch of w) {
+        if (part && ctx.measureText(part + ch).width > maxW) { const h = part.lastIndexOf('-'); if (h > 0 && h < part.length - 1) { out.push(part.slice(0, h + 1)); part = part.slice(h + 1) + ch; } else { out.push(part); part = ch; } } else part += ch;
+      }
+      line = part; continue;
+    }
+    const t = line ? line + ' ' + w : w;
+    if (ctx.measureText(t).width > maxW && line) { out.push(line); line = w; } else line = t;
+  }
   out.push(line); return out;
 }
 export function panel(ctx, r, o = {}) {

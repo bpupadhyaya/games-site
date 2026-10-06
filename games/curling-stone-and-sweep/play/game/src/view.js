@@ -4,7 +4,7 @@
 import { R, HALF_W, HOG_FAR, HOG_NEAR, BACK, HOUSE_R, BUTTON_R, FOUR_R, EIGHT_R, NEAR_TEE, toButton } from './sim.js';
 import { TEAM, drawHouse, drawStone, drawBrushes, startIceBake, TILE_M, setHost, canBake, lcg } from './art.js';
 import { W, H, TEXT_SCALES, playLayout, inRect } from './layout.js';
-import { FONT, C, roundPath, drawButton, panel, wrapLines } from './ui.js';
+import { FONT, C, roundPath, drawButton, panel, wrapLines, FLOOR } from './ui.js';
 import { WEIGHTS } from './match.js';
 
 const TAU = Math.PI * 2;
@@ -43,38 +43,50 @@ const NEAR_FAR = 2.5;                       // near-end scale over far-end (hous
 const R_NEAR = 28, R_FAR = 12;              // drawn stone radius (virtual px) at the near end and at the house end of the main view
 export function makeCam(state, lay0) {
   // Always built from the tallest-controls layout (aim), whatever the phase, so the sheet never shifts when the control bar changes.
+  // The sheet is drawn in a "frame" of virtual portrait coordinates: in portrait the frame IS the screen; in landscape the frame is turned
+  // a quarter turn onto the sheet rectangle (the sheet then runs left to right, house on the right). cam.apply(ctx) sets that transform,
+  // cam.toScreen / cam.toLocal convert points, so a finger always maps through the exact inverse of what is drawn.
   const lay = playLayout(textScale(state), 'aim');
   void lay0;
-  const rh = lay.regionBottom - lay.regionTop, top = lay.regionTop;
+  const sh = lay.sheet, rot = !!lay.land;
+  const fw = rot ? sh.h : sh.w, fh = rot ? sh.w : sh.h;
+  const top = rot ? 22 : sh.y, rh = rot ? fh - 30 : fh;
+  const x0 = rot ? 0 : sh.x, cxm = x0 + fw / 2, bot0 = top + rh;
   const S = Math.round(Math.min(232, rh * 0.42));
-  const rect = { x: W - 14 - S, y: top + 6, w: S, h: S };
-  const sFar = Math.min(48, (W / 2 - 14 - S - 6) / HALF_W);
-  const sNear = Math.min(sFar * NEAR_FAR, 700 / (2 * HALF_W));
+  const rect = { x: x0 + fw - 14 - S, y: top + 6, w: S, h: S };
+  const sFar = Math.min(48, (fw / 2 - 14 - S - 6) / HALF_W);
+  const sNear = Math.min(sFar * NEAR_FAR, (fw - 20) / (2 * HALF_W));
   const L = VIEW_TOP - VIEW_BOT, c = L / (sNear / sFar - 1);
-  const A = sNear * c, K = rh / Math.log((c + L) / c), bot = top + rh;   // vertical scale K/z (like across: A/z), so circles keep their shape
+  const A = sNear * c, K = rh / Math.log((c + L) / c), bot = bot0;   // vertical scale K/z (like across: A/z), so circles keep their shape
   const uOf = (y) => y - VIEW_BOT;
   const sx = (y) => A / (c + uOf(y));
   const sy = (y) => K / (c + uOf(y));
   const sFarA = A / (c + L), sNearA = A / c;
   const rad = (y) => R_FAR + (R_NEAR - R_FAR) * (sx(y) - sFarA) / (sNearA - sFarA);
   const Y = (y) => bot - K * Math.log((c + uOf(y)) / c);
-  const X = (x, y) => W / 2 + x * sx(y);
+  const X = (x, y) => cxm + x * sx(y);
   const yAt = (py) => VIEW_BOT + c * Math.exp((bot - py) / K) - c;
-  const xAt = (px, y) => (px - W / 2) / sx(y);
+  const xAt = (px, y) => (px - cxm) / sx(y);
   // the inset: top-down, uniform, centred on the button
   const ips = S / 4.0, icx = rect.x + S / 2, icy = rect.y + S / 2;
   const ins = { inset: true, rect, ppm: ips, X: (x) => icx + x * ips, Y: (y) => icy - y * ips, sx: () => ips, sy: () => ips, rad: () => R * ips * 1.4,
     yAt: (py) => (icy - py) / ips, xAt: (px) => (px - icx) / ips };
-  return { ppm: sx(0), top, rh, bottom: bot, X, Y, yAt, xAt, sx, sy, rad, rect, ins, lay };
+  const toLocal = rot ? (px, py) => [py - sh.y, sh.x + fh - px] : (px, py) => [px, py];
+  const toScreen = rot ? (px, py) => [sh.x + fh - py, sh.y + px] : (px, py) => [px, py];
+  const apply = (ctx) => { if (rot) { ctx.translate(sh.x + fh, sh.y); ctx.rotate(Math.PI / 2); } };
+  const full = rot ? { x: 0, y: 0, w: fw, h: fh } : { x: 0, y: 0, w: W, h: H };
+  const cam = { ppm: sx(0), top, rh, bottom: bot, X, Y, yAt, xAt, sx, sy, rad, rect, ins, lay, rot, toLocal, toScreen, apply, full, sheet: sh };
+  ins.rot = rot; ins.toScreen = toScreen; ins.full = full;
+  return cam;
 }
-// How far above the finger the broom sits, so the finger never hides it.
-export const aimShift = (cam, px, py) => (inRect(cam.rect, px, py) ? 44 : 64);
-// Screen point (a finger) to a world target, through whichever fixed view the finger is in. Exact inverse of cam.X / cam.Y.
+// How far above the finger the broom sits (screen pixels), so the finger never hides it.
+export const aimShift = (cam, px, py) => { const [lx, ly] = cam.toLocal(px, py); return inRect(cam.rect, lx, ly) ? 44 : 64; };
+// Screen point (a finger) to a world target, through whichever fixed view the finger is in. Exact inverse of cam.X / cam.Y + the frame.
 export function aimToWorld(cam, px, py) {
-  const inIns = inRect(cam.rect, px, py), v = inIns ? cam.ins : cam;
-  const sy = py - aimShift(cam, px, py);
-  const y = v.yAt(sy);
-  return { x: v.xAt(px, y), y };
+  const [fx, fy] = cam.toLocal(px, py), inIns = inRect(cam.rect, fx, fy), v = inIns ? cam.ins : cam;
+  const [lx, ly] = cam.toLocal(px, py - aimShift(cam, px, py));
+  const y = v.yAt(ly);
+  return { x: v.xAt(lx, y), y };
 }
 
 // The rings follow the lengthwise map (each ring is a polygon through X/Y), so a stone on a ring edge sits exactly on the ring.
@@ -172,12 +184,12 @@ function iceFill(ctx, cam, x0, x1) {
   return g;
 }
 export function drawSheet(ctx, cam, state) {
-  const { X, Y } = cam;
+  const { X, Y } = cam, F = cam.full;
   const yT = VIEW_TOP, yB = VIEW_BOT - 6;
-  ctx.fillStyle = '#08121f'; ctx.fillRect(0, 0, W, H);
-  const bg = ctx.createLinearGradient(0, 0, 0, H);
+  ctx.fillStyle = '#08121f'; ctx.fillRect(F.x, F.y, F.w, F.h);
+  const bg = ctx.createLinearGradient(0, F.y, 0, F.y + F.h);
   bg.addColorStop(0, '#0d2036'); bg.addColorStop(1, '#091727');
-  ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = bg; ctx.fillRect(F.x, F.y, F.w, F.h);
   const quad = (xa, xb, ya, yb) => { ctx.beginPath(); ctx.moveTo(X(xa, ya), Y(ya)); ctx.lineTo(X(xb, ya), Y(ya)); ctx.lineTo(X(xb, yb), Y(yb)); ctx.lineTo(X(xa, yb), Y(yb)); ctx.closePath(); };
   // boards on both sides, narrowing with distance like the ice
   for (const dir of [-1, 1]) {
@@ -196,8 +208,8 @@ export function drawSheet(ctx, cam, state) {
     if (!icePat) icePat = ctx.createPattern(tile, 'repeat');
     if (icePat) {
       const sc = (cam.ppm * 0.8 * TILE_M) / 512;
-      ctx.save(); ctx.translate(W / 2, Y(-8)); ctx.scale(sc, sc);
-      ctx.fillStyle = icePat; ctx.globalAlpha = 0.85; ctx.fillRect(-W / sc, -H / sc, 2 * W / sc, 2 * H / sc);
+      ctx.save(); ctx.translate(X(0, -8), Y(-8)); ctx.scale(sc, sc);
+      ctx.fillStyle = icePat; ctx.globalAlpha = 0.85; ctx.fillRect(-F.w / sc, -F.h / sc, 2 * F.w / sc, 2 * F.h / sc);
       ctx.restore();
     }
   }
@@ -222,17 +234,18 @@ export function drawSheet(ctx, cam, state) {
   ctx.fillStyle = 'rgba(20,30,44,0.85)';
   for (const hx of [-0.14, 0.14]) { const y0 = VIEW_BOT + 0.15, y1 = y0 + 0.5; ctx.beginPath(); ctx.moveTo(X(hx - 0.07, y0), Y(y0)); ctx.lineTo(X(hx + 0.07, y0), Y(y0)); ctx.lineTo(X(hx + 0.07, y1), Y(y1)); ctx.lineTo(X(hx - 0.07, y1), Y(y1)); ctx.closePath(); ctx.fill(); }
   // soft lights reflected in the ice (fixed on screen)
-  for (const [lx, ly, lr, a] of [[210, 330, 260, 0.18], [530, 760, 300, 0.14], [260, 1100, 240, 0.12]]) {
+  for (const [fx, fy, lr, a] of [[0.29, 0.26, 260, 0.18], [0.74, 0.59, 300, 0.14], [0.36, 0.86, 240, 0.12]]) {
+    const lx = F.x + F.w * fx, ly = F.y + F.h * fy;
     const lg = ctx.createRadialGradient(lx, ly, 0, lx, ly, lr);
     lg.addColorStop(0, `rgba(255,255,255,${a})`); lg.addColorStop(1, 'rgba(255,255,255,0)');
-    ctx.fillStyle = lg; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = lg; ctx.fillRect(F.x, F.y, F.w, F.h);
   }
   ctx.restore();
   // end board
   ctx.fillStyle = '#16293f'; ctx.beginPath(); ctx.moveTo(X(-HALF_W - 0.5, yT), Y(yT)); ctx.lineTo(X(HALF_W + 0.5, yT), Y(yT)); ctx.lineTo(X(HALF_W + 0.5, yT), Y(yT) - 18); ctx.lineTo(X(-HALF_W - 0.5, yT), Y(yT) - 18); ctx.closePath(); ctx.fill();
-  const vg = ctx.createLinearGradient(0, 0, 0, H);
+  const vg = ctx.createLinearGradient(0, F.y, 0, F.y + F.h);
   vg.addColorStop(0, 'rgba(4,12,24,0.35)'); vg.addColorStop(0.2, 'rgba(4,12,24,0)'); vg.addColorStop(0.8, 'rgba(4,12,24,0)'); vg.addColorStop(1, 'rgba(4,12,24,0.4)');
-  ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = vg; ctx.fillRect(F.x, F.y, F.w, F.h);
 }
 
 // The fixed top-down house inset. Everything drawn inside is clipped to it.
@@ -272,6 +285,12 @@ export function dispOf(state, s) {
 }
 const lerpAng = (a, b, k) => { let d = b - a; while (d > Math.PI) d -= TAU; while (d < -Math.PI) d += TAU; return a + d * k; };
 
+// Draw something centred on (x, y) of the frame, turned back upright when the frame is turned a quarter (landscape), so a stone's lit
+// handle and a ghost marker keep their natural look. With `local`, the callback draws at (0, 0).
+function upright(ctx, cam, x, y, fn, local) {
+  if (!cam.rot) { if (local) { ctx.save(); ctx.translate(x, y); fn(); ctx.restore(); } else fn(); return; }
+  ctx.save(); ctx.translate(x, y); ctx.rotate(-Math.PI / 2); fn(); ctx.restore();
+}
 // ---- stones, trail, brushes, particles ---------------------------------------------------------------------------------------
 export function drawStones(ctx, cam, state, w, o = {}) {
   const hl = o.highlight ?? null;
@@ -279,7 +298,7 @@ export function drawStones(ctx, cam, state, w, o = {}) {
     if (s.mode === 'out' && s.out > 0.9) continue;
     const dp = dispOf(state, s);
     const x = cam.X(dp.x, dp.y), y = cam.Y(dp.y), rpx = cam.rad(dp.y);
-    if (y < -60 || y > H + 60) continue;
+    if (cam.rot ? (x < -80 || x > cam.full.w + 80 || y < -80 || y > cam.full.h + 80) : (y < -60 || y > H + 60)) continue;
     let a = 1, k = 1;
     if (s.mode === 'out') { a = Math.max(0, 1 - s.out / 0.9); k = 1 + s.out * 0.25; }
     const sp = Math.hypot(s.vx, s.vy);
@@ -292,7 +311,7 @@ export function drawStones(ctx, cam, state, w, o = {}) {
       ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - nx * len, y - ny * len); ctx.stroke();
     }
     const gl = hl && hl.has(s.id) ? 0.55 + 0.35 * Math.sin(state.t * 6) : (s.heat ?? 0);
-    drawStone(ctx, x, y, rpx * k, s.team, -dp.a, { a, glow: gl, speck: s.id });
+    upright(ctx, cam, x, y, () => drawStone(ctx, 0, 0, rpx * k, s.team, -dp.a, { a, glow: gl, speck: s.id }), true);
   }
 }
 
@@ -366,12 +385,12 @@ export function drawAim(ctx, cam, state) {
     ctx.beginPath(); pv.path.forEach((p, i) => { const x = cam.X(p[0], p[1]), y = cam.Y(p[1]); if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); }); ctx.stroke();
     if (pv.end) {
       const ex = cam.X(pv.end.x, pv.end.y), ey = cam.Y(pv.end.y);
-      drawStone(ctx, ex, ey, rpx, state.m.turn, 0.6, { a: 0.5, ghost: true });
+      upright(ctx, cam, ex, ey, () => drawStone(ctx, 0, 0, rpx, state.m.turn, 0.6, { a: 0.5, ghost: true }), true);
       ctx.lineWidth = 2.5; ctx.strokeStyle = pv.end.kind === 'contact' ? 'rgba(255,170,60,0.95)' : pv.end.kind === 'out' ? 'rgba(255,90,70,0.95)' : 'rgba(255,255,255,0.9)';
       ctx.beginPath(); ctx.arc(ex, ey, rpx * 1.35, 0, TAU); ctx.stroke();
     }
   }
-  if (state.finalPreview) for (const g of state.finalPreview) drawStone(ctx, cam.X(g.x, g.y), cam.Y(g.y), cam.rad(g.y), g.team, 0.5, { a: 0.5, ghost: true });
+  if (state.finalPreview) for (const g of state.finalPreview) upright(ctx, cam, cam.X(g.x, g.y), cam.Y(g.y), () => drawStone(ctx, 0, 0, cam.rad(g.y), g.team, 0.5, { a: 0.5, ghost: true }), true);
   // the broom: where the thrower is aiming. A flat brush head with a pole, drawn as an object.
   const pulse = 1 + Math.sin(state.t * 5) * 0.05;
   ctx.strokeStyle = 'rgba(25,60,110,0.85)'; ctx.lineWidth = 2;
@@ -389,9 +408,9 @@ export function drawAim(ctx, cam, state) {
 
 // ---- text helpers ------------------------------------------------------------------------------------------------------------------
 export function fit(ctx, text, maxW, size, weight = 700, minK = 0.5) {
-  let px = size;
+  let px = Math.max(size, FLOOR);
   ctx.font = `${weight} ${px}px ${FONT}`;
-  while (ctx.measureText(text).width > maxW && px > size * minK) { px -= 1; ctx.font = `${weight} ${px}px ${FONT}`; }
+  while (ctx.measureText(text).width > maxW && px > Math.max(size * minK, FLOOR)) { px -= 1; ctx.font = `${weight} ${px}px ${FONT}`; }
   return px;
 }
 function pips(ctx, x, y, n, total, team, r) {
@@ -404,8 +423,15 @@ function pips(ctx, x, y, n, total, team, r) {
 }
 
 // ---- scoreboard --------------------------------------------------------------------------------------------------------------------
+// The landscape panel behind the scoreboard and the controls (portrait has a strip behind the controls only; see drawControls).
+export function drawPanelBg(ctx, lay) {
+  if (!lay.land) return;
+  const bx = lay.box.x;
+  ctx.fillStyle = 'rgba(6,18,34,0.96)'; ctx.fillRect(bx - 4, 0, W - bx + 4, H);
+  ctx.fillStyle = 'rgba(140,200,245,0.28)'; ctx.fillRect(bx - 4, 0, 2, H);
+}
 export function drawHud(ctx, state, lay) {
-  const m = state.m, hud = lay.hud, sc = textScale(state), fs = hud.fs;
+  const m = state.m, hud = lay.hud, sc = lay.s, fs = hud.fs;
   const names = state.names;
   const total = m.fmt.perSide;
   const panelFill = 'rgba(8,22,40,0.86)';
@@ -415,7 +441,7 @@ export function drawHud(ctx, state, lay) {
   ctx.save();
   ctx.textBaseline = 'alphabetic';
   if (!hud.stacked) {
-    const cards = [{ x: 12, w: 262, t: 0 }, { x: 446, w: 262, t: 1 }];
+    const cards = [{ x: hud.x + 12, w: 262, t: 0 }, { x: hud.x + hud.w - 12 - 262, w: 262, t: 1 }];
     for (const c of cards) {
       const turn = m.turn === c.t && m.phase !== 'score' && m.phase !== 'over';
       roundPath(ctx, c.x, hud.y, c.w, hud.h, 20 * Math.min(sc, 1.2)); ctx.fillStyle = panelFill; ctx.fill();
@@ -428,39 +454,39 @@ export function drawHud(ctx, state, lay) {
       ctx.font = `800 ${sf}px ${FONT}`; ctx.textAlign = 'right'; ctx.fillStyle = '#ffffff'; ctx.fillText(String(m.scores[c.t]), c.x + c.w - 14, hud.y + hud.h * 0.42);
       pips(ctx, c.x + 22, hud.y + hud.h * 0.8, left(c.t), total, c.t, 5.5 * Math.min(sc, 1.3));
     }
-    const cw = 152, cx0 = 12 + 262 + 10;
+    const cx0 = hud.x + 12 + 262 + 10, cw = hud.w - 24 - 524 - 20;
     roundPath(ctx, cx0, hud.y, cw, hud.h, 20 * Math.min(sc, 1.2)); ctx.fillStyle = panelFill; ctx.fill();
     ctx.lineWidth = 1.5; ctx.strokeStyle = 'rgba(150,190,225,0.4)'; ctx.stroke();
     ctx.textAlign = 'center'; ctx.fillStyle = C.text;
     fit(ctx, endTxt, cw - 12, fs * 1.05, 800, 0.5); ctx.fillText(endTxt, cx0 + cw / 2, hud.y + hud.h * 0.58);
     if (lastTxt) { ctx.fillStyle = C.gold; fit(ctx, lastTxt, cw - 10, fs * 0.72, 600, 0.5); ctx.fillText(lastTxt, cx0 + cw / 2, hud.y + hud.h * 0.86); }
   } else {
-    const rowH = hud.row, pad = 12;
-    roundPath(ctx, 10, hud.y, W - 20, hud.h, 22); ctx.fillStyle = panelFill; ctx.fill();
+    const rowH = hud.row, pad = 12, hx = hud.x, hw = hud.w;
+    roundPath(ctx, hx + 10, hud.y, hw - 20, hud.h, 22); ctx.fillStyle = panelFill; ctx.fill();
     ctx.lineWidth = 1.5; ctx.strokeStyle = 'rgba(150,190,225,0.4)'; ctx.stroke();
     let y = hud.y + pad;
     // row 1: end and last stone
-    const half = (W - 40) * 0.42;
+    const half = (hw - 40) * 0.42;
     ctx.textAlign = 'left'; ctx.fillStyle = C.text;
-    const px1 = fit(ctx, endTxt, half, fs * 1.0, 800, 0.5); ctx.fillText(endTxt, 24, y + rowH * 0.72);
+    const px1 = fit(ctx, endTxt, half, fs * 1.0, 800, 0.5); ctx.fillText(endTxt, hx + 24, y + rowH * 0.72);
     if (lastTxt) {
       ctx.textAlign = 'right'; ctx.fillStyle = C.gold;
-      const room = W - 24 - 24 - ctx.measureText(endTxt).width - 14;
-      fit(ctx, lastTxt, Math.max(120, room), fs * 0.8, 600, 0.4); ctx.fillText(lastTxt, W - 24, y + rowH * 0.72);
+      const room = hw - 24 - 24 - ctx.measureText(endTxt).width - 14;
+      fit(ctx, lastTxt, Math.max(120, room), fs * 0.8, 600, 0.4); ctx.fillText(lastTxt, hx + hw - 24, y + rowH * 0.72);
     }
     void px1;
     y += rowH;
     for (const t of [0, 1]) {
       const turn = m.turn === t && m.phase !== 'score' && m.phase !== 'over';
-      if (turn) { roundPath(ctx, 16, y + 2, W - 32, rowH - 4, 14); ctx.strokeStyle = TEAM[t].tint; ctx.lineWidth = 2.5; ctx.stroke(); }
-      ctx.beginPath(); ctx.arc(34, y + rowH * 0.5, fs * 0.22, 0, TAU); ctx.fillStyle = TEAM[t].main; ctx.fill();
-      ctx.textAlign = 'right'; ctx.fillStyle = '#fff'; ctx.font = `800 ${Math.round(fs * 1.25)}px ${FONT}`; ctx.fillText(String(m.scores[t]), W - 28, y + rowH * 0.72);
+      if (turn) { roundPath(ctx, hx + 16, y + 2, hw - 32, rowH - 4, 14); ctx.strokeStyle = TEAM[t].tint; ctx.lineWidth = 2.5; ctx.stroke(); }
+      ctx.beginPath(); ctx.arc(hx + 34, y + rowH * 0.5, fs * 0.22, 0, TAU); ctx.fillStyle = TEAM[t].main; ctx.fill();
+      ctx.textAlign = 'right'; ctx.fillStyle = '#fff'; ctx.font = `800 ${Math.round(fs * 1.25)}px ${FONT}`; ctx.fillText(String(m.scores[t]), hx + hw - 28, y + rowH * 0.72);
       const scoreW = ctx.measureText(String(m.scores[t])).width;
       const pw = Math.min(total, 8) * fs * 0.28 * 2.5 / 2.2;
       ctx.textAlign = 'left'; ctx.fillStyle = C.text;
-      fit(ctx, names[t], W - 28 - scoreW - 34 - 24 - Math.min(pw, 180), fs, 700, 0.5); ctx.fillText(names[t], 34 + fs * 0.4, y + rowH * 0.72);
+      fit(ctx, names[t], hw - 28 - scoreW - 34 - 24 - Math.min(pw, 180), fs, 700, 0.5); ctx.fillText(names[t], hx + 34 + fs * 0.4, y + rowH * 0.72);
       const nw = ctx.measureText(names[t]).width;
-      pips(ctx, 34 + fs * 0.4 + nw + 16, y + rowH * 0.52, left(t), total, t, Math.max(4, fs * 0.13));
+      pips(ctx, hx + 34 + fs * 0.4 + nw + 16, y + rowH * 0.52, left(t), total, t, Math.max(4, fs * 0.13));
       y += rowH;
     }
   }
@@ -476,15 +502,18 @@ function caption(ctx, text, x, y, w, size, col = C.text, align = 'center') {
 export function drawControls(ctx, state, lay) {
   const c = lay.ctrl, fs = lay.fs, kind = state.ctl;
   const m = state.m;
-  // bar background
-  const g = ctx.createLinearGradient(0, c.top - 24, 0, c.top + 24);
-  g.addColorStop(0, 'rgba(6,18,34,0)'); g.addColorStop(1, 'rgba(6,18,34,0.94)');
-  ctx.fillStyle = g; ctx.fillRect(0, c.top - 24, W, 24);
-  ctx.fillStyle = 'rgba(6,18,34,0.94)'; ctx.fillRect(0, c.top, W, H - c.top);
+  // bar background: a strip across the bottom (portrait) or the whole right-hand panel (landscape)
+  const bx = lay.box.x, bw = lay.box.w, bm = 14;
+  if (!lay.land) {
+    const g = ctx.createLinearGradient(0, c.top - 24, 0, c.top + 24);
+    g.addColorStop(0, 'rgba(6,18,34,0)'); g.addColorStop(1, 'rgba(6,18,34,0.94)');
+    ctx.fillStyle = g; ctx.fillRect(0, c.top - 24, W, 24);
+    ctx.fillStyle = 'rgba(6,18,34,0.94)'; ctx.fillRect(0, c.top, W, H - c.top);
+  }
   ctx.save();
   if (m.cfg.mode === 'watch') {
     const wl = state.wlabel ?? '';
-    caption(ctx, wl, 14, c.labelY + c.labelH * 0.8, W - 28, fs * 0.8, C.soft);
+    caption(ctx, wl, bx + bm, c.labelY + c.labelH * 0.8, bw - 2 * bm, fs * 0.8, C.soft);
     drawButton(ctx, c.pause, state.paused ? 'Resume' : 'Pause', { primary: state.paused, size: fs });
     drawButton(ctx, c.dec, c.dec.w > 200 ? 'Think −' : 'Think −', { dark: true, size: fs * 0.85 });
     drawButton(ctx, c.inc, 'Think +', { dark: true, size: fs * 0.85 });
@@ -501,7 +530,7 @@ export function drawControls(ctx, state, lay) {
       drawButton(ctx, c.menu, 'Menu', { dark: true, size: fs * 0.9 });
     } else {
       const wt = WEIGHTS[state.aim.w];
-      caption(ctx, `${wt.name} · ${state.aim.turn === 1 ? 'In-turn' : 'Out-turn'}`, 14, c.capY + c.capH * 0.82, W - 28, fs * 0.9, C.text);
+      caption(ctx, `${wt.name} · ${state.aim.turn === 1 ? 'In-turn' : 'Out-turn'}`, bx + bm, c.capY + c.capH * 0.82, bw - 2 * bm, fs * 0.9, C.text);
       drawButton(ctx, c.shot, 'Shot', { dark: true, disabled: !human, size: fs });
       drawButton(ctx, c.think, state.hintBusy ? 'Thinking…' : 'Think', { dark: true, disabled: !human, size: fs });
       drawButton(ctx, c.throw, 'Throw', { primary: true, disabled: !human || !state.aim.placed, size: fs });
@@ -510,8 +539,8 @@ export function drawControls(ctx, state, lay) {
   } else if (kind === 'fly') {
     const f = state.fl, e = f ? f.disp : 0;
     const who = state.humanSweeps ? 'Sweep: rub the ice' : (state.names[m.turn] === 'You' ? 'Your sweepers are working' : `${state.names[m.turn]}'s sweepers are working`);
-    caption(ctx, who, 14, c.labelY + c.labelH * 0.8, W - 28 - 120, fs * 0.9, C.text, 'left');
-    ctx.textAlign = 'right'; ctx.fillStyle = C.gold; fit(ctx, `${Math.round(e * 100)}%`, 110, fs * 0.9, 800, 0.5); ctx.fillText(`${Math.round(e * 100)}%`, W - 20, c.labelY + c.labelH * 0.8);
+    caption(ctx, who, bx + bm, c.labelY + c.labelH * 0.8, bw - 2 * bm - 100, fs * 0.9, C.text, 'left');
+    ctx.textAlign = 'right'; ctx.fillStyle = C.gold; fit(ctx, `${Math.round(e * 100)}%`, 90, fs * 0.9, 800, 0.5); ctx.fillText(`${Math.round(e * 100)}%`, bx + bw - 20, c.labelY + c.labelH * 0.8);
     const r = c.meter;
     roundPath(ctx, r.x, r.y, r.w, r.h, r.h / 2); ctx.fillStyle = 'rgba(160,200,235,0.18)'; ctx.fill();
     const wv = Math.max(r.h, r.w * e);
@@ -524,9 +553,20 @@ export function drawControls(ctx, state, lay) {
   } else if (kind === 'score') {
     const info = m.endInfo;
     const txt = info ? (info.team === null ? 'Blank end: nobody scores' : `${state.names[info.team]} ${state.names[info.team] === 'You' ? 'score' : 'scores'} ${info.pts}${info.steal ? ' (a steal)' : ''}`) : '';
-    caption(ctx, txt, 14, c.titleY + c.titleH * 0.82, W - 28, fs * 1.15, '#ffffff');
-    const sub = info && info.team !== null ? `${info.pts === 1 ? '1 stone' : info.pts + ' stones'} closer than any of the other side` : 'No stone is in the house';
-    caption(ctx, sub, 14, c.subY + c.subH * 0.78, W - 28, fs * 0.72, C.soft);
+    const lines = c.lines ?? 1;
+    if (lines === 1) {
+      caption(ctx, txt, bx + bm, c.titleY + c.titleH * 0.82, bw - 2 * bm, fs * 1.15, '#ffffff');
+      const sub = info && info.team !== null ? `${info.pts === 1 ? '1 stone' : info.pts + ' stones'} closer than any of the other side` : 'No stone is in the house';
+      caption(ctx, sub, bx + bm, c.subY + c.subH * 0.78, bw - 2 * bm, fs * 0.72, C.soft);
+    } else {
+      const sub = info && info.team !== null ? `${info.pts === 1 ? '1 stone' : info.pts + ' stones'} closer than any of the other side` : 'No stone is in the house';
+      const para = (text, y0, lh, size, col, weight) => {
+        ctx.fillStyle = col; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'; ctx.font = `${weight} ${size}px ${FONT}`;
+        wrapLines(ctx, text, bw - 2 * bm).slice(0, 2).forEach((l, i) => ctx.fillText(l, bx + bw / 2, y0 + lh * (i + 0.8)));
+      };
+      para(txt, c.titleY, c.titleH, fs * 1.0, '#ffffff', 800);
+      para(sub, c.subY, c.subH, fs * 0.66, C.soft, 600);
+    }
     drawButton(ctx, c.go, m.end >= m.ends && state.m.scores[0] !== state.m.scores[1] ? 'See the result' : 'Next end', { primary: true, size: fs });
   }
   ctx.restore();
@@ -535,16 +575,16 @@ export function drawControls(ctx, state, lay) {
 // ---- toast and reason card --------------------------------------------------------------------------------------------
 export function drawToast(ctx, state, lay) {
   if (!state.toast || state.toastT <= 0) return;
-  const sc = Math.min(textScale(state), 2.2), fs = Math.round(24 * sc);
+  const z = lay.zone, sc = Math.min(lay.s, 2.2), fs = Math.round(24 * sc);
   ctx.save();
   ctx.font = `700 ${fs}px ${FONT}`;
-  const lines = wrapLines(ctx, state.toast, W - 90).slice(0, 4);
-  const h = lines.length * fs * 1.28 + 24, y = lay.regionTop + 10;
+  const lines = wrapLines(ctx, state.toast, z.w - 90).slice(0, 4);
+  const h = lines.length * fs * 1.28 + 24, y = lay.land ? Math.min(z.y + 6, Math.max(z.y, lay.regionBottom - h)) : lay.regionTop + 10;
   ctx.globalAlpha = Math.min(1, state.toastT * 2.5);
-  roundPath(ctx, 24, y, W - 48, h, 18); ctx.fillStyle = 'rgba(8,22,40,0.92)'; ctx.fill();
+  roundPath(ctx, z.x + 24, y, z.w - 48, h, 18); ctx.fillStyle = 'rgba(8,22,40,0.92)'; ctx.fill();
   ctx.lineWidth = 1.5; ctx.strokeStyle = 'rgba(160,205,240,0.5)'; ctx.stroke();
   ctx.fillStyle = '#f2f9ff'; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
-  lines.forEach((l, i) => ctx.fillText(l, W / 2, y + 12 + fs * (0.95 + i * 1.28)));
+  lines.forEach((l, i) => ctx.fillText(l, z.x + z.w / 2, y + 12 + fs * (0.95 + i * 1.28)));
   ctx.restore();
 }
 
@@ -552,11 +592,11 @@ export function drawToast(ctx, state, lay) {
 export function cardRect(state, lay) {
   const k = state.card;
   if (!k) return null;
-  const sc = textScale(state), fs = Math.round(22 * Math.min(sc, 3));
-  const maxH = Math.max(150, (lay.regionBottom - lay.regionTop) * (sc >= 2 ? 0.34 : 0.46));
-  const lines = Math.ceil((k.text.length * fs * 0.54) / (W - 80)) + 1;
+  const z = lay.zone, sc = lay.s, fs = Math.round(22 * Math.min(sc, 3));
+  const maxH = Math.max(lay.land ? 120 : 150, (lay.regionBottom - lay.regionTop) * (lay.land ? 0.98 : sc >= 2 ? 0.34 : 0.46));
+  const lines = Math.ceil((k.text.length * fs * 0.54) / (z.w - 80)) + 1;
   const h = Math.min(maxH, Math.round(fs * 1.12 * 1.6 + lines * fs * 1.3 + 26));
-  return { x: 18, y: lay.regionBottom - h - 6, w: W - 36, h, fs };
+  return { x: z.x + 18, y: lay.regionBottom - h - 6, w: z.w - 36, h, fs };
 }
 export function drawCard(ctx, state, lay) {
   const k = state.card, r = cardRect(state, lay);
@@ -581,7 +621,8 @@ export function drawCard(ctx, state, lay) {
 }
 
 // ---- scoring highlight ---------------------------------------------------------------------------------------------------------------------
-export function drawScoreMarks(ctx, cam, state) {
+// pass 'geo': dashed lines and rings (drawn in the frame); pass 'text': the numbered badges (drawn upright in screen space).
+export function drawScoreMarks(ctx, cam, state, pass = 'geo') {
   const info = state.m.endInfo;
   if (!info || state.m.phase !== 'score') return;
   const bx = cam.X(0, 0), by = cam.Y(0);
@@ -593,22 +634,25 @@ export function drawScoreMarks(ctx, cam, state) {
     if (!s) continue;
     const counted = info.counted.includes(id);
     const x = cam.X(s.x, s.y), y = cam.Y(s.y), rr = cam.rad(s.y);
-    ctx.strokeStyle = counted ? '#ffffff' : 'rgba(180,210,235,0.35)'; ctx.lineWidth = counted ? 2 : 1; ctx.setLineDash([4, 5]);
-    ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(x, y); ctx.stroke(); ctx.setLineDash([]);
-    if (counted) {
-      n++;
-      ctx.beginPath(); ctx.arc(x, y, rr * (1.5 + Math.sin(state.t * 6) * 0.1), 0, TAU); ctx.strokeStyle = TEAM[s.team].tint; ctx.lineWidth = 3; ctx.stroke();
-      roundPath(ctx, x - fs * 0.7, y - rr - fs * 1.7, fs * 1.4, fs * 1.4, fs * 0.7); ctx.fillStyle = 'rgba(8,22,40,0.92)'; ctx.fill();
-      ctx.fillStyle = '#fff'; ctx.font = `800 ${fs}px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(String(n), x, y - rr - fs * 1.0);
+    if (counted) n++;
+    if (pass === 'geo') {
+      ctx.strokeStyle = counted ? '#ffffff' : 'rgba(180,210,235,0.35)'; ctx.lineWidth = counted ? 2 : 1; ctx.setLineDash([4, 5]);
+      ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(x, y); ctx.stroke(); ctx.setLineDash([]);
+      if (counted) { ctx.beginPath(); ctx.arc(x, y, rr * (1.5 + Math.sin(state.t * 6) * 0.1), 0, TAU); ctx.strokeStyle = TEAM[s.team].tint; ctx.lineWidth = 3; ctx.stroke(); }
+    } else if (counted) {
+      const [sx, sy] = cam.toScreen(x, y);
+      roundPath(ctx, sx - fs * 0.7, sy - rr - fs * 1.7, fs * 1.4, fs * 1.4, fs * 0.7); ctx.fillStyle = 'rgba(8,22,40,0.92)'; ctx.fill();
+      ctx.fillStyle = '#fff'; ctx.font = `800 ${fs}px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(String(n), sx, sy - rr - fs * 1.0);
     }
     void toButton; void HOUSE_R;
   }
   ctx.restore();
 }
 
+// Floating texts are drawn upright in screen space (the frame may be turned a quarter in landscape).
 export function drawPops(ctx, cam, state) {
   for (const p of state.pops) {
-    const k = p.t / p.max, x = cam.X(p.x, p.y), y = cam.Y(p.y) - k * 60;
+    const k = p.t / p.max, [x, y0] = cam.toScreen(cam.X(p.x, p.y), cam.Y(p.y)), y = y0 - k * 60;
     ctx.save();
     ctx.globalAlpha = Math.max(0, 1 - k * k);
     ctx.font = `800 ${Math.round(p.size * Math.min(textScale(state), 2))}px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -629,15 +673,29 @@ export function renderPlay(ctx, state) {
     drawStones(ctx, c, state, state.w, { highlight: state.hl });
     drawFlightBrushes(ctx, c, state);
     drawParts(ctx, c, state.parts);
-    drawScoreMarks(ctx, c, state);
+    drawScoreMarks(ctx, c, state, 'geo');
   };
+  ctx.fillStyle = '#08121f'; ctx.fillRect(0, 0, W, H);
+  ctx.save();
+  if (cam.rot) { ctx.beginPath(); ctx.rect(cam.sheet.x, cam.sheet.y, cam.sheet.w, cam.sheet.h); ctx.clip(); }
+  cam.apply(ctx);
   drawSheet(ctx, cam, state);
   scene(cam);
-  drawPops(ctx, cam, state);
   beginInset(ctx, cam);
   scene(cam.ins);
-  drawPops(ctx, cam.ins, state);
   endInset(ctx, cam);
+  ctx.restore();
+  ctx.save();
+  if (cam.rot) { ctx.beginPath(); ctx.rect(cam.sheet.x, cam.sheet.y, cam.sheet.w, cam.sheet.h); ctx.clip(); }
+  drawScoreMarks(ctx, cam, state, 'text');
+  drawPops(ctx, cam, state);
+  { // the inset's own floating texts stay inside the inset
+    const r = cam.rect, p0 = cam.toScreen(r.x, r.y), p1 = cam.toScreen(r.x + r.w, r.y + r.h);
+    ctx.save(); ctx.beginPath(); ctx.rect(Math.min(p0[0], p1[0]), Math.min(p0[1], p1[1]), Math.abs(p1[0] - p0[0]), Math.abs(p1[1] - p0[1])); ctx.clip();
+    drawPops(ctx, cam.ins, state); ctx.restore();
+  }
+  ctx.restore();
+  drawPanelBg(ctx, lay);
   drawHud(ctx, state, lay);
   drawControls(ctx, state, lay);
   drawCard(ctx, state, lay);
@@ -645,8 +703,8 @@ export function renderPlay(ctx, state) {
 }
 
 // The ice for menus: a house view with the attract world.
-export function drawAttract(ctx, state, ppm = 105, yTop = 2.2, top = 40) {
-  const cam = { ppm, top, X: (x) => W / 2 + x * ppm, Y: (y) => top + (yTop - y) * ppm, yAt: (sy) => yTop - (sy - top) / ppm, sx: () => ppm, sy: () => ppm, rad: () => R * ppm };
+export function drawAttract(ctx, state, ppm = 105, yTop = 2.2, top = 40, cx = W / 2) {
+  const cam = { ppm, top, X: (x) => cx + x * ppm, Y: (y) => top + (yTop - y) * ppm, yAt: (sy) => yTop - (sy - top) / ppm, sx: () => ppm, sy: () => ppm, rad: () => R * ppm };
   drawIce(ctx, cam, state);
   const a = state.att;
   if (a) {

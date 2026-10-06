@@ -1,7 +1,8 @@
 // Chogan: the game shell. Scenes, input (two thumbs), persistence, preview wiring, Learn, Watch & Learn and the Think hint.
 // The match itself lives in sim.js (pure, fixed 60 Hz); the 3D picture lives in view3d/ and only reads the state exposed here.
 import { createSim } from './sim.js';
-import { W, H, TEXT_SCALES, THINK_STEPS, REF_BACK, REF_NEXT, TEXT_DEC, TEXT_INC, SETUP_PINS, inRect, inCircle, playLayout } from './layout.js';
+import { live, syncSize, sizeKey, TEXT_SCALES, THINK_STEPS, refLayout, setupPins, inRect, inCircle, playLayout } from './layout.js';
+import { rigFor, screenDir } from './camera.js';
 import { setPress } from './ui.js';
 import { ABOUT, HOWTO, RULES, LESSONS, QUIZ, ROLE_INFO } from './content.js';
 import * as MN from './menus.js';
@@ -11,7 +12,8 @@ import { drillConfig, startDrill, updateDrill } from './drills.js';
 import { clamp, hyp } from './util.js';
 import { PERIOD_SECS, PERIODS, REACH, HW, HL } from './consts.js';
 
-export const meta = { width: W, height: H };
+// Fluid viewport (kit 1.7): the short side is 720 units, the long side follows the screen. The kit keeps meta.width / meta.height live.
+export const meta = { width: 720, height: 1280, fluid: { short: 720 } };
 const DEMO_MATCH_CAP = 2;
 const SAVE_VERSION = 1;
 
@@ -36,7 +38,7 @@ export function createGame(env) {
       if (paras.length) aboutList = [...ABOUT, { title: 'Credits and licences', p: paras }];
     }).catch(() => {});
   }
-  let S = null, evSeen = 0, simRng = rng.fork(), snap = null;
+  let S = null, evSeen = 0, simRng = rng.fork(), snap = null, lastSize = '';
 
   // ---- persistence ----------------------------------------------------------------------------------------------------
   const saveSettings = () => { storage.set('settings', G.settings); storage.set('learn', { done: G.learn.done }); storage.set('record', G.record); storage.set('setup', { role: G.setup.role, opp: G.setup.opp, lenIdx: G.setup.lenIdx }); };
@@ -192,8 +194,8 @@ export function createGame(env) {
     if (p.down || p.released || p.pressed) out.push({ id: 'mouse', x: p.x, y: p.y, down: p.down, fresh: p.pressed, up: p.released && !p.down });
     return out;
   };
-  const ZONE_TOP = 520;
   function readControls(input, L) {
+    const Z = L.stickZone, rig = rigFor(G.viewW && G.viewH ? G.viewW / G.viewH : live.w / live.h);
     const c = G.c, keys = input.keys;
     c.hookEdge = false;
     let uiAction = null;
@@ -204,9 +206,9 @@ export function createGame(env) {
         else if (inCircle(L.hook, t.x, t.y, 22)) { role = 'hook'; c.hookEdge = true; }
         else if (inRect(L.think, t.x, t.y)) { role = 'ui'; uiAction = 'think'; }
         else if (inRect(L.pause, t.x, t.y)) { role = 'ui'; uiAction = 'pause'; }
-        else if (t.x < 470 && t.y > ZONE_TOP && !Object.values(c.bind).includes('stick')) {
+        else if (inRect(Z, t.x, t.y) && !Object.values(c.bind).includes('stick')) {
           role = 'stick';
-          c.stick = { id: t.id, x0: clamp(t.x, STICK_R + 14, 450), y0: clamp(t.y, ZONE_TOP + 40, H - STICK_R - 14), dx: 0, dz: 0, mag: 0 };
+          c.stick = { id: t.id, x0: clamp(t.x, Z.x + STICK_R + 14, Z.x + Z.w - STICK_R + 20), y0: clamp(t.y, Z.y + 40, L.yb - STICK_R - 14), dx: 0, dz: 0, mag: 0 };
         } else role = 'none';
         c.bind[t.id] = role;
       }
@@ -226,9 +228,10 @@ export function createGame(env) {
     const kx = (kd.has('ArrowRight') || kd.has('KeyD') ? 1 : 0) - (kd.has('ArrowLeft') || kd.has('KeyA') ? 1 : 0);
     const kz = (kd.has('ArrowUp') || kd.has('KeyW') ? 1 : 0) - (kd.has('ArrowDown') || kd.has('KeyS') ? 1 : 0);
     if (keys.pressed.has('KeyH') || keys.pressed.has('KeyK')) c.hookEdge = true;
+    // the stick and the arrow keys are SCREEN directions (right / up); screenDir turns them into field directions for the live camera
     let sx = 0, sz = 0, mag = 0;
-    if (c.stick) { sx = c.stick.dx; sz = c.stick.dz; mag = c.stick.mag; }
-    if (kx || kz) { const m = Math.hypot(kx, kz), sp = kd.has('ShiftLeft') || kd.has('ShiftRight'); sx = kx / m; sz = kz / m; mag = sp ? 1 : 0.8; if (!sp) { sx *= 0.8; sz *= 0.8; } c.sprintOn = sp; }
+    if (c.stick) { const d = screenDir(rig, c.stick.dx, c.stick.dz); sx = d.x; sz = d.z; mag = c.stick.mag; }
+    if (kx || kz) { const m = Math.hypot(kx, kz), sp = kd.has('ShiftLeft') || kd.has('ShiftRight'); const d = screenDir(rig, kx / m, kz / m); sx = d.x; sz = d.z; mag = sp ? 1 : 0.8; if (!sp) { sx *= 0.8; sz *= 0.8; } c.sprintOn = sp; }
     else if (mag > 0.93) c.sprintOn = true; else if (mag < 0.85) c.sprintOn = false;
     c.out = { sx, sz, sprint: c.sprintOn, swing: c.swing, hook: c.hookEdge };
     if (hyp(sx, sz) > 0.3) G.aimDir = Math.atan2(sx, sz);
@@ -352,18 +355,21 @@ export function createGame(env) {
     else if (id === 'quit') leaveMatch();
     MN.invalidateLayout();
   }
+  const refList = () => (G.scene === 'howto' ? [HOWTO, 'How to Play'] : G.scene === 'about' ? [aboutList, 'About'] : G.scene === 'rules' ? [RULES, 'Rules'] : [roleTutList(), 'Your role']);
+  const refPrepare = () => { const [list, header] = refList(); MN.refPrepare(G, list, header); };
   const roleTutList = () => { const r = ROLE_INFO[G.roleTut]; return [{ title: `${r.num}  ${r.name}`, p: r.long }, { title: 'Controls for every role', p: [HOWTO[1].p[0], HOWTO[2].p[0], HOWTO[3].p[0]] }]; };
   const updatePages = (input) => {
-    const ptr = input.pointer, keys = input.keys, rm = MN.refMeta(), view = rm.vh;
+    refPrepare();
+    const ptr = input.pointer, keys = input.keys, rm = MN.refMeta(), view = rm.vh, R = refLayout();
     const close = () => { G.scene = G.back === 'play' ? 'play' : G.back === 'setup' ? 'setup' : 'title'; G.page = 0; G.ui.scroll = 0; G.ui.drag = null; MN.invalidateLayout(); };
     const setS = (v) => { G.ui.scroll = clamp(v, 0, rm.max); };
     const next = () => { if (G.ui.scroll >= rm.max - 4) close(); else setS(G.ui.scroll + view * 0.85); };
     const prev = () => { if (G.ui.scroll <= 4) close(); else setS(G.ui.scroll - view * 0.85); };
     if (ptr.pressed) {
-      if (inRect(REF_NEXT, ptr.x, ptr.y)) next();
-      else if (inRect(REF_BACK, ptr.x, ptr.y)) prev();
-      else if (inRect(TEXT_DEC, ptr.x, ptr.y)) setText(G.settings.textIdx - 1);
-      else if (inRect(TEXT_INC, ptr.x, ptr.y)) setText(G.settings.textIdx + 1);
+      if (inRect(R.next, ptr.x, ptr.y)) next();
+      else if (inRect(R.back, ptr.x, ptr.y)) prev();
+      else if (inRect(R.dec, ptr.x, ptr.y)) setText(G.settings.textIdx - 1);
+      else if (inRect(R.inc, ptr.x, ptr.y)) setText(G.settings.textIdx + 1);
       else G.ui.drag = { y0: ptr.y, s0: G.ui.scroll };
     }
     if (G.ui.drag && ptr.down) setS(G.ui.drag.s0 - (ptr.y - G.ui.drag.y0));
@@ -381,7 +387,8 @@ export function createGame(env) {
     const ptr = input.pointer, k = input.keys;
     if (k.pressed.has('Enter')) { handleSetup('start'); return; }
     if (k.pressed.has('Escape')) { handleSetup('back'); return; }
-    if (ptr.pressed && (inRect(SETUP_PINS.start, ptr.x, ptr.y) || inRect(SETUP_PINS.back, ptr.x, ptr.y))) { handleSetup(inRect(SETUP_PINS.start, ptr.x, ptr.y) ? 'start' : 'back'); return; }
+    const pins = setupPins();
+    if (ptr.pressed && (inRect(pins.start, ptr.x, ptr.y) || inRect(pins.back, ptr.x, ptr.y))) { handleSetup(inRect(pins.start, ptr.x, ptr.y) ? 'start' : 'back'); return; }
     updateFlowScene(dt, input, handleSetup, 'setup');
   };
 
@@ -430,12 +437,21 @@ export function createGame(env) {
     // Menus, Rules, About, settings, Learn, Watch & Learn, pause and result screens are free; only real match play counts against the preview.
     isPreviewExempt: () => !(G.scene === 'play' && G.mode === 'match') || G.paused || G.pauseMenu || !!G.think || (S && ['goal', 'break', 'end', 'reset'].includes(S.s.phase)),
     update(dt, input) {
+      syncSize(meta.width, meta.height);
+      // a rotation or resize: a held finger is released cleanly (the stick, SWING and HOOK re-appear in their new places); the match keeps going
+      const sk = sizeKey();
+      if (sk !== lastSize) { if (lastSize) { G.c.stick = null; G.c.bind = {}; G.c.swing = false; G.ui.drag = null; MN.invalidateLayout(); } lastSize = sk; }
       setPress(input.pointer);
       G.t += dt;
       for (let i = delayed.length - 1; i >= 0; i--) { delayed[i].t -= dt; if (delayed[i].t <= 0) { delayed[i].f(); delayed.splice(i, 1); } }
       if (G.scene !== 'play') { S.update(dt, null); if (S.s.over && G.mode === 'none') startDemoBg(); }
       switch (G.scene) {
-        case 'title': updateFlowScene(dt, input, handleTitle, 'title'); break;
+        case 'title': {
+          const lt = MN.getLockTap(), pp = input.pointer;
+          MN.setLockDown(G.lockDown > G.t);
+          if (lt && pp.pressed && pp.x >= lt.x && pp.x <= lt.x + lt.w && pp.y >= lt.y && pp.y <= lt.y + lt.h) { G.lockDown = G.t + 0.25; env.openArcforgeHome?.(); break; }
+          updateFlowScene(dt, input, handleTitle, 'title'); break;
+        }
         case 'setup': updateSetup(dt, input); break;
         case 'settings': updateFlowScene(dt, input, handleSettings, 'settings'); break;
         case 'learn': updateFlowScene(dt, input, handleLearn, 'learn'); break;
@@ -450,8 +466,9 @@ export function createGame(env) {
       }
     },
     render(ctx, view) {
-      G.viewW = (view && view.cssW) || 720; G.viewH = (view && view.cssH) || 1280;
-      ctx.clearRect(0, 0, W, H);
+      syncSize(meta.width, meta.height);
+      G.viewW = (view && view.cssW) || live.w; G.viewH = (view && view.cssH) || live.h; G.vw = live.w; G.vh = live.h;
+      ctx.clearRect(0, 0, live.w, live.h);
       G.artRect = null;
       if (view && view.noGL) renderFallback(ctx, G, view);
       switch (G.scene) {

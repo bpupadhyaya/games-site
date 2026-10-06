@@ -42,7 +42,7 @@ export async function createPresenter({ kitCanvas, quality = pickQuality() }) {
   const P = { stage, THREE, humans: [], actors: [], ball: null, court: null, blobs: null, ready: false, women: null, lost: false, quality, K: SCALE.m, alphaStamp: 0, noRender: false };
   const V = (x = 0, y = 0, z = 0) => new THREE.Vector3(x, y, z);
   stage.onContextLost(() => { P.lost = true; });
-  stage.onContextRestored(() => { P.lost = false; });
+  stage.onContextRestored(() => { P.lost = false; fitKey = ''; stage.resize(); stage.invalidate(); });
 
   async function build(women) {
     P.ready = false;
@@ -102,6 +102,21 @@ export async function createPresenter({ kitCanvas, quality = pickQuality() }) {
   const lerp = (a, b, t) => a + (b - a) * t;
   const lerpAng = (a, b, t) => { let d = b - a; d = Math.atan2(Math.sin(d), Math.cos(d)); return a + d * t; };
 
+  // The WebGL canvas covers the kit canvas exactly: the whole screen, or (beyond the kit's 2.4:1 cap, where the 2D layer is centred with
+  // bars) the same centred region. Re-fitted whenever the size changes (rotation, window resize, split screen).
+  let fitKey = '';
+  function fitCanvas(winW, winH) {
+    const long = Math.max(winW, winH), short = Math.min(winW, winH), cap = 2.4;
+    let w = winW, h = winH;
+    if (long / short > cap) { if (winW > winH) w = Math.round(winH * cap); else h = Math.round(winW * cap); }
+    const key = `${winW}x${winH}`;
+    if (key === fitKey) return;
+    fitKey = key;
+    canvas.style.cssText = (w === winW && h === winH)
+      ? 'position:fixed;inset:0;width:100vw;height:100dvh;display:block;pointer-events:none;z-index:0'
+      : `position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:${w}px;height:${h}px;display:block;pointer-events:none;z-index:0`;
+    stage.resize();
+  }
   function frame(game, view) {
     if (!P.ready || P.lost) return;
     const G0 = game.getState();
@@ -171,21 +186,15 @@ export async function createPresenter({ kitCanvas, quality = pickQuality() }) {
     }
     if (bm.visible && blobN < 20) P.blobs.set(blobN++, bm.position.x, bm.position.z, 0.34 / (1 + 0.14 * Math.max(0, bm.position.y - BALL_R)), 0.012);   // smaller as the ball rises: the gap between ball and shadow tells the height
     P.blobs.mesh.count = blobN;
-    // --- camera: fixed for the whole match. On screens wider than 9:16 the picture is pillarboxed so the HUD agrees.
-    const winW = kitCanvas.clientWidth || 720, winH = kitCanvas.clientHeight || 1280;
-    const wantW = winW / winH > 0.5625 ? Math.round(winH * 0.5625) : 0;
-    if (wantW !== P.pillar) {
-      P.pillar = wantW;
-      canvas.style.cssText = wantW ? `position:fixed;top:0;left:50%;transform:translateX(-50%);width:${wantW}px;height:100dvh;display:block;pointer-events:none;z-index:0` : 'position:fixed;inset:0;width:100vw;height:100dvh;display:block;pointer-events:none;z-index:0';
-      stage.resize();
-    }
+    // --- camera: fixed for the whole match at a given screen size. The frame (position, aim, field of view) comes from the game's layout
+    // (the same one the 2D HUD projects with), so the picture fills the whole screen in portrait and landscape and the HUD sits on it exactly.
+    fitCanvas(kitCanvas.clientWidth || 720, kitCanvas.clientHeight || 1280);
     const cam = stage.camera;
-    const W = canvas.clientWidth || 720, H_ = canvas.clientHeight || 1280;
-    const fov = fovFor(W / H_);
-    if (Math.abs(cam.fov - fov) > 1e-3) { cam.fov = fov; cam.updateProjectionMatrix(); }
-    const co = P.camOverride || cam0;
+    const fr = G0.frame || { ...cam0, fov: 30 };
+    const co = P.camOverride || fr;
     cam.position.set(co.x, co.y, co.z); cam.lookAt(co.lx, co.ly, co.lz);
-    if (co.fov && cam.fov !== co.fov) { cam.fov = co.fov; cam.updateProjectionMatrix(); }
+    const fov = co.fov || fr.fov;
+    if (Math.abs(cam.fov - fov) > 1e-3) { cam.fov = fov; cam.updateProjectionMatrix(); }
     stage.setShadowTarget(0, 0, 0);
     if (!P.noRender) { stage.render(); perfTick(); }
   }

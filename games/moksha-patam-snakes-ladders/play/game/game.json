@@ -3,8 +3,8 @@
   "title": "Snakes & Ladders Cloth Board",
   "tagline": "The painted-cloth dice race, reimagined.",
   "genre": "dice race board game",
-  "orientation": "portrait",
-  "version": "1.0.2",
+  "orientation": "any",
+  "version": "1.1.4",
   "monetization": {
     "model": "premium",
     "priceUsd": 2.99,

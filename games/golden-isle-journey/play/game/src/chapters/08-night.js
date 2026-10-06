@@ -1,8 +1,10 @@
 // Chapter 8: the fortress city by night. A vertical climb from shadow to shadow while the watch
 // sweeps lantern light across the roofs; at the top, the grove and the ring.
-import { W, H, TAU, PAL, INK, clamp, lerp, smooth, hash, sky, stars, skyline, light, motes, finish, shadow, wall, gardenTree, moon } from '../stage.js';
+import { FR, W, H, TAU, PAL, INK, clamp, lerp, smooth, hash, sky, stars, skyline, light, motes, finish, shadow, wall, gardenTree, moon } from '../stage.js';
 import { figure, poses, stridePose } from '../puppets.js';
 import { label, caption, pips } from '../ui.js';
+
+const camK = () => (FR.land ? FR.y0 + FR.h * 0.66 : 1080);   // the screen height the hero is kept at
 
 const ROWS = 20, STEP = 320, WORLD = 6700, ROW0 = 6400, CONE_LEN = 330, CONE_HALF = 0.3, DASH = 0.6;
 const rowY = (r) => ROW0 - r * STEP;
@@ -26,7 +28,7 @@ export function create(env, shared) {
   }
   const start = shared.showcase ? patches.findIndex((p) => p.r === 5) : 0;
   const s = { t: 0, phase: 'hide', pt: 0, at: start, from: start, to: start, dash: 0, seen: 0, flash: 0, cam: 0, patches, guards, msg: 0, done: false, lost: false };
-  s.cam = clamp(rowY(patches[start].r) - 1080, 0, WORLD - H);
+  s.cam = clamp(rowY(patches[start].r) - camK(), 0, WORLD - H);
 
   const gx = (g) => g.x + (g.walk ? Math.sin(s.t * 0.5 + g.ph) * g.walk : 0);
   const ga = (g) => g.base + Math.sin(s.t * g.w + g.ph) * g.amp;
@@ -62,20 +64,20 @@ export function create(env, shared) {
     } else if (s.phase === 'seen') { if (s.pt > 0.8) { s.phase = 'hide'; s.at = s.from; s.to = s.from; } }
     else if (s.phase === 'grove') { if (s.pt > 3.6) s.done = true; }
     const [, hy] = heroPos();
-    s.cam = lerp(s.cam, clamp(hy - 1080, 0, WORLD - H), 1 - Math.pow(0.03, dt));
+    s.cam = lerp(s.cam, clamp(hy - camK(), 0, WORLD - H), 1 - Math.pow(0.03, dt));
   }
 
   function terrace(ctx, r, t) {
     const y = rowY(r) - s.cam;
     if (y < -STEP - 60 || y > H + 80) return;
     const tone = ['#0a1030', '#080e2a', '#0b1234'][r % 3];
-    wall(ctx, 0, y, W, STEP + 4, tone, { glow: '255,190,110', top: 0.04 });
+    wall(ctx, FR.x0 - 1, y, FR.w + 2, STEP + 4, tone, { glow: '255,190,110', top: 0.04 });
     // roof lip and crenellations, moon-rimmed
-    ctx.fillStyle = '#080d28'; ctx.fillRect(0, y - 8, W, 16);
-    for (let i = 0; i < 12; i++) if (hash(r * 31 + i) > 0.35) { const cx = i * 62 + hash(r + i) * 10; ctx.fillStyle = '#0a1030'; ctx.fillRect(cx, y - 22, 34, 16); ctx.fillStyle = 'rgba(190,200,255,0.3)'; ctx.fillRect(cx, y - 22, 34, 2.5); }
-    ctx.strokeStyle = 'rgba(244,196,100,0.5)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(0, y - 8); ctx.lineTo(W, y - 8); ctx.stroke();
+    ctx.fillStyle = '#080d28'; ctx.fillRect(FR.x0 - 1, y - 8, FR.w + 2, 16);
+    for (let i = Math.floor(FR.x0 / 62) - 1; i < FR.x1 / 62 + 1; i++) if (hash(r * 31 + i) > 0.35) { const cx = i * 62 + hash(r + i) * 10; ctx.fillStyle = '#0a1030'; ctx.fillRect(cx, y - 22, 34, 16); ctx.fillStyle = 'rgba(190,200,255,0.3)'; ctx.fillRect(cx, y - 22, 34, 2.5); }
+    ctx.strokeStyle = 'rgba(244,196,100,0.5)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(FR.x0 - 1, y - 8); ctx.lineTo(FR.x1 + 1, y - 8); ctx.stroke();
     // garden trees or a dome on some terraces
-    if (r % 3 === 1) for (let i = 0; i < 3; i++) gardenTree(ctx, 110 + i * 250 + hash(r * 5 + i) * 60, y - 6, 1, '#0c2a30', r * 3 + i);
+    if (r % 3 === 1) for (let i = Math.floor((FR.x0 - 110) / 250) - 1; i < (FR.x1 - 110) / 250 + 1; i++) gardenTree(ctx, 110 + i * 250 + hash(r * 5 + i) * 60, y - 6, 1, '#0c2a30', r * 3 + i);
   }
 
   function render(ctx) {
@@ -87,7 +89,7 @@ export function create(env, shared) {
     skyline(ctx, { base: 1180 - (cam - WORLD) * 0.12 - 500, scroll: 60, color: '#121a44', seed: 3, h: 420, gap: 150, kind: 'lanka', lit: '255,200,120', t });
     for (let r = ROWS - 1; r >= 0; r--) terrace(ctx, r, t);
     // ground below the first row
-    const by = rowY(0) + STEP - cam; if (by < H) { ctx.fillStyle = '#04061a'; ctx.fillRect(0, by, W, H - by); }
+    const by = rowY(0) + STEP - cam; if (by < H) { ctx.fillStyle = '#04061a'; ctx.fillRect(FR.x0 - 1, by, FR.w + 2, H - by); }
 
     // the grove at the top
     const gy = rowY(ROWS - 1) - cam;
@@ -136,7 +138,7 @@ export function create(env, shared) {
       ctx.globalAlpha = 1;
     }
     motes(ctx, { n: 16, t, rgb: '200,215,255', kind: 'firefly', rm, top: 200, bottom: H });
-    if (s.flash > 0) { ctx.fillStyle = `rgba(255,226,150,${s.flash * (rm ? 0.2 : 0.45)})`; ctx.fillRect(0, 0, W, H); }
+    if (s.flash > 0) { ctx.fillStyle = `rgba(255,226,150,${s.flash * (rm ? 0.2 : 0.45)})`; ctx.fillRect(FR.x0 - 1, 0, FR.w + 2, H); }
     finish(ctx, 0.82);
     label(ctx, L.seen, 40, 176, 24); pips(ctx, 110, 168, s.seen, 3, '255,150,110', 9, 26);
     if (s.msg > 0) caption(ctx, L.hush, 1360, Math.min(1, s.msg * 2), 30);

@@ -1,6 +1,6 @@
 // Drawing the play screen: wall, board, darts in the board, the aim point, scoreboard, throw chips, checkout coach, banners.
 // Pure drawing; game.js owns the state.
-import { W, H, BOARD, BOARD_R0, PANEL, LEG_LINE, CHIPS, COACH, THINK_BTN, MENU_BTN, WATCH, AIM, HUD, THINK_STEPS } from './layout.js';
+import { W, H, BOARD, BOARD_R0, PANEL, LEG_LINE, CHIPS, COACH, THINK_BTN, MENU_BTN, WATCH, AIM, ZONE, HUD, THINK_STEPS } from './layout.js';
 import { drawBackdrop, drawBoardAt, drawDart, regionPath, wobbleAng, dartIcon, TAU, DART_STYLE } from './art.js';
 import { FONT, NUM, C, roundPath, drawButton, panel, textShadow, ease, wrapLines } from './ui.js';
 import { avg3, dartsLeft, targetByLabel } from './engine.js';
@@ -111,7 +111,7 @@ function drawParticles(ctx, parts) {
 }
 
 const clampN = (v, a, b) => Math.max(a, Math.min(b, v));
-const clampX = (x, m) => Math.max(m, Math.min(W - m, x));
+const clampX = (x, m) => Math.max(ZONE.x0 + m, Math.min(ZONE.x1 - m, x));
 function drawPops(ctx, pops) {
   for (const p of pops) {
     const k = p.t / 1.1;
@@ -173,7 +173,7 @@ function drawPanel(ctx, state, side) {
   // name: full name shrinks first, then falls back to the short form
   ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'left';
   const nameMaxW = colR - colL - pipsW - 14;
-  const nm = fitCands(ctx, [sideName(state, side), shortName(state, side)], nameMaxW, 1e9, fn, { minRatio: 0.62 });
+  const nm = fitCands(ctx, [sideName(state, side), shortName(state, side)], nameMaxW, 1e9, fn, { minRatio: 0.8 });
   ctx.fillStyle = active ? '#fff2cf' : 'rgba(255,242,207,0.7)';
   ctx.fillText(nm.lines[0], colL, p.y + HUD.pan.nameBase);
   // a coloured flight dot so each side matches its darts
@@ -233,7 +233,7 @@ function drawChips(ctx, state) {
   const tot = v.darts.reduce((s, d) => s + (d.busted ? 0 : d.value), 0);
   if (v.darts.length) {
     ctx.textAlign = 'left'; ctx.fillStyle = '#ffe08a'; ctx.textBaseline = 'middle';
-    const t = fitCands(ctx, [v.bust ? '0' : `${tot}`], W - 10 - CHIPS.totalX, 1e9, 40 * cs, { minRatio: 0.6, weight: 800, fam: NUM });
+    const t = fitCands(ctx, [v.bust ? '0' : `${tot}`], CHIPS.totalW, 1e9, 40 * cs, { minRatio: 0.6, weight: 800, fam: NUM });
     ctx.fillText(t.lines[0], CHIPS.totalX, CHIPS.y + CHIPS.h / 2 + 2);
   }
 }
@@ -267,7 +267,7 @@ function drawCoach(ctx, state) {
   // Centred message: candidates from longest to shortest, then two lines, then squeezed.
   const say = (cands, size = 25, col = '#fff2cf') => {
     const list = Array.isArray(cands) ? cands : [cands];
-    const f = fitCands(ctx, list, innerW, innerH, size * hs, { minRatio: 0.72, maxLines: 2 });
+    const f = fitCands(ctx, list, innerW, innerH, size * hs, { minRatio: 0.85, maxLines: 2, wrapMin: 0.8 });
     ctx.fillStyle = col; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
     f.lines.forEach((l, k) => ctx.fillText(l, r.x + r.w / 2, cy + (k - (f.lines.length - 1) / 2) * f.fs * 1.15));
   };
@@ -296,8 +296,8 @@ function drawCoach(ctx, state) {
       ctx.fillStyle = '#e9c15f'; roundPath(ctx, r.x + 22, by, Math.max(bh, (r.w - 44) * Math.min(1, th.t / th.dur)), bh, bh / 2); ctx.fill();
     } else {
       // the plan in words; at normal size the target chip sits under it, at big sizes the words get the whole strip
-      const one = hs < 1.5;
-      const f = fitCands(ctx, [th.text], r.w - 30, one ? innerH - 30 : innerH, 21 * hs, { minRatio: 0.62, maxLines: one ? 1 : 2, wrapMin: 0.5 });
+      const one = hs < 1.5 && !HUD.wide;
+      const f = fitCands(ctx, [th.text], r.w - 30, one ? innerH - 30 : innerH, 21 * hs, { minRatio: 0.8, maxLines: one ? 1 : 2, wrapMin: 0.75 });
       ctx.fillStyle = '#fff2cf'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       const cyT = one ? cy - 14 : cy;
       f.lines.forEach((l, k) => ctx.fillText(l, r.x + r.w / 2, cyT + (k - (f.lines.length - 1) / 2) * f.fs * 1.15));
@@ -329,8 +329,8 @@ function drawBanner(ctx, b, state) {
   const k = b.t / b.dur, hs = HUD.hs;
   const inK = ease.outBack(Math.min(1, b.t / 0.28)), outK = k > 0.82 ? 1 - (k - 0.82) / 0.18 : 1;
   const s = Math.max(0.01, inK) * outK;
-  const boxW = Math.round(Math.min(692, 620 + (hs - 1) * 36)), innerW = boxW - 60;
-  const regTop = AIM.top + 16, regBot = CHIPS.y - 14, maxH = Math.max(150, (regBot - regTop) * (hs <= 1 ? 1 : 0.86));
+  const boxW = Math.round(Math.min(692, 620 + (hs - 1) * 36, ZONE.w - 12)), innerW = boxW - 60;
+  const regTop = ZONE.top, regBot = ZONE.bot, maxH = Math.max(150, (regBot - regTop) * (hs <= 1 ? 1 : 0.86));
   // largest title size whose wrapped lines (one line at 100%, up to three above) and sub-line fit the box
   const maxLines = hs <= 1 ? 1 : 3;
   const subSize = (b.sub ? 28 : 0) * hs;
@@ -349,7 +349,7 @@ function drawBanner(ctx, b, state) {
   ctx.font = `800 ${fs}px ${NUM}`;
   const hh = 60 + lines.length * fs * 1.05 + (b.sub ? 10 + subLines.length * sfs * 1.2 : 0);
   ctx.save();
-  ctx.translate(W / 2, clampN(BOARD.cy + ((b.y ?? 600) - 592), regTop + hh / 2, regBot - hh / 2)); ctx.scale(s, s); ctx.globalAlpha = Math.min(1, outK * 1.4);
+  ctx.translate(ZONE.cx, clampN(BOARD.cy + ((b.y ?? 600) - 592), regTop + hh / 2, regBot - hh / 2)); ctx.scale(s, s); ctx.globalAlpha = Math.min(1, outK * 1.4);
   roundPath(ctx, -boxW / 2, -hh / 2, boxW, hh, 26);
   ctx.fillStyle = b.kind === 'bust' ? 'rgba(120,20,18,0.95)' : b.kind === 'big' ? 'rgba(20,70,40,0.95)' : 'rgba(22,16,10,0.94)'; ctx.fill();
   ctx.lineWidth = 4; ctx.strokeStyle = b.kind === 'bust' ? '#ff8a7a' : '#e9c15f'; ctx.stroke();
@@ -388,8 +388,8 @@ export function renderPlay(ctx, state) {
   drawPanel(ctx, state, 0); drawPanel(ctx, state, 1);
   ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'; ctx.fillStyle = 'rgba(255,238,200,0.78)';
   const legC = [`Leg ${m.legNo}  ·  First to ${m.cfg.legs}  ·  ${m.cfg.start}`, `Leg ${m.legNo}  ·  First to ${m.cfg.legs}`, `Leg ${m.legNo}`];
-  const lf = fitCands(ctx, legC, W - 40, 1e9, 22 * HUD.hs, { minRatio: 0.8 });
-  ctx.fillText(lf.lines[0], W / 2, LEG_LINE.y);
+  const lf = fitCands(ctx, legC, (HUD.wide ? PANEL[0].w - 16 : W - 40), 1e9, 22 * HUD.hs, { minRatio: 0.8 });
+  ctx.fillText(lf.lines[0], LEG_LINE.x, LEG_LINE.y);
   drawChips(ctx, state);
   drawCoach(ctx, state);
   // buttons
@@ -406,8 +406,8 @@ export function renderPlay(ctx, state) {
     }
     if (state.paused) {
       ctx.save(); ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = `800 ${40 * HUD.ps}px ${NUM}`;
-      ctx.lineWidth = 8; ctx.lineJoin = 'round'; ctx.strokeStyle = 'rgba(0,0,0,0.8)'; ctx.strokeText('PAUSED', W / 2, BOARD.cy);
-      ctx.fillStyle = '#ffe9a0'; ctx.fillText('PAUSED', W / 2, BOARD.cy); ctx.restore();
+      ctx.lineWidth = 8; ctx.lineJoin = 'round'; ctx.strokeStyle = 'rgba(0,0,0,0.8)'; ctx.strokeText('PAUSED', BOARD.cx, BOARD.cy);
+      ctx.fillStyle = '#ffe9a0'; ctx.fillText('PAUSED', BOARD.cx, BOARD.cy); ctx.restore();
     }
   } else {
     const can = state.humanTurn && state.phase === 'ready';

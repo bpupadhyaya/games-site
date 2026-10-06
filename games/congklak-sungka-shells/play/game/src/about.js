@@ -160,3 +160,19 @@ export const HOWTO = {
     ["Rounds (cont.)", "Choose one round, three or a full match in Settings."],
   ],
 };
+
+// ---- one continuous reader: the short "(cont.)" fragments above are joined back into whole sections (same text, same order) ----
+const isCont = (t) => / \(cont\.\)$/.test(t);
+const docOf = (items) => {
+  const out = [];
+  for (const it of items) {
+    const title = it.title, lines = it.lines;
+    if (isCont(title) && out.length) { const last = out[out.length - 1]; last.lines[last.lines.length - 1] += ' ' + lines[0]; for (const l of lines.slice(1)) last.lines.push(l); }
+    else out.push({ title, lines: lines.slice(), art: it.art });
+  }
+  return out;
+};
+const partsOf = (P) => P.parts.map(([title, body]) => ({ title, lines: [body] }));
+export const ABOUT_DOC = docOf(partsOf(ABOUT));
+export const HOWTO_DOC = docOf(partsOf(HOWTO));
+export const RULES_DOC = docOf(RULES);

@@ -3,7 +3,7 @@
 // baked once into an OffscreenCanvas and blitted; where OffscreenCanvas does not exist (the headless crash test) it is
 // painted directly. A seeded LCG, never Math.random, so a frame is a pure function of its inputs.
 import { BIA, MET, KHON, MA, RUA, KHUN, NGAI } from './rules.js';
-import { W, H } from './layout.js';
+import { W, H, SQ, FRAME } from './layout.js';
 
 export const FONT = 'Georgia, "Times New Roman", serif';
 export const DISPLAY = '"Cormorant Garamond", Georgia, "Times New Roman", serif';
@@ -100,9 +100,12 @@ function paintBackdrop(c, T, w, h) {
   vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,0.55)');
   c.fillStyle = vg; c.fillRect(0, 0, w, h);
 }
+let lastBd = '';
 export function drawBackdrop(ctx, themeName) {
   const T = themeOf(themeName);
-  baked(ctx, `bd:${themeName}`, 0, 0, W, H, (c) => paintBackdrop(c, T, W, H), 0.5);
+  const key = `bd:${themeName}:${W}x${H}`;
+  if (key !== lastBd) { for (const k of [...bakeCache.keys()]) if (k.startsWith('bd:') && k !== key) bakeCache.delete(k); lastBd = key; }
+  baked(ctx, key, 0, 0, W, H, (c) => paintBackdrop(c, T, W, H), 0.5);
 }
 
 // ---- the board --------------------------------------------------------------------------------------------------------------
@@ -311,7 +314,7 @@ export function warmArt(i, themeName) {
   list.push(['board', false], ['board', true]);
   const e = list[i]; if (!e) return false;
   if (e[0] === 'pc') getImage(`pc:${e[1]}:${e[2]}`, PW, PH, (c) => paintPiece(c, e[1], e[2]), 2.4);
-  else { const T = themeOf(themeName), o = { S: 78, F: 30, labels: true, flip: e[1] }, { w, h } = boardBox(o); getImage(`board:${themeName}:78:30:${e[1] ? 'f' : 'n'}:l:i`, w, h, (c) => paintBoard(c, T, o), 1.5); }
+  else { const T = themeOf(themeName), o = { S: SQ, F: FRAME, labels: true, flip: e[1] }, { w, h } = boardBox(o); getImage(`board:${themeName}:${SQ}:${FRAME}:${e[1] ? 'f' : 'n'}:l:i`, w, h, (c) => paintBoard(c, T, o), 1.5); }
   return i + 1 < list.length;
 }
 export const PIECE_FEET = 0; // y of the piece's base relative to the point passed to drawPiece

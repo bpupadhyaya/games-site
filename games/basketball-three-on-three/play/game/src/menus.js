@@ -1,45 +1,109 @@
-// Every screen that is not the play screen: title, setup, learn, settings, result, pause and the paginated About / How to Play /
-// Rules reader with its diagrams. Pure drawing; game.js owns state. All text follows the 100-300% text size.
-import { W, H, TEXT_SCALES, TEXT_DEC, TEXT_INC, REF_BACK, REF_NEXT, THINK_STEPS, SETUP_PINS } from './layout.js';
-import { FONT, DISPLAY, C, roundPath, drawButton, panel, wrapLines, textShadow, flowLayout, drawFlow, flowHit, drawScrollBar } from './ui.js';
+// Every screen that is not the play screen: title, setup, learn, settings, result, pause and the scrolling About / How to Play /
+// Rules reader with its diagrams. Pure drawing; game.js owns state. All text follows the 100-300% text size, and every rectangle comes
+// from layout.js (the live screen size), so portrait, landscape and tablets all work and a rotation re-lays everything out.
+import { W, H, TEXT_SCALES, THINK_STEPS, layoutFor, host } from './layout.js';
+import { FONT, DISPLAY, C, UI, roundPath, drawButton, panel, wrapLines, textShadow, flowLayout, drawFlow, flowHit, drawScrollBar } from './ui.js';
 import { LEVELS, ROLES } from './consts.js';
 import { LESSONS, QUIZ } from './content.js';
 import { ARC_R, ARC_X, HW, Z_BASE, Z_HALF, FT_Z, KEY_HW } from './consts.js';
+import { drawMoreLine } from './brand.js';
 
 const TAU = Math.PI * 2;
+let titleLockTap = null;
+export const getLockTap = () => titleLockTap;
+let lockup = null;
+export const setLockup = (img) => { lockup = img; };
+const curL = (state) => layoutFor(W, H, state.settings.textIdx);
 let LAID = { key: '', lay: null, top: 0, bottom: H };
 export const flowMeta = () => LAID;
 const estCtx = { font: '', measureText(t) { const m = /(\d+)px/.exec(this.font); return { width: String(t).length * (m ? +m[1] : 20) * 0.52 }; } };
+
+// A flow = scrolling widgets in one column, or in two columns side by side (landscape). `parts` are stacked top to bottom; a part with
+// `cols` puts several columns next to each other. Returns the same shape flowLayout returns, so drawing and hit-testing are shared.
+function stack(ctx, parts, sc) {
+  const items = []; let y = 0;
+  for (const part of parts) {
+    let hmax = 0;
+    for (const c of part.cols || [part]) {
+      const lay = flowLayout(ctx, c.widgets, sc, { x: c.x, w: c.w });
+      for (const it of lay.items) items.push({ ...it, y: it.y + y });
+      hmax = Math.max(hmax, lay.contentH);
+    }
+    y += hmax;
+  }
+  return { items, contentH: y };
+}
+// Where each flow screen sits on this screen: the layout parts, the scroll window and whether the content is centred vertically.
+function flowDef(ctx, key, state) {
+  const L = curL(state), U = L.U, wide = L.land, sc = TEXT_SCALES[state.settings.textIdx];
+  const one = (widgets, o = {}) => ({ parts: [{ widgets, x: L.flow.x, w: L.flow.w }], top: U.y0, bottom: U.y1, center: wide, ...o });
+  switch (key) {
+    case 'title': { const c = L.title.col; return { parts: [{ widgets: titleWidgets(state, c.w, L.title.wide), x: c.x, w: c.w }], top: c.top, bottom: c.bottom, center: true }; }
+    case 'setup': {
+      const bottom = L.setup.bottom;
+      if (!wide) return { parts: [{ widgets: setupWidgets(state), x: L.flow.x, w: L.flow.w }], top: U.y0, bottom };
+      if (L.cols3 && !state.setup.watch) {
+        const [hd, r, o, ln] = setupWidgets(state, 3), [k0, k1, k2] = L.cols3;
+        return { parts: [{ widgets: hd, x: L.flow.x, w: L.flow.w }, { cols: [{ widgets: r, x: k0.x, w: k0.w }, { widgets: o, x: k1.x, w: k1.w }, { widgets: ln, x: k2.x, w: k2.w }] }], top: U.y0, bottom, center: true };
+      }
+      const [hd, a, b] = setupWidgets(state, true), [c0, c1] = L.cols;
+      return { parts: [{ widgets: hd, x: L.flow.x, w: L.flow.w }, { cols: [{ widgets: a, x: c0.x, w: c0.w }, { widgets: b, x: c1.x, w: c1.w }] }], top: U.y0, bottom, center: true };
+    }
+    case 'settings': {
+      if (!wide) return one(settingsWidgets(state));
+      const [hd, a, b] = settingsWidgets(state, true), [c0, c1] = L.cols;
+      return { parts: [{ widgets: hd, x: L.flow.x, w: L.flow.w }, { cols: [{ widgets: a, x: c0.x, w: c0.w }, { widgets: b, x: c1.x, w: c1.w }] }], top: U.y0, bottom: U.y1, center: true };
+    }
+    case 'learn': {
+      if (!wide) return one(learnWidgets(state));
+      const [head, les, foot] = learnWidgets(state, true), [c0, c1] = L.cols, half = Math.ceil(les.length / 2);
+      return { parts: [{ widgets: head, x: L.flow.x, w: L.flow.w }, { cols: [{ widgets: les.slice(0, half), x: c0.x, w: c0.w }, { widgets: les.slice(half), x: c1.x, w: c1.w }] }, { widgets: foot, x: L.flow.x, w: L.flow.w }], top: U.y0, bottom: U.y1, center: true };
+    }
+    case 'result': return one(resultWidgets(state, wide), { bottom: U.y1 - 56 });
+    case 'demolimit': return one(demoLimitWidgets(wide));
+    case 'lesson': return one(lessonWidgets(state));
+    case 'quiz': return one(quizWidgets(state));
+    case 'lessonresult': return one(lessonResultWidgets(state, wide));
+    default: return null;
+  }
+}
+function placeFlow(ctx, key, state) {
+  const d = flowDef(ctx, key, state);
+  if (!d) return null;
+  UI.minf = curL(state).minf; UI.minb = curL(state).minb;
+  const lay = stack(ctx, d.parts, TEXT_SCALES[state.settings.textIdx]);
+  let top = d.top;
+  const room = d.bottom - d.top;
+  if (d.center && lay.contentH < room) top = d.top + (room - lay.contentH) / 2;
+  return { key, lay, top, bottom: d.bottom, win: d.top, h: lay.contentH };
+}
 export function ensureLayout(state, key) {
-  if (LAID.key === key && LAID.lay) return;
-  const defs = { title: [titleWidgets, 0, H], setup: [setupWidgets, 0, 1130], settings: [settingsWidgets, 0, H], result: [resultWidgets, 0, H], demolimit: [demoLimitWidgets, 0, H], learn: [learnWidgets, 0, H], lesson: [lessonWidgets, 0, H], quiz: [quizWidgets, 0, H], lessonresult: [lessonResultWidgets, 0, H] };
-  const d = defs[key];
-  if (!d) return;
-  const lay = flowLayout(estCtx, d[0](state), TEXT_SCALES[state.settings.textIdx]);
-  LAID = { key, lay, top: d[1], bottom: d[2], h: lay.contentH };
+  const L = curL(state);
+  if (LAID.key === key && LAID.lay && LAID.lkey === L.key) return;
+  const p = placeFlow(estCtx, key, state);
+  if (!p) return;
+  LAID = { ...p, lkey: L.key };
 }
 export function hitScreen(x, y, scroll) { return LAID.lay ? flowHit(LAID.lay, LAID.top, scroll, x, y) : null; }
 
-const heroArt = () => ({
-  t: 'art', h: 400,
-  draw(ctx, w) {
-    ctx.save(); ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
-    const cx = w / 2;
-    ctx.font = `700 38px ${FONT}`; ctx.fillStyle = '#ffd97a'; ctx.shadowColor = 'rgba(0,0,0,0.6)'; ctx.shadowBlur = 8; ctx.shadowOffsetY = 2;
-    ctx.fillText('HALF-COURT', cx, 110);
-    ctx.font = `700 112px ${DISPLAY}`; ctx.fillStyle = '#fff6e4'; ctx.shadowBlur = 14; ctx.shadowOffsetY = 4;
-    ctx.fillText('Basketball', cx, 226);
-    ctx.font = `800 130px ${FONT}`; ctx.fillStyle = '#ff9a5a'; ctx.fillText('3x3', cx, 352);
-    ctx.restore();
-  },
-});
-
-export function titleWidgets(state) {
+// the title art: used as a flow widget on portrait screens, drawn on the left on landscape ones
+function drawHero(ctx, cx, y0, w) {
+  ctx.save(); ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+  const k = Math.min(1, w / 640);
+  ctx.font = `700 ${Math.round(38 * k)}px ${FONT}`; ctx.fillStyle = '#ffd97a'; ctx.shadowColor = 'rgba(0,0,0,0.6)'; ctx.shadowBlur = 8; ctx.shadowOffsetY = 2;
+  ctx.fillText('HALF-COURT', cx, y0 + 110 * k);
+  ctx.font = `700 ${Math.round(112 * k)}px ${DISPLAY}`; ctx.fillStyle = '#fff6e4'; ctx.shadowBlur = 14; ctx.shadowOffsetY = 4;
+  ctx.fillText('Basketball', cx, y0 + 226 * k);
+  ctx.font = `800 ${Math.round(130 * k)}px ${FONT}`; ctx.fillStyle = '#ff9a5a'; ctx.fillText('3x3', cx, y0 + 352 * k);
+  ctx.restore();
+}
+const heroArt = () => { const hk = H < 1200 ? 0.74 : 1; return { t: 'art', h: Math.round(400 * hk), draw(ctx, w) { ctx.save(); ctx.scale(hk, hk); drawHero(ctx, w / hk / 2, 0, w / hk); ctx.restore(); } }; };
+export function titleWidgets(state, colW, wide = false) {
   const sv = state.saved;
   return [
-    heroArt(),
+    ...(wide ? [] : [heroArt()]),
     ...(sv ? [{ t: 'btn', id: 'continue', label: 'Continue game', sub: `${sv.roleName} · ${sv.score[0]}-${sv.score[1]} · ${sv.clockText}`, primary: true, h: 88 }] : []),
-    { t: 'btn', id: 'play', label: 'Play a game', primary: !sv, h: 88 },
+    { t: 'btn', id: 'play', label: 'Play a game', primary: !sv, h: H < 1200 ? 72 : 88 },
     { t: 'btn', id: 'learn', label: 'Learn to play', sub: 'Five practices and a quiz' },
     { t: 'btn', id: 'watch', label: 'Watch & Learn', sub: 'Two computer teams play and explain why' },
     { t: 'btn', id: 'howto', label: 'How to Play', row: 2 },
@@ -50,31 +114,35 @@ export function titleWidgets(state) {
   ];
 }
 
-export function setupWidgets(state) {
+export function setupWidgets(state, split = false) {
   const s = state.setup, watch = s.watch;
-  const wd = [{ t: 'gap', h: 10 }, { t: 'h', label: watch ? 'Watch & Learn' : 'New game', size: 48 }];
+  const head = [{ t: 'gap', h: 10 }, { t: 'h', label: watch ? 'Watch & Learn' : 'New game', size: 48 }];
+  const wd = split ? [] : head, right = [], third = [];
   if (!watch) {
     wd.push({ t: 'p', label: 'Your role', bold: true, color: '#ffe9a0', size: 26 });
     ROLES.forEach((r) => wd.push({ t: 'btn', id: `role${r.id}`, label: r.name, sub: s.role === r.id ? r.blurb : '', active: s.role === r.id, h: 84 }));
     wd.push({ t: 'btn', id: 'roletut', label: `Role tutorial: ${ROLES[s.role].name}`, dark: true, h: 76 });
   }
-  wd.push({ t: 'p', label: watch ? 'Computer team levels' : 'Opponent', bold: true, color: '#ffe9a0', size: 26 });
+  const oc = split && !watch ? right : wd;
+  oc.push({ t: 'p', label: watch ? 'Computer team levels' : 'Opponent', bold: true, color: '#ffe9a0', size: 26 });
   LEVELS.slice(1).forEach((l, i) => {
     const locked = state.demo && i > 1 && !watch;
-    wd.push({ t: 'btn', id: `opp${i + 1}`, label: l.name, sub: locked ? 'In the full game' : `${'★'.repeat(l.stars)}${'☆'.repeat(5 - l.stars)}`, active: s.opp === i + 1 && !locked, disabled: locked, hitDisabled: true, h: 80 });
+    oc.push({ t: 'btn', id: `opp${i + 1}`, label: l.name, sub: locked ? 'In the full game' : `${'★'.repeat(l.stars)}${'☆'.repeat(5 - l.stars)}`, active: s.opp === i + 1 && !locked, disabled: locked, hitDisabled: true, h: 80 });
   });
   if (!watch) {
-    wd.push({ t: 'p', label: 'Game length', bold: true, color: '#ffe9a0', size: 26 });
-    wd.push({ t: 'btn', id: 'len-full', label: 'First to 21 or 10:00', row: 9, active: s.len === 'full' });
-    wd.push({ t: 'btn', id: 'len-quick', label: 'Quick: to 11 or 5:00', row: 9, active: s.len === 'quick' });
+    const lc = split === 3 ? third : wd, row = split === 3 ? undefined : 9;
+    lc.push({ t: 'p', label: 'Game length', bold: true, color: '#ffe9a0', size: 26 });
+    lc.push({ t: 'btn', id: 'len-full', label: 'First to 21 or 10:00', row, active: s.len === 'full' });
+    lc.push({ t: 'btn', id: 'len-quick', label: 'Quick: to 11 or 5:00', row, active: s.len === 'quick' });
   }
-  wd.push({ t: 'gap', h: 24 });
-  return wd;
+  wd.push({ t: 'gap', h: 24 }); right.push({ t: 'gap', h: 24 });
+  if (split === 3) return [head, wd, right, third];
+  return split ? [head, wd, right] : wd;
 }
 
-export function settingsWidgets(state) {
+export function settingsWidgets(state, split = false) {
   const st = state.settings, sc = TEXT_SCALES[st.textIdx];
-  return [
+  const all = [
     { t: 'gap', h: 10 }, { t: 'h', label: 'Settings', size: 48 },
     { t: 'btn', id: 'set-sound', label: st.sound ? 'Sound: On' : 'Sound: Off' },
     { t: 'p', label: `Text size: ${Math.round(sc * 100)}%`, bold: true, color: '#ffe9a0', size: 26 },
@@ -92,14 +160,17 @@ export function settingsWidgets(state) {
     { t: 'btn', id: 'back', label: 'Back', primary: true, h: 84 },
     { t: 'gap', h: 30 },
   ];
+  if (!split) return all;
+  const i = all.findIndex((w) => w.id === 'kit-next');
+  return [all.slice(0, 2), all.slice(2, i), all.slice(i)];
 }
 
-export function resultWidgets(state) {
+export function resultWidgets(state, wide = false) {
   const s = state.sim, big = TEXT_SCALES[state.settings.textIdx] > 1.5;
   const win = s.winner, mode = state.setup.lastMode;
   const youWin = s.humanId >= 0 && win === s.players[s.humanId].team;
   const title = mode === 'watch' ? `${win === 0 ? 'Blue' : 'Red'} win` : youWin ? 'You win!' : 'The other team wins';
-  const wd = [{ t: 'gap', h: big ? 24 : 120 }, { t: 'h', label: title, size: 56, cap: big ? 1.15 : 1.4 }];
+  const wd = [{ t: 'gap', h: wide ? 10 : big ? 24 : 120 }, { t: 'h', label: title, size: 56, cap: big ? 1.15 : 1.4 }];
   wd.push({ t: 'h', label: `${s.score[0]} – ${s.score[1]}`, size: 84, cap: big ? 1.1 : 1.3, color: '#ffd97a' });
   const t = s.humanId >= 0 ? s.players[s.humanId].team : 0, st = s.stats[t];
   wd.push({ t: 'p', label: `${s.humanId >= 0 ? 'Your team' : 'Blue'}: shots ${st.fgm} of ${st.fga}, beyond the arc ${st.tpm} of ${st.tpa}, rebounds ${st.reb}, steals ${st.stl}, blocks ${st.blk}, turnovers ${st.tov}.`, size: 26, cap: big ? 2 : 3 });
@@ -112,9 +183,9 @@ export function resultWidgets(state) {
   return wd;
 }
 
-export function pauseWidgets(state) {
+export function pauseWidgets(state, split = false) {
   const st = state.settings;
-  return [
+  const all = [
     { t: 'h', label: 'Paused', size: 52 },
     { t: 'btn', id: 'resume', label: 'Resume', primary: true, h: 88 },
     { t: 'btn', id: 'p-rules', label: 'Rules', row: 7 },
@@ -125,25 +196,26 @@ export function pauseWidgets(state) {
     { t: 'btn', id: 'p-txt-inc', label: 'A+  Larger', row: 10, disabled: st.textIdx === TEXT_SCALES.length - 1 },
     { t: 'btn', id: 'quit', label: state.mode === 'ai' ? 'Save and quit to menu' : 'Quit to menu', dark: true },
   ];
+  if (!split) return all;
+  const i = all.findIndex((w) => w.id === 'p-rules'), q = all.length - 1;
+  return [[all[0], all[1], all[q]], all.slice(i, q)];
 }
 
-export function demoLimitWidgets() {
+export function demoLimitWidgets(wide = false) {
   return [
-    { t: 'gap', h: 200 }, { t: 'h', label: 'That is the free preview', size: 48 },
+    { t: 'gap', h: wide ? 20 : 200 }, { t: 'h', label: 'That is the free preview', size: 48 },
     { t: 'p', label: 'You have played the free games of the web demo. The full game on iPhone and Android has every opponent level, the full game length, the Learn practices and Watch & Learn.', size: 28 },
     { t: 'gap', h: 20 },
     { t: 'btn', id: 'menu', label: 'Main menu', primary: true },
   ];
 }
 
-export function learnWidgets(state) {
+export function learnWidgets(state, split = false) {
   const done = state.learn.done;
-  return [
-    { t: 'gap', h: 10 }, { t: 'h', label: 'Learn to play', size: 48 },
-    { t: 'p', label: 'Five short practices on the real court and a quiz.', size: 26 },
-    ...LESSONS.map((l, i) => ({ t: 'btn', id: `lesson${i}`, label: l.title, sub: done[l.id] ? `Done · ${l.goal}` : l.goal, active: !!done[l.id], h: 96 })),
-    { t: 'gap', h: 10 }, { t: 'btn', id: 'back', label: 'Back', primary: true, h: 84 }, { t: 'gap', h: 30 },
-  ];
+  const head = [{ t: 'gap', h: 10 }, { t: 'h', label: 'Learn to play', size: 48 }, { t: 'p', label: 'Five short practices on the real court and a quiz.', size: 26 }];
+  const les = LESSONS.map((l, i) => ({ t: 'btn', id: `lesson${i}`, label: l.title, sub: done[l.id] ? `Done · ${l.goal}` : l.goal, active: !!done[l.id], h: 96 }));
+  const foot = [{ t: 'gap', h: 10 }, { t: 'btn', id: 'back', label: 'Back', primary: true, h: 84 }, { t: 'gap', h: 30 }];
+  return split ? [head, les, foot] : [...head, ...les, ...foot];
 }
 export function lessonWidgets(state) {
   const l = LESSONS[state.learn.cur];
@@ -166,10 +238,10 @@ export function quizWidgets(state) {
     { t: 'gap', h: 30 },
   ];
 }
-export function lessonResultWidgets(state) {
+export function lessonResultWidgets(state, wide = false) {
   const l = LESSONS[state.learn.cur], r = state.learn.result;
   return [
-    { t: 'gap', h: 120 }, { t: 'h', label: r.pass ? 'Lesson complete' : 'Not quite yet', size: 52 },
+    { t: 'gap', h: wide ? 10 : 120 }, { t: 'h', label: r.pass ? 'Lesson complete' : 'Not quite yet', size: 52 },
     { t: 'h', label: `${r.score} of ${r.n}`, size: 90, color: '#ffd97a', cap: 1.2 },
     { t: 'p', label: r.pass ? `You reached the goal: ${l.goal}.` : `The goal was: ${l.goal}. Try again.`, size: 28 },
     { t: 'gap', h: 20 },
@@ -187,27 +259,27 @@ function scrim(ctx, a = 0.55) {
 }
 function scrollHint(ctx, top, bottom, scroll, maxScroll, x0 = 0, w = W) {
   if (maxScroll <= 0) return;
-  const cx = x0 + w / 2;
+  const cx = x0 + w / 2, fs = Math.max(UI.minf, 22), bw = Math.round(fs * 4), bh = Math.round(fs * 1.45);
   if (scroll < maxScroll - 4) {
     const g = ctx.createLinearGradient(0, bottom - 90, 0, bottom); g.addColorStop(0, 'rgba(6,14,26,0)'); g.addColorStop(1, 'rgba(6,14,26,0.7)');
     ctx.fillStyle = g; ctx.fillRect(x0, bottom - 90, w, 90);
-    roundPath(ctx, cx - 44, bottom - 40, 88, 32, 16); ctx.fillStyle = 'rgba(255,246,228,0.92)'; ctx.fill();
-    ctx.fillStyle = C.ink; ctx.font = `700 22px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('▼ more', cx, bottom - 23);
+    roundPath(ctx, cx - bw / 2, bottom - bh - 8, bw, bh, bh / 2); ctx.fillStyle = 'rgba(255,246,228,0.92)'; ctx.fill();
+    ctx.fillStyle = C.ink; ctx.font = `700 ${fs}px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('▼ more', cx, bottom - bh / 2 - 8);
   } else if (scroll > 4) {
-    roundPath(ctx, cx - 44, top + 8, 88, 32, 16); ctx.fillStyle = 'rgba(255,246,228,0.92)'; ctx.fill();
-    ctx.fillStyle = C.ink; ctx.font = `700 22px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('▲ up', cx, top + 24);
+    roundPath(ctx, cx - bw / 2, top + 8, bw, bh, bh / 2); ctx.fillStyle = 'rgba(255,246,228,0.92)'; ctx.fill();
+    ctx.fillStyle = C.ink; ctx.font = `700 ${fs}px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('▲ up', cx, top + 8 + bh / 2);
   }
 }
-function drawFlowScreen(ctx, state, key, widgets, top, bottom) {
-  const sc = TEXT_SCALES[state.settings.textIdx];
-  const lay = flowLayout(ctx, widgets, sc);
-  LAID = { key, lay, top, bottom, h: lay.contentH };
+function drawFlowScreen(ctx, state, key) {
+  const L = curL(state), p = placeFlow(ctx, key, state);
+  LAID = { ...p, lkey: L.key };
+  const { lay, top, bottom } = p;
   const maxScroll = Math.max(0, lay.contentH - (bottom - top));
   const scroll = Math.min(state.ui.scroll, maxScroll);
   drawFlow(ctx, lay, top, bottom, scroll);
   if (maxScroll > 0) {
     const th = Math.max(60, (bottom - top) * ((bottom - top) / lay.contentH)), ty = top + (scroll / maxScroll) * (bottom - top - th);
-    roundPath(ctx, W - 10, ty, 5, th, 3); ctx.fillStyle = 'rgba(255,246,228,0.5)'; ctx.fill();
+    roundPath(ctx, L.U.x1 - 10, ty, 5, th, 3); ctx.fillStyle = 'rgba(255,246,228,0.5)'; ctx.fill();
     scrollHint(ctx, top, bottom, scroll, maxScroll);
   }
   return { scroll, maxScroll, lay };
@@ -215,53 +287,77 @@ function drawFlowScreen(ctx, state, key, widgets, top, bottom) {
 const bg = (ctx, a) => { ctx.clearRect(0, 0, W, H); scrim(ctx, a); };
 
 export function renderTitle(ctx, state) {
+  const L = curL(state);
   ctx.clearRect(0, 0, W, H);
   const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, 'rgba(6,14,26,0.15)'); g.addColorStop(0.35, 'rgba(6,14,26,0.45)'); g.addColorStop(1, 'rgba(6,14,26,0.9)');
   ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
-  drawFlowScreen(ctx, state, 'title', titleWidgets(state), 0, H);
-  if (state.demo) { ctx.textAlign = 'center'; ctx.font = `400 18px ${FONT}`; ctx.fillStyle = 'rgba(255,246,228,0.6)'; ctx.fillText('Web demo', W / 2, H - 14); }
+  if (L.title.wide) {
+    // landscape: a dark panel behind the buttons keeps them readable over the court, the art stands on the left
+    const c = L.title.col, hr = L.title.hero, k = Math.min(1, hr.w / 640);
+    const gl = ctx.createLinearGradient(c.x - 70, 0, c.x - 10, 0); gl.addColorStop(0, 'rgba(6,14,26,0)'); gl.addColorStop(1, 'rgba(6,14,26,0.55)');
+    ctx.fillStyle = gl; ctx.fillRect(c.x - 70, 0, 60, H); ctx.fillStyle = 'rgba(6,14,26,0.55)'; ctx.fillRect(c.x - 10, 0, W - c.x + 10, H);
+    drawHero(ctx, hr.cx, hr.cy - 200 * k, hr.w);
+  }
+  const fr = drawFlowScreen(ctx, state, 'title');
+  {   // themed lockup: bottom centre, directly under the last row of menu buttons (pinned to the bottom when the menu scrolls)
+    const c = L.title.col, btns = LAID.lay.items.filter((i) => i.w && i.w.t === 'btn'), lcx = c.x + c.w / 2;
+    const lw = Math.min(320, c.w - 40), lh = Math.round(lw * 327 / 1200);
+    const ly = Math.min(L.U.y1 - lh - 14, LAID.top + Math.max(0, ...btns.map((i) => i.y + i.h)) + 20);
+    const m = 44 / Math.max(0.2, host.px), tw = Math.max(lw + 24, m), th = Math.max(lh + 12, m);
+    titleLockTap = { x: lcx - tw / 2, y: ly + lh + 6 - th, w: tw, h: th };
+    ctx.save(); ctx.fillStyle = state.lockDown > state.t ? 'rgba(255,226,122,0.5)' : 'rgba(6,14,26,0.55)'; roundPath(ctx, lcx - lw / 2 - 12, ly - 6, lw + 24, lh + 12, (lh + 12) / 2); ctx.fill(); ctx.restore();
+    if (lockup && lockup.width) ctx.drawImage(lockup, lcx - lw / 2, ly, lw, lh);
+  }
+  if (state.demo) { ctx.textAlign = 'center'; ctx.font = `400 ${Math.max(UI.minf, 18)}px ${FONT}`; ctx.fillStyle = 'rgba(255,246,228,0.6)'; ctx.fillText('Web demo', L.land ? L.title.hero.cx : W / 2, L.lockup.y - 10); }
 }
 export function renderSetup(ctx, state) {
+  const L = curL(state), S = L.setup;
   bg(ctx, 0.78);
-  drawFlowScreen(ctx, state, 'setup', setupWidgets(state), 0, 1130);
-  const g = ctx.createLinearGradient(0, 1100, 0, H);
+  drawFlowScreen(ctx, state, 'setup');
+  const y0 = S.bottom - 30;
+  const g = ctx.createLinearGradient(0, y0, 0, H);
   g.addColorStop(0, 'rgba(6,14,26,0)'); g.addColorStop(0.2, 'rgba(6,14,26,0.88)'); g.addColorStop(1, 'rgba(6,14,26,0.95)');
-  ctx.fillStyle = g; ctx.fillRect(0, 1100, W, H - 1100);
-  drawButton(ctx, SETUP_PINS.start, state.setup.watch ? 'Watch the match' : 'Start the match', { primary: true, size: 32 });
-  drawButton(ctx, SETUP_PINS.back, 'Back', { dark: true, size: 28 });
-  if (state.setupMsg) { ctx.textAlign = 'center'; ctx.font = `700 22px ${FONT}`; ctx.fillStyle = '#ffd9a0'; ctx.fillText(state.setupMsg, W / 2, 1140); }
+  ctx.fillStyle = g; ctx.fillRect(0, y0, W, H - y0);
+  drawButton(ctx, S.start, state.setup.watch ? 'Watch the match' : 'Start the match', { primary: true, size: 32 });
+  drawButton(ctx, S.back, 'Back', { dark: true, size: 28 });
+  if (state.setupMsg) { ctx.textAlign = 'center'; ctx.font = `700 ${Math.max(UI.minf, 22)}px ${FONT}`; ctx.fillStyle = '#ffd9a0'; ctx.fillText(state.setupMsg, W / 2, S.msgY); }
 }
-export const renderSettings = (ctx, state) => { bg(ctx, 0.8); drawFlowScreen(ctx, state, 'settings', settingsWidgets(state), 0, H); };
-export const renderResult = (ctx, state) => { ctx.clearRect(0, 0, W, H); scrim(ctx, 0.62); drawFlowScreen(ctx, state, 'result', resultWidgets(state), 0, H); };
-export const renderDemoLimit = (ctx, state) => { bg(ctx, 0.8); drawFlowScreen(ctx, state, 'demolimit', demoLimitWidgets(), 0, H); };
-export const renderLearn = (ctx, state) => { bg(ctx, 0.8); drawFlowScreen(ctx, state, 'learn', learnWidgets(state), 0, H); };
-export const renderLesson = (ctx, state) => { bg(ctx, 0.8); drawFlowScreen(ctx, state, 'lesson', lessonWidgets(state), 0, H); };
-export const renderQuiz = (ctx, state) => { bg(ctx, 0.8); drawFlowScreen(ctx, state, 'quiz', quizWidgets(state), 0, H); };
-export const renderLessonResult = (ctx, state) => { bg(ctx, 0.8); drawFlowScreen(ctx, state, 'lessonresult', lessonResultWidgets(state), 0, H); };
+export const renderSettings = (ctx, state) => { bg(ctx, 0.8); drawFlowScreen(ctx, state, 'settings'); };
+export const renderResult = (ctx, state) => {
+  ctx.clearRect(0, 0, W, H); scrim(ctx, 0.62); drawFlowScreen(ctx, state, 'result');
+  const L = curL(state); drawMoreLine(ctx, L.more.x, L.more.y, Math.max(UI.minf, 20));
+};
+export const renderDemoLimit = (ctx, state) => { bg(ctx, 0.8); drawFlowScreen(ctx, state, 'demolimit'); };
+export const renderLearn = (ctx, state) => { bg(ctx, 0.8); drawFlowScreen(ctx, state, 'learn'); };
+export const renderLesson = (ctx, state) => { bg(ctx, 0.8); drawFlowScreen(ctx, state, 'lesson'); };
+export const renderQuiz = (ctx, state) => { bg(ctx, 0.8); drawFlowScreen(ctx, state, 'quiz'); };
+export const renderLessonResult = (ctx, state) => { bg(ctx, 0.8); drawFlowScreen(ctx, state, 'lessonresult'); };
 export function renderPause(ctx, state) {
   scrim(ctx, 0.55);
-  const wd = pauseWidgets(state);
-  const sc = TEXT_SCALES[state.settings.textIdx];
-  const lay = flowLayout(ctx, wd, sc, { x: 60, w: 600 });
-  const top = 70, bottom = H - 70;
+  const L = curL(state), P = L.pause, sc = TEXT_SCALES[state.settings.textIdx];
+  UI.minf = L.minf; UI.minb = L.minb;
+  const inner = P.w - 60;
+  let lay;
+  if (P.cols) { const [a, b] = pauseWidgets(state, true), cw = (inner - 30) / 2; lay = stack(ctx, [{ cols: [{ widgets: a, x: P.x + 30, w: cw }, { widgets: b, x: P.x + 30 + cw + 30, w: cw }] }], sc); }
+  else lay = stack(ctx, [{ widgets: pauseWidgets(state), x: P.x + 30, w: inner }], sc);
+  const top = P.top + 40, bottom = P.bottom - 40;
   const ch = Math.min(lay.contentH + 20, bottom - top);
   const y0 = Math.max(top, (H - ch) / 2);
-  panel(ctx, 30, y0 - 20, 660, ch + 40, { r: 30, fill: 'rgba(14,34,52,0.94)', stroke: 'rgba(255,246,228,0.45)' });
-  LAID = { key: 'pause', lay, top: y0, bottom: y0 + ch, h: lay.contentH };
+  panel(ctx, P.x, y0 - 20, P.w, ch + 40, { r: 30, fill: 'rgba(14,34,52,0.94)', stroke: 'rgba(255,246,228,0.45)' });
+  LAID = { key: 'pause', lay, top: y0, bottom: y0 + ch, h: lay.contentH, lkey: L.key };
   const maxScroll = Math.max(0, lay.contentH - ch);
   const sc0 = Math.min(state.ui.scroll, maxScroll);
-  drawFlow(ctx, lay, y0, y0 + ch, sc0);
-  scrollHint(ctx, y0, y0 + ch, sc0, maxScroll, 30, 660);
+  drawFlow(ctx, lay, y0, y0 + ch, sc0, { x0: P.x, w: P.w });
+  scrollHint(ctx, y0, y0 + ch, sc0, maxScroll, P.x, P.w);
 }
 
 // ---- reference pages: one continuous column that scrolls (drag, wheel, keys) with a visible scroll bar -------------------------
-const PANEL = { x: 34, y: 100, w: 652, h: 1030 };
-const READER = { x: PANEL.x + 12, y: PANEL.y + 96, w: PANEL.w - 24, h: PANEL.h - 96 - 20 };
-let RMETA = { max: 0, view: READER.h, key: '', rect: READER };
+let RMETA = { max: 0, view: 800, key: '', rect: { x: 0, y: 0, w: 0, h: 0 } };
 export const readerMeta = () => RMETA;
+const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 
-function buildReader(ctx, list, scale) {
-  const fs = Math.round(28 * scale), lh = fs * 1.28, tw = READER.w - 56;
+function buildReader(ctx, list, scale, box) {
+  const fs = Math.round(28 * scale), lh = fs * 1.28, tw = box.w - 56;
   const secFs = Math.round(34 * Math.min(scale, 1.3));
   const items = [];
   let y = 14;
@@ -283,32 +379,35 @@ function buildReader(ctx, list, scale) {
 }
 const readerCache = new Map();
 export function renderPages(ctx, state, list, header) {
+  const L = curL(state), rd = L.reader, P = rd.panel, READER = rd.box;
+  UI.minf = L.minf; UI.minb = L.minb;
   bg(ctx, 0.8);
   const sc = TEXT_SCALES[state.settings.textIdx];
-  const pkey = `${header}:${sc}:${list.length}`;
-  let rd = readerCache.get(pkey);
-  if (!rd) { rd = buildReader(ctx, list, sc); readerCache.set(pkey, rd); }
-  const max = Math.max(0, rd.h - READER.h);
+  const pkey = `${header}:${sc}:${list.length}:${Math.round(READER.w)}`;
+  let r = readerCache.get(pkey);
+  if (!r) { r = buildReader(ctx, list, sc, READER); readerCache.set(pkey, r); if (readerCache.size > 40) readerCache.delete(readerCache.keys().next().value); }
+  const max = Math.max(0, r.h - READER.h);
   if (state.ui.keepFrac != null) { state.ui.scroll = state.ui.keepFrac * max; state.ui.keepFrac = null; }
   const scroll = clamp(state.ui.scroll, 0, max); state.ui.scroll = scroll;
   RMETA = { max, view: READER.h, key: pkey, rect: READER };
-  panel(ctx, PANEL.x, PANEL.y, PANEL.w, PANEL.h, { r: 30, fill: 'rgba(255,246,228,0.97)', stroke: 'rgba(19,40,58,0.6)' });
+  panel(ctx, P.x, P.y, P.w, P.h, { r: 30, fill: 'rgba(255,246,228,0.97)', stroke: 'rgba(19,40,58,0.6)' });
+  const pcx = P.x + P.w / 2;
   ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
   ctx.fillStyle = C.vermDark; ctx.font = `italic 700 ${Math.round(42 * Math.min(sc, 1.15))}px ${DISPLAY}`;
-  ctx.fillText(header, W / 2, PANEL.y + 58);
+  ctx.fillText(header, pcx, P.y + 58);
   ctx.strokeStyle = 'rgba(19,40,58,0.3)'; ctx.lineWidth = 2;
-  ctx.beginPath(); ctx.moveTo(PANEL.x + 60, PANEL.y + 78); ctx.lineTo(PANEL.x + PANEL.w - 60, PANEL.y + 78); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(P.x + 60, P.y + 78); ctx.lineTo(P.x + P.w - 60, P.y + 78); ctx.stroke();
   ctx.save();
   ctx.beginPath(); ctx.rect(READER.x, READER.y, READER.w, READER.h); ctx.clip();
   const x0 = READER.x + 28;
-  for (const it of rd.items) {
+  for (const it of r.items) {
     const y = READER.y + it.y - scroll;
-    const hh = it.k === 'title' ? it.lines.length * it.secFs * 1.2 + 16 : it.k === 'art' ? it.h : rd.lh;
+    const hh = it.k === 'title' ? it.lines.length * it.secFs * 1.2 + 16 : it.k === 'art' ? it.h : r.lh;
     if (y + hh < READER.y - 4 || y > READER.y + READER.h + 4) continue;
-    if (it.k === 'rule') { ctx.strokeStyle = 'rgba(19,40,58,0.2)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(PANEL.x + 80, y); ctx.lineTo(PANEL.x + PANEL.w - 80, y); ctx.stroke(); }
+    if (it.k === 'rule') { ctx.strokeStyle = 'rgba(19,40,58,0.2)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(P.x + 80, y); ctx.lineTo(P.x + P.w - 80, y); ctx.stroke(); }
     else if (it.k === 'title') { ctx.textAlign = 'center'; ctx.fillStyle = C.indigo; ctx.font = `700 ${it.secFs}px ${FONT}`; it.lines.forEach((l, k) => ctx.fillText(l, READER.x + (READER.w - 14) / 2, y + it.secFs * (0.9 + k * 1.2))); }
-    else if (it.k === 'art') { ctx.save(); ctx.beginPath(); ctx.rect(PANEL.x + 20, y, PANEL.w - 40, it.h + 4); ctx.clip(); drawArt(it.art, ctx, PANEL.x + 40, y, PANEL.w - 80, it.h); ctx.restore(); }
-    else { ctx.textAlign = 'left'; ctx.fillStyle = C.ink; ctx.font = `400 ${rd.fs}px ${FONT}`; ctx.fillText(it.text, x0, y + rd.fs * 0.85); }
+    else if (it.k === 'art') { ctx.save(); ctx.beginPath(); ctx.rect(P.x + 20, y, P.w - 40, it.h + 4); ctx.clip(); drawArt(it.art, ctx, P.x + 40, y, P.w - 80, it.h); ctx.restore(); }
+    else { ctx.textAlign = 'left'; ctx.fillStyle = C.ink; ctx.font = `400 ${r.fs}px ${FONT}`; ctx.fillText(it.text, x0, y + r.fs * 0.85); }
   }
   ctx.restore();
   drawScrollBar(ctx, READER, scroll, max);
@@ -316,16 +415,16 @@ export function renderPages(ctx, state, list, header) {
     const g = ctx.createLinearGradient(0, READER.y + READER.h - 60, 0, READER.y + READER.h); g.addColorStop(0, 'rgba(255,246,228,0)'); g.addColorStop(1, 'rgba(255,246,228,0.97)');
     ctx.fillStyle = g; ctx.fillRect(READER.x, READER.y + READER.h - 60, READER.w - 14, 60);
   }
-  ctx.textAlign = 'center'; ctx.font = `400 22px ${FONT}`; ctx.fillStyle = 'rgba(19,40,58,0.7)';
-  ctx.fillText(max <= 0 ? 'Everything fits on this page' : scroll >= max - 4 ? 'End. Drag, swipe or use the arrow keys to scroll up.' : `Drag, swipe or use the arrow keys to scroll (${Math.round((scroll / max) * 100)}%)`, W / 2, PANEL.y + PANEL.h - 8 - 14);
-  drawButton(ctx, TEXT_DEC, 'A−', { disabled: state.settings.textIdx === 0, size: 30 });
-  drawButton(ctx, TEXT_INC, 'A+', { disabled: state.settings.textIdx === TEXT_SCALES.length - 1, size: 30 });
-  ctx.fillStyle = '#fff6e4'; ctx.font = `700 24px ${FONT}`; ctx.textAlign = 'center';
-  ctx.fillText(`${Math.round(sc * 100)}%`, W / 2, 56);
-  drawButton(ctx, REF_BACK, 'Close', { size: 32 });
-  drawButton(ctx, REF_NEXT, max <= 0 || scroll >= max - 4 ? 'Done' : 'Page down', { primary: true, size: 32 });
+  ctx.textAlign = 'center'; ctx.font = `400 ${Math.max(L.minf, 22)}px ${FONT}`; ctx.fillStyle = 'rgba(19,40,58,0.7)';
+  const hint = max <= 0 ? 'Everything fits on this page' : scroll >= max - 4 ? 'End. Drag, swipe or use the arrow keys to scroll up.' : `Drag, swipe or use the arrow keys to scroll (${Math.round((scroll / max) * 100)}%)`;
+  ctx.fillText(hint.length * 12 > P.w - 40 ? hint.replace(/^Drag, swipe or use the arrow keys to scroll/, 'Drag or use the arrow keys') : hint, pcx, P.y + P.h - 22);
+  drawButton(ctx, rd.dec, 'A−', { disabled: state.settings.textIdx === 0, size: 30 });
+  drawButton(ctx, rd.inc, 'A+', { disabled: state.settings.textIdx === TEXT_SCALES.length - 1, size: 30 });
+  ctx.fillStyle = '#fff6e4'; ctx.font = `700 ${Math.max(L.minf, 24)}px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(`${Math.round(sc * 100)}%`, rd.pct.x, rd.pct.y); ctx.textBaseline = 'alphabetic';
+  drawButton(ctx, rd.back, 'Close', { size: 32 });
+  drawButton(ctx, rd.next, max <= 0 || scroll >= max - 4 ? 'Done' : 'Page down', { primary: true, size: 32 });
 }
-const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 
 // ---- diagrams: a top-down half court drawn with the game's own geometry -----------------------------------------------
 const dot = (ctx, x, y, col, r = 9) => { ctx.fillStyle = col; ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill(); ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.lineWidth = 2; ctx.stroke(); };

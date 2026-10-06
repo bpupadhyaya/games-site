@@ -1,7 +1,7 @@
 // Scopa: state and flow. Drawing is view.js; the rule book is rules.js; the computer is engine.js; lessons.js and
 // puzzles.js are content. The rule book applies a play to `state.g` at once; a short queue of animation steps then
 // SHOWS it (card flight, capture, scopa, sweep, deal) while `state.slots`/`hslots` (what is drawn) catch up.
-import { W, H, BTN, SET, HAND, inRect, handPos, tableGrid, slotPos, seatPos, deckPos, pilePos, titleRows, CLOTH, TEXT_SCALES, AP_THINK_STEPS } from './layout.js';
+import { W, H, BTN, SET, HAND, SEAT, OPP, READER, LV, applyLayout, inRect, handPos, tableGrid, slotPos, seatPos, deckPos, pilePos, titleRows, CLOTH, TEXT_SCALES, AP_THINK_STEPS } from './layout.js';
 import { newMatch, startRound, captures, legalPlays, applyPlay, scoreRound, whyNot, clone, teamOf, rankOf, cardName, RANK_NAMES } from './rules.js';
 import { LEVELS, createThinker, hintFor } from './engine.js';
 import { LESSONS } from './lessons.js';
@@ -9,10 +9,12 @@ import { ABOUT } from './about.js';
 import { RULES } from './rulesContent.js';
 import { CONTROLS } from './controlsContent.js';
 import { puzzleFor, puzzleGame, pv, isWeekend } from './puzzles.js';
-import { render, tableCardAt } from './view.js';
+import { render, tableCardAt, readerMetrics } from './view.js';
 import { warm } from './art.js';
 
-export const meta = { width: W, height: H };
+// `meta.width/height` are updated live by the kit on every resize (fluid viewport: the short side is always 720 units).
+export const meta = { width: W, height: H, fluid: { short: 720 } };
+export const wheelInput = { dy: 0 };   // set by main.js on mouse-wheel; scrolls the About / Controls / Rules pages
 const DEMO_GAMES = 2, HINTS = 3, NODES_PER_TICK = 260;
 const SLOTS = 24;
 // Auto Play: a whole AI-vs-AI teaching game driven by the SAME engine.js thinker used for the real
@@ -26,7 +28,7 @@ export function createGame(env) {
   const { rng, storage, audio, monetization, config } = env;
   const state = {
     scene: 'title', t: 0, g: newMatch(2, 11), n: 2, level: 1, sound: true, calm: false, big: false, french: false, target: 11,
-    textScaleIdx: 0, // index into TEXT_SCALES; the About/Controls/Rules reference pages' text size
+    scrollY: 0, apPaused: false, textScaleIdx: 0, // index into TEXT_SCALES; the About/Controls/Rules reference pages' text size
     apThinkIdx: 1, // index into AP_THINK_STEPS; the Auto Play THINK-phase pause, default 5s
     ap: null, // transient Auto Play loop state: { phase: 'run'|'think'|'reveal'|'act', timer, move }
     slots: new Array(SLOTS).fill(null), hslots: [null, null, null], hide: [], fly: [], held: [], glow: [], pileShown: [0, 0], fx: [],
@@ -91,8 +93,8 @@ export function createGame(env) {
   }
   const gridNow = () => tableGrid(Math.max(state.slots.filter((x) => x !== null).length + 1, state.g.table.length));
   const posOfSlot = (i) => { const gr = gridNow(); return { ...slotPos(i, gr), w: gr.w }; };
-  const seatFrom = (seat) => { const p = seatPos(state.n, seat); return { x: p.x, y: p.y, w: 56, r: 0 }; };
-  const pileTo = (team) => (team === 0 ? { ...pilePos, w: 60 } : { x: 70, y: 276, w: 44 });
+  const seatFrom = (seat) => { const p = seatPos(state.n, seat); return { x: p.x, y: p.y, w: SEAT.w + 2, r: 0 }; };
+  const pileTo = (team) => (team === 0 ? { ...pilePos, w: 60 } : { x: OPP.x, y: OPP.y + 8, w: OPP.w });
 
   // ---- dealing ---------------------------------------------------------------------------------------------------
   function dealAnim(first, cb) {
@@ -129,7 +131,7 @@ export function createGame(env) {
   // updateAutoPlay.
   function startAutoPlay() {
     state.n = 2; state.g = newMatch(2, 11); state.g.dealer = 1; state.hintsLeft = HINTS; state.scene = 'autoplay'; state.lesson = null; state.pz = null;
-    state.ap = { phase: 'run', timer: 0, move: null };
+    state.ap = { phase: 'run', timer: 0, move: null }; state.apPaused = false;
     newRound();
   }
   function start(n) {
@@ -268,9 +270,11 @@ export function createGame(env) {
   // its own timer instead of waiting for a tap.
   function updateAutoPlay(dt, tap) {
     const g = state.g, AP = state.ap;
-    if (tap && inRect(BTN.apExit, tap.x, tap.y)) { thinker = null; sched = []; state.fly = []; state.panel = null; state.hint = null; state.sel = null; state.scene = 'title'; return; }
+    if (tap && inRect(BTN.apPause, tap.x, tap.y)) { state.apPaused = !state.apPaused; clack(); return; }
+    if (tap && inRect(BTN.apExit, tap.x, tap.y)) { state.apPaused = false; thinker = null; sched = []; state.fly = []; state.panel = null; state.hint = null; state.sel = null; state.scene = 'title'; return; }
     if (tap && inRect(BTN.apDec, tap.x, tap.y) && state.apThinkIdx > 0) { state.apThinkIdx--; savePrefs(); clack(); return; }
     if (tap && inRect(BTN.apInc, tap.x, tap.y) && state.apThinkIdx < AP_THINK_STEPS.length - 1) { state.apThinkIdx++; savePrefs(); clack(); return; }
+    if (state.apPaused) return;   // a real Pause: the loop (timers, thinking, the next move) stands still
     if (state.panel === 'round') {
       AP.timer -= dt;
       if (AP.timer <= 0) { state.panel = null; AP.phase = 'run'; AP.move = null; if (g.phase === 'over') state.scene = 'autoplay-over'; else newRound(); }
@@ -379,18 +383,20 @@ export function createGame(env) {
   const actFor = () => (state.scene === 'play' ? actPlay : state.scene === 'lesson' ? actLesson : actPuzzle);
 
   // ---- menus ---------------------------------------------------------------------------------------------------
-  function updateTitle(tap) {
+  function updateTitle(tap, ip) {
+    { const lt = titleRows(!!state.saved).lockTap; state.lkDown = !!(ip && ip.down && inRect(lt, ip.x, ip.y)); }
     if (!tap) return;
     const R = titleRows(!!state.saved), hit = (r) => r && inRect(r, tap.x, tap.y);
+    if (hit(R.lockTap)) { env.openArcforgeHome?.(); return; }
     if (hit(R.resume)) resume();
     else if (hit(R.learn)) startLesson(0);
     else if (hit(R.play)) start(2);
     else if (hit(R.four)) start(4);
     else if (hit(R.daily)) startPuzzle();
     else if (hit(R.autoplay)) startAutoPlay();
-    else if (hit(R.about)) { state.scene = 'about'; state.page = 0; }
-    else if (hit(R.controls)) { state.scene = 'controls'; state.page = 0; }
-    else if (hit(R.rules)) { state.scene = 'rules'; state.page = 0; }
+    else if (hit(R.about)) { state.scene = 'about'; state.page = 0; state.scrollY = 0; }
+    else if (hit(R.controls)) { state.scene = 'controls'; state.page = 0; state.scrollY = 0; }
+    else if (hit(R.rules)) { state.scene = 'rules'; state.page = 0; state.scrollY = 0; }
     else if (hit(R.settings)) state.scene = 'settings';
   }
   function updateSettings(tap) {
@@ -435,7 +441,7 @@ export function createGame(env) {
     }
     const t = tableCardAt(state, tap.x, tap.y);
     if (t !== null) { tapTable(t, act); return; }
-    if (tap.y > CLOTH.y && tap.y < CLOTH.y + CLOTH.h) tapEmptyTable(act);
+    if (inRect(CLOTH, tap.x, tap.y)) tapEmptyTable(act);
   }
   function L_next() {
     const L = state.lesson;
@@ -453,7 +459,7 @@ export function createGame(env) {
     if (sc === 'over') { if (k.has('Enter') || k.has('Space')) return at(BTN.again); if (k.has('Escape')) return at(BTN.back); return null; }
     if (sc === 'settings') { if (k.has('Escape')) return at(SET.back); return null; }
     if (sc === 'about' || sc === 'controls' || sc === 'rules') { if (k.has('Escape')) return at(BTN.pageBack); if (k.has('Enter')) return at(BTN.pageNext); return null; }
-    if (sc === 'autoplay') { if (k.has('Escape')) return at(BTN.apExit); return null; }
+    if (sc === 'autoplay') { if (k.has('Escape')) return at(BTN.apExit); if (k.has('Space')) return at(BTN.apPause); return null; }
     if (sc === 'autoplay-over') { if (k.has('Enter') || k.has('Space')) return at(BTN.again); if (k.has('Escape')) return at(BTN.back); return null; }
     if (sc !== 'play' && sc !== 'lesson' && sc !== 'puzzle') return null;
     if (state.panel === 'round') { if (k.has('Enter') || k.has('Space')) return at(BTN.cont); return null; }
@@ -466,7 +472,7 @@ export function createGame(env) {
     const cards = state.slots.map((c, i) => (c === null ? null : i)).filter((x) => x !== null);
     if (k.has('ArrowLeft') || k.has('ArrowRight')) { state.kb = true; state.curZone = 'table'; const d = k.has('ArrowRight') ? 1 : -1; state.cur = (state.cur + d + Math.max(1, cards.length)) % Math.max(1, cards.length); return null; }
     if (k.has('Enter') && state.sel && cards.length) { state.kb = true; const si = cards[state.cur % cards.length], p = slotPos(si, gridNow()); return { x: p.x, y: p.y }; }
-    if (k.has('Space') && state.sel) { const S = state.sel, caps = captures(state.g.table, S.card); if (!caps.length) return { x: 360, y: CLOTH.y + 6 }; if (caps.length === 1 || S.take.length) { const p = handPos(state.hslots.indexOf(S.card)); return { x: p.x, y: p.y }; } }
+    if (k.has('Space') && state.sel) { const S = state.sel, caps = captures(state.g.table, S.card); if (!caps.length) return { x: CLOTH.x + CLOTH.w / 2, y: CLOTH.y + 6 }; if (caps.length === 1 || S.take.length) { const p = handPos(state.hslots.indexOf(S.card)); return { x: p.x, y: p.y }; } }
     return null;
   }
 
@@ -479,35 +485,50 @@ export function createGame(env) {
     else if (sd === 7) state.scene = 'about';
     else if (sd === 0) state.scene = 'settings';
   }
+  // About / Controls / Rules body scrolling: drag the page, mouse wheel, arrow / page keys, or the scroll bar. Pages that fit never move.
+  let drag = null;
+  function updateReaderScroll(input) {
+    const p = input.pointer, keys = input.keys.pressed, max = readerMetrics.max, set = (v) => { state.scrollY = Math.max(0, Math.min(v, readerMetrics.max)); };
+    if (wheelInput.dy) { set(state.scrollY + wheelInput.dy); wheelInput.dy = 0; }
+    if (keys.has('ArrowDown')) set(state.scrollY + 70);
+    if (keys.has('ArrowUp')) set(state.scrollY - 70);
+    if (keys.has('PageDown')) set(state.scrollY + readerMetrics.view * 0.9);
+    if (keys.has('PageUp')) set(state.scrollY - readerMetrics.view * 0.9);
+    if (keys.has('Home')) set(0);
+    if (keys.has('End')) set(max);
+    if (p.pressed && max > 0) {
+      if (inRect({ x: READER.bar.x - 14, y: READER.bar.y, w: READER.bar.w + 28, h: READER.bar.h }, p.x, p.y)) drag = { bar: true };
+      else if (inRect(READER.VP, p.x, p.y)) drag = { y0: p.y, s0: state.scrollY, moved: false };
+    }
+    if (drag) {
+      if (!p.down) drag = null;
+      else if (drag.bar) set(((p.y - READER.bar.y) / READER.bar.h) * max);
+      else set(drag.s0 - (p.y - drag.y0));
+    }
+    set(state.scrollY);
+  }
   if (SHOT) after(0.001, shotInit);
 
   return {
     update(dt, input) {
-      state.t += dt; clock += dt;
+      applyLayout(meta.width, meta.height);
+      const frozen = state.scene === 'autoplay' && state.apPaused;   // Auto Play paused: cards in flight and scheduled steps hold still too
+      state.t += dt; if (!frozen) clock += dt;
       if (warmN < 40 && typeof OffscreenCanvas !== 'undefined') warmN = warm(warmN, state.french);
-      if (state.msg) { state.msg.t += dt; if (state.msg.t > state.msg.hold) state.msg = null; }
-      stepFly(dt);
+      if (state.msg && !frozen) { state.msg.t += dt; if (state.msg.t > state.msg.hold) state.msg = null; }
+      if (!frozen) stepFly(dt);
       const p = input.pointer, kbd = keyboard(input);
       let tap = p.pressed ? { x: p.x, y: p.y } : kbd;
       if (SHOT) { tap = null; if (state.scene === 'play' && isHuman() && !busy() && state.panel === null) { autoT += dt; if (autoT > 0.9) { autoT = 0; const h = hintFor(state.g, 0, rng).play; actPlay(h.card, h.take); } } else if (state.panel === 'round' && state.scene === 'play' && (config.seed ?? 1) % 8 === 5) { /* hold the score panel */ } }
       const sc = state.scene;
-      if (sc === 'title') updateTitle(tap);
+      if (sc === 'title') updateTitle(tap, p);
       else if (sc === 'settings') updateSettings(tap);
       else if (sc === 'about' || sc === 'controls' || sc === 'rules') {
-        const list = sc === 'about' ? ABOUT : sc === 'rules' ? RULES : CONTROLS;
-        // Back steps to the previous page, or exits to the title from page 1 (owner-reported bug,
-        // 2026-09-23: Back used to always jump straight to the title, discarding whatever page you
-        // were reading).
-        if (tap && inRect(BTN.pageBack, tap.x, tap.y)) {
-          if (state.page > 0) state.page -= 1; else state.scene = 'title';
-        }
-        // On the last page the button reads "Done" (view.js) and exits to the title instead of
-        // silently wrapping back to page one, so it's never a dead-end tap.
-        else if (tap && inRect(BTN.pageNext, tap.x, tap.y)) {
-          if (state.page === list.length - 1) { state.scene = 'title'; state.page = 0; } else state.page++;
-        }
-        else if (tap && inRect(BTN.textDec, tap.x, tap.y) && state.textScaleIdx > 0) { state.textScaleIdx--; savePrefs(); clack(); }
-        else if (tap && inRect(BTN.textInc, tap.x, tap.y) && state.textScaleIdx < TEXT_SCALES.length - 1) { state.textScaleIdx++; savePrefs(); clack(); }
+        updateReaderScroll(input);
+        // One continuous reader: Back and Done both leave to the title.
+        if (tap && (inRect(BTN.pageBack, tap.x, tap.y) || inRect(BTN.pageNext, tap.x, tap.y))) { state.scrollY = 0; state.scene = 'title'; state.page = 0; }
+        else if (tap && inRect(BTN.textDec, tap.x, tap.y) && state.textScaleIdx > 0) { state.textScaleIdx--; state.scrollY = 0; savePrefs(); clack(); }
+        else if (tap && inRect(BTN.textInc, tap.x, tap.y) && state.textScaleIdx < TEXT_SCALES.length - 1) { state.textScaleIdx++; state.scrollY = 0; savePrefs(); clack(); }
       }
       else if (sc === 'play' || sc === 'lesson' || sc === 'puzzle') updateBoard(dt, tap);
       else if (sc === 'over' && tap) {
@@ -520,7 +541,7 @@ export function createGame(env) {
         else if (inRect(BTN.back, tap.x, tap.y)) state.scene = 'title';
       }
     },
-    render(ctx) { render(ctx, state, { warmFrench: () => {} }); },
+    render(ctx, view) { applyLayout(view?.width ?? meta.width, view?.height ?? meta.height); render(ctx, state); },
     getState: () => state,
     // The free-preview timer counts only real play (a match or the daily deal). Menus, Learn, Rules, About, Controls,
     // Settings, Watch & Learn (Auto Play), the between-rounds panel and result screens are exempt.

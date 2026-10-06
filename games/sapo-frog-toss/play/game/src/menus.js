@@ -1,6 +1,7 @@
 // Every screen that is not the play screen: title, setup, settings, learn list, result, pause, the set-up sheet, and the paginated
 // About / How to Play / Rules reader with its illustrations (drawn with the game's own hole layout). Pure drawing.
-import { W, H, TEXT_SCALES, TEXT_DEC, TEXT_INC, REF_BACK, REF_NEXT, THINK_STEPS, SETUP_PINS } from './layout.js';
+import { W, H, TEXT_SCALES, TEXT_DEC, TEXT_INC, REF_BACK, REF_NEXT, THINK_STEPS, SETUP_PINS, PANEL, host, screen, stageIsShort } from './layout.js';
+import { drawLockup, drawMoreLine } from './brand.js';
 import { FONT, NUM, C, roundPath, drawButton, panel, wrapLines, textShadow, flowLayout, drawFlow, flowHit } from './ui.js';
 import { drawRoom, drawTable, drawHoles, drawActors, drawParts, DISC_COL, TAU } from './scene.js';
 import { PROFILES, ASSIST, pname } from './ai.js';
@@ -14,16 +15,24 @@ import { tr, pick, getLang } from './i18n.js';
 let LAID = { key: '', lay: null, top: 0, bottom: H };
 export const flowMeta = () => LAID;
 const estCtx = { font: '', measureText(t) { const m = /(\d+)px/.exec(this.font); return { width: String(t).length * (m ? +m[1] : 20) * 0.52 }; } };
+// Where a flow screen sits in its column: below a notch, above the home bar; a screen that is taller than the content centres it
+// (the title keeps to the same shift as the table behind it, so the two stay together).
+const CENTRED = new Set(['title', 'result', 'learn', 'demolimit']);
+export function flowFrame(key, contentH, topIn, bottomIn) {
+  let top = topIn ?? host.t, bottom = bottomIn ?? H - host.b;
+  if (topIn === undefined && CENTRED.has(key)) top += Math.max(0, (H - 1280) / 2);   // tall screen: same shift as the room picture behind
+  return { top: Math.round(top), bottom: Math.round(bottom) };
+}
+const flowDefs = (key) => ({
+  title: [titleWidgets], setup: [setupWidgets, null, H - SETUP_PINS.start.h - Math.max(28, host.b + 8) - 10], settings: [settingsWidgets], learn: [learnWidgets],
+  result: [(st) => (st.m.cfg.mode === 'learn' ? lessonResultWidgets(st) : resultWidgets(st))], demolimit: [demoLimitWidgets], sheet: [sheetWidgets, 90, H - 20], why: [whyWidgets, 90, H - 20],
+}[key]);
 export function ensureLayout(state, key) {
-  if (LAID.key === key && LAID.lay) return;
-  const defs = {
-    title: [titleWidgets, 0, H], setup: [setupWidgets, 0, 1130], settings: [settingsWidgets, 0, H], learn: [learnWidgets, 0, H],
-    result: [(st) => (st.m.cfg.mode === 'learn' ? lessonResultWidgets(st) : resultWidgets(st)), 0, H], demolimit: [demoLimitWidgets, 0, H], sheet: [sheetWidgets, 90, H - 20], why: [whyWidgets, 90, H - 20],
-  };
-  const d = defs[key];
+  const d = flowDefs(key);
   if (!d) return;
   const lay = flowLayout(estCtx, d[0](state), TEXT_SCALES[state.settings.textIdx], key === 'sheet' || key === 'why' ? { x: 50, w: 620 } : undefined);
-  LAID = { key, lay, top: d[1], bottom: d[2], h: lay.contentH };
+  const f = flowFrame(key, lay.contentH, d[1] ?? undefined, d[2]);
+  LAID = { key, lay, top: f.top, bottom: f.bottom, h: lay.contentH };
 }
 export function hitScreen(x, y, scroll) { return LAID.lay ? flowHit(LAID.lay, LAID.top, scroll, x, y) : null; }
 export const invalidateLayout = () => { LAID = { key: '', lay: null, top: 0, bottom: H }; readerCache.clear(); };
@@ -36,6 +45,27 @@ const spaced = (ctx, text, cx, y, gap) => {
 };
 
 // ---- the live table behind the title and menus ----------------------------------------------------------------------------------
+// The full-screen backdrop: the live table, drawn in SCREEN units whatever column the text screens use. Portrait: the 1280-unit room
+// picture centred on the screen, its wall and floor colours extended over any extra height. Landscape: the table at a height that fills
+// the screen, centred on `screen.sceneCx`, the rest dark.
+const WALL_TOP = '#3a2216', FLOOR_END = '#4e3324', DARK = '#0b0705';
+export function drawBackdrop(ctx, state, bottomRoom = 0) {
+  const S = screen;
+  ctx.save(); ctx.translate(-S.ox, -S.oy);
+  if (S.land) {
+    const s = (S.h - bottomRoom) / 860, cx = S.sceneCx, x0 = cx - 360 * s;
+    ctx.fillStyle = DARK; ctx.fillRect(0, 0, S.w, S.h);
+    ctx.save(); ctx.beginPath(); ctx.rect(x0, 0, 720 * s, S.h - bottomRoom); ctx.clip();
+    ctx.translate(x0, -180 * s); ctx.scale(s, s); drawAttract(ctx, state); ctx.restore();
+    for (const [a, b, c] of [[x0, x0 + 46, 1], [x0 + 720 * s, x0 + 720 * s - 46, 1]]) { const g = ctx.createLinearGradient(a, 0, b, 0); g.addColorStop(0, 'rgba(11,7,5,1)'); g.addColorStop(1, 'rgba(11,7,5,0)'); ctx.fillStyle = g; ctx.fillRect(Math.min(a, b), 0, 46, S.h - bottomRoom); }
+  } else {
+    const dy = (S.h - 1280) / 2;
+    ctx.fillStyle = WALL_TOP; ctx.fillRect(0, 0, S.w, S.h);
+    if (dy > 0) { ctx.fillStyle = FLOOR_END; ctx.fillRect(0, S.h / 2, S.w, S.h / 2); }
+    ctx.save(); ctx.translate(0, dy); drawAttract(ctx, state); ctx.restore();
+  }
+  ctx.restore();
+}
 export function drawAttract(ctx, state) {
   const a = state.att;
   drawRoom(ctx, state.t); drawTable(ctx, state.t); drawHoles(ctx, { holeFlash: a.flash }, state.t);
@@ -43,45 +73,54 @@ export function drawAttract(ctx, state) {
   drawParts(ctx, a.parts);
 }
 function heroArt() {
+  const sm = screen.land;   // landscape: the same lockup, shorter, so the whole menu fits under it
+  const dy = sm ? -46 : 0;
   return {
-    t: 'art', h: 330,
+    t: 'art', h: sm ? 124 : (H < 1120 ? 262 : 330),
     draw(ctx, w) {
       const cx = w / 2;
       ctx.save();
       ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
       ctx.font = `700 24px ${FONT}`; ctx.fillStyle = 'rgba(233,193,95,0.95)';
-      spaced(ctx, tr('THE FROG TOSS', 'EL JUEGO DEL SAPO'), cx, 76, 8);
-      ctx.font = `800 150px ${NUM}`;
-      textShadow(ctx, 'SAPO', cx, 206, '#fff4d6', 18);
+      spaced(ctx, tr('THE FROG TOSS', 'EL JUEGO DEL SAPO'), cx, 76 + dy, 8);
+      ctx.font = `800 ${sm ? 80 : 150}px ${NUM}`;
+      textShadow(ctx, 'SAPO', cx, 206 + dy - (sm ? 64 : 0), '#fff4d6', 18);
       ctx.strokeStyle = 'rgba(233,193,95,0.85)'; ctx.lineWidth = 3;
-      ctx.beginPath(); ctx.moveTo(cx - 250, 238); ctx.lineTo(cx - 40, 238); ctx.moveTo(cx + 40, 238); ctx.lineTo(cx + 250, 238); ctx.stroke();
-      ctx.beginPath(); ctx.arc(cx, 238, 9, 0, TAU); ctx.fillStyle = '#e9c15f'; ctx.fill();
+      const ly = 238 + dy - (sm ? 76 : 0);
+      ctx.beginPath(); ctx.moveTo(cx - 250, ly); ctx.lineTo(cx - 40, ly); ctx.moveTo(cx + 40, ly); ctx.lineTo(cx + 250, ly); ctx.stroke();
+      ctx.beginPath(); ctx.arc(cx, ly, 9, 0, TAU); ctx.fillStyle = '#e9c15f'; ctx.fill();
       ctx.restore();
     },
   };
 }
 const SOUND = (on) => (on ? tr('Sound: On', 'Sonido: Sí') : tr('Sound: Off', 'Sonido: No'));
 export const langRow = (row, state) => [
-  { t: 'btn', id: 'lang-en', label: 'Play in English', row, active: getLang() === 'en', h: 64 },
-  { t: 'btn', id: 'lang-es', label: 'Jugar en español', row, active: getLang() === 'es', h: 64 },
+  { t: 'btn', id: 'lang-en', label: 'Play in English', row, active: getLang() === 'en', h: screen.land ? 52 : 64 },
+  { t: 'btn', id: 'lang-es', label: 'Jugar en español', row, active: getLang() === 'es', h: screen.land ? 52 : 64 },
 ];
 export function titleWidgets(state) {
-  const wd = [heroArt(), { t: 'gap', h: 290 }];
+  const bh = screen.land ? 52 : 64, wd = [heroArt(), { t: 'gap', h: screen.land ? 0 : Math.max(0, Math.min(290, 290 - (1280 - H))) }];
   if (state.resume) {
     const r = state.resume, who = r.cfg.mode === 'two' ? tr('Two players', 'Dos jugadores') : pname(PROFILES[r.cfg.opp] ?? PROFILES[0]);
     wd.push({ t: 'btn', id: 'continue', label: tr('Continue match', 'Continuar partida'), sub: `${who}, ${r.scores[0]} - ${r.scores[1]}`, primary: true, h: 92 });
     wd.push({ t: 'btn', id: 'play', label: tr('New match vs Computer', 'Nueva partida vs computadora'), h: 80 });
-  } else wd.push({ t: 'btn', id: 'play', label: tr('Play vs Computer', 'Jugar contra la computadora'), primary: true, h: 80 });
-  wd.push({ t: 'btn', id: 'two', h: 64, label: tr('Two Players', 'Dos jugadores'), row: 1 });
-  wd.push({ t: 'btn', id: 'watch', h: 64, label: tr('Watch & Learn', 'Mirar y aprender'), row: 1 });
-  wd.push({ t: 'btn', id: 'learn', h: 64, label: tr('Learn', 'Aprender'), row: 2 });
-  wd.push({ t: 'btn', id: 'howto', h: 64, label: tr('How to Play', 'Cómo jugar'), row: 2 });
-  wd.push({ t: 'btn', id: 'rules', h: 64, label: tr('Rules', 'Reglas'), row: 3 });
-  wd.push({ t: 'btn', id: 'about', h: 64, label: tr('About', 'Acerca de'), row: 3 });
-  wd.push({ t: 'btn', id: 'settings', h: 64, label: tr('Settings', 'Ajustes'), row: 4 });
-  wd.push({ t: 'btn', id: 'sound', h: 64, label: SOUND(state.settings.sound), row: 4 });
+  } else wd.push({ t: 'btn', id: 'play', label: tr('Play vs Computer', 'Jugar contra la computadora'), primary: true, h: screen.land ? 64 : 80 });
+  wd.push({ t: 'btn', id: 'two', h: bh, label: tr('Two Players', 'Dos jugadores'), row: 1 });
+  wd.push({ t: 'btn', id: 'watch', h: bh, label: tr('Watch & Learn', 'Mirar y aprender'), row: 1 });
+  wd.push({ t: 'btn', id: 'learn', h: bh, label: tr('Learn', 'Aprender'), row: 2 });
+  wd.push({ t: 'btn', id: 'howto', h: bh, label: tr('How to Play', 'Cómo jugar'), row: 2 });
+  wd.push({ t: 'btn', id: 'rules', h: bh, label: tr('Rules', 'Reglas'), row: 3 });
+  wd.push({ t: 'btn', id: 'about', h: bh, label: tr('About', 'Acerca de'), row: 3 });
+  wd.push({ t: 'btn', id: 'settings', h: bh, label: tr('Settings', 'Ajustes'), row: 4 });
+  wd.push({ t: 'btn', id: 'sound', h: bh, label: SOUND(state.settings.sound), row: 4 });
   wd.push(...langRow(5, state));
+  wd.push({ t: 'gap', h: 2 }, lockupWidget(250));
   return wd;
+}
+// The themed Arcforge lockup, directly under the last row of buttons; a tap opens the Arcforge home.
+function lockupWidget(width) {
+  const lh = Math.round(width * 327 / 1200);
+  return { t: 'art', id: 'arcforge', hitW: width, h: lh + 16, draw(ctx, w, h) { drawLockup(ctx, w / 2, h / 2 + lh / 2, Math.min(width, w), 0.95); } };
 }
 const SEC = (label) => ({ t: 'p', label, bold: true, color: '#ffe9bf', size: 26 });
 export function setupWidgets(state) {
@@ -138,17 +177,21 @@ export function resultWidgets(state) {
   const big = TEXT_SCALES[state.settings.textIdx] > 1.5;
   const nm = (s) => sideName(state, s);
   const title = winner < 0 ? tr('A draw', 'Empate') : mode === 'two' ? tr(`Player ${winner + 1} wins`, `Gana el jugador ${winner + 1}`) : mode === 'watch' ? tr(`${nm(winner)} wins`, `Gana ${nm(winner)}`) : winner === 0 ? tr('You win!', '¡Ganaste!') : tr('You lose', 'Perdiste');
-  const wd = [{ t: 'gap', h: big ? 20 : 50 }, { t: 'h', label: title, size: 62, cap: big ? 1.2 : 1.5 }, { t: 'h', label: `${m.scores[0]} – ${m.scores[1]}`, size: 84, cap: big ? 1.1 : 1.3, color: '#ffd97a' },
+  const land = screen.land && H < 900 && !big;   // landscape: a tighter result so the buttons stay on screen
+  const wd = [{ t: 'gap', h: big ? 20 : land ? 4 : 50 }, { t: 'h', label: title, size: land ? 50 : 62, cap: big ? 1.2 : 1.5 }, { t: 'h', label: `${m.scores[0]} – ${m.scores[1]}`, size: land ? 66 : 84, cap: big ? 1.1 : 1.3, color: '#ffd97a' },
     { t: 'p', label: `${nm(0)}  vs  ${nm(1)}`, bold: true, color: '#ffe9bf', size: 24, cap: 2 }];
   const a = m.stats[0], b = m.stats[1];
   const rows = [[tr('Frog mouth drops', 'Fichas en la boca'), a.mouth, b.mouth], [tr('Mill drops', 'Fichas en el molino'), a.mill, b.mill], [tr('Discs in holes', 'Fichas en agujeros'), a.in, b.in], [tr('Best disc', 'Mejor ficha'), a.best, b.best], [tr('Closest bonuses', 'Bonificaciones de cercanía'), a.closest, b.closest]];
-  rows.forEach(([k, x, y]) => wd.push({ t: 'p', label: `${k}:  ${x}  –  ${y}`, size: 24, cap: 2.4 }));
-  if (mode === 'ai') wd.push({ t: 'p', label: tr(`Matches won against ${pname(PROFILES[m.cfg.opp])}: ${(state.record.wins ?? [])[m.cfg.opp] ?? 0}`, `Partidas ganadas a ${pname(PROFILES[m.cfg.opp])}: ${(state.record.wins ?? [])[m.cfg.opp] ?? 0}`), size: 22, cap: 2, color: '#ffe9bf' });
+  const wonLine = mode === 'ai' ? tr(`Matches won against ${pname(PROFILES[m.cfg.opp])}: ${(state.record.wins ?? [])[m.cfg.opp] ?? 0}`, `Partidas ganadas a ${pname(PROFILES[m.cfg.opp])}: ${(state.record.wins ?? [])[m.cfg.opp] ?? 0}`) : '';
+  if (land) wd.push({ t: 'art', h: rows.length * 27 + (wonLine ? 30 : 0) + 4, draw(ctx, w) { if (wonLine) { ctx.font = `400 21px ${FONT}`; ctx.fillStyle = '#ffe9bf'; ctx.textAlign = 'center'; ctx.fillText(wonLine, w / 2, 24 + rows.length * 27 + 4); } ctx.font = `400 23px ${FONT}`; ctx.fillStyle = 'rgba(255,243,214,0.95)'; ctx.textBaseline = 'alphabetic'; rows.forEach(([k, x, y], i) => { ctx.textAlign = 'right'; ctx.fillText(`${k}:`, w / 2 + 40, 24 + i * 27); ctx.textAlign = 'left'; ctx.fillText(`${x}  –  ${y}`, w / 2 + 56, 24 + i * 27); }); } });
+  else rows.forEach(([k, x, y]) => wd.push({ t: 'p', label: `${k}:  ${x}  –  ${y}`, size: 24, cap: 2.4 }));
+  if (mode === 'ai' && !land) wd.push({ t: 'p', label: tr(`Matches won against ${pname(PROFILES[m.cfg.opp])}: ${(state.record.wins ?? [])[m.cfg.opp] ?? 0}`, `Partidas ganadas a ${pname(PROFILES[m.cfg.opp])}: ${(state.record.wins ?? [])[m.cfg.opp] ?? 0}`), size: 22, cap: 2, color: '#ffe9bf' });
   wd.push({ t: 'gap', h: 16 });
   wd.push({ t: 'btn', id: 'again', label: mode === 'watch' ? tr('Watch another', 'Ver otra') : tr('Rematch', 'Revancha'), primary: true, h: 92 });
   wd.push({ t: 'btn', id: 'new', label: tr('New match', 'Nueva partida'), row: 6 });
   wd.push({ t: 'btn', id: 'menu', label: tr('Main menu', 'Menú principal'), row: 6, dark: true });
-  wd.push({ t: 'gap', h: 30 });
+  wd.push({ t: 'art', h: 40, draw(ctx, w) { drawMoreLine(ctx, w / 2, 28, 19); } });
+  wd.push({ t: 'gap', h: 12 });
   return wd;
 }
 export function lessonResultWidgets(state) {
@@ -214,9 +257,11 @@ export function demoLimitWidgets() {
   ];
 }
 export function scrim(ctx, a = 0.55) {
-  const g = ctx.createLinearGradient(0, 0, 0, H);
+  const S = screen;
+  ctx.save(); ctx.translate(-S.ox, -S.oy);
+  const g = ctx.createLinearGradient(0, 0, 0, S.h);
   g.addColorStop(0, `rgba(6,10,8,${a * 0.7})`); g.addColorStop(0.5, `rgba(6,10,8,${a})`); g.addColorStop(1, `rgba(6,10,8,${Math.min(0.94, a + 0.3)})`);
-  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = g; ctx.fillRect(0, 0, S.w, S.h); ctx.restore();
 }
 function scrollHint(ctx, top, bottom, scroll, maxScroll, x0 = 0, w = W) {
   if (maxScroll <= 0) return;
@@ -231,9 +276,10 @@ function scrollHint(ctx, top, bottom, scroll, maxScroll, x0 = 0, w = W) {
     ctx.fillStyle = '#2a1d10'; ctx.font = `700 22px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(tr('▲ up', '▲ arriba'), cx, top + 24);
   }
 }
-function drawFlowScreen(ctx, state, key, widgets, top, bottom, opts) {
+function drawFlowScreen(ctx, state, key, widgets, topIn, bottomIn, opts) {
   const sc = TEXT_SCALES[state.settings.textIdx];
   const lay = flowLayout(ctx, widgets, sc, opts);
+  const { top, bottom } = flowFrame(key, lay.contentH, topIn, bottomIn);
   LAID = { key, lay, top, bottom, h: lay.contentH };
   const maxScroll = Math.max(0, lay.contentH - (bottom - top));
   const scroll = Math.min(state.ui.scroll, maxScroll);
@@ -245,30 +291,39 @@ function drawFlowScreen(ctx, state, key, widgets, top, bottom, opts) {
   }
   return { scroll, maxScroll, lay };
 }
-function backdrop(ctx, state, a) { ctx.save(); drawAttract(ctx, state); ctx.restore(); scrim(ctx, a); }
+function backdrop(ctx, state, a) { drawBackdrop(ctx, state); scrim(ctx, a); }
 export function renderTitle(ctx, state) {
-  drawAttract(ctx, state);
-  const g = ctx.createLinearGradient(0, 560, 0, H); g.addColorStop(0, 'rgba(8,5,3,0)'); g.addColorStop(0.35, 'rgba(8,5,3,0.82)'); g.addColorStop(1, 'rgba(8,5,3,0.95)');
-  ctx.fillStyle = g; ctx.fillRect(0, 560, W, H - 560);
-  const t = ctx.createLinearGradient(0, 0, 0, 330); t.addColorStop(0, 'rgba(8,5,3,0.85)'); t.addColorStop(1, 'rgba(8,5,3,0)'); ctx.fillStyle = t; ctx.fillRect(0, 0, W, 330);
-  drawFlowScreen(ctx, state, 'title', titleWidgets(state), 0, H);
+  const S = screen;
+  drawBackdrop(ctx, state, S.land ? 78 + host.b : 0);
+  ctx.save(); ctx.translate(-S.ox, -S.oy);
+  if (S.land) {   // a soft shade behind the menu column so the buttons read against the table
+    const x0 = S.ox - 20, g = ctx.createLinearGradient(x0, 0, x0 + 60, 0); g.addColorStop(0, 'rgba(8,5,3,0)'); g.addColorStop(1, 'rgba(8,5,3,0.86)');
+    ctx.fillStyle = g; ctx.fillRect(x0, 0, 60, S.h); ctx.fillStyle = 'rgba(8,5,3,0.86)'; ctx.fillRect(x0 + 60, 0, S.w - x0 - 60, S.h);
+  } else {
+    const dy = Math.max(0, (S.h - 1280) / 2);
+    const g = ctx.createLinearGradient(0, 560 + dy, 0, S.h); g.addColorStop(0, 'rgba(8,5,3,0)'); g.addColorStop(0.35, 'rgba(8,5,3,0.82)'); g.addColorStop(1, 'rgba(8,5,3,0.95)');
+    ctx.fillStyle = g; ctx.fillRect(0, 560 + dy, S.w, S.h - 560 - dy);
+    const t = ctx.createLinearGradient(0, 0, 0, 330 + dy); t.addColorStop(0, 'rgba(8,5,3,0.85)'); t.addColorStop(1, 'rgba(8,5,3,0)'); ctx.fillStyle = t; ctx.fillRect(0, 0, S.w, 330 + dy);
+  }
+  ctx.restore();
+  const r = drawFlowScreen(ctx, state, 'title', titleWidgets(state), undefined, undefined);
   ctx.textAlign = 'center'; ctx.font = `400 18px ${FONT}`; ctx.fillStyle = 'rgba(255,233,191,0.6)'; ctx.textBaseline = 'alphabetic';
-  if (state.demo) ctx.fillText(tr('Web demo', 'Demo web'), W / 2, H - 14);
+  if (state.demo) ctx.fillText(tr('Web demo', 'Demo web'), W / 2, H - 14 - host.b);
 }
 export function renderSetup(ctx, state) {
   backdrop(ctx, state, 0.7);
-  drawFlowScreen(ctx, state, 'setup', setupWidgets(state), 0, 1130);
-  const g = ctx.createLinearGradient(0, 1100, 0, H);
+  drawFlowScreen(ctx, state, 'setup', setupWidgets(state), undefined, H - SETUP_PINS.start.h - Math.max(28, host.b + 8) - 10);
+  const gy = SETUP_PINS.start.y - 36, g = ctx.createLinearGradient(0, gy, 0, H);
   g.addColorStop(0, 'rgba(6,10,8,0)'); g.addColorStop(0.2, 'rgba(6,10,8,0.88)'); g.addColorStop(1, 'rgba(6,10,8,0.96)');
-  ctx.fillStyle = g; ctx.fillRect(0, 1100, W, H - 1100);
+  ctx.fillStyle = g; ctx.fillRect(0, gy, W, H - gy);
   drawButton(ctx, SETUP_PINS.start, tr('Start the match', 'Empezar la partida'), { primary: true, size: 32 });
   drawButton(ctx, SETUP_PINS.back, tr('Back', 'Atrás'), { dark: true, size: 28 });
-  if (state.setupMsg) { ctx.textAlign = 'center'; ctx.font = `700 22px ${FONT}`; ctx.fillStyle = '#ffd9a0'; ctx.fillText(state.setupMsg, W / 2, 1140); }
+  if (state.setupMsg) { ctx.textAlign = 'center'; ctx.font = `700 22px ${FONT}`; ctx.fillStyle = '#ffd9a0'; ctx.fillText(state.setupMsg, W / 2, SETUP_PINS.start.y - 12); }
 }
-export function renderSettings(ctx, state) { backdrop(ctx, state, 0.74); drawFlowScreen(ctx, state, 'settings', settingsWidgets(state), 0, H); }
-export function renderLearn(ctx, state) { backdrop(ctx, state, 0.7); drawFlowScreen(ctx, state, 'learn', learnWidgets(state), 0, H); }
-export function renderResult(ctx, state) { backdrop(ctx, state, 0.84); drawFlowScreen(ctx, state, 'result', state.m.cfg.mode === 'learn' ? lessonResultWidgets(state) : resultWidgets(state), 0, H); }
-export function renderDemoLimit(ctx, state) { backdrop(ctx, state, 0.76); drawFlowScreen(ctx, state, 'demolimit', demoLimitWidgets(), 0, H); }
+export function renderSettings(ctx, state) { backdrop(ctx, state, 0.74); drawFlowScreen(ctx, state, 'settings', settingsWidgets(state)); }
+export function renderLearn(ctx, state) { backdrop(ctx, state, 0.7); drawFlowScreen(ctx, state, 'learn', learnWidgets(state)); }
+export function renderResult(ctx, state) { backdrop(ctx, state, 0.84); drawFlowScreen(ctx, state, 'result', state.m.cfg.mode === 'learn' ? lessonResultWidgets(state) : resultWidgets(state)); }
+export function renderDemoLimit(ctx, state) { backdrop(ctx, state, 0.76); drawFlowScreen(ctx, state, 'demolimit', demoLimitWidgets()); }
 export function renderPause(ctx, state) {
   scrim(ctx, 0.55);
   const wd = pauseWidgets(state), sc = TEXT_SCALES[state.settings.textIdx];
@@ -297,10 +352,10 @@ export function renderSheet(ctx, state) {
 }
 
 // ---- reference pages --------------------------------------------------------------------------
-const PANEL = { x: 34, y: 100, w: 652, h: 1030 };
 // The reference pages (Rules, How to Play, About) are one scrolling reader: the text is laid out once for the chosen text size and
 // the player scrolls it (drag, wheel, keys, or the Down button). `REF` is what the update loop needs to know about the last drawing.
 const REF = { max: 0, vh: 1, vp: { x: PANEL.x, y: PANEL.y + 92, w: PANEL.w, h: PANEL.h - 92 - 66 } };
+const syncRef = () => { REF.vp = { x: PANEL.x, y: PANEL.y + 92, w: PANEL.w, h: PANEL.h - 92 - 66 }; };
 export const refMeta = () => REF;
 function buildReader(ctx, list, scale) {
   const fs = Math.round(28 * scale), lh = fs * 1.28, tw = PANEL.w - 96;
@@ -328,6 +383,7 @@ export function renderPages(ctx, state, list, header, key) {
   const pkey = `${key}:${getLang()}:${sc}`;
   let rd = readerCache.get(pkey);
   if (!rd) { rd = buildReader(ctx, list, sc); readerCache.set(pkey, rd); }
+  syncRef();
   const vp = REF.vp;
   REF.vh = vp.h; REF.max = Math.max(0, rd.h - vp.h);
   const scroll = Math.max(0, Math.min(state.ui.scroll, REF.max)); state.ui.scroll = scroll;
@@ -367,7 +423,7 @@ export function renderPages(ctx, state, list, header, key) {
   drawButton(ctx, TEXT_DEC, 'A−', { disabled: state.settings.textIdx === 0, size: 30 });
   drawButton(ctx, TEXT_INC, 'A+', { disabled: state.settings.textIdx === TEXT_SCALES.length - 1, size: 30 });
   ctx.fillStyle = '#fff3d6'; ctx.font = `700 24px ${FONT}`; ctx.textAlign = 'center';
-  ctx.fillText(`${Math.round(sc * 100)}%`, W / 2, 56);
+  ctx.fillText(`${Math.round(sc * 100)}%`, W / 2, TEXT_DEC.y + TEXT_DEC.h / 2 + 9);
   drawButton(ctx, REF_BACK, tr('Close', 'Cerrar'), { size: 32 });
   drawButton(ctx, REF_NEXT, scroll < REF.max - 4 ? tr('More ▼', 'Más ▼') : tr('Done', 'Listo'), { primary: true, size: 32 });
 }

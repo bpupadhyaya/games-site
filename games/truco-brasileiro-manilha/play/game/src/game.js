@@ -2,14 +2,16 @@
 // This is the only file that changes `state` (view.js only caches layout hit-rects and the scroll limit).
 //
 // Controls: TAP a card to raise it, TAP it again (or DRAG it up) to play it. TAP TRUCO to shout. TAP buttons to answer.
-import { W, H as HH, CW, HAND_Y, LIFT, BTN, TRICK, SEAT, DECK, TSC, handSlot, inRect, titleRows, largeTitle, ANS, ACT, SIGPOP, SIGCLOSE, TRUCO_BTN, OVERLAY_BTN, OVERLAY_BTN2, BACK, REF_BACK, REF_NEXT, TEXT_SCALES, TEXT_DEC, TEXT_INC, AUTO_THINK_STEPS, AUTO_REVEAL_SECS, AUTO_DEC, AUTO_INC } from './layout.js';
+import { CW, TEXT_SCALES, AUTO_THINK_STEPS, AUTO_REVEAL_SECS, inRect, layoutFor, titleFor, largeTitle } from './layout.js';
 import { RULES, ABOUT, HOWTO } from './rulesContent.js';
 import * as RL from './rules.js';
 import { levelOf, makeCtx, turnAction, answerDecision, specialDecision, aiSignalKind } from './ai.js';
 import { render } from './view.js';
 import { feedPointer } from './art.js';
 
-export const meta = { width: W, height: HH };
+// `meta.width/height` are updated live by the kit on every resize (fluid viewport: the short side is always 720 units); every
+// position comes from layoutFor(meta.width, meta.height).
+export const meta = { width: 720, height: 1560, fluid: { short: 720 } };
 const DEMO_HANDS = 5, HINTS_PER_HAND = 3, HOLD = 1.2;
 const copy = (o) => JSON.parse(JSON.stringify(o));
 const SCROLL_SCENES = new Set(['about', 'how', 'rules', 'settings', 'over']);
@@ -34,6 +36,8 @@ export function createGame(env) {
     auto: null, autoMatch: null, dev: config.dev === true,
   };
   const ui = state.ui;
+  let wheelHooked = false;
+  const lay = () => layoutFor(meta.width, meta.height), TT = () => lay().t;
   if (config.dev) globalThis.__truco = { state, start: () => startMatch(), auto: () => startAutoPlay(), deal: (a, b) => { state.scene = 'play'; state.match = { scores: [a, b], dealer: 0, hands: 0, winner: -1 }; nextHand(); } };   // tester hook (dev only)
 
   // ---- storage -------------------------------------------------------------------------------------------------
@@ -132,7 +136,7 @@ export function createGame(env) {
   }
   function doPlay(c) {
     const H = state.H, seat = H.turn, pi = posIdx(seat);
-    if (!state.pos[c]) state.pos[c] = { x: SEAT[pi].x - CW * 0.37, y: SEAT[pi].y - CW * 0.5, sc: 0.5, born: state.t };
+    if (!state.pos[c]) { const sp = TT().seat[pi]; state.pos[c] = { x: sp.x - CW * 0.37, y: sp.y - CW * 0.5, sc: 0.5, born: state.t }; }
     slap();
     const r = RL.playCard(H, c); ui.sel = -1; ui.hint = null; ui.sig = false;
     if (r && r.trick) {
@@ -146,7 +150,7 @@ export function createGame(env) {
     H.answerSeat = respSeat(H, H.pending); if (bluff) H.bluffs[idx] = true;
     const word = RL.shoutName(H, idx), val = RL.VARIANTS[H.variant].vals[idx];
     speak(seat, word + '!'); banner(word.toUpperCase() + '!', `${seatName(seat)} ${seat === 0 && !isAuto() ? 'call' : 'calls'} it: worth ${val}`, idx >= 3 ? '#ff5a3c' : '#ffd23f', 1.4);
-    shoutSfx(idx); burst(W / 2, 760, idx >= 3 ? '#ff7a4c' : '#ffd23f', 22 + idx * 6);
+    shoutSfx(idx); burst(TT().burst.x, TT().burst.y, idx >= 3 ? '#ff7a4c' : '#ffd23f', 22 + idx * 6);
     ui.delay = dly(1.1); ui.hint = null; ui.sig = false;
     if (seat === 0 && !isAuto()) state.stats.trucos += 1;
   }
@@ -164,7 +168,7 @@ export function createGame(env) {
       H.answerSeat = seat; const res = RL.answerRaise(H, 'raise'); H.answerSeat = respSeat(H, H.pending);
       const word = RL.shoutName(H, res.idx), val = RL.VARIANTS[H.variant].vals[res.idx];
       speak(seat, word + '!'); banner(word.toUpperCase() + '!', `${seatName(seat)} ${seat === 0 && !isAuto() ? 'raise' : 'raises'}: worth ${val}`, res.idx >= 3 ? '#ff5a3c' : '#ffd23f', 1.4);
-      shoutSfx(res.idx); burst(W / 2, 760, '#ff7a4c', 28); ui.delay = dly(1.1);
+      shoutSfx(res.idx); burst(TT().burst.x, TT().burst.y, '#ff7a4c', 28); ui.delay = dly(1.1);
     }
   }
   function doSpecial(play, seat) {
@@ -185,7 +189,7 @@ export function createGame(env) {
     ui.summary = { result: copy(r), before, after: M.scores.slice(), mw, ranTeam: ui.ranTeam, bluff: bl, value: r.points, auto: isAuto() };
     ui.bluffRun = null; state.scroll = 0;
     const mine = r.winner === 0;
-    if (r.winner >= 0) { chime(mine); burst(W / 2, 900, mine ? '#ffd23f' : '#ff7a6a', 36, 360); }
+    if (r.winner >= 0) { chime(mine); burst(TT().burst2.x, TT().burst2.y, mine ? '#ffd23f' : '#ff7a6a', 36, 360); }
     if (mw >= 0) {
       M.winner = mw;
       if (!isAuto()) { state.stats.played += 1; if (mw === 0) state.stats.wins += 1; saveStats(); clearSave(); monetization.track('match_end', { winner: mw, variant: state.variant, n: state.n, level: state.level, hands: M.hands }); }
@@ -252,14 +256,15 @@ export function createGame(env) {
   function teardownAuto() { state.auto = null; state.autoMatch = null; ui.hint = null; state.panel = []; ui.summary = null; state.show = null; state.H = null; state.banner = null; state.fx = []; }
   function updateAuto(dt, tap) {
     const A = state.auto; if (!A) return;
-    if (tap && inRect(BTN.menu, tap.x, tap.y)) { teardownAuto(); state.scene = 'title'; state.scroll = 0; return; }
-    if (tap && inRect(AUTO_DEC, tap.x, tap.y)) { if (state.autoThinkIdx > 0) { state.autoThinkIdx -= 1; savePrefs(); tick(); } return; }
-    if (tap && inRect(AUTO_INC, tap.x, tap.y)) { if (state.autoThinkIdx < AUTO_THINK_STEPS.length - 1) { state.autoThinkIdx += 1; savePrefs(); tick(); } return; }
-    if (tap && inRect(BTN.hint, tap.x, tap.y)) { if (A.phase === 'think') A.timer = autoThinkSecs(); else if (A.phase === 'reveal') A.timer = AUTO_REVEAL_SECS; else if (A.phase === 'summary') A.timer = 999; return; }
-    if (tap && inRect(BTN.sig, tap.x, tap.y)) { A.paused = !A.paused; return; }
+    const T = TT(), O = lay().ov;
+    if (tap && inRect(T.btn.menu, tap.x, tap.y)) { teardownAuto(); state.scene = 'title'; state.scroll = 0; return; }
+    if (tap && inRect(T.auto.dec, tap.x, tap.y)) { if (state.autoThinkIdx > 0) { state.autoThinkIdx -= 1; savePrefs(); tick(); } return; }
+    if (tap && inRect(T.auto.inc, tap.x, tap.y)) { if (state.autoThinkIdx < AUTO_THINK_STEPS.length - 1) { state.autoThinkIdx += 1; savePrefs(); tick(); } return; }
+    if (tap && inRect(T.btn.hint, tap.x, tap.y)) { if (A.phase === 'think') A.timer = autoThinkSecs(); else if (A.phase === 'reveal') A.timer = AUTO_REVEAL_SECS; else if (A.phase === 'summary') A.timer = 999; return; }
+    if (tap && inRect(T.btn.sig, tap.x, tap.y)) { A.paused = !A.paused; return; }
     if (A.phase === 'ended') {
-      if (tap && inRect(OVERLAY_BTN, tap.x, tap.y)) startAutoPlay();
-      else if (tap && inRect(OVERLAY_BTN2, tap.x, tap.y)) { teardownAuto(); state.scene = 'title'; }
+      if (tap && inRect(O.btn, tap.x, tap.y)) startAutoPlay();
+      else if (tap && inRect(O.btn2, tap.x, tap.y)) { teardownAuto(); state.scene = 'title'; }
       return;
     }
     if (A.paused) return;   // nothing below runs while paused: timers, searches, animations and particles all freeze
@@ -310,8 +315,8 @@ export function createGame(env) {
     if (i !== state.textScaleIdx) { state.textScaleIdx = i; state.scroll = 0; savePrefs(); tick(); }
   }
   function stepTextTap(tap) {
-    if (inRect(TEXT_DEC, tap.x, tap.y)) { stepText(-1); return true; }
-    if (inRect(TEXT_INC, tap.x, tap.y)) { stepText(1); return true; }
+    if (inRect(lay().dec, tap.x, tap.y)) { stepText(-1); return true; }
+    if (inRect(lay().inc, tap.x, tap.y)) { stepText(1); return true; }
     return false;
   }
   function updateTitle(tap) {
@@ -330,11 +335,13 @@ export function createGame(env) {
       else if (id === 'level') { state.level = state.level % 3 + 1; savePrefs(); tick(); }
     };
     if (state.textScaleIdx > 0) {
-      const L = largeTitle(scale(), !!state.saved);
-      for (const [id, r] of Object.entries(L.rows)) if (inRect({ ...r, y: r.y - state.scroll }, tap.x, tap.y)) { act(id); return; }
+      const LT = largeTitle(meta.width, scale(), !!state.saved);
+      if (inRect({ ...LT.lockTap, y: LT.lockTap.y - state.scroll }, tap.x, tap.y)) { env.openArcforgeHome?.(); return; }
+      for (const [id, r] of Object.entries(LT.rows)) if (inRect({ ...r, y: r.y - state.scroll }, tap.x, tap.y)) { act(id); return; }
       return;
     }
-    const R = titleRows(!!state.saved), hit = (r) => r && inRect(r, tap.x, tap.y);
+    const R = titleFor(lay(), !!state.saved), hit = (r) => r && inRect(r, tap.x, tap.y);
+    if (hit(R.lockTap)) { env.openArcforgeHome?.(); return; }
     const setv = (v) => { if (state.variant !== v) { state.variant = v; savePrefs(); tick(); } };
     const setn = (n) => { if (state.n !== n) { state.n = n; savePrefs(); tick(); } };
     const setl = (l) => { if (state.level !== l) { state.level = l; savePrefs(); tick(); } };
@@ -344,16 +351,15 @@ export function createGame(env) {
     else if (hit(R.level[0])) setl(1); else if (hit(R.level[1])) setl(2); else if (hit(R.level[2])) setl(3);
     else if (hit(R.how)) act('how'); else if (hit(R.rules)) act('rules'); else if (hit(R.about)) act('about'); else if (hit(R.settings)) act('settings'); else if (hit(R.auto)) act('auto');
   }
-  // Back steps to the previous page (or leaves from page 1); Next steps forward and reads Done on the last page.
+  // About / How to Play / Rules are one continuous scrolling reader: Back and Done both leave to the title.
   function updateRef(tap, list, key) {
     if (!tap) return;
     if (stepTextTap(tap)) return;
-    if (inRect(REF_BACK, tap.x, tap.y)) { if (state[key] > 0) { state[key] -= 1; state.scroll = 0; } else { state.scene = 'title'; state.scroll = 0; } return; }
-    if (inRect(REF_NEXT, tap.x, tap.y)) { if (state[key] >= list.length - 1) { state.scene = 'title'; state[key] = 0; state.scroll = 0; } else { state[key] += 1; state.scroll = 0; tick(); } }
+    if (inRect(lay().refBack, tap.x, tap.y) || inRect(lay().refNext, tap.x, tap.y)) { state.scene = 'title'; state[key] = 0; state.scroll = 0; }
   }
   function updateSettings(tap) {
     if (!tap) return;
-    if (inRect(BACK, tap.x, tap.y)) { state.scene = 'title'; state.scroll = 0; return; }
+    if (inRect(lay().back, tap.x, tap.y)) { state.scene = 'title'; state.scroll = 0; return; }
     for (const h of state.hits) if (inRect(h.r, tap.x, tap.y)) {
       if (h.key === 'dec') stepText(-1); else if (h.key === 'inc') stepText(1);
       else { state.set[h.key] = !state.set[h.key]; if (h.key === 'sound') audio.setMuted?.(!state.set.sound); savePrefs(); tick(); }
@@ -363,19 +369,19 @@ export function createGame(env) {
   function updateOver(tap) {
     if (!tap) return;
     if (stepTextTap(tap)) return;
-    if (inRect(OVERLAY_BTN2, tap.x, tap.y)) startMatch();
-    else if (inRect(OVERLAY_BTN, tap.x, tap.y)) { state.scene = 'title'; state.scroll = 0; }
+    if (inRect(lay().ov.btn2, tap.x, tap.y)) startMatch();
+    else if (inRect(lay().ov.btn, tap.x, tap.y)) { state.scene = 'title'; state.scroll = 0; }
   }
 
   // ---- the table ----------------------------------------------------------------------------------------------------------
   function cardAt(px, py) {
     const H = state.H; if (!H || H.phase !== 'play') return -1;
     const hand = H.hands[0], n = hand.length; if (!n) return -1;
-    const s = handSlot(0, n), step = s.step;
-    if (py < HAND_Y - LIFT - 4 || py > HAND_Y + 214) return -1;
-    if (px < s.x || px > s.x + CW + step * (n - 1)) return -1;
+    const T = TT(), hcw = CW * T.hs, s = T.handSlot(0, n), step = s.step;
+    if (py < T.handY - T.LIFT - 4 || py > T.handY + 214 * T.hs + 4) return -1;
+    if (px < s.x || px > s.x + hcw + step * (n - 1)) return -1;
     let i = step ? Math.min(n - 1, Math.floor((px - s.x) / step)) : 0;
-    if (ui.sel >= 0) { const j = hand.indexOf(ui.sel); if (j >= 0) { const sx = handSlot(j, n).x; if (px >= sx && px <= sx + CW && py < HAND_Y + 30) i = j; } }
+    if (ui.sel >= 0) { const j = hand.indexOf(ui.sel); if (j >= 0) { const sx = T.handSlot(j, n).x; if (px >= sx && px <= sx + hcw && py < T.handY + 30) i = j; } }
     return hand[i];
   }
   function tryCard(c, viaDrag) {
@@ -386,22 +392,22 @@ export function createGame(env) {
     doPlay(c);
   }
   function buildPanel() {
-    const H = state.H, P = []; state.panelText = [];
+    const H = state.H, P = [], T = TT(); state.panelText = [];
     if (!H || state.show || ui.summary || isAuto()) { state.panel = []; return; }
     const V = RL.VARIANTS[H.variant];
     if (H.phase === 'special' && H.specialTeam === 0 && ui.delay <= 0) {
-      P.push({ r: ACT.a, kind: 'special', play: true, label: `Play for ${V.specialVal}`, sub: 'no shouting', primary: true });
-      P.push({ r: ACT.b, kind: 'special', play: false, label: 'Run', sub: `they score ${V.specialRun}` });
+      P.push({ r: T.act.a, kind: 'special', play: true, label: `Play for ${V.specialVal}`, sub: 'no shouting', primary: true });
+      P.push({ r: T.act.b, kind: 'special', play: false, label: 'Run', sub: `they score ${V.specialRun}` });
       state.panelText = [`${V.specialName}: you are on ${H.scoresAtDeal[0]}.`, H.n === 4 ? "You can see your partner's cards." : 'Look at your cards, then decide.'];
     } else if (H.phase === 'raise' && H.answerSeat === 0 && ui.delay <= 0) {
       const Pd = H.pending, up = Pd.idx < 4;
-      P.push({ r: ANS[0], kind: 'answer', action: 'accept', label: 'Accept', sub: `worth ${V.vals[Pd.idx]}`, primary: true });
-      P.push({ r: ANS[1], kind: 'answer', action: 'fold', label: 'Run', sub: `they score ${V.vals[Pd.idx - 1]}` });
-      if (up) P.push({ r: ANS[2], kind: 'answer', action: 'raise', label: V.shouts[Pd.idx + 1] + '!', sub: `worth ${V.vals[Pd.idx + 1]}`, danger: true });
+      P.push({ r: T.ans[0], kind: 'answer', action: 'accept', label: 'Accept', sub: `worth ${V.vals[Pd.idx]}`, primary: true });
+      P.push({ r: T.ans[1], kind: 'answer', action: 'fold', label: 'Run', sub: `they score ${V.vals[Pd.idx - 1]}` });
+      if (up) P.push({ r: T.ans[2], kind: 'answer', action: 'raise', label: V.shouts[Pd.idx + 1] + '!', sub: `worth ${V.vals[Pd.idx + 1]}`, danger: true });
       state.panelText = [`${seatName(Pd.seat)} calls ${V.shouts[Pd.idx].toUpperCase()}: the hand is worth ${V.vals[Pd.idx]}.`];
     } else if (ui.sig && H.phase === 'play' && !H.signalled[0]) {
-      RL.SIGNALS.forEach((s, i) => P.push({ r: SIGPOP[i], kind: 'signal', id: s.id, label: s.label, sub: s.sub, gesture: s.id }));
-      P.push({ r: SIGCLOSE, kind: 'sigclose', label: 'Close', small: true });
+      RL.SIGNALS.forEach((s, i) => P.push({ r: T.sigpop[i], kind: 'signal', id: s.id, label: s.label, sub: s.sub, gesture: s.id }));
+      P.push({ r: T.sigclose, kind: 'sigclose', label: 'Close', small: true });
       state.panelText = ['Tell your partner your best card:'];
     }
     state.panel = P;
@@ -414,9 +420,9 @@ export function createGame(env) {
   }
   const trucoAllowed = () => { const H = state.H; return !!H && !isAuto() && RL.canRaise(H, 0) && !state.show && ui.delay <= 0 && !ui.summary; };
   function updateTable(dt, tap, input) {
-    const H = state.H;
+    const H = state.H, T = TT();
     tickWorld(dt);
-    if (tap && inRect(BTN.menu, tap.x, tap.y)) { saveGame(); state.scene = 'title'; state.scroll = 0; return; }
+    if (tap && inRect(T.btn.menu, tap.x, tap.y)) { saveGame(); state.scene = 'title'; state.scroll = 0; return; }
     if (ui.summary) { tableSummary(tap); return; }
     if (state.show) { updateShow(dt); if (!state.show && H.phase === 'done') finishHand(); return; }
     if (ui.delay > 0) { ui.delay -= dt; return; }
@@ -430,10 +436,10 @@ export function createGame(env) {
     if (!human(a.seat)) { ui.thinking = true; applyPlan(makePlan(a)); ui.thinking = false; return; }
     // ---- the human acts
     if (tap) for (const b of state.panel) if (inRect(b.r, tap.x, tap.y)) { panelTap(b); return; }
-    if (tap && inRect(BTN.hint, tap.x, tap.y)) { askHint(); return; }
-    if (tap && inRect(BTN.sig, tap.x, tap.y) && H.n === 4 && H.phase === 'play' && !H.signalled[0]) { ui.sig = !ui.sig; ui.sel = -1; return; }
+    if (tap && inRect(T.btn.hint, tap.x, tap.y)) { askHint(); return; }
+    if (tap && inRect(T.btn.sig, tap.x, tap.y) && H.n === 4 && H.phase === 'play' && !H.signalled[0]) { ui.sig = !ui.sig; ui.sel = -1; return; }
     if (H.phase !== 'play') return;
-    if (tap && trucoAllowed() && inRect(TRUCO_BTN, tap.x, tap.y)) { doRaise(0, false); return; }
+    if (tap && trucoAllowed() && inRect(T.truco, tap.x, tap.y)) { doRaise(0, false); return; }
     const pointer = input.pointer;
     if (pointer.pressed && !ui.sig) { const c = cardAt(pointer.x, pointer.y); if (c >= 0) ui.drag = { card: c, sx: pointer.x, sy: pointer.y, x: pointer.x, y: pointer.y, moved: false }; }
     else if (ui.drag && pointer.down) { ui.drag.x = pointer.x; ui.drag.y = pointer.y; if (Math.abs(pointer.y - ui.drag.sy) > 26) ui.drag.moved = true; }
@@ -447,7 +453,7 @@ export function createGame(env) {
     const S = ui.summary;
     if (!tap) return;
     if (stepTextTap(tap)) return;
-    if (!inRect(OVERLAY_BTN, tap.x, tap.y)) return;
+    if (!inRect(lay().ov.btn, tap.x, tap.y)) return;
     ui.summary = null; state.scroll = 0;
     if (S.mw >= 0) { state.scene = 'over'; return; }
     nextHand();
@@ -455,6 +461,7 @@ export function createGame(env) {
 
   function updatePos(dt) {
     const H = state.H; if (!H) return;
+    const T = TT(), DECK = T.deck, TRICK = T.trick, SEAT = T.seat, TSC = T.tsc;
     const k = 1 - Math.exp(-dt * (state.set.calm ? 18 : 11));
     const put = (c, tx, ty, ts) => {
       let p = state.pos[c];
@@ -463,9 +470,9 @@ export function createGame(env) {
     };
     const hand = H.hands[0], n = hand.length;
     hand.forEach((c, i) => {
-      const s = handSlot(i, n); let ty = s.y - (ui.sel === c ? LIFT : 0), tx = s.x;
-      if (ui.drag && ui.drag.card === c && ui.drag.moved) { tx = ui.drag.x - CW / 2; ty = ui.drag.y - 100; }
-      put(c, tx, ty, 1);
+      const s = T.handSlot(i, n); let ty = s.y - (ui.sel === c ? T.LIFT : 0), tx = s.x;
+      if (ui.drag && ui.drag.card === c && ui.drag.moved) { tx = ui.drag.x - CW * T.hs / 2; ty = ui.drag.y - 100 * T.hs; }
+      put(c, tx, ty, T.hs);
     });
     const tt = state.show ? state.show.plays : H.plays;
     for (const pl of tt) {
@@ -489,20 +496,21 @@ export function createGame(env) {
   // ---- keyboard: arrows move over the hand / buttons, Enter or Space taps, Escape is Menu, H hint, S signal, T truco --
   function keyboard(input) {
     const k = input.keys.pressed, sc = state.scene; if (input.pointer.pressed || !k.size) return null;
+    const L = lay(), T = L.t, O = L.ov, mid = (r) => ({ x: r.x + 5, y: r.y + 5 });
     if (sc === 'title') { if (k.has('Enter') || k.has('Space')) return { key: 'start' }; return null; }
-    if (sc === 'over' || sc === 'demo-limit') { if (k.has('Enter') || k.has('Space')) return { x: OVERLAY_BTN.x + 5, y: OVERLAY_BTN.y + 5 }; return null; }
+    if (sc === 'over' || sc === 'demo-limit') { if (k.has('Enter') || k.has('Space')) return mid(O.btn); return null; }
     if (sc !== 'play' && sc !== 'auto') {
-      if (k.has('Escape')) return { x: (sc === 'settings' ? BACK.x : REF_BACK.x) + 5, y: (sc === 'settings' ? BACK.y : REF_BACK.y) + 5 };
-      if ((sc === 'about' || sc === 'how' || sc === 'rules') && (k.has('Enter') || k.has('Space') || k.has('ArrowRight'))) return { x: REF_NEXT.x + 5, y: REF_NEXT.y + 5 };
+      if (k.has('Escape')) return mid(sc === 'settings' ? L.back : L.refBack);
+      if ((sc === 'about' || sc === 'how' || sc === 'rules') && (k.has('Enter') || k.has('Space') || k.has('ArrowRight'))) return mid(L.refNext);
       return null;
     }
-    if (k.has('Escape')) return { x: BTN.menu.x + 5, y: BTN.menu.y + 5 };
-    if (sc === 'auto') { if (k.has('Space')) return { x: BTN.sig.x + 5, y: BTN.sig.y + 5 }; return null; }
-    if (k.has('KeyH')) return { x: BTN.hint.x + 5, y: BTN.hint.y + 5 };
-    if (k.has('KeyS')) return { x: BTN.sig.x + 5, y: BTN.sig.y + 5 };
-    if (k.has('KeyT')) return { x: TRUCO_BTN.x + 5, y: TRUCO_BTN.y + 5 };
+    if (k.has('Escape')) return mid(T.btn.menu);
+    if (sc === 'auto') { if (k.has('Space')) return mid(T.btn.sig); return null; }
+    if (k.has('KeyH')) return mid(T.btn.hint);
+    if (k.has('KeyS')) return mid(T.btn.sig);
+    if (k.has('KeyT')) return mid(T.truco);
     const H = state.H; if (!H) return null;
-    if (ui.summary) { if (k.has('Enter') || k.has('Space')) return { x: OVERLAY_BTN.x + 5, y: OVERLAY_BTN.y + 5 }; return null; }
+    if (ui.summary) { if (k.has('Enter') || k.has('Space')) return mid(O.btn); return null; }
     const P = state.panel;
     if (P.length) {
       if (k.has('ArrowLeft') || k.has('ArrowUp')) ui.cursor = (ui.cursor + P.length - 1) % P.length; else if (k.has('ArrowRight') || k.has('ArrowDown')) ui.cursor = (ui.cursor + 1) % P.length;
@@ -514,7 +522,7 @@ export function createGame(env) {
     if (k.has('ArrowLeft')) { ui.cursor = Math.max(0, Math.min(hand.length - 1, ui.cursor) - 1); ui.kb = true; }
     else if (k.has('ArrowRight')) { ui.cursor = Math.min(hand.length - 1, ui.cursor + 1); ui.kb = true; }
     ui.cursor = Math.min(ui.cursor, hand.length - 1);
-    if (k.has('Enter') || k.has('Space')) { ui.kb = true; const s = handSlot(ui.cursor, hand.length); return { x: s.x + 14, y: HAND_Y + 60, key: 'card' }; }
+    if (k.has('Enter') || k.has('Space')) { ui.kb = true; const s = T.handSlot(ui.cursor, hand.length); return { x: s.x + 14, y: T.handY + 60, key: 'card' }; }
     return null;
   }
 
@@ -534,14 +542,21 @@ export function createGame(env) {
 
   return {
     update(dt, input) {
+      if (!wheelHooked && input.onWheel) {   // kit 1.8.0: mouse wheel / trackpad scrolls the long pages and the title
+        wheelHooked = true;
+        input.onWheel(({ dy }) => { if (SCROLL_SCENES.has(state.scene) || state.scene === 'title') state.scroll = Math.max(0, Math.min(state.maxScroll, state.scroll + dy)); });
+      }
       feedPointer(input.pointer, dt);
+      { const ip = input.pointer; let z = null;      // press feedback of the Arcforge lockup on the title
+        if (state.scene === 'title') { if (state.textScaleIdx > 0) { const t = largeTitle(meta.width, scale(), !!state.saved).lockTap; z = { ...t, y: t.y - state.scroll }; } else z = titleFor(lay(), !!state.saved).lockTap; }
+        state.lkDown = !!(z && ip.down && inRect(z, ip.x, ip.y)); }
       const sc = state.scene, paused = sc === 'auto' && state.auto?.paused;
       state.t += paused ? 0 : dt;
       const scrollable = SCROLL_SCENES.has(sc) || (sc === 'title' && state.textScaleIdx > 0) || !!ui.summary;
       const kbd = keyboard(input);
       let tap = gestureTap(input, scrollable);
       if (!tap && kbd && kbd.x !== undefined) tap = kbd;
-      if (kbd && kbd.key === 'start' && sc === 'title') { const r = titleRows(!!state.saved); tap = state.textScaleIdx > 0 ? { x: 60, y: largeTitle(scale(), !!state.saved).rows.play.y - state.scroll + 5 } : { x: r.play.x + 5, y: r.play.y + 5 }; }
+      if (kbd && kbd.key === 'start' && sc === 'title') { const r = titleFor(lay(), !!state.saved), lr = largeTitle(meta.width, scale(), !!state.saved).rows.play; tap = state.textScaleIdx > 0 ? { x: lr.x + 5, y: lr.y - state.scroll + 5 } : { x: r.play.x + 5, y: r.play.y + 5 }; }
       if (state.maxScroll < state.scroll) state.scroll = state.maxScroll;
       if (sc === 'title') updateTitle(tap);
       else if (sc === 'settings') updateSettings(tap);
@@ -552,13 +567,13 @@ export function createGame(env) {
         updateTable(dt, tap, input);
         if (state.H) { buildPanel(); if (kbd && kbd.key === 'card' && tap) { const c = cardAt(tap.x, tap.y); if (c >= 0) tryCard(c, false); } updatePos(dt); }
       } else if (sc === 'over') updateOver(tap);
-      else if (sc === 'demo-limit') { if (tap && inRect(OVERLAY_BTN, tap.x, tap.y)) { state.scene = 'title'; state.scroll = 0; } }
+      else if (sc === 'demo-limit') { if (tap && inRect(lay().ov.btn, tap.x, tap.y)) { state.scene = 'title'; state.scroll = 0; } }
       else if (sc === 'auto') {
         updateAuto(dt, tap);
         if (state.H) updatePos(state.auto && state.auto.paused ? 0 : dt);   // paused: cards hold exactly where they were
       }
     },
-    render(ctx) { render(ctx, state); },
+    render(ctx, view) { render(ctx, state, layoutFor(view?.width ?? meta.width, view?.height ?? meta.height)); },
     getState: () => state,
     // Only real play spends the paid-preview time (kit/preview.js). Title, menus, Settings, About, How to Play, Rules,
     // Auto Play (Watch & Learn), result and demo-limit screens are all free.

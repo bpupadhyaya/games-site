@@ -2,6 +2,8 @@
 // Plain canvas 2D, no images, nothing here changes game state.
 
 export const W = 720, H = 1560;
+// The live screen size (virtual units): layout.js setSize() keeps it current, background() fills all of it.
+export const VIEW = { w: 720, h: 1560 };
 export const UI = '-apple-system, "SF Pro Text", "Segoe UI", Roboto, system-ui, sans-serif';
 export const DISPLAY = '"Palatino Linotype", Palatino, "Iowan Old Style", Georgia, "Times New Roman", serif';
 
@@ -62,21 +64,23 @@ export function text(ctx, str, x, y, size, color = '#fff', o = {}) {
 const FLECKS = Array.from({ length: 30 }, (_, i) => [((i * 97) % 211) / 211 * W, ((i * 53) % 173) / 173 * H, 0.6 + ((i * 31) % 7) / 7, ((i * 13) % 11) / 11]);
 
 export function background(ctx, th, t, glowY = 700) {
-  const g = ctx.createLinearGradient(0, 0, 0, H);
+  const w = VIEW.w, h = VIEW.h, sx = w / W, sh = Math.hypot(w, h) / Math.hypot(W, H);
+  const g = ctx.createLinearGradient(0, 0, 0, h);
   g.addColorStop(0, th.bg[0]); g.addColorStop(0.5, th.bg[1]); g.addColorStop(1, th.bg[2]);
-  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
-  const hg = ctx.createRadialGradient(W / 2, glowY, 40, W / 2, glowY, 640);
+  ctx.fillStyle = g; ctx.fillRect(0, 0, w, h);
+  const gy = glowY * h / H, gr = 640 * Math.max(1, sx * 0.8);
+  const hg = ctx.createRadialGradient(w / 2, gy, 40, w / 2, gy, gr);
   hg.addColorStop(0, th.glow); hg.addColorStop(1, 'rgba(0,0,0,0)');
-  ctx.fillStyle = hg; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = hg; ctx.fillRect(0, 0, w, h);
   for (const [x, y, s, ph] of FLECKS) {
-    const yy = (y + t * (3 + s * 3)) % H;
+    const yy = ((y * h / H) + t * (3 + s * 3)) % h;
     const a = 0.06 + 0.12 * (0.5 + 0.5 * Math.sin(t * 0.7 + ph * 9));
     ctx.fillStyle = `rgba(${th.fleck},${a})`;
-    ctx.fillRect(x, yy, 2.2 * s, 2.2 * s);
+    ctx.fillRect(x * sx, yy, 2.2 * s, 2.2 * s);
   }
-  const vg = ctx.createRadialGradient(W / 2, H / 2, 560, W / 2, H / 2, 1020);
+  const vg = ctx.createRadialGradient(w / 2, h / 2, 560 * sh, w / 2, h / 2, 1020 * sh);
   vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,0.5)');
-  ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = vg; ctx.fillRect(0, 0, w, h);
 }
 
 // ---------------------------------------------------------------------------------------------------- panels and buttons
@@ -89,6 +93,9 @@ export function panel(ctx, th, x, y, w, h, o = {}) {
   ctx.restore();
   ctx.strokeStyle = th.stroke; ctx.lineWidth = 2; rr(ctx, x, y, w, h, o.r ?? 26); ctx.stroke();
 }
+
+// The small second line of a button: 62 percent of the label, but never under ~22 units (readable on a small phone).
+export const subSize = (size) => Math.max(size * 0.62, Math.min(22, size * 0.8));
 
 // Flat buttons: one solid fill, a hairline border, a darker underside strip when at rest. No gloss shape.
 // kind: primary | normal | on | danger | ghost
@@ -105,11 +112,11 @@ export function button(ctx, th, r, lines, kind = 'normal', o = {}) {
   ctx.strokeStyle = kind === 'primary' ? 'rgba(255,255,255,0.45)' : 'rgba(255,255,255,0.16)'; ctx.lineWidth = 1.5;
   rr(ctx, r.x, y, r.w, r.h, rad); ctx.stroke();
   const color = kind === 'primary' ? th.primaryInk : th.ink;
-  const size = o.size ?? 28, line = o.line ?? size * 1.22, subs = o.sub ?? [];
-  const total = lines.length * line + (subs.length ? subs.length * size * 0.78 + 4 : 0);
+  const size = o.size ?? 28, line = o.line ?? size * 1.22, subs = o.sub ?? [], ss = subSize(size);
+  const total = lines.length * line + (subs.length ? subs.length * ss * 1.26 + 4 : 0);
   let ty = y + (r.h - total) / 2 + size * 0.9;
   for (const ln of lines) { text(ctx, ln, r.x + r.w / 2, ty, size, color, { weight: 700 }); ty += line; }
-  for (const ln of subs) { ty += size * 0.04; text(ctx, ln, r.x + r.w / 2, ty, size * 0.62, kind === 'primary' ? alpha(th.primaryInk, 0.78) : 'rgba(246,236,214,0.72)', { weight: 500 }); ty += size * 0.78; }
+  for (const ln of subs) { ty += size * 0.04; text(ctx, ln, r.x + r.w / 2, ty, ss, kind === 'primary' ? alpha(th.primaryInk, 0.78) : 'rgba(246,236,214,0.72)', { weight: 500 }); ty += ss * 1.26; }
   ctx.restore();
 }
 
@@ -395,7 +402,7 @@ export function drawBoardStones(ctx, th, view) {
 
 // Number pills on every square, and the highlight rings. view: { counts, sel, legal:Set, hint, pulse, zoom }
 export function drawBoardMarks(ctx, th, view, text) {
-  const z = view.zoom ?? 1, fs = 21 * (1 + (z - 1) * 0.28);
+  const z = view.zoom ?? 1, fs = Math.min(52, Math.max(21 * (1 + (z - 1) * 0.28), 21 / (view.sc ?? 1)));   // never smaller than ~21 screen units, however small the board is drawn
   for (let i = 0; i < 12; i++) {
     const r = CELLS[i], n = view.cells[i];
     const hasQ = i === 0 ? view.q[0] === 1 : i === 6 ? view.q[1] === 1 : false;
@@ -444,7 +451,7 @@ export function drawHand(ctx, th, h, text) {
     drawDan(ctx, th, h.x + Math.cos(a) * rad, h.y - lift + Math.sin(a) * rad * 0.7, 900 + k * 7, { noShadow: true, scale: 0.95 });
   }
   if (n > 1) {
-    const fs = 22, w = String(n).length * fs * 0.62 + 20;
+    const fs = Math.min(40, Math.max(22, 21 / (h.sc ?? 1))), w = String(n).length * fs * 0.62 + 20;
     ctx.fillStyle = th.accent; ctx.beginPath(); ctx.roundRect(h.x + 14, h.y - lift - 34, w, fs + 8, (fs + 8) / 2); ctx.fill();
     text(ctx, String(n), h.x + 14 + w / 2, h.y - lift - 34 + fs * 0.88 + 1, fs, th.primaryInk, { weight: 800 });
   }

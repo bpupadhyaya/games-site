@@ -3,8 +3,8 @@
   "title": "Okey Offline",
   "tagline": "Turkey's tile rummy, four at the table.",
   "genre": "tile rummy game",
-  "orientation": "portrait",
-  "version": "1.0.1",
+  "orientation": "any",
+  "version": "1.1.4",
   "monetization": {
     "model": "premium",
     "priceUsd": 2.99,

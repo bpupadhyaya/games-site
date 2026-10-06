@@ -1,8 +1,8 @@
 // The play screen: the pitch in a window, the scoreboard above it, the controls below, banners and cards on top.
 // Pure drawing and pure layout; game.js owns the state. computeLayout() is called by game.js for hit-testing (no canvas, text widths estimated)
 // and by render (real text widths) and gives the same rectangles to both.
-import { W, H, TEXT_SCALES, COMPACT, SCENE_Y0, SCENE_H, playLayout, toScene, TRAY_TOP } from './layout.js';
-import { FONT, NUM, C, roundPath, drawButton, paintButton, panel, wrapLines, textShadow, ease } from './ui.js';
+import { W, H, TEXT_SCALES, COMPACT, SCENE_Y0, SCENE_H, toScene, G, host, BAKE } from './layout.js';
+import { FONT, NUM, C, roundPath, drawButton, paintButton, panel, wrapLines, textShadow, ease, FLOOR } from './ui.js';
 import * as SC from './scene.js';
 import { PROFILES } from './ai.js';
 import { LOFTS, SPINS, KUBB, KING, FIELD, nlerp } from './phys.js';
@@ -63,17 +63,27 @@ function shortPhase(S) {
   return `Baton ${Math.min(m.baton + 1, m.batons)} of ${m.batons}`;
 }
 // ---- layout -------------------------------------------------------------------------------------------------------------------------------
+// Three shapes, all a pure function of the live size (G.mode): 'tall' / 'compact' portrait (scoreboard on top, the lawn, controls below; text sizes up to
+// 150 percent keep the inline controls, larger sizes get a text tray and a set-up sheet) and 'wide' landscape (left panel: scoreboard and status; the lawn
+// in the middle; right panel: the controls). The lawn picture is only ever scaled, never re-drawn differently.
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const zEff = (S) => (G.land ? Math.min(zOf(S), COMPACT) : zOf(S));
+const cardHFor = (z) => Math.round(20 + 24 * z * 1.1 + 18 * z * 1.2 + 16);
 export function hudMetrics(S, ctx) {
-  const z = zOf(S), cx = pickCtx(ctx);
+  const z = zEff(S), cx = pickCtx(ctx), back = G.backBox, hasBack = back.h > 0;
+  if (G.land) return { compact: true, wide: true, z, h: 0, y: 0, fs: Math.round(22 * z), cardH: cardHFor(z) };
   if (z <= COMPACT) {
-    const cardH = Math.round(20 + 24 * z * 1.1 + 18 * z * 1.2 + 16), fs = Math.round(22 * z);
-    return { compact: true, z, cardH, y: 44, h: 44 + cardH + 8 + Math.round(fs * 1.35) + 10, fs };
+    const cardH = cardHFor(z), fs = Math.round(22 * z);
+    if (hasBack) { const y = back.y + back.h + 6; return { compact: true, z, cardH, y, h: y + cardH + 12, fs, strip: { x: back.x + back.w + 10, y: back.y, w: W - 14 - (back.x + back.w + 10), h: back.h } }; }
+    const y = Math.max(44, host.t + 8);
+    return { compact: true, z, cardH, y, h: y + cardH + 8 + Math.round(fs * 1.35) + 10, fs };
   }
   const fs = Math.round(26 * z), lines = [], m = S.m;
   const pushWrapped = (text, o) => { cx.font = `${o.bold ? 700 : 400} ${fs}px ${FONT}`; wrapLines(cx, text, W - 72).forEach((l) => lines.push({ text: l, ...o })); };
   if (m.cfg.mode === 'learn') { pushWrapped(`Batons left: ${m.batons - m.baton}`, { active: true, bold: true }); pushWrapped(m.lesson.goalShort, { bold: true }); }
   else { pushWrapped(`${sideName(S, 0)} ${totalLeft(m, 0)}, ${sideName(S, 1)} ${totalLeft(m, 1)}`, { bold: true }); pushWrapped(shortPhase(S), {}); }
-  return { compact: false, z, fs, lines, y: 40, h: 40 + lines.length * fs * 1.22 + 20 };
+  const y = hasBack ? back.y + back.h + 8 : Math.max(40, host.t + 10);
+  return { compact: false, z, fs, lines, y, h: y + lines.length * fs * 1.22 + 20 };
 }
 export function fitStatus(cx, text, fs, maxW, maxLines) {
   cx.font = `400 ${fs}px ${FONT}`;
@@ -86,65 +96,138 @@ function trayMetrics(S, ctx) {
   const maxLines = S.m.cfg.mode === 'watch' ? 2 : Math.max(2, Math.floor((H * 0.24) / (fs * 1.22)));
   const text = S.ph === 'aim' && !(S.hint && !S.hint.busy) ? '' : statusText(S);
   const { lines, more } = fitStatus(cx, text, fs, W - 110, maxLines);
-  const mfs = Math.round(fs * 0.8), moreH = more ? mfs * 1.3 : 0;
+  const mfs = Math.max(Math.round(fs * 0.8), Math.ceil(FLOOR.v)), moreH = more ? mfs * 1.3 : 0;
   const bh = Math.round(26 * z * 1.15 + 38), rows = S.m.cfg.mode === 'watch' ? 2 : 1;
   return { fs, lines, more, mfs, bh, rows, h: 24 + lines.length * fs * 1.22 + moreH + 16 + rows * bh + (rows - 1) * 12 + 28 };
 }
-const lay_hudH = (S) => hudMetrics(S).h;
-function compactStatus(S, ctx, z) {
+// Portrait with inline controls: everything at the bottom hangs from the bottom edge; the lawn picture sits just above the control rows (scaled down a
+// little when the screen is shorter than a phone, e.g. a tablet) and any extra height on a tall phone becomes more far scenery above it.
+function portraitGeom(hud) {
+  const tap = G.tap, padB = Math.max(66, host.b + 24);
+  const spinY = H - padB - tap, loftY = spinY - 6 - tap, arrowY = loftY - 8 - tap, sceneBottom = loftY + 38;
+  const s = clamp((sceneBottom - (hud.h + 54)) / SCENE_H, 0.6, 1);
+  const vy = Math.min(sceneBottom - SCENE_H * s, 560 * s);
+  return { tap, padB, spinY, loftY, arrowY, skipY: spinY, s, vx: W / 2 - 360 * s, vy, sceneBottom, bottom: H - padB };
+}
+function compactStatus(S, ctx, z, P) {
   const text = S.ph === 'aim' ? (firstTime(S) && !S.hint ? slingText(S) : '') : statusText(S);
   if (!text || S.ph === 'flight') return null;
-  const cx = pickCtx(ctx), fs = Math.round(21 * z);
+  const cx = pickCtx(ctx), fs = Math.max(Math.round(21 * z), Math.ceil(FLOOR.v));
   const { lines, more } = fitStatus(cx, text, fs, W - 70, 4);
-  const mfs = Math.round(fs * 0.8), h = lines.length * fs * 1.25 + (more ? mfs * 1.3 : 0) + 18;
-  const rowBelow = S.m.cfg.mode === 'watch' ? 1060 : S.ph === 'aim' ? 1000 : (S.ph === 'flight' || S.ph === 'result' || S.ph === 'settle') ? 1140 : 1214;
-  const top = S.m.turn === 1 && S.ph !== 'result', y = top ? lay_hudH(S) + (S.m.cfg.mode === 'watch' ? 8 : 70) : rowBelow - h;
+  const mfs = Math.max(Math.round(fs * 0.8), Math.ceil(FLOOR.v)), h = lines.length * fs * 1.25 + (more ? mfs * 1.3 : 0) + 18;
+  const rowBelow = S.m.cfg.mode === 'watch' ? P.loftY - 10 : S.ph === 'aim' ? P.arrowY - 26 : (S.ph === 'flight' || S.ph === 'result' || S.ph === 'settle') ? P.skipY - 8 : P.bottom;
+  const top = S.m.turn === 1 && S.ph !== 'result', y = top ? hudBottom(S) + (S.m.cfg.mode === 'watch' ? 8 : 70) : rowBelow - h;
   return { fs, lines, more, mfs, h, y, rect: { x: 24, y, w: W - 48, h } };
 }
+const hudBottom = (S) => hudMetrics(S).h;
+
+// The landscape panels. Left: the two score cards, the phase line, the status text (or the Think hint). Right: the buttons.
+function widePanels(S, ctx, z) {
+  const U = G.U, cx = pickCtx(ctx), s = clamp(Math.min((U.h - 12) / 905, (U.w - 2 * 260) / 720), 0.55, 1.1);
+  const cxm = (U.x0 + U.x1) / 2, ww = clamp(U.w - 2 * 260, 720 * s, 1240 * s * 0.97), wx0 = cxm - ww / 2;
+  const L = { x: U.x0 + 8, y: U.y0 + 8, w: wx0 - 10 - (U.x0 + 8), h: U.h - 16 }, Rp = { x: wx0 + ww + 10, y: U.y0 + 8, w: U.x1 - 8 - (wx0 + ww + 10), h: U.h - 16 };
+  const lay = { s, vx: cxm - 360 * s, vy: U.y0 + 6 - 10 * s, clip: { x: wx0, y: 0, w: ww, h: H }, cx: cxm, win: { x: wx0, w: ww }, L, Rp };
+  const m = S.m, watch = m.cfg.mode === 'watch', fs = Math.max(Math.round(21 * z), Math.ceil(FLOOR.v));
+  // left panel
+  let y = L.y + 10;
+  if (G.backBox.h > 0) y = Math.max(y, G.backBox.y + G.backBox.h + 6);
+  const cardH = cardHFor(z);
+  lay.cards = [{ x: L.x + 8, y, w: L.w - 16, h: cardH }, { x: L.x + 8, y: y + cardH + 8, w: L.w - 16, h: cardH }];
+  y += 2 * cardH + 16;
+  cx.font = `400 ${fs}px ${FONT}`;
+  const ph = wrapLines(cx, phaseLine(S), L.w - 24);
+  lay.phase = { x: L.x + L.w / 2, y, lines: ph, fs };
+  y += ph.length * fs * 1.25 + 10;
+  const text = S.ph === 'aim' ? (firstTime(S) && !S.hint ? slingText(S) : '') : S.ph === 'flight' ? '' : statusText(S);
+  const hintShown = (S.ph === 'aim' || S.ph === 'toss') && S.hint && !S.hint.busy;
+  const useH = hintShown ? Math.max(54, G.tap) : 0, avail = L.y + L.h - 10 - y - (useH ? useH + 10 : 0);
+  const maxLines = Math.max(0, Math.floor((avail - 8) / (fs * 1.25)) - 1);
+  const st = text ? fitStatus(cx, text, fs, L.w - 28, Math.max(1, maxLines)) : { lines: [], more: false };
+  const mfs = Math.max(Math.round(fs * 0.8), Math.ceil(FLOOR.v)), moreH = st.more ? mfs * 1.3 : 0, sh = st.lines.length ? st.lines.length * fs * 1.25 + moreH + 16 : 0;
+  lay.status = st.lines.length ? { fs, lines: st.lines, more: st.more, mfs, h: sh, rect: { x: L.x + 6, y, w: L.w - 12, h: sh } } : null;
+  if (hintShown) lay.useRect = { x: L.x + 12, y: L.y + L.h - 10 - useH, w: L.w - 24, h: useH };
+  lay.busy = (S.ph === 'aim' || S.ph === 'toss') && S.hint && S.hint.busy ? { x: L.x + L.w / 2, y: y + 24 } : null;
+  // right panel rows
+  const t = G.tap, gap = 8, R = {}, rx = Rp.x + 8, rw = Rp.w - 16;
+  let ry = Rp.y + 10;
+  const half = (id1, id2, yy, h = t) => { const w2 = (rw - gap) / 2; R[id1] = { x: rx, y: yy, w: w2, h }; R[id2] = { x: rx + w2 + gap, y: yy, w: w2, h }; };
+  const full = (id, yy, h = t) => { R[id] = { x: rx, y: yy, w: rw, h }; };
+  lay.labels = null;
+  if (watch) {
+    half('wdec', 'winc', ry); ry += t + gap;
+    R.wlabel = { x: rx, y: ry, w: rw, h: Math.round(t * 0.8) }; ry += R.wlabel.h + gap;
+    full('wpause', ry, t + 8); ry += t + 8 + gap; full('wexit', ry);
+  } else if (S.humanTurn && S.ph === 'aim') {
+    half('think', 'menu', ry); ry += t + gap;
+    lay.labels = { y: ry + 12, lx: rx + (rw - gap) / 4, rx: rx + (rw - gap) * 3 / 4 + gap, fs: Math.max(Math.ceil(FLOOR.v), 20) };
+    ry += 28;
+    const w2 = (rw - gap) / 2;
+    for (let i = 0; i < 3; i++) { R[`loft${i}`] = { x: rx, y: ry, w: w2, h: t }; R[`spin${i}`] = { x: rx + w2 + gap, y: ry, w: w2, h: t }; ry += t + 6; }
+    ry += 2; half('left', 'right', ry);
+  } else if (S.humanTurn && S.ph === 'toss') half('think', 'menu', ry);
+  else if (S.ph === 'flight' || S.ph === 'result' || S.ph === 'settle') half('skip', 'menu', ry);
+  else full('menu', ry);
+  if (hintShown) R.use = lay.useRect;
+  if (lay.status && lay.status.more) R.more = lay.status.rect;
+  lay.rects = R;
+  return lay;
+}
 export function computeLayout(S, ctx) {
-  const z = zOf(S), hud = hudMetrics(S, ctx);
-  let tray = null, trayH = 0;
-  if (z > COMPACT) { tray = trayMetrics(S, ctx); trayH = tray.h; }
-  const lay = playLayout(z, hud.h, trayH);
-  lay.hud = hud; lay.tray = tray; lay.z = z;
-  lay.status = z <= COMPACT ? compactStatus(S, ctx, z) : null;
+  const z = zEff(S), hud = hudMetrics(S, ctx), real = zOf(S);
+  FLOOR.v = Math.max(11, 11 / Math.max(0.25, host.px));
+  if (G.land) {
+    const lay = widePanels(S, ctx, z);
+    Object.assign(lay, { wide: true, compact: true, z, hud, tray: null, trayTop: H, bannerW: Math.min(640, lay.win.w - 24), toastY: G.U.y0 + 16, geo: null });
+    return lay;
+  }
+  let tray = null, trayH = 0, lay;
+  if (real > COMPACT) {
+    tray = trayMetrics(S, ctx); trayH = tray.h;
+    const top = Math.min(hud.h + 30, 560), bottom = H - Math.min(trayH + 40, Math.max(180, H * 0.48)), h = Math.max(260, bottom - top), s = Math.min(1, h / SCENE_H);
+    lay = { compact: false, s, vx: (W - W * s) / 2, vy: top + (h - SCENE_H * s) / 2, clip: { x: 0, y: top, w: W, h }, trayTop: bottom, geo: null };
+  } else {
+    const P = portraitGeom(hud);
+    lay = { compact: true, s: P.s, vx: P.vx, vy: P.vy, clip: null, trayTop: P.loftY - 8, geo: P };
+  }
+  Object.assign(lay, { wide: false, hud, tray, z: real, cx: W / 2, bannerW: 640, toastY: hud.h + 76 });
+  lay.status = real <= COMPACT ? compactStatus(S, ctx, real, lay.geo) : null;
   lay.rects = rectsFor(S, lay);
   return lay;
 }
-const row = (y, h, items, x0 = 16, w = 688, gap = 10) => {
+const row = (y, h, items, x0 = 16, w = W - 32, gap = 10) => {
   const total = items.reduce((a, it) => a + it.w, 0), avail = w - gap * (items.length - 1), out = {};
   let x = x0;
   items.forEach((it) => { const ww = (it.w / total) * avail; out[it.id] = { x, y, w: ww, h }; x += ww + gap; });
   return out;
 };
-const humanAimPhase = (S) => S.humanTurn && (S.ph === 'aim' || S.ph === 'toss' || S.ph === 'place');
 function rectsFor(S, lay) {
-  const R = {}, m = S.m, ph = S.ph, mode = m.cfg.mode, hum = humanAimPhase(S);
+  const R = {}, m = S.m, ph = S.ph, mode = m.cfg.mode, P = lay.geo;
   if (mode === 'watch') {
-    const h = lay.compact ? 60 : lay.tray.bh, y = lay.compact ? 1070 : H - 70 - 2 * h - 12;
+    const h = lay.compact ? P.tap : lay.tray.bh, y = lay.compact ? P.loftY : H - Math.max(70, host.b + 24) - 2 * h - 12;
     Object.assign(R, row(y, h, [{ id: 'wdec', w: 1 }, { id: 'wlabel', w: 3 }, { id: 'winc', w: 1 }]));
-    Object.assign(R, row(y + h + 12, h, [{ id: 'wpause', w: 2 }, { id: 'wexit', w: 1 }]));
+    Object.assign(R, row(y + h + (lay.compact ? 6 : 12), h, [{ id: 'wpause', w: 2 }, { id: 'wexit', w: 1 }]));
     addMore(R, lay, y);
     return R;
   }
   if (lay.compact) {
+    const top = lay.hud.h + 6, tp = P.tap;
     if (S.humanTurn && ph === 'aim') {
-      Object.assign(R, row(1092, 58, [{ id: 'loft0', w: 1 }, { id: 'loft1', w: 1 }, { id: 'loft2', w: 1 }]));
-      Object.assign(R, row(1156, 58, [{ id: 'spin0', w: 1 }, { id: 'spin1', w: 1 }, { id: 'spin2', w: 1 }]));
-      R.left = { x: 16, y: 1026, w: 84, h: 58 }; R.right = { x: 620, y: 1026, w: 84, h: 58 };
-      R.think = { x: 16, y: lay.hud.h + 6, w: 150, h: 58 }; R.menu = { x: 554, y: lay.hud.h + 6, w: 150, h: 58 };
+      Object.assign(R, row(P.loftY, tp, [{ id: 'loft0', w: 1 }, { id: 'loft1', w: 1 }, { id: 'loft2', w: 1 }]));
+      Object.assign(R, row(P.spinY, tp, [{ id: 'spin0', w: 1 }, { id: 'spin1', w: 1 }, { id: 'spin2', w: 1 }]));
+      R.left = { x: 16, y: P.arrowY, w: 84, h: tp }; R.right = { x: W - 100, y: P.arrowY, w: 84, h: tp };
+      R.think = { x: 16, y: top, w: 150, h: tp }; R.menu = { x: W - 166, y: top, w: 150, h: tp };
       if (S.hint && !S.hint.busy) R.use = hintGeom(S, lay).use;
     } else if (S.humanTurn && (ph === 'toss' || ph === 'place')) {
-      R.think = ph === 'toss' ? { x: 16, y: lay.hud.h + 6, w: 150, h: 58 } : undefined; R.menu = { x: 554, y: lay.hud.h + 6, w: 150, h: 58 };
-      if (!R.think) delete R.think;
+      if (ph === 'toss') R.think = { x: 16, y: top, w: 150, h: tp };
+      R.menu = { x: W - 166, y: top, w: 150, h: tp };
       if (ph === 'toss' && S.hint && !S.hint.busy) R.use = hintGeom(S, lay).use;
     } else if (ph === 'flight' || ph === 'result' || ph === 'settle') {
-      Object.assign(R, row(1148, 60, [{ id: 'skip', w: 1.6 }, { id: 'menu', w: 0.9 }]));
-    } else R.menu = { x: 554, y: lay.hud.h + 6, w: 150, h: 58 };
+      Object.assign(R, row(P.skipY, tp, [{ id: 'skip', w: 1.6 }, { id: 'menu', w: 0.9 }]));
+    } else R.menu = { x: W - 166, y: top, w: 150, h: tp };
     addMore(R, lay, 0);
     return R;
   }
-  const t = lay.tray, y = H - 70 - t.bh;
+  const t = lay.tray, y = H - Math.max(70, host.b + 24) - t.bh;
   let ids;
   if (S.humanTurn && ph === 'aim') ids = [{ id: 'setup', w: 1 }, { id: 'menu', w: 1 }];
   else if (S.humanTurn && ph === 'toss') ids = [{ id: 'think', w: 1 }, { id: 'menu', w: 1 }];
@@ -152,7 +235,6 @@ function rectsFor(S, lay) {
   else ids = [{ id: 'menu', w: 1 }];
   Object.assign(R, row(y, t.bh, ids));
   addMore(R, lay, y);
-  void hum;
   return R;
 }
 function addMore(R, lay, btnTop) {
@@ -161,19 +243,19 @@ function addMore(R, lay, btnTop) {
   if (t && t.more) R.more = { x: 0, y: lay.trayTop, w: W, h: Math.max(40, btnTop - lay.trayTop - 4) };
 }
 export function hintGeom(S, lay) {
-  const z = Math.min(lay.z, COMPACT), fs = Math.round(19 * z);
+  const z = Math.min(lay.z, COMPACT), fs = Math.max(Math.round(19 * z), Math.ceil(FLOOR.v));
   const cx = pickCtx(null);
   cx.font = `400 ${fs}px ${FONT}`;
-  const lines = wrapLines(cx, S.hint.text, W - 80);
-  const h = 16 + lines.length * fs * 1.25 + 14 + 58, y = S.m.turn === 0 ? 1016 - h : lay.hud.h + 72;   // next to the thrower, never over the kubbs that are being attacked
-  return { y, h, fs, lines, use: { x: W / 2 - 130, y: y + h - 64, w: 260, h: 54 } };
+  const lines = wrapLines(cx, S.hint.text, W - 80), uh = Math.max(54, G.tap);
+  const h = 16 + lines.length * fs * 1.25 + 14 + uh + 4, y = S.m.turn === 0 ? lay.geo.arrowY - 10 - h : lay.hud.h + 72;   // next to the thrower, never over the kubbs that are being attacked
+  return { y, h, fs, lines, use: { x: W / 2 - 130, y: y + h - uh - 8, w: 260, h: uh } };
 }
 
 // ---- drawing ------------------------------------------------------------------------------------------------------------------------------
 function fitFont(ctx, text, size, maxW, weight = 700, family = FONT) {
-  let px = size;
+  let px = Math.max(size, FLOOR.v);
   ctx.font = `${weight} ${px}px ${family}`;
-  while (ctx.measureText(text).width > maxW && px > 11) { px -= 1; ctx.font = `${weight} ${px}px ${family}`; }
+  while (ctx.measureText(text).width > maxW && px > FLOOR.v) { px -= 1; ctx.font = `${weight} ${px}px ${family}`; }
   return px;
 }
 // A tiny kubb for the scoreboard: team-coloured top, pale wood body. state: base | field | fallen | cleared
@@ -313,16 +395,16 @@ function drawBanner(ctx, S, lay) {
   const b = S.banner;
   if (!b) return;
   const k = Math.min(1, b.t / 0.28), e = ease.outBack(k), fade = b.dur - b.t < 0.3 ? Math.max(0, (b.dur - b.t) / 0.3) : 1;
-  const z = lay.z, cy = lay.compact ? 470 : lay.vy + 250 * lay.s;
+  const z = lay.z, cy = lay.vy + (lay.compact ? 240 : 250) * lay.s;
   ctx.save();
   ctx.globalAlpha = fade;
-  const pw = 640, size = Math.round((b.size ?? 72) * Math.min(1.3, 0.85 + z * 0.2));
+  const pw = lay.bannerW, size = Math.round((b.size ?? 72) * Math.min(1.3, 0.85 + z * 0.2));
   const px = fitFont(ctx, b.text, size, pw - 60, 800, NUM);
   const subSize = Math.round(26 * Math.min(z, 2.2));
   ctx.font = `400 ${subSize}px ${FONT}`;
   const subLines = b.sub ? wrapLines(ctx, b.sub, pw - 60) : [];
   const ph = px * 1.3 + subLines.length * subSize * 1.25 + 34;
-  ctx.translate(360, cy); ctx.scale(0.8 + 0.2 * e, 0.8 + 0.2 * e);
+  ctx.translate(lay.cx, cy); ctx.scale(0.8 + 0.2 * e, 0.8 + 0.2 * e);
   roundPath(ctx, -pw / 2, -ph / 2, pw, ph, 26); ctx.fillStyle = 'rgba(10,24,14,0.92)'; ctx.fill();
   ctx.lineWidth = 3; ctx.strokeStyle = b.kind === 'bad' ? '#e58a78' : b.kind === 'team1' ? TEAM[1].hi : b.kind === 'team0' ? TEAM[0].hi : '#f1d27a'; ctx.stroke();
   ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
@@ -334,6 +416,7 @@ function drawBanner(ctx, S, lay) {
 }
 
 function drawHud(ctx, S, lay) {
+  if (lay.wide) { drawWidePanels(ctx, S, lay); return; }
   const hud = lay.hud, m = S.m;
   const g = ctx.createLinearGradient(0, 0, 0, hud.h + 30);
   g.addColorStop(0, 'rgba(6,16,8,0.6)'); g.addColorStop(0.75, 'rgba(6,16,8,0.32)'); g.addColorStop(1, 'rgba(6,16,8,0)');
@@ -346,12 +429,45 @@ function drawHud(ctx, S, lay) {
     } else { drawCard(ctx, S, 14, hud.y, 344, hud.cardH, 0, hud.z); drawCard(ctx, S, 362, hud.y, 344, hud.cardH, 1, hud.z); }
     ctx.textAlign = 'center';
     const line = phaseLine(S);
-    fitFont(ctx, line, hud.fs, W - 40, 400);
-    textShadow(ctx, line, W / 2, hud.y + hud.cardH + 8 + hud.fs, '#fff6dc', 6);
+    if (hud.strip) {   // the host's back button sits top left: the phase line goes in the strip beside it
+      const st = hud.strip; fitFont(ctx, line, hud.fs, st.w, 400);
+      textShadow(ctx, line, st.x + st.w / 2, st.y + st.h / 2 + hud.fs * 0.35, '#fff6dc', 6);
+    } else {
+      fitFont(ctx, line, hud.fs, W - 40, 400);
+      textShadow(ctx, line, W / 2, hud.y + hud.cardH + 8 + hud.fs, '#fff6dc', 6);
+    }
   } else {
     let y = hud.y;
     ctx.textAlign = 'left';
     hud.lines.forEach((l) => { ctx.font = `${l.bold ? 700 : 400} ${hud.fs}px ${FONT}`; textShadow(ctx, l.text, 36, y + hud.fs, l.active ? '#ffe08a' : '#fff6dc', 6); y += hud.fs * 1.22; });
+  }
+}
+// Landscape: two quiet panels either side of the lawn.
+function drawWidePanels(ctx, S, lay) {
+  const m = S.m, z = lay.z;
+  for (const p of [lay.L, lay.Rp]) panel(ctx, p.x, p.y, p.w, p.h, { r: 22, fill: 'rgba(7,18,10,0.94)', stroke: 'rgba(255,232,150,0.32)', lw: 2, shadow: false });
+  // hairlines where the lawn window meets the panels
+  ctx.save(); ctx.strokeStyle = 'rgba(255,232,150,0.22)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(lay.win.x, 0); ctx.lineTo(lay.win.x, H); ctx.moveTo(lay.win.x + lay.win.w, 0); ctx.lineTo(lay.win.x + lay.win.w, H); ctx.stroke(); ctx.restore();
+  const [c0, c1] = lay.cards;
+  if (m.cfg.mode === 'learn') {
+    drawCardRaw(ctx, c0.x, c0.y, c0.w, c0.h, z, 'Batons left', m.batons - m.baton, `Lesson ${m.lesson.idx + 1} of 4`, true, 0, null);
+    drawCardRaw(ctx, c1.x, c1.y, c1.w, c1.h, z, 'Goal', m.lesson.goalShort, m.lesson.goalText, false, 1, null);
+  } else { drawCard(ctx, S, c0.x, c0.y, c0.w, c0.h, 0, z); drawCard(ctx, S, c1.x, c1.y, c1.w, c1.h, 1, z); }
+  const ph = lay.phase;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'; ctx.font = `400 ${ph.fs}px ${FONT}`;
+  ph.lines.forEach((l, k) => textShadow(ctx, l, ph.x, ph.y + ph.fs * (1 + k * 1.25) - 4, '#fff6dc', 4));
+  const st = lay.status;
+  if (st) {
+    const r = st.rect;
+    roundPath(ctx, r.x, r.y, r.w, r.h, 14); ctx.fillStyle = 'rgba(14,34,22,0.9)'; ctx.fill(); ctx.strokeStyle = 'rgba(125,232,255,0.45)'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.fillStyle = '#e8fbff'; ctx.textAlign = 'left'; ctx.font = `400 ${st.fs}px ${FONT}`;
+    st.lines.forEach((l, i) => ctx.fillText(l, r.x + 12, r.y + 8 + st.fs * (1 + i * 1.25) - 4));
+    if (st.more) { ctx.font = `700 ${st.mfs}px ${FONT}`; ctx.fillStyle = '#7de8ff'; ctx.fillText('Tap here to read it all', r.x + 12, r.y + 8 + st.fs * (1 + st.lines.length * 1.25) - 4 + st.mfs * 0.1); }
+  }
+  if (lay.busy) { ctx.font = `700 ${Math.round(FLOOR.v * 1.05)}px ${FONT}`; ctx.fillStyle = '#bff3ff'; ctx.textAlign = 'center'; ctx.fillText('Testing throws...', lay.busy.x, lay.busy.y); }
+  if (lay.labels) {
+    const lb = lay.labels; ctx.font = `800 ${lb.fs}px ${FONT}`; ctx.fillStyle = '#ffe9a8'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('Loft', lb.lx, lb.y); ctx.fillText('Spin', lb.rx, lb.y);
   }
 }
 function drawTrayText(ctx, lay) {
@@ -361,37 +477,41 @@ function drawTrayText(ctx, lay) {
   if (t.more) { ctx.font = `700 ${t.mfs}px ${FONT}`; textShadow(ctx, 'Tap here to read it all', W / 2, lay.trayTop + 16 + t.fs * (1 + t.lines.length * 1.22) + t.mfs * 0.2, '#7de8ff', 6); }
 }
 function drawSelector(ctx, r, label, active, z) {
-  const size = Math.round(24 * Math.min(z, COMPACT));
+  const size = Math.max(Math.round(24 * Math.min(z, COMPACT)), Math.ceil(FLOOR.v));
   drawButton(ctx, r, label, { active, dark: !active, size });
 }
 function drawTray(ctx, S, lay) {
-  const R = lay.rects, z = lay.z, m = S.m, ph = S.ph;
+  const R = lay.rects, z = lay.z, m = S.m, ph = S.ph, P = lay.geo, wide = lay.wide;
   const bar = ctx.createLinearGradient(0, lay.trayTop - 24, 0, H);
   bar.addColorStop(0, 'rgba(6,16,8,0)'); bar.addColorStop(0.2, 'rgba(6,16,8,0.82)'); bar.addColorStop(1, 'rgba(6,16,8,0.96)');
   const size = Math.round(26 * Math.min(z, 3));
   const btn = (id, label, o = {}) => { if (R[id]) drawButton(ctx, R[id], label, { size, ...o }); };
   if (m.cfg.mode === 'watch') {
-    ctx.fillStyle = bar; ctx.fillRect(0, (lay.compact ? 1040 : lay.trayTop) - 24, W, H);
-    if (!lay.compact) drawTrayText(ctx, lay);
+    if (!wide) { ctx.fillStyle = bar; ctx.fillRect(0, (lay.compact ? P.loftY - 8 : lay.trayTop) - 24, W, H); if (!lay.compact) drawTrayText(ctx, lay); }
     const big = !lay.compact;
-    btn('wdec', big ? '−' : 'Faster', { dark: true, disabled: S.settings.thinkIdx === 0, size: big ? size : Math.round(size * 0.85) });
-    btn('winc', big ? '+' : 'Slower', { dark: true, disabled: S.settings.thinkIdx === 3, size: big ? size : Math.round(size * 0.85) });
-    if (R.wlabel) { const r = R.wlabel, txt = big ? `Think ${S.thinkSecs} s` : `Thinking time ${S.thinkSecs} s`; ctx.fillStyle = '#ffe9bf'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; fitFont(ctx, txt, Math.round(24 * z), r.w - 8, 700); ctx.fillText(txt, r.x + r.w / 2, r.y + r.h / 2); }
+    const wsz = Math.max(Math.round(size * 0.85), Math.ceil(FLOOR.v));
+    btn('wdec', big ? '\u2212' : 'Faster', { dark: true, disabled: S.settings.thinkIdx === 0, size: big ? size : wsz });
+    btn('winc', big ? '+' : 'Slower', { dark: true, disabled: S.settings.thinkIdx === 3, size: big ? size : wsz });
+    if (R.wlabel) { const r = R.wlabel, txt = big ? `Think ${S.thinkSecs} s` : wide ? `Think time ${S.thinkSecs} s` : `Thinking time ${S.thinkSecs} s`; ctx.fillStyle = '#ffe9bf'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; fitFont(ctx, txt, Math.round(24 * z), r.w - 8, 700); ctx.fillText(txt, r.x + r.w / 2, r.y + r.h / 2); }
     btn('wpause', S.paused ? 'Resume' : 'Pause', { primary: true });
     btn('wexit', 'Exit', { dark: true });
     return;
   }
   if (lay.compact) {
-    if (R.loft0) { ctx.fillStyle = bar; ctx.fillRect(0, 1100 - 24, W, H); }
-    else if (lay.status || R.skip) { ctx.fillStyle = bar; ctx.fillRect(0, 1110, W, H - 1110); }
-    if (R.loft0) {
-      LOFTS.forEach((l, i) => drawSelector(ctx, R[`loft${i}`], `${l.name} loft`, S.plan.loft === i, z));
-      SPINS.forEach((l, i) => drawSelector(ctx, R[`spin${i}`], `${l.name} spin`, S.plan.spin === i, z));
-      btn('left', '◄', { dark: true, size: 30 }); btn('right', '►', { dark: true, size: 30 });
+    if (!wide) {
+      if (R.loft0) { ctx.fillStyle = bar; ctx.fillRect(0, P.loftY - 32, W, H); }
+      else if (lay.status || R.skip) { ctx.fillStyle = bar; ctx.fillRect(0, P.skipY - 38, W, H - P.skipY + 38); }
     }
-    btn('think', S.hint && S.hint.busy ? 'Testing...' : S.hint ? 'Hide tip' : 'Think', { dark: true, size: Math.round(24 * z) });
-    btn('menu', 'Menu', { dark: true, size: Math.round(22 * z) });
-    btn('skip', ph === 'flight' ? 'Skip ahead' : 'Next', { dark: true });
+    if (R.loft0) {
+      LOFTS.forEach((l, i) => drawSelector(ctx, R[`loft${i}`], wide ? l.name : `${l.name} loft`, S.plan.loft === i, z));
+      SPINS.forEach((l, i) => drawSelector(ctx, R[`spin${i}`], wide ? l.name : `${l.name} spin`, S.plan.spin === i, z));
+      btn('left', '\u25c4', { dark: true, size: 30 }); btn('right', '\u25ba', { dark: true, size: 30 });
+    }
+    const tsz = Math.max(Math.round(24 * Math.min(z, COMPACT)), Math.ceil(FLOOR.v));
+    btn('think', S.hint && S.hint.busy ? 'Testing...' : S.hint ? 'Hide tip' : 'Think', { dark: true, size: tsz });
+    btn('menu', 'Menu', { dark: true, size: Math.max(Math.round(22 * z), Math.ceil(FLOOR.v)) });
+    btn('skip', ph === 'flight' ? 'Skip ahead' : 'Next', { dark: true, size: tsz });
+    if (wide && R.use) btn('use', 'Use this throw', { primary: true, size: tsz });
     return;
   }
   ctx.fillStyle = bar; ctx.fillRect(0, lay.trayTop - 24, W, H - lay.trayTop + 24);
@@ -402,7 +522,7 @@ function drawTray(ctx, S, lay) {
 
 export function renderPlay(ctx, S) {
   const lay = computeLayout(S, ctx);
-  LK = Math.min(Math.min(lay.z, 2) / lay.s, 3.2);
+  LK = Math.max(Math.min(Math.min(lay.z, 2) / lay.s, 3.2), FLOOR.v / (18 * lay.s));
   ctx.fillStyle = '#0a120a'; ctx.fillRect(0, 0, W, H);
   ctx.save();
   if (lay.clip) { ctx.beginPath(); ctx.rect(lay.clip.x, lay.clip.y, lay.clip.w, lay.clip.h); ctx.clip(); }
@@ -416,9 +536,9 @@ export function renderPlay(ctx, S) {
   if (!(S.m.cfg.mode === 'learn' && S.ph === 'intro')) drawBanner(ctx, S, lay);
   if (S.toastT > 0 && S.toast) {
     const zz = Math.min(lay.z, 2);
-    ctx.font = `700 ${Math.round(22 * zz)}px ${FONT}`; const tw = Math.min(660, ctx.measureText(S.toast).width + 44);
-    roundPath(ctx, 360 - tw / 2, lay.hud.h + 76, tw, 54 * zz, 16); ctx.fillStyle = 'rgba(10,24,14,0.94)'; ctx.fill();
-    ctx.fillStyle = '#ffe9bf'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(S.toast, 360, lay.hud.h + 76 + 27 * zz);
+    ctx.font = `700 ${Math.max(Math.round(22 * zz), Math.ceil(FLOOR.v))}px ${FONT}`; const tw = Math.min(lay.wide ? lay.win.w - 20 : 660, ctx.measureText(S.toast).width + 44);
+    roundPath(ctx, lay.cx - tw / 2, lay.toastY, tw, 54 * zz, 16); ctx.fillStyle = 'rgba(10,24,14,0.94)'; ctx.fill();
+    ctx.fillStyle = '#ffe9bf'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(S.toast, lay.cx, lay.toastY + 27 * zz);
   }
 }
 // The slingshot: a line from where the finger went down to where it is now, with a ring marking the spot that cancels the throw.
@@ -437,34 +557,35 @@ function drawPull(ctx, S) {
   ctx.restore();
 }
 function drawLessonIntro(ctx, S, lay) {
-  const L = S.m.lesson, z = lay.z, fs = Math.round(26 * Math.min(z, 2));
+  const L = S.m.lesson, z = lay.z, fs = Math.max(Math.round(26 * Math.min(z, 2)), Math.ceil(FLOOR.v));
+  const pw = lay.wide ? Math.min(640, lay.win.w - 24) : 640, cx = lay.cx;
   ctx.font = `400 ${fs}px ${FONT}`;
-  const lines = wrapLines(ctx, L.text, 580);
-  const tfs = fitFont(ctx, `Lesson ${L.idx + 1}: ${L.title}`, Math.round(38 * Math.min(z, 2)), 590, 800, NUM);
+  const lines = wrapLines(ctx, L.text, pw - 60);
+  const tfs = fitFont(ctx, `Lesson ${L.idx + 1}: ${L.title}`, Math.round(38 * Math.min(z, 2)), pw - 50, 800, NUM);
   ctx.font = `400 ${fs}px ${FONT}`;
   const h = Math.min(H - 120, 120 + tfs + lines.length * fs * 1.3), y = Math.max(40, (H - h) / 2);
-  panel(ctx, 40, y, 640, h, { r: 26, fill: 'rgba(8,20,10,0.97)', stroke: '#f1d27a' });
+  panel(ctx, cx - pw / 2, y, pw, h, { r: 26, fill: 'rgba(8,20,10,0.97)', stroke: '#f1d27a' });
   ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
-  ctx.font = `800 ${tfs}px ${NUM}`; ctx.fillStyle = '#ffe08a'; ctx.fillText(`Lesson ${L.idx + 1}: ${L.title}`, 360, y + 24 + tfs);
+  ctx.font = `800 ${tfs}px ${NUM}`; ctx.fillStyle = '#ffe08a'; ctx.fillText(`Lesson ${L.idx + 1}: ${L.title}`, cx, y + 24 + tfs);
   ctx.font = `400 ${fs}px ${FONT}`; ctx.fillStyle = '#fff6dc';
-  lines.forEach((l, i) => ctx.fillText(l, 360, y + 40 + tfs + fs * (1 + i * 1.3)));
-  ctx.font = `700 ${Math.round(22 * Math.min(z, 2))}px ${FONT}`; ctx.fillStyle = '#bfe8ff'; ctx.fillText('Tap to start', 360, y + h - 20);
+  lines.forEach((l, i) => ctx.fillText(l, cx, y + 40 + tfs + fs * (1 + i * 1.3)));
+  ctx.font = `700 ${Math.max(Math.round(22 * Math.min(z, 2)), Math.ceil(FLOOR.v))}px ${FONT}`; ctx.fillStyle = '#bfe8ff'; ctx.fillText('Tap to start', cx, y + h - 20);
 }
 function drawStatus(ctx, S, lay) {
   if (S.m.cfg.mode === 'learn' && S.ph === 'intro') { drawLessonIntro(ctx, S, lay); return; }
-  if (!lay.compact) return;
+  if (!lay.compact || lay.wide) return;
   if ((S.ph === 'aim' || S.ph === 'toss') && S.hint && !S.hint.busy) {
     const g = hintGeom(S, lay);
     roundPath(ctx, 24, g.y, W - 48, g.h, 18); ctx.fillStyle = 'rgba(8,18,10,0.94)'; ctx.fill();
     ctx.strokeStyle = 'rgba(125,232,255,0.6)'; ctx.lineWidth = 2; ctx.stroke();
     ctx.font = `400 ${g.fs}px ${FONT}`; ctx.fillStyle = '#e8fbff'; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
     g.lines.forEach((l, i) => ctx.fillText(l, W / 2, g.y + 16 + g.fs * (1 + i * 1.25) - 4));
-    drawButton(ctx, g.use, 'Use this throw', { primary: true, size: 24 });
+    drawButton(ctx, g.use, 'Use this throw', { primary: true, size: Math.max(24, Math.ceil(FLOOR.v)) });
     return;
   }
   if ((S.ph === 'aim' || S.ph === 'toss') && S.hint && S.hint.busy) {
-    ctx.font = `700 22px ${FONT}`; ctx.fillStyle = '#bff3ff'; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
-    ctx.fillText('Testing throws on the real lawn...', W / 2, S.m.turn === 0 ? 990 : lay.hud.h + 100); return;
+    ctx.font = `700 ${Math.max(22, Math.ceil(FLOOR.v))}px ${FONT}`; ctx.fillStyle = '#bff3ff'; ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
+    ctx.fillText('Testing throws on the real lawn...', W / 2, S.m.turn === 0 ? lay.geo.arrowY - 36 : lay.hud.h + 100); return;
   }
   const st = lay.status;
   if (!st) return;

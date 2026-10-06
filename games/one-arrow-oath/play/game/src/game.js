@@ -11,20 +11,23 @@ import { ENEMIES } from './data/enemies.js';
 import * as B from './rules/battle.js';
 import * as R from './rules/run.js';
 import { makeSky } from './ui/draw.js';
-import { render as renderAll, renderAuto } from './ui/render.js';
+import { drawSkyBand, drawSceneBand, drawOverlayBand } from './ui/render.js';
+import { SKY_STOPS, setTextFloor } from './ui/draw.js';
+import { frameFor, drawBands, paintSkyBase, toDesign } from './ui/frame.js';
+import { readerLayout, drawReader, readerScale } from './ui/reader.js';
+import { CARDS_CLOSE, GRID, applyCardsLayout, drawCardsOverlay, drawInspectNative } from './ui/native.js';
 import { C, elementColor } from './ui/theme.js';
-import { ARCHER, BTN, CARD_H, CARD_W, CLOSE, CONFIRM, COVENANT_BTN, COVENANT_BTN_TOP, DETAIL, ENVOY, ENVOY_TOP, FIELD_BOTTOM, GRID, OPTIONS, OPTIONS_TOP, PULL_TO_LOOSE, SECONDARY, HELP_TABS, HELP_TEXT, PAGE_NAV, HOWTO_PER_PAGE, ABOUT_PER_PAGE, TEXT_SCALES, NEWRUN, TUNER_REMOVE, TUNER_TRIO_Y, choiceRects, enemySlots, handSlots, inRect, titleRects, trioRects, AUTO_THINK_STEPS, AUTO_REVEAL_SECONDS, AUTO_ACT_SECONDS, AUTO_STEP_DEC, AUTO_STEP_INC, AUTO_SKIP, AUTO_PAUSE, AUTO_EXIT, AUTO_AGAIN } from './ui/layout.js';
+import { ARCHER, BTN, CARD_H, CARD_W, CLOSE, CONFIRM, COVENANT_BTN, COVENANT_BTN_TOP, DETAIL, ENVOY, ENVOY_TOP, FIELD_BOTTOM, OPTIONS, OPTIONS_TOP, PULL_TO_LOOSE, SECONDARY, TEXT_SCALES, NEWRUN, TUNER_REMOVE, TUNER_TRIO_Y, choiceRects, enemySlots, handSlots, inRect, titleRects, titleLockup, trioRects, AUTO_THINK_STEPS, AUTO_REVEAL_SECONDS, AUTO_ACT_SECONDS, AUTO_STEP_DEC, AUTO_STEP_INC, AUTO_SKIP, AUTO_PAUSE, AUTO_EXIT, AUTO_AGAIN } from './ui/layout.js';
 import { chooseCard as autoChooseCard, chooseDoor as autoChooseDoor, chooseReward as autoChooseReward, chooseCampOption as autoChooseCampOption, chooseEnvoyOption as autoChooseEnvoyOption, chooseTunerAction as autoChooseTunerAction, draftValue as autoDraftValue } from './autoplay.js';
 
-// +1: the element-ring diagram gets its own last page rather than riding on the last tip page,
-// where it would have to compete for room and could silently vanish at the top text-size step.
-const HOWTO_PAGES = Math.ceil(HOW_TO_PLAY.length / HOWTO_PER_PAGE) + 1;
-// +1: Version/credits get their own last page rather than riding on the last paragraph page,
-// where a long final paragraph plus that footer could together overflow at the top text step.
-const ABOUT_PAGES = Math.ceil(ABOUT.length / ABOUT_PER_PAGE) + 1;
 
-// 9:19.5 — fills a modern phone edge to edge (the kit letterboxes anything else).
-export const meta = { width: 720, height: 1560 };
+
+
+// Fluid viewport (kit 1.7): the short side is always 720 units, the long side follows the screen; width/height are kept live
+// by the kit. The 720 x 1560 portrait composition is placed on the live screen by ui/frame.js.
+export const meta = { width: 720, height: 1560, fluid: { short: 720 } };
+// Mouse-wheel / trackpad scrolling for the reader and the card grid (main.js feeds it, in virtual units).
+export const wheelInput = { dy: 0 };
 
 const DEMO_BATTLES = 3;
 const HOLD_TO_INSPECT = 0.45;
@@ -465,7 +468,45 @@ export function createGame(env) {
     }
   };
 
-  function updateOverlay(tap, p) {
+  // The reader (How to Play / About / Rules): one scrolling page per tab, native frame (pointer = screen units).
+  function updateHelp(o, tap, p, keys) {
+    const L = readerLayout(meta.width, meta.height);
+    const max = o.max ?? 1e9;
+    const clamp = (v) => Math.max(0, Math.min(max, v));
+    const ui = s.ui;
+    if (wheelInput.dy) {
+      o.scroll = clamp((o.scroll || 0) + wheelInput.dy);
+      wheelInput.dy = 0;
+    }
+    if (keys.pressed.has('ArrowDown')) o.scroll = clamp((o.scroll || 0) + 70);
+    if (keys.pressed.has('ArrowUp')) o.scroll = clamp((o.scroll || 0) - 70);
+    if (keys.pressed.has('PageDown') || keys.pressed.has('Space')) o.scroll = clamp((o.scroll || 0) + L.vp.h * 0.9);
+    if (keys.pressed.has('PageUp')) o.scroll = clamp((o.scroll || 0) - L.vp.h * 0.9);
+    if (keys.pressed.has('Home')) o.scroll = 0;
+    if (keys.pressed.has('End')) o.scroll = max === 1e9 ? 0 : max;
+    if (p.down && ui.press) {
+      if (inRect(L.bar, ui.press.x, ui.press.y) && max > 0 && max < 1e9) o.scroll = clamp(((p.y - L.vp.y) / L.vp.h) * max);
+      else if (ui.press.moved && inRect(L.vp, ui.press.x, ui.press.y)) o.scroll = clamp((o.scroll || 0) - (p.y - ui.press.lastY));
+    }
+    if (!tap) return;
+    const tab = L.tabs.findIndex((r) => inRect(r, tap.x, tap.y));
+    const step = (d) => {
+      const before = readerScale(s.textScaleIdx);
+      s.textScaleIdx += d;
+      storage.set('textScaleIdx', s.textScaleIdx);
+      o.scroll = (o.scroll || 0) * (readerScale(s.textScaleIdx) / before);
+      sfx.tap();
+    };
+    if (inRect(L.dec, tap.x, tap.y) && s.textScaleIdx > 0) step(-1);
+    else if (inRect(L.inc, tap.x, tap.y) && s.textScaleIdx < TEXT_SCALES.length - 1) step(1);
+    else if (tab >= 0) {
+      if (o.page !== tab) o.scroll = 0;
+      o.page = tab;
+      sfx.tap();
+    } else if (inRect(L.close, tap.x, tap.y)) s.overlay = null;
+  }
+
+  function updateOverlay(tap, p, keys) {
     const o = s.overlay;
     if (o.type === 'inspect') {
       if (tap) s.overlay = null;
@@ -489,38 +530,7 @@ export function createGame(env) {
       return;
     }
     if (o.type === 'help') {
-      if (!tap) return;
-      const tab = HELP_TABS.findIndex((r) => inRect(r, tap.x, tap.y));
-      if (inRect(HELP_TEXT.dec, tap.x, tap.y) && s.textScaleIdx > 0) {
-        s.textScaleIdx--;
-        storage.set('textScaleIdx', s.textScaleIdx);
-        sfx.tap();
-      } else if (inRect(HELP_TEXT.inc, tap.x, tap.y) && s.textScaleIdx < TEXT_SCALES.length - 1) {
-        s.textScaleIdx++;
-        storage.set('textScaleIdx', s.textScaleIdx);
-        sfx.tap();
-      } else if (tab >= 0) {
-        o.page = tab;
-        sfx.tap();
-      } else if (o.page === 0 && inRect(PAGE_NAV.back, tap.x, tap.y)) {
-        o.howtoPage = (o.howtoPage - 1 + HOWTO_PAGES) % HOWTO_PAGES;
-        sfx.tap();
-      } else if (o.page === 0 && inRect(PAGE_NAV.next, tap.x, tap.y)) {
-        o.howtoPage = (o.howtoPage + 1) % HOWTO_PAGES;
-        sfx.tap();
-      } else if (o.page === 1 && inRect(PAGE_NAV.back, tap.x, tap.y)) {
-        o.aboutPage = (o.aboutPage - 1 + ABOUT_PAGES) % ABOUT_PAGES;
-        sfx.tap();
-      } else if (o.page === 1 && inRect(PAGE_NAV.next, tap.x, tap.y)) {
-        o.aboutPage = (o.aboutPage + 1) % ABOUT_PAGES;
-        sfx.tap();
-      } else if (o.page === 2 && inRect(PAGE_NAV.back, tap.x, tap.y)) {
-        o.rulesPage = (o.rulesPage - 1 + RULES_REFERENCE.length) % RULES_REFERENCE.length;
-        sfx.tap();
-      } else if (o.page === 2 && inRect(PAGE_NAV.next, tap.x, tap.y)) {
-        o.rulesPage = (o.rulesPage + 1) % RULES_REFERENCE.length;
-        sfx.tap();
-      } else if (inRect(CLOSE, tap.x, tap.y)) s.overlay = null;
+      updateHelp(o, tap, p, keys);
       return;
     }
     if (o.type === 'confirmFoul') {
@@ -557,6 +567,11 @@ export function createGame(env) {
       return;
     }
     if (o.type === 'cards') {
+      applyCardsLayout(meta.width, meta.height);
+      if (wheelInput.dy) {
+        o.scroll = Math.max(0, Math.min(Math.max(0, Math.ceil(o.items.length / GRID.cols) * GRID.cellH - GRID.h), o.scroll + wheelInput.dy));
+        wheelInput.dy = 0;
+      }
       if (o.inspect !== null) {
         if (tap) o.inspect = null;
         return;
@@ -566,7 +581,7 @@ export function createGame(env) {
         const maxP = Math.max(0, rowsP * GRID.cellH - GRID.h);
         if (p.down && s.ui.press && s.ui.press.moved) o.scroll = Math.max(0, Math.min(maxP, o.scroll - (p.y - s.ui.press.lastY)));
         if (!tap) return;
-        if (inRect(CLOSE, tap.x, tap.y)) {
+        if (inRect(CARDS_CLOSE, tap.x, tap.y)) {
           if (o.selected === null) return;
           const done = R.resolvePending(s.run, o.selected);
           sfx.tap();
@@ -589,7 +604,7 @@ export function createGame(env) {
       const maxScroll = Math.max(0, rows * GRID.cellH - GRID.h);
       if (p.down && s.ui.press && s.ui.press.moved) o.scroll = Math.max(0, Math.min(maxScroll, o.scroll - (p.y - s.ui.press.lastY)));
       if (!tap) return;
-      if (inRect(CLOSE, tap.x, tap.y)) {
+      if (inRect(CARDS_CLOSE, tap.x, tap.y)) {
         s.overlay = null;
         return;
       }
@@ -646,13 +661,14 @@ export function createGame(env) {
       return;
     }
     if (!tap) return;
+    if (inRect(titleLockup(actions.length - 1).hit, tap.x, tap.y)) { sfx.tap(); env.openArcforgeHome?.(); return; }
     const hit = rects.findIndex((r) => inRect(r, tap.x, tap.y));
     if (hit < 0) return;
     sfx.tap();
     if (actions[hit] === 'resume') resume();
     else if (actions[hit] === 'new') startNew();
     else if (actions[hit] === 'book') openBook();
-    else if (actions[hit] === 'help') s.overlay = { type: 'help', page: 0, howtoPage: 0, aboutPage: 0, rulesPage: 0 };
+    else if (actions[hit] === 'help') s.overlay = { type: 'help', page: 0, scroll: 0 };
     else if (actions[hit] === 'auto') enterAuto();
     else s.overlay = { type: 'covenant' };
   }
@@ -1208,11 +1224,39 @@ export function createGame(env) {
     else ui.sel = -1;
   }
 
+  // ------------------------------------------------------------------ frame (see ui/frame.js)
+  const NATIVE_OVERLAYS = new Set(['help', 'cards', 'inspect']);
+  const sceneKind = () => (s.scene === 'auto' ? `auto:${s.auto ? s.auto.scene : 'map'}` : `sc:${s.scene}`);
+  const kindOf = () => (s.overlay ? (NATIVE_OVERLAYS.has(s.overlay.type) ? 'native' : `ov:${s.overlay.type}`) : sceneKind());
+  // Smallest text (design units) that still reads as about 11 css px: the live css size of one design unit is piece scale x short side / 720.
+  const floorFor = (f) => {
+    const css = typeof globalThis.innerWidth === 'number' ? Math.min(globalThis.innerWidth, globalThis.innerHeight) / 720 : 0;
+    return css > 0 ? Math.min(19, 11 / (f * css)) : 0;
+  };
+  const mapPointer = (F, p) => {
+    if (F.mode === 'native') return p;
+    const d = toDesign(F, p.x, p.y);
+    return { ...p, x: d.x, y: d.y };
+  };
+  // A rotation or resize cancels a pull/drag in progress cleanly (nothing is played); the run itself is untouched.
+  const cancelGesture = () => {
+    s.ui.drag = null;
+    s.ui.press = null;
+    s.ui.pull = 0;
+  };
+
   // ------------------------------------------------------------------ contract
   return {
     update(dt, input) {
       s.t += dt;
-      const p = input.pointer;
+      // Rotation / window resize: drop any pull or drag in progress (the geometry under the finger just changed); state stays.
+      const sizeKey = `${Math.round(meta.width)}x${Math.round(meta.height)}`;
+      if (sizeKey !== s.sizeKey) {
+        if (s.sizeKey) cancelGesture();
+        s.sizeKey = sizeKey;
+      }
+      const F = frameFor(meta.width, meta.height, kindOf());
+      const p = mapPointer(F, input.pointer);
       const keys = input.keys;
       const ui = s.ui;
 
@@ -1245,7 +1289,7 @@ export function createGame(env) {
         }
         else if (s.scene === 'auto') exitAuto();
         else if (s.run && !s.run.result && s.scene !== 'title') s.overlay = { type: 'covenant' };
-      } else if (s.overlay) updateOverlay(tap, p);
+      } else if (s.overlay) updateOverlay(tap, p, keys);
       else if (s.scene === 'title') updateTitle(tap, keys);
       else if (s.scene === 'map') updateMap(tap, keys);
       else if (s.scene === 'battle') updateBattle(dt, tap, p, keys);
@@ -1262,8 +1306,41 @@ export function createGame(env) {
     },
 
     render(ctx, view) {
-      if (s.scene === 'auto' && s.auto) renderAuto(ctx, s, s.auto, { sky });
-      else renderAll(ctx, view, s, { sky, campOptions, demo: !!env.config.demo, demoLeft: Math.max(0, DEMO_BATTLES - s.demoBattles), manifest: env.manifest });
+      const w = view.width;
+      const h = view.height;
+      const extra = { sky, campOptions, demo: !!env.config.demo, demoLeft: Math.max(0, DEMO_BATTLES - s.demoBattles), manifest: env.manifest, press: s.ui.press ? { x: s.ui.press.x, y: s.ui.press.y } : null };
+      const F = frameFor(w, h, sceneKind());
+      paintSkyBase(ctx, F, SKY_STOPS);
+      drawBands(ctx, F, () => drawSkyBand(ctx, s, extra), { column: true });
+      drawBands(ctx, F, (pc) => {
+        setTextFloor(floorFor(pc.f));
+        drawSceneBand(ctx, s, extra);
+      });
+      const o = s.overlay;
+      setTextFloor(floorFor(1));
+      if (o) {
+        if (o.type === 'help') {
+          ctx.fillStyle = C.shade;
+          ctx.fillRect(0, 0, w, h);
+          o.max = drawReader(ctx, s, o, w, h, env.manifest?.version).max;
+        } else if (o.type === 'cards') drawCardsOverlay(ctx, s, o, w, h);
+        else if (o.type === 'inspect') drawInspectNative(ctx, o.id, s.t, w, h);
+        else {
+          ctx.fillStyle = C.shade;
+          ctx.fillRect(0, 0, w, h);
+          const FO = frameFor(w, h, kindOf());
+          drawBands(ctx, FO, (pc) => {
+            setTextFloor(floorFor(pc.f));
+            drawOverlayBand(ctx, s, { ...extra, tight: FO.tight });
+          });
+        }
+      }
+      setTextFloor(0);
+      // every scene change fades in from the night
+      if (s.fade > 0) {
+        ctx.fillStyle = `rgba(3, 4, 12, ${Math.min(1, s.fade)})`;
+        ctx.fillRect(0, 0, w, h);
+      }
     },
 
     // Auto Play is free and silent by design (see the tone() gate above); it must never accrue
@@ -1273,5 +1350,7 @@ export function createGame(env) {
     isPreviewExempt: () => !(s.scene === 'battle' && s.battle && !s.overlay),
 
     getState: () => s,
+    // Dev-only (?dev=1): jump straight to a screen so layout checks can render every one of them.
+    ...(env.config.dev ? { debug: { startRun, resume, enterDoor, nextStep, finishRun, beginBattle, openQuiver, openSpent, openLedger, openBook, enterAuto, exitAuto, startNew, sceneKind, kindOf, processEvents, banner } } : {}),
   };
 }

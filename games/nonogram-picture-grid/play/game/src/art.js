@@ -1,5 +1,6 @@
 // Drawing helpers: themes, flat buttons, icons, tiles, clue text. Plain canvas 2D, no images, nothing here changes game state.
-export const W = 720, H = 1560;
+export const W = 720, H = 1560;   // the reference phone size; the live size is SZ (kept current by layout.js setView)
+export const SZ = { w: 720, h: 1560 };
 export const UI = '-apple-system, "SF Pro Text", "Hiragino Sans", "Yu Gothic", "Segoe UI", Roboto, system-ui, sans-serif';
 export const DISPLAY = '"Palatino Linotype", Palatino, "Iowan Old Style", "Hiragino Mincho ProN", "Yu Mincho", Georgia, "Times New Roman", serif';
 // Clue numbers use the plain UI face with tabular figures so every digit is the same width.
@@ -63,22 +64,24 @@ export function text(ctx, str, x, y, size, color = '#fff', o = {}) {
 }
 
 // ---------------------------------------------------------------------------------------------------- background
-const FLECKS = Array.from({ length: 26 }, (_, i) => [((i * 97) % 211) / 211 * W, ((i * 53) % 173) / 173 * H, 0.6 + ((i * 31) % 7) / 7, ((i * 13) % 11) / 11]);
+const FLECKS = Array.from({ length: 26 }, (_, i) => [((i * 97) % 211) / 211, ((i * 53) % 173) / 173, 0.6 + ((i * 31) % 7) / 7, ((i * 13) % 11) / 11]);
 
 export function background(ctx, th, t, glowY = 700) {
+  const W = SZ.w, H = SZ.h;
   const g = ctx.createLinearGradient(0, 0, 0, H);
   g.addColorStop(0, th.bg[0]); g.addColorStop(0.5, th.bg[1]); g.addColorStop(1, th.bg[2]);
   ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
-  const hg = ctx.createRadialGradient(W / 2, glowY, 40, W / 2, glowY, 640);
+  const gy = Math.min(glowY, H * 0.55), gr = Math.max(640, W * 0.5);
+  const hg = ctx.createRadialGradient(W / 2, gy, 40, W / 2, gy, gr);
   hg.addColorStop(0, th.glow); hg.addColorStop(1, 'rgba(0,0,0,0)');
   ctx.fillStyle = hg; ctx.fillRect(0, 0, W, H);
-  for (const [x, y, s, ph] of FLECKS) {
-    const yy = (y + t * (2 + s * 2)) % H;
+  for (const [fx, fy, s, ph] of FLECKS) {
+    const yy = (fy * H + t * (2 + s * 2)) % H;
     const a = 0.05 + 0.1 * (0.5 + 0.5 * Math.sin(t * 0.6 + ph * 9));
     ctx.fillStyle = `rgba(${th.fleck},${a})`;
-    ctx.fillRect(x, yy, 2 * s, 2 * s);
+    ctx.fillRect(fx * W, yy, 2 * s, 2 * s);
   }
-  const vg = ctx.createRadialGradient(W / 2, H / 2, 560, W / 2, H / 2, 1020);
+  const vg = ctx.createRadialGradient(W / 2, H / 2, Math.min(560, H * 0.4), W / 2, H / 2, Math.max(1020, Math.hypot(W, H) * 0.55));
   vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,0.5)');
   ctx.fillStyle = vg; ctx.fillRect(0, 0, W, H);
 }

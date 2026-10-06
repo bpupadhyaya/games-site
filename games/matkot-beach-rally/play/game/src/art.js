@@ -1,8 +1,8 @@
 // The beach: sky, sun, sea, the baked sand layer (grain, dunes, court grooves, stakes, props) and the light presets.
 // Static art is baked once into an offscreen canvas in small slices (a fixed amount of work per frame, no clock), so the
 // menu appears at once and the sand fades in a moment later. Nothing here reads the clock or the DOM.
-import { W, H, project, COURT } from './cam.js';
-import { clamp } from './cam.js';
+import { W, H, project, COURT, clamp, camNow } from './cam.js';
+import { liveLayout } from './layout.js';
 
 // ---- offscreen host ---------------------------------------------------------------------------------
 let hostDoc = null;
@@ -43,17 +43,19 @@ export function lightAt(pos) {
 }
 export const rgb = (c, a = 1) => `rgba(${Math.round(c[0])},${Math.round(c[1])},${Math.round(c[2])},${a})`;
 
-export const HORIZON = 232;     // screen y of the sea horizon
-export const SHORE = 326;       // screen y of the waterline
-const SAND_TOP = 318;
+// Screen y of the sea horizon and of the waterline: they follow the live layout (portrait look is 232 / 326).
+export const horizon = () => liveLayout().horizon;
+export const shoreY = () => liveLayout().shore;
+const skyK = () => clamp(horizon() / 232, 0.3, 1.7);
 
 // ---- sky, sea (drawn every frame, cheap) -----------------------------------------------------------------------------
 const CLOUDS = [[0.1, 70, 1.1, 0.5], [0.42, 118, 0.8, 0.38], [0.78, 58, 1.0, 0.45], [0.95, 140, 0.7, 0.3], [0.6, 36, 0.6, 0.35]];
 export function drawSky(ctx, L, t) {
+  const HORIZON = horizon(), k = skyK(), cs = clamp(k, 0.55, 1.25);
   const g = ctx.createLinearGradient(0, 0, 0, HORIZON);
   g.addColorStop(0, rgb(L.skyTop)); g.addColorStop(0.55, rgb(L.skyMid)); g.addColorStop(1, rgb(L.skyHor));
   ctx.fillStyle = g; ctx.fillRect(0, 0, W, HORIZON + 2);
-  const sx = L.sunX * W, sy = L.sunY;
+  const sx = L.sunX * W, sy = L.sunY * k;
   const glow = ctx.createRadialGradient(sx, sy, 8, sx, sy, 360);
   glow.addColorStop(0, rgb(L.sun, 0.75 * L.glow)); glow.addColorStop(0.25, rgb(L.sun, 0.28 * L.glow)); glow.addColorStop(1, rgb(L.sun, 0));
   ctx.fillStyle = glow; ctx.fillRect(0, 0, W, HORIZON + 2);
@@ -61,7 +63,7 @@ export function drawSky(ctx, L, t) {
   ctx.save();
   ctx.beginPath(); ctx.rect(0, 0, W, HORIZON + 1); ctx.clip();
   for (let i = 0; i < CLOUDS.length; i++) {
-    const [fx, cy, sc, al] = CLOUDS[i];
+    const [fx, cy0, sc0, al] = CLOUDS[i], cy = cy0 * k, sc = sc0 * cs;
     const x = ((fx * W + t * (4 + i * 1.7)) % (W + 360)) - 180;
     const warm = mixC([255, 255, 255], L.skyHor, 0.5);
     ctx.fillStyle = rgb(warm, al * 0.9);
@@ -76,18 +78,18 @@ export function drawSky(ctx, L, t) {
   // gulls
   ctx.strokeStyle = 'rgba(255,255,255,0.8)'; ctx.lineWidth = 2.2; ctx.lineCap = 'round';
   for (let i = 0; i < 4; i++) {
-    const gx = ((i * 211 + t * (22 + i * 5)) % (W + 120)) - 60, gy = 60 + i * 24 + Math.sin(t * 0.7 + i) * 8, fl = Math.sin(t * 5 + i * 2) * 5;
+    const gx = ((i * 211 + t * (22 + i * 5)) % (W + 120)) - 60, gy = (60 + i * 24) * k + Math.sin(t * 0.7 + i) * 8, fl = Math.sin(t * 5 + i * 2) * 5;
     ctx.beginPath(); ctx.moveTo(gx - 12, gy + fl); ctx.quadraticCurveTo(gx - 5, gy - 6, gx, gy); ctx.quadraticCurveTo(gx + 5, gy - 6, gx + 12, gy + fl); ctx.stroke();
   }
 }
 
 // distant skyline, a sail and the sea
 export function drawSea(ctx, L, t) {
-  const hz = HORIZON;
+  const hz = horizon(), SHORE = shoreY(), tk = Math.min(1, skyK());
   // far shore: a hazy skyline of towers on the left
   ctx.fillStyle = rgb(mixC(L.seaFar, L.skyHor, 0.55), 0.5);
   const tw = [[20, 22, 18], [44, 40, 14], [60, 26, 20], [84, 52, 12], [98, 30, 16], [118, 44, 14], [136, 20, 22], [166, 34, 12]];
-  for (const [x, h, w] of tw) ctx.fillRect(x, hz - h, w, h + 2);
+  for (const [x, h, w] of tw) ctx.fillRect(x, hz - h * tk, w, h * tk + 2);
   const g = ctx.createLinearGradient(0, hz, 0, SHORE + 8);
   g.addColorStop(0, rgb(L.seaFar)); g.addColorStop(1, rgb(L.seaNear));
   ctx.fillStyle = g; ctx.fillRect(0, hz, W, SHORE - hz + 10);
@@ -114,7 +116,7 @@ export function drawSea(ctx, L, t) {
     ctx.stroke();
   }
   // a small sail
-  const bx = 520 + Math.sin(t * 0.05) * 20, by = hz + 14;
+  const bx = W * 0.72 + Math.sin(t * 0.05) * 20, by = hz + Math.min(14, (SHORE - hz) * 0.3);
   ctx.fillStyle = 'rgba(255,255,255,0.8)'; ctx.beginPath(); ctx.moveTo(bx, by - 26); ctx.lineTo(bx + 14, by); ctx.lineTo(bx, by); ctx.closePath(); ctx.fill();
   ctx.fillStyle = 'rgba(255,214,190,0.8)'; ctx.beginPath(); ctx.moveTo(bx - 2, by - 20); ctx.lineTo(bx - 12, by); ctx.lineTo(bx - 2, by); ctx.closePath(); ctx.fill();
   ctx.fillStyle = 'rgba(40,50,70,0.7)'; ctx.fillRect(bx - 14, by, 30, 3);
@@ -122,6 +124,7 @@ export function drawSea(ctx, L, t) {
 
 // lapping foam and the wet strip, drawn over the baked sand
 export function drawShore(ctx, L, t) {
+  const SHORE = shoreY();
   const base = SHORE + Math.sin(t * 0.6) * 5;
   // wet sand
   ctx.fillStyle = 'rgba(120,96,64,0.28)';
@@ -271,6 +274,7 @@ function distantPeople(ctx, rnd) {
 // The list of bake steps. Each is a function(ctx, rnd); the job runs a few per frame.
 function bakeSteps() {
   const steps = [];
+  const SAND_TOP = shoreY() - 8;
   const rnd = lcg(90210);
   steps.push((c) => {
     const g = c.createLinearGradient(0, SAND_TOP, 0, H);
@@ -329,6 +333,19 @@ function bakeSteps() {
     drawTowelBag(c, 6.4, -0.4, '#ff6a4a', '#fff7e2', 0.9); drawSandals(c, 5.2, -1.1, 1.1);
   });
   steps.push((c) => {
+    // wide screens show more beach to the left and right of the court: extra props, drawn only where they are on screen
+    if (W < 800) return;
+    const r2 = lcg(5150), cs = camNow();
+    const visible = (x, y) => { const p = project(x, y, 0); return p.x > -80 && p.x < W + 80; };
+    const palms = [[-14.5, 15.5, 6.4, 0.8], [15.2, 13.8, 6.0, -0.8], [-19, 18, 7, 0.9], [20, 17, 6.6, -0.9], [-24.5, 14, 6.8, 0.7], [25.5, 12, 6.4, -0.7], [-30, 20, 7, 0.8], [31, 19, 6.6, -0.8]];
+    for (const [x, y, hh, ln] of palms) if (visible(x, y)) drawPalm(c, x, y, hh, ln);
+    const umb = [[-12.6, 7.5, ['#14a3b4', '#fff7e2', '#d6f0f0']], [13, 6.5, ['#ffc24b', '#ffffff', '#ffe9b0']], [-17, 12, ['#ff6a4a', '#fff7e2', '#f7e0a8']], [18.5, 9.5, ['#a35bb0', '#ffffff', '#ead7f0']], [-22, 8, ['#ffc24b', '#ffffff', '#ffe9b0']], [23, 5, ['#14a3b4', '#fff7e2', '#d6f0f0']]];
+    for (const [x, y, cols] of umb) if (visible(x, y)) drawUmbrella(c, x, y, cols, (r2() - 0.5) * 0.3);
+    for (const [x, y] of [[-13, 3], [14.2, 2], [-18, 4.5], [20, 3.5], [-25, 2], [26.5, 1]]) if (visible(x, y)) { drawTowelBag(c, x, y, r2() < 0.5 ? '#ff6a4a' : '#14a3b4', '#fff7e2', 1.0); drawSandals(c, x + 1.1, y - 0.6, 1.1); }
+    if (visible(14.8, 19)) drawHut(c, 14.8, 19);
+    void cs;
+  });
+  steps.push((c) => {
     // vignette: the foreground falls into shade, matching the letterbox colour
     const g = c.createLinearGradient(0, H - 190, 0, H);
     g.addColorStop(0, 'rgba(24,36,58,0)'); g.addColorStop(1, 'rgba(24,36,58,0.55)');
@@ -340,11 +357,12 @@ function bakeSteps() {
 }
 
 export function startBake() {
-  const cv = newCanvas(Math.round(W * BAKE_K), Math.round(H * BAKE_K));
+  const K = Math.min(BAKE_K, 2800 / Math.max(W, H));
+  const cv = newCanvas(Math.round(W * K), Math.round(H * K));
   if (!cv) return { failed: true };
   const c = cv.getContext('2d');
   if (!c) return { failed: true };
-  c.scale(BAKE_K, BAKE_K);
+  c.scale(K, K);
   const steps = bakeSteps();
   let i = 0;
   return {

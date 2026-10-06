@@ -22,7 +22,8 @@ export function placeCards(board, layout, visit) {
   });
 }
 
-export function createFx(layout) {
+export function createFx(lay) {
+  let layout = lay(), lastKey = layout.key, snap = false;
   const cards = new Map(); // id -> { x0, y0, tx, ty, t, dur, delay, faceUp, flip }
   let time = 0;
   let wonAt = -1;
@@ -31,6 +32,7 @@ export function createFx(layout) {
   return {
     // A fresh hand: every tableau card starts on the stock and is dealt out row by row.
     deal(board, reduced) {
+      layout = lay();
       cards.clear();
       wonAt = -1;
       if (reduced) return;
@@ -51,6 +53,8 @@ export function createFx(layout) {
     optionsT: () => optionsT,
 
     update(dt, state) {
+      layout = lay();
+      if (layout.key !== lastKey) { lastKey = layout.key; snap = true; }   // screen size / shape changed: jump, don't slide
       time += dt;
       optionsT = state.options ? Math.min(1, optionsT + dt / 0.2) : 0;
       if (!state.board) return;
@@ -62,6 +66,7 @@ export function createFx(layout) {
           e = { x0: x, y0: y, tx: x, ty: y, t: 1, dur: SLIDE, delay: 0, faceUp: card.faceUp, flip: 1 };
           cards.set(id, e);
         }
+        if (snap) { e.x0 = e.tx = x; e.y0 = e.ty = y; e.t = e.dur; e.delay = 0; }
         if (e.tx !== x || e.ty !== y) {
           const now = position(e);
           e.x0 = now.x; e.y0 = now.y; e.tx = x; e.ty = y;
@@ -78,6 +83,7 @@ export function createFx(layout) {
           if (e.flip < 1) e.flip = Math.min(1, e.flip + dt / FLIP);
         }
       });
+      snap = false;
     },
 
     // { x, y, moving (0..1, 1 = mid-flight), flip (0..1) } for a card; falls back to its resting place.

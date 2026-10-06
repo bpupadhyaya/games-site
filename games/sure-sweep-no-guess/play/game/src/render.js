@@ -1,21 +1,27 @@
 // Everything that is drawn each frame. Reads `state` (see game.js) and changes nothing.
 // All motion is a function of state.pulse (the fixed-step clock) and the start times in state.fx.
-import { W, H, COLS, ROWS, CELL, FRAME, BOARD_X, BOARD_Y, BOARD_W, BOARD_H, HUD, MODE_SWITCH, HINT_BTN, COLOR_BTN, NEW_BTN, RESULT_CARD, SHIELD_BTN, AGAIN_BTN, AGAIN_BTN_WIDE, PLAY_BTN, TITLE_COLOR_BTN, TITLE_RULES_BTN, TITLE_AUTO_BTN, HERO, RULES_BACK_BTN, RULES_NEXT_BTN, RULES_PANEL, TEXT_DEC_BTN, TEXT_INC_BTN, TEXT_SCALES, THINK_STEPS, SIBLINGS, CHIP_LABEL_Y, chipRect } from './layout.js';
+import { V, POS, BOARD, FRAME, COLS, ROWS, HUD, MODE_SWITCH, HINT_BTN, COLOR_BTN, NEW_BTN, MENU_BTN, PAUSE_BTN, AUTO_EXIT_BTN, RESULT_CARD, SHIELD_BTN, RESULT_MENU_BTN, RESULT_MENU_BTN_WIDE, AGAIN_BTN, AGAIN_BTN_WIDE, PLAY_BTN, TITLE_COLOR_BTN, TITLE_RULES_BTN, TITLE_AUTO_BTN, HERO, RULES_PANEL, RULES_BACK_BTN, TEXT_DEC_BTN, TEXT_INC_BTN, SCROLLBAR, TEXT_SCALES, THINK_STEPS, SIBLINGS, host, chipRect, useLayout } from './layout.js';
+import { drawLockup } from './brand.js';
 import { palette, alpha, THEMES } from './themes.js';
 import { RULES } from './content.js';
 
 const FONT = '"Fredoka", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
 const TAU = Math.PI * 2;
 const LIGHT = '#f4fbfa';
+// Nominal width of the Rules illustrations (they are drawn in a fixed 720-wide space and placed into the reader).
+const W = 720;
 
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const clamp01 = (v) => (v < 0 ? 0 : v > 1 ? 1 : v);
 const easeOut = (f) => 1 - (1 - f) ** 3;
 const easeOutBack = (f) => 1 + 2.4 * (f - 1) ** 3 + 1.4 * (f - 1) ** 2;
 // A press dips the button, then it springs back with a small overshoot.
 const spring = (tau) => (tau < 0 || tau > 0.6 ? 0 : Math.exp(-tau * 9) * Math.cos(tau * 20));
 
+// Text never renders below ~11 css px: host.px is css pixels per virtual unit (main.js keeps it current).
+const minSize = () => 11.5 / Math.max(0.2, host.px);
 const setFont = (ctx, size, weight = 700) => {
-  ctx.font = `${weight} ${size}px ${FONT}`;
+  ctx.font = `${weight} ${Math.max(size, minSize())}px ${FONT}`;
 };
 const text = (ctx, str, x, y, size, color, weight = 700, align = 'center') => {
   setFont(ctx, size, weight);
@@ -31,6 +37,8 @@ const formatTime = (s) => (s < 100 ? s.toFixed(1) : `${Math.floor(s / 60)}:${Str
 
 // ---- backdrop ---------------------------------------------------------------------------------
 function drawBackground(ctx, pal, t) {
+  const W = V.w;
+  const H = V.h;
   const g = ctx.createRadialGradient(W * 0.8, -80, 40, W * 0.8, -80, H * 1.05);
   g.addColorStop(0, pal.bg[0]);
   g.addColorStop(0.5, pal.bg[1]);
@@ -54,7 +62,7 @@ function drawBackground(ctx, pal, t) {
 
   // Slow swell: contour lines that drift sideways and breathe.
   ctx.lineWidth = 3;
-  for (let k = 0; k < 10; k++) {
+  for (let k = 0; k < Math.ceil(H / 160) + 1; k++) {
     const y0 = 90 + k * 160;
     const amp = 16 + 6 * Math.sin(t * 0.5 + k);
     ctx.strokeStyle = alpha(pal.ink, 0.05 + 0.025 * Math.sin(t * 0.7 + k * 1.3));
@@ -68,7 +76,7 @@ function drawBackground(ctx, pal, t) {
   }
 
   // Drifting specks of light.
-  for (let k = 0; k < 22; k++) {
+  for (let k = 0; k < Math.round(22 * Math.max(1, (W * H) / (720 * 1560))); k++) {
     const ph = (t * (0.018 + (k % 5) * 0.004) + k * 0.173) % 1;
     const x = ((k * 97) % W) + Math.sin(t * 0.6 + k) * 18;
     const y = H - ph * H;
@@ -122,7 +130,7 @@ function drawBuoyMine(ctx, pal, cx, cy, t) {
   ctx.setLineDash([10, 9]);
   ctx.beginPath();
   ctx.moveTo(cx + sway, cy + bob + 40);
-  ctx.quadraticCurveTo(cx + sway * 0.4, cy + 110, cx - 6, H + 10);
+  ctx.quadraticCurveTo(cx + sway * 0.4, cy + 110, cx - 6, Math.max(V.h, cy + 160) + 10);
   ctx.stroke();
   ctx.setLineDash([]);
   const halo = ctx.createRadialGradient(cx + sway, cy + bob, 20, cx + sway, cy + bob, 150);
@@ -380,25 +388,32 @@ function drawButton(ctx, r, label, o = {}) {
   rr(ctx, x, y, r.w, r.h, radius);
   ctx.fillStyle = k.lip;
   ctx.fill();
-  const g = ctx.createLinearGradient(0, y, 0, y + r.h - lip);
-  g.addColorStop(0, k.top);
-  g.addColorStop(1, k.bottom);
   rr(ctx, x, y, r.w, r.h - lip, radius);
-  ctx.fillStyle = g;
+  ctx.fillStyle = k.bottom;   // flat face
   ctx.fill();
   ctx.strokeStyle = k.rim;
   ctx.lineWidth = 2.5;
   ctx.stroke();
-  rr(ctx, x + 8, y + 6, r.w - 16, (r.h - lip) * 0.4, radius * 0.7);
-  ctx.fillStyle = o.kind === 'glass' || !o.kind ? 'rgba(255,255,255,0.07)' : 'rgba(255,255,255,0.22)';
-  ctx.fill();
 
-  const size = o.size ?? 30;
   const cy = -lip / 2;
+  // The label shrinks to fit the button (never below ~11 css px: see setFont).
+  const fit = (str, sz, maxW, weight) => {
+    let z = sz;
+    setFont(ctx, z, weight);
+    while (ctx.measureText(str).width > maxW && z > 12) {
+      z -= 1;
+      setFont(ctx, z, weight);
+    }
+    return z;
+  };
   if (o.icon && o.stacked) {
-    o.icon(ctx, 0, cy - 17, o.iconSize ?? 44, k.ink);
-    text(ctx, label, 0, cy + 40, size, k.ink, 600);
+    const size = fit(label, o.size ?? 30, r.w - 14, 600);
+    o.icon(ctx, 0, cy - r.h * 0.15, Math.min(o.iconSize ?? 44, r.h * 0.44), k.ink);
+    text(ctx, label, 0, cy + r.h * 0.33, size, k.ink, 600);
   } else if (o.icon) {
+    let size = o.size ?? 30;
+    const iconRoom = size * (o.iconScale ?? 1.15) + 14;
+    size = fit(label, size, r.w - 24 - iconRoom, 700);
     setFont(ctx, size, 700);
     const tw = ctx.measureText(label).width;
     const iw = size * (o.iconScale ?? 1.15);
@@ -406,6 +421,7 @@ function drawButton(ctx, r, label, o = {}) {
     o.icon(ctx, x0 + iw / 2, cy, iw, k.ink);
     text(ctx, label, x0 + iw + 14, cy + size * 0.35, size, k.ink, 700, 'left');
   } else {
+    const size = fit(label, o.size ?? 30, r.w - 24, 700);
     text(ctx, label, 0, cy + size * 0.35, size, k.ink, 700);
   }
   ctx.restore();
@@ -515,7 +531,7 @@ const iconRules = (ctx, cx, cy, s, ink) => {
 };
 
 // ---- scenes ----------------------------------------------------------------------------------------
-function drawLogo(ctx, pal, cx, y, size, t, intro) {
+function drawLogo(ctx, pal, cx, y, size, t, intro, maxW = 640) {
   const f = easeOutBack(clamp01(intro / 0.6));
   ctx.save();
   ctx.translate(cx, y + Math.sin(t * 1.3) * 5 - (1 - f) * 70);
@@ -523,7 +539,7 @@ function drawLogo(ctx, pal, cx, y, size, t, intro) {
   ctx.rotate(-0.035);
   setFont(ctx, size, 700);
   const tw = ctx.measureText('Sure Sweep').width;
-  if (tw > 640) ctx.scale(640 / tw, 640 / tw);
+  if (tw > maxW) ctx.scale(maxW / tw, maxW / tw);
   ctx.textAlign = 'center';
   ctx.lineJoin = 'round';
   // extruded shadow, then outline, then the lit face
@@ -555,18 +571,18 @@ function heroNumber(i) {
   return c;
 }
 
-function drawHero(ctx, pal, t, intro) {
-  const { n, cell } = HERO;
+function drawHero(ctx, pal, t, intro, geo = HERO) {
+  const { n, cell } = geo;
   const size = n * cell;
   const f = easeOutBack(clamp01((intro - 0.15) / 0.6));
   if (f <= 0) return;
   ctx.save();
-  ctx.translate(HERO.x, HERO.y + Math.sin(t * 0.9) * 6);
+  ctx.translate(geo.x, geo.y + Math.sin(t * 0.9) * 6);
   ctx.rotate(-0.06 + Math.sin(t * 0.5) * 0.008);
   ctx.scale(f, f);
   const x0 = -size / 2;
   const y0 = -size / 2;
-  drawFrame(ctx, pal, x0, y0, size, size, { frame: 18 });
+  drawFrame(ctx, pal, x0, y0, size, size, { frame: Math.round(10 + cell * 0.08) });
   const cycle = t % 6; // ring -> flag drops -> holds -> clears
   for (let i = 0; i < n * n; i++) {
     const x = x0 + (i % n) * cell;
@@ -620,15 +636,16 @@ function drawPill(ctx, cx, y, label, o = {}) {
 function drawTitle(ctx, state, pal, extra) {
   const t = state.pulse;
   const fx = state.fx;
+  const T = POS.title;
   const intro = 10; // the front door is complete on the very first frame; idle motion carries it
-  drawCompass(ctx, pal, 610, 1430, 170, t);
-  drawBuoyMine(ctx, pal, 96, 1440, t);
-  drawLogo(ctx, pal, 360, 300, 112, t, intro);
+  drawCompass(ctx, pal, T.compass.x, T.compass.y, T.compass.r, t);
+  drawBuoyMine(ctx, pal, T.buoy.x, T.buoy.y, t);
+  drawLogo(ctx, pal, T.logo.x, T.logo.y, T.logo.size, t, intro, T.logo.maxW ?? 640);
   const a = clamp01((intro - 0.3) / 0.4);
   ctx.save();
   ctx.globalAlpha = a;
-  text(ctx, 'No-guess minesweeper', 360, 372, 34, pal.ink, 600);
-  text(ctx, 'Every board solves by logic alone.', 360, 414, 25, pal.inkSoft, 500);
+  text(ctx, 'No-guess minesweeper', T.tag1.x, T.tag1.y, T.tag1.size, pal.ink, 600);
+  text(ctx, 'Every board solves by logic alone.', T.tag2.x, T.tag2.y, T.tag2.size, pal.inkSoft, 500);
   ctx.restore();
 
   drawHero(ctx, pal, t, intro);
@@ -638,28 +655,33 @@ function drawTitle(ctx, state, pal, extra) {
   ctx.globalAlpha = b;
   ctx.translate(0, (1 - b) * 50);
   drawButton(ctx, PLAY_BTN, 'Play', { kind: 'primary', size: 58, icon: iconPlay, breathe: Math.sin(t * 2.4) * 0.012, pressTau: fx.btn === 'play' ? t - fx.btnAt : -1 });
-  // Same stacked icon-over-label look the in-play Colours button already uses (COLOR_BTN below) -
-  // the natural fit now that this button shares its row with Rules instead of spanning it alone.
-  drawButton(ctx, TITLE_COLOR_BTN, 'Colours', { pal, icon: iconSwatches(pal), iconSize: 40, stacked: true, size: 22, pressTau: fx.btn === 'colors' ? t - fx.btnAt : -1 });
-  drawButton(ctx, TITLE_RULES_BTN, 'Rules', { pal, icon: iconRules, iconSize: 40, stacked: true, size: 22, pressTau: fx.btn === 'rules' ? t - fx.btnAt : -1 });
-  // Free, silent, full-board teaching demo - shares the Colours/Rules row (now three columns
-  // instead of two) rather than crowding a new row into the tight space below, where the best-time
-  // and free-preview pills already sit close to the canvas edge.
-  drawButton(ctx, TITLE_AUTO_BTN, 'Auto Play', { pal, icon: iconBulb, iconSize: 40, stacked: true, size: 20, pressTau: fx.btn === 'autoplay' ? t - fx.btnAt : -1 });
-  if (state.bestTime !== null) drawPill(ctx, 360, 1378, `Best time  ${formatTime(state.bestTime)}s`, { color: '#ffe08a', rim: 'rgba(255,224,138,0.5)', size: 28 });
-  else drawPill(ctx, 360, 1378, 'No best time yet - set one', { size: 24, color: 'rgba(244,251,250,0.8)' });
-  if (state.demo) drawPill(ctx, 360, 1450, `Free preview: ${extra.demoLeft} board${extra.demoLeft === 1 ? '' : 's'} left`, { size: 22, h: 46 });
+  const rowIcon = Math.min(40, TITLE_COLOR_BTN.h * 0.42);
+  drawButton(ctx, TITLE_COLOR_BTN, 'Colours', { pal, icon: iconSwatches(pal), iconSize: rowIcon, stacked: true, size: 22, pressTau: fx.btn === 'colors' ? t - fx.btnAt : -1 });
+  drawButton(ctx, TITLE_RULES_BTN, 'Rules', { pal, icon: iconRules, iconSize: rowIcon, stacked: true, size: 22, pressTau: fx.btn === 'rules' ? t - fx.btnAt : -1 });
+  drawButton(ctx, TITLE_AUTO_BTN, 'Auto Play', { pal, icon: iconBulb, iconSize: rowIcon, stacked: true, size: 20, pressTau: fx.btn === 'autoplay' ? t - fx.btnAt : -1 });
+  if (state.bestTime !== null) drawPill(ctx, T.best.x, T.best.y, `Best time  ${formatTime(state.bestTime)}s`, { color: '#ffe08a', rim: 'rgba(255,224,138,0.5)', size: T.best.size });
+  else drawPill(ctx, T.best.x, T.best.y, 'No best time yet - set one', { size: T.best.size - 4, color: 'rgba(244,251,250,0.8)' });
+  if (state.demo && T.demo) drawPill(ctx, T.demo.x, T.demo.y, `Free preview: ${extra.demoLeft} board${extra.demoLeft === 1 ? '' : 's'} left`, { size: T.demo.size, h: T.demo.h });
   ctx.restore();
+  // the Arcforge lockup: small and quiet, never over the buttons or the game art
+  if (T.lockup) {
+    const lw = T.lockup.w, lh = (lw * 327) / 1200;
+    ctx.save(); ctx.fillStyle = 'rgba(4,36,40,0.45)'; ctx.beginPath(); ctx.roundRect(T.lockup.x - lw / 2 - 10, T.lockup.y - lh / 2 - 5, lw + 20, lh + 10, 14); ctx.fill(); ctx.restore();
+    drawLockup(ctx, T.lockup.x, T.lockup.y, lw, lockPress > 0 ? 0.5 : 0.95);
+    if (lockPress > 0) lockPress--;
+  }
 }
 
 function drawDemoLimit(ctx, state, pal) {
   const t = state.pulse;
-  drawCompass(ctx, pal, 610, 1430, 170, t);
-  drawLogo(ctx, pal, 360, 300, 112, t, 10);
-  const card = { x: 40, y: 560, w: 640, h: 360 };
+  const T = POS.title;
+  drawCompass(ctx, pal, T.compass.x, T.compass.y, T.compass.r, t);
+  const cw = Math.min(640, V.w - 80);
+  const card = { x: (V.w - cw) / 2, y: Math.min(T.logo.y + 130, V.h - 380), w: cw, h: 360 };
+  drawLogo(ctx, pal, V.w / 2, T.logo.y, T.logo.size, t, 10, cw);
   glassPanel(ctx, card, 34);
-  text(ctx, "That's the free preview!", 360, 650, 44, '#ffe08a', 700);
-  wrapText(ctx, 'Get the full game on iPhone and Android for unlimited boards, hints and no interruptions.', 360, 725, 540, 42, 29, LIGHT, 500);
+  text(ctx, "That's the free preview!", V.w / 2, card.y + 90, 44, '#ffe08a', 700);
+  wrapText(ctx, 'Get the full game on iPhone and Android for unlimited boards, hints and no interruptions.', V.w / 2, card.y + 165, cw - 100, 42, 29, LIGHT, 500);
 }
 
 function wrapText(ctx, str, cx, y, maxWidth, lineHeight, size, color, weight = 500) {
@@ -677,16 +699,11 @@ function wrapText(ctx, str, cx, y, maxWidth, lineHeight, size, color, weight = 5
   if (line) text(ctx, line, cx, y, size, color, weight);
 }
 
-function drawHud(ctx, state, pal, extra) {
-  glassPanel(ctx, HUD, 30);
-  const { x, y, w, h } = HUD;
+function drawHud(ctx, state, pal, extra, rect = HUD, mode = POS.hudMode) {
+  glassPanel(ctx, rect, 30);
+  const { x, y, w, h } = rect;
   const mid = y + h / 2;
-  // mines left
-  drawCell(ctx, pal, x + 22, mid - 40, 80);
-  drawMine(ctx, x + 62, mid - 2, 80);
-  text(ctx, 'MINES', x + 122, y + 40, 19, 'rgba(244,251,250,0.6)', 600, 'left');
-  text(ctx, String(state.scene === 'won' ? 0 : Math.max(extra.remainingFlags, 0)).padStart(2, '0'), x + 120, y + 98, 58, LIGHT, 700, 'left');
-  // progress ring
+  const left = String(state.scene === 'won' ? 0 : Math.max(extra.remainingFlags, 0)).padStart(2, '0');
   let opened = 0;
   let safe = 0;
   for (let i = 0; i < state.numbers.length; i++) {
@@ -695,25 +712,58 @@ function drawHud(ctx, state, pal, extra) {
     if (state.revealed[i]) opened++;
   }
   const frac = safe ? opened / safe : 0;
+  const pct = `${Math.round(frac * 100)}%`;
+  const LAB = 'rgba(244,251,250,0.6)';
+  if (mode === 'stack') {
+    // narrow side panel: mines (left) and time (right) on one row, a progress bar below
+    const top = y + 8;
+    const ic = 58;
+    drawCell(ctx, pal, x + 14, top + 6, ic);
+    drawMine(ctx, x + 14 + ic / 2, top + 6 + ic / 2 - 1, ic);
+    text(ctx, 'MINES', x + 14 + ic + 8, top + 26, 19, LAB, 600, 'left');
+    text(ctx, left, x + 14 + ic + 6, top + 72, 46, LIGHT, 700, 'left');
+    text(ctx, 'TIME', x + w - 16, top + 26, 19, LAB, 600, 'right');
+    setFont(ctx, 24, 600);
+    const sw = ctx.measureText('s').width;
+    text(ctx, 's', x + w - 16, top + 72, 24, 'rgba(244,251,250,0.7)', 600, 'right');
+    text(ctx, formatTime(state.time), x + w - 20 - sw, top + 72, 46, LIGHT, 700, 'right');
+    const by = y + h - 30;
+    rr(ctx, x + 18, by, w - 36 - 56, 14, 7);
+    ctx.fillStyle = 'rgba(255,255,255,0.14)';
+    ctx.fill();
+    rr(ctx, x + 18, by, Math.max(14, (w - 36 - 56) * frac), 14, 7);
+    ctx.fillStyle = state.scene === 'lost' ? '#ff7a66' : '#4dffc3';
+    ctx.fill();
+    text(ctx, pct, x + w - 18, by + 13, 24, LIGHT, 700, 'right');
+    return;
+  }
+  const k = h / 124;
+  // mines left
+  drawCell(ctx, pal, x + 22, mid - 40 * k, 80 * k);
+  drawMine(ctx, x + 22 + 40 * k, mid - 2 * k, 80 * k);
+  text(ctx, 'MINES', x + 22 + 100 * k, y + 40 * k, 19, LAB, 600, 'left');
+  text(ctx, left, x + 20 + 100 * k, y + 98 * k, 58 * k, LIGHT, 700, 'left');
+  // progress ring
   const cx = x + w / 2;
-  ctx.lineWidth = 10;
+  const rad = 42 * k;
+  ctx.lineWidth = 10 * k;
   ctx.strokeStyle = 'rgba(255,255,255,0.14)';
   ctx.beginPath();
-  ctx.arc(cx, mid, 42, 0, TAU);
+  ctx.arc(cx, mid, rad, 0, TAU);
   ctx.stroke();
   ctx.strokeStyle = state.scene === 'lost' ? '#ff7a66' : '#4dffc3';
   ctx.lineCap = 'round';
   ctx.beginPath();
-  ctx.arc(cx, mid, 42, -Math.PI / 2, -Math.PI / 2 + TAU * Math.max(frac, 0.001));
+  ctx.arc(cx, mid, rad, -Math.PI / 2, -Math.PI / 2 + TAU * Math.max(frac, 0.001));
   ctx.stroke();
   ctx.lineCap = 'butt';
-  text(ctx, `${Math.round(frac * 100)}%`, cx, mid + 9, 26, LIGHT, 700);
+  text(ctx, pct, cx, mid + 9 * k, 26 * k, LIGHT, 700);
   // timer
-  text(ctx, 'TIME', x + w - 30, y + 40, 19, 'rgba(244,251,250,0.6)', 600, 'right');
-  setFont(ctx, 30, 600);
+  text(ctx, 'TIME', x + w - 30, y + 40 * k, 19, LAB, 600, 'right');
+  setFont(ctx, 30 * k, 600);
   const sw = ctx.measureText('s').width;
-  text(ctx, 's', x + w - 30, y + 98, 30, 'rgba(244,251,250,0.7)', 600, 'right');
-  text(ctx, formatTime(state.time), x + w - 34 - sw, y + 98, 58, LIGHT, 700, 'right');
+  text(ctx, 's', x + w - 30, y + 98 * k, 30 * k, 'rgba(244,251,250,0.7)', 600, 'right');
+  text(ctx, formatTime(state.time), x + w - 34 - sw, y + 98 * k, 58 * k, LIGHT, 700, 'right');
 }
 
 function drawBoard(ctx, state, pal) {
@@ -724,8 +774,14 @@ function drawBoard(ctx, state, pal) {
   const since = t - fx.sceneAt;
   const flagGlow = state.scene === 'playing' && state.flagMode ? alpha('#ff6b5e', 0.65 + 0.3 * Math.sin(t * 5)) : undefined;
 
+  const CELL = BOARD.cell;
+  const BOARD_X = BOARD.x;
+  const BOARD_Y = BOARD.y;
+  const BOARD_W = BOARD.size;
+  const BOARD_H = BOARD.size;
+  const u = CELL / 74;
   ctx.save();
-  drawFrame(ctx, pal, BOARD_X, BOARD_Y, BOARD_W, BOARD_H, { glow: flagGlow });
+  drawFrame(ctx, pal, BOARD_X, BOARD_Y, BOARD_W, BOARD_H, { glow: flagGlow, frame: FRAME });
 
   const fullReveal = lost && state.shieldOffered; // no undo left, so nothing is given away
   const ex = state.exploded >= 0 ? state.exploded % COLS : 0;
@@ -749,34 +805,34 @@ function drawBoard(ctx, state, pal) {
       const pop = easeOutBack(clamp01((p - 0.25) / 0.75));
       if (num === -1) drawMine(ctx, cx, cy, CELL, pop);
       else if (num > 0) drawNumber(ctx, pal, num, cx, cy, CELL, pop);
-      if (p < 1) drawTile(ctx, pal, x, y, CELL, { scale: 1 - easeOut(p) * 0.55, alpha: 1 - p, lift: p * 16 });
+      if (p < 1) drawTile(ctx, pal, x, y, CELL, { scale: 1 - easeOut(p) * 0.55, alpha: 1 - p, lift: p * 16 * u });
     } else {
       // on a final loss the remaining mines surface one by one, outward from the blast
       const q = fullReveal && num === -1 && !state.flagged[i] ? clamp01((since - 0.35 - Math.hypot(c - ex, r - ey) * 0.07) / 0.3) : 0;
       if (q > 0) {
         drawCell(ctx, pal, x, y, CELL, { alpha: Math.min(1, q * 3) });
         drawMine(ctx, cx, cy, CELL, easeOutBack(q));
-        if (q < 1) drawTile(ctx, pal, x, y, CELL, { scale: 1 - easeOut(q) * 0.55, alpha: 1 - q, lift: q * 16 });
+        if (q < 1) drawTile(ctx, pal, x, y, CELL, { scale: 1 - easeOut(q) * 0.55, alpha: 1 - q, lift: q * 16 * u });
       } else {
         const wave = won ? Math.sin(Math.PI * clamp01((since - ((r + c) / 16) * 0.7) / 0.4)) : 0;
-        drawTile(ctx, pal, x, y, CELL, { scale: tileScale, lift: wave * 8 });
+        drawTile(ctx, pal, x, y, CELL, { scale: tileScale, lift: wave * 8 * u });
         if (state.flagged[i]) {
-          drawFlag(ctx, cx, cy - wave * 8, CELL, { t, drop: fx.flagAt[i] < 0 ? 1 : (t - fx.flagAt[i]) / 0.3, gold: won });
+          drawFlag(ctx, cx, cy - wave * 8 * u, CELL, { t, drop: fx.flagAt[i] < 0 ? 1 : (t - fx.flagAt[i]) / 0.3, gold: won });
           if (fullReveal && num !== -1 && since > 0.6) {
             ctx.strokeStyle = '#ff3b30';
-            ctx.lineWidth = 7;
+            ctx.lineWidth = 7 * u;
             ctx.lineCap = 'round';
             ctx.beginPath();
-            ctx.moveTo(x + 16, y + 16);
-            ctx.lineTo(x + CELL - 16, y + CELL - 16);
-            ctx.moveTo(x + CELL - 16, y + 16);
-            ctx.lineTo(x + 16, y + CELL - 16);
+            ctx.moveTo(x + 16 * u, y + 16 * u);
+            ctx.lineTo(x + CELL - 16 * u, y + CELL - 16 * u);
+            ctx.moveTo(x + CELL - 16 * u, y + 16 * u);
+            ctx.lineTo(x + 16 * u, y + CELL - 16 * u);
             ctx.stroke();
           }
         } else if (won) {
           // every tile still closed at a win is a mine: they flag themselves as the sweep passes
           const d = (since - ((r + c) / 16) * 0.7 - 0.15) / 0.3;
-          if (d > 0) drawFlag(ctx, cx, cy - wave * 8, CELL, { t, drop: d, gold: true });
+          if (d > 0) drawFlag(ctx, cx, cy - wave * 8 * u, CELL, { t, drop: d, gold: true });
         }
       }
     }
@@ -784,7 +840,7 @@ function drawBoard(ctx, state, pal) {
     if (won) {
       const lt = clamp01((since - ((r + c) / 16) * 0.7) / 0.4);
       if (lt > 0 && lt < 1) {
-        rr(ctx, x + 1.5, y + 1.5, CELL - 3, CELL - 3, 8);
+        rr(ctx, x + 1.5, y + 1.5, CELL - 3, CELL - 3, 8 * u);
         ctx.fillStyle = `rgba(255,255,255,${0.5 * Math.sin(Math.PI * lt)})`;
         ctx.fill();
       }
@@ -806,26 +862,27 @@ function drawBoard(ctx, state, pal) {
     rr(ctx, BOARD_X, BOARD_Y, BOARD_W, BOARD_H, 10);
     ctx.clip();
     ctx.strokeStyle = `rgba(255,140,110,${0.7 * (1 - f)})`;
-    ctx.lineWidth = 14 * (1 - f) + 2;
+    ctx.lineWidth = (14 * (1 - f) + 2) * u;
     ctx.beginPath();
-    ctx.arc(BOARD_X + ex * CELL + CELL / 2, BOARD_Y + ey * CELL + CELL / 2, 24 + easeOut(f) * 380, 0, TAU);
+    ctx.arc(BOARD_X + ex * CELL + CELL / 2, BOARD_Y + ey * CELL + CELL / 2, (24 + easeOut(f) * 380) * u, 0, TAU);
     ctx.stroke();
     ctx.restore();
   }
   ctx.restore();
 }
 
-function drawModeSwitch(ctx, state, pal) {
+function drawModeSwitch(ctx, state, pal, r = MODE_SWITCH) {
   const t = state.pulse;
   const fx = state.fx;
-  const r = MODE_SWITCH;
-  rr(ctx, r.x, r.y, r.w, r.h, 34);
+  const rad = Math.min(34, r.h * 0.34);
+  const trad = Math.min(28, r.h * 0.28);
+  rr(ctx, r.x, r.y, r.w, r.h, rad);
   ctx.fillStyle = 'rgba(3,14,20,0.78)';
   ctx.fill();
   ctx.strokeStyle = 'rgba(255,255,255,0.2)';
   ctx.lineWidth = 2;
   ctx.stroke();
-  rr(ctx, r.x + 3, r.y + 3, r.w - 6, 12, [30, 30, 0, 0]);
+  rr(ctx, r.x + 3, r.y + 3, r.w - 6, 12, [rad - 4, rad - 4, 0, 0]);
   ctx.fillStyle = 'rgba(0,0,0,0.25)';
   ctx.fill();
 
@@ -835,7 +892,7 @@ function drawModeSwitch(ctx, state, pal) {
   const tx = r.x + 8 + pos * (r.w / 2 - 6);
   const thumb = { x: tx, y: r.y + 8, w: tw, h: r.h - 16 };
   ctx.fillStyle = 'rgba(0,0,0,0.35)';
-  rr(ctx, thumb.x + 2, thumb.y + 6, thumb.w - 4, thumb.h, 28);
+  rr(ctx, thumb.x + 2, thumb.y + 6, thumb.w - 4, thumb.h, trad);
   ctx.fill();
   const g = ctx.createLinearGradient(0, thumb.y, 0, thumb.y + thumb.h);
   if (state.flagMode) {
@@ -845,7 +902,7 @@ function drawModeSwitch(ctx, state, pal) {
     g.addColorStop(0, '#ffffff');
     g.addColorStop(1, '#cfeee9');
   }
-  rr(ctx, thumb.x, thumb.y, thumb.w, thumb.h, 28);
+  rr(ctx, thumb.x, thumb.y, thumb.w, thumb.h, trad);
   ctx.fillStyle = g;
   ctx.fill();
   ctx.strokeStyle = 'rgba(255,255,255,0.7)';
@@ -855,12 +912,56 @@ function drawModeSwitch(ctx, state, pal) {
   const cy = r.y + r.h / 2;
   const leftInk = state.flagMode ? 'rgba(244,251,250,0.78)' : '#0b3a40';
   const rightInk = state.flagMode ? '#ffffff' : 'rgba(244,251,250,0.78)';
-  const lx = r.x + r.w * 0.25;
-  const rx = r.x + r.w * 0.75;
-  iconMiniCell(pal)(ctx, lx - 78, cy, 50);
-  text(ctx, 'Reveal', lx + 28, cy + 14, 40, leftInk, 700);
-  drawFlag(ctx, rx - 62, cy + 2, 66, { t });
-  text(ctx, 'Flag', rx + 24, cy + 14, 40, rightInk, 700);
+  const half = r.w / 2;
+  const iconS = Math.min(50, r.h * 0.56);
+  let size = Math.min(40, r.h * 0.4);
+  setFont(ctx, size, 700);
+  while (size > 14 && Math.max(ctx.measureText('Reveal').width, ctx.measureText('Flag').width) + iconS + 22 > half - 12) {
+    size -= 1;
+    setFont(ctx, size, 700);
+  }
+  const group = (label, cx0) => {
+    setFont(ctx, size, 700);
+    const w = ctx.measureText(label).width + iconS + 10;
+    return { x0: cx0 - w / 2, w };
+  };
+  const lg = group('Reveal', r.x + half / 2);
+  iconMiniCell(pal)(ctx, lg.x0 + iconS / 2, cy, iconS);
+  text(ctx, 'Reveal', lg.x0 + iconS + 10, cy + size * 0.35, size, leftInk, 700, 'left');
+  const rg = group('Flag', r.x + half * 1.5);
+  drawFlag(ctx, rg.x0 + iconS / 2, cy + 2, iconS * 1.3, { t });
+  text(ctx, 'Flag', rg.x0 + iconS + 10, cy + size * 0.35, size, rightInk, 700, 'left');
+}
+
+const iconMenu = (ctx, cx, cy, s, ink) => {
+  ctx.strokeStyle = ink;
+  ctx.lineWidth = s * 0.12;
+  ctx.lineCap = 'round';
+  for (const dy of [-0.26, 0, 0.26]) {
+    ctx.beginPath();
+    ctx.moveTo(cx - s * 0.34, cy + s * dy);
+    ctx.lineTo(cx + s * 0.34, cy + s * dy);
+    ctx.stroke();
+  }
+};
+
+// Wraps `str` to fit a box, shrinking the font a little if the lines would not fit its height.
+function fitWrap(ctx, str, box, size, color, weight = 500) {
+  for (let z = size; z >= 14; z -= 1) {
+    setFont(ctx, z, weight);
+    const lines = wrapRulesParagraph(ctx, str, box.w);
+    const lh = Math.round(z * 1.28);
+    if (lines.length * lh <= box.h + z * 0.4 || z <= 15) {
+      lines.forEach((ln, i) => text(ctx, ln, box.x + box.w / 2, box.y + z * 0.85 + i * lh, z, color, weight));
+      return;
+    }
+  }
+}
+
+function drawTip(ctx, str, color) {
+  const p = POS.tip;
+  if (p.wrap) fitWrap(ctx, str, { x: p.x - p.maxW / 2, y: p.y - 22, w: p.maxW, h: 56 }, p.size, color, 500);
+  else text(ctx, str, p.x, p.y, p.size, color, 500);
 }
 
 function drawControls(ctx, state, pal) {
@@ -869,53 +970,66 @@ function drawControls(ctx, state, pal) {
   let tip = 'Tap a tile to open it. Tap a number to clear around it.';
   if (state.hint) tip = state.hint.kind === 'mine' ? 'Sure move: the ringed tile is a mine - flag it.' : 'Sure move: the ringed tile is safe to open.';
   else if (state.flagMode) tip = 'Flag mode: tap a tile to plant or lift a flag.';
-  text(ctx, tip, W / 2, 1090, 25, state.hint ? pal.ink : pal.inkSoft, 500);
+  drawTip(ctx, tip, state.hint ? pal.ink : pal.inkSoft);
 
   drawModeSwitch(ctx, state, pal);
   const tau = (id) => (fx.btn === id ? t - fx.btnAt : -1);
-  drawButton(ctx, HINT_BTN, 'Hint', { pal, icon: iconBulb, stacked: true, size: 28, pressTau: tau('hint') });
-  drawButton(ctx, COLOR_BTN, 'Colours', { pal, icon: iconSwatches(pal), iconSize: 62, stacked: true, size: 28, pressTau: tau('colors') });
-  drawButton(ctx, NEW_BTN, 'New board', { pal, icon: iconNew, stacked: true, size: 28, pressTau: tau('new') });
+  const ic = Math.min(62, HINT_BTN.h * 0.5);
+  drawButton(ctx, HINT_BTN, 'Hint', { pal, icon: iconBulb, iconSize: ic, stacked: true, size: 26, pressTau: tau('hint') });
+  drawButton(ctx, COLOR_BTN, 'Colours', { pal, icon: iconSwatches(pal), iconSize: ic, stacked: true, size: 26, pressTau: tau('colors') });
+  drawButton(ctx, NEW_BTN, 'New board', { pal, icon: iconNew, iconSize: ic, stacked: true, size: 26, pressTau: tau('new') });
+  drawButton(ctx, MENU_BTN, 'Menu', { pal, icon: iconMenu, iconSize: ic, stacked: true, size: 26, pressTau: tau('menu') });
 
-  const best = state.bestTime !== null ? `Best ${formatTime(state.bestTime)}s   ·   ` : '';
-  text(ctx, `${best}Colours: ${pal.name}`, W / 2, 1436, 24, pal.inkSoft, 500);
+  if (POS.caption) {
+    const best = state.bestTime !== null ? `Best ${formatTime(state.bestTime)}s   ·   ` : '';
+    text(ctx, `${best}Colours: ${pal.name}`, POS.caption.x, POS.caption.y, POS.caption.size, pal.inkSoft, 500);
+  }
 }
 
 // Auto Play's own control row - replaces the Reveal/Flag switch (meaningless when nobody is
-// tapping) with a single "Exit to menu" bar, and the Hint/Colours/New-board row with a think-time
-// stepper either side of the same Colours button (harmless, still lets the viewer cycle themes).
+// tapping) with "Exit to menu" and "Pause" side by side, and the Hint/Colours/New-board row with a
+// think-time stepper either side of the same Colours button (harmless, still lets the viewer cycle themes).
 function drawAutoControls(ctx, state, pal) {
   const t = state.pulse;
   const fx = state.fx;
   const secs = THINK_STEPS[state.autoThinkIdx];
-  const tip =
-    state.autoPhase === 'reveal'
+  const tip = state.autoPaused
+    ? 'Paused. Tap Resume to carry on.'
+    : state.autoPhase === 'reveal'
       ? 'This is the move - compare it with your own guess.'
       : state.autoPhase === 'think'
         ? `Thinking… work out your own answer first. (${Math.max(0, Math.ceil(state.autoTimer))}s)`
         : 'Auto Play: the computer solves this board by logic alone, one sure move at a time.';
-  text(ctx, tip, W / 2, 1090, 24, pal.ink, 500);
+  drawTip(ctx, tip, pal.ink);
 
   const tau = (id) => (fx.btn === id ? t - fx.btnAt : -1);
-  drawButton(ctx, MODE_SWITCH, 'Exit to menu', { pal, size: 34, pressTau: tau('autoExit') });
+  drawButton(ctx, AUTO_EXIT_BTN, 'Exit', { pal, size: 32, pressTau: tau('autoExit') });
+  drawButton(ctx, PAUSE_BTN, state.autoPaused ? 'Resume' : 'Pause', { kind: state.autoPaused ? 'go' : undefined, pal, size: 32, pressTau: tau('autoPause') });
 
   ctx.save();
   ctx.globalAlpha = state.autoThinkIdx <= 0 ? 0.4 : 1;
   drawButton(ctx, HINT_BTN, '− Think', { pal, size: 26, pressTau: tau('autoDec') });
   ctx.restore();
-  drawButton(ctx, COLOR_BTN, 'Colours', { pal, icon: iconSwatches(pal), iconSize: 62, stacked: true, size: 28, pressTau: tau('colors') });
+  drawButton(ctx, COLOR_BTN, 'Colours', { pal, icon: iconSwatches(pal), iconSize: Math.min(62, COLOR_BTN.h * 0.5), stacked: true, size: 26, pressTau: tau('colors') });
   ctx.save();
   ctx.globalAlpha = state.autoThinkIdx >= THINK_STEPS.length - 1 ? 0.4 : 1;
   drawButton(ctx, NEW_BTN, 'Think +', { pal, size: 26, pressTau: tau('autoInc') });
   ctx.restore();
+  // the fourth slot only shows the current think time (not a button)
+  const m = MENU_BTN;
+  rr(ctx, m.x, m.y, m.w, m.h - 9, Math.min(30, m.h * 0.3));
+  ctx.fillStyle = 'rgba(3,14,20,0.55)';
+  ctx.fill();
+  text(ctx, 'THINK TIME', m.x + m.w / 2, m.y + m.h * 0.34, 19, 'rgba(244,251,250,0.6)', 600);
+  text(ctx, `${secs}s`, m.x + m.w / 2, m.y + m.h * 0.7, Math.min(40, m.h * 0.42), LIGHT, 700);
 
-  text(ctx, `Think time: ${secs}s   ·   Colours: ${pal.name}`, W / 2, 1436, 24, pal.inkSoft, 500);
+  if (POS.caption) text(ctx, `Think time: ${secs}s   ·   Colours: ${pal.name}`, POS.caption.x, POS.caption.y, POS.caption.size, pal.inkSoft, 500);
 }
 
-// Shrinks a chip's label to whatever size actually fits its (narrow, single-row) chip rather than
-// trusting a fixed size - "Tiger and Goat" is noticeably longer than "Go" or "Carrom".
+// Shrinks a chip's label to whatever size actually fits its chip rather than trusting a fixed size -
+// "Tiger and Goat" is noticeably longer than "Go" or "Carrom".
 function chipTextSize(ctx, label, maxWidth) {
-  for (const size of [20, 18, 16, 14]) {
+  for (const size of [22, 20, 18, 16, 14]) {
     setFont(ctx, size, 700);
     if (ctx.measureText(label).width <= maxWidth) return size;
   }
@@ -927,66 +1041,64 @@ function drawResult(ctx, state, pal, a) {
   const fx = state.fx;
   const won = state.scene === 'won';
   const c = RESULT_CARD;
+  const k = POS.resultK ?? 1;
+  const head = POS.head;
+  const tb = POS.text;
   ctx.save();
   ctx.globalAlpha = a;
   ctx.translate(0, (1 - a) * 70);
   glassPanel(ctx, c, 36);
   const tau = (id) => (fx.btn === id ? t - fx.btnAt : -1);
+  const dim = 'rgba(244,251,250,0.88)';
   if (state.auto) {
-    // Auto Play's own end-of-board card: same shape and place as a real result, but "Play again"
-    // starts another auto board and there is always an explicit way out, since Undo (mid-run
-    // rescue) and a real best time make no sense for a computer-played demo board. Cross-promo
-    // chips DO belong here too (2026-09-23, owner follow-up reversing the earlier call): a viewer
-    // who just watched Auto Play solve/fail a board is in the same "what's next" moment a real
-    // player is - see SIBLINGS in layout.js.
+    // Auto Play's own end-of-board card: same shape and place as a real result, but "Play again" starts another auto board and
+    // there is always an explicit way out. Cross-promo chips belong here too: a viewer who just watched Auto Play is in the
+    // same "what's next" moment a real player is - see SIBLINGS in layout.js.
     if (won) {
-      text(ctx, 'Solved!', W / 2, c.y + 84, 66, '#6dffc9', 700);
-      text(ctx, `Every safe tile found by logic alone, in ${formatTime(state.time)}s`, W / 2, c.y + 150, 26, 'rgba(244,251,250,0.85)', 500);
+      text(ctx, 'Solved!', head.x, head.y, head.size, '#6dffc9', 700);
+      fitWrap(ctx, `Every safe tile found by logic alone, in ${formatTime(state.time)}s`, tb, 26, dim);
     } else {
-      text(ctx, 'Boom.', W / 2, c.y + 78, 62, '#ff8571', 700);
-      wrapText(ctx, 'This rare fallback board could not be fully proven by logic - a real board never does this.', W / 2, c.y + 130, 580, 36, 26, 'rgba(244,251,250,0.88)', 500);
+      text(ctx, 'Boom.', head.x, head.y, head.size, '#ff8571', 700);
+      fitWrap(ctx, 'This rare fallback board could not be fully proven by logic - a real board never does this.', tb, POS.explainSize, dim);
     }
-    drawButton(ctx, SHIELD_BTN, 'Exit to menu', { pal, size: 30, pressTau: tau('autoExit') });
-    drawButton(ctx, AGAIN_BTN, 'Play again', { kind: 'primary', size: 30, icon: iconNew, pressTau: tau('again') });
-    text(ctx, 'More from Arcforge', W / 2, CHIP_LABEL_Y, 19, 'rgba(244,251,250,0.65)', 600);
-    SIBLINGS.forEach((g, i) => {
-      const r = chipRect(i);
-      drawButton(ctx, r, g.title, { pal, size: chipTextSize(ctx, g.title, r.w - 18), pressTau: tau(`chip${i}`) });
-    });
+    drawButton(ctx, RESULT_MENU_BTN_WIDE, 'Exit to menu', { pal, size: 30, pressTau: tau('autoExit') });
+    drawButton(ctx, AGAIN_BTN_WIDE, 'Play again', { kind: 'primary', size: 30, icon: iconNew, pressTau: tau('again') });
+  } else if (won) {
+    text(ctx, 'Cleared!', head.x, head.y, head.size, '#6dffc9', 700);
+    const y1 = tb.y + 30 * k;
+    text(ctx, `Time ${formatTime(state.time)}s`, head.x, y1, 34 * k, LIGHT, 600);
+    if (fx.newBest) drawPill(ctx, head.x, y1 + 44 * k, 'New best time!', { color: '#ffe08a', rim: 'rgba(255,224,138,0.6)', size: 24 * k, h: 46 * k });
+    else if (state.bestTime !== null) text(ctx, `Best ${formatTime(state.bestTime)}s`, head.x, y1 + 44 * k, 26 * k, 'rgba(244,251,250,0.7)', 500);
+    drawButton(ctx, RESULT_MENU_BTN_WIDE, 'Menu', { pal, size: 32, pressTau: tau('menu') });
+    drawButton(ctx, AGAIN_BTN_WIDE, 'New board', { kind: 'primary', size: 32, pressTau: tau('again') });
   } else {
-    if (won) {
-      text(ctx, 'Cleared!', W / 2, c.y + 84, 66, '#6dffc9', 700);
-      text(ctx, `Time ${formatTime(state.time)}s`, W / 2, c.y + 140, 34, LIGHT, 600);
-      if (fx.newBest) drawPill(ctx, W / 2, c.y + 194, 'New best time!', { color: '#ffe08a', rim: 'rgba(255,224,138,0.6)', size: 24, h: 46 });
-      else if (state.bestTime !== null) text(ctx, `Best ${formatTime(state.bestTime)}s`, W / 2, c.y + 200, 26, 'rgba(244,251,250,0.7)', 500);
-      drawButton(ctx, AGAIN_BTN_WIDE, 'New board', { kind: 'primary', size: 38, icon: iconNew, pressTau: tau('again') });
+    text(ctx, 'Boom.', head.x, head.y, head.size, '#ff8571', 700);
+    fitWrap(ctx, 'That mine was avoidable by logic - see the ringed tile.', tb, POS.explainSize, dim);
+    if (!state.shieldOffered) {
+      drawButton(ctx, RESULT_MENU_BTN, 'Menu', { pal, size: 28, pressTau: tau('menu') });
+      drawButton(ctx, SHIELD_BTN, 'Undo', { kind: 'go', size: 28, icon: iconUndo, pressTau: tau('shield') });
+      drawButton(ctx, AGAIN_BTN, 'New board', { kind: 'primary', size: 28, pressTau: tau('again') });
     } else {
-      text(ctx, 'Boom.', W / 2, c.y + 78, 62, '#ff8571', 700);
-      wrapText(ctx, 'That mine was avoidable by logic - see the ringed tile.', W / 2, c.y + 130, 580, 36, 27, 'rgba(244,251,250,0.88)', 500);
-      if (!state.shieldOffered) {
-        drawButton(ctx, SHIELD_BTN, 'Undo', { kind: 'go', size: 36, icon: iconUndo, pressTau: tau('shield') });
-        drawButton(ctx, AGAIN_BTN, 'New board', { kind: 'primary', size: 32, pressTau: tau('again') });
-      } else drawButton(ctx, AGAIN_BTN_WIDE, 'New board', { kind: 'primary', size: 38, icon: iconNew, pressTau: tau('again') });
+      drawButton(ctx, RESULT_MENU_BTN_WIDE, 'Menu', { pal, size: 32, pressTau: tau('menu') });
+      drawButton(ctx, AGAIN_BTN_WIDE, 'New board', { kind: 'primary', size: 32, pressTau: tau('again') });
     }
-    // "More from Arcforge": a free game's one natural advertising moment (a player has just
-    // finished - won or lost - and is deciding what to do next anyway). Shared between both
-    // outcomes rather than duplicated per branch. Paid games only - see SIBLINGS in layout.js.
-    text(ctx, 'More from Arcforge', W / 2, CHIP_LABEL_Y, 19, 'rgba(244,251,250,0.65)', 600);
-    SIBLINGS.forEach((g, i) => {
-      const r = chipRect(i);
-      drawButton(ctx, r, g.title, { pal, size: chipTextSize(ctx, g.title, r.w - 18), pressTau: tau(`chip${i}`) });
-    });
   }
+  // "More from Arcforge": a free game's one natural advertising moment. Paid games only - see SIBLINGS in layout.js.
+  if (POS.chipLabelY !== null) text(ctx, 'More from Arcforge', POS.chipLabelX, POS.chipLabelY, 19, 'rgba(244,251,250,0.65)', 600);
+  SIBLINGS.forEach((g, i) => {
+    const r = chipRect(i);
+    drawButton(ctx, r, g.title, { pal, size: chipTextSize(ctx, g.title, r.w - 18), pressTau: tau(`chip${i}`) });
+  });
   ctx.restore();
 
   if (won) {
-    for (let k = 0; k < 18; k++) {
-      const ph = (t * 0.3 + k * 0.131) % 1;
-      const x = 360 + Math.sin(k * 2.4) * (190 + 110 * ph);
-      const y = BOARD_Y + BOARD_H - ph * (BOARD_H + 60);
+    for (let q = 0; q < 18; q++) {
+      const ph = (t * 0.3 + q * 0.131) % 1;
+      const x = POS.confetti.x + Math.sin(q * 2.4) * (POS.confetti.spread + 110 * ph);
+      const y = BOARD.y + BOARD.size - ph * (BOARD.size + 60);
       ctx.fillStyle = `rgba(255,228,140,${0.85 * (1 - ph) * a})`;
       ctx.beginPath();
-      ctx.arc(x, y, 4 + (k % 3) * 2, 0, TAU);
+      ctx.arc(x, y, 4 + (q % 3) * 2, 0, TAU);
       ctx.fill();
     }
   }
@@ -996,7 +1108,7 @@ function drawPlay(ctx, state, pal, extra) {
   const t = state.pulse;
   const fx = state.fx;
   const intro = easeOut(clamp01((t - fx.boardAt) / 0.4));
-  text(ctx, 'Sure Sweep', W / 2 + 40, 162, 54, pal.ink, 700);
+  if (POS.playTitle) text(ctx, 'Sure Sweep', POS.playTitle.x, POS.playTitle.y, POS.playTitle.size, pal.ink, 700);
 
   ctx.save();
   if (state.runs <= 1 && state.scene === 'playing') {
@@ -1018,92 +1130,39 @@ function drawPlay(ctx, state, pal, extra) {
     ctx.restore();
   }
   if (a > 0) drawResult(ctx, state, pal, a);
-  // Auto Play boards never count against the free-preview limit (game.js `newBoard(true)` never
-  // touches `state.demoBoards`), so this line would be actively misleading while watching one.
-  if (state.demo && !over && !state.auto) text(ctx, `Free preview: ${extra.demoLeft} more board${extra.demoLeft === 1 ? '' : 's'}`, W / 2, 1476, 21, pal.inkFaint, 500);
+  // Auto Play boards never count against the free-preview limit, so this line would be misleading while watching one.
+  if (state.demo && !over && !state.auto && POS.demo) text(ctx, `Free preview: ${extra.demoLeft} more board${extra.demoLeft === 1 ? '' : 's'}`, POS.demo.x, POS.demo.y, POS.demo.size, pal.inkFaint, 500);
 }
 
 // ---- Rules reference page ----------------------------------------------------------------------
-// Every illustration below reuses this file's own drawing functions - the exact tile/number/flag/
-// mine/HUD/switch/button art the player sees in a real run - never a separate simplified icon set.
-// Pure: reads nothing from live gameplay state, mutates nothing.
-// The illustration's own bottom edge (art is drawn at a fixed size, never scaled) - the body text's
-// topAnchor on an illustrated page. A no-art page instead anchors off its own page title (see
-// drawRulesPage), since it has no illustration to clear.
-const RULES_TEXT_TOP_WITH_ART = 860;
-const RULES_TEXT_TOP_HERO = 990; // the hero art is a fixed, larger footprint (see drawHero)
-const RULES_TEXT_BOTTOM = 1215;
-const RULES_PAGE_LABEL_Y = 1246; // fixed distance from the nav row, never from the body text
-const RULES_TEXT_MAXW = W - 108;
-// A real, comfortable base size (~29-30px on this 720-wide canvas) scaled by the reader's own
-// text-size step (TEXT_SCALES, see layout.js), with only a small fallback ladder below it as a
-// safety net for a rare tight page - the primary defence against overflow is content.js keeping
-// every page to one short concept, not shrinking the font to fit (see content.js's own note).
-const RULES_BODY_BASE = [30, 28, 26];
-
-function wrapRulesParagraph(ctx, str, maxW) {
-  const words = str.split(' ');
+// Every illustration below reuses this file's own drawing functions - the exact tile/number/flag/mine/HUD/switch/button art the
+// player sees in a real run - never a separate simplified icon set. The whole page is one scrolling reader.
+// Greedy word wrap for the Rules reader. A single word wider than the column (at 300% text) is broken after a hyphen,
+// else by characters, so nothing ever runs outside its panel.
+export function wrapRulesParagraph(ctx, str, maxW) {
   const lines = [];
   let line = '';
-  for (const w of words) {
-    const test = line ? `${line} ${w}` : w;
-    if (ctx.measureText(test).width > maxW && line) {
-      lines.push(line);
-      line = w;
-    } else line = test;
+  const put = (tok) => {
+    const test = line ? `${line} ${tok}` : tok;
+    if (ctx.measureText(test).width > maxW && line) { lines.push(line); line = tok; } else line = test;
+  };
+  for (const w of str.split(' ')) {
+    if (ctx.measureText(w).width <= maxW) { put(w); continue; }
+    let rest = w;
+    while (ctx.measureText(rest).width > maxW) {
+      let cut = 1;
+      while (cut < rest.length && ctx.measureText(rest.slice(0, cut + 1)).width <= maxW) cut++;
+      const h = rest.slice(0, cut).lastIndexOf('-');
+      if (h >= 1) cut = h + 1;
+      put(rest.slice(0, cut)); rest = rest.slice(cut);
+      lines.push(line); line = '';
+    }
+    put(rest);
   }
   if (line) lines.push(line);
   return lines;
 }
 
-// Picks the largest body size (and matching line/paragraph spacing) whose wrapped paragraphs fit
-// between `topAnchor` (the bottom edge of whatever sits above - the page title, or the page's own
-// illustration) and `bottomLimit`, so a page can never overflow into the nav row no matter how long
-// it is, AND can never overlap upward into the title/art above it.
-//
-// `topAnchor` is a boundary, not a baseline: a font's glyphs rise ABOVE its baseline by its ascent,
-// and that ascent grows with the text-size stepper (up to 3x). Treating topAnchor as the first
-// line's baseline (as this used to) left enough clearance at 1x but let the enlarged glyphs at the
-// 300% step climb back up through the title or the illustration above - a real, visible collision
-// only found by rendering the actual pages at 300%, not assumed from the code. Measuring each
-// candidate size's real ascent (canvas TextMetrics, not a guessed ratio) and starting the baseline
-// that far below topAnchor fixes this at every step, including the in-between ones (1.5x/2x/2.5x).
-function bodyAscent(ctx, size) {
-  setFont(ctx, size, 500);
-  const m = ctx.measureText('Ag');
-  return m.actualBoundingBoxAscent || size * 0.78;
-}
-function layoutRulesBody(ctx, paragraphs, topAnchor, bottomLimit, scale) {
-  let best = null;
-  const sizes = RULES_BODY_BASE.map((s) => Math.round(s * scale));
-  for (const size of sizes) {
-    setFont(ctx, size, 500);
-    const lh = Math.round(size * 1.32);
-    const pgap = Math.round(size * 0.8);
-    const startY = topAnchor + bodyAscent(ctx, size);
-    const blocks = paragraphs.map((p) => wrapRulesParagraph(ctx, p, RULES_TEXT_MAXW));
-    const lineCount = blocks.reduce((a, b) => a + b.length, 0);
-    // A little descent allowance (0.3 * size) on the last line's own glyphs, so the fit check
-    // covers where the ink actually ends, not just where its last baseline sits.
-    const bottomEdge = startY + (lineCount - 1) * lh + (blocks.length - 1) * pgap + size * 0.3;
-    best = { size, lh, pgap, blocks, startY };
-    if (bottomEdge <= bottomLimit) break;
-  }
-  return best;
-}
-
-function fitRulesTitle(ctx, str, maxW, start, floor) {
-  let size = start;
-  setFont(ctx, size, 800);
-  while (ctx.measureText(str).width > maxW && size > floor) {
-    size -= 2;
-    setFont(ctx, size, 800);
-  }
-  return size;
-}
-
-// A little tree of hidden tiles with two neighbours ringed, echoing the Hint/loss-hint ring look,
-// used by a few pages to demonstrate "this tile is deducible" without ever showing a real mine.
 // Canvas fillText never honours embedded newlines - split and stack lines by hand.
 function multilineText(ctx, str, cx, y, size, color, weight, lineHeight = size * 1.25) {
   str.split('\n').forEach((ln, i) => text(ctx, ln, cx, y + i * lineHeight, size, color, weight));
@@ -1137,7 +1196,7 @@ function drawMiniGrid(ctx, pal, cx, cy, cell, cells, t) {
 function drawRulesArt(ctx, name, pal, t) {
   if (!name) return;
   if (name === 'hero') {
-    drawHero(ctx, pal, t, 10);
+    drawHero(ctx, pal, t, 10, { x: 360, y: 700, cell: 100, n: 5 });
   } else if (name === 'cells') {
     const items = [
       { label: 'Hidden', draw: (x, y, s) => drawTile(ctx, pal, x, y, s) },
@@ -1218,10 +1277,7 @@ function drawRulesArt(ctx, name, pal, t) {
     text(ctx, 'One tap on a blank tile opened this whole corner', W / 2, y0 + size + 40, 22, pal.inkSoft, 600);
   } else if (name === 'flags') {
     const fakeState = { pulse: t, flagMode: Math.floor(t / 2) % 2 === 1, fx: { modeAt: -1 } };
-    ctx.save();
-    ctx.translate(0, 460 - MODE_SWITCH.y);
-    drawModeSwitch(ctx, fakeState, pal);
-    ctx.restore();
+    drawModeSwitch(ctx, fakeState, pal, { x: 27, y: 460, w: 666, h: 116 });
   } else if (name === 'chord') {
     drawMiniGrid(
       ctx,
@@ -1250,10 +1306,7 @@ function drawRulesArt(ctx, name, pal, t) {
     for (let i = 0; i < 18; i++) revealed[i] = true;
     numbers[3] = -1;
     numbers[9] = -1;
-    ctx.save();
-    ctx.translate(0, 460 - HUD.y);
-    drawHud(ctx, { scene: 'playing', numbers, revealed, time: 47.3 }, pal, { remainingFlags: 8 });
-    ctx.restore();
+    drawHud(ctx, { scene: 'playing', numbers, revealed, time: 47.3 }, pal, { remainingFlags: 8 }, { x: 27, y: 460, w: 666, h: 124 }, 'row');
   } else if (name === 'winlose') {
     const s = 150;
     const gapX = 140;
@@ -1301,69 +1354,151 @@ function drawRulesArt(ctx, name, pal, t) {
   }
 }
 
+// Nominal vertical extent of each illustration (they are drawn in a fixed 720-wide space), used to place it in the reader.
+const ART_BOX = {
+  hero: { top: 430, h: 560 },
+  cells: { top: 400, h: 230 },
+  neighbours: { top: 360, h: 450 },
+  flood: { top: 340, h: 470 },
+  flags: { top: 440, h: 150 },
+  chord: { top: 360, h: 450 },
+  hud: { top: 440, h: 160 },
+  winlose: { top: 460, h: 290 },
+  losshint: { top: 460, h: 290 },
+  hintundo: { top: 480, h: 170 },
+  colours: { top: 360, h: 290 },
+};
+
+// Scroll state shared with game.js (it clamps the scroll offset and handles drag / wheel / keys).
+export const readerView = { contentH: 0, viewH: 0, max: 0 };
+let readerCache = null;
+
+// The whole Rules text as ONE scrolling document: a major section starts at each illustrated entry, the short entries that
+// follow it become sub-headed paragraphs. Laid out once per (text size, column width, scene entry) and cached.
+function readerLayout(ctx, scale, colW, stamp) {
+  const key = `${scale}|${Math.round(colW)}|${stamp}`;
+  if (readerCache && readerCache.key === key) return readerCache;
+  const items = [];
+  const bodySize = Math.round(28 * scale);
+  const textW = colW - 24;
+  let y = 16;
+  RULES.forEach((e, i) => {
+    if (e.art || i === 0) {
+      if (i > 0) {
+        y += 18;
+        items.push({ kind: 'rule', y });
+        y += 34;
+      }
+      const tsize = Math.round(38 * Math.min(scale, 2.2));
+      setFont(ctx, tsize, 800);
+      const tl = wrapRulesParagraph(ctx, e.title, textW);
+      const lh = Math.round(tsize * 1.22);
+      items.push({ kind: 'title', lines: tl, size: tsize, lh, y: y + tsize * 0.85 });
+      y += tl.length * lh + 14;
+      if (e.art) {
+        const box = ART_BOX[e.art];
+        const sc = Math.min(1, colW / 700);
+        items.push({ kind: 'art', name: e.art, box, sc, y });
+        y += box.h * sc + 18;
+      }
+    } else {
+      const ssize = Math.round(26 * scale);
+      setFont(ctx, ssize, 700);
+      const sl = wrapRulesParagraph(ctx, e.title, textW);
+      const lh = Math.round(ssize * 1.22);
+      items.push({ kind: 'sub', lines: sl, size: ssize, lh, y: y + ssize * 0.85 });
+      y += sl.length * lh + 6;
+    }
+    setFont(ctx, bodySize, 500);
+    const lh = Math.round(bodySize * 1.3);
+    for (const p of e.lines) {
+      const pl = wrapRulesParagraph(ctx, p, textW);
+      items.push({ kind: 'para', lines: pl, size: bodySize, lh, y: y + bodySize * 0.85 });
+      y += pl.length * lh + Math.round(bodySize * 0.5);
+    }
+    y += 8;
+  });
+  readerCache = { key, items, height: y + 24 };
+  return readerCache;
+}
+
 function drawRulesPage(ctx, state, pal) {
   const t = state.pulse;
-  const list = RULES;
-  const i = ((state.page % list.length) + list.length) % list.length;
-  const page = list[i];
-  // Guarded lookup: a stale saved index from a build with a shorter/longer TEXT_SCALES array must
-  // never produce a NaN or out-of-range font size.
   const scale = TEXT_SCALES[state.textScaleIdx] ?? 1;
+  const P = RULES_PANEL;
+  glassPanel(ctx, P, 30);
+  const lab = POS.rules.label;
+  text(ctx, V.mode === 'wide' ? `RULES  ·  TEXT ${Math.round(scale * 100)}%` : `SURE SWEEP - RULES  ·  TEXT ${Math.round(scale * 100)}%`, lab.x, lab.y, lab.size, pal.inkFaint, 700);
 
-  // The reader card: one framed panel holding the whole page, so it reads as a designed reference
-  // sheet rather than text floating loose on the backdrop. Reuses this game's own glassPanel() -
-  // the same panel style as the HUD and result cards - never a new panel style.
-  glassPanel(ctx, RULES_PANEL, 34);
+  const colW = Math.min(P.w - 56, 700);
+  const L = readerLayout(ctx, scale, colW, state.fx.sceneAt);
+  readerView.contentH = L.height;
+  readerView.viewH = P.h;
+  readerView.max = Math.max(0, L.height - P.h);
+  const scroll = clamp(state.rulesScroll ?? 0, 0, readerView.max);
+  const cx = P.x + P.w / 2;
+  const x0 = cx - colW / 2;
 
   ctx.save();
-  ctx.textAlign = 'center';
-  text(ctx, 'SURE SWEEP - RULES', W / 2, 140, 22, pal.inkFaint, 700);
-  const titleSize = fitRulesTitle(ctx, page.title, W - 80, Math.round(44 * Math.min(scale, 1.15)), 26);
-  text(ctx, page.title, W / 2, 202, titleSize, pal.ink, 800);
-
-  drawRulesArt(ctx, page.art, pal, t);
-
-  // topAnchor is the real bottom edge of whatever sits above the body text - the page's own
-  // illustration (a fixed, non-scaling footprint), or, on a page with no art, the page title itself.
-  // The title's height grows with the text-size stepper (capped, like the screen title above it), so
-  // a no-art page's clearance has to follow the title's OWN measured size, not a constant tuned only
-  // for the smallest step.
-  const topAnchor = !page.art
-    ? 202 + titleSize * 0.32 + 24
-    : page.art === 'hero' ? RULES_TEXT_TOP_HERO : RULES_TEXT_TOP_WITH_ART;
-  const { size, lh, pgap, blocks, startY } = layoutRulesBody(ctx, page.lines, topAnchor, RULES_TEXT_BOTTOM, scale);
-  setFont(ctx, size, 500);
-  ctx.fillStyle = pal.inkSoft;
-  ctx.textAlign = 'center';
-  let y = startY;
-  blocks.forEach((block, bi) => {
-    for (const ln of block) {
-      ctx.fillText(ln, W / 2, y);
-      y += lh;
+  rr(ctx, P.x + 2, P.y + 2, P.w - 4, P.h - 4, 28);
+  ctx.clip();
+  ctx.translate(0, P.y - scroll);
+  const vis0 = scroll - 400;
+  const vis1 = scroll + P.h + 100;
+  for (const it of L.items) {
+    if (it.kind === 'rule') {
+      if (it.y < vis0 || it.y > vis1) continue;
+      ctx.fillStyle = 'rgba(255,255,255,0.12)';
+      ctx.fillRect(x0 + 40, it.y, colW - 80, 2);
+    } else if (it.kind === 'art') {
+      if (it.y + it.box.h * it.sc < vis0 || it.y > vis1) continue;
+      ctx.save();
+      ctx.translate(cx, it.y);
+      ctx.scale(it.sc, it.sc);
+      ctx.translate(-360, -it.box.top);
+      drawRulesArt(ctx, it.name, pal, t);
+      ctx.restore();
+    } else {
+      if (it.y + it.lines.length * it.lh < vis0 || it.y - it.size > vis1) continue;
+      const col = it.kind === 'para' ? pal.inkSoft : pal.ink;
+      const wt = it.kind === 'title' ? 800 : it.kind === 'sub' ? 700 : 500;
+      it.lines.forEach((ln, i) => text(ctx, ln, cx, it.y + i * it.lh, it.size, col, wt));
     }
-    if (bi < blocks.length - 1) y += pgap;
-  });
-
-  text(ctx, `Page ${i + 1} of ${list.length}`, W / 2, RULES_PAGE_LABEL_Y, 20, pal.inkFaint, 700);
+  }
   ctx.restore();
 
-  drawButton(ctx, RULES_BACK_BTN, 'Back', { pal, size: 28, pressTau: state.fx.btn === 'rulesBack' ? t - state.fx.btnAt : -1 });
-  drawButton(ctx, RULES_NEXT_BTN, i >= list.length - 1 ? 'Done' : 'Next', { pal, size: 30, pressTau: state.fx.btn === 'rulesNext' ? t - state.fx.btnAt : -1 });
+  // scroll bar
+  if (readerView.max > 0) {
+    const S = SCROLLBAR;
+    rr(ctx, S.x, S.y, S.w, S.h, 5);
+    ctx.fillStyle = 'rgba(255,255,255,0.1)';
+    ctx.fill();
+    const th = Math.max(44, (S.h * P.h) / L.height);
+    const ty = S.y + (scroll / readerView.max) * (S.h - th);
+    rr(ctx, S.x, ty, S.w, th, 5);
+    ctx.fillStyle = 'rgba(255,255,255,0.45)';
+    ctx.fill();
+  }
 
-  // Text-size stepper ("A-"/"A+"): a header row above the reader card - the top strip this page
-  // never used before - so anyone finds it right where they are reading, not buried in a settings
-  // screen. Dimmed (not just disabled) at either end.
+  const tau = (id) => (state.fx.btn === id ? t - state.fx.btnAt : -1);
+  drawButton(ctx, RULES_BACK_BTN, 'Back', { pal, size: 28, pressTau: tau('rulesBack') });
   ctx.save();
   ctx.globalAlpha = state.textScaleIdx === 0 ? 0.4 : 1;
-  drawButton(ctx, TEXT_DEC_BTN, 'A−', { pal, size: 30, pressTau: state.fx.btn === 'textDec' ? t - state.fx.btnAt : -1 });
+  drawButton(ctx, TEXT_DEC_BTN, 'A−', { pal, size: 30, pressTau: tau('textDec') });
   ctx.restore();
   ctx.save();
   ctx.globalAlpha = state.textScaleIdx === TEXT_SCALES.length - 1 ? 0.4 : 1;
-  drawButton(ctx, TEXT_INC_BTN, 'A+', { pal, size: 30, pressTau: state.fx.btn === 'textInc' ? t - state.fx.btnAt : -1 });
+  drawButton(ctx, TEXT_INC_BTN, 'A+', { pal, size: 30, pressTau: tau('textInc') });
   ctx.restore();
+  if (V.mode === 'wide') {
+    const y = TEXT_DEC_BTN.y + TEXT_DEC_BTN.h + 40;
+    const x = RULES_BACK_BTN.x + RULES_BACK_BTN.w / 2;
+    ['Drag, scroll or use', 'the arrow keys to read'].forEach((ln, i) => text(ctx, ln, x, y + i * 26, 19, pal.inkFaint, 500));
+  }
 }
 
 export function draw(ctx, state, extra) {
+  useLayout(extra.w, extra.h);
   const pal = palette(state.theme);
   drawBackground(ctx, pal, state.pulse);
   if (state.scene === 'title') drawTitle(ctx, state, pal, extra);
@@ -1371,3 +1506,7 @@ export function draw(ctx, state, extra) {
   else if (state.scene === 'rules') drawRulesPage(ctx, state, pal);
   else drawPlay(ctx, state, pal, extra);
 }
+
+let lockPress = 0;
+// Press feedback for the tappable lockup: a brief dim after a tap (no sound, no popup).
+export const pressLockup = () => { lockPress = 10; };

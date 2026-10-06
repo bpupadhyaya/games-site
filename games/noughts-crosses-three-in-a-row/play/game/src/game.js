@@ -1,7 +1,7 @@
 // GAME CONTRACT (docs/GAME-CONTRACT.md). Noughts & Crosses: four rule sets, a perfect-play solver, a tutor path.
-import { SCREEN, inRect, BACK_BTN, PAUSE_BTN, TOOLBAR_IDS, autoLayout, playLayout } from './layout.js';
+import { inRect, TOOLBAR_IDS, autoLayout, playLayout, layoutFor } from './layout.js';
 import { TEXT_SCALES, hitDoc, clampScroll } from './ui.js';
-import { buildUi, THINK_STEPS, demoModeLocked, demoOver, recKey } from './screens.js';
+import { buildUi, lockHit, THINK_STEPS, demoModeLocked, demoOver, recKey } from './screens.js';
 import { MODE_IDS, MODE_NAMES, SPECS, startState, legalMoves, wordsOf } from './rules.js';
 import { LEVELS, chooseMove } from './ai.js';
 import { scoreMoves, scoreOf } from './solver.js';
@@ -13,9 +13,12 @@ import { RULE_COUNT, HOWTO_COUNT, tr } from './content.js';
 import { boardGeo, themeById, THEMES } from './art.js';
 import { render } from './view.js';
 
-export const meta = { width: SCREEN.width, height: SCREEN.height };
+// `meta.width/height` are updated live by the kit on every resize (fluid viewport, short side = 720); every position comes from layoutFor(meta.width, meta.height).
+export const meta = { width: 720, height: 1560, fluid: { short: 720 } };
+// The mouse wheel scrolls documents: main.js adds to dy (virtual units), update() consumes it.
+export const wheelInput = { dy: 0 };
 
-const VERSION = '1.0.0';
+const VERSION = '1.1.2';   // fallback only: the About page shows env.manifest.version (game.json) when the kit provides it
 const WIN_NOTES = [523, 659, 784, 1047, 1319];
 const AUTO_GAMES = [
   { mode: 'classic', lv: ['perfect', 'perfect'] },
@@ -31,7 +34,7 @@ export async function createGame(env) {
     setup: { mode: 'classic', level: 'skilled', side: 1 }, stats: {}, lessons: {}, save: null, demoGames: 0, progress: { games: 0, wins: 0 },
     page: { howto: 0, rules: 0 }, scroll: {}, scrollVel: {}, press: null, match: null, auto: null, lessonIdx: 0, endInfo: null, lessonInfo: null,
     toast: null, toastT: 0, ghost: -1, ghostWho: 0, kbd: false, canUndo: false, firstGame: true, winSeq: null, lessonWait: -1, lessonOk: null, lastOpts: null,
-    demo: Boolean(config?.demo), dev: Boolean(config?.dev), owns: false, price: '', resetArm: false, version: VERSION, shot: false, lastPtr: { x: 0, y: 0 },
+    demo: Boolean(config?.demo), dev: Boolean(config?.dev), owns: false, price: '', resetArm: false, version: env.manifest?.version ?? VERSION, shot: false, lastPtr: { x: 0, y: 0 },
   };
 
   const [set, stats, les, save, dg, prog] = await Promise.all([storage.get('nc.settings', null), storage.get('nc.stats', null), storage.get('nc.lessons', null), storage.get('nc.save', null), storage.get('nc.demo', 0), storage.get('nc.progress', null)]);
@@ -88,7 +91,9 @@ export async function createGame(env) {
   };
 
   // ------------------------------------------------------------------------------ geometry helpers
-  const geoNow = (M) => { const lay = playLayout(TEXT_SCALES[S.textIdx]); return boardGeo(M.mode, lay.board.x, lay.board.y, lay.board.side); };
+  const curL = () => layoutFor(meta.width, meta.height);
+  const ui$ = () => buildUi(S, curL());
+  const geoNow = (M) => { const lay = playLayout(curL(), TEXT_SCALES[S.textIdx]); return boardGeo(M.mode, lay.board.x, lay.board.y, lay.board.side); };
   const cellAt = (M, x, y) => {
     const g = geoNow(M), r = g.cell / 2 + 4;
     for (let i = 0; i < SPECS[M.mode].n; i++) { const [cx, cy] = g.centers[i]; if (Math.abs(x - cx) <= r && Math.abs(y - cy) <= r) return i; }
@@ -308,13 +313,25 @@ export async function createGame(env) {
       else if (n === 39) { S.textIdx = 0; S.scene = 'about'; }
       else if (n === 40) { S.textIdx = 0; S.scene = 'howto'; S.page.howto = 3; }
       else if (n === 37) { S.textIdx = 0; const M = mk('classic', 'perfect'); place(M, [4, 0, 2, 6, 3, 5, 7, 1, 8]); settle(M, 1.3); }
+    } else if (n >= 51 && n <= 56) { // layout QA (100 percent text unless ?z= is given): result, summary, lesson card, demo card, Settings, Setup
+      S.textIdx = 0;
+      if (n === 51) { const M = mk('classic', 'skilled'); place(M, [4, 1, 0, 8, 6, 3, 2]); settle(M, 3); S.overlay = 'end'; S.ovT = 1; }
+      else if (n === 52) { startAuto(); S.overlay = 'autosum'; S.ovT = 1; }
+      else if (n === 53) { startLesson(2); settle(S.match, 1); S.lessonInfo = { ok: true, head: 'Correct!', body: 'That completes three in a row, so X wins.' }; S.overlay = 'lesson'; S.ovT = 1; }
+      else if (n === 54) { S.scene = 'demo-limit'; }
+      else if (n === 55) { const M = mk('classic', 'skilled'); place(M, [4, 0]); settle(M, 1); S.overlay = 'pause'; S.ovT = 1; }
+      else if (n === 56) { startAuto(); place(S.match, [4, 0]); settle(S.match, 1); S.auto.phase = 'think'; S.auto.t = 1; planAuto(); }
     } else if (n >= 1001 && n <= 1030) { S.scene = 'rules'; S.page.rules = n - 1001; }
     else if (n >= 2001 && n <= 2030) { S.scene = 'rules'; S.page.rules = n - 2001; S.textIdx = 4; }
   }
   const wantsShot = typeof location !== 'undefined' && /[?&]shot=1/.test(location.search);
   const sd = config?.seed ?? 0;
-  const shotSeed = wantsShot && ((sd >= 900001 && sd <= 900050) || (sd >= 901001 && sd <= 901030) || (sd >= 902001 && sd <= 902030)) ? sd - 900000 : 0;
-  if (shotSeed) stageShot(shotSeed);
+  const shotSeed = wantsShot && ((sd >= 900001 && sd <= 900060) || (sd >= 901001 && sd <= 901030) || (sd >= 902001 && sd <= 902030)) ? sd - 900000 : 0;
+  if (shotSeed) {
+    stageShot(shotSeed);
+    const zq = /[?&]z=(\d)/.exec(location.search);
+    if (zq) S.textIdx = Math.min(TEXT_SCALES.length - 1, Number(zq[1]));
+  }
 
   // ------------------------------------------------------------------------------ ui plumbing
   const getScroll = (ui) => S.scroll[ui.scrollKey] ?? 0;
@@ -409,8 +426,9 @@ export async function createGame(env) {
     S.toast = null;
     if (S.scene === 'play' && !S.overlay && S.match) { playDown(x, y); return; }
     if (S.scene === 'auto' && !S.overlay) { autoDown(x, y); return; }
-    const ui = buildUi(S);
+    const ui = ui$();
     if (!ui.layout) return;
+    if (S.scene === 'title' && ui.lock) { const hz = lockHit(ui.lock, curL()); if (inRect(x, y, hz)) { S.press = { id: 'lock', active: true, kind: 'lock', rect: hz }; return; } }
     const f = fixedHit(ui, x, y);
     if (f) { S.press = { id: f.id, active: true, kind: 'fixed', rect: f.rect }; return; }
     const reg = ui.region;
@@ -432,7 +450,7 @@ export async function createGame(env) {
       return;
     }
     if (pr.kind === 'doc') {
-      const ui = buildUi(S);
+      const ui = ui$();
       if (!ui.layout || !ui.region) { S.press = null; return; }
       if (!pr.scrolling && Math.abs(y - pr.y0) > 10) { pr.scrolling = true; pr.active = false; }
       if (pr.scrolling) {
@@ -452,8 +470,9 @@ export async function createGame(env) {
       if (S.scene === 'play' && S.match && !S.overlay && cellAt(S.match, x, y) === pr.id) { S.kbd = false; S.match.cur = pr.id; tapCell(S.match, pr.id); }
       return;
     }
+    if (pr.kind === 'lock') { if (inRect(x, y, pr.rect)) env.openArcforgeHome?.(); return; }
     if (pr.kind === 'doc') {
-      const ui = buildUi(S);
+      const ui = ui$();
       if (!ui.layout || !ui.region) return;
       if (pr.scrolling) { S.scrollVel[ui.scrollKey] = pr.vel; return; }
       const hit = hitDoc(ui.layout, x - ui.region.x, y - ui.region.y - (ui.offY || 0) + getScroll(ui));
@@ -474,9 +493,9 @@ export async function createGame(env) {
 
   // ---- play
   function playDown(x, y) {
-    const lay = playLayout(TEXT_SCALES[S.textIdx]);
-    if (inRect(x, y, BACK_BTN)) { S.press = { id: 'hud:back', active: true, kind: 'hud', rect: BACK_BTN }; return; }
-    if (inRect(x, y, PAUSE_BTN)) { S.press = { id: 'hud:pause', active: true, kind: 'hud', rect: PAUSE_BTN }; return; }
+    const lay = playLayout(curL(), TEXT_SCALES[S.textIdx]);
+    if (inRect(x, y, lay.back)) { S.press = { id: 'hud:back', active: true, kind: 'hud', rect: lay.back }; return; }
+    if (inRect(x, y, lay.pause)) { S.press = { id: 'hud:pause', active: true, kind: 'hud', rect: lay.pause }; return; }
     for (let i = 0; i < TOOLBAR_IDS.length; i++) {
       if (inRect(x, y, lay.tool[i])) { S.press = { id: `tool:${TOOLBAR_IDS[i]}`, active: true, kind: 'tool', rect: lay.tool[i] }; return; }
     }
@@ -497,8 +516,9 @@ export async function createGame(env) {
 
   // ---- auto
   function autoDown(x, y) {
-    if (inRect(x, y, BACK_BTN)) { S.press = { id: 'auto:exit', active: true, kind: 'auto', rect: BACK_BTN }; return; }
-    const lay = autoLayout(TEXT_SCALES[S.textIdx]);
+    const L = curL(), back = playLayout(L, TEXT_SCALES[S.textIdx]).back;
+    if (inRect(x, y, back)) { S.press = { id: 'auto:exit', active: true, kind: 'auto', rect: back }; return; }
+    const lay = autoLayout(L, TEXT_SCALES[S.textIdx]);
     for (const id of ['slower', 'pause', 'faster']) {
       if (inRect(x, y, lay[id])) { S.press = { id: `auto:${id}`, active: true, kind: 'auto', rect: lay[id] }; return; }
     }
@@ -535,16 +555,14 @@ export async function createGame(env) {
       if (has('Escape') && !S.overlay) autoAction('auto:exit');
       return;
     }
-    const ui = buildUi(S);
+    const ui = ui$();
     if (ui.layout && ui.region) {
       if (keys.down.has('ArrowDown') || keys.down.has('PageDown')) setScroll(ui, getScroll(ui) + 18);
       if (keys.down.has('ArrowUp') || keys.down.has('PageUp')) setScroll(ui, getScroll(ui) - 18);
+      if (has('Home')) setScroll(ui, 0);
+      if (has('End')) setScroll(ui, 1e9);
     }
     if (has('Escape') && ['setup', 'learn', 'howto', 'rules', 'about', 'settings', 'demo-limit'].includes(S.scene)) gotoScene('title');
-    if (S.scene === 'howto' || S.scene === 'rules') {
-      if (has('ArrowRight')) activate('next');
-      if (has('ArrowLeft')) activate('prev');
-    }
   }
 
   // ------------------------------------------------------------------------------ main loop
@@ -567,10 +585,15 @@ export async function createGame(env) {
       if (ptr.down || ptr.pressed) { S.lastPtr.x = ptr.x; S.lastPtr.y = ptr.y; }
       if (!S.shot && (input.keys.pressed.size || input.keys.down.size)) onKeys(input.keys);
 
+      if (wheelInput.dy) {
+        const dy = wheelInput.dy; wheelInput.dy = 0;
+        const ui = ui$();
+        if (ui.layout && ui.region && !S.press) setScroll(ui, getScroll(ui) + dy);
+      }
       for (const k of Object.keys(S.scrollVel)) {
         const v = S.scrollVel[k];
         if (Math.abs(v) < 8) { delete S.scrollVel[k]; continue; }
-        const ui = buildUi(S);
+        const ui = ui$();
         if (ui.scrollKey === k && ui.layout && ui.region) setScroll(ui, (S.scroll[k] ?? 0) + v * dt);
         S.scrollVel[k] = v * Math.exp(-dt * 5);
       }
@@ -600,8 +623,9 @@ export async function createGame(env) {
       }
     },
 
-    render(ctx) {
-      render(ctx, S, buildUi(S));
+    render(ctx, view) {
+      const L = layoutFor(view?.width ?? meta.width, view?.height ?? meta.height);
+      render(ctx, S, buildUi(S, L), L);
     },
 
     getState() {

@@ -20,7 +20,7 @@ function makeCanvas(w, h) {
 }
 
 // woven geometric band (decoration): a strip of indigo with cream stepped diamonds and ochre rules
-function band(ctx, y, h, seed) {
+function band(ctx, y, h, seed, W = 720) {
   const rnd = lcg(seed);
   const g = ctx.createLinearGradient(0, y, 0, y + h); g.addColorStop(0, '#22346a'); g.addColorStop(1, '#16224a');
   ctx.fillStyle = g; ctx.fillRect(0, y, W, h);
@@ -44,23 +44,27 @@ function band(ctx, y, h, seed) {
   void rnd;
 }
 
-function paintTable(ctx) {
-  const bg = ctx.createLinearGradient(0, 0, 0, H);
-  bg.addColorStop(0, '#b2532d'); bg.addColorStop(0.5, '#953f22'); bg.addColorStop(1, '#6e2a16');
-  ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
-  // weave: fine crossing threads, with slow irregular tint
+// The table is drawn for the LIVE screen size: a vertical gradient (per frame, one fill), a cached weave tile and cached woven bands.
+const WEAVE = 1728;                                  // >= the widest screen (720 x 2.4)
+function paintWeave(ctx) {
   const rnd = lcg(7);
-  for (let y = 0; y < H; y += 3) { ctx.fillStyle = `rgba(${rnd() < 0.5 ? '255,220,170' : '40,10,0'},${0.03 + rnd() * 0.04})`; ctx.fillRect(0, y, W, 1.4); }
-  for (let x = 0; x < W; x += 3) { ctx.fillStyle = `rgba(${rnd() < 0.5 ? '255,220,170' : '40,10,0'},${0.03 + rnd() * 0.04})`; ctx.fillRect(x, 0, 1.4, H); }
-  // wide soft stripes like a woven cloth
-  for (let k = 0; k < 9; k++) { ctx.fillStyle = `rgba(0,0,0,${0.03 + (k % 2) * 0.03})`; ctx.fillRect(0, 150 + k * 165, W, 44); }
-  band(ctx, 0, 92, 1); band(ctx, 1468, 92, 2);
-  ctx.save(); ctx.globalAlpha = 0.5; ctx.fillStyle = '#000'; ctx.fillRect(0, 92, W, 12); ctx.restore();
+  for (let y = 0; y < WEAVE; y += 3) { ctx.fillStyle = `rgba(${rnd() < 0.5 ? '255,220,170' : '40,10,0'},${0.03 + rnd() * 0.04})`; ctx.fillRect(0, y, WEAVE, 1.4); }
+  for (let x = 0; x < WEAVE; x += 3) { ctx.fillStyle = `rgba(${rnd() < 0.5 ? '255,220,170' : '40,10,0'},${0.03 + rnd() * 0.04})`; ctx.fillRect(x, 0, 1.4, WEAVE); }
+  for (let k = 0; k < 11; k++) { ctx.fillStyle = `rgba(0,0,0,${0.03 + (k % 2) * 0.03})`; ctx.fillRect(0, 150 + k * 165, WEAVE, 44); }
 }
-function paintMid(ctx) {                            // the two narrower bands that frame the board scenes
-  band(ctx, 326, 50, 3); band(ctx, 1130, 56, 4);
-  ctx.save(); ctx.globalAlpha = 0.5; ctx.fillStyle = '#000'; ctx.fillRect(0, 376, W, 10); ctx.fillRect(0, 1186, W, 10); ctx.restore();
+const plain = {};
+function plainLayer(key, w, h, paint) {
+  let c = plain[key];
+  if (c === undefined) { const m = makeCanvas(w, h); if (m) { paint(m.x); c = m.c; } else c = null; plain[key] = c; }
+  return c;
 }
+const bandLayer = (h, seed) => plainLayer(`band${h}_${seed}`, WEAVE, h, (c) => band(c, 0, h, seed, WEAVE));
+function drawBand(ctx, r, seed) {
+  const c = bandLayer(Math.round(r.h), seed);
+  if (c) ctx.drawImage(c, 0, 0, Math.min(WEAVE, r.w), r.h, r.x, r.y, Math.min(WEAVE, r.w), r.h);
+  else { ctx.fillStyle = '#22346a'; ctx.fillRect(r.x, r.y, r.w, r.h); }
+}
+const shade = (ctx, x, y, w, h) => { ctx.save(); ctx.globalAlpha = 0.5; ctx.fillStyle = '#000'; ctx.fillRect(x, y, w, h); ctx.restore(); };
 
 function paintBoard(ctx, wood) {
   const WD = WOODS[wood] ?? WOODS.iroko, F = FRAME;
@@ -177,15 +181,19 @@ function layer(key, paint) {
   if (L === undefined) { const m = makeCanvas(W * SS, H * SS); if (m) { m.x.scale(SS, SS); paint(m.x); L = m.c; } else L = null; layers[key] = L; }
   return L;
 }
-// scene: 'board' = table + bands + board; 'title' = table + a smaller board (drawn by the caller with a transform)
-export function drawTable(ctx, wood = 'iroko', withMid = true) {
-  const t = layer('table', paintTable);
-  if (!t) { ctx.fillStyle = '#953f22'; ctx.fillRect(0, 0, W, H); return; }
-  ctx.drawImage(t, 0, 0, W, H);
-  if (withMid) ctx.drawImage(layer('mid', paintMid), 0, 0, W, H);
+// The table, bands included, for the layout L (layoutFor): the background always covers the whole screen.
+export function drawTable(ctx, wood, L, withMid = true) {
+  const { w, h } = L, bg = ctx.createLinearGradient(0, 0, 0, h);
+  bg.addColorStop(0, '#b2532d'); bg.addColorStop(0.5, '#953f22'); bg.addColorStop(1, '#6e2a16');
+  ctx.fillStyle = bg; ctx.fillRect(0, 0, w, h);
+  const wv = plainLayer('weave', WEAVE, WEAVE, paintWeave);
+  if (wv) for (let y = 0; y < h; y += WEAVE) ctx.drawImage(wv, 0, 0, Math.min(WEAVE, w), WEAVE, 0, y, Math.min(WEAVE, w), WEAVE);
+  drawBand(ctx, L.bands.top, 1); shade(ctx, 0, L.bands.top.h, w, 12);
+  drawBand(ctx, L.bands.bottom, 2);
+  if (withMid && L.bands.mid) { drawBand(ctx, L.bands.mid[0], 3); drawBand(ctx, L.bands.mid[1], 4); for (const m of L.bands.mid) { shade(ctx, 0, m.y + m.h, w, 10); } }
 }
 export function drawBoard(ctx, wood = 'iroko') {
-  const b = layer('board_' + wood, (c) => paintBoard(c, wood)); if (b) ctx.drawImage(b, 0, 0, W, H);
+  const b = layer('board_' + wood, (c) => paintBoard(c, wood)); if (b) ctx.drawImage(b, 0, 340 * SS, W * SS, 800 * SS, 0, 340, W, 800);   // only the band of the canvas the board lives in
 }
 
 // ---- seeds -------------------------------------------------------------------------------------------------

@@ -1,7 +1,7 @@
 // The director: builds the 3D set and the cast once, then each frame READS the sim state (never writes it) and poses everybody.
 // Two FIXED cameras (camera.js): the batter's-eye view and the high field view; the picture cuts between them, nothing ever pans or zooms.
 import { PITCH, END_Z, FIELD, BALL_R, DT, clamp, lerp } from '../src/core.js';
-import { CAMS, project } from '../src/camera.js';
+import { CAMS, VIEW, project } from '../src/camera.js';
 import { viewOf, T_RUN, runU, HOLD_VIEW, GATHER_T } from '../src/sim.js';
 import { deliveryPos, trackPos, throwPos, REL_Z, REL_Y, SWING_LEAD, resolveSwing } from '../src/ball.js';
 import { World, fitCamera, makeBackdrop, V3 } from './world.js';
@@ -175,7 +175,7 @@ export async function createDirector(P) {
       P.cam.projectionMatrixInverse.copy(P.cam.projectionMatrix).invert(); P.cam.updateMatrixWorld(true); P.cam.matrixWorldInverse.copy(P.cam.matrixWorld).invert();
     }
     if (view === 'bat') {
-      const key = `${P.size.w}x${P.size.h}`;
+      const key = `${P.size.w}x${P.size.h}|${VIEW.w}x${VIEW.h}|${P.epoch || 0}`;
       if (backdropKey !== key) { backdropKey = key; backdrop = makeBackdrop(globalThis.document, P.size.w, P.size.h, Math.min(globalThis.devicePixelRatio || 1, 2)); }
       stage.scene.background = backdrop; stage.scene.fog = fog;
     } else { stage.scene.background = skyCol; stage.scene.fog = fogField; }
@@ -625,7 +625,7 @@ export async function createDirector(P) {
       if (!a.h.root.visible) continue;
       const p = a.h.root.position;
       const sp = project(cam, p.x, 0.9, -p.z);
-      if (!sp || sp.x < -120 || sp.x > 840 || sp.y < -150 || sp.y > 1500) { a.h.root.visible = false; continue; }
+      if (!sp || sp.x < -120 || sp.x > VIEW.w + 120 || sp.y < -150 || sp.y > VIEW.h + 220) { a.h.root.visible = false; continue; }
       // level of detail from the size on screen (virtual px for a 1.8 m person): full / medium / light
       const px = 1.8 * sp.k, lv = px > 190 ? 0 : px > 80 ? 1 : 2;
       a.h.setLOD(P.quality === 'low' ? Math.max(1, lv) : lv);

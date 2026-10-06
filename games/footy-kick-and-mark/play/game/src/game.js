@@ -1,6 +1,7 @@
 // Footy: Kick and Mark - the game shell. Scenes, input, persistence, preview wiring, Learn, Watch & Learn. The match lives in sim.js.
 import { createSim } from './sim.js';
-import { W, H, TEXT_SCALES, THINK_STEPS, REF_BACK, REF_NEXT, TEXT_DEC, TEXT_INC, SETUP_PINS, inRect, hudLayout } from './layout.js';
+import { W, H, setSize, TEXT_SCALES, THINK_STEPS, readerLayout, setupPins, inRect, hudLayout, host } from './layout.js';
+import { camFor } from './camera.js';
 import { setPress } from './ui.js';
 import { ABOUT, HOWTO, RULES, LESSONS, QUIZ, ROLE_INFO } from './content.js';
 import * as MN from './menus.js';
@@ -9,7 +10,8 @@ import { createControls } from './controls.js';
 import { clamp } from './util.js';
 import { ROLES, LEVELS } from './consts.js';
 
-export const meta = { width: W, height: H };
+// Fluid viewport (kit 1.7): the short side is 720 units, the long side follows the screen; the kit keeps meta.width / meta.height live.
+export const meta = { width: 720, height: 1280, fluid: { short: 720 } };
 const DEMO_MATCH_CAP = 2;
 const SAVE_VERSION = 1;
 const TEAM_NAMES = ['Red', 'Blue'];
@@ -308,15 +310,17 @@ export function createGame(env) {
   };
   const updatePages = (input) => {
     const ptr = input.pointer, keys = input.keys;
-    const dm = MN.docMeta(), vw = MN.docView();
+    const list = G.scene === 'howto' ? HOWTO : G.scene === 'about' ? aboutList : RULES;
+    MN.ensureDoc(G, list, G.scene === 'howto' ? 'How to Play' : G.scene === 'about' ? 'About' : 'Rules');
+    const dm = MN.docMeta(), RL = readerLayout(), V = RL.view;
     const close = () => { G.scene = G.back === 'play' ? 'play' : 'title'; G.page = 0; G.ui.scroll = 0; G.ui.drag = null; };
     const textChanged = () => { G.ui.scroll = 0; saveSettings(); };
     if (ptr.pressed) {
-      if (inRect(REF_NEXT, ptr.x, ptr.y)) { if (G.ui.scroll >= dm.max - 4) { close(); return; } G.ui.scroll = clamp(G.ui.scroll + dm.viewH * 0.85, 0, dm.max); }
-      else if (inRect(REF_BACK, ptr.x, ptr.y)) { close(); return; }
-      else if (inRect(TEXT_DEC, ptr.x, ptr.y)) { G.settings.textIdx = Math.max(0, G.settings.textIdx - 1); textChanged(); }
-      else if (inRect(TEXT_INC, ptr.x, ptr.y)) { G.settings.textIdx = Math.min(TEXT_SCALES.length - 1, G.settings.textIdx + 1); textChanged(); }
-      else if (ptr.y >= vw.top - 20 && ptr.y <= vw.bottom + 20) G.ui.drag = { y0: ptr.y, s0: G.ui.scroll };
+      if (inRect(RL.next, ptr.x, ptr.y)) { if (G.ui.scroll >= dm.max - 4) { close(); return; } G.ui.scroll = clamp(G.ui.scroll + dm.viewH * 0.85, 0, dm.max); }
+      else if (inRect(RL.back, ptr.x, ptr.y)) { close(); return; }
+      else if (inRect(RL.dec, ptr.x, ptr.y)) { G.settings.textIdx = Math.max(0, G.settings.textIdx - 1); textChanged(); }
+      else if (inRect(RL.inc, ptr.x, ptr.y)) { G.settings.textIdx = Math.min(TEXT_SCALES.length - 1, G.settings.textIdx + 1); textChanged(); }
+      else if (inRect({ x: V.x - 6, y: V.y - 20, w: V.w + 12, h: V.h + 40 }, ptr.x, ptr.y)) G.ui.drag = { y0: ptr.y, s0: G.ui.scroll };
     }
     if (G.ui.drag && ptr.down) G.ui.scroll = clamp(G.ui.drag.s0 - (ptr.y - G.ui.drag.y0), 0, dm.max);
     if (ptr.released) G.ui.drag = null;
@@ -327,7 +331,8 @@ export function createGame(env) {
     const ptr = input.pointer, k = input.keys;
     if (k.pressed.has('Enter')) { handleSetup('start'); return; }
     if (k.pressed.has('Escape')) { handleSetup('back'); return; }
-    if (ptr.pressed && (inRect(SETUP_PINS.start, ptr.x, ptr.y) || inRect(SETUP_PINS.back, ptr.x, ptr.y))) { handleSetup(inRect(SETUP_PINS.start, ptr.x, ptr.y) ? 'start' : 'back'); return; }
+    const pins = setupPins();
+    if (ptr.pressed && (inRect(pins.start, ptr.x, ptr.y) || inRect(pins.back, ptr.x, ptr.y))) { handleSetup(inRect(pins.start, ptr.x, ptr.y) ? 'start' : 'back'); return; }
     updateFlowScene(dt, input, handleSetup, 'setup');
   };
 
@@ -342,7 +347,7 @@ export function createGame(env) {
     const ptr = input.pointer, s = S.s;
     if (G.mode === 'shot') { S.update(dt, {}); recordHist(); processEvents(); return; }
     if (G.pauseMenu) { MN.ensureLayout(G, 'pause'); updateFlowScene(dt, input, handlePause, null); return; }
-    const lay = hudLayout(G.settings.textIdx);
+    const lay = hudLayout(G.settings.textIdx, W, H);
     if (G.think) {
       if (ptr.pressed && G.thinkRects && inRect(G.thinkRects.close, ptr.x, ptr.y)) { G.think = null; sfx.tick(); controls.reset(); }
       if (input.keys.pressed.has('Enter')) { G.think = null; controls.reset(); }
@@ -374,7 +379,7 @@ export function createGame(env) {
       return;
     }
     const brk = s.phase === 'break' || s.over;
-    const c = controls.read(touches, input.keys, lay, !brk);
+    const c = controls.read(touches, input.keys, lay, !brk, camFor(W, H));
     G.cs = c;
     for (const t of c.taps) {
       if (inRect(lay.pause, t.x, t.y)) { c.pause = true; sfx.tick(); }
@@ -401,6 +406,18 @@ export function createGame(env) {
     void roles;
     G.scene = 'play';
   }
+  // The live screen size (fluid viewport). When it changes (rotation, window resize) held touches and the stick are dropped (their
+  // coordinates belong to the old layout); the match, its score and its clock are untouched.
+  let sizeKey = '';
+  function syncSize() {
+    setSize(meta.width, meta.height);
+    // kit 1.8.0 preview pill: clear of the HUD clock, in both orientations (landscape: under the Think/Pause column's right neighbour, i.e. right edge under the top bar; portrait: right edge under Pause)
+    { const hl = hudLayout(G.settings.textIdx, W, H); meta.previewBadge = hl.wide ? { x: W - host.r - 14, y: hl.topH + 8, align: 'right' } : { x: hl.pause.x + hl.pause.w, y: hl.pause.y + hl.pause.h + 4, align: 'right' }; }
+    const k = `${W}x${H}`;
+    if (k !== sizeKey) { if (sizeKey) { controls.reset(); tp?.reset?.(); G.ui.drag = null; G.ui.tdrag = null; } sizeKey = k; G.size = k; }
+  }
+  if (config.dev) G.dev = { startMatch };   // tester hook (debug builds / ?dev=1 only)
+  syncSize();
   function startup() { if (config.shot) startShot(); else startDemoBg(); }
   startup();
 
@@ -408,6 +425,7 @@ export function createGame(env) {
     // Menus, Rules, About, settings, Learn, Watch & Learn, pause and the result screens are free; only real play counts against the preview.
     isPreviewExempt: () => !(G.scene === 'play' && G.mode === 'ai') || G.paused || G.pauseMenu || !!G.think || !S || S.s.phase === 'break' || S.s.over,
     update(dt, input) {
+      syncSize();
       setPress(input.pointer);
       const touches = tp ? tp.snapshot() : legacyTouches(input.pointer);
       G.t += dt;
@@ -415,7 +433,11 @@ export function createGame(env) {
       if (G.scene === 'play' && !G.paused && !G.pauseMenu && S && (G.mode === 'ai' || G.mode === 'watch') && !(G.mode === 'watch' && (S.s.hold || G.watch.paused))) murmur(dt);
       if (G.scene !== 'play') S.update(dt, {});
       switch (G.scene) {
-        case 'title': updateFlowScene(dt, input, handleTitle, 'title'); break;
+        case 'title': {
+          const lt = MN.getLockTap(), pp = input.pointer;
+          if (lt && pp.pressed && pp.x >= lt.x && pp.x <= lt.x + lt.w && pp.y >= lt.y && pp.y <= lt.y + lt.h) { G.lockDown = G.t + 0.25; env.openArcforgeHome?.(); break; }
+          updateFlowScene(dt, input, handleTitle, 'title'); break;
+        }
         case 'setup': updateSetup(dt, input); break;
         case 'settings': updateFlowScene(dt, input, handleSettings, 'settings'); break;
         case 'learn': updateFlowScene(dt, input, handleLearn, 'learn'); break;
@@ -431,6 +453,7 @@ export function createGame(env) {
       }
     },
     render(ctx, view) {
+      syncSize();
       G.viewW = (view && view.cssW) || 720; G.viewH = (view && view.cssH) || 1280;
       ctx.clearRect(0, 0, W, H);
       if (view && view.noGL) renderFallback(ctx, G, view);

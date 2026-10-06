@@ -1,136 +1,24 @@
-// Drawing for the Rules reference page. Every illustration reuses the game's OWN drawing
-// functions from render.js (the exact hunter, tree, stone, seed, acorn, wind and beater art the
-// player sees in a real run) against small hand-built scenes - never a separate simplified icon.
-// Pure: reads nothing from live game state, mutates nothing.
-import { W, H, drawText, drawTree, hunter, telegraph, stones, seeds, beaters, nuts, bird, hud, FONT } from './render.js';
+// Drawing for the Rules reference: ONE scrolling reader (drag, wheel, keys, scroll bar) holding every page of content.js as a
+// section: title, illustration, text. Every illustration reuses the game's OWN drawing functions from render.js (the exact
+// hunter, tree, stone, seed, acorn, wind and beater art the player sees in a real run) against small hand-built scenes -
+// never a separate simplified icon. Text size 100 % .. 300 % (TEXT_SCALES); sections are measured once per size and cached.
+// Drawing only: reads nothing from live game state, mutates nothing but the exported metrics.
+import { drawText, drawTree, hunter, telegraph, stones, seeds, beaters, nuts, bird, hud, FONT, setViewEdge } from './render.js';
 import { BOSS_SLOT } from './tuning.js';
 import { levelDef } from './levels.js';
+import { TEXT_SCALES } from './layout.js';
+import { drawButton } from './ui.js';
 
-const NAV_Y0 = 1148, NAV_Y1 = 1270;
-export const RULES_ENTRY_BOX = { x0: W - 176, y0: 26, x1: W - 16, y1: 96 };
-export const RULES_BACK_BOX = { x0: 20, y0: NAV_Y0, x1: 260, y1: NAV_Y1 };
-export const RULES_NEXT_BOX = { x0: W - 260, y0: NAV_Y0, x1: W - 20, y1: NAV_Y1 };
+export { TEXT_SCALES };
+// Set by renderRules each frame: how far the reader can scroll and how tall its viewport is (update() needs both).
+export const rulesMetrics = { max: 0, view: 0 };
 
-// The text-size stepper: an index into this list, never a raw float. Persisted by game.js in its
-// own prefs storage. Always look it up with `?? 1` and clamp any loaded value to this range - a
-// stale index from a build with a shorter array must never produce a NaN/undefined font size.
-export const TEXT_SCALES = [1, 1.5, 2, 2.5, 3];
-// Same header row as the "PERCH — RULES" caption, one in each top corner, clear of that centred
-// label and clear of the framed panel below it.
-export const TEXT_DEC_BOX = { x0: 16, y0: 22, x1: 164, y1: 92 };
-export const TEXT_INC_BOX = { x0: W - 164, y0: 22, x1: W - 16, y1: 92 };
-
-// The framed reader-card panel behind every page's title, art and body text - a rounded rect with
-// a soft gradient fill and a thin gold double border, matching this game's own dusk/gold palette
-// (the HUD's gold accents, the sunset sky). Drawn first, everything else on the page sits on it.
-const PANEL = { x: 16, y: 100, w: W - 32, h: 980, r: 26 };
-
-// Text always stays clear of the Back/Next row: every page uses the size below (for the current
-// text-scale step), falling back to a smaller size only as a last-resort safety net - the real fix
-// for a page that does not fit is to split it in content.js, not to quietly shrink its font below
-// every other page's.
-const TEXT_BOTTOM = 1064;
-const TEXT_MAXW = W - 108;
-const BODY_BASE = 26;
-const TITLE_BASE = 34;
-const HEADER_BASE = 22;
-const FOOTER_BASE = 21;
-const NAV_BASE = 36;
-// The lowest this ladder will ever go, even on the last-resort safety net.
-const BODY_FLOOR = 20;
-
-// A full descending ladder from the scale's own top size down to BODY_FLOOR, 2px at a time - not
-// just a handful of near-top candidates then a hard drop to a fixed floor. That old 5-candidates-
-// then-cliff shape (top..top-8, then straight to 18) meant that once the text-size stepper reached
-// its 300% step, almost every page's paragraph no longer fit any of the near-top candidates and
-// fell all the way to the tiny fixed floor - visibly SMALLER than the default 100% step, exactly
-// backwards from what the "bigger text" control promises. A fine-grained ladder finds the largest
-// size that actually fits, which measured out at roughly 35-55px across every page in this game at
-// the top step - comfortably bigger than the 100% default, never the old floor.
-function bodySizesFor(scale) {
-  const top = Math.round(BODY_BASE * scale);
-  const sizes = [];
-  for (let s = top; s > BODY_FLOOR; s -= 2) sizes.push(s);
-  sizes.push(BODY_FLOOR);
-  return sizes;
-}
-
-function wrapParagraph(ctx, text, maxW) {
-  const words = text.split(' ');
-  const lines = [];
-  let line = '';
-  for (const w of words) {
-    const t = line ? line + ' ' + w : w;
-    if (ctx.measureText(t).width > maxW && line) { lines.push(line); line = w; }
-    else line = t;
-  }
-  lines.push(line);
-  return lines;
-}
-
-// Picks the largest body size for this scale step (and matching spacing) whose wrapped paragraphs
-// fit `budget` px. In normal operation the top size always fits, because content.js keeps every
-// page short enough at the top text-size step; the smaller sizes below it are only a safety net.
-function layoutBody(ctx, paragraphs, budget, scale) {
-  let best = null;
-  for (const size of bodySizesFor(scale)) {
-    ctx.font = `400 ${size}px ${FONT}`;
-    const lh = Math.round(size * 1.42), pgap = Math.round(size * 0.85);
-    const blocks = paragraphs.map((p) => wrapParagraph(ctx, p, TEXT_MAXW));
-    const lines = blocks.reduce((a, b) => a + b.length, 0);
-    const height = lines * lh + (blocks.length - 1) * pgap;
-    best = { size, lh, pgap, blocks, height };
-    if (height <= budget) break;
-  }
-  return best;
-}
-
-// Shrinks a title until it fits the page width, the same "shrink to fit" rule this game's own
-// button labels use nowhere else - simplest safe default for a one-line heading.
-function fitTitleSize(ctx, text, maxW, start, floor) {
-  let size = start;
-  ctx.font = `800 ${size}px ${FONT}`;
-  while (ctx.measureText(text).width > maxW && size > floor) { size -= 2; ctx.font = `800 ${size}px ${FONT}`; }
-  return size;
-}
-
-// Same shrink-to-fit principle as fitTitleSize, generalised for every OTHER fixed-position
-// single-line label on this page (the header caption, the footer page count, "‹ Back"/"Next ›") -
-// each of those used to just grow with `scale` with no upper bound, which was fine while the top
-// step was a modest 1.3x/2x but breaks at 3x: the header ran into the A-/A+ buttons and even the
-// panel below it, and Back/Next ran off both edges of the screen and up into the footer. Shrinking
-// each to its own box, the same way the title already shrinks to the page width, fixes all three
-// without touching their position, colour or weight.
-function fitLineSize(ctx, text, maxW, start, floor, weight = 700) {
-  let size = start;
-  ctx.font = `${weight} ${size}px ${FONT}`;
-  while (ctx.measureText(text).width > maxW && size > floor) { size -= 1; ctx.font = `${weight} ${size}px ${FONT}`; }
-  return size;
-}
-
-// A- / A+ text buttons in the game's own no-chrome label style (the same plain, stroked text as
-// "‹ Back" / "Next ›" below) - dimmed when that end of the scale is already reached.
-function stepButton(ctx, box, label, disabled) {
-  const cx = (box.x0 + box.x1) / 2, cy = (box.y0 + box.y1) / 2 + 13;
-  ctx.save();
-  ctx.globalAlpha = disabled ? 0.32 : 1;
-  drawText(ctx, label, cx, cy, 38, '#fff8e0', 800);
-  ctx.restore();
-}
-
-function drawPanel(ctx) {
-  const { x, y, w, h, r } = PANEL;
-  ctx.save();
-  const g = ctx.createLinearGradient(0, y, 0, y + h);
-  g.addColorStop(0, 'rgba(24,38,30,0.66)'); g.addColorStop(1, 'rgba(10,14,16,0.74)');
-  ctx.fillStyle = g;
-  ctx.beginPath(); ctx.roundRect(x, y, w, h, r); ctx.fill();
-  ctx.strokeStyle = 'rgba(255,226,122,0.5)'; ctx.lineWidth = 3;
-  ctx.beginPath(); ctx.roundRect(x + 2, y + 2, w - 4, h - 4, r - 2); ctx.stroke();
-  ctx.strokeStyle = 'rgba(0,0,0,0.35)'; ctx.lineWidth = 1.5;
-  ctx.beginPath(); ctx.roundRect(x + 9, y + 9, w - 18, h - 18, r - 7); ctx.stroke();
-  ctx.restore();
-}
+const BODY_BASE = 26, TITLE_BASE = 34;
+// The art was authored on a 720 x 1280 page; each illustration occupies a band of it. The reader clips to that band and moves it
+// up under its title, so a page is only as tall as its picture.
+const ART_RANGE = { default: [250, 650], hero: [430, 780], boss: [300, 795], hud: [290, 480], field: [270, 612], telegraph: [290, 640], pair: [470, 640], trick: [300, 640], 'hunter-arrow': [290, 640],
+  net: [230, 620], seeds: [240, 600], acorn: [370, 640], wind: [210, 600], beater: [210, 600], stone: [220, 480] };
+export const artRange = (a) => ART_RANGE[a.kind] || ART_RANGE.default;
 
 // Fit a level's real tree layout into a small box elsewhere on the page - the same tree() shapes
 // levels.js builds, just translated and scaled, never redrawn from scratch.
@@ -152,15 +40,9 @@ function miniTree(x, y, s, offs = [{ dx: 0, dy: -324 }], crown = 1) {
   return { tree, perches };
 }
 
-// A quiet, idly-bobbing bird in the corner of every page - the same bird() the field itself uses.
-function signatureBird(ctx, t) {
-  const fake = { perches: [{ x: 92, y: 1096, s: 0.5 }], bird: { perch: 0, from: 0, dest: 0, flit: -1, stun: 0, inv: 0 }, beaters: [] };
-  bird(ctx, fake, t, true);
-}
-
 const THREE = [{ dx: -95, dy: -244 }, { dx: 0, dy: -324 }, { dx: 95, dy: -244 }];
 
-function drawArt(ctx, art, t) {
+export function drawArt(ctx, art, t) {
   if (!art) return;
   if (art.kind === 'hero') {
     const five = [{ dx: -190, dy: -134 }, { dx: -95, dy: -244 }, { dx: 0, dy: -324 }, { dx: 95, dy: -244 }, { dx: 190, dy: -134 }];
@@ -235,6 +117,7 @@ function drawArt(ctx, art, t) {
   } else if (art.kind === 'beater') {
     const { tree, perches } = miniTree(360, 560, 0.6);
     const cyc = t % 1.6, timer = Math.max(0.02, 0.9 - cyc);
+    drawTree(ctx, tree);
     beaters(ctx, { beaters: [{ perch: 0, timer, total: 1.1 }], perches, trees: [tree] }, t);
   } else if (art.kind === 'boss') {
     const { tree, perches } = miniTree(360, 780, 0.7);
@@ -243,66 +126,114 @@ function drawArt(ctx, art, t) {
     telegraph(ctx, { hunters: [h], trees: [tree], perches }, t);
     hunter(ctx, h, t, perches);
   } else if (art.kind === 'stone') {
-    stones(ctx, {
-      stones: [{ id: 1, slot: -1, kind: 'lob', target: 1, flight: 1, age: 0.55, threat: false, arc: 160, follow: true, fromPerch: 0 }],
-      perches: [{ x: 260, y: 420, s: 0.5 }, { x: 480, y: 380, s: 0.5 }],
-    }, t);
+    // a lobbed stone in flight over a tree; the whole arc stays inside this band (a taller arc was clipped away)
+    const { tree, perches } = miniTree(360, 540, 0.6, THREE, 1);
+    drawTree(ctx, tree);
+    stones(ctx, { stones: [{ id: 1, slot: -1, kind: 'lob', target: 2, flight: 1, age: 0.5, threat: false, arc: 90, follow: true, fromPerch: 0 }], perches }, t);
   }
 }
 
-// Renders one page of `list` (see content.js), with the same Back-exits / Next-cycles convention
-// as this game's own bottom-corner tap zones (the dev level picker's arrows). `scaleIdx` is the
-// player's chosen text-size step (see TEXT_SCALES) - always guarded, never trusted un-clamped.
-export function renderRulesPage(ctx, list, index, t, scaleIdx = 0) {
-  const i = ((index % list.length) + list.length) % list.length;
-  const page = list[i];
+
+function wrap(ctx, text, maxW) {
+  const words = text.split(' '), lines = [];
+  let line = '';
+  for (const w of words) {
+    const t = line ? line + ' ' + w : w;
+    if (ctx.measureText(t).width > maxW && line) { lines.push(line); line = w; } else line = t;
+  }
+  lines.push(line);
+  return lines;
+}
+
+// Section layout for one (text size, widths): { items: [{ y, h, title lines, art, text blocks }], total }. Cached.
+let cached = null;
+function measure(ctx, list, scaleIdx, textW, vpW) {
+  const key = scaleIdx + '|' + Math.round(textW) + '|' + Math.round(vpW);
+  if (cached && cached.key === key && cached.list === list) return cached;
   const scale = TEXT_SCALES[scaleIdx] ?? 1;
+  const tsz = Math.round(TITLE_BASE * scale), bsz = Math.round(BODY_BASE * scale);
+  const tlh = Math.round(tsz * 1.2), blh = Math.round(bsz * 1.42), pgap = Math.round(bsz * 0.85);
+  const as = Math.min(1, (vpW - 16) / 720);
+  const items = [];
+  let y = 24;
+  for (const page of list) {
+    ctx.font = `800 ${tsz}px ${FONT}`;
+    const tl = wrap(ctx, page.title, Math.min(vpW - 40, 860));
+    ctx.font = `400 ${bsz}px ${FONT}`;
+    const blocks = page.lines.map((p) => wrap(ctx, p, textW));
+    const it = { y, page, tl, blocks, tsz, bsz, tlh, blh, pgap, as };
+    let hh = tl.length * tlh + 14;
+    it.artY = y + hh; if (page.art) { const [r0, r1] = artRange(page.art); hh += (r1 - r0) * as + 18; }
+    it.textY = y + hh; hh += blocks.reduce((a, b) => a + b.length * blh, 0) + (blocks.length - 1) * pgap;
+    it.h = hh; y += hh + Math.round(64 + 24 * scale);
+    items.push(it);
+  }
+  cached = { key, list, items, total: y };
+  return cached;
+}
+
+// Draws the whole reader (card, header, A-/A+, scrolling sections, scroll bar, Back / Next). `scroll` is clamped here and the
+// clamped value returned. Layout comes from layout.js (L.rules, L.btn.rules).
+export function renderRules(ctx, list, scroll, scaleIdx, t, L) {
+  const RL = L.rules, vp = RL.viewport, B = L.btn.rules;
   ctx.save();
-  ctx.textAlign = 'center';
-  drawPanel(ctx);
-  // Kept clear of both A-/A+ buttons (and, past that, shrunk further rather than run under the
-  // panel below it) - see fitLineSize.
-  const headerText = 'PERCH — RULES';
-  const headerMaxW = TEXT_INC_BOX.x0 - TEXT_DEC_BOX.x1 - 24;
-  const headerSize = fitLineSize(ctx, headerText, headerMaxW, Math.round(HEADER_BASE * scale), 14);
-  drawText(ctx, headerText, W / 2, 64, headerSize, 'rgba(255,255,255,0.62)', 700);
-  stepButton(ctx, TEXT_DEC_BOX, 'A−', scaleIdx === 0);
-  stepButton(ctx, TEXT_INC_BOX, 'A+', scaleIdx === TEXT_SCALES.length - 1);
-  // The floor is a fixed size, never scaled up with the rest of the page - at the top text-size
-  // step a long title needs real room to shrink into, or it silently overflows past the panel's
-  // edges instead of ever getting small enough to fit (this happened at 200% before the fix).
-  const titleSize = fitTitleSize(ctx, page.title, W - 64, Math.round(TITLE_BASE * scale), 22);
-  // A short title that never needed to shrink grows a lot at the top text-size step (up to
-  // TITLE_BASE * 2) - keep its ascender clear of the panel's top border by nudging the baseline
-  // down as the title itself gets taller. At every size this game shipped before, that formula
-  // lands within a pixel of the old fixed 138, so this is invisible below the new top step.
-  const titleY = Math.max(138, 112 + Math.round(titleSize * 0.8));
-  drawText(ctx, page.title, W / 2, titleY, titleSize, '#ffe27a', 800);
-  drawArt(ctx, page.art, t);
+  ctx.fillStyle = 'rgba(8,12,24,0.86)'; ctx.fillRect(0, 0, L.w, L.h);
+  const { card } = RL;
+  const g = ctx.createLinearGradient(0, card.y, 0, card.y + card.h);
+  g.addColorStop(0, 'rgba(24,38,30,0.72)'); g.addColorStop(1, 'rgba(10,14,16,0.8)');
+  ctx.fillStyle = g; ctx.beginPath(); ctx.roundRect(card.x, card.y, card.w, card.h, 26); ctx.fill();
+  ctx.strokeStyle = 'rgba(255,226,122,0.5)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.roundRect(card.x + 2, card.y + 2, card.w - 4, card.h - 4, 24); ctx.stroke();
+  ctx.strokeStyle = 'rgba(0,0,0,0.35)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.roundRect(card.x + 9, card.y + 9, card.w - 18, card.h - 18, 19); ctx.stroke();
 
-  const textTop = page.art ? 656 : 300;
-  const { size, lh, pgap, blocks } = layoutBody(ctx, page.lines, TEXT_BOTTOM - textTop, scale);
-  ctx.font = `400 ${size}px ${FONT}`; ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.globalAlpha = 0.95;
-  let y = textTop;
-  blocks.forEach((block, bi) => {
-    for (const ln of block) { ctx.fillText(ln, W / 2, y); y += lh; }
-    if (bi < blocks.length - 1) y += pgap;
-  });
-  ctx.globalAlpha = 1;
+  const m = measure(ctx, list, scaleIdx, RL.textW, vp.w);
+  rulesMetrics.view = vp.h;
+  rulesMetrics.max = m.total - vp.h <= 8 ? 0 : Math.ceil(m.total - vp.h);
+  const sc = Math.max(0, Math.min(scroll || 0, rulesMetrics.max));
 
-  signatureBird(ctx, t);
-  const footerText = `Page ${i + 1} of ${list.length}`;
-  const footerSize = fitLineSize(ctx, footerText, W - 48, Math.round(FOOTER_BASE * scale), 14);
-  drawText(ctx, footerText, W / 2, 1112, footerSize, 'rgba(255,255,255,0.62)', 700);
-  // Each nav label is kept inside its own tap zone's width, never the screen edge or the other
-  // label - at the 300% step an unshrunk NAV_BASE ran both labels off-screen and up into the
-  // footer above them (see fitLineSize).
-  // On the last page the label reads "Done" (game.js exits to the title on tap) instead of a
-  // dead-end "Next ›" that just wraps back to page one.
-  const nextLabel = i === list.length - 1 ? 'Done' : 'Next ›';
-  const backSize = fitLineSize(ctx, '‹ Back', RULES_BACK_BOX.x1 - RULES_BACK_BOX.x0 - 24, Math.round(NAV_BASE * scale), 18, 800);
-  const nextSize = fitLineSize(ctx, nextLabel, RULES_NEXT_BOX.x1 - RULES_NEXT_BOX.x0 - 24, Math.round(NAV_BASE * scale), 18, 800);
-  drawText(ctx, '‹ Back', 140, 1224, backSize, '#fff8e0', 800);
-  drawText(ctx, nextLabel, W - 140, 1224, nextSize, '#ffe27a', 800);
+  // header
+  drawText(ctx, 'PERCH — RULES', RL.cx - 40, RL.headerY, 22, 'rgba(255,255,255,0.7)', 700);
+  drawButton(ctx, B.dec, 'A−', { size: 34, disabled: scaleIdx === 0 });
+  drawButton(ctx, B.inc, 'A+', { size: 34, disabled: scaleIdx === TEXT_SCALES.length - 1 });
+  ctx.strokeStyle = 'rgba(255,226,122,0.25)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(card.x + 20, vp.y - 4); ctx.lineTo(card.x + card.w - 20, vp.y - 4); ctx.stroke();
+
+  // sections
+  ctx.save();
+  ctx.beginPath(); ctx.rect(vp.x, vp.y, vp.w, vp.h); ctx.clip();
+  ctx.translate(0, vp.y - sc);
+  const cx = RL.cx;
+  setViewEdge(0, 720);
+  for (const it of m.items) {
+    if (it.y + it.h < sc - 40 || it.y > sc + vp.h + 40) continue;
+    ctx.textAlign = 'center';
+    it.tl.forEach((ln, i) => drawText(ctx, ln, cx, it.y + it.tsz * 0.9 + i * it.tlh, it.tsz, '#ffe27a', 800));
+    if (it.page.art) {
+      ctx.save();
+      const [r0, r1] = artRange(it.page.art);
+      ctx.translate(cx - 360 * it.as, it.artY - r0 * it.as); ctx.scale(it.as, it.as);
+      ctx.beginPath(); ctx.rect(0, r0, 720, r1 - r0); ctx.clip();
+      drawArt(ctx, it.page.art, t);
+      ctx.restore();
+    }
+    ctx.font = `400 ${it.bsz}px ${FONT}`; ctx.fillStyle = '#fff'; ctx.textAlign = 'center'; ctx.globalAlpha = 0.95;
+    let y = it.textY + it.bsz;
+    it.blocks.forEach((block, bi) => {
+      for (const ln of block) { ctx.fillText(ln, cx, y); y += it.blh; }
+      if (bi < it.blocks.length - 1) y += it.pgap;
+    });
+    ctx.globalAlpha = 1;
+  }
   ctx.restore();
+
+  // scroll bar + footer
+  if (rulesMetrics.max > 0) {
+    const sb = RL.scrollbar, th = Math.max(48, (sb.h * vp.h) / m.total), ty = sb.y + (sc / rulesMetrics.max) * (sb.h - th);
+    ctx.fillStyle = 'rgba(255,255,255,0.14)'; ctx.beginPath(); ctx.roundRect(sb.x, sb.y, sb.w, sb.h, 5); ctx.fill();
+    ctx.fillStyle = 'rgba(255,226,122,0.85)'; ctx.beginPath(); ctx.roundRect(sb.x, ty, sb.w, th, 5); ctx.fill();
+  }
+  const atEnd = rulesMetrics.max === 0 || sc >= rulesMetrics.max - 2;
+  drawText(ctx, rulesMetrics.max ? Math.round((sc / rulesMetrics.max) * 100) + '%  ·  drag or scroll' : '', cx, RL.footY, 20, 'rgba(255,255,255,0.6)', 700);
+  drawButton(ctx, B.back, '‹ Back', { size: 34 });
+  drawButton(ctx, B.next, atEnd ? 'Done' : 'Next ›', { size: 34, primary: true });
+  ctx.restore();
+  return sc;
 }

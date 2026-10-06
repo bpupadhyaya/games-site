@@ -1,20 +1,28 @@
 // Screens of the teaching system: the demo overlay, the in-play coach, the pause menu and the
 // Controls page. Pure drawing (game.js owns the logic and the buttons).
 import { W, H, GOLD, clamp, smooth, rr } from './stage.js';
+import { FR, DOC } from './frame.js';
 import { font, SERIF, SANS, panel, button } from './ui.js';
 import { demoCaption, hand, ripple, holdArc, dragTrail, dragPath, pill, coachStrip, icon, rich, richLines, stepRow, stepRowHeight, normStep, DARK, GOLD_HI } from './howto.js';
 
 export const DEMO_SKIP = { x: W - 226, y: 30, w: 196, h: 68, label: '' };
 
 // ---- demo overlay ------------------------------------------------------------------------------
-export function renderDemo(ctx, { T, n, d, spec, dur, showKeys, cutAlpha = 0 }) {
+// Three parts, drawn in three frames when the screen is wide (one frame in portrait): the progress bar (screen), the caption
+// panel (ui column) and the hand / pills / ripples (the chapter's world, where the finger really is).
+export function renderDemoBar(ctx, { d, dur, sw = W }) {
+  ctx.fillStyle = 'rgba(12,4,10,0.6)'; ctx.fillRect(0, 0, sw, 8);
+  ctx.fillStyle = GOLD_HI; ctx.fillRect(0, 0, sw * clamp(d.t / dur, 0, 1), 8);
+}
+// opts.box = { x, w } places the caption (landscape: a side panel or a wide top panel); opts.y overrides the top.
+export function renderDemoCaption(ctx, { T, n, d, spec, showKeys, box = null, y = 116, bottomY = null }) {
   const H_ = T.howto, ch = H_.ch[n - 1];
-  // progress
-  ctx.fillStyle = 'rgba(12,4,10,0.6)'; ctx.fillRect(0, 0, W, 8);
-  ctx.fillStyle = GOLD_HI; ctx.fillRect(0, 0, W * clamp(d.t / dur, 0, 1), 8);
-  const cap = demoCaption(ctx, { kicker: `${H_.title}  ·  ${H_.watch}`, steps: ch.steps, active: d.step, kbd: showKeys && ch.kbd ? ch.kbd : null, y: 116, bottom: spec.capBottom, size: spec.compact ? 27 : 30 });
-  // Labels stay clear of the caption panel
-  for (const L of spec.labels?.(d) ?? []) pill(ctx, ch.labels[L.k] ?? L.k, L.x, spec.capBottom ? Math.min(L.y, cap.top - 44) : Math.max(L.y, cap.bottom + 44), L.tx, L.ty);
+  return demoCaption(ctx, { kicker: `${H_.title}  ·  ${H_.watch}`, steps: ch.steps, active: d.step, kbd: showKeys && ch.kbd ? ch.kbd : null, y, bottom: spec.capBottom, bottomY, box, size: box ? 25 : (spec.compact ? 27 : 30) });
+}
+export function renderDemoWorld(ctx, { T, n, d, spec, cap = null, cutAlpha = 0, wide = false }) {
+  const ch = T.howto.ch[n - 1];
+  // Labels stay clear of the caption panel (portrait; in landscape the caption lives in another frame)
+  for (const L of spec.labels?.(d) ?? []) pill(ctx, ch.labels[L.k] ?? L.k, L.x, wide || !cap ? L.y : (spec.capBottom ? Math.min(L.y, cap.top - 44) : Math.max(L.y, cap.bottom + 44)), L.tx, L.ty);
   // the hand and its effects
   const p = d.ptr, sinceUp = d.t - d.lastRelease, sinceDown = d.t - d.lastPress;
   for (const tp of d.taps) { const u = (d.t - tp.t) / 0.7; if (u > 0 && u < 1) ripple(ctx, tp.x, tp.y, u); }
@@ -27,7 +35,7 @@ export function renderDemo(ctx, { T, n, d, spec, dur, showKeys, cutAlpha = 0 }) 
     }
     hand(ctx, p.x + (1 - appear) * 40, p.y + (1 - appear) * 60, { down: p.down && appear > 0.9, alpha: vis * (0.3 + 0.7 * appear) });
   }
-  if (cutAlpha > 0) { ctx.fillStyle = `rgba(6,2,8,${cutAlpha})`; ctx.fillRect(0, 0, W, H); }
+  if (cutAlpha > 0) { ctx.fillStyle = `rgba(6,2,8,${cutAlpha})`; ctx.fillRect(FR.x0 - 1, FR.y0 - 1, FR.w + 2, FR.h + 2); }
 }
 
 // ---- coaching in real play -----------------------------------------------------------------------
@@ -54,14 +62,15 @@ export function renderCoach(ctx, { T, n, coach, s, sceneT, t, doneFade, cs }) {
 }
 
 // ---- pause menu --------------------------------------------------------------------------------
-export function renderPause(ctx, { T, buttons, muted }) {
-  ctx.fillStyle = 'rgba(6,2,8,0.72)'; ctx.fillRect(0, 0, W, H);
+// box = { x, y, w, h, titleY }: the panel (portrait: the original 70,420 panel; landscape: a shorter one, title inside the top band).
+export function renderPause(ctx, { T, buttons, muted, box = { x: 70, y: 420, w: W - 140, h: 792, titleY: 520 } }) {
+  ctx.fillStyle = 'rgba(6,2,8,0.72)'; ctx.fillRect(FR.x0 - 1, FR.y0 - 1, FR.w + 2, FR.h + 2);
   // Panel height grew from 690 to fit the added Chapter Guide row below Leave (see game.js
   // pauseButtons) without moving Resume/How to play/Controls/Sound/Leave, which keep their exact
   // original positions.
-  panel(ctx, 70, 420, W - 140, 792, 0.92);
-  ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'; ctx.fillStyle = '#fff1cf'; ctx.font = font(60);
-  ctx.fillText(T.howto.paused, W / 2, 520);
+  panel(ctx, box.x, box.y, box.w, box.h, 0.92);
+  ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'; ctx.fillStyle = '#fff1cf'; ctx.font = font(box.titleY ? 60 : 50);
+  ctx.fillText(T.howto.paused, box.x + box.w / 2, box.titleY || box.y + 74);
   for (const b of buttons) button(ctx, b, { primary: b.primary, size: b.size ?? 34 });
 }
 
@@ -72,12 +81,12 @@ export function renderPause(ctx, { T, buttons, muted }) {
 // is later drawn with, so a page that fits at scale 1 keeps fitting - it just wraps into more, taller
 // rows at the top step instead of clipping.
 export function renderControls(ctx, { T, scroll, showKeys, scale = 1 }) {
-  const H_ = T.howto, x = 40, w = W - 80;
+  const H_ = T.howto, DW = DOC.w, x = 40, w = DW - 80;
   const S = (n) => Math.round(n * scale);
   const hScale = Math.min(scale, 1.15); // the big page title is already far above the target size; cap its own growth so a long heading can never crowd the canvas edges
   ctx.save(); ctx.translate(0, -scroll);
   let y = 150;
-  ctx.textAlign = 'center'; ctx.fillStyle = '#fff1cf'; ctx.font = font(Math.round(64 * hScale)); ctx.fillText(H_.controls, W / 2, y + 40); y += 84;
+  ctx.textAlign = 'center'; ctx.fillStyle = '#fff1cf'; ctx.font = font(Math.round(64 * hScale)); ctx.fillText(H_.controls, DW / 2, y + 40); y += 84;
   // the legend
   ctx.fillStyle = 'rgba(14,5,12,0.62)';
   const legend = H_.legend.filter((_, i) => showKeys || i < 4);
@@ -89,7 +98,7 @@ export function renderControls(ctx, { T, scroll, showKeys, scale = 1 }) {
   const lh = legend.map(([, txt]) => headH + richLines(ctx, txt, descW, legSize).length * legLh + S(18));
   const legendH = S(78) + lh.reduce((a, b) => a + b, 0);
   panel(ctx, x - 10, y, w + 20, legendH, 0.86);
-  ctx.textAlign = 'center'; ctx.fillStyle = GOLD; ctx.font = font(22, SANS, 700); ctx.fillText(H_.legendHead.toUpperCase().split('').join(' '), W / 2, y + 44);
+  ctx.textAlign = 'center'; ctx.fillStyle = GOLD; ctx.font = font(22, SANS, 700); ctx.fillText(H_.legendHead.toUpperCase().split('').join(' '), DW / 2, y + 44);
   let ly = y + S(66);
   const kinds = ['tap', 'hold', 'drag', 'release', 'key'];
   legend.forEach(([cmd, txt], i) => {
@@ -110,7 +119,7 @@ export function renderControls(ctx, { T, scroll, showKeys, scale = 1 }) {
     const noteH = ch.note ? richLines(ctx, ch.note, noteW, noteSize).length * noteLh + S(8) : 0;
     const kbdH = showKeys && ch.kbd ? richLines(ctx, ch.kbd, kbdW, kbdSize).length * kbdLh + S(22) : 0;
     const h = S(92) + rowH.reduce((a, b) => a + b + S(6), 0) + noteH + kbdH + S(12);
-    if (y - scroll < H + 40 && y - scroll + h > -40) {
+    if (y - scroll < FR.h + 40 && y - scroll + h > -40) {
       panel(ctx, x - 10, y, w + 20, h, 0.84);
       ctx.textAlign = 'left'; ctx.fillStyle = GOLD; ctx.font = font(S(30), SANS, 800); ctx.fillText(String(i + 1), x + S(24), y + S(62));
       // Shrink-to-fit: a one-line chapter title (e.g. "The Forest Years") drawn at the full S(44) ran

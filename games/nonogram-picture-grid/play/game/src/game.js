@@ -1,5 +1,5 @@
 // GAME CONTRACT (docs/GAME-CONTRACT.md). Nonogram: 121 verified pictures, a line-logic solver behind Think and Watch & Learn, a Learn path.
-import { SCREEN, inRect, hudOf, playLayout, autoLayout, boardGeo, cellAt, panTo } from './layout.js';
+import { hintWhy, SCREEN, inRect, hudOf, playLayout, autoLayout, boardGeo, cellAt, panTo, setView, fitMin, host, docRects } from './layout.js';
 import { TEXT_SCALES, hitDoc, clampScroll } from './ui.js';
 import { buildUi, THINK_STEPS, demoOver, DEMO_PUZZLES, chapterStats } from './screens.js';
 import { CHAPTERS, CHAPTER_PUZZLES, ALL_BANK, puzzleById, chapterOf, TOTAL } from './chapters.js';
@@ -12,9 +12,11 @@ import { FILLED, CROSSED, UNKNOWN, nextStep, applyStep, isSolved, lineDone } fro
 import { newBoard, refresh, encode, decode, commit, undo, redo, strokeValue, wrongMark, TOOL_FILL, TOOL_CROSS, TOOL_MOVE } from './board.js';
 import { render } from './view.js';
 
-export const meta = { width: SCREEN.width, height: SCREEN.height };
+// The kit's fluid viewport (1.7): the short side is always 720 units, the long side follows the screen. meta.width/height are live.
+export const meta = { width: SCREEN.width, height: SCREEN.height, fluid: { short: 720 } };
+export const wheelInput = { dy: 0 };   // main.js adds the mouse wheel (virtual units) here
 
-const VERSION = '1.0.0';
+const VERSION = '1.1.0';
 const WIN_NOTES = [523, 659, 784, 1047, 1319, 1568];
 const AUTO_PUZZLES = ['leaf', 'teapot', 'fuji'];
 const ATTRACT_PUZZLE = 'cottage';
@@ -28,7 +30,7 @@ export async function createGame(env) {
     results: {}, saves: {}, openIds: {}, lastId: null, lessons: {}, daily: { streak: 0, last: -1 }, demoIds: [], demoCount: 0,
     page: { howto: 0, rules: 0 }, scroll: {}, scrollVel: {}, press: null, match: null, auto: null, chapterIdx: 0, lessonIdx: 0, endInfo: null,
     demo: Boolean(config?.demo), dev: Boolean(config?.dev), owns: false, price: '', resetArm: false, version: VERSION, shot: false, lastPtr: { x: 0, y: 0 },
-    cont: null, dailyDone: false, dailyPuz: null, attract: null, kbd: false,
+    cont: null, dailyDone: false, dailyPuz: null, attract: null, kbd: false, jump: null, sizeKey: '',
   };
 
   const [set, res, openIds, last, les, daily, dem] = await Promise.all([
@@ -117,7 +119,7 @@ export async function createGame(env) {
   function launch(M, paused = false) {
     S.match = M; S.scene = M.auto ? 'auto' : 'play'; S.overlay = paused ? 'pause' : null; S.ovT = 0; S.press = null; S.endInfo = null;
     const g = geoOf(M);
-    M.zoom = g.canZoom && g.fitS < 40 ? 'close' : 'fit';
+    M.zoom = g.canZoom && g.fitS < fitMin() ? 'close' : 'fit';
     const g2 = geoOf(M);
     const pt = panTo(M.puz, g2, 0, 0); M.ox = pt.ox; M.oy = pt.oy;
   }
@@ -210,7 +212,7 @@ export async function createGame(env) {
     const n = M.puz.w * M.puz.h;
     for (let r = 0; r < M.puz.h; r++) if (M.b.doneR[r] && !prevDone(M, prev, 'row', r)) lines++;
     for (let c = 0; c < M.puz.w; c++) if (M.b.doneC[c] && !prevDone(M, prev, 'col', c)) lines++;
-    if (lines) { SOUNDS.line(); for (let k = 0; k < 6; k++) spark(M, 360 + rng.range(-200, 200), 600 + rng.range(-120, 120), '#ffd877'); }
+    if (lines) { SOUNDS.line(); { const a = lay().area; for (let k = 0; k < 6; k++) spark(M, a.x + a.w / 2 + rng.range(-200, 200) * Math.min(1, a.w / 672), a.y + a.h / 2 + rng.range(-120, 120), '#ffd877'); } }
     if (isSolved(M.puz, M.b.cells)) { finishPuzzle(M); return; }
     saveMatch();
   }
@@ -351,8 +353,9 @@ export async function createGame(env) {
       M.notes = (M.notes ?? 0) + 1;
     }
     if (R.t > 1.2 && R.t < 2.6 && Math.floor(R.t * 30) !== Math.floor((R.t - dt) * 30)) {
+      const rv = (S.scene === 'auto' ? autoLayout(TEXT_SCALES[S.textIdx]) : lay()).area;
       const colors = ['#ffd877', '#fff3c4', '#ff9d8f', '#9fd8ff'];
-      for (let k = 0; k < 2; k++) M.parts.push({ x: rng.range(80, 640), y: rng.range(350, 1000), vx: rng.range(-60, 60), vy: rng.range(-120, 20), life: rng.range(0.6, 1.2), max: 1.2, size: rng.range(3, 8), color: colors[rng.int(4)], shape: 'dot' });
+      for (let k = 0; k < 2; k++) M.parts.push({ x: rv.x + rng.range(0.11, 0.89) * rv.w, y: rv.y + rng.range(0.22, 0.65) * rv.h, vx: rng.range(-60, 60), vy: rng.range(-120, 20), life: rng.range(0.6, 1.2), max: 1.2, size: rng.range(3, 8), color: colors[rng.int(4)], shape: 'dot' });
     }
     for (let i = M.parts.length - 1; i >= 0; i--) { const q = M.parts[i]; q.life -= dt; q.x += q.vx * dt; q.y += q.vy * dt; q.vy += 140 * dt; if (q.life <= 0) M.parts.splice(i, 1); }
   }
@@ -370,7 +373,7 @@ export async function createGame(env) {
     S.match = M; S.scene = 'play'; S.overlay = null;
     solveSome(M, steps);
     const g0 = geoOf(M);
-    M.zoom = o.zoom ?? (g0.canZoom && g0.fitS < 34 ? 'close' : 'fit');
+    M.zoom = o.zoom ?? (g0.canZoom && g0.fitS < Math.min(34, fitMin()) ? 'close' : 'fit');
     return M;
   }
   function stageShot(n) {
@@ -409,7 +412,7 @@ export async function createGame(env) {
       else if (n === 26) { S.scene = 'learn'; }
       else if (n === 27) { S.scene = 'lesson'; S.lessonIdx = 1; }
       else if (n === 28) { S.scene = 'demo-limit'; }
-      else if (n === 29) { S.scene = 'howto'; S.page.howto = 3; }
+      else if (n === 29) { S.scene = 'howto'; S.page.howto = 3; S.jump = { scene: 'howto', page: 3 }; }
       else if (n === 30) { S.thinkIdx = 0; startAuto(); S.auto.k = 1; startAutoPuzzle(); solveSome(S.match, 5); planAuto(); S.auto.phase = 'reveal'; S.auto.t = 1; S.auto.scan = S.auto.target; S.auto.paused = true; }
       else if (n === 31) { S.scene = 'daily'; }
       else if (n === 32) { stagePlay('fujiblossom', 14); S.match.zoom = 'close'; S.match.focus = { r: 9, c: 8 }; }
@@ -426,11 +429,14 @@ export async function createGame(env) {
       else if (n === 45) { S.textIdx = 0; stagePlay('campnight', 12); S.match.focus = { r: 6, c: 7 }; }
       else if (n === 46) { S.textIdx = 0; stagePlay('bicycle', 8); S.match.focus = { r: 6, c: 5 }; }
       else if (n === 47) { S.textIdx = 0; stagePlay('moonowl', 16); S.match.focus = { r: 8, c: 9 }; }
+      else if (n === 48) { S.textIdx = 0; stagePlay('cottage', 40); S.match.reveal = { t: 3.3 }; S.endInfo = { head: tr('endHead'), body: `${nameOf(S.match.puz)}\n${tr('starLine', { n: 3 })}`, stars: 3, next: 'pine' }; S.overlay = 'end'; S.ovT = 1; }
+      else if (n === 49) { S.textIdx = 0; S.thinkIdx = 0; startAuto(); S.overlay = 'autosum'; S.ovT = 1; }
+      else if (n === 50) { S.textIdx = 0; stagePlay('lighthouse', 5); S.match.hint = { head: 'Row 3', why: 'Block 7 fills the whole line.' }; doThink(); S.t = 1; }
       else if (n === 43) { stagePlay('fuji', 4); doThink(); S.t = 1; S.overlay = 'why'; S.ovT = 1; }
       else if (n === 42) { S.textIdx = 0; stagePlay('tulip', 3); S.overlay = 'pause'; S.ovT = 1; }
-    } else if (n >= 1001 && n <= 1030) { S.scene = 'rules'; S.page.rules = n - 1001; }
-    else if (n >= 2001 && n <= 2030) { S.scene = 'rules'; S.page.rules = n - 2001; S.textIdx = 4; }
-    else if (n >= 3001 && n <= 3020) { S.scene = 'howto'; S.page.howto = n - 3001; }
+    } else if (n >= 1001 && n <= 1030) { S.scene = 'rules'; S.page.rules = n - 1001; S.jump = { scene: 'rules', page: n - 1001 }; }
+    else if (n >= 2001 && n <= 2030) { S.scene = 'rules'; S.page.rules = n - 2001; S.textIdx = 4; S.jump = { scene: 'rules', page: n - 2001 }; }
+    else if (n >= 3001 && n <= 3020) { S.scene = 'howto'; S.page.howto = n - 3001; S.jump = { scene: 'howto', page: n - 3001 }; }
   }
   const wantsShot = typeof location !== 'undefined' && /[?&]shot=1/.test(location.search);
   const sd = config?.seed ?? 0;
@@ -478,6 +484,7 @@ export async function createGame(env) {
 
   function activate(id) {
     if (id == null) return;
+    if (id === 'arcforge') { env.openArcforgeHome?.(); return; }
     if (id === 'zoom-') { setText(-1); return; }
     if (id === 'zoom+') { setText(1); return; }
     if (id.startsWith('lang:')) { setLangTo(id.slice(5)); return; }
@@ -536,7 +543,7 @@ export async function createGame(env) {
   // ------------------------------------------------------------------------------ pointer handling
   function fixedHit(ui, x, y) {
     const list = [...ui.fixed];
-    if (ui.nav) list.push(ui.nav.prev, ui.nav.next);
+    if (ui.nav) list.push(...[ui.nav.prev, ui.nav.next].filter(Boolean));
     for (const f of list) if (f.id != null && !f.disabled && inRect(x, y, f.rect)) return f;
     return null;
   }
@@ -550,6 +557,11 @@ export async function createGame(env) {
     const f = fixedHit(ui, x, y);
     if (f) { S.press = { id: f.id, active: true, kind: 'fixed', rect: f.rect }; return; }
     const reg = ui.region;
+    if (ui.layout.height > reg.h && inRect(x, y, { x: reg.x + reg.w + 2, y: reg.y - 4, w: 30, h: reg.h + 8 })) {   // the scroll bar: drag it
+      S.press = { id: null, active: false, kind: 'bar' };
+      setScroll(ui, ((y - reg.y) / reg.h) * (ui.layout.height - reg.h));
+      return;
+    }
     if (inRect(x, y, { x: reg.x - 6, y: reg.y - 4, w: reg.w + 12, h: reg.h + 8 })) {
       const hit = hitDoc(ui.layout, x - reg.x, y - reg.y - (ui.offY || 0) + getScroll(ui));
       const ok = Boolean(hit && !hit.disabled);
@@ -566,6 +578,11 @@ export async function createGame(env) {
       const M = S.match; if (!M) return;
       const g = geoOf(M);
       M.ox = Math.min(Math.max(0, pr.ox0 - (x - pr.x0)), g.maxX); M.oy = Math.min(Math.max(0, pr.oy0 - (y - pr.y0)), g.maxY);
+      return;
+    }
+    if (pr.kind === 'bar') {
+      const ui = buildUi(S);
+      if (ui.layout && ui.region) setScroll(ui, ((y - ui.region.y) / ui.region.h) * (ui.layout.height - ui.region.h));
       return;
     }
     if (pr.kind === 'doc') {
@@ -585,7 +602,7 @@ export async function createGame(env) {
     S.press = null;
     if (!pr) return;
     if (pr.kind === 'stroke') { const M = S.match; if (M) endStroke(M); return; }
-    if (pr.kind === 'pan') return;
+    if (pr.kind === 'pan' || pr.kind === 'bar') return;
     if (pr.kind === 'doc') {
       const ui = buildUi(S);
       if (!ui.layout || !ui.region) return;
@@ -606,7 +623,7 @@ export async function createGame(env) {
     if (inRect(x, y, HD.back)) { S.press = { id: 'hud:back', active: true, kind: 'hud', rect: HD.back }; return; }
     if (M.reveal) return;
     if (inRect(x, y, HD.pause)) { S.press = { id: 'hud:pause', active: true, kind: 'hud', rect: HD.pause }; return; }
-    if (M.hint && (M.hint.step || M.hint.bad) && (M.hint.step || TEXT_SCALES[S.textIdx] >= 2) && inRect(x, y, L.applyBtn)) { S.press = { id: 'hud:apply', active: true, kind: 'hud', rect: L.applyBtn }; return; }
+    if (M.hint && (M.hint.step || M.hint.bad) && (M.hint.step || hintWhy(TEXT_SCALES[S.textIdx])) && inRect(x, y, L.applyBtn)) { S.press = { id: 'hud:apply', active: true, kind: 'hud', rect: L.applyBtn }; return; }
     for (const r of L.tools) if (inRect(x, y, r)) { S.press = { id: `tool:${r.id}`, active: true, kind: 'tool', rect: r }; return; }
     const g = geoOf(M);
     S.lastPtr.x = x; S.lastPtr.y = y;
@@ -638,14 +655,14 @@ export async function createGame(env) {
   function hudAction(id) {
     if (id === 'hud:back') leaveToMenu();
     else if (id === 'hud:pause') { endStroke0(); S.overlay = 'pause'; S.ovT = 0; }
-    else if (id === 'hud:apply') { if (TEXT_SCALES[S.textIdx] >= 2) { S.overlay = 'why'; S.ovT = 0; } else applyHint(); }
+    else if (id === 'hud:apply') { if (hintWhy(TEXT_SCALES[S.textIdx])) { S.overlay = 'why'; S.ovT = 0; } else applyHint(); }
   }
 
   // ---- auto
   function autoDown(x, y) {
-    const HD = hudOf(TEXT_SCALES[S.textIdx]);
-    if (inRect(x, y, HD.back)) { S.press = { id: 'auto:exit', active: true, kind: 'auto', rect: HD.back }; return; }
     const L = autoLayout(TEXT_SCALES[S.textIdx]);
+    const HD = L.hud;
+    if (inRect(x, y, HD.back)) { S.press = { id: 'auto:exit', active: true, kind: 'auto', rect: HD.back }; return; }
     for (const id of ['slower', 'pause', 'faster']) {
       if (inRect(x, y, L[id])) { S.press = { id: `auto:${id}`, active: true, kind: 'auto', rect: L[id] }; return; }
     }
@@ -690,20 +707,50 @@ export async function createGame(env) {
     }
     const ui = buildUi(S);
     if (ui.layout && ui.region) {
-      if (keys.down.has('ArrowDown') || keys.down.has('PageDown')) setScroll(ui, getScroll(ui) + 18);
-      if (keys.down.has('ArrowUp') || keys.down.has('PageUp')) setScroll(ui, getScroll(ui) - 18);
+      if (keys.down.has('ArrowDown') || keys.down.has('PageDown')) setScroll(ui, getScroll(ui) + (keys.down.has('PageDown') ? 46 : 18));
+      if (keys.down.has('ArrowUp') || keys.down.has('PageUp')) setScroll(ui, getScroll(ui) - (keys.down.has('PageUp') ? 46 : 18));
     }
     if (has('Escape') && ['chapters', 'learn', 'howto', 'rules', 'about', 'settings', 'demo-limit', 'daily'].includes(S.scene)) gotoScene('title');
     if (has('Escape') && S.scene === 'pictures') gotoScene('chapters');
-    if (S.scene === 'howto' || S.scene === 'rules') {
-      if (has('ArrowRight')) activate('next');
-      if (has('ArrowLeft')) activate('prev');
+    if ((S.scene === 'howto' || S.scene === 'rules') && ui.pageY && ui.region) {   // left / right jump a section of the reader
+      const cur = getScroll(ui), at = ui.pageY.findIndex((y0, i) => cur < (ui.pageY[i + 1] ?? Infinity) - 1);
+      if (has('ArrowRight') && at < ui.pageY.length - 1) setScroll(ui, ui.pageY[at + 1]);
+      if (has('ArrowLeft')) setScroll(ui, at > 0 && cur - ui.pageY[at] < 4 ? ui.pageY[at - 1] : ui.pageY[Math.max(0, at)]);
     }
+  }
+
+  // ------------------------------------------------------------------------------ rotation / resize
+  // The layout is a pure function of the live size, so a resize only needs the state tidied: a half-made stroke is finished where it
+  // is (nothing is lost), a pan is re-clamped, and the focused square stays in view when zoomed in.
+  function onResized() {
+    const key = `${meta.width}x${meta.height}`;
+    if (key === S.sizeKey) return;
+    const first = S.sizeKey === '';
+    S.sizeKey = key;
+    if (first) return;
+    const M = S.match;
+    if (S.press && (S.press.kind === 'stroke' || S.press.kind === 'pan')) { endStroke0(); S.press = null; }
+    if (M && (S.scene === 'play' || S.scene === 'auto')) {
+      const g = geoOf(M);
+      if (M.zoom === 'close' && g.canZoom) { const p = panTo(M.puz, g, M.focus ? M.focus.c : M.cur.c, M.focus ? M.focus.r : M.cur.r); M.ox = Math.min(Math.max(M.ox, 0), g.maxX); M.oy = Math.min(Math.max(M.oy, 0), g.maxY); if (M.focus) { M.ox = p.ox; M.oy = p.oy; } }
+      else { M.ox = Math.min(Math.max(M.ox, 0), g.maxX); M.oy = Math.min(Math.max(M.oy, 0), g.maxY); if (!g.canZoom) M.zoom = 'fit'; }
+    }
+    S.scroll = Object.fromEntries(Object.entries(S.scroll).map(([k, v]) => [k, Math.max(0, v)]));
+    S.scrollVel = {};
   }
 
   // ------------------------------------------------------------------------------ main loop
   return {
     update(dt, input) {
+      setView(meta.width, meta.height);
+      onResized();
+      if (S.jump && S.jump.scene === S.scene) { const u = buildUi(S); if (u.pageY && u.region) setScroll(u, u.pageY[Math.min(S.jump.page, u.pageY.length - 1)] ?? 0); S.jump = null; }
+      if (wheelInput.dy) {   // mouse wheel: scroll the reader / list under the pointer, or pan a zoomed board
+        const dy = wheelInput.dy; wheelInput.dy = 0;
+        const u = buildUi(S);
+        if (u.layout && u.region && u.layout.height > u.region.h) setScroll(u, getScroll(u) + dy);
+        else if (S.match && S.scene === 'play' && !S.overlay && S.match.zoom === 'close') { const M = S.match, g = geoOf(M); M.oy = Math.min(Math.max(0, M.oy + dy), g.maxY); }
+      }
       // Watch & Learn's Pause (and the in-game pause card) freezes the whole loop: timers, animations, particles, the ambient clock.
       const frozen = (S.scene === 'auto' && S.auto && S.auto.paused) || S.overlay === 'pause';
       if (!frozen) S.t += dt;
@@ -753,9 +800,13 @@ export async function createGame(env) {
       }
     },
 
-    render(ctx) {
+    render(ctx, view) {
+      setView(view?.width ?? meta.width, view?.height ?? meta.height);
       render(ctx, S, buildUi(S));
     },
+
+    // dev only (?dev=1): start a picture directly, for the layout / rotation check scripts
+    devStart(id, zoom) { if (!config?.dev) return; startPuzzle(puzzleById(id), { fresh: true }); if (zoom && S.match) { S.match.zoom = zoom; const gg = geoOf(S.match); const p = panTo(S.match.puz, gg, 0, 0); S.match.ox = p.ox; S.match.oy = p.oy; } },
 
     getState() {
       const M = S.match;
@@ -773,6 +824,9 @@ export async function createGame(env) {
 
     // The preview clock counts real play only. Menus, chapter lists, Learn (lessons), Rules / How to Play / About, Settings, every overlay
     // (pause, result, Watch & Learn summary), the demo card and Watch & Learn are all free time.
+    // Dev tools only (?dev=1): the layout checks read the rects of the screen that is showing through this.
+    dbg: config?.dev ? { buildUi: () => buildUi(S) } : undefined,
+
     isPreviewExempt: () => S.shot || S.scene !== 'play' || Boolean(S.overlay) || Boolean(S.match && S.match.lesson !== null && S.match.lesson !== undefined) || Boolean(S.match && S.match.reveal),
   };
 }

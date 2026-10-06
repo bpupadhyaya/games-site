@@ -1,10 +1,6 @@
 // Words shown in the How to play, Rules and About pages. Facts only; see design/GDD.md for how each was chosen.
-// Pages are kept to a small number of short bullets each (a "single concept per page" convention) so that
-// every page still fits inside the reader-card panel at the top text-size step (300%, see TEXT_SCALES in
-// layout.js) without ever shrinking the font to force a fit - a page that grew too tall for its panel at
-// that scale was split into two or more shorter pages instead, and long sentences were split by clause into
-// their own pages too. Verified by rendering every page at the top step and checking for clipping/overlap
-// with the footer buttons.
+// Each entry is a SECTION of the continuous scrolling reader (heading, optional piece portraits, short bullets);
+// the reader shows all of them in order (view.js), so there is no page count to keep in sync.
 import { GENERAL, ADVISOR, ELEPHANT, HORSE, CHARIOT, CANNON, SOLDIER } from './rules.js';
 
 export const HOW = [
@@ -159,7 +155,7 @@ export const RULES = [
     'Each side has its own palace: a 3 by 3 area at the back marked with diagonal lines.',
   ] },
   { title: 'See also: Controls', items: [
-    '(This page covers the rules only. See Controls for how to move a piece by tap or drag.)',
+    '(This section covers the rules only. See Controls for how to move a piece by tap or drag.)',
   ] },
   { title: 'The general', type: GENERAL, items: [
     'The general is the piece the whole game is fought over: the one attack that matters is the one that traps it.',
@@ -173,7 +169,7 @@ export const RULES = [
   { title: 'Never facing, uncovered', type: GENERAL, items: [
     'The two generals may never end up facing each other with nothing between them on an open file.',
   ] },
-  { title: 'More on a later page', type: GENERAL, items: [
+  { title: 'More below', type: GENERAL, items: [
     'This is the "flying general" rule, covered in full later in this Rules section.',
   ] },
   { title: 'The advisor', type: ADVISOR, items: [

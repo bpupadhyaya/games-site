@@ -5,6 +5,7 @@ import { buildField } from './field.js';
 import { addFootballClips } from './clips.js';
 import { buildFootball } from './gear.js';
 import { createCtl, toWorld } from './actors.js';
+import { LY } from '../src/layout.js';
 
 const LIB = '../vendor3d/index.js';
 const YD = 0.9144;
@@ -44,9 +45,9 @@ export async function createPresenter({ kitCanvas, quality }) {
   if (!stage.supported) { canvas.remove(); return fallback; }
   const shadowMaps = quality === 'high';
   if (!shadowMaps) stage.renderer.shadowMap.enabled = false;
-  let lost = false;
+  let lost = false, restores = 0;
   stage.onContextLost(() => { lost = true; });
-  stage.onContextRestored(() => { lost = false; });
+  stage.onContextRestored(() => { lost = false; fitKey = ''; sizeKey = ''; restores++; stage.invalidate(); });
   stage.setLighting('day');
   stage.setSky(0x0d1a14, 0x0d1a14, { near: 70, far: 170 });
   const camera = stage.camera;
@@ -90,31 +91,48 @@ export async function createPresenter({ kitCanvas, quality }) {
   loadAll(false).catch((e) => { loading = false; console.warn('3D players failed to load; keeping the 2D field', e); });
 
   // ---- the fixed camera: the whole field, seen from behind the user's end, high ---------------------------------------------------------------------------------
-  const CAM = { h: QP('ch', 36), back: QP('cb', 11), look: 26 * YD, fovMargin: QP('fm', 0.97) };
-  let cssW = 0, cssH = 0, scaleV = 1, fitKey = '', laidOut = null;
+  // Landscape turns the camera to the sideline (the field runs left to right, so it uses the width); the game rotates the stick and arrow keys with it (game.js sideCam).
+  // Portrait keeps the approved camera (high, behind the user's end, the whole field). Landscape: lower and closer, so the players are larger; the far end zone
+  // may run under the scoreboard (z0 / z1 are the field rows that must stay in the picture). The canvas fills the whole screen at every aspect: the camera is fitted
+  // to the region the HUD leaves (viewRect, in virtual units) and the rest of the canvas shows more of the stadium (wider vertical fov, shifted projection centre).
+  const CAMS = { portrait: { h: QP('ch', 36), back: QP('cb', 11), look: 26 * YD, z0: 0, z1: 52, fovMargin: QP('fm', 0.97) }, landscape: { side: true, h: QP('lh', 34), d: QP('ld', 14), look: 26 * YD, z0: QP('z0', 0), z1: QP('z1', 52), fovMargin: QP('fm', 0.97) } };
+  let CAM = CAMS.portrait;
+  let cssW = 0, cssH = 0, scaleV = 1, fitKey = '', laidOut = null, sizeKey = '';
+  const MAX_PIXELS = 3e6;
   function layout(viewRect) {
     const r = kitCanvas.getBoundingClientRect();
     const cw = r.width || globalThis.innerWidth, ch = r.height || globalThis.innerHeight;
-    if (cw !== cssW || ch !== cssH) { cssW = cw; cssH = ch; stage.resize(); fitKey = ''; }
-    scaleV = Math.min(cw / 720, ch / 1280);
-    const ox = (cw - 720 * scaleV) / 2, oy = (ch - 1280 * scaleV) / 2;
+    const vw = LY.w, vh = LY.h;
+    const sk = `${cw}x${ch}|${vw}x${vh}`;
+    if (sk !== sizeKey) {
+      sizeKey = sk; cssW = cw; cssH = ch; stage.resize(); fitKey = '';
+      // pixel budget: css w*h*dpr^2 <= ~3 MP (a 1366x1024 iPad at dpr 2 renders at about 1.4), never below 1
+      const want = Math.max(1, Math.min(globalThis.devicePixelRatio || 1, 2, Math.sqrt(MAX_PIXELS / Math.max(1, cw * ch))));
+      const rr = stage.renderer;
+      if (Math.abs(rr.getPixelRatio() - want) > 0.01 || rr.domElement.width !== Math.round(cw * want)) { rr.setPixelRatio(want); rr.setSize(cw, ch, false); }
+      stage.invalidate();
+    }
+    scaleV = Math.min(cw / vw, ch / vh);
+    const ox = (cw - vw * scaleV) / 2, oy = (ch - vh * scaleV) / 2;
     canvas.style.clipPath = `inset(${Math.max(0, oy)}px ${Math.max(0, ox)}px ${Math.max(0, oy)}px ${Math.max(0, ox)}px)`;
-    const top = oy + viewRect.y * scaleV, h = viewRect.h * scaleV, w = 720 * scaleV;
-    laidOut = { cw, ch, top, h, w, ox, oy };
+    laidOut = { cw, ch, rx: ox + viewRect.x * scaleV, ry: oy + viewRect.y * scaleV, rw: viewRect.w * scaleV, rh: viewRect.h * scaleV, ox, oy };
     return laidOut;
   }
   // choose the fov that just fits every field corner (and the goal posts) inside the region, then show the region inside the full canvas with a view offset
   function fitCamera(L) {
-    const key = `${L.cw}x${L.ch}:${Math.round(L.top)}:${Math.round(L.h)}`;
+    CAM = LY.land ? CAMS.landscape : CAMS.portrait;
+    // portrait: the taller the region, the steeper and closer the camera, so a tall phone's field is longer on screen (the original look at region ratio 1.0)
+    if (!LY.land) { const t = Math.max(0, Math.min(1, (L.rh / L.rw - 1.0) / 0.7)); CAM = { ...CAMS.portrait, h: CAMS.portrait.h + 16 * t, back: CAMS.portrait.back - 9 * t }; }
+    const key = `${L.cw}x${L.ch}:${Math.round(L.rx)},${Math.round(L.ry)},${Math.round(L.rw)},${Math.round(L.rh)}:${LY.land}`;
     if (key === fitKey) return;
     fitKey = key;
     camera.clearViewOffset?.();
-    camera.position.set(0, CAM.h, -CAM.back);
-    camera.lookAt(0, 0, CAM.look);
+    // landscape: a broadcast-style sideline camera, the field runs left to right (Blue attacks to the right); portrait: behind the user's end
+    if (CAM.side) { camera.position.set(-CAM.d, CAM.h, CAM.look); camera.lookAt(0, 0, CAM.look); } else { camera.position.set(0, CAM.h, -CAM.back); camera.lookAt(0, 0, CAM.look); }
     camera.updateMatrixWorld(true);
-    const aspect = L.w / L.h;
+    const aspect = L.rw / L.rh;
     const pts = [];
-    for (const x of [-14, 14]) for (const z of [0, 52]) pts.push(V(x * YD, 0, z * YD));
+    for (const x of [-14, 14]) for (const z of [CAM.z0, CAM.z1]) pts.push(V(x * YD, 0, z * YD));
     let lo = 8, hi = 80, best = 60;
     for (let i = 0; i < 24; i++) {
       const mid = (lo + hi) / 2;
@@ -125,10 +143,10 @@ export async function createPresenter({ kitCanvas, quality }) {
     }
     const fovRegion = best;
     // the region is only part of the canvas: widen the vertical fov for the full canvas and offset the view so the picture lands inside the region
-    const fullFov = (2 * Math.atan(Math.tan((fovRegion * Math.PI) / 360) * (L.ch / L.h)) * 180) / Math.PI;
+    const fullFov = (2 * Math.atan(Math.tan((fovRegion * Math.PI) / 360) * (L.ch / L.rh)) * 180) / Math.PI;
     camera.fov = Math.min(110, fullFov); camera.aspect = L.cw / L.ch;
-    const centre = L.top + L.h / 2;
-    if (camera.setViewOffset) camera.setViewOffset(L.cw, L.ch, 0, -(centre - L.ch / 2), L.cw, L.ch);
+    const dx = L.rx + L.rw / 2 - L.cw / 2, dy = L.ry + L.rh / 2 - L.ch / 2;
+    if (camera.setViewOffset) camera.setViewOffset(L.cw, L.ch, -dx, -dy, L.cw, L.ch);
     camera.updateProjectionMatrix();
     camera.updateMatrixWorld(true);
   }
@@ -154,7 +172,7 @@ export async function createPresenter({ kitCanvas, quality }) {
     const wantWomen = !!(s.settings && s.settings.women);
     if (wantWomen !== womenLoaded && !loading) loadAll(wantWomen).catch(() => { loading = false; });
     if (!shown) { canvas.style.visibility = 'visible'; shown = true; game.setView3d?.(true); stage.invalidate(); }
-    const L = layout(s.viewRect || { x: 0, y: 176, w: 720, h: 900 });
+    const L = layout(s.viewRect || { x: 0, y: 176, w: LY.w, h: 900 });
     fitCamera(L);
     const M = E.m, P = E.P;
     const acts = P ? P.actors : M.actors;
@@ -213,7 +231,7 @@ export async function createPresenter({ kitCanvas, quality }) {
   }
 
   return {
-    blockWorst: () => [blockWorst, blockWhy], warmMs: () => warmMs, stage, ready: () => ready, ents: () => ents, frame, camera, THREE,
+    blockWorst: () => [blockWorst, blockWhy], restores: () => restores, lost: () => lost, warmMs: () => warmMs, stage, ready: () => ready, ents: () => ents, frame, camera, THREE,
     screen: toScreen,
     wrap(game) {
       const r = game.render.bind(game);

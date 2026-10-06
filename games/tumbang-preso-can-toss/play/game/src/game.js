@@ -11,16 +11,18 @@ import {
 } from './ai.js';
 import { explainThrow, explainDash, explainTaya } from './explain.js';
 import { LESSONS, lessonById, lessonIndex, quizWorld } from './lessons.js';
-import { W, H, inRect, REF_CLOSE, TEXT_DEC, TEXT_INC, TEXT_SCALES, THINK_STEPS, SETUP_PINS } from './layout.js';
+import { W, H, inRect, REF_CLOSE, TEXT_DEC, TEXT_INC, TEXT_SCALES, THINK_STEPS, SETUP_PINS, setSize, sizeKey } from './layout.js';
 import { renderPlay, layoutFor, camFor, bigBarIds } from './view.js';
+import { readerGeo, setupPinsGeo, host } from './layout.js';
 import {
   renderTitle, renderSetup, renderSettings, renderLearn, renderQuiz, renderResult, renderPause, renderSheet, renderReason, renderRoundOver, renderLessonResult, renderPages, renderDemoLimit,
   hitScreen, flowMeta, readerMax, ensureReader, ensureLayout, resetMenus,
 } from './menus.js';
 import { ABOUT, HOWTO, RULES } from './content.js';
 import { setPress } from './ui.js';
+import { pressLockup } from './brand.js';
 
-export const meta = { width: W, height: H };
+export const meta = { width: W, height: H, fluid: { short: 720 } };
 export const DEMO_ROUND_CAP = 2;
 const SHOT_MODE = (() => { try { return /[?&]shot=/.test(globalThis.location.search); } catch { return false; } })();
 const tagsNeeded = (rounds) => Math.ceil((rounds + 0.5) / 2);   // guard: tags to win
@@ -349,7 +351,7 @@ export function createGame(env) {
     const ptr = input.pointer, keys = input.keys;
     const bar = lay.bar.rects, hudPause = lay.hud.pause;
     const ids = textScale() >= 2 ? bigBarIds(state) : null;
-    const onUi = (x, y) => inRect(hudPause, x, y) || Object.values(bar).some((r) => inRect(r, x, y)) || y < lay.regionTop || y > lay.regionBottom;
+    const onUi = (x, y) => inRect(hudPause, x, y) || Object.values(bar).some((r) => inRect(r, x, y)) || y < lay.regionTop || y > lay.regionBottom || (lay.mode === 'wide' && !inRect(lay.region, x, y));
     if (ptr.pressed) {
       if (!inRect(hudPause, ptr.x, ptr.y)) {
         for (const [rid, r] of Object.entries(bar)) {
@@ -576,6 +578,7 @@ export function createGame(env) {
   // ---- menus ----------------------------------------------------------------------------------------------------------------
   const handleTitle = (id) => {
     if (!id) return;
+    if (id === 'arcforge') { pressLockup(); env.openArcforgeHome?.(); return; }
     sfx.tick();
     if (id === 'resume') resumeMatch();
     else if (id === 'play') { state.scene = 'setup'; state.ui.scroll = 0; state.setupMsg = ''; }
@@ -710,6 +713,17 @@ export function createGame(env) {
     if (k === 3 && w.can.mode !== 'up' && you && !you.hasSlip && !state.auto) state.auto = 'fetch';
   }
 
+  // The screen can change shape at any time (rotation, split screen). Everything is laid out from the live size; the match, the
+  // round and every menu position are untouched, only a finger that was down is let go.
+  let lastSize = '';
+  const syncSize = () => {
+    setSize(meta.width, meta.height);
+    const k = sizeKey();
+    if (k === lastSize) return;
+    if (lastSize) { state.drag = null; state.ui.drag = null; resetMenus(); }
+    lastSize = k;
+  };
+  syncSize();
   // wall-clock drawing helpers stay out of the enumerable state (hashes and saves never see them)
   for (const k of ['alpha', 'updAt', 'stepped', 'thinkFreeze', 'cardRect', 'cardFull']) Object.defineProperty(state, k, { value: undefined, writable: true, enumerable: false });
   startAttract();
@@ -742,6 +756,7 @@ export function createGame(env) {
     // Watch & Learn, lessons and every menu are free; only real play counts against the free preview (a paused round does not).
     isPreviewExempt: () => !(state.scene === 'play' && state.m && state.m.cfg.mode === 'ai' && !state.roundOver && state.w && state.w.phase === 'play' && state.w.go <= 0) || state.paused || state.reasonOpen || state.sheet,
     update(dt, input) {
+      syncSize();
       state.stepped = false; state.updAt = nowMs();
       setPress(input.pointer);
       state.t += state.paused && state.scene === 'play' ? 0 : dt;
@@ -767,6 +782,7 @@ export function createGame(env) {
       }
     },
     render(ctx) {
+      syncSize();
       state.alpha = state.stepped && env.clock ? Math.max(0, Math.min(1, (nowMs() - state.updAt) / (DT * 1000))) : 1;
       switch (state.scene) {
         case 'title': renderTitle(ctx, state); break;
@@ -791,6 +807,22 @@ export function createGame(env) {
       }
     },
     getState: () => state,
+    // Check scripts only: every tappable rectangle on the screen right now (ui: true) plus the big areas (ui: false).
+    debugRects() {
+      const out = [], add = (n, r, ui = true) => { if (r) out.push({ n, x: r.x, y: r.y, w: r.w, h: r.h, ui }); };
+      const mt = flowMeta();
+      const flow = () => { if (mt.lay) for (const it of mt.lay.items) if (it.w.t === 'btn') { const y = mt.top + it.y - state.ui.scroll; if (y >= mt.top - 1 && y + it.h <= mt.bottom + 1) add(`btn:${it.w.id}`, { x: it.x, y, w: it.wd, h: it.h }); } };
+      if (state.scene === 'play' && state.m && state.w) {
+        const lay = layoutFor(state);
+        add('pause', lay.hud.pause); for (const [id, r] of Object.entries(lay.bar.rects)) add(`bar:${id}`, r);
+        add('yard', lay.region, false); if (lay.cards) { add('leftCard', lay.cards.left, false); add('rightCard', lay.cards.right, false); }
+        if (state.pauseMenu || state.sheet || state.reasonOpen || state.roundOver || (state.lessonRes && state.lessonT > 0.8)) { out.length = 0; flow(); }
+      } else if (state.scene === 'howto' || state.scene === 'about' || state.scene === 'rules') {
+        const g = readerGeo(); add('textDec', g.textDec); add('textInc', g.textInc); add('close', g.close); add('panel', g.panel, false);
+      } else { flow(); if (state.scene === 'setup') { const p = setupPinsGeo(); add('start', p.start); add('back', p.back); } }
+      return out;
+    },
+    debugHost: () => ({ ...host }),
     // mouse wheel / trackpad: scrolls whatever long screen is showing
     wheel(dy) {
       const reader = state.scene === 'howto' || state.scene === 'about' || state.scene === 'rules';

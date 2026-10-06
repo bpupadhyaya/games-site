@@ -1,5 +1,15 @@
 // The table and the board. One light, from the upper left. The pieces live in pieces.js.
-import { W, H, project, UNIT } from './layout.js';
+import { CANON, KINDS } from './layout.js';
+
+// The board is painted ONCE per (wood, projection) in canonical (approved phone) coordinates and drawn scaled; only the table depends on the
+// screen size. Two projections exist (layout.js KINDS): 'tilt' = the approved slight perspective, 'flat' = a true square grid. Same wood,
+// lines, inlays and frame in both.
+const UNIT = CANON.D / 126;
+let project = null;
+function setProjection(kind) {
+  const k = KINDS[kind];
+  project = (u, v) => { const z = 1 + k.K * (4 - v); return { x: CANON.CX + (u * CANON.D) / z, y: CANON.YN - k.R0 * (4 - v) / z, s: 1 / z }; };
+}
 
 const TAU = Math.PI * 2;
 
@@ -41,18 +51,25 @@ export const WOODS = {
 };
 export const WOOD_NAMES = { teak: 'Teak', walnut: 'Walnut', ash: 'Ash' };
 
-function paintStatic(ctx, wood) {
-  const WD = WOODS[wood] ?? WOODS.teak;
-  // the table: dark cloth under a warm lamp
-  const bg = ctx.createLinearGradient(0, 0, 0, H);
+function paintTable(ctx, w, h, L) {
+  // the table: dark cloth under a warm lamp, filling the whole screen edge to edge
+  const bg = ctx.createLinearGradient(0, 0, 0, h);
   bg.addColorStop(0, '#12322f'); bg.addColorStop(0.55, '#0c2426'); bg.addColorStop(1, '#06141a');
-  ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = bg; ctx.fillRect(0, 0, w, h);
   ctx.strokeStyle = 'rgba(255,255,255,0.022)'; ctx.lineWidth = 1;
-  for (let x = -H; x < W; x += 9) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x + H, H); ctx.stroke(); }
-  const lamp = ctx.createRadialGradient(300, 980, 60, 360, 1040, 820);
+  ctx.beginPath(); for (let x = -h; x < w; x += 9) { ctx.moveTo(x, 0); ctx.lineTo(x + h, h); } ctx.stroke();
+  const b = L.board, lx = b.cx - 60, ly = b.yNear - 355;
+  const lamp = ctx.createRadialGradient(lx, ly, 60, lx + 60, ly + 60, Math.max(820, w * 0.6));
   lamp.addColorStop(0, 'rgba(255,205,130,0.20)'); lamp.addColorStop(1, 'rgba(255,205,130,0)');
-  ctx.fillStyle = lamp; ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = lamp; ctx.fillRect(0, 0, w, h);
+  const vg = ctx.createRadialGradient(w / 2, h / 2, Math.min(w, h) * 0.45, w / 2, h / 2, Math.hypot(w, h) * 0.62);   // soft vignette
+  vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(0,0,0,0.34)');
+  ctx.fillStyle = vg; ctx.fillRect(0, 0, w, h);
+}
 
+function paintBoard(ctx, wood, kind) {
+  setProjection(kind);
+  const WD = WOODS[wood] ?? WOODS.teak;
   const outer = rect(2.47, -0.47, 4.47), inner = rect(2.31, -0.31, 4.31);
   // soft shadow of the board on the cloth, thrown down and to the right
   for (let i = 0; i < 7; i++) {
@@ -83,7 +100,7 @@ function paintStatic(ctx, wood) {
   poly(ctx, inner); ctx.clip();
   const su = ctx.createLinearGradient(inner[0].x, inner[0].y, inner[2].x, inner[2].y);
   su.addColorStop(0, WD.top); su.addColorStop(0.5, WD.face[1]); su.addColorStop(1, WD.face[2]);
-  ctx.fillStyle = su; ctx.fillRect(0, inner[0].y - 10, W, inner[2].y - inner[0].y + 20);
+  ctx.fillStyle = su; ctx.fillRect(0, inner[0].y - 10, 720, inner[2].y - inner[0].y + 20);
   // wood grain running away from the player, in perspective
   const rnd = lcg(20260920);
   for (let n = 0; n < 120; n++) {
@@ -105,7 +122,7 @@ function paintStatic(ctx, wood) {
   }
   const sheen = ctx.createRadialGradient(200, inner[0].y + 40, 20, 260, inner[0].y + 120, 520);
   sheen.addColorStop(0, 'rgba(255,240,205,0.30)'); sheen.addColorStop(1, 'rgba(255,240,205,0)');
-  ctx.fillStyle = sheen; ctx.fillRect(0, inner[0].y - 10, W, 600);
+  ctx.fillStyle = sheen; ctx.fillRect(0, inner[0].y - 10, 720, 600);
   ctx.restore();
   // inner lip where the surface meets the frame
   ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(30,12,2,0.6)'; poly(ctx, inner); ctx.stroke();
@@ -138,16 +155,33 @@ function paintStatic(ctx, wood) {
   }
 }
 
-const layers = {};     // one cached layer per wood, painted the first time it is needed
-export function drawTableAndBoard(ctx, wood = 'teak') {
-  if (!(wood in layers)) {
-    layers[wood] = null;
+const boardLayers = {};     // one cached board layer per wood, painted the first time it is needed (independent of screen size)
+let tableLayer = null;      // the table cloth, rebuilt only when the screen size (or safe-area key) changes
+const TABLE_RES = 1.5;
+export function drawTable(ctx, L) {
+  if (!tableLayer || tableLayer.key !== L.key) {
+    tableLayer = { key: L.key, canvas: null };
     try {
       if (typeof OffscreenCanvas !== 'undefined') {
-        const c = new OffscreenCanvas(W * 2, H * 2), lctx = c.getContext('2d');
-        lctx.scale(2, 2); paintStatic(lctx, wood); layers[wood] = c;
+        const c = new OffscreenCanvas(Math.ceil(L.w * TABLE_RES), Math.ceil(L.h * TABLE_RES)), lctx = c.getContext('2d');
+        lctx.scale(TABLE_RES, TABLE_RES); paintTable(lctx, L.w, L.h, L); tableLayer.canvas = c;
       }
-    } catch { layers[wood] = null; }
+    } catch { tableLayer.canvas = null; }
   }
-  if (layers[wood]) ctx.drawImage(layers[wood], 0, 0, W, H); else paintStatic(ctx, wood);
+  if (tableLayer.canvas) ctx.drawImage(tableLayer.canvas, 0, 0, L.w, L.h); else paintTable(ctx, L.w, L.h, L);
+}
+export function drawBoard(ctx, L, wood = 'teak') {
+  const b = L.board, kind = b.kind, key = wood + '|' + kind, layer = KINDS[kind].layer;
+  if (!(key in boardLayers)) {
+    boardLayers[key] = null;
+    try {
+      if (typeof OffscreenCanvas !== 'undefined') {
+        const c = new OffscreenCanvas(layer.w * 2, layer.h * 2), lctx = c.getContext('2d');
+        lctx.scale(2, 2); lctx.translate(-layer.x, -layer.y); paintBoard(lctx, wood, kind); boardLayers[key] = c;
+      }
+    } catch { boardLayers[key] = null; }
+  }
+  const s = b.s, dx = b.cx + (layer.x - CANON.CX) * s, dy = b.yNear + (layer.y - CANON.YN) * s;
+  if (boardLayers[key]) ctx.drawImage(boardLayers[key], dx, dy, layer.w * s, layer.h * s);
+  else { ctx.save(); ctx.translate(dx - layer.x * s, dy - layer.y * s); ctx.scale(s, s); paintBoard(ctx, wood, kind); ctx.restore(); }
 }

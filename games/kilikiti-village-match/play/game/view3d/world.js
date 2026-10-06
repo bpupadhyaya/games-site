@@ -3,7 +3,7 @@
 // World frame (metres): sim (x, y, z) -> world (x, y, -z). The bowler is at -Z; the batter's-eye camera sits at +Z looking down -Z.
 import { THREE } from '../vendor3d/index.js';
 import { PITCH, FIELD, STUMP } from '../src/core.js';
-import { CAMS } from '../src/camera.js';
+import { CAMS, VIEW } from '../src/camera.js';
 import { BufferGeometry, Attr, Attr16 } from './props.js';
 
 export const V3 = THREE.Vector3;
@@ -301,8 +301,8 @@ export class World {
 }
 
 // ---- fitted projection ----------------------------------------------------------------------------------------------------------
-/** Sets the three camera to the fixed pinhole `cam` (camera.js) so that the 720x1280 virtual canvas maps through the kit's letterbox exactly. */
-export function fitCamera(camera, cam, cssW, cssH, view = { w: 720, h: 1280 }) {
+/** Sets the three camera to the fixed pinhole `cam` (camera.js) so that the LIVE virtual canvas (camera.js VIEW: short side 720, long side follows the screen) maps through the kit's view exactly. */
+export function fitCamera(camera, cam, cssW, cssH, view = VIEW) {
   const s = Math.min(cssW / view.w, cssH / view.h);
   const ox = (cssW - view.w * s) / 2, oy = (cssH - view.h * s) / 2;
   const F = cam.f * s, px0 = ox + cam.cx * s, py0 = oy + cam.cy * s;
@@ -321,7 +321,7 @@ export function fitCamera(camera, cam, cssW, cssH, view = { w: 720, h: 1280 }) {
 }
 
 // ---- the painted backdrop of the batter's-eye view (screen space, drawn once per size) ----------------------------------------------------
-export function makeBackdrop(doc, cssW, cssH, dpr, view = { w: 720, h: 1280 }) {
+export function makeBackdrop(doc, cssW, cssH, dpr, view = VIEW) {
   const c = doc.createElement('canvas');
   c.width = Math.max(2, Math.round(cssW * dpr)); c.height = Math.max(2, Math.round(cssH * dpr));
   const g = c.getContext('2d');
@@ -329,6 +329,9 @@ export function makeBackdrop(doc, cssW, cssH, dpr, view = { w: 720, h: 1280 }) {
   const ox = (c.width - view.w * s) / 2, oy = (c.height - view.h * s) / 2;
   const hz = CAMS.bat.cy;
   const hazeCol = '#cfe6d6';
+  // the painting spans the whole live width (fluid layout) and keeps its vertical proportions against the horizon
+  const xl = -ox / s - 40, xr = (c.width - ox) / s + 40, vw = xr - xl;
+  const q = Math.min(1.5, Math.max(0.45, hz / 455));
   // above the virtual rect and below the horizon the colours simply continue
   const topH = oy + (hz + 6) * s;
   const gr = g.createLinearGradient(0, 0, 0, topH);
@@ -337,16 +340,18 @@ export function makeBackdrop(doc, cssW, cssH, dpr, view = { w: 720, h: 1280 }) {
   g.fillStyle = hazeCol; g.fillRect(0, topH - 1, c.width, c.height);
   g.save(); g.setTransform(s, 0, 0, s, ox, oy);
   // sun glow and clouds
-  const sg = g.createRadialGradient(540, 130, 4, 540, 130, 260); sg.addColorStop(0, 'rgba(255,248,220,0.95)'); sg.addColorStop(0.2, 'rgba(255,240,200,0.45)'); sg.addColorStop(1, 'rgba(255,240,200,0)');
-  g.fillStyle = sg; g.fillRect(180, -130, 720, 520);
+  const sx = xl + 40 + (vw - 80) * 0.75, sy = 130 * q;
+  const sg = g.createRadialGradient(sx, sy, 4, sx, sy, 260 * q); sg.addColorStop(0, 'rgba(255,248,220,0.95)'); sg.addColorStop(0.2, 'rgba(255,240,200,0.45)'); sg.addColorStop(1, 'rgba(255,240,200,0)');
+  g.fillStyle = sg; g.fillRect(sx - 360, sy - 260 * q, 720, 520 * q);
   const r = lcg(3);
-  for (let i = 0; i < 7; i++) { const cx = 40 + i * 110 + r() * 40, cy = 90 + r() * 200, w = 90 + r() * 90; g.fillStyle = 'rgba(255,255,255,0.8)'; g.beginPath(); g.ellipse(cx, cy, w, 16 + r() * 8, 0, 0, 7); g.ellipse(cx + w * 0.4, cy - 10, w * 0.6, 14, 0, 0, 7); g.fill(); }
+  const nCloud = Math.ceil(vw / 110);
+  for (let i = 0; i < nCloud; i++) { const cx = xl + (i + 0.5) * (vw / nCloud) + r() * 40 - 20, cy = (90 + r() * 200) * q * 0.9, w = 90 + r() * 90; g.fillStyle = 'rgba(255,255,255,0.8)'; g.beginPath(); g.ellipse(cx, cy, w, 16 + r() * 8, 0, 0, 7); g.ellipse(cx + w * 0.4, cy - 10, w * 0.6, 14, 0, 0, 7); g.fill(); }
   // sea band, island hills and far palms along the horizon
   const sea = g.createLinearGradient(0, hz - 58, 0, hz + 6); sea.addColorStop(0, '#46b9c2'); sea.addColorStop(1, '#9fe0d0');
-  g.fillStyle = sea; g.fillRect(-40, hz - 58, 800, 66);
-  g.fillStyle = 'rgba(255,255,255,0.35)'; for (let i = 0; i < 26; i++) g.fillRect(r() * 720, hz - 50 + r() * 50, 20 + r() * 40, 1.6);
-  g.fillStyle = '#4d8c6a'; g.beginPath(); g.moveTo(-40, hz - 12); for (let x = -40; x <= 760; x += 20) g.lineTo(x, hz - 14 - 36 * Math.abs(Math.sin(x * 0.012 + 0.6)) - 14 * Math.abs(Math.sin(x * 0.04))); g.lineTo(760, hz - 8); g.lineTo(-40, hz - 8); g.closePath(); g.fill();
-  g.fillStyle = '#2f7050'; g.beginPath(); g.moveTo(-40, hz - 8); for (let x = -40; x <= 760; x += 16) g.lineTo(x, hz - 10 - 16 * Math.abs(Math.sin(x * 0.03 + 2.1))); g.lineTo(760, hz - 4); g.lineTo(-40, hz - 4); g.closePath(); g.fill();
+  g.fillStyle = sea; g.fillRect(xl, hz - 58, vw, 66);
+  g.fillStyle = 'rgba(255,255,255,0.35)'; for (let i = 0; i < Math.round(26 * vw / 720); i++) g.fillRect(xl + r() * vw, hz - 50 + r() * 50, 20 + r() * 40, 1.6);
+  g.fillStyle = '#4d8c6a'; g.beginPath(); g.moveTo(xl, hz - 12); for (let x = xl; x <= xr; x += 20) g.lineTo(x, hz - 14 - 36 * Math.abs(Math.sin(x * 0.012 + 0.6)) - 14 * Math.abs(Math.sin(x * 0.04))); g.lineTo(xr, hz - 8); g.lineTo(xl, hz - 8); g.closePath(); g.fill();
+  g.fillStyle = '#2f7050'; g.beginPath(); g.moveTo(xl, hz - 8); for (let x = xl; x <= xr; x += 16) g.lineTo(x, hz - 10 - 16 * Math.abs(Math.sin(x * 0.03 + 2.1))); g.lineTo(xr, hz - 4); g.lineTo(xl, hz - 4); g.closePath(); g.fill();
   g.restore();
   const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
   return t;

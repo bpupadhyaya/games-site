@@ -2,9 +2,14 @@
 // Crowned heads grow back unless the glinting one is struck. After six, counsel arrives: the
 // last arrow must find the king's centre while his arms are raised. His fire bolts fall on the
 // army's line: shoot them down or lose heart.
-import { W, H, TAU, PAL, INK, GOLD, clamp, lerp, smooth, sky, stars, skyline, ridge, light, motes, finish, shakeOffset, clouds, rays } from '../stage.js';
+import { FR, W, H, TAU, PAL, INK, GOLD, clamp, lerp, smooth, sky, stars, skyline, ridge, light, motes, finish, shakeOffset, clouds, rays } from '../stage.js';
 import { figure, poses, tenCrowned, tenHeadPos, chariot, fireArrow } from '../puppets.js';
 import { pips, label, caption } from '../ui.js';
+import { mode } from '../frame.js';
+
+// Landscape: a smaller scale so the whole duel (the king's heads at the top, the archer at the bottom) stays in view.
+export const LAND_S = 0.6;
+export const LAND_Y1 = 1510;
 
 const ARCHER = { x: 200, y: 1478 }, NOCK = { x: 250, y: 1190 }, G = 900, NEED = 10;
 
@@ -94,7 +99,7 @@ export function create(env, shared) {
         }
       }
     }
-    s.arrows = s.arrows.filter((a) => !a.dead && a.y < H + 50 && a.x > -50 && a.x < W + 50);
+    s.arrows = s.arrows.filter((a) => !a.dead && a.y < H + 50 && a.x > FR.x0 - 50 && a.x < FR.x1 + 50);
     if (s.phase === 'counsel' && s.phaseT > 4.5) { s.phase = 'core'; s.phaseT = 0; }
     if (s.resolve <= 0 && s.phase !== 'won') { s.resolve = 0; s.phase = 'lost'; }
   }
@@ -133,7 +138,7 @@ export function create(env, shared) {
     }
 
     // ground, the army's line, the archer
-    ctx.fillStyle = '#0c0406'; ctx.beginPath(); ctx.moveTo(0, 1350); ctx.quadraticCurveTo(200, 1300, 420, 1370); ctx.quadraticCurveTo(600, 1410, W, 1390); ctx.lineTo(W, H); ctx.lineTo(0, H); ctx.fill();
+    ctx.fillStyle = '#0c0406'; ctx.beginPath(); ctx.moveTo(FR.x0 - 2, 1350); ctx.lineTo(0, 1350); ctx.quadraticCurveTo(200, 1300, 420, 1370); ctx.quadraticCurveTo(600, 1410, W, 1390); ctx.lineTo(FR.x1 + 2, 1390); ctx.lineTo(FR.x1 + 2, H); ctx.lineTo(FR.x0 - 2, H); ctx.fill();
     for (let i = 0; i < 5; i++) figure(ctx, { x: 420 + i * 62, y: 1392 + (i % 2) * 14, s: 0.5, kind: 'vanara', prop: i % 2 ? 'mace' : null, pose: wonU > 0 || s.flash > 0 ? poses.cheer(t, i) : poses.stand(t + i) });
     if (s.phase === 'counsel' || s.phase === 'core') figure(ctx, { x: 96, y: 1372, s: 0.74, kind: 'vibhishan', pose: { ...poses.stand(t), shF: 1.9, elF: 0.3 } });
     light(ctx, ARCHER.x + 20, ARCHER.y - 150, 240, '255,210,140', 0.35);
@@ -145,7 +150,7 @@ export function create(env, shared) {
       let [vx, vy] = velocity(), x = NOCK.x, y = NOCK.y;
       for (let i = 0; i < 26; i++) {
         vy += G * 0.055; x += vx * 0.055; y += vy * 0.055;
-        if (y > 1400 || x < 0 || x > W) break;
+        if (y > 1400 || x < FR.x0 || x > FR.x1) break;
         ctx.fillStyle = `rgba(255,236,180,${0.9 - i * 0.03})`; ctx.beginPath(); ctx.arc(x, y, 5 - i * 0.12, 0, TAU); ctx.fill();
       }
     }
@@ -155,14 +160,14 @@ export function create(env, shared) {
     }
     for (const f of s.sparks) { const a = 1 - f.t / 0.6; for (let i = 0; i < 9; i++) { ctx.fillStyle = `rgba(${f.rgb},${a})`; ctx.beginPath(); ctx.arc(f.x + Math.cos(i * 0.7) * f.t * 160, f.y + Math.sin(i * 0.7) * f.t * 160, 5 * a + 1, 0, TAU); ctx.fill(); } }
     motes(ctx, { n: 36, t, rgb: wonU > 0.5 ? '255,230,170' : '255,140,60', kind: wonU > 0.5 ? 'petal' : 'ember', top: 200, bottom: 1400, rm });
-    if (s.flash > 0) { ctx.fillStyle = `rgba(255,236,190,${s.flash * 0.35})`; ctx.fillRect(0, 0, W, H); }
+    if (s.flash > 0) { ctx.fillStyle = `rgba(255,236,190,${s.flash * 0.35})`; ctx.fillRect(FR.x0 - 1, 0, FR.w + 2, H); }
     ctx.restore();
     finish(ctx, 0.72);
 
     label(ctx, L.heads, 130, 142, 22); pips(ctx, 138, 161, s.felled, NEED, '255,214,120', 8, 20);
     label(ctx, L.resolve, 400, 142, 22); pips(ctx, 408, 161, s.resolve, 8, '160,230,170', 8, 20);
     if (s.phase === 'counsel') caption(ctx, L.counsel, 900, Math.min(1, s.phaseT * 2, (4.5 - s.phaseT) * 2), 32);
-    if (s.phase === 'core' && armsUp() > 0.6) label(ctx, L.now, s.rx, kingY() - 420, 44, 'center', '#fff2c0', undefined, 700);
+    if (s.phase === 'core' && armsUp() > 0.6) { const hm = mode.hud; mode.hud = false; label(ctx, L.now, s.rx, kingY() - 420, 44, 'center', '#fff2c0', undefined, 700); mode.hud = hm; }
   }
 
   return {

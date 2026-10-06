@@ -1,7 +1,7 @@
 // 3D presenter: READS the simulation (game.getState().sim) and draws the pitch, the ball and fourteen mannequins. It never writes back.
 // Contact discipline: the sim owns where and when the ball is touched; the pose layer (anim.js / skills.js) makes the exact body part meet the
 // (visually enlarged) ball at the sim's contact tick, and the ball only ever follows the sim's own positions.
-import { initialCam, fovFor } from '../src/camera.js';
+import { CAMS, CAMV, vfovOf } from '../src/camera.js';
 import { STEP, BR } from '../src/consts.js';
 import { buildScenery, buildGround, paintGround, paintAtlas } from './pitch.js';
 import { createDriver } from './anim.js';
@@ -41,14 +41,11 @@ export async function createPresenter({ kitCanvas, quality = pickQuality(), manu
   canvas.style.cssText = 'position:fixed;inset:0;width:100vw;height:100dvh;display:block;pointer-events:none;z-index:0;visibility:hidden';
   kitCanvas.parentElement.insertBefore(canvas, kitCanvas);
   kitCanvas.style.position = 'relative'; kitCanvas.style.zIndex = '1';
-  // on screens taller than 9:16 the 3D picture also fills the bars above and below the 720x1280 game area; two translucent dark bands carry the HUD's top and bottom fades over them
-  const mkBar = (top) => { const d = doc.createElement('div'); d.style.cssText = `position:fixed;left:0;right:0;${top ? 'top' : 'bottom'}:0;height:0;pointer-events:none;z-index:0;background:linear-gradient(${top ? '180deg' : '0deg'},rgba(6,14,26,0.86),rgba(6,14,26,0.62))`; kitCanvas.parentElement.insertBefore(d, kitCanvas); return d; };
-  const barTop = mkBar(true), barBot = mkBar(false);
   const stage = createStage({ canvas, quality, dprCap: 2, lighting: 'day', mode: 'continuous', shadowSize: 3.2, preserveDrawingBuffer: manual });
   if (!stage.supported) { canvas.remove(); return none; }
   const P = { stage, THREE, V3, quality, humans: [], ready: false, lost: false, stats: { frames: 0 }, manual };
   stage.onContextLost(() => { P.lost = true; });
-  stage.onContextRestored(() => { P.lost = false; stage.invalidate(); });
+  stage.onContextRestored(() => { P.lost = false; camKey = ''; P.placeKey = ''; P.restores = (P.restores || 0) + 1; stage.invalidate(); });
 
   // ---- the scene: lights, sky, ground, scenery, ball, blob shadows ---------------------------------------------------------------------------
   stage.setLighting('day', { sky: 0x8fb8e0, fog: 0xbcd4e8, hemi: 1.0, keyI: 2.6, rimI: 0.9, exposure: 0.95 });
@@ -64,7 +61,8 @@ export async function createPresenter({ kitCanvas, quality = pickQuality(), manu
   stage.add(ground);
   const atlasTex = new THREE.CanvasTexture(paintAtlas(doc));
   atlasTex.colorSpace = THREE.SRGBColorSpace; atlasTex.generateMipmaps = true; atlasTex.minFilter = THREE.LinearMipmapLinearFilter; atlasTex.magFilter = THREE.LinearFilter; atlasTex.anisotropy = 4;
-  const scenery = new THREE.Mesh(buildScenery(THREE), new THREE.MeshBasicMaterial({ map: atlasTex, vertexColors: true, alphaTest: 0.28, side: THREE.DoubleSide, fog: true }));
+  const sceneryGeo = { end: buildScenery(THREE, 'end') };
+  const scenery = new THREE.Mesh(sceneryGeo.end, new THREE.MeshBasicMaterial({ map: atlasTex, vertexColors: true, alphaTest: 0.28, side: THREE.DoubleSide, fog: true }));
   scenery.frustumCulled = false; scenery.name = 'scenery';
   stage.add(scenery);
 
@@ -117,33 +115,62 @@ export async function createPresenter({ kitCanvas, quality = pickQuality(), manu
   }
 
   // ---- the frame ----------------------------------------------------------------------------------------------------------------------------------
-  const camBase = initialCam();
-  let curSim = null, prev = null, cur = null, seenAt = 0, lastT = null, pillar = -1;
+  let curSim = null, prev = null, cur = null, seenAt = 0, lastT = null, camKey = '', sceneMode = 'end';
   const snapOf = (s) => ({ tick: s.tick, t: s.t, ball: { x: s.ball.x, y: s.ball.y, z: s.ball.z, rx: s.ball.rx, rz: s.ball.rz }, pl: s.players.map((p) => ({ x: p.x, z: p.z, vx: p.vx, vz: p.vz, face: p.face, jy: p.jy })) });
 
+  // FLUID FRAMING: two fixed cameras (src/camera.js): end-on in portrait, side-on in landscape. Position and direction never change within a mode;
+  // the field of view and a small principal-point shift are solved from the live screen size (game.js sets CAMV every frame) so the whole pitch fills
+  // the free part of the screen, never stretched. The scenery has a side variant (no stand between the camera and the near touchline).
+  const PIXEL_BUDGET = 3.0e6;               // css width x height x ratio^2: big tablets render at a lower ratio (never below 1)
   function layoutCamera() {
-    const winW = kitCanvas.clientWidth || 720, winH = kitCanvas.clientHeight || 1280;
-    const wantW = winW / winH > 0.5625 ? Math.round(winH * 0.5625) : 0;
-    if (wantW !== pillar) {
-      pillar = wantW;
-      const vis = canvas.style.visibility || 'hidden';
-      canvas.style.cssText = wantW ? `position:fixed;top:0;left:50%;transform:translateX(-50%);width:${wantW}px;height:100dvh;display:block;pointer-events:none;z-index:0;visibility:${vis}` : `position:fixed;inset:0;width:100vw;height:100dvh;display:block;pointer-events:none;z-index:0;visibility:${vis}`;
-      stage.resize();
+    const W = canvas.clientWidth || 720, Hh = canvas.clientHeight || 1280;
+    if (CAMV.mode !== sceneMode) {
+      sceneMode = CAMV.mode;
+      if (!sceneryGeo[sceneMode]) sceneryGeo[sceneMode] = buildScenery(THREE, sceneMode);
+      scenery.geometry = sceneryGeo[sceneMode];
+      // sun from the camera side, so shadows fall away from the viewer and the light is on the players' faces
+      const off = sceneMode === 'side' ? [-12, 12, -3] : [-6, 12, -5];
+      stage._shadowOffset.set(off[0], off[1], off[2]); stage.lights.key.position.set(off[0], off[1], off[2]);
     }
-    const W = canvas.clientWidth || 720, H = canvas.clientHeight || 1280;
-    { const sc = Math.min(W / 720, H / 1280), bar = Math.max(0, Math.round((H - 1280 * sc) / 2)); const hh = `${bar}px`; if (barTop.style.height !== hh) { barTop.style.height = hh; barBot.style.height = hh; } const l = wantW ? `calc(50% - ${wantW / 2}px)` : '0'; const r2 = l; barTop.style.left = barBot.style.left = l; barTop.style.right = barBot.style.right = r2; }
-    const fov = fovFor(W / H);
-    if (Math.abs(cam.fov - fov) > 1e-3) { cam.fov = fov; cam.updateProjectionMatrix(); }
-    const c = P.camOverride || camBase;
+    const key = `${W}x${Hh}|${CAMV.key}|${P.camOverride ? 'o' : ''}`;
+    if (key !== camKey) {
+      camKey = key;
+      const aspect = W / Hh;
+      cam.aspect = aspect;
+      if (P.camOverride) { cam.fov = P.camOverride.fov || 30; cam.clearViewOffset(); }
+      else {
+        cam.fov = vfovOf(CAMV);
+        // principal-point shift (NDC) -> a view offset in css pixels: content moves right by ox/2 * W, up by oy/2 * H
+        cam.setViewOffset(W, Hh, (-CAMV.ox / 2) * W, (CAMV.oy / 2) * Hh, W, Hh);
+      }
+      cam.updateProjectionMatrix();
+    }
+    const c = P.camOverride || CAMS[CAMV.mode];
     cam.position.set(c.x, c.y, c.z); cam.lookAt(c.lx, c.ly, c.lz);
-    if (P.camOverride && P.camOverride.fov && cam.fov !== P.camOverride.fov) { cam.fov = P.camOverride.fov; cam.updateProjectionMatrix(); }
+  }
+  // The 3D canvas sits exactly under the kit canvas's virtual rectangle (the whole screen; only beyond the kit's maximum aspect are there bars).
+  function placeCanvas(view) {
+    const cw = kitCanvas.clientWidth || globalThis.innerWidth, ch = kitCanvas.clientHeight || globalThis.innerHeight;
+    const vw = (view && view.width) || 720, vh = (view && view.height) || 1280;
+    const sc = Math.min(cw / vw, ch / vh), w = Math.round(vw * sc), h = Math.round(vh * sc);
+    const key = `${cw}x${ch}|${w}x${h}`;
+    if (key === P.placeKey) return;
+    P.placeKey = key;
+    const vis = canvas.style.visibility || 'hidden';
+    const full = Math.abs(w - cw) <= 1 && Math.abs(h - ch) <= 1;
+    canvas.style.cssText = full ? `position:fixed;inset:0;width:100vw;height:100dvh;display:block;pointer-events:none;z-index:0;visibility:${vis}`
+      : `position:fixed;left:${Math.round((cw - w) / 2)}px;top:${Math.round((ch - h) / 2)}px;width:${w}px;height:${h}px;display:block;pointer-events:none;z-index:0;visibility:${vis}`;
+    stage.resize();
+    const r = stage.renderer, cur2 = r.getPixelRatio(), dpr = Math.max(1, Math.min(Math.min(2, globalThis.devicePixelRatio || 1), Math.sqrt(PIXEL_BUDGET / Math.max(1, w * h))));
+    if (Math.abs(dpr - cur2) > 0.01 && perfLevel < 2) { r.setPixelRatio(dpr); stage.resize(); }
+    camKey = '';
   }
 
   // draw the state of G.sim. alphaOverride (0..1) is for headless verification (no wall clock): the picture is exactly the state of the tick.
   function frame(G, alphaOverride) {
     if (!P.ready || P.lost) return false;
     const s = G && G.sim;
-    if (!s) { stage.setVisible(false); barTop.style.display = barBot.style.display = 'none'; return false; }
+    if (!s) { stage.setVisible(false); return false; }
     if (s !== curSim) { curSim = s; prev = cur = null; lastT = null; P.drv.reset(); }
     if (!cur || s.tick !== cur.tick) { prev = cur || snapOf(s); cur = snapOf(s); seenAt = performance.now(); if (prev.tick > cur.tick) prev = cur; }
     let alpha = alphaOverride ?? Math.min(1, Math.max(0, (performance.now() - seenAt) / (STEP * 1000)));
@@ -153,7 +180,7 @@ export async function createPresenter({ kitCanvas, quality = pickQuality(), manu
     if (dt < 0 || dt > 0.5) dt = 0;
     lastT = T;
     dt = Math.min(dt, 0.1);
-    stage.setVisible(true); barTop.style.display = barBot.style.display = '';
+    stage.setVisible(true);
     layoutCamera();
     const ballI = { x: lerp(prev.ball.x, cur.ball.x, alpha), y: lerp(prev.ball.y, cur.ball.y, alpha), z: lerp(prev.ball.z, cur.ball.z, alpha), rx: lerp(prev.ball.rx, cur.ball.rx, alpha), rz: lerp(prev.ball.rz, cur.ball.rz, alpha) };
     const pl = cur.pl.map((c, i) => { const p0 = prev.pl[i]; return { x: lerp(p0.x, c.x, alpha), z: lerp(p0.z, c.z, alpha), vx: lerp(p0.vx, c.vx, alpha), vz: lerp(p0.vz, c.vz, alpha), face: lerpAng(p0.face, c.face, alpha), jy: lerp(p0.jy, c.jy, alpha) }; });
@@ -182,10 +209,11 @@ export async function createPresenter({ kitCanvas, quality = pickQuality(), manu
     const r = game.render.bind(game);
     game.render = (ctx, view) => {
       view.cssW = kitCanvas.clientWidth || 720; view.cssH = kitCanvas.clientHeight || 1280;
+      placeCanvas(view);
       // until the players are loaded (or if WebGL is lost) the game draws its flat 2D pitch so the player never sees an empty screen
       view.noGL = !P.ready || P.lost || !!P.failed;
       r(ctx, view);
-      if (!view.noGL) frame(game.getState()); else { stage.setVisible(false); barTop.style.display = barBot.style.display = 'none'; }
+      if (!view.noGL) frame(game.getState()); else stage.setVisible(false);
     };
     return game;
   };

@@ -27,3 +27,6 @@ export const ABOUT = {
     { title: 'Try the others', lines: ['Other mancala games use the same idea with different rules. Oware is a fine place to begin.'] },
   ],
 };
+
+import { docOf } from './content.js';
+export const ABOUT_DOC = docOf(ABOUT.pages);

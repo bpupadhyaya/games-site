@@ -1,6 +1,6 @@
 // All reusable drawing: themes, backdrop with papel picado garlands, the cards, the tabla, beans and the
 // small UI pieces. Pure: reads values, never mutates game state.
-import { W, H } from './layout.js';
+let W = 720, H = 1280;   // the screen size of the current backdrop draw (set by drawBackdrop)
 import { CARDS } from './cards.js';
 import { ICONS } from './icons.js';
 import { paintLayers, INK, hexRgb, mix } from './shapes.js';
@@ -55,6 +55,8 @@ export function wrapLines(ctx, text, maxW) {
 
 // Pointer position while a finger/mouse is down (set by game.js each frame): the button under it draws pressed.
 export const ptr = { down: false, x: 0, y: 0 };
+// Smallest font size (virtual units) allowed right now: about 11 css px. view.js sets it per drawing space each frame.
+export const fontFloor = { u: 10 };
 // A folk-art button: one fill, one crisp border, soft shadow, pressed = darker and sunk. primary = gold, otherwise a translucent panel.
 export function drawButton(ctx, r, label, th, o = {}) {
   const { primary = false, active = false, disabled = false, sub = null, scale = 1, pulse = 0, subRatio = 0.5 } = o;
@@ -75,13 +77,13 @@ export function drawButton(ctx, r, label, th, o = {}) {
   if (pulse > 0) { roundPath(ctx, r.x - pulse * 6, y - pulse * 6, r.w + pulse * 12, r.h + pulse * 12, Math.min(28, r.h / 2.2)); ctx.lineWidth = 3; ctx.strokeStyle = `rgba(255,240,170,${0.7 * (1 - pulse)})`; ctx.stroke(); }
   ctx.fillStyle = primary ? INK : th.text; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   const base = Math.min(Math.min(34, r.h * 0.42) * scale, r.h * (sub ? 0.36 : 0.6));
-  const maxW = r.w - 22;
+  const maxW = r.w - 22, fl = Math.min(fontFloor.u, r.h * 0.5);
   if (sub) {
-    const s1 = fitPx(ctx, label, maxW, base * 0.9), s2 = fitPx(ctx, sub, maxW, base * subRatio, 400);
+    const s1 = fitPx(ctx, label, maxW, Math.max(fl, base * 0.9), 700, false, fl), s2 = fitPx(ctx, sub, maxW, Math.max(fl, base * subRatio), 400, false, fl);
     ctx.font = font(s1); ctx.fillText(label, r.x + r.w / 2, y + r.h * 0.4);
     ctx.globalAlpha *= 0.78; ctx.font = font(s2, 400); ctx.fillText(sub, r.x + r.w / 2, y + r.h * 0.76);
   } else {
-    const s = fitPx(ctx, label, maxW, base);
+    const s = fitPx(ctx, label, maxW, Math.max(fl, base), 700, false, fl);
     ctx.font = font(s); ctx.fillText(label, r.x + r.w / 2, y + r.h / 2 + 1);
   }
   ctx.restore();
@@ -91,6 +93,7 @@ export function drawButton(ctx, r, label, th, o = {}) {
 // t = seconds. Garland: papel-picado flags on a sagging string, swaying gently.
 export function drawBackdrop(ctx, th, t, o = {}) {
   const { garland = 'full' } = o;
+  W = o.w ?? 720; H = o.h ?? 1280;
   const g = ctx.createLinearGradient(0, 0, 0, H);
   g.addColorStop(0, th.bg[0]); g.addColorStop(0.55, th.bg[1]); g.addColorStop(1, th.bg[2]);
   ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
@@ -99,7 +102,7 @@ export function drawBackdrop(ctx, th, t, o = {}) {
   ctx.fillStyle = rg; ctx.fillRect(0, 0, W, H);
   // soft bokeh lights
   for (let i = 0; i < 14; i++) {
-    const x = (i * 163 + 40) % W, y = 120 + ((i * 331) % 1000), r = 14 + (i % 4) * 9, a = 0.05 + 0.04 * Math.sin(t * 0.8 + i);
+    const x = (i * 163 + 40) % W, y = 80 + ((i * 331) % Math.max(300, H - 160)), r = 14 + (i % 4) * 9, a = 0.05 + 0.04 * Math.sin(t * 0.8 + i);
     ctx.fillStyle = `rgba(255,230,170,${a})`; ctx.beginPath(); ctx.arc(x, y, r, 0, 6.2832); ctx.fill();
   }
   if (th === THEMES.talavera) tilePattern(ctx, th);
@@ -126,7 +129,7 @@ function petals(ctx, t, th) {
   ctx.restore();
 }
 function garlandRow(ctx, t, th, count, drop, alpha) {
-  const flagW = W / (count * 2) * 1.8 * (alpha < 1 ? 0.7 : 1);
+  const flagW = Math.min(W, 720) / (count * 2) * 1.8 * (alpha < 1 ? 0.7 : 1);
   const n = Math.ceil(W / (flagW + 4)) + 1;
   ctx.save(); ctx.globalAlpha = alpha < 1 ? 0.9 : 1;
   ctx.strokeStyle = 'rgba(255,240,210,0.55)'; ctx.lineWidth = 2;

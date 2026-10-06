@@ -1,15 +1,18 @@
 // GAME CONTRACT (docs/GAME-CONTRACT.md): exports meta and createGame(env) -> { update, render, getState }.
 // This file owns state and flow (scenes, input, turns, saving). Rules live in rules.js, the computer in ai.js,
 // everything drawn in view.js. `state` is plain JSON: closures hold nothing that matters.
-import { W, H, MAT, inRect, posXY, hopPath } from './layout.js';
+import { BOARD, L as LAY, creditHit, applyLayout, throwGeo, inRect, posXY, hopPath } from './layout.js';
 import { geo, newGame, rollThrow, legalMoves, checkMove, noMoveReason, applyMove, nextTurn, clone, homeCount, progressOf, trackMap, trackIndex, COLOUR_NAMES } from './rules.js';
 import { chooseMove, hintMove } from './ai.js';
 import { LESSONS } from './lessons.js';
 import { makeDaily, bestScore, moveScore, starsFor, DAILY_THROWS } from './daily.js';
-import { screenButtons, RULES_PAGES, HOW_PAGES, ABOUT_PAGES, TEXT_SCALES, AP_THINK_STEPS } from './ui.js';
+import { screenButtons, readerGeo, RULES_PAGES, HOW_PAGES, ABOUT_PAGES, TEXT_SCALES, AP_THINK_STEPS } from './ui.js';
 import { render as draw } from './view.js';
 
-export const meta = { width: W, height: H };
+// Fluid viewport (kit >= 1.7): the short side is always 720 units; meta.width / height are live and follow the screen (layout.js applyLayout).
+export const meta = { width: 720, height: 1560, fluid: { short: 720 } };
+// The mouse wheel / trackpad adds to this (main.js); update() turns it into scrolling on the reference pages.
+export const wheelInput = { dy: 0 };
 
 const DEMO_GAMES = 2;
 // Auto Play: a whole AI-vs-AI teaching game driven by the SAME ai.js chooseMove used for every real
@@ -23,6 +26,7 @@ const AP_LEVELS = ['balanced', 'cautious'], AP_REVEAL_TIME = 2;
 
 export function createGame(env) {
   const { rng, storage, audio, config } = env;
+  applyLayout(meta.width, meta.height);
 
   const state = {
     scene: 'title', t: 0, demo: !!config.demo, demoGames: 0, dailyDemo: -1,
@@ -31,7 +35,7 @@ export function createGame(env) {
     stats: { played: 0, wins: 0, lessons: {}, dailyDay: -1, dailyBest: 0, dailyStars: 0, streak: 0, lastDay: -1 },
     saved: null, menuOpen: false, howPage: 0, aboutPage: 0, rulesPage: 0, howFrom: 'title',
     g: newGame({ humans: [true, false] }), phase: 'throw', wait: 0, msg: '', roll: null, opts: [], sel: -1, hop: null, fly: [], hint: null, hintsLeft: 3,
-    fast: false, sfx: [], shake: null, res: null, aiMove: null, autoT: null, pass: null, lesson: null, dl: null, over: null, swipe: null, flash: 0,
+    fast: false, apPaused: false, scroll: 0, scrollMax: 0, drag: null, layoutKey: '', sfx: [], shake: null, res: null, aiMove: null, autoT: null, pass: null, lesson: null, dl: null, over: null, swipe: null, flash: 0,
   };
 
   // ---- storage ----------------------------------------------------------------------------------
@@ -99,7 +103,7 @@ export function createGame(env) {
   function startAutoPlay() {
     const g = newGame({ mode: 'pachisi', players: 2, pieces: 4, humans: [false, false], levels: AP_LEVELS });
     g.players.forEach((p) => { p.name = COLOUR_NAMES[p.arm]; });
-    state.g = g; state.scene = 'autoplay'; state.hintsLeft = 0; resetPlayView();
+    state.g = g; state.scene = 'autoplay'; state.hintsLeft = 0; state.apPaused = false; resetPlayView();
     beginTurn();
   }
   function startGame() {
@@ -199,16 +203,12 @@ export function createGame(env) {
     const th = rollThrow(g.mode, rng, forced);
     g.throws++;
     const calm = state.prefs.calm, die = dieMode();
-    const spots = [];
-    for (let r = 0; r < 2; r++) for (let c = 0; c < 3; c++) spots.push([190 + c * 170, 1148 + r * 96]);
     const order = rng.shuffle([0, 1, 2, 3, 4, 5]);
-    const items = th.shells.map((mouth, k) => {
-      const sp = die ? [360, 1195] : spots[order[k]];
-      return {
-        x0: die ? 360 : 300 + k * 24, y0: 1470, tx: sp[0] + (die ? 0 : (rng.next() - 0.5) * 50), ty: sp[1] + (die ? 0 : (rng.next() - 0.5) * 22),
-        r0: rng.next() * 6.28, r1: rng.next() * 6.28, flips: 2 + rng.int(3), mouth: die ? 0 : mouth, dl: die ? 0 : k * 0.03, face0: rng.int(6),
-      };
-    });
+    // Landing spots are stored as a spot index plus a jitter (fractions), never as pixels: the rug can change size mid-throw.
+    const items = th.shells.map((mouth, k) => ({
+      spot: die ? 0 : order[k], jx: die ? 0 : rng.next() - 0.5, jy: die ? 0 : rng.next() - 0.5,
+      r0: rng.next() * 6.28, r1: rng.next() * 6.28, flips: 2 + rng.int(3), mouth: die ? 0 : mouth, dl: die ? 0 : k * 0.03, face0: rng.int(6),
+    }));
     state.roll = { t: 0, dur: calm ? 0.5 : 1.45, value: th.value, grace: th.grace, up: th.up, die, items, snd: items.map(() => 0), pl: g.turn };
     state.phase = 'roll'; state.wait = 0; state.hint = null; state.sel = -1; state.opts = [];
     say(die ? 'The die tumbles...' : (isHuman() || soloDrive()) ? 'The shells fly...' : `${nameOf(g.turn)} throws...`);
@@ -265,7 +265,7 @@ export function createGame(env) {
   function play(m) {
     const g = state.g, calm = state.prefs.calm, pts = hopPath(g, m.pl, m.i, m.from, m.to), n = pts.length - 1;
     const per = calm ? 0.04 : Math.min(0.2, 1.5 / Math.max(1, n));
-    const fly = m.caps.map(([o, k]) => ({ pl: o, i: k, from: posXY(g, o, k, g.pos[o][k]), to: posXY(g, o, k, -1), t: 0, dur: calm ? 0.2 : 0.85 }));
+    const fly = m.caps.map(([o, k]) => ({ pl: o, i: k, fromP: g.pos[o][k], from: posXY(g, o, k, g.pos[o][k]), to: posXY(g, o, k, -1), t: 0, dur: calm ? 0.2 : 0.85 }));
     state.hop = { pl: m.pl, i: m.i, pts, seg: 0, t: 0, per: m.enter ? (calm ? 0.1 : 0.42) : per, m, fly, n };
     state.opts = []; state.sel = -1; state.hint = null; state.autoT = null; state.phase = 'hop'; state.wait = 0;
     const you = nameOf(m.pl) === 'You', capTxt = m.caps.length ? ` and ${you ? 'capture' : 'captures'} ${m.caps.length > 1 ? m.caps.length + ' pawns' : 'a pawn'}` : '';
@@ -314,9 +314,9 @@ export function createGame(env) {
 
   // ---- hitting things -------------------------------------------------------------------------------
   function pawnAt(x, y) {
-    const g = state.g; let best = null, bd = 38;
+    const g = state.g, Z = BOARD.S / 680; let best = null, bd = Math.max(30, 38 * Z);
     g.players.forEach((_, q) => g.pos[q].forEach((p, i) => {
-      const s = posXY(g, q, i, p), d = Math.hypot(s.x - x, s.y - 16 - y);
+      const s = posXY(g, q, i, p), d = Math.hypot(s.x - x, s.y - 16 * Z - y);
       if (d < bd) { bd = d; best = { pl: q, i, p }; }
     }));
     return best;
@@ -327,7 +327,7 @@ export function createGame(env) {
     if (state.phase !== 'choose') return;
     if (state.sel >= 0) { // a tap on the destination confirms too
       const m = state.opts.find((o) => o.i === state.sel);
-      if (m) { const d = posXY(g, m.pl, m.i, m.to); if (Math.hypot(d.x - x, d.y - 14 - y) < 30) { play(m); return; } }
+      if (m) { const d = posXY(g, m.pl, m.i, m.to), Z = BOARD.S / 680; if (Math.hypot(d.x - x, d.y - 14 * Z - y) < Math.max(26, 30 * Z)) { play(m); return; } }
     }
     const pw = pawnAt(x, y);
     if (!pw) { state.sel = -1; say(`You threw ${state.roll.value}. TAP one of the glowing pawns.`); return; }
@@ -364,8 +364,10 @@ export function createGame(env) {
   }
 
   function act(id) {
+    if (id === 'af:home') { state.afFlash = 0.18; env.openArcforgeHome?.(); return; }
     const s = state;
-    sounds.ui();
+    sounds.ui(); const keepScroll = s.scroll; s.scroll = 0; s.drag = null;
+    const vh = () => Math.max(60, readerGeo(s).region.h) * 0.85;
     if (id === 'new') s.scene = 'setup';
     else if (id === 'continue') continueGame();
     else if (id === 'learn') s.scene = 'learn';
@@ -378,23 +380,24 @@ export function createGame(env) {
     // already on page one - "how" then respects where it was opened from, same as its "page"/Done
     // exit above.
     else if (id === 'back') {
-      if (s.scene === 'how') { if (s.howPage > 0) s.howPage -= 1; else { s.scene = s.howFrom !== 'title' ? s.howFrom : 'title'; s.menuOpen = false; } }
-      else if (s.scene === 'rules') { if (s.rulesPage > 0) s.rulesPage -= 1; else { s.scene = 'title'; s.menuOpen = false; } }
-      else if (s.scene === 'about') { if (s.aboutPage > 0) s.aboutPage -= 1; else { s.scene = 'title'; s.menuOpen = false; } }
+      if ((s.scene === 'how' || s.scene === 'rules' || s.scene === 'about') && keepScroll > 1) s.scroll = Math.max(0, keepScroll - vh());   // page up first
+      else if (s.scene === 'how') { s.scene = s.howFrom !== 'title' ? s.howFrom : 'title'; s.menuOpen = false; }
+      else if (s.scene === 'rules' || s.scene === 'about') { s.scene = 'title'; s.menuOpen = false; }
       else { s.scene = 'title'; s.menuOpen = false; }
     }
-    else if (id === 'title') { s.scene = 'title'; s.menuOpen = false; }
+    else if (id === 'title') { s.scene = 'title'; s.menuOpen = false; s.apPaused = false; }
     // On the last page the button reads "Done" (ui.js) and exits instead of wrapping back to page
     // one, so it's never a dead-end tap; "how" respects where it was opened from, same as "back".
     else if (id === 'page') {
-      if (s.scene === 'how') { if (s.howPage === HOW_PAGES.length - 1) { s.scene = s.howFrom !== 'title' ? s.howFrom : 'title'; s.menuOpen = false; } else s.howPage += 1; }
-      else if (s.scene === 'rules') { if (s.rulesPage === RULES_PAGES.length - 1) s.scene = 'title'; else s.rulesPage += 1; }
-      else { if (s.aboutPage === ABOUT_PAGES.length - 1) s.scene = 'title'; else s.aboutPage += 1; }
+      if (keepScroll < s.scrollMax - 1) s.scroll = Math.min(s.scrollMax, keepScroll + vh());   // page down; at the end the button reads Done
+      else if (s.scene === 'how') { s.scene = s.howFrom !== 'title' ? s.howFrom : 'title'; s.menuOpen = false; }
+      else s.scene = 'title';
     }
     else if (id === 'textDec') { if (s.prefs.textScaleIdx > 0) { s.prefs.textScaleIdx--; savePrefs(); } }
     else if (id === 'textInc') { if (s.prefs.textScaleIdx < TEXT_SCALES.length - 1) { s.prefs.textScaleIdx++; savePrefs(); } }
     else if (id === 'start') startGame();
     else if (id === 'autoplay') startAutoPlay();
+    else if (id === 'apPause') s.apPaused = !s.apPaused;
     else if (id === 'apDec') { if (s.prefs.apThinkIdx > 0) { s.prefs.apThinkIdx--; savePrefs(); } }
     else if (id === 'apInc') { if (s.prefs.apThinkIdx < AP_THINK_STEPS.length - 1) { s.prefs.apThinkIdx++; savePrefs(); } }
     else if (id.startsWith('mode:')) s.setup.mode = id.slice(5);
@@ -407,7 +410,7 @@ export function createGame(env) {
     else if (id === 'menu') s.menuOpen = true;
     else if (id === 'resume') s.menuOpen = false;
     else if (id === 'howmenu') { s.howFrom = s.scene; s.scene = 'how'; s.howPage = 0; s.menuOpen = false; }
-    else if (id === 'leave') { s.menuOpen = false; s.hop = null; s.fly = []; s.phase = 'throw'; if (s.scene === 'lesson') s.scene = 'learn'; else { if (s.scene === 'play') saveGame(); s.scene = 'title'; } }
+    else if (id === 'leave') { s.menuOpen = false; s.apPaused = false; s.hop = null; s.fly = []; s.phase = 'throw'; if (s.scene === 'lesson') s.scene = 'learn'; else { if (s.scene === 'play') saveGame(); s.scene = 'title'; } }
     else if (id === 'sound') { s.prefs.sound = !s.prefs.sound; savePrefs(); }
     else if (id === 'hint') useHint();
     else if (id === 'again') { if (s.scene === 'lesson') startLesson(s.lesson.i); else if (s.scene === 'daily') startDaily(); else if (s.scene === 'autoplay-over') startAutoPlay(); else startGame(); }
@@ -459,9 +462,23 @@ export function createGame(env) {
     }
   }
 
+  // A rotation or resize changes where every square is, so anything that stored screen points (a pawn mid-hop, a captured pawn flying home)
+  // is re-derived from the live layout; everything else is recomputed from state every frame.
+  function syncLayout() {
+    const Lz = applyLayout(meta.width, meta.height);
+    if (state.layoutKey === Lz.key) return;
+    state.layoutKey = Lz.key;
+    const h = state.hop, g = state.g;
+    const refly = (f) => { f.from = posXY(g, f.pl, f.i, f.fromP ?? -1); f.to = posXY(g, f.pl, f.i, -1); };
+    if (h) { h.pts = hopPath(g, h.pl, h.i, h.m.from, h.m.to); h.fly.forEach(refly); }
+    state.fly.forEach(refly);
+  }
+
   return {
     update(dt, input) {
       state.t += dt;
+      if (state.afFlash > 0) state.afFlash -= dt;
+      syncLayout();
       if (state.shake) { state.shake.t += dt; if (state.shake.t > 0.55) state.shake = null; }
       for (const f of state.fly) f.t += dt;
       state.fly = state.fly.filter((f) => f.t < f.dur);
@@ -472,22 +489,31 @@ export function createGame(env) {
       const sc = state.scene, ptr = input.pointer, keys = input.keys.pressed;
       const inPlay = sc === 'play' || sc === 'lesson' || sc === 'daily' || sc === 'autoplay';
       const yours = () => isHuman() || soloDrive();
+      const reader = sc === 'how' || sc === 'about' || sc === 'rules';
+      if (reader) {   // wheel, drag and arrow keys scroll a page whose text is taller than the screen (300% text, landscape)
+        let d = wheelInput.dy; wheelInput.dy = 0;
+        if (keys.has('ArrowDown')) d += 90; if (keys.has('ArrowUp')) d -= 90; if (keys.has('PageDown')) d += readerGeo(state).region.h * 0.85; if (keys.has('PageUp')) d -= readerGeo(state).region.h * 0.85;
+        if (d) state.scroll = Math.min(Math.max(0, state.scroll + d), state.scrollMax || 0);
+        if (state.drag && ptr.down) state.scroll = Math.min(Math.max(0, state.drag.s0 + (state.drag.y0 - ptr.y)), state.scrollMax || 0);
+      } else wheelInput.dy = 0;
       if (ptr.pressed) {
         state.swipe = { x: ptr.x, y: ptr.y };
-        const b = screenButtons(state).find((q) => inRect(q, ptr.x, ptr.y));
+        const afZone = sc === 'title' && LAY.title && LAY.title.lock ? creditHit(LAY.title.lock) : null;
+        const b = afZone && inRect(afZone, ptr.x, ptr.y) ? { id: 'af:home' } : screenButtons(state).find((q) => inRect(q, ptr.x, ptr.y));
         if (b) { if (b.locked) say('The full game on iPhone and Android has all nine lessons.'); else act(b.id); state.swipe = null; }
+        else if (reader) { const R = readerGeo(state).region; if (inRect(R, ptr.x, ptr.y)) state.drag = { y0: ptr.y, s0: state.scroll }; }
         else if (inPlay && !state.menuOpen) {
           const L = state.lesson;
           if (state.phase === 'lessonwait' && state.wait > 0.2) state.wait = 0.05;
-          else if (state.phase === 'throw' && yours() && inRect({ x: MAT.x, y: MAT.y - 20, w: MAT.w, h: MAT.h + 40 }, ptr.x, ptr.y)) { doThrow(); state.swipe = null; }
+          else if (state.phase === 'throw' && yours() && inRect(throwGeo().zone, ptr.x, ptr.y)) { doThrow(); state.swipe = null; }
           else if (aiTurn() && state.phase !== 'won') state.fast = true;
           else if (!(L && sc === 'lesson' && L.complete) && !(sc === 'daily' && state.dl.finished)) tapBoard(ptr.x, ptr.y);
         }
       }
       if (ptr.released) {
         const sw = state.swipe;
-        if (sw && inPlay && !state.menuOpen && state.phase === 'throw' && yours() && sw.y > 900 && sw.y - ptr.y > 70) doThrow();
-        state.swipe = null;
+        if (sw && inPlay && !state.menuOpen && state.phase === 'throw' && yours() && inRect(throwGeo().zone, sw.x, sw.y) && Math.hypot(ptr.x - sw.x, ptr.y - sw.y) > 70) doThrow();
+        state.swipe = null; state.drag = null;
       }
       if (inPlay) {
         if (keys.has('Escape')) state.menuOpen = !state.menuOpen;
@@ -497,9 +523,9 @@ export function createGame(env) {
           if (keys.has('ArrowLeft') || keys.has('ArrowUp')) cycle(-1);
         }
       } else if (sc === 'pass' && (keys.has('Space') || keys.has('Enter'))) act('ready');
-      if (inPlay && !state.menuOpen) flow(dt * (state.fast && aiTurn() ? 2.8 : 1));
+      if (inPlay && !state.menuOpen && !(state.apPaused && sc === 'autoplay')) flow(dt * (state.fast && aiTurn() ? 2.8 : 1));
     },
-    render(ctx) { draw(ctx, state); },
+    render(ctx) { applyLayout(meta.width, meta.height); draw(ctx, state); },
     getState: () => state,
     // The free-preview timer counts only real play (a match or the daily deal). Menus, setup, Learn, Rules,
     // About, How to Play, Settings, Watch & Learn (Auto Play), the pause menu and result screens are exempt.

@@ -2,10 +2,10 @@
 // overlays. Pure drawing; game.js owns state. Moving things are drawn from the display time `rd.det` (the sim time blended
 // between two fixed steps) so motion is smooth at any refresh rate.
 import {
-  W, H, HOME, PIT, R, CHARGE_SECS, H_MIN, WIN_EARLY, WIN_LATE, airtime, AIR_BASE, AIR_SLOPE, winScale, clamp, handAt, slotPos, pitRadius, stageCount, tossesPerHalf, stageTake, progressOf, MODES,
+  HOME, PIT, R, CHARGE_SECS, H_MIN, WIN_EARLY, WIN_LATE, airtime, AIR_BASE, AIR_SLOPE, winScale, clamp, handAt, slotPos, pitRadius, stageCount, tossesPerHalf, stageTake, progressOf, MODES,
 } from './sim.js';
-import { drawFloor, drawYard, drawHomeMark, drawStone, drawGho, drawHand, drawTrail, drawRoute, drawBadge, drawRing, drawParticles } from './art.js';
-import { playLayout, THINK_STEPS } from './layout.js';
+import { worldScale, drawFloor, drawYard, drawHomeMark, drawStone, drawGho, drawHand, drawTrail, drawRoute, drawBadge, drawRing, drawParticles } from './art.js';
+import { playLayout, THINK_STEPS, meta, minU } from './layout.js';
 import { FONT, DISPLAY, C, roundPath, drawButton, panel, wrapLines, fitPx } from './ui.js';
 import { tx, stageName } from './content.js';
 
@@ -159,10 +159,12 @@ function drawToss(ctx, rd, det) {
 }
 
 // ---- the title's moving yard ------------------------------------------------------------------------------------
-export function drawAttract(ctx, state, ox = 30, oy = 70, s = 1) {
+export function drawAttract(ctx, state, ox, oy, s = 1) {
+  const W = meta.width, H = meta.height;
+  if (ox === undefined) { ox = (W - 660 * s) / 2; oy = Math.max(10, Math.min(70, (H - 800 * s) / 2)); }
   drawFloor(ctx, W, H);
   const a = state.att;
-  ctx.save(); ctx.translate(ox, oy); ctx.scale(s, s);
+  ctx.save(); ctx.translate(ox, oy); ctx.scale(s, s); worldScale.s = s;
   if (a) drawWorld(ctx, state, a.rd, a.p, { noPlanBadge: true });
   ctx.restore();
 }
@@ -231,12 +233,14 @@ function drawHud(ctx, state, hp, L) {
   const nTos = tossesPerHalf(mode, stage), take = stageTake(mode, stage);
   const label = `${T('stageShort', { n: stage })} · ${stageName(mode, stage)} · ${p.dir === 'out' ? 'OUT' : 'IN'}`;
   ctx.fillStyle = '#fff6e4'; ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+  const stack = L.mode === 'wide';                    // narrow side panel: the label on the first row, the toss dots under it
   const gap = 22 * Math.min(mm, 1.4), pipsW = nTos * gap + 10;
-  const fs = fitPx(ctx, label, 700, 22 * mm, st.w - Math.min(pipsW, st.w * 0.35) - 36);
-  ctx.font = `700 ${fs}px ${FONT}`; ctx.fillText(label, st.x + 16, st.y + st.h / 2 + 1);
+  const fs = fitPx(ctx, label, 700, 22 * mm, stack ? st.w - 24 : st.w - Math.min(pipsW, st.w * 0.35) - 36);
+  ctx.font = `700 ${fs}px ${FONT}`; ctx.fillText(label, st.x + 16, stack ? st.y + st.h * 0.3 : st.y + st.h / 2 + 1);
   const shown = Math.min(nTos, 10), doneT = Math.ceil(p.done / take);
   for (let i = 0; i < shown; i++) {
-    const px = st.x + st.w - 18 - (shown - 1 - i) * Math.min(gap, (st.w * 0.3) / shown), py = st.y + st.h / 2;
+    const step = Math.min(gap, ((stack ? st.w - 40 : st.w * 0.3)) / shown);
+    const px = stack ? st.x + 16 + 7 + i * step : st.x + st.w - 18 - (shown - 1 - i) * step, py = stack ? st.y + st.h * 0.74 : st.y + st.h / 2;
     ctx.beginPath(); ctx.arc(px, py, 7 * Math.min(mm, 1.4), 0, TAU);
     ctx.fillStyle = i < doneT ? '#ffd45e' : i === doneT ? 'rgba(255,246,228,0.9)' : 'rgba(255,246,228,0.25)'; ctx.fill();
   }
@@ -273,13 +277,14 @@ function drawPad(ctx, state, hp, L) {
     const b = rd.beat;
     panel(ctx, pad.x, pad.y, pad.w, pad.h, { r: 22, fill: 'rgba(46,28,18,0.92)', stroke: 'rgba(255,246,228,0.3)' });
     const names = [T('beatThink'), T('beatReveal'), T('beatAct')], idx = b.phase === 'think' ? 0 : b.phase === 'reveal' ? 1 : 2;
-    const w3 = (pad.w - 40) / 3;
+    const vert = pad.w < 360, w3 = vert ? pad.w - 28 : (pad.w - 40) / 3, h3 = vert ? (pad.h - 28) / 3 : pad.h - 28;
     names.forEach((n, i) => {
-      const x = pad.x + 20 + i * w3;
-      roundPath(ctx, x + 4, pad.y + 14, w3 - 8, pad.h - 28, 16); ctx.fillStyle = i === idx ? (i === 0 ? '#ffd45e' : i === 1 ? '#7fe8d6' : '#ff9a86') : 'rgba(255,246,228,0.12)'; ctx.fill();
+      const x = vert ? pad.x + 14 - 4 : pad.x + 20 + i * w3, y3 = vert ? pad.y + 14 + i * h3 : pad.y + 14;
+      roundPath(ctx, x + 4, y3, w3 - 8, h3 - (vert ? 6 : 0), 16); ctx.fillStyle = i === idx ? (i === 0 ? '#ffd45e' : i === 1 ? '#7fe8d6' : '#ff9a86') : 'rgba(255,246,228,0.12)'; ctx.fill();
       ctx.fillStyle = i === idx ? '#2b1a10' : 'rgba(255,246,228,0.7)'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = `700 ${fitPx(ctx, n, 700, 24 * Math.min(mm, 1.5), w3 - 24)}px ${FONT}`;
-      ctx.fillText(n, x + w3 / 2, pad.y + pad.h / 2 - (i === idx && idx < 2 ? 8 : 0));
-      if (i === idx && idx < 2) { const left = Math.max(0, Math.ceil(b.dur - b.t)); ctx.font = `600 ${Math.round(18 * Math.min(mm, 1.5))}px ${FONT}`; ctx.fillText(`${left} s`, x + w3 / 2, pad.y + pad.h / 2 + 20 * Math.min(mm, 1.5)); }
+      const cy3 = y3 + (vert ? (h3 - 6) / 2 : h3 / 2);
+      ctx.fillText(n, x + w3 / 2, cy3 - (i === idx && idx < 2 ? (vert ? 0 : 8) : 0));
+      if (i === idx && idx < 2) { const left = Math.max(0, Math.ceil(b.dur - b.t)); ctx.font = `600 ${Math.max(Math.round(18 * Math.min(mm, 1.5)), Math.round(minU()))}px ${FONT}`; if (vert) { ctx.textAlign = 'right'; ctx.fillText(`${left} s`, x + w3 - 16, cy3); ctx.textAlign = 'center'; } else ctx.fillText(`${left} s`, x + w3 / 2, cy3 + 20 * Math.min(mm, 1.5)); }
     });
     return;
   }
@@ -302,7 +307,9 @@ function drawPad(ctx, state, hp, L) {
     if ((phase === 'ready' || phase === 'charge') && rd.pv) {
       const air = airtime(phase === 'charge' ? rd.chargeH : 0.6).toFixed(2);
       const cap = T('pad_cap', { route: rd.pv.need.toFixed(2), air });
-      ctx.font = `500 ${Math.round(17 * Math.min(mm, 1.4))}px ${FONT}`; ctx.fillStyle = 'rgba(255,246,228,0.8)'; ctx.fillText(cap, pad.x + pad.w / 2, pad.y + pad.h * 0.58 - 4);
+      const cfs = Math.max(Math.round(17 * Math.min(mm, 1.4)), Math.ceil(minU()));
+      ctx.font = `500 ${cfs}px ${FONT}`; ctx.fillStyle = 'rgba(255,246,228,0.8)';
+      wrapLines(ctx, cap, pad.w - 24).slice(0, 3).forEach((ln, i) => ctx.fillText(ln, pad.x + pad.w / 2, pad.y + pad.h * 0.58 - 4 + i * cfs * 1.15));
     }
   }
 }
@@ -327,15 +334,15 @@ let HINT_META = { rect: { x: 0, y: 0, w: 0, h: 0 }, max: 0 };
 export const hintMeta = () => HINT_META;
 function drawHintCard(ctx, state, L, text, title, kindWatch) {
   const zoom = Math.min(L.m, 1.8);
-  const x = 22, w = W - 44;
-  const size = Math.round(24 * zoom);
+  const x = L.hintBox.x, w = L.hintBox.w;
+  const size = Math.max(Math.round(24 * zoom), Math.round(minU()));
   ctx.font = `500 ${size}px ${FONT}`;
   const lines = wrapLines(ctx, text, w - 60);
   const head = size * 1.7 + 20, contentH = lines.length * size * 1.3 + 22;
-  const maxH = Math.max(200, (L.barTop - 8) - (L.hudBottom + 8) - 20);
+  const maxH = L.hintBox.maxH;
   const h = Math.min(maxH, head + contentH), bodyH = h - head;
   const max = Math.max(0, contentH - bodyH);
-  const bottom = L.barTop - 14, y = bottom - h;
+  const bottom = L.hintBox.bottom, y = bottom - h;
   HINT_META = { rect: { x, y, w, h }, max };
   const scroll = clamp(state.ui.hscroll || 0, 0, max);
   panel(ctx, x, y, w, h, { r: 22, fill: 'rgba(255,246,228,0.97)', stroke: kindWatch ? '#1f9d8f' : '#d9a441' });
@@ -358,14 +365,15 @@ function drawBanner(ctx, state, rd, L) {
   const k = clamp(rd.bannerT / 0.3, 0, 1), a = Math.min(1, k);
   const zoom = Math.min(L.m, 1.8);
   let size = Math.round(40 * zoom), lines;
-  for (;;) { ctx.font = `700 ${size}px ${FONT}`; lines = wrapLines(ctx, b.text, 560); if (lines.length * size * 1.2 <= 260 || size <= 18) break; size -= 1; }
-  const h = lines.length * size * 1.2 + 50, y = L.hudBottom + 40 + (L.barTop - L.hudBottom - 80) * 0.3 - h / 2;
+  const bc = L.bannerC, bw = bc.w;
+  for (;;) { ctx.font = `700 ${size}px ${FONT}`; lines = wrapLines(ctx, b.text, bw - 40); if (lines.length * size * 1.2 <= 260 || size <= Math.max(18, minU())) break; size -= 1; }
+  const h = lines.length * size * 1.2 + 50, y = bc.y - h / 2;
   ctx.save(); ctx.globalAlpha = a;
-  roundPath(ctx, 60, y, W - 120, h, 28);
+  roundPath(ctx, bc.cx - bw / 2, y, bw, h, 28);
   ctx.fillStyle = b.kind === 'end' ? 'rgba(80,28,22,0.95)' : b.kind === 'clear' ? 'rgba(20,70,56,0.95)' : 'rgba(46,28,18,0.95)'; ctx.fill();
   ctx.lineWidth = 3; ctx.strokeStyle = b.kind === 'clear' ? '#7fe8d6' : b.kind === 'end' ? '#ff9a86' : '#ffd45e'; ctx.stroke();
   ctx.fillStyle = '#fff6e4'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  lines.forEach((l, i) => ctx.fillText(l, W / 2, y + 25 + size * 0.6 + i * size * 1.2));
+  lines.forEach((l, i) => ctx.fillText(l, bc.cx, y + 25 + size * 0.6 + i * size * 1.2));
   ctx.restore();
   void state;
 }
@@ -374,9 +382,11 @@ export function renderPlay(ctx, state, hp) {
   const rd = state.rd, L = playLayout(state.settings.textIdx);
   // display time: blend between the last two fixed steps so motion is smooth at any refresh rate
   rd.det = rd.etPrev + (rd.et - rd.etPrev) * (state.alpha ?? 1);
+  const W = meta.width, H = meta.height;
   drawFloor(ctx, W, H);
+  if (L.panels) for (const r of L.panels) { roundPath(ctx, r.x, r.y, r.w, r.h, 26); ctx.fillStyle = 'rgba(30,14,6,0.3)'; ctx.fill(); }
   ctx.save();
-  ctx.translate(L.view.ox, L.view.oy); ctx.scale(L.view.s, L.view.s);
+  ctx.translate(L.view.ox, L.view.oy); ctx.scale(L.view.s, L.view.s); worldScale.s = L.view.s;
   drawWorld(ctx, state, rd, state.match.ps[rd.who], hp);
   ctx.restore();
   if (rd.flash > 0 && !state.settings.calm) { ctx.fillStyle = `rgba(255,90,70,${0.14 * rd.flash})`; ctx.fillRect(0, 0, W, H); }

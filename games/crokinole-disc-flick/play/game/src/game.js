@@ -12,14 +12,14 @@ import { newMatch, beginRound, afterShot, scoreRound, applyRound, anyRivals } fr
 import { createPlanner, executePlan } from './ai.js';
 import { PROFILES } from './opponents.js';
 import {
-  W, H, inRect, PULL, TEXT_DEC, TEXT_INC, REF_BACK, REF_NEXT, TEXT_SCALES, THINK_STEPS, SETUP_PINS,
+  W, inRect, PULL, TEXT_SCALES, THINK_STEPS, meta, syncSize, refLayout,
 } from './layout.js';
 import { renderPlay, layoutOf, sliderSign } from './view.js';
-import { renderTitle, renderSetup, renderSettings, renderResult, renderPause, renderPages, renderDemoLimit, hitScreen, flowMeta, pageCount, ensureLayout, resetMenus } from './menus.js';
+import { renderTitle, renderSetup, renderSettings, renderResult, renderPause, renderPages, renderDemoLimit, hitScreen, flowMeta, pageCount, REF, ensureLayout, resetMenus, setupPinRects, lockupZone } from './menus.js';
 import { ABOUT, HOWTO, RULES } from './content.js';
 import { setPress } from './ui.js';
 
-export const meta = { width: W, height: H };
+export { meta };
 const DEMO_ROUND_CAP = 2;
 const FALL_T = 0.5;
 // Stray-touch guard (the kit has one pointer): a second finger shows up as the pointer jumping across the screen in a
@@ -37,7 +37,7 @@ export function createGame(env) {
     settings: { sound: true, calm: false, rotate: false, textIdx: 0, thinkIdx: 1 },
     record: { wins: [0, 0, 0, 0, 0], played: 0, streak: 0, best: 0, demoRounds: 0, flicks: 0, topRound: 0 },
     setup: { mode: 'ai', opp: 0, rounds: 2 }, setupMsg: '',
-    ui: { scroll: 0, drag: null }, page: 0,
+    ui: { scroll: 0, drag: null }, refScroll: 0,
     att: null, w: null, m: null,
     aim: { u: 0, ang: -Math.PI / 2, power: 0.5, active: false, manual: false }, preview: null, hint: null, hintPreview: null, hintBusy: false, alts: null,
     parts: [], pops: [], pegFlash: new Array(8).fill(0), pass: null, lastSide: -1, toast: '', toastT: 0, humanTurn: false, view: { rot: 0, target: 0 },
@@ -322,7 +322,8 @@ export function createGame(env) {
     if (dr.valid) updatePreview(); else state.preview = null;
   };
   const setSpot = (x) => {
-    const u = clamp(sliderSign(state) * ((x - W / 2) / 276) * MAX_U, -MAX_U, MAX_U);
+    const TR = layoutOf(state).track;
+    const u = clamp(sliderSign(state) * ((x - TR.cx) / TR.half) * MAX_U, -MAX_U, MAX_U);
     if (u !== state.aim.u) {
       state.aim.u = u;
       if (!state.aim.manual) state.aim.ang = centreAim(state.m.turn, u);
@@ -500,8 +501,8 @@ export function createGame(env) {
     if (!id) return;
     sfx.tick();
     if (id === 'resume') closePause();
-    else if (id === 'p-rules') { state.back = 'play'; state.scene = 'rules'; state.page = 0; }
-    else if (id === 'p-howto') { state.back = 'play'; state.scene = 'howto'; state.page = 0; }
+    else if (id === 'p-rules') { state.back = 'play'; state.scene = 'rules'; state.refScroll = 0; }
+    else if (id === 'p-howto') { state.back = 'play'; state.scene = 'howto'; state.refScroll = 0; }
     else if (id === 'p-sound') { state.settings.sound = !state.settings.sound; audio.setMuted?.(!state.settings.sound); save(); }
     else if (id === 'p-calm') { state.settings.calm = !state.settings.calm; save(); }
     else if (id === 'quit') leaveMatch();
@@ -519,12 +520,13 @@ export function createGame(env) {
   }
   const handleTitle = (id) => {
     if (!id) return;
+    if (id === 'arcforge') { env.openArcforgeHome?.(); return; }
     sfx.tick();
     if (id === 'resume') resumeMatch();
     else if (id === 'play') { state.setup.mode = 'ai'; state.scene = 'setup'; state.ui.scroll = 0; state.setupMsg = ''; }
     else if (id === 'two') { state.setup.mode = 'two'; state.scene = 'setup'; state.ui.scroll = 0; state.setupMsg = ''; }
     else if (id === 'watch') startWatch();
-    else if (id === 'howto' || id === 'rules' || id === 'about') { state.back = 'title'; state.scene = id; state.page = 0; }
+    else if (id === 'howto' || id === 'rules' || id === 'about') { state.back = 'title'; state.scene = id; state.refScroll = 0; }
     else if (id === 'settings') { state.scene = 'settings'; state.ui.scroll = 0; }
     else if (id === 'sound') { state.settings.sound = !state.settings.sound; audio.setMuted?.(!state.settings.sound); save(); }
   };
@@ -568,6 +570,7 @@ export function createGame(env) {
   const updateFlowScene = (dt, input, handler, key) => {
     const ptr = input.pointer;
     if (key) ensureLayout(state, key);
+    { const m0 = flowMeta(); state.ui.scroll = clamp(state.ui.scroll, 0, m0.lay ? Math.max(0, m0.lay.contentH - (m0.bottom - m0.top)) : 0); }   // after a rotation the list may be shorter
     if (ptr.pressed) state.ui.drag = { y0: ptr.y, x0: ptr.x, s0: state.ui.scroll, moved: 0 };
     if (state.ui.drag && ptr.down) scrollFlow(ptr);
     if (ptr.released && state.ui.drag) {
@@ -590,27 +593,33 @@ export function createGame(env) {
     if (k.pressed.has('KeyO') && state.setup.mode === 'ai') state.setup.opp = (state.setup.opp + 1) % (state.demo ? 2 : PROFILES.length);
     if (k.pressed.has('Enter')) { handleSetup('start'); return; }
     if (k.pressed.has('Escape')) { handleSetup('back'); return; }
-    if (ptr.pressed && (inRect(SETUP_PINS.start, ptr.x, ptr.y) || inRect(SETUP_PINS.back, ptr.x, ptr.y))) {
-      handleSetup(inRect(SETUP_PINS.start, ptr.x, ptr.y) ? 'start' : 'back');
+    ensureLayout(state, 'setup');
+    const pins = setupPinRects(state);
+    if (ptr.pressed && (inRect(pins.start, ptr.x, ptr.y) || inRect(pins.back, ptr.x, ptr.y))) {
+      handleSetup(inRect(pins.start, ptr.x, ptr.y) ? 'start' : 'back');
       return;
     }
     updateFlowScene(dt, input, handleSetup, 'setup');
   };
 
+  let refDrag = null, wheelHooked = false;
   const updatePages = (input) => {
     const ptr = input.pointer, keys = input.keys;
-    const n = pageCount();
-    const close = () => { state.scene = state.back === 'play' ? 'play' : 'title'; state.page = 0; };
-    const next = () => { if (state.page >= n - 1) close(); else state.page++; };
-    const prev = () => { if (state.page <= 0) close(); else state.page--; };
+    const RL = refLayout(), set = (v) => { state.refScroll = clamp(v, 0, REF.max); };
+    const close = () => { state.scene = state.back === 'play' ? 'play' : 'title'; state.refScroll = 0; };
     if (ptr.pressed) {
-      if (inRect(REF_NEXT, ptr.x, ptr.y)) next();
-      else if (inRect(REF_BACK, ptr.x, ptr.y)) prev();
-      else if (inRect(TEXT_DEC, ptr.x, ptr.y)) { state.settings.textIdx = Math.max(0, state.settings.textIdx - 1); save(); }
-      else if (inRect(TEXT_INC, ptr.x, ptr.y)) { state.settings.textIdx = Math.min(TEXT_SCALES.length - 1, state.settings.textIdx + 1); save(); }
+      if (inRect(RL.next, ptr.x, ptr.y) || inRect(RL.back, ptr.x, ptr.y)) { close(); return; }   // one continuous reader: Back and Done both leave
+      else if (inRect(RL.dec, ptr.x, ptr.y)) { state.settings.textIdx = Math.max(0, state.settings.textIdx - 1); state.refScroll = 0; save(); }
+      else if (inRect(RL.inc, ptr.x, ptr.y)) { state.settings.textIdx = Math.min(TEXT_SCALES.length - 1, state.settings.textIdx + 1); state.refScroll = 0; save(); }
+      else if (inRect(RL.panel, ptr.x, ptr.y)) refDrag = { y0: ptr.y, s0: state.refScroll };
     }
-    if (keys.pressed.has('ArrowRight')) next();
-    if (keys.pressed.has('ArrowLeft')) prev();
+    if (refDrag) { if (ptr.down) set(refDrag.s0 - (ptr.y - refDrag.y0)); else refDrag = null; }
+    if (keys.pressed.has('ArrowDown')) set(state.refScroll + 70);
+    if (keys.pressed.has('ArrowUp')) set(state.refScroll - 70);
+    if (keys.pressed.has('PageDown') || keys.pressed.has('Space')) set(state.refScroll + REF.view * 0.9);
+    if (keys.pressed.has('PageUp')) set(state.refScroll - REF.view * 0.9);
+    if (keys.pressed.has('Home')) set(0);
+    if (keys.pressed.has('End')) set(1e9);
     if (keys.pressed.has('Escape')) close();
   };
 
@@ -621,6 +630,14 @@ export function createGame(env) {
     // Watch & Learn and every menu are free; only real play counts against the free preview (a paused match does not).
     isPreviewExempt: () => !(state.scene === 'play' && state.m && state.m.cfg.mode !== 'watch') || state.paused || !!state.pass,
     update(dt, input) {
+      if (!wheelHooked && input.onWheel) {   // kit 1.8.0: mouse wheel / trackpad scrolls the readers and the menu lists
+        wheelHooked = true;
+        input.onWheel(({ dy }) => {
+          if (state.scene === 'rules' || state.scene === 'howto' || state.scene === 'about') state.refScroll = clamp((state.refScroll || 0) + dy, 0, REF.max);
+          else if (['title', 'setup', 'settings', 'result', 'demolimit'].includes(state.scene) || state.pauseMenu) state.ui.scroll = clamp(state.ui.scroll + dy, 0, flowMeta().max);
+        });
+      }
+      syncSize();
       setPress(input.pointer);
       state.t += state.paused && state.scene === 'play' ? 0 : dt;
       if (state.att && state.scene !== 'play') updateAttract(dt);
@@ -636,6 +653,7 @@ export function createGame(env) {
       }
     },
     render(ctx) {
+      syncSize();
       switch (state.scene) {
         case 'title': renderTitle(ctx, state); break;
         case 'setup': renderSetup(ctx, state); break;
@@ -653,5 +671,6 @@ export function createGame(env) {
       }
     },
     getState: () => state,
+    lockupZone: () => lockupZone(),
   };
 }

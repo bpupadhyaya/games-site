@@ -133,9 +133,15 @@ export function drawTable(ctx, cam) {
   const fl = rectPts(cam, -M - 0.05, -M - 0.05, TW + M + 0.05, TL + M + 0.06, -0.12);
   poly(ctx, fl); ctx.fillStyle = 'rgba(0,0,0,0.45)'; ctx.fill();
   // front face of the rail (the table's side, visible towards the player)
-  const face = [cam.px(-M, -M, 0), cam.px(TW + M, -M, 0), cam.px(TW + M, -M, -0.1), cam.px(-M, -M, -0.1)];
+  const horiz = cam.orient === 'h';
+  // the rail's outer face towards the player: the baulk end ('v') or the long side nearest the bottom of the screen ('h')
+  const face = horiz ? [cam.px(TW + M, -M, 0), cam.px(TW + M, TL + M, 0), cam.px(TW + M, TL + M, -0.1), cam.px(TW + M, -M, -0.1)]
+    : [cam.px(-M, -M, 0), cam.px(TW + M, -M, 0), cam.px(TW + M, -M, -0.1), cam.px(-M, -M, -0.1)];
   poly(ctx, face); const fg = ctx.createLinearGradient(0, face[0][1], 0, face[2][1]); fg.addColorStop(0, '#4a260f'); fg.addColorStop(1, '#2a1408'); ctx.fillStyle = fg; ctx.fill();
-  const sideFace = (sgn) => [cam.px(sgn * (TW + 2 * M) / 2 + TW / 2, -M, 0), cam.px(sgn * (TW + 2 * M) / 2 + TW / 2, TL + M, 0), cam.px(sgn * (TW + 2 * M) / 2 + TW / 2, TL + M, -0.1), cam.px(sgn * (TW + 2 * M) / 2 + TW / 2, -M, -0.1)];
+  const sideFace = (sgn) => {
+    if (horiz) { const yy = sgn < 0 ? -M : TL + M; return [cam.px(-M, yy, 0), cam.px(TW + M, yy, 0), cam.px(TW + M, yy, -0.1), cam.px(-M, yy, -0.1)]; }
+    return [cam.px(sgn * (TW + 2 * M) / 2 + TW / 2, -M, 0), cam.px(sgn * (TW + 2 * M) / 2 + TW / 2, TL + M, 0), cam.px(sgn * (TW + 2 * M) / 2 + TW / 2, TL + M, -0.1), cam.px(sgn * (TW + 2 * M) / 2 + TW / 2, -M, -0.1)];
+  };
   for (const s of [-1, 1]) { poly(ctx, sideFace(s)); ctx.fillStyle = '#35190a'; ctx.fill(); }
   // wooden rail (top surface)
   const rail = rectPts(cam, -M, -M, TW + M, TL + M);
@@ -170,7 +176,7 @@ export function drawTable(ctx, cam) {
   ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(255,214,160,0.35)'; poly(ctx, rail); ctx.stroke();
   // diamonds on the rails
   ctx.fillStyle = 'rgba(244,236,214,0.9)';
-  const dia = (x, y) => { const [X, Y] = cam.px(x, y, 0.001); const s = Math.max(2.2, cam.ballR(Math.max(0.1, Math.min(TL, y))) * 0.2); ctx.beginPath(); ctx.moveTo(X, Y - s); ctx.lineTo(X + s * 1.25, Y); ctx.lineTo(X, Y + s); ctx.lineTo(X - s * 1.25, Y); ctx.closePath(); ctx.fill(); };
+  const dia = (x, y) => { const [X, Y] = cam.px(x, y, 0.001); const s = Math.max(2.2, cam.ballR(Math.max(0.1, Math.min(TL, y)), Math.max(0, Math.min(TW, x))) * 0.2); ctx.beginPath(); ctx.moveTo(X, Y - s); ctx.lineTo(X + s * 1.25, Y); ctx.lineTo(X, Y + s); ctx.lineTo(X - s * 1.25, Y); ctx.closePath(); ctx.fill(); };
   for (let i = 1; i < 8; i++) if (i !== 4) for (const y of [-(M - CB) / 2 - CB / 2 + 0.004, TL + (M - CB) / 2 + CB / 2 - 0.004]) dia(TW * i / 8, y);
   for (let i = 1; i < 8; i++) for (const x of [-(M - CB) / 2 - CB / 2 + 0.004, TW + (M - CB) / 2 + CB / 2 - 0.004]) { if (i % 2 === 0 || true) dia(x, TL * i / 8 + (i === 4 ? 0 : 0)); }
   // cushion band (top surface of the rubber)
@@ -189,12 +195,13 @@ export function drawTable(ctx, cam) {
   // cloth
   const cl = rectPts(cam, 0, 0, TW, TL);
   poly(ctx, cl);
-  const cg = ctx.createLinearGradient(0, cam.px(0, TL)[1], 0, cam.px(0, 0)[1]);
+  const cys = cl.map((q) => q[1]), cgFar = Math.min(...cys), cgNear = Math.max(...cys);
+  const cg = ctx.createLinearGradient(0, cgFar, 0, cgNear);
   cg.addColorStop(0, CLOTH.dark); cg.addColorStop(0.5, CLOTH.base); cg.addColorStop(1, '#0e7a44');
   ctx.fillStyle = cg; ctx.fill();
   ctx.save(); poly(ctx, cl); ctx.clip();
   const lc = cam.px(MID_X, TL * 0.42);
-  const lg = ctx.createRadialGradient(lc[0], lc[1], 20, lc[0], lc[1], 520);
+  const lg = ctx.createRadialGradient(lc[0], lc[1], 20, lc[0], lc[1], horiz ? Math.max(520, cam.f * 2.2) : 520);
   lg.addColorStop(0, 'rgba(120,255,170,0.20)'); lg.addColorStop(0.6, 'rgba(60,200,120,0.06)'); lg.addColorStop(1, 'rgba(0,0,0,0.2)');
   ctx.fillStyle = lg; ctx.fillRect(0, 0, W, H);
   // nap: faint lengthwise strokes in world space
@@ -207,7 +214,7 @@ export function drawTable(ctx, cam) {
   }
   // markings
   ctx.lineCap = 'round';
-  ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = Math.max(1.2, cam.scaleAt(BAULK_Y) * 0.012);
+  ctx.strokeStyle = 'rgba(255,255,255,0.5)'; ctx.lineWidth = Math.max(1.2, cam.scaleAt(BAULK_Y, TW / 2) * 0.012);
   const b0 = cam.px(0, BAULK_Y), b1 = cam.px(TW, BAULK_Y);
   ctx.beginPath(); ctx.moveTo(b0[0], b0[1]); ctx.lineTo(b1[0], b1[1]); ctx.stroke();
   ctx.beginPath();
@@ -215,7 +222,7 @@ export function drawTable(ctx, cam) {
   ctx.stroke();
   // spots
   for (const id of [16, 17, 18, 19, 20, 21]) {
-    const p = cam.px(SPOT[id].x, SPOT[id].y), rs = Math.max(1.6, cam.ballR(SPOT[id].y) * 0.14);
+    const p = cam.px(SPOT[id].x, SPOT[id].y), rs = Math.max(1.6, cam.ballR(SPOT[id].y, SPOT[id].x) * 0.14);
     ctx.fillStyle = 'rgba(255,255,255,0.55)'; ctx.beginPath(); ctx.arc(p[0], p[1], rs, 0, TAU); ctx.fill();
   }
   ctx.restore();
@@ -230,17 +237,24 @@ export function drawTable(ctx, cam) {
       const ax = x0 - nx * BACK, ay = y0 - ny * BACK, bx = x1 - nx * BACK, by = y1 - ny * BACK;
       const face = [P(x0, y0, 0.002), P(x1, y1, 0.002), P(bx, by, ZN), P(ax, ay, ZN)];
       poly(ctx, face);
-      const fy0 = Math.min(face[0][1], face[2][1]), fy1 = Math.max(face[0][1], face[2][1]);
-      const fgl = ctx.createLinearGradient(0, fy0, 0, fy1 + 0.01); const lit = ny > 0 ? 0 : 1;
-      fgl.addColorStop(lit, '#0f7b44'); fgl.addColorStop(1 - lit, '#075a30'); ctx.fillStyle = Math.abs(ny) > 0.5 ? fgl : (nx > 0 ? '#0c6a3a' : '#095f33'); ctx.fill();
+      const fy0 = Math.min(face[0][1], face[2][1]), fy1 = Math.max(face[0][1], face[2][1]), away = horiz ? -nx : ny, lat = horiz ? ny : nx;
+      const fgl = ctx.createLinearGradient(0, fy0, 0, fy1 + 0.01); const lit = away > 0 ? 0 : 1;
+      fgl.addColorStop(lit, '#0f7b44'); fgl.addColorStop(1 - lit, '#075a30'); ctx.fillStyle = Math.abs(away) > 0.5 ? fgl : (lat > 0 ? '#0c6a3a' : '#095f33'); ctx.fill();
       const top = [P(ax, ay, ZN), P(bx, by, ZN), P(bx - nx * CB, by - ny * CB, ZN), P(ax - nx * CB, ay - ny * CB, ZN)];
       poly(ctx, top); ctx.fillStyle = '#0a5f34'; ctx.fill();
       ctx.lineWidth = 1.6; ctx.strokeStyle = 'rgba(205,255,225,0.55)'; ctx.beginPath(); ctx.moveTo(top[0][0], top[0][1]); ctx.lineTo(top[1][0], top[1][1]); ctx.stroke();
       ctx.lineWidth = 1.2; ctx.strokeStyle = 'rgba(0,0,0,0.45)'; ctx.beginPath(); ctx.moveTo(top[3][0], top[3][1]); ctx.lineTo(top[2][0], top[2][1]); ctx.stroke();
     };
-    seg(CE, TL, TW - CE, TL, 0, -1);                                     // far cushion first: it is behind the side ones in the picture
-    for (const [x, nx] of [[0, 1], [TW, -1]]) { seg(x, TL - CE, x, TL / 2 + MG / 2, nx, 0); seg(x, TL / 2 - MG / 2, x, CE, nx, 0); }
-    seg(CE, 0, TW - CE, 0, 0, 1);
+    const longSides = () => { for (const [x, nx] of [[0, 1], [TW, -1]]) { seg(x, TL - CE, x, TL / 2 + MG / 2, nx, 0); seg(x, TL / 2 - MG / 2, x, CE, nx, 0); } };
+    if (!horiz) {
+      seg(CE, TL, TW - CE, TL, 0, -1);                                   // far cushion first: it is behind the side ones in the picture
+      longSides();
+      seg(CE, 0, TW - CE, 0, 0, 1);
+    } else {
+      for (const [x, nx] of [[0, 1]]) { seg(x, TL - CE, x, TL / 2 + MG / 2, nx, 0); seg(x, TL / 2 - MG / 2, x, CE, nx, 0); }   // far long side
+      seg(CE, TL, TW - CE, TL, 0, -1); seg(CE, 0, TW - CE, 0, 0, 1);                                                       // the two ends
+      { const x = TW, nx = -1; seg(x, TL - CE, x, TL / 2 + MG / 2, nx, 0); seg(x, TL / 2 - MG / 2, x, CE, nx, 0); }        // near long side
+    }
   }
   // cushion nose highlight
   ctx.strokeStyle = 'rgba(190,255,215,0.5)'; ctx.lineWidth = 1.5;
@@ -253,7 +267,7 @@ export function drawTable(ctx, cam) {
     const cxp = p.kind === 'c' ? (p.x < 0.5 ? -0.012 : TW + 0.012) : (p.x < 0.5 ? -0.03 : TW + 0.03);
     const cyp = p.kind === 'c' ? (p.y < 0.5 ? -0.012 : TL + 0.012) : p.y;
     poly(ctx, circlePts(cam, cxp, cyp, rp + 0.012, 30)); ctx.fillStyle = '#2a1608'; ctx.fill();
-    const pc = cam.px(cxp, cyp), prr = cam.ballR(Math.max(0.1, Math.min(TL, cyp))) * 2.1;
+    const pc = cam.px(cxp, cyp), prr = cam.ballR(Math.max(0.1, Math.min(TL, cyp)), Math.max(0, Math.min(TW, cxp))) * 2.1;
     poly(ctx, circlePts(cam, cxp, cyp, rp, 30)); const pg = ctx.createRadialGradient(pc[0], pc[1] - prr * 0.25, 2, pc[0], pc[1], prr); pg.addColorStop(0, '#000'); pg.addColorStop(0.7, '#050403'); pg.addColorStop(1, '#1c1109'); ctx.fillStyle = pg; ctx.fill();
   }
   for (const j of JAWS) {
@@ -308,7 +322,7 @@ export function drawCue(ctx, cam, cx, cy, ang, gap, o = {}) {
   ctx.globalAlpha = alpha;
   // soft shadow on the cloth
   const s0 = cam.px(cx - dx * gap, cy - dy * gap, 0), s1 = cam.px(cx - dx * (gap + len), cy - dy * (gap + len), 0);
-  ctx.strokeStyle = 'rgba(0,0,0,0.28)'; ctx.lineWidth = Math.max(2, cam.scaleAt(cy) * 0.03); ctx.lineCap = 'round';
+  ctx.strokeStyle = 'rgba(0,0,0,0.28)'; ctx.lineWidth = Math.max(2, cam.scaleAt(cy, cx) * 0.03); ctx.lineCap = 'round';
   ctx.beginPath(); ctx.moveTo(s0[0] + 3, s0[1] + 5); ctx.lineTo(s1[0] + 6, s1[1] + 12); ctx.stroke();
   seg(0, 0.012, 0.0048, 0.0052, '#3a78d8', '#2a5fb8');            // chalked tip
   seg(0.012, 0.03, 0.0052, 0.0056, '#f4efe0', '#e9e2cc');         // ferrule
@@ -322,7 +336,7 @@ export function drawCue(ctx, cam, cx, cy, ang, gap, o = {}) {
 export function drawBridge(ctx, cam, cx, cy, ang, dist, alpha = 1) {
   const dx = Math.cos(ang), dy = Math.sin(ang);
   const x = cx - dx * dist, y = cy - dy * dist;
-  const [X, Y] = cam.px(x, y, 0.004), r = Math.max(7, cam.scaleAt(y) * 0.05);
+  const [X, Y] = cam.px(x, y, 0.004), r = Math.max(7, cam.scaleAt(y, x) * 0.05);
   ctx.save(); ctx.globalAlpha = alpha * 0.9;
   const g = ctx.createRadialGradient(X, Y, r * 0.2, X, Y, r * 1.6);
   g.addColorStop(0, 'rgba(255,230,150,0.55)'); g.addColorStop(1, 'rgba(255,230,150,0)');

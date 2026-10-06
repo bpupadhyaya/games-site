@@ -20,12 +20,19 @@ export function mix(hex, to, f) {
 const rr = (ctx, x, y, w, h, r) => { ctx.beginPath(); ctx.roundRect(x, y, w, h, r); };
 
 // ---- cached layers and sprites ------------------------------------------------------------------------------------------
+// A layer is painted once into an OffscreenCanvas covering `rect` (canonical units) and blitted per frame. Scenery layers are
+// keyed by screen size (so any aspect ratio gets a full-bleed backdrop) and only the last few are kept.
 const layers = {};
-function layer(key, paint, ss = 2) {
+function layer(key, rect, paint, ss = 2) {
   let L = layers[key];
   if (L === undefined) {
     L = null;
-    try { if (typeof OffscreenCanvas !== 'undefined') { const c = new OffscreenCanvas(W * ss, H * ss), lc = c.getContext('2d'); lc.scale(ss, ss); paint(lc); L = c; } } catch { L = null; }
+    try {
+      if (typeof OffscreenCanvas !== 'undefined') {
+        const k = Math.min(ss, Math.sqrt(4.6e6 / (rect.w * rect.h))), c = new OffscreenCanvas(Math.ceil(rect.w * k), Math.ceil(rect.h * k)), lc = c.getContext('2d');
+        lc.scale(k, k); lc.translate(-rect.x, -rect.y); paint(lc, k); L = c;
+      }
+    } catch { L = null; }
     layers[key] = L;
   }
   return L;
@@ -70,6 +77,7 @@ function scrollFrame(ctx, x, y, w, h, band, bg, fg, size = 8) {
 
 // ---- the steppe backdrop (sky, hills, gers, grass) -----------------------------------------------------------------------------
 const HORIZON = 196;
+let CW = W, CH = H;   // the size being painted (the scenery fills any screen)
 function ger(ctx, x, y, s, door = '#9d2f2a') {
   ctx.save(); ctx.translate(x, y); ctx.scale(s, s);
   ctx.fillStyle = 'rgba(0,0,0,0.22)'; ctx.beginPath(); ctx.ellipse(2, 2, 40, 6, 0, 0, TAU); ctx.fill();
@@ -85,49 +93,53 @@ function ger(ctx, x, y, s, door = '#9d2f2a') {
 function paintSky(ctx) {
   const g = ctx.createLinearGradient(0, 0, 0, HORIZON + 30);
   g.addColorStop(0, '#0d3a80'); g.addColorStop(0.5, '#2f7fc8'); g.addColorStop(0.85, '#9cc7e6'); g.addColorStop(1, '#f6d9a4');
-  ctx.fillStyle = g; ctx.fillRect(0, 0, W, HORIZON + 40);
-  const sun = ctx.createRadialGradient(560, 150, 6, 560, 150, 190); sun.addColorStop(0, 'rgba(255,248,214,0.95)'); sun.addColorStop(0.2, 'rgba(255,224,150,0.55)'); sun.addColorStop(1, 'rgba(255,200,120,0)');
-  ctx.fillStyle = sun; ctx.fillRect(0, 0, W, HORIZON + 40);
-  ctx.fillStyle = '#fff6d8'; ctx.beginPath(); ctx.arc(560, 150, 22, 0, TAU); ctx.fill();
+  ctx.fillStyle = g; ctx.fillRect(0, 0, CW, HORIZON + 40);
+  const SX = CW * 0.78;
+  const sun = ctx.createRadialGradient(SX, 150, 6, SX, 150, 190); sun.addColorStop(0, 'rgba(255,248,214,0.95)'); sun.addColorStop(0.2, 'rgba(255,224,150,0.55)'); sun.addColorStop(1, 'rgba(255,200,120,0)');
+  ctx.fillStyle = sun; ctx.fillRect(0, 0, CW, HORIZON + 40);
+  ctx.fillStyle = '#fff6d8'; ctx.beginPath(); ctx.arc(SX, 150, 22, 0, TAU); ctx.fill();
   const r = lcg(11);
-  for (let k = 0; k < 7; k++) {
-    const cx = r() * W, cy = 70 + r() * 90, w = 90 + r() * 120;
+  for (let k = 0; k < Math.round(7 * CW / 720); k++) {
+    const cx = r() * CW, cy = 70 + r() * 90, w = 90 + r() * 120;
     ctx.fillStyle = `rgba(255,255,255,${0.1 + r() * 0.12})`;
     for (let q = 0; q < 4; q++) { ctx.beginPath(); ctx.ellipse(cx + (q - 1.5) * w * 0.24, cy + Math.sin(q * 2) * 5, w * 0.26, 12 + r() * 6, 0, 0, TAU); ctx.fill(); }
   }
   const ridge = (base, amp, col, seed, step) => {
     const q = lcg(seed); ctx.fillStyle = col; ctx.beginPath(); ctx.moveTo(0, HORIZON + 10);
-    let y = base; for (let x = 0; x <= W + step; x += step) { y = base - amp * (0.25 + 0.75 * q()); ctx.lineTo(x, y); }
-    ctx.lineTo(W, HORIZON + 10); ctx.closePath(); ctx.fill();
+    let y = base; for (let x = 0; x <= CW + step; x += step) { y = base - amp * (0.25 + 0.75 * q()); ctx.lineTo(x, y); }
+    ctx.lineTo(CW, HORIZON + 10); ctx.closePath(); ctx.fill();
   };
   ridge(HORIZON - 34, 34, '#6d8fb6', 5, 60); ridge(HORIZON - 14, 22, '#4f7b6a', 9, 44); ridge(HORIZON + 2, 12, '#6f8d4a', 21, 30);
 }
 function paintGers(ctx) {
-  ger(ctx, 112, HORIZON + 34, 0.8); ger(ctx, 176, HORIZON + 40, 0.6, '#2f86d6'); ger(ctx, 628, HORIZON + 36, 0.74);
+  const gx = (x) => x * CW / 720;
+  ger(ctx, gx(112), HORIZON + 34, 0.8); ger(ctx, gx(176), HORIZON + 40, 0.6, '#2f86d6'); ger(ctx, gx(628), HORIZON + 36, 0.74);
+  if (CW > 900) { ger(ctx, gx(330), HORIZON + 38, 0.66, '#d9432f'); ger(ctx, gx(430), HORIZON + 42, 0.52); }
   ctx.strokeStyle = 'rgba(255,255,255,0.55)'; ctx.lineWidth = 3; ctx.lineCap = 'round';
-  ctx.beginPath(); ctx.moveTo(128, HORIZON - 12); ctx.quadraticCurveTo(138, HORIZON - 30, 126, HORIZON - 46); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(gx(128), HORIZON - 12); ctx.quadraticCurveTo(gx(138), HORIZON - 30, gx(126), HORIZON - 46); ctx.stroke();
 }
 function paintField(ctx) {
   const r = lcg(3);
-  const g = ctx.createLinearGradient(0, HORIZON, 0, H);
+  const g = ctx.createLinearGradient(0, HORIZON, 0, CH);
   g.addColorStop(0, '#9bb85a'); g.addColorStop(0.3, '#b3ba62'); g.addColorStop(0.62, '#a39a52'); g.addColorStop(1, '#4b4226');
-  ctx.fillStyle = g; ctx.fillRect(0, HORIZON, W, H - HORIZON);
-  for (let k = 0; k < 14; k++) { // soft patches of fresher and drier grass
-    const x = r() * W, y = HORIZON + r() * 800, rad = 70 + r() * 150;
+  ctx.fillStyle = g; ctx.fillRect(0, HORIZON, CW, CH - HORIZON);
+  const area = CW * (CH - HORIZON) / (720 * 1364);
+  for (let k = 0; k < Math.round(14 * area); k++) { // soft patches of fresher and drier grass
+    const x = r() * CW, y = HORIZON + r() * (CH - HORIZON) * 0.6, rad = 70 + r() * 150;
     const pg = ctx.createRadialGradient(x, y, 4, x, y, rad); const fresh = r() < 0.5;
     pg.addColorStop(0, fresh ? 'rgba(120,170,70,0.22)' : 'rgba(210,180,100,0.2)'); pg.addColorStop(1, 'rgba(0,0,0,0)');
     ctx.fillStyle = pg; ctx.fillRect(x - rad, y - rad, rad * 2, rad * 2);
   }
-  for (let k = 0; k < 4200; k++) {
-    const x = r() * W, y = HORIZON + 6 + r() * (H - HORIZON), l = 5 + r() * 9, a = -Math.PI / 2 + (r() - 0.5) * 0.9;
+  for (let k = 0; k < Math.round(4200 * area); k++) {
+    const x = r() * CW, y = HORIZON + 6 + r() * (CH - HORIZON), l = 5 + r() * 9, a = -Math.PI / 2 + (r() - 0.5) * 0.9;
     ctx.strokeStyle = r() < 0.5 ? 'rgba(60,90,30,0.30)' : 'rgba(235,225,150,0.26)'; ctx.lineWidth = 1 + r() * 0.9;
     ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + Math.cos(a) * l, y + Math.sin(a) * l); ctx.stroke();
   }
   const fl = ['#fffbe8', '#ffe27a', '#d7a8ff', '#ffb0b0'];
-  for (let k = 0; k < 170; k++) { ctx.fillStyle = fl[k % 4]; ctx.globalAlpha = 0.75; ctx.beginPath(); ctx.arc(r() * W, HORIZON + 20 + r() * 760, 1.4 + r() * 1.6, 0, TAU); ctx.fill(); }
+  for (let k = 0; k < Math.round(170 * area); k++) { ctx.fillStyle = fl[k % 4]; ctx.globalAlpha = 0.75; ctx.beginPath(); ctx.arc(r() * CW, HORIZON + 20 + r() * (CH - HORIZON) * 0.56, 1.4 + r() * 1.6, 0, TAU); ctx.fill(); }
   ctx.globalAlpha = 1;
-  const v = ctx.createRadialGradient(W / 2, 700, 380, W / 2, 760, 1000); v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(10,6,0,0.55)');
-  ctx.fillStyle = v; ctx.fillRect(0, HORIZON, W, H - HORIZON);
+  const vr = Math.max(CW * 0.7, CH * 0.64), v = ctx.createRadialGradient(CW / 2, CH * 0.45, vr * 0.38, CW / 2, CH * 0.49, vr); v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(10,6,0,0.55)');
+  ctx.fillStyle = v; ctx.fillRect(0, HORIZON, CW, CH - HORIZON);
 }
 
 // ---- the winding trail -------------------------------------------------------------------------------------------------------------
@@ -208,13 +220,34 @@ function paintMat(ctx) {
   ctx.strokeStyle = 'rgba(0,0,0,0.5)'; ctx.lineWidth = 3; rr(ctx, x, y, w, h, 22); ctx.stroke();
 }
 
-export function drawField(ctx) { const L = layer('field', (c) => { paintSky(c); paintField(c); paintGers(c); }); if (L) ctx.drawImage(L, 0, 0, W, H); else { paintSky(ctx); paintField(ctx); paintGers(ctx); } }
-export function drawBoard(ctx) { const L = layer('board', (c) => { paintSky(c); paintField(c); paintGers(c); paintTrail(c); paintMat(c); }); if (L) ctx.drawImage(L, 0, 0, W, H); else { paintSky(ctx); paintField(ctx); paintGers(ctx); paintTrail(ctx); paintMat(ctx); } }
-export function drawBackdrop(ctx, withTitleScene = false) { const L = layer(withTitleScene ? 'title' : 'field', withTitleScene ? (c) => { paintSky(c); paintField(c); paintGers(c); } : (c) => { paintSky(c); paintField(c); paintGers(c); }); if (L) ctx.drawImage(L, 0, 0, W, H); else { paintSky(ctx); paintField(ctx); paintGers(ctx); } }
+// Full-bleed steppe for a screen of w x h virtual units (cached per size, last 4 sizes kept).
+const sceneKeys = [];
+export function drawScenery(ctx, w, h) {
+  w = Math.round(w); h = Math.round(h);
+  const key = `scenery|${w}x${h}`, paint = (c) => { CW = w; CH = h; paintSky(c); paintField(c); paintGers(c); };
+  if (layers[key] === undefined) { sceneKeys.push(key); if (sceneKeys.length > 4) delete layers[sceneKeys.shift()]; }
+  const L = layer(key, { x: 0, y: 0, w, h }, paint);
+  if (L) ctx.drawImage(L, 0, 0, w, h); else paint(ctx);
+}
+// The trail and the mat are transparent layers in canonical coordinates, drawn inside their band transform.
+const TRAIL_RECT = { x: 10, y: 270, w: 700, h: 660 }, MAT_RECT = { x: 0, y: 972, w: 720, h: 370 };
+export function drawTrail(ctx) { const L = layer('trail', TRAIL_RECT, paintTrail); if (L) ctx.drawImage(L, TRAIL_RECT.x, TRAIL_RECT.y, TRAIL_RECT.w, TRAIL_RECT.h); else paintTrail(ctx); }
+export function drawMat(ctx) { const L = layer('mat', MAT_RECT, paintMat); if (L) ctx.drawImage(L, MAT_RECT.x, MAT_RECT.y, MAT_RECT.w, MAT_RECT.h); else paintMat(ctx); }
 
 // a cream felt card with a scroll border (every text screen)
+// The panel (shadow + scroll-border frame + felt) is painted once per size into a cached layer and blitted per frame; only the last few sizes are kept.
+const panelKeys = [];
+export const artStats = { panelPaints: 0 };   // how often a panel was actually painted (tests read it)
 export function drawPanel(ctx, x, y, w, h) {
-  ctx.save(); ctx.shadowColor = 'rgba(0,0,0,0.6)'; ctx.shadowBlur = 28; ctx.shadowOffsetY = 12; rr(ctx, x, y, w, h, 24); ctx.fillStyle = '#10264a'; ctx.fill(); ctx.restore();
+  const key = `panel|${x}|${y}|${w}|${h}`, M = 70, rect = { x: x - M, y: y - M, w: w + 2 * M, h: h + 2 * M };
+  if (!(key in layers) && panelKeys.length >= 8) delete layers[panelKeys.shift()];
+  const had = key in layers, L = layer(key, rect, (c, k) => paintPanel(c, x, y, w, h, k));
+  if (!had) panelKeys.push(key);
+  if (L) ctx.drawImage(L, rect.x, rect.y, rect.w, rect.h); else paintPanel(ctx, x, y, w, h);
+}
+function paintPanel(ctx, x, y, w, h, k = 1) {
+  artStats.panelPaints++;   // k: the layer's pixel scale (shadow blur/offset are in canvas pixels, not units)
+  ctx.save(); ctx.shadowColor = 'rgba(0,0,0,0.6)'; ctx.shadowBlur = 28 * k; ctx.shadowOffsetY = 12 * k; rr(ctx, x, y, w, h, 24); ctx.fillStyle = '#10264a'; ctx.fill(); ctx.restore();
   scrollFrame(ctx, x, y, w, h, 30, '#1f4f8f', '#f1d79a', 7);
   const g = ctx.createLinearGradient(x, y, x + w, y + h); g.addColorStop(0, '#fff6dc'); g.addColorStop(1, '#efdfb4');
   rr(ctx, x + 30, y + 30, w - 60, h - 60, 12); ctx.fillStyle = g; ctx.fill();

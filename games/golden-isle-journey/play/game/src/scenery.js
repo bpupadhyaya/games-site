@@ -3,6 +3,9 @@
 // masses, mottling, atmospheric haze - and then only blitted per frame (scrolled by wrapping a tile).
 // Nothing here is per-frame vector work. Headless tests have no offscreen canvas, so it all draws nothing there.
 import { mix, darken, sprite, stats } from './paint/kit.js';
+import { FR } from './frame.js';
+// Visible x range: the live frame on screen, but exactly the 720 column when painting into a cached offscreen sprite.
+const vx = (ctx) => (ctx._sp ? [0, W] : [FR.x0, FR.x1]);
 
 const W = 720, H = 1560, TAU = Math.PI * 2;
 const hash = (n) => { const s = Math.sin(n * 127.1 + 311.7) * 43758.5453; return s - Math.floor(s); };
@@ -50,7 +53,16 @@ export function skyP(ctx, stops, glow) {
       soft(g, x, y, 260 + hash(i) * 260, 14 + hash(i * 3) * 24, rgbStr(mix(hexOf(c), '#ffd8a0', 0.3)), 0.2, (hash(i * 23) - 0.5) * 0.08);
     }
   });
-  if (sp.c) { stats.blits++; ctx.drawImage(sp.c, 0, 0, W, H); }
+  if (sp.c) {
+    stats.blits++;
+    // the painted sky is one 720-wide sprite: extend it sideways by mirroring it (the seam is invisible), and upwards by stretching
+    const top = Math.min(0, FR.y0), th = H - top;
+    if (FR.x0 >= 0 && FR.x1 <= W) ctx.drawImage(sp.c, 0, top, W, th);
+    else for (let k = Math.floor(FR.x0 / W); k * W < FR.x1; k++) {
+      if (k === 0) ctx.drawImage(sp.c, 0, top, W, th);
+      else { ctx.save(); ctx.translate(k * W + (k % 2 ? W : 0), 0); ctx.scale(k % 2 ? -1 : 1, 1); ctx.drawImage(sp.c, 0, top, W, th); ctx.restore(); }
+    }
+  }
   if (glow) {
     const gr = ctx.createRadialGradient(glow.x, glow.y, 0, glow.x, glow.y, glow.r), a = glow.alpha ?? 0.8;
     gr.addColorStop(0, `rgba(${glow.color},${a})`); gr.addColorStop(0.45, `rgba(${glow.color},${a * 0.35})`); gr.addColorStop(1, `rgba(${glow.color},0)`);
@@ -67,7 +79,9 @@ function drawTile(ctx, sp, scroll, y, P) {
   if (!sp.c) return;
   stats.blits++;
   let x = -(((scroll % P) + P) % P);
-  for (; x < W; x += P) ctx.drawImage(sp.c, x, y - sp.oy, sp.w, sp.h);
+  const [xa, xb] = vx(ctx);
+  while (x > xa) x -= P;
+  for (; x < xb; x += P) ctx.drawImage(sp.c, x, y - sp.oy, sp.w, sp.h);
 }
 const wrap = (g, P, x, r, draw) => { draw(x); if (x - r < 0) draw(x + P); if (x + r > P) draw(x - P); };
 
@@ -99,7 +113,8 @@ export function ridgeP(ctx, { base, amp = 60, wl = 420, scroll = 0, color, seed 
   ctx.save(); if (alpha < 1) ctx.globalAlpha *= alpha;
   drawTile(ctx, sp, scroll, base, P);
   const yb = base + down;
-  if (bottom > yb) { ctx.fillStyle = darken(hexc, 0.3); ctx.fillRect(0, yb - 1, W, bottom - yb + 1); }
+  const bt = ctx._sp ? bottom : Math.max(bottom, FR.y1), [xa, xb] = vx(ctx);
+  if (bt > yb) { ctx.fillStyle = darken(hexc, 0.3); ctx.fillRect(xa, yb - 1, xb - xa, bt - yb + 1); }
   ctx.restore();
 }
 
@@ -184,11 +199,12 @@ export function banyanP(ctx, { x, base, h = 900, side = 1, t = 0, rm = false, co
 
 // ---------------------------------------------------------------- clouds (each one painted once)
 export function cloudP(ctx, { y, h = 300, scroll = 0, color, n = 6, seed = 0, scale = 1 }) {
-  const span = W + 500, hexc = hexOf(color), alpha = parseCol(color)[3];
+  const [xa, xb] = vx(ctx), span = xb - xa + 500, hexc = hexOf(color), alpha = parseCol(color)[3];
+  n = Math.round(n * Math.max(1, (xb - xa) / W));
   ctx.save(); if (alpha < 1) ctx.globalAlpha *= alpha;
   for (let i = 0; i < n; i++) {
     const k = i * 11 + seed;
-    const x = ((hash(k) * span - scroll * (0.5 + hash(k + 1) * 0.5)) % span + span) % span - 250;
+    const x = xa + ((hash(k) * span - scroll * (0.5 + hash(k + 1) * 0.5)) % span + span) % span - 250;
     const cy = y + hash(k + 2) * h, s = (0.6 + hash(k + 3) * 0.9) * scale;
     const sp = sprite(`cloud|${hexc}|${k}|${s.toFixed(2)}`, 420 * s, 130 * s, 210 * s, 70 * s, 0.6, (g) => {
       const base = parseCol(hexc);

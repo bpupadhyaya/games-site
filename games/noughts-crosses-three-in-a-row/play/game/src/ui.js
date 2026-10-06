@@ -87,6 +87,8 @@ export function layoutDoc(blocks, scale, width, opts = {}) {
       it.h = it.lines.length * it.line + sp(b.gap ?? 16, scale);
     } else if (b.t === 'img') {
       it.h = b.h + sp(14, scale);
+    } else if (b.t === 'more') {
+      it.h = 52;
     } else if (b.t === 'gap') {
       it.h = sp(b.h, scale);
     } else if (b.t === 'btn') {

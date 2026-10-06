@@ -6,20 +6,21 @@
 //   ready (hold the pad) -> charge -> air (tap the stones, tap CATCH) -> resolve.
 // The computer plays the same phases through `ai`. Watch & Learn adds the beat: THINK (frozen) -> REVEAL (frozen) -> ACT.
 import {
-  W, H, HOME, PIT, R, CHARGE_SECS, H_MIN, WIN_EARLY, WIN_LATE, TAP_REACT, TAP_GAP,
+  HOME, PIT, R, CHARGE_SECS, H_MIN, WIN_EARLY, WIN_LATE, TAP_REACT, TAP_GAP,
   MODES, winScale, clamp, dist, legTime, airtime, landing, newRoll, planLegs, handAt, catchResult, applyToss, dropSpots, freshPlayer, playerDone,
   slotPos, stageCount, pitRadius,
 } from './sim.js';
 import { LEVELS, HINT, tossCtx, rankPlans, aiToss, preTime } from './ai.js';
-import { inRect, playLayout, toWorld, TEXT_DEC, TEXT_INC, CLOSE_BTN, TEXT_SCALES, THINK_STEPS, SETUP_PINS } from './layout.js';
+import { inRect, playLayout, toWorld, refFrame, pinFrame, TEXT_SCALES, THINK_STEPS, meta } from './layout.js';
 import { renderPlay, hintMeta } from './view.js';
 import { renderTitle, renderSetup, renderSettings, renderResult, renderPause, renderPages, renderDemoLimit, renderLessons, renderLessonIntro, hitScreen, flowMeta, readerMax, readerPage, ensureLayout } from './menus.js';
 import { LESSONS, DEMO_LESSONS } from './lessons.js';
 import { pagesFor, tx } from './content.js';
 import { explainPlan } from './explain.js';
 import { setPress } from './ui.js';
+import { pressLockup } from './brand.js';
 
-export const meta = { width: W, height: H };
+export { meta };
 export const DEMO_MATCH_CAP = 2;
 const REVEAL_SECS = 2;
 const HINT_SECS = 9;
@@ -367,9 +368,9 @@ export function createGame(env) {
   const openPause = () => { state.paused = true; state.pauseMenu = true; state.ui.scroll = 0; persistMatch(); };
   const closePause = () => { state.paused = false; state.pauseMenu = false; state.ui.scroll = 0; };
   const leaveMatch = () => { state.scene = 'title'; state.paused = false; state.pauseMenu = false; state.ui.scroll = 0; state.rd = null; };
-  const inWorldView = (L, y) => y >= L.hudBottom && y < L.barTop;
+  const inWorldView = (L, x, y) => inRect(L.field, x, y);
   const padHit = (L, x, y) => inRect(L.pad, x, y);
-  const buttonHit = (L, x, y) => inRect(L.think, x, y) || inRect(L.pause, x, y) || y < L.hudBottom || (isWatch() && (inRect(L.watch.dec, x, y) || inRect(L.watch.inc, x, y) || inRect(L.watch.exit, x, y) || inRect(L.watch.pause, x, y)));
+  const buttonHit = (L, x, y) => inRect(L.think, x, y) || inRect(L.pause, x, y) || (isWatch() && (inRect(L.watch.dec, x, y) || inRect(L.watch.inc, x, y) || inRect(L.watch.exit, x, y) || inRect(L.watch.pause, x, y)));
   const chargeTick = (rd, dt) => {
     rd.charge = Math.min(CHARGE_SECS, rd.charge + dt); rd.chargeH = heightFor(rd.charge);
     if (Math.floor(rd.charge * 20) !== rd.lastC) { rd.lastC = Math.floor(rd.charge * 20); sfx.charge(rd.chargeH); }
@@ -439,7 +440,7 @@ export function createGame(env) {
           break;
         }
         case 'air': {
-          const inView = inWorldView(L, ptr.y) && !buttonHit(L, ptr.x, ptr.y);
+          const inView = inWorldView(L, ptr.x, ptr.y) && !buttonHit(L, ptr.x, ptr.y);
           if (ptr.pressed && inView) rd.swipe = true;
           if (!ptr.down) rd.swipe = false;
           if (rd.swipe && ptr.down) { const id = hitStone(wp); if (id !== null) addTap(id); }
@@ -514,6 +515,7 @@ export function createGame(env) {
   }
   const handleTitle = (id) => {
     if (!id) return;
+    if (id === 'arcforge') { pressLockup(); env.openArcforgeHome?.(); return; }
     sfx.tick();
     if (id === 'continue') resumeMatch();
     else if (id === 'play') { state.scene = 'setup'; state.ui.scroll = 0; state.setupMsg = ''; }
@@ -606,17 +608,18 @@ export function createGame(env) {
     const ptr = state.shot ? neutral : input.pointer, k = input.keys;
     if (k.pressed.has('Enter')) { handler('start'); return; }
     if (k.pressed.has('Escape')) { handler('back'); return; }
-    if (ptr.pressed && (inRect(SETUP_PINS.start, ptr.x, ptr.y) || inRect(SETUP_PINS.back, ptr.x, ptr.y))) { handler(inRect(SETUP_PINS.start, ptr.x, ptr.y) ? 'start' : 'back'); return; }
+    const pins = pinFrame();
+    if (ptr.pressed && (inRect(pins.start, ptr.x, ptr.y) || inRect(pins.back, ptr.x, ptr.y))) { handler(inRect(pins.start, ptr.x, ptr.y) ? 'start' : 'back'); return; }
     updateFlowScene(dt, input, handler, key);
   };
   const updatePages = (input) => {
     const ptr = state.shot ? neutral : input.pointer, keys = input.keys;
     const close = () => { state.scene = state.back === 'play' ? 'play' : 'title'; state.page = 0; state.ui.scroll = 0; state.ui.drag = null; };
-    const max = readerMax(), step = readerPage() * 0.85;
+    const max = readerMax(), step = readerPage() * 0.85, rf = refFrame();
     if (ptr.pressed) {
-      if (inRect(CLOSE_BTN, ptr.x, ptr.y)) { close(); return; }
-      else if (inRect(TEXT_DEC, ptr.x, ptr.y)) { state.settings.textIdx = Math.max(0, state.settings.textIdx - 1); state.ui.scroll = 0; saveSettings(); }
-      else if (inRect(TEXT_INC, ptr.x, ptr.y)) { state.settings.textIdx = Math.min(TEXT_SCALES.length - 1, state.settings.textIdx + 1); state.ui.scroll = 0; saveSettings(); }
+      if (inRect(rf.close, ptr.x, ptr.y)) { close(); return; }
+      else if (inRect(rf.dec, ptr.x, ptr.y)) { state.settings.textIdx = Math.max(0, state.settings.textIdx - 1); state.ui.scroll = 0; saveSettings(); }
+      else if (inRect(rf.inc, ptr.x, ptr.y)) { state.settings.textIdx = Math.min(TEXT_SCALES.length - 1, state.settings.textIdx + 1); state.ui.scroll = 0; saveSettings(); }
       else state.ui.drag = { y0: ptr.y, s0: state.ui.scroll, moved: 0 };
     }
     if (state.ui.drag && ptr.down) { const d = state.ui.drag; d.moved = Math.max(d.moved, Math.abs(ptr.y - d.y0)); state.ui.scroll = clamp(d.s0 - (ptr.y - d.y0), 0, max); }

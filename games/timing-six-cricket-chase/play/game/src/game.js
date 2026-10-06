@@ -9,10 +9,14 @@ import { readyHint, runAdvice, planDelivery, localRng } from './ai.js';
 import { deliveryPos, TYPES, TYPE_KEYS } from './ball.js';
 import { PRESET_KEYS } from './field.js';
 import { TEXT_SCALES, inRect, setPress } from './ui.js';
-import { renderScene, sceneSpec, R as VR, PITCHMAP, fromMap, TYPE_CHIPS, FIELD_CHIPS, GO } from './view.js';
+import { renderScene, sceneSpec, fromMap, CHIP_KEYS, FIELD_KEYS } from './view.js';
 import { makeProj, toScreen, dropLayers } from './scene.js';
+import { LY, syncLayout } from './layout.js';
 
-export const meta = { width: W, height: H };
+// Fluid viewport (kit 1.7): the short side is always 720 virtual units, the long side follows the screen; the kit rewrites width/height on every resize.
+export const meta = { width: W, height: H, fluid: { short: 720 } };
+// The Rules / About / How to Play reader scrolls with the mouse wheel too: main.js adds the wheel delta (virtual units) here.
+export const wheelInput = { dy: 0 };
 
 const THINK_STEPS = [2, 5, 8, 10];
 const DEMO_MATCHES = 2;
@@ -32,7 +36,8 @@ export function createGame(env) {
     results: null, replay: null, records: {}, demoPlayed: 0, modeKey: 'chase5', lastMode: null,
   };
   hid(state, 'env', env);
-  hid(state, '_ui', { hits: [], footer: [], view: { x: 0, y: 0, w: W, h: H }, pages: null, maxS: 0 });
+  hid(state, '_ui', { hits: [], footer: [], view: { x: 0, y: 0, w: W, h: H }, maxS: 0, bar: null, thumb: null });
+  syncLayout(meta.width, meta.height);
   let Rn = null; // the match rng streams (not part of the serializable state)
   const sfxq = [];
 
@@ -79,7 +84,7 @@ export function createGame(env) {
   const ring = (x, y, color, w = 6) => state.v.parts.push({ kind: 'ring', x, y, vx: 0, vy: 0, r: 8, life: 0.45, max: 0.45, color, w, g: 0, grow: 420 });
   const flashAt = (x, y, r) => state.v.parts.push({ kind: 'flash', x, y, vx: 0, vy: 0, r, life: 0.22, max: 0.22, g: 0 });
 
-  const crowdFlash = (n) => spawn(n, () => ({ kind: 'dot', x: 40 + vr() * 640, y: 120 + vr() * 1000, vx: 0, vy: 0, r: 4 + vr() * 4, life: 0.25 + vr() * 0.5, max: 0.75, color: '#ffffff', g: 0 }));
+  const crowdFlash = (n) => spawn(n, () => ({ kind: 'dot', x: LY.U.x0 + 40 + vr() * (LY.U.w - 80), y: 120 + vr() * (LY.h - 280), vx: 0, vy: 0, r: 4 + vr() * 4, life: 0.25 + vr() * 0.5, max: 0.75, color: '#ffffff', g: 0 }));
 
   // ---- starting matches -----------------------------------------------------------------------------------------------
   const mkStreams = (modeKey) => {
@@ -181,7 +186,7 @@ export function createGame(env) {
     }
     if (p.pressed) {
       tc.down = true; tc.sx = p.x; tc.sy = p.y; tc.path = [[p.x, p.y]]; tc.committed = false; tc.fired = false; tc.t0 = tick; tc.mv = -1; tc.ok = false; tc.mode = 'bat';
-      tc.consumed = inRect(VR.pause, p.x, p.y) || inRect(VR.think, p.x, p.y) || (!!m.live && inRect(VR.run, p.x, p.y));
+      tc.consumed = inRect(LY.pause, p.x, p.y) || inRect(LY.think, p.x, p.y) || (!!m.live && inRect(LY.run, p.x, p.y));
       tc.aimDeg = null;
     }
     if (tc.down) {
@@ -211,7 +216,7 @@ export function createGame(env) {
 
   function runInput(input) {
     const p = input.pointer, m = state.m;
-    if (p.pressed && inRect(VR.run, p.x, p.y)) { if (callRun(m)) sfx('run'); }
+    if (p.pressed && inRect(LY.run, p.x, p.y)) { if (callRun(m)) sfx('run'); }
     if (input.keys.pressed.has('Space')) callRun(m);
   }
 
@@ -232,15 +237,15 @@ export function createGame(env) {
       if (k === 'ArrowRight') a.tx = clamp(a.tx + 0.1 * m.hand, -1.6, 1.6);
       if (k === 'ArrowUp') a.tz = clamp(a.tz + 0.35, -0.5, 9.5);
       if (k === 'ArrowDown') a.tz = clamp(a.tz - 0.35, -0.5, 9.5);
-      if (/^Digit[1-9]$/.test(k)) { const t = TYPE_CHIPS[Number(k.slice(5)) - 1]; if (t) pickType(t.k); }
+      if (/^Digit[1-9]$/.test(k)) { const t = CHIP_KEYS[Number(k.slice(5)) - 1]; if (t) pickType(t); }
       if (k === 'Space') { a.pace = 0.5; bowlNow(m, Rn, a); sfx('release'); }
     }
     if (p.pressed) {
       tc.down = true; tc.sx = p.x; tc.sy = p.y; tc.path = [[p.x, p.y]]; tc.t0 = tick; tc.mode = null;
-      const chip = TYPE_CHIPS.find((c) => inRect(c.rect, p.x, p.y));
-      if (chip) { pickType(chip.k); tc.mode = 'chip'; }
-      else if (inRect({ x: PITCHMAP.x - 20, y: PITCHMAP.y - 20, w: PITCHMAP.w + 40, h: PITCHMAP.h + 40 }, p.x, p.y)) tc.mode = 'aim';
-      else if (!inRect(VR.pause, p.x, p.y) && !inRect(VR.think, p.x, p.y)) tc.mode = 'flick';
+      const B = LY.bowl, ci = B.chips.findIndex((r) => inRect(r, p.x, p.y));
+      if (ci >= 0) { pickType(CHIP_KEYS[ci]); tc.mode = 'chip'; }
+      else if (inRect({ x: B.pm.x - 20, y: B.pm.y - 20, w: B.pm.w + 40, h: B.pm.h + 40 }, p.x, p.y)) tc.mode = 'aim';
+      else if (!inRect(LY.pause, p.x, p.y) && !inRect(LY.think, p.x, p.y)) tc.mode = 'flick';
     }
     if (tc.down) {
       if (!p.pressed) tc.path.push([p.x, p.y]);
@@ -263,8 +268,9 @@ export function createGame(env) {
   function fieldPickInput(input) {
     const p = input.pointer, m = state.m;
     if (!p.pressed) return;
-    for (const c of FIELD_CHIPS) if (inRect(c.rect, p.x, p.y)) { m.fieldPick = c.k; sfx('ui'); }
-    if (inRect(GO, p.x, p.y)) { resumeAfterOverbreak(m, Rn, m.fieldPick); sfx('ui'); }
+    const F = LY.field;
+    FIELD_KEYS.forEach((k, i) => { if (inRect(F.chips[i], p.x, p.y)) { m.fieldPick = k; sfx('ui'); } });
+    if (inRect(F.go, p.x, p.y)) { resumeAfterOverbreak(m, Rn, m.fieldPick); sfx('ui'); }
   }
 
   // ---- think ---------------------------------------------------------------------------------------------------------------
@@ -304,9 +310,9 @@ export function createGame(env) {
           break;
         }
         case 'ground': { if (!m.live) break; const bp = ballPos(m); const [x, y] = toScreen(m.theme, bp[0] * m.hand, bp[2]); spawn(3, () => ({ kind: 'grass', x, y, vx: (vr() - 0.5) * 120, vy: -60 - vr() * 80, r: 3 + vr() * 2, life: 0.4, max: 0.4, color: '#6fbf4a', rot: vr() * 3, g: 300 })); sfx('thud'); break; }
-        case 'six': sfx('roar'); confetti(360, 420, 60, ['#ffd34d', '#ff6b57', '#2ec4b6', '#fff4dc']); v.flash = 0.2; crowdFlash(26); break;
-        case 'four': sfx('cheer'); confetti(360, 440, 28, ['#2ec4b6', '#8be07a', '#fff4dc']); crowdFlash(12); break;
-        case 'caught': sfx('groan'); burst(360, 500, 14, '#ff9a8a', 260); break;
+        case 'six': sfx('roar'); confetti(LY.cx, LY.h * 0.33, 60, ['#ffd34d', '#ff6b57', '#2ec4b6', '#fff4dc']); v.flash = 0.2; crowdFlash(26); break;
+        case 'four': sfx('cheer'); confetti(LY.cx, LY.h * 0.34, 28, ['#2ec4b6', '#8be07a', '#fff4dc']); crowdFlash(12); break;
+        case 'caught': sfx('groan'); burst(LY.cx, LY.h * 0.39, 14, '#ff9a8a', 260); break;
         case 'stumps': sfx('stumps'); v.stumpsAnim = 0; break;
         case 'wicket': sfx('groan'); v.flash = 0.3; break;
         case 'result': if (state.scene === 'play' && m.inn.role === 'bat') { state.prefs.coach = Math.min(99, (state.prefs.coach ?? 0) + 1); if (state.prefs.coach % 3 === 0) savePrefs(); } break;
@@ -370,20 +376,21 @@ export function createGame(env) {
     const m = state.m, p = input.pointer;
     if (state.paused) {
       if (p.pressed) {
-        if (inRect({ x: 160, y: 430, w: 400, h: 96 }, p.x, p.y) || inRect(VR.pause, p.x, p.y)) { state.paused = false; sfx('ui'); }
-        else if (inRect({ x: 160, y: 550, w: 400, h: 96 }, p.x, p.y)) { state.prefs.sound = !state.prefs.sound; audio.setMuted(!state.prefs.sound); savePrefs(); }
-        else if (inRect({ x: 160, y: 670, w: 400, h: 96 }, p.x, p.y)) { state.paused = false; go('title'); }
+        const PM = LY.pauseMenu;
+        if (inRect(PM.resume, p.x, p.y) || inRect(LY.pause, p.x, p.y)) { state.paused = false; sfx('ui'); }
+        else if (inRect(PM.sound, p.x, p.y)) { state.prefs.sound = !state.prefs.sound; audio.setMuted(!state.prefs.sound); savePrefs(); }
+        else if (inRect(PM.quit, p.x, p.y)) { state.paused = false; go('title'); }
       }
       if (input.keys.pressed.has('KeyP')) state.paused = false;
       return;
     }
     if (state.think.open) {
-      if (p.pressed && inRect({ x: 200, y: 1040, w: 320, h: 70 }, p.x, p.y)) { state.think.open = false; sfx('ui'); }
+      if (p.pressed && inRect(LY.thinkCard.btn, p.x, p.y)) { state.think.open = false; sfx('ui'); }
       if (input.keys.pressed.has('KeyT') || input.keys.pressed.has('Escape')) state.think.open = false;
       return;
     }
-    if (p.pressed && inRect(VR.pause, p.x, p.y)) { state.paused = true; sfx('ui'); return; }
-    if (p.pressed && inRect(VR.think, p.x, p.y)) { openThink(); return; }
+    if (p.pressed && inRect(LY.pause, p.x, p.y)) { state.paused = true; sfx('ui'); return; }
+    if (p.pressed && inRect(LY.think, p.x, p.y)) { openThink(); return; }
     if (input.keys.pressed.has('KeyP')) { state.paused = true; return; }
     if (input.keys.pressed.has('KeyT')) openThink();
     if (m.phase === 'inningsEnd') { afterInnings(); updateView(dt); return; }
@@ -403,16 +410,17 @@ export function createGame(env) {
   function updateAuto(dt, input) {
     const m = state.m, a = state.auto, p = input.pointer;
     if (state.paused) {
-      if (p.pressed && inRect(VR.autoPause, p.x, p.y)) { state.paused = false; sfx('ui'); }
+      if (p.pressed && (inRect(LY.auto.pause, p.x, p.y) || inRect(LY.pause, p.x, p.y))) { state.paused = false; sfx('ui'); }
       if (input.keys.pressed.has('KeyP') || input.keys.pressed.has('Space')) state.paused = false;
       return;
     }
     if (p.pressed) {
-      if (inRect(VR.autoPause, p.x, p.y)) { state.paused = true; sfx('ui'); return; }
-      if (inRect(VR.speed, p.x, p.y)) { a.speed = a.speed >= 4 ? 1 : a.speed * 2; sfx('ui'); }
-      else if (inRect(VR.autoThinkDec, p.x, p.y)) { state.prefs.thinkIdx = clamp(state.prefs.thinkIdx - 1, 0, 3); savePrefs(); sfx('ui'); }
-      else if (inRect(VR.autoThinkInc, p.x, p.y)) { state.prefs.thinkIdx = clamp(state.prefs.thinkIdx + 1, 0, 3); savePrefs(); sfx('ui'); }
-      else if (inRect({ x: 18, y: 1130, w: 96, h: 56 }, p.x, p.y)) { go('title'); return; }
+      const A = LY.auto;
+      if (inRect(A.pause, p.x, p.y) || inRect(LY.pause, p.x, p.y)) { state.paused = true; sfx('ui'); return; }
+      if (inRect(A.speed, p.x, p.y)) { a.speed = a.speed >= 4 ? 1 : a.speed * 2; sfx('ui'); }
+      else if (inRect(A.dec, p.x, p.y)) { state.prefs.thinkIdx = clamp(state.prefs.thinkIdx - 1, 0, 3); savePrefs(); sfx('ui'); }
+      else if (inRect(A.inc, p.x, p.y)) { state.prefs.thinkIdx = clamp(state.prefs.thinkIdx + 1, 0, 3); savePrefs(); sfx('ui'); }
+      else if (inRect(A.exit, p.x, p.y)) { go('title'); return; }
     }
     if (input.keys.pressed.has('KeyP')) { state.paused = true; return; }
     if (m.phase === 'inningsEnd') { afterInnings(); updateView(dt); return; }
@@ -471,16 +479,30 @@ export function createGame(env) {
   // ---- UI scenes ---------------------------------------------------------------------------------------------------------
   function uiInput(input) {
     const p = input.pointer, ui = state.ui, U = state._ui;
-    if (p.pressed) { ui.drag = { y0: p.y, s0: ui.scroll, moved: false, x0: p.x }; }
-    const paged = state.scene === 'howto' || state.scene === 'about' || state.scene === 'rules';
+    // wheel (fed by main.js) and the keys scroll every screen that is taller than the view
+    if (wheelInput.dy) { ui.scroll = clamp(ui.scroll + wheelInput.dy, 0, U.maxS); wheelInput.dy = 0; }
+    if (p.pressed) {
+      const bar = U.bar;
+      const onBar = !!(bar && U.thumb && U.maxS > 0 && p.x >= bar.x - 16 && p.x <= bar.x + bar.w + 16 && p.y >= bar.y && p.y <= bar.y + bar.h);
+      ui.drag = { y0: p.y, s0: ui.scroll, moved: onBar, x0: p.x, sb: onBar };
+    }
     if (ui.drag && p.down) {
-      const dy = p.y - ui.drag.y0;
-      if (Math.abs(dy) > 12) ui.drag.moved = true;
-      if (ui.drag.moved && !paged) ui.scroll = clamp(ui.drag.s0 - dy, 0, U.maxS);
+      if (ui.drag.sb) {
+        const t = U.thumb, bar = U.bar;
+        ui.scroll = clamp((p.y - bar.y - t.h / 2) / Math.max(1, bar.h - t.h), 0, 1) * U.maxS;
+      } else {
+        const dy = p.y - ui.drag.y0;
+        if (Math.abs(dy) > 12) ui.drag.moved = true;
+        if (ui.drag.moved) ui.scroll = clamp(ui.drag.s0 - dy, 0, U.maxS);
+      }
     }
     for (const k of input.keys.pressed) {
       if (k === 'ArrowDown') ui.scroll = clamp(ui.scroll + 80, 0, U.maxS);
       if (k === 'ArrowUp') ui.scroll = clamp(ui.scroll - 80, 0, U.maxS);
+      if (k === 'PageDown') ui.scroll = clamp(ui.scroll + U.view.h * 0.9, 0, U.maxS);
+      if (k === 'PageUp') ui.scroll = clamp(ui.scroll - U.view.h * 0.9, 0, U.maxS);
+      if (k === 'Home') ui.scroll = 0;
+      if (k === 'End') ui.scroll = U.maxS;
       if (k === 'Escape') uiTap('back');
       if (k === 'Enter' || k === 'Space') {
         // keyboard shortcut: Enter / Space on the title starts a quick chase straight away
@@ -490,13 +512,11 @@ export function createGame(env) {
     }
     if (p.released && ui.drag) {
       const d = ui.drag; ui.drag = null;
-      if (d.moved) {
-        if (paged && Math.abs(p.y - d.y0) > 70 && U.view.y <= d.y0 && d.y0 <= U.view.y + U.view.h) uiTap(p.y < d.y0 ? 'next' : 'prev');
-        return;
-      }
+      if (d.moved) return;
       const x = p.x, y = p.y;
-      if (inRect(VR.zoomDec, x, y)) { state.prefs.textIdx = clamp(state.prefs.textIdx - 1, 0, TEXT_SCALES.length - 1); savePrefs(); return; }
-      if (inRect(VR.zoomInc, x, y)) { state.prefs.textIdx = clamp(state.prefs.textIdx + 1, 0, TEXT_SCALES.length - 1); savePrefs(); return; }
+      if (inRect(LY.zoom.dec, x, y)) { state.prefs.textIdx = clamp(state.prefs.textIdx - 1, 0, TEXT_SCALES.length - 1); savePrefs(); return; }
+      if (inRect(LY.zoom.inc, x, y)) { state.prefs.textIdx = clamp(state.prefs.textIdx + 1, 0, TEXT_SCALES.length - 1); savePrefs(); return; }
+      if (U.lockTap && state.scene === 'title' && inRect(U.lockTap, x, y)) { state.lockDown = state.t + 0.25; env.openArcforgeHome?.(); return; }
       for (const f of U.footer) if (inRect(f.rect, x, y)) { uiTap(f.id); return; }
       if (y >= U.view.y && y <= U.view.y + U.view.h) for (const h of U.hits) if (inRect(h.rect, x, y)) { uiTap(h.id); return; }
     }
@@ -506,7 +526,7 @@ export function createGame(env) {
     const sc = state.scene, pf = state.prefs;
     sfx('ui');
     if (id === 'back') {
-      if (sc === 'setup') go('modes'); else if (sc === 'modes' || sc === 'settings') go('title');
+      if (sc === 'setup') go('modes'); else if (sc === 'modes' || sc === 'settings' || sc === 'howto' || sc === 'about' || sc === 'rules') go('title');
       return;
     }
     switch (sc) {
@@ -539,13 +559,9 @@ export function createGame(env) {
         else if (id === 'set:restore') monetization.restore();
         savePrefs();
         break;
-      case 'howto': case 'about': case 'rules': {
-        const U = state._ui, pages = U.pages ?? [0];
-        const idx = state.ui.pageIdx;
-        if (id === 'next') { if (idx >= pages.length - 1) go('title'); else state.ui.scroll = clamp(pages[idx + 1], 0, U.maxS); }
-        else if (id === 'prev' || id === 'back') { if (idx <= 0) go('title'); else state.ui.scroll = clamp(pages[idx - 1], 0, U.maxS); }
+      case 'howto': case 'about': case 'rules':
+        if (id === 'back' || id === 'next' || id === 'prev') go('title');   // one scrolling reader: Back always leaves
         break;
-      }
       case 'results':
         if (id === 'again') { const lm = state.lastMode; if (lm) startMatch(lm.modeKey, lm.opts); else go('modes'); }
         else if (id === 'menu') go('title');
@@ -568,16 +584,17 @@ export function createGame(env) {
     const k = Math.min(Math.floor(r.i), r.n - 1);
     state.v.otrail.push([r.p[k * 3] * state.m.hand, r.p[k * 3 + 1], r.p[k * 3 + 2]]);
     if (state.v.otrail.length > 16) state.v.otrail.shift();
-    if (!r.cheered && r.i >= r.n - 4) { r.cheered = true; confetti(360, 500, 70, ['#ffd34d', '#ff6b57', '#2ec4b6', '#fff4dc']); sfx('roar'); }
+    if (!r.cheered && r.i >= r.n - 4) { r.cheered = true; confetti(LY.cx, LY.h * 0.4, 70, ['#ffd34d', '#ff6b57', '#2ec4b6', '#fff4dc']); sfx('roar'); }
     updateView(dt);
     const p = input.pointer;
-    if (r.i >= r.n + 40 || (p.pressed && inRect({ x: 160, y: 1130, w: 400, h: 100 }, p.x, p.y)) || input.keys.pressed.has('Space')) { state.replay = null; go('results'); }
+    if (r.i >= r.n + 40 || (p.pressed && inRect(LY.replay.btn, p.x, p.y)) || input.keys.pressed.has('Space')) { state.replay = null; go('results'); }
   }
 
   // ---- main update ------------------------------------------------------------------------------------------------------
   const noInput = () => ({ pointer: { pressed: false, released: false, down: false, x: 0, y: 0 }, keys: { pressed: new Set(), down: new Set() } });
   return {
     update(dt, input) {
+      syncLayout(meta.width, meta.height);
       state.tick += 1;
       setPress(input.pointer.down ? input.pointer.x : null, input.pointer.y);
       const sc = state.scene;
@@ -588,7 +605,7 @@ export function createGame(env) {
       else if (sc === 'replay') updateReplay(dt, input);
       else uiInput(input);
     },
-    render(ctx) { renderScene(ctx, state); },
+    render(ctx, view) { syncLayout(view?.width ?? meta.width, view?.height ?? meta.height); renderScene(ctx, state); },
     getState: () => state,
     // Auto Play, the menus and replays are free; only real matches use up the free preview time.
     // Pause, the Think card and the innings break do not use up preview time either.

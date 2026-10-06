@@ -1,10 +1,10 @@
 // Drawing for the play screen (pitch, balls, aim guide, HUD, control bar, overlays). Pure: reads
 // `state`, never mutates it. Menus, pages and settings live in menus.js.
-import { W, H, project, depthScale } from './cam.js';
+import { W, H, project, depthScale, setStage, stageId } from './cam.js';
 import { LANE, JACK_ZONE, LOFTS, SPINS, HAND_Z, R_B, R_J, flightPath, rollOutEstimate, reachFor, theJack, ranking, dist2D } from './sim.js';
 import { startBake, BAKE_BG, BAKE_NEED, drawBoule, drawJack, dustSprite, bouleSprite, palOf, TEAM, setHost, canBake } from './art.js';
-import { LOFT_BTN, SPIN_BTN, HINT_BTN, MENU_BTN, HUD, PULL, FAST_BTN, DEMO_BAR, THINK_STEPS } from './layout.js';
-import { FONT, C, roundPath, drawButton, panel, textShadow, wrapLines } from './ui.js';
+import { PULL, THINK_STEPS, applyStage } from './layout.js';
+import { FONT, C, roundPath, drawButton, paintButton, panel, textShadow, wrapLines } from './ui.js';
 import { PROFILES } from './opponents.js';
 
 const TAU = Math.PI * 2;
@@ -12,8 +12,10 @@ const pitchCache = new Map();
 const jobs = new Map();   // key -> in-progress sliced bake
 let steppedThisFrame = false;
 export function invalidatePitch() { pitchCache.clear(); jobs.clear(); }
-function artRes(ctx) {
-  try { const a = typeof ctx.getTransform === 'function' ? ctx.getTransform().a : 2; return Math.min(2, Math.max(1, Math.ceil(a * 2) / 2)); } catch { return 2; }
+export const bakeStats = () => ({ cached: pitchCache.size, jobs: jobs.size });
+// Bake resolution: device pixels per stage unit (the view scale times the stage scale), between 1 and 2.
+function artRes(ctx, f = 1) {
+  try { const a = typeof ctx.getTransform === 'function' ? ctx.getTransform().a : 2; return Math.min(2, Math.max(1, Math.ceil(a * f * 2) / 2)); } catch { return 2; }
 }
 
 // ---- helpers ------------------------------------------------------------------------------------
@@ -185,51 +187,67 @@ function sideName(state, side) {
 }
 export { sideName };
 
-function drawHud(ctx, state, t) {
-  const m = state.m;
-  // gradient scrim so text reads over the sky
-  const g = ctx.createLinearGradient(0, 0, 0, HUD.h + 30);
-  g.addColorStop(0, 'rgba(24,14,6,0.78)'); g.addColorStop(0.8, 'rgba(24,14,6,0.5)'); g.addColorStop(1, 'rgba(24,14,6,0)');
-  ctx.fillStyle = g; ctx.fillRect(0, 0, W, HUD.h + 30);
+const fitFont = (ctx, text, weight, px, maxW, min = 11) => {
+  ctx.font = `${weight} ${px}px ${FONT}`;
+  while (px > min && ctx.measureText(text).width > maxW) { px -= 1; ctx.font = `${weight} ${px}px ${FONT}`; }
+  return px;
+};
+
+function drawHud(ctx, state, L, t) {
+  const m = state.m, P = L.play, w = L.w;
+  if (L.wide) {
+    for (const r of [P.leftCard, P.rightCard]) {
+      roundPath(ctx, r.x, r.y, r.w, r.h, 22); ctx.fillStyle = 'rgba(24,14,6,0.6)'; ctx.fill();
+      ctx.lineWidth = 1.5; ctx.strokeStyle = 'rgba(255,214,140,0.3)'; ctx.stroke();
+    }
+  } else {
+    // gradient scrim so text reads over the sky
+    const y1 = P.cards[0].y + 126;
+    const g = ctx.createLinearGradient(0, 0, 0, y1);
+    g.addColorStop(0, 'rgba(24,14,6,0.78)'); g.addColorStop(0.8, 'rgba(24,14,6,0.5)'); g.addColorStop(1, 'rgba(24,14,6,0)');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, w, y1);
+  }
   for (const side of [0, 1]) {
-    const x = side === 0 ? 20 : W - 20 - 300, active = m.turn === side && (m.phase === 'aim' || m.phase === 'jack');
+    const r = P.cards[side], active = m.turn === side && (m.phase === 'aim' || m.phase === 'jack');
+    const small = r.w < 250, bs = small ? 26 : 30, bstep = small ? 30 : 34;
     ctx.save();
-    roundPath(ctx, x, 14, 300, 94, 22);
+    roundPath(ctx, r.x, r.y, r.w, r.h, 22);
     ctx.fillStyle = active ? 'rgba(255,240,204,0.2)' : 'rgba(255,240,204,0.08)'; ctx.fill();
     ctx.lineWidth = active ? 3 : 1.5; ctx.strokeStyle = active ? 'rgba(255,214,120,0.95)' : 'rgba(255,240,204,0.25)'; ctx.stroke();
     ctx.restore();
     ctx.textBaseline = 'middle';
-    ctx.textAlign = side === 0 ? 'left' : 'right';
-    ctx.font = `700 22px ${FONT}`; ctx.fillStyle = '#ffe9bf';
-    const nx = side === 0 ? x + 18 : x + 282;
-    ctx.fillText(sideName(state, side), nx, 36);
-    ctx.font = `700 58px ${FONT}`; ctx.fillStyle = '#fff6e2';
-    ctx.fillText(String(m.scores[side]), side === 0 ? x + 18 : x + 282, 78);
-    // boules still in hand
+    const left = side === 0 || L.wide;
+    ctx.textAlign = left ? 'left' : 'right';
+    const nx = left ? r.x + 18 : r.x + r.w - 18;
+    const nameW = r.w - 36 - (small ? 0 : 0);
+    fitFont(ctx, sideName(state, side), 700, 22, nameW, 13); ctx.fillStyle = '#ffe9bf';
+    ctx.fillText(sideName(state, side), nx, r.y + 22);
+    ctx.font = `700 ${small ? 50 : 58}px ${FONT}`; ctx.fillStyle = '#fff6e2';
+    ctx.fillText(String(m.scores[side]), nx, r.y + 64);
+    // boules still in hand: right part of the card (left card side), left part for the right card in portrait
     const sp = bouleSprite(side);
+    const total = 3 * bstep;
+    const bx0 = left ? r.x + r.w - 14 - total : r.x + 14;
     for (let i = 0; i < 3; i++) {
-      const bxx = side === 0 ? x + 296 - 34 * (3 - i) + 10 : x + 296 - 34 * (3 - i) + 10 - (300 - 296);
-      const px = side === 0 ? x + 150 + i * 34 : x + 138 + i * 34;
       const have = i < m.hand[side];
-      if (sp) { ctx.globalAlpha = have ? 1 : 0.22; ctx.drawImage(sp, px, 62, 30, 30); ctx.globalAlpha = 1; }
+      if (sp) { ctx.globalAlpha = have ? 1 : 0.22; ctx.drawImage(sp, bx0 + i * bstep, r.y + 62, bs, bs); ctx.globalAlpha = 1; }
     }
   }
   if (state.think && state.think.phase === 'think' && m.cfg.mode !== 'watch') {
     for (let i = 0; i < 3; i++) {
       const a = 0.35 + 0.65 * Math.max(0, Math.sin(t * 6 - i * 0.9));
-      ctx.fillStyle = `rgba(255,233,191,${a})`; ctx.beginPath(); ctx.arc(W - 70 - i * 22, 118, 6, 0, TAU); ctx.fill();
+      ctx.fillStyle = `rgba(255,233,191,${a})`; ctx.beginPath(); ctx.arc(P.dotsPos.x - i * 22, P.dotsPos.y, 6, 0, TAU); ctx.fill();
     }
   }
-  if (state.ff > 1) { ctx.font = `700 26px ${FONT}`; ctx.fillStyle = '#ffe9bf'; ctx.textAlign = 'center'; ctx.fillText('\u25b6\u25b6 x3', W / 2, 300); }
+  if (state.ff > 1) { ctx.font = `700 26px ${FONT}`; ctx.fillStyle = '#ffe9bf'; ctx.textAlign = 'center'; ctx.fillText('▶▶ x3', P.ffPos.x, P.ffPos.y); }
+  const e = P.endPos;
   ctx.textAlign = 'center';
   ctx.font = `700 21px ${FONT}`; ctx.fillStyle = '#ffe9bf';
-  ctx.fillText(`End ${m.end}`, W / 2, 64);
+  ctx.fillText(`End ${m.end}`, e.x, e.y);
   ctx.font = `400 19px ${FONT}`; ctx.fillStyle = 'rgba(255,233,191,0.8)';
-  ctx.fillText(`to ${m.cfg.target}`, W / 2, 86);
-  // jack indicator
-  const js = jackSprite2(ctx);
+  ctx.fillText(`to ${m.cfg.target}`, e.x, e.y2);
+  drawJack(ctx, e.x, e.jy, 8);   // jack indicator
 }
-function jackSprite2(ctx) { drawJack(ctx, W / 2, 106, 8); return null; }
 
 // ---- control bar -------------------------------------------------------------------------------
 function drawLoftIcon(ctx, id, x, y, col) {
@@ -241,33 +259,48 @@ function drawLoftIcon(ctx, id, x, y, col) {
   else { ctx.moveTo(x - 22, y + 6); ctx.lineTo(x + 6, y + 4); ctx.stroke(); ctx.beginPath(); ctx.moveTo(x + 4, y - 6); ctx.lineTo(x + 20, y + 4); ctx.lineTo(x + 4, y + 14); ctx.closePath(); ctx.fill(); }
   ctx.restore();
 }
-function drawBar(ctx, state) {
-  if (state.m.cfg.mode === 'watch') { drawDemoBar(ctx, state); return; }
-  const g = ctx.createLinearGradient(0, 1096, 0, H);
-  g.addColorStop(0, 'rgba(32,20,10,0)'); g.addColorStop(0.18, 'rgba(32,20,10,0.82)'); g.addColorStop(1, 'rgba(24,14,6,0.95)');
-  ctx.fillStyle = g; ctx.fillRect(0, 1096, W, H - 1096);
+// A loft button: icon at the left and label centred (portrait), or icon above the label when the button is small (wide cards).
+function drawLoftButton(ctx, L, i, dis, active) {
+  const r = L.play.loft[i], name = LOFTS[i].name;
+  if (!L.wide) { drawButton(ctx, r, name, { active, disabled: dis, size: 22, icon: (c, x, y, col) => drawLoftIcon(c, i, x, y, col) }); return; }
+  const { dy, light } = paintButton(ctx, r, { active, disabled: dis });
+  const col = dis ? 'rgba(70,50,30,0.55)' : light ? '#fff8e8' : C.ink;
+  drawLoftIcon(ctx, i, r.x + r.w / 2, r.y + dy + r.h * 0.3, col);
+  ctx.save(); ctx.fillStyle = col; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  fitFont(ctx, name, 700, 20, r.w - 12, 12);
+  ctx.fillText(name, r.x + r.w / 2, r.y + dy + r.h * 0.74); ctx.restore();
+}
+function drawBar(ctx, state, L) {
+  if (state.m.cfg.mode === 'watch') { drawDemoBar(ctx, state, L); return; }
+  const P = L.play;
+  if (!L.wide) barBackdrop(ctx, L);
   const jack = state.m.phase === 'jack', human = state.humanTurn;
-  LOFTS.forEach((L, i) => {
+  LOFTS.forEach((_, i) => {
     const dis = (jack && i === 3) || !human;
-    drawButton(ctx, LOFT_BTN[i], L.name, { active: state.sel.loft === i && !dis, disabled: dis, size: 22, icon: (c, x, y, col) => drawLoftIcon(c, i, x, y, col) });
+    drawLoftButton(ctx, L, i, dis, state.sel.loft === i && !dis);
   });
   const sp = SPINS[state.sel.spin];
-  drawButton(ctx, SPIN_BTN, `Spin: ${sp.name}`, { disabled: !human, active: state.sel.spin !== 0 && human, size: 25 });
-  drawButton(ctx, HINT_BTN, state.hintBusy ? 'Thinking…' : 'Hint', { disabled: !human || state.m.phase === 'jack', size: 25 });
-  drawButton(ctx, MENU_BTN, 'Menu', { dark: true, size: 25 });
+  drawButton(ctx, P.spin, `Spin: ${sp.name}`, { disabled: !human, active: state.sel.spin !== 0 && human, size: 25 });
+  drawButton(ctx, P.hint, state.hintBusy ? 'Thinking…' : 'Hint', { disabled: !human || state.m.phase === 'jack', size: 25 });
+  drawButton(ctx, P.menu, 'Menu', { dark: true, size: 25 });
+}
+function barBackdrop(ctx, L) {
+  const y0 = L.play.barTop - 16;
+  const g = ctx.createLinearGradient(0, y0, 0, L.sb);
+  g.addColorStop(0, 'rgba(32,20,10,0)'); g.addColorStop(0.18, 'rgba(32,20,10,0.82)'); g.addColorStop(1, 'rgba(24,14,6,0.95)');
+  ctx.fillStyle = g; ctx.fillRect(0, y0, L.w, L.sb - y0);
+  if (L.h > L.sb) { ctx.fillStyle = 'rgba(24,14,6,0.97)'; ctx.fillRect(0, L.sb - 0.5, L.w, L.h - L.sb + 1); }
 }
 
-
 // ---- Watch & Learn bar -------------------------------------------------------------------------
-function drawDemoBar(ctx, state) {
-  const g = ctx.createLinearGradient(0, 1096, 0, H);
-  g.addColorStop(0, 'rgba(32,20,10,0)'); g.addColorStop(0.18, 'rgba(32,20,10,0.82)'); g.addColorStop(1, 'rgba(24,14,6,0.95)');
-  ctx.fillStyle = g; ctx.fillRect(0, 1096, W, H - 1096);
+function drawDemoBar(ctx, state, L) {
+  const P = L.play, D = P.demo;
+  if (!L.wide) barBackdrop(ctx, L);
   const th = state.think;
-  drawButton(ctx, DEMO_BAR.dec, `Think −`, { size: 24, disabled: state.settings.thinkIdx === 0 });
-  drawButton(ctx, DEMO_BAR.pause, state.paused ? 'Resume' : 'Pause', { size: 30, primary: state.paused });
-  drawButton(ctx, DEMO_BAR.inc, `Think +`, { size: 24, disabled: state.settings.thinkIdx === THINK_STEPS.length - 1 });
-  drawButton(ctx, DEMO_BAR.exit, 'Exit Watch & Learn', { dark: true, size: 24 });
+  drawButton(ctx, D.dec, `Think −`, { size: 24, disabled: state.settings.thinkIdx === 0 });
+  drawButton(ctx, D.pause, state.paused ? 'Resume' : 'Pause', { size: 30, primary: state.paused });
+  drawButton(ctx, D.inc, `Think +`, { size: 24, disabled: state.settings.thinkIdx === THINK_STEPS.length - 1 });
+  drawButton(ctx, D.exit, 'Exit Watch & Learn', { dark: true, size: 24 });
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   let phase = '';
   if (state.m.phase === 'score') phase = 'SCORING';
@@ -276,24 +309,27 @@ function drawDemoBar(ctx, state) {
   else if (state.m.phase === 'fly' || state.m.phase === 'jack-fly') phase = 'ACT';
   if (state.paused) phase = 'PAUSED';
   if (phase) {
-    ctx.font = `700 24px ${FONT}`;
-    const w = ctx.measureText(phase).width + 50;
-    roundPath(ctx, W / 2 - w / 2, 238, w, 44, 22); ctx.fillStyle = state.paused ? 'rgba(196,85,42,0.9)' : 'rgba(28,16,8,0.75)'; ctx.fill();
+    const maxW = P.pill.w ? P.pill.w - 20 : 400;
+    const px = fitFont(ctx, phase, 700, 24, maxW - 50, 13);
+    const w = ctx.measureText(phase).width + 50, y = P.pill.y;
+    roundPath(ctx, P.pill.x - w / 2, y, w, 44, 22); ctx.fillStyle = state.paused ? 'rgba(196,85,42,0.9)' : 'rgba(28,16,8,0.75)'; ctx.fill();
     ctx.strokeStyle = 'rgba(255,214,140,0.6)'; ctx.lineWidth = 2; ctx.stroke();
-    ctx.fillStyle = '#fff3d6'; ctx.fillText(phase, W / 2, 261);
+    ctx.fillStyle = '#fff3d6'; ctx.font = `700 ${px}px ${FONT}`; ctx.fillText(phase, P.pill.x, y + 23);
   }
 }
 
 // ---- end-of-end close-up -----------------------------------------------------------------------
-function drawScoreCard(ctx, state) {
-  const m = state.m, w = state.w, info = m.endInfo;
+function drawScoreCard(ctx, state, L) {
+  const m = state.m, w = state.w, info = m.endInfo, P = L.play.score;
   const jack = theJack(w);
-  const cx = W / 2, cy = 932, R = 142;
-  panel(ctx, 30, 690, 660, 570, { r: 30, fill: 'rgba(248,238,214,0.95)', stroke: 'rgba(110,76,40,0.7)' });
+  const cx = P.x + P.w / 2, cols = P.w >= 560 ? 3 : 2, rows = Math.ceil(6 / cols);
+  const rankH = rows * 40 + 28, avail = P.h - rankH - 30 - 70, cy = P.y + 70 + avail / 2 - 9, R = Math.max(70, Math.min(142, avail / 2 - 34));
+  panel(ctx, P.x, P.y, P.w, P.h, { r: 30, fill: 'rgba(248,238,214,0.95)', stroke: 'rgba(110,76,40,0.7)' });
   ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
   ctx.font = `700 34px ${FONT}`; ctx.fillStyle = C.terraDark;
   const head = info.deadJack ? 'Dead jack' : info.tie ? 'Dead heat' : info.pts ? `${info.team === 0 ? (state.m.cfg.mode === 'ai' ? 'You score' : sideName(state, 0) + ' scores') : sideName(state, 1) + ' scores'} ${info.pts}` : 'No score';
-  ctx.fillText(head, W / 2, 742);
+  fitFont(ctx, head, 700, 34, P.w - 40, 18);
+  ctx.fillText(head, cx, P.y + 52);
   if (jack) {
     const rk = ranking(w);
     const far = Math.max(40, ...rk.map((r) => dist2D(r.b, jack)));
@@ -302,7 +338,7 @@ function drawScoreCard(ctx, state) {
     const scoring = new Set();
     if (info.team >= 0 && info.pts > 0) { for (const r of rk) { if (r.b.team !== info.team) break; scoring.add(r.b.id); } }
     const rpx = Math.min(40, Math.max(15, R_B * sc));
-    rk.forEach((r, k) => {
+    rk.forEach((r) => {
       const dx = (r.b.x - jack.x) * sc, dy = -(r.b.y - jack.y) * sc;
       ctx.setLineDash([6, 6]); ctx.strokeStyle = scoring.has(r.b.id) ? '#c4552a' : 'rgba(70,50,30,0.45)'; ctx.lineWidth = 2;
       ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx + dx, cy + dy); ctx.stroke(); ctx.setLineDash([]);
@@ -322,23 +358,25 @@ function drawScoreCard(ctx, state) {
     ctx.restore();
     // the ranking, nearest first
     ctx.font = `700 21px ${FONT}`;
+    const colW = (P.w - 60) / cols, ry0 = P.y + P.h - rankH + 14;
     rk.slice(0, 6).forEach((r, k) => {
-      const col = k % 3, row = Math.floor(k / 3), x = 70 + col * 205, y = 1152 + row * 40;
+      const col = k % cols, row = Math.floor(k / cols), x = P.x + 40 + col * colW, y = ry0 + row * 40;
       ctx.fillStyle = r.b.team === 0 ? '#2f5f9a' : '#a8501e'; ctx.beginPath(); ctx.arc(x + 10, y - 7, 9, 0, TAU); ctx.fill();
       ctx.fillStyle = C.ink; ctx.textAlign = 'left';
       ctx.fillText(`${k + 1}.  ${Math.max(0, Math.round(r.d * 1.667))} cm`, x + 28, y);
     });
   } else {
-    ctx.font = `400 26px ${FONT}`; ctx.fillStyle = C.ink; ctx.fillText('The jack left the lane.', W / 2, 880);
+    ctx.font = `400 26px ${FONT}`; ctx.fillStyle = C.ink; ctx.fillText('The jack left the lane.', cx, P.y + P.h * 0.3);
   }
   ctx.textAlign = 'center'; ctx.font = `400 22px ${FONT}`; ctx.fillStyle = 'rgba(70,50,30,0.75)';
-  ctx.fillText(state.m.cfg.mode === 'watch' ? 'Next end starts soon' : 'Tap to continue', W / 2, 1240);
+  ctx.fillText(state.m.cfg.mode === 'watch' ? 'Next end starts soon' : 'Tap to continue', cx, P.y + P.h - 20);
 }
 
+// Stage-space overlays (drawn inside the stage transform).
 function drawTutorial(ctx, state) {
   const k = (state.t * 0.7) % 1.4;
-  const e = Math.min(1, k / 0.9), ease = 1 - Math.pow(1 - e, 3);
-  const x = 360, y0 = 780, y = y0 + ease * 150;
+  const e = Math.min(1, k / 0.9);
+  const cyS = project(0, 0, 0).y, x = W / 2, y0 = cyS - 170, y = y0 + (1 - Math.pow(1 - e, 3)) * 150;
   ctx.save();
   const fade = k > 1.15 ? 1 - (k - 1.15) / 0.25 : 1;
   ctx.globalAlpha = 0.9 * Math.max(0, fade);
@@ -347,7 +385,7 @@ function drawTutorial(ctx, state) {
   ctx.fillStyle = 'rgba(255,246,226,0.85)'; ctx.beginPath(); ctx.arc(x, y, 30, 0, TAU); ctx.fill();
   ctx.strokeStyle = 'rgba(60,40,20,0.7)'; ctx.lineWidth = 3; ctx.stroke();
   ctx.globalAlpha = 1;
-  ctx.font = `700 28px ${FONT}`; ctx.textAlign = 'center'; textShadow(ctx, 'Drag back like a slingshot, then let go', W / 2, 700);
+  ctx.font = `700 28px ${FONT}`; ctx.textAlign = 'center'; textShadow(ctx, 'Drag back like a slingshot, then let go', x, cyS - 250);
   ctx.restore();
 }
 
@@ -359,38 +397,43 @@ function drawPop(ctx, state) {
   ctx.font = `700 ${Math.round(110 + (1 - Math.min(1, p.t * 5)) * 40)}px ${FONT}`;
   ctx.shadowColor = 'rgba(20,10,4,0.8)'; ctx.shadowBlur = 12;
   ctx.fillStyle = p.team === 0 ? '#bfe0ff' : '#ffc79a';
-  ctx.fillText(p.text, W / 2, 520 - p.t * 40);
+  ctx.fillText(p.text, W / 2, project(0, 0, 0).y - 430 - p.t * 40);
   ctx.restore();
 }
 
 // ---- toast / banner ----------------------------------------------------------------------------
-function drawToast(ctx, text, y = 150, alpha = 1) {
+function drawToast(ctx, text, x, y = 150, alpha = 1, maxW = 600) {
   if (!text) return;
   ctx.save();
   ctx.globalAlpha = alpha;
   ctx.font = `700 26px ${FONT}`;
-  const lines = wrapLines(ctx, text, 600);
-  const h = 22 + lines.length * 32, w = Math.min(640, Math.max(...lines.map((l) => ctx.measureText(l).width)) + 56);
-  roundPath(ctx, W / 2 - w / 2, y, w, h, 24); ctx.fillStyle = 'rgba(28,16,8,0.74)'; ctx.fill();
+  const lines = wrapLines(ctx, text, maxW);
+  const h = 22 + lines.length * 32, w = Math.min(maxW + 40, Math.max(...lines.map((l) => ctx.measureText(l).width)) + 56);
+  roundPath(ctx, x - w / 2, y, w, h, 24); ctx.fillStyle = 'rgba(28,16,8,0.74)'; ctx.fill();
   ctx.strokeStyle = 'rgba(255,214,140,0.5)'; ctx.lineWidth = 2; ctx.stroke();
   ctx.fillStyle = '#fff3d6'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  lines.forEach((l, i) => ctx.fillText(l, W / 2, y + 28 + i * 32));
+  lines.forEach((l, i) => ctx.fillText(l, x, y + 28 + i * 32));
   ctx.restore();
 }
 
 // ---- the scene ---------------------------------------------------------------------------------
-// The pitch sprite for T: a finished canvas, null while still baking, false when this host cannot bake.
+// The pitch sprite for T at the CURRENT stage: a finished canvas, null while still baking, false when this host cannot bake.
 // Baking is sliced by a fixed work budget per frame (no clock). Pitches are warmed ahead of time behind the menus (warmPitches),
 // so "Raking the gravel…" only shows when a pitch is needed before it is ready, and then with big slices.
-const pitchKey = (T) => `${T.id}:${T.seed}`;
-function stepJob(ctx, T, ms) {
+// A stage change (rotation, resize) needs a fresh bake; until it is ready the last sprite of the same pitch is shown stretched.
+const pitchKey = (T) => `${T.id}:${T.seed}:${stageId()}`;
+let lastSprite = null, lastSpriteT = null;
+function stepJob(ctx, T, ms, f = 1) {
   setHost(ctx);
   const key = pitchKey(T);
   const hit = pitchCache.get(key);
-  if (hit) return hit;
+  if (hit) { pitchCache.delete(key); pitchCache.set(key, hit); return hit; }
   if (!canBake()) return false;
   let job = jobs.get(key);
-  if (!job) { job = startBake(T, artRes(ctx)); jobs.set(key, job); }
+  if (!job) {
+    for (const k of jobs.keys()) if (!k.endsWith(stageId())) jobs.delete(k);   // a bake for a stage nobody is looking at any more
+    job = startBake(T, artRes(ctx, f)); jobs.set(key, job);
+  }
   steppedThisFrame = true;
   const cv = job.step(ms);
   if (job.failed) return false;
@@ -402,13 +445,15 @@ function stepJob(ctx, T, ms) {
 }
 // Screenshot mode (?shot=1) draws only a few frames, so there bake the whole pitch at once, no loading beat.
 const SHOT_MODE = (() => { try { return /[?&]shot=/.test(globalThis.location.search); } catch { return false; } })();
-const ensurePitch = (ctx, T) => stepJob(ctx, T, SHOT_MODE ? Infinity : BAKE_NEED);
+let curF = 1;
+const ensurePitch = (ctx, T) => stepJob(ctx, T, SHOT_MODE ? Infinity : BAKE_NEED, curF);
 // Called once per frame after drawing: spend a few idle ms baking pitches the game will need soon.
-export function warmPitches(ctx, list) {
+export function warmPitches(ctx, list, L) {
+  if (L) { setStage(L.cam); curF = L.stage.f; }
   if (steppedThisFrame) { steppedThisFrame = false; return; }
   for (const T of list) {
     if (!T) continue;
-    const r = stepJob(ctx, T, BAKE_BG);
+    const r = stepJob(ctx, T, BAKE_BG, curF);
     if (r === null) { steppedThisFrame = false; return; }
   }
   steppedThisFrame = false;
@@ -422,14 +467,25 @@ function drawLoading(ctx, T) {
   textShadow(ctx, 'Raking the gravel…', W / 2, H / 2);
 }
 
-// The pitch and everything lying on it (shared by play, title, result and the pages).
+// Run `fn` inside the stage transform for layout L (the stage camera is made current first).
+export function inStage(ctx, L, fn) {
+  setStage(L.cam); curF = L.stage.f;
+  ctx.save(); applyStage(ctx, L);
+  try { return fn(); } finally { ctx.restore(); }
+}
+
+// The pitch and everything lying on it (shared by play, title, result and the pages). Draws in STAGE coordinates:
+// call it through inStage().
 export function drawWorldLayer(ctx, state, w, parts, o = {}) {
   const T = w.terrain, t = state.t;
   const sprite = ensurePitch(ctx, T);
+  if (sprite) { lastSprite = sprite; lastSpriteT = T; }
   if (!sprite) {
-    if (sprite === null) { drawLoading(ctx, T); return false; }
-    const P = palOf(T);
-    ctx.fillStyle = `rgb(${P.base.join(',')})`; ctx.fillRect(0, 0, W, H);
+    if (sprite === null) {
+      // baking for this stage: keep showing the previous sprite of this pitch (stretched), else the loading screen
+      if (lastSprite && lastSpriteT === T) { ctx.drawImage(lastSprite, 0, 0, W, H); }
+      else { drawLoading(ctx, T); return false; }
+    } else { const P = palOf(T); ctx.fillStyle = `rgb(${P.base.join(',')})`; ctx.fillRect(0, 0, W, H); }
   } else ctx.drawImage(sprite, 0, 0, W, H);
   if (o.zone) {
     ctx.save();
@@ -494,30 +550,36 @@ export function drawWorldLayer(ctx, state, w, parts, o = {}) {
   return true;
 }
 
-export function renderPlay(ctx, state) {
-  const w = state.w, m = state.m, t = state.t;
-  renderPlayInner(ctx, state);
+// The pitch as a backdrop for menu screens: the stage transform is applied for the call. Returns false while the pitch bakes.
+export function worldBackdrop(ctx, L, state, w, parts, o = {}) {
+  return inStage(ctx, L, () => drawWorldLayer(ctx, state, w, parts, o));
 }
 
-function renderPlayInner(ctx, state) {
-  const w = state.w, m = state.m, t = state.t;
-  const ok = drawWorldLayer(ctx, state, w, state.parts, {
-    zone: m.phase === 'jack' && state.humanTurn, holding: m.phase === 'aim' || m.phase === 'score', guide: state.guide, hint: state.hint, mark: state.mark, alts: state.alts,
+export function renderPlay(ctx, state, L) {
+  const m = state.m, t = state.t, P = L.play;
+  const ok = inStage(ctx, L, () => {
+    const okk = drawWorldLayer(ctx, state, state.w, state.parts, {
+      zone: m.phase === 'jack' && state.humanTurn, holding: m.phase === 'aim' || m.phase === 'score', guide: state.guide, hint: state.hint, mark: state.mark, alts: state.alts,
+    });
+    if (!okk) return false;
+    if (state.showSling) drawSling(ctx, state, state.humanTurn); else drawSnap(ctx, state);
+    return true;
   });
   if (!ok) return;
-  if (state.showSling) drawSling(ctx, state, state.humanTurn); else drawSnap(ctx, state);
-  drawHud(ctx, state, t);
-  if (m.phase === 'score') drawScoreCard(ctx, state); else drawBar(ctx, state);
-  drawPop(ctx, state);
-  if (state.humanTurn && !state.drag && (state.record.thrown | 0) < 4 && !state.paused && m.cfg.mode !== 'watch') drawTutorial(ctx, state);
-  if (state.toast && state.toastT > 0) drawToast(ctx, state.toast, 142, Math.min(1, state.toastT * 2));
-  if (state.drag && state.guide) {
-    ctx.save(); ctx.font = `700 22px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    const L = LOFTS[state.guide.loft];
-    const d = Math.round(reachFor(state.guide.loft, state.guide.power) / 60 * 10) / 10;
-    textShadow(ctx, `${L.name} · ${SPINS[state.guide.spin].name} · ${d.toFixed(1)} m`, W / 2, 1080);
-    ctx.restore();
-  }
+  drawHud(ctx, state, L, t);
+  if (m.phase === 'score') drawScoreCard(ctx, state, L); else drawBar(ctx, state, L);
+  inStage(ctx, L, () => {
+    drawPop(ctx, state);
+    if (state.humanTurn && !state.drag && (state.record.thrown | 0) < 4 && !state.paused && m.cfg.mode !== 'watch') drawTutorial(ctx, state);
+    if (state.drag && state.guide) {
+      ctx.save(); ctx.font = `700 22px ${FONT}`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      const Lf = LOFTS[state.guide.loft];
+      const d = Math.round(reachFor(state.guide.loft, state.guide.power) / 60 * 10) / 10;
+      textShadow(ctx, `${Lf.name} · ${SPINS[state.guide.spin].name} · ${d.toFixed(1)} m`, W / 2, project(0, 0, 0).y + 130);
+      ctx.restore();
+    }
+  });
+  if (state.toast && state.toastT > 0) drawToast(ctx, state.toast, P.toast.x, P.toast.y, Math.min(1, state.toastT * 2), P.toast.maxW);
 }
 
 export { drawToast, drawHud, drawBar, drawLoading };

@@ -1,6 +1,8 @@
 import { boot } from './kit/index.js';
 import { createGame, meta } from './src/game.js';
 import { createPresenter } from './view3d/presenter.js';
+import { host } from './src/layout.js';
+import { setLogo, setLockup } from './src/brand.js';
 
 // The 3D scene is drawn in a WebGL canvas behind the kit canvas; the kit canvas (transparent) keeps the HUD, menus and input.
 // Without WebGL the game keeps playing with its flat 2D pitch.
@@ -11,6 +13,21 @@ if (presenter && new URLSearchParams(location.search).has('dev')) window.__prese
 
 // Real-time play needs two fingers at once (stick + a button). The kit's input has one pointer, so the shell tracks every touch itself and hands
 // the list to the game once per tick; each finger is bound by the game to the control it started on (see src/controls.js).
+// Host safe areas (notch, home indicator) and the floating back button: the shell publishes window.__safeInsets in CSS px. The layout works in virtual
+// units (short side = 720), so convert with the current scale. Browsers: no insets, zeros.
+const unitsPerPx = () => 720 / Math.max(1, Math.min(canvas.clientWidth || window.innerWidth, canvas.clientHeight || window.innerHeight));
+const syncHost = () => {
+  const k = unitsPerPx(), s = window.__safeInsets;
+  host.t = s ? (s.top || 0) * k : 0; host.r = s ? (s.right || 0) * k : 0; host.b = s ? (s.bottom || 0) * k : 0; host.l = s ? (s.left || 0) * k : 0;
+  host.back = s && s.back !== false && window.__hostBack !== false ? 56 * k : 0; host.px = 1 / k;
+};
+syncHost();
+window.addEventListener('resize', syncHost);
+window.addEventListener('orientationchange', () => setTimeout(syncHost, 200));
+window.addEventListener('safeinsets', syncHost);
+const af = new Image(); af.onload = () => setLogo(af); af.src = './brand/arcforge-af.png';
+const lk = new Image(); lk.onload = () => setLockup(lk); lk.src = './brand/arcforge-lockup.png';
+
 const clock = () => globalThis.performance.now();
 const touches = new Map();
 const toVirtual = (e) => {
@@ -30,7 +47,7 @@ const snapshot = () => {
 };
 
 let live = null;
-canvas.addEventListener('wheel', (e) => { if (live && live.wheel) { live.wheel(e.deltaMode === 1 ? e.deltaY * 40 : e.deltaY); e.preventDefault(); } }, { passive: false });
+canvas.addEventListener('wheel', (e) => { if (live && live.wheel) { live.wheel((e.deltaMode === 1 ? e.deltaY * 40 : e.deltaY) * unitsPerPx()); e.preventDefault(); } }, { passive: false });
 const wrap = (game) => {
   live = game;
   if (new URLSearchParams(location.search).has('dev')) window.__game = game;   // dev only: lets the test harness read the state

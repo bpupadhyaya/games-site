@@ -1,7 +1,7 @@
 // GAME CONTRACT (docs/GAME-CONTRACT.md). Alquerque: steps, compulsory leaping captures, multiple jumps, five opponent levels, a Learn path.
-import { SCREEN, inRect, BACK_BTN, PAUSE_BTN, TOOLBAR_IDS, autoLayout, playLayout } from './layout.js';
+import { inRect, lay, creditHit, setScreen, screen, autoLayout, playLayout } from './layout.js';
 import { TEXT_SCALES, hitDoc, clampScroll } from './ui.js';
-import { buildUi, THINK_STEPS, demoLevelLocked, demoOver, recKey } from './screens.js';
+import { buildUi, THINK_STEPS, demoLevelLocked, demoOver, recKey, scrollOf } from './screens.js';
 import { NN, N, QUIET_LIMIT, legalMoves, applyMove, countOf, other } from './rules.js';
 import { LEVELS, seeded, thinkTask } from './ai.js';
 import { thinkAdvice, reasonFor } from './explain.js';
@@ -12,22 +12,26 @@ import { setLang, getLang, LANGS } from './lang.js';
 import { themeById, THEMES } from './art.js';
 import { render, playGeo } from './view.js';
 
-export const meta = { width: SCREEN.width, height: SCREEN.height };
+// Kit 1.7 fluid viewport: the short side is always 720 units; meta.width / meta.height are updated live by the kit and every position
+// comes from layout.js (a function of the live size).
+export const meta = { width: 720, height: 1560, fluid: { short: 720 } };
+const TOOLBAR_IDS = ['undo', 'think', 'restart'];
 
-const VERSION = '1.0.1';
+const VERSION = '1.1.2';   // fallback only: the About page shows env.manifest.version (game.json) when the kit provides it
 const WIN_NOTES = [523, 659, 784, 1047, 1319];
 // Watch & Learn: Master plays Light and Expert plays Dark: a real, well-played game with captures and a finish.
 const AUTO_LEVEL = { 1: 'master', 2: 'expert' };
 
 export async function createGame(env) {
   const { rng, storage, audio, config } = env;
+  setScreen(meta.width, meta.height);
 
   const S = {
     scene: 'title', overlay: null, t: 0, ovT: 0, sound: true, themeId: 'cedar', textIdx: 0, thinkIdx: 1,
     setup: { level: 'skilled', side: 1 }, stats: {}, lessons: {}, save: null, demoGames: 0, progress: { games: 0, wins: 0 },
     page: { howto: 0, rules: 0 }, scroll: {}, scrollVel: {}, press: null, match: null, auto: null, lessonIdx: 0, endInfo: null, lessonInfo: null,
     toast: null, toastT: 0, kbd: false, canUndo: false, winSeq: null, lessonWait: -1, lessonOk: null, lastOpts: null,
-    demo: Boolean(config?.demo), dev: Boolean(config?.dev), owns: false, price: '', resetArm: false, version: VERSION, shot: false, lastPtr: { x: 0, y: 0 },
+    demo: Boolean(config?.demo), dev: Boolean(config?.dev), owns: false, price: '', resetArm: false, version: env.manifest?.version ?? VERSION, shot: false, lastPtr: { x: 0, y: 0 },
   };
 
   const [set, stats, les, save, dg, prog] = await Promise.all([storage.get('aq.settings', null), storage.get('aq.stats', null), storage.get('aq.lessons', null), storage.get('aq.save', null), storage.get('aq.demo', 0), storage.get('aq.progress', null)]);
@@ -364,7 +368,7 @@ export async function createGame(env) {
   if (shotSeed) stageShot(shotSeed);
 
   // ------------------------------------------------------------------------------ ui plumbing
-  const getScroll = (ui) => S.scroll[ui.scrollKey] ?? 0;
+  const getScroll = (ui) => scrollOf(S, ui);
   const setScroll = (ui, v) => { if (ui.layout && ui.region) S.scroll[ui.scrollKey] = clampScroll(v, ui.layout.height, ui.region.h); };
 
   function gotoScene(scene) {
@@ -397,6 +401,7 @@ export async function createGame(env) {
 
   function activate(id) {
     if (id == null) return;
+    if (id === 'af:home') { env.openArcforgeHome?.(); return; }
     if (id === 'zoom-') { setText(-1); return; }
     if (id === 'zoom+') { setText(1); return; }
     if (id.startsWith('lv:')) { const l = id.slice(3); if (demoLevelLocked(S, l)) return; S.setup.level = l; saveSettings(); SOUNDS.ui(); return; }
@@ -456,6 +461,10 @@ export async function createGame(env) {
     if (S.scene === 'auto' && !S.overlay) { autoDown(x, y); return; }
     const ui = buildUi(S);
     if (!ui.layout) return;
+    if (S.scene === 'title') {
+      const T = lay().title, zone = T.lockOk ? creditHit(T.lock) : null;
+      if (zone && inRect(x, y, zone)) { S.press = { id: 'af:home', active: true, kind: 'fixed', rect: zone }; return; }
+    }
     const f = fixedHit(ui, x, y);
     if (f) { S.press = { id: f.id, active: true, kind: 'fixed', rect: f.rect }; return; }
     const reg = ui.region;
@@ -511,8 +520,8 @@ export async function createGame(env) {
   function playDown(x, y) {
     const M = S.match;
     const l = playGeo(S, M).lay;
-    if (inRect(x, y, BACK_BTN)) { S.press = { id: 'hud:back', active: true, kind: 'hud', rect: BACK_BTN }; return; }
-    if (inRect(x, y, PAUSE_BTN)) { S.press = { id: 'hud:pause', active: true, kind: 'hud', rect: PAUSE_BTN }; return; }
+    if (inRect(x, y, l.back)) { S.press = { id: 'hud:back', active: true, kind: 'hud', rect: l.back }; return; }
+    if (inRect(x, y, l.pause)) { S.press = { id: 'hud:pause', active: true, kind: 'hud', rect: l.pause }; return; }
     for (let i = 0; i < TOOLBAR_IDS.length; i++) {
       if (inRect(x, y, l.tool[i])) { S.press = { id: `tool:${TOOLBAR_IDS[i]}`, active: true, kind: 'tool', rect: l.tool[i] }; return; }
     }
@@ -533,7 +542,8 @@ export async function createGame(env) {
 
   // ---- auto
   function autoDown(x, y) {
-    if (inRect(x, y, BACK_BTN)) { S.press = { id: 'auto:exit', active: true, kind: 'auto', rect: BACK_BTN }; return; }
+    const back = playLayout(TEXT_SCALES[S.textIdx]).back;
+    if (inRect(x, y, back)) { S.press = { id: 'auto:exit', active: true, kind: 'auto', rect: back }; return; }
     const l = autoLayout(TEXT_SCALES[S.textIdx]);
     for (const id of ['slower', 'pause', 'faster']) {
       if (inRect(x, y, l[id])) { S.press = { id: `auto:${id}`, active: true, kind: 'auto', rect: l[id] }; return; }
@@ -580,15 +590,15 @@ export async function createGame(env) {
       if (has('End')) setScroll(ui, 1e9);
     }
     if (has('Escape') && ['setup', 'learn', 'howto', 'rules', 'about', 'settings', 'demo-limit'].includes(S.scene)) gotoScene('title');
-    if (S.scene === 'howto' || S.scene === 'rules') {
-      if (has('ArrowRight')) activate('next');
-      if (has('ArrowLeft')) activate('prev');
-    }
   }
 
   // ------------------------------------------------------------------------------ main loop
   return {
     update(dt, input) {
+      // A resize or rotation: re-lay out from the live size, and drop a half-made press (its rectangle is stale).
+      const sw = screen.w, sh = screen.h;
+      setScreen(meta.width, meta.height);
+      if (sw !== screen.w || sh !== screen.h) S.press = null;
       // Watch & Learn's Pause (and the in-game pause card) freezes the whole loop: timers, search, animations, particles, the ambient clock.
       const frozen = (S.scene === 'auto' && S.auto && S.auto.paused) || S.overlay === 'pause';
       if (!frozen) S.t += dt;
@@ -643,6 +653,7 @@ export async function createGame(env) {
     },
 
     render(ctx) {
+      setScreen(meta.width, meta.height);
       render(ctx, S, buildUi(S));
     },
 

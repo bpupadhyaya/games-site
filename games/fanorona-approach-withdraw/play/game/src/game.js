@@ -4,20 +4,19 @@
 // How a turn is made: TAP a stone (its reachable points light up; a number shows how many stones that step takes), then
 // TAP a lit point; or DRAG the stone onto it. A step that could either approach or withdraw asks which. After a capture
 // the same stone may keep going (lit points show where) or you tap End turn.
-import {
-  W, H, S, BTN, CHOICE, HDR, TITLE_SOUND, LIMIT, titleRows, pointAt, pointXY, inRect, TEXT_SCALES, TEXT_DEC, TEXT_INC, REF_BACK, REF_NEXT,
-  SETTINGS_ROW, SETTINGS_BACK, AUTO, LEARN_BAR, THINK_STEPS, REVEAL_TIME, RESULT, SIBLINGS, chipRect,
-} from './layout.js';
+import { layoutFor, lockHit, inRect, TEXT_SCALES, THINK_STEPS, REVEAL_TIME, SIBLINGS, S0 } from './layout.js';
 import {
   LIGHT, DARK, other, SIDE_NAME, newGame, startBoard, legalSteps, mustCapture, applyStep, endChain, undoTurn, cancelChain, genTurns, countOf, ROWS, COLS, idx,
 } from './rules.js';
 import { LEVEL_COUNT, createThinker, bestTurn } from './engine.js';
 import { LESSONS, lessonBoard } from './lessons.js';
-import { page as pageList } from './content.js';
 import { THEME_ORDER, invalidateArt } from './art.js';
-import { render } from './view.js';
+import { render, refMetrics } from './view.js';
 
-export const meta = { width: W, height: H };
+// Fluid viewport (kit 1.7): the short side is always 720 units; meta.width / height follow the live screen and every position
+// comes from layoutFor(meta.width, meta.height).
+export const meta = { width: 720, height: 1560, fluid: { short: 720 } };
+export const wheelInput = { dy: 0 };
 const DEMO_GAMES = 2, DEMO_MAX_LEVEL = 3;
 const clampI = (v, a, b) => Math.min(Math.max(v | 0, a), b);
 
@@ -30,13 +29,15 @@ export function createGame(env) {
     anim: null, parts: [], rings: [], floats: [], trail: null,
     thinking: false, thinkT: 0, hintBusy: false, canAct: false, canMove: null, canUndo: false, dangerSet: null,
     overOpen: false, pendingOver: false, page: 0, progress: { played: 0, wins: 0 }, learned: [], demoGames: 0, saved: null,
-    cursor: 22, kb: false, resignArm: 0, press: null,
+    cursor: 22, kb: false, resignArm: 0, press: null, scroll: 0,
     lesson: { i: 0, done: false }, learnReset: 0,
     // Watch & Learn: THINK -> REVEAL -> ACT for every turn of a whole game between two computer players
     ap: null, apPaused: false, apLevels: [4, 4], reveal: null,
   };
+  let scrollDrag = null;
   let thinker = null, hinter = null, aiQueue = [], apThinker = null, apMove = undefined, apQueue = [], apRng = null, dirty = true;
   const sfx = [];
+  const lay = () => layoutFor(meta.width, meta.height);
   const NO_INPUT = { pointer: { x: 0, y: 0, down: false, pressed: false, released: false }, keys: { down: new Set(), pressed: new Set() } };
 
   // ---- storage -----------------------------------------------------------------------------------------------------------------
@@ -73,7 +74,7 @@ export function createGame(env) {
     else if (name === 'lose') [392, 330, 262].forEach((f, k) => sfx.push({ at: state.t + k * 0.18, o: { freq: f, dur: 0.34, type: 'triangle', vol: 0.19 } }));
   };
   const clearSel = () => { state.sel = -1; state.targets = []; state.choice = null; state.drag = null; };
-  const pxy = (p) => pointXY(p, state.flip);
+  const pxy = (p) => lay().cpt(p, state.flip);
   const syncBoard = () => { state.vboard = state.g.board.slice(); dirty = true; };
   const trailOf = (entry) => (entry ? entry.steps.map((s) => ({ from: s.from, to: s.to })) : null);
   const myTurnNow = () => {
@@ -382,17 +383,19 @@ export function createGame(env) {
 
   // ---- keyboard cursor ----------------------------------------------------------------------------------------------------------------------
   const cursorMove = (dx, dy) => {
-    const r0 = (state.cursor / COLS) | 0, c0 = state.cursor % COLS;
-    let sx = state.flip ? ROWS - 1 - r0 : r0, sy = state.flip ? c0 : COLS - 1 - c0;
-    sx = Math.max(0, Math.min(ROWS - 1, sx + dx)); sy = Math.max(0, Math.min(COLS - 1, sy + dy));
-    state.cursor = idx(state.flip ? ROWS - 1 - sx : sx, state.flip ? sy : COLS - 1 - sy);
+    // move to the point one step in the SCREEN direction (works for both board orientations and either side up)
+    const L = lay(), here = L.cpt(state.cursor, state.flip), want = { x: here.x + dx * S0, y: here.y + dy * S0 };
+    let best = -1, bd = S0 * 0.55;
+    for (let p = 0; p < ROWS * COLS; p++) { const q = L.cpt(p, state.flip), d = Math.hypot(q.x - want.x, q.y - want.y); if (d < bd) { bd = d; best = p; } }
+    if (best >= 0) state.cursor = best;
   };
 
   // ---- update -----------------------------------------------------------------------------------------------------------------------------------
   const ARROWS = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] };
   function update(dt, input) {
     if (SHOT) input = NO_INPUT;
-    state.t += dt;
+    state.t += dt; if (state.lockPress > 0) state.lockPress = Math.max(0, state.lockPress - dt);
+    const L = lay();
     const p = input.pointer, keys = input.keys;
     state.press = p.down ? { x: p.x, y: p.y } : null;
     // Watch & Learn's Pause freezes everything that moves: timers, the engine search, move animations, particles.
@@ -450,7 +453,8 @@ export function createGame(env) {
     switch (state.scene) {
       case 'title': {
         if (!p.pressed) break;
-        const R = titleRows(!!state.saved, state.textIdx >= 3);
+        if (hit(lockHit(L))) { state.lockPress = 0.18; env.openArcforgeHome?.(); break; }
+        const R = L.title.rows(!!state.saved, state.textIdx >= 3);
         if (R.resume && hit(R.resume)) { const s = state.saved; state.level = s.level; startGame(s.human, 'ai', s); }
         else if (hit(R.play)) startGame(state.humanPref, 'ai');
         else if (hit(R.two)) startGame(LIGHT, 'two');
@@ -459,25 +463,38 @@ export function createGame(env) {
         else if (hit(R.settings)) state.scene = 'settings';
         else if (hit(R.level)) { state.level = (state.level % LEVEL_COUNT) + 1; savePrefs(); }
         else if (hit(R.side)) { state.humanPref = state.humanPref === LIGHT ? DARK : LIGHT; savePrefs(); }
-        else if (hit(R.howto)) { state.scene = 'howto'; state.page = 0; }
-        else if (hit(R.rules)) { state.scene = 'rules'; state.page = 0; }
-        else if (hit(R.about)) { state.scene = 'about'; state.page = 0; }
-        else if (hit(TITLE_SOUND)) { state.sound = !state.sound; audio.setMuted(!state.sound); savePrefs(); }
+        else if (hit(R.howto)) { state.scene = 'howto'; state.page = 0; state.scroll = 0; }
+        else if (hit(R.rules)) { state.scene = 'rules'; state.page = 0; state.scroll = 0; }
+        else if (hit(R.about)) { state.scene = 'about'; state.page = 0; state.scroll = 0; }
+        else if (hit(L.title.sound)) { state.sound = !state.sound; audio.setMuted(!state.sound); savePrefs(); }
         break;
       }
       case 'howto': case 'about': case 'rules': {
-        const list = pageList(state.scene);
-        if (hit(REF_BACK)) { if (state.page > 0) state.page--; else state.scene = 'title'; }
-        else if (hit(REF_NEXT)) { if (state.page >= list.length - 1) { state.scene = 'title'; state.page = 0; } else state.page++; }
-        else if (hit(TEXT_DEC) && state.textIdx > 0) { state.textIdx--; savePrefs(); sound('ok'); }
-        else if (hit(TEXT_INC) && state.textIdx < TEXT_SCALES.length - 1) { state.textIdx++; savePrefs(); sound('ok'); }
+        const RF = L.ref;
+        // ONE continuous scrolling reader: drag the panel or the scroll bar, mouse wheel, arrow / page / home / end keys
+        const setScroll = (v) => { state.scroll = Math.max(0, Math.min(v, refMetrics.max)); };
+        if (wheelInput.dy) { setScroll(state.scroll + wheelInput.dy); wheelInput.dy = 0; }
+        for (const c of keys.pressed) { if (c === 'ArrowDown') setScroll(state.scroll + 70); else if (c === 'ArrowUp') setScroll(state.scroll - 70); else if (c === 'PageDown') setScroll(state.scroll + refMetrics.view * 0.9); else if (c === 'PageUp') setScroll(state.scroll - refMetrics.view * 0.9); else if (c === 'Home') setScroll(0); else if (c === 'End') setScroll(refMetrics.max); }
+        if (p.pressed && refMetrics.max > 0) {
+          if (refMetrics.bar && inRect(refMetrics.bar, p.x, p.y)) scrollDrag = { bar: true };
+          else if (inRect(RF.panel, p.x, p.y)) scrollDrag = { y0: p.y, s0: state.scroll, moved: false };
+        }
+        if (scrollDrag) {
+          if (!p.down) scrollDrag = null;
+          else if (scrollDrag.bar) { const B = refMetrics.bar, span = Math.max(1, B.h - refMetrics.thumb); setScroll(((p.y - B.y - refMetrics.thumb / 2) / span) * refMetrics.max); }
+          else { if (Math.abs(p.y - scrollDrag.y0) > 6) scrollDrag.moved = true; setScroll(scrollDrag.s0 - (p.y - scrollDrag.y0)); }
+        }
+        state.scroll = Math.max(0, Math.min(state.scroll, refMetrics.max));
+        if (hit(RF.back) || hit(RF.next)) { state.scene = 'title'; state.page = 0; state.scroll = 0; }   // Back and Done both leave to the title
+        else if (hit(RF.dec) && state.textIdx > 0) { state.textIdx--; state.scroll = 0; savePrefs(); sound('ok'); }
+        else if (hit(RF.inc) && state.textIdx < TEXT_SCALES.length - 1) { state.textIdx++; state.scroll = 0; savePrefs(); sound('ok'); }
         break;
       }
       case 'settings': {
         if (!p.pressed) break;
-        if (hit(SETTINGS_BACK)) { state.scene = 'title'; savePrefs(); break; }
+        if (hit(L.settings.back)) { state.scene = 'title'; savePrefs(); break; }
         for (let i = 0; i < 7; i++) {
-          const R = SETTINGS_ROW(i, state.textIdx >= 3);
+          const R = (state.textIdx >= 3 ? L.settings.rowTall : L.settings.row)(i);
           if (!inRect(R, p.x, p.y)) continue;
           if (i === 0) { state.sound = !state.sound; audio.setMuted(!state.sound); }
           else if (i === 1) state.level = (state.level % LEVEL_COUNT) + 1;
@@ -490,54 +507,56 @@ export function createGame(env) {
         }
         break;
       }
-      case 'demo-limit': if (hit(LIMIT.btn)) toMenu(); break;
+      case 'demo-limit': if (hit(L.limit.btn)) toMenu(); break;
       case 'auto': {
-        if (state.overOpen) { resultButtons(hit); break; }
-        if (hit(HDR.menu) || hit(AUTO.exit)) { toMenu(); break; }
-        if (hit(HDR.sound)) { state.sound = !state.sound; audio.setMuted(!state.sound); savePrefs(); break; }
-        if (hit(AUTO.pause)) { state.apPaused = !state.apPaused; break; }
-        if (hit(AUTO.dec) && state.thinkIdx > 0) { state.thinkIdx--; savePrefs(); if (state.ap.phase === 'think') state.ap.timer = Math.min(state.ap.timer, THINK_STEPS[state.thinkIdx]); }
-        else if (hit(AUTO.inc) && state.thinkIdx < THINK_STEPS.length - 1) { state.thinkIdx++; savePrefs(); if (state.ap.phase === 'think') state.ap.timer = Math.max(state.ap.timer, THINK_STEPS[state.thinkIdx]); }
+        if (state.overOpen) { resultButtons(hit, L); break; }
+        if (hit(L.HDR.menu) || hit(L.AUTO.exit)) { toMenu(); break; }
+        if (hit(L.HDR.sound)) { state.sound = !state.sound; audio.setMuted(!state.sound); savePrefs(); break; }
+        if (hit(L.AUTO.pause)) { state.apPaused = !state.apPaused; break; }
+        if (hit(L.AUTO.dec) && state.thinkIdx > 0) { state.thinkIdx--; savePrefs(); if (state.ap.phase === 'think') state.ap.timer = Math.min(state.ap.timer, THINK_STEPS[state.thinkIdx]); }
+        else if (hit(L.AUTO.inc) && state.thinkIdx < THINK_STEPS.length - 1) { state.thinkIdx++; savePrefs(); if (state.ap.phase === 'think') state.ap.timer = Math.max(state.ap.timer, THINK_STEPS[state.thinkIdx]); }
         break;
       }
       case 'learn': {
-        if (hit(HDR.menu) || hit(LEARN_BAR.menu)) { toMenu(); break; }
-        if (hit(HDR.sound)) { state.sound = !state.sound; audio.setMuted(!state.sound); savePrefs(); break; }
-        if (hit(LEARN_BAR.hint) && !state.lesson.done) { useHint(); break; }
-        if (hit(LEARN_BAR.reset)) { startLesson(state.lesson.i); break; }
-        if (hit(LEARN_BAR.next) && state.lesson.done) { if (state.lesson.i + 1 < LESSONS.length) startLesson(state.lesson.i + 1); else toMenu(); break; }
-        choiceAndBoard(p, hit);
+        if (hit(L.HDR.menu) || hit(L.LEARN.menu)) { toMenu(); break; }
+        if (hit(L.HDR.sound)) { state.sound = !state.sound; audio.setMuted(!state.sound); savePrefs(); break; }
+        if (hit(L.LEARN.hint) && !state.lesson.done) { useHint(); break; }
+        if (hit(L.LEARN.reset)) { startLesson(state.lesson.i); break; }
+        if (hit(L.LEARN.next) && state.lesson.done) { if (state.lesson.i + 1 < LESSONS.length) startLesson(state.lesson.i + 1); else toMenu(); break; }
+        choiceAndBoard(p, hit, L);
         break;
       }
       case 'play': {
-        if (state.overOpen) { resultButtons(hit); break; }
-        if (hit(HDR.menu)) { toMenu(); break; }
-        if (hit(HDR.sound)) { state.sound = !state.sound; audio.setMuted(!state.sound); savePrefs(); break; }
-        if (hit(BTN.undo)) { undo(); break; }
-        if (hit(BTN.hint)) { useHint(); break; }
-        if (hit(BTN.danger)) { state.danger = !state.danger; dirty = true; savePrefs(); break; }
-        if (hit(BTN.end)) { if (state.g.chain && state.canAct) endTurn(); else resign(); break; }
-        choiceAndBoard(p, hit);
+        if (state.overOpen) { resultButtons(hit, L); break; }
+        if (hit(L.HDR.menu)) { toMenu(); break; }
+        if (hit(L.HDR.sound)) { state.sound = !state.sound; audio.setMuted(!state.sound); savePrefs(); break; }
+        if (hit(L.BTN.undo)) { undo(); break; }
+        if (hit(L.BTN.hint)) { useHint(); break; }
+        if (hit(L.BTN.danger)) { state.danger = !state.danger; dirty = true; savePrefs(); break; }
+        if (hit(L.BTN.end)) { if (state.g.chain && state.canAct) endTurn(); else resign(); break; }
+        choiceAndBoard(p, hit, L);
         break;
       }
       default: break;
     }
   }
-  function resultButtons(hit) {
+  function resultButtons(hit, L) {
+    const RESULT = L.RESULT;
     if (hit(RESULT.dec) && state.textIdx > 0) { state.textIdx--; savePrefs(); }
     else if (hit(RESULT.inc) && state.textIdx < TEXT_SCALES.length - 1) { state.textIdx++; savePrefs(); }
     else if (hit(RESULT.again)) { if (state.scene === 'auto') startAuto(); else startGame(state.human, state.mode); }
     else if (hit(RESULT.menu)) toMenu();
-    else if (state.scene !== 'auto') SIBLINGS.forEach((sib, i) => hit(chipRect(i, RESULT.chipsY)) && env.openGame(sib.slug));
+    else if (state.scene !== 'auto') SIBLINGS.forEach((sib, i) => hit(RESULT.chip(i)) && env.openGame?.(sib.slug));
   }
-  function choiceAndBoard(p, hit) {
+  function choiceAndBoard(p, hit, L) {
     if (state.choice && state.canAct) {
+      const CHOICE = L.CHOICE;
       if (hit(CHOICE.approach)) { const o = state.choice.options.find((x) => x.kind === 'approach'); if (o) doHumanStep(o); return; }
       if (hit(CHOICE.withdraw)) { const o = state.choice.options.find((x) => x.kind === 'withdraw'); if (o) doHumanStep(o); return; }
     }
     const d = state.drag;
     if (p.pressed && state.canAct) {
-      const q = pointAt(p.x, p.y, state.flip, S * 0.46);
+      const q = L.pointAt(p.x, p.y, state.flip, 0.46);
       state.kb = false;
       tapPoint(q);
       if (q >= 0 && state.sel === q && state.canAct && !state.g.chain) state.drag = { p: q, x: p.x, y: p.y, sx: p.x, sy: p.y, moved: false };
@@ -545,7 +564,7 @@ export function createGame(env) {
     if (state.drag && p.down) { const dd = state.drag; dd.x = p.x; dd.y = p.y; if (!dd.moved && Math.hypot(p.x - dd.sx, p.y - dd.sy) > 18) dd.moved = true; }
     if (p.released && d && state.drag === d) {
       state.drag = null;
-      if (d.moved) { const q = pointAt(p.x, p.y, state.flip, S * 0.5); if (q >= 0 && q !== d.p && state.targets.some((s) => s.to === q) && state.canAct) commitDest(d.p, q); }
+      if (d.moved) { const q = L.pointAt(p.x, p.y, state.flip, 0.5); if (q >= 0 && q !== d.p && state.targets.some((s) => s.to === q) && state.canAct) commitDest(d.p, q); }
     }
   }
 
@@ -563,7 +582,7 @@ export function createGame(env) {
   }
   function stageShot(n) {
     if (n === 104) { startAuto(); return; }
-    if (n === 105) { state.scene = 'rules'; state.page = 26; return; }
+    if (n === 105) { state.scene = 'rules'; state.page = 0; state.scroll = 0; state.refAnchor = 26; return; }
     if (n === 106) { startLesson(2); state.sel = -1; learnHint(); return; }
     startGame(LIGHT, 'ai');
     for (let attempt = 0; attempt < 200; attempt++) {
@@ -585,7 +604,7 @@ export function createGame(env) {
 
   return {
     update,
-    render(ctx) { render(ctx, state); },
+    render(ctx, view) { render(ctx, state, layoutFor(view?.width ?? meta.width, view?.height ?? meta.height)); },
     // Watch & Learn, the menus and the reading pages are free; only real play and lessons use up the preview time.
     isPreviewExempt: () => state.scene !== 'play' && state.scene !== 'learn',
     getState() {

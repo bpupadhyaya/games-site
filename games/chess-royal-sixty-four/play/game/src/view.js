@@ -1,16 +1,15 @@
 // All drawing. Pure: reads `state`, never mutates it (game.js owns every mutation).
 import {
-  W, H, HEADER_H, GRID_X, GRID_Y, SQ, BOARD_X, BOARD_Y, BOARD_SIZE, BOARD_BOTTOM,
-  TRAY_TOP, TRAY_H, PANEL_TOP, PANEL_H, BAR_TOP, BAR_H, pointXY, squareTopLeft, titleRows, TITLE_BOARD, BTN, BTN4, HEADER,
-  RESULT_PANEL, PROMO, SIBLINGS, chipRect, inRect, TEXT_SCALES, TEXT_DEC, TEXT_INC, REF_BACK, REF_NEXT, THINK_STEPS, DEMO_THINK, DEMO_PAUSE,
+  W, H, SQ, BOARD_X, BOARD_Y, BOARD_SIZE, TRAY_H, pointXY, squareTopLeft, HERO, SIBLINGS, TEXT_SCALES, THINK_STEPS, fs,
 } from './layout.js';
+import { drawCredit, drawMoreLine, drawLockup } from './brand.js';
 import { WHITE, BLACK, TYPE_NAME, QUEEN, ROOK, BISHOP, KNIGHT, PAWN, KING, inCheck } from './rules.js';
 import { LEVELS, LEVEL_COUNT } from './engine.js';
 import { LESSONS } from './lessons.js';
 import { DEMO_GAMES } from './demo.js';
 import { ABOUT, HOWTO, RULES } from './content.js';
 import { drawBoard, drawBackdrop, boardThemeOf, THEME_NAMES, drawDot, drawCaptureRing, drawCornerMarks, drawCheckGlow, drawSelectGlow } from './art.js';
-import { drawPiece, FLOOR_LINE } from './pieces.js';
+import { drawPiece, FLOOR_LINE, PIECE_TOP } from './pieces.js';
 
 // [square, type, white] — the title's key-art position (a1 = 0, h8 = 63).
 const HERO_POSITION = [
@@ -38,11 +37,17 @@ function drawButton(ctx, r, label, opts = {}) {
   ctx.fillStyle = disabled ? 'rgba(255,255,255,0.35)' : primary ? '#2b1c06' : '#f4ead6';
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   let size = sub ? 24 : 28;
-  const maxW = r.w - 20;
+  const maxW = r.w - 14, minSize = fs(20);
   ctx.font = `700 ${size}px Georgia, 'Times New Roman', serif`;
-  while (ctx.measureText(label).width > maxW && size > 14) { size -= 2; ctx.font = `700 ${size}px Georgia, 'Times New Roman', serif`; }
-  ctx.fillText(label, r.x + r.w / 2, r.y + r.h / 2 - (sub ? 10 : 0));
-  if (sub) { ctx.font = '400 19px Georgia, serif'; ctx.globalAlpha = 0.85; ctx.fillText(sub, r.x + r.w / 2, r.y + r.h / 2 + 18); ctx.globalAlpha = 1; }
+  while (ctx.measureText(label).width > maxW && size > minSize) { size -= 2; ctx.font = `700 ${size}px Georgia, 'Times New Roman', serif`; }
+  if (!sub && ctx.measureText(label).width > maxW && label.includes(' ')) {                 // still too wide at the smallest size: two lines instead of overflowing
+    const ws = label.split(' '); let best = 1, bd = 1e9;
+    for (let i = 1; i < ws.length; i++) { const d = Math.abs(ctx.measureText(ws.slice(0, i).join(' ')).width - ctx.measureText(ws.slice(i).join(' ')).width); if (d < bd) { bd = d; best = i; } }
+    const l1 = ws.slice(0, best).join(' '), l2 = ws.slice(best).join(' ');
+    while (Math.max(ctx.measureText(l1).width, ctx.measureText(l2).width) > maxW && size > 11) { size -= 1; ctx.font = `700 ${size}px Georgia, 'Times New Roman', serif`; }
+    ctx.fillText(l1, r.x + r.w / 2, r.y + r.h / 2 - size * 0.55); ctx.fillText(l2, r.x + r.w / 2, r.y + r.h / 2 + size * 0.55);
+  } else ctx.fillText(label, r.x + r.w / 2, r.y + r.h / 2 - (sub ? 10 : 0));
+  if (sub) { ctx.font = `400 ${Math.round(fs(19))}px Georgia, serif`; ctx.globalAlpha = 0.85; ctx.fillText(sub, r.x + r.w / 2, r.y + r.h / 2 + 18); ctx.globalAlpha = 1; }
   ctx.restore();
 }
 function roundPath(ctx, x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
@@ -57,8 +62,14 @@ function artRes(ctx) {
 const P = (o) => ({ ...o, res: ART_RES });
 
 // ---- board + pieces (shared by play / lesson / demo) --------------------------------------------
-function drawGameBoard(ctx, state, flip) {
-  const T = boardThemeOf(state.boardTheme);
+function drawGameBoard(ctx, state, flip, S) {
+  // The board is authored in canonical units; the scene says where it sits and how big it is.
+  const bm = S.board, prevRes = ART_RES;
+  ctx.save(); ctx.translate(bm.bx - BOARD_X * bm.s, bm.by - BOARD_Y * bm.s); ctx.scale(bm.s, bm.s); ART_RES = artRes(ctx);
+  drawBoardLayer(ctx, state, flip);
+  ctx.restore(); ART_RES = prevRes;
+}
+function drawBoardLayer(ctx, state, flip) {
   drawBoard(ctx, state.boardTheme, flip, ART_RES);
   const g = state.g, board = g.st.board;
   const anim = state.anim;
@@ -160,10 +171,11 @@ function capturedLists(g) {
   const order = (a, b) => b - a;
   return { byWhite: white.sort(order), byBlack: black.sort(order) };
 }
-function drawTray(ctx, x, y, w, pieces, white, theme) {
+function drawTray(ctx, x, y, w, pieces, white, theme, reserve = 0) {
   ctx.save(); ctx.beginPath(); ctx.rect(x, y, w, TRAY_H); ctx.clip();
+  const step = Math.max(11, Math.min(26, (w - 44 - reserve) / Math.max(1, pieces.length)));
   let px = x + 22;
-  for (const t of pieces) { drawPiece(ctx, t, white, px, y + TRAY_H * 0.78, P({ R: 16, theme })); px += 26; }
+  for (const t of pieces) { drawPiece(ctx, t, white, px, y + TRAY_H * 0.78, P({ R: 16, theme })); px += step; }
   ctx.restore();
 }
 function materialDelta(g) {
@@ -172,15 +184,15 @@ function materialDelta(g) {
   return v;
 }
 
-function drawMoveList(ctx, state) {
-  const x = 30, y = PANEL_TOP, w = W - 60, h = PANEL_H;
+function drawMoveList(ctx, state, r) {
+  const { x, y, w, h } = r;
   ctx.save();
   roundPath(ctx, x, y, w, h, 14); ctx.fillStyle = 'rgba(20,14,8,0.42)'; ctx.fill();
   ctx.strokeStyle = 'rgba(255,255,255,0.08)'; ctx.lineWidth = 1.5; ctx.stroke();
   ctx.clip();
-  const log = state.g.log;
-  ctx.font = '20px Georgia, serif'; ctx.fillStyle = 'rgba(244,234,214,0.92)'; ctx.textBaseline = 'top';
-  const lineH = 27, cols = 2, colW = w / cols, rowsPerCol = Math.floor((h - 16) / lineH);
+  const log = state.g.log, fsz = Math.round(fs(20)), lineH = Math.round(fsz * 1.35);
+  ctx.font = `${fsz}px Georgia, serif`; ctx.fillStyle = 'rgba(244,234,214,0.92)'; ctx.textBaseline = 'top';
+  const cols = w >= 380 ? 2 : 1, colW = w / cols, rowsPerCol = Math.max(1, Math.floor((h - 16) / lineH));
   const pairs = []; for (let i = 0; i < log.length; i += 2) pairs.push([log[i], log[i + 1]]);
   const totalRows = pairs.length, maxVisible = rowsPerCol * cols;
   const startPair = Math.max(0, totalRows - maxVisible);
@@ -188,21 +200,33 @@ function drawMoveList(ctx, state) {
     const rel = i - startPair, col = Math.floor(rel / rowsPerCol), row = rel % rowsPerCol;
     const tx = x + 14 + col * colW, ty = y + 10 + row * lineH;
     const [a, b] = pairs[i];
-    const text = `${i + 1}. ${a ? a.san : ''}${b ? '  ' + b.san : ''}`;
-    ctx.fillText(text, tx, ty);
+    ctx.fillText(`${i + 1}. ${a ? a.san : ''}${b ? '  ' + b.san : ''}`, tx, ty);
   }
   if (log.length === 0) { ctx.globalAlpha = 0.6; ctx.fillText('Moves will appear here.', x + 14, y + 10); ctx.globalAlpha = 1; }
   ctx.restore();
 }
 
-function drawTopBar(ctx, state, title) {
+function fitText(ctx, text, x, y, maxW, size, weight, family = 'Georgia, serif', minPx = 16) {
+  let sz = size; ctx.font = `${weight} ${sz}px ${family}`;
+  while (ctx.measureText(text).width > maxW && sz > minPx) { sz -= 1; ctx.font = `${weight} ${sz}px ${family}`; }
+  ctx.fillText(text, x, y);
+}
+function drawCard(ctx, r) {
+  ctx.save(); roundPath(ctx, r.x, r.y, r.w, r.h, 22);
+  const g = ctx.createLinearGradient(0, r.y, 0, r.y + r.h); g.addColorStop(0, 'rgba(30,20,10,0.55)'); g.addColorStop(1, 'rgba(14,9,5,0.65)');
+  ctx.fillStyle = g; ctx.fill(); ctx.strokeStyle = 'rgba(244,234,214,0.2)'; ctx.lineWidth = 2; ctx.stroke(); ctx.restore();
+}
+function drawCards(ctx, S) { for (const c of S.cards) drawCard(ctx, c); }
+
+function drawTopBar(ctx, state, title, S) {
+  const hd = S.head;
   ctx.save();
-  ctx.font = '700 30px Georgia, serif'; ctx.fillStyle = '#f4ead6'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.fillText(title, W / 2, 40);
-  ctx.font = '400 20px Georgia, serif'; ctx.globalAlpha = 0.8;
+  ctx.fillStyle = '#f4ead6'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  fitText(ctx, title, hd.cx, hd.titleY, hd.maxW, hd.titleSize, 700, 'Georgia, serif', 18);
+  ctx.globalAlpha = 0.8;
   const g = state.g;
   const status = g.result ? resultText(g.result, state) : `${g.st.turn === WHITE ? 'White' : 'Black'} to move${state.thinking ? '  ·  thinking…' : ''}`;
-  ctx.fillText(status, W / 2, 78);
+  fitText(ctx, status, hd.cx, hd.statusY, hd.maxW, Math.round(fs(hd.statusSize)), 400, 'Georgia, serif', 16);
   ctx.globalAlpha = 1;
   ctx.restore();
 }
@@ -216,26 +240,55 @@ function resultText(r, state) {
   return 'Draw';
 }
 
-// ---- scenes ---------------------------------------------------------------------------------------
-function renderTitle(ctx, state) {
-  drawBackdrop(ctx, state.boardTheme, boardThemeOf(state.boardTheme).bg);
-  const t = state.t, themeName = state.boardTheme;
+// Several lines of wrapped, centred text that shrink together to fit a rectangle: [{ text, color, size, weight }].
+function drawNote(ctx, r, parts, align = 'center') {
+  if (!parts.length) return;
+  ctx.save(); ctx.beginPath(); ctx.rect(r.x, r.y, r.w, r.h); ctx.clip(); ctx.textBaseline = 'alphabetic'; ctx.textAlign = align;
+  const x = align === 'center' ? r.x + r.w / 2 : r.x + 6, maxW = r.w - 12;
+  let k = 1, total = 0, lines = [];
+  for (let pass = 0; pass < 8; pass++) {
+    total = 0; lines = [];
+    for (const p of parts) {
+      const size = Math.max(fs(15), Math.round(p.size * k)), lh = Math.round(size * 1.26);
+      ctx.font = `${p.weight || 400} ${size}px Georgia, serif`;
+      for (const ln of wrapLines(ctx, p.text, maxW)) { lines.push({ ln, size, lh, color: p.color, weight: p.weight || 400 }); total += lh; }
+      total += 4;
+    }
+    if (total <= r.h || k <= 0.62) break; k -= 0.07;
+  }
+  let y = r.y + (lines.length ? lines[0].size : 0) + Math.max(0, Math.min(6, (r.h - total) / 2));
+  for (const l of lines) { ctx.font = `${l.weight} ${l.size}px Georgia, serif`; ctx.fillStyle = l.color; ctx.fillText(l.ln, x, y); y += l.lh; }
+  ctx.restore();
+}
+function wrapLines(ctx, text, maxW) {
+  const words = text.split(' '), out = []; let line = '';
+  for (const w of words) { const t = line ? line + ' ' + w : w; if (ctx.measureText(t).width > maxW && line) { out.push(line); line = w; } else line = t; }
+  out.push(line); return out;
+}
 
+// ---- scenes ---------------------------------------------------------------------------------------
+function renderTitle(ctx, state, L) {
+  const T = L.title;
+  drawBackdrop(ctx, state.boardTheme, boardThemeOf(state.boardTheme).bg, L.w, L.h);
+  const t = state.t, themeName = state.boardTheme, prevRes = ART_RES;
+  if (T.card) drawCard(ctx, T.card);
+
+  // The hero: title, tagline and a lit board, authored in a 600 x 520 box (HERO) and fitted to T.hero.
+  ctx.save(); ctx.translate(T.hero.x - HERO.x * T.hero.k, T.hero.y - HERO.y * T.hero.k); ctx.scale(T.hero.k, T.hero.k); ART_RES = artRes(ctx);
   // Title, above the hero board.
   ctx.save(); ctx.textAlign = 'center'; ctx.fillStyle = '#f7ecd6';
   ctx.font = '700 58px Georgia, "Times New Roman", serif'; ctx.shadowColor = 'rgba(0,0,0,0.55)'; ctx.shadowBlur = 14;
-  ctx.fillText('Chess', W / 2, TITLE_BOARD.y + 44);
+  ctx.fillText('Chess', W / 2, HERO.y + 44);
   ctx.shadowBlur = 0; ctx.font = '400 21px Georgia, serif'; ctx.globalAlpha = 0.88; ctx.fillStyle = '#e7d3a6';
-  ctx.fillText('The timeless game of sixty-four squares', W / 2, TITLE_BOARD.y + 76);
+  ctx.fillText('The timeless game of sixty-four squares', W / 2, HERO.y + 76);
   ctx.globalAlpha = 1; ctx.restore();
 
-  // Key art: a window onto a lit board in the middle of a game (a real, sensible position — a
-  // classical Italian after the centre has opened), scaled to fit the banner under the title.
-  const bandTop = TITLE_BOARD.y + 96, bandH = TITLE_BOARD.y + TITLE_BOARD.h - bandTop;
-  const scale = (TITLE_BOARD.w + 40) / BOARD_SIZE, ox = W / 2 - (BOARD_SIZE / 2) * scale, oy = bandTop + bandH / 2 - (BOARD_Y + BOARD_SIZE * 0.52) * scale;
+  // Key art: a window onto a lit board in the middle of a game (a classical Italian after the centre has opened).
+  const bandTop = HERO.y + 96, bandH = HERO.y + HERO.h - bandTop;
+  const scale = (HERO.w + 40) / BOARD_SIZE, ox = W / 2 - (BOARD_SIZE / 2) * scale, oy = bandTop + bandH / 2 - (BOARD_Y + BOARD_SIZE * 0.52) * scale;
   ctx.save();
-  ctx.beginPath(); ctx.rect(TITLE_BOARD.x - 10, bandTop - 6, TITLE_BOARD.w + 20, bandH + 12); ctx.clip();
-  ctx.translate(ox, oy); ctx.scale(scale, scale);
+  ctx.beginPath(); ctx.rect(HERO.x - 10, bandTop - 6, HERO.w + 20, bandH + 12); ctx.clip();
+  ctx.translate(ox, oy); ctx.scale(scale, scale); ART_RES = artRes(ctx);
   drawBoard(ctx, themeName, false, ART_RES);
   const order = HERO_POSITION.slice().sort((a, b) => pointXY(a[0], false).y - pointXY(b[0], false).y);
   for (const [sq, type, white] of order) {
@@ -251,84 +304,94 @@ function renderTitle(ctx, state) {
   // fade the window's top and bottom edges into the table
   const eg = ctx.createLinearGradient(0, bandTop - 6, 0, bandTop + bandH + 6);
   eg.addColorStop(0, 'rgba(20,12,6,0.85)'); eg.addColorStop(0.12, 'rgba(20,12,6,0)'); eg.addColorStop(0.88, 'rgba(20,12,6,0)'); eg.addColorStop(1, 'rgba(20,12,6,0.85)');
-  ctx.fillStyle = eg; ctx.fillRect(TITLE_BOARD.x - 10, bandTop - 6, TITLE_BOARD.w + 20, bandH + 12);
+  ctx.fillStyle = eg; ctx.fillRect(HERO.x - 10, bandTop - 6, HERO.w + 20, bandH + 12);
   // vignette so buttons below read as clearly separate from the key art
   const vg = ctx.createLinearGradient(0, bandTop, 0, bandTop + bandH + 40);
   vg.addColorStop(0.8, 'rgba(15,10,6,0)'); vg.addColorStop(1, 'rgba(15,10,6,0.9)');
-  ctx.fillStyle = vg; ctx.fillRect(0, bandTop, W, bandH + 40);
+  ctx.fillStyle = vg; ctx.fillRect(HERO.x - 10, bandTop, HERO.w + 20, bandH + 40);
+  ctx.restore(); ART_RES = prevRes;
 
-  const rows = titleRows(false);
+  const rows = T.rows;
   drawButton(ctx, rows.playWhite, 'Play as White', { primary: true });
   drawButton(ctx, rows.playBlack, 'Play as Black');
-  drawButton(ctx, rows.twoPlayer, 'Two Players (Pass and Play)');
-  drawButton(ctx, rows.watch, 'Watch Two Full Games (AI vs AI)');
+  drawButton(ctx, rows.twoPlayer, T.grid ? 'Two Players' : 'Two Players (Pass and Play)');
+  drawButton(ctx, rows.watch, T.grid ? 'Watch AI vs AI' : 'Watch Two Full Games (AI vs AI)');
   drawButton(ctx, rows.learn, `Learn to Play${state.learned.length ? ` (${state.learned.length}/${LESSONS.length})` : ''}`);
   drawButton(ctx, rows.howto, 'Controls');
   drawButton(ctx, rows.about, 'About');
   drawButton(ctx, rows.rules, 'Rules');
   drawButton(ctx, rows.level, `Opponent: ${LEVELS[state.level].name}`, { sub: `${state.level} of ${LEVEL_COUNT}` });
   drawButton(ctx, rows.theme, `Board: ${THEME_NAMES[state.boardTheme]}`);
-  drawButton(ctx, HEADER.sound, state.sound ? 'Sound: On' : 'Sound: Off', { active: state.sound });
+  drawButton(ctx, T.sound, state.sound ? 'Sound: On' : 'Sound: Off', { active: state.sound });
 
-  ctx.save(); ctx.textAlign = 'center'; ctx.globalAlpha = 0.55; ctx.fillStyle = '#e7d3a6'; ctx.font = '400 18px Georgia, serif';
-  ctx.fillText('Free to play, forever. No ads, no purchases.', W / 2, H - 26);
+  // The discreet Arcforge credit (never over gameplay), then the free-to-play line.
+  if (!drawLockup(ctx, T.credit.x, T.credit.y + T.credit.w * (260 / 700), T.credit.w, state.lockPress > 0 ? 0.7 : 1)) drawCredit(ctx, T.credit.x, T.credit.y + T.credit.w * 0.2, Math.round(fs(13)), { dim: 0.95 });
+  ctx.save(); ctx.textAlign = 'center'; ctx.globalAlpha = 0.6; ctx.fillStyle = '#e7d3a6'; ctx.font = `400 ${Math.round(fs(17))}px Georgia, serif`;
+  ctx.fillText('Free to play, forever. No ads, no purchases.', T.foot.x, T.foot.y);
   ctx.restore();
 }
 
-function renderPlay(ctx, state) {
-  drawBackdrop(ctx, state.boardTheme, boardThemeOf(state.boardTheme).bg);
+const BAR_LABELS = {
+  play: (state) => ({ menu: ['Menu'], flip: ['Flip'], undo: ['Undo', { disabled: state.g.log.length === 0 }], hint: [`Hint (${state.hintsLeft})`, { disabled: state.hintsLeft <= 0 }], resign: [state.g.result ? 'New Game' : 'Resign'] }),
+};
+
+function renderPlay(ctx, state, L) {
+  const S = L.scene('play');
+  drawBackdrop(ctx, state.boardTheme, boardThemeOf(state.boardTheme).bg, L.w, L.h);
+  drawCards(ctx, S);
   const flip = (state.mode === 'ai' && state.human === BLACK) || state.flipManual;
   const showingResult = state.overOpen && state.g.result;
-  drawTopBar(ctx, state, state.mode === 'two' ? 'Two Players' : `Playing White vs ${LEVELS[state.level].name}`.replace('White', state.human === WHITE ? 'White' : 'Black'));
-  drawGameBoard(ctx, state, flip);
+  drawTopBar(ctx, state, state.mode === 'two' ? 'Two Players' : `Playing White vs ${LEVELS[state.level].name}`.replace('White', state.human === WHITE ? 'White' : 'Black'), S);
+  drawGameBoard(ctx, state, flip, S);
   if (!showingResult) {
-    const mat = materialDelta(state.g);
-    const { byWhite, byBlack } = capturedLists(state.g);
-    drawTray(ctx, 30, TRAY_TOP, W - 60, byBlack, false, state.boardTheme);
-    drawTray(ctx, 30, TRAY_TOP + TRAY_H, W - 60, byWhite, true, state.boardTheme);
-    ctx.save(); ctx.font = '600 20px Georgia, serif'; ctx.fillStyle = 'rgba(244,234,214,0.85)'; ctx.textAlign = 'right';
-    if (mat !== 0) ctx.fillText(mat > 0 ? `White +${mat}` : `Black +${-mat}`, W - 30, TRAY_TOP + 24);
-    ctx.restore();
-    drawMoveList(ctx, state);
-    drawButton(ctx, BTN.menu, 'Menu');
-    drawButton(ctx, BTN.flip, 'Flip');
-    drawButton(ctx, BTN.undo, 'Undo', { disabled: state.g.log.length === 0 });
-    drawButton(ctx, BTN.hint, `Hint (${state.hintsLeft})`, { disabled: state.hintsLeft <= 0 });
-    drawButton(ctx, BTN.resign, state.g.result ? 'New Game' : 'Resign');
-    if (state.banner) drawBanner(ctx, state);
-    if (state.hint) drawHintReason(ctx, state.hint);
-    if (state.msg) drawMessage(ctx, state.msg);
-    else if (state.coachBubble) drawCoach(ctx, state.coachBubble);
+    if (S.trays) {
+      const mat = materialDelta(state.g), { byWhite, byBlack } = capturedLists(state.g), tr = S.trays, reserve = mat !== 0 ? 96 : 0;
+      drawTray(ctx, tr.x, tr.y, tr.w, byBlack, false, state.boardTheme, reserve);
+      drawTray(ctx, tr.x, tr.y + TRAY_H, tr.w, byWhite, true, state.boardTheme, reserve);
+      ctx.save(); ctx.font = `600 ${Math.round(fs(20))}px Georgia, serif`; ctx.fillStyle = 'rgba(244,234,214,0.85)'; ctx.textAlign = 'right';
+      if (mat !== 0) ctx.fillText(mat > 0 ? `White +${mat}` : `Black +${-mat}`, tr.x + tr.w, tr.y + 28);
+      ctx.restore();
+    }
+    if (S.moves) drawMoveList(ctx, state, S.moves);
+    const lab = BAR_LABELS.play(state);
+    for (const k of S.dirKey) drawButton(ctx, S.bar[k], lab[k][0], lab[k][1] || {});
+    if (state.hint) drawNote(ctx, S.note, [{ text: state.hint.reason || '', color: '#ffd97a', size: 19 }]);
+    if (state.banner) drawBanner(ctx, state, S);
+    if (state.msg) drawMessage(ctx, state.msg, S);
+    else if (state.coachBubble) drawCoach(ctx, state.coachBubble, S);
   }
-  if (state.promoPending) drawPromoPicker(ctx, state);
-  if (showingResult) drawResultPanel(ctx, state);
+  if (state.promoPending) drawPromoPicker(ctx, state, L);
+  if (showingResult) drawResultPanel(ctx, state, L, 'New Game');
 }
 
-// A transient banner over the TOP of the board (same slot as the first-use coach bubble, which is
-// suppressed while a message is showing) — there is no safe empty space left below the board once
-// the trays and move list are both present, and this reads better as a toast anyway.
-function drawMessage(ctx, msg) {
+// A transient toast over the TOP of the board (there is no safe empty space left once the trays and move list are present).
+function drawToast(ctx, rect, text, { fill, stroke, color, size, alpha = 1, lh }) {
+  ctx.save(); ctx.globalAlpha = alpha;
+  const fsz = Math.round(fs(size)), line = lh || Math.round(fsz * 1.25);
+  ctx.font = `400 ${fsz}px Georgia, serif`; ctx.textAlign = 'center';
+  const lines = wrapLines(ctx, text, rect.w - 40), h = Math.max(rect.h, lines.length * line + 28);
+  roundPath(ctx, rect.x, rect.y, rect.w, h, 14); ctx.fillStyle = fill; ctx.fill(); ctx.strokeStyle = stroke; ctx.lineWidth = 2; ctx.stroke();
+  ctx.fillStyle = color; let y = rect.y + (h - lines.length * line) / 2 + fsz * 0.95;
+  for (const l of lines) { ctx.fillText(l, rect.x + rect.w / 2, y); y += line; }
+  ctx.restore();
+}
+function drawMessage(ctx, msg, S) {
   const alpha = Math.max(0, 1 - msg.t / 3.4);
   if (alpha <= 0) return;
-  ctx.save(); ctx.globalAlpha = alpha;
-  const x = 30, y = HEADER_H - 6, w = W - 60, h = 74;
   const warn = msg.kind === 'warn', good = msg.kind === 'good';
-  roundPath(ctx, x, y, w, h, 14);
-  ctx.fillStyle = warn ? 'rgba(74,26,18,0.93)' : good ? 'rgba(20,54,24,0.93)' : 'rgba(46,34,18,0.93)'; ctx.fill();
-  ctx.strokeStyle = warn ? 'rgba(255,150,120,0.55)' : good ? 'rgba(150,230,140,0.5)' : 'rgba(255,214,120,0.45)'; ctx.lineWidth = 2; ctx.stroke();
-  ctx.font = '400 20px Georgia, serif'; ctx.textAlign = 'center';
-  ctx.fillStyle = warn ? '#ffb199' : good ? '#b7f0b0' : '#f4ead6';
-  wrapText(ctx, msg.text, W / 2, y + 30, w - 40, 25);
-  ctx.restore();
+  drawToast(ctx, S.toast, msg.text, {
+    alpha, size: 20, fill: warn ? 'rgba(74,26,18,0.93)' : good ? 'rgba(20,54,24,0.93)' : 'rgba(46,34,18,0.93)',
+    stroke: warn ? 'rgba(255,150,120,0.55)' : good ? 'rgba(150,230,140,0.5)' : 'rgba(255,214,120,0.45)', color: warn ? '#ffb199' : good ? '#b7f0b0' : '#f4ead6',
+  });
 }
 function wrapText(ctx, text, cx, y, maxW, lh) {
   const words = text.split(' '); let line = '', ly = y;
   for (const w of words) { const t = line ? line + ' ' + w : w; if (ctx.measureText(t).width > maxW && line) { ctx.fillText(line, cx, ly); line = w; ly += lh; } else line = t; }
   ctx.fillText(line, cx, ly);
 }
-function drawBanner(ctx, state) {
-  const b = state.banner, tt = Math.min(1, b.t / 0.35), scale = easeOutBack(tt);
-  ctx.save(); ctx.translate(W / 2, BOARD_Y + BOARD_SIZE / 2); ctx.scale(scale, scale);
+function drawBanner(ctx, state, S) {
+  const b = state.banner, tt = Math.min(1, b.t / 0.35), scale = easeOutBack(tt) * Math.max(0.6, S.board.s);
+  ctx.save(); ctx.translate(S.board.cx, S.board.cy); ctx.scale(scale, scale);
   ctx.globalAlpha = Math.max(0, 1 - Math.max(0, b.t - 1.1) / 0.5);
   ctx.font = '700 54px Georgia, serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.shadowColor = 'rgba(0,0,0,0.7)'; ctx.shadowBlur = 20;
@@ -336,190 +399,165 @@ function drawBanner(ctx, state) {
   ctx.fillText(b.text, 0, 0);
   ctx.restore();
 }
-function drawHintReason(ctx, hint) {
-  ctx.save(); ctx.font = '400 19px Georgia, serif'; ctx.fillStyle = '#ffd97a'; ctx.textAlign = 'center';
-  ctx.fillText(hint.reason || '', W / 2, BOARD_BOTTOM + 22);
-  ctx.restore();
-}
-function drawPromoPicker(ctx, state) {
+function drawPromoPicker(ctx, state, L) {
+  const PR = L.promo, c = PR.card;
   ctx.save();
-  ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(0, 0, W, H);
-  const c = PROMO.card;
+  ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(0, 0, L.w, L.h);
   roundPath(ctx, c.x, c.y, c.w, c.h, 22);
   const g = ctx.createLinearGradient(c.x, c.y, c.x, c.y + c.h); g.addColorStop(0, '#3a2c1c'); g.addColorStop(1, '#1c1309');
   ctx.fillStyle = g; ctx.fill(); ctx.strokeStyle = 'rgba(255,214,150,0.4)'; ctx.lineWidth = 2; ctx.stroke();
   ctx.font = '700 28px Georgia, serif'; ctx.fillStyle = '#f4ead6'; ctx.textAlign = 'center';
-  ctx.fillText('Choose a piece', c.x + c.w / 2, c.y + 46);
+  ctx.fillText('Choose a piece', c.x + c.w / 2, c.y + 56);
   const white = state.g.st.board[state.promoPending.from] > 0;
   const types = [QUEEN, ROOK, BISHOP, KNIGHT];
-  PROMO.pieces.forEach((r, i) => {
+  PR.pieces.forEach((r, i) => {
     roundPath(ctx, r.x, r.y, r.w, r.h, 14); ctx.fillStyle = 'rgba(255,255,255,0.06)'; ctx.fill();
     ctx.strokeStyle = 'rgba(255,255,255,0.18)'; ctx.lineWidth = 1.5; ctx.stroke();
-    drawPiece(ctx, types[i], white, r.x + r.w / 2, r.y + r.h * 0.72, P({ R: 30, theme: state.boardTheme }));
-    ctx.font = '400 17px Georgia, serif'; ctx.fillStyle = '#e7d3a6';
-    ctx.fillText(TYPE_NAME[types[i]][0].toUpperCase() + TYPE_NAME[types[i]].slice(1), r.x + r.w / 2, r.y + r.h + 22);
+    drawPiece(ctx, types[i], white, r.x + r.w / 2, r.y + r.h * 0.72, P({ R: Math.min(30, r.w * 0.28), theme: state.boardTheme }));
+    ctx.font = `400 ${Math.round(fs(17))}px Georgia, serif`; ctx.fillStyle = '#e7d3a6';
+    ctx.fillText(TYPE_NAME[types[i]][0].toUpperCase() + TYPE_NAME[types[i]].slice(1), r.x + r.w / 2, r.y + r.h + 26);
   });
   ctx.restore();
 }
-function drawResultPanel(ctx, state) {
-  const r = state.g.result;
+// The ONE overlay every ending goes through: result headline, "More heritage games in Arcforge" chips, New Game / Menu.
+function drawResultPanel(ctx, state, L, againLabel, subText) {
+  const r = state.g.result, R = L.result, c = R.card;
   ctx.save();
-  const top = BOARD_Y + BOARD_SIZE * 0.32;
-  ctx.fillStyle = 'rgba(10,7,4,0.86)'; ctx.fillRect(0, top, W, H - top);
+  ctx.fillStyle = 'rgba(10,7,4,0.62)'; ctx.fillRect(0, 0, L.w, L.h);
+  roundPath(ctx, c.x, c.y, c.w, c.h, 24);
+  const g = ctx.createLinearGradient(0, c.y, 0, c.y + c.h); g.addColorStop(0, 'rgba(34,24,12,0.97)'); g.addColorStop(1, 'rgba(14,9,5,0.97)');
+  ctx.fillStyle = g; ctx.fill(); ctx.strokeStyle = 'rgba(244,234,214,0.25)'; ctx.lineWidth = 2; ctx.stroke();
   ctx.font = '700 42px Georgia, serif'; ctx.fillStyle = r.why === 'checkmate' ? '#ffe6a8' : '#f4ead6'; ctx.textAlign = 'center';
-  wrapText(ctx, resultText(r, state), W / 2, top + 90, W - 100, 48);
-  ctx.font = '400 20px Georgia, serif'; ctx.globalAlpha = 0.8;
-  ctx.fillText(state.mode === 'two' ? 'Two Players' : `vs ${LEVELS[state.level].name}`, W / 2, top + 150);
+  wrapText(ctx, resultText(r, state), R.cx, R.headY, c.w - 70, 48);
+  ctx.font = `400 ${Math.round(fs(20))}px Georgia, serif`; ctx.globalAlpha = 0.8;
+  ctx.fillText(subText || (state.mode === 'two' ? 'Two Players' : `vs ${LEVELS[state.level].name}`), R.cx, R.subY);
   ctx.globalAlpha = 1;
-  ctx.font = '700 20px Georgia, serif'; ctx.globalAlpha = 0.75; ctx.fillStyle = '#f4ead6';
-  ctx.fillText('More from Arcforge', W / 2, 610);
-  ctx.globalAlpha = 1;
-  SIBLINGS.forEach((g, i) => drawButton(ctx, chipRect(i), g.title));
-  drawButton(ctx, RESULT_PANEL.again, 'New Game', { primary: true });
-  drawButton(ctx, RESULT_PANEL.menu, 'Menu');
+  drawMoreLine(ctx, R.cx, R.moreY, Math.round(fs(17)));
+  SIBLINGS.forEach((s, i) => drawButton(ctx, R.chips[i], s.title));
+  drawButton(ctx, R.again, againLabel, { primary: true });
+  drawButton(ctx, R.menu, 'Menu');
   ctx.restore();
 }
-function drawCoach(ctx, bubble) {
-  ctx.save(); ctx.globalAlpha = Math.min(1, 4 - bubble.t) > 1 ? 1 : Math.max(0, Math.min(1, 6 - bubble.t));
-  const x = 30, y = HEADER_H - 6, w = W - 60, h = 74;
-  roundPath(ctx, x, y, w, h, 14); ctx.fillStyle = 'rgba(60,44,20,0.92)'; ctx.fill();
-  ctx.strokeStyle = 'rgba(255,214,120,0.6)'; ctx.lineWidth = 2; ctx.stroke();
-  ctx.font = '400 19px Georgia, serif'; ctx.fillStyle = '#ffe9bd'; ctx.textAlign = 'center';
-  wrapText(ctx, bubble.text, W / 2, y + 26, w - 40, 24);
-  ctx.restore();
+function drawCoach(ctx, bubble, S) {
+  drawToast(ctx, S.toast, bubble.text, {
+    alpha: Math.min(1, Math.max(0, 6 - bubble.t)), size: 19, fill: 'rgba(60,44,20,0.92)', stroke: 'rgba(255,214,120,0.6)', color: '#ffe9bd',
+  });
 }
 
-function renderLesson(ctx, state) {
-  drawBackdrop(ctx, state.boardTheme, ['#182018', '#0a0d09']);
-  const L = state.lesson, lesson = LESSONS[L.i], step = lesson.steps[L.s];
-  drawTopBar(ctx, state, `${lesson.title}  (${L.s + 1}/${lesson.steps.length})`);
-  drawGameBoard(ctx, state, state.flipManual);
-  ctx.save(); ctx.font = '400 21px Georgia, serif'; ctx.fillStyle = '#e7f0d6'; ctx.textAlign = 'center';
-  wrapText(ctx, step.minigame ? step.text : (L.done ? 'Well done — tap Next to continue.' : step.text), W / 2, BOARD_BOTTOM + 26, W - 80, 27);
-  ctx.restore();
-  if (state.msg) drawMessage(ctx, state.msg);
-  if (state.banner) drawBanner(ctx, state);
-  if (L.showSol && !L.done) { ctx.save(); ctx.font = '400 19px Georgia, serif'; ctx.fillStyle = '#ffd97a'; ctx.textAlign = 'center'; wrapText(ctx, step.hint, W / 2, BOARD_BOTTOM + TRAY_H * 2 + 10, W - 90, 24); ctx.restore(); }
-  drawButton(ctx, BTN4.menu, 'Menu');
-  drawButton(ctx, BTN4.flip, 'Flip');
-  drawButton(ctx, BTN4.hint, 'Show hint');
-  drawButton(ctx, BTN4.next, L.done ? (L.s + 1 < lesson.steps.length ? 'Next' : 'Next Lesson') : 'Restart step', { primary: L.done });
-  if (state.promoPending) drawPromoPicker(ctx, state);
+function renderLesson(ctx, state, L) {
+  const S = L.scene('lesson');
+  drawBackdrop(ctx, state.boardTheme, ['#182018', '#0a0d09'], L.w, L.h);
+  drawCards(ctx, S);
+  const Ls = state.lesson, lesson = LESSONS[Ls.i], step = lesson.steps[Ls.s];
+  drawTopBar(ctx, state, `${lesson.title}  (${Ls.s + 1}/${lesson.steps.length})`, S);
+  drawGameBoard(ctx, state, state.flipManual, S);
+  const parts = [{ text: step.minigame ? step.text : (Ls.done ? 'Well done — tap Next to continue.' : step.text), color: '#e7f0d6', size: 22 }];
+  if (Ls.showSol && !Ls.done) parts.push({ text: step.hint, color: '#ffd97a', size: 19 });
+  drawNote(ctx, S.note, parts);
+  if (state.msg) drawMessage(ctx, state.msg, S);
+  if (state.banner) drawBanner(ctx, state, S);
+  drawButton(ctx, S.bar.menu, 'Menu');
+  drawButton(ctx, S.bar.flip, 'Flip');
+  drawButton(ctx, S.bar.hint, 'Show hint');
+  drawButton(ctx, S.bar.next, Ls.done ? (Ls.s + 1 < lesson.steps.length ? 'Next' : 'Next Lesson') : 'Restart step', { primary: Ls.done });
+  if (state.promoPending) drawPromoPicker(ctx, state, L);
 }
 
-// The whole 2-game demo just finished (see demoStep()'s comment): same "More from Arcforge"
-// cross-promo a real game-over shows, since a viewer who watched it all is in the same "what's
-// next" moment - reuses resultText()/SIBLINGS/chipRect/RESULT_PANEL exactly, just with demo-
-// appropriate button labels/behaviour (Watch Again instead of New Game).
-function drawDemoFinished(ctx, state) {
-  const r = state.g.result;
-  ctx.save();
-  const top = BOARD_Y + BOARD_SIZE * 0.32;
-  ctx.fillStyle = 'rgba(10,7,4,0.86)'; ctx.fillRect(0, top, W, H - top);
-  ctx.font = '700 42px Georgia, serif'; ctx.fillStyle = r.why === 'checkmate' ? '#ffe6a8' : '#f4ead6'; ctx.textAlign = 'center';
-  wrapText(ctx, resultText(r, state), W / 2, top + 90, W - 100, 48);
-  ctx.font = '400 20px Georgia, serif'; ctx.globalAlpha = 0.8;
-  ctx.fillText(`Demo complete — Game ${state.demoIdx + 1} of ${DEMO_GAMES.length}`, W / 2, top + 150);
-  ctx.globalAlpha = 1;
-  ctx.font = '700 20px Georgia, serif'; ctx.globalAlpha = 0.75; ctx.fillStyle = '#f4ead6';
-  ctx.fillText('More from Arcforge', W / 2, 610);
-  ctx.globalAlpha = 1;
-  SIBLINGS.forEach((g, i) => drawButton(ctx, chipRect(i), g.title));
-  drawButton(ctx, RESULT_PANEL.again, 'Watch Again', { primary: true });
-  drawButton(ctx, RESULT_PANEL.menu, 'Menu');
-  ctx.restore();
-}
-
-function renderDemo(ctx, state) {
-  drawBackdrop(ctx, state.boardTheme, ['#161220', '#08060a']);
+function renderDemo(ctx, state, L) {
+  const S = L.scene('demo');
+  drawBackdrop(ctx, state.boardTheme, ['#161220', '#08060a'], L.w, L.h);
+  drawCards(ctx, S);
   const cfg = DEMO_GAMES[state.demoIdx];
-  drawTopBar(ctx, state, cfg.name);
-  drawGameBoard(ctx, state, false);
-  if (state.demoFinished) { drawDemoFinished(ctx, state); return; }
-  drawMoveList(ctx, state);
-  ctx.save(); ctx.font = '400 19px Georgia, serif'; ctx.fillStyle = '#cbb9e0'; ctx.textAlign = 'center';
-  ctx.fillText(`${state.demoIdx + 1} of ${DEMO_GAMES.length}  ·  White: ${LEVELS[cfg.levels[0]].name}   Black: ${LEVELS[cfg.levels[1]].name}`, W / 2, TRAY_TOP + 20);
-  ctx.restore();
-  // The teaching-loop caption: invites a guess while THINK is running (with a live countdown so
-  // the viewer knows how long they have), then names the reveal once the answer is shown.
+  drawTopBar(ctx, state, cfg.name, S);
+  drawGameBoard(ctx, state, false, S);
+  if (state.demoFinished) { drawResultPanel(ctx, state, L, 'Watch Again', `Demo complete — Game ${state.demoIdx + 1} of ${DEMO_GAMES.length}`); return; }
+  if (S.moves) drawMoveList(ctx, state, S.moves);
+  drawNote(ctx, S.note, [{ text: `${state.demoIdx + 1} of ${DEMO_GAMES.length}  ·  White: ${LEVELS[cfg.levels[0]].name}   Black: ${LEVELS[cfg.levels[1]].name}`, color: '#cbb9e0', size: 19 }]);
+  // The teaching-loop caption: invites a guess while THINK is running (with a live countdown), then names the reveal.
   if (!state.g.result) {
-    ctx.save(); ctx.font = '700 22px Georgia, serif'; ctx.textAlign = 'center';
-    if (state.demoPaused) { ctx.fillStyle = '#7ccbff'; ctx.fillText('Paused', W / 2, 108); }
-    else if (state.demoPhase === 'reveal') { ctx.fillStyle = '#ffd97a'; ctx.fillText('The engine plays…', W / 2, 108); }
-    else if (state.demoPhase === 'revealSource') { ctx.fillStyle = '#7ccbff'; ctx.fillText('This piece is about to move…', W / 2, 108); }
-    else if (state.demoPhase === 'think') { ctx.fillStyle = '#cbb9e0'; ctx.fillText(`Guess the move… ${Math.max(0, Math.ceil(state.demoTimer))}s`, W / 2, 108); }
-    else { ctx.fillStyle = 'rgba(203,185,224,0.7)'; ctx.fillText('Get ready…', W / 2, 108); }
+    ctx.save(); ctx.font = `700 ${Math.round(fs(22))}px Georgia, serif`; ctx.textAlign = 'center';
+    const cap = state.demoPaused ? ['Paused', '#7ccbff'] : state.demoPhase === 'reveal' ? ['The engine plays…', '#ffd97a'] : state.demoPhase === 'revealSource' ? ['This piece is about to move…', '#7ccbff']
+      : state.demoPhase === 'think' ? [`Guess the move… ${Math.max(0, Math.ceil(state.demoTimer))}s`, '#cbb9e0'] : ['Get ready…', 'rgba(203,185,224,0.7)'];
+    ctx.fillStyle = cap[1]; fitText(ctx, cap[0], S.head.cx, S.head.captionY, S.head.maxW, Math.round(fs(22)), 700, 'Georgia, serif', 16);
     ctx.restore();
   }
-  drawButton(ctx, HEADER.back, 'Exit');
-  drawButton(ctx, HEADER.next, `Speed ×${state.demoSpeed}`);
-  // Pause/Resume freezes the whole loop (including an in-flight move slide) at any moment, in the
-  // control-bar band's own otherwise-empty middle, between the think-time stepper's two pills.
-  drawButton(ctx, DEMO_PAUSE, state.demoPaused ? '▶ Resume' : '❙❙ Pause', { primary: state.demoPaused });
-  // Think-time stepper: how long THINK pauses before each REVEAL, in the control-bar band this
-  // scene otherwise leaves empty (no move/undo/hint/resign buttons apply to a demo).
-  drawButton(ctx, DEMO_THINK.dec, 'Think −', { disabled: state.demoThinkIdx === 0 });
-  drawButton(ctx, DEMO_THINK.inc, 'Think +', { disabled: state.demoThinkIdx === THINK_STEPS.length - 1 });
-  // Moved below the button row (was drawn dead-center of it, directly under where DEMO_PAUSE now
-  // sits, garbling both labels together) - there is real, unused margin between the bar and the
-  // canvas bottom edge for it.
-  ctx.save(); ctx.font = '600 20px Georgia, serif'; ctx.fillStyle = '#cbb9e0'; ctx.textAlign = 'center';
-  ctx.fillText(`Think time: ${THINK_STEPS[state.demoThinkIdx]}s`, W / 2, BAR_TOP + BAR_H + 34);
+  drawButton(ctx, S.bar.exit, 'Exit');
+  drawButton(ctx, S.bar.speed, `Speed ×${state.demoSpeed}`);
+  drawButton(ctx, S.bar.pause, state.demoPaused ? '▶ Resume' : '❙❙ Pause', { primary: state.demoPaused });
+  drawButton(ctx, S.bar.dec, 'Think −', { disabled: state.demoThinkIdx === 0 });
+  drawButton(ctx, S.bar.inc, 'Think +', { disabled: state.demoThinkIdx === THINK_STEPS.length - 1 });
+  ctx.save(); ctx.font = `600 ${Math.round(fs(20))}px Georgia, serif`; ctx.fillStyle = '#cbb9e0'; ctx.textAlign = 'center';
+  ctx.fillText(`Think time: ${THINK_STEPS[state.demoThinkIdx]}s`, S.foot.x, S.foot.y);
   ctx.restore();
-  if (state.banner) drawBanner(ctx, state);
+  if (state.banner) drawBanner(ctx, state, S);
 }
 
-// Counts how many wrapped screen-lines `text` takes at the *current* ctx.font, without drawing —
-// used to size the reader card to its own page's content before anything is painted.
+// Counts how many wrapped screen-lines `text` takes at the *current* ctx.font, without drawing.
 function countWrappedLines(ctx, text, maxW) {
   const words = text.split(' '); let n = 1, cur = '';
   for (const w of words) { const t = cur ? cur + ' ' + w : w; if (ctx.measureText(t).width > maxW && cur) { n++; cur = w; } else cur = t; }
   return n;
 }
 
-// About, Controls and Rules all share this one reference-page renderer. A reader-style card frames
-// the content (rather than text floating loose on the backdrop), body text reads at a real,
-// comfortable size by default, and a text-size stepper (Header row, between Back/Next) lets anyone
-// go a further steps larger — some players wear glasses, some don't; this is their control.
-// The card's height is computed from its own page's content (title + optional piece portraits +
-// body lines) rather than fixed, so a short page gets a short card and a page whose text has grown
-// at a high text-scale step gets a taller one, up to the screen's own limit — content.js keeps
-// every page to one short, single-concept passage specifically so it always fits (see content.js
-// and STATUS.md for how the 300% ceiling was verified page by page).
-function renderPage(ctx, state, list, headerTitle) {
-  drawBackdrop(ctx, state.boardTheme, boardThemeOf(state.boardTheme).bg);
-  const page = list[state.page % list.length];
-  // Falls back to 1 for any out-of-range index (e.g. a save from a build with more steps).
-  const scale = TEXT_SCALES[state.textScaleIdx] ?? 1;
+// The reader's scroll metrics, shared with game.js (it owns the scroll position; the view only measures).
+export const pageView = { max: 0, vp: null, rects: [] };   // rects: document-space layout of the last measure pass ({ kind, si, x0, x1, y0, y1 }), read by the layout test
 
-  const panelX = 34, panelW = W - 68, textMaxW = panelW - 90;
+// About, Controls and Rules all share this one reader: a card with a header and ONE continuous scrolling document (every section in
+// order; drag, wheel, Arrow / PageUp / PageDown / Home / End, scroll bar), and a bottom row [Back] [A-] [A+] [Next]. Next moves a
+// screenful and becomes Done at the end; Back always leaves. Text zoom 100-300%.
+function renderPage(ctx, state, list, headerTitle, L) {
+  drawBackdrop(ctx, state.boardTheme, boardThemeOf(state.boardTheme).bg, L.w, L.h);
+  const PG = L.page, scale = TEXT_SCALES[state.textScaleIdx] ?? 1;
+  const panel = PG.panelMax, panelW = panel.w, textMaxW = panelW - 90, cx = panel.x + panelW / 2;
   const fontPx = Math.round(29 * scale), LH = Math.round(fontPx * 1.25), gap = Math.round(8 * scale);
-  ctx.font = `400 ${fontPx}px Georgia, serif`;
-  let linesH = 0;
-  for (const line of page.lines) linesH += countWrappedLines(ctx, line, textMaxW) * LH + gap;
-  linesH -= gap;
-
-  // The page's own sub-title sits below the "About/Controls/Rules" header and its divider. Like
-  // that header (capped at 1.15x just above), its font is capped well below the 300% body-text
-  // ceiling: a big display sub-heading doesn't need to keep growing with the accessibility text
-  // stepper the way body copy does, and every title was already verified to fit one unwrapped
-  // line at up to the old 130% ceiling, so capping here at that same 1.3x keeps every title
-  // pixel-identical to the already-shipped smaller scales instead of ballooning past the card.
   const titleFontPx = Math.round(31 * Math.min(scale, 1.3));
-  const headerBlockH = 92; // fixed "About/Controls/Rules" heading + divider (that heading's own font is capped)
-  const titleBlockH = titleFontPx + Math.round(fontPx * 0.55) + 10;
-  const pieceBlockH = page.piece ? 160 : 0; // the piece portraits are drawn at a fixed size, independent of text scale
+  const headerBlockH = 92;
+  const vp = { x: panel.x + 8, y: panel.y + headerBlockH, w: panel.w - 16, h: Math.max(40, panel.h - headerBlockH - 12) };
+  // The illustration block is sized from the sprite itself: pieces stand ON footY and rise up to (PIECE_TOP + 8) units above it
+  // (the king ~126 px at pr = 54), so the block must reserve that whole height ABOVE the foot, plus the captions below it.
+  const pr = 54, dx = 100, ILL_TOP = 10, ILL_UP = Math.ceil((Math.max(...Object.values(PIECE_TOP)) + 8) * pr * 2.25 / 200), ILL_CAP = 34, ILL_BOTTOM = 14;
+  const pieceBlockH = ILL_TOP + ILL_UP + ILL_CAP + ILL_BOTTOM, stillH = 120;
+  const rects = [];
 
-  // footerReserve leaves room below the panel for the "Page X of Y" indicator AND the bottom
-  // Back/Next nav row (REF_BACK/REF_NEXT, y: 1164..1264) — previously this only had to clear a
-  // single header row at the very top, back when Back/Next/A-/A+ all lived up there together.
-  const panelTop = 90, footerReserve = 180, bottomPad = 22;
-  const panelMaxH = H - panelTop - footerReserve;
-  const panelH = Math.min(panelMaxH, Math.max(300, headerBlockH + titleBlockH + pieceBlockH + linesH + bottomPad));
-  const panel = { x: panelX, y: panelTop, w: panelW, h: panelH };
+  // one pass that either measures (draw = false) or paints the whole document from y0; returns the y below the last line
+  const flow = (draw, y0) => {
+    let y = y0;
+    ctx.textAlign = 'center';
+    list.forEach((sec, si) => {
+      if (si) y += Math.round(26 * scale);
+      if (!draw) rects.push({ kind: 'title', si, x0: cx - textMaxW / 2, x1: cx + textMaxW / 2, y0: y, y1: y + Math.round(titleFontPx * 1.1) });
+      if (draw) { ctx.font = `700 ${titleFontPx}px Georgia, serif`; ctx.fillStyle = '#ffd97a'; ctx.fillText(sec.title, cx, y + titleFontPx * 0.8); }
+      y += Math.round(titleFontPx * 1.1) + 10;
+      if (sec.piece) {
+        const footY = y + ILL_TOP + ILL_UP;
+        if (!draw) rects.push({ kind: 'illus', si, x0: cx - dx - 60, x1: cx + dx + 60, y0: y + ILL_TOP, y1: footY + ILL_CAP });
+        if (draw) {
+          drawPiece(ctx, sec.piece, true, cx - dx, footY, P({ R: pr, theme: state.boardTheme }));
+          drawPiece(ctx, sec.piece, false, cx + dx, footY, P({ R: pr, theme: state.boardTheme }));
+          ctx.font = '400 17px Georgia, serif'; ctx.globalAlpha = 0.65; ctx.fillStyle = '#e7d3a6';
+          ctx.fillText('White', cx - dx, footY + 30); ctx.fillText('Black', cx + dx, footY + 30);
+          ctx.globalAlpha = 1;
+        }
+        y += pieceBlockH;
+      }
+      ctx.font = `400 ${fontPx}px Georgia, serif`;
+      for (const line of sec.lines) {
+        if (!draw) rects.push({ kind: 'text', si, x0: cx - textMaxW / 2, x1: cx + textMaxW / 2, y0: y, y1: y + countWrappedLines(ctx, line, textMaxW) * LH });
+        if (draw) { ctx.globalAlpha = 0.94; ctx.fillStyle = '#f7eeda'; const ly = wrapTextLeftish(ctx, line, cx, y + fontPx * 0.88, textMaxW, LH); y = ly - fontPx * 0.88 + LH + gap; ctx.globalAlpha = 1; }
+        else y += countWrappedLines(ctx, line, textMaxW) * LH + gap;
+      }
+    });
+    return y;
+  };
+  ctx.save(); ctx.font = `400 ${fontPx}px Georgia, serif`;
+  const aboutStill = list === ABOUT;
+  const contentH = flow(false, 0) + 12 + (aboutStill ? stillH : 0);
+  ctx.restore();
+  pageView.rects = rects;
+  const scrollMax = Math.max(0, Math.ceil(contentH - vp.h));
+  pageView.max = scrollMax; pageView.vp = vp;
+  const scroll = Math.max(0, Math.min(scrollMax, state.scroll || 0));
 
-  // The reader card: one framed panel holding the header, the piece portraits (if any) and the
-  // body text, so the page reads as a designed reference sheet rather than loose floating text.
   roundPath(ctx, panel.x, panel.y, panel.w, panel.h, 28);
   const pg = ctx.createLinearGradient(0, panel.y, 0, panel.y + panel.h);
   pg.addColorStop(0, 'rgba(30,20,10,0.58)'); pg.addColorStop(1, 'rgba(14,9,5,0.68)');
@@ -529,49 +567,30 @@ function renderPage(ctx, state, list, headerTitle) {
   ctx.lineWidth = 1; ctx.strokeStyle = 'rgba(244,234,214,0.1)'; ctx.stroke();
 
   ctx.save(); ctx.textAlign = 'center'; ctx.fillStyle = '#f4ead6';
-  ctx.font = `700 ${Math.round(38 * Math.min(scale, 1.15))}px Georgia, serif`; ctx.fillText(headerTitle, W / 2, panel.y + 54);
+  ctx.font = `700 ${Math.round(38 * Math.min(scale, 1.15))}px Georgia, serif`; ctx.fillText(headerTitle, cx, panel.y + 54);
   ctx.strokeStyle = 'rgba(244,234,214,0.3)'; ctx.lineWidth = 2;
   ctx.beginPath(); ctx.moveTo(panel.x + 60, panel.y + 82); ctx.lineTo(panel.x + panel.w - 60, panel.y + 82); ctx.stroke();
-  ctx.font = `700 ${titleFontPx}px Georgia, serif`; ctx.fillStyle = '#ffd97a';
-  ctx.fillText(page.title, W / 2, panel.y + headerBlockH + titleFontPx * 0.8);
-  let y = panel.y + headerBlockH + titleBlockH;
-  // Rules pages that cover one piece show the real in-game sprite, White and Black side by side,
-  // using the same drawPiece() the board itself uses - never a separate simplified icon.
-  if (page.piece) {
-    const footY = y + 68, pr = 54, dx = 100;
-    drawPiece(ctx, page.piece, true, W / 2 - dx, footY, P({ R: pr, theme: state.boardTheme }));
-    drawPiece(ctx, page.piece, false, W / 2 + dx, footY, P({ R: pr, theme: state.boardTheme }));
-    ctx.font = '400 17px Georgia, serif'; ctx.globalAlpha = 0.65; ctx.fillStyle = '#e7d3a6';
-    ctx.fillText('White', W / 2 - dx, footY + 30);
-    ctx.fillText('Black', W / 2 + dx, footY + 30);
-    ctx.globalAlpha = 1; ctx.fillStyle = '#f4ead6';
-    y += pieceBlockH;
-  }
-  ctx.font = `400 ${fontPx}px Georgia, serif`; ctx.globalAlpha = 0.94; ctx.fillStyle = '#f7eeda';
-  for (const line of page.lines) y = wrapTextLeftish(ctx, line, W / 2, y, textMaxW, LH) + LH + gap;
-  ctx.globalAlpha = 1;
-  // a small still life of pieces on the table, only drawn where it has clear room below the text —
-  // never on top of a long page's last line, and never on a piece-portrait page. Anchored to the
-  // panel's OWN bottom edge (not a fixed canvas y) so it always sits inside the panel, however tall
-  // the panel ends up being.
-  const sy = panel.y + panel.h - 80;
-  if (!page.piece && scale <= 1.3 && y + 70 < sy - 40) {
-    drawPiece(ctx, KNIGHT, false, W / 2 - 150, sy - 6, P({ R: 46, theme: state.boardTheme }));
-    drawPiece(ctx, KING, true, W / 2 - 20, sy, P({ R: 50, theme: state.boardTheme }));
-    drawPiece(ctx, PAWN, true, W / 2 + 120, sy + 4, P({ R: 44, theme: state.boardTheme }));
+  // the scrolling body
+  ctx.save(); ctx.beginPath(); ctx.rect(vp.x, vp.y, vp.w, vp.h); ctx.clip(); ctx.translate(0, -scroll);
+  const endY = flow(true, vp.y + 4);
+  if (aboutStill) {   // a small still life of pieces closes the About text
+    const sy = endY + 70;
+    drawPiece(ctx, KNIGHT, false, cx - 150, sy - 6, P({ R: 46, theme: state.boardTheme }));
+    drawPiece(ctx, KING, true, cx - 20, sy, P({ R: 50, theme: state.boardTheme }));
+    drawPiece(ctx, PAWN, true, cx + 120, sy + 4, P({ R: 44, theme: state.boardTheme }));
   }
   ctx.restore();
-  // "Page X of Y" sits between the panel and the bottom nav row, never inside either.
-  ctx.save(); ctx.textAlign = 'center'; ctx.font = '400 19px Georgia, serif'; ctx.fillStyle = 'rgba(244,234,214,0.6)';
-  ctx.fillText(`Page ${(state.page % list.length) + 1} of ${list.length}`, W / 2, 1140);
+  // scroll bar
+  if (scrollMax > 0) {
+    const tx = panel.x + panel.w - 16, th = Math.max(40, vp.h * (vp.h / contentH)), ty = vp.y + (vp.h - th) * (scroll / scrollMax);
+    ctx.fillStyle = 'rgba(244,234,214,0.12)'; roundPath(ctx, tx, vp.y, 8, vp.h, 4); ctx.fill();
+    ctx.fillStyle = 'rgba(255,217,122,0.7)'; roundPath(ctx, tx, Math.max(vp.y, ty), 8, th, 4); ctx.fill();
+  }
   ctx.restore();
-  // Back/Next: an equal-width bottom pill pair, clear of the reader-card panel above it. Back is
-  // the neutral/secondary action, Next the primary (gold) action, matching every other game's
-  // reference pages. The text-size stepper (A-/A+) lives in the top corners only.
-  drawButton(ctx, REF_BACK, 'Back');
-  drawButton(ctx, REF_NEXT, state.page >= list.length - 1 ? 'Done' : 'Next', { primary: true });
-  drawButton(ctx, TEXT_DEC, 'A−', { disabled: state.textScaleIdx === 0 });
-  drawButton(ctx, TEXT_INC, 'A+', { disabled: state.textScaleIdx === TEXT_SCALES.length - 1 });
+  drawButton(ctx, PG.nav.back, 'Back');
+  drawButton(ctx, PG.nav.next, scroll >= scrollMax - 2 ? 'Done' : 'Next', { primary: true });
+  drawButton(ctx, PG.nav.dec, 'A−', { disabled: state.textScaleIdx === 0 });
+  drawButton(ctx, PG.nav.inc, 'A+', { disabled: state.textScaleIdx === TEXT_SCALES.length - 1 });
 }
 // Wraps `text` centred at cx, returns the y just below the last line drawn.
 function wrapTextLeftish(ctx, text, cx, y, maxW, lh) {
@@ -581,16 +600,16 @@ function wrapTextLeftish(ctx, text, cx, y, maxW, lh) {
   return ly;
 }
 
-export function render(ctx, state) {
+export function render(ctx, state, L) {
   ART_RES = artRes(ctx);
   switch (state.scene) {
-    case 'title': renderTitle(ctx, state); break;
-    case 'play': renderPlay(ctx, state); break;
-    case 'lesson': renderLesson(ctx, state); break;
-    case 'demo': renderDemo(ctx, state); break;
-    case 'howto': renderPage(ctx, state, HOWTO, 'Controls'); break;
-    case 'about': renderPage(ctx, state, ABOUT, 'About Chess'); break;
-    case 'rules': renderPage(ctx, state, RULES, 'Rules'); break;
-    default: renderTitle(ctx, state);
+    case 'title': renderTitle(ctx, state, L); break;
+    case 'play': renderPlay(ctx, state, L); break;
+    case 'lesson': renderLesson(ctx, state, L); break;
+    case 'demo': renderDemo(ctx, state, L); break;
+    case 'howto': renderPage(ctx, state, HOWTO, 'Controls', L); break;
+    case 'about': renderPage(ctx, state, ABOUT, 'About Chess', L); break;
+    case 'rules': renderPage(ctx, state, RULES, 'Rules', L); break;
+    default: renderTitle(ctx, state, L);
   }
 }
