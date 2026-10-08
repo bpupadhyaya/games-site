@@ -1,0 +1,17 @@
+{
+  "title": "Chinese Rings",
+  "tagline": "Free the rings from the bar, one legal move at a time.",
+  "description": "The classic ring-and-bar puzzle from China. Take three to nine real metal rings on and off a steel bar following one rule, and free them all. An exact counter shows the fewest moves still needed, seven hands-on lessons teach the rhythm, Hint shows the next legal move and why, and Auto Play solves the puzzle while explaining. No ads, works offline.",
+  "genre": "Mechanical ring puzzle",
+  "demo": true,
+  "howToPlay": [
+    "New here? Tap Learn to play: seven short hands-on lessons.",
+    "Tap a ring to take it off the bar or put it back on. Glowing rings can move right now.",
+    "Ring 1, next to the free end, always moves.",
+    "Any other ring moves only when the ring before it is on the bar and all the rings before that are off.",
+    "To go shows the fewest moves still needed from where you are.",
+    "Hint shows the next move of a shortest solution, with the reason. Undo takes a move back.",
+    "Auto Play solves the puzzle by itself and explains each move; Pause stops it.",
+    "Choose three to nine rings, Classic or Scramble, in the menu or Settings."
+  ]
+}

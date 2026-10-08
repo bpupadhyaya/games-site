@@ -1,0 +1,17 @@
+{
+  "title": "Pottery Wheel",
+  "tagline": "Throw, shape and glaze a pot on a spinning wheel.",
+  "description": "A calm craft game: centre a lump of clay, open it, pull the walls up and shape the form with your fingertip in real 3D, then trim, glaze and fire it. Six glaze traditions from around the world, twelve target-outline challenges, a daily pot, a shelf for your finished work, and Watch and Learn, which throws a whole pot for you and explains each stroke. No ads, works offline.",
+  "genre": "craft pottery",
+  "demo": true,
+  "howToPlay": [
+    "Centre: press a finger against the side the clay swings towards and hold steady.",
+    "Open: press down in the middle, then draw outwards to make room.",
+    "Pull: press into the wall and slide up it, slowly. The wall thins and the pot rises.",
+    "Shape: drag the wall out for a belly, in for a neck. In Challenges, match the ghost outline.",
+    "Trim: smooth the outside and press near the base for a foot.",
+    "Glaze: pick a tradition and hold the brush on the turning pot to paint bands.",
+    "Fire the kiln and put your pot on the shelf.",
+    "Stuck? Hint shows the next touch; Watch and Learn throws a whole pot for you."
+  ]
+}

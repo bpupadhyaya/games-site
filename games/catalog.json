@@ -1,5 +1,24 @@
 [
   {
+    "slug": "abacus-soroban-beads",
+    "stage": "release-candidate",
+    "title": "Abacus Soroban",
+    "tagline": "Slide the beads. Learn to add, subtract and multiply the Japanese way.",
+    "description": "A tactile Japanese soroban you slide with your thumb. Learn to read numbers, add, subtract and multiply in 13 short lessons, with a coach that moves the beads and explains why. Then test yourself with Flash Mental and a 60-second Timed Challenge.",
+    "genre": "number skill",
+    "demo": true,
+    "howToPlay": [
+      "Each rod is a digit: the heaven bead is 5, each earth bead is 1.",
+      "Slide beads to the middle beam, or just tap them.",
+      "Follow a lesson: show numbers, add, take away, multiply.",
+      "Tap Hint to see which rod to use and why.",
+      "Flash Mental: numbers flash, then set the total.",
+      "Timed Challenge: solve as many tasks as you can in 60 seconds."
+    ],
+    "icon": "games/abacus-soroban-beads/icon.svg",
+    "play": "games/abacus-soroban-beads/play/"
+  },
+  {
     "slug": "alquerque-twelve-and-twelve",
     "stage": "release-candidate",
     "title": "Alquerque: Twelve and Twelve",
@@ -51,6 +70,24 @@
     ],
     "icon": "games/ampe-jump-and-clap/icon.svg",
     "play": "games/ampe-jump-and-clap/play/"
+  },
+  {
+    "slug": "anansi-tales-trickster",
+    "stage": "release-candidate",
+    "title": "Anansi Tales",
+    "tagline": "Help Anansi win with wit in five spider tales from Ghana.",
+    "description": "A wit-and-puzzle storytelling game inspired by the Anansi tales of the Akan people of Ghana. A storyteller and her listeners tell five folk tales; you solve the tricks: sequences, matches, riddles, cause-and-effect traps and clever replies. Painted-cloth art, a Gallery of woven story-cloths, hints and Watch and Learn.",
+    "genre": "Story puzzle",
+    "demo": true,
+    "howToPlay": [
+      "Listen to the storyteller, then solve one small puzzle in each of four beats.",
+      "Tap cards in order, match pairs, pick the riddle answer, or build the trap one tool at a time.",
+      "A wrong pick shows what would really happen and costs only a star.",
+      "Tap Hint for a nudge, again to see the answer; Watch and Learn plays a tale for you.",
+      "Finish a tale to hang its woven cloth in the Gallery."
+    ],
+    "icon": "games/anansi-tales-trickster/icon.svg",
+    "play": "games/anansi-tales-trickster/play/"
   },
   {
     "slug": "badminton-rally",
@@ -180,6 +217,42 @@
     "play": "games/bocce-roll/play/"
   },
   {
+    "slug": "bonsai-prune-and-shape",
+    "stage": "release-candidate",
+    "title": "Bonsai",
+    "tagline": "Grow, prune and wire a tiny tree toward a classic style.",
+    "description": "A young tree grows through the four seasons while you watch where each branch is heading. Snip, pinch and wire it toward a named style, choose a pot, and let the judge score balance, taper and negative space. Lessons, hints, and Watch and Learn show how it is done. No timer pressure, no ads.",
+    "genre": "shaping puzzle",
+    "demo": true,
+    "howToPlay": [
+      "Pick a tree and read its style goals.",
+      "Choose Snip, Pinch or Wire, then touch the tree.",
+      "Watch the dotted lines to see where tips are heading.",
+      "Take wire off when its ring turns green.",
+      "Choose a pot and be judged for up to three stars."
+    ],
+    "icon": "games/bonsai-prune-and-shape/icon.svg",
+    "play": "games/bonsai-prune-and-shape/play/"
+  },
+  {
+    "slug": "bulls-and-cows-code",
+    "stage": "release-candidate",
+    "title": "Bulls and Cows",
+    "tagline": "Crack the secret code. Hints that teach.",
+    "description": "The classic code-breaking game on lit enamel pegs. Guess the secret digits and read the clues: bulls are right digit, right place; cows are right digit, wrong place. Break the computer's code or set your own, with a daily code, hints that explain the logic and Watch and Learn.",
+    "genre": "Code-breaking puzzle",
+    "demo": true,
+    "howToPlay": [
+      "Guess the hidden code by tapping digit pegs, then tap Guess.",
+      "Gold bulls: right digit, right place. Teal cows: right digit, wrong place.",
+      "Use the clues to rule digits in and out and crack the code in few guesses.",
+      "Set the Code lets you hide a secret and score the computer's guesses.",
+      "Tap the bulb for a hint that explains why; Watch and Learn shows a full game."
+    ],
+    "icon": "games/bulls-and-cows-code/icon.svg",
+    "play": "games/bulls-and-cows-code/play/"
+  },
+  {
     "slug": "carrom-striker-and-queen",
     "stage": "release-candidate",
     "title": "Carrom",
@@ -222,6 +295,27 @@
     "play": "games/chess-royal-sixty-four/play/"
   },
   {
+    "slug": "chinese-rings-puzzle",
+    "stage": "release-candidate",
+    "title": "Chinese Rings",
+    "tagline": "Free the rings from the bar, one legal move at a time.",
+    "description": "The classic ring-and-bar puzzle from China. Take three to nine real metal rings on and off a steel bar following one rule, and free them all. An exact counter shows the fewest moves still needed, seven hands-on lessons teach the rhythm, Hint shows the next legal move and why, and Auto Play solves the puzzle while explaining. No ads, works offline.",
+    "genre": "Mechanical ring puzzle",
+    "demo": true,
+    "howToPlay": [
+      "New here? Tap Learn to play: seven short hands-on lessons.",
+      "Tap a ring to take it off the bar or put it back on. Glowing rings can move right now.",
+      "Ring 1, next to the free end, always moves.",
+      "Any other ring moves only when the ring before it is on the bar and all the rings before that are off.",
+      "To go shows the fewest moves still needed from where you are.",
+      "Hint shows the next move of a shortest solution, with the reason. Undo takes a move back.",
+      "Auto Play solves the puzzle by itself and explains each move; Pause stops it.",
+      "Choose three to nine rings, Classic or Scramble, in the menu or Settings."
+    ],
+    "icon": "games/chinese-rings-puzzle/icon.svg",
+    "play": "games/chinese-rings-puzzle/play/"
+  },
+  {
     "slug": "chogan-persian-polo",
     "stage": "release-candidate",
     "title": "Chogan",
@@ -261,6 +355,24 @@
     "play": "games/congklak-sungka-shells/play/"
   },
   {
+    "slug": "conkers-string-smash",
+    "stage": "release-candidate",
+    "title": "Conkers String Smash",
+    "tagline": "Swing your conker and smash theirs to bits.",
+    "description": "England's autumn playground game with real pendulum physics. Pull the conker back, time the release against the other hand's sway, and hit the pale soft spot: every touch cracks both conkers until one shatters. Tin of three conkers, a four-rival Conker Cup, Two Players, Think and Watch & Learn.",
+    "genre": "physics dexterity / lawn game",
+    "demo": true,
+    "howToPlay": [
+      "Press on the scene, drag back and let go to swing your conker.",
+      "Raise or lower your hand to hit their pale patch: the soft spot.",
+      "Watch the guide and the timing strip, then release at a good moment.",
+      "Three goes a turn; every touch cracks both conkers until one shatters.",
+      "The winner's conker carries the loser's wins: oner, twoer, fifer, sixer."
+    ],
+    "icon": "games/conkers-string-smash/icon.svg",
+    "play": "games/conkers-string-smash/play/"
+  },
+  {
     "slug": "cornhole-bag-toss",
     "stage": "release-candidate",
     "title": "Cornhole",
@@ -295,6 +407,24 @@
     ],
     "icon": "games/crokinole-disc-flick/icon.svg",
     "play": "games/crokinole-disc-flick/play/"
+  },
+  {
+    "slug": "crossword-grid-clues",
+    "stage": "release-candidate",
+    "title": "Crossword Grid Clues",
+    "tagline": "Clever clues, calm puzzles. Hints that teach.",
+    "description": "The classic crossword made for a phone or tablet. Five sizes from a quick Mini to a Giant, a Daily Crossword with a streak, original clues, a proper keyboard, pencil letters, and hints that explain how to think about each clue. Watch and Learn solves a puzzle step by step.",
+    "genre": "Word puzzle",
+    "demo": true,
+    "howToPlay": [
+      "Tap a white square, then type the answer to the clue shown below the grid.",
+      "Tap the same square again to switch between Across and Down.",
+      "Where words cross they share a letter, so each answer helps the next.",
+      "Use Pencil, Check and Reveal when you are unsure, or tap the bulb for a hint that teaches.",
+      "Pick Mini to Giant, or play the Daily Crossword and keep your streak."
+    ],
+    "icon": "games/crossword-grid-clues/icon.svg",
+    "play": "games/crossword-grid-clues/play/"
   },
   {
     "slug": "crown-star-regions",
@@ -374,6 +504,42 @@
     "play": "games/datse-bhutan-archery/play/"
   },
   {
+    "slug": "ddakji-tile-flip",
+    "stage": "release-candidate",
+    "title": "Ddakji",
+    "tagline": "Fold it. Slap it. Flip theirs.",
+    "description": "A Korean childhood classic with real paper physics. Fold a thick tile, slap it down beside your rival's, and let the wind and the shock tip theirs onto its back. Six rivals, a fold workshop, twelve tile patterns to win and a two-player mode.",
+    "genre": "paper-tile flip skill",
+    "demo": true,
+    "howToPlay": [
+      "Drag on the floor to place the ghost tile where yours will land, just beside theirs.",
+      "Set Strength and Twist with the two sliders, then press Throw.",
+      "Land near the middle of an edge: the tile lifts, pivots and flips face down.",
+      "Too soft only wobbles it; too hard scatters your throw; landing on top pins it.",
+      "Win 2 or 3 flips to take the match and the rival's printed tile."
+    ],
+    "icon": "games/ddakji-tile-flip/icon.svg",
+    "play": "games/ddakji-tile-flip/play/"
+  },
+  {
+    "slug": "dhow-sailing-monsoon",
+    "stage": "release-candidate",
+    "title": "Dhow Sailing",
+    "tagline": "Ride the monsoon. Trim the lateen. Steer by the stars.",
+    "description": "Captain a wooden dhow across the Indian Ocean in real 3D water: trim the lateen sail, steer by wind and star, dodge reefs and squalls, and trade between Kilwa, Aden, Calicut and Malacca.",
+    "genre": "sailing and trade journey",
+    "demo": true,
+    "howToPlay": [
+      "Drag the compass to choose your course.",
+      "Drag the sheet slider until the sail is full.",
+      "Never point the bow into the red wedge.",
+      "At night, tap Sight and then NOW to fix your latitude.",
+      "Reef the sail when a squall comes."
+    ],
+    "icon": "games/dhow-sailing-monsoon/icon.svg",
+    "play": "games/dhow-sailing-monsoon/play/"
+  },
+  {
     "slug": "diabolo-yo-yo-skill",
     "stage": "release-candidate",
     "title": "Spin and String",
@@ -447,6 +613,24 @@
     ],
     "icon": "games/domino-cubano-doble-nueve/icon.svg",
     "play": "games/domino-cubano-doble-nueve/play/"
+  },
+  {
+    "slug": "dragon-boat-paddle-rhythm",
+    "stage": "release-candidate",
+    "title": "Dragon Boat Race",
+    "tagline": "Keep the drum beat, lead twenty paddlers to the line",
+    "description": "A rhythm race in real 3D. Tap in time with the drum to sync your crew, steer the river lanes, ride fast streams and race rival crews through a heat, semifinal and final. Or take the drum yourself.",
+    "genre": "rhythm racing",
+    "demo": true,
+    "howToPlay": [
+      "Tap the right side when the ring closes on the drum",
+      "Perfect timing syncs the crew and speeds the boat",
+      "Drag the left thumb to steer: take streams, dodge debris",
+      "Fill the Surge ring with great hits, then fire it",
+      "Win the heat and semifinal to reach the final"
+    ],
+    "icon": "games/dragon-boat-paddle-rhythm/icon.svg",
+    "play": "games/dragon-boat-paddle-rhythm/play/"
   },
   {
     "slug": "dudo-andean-liars-dice",
@@ -566,6 +750,24 @@
     "play": "games/fox-and-geese/play/"
   },
   {
+    "slug": "futbolin-table-football",
+    "stage": "release-candidate",
+    "title": "Futbolín",
+    "tagline": "Slide and flick the rods. Score on the rival goal.",
+    "description": "Table football from Spain and Latin America on a lit wooden table. Slide a rod with your thumb, flick to kick, and beat five rival levels, climb the three-round Cup, or play a friend on the same screen. A Hint names the rod to use, and Watch & Learn explains each kick.",
+    "genre": "table football",
+    "demo": true,
+    "howToPlay": [
+      "Touch a rod and drag sideways to line a player up with the ball.",
+      "Flick quickly toward the rival goal to kick; a tap is a soft pass.",
+      "Where the ball meets the foot decides its angle.",
+      "Keep a player in the ball's path to defend your goal.",
+      "Win matches to 3, 5 or 7 goals, try the Cup, or pass and play with a friend."
+    ],
+    "icon": "games/futbolin-table-football/icon.svg",
+    "play": "games/futbolin-table-football/play/"
+  },
+  {
     "slug": "gabata-three-row-mancala",
     "stage": "release-candidate",
     "title": "Gabata: Three-Row Sowing",
@@ -582,6 +784,44 @@
     ],
     "icon": "games/gabata-three-row-mancala/icon.svg",
     "play": "games/gabata-three-row-mancala/play/"
+  },
+  {
+    "slug": "gamelan-metallophone",
+    "stage": "release-candidate",
+    "title": "Gamelan",
+    "tagline": "Strike the bronze bars. Keep the cycle.",
+    "description": "A rhythm and music game for the tuned bronze bars and hanging gongs of Java and Bali. Strike the bars in time, take over the gong and kenong to keep the cycle, and learn six original pieces by call and response while a computer ensemble joins in as you play cleanly. Slendro and pelog tunings with a shimmering sustain, free play, Watch and Learn with a caption for every strike, a calibration screen and an in-app Rules page. Carved wood and bronze in a lamp-lit hall, synthesised sound, no ads, works offline.",
+    "genre": "rhythm music",
+    "demo": true,
+    "howToPlay": [
+      "Pick a piece, then start with Learn the pattern: the ensemble plays a phrase and you echo it back.",
+      "Notes fall down a lane onto a bar. A golden bar-shaped note shows the number of its bar; a green disc is a gong.",
+      "Tap when the note reaches the bar. Closer to the beat scores more. Use two thumbs, or more fingers.",
+      "Watch the ring: it sweeps once round the cycle and the gong sounds at the top.",
+      "Play cleanly and more of the ensemble joins. Miss and one drops out.",
+      "Free play has both tunings, the gongs above the bars, a click and an echo partner.",
+      "Watch and Learn plays the piece for you and says why each strike happens.",
+      "On a keyboard: A S D F G H J play bars 1 to 7, Z X C play the gongs, Space pauses."
+    ],
+    "icon": "games/gamelan-metallophone/icon.svg",
+    "play": "games/gamelan-metallophone/play/"
+  },
+  {
+    "slug": "gilli-danda-stick-and-peg",
+    "stage": "release-candidate",
+    "title": "Gilli-Danda Stick and Peg",
+    "tagline": "Tap the peg, flip it, strike it as far as you can.",
+    "description": "India's village street game in real 3D: flip the peg, strike it in the air, aim for the gap between fielders and count the distance in danda lengths. Team match, distance and daily challenges, plus Auto Play that explains itself, left- or right-handed.",
+    "genre": "Street stick-and-peg sport",
+    "demo": true,
+    "howToPlay": [
+      "Drag to aim at a gap between the fielders.",
+      "Press the pad when the swinging danda crosses the gold to flip the peg.",
+      "Press again as the ring closes to strike it in the air.",
+      "A fielder who catches it puts you out; otherwise count the distance in danda lengths."
+    ],
+    "icon": "games/gilli-danda-stick-and-peg/icon.svg",
+    "play": "games/gilli-danda-stick-and-peg/play/"
   },
   {
     "slug": "go-stones-and-territory",
@@ -642,6 +882,27 @@
     ],
     "icon": "games/gonggi-five-stones/icon.svg",
     "play": "games/gonggi-five-stones/play/"
+  },
+  {
+    "slug": "halma-hop-and-leap",
+    "stage": "release-candidate",
+    "title": "Halma: Hop and Leap",
+    "tagline": "Hop your pegs across the board and fill the far camp first.",
+    "description": "Halma (from the Greek word for a jump) is a family race game from the 1880s. Move a team of pegs from your corner to the opposite corner, stepping one square or hopping over any piece, and chain hops into long leaps. Play Classic on a 16 by 16 board, Quick on 10 by 10, or race three computer players in the four-player game. Five computer levels, two to four players on one phone, hands-on lessons, hints, take back and a Watch & Learn mode. Lit wooden boards, large text and reduced motion options, no ads, works offline.",
+    "genre": "Hopping race board game",
+    "demo": true,
+    "howToPlay": [
+      "New here? Tap Learn to play: five short hands-on lessons where you make every move yourself.",
+      "Tap one of your pegs and every square it can reach lights up: small dots are steps, gold rings are hops.",
+      "Tap a lit square or drag the peg there. A peg steps to a neighbouring square or hops over any piece next to it.",
+      "After a hop, keep hopping in the same turn if you can. Pieces with gaps between them make a ladder for long leaps.",
+      "Nothing is ever captured: hop over your own pieces and the other side's alike.",
+      "Fill every square of the far corner camp with your pegs to win. A peg inside its goal camp cannot leave it.",
+      "Hint shows a good move, Take back undoes your last move, and Auto Play shows the computer playing every side.",
+      "If nobody finishes within 100 moves each, the player furthest along wins."
+    ],
+    "icon": "games/halma-hop-and-leap/icon.svg",
+    "play": "games/halma-hop-and-leap/play/"
   },
   {
     "slug": "hanoi-tower-discs",
@@ -797,6 +1058,27 @@
     "play": "games/hurling-sliotar-dash/play/"
   },
   {
+    "slug": "ink-brush-strokes",
+    "stage": "release-candidate",
+    "title": "Ink Brush",
+    "tagline": "Grind the ink, load the brush, make the stroke.",
+    "description": "A calm skill game of Chinese brush-and-ink writing and painting. A believable brush that bleeds into paper and splits when it runs dry, six basic strokes, eight characters with the stroke order shown, bamboo, orchid and plum blossom compositions, feedback on order, shape and rhythm, a free scroll, six seals and a gallery. No ads, works offline.",
+    "genre": "brush and ink craft",
+    "demo": true,
+    "howToPlay": [
+      "Pick a lesson. Numbers on the paper show the order of the strokes.",
+      "Tap Dip to load the brush. Grind makes the ink darker, Water makes it paler.",
+      "Press and drag one stroke, then lift. Slow means heavy and dark, fast means thin.",
+      "Pause for a moment at the start or the end to press a pool of ink.",
+      "After each stroke you see order, shape and rhythm feedback and a one-line tip.",
+      "Finish a lesson for up to three stars, then press a seal and keep it in the gallery.",
+      "Watch and Learn paints a lesson for you and says why. Pause it any time.",
+      "On a keyboard: D dip, W water, G grind, U undo, H hint, Space pauses."
+    ],
+    "icon": "games/ink-brush-strokes/icon.svg",
+    "play": "games/ink-brush-strokes/play/"
+  },
+  {
     "slug": "jack-and-boule-petanque",
     "stage": "release-candidate",
     "title": "Jack and Boule",
@@ -833,6 +1115,27 @@
     ],
     "icon": "games/janggi-korean-chess-tutor/icon.svg",
     "play": "games/janggi-korean-chess-tutor/play/"
+  },
+  {
+    "slug": "jungle-animal-chess",
+    "stage": "release-candidate",
+    "title": "Jungle (Dou Shou Qi)",
+    "tagline": "The rat can topple the elephant. Reach the den to win.",
+    "description": "Dou Shou Qi, known as Jungle, is a traditional Chinese board game. Eight animals per side, from rat to elephant, fight across a board with two lakes, four traps and a den at each end. Bigger animals eat smaller ones, only the rat swims, lions and tigers leap the lakes, and the rat is the one animal that can eat the elephant. Five computer levels, lessons, hints, a two-player mode and Watch & Learn. Painted animal tokens, no ads, works offline.",
+    "genre": "Chinese animal-rank board game",
+    "demo": true,
+    "howToPlay": [
+      "New here? Tap Learn to play: six short hands-on lessons where you make every move yourself.",
+      "Tap an animal and its reachable squares glow. Animals step one square up, down, left or right.",
+      "A bigger animal eats a smaller one. A red ring means the move eats something.",
+      "The rat is the only animal that swims, and the only one that can eat the elephant.",
+      "Lions and tigers leap a lake in a straight line, unless a rat is swimming in the way.",
+      "An animal standing in an enemy trap counts as rank zero and anything can eat it.",
+      "Step into the enemy den to win. Hint, danger marks and take back help you learn.",
+      "Auto Play shows the computer playing both sides, with Pause."
+    ],
+    "icon": "games/jungle-animal-chess/icon.svg",
+    "play": "games/jungle-animal-chess/play/"
   },
   {
     "slug": "kabaddi-raid-and-tag",
@@ -928,6 +1231,24 @@
     "play": "games/kings-table-tafl/play/"
   },
   {
+    "slug": "kintsugi-gold-seams",
+    "stage": "release-candidate",
+    "title": "Kintsugi",
+    "tagline": "Mend broken pottery with gold. Slow hands, beautiful seams.",
+    "description": "Twelve broken Japanese vessels wait on a dark lacquer bench. Turn and fit every shard back into place, then trace each crack with liquid gold. Slow, steady strokes make thick, bright seams. No timer, no ads, hints that show you where a shard goes, and Watch and Learn to see a whole mend.",
+    "genre": "mending puzzle",
+    "demo": true,
+    "howToPlay": [
+      "Pick a vessel from the shelf.",
+      "Drag a shard to move it; drag its gold knob to turn it.",
+      "Match the glaze and pattern. Let go near the right place and it clicks in.",
+      "When all shards are in, slide a finger slowly along each crack to pour gold.",
+      "Stay close and go gently for thick, bright gold; three stars for a steady hand."
+    ],
+    "icon": "games/kintsugi-gold-seams/icon.svg",
+    "play": "games/kintsugi-gold-seams/play/"
+  },
+  {
     "slug": "kite-duel-sky-fight",
     "stage": "release-candidate",
     "title": "Kite Duel",
@@ -985,6 +1306,48 @@
     "play": "games/konane-hawaiian-jumps/play/"
   },
   {
+    "slug": "kora-twenty-one-strings",
+    "stage": "release-candidate",
+    "title": "Kora",
+    "tagline": "Pluck the strings. Play the pattern.",
+    "description": "A music game for the kora, the 21-string harp-lute of West Africa. Pluck the strings as glowing beads reach the bridge, with two thumbs or more. Learn six original pieces by call and response, then play them while a quiet accompaniment grows fuller as you play cleanly. Watch and Learn shows the four plucking fingers and explains what each hand does and why. Free play with strumming, a click and an echo partner. Calabash, cow hide and a warm evening courtyard, synthesised sound, no ads, works offline.",
+    "genre": "rhythm music",
+    "demo": true,
+    "howToPlay": [
+      "Pick a piece, then start with Learn the pattern: the accompanist plays a phrase and you echo it back.",
+      "Each lane is one string. Glowing beads slide down toward the bridge: amber for the left hand, teal for the right.",
+      "Tap the string when the bead reaches the bridge. Closer to the beat scores more. Use two thumbs, or more fingers.",
+      "Play cleanly and more voices join the accompaniment. Miss and one drops out.",
+      "Watch and Learn plays a whole piece, shows the four fingers and explains what each hand is doing and why.",
+      "Free play gives you all 21 strings: tap, or slide a finger across to strum, with a click and an echo partner.",
+      "Notes early or late? Settings, then Calibrate, and tap along with the pulse.",
+      "On a keyboard: A S D F G H pluck the lanes from left to right, Space pauses."
+    ],
+    "icon": "games/kora-twenty-one-strings/icon.svg",
+    "play": "games/kora-twenty-one-strings/play/"
+  },
+  {
+    "slug": "koto-thirteen-strings",
+    "stage": "release-candidate",
+    "title": "Koto",
+    "tagline": "Pluck, sweep and press thirteen silk strings.",
+    "description": "A calm music game for the Japanese long zither. Slide the ivory bridges to tune thirteen silk strings, pluck with your fingertips, sweep across the strings and press behind a bridge to bend a note upward. Learn six short pieces phrase by phrase, or let Watch and Learn show the finger, the string and the reason for every note. Silence counts too: keep still during a rest. Five traditional tunings, free play with movable bridges, portrait and landscape, no ads, works offline.",
+    "genre": "music zither",
+    "demo": true,
+    "howToPlay": [
+      "Pick a piece and start with Learn: a short phrase is played, then you play it back.",
+      "Red discs slide along the strings towards you. Tap the string, in front of its bridge, when the disc reaches the ring.",
+      "A gold ring means press: hold the same string behind its bridge. Close to the bridge bends a half step, further back a whole step.",
+      "Teal discs on neighbouring strings are a sweep: drag one finger across them.",
+      "Pale bands with the character for ma are rests: keep still and the silence scores.",
+      "Clean playing adds accompaniment. Show me points out the next note.",
+      "Watch and Learn shows the finger, the string and the reason for every note, with time to think.",
+      "On a keyboard: Q W E R T Y U I O P [ ] \\ pluck strings 1 to 13, Shift or Ctrl press, Space pauses."
+    ],
+    "icon": "games/koto-thirteen-strings/icon.svg",
+    "play": "games/koto-thirteen-strings/play/"
+  },
+  {
     "slug": "kubb-toss",
     "stage": "release-candidate",
     "title": "Kubb",
@@ -1001,6 +1364,24 @@
     ],
     "icon": "games/kubb-toss/icon.svg",
     "play": "games/kubb-toss/play/"
+  },
+  {
+    "slug": "labyrinth-thread-maze",
+    "stage": "release-candidate",
+    "title": "Labyrinth Thread Maze",
+    "tagline": "Follow the red thread through stone and torchlight.",
+    "description": "A calm maze puzzle inspired by the stone labyrinths of ancient Crete. Guide a clay lamp through generated mazes to the glowing heart while a red thread lays out behind you and winds back when you retrace. Six grades, torchlight fog, a hint thread, a daily maze and Watch and Learn. Portrait or landscape, phone or tablet.",
+    "genre": "Maze puzzle",
+    "demo": true,
+    "howToPlay": [
+      "Press and drag: the lamp follows your finger through the corridors.",
+      "Walk back along your thread to undo a wrong turn; Last fork returns to your last choice.",
+      "Tap the bulb for a hint: first about the next fork, then a gold thread shows the way.",
+      "In the dark grades the lamp lights nearby corridors; tap Map to see where you have been.",
+      "Watch and Learn walks a maze for you and explains each fork."
+    ],
+    "icon": "games/labyrinth-thread-maze/icon.svg",
+    "play": "games/labyrinth-thread-maze/play/"
   },
   {
     "slug": "latrunculi-roman",
@@ -1080,6 +1461,24 @@
     "play": "games/makruk-thai-chess-tutor/play/"
   },
   {
+    "slug": "marbles-ring-and-shoot",
+    "stage": "release-candidate",
+    "title": "Marbles: Ring and Shoot",
+    "tagline": "Flick it. Clear the ring. Keep the king.",
+    "description": "The playground marble game with real rolling glass. Pull back, flick your shooter, knock clay, glass and the golden king out of the ring, and outplay five rivals.",
+    "genre": "marble ring-shooting skill",
+    "demo": true,
+    "howToPlay": [
+      "Tap the dotted line to place your shooter when it is in hand.",
+      "Pull back anywhere like a slingshot and let go to shoot.",
+      "Marbles that end outside the ring are yours: clay 1, glass 2, king 3.",
+      "Knock out two at once for a bonus shot; knock a rival shooter out of the ring to capture it.",
+      "The higher total after the last round wins."
+    ],
+    "icon": "games/marbles-ring-and-shoot/icon.svg",
+    "play": "games/marbles-ring-and-shoot/play/"
+  },
+  {
     "slug": "matkot-beach-rally",
     "stage": "release-candidate",
     "title": "Matkot Beach Rally",
@@ -1135,6 +1534,24 @@
     ],
     "icon": "games/mill-nine-mens-morris/icon.svg",
     "play": "games/mill-nine-mens-morris/play/"
+  },
+  {
+    "slug": "mini-golf-links-putt",
+    "stage": "release-candidate",
+    "title": "Mini Golf Links Putt",
+    "tagline": "Pull back, bank it, sink it.",
+    "description": "Slingshot putting over eighteen seaside holes. Bank off rails, ride slopes, cross bridges, use tunnels and time your shot past windmills. Play four computer golfers, share the phone, or watch two players explain their choices.",
+    "genre": "physics sport",
+    "demo": true,
+    "howToPlay": [
+      "Drag back anywhere and let go: the ball rolls the opposite way.",
+      "The farther you pull, the harder the putt; a dotted line shows the path.",
+      "Rails bounce the ball, sand slows it, water costs a stroke.",
+      "Tunnels join two parts of a hole; windmills and gates keep moving.",
+      "Fewest strokes over the round wins. Think shows a strong putt."
+    ],
+    "icon": "games/mini-golf-links-putt/icon.svg",
+    "play": "games/mini-golf-links-putt/play/"
   },
   {
     "slug": "moksha-patam-snakes-ladders",
@@ -1318,6 +1735,47 @@
     "play": "games/one-arrow-oath/play/"
   },
   {
+    "slug": "origami-fold-by-fold",
+    "stage": "release-candidate",
+    "title": "Origami: Fold by Fold",
+    "tagline": "Fold paper into something wonderful.",
+    "description": "Real, curling, layered paper in 3D. Grab a flap, drag it across and feel the crease snap flat, then watch your kite, puppy, fish or paper dart stand up. Seven models, six washi papers, free-fold Studio and a Watch & Learn mode that folds for you. No ads and no timers.",
+    "genre": "paper folding craft puzzle",
+    "demo": true,
+    "howToPlay": [
+      "Each model is a short list of folds. The caption tells you the next one.",
+      "Grab the glowing corner and drag it across the dashed crease to the ring.",
+      "Let go past halfway and it lands flat; let go early and it springs back.",
+      "Neatness scores how close your finger ended to the ring. Folds are always exact.",
+      "Some steps unfold the last fold, turn the paper over or fold only the top layer.",
+      "Press Hint to see the fold as a ghost demonstration. Three stars for neat folds and no hints.",
+      "Studio lets you fold freely; Watch & Learn folds whole models for you."
+    ],
+    "icon": "games/origami-fold-by-fold/icon.svg",
+    "play": "games/origami-fold-by-fold/play/"
+  },
+  {
+    "slug": "oud-maqam-strings",
+    "stage": "release-candidate",
+    "title": "Oud Maqam Strings",
+    "tagline": "Slide to the quarter-tone, pluck in time.",
+    "description": "Play the oud, the fretless pear-shaped lute of the Arab world. Slide a finger along the bare neck to land on the right pitch, including the quarter-tones of Rast and Bayati, and pluck in time over rhythm cycles. Learn six original pieces phrase by phrase, perform them while the room lights up and an ensemble joins in, watch the computer play with a ghost finger that explains each note, or improvise a taqsim in free play.",
+    "genre": "fretless lute music",
+    "demo": true,
+    "howToPlay": [
+      "Rings on the neck show where each note is. Touch the neck at the ring on the beat to pluck.",
+      "Keep your finger down and slide to bend the note or land on a second ring.",
+      "To repeat a note, hold your finger still and tap the wooden body with your other hand.",
+      "Turquoise diamonds on the neck mark quarter-tones, notes between piano keys.",
+      "Learn the phrases: listen, then echo each phrase of a piece.",
+      "Perform the whole piece for stars; play cleanly and more instruments join in.",
+      "Watch and Learn shows a ghost finger and says why each note sits where it does.",
+      "Free play has a drone, rhythm and a journey guide for a taqsim."
+    ],
+    "icon": "games/oud-maqam-strings/icon.svg",
+    "play": "games/oud-maqam-strings/play/"
+  },
+  {
     "slug": "oware-seed-sowing",
     "stage": "production",
     "title": "Oware",
@@ -1360,6 +1818,25 @@
     "play": "games/pachisi-cowries-and-cross/play/"
   },
   {
+    "slug": "paper-cutting-fold-snip",
+    "stage": "release-candidate",
+    "title": "Paper Cutting",
+    "tagline": "Fold, snip, unfold: one cut repeats all around.",
+    "description": "Fold coloured paper in half, quarters or twelfths, snip the wedge with scissors or punches, then unfold it in real 3D to reveal the pattern. 26 levels from paper-cutting traditions around the world, a free-cutting Studio and Gallery, and a Watch & Learn mode that explains every cut. No ads and no timers.",
+    "genre": "paper cutting craft puzzle",
+    "demo": true,
+    "howToPlay": [
+      "Pick a fold: the paper folds itself into one small wedge.",
+      "Snip the wedge with Scissors (drag around a shape) or Punch (tap to stamp a shape).",
+      "A cut on a fold edge opens into one whole shape; a cut at the centre becomes the middle.",
+      "Press Unfold and watch the pattern appear. Stars reward a close match with few cuts.",
+      "Refold to keep cutting, Undo the last cut, or ask for a Hint.",
+      "Studio is free cutting; the Gallery keeps your cut-outs; Watch & Learn explains each cut."
+    ],
+    "icon": "games/paper-cutting-fold-snip/icon.svg",
+    "play": "games/paper-cutting-fold-snip/play/"
+  },
+  {
     "slug": "parques-colombiano-carcel",
     "stage": "release-candidate",
     "title": "Parqués: Salida y Cárcel",
@@ -1377,6 +1854,24 @@
     ],
     "icon": "games/parques-colombiano-carcel/icon.svg",
     "play": "games/parques-colombiano-carcel/play/"
+  },
+  {
+    "slug": "pearl-diving-gulf-journey",
+    "stage": "release-candidate",
+    "title": "Pearl Diving",
+    "tagline": "A season on a Gulf pearling boat, one breath at a time.",
+    "description": "Sail with a Muharraq dive crew in the summer of 1924. Sing, dive on one breath, haul your partner up, open the shells at dusk and decide what to sell, repay and keep for a necklace.",
+    "genre": "journey story",
+    "demo": true,
+    "howToPlay": [
+      "Plan each dawn: pick a pearl bank or a rest day",
+      "Hold to breathe in, let go in the green band, then dive",
+      "Tap shell beds and time the closing ring, signal before air runs low",
+      "Haul your partner up on the beat, open the shells, grade the pearls",
+      "Sell or hold at the harbour, repay the advance, help your family"
+    ],
+    "icon": "games/pearl-diving-gulf-journey/icon.svg",
+    "play": "games/pearl-diving-gulf-journey/play/"
   },
   {
     "slug": "peg-solitaire-board",
@@ -1439,6 +1934,99 @@
     "play": "games/perch/play/"
   },
   {
+    "slug": "pick-up-sticks-steady-hand",
+    "stage": "release-candidate",
+    "title": "Pick-up Sticks",
+    "tagline": "Lift one. Don't wobble the rest.",
+    "description": "The gentle game of a steady hand. Slide lacquered sticks out of a heap one at a time without moving any other, collect bamboo, jade, red lacquer and the golden master, and outplay five rivals, the Solo Ladder and the Daily Heap.",
+    "genre": "steady-hand dexterity",
+    "demo": true,
+    "howToPlay": [
+      "Press a free stick (nothing lying across it) and slide it slowly out of the heap.",
+      "Let go once it is clear. Bamboo is worth 1, indigo 3, jade 5, red lacquer 10, the golden master 20.",
+      "If any other stick moves too far, it is a fault and the turn passes.",
+      "Win the golden master to use the lever and sweep sticks aside.",
+      "Take turns against a rival, climb the ladder or play the Daily Heap."
+    ],
+    "icon": "games/pick-up-sticks-steady-hand/icon.svg",
+    "play": "games/pick-up-sticks-steady-hand/play/"
+  },
+  {
+    "slug": "pond-hockey-slide",
+    "stage": "release-candidate",
+    "title": "Pond Hockey Slide",
+    "tagline": "Slide a skater. Strike the puck. Score on the pond.",
+    "description": "Shinny on a frozen pond, turn by turn. Pull back like a slingshot and slide a skater into the puck, bank it off the snowbanks, dodge loose snow drifts and outplay four computer rivals.",
+    "genre": "sports flick hockey",
+    "demo": true,
+    "howToPlay": [
+      "Press one of your skaters and pull back like a slingshot, then let go.",
+      "Pull length sets the power and pull direction sets the aim; a dotted line shows the glide.",
+      "Strike the puck so the whole puck crosses the goal line between the posts.",
+      "Snow drifts slow anything that crosses them; the banks bounce skaters and puck.",
+      "First to 3 goals (or 5 in a full match) wins; ties go to sudden death."
+    ],
+    "icon": "games/pond-hockey-slide/icon.svg",
+    "play": "games/pond-hockey-slide/play/"
+  },
+  {
+    "slug": "pottery-wheel-throw",
+    "stage": "release-candidate",
+    "title": "Pottery Wheel",
+    "tagline": "Throw, shape and glaze a pot on a spinning wheel.",
+    "description": "A calm craft game: centre a lump of clay, open it, pull the walls up and shape the form with your fingertip in real 3D, then trim, glaze and fire it. Six glaze traditions from around the world, twelve target-outline challenges, a daily pot, a shelf for your finished work, and Watch and Learn, which throws a whole pot for you and explains each stroke. No ads, works offline.",
+    "genre": "craft pottery",
+    "demo": true,
+    "howToPlay": [
+      "Centre: press a finger against the side the clay swings towards and hold steady.",
+      "Open: press down in the middle, then draw outwards to make room.",
+      "Pull: press into the wall and slide up it, slowly. The wall thins and the pot rises.",
+      "Shape: drag the wall out for a belly, in for a neck. In Challenges, match the ghost outline.",
+      "Trim: smooth the outside and press near the base for a foot.",
+      "Glaze: pick a tradition and hold the brush on the turning pot to paint bands.",
+      "Fire the kiln and put your pot on the shelf.",
+      "Stuck? Hint shows the next touch; Watch and Learn throws a whole pot for you."
+    ],
+    "icon": "games/pottery-wheel-throw/icon.svg",
+    "play": "games/pottery-wheel-throw/play/"
+  },
+  {
+    "slug": "quilt-patterns-blocks",
+    "stage": "release-candidate",
+    "title": "Quilt Patterns",
+    "tagline": "Piece traditional quilt blocks and design a quilt, one fabric at a time.",
+    "description": "A calm design puzzle about quilting. Stitch printed fabrics into six traditional blocks, meet briefs about contrast, balance and repeat, then arrange blocks into a quilt top with sashing and a border. Lessons, hints that explain, a Squint tool for value, Free Studio and a Gallery.",
+    "genre": "Design puzzle",
+    "demo": true,
+    "howToPlay": [
+      "Tap a fabric in the tray, then tap or drag across the pieces of the block.",
+      "Meet every rule on the brief card, or copy the sample exactly.",
+      "Use Squint to see light and dark, and the bulb for a hint that explains.",
+      "Arrange finished blocks into a quilt, then add sashing and a border.",
+      "Watch and Learn designs a block and a quilt and explains each choice."
+    ],
+    "icon": "games/quilt-patterns-blocks/icon.svg",
+    "play": "games/quilt-patterns-blocks/play/"
+  },
+  {
+    "slug": "rayuela-hop",
+    "stage": "release-candidate",
+    "title": "Rayuela",
+    "tagline": "Toss the tejo. Hop the beat. Reach the sky.",
+    "description": "Rayuela is the chalk-and-stone hopping game played in courtyards and streets across Latin America and Spain, also called avion, golosa and luche. Toss your tejo onto the next number, hop the course on the beat with one foot on singles and two on doubles, rest in the Sky square, and pick the tejo up on the way back without touching a line. Three courses, four computer levels, two players, Learn, Practice and Watch & Learn.",
+    "genre": "rhythm hopping / street skill game",
+    "demo": true,
+    "howToPlay": [
+      "Tap TOSS to lock the sideways aim, then again to throw the tejo into the next numbered square.",
+      "After four drum beats, tap on every beat as the ring closes: one foot on a single square, TWO FEET on a double.",
+      "Land in the Sky square with two feet, turn, and hop back the same way.",
+      "Just before your tejo, tap PICK UP on the beat, then hop on and out of the course.",
+      "A tap that is too early or too late lands on a line and ends your turn. Finish the numbers first to win."
+    ],
+    "icon": "games/rayuela-hop/icon.svg",
+    "play": "games/rayuela-hop/play/"
+  },
+  {
     "slug": "renju-omok-five-row",
     "stage": "release-candidate",
     "title": "Five in a Row: Renju & Omok",
@@ -1460,6 +2048,66 @@
     "play": "games/renju-omok-five-row/play/"
   },
   {
+    "slug": "reversi-flip-board",
+    "stage": "release-candidate",
+    "title": "Reversi Flip Board",
+    "tagline": "Trap them, turn them, take the board.",
+    "description": "The classic game of flipping, beautifully made. Place a disc, trap a line of enemy discs between two of yours and watch them turn over in a ripple. Classic 8 by 8, quick Mini 6 by 6 and Reverse (fewest discs wins). Five computer levels, two players on one device, hands-on lessons, hints that explain why, take back and a Watch & Learn mode. A felt and brass board, glossy two-faced discs, large text and reduced motion options. No ads, works offline.",
+    "genre": "Classic disc-flipping board game",
+    "demo": true,
+    "howToPlay": [
+      "New here? Tap Learn to play: five short hands-on lessons where you make every move yourself.",
+      "Marked squares show where you may place a disc. Tap one.",
+      "Your disc must trap a straight line of enemy discs between itself and one of your own discs: along a row, a column or a diagonal.",
+      "Every trapped disc turns to your colour, in every direction at once.",
+      "If you have no legal move you pass, and the app does it for you.",
+      "Corners can never be flipped. Be careful with the squares beside an empty corner.",
+      "The game ends when neither side can move: most discs wins. In Reverse, the fewest wins.",
+      "Hint explains a good move, Take back undoes your last move, and Auto Play shows the computer playing both sides."
+    ],
+    "icon": "games/reversi-flip-board/icon.svg",
+    "play": "games/reversi-flip-board/play/"
+  },
+  {
+    "slug": "rice-terraces-seasons",
+    "stage": "release-candidate",
+    "title": "Rice Terraces",
+    "tagline": "Guide the spring, share the water, bring in the gold",
+    "description": "Tend a mountainside of rice terraces through a year of seasons: route the spring water with gates and channels, soak, plant, weed, mend the walls and harvest, in the Cordillera of the Philippines and in Bali. Real 3D, eight years, a growing village.",
+    "genre": "water and seasons puzzle",
+    "demo": true,
+    "howToPlay": [
+      "Tap a round gate to open or close it: water runs downhill through open gates.",
+      "Keep each field's water inside its green band; the band changes with the season.",
+      "Tap a field to plant, weed, clear snails, harvest or mend its wall.",
+      "Share the water with neighbours and the valley: fair sharing earns stars.",
+      "Think and Watch & Learn show what a farmer would do, and why."
+    ],
+    "icon": "games/rice-terraces-seasons/icon.svg",
+    "play": "games/rice-terraces-seasons/play/"
+  },
+  {
+    "slug": "rithmomachia-number-battle",
+    "stage": "release-candidate",
+    "title": "Rithmomachia: Number Battle",
+    "tagline": "The philosophers' game of medieval Europe, with the arithmetic on screen.",
+    "description": "Rithmomachia, the battle of numbers, was a game for scholars across medieval Europe. Every piece carries a number. Touch an enemy piece whose number is equal to yours, or in the ratio 1:2, 1:3 or 2:3, and it is taken; ambush a piece between two of yours whose numbers add up to its own. Win by lining three pieces up in the enemy camp as an arithmetic, geometric or harmonic progression. Eight hands-on lessons, five computer levels, hints, danger marks, a Watch & Learn mode and the sum of every capture shown on the board. Gold leaf, lapis and vellum. No ads, works offline.",
+    "genre": "Medieval number-battle board game",
+    "demo": true,
+    "howToPlay": [
+      "New here? Tap Learn to play: eight short hands-on lessons where you make every move yourself.",
+      "Tap a piece and its reachable squares glow. Rounds step one square, triangles jump two diagonally, squares leap three straight.",
+      "Touch an enemy piece whose number is equal to yours, or in the ratio 1:2, 1:3 or 2:3, and you take it.",
+      "Ambush: if your moved piece and another of yours stand in line either side of an enemy piece and add up to its number, it falls.",
+      "The board shows the sum of every capture, such as 6 : 12 = 1 : 2 or 4 + 5 = 9, so you always see why a piece fell.",
+      "Win by lining up three of your pieces in the enemy camp as an arithmetic, geometric or harmonic progression, or by taking 10 pieces.",
+      "Hint explains a good move, danger marks and a warning line show what the other side threatens, and Take back undoes a move.",
+      "Auto Play shows the computer playing both sides, with time to think and a Pause button."
+    ],
+    "icon": "games/rithmomachia-number-battle/icon.svg",
+    "play": "games/rithmomachia-number-battle/play/"
+  },
+  {
     "slug": "royal-game-of-ur-race",
     "stage": "production",
     "title": "The Royal Game of Ur",
@@ -1479,6 +2127,24 @@
     ],
     "icon": "games/royal-game-of-ur-race/icon.svg",
     "play": "games/royal-game-of-ur-race/play/"
+  },
+  {
+    "slug": "rugby-conversion-kick",
+    "stage": "release-candidate",
+    "title": "Rugby Conversion",
+    "tagline": "Read the wind, set the ball, strike on the beat.",
+    "description": "The goal-kicking game of the conversion kick. Judge the wind and the angle, choose your ball tilt and power, then strike on the beat in a real 3D stadium. A 24-level ladder, five rival kickers, lessons, and a Watch & Learn mode that explains every kick.",
+    "genre": "Kicking sport",
+    "demo": true,
+    "howToPlay": [
+      "Read the wind dial and the flag on the posts, then aim into the wind.",
+      "Pick Upright, Leaning or Flat and set the power.",
+      "Press Kick and watch the three beats of the run-up.",
+      "Flick up as the ring closes on the ball; bend the flick to curl it.",
+      "Make 2 of 3 to clear a level and climb the ladder."
+    ],
+    "icon": "games/rugby-conversion-kick/icon.svg",
+    "play": "games/rugby-conversion-kick/play/"
   },
   {
     "slug": "russian-loto-barrels",
@@ -1614,6 +2280,22 @@
     "play": "games/shagai-anklebone-flicks/play/"
   },
   {
+    "slug": "sheepdog-trial-herd",
+    "stage": "release-candidate",
+    "title": "Sheepdog Trials",
+    "tagline": "Whistle a border collie round the flock in 3D",
+    "description": "Work a lifelike border collie at a hill-pasture sheepdog trial: outrun, lift, fetch, drive through two gates and pen the flock, scored by a judge. Five courses from valley to highland, weather and time of day, Training and Watch & Learn.",
+    "genre": "herding sim",
+    "demo": true,
+    "howToPlay": [
+      "Send the dog wide with Come bye or Away to me, then Walk on from behind the flock.",
+      "Keep the dog on the balance point: sheep move away from it, along the line.",
+      "Rest the dog with Lie down, hold the flock with Stand, then pen them and shut the gate."
+    ],
+    "icon": "games/sheepdog-trial-herd/icon.svg",
+    "play": "games/sheepdog-trial-herd/play/"
+  },
+  {
     "slug": "shogi-generals-and-drops",
     "stage": "prototype",
     "title": "Shogi",
@@ -1633,6 +2315,64 @@
     ],
     "icon": "games/shogi-generals-and-drops/icon.svg",
     "play": "games/shogi-generals-and-drops/play/"
+  },
+  {
+    "slug": "shut-the-box-tiles",
+    "stage": "release-candidate",
+    "title": "Shut the Box",
+    "tagline": "Roll, add, flip. Close the box.",
+    "description": "The classic tavern dice game of England and France on a lit oak box with brass hinges and bone tiles. Roll two dice, flip down tiles that add up to the total and try to shut them all: low score wins. Classic and Tall boxes, a five-round Duel with the Innkeeper, a Daily Box, hints from an exact solver and Watch & Learn. No clock, no ads, works offline.",
+    "genre": "dice game",
+    "demo": true,
+    "howToPlay": [
+      "Tap the dice tray to roll two dice and add them up.",
+      "Tap open tiles that add up to the total. When they match, they flip down by themselves.",
+      "Keep rolling and shutting. If no open tiles can make the roll, the box is over.",
+      "The numbers on the tiles still open are your score. Lower is better, 0 is a perfect shut box.",
+      "Once tiles 7 and up are shut you can roll a single die instead.",
+      "Stuck on a choice? Hint shows the best move and your odds of shutting the box.",
+      "Duel the Innkeeper over five boxes with the same dice, or play the Daily Box.",
+      "Watch & Learn shows the solver playing whole boxes, with Pause and think time."
+    ],
+    "icon": "games/shut-the-box-tiles/icon.svg",
+    "play": "games/shut-the-box-tiles/play/"
+  },
+  {
+    "slug": "silk-road-trader-journey",
+    "stage": "release-candidate",
+    "title": "Silk Road Trader",
+    "tagline": "Lead a caravan from Chang'an to Baghdad and trade your way across Eurasia.",
+    "description": "A journey and trading game on the old Silk Road, around the year 780. Provision your camels, buy silk, paper, glass, spices, horses and jade where they are cheap and sell them where they are dear, choose your roads and your pace, and meet the people of the road in illustrated encounters where every choice has consequences. Keep a journal of cities, goods and people, watch an expert trader explain each decision, and finish with the best score before the passes close. Painted landscapes, no ads, works offline.",
+    "genre": "journey trading",
+    "demo": true,
+    "howToPlay": [
+      "In each city, buy goods that are cheap here and sell goods that are dear here. Prices move as you trade.",
+      "Add camels for space, guards for safety, and buy water and provisions for the road.",
+      "On the Road tab choose east or west, a route and a pace, then Depart.",
+      "Encounters stop the caravan. Each choice shows its cost and the odds of a good result.",
+      "Reputation, customs and languages improve your odds and your score.",
+      "Watch and Learn plays an opening journey and explains every decision. Tap the lightbulb for a hint any time.",
+      "Reach Baghdad, turn back, or settle on the way: the score counts silver, goods and what you learned.",
+      "The first 90 seconds of real play are free."
+    ],
+    "icon": "games/silk-road-trader-journey/icon.svg",
+    "play": "games/silk-road-trader-journey/play/"
+  },
+  {
+    "slug": "ski-jump-fjord",
+    "stage": "release-candidate",
+    "title": "Ski Jump Fjord",
+    "tagline": "Fly the fjord, land the telemark",
+    "description": "Crouch down the ice track, jump on the lip, hold your skis in the green band against the wind and land a telemark above a 3D fjord. Four hills, a lifelike jumper and real flight physics.",
+    "genre": "timing sport",
+    "demo": true,
+    "howToPlay": [
+      "Hold to crouch on the in-run, lift your finger as the ring closes on the lip.",
+      "Drag up and down to keep the skis in the moving green band, sideways to level them.",
+      "Lift again as the ring closes on the snow to land in a telemark."
+    ],
+    "icon": "games/ski-jump-fjord/icon.svg",
+    "play": "games/ski-jump-fjord/play/"
   },
   {
     "slug": "snooker-cue-and-frame",
@@ -1992,6 +2732,23 @@
     ],
     "icon": "games/truco-brasileiro-manilha/icon.svg",
     "play": "games/truco-brasileiro-manilha/play/"
+  },
+  {
+    "slug": "tug-of-war-rope",
+    "stage": "release-candidate",
+    "title": "Tug of War",
+    "tagline": "Pull on the beat, dig in, outlast them",
+    "description": "A village rope contest in real 3D. Tap on the chant beat to heave, hold to dig in against rival surges, call the anchor and the coach, and out-last the other team. A bracket of eight teams on six festival grounds, a Daily Pull and two players on one screen.",
+    "genre": "timing sport",
+    "demo": true,
+    "howToPlay": [
+      "Tap anywhere as the ring lands on the target to heave on the chant beat.",
+      "Keep your finger down after a tap to dig in: it blocks rival surges and wins stamina back.",
+      "Tap ANCHOR to halve the rivals' pull, tap COACH when its meter is full for wider timing.",
+      "Bring the flag across your line, or hold the lead when the time runs out; win two pulls to win the match."
+    ],
+    "icon": "games/tug-of-war-rope/icon.svg",
+    "play": "games/tug-of-war-rope/play/"
   },
   {
     "slug": "tumbang-preso-can-toss",

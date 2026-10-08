@@ -299,7 +299,7 @@ export function render(ctx, state, title, demoLimit, L, env, X = {}) {
       text(X.sumLine ?? '', cx0, sm.y + sm.h / 2 + 9, 25, hc ? '#ffffff' : '#bff3ff', { weight: 600, maxW: sm.w - 30 });
       text(X.best ? `★  Best score at this pace: ${X.best}` : 'Your words and pace (tap to change)', cx0, T.bestY, 25, hc ? '#ffffff' : GOLD, { weight: 700, maxW: sm.w });
     }
-    if (state.msg) text(state.msg, T.sum.x + T.sum.w / 2, L.wide ? T.bestY + 30 : T.bestY - 28, 23, hc ? '#ffffff' : BAD, { weight: 700, maxW: Math.min(w - 40, 640) });
+    if (state.msg || X.note) text(state.msg || X.note, T.sum.x + T.sum.w / 2, L.wide ? T.bestY + 30 : T.bestY - 28, 23, hc ? '#ffffff' : BAD, { weight: 700, maxW: Math.min(w - 40, 640) });
 
     const breathe = 1 + Math.sin(t * 2.4) * 0.018, pc = { x: T.play.x + T.play.w / 2, y: T.play.y + T.play.h / 2 };
     if (!hc) {
@@ -484,6 +484,33 @@ export function render(ctx, state, title, demoLimit, L, env, X = {}) {
         text(String(row.value ?? ''), left + b.x + b.w / 2, top + b.y + b.h / 2 + S_(11), S_(31), '#ffffff', { weight: 800, maxW: b.w - 20 });
       } else if (row.k === 'btn' || row.k === 'btn2') {
         for (const hh of it.hits) button({ x: left + hh.x, y: top + hh.y, w: hh.w, h: hh.h }, hh.label, { id: hh.id, style: hh.style, size: S_(row.k === 'btn' && hh.style === 'primary' ? 36 : 31), sub: hh.sub, disabled: hh.disabled });
+      } else if (row.k === 'rtext') {
+        // the layout broke the lines with a generous width estimate; here the words are placed with their real widths (hit boxes follow)
+        ctx.font = `500 ${it.hits[0]?.sz ?? 30}px ${UI}`; const sp = ctx.measureText(' ').width * 1.15;
+        let ly = -1, lx = 0;
+        for (const hh of it.hits) {
+          if (hh.y !== ly) { ly = hh.y; lx = 0; }
+          hh.x = lx; hh.w = ctx.measureText(hh.label).width; lx += hh.w + sp;
+          const sel = row.selIdx === hh.idx;
+          if (sel) { ctx.fillStyle = hc ? '#ffffff' : hexA(CYAN, 0.45); rr(left + hh.x - 4, top + hh.y, hh.w + 8, hh.h, 8); ctx.fill(); }
+          text(hh.label, left + hh.x, top + hh.y + hh.h * 0.72, hh.sz, sel && hc ? '#000000' : soft(0.96), { align: 'left', weight: 500 });
+        }
+      } else if (row.k === 'heat') {
+        const cells = row.cells, mx = Math.max(1, ...cells), cs = Math.min(S_(30), Math.floor(width / 12)), gap = 4;
+        text(row.label ?? '', left, top + S_(26), S_(24), soft(0.9), { align: 'left', weight: 700, maxW: width });
+        for (let i = 0; i < cells.length; i += 1) {
+          const col = Math.floor(i / 7), rw = i % 7, v = cells[i], x = left + col * (cs + gap), y = top + S_(44) + rw * (cs + gap);
+          ctx.fillStyle = v ? hexA(hc ? '#ffffff' : CYAN, 0.25 + 0.75 * Math.min(1, v / mx)) : (hc ? '#222222' : 'rgba(255,255,255,0.08)'); rr(x, y, cs, cs, 5); ctx.fill();
+        }
+        text(row.foot ?? '', left, top + S_(44) + 7 * (cs + gap) + S_(20), S_(21), soft(0.7), { align: 'left', weight: 500, maxW: width });
+      } else if (row.k === 'stickers') {
+        row.cells.forEach((c, i) => {
+          const col = i % it.cols, rw = Math.floor(i / it.cols), x = left + col * (it.cell + S_(10)), y = top + S_(10) + rw * (it.cell + S_(10));
+          ctx.fillStyle = hc ? (c.got ? '#ffffff' : '#000000') : c.got ? 'rgba(250,244,228,0.95)' : 'rgba(255,255,255,0.07)'; rr(x, y, it.cell, it.cell, 18); ctx.fill();
+          if (hc) { ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 3; ctx.stroke(); }
+          if (c.got) { drawArt(ctx, c.w, x + it.cell / 2, y + it.cell * 0.46, it.cell * 0.66); text(c.w, x + it.cell / 2, y + it.cell - 10, Math.max(14, S_(18)), '#10242e', { weight: 700, maxW: it.cell - 8 }); }
+          else text('?', x + it.cell / 2, y + it.cell * 0.62, S_(44), soft(0.35), { weight: 800 });
+        });
       } else if (row.k === 'word') {
         ctx.save(); ctx.fillStyle = soft(0.14); ctx.fillRect(left, top + it.h - 8, width, 2); ctx.restore();
         text(row.w, left, top + it.tsz, it.tsz, '#ffffff', { font: DISPLAY, align: 'left', maxW: width * 0.5 });

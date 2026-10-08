@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <radialGradient id="bg" cx="40%" cy="30%" r="85%"><stop offset="0" stop-color="#f9e9c6"/><stop offset="1" stop-color="#d9b97e"/></radialGradient>
+    <radialGradient id="leaf" cx="35%" cy="30%" r="75%"><stop offset="0" stop-color="#7fb067"/><stop offset="0.6" stop-color="#2f6a47"/><stop offset="1" stop-color="#17382a"/></radialGradient>
+    <linearGradient id="pot" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#c9774f"/><stop offset="0.5" stop-color="#a24f33"/><stop offset="1" stop-color="#6a2e1d"/></linearGradient>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+  <rect y="800" width="1024" height="224" fill="#6b4528"/>
+  <ellipse cx="540" cy="808" rx="270" ry="22" fill="#000" opacity="0.3"/>
+  <path d="M520 720 C 500 600 470 520 520 430 C 560 360 640 330 700 250" fill="none" stroke="#4a3426" stroke-width="40" stroke-linecap="round"/>
+  <path d="M500 560 C 430 520 360 520 300 470" fill="none" stroke="#4a3426" stroke-width="22" stroke-linecap="round"/>
+  <path d="M540 440 C 620 440 700 470 780 440" fill="none" stroke="#4a3426" stroke-width="20" stroke-linecap="round"/>
+  <circle cx="700" cy="230" r="120" fill="url(#leaf)"/><circle cx="290" cy="450" r="110" fill="url(#leaf)"/><circle cx="800" cy="420" r="105" fill="url(#leaf)"/><circle cx="520" cy="380" r="95" fill="url(#leaf)"/>
+  <path d="M290 720 H760 L720 830 Q715 850 695 850 H355 Q335 850 330 830 Z" fill="url(#pot)"/>
+  <rect x="280" y="700" width="490" height="34" rx="14" fill="#d38d63"/>
+</svg>

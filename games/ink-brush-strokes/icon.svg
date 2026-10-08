@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f6eed7"/><stop offset="0.55" stop-color="#ecdfbd"/><stop offset="1" stop-color="#d9c698"/></linearGradient>
+    <radialGradient id="edge" cx="0.5" cy="0.5" r="0.75"><stop offset="0.6" stop-color="#8a6a2c" stop-opacity="0"/><stop offset="1" stop-color="#8a6a2c" stop-opacity="0.35"/></radialGradient>
+    <filter id="rough" x="-10%" y="-10%" width="120%" height="120%"><feTurbulence type="fractalNoise" baseFrequency="0.035" numOctaves="3" seed="7" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="16"/></filter>
+    <filter id="fibre" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency="0.9 0.05" numOctaves="2" seed="3"/><feColorMatrix values="0 0 0 0 0.45  0 0 0 0 0.35  0 0 0 0 0.2  0 0 0 0.5 -0.12"/></filter>
+    <filter id="soft"><feGaussianBlur stdDeviation="3"/></filter>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+  <rect width="1024" height="1024" filter="url(#fibre)" opacity="0.55"/>
+  <rect width="1024" height="1024" fill="url(#edge)"/>
+  <!-- a mountain wash behind the circle -->
+  <path d="M0 760 C140 640 220 700 330 600 C420 520 470 590 560 520 C680 430 760 560 880 520 C940 500 990 530 1024 548 L1024 1024 L0 1024 Z" fill="#7d9a96" opacity="0.28" filter="url(#soft)"/>
+  <!-- the ink circle, a stepped taper of round-capped strokes -->
+  <g fill="none" stroke="#10151a" stroke-linecap="round" filter="url(#rough)" transform="rotate(-38 512 512)">
+    <circle cx="512" cy="512" r="300" stroke-width="104" stroke-dasharray="1150 4000" opacity="0.97"/>
+    <circle cx="512" cy="512" r="300" stroke-width="78" stroke-dasharray="1450 4000" opacity="0.97"/>
+    <circle cx="512" cy="512" r="300" stroke-width="54" stroke-dasharray="1680 4000" opacity="0.97"/>
+    <circle cx="512" cy="512" r="300" stroke-width="30" stroke-dasharray="1800 4000" opacity="0.97"/>
+    <circle cx="512" cy="512" r="300" stroke-width="12" stroke-dasharray="1860 4000" opacity="0.9"/>
+  </g>
+  <!-- dry-brush flecks at the start of the stroke -->
+  <g fill="#10151a" opacity="0.7" filter="url(#rough)">
+    <ellipse cx="318" cy="742" rx="26" ry="5" transform="rotate(-48 318 742)"/><ellipse cx="292" cy="716" rx="20" ry="4" transform="rotate(-50 292 716)"/>
+    <ellipse cx="352" cy="770" rx="22" ry="4" transform="rotate(-44 352 770)"/>
+  </g>
+  <!-- seal -->
+  <g transform="translate(790 800) rotate(6)" filter="url(#rough)">
+    <rect x="-84" y="-84" width="168" height="168" rx="8" fill="#c23b2a"/>
+    <g fill="none" stroke="#f6eed7" stroke-width="13" stroke-linecap="round" stroke-linejoin="round"><path d="M-48 38 L-20 -34 L0 8 L26 -50 L52 38"/><path d="M-56 56 L56 56"/></g>
+  </g>
+</svg>

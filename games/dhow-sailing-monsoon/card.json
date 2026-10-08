@@ -1,0 +1,14 @@
+{
+  "title": "Dhow Sailing",
+  "tagline": "Ride the monsoon. Trim the lateen. Steer by the stars.",
+  "description": "Captain a wooden dhow across the Indian Ocean in real 3D water: trim the lateen sail, steer by wind and star, dodge reefs and squalls, and trade between Kilwa, Aden, Calicut and Malacca.",
+  "genre": "sailing and trade journey",
+  "demo": true,
+  "howToPlay": [
+    "Drag the compass to choose your course.",
+    "Drag the sheet slider until the sail is full.",
+    "Never point the bow into the red wedge.",
+    "At night, tap Sight and then NOW to fix your latitude.",
+    "Reef the sail when a squall comes."
+  ]
+}

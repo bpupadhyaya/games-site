@@ -1,0 +1,14 @@
+{
+  "title": "Rayuela",
+  "tagline": "Toss the tejo. Hop the beat. Reach the sky.",
+  "description": "Rayuela is the chalk-and-stone hopping game played in courtyards and streets across Latin America and Spain, also called avion, golosa and luche. Toss your tejo onto the next number, hop the course on the beat with one foot on singles and two on doubles, rest in the Sky square, and pick the tejo up on the way back without touching a line. Three courses, four computer levels, two players, Learn, Practice and Watch & Learn.",
+  "genre": "rhythm hopping / street skill game",
+  "demo": true,
+  "howToPlay": [
+    "Tap TOSS to lock the sideways aim, then again to throw the tejo into the next numbered square.",
+    "After four drum beats, tap on every beat as the ring closes: one foot on a single square, TWO FEET on a double.",
+    "Land in the Sky square with two feet, turn, and hop back the same way.",
+    "Just before your tejo, tap PICK UP on the beat, then hop on and out of the course.",
+    "A tap that is too early or too late lands on a line and ends your turn. Finish the numbers first to win."
+  ]
+}

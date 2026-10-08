@@ -1,0 +1,25 @@
+{
+  "slug": "halma-hop-and-leap",
+  "title": "Halma: Hop and Leap",
+  "tagline": "Hop your pegs across the board. Chain leaps, build ladders, fill the far camp.",
+  "genre": "Hopping race board game",
+  "orientation": "any",
+  "version": "1.0.0",
+  "monetization": {
+    "model": "premium",
+    "priceUsd": 2.99,
+    "previewSeconds": 90,
+    "products": [
+      {
+        "id": "unlock_game",
+        "type": "non-consumable",
+        "priceUsd": 2.99,
+        "title": "Unlock Game"
+      }
+    ]
+  },
+  "locales": [
+    "en"
+  ],
+  "demoOnly": true
+}

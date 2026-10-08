@@ -1,0 +1,13 @@
+{
+  "title": "Tug of War",
+  "tagline": "Pull on the beat, dig in, outlast them",
+  "description": "A village rope contest in real 3D. Tap on the chant beat to heave, hold to dig in against rival surges, call the anchor and the coach, and out-last the other team. A bracket of eight teams on six festival grounds, a Daily Pull and two players on one screen.",
+  "genre": "timing sport",
+  "demo": true,
+  "howToPlay": [
+    "Tap anywhere as the ring lands on the target to heave on the chant beat.",
+    "Keep your finger down after a tap to dig in: it blocks rival surges and wins stamina back.",
+    "Tap ANCHOR to halve the rivals' pull, tap COACH when its meter is full for wider timing.",
+    "Bring the flag across your line, or hold the lead when the time runs out; win two pulls to win the match."
+  ]
+}

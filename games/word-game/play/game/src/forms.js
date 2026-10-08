@@ -64,13 +64,30 @@ export function layoutForm(rows, width, scale, cwMul = 1) {
       case 'word': {
         const tsz = S(40), bsz = S(25), lines = wrapEst2(row.gloss, bsz, width - S(8), 0.47);
         const extra = (row.lines ?? []).flatMap((l) => wrapEst2(l, S(23), width - S(8), 0.47));
-        const head = tsz + S(40), bodyH = lines.length * Math.round(bsz * 1.38) + extra.length * Math.round(S(23) * 1.4) + S(14);
+        const chips = [];
+        if (row.lookup) chips.push({ id: `look:${row.w}`, label: row.checked ? 'Looked up' : 'Look up', on: row.checked });
+        if (row.known !== undefined) chips.push({ id: `known:${row.w}`, label: row.known ? 'Known ✓' : 'I know it', on: row.known });
+        if (row.explore) chips.push({ id: `explore:${row.w}`, label: 'Explore', on: false });
+        if (row.flag !== undefined) chips.push({ id: `flag:${row.w}`, label: row.flag ? 'Flagged' : 'Flag', on: row.flag });
+        const cw = S(150), total = chips.length * (cw + S(8)), below = total > width * 0.5, chipH = S(52);
+        const head = tsz + S(40) + (below && chips.length ? chipH + S(10) : 0), bodyH = lines.length * Math.round(bsz * 1.38) + extra.length * Math.round(S(23) * 1.4) + S(14);
         const it = push(row, head + bodyH + S(34), { lines, extra, tsz, bsz, head });
-        let hx = width;
-        if (row.lookup) { hx -= S(150); it.hits.push({ id: `look:${row.w}`, x: hx, y: 0, w: S(150), h: S(52), label: row.checked ? 'Looked up' : 'Look up', on: row.checked, kind: 'chip', sz: S(22) }); hx -= S(8); }
-        if (row.known !== undefined) { hx -= S(150); it.hits.push({ id: `known:${row.w}`, x: hx, y: 0, w: S(150), h: S(52), label: row.known ? 'Known ✓' : 'I know it', on: row.known, kind: 'chip', sz: S(22) }); }
+        let hx = width, cy = below ? tsz + S(44) : 0, cx = 0;
+        chips.forEach((c) => { if (below) { it.hits.push({ ...c, x: cx, y: cy, w: cw, h: chipH, kind: 'chip', sz: S(22) }); cx += cw + S(8); } else { hx -= cw; it.hits.push({ ...c, x: hx, y: 0, w: cw, h: chipH, kind: 'chip', sz: S(22) }); hx -= S(8); } });
         break;
       }
+      case 'rtext': {
+        const sz = S(30), lh = S(48), toks = row.t.split(/\s+/).filter(Boolean), it = push(row, 0); let x = 0, line = 0;
+        for (const tk of toks) {
+          const w = Math.max(S(20), estW(tk, sz, 0.52 * cwMul)), id = tk.replace(/[^A-Za-z]/g, '').toLowerCase();
+          if (x + w > width && x > 0) { x = 0; line += 1; }
+          it.hits.push({ id: id ? `rw:${id}:${it.hits.length}` : 'none', x, y: line * lh, w, h: lh - 4, label: tk, kind: 'tok', sz, word: id, idx: it.hits.length, disabled: !id });
+          x += w + S(12);
+        }
+        it.h = (line + 1) * lh + S(16); y += it.h; it.lh = lh; break;
+      }
+      case 'heat': push(row, S(7 * 34 + 110), { size: S(26) }); break;
+      case 'stickers': { const cols = width > S(520) ? 5 : 4, cell = Math.floor((width - (cols - 1) * S(10)) / cols); push(row, Math.ceil(row.cells.length / cols) * (cell + S(10)) + S(10), { cols, cell }); break; }
       default: break;
     }
   }

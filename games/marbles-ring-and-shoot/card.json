@@ -1,0 +1,14 @@
+{
+  "title": "Marbles: Ring and Shoot",
+  "tagline": "Flick it. Clear the ring. Keep the king.",
+  "description": "The playground marble game with real rolling glass. Pull back, flick your shooter, knock clay, glass and the golden king out of the ring, and outplay five rivals.",
+  "genre": "marble ring-shooting skill",
+  "demo": true,
+  "howToPlay": [
+    "Tap the dotted line to place your shooter when it is in hand.",
+    "Pull back anywhere like a slingshot and let go to shoot.",
+    "Marbles that end outside the ring are yours: clay 1, glass 2, king 3.",
+    "Knock out two at once for a bonus shot; knock a rival shooter out of the ring to capture it.",
+    "The higher total after the last round wins."
+  ]
+}

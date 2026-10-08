@@ -1,0 +1,14 @@
+{
+  "title": "Labyrinth Thread Maze",
+  "tagline": "Follow the red thread through stone and torchlight.",
+  "description": "A calm maze puzzle inspired by the stone labyrinths of ancient Crete. Guide a clay lamp through generated mazes to the glowing heart while a red thread lays out behind you and winds back when you retrace. Six grades, torchlight fog, a hint thread, a daily maze and Watch and Learn. Portrait or landscape, phone or tablet.",
+  "genre": "Maze puzzle",
+  "demo": true,
+  "howToPlay": [
+    "Press and drag: the lamp follows your finger through the corridors.",
+    "Walk back along your thread to undo a wrong turn; Last fork returns to your last choice.",
+    "Tap the bulb for a hint: first about the next fork, then a gold thread shows the way.",
+    "In the dark grades the lamp lights nearby corridors; tap Map to see where you have been.",
+    "Watch and Learn walks a maze for you and explains each fork."
+  ]
+}

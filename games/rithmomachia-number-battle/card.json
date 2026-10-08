@@ -1,0 +1,17 @@
+{
+  "title": "Rithmomachia: Number Battle",
+  "tagline": "The philosophers' game of medieval Europe, with the arithmetic on screen.",
+  "description": "Rithmomachia, the battle of numbers, was a game for scholars across medieval Europe. Every piece carries a number. Touch an enemy piece whose number is equal to yours, or in the ratio 1:2, 1:3 or 2:3, and it is taken; ambush a piece between two of yours whose numbers add up to its own. Win by lining three pieces up in the enemy camp as an arithmetic, geometric or harmonic progression. Eight hands-on lessons, five computer levels, hints, danger marks, a Watch & Learn mode and the sum of every capture shown on the board. Gold leaf, lapis and vellum. No ads, works offline.",
+  "genre": "Medieval number-battle board game",
+  "demo": true,
+  "howToPlay": [
+    "New here? Tap Learn to play: eight short hands-on lessons where you make every move yourself.",
+    "Tap a piece and its reachable squares glow. Rounds step one square, triangles jump two diagonally, squares leap three straight.",
+    "Touch an enemy piece whose number is equal to yours, or in the ratio 1:2, 1:3 or 2:3, and you take it.",
+    "Ambush: if your moved piece and another of yours stand in line either side of an enemy piece and add up to its number, it falls.",
+    "The board shows the sum of every capture, such as 6 : 12 = 1 : 2 or 4 + 5 = 9, so you always see why a piece fell.",
+    "Win by lining up three of your pieces in the enemy camp as an arithmetic, geometric or harmonic progression, or by taking 10 pieces.",
+    "Hint explains a good move, danger marks and a warning line show what the other side threatens, and Take back undoes a move.",
+    "Auto Play shows the computer playing both sides, with time to think and a Pause button."
+  ]
+}

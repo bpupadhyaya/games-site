@@ -6,6 +6,7 @@
 //   openLink    the browser (window.open); askText a simple prompt; haptic a short vibration where supported
 import { installPack, installLexicon, setCredits } from './src/lexicon.js';
 import * as kb from './src/kb.js';
+import { installExtras } from './src/quiz.js';
 
 const DB = 'word-game', STORE = 'kv';
 
@@ -116,6 +117,7 @@ export async function loadKb() {
     for (const n of man.hot) kb.installRel(n, await fetchBuf(`./data/kb/${n}.bin`));
     kb.installBytes('rows', await fetchBuf('./data/kb/rows.bin')); kb.installBytes('cols', await fetchBuf('./data/kb/cols.bin')); kb.installBytes('spell', await fetchBuf('./data/kb/spell.bin'));
     for (const n of man.lazy) kb.installRel(n, await fetchBuf(`./data/kb/${n}.bin`));
+    try { installExtras(JSON.parse(await fetchText('./data/kb/extras.json'))); } catch { /* optional */ }
     for (const n of ['phrases', 'plain', 'variants']) kb.installText(n, await fetchText(`./data/kb/${n}.txt`));
   } catch { /* the game keeps using the study pack's own synonyms and antonyms */ }
 }

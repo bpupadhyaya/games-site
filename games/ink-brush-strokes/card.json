@@ -1,0 +1,17 @@
+{
+  "title": "Ink Brush",
+  "tagline": "Grind the ink, load the brush, make the stroke.",
+  "description": "A calm skill game of Chinese brush-and-ink writing and painting. A believable brush that bleeds into paper and splits when it runs dry, six basic strokes, eight characters with the stroke order shown, bamboo, orchid and plum blossom compositions, feedback on order, shape and rhythm, a free scroll, six seals and a gallery. No ads, works offline.",
+  "genre": "brush and ink craft",
+  "demo": true,
+  "howToPlay": [
+    "Pick a lesson. Numbers on the paper show the order of the strokes.",
+    "Tap Dip to load the brush. Grind makes the ink darker, Water makes it paler.",
+    "Press and drag one stroke, then lift. Slow means heavy and dark, fast means thin.",
+    "Pause for a moment at the start or the end to press a pool of ink.",
+    "After each stroke you see order, shape and rhythm feedback and a one-line tip.",
+    "Finish a lesson for up to three stars, then press a seal and keep it in the gallery.",
+    "Watch and Learn paints a lesson for you and says why. Pause it any time.",
+    "On a keyboard: D dip, W water, G grind, U undo, H hint, Space pauses."
+  ]
+}

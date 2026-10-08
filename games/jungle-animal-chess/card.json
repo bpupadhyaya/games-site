@@ -1,0 +1,17 @@
+{
+  "title": "Jungle (Dou Shou Qi)",
+  "tagline": "The rat can topple the elephant. Reach the den to win.",
+  "description": "Dou Shou Qi, known as Jungle, is a traditional Chinese board game. Eight animals per side, from rat to elephant, fight across a board with two lakes, four traps and a den at each end. Bigger animals eat smaller ones, only the rat swims, lions and tigers leap the lakes, and the rat is the one animal that can eat the elephant. Five computer levels, lessons, hints, a two-player mode and Watch & Learn. Painted animal tokens, no ads, works offline.",
+  "genre": "Chinese animal-rank board game",
+  "demo": true,
+  "howToPlay": [
+    "New here? Tap Learn to play: six short hands-on lessons where you make every move yourself.",
+    "Tap an animal and its reachable squares glow. Animals step one square up, down, left or right.",
+    "A bigger animal eats a smaller one. A red ring means the move eats something.",
+    "The rat is the only animal that swims, and the only one that can eat the elephant.",
+    "Lions and tigers leap a lake in a straight line, unless a rat is swimming in the way.",
+    "An animal standing in an enemy trap counts as rank zero and anything can eat it.",
+    "Step into the enemy den to win. Hint, danger marks and take back help you learn.",
+    "Auto Play shows the computer playing both sides, with Pause."
+  ]
+}

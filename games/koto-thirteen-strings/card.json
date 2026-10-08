@@ -1,0 +1,17 @@
+{
+  "title": "Koto",
+  "tagline": "Pluck, sweep and press thirteen silk strings.",
+  "description": "A calm music game for the Japanese long zither. Slide the ivory bridges to tune thirteen silk strings, pluck with your fingertips, sweep across the strings and press behind a bridge to bend a note upward. Learn six short pieces phrase by phrase, or let Watch and Learn show the finger, the string and the reason for every note. Silence counts too: keep still during a rest. Five traditional tunings, free play with movable bridges, portrait and landscape, no ads, works offline.",
+  "genre": "music zither",
+  "demo": true,
+  "howToPlay": [
+    "Pick a piece and start with Learn: a short phrase is played, then you play it back.",
+    "Red discs slide along the strings towards you. Tap the string, in front of its bridge, when the disc reaches the ring.",
+    "A gold ring means press: hold the same string behind its bridge. Close to the bridge bends a half step, further back a whole step.",
+    "Teal discs on neighbouring strings are a sweep: drag one finger across them.",
+    "Pale bands with the character for ma are rests: keep still and the silence scores.",
+    "Clean playing adds accompaniment. Show me points out the next note.",
+    "Watch and Learn shows the finger, the string and the reason for every note, with time to think.",
+    "On a keyboard: Q W E R T Y U I O P [ ] \\ pluck strings 1 to 13, Shift or Ctrl press, Space pauses."
+  ]
+}

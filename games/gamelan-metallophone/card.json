@@ -1,0 +1,17 @@
+{
+  "title": "Gamelan",
+  "tagline": "Strike the bronze bars. Keep the cycle.",
+  "description": "A rhythm and music game for the tuned bronze bars and hanging gongs of Java and Bali. Strike the bars in time, take over the gong and kenong to keep the cycle, and learn six original pieces by call and response while a computer ensemble joins in as you play cleanly. Slendro and pelog tunings with a shimmering sustain, free play, Watch and Learn with a caption for every strike, a calibration screen and an in-app Rules page. Carved wood and bronze in a lamp-lit hall, synthesised sound, no ads, works offline.",
+  "genre": "rhythm music",
+  "demo": true,
+  "howToPlay": [
+    "Pick a piece, then start with Learn the pattern: the ensemble plays a phrase and you echo it back.",
+    "Notes fall down a lane onto a bar. A golden bar-shaped note shows the number of its bar; a green disc is a gong.",
+    "Tap when the note reaches the bar. Closer to the beat scores more. Use two thumbs, or more fingers.",
+    "Watch the ring: it sweeps once round the cycle and the gong sounds at the top.",
+    "Play cleanly and more of the ensemble joins. Miss and one drops out.",
+    "Free play has both tunings, the gongs above the bars, a click and an echo partner.",
+    "Watch and Learn plays the piece for you and says why each strike happens.",
+    "On a keyboard: A S D F G H J play bars 1 to 7, Z X C play the gongs, Space pauses."
+  ]
+}

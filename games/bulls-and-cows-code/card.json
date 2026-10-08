@@ -1,0 +1,14 @@
+{
+  "title": "Bulls and Cows",
+  "tagline": "Crack the secret code. Hints that teach.",
+  "description": "The classic code-breaking game on lit enamel pegs. Guess the secret digits and read the clues: bulls are right digit, right place; cows are right digit, wrong place. Break the computer's code or set your own, with a daily code, hints that explain the logic and Watch and Learn.",
+  "genre": "Code-breaking puzzle",
+  "demo": true,
+  "howToPlay": [
+    "Guess the hidden code by tapping digit pegs, then tap Guess.",
+    "Gold bulls: right digit, right place. Teal cows: right digit, wrong place.",
+    "Use the clues to rule digits in and out and crack the code in few guesses.",
+    "Set the Code lets you hide a secret and score the computer's guesses.",
+    "Tap the bulb for a hint that explains why; Watch and Learn shows a full game."
+  ]
+}

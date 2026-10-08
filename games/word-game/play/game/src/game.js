@@ -16,10 +16,11 @@ import {
 } from './layout.js';
 import * as lex from './lexicon.js';
 import { QTYPES, DEFAULT_CFG, normalizeCfg, applyPreset, SESSION_SECS, QUESTION_COUNTS, SET_SIZES, sessionSeconds, questionCount, paceKey } from './config.js';
-import { chooseKind, build, canAsk, kindAvailable } from './quiz.js';
+import { chooseKind, build, canAsk, kindAvailable, extras } from './quiz.js';
+import { ART_WORDS } from './art.js';
 import * as kb from './kb.js';
 import * as srs from './srs.js';
-import { screenRows, FORM_SCENES, SPEED_OPTS, sumLine } from './screens.js';
+import { screenRows, FORM_SCENES, SPEED_OPTS, sumLine, SLIP_ADVICE } from './screens.js';
 import { layoutForm, hitAt } from './forms.js';
 import { lookupUrl } from './dict.js';
 import { buildBackup, wordsCsv, sessionsCsv, parseBackup } from './exporter.js';
@@ -41,19 +42,20 @@ const lay = () => layoutFor(meta.width, meta.height);
 const multOf = (streak) => (streak >= 10 ? 4 : streak >= 6 ? 3 : streak >= 3 ? 2 : 1);
 const TAP_SLOP = 16;
 const GATED = new Set(['settings', 'data', 'profiles']);          // behind the parent gate in a child profile
-const PROFILE_KEYS = ['cfg', 'prefs', 'rec', 'sess', 'study', 'bests', 'journey', 'ach', 'est'];
+const PROFILE_KEYS = ['cfg', 'prefs', 'rec', 'sess', 'study', 'bests', 'journey', 'ach', 'est', 'lists'];
 
 const DEFAULT_PREFS = {
   sound: true, voice: 1, calm: false, goal: 20, reviewCap: 20,
   dict: { choice: 'oxford', mode: 'ask', custom: '', noticed: false },
-  streak: { last: 0, n: 0 }, today: { day: 0, n: 0 },
+  streak: { last: 0, n: 0 }, today: { day: 0, n: 0, secs: 0 },
+  kindStats: {}, breakMin: 0, limitMin: 0, flags: [], dailyDone: 0, dailies: 0, mocks: 0, mock: { kinds: ['synonym', 'definition', 'spelling', 'cloze'], n: 20, secs: 20, band: 3 },
   font: 'std', cb: false, reduce: false, lefty: false, senior: false, captions: false, deaf: false, remind: { on: false, hour: 19 },
   stats: { exports: 0, lookups: 0, studySets: 0, traced: 0, bestStreak: 0 },
 };
 const freshPrefs = () => JSON.parse(JSON.stringify(DEFAULT_PREFS));
 const mergePrefs = (p) => ({
   ...DEFAULT_PREFS, ...p, dict: { ...DEFAULT_PREFS.dict, ...(p.dict ?? {}) }, streak: { ...DEFAULT_PREFS.streak, ...(p.streak ?? {}) },
-  today: { ...DEFAULT_PREFS.today, ...(p.today ?? {}) }, remind: { ...DEFAULT_PREFS.remind, ...(p.remind ?? {}) }, stats: { ...DEFAULT_PREFS.stats, ...(p.stats ?? {}) },
+  today: { ...DEFAULT_PREFS.today, ...(p.today ?? {}) }, mock: { ...DEFAULT_PREFS.mock, ...(p.mock ?? {}) }, kindStats: { ...(p.kindStats ?? {}) }, flags: Array.isArray(p.flags) ? p.flags : [], remind: { ...DEFAULT_PREFS.remind, ...(p.remind ?? {}) }, stats: { ...DEFAULT_PREFS.stats, ...(p.stats ?? {}) },
 });
 const QTYPES_OFF = () => QTYPES.filter((q) => !kindAvailable(q.k)).map((q) => q.k);
 const freshJourney = () => ({ stars: {}, checks: {}, placed: 0 });
@@ -72,7 +74,7 @@ export function createGame(env) {
     cfg: normalizeCfg(DEFAULT_CFG),
     prefs: freshPrefs(),
     records: {}, sessions: [], study: { words: [], day: 0 },
-    journey: freshJourney(), ach: {}, est: null,
+    journey: freshJourney(), ach: {}, est: null, lists: [], write: null, adapt: 1,
     loaded: false,                                  // saved progress has been read; nothing is saved before this
     msg: '', confirmDel: false, confirmProfile: '', pending: '',
     back: [], cardIdx: 0, cardFlip: false,
@@ -89,7 +91,7 @@ export function createGame(env) {
     demo, demoSessions: 0, demoLimitReached: false,
     autoPlay: false, autoPaused: false, autoThinkIdx: 1, autoPhase: 'think', autoPhaseT: 0,
     t: 0, sceneT: 1, press: null, fx: null, toast: null, banner: null, caption: null, badgeToast: null, shake: 0, flash: 0, parts: [],
-    round: null, empty: false, dataVersion: 0,
+    round: null, empty: false, dataVersion: 0, breakShown: false, explore: '', reading: null,
   };
 
   let recentWords = [];
@@ -125,11 +127,11 @@ export function createGame(env) {
     cfg: () => put('cfg', state.cfg), prefs: () => put('prefs', state.prefs),
     rec: () => { put('rec', state.records); dirtyRec = false; answersSinceSave = 0; },
     sess: () => put('sess', state.sessions), study: () => put('study', state.study), best: () => put('bests', state.bestScores),
-    journey: () => put('journey', state.journey), ach: () => put('ach', state.ach), est: () => put('est', state.est),
+    journey: () => put('journey', state.journey), ach: () => put('ach', state.ach), est: () => put('est', state.est), lists: () => put('lists', state.lists),
     profiles: () => { store.set('profiles', state.profiles); store.set('active', state.profile); },
   };
   const applyLoaded = (v) => {
-    const [cfg, prefs, rec, sess, study, bests, journey, ach, est] = v;
+    const [cfg, prefs, rec, sess, study, bests, journey, ach, est, lists] = v;
     state.cfg = cfg ? normalizeCfg(cfg) : normalizeCfg(DEFAULT_CFG);
     state.prefs = prefs ? mergePrefs(prefs) : freshPrefs();
     state.records = rec && typeof rec === 'object' ? rec : {};
@@ -139,6 +141,7 @@ export function createGame(env) {
     state.journey = journey && journey.stars ? { ...freshJourney(), ...journey } : freshJourney();
     state.ach = ach && typeof ach === 'object' ? ach : {};
     state.est = est ?? null;
+    state.lists = Array.isArray(lists) ? lists : []; lex.setCustom(state.lists);
     audio.setMuted?.(!state.prefs.sound);
     state.loaded = true; touch();
   };
@@ -163,7 +166,7 @@ export function createGame(env) {
     state.profile = id; state.loaded = false; save.profiles();
     const prefs = freshPrefs(); if (senior) { prefs.senior = true; prefs.calm = true; }
     const cfg = normalizeCfg(type === 'child' ? { ...DEFAULT_CFG, contexts: [0, 1], qtypes: ['definition', 'synonym', 'spelling'] } : DEFAULT_CFG);
-    applyLoaded([cfg, prefs, null, null, null, null, null, null, null]);
+    applyLoaded([cfg, prefs, null, null, null, null, null, null, null, null]);
     save.cfg(); save.prefs();
     if (senior && state.textScaleIdx < 2) { state.textScaleIdx = 2; storage.set('textScaleIdx', 2); }
     state.back = []; setScene(state.profiles.length === 1 ? 'title' : 'title');
@@ -183,7 +186,7 @@ export function createGame(env) {
     return {
       sessions: state.sessions.length, bestStreak: Math.max(S.bestStreak, state.bestStreak), perfect: false, met, know, streakDays: state.prefs.streak.n,
       goalHit: state.prefs.today.day === day() && state.prefs.today.n >= state.prefs.goal, stars: jny.totalStars(state.journey), checks,
-      lettersDone: (state.journey.checks['0'] ?? 0) >= 70, traced: S.traced, placed: Boolean(state.est), studySets: S.studySets, lookups: S.lookups, exports: S.exports, ...extra,
+      lettersDone: (state.journey.checks['0'] ?? 0) >= 70, traced: S.traced, dailies: state.prefs.dailies, mocks: state.prefs.mocks, lists: state.lists.length, stickers: ART_WORDS.filter((w) => rec[w] && (rec[w][2] >= 2 || rec[w][8])).length, formats: Object.values(state.prefs.kindStats).filter((x) => x[0] + x[1] > 0).length, placed: Boolean(state.est), studySets: S.studySets, lookups: S.lookups, exports: S.exports, ...extra,
     };
   };
   const checkAch = (extra) => {
@@ -203,6 +206,8 @@ export function createGame(env) {
     if (source === 'study') return entriesOf(state.study.words);
     if (source === 'due') return entriesOf(dueWords());
     if (source === 'weak') return entriesOf(weakWords());
+    if (source.startsWith('set:')) return entriesOf((extras()?.sets ?? []).find((s) => s.id === source.slice(4))?.words ?? []);
+    if (source.startsWith('list:')) return entriesOf(state.lists.find((l) => l.id === source.slice(5))?.words ?? []);
     const p = lex.select(cfg);
     return cfg.skipKnown ? p.filter((e) => !srs.isKnown(state.records, e.w)) : p;
   };
@@ -271,7 +276,7 @@ export function createGame(env) {
           text: o.text, correct: o.correct, slot, w,
           x: state.autoPlay ? W / 2 : classic ? W + 20 + driftX : start,
           y: rng.range(sliceTop, sliceBottom), vy: rng.range(-30, 30), sliceTop, sliceBottom,
-          speed: classic ? speed + rng.range(0, SPEED_JITTER) : ((start + w / 2) / cfg.secs) * (1 + rng.range(0, 0.08)),
+          speed: classic ? speed + rng.range(0, SPEED_JITTER) : ((start + w / 2) / (cfg.secs * state.adapt)) * (1 + rng.range(0, 0.08)),
         };
       }),
     };
@@ -287,7 +292,8 @@ export function createGame(env) {
     if (!pool.length) { state.msg = 'No words match your choices. Pick more levels or kinds of words.'; touch(); return false; }
     const cfg = { ...eff(), ...(opts.over ?? {}) };
     state.run = opts.run ?? null; state.runResult = null; state.newBadges = [];
-    state.kind = state.run ? state.run.type : src === 'due' ? 'review' : 'play';
+    state.kind = state.run ? state.run.type : opts.kindLabel ?? (src === 'due' ? 'review' : 'play');
+    state.adapt = 1;
     state.autoPlay = Boolean(opts.auto);
     state.autoPaused = false; state.paused = false;
     state.byQuestions = !state.autoPlay && (cfg.endBy === 'questions' || Boolean(opts.over?.questions));
@@ -316,7 +322,10 @@ export function createGame(env) {
     setScene(state.autoPlay ? 'autoplay' : 'playing');
     return true;
   };
+  const breakDue = () => state.prefs.breakMin > 0 && state.prefs.today.day === day() && state.prefs.today.secs >= state.prefs.breakMin * 60;
+  const limitHit = () => isChild() && state.prefs.limitMin > 0 && state.prefs.today.day === day() && state.prefs.today.secs >= state.prefs.limitMin * 60 && state.parentUntil <= state.t;
   const startSession = (opts = {}) => {
+    if (!opts.auto && limitHit()) { state.msg = 'That is enough play for today. Come back tomorrow, or ask a grown-up.'; setScene('title'); return; }
     if (demo && !opts.auto && !opts.run) {
       if (state.demoLimitReached) { setScene('demo-limit'); return; }
       if (beginSession(opts)) { state.demoSessions += 1; storage.set('demoSessions', state.demoSessions); if (state.demoSessions >= DEMO_SESSION_LIMIT) state.demoLimitReached = true; }
@@ -329,7 +338,7 @@ export function createGame(env) {
   // ---- Journey runs
   const kindsFor = (w) => {
     const W_ = jny.WORLDS[w];
-    if (W_.k === 'letters') return ['letter-hear', 'letter-case', 'letter-next'];
+    if (W_.k === 'letters') return ['letter-hear', 'letter-case', 'letter-next', 'letter-vowel'];
     if (W_.k === 'first') return ['picture', 'definition', 'synonym', 'spelling'];
     return W_.band >= 3 ? ['synonym', 'definition', 'antonym', 'spelling', 'odd'] : ['synonym', 'definition', 'spelling', 'antonym'];
   };
@@ -364,6 +373,15 @@ export function createGame(env) {
       res.pct = pct; res.pass = state.reason !== 'lives' && state.reason !== 'stop' && pct >= jny.PASS_CHECK * 100;
       if (res.pass && pct > (J.checks[run.world] ?? 0)) J.checks[run.world] = pct;
       res.next = res.pass && run.world + 1 < jny.WORLDS.length ? 'world' : '';
+    } else if (run.type === 'mock') {
+      const M = run.mock, per = {};
+      for (const h of state.history) { const p = (per[h.kind] ??= [0, 0]); p[1] += 1; if (h.correct) p[0] += 1; }
+      const acc = n ? right / n : 0, avgMs = n ? Math.round(state.ms / n) : 0;
+      const ready = acc >= 0.8 && avgMs <= M.secs * 1000 ? 'ready' : acc >= 0.65 ? 'nearly ready' : 'keep practising';
+      const weak = Object.entries(per).filter(([, [r, c]]) => c >= 3).sort((a, b) => a[1][0] / a[1][1] - b[1][0] / b[1][1])[0];
+      const advice = ready === 'ready' ? 'Good result. Try a harder level or a shorter time per question next.' : weak ? `Weakest section: ${weak[0]}. ${SLIP_ADVICE[weak[0]] ?? 'Study those words, then try again.'}` : 'Study a set at this level, then try again.';
+      res.pass = ready === 'ready'; res.mock = { right, n, acc, avgMs, secs: M.secs, band: M.band, per, ready, advice };
+      state.prefs.mocks += 1; save.prefs();
     } else {
       const per = [[0, 0], [0, 0], [0, 0], [0, 0], [0, 0], [0, 0]];
       for (const h of state.history) if (h.band >= 0 && h.band <= 5) { per[h.band][1] += 1; if (h.correct) per[h.band][0] += 1; }
@@ -380,6 +398,7 @@ export function createGame(env) {
     const rec = { day: d, kind: state.kind, preset: state.run ? state.run.type : state.cfg.preset, n, right: state.right, score: state.score, streak: state.bestStreak, secs: state.byQuestions ? 0 : Math.round(state.total - state.timeLeft), ms: Math.round(state.ms / n), nw: state.sessionNew, types: (session?.kinds ?? state.cfg.qtypes).slice() };
     state.sessions.push(rec); if (state.sessions.length > 500) state.sessions.shift();
     const P = state.prefs;
+    if (P.today.day !== d) P.today = { day: d, n: 0, secs: 0 };
     if (n >= 5 && P.streak.last !== d) {
       if (P.streak.last > 0 && d - P.streak.last <= 2) P.streak = { last: d, n: P.streak.n + 1 };   // one missed day is forgiven
       else P.streak = { last: d, n: 1 };
@@ -400,7 +419,9 @@ export function createGame(env) {
       saveSessionRecord(); save.rec();
       checkAch({ perfect: state.answered >= 10 && state.right === state.answered });
     }
-    if (state.run && state.run.type === 'place' && !state.autoPlay) setScene('placeresult'); else setScene('gameover');
+    if (state.run && state.run.type === 'place' && !state.autoPlay) setScene('placeresult'); else if (state.run && state.run.type === 'mock' && !state.autoPlay) setScene('mockresult'); else setScene('gameover');
+    if (state.kind === 'daily' && !state.autoPlay && state.answered >= 5 && state.prefs.dailyDone !== day()) { state.prefs.dailyDone = day(); state.prefs.dailies += 1; save.prefs(); checkAch(); }
+    if (!state.autoPlay && breakDue() && !state.breakShown) { state.breakShown = true; state.badgeToast = { text: 'Time for a short break?', t: 0 }; }
     playTone({ freq: 560, to: 300, dur: 0.32, type: 'sine', vol: 0.22 });
     if (state.runResult?.pass && !state.autoPlay) playTone({ freq: 784, to: 1046, dur: 0.4, type: 'triangle', vol: 0.16 });
   };
@@ -433,8 +454,10 @@ export function createGame(env) {
         if (before === 'new' && hit) state.sessionNew += 1;
         dirtyRec = true; answersSinceSave += 1;
       }
-      const P = state.prefs; if (P.today.day !== nowDay) P.today = { day: nowDay, n: 0 };
+      const P = state.prefs; if (P.today.day !== nowDay) P.today = { day: nowDay, n: 0, secs: 0 };
       P.today.n += 1;
+      const ks = (P.kindStats[round.kind] ??= [0, 0]); ks[hit ? 0 : 1] += 1;
+      if (session.cfg.adaptive && session.cfg.secs > 0) state.adapt = hit ? (state.streak >= 3 ? Math.max(0.7, state.adapt * 0.96) : state.adapt) : Math.min(1.4, state.adapt * 1.12);
       if (answersSinceSave >= 10) { save.rec(); save.prefs(); }
     }
     if (hit) {
@@ -478,7 +501,8 @@ export function createGame(env) {
     const sm = state.records, d = day();
     const bandSize = [0, 0, 0, 0, 0, 0], bandKnown = [0, 0, 0, 0, 0, 0];
     for (const e of lex.all()) { if (e.band < 0) continue; bandSize[e.band] += 1; const r = sm[e.w]; if (r && (r[8] || r[0] >= 3)) bandKnown[e.band] += 1; }
-    const weak = weakWords(), child = isChild();
+    const weak = weakWords(), child = isChild(), topicKnown = {}, topicSize = {};
+    for (const e of lex.all()) { const t = lex.topicOf(e.lex); if (!t) continue; topicSize[t] = (topicSize[t] ?? 0) + 1; const r = sm[e.w]; if (r && (r[8] || r[0] >= 3)) topicKnown[t] = (topicKnown[t] ?? 0) + 1; }
     return {
       cfg: state.cfg, prefs: { ...state.prefs, scheme: state.scheme }, records: sm, study: state.study.words, day: d,
       dueN: srs.dueCount(sm, d), weakN: weak.length, weak, leeches: Object.keys(sm).filter((w) => srs.isLeech(sm[w])),
@@ -489,6 +513,9 @@ export function createGame(env) {
       profiles: state.profiles, profile: state.profile, child, confirmProfile: state.confirmProfile, journey: state.journey, ach: state.ach, est: state.est,
       sel: state.sel, week: weekly(), run: state.run, runResult: state.runResult, gate: state.gate, textLarge: state.textScaleIdx, full: lex.isFull(),
       kindOff: QTYPES_OFF(),
+      explore: state.explore, reading: state.reading, readDone: state.prefs.readDone ?? {},
+      sets: extras()?.sets ?? [], lists: state.lists, canImport: Boolean(wg.importText), write: state.write, heat: heatCells(), slips: slips(),
+      topicKnown, topicSize,
       stageWords: state.sel && state.sel.kind === 'stage' ? jny.stageWords(state.sel.world, state.sel.stage) : [],
     };
   };
@@ -530,7 +557,7 @@ export function createGame(env) {
     if (ok) { state.prefs.stats.exports += 1; save.prefs(); checkAch(); }
     touch();
   };
-  const backupText = () => buildBackup({ cfg: state.cfg, prefs: { ...state.prefs, scheme: state.scheme, textScaleIdx: state.textScaleIdx }, records: state.records, sessions: state.sessions, study: state.study, day: day(), journey: state.journey, ach: state.ach, est: state.est });
+  const backupText = () => buildBackup({ cfg: state.cfg, prefs: { ...state.prefs, scheme: state.scheme, textScaleIdx: state.textScaleIdx }, records: state.records, sessions: state.sessions, study: state.study, day: day(), journey: state.journey, ach: state.ach, est: state.est, lists: state.lists });
   const importNow = async () => {
     let text = null;
     try { text = wg.importText ? await wg.importText() : null; } catch { text = null; }
@@ -544,6 +571,7 @@ export function createGame(env) {
     if (d.journey && d.journey.stars) state.journey = { ...freshJourney(), ...d.journey };
     if (d.ach && typeof d.ach === 'object') state.ach = d.ach;
     if (d.est) state.est = d.est;
+    if (d.lists?.length) { state.lists = d.lists; lex.setCustom(state.lists); save.lists(); }
     if (d.prefs) {
       state.prefs = mergePrefs(d.prefs);
       if (SCHEMES[d.prefs.scheme]) { state.scheme = d.prefs.scheme; storage.set('scheme', state.scheme); }
@@ -565,6 +593,65 @@ export function createGame(env) {
     state.gate = { a, b, ans, opts: rng.shuffle([...opts]), wrong: false }; state.gateNext = next; go('gate'); return true;
   };
   const openNext = (scene) => { if (GATED.has(scene) && needGate(scene)) return; go(scene); };
+
+  // ---------------------------------------------------------------- daily set, word sets, own lists, mock test, writing
+  const askable = (e) => ['synonym', 'definition', 'spelling', 'cloze', 'antonym', 'sense'].some((k) => canAsk(e, k, { canSpeak: false }));
+  const dailyEntries = () => {                         // the same 10 words for everyone on the same day (and the same list), no randomness from the game
+    const pool = lex.select({ contexts: [2, 3], attrs: [], topics: [], combine: 'any', minLen: 4, maxLen: 12, kid: isChild() }).filter(askable);
+    let s = (Math.imul(day(), 2654435761) >>> 0) || 1; const pick = new Set(), out = [];
+    while (out.length < 10 && pool.length >= 10) { s = (Math.imul(s, 1103515245) + 12345) >>> 0; const i = Math.floor((s / 4294967296) * pool.length); if (!pick.has(i)) { pick.add(i); out.push(pool[i]); } }
+    return out;
+  };
+  const startDaily = () => {
+    const pool = dailyEntries();
+    if (!pool.length) { state.msg = 'The daily set needs the full word list to finish loading.'; touch(); return; }
+    startSession({ pool, kinds: ['synonym', 'definition', 'spelling', 'cloze', 'antonym', 'sense'], kindLabel: 'daily', over: { questions: 10, endBy: 'questions', secs: 30, lives: 0, hints: true } });
+  };
+  const startMock = () => {
+    const M = state.prefs.mock, kinds = M.kinds.filter(kindAvailable);
+    const pool = lex.select({ contexts: [M.band], attrs: [], topics: [], combine: 'any', minLen: 3, maxLen: 15, kid: isChild() });
+    if (!kinds.length || pool.length < 20) { state.msg = 'The mock test needs the full word list to finish loading.'; touch(); return; }
+    startSession({ pool, kinds, run: { type: 'mock', label: 'Mock test', mock: { ...M, kinds } }, over: { questions: M.n, endBy: 'questions', secs: M.secs, lives: 0, hints: false } });
+  };
+  const parseList = (text) => {
+    const words = [], defs = {}; let name = '';
+    for (const raw of String(text).split(/\r?\n/)) {
+      const line = raw.trim(); if (!line) continue;
+      if (line.startsWith('#')) { if (!name) name = line.replace(/^#+\s*/, '').slice(0, 40); continue; }
+      const m = line.match(/^"?([A-Za-z]{2,20})"?\s*(?:[,\t;]\s*(.*))?$/); if (!m) continue;
+      const w = m[1].toLowerCase(); if (words.includes(w)) continue; words.push(w); const d = (m[2] ?? '').replace(/^"|"$/g, '').trim(); if (d) defs[w] = d.slice(0, 90);
+      if (words.length >= 500) break;
+    }
+    return { words, defs, name };
+  };
+  const importList = async () => {
+    let text = null;
+    try { text = wg.importText ? await wg.importText() : null; } catch { text = null; }
+    const L = text ? parseList(text) : null;
+    if (!L || L.words.length < 3) { state.msg = text ? 'No word list was found in that file. Use one word per line, or word,meaning.' : 'Nothing was imported.'; touch(); return; }
+    const id = `l${Date.now ? 0 : 0}${state.lists.length + 1}${L.words.length}`;
+    state.lists.push({ id, name: L.name || `List ${state.lists.length + 1}`, words: L.words, defs: L.defs });
+    lex.setCustom(state.lists); save.lists();
+    state.msg = `Imported ${L.words.length} words.`; touch(); checkAch();
+  };
+  const openWrite = (mode) => {
+    const src = state.study.words.length ? entriesOf(state.study.words) : lex.select(eff()).slice(0, 4000);
+    const pool = src.filter((e) => e.gloss && e.gloss.length <= 90);
+    if (!pool.length) { state.write = { mode, words: [], done: false }; return; }
+    const words = rng.shuffle(pool).slice(0, mode === 'story' ? 3 : 1).map((e) => e.w);
+    state.write = { mode, words, done: false };
+  };
+  const heatCells = () => {
+    const d = day(), by = new Map(); for (const s of state.sessions) by.set(s.day, (by.get(s.day) ?? 0) + s.n);
+    return Array.from({ length: 84 }, (_, i) => by.get(d - 83 + i) ?? 0);
+  };
+  const slips = () => {
+    const out = [];
+    for (const [k, [r, w_]] of Object.entries(state.prefs.kindStats)) { const n = r + w_; if (n >= 8 && r / n < 0.8) out.push({ label: QTYPES.find((q) => q.k === k)?.label ?? k, acc: r / n, n, advice: SLIP_ADVICE[k] ?? '' }); }
+    return out.sort((a, b) => a.acc - b.acc).slice(0, 4);
+  };
+  const setPlay = (id) => { const st = (extras()?.sets ?? []).find((s) => s.id === id); if (st) startSession({ source: `set:${id}`, kindLabel: 'set' }); };
+  const setStudy = (words) => { state.study = { words: words.slice(), day: day() }; save.study(); touch(); go('studylist'); };
 
   // One tap on a form row.
   const onFormTap = (id) => {
@@ -589,14 +676,14 @@ export function createGame(env) {
         else setCfg({ qIdx: Math.max(0, Math.min(QUESTION_COUNTS.length - 1, cfg.qIdx + step)) }, true);
         return;
       case 'lives': setCfg({ lives: Number(b) }, true); return;
-      case 'opts': if (b === 'hints') setCfg({ hints: !cfg.hints }, true); else setCfg({ skipKnown: !cfg.skipKnown }); return;
+      case 'opts': if (b === 'hints') setCfg({ hints: !cfg.hints }, true); else if (b === 'adaptive') setCfg({ adaptive: !cfg.adaptive }); else setCfg({ skipKnown: !cfg.skipKnown }); return;
       case 'play': if (state.scene === 'stageinfo') startRun(state.sel.kind, state.sel.world, state.sel.stage); else startSession(); return;
       case 'study': if (!state.study.words.length) makeStudySet(); go('studylist'); return;
       case 'newset': if (makeStudySet() && state.scene !== 'studylist') go('studylist'); return;
       case 'cards': state.cardIdx = 0; state.cardFlip = false; go('cards'); return;
       case 'quizset': setCfg({ source: 'study' }); startSession({ source: 'study' }); return;
       case 'practiseweak': startSession({ source: 'weak' }); return;
-      case 'go': if (b === 'trace') { openTrace(0); return; } if (b === 'place') { startRun('place'); return; } openNext(b); return;
+      case 'go': if (b === 'trace') { openTrace(0); return; } if (b === 'place') { startRun('place'); return; } if (b === 'daily') { startDaily(); return; } if (b === 'write' && !state.write) openWrite('use'); openNext(b); return;
       case 'look': requestLookup(b); return;
       case 'known': srs.setKnown(state.records, b, !srs.isKnown(state.records, b), day()); save.rec(); touch(); return;
       case 'notice':
@@ -627,8 +714,34 @@ export function createGame(env) {
       case 'exp':
         if (b === 'json') exportNow('word-game-backup.json', 'application/json', backupText());
         else if (b === 'words') exportNow('word-game-words.csv', 'text/csv', wordsCsv(state.records));
+        else if (b === 'flags') exportNow('word-game-flagged-words.txt', 'text/plain', `Flagged words (each may be wrong, odd or unsuitable):\n${state.prefs.flags.join('\n')}\n`);
         else exportNow('word-game-sessions.csv', 'text/csv', sessionsCsv(state.sessions));
         return;
+      // ---- Phase 3: daily, sets, lists, mock test, writing, small settings
+      case 'daily': startDaily(); return;
+      case 'setstudy': setStudy((extras()?.sets ?? []).find((s) => s.id === b)?.words ?? []); return;
+      case 'setplay': setPlay(b); return;
+      case 'listimport': importList(); return;
+      case 'liststudy': setStudy(state.lists.find((l) => l.id === b)?.words ?? []); return;
+      case 'listplay': startSession({ source: `list:${b}`, kindLabel: 'list' }); return;
+      case 'listdel': state.lists = state.lists.filter((l) => l.id !== b); lex.setCustom(state.lists); save.lists(); touch(); return;
+      case 'listshare': { const L = state.lists.find((l) => l.id === b); if (L) exportNow(`${L.name.replace(/[^A-Za-z0-9]+/g, '-')}.csv`, 'text/csv', L.words.map((w) => (L.defs?.[w] ? `${w},"${L.defs[w].replace(/"/g, '""')}"` : w)).join('\n') + '\n'); return; }
+      case 'mkind': { const M = state.prefs.mock, next = toggle(M.kinds, b); if (next.length) { M.kinds = next; save.prefs(); touch(); } return; }
+      case 'mband': state.prefs.mock.band = Number(b); save.prefs(); touch(); return;
+      case 'mn': { const M = state.prefs.mock; M.n = Math.max(10, Math.min(50, M.n + 10 * step)); save.prefs(); touch(); return; }
+      case 'msec': { const M = state.prefs.mock; M.secs = Math.max(8, Math.min(60, M.secs + (M.secs >= 20 ? 5 : 2) * step)); save.prefs(); touch(); return; }
+      case 'mockstart': startMock(); return;
+      case 'wmode': openWrite(b); touch(); return;
+      case 'wnext': openWrite(state.write?.mode ?? 'use'); touch(); return;
+      case 'wdone': if (state.write) { state.write.done = true; touch(); } return;
+      case 'explore': case 'xw': state.explore = b; if (state.scene === 'explore') { state.formScroll = 0; touch(); } else go('explore'); return;
+      case 'readpick': { const P_ = (extras()?.passages ?? []).find((x) => x.id === b); if (P_) { state.reading = { id: b, sel: null, ans: {}, order: Object.fromEntries(P_.qs.map((q, i) => [i, rng.shuffle(q.slice(1).map((_, k) => k))])), t0: state.t, wpm: 0 }; go('reading'); } return; }
+      case 'rw': if (state.reading) { state.reading.sel = b; state.reading.selIdx = Number(parts[2]); touch(); } return;
+      case 'radd': if (state.reading?.sel && lex.entry(state.reading.sel)?.rank !== undefined && !state.study.words.includes(state.reading.sel)) { state.study.words.push(state.reading.sel); save.study(); touch(); } return;
+      case 'rfin': { const R = state.reading, P_ = (extras()?.passages ?? []).find((x) => x.id === R?.id); if (P_) { const words = P_.text.split(/\s+/).length, mins = Math.max(0.1, (state.t - R.t0) / 60); R.wpm = Math.min(900, Math.round(words / mins)); state.prefs.readDone = { ...(state.prefs.readDone ?? {}), [R.id]: day() }; save.prefs(); touch(); } return; }
+      case 'flag': { const F = state.prefs.flags, i = F.indexOf(b); if (i >= 0) F.splice(i, 1); else if (F.length < 200) F.push(b); save.prefs(); touch(); return; }
+      case 'brk': setPref('breakMin', Number(b)); return;
+      case 'lim': setPref('limitMin', Number(b)); return;
       case 'imp': importNow(); return;
       case 'del': if (b === 'ask') { state.confirmDel = true; touch(); } else if (b === 'yes') deleteAll(); else { state.confirmDel = false; touch(); } return;
       // ---- profiles, age screen, parent gate
@@ -648,7 +761,9 @@ export function createGame(env) {
         return;
       // ---- journey
       case 'jgo': if (b === 'place') startRun('place'); else if (b === 'map') { state.back = ['title']; setScene('journey'); } else if (b === 'next' && state.runResult) { const r = state.runResult; startRun(r.next === 'check' ? 'check' : 'stage', r.world, r.next === 'check' ? -1 : r.stage + 1); } return;
-      default: return;
+      default:
+        if (a.startsWith('rq') && state.reading) { state.reading.ans[Number(a.slice(2))] = Number(b); touch(); }
+        return;
     }
   };
 
@@ -835,6 +950,7 @@ export function createGame(env) {
     if (p.pressed && inRect(p.x, p.y, P.pause)) { state.paused = !state.paused; pressed('pause'); return; }
     if (keys.has('KeyP')) { state.paused = !state.paused; return; }
     if (state.paused) { if (p.pressed && inRect(p.x, p.y, P.stop)) endSession('stop'); return; }
+    { const P_ = state.prefs; if (P_.today.day !== day()) P_.today = { day: day(), n: 0, secs: 0 }; P_.today.secs += dt; }
     if (!state.byQuestions) {
       state.timeLeft -= dt;
       if (state.timeLeft <= 0) { state.timeLeft = 0; endSession('time'); return; }
@@ -969,6 +1085,7 @@ export function createGame(env) {
       const me = state.profiles.find((p) => p.id === state.profile);
       const Lc = layoutFor(meta.width, meta.height);
       render(ctx, state, env.manifest.title, DEMO_SESSION_LIMIT, Lc, env, {
+        note: breakDue() ? `You have played ${Math.round(state.prefs.today.secs / 60)} minutes today. A short break is good for your eyes.` : '',
         form, entry: lex.entry, posName: lex.posName, sumLine: sumLine(state.cfg, state.profiles.length > 1 ? me?.name : ''), dueN, canSpeak: canSpeak(),
         lookupOn: !isChild() && state.prefs.dict.mode !== 'never' && Boolean(wg.openLink || env.openLink),
         best: state.bestScores[`${state.cfg.preset === 'classic' ? 'c' : paceKey(state.cfg)}|play`] ?? 0, studyN: state.study.words.length, goal: state.prefs.goal,

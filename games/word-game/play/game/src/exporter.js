@@ -5,8 +5,8 @@ import { FIELDS, stageOf } from './srs.js';
 export const FORMAT = 'word-game-backup';
 export const FORMAT_VERSION = 1;
 
-export function buildBackup({ cfg, prefs, records, sessions, study, day }) {
-  return JSON.stringify({ format: FORMAT, version: FORMAT_VERSION, exportedDay: day, cfg, prefs, records, sessions, study }, null, 0);
+export function buildBackup({ cfg, prefs, records, sessions, study, day, journey, ach, est, lists }) {
+  return JSON.stringify({ format: FORMAT, version: FORMAT_VERSION, exportedDay: day, cfg, prefs, records, sessions, study, journey, ach, est, lists }, null, 0);
 }
 const q = (s) => { const t = String(s ?? ''); return /[",\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t; };
 export function wordsCsv(records) {
@@ -36,5 +36,6 @@ export function parseBackup(text) {
     }
   }
   const sessions = Array.isArray(d.sessions) ? d.sessions.filter((s) => s && typeof s === 'object').slice(-500) : [];
-  return { ok: true, data: { cfg: d.cfg ?? null, prefs: d.prefs ?? null, records, sessions, study: d.study ?? null } };
+  const lists = Array.isArray(d.lists) ? d.lists.filter((l) => l && typeof l.name === 'string' && Array.isArray(l.words)).slice(0, 20).map((l) => ({ id: String(l.id ?? l.name).slice(0, 20), name: l.name.slice(0, 40), words: l.words.filter((w) => /^[a-z]{2,20}$/.test(w)).slice(0, 500), defs: l.defs && typeof l.defs === 'object' ? l.defs : {} })) : [];
+  return { ok: true, data: { cfg: d.cfg ?? null, prefs: d.prefs ?? null, records, sessions, study: d.study ?? null, journey: d.journey ?? null, ach: d.ach ?? null, est: d.est ?? null, lists } };
 }

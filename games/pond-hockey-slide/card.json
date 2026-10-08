@@ -1,0 +1,14 @@
+{
+  "title": "Pond Hockey Slide",
+  "tagline": "Slide a skater. Strike the puck. Score on the pond.",
+  "description": "Shinny on a frozen pond, turn by turn. Pull back like a slingshot and slide a skater into the puck, bank it off the snowbanks, dodge loose snow drifts and outplay four computer rivals.",
+  "genre": "sports flick hockey",
+  "demo": true,
+  "howToPlay": [
+    "Press one of your skaters and pull back like a slingshot, then let go.",
+    "Pull length sets the power and pull direction sets the aim; a dotted line shows the glide.",
+    "Strike the puck so the whole puck crosses the goal line between the posts.",
+    "Snow drifts slow anything that crosses them; the banks bounce skaters and puck.",
+    "First to 3 goals (or 5 in a full match) wins; ties go to sudden death."
+  ]
+}

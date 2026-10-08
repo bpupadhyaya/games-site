@@ -23,6 +23,12 @@ export const ACH = [
   { id: 'placed', name: 'Know your level', desc: 'Take the placement check', test: (s) => s.placed },
   { id: 'study', name: 'Student', desc: 'Make a study set', test: (s) => s.studySets >= 1 },
   { id: 'look', name: 'Curious reader', desc: 'Look a word up in a dictionary', test: (s) => s.lookups >= 1 },
+  { id: 'daily', name: 'Daily habit', desc: 'Finish the daily 10 words', test: (s) => s.dailies >= 1 },
+  { id: 'daily7', name: 'Seven dailies', desc: 'Finish the daily 10 words seven times', test: (s) => s.dailies >= 7 },
+  { id: 'mock', name: 'Test run', desc: 'Finish a mock test', test: (s) => s.mocks >= 1 },
+  { id: 'list', name: 'My own list', desc: 'Import your own word list', test: (s) => s.lists >= 1 },
+  { id: 'stickers', name: 'Sticker fan', desc: 'Collect 10 picture stickers', test: (s) => s.stickers >= 10 },
+  { id: 'formats', name: 'Many ways to learn', desc: 'Answer in 8 different question formats', test: (s) => s.formats >= 8 },
   { id: 'backup', name: 'Safe and sound', desc: 'Export a backup', test: (s) => s.exports >= 1 },
 ];
 export function newBadges(stats, have) { return ACH.filter((a) => !have[a.id] && a.test(stats)).map((a) => a.id); }

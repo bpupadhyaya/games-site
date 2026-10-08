@@ -1,0 +1,17 @@
+{
+  "title": "Silk Road Trader",
+  "tagline": "Lead a caravan from Chang'an to Baghdad and trade your way across Eurasia.",
+  "description": "A journey and trading game on the old Silk Road, around the year 780. Provision your camels, buy silk, paper, glass, spices, horses and jade where they are cheap and sell them where they are dear, choose your roads and your pace, and meet the people of the road in illustrated encounters where every choice has consequences. Keep a journal of cities, goods and people, watch an expert trader explain each decision, and finish with the best score before the passes close. Painted landscapes, no ads, works offline.",
+  "genre": "journey trading",
+  "demo": true,
+  "howToPlay": [
+    "In each city, buy goods that are cheap here and sell goods that are dear here. Prices move as you trade.",
+    "Add camels for space, guards for safety, and buy water and provisions for the road.",
+    "On the Road tab choose east or west, a route and a pace, then Depart.",
+    "Encounters stop the caravan. Each choice shows its cost and the odds of a good result.",
+    "Reputation, customs and languages improve your odds and your score.",
+    "Watch and Learn plays an opening journey and explains every decision. Tap the lightbulb for a hint any time.",
+    "Reach Baghdad, turn back, or settle on the way: the score counts silver, goods and what you learned.",
+    "The first 90 seconds of real play are free."
+  ]
+}

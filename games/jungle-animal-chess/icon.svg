@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4fb04a"/><stop offset="1" stop-color="#103a24"/></linearGradient>
+    <linearGradient id="rim" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e2584a"/><stop offset="1" stop-color="#8f1d14"/></linearGradient>
+    <radialGradient id="face" cx="0.4" cy="0.35" r="0.8"><stop offset="0" stop-color="#fff6dc"/><stop offset="1" stop-color="#ecd9a6"/></radialGradient>
+    <filter id="sh" x="-30%" y="-30%" width="160%" height="170%"><feDropShadow dx="0" dy="24" stdDeviation="20" flood-color="#000" flood-opacity="0.5"/></filter>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+  <ellipse cx="512" cy="860" rx="330" ry="60" fill="#0b2a1a" opacity="0.5"/>
+  <g filter="url(#sh)">
+    <circle cx="512" cy="540" r="360" fill="#6e100b"/>
+    <circle cx="512" cy="512" r="360" fill="url(#rim)" stroke="#f3cf72" stroke-width="10"/>
+    <circle cx="512" cy="512" r="290" fill="url(#face)" stroke="#f3cf72" stroke-width="8"/>
+  </g>
+  <g transform="translate(512 512) scale(2.9)">
+    <circle cx="-23" cy="-30" r="13" fill="#e9811c"/><circle cx="23" cy="-30" r="13" fill="#e9811c"/>
+    <circle cx="-23" cy="-30" r="7" fill="#fff1d6"/><circle cx="23" cy="-30" r="7" fill="#fff1d6"/>
+    <ellipse cx="0" cy="2" rx="36" ry="32" fill="#f4902a"/>
+    <g stroke="#2a1608" stroke-width="4" stroke-linecap="round"><path d="M-12 -28H12M-8 -22H8M-4 -28V-16M4 -28V-16"/><path d="M-36 -4q8 0 14 4M-36 8q8 0 12 4M36 -4q-8 0-14 4M36 8q-8 0-12 4"/></g>
+    <ellipse cx="-11" cy="12" rx="12" ry="10" fill="#fff6e2"/><ellipse cx="11" cy="12" rx="12" ry="10" fill="#fff6e2"/>
+    <ellipse cx="-13" cy="-5" rx="6" ry="7" fill="#fffdf4"/><ellipse cx="13" cy="-5" rx="6" ry="7" fill="#fffdf4"/>
+    <circle cx="-13" cy="-4" r="4" fill="#2a1608"/><circle cx="13" cy="-4" r="4" fill="#2a1608"/>
+    <path d="M-5 8H5L0 14Z" fill="#e8647c"/><path d="M0 14V18M0 18q-5 5-9 2M0 18q5 5 9 2" stroke="#2b1a10" stroke-width="2" fill="none" stroke-linecap="round"/>
+  </g>
+</svg>

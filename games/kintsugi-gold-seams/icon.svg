@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="38%" r="75%"><stop offset="0" stop-color="#4a2f1f"/><stop offset="0.6" stop-color="#241610"/><stop offset="1" stop-color="#0d0807"/></radialGradient>
+    <linearGradient id="jar" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#8d8270"/><stop offset="0.22" stop-color="#e9dfcb"/><stop offset="0.4" stop-color="#fbf5e6"/><stop offset="0.7" stop-color="#d9ceb6"/><stop offset="1" stop-color="#7d725f"/></linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff1b8"/><stop offset="0.5" stop-color="#f0bf4f"/><stop offset="1" stop-color="#b57d22"/></linearGradient>
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#f3b94d" stop-opacity="0.38"/><stop offset="1" stop-color="#f3b94d" stop-opacity="0"/></radialGradient>
+    <clipPath id="body"><path d="M512 190 C 560 190 592 214 602 246 C 760 290 850 420 850 566 C 850 760 710 868 512 868 C 314 868 174 760 174 566 C 174 420 264 290 422 246 C 432 214 464 190 512 190 Z"/></clipPath>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+  <circle cx="512" cy="540" r="470" fill="url(#glow)"/>
+  <ellipse cx="512" cy="884" rx="290" ry="36" fill="#000" opacity="0.45"/>
+  <g clip-path="url(#body)">
+    <rect x="150" y="170" width="720" height="720" fill="url(#jar)"/>
+    <rect x="150" y="170" width="720" height="720" fill="#000" opacity="0.08"/>
+    <ellipse cx="512" cy="214" rx="96" ry="22" fill="#5b5040"/>
+  </g>
+  <ellipse cx="512" cy="204" rx="96" ry="22" fill="none" stroke="#f6eddb" stroke-width="10"/>
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <g stroke="#6a4310" stroke-width="40" opacity="0.7" transform="translate(4 6)">
+      <path id="c1" d="M470 232 L504 330 L450 400 L520 470 L470 560 L560 650 L510 760 L560 866"/>
+      <path d="M520 470 L640 430 L720 330 L780 316"/>
+      <path d="M470 560 L360 600 L290 700 L214 740"/>
+      <path d="M560 650 L690 700 L760 780"/>
+    </g>
+    <g stroke="url(#gold)" stroke-width="32">
+      <path d="M470 232 L504 330 L450 400 L520 470 L470 560 L560 650 L510 760 L560 866"/>
+      <path d="M520 470 L640 430 L720 330 L780 316"/>
+      <path d="M470 560 L360 600 L290 700 L214 740"/>
+      <path d="M560 650 L690 700 L760 780"/>
+    </g>
+    <g stroke="#fffbe2" stroke-width="9" opacity="0.85" transform="translate(-4 -5)">
+      <path d="M470 232 L504 330 L450 400 L520 470 L470 560 L560 650 L510 760 L560 866"/>
+      <path d="M520 470 L640 430 L720 330 L780 316"/>
+      <path d="M470 560 L360 600 L290 700 L214 740"/>
+      <path d="M560 650 L690 700 L760 780"/>
+    </g>
+  </g>
+</svg>

@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3a2519"/><stop offset="0.6" stop-color="#6e3f27"/><stop offset="1" stop-color="#2a1a12"/></linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.42" r="0.6"><stop offset="0" stop-color="#ffb877" stop-opacity="0.85"/><stop offset="1" stop-color="#ffb877" stop-opacity="0"/></radialGradient>
+    <linearGradient id="pot" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#2c6b5f"/><stop offset="0.22" stop-color="#6fb7a4"/><stop offset="0.42" stop-color="#d9f1e2"/><stop offset="0.66" stop-color="#7cbfab"/><stop offset="1" stop-color="#245a50"/></linearGradient>
+    <linearGradient id="band" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#1d3f3a"/><stop offset="0.45" stop-color="#4f9482"/><stop offset="1" stop-color="#173833"/></linearGradient>
+    <linearGradient id="wheel" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4a4a52"/><stop offset="1" stop-color="#1d1d22"/></linearGradient>
+    <clipPath id="clip"><path d="M392 240 C380 330 300 400 300 520 C300 640 360 720 372 790 L652 790 C664 720 724 640 724 520 C724 400 644 330 632 240 Z"/></clipPath>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+  <rect width="1024" height="1024" fill="url(#glow)"/>
+  <ellipse cx="512" cy="860" rx="400" ry="92" fill="#000" opacity="0.45"/>
+  <ellipse cx="512" cy="826" rx="380" ry="86" fill="url(#wheel)"/>
+  <ellipse cx="512" cy="820" rx="380" ry="86" fill="none" stroke="#d29a62" stroke-width="12"/>
+  <ellipse cx="512" cy="806" rx="190" ry="40" fill="#000" opacity="0.3"/>
+  <path d="M392 240 C380 330 300 400 300 520 C300 640 360 720 372 790 L652 790 C664 720 724 640 724 520 C724 400 644 330 632 240 Z" fill="url(#pot)"/>
+  <g clip-path="url(#clip)"><rect x="280" y="470" width="470" height="70" fill="url(#band)" opacity="0.9"/><rect x="280" y="590" width="470" height="26" fill="url(#band)" opacity="0.8"/><rect x="280" y="636" width="470" height="14" fill="url(#band)" opacity="0.7"/></g>
+  <ellipse cx="512" cy="240" rx="120" ry="34" fill="#f3fbf6"/>
+  <ellipse cx="512" cy="242" rx="96" ry="24" fill="#245a50"/>
+  <ellipse cx="512" cy="790" rx="140" ry="22" fill="#000" opacity="0.28"/>
+  <path d="M430 330 C410 420 380 470 380 560" fill="none" stroke="#fff" stroke-opacity="0.45" stroke-width="22" stroke-linecap="round"/>
+</svg>

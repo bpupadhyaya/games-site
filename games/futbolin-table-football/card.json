@@ -1,0 +1,14 @@
+{
+  "title": "Futbolín",
+  "tagline": "Slide and flick the rods. Score on the rival goal.",
+  "description": "Table football from Spain and Latin America on a lit wooden table. Slide a rod with your thumb, flick to kick, and beat five rival levels, climb the three-round Cup, or play a friend on the same screen. A Hint names the rod to use, and Watch & Learn explains each kick.",
+  "genre": "table football",
+  "demo": true,
+  "howToPlay": [
+    "Touch a rod and drag sideways to line a player up with the ball.",
+    "Flick quickly toward the rival goal to kick; a tap is a soft pass.",
+    "Where the ball meets the foot decides its angle.",
+    "Keep a player in the ball's path to defend your goal.",
+    "Win matches to 3, 5 or 7 goals, try the Cup, or pass and play with a friend."
+  ]
+}

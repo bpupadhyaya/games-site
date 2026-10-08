@@ -1,0 +1,14 @@
+{
+  "title": "Anansi Tales",
+  "tagline": "Help Anansi win with wit in five spider tales from Ghana.",
+  "description": "A wit-and-puzzle storytelling game inspired by the Anansi tales of the Akan people of Ghana. A storyteller and her listeners tell five folk tales; you solve the tricks: sequences, matches, riddles, cause-and-effect traps and clever replies. Painted-cloth art, a Gallery of woven story-cloths, hints and Watch and Learn.",
+  "genre": "Story puzzle",
+  "demo": true,
+  "howToPlay": [
+    "Listen to the storyteller, then solve one small puzzle in each of four beats.",
+    "Tap cards in order, match pairs, pick the riddle answer, or build the trap one tool at a time.",
+    "A wrong pick shows what would really happen and costs only a star.",
+    "Tap Hint for a nudge, again to see the answer; Watch and Learn plays a tale for you.",
+    "Finish a tale to hang its woven cloth in the Gallery."
+  ]
+}

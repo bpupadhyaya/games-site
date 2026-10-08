@@ -1,0 +1,16 @@
+{
+  "title": "Origami: Fold by Fold",
+  "tagline": "Fold paper into something wonderful.",
+  "description": "Real, curling, layered paper in 3D. Grab a flap, drag it across and feel the crease snap flat, then watch your kite, puppy, fish or paper dart stand up. Seven models, six washi papers, free-fold Studio and a Watch & Learn mode that folds for you. No ads and no timers.",
+  "genre": "paper folding craft puzzle",
+  "demo": true,
+  "howToPlay": [
+    "Each model is a short list of folds. The caption tells you the next one.",
+    "Grab the glowing corner and drag it across the dashed crease to the ring.",
+    "Let go past halfway and it lands flat; let go early and it springs back.",
+    "Neatness scores how close your finger ended to the ring. Folds are always exact.",
+    "Some steps unfold the last fold, turn the paper over or fold only the top layer.",
+    "Press Hint to see the fold as a ghost demonstration. Three stars for neat folds and no hints.",
+    "Studio lets you fold freely; Watch & Learn folds whole models for you."
+  ]
+}

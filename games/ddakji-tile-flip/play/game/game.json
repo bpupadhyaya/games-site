@@ -1,0 +1,25 @@
+{
+  "slug": "ddakji-tile-flip",
+  "title": "Ddakji",
+  "tagline": "Fold it. Slap it. Flip theirs.",
+  "genre": "paper-tile flip skill",
+  "orientation": "any",
+  "version": "1.0.0",
+  "monetization": {
+    "model": "premium",
+    "priceUsd": 3.99,
+    "previewSeconds": 90,
+    "products": [
+      {
+        "id": "unlock_game",
+        "type": "non-consumable",
+        "priceUsd": 3.99,
+        "title": "Unlock Game"
+      }
+    ]
+  },
+  "locales": [
+    "en"
+  ],
+  "demoOnly": true
+}

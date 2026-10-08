@@ -1,0 +1,14 @@
+{
+  "title": "Pick-up Sticks",
+  "tagline": "Lift one. Don't wobble the rest.",
+  "description": "The gentle game of a steady hand. Slide lacquered sticks out of a heap one at a time without moving any other, collect bamboo, jade, red lacquer and the golden master, and outplay five rivals, the Solo Ladder and the Daily Heap.",
+  "genre": "steady-hand dexterity",
+  "demo": true,
+  "howToPlay": [
+    "Press a free stick (nothing lying across it) and slide it slowly out of the heap.",
+    "Let go once it is clear. Bamboo is worth 1, indigo 3, jade 5, red lacquer 10, the golden master 20.",
+    "If any other stick moves too far, it is a fault and the turn passes.",
+    "Win the golden master to use the lever and sweep sticks aside.",
+    "Take turns against a rival, climb the ladder or play the Daily Heap."
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "title": "Crossword Grid Clues",
+  "tagline": "Clever clues, calm puzzles. Hints that teach.",
+  "description": "The classic crossword made for a phone or tablet. Five sizes from a quick Mini to a Giant, a Daily Crossword with a streak, original clues, a proper keyboard, pencil letters, and hints that explain how to think about each clue. Watch and Learn solves a puzzle step by step.",
+  "genre": "Word puzzle",
+  "demo": true,
+  "howToPlay": [
+    "Tap a white square, then type the answer to the clue shown below the grid.",
+    "Tap the same square again to switch between Across and Down.",
+    "Where words cross they share a letter, so each answer helps the next.",
+    "Use Pencil, Check and Reveal when you are unsure, or tap the bulb for a hint that teaches.",
+    "Pick Mini to Giant, or play the Daily Crossword and keep your streak."
+  ]
+}

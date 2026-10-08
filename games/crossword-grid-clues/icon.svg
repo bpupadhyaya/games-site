@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0.35" y2="1">
+      <stop offset="0" stop-color="#1f7684"/>
+      <stop offset="0.55" stop-color="#0d3a47"/>
+      <stop offset="1" stop-color="#06161d"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.3" cy="0.2" r="0.8">
+      <stop offset="0" stop-color="#7ee8e8" stop-opacity="0.28"/>
+      <stop offset="1" stop-color="#7ee8e8" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="paper" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#fffaf0"/>
+      <stop offset="1" stop-color="#eadfc4"/>
+    </linearGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffd35f"/>
+      <stop offset="1" stop-color="#f5a623"/>
+    </linearGradient>
+    <filter id="sh" x="-20%" y="-20%" width="140%" height="150%"><feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#000" flood-opacity="0.45"/></filter>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+  <rect width="1024" height="1024" fill="url(#glow)"/>
+  <g filter="url(#sh)">
+    <rect x="132" y="132" width="760" height="760" rx="56" fill="#0b2029"/>
+    <rect x="132" y="132" width="760" height="760" rx="56" fill="none" stroke="#2f7280" stroke-width="8"/>
+  </g>
+  <rect x="172" y="172" width="680" height="680" rx="14" fill="#1b2130"/>
+  <!-- 3 x 3 grid: cells 216, gap 16 -->
+  <g>
+    <rect x="180" y="180" width="216" height="216" fill="url(#paper)"/>
+    <rect x="412" y="180" width="216" height="216" fill="#1b2130"/>
+    <rect x="644" y="180" width="208" height="216" fill="url(#paper)"/>
+    <rect x="180" y="412" width="216" height="216" fill="url(#gold)"/>
+    <rect x="412" y="412" width="216" height="216" fill="#c9e4f4"/>
+    <rect x="644" y="412" width="208" height="216" fill="#c9e4f4"/>
+    <rect x="180" y="644" width="216" height="208" fill="#1b2130"/>
+    <rect x="412" y="644" width="216" height="208" fill="url(#paper)"/>
+    <rect x="644" y="644" width="208" height="208" fill="url(#paper)"/>
+  </g>
+  <!-- the highlighted answer: C A T -->
+  <g stroke="#1b2130" stroke-width="34" stroke-linecap="round" stroke-linejoin="round" fill="none">
+    <path d="M338 482 A70 70 0 1 0 338 560"/>
+    <path d="M452 590 L520 450 L588 590"/>
+    <path d="M470 548 L570 548"/>
+    <path d="M680 456 L816 456"/>
+    <path d="M748 456 L748 592"/>
+  </g>
+  <!-- pencil -->
+  <g transform="translate(600 970) rotate(-42)">
+    <rect x="0" y="-46" width="330" height="92" rx="10" fill="#ffb53f"/>
+    <rect x="250" y="-46" width="28" height="92" fill="#c9c9d4"/>
+    <polygon points="330,-46 430,0 330,46" fill="#f3d9a8"/>
+    <polygon points="396,-14 430,0 396,14" fill="#1b2130"/>
+    <rect x="0" y="-46" width="330" height="22" rx="10" fill="#ffd27a" opacity="0.7"/>
+  </g>
+</svg>

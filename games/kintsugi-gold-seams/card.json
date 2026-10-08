@@ -1,0 +1,14 @@
+{
+  "title": "Kintsugi",
+  "tagline": "Mend broken pottery with gold. Slow hands, beautiful seams.",
+  "description": "Twelve broken Japanese vessels wait on a dark lacquer bench. Turn and fit every shard back into place, then trace each crack with liquid gold. Slow, steady strokes make thick, bright seams. No timer, no ads, hints that show you where a shard goes, and Watch and Learn to see a whole mend.",
+  "genre": "mending puzzle",
+  "demo": true,
+  "howToPlay": [
+    "Pick a vessel from the shelf.",
+    "Drag a shard to move it; drag its gold knob to turn it.",
+    "Match the glaze and pattern. Let go near the right place and it clicks in.",
+    "When all shards are in, slide a finger slowly along each crack to pour gold.",
+    "Stay close and go gently for thick, bright gold; three stars for a steady hand."
+  ]
+}

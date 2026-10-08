@@ -22,6 +22,15 @@ export const QTYPES = [
   { k: 'confusable', label: 'Easily confused', blurb: 'Pairs like affect and effect' },
   { k: 'root', label: 'Word parts', blurb: 'Roots and their meanings' },
   { k: 'variant', label: 'UK spelling', blurb: 'US word, British spelling' },
+  { k: 'sense', label: 'Another meaning', blurb: 'A second meaning of a word' },
+  { k: 'cloze', label: 'Fill the gap', blurb: 'Complete an example sentence' },
+  { k: 'missing', label: 'Missing letter', blurb: 'Find the letter that is missing' },
+  { k: 'stress', label: 'Stressed part', blurb: 'Which part of the word is stressed' },
+  { k: 'syllables', label: 'Syllables', blurb: 'How many syllables a word has' },
+  { k: 'palindrome', label: 'Palindromes', blurb: 'Words that read the same backwards' },
+  { k: 'build', label: 'Word builder', blurb: 'Join a prefix to a word' },
+  { k: 'inflect', label: 'Irregular forms', blurb: 'Past forms, plurals and comparatives' },
+  { k: 'ladder', label: 'Strength ladder', blurb: 'Which word is stronger or milder' },
 ];
 export const PRESETS = {
   classic: { label: 'Classic', blurb: 'The original drift: words speed up as you score', secs: 0, endBy: 'time', secsIdx: 1, qIdx: 1, lives: 0 },
@@ -40,7 +49,7 @@ export const DEFAULT_CFG = {
   setSize: 20, source: 'whole',          // 'whole' | 'study' | 'due' | 'weak'
   qtypes: ['synonym', 'antonym'],
   secs: 0, endBy: 'time', secsIdx: 1, qIdx: 1, lives: 0, hints: true,
-  skipKnown: false,
+  skipKnown: false, adaptive: false,
 };
 
 const clampIdx = (v, arr, d) => (Number.isInteger(v) && v >= 0 && v < arr.length ? v : d);
@@ -62,7 +71,7 @@ export function normalizeCfg(c) {
   o.minLen = Math.max(3, Math.min(15, Number(o.minLen) || 3));
   o.maxLen = Math.max(o.minLen, Math.min(15, Number(o.maxLen) || 15));
   o.hints = o.hints !== false;
-  o.skipKnown = Boolean(o.skipKnown);
+  o.skipKnown = Boolean(o.skipKnown); o.adaptive = Boolean(o.adaptive);
   if (!PRESETS[o.preset] && o.preset !== 'custom') o.preset = 'custom';
   return o;
 }

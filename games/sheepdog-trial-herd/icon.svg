@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4f9de0"/><stop offset="0.62" stop-color="#b9e1ee"/><stop offset="1" stop-color="#e8f3dd"/></linearGradient>
+    <linearGradient id="hill1" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5cae52"/><stop offset="1" stop-color="#2f7d46"/></linearGradient>
+    <linearGradient id="hill2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3f9650"/><stop offset="1" stop-color="#1f5f3b"/></linearGradient>
+    <radialGradient id="sun" cx="0.8" cy="0.2" r="0.4"><stop offset="0" stop-color="#fff6c8" stop-opacity="0.95"/><stop offset="1" stop-color="#fff6c8" stop-opacity="0"/></radialGradient>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#sky)"/>
+  <rect width="1024" height="1024" fill="url(#sun)"/>
+  <path d="M0 640 Q220 520 430 600 T1024 560 V1024 H0Z" fill="url(#hill1)"/>
+  <path d="M0 760 Q300 650 560 740 T1024 700 V1024 H0Z" fill="url(#hill2)"/>
+  <!-- two ewes on the hill -->
+  <g>
+    <ellipse cx="190" cy="742" rx="86" ry="62" fill="#f6f1e3"/><circle cx="130" cy="716" r="40" fill="#f6f1e3"/><circle cx="214" cy="702" r="42" fill="#f6f1e3"/><circle cx="262" cy="738" r="44" fill="#f6f1e3"/>
+    <ellipse cx="108" cy="758" rx="34" ry="30" fill="#1b1a1c"/><rect x="120" y="790" width="14" height="44" rx="6" fill="#26211f"/><rect x="226" y="790" width="14" height="44" rx="6" fill="#26211f"/>
+  </g>
+  <g>
+    <ellipse cx="840" cy="800" rx="70" ry="50" fill="#f6f1e3"/><circle cx="792" cy="780" r="34" fill="#f6f1e3"/><circle cx="858" cy="772" r="36" fill="#f6f1e3"/><circle cx="896" cy="804" r="36" fill="#f6f1e3"/>
+    <ellipse cx="948" cy="822" rx="28" ry="26" fill="#1b1a1c"/><rect x="800" y="840" width="12" height="36" rx="5" fill="#26211f"/><rect x="884" y="840" width="12" height="36" rx="5" fill="#26211f"/>
+  </g>
+  <!-- the border collie, head and shoulders -->
+  <g>
+    <path d="M300 1024 Q300 760 512 740 Q724 760 724 1024Z" fill="#17171b"/>
+    <path d="M430 1024 Q440 840 512 820 Q584 840 594 1024Z" fill="#f4f0e6"/>
+    <path d="M330 470 L296 258 Q300 214 344 232 L452 330Z" fill="#17171b"/>
+    <path d="M694 470 L728 258 Q724 214 680 232 L572 330Z" fill="#17171b"/>
+    <path d="M338 420 L322 292 L412 354Z" fill="#3a3238"/><path d="M686 420 L702 292 L612 354Z" fill="#3a3238"/>
+    <path d="M512 280 C640 280 706 392 700 526 C694 656 620 768 512 768 C404 768 330 656 324 526 C318 392 384 280 512 280Z" fill="#17171b"/>
+    <path d="M512 296 C550 296 562 340 556 420 C552 480 560 520 574 560 C592 612 574 736 512 744 C450 736 432 612 450 560 C464 520 472 480 468 420 C462 340 474 296 512 296Z" fill="#f4f0e6"/>
+    <ellipse cx="512" cy="640" rx="70" ry="86" fill="#f4f0e6"/>
+    <ellipse cx="512" cy="598" rx="34" ry="24" fill="#0b0b0d"/>
+    <path d="M512 622 V672 M512 672 Q482 692 462 678 M512 672 Q542 692 562 678" stroke="#0b0b0d" stroke-width="9" stroke-linecap="round" fill="none"/>
+    <ellipse cx="428" cy="500" rx="40" ry="30" fill="#d98a22"/><ellipse cx="596" cy="500" rx="40" ry="30" fill="#d98a22"/>
+    <ellipse cx="430" cy="502" rx="17" ry="22" fill="#060606"/><ellipse cx="594" cy="502" rx="17" ry="22" fill="#060606"/>
+    <circle cx="440" cy="490" r="8" fill="#fff"/><circle cx="604" cy="490" r="8" fill="#fff"/>
+  </g>
+</svg>

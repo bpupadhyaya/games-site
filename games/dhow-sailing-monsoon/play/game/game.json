@@ -1,0 +1,24 @@
+{
+  "slug": "dhow-sailing-monsoon",
+  "title": "Dhow Sailing",
+  "genre": "Sailing and monsoon trade journey",
+  "orientation": "any",
+  "version": "1.0.0",
+  "monetization": {
+    "model": "premium",
+    "priceUsd": 3.99,
+    "previewSeconds": 90,
+    "products": [
+      {
+        "id": "unlock_game",
+        "type": "non-consumable",
+        "priceUsd": 3.99,
+        "title": "Unlock Game"
+      }
+    ]
+  },
+  "locales": [
+    "en"
+  ],
+  "demoOnly": true
+}

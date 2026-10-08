@@ -1,0 +1,385 @@
+// The play screen: wind dial, spot card, aim marker and ghost path, the closing ring, the control panel and the result banner.
+// Pure drawing on top of the 3D picture (or a flat 2D picture when WebGL is missing). All geometry comes from layout.js and camera.js.
+import { W, H, hudLayout, watchLayout, TEXT_SCALES, THINK_STEPS, host, inRect, minFont } from './layout.js';
+import { camFor, project } from './camera.js';
+import { FONT, DISPLAY, C, roundPath, drawButton, panel, wrapLines, fitPx } from './ui.js';
+import { GOAL_HW, BAR_H, TILTS, RUN_Q, BEATS, AIM_MAX, EARLY_MAX, CONTACT_LATE } from './consts.js';
+import { windowDeg, windWords } from './ai.js';
+import { flightSim, windAt, predict } from './sim.js';
+import { clamp, r1 } from './util.js';
+
+const TAU = Math.PI * 2;
+const GOLD = '#ffd34d', CREAM = '#fff6e4';
+let ctxShot = null;
+export function bandOf(G) {
+  if (G.scene === 'play') return (G.mode === 'watch' ? watchLayout(G.settings.textIdx, W, H) : hudLayout(G.settings.textIdx, W, H)).band;
+  if (G.scene === 'title' || G.scene === 'result' || G.scene === 'ladder' || G.scene === 'shootout' || G.scene === 'practice') {
+    const wide = W >= H * 0.98;
+    return wide ? { left: 0, right: Math.round(W * 0.55), top: 0, bottom: H } : { left: 0, right: W, top: 0, bottom: Math.round(H * 0.52) };
+  }
+  return { left: 0, right: W, top: 0, bottom: H };
+}
+export const hudCam = (G) => { const S = G.S.s; const lay = G.mode === 'watch' ? watchLayout(G.settings.textIdx, W, H) : hudLayout(G.settings.textIdx, W, H); return camFor(W, H, S, lay.band); };
+
+const card = (ctx, r, o = {}) => panel(ctx, r.x, r.y, r.w, r.h, { r: 18, fill: o.fill || 'rgba(10,26,44,0.78)', stroke: o.stroke || 'rgba(255,246,228,0.35)', shadow: true });
+const txt = (ctx, s, x, y, size, color = CREAM, align = 'left', weight = 700, font = FONT) => { ctx.font = `${weight} ${Math.max(minFont(1), Math.round(size))}px ${font}`; ctx.fillStyle = color; ctx.textAlign = align; ctx.textBaseline = 'alphabetic'; ctx.fillText(s, x, y); };
+
+// ---- wind dial -----------------------------------------------------------------------------------------------------------------------
+export function drawWindCard(ctx, r, S, t, m = 1) {
+  card(ctx, r);
+  const wd = windAt(S.wind, S.clock), words = windWords(wd.speed, wd.dir);
+  const rad = Math.min(r.h * 0.33, r.w * 0.2), cx = r.x + rad + 14, cy = r.y + r.h - rad - 8;
+  ctx.save();
+  ctx.beginPath(); ctx.arc(cx, cy, rad, 0, TAU); ctx.fillStyle = 'rgba(255,255,255,0.08)'; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(255,246,228,0.55)'; ctx.stroke();
+  // up = toward the posts
+  ctx.fillStyle = 'rgba(255,246,228,0.8)'; ctx.beginPath(); ctx.moveTo(cx, cy - rad - 1); ctx.lineTo(cx - 6, cy - rad + 9); ctx.lineTo(cx + 6, cy - rad + 9); ctx.closePath(); ctx.fill();
+  const k = Math.min(1, wd.speed / 12), len = rad * (0.32 + 0.62 * k), a = wd.dir;
+  const dx = Math.sin(a), dy = -Math.cos(a);
+  const hx = cx + dx * len, hy = cy + dy * len, tx = cx - dx * len * 0.9, ty = cy - dy * len * 0.9;
+  const col = wd.speed < 3 ? '#9be7c4' : wd.speed < 7 ? '#ffd34d' : '#ff8a5c';
+  ctx.strokeStyle = col; ctx.fillStyle = col; ctx.lineWidth = 6 * Math.min(1.4, m); ctx.lineCap = 'round';
+  if (wd.speed > 0.6) {
+    ctx.beginPath(); ctx.moveTo(tx, ty); ctx.lineTo(hx, hy); ctx.stroke();
+    const ah = 14, ang = Math.atan2(dy, dx);
+    ctx.beginPath(); ctx.moveTo(hx + dx * 6, hy + dy * 6); ctx.lineTo(hx - Math.cos(ang - 0.5) * ah, hy - Math.sin(ang - 0.5) * ah); ctx.lineTo(hx - Math.cos(ang + 0.5) * ah, hy - Math.sin(ang + 0.5) * ah); ctx.closePath(); ctx.fill();
+  } else { ctx.beginPath(); ctx.arc(cx, cy, 5, 0, TAU); ctx.fill(); }
+  ctx.restore();
+  const tx0 = cx + rad + 14, tw = r.x + r.w - tx0 - 8;
+  const big = fitPx(ctx, `${wd.speed.toFixed(1)}`, 800, Math.min(54, r.h * 0.4), tw * 0.62, 18);
+  txt(ctx, wd.speed.toFixed(1), tx0, r.y + r.h * 0.5, big, GOLD, 'left', 800, DISPLAY);
+  const nw = (() => { ctx.font = `800 ${big}px ${DISPLAY}`; return ctx.measureText(wd.speed.toFixed(1)).width; })();
+  txt(ctx, 'm/s', tx0 + nw + 6, r.y + r.h * 0.5, Math.max(15, big * 0.38), CREAM, 'left', 700);
+  const lbl = words.cross === 0 && words.along === 0 ? 'Still air' : `${Math.abs(words.cross) >= 1 ? (words.cross > 0 ? 'To the right' : 'To the left') : ''}${Math.abs(words.cross) >= 1 && Math.abs(words.along) >= 1 ? ' · ' : ''}${Math.abs(words.along) >= 1 ? (words.along > 0 ? 'Tail' : 'Head') : ''}`;
+  const lbl2 = (() => { ctx.font = `700 ${Math.max(minFont(1), 15)}px ${FONT}`; return ctx.measureText(lbl).width > tw ? lbl.replace('To the ', '') : lbl; })();
+  const lp = fitPx(ctx, lbl2, 700, Math.max(15, 20 * Math.min(m, 1.2)), tw, 11);
+  txt(ctx, lbl2, tx0, r.y + r.h * 0.5 + lp * 1.5, lp, 'rgba(255,246,228,0.88)', 'left', 600);
+  txt(ctx, 'WIND', r.x + 14, r.y + 22, Math.max(13, 15 * Math.min(m, 1.2)), 'rgba(255,246,228,0.6)', 'left', 800);
+  if (S.wind.gust > 0.08) txt(ctx, 'GUSTY', r.x + r.w - 12, r.y + 22, Math.max(13, 15 * Math.min(m, 1.2)), '#ff9f6b', 'right', 800);
+}
+
+export function drawSpotCard(ctx, r, S, m = 1) {
+  card(ctx, r);
+  const sp = S.spot, win = windowDeg(sp);
+  const sz = Math.max(13, 15 * Math.min(m, 1.2));
+  txt(ctx, 'SPOT', r.x + 14, r.y + 22, sz, 'rgba(255,246,228,0.6)', 'left', 800);
+  const bigS = fitPx(ctx, `${sp.d} m`, 800, Math.min(54, r.h * 0.4), r.w - 30, 18);
+  txt(ctx, `${sp.d} m`, r.x + 14, r.y + r.h * 0.52, bigS, GOLD, 'left', 800, DISPLAY);
+  const side = sp.sx === 0 ? 'On the middle line' : `${Math.abs(sp.sx)} m ${sp.sx < 0 ? 'left' : 'right'}`;
+  const l1 = fitPx(ctx, side, 700, Math.max(15, 19 * Math.min(m, 1.2)), r.w - 24, 11);
+  txt(ctx, side, r.x + 14, r.y + r.h * 0.52 + l1 * 1.35, l1, CREAM, 'left', 600);
+  const l2 = `Window ${r1(win)}°`;
+  const f2 = fitPx(ctx, l2, 700, Math.max(15, 19 * Math.min(m, 1.2)), r.w - 24, 11);
+  txt(ctx, l2, r.x + 14, r.y + r.h * 0.52 + l1 * 1.35 + f2 * 1.35, f2, win < 8 ? '#ff9f6b' : '#9be7c4', 'left', 700);
+}
+
+// ---- marks on the picture --------------------------------------------------------------------------------------------------------------
+function dotted(ctx, pts, color, w = 4, dash = [2, 12]) {
+  const ok = pts.filter(Boolean);
+  if (ok.length < 2) return;
+  ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = w; ctx.lineCap = 'round'; ctx.setLineDash(dash);
+  ctx.beginPath(); ctx.moveTo(ok[0].x, ok[0].y); for (let i = 1; i < ok.length; i++) ctx.lineTo(ok[i].x, ok[i].y); ctx.stroke(); ctx.restore();
+}
+export function drawAim(ctx, cam, S, t, hot) {
+  const a = S.aimX;
+  const top = project(cam, { x: a, y: 9, z: 0 }), bot = project(cam, { x: a, y: 0, z: 0 }), mid = project(cam, { x: a, y: BAR_H + 3.5, z: 0 });
+  if (!top || !bot) return;
+  const tee = project(cam, { x: S.spot.sx, y: 0.05, z: -S.spot.d });
+  if (tee) dotted(ctx, [tee, bot], 'rgba(255,211,77,0.55)', 4, [3, 12]);
+  ctx.save();
+  const g = ctx.createLinearGradient(0, top.y, 0, bot.y); g.addColorStop(0, 'rgba(255,211,77,0)'); g.addColorStop(0.5, 'rgba(255,211,77,0.9)'); g.addColorStop(1, 'rgba(255,211,77,0.5)');
+  ctx.strokeStyle = g; ctx.lineWidth = Math.max(3, 0.08 * mid.s); ctx.beginPath(); ctx.moveTo(top.x, top.y); ctx.lineTo(bot.x, bot.y); ctx.stroke();
+  const rr = Math.max(9, 0.34 * mid.s * (1 + (hot ? 0.15 * Math.sin(t * 8) : 0)));
+  ctx.translate(mid.x, mid.y); ctx.rotate(Math.PI / 4);
+  ctx.fillStyle = 'rgba(255,211,77,0.95)'; ctx.fillRect(-rr / 2, -rr / 2, rr, rr); ctx.strokeStyle = '#6b4b00'; ctx.lineWidth = 2; ctx.strokeRect(-rr / 2, -rr / 2, rr, rr);
+  ctx.restore();
+  const lab = Math.abs(a) < 0.05 ? 'AIM  middle' : `AIM  ${r1(Math.abs(a))} m ${a < 0 ? 'L' : 'R'}`;
+  const fs = clamp(0.42 * mid.s, 14, 24);
+  ctx.font = `800 ${Math.round(fs)}px ${FONT}`; const tw = ctx.measureText(lab).width + 16;
+  roundPath(ctx, mid.x - tw / 2, mid.y - rr * 0.9 - fs - 14, tw, fs + 10, 8); ctx.fillStyle = 'rgba(10,26,44,0.78)'; ctx.fill();
+  txt(ctx, lab, mid.x, mid.y - rr * 0.9 - 14 + 0, fs, GOLD, 'center', 800);
+}
+export function ghostPath(cam, S, advice) {
+  const r = flightSim({ sx: S.spot.sx, d: S.spot.d, yaw: Math.atan2(advice.aimX - S.spot.sx, S.spot.d), elev: TILTS[advice.tilt].elev, speed: 33 * advice.power, wind: (tt) => windAt(S.wind, S.clock + RUN_Q + tt), path: true });
+  return r.path.map((p) => project(cam, p));
+}
+export function drawGhost(ctx, cam, S, adv, color = 'rgba(255,255,255,0.8)') {
+  const pts = ghostPath(cam, S, adv);
+  dotted(ctx, pts, color, 5, [1, 13]);
+  const end = pts[pts.length - 1];
+  void end;
+}
+
+// ring that closes on the ball during the run-up, and the three beat lamps
+export function drawRing(ctx, cam, S, t, lay, mine = true) {
+  const b = project(cam, { x: S.spot.sx, y: 0.3, z: -S.spot.d });
+  if (!b || S.phase !== 'runup') return;
+  const t0 = RUN_Q - 1.3, u = clamp((S.runT - t0) / 1.3, 0, 1.1);
+  const rEnd = Math.max(14, 0.42 * b.s), rStart = Math.max(rEnd + 70, 1.9 * b.s);
+  const rad = rStart + (rEnd - rStart) * Math.min(u, 1);
+  const hit = Math.abs(S.runT - RUN_Q) < 0.07;
+  ctx.save();
+  ctx.globalAlpha = clamp(S.runT / 0.5, 0, 1) * (S.press ? 0.35 : 1);
+  ctx.lineWidth = hit ? 9 : 6; ctx.strokeStyle = hit ? '#7dffb3' : GOLD; ctx.beginPath(); ctx.arc(b.x, b.y, rad, 0, TAU); ctx.stroke();
+  ctx.lineWidth = 3; ctx.strokeStyle = 'rgba(255,255,255,0.8)'; ctx.beginPath(); ctx.arc(b.x, b.y, rEnd, 0, TAU); ctx.stroke();
+  ctx.restore();
+  // beat lamps
+  const pr = lay.prompt, cx = pr.x + pr.w / 2, cy = pr.y + 26, gap = 46;
+  for (let i = 0; i < 4; i++) {
+    const on = i < 3 ? S.runT >= BEATS[i] : S.runT >= RUN_Q;
+    const x = cx + (i - 1.5) * gap;
+    ctx.beginPath(); ctx.arc(x, cy, i === 3 ? 17 : 12, 0, TAU); ctx.fillStyle = on ? (i === 3 ? '#7dffb3' : GOLD) : 'rgba(255,246,228,0.22)'; ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(10,26,44,0.7)'; ctx.stroke();
+  }
+  txt(ctx, !mine ? 'The rival is kicking' : S.press ? 'Struck…' : S.runT < 0.5 ? 'Watch the kicker, feel the beats' : 'Flick up as the ring closes', cx, cy + 50, Math.max(18, 22), CREAM, 'center', 800);
+}
+
+// ---- the control panel -----------------------------------------------------------------------------------------------------------------
+export function drawPanel(ctx, G, lay, hot) {
+  const S = G.S.s, ready = S.phase === 'ready' && G.humanTurn, m = lay.m;
+  const p = lay.panel, rw = lay.rows;
+  panel(ctx, p.x, p.y, p.w, p.h, { r: 26, fill: 'rgba(8,22,38,0.88)', stroke: 'rgba(255,246,228,0.3)' });
+  const dim = ready ? 1 : 0.5;
+  ctx.save(); ctx.globalAlpha = dim;
+  // aim
+  {
+    const a = rw.aim, bw = Math.min(a.h, 86);
+    drawButton(ctx, { x: a.x, y: a.y, w: bw, h: a.h }, '‹', { dark: true, size: 40, disabled: !ready });
+    drawButton(ctx, { x: a.x + a.w - bw, y: a.y, w: bw, h: a.h }, '›', { dark: true, size: 40, disabled: !ready });
+    const tr = aimTrack(lay);
+    roundPath(ctx, tr.x, tr.y + tr.h / 2 - 7, tr.w, 14, 7); ctx.fillStyle = 'rgba(255,246,228,0.2)'; ctx.fill();
+    const mx = tr.x + tr.w / 2, hx = tr.x + ((S.aimX + AIM_MAX) / (2 * AIM_MAX)) * tr.w;
+    ctx.fillStyle = 'rgba(255,246,228,0.5)'; ctx.fillRect(mx - 2, tr.y + tr.h / 2 - 14, 4, 28);
+    ctx.beginPath(); ctx.arc(hx, tr.y + tr.h / 2, Math.min(24, a.h * 0.32), 0, TAU); ctx.fillStyle = GOLD; ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = '#6b4b00'; ctx.stroke();
+    txt(ctx, `AIM  ${Math.abs(S.aimX) < 0.05 ? 'middle' : `${r1(Math.abs(S.aimX))} m ${S.aimX < 0 ? 'left' : 'right'}`}`, tr.x + tr.w / 2, a.y + 17, Math.max(14, 17 * Math.min(m, 1.2)), 'rgba(255,246,228,0.85)', 'center', 800);
+  }
+  // tilt
+  {
+    const t = rw.tilt, gap = 8, bw = (t.w - 2 * gap) / 3;
+    TILTS.forEach((ti, i) => {
+      const r = { x: t.x + i * (bw + gap), y: t.y, w: bw, h: t.h };
+      drawButton(ctx, r, ti.name, { active: S.tilt === i, dark: S.tilt !== i, size: Math.round(24 * Math.min(m, 1.25)), sub: ti.short + ' flight', disabled: !ready });
+    });
+  }
+  // power
+  {
+    const pw = rw.power, tr = powerTrack(lay);
+    const pr = predict(S.spot, S.aimX, S.tilt, S.power);
+    txt(ctx, `POWER  ${Math.round(S.power * 100)}%`, pw.x + 2, pw.y + 22 * Math.min(m, 1.2), Math.max(14, 17 * Math.min(m, 1.2)), 'rgba(255,246,228,0.85)', 'left', 800);
+    const l1 = pr.carry > 0 ? `Carry ${Math.round(pr.carry)} m` : 'Carry short';
+    const ok = pr.clear > 0.5;
+    const l2 = pr.crossY == null ? 'Falls short of the posts' : pr.clear < 0 ? `Under the bar by ${r1(-pr.clear)} m` : `Clears the bar by ${r1(pr.clear)} m`;
+    const fs = Math.max(14, 17 * Math.min(m, 1.2)), lab = `${l1} · ${l2}`;
+    const f2 = fitPx(ctx, lab, 700, fs, pw.w - 4, 11);
+    txt(ctx, lab, pw.x + 2, pw.y + 22 * Math.min(m, 1.2) + f2 * 1.45, f2, ok ? '#9be7c4' : '#ff9f6b', 'left', 700);
+    roundPath(ctx, tr.x, tr.y + tr.h / 2 - 9, tr.w, 18, 9); ctx.fillStyle = 'rgba(255,246,228,0.2)'; ctx.fill();
+    const fx = tr.x + ((S.power - 0.3) / 0.7) * tr.w;
+    const gr = ctx.createLinearGradient(tr.x, 0, tr.x + tr.w, 0); gr.addColorStop(0, '#2ec4a6'); gr.addColorStop(0.7, '#ffd34d'); gr.addColorStop(1, '#ff7a45');
+    roundPath(ctx, tr.x, tr.y + tr.h / 2 - 9, Math.max(18, fx - tr.x), 18, 9); ctx.fillStyle = gr; ctx.fill();
+    ctx.beginPath(); ctx.arc(fx, tr.y + tr.h / 2, Math.min(26, tr.h * 0.42), 0, TAU); ctx.fillStyle = CREAM; ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = '#0f2236'; ctx.stroke();
+
+  }
+  ctx.restore();
+  // kick
+  {
+    const k = rw.kick;
+    const lbl = !G.humanTurn ? (S.phase === 'ready' ? 'Rival is setting up' : 'Rival is kicking') : S.phase === 'ready' ? 'KICK' : S.phase === 'runup' ? 'Flick on the ring!' : S.phase === 'flight' ? 'In the air…' : '…';
+    drawButton(ctx, k, lbl, { primary: true, disabled: !ready, size: Math.round(36 * Math.min(m, 1.25)) });
+  }
+  void hot;
+}
+export const aimTrack = (lay) => { const a = lay.rows.aim, bw = Math.min(a.h, 86); return { x: a.x + bw + 12, y: a.y, w: a.w - 2 * bw - 24, h: a.h }; };
+export const powerTrack = (lay) => { const p = lay.rows.power; return { x: p.x + 16, y: p.y + p.h * 0.5, w: p.w - 32, h: p.h * 0.5 }; };
+
+// ---- banners ---------------------------------------------------------------------------------------------------------------------------
+const OUT_TXT = { goal: ['GOAL!', '#7dffb3'], 'wide-left': ['WIDE LEFT', '#ff9f6b'], 'wide-right': ['WIDE RIGHT', '#ff9f6b'], short: ['SHORT', '#ff9f6b'], bar: ['OFF THE BAR', '#ff9f6b'] };
+export function outcomeLine(sh) {
+  if (!sh || !sh.outcome) return '';
+  const m = Math.abs(sh.margin);
+  if (sh.outcome === 'goal') return sh.close ? `Just inside, by ${Math.round(m * 100)} cm` : `Through the middle, ${r1(sh.margin)} m to spare`;
+  if (sh.outcome === 'short') return sh.cross == null ? `Fell ${r1(m)} m short of the line` : 'Under the bar';
+  if (sh.outcome === 'bar') return 'Clipped the bar and stayed out';
+  return `Missed by ${r1(m)} m`;
+}
+export function drawBanner(ctx, G, lay, t) {
+  const S = G.S.s, sh = S.shot;
+  if (!sh) return;
+  const b = lay.banner;
+  if (S.phase === 'flight' || S.phase === 'result' || S.phase === 'done') {
+    const q = sh.qualityName + (sh.has ? (Math.abs(sh.e) < 0.02 ? '' : `  ·  ${Math.abs(sh.e).toFixed(2)} s ${sh.e < 0 ? 'early' : 'late'}`) : '');
+    const resShown = S.phase !== 'flight';
+    const age = S.phase === 'flight' ? S.kickT : S.phase === 'result' ? 0.6 + S.resultT : 2.5;
+    ctx.save();
+    ctx.globalAlpha = clamp(age * 3, 0, 1) * (S.phase === 'done' ? 0.9 : 1);
+    { const bh = resShown && sh.outcome ? 190 * Math.min(lay.m, 1.2) : 84; const g = ctx.createLinearGradient(0, b.y - 10, 0, b.y + bh); g.addColorStop(0, 'rgba(6,18,34,0.0)'); g.addColorStop(0.25, 'rgba(6,18,34,0.6)'); g.addColorStop(1, 'rgba(6,18,34,0.0)'); ctx.fillStyle = g; ctx.fillRect(b.x - 20, b.y - 10, b.w + 40, bh + 10); }
+    if (resShown && sh.outcome) {
+      const [word, col] = OUT_TXT[sh.outcome] || ['', CREAM];
+      const sc = 1 + 0.25 * Math.max(0, 1 - S.resultT * 3);
+      const fs = fitPx(ctx, word, 800, 92 * sc * Math.min(lay.m, 1.15), b.w, 30);
+      ctx.shadowColor = 'rgba(0,0,0,0.6)'; ctx.shadowBlur = 14; ctx.shadowOffsetY = 4;
+      txt(ctx, word, b.x + b.w / 2, b.y + 78, fs, col, 'center', 800, DISPLAY);
+      ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+      const ln = outcomeLine(sh), f2 = fitPx(ctx, ln, 700, 26 * Math.min(lay.m, 1.2), b.w, 13);
+      txt(ctx, ln, b.x + b.w / 2, b.y + 78 + f2 * 1.5, f2, CREAM, 'center', 700);
+      const f3 = fitPx(ctx, q, 700, 22 * Math.min(lay.m, 1.2), b.w, 12);
+      txt(ctx, q, b.x + b.w / 2, b.y + 78 + f2 * 1.5 + f3 * 1.6, f3, GOLD, 'center', 700);
+    } else {
+      const f3 = fitPx(ctx, q, 800, 40 * Math.min(lay.m, 1.2), b.w, 16);
+      ctx.shadowColor = 'rgba(0,0,0,0.6)'; ctx.shadowBlur = 10;
+      txt(ctx, q, b.x + b.w / 2, b.y + 60, f3, sh.quality === 'perfect' ? '#7dffb3' : sh.quality === 'good' ? GOLD : '#ff9f6b', 'center', 800, DISPLAY);
+    }
+    ctx.restore();
+  }
+}
+
+// ---- the whole play screen -------------------------------------------------------------------------------------------------------------
+export function labelOf(G) {
+  const se = G.sess || {}, S = G.S.s;
+  if (G.mode === 'shot') return [`Level ${se.level.n} · ${G.ground.name}`, 'Kick 1 of 3 · Goals 0'];
+  if (G.mode === 'ladder') return [`Level ${se.level.n} · ${G.ground.name}`, `Kick ${Math.min(3, se.kick + 1)} of 3 · Goals ${se.goals}`];
+  if (G.mode === 'shootout') return [`Shootout vs ${se.rival.name}`, `${se.round > SHOOT_N() ? 'Sudden death' : `Round ${se.round} of ${SHOOT_N()}`} · You ${se.score[0] * 2} – ${se.score[1] * 2}`];
+  if (G.mode === 'lesson') return [G.lessonTitle, `Kick ${Math.min(3, se.kick + 1)} of 3 · ${se.rule === 'strikes' ? 'Clean strikes' : 'Goals'} ${se.goals}`];
+  if (G.mode === 'watch') return ['Watch & Learn', S.who === 'you' ? 'Computer kicker' : ''];
+  return ['Free Practice', `Kicks ${se.kicks | 0} · Goals ${se.goals | 0}`];
+}
+const SHOOT_N = () => 5;
+
+function drawTrail(ctx, cam, S) {
+  const pts = S.trail;
+  if (!pts || pts.length < 2 || S.phase === 'ready' || S.phase === 'runup') return;
+  const pr = pts.map((p) => project(cam, p)).filter(Boolean), m = pr.length;
+  ctx.save(); ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  const unit = 1.6;
+  for (const pass of [0, 1]) {
+    for (let i = 1; i < m; i++) {
+      const k = i / m;
+      ctx.strokeStyle = pass === 0 ? `rgba(8,24,52,${0.12 + 0.4 * k})` : `rgba(255,255,255,${0.2 + 0.7 * k})`;
+      ctx.lineWidth = (pass === 0 ? 3 : 0) * unit + (2 + 5 * k) * unit;
+      ctx.beginPath(); ctx.moveTo(pr[i - 1].x, pr[i - 1].y); ctx.lineTo(pr[i].x, pr[i].y); ctx.stroke();
+    }
+  }
+  // a halo on the ball so it reads against sky and stands at any size
+  const h = pr[m - 1];
+  if (S.ball && S.ball.fly && !S.ball.rest && h) {
+    const r = 11 * unit + 3;
+    ctx.lineWidth = 3 * unit; ctx.strokeStyle = 'rgba(8,24,52,0.55)'; ctx.beginPath(); ctx.arc(h.x, h.y, r + 1.5 * unit, 0, TAU); ctx.stroke();
+    ctx.lineWidth = 2.5 * unit; ctx.strokeStyle = 'rgba(255,226,122,0.95)'; ctx.beginPath(); ctx.arc(h.x, h.y, r, 0, TAU); ctx.stroke();
+  }
+  ctx.restore();
+}
+export function renderPlayHud(ctx, G, view) {
+  if (!G.S) return;
+  const S = G.S.s, t = G.t;
+  const wl = G.mode === 'watch' ? watchLayout(G.settings.textIdx, W, H) : null;
+  const lay = hudLayout(G.settings.textIdx, W, H);
+  const band = wl ? wl.band : lay.band;
+  const cam = camFor(W, H, S, band);
+  G.cam = cam;
+  if (view && view.noGL) renderFallback(ctx, G, cam);
+  // marks on the picture
+  if (S.phase === 'ready' || S.phase === 'runup') drawAim(ctx, cam, S, t, G.mode === 'watch' && G.watch.phase === 'reveal');
+  if ((G.think && G.think.adv) || (G.mode === 'lesson' && G.sess && G.sess.ghost && S.phase === 'ready') || (G.mode === 'watch' && G.watch.phase !== 'think' && G.watch.adv)) {
+    const adv = G.think && G.think.adv ? G.think.adv : G.watch.adv;
+    if (adv && S.phase === 'ready') drawGhost(ctx, cam, S, adv, 'rgba(255,255,255,0.85)');
+  }
+  drawTrail(ctx, cam, S);
+  drawRing(ctx, cam, S, t, wl ? { prompt: lay.prompt } : lay, G.humanTurn || G.mode === 'watch');
+  drawWindCard(ctx, lay.wind, S, t, lay.m);
+  drawSpotCard(ctx, lay.spot, S, lay.m);
+  // top row
+  const [l1, l2] = labelOf(G);
+  const lb = lay.label;
+  const f1 = fitPx(ctx, l1, 800, 26 * Math.min(lay.m, 1.2), lb.w, 12), f2 = fitPx(ctx, l2, 700, 22 * Math.min(lay.m, 1.2), lb.w, 12);
+  ctx.save(); ctx.shadowColor = 'rgba(0,0,0,0.7)'; ctx.shadowBlur = 6;
+  txt(ctx, l1, lb.x, lb.y + lb.h * 0.42, f1, CREAM, 'left', 800);
+  txt(ctx, l2, lb.x, lb.y + lb.h * 0.42 + f2 * 1.3, f2, GOLD, 'left', 700);
+  ctx.restore();
+  if (G.mode === 'watch') {
+    drawWatchBar(ctx, G, wl);
+  } else {
+    drawButton(ctx, lay.think, 'Think', { dark: true, size: Math.round(24 * Math.min(lay.m, 1.25)) });
+    drawButton(ctx, lay.pause, 'Pause', { dark: true, size: Math.round(24 * Math.min(lay.m, 1.25)) });
+    drawPanel(ctx, G, lay, false);
+  }
+  drawBanner(ctx, G, lay, t);
+}
+
+// ---- Watch & Learn ---------------------------------------------------------------------------------------------------------------------
+export function drawWatchBar(ctx, G, wl) {
+  const w = G.watch, S = G.S.s;
+  const labels = [w.paused ? 'Resume' : 'Pause', 'Think −', 'Think +', 'Exit'];
+  wl.rects.forEach((r, i) => drawButton(ctx, r, labels[i], { dark: i !== 0, primary: i === 0 && w.paused, active: i === 0 && !w.paused, size: Math.round(24 * Math.min(wl.m, 1.2)), disabled: (i === 1 && G.settings.thinkIdx === 0) || (i === 2 && G.settings.thinkIdx === THINK_STEPS.length - 1) }));
+  const p = wl.panel;
+  panel(ctx, p.x, p.y, p.w, p.h, { r: 22, fill: 'rgba(8,22,38,0.88)', stroke: 'rgba(255,246,228,0.3)' });
+  const head = w.paused ? 'Paused' : w.phase === 'think' ? `Thinking… ${Math.max(0, Math.ceil(w.timer))} s` : w.phase === 'reveal' ? 'The choice' : S.phase === 'ready' ? '' : 'Kick';
+  const sc = Math.min(TEXT_SCALES[G.settings.textIdx], 3), fs = Math.max(minFont(1), Math.round(25 * Math.min(sc, 2.2)));
+  txt(ctx, head, p.x + 18, p.y + 14 + fs, fs, GOLD, 'left', 800);
+  const adv = w.adv;
+  if (!adv) return;
+  ctx.save(); ctx.beginPath(); ctx.rect(p.x + 8, p.y + 12 + fs * 1.4, p.w - 16, p.h - 20 - fs * 1.4); ctx.clip();
+  const lines = w.phase === 'think' ? adv.lines.slice(0, 3) : adv.lines;
+  let y = p.y + 14 + fs * 2.3 - (G.watchScroll || 0);
+  const y00 = y;
+  for (const L of lines) {
+    ctx.font = `700 ${fs}px ${FONT}`; ctx.fillStyle = GOLD; ctx.textAlign = 'left'; const kw = ctx.measureText(L.k + '  ').width;
+    const wrapped = wrapLines(ctx, L.v, p.w - 36 - kw);
+    ctx.fillText(L.k, p.x + 18, y);
+    ctx.font = `400 ${fs}px ${FONT}`; ctx.fillStyle = CREAM;
+    wrapped.forEach((ln, i) => { ctx.fillText(ln, p.x + 18 + kw, y + i * fs * 1.25); });
+    y += Math.max(1, wrapped.length) * fs * 1.25 + fs * 0.35;
+  }
+  ctx.restore();
+  G.watchMax = Math.max(0, (y - y00) - (p.h - 20 - fs * 3.4)); G.watchRect = p;
+}
+export function watchHit(x, y, G) {
+  const wl = watchLayout(G.settings.textIdx, W, H);
+  for (let i = 0; i < 4; i++) if (inRect(wl.rects[i], x, y)) return i;
+  return -1;
+}
+
+// ---- the think (coach) panel -----------------------------------------------------------------------------------------------------------
+export function renderThink(ctx, G) {
+  const th = G.think, adv = th.adv;
+  const lay = hudLayout(G.settings.textIdx, W, H);
+  const sc = TEXT_SCALES[G.settings.textIdx];
+  const pw = Math.min(W - 40 - 2 * Math.max(host.l, host.r), lay.wide ? 620 : 660), x = Math.round((W - pw) / 2);
+  let px0 = x, pw0 = pw, top = (lay.wide ? lay.panel.y : lay.band.top + (lay.band.bottom - lay.band.top) * 0.4), bottom = H - host.b - 10;
+  if (lay.wide) { px0 = lay.panel.x; pw0 = lay.panel.w; bottom = lay.panel.y + lay.panel.h; }
+  panel(ctx, px0, top, pw0, bottom - top, { r: 26, fill: 'rgba(8,22,38,0.96)', stroke: 'rgba(255,246,228,0.45)' });
+  const x1 = px0, pw1 = pw0;
+  const fs = Math.max(minFont(1), Math.round(24 * Math.min(sc, 2.6))), hs = Math.round(34 * Math.min(sc, 1.5));
+  txt(ctx, 'Coach', x1 + 24, top + 20 + hs, hs, GOLD, 'left', 800, DISPLAY);
+  const btnH = Math.max(72, Math.round(64 * Math.min(sc, 1.4))), closeR = { x: x1 + 24, y: bottom - 16 - btnH, w: pw1 - 48, h: btnH };
+  const vTop = top + 36 + hs, vBot = closeR.y - 14;
+  ctx.save(); ctx.beginPath(); ctx.rect(x1 + 8, vTop, pw1 - 16, vBot - vTop); ctx.clip();
+  let y = vTop + 6 - (G.thinkScroll || 0);
+  const cont0 = y;
+  for (const L of adv.lines) {
+    ctx.font = `800 ${fs}px ${FONT}`; ctx.fillStyle = GOLD; ctx.textAlign = 'left'; ctx.fillText(L.k, x1 + 24, y + fs);
+    y += fs * 1.25;
+    ctx.font = `400 ${fs}px ${FONT}`; ctx.fillStyle = CREAM;
+    for (const ln of wrapLines(ctx, L.v, pw1 - 48)) { ctx.fillText(ln, x1 + 24, y + fs); y += fs * 1.25; }
+    y += fs * 0.45;
+  }
+  ctx.restore();
+  const contentH = y - cont0 + 6;
+  G.thinkView = { top: vTop, bottom: vBot, max: Math.max(0, contentH - (vBot - vTop)), vh: vBot - vTop };
+  drawButton(ctx, closeR, 'Got it', { primary: true, size: Math.round(32 * Math.min(sc, 1.4)) });
+  G.thinkRects = { close: closeR };
+  if (G.thinkView.max > 0) txt(ctx, G.thinkScroll < G.thinkView.max - 4 ? '▼ more' : '', x1 + pw1 - 28, vBot - 8, 20, CREAM, 'right', 700);
+  txt(ctx, 'The dotted arc is the coach\'s kick.', x1 + 24, closeR.y - 4, Math.max(13, 15), 'rgba(255,246,228,0.6)', 'left', 600);
+}
+
+// ---- no WebGL: a flat picture so the game stays playable ---------------------------------------------------------------------------------
+export function renderFallback(ctx, G, cam) {
+  const S = G.S.s;
+  const sky = ctx.createLinearGradient(0, 0, 0, H); sky.addColorStop(0, '#5f9bd6'); sky.addColorStop(0.45, '#bcd9ee'); sky.addColorStop(0.46, '#2f8a4a'); sky.addColorStop(1, '#1f5f31');
+  ctx.fillStyle = sky; ctx.fillRect(0, 0, W, H);
+  const P = (x, y, z) => project(cam, { x, y, z });
+  const line = (a, b, col, w) => { if (!a || !b) return; ctx.strokeStyle = col; ctx.lineWidth = w; ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); };
+  for (const z of [0, -5, -22, -40]) line(P(-30, 0, z), P(30, 0, z), '#f4f6f0', 3);
+  for (const x of [-GOAL_HW, GOAL_HW]) line(P(x, 0, 0), P(x, 12, 0), '#fff6e4', 6);
+  line(P(-GOAL_HW, BAR_H, 0), P(GOAL_HW, BAR_H, 0), '#fff6e4', 6);
+  const b = P(S.ball.x, S.ball.y, S.ball.z);
+  if (b) { ctx.fillStyle = '#fff6e4'; ctx.beginPath(); ctx.ellipse(b.x, b.y, Math.max(5, 0.2 * b.s), Math.max(4, 0.14 * b.s), 0.4, 0, TAU); ctx.fill(); }
+  const k0 = P(S.spot.sx, 0, -S.spot.d - 1.6), k1 = P(S.spot.sx, 1.8, -S.spot.d - 1.6);
+  line(k0, k1, G.mode === 'watch' || S.who === 'rival' ? '#e84e3c' : '#2f6fd6', Math.max(6, 0.5 * (k0 ? k0.s : 10)));
+}

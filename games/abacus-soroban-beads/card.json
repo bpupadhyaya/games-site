@@ -1,0 +1,15 @@
+{
+  "title": "Abacus Soroban",
+  "tagline": "Slide the beads. Learn to add, subtract and multiply the Japanese way.",
+  "description": "A tactile Japanese soroban you slide with your thumb. Learn to read numbers, add, subtract and multiply in 13 short lessons, with a coach that moves the beads and explains why. Then test yourself with Flash Mental and a 60-second Timed Challenge.",
+  "genre": "number skill",
+  "demo": true,
+  "howToPlay": [
+    "Each rod is a digit: the heaven bead is 5, each earth bead is 1.",
+    "Slide beads to the middle beam, or just tap them.",
+    "Follow a lesson: show numbers, add, take away, multiply.",
+    "Tap Hint to see which rod to use and why.",
+    "Flash Mental: numbers flash, then set the total.",
+    "Timed Challenge: solve as many tasks as you can in 60 seconds."
+  ]
+}

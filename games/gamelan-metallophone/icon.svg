@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#160908"/><stop offset="0.6" stop-color="#3a140f"/><stop offset="1" stop-color="#5a2412"/></linearGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.4" r="0.6"><stop offset="0" stop-color="#ffb347" stop-opacity="0.7"/><stop offset="1" stop-color="#ffb347" stop-opacity="0"/></radialGradient>
+    <radialGradient id="gong" cx="0.35" cy="0.3" r="0.8"><stop offset="0" stop-color="#fff3c4"/><stop offset="0.5" stop-color="#d9a441"/><stop offset="1" stop-color="#6e3b12"/></radialGradient>
+    <linearGradient id="bar" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#7a5214"/><stop offset="0.35" stop-color="#f6dc92"/><stop offset="0.7" stop-color="#c99a44"/><stop offset="1" stop-color="#5a3a12"/></linearGradient>
+    <radialGradient id="boss" cx="0.35" cy="0.3" r="0.8"><stop offset="0" stop-color="#fff3c4"/><stop offset="1" stop-color="#8d6424"/></radialGradient>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+  <rect width="1024" height="1024" fill="url(#glow)"/>
+  <circle cx="512" cy="340" r="250" fill="url(#gong)" stroke="#fff0c0" stroke-opacity=".6" stroke-width="8"/>
+  <circle cx="512" cy="340" r="175" fill="none" stroke="#6e3b12" stroke-opacity=".45" stroke-width="10"/>
+  <circle cx="512" cy="340" r="100" fill="none" stroke="#6e3b12" stroke-opacity=".4" stroke-width="10"/>
+  <circle cx="512" cy="340" r="62" fill="url(#boss)" stroke="#6e3b12" stroke-width="6"/>
+  <rect x="100" y="620" width="824" height="400" rx="40" fill="#3b1a0d" stroke="#f2cf7c" stroke-opacity=".7" stroke-width="6"/>
+  <rect x="150" y="640.0" width="124" height="360" rx="22" fill="url(#bar)" stroke="#fff0c0" stroke-opacity=".6" stroke-width="4"/><circle cx="212" cy="820.0" r="26" fill="url(#boss)"/><rect x="300" y="657.0" width="124" height="326" rx="22" fill="url(#bar)" stroke="#fff0c0" stroke-opacity=".6" stroke-width="4"/><circle cx="362" cy="820.0" r="26" fill="url(#boss)"/><rect x="450" y="674.0" width="124" height="292" rx="22" fill="url(#bar)" stroke="#fff0c0" stroke-opacity=".6" stroke-width="4"/><circle cx="512" cy="820.0" r="26" fill="url(#boss)"/><rect x="600" y="691.0" width="124" height="258" rx="22" fill="url(#bar)" stroke="#fff0c0" stroke-opacity=".6" stroke-width="4"/><circle cx="662" cy="820.0" r="26" fill="url(#boss)"/><rect x="750" y="708.0" width="124" height="224" rx="22" fill="url(#bar)" stroke="#fff0c0" stroke-opacity=".6" stroke-width="4"/><circle cx="812" cy="820.0" r="26" fill="url(#boss)"/>
+</svg>

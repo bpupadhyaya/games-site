@@ -1,0 +1,17 @@
+{
+  "title": "Halma: Hop and Leap",
+  "tagline": "Hop your pegs across the board and fill the far camp first.",
+  "description": "Halma (from the Greek word for a jump) is a family race game from the 1880s. Move a team of pegs from your corner to the opposite corner, stepping one square or hopping over any piece, and chain hops into long leaps. Play Classic on a 16 by 16 board, Quick on 10 by 10, or race three computer players in the four-player game. Five computer levels, two to four players on one phone, hands-on lessons, hints, take back and a Watch & Learn mode. Lit wooden boards, large text and reduced motion options, no ads, works offline.",
+  "genre": "Hopping race board game",
+  "demo": true,
+  "howToPlay": [
+    "New here? Tap Learn to play: five short hands-on lessons where you make every move yourself.",
+    "Tap one of your pegs and every square it can reach lights up: small dots are steps, gold rings are hops.",
+    "Tap a lit square or drag the peg there. A peg steps to a neighbouring square or hops over any piece next to it.",
+    "After a hop, keep hopping in the same turn if you can. Pieces with gaps between them make a ladder for long leaps.",
+    "Nothing is ever captured: hop over your own pieces and the other side's alike.",
+    "Fill every square of the far corner camp with your pegs to win. A peg inside its goal camp cannot leave it.",
+    "Hint shows a good move, Take back undoes your last move, and Auto Play shows the computer playing every side.",
+    "If nobody finishes within 100 moves each, the player furthest along wins."
+  ]
+}

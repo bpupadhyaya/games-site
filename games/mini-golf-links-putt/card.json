@@ -1,0 +1,14 @@
+{
+  "title": "Mini Golf Links Putt",
+  "tagline": "Pull back, bank it, sink it.",
+  "description": "Slingshot putting over eighteen seaside holes. Bank off rails, ride slopes, cross bridges, use tunnels and time your shot past windmills. Play four computer golfers, share the phone, or watch two players explain their choices.",
+  "genre": "physics sport",
+  "demo": true,
+  "howToPlay": [
+    "Drag back anywhere and let go: the ball rolls the opposite way.",
+    "The farther you pull, the harder the putt; a dotted line shows the path.",
+    "Rails bounce the ball, sand slows it, water costs a stroke.",
+    "Tunnels join two parts of a hole; windmills and gates keep moving.",
+    "Fewest strokes over the round wins. Think shows a strong putt."
+  ]
+}

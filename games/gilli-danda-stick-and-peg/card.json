@@ -1,0 +1,13 @@
+{
+  "title": "Gilli-Danda Stick and Peg",
+  "tagline": "Tap the peg, flip it, strike it as far as you can.",
+  "description": "India's village street game in real 3D: flip the peg, strike it in the air, aim for the gap between fielders and count the distance in danda lengths. Team match, distance and daily challenges, plus Auto Play that explains itself, left- or right-handed.",
+  "genre": "Street stick-and-peg sport",
+  "demo": true,
+  "howToPlay": [
+    "Drag to aim at a gap between the fielders.",
+    "Press the pad when the swinging danda crosses the gold to flip the peg.",
+    "Press again as the ring closes to strike it in the air.",
+    "A fielder who catches it puts you out; otherwise count the distance in danda lengths."
+  ]
+}

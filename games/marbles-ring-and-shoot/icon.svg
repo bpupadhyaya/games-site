@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <radialGradient id="bg" cx="35%" cy="28%" r="90%"><stop offset="0" stop-color="#4f8a45"/><stop offset="0.6" stop-color="#2c5a30"/><stop offset="1" stop-color="#143222"/></radialGradient>
+    <radialGradient id="sand" cx="38%" cy="30%" r="80%"><stop offset="0" stop-color="#f6e3b0"/><stop offset="0.6" stop-color="#e2c488"/><stop offset="1" stop-color="#bf9a5c"/></radialGradient>
+    <radialGradient id="blue" cx="34%" cy="30%" r="80%"><stop offset="0" stop-color="#bfe6ff"/><stop offset="0.35" stop-color="#3aa0f0"/><stop offset="1" stop-color="#0a2c70"/></radialGradient>
+    <radialGradient id="red" cx="34%" cy="30%" r="80%"><stop offset="0" stop-color="#ffe0b8"/><stop offset="0.35" stop-color="#f06a2c"/><stop offset="1" stop-color="#7a1c0a"/></radialGradient>
+    <radialGradient id="gold" cx="34%" cy="30%" r="80%"><stop offset="0" stop-color="#fff6c0"/><stop offset="0.4" stop-color="#f0b830"/><stop offset="1" stop-color="#7a4608"/></radialGradient>
+    <radialGradient id="green" cx="34%" cy="30%" r="80%"><stop offset="0" stop-color="#d8ffe6"/><stop offset="0.4" stop-color="#3cc882"/><stop offset="1" stop-color="#0b4a2e"/></radialGradient>
+    <radialGradient id="sh" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#3a2208" stop-opacity="0.55"/><stop offset="1" stop-color="#3a2208" stop-opacity="0"/></radialGradient>
+    <radialGradient id="hl" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#fff" stop-opacity="0.95"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
+    <clipPath id="c1"><circle cx="512" cy="470" r="170"/></clipPath>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+  <circle cx="512" cy="512" r="400" fill="#7a5028"/>
+  <circle cx="512" cy="512" r="386" fill="url(#sand)"/>
+  <circle cx="512" cy="512" r="300" fill="none" stroke="#6b4420" stroke-opacity="0.65" stroke-width="16"/>
+  <circle cx="512" cy="512" r="311" fill="none" stroke="#fff8e0" stroke-opacity="0.7" stroke-width="6"/>
+  <!-- small marbles -->
+  <ellipse cx="292" cy="600" rx="86" ry="74" fill="url(#sh)"/><circle cx="280" cy="580" r="66" fill="url(#green)"/><ellipse cx="256" cy="554" rx="26" ry="15" fill="url(#hl)" transform="rotate(-35 302 604)"/>
+  <ellipse cx="762" cy="600" rx="86" ry="74" fill="url(#sh)"/><circle cx="750" cy="580" r="66" fill="url(#red)"/><ellipse cx="726" cy="554" rx="26" ry="15" fill="url(#hl)" transform="rotate(-35 680 594)"/>
+  <ellipse cx="540" cy="318" rx="76" ry="66" fill="url(#sh)"/><circle cx="530" cy="300" r="58" fill="url(#gold)"/><ellipse cx="510" cy="278" rx="22" ry="13" fill="url(#hl)" transform="rotate(-35 510 278)"/>
+  <!-- the big shooter -->
+  <ellipse cx="548" cy="680" rx="210" ry="176" fill="url(#sh)"/>
+  <circle cx="512" cy="620" r="170" fill="url(#blue)"/>
+  <g clip-path="url(#c1)" transform="translate(0 150)">
+    <ellipse cx="470" cy="470" rx="26" ry="180" fill="#f4fbff" fill-opacity="0.9"/>
+    <ellipse cx="560" cy="470" rx="36" ry="180" fill="#0a2c70" fill-opacity="0.55"/>
+    <ellipse cx="620" cy="470" rx="14" ry="180" fill="#f4fbff" fill-opacity="0.8"/>
+  </g>
+  <ellipse cx="452" cy="540" rx="68" ry="38" fill="url(#hl)" transform="rotate(-35 452 540)"/>
+  <circle cx="600" cy="710" r="16" fill="#fff" fill-opacity="0.6"/>
+</svg>

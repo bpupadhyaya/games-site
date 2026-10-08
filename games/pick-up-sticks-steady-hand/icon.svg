@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <radialGradient id="bg" cx="40%" cy="32%" r="85%"><stop offset="0" stop-color="#4a3a2c"/><stop offset="0.55" stop-color="#241b1b"/><stop offset="1" stop-color="#0d0a0e"/></radialGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7a4a0a"/><stop offset="0.3" stop-color="#e9b93a"/><stop offset="0.5" stop-color="#fff0a0"/><stop offset="0.75" stop-color="#d89a22"/><stop offset="1" stop-color="#6a3a06"/></linearGradient>
+    <linearGradient id="red" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#4e0810"/><stop offset="0.3" stop-color="#d0302f"/><stop offset="0.5" stop-color="#ff9d8c"/><stop offset="0.75" stop-color="#b42028"/><stop offset="1" stop-color="#3e0810"/></linearGradient>
+    <linearGradient id="jade" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0a4231"/><stop offset="0.3" stop-color="#27a374"/><stop offset="0.5" stop-color="#c6ffe2"/><stop offset="0.75" stop-color="#1f8c62"/><stop offset="1" stop-color="#083428"/></linearGradient>
+    <linearGradient id="blue" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#0c1b55"/><stop offset="0.3" stop-color="#3355c0"/><stop offset="0.5" stop-color="#b3c8ff"/><stop offset="0.75" stop-color="#2848a8"/><stop offset="1" stop-color="#0a1648"/></linearGradient>
+    <linearGradient id="bam" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#85612c"/><stop offset="0.3" stop-color="#e8d29c"/><stop offset="0.5" stop-color="#fff8de"/><stop offset="0.75" stop-color="#d2b878"/><stop offset="1" stop-color="#6e4e22"/></linearGradient>
+    <path id="stick" d="M-400 0 Q-370 -20 -330 -26 H330 Q370 -20 400 0 Q370 20 330 26 H-330 Q-370 20 -400 0Z"/>
+    <filter id="sh" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="9"/></filter>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+  <g transform="translate(512 520)">
+    <g transform="rotate(-38)"><use href="#stick" fill="#000" opacity="0.5" transform="translate(14 22)" filter="url(#sh)"/><use href="#stick" fill="url(#jade)"/><rect x="-160" y="-27" width="22" height="54" fill="#f6f1df" opacity="0.9"/><rect x="150" y="-27" width="22" height="54" fill="#f6f1df" opacity="0.9"/></g>
+    <g transform="rotate(26)"><use href="#stick" fill="#000" opacity="0.5" transform="translate(14 22)" filter="url(#sh)"/><use href="#stick" fill="url(#red)"/><rect x="-30" y="-27" width="14" height="54" fill="#f1c255"/><rect x="0" y="-27" width="14" height="54" fill="#f1c255"/><rect x="30" y="-27" width="14" height="54" fill="#f1c255"/></g>
+    <g transform="rotate(-8) translate(0 -30)"><use href="#stick" fill="#000" opacity="0.5" transform="translate(14 24)" filter="url(#sh)"/><use href="#stick" fill="url(#blue)"/><rect x="-14" y="-27" width="28" height="54" fill="#dfe5f0"/></g>
+    <g transform="rotate(64) translate(0 40)"><use href="#stick" fill="#000" opacity="0.5" transform="translate(14 22)" filter="url(#sh)"/><use href="#stick" fill="url(#bam)"/><rect x="-250" y="-27" width="9" height="54" fill="#7c4b22"/><rect x="40" y="-27" width="9" height="54" fill="#7c4b22"/><rect x="250" y="-27" width="9" height="54" fill="#7c4b22"/></g>
+    <g transform="rotate(8) translate(0 22)"><use href="#stick" fill="#000" opacity="0.55" transform="translate(16 26)" filter="url(#sh)"/><use href="#stick" fill="url(#gold)"/><rect x="-330" y="-27" width="36" height="54" fill="#1b130a"/><rect x="-210" y="-27" width="16" height="54" fill="#1b130a"/><rect x="-24" y="-27" width="48" height="54" fill="#1b130a"/><rect x="194" y="-27" width="16" height="54" fill="#1b130a"/><rect x="294" y="-27" width="36" height="54" fill="#1b130a"/></g>
+  </g>
+</svg>

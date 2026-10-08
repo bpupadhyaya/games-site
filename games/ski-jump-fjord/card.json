@@ -1,0 +1,12 @@
+{
+  "title": "Ski Jump Fjord",
+  "tagline": "Fly the fjord, land the telemark",
+  "description": "Crouch down the ice track, jump on the lip, hold your skis in the green band against the wind and land a telemark above a 3D fjord. Four hills, a lifelike jumper and real flight physics.",
+  "genre": "timing sport",
+  "demo": true,
+  "howToPlay": [
+    "Hold to crouch on the in-run, lift your finger as the ring closes on the lip.",
+    "Drag up and down to keep the skis in the moving green band, sideways to level them.",
+    "Lift again as the ring closes on the snow to land in a telemark."
+  ]
+}

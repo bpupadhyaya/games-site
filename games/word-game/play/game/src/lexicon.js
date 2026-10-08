@@ -21,7 +21,7 @@ export const TOPICS = [
 const TOPIC_OF = new Map(); for (const t of TOPICS) for (const n of t.lex) TOPIC_OF.set(n, t.k);
 export const topicOf = (lex) => TOPIC_OF.get(lex) ?? '';
 
-const S = { arr: [], entries: [], by: new Map(), valid: null, pack: false, full: false, version: 0, cache: new Map(), pools: null };
+const S = { custom: new Map(), arr: [], entries: [], by: new Map(), valid: null, pack: false, full: false, version: 0, cache: new Map(), pools: null };
 const POS_NAME = { n: 'noun', v: 'verb', a: 'adjective', r: 'adverb' };
 export const posName = (p) => POS_NAME[p] ?? '';
 
@@ -65,7 +65,13 @@ export const isFull = () => S.full;
 export const lexiconReady = () => !!S.valid;
 export const version = () => S.version;
 export const isWord = (w) => (S.valid ? S.valid.has(w) : S.by.has(w));
-export const entry = (w) => S.by.get(w);
+export const entry = (w) => S.by.get(w) ?? S.custom.get(w);
+// the player's own word lists: words that are not study entries still get a meaning (and a level) so the quizzes can use them
+export function setCustom(lists) {
+  const had = S.custom.size; S.custom = new Map();
+  for (const L of lists) for (const w of L.words) if (!S.by.has(w)) S.custom.set(w, { w, pos: 'n', band: 3, attrs: 0, lex: 0, gloss: L.defs?.[w] ?? '', gloss2: '', ex: '', syn: [], ant: [], rank: undefined, len: w.length, custom: true });
+  if (had || S.custom.size) S.version++;
+}
 export const all = () => S.entries;
 export const size = () => S.entries.length;
 

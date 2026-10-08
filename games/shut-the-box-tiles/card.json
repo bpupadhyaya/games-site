@@ -1,0 +1,17 @@
+{
+  "title": "Shut the Box",
+  "tagline": "Roll, add, flip. Close the box.",
+  "description": "The classic tavern dice game of England and France on a lit oak box with brass hinges and bone tiles. Roll two dice, flip down tiles that add up to the total and try to shut them all: low score wins. Classic and Tall boxes, a five-round Duel with the Innkeeper, a Daily Box, hints from an exact solver and Watch & Learn. No clock, no ads, works offline.",
+  "genre": "dice game",
+  "demo": true,
+  "howToPlay": [
+    "Tap the dice tray to roll two dice and add them up.",
+    "Tap open tiles that add up to the total. When they match, they flip down by themselves.",
+    "Keep rolling and shutting. If no open tiles can make the roll, the box is over.",
+    "The numbers on the tiles still open are your score. Lower is better, 0 is a perfect shut box.",
+    "Once tiles 7 and up are shut you can roll a single die instead.",
+    "Stuck on a choice? Hint shows the best move and your odds of shutting the box.",
+    "Duel the Innkeeper over five boxes with the same dice, or play the Daily Box.",
+    "Watch & Learn shows the solver playing whole boxes, with Pause and think time."
+  ]
+}

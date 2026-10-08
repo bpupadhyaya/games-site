@@ -1,0 +1,14 @@
+{
+  "title": "Ddakji",
+  "tagline": "Fold it. Slap it. Flip theirs.",
+  "description": "A Korean childhood classic with real paper physics. Fold a thick tile, slap it down beside your rival's, and let the wind and the shock tip theirs onto its back. Six rivals, a fold workshop, twelve tile patterns to win and a two-player mode.",
+  "genre": "paper-tile flip skill",
+  "demo": true,
+  "howToPlay": [
+    "Drag on the floor to place the ghost tile where yours will land, just beside theirs.",
+    "Set Strength and Twist with the two sliders, then press Throw.",
+    "Land near the middle of an edge: the tile lifts, pivots and flips face down.",
+    "Too soft only wobbles it; too hard scatters your throw; landing on top pins it.",
+    "Win 2 or 3 flips to take the match and the rival's printed tile."
+  ]
+}

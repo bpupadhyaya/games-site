@@ -1,0 +1,25 @@
+{
+  "slug": "abacus-soroban-beads",
+  "title": "Abacus Soroban",
+  "tagline": "Slide the beads. Learn to add, subtract and multiply the Japanese way.",
+  "genre": "number skill",
+  "orientation": "any",
+  "version": "1.0.0",
+  "monetization": {
+    "model": "premium",
+    "priceUsd": 2.99,
+    "previewSeconds": 90,
+    "products": [
+      {
+        "id": "unlock_game",
+        "type": "non-consumable",
+        "priceUsd": 2.99,
+        "title": "Unlock Game"
+      }
+    ]
+  },
+  "locales": [
+    "en"
+  ],
+  "demoOnly": true
+}

@@ -1,0 +1,14 @@
+{
+  "title": "Conkers String Smash",
+  "tagline": "Swing your conker and smash theirs to bits.",
+  "description": "England's autumn playground game with real pendulum physics. Pull the conker back, time the release against the other hand's sway, and hit the pale soft spot: every touch cracks both conkers until one shatters. Tin of three conkers, a four-rival Conker Cup, Two Players, Think and Watch & Learn.",
+  "genre": "physics dexterity / lawn game",
+  "demo": true,
+  "howToPlay": [
+    "Press on the scene, drag back and let go to swing your conker.",
+    "Raise or lower your hand to hit their pale patch: the soft spot.",
+    "Watch the guide and the timing strip, then release at a good moment.",
+    "Three goes a turn; every touch cracks both conkers until one shatters.",
+    "The winner's conker carries the loser's wins: oner, twoer, fifer, sixer."
+  ]
+}

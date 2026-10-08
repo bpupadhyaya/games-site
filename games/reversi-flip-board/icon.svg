@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#34ad76"/><stop offset="0.55" stop-color="#1f7c51"/><stop offset="1" stop-color="#0d4a2f"/></linearGradient>
+    <radialGradient id="jet" cx="0.32" cy="0.28" r="0.95"><stop offset="0" stop-color="#707986"/><stop offset="0.4" stop-color="#20252d"/><stop offset="1" stop-color="#04060a"/></radialGradient>
+    <radialGradient id="pearl" cx="0.7" cy="0.72" r="0.95"><stop offset="0" stop-color="#ffffff"/><stop offset="0.55" stop-color="#efe9da"/><stop offset="1" stop-color="#b9b199"/></radialGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.4" r="0.7"><stop offset="0" stop-color="#fff2b0" stop-opacity="0.35"/><stop offset="1" stop-color="#fff2b0" stop-opacity="0"/></radialGradient>
+    <clipPath id="disc"><circle cx="512" cy="500" r="330"/></clipPath>
+    <clipPath id="lower"><path d="M1100 -100V1200H-100Z"/></clipPath>
+    <linearGradient id="ridge" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset="0.5" stop-color="#fff" stop-opacity="0.55"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+  <rect width="1024" height="1024" fill="url(#glow)"/>
+  <g stroke="#06301e" stroke-opacity="0.5" stroke-width="8"><path d="M0 341H1024M0 683H1024M341 0V1024M683 0V1024"/></g>
+  <ellipse cx="530" cy="880" rx="330" ry="56" fill="#000" opacity="0.32"/>
+  <circle cx="512" cy="530" r="330" fill="#05070a"/>
+  <g clip-path="url(#disc)">
+    <circle cx="512" cy="500" r="330" fill="url(#jet)"/>
+    <path d="M1024 -100L-100 1024L1124 1124Z" fill="url(#pearl)"/>
+    <path d="M1100 -80L-80 1100" stroke="url(#ridge)" stroke-width="26" fill="none"/>
+    <path d="M1100 -80L-80 1100" stroke="#000" stroke-opacity="0.35" stroke-width="5" fill="none" transform="translate(-14 -14)"/>
+  </g>
+  <circle cx="512" cy="500" r="318" fill="none" stroke="#fff" stroke-opacity="0.14" stroke-width="8"/>
+  <circle cx="512" cy="500" r="330" fill="none" stroke="#000" stroke-opacity="0.5" stroke-width="6"/>
+  <path d="M290 400C330 330 420 285 510 282" fill="none" stroke="#fff" stroke-opacity="0.35" stroke-width="22" stroke-linecap="round"/>
+  <path d="M620 740C680 715 735 670 765 610" fill="none" stroke="#fff" stroke-opacity="0.7" stroke-width="20" stroke-linecap="round"/>
+</svg>

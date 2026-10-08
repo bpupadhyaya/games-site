@@ -1,0 +1,17 @@
+{
+  "title": "Reversi Flip Board",
+  "tagline": "Trap them, turn them, take the board.",
+  "description": "The classic game of flipping, beautifully made. Place a disc, trap a line of enemy discs between two of yours and watch them turn over in a ripple. Classic 8 by 8, quick Mini 6 by 6 and Reverse (fewest discs wins). Five computer levels, two players on one device, hands-on lessons, hints that explain why, take back and a Watch & Learn mode. A felt and brass board, glossy two-faced discs, large text and reduced motion options. No ads, works offline.",
+  "genre": "Classic disc-flipping board game",
+  "demo": true,
+  "howToPlay": [
+    "New here? Tap Learn to play: five short hands-on lessons where you make every move yourself.",
+    "Marked squares show where you may place a disc. Tap one.",
+    "Your disc must trap a straight line of enemy discs between itself and one of your own discs: along a row, a column or a diagonal.",
+    "Every trapped disc turns to your colour, in every direction at once.",
+    "If you have no legal move you pass, and the app does it for you.",
+    "Corners can never be flipped. Be careful with the squares beside an empty corner.",
+    "The game ends when neither side can move: most discs wins. In Reverse, the fewest wins.",
+    "Hint explains a good move, Take back undoes your last move, and Auto Play shows the computer playing both sides."
+  ]
+}

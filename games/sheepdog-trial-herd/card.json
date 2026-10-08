@@ -1,0 +1,12 @@
+{
+  "title": "Sheepdog Trials",
+  "tagline": "Whistle a border collie round the flock in 3D",
+  "description": "Work a lifelike border collie at a hill-pasture sheepdog trial: outrun, lift, fetch, drive through two gates and pen the flock, scored by a judge. Five courses from valley to highland, weather and time of day, Training and Watch & Learn.",
+  "genre": "herding sim",
+  "demo": true,
+  "howToPlay": [
+    "Send the dog wide with Come bye or Away to me, then Walk on from behind the flock.",
+    "Keep the dog on the balance point: sheep move away from it, along the line.",
+    "Rest the dog with Lie down, hold the flock with Stand, then pen them and shut the gate."
+  ]
+}

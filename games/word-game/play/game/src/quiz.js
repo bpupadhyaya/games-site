@@ -11,9 +11,11 @@ export const KIND_LABEL = {
   synonym: 'TAP THE SYNONYM OF', antonym: 'TAP THE ANTONYM OF', definition: 'WHICH WORD MEANS', odd: 'ODD ONE OUT',
   spelling: 'TAP THE RIGHT SPELLING', listening: 'LISTEN, THEN TAP',
   category: 'WHICH IS A KIND OF', part: 'WHICH IS PART OF', homophone: 'SOUNDS LIKE', rhyme: 'RHYMES WITH', anagram: 'UNSCRAMBLE THE LETTERS', family: 'SAME WORD FAMILY AS', collocation: 'GOES WITH', phrase: 'FINISH THE PHRASE', confusable: 'WHICH WORD MEANS', root: 'WORD WITH A ROOT MEANING', variant: 'THE BRITISH SPELLING OF',
+  sense: 'WHICH WORD CAN ALSO MEAN', cloze: 'FILL THE GAP', missing: 'FIND THE MISSING LETTER', stress: 'WHICH PART IS STRESSED?', syllables: 'HOW MANY SYLLABLES?', palindrome: 'READS THE SAME BACKWARDS', build: 'PUT THE PARTS TOGETHER', inflect: 'THE RIGHT FORM OF', 'letter-vowel': 'VOWEL OR CONSONANT?',
+  ladder: 'WHICH IS THE STRONGEST?',
   picture: 'WHAT IS THIS?', 'letter-hear': 'LISTEN, THEN TAP THE LETTER', 'letter-case': 'FIND THE SMALL LETTER', 'letter-next': 'WHICH LETTER IS MISSING?',
 };
-export const KIND_SHORT = { synonym: 'SYNONYM', antonym: 'ANTONYM', definition: 'MEANING', odd: 'ODD ONE', spelling: 'SPELLING', listening: 'LISTENING', picture: 'PICTURE', category: 'KIND OF', part: 'PART OF', homophone: 'SOUNDS', rhyme: 'RHYME', anagram: 'ANAGRAM', family: 'FAMILY', collocation: 'GOES WITH', phrase: 'PHRASE', confusable: 'CONFUSED', root: 'ROOT', variant: 'UK SPELLING', 'letter-hear': 'LETTER', 'letter-case': 'LETTER', 'letter-next': 'LETTER' };
+export const KIND_SHORT = { synonym: 'SYNONYM', antonym: 'ANTONYM', definition: 'MEANING', odd: 'ODD ONE', spelling: 'SPELLING', listening: 'LISTENING', picture: 'PICTURE', ladder: 'STRENGTH', sense: 'MEANING', cloze: 'CLOZE', missing: 'LETTER', stress: 'STRESS', syllables: 'SYLLABLES', palindrome: 'PALINDROME', build: 'BUILD', inflect: 'FORM', 'letter-vowel': 'LETTER', category: 'KIND OF', part: 'PART OF', homophone: 'SOUNDS', rhyme: 'RHYME', anagram: 'ANAGRAM', family: 'FAMILY', collocation: 'GOES WITH', phrase: 'PHRASE', confusable: 'CONFUSED', root: 'ROOT', variant: 'UK SPELLING', 'letter-hear': 'LETTER', 'letter-case': 'LETTER', 'letter-next': 'LETTER' };
 
 const VOWELS = 'aeiou';
 // Plausible misspellings of w that are NOT real words (checked against the validation lexicon when it is loaded).
@@ -42,7 +44,7 @@ export function nearWords(w, n, rng) {
 }
 
 export function canAsk(e, kind, ctx) {
-  if (e.letter) return kind === 'letter-case' || kind === 'letter-next' || (kind === 'letter-hear' && !!ctx.canSpeak);
+  if (e.letter) return kind === 'letter-case' || kind === 'letter-next' || kind === 'letter-vowel' || (kind === 'letter-hear' && !!ctx.canSpeak);
   switch (kind) {
     case 'picture': return ART.has(e.w) && !!e.gloss;
     case 'synonym': return synAnswers(e).length > 0;
@@ -76,6 +78,12 @@ export function build(kind, e, rng, avoid) {
       const s = Math.max(0, Math.min(i - 1, 22)), seq = LETTERS.slice(s, s + 4).map((c) => (c === e.w ? '_' : c));
       const others = rng.shuffle(LETTERS.filter((c) => c !== e.w && !LETTERS.slice(s, s + 4).includes(c))).slice(0, 2);
       return { ...base, meaning, prompt: seq.join('  '), answer: e.w, options: rng.shuffle([opt(e.w, true), opt(others[0], false), opt(others[1], false)]) };
+    }
+    if (kind === 'letter-vowel') {
+      const v = 'aeiou'.includes(e.w), want = v ? 'vowel' : 'consonant';
+      const pool = LETTERS.filter((c) => ('aeiou'.includes(c)) !== v);
+      const ds = rng.shuffle(pool).slice(0, 2);
+      return { ...base, meaning, prompt: `tap the ${want}`, answer: e.w, note: `${e.w} is a ${want}`, options: rng.shuffle([opt(e.w, true), opt(ds[0], false), opt(ds[1], false)]) };
     }
     return null;
   }
@@ -114,7 +122,9 @@ export function build(kind, e, rng, avoid) {
     return { ...base, prompt: e.gloss, answer: e.w, options: rng.shuffle([opt(e.w, true), opt(bad[0], false), opt(bad[1], false)]) };
   }
   if (kind === 'listening') {
-    let others = nearWords(e.w, 2, rng);
+    const mp = kb.has('minpair') && e.rank !== undefined ? rng.shuffle(kb.words('minpair', e.rank).filter(okw)) : [];
+    let others = mp.slice(0, 2);
+    if (others.length < 2) others = others.concat(nearWords(e.w, 2 - others.length, rng));
     if (others.length < 2) others = others.concat(misspellings(e.w, 2 - others.length, rng));
     if (others.length < 2) return null;
     return { ...base, prompt: 'tap to hear it again', speak: e.w, answer: e.w, options: rng.shuffle([opt(e.w, true), opt(others[0], false), opt(others[1], false)]) };
@@ -150,14 +160,26 @@ function siblings(e) {
   return out.slice(0, 8);
 }
 const REL_FOR = { category: 'hyper', part: 'holo', homophone: 'homo', rhyme: 'rhyme', anagram: 'ana', family: 'fam', collocation: 'col', phrase: 'phrase' };
-export const KB_KINDS = Object.keys(REL_FOR).concat(['confusable', 'root', 'variant']);
-export const kindAvailable = (kind) => (REL_FOR[kind] ? kb.has(REL_FOR[kind]) && (kind !== 'phrase' || true) : kind === 'confusable' ? kb.confusables().length > 0 : kind === 'root' ? Boolean(kb.manifest()) : kind === 'variant' ? kb.variants().length > 0 : true);
+export const KB_KINDS = Object.keys(REL_FOR).concat(['confusable', 'root', 'variant', 'stress', 'syllables', 'build', 'inflect']);
+let EXTRAS = null; export const installExtras = (o) => { EXTRAS = o; inflMap = null; };
+let inflMap = null; const infl = () => { if (!inflMap) { inflMap = new Map(); for (const [kind, base, f1, f2] of EXTRAS?.inflect ?? []) { if (!inflMap.has(base)) inflMap.set(base, []); inflMap.get(base).push({ kind, f1, f2 }); } } return inflMap; };
+export const extras = () => EXTRAS;
+const isPal = (w) => w.length >= 3 && new Set(w).size >= 2 && /[aeiouy]/.test(w) && w === [...w].reverse().join('');
+const ORD = ['1st', '2nd', '3rd', '4th', '5th'];
+export const kindAvailable = (kind) => (['sense', 'cloze', 'missing', 'palindrome'].includes(kind) ? true : kind === 'stress' || kind === 'syllables' ? Boolean(kb.manifest()) : kind === 'build' ? Boolean(kb.manifest()) : kind === 'inflect' ? Boolean(EXTRAS) : kind === 'ladder' ? Boolean(EXTRAS?.ladders?.length) : REL_FOR[kind] ? kb.has(REL_FOR[kind]) && (kind !== 'phrase' || true) : kind === 'confusable' ? kb.confusables().length > 0 : kind === 'root' ? Boolean(kb.manifest()) : kind === 'variant' ? kb.variants().length > 0 : true);
 let variantMap = null, variantVer = -1;
 const vmap = () => { if (variantMap && variantVer === kb.version()) return variantMap; variantMap = new Map(kb.variants().map(([us, gb]) => [us, gb])); variantVer = kb.version(); return variantMap; };
 const confFor = (w) => kb.confusables().find((p) => p[0] === w || p[1] === w);
 const anaOk = (e) => e.rank !== undefined && e.w.length >= 4 && e.w.length <= 9 && kb.has('ana') && kb.count('ana', e.rank) === 0 && new Set(e.w).size >= 3;
 function canAskKb(e, kind) {
-  if (!kb.manifest() || e.rank === undefined || e.letter) return false;
+  if (e.letter) return false;
+  if (kind === 'sense') return !!e.gloss2 && e.gloss2.length <= 84 && !e.gloss2.toLowerCase().includes(e.w);
+  if (kind === 'cloze') return !!e.ex && new RegExp(`\\b${e.w}\\b`, 'i').test(e.ex);
+  if (kind === 'missing') return e.w.length >= 4 && e.w.length <= 9;
+  if (kind === 'palindrome') return isPal(e.w) && e.rank < 15000;
+  if (kind === 'inflect') return Boolean(EXTRAS) && infl().has(e.w);
+  if (kind === 'ladder') return Boolean(EXTRAS?.ladders?.some((l) => l.includes(e.w)));
+  if (!kb.manifest() || e.rank === undefined) return false;
   const row = e.rank;
   switch (kind) {
     case 'category': return kb.has('hyper') && kb.words('hyper', row).some((h) => okw(h));
@@ -171,6 +193,9 @@ function canAskKb(e, kind) {
     case 'confusable': return Boolean(confFor(e.w));
     case 'root': return Boolean(kb.parts(row)?.root);
     case 'variant': return vmap().has(e.w);
+    case 'stress': return kb.syllables(row) >= 3 && kb.col(row, 1) > 0 && kb.col(row, 1) <= kb.syllables(row);
+    case 'syllables': return kb.syllables(row) >= 1;
+    case 'build': { const p = kb.parts(row); return Boolean(p?.prefix) && e.w.startsWith(p.prefix[0]) && isWord(e.w.slice(p.prefix[0].length)) && e.w.length - p.prefix[0].length >= 3; }
     default: return false;
   }
 }
@@ -216,6 +241,43 @@ function buildKb(kind, e, rng, avoid, base, opt) {
     case 'confusable': { const p = confFor(e.w); const mine = p[0] === e.w ? 0 : 1, partner = p[1 - mine], hint = p[2 + mine], other = rng.pick(kb.confusables().filter((x) => x !== p)); const third = rng.pick([other[0], other[1]]); return pick3(e.w, [partner, third], { prompt: hint, note: `${p[0]}: ${p[2]}. ${p[1]}: ${p[3]}.` }); }
     case 'root': { const r = kb.parts(row).root; const mean = r[1]; const ds = []; for (let i = 0; i < 40 && ds.length < 2; i += 1) { const x = distractors(e, 1, rng, new Set([...avoid, ...ds]))[0]; const xe = x && entry(x); if (xe && xe.rank !== undefined && kb.parts(xe.rank)?.root?.[0] !== r[0]) ds.push(x); } return pick3(e.w, ds, { prompt: mean, note: `"${r[0]}" means "${mean}"` }); }
     case 'variant': { const gb = vmap().get(e.w); const bad = misspellings(gb, 2, rng); return pick3(gb, bad, { prompt: e.w, note: `${e.w} (US) is ${gb} (UK)` }); }
+    case 'sense': return pick3(e.w, others(2, []), { prompt: e.gloss2, note: `${e.w}: ${e.gloss}` });
+    case 'cloze': { const blank = e.ex.replace(new RegExp(`\\b${e.w}\\b`, 'i'), '___'); return pick3(e.w, others(2, []), { prompt: blank, note: e.gloss }); }
+    case 'missing': {
+      const i = 1 + rng.int(e.w.length - 2), L = e.w[i], shown = [...e.w].map((c, k) => (k === i ? '_' : c)).join(' ');
+      const wrong = rng.shuffle([...'abcdefghijklmnopqrstuvwxyz'].filter((c) => c !== L && !isWord(e.w.slice(0, i) + c + e.w.slice(i + 1)))).slice(0, 2);
+      return pick3(L, wrong, { prompt: shown, note: `${e.w}: ${e.gloss}` });
+    }
+    case 'palindrome': { const ds = distractors(e, 8, rng, new Set(avoid)).filter((x) => !isPal(x) && x.length >= 3); const same = ds.filter((x) => x.length === e.w.length); return pick3(e.w, (same.length >= 2 ? same : ds).slice(0, 2), { prompt: 'which word is the same backwards?', note: `${e.w} backwards is ${e.w}` }); }
+    case 'stress': {
+      const sy = kb.syllables(row), st = kb.col(row, 1), pool = ORD.slice(0, sy).filter((x, i) => i + 1 !== st), ds = rng.shuffle(pool).slice(0, 2);
+      return pick3(ORD[st - 1], ds, { prompt: e.w, note: `${e.w}: the ${ORD[st - 1]} part is stressed` });
+    }
+    case 'syllables': {
+      const n = kb.syllables(row), cand = [n - 2, n - 1, n + 1, n + 2].filter((x) => x >= 1 && x <= 8), ds = rng.shuffle(cand).slice(0, 2);
+      return pick3(String(n), ds.map(String), { prompt: e.w, note: `${e.w} has ${n} syllable${n === 1 ? '' : 's'}` });
+    }
+    case 'build': {
+      const p = kb.parts(row), pf = p.prefix[0], stem = e.w.slice(pf.length), alts = rng.shuffle(['un', 'in', 'dis', 'mis', 'non', 're', 'de', 'im', 'ir', 'over', 'out', 'sub'].filter((x) => x !== pf && !isWord(x + stem) && !isWord(pf + x + stem))).slice(0, 2);
+      return pick3(e.w, alts.map((x) => x + stem), { prompt: `${pf}-  +  ${stem}`, note: `${pf}- means "${p.prefix[1]}": ${e.w}` });
+    }
+    case 'ladder': {
+      const lad = rng.pick(EXTRAS.ladders.filter((l) => l.includes(e.w))), i0 = lad.indexOf(e.w), others = lad.map((w, i) => [w, i]).filter(([, i]) => i !== i0);
+      const pair = rng.shuffle(others).slice(0, 2); if (pair.length < 2) return null;
+      const trio = [[e.w, i0], ...pair], strong = rng.chance(0.5), pickv = trio.reduce((a, b) => ((strong ? b[1] > a[1] : b[1] < a[1]) ? b : a));
+      return { ...base, label: strong ? 'WHICH IS THE STRONGEST?' : 'WHICH IS THE MILDEST?', prompt: 'same idea, different strength', answer: pickv[0], note: lad.join('  <  '), options: rng.shuffle(trio.map(([w]) => opt(w, w === pickv[0]))) };
+    }
+    case 'inflect': {
+      const it = rng.pick(infl().get(e.w)), b = e.w;
+      if (it.kind === 'verb') {
+        const wantPart = it.f1 !== it.f2 && rng.chance(0.5), right = wantPart ? it.f2 : it.f1, other = wantPart ? it.f1 : it.f2, reg = /e$/.test(b) ? `${b}d` : `${b}ed`;
+        const ds = [...new Set([reg, other, `${right}ed`, `${b}t`].filter((x) => x !== right && (x === other || !isWord(x))))].slice(0, 2); if (ds.length < 2) return null;
+        return pick3(right, ds, { prompt: wantPart ? `I have ___  (${b})` : `Yesterday I ___  (${b})`, note: `${b}, ${it.f1}, ${it.f2}` });
+      }
+      if (it.kind === 'noun') { const reg = /(s|x|ch|sh)$/.test(b) ? `${b}es` : `${b}s`, alt = reg.endsWith('es') ? `${b}s` : `${b}es`; const ds = [reg, alt].filter((x) => x !== it.f1 && !isWord(x)); if (ds.length < 2) return null; return pick3(it.f1, ds, { prompt: `two ___  (${b})`, note: `${b} - ${it.f1}` }); }
+      const ds = [`${b}er`, `${b}ier`, `more ${b}`.replace(' ', '')].filter((x) => x !== it.f1 && !isWord(x)).slice(0, 2); if (ds.length < 2) return null;
+      return pick3(it.f1, ds, { prompt: `more ${b}  =  ___`, note: `${b}, ${it.f1}, ${it.f2}` });
+    }
     default: return null;
   }
 }

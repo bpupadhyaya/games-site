@@ -1,0 +1,25 @@
+{
+  "slug": "jungle-animal-chess",
+  "title": "Jungle (Dou Shou Qi)",
+  "tagline": "Rat beats elephant. Reach the den. China's animal-rank board game.",
+  "genre": "Chinese animal-rank strategy board game",
+  "orientation": "any",
+  "version": "1.0.0",
+  "monetization": {
+    "model": "premium",
+    "priceUsd": 2.99,
+    "previewSeconds": 90,
+    "products": [
+      {
+        "id": "unlock_game",
+        "type": "non-consumable",
+        "priceUsd": 2.99,
+        "title": "Unlock Game"
+      }
+    ]
+  },
+  "locales": [
+    "en"
+  ],
+  "demoOnly": true
+}

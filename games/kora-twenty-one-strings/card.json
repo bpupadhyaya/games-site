@@ -1,0 +1,17 @@
+{
+  "title": "Kora",
+  "tagline": "Pluck the strings. Play the pattern.",
+  "description": "A music game for the kora, the 21-string harp-lute of West Africa. Pluck the strings as glowing beads reach the bridge, with two thumbs or more. Learn six original pieces by call and response, then play them while a quiet accompaniment grows fuller as you play cleanly. Watch and Learn shows the four plucking fingers and explains what each hand does and why. Free play with strumming, a click and an echo partner. Calabash, cow hide and a warm evening courtyard, synthesised sound, no ads, works offline.",
+  "genre": "rhythm music",
+  "demo": true,
+  "howToPlay": [
+    "Pick a piece, then start with Learn the pattern: the accompanist plays a phrase and you echo it back.",
+    "Each lane is one string. Glowing beads slide down toward the bridge: amber for the left hand, teal for the right.",
+    "Tap the string when the bead reaches the bridge. Closer to the beat scores more. Use two thumbs, or more fingers.",
+    "Play cleanly and more voices join the accompaniment. Miss and one drops out.",
+    "Watch and Learn plays a whole piece, shows the four fingers and explains what each hand is doing and why.",
+    "Free play gives you all 21 strings: tap, or slide a finger across to strum, with a click and an echo partner.",
+    "Notes early or late? Settings, then Calibrate, and tap along with the pulse.",
+    "On a keyboard: A S D F G H pluck the lanes from left to right, Space pauses."
+  ]
+}

@@ -1,8 +1,8 @@
 #WGP1	3457
 have	v055	40	have or possess, either in a concrete or an abstract sense	have as a feature	She has $1,000 in the bank	hold	lack
-work	n055	4	activity directed toward making or doing something	a product produced or accomplished through the effort or activity or a	she checked several points needing further work		
-year	n055	28	a period of time containing 365 (or 366) days	a period of time occupying a regular part of a calendar year that is u	she is 4 years old	twelvemonth	
-call	v04x	32	assign a specified (usually proper) proper name to	ascribe a quality to or give a name of a common noun that reflects a q	They named their son David	name	
+work	n055	4	activity directed toward making or doing something	a product produced or accomplished through the effort or activity or	she checked several points needing further work		
+year	n055	28	a period of time containing 365 (or 366) days	a period of time occupying a regular part of a calendar year that is	she is 4 years old	twelvemonth	
+call	v04x	32	assign a specified (usually proper) proper name to	ascribe a quality to or give a name of a common noun that reflects a	They named their son David	name	
 most	r055	2	used to form the superlative	very	the king cobra is the most dangerous snake		least
 turn	v055	38	change orientation or direction, also in the abstract sense	undergo a transformation or a change of position or action	Turn towards me		
 case	n055	11	an occurrence of something	a special set of circumstances	it was a case of bad judgment	example,instance	
@@ -16,7 +16,7 @@ increase	v01l	30	become bigger or greater in amount	make bigger or more	The amou
 create	v055	36	make or cause to be or to become	bring into existence	make a mess in one's office	make	
 raise	v055	30	raise the level or amount of something	raise from a lower to a higher position	raise my salary	lift,elevate	lower
 power	n041	7	possession of controlling influence	(physics) the rate of doing work	the deterrent power of nuclear weapons	powerfulness	powerlessness
-death	n049	11	the event of dying or departure from life	the permanent end of all life functions in an organism or part of an o	her death came as a terrible shock	decease,expiry	birth
+death	n049	11	the event of dying or departure from life	the permanent end of all life functions in an organism or part of an	her death came as a terrible shock	decease,expiry	birth
 wear	v055	29	be dressed in	have on one's person	She was wearing yellow that day	bear	
 answer	v04x	32	react verbally	respond to a signal	She didn't want to answer	respond,reply	
 hour	n055	28	a period of time equal to 1/24th of a day	clock time	the job will take more than an hour		
@@ -25,35 +25,35 @@ different	a01l	0	unlike in nature or quality or form or degree	distinctly separa
 join	v055	41	become part of	cause to become joined or linked	He joined the Communist Party as a young man		disjoin
 government	n01l	14	the organization that is the governing authority of a political unit	the act of governing	the government reduced taxes	authorities,regime	
 concern	v04x	42	be relevant to	be on the mind of	There were lots of questions referring to her talk	relate,touch,refer,pertain	
-community	n01l	14	a group of people living in a particular local area	a group of people having a religion, ethnic, profession, or other part	the team is drawn from all parts of the community		
+community	n01l	14	a group of people living in a particular local area	a group of people having a religion, ethnic, profession, or other	the team is drawn from all parts of the community		
 eat	v055	34	take in solid food	eat a meal	She was eating a banana		
 touch	v055	35	make physical contact with, come in contact with	perceive via the tactile sense	Touch the stone for good luck		
 friend	n055	18	a person you know well and regard with affection and trust	an associate who provides cooperation or assistance	he was my best friend at the university	ally	foe
 score	n04x	9	a number or letter indicating quality	a written form of a musical composition	she made good marks in algebra	mark,grade	
 almost	r055	2	slightly short of or not quite accomplished		the job is (just) about done	about,most,near,nearly	
 agree	v04x	32	be in accord	consent or assent to a condition, or agree to do something	We agreed on the terms of the settlement	hold,concord,concur	disagree
-local	a055	0	relating to or applicable to or concerned with the administration of a city or town or district	of or belonging to or characteristic of a particular locality or neigh	local taxes		national
+local	a055	0	relating to or applicable to or concerned with the administration of a city or town or district	of or belonging to or characteristic of a particular locality or	local taxes		national
 represent	v01d	42	take the place of or be parallel or equivalent to	express indirectly by an image, form, or model		correspond	
 simple	a055	0	having few parts	easy and not involved or complicated	a simple problem	elementary,uncomplicated,unproblematic	complex
-surface	n055	6	the outer boundary of an artifact or a material layer constituting or resembling such a boundary	the extended two-dimensional outer boundary of a three-dimensional obj	there is a special cleaner for these surfaces		
+surface	n055	6	the outer boundary of an artifact or a material layer constituting or resembling such a boundary	the extended two-dimensional outer boundary of a three-dimensional	there is a special cleaner for these surfaces		
 individual	n01l	3	a human being	a single organism	there was too much for one person to do	person,someone,soul,somebody	
 prepare	v055	30	make ready or suitable or equip in advance for a particular purpose or for some use, event, etc	prepare for eating by applying heat	Get the children ready for school!	set,ready,fix	
-doctor	n055	18	a licensed medical practitioner	children take the roles of physician or patient or nurse and pretend t	I felt so bad I went to see my doctor	physician,doc,medico	
+doctor	n055	18	a licensed medical practitioner	children take the roles of physician or patient or nurse and pretend	I felt so bad I went to see my doctor	physician,doc,medico	
 class	n055	14	a collection of things sharing a common attribute	a body of students who are taught together	there are two classes of detergents	family,category	
 establish	v01l	41	set up or found	set up or lay the groundwork for	She set up a literacy program	found,launch	abolish
 words	n055	10	the words that are spoken	the text of a popular song or musical-comedy number	I listened to his words very closely	language,lyric	
 attend	v04x	42	be present at, etc.	take charge of or deal with	She attends class regularly	see,look	miss
 food	n055	3	any substance that can be metabolized by an animal to give energy and build tissue			nutrient	
 wife	n055	18	a married woman				husband
-being	n04x	26	the state or fact of existing	a living thing that has (or can develop) the ability to act or functio	a point of view gradually coming into being	existence	nonbeing
+being	n04x	26	the state or fact of existing	a living thing that has (or can develop) the ability to act or	a point of view gradually coming into being	existence	nonbeing
 dry	a055	0	free from liquid or moisture	humorously sarcastic or mocking	dry land	ironic,wry,ironical	wet
 society	n055	14	an extended social group having a distinctive cultural and economic organization	a formal association of people with similar interests		order,club,lodge,guild	
 building	n01l	6	a structure that has a roof and walls and stands more or less permanently in one place	the act of constructing something	there was a three-story building on the corner	edifice	
 safe	a055	0	free from danger or the risk of harm	(of an undertaking) secure from risk	a safe trip		dangerous
 difference	n01d	7	the quality of being unlike or dissimilar	a variation that deviates from the standard or norm	there are many differences between jazz and rock	departure,deviation,divergence	sameness
-unit	n04x	23	any division of quantity accepted as a standard of measurement or exchange	an individual or group or structure or other entity regarded as a stru	the dollar is the United States unit of currency		
+unit	n04x	23	any division of quantity accepted as a standard of measurement or exchange	an individual or group or structure or other entity regarded as a	the dollar is the United States unit of currency		
 display	v055	39	to show, make visible or apparent		The Metropolitan Museum is exhibiting Goya's works this month	expose,exhibit	
-performance	n01l	10	a dramatic or musical entertainment	the act of presenting a play or a piece of music or other entertainmen	they listened to ten different performances		
+performance	n01l	10	a dramatic or musical entertainment	the act of presenting a play or a piece of music or other	they listened to ten different performances		
 fan	n055	6	a device for creating a current of air by movement of a surface or surfaces	an enthusiastic devotee of sports		rooter	
 sun	n055	17	the star that is the source of light and heat for the planets in the solar system	the rays of the sun	the sun contains 99.85% of the mass in the solar system	sunshine,sunlight	
 current	a055	0	occurring in or belonging to the present time		current events		noncurrent
@@ -72,13 +72,13 @@ coach	n055	18	(sports) someone in charge of training an athlete or a team			mana
 screen	n055	6	a white or silvered surface where pictures can be projected for viewing	a protective covering that keeps things out or hinders sight		blind	
 please	v055	37	give pleasure to or be pleasing to	be the will of or have the will (to)	These colors please the senses	delight	displease
 associate	v01d	31	make a logical or causal connection	keep company with	I cannot connect these two pieces of evidence in my mind	link,connect,relate,colligate	dissociate
-flag	n46x	6	emblem usually consisting of a rectangular piece of cloth of distinctive design	a listing printed in all issues of a newspaper or magazine that gives 		wilt,masthead	flourish
+flag	n46x	6	emblem usually consisting of a rectangular piece of cloth of distinctive design	a listing printed in all issues of a newspaper or magazine that gives		wilt,masthead	flourish
 facility	n01l	6	a building or place that provides a particular service or is used for a particular industry		the assembly plant is an enormous facility	installation	
 contribute	v01l	40	bestow a quality on	contribute to some cause	Her presence lends a certain cachet to the company	add,bring,lend,impart	
 defense	n049	4	(military) military action or resources protecting a country against potential enemies	protection from harm	they died in the defense of Stalingrad	defence	
 aspect	n04x	9	a distinct feature or element in a problem	a characteristic to be considered	he studied every facet of the question	facet	
 district	n01l	15	a region marked off for administrative or other purposes			territory,dominion	
-suit	n055	6	a set of garments for outerwear all of the same fabric and color	a comprehensive term for any proceeding in a court of law whereby an i	they buried him in his best suit	case,cause,lawsuit,causa	
+suit	n055	6	a set of garments for outerwear all of the same fabric and color	a comprehensive term for any proceeding in a court of law whereby an	they buried him in his best suit	case,cause,lawsuit,causa	
 hundred	a055	0	being ten more than ninety				ordinal
 female	n049	5	an animal that produces gametes (ova) that can be fertilized by male gametes (spermatozoa)	a person who belongs to the sex that can have babies			male
 temperature	n01d	7	the degree of hotness or coldness of a body or environment	the somatic sensation of cold or heat			
@@ -91,10 +91,10 @@ owner	n055	18	(law) someone who owns a business	a person who owns something	he i
 favor	v055	41	promote over another	consider as the favorite	he favors his second daughter	prefer,favour	
 management	n01l	4	the act of managing something	those in charge of running a business	he was given overall management of the program	direction	
 solve	v04x	31	find the solution to or understand the meaning of	find the solution	did you solve the problem?	work,lick	
-sentence	n01l	10	a string of words satisfying the grammatical rules of a language	(criminal law) a final judgment of guilty in a criminal case and the p	he always spoke in grammatical sentences	conviction,condemnation	
+sentence	n01l	10	a string of words satisfying the grammatical rules of a language	(criminal law) a final judgment of guilty in a criminal case and the	he always spoke in grammatical sentences	conviction,condemnation	
 certainly	r01l	2	definitely or positively		the results are surely encouraging	sure,surely	
 funny	a055	0	arousing or provoking laughter	beyond or deviating from the usual or expected	an amusing film with a steady stream of pranks and pratfalls	comic,amusing,laughable,comical	familiar,humorless
-technology	n01l	4	the application of the knowledge and usage of tools and techniques to control one's environment	the discipline dealing with the art or science of applying scientific 	the mastery of fire was a huge advance in human technology	engineering	
+technology	n01l	4	the application of the knowledge and usage of tools and techniques to control one's environment	the discipline dealing with the art or science of applying scientific	the mastery of fire was a huge advance in human technology	engineering	
 agreement	n01l	10	the statement (oral or written) of an exchange of promises	compatibility of observations		understanding	
 driver	n055	18	the operator of a motor vehicle				nondriver
 grind	v055	35	press or grind with a crushing noise	make a grating or grinding sound by rubbing together		crunch,cranch,craunch	
@@ -106,7 +106,7 @@ marriage	n01d	26	the state of being a married couple voluntarily joined for life
 entry	n055	10	an item inserted in a written record	the act of beginning something new		debut,introduction,launching,unveiling	
 resolve	v46p	31	bring to an end	reach a conclusion after a discussion or deliberation	The case was decided	firmness,decide,settle,adjudicate	indecision
 shade	n04x	26	relative darkness caused by light rays being intercepted by an opaque body	a quality of a given color that differs slightly from another color	it is much cooler in the shade	shadiness,shadowiness	
-league	n055	14	an association of sports teams that organizes matches for its members	an association of states or organizations or individuals for common ac		conference	
+league	n055	14	an association of sports teams that organizes matches for its members	an association of states or organizations or individuals for common		conference	
 impossible	a01l	0	not capable of occurring or being accomplished or dealt with	totally unlikely	an impossible dream	unimaginable,inconceivable	possible
 beautiful	a01l	0	delighting the senses or exciting intellectual or emotional admiration		a beautiful child		ugly
 plenty	n04x	7	a full supply	a large number or amount or extent	there was plenty of food for everyone	plenitude,plentitude,plentifulness,plenteousness	
@@ -127,7 +127,7 @@ chest	n01l	8	the part of the human torso between the neck and the diaphragm or t
 fence	n01l	6	a barrier that serves to enclose an area			fencing	
 obviously	r01l	2	unmistakably		the answer is obviously wrong	apparently,plain,evidently,plainly	
 principal	a01l	0	most important element		the chief aim of living	chief,main,primary,master	unimportant
-resolution	n43d	10	a formal expression by a meeting	the ability of a microscope or telescope to measure the angular separa		determination,resolve,declaration	indecision
+resolution	n43d	10	a formal expression by a meeting	the ability of a microscope or telescope to measure the angular		determination,resolve,declaration	indecision
 mess	n01d	26	a state of confusion and disorderliness	informal terms for a difficult situation	the house was a mess	messiness,muss,mussiness	
 honest	a01l	0	not disposed to cheat or defraud	without dissimulation	honest lawyers	honorable	dishonest
 funds	n01l	21	assets in the form of money			finances	
@@ -137,25 +137,25 @@ chase	v01l	38	go after with the intent to catch		The policeman chased the mugger
 suspend	v01l	35	hang freely	cause to be held in suspension in a fluid	The secret police suspended their victims from the ceiling and beat them		
 assault	v01l	33	attack someone physically or emotionally		The mugger assaulted the woman	attack,assail	
 meanwhile	r01l	2	at the same time but in another place	during the intervening time	meanwhile, back at the ranch...	meantime	
-document	n43d	10	writing that provides information	anything serving as a representation of a person's thinking by means o		record,papers	
-cultural	a01l	1	of or relating to the arts and manners that a group favors	denoting or deriving from or distinctive of the ways of living built u	cultural events	ethnic,ethnical	unsocial
+document	n43d	10	writing that provides information	anything serving as a representation of a person's thinking by means		record,papers	
+cultural	a01l	1	of or relating to the arts and manners that a group favors	denoting or deriving from or distinctive of the ways of living built	cultural events	ethnic,ethnical	unsocial
 absence	n01d	26	the state of being absent	failure to be present	he was surprised by the absence of any explanation		presence
 specify	v01d	32	specify as a condition or requirement in a contract or agreement	decide upon or fix definitely		condition,qualify,stipulate	
 tissue	n01l	8	part of an organism consisting of an aggregate of cells having a similar structure and function	a soft thin paper			
-habit	n01d	9	an established custom	(psychology) an automatic pattern of behavior in reaction to a specifi	it was their habit to dine at 7 every evening	wont	
-anxiety	n01d	26	(psychiatry) a relatively permanent state of worry and nervousness occurring in a variety of mental	a vague unpleasant emotion that is experienced in anticipation of some		anxiousness	
+habit	n01d	9	an established custom	(psychology) an automatic pattern of behavior in reaction to a	it was their habit to dine at 7 every evening	wont	
+anxiety	n01d	26	(psychiatry) a relatively permanent state of worry and nervousness occurring in a variety of mental	a vague unpleasant emotion that is experienced in anticipation of		anxiousness	
 restore	v01l	41	return to its original or usable and functioning condition	return to life	restore the forest to its original pristine condition	reconstruct	
 learned	a01l	0	having or showing profound knowledge	highly educated	a learned jurist	erudite	uneducated,unscholarly
 trim	v01l	35	remove the edges from and cut down to the desired size	decorate, as with ornaments	pare one's fingernails	pare	
 rapidly	r01l	2	with speed		he works quickly	quickly,apace,speedily	
-substance	n01l	3	the real physical matter of which a person or thing consists	the choicest or most essential or most vital part of some idea or expe	DNA is the substance of our genes	center,heart,centre,core	
+substance	n01l	3	the real physical matter of which a person or thing consists	the choicest or most essential or most vital part of some idea or	DNA is the substance of our genes	center,heart,centre,core	
 football	n01l	4	any of various games played with a ball (round or oval) in which two teams try to kick or carry or	the inflated oblong ball used in playing American football			
 pale	a01l	0	very light colored	(of light) lacking in intensity or brightness	pale seagreen	sick,wan,pallid	strong,dark
 dismiss	v435	32	bar from attention or consideration	cease to consider	She dismissed his advances	reject,ignore,discount,disregard	accept
 deeply	r01l	2	to a great depth psychologically or emotionally	to a great depth	They felt the loss deeply	profoundly,intensely	
 somewhere	r01l	2	in or at or to some place		she must be somewhere	someplace	
 formula	n01l	10	a group of symbols that make a mathematical statement	directions for making something		expression	
-luck	n01d	26	your overall circumstances or condition in life	an unknown and unpredictable phenomenon that causes an event to result	whatever my fortune may be	lot,circumstances,portion,fortune	
+luck	n01d	26	your overall circumstances or condition in life	an unknown and unpredictable phenomenon that causes an event to	whatever my fortune may be	lot,circumstances,portion,fortune	
 delight	n01l	12	a feeling of extreme pleasure or satisfaction		his delight to see her was obvious to all	delectation	
 uniform	n01l	6	clothing of distinctive design worn by members of a particular group as a means of identification				
 consumer	n01l	18	a person who uses goods or services				
@@ -206,8 +206,8 @@ lieutenant	n01l	18	a commissioned military officer	an officer in a police force
 personality	n01h	7	the complex of all the attributes--behavioral, temperamental, emotional and mental--that	a person of considerable prominence	their different reactions reflected their very different personalities		
 publisher	n01l	14	a firm in the publishing business	a person engaged in publishing periodicals or books or music			
 obligation	n01l	4	the social force that binds you to the courses of action demanded by that force	the state of being obligated to do or pay something	we must instill a sense of duty in our children	responsibility,duty	
-costume	n01l	6	the attire worn in a play or at a fancy dress ball	unusual or period attire not characteristic of or appropriate to the t	he won the prize for best costume		
-spectrum	n43f	19	an ordered array of the components of an emission or wave	a broad range of related objects or values or qualities or ideas or ac		range	
+costume	n01l	6	the attire worn in a play or at a fancy dress ball	unusual or period attire not characteristic of or appropriate to the	he won the prize for best costume		
+spectrum	n43f	19	an ordered array of the components of an emission or wave	a broad range of related objects or values or qualities or ideas or		range	
 neutral	a01p	0	having no personal preference	having only a limited ability to react chemically	impersonal criticism	impersonal	subjective,reactive
 intention	n01h	9	an anticipated outcome that is intended or that guides your planned actions	(usually plural) the goal with respect to a marriage proposal	his intent was to provide a new translation	design,aim,purpose,intent	
 sitting	n01l	4	(photography) the act of assuming a certain position	the act of assuming or maintaining a seated position	he wanted his portrait painted but couldn't spare time for the sitting	posing	
@@ -216,26 +216,26 @@ terror	n0p	12	an overwhelming feeling of fear and anxiety	a person who inspires 
 effectively	r01l	2	in an effective manner	in actuality or reality or fact		efficaciously	ineffectively
 lemon	n01l	13	yellow oval fruit with juicy acidic flesh	a strong yellow color		maize,gamboge	
 laboratory	n01l	6	a workplace for the conduct of scientific research			lab	
-arrow	n01l	10	a mark to indicate a direction or relation	a projectile with a straight thin shaft and an arrowhead on one end an		pointer	
+arrow	n01l	10	a mark to indicate a direction or relation	a projectile with a straight thin shaft and an arrowhead on one end		pointer	
 dimension	n01h	7	the magnitude of something in a particular direction	a construct whereby objects or individuals can be distinguished		property,attribute	
-persuade	v01l	41	win approval or support for	cause somebody to adopt a certain position, belief, or course of actio	Carry all before one	carry,sway	dissuade
-confirmed	a01l	0	of persons	having been established or made firm or received the rite of confirmat	a confirmed bachelor		unconfirmed
+persuade	v01l	41	win approval or support for	cause somebody to adopt a certain position, belief, or course of	Carry all before one	carry,sway	dissuade
+confirmed	a01l	0	of persons	having been established or made firm or received the rite of	a confirmed bachelor		unconfirmed
 hug	v01l	35	hold (someone) tightly in your arms, usually with fondness	fit closely or tightly	Hug me, please	embrace,squeeze,bosom	
 presidential	a01l	1	relating to a president or presidency		presidential aides		
 complaint	n01d	26	an often persistent bodily disorder or disease	(formerly) a loud cry (or repeated cries) of pain or rage or sorrow		ill,ailment	
 forced	a01l	44	produced by or subjected to forcing	forced or compelled	forced-air heating		voluntary
 operational	a01p	1	pertaining to a process or series of actions for achieving a result	fit or ready for use or service	operational difficulties	functional,usable,useable,operable	unserviceable
-electricity	n01n	19	a physical phenomenon associated with stationary or moving electrons and protons	energy made available by the flow of electric charge through a conduct		power	
+electricity	n01n	19	a physical phenomenon associated with stationary or moving electrons and protons	energy made available by the flow of electric charge through a		power	
 grateful	a01l	0	feeling or showing gratitude		a grateful heart	thankful	ungrateful
 tilt	v11l	38	to incline or bend from a vertical position	heel over	She leaned over the banister	tip,angle,lean,slant	
-retain	v11d	42	hold back within	allow to remain in a place or position or maintain a property or featu	This soil retains water	keep,continue	
+retain	v11d	42	hold back within	allow to remain in a place or position or maintain a property or	This soil retains water	keep,continue	
 efficient	a11l	0	being effective without wasting time or effort or expense	able to accomplish a purpose	an efficient production manager	effective	inefficient
 sharply	r11l	2	in an aggressive manner	in a well delineated manner	she was being sharply questioned	aggressively	
 jar	n11l	6	a vessel with a wide mouth and without handles				
 regulate	v11p	30	fix or adjust the time, amount, degree, or rate of	bring into conformity with rules or principles or usage	regulate the temperature	modulate	deregulate
 descend	v11l	38	move downward and lower, but not necessarily all the way	come from	The temperature is going down	fall	ascend
 silly	a11l	0	ludicrous, foolish	lacking seriousness	wore a goofy hat	wacky,goofy,zany,whacky	serious,wise
-assignment	n11l	4	a duty that you are assigned to perform	the instrument by which a claim or right or interest or property is tr	hazardous duty		
+assignment	n11l	4	a duty that you are assigned to perform	the instrument by which a claim or right or interest or property is	hazardous duty		
 colors	n11l	6	a flag that shows its nationality			colours	
 washing	n11l	4	the work of cleansing			wash,lavation	
 significance	n11h	7	the quality of being significant	a meaning that is not expressly stated but can be inferred	do not underestimate the significance of nuclear power	import,implication	insignificance
@@ -243,7 +243,7 @@ conscious	a11p	0	intentionally conceived	knowing and perceiving	a conscious effo
 papers	n11l	10	writing that provides information			document	
 incorporate	v43h	30	make into a whole or make part of a whole	include or contain	She incorporated his suggestions into her proposal	include,integrate	exclude
 facing	n11l	6	a lining applied to the edge of a garment for ornamentation or strengthening				
-rib	n11l	6	support resembling the rib of an animal	any of the 12 pairs of curved arches of bone extending from the spine 		costa	
+rib	n11l	6	support resembling the rib of an animal	any of the 12 pairs of curved arches of bone extending from the spine		costa	
 lease	v11l	41	let for money		We rented our apartment to friends while we were abroad	rent	
 rig	n11l	6	gear for a particular enterprise				
 dialogue	n11l	10	a conversation between two persons	the lines spoken by characters in drama or fiction		dialog,duologue	
@@ -253,7 +253,7 @@ successfully	r11l	2	with success		she performed the surgery successfully		unsucc
 steep	a11l	0	having a sharp inclination		the steep attic stairs		gradual
 harsh	a11l	0	unpleasantly stern	unpleasantly rough or jarring to the senses	wild and harsh country full of hot sand and cactus	rough	pleasant
 tease	v11l	37	annoy persistently	harass with persistent criticism or carping	The children teased the boy because of his stammer	bug,badger,beleaguer,pester	
-contrary	a11l	0	very opposed in nature or character or purpose	of words or propositions so related that both cannot be true but both 	acts contrary to our code of ethics		same
+contrary	a11l	0	very opposed in nature or character or purpose	of words or propositions so related that both cannot be true but both	acts contrary to our code of ethics		same
 ambition	n11l	12	a cherished desire	a strong drive for success	his ambition is to own his own business	dream,aspiration	
 workshop	n11l	6	small workplace where handcrafts or manufacturing are done	a brief intensive course for a small group		shop	
 amateur	n11l	18	someone who pursues a study or sport as a pastime				professional
@@ -323,12 +323,12 @@ weed	n11n	20	any plant that crowds out cultivated plants
 remaining	a11l	0	not used up		leftover meatloaf	left,odd,leftover,unexpended	exhausted
 proposition	n11p	10	(logic) a statement that affirms or denies something and is either true or false	a proposal offered for acceptance or rejection		suggestion,proffer	
 actress	n11l	18	a female actor				
-machinery	n11l	6	machines or machine systems collectively	a system of means and activities whereby a social institution function			
+machinery	n11l	6	machines or machine systems collectively	a system of means and activities whereby a social institution			
 ethical	a11p	1	of or relating to the philosophical study of ethics	conforming to accepted standards of social or professional behavior	ethical codes		unethical
 axis	n11d	9	a straight line through a body or figure that satisfies certain conditions				
 cooling	n11f	22	the process of becoming cooler	a mechanism for keeping something cool		chilling	
 avail	v11l	34	use to one's advantage	be of use to, be useful to	He availed himself of the available resources		
-declaration	n11p	10	a statement that is emphatic and explicit (spoken or written)	(law) unsworn statement that can be admitted in evidence in a legal tr			
+declaration	n11p	10	a statement that is emphatic and explicit (spoken or written)	(law) unsworn statement that can be admitted in evidence in a legal			
 punishment	n11l	4	the act of punishing			penalty,penalization,penalisation	
 knit	v11l	36	make (textiles) by knitting	tie or link together	knit a scarf	entwine	
 animate	v11p	37	heighten or intensify		These paintings exalt the imagination	inspire,invigorate,exalt,enliven	
@@ -343,8 +343,8 @@ sparkle	n11d	7	merriment expressed by a brightness or gleam or animation of coun
 confirmation	n11h	9	additional proof that something that was believed is correct	information that confirms or verifies	fossils provided further confirmation of the evolutionary theory	check,verification,substantiation	
 twitter	n11l	11	a series of chirps			chirrup	
 pardon	v11d	32	accept an excuse for	grant a pardon to	Please excuse my dirty hands	excuse	
-capsule	n11l	6	a small container	a pill in the form of a small rounded gelatinous container with medici			
-expedition	n11l	4	a military campaign designed to achieve a specific objective in a foreign country	an organized group of people undertaking a journey for a particular pu			
+capsule	n11l	6	a small container	a pill in the form of a small rounded gelatinous container with			
+expedition	n11l	4	a military campaign designed to achieve a specific objective in a foreign country	an organized group of people undertaking a journey for a particular			
 tack	v11l	35	fasten with tacks	turn into the wind	tack the notice on the board		
 auto	n11l	6	a motor vehicle with four wheels		he needs a car to get to work	car,machine,automobile,motorcar	
 accumulate	v11p	40	get or gather together	collect or gather	I am accumulating evidence for the man's unfaithfulness to his wife	collect,compile,amass,hoard	
@@ -382,11 +382,11 @@ notable	n11l	18	a celebrity who is an inspiration to others		he was host to a la
 memorial	n11p	10	a recognition of meritorious service			remembrance,commemoration	
 countless	a11k	0	too numerous to be counted		countless hours	myriad,infinite,innumerable,uncounted	calculable
 scheduled	a11k	0	planned or scheduled for some certain time or times		the scheduled meeting		unscheduled
-compass	n11k	6	navigational instrument for finding directions	an area in which something acts or operates or has power or control: "		reach,range,scope,orbit	
+compass	n11k	6	navigational instrument for finding directions	an area in which something acts or operates or has power or control		reach,range,scope,orbit	
 reporting	n11k	10	the news as presented by reporters for newspapers or radio or television		they accused the paper of biased coverage of race relations	coverage,reportage	
 spear	v11k	35	pierce with a spear		spear fish		
 northwest	a11k	0	situated in or oriented toward the northwest			northwestern,northwesterly	south
-sage	n43c	18	a mentor in spiritual and philosophical topics who is renowned for profound wisdom	aromatic fresh or dried grey-green leaves used widely as seasoning for		philosopher	fool
+sage	n43c	18	a mentor in spiritual and philosophical topics who is renowned for profound wisdom	aromatic fresh or dried grey-green leaves used widely as seasoning		philosopher	fool
 burrow	n11k	17	a hole made by an animal, usually for shelter			tunnel	
 elicit	v43c	37	call forth	deduce (a principle) or construe (a meaning)	arouse pity	fire,raise,kindle,evoke	suppress
 processing	n11c	22	preparing or putting through a prescribed procedure		the processing of newly arrived immigrants		
@@ -398,7 +398,7 @@ injection	n11k	4	the forceful insertion of a substance under pressure
 processor	n11k	14	a business engaged in processing agricultural products and preparing them for market				
 dent	v11k	35	make a depression into		The bicycle dented my car	indent	
 massage	n11k	4	kneading and rubbing parts of the body to increase circulation and promote relaxation				
-confession	n11o	10	an admission of misdeeds or faults	a written document acknowledging an offense and signed by the guilty p			
+confession	n11o	10	an admission of misdeeds or faults	a written document acknowledging an offense and signed by the guilty			
 ambiguous	a43g	0	open to two or more interpretations	having more than one possible meaning	an equivocal statement	unclear,equivocal	explicit,unambiguous
 foresee	v11c	31	realize beforehand	picture to oneself		anticipate,previse,foreknow	
 sophomore	n11k	18	a second-year undergraduate			soph	terminal
@@ -406,7 +406,7 @@ robbery	n1o	4	larceny by threat of violence
 slender	a11k	0	being of delicate or slender build	very narrow	she was slender as a willow shoot is slender"- Frank Norris	slight,slim,svelte	wide,fat
 loaf	n11k	13	a shaped mass of baked bread that is usually sliced before eating				
 celebrity	n11k	18	a widely known person		he was a baseball celebrity		
-specimen	n1g	9	an example regarded as typical of its class	a bit of tissue or blood or urine that is taken for diagnostic purpose			
+specimen	n1g	9	an example regarded as typical of its class	a bit of tissue or blood or urine that is taken for diagnostic			
 uneven	a11k	0	not even or uniform as e.g. in shape or texture	not fairly matched as opponents	an uneven color	mismatched	even
 refusal	n11o	10	the act of refusing	a message refusing to accept something that is offered			
 anxious	a11o	0	eagerly desirous		anxious to see the new show at the museum	dying	untroubled,uneager
@@ -510,7 +510,7 @@ charger	n11m	5	formerly a strong swift horse ridden into battle			courser
 fulfillment	n11k	12	a feeling of satisfaction at having achieved your desires	the act of consummating something		fulfilment	
 linguist	n11k	18	a specialist in linguistics				
 pier	n11k	6	a platform built out from the shore into the water and supported by piles			dock,wharf,wharfage	
-crossroads	n11k	14	a community of people smaller than a village	a crisis situation or point in time when a critical decision must be m		hamlet	
+crossroads	n11k	14	a community of people smaller than a village	a crisis situation or point in time when a critical decision must be		hamlet	
 politically	r11k	2	with regard to social relationships involving authority	with regard to government	politically correct clothing		
 victor	n11k	18	a combatant who is able to defeat rivals			master,superior	
 warren	n11k	17	a series of connected underground tunnels occupied by rabbits				
@@ -587,7 +587,7 @@ stint	n43c	28	an unbroken period of time during which you do something		there we
 glint	v21k	39	be shiny, as if wet	throw a glance at	His eyes were glistening	shine,glitter,gleam,glisten	
 anemia	n2i	26	a deficiency of red blood cells			anaemia	
 fiend	n21k	18	a cruel wicked and inhuman person	an evil supernatural being		monster,devil,demon,ogre	
-compartment	n21k	6	a space into which an area is subdivided	a partitioned section, chamber, or separate room within a larger enclo			
+compartment	n21k	6	a space into which an area is subdivided	a partitioned section, chamber, or separate room within a larger			
 ply	v21k	34	give what is desired or needed, especially support, food or sustenance		The hostess provided lunch for all the guests	provide,supply,cater	
 implore	v434	32	call upon in supplication		I beg you to stop!	pray,beg	command
 plentiful	a21k	0	existing in great number or quantity	affording an abundant supply	rhinoceroses were once plentiful here	rich,ample,copious,plenteous	scarce
@@ -595,7 +595,7 @@ gathered	a21k	44	brought together in one place		the collected works of Milton	co
 roasted	a21k	0	(meat) cooked by dry heat in an oven			roast	raw
 daunt	v43c	37	cause to lose courage		dashed by the refusal	intimidate,scare,dash,pall	encourage
 boo	v21c	32	show displeasure, as after a performance or speech			hiss	applaud
-withholding	n21k	4	the act of deducting from an employee's salary	income tax withheld from employees' wages and paid directly to the gov			
+withholding	n21k	4	the act of deducting from an employee's salary	income tax withheld from employees' wages and paid directly to the			
 ordinance	n21o	10	an authoritative rule			regulation	
 accelerator	n21k	6	a pedal that controls the throttle valve	a valve that regulates the supply of fuel to the engine	he stepped on the gas	gas,gun,throttle	
 peep	v21k	39	look furtively		He peeped at the woman through the window		
@@ -927,7 +927,7 @@ billow	v2w	38	rise up as if in waves		smoke billowed up into the sky	wallow
 polo	n2w	4	a game similar to field hockey but played on horseback using long-handled mallets and a wooden ball				
 costing	n2w	4	cost accounting				
 fraught	a2w	0	marked by distress		a fraught mother-daughter relationship		empty,untroubled
-accompaniment	n2w	11	an event or situation that happens at the same time as or in connection with another	a musical part that supports or provides background for other musical 		attendant,concomitant	
+accompaniment	n2w	11	an event or situation that happens at the same time as or in connection with another	a musical part that supports or provides background for other musical		attendant,concomitant	
 openness	n2w	7	without obstructions to passage or view		the openness of the prairies		
 dissolution	n42u	22	separation into component parts			disintegration	union
 textured	a2w	0	having surface roughness		a textured wall of stucco		smooth
