@@ -1,0 +1,14 @@
+{
+  "title": "Sudoku Nine by Nine",
+  "tagline": "Pure logic, beautifully made. Hints that teach.",
+  "description": "Classic Sudoku on soft, tactile tiles. Every puzzle has exactly one solution and is graded by the techniques a person needs. Daily puzzle, pencil marks, undo, and hints that explain the logic step by step. Portrait or landscape, phone or tablet.",
+  "genre": "Logic puzzle",
+  "demo": true,
+  "howToPlay": [
+    "Fill the grid so every row, column and 3x3 box holds 1 to 9 once.",
+    "Tap a tile, then tap a number. Use Pencil for small candidate marks.",
+    "Tap the bulb for a hint: where to look, then why it works.",
+    "Pick Easy to Master, or play the Daily Puzzle and keep your streak.",
+    "Watch and Learn solves a puzzle for you and explains every step."
+  ]
+}

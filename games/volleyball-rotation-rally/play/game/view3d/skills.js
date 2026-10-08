@@ -68,7 +68,7 @@ function resolveContact(k, ctx, actor, F, side) {
   }
   if (k.mode === 'palm2') {
     fx = k.fx ? V(k.fx[0], k.fx[1], k.fx[2]).applyQuaternion(F.bq) : a.clone();
-    const Pi = P.clone().addScaledVector(lat, S * (k.gap ?? 0.075) * K);
+    const Pi = P.clone().addScaledVector(lat, S * (k.gap ?? 0.035) * K);
     const Ci = Pi.clone().addScaledVector(n, BALL_R);
     W = actor.wristForPalm(Ci, n, fx.clone().sub(n.clone().multiplyScalar(fx.dot(n))).normalize(), BALL_R, K);
     return { p: W, pole: k.pole ? actor.dirToWorld(k.pole, 'b', F) : V(S * 0.6, -0.4, -0.2), aim: { n: n.clone(), fx }, contact: true };

@@ -1,0 +1,16 @@
+{
+  "title": "Djembe Drum Circle",
+  "tagline": "Three strokes. One circle of drums.",
+  "description": "Play a lit, hand-painted djembe, the goblet drum of West Africa, with real bass, tone and slap strokes: touch the middle, the ring or the very edge, with as many fingers as you like. Echo a lead drummer, build a full circle one drummer at a time, learn six rhythms in the style of Guinean and Malian dance music, or drum freely and record loops. Everything you hear is made by the game, offline, with timing you can calibrate to your own device.",
+  "genre": "rhythm drum game",
+  "demo": true,
+  "howToPlay": [
+    "Touch the middle of the skin for Bass, the ring near the rim for Tone, the very edge for Slap.",
+    "Notes slide toward the glowing line: top row Slap, middle row Tone, bottom row Bass. Strike as a note arrives.",
+    "Echo: the lead drummer plays one bar, then you play it back. Eight rounds, growing each time.",
+    "Circle: hold the djembe part. Play well for two bars and the next drummer joins the circle.",
+    "Learn: six rhythms. Listen, practise slowly with the drum lit for you, then play with the full circle.",
+    "Free Drum: record a two-bar loop and layer up to three parts on top of it.",
+    "Settings has Calibrate, difficulty, calm motion and text size up to 300%. Auto Play shows each rhythm with its strokes named."
+  ]
+}

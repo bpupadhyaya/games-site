@@ -1,5 +1,5 @@
 // Analytic ball flights. A flight is { t0, x, y, z, vx, vy, vz }: position at time t is p0 + v0*dt - g*dt^2/2 (y only).
-import { G, BR, NET_BOTTOM } from './consts.js';
+import { G, BR, BR_PLAY, NET_BOTTOM } from './consts.js';
 
 export const posAt = (f, t) => { const d = t - f.t0; return { x: f.x + f.vx * d, y: f.y + f.vy * d - 0.5 * G * d * d, z: f.z + f.vz * d }; };
 export const velAt = (f, t) => { const d = t - f.t0; return { x: f.vx, y: f.vy - G * d, z: f.vz }; };
@@ -37,4 +37,4 @@ export function netClearance(p0, p1, T) {
   const p = posAt(f, tn);
   return { t: tn, x: p.x, y: p.y };
 }
-export const NET_LOW = NET_BOTTOM - BR;
+export const NET_LOW = NET_BOTTOM - BR_PLAY;

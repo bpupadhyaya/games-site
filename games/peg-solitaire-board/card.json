@@ -1,0 +1,17 @@
+{
+  "title": "Peg Solitaire",
+  "tagline": "Jump. Capture. Leave just one.",
+  "description": "The classic jumping puzzle from the French court, on a lit wooden board with glass pegs. Five boards (Triangle, English, French, Diamond, Grand Cross), 60 curated puzzles with stars and par, a Daily puzzle, hints from a solver and Auto Play that shows a full solution. No clock, no ads, works offline.",
+  "genre": "board puzzle",
+  "demo": true,
+  "howToPlay": [
+    "Tap a peg: golden holes show where it can jump. Tap one, or drag the peg there.",
+    "A jump goes in a straight line over one neighbouring peg into an empty hole. The peg you jumped is removed.",
+    "On the Triangle board pegs can also jump along both diagonals.",
+    "If the same peg can jump again it stays lifted, so chain jumps in one move.",
+    "Leave one peg for three stars, two for two, three or four for one.",
+    "Stuck? Undo as often as you like, or ask for a Hint: it shows a real route to one peg.",
+    "Puzzles open one after another on five boards. The Daily puzzle is the same for everyone.",
+    "Auto Play shows a whole game solved, with pause and adjustable think time."
+  ]
+}

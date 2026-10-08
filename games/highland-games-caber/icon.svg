@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024"><defs><linearGradient id="s" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5f9be0"/><stop offset="0.6" stop-color="#cfe3f0"/></linearGradient><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5fa04a"/><stop offset="1" stop-color="#2f6a38"/></linearGradient></defs>
+<rect width="1024" height="1024" fill="url(#s)"/>
+<path d="M0 640 L180 470 L330 590 L520 380 L700 560 L860 450 L1024 600 L1024 1024 L0 1024Z" fill="#6f7f8c"/>
+<path d="M0 700 Q300 600 560 690 T1024 660 L1024 1024 L0 1024Z" fill="url(#g)"/>
+<ellipse cx="512" cy="820" rx="330" ry="110" fill="none" stroke="#f6f0e2" stroke-width="16"/>
+<line x1="512" y1="820" x2="512" y2="715" stroke="#f6f0e2" stroke-width="16" stroke-dasharray="26 18"/>
+<g transform="rotate(24 560 560)"><path d="M520 120 L610 120 L580 860 L545 860Z" fill="#8a6038"/><ellipse cx="565" cy="120" rx="46" ry="16" fill="#d2b283"/></g>
+<circle cx="500" cy="760" r="44" fill="#e0a982"/><path d="M455 800 L545 800 L575 930 L425 930Z" fill="#3f5a3f"/>
+</svg>

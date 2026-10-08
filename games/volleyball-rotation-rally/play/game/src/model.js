@@ -1,5 +1,5 @@
 // Pure helpers shared by the simulation and the AI: team geometry, rotation and formations, player stats, interception, shot solving.
-import { G, BR, HW, HL, ATK, FREE, SLOT, FRONT, TECH, REACH0, LUNGE, DIVE, PREP, JUMP, HSCALE_F, isMB, isOH } from './consts.js';
+import { G, BR, BR_PLAY, HW, HL, ATK, FREE, SLOT, FRONT, TECH, REACH0, LUNGE, DIVE, PREP, JUMP, HSCALE_F, isMB, isOH } from './consts.js';
 import { clamp } from './util.js';
 import { posAt, landTime, flightTo, netTime } from './ball.js';
 
@@ -112,7 +112,7 @@ export function clearanceOf(p0, p1, T, netH) {
   const f = flightTo(0, p0, p1, T);
   const tn = netTime(f, T);
   if (tn === null) return 9;
-  return posAt(f, tn).y - (netH + BR);
+  return posAt(f, tn).y - (netH + BR_PLAY);
 }
 export const atkLine = (team) => ATK;
 export const jumpOf = (st, women) => st.jump * (women ? 1 : 1);

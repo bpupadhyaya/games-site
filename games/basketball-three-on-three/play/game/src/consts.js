@@ -3,10 +3,10 @@
 // The hoop centre is the origin of the floor plan: hoop = (0, 3.05, 0). The baseline is behind it at z = -1.575 and the
 // half-court line is at z = +9.425, so a half court is 15 m wide and 11 m long (3x3 dimensions). The camera looks from +z.
 export const G = 9.81;
-// Toy scale: the ball, the ring and the backboard are drawn and simulated larger than life so they read on a phone from a camera
-// that has to show a whole half court (a real size 6 ball is 0.118 m in radius). Ball x3.0, ring and board x2.3; the ratio ball / ring
-// (0.65) is a little tighter than the real 0.52, the aim noise in sim.js is scaled to compensate.
-export const SCALE_BALL = 3.0, SCALE_RIM = 2.3;
+// Real proportions: the players are drawn about 1.9 m tall (the models' own scale), so the ball is drawn a real 13% of a player's height
+// (ball x1.05 of a size 6 ball, 25 cm) and the ring is 1.9 balls across (ring and backboard x1.03 of the real 45.7 cm ring). The aim noise
+// in sim.js is scaled by the ring-minus-ball margin so the shot odds stay calibrated.
+export const SCALE_BALL = 1.35, SCALE_RIM = 1.15;
 // The six players are drawn and simulated this much larger than life as well (a camera that shows a whole half court makes people small);
 // every role's own scale, reach and body height below is multiplied by it.
 export const PLAYER_SCALE = 1.24;

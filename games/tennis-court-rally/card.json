@@ -1,0 +1,14 @@
+{
+  "title": "Tennis Court Rally",
+  "tagline": "Swipe to aim. Release on the ring. Win the set.",
+  "description": "Lawn tennis, born in England, in real 3D. Press and drag on the court to choose where the ball lands, release as the ring closes, and play games, sets and tiebreaks on lawn, clay or hard courts. Five rival levels, Learn lessons, Think hints and Watch & Learn.",
+  "genre": "tennis",
+  "demo": true,
+  "howToPlay": [
+    "Your player runs to the ball; you choose the shot.",
+    "Press and drag on the court: far up is a drive, short is a drop, down is a lob.",
+    "Release as the ring closes for a clean strike.",
+    "Serve with one gesture: press to toss, drag to aim, release at the top.",
+    "Win games and the set against five rival levels."
+  ]
+}

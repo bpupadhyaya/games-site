@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#150a24"/><stop offset="0.55" stop-color="#4a1a34"/><stop offset="1" stop-color="#e0792c"/></linearGradient>
+    <linearGradient id="wood" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#2a130b"/><stop offset="0.3" stop-color="#9c5a26"/><stop offset="0.55" stop-color="#7d4520"/><stop offset="1" stop-color="#1c0d07"/></linearGradient>
+    <radialGradient id="skin" cx="0.38" cy="0.35" r="0.8"><stop offset="0" stop-color="#f6e7c2"/><stop offset="0.65" stop-color="#dcc08c"/><stop offset="1" stop-color="#a98650"/></radialGradient>
+    <radialGradient id="glow" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#ffb347" stop-opacity="0.8"/><stop offset="1" stop-color="#ffb347" stop-opacity="0"/></radialGradient>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#sky)"/>
+  <ellipse cx="512" cy="640" rx="470" ry="300" fill="url(#glow)"/>
+  <path d="M236 470 C 270 640, 380 700, 392 760 C 400 840, 330 880, 300 930 L 724 930 C 694 880, 624 840, 632 760 C 644 700, 754 640, 788 470 Z" fill="url(#wood)"/>
+  <g stroke="#2b1609" stroke-width="12" fill="none"><path d="M262 520 Q 512 640 762 520"/><path d="M330 640 Q 512 720 694 640"/></g>
+  <g stroke="#d8b67e" stroke-width="9" stroke-linecap="round" fill="none"><path d="M270 520 L 340 640 L 400 530 L 470 650 L 530 535 L 600 650 L 660 535 L 710 640 L 760 525"/></g>
+  <path d="M300 790 L 724 790 L 744 830 L 280 830 Z" fill="#2a130b" opacity="0.7"/>
+  <ellipse cx="512" cy="410" rx="330" ry="190" fill="#1d0d06"/><ellipse cx="512" cy="410" rx="316" ry="178" fill="#6b4224"/>
+  <ellipse cx="512" cy="410" rx="290" ry="160" fill="url(#skin)"/>
+  <ellipse cx="512" cy="410" rx="145" ry="80" fill="none" stroke="#7a5a30" stroke-opacity="0.35" stroke-width="5" stroke-dasharray="14 10"/>
+  <circle cx="470" cy="398" r="34" fill="#f2a43a"/><circle cx="640" cy="360" r="22" fill="none" stroke="#3cc6b4" stroke-width="12"/>
+  <path d="M400 330 l24 -26 l24 26 l-24 26 Z" fill="#ff5d8f"/>
+</svg>

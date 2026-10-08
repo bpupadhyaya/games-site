@@ -4,11 +4,16 @@ import { SCHEMES } from './schemes.js';
 import { RULES } from './content.js';
 import { CHIP_H, slipWidth, TEXT_SCALES, THINK_STEPS, rulesMetrics } from './layout.js';
 import { drawCredit, drawLockup, drawMoreLine } from './brand.js';
+import { KIND_SHORT } from './quiz.js';
+import { drawArt } from './art.js';
+import { STROKES } from './letters.js';
 
-const DISPLAY = '"Cormorant Garamond", Georgia, "Times New Roman", serif';
-const UI = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
+const DISPLAY_STD = '"Cormorant Garamond", Georgia, "Times New Roman", serif', UI_STD = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
+const DYS = 'Verdana, "Trebuchet MS", "DejaVu Sans", sans-serif';
+let DISPLAY = DISPLAY_STD, UI = UI_STD;
 const TAU = Math.PI * 2;
-const CYAN = '#39d0ea', CYAN_DEEP = '#0e6f8a', GOLD = '#ffd166', GOOD = '#5eea9a', BAD = '#ff7b7b';
+const CYAN = '#39d0ea', CYAN_DEEP = '#0e6f8a', GOLD = '#ffd166';
+let GOOD = '#5eea9a', BAD = '#ff7b7b';
 const INK = '#10242e';
 
 const clamp01 = (v) => Math.max(0, Math.min(1, v));
@@ -25,9 +30,13 @@ const HERO_TARGET = 'lucid';
 const HERO = [['clear', 46, 330, true], ['ornate', 62, 740, false], ['murky', 38, 470, false]];
 let rulesCache = null;   // wrapped Rules text, keyed by text size + width (measuring 40 pages every frame would be wasteful)
 
-export function render(ctx, state, title, demoLimit, L) {
+export function render(ctx, state, title, demoLimit, L, env, X = {}) {
   const w = L.w, h = L.h, P = L.play;
-  const scheme = SCHEMES[state.scheme], hc = Boolean(scheme.hc), t = state.t, sceneT = state.sceneT;
+  const PF = state.prefs ?? {};
+  const dys = PF.font === 'dys';
+  DISPLAY = dys ? DYS : DISPLAY_STD; UI = dys ? DYS : UI_STD;
+  if (PF.cb) { GOOD = '#4aa8ff'; BAD = '#ffb000'; } else { GOOD = '#5eea9a'; BAD = '#ff7b7b'; }
+  const scheme = SCHEMES[state.scheme], hc = Boolean(scheme.hc), t = PF.reduce ? 0 : state.t, sceneT = state.sceneT;
   const soft = (a) => (hc ? '#ffffff' : hexA(scheme.text, a));
   const accent = hc ? '#ffffff' : CYAN;
 
@@ -37,6 +46,7 @@ export function render(ctx, state, title, demoLimit, L) {
     const font = () => `${o.weight ?? 700} ${px}px ${o.font ?? UI}`;
     ctx.font = font();
     if (o.maxW) { const mw = ctx.measureText(str).width; if (mw > o.maxW) { px = Math.floor((size * o.maxW) / mw); ctx.font = font(); } }
+    try { ctx.letterSpacing = dys ? `${Math.round(px * 0.06)}px` : '0px'; } catch { /* older canvases */ }
     ctx.textAlign = o.align ?? 'center';
     ctx.fillStyle = color;
     ctx.fillText(str, x, y);
@@ -150,10 +160,40 @@ export function render(ctx, state, title, demoLimit, L) {
     try { ctx.letterSpacing = '0px'; } catch { /* older canvases */ }
     const pop = o.pop ?? 1;
     ctx.save();
-    ctx.translate(cx, r.y + r.h * (o.small ? 0.74 : 0.72)); ctx.scale(pop, pop); ctx.globalAlpha = clamp01(pop * 1.4 - 0.4);
-    text(word, 0, 0, big, '#ffffff', { font: DISPLAY, maxW: r.w - 60 });
+    if (o.art) {
+      ctx.globalAlpha = clamp01(pop * 1.4 - 0.4); drawArt(ctx, o.art, cx, r.y + r.h * 0.6, Math.min(r.h * 0.62, 150) * pop);
+    } else if (o.speaker) {                                                                  // listening question: a speaker, tap to hear again
+      const sy = r.y + r.h * 0.5 + 8, pulse = 1 + 0.06 * Math.sin(t * 5);
+      ctx.translate(cx, sy); ctx.scale(pop * pulse, pop * pulse); ctx.globalAlpha = clamp01(pop * 1.4 - 0.4);
+      const u = Math.max(0.6, Math.min(1.2, r.h / 220));
+      ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.moveTo(-46 * u, -16 * u); ctx.lineTo(-18 * u, -16 * u); ctx.lineTo(14 * u, -42 * u); ctx.lineTo(14 * u, 42 * u); ctx.lineTo(-18 * u, 16 * u); ctx.lineTo(-46 * u, 16 * u); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle = hc ? '#ffffff' : '#8fe6f7'; ctx.lineWidth = 7 * u; ctx.lineCap = 'round';
+      for (let a = 1; a <= 2; a++) { ctx.globalAlpha = clamp01(pop * 1.4 - 0.4) * (0.5 + 0.5 * Math.sin(t * 6 - a * 1.2)); ctx.beginPath(); ctx.arc(22 * u, 0, (22 + a * 20) * u, -0.9, 0.9); ctx.stroke(); }
+      ctx.globalAlpha = 1;
+      text(word, 0, 74 * u, Math.round(22 * u + 4), soft(0.85), { weight: 600, maxW: r.w - 60 });
+    } else if (o.lines && o.lines.length > 1) {
+      const n = o.lines.length, avail = r.h - 74 * kr, fs = Math.max(22, Math.min(big, Math.floor(avail / (n * 1.18)))), top = r.y + 66 * kr;
+      ctx.globalAlpha = clamp01(pop * 1.4 - 0.4);
+      o.lines.forEach((ln, i) => text(ln, cx, top + (i + 0.5) * (avail / n) + fs * 0.32, fs, '#ffffff', { font: DISPLAY, maxW: r.w - 50 }));
+    } else {
+      ctx.translate(cx, r.y + r.h * (o.small ? 0.74 : 0.72)); ctx.scale(pop, pop); ctx.globalAlpha = clamp01(pop * 1.4 - 0.4);
+      text(word, 0, 0, big, '#ffffff', { font: DISPLAY, maxW: r.w - 60 });
+    }
     ctx.restore();
     ctx.restore();
+  };
+
+  // Wrap a prompt (a meaning) into at most `max` lines for the plaque.
+  const wrapLines = (str, size, maxW, max) => {
+    ctx.font = `700 ${size}px ${DISPLAY}`;
+    const out = []; let line = '';
+    for (const wd of String(str).split(' ')) {
+      const cand = line ? `${line} ${wd}` : wd;
+      if (ctx.measureText(cand).width > maxW && line) { out.push(line); line = wd; } else line = cand;
+    }
+    out.push(line);
+    if (out.length > max) { const kept = out.slice(0, max); kept[max - 1] = clip(`${kept[max - 1]} ${out.slice(max).join(' ')}`, size, maxW, 700); return kept; }
+    return out;
   };
 
   // A reader-card panel: dark translucent gradient fill + double border, matching the plaque's
@@ -251,12 +291,15 @@ export function render(ctx, state, title, demoLimit, L) {
       }
     }
 
-    const syn = state.selectedMode === 'synonym';
-    button(T.modeSyn, 'Synonym', { id: 'syn', style: syn ? 'active' : undefined, sub: 'same meaning', size: 36, scale: enter(2) });
-    button(T.modeAnt, 'Antonym', { id: 'ant', style: syn ? undefined : 'active', sub: 'opposite meaning', size: 36, scale: enter(3) });
-
-    const bestNow = syn ? state.bestSynonym : state.bestAntonym;
-    text(`★  Best ${state.selectedMode} score: ${bestNow}`, T.modeSyn.x + (T.modeAnt.x + T.modeAnt.w - T.modeSyn.x) / 2, T.bestY, 30, hc ? '#ffffff' : GOLD, { weight: 700, maxW: T.modeAnt.x + T.modeAnt.w - T.modeSyn.x });
+    // summary of the current set-up (a tap opens Words and pace) and the best score for this pace
+    {
+      const sm = T.sum, cx0 = sm.x + sm.w / 2;
+      ctx.fillStyle = hc ? '#000000' : 'rgba(3,16,24,0.55)'; rr(sm.x, sm.y, sm.w, sm.h, 23); ctx.fill();
+      ctx.strokeStyle = hc ? '#ffffff' : hexA(CYAN, 0.5); ctx.lineWidth = 2; rr(sm.x, sm.y, sm.w, sm.h, 23); ctx.stroke();
+      text(X.sumLine ?? '', cx0, sm.y + sm.h / 2 + 9, 25, hc ? '#ffffff' : '#bff3ff', { weight: 600, maxW: sm.w - 30 });
+      text(X.best ? `★  Best score at this pace: ${X.best}` : 'Your words and pace (tap to change)', cx0, T.bestY, 25, hc ? '#ffffff' : GOLD, { weight: 700, maxW: sm.w });
+    }
+    if (state.msg) text(state.msg, T.sum.x + T.sum.w / 2, L.wide ? T.bestY + 30 : T.bestY - 28, 23, hc ? '#ffffff' : BAD, { weight: 700, maxW: Math.min(w - 40, 640) });
 
     const breathe = 1 + Math.sin(t * 2.4) * 0.018, pc = { x: T.play.x + T.play.w / 2, y: T.play.y + T.play.h / 2 };
     if (!hc) {
@@ -265,14 +308,18 @@ export function render(ctx, state, title, demoLimit, L) {
       ctx.fillStyle = g; ctx.fillRect(pc.x - 360, pc.y - 340, 720, 680);
     }
     button(T.play, 'Play', { style: 'primary', size: 58, scale: enter(4) * breathe });
-    button(T.colour, `Colours: ${scheme.name}`, { id: 'colour', size: 27, scale: enter(5), swatch });
-    button(T.rules, 'Rules', { id: 'rules', size: 27, scale: enter(5) });
-    button(T.auto, 'Watch & Learn', { id: 'autoplay', size: 30, scale: enter(6), sub: 'free auto-play demo, no time limit' });
+    button(T.journey, 'Journey', { id: 'journey', size: 32, style: 'active', scale: enter(4.5), sub: X.stars ? `${X.stars} stars  ·  letters to graduate words` : 'letters to graduate words' });
+    button(T.setup, 'Words & pace', { id: 'setup', size: 28, scale: enter(5) });
+    button(T.study, 'Study', { id: 'study', size: 30, scale: enter(5), sub: X.studyN ? `${X.studyN} words ready` : undefined });
+    button(T.review, 'Review', { id: 'review', size: 30, scale: enter(6), disabled: !X.dueN, sub: X.dueN ? `${X.dueN} due today` : 'nothing due' });
+    button(T.prog, 'Progress', { id: 'prog', size: 30, scale: enter(6), sub: X.streakN ? `${X.streakN}-day streak` : `${X.todayN ?? 0} / ${X.goal ?? 20} today` });
+    button(T.auto, 'Watch & Learn', { id: 'autoplay', size: 27, scale: enter(7) });
+    button(T.more, 'More', { id: 'more', size: 30, scale: enter(7), sub: 'about, privacy, data' });
 
-    const mid = T.auto.x + T.auto.w / 2;
+    const colCx = T.play.x + T.play.w / 2;
     if (state.demo) {
       const left = Math.max(0, demoLimit - state.demoSessions);
-      text(`Free preview: ${left} session${left === 1 ? '' : 's'} left`, mid, T.previewY, 24, soft(0.85), { weight: 600, maxW: 560 });
+      text(`Free preview: ${left} session${left === 1 ? '' : 's'} left`, colCx, T.previewY, 24, soft(0.85), { weight: 600, maxW: 560 });
     }
     {   // the Arcforge lockup directly under the last button, on a soft plate (a tap opens the Arcforge home)
       const lk = T.lockup, cx = lk.x + lk.w / 2, cy = lk.y + lk.h / 2;
@@ -280,7 +327,223 @@ export function render(ctx, state, title, demoLimit, L) {
       if (!drawLockup(ctx, cx, cy, lk.w, { dim: lockPress > 0 ? 0.5 : 0.95 })) drawCredit(ctx, cx, cy + 8, 22, { dim: 0.8 });
       if (lockPress > 0) lockPress--;
     }
-    text('Graduate-level vocabulary  ·  90-second sessions', mid, T.footY, 23, soft(0.7), { weight: 500, maxW: 600 });
+    text('English words from first words to graduate level', colCx, T.footY, 23, soft(0.7), { weight: 500, maxW: Math.min(600, T.sum.w + 20) });
+    return;
+  }
+
+  // ---- journey map ----------------------------------------------------------------------------------------------
+  if (state.scene === 'journey' && X.map) {
+    const Q = L.rules, M = X.map, J = X.journey, jn = X.jny, vp = Q.viewport;
+    ctx.save(); if (!hc) { ctx.shadowColor = hexA(CYAN, 0.55); ctx.shadowBlur = 22; }
+    if (L.wide) text('Journey', Q.titleX, Q.titleBase, 52, '#ffffff', { font: DISPLAY, maxW: Q.dec.w * 2 }); else text('Journey', Q.panel.x + 10, Q.titleBase, 58, '#ffffff', { font: DISPLAY, align: 'left', maxW: 300 });
+    ctx.restore();
+    text(`★ ${X.stars}`, L.wide ? Q.titleX : Q.inc.x + Q.inc.w, L.wide ? Q.titleBase + 60 : Q.titleBase, 44, hc ? '#ffffff' : GOLD, { weight: 800, align: L.wide ? 'center' : 'right' });
+    framedPanel(Q.panel);
+    const max = Math.max(0, M.height - vp.h), sc = Math.max(0, Math.min(state.mapScroll, max));
+    ctx.save(); ctx.beginPath(); ctx.rect(vp.x, vp.y, vp.w, vp.h); ctx.clip();
+    const oy = vp.y - sc, ox = vp.x;
+    const nodes = M.items.filter((n) => n.type === 'node');
+    // paths between consecutive nodes of a world
+    for (const Wd of jn.WORLDS) {
+      const ns = nodes.filter((n) => n.world === Wd.id), unl = jn.isWorldUnlocked(J, Wd.id);
+      ctx.strokeStyle = unl ? hexA(Wd.color, 0.5) : 'rgba(255,255,255,0.12)'; ctx.lineWidth = 10; ctx.lineCap = 'round'; ctx.setLineDash([2, 20]);
+      ctx.beginPath(); ns.forEach((n, i) => (i ? ctx.lineTo(ox + n.x, oy + n.y) : ctx.moveTo(ox + n.x, oy + n.y))); ctx.stroke(); ctx.setLineDash([]);
+    }
+    for (const it of M.items) {
+      if (it.type === 'world') {
+        const Wd = jn.WORLDS[it.world], y = oy + it.y, unl = jn.isWorldUnlocked(J, it.world), n = jn.stageCount(it.world);
+        if (y > vp.y + vp.h || y + it.h < vp.y) continue;
+        const g = ctx.createLinearGradient(ox, 0, ox + vp.w, 0); g.addColorStop(0, hexA(Wd.color, unl ? 0.38 : 0.12)); g.addColorStop(1, hexA(Wd.color, 0.04));
+        ctx.fillStyle = g; rr(ox + 8, y, vp.w - 16, it.h, 22); ctx.fill();
+        ctx.strokeStyle = hexA(Wd.color, unl ? 0.8 : 0.25); ctx.lineWidth = 2.5; ctx.stroke();
+        text(Wd.name, ox + 28, y + 52, 46, unl ? '#ffffff' : soft(0.5), { font: DISPLAY, align: 'left', maxW: vp.w * 0.62 });
+        text(unl ? Wd.blurb : 'Locked: pass the checkpoint before it', ox + 28, y + 88, 24, soft(unl ? 0.85 : 0.5), { weight: 600, align: 'left', maxW: vp.w * 0.66 });
+        text(`★ ${jn.worldStars(J, it.world)} / ${n * 3}`, ox + vp.w - 28, y + 58, 30, hc ? '#ffffff' : hexA(GOLD, unl ? 1 : 0.4), { weight: 800, align: 'right' });
+        continue;
+      }
+      const x = ox + it.x, y = oy + it.y;
+      if (y < vp.y - 80 || y > vp.y + vp.h + 80) continue;
+      const Wd = jn.WORLDS[it.world];
+      if (it.kind === 'stage') {
+        const unl = jn.isStageUnlocked(J, it.world, it.stage), st = J.stars[jn.stageId(it.world, it.stage)] ?? 0, cur = unl && st === 0;
+        const pulse = cur ? 1 + 0.06 * Math.sin(t * 4) : 1;
+        ctx.save(); ctx.translate(x, y); ctx.scale(pulse, pulse);
+        if (!hc) { ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.arc(2, 8, it.r, 0, TAU); ctx.fill(); }
+        if (cur && !hc) { const gl = ctx.createRadialGradient(0, 0, it.r * 0.5, 0, 0, it.r * 2); gl.addColorStop(0, hexA(Wd.color, 0.55)); gl.addColorStop(1, hexA(Wd.color, 0)); ctx.fillStyle = gl; ctx.fillRect(-it.r * 2, -it.r * 2, it.r * 4, it.r * 4); }
+        ctx.fillStyle = hc ? (unl ? '#ffffff' : '#000000') : !unl ? 'rgba(40,60,72,0.9)' : st ? Wd.color : 'rgba(10,36,48,0.95)';
+        ctx.beginPath(); ctx.arc(0, 0, it.r, 0, TAU); ctx.fill();
+        ctx.strokeStyle = hc ? '#ffffff' : unl ? '#ffffff' : 'rgba(255,255,255,0.25)'; ctx.lineWidth = 4; ctx.stroke();
+        if (!unl) { ctx.fillStyle = 'rgba(255,255,255,0.45)'; rr(-13, -4, 26, 20, 4); ctx.fill(); ctx.strokeStyle = 'rgba(255,255,255,0.45)'; ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(0, -6, 9, Math.PI, 0); ctx.stroke(); }
+        else text(String(it.stage + 1), 0, 14, 40, hc ? '#000000' : st ? '#07202b' : '#ffffff', { weight: 800 });
+        ctx.restore();
+        if (st) for (let k = 0; k < 3; k++) { ctx.fillStyle = k < st ? (hc ? '#ffffff' : GOLD) : 'rgba(255,255,255,0.2)'; ctx.beginPath(); const sx = x + (k - 1) * 26, sy = y + it.r + 22; for (let q = 0; q < 10; q++) { const a = -Math.PI / 2 + q * Math.PI / 5, rr_ = q % 2 ? 6 : 13; ctx.lineTo(sx + Math.cos(a) * rr_, sy + Math.sin(a) * rr_); } ctx.closePath(); ctx.fill(); }
+      } else {
+        const ready = jn.checkReady(J, it.world), got = J.checks[it.world] ?? 0, pass = got >= jn.PASS_CHECK * 100;
+        ctx.save(); ctx.translate(x, y);
+        if (!hc) { ctx.fillStyle = 'rgba(0,0,0,0.3)'; rr(-it.r + 2, -it.r * 0.7 + 8, it.r * 2, it.r * 1.4, 22); ctx.fill(); }
+        ctx.fillStyle = hc ? (ready ? '#ffffff' : '#000000') : pass ? GOLD : ready ? hexA(Wd.color, 0.95) : 'rgba(40,60,72,0.9)';
+        rr(-it.r, -it.r * 0.7, it.r * 2, it.r * 1.4, 22); ctx.fill(); ctx.strokeStyle = hc ? '#ffffff' : ready ? '#ffffff' : 'rgba(255,255,255,0.25)'; ctx.lineWidth = 4; ctx.stroke();
+        text(pass ? `${got}%` : ready ? 'TEST' : 'LOCKED', 0, 10, pass ? 34 : 28, hc ? '#000000' : ready ? '#07202b' : soft(0.5), { weight: 800, maxW: it.r * 1.8 });
+        ctx.restore();
+      }
+    }
+    ctx.restore();
+    const sb = { x: Q.panel.x + Q.panel.w - 10 - Q.sbW, y: vp.y, w: Q.sbW, h: vp.h };
+    if (max > 0) { ctx.fillStyle = hc ? '#333333' : 'rgba(255,255,255,0.14)'; rr(sb.x, sb.y, sb.w, sb.h, sb.w / 2); ctx.fill(); const th = Math.max(48, sb.h * vp.h / M.height), ty = sb.y + (sb.h - th) * (sc / max); ctx.fillStyle = hc ? '#ffffff' : hexA(CYAN, 0.9); rr(sb.x, ty, sb.w, th, sb.w / 2); ctx.fill(); }
+    button(Q.back, 'Back', { size: 34, scale: enter(0) });
+    button(Q.next, 'Find my level', { id: 'place', style: 'primary', size: 30, scale: enter(1) });
+    return;
+  }
+
+  // ---- tracing letters -------------------------------------------------------------------------------------------
+  if (state.scene === 'trace' && X.trace) {
+    const Q = L.rules, tr = X.trace, T = L.trace, c = X.LETTERS[tr.i], strokes = STROKES[c];
+    ctx.save(); if (!hc) { ctx.shadowColor = hexA(CYAN, 0.55); ctx.shadowBlur = 22; }
+    if (L.wide) text('Trace', Q.titleX, Q.titleBase, 52, '#ffffff', { font: DISPLAY, maxW: Q.dec.w * 2 }); else text('Trace the letters', Q.panel.x + 10, Q.titleBase, 52, '#ffffff', { font: DISPLAY, align: 'left', maxW: Q.panel.w - 20 });
+    ctx.restore();
+    framedPanel(Q.panel);
+    const H_ = L.traceHear; ctx.fillStyle = hc ? '#000000' : 'rgba(10,36,48,0.9)'; rr(H_.x, H_.y, H_.w, H_.h, 24); ctx.fill(); ctx.strokeStyle = hc ? '#ffffff' : hexA(CYAN, 0.6); ctx.lineWidth = 2.5; ctx.stroke();
+    text(`${c.toUpperCase()}  ${c}`, H_.x + 24, H_.y + 66, 60, '#ffffff', { font: DISPLAY, align: 'left', maxW: H_.w * 0.4 });
+    text(X.canSpeak ? 'Tap to hear it' : 'Follow the dots with your finger', H_.x + H_.w - 20, H_.y + 56, 24, soft(0.85), { weight: 600, align: 'right', maxW: H_.w * 0.5 });
+    ctx.fillStyle = hc ? '#111111' : 'rgba(255,255,255,0.05)'; rr(T.x - 10, T.y - 10, T.w + 20, T.h + 20, 24); ctx.fill();
+    const P2 = (p) => [T.x + p[0] * T.w, T.y + p[1] * T.h];
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = hc ? '#666666' : 'rgba(255,255,255,0.16)'; ctx.lineWidth = T.w * 0.12;
+    for (const path of strokes) { ctx.beginPath(); path.forEach((p, i) => (i ? ctx.lineTo(...P2(p)) : ctx.moveTo(...P2(p)))); ctx.stroke(); }
+    ctx.strokeStyle = hc ? '#ffffff' : hexA(CYAN, 0.55); ctx.lineWidth = 3; ctx.setLineDash([10, 14]);
+    for (const path of strokes) { ctx.beginPath(); path.forEach((p, i) => (i ? ctx.lineTo(...P2(p)) : ctx.moveTo(...P2(p)))); ctx.stroke(); }
+    ctx.setLineDash([]);
+    tr.cps.forEach((cp, i) => { const [x, y] = P2([cp.x, cp.y]); if (i < tr.idx) { ctx.fillStyle = hc ? '#ffffff' : GOLD; ctx.beginPath(); ctx.arc(x, y, T.w * 0.05, 0, TAU); ctx.fill(); } else if (i === tr.idx && !tr.done) { const pu = 1 + 0.25 * Math.sin(tr.t * 7); ctx.fillStyle = hc ? '#ffffff' : GOOD; ctx.beginPath(); ctx.arc(x, y, T.w * 0.06 * pu, 0, TAU); ctx.fill(); ctx.fillStyle = '#07202b'; ctx.font = `800 ${Math.round(T.w * 0.06)}px ${UI}`; ctx.textAlign = 'center'; if (cp.s) ctx.fillText('▶', x, y + T.w * 0.02); } });
+    for (const q of state.parts) { const a = 1 - q.age / q.life; ctx.globalAlpha = Math.max(0, a); ctx.fillStyle = q.c; ctx.beginPath(); ctx.arc(q.x, q.y, q.r, 0, TAU); ctx.fill(); }
+    ctx.globalAlpha = 1;
+    text(tr.done ? 'Great job!' : 'Start at the green dot and draw along the letter', Q.panel.x + Q.panel.w / 2, T.y + T.h + 52, tr.done ? 44 : 24, tr.done ? (hc ? '#ffffff' : GOLD) : soft(0.85), { weight: 700, maxW: Q.panel.w - 40 });
+    button(Q.back, 'Back', { size: 34 });
+    button(Q.next, 'Next letter', { id: 'traceNext', size: 30, style: tr.done ? 'primary' : undefined });
+    return;
+  }
+
+  // ---- generic form reader: Words and pace, Study, Progress, About, Settings, Your data, credits ----------------------
+  if (X.form) {
+    const F = X.form, Q = L.rules, scale = TEXT_SCALES[state.textScaleIdx] ?? 1, vp = Q.viewport;
+    button(Q.dec, 'A−', { id: 'textDec', size: 34, disabled: state.textScaleIdx === 0 });
+    button(Q.inc, 'A+', { id: 'textInc', size: 34, disabled: state.textScaleIdx === TEXT_SCALES.length - 1 });
+    ctx.save();
+    if (!hc) { ctx.shadowColor = hexA(CYAN, 0.55); ctx.shadowBlur = 22; }
+    if (L.wide) text(F.def.title, Q.titleX, Q.titleBase, Math.min(Q.titleSize, 52), '#ffffff', { font: DISPLAY, maxW: Q.dec.w * 2 + 12 });
+    else text(F.def.title, Q.panel.x + 10, Q.titleBase, Math.min(Q.titleSize, 58), '#ffffff', { font: DISPLAY, align: 'left', maxW: Q.dec.x - Q.panel.x - 30 });
+    ctx.restore();
+    framedPanel(Q.panel);
+    const sc = Math.max(0, Math.min(state.formScroll, Math.max(0, F.layout.height - vp.h))), left = vp.x + Q.padX, ink = hc ? '#ffffff' : '#8fe6f7';
+    const chipBtn = (r, label, o = {}) => {
+      ctx.save(); if (o.disabled) ctx.globalAlpha = 0.35;
+      const on = o.on, rad = Math.min(24, r.h / 2.4);
+      if (hc) { ctx.fillStyle = on ? '#ffffff' : '#000000'; rr(r.x, r.y, r.w, r.h, rad); ctx.fill(); ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 3; ctx.stroke(); }
+      else {
+        ctx.fillStyle = on ? '#1fb3d1' : 'rgba(10,36,48,0.9)'; rr(r.x, r.y, r.w, r.h, rad); ctx.fill();
+        ctx.strokeStyle = on ? 'rgba(210,250,255,0.9)' : 'rgba(150,232,248,0.45)'; ctx.lineWidth = 2.2; rr(r.x, r.y, r.w, r.h, rad); ctx.stroke();
+      }
+      const lit = on && !hc;
+      text(label, r.x + r.w / 2, r.y + r.h / 2 + (o.sz ?? 25) * 0.35, o.sz ?? 25, hc ? (on ? '#000000' : '#ffffff') : lit ? '#04222c' : '#ffffff', { weight: 700, maxW: r.w - 16 });
+      ctx.restore();
+    };
+    ctx.save(); ctx.beginPath(); ctx.rect(vp.x, vp.y, vp.w, vp.h); ctx.clip();
+    for (const it of F.layout.items) {
+      const top = vp.y + it.y - sc;
+      if (top > vp.y + vp.h + 4 || top + it.h < vp.y - 4) continue;
+      const row = it.row, S_ = (n) => Math.round(n * scale), width = F.width;
+      switch (row.k) {
+        case 'h': it.lines.forEach((ln, i) => text(ln, left, top + it.size + i * it.lh, it.size, ink, { align: 'left', weight: 800 })); break;
+        case 'p': it.lines.forEach((ln, i) => text(ln, left, top + it.size + i * it.lh, it.size, soft(row.small ? 0.8 : 0.93), { align: 'left', weight: 500, maxW: width })); break;
+        case 'sub': it.lines.forEach((ln, i) => text(ln, left, top + it.size + 6 + i * it.lh, it.size, ink, { align: 'left', weight: 800, maxW: width })); break;
+        case 'pre': it.lines.forEach((ln, i) => text(ln, left, top + it.size + i * it.lh, it.size, soft(0.88), { align: 'left', weight: 500, maxW: width })); break;
+        case 'rule': ctx.fillStyle = soft(0.18); ctx.fillRect(left, top + it.h / 2, width, 2); break;
+        case 'kv':
+          text(row.l, left, top + it.size + 4, it.size, soft(0.9), { align: 'left', weight: 600, maxW: width * 0.46 });
+          it.lines.forEach((ln, i) => text(ln, left + width, top + it.size + 4 + i * it.lh, it.size, '#ffffff', { align: 'right', weight: 700 }));
+          break;
+        case 'bar': {
+          text(row.label, left, top + it.size, it.size, soft(0.95), { align: 'left', weight: 700, maxW: width });
+          const by = top + it.size + 12, bh = S_(16);
+          ctx.fillStyle = hc ? '#333333' : 'rgba(255,255,255,0.14)'; rr(left, by, width, bh, bh / 2); ctx.fill();
+          if (row.frac > 0.002) { ctx.fillStyle = hc ? '#ffffff' : hexA(CYAN, 0.95); rr(left, by, Math.max(bh, width * row.frac), bh, bh / 2); ctx.fill(); }
+          if (row.text) text(row.text, left, by + bh + S_(24), S_(21), soft(0.72), { align: 'left', weight: 500, maxW: width });
+          break;
+        }
+        case 'btn': case 'btn2': case 'chips': case 'step': case 'word': break;
+        default: break;
+      }
+      if (row.k === 'chips') {
+        if (row.label) text(row.label, left, top + S_(26), S_(25), soft(0.92), { align: 'left', weight: 700, maxW: width });
+        for (const hh of it.hits) chipBtn({ x: left + hh.x, y: top + hh.y, w: hh.w, h: hh.h }, hh.label, { on: hh.on, disabled: hh.disabled, sz: hh.sz });
+        if (it.hintLines) it.hintLines.forEach((ln, i) => text(ln, left, top + it.hintY + S_(18) + i * Math.round(S_(22) * 1.35), S_(22), soft(0.72), { align: 'left', weight: 500 }));
+      } else if (row.k === 'step') {
+        text(row.label, left, top + S_(26), S_(25), soft(0.92), { align: 'left', weight: 700, maxW: width });
+        for (const hh of it.hits) button({ x: left + hh.x, y: top + hh.y, w: hh.w, h: hh.h }, hh.label, { id: hh.id, size: hh.sz, disabled: hh.disabled });
+        const b = it.stepBox;
+        ctx.fillStyle = hc ? '#000000' : 'rgba(3,16,24,0.6)'; rr(left + b.x, top + b.y, b.w, b.h, 16); ctx.fill();
+        ctx.strokeStyle = hc ? '#ffffff' : hexA(CYAN, 0.45); ctx.lineWidth = 2; ctx.stroke();
+        text(String(row.value ?? ''), left + b.x + b.w / 2, top + b.y + b.h / 2 + S_(11), S_(31), '#ffffff', { weight: 800, maxW: b.w - 20 });
+      } else if (row.k === 'btn' || row.k === 'btn2') {
+        for (const hh of it.hits) button({ x: left + hh.x, y: top + hh.y, w: hh.w, h: hh.h }, hh.label, { id: hh.id, style: hh.style, size: S_(row.k === 'btn' && hh.style === 'primary' ? 36 : 31), sub: hh.sub, disabled: hh.disabled });
+      } else if (row.k === 'word') {
+        ctx.save(); ctx.fillStyle = soft(0.14); ctx.fillRect(left, top + it.h - 8, width, 2); ctx.restore();
+        text(row.w, left, top + it.tsz, it.tsz, '#ffffff', { font: DISPLAY, align: 'left', maxW: width * 0.5 });
+        if (row.pos) text(row.pos, left, top + it.tsz + S_(26), S_(20), soft(0.6), { align: 'left', weight: 600 });
+        for (const hh of it.hits) chipBtn({ x: left + hh.x, y: top + hh.y, w: hh.w, h: hh.h }, hh.label, { on: hh.on, sz: hh.sz });
+        let yy = top + it.head + it.bsz;
+        it.lines.forEach((ln, i) => { ctx.font = `600 ${it.bsz}px ${UI}`; ctx.fillStyle = soft(0.95); ctx.textAlign = 'left'; ctx.fillText(ln, left, yy + i * Math.round(it.bsz * 1.38)); });
+        yy += it.lines.length * Math.round(it.bsz * 1.38) + S_(6);
+        it.extra.forEach((ln, i) => { ctx.font = `500 ${S_(23)}px ${UI}`; ctx.fillStyle = hc ? '#ffffff' : hexA('#8fe6f7', 0.9); ctx.textAlign = 'left'; ctx.fillText(ln, left, yy + S_(20) + i * Math.round(S_(23) * 1.4)); });
+      }
+    }
+    ctx.restore();
+    const maxScroll = Math.max(0, F.layout.height - vp.h), sb = Q.scrollbar;
+    if (maxScroll > 0) {
+      ctx.fillStyle = hc ? '#333333' : 'rgba(255,255,255,0.14)'; rr(sb.x, sb.y, sb.w, sb.h, sb.w / 2); ctx.fill();
+      const th = Math.max(48, sb.h * vp.h / F.layout.height), ty = sb.y + (sb.h - th) * (sc / maxScroll);
+      ctx.fillStyle = hc ? '#ffffff' : hexA(CYAN, 0.9); rr(sb.x, ty, sb.w, th, sb.w / 2); ctx.fill();
+    }
+    if (state.scene === 'age') return;
+    if (F.def.primary) { button(Q.back, 'Back', { size: 34, scale: enter(0) }); button(Q.next, F.def.primary.label, { id: 'formNext', style: 'primary', size: 34, scale: enter(1), disabled: F.def.primary.disabled }); }
+    else button(Q.back, 'Back', { size: 34, scale: enter(0), style: 'primary' });
+    return;
+  }
+
+  // ---- flashcards ---------------------------------------------------------------------------------------------
+  if (state.scene === 'cards') {
+    const Q = L.rules, C = L.cards, words = state.study.words, w0 = words[state.cardIdx], e = w0 ? X.entry?.(w0) : null, scale = TEXT_SCALES[state.textScaleIdx] ?? 1;
+    button(Q.dec, 'A−', { id: 'textDec', size: 34, disabled: state.textScaleIdx === 0 });
+    button(Q.inc, 'A+', { id: 'textInc', size: 34, disabled: state.textScaleIdx === TEXT_SCALES.length - 1 });
+    ctx.save(); if (!hc) { ctx.shadowColor = hexA(CYAN, 0.55); ctx.shadowBlur = 22; }
+    if (L.wide) text('Flashcards', Q.titleX, Q.titleBase, Math.min(Q.titleSize, 52), '#ffffff', { font: DISPLAY, maxW: Q.dec.w * 2 + 12 }); else text('Flashcards', Q.panel.x + 10, Q.titleBase, 58, '#ffffff', { font: DISPLAY, align: 'left', maxW: Q.dec.x - Q.panel.x - 30 }); ctx.restore();
+    framedPanel(C.card);
+    const bd = C.body, flipT = easeOut(sceneT / 0.3);
+    text(`${Math.min(state.cardIdx + 1, words.length)} / ${words.length}`, bd.x + bd.w / 2, bd.y + 22, 24, soft(0.7), { weight: 600 });
+    if (e) {
+      const cx = bd.x + bd.w / 2;
+      if (!state.cardFlip) {
+        text(e.w, cx, bd.y + bd.h * 0.42, Math.min(130, bd.w / Math.max(4, e.w.length) * 1.5), '#ffffff', { font: DISPLAY, maxW: bd.w - 20 });
+        text('Tap the card to see the meaning', cx, bd.y + bd.h * 0.42 + 70, 24, soft(0.7), { weight: 500, maxW: bd.w - 20 });
+      } else {
+        const wy = bd.y + Math.max(120, bd.h * 0.15);
+        text(e.w, cx, wy, Math.min(100, bd.w / Math.max(5, e.w.length) * 1.5), '#ffffff', { font: DISPLAY, maxW: bd.w - 20 });
+        if (X.posName) text(X.posName(e.pos), cx, wy + 36, 24, soft(0.6), { weight: 600 });
+        const size = Math.round(28 * scale), lh = Math.round(size * 1.38), lines = [];
+        const wrapTo = (str, sz, mw) => { ctx.font = `600 ${sz}px ${UI}`; const out = []; let line = ''; for (const wd of str.split(' ')) { const cand = line ? `${line} ${wd}` : wd; if (ctx.measureText(cand).width > mw && line) { out.push(line); line = wd; } else line = cand; } out.push(line); return out; };
+        let y = wy + 100;
+        const para = (str, sz, col, wt = 500) => { for (const ln of wrapTo(str, sz, bd.w - 24)) { ctx.font = `${wt} ${sz}px ${UI}`; ctx.fillStyle = col; ctx.textAlign = 'center'; if (y < bd.y + bd.h - 70) ctx.fillText(ln, cx, y); y += Math.round(sz * 1.38); } y += 8; };
+        para(e.gloss || '(meaning not available)', size, soft(0.97), 600);
+        if (e.syn.length) para(`Same meaning: ${e.syn.join(', ')}`, Math.round(24 * scale), hexA('#8fe6f7', 0.95));
+        if (e.ant.length) para(`Opposite: ${e.ant.join(', ')}`, Math.round(24 * scale), hexA('#8fe6f7', 0.95));
+        if (e.ex) para(`Example: ${e.ex}`, Math.round(22 * scale), soft(0.8));
+        void lines; void lh;
+        if (X.lookupOn) text('Look it up in a dictionary', cx, bd.y + bd.h - 28, 24, hc ? '#ffffff' : CYAN, { weight: 700 });
+      }
+    }
+    void flipT;
+    button(C.know, 'I know it', { id: 'know', size: 30, style: 'primary' });
+    button(C.learn, 'Still learning', { id: 'learn', size: 30 });
+    button(Q.back, 'Back', { size: 34 });
+    button(Q.next, state.cardIdx >= words.length - 1 ? 'Done' : 'Next', { id: 'cardNext', size: 34, style: 'primary' });
     return;
   }
 
@@ -396,7 +659,10 @@ export function render(ctx, state, title, demoLimit, L) {
   if (state.scene === 'playing' || state.scene === 'autoplay') {
     const auto = state.scene === 'autoplay';
     const fx = state.fx, fxF = fx ? fx.t / 0.8 : 1;
-    const secs = Math.max(0, state.timeLeft), frac = secs / 90, low = secs <= 10, mid = secs <= 25;
+    const byQ = state.byQuestions && !auto;
+    const secs = Math.max(0, state.timeLeft), frac = byQ ? clamp01(1 - state.answered / Math.max(1, state.total)) : clamp01(secs / Math.max(1, state.total)), low = byQ ? false : secs <= Math.min(10, state.total * 0.15), mid = byQ ? false : secs <= Math.min(25, state.total * 0.3);
+    ctx.save();
+    if (state.shake > 0 && !hc) ctx.translate(Math.sin(t * 90) * 11 * state.shake, Math.cos(t * 70) * 6 * state.shake);
     const tcol = hc ? '#ffffff' : low ? BAD : mid ? GOLD : '#ffffff';
     const tpulse = low ? 1 + 0.08 * Math.max(0, Math.sin(secs * TAU)) : 1;
     const hudIn = easeOut(sceneT / 0.3);
@@ -420,7 +686,7 @@ export function render(ctx, state, title, demoLimit, L) {
     ctx.strokeStyle = tcol; ctx.lineWidth = 4; ctx.lineCap = 'round'; ctx.beginPath(); ctx.arc(kx, ky, 19, 0, TAU); ctx.stroke();
     ctx.beginPath(); ctx.moveTo(kx, ky); ctx.lineTo(kx + Math.sin((1 - frac) * TAU) * 12, ky - Math.cos((1 - frac) * TAU) * 12); ctx.stroke();
     ctx.save(); ctx.translate((tr.x + 80 + tr.x + tr.w - 10) / 2, ky); ctx.scale(tpulse, tpulse);
-    text(`${Math.floor(secs / 60)}:${String(Math.floor(secs % 60)).padStart(2, '0')}`, 0, 20, 56, tcol, { weight: 800, maxW: tr.w - 96 });
+    text(byQ ? `${Math.min(state.answered + 1, state.total)}/${state.total}` : `${Math.floor(secs / 60)}:${String(Math.floor(secs % 60)).padStart(2, '0')}`, 0, 20, 56, tcol, { weight: 800, maxW: tr.w - 96 });
     ctx.restore();
     const b = P.bar;
     ctx.fillStyle = hc ? '#000000' : 'rgba(0,0,0,0.45)'; rr(b.x, b.y, b.w, b.h, 8); ctx.fill();
@@ -437,7 +703,7 @@ export function render(ctx, state, title, demoLimit, L) {
 
     // score medallion
     const bump = fx && fx.kind === 'right' ? 1 + 0.35 * (1 - easeOut(fx.t / 0.35)) : 1;
-    const sr = P.score, narrow = sr.w < 150;
+    const sr = P.score, narrow = sr.w < 200;
     if (hc) { ctx.fillStyle = '#000000'; rr(sr.x, sr.y, sr.w, sr.h, 22); ctx.fill(); ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 3; ctx.stroke(); }
     else { shadow(sr.x, sr.y, sr.w, sr.h, 22, 8); ctx.fillStyle = 'rgba(3,16,24,0.78)'; rr(sr.x, sr.y, sr.w, sr.h, 22); ctx.fill(); ctx.strokeStyle = hexA(GOLD, 0.8); ctx.lineWidth = 2.5; ctx.stroke(); }
     if (narrow) {
@@ -452,6 +718,29 @@ export function render(ctx, state, title, demoLimit, L) {
       ctx.restore();
     }
     ctx.restore();
+
+    // combo pill (streak and multiplier) and lives
+    if (!auto) {
+      const cb = P.combo, mult = state.streak >= 10 ? 4 : state.streak >= 6 ? 3 : state.streak >= 3 ? 2 : 1, next = mult === 4 ? 10 : [3, 6, 10][mult - 1];
+      const prevT = mult === 1 ? 0 : [0, 3, 6, 10][mult - 1], fr = mult === 4 ? 1 : (state.streak - prevT) / (next - prevT);
+      const pop = state.fx && state.fx.kind === 'right' ? 1 + 0.25 * (1 - easeOut(state.fx.t / 0.3)) : 1;
+      ctx.save(); ctx.globalAlpha = hudIn;
+      if (hc) { ctx.fillStyle = '#000000'; rr(cb.x, cb.y, cb.w, cb.h, 18); ctx.fill(); ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 3; ctx.stroke(); }
+      else { shadow(cb.x, cb.y, cb.w, cb.h, 18, 6); ctx.fillStyle = 'rgba(3,16,24,0.78)'; rr(cb.x, cb.y, cb.w, cb.h, 18); ctx.fill(); ctx.strokeStyle = hexA(mult > 1 ? GOLD : CYAN, 0.8); ctx.lineWidth = 2.5; ctx.stroke(); }
+      const small = cb.h < 60, cy0 = cb.y + cb.h / 2;
+      ctx.save(); ctx.translate(cb.x + (small ? 56 : 64), cy0); ctx.scale(pop, pop);
+      text(`x${mult}`, 0, small ? 11 : 15, small ? 34 : 46, hc ? '#ffffff' : mult > 1 ? GOLD : '#9fdde9', { weight: 800 });
+      ctx.restore();
+      text((state.streak ? `${state.streak} in a row` : 'combo') + (small && state.live.lives > 0 ? `  ·  ${state.lives} lives` : ''), cb.x + cb.w - 14, cy0 + (small ? 8 : 10), small ? 22 : 24, soft(0.9), { weight: 600, align: 'right', maxW: cb.w - 130 });
+      if (!small) { ctx.fillStyle = 'rgba(255,255,255,0.14)'; rr(cb.x + 18, cb.y + cb.h - 14, cb.w - 36, 6, 3); ctx.fill(); ctx.fillStyle = hc ? '#ffffff' : GOLD; rr(cb.x + 18, cb.y + cb.h - 14, Math.max(6, (cb.w - 36) * fr), 6, 3); ctx.fill(); }
+      if (state.live.lives > 0 && !small) {
+        for (let k = 0; k < state.live.lives; k++) {
+          const hx = P.bar.x + 14 + k * 28, hy = P.bar.y + 36;
+          ctx.fillStyle = k < state.lives ? (hc ? '#ffffff' : BAD) : 'rgba(255,255,255,0.18)'; ctx.beginPath(); ctx.arc(hx - 5, hy - 3, 8, Math.PI, 0); ctx.arc(hx + 5, hy - 3, 8, Math.PI, 0); ctx.lineTo(hx, hy + 12); ctx.closePath(); ctx.fill();
+        }
+      }
+      ctx.restore();
+    }
 
     // the lanes the words drift along, with chevrons flowing the way the words go
     const bd = P.band, hh = Math.min(110, L.laneH / 2);
@@ -488,7 +777,7 @@ export function render(ctx, state, title, demoLimit, L) {
           tilt: auto ? 0 : Math.sin(t * 1.3 + wd.slot * 2.1) * 0.03,
           scale: answerHere ? 1.12 : 1,
           tint: answerHere ? GOOD : undefined,
-          alpha: revealing && !wd.correct ? 0.55 : 1,
+          alpha: state.round.hinted === wd.slot ? 0.18 : revealing && !wd.correct ? 0.55 : 1,
         });
         if (answerHere) {
           ctx.strokeStyle = hc ? '#ffffff' : GOOD; ctx.lineWidth = 5;
@@ -516,7 +805,8 @@ export function render(ctx, state, title, demoLimit, L) {
           ctx.fillStyle = hc ? '#ffffff' : hexA(k % 2 ? GOLD : GOOD, a);
           ctx.beginPath(); ctx.arc(px, py, (5 + (k % 3) * 2) * (1 - f * 0.5), 0, TAU); ctx.fill();
         }
-        text('+1', fxx, Math.max(bd.y + 60, fxy - 70 - f * 80), 64, hc ? '#ffffff' : hexA(GOOD, a), { weight: 800 });
+        text(`+${fx.pts || 1}`, fxx, Math.max(bd.y + 60, fxy - 70 - f * 80), 64, hc ? '#ffffff' : hexA(GOOD, a), { weight: 800 });
+        if (fx.mult > 1) text(`x${fx.mult}`, fxx + 96, Math.max(bd.y + 60, fxy - 70 - f * 80) - 6, 38, hc ? '#ffffff' : hexA(GOLD, a), { weight: 800 });
       } else {
         const f = clamp01(fx.t / 0.7), a = 1 - f;
         if (fx.kind === 'wrong') slip(fx.text, fxx + Math.sin(fx.t * 60) * 10 * a, fxy + f * f * 260, { w: fw, tilt: f * 0.5, alpha: a, tint: hc ? undefined : BAD });
@@ -536,7 +826,14 @@ export function render(ctx, state, title, demoLimit, L) {
 
     if (state.round) {
       const shake = fx && fx.kind !== 'right' ? Math.sin(fx.t * 58) * 12 * Math.max(0, 1 - fx.t / 0.4) : 0;
-      plaque(P.plaque, `TAP THE ${state.round.mode.toUpperCase()} OF`, state.round.targetWord, { dx: shake, pop: 0.8 + 0.2 * easeBack(state.round.age / 0.28) });
+      const rd = state.round, pk = { dx: shake, pop: 0.8 + 0.2 * easeBack(rd.age / 0.28) };
+      if (rd.kind === 'listening' || rd.kind === 'letter-hear') plaque(P.plaque, rd.label, rd.targetWord, { ...pk, speaker: true });
+      else if (rd.kind === 'picture') plaque(P.plaque, rd.label, '', { ...pk, art: rd.art });
+      else if (rd.kind === 'letter-case') plaque(P.plaque, rd.label, rd.targetWord, { ...pk, wordSize: 150 });
+      else if (rd.kind === 'letter-next') plaque(P.plaque, rd.label, rd.targetWord, { ...pk, wordSize: 96 });
+      else if (['definition', 'spelling', 'confusable', 'root', 'phrase'].includes(rd.kind)) plaque(P.plaque, rd.label, rd.targetWord, { ...pk, lines: wrapLines(rd.targetWord, 44, P.plaque.w - 70, 3) });
+      else if (rd.kind === 'odd') plaque(P.plaque, rd.label, rd.targetWord, { ...pk, wordSize: 56 });
+      else plaque(P.plaque, rd.label, rd.targetWord, pk);
     }
 
     const btnIn = easeBack((sceneT - 0.1) / 0.38);
@@ -552,9 +849,47 @@ export function render(ctx, state, title, demoLimit, L) {
       button(P.apause, state.autoPaused ? 'Resume' : 'Pause', { id: 'autoPause', size: 28, scale: btnIn, style: state.autoPaused ? 'active' : undefined });
       button(P.acolour, 'Colours', { id: 'colour', size: 26, scale: btnIn, swatch });
     } else {
-      button(P.stop, 'Stop', { size: 32, scale: btnIn });
-      button(P.colour, 'Colours', { id: 'colour', size: 30, scale: btnIn, swatch });
+      button(P.stop, 'Stop', { size: 28, scale: btnIn });
+      button(P.pause, state.paused ? 'Resume' : 'Pause', { id: 'pause', size: 28, scale: btnIn, style: state.paused ? 'active' : undefined });
+      button(P.hint, 'Hint', { id: 'hint', size: 28, scale: btnIn, disabled: !state.live.hints || (state.round && state.round.hinted >= 0), sub: state.live.hints ? '−5' : undefined });
+      // learning inside play: a quick, non-blocking reveal of the word and its meaning
+      const tt = state.toast;
+      if (tt && !state.paused) {
+        const tr = L.wide ? P.think : { x: P.plaque.x, y: P.think.y, w: P.plaque.w, h: P.think.h };
+        const a = clamp01(Math.min(1, (2.4 - tt.t) * 3)) * easeOut(tt.t / 0.18);
+        ctx.save(); ctx.globalAlpha = a;
+        ctx.fillStyle = hc ? '#000000' : 'rgba(3,16,24,0.82)'; rr(tr.x, tr.y, tr.w, tr.h, 20); ctx.fill();
+        ctx.strokeStyle = hc ? '#ffffff' : hexA(tt.good ? GOOD : BAD, 0.85); ctx.lineWidth = 2.5; ctx.stroke();
+        text(tt.text, tr.x + tr.w / 2, tr.y + (tt.sub ? 28 : 40), 27, hc ? '#ffffff' : tt.good ? GOOD : BAD, { weight: 800, maxW: tr.w - 30 });
+        if (tt.sub) text(clip(tt.sub, 20, tr.w - 36), tr.x + tr.w / 2, tr.y + 54, 20, soft(0.88), { weight: 500 });
+        ctx.restore();
+      }
     }
+    if (state.caption && PF.captions) {
+      const cp = state.caption, ca = clamp01(Math.min(1, (1.6 - cp.t) * 4)), bx = P.band.x + P.band.w / 2, by = P.band.y + P.band.h - 36;
+      ctx.save(); ctx.globalAlpha = ca; ctx.font = `700 24px ${UI}`; const cw = Math.min(P.band.w - 20, ctx.measureText(cp.text).width + 40);
+      ctx.fillStyle = 'rgba(0,0,0,0.78)'; rr(bx - cw / 2, by - 26, cw, 44, 12); ctx.fill(); text(cp.text, bx, by + 6, 24, '#ffffff', { weight: 700, maxW: cw - 24 }); ctx.restore();
+    }
+    // combo banner, particles, flash, pause veil
+    if (state.banner) {
+      const bn = state.banner, f = bn.t / 1.1, sc = easeBack(Math.min(1, bn.t / 0.25)), a = 1 - clamp01((f - 0.6) / 0.4);
+      ctx.save(); ctx.globalAlpha = a; ctx.translate(P.band.x + P.band.w / 2, P.band.y + P.band.h / 2); ctx.scale(sc, sc); ctx.rotate(-0.05);
+      if (!hc) { ctx.shadowColor = hexA(GOLD, 0.8); ctx.shadowBlur = 30; }
+      text(bn.text, 0, 0, Math.min(96, P.band.w / 7), hc ? '#ffffff' : GOLD, { font: DISPLAY, weight: 800, maxW: P.band.w - 40 });
+      ctx.restore();
+    }
+    for (const q of state.parts) {
+      const a = 1 - q.age / q.life; ctx.globalAlpha = Math.max(0, a); ctx.fillStyle = hc ? '#ffffff' : q.c;
+      ctx.beginPath(); ctx.arc(q.x, q.y, q.r * (0.6 + 0.4 * a), 0, TAU); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    if (state.flash > 0 && !hc) { ctx.fillStyle = `rgba(255,255,255,${0.1 * state.flash})`; ctx.fillRect(0, 0, w, h); }
+    if (state.paused && !auto) {
+      ctx.fillStyle = hc ? 'rgba(0,0,0,0.9)' : 'rgba(2,10,16,0.78)'; ctx.fillRect(P.band.x, P.band.y, P.band.w, P.band.h);
+      text('Paused', P.band.x + P.band.w / 2, P.band.y + P.band.h / 2 - 10, 84, '#ffffff', { font: DISPLAY, maxW: P.band.w - 40 });
+      text('Everything is frozen. Tap Resume.', P.band.x + P.band.w / 2, P.band.y + P.band.h / 2 + 44, 26, soft(0.85), { weight: 600, maxW: P.band.w - 40 });
+    }
+    ctx.restore();
     return;
   }
 
@@ -564,8 +899,12 @@ export function render(ctx, state, title, demoLimit, L) {
     ctx.fillStyle = hc ? '#000000' : 'rgba(2,8,14,0.55)'; ctx.fillRect(0, 0, w, h);
     const head = easeOut(sceneT / 0.4);
     ctx.save(); ctx.globalAlpha = head; ctx.translate(0, (1 - head) * -40);
-    text("Time's up!", O.cx, O.titleY, 76, '#ffffff', { font: DISPLAY, maxW: O.card.w });
-    text(state.autoPlay ? 'AUTO-PLAY DEMO — not saved' : 'SESSION REVIEW', O.cx, O.subY, 22, hc ? '#ffffff' : (state.autoPlay ? GOLD : '#8fe6f7'));
+    const RR = state.runResult;
+    let headline = { time: "Time's up!", questions: 'Round complete!', lives: 'Out of lives', stop: 'Session ended', empty: 'Session ended' }[state.reason] ?? "Time's up!";
+    if (RR) headline = RR.type === 'stage' ? (RR.pass ? 'Stage cleared!' : 'Not yet') : RR.type === 'check' ? (RR.pass ? 'Checkpoint passed!' : 'Checkpoint missed') : headline;
+    else if (PF.senior) headline = 'Nicely done';
+    text(headline, O.cx, O.titleY, 76, '#ffffff', { font: DISPLAY, maxW: O.card.w });
+    text(state.autoPlay ? 'AUTO-PLAY DEMO — not saved' : RR ? state.run.label.toUpperCase() : state.kind === 'review' ? 'DAILY REVIEW' : 'SESSION REVIEW', O.cx, O.subY, 22, hc ? '#ffffff' : (state.autoPlay ? GOLD : '#8fe6f7'));
 
     // summary card: the score counts up, with the tally and best beside it (or under it in a narrow card)
     const card = O.card;
@@ -579,8 +918,9 @@ export function render(ctx, state, title, demoLimit, L) {
     }
     const right = state.history.filter((hh2) => hh2.correct).length, missed = state.history.length - right;
     const shownScore = Math.round(state.score * easeOut(sceneT / 0.7));
-    const bestNow = state.mode === 'synonym' ? state.bestSynonym : state.bestAntonym;
-    const bestStr = state.newBest ? `★  New best ${state.mode} score!` : `Best ${state.mode} score: ${bestNow}`;
+    const bestNow = state.bestScores[state.bestKey] ?? 0;
+    const starTxt = RR && RR.type === 'stage' ? `Stars  ${'★'.repeat(RR.stars)}${'☆'.repeat(3 - RR.stars)}${RR.stars > RR.prevStars ? '  new!' : ''}` : RR && RR.type === 'check' ? `Checkpoint score ${RR.pct}%` : '';
+    const bestStr = starTxt || (state.autoPlay ? '' : state.newBest ? '★  New best score!' : `Best streak ${state.bestStreak}  ·  best score ${bestNow}`);
     const glint = state.newBest && !hc ? 0.75 + 0.25 * Math.sin(t * 5) : 1;
     const sx0 = card.x + card.w * 0.17, dv = card.x + card.w * 0.34, tx0 = card.x + card.w * 0.37, tw2 = card.x + card.w - 14 - tx0;
     text('SCORE', sx0, card.y + 46, 22, hc ? '#ffffff' : '#8fe6f7');
@@ -588,12 +928,12 @@ export function render(ctx, state, title, demoLimit, L) {
     ctx.fillStyle = hc ? '#ffffff' : 'rgba(255,255,255,0.18)'; ctx.fillRect(dv, card.y + 26, 2, card.h - 52);
     if (!card.stack) {
       text(`${right} right`, tx0, card.y + 66, 32, hc ? '#ffffff' : GOOD, { align: 'left', maxW: tw2 / 2 - 8 });
-      text(`${missed} missed`, tx0 + tw2 / 2 + 8, card.y + 66, 32, hc ? '#ffffff' : BAD, { align: 'left', maxW: tw2 / 2 - 8 });
+      text(PF.senior ? `${missed} to practise` : `${missed} missed`, tx0 + tw2 / 2 + 8, card.y + 66, 32, hc ? '#ffffff' : PF.senior ? GOLD : BAD, { align: 'left', maxW: tw2 / 2 - 8 });
       ctx.globalAlpha = head * glint;
       text(bestStr, tx0, card.y + card.h - 46, 28, state.newBest && !hc ? GOLD : soft(0.85), { align: 'left', weight: state.newBest ? 800 : 600, maxW: tw2 });
     } else {
       text(`${right} right`, tx0, card.y + 48, 30, hc ? '#ffffff' : GOOD, { align: 'left', maxW: tw2 });
-      text(`${missed} missed`, tx0, card.y + 90, 30, hc ? '#ffffff' : BAD, { align: 'left', maxW: tw2 });
+      text(PF.senior ? `${missed} to practise` : `${missed} missed`, tx0, card.y + 90, 30, hc ? '#ffffff' : PF.senior ? GOLD : BAD, { align: 'left', maxW: tw2 });
       ctx.globalAlpha = head * glint;
       text(bestStr, tx0, card.y + card.h - 22, 24, state.newBest && !hc ? GOLD : soft(0.85), { align: 'left', weight: state.newBest ? 800 : 600, maxW: tw2 });
     }
@@ -604,6 +944,7 @@ export function render(ctx, state, title, demoLimit, L) {
     if (!rows.length) text('No answers this session.', rcx, O.rowsTop + 120, 30, soft(0.85), { weight: 500 });
     else if (rows.every((x) => x.correct)) text('No mistakes. Every answer was right.', rcx, O.rowsTop + 10, 24, hc ? '#ffffff' : GOOD, { weight: 700, maxW: O.rowsW });
     const rowsTop = rows.every((x) => x.correct) && rows.length ? O.rowsTop + 28 : O.rowsTop;
+    const lookOn = !state.autoPlay && X.lookupOn;
     const pages = Math.max(1, Math.ceil(state.history.length / O.perPage)), pg = Math.min(state.reviewPage, pages - 1);
 
     rows.slice(pg * O.perPage, (pg + 1) * O.perPage).forEach((hr, i) => {
@@ -628,7 +969,8 @@ export function render(ctx, state, title, demoLimit, L) {
       else { ctx.moveTo(mx - 10, my - 10); ctx.lineTo(mx + 10, my + 10); ctx.moveTo(mx + 10, my - 10); ctx.lineTo(mx - 10, my + 10); }
       ctx.stroke();
       text(hr.word, x + 92, y + 52, 42, '#ffffff', { font: DISPLAY, align: 'left', maxW: Math.min(380, rw - 220) });
-      text(hr.mode.toUpperCase(), x + rw - 22, y + 40, 22, soft(0.7), { align: 'right' });
+      text(KIND_SHORT[hr.kind] ?? '', x + rw - (lookOn && !hr.letter ? 170 : 22), y + 40, 22, soft(0.7), { align: 'right' });
+      if (lookOn && !hr.letter) { const lr = O.lookRect(i, rowsTop); ctx.fillStyle = hc ? '#000000' : 'rgba(10,36,48,0.92)'; rr(lr.x, lr.y, lr.w, lr.h, 14); ctx.fill(); ctx.strokeStyle = hc ? '#ffffff' : hexA(CYAN, 0.6); ctx.lineWidth = 2; ctx.stroke(); text('Look up', lr.x + lr.w / 2, lr.y + lr.h / 2 + 8, 22, '#ffffff', { weight: 700 }); }
       const you = hr.correct ? '' : hr.picked === null ? 'drifted past' : `You: ${hr.picked}`;
       const avail = rw - 92 - 22, ansMax = you ? Math.max(150, avail * 0.56) : avail;
       text(`Answer: ${hr.answer}`, x + 92, y + 88, 26, accent, { align: 'left', weight: 700, maxW: ansMax });
@@ -646,9 +988,13 @@ export function render(ctx, state, title, demoLimit, L) {
     if (state.autoPlay) {
       button(O.again, 'Watch Again', { style: 'primary', size: 36, scale: bIn });
       button(O.change, 'Exit to Menu', { size: 32, scale: bIn });
+    } else if (RR) {
+      button(O.again, RR.pass ? (RR.next === 'check' ? 'Checkpoint' : RR.next === 'stage' ? 'Next stage' : 'Journey map') : 'Try again', { style: 'primary', size: 34, scale: bIn });
+      button(O.change, 'Journey map', { size: 30, scale: bIn });
+      drawMoreLine(ctx, O.cx, O.moreY, 22);
     } else {
       button(O.again, 'Play Again', { style: 'primary', size: 36, scale: bIn });
-      button(O.change, 'Change Mode', { size: 32, scale: bIn });
+      button(O.change, 'Words & pace', { size: 30, scale: bIn });
       drawMoreLine(ctx, O.cx, O.moreY, 22);
     }
   }
@@ -657,3 +1003,13 @@ export function render(ctx, state, title, demoLimit, L) {
 let lockPress = 0;
 // Press feedback for the tappable lockup: a brief dim after a tap (no sound, no popup).
 export const pressLockup = () => { lockPress = 10; };
+
+// A small "new badge" toast drawn on top of any screen (called by game.js after render()).
+export function drawBadgeToast(ctx, L, toast) {
+  const a = Math.min(1, toast.t * 4, (2.4 - toast.t) * 3), w = Math.min(L.w - 40, 560), x = L.w / 2 - w / 2, y = L.h - (L.ins ? L.ins.b : 0) - 290;
+  ctx.save(); ctx.globalAlpha = Math.max(0, a); ctx.translate(0, (1 - Math.min(1, toast.t * 4)) * -30);
+  ctx.fillStyle = 'rgba(8,24,34,0.94)'; ctx.beginPath(); ctx.roundRect(x, y, w, 76, 22); ctx.fill();
+  ctx.strokeStyle = GOLD; ctx.lineWidth = 3; ctx.stroke();
+  ctx.fillStyle = GOLD; ctx.font = `800 30px ${UI}`; ctx.textAlign = 'center'; ctx.fillText(`★  ${toast.text}`, L.w / 2, y + 48, w - 30);
+  ctx.restore();
+}

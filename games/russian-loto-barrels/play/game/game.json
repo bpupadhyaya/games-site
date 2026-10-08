@@ -1,0 +1,25 @@
+{
+  "slug": "russian-loto-barrels",
+  "title": "Russian Loto: Barrels",
+  "tagline": "Wooden kegs, cardboard cards, a calm race to call LOTO.",
+  "genre": "number lotto game",
+  "orientation": "any",
+  "version": "1.0.0",
+  "monetization": {
+    "model": "premium",
+    "priceUsd": 2.99,
+    "previewSeconds": 90,
+    "products": [
+      {
+        "id": "unlock_game",
+        "type": "non-consumable",
+        "priceUsd": 2.99,
+        "title": "Unlock Game"
+      }
+    ]
+  },
+  "locales": [
+    "en"
+  ],
+  "demoOnly": true
+}

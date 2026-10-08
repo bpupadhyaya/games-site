@@ -1,0 +1,14 @@
+{
+  "title": "Spin and String",
+  "tagline": "A string, a spin and a steady hand.",
+  "description": "Two classic skill toys in one lit 3D workshop: the yo-yo and the diabolo. Real physics for spin, string and a steady axle. Flick to throw, toss and catch, chain tricks for style, take the daily challenge, or watch the game think up a trick and show it as a ghost.",
+  "genre": "skill toy / spinning string toys",
+  "demo": true,
+  "howToPlay": [
+    "Press and drag: the hand follows your finger and eases back to rest when you lift.",
+    "Yo-yo: flick down to throw, keep still while it sleeps, flick up to bring it home.",
+    "Diabolo: shake left and right to spin it up, flick up to toss, slide under it to catch.",
+    "Keep an eye on the spin bar: without spin a yo-yo cannot climb and a diabolo wobbles.",
+    "Climb the Trick Book, chain tricks in a Show, or try today's Daily Challenge."
+  ]
+}

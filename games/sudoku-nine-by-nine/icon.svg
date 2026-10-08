@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#22336f"/><stop offset="1" stop-color="#0a1024"/></linearGradient>
+    <linearGradient id="face" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fffaf0"/><stop offset="0.5" stop-color="#f6f0e3"/><stop offset="1" stop-color="#e4dac4"/></linearGradient>
+    <radialGradient id="glow" cx="0.3" cy="0.15" r="0.9"><stop offset="0" stop-color="#8fa8ff" stop-opacity="0.35"/><stop offset="1" stop-color="#8fa8ff" stop-opacity="0"/></radialGradient>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+  <rect width="1024" height="1024" fill="url(#glow)"/>
+  <rect x="112" y="112" width="800" height="800" rx="96" fill="#070c1c"/>
+  <g font-family="Arial Rounded MT Bold, Arial, sans-serif" font-weight="800" text-anchor="middle">
+    <g id="t">
+      <rect x="152" y="166" width="224" height="224" rx="40" fill="#c6b99d" transform="translate(0,22)"/><rect x="152" y="166" width="224" height="224" rx="40" fill="url(#face)"/><text x="264" y="330" font-size="170" fill="#1b2543">5</text>
+      <rect x="400" y="166" width="224" height="224" rx="40" fill="#c6b99d" transform="translate(0,22)"/><rect x="400" y="166" width="224" height="224" rx="40" fill="url(#face)"/><text x="512" y="330" font-size="170" fill="#1c5bd8">3</text>
+      <rect x="648" y="166" width="224" height="224" rx="40" fill="#c6b99d" transform="translate(0,22)"/><rect x="648" y="166" width="224" height="224" rx="40" fill="url(#face)"/><text x="760" y="330" font-size="170" fill="#1b2543">4</text>
+      <rect x="152" y="414" width="224" height="224" rx="40" fill="#c6b99d" transform="translate(0,22)"/><rect x="152" y="414" width="224" height="224" rx="40" fill="url(#face)"/><text x="264" y="578" font-size="170" fill="#1c5bd8">6</text>
+      <rect x="400" y="414" width="224" height="224" rx="40" fill="#ff8a4d" transform="translate(0,22)"/><rect x="400" y="414" width="224" height="224" rx="40" fill="#ffb27f"/><text x="512" y="578" font-size="170" fill="#2a1408">7</text>
+      <rect x="648" y="414" width="224" height="224" rx="40" fill="#c6b99d" transform="translate(0,22)"/><rect x="648" y="414" width="224" height="224" rx="40" fill="url(#face)"/><text x="760" y="578" font-size="170" fill="#1b2543">2</text>
+      <rect x="152" y="662" width="224" height="224" rx="40" fill="#c6b99d" transform="translate(0,22)"/><rect x="152" y="662" width="224" height="224" rx="40" fill="url(#face)"/><text x="264" y="826" font-size="170" fill="#1b2543">1</text>
+      <rect x="400" y="662" width="224" height="224" rx="40" fill="#c6b99d" transform="translate(0,22)"/><rect x="400" y="662" width="224" height="224" rx="40" fill="url(#face)"/><text x="512" y="826" font-size="170" fill="#1c5bd8">9</text>
+      <rect x="648" y="662" width="224" height="224" rx="40" fill="#c6b99d" transform="translate(0,22)"/><rect x="648" y="662" width="224" height="224" rx="40" fill="url(#face)"/><text x="760" y="826" font-size="170" fill="#1b2543">8</text>
+    </g>
+  </g>
+</svg>

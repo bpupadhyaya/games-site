@@ -1,0 +1,17 @@
+{
+  "title": "Hasami Shogi: Pairs",
+  "tagline": "Sandwich the enemy on a nine by nine board.",
+  "description": "Hasami shogi (hasami is sandwich, shogi is Japanese chess) is a traditional Japanese board game on a nine by nine board. Every piece slides like a rook, and you capture by trapping an enemy piece between two of yours. Play Classic, the quick first-to-five-captures game, or Dai (\"large\") with jumping and five in a row. Five computer levels, two players on one phone, hands-on lessons, hints that explain why, danger marks, take back and a Watch & Learn mode. A lit wooden board, large text and reduced motion options, no ads, works offline.",
+  "genre": "Japanese custodian-capture board game",
+  "demo": true,
+  "howToPlay": [
+    "New here? Tap Learn to play: eight short hands-on lessons where you make every move yourself.",
+    "Tap a piece and its reachable squares glow. Every piece slides like a rook along an open row or column.",
+    "Tap a glowing square or drag the piece there. A red ring means the move captures; the number says how many.",
+    "Sandwich an enemy piece, or a whole line of them, between two of yours to remove it. Stepping into a sandwich yourself is safe.",
+    "A piece in a corner falls when you hold both squares beside it. Other edge pieces cannot be captured against the edge.",
+    "Classic: leave your opponent one piece. Quick: capture five. Dai: jump a neighbour and make five in a row outside your home rows.",
+    "Hint explains a good move. Danger marks warn about pieces that can be captured next. Take back undoes your last move.",
+    "Auto Play shows the computer playing both sides, with Pause. 30 quiet moves each settle Classic and Quick on pieces."
+  ]
+}

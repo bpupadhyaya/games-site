@@ -2,7 +2,8 @@
 // World axes: x across the court (+x is the LEFT hand of a player facing +z), y up, z along the court.
 // The net is at z = 0. Team 0 (the near side, camera side, always the player's team) plays on z < 0 and faces +z. Team 1 plays on z > 0.
 export const G = 9.81;
-export const BR = 0.28;           // ball radius used everywhere (sim, picture, contact): a regulation ball is 0.105 m; the players are drawn 1.25x, the ball 2.7x so it reads on a phone
+export const BR_PLAY = 0.28;     // gameplay tolerance for net and block geometry and dig bands (kept from the tuned game; not drawn)
+export const BR = 0.115;          // ball radius used everywhere (sim, picture, contact): a regulation ball is 0.21 m across; the mannequins are drawn 1.25x (about 2.1 m tall), so the ball is drawn 1.1x, which keeps ball : player at the real 0.11
 export const HW = 4.5;              // half court width (9 m)
 export const HL = 9.0;              // half court length (18 m)
 export const ATK = 3.0;             // attack line: 3 m from the net
@@ -53,8 +54,8 @@ export const FRONT = [false, true, true, true, false, false];     // by slot ind
 export const HSCALE_F = 0.92;
 export const TECH = {
   bump:   { id: 'bump',   y0: 0.62, y1: 1.30, pref: 1.00, fwd: 0.70, reach: 0.52, lead: 0.60, follow: 0.60, name: 'Forearm pass' },
-  dive:   { id: 'dive',   y0: BR + 0.12, y1: BR + 0.40, pref: BR + 0.22, fwd: 0.95, reach: 0.78, lead: 0.62, follow: 1.0,  name: 'Dive' },
-  dig:    { id: 'dig',    y0: BR + 0.12, y1: BR + 0.40, pref: BR + 0.22, fwd: 0.95, reach: 0.78, lead: 0.62, follow: 0.65, name: 'Low dig' },
+  dive:   { id: 'dive',   y0: BR_PLAY + 0.12, y1: BR_PLAY + 0.40, pref: BR_PLAY + 0.22, fwd: 0.95, reach: 0.78, lead: 0.62, follow: 1.0,  name: 'Dive' },
+  dig:    { id: 'dig',    y0: BR_PLAY + 0.12, y1: BR_PLAY + 0.40, pref: BR_PLAY + 0.22, fwd: 0.95, reach: 0.78, lead: 0.62, follow: 0.65, name: 'Low dig' },
   over:   { id: 'over',   y0: 2.04, y1: 2.48, pref: 2.28, fwd: 0.46, reach: 0.16, lead: 0.55, follow: 0.55, name: 'Overhand set' },
   spike:  { id: 'spike',  y0: 2.4, y1: 3.4, pref: 3.05, fwd: 0.22, lead: 0.62, follow: 0.80, name: 'Spike' },
   block:  { id: 'block',  y0: 1.90, y1: 3.40, pref: 2.80, fwd: 0.0,  lead: 0.50, follow: 0.65, name: 'Block' },

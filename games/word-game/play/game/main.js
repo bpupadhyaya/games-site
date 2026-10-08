@@ -2,6 +2,7 @@ import { boot } from './kit/index.js';
 import { createGame, meta, wheelInput } from './src/game.js';
 import { host } from './src/layout.js';
 import { setLogo, setLockup } from './src/brand.js';
+import { createPlatform, loadWordData } from './platform.js';
 
 const canvas = document.getElementById('game');
 
@@ -19,7 +20,13 @@ window.addEventListener('safeinsets', syncHost);
 canvas.addEventListener('wheel', (e) => { e.preventDefault(); wheelInput.dy += e.deltaY * (720 / Math.max(1, Math.min(window.innerWidth, window.innerHeight))) * (e.deltaMode === 1 ? 16 : 1); }, { passive: false });
 
 // Dev tools only (?dev=1 or the app's Developer toggle): expose the game object for the layout/resize check scripts.
-const create = async (env) => { const game = await createGame(env); if (env.config.dev) window.__wg = game; return game; };
+const create = async (env) => {
+  env.wg = createPlatform(env);                       // speech, file export, links and the database; the game works without any of it
+  const game = await createGame(env);
+  if (env.config.dev) window.__wg = game;
+  requestAnimationFrame(() => setTimeout(() => loadWordData(env.wg, Boolean(env.config.demo)), 60));   // word data loads after the first frame
+  return game;
+};
 
 // The Arcforge badge and themed lockup (see src/brand.js): optional, the credit line still reads without them.
 const af = new Image(); af.onload = () => setLogo(af); af.src = './brand/arcforge-af.png';

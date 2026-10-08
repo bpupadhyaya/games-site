@@ -1,0 +1,14 @@
+{
+  "title": "Bocce Roll",
+  "tagline": "Pull back, roll, curve, bank it off the rails.",
+  "description": "Italian bocce on a lit garden court. Slingshot your ball toward the pallino, choose to roll, lob or hit, add curve, bank off the rails and outplay six rivals, a partner team, or a friend.",
+  "genre": "bocce / court physics",
+  "demo": true,
+  "howToPlay": [
+    "Press on the lower court and drag back like a slingshot, then let go to throw.",
+    "Pull length sets the power and pull direction sets the aim.",
+    "Choose Roll, Lob or Hit and add curve with the arrows.",
+    "The side whose ball is not closest keeps playing; the closest ball scores.",
+    "First to 12 points wins."
+  ]
+}

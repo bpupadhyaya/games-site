@@ -1,10 +1,10 @@
 {
   "slug": "word-game",
   "title": "Word Game",
-  "tagline": "Tap the matching word before it drifts away.",
+  "tagline": "Learn English words by playing.",
   "genre": "vocabulary",
   "orientation": "any",
-  "version": "1.1.3",
+  "version": "1.4.1",
   "monetization": {
     "model": "premium",
     "priceUsd": 2.99,

@@ -1,0 +1,14 @@
+{
+  "title": "Badminton Rally",
+  "tagline": "Swipe your strokes. Win the rally.",
+  "description": "Play singles badminton in real 3D: swipe to clear, drop, smash and net-shot, with true shuttlecock flight. Five computer levels, a knockout tournament against eight rivals, Rally Challenge, Think hints and Watch & Learn.",
+  "genre": "3D badminton",
+  "demo": true,
+  "howToPlay": [
+    "Your player runs to the shuttle by himself: you choose the stroke and where it goes.",
+    "Swipe when the ring closes on the shuttle: short = drop or net shot, medium = clear or lift, long = smash or drive.",
+    "The angle of the swipe aims left or right. A tap is a safe return.",
+    "Win rallies to 21 (win by 2) or climb the eight-rival tournament.",
+    "Think shows the coach's stroke and why; Watch & Learn plays a match and explains each choice."
+  ]
+}

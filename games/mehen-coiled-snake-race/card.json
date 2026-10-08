@@ -1,0 +1,14 @@
+{
+  "title": "Mehen: Coiled Snake Race",
+  "tagline": "Throw. Roll. Reach the head.",
+  "description": "Race carved lions along a coiled snake of stone from its tail to its head. Throw four sticks, choose a lion, spend a marble to nudge the throw, rest on the carved stones and knock rivals back to the start. Two to six seats, four computer levels, three race lengths, Think with a plain-English reason and Watch & Learn. A reconstruction of the ancient Egyptian game, because no original rules survive. No timers and no ads.",
+  "genre": "ancient race board game",
+  "demo": true,
+  "howToPlay": [
+    "Throw four sticks: the flat sides facing up are your steps (none up counts as 5). A 4 or 5 earns another throw.",
+    "Tap a lion, or the lit stone it would land on, to move it from the tail toward the head in the middle of the snake.",
+    "Spend a marble to make a throw one more or one less. Marbles are also won by capturing and by bringing a lion home.",
+    "Land on a rival lion to send it back to the tail and take one of its marbles, unless it rests on a gold-diamond stone.",
+    "Bring all your lions to the head with an exact count to win. The rules are a reconstruction; the Rules page explains each choice."
+  ]
+}

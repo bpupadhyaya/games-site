@@ -1,0 +1,17 @@
+{
+  "title": "Dame: West African Draughts",
+  "tagline": "Flying kings, backward captures, bottle caps.",
+  "description": "Dame, called Damii in Ghana, is draughts as played across West Africa. Men capture backwards, kings fly the whole diagonal, and in Damii a side down to its last piece has lost. Play the 10 by 10 board or the 8 by 8 school board against four computer levels, get hints that explain themselves, or watch the computer play both sides. A full Rules reference with diagrams is built in. Large text, reduced motion, no ads, works offline.",
+  "genre": "draughts board game",
+  "demo": true,
+  "howToPlay": [
+    "On the menu pick the board, the computer level and your side, then tap Play.",
+    "Tap one of your pieces: it lifts and its legal squares glow. Tap a glowing square to move.",
+    "Capture is compulsory. Pieces that can capture glow, and only they can be picked up.",
+    "Men capture backwards too. You may choose any capture, but you must finish the chain you start.",
+    "For a chain of jumps tap each landing square. The piece plays on by itself when only one chain is left.",
+    "Reach the far row to crown a king. A king flies any distance and lands anywhere behind the piece it takes.",
+    "In Damii a side left with one piece has lost. Win by capturing everything or leaving no legal move.",
+    "Hint shows a good move and why. Take back undoes your last move. Watch and Learn plays both sides."
+  ]
+}

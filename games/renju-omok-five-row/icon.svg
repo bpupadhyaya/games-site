@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#27404a"/><stop offset="1" stop-color="#0b1318"/></linearGradient>
+    <linearGradient id="wood" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f0cd86"/><stop offset="0.5" stop-color="#dfb06a"/><stop offset="1" stop-color="#bf8b45"/></linearGradient>
+    <radialGradient id="blk" cx="0.35" cy="0.3" r="0.8"><stop offset="0" stop-color="#6a707a"/><stop offset="0.55" stop-color="#23272d"/><stop offset="1" stop-color="#050607"/></radialGradient>
+    <radialGradient id="wht" cx="0.35" cy="0.3" r="0.85"><stop offset="0" stop-color="#ffffff"/><stop offset="0.6" stop-color="#f0eadb"/><stop offset="1" stop-color="#b9b09b"/></radialGradient>
+    <radialGradient id="hl" cx="0.5" cy="0.5" r="0.5"><stop offset="0" stop-color="#fff" stop-opacity="0.85"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient>
+    <filter id="sh" x="-30%" y="-30%" width="170%" height="170%"><feDropShadow dx="10" dy="16" stdDeviation="12" flood-color="#000" flood-opacity="0.45"/></filter>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+  <rect x="92" y="92" width="840" height="840" rx="46" fill="url(#wood)" filter="url(#sh)"/>
+  <g stroke="#2e2112" stroke-width="5" opacity="0.85">
+    <path d="M192 192V832M312 192V832M432 192V832M552 192V832M672 192V832M792 192V832"/>
+    <path d="M192 192H832M192 312H832M192 432H832M192 552H832M192 672H832M192 792H832"/>
+  </g>
+  <path d="M252 740 L772 300" stroke="#ffd678" stroke-opacity="0.0" stroke-width="2"/>
+  <g filter="url(#sh)">
+    <circle cx="252" cy="432" r="52" fill="url(#blk)"/><circle cx="372" cy="432" r="52" fill="url(#blk)"/><circle cx="492" cy="432" r="52" fill="url(#blk)"/><circle cx="612" cy="432" r="52" fill="url(#blk)"/><circle cx="732" cy="432" r="52" fill="url(#blk)"/>
+    <circle cx="372" cy="552" r="52" fill="url(#wht)"/><circle cx="492" cy="672" r="52" fill="url(#wht)"/><circle cx="612" cy="312" r="52" fill="url(#wht)"/>
+  </g>
+  <g fill="url(#hl)"><circle cx="234" cy="414" r="22"/><circle cx="354" cy="414" r="22"/><circle cx="474" cy="414" r="22"/><circle cx="594" cy="414" r="22"/><circle cx="714" cy="414" r="22"/><circle cx="354" cy="534" r="24"/><circle cx="474" cy="654" r="24"/><circle cx="594" cy="294" r="24"/></g>
+  <path d="M252 432H732" stroke="#ffe39a" stroke-width="12" stroke-linecap="round" opacity="0.8"/>
+</svg>

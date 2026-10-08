@@ -1,0 +1,15 @@
+{
+  "title": "Table Tennis Rally",
+  "tagline": "Real 3D table tennis. Spin it, place it, win it.",
+  "description": "Slide, flick and read the spin in a fast, real 3D table tennis game for one finger. Play 18 opponents, six tournament cups, a ball machine challenge and a coach that explains every shot.",
+  "genre": "table tennis",
+  "demo": true,
+  "howToPlay": [
+    "Hold a finger on the table: your paddle slides under it.",
+    "Flick up to hit: gentle is a touch, medium is a topspin loop, hard is a fast drive.",
+    "Flick down for a push or a chop with backspin.",
+    "Tilt the flick to aim, curve it for sidespin.",
+    "Read the spin tag on the ball and pick the stroke that suits it.",
+    "Games go to 11 and must be won by 2."
+  ]
+}

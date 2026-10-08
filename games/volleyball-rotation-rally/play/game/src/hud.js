@@ -119,25 +119,14 @@ function courtOverlay(ctx, G, s, lay) {
   if (s.ball.vis) {
     const b = s.ball, p = proj(G, b.x, b.y, b.z), f = proj(G, b.x, 0, b.z);
     if (p && f) {
-      const k = Math.max(0.6, 5.5 / Math.max(3, p.depth) * 3.2);
       ctx.save();
-      ctx.strokeStyle = 'rgba(255,246,228,0.85)'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.arc(p.x, p.y, 15 * k * 0.6 + 8, 0, TAU); ctx.stroke();
       // floor point under the ball: a ring on the floor and a drop line, so a low ball never reads as touching the floor until it reaches the ring
-      const fxp = proj(G, b.x + 0.34, 0, b.z), fzp = proj(G, b.x, 0, b.z + 0.34);
-      const rx = fxp ? Math.abs(fxp.x - f.x) : 14, ry = fzp ? Math.abs(fzp.y - f.y) : 6;
-      ctx.fillStyle = 'rgba(0,0,0,0.25)'; ctx.beginPath(); ctx.ellipse(f.x, f.y, rx, ry, 0, 0, TAU); ctx.fill();
-      ctx.strokeStyle = 'rgba(255,246,228,0.8)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(f.x, f.y, rx, ry, 0, 0, TAU); ctx.stroke();
-      if (b.y > 0.4) { ctx.strokeStyle = 'rgba(255,246,228,0.4)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(p.x, p.y + 12); ctx.lineTo(f.x, f.y); ctx.stroke(); }
       ctx.restore();
     }
     if (b.flight && s.phase === 'rally') {
       const tl = landTime(b.flight);
       if (tl && tl > now) { const lp = posAt(b.flight, tl); const q = proj(G, lp.x, 0, lp.z); const inb = Math.abs(lp.x) <= HW + 0.06 && Math.abs(lp.z) <= HL + 0.06; if (q && lp.z < 0.5 && (Math.abs(lp.z) < HL + 3)) { ctx.save(); ctx.strokeStyle = inb ? 'rgba(255,246,228,0.8)' : 'rgba(255,150,130,0.9)'; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.ellipse(q.x, q.y, 20, 9, 0, 0, TAU); ctx.stroke(); ctx.beginPath(); ctx.moveTo(q.x - 8, q.y - 3); ctx.lineTo(q.x + 8, q.y + 3); ctx.moveTo(q.x + 8, q.y - 3); ctx.lineTo(q.x - 8, q.y + 3); ctx.stroke(); ctx.restore(); } }
     }
-  }
-  if (G.landFx && now - G.landFx.t < 0.6 && now >= G.landFx.t) {
-    const q = proj(G, G.landFx.x, 0, G.landFx.z), u = (now - G.landFx.t) / 0.6;
-    if (q) { ctx.save(); ctx.strokeStyle = `rgba(255,255,255,${0.9 * (1 - u)})`; ctx.lineWidth = 4 * (1 - u) + 1; ctx.beginPath(); ctx.ellipse(q.x, q.y, 20 + 70 * u, 8 + 28 * u, 0, 0, TAU); ctx.stroke(); ctx.restore(); }
   }
   // role tags above the user's team
   for (const p of s.players) {

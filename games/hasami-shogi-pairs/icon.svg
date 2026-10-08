@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#26335f"/><stop offset="1" stop-color="#0b1022"/></linearGradient>
+    <linearGradient id="wood" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f3d28e"/><stop offset="0.6" stop-color="#e0b25f"/><stop offset="1" stop-color="#c88f44"/></linearGradient>
+    <linearGradient id="blk" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5a4636"/><stop offset="1" stop-color="#241a12"/></linearGradient>
+    <linearGradient id="wht" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff3d2"/><stop offset="1" stop-color="#dcbf80"/></linearGradient>
+    <filter id="sh" x="-30%" y="-30%" width="160%" height="170%"><feDropShadow dx="0" dy="22" stdDeviation="18" flood-color="#000" flood-opacity="0.55"/></filter>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+  <rect x="96" y="250" width="832" height="560" rx="46" fill="#7a4a1f" filter="url(#sh)"/>
+  <rect x="96" y="226" width="832" height="560" rx="46" fill="url(#wood)" stroke="#5a3514" stroke-width="10"/>
+  <g stroke="#5a3514" stroke-width="7" opacity="0.8"><path d="M96 366H928M96 506H928M96 646H928M376 226V786M516 226V786M656 226V786"/></g>
+  <g filter="url(#sh)">
+    <path d="M236 330 L292 378 L312 552 L160 552 L180 378 Z" fill="url(#blk)" stroke="#120c07" stroke-width="8" stroke-linejoin="round"/>
+    <path d="M512 330 L568 378 L588 552 L436 552 L456 378 Z" fill="url(#wht)" stroke="#6b4a1c" stroke-width="8" stroke-linejoin="round"/>
+    <path d="M788 330 L844 378 L864 552 L712 552 L732 378 Z" fill="url(#blk)" stroke="#120c07" stroke-width="8" stroke-linejoin="round"/>
+  </g>
+  <g fill="#f1cf78"><rect x="212" y="410" width="48" height="12" rx="6"/><rect x="236" y="410" width="12" height="100" rx="6"/><rect x="764" y="410" width="48" height="12" rx="6"/><rect x="788" y="410" width="12" height="100" rx="6"/></g>
+  <path d="M512 410 q40 10 0 50 q-30 30 20 50" fill="none" stroke="#3a1f12" stroke-width="16" stroke-linecap="round"/>
+</svg>

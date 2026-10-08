@@ -1,0 +1,14 @@
+{
+  "title": "Hawalis: Gulf Sowing",
+  "tagline": "The four-row sowing game of Oman and the Gulf.",
+  "description": "A carved teak board of twenty-eight holes with pearl seeds: sow round your own two rows, relay through full holes and capture when your last seed lands in your inner row facing seeds. Five opponent levels, two players on one phone, Think with a reason in words, six lessons and Watch & Learn. No timers and no ads.",
+  "genre": "mancala, sowing and capture",
+  "demo": true,
+  "howToPlay": [
+    "Tap one of your holes that holds seeds. All its seeds are dropped one by one into the next holes of your loop.",
+    "If your last seed lands in a hole that already holds seeds, pick those up and sow on.",
+    "If your last seed lands in your inner row facing seeds, you capture them, plus the outer hole behind if full.",
+    "The game ends when a player runs out of seeds. The player with more captured seeds wins.",
+    "Think shows the best move and why."
+  ]
+}

@@ -24,16 +24,18 @@ export const REVEAL_SECONDS = 2;
 // content height (filled in by the renderer each frame) so scrolling clamps to the real text.
 export const wheelInput = { dy: 0 };
 export const rulesMetrics = { content: 0, view: 0, max: 0 };
+// Same idea for every settings/study/progress screen (the generic form reader).
+export const formMetrics = { content: 0, view: 0, max: 0 };
 
 export const inRect = (x, y, r) => !!r && x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
 
 // Safe areas and the host's floating back button, in virtual units. main.js keeps this current (browsers: all zero).
-export const host = { t: 0, r: 0, b: 0, l: 0, back: 0, px: 0.54 };
+export const host = { t: 0, r: 0, b: 0, l: 0, back: 0, px: 0.54, lefty: false };
 
 const cache = new Map();
 export function layoutFor(w, h) {
   w = Math.round(w); h = Math.round(h);
-  const key = `${w}x${h}|${Math.round(host.t)},${Math.round(host.r)},${Math.round(host.b)},${Math.round(host.l)},${Math.round(host.back)}`;
+  const key = `${w}x${h}|${Math.round(host.t)},${Math.round(host.r)},${Math.round(host.b)},${Math.round(host.l)},${Math.round(host.back)}|${host.lefty ? 1 : 0}`;
   let L = cache.get(key);
   if (!L) { L = build(w, h, { ...host }); L.key = key; cache.set(key, L); if (cache.size > 40) cache.delete(cache.keys().next().value); }
   return L;
@@ -55,16 +57,19 @@ function build(w, h, ins) {
   // =========================================================== title
   {
     const T = L.title = {};
+    const BH = 84;
     if (!wide) {
       let y = h - ins.b - 20;
       T.footY = y; y -= 32; T.previewY = y; y -= 24;
-      T.lockup = R(ox + 360 - 125, y - 68, 250, 68); y -= 68 + 10;      // the Arcforge lockup directly under the last button
-      T.auto = R(ox + 150, y - 80, 420, 80); y -= 92;
-      const cr = y - 92; T.colour = R(ox + 150, cr, 202, 92); T.rules = R(ox + 368, cr, 202, 92); y = cr - 24;
-      T.play = R(ox + 110, y - 136, 500, 136); y -= 160;
-      T.bestY = y - 6; y -= 48;
-      T.modeSyn = R(ox + 56, y - 116, 296, 116); T.modeAnt = R(ox + 368, y - 116, 296, 116);
-      const modesTop = y - 116 - 16;
+      T.lockup = R(ox + 360 - 125, y - 68, 250, 68); y -= 68 + 8;      // the Arcforge lockup directly under the last button
+      T.auto = R(ox + 56, y - BH, 296, BH); T.more = R(ox + 368, y - BH, 296, BH); y -= BH + 12;
+      T.review = R(ox + 56, y - BH, 296, BH); T.prog = R(ox + 368, y - BH, 296, BH); y -= BH + 12;
+      T.setup = R(ox + 56, y - BH, 296, BH); T.study = R(ox + 368, y - BH, 296, BH); y -= BH + 14;
+      T.journey = R(ox + 56, y - BH, 608, BH); y -= BH + 14;
+      T.play = R(ox + 110, y - 128, 500, 128); y -= 128 + 12;
+      T.sum = R(ox + 56, y - 46, 608, 46); T.sumY = y - 12; y -= 46 + 6;
+      T.bestY = y - 10; y -= 36;
+      const modesTop = y - 8;
       const topBase = Math.max(ins.t + 120, L.backBox.h ? ins.t + L.backBox.h + 95 : 0);   // the 124 px title starts below the host back button
       const heroTop0 = topBase + 56 + 46;
       const avail = modesTop - heroTop0;
@@ -74,17 +79,19 @@ function build(w, h, ins) {
       T.cx = w / 2; T.titleBase = topBase + shift; T.taglineY = T.titleBase + 54; T.creditY = T.taglineY + 42; T.titleMaxW = Math.min(w - 40, 680);
       T.hero = { mode, x: w / 2 - 320, y: heroTop0 + shift + (mode === 'none' ? 0 : slack * 0.2), w: 640, h: heroH };
     } else {
-      const RC = clamp(w * 0.38, 380, 560), rx = U.x1 - 16 - RC;
-      const fixed = 116 + 136 + 92 + 80 + 34 + 28 + 26 + 78, gaps0 = 22 + 14 + 22 + 12 + 14;
+      const RC = clamp(w * 0.38, 380, 560), rx = U.x1 - 16 - RC, hw = RC / 2 - 8;
+      const BW = 70, PH = 112, fixed = 46 + 30 + PH + BW * 4 + 68 + 26 + 28, gaps0 = 8 + 12 + 12 + 12 + 12 + 6 + 10;
       const g = clamp((U.h - 16 - fixed) / gaps0, 0.25, 1.2);
       const total = fixed + gaps0 * g;
       let y = U.y0 + (U.h - total) / 2;
-      T.modeSyn = R(rx, y, RC / 2 - 8, 116); T.modeAnt = R(rx + RC / 2 + 8, y, RC / 2 - 8, 116); y += 116 + 22 * g;
-      T.bestY = y + 26; y += 34 + 14 * g;
-      T.play = R(rx + 20, y, RC - 40, 136); y += 136 + 22 * g;
-      T.colour = R(rx + 20, y, RC / 2 - 28, 92); T.rules = R(rx + RC / 2 + 8, y, RC / 2 - 28, 92); y += 92 + 12 * g;
-      T.auto = R(rx + 20, y, RC - 40, 80); y += 80 + 8 * g;
-      T.lockup = R(rx + RC / 2 - 125, y, 250, 68); y += 68 + 6 * g;
+      T.sum = R(rx, y, RC, 46); T.sumY = y + 32; y += 46 + 8 * g;
+      T.bestY = y + 22; y += 30 + 12 * g;
+      T.play = R(rx + 20, y, RC - 40, PH); y += PH + 12 * g;
+      T.journey = R(rx, y, RC, BW); y += BW + 12 * g;
+      T.setup = R(rx, y, hw, BW); T.study = R(rx + hw + 16, y, hw, BW); y += BW + 12 * g;
+      T.review = R(rx, y, hw, BW); T.prog = R(rx + hw + 16, y, hw, BW); y += BW + 12 * g;
+      T.auto = R(rx, y, hw, BW); T.more = R(rx + hw + 16, y, hw, BW); y += BW + 6 * g;
+      T.lockup = R(rx + RC / 2 - 125, y, 250, 68); y += 68 + 10 * g;
       T.previewY = y + 20; y += 28; T.footY = y + 18;
       const lx0 = U.x0 + 16, lw = rx - 16 - lx0;
       T.cx = lx0 + lw / 2; T.titleMaxW = Math.max(220, lw - 150);
@@ -117,7 +124,8 @@ function build(w, h, ins) {
       P.thinkLabel = { x: ox + 360, y: P.thinkY + thinkH / 2 + 8, maxW: 190 };
       const by = P.thinkY + thinkH + 10;
       P.band = R(0, by, w, btnY - 22 - by);
-      P.stop = R(ox + 70, btnY, 270, btnH); P.colour = R(ox + 380, btnY, 270, btnH);
+      P.combo = R(ox + 40, hudY, 200, 80);
+      P.stop = R(ox + 40, btnY, 202, btnH); P.pause = R(ox + 259, btnY, 202, btnH); P.hint = R(ox + 478, btnY, 202, btnH); P.colour = P.hint;
       P.aexit = R(ox + 70, btnY, 180, btnH); P.apause = R(ox + 270, btnY, 180, btnH); P.acolour = R(ox + 470, btnY, 180, btnH);
       P.panel = null;
     } else {
@@ -128,13 +136,15 @@ function build(w, h, ins) {
       P.bar = R(lx + backW, hudY + hudH + 10, LW - backW, 14);
       const btnH = 84, rowB = 72, thinkH = 64;
       const bottom = U.y1 - 12, autoBlock = btnH + 8 + rowB;
-      const topUsed = P.bar.y + 14 + 14;
+      P.combo = R(lx, P.bar.y + 14 + 10, LW, 44);
+      const topUsed = P.bar.y + 14 + 14 + 54;
       const ph = clamp(bottom - autoBlock - 12 - thinkH - 8 - topUsed, 150, 250);
       P.plaque = R(lx, topUsed, LW, ph);
       P.thinkY = topUsed + ph + 8; P.think = R(lx, P.thinkY, LW, thinkH);
       P.dec = R(lx + 10, P.thinkY, 100, thinkH); P.inc = R(lx + LW - 110, P.thinkY, 100, thinkH);
       P.thinkLabel = { x: lx + LW / 2, y: P.thinkY + thinkH / 2 + 8, maxW: LW - 240 };
-      P.stop = R(lx, bottom - btnH, LW / 2 - 6, btnH); P.colour = R(lx + LW / 2 + 6, bottom - btnH, LW / 2 - 6, btnH);
+      const tw3 = (LW - 16) / 3;
+      P.stop = R(lx, bottom - btnH, tw3, btnH); P.pause = R(lx + tw3 + 8, bottom - btnH, tw3, btnH); P.hint = R(lx + 2 * tw3 + 16, bottom - btnH, tw3, btnH); P.colour = P.hint;
       P.aexit = R(lx, bottom - autoBlock, LW / 2 - 6, btnH); P.apause = R(lx + LW / 2 + 6, bottom - autoBlock, LW / 2 - 6, btnH);
       P.acolour = R(lx, bottom - rowB, LW, rowB);
       P.panel = R(lx - 8, U.y0 + 4, LW + 16, U.h - 8);
@@ -182,6 +192,13 @@ function build(w, h, ins) {
     Q.viewport = R(Q.panel.x + 10, Q.panel.y + 12, Q.panel.w - 20 - Q.sbW - 8, Q.panel.h - 24);
     Q.scrollbar = R(Q.panel.x + Q.panel.w - 10 - Q.sbW, Q.viewport.y, Q.sbW, Q.viewport.h);
     Q.textW = Q.viewport.w - 2 * Q.padX;
+    // flashcards: the reader panel is the card, two answer buttons sit inside its lower edge
+    const C = L.cards = {}, pn = Q.panel, bw = (pn.w - 60) / 2;
+    C.card = R(pn.x, pn.y, pn.w, pn.h);
+    C.know = R(pn.x + 20, pn.y + pn.h - 104, bw, 84); C.learn = R(pn.x + 40 + bw, pn.y + pn.h - 104, bw, 84);
+    C.body = R(pn.x + 20, pn.y + 20, pn.w - 40, pn.h - 148);
+    const side = Math.max(160, Math.min(pn.w - 60, pn.h - 250)), TR = L.trace = R(pn.x + (pn.w - side) / 2, pn.y + 120 + Math.max(0, (pn.h - 250 - side) / 2), side, side);
+    L.traceHear = R(pn.x + 20, pn.y + 14, pn.w - 40, 96); void TR;
   }
 
   // =========================================================== session review
@@ -217,7 +234,15 @@ function build(w, h, ins) {
       O.rowsTop = U.y0 + 14; O.rowsBottom = pagerY - 10;
     }
     O.perPage = Math.max(2, Math.floor((O.rowsBottom - O.rowsTop + O.rowGap) / O.rowH));
+    O.rowRect = (i, top) => R(O.rowsX, top + i * O.rowH, O.rowsW, O.rowH - 12);
+    O.lookRect = (i, top) => { const r = O.rowRect(i, top); return R(r.x + r.w - 150, r.y + 8, 134, 46); };
     O.pageY = O.prev.y + O.prev.h / 2 + 9;
+  }
+
+  // left-handed layout: mirror the controls that sit side by side along the bottom
+  if (ins.lefty) {
+    const sw = (a, b) => { if (!a || !b) return; const t = a.x; a.x = b.x; b.x = t; };
+    sw(L.play.stop, L.play.hint); sw(L.play.aexit, L.play.acolour); sw(L.rules.back, L.rules.next); sw(L.over.again, L.over.change); sw(L.over.prev, L.over.next); sw(L.cards.know, L.cards.learn);
   }
 
   // =========================================================== web-preview limit

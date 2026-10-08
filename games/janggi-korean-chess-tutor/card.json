@@ -1,0 +1,16 @@
+{
+  "title": "Janggi: Korean Chess",
+  "tagline": "Korean chess with a tutor",
+  "description": "Janggi is Korean chess: two armies of carved octagonal pieces, each general guarded inside a palace with crossing diagonals, no river, and cannons that must jump a screen even to move. A tutor explains every piece, marks risky points and says why a suggested move is good. Choose your horse and elephant set-up, then play Cho or Han against five computer levels or a friend. Eleven hands-on lessons, passing, bikjang and counting included. Traditional characters or Western letters. No ads, works offline.",
+  "genre": "abstract strategy board game",
+  "demo": true,
+  "howToPlay": [
+    "New here? Eleven short lessons teach every move, or tap Auto Play to watch a free demo play itself (with Pause).",
+    "Choose your set-up: inner, outer, left or right elephant. Cho (green) moves first and chooses first; Han (red) chooses after seeing it.",
+    "TAP one of your pieces: it lifts and its legal points glow. Then TAP a glowing point, or DRAG the piece there.",
+    "The tutor explains how the piece moves and rings the points where it could be lost. Think suggests a move and explains it (3 per game).",
+    "Cannons must jump exactly one piece even to move, and never jump or capture a cannon. Palace diagonals: general, guards, chariots, cannons.",
+    "Stuck? Pass. Facing generals (bikjang) must be broken, or called a draw. Two passes end the game and the pieces are counted.",
+    "Attack the enemy general so it cannot escape: checkmate wins."
+  ]
+}

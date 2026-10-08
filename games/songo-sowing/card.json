@@ -1,0 +1,17 @@
+{
+  "title": "Songo",
+  "tagline": "The sowing game of Central Africa",
+  "description": "Songo is the classic mancala game of Cameroon, Gabon and the Ekang peoples of Central Africa. Fourteen houses, seventy seeds: sow clockwise and capture any opponent house your last seed brings to two, three or four, with the houses behind it. A protected first house, a leftmost house that cannot be sown thin, and long sowings through the opponent's row make it play unlike other mancala games. Nine hands-on lessons, free Auto Play, five computer levels, two players on one phone and a daily puzzle. Carved wood board, seeds that click and roll. No ads, works offline.",
+  "genre": "abstract strategy board game",
+  "demo": true,
+  "howToPlay": [
+    "New here? Nine short lessons teach every move, or watch free Auto Play.",
+    "TAP one of your houses on the bottom row to sow it. Glowing houses are playable.",
+    "Seeds go one per house, clockwise: along your row right to left, then your opponent's row.",
+    "If your last seed makes an opponent house hold 2, 3 or 4, you capture it and any chain behind it.",
+    "A row's first house is safe from one landing seed; its leftmost house can't be sown thin.",
+    "A house with 14 or more seeds goes once round, then only into your opponent's row.",
+    "If your opponent has no seeds, put at least seven on their side if you can.",
+    "First to capture 40 of the 70 seeds wins; below 40 at the end is a draw. Hint shows a move and why."
+  ]
+}

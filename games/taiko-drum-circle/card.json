@@ -1,0 +1,17 @@
+{
+  "title": "Taiko Drum Circle",
+  "tagline": "Hit the centre for don, the rim for ka.",
+  "description": "A rhythm game for the big drums of Japanese ensemble drumming. Tap the middle of a drum for don and the rim for ka, in time, with two thumbs or more. Learn six original pieces by call and response, then play them while a circle of computer drummers joins in layer by layer as your timing tightens. Free play with a metronome and an echo partner, a Watch and Learn demonstration, a calibration screen, and an in-app Rules page. Lit hand-drawn drums, synthesised sound, no ads, works offline.",
+  "genre": "rhythm drumming",
+  "demo": true,
+  "howToPlay": [
+    "Pick a piece, then start with Learn the pattern: the circle plays a phrase and you echo it back.",
+    "Notes fall down a lane onto a drum. A red disc is DON: tap the middle of the drum. A blue ring is KA: tap the rim.",
+    "Tap when the note reaches the drum. Closer to the beat scores more. Use two thumbs, or more fingers, for several drums.",
+    "Play cleanly and more drummers join the circle. Miss and one drops out.",
+    "Free play gives you all four drums with an optional metronome and an echo partner.",
+    "Watch and Learn plays the whole piece for you. Pause it any time.",
+    "Notes early or late? Settings, then Calibrate, and tap along with the pulse.",
+    "On a keyboard: A S D F play don on drums 1 to 4, Z X C V play ka, Space pauses."
+  ]
+}

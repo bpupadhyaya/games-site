@@ -25,7 +25,7 @@ export const HOWTO = [
 export const RULES = [
   { title: 'The court and the game', art: 'court', p: [
     `Two teams of three share one hoop on a half court: 15 m wide and 11 m long. The rim is ${m1(HOOP.y)} m high. Your team is blue, the computer team is red. You control one player; the other five are computer players.`,
-    'To be easy to see on a phone the ball is drawn and simulated twice its real size and the ring and backboard 1.7 times; the proportions between ball and ring are close to real, and the aim noise is scaled to match.',
+    'The ball, the ring and the backboard are drawn and simulated at real size next to the players, so the proportions between player, ball and ring are real.',
     `A full game ends when a team reaches ${FULL.points} points or when ${mins(FULL.seconds)} of game time have passed, whichever comes first. A quick game ends at ${QUICK.points} points or after ${mins(QUICK.seconds)}. When time runs out the higher score wins. A tie goes to overtime: the first team to score 2 more points wins.`,
     'The game clock runs while the ball is live and stops while the ball is dead (after a basket, a turnover, a foul or during free throws).',
   ] },

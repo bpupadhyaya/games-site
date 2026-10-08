@@ -1,0 +1,17 @@
+{
+  "title": "Five in a Row: Renju & Omok",
+  "tagline": "Gomoku, Renju and Omok with a strong AI and a coach.",
+  "description": "Make five in a row to win. Three authentic rule sets (free-style Gomoku, Renju with Black's restrictions and optional tournament openings, and Korean Omok), five computer levels, a coach that explains every threat, eight lessons and a Watch & Learn mode. Lit wooden boards, portrait and landscape.",
+  "genre": "gomoku / five in a row",
+  "demo": true,
+  "howToPlay": [
+    "Touch the board to aim a ghost stone, slide to adjust, lift to place it.",
+    "Be the first to line up five stones: across, up and down, or diagonally.",
+    "In Renju, Black needs exactly five and may not make an overline, a double four or a double three.",
+    "Omok is played on a 19 by 19 board and bans Black's double three.",
+    "Red crosses mark Black's forbidden points; gold and red rings mark fives to make or stop.",
+    "Use Hint for a move with a plain-words explanation, and Undo to take a move back.",
+    "Learn the key patterns in eight short lessons, or watch the computer play both sides.",
+    "Choose a computer level from Learner to Master, or pass the device for two players."
+  ]
+}

@@ -9,7 +9,7 @@ export const ABOUT = [
   { title: 'This version', p: [
     'You play one position on a six-player team. You move that player and act when the ball comes to you: serve, pass, set, spike or block. The other five players on your team and all six rivals are computer players.',
     'You choose your role before the match: setter, outside hitter, middle blocker, opposite or libero. Five rival teams play at five levels. Watch & Learn lets you see a whole match between two computer teams and why they make each choice.',
-    'The rules follow the international indoor rules as closely as a phone game can. Rules lists the few simplifications. The ball and the mannequin players are drawn larger than life so you can follow them and their reach matches the net.',
+    'The rules follow the international indoor rules as closely as a phone game can. Rules lists the few simplifications. The mannequin players are drawn a little larger than life so their reach matches the net, and the ball is scaled with them.',
   ] },
 ];
 
@@ -53,7 +53,7 @@ export const RULES = [
     'You choose the men\'s or women\'s event in the match setup. Both teams always play the same one.',
   ] },
   { title: 'The ball', p: [
-    'A regulation volleyball is about 0.21 m across. In this game the ball is drawn and played about two and a half times as large (about 0.56 m across) so you can follow it on a phone, and the players are drawn about 25% taller than life so their reach still matches the net. Players may touch it with any part of the body. In this game every touch is made with the forearms (a pass or dig), the fingers (a set) or the open hand (a serve, spike, tip or block).',
+    'A regulation volleyball is about 0.21 m across. In this game the ball is drawn at true proportion to the players (about 0.23 m across next to a player drawn about 25% taller than life, so their reach still matches the net). Players may touch it with any part of the body. In this game every touch is made with the forearms (a pass or dig), the fingers (a set) or the open hand (a serve, spike, tip or block).',
   ] },
   { title: 'Teams and positions', art: 'rotation', p: [
     'Six players are on court at a time: three in the front row next to the net (positions 4, 3 and 2 from left to right) and three in the back row (positions 5, 6 and 1). The back-right player (position 1) serves.',
@@ -131,7 +131,7 @@ export const RULES = [
     'Text size scales every text screen from 100% to 300%, including the score bar and buttons in play. Movement help (default Full) can be Full, Light or Off. Sound can be switched off. Watch & Learn thinking time can be 2, 5, 8 or 10 seconds.',
   ] },
   { title: 'What this game simplifies', p: [
-    'The ball and the players are drawn larger than life. Teams do not change ends. The computer places players in legal positions. There are no substitutions other than the libero, no time-outs and no cards. Overlap and rotation faults, foot faults on the serve and a separate centre-line fault are not called (a hitter who lands under the net is called for a net touch).',
+    'The players are drawn about 25% larger than life and the ball is scaled with them. Teams do not change ends. The computer places players in legal positions. There are no substitutions other than the libero, no time-outs and no cards. Overlap and rotation faults, foot faults on the serve and a separate centre-line fault are not called (a hitter who lands under the net is called for a net touch).',
   ] },
 ];
 

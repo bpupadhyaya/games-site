@@ -184,7 +184,6 @@ export async function createPresenter({ kitCanvas, quality = pickQuality() }) {
       const sp = Math.hypot(s.ball.vx, s.ball.vz);
       if (sp > 0.05 || Math.abs(s.ball.vy) > 0.5) { bm.rotation.x += (s.ball.vz * dt) / BALL_R * 0.5; bm.rotation.z -= (s.ball.vx * dt) / BALL_R * 0.5; }
     }
-    if (bm.visible && blobN < 20) P.blobs.set(blobN++, bm.position.x, bm.position.z, 0.34 / (1 + 0.14 * Math.max(0, bm.position.y - BALL_R)), 0.012);   // smaller as the ball rises: the gap between ball and shadow tells the height
     P.blobs.mesh.count = blobN;
     // --- camera: fixed for the whole match at a given screen size. The frame (position, aim, field of view) comes from the game's layout
     // (the same one the 2D HUD projects with), so the picture fills the whole screen in portrait and landscape and the HUD sits on it exactly.

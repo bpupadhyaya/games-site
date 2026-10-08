@@ -6,6 +6,12 @@ import { clamp, hyp, normal, angDiff } from './util.js';
 import * as AI from './ai.js';
 import { visHalfWidth } from './camera.js';
 
+const REACH_PAD = 0;
+const STEAL_K = 1.0;
+const BLOCK_AGE = 0.35;
+const BLOCK_K = 0.3, BLOCK_LUNGE = 0.05;
+const INT_K = 2.1, INT_LUNGE = 0.1, LOOSE_LUNGE = 0.05;   // the true-size ball bounces higher into the hand, so it is exposed less often: compensate
+const AIM_K = 1.04 * (RIM_R - BR) / 0.1718;   // aim noise relative to the ring-minus-ball margin the shot odds were calibrated at
 const PLAYER_R = 0.45 * PLAYER_SCALE;   // personal space grows with the body
 const RING = Array.from({ length: 32 }, (_, k) => ({ x: RIM_R * Math.cos((k / 32) * Math.PI * 2), z: RIM_R * Math.sin((k / 32) * Math.PI * 2) }));
 const NAMES = ['Blue', 'Red'];
@@ -75,7 +81,7 @@ export function createSim(cfg, rng) {
   const sigmaOf = (p, d, c, tq, layup) => {
     const sk = skillOf(p, layup);
     const s0 = layup ? 0.12 : 0.062 + 0.0062 * d;
-    return (s0 * (1.9 - 1.3 * tq) * (1 + 0.9 * c) * 1.55) / sk;
+    return (s0 * (1.9 - 1.3 * tq) * (1 + 0.9 * c) * 1.55 * AIM_K) / sk;
   };
   const SIG = [[0.03, 0.98], [0.05, 0.94], [0.07, 0.81], [0.09, 0.72], [0.11, 0.63], [0.14, 0.50], [0.18, 0.35], [0.25, 0.22], [0.4, 0.10], [0.7, 0.03]];
   const pFromSigma = (sg) => { if (sg <= SIG[0][0]) return SIG[0][1]; for (let i = 1; i < SIG.length; i++) if (sg <= SIG[i][0]) { const [a, pa] = SIG[i - 1], [b, pb] = SIG[i]; return pa + (pb - pa) * (sg - a) / (b - a); } return 0.04; };
@@ -98,7 +104,7 @@ export function createSim(cfg, rng) {
     const hy = p.holdYaw ?? p.face, sinF = Math.sin(hy), cosF = Math.cos(hy);
     const sp = hyp(p.vx, p.vz);
     // lateral offset (hand side) eases across during a crossover; the ball crosses low in front of the body
-    const grow = p.sc + (BR - 0.236) * 0.5, still = p.dstate !== 'drib', lat = still ? 0 : 0.30 * grow * p.sideT, fwd = still ? 0.36 * grow : (0.24 + 0.025 * Math.min(sp, 5)) * grow;   // the toy-scale body and ball ride further out
+    const grow = p.sc + 0.059, still = p.dstate !== 'drib', lat = still ? 0 : 0.30 * grow * p.sideT, fwd = still ? 0.36 * grow : (0.24 + 0.025 * Math.min(sp, 5)) * grow;   // the toy-scale body and ball ride further out
     const y = p.dstate === 'drib' ? d.y(u) : 1.22 * p.sc;
     // the ball drifts forward at the floor contact when moving
     const lead = sp * 0.06 * Math.sin(Math.PI * u);
@@ -427,13 +433,14 @@ export function createSim(cfg, rng) {
   // apart at 1.42 m, a forward lean of about 8 cm): 'two' = both palms on the ball's sides, 'scoop' = one palm on top of a low ball,
   // 'swipe' = one palm on the near side. Every contact in the game (catch, rebound, pickup, steal, block) is gated by this, so the
   // picture can always put the palm on the ball.
+  const BRR = BR + REACH_PAD;   // contact reach is tuned for a ball this much bigger than the drawn one: the lean (poses.js) closes the gap
   const ARM = 0.57, SHO_W = 0.215, SHO_Y = 1.42, LUNGE = 0.08, HT = 0.012;
   function reachCheck(p, kind = 'two', slack = 0.015, lunge = LUNGE) {
     const sc = p.sc, d = Math.hypot(B.x - p.x, B.z - p.z), low = B.y < 0.8 && kind !== 'swipe';
     const shY = SHO_Y * sc + p.jy - (low ? 0.45 : 0), arm = ARM * sc - slack;
-    if (low) return Math.hypot(Math.max(0, d - lunge - 0.02), B.y + BR + HT - shY) <= arm;
-    if (kind === 'swipe') return Math.hypot(Math.max(0, d - lunge), B.y - shY) <= arm + BR + HT - slack;
-    return Math.hypot(Math.max(0, d - lunge), BR + HT - SHO_W * sc, B.y - shY) <= arm;
+    if (low) return Math.hypot(Math.max(0, d - lunge - 0.02), B.y + BRR + HT - shY) <= arm;
+    if (kind === 'swipe') return Math.hypot(Math.max(0, d - lunge), B.y - shY) <= arm + BRR + HT - slack;
+    return Math.hypot(Math.max(0, d - lunge), BRR + HT - SHO_W * sc, B.y - shY) <= arm;
   }
   const reachY = (p) => p.reachH + p.jy;
   function stepBallContacts() {
@@ -451,11 +458,11 @@ export function createSim(cfg, rng) {
         } else {
           // interception: only once per defender; chance by level, closeness and whether hands are up
           if (B.intercepted[p.id] || p.stumble > 0) continue;
-          if (B.y > 0.25 && reachCheck(p)) {
+          if (B.y > 0.25 && reachCheck(p, 'two', 0.015, LUNGE + INT_LUNGE)) {
             B.intercepted[p.id] = true;
             const lv = p.human ? 0.85 : lvOf(p);
             const lvf = p.human ? 0.85 : 0.5 + 0.3 * lv.steal;
-            const pp = clamp(0.2 + 0.4 * lvf - dd * 0.35 + (p.act && p.act.kind === 'steal' ? 0.25 : 0), 0.03, 0.8);
+            const pp = clamp((0.2 + 0.4 * lvf - dd * 0.35 + (p.act && p.act.kind === 'steal' ? 0.25 : 0)) * INT_K, 0.03, 0.95);
             if (R.next() < pp) {
               if (R.next() < 0.45) { caught = p; ev('intercept', { pid: p.id }); } else { B.mode = 'loose'; B.vx *= 0.35; B.vz *= 0.35; B.vy = Math.min(B.vy, 1) ; B.lastTeam = p.team; B.lastId = p.id; B.deflect = true; ev('deflect', { pid: p.id }); return; }
             }
@@ -475,12 +482,12 @@ export function createSim(cfg, rng) {
     if (B.mode === 'shot') {
       B.age += DT;
       // blocks: a defender in a jump contact with the ball just after release
-      if (B.age < 0.5 && B.shot && !B.shot.blocked) {
+      if (B.age < BLOCK_AGE && B.shot && !B.shot.blocked) {
         for (const d of P) {
           if (d.team === B.shot.team || d.out || !d.act || d.act.kind !== 'jump' || d.jy < 0.04) continue;
           const hx = d.x + Math.sin(d.face) * 0.18, hz = d.z + Math.cos(d.face) * 0.18, hy = reachY(d) - 0.05;
-          if (B.y > 1.7 && reachCheck(d, 'two', 0.015, 0.4)) {
-            const pb = clamp(0.5 * ROLES[d.role].block * (d.human ? 0.95 : 0.6 + 0.4 * lvOf(d).ctest), 0, 0.9);
+          if (B.y > 1.7 && reachCheck(d, 'two', 0.015, BLOCK_LUNGE)) {
+            const pb = clamp(BLOCK_K * 0.5 * ROLES[d.role].block * (d.human ? 0.95 : 0.6 + 0.4 * lvOf(d).ctest), 0, 0.9);
             if (R.next() < pb) {
               B.shot.blocked = true; B.mode = 'loose'; B.rim = 1;
               const away = Math.atan2(B.x - d.x, B.z - d.z);
@@ -505,7 +512,7 @@ export function createSim(cfg, rng) {
           const dd = hyp(p.x - B.x, p.z - B.z);
           const ry = reachY(p);
           const low = B.y < 1.15;
-          if (B.y > 0.05 && reachCheck(p, low ? 'scoop' : 'two')) {
+          if (B.y > 0.05 && reachCheck(p, low ? 'scoop' : 'two', 0.015, LUNGE + LOOSE_LUNGE)) {
             const lv = p.human ? 1 : lvOf(p).reb;
             const sc = ry + 0.45 * ROLES[p.role].reb * lv - dd * 0.6 + R.next() * 0.2 + (p.act && p.act.kind === 'jump' ? 0.25 : 0) - (p.id === B.lastId && s.t - B.pickT < 0.4 ? 5 : 0);
             if (sc > bs) { bs = sc; best = p; }
@@ -694,7 +701,7 @@ export function createSim(cfg, rng) {
         const hl = h.human ? 1 : 0.85 + 0.15 * lvOf(h).skill;
         if (ok) {
           const dskill = (p.human ? 0.85 : 0.6 + 0.3 * lvOf(p).steal) * ROLES[p.role].steal;
-          const pst = clamp(0.1 + 0.85 * exposed * dskill - 0.2 * (ROLES[h.role].handle - 0.8) * 0.8, 0.02, 0.85) * (h.crossT > 0 ? 0.4 : 1) * (h.act ? 1.3 : 1) / (0.85 + 0.15 * hl);
+          const pst = clamp(0.1 + 0.85 * exposed * dskill - 0.2 * (ROLES[h.role].handle - 0.8) * 0.8, 0.02, 0.85) * (h.crossT > 0 ? 0.4 : 1) * (h.act ? 1.3 : 1) * STEAL_K / (0.85 + 0.15 * hl);
           if (R.next() < pst) {
             ev('stealHit', { pid: p.id, from: h.id });
             if (R.next() < 0.55) {

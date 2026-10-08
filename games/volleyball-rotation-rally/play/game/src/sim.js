@@ -1,7 +1,7 @@
 // The volleyball simulation: deterministic, pure, no 3D. It owns every position, contact time, contact point and outcome.
 // The presenter (web/view3d) only reads `getState()` (players[].act, ball, events) and animates; it never writes back.
 // One human controls ONE player of team 0 (cfg.role); every other player, and the whole of team 1, is computer controlled.
-import { G, BR, HIT0, BLOCK0, HW, HL, ATK, NET, MODES, setTarget, SHOTS, SHOT_IDS, SERVES, SETS, TECH, LEVELS, HUMAN_SKILL, REACH0, LUNGE, FREE, FRONT, isMB } from './consts.js';
+import { G, BR, BR_PLAY, HIT0, BLOCK0, HW, HL, ATK, NET, MODES, setTarget, SHOTS, SHOT_IDS, SERVES, SETS, TECH, LEVELS, HUMAN_SKILL, REACH0, LUNGE, FREE, FRONT, isMB } from './consts.js';
 import { START_ROT } from './model.js';
 import { clamp, normal, r2, lerp } from './util.js';
 import { posAt, velAt, speedAt, flightTo, landTime, netTime, timeAtHeight } from './ball.js';
@@ -346,8 +346,8 @@ export function createSim(cfg0, rng) {
     if (tn !== null && !ownSide) {
       const pn = posAt(fl, tn);
       if (Math.abs(pn.x) > HW + 0.12 && meta.kind !== 'toss') { schedule(tn, 'wide', { x: pn.x }); return; }
-      if (pn.y < NETH + BR * 0.3) { schedule(tn, 'netHit', { y: pn.y }); return; }
-      if (pn.y < NETH + BR + 0.0) { schedule(tn, 'cord', { y: pn.y }); return; }
+      if (pn.y < NETH + BR_PLAY * 0.3) { schedule(tn, 'netHit', { y: pn.y }); return; }
+      if (pn.y < NETH + BR_PLAY + 0.0) { schedule(tn, 'cord', { y: pn.y }); return; }
       // clean crossing: the other team plays it (a block, if one is up, is resolved at the attack contact itself)
       R.touches[1 - side0] = 0;
       const other = 1 - side0;
@@ -874,7 +874,7 @@ export function createSim(cfg0, rng) {
       const jy = tn >= a.ts && tn <= a.te ? a.h * (1 - Math.pow((tn - a.ta) / (a.ta - a.ts), 2)) : 0;
       const top = BLOCK0 * K + jy;
       const hw = 0.30;
-      if (Math.abs(pn.x - bl.x) <= hw + BR * 0.3 && pn.y <= top - (women ? 0.27 : 0.20)) cands.push({ bl, bp, jy, top, edge: Math.abs(pn.x - bl.x) / hw, margin: top - pn.y });
+      if (Math.abs(pn.x - bl.x) <= hw + BR_PLAY * 0.3 && pn.y <= top - (women ? 0.27 : 0.20)) cands.push({ bl, bp, jy, top, edge: Math.abs(pn.x - bl.x) / hw, margin: top - pn.y });
     }
     // a human blocker who pressed
     const u = userP();
@@ -883,7 +883,7 @@ export function createSim(cfg0, rng) {
       const jy = tn >= a.ts && tn <= a.te ? a.h * (1 - Math.pow((tn - a.ta) / (a.ta - a.ts), 2)) : 0;
       const top = BLOCK0 * K + jy, hw = 0.30;
       const shift = (u.act.press && u.act.press.aim ? u.act.press.aim.lat : 0) * 0.30 * latSign(u.team) * 0;
-      if (dp <= 1.4 && Math.abs(pn.x - u.x) <= hw + BR * 0.3 && pn.y <= top - (women ? 0.27 : 0.20)) cands.push({ bl: { pid: u.id, x: u.x, air: a, h: a.h, ta: a.ta, act: u.act, user: true }, bp: u, jy, top, edge: Math.abs(pn.x - u.x) / hw, margin: top - pn.y });
+      if (dp <= 1.4 && Math.abs(pn.x - u.x) <= hw + BR_PLAY * 0.3 && pn.y <= top - (women ? 0.27 : 0.20)) cands.push({ bl: { pid: u.id, x: u.x, air: a, h: a.h, ta: a.ta, act: u.act, user: true }, bp: u, jy, top, edge: Math.abs(pn.x - u.x) / hw, margin: top - pn.y });
     }
     if (!cands.length) {
       // missed: the blockers' hands go to where the ball is not

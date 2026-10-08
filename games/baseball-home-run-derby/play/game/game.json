@@ -1,0 +1,25 @@
+{
+  "slug": "baseball-home-run-derby",
+  "title": "Moonshot Baseball",
+  "tagline": "Read the pitch, time the swing, send it over the fence.",
+  "genre": "Baseball slugging contest",
+  "orientation": "any",
+  "version": "1.0.1",
+  "monetization": {
+    "model": "premium",
+    "priceUsd": 3.99,
+    "previewSeconds": 90,
+    "products": [
+      {
+        "id": "unlock_game",
+        "type": "non-consumable",
+        "priceUsd": 3.99,
+        "title": "Unlock Game"
+      }
+    ]
+  },
+  "locales": [
+    "en"
+  ],
+  "demoOnly": true
+}

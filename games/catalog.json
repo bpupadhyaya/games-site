@@ -53,6 +53,24 @@
     "play": "games/ampe-jump-and-clap/play/"
   },
   {
+    "slug": "badminton-rally",
+    "stage": "release-candidate",
+    "title": "Badminton Rally",
+    "tagline": "Swipe your strokes. Win the rally.",
+    "description": "Play singles badminton in real 3D: swipe to clear, drop, smash and net-shot, with true shuttlecock flight. Five computer levels, a knockout tournament against eight rivals, Rally Challenge, Think hints and Watch & Learn.",
+    "genre": "3D badminton",
+    "demo": true,
+    "howToPlay": [
+      "Your player runs to the shuttle by himself: you choose the stroke and where it goes.",
+      "Swipe when the ring closes on the shuttle: short = drop or net shot, medium = clear or lift, long = smash or drive.",
+      "The angle of the swipe aims left or right. A tap is a safe return.",
+      "Win rallies to 21 (win by 2) or climb the eight-rival tournament.",
+      "Think shows the coach's stroke and why; Watch & Learn plays a match and explains each choice."
+    ],
+    "icon": "games/badminton-rally/icon.svg",
+    "play": "games/badminton-rally/play/"
+  },
+  {
     "slug": "baloot-sun-hokum-table",
     "stage": "release-candidate",
     "title": "Baloot",
@@ -95,6 +113,17 @@
     "play": "games/bao-la-kiswahili/play/"
   },
   {
+    "slug": "baseball-home-run-derby",
+    "stage": "release-candidate",
+    "title": "Moonshot Baseball",
+    "tagline": "Read the pitch, time the swing, clear the fence.",
+    "description": "A real 3D home run contest: hold and drag to aim, lift to swing, chase the lit section of the stands, and watch the ball fly in slow motion. A bracket of eight batters, three original ballparks, five pitch types and an Auto Play mode that thinks out loud.",
+    "genre": "Baseball slugging contest",
+    "demo": true,
+    "icon": "games/baseball-home-run-derby/icon.svg",
+    "play": "games/baseball-home-run-derby/play/"
+  },
+  {
     "slug": "basketball-three-on-three",
     "stage": "release-candidate",
     "title": "Basketball 3x3",
@@ -131,6 +160,24 @@
     ],
     "icon": "games/big-card-solitaire-large-print/icon.svg",
     "play": "games/big-card-solitaire-large-print/play/"
+  },
+  {
+    "slug": "bocce-roll",
+    "stage": "release-candidate",
+    "title": "Bocce Roll",
+    "tagline": "Pull back, roll, curve, bank it off the rails.",
+    "description": "Italian bocce on a lit garden court. Slingshot your ball toward the pallino, choose to roll, lob or hit, add curve, bank off the rails and outplay six rivals, a partner team, or a friend.",
+    "genre": "bocce / court physics",
+    "demo": true,
+    "howToPlay": [
+      "Press on the lower court and drag back like a slingshot, then let go to throw.",
+      "Pull length sets the power and pull direction sets the aim.",
+      "Choose Roll, Lob or Hit and add curve with the arrows.",
+      "The side whose ball is not closest keeps playing; the closest ball scores.",
+      "First to 12 points wins."
+    ],
+    "icon": "games/bocce-roll/icon.svg",
+    "play": "games/bocce-roll/play/"
   },
   {
     "slug": "carrom-striker-and-queen",
@@ -289,6 +336,62 @@
     "play": "games/curling-stone-and-sweep/play/"
   },
   {
+    "slug": "dame-ghana-draughts",
+    "stage": "release-candidate",
+    "title": "Dame: West African Draughts",
+    "tagline": "Flying kings, backward captures, bottle caps.",
+    "description": "Dame, called Damii in Ghana, is draughts as played across West Africa. Men capture backwards, kings fly the whole diagonal, and in Damii a side down to its last piece has lost. Play the 10 by 10 board or the 8 by 8 school board against four computer levels, get hints that explain themselves, or watch the computer play both sides. A full Rules reference with diagrams is built in. Large text, reduced motion, no ads, works offline.",
+    "genre": "draughts board game",
+    "demo": true,
+    "howToPlay": [
+      "On the menu pick the board, the computer level and your side, then tap Play.",
+      "Tap one of your pieces: it lifts and its legal squares glow. Tap a glowing square to move.",
+      "Capture is compulsory. Pieces that can capture glow, and only they can be picked up.",
+      "Men capture backwards too. You may choose any capture, but you must finish the chain you start.",
+      "For a chain of jumps tap each landing square. The piece plays on by itself when only one chain is left.",
+      "Reach the far row to crown a king. A king flies any distance and lands anywhere behind the piece it takes.",
+      "In Damii a side left with one piece has lost. Win by capturing everything or leaving no legal move.",
+      "Hint shows a good move and why. Take back undoes your last move. Watch and Learn plays both sides."
+    ],
+    "icon": "games/dame-ghana-draughts/icon.svg",
+    "play": "games/dame-ghana-draughts/play/"
+  },
+  {
+    "slug": "datse-bhutan-archery",
+    "stage": "release-candidate",
+    "title": "Datse: Bhutan Archery",
+    "tagline": "Read the wind, draw, and send the arrow 145 metres down the valley.",
+    "description": "Bhutan's national sport as a 3D game: teams of three shoot two arrows each at small painted boards 145 metres apart across a mountain valley. Read the wind, aim in the zoomed sight lens, draw and hold steady, and follow the arrow all the way. Land the karay, the painted bullseye, and your team dances and sings.",
+    "genre": "sports archery",
+    "demo": true,
+    "howToPlay": [
+      "Drag on the sight lens to put the reticle on the board; read the wind from the flags and compass.",
+      "Hold DRAW until the ring is full, then wait for the calm moment of your breath.",
+      "Let go: the arrow flies for about three seconds. Touch and hold to speed it up.",
+      "Karay 3 points, board 2, near miss 1. Hits cancel at the end of each round; first to the target wins."
+    ],
+    "icon": "games/datse-bhutan-archery/icon.svg",
+    "play": "games/datse-bhutan-archery/play/"
+  },
+  {
+    "slug": "diabolo-yo-yo-skill",
+    "stage": "release-candidate",
+    "title": "Spin and String",
+    "tagline": "A string, a spin and a steady hand.",
+    "description": "Two classic skill toys in one lit 3D workshop: the yo-yo and the diabolo. Real physics for spin, string and a steady axle. Flick to throw, toss and catch, chain tricks for style, take the daily challenge, or watch the game think up a trick and show it as a ghost.",
+    "genre": "skill toy / spinning string toys",
+    "demo": true,
+    "howToPlay": [
+      "Press and drag: the hand follows your finger and eases back to rest when you lift.",
+      "Yo-yo: flick down to throw, keep still while it sleeps, flick up to bring it home.",
+      "Diabolo: shake left and right to spin it up, flick up to toss, slide under it to catch.",
+      "Keep an eye on the spin bar: without spin a yo-yo cannot climb and a diabolo wobbles.",
+      "Climb the Trick Book, chain tricks in a Show, or try today's Daily Challenge."
+    ],
+    "icon": "games/diabolo-yo-yo-skill/icon.svg",
+    "play": "games/diabolo-yo-yo-skill/play/"
+  },
+  {
     "slug": "diketo-stones",
     "stage": "release-candidate",
     "title": "Diketo: Stones",
@@ -305,6 +408,26 @@
     ],
     "icon": "games/diketo-stones/icon.svg",
     "play": "games/diketo-stones/play/"
+  },
+  {
+    "slug": "djembe-drum-circle",
+    "stage": "release-candidate",
+    "title": "Djembe Drum Circle",
+    "tagline": "Three strokes. One circle of drums.",
+    "description": "Play a lit, hand-painted djembe, the goblet drum of West Africa, with real bass, tone and slap strokes: touch the middle, the ring or the very edge, with as many fingers as you like. Echo a lead drummer, build a full circle one drummer at a time, learn six rhythms in the style of Guinean and Malian dance music, or drum freely and record loops. Everything you hear is made by the game, offline, with timing you can calibrate to your own device.",
+    "genre": "rhythm drum game",
+    "demo": true,
+    "howToPlay": [
+      "Touch the middle of the skin for Bass, the ring near the rim for Tone, the very edge for Slap.",
+      "Notes slide toward the glowing line: top row Slap, middle row Tone, bottom row Bass. Strike as a note arrives.",
+      "Echo: the lead drummer plays one bar, then you play it back. Eight rounds, growing each time.",
+      "Circle: hold the djembe part. Play well for two bars and the next drummer joins the circle.",
+      "Learn: six rhythms. Listen, practise slowly with the drum lit for you, then play with the full circle.",
+      "Free Drum: record a two-bar loop and layer up to three parts on top of it.",
+      "Settings has Calibrate, difficulty, calm motion and text size up to 300%. Auto Play shows each rhythm with its strokes named."
+    ],
+    "icon": "games/djembe-drum-circle/icon.svg",
+    "play": "games/djembe-drum-circle/play/"
   },
   {
     "slug": "domino-cubano-doble-nueve",
@@ -581,6 +704,61 @@
     "play": "games/harvest-sling/play/"
   },
   {
+    "slug": "hasami-shogi-pairs",
+    "stage": "release-candidate",
+    "title": "Hasami Shogi: Pairs",
+    "tagline": "Sandwich the enemy on a nine by nine board.",
+    "description": "Hasami shogi (hasami is sandwich, shogi is Japanese chess) is a traditional Japanese board game on a nine by nine board. Every piece slides like a rook, and you capture by trapping an enemy piece between two of yours. Play Classic, the quick first-to-five-captures game, or Dai (\"large\") with jumping and five in a row. Five computer levels, two players on one phone, hands-on lessons, hints that explain why, danger marks, take back and a Watch & Learn mode. A lit wooden board, large text and reduced motion options, no ads, works offline.",
+    "genre": "Japanese custodian-capture board game",
+    "demo": true,
+    "howToPlay": [
+      "New here? Tap Learn to play: eight short hands-on lessons where you make every move yourself.",
+      "Tap a piece and its reachable squares glow. Every piece slides like a rook along an open row or column.",
+      "Tap a glowing square or drag the piece there. A red ring means the move captures; the number says how many.",
+      "Sandwich an enemy piece, or a whole line of them, between two of yours to remove it. Stepping into a sandwich yourself is safe.",
+      "A piece in a corner falls when you hold both squares beside it. Other edge pieces cannot be captured against the edge.",
+      "Classic: leave your opponent one piece. Quick: capture five. Dai: jump a neighbour and make five in a row outside your home rows.",
+      "Hint explains a good move. Danger marks warn about pieces that can be captured next. Take back undoes your last move.",
+      "Auto Play shows the computer playing both sides, with Pause. 30 quiet moves each settle Classic and Quick on pieces."
+    ],
+    "icon": "games/hasami-shogi-pairs/icon.svg",
+    "play": "games/hasami-shogi-pairs/play/"
+  },
+  {
+    "slug": "hawalis-gulf-sowing",
+    "stage": "release-candidate",
+    "title": "Hawalis: Gulf Sowing",
+    "tagline": "The four-row sowing game of Oman and the Gulf.",
+    "description": "A carved teak board of twenty-eight holes with pearl seeds: sow round your own two rows, relay through full holes and capture when your last seed lands in your inner row facing seeds. Five opponent levels, two players on one phone, Think with a reason in words, six lessons and Watch & Learn. No timers and no ads.",
+    "genre": "mancala, sowing and capture",
+    "demo": true,
+    "howToPlay": [
+      "Tap one of your holes that holds seeds. All its seeds are dropped one by one into the next holes of your loop.",
+      "If your last seed lands in a hole that already holds seeds, pick those up and sow on.",
+      "If your last seed lands in your inner row facing seeds, you capture them, plus the outer hole behind if full.",
+      "The game ends when a player runs out of seeds. The player with more captured seeds wins.",
+      "Think shows the best move and why."
+    ],
+    "icon": "games/hawalis-gulf-sowing/icon.svg",
+    "play": "games/hawalis-gulf-sowing/play/"
+  },
+  {
+    "slug": "highland-games-caber",
+    "stage": "release-candidate",
+    "title": "Highland Games: Caber Toss",
+    "tagline": "Toss the caber and win the day in a 3D glen",
+    "description": "A small Highland Games festival: lift, run and heave the caber so it turns and lands at 12 o'clock, then put the stone and clear the bar. A lifelike athlete, real pole physics and slow-motion replays.",
+    "genre": "strength sport festival",
+    "demo": true,
+    "howToPlay": [
+      "Balance the caber with the pad, then tap the button on each beat of the run.",
+      "Tap HEAVE in the green so the pole turns and lands pointing at 12 o'clock.",
+      "Put the stone and clear the bar to finish the festival."
+    ],
+    "icon": "games/highland-games-caber/icon.svg",
+    "play": "games/highland-games-caber/play/"
+  },
+  {
     "slug": "huarong-dao-sliding-puzzle",
     "stage": "release-candidate",
     "title": "Huarong Dao: Sliding Puzzle",
@@ -635,6 +813,26 @@
     ],
     "icon": "games/jack-and-boule-petanque/icon.svg",
     "play": "games/jack-and-boule-petanque/play/"
+  },
+  {
+    "slug": "janggi-korean-chess-tutor",
+    "stage": "release-candidate",
+    "title": "Janggi: Korean Chess",
+    "tagline": "Korean chess with a tutor",
+    "description": "Janggi is Korean chess: two armies of carved octagonal pieces, each general guarded inside a palace with crossing diagonals, no river, and cannons that must jump a screen even to move. A tutor explains every piece, marks risky points and says why a suggested move is good. Choose your horse and elephant set-up, then play Cho or Han against five computer levels or a friend. Eleven hands-on lessons, passing, bikjang and counting included. Traditional characters or Western letters. No ads, works offline.",
+    "genre": "abstract strategy board game",
+    "demo": true,
+    "howToPlay": [
+      "New here? Eleven short lessons teach every move, or tap Auto Play to watch a free demo play itself (with Pause).",
+      "Choose your set-up: inner, outer, left or right elephant. Cho (green) moves first and chooses first; Han (red) chooses after seeing it.",
+      "TAP one of your pieces: it lifts and its legal points glow. Then TAP a glowing point, or DRAG the piece there.",
+      "The tutor explains how the piece moves and rings the points where it could be lost. Think suggests a move and explains it (3 per game).",
+      "Cannons must jump exactly one piece even to move, and never jump or capture a cannon. Palace diagonals: general, guards, chariots, cannons.",
+      "Stuck? Pass. Facing generals (bikjang) must be broken, or called a draw. Two passes end the game and the pieces are counted.",
+      "Attack the enemy general so it cannot escape: checkmate wins."
+    ],
+    "icon": "games/janggi-korean-chess-tutor/icon.svg",
+    "play": "games/janggi-korean-chess-tutor/play/"
   },
   {
     "slug": "kabaddi-raid-and-tag",
@@ -900,6 +1098,24 @@
     "play": "games/matkot-beach-rally/play/"
   },
   {
+    "slug": "mehen-coiled-snake-race",
+    "stage": "release-candidate",
+    "title": "Mehen: Coiled Snake Race",
+    "tagline": "Throw. Roll. Reach the head.",
+    "description": "Race carved lions along a coiled snake of stone from its tail to its head. Throw four sticks, choose a lion, spend a marble to nudge the throw, rest on the carved stones and knock rivals back to the start. Two to six seats, four computer levels, three race lengths, Think with a plain-English reason and Watch & Learn. A reconstruction of the ancient Egyptian game, because no original rules survive. No timers and no ads.",
+    "genre": "ancient race board game",
+    "demo": true,
+    "howToPlay": [
+      "Throw four sticks: the flat sides facing up are your steps (none up counts as 5). A 4 or 5 earns another throw.",
+      "Tap a lion, or the lit stone it would land on, to move it from the tail toward the head in the middle of the snake.",
+      "Spend a marble to make a throw one more or one less. Marbles are also won by capturing and by bringing a lion home.",
+      "Land on a rival lion to send it back to the tail and take one of its marbles, unless it rests on a gold-diamond stone.",
+      "Bring all your lions to the head with an exact count to win. The rules are a reconstruction; the Rules page explains each choice."
+    ],
+    "icon": "games/mehen-coiled-snake-race/icon.svg",
+    "play": "games/mehen-coiled-snake-race/play/"
+  },
+  {
     "slug": "mill-nine-mens-morris",
     "stage": "production",
     "title": "Nine Men's Morris",
@@ -1163,6 +1379,27 @@
     "play": "games/parques-colombiano-carcel/play/"
   },
   {
+    "slug": "peg-solitaire-board",
+    "stage": "release-candidate",
+    "title": "Peg Solitaire",
+    "tagline": "Jump. Capture. Leave just one.",
+    "description": "The classic jumping puzzle from the French court, on a lit wooden board with glass pegs. Five boards (Triangle, English, French, Diamond, Grand Cross), 60 curated puzzles with stars and par, a Daily puzzle, hints from a solver and Auto Play that shows a full solution. No clock, no ads, works offline.",
+    "genre": "board puzzle",
+    "demo": true,
+    "howToPlay": [
+      "Tap a peg: golden holes show where it can jump. Tap one, or drag the peg there.",
+      "A jump goes in a straight line over one neighbouring peg into an empty hole. The peg you jumped is removed.",
+      "On the Triangle board pegs can also jump along both diagonals.",
+      "If the same peg can jump again it stays lifted, so chain jumps in one move.",
+      "Leave one peg for three stars, two for two, three or four for one.",
+      "Stuck? Undo as often as you like, or ask for a Hint: it shows a real route to one peg.",
+      "Puzzles open one after another on five boards. The Daily puzzle is the same for everyone.",
+      "Auto Play shows a whole game solved, with pause and adjustable think time."
+    ],
+    "icon": "games/peg-solitaire-board/icon.svg",
+    "play": "games/peg-solitaire-board/play/"
+  },
+  {
     "slug": "pelota-wall-rally",
     "stage": "release-candidate",
     "title": "Pelota Vasca",
@@ -1202,6 +1439,27 @@
     "play": "games/perch/play/"
   },
   {
+    "slug": "renju-omok-five-row",
+    "stage": "release-candidate",
+    "title": "Five in a Row: Renju & Omok",
+    "tagline": "Gomoku, Renju and Omok with a strong AI and a coach.",
+    "description": "Make five in a row to win. Three authentic rule sets (free-style Gomoku, Renju with Black's restrictions and optional tournament openings, and Korean Omok), five computer levels, a coach that explains every threat, eight lessons and a Watch & Learn mode. Lit wooden boards, portrait and landscape.",
+    "genre": "gomoku / five in a row",
+    "demo": true,
+    "howToPlay": [
+      "Touch the board to aim a ghost stone, slide to adjust, lift to place it.",
+      "Be the first to line up five stones: across, up and down, or diagonally.",
+      "In Renju, Black needs exactly five and may not make an overline, a double four or a double three.",
+      "Omok is played on a 19 by 19 board and bans Black's double three.",
+      "Red crosses mark Black's forbidden points; gold and red rings mark fives to make or stop.",
+      "Use Hint for a move with a plain-words explanation, and Undo to take a move back.",
+      "Learn the key patterns in eight short lessons, or watch the computer play both sides.",
+      "Choose a computer level from Learner to Master, or pass the device for two players."
+    ],
+    "icon": "games/renju-omok-five-row/icon.svg",
+    "play": "games/renju-omok-five-row/play/"
+  },
+  {
     "slug": "royal-game-of-ur-race",
     "stage": "production",
     "title": "The Royal Game of Ur",
@@ -1221,6 +1479,24 @@
     ],
     "icon": "games/royal-game-of-ur-race/icon.svg",
     "play": "games/royal-game-of-ur-race/play/"
+  },
+  {
+    "slug": "russian-loto-barrels",
+    "stage": "release-candidate",
+    "title": "Russian Loto: Barrels",
+    "tagline": "Wooden kegs, cardboard cards, a calm race to call LOTO.",
+    "description": "The family number game of Russia and the former Soviet lands. Wooden kegs numbered 1 to 90 tumble out of a linen bag; cover the called numbers on up to six cards, beat the computer players and call ROW, TWO ROWS or LOTO. Face to face, daily challenge and a Watch & Learn mode included.",
+    "genre": "number lotto game",
+    "demo": true,
+    "howToPlay": [
+      "Pick how many cards to play, from 1 to 6.",
+      "A keg tumbles out and its number is called.",
+      "Look in the matching column (1-9, 10-19 ... 80-90) and tap the number.",
+      "Each keg stays open only for a few draws, so be quick.",
+      "Press ROW, TWO ROWS or LOTO when you have it, before the computer does."
+    ],
+    "icon": "games/russian-loto-barrels/icon.svg",
+    "play": "games/russian-loto-barrels/play/"
   },
   {
     "slug": "sapo-frog-toss",
@@ -1377,6 +1653,27 @@
     "play": "games/snooker-cue-and-frame/play/"
   },
   {
+    "slug": "songo-sowing",
+    "stage": "release-candidate",
+    "title": "Songo",
+    "tagline": "The sowing game of Central Africa",
+    "description": "Songo is the classic mancala game of Cameroon, Gabon and the Ekang peoples of Central Africa. Fourteen houses, seventy seeds: sow clockwise and capture any opponent house your last seed brings to two, three or four, with the houses behind it. A protected first house, a leftmost house that cannot be sown thin, and long sowings through the opponent's row make it play unlike other mancala games. Nine hands-on lessons, free Auto Play, five computer levels, two players on one phone and a daily puzzle. Carved wood board, seeds that click and roll. No ads, works offline.",
+    "genre": "abstract strategy board game",
+    "demo": true,
+    "howToPlay": [
+      "New here? Nine short lessons teach every move, or watch free Auto Play.",
+      "TAP one of your houses on the bottom row to sow it. Glowing houses are playable.",
+      "Seeds go one per house, clockwise: along your row right to left, then your opponent's row.",
+      "If your last seed makes an opponent house hold 2, 3 or 4, you capture it and any chain behind it.",
+      "A row's first house is safe from one landing seed; its leftmost house can't be sown thin.",
+      "A house with 14 or more seeds goes once round, then only into your opponent's row.",
+      "If your opponent has no seeds, put at least seven on their side if you can.",
+      "First to capture 40 of the 70 seeds wins; below 40 at the end is a draw. Hint shows a move and why."
+    ],
+    "icon": "games/songo-sowing/icon.svg",
+    "play": "games/songo-sowing/play/"
+  },
+  {
     "slug": "spinning-tops-arena",
     "stage": "release-candidate",
     "title": "Spinning Tops Arena",
@@ -1393,6 +1690,24 @@
     ],
     "icon": "games/spinning-tops-arena/icon.svg",
     "play": "games/spinning-tops-arena/play/"
+  },
+  {
+    "slug": "sudoku-nine-by-nine",
+    "stage": "release-candidate",
+    "title": "Sudoku Nine by Nine",
+    "tagline": "Pure logic, beautifully made. Hints that teach.",
+    "description": "Classic Sudoku on soft, tactile tiles. Every puzzle has exactly one solution and is graded by the techniques a person needs. Daily puzzle, pencil marks, undo, and hints that explain the logic step by step. Portrait or landscape, phone or tablet.",
+    "genre": "Logic puzzle",
+    "demo": true,
+    "howToPlay": [
+      "Fill the grid so every row, column and 3x3 box holds 1 to 9 once.",
+      "Tap a tile, then tap a number. Use Pencil for small candidate marks.",
+      "Tap the bulb for a hint: where to look, then why it works.",
+      "Pick Easy to Master, or play the Daily Puzzle and keep your streak.",
+      "Watch and Learn solves a puzzle for you and explains every step."
+    ],
+    "icon": "games/sudoku-nine-by-nine/icon.svg",
+    "play": "games/sudoku-nine-by-nine/play/"
   },
   {
     "slug": "surakarta-looped-capture",
@@ -1452,6 +1767,46 @@
     ],
     "icon": "games/tab-stick-race/icon.svg",
     "play": "games/tab-stick-race/play/"
+  },
+  {
+    "slug": "table-tennis-rally",
+    "stage": "release-candidate",
+    "title": "Table Tennis Rally",
+    "tagline": "Real 3D table tennis. Spin it, place it, win it.",
+    "description": "Slide, flick and read the spin in a fast, real 3D table tennis game for one finger. Play 18 opponents, six tournament cups, a ball machine challenge and a coach that explains every shot.",
+    "genre": "table tennis",
+    "demo": true,
+    "howToPlay": [
+      "Hold a finger on the table: your paddle slides under it.",
+      "Flick up to hit: gentle is a touch, medium is a topspin loop, hard is a fast drive.",
+      "Flick down for a push or a chop with backspin.",
+      "Tilt the flick to aim, curve it for sidespin.",
+      "Read the spin tag on the ball and pick the stroke that suits it.",
+      "Games go to 11 and must be won by 2."
+    ],
+    "icon": "games/table-tennis-rally/icon.svg",
+    "play": "games/table-tennis-rally/play/"
+  },
+  {
+    "slug": "taiko-drum-circle",
+    "stage": "release-candidate",
+    "title": "Taiko Drum Circle",
+    "tagline": "Hit the centre for don, the rim for ka.",
+    "description": "A rhythm game for the big drums of Japanese ensemble drumming. Tap the middle of a drum for don and the rim for ka, in time, with two thumbs or more. Learn six original pieces by call and response, then play them while a circle of computer drummers joins in layer by layer as your timing tightens. Free play with a metronome and an echo partner, a Watch and Learn demonstration, a calibration screen, and an in-app Rules page. Lit hand-drawn drums, synthesised sound, no ads, works offline.",
+    "genre": "rhythm drumming",
+    "demo": true,
+    "howToPlay": [
+      "Pick a piece, then start with Learn the pattern: the circle plays a phrase and you echo it back.",
+      "Notes fall down a lane onto a drum. A red disc is DON: tap the middle of the drum. A blue ring is KA: tap the rim.",
+      "Tap when the note reaches the drum. Closer to the beat scores more. Use two thumbs, or more fingers, for several drums.",
+      "Play cleanly and more drummers join the circle. Miss and one drops out.",
+      "Free play gives you all four drums with an optional metronome and an echo partner.",
+      "Watch and Learn plays the whole piece for you. Pause it any time.",
+      "Notes early or late? Settings, then Calibrate, and tap along with the pulse.",
+      "On a keyboard: A S D F play don on drums 1 to 4, Z X C V play ka, Space pauses."
+    ],
+    "icon": "games/taiko-drum-circle/icon.svg",
+    "play": "games/taiko-drum-circle/play/"
   },
   {
     "slug": "tangram-seven-pieces",
@@ -1535,6 +1890,24 @@
     ],
     "icon": "games/tavli-kafeneio-trio/icon.svg",
     "play": "games/tavli-kafeneio-trio/play/"
+  },
+  {
+    "slug": "tennis-court-rally",
+    "stage": "release-candidate",
+    "title": "Tennis Court Rally",
+    "tagline": "Swipe to aim. Release on the ring. Win the set.",
+    "description": "Lawn tennis, born in England, in real 3D. Press and drag on the court to choose where the ball lands, release as the ring closes, and play games, sets and tiebreaks on lawn, clay or hard courts. Five rival levels, Learn lessons, Think hints and Watch & Learn.",
+    "genre": "tennis",
+    "demo": true,
+    "howToPlay": [
+      "Your player runs to the ball; you choose the shot.",
+      "Press and drag on the court: far up is a drive, short is a drop, down is a lob.",
+      "Release as the ring closes for a clean strike.",
+      "Serve with one gesture: press to toss, drag to aim, release at the top.",
+      "Win games and the set against five rival levels."
+    ],
+    "icon": "games/tennis-court-rally/icon.svg",
+    "play": "games/tennis-court-rally/play/"
   },
   {
     "slug": "tiger-and-goat",
@@ -1660,19 +2033,19 @@
     "slug": "word-game",
     "stage": "release-candidate",
     "title": "Word Game",
-    "tagline": "Tap the matching word before it drifts away.",
-    "description": "Word Game is a fast vocabulary drill built around over 300 graduate-level words. A target word appears at the top and three candidate words drift across the screen - tap the correct synonym or antonym before it drifts away. After every session you get a full review of each word: what you tapped, the correct answer and its meaning, so mistakes turn into words you remember. A full in-app Rules page explains every mechanic.",
-    "genre": "timed vocabulary drill",
+    "tagline": "Learn English words by playing. Your words, your pace.",
+    "description": "Word Game is a fast arcade-style vocabulary game. A question appears at the top and three words drift across the screen - tap the right one before it leaves. Choose your own words by school level, kind of word and topic, make a study set and be quizzed on it, and set the pace from a very slow practice speed to a fast sprint. Questions cover synonyms, antonyms, meanings, odd one out, spelling and listening. Words you miss come back for spaced review, your progress is stored only on your phone and you can export it any time. A full in-app Rules page explains every mechanic.",
+    "genre": "vocabulary game",
     "demo": true,
     "howToPlay": [
-      "Choose Synonym or Antonym mode, then tap Play to start a 90-second session.",
-      "A target word appears at the top; three candidate words drift in from the right.",
-      "Tap the one word that correctly matches the target before it drifts off-screen.",
-      "A correct tap scores a point and the next word appears immediately.",
-      "A wrong tap, or letting the right word drift past, ends that word with no point - the next word appears right away.",
-      "Tap Stop any time to end the session early, or tap Watch & Learn for a free, untimed Auto Play demo that plays itself.",
-      "When the session ends, review every word: your answer, the correct answer and its meaning. Then play again to beat your best score.",
-      "Tap Colours on the title screen or while playing to switch colour schemes - the default is kept and your choice is remembered."
+      "Tap Play for a quick Classic session, or open Words & pace to choose your word levels, kinds of words, topics, question types and speed.",
+      "Try the Journey: a campaign from letters and first words up to graduate vocabulary, with stars, checkpoints and a placement check.",
+      "A question appears at the top; three words drift in from the right. Tap the right one before it leaves on the left.",
+      "Right answers build a combo up to x4. A wrong tap or a miss resets it. The right answer and its meaning flash by after each answer.",
+      "Study makes a set of 5 to 100 words with meanings and flashcards, then quizzes you on just those words.",
+      "Review brings back the words that are due, so what you miss comes back sooner and what you know comes back later.",
+      "Progress shows your streak, daily goal, mastery stages and levels. Your data export gives you a backup or spreadsheet any time.",
+      "Tap Watch & Learn for a free demo that plays itself and pauses before every answer so you can guess first."
     ],
     "icon": "games/word-game/icon.svg",
     "play": "games/word-game/play/"

@@ -1,0 +1,13 @@
+{
+  "title": "Datse: Bhutan Archery",
+  "tagline": "Read the wind, draw, and send the arrow 145 metres down the valley.",
+  "description": "Bhutan's national sport as a 3D game: teams of three shoot two arrows each at small painted boards 145 metres apart across a mountain valley. Read the wind, aim in the zoomed sight lens, draw and hold steady, and follow the arrow all the way. Land the karay, the painted bullseye, and your team dances and sings.",
+  "genre": "sports archery",
+  "demo": true,
+  "howToPlay": [
+    "Drag on the sight lens to put the reticle on the board; read the wind from the flags and compass.",
+    "Hold DRAW until the ring is full, then wait for the calm moment of your breath.",
+    "Let go: the arrow flies for about three seconds. Touch and hold to speed it up.",
+    "Karay 3 points, board 2, near miss 1. Hits cancel at the end of each round; first to the target wins."
+  ]
+}

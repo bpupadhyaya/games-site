@@ -1,0 +1,28 @@
+// Achievements: small, kind badges for consistency, mastery and exploration. Never loss-based. Evaluated from a plain stats object.
+export const ACH = [
+  { id: 'first', name: 'First steps', desc: 'Finish your first session', test: (s) => s.sessions >= 1 },
+  { id: 'streak3', name: 'On a roll', desc: 'Get 3 right in a row', test: (s) => s.bestStreak >= 3 },
+  { id: 'streak10', name: 'Unstoppable', desc: 'Get 10 right in a row', test: (s) => s.bestStreak >= 10 },
+  { id: 'streak20', name: 'Word wizard', desc: 'Get 20 right in a row', test: (s) => s.bestStreak >= 20 },
+  { id: 'perfect', name: 'Flawless', desc: 'Finish a session of 10 or more with every answer right', test: (s) => s.perfect },
+  { id: 'met50', name: 'Curious', desc: 'Meet 50 different words', test: (s) => s.met >= 50 },
+  { id: 'met500', name: 'Collector', desc: 'Meet 500 different words', test: (s) => s.met >= 500 },
+  { id: 'met2000', name: 'Walking dictionary', desc: 'Meet 2,000 different words', test: (s) => s.met >= 2000 },
+  { id: 'know100', name: 'Solid 100', desc: 'Reliably know 100 words', test: (s) => s.know >= 100 },
+  { id: 'know1000', name: 'Solid 1,000', desc: 'Reliably know 1,000 words', test: (s) => s.know >= 1000 },
+  { id: 'days3', name: 'Habit forming', desc: 'Play 3 days in a row', test: (s) => s.streakDays >= 3 },
+  { id: 'days7', name: 'A whole week', desc: 'Play 7 days in a row', test: (s) => s.streakDays >= 7 },
+  { id: 'days30', name: 'A whole month', desc: 'Play 30 days in a row', test: (s) => s.streakDays >= 30 },
+  { id: 'goal', name: 'Goal reached', desc: 'Reach your daily goal', test: (s) => s.goalHit },
+  { id: 'star1', name: 'First star', desc: 'Earn a star on the Journey', test: (s) => s.stars >= 1 },
+  { id: 'star25', name: 'Star collector', desc: 'Earn 25 stars on the Journey', test: (s) => s.stars >= 25 },
+  { id: 'world1', name: 'World explorer', desc: 'Pass a checkpoint test', test: (s) => s.checks >= 1 },
+  { id: 'world4', name: 'Far traveller', desc: 'Pass four checkpoint tests', test: (s) => s.checks >= 4 },
+  { id: 'letters', name: 'Alphabet star', desc: 'Pass the Letter Land checkpoint', test: (s) => s.lettersDone },
+  { id: 'trace', name: 'Steady hand', desc: 'Trace 5 letters', test: (s) => s.traced >= 5 },
+  { id: 'placed', name: 'Know your level', desc: 'Take the placement check', test: (s) => s.placed },
+  { id: 'study', name: 'Student', desc: 'Make a study set', test: (s) => s.studySets >= 1 },
+  { id: 'look', name: 'Curious reader', desc: 'Look a word up in a dictionary', test: (s) => s.lookups >= 1 },
+  { id: 'backup', name: 'Safe and sound', desc: 'Export a backup', test: (s) => s.exports >= 1 },
+];
+export function newBadges(stats, have) { return ACH.filter((a) => !have[a.id] && a.test(stats)).map((a) => a.id); }

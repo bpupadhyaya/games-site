@@ -1,221 +1,53 @@
-// Exhaustive Rules reference. Every claim here is cross-checked against `game.js` (the single
-// source of truth for the mechanic) so this page can never contradict the shipped build.
-// `demo` tags a small illustration renderer draws for that page, reusing the game's own
-// slip()/plaque() drawing (never a separate simplified icon) — see render.js's 'rules' scene.
-//
-// 2026-09-22 (300% text-size pass): every page below is sized to one short sentence (sometimes a
-// clause) so it still fits comfortably at the new top text-size step (TEXT_SCALES top = 3.0, see
-// web/src/layout.js). The illustration on a page never scales with text size (only body/title
-// font does), so a page with a demo has meaningfully less usable panel height than one without -
-// pages were sized against whichever budget applies to them. Page count grew a lot from the
-// original 9 (now much higher) as a direct, unavoidable consequence of the top font size roughly
-// tripling from the original 1.3x ceiling - not padding or a redesign of the content itself.
+// Exhaustive Rules reference. Every claim here is cross-checked against `game.js`, `quiz.js`, `config.js` and `srs.js`
+// (the single source of truth for the mechanics) so this page cannot contradict the shipped build.
+// `demo` tags a small illustration that render.js draws with the game's own slip()/plaque() drawing.
 export const RULES = [
-  {
-    title: 'Objective',
-    demo: 'objective',
-    lines: ['A target word appears at the top of the screen.'],
-  },
-  {
-    title: 'The candidate lanes',
-    demo: 'objective',
-    lines: ['Three candidate words drift in from the right, one in each of three lanes.'],
-  },
-  {
-    title: 'Matching the target',
-    demo: 'objective',
-    lines: ['Tap the one that means the same as the target (Synonym mode).'],
-  },
-  {
-    title: 'Or the opposite',
-    demo: 'objective',
-    lines: ['Or the opposite of it (Antonym mode), before it drifts past you.'],
-  },
-  {
-    title: 'Choosing a mode',
-    demo: 'mode',
-    lines: ['Before you start, pick Synonym - find the word with the same meaning.'],
-  },
-  {
-    title: 'Or pick Antonym',
-    lines: ['Or Antonym - find the word with the opposite meaning - on the title screen.'],
-  },
-  {
-    title: 'Locking your mode',
-    lines: ['The mode you pick is locked for the whole 90-second session.'],
-  },
-  {
-    title: 'Switching modes',
-    lines: ['To switch modes, finish or stop the session, and choose again on the title screen.'],
-  },
-  {
-    title: 'Words without antonyms',
-    lines: [
-      'A few words in the bank have no listed antonym - those only ever appear in Synonym mode.',
-    ],
-  },
-  {
-    title: 'The candidate words',
-    demo: 'slips',
-    lines: ['All three word slips look exactly the same - same paper, same size, same colour.'],
-  },
-  {
-    title: 'No visual clues',
-    lines: ['So nothing but the printed word gives the answer away.'],
-  },
-  {
-    title: 'How the slips move',
-    lines: ['Each slip drifts right to left along its own lane, bobbing gently up and down.'],
-  },
-  {
-    title: 'Only one is right',
-    lines: ['Exactly one of the three is correct; the other two are unrelated distractor words.'],
-  },
-  {
-    title: 'Drift speed',
-    lines: ['Drift speed starts steady and increases as your score rises during the session.'],
-  },
-  {
-    title: 'Getting faster',
-    lines: [
-      'Up to a fixed maximum speed - later rounds move noticeably faster than early ones.',
-    ],
-  },
-  {
-    // Split from a single longer "Answering" page (2026-09-22 text-size pass) so every page
-    // still fits comfortably at the top text-size step - see web/src/layout.js TEXT_SCALES.
-    title: 'Answering',
-    demo: 'answer',
-    lines: ['TAP a word slip to answer with it.'],
-  },
-  {
-    title: 'A correct answer',
-    demo: 'answer',
-    lines: ['Correct: your score goes up by one, and a new target word appears immediately.'],
-  },
-  {
-    title: 'A wrong answer',
-    demo: 'answer',
-    lines: ['Wrong: no point is scored, and a new target word appears immediately.'],
-  },
-  {
-    title: 'Same as a miss',
-    lines: ['That is the same outcome as letting the correct word drift past unanswered.'],
-  },
-  {
-    title: 'Misses',
-    demo: 'answer',
-    lines: ['Letting the correct word drift off the left edge also counts as a miss.'],
-  },
-  {
-    title: 'No point either way',
-    lines: ['No point is scored for a miss, same as for tapping the wrong word.'],
-  },
-  {
-    title: 'Keyboard shortcuts',
-    lines: ['On a keyboard, the number keys 1, 2 and 3 answer with a lane for you.'],
-  },
-  {
-    title: 'Which key is which',
-    lines: ['They match whichever word currently sits in the top, middle and bottom lane.'],
-  },
-  {
-    title: 'The session clock',
-    demo: 'clock',
-    lines: ['Each session runs for a fixed 90 seconds, shown as a countdown and a draining bar.'],
-  },
-  {
-    title: 'Stopping early',
-    lines: ['Tap Stop at any time to end the session early.'],
-  },
-  {
-    title: 'Same as running out',
-    lines: ['This has exactly the same effect as the clock reaching zero.'],
-  },
-  {
-    title: 'Your score is kept',
-    lines: ['It also keeps whatever score you already have.'],
-  },
-  {
-    title: 'The clock never changes',
-    lines: ['Nothing in the game adds to or shortens a session\'s 90 seconds once it has started.'],
-  },
-  {
-    title: 'When a session ends',
-    lines: [
-      'The clock reaching 0, or tapping Stop, ends the session and shows the Session Review ' +
-        'screen.',
-    ],
-  },
-  {
-    title: 'New best scores',
-    lines: ['If your score beats your saved best for that mode, it is saved right away.'],
-  },
-  {
-    title: 'Tracked separately',
-    lines: ['Best scores for Synonym mode and Antonym mode are tracked and saved separately.'],
-  },
-  {
-    title: 'Session review',
-    demo: 'review',
-    lines: ['Every word from the session is listed - mistakes first, then correct answers.'],
-  },
-  {
-    title: 'Several rows per page',
-    lines: ['Several rows are shown per page.'],
-  },
-  {
-    title: 'Reading a review row',
-    demo: 'review',
-    lines: ['Each row shows the target word, its meaning, and the correct answer.'],
-  },
-  {
-    title: 'For a mistake',
-    lines: ['For a mistake, it also shows the word you tapped instead.'],
-  },
-  {
-    title: 'Or a miss',
-    lines: ['Or "drifted past" if you missed it without answering.'],
-  },
-  {
-    title: 'After the review',
-    lines: ['From here, Play Again starts a fresh session in the same mode.'],
-  },
-  {
-    title: 'Changing mode',
-    lines: ['Or Change Mode returns to the title screen to pick again.'],
-  },
-  {
-    title: 'Playing for free',
-    lines: [
-      'Playing in a web browser is a free preview - it is limited to a small number of full ' +
-        'sessions.',
-    ],
-  },
-  {
-    title: 'Getting the full game',
-    lines: ['After that, a screen invites you to get the full game for unlimited play.'],
-  },
-  {
-    title: 'Only the web preview',
-    lines: [
-      'This limit only applies to the free web preview - it does not affect the full app.',
-    ],
-  },
-  {
-    title: 'Watch & Learn',
-    lines: ['Tap "Watch & Learn" for a free demo: a full session plays itself, no time limit.'],
-  },
-  {
-    title: "Auto Play's rhythm",
-    lines: ['Before every answer it pauses so you can guess, then highlights the correct word.'],
-  },
-  {
-    title: 'Setting the pause length',
-    lines: ['Use − / + on the Auto Play screen to set the pause, from 2 to 10 seconds.'],
-  },
-  {
-    title: 'Auto Play never counts',
-    lines: ['It never affects your best score, session count, or free-preview time.'],
-  },
+  { title: 'Objective', demo: 'objective', lines: ['A question appears at the top. Three words drift in from the right. Tap the right one before it leaves on the left.'] },
+  { title: 'Question types', lines: ['Synonym: the word that means the same. Antonym: the opposite. Meaning: the word that fits a short definition. Odd one out: two words match, tap the stranger. Spelling: the correctly spelled word. Listening: you hear a word, tap it.'] },
+  { title: 'Choose which are used', lines: ['In Words and pace, tick any question types. Each round uses one type your word can answer, chosen at random.'] },
+  { title: 'One right answer', demo: 'slips', lines: ['All three slips look the same, so only the word gives the answer away. Exactly one is right; the others are unrelated words of a similar level.'] },
+  { title: 'Where words come from', lines: ['Words, meanings, synonyms and antonyms come from the built-in word list (WordNet relations). Nothing is looked up online while you play.'] },
+  { title: 'Choosing your words', lines: ['Pick any word levels (first words, elementary, middle school, high school, undergraduate, graduate, professional), kinds of words (high frequency, scientific, academic, everyday, English learner, original notebook) and topic packs.'] },
+  { title: 'Relation questions', lines: ['More question types come from word relationships: which is a kind of a category, which is part of a thing, which sounds like another word, which rhymes, unscramble letters, same word family, words that go together, finish a phrase, easily confused pairs, word-part meanings and UK spellings. They only use words that have that relationship.'] },
+  { title: 'Synonyms and antonyms', lines: ['A synonym answer is a word that shares a meaning with the target. An antonym answer is a direct opposite. Wrong choices are never synonyms or antonyms of the target, and sometimes the opposite (or the synonym) is used as a tempting wrong choice.'] },
+  { title: 'Combining choices', lines: ['"Any of them" plays words that fit at least one choice. "Must match all" plays words from your levels that also fit every kind you ticked. Word length can be limited from 3 to 15 letters.'] },
+  { title: 'Levels are estimates', lines: ['Levels are estimated from how common each word is in everyday reading, not taken from a school curriculum.'] },
+  { title: 'Study sets', lines: ['Study makes a set of 5 to 100 words from your choices, favouring words you have not met. Read the meanings, examples and related words, or use flashcards.'] },
+  { title: 'Quiz from a set', lines: ['"Quiz me" plays only the words in your study set. You can also choose to play from words due for review or your weak words.'] },
+  { title: 'Flashcards', lines: ['Tap a card to turn it over. "I know it" marks a word known; known words are left out of new study sets and can be skipped in play. "Still learning" keeps it in.'] },
+  { title: 'Word speed', lines: ['Word speed is the time a word takes to cross the screen, from 2.5 seconds up to 90 seconds. That time is the most you get for each question.'] },
+  { title: 'Classic pace', lines: ['Classic is the original drift: words start steady and move faster as your right answers add up, up to a fixed top speed.'] },
+  { title: 'Pace presets', lines: ['Classic, Relaxed (40 seconds a word, 20 questions), Practice (15 seconds, 3 minutes), Exam pace (20 seconds, 20 questions, no hints) and Sprint (4 seconds, 1 minute, 3 lives). Changing any pace setting makes it Custom.'] },
+  { title: 'Session length', lines: ['A session ends after a time you choose (1 to 15 minutes) or after a number of questions (10 to 100). Stop ends it early. With lives, it also ends when they are gone.'] },
+  { title: 'Answering', demo: 'answer', lines: ['Tap a word to answer. On a keyboard press 1, 2 or 3 for the top, middle or bottom word.'] },
+  { title: 'Scoring', lines: ['A right answer scores 10 points times your combo.'] },
+  { title: 'Combos', lines: ['Right answers in a row raise the combo: x2 from 3 in a row, x3 from 6 and x4 from 10. A wrong tap or a miss resets it to x1.'] },
+  { title: 'Misses', demo: 'answer', lines: ['If the right word leaves the screen, that is a miss: no points, the combo resets, and with lives you lose one.'] },
+  { title: 'Hints', lines: ['The Hint button (or H) fades one wrong word, once per question. It costs 5 points and resets your combo. Exam pace has no hints.'] },
+  { title: 'Pause', lines: ['Pause (or P) freezes the whole round, words and clock. Resume continues exactly where it stopped.'] },
+  { title: 'After each answer', lines: ['A short line shows the word and its meaning, or the right answer after a mistake. It never stops play.'] },
+  { title: 'The clock', demo: 'clock', lines: ['In timed sessions a clock and a draining bar show the time left. In question sessions the counter shows your question number.'] },
+  { title: 'Session review', demo: 'review', lines: ['After each session every question is listed, mistakes first, with the right answer and the meaning.'] },
+  { title: 'Best scores', lines: ['Your best score is kept separately for each pace and session shape, so different set-ups are never compared.'] },
+  { title: 'Spaced review', lines: ['Every word has a memory box from 0 to 7. A right answer moves it up and schedules the next review further away (1, 2, 4, 8, 16, 32, 64 days). A wrong answer moves it back and brings it back tomorrow.'] },
+  { title: 'Mastery stages', lines: ['Words are new, seen, learning, familiar, mastered or maintained, depending on their box. Review plays the words due today (up to 20).'] },
+  { title: 'Streak and daily goal', lines: ['Answer your daily goal (10 to 100, you choose) and play on consecutive days to build a streak. One missed day is forgiven.'] },
+  { title: 'Progress', lines: ['Progress shows your streak, words met, accuracy, answer speed, stages, progress by level and your weak words.'] },
+  { title: 'Your data', lines: ['Everything is saved on this device only. Your data can export a full backup (JSON) or spreadsheets (CSV), import a backup, and delete everything.'] },
+  { title: 'Look up in a dictionary', lines: ['Word lists and review can show a Look up button that opens a dictionary you choose in your browser. Only the word is sent. It never appears during play, and Settings can turn it off.'] },
+  { title: 'Watch & Learn', lines: ['Watch & Learn is a free demo in which a whole session plays itself. Before each answer it pauses so you can guess, then highlights the right word.'] },
+  { title: 'Think time', lines: ['Use − / + to set the pause from 2 to 10 seconds. Pause freezes it, Exit leaves. It never changes your scores, progress or free-preview time.'] },
+  { title: 'The Journey', lines: ['The Journey is a campaign of short stages. Start in Letter Land, move on to the First 100 Words, then through six word levels from elementary to professional. Each stage plays in the same drifting-word game.'] },
+  { title: 'Stars', lines: ['A stage is 12 questions. Get at least half right for one star, 75% for two and 90% for three. A star on a stage opens the next one; you can replay any stage to earn more stars. Stopping early earns none.'] },
+  { title: 'Checkpoint tests', lines: ['After the last stage of a world comes a checkpoint: 15 questions from the whole world, 3 lives, no hints. Score 70% to open the next world.'] },
+  { title: 'Placement check', lines: ['The placement check asks 18 meaning questions, three at each level, easiest first. It opens the worlds before your starting level and gives a rough guess of how many words you know. It is a starting point, not a test score.'] },
+  { title: 'Letter Land', lines: ['Letters are asked three ways: hear the letter name and tap the letter, tap the small letter that matches a capital, and tap the missing letter in a short run. Tracing lets you draw each letter with a finger by following the dots.'] },
+  { title: 'First 100 Words', lines: ['Everyday words with code-drawn pictures: what is this? Words without a picture use a meaning, a synonym or a spelling question instead.'] },
+  { title: 'Players and child profiles', lines: ['Each player has their own progress, journey and settings. A child profile only uses vetted words, never shows dictionary look-ups, and asks a grown-up question before Settings, Your data or Players can be opened.'] },
+  { title: 'Accessibility', lines: ['Settings offers dyslexia-friendly text, colour-blind safe colours, reduced motion, a left-handed layout, captions for sounds and a mode without audio-only questions. Text size goes up to 300% with A+.'] },
+  { title: 'Later-life calm mode', lines: ['Calm mode removes the clock and lives, slows the words, softens sound and wording and enlarges text. It is for enjoyment and carries no health claims.'] },
+  { title: 'Badges and weekly summary', lines: ['Badges reward steady habits and exploring and are never taken away. Progress shows your week, your stars and an estimated word count.'] },
+  { title: 'Daily reminder', lines: ['You can choose a time for a daily reminder. It is kept on this phone only and is delivered by the app when notifications are allowed.'] },
+  { title: 'Playing for free', lines: ['In a web browser the game is a free preview limited to a small number of sessions. The full app has no limit.'] },
+  { title: 'Text size', lines: ['A− and A+ change text size on every reading screen, up to 300%.'] },
 ];

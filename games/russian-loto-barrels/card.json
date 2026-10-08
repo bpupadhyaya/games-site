@@ -1,0 +1,14 @@
+{
+  "title": "Russian Loto: Barrels",
+  "tagline": "Wooden kegs, cardboard cards, a calm race to call LOTO.",
+  "description": "The family number game of Russia and the former Soviet lands. Wooden kegs numbered 1 to 90 tumble out of a linen bag; cover the called numbers on up to six cards, beat the computer players and call ROW, TWO ROWS or LOTO. Face to face, daily challenge and a Watch & Learn mode included.",
+  "genre": "number lotto game",
+  "demo": true,
+  "howToPlay": [
+    "Pick how many cards to play, from 1 to 6.",
+    "A keg tumbles out and its number is called.",
+    "Look in the matching column (1-9, 10-19 ... 80-90) and tap the number.",
+    "Each keg stays open only for a few draws, so be quick.",
+    "Press ROW, TWO ROWS or LOTO when you have it, before the computer does."
+  ]
+}
