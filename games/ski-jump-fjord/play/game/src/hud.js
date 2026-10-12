@@ -129,7 +129,18 @@ function drawControls(ctx, G, s, L, M, watch) {
     drawLeanGauge(ctx, G, s, L, M);
     if (j.ph === 'air') {
       if (j.tg < 1.0 && j.air > 0.6) ringWidget(ctx, L, clamp(j.tg / 1.0, 0, 1), 'LAND', j.tg < 0.26);
-      if (j.air < 1.6 && !watch) lbl('DRAG up and down to follow the band', mid.x, mid.y, 'rgba(238,243,247,0.92)', 24 * Math.min(M, 1.2));
+      if (j.air < 1.6 && !watch) {
+        // dark pill; in landscape it sits in the gap between Pause and Think so it can never touch the speed chip
+        const txt = 'DRAG up and down to follow the band', gap = L.think.x - (L.pause.x + L.pause.w) - 28;
+        const avail = L.land ? gap : SW - host.l - host.r - 48;
+        const px = fitPx(ctx, txt, 700, 24 * Math.min(M, 1.2), avail - 36, 13);
+        const ph = Math.round(px * 1.9), cy = L.land ? L.pause.y + L.pause.h / 2 : mid.y;
+        ctx.save(); ctx.font = font(px, 700);
+        const pw = Math.min(avail, Math.ceil(ctx.measureText(txt).width) + 36);
+        chip(ctx, SW / 2 - pw / 2, cy - ph / 2, pw, ph, 'rgba(10,20,32,0.82)');
+        ctx.fillStyle = ink; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(txt, SW / 2, cy + 1);
+        ctx.restore();
+      }
       if (G.ctl && G.ctl.drag && !watch) drawStick(ctx, G);
     }
   }

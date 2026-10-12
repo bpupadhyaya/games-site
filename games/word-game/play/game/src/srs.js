@@ -65,11 +65,11 @@ export function weakList(records, cap = 30) {
 }
 // Leech: missed repeatedly and still low.
 export const isLeech = (r) => !!r && r[F.wrong] >= 4 && r[F.box] <= 1;
-export function summary(records) {
+export function summary(records, stageFn = null) {
   const n = { new: 0, seen: 0, learning: 0, familiar: 0, mastered: 0, maintained: 0 };
   let right = 0, wrong = 0, ms = 0, msN = 0, checked = 0;
   for (const w in records) {
-    const r = records[w]; const s = stageOf(r); n[s]++;
+    const r = records[w]; const s = stageFn ? stageFn(w, r) : stageOf(r); n[s]++;
     right += r[F.right]; wrong += r[F.wrong]; checked += r[F.chk] > 0 ? 1 : 0;
     if (r[F.ms] > 0) { ms += r[F.ms]; msN++; }
   }

@@ -140,12 +140,16 @@ function drawButtons(ctx, G, L) {
 
 function bar(ctx, x, y, w, h, v, col, label) {
   roundPath(ctx, x, y, w, h, h / 2); ctx.fillStyle = 'rgba(14,22,20,0.78)'; ctx.fill();
-  const inner = Math.max(0, (w - 4) * Math.max(0, Math.min(1, v)));
-  if (inner > 0) { roundPath(ctx, x + 2, y + 2, Math.max(h - 4, inner), h - 4, (h - 4) / 2); ctx.fillStyle = col; ctx.fill(); }
-  roundPath(ctx, x, y, w, h, h / 2); ctx.lineWidth = 1.5; ctx.strokeStyle = 'rgba(246,240,226,0.3)'; ctx.stroke();
-  ctx.font = font(Math.max(13, h * 0.5)); ctx.textAlign = 'left'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#10201a';
+  ctx.font = font(Math.max(13, h * 0.5)); ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+  const tw = ctx.measureText(label).width, tx = x + 12, bx = tx + tw + 8, bw = x + w - 8 - bx, bh = Math.max(6, h * 0.34), by = y + (h - bh) / 2;
   ctx.fillStyle = 'rgba(246,240,226,0.95)'; ctx.shadowColor = 'rgba(0,0,0,0.7)'; ctx.shadowBlur = 3;
-  ctx.fillText(label, x + 14, y + h / 2 + 1); ctx.shadowBlur = 0; ctx.textBaseline = 'alphabetic';
+  ctx.fillText(label, tx, y + h / 2 + 1); ctx.shadowBlur = 0; ctx.textBaseline = 'alphabetic';
+  if (bw >= 16) {
+    roundPath(ctx, bx, by, bw, bh, bh / 2); ctx.fillStyle = 'rgba(246,240,226,0.14)'; ctx.fill();
+    const inner = bw * Math.max(0, Math.min(1, v));
+    if (inner > 0) { roundPath(ctx, bx, by, Math.max(bh, inner), bh, bh / 2); ctx.fillStyle = col; ctx.fill(); }
+  } else if (v > 0) { roundPath(ctx, x + 2, y + h - 5, Math.max(h * 0.6, (w - 4) * Math.min(1, v)), 3, 1.5); ctx.fillStyle = col; ctx.fill(); }
+  roundPath(ctx, x, y, w, h, h / 2); ctx.lineWidth = 1.5; ctx.strokeStyle = 'rgba(246,240,226,0.3)'; ctx.stroke();
 }
 function drawGauges(ctx, G, s, L, M) {
   const g = L.gauges, d = s.dog, half = (g.w - 12) / 2;

@@ -12,7 +12,7 @@ export const PAL = {
 export const hash = (n) => { let h = (n | 0) * 374761393 + 668265263; h = (h ^ (h >>> 13)) * 1274126177; return ((h ^ (h >>> 16)) >>> 0) / 4294967296; };
 
 export function rr(ctx, x, y, w, h, r) {
-  const k = Math.min(r, w / 2, h / 2);
+  const k = Math.max(0, Math.min(r, w / 2, h / 2)) || 0;   // never negative/NaN: a transient tiny viewport during rotation must not throw
   ctx.beginPath();
   ctx.moveTo(x + k, y); ctx.arcTo(x + w, y, x + w, y + h, k); ctx.arcTo(x + w, y + h, x, y + h, k); ctx.arcTo(x, y + h, x, y, k); ctx.arcTo(x, y, x + w, y, k); ctx.closePath();
 }

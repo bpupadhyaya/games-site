@@ -391,7 +391,7 @@ export function renderSettings(ctx, state) {
 }
 export function renderResult(ctx, state) {
   const fr = frameFor(state, 'result');
-  drawTable(ctx, state, state.w, [], { scale: 0.8, cy: land() ? undefined : TEXT_SCALES[state.settings.textIdx] > 1.5 ? undefined : 930 + (fr.oy ?? 0) });
+  drawTable(ctx, state, state.w, [], { scale: 0.8, cy: land() ? undefined : TEXT_SCALES[state.settings.textIdx] > 1.5 ? undefined : 970 + (fr.oy ?? 0) });
   scrim(ctx, land() ? 0.62 : 0.5);
   drawFlowScreen(ctx, state, 'result');
 }

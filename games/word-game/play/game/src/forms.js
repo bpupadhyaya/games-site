@@ -28,6 +28,7 @@ export function layoutForm(rows, width, scale, cwMul = 1) {
     switch (row.k) {
       case 'h': { const sz = S(38), lines = wrapEst2(row.t, sz, width, 0.58); push(row, lines.length * Math.round(sz * 1.2) + S(16), { lines, size: sz, lh: Math.round(sz * 1.2) }); break; }
       case 'p': { const sz = S(row.small ? 23 : 27), lines = wrapEst2(row.t, sz, width, 0.47); push(row, lines.length * Math.round(sz * 1.42) + S(10), { lines, size: sz, lh: Math.round(sz * 1.42) }); break; }
+      case 'hl': { const sz = S(row.size ?? 40), lines = wrapEst2(row.words.join(' '), sz, width, 0.52); push(row, lines.length * Math.round(sz * 1.5) + S(16), { lines, size: sz, lh: Math.round(sz * 1.5) }); break; }
       case 'sub': { const sz = S(28), lines = wrapEst2(row.t, sz, width, 0.55); push(row, lines.length * Math.round(sz * 1.3) + S(14), { lines, size: sz, lh: Math.round(sz * 1.3) }); break; }
       case 'pre': { const sz = S(21), lines = wrapEst2(row.t, sz, width, 0.47); push(row, lines.length * Math.round(sz * 1.35) + S(4), { lines, size: sz, lh: Math.round(sz * 1.35) }); break; }
       case 'gap': push(row, S(row.h ?? 18)); break;
@@ -63,17 +64,23 @@ export function layoutForm(rows, width, scale, cwMul = 1) {
       }
       case 'word': {
         const tsz = S(40), bsz = S(25), lines = wrapEst2(row.gloss, bsz, width - S(8), 0.47);
-        const extra = (row.lines ?? []).flatMap((l) => wrapEst2(l, S(23), width - S(8), 0.47));
+        const extra = [], exHl = [];
+        for (const l of row.lines ?? []) for (const wl of wrapEst2(l, S(23), width - S(8), 0.47)) { extra.push(wl); exHl.push(Boolean(row.hl) && l.startsWith('Example:')); }
         const chips = [];
         if (row.lookup) chips.push({ id: `look:${row.w}`, label: row.checked ? 'Looked up' : 'Look up', on: row.checked });
+        if (row.compare) chips.push({ id: `compare:${row.w}`, label: 'Compare', on: false });
         if (row.known !== undefined) chips.push({ id: `known:${row.w}`, label: row.known ? 'Known ✓' : 'I know it', on: row.known });
+        if (row.dict) chips.push({ id: `dict:${row.w}`, label: 'Meaning', on: false });
+        if (row.dict) chips.push({ id: `thes:${row.w}`, label: 'Synonyms', on: false });
+        if (row.remove) chips.push({ id: `mwrm:${row.w}`, label: 'Remove', on: false });
         if (row.explore) chips.push({ id: `explore:${row.w}`, label: 'Explore', on: false });
         if (row.flag !== undefined) chips.push({ id: `flag:${row.w}`, label: row.flag ? 'Flagged' : 'Flag', on: row.flag });
         const cw = S(150), total = chips.length * (cw + S(8)), below = total > width * 0.5, chipH = S(52);
-        const head = tsz + S(40) + (below && chips.length ? chipH + S(10) : 0), bodyH = lines.length * Math.round(bsz * 1.38) + extra.length * Math.round(S(23) * 1.4) + S(14);
-        const it = push(row, head + bodyH + S(34), { lines, extra, tsz, bsz, head });
+        const perRow = Math.max(1, Math.floor((width + S(8)) / (cw + S(8)))), chipRows = below ? Math.ceil(chips.length / perRow) : 0;      // chips wrap onto more rows when there are many (look up, compare, known, explore, flag)
+        const head = tsz + S(40) + (chipRows ? chipRows * (chipH + S(10)) : 0), bodyH = lines.length * Math.round(bsz * 1.38) + extra.length * Math.round(S(23) * 1.4) + S(14);
+        const it = push(row, head + bodyH + S(34), { lines, extra, exHl, tsz, bsz, head, hlWord: row.hl });
         let hx = width, cy = below ? tsz + S(44) : 0, cx = 0;
-        chips.forEach((c) => { if (below) { it.hits.push({ ...c, x: cx, y: cy, w: cw, h: chipH, kind: 'chip', sz: S(22) }); cx += cw + S(8); } else { hx -= cw; it.hits.push({ ...c, x: hx, y: 0, w: cw, h: chipH, kind: 'chip', sz: S(22) }); hx -= S(8); } });
+        chips.forEach((c, ci) => { if (below) { if (ci > 0 && ci % perRow === 0) { cx = 0; cy += chipH + S(10); } it.hits.push({ ...c, x: cx, y: cy, w: cw, h: chipH, kind: 'chip', sz: S(22) }); cx += cw + S(8); } else { hx -= cw; it.hits.push({ ...c, x: hx, y: 0, w: cw, h: chipH, kind: 'chip', sz: S(22) }); hx -= S(8); } });
         break;
       }
       case 'rtext': {
@@ -85,6 +92,37 @@ export function layoutForm(rows, width, scale, cwMul = 1) {
           x += w + S(12);
         }
         it.h = (line + 1) * lh + S(16); y += it.h; it.lh = lh; break;
+      }
+      case 'big': push(row, S(row.art ? 250 : 190), { size: S(row.art ? 110 : 130) }); break;
+      case 'grid': {
+        const gap = S(8), ch = S(row.h ?? 78), labelH = row.label ? S(36) : 0, it = push(row, 0); let cy = labelH;
+        for (let r = 0; r < row.rows.length; r += 1) {
+          const cells = row.rows[r], cols = row.cols ?? Math.max(...row.rows.map((x) => x.length)), cw = Math.floor((width - (cols - 1) * gap) / cols), rowW = cells.length * cw + (cells.length - 1) * gap, x0 = Math.floor((width - rowW) / 2);
+          cells.forEach((c, i) => it.hits.push({ id: `${row.id}:${c.v}`, x: x0 + i * (cw + gap), y: cy, w: cw, h: ch, label: c.label, on: c.on, bad: c.bad, disabled: c.off, kind: 'chip', sz: S(row.sz ?? 34) }));
+          cy += ch + gap;
+        }
+        it.h = cy + S(10); it.labelH = labelH; y += it.h; break;
+      }
+      case 'wmap': {                                    // a word map: tiers of linked words around a centre word (C4, C10, D1)
+        const labH = S(30), chH = S(58), gap = S(8), sz = S(23), tg = S(18), it = push(row, 0); let cy = 0; it.labels = []; it.links = []; let prevBottom = null;
+        const tier = (t, centre) => {
+          if (!t.words.length) return;
+          const top = cy; if (prevBottom !== null) it.links.push([width / 2, prevBottom, width / 2, top]);
+          if (t.label) { it.labels.push({ t: t.label, y: cy + S(22) }); cy += labH; }
+          let cx = 0; const ws = centre ? [t.words[0]] : t.words; let first = true;
+          const meas = ws.map((w) => (centre ? Math.min(width, Math.max(S(170), estW(w, S(34)) + S(64))) : Math.min(width, Math.max(S(90), estW(w, sz) + S(40)))));
+          if (centre) cx = Math.floor((width - meas[0]) / 2);
+          ws.forEach((w, i) => {
+            const cw = meas[i], h = centre ? S(76) : chH;
+            if (!centre && cx + cw > width && cx > 0) { cx = 0; cy += chH + gap; }
+            it.hits.push({ id: centre ? 'wmapc:x' : `${t.id}:${w}`, x: cx, y: cy, w: cw, h, label: w, on: centre || Boolean(t.on?.includes(w)), disabled: centre ? false : t.off?.includes(w), kind: 'chip', sz: centre ? S(34) : sz });
+            cx += cw + gap; first = false;
+          });
+          void first; cy += (centre ? S(76) : chH); prevBottom = cy; cy += tg;
+        };
+        for (let i = 0; i < row.tiers.length; i += 1) { if (i === row.centreAt) tier({ words: [row.centre] }, true); tier(row.tiers[i], false); }
+        if (row.centreAt >= row.tiers.length) tier({ words: [row.centre] }, true);
+        it.h = cy + S(6); y += it.h; break;
       }
       case 'heat': push(row, S(7 * 34 + 110), { size: S(26) }); break;
       case 'stickers': { const cols = width > S(520) ? 5 : 4, cell = Math.floor((width - (cols - 1) * S(10)) / cols); push(row, Math.ceil(row.cells.length / cols) * (cell + S(10)) + S(10), { cols, cell }); break; }

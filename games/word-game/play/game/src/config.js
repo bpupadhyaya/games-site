@@ -31,7 +31,19 @@ export const QTYPES = [
   { k: 'build', label: 'Word builder', blurb: 'Join a prefix to a word' },
   { k: 'inflect', label: 'Irregular forms', blurb: 'Past forms, plurals and comparatives' },
   { k: 'ladder', label: 'Strength ladder', blurb: 'Which word is stronger or milder' },
+  { k: 'beginsound', label: 'First sound', blurb: 'Which word starts with the same sound' },
+  { k: 'endsound', label: 'Last sound', blurb: 'Which word ends with the same sound' },
+  { k: 'breakword', label: 'Break the word', blurb: 'Split a word into prefix or ending and the rest' },
+  { k: 'usage', label: 'Right sentence', blurb: 'Which sentence uses the word correctly' },
+  { k: 'hearmeaning', label: 'Hear, then meaning', blurb: 'Hear a word, tap what it means' },
+  { k: 'hearspell', label: 'Hear, then spelling', blurb: 'Hear a word, tap how it is spelled' },
+  { k: 'sorttopic', label: 'Sort by group', blurb: 'Sort a word into animals, food, feelings, tools and more' },
+  { k: 'sortpos', label: 'Sort by kind of word', blurb: 'Is it a noun, a verb or an adjective' },
+  { k: 'analogy', label: 'Analogies', blurb: 'Complete the pair: hot is to cold as big is to small' },
+  { k: 'general', label: 'General to specific', blurb: 'Which word is the most general or the most specific, like poodle, dog, animal' },
 ];
+import { DECK_KINDS } from './deck.js';
+for (const [k, v] of Object.entries(DECK_KINDS)) QTYPES.push({ k, label: v.name, blurb: v.blurb, deck: true });
 export const PRESETS = {
   classic: { label: 'Classic', blurb: 'The original drift: words speed up as you score', secs: 0, endBy: 'time', secsIdx: 1, qIdx: 1, lives: 0 },
   relaxed: { label: 'Relaxed', blurb: 'Slow words, no clock, 20 questions', secs: 40, endBy: 'questions', secsIdx: 1, qIdx: 1, lives: 0 },
@@ -44,12 +56,13 @@ export const PRESET_ORDER = ['classic', 'relaxed', 'practice', 'exam', 'sprint']
 export const DEFAULT_CFG = {
   preset: 'classic',
   contexts: [2],            // 0..5 bands, or 'first'
-  attrs: [], topics: [], combine: 'any',
+  attrs: [], topics: [], pos: [], combine: 'any',
   minLen: 3, maxLen: 15,
   setSize: 20, source: 'whole',          // 'whole' | 'study' | 'due' | 'weak'
   qtypes: ['synonym', 'antonym'],
-  secs: 0, endBy: 'time', secsIdx: 1, qIdx: 1, lives: 0, hints: true,
+  secs: 0, endBy: 'time', secsIdx: 1, qIdx: 1, lives: 0, hints: true, lanes: 3,
   skipKnown: false, adaptive: false,
+  auto: true,               // match difficulty (choices, pace, hints, word length, wording) to the Learning level and Age group (adapt.js)
 };
 
 const clampIdx = (v, arr, d) => (Number.isInteger(v) && v >= 0 && v < arr.length ? v : d);
@@ -58,6 +71,7 @@ export function normalizeCfg(c) {
   o.contexts = (Array.isArray(o.contexts) ? o.contexts : d.contexts).filter((x) => x === 'first' || (Number.isInteger(x) && x >= 0 && x <= 5));
   o.attrs = (Array.isArray(o.attrs) ? o.attrs : []).filter((x) => typeof x === 'string');
   o.topics = (Array.isArray(o.topics) ? o.topics : []).filter((x) => typeof x === 'string');
+  o.pos = (Array.isArray(o.pos) ? o.pos : []).filter((x) => ['n', 'v', 'a', 'r'].includes(x));
   o.qtypes = (Array.isArray(o.qtypes) ? o.qtypes : d.qtypes).filter((k) => QTYPES.some((q) => q.k === k));
   if (!o.qtypes.length) o.qtypes = ['synonym'];
   o.combine = o.combine === 'narrow' ? 'narrow' : 'any';
@@ -71,7 +85,8 @@ export function normalizeCfg(c) {
   o.minLen = Math.max(3, Math.min(15, Number(o.minLen) || 3));
   o.maxLen = Math.max(o.minLen, Math.min(15, Number(o.maxLen) || 15));
   o.hints = o.hints !== false;
-  o.skipKnown = Boolean(o.skipKnown); o.adaptive = Boolean(o.adaptive);
+  o.lanes = Math.max(2, Math.min(6, Math.round(Number(o.lanes) || 3)));
+  o.auto = o.auto !== false; o.skipKnown = Boolean(o.skipKnown); o.adaptive = Boolean(o.adaptive);
   if (!PRESETS[o.preset] && o.preset !== 'custom') o.preset = 'custom';
   return o;
 }

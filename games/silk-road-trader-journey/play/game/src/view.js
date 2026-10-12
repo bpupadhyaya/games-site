@@ -42,14 +42,15 @@ function loadsOf(S) {
 function hud(ctx, st, L, G, o = {}) {
   const S = st.S; if (!S) return;
   const y = G.hudY + 22, x0 = G.hudX0, x1 = G.hudX1;
-  const fs = 26;
+  let fs = 26;
   let cx = x0;
-  const nbtn = (o.buttons ?? [1, 2, 3]).length, bsz = Math.max(64, L.mb), room = x1 - x0 - nbtn * (bsz + 8);
+  const nbtn = (o.buttons ?? [1, 2, 3]).length, bsz = Math.max(44, 46 / Math.max(0.2, host.px)), room = x1 - x0 - nbtn * (bsz + 8);
+  ctx.font = `700 ${fs}px ${UI}`; { const nd = ctx.measureText(`Day ${S.day}`).width + ctx.measureText(money(S.silver)).width + fs * 8.5; if (nd > room) fs = Math.max(13, Math.floor(fs * room / nd)); }
   ctx.font = `700 ${fs}px ${UI}`; const full = `Day ${S.day} of ${LIMIT_DAYS}`, need = ctx.measureText(full).width + ctx.measureText(money(S.silver)).width + fs * 8.5;
   const r1 = chip(ctx, cx, y, need <= room ? full : `Day ${S.day}`, need <= room ? fs : fs * 0.9, { icon: 'sun', stroke: 'rgba(255,230,190,0.25)' }); cx += r1.w + 6;
   chip(ctx, cx, y, money(S.silver), fs, { icon: 'coin', color: PAL.gold, stroke: 'rgba(255,230,190,0.25)' });
   // buttons on the right: menu, journal, map
-  const bs = Math.max(64, L.mb), btns = o.buttons ?? [['menu', 'menu'], ['journal', 'book'], ['map', 'map']];
+  const bs = bsz, btns = o.buttons ?? [['menu', 'menu'], ['journal', 'book'], ['map', 'map']];
   let bx = x1 - bs;
   for (const [id, ic] of btns) { const r = { x: bx, y: G.hudY - 2 + 0, w: bs, h: bs }; ctx.fillStyle = 'rgba(20,12,8,0.62)'; rrect(ctx, r, bs / 2); ctx.fill(); ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(255,230,190,0.28)'; rrect(ctx, r, bs / 2); ctx.stroke(); icon(ctx, ic, r.x + bs / 2, r.y + bs / 2, bs * 0.27, PAL.text); ui.hits.push({ id: 'hud:' + id, r }); bx -= bs + 8; }
   return bx;

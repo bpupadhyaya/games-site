@@ -23,6 +23,8 @@ export const ACH = [
   { id: 'placed', name: 'Know your level', desc: 'Take the placement check', test: (s) => s.placed },
   { id: 'study', name: 'Student', desc: 'Make a study set', test: (s) => s.studySets >= 1 },
   { id: 'look', name: 'Curious reader', desc: 'Look a word up in a dictionary', test: (s) => s.lookups >= 1 },
+  { id: 'wander25', name: 'Word wanderer', desc: 'Explore 25 different words in the dictionary', test: (s) => s.explored >= 25 },
+  { id: 'wander250', name: 'Curious mind', desc: 'Explore 250 different words in the dictionary', test: (s) => s.explored >= 250 },
   { id: 'daily', name: 'Daily habit', desc: 'Finish the daily 10 words', test: (s) => s.dailies >= 1 },
   { id: 'daily7', name: 'Seven dailies', desc: 'Finish the daily 10 words seven times', test: (s) => s.dailies >= 7 },
   { id: 'mock', name: 'Test run', desc: 'Finish a mock test', test: (s) => s.mocks >= 1 },

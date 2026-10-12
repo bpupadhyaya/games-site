@@ -18,8 +18,11 @@ const dev = new URLSearchParams(location.search).has('dev3d');
 if (dev) globalThis.__view3d = presenter;
 
 const syncHost = () => {
-  const short = Math.max(1, Math.min(window.innerWidth, window.innerHeight)), px = 720 / short, s = window.__safeInsets;
-  host.t = s ? (s.top || 0) * px : 0; host.r = s ? (s.right || 0) * px : 0; host.b = s ? (s.bottom || 0) * px : 0; host.l = s ? (s.left || 0) * px : 0;
+  // A rotation can report a transient 0 / tiny / NaN window size or inset: keep the last good values then.
+  const short = Math.min(window.innerWidth, window.innerHeight);
+  if (!(short >= 120)) return;
+  const px = 720 / short, s = window.__safeInsets, n = (v) => (Number.isFinite(v) ? Math.max(0, Math.min(v, short * 0.4)) : 0);
+  host.t = s ? n(s.top) * px : 0; host.r = s ? n(s.right) * px : 0; host.b = s ? n(s.bottom) * px : 0; host.l = s ? n(s.left) * px : 0;
   host.back = s && s.back !== false && window.__hostBack !== false ? 56 * px : 0; host.px = 1 / px;
 };
 syncHost();

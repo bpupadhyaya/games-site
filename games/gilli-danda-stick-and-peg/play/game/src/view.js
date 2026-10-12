@@ -55,9 +55,9 @@ function drawDandaGlyph(ctx, x, y, len, ang, lw = 9) {
 
 function drawHero(ctx, w, h, state) {
   const t = state.t, cx = w / 2, th = Math.max(60, h - 34);
-  let s1 = Math.min(w * 0.17, th * 0.3), s2 = Math.min(w * 0.095, th * 0.17);
+  let s1 = Math.min(w * 0.17, th * (LY.land ? 0.2 : 0.3)), s2 = Math.min(w * 0.095, th * (LY.land ? 0.115 : 0.17));
   ctx.font = `700 ${s1}px ${FONT}`; const mw = ctx.measureText('GILLI-DANDA').width; if (mw > w - 20) { const k = (w - 20) / mw; s1 *= k; s2 *= Math.min(1, k * 1.1); }
-  const base = Math.max(th * 0.3, s1 * 1.0);
+  const base = Math.max(th * (LY.land ? 0.2 : 0.3), s1 * 1.0);
   textFill(ctx, 'GILLI-DANDA', cx, base, s1, { grad: [[0, '#fff6cc'], [0.55, '#ffc83d'], [1, '#e8791a']], stroke: 'rgba(60,20,4,0.75)' });
   textFill(ctx, 'STICK AND PEG', cx, base + s2 * 1.45, s2, { grad: [[0, '#d9f6ee'], [0.6, '#6fd8bf'], [1, '#2fae8c']], stroke: 'rgba(4,40,30,0.7)' });
   if (state.env && state.env.view3d && state.env.view3d.active) { ctx.fillStyle = 'rgba(255,248,230,0.92)'; ctx.textAlign = 'center'; const tag0 = 'Tap it. Flip it. Strike it far.'; fitFont(ctx, tag0, Math.min(24, w * 0.036) * Math.min(scaleOf(state), 2.2), w - 40, 600, SANS, LY.minText); ctx.fillText(tag0, cx, h - 12); return; }

@@ -14,11 +14,16 @@ export const SLICE_MARGIN = 56;
 export const CHAR_W = 30;
 export const CHIP_PAD_X = 20;
 export const CHIP_H = 96;
+// the round's speaker button sits in the top-right corner of the question plaque
+export const hearRect = (pl) => ({ x: pl.x + pl.w - 76, y: pl.y + 10, w: 64, h: 64 });
 export const slipWidth = (text) => text.length * CHAR_W + CHIP_PAD_X * 2;
 
 export const TEXT_SCALES = [1, 1.5, 2, 2.5, 3];
 export const THINK_STEPS = [2, 5, 8, 10];
 export const REVEAL_SECONDS = 2;
+// How many words are on screen in the current round (2 to 6); the game sets it when a round starts.
+export const lanes = { n: 3 };
+export const laneSlice = () => (BAND_BOTTOM - BAND_TOP) / lanes.n;
 
 // Mouse wheel / trackpad scroll for the Rules reader (main.js adds CSS px converted to virtual units), and the reader's
 // content height (filled in by the renderer each frame) so scrolling clamps to the real text.
@@ -30,12 +35,14 @@ export const formMetrics = { content: 0, view: 0, max: 0 };
 export const inRect = (x, y, r) => !!r && x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h;
 
 // Safe areas and the host's floating back button, in virtual units. main.js keeps this current (browsers: all zero).
-export const host = { t: 0, r: 0, b: 0, l: 0, back: 0, px: 0.54, lefty: false };
+// Home-screen extras that change the layout: the "My words" button exists only while the player has saved words.
+export const homeOpts = { mine: false };
+export const host = { t: 0, r: 0, b: 0, l: 0, back: 0, px: 0.54, lefty: false, oneHand: false };
 
 const cache = new Map();
 export function layoutFor(w, h) {
   w = Math.round(w); h = Math.round(h);
-  const key = `${w}x${h}|${Math.round(host.t)},${Math.round(host.r)},${Math.round(host.b)},${Math.round(host.l)},${Math.round(host.back)}|${host.lefty ? 1 : 0}`;
+  const key = `${w}x${h}|${Math.round(host.t)},${Math.round(host.r)},${Math.round(host.b)},${Math.round(host.l)},${Math.round(host.back)}|${host.lefty ? 1 : 0}${host.oneHand ? 1 : 0}|${homeOpts.mine ? 1 : 0}`;
   let L = cache.get(key);
   if (!L) { L = build(w, h, { ...host }); L.key = key; cache.set(key, L); if (cache.size > 40) cache.delete(cache.keys().next().value); }
   return L;
@@ -52,7 +59,7 @@ function build(w, h, ins) {
   const U = L.U = { x0: ins.l, y0: ins.t, x1: w - ins.r, y1: h - ins.b };
   U.w = U.x1 - U.x0; U.h = U.y1 - U.y0;
   const ox = L.ox = wide ? 0 : Math.max(0, (w - 720) / 2);       // the 720-wide column of a portrait screen, centred when wider
-  L.chipK = 1; L.chipH = CHIP_H;
+  L.chipK = 1;
 
   // =========================================================== title
   {
@@ -69,6 +76,9 @@ function build(w, h, ins) {
       T.play = R(ox + 110, y - 128, 500, 128); y -= 128 + 12;
       T.sum = R(ox + 56, y - 46, 608, 46); T.sumY = y - 12; y -= 46 + 6;
       T.bestY = y - 10; y -= 36;
+      T.search = R(ox + 56, y - 72, 608, 72); y -= 72 + 12;                  // "Look up any word": the offline dictionary
+      if (homeOpts.mine) { T.mine = R(ox + 56, y - 64, 608, 64); y -= 64 + 12; }      // "My words (N)": only when the list is not empty
+      T.wotd = R(ox + 56, y - 84, 608, 84); y -= 84 + 12;                     // Word of the day (follows the effective vocabulary window)
       const modesTop = y - 8;
       const topBase = Math.max(ins.t + 120, L.backBox.h ? ins.t + L.backBox.h + 95 : 0);   // the 124 px title starts below the host back button
       const heroTop0 = topBase + 56 + 46;
@@ -97,7 +107,11 @@ function build(w, h, ins) {
       T.cx = lx0 + lw / 2; T.titleMaxW = Math.max(220, lw - 150);
       const topBase = Math.max(U.y0 + 100, L.backBox.h ? U.y0 + L.backBox.h + 95 : 0);
       T.titleBase = topBase; T.taglineY = topBase + 50; T.creditY = T.taglineY + 40;
-      const heroTop = T.creditY + 26, avail = U.y1 - 12 - heroTop;
+      const SRH = 76, sw = Math.min(lw, 640); T.search = R(lx0 + (lw - sw) / 2, U.y1 - 14 - SRH, sw, SRH);     // "Look up any word": the offline dictionary
+      let topY = T.search.y;
+      if (homeOpts.mine) { T.mine = R(T.search.x, topY - 8 - 56, sw, 56); topY = T.mine.y; }
+      T.wotd = R(T.search.x, topY - 8 - 72, sw, 72); topY = T.wotd.y;
+      const heroTop = T.creditY + 26, avail = topY - 14 - heroTop;
       let heroH = 0, mode = 'none';
       if (avail >= 428) { heroH = Math.min(avail, 470); mode = 'full'; } else if (avail >= 170) { heroH = 132; mode = 'plaque'; }
       T.hero = { mode, x: lx0, y: heroTop + (avail - heroH) * 0.3, w: lw, h: heroH };
@@ -118,6 +132,8 @@ function build(w, h, ins) {
       let ph = 236;
       const bandOf = (p) => btnY - 22 - (top0 + p + 8 + thinkH + 10);
       if (bandOf(ph) < 3 * 168) ph = clamp(236 - (3 * 168 - bandOf(ph)), 150, 236);
+      // one-handed: the lanes you tap stay in the lower part of the screen, within a thumb's reach; the question plaque takes the freed space above
+      if (ins.oneHand) { const cap = Math.max(3 * 150, Math.round((h - ins.t - ins.b) * 0.46)); if (bandOf(ph) > cap) ph = clamp(btnY - 22 - cap - (top0 + 8 + thinkH + 10), ph, 360); }
       P.plaque = R(ox + 50, top0, 620, ph);
       P.thinkY = top0 + ph + 8; P.think = R(ox + 160, P.thinkY, 400, thinkH);
       P.dec = R(ox + 160, P.thinkY, 100, thinkH); P.inc = R(ox + 460, P.thinkY, 100, thinkH);
@@ -127,6 +143,7 @@ function build(w, h, ins) {
       P.combo = R(ox + 40, hudY, 200, 80);
       P.stop = R(ox + 40, btnY, 202, btnH); P.pause = R(ox + 259, btnY, 202, btnH); P.hint = R(ox + 478, btnY, 202, btnH); P.colour = P.hint;
       P.aexit = R(ox + 70, btnY, 180, btnH); P.apause = R(ox + 270, btnY, 180, btnH); P.acolour = R(ox + 470, btnY, 180, btnH);
+      P.rate = R(P.plaque.x + P.plaque.w - 176, P.thinkY, 176, thinkH);
       P.panel = null;
     } else {
       const LW = clamp(w * 0.34, 400, 460), lx = U.x0 + 12;
@@ -147,23 +164,24 @@ function build(w, h, ins) {
       P.stop = R(lx, bottom - btnH, tw3, btnH); P.pause = R(lx + tw3 + 8, bottom - btnH, tw3, btnH); P.hint = R(lx + 2 * tw3 + 16, bottom - btnH, tw3, btnH); P.colour = P.hint;
       P.aexit = R(lx, bottom - autoBlock, LW / 2 - 6, btnH); P.apause = R(lx + LW / 2 + 6, bottom - autoBlock, LW / 2 - 6, btnH);
       P.acolour = R(lx, bottom - rowB, LW, rowB);
+      P.rate = R(lx + LW - 176, P.thinkY, 176, thinkH);
       P.panel = R(lx - 8, U.y0 + 4, LW + 16, U.h - 8);
       const bx = lx + LW + 16;
       P.band = R(bx, U.y0 + 8, w - bx, U.h - 16);
     }
-    // lane space -> screen
-    const laneH = P.band.h / 3;
-    L.chipH = clamp(laneH - 36, 80, CHIP_H);
+    // lane space -> screen. The number of lanes (2 to 6 words on screen) is set per round by the game (`lanes.n`).
     L.chipK = clamp(P.band.w / 640, 0.62, 1);
     L.slipW = (text) => slipWidth(text) * L.chipK;
     L.wordX = (lx) => P.band.x + (lx / W) * P.band.w;
+    const laneHf = () => P.band.h / lanes.n, chipHf = () => clamp(laneHf() - 36, 52, CHIP_H);
+    Object.defineProperty(L, 'chipH', { get: chipHf, enumerable: true });
+    Object.defineProperty(L, 'laneH', { get: laneHf, enumerable: true });
     L.wordY = (slot, ly) => {
-      const s0 = BAND_TOP + slot * SLICE_H + SLICE_MARGIN, s1 = BAND_TOP + (slot + 1) * SLICE_H - SLICE_MARGIN;
-      const f = clamp((ly - s0) / (s1 - s0), 0, 1), top = P.band.y + slot * laneH + L.chipH / 2 + 6;
-      return top + f * Math.max(0, laneH - L.chipH - 12);
+      const n = lanes.n, sh = (BAND_BOTTOM - BAND_TOP) / n, m = sh * 0.205, s0 = BAND_TOP + slot * sh + m, s1 = BAND_TOP + (slot + 1) * sh - m, lh = laneHf(), ch = chipHf();
+      const f = clamp((ly - s0) / (s1 - s0), 0, 1), top = P.band.y + slot * lh + ch / 2 + 6;
+      return top + f * Math.max(0, lh - ch - 12);
     };
-    L.laneY = (k) => P.band.y + (k + 0.5) * laneH;
-    L.laneH = laneH;
+    L.laneY = (k) => P.band.y + (k + 0.5) * laneHf();
   }
 
   // =========================================================== Rules reader
@@ -197,14 +215,16 @@ function build(w, h, ins) {
     C.card = R(pn.x, pn.y, pn.w, pn.h);
     C.know = R(pn.x + 20, pn.y + pn.h - 104, bw, 84); C.learn = R(pn.x + 40 + bw, pn.y + pn.h - 104, bw, 84);
     C.body = R(pn.x + 20, pn.y + 20, pn.w - 40, pn.h - 148);
+    C.hear = R(C.body.x + C.body.w - 150, C.body.y - 6, 150, 56);
+    C.dict = R(C.body.x, C.body.y - 6, 190, 56); C.thes = R(C.body.x + 200, C.body.y - 6, 190, 56);
     const side = Math.max(160, Math.min(pn.w - 60, pn.h - 250)), TR = L.trace = R(pn.x + (pn.w - side) / 2, pn.y + 120 + Math.max(0, (pn.h - 250 - side) / 2), side, side);
-    L.traceHear = R(pn.x + 20, pn.y + 14, pn.w - 40, 96); void TR;
+    L.traceHear = R(pn.x + 20, pn.y + 14, Math.round((pn.w - 40) * 0.58), 96); L.traceStyle = R(pn.x + 20 + Math.round((pn.w - 40) * 0.58) + 12, pn.y + 14, pn.w - 40 - Math.round((pn.w - 40) * 0.58) - 12, 96); void TR;
   }
 
   // =========================================================== session review
   {
     const O = L.over = {};
-    O.rowH = 142; O.rowGap = 12;
+    O.rowH = 172; O.rowGap = 12;   // tall enough for word / Answer / You / meaning in the left block and label + Meaning + Thesaurus stacked in the right column
     if (!wide) {
       const comp = h < 1300;
       O.cx = w / 2; O.titleY = Math.max(128, ins.t + 100); O.subY = O.titleY + 40;
@@ -233,9 +253,17 @@ function build(w, h, ins) {
       O.prev = R(rx, pagerY, pw, pagerH); O.next = R(rx + rw - pw, pagerY, pw, pagerH);
       O.rowsTop = U.y0 + 14; O.rowsBottom = pagerY - 10;
     }
+    // "Keep exploring" strip under the review rows: keep missed words, play them, or wander to a related word (44pt+ tall buttons)
+    // (only when at least two review rows still fit above it; very short screens keep the rows and drop the strip)
+    if (Math.floor((O.rowsBottom - 68 - O.rowsTop + O.rowGap) / O.rowH) >= 2) {
+      O.strip = R(O.rowsX, O.rowsBottom - 56, O.rowsW, 56); O.rowsBottom -= 68;
+      O.stripBtn = (i) => { const gap = 8, bw = Math.floor((O.strip.w - 2 * gap) / 3); return R(O.strip.x + i * (bw + gap), O.strip.y, i === 2 ? O.strip.w - 2 * (bw + gap) : bw, O.strip.h); };
+    } else { O.strip = null; O.stripBtn = () => R(-9999, -9999, 0, 0); }
     O.perPage = Math.max(2, Math.floor((O.rowsBottom - O.rowsTop + O.rowGap) / O.rowH));
     O.rowRect = (i, top) => R(O.rowsX, top + i * O.rowH, O.rowsW, O.rowH - 12);
-    O.lookRect = (i, top) => { const r = O.rowRect(i, top); return R(r.x + r.w - 150, r.y + 8, 134, 46); };
+    O.lookRect = (i, top) => { const r = O.rowRect(i, top); return R(r.x + r.w - 150, r.y + 38, 134, 46); };
+    O.dictRect = (i, top, shift) => { const r = O.rowRect(i, top); return R(r.x + r.w - 150 - shift, r.y + 38, 134, 46); };   // "Meaning": the offline dictionary
+    O.thesRect = (i, top, shift) => { const r = O.rowRect(i, top); return R(r.x + r.w - 150 - shift, r.y + 92, 134, 40); };   // "Thesaurus": relation-type answers only
     O.pageY = O.prev.y + O.prev.h / 2 + 9;
   }
 

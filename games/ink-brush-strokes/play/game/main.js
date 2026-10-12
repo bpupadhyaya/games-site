@@ -1,3 +1,4 @@
+import './src/safecanvas.js';
 import { boot } from './kit/index.js';
 import { createGame, meta } from './src/game.js';
 import { host, layoutFor } from './src/layout.js';

@@ -237,19 +237,23 @@ function drawAimOverlay(ctx, cam, state, lay) {
 function drawBanner(ctx, state, lay) {
   const b = state.banner;
   if (!b) return;
-  const t = b.t, a = clamp(Math.min(t / 0.18, (b.dur - t) / 0.3), 0, 1), s = 0.8 + 0.2 * ease.outBack(t / 0.3);
-  const cx = lay.scene.x + lay.scene.w / 2, bw = Math.min(FR.sw, lay.scene.w), cy = lay.scene.y + lay.scene.h * 0.34;
-  ctx.save(); ctx.globalAlpha = a; ctx.translate(cx, cy); ctx.scale(s, s);
-  const big = Math.min(b.size * Math.min(1.15, lay.sc), (bw - 40) / Math.max(4, b.text.length * 0.62));
+  const t = b.t, a = clamp(Math.min(t / 0.18, (b.dur - t) / 0.3), 0, 1), s = 0.85 + 0.15 * ease.outBack(t / 0.3);
+  const sc = lay.scene, cx = sc.x + sc.w / 2, bw = Math.min(FR.sw, sc.w), pw = Math.min(bw - 24, sc.w * 0.86);
+  const big = Math.min(b.size * 0.8 * Math.min(1.15, lay.sc), (pw - 40) / Math.max(4, b.text.length * 0.62));
+  ctx.save(); ctx.globalAlpha = a;
+  const fs = Math.round(Math.min(30, big * 0.42) * Math.min(1.2, lay.sc));
+  ctx.font = `700 ${fs}px ${FONT}`;
+  const lines = b.sub ? wrapLines(ctx, b.sub, pw - 40) : [];
+  const ph = big * 1.15 + (lines.length ? big * 0.1 + lines.length * fs * 1.2 : 0) + 16;
+  const top = sc.y + sc.h * 0.07, cy = top + 8 + big * 0.575;
+  ctx.translate(cx, top + ph / 2); ctx.scale(s, s); ctx.translate(-cx, -(top + ph / 2));
+  roundPath(ctx, cx - pw / 2, top, pw, ph, 16); ctx.fillStyle = 'rgba(30,14,6,0.72)'; ctx.fill();
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.font = `800 ${big}px ${NUM}`;
-  ctx.lineJoin = 'round'; ctx.lineWidth = Math.max(6, big * 0.12); ctx.strokeStyle = 'rgba(40,18,6,0.9)'; ctx.strokeText(b.text, 0, 0);
-  ctx.fillStyle = b.kind === 'bad' ? '#e8d9b5' : b.kind === 'gold' ? '#ffd45c' : '#fff3d6'; ctx.fillText(b.text, 0, 0);
-  if (b.sub) {
-    let fs = Math.round(Math.min(34, big * 0.42) * Math.min(1.2, lay.sc)); ctx.font = `700 ${fs}px ${FONT}`;
-    const lines = wrapLines(ctx, b.sub, bw - 80);
-    lines.forEach((l, i) => { ctx.lineWidth = 6; ctx.strokeStyle = 'rgba(40,18,6,0.85)'; ctx.strokeText(l, 0, big * 0.62 + i * fs * 1.2); ctx.fillStyle = '#fff3d6'; ctx.fillText(l, 0, big * 0.62 + i * fs * 1.2); });
-  }
+  ctx.lineJoin = 'round'; ctx.lineWidth = Math.max(5, big * 0.1); ctx.strokeStyle = 'rgba(40,18,6,0.9)'; ctx.strokeText(b.text, cx, cy);
+  ctx.fillStyle = b.kind === 'bad' ? '#e8d9b5' : b.kind === 'gold' ? '#ffd45c' : '#fff3d6'; ctx.fillText(b.text, cx, cy);
+  ctx.font = `700 ${fs}px ${FONT}`;
+  lines.forEach((l, i) => { const yy = cy + big * 0.6 + fs * 0.7 + i * fs * 1.2; ctx.lineWidth = 5; ctx.strokeStyle = 'rgba(40,18,6,0.85)'; ctx.strokeText(l, cx, yy); ctx.fillStyle = '#fff3d6'; ctx.fillText(l, cx, yy); });
   ctx.restore();
 }
 

@@ -151,6 +151,22 @@ ENABLE word list - public domain
 The ENABLE master word list, WORD.LST, is herewith formally released into the Public Domain. Anyone is free to use it or distribute it in any manner they see fit. No fee or registration is required for its use nor are "contributions" solicited. Please mention the source and credit us as originators of the list. (Mike Cooper, Alan Beale and contributors.)
 
 
+Roget's Thesaurus (1911 edition) - Peter Mark Roget; electronic text by MICRA, Inc. via Project Gutenberg #22 (public domain; "More ways to say it")
+==============================================================================
+https://www.gutenberg.org/ebooks/22
+
+MICRA, Inc. makes no representation that the original 1911 printed work on which this is based is now in the public domain in any particular country. However, MICRA, Inc. makes no proprietary claims regarding this electronic version of the 1911 thesaurus. If the 1911 work is currently public domain, this electronic version can also be treated as public domain.
+
+Only single words that are also entries of this app were taken, and only as lists of related words; no sentences or book text are included.
+
+
+Moby Thesaurus II - Grady Ward, via Project Gutenberg #3202 (public domain; "More ways to say it")
+==============================================================================
+https://www.gutenberg.org/ebooks/3202
+
+Moby (tm) Thesaurus II. The documentation states: "This documentation, the software and/or database are: Public Domain material by grant from the author, January, 2001." Only single words that are also entries of this app were taken, and only as lists of related words.
+
+
 Wordnik wordlist - MIT licence
 ==============================
 MIT License
@@ -216,6 +232,11 @@ DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
 THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+
+
+Fables and poems - public domain texts
+======================================
+The fables are from Aesop, in the 1867 translation by Thomas James and George Fyler Townsend (as in the Project Gutenberg edition of "Three hundred Aesop's fables"). The poems are by Robert Louis Stevenson (A Child's Garden of Verses, 1885), William Blake (Songs of Innocence, 1789), William Wordsworth, Lord Byron, William Shakespeare and others, taken from The Golden Treasury (Palgrave, 1861) and the Project Gutenberg editions of the books above. All are in the public domain. Each text was checked word for word against the book it comes from. Topic and subject packs are built from WordNet 3.1 domain links (credit above).
 
 
 12dicts word lists - Alan Beale (public domain; acknowledgment requested)

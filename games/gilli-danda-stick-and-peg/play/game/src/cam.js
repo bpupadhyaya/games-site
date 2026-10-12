@@ -58,8 +58,8 @@ export function cameraFor(r, aspect, aim = null) {
 /** Orbiting camera for the title and menus: the striker from the front, the lane behind him. */
 export function titleCam(t, aspect) {
   const a = Math.sin(t * 0.2) * 0.3;
-  if (aspect >= 1) return { pos: [0.8 + Math.sin(a) * 0.9, 1.55, 6.4], look: [-1.5, 0.75, STRIKER_Z - 0.1], fov: vfovFor(aspect, 46) };
-  return { pos: [0.9 + Math.sin(a) * 0.6, 1.7, 4.6 - Math.cos(a) * 0.2], look: [0, -0.75, STRIKER_Z - 0.1], fov: vfovFor(aspect, 40) };
+  if (aspect >= 1) return { pos: [0.8 + Math.sin(a) * 0.9, 1.55, 6.8], look: [-1.5, 1.15, STRIKER_Z - 0.1], fov: vfovFor(aspect, 46) };
+  return { pos: [0.9 + Math.sin(a) * 0.6, 1.7, 4.6 - Math.cos(a) * 0.2], look: [0, -0.5, STRIKER_Z - 0.1], fov: vfovFor(aspect, 40) };
 }
 
 /** Project a sim point to virtual screen units. Returns { x, y, k, ok } where k = virtual units per metre at that depth. */

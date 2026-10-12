@@ -21,7 +21,20 @@ export const TOPICS = [
 const TOPIC_OF = new Map(); for (const t of TOPICS) for (const n of t.lex) TOPIC_OF.set(n, t.k);
 export const topicOf = (lex) => TOPIC_OF.get(lex) ?? '';
 
-const S = { custom: new Map(), arr: [], entries: [], by: new Map(), valid: null, pack: false, full: false, version: 0, cache: new Map(), pools: null };
+// ---- subject and topic packs (web/data/kb/packs.json, built from WordNet by data-build/topics.mjs). A pack id in cfg.topics is written 'pk:<id>'.
+const PK = { list: [], sets: new Map(), compounds: [] };
+export function installPacks(json) {
+  PK.list = (json?.packs ?? []).filter((p) => p && p.id && Array.isArray(p.words)).map((p) => ({ id: p.id, group: p.g, name: p.name, words: p.words }));
+  PK.sets = new Map(PK.list.map((p) => [p.id, new Set(p.words)]));
+  PK.compounds = Array.isArray(json?.compounds) ? json.compounds : [];
+  S.version++; S.cache = new Map();
+}
+export const packList = (group) => (group ? PK.list.filter((p) => p.group === group) : PK.list);
+export const packById = (id) => PK.list.find((p) => p.id === id);
+export const compoundList = () => PK.compounds;
+export const PACK_GROUPS = [{ k: 'topic', label: 'Topic packs' }, { k: 'subject', label: 'School subjects' }, { k: 'track', label: 'Word tracks' }];
+
+const S = { kid: false, custom: new Map(), arr: [], entries: [], by: new Map(), valid: null, pack: false, full: false, version: 0, cache: new Map(), pools: null };
 const POS_NAME = { n: 'noun', v: 'verb', a: 'adjective', r: 'adverb' };
 export const posName = (p) => POS_NAME[p] ?? '';
 
@@ -39,6 +52,18 @@ export function installPack(text) {
   }
   S.pack = true; S.full = true; S.version++;
   return S.entries.length;
+}
+// ---- authored word text (web/data/kb/wordtext.txt): row \t example \t plain meaning \t memory hook. The example replaces the WordNet one
+// (it is written for, and checked against, the study meaning). Rows without text keep what they had.
+export function applyWordText(text) {
+  let n = 0;
+  for (const ln of text.split('\n')) {
+    if (!ln) continue;
+    const f = ln.split('\t'), e = S.entries[Number(f[0])]; if (!e) continue;
+    if (f[1]) e.ex = f[1]; if (f[2]) e.plain = f[2]; if (f[3]) e.mn = f[3]; n += 1;
+  }
+  S.version++;
+  return n;
 }
 // ---- the validation lexicon: web/data/lex.fc, front coded (one hex digit = shared prefix length, then the rest of the word)
 export function installLexicon(text) {
@@ -62,6 +87,10 @@ export const credits = () => CREDITS;
 export const wordOf = (id) => S.arr[id];
 export const idOf = (w) => { let lo = 0, hi = S.arr.length - 1; while (lo <= hi) { const m = (lo + hi) >> 1, v = S.arr[m]; if (v === w) return m; if (v < w) lo = m + 1; else hi = m - 1; } return -1; };
 export const isFull = () => S.full;
+// kid-safe mode: wrong answers, journey words and every pool only use words flagged KID (set by game.js from the adaptive plan)
+export function setKidMode(on) { on = Boolean(on); if (S.kid !== on) { S.kid = on; S.pools = null; S.version++; } }
+export const kidMode = () => S.kid && S.full;
+export const kidOk = (e) => !kidMode() || Boolean(e.attrs & ATTR.KID) || Boolean(e.custom);
 export const lexiconReady = () => !!S.valid;
 export const version = () => S.version;
 export const isWord = (w) => (S.valid ? S.valid.has(w) : S.by.has(w));
@@ -77,19 +106,22 @@ export const size = () => S.entries.length;
 
 // ---- selecting the words a player asked for -------------------------------------------------------------------------
 // cfg: { contexts:[0..5 | 'first'], attrs:['HF',...], topics:['animals',...], combine:'any'|'narrow', minLen, maxLen, kid }
-export function sigOf(cfg) { return JSON.stringify([cfg.contexts, cfg.attrs, cfg.topics, cfg.combine, cfg.minLen, cfg.maxLen, cfg.kid ? 1 : 0, S.version]); }
+export function sigOf(cfg) { return JSON.stringify([cfg.contexts, cfg.attrs, cfg.topics, cfg.combine, cfg.minLen, cfg.maxLen, cfg.kid ? 1 : 0, cfg.pos ?? [], S.version]); }
 export function select(cfg) {
   if (!S.full) return S.entries;                      // built-in notebook list only: no levels to filter by yet
   const key = sigOf(cfg), hit = S.cache.get(key); if (hit) return hit;
-  const ctx = (cfg.contexts ?? []), at = (cfg.attrs ?? []).map((k) => ATTR[k]).filter(Boolean), tp = new Set(cfg.topics ?? []);
+  const ctx = (cfg.contexts ?? []), at = (cfg.attrs ?? []).map((k) => ATTR[k]).filter(Boolean), allTp = cfg.topics ?? [], tp = new Set(allTp.filter((t) => !t.startsWith('pk:')));
+  const pk = allTp.filter((t) => t.startsWith('pk:') && PK.sets.has(t.slice(3))).map((t) => PK.sets.get(t.slice(3))), posSet = new Set(cfg.pos ?? []);
   const inCtx = (e) => ctx.some((c) => (c === 'first' ? (e.attrs & ATTR.FIRST) !== 0 : e.band === c));
   const inAttr = (e) => at.some((b) => (e.attrs & b) !== 0);
   const inTopic = (e) => tp.has(topicOf(e.lex));
-  const none = !ctx.length && !at.length && !tp.size;
+  const none = !ctx.length && !at.length && !tp.size && !pk.length;
   const out = [];
   for (const e of S.entries) {
     if (e.len < (cfg.minLen ?? 3) || e.len > (cfg.maxLen ?? 15)) continue;
     if (cfg.kid && !(e.attrs & ATTR.KID) && S.full) continue;
+    if (posSet.size && !posSet.has(e.pos)) continue;                                                            // part of speech filter (J2)
+    if (pk.length && !(pk.some((st) => st.has(e.w)) && (!ctx.length || inCtx(e)))) continue;                     // a pack always stays inside the player's level window
     let ok;
     if (none) ok = true;
     else if (cfg.combine === 'narrow') ok = (!ctx.length || inCtx(e)) && at.every((b) => (e.attrs & b) !== 0) && (!tp.size || inTopic(e));
@@ -103,14 +135,14 @@ export function select(cfg) {
 // ---- distractor pool: words of a similar level and the same part of speech but a different meaning area
 function pools() {
   if (S.pools) return S.pools;
-  const p = {}; for (const e of S.entries) { const k = `${e.band}${e.pos}`; (p[k] ??= []).push(e); }
+  const p = {}; for (const e of S.entries) { if (!kidOk(e)) continue; const k = `${e.band}${e.pos}`; (p[k] ??= []).push(e); }
   S.pools = p; return p;
 }
 export function distractors(e, n, rng, avoid) {
   const out = [], P = pools(); const bands = [e.band, e.band - 1, e.band + 1].filter((b) => b >= 0 && b <= 5);
   let guard = 0;
   while (out.length < n && guard++ < 60) {
-    const pool = P[`${rng.pick([bands[0], bands[0], ...bands.slice(1)])}${e.pos}`] ?? S.entries; if (!pool.length) break;
+    const pool = P[`${rng.pick([bands[0], bands[0], ...bands.slice(1)])}${e.pos}`] ?? S.entries.filter(kidOk); if (!pool.length) break;
     const d = pool[rng.int(pool.length)];
     if (d === e || out.includes(d) || avoid.has(d.w) || d.lex === e.lex || e.syn.includes(d.w) || e.ant.includes(d.w) || d.syn.includes(e.w) || d.ant.includes(e.w)) continue;
     if (S.full === false && !d.syn.length) continue;

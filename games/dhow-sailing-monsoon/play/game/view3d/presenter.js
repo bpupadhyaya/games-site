@@ -45,6 +45,8 @@ export function createPresenter({ kitCanvas, quality, canvasParent = null } = {}
   const PIXEL_BUDGET = 2.6e6;
   const sizeCheck = () => {
     const w = kitCanvas.clientWidth || globalThis.innerWidth, h = kitCanvas.clientHeight || globalThis.innerHeight;
+    // A rotation can pass through a transient 0x0 / tiny / NaN size: keep the last good size (and aspect) until a real one arrives.
+    if (!(w >= 8 && h >= 8) || !Number.isFinite(w) || !Number.isFinite(h)) return;
     if (w !== P.size.w || h !== P.size.h) {
       P.size = { w, h };
       P.stage.setSize(w, h);
@@ -71,14 +73,22 @@ export function createPresenter({ kitCanvas, quality, canvasParent = null } = {}
     P.dir.frame(state, P.mode, dt);
   };
   P.wrap = (game) => {
-    const r = game.render.bind(game);
+    const r = game.render.bind(game), u = game.update.bind(game);
+    let errAt = 0;
+    const oops = (where, e) => { const t = globalThis.performance.now(); if (t - errAt > 2000) { errAt = t; console.warn('dhow ' + where + ' error (frame skipped, loop continues)', (e && e.stack) || e); } info.lastError = String((e && e.message) || e); };
+    game.update = (dt, input) => { try { u(dt, input); } catch (e) { oops('update', e); } };
     game.render = (ctx, view) => {
-      syncLayout(view?.width ?? LY.w, view?.height ?? LY.h);
-      const st = game.getState();
-      P.pre(st);
-      ctx.clearRect(0, 0, LY.w, LY.h);
-      r(ctx, view);
-      P.frame(st);
+      // Count save() depth so a throw mid-draw cannot leave the 2D context with a growing, clipped state stack.
+      if (!ctx.__depth) { ctx.__depth = 0; const s = ctx.save.bind(ctx), rs = ctx.restore.bind(ctx); ctx.save = () => { ctx.__depth++; s(); }; ctx.restore = () => { if (ctx.__depth > 0) { ctx.__depth--; rs(); } }; }
+      const d0 = ctx.__depth;
+      try {
+        syncLayout(view?.width ?? LY.w, view?.height ?? LY.h);
+        const st = game.getState();
+        P.pre(st);
+        ctx.clearRect(0, 0, LY.w, LY.h);
+        r(ctx, view);
+        P.frame(st);
+      } catch (e) { oops('render', e); while (ctx.__depth > d0) ctx.restore(); }
     };
     return game;
   };

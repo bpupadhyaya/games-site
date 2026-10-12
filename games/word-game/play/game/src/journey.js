@@ -6,7 +6,7 @@ import { LETTERS, letterEntry } from './letters.js';
 import * as lex from './lexicon.js';
 
 // (kept off an `export` line: the shared check's 3D-import pattern matches the number word in quotes)
-const FIRST100 = [...ART_WORDS, 'mother', 'father', 'baby', 'boy', 'girl', 'man', 'woman', 'friend', 'teacher', 'school', 'home', 'food', 'rice', 'tea', 'coffee', 'eat', 'drink', 'sleep', 'walk', 'run', 'sit', 'stand', 'open', 'close', 'big', 'small', 'hot', 'cold', 'happy', 'sad', 'good', 'bad', 'new', 'old', 'red', 'blue', 'green', 'yellow', 'black', 'white', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'day', 'night', 'morning', 'week', 'year', 'money', 'market', 'doctor', 'hand', 'head', 'eye', 'ear', 'mouth', 'foot', 'hospital', 'bus', 'road', 'farm', 'work', 'help', 'name'];
+const FIRST100 = [...new Set([...ART_WORDS.slice(0, 35), 'mother', 'father', 'baby', 'boy', 'girl', 'man', 'woman', 'friend', 'teacher', 'school', 'home', 'food', 'rice', 'tea', 'coffee', 'eat', 'drink', 'sleep', 'walk', 'run', 'sit', 'stand', 'open', 'close', 'big', 'small', 'hot', 'cold', 'happy', 'sad', 'good', 'bad', 'new', 'old', 'red', 'blue', 'green', 'yellow', 'black', 'white', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'day', 'night', 'morning', 'week', 'year', 'money', 'market', 'doctor', 'hand', 'head', 'eye', 'ear', 'mouth', 'foot', 'hospital', 'bus', 'road', 'farm', 'work', 'help', 'name'])];
 export { FIRST100 };
 export const WORLDS = [
   { id: 0, k: 'letters', name: 'Letter Land', blurb: 'Meet every letter of the alphabet', color: '#ff9f1c', secs: 20, stages: 6 },
@@ -25,9 +25,9 @@ export const starsFor = (right, n) => { const a = n ? right / n : 0; return a >=
 let cache = { v: -1, first: [], bands: [] };
 function build() {
   const v = lex.version(); if (cache.v === v) return cache;
-  const first = FIRST100.map((w) => lex.entry(w)).filter((e) => e && e.gloss);
+  const first = FIRST100.map((w) => lex.entry(w)).filter((e) => e && e.gloss);   // (kid-safe mode filters the level worlds below)
   const bands = [0, 1, 2, 3, 4, 5].map((b) => {
-    const all = lex.all().filter((e) => e.band === b && e.gloss && e.gloss.length <= 90);
+    const all = lex.all().filter((e) => lex.kidOk(e) && e.band === b && e.gloss && e.gloss.length <= 90);
     const n = Math.min(80, all.length), out = [];
     for (let i = 0; i < n; i += 1) out.push(all[Math.floor((i * all.length) / n)]);
     return out;

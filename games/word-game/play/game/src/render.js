@@ -2,18 +2,20 @@
 // All motion comes from the state's fixed-step clocks (state.t, state.sceneT, fx.t, round.age).
 import { SCHEMES } from './schemes.js';
 import { RULES } from './content.js';
-import { CHIP_H, slipWidth, TEXT_SCALES, THINK_STEPS, rulesMetrics } from './layout.js';
+import { hearRect, CHIP_H, slipWidth, TEXT_SCALES, THINK_STEPS, rulesMetrics, lanes } from './layout.js';
 import { drawCredit, drawLockup, drawMoreLine } from './brand.js';
-import { KIND_SHORT } from './quiz.js';
+import { KIND_SHORT, REL_QUIZ_KINDS } from './quiz.js';
 import { drawArt } from './art.js';
-import { STROKES } from './letters.js';
+import { strokesFor } from './letters.js';
+import { marks } from './study.js';
+import { drawSearchEntry, drawWotdCard } from './lookupui.js';
 
 const DISPLAY_STD = '"Cormorant Garamond", Georgia, "Times New Roman", serif', UI_STD = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
 const DYS = 'Verdana, "Trebuchet MS", "DejaVu Sans", sans-serif';
 let DISPLAY = DISPLAY_STD, UI = UI_STD;
 const TAU = Math.PI * 2;
 const CYAN = '#39d0ea', CYAN_DEEP = '#0e6f8a', GOLD = '#ffd166';
-let GOOD = '#5eea9a', BAD = '#ff7b7b';
+let GOOD = '#5eea9a', BAD = '#ffb86b';
 const INK = '#10242e';
 
 const clamp01 = (v) => Math.max(0, Math.min(1, v));
@@ -35,7 +37,7 @@ export function render(ctx, state, title, demoLimit, L, env, X = {}) {
   const PF = state.prefs ?? {};
   const dys = PF.font === 'dys';
   DISPLAY = dys ? DYS : DISPLAY_STD; UI = dys ? DYS : UI_STD;
-  if (PF.cb) { GOOD = '#4aa8ff'; BAD = '#ffb000'; } else { GOOD = '#5eea9a'; BAD = '#ff7b7b'; }
+  if (PF.cb) { GOOD = '#4aa8ff'; BAD = '#ffb000'; } else { GOOD = '#5eea9a'; BAD = '#ffb86b'; }
   const scheme = SCHEMES[state.scheme], hc = Boolean(scheme.hc), t = PF.reduce ? 0 : state.t, sceneT = state.sceneT;
   const soft = (a) => (hc ? '#ffffff' : hexA(scheme.text, a));
   const accent = hc ? '#ffffff' : CYAN;
@@ -59,6 +61,15 @@ export function render(ctx, state, title, demoLimit, L, env, X = {}) {
     return `${s.trimEnd()}…`;
   };
   const rr = (x, y, w, h, r) => { ctx.beginPath(); ctx.roundRect(x, y, w, h, r); };
+  // A line of text with the target word (and its common endings) drawn bold and gold: example sentences on study cards.
+  const markedLine = (str, word, x, y, size, color, align) => {
+    const segs = marks(str, word);
+    const wOf = (sg) => { ctx.font = `${sg.hl ? 800 : 500} ${size}px ${UI}`; return ctx.measureText(sg.t).width; };
+    const total = segs.reduce((a, sg) => a + wOf(sg), 0);
+    let cx = align === 'center' ? x - total / 2 : x;
+    ctx.textAlign = 'left';
+    for (const sg of segs) { ctx.font = `${sg.hl ? 800 : 500} ${size}px ${UI}`; ctx.fillStyle = sg.hl ? (hc ? '#ffffff' : GOLD) : color; ctx.fillText(sg.t, cx, y); if (sg.hl && hc) { ctx.fillRect(cx, y + 4, ctx.measureText(sg.t).width, 2); } cx += ctx.measureText(sg.t).width; }
+  };
   const shadow = (x, y, w, h, r, depth = 10) => {
     if (hc) return;
     ctx.fillStyle = 'rgba(0,0,0,0.16)'; rr(x - 2, y + depth * 0.5, w + 4, h + depth * 0.9, r + 4); ctx.fill();
@@ -156,7 +167,7 @@ export function render(ctx, state, title, demoLimit, L, env, X = {}) {
     }
     const k = o.small ? 0.62 : kr;
     try { ctx.letterSpacing = '3px'; } catch { /* older canvases */ }
-    text(label, cx, r.y + 58 * k, Math.max(22, Math.round(25 * k + 3)), hc ? '#ffffff' : '#8fe6f7', { weight: 700, maxW: r.w - 30 });
+    text(label, cx, r.y + 58 * k, Math.max(22, Math.round(25 * k + 3)), hc ? '#ffffff' : '#8fe6f7', { weight: 700, maxW: r.w - 30 - (o.hearBtn ? 150 : 0) });
     try { ctx.letterSpacing = '0px'; } catch { /* older canvases */ }
     const pop = o.pop ?? 1;
     ctx.save();
@@ -307,6 +318,9 @@ export function render(ctx, state, title, demoLimit, L, env, X = {}) {
       g.addColorStop(0, hexA(CYAN, 0.30 + Math.sin(t * 2.4) * 0.08)); g.addColorStop(1, hexA(CYAN, 0));
       ctx.fillStyle = g; ctx.fillRect(pc.x - 360, pc.y - 340, 720, 680);
     }
+    drawSearchEntry(ctx, T.search, { hc, soft, hexA, text });
+    if (X.wotd) drawWotdCard(ctx, T.wotd, X.wotd, { hc, soft, hexA, text, yesterday: X.yWotd && X.yWotd.w !== X.wotd.w ? X.yWotd.w : '' });
+    if (T.mine) button(T.mine, X.listN > 1 ? `My lists (${X.listN})` : `My words (${X.mineN})`, { id: 'mine', size: 30, scale: enter(5), style: 'active' });
     button(T.play, 'Play', { style: 'primary', size: 58, scale: enter(4) * breathe });
     button(T.journey, 'Journey', { id: 'journey', size: 32, style: 'active', scale: enter(4.5), sub: X.stars ? `${X.stars} stars  ·  letters to graduate words` : 'letters to graduate words' });
     button(T.setup, 'Words & pace', { id: 'setup', size: 28, scale: enter(5) });
@@ -357,7 +371,7 @@ export function render(ctx, state, title, demoLimit, L, env, X = {}) {
         ctx.fillStyle = g; rr(ox + 8, y, vp.w - 16, it.h, 22); ctx.fill();
         ctx.strokeStyle = hexA(Wd.color, unl ? 0.8 : 0.25); ctx.lineWidth = 2.5; ctx.stroke();
         text(Wd.name, ox + 28, y + 52, 46, unl ? '#ffffff' : soft(0.5), { font: DISPLAY, align: 'left', maxW: vp.w * 0.62 });
-        text(unl ? Wd.blurb : 'Locked: pass the checkpoint before it', ox + 28, y + 88, 24, soft(unl ? 0.85 : 0.5), { weight: 600, align: 'left', maxW: vp.w * 0.66 });
+        text(unl ? Wd.blurb + (X.jFocus === it.world ? '  ·  your level' : '') : 'Locked: pass the checkpoint before it', ox + 28, y + 88, 24, soft(unl ? 0.85 : 0.5), { weight: 600, align: 'left', maxW: vp.w * 0.66 });
         text(`★ ${jn.worldStars(J, it.world)} / ${n * 3}`, ox + vp.w - 28, y + 58, 30, hc ? '#ffffff' : hexA(GOLD, unl ? 1 : 0.4), { weight: 800, align: 'right' });
         continue;
       }
@@ -397,14 +411,17 @@ export function render(ctx, state, title, demoLimit, L, env, X = {}) {
 
   // ---- tracing letters -------------------------------------------------------------------------------------------
   if (state.scene === 'trace' && X.trace) {
-    const Q = L.rules, tr = X.trace, T = L.trace, c = X.LETTERS[tr.i], strokes = STROKES[c];
+    const Q = L.rules, tr = X.trace, T = L.trace, c = X.LETTERS[tr.i], strokes = strokesFor(c, tr.style);
     ctx.save(); if (!hc) { ctx.shadowColor = hexA(CYAN, 0.55); ctx.shadowBlur = 22; }
     if (L.wide) text('Trace', Q.titleX, Q.titleBase, 52, '#ffffff', { font: DISPLAY, maxW: Q.dec.w * 2 }); else text('Trace the letters', Q.panel.x + 10, Q.titleBase, 52, '#ffffff', { font: DISPLAY, align: 'left', maxW: Q.panel.w - 20 });
     ctx.restore();
     framedPanel(Q.panel);
     const H_ = L.traceHear; ctx.fillStyle = hc ? '#000000' : 'rgba(10,36,48,0.9)'; rr(H_.x, H_.y, H_.w, H_.h, 24); ctx.fill(); ctx.strokeStyle = hc ? '#ffffff' : hexA(CYAN, 0.6); ctx.lineWidth = 2.5; ctx.stroke();
-    text(`${c.toUpperCase()}  ${c}`, H_.x + 24, H_.y + 66, 60, '#ffffff', { font: DISPLAY, align: 'left', maxW: H_.w * 0.4 });
-    text(X.canSpeak ? 'Tap to hear it' : 'Follow the dots with your finger', H_.x + H_.w - 20, H_.y + 56, 24, soft(0.85), { weight: 600, align: 'right', maxW: H_.w * 0.5 });
+    text(`${c.toUpperCase()}  ${c}`, H_.x + 20, H_.y + 66, 56, '#ffffff', { font: DISPLAY, align: 'left', maxW: H_.w * 0.5 });
+    text(X.canSpeak ? 'Hear it' : 'Follow the dots', H_.x + H_.w - 16, H_.y + 56, 22, soft(0.85), { weight: 600, align: 'right', maxW: H_.w * 0.45 });
+    const S_ = L.traceStyle; ctx.fillStyle = hc ? '#000000' : 'rgba(10,36,48,0.9)'; rr(S_.x, S_.y, S_.w, S_.h, 24); ctx.fill(); ctx.strokeStyle = hc ? '#ffffff' : hexA(GOLD, 0.7); ctx.lineWidth = 2.5; ctx.stroke();
+    text(({ upper: 'Capital', lower: 'Small', cursive: 'Joined' })[tr.style] ?? 'Capital', S_.x + S_.w / 2, S_.y + 46, 30, '#ffffff', { weight: 800, maxW: S_.w - 20 });
+    text('tap to change', S_.x + S_.w / 2, S_.y + 76, 20, soft(0.75), { weight: 600, maxW: S_.w - 20 });
     ctx.fillStyle = hc ? '#111111' : 'rgba(255,255,255,0.05)'; rr(T.x - 10, T.y - 10, T.w + 20, T.h + 20, 24); ctx.fill();
     const P2 = (p) => [T.x + p[0] * T.w, T.y + p[1] * T.h];
     ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.strokeStyle = hc ? '#666666' : 'rgba(255,255,255,0.16)'; ctx.lineWidth = T.w * 0.12;
@@ -412,6 +429,12 @@ export function render(ctx, state, title, demoLimit, L, env, X = {}) {
     ctx.strokeStyle = hc ? '#ffffff' : hexA(CYAN, 0.55); ctx.lineWidth = 3; ctx.setLineDash([10, 14]);
     for (const path of strokes) { ctx.beginPath(); path.forEach((p, i) => (i ? ctx.lineTo(...P2(p)) : ctx.moveTo(...P2(p)))); ctx.stroke(); }
     ctx.setLineDash([]);
+    strokes.forEach((path, si) => {                                                         // stroke order: a numbered start and an arrow along the first leg
+      const [sx, sy] = P2(path[0]), a = P2(path[Math.min(1, path.length - 1)]), b = P2(path[Math.min(3, path.length - 1)]), ang = Math.atan2(b[1] - a[1], b[0] - a[0]);
+      ctx.fillStyle = hc ? '#ffffff' : hexA(GOLD, 0.95); ctx.beginPath(); ctx.arc(sx, sy - T.h * 0.055, T.w * 0.04, 0, TAU); ctx.fill();
+      text(String(si + 1), sx, sy - T.h * 0.055 + T.w * 0.015, Math.round(T.w * 0.05), '#04222c', { weight: 800 });
+      if (strokes.length > 0 && path.length > 1) { const mx = (a[0] + b[0]) / 2, my = (a[1] + b[1]) / 2, s = T.w * 0.03; ctx.save(); ctx.translate(mx, my); ctx.rotate(ang); ctx.fillStyle = hc ? '#ffffff' : hexA(CYAN, 0.9); ctx.beginPath(); ctx.moveTo(s, 0); ctx.lineTo(-s, -s * 0.8); ctx.lineTo(-s, s * 0.8); ctx.closePath(); ctx.fill(); ctx.restore(); }
+    });
     tr.cps.forEach((cp, i) => { const [x, y] = P2([cp.x, cp.y]); if (i < tr.idx) { ctx.fillStyle = hc ? '#ffffff' : GOLD; ctx.beginPath(); ctx.arc(x, y, T.w * 0.05, 0, TAU); ctx.fill(); } else if (i === tr.idx && !tr.done) { const pu = 1 + 0.25 * Math.sin(tr.t * 7); ctx.fillStyle = hc ? '#ffffff' : GOOD; ctx.beginPath(); ctx.arc(x, y, T.w * 0.06 * pu, 0, TAU); ctx.fill(); ctx.fillStyle = '#07202b'; ctx.font = `800 ${Math.round(T.w * 0.06)}px ${UI}`; ctx.textAlign = 'center'; if (cp.s) ctx.fillText('▶', x, y + T.w * 0.02); } });
     for (const q of state.parts) { const a = 1 - q.age / q.life; ctx.globalAlpha = Math.max(0, a); ctx.fillStyle = q.c; ctx.beginPath(); ctx.arc(q.x, q.y, q.r, 0, TAU); ctx.fill(); }
     ctx.globalAlpha = 1;
@@ -453,6 +476,20 @@ export function render(ctx, state, title, demoLimit, L, env, X = {}) {
       switch (row.k) {
         case 'h': it.lines.forEach((ln, i) => text(ln, left, top + it.size + i * it.lh, it.size, ink, { align: 'left', weight: 800 })); break;
         case 'p': it.lines.forEach((ln, i) => text(ln, left, top + it.size + i * it.lh, it.size, soft(row.small ? 0.8 : 0.93), { align: 'left', weight: 500, maxW: width })); break;
+        case 'hl': { // read-along text: the word being read is lit
+          let gi = 0; ctx.font = `700 ${it.size}px ${UI}`; ctx.textAlign = 'left';
+          it.lines.forEach((ln, i) => {
+            let x = left; const y = top + it.size + i * it.lh;
+            for (const wd of ln.split(' ')) {
+              if (!wd) continue;
+              const ww = ctx.measureText(wd).width, on = gi === row.hl;
+              if (on) { ctx.fillStyle = hc ? '#ffffff' : hexA(GOLD, 0.95); rr(x - 6, y - it.size * 0.85, ww + 12, it.size * 1.18, 8); ctx.fill(); }
+              ctx.fillStyle = on ? '#04222c' : ink; ctx.fillText(wd, x, y);
+              x += ww + ctx.measureText(' ').width; gi += 1;
+            }
+          });
+          break;
+        }
         case 'sub': it.lines.forEach((ln, i) => text(ln, left, top + it.size + 6 + i * it.lh, it.size, ink, { align: 'left', weight: 800, maxW: width })); break;
         case 'pre': it.lines.forEach((ln, i) => text(ln, left, top + it.size + i * it.lh, it.size, soft(0.88), { align: 'left', weight: 500, maxW: width })); break;
         case 'rule': ctx.fillStyle = soft(0.18); ctx.fillRect(left, top + it.h / 2, width, 2); break;
@@ -468,6 +505,21 @@ export function render(ctx, state, title, demoLimit, L, env, X = {}) {
           if (row.text) text(row.text, left, by + bh + S_(24), S_(21), soft(0.72), { align: 'left', weight: 500, maxW: width });
           break;
         }
+        case 'big': {
+          const cx = row.art ? left + width * 0.3 : left + width / 2;
+          text(row.t, cx, top + it.size * 0.95, it.size, '#ffffff', { font: DISPLAY, maxW: row.art ? width * 0.55 : width });
+          if (row.sub) text(row.sub, cx, top + it.size * 0.95 + S_(44), S_(26), soft(0.9), { weight: 600, maxW: row.art ? width * 0.55 : width });
+          if (row.art) { ctx.save(); drawArt(ctx, row.art, left + width * 0.78, top + S_(112), S_(190)); ctx.restore(); }
+          if (row.cap) text(row.cap, left + width / 2, top + it.h - S_(14), S_(28), ink, { weight: 700, maxW: width });
+          break;
+        }
+        case 'wmap': {
+          ctx.save(); ctx.strokeStyle = soft(0.35); ctx.lineWidth = 3; for (const l of it.links) { ctx.beginPath(); ctx.moveTo(left + l[0], top + l[1]); ctx.lineTo(left + l[2], top + l[3]); ctx.stroke(); } ctx.restore();
+          for (const lb of it.labels) text(lb.t, left, top + lb.y, S_(21), soft(0.72), { align: 'left', weight: 700, maxW: width });
+          for (const hh of it.hits) chipBtn({ x: left + hh.x, y: top + hh.y, w: hh.w, h: hh.h }, hh.label, { on: hh.on, disabled: hh.disabled, sz: hh.sz });
+          break;
+        }
+        case 'grid': if (row.label) text(row.label, left, top + S_(26), S_(25), soft(0.92), { align: 'left', weight: 700, maxW: width }); for (const hh of it.hits) chipBtn({ x: left + hh.x, y: top + hh.y, w: hh.w, h: hh.h }, hh.label, { on: hh.on, disabled: hh.disabled, sz: hh.sz }); break;
         case 'btn': case 'btn2': case 'chips': case 'step': case 'word': break;
         default: break;
       }
@@ -492,8 +544,10 @@ export function render(ctx, state, title, demoLimit, L, env, X = {}) {
           if (hh.y !== ly) { ly = hh.y; lx = 0; }
           hh.x = lx; hh.w = ctx.measureText(hh.label).width; lx += hh.w + sp;
           const sel = row.selIdx === hh.idx;
+          const pk = row.picked && hh.word && row.picked.includes(hh.word);
+          if (pk) { ctx.fillStyle = hc ? '#ffffff' : hexA(GOLD, 0.5); rr(left + hh.x - 4, top + hh.y, hh.w + 8, hh.h, 8); ctx.fill(); ctx.fillStyle = hc ? '#000000' : GOLD; ctx.fillRect(left + hh.x, top + hh.y + hh.h - 6, hh.w, 4); }
           if (sel) { ctx.fillStyle = hc ? '#ffffff' : hexA(CYAN, 0.45); rr(left + hh.x - 4, top + hh.y, hh.w + 8, hh.h, 8); ctx.fill(); }
-          text(hh.label, left + hh.x, top + hh.y + hh.h * 0.72, hh.sz, sel && hc ? '#000000' : soft(0.96), { align: 'left', weight: 500 });
+          text(hh.label, left + hh.x, top + hh.y + hh.h * 0.72, hh.sz, (sel || pk) && hc ? '#000000' : soft(0.96), { align: 'left', weight: 500 });
         }
       } else if (row.k === 'heat') {
         const cells = row.cells, mx = Math.max(1, ...cells), cs = Math.min(S_(30), Math.floor(width / 12)), gap = 4;
@@ -519,7 +573,10 @@ export function render(ctx, state, title, demoLimit, L, env, X = {}) {
         let yy = top + it.head + it.bsz;
         it.lines.forEach((ln, i) => { ctx.font = `600 ${it.bsz}px ${UI}`; ctx.fillStyle = soft(0.95); ctx.textAlign = 'left'; ctx.fillText(ln, left, yy + i * Math.round(it.bsz * 1.38)); });
         yy += it.lines.length * Math.round(it.bsz * 1.38) + S_(6);
-        it.extra.forEach((ln, i) => { ctx.font = `500 ${S_(23)}px ${UI}`; ctx.fillStyle = hc ? '#ffffff' : hexA('#8fe6f7', 0.9); ctx.textAlign = 'left'; ctx.fillText(ln, left, yy + S_(20) + i * Math.round(S_(23) * 1.4)); });
+        it.extra.forEach((ln, i) => {
+          const ly = yy + S_(20) + i * Math.round(S_(23) * 1.4), base = hc ? '#ffffff' : hexA('#8fe6f7', 0.9);
+          if (it.exHl?.[i]) markedLine(ln, it.hlWord, left, ly, S_(23), base, 'left'); else { ctx.font = `500 ${S_(23)}px ${UI}`; ctx.fillStyle = base; ctx.textAlign = 'left'; ctx.fillText(ln, left, ly); }
+        });
       }
     }
     ctx.restore();
@@ -529,7 +586,7 @@ export function render(ctx, state, title, demoLimit, L, env, X = {}) {
       const th = Math.max(48, sb.h * vp.h / F.layout.height), ty = sb.y + (sb.h - th) * (sc / maxScroll);
       ctx.fillStyle = hc ? '#ffffff' : hexA(CYAN, 0.9); rr(sb.x, ty, sb.w, th, sb.w / 2); ctx.fill();
     }
-    if (state.scene === 'age') return;
+    if (state.scene === 'age' || state.scene === 'firstlevel') return;
     if (F.def.primary) { button(Q.back, 'Back', { size: 34, scale: enter(0) }); button(Q.next, F.def.primary.label, { id: 'formNext', style: 'primary', size: 34, scale: enter(1), disabled: F.def.primary.disabled }); }
     else button(Q.back, 'Back', { size: 34, scale: enter(0), style: 'primary' });
     return;
@@ -544,29 +601,33 @@ export function render(ctx, state, title, demoLimit, L, env, X = {}) {
     if (L.wide) text('Flashcards', Q.titleX, Q.titleBase, Math.min(Q.titleSize, 52), '#ffffff', { font: DISPLAY, maxW: Q.dec.w * 2 + 12 }); else text('Flashcards', Q.panel.x + 10, Q.titleBase, 58, '#ffffff', { font: DISPLAY, align: 'left', maxW: Q.dec.x - Q.panel.x - 30 }); ctx.restore();
     framedPanel(C.card);
     const bd = C.body, flipT = easeOut(sceneT / 0.3);
-    text(`${Math.min(state.cardIdx + 1, words.length)} / ${words.length}`, bd.x + bd.w / 2, bd.y + 22, 24, soft(0.7), { weight: 600 });
+    text(`${Math.min(state.cardIdx + 1, words.length)} / ${words.length}`, bd.x + 8, bd.y + bd.h - 28, 24, soft(0.7), { weight: 600, align: 'left' });   // bottom-left: the top row belongs to the Dictionary / Thesaurus / Hear buttons
     if (e) {
       const cx = bd.x + bd.w / 2;
       if (!state.cardFlip) {
         text(e.w, cx, bd.y + bd.h * 0.42, Math.min(130, bd.w / Math.max(4, e.w.length) * 1.5), '#ffffff', { font: DISPLAY, maxW: bd.w - 20 });
         text('Tap the card to see the meaning', cx, bd.y + bd.h * 0.42 + 70, 24, soft(0.7), { weight: 500, maxW: bd.w - 20 });
       } else {
-        const wy = bd.y + Math.max(120, bd.h * 0.15);
+        const wy = bd.y + Math.max(140, bd.h * 0.15);
         text(e.w, cx, wy, Math.min(100, bd.w / Math.max(5, e.w.length) * 1.5), '#ffffff', { font: DISPLAY, maxW: bd.w - 20 });
         if (X.posName) text(X.posName(e.pos), cx, wy + 36, 24, soft(0.6), { weight: 600 });
         const size = Math.round(28 * scale), lh = Math.round(size * 1.38), lines = [];
         const wrapTo = (str, sz, mw) => { ctx.font = `600 ${sz}px ${UI}`; const out = []; let line = ''; for (const wd of str.split(' ')) { const cand = line ? `${line} ${wd}` : wd; if (ctx.measureText(cand).width > mw && line) { out.push(line); line = wd; } else line = cand; } out.push(line); return out; };
         let y = wy + 100;
-        const para = (str, sz, col, wt = 500) => { for (const ln of wrapTo(str, sz, bd.w - 24)) { ctx.font = `${wt} ${sz}px ${UI}`; ctx.fillStyle = col; ctx.textAlign = 'center'; if (y < bd.y + bd.h - 70) ctx.fillText(ln, cx, y); y += Math.round(sz * 1.38); } y += 8; };
+        const para = (str, sz, col, wt = 500, hlw = '') => { for (const ln of wrapTo(str, sz, bd.w - 24)) { if (y < bd.y + bd.h - 70) { if (hlw) markedLine(ln, hlw, cx, y, sz, col, 'center'); else { ctx.font = `${wt} ${sz}px ${UI}`; ctx.fillStyle = col; ctx.textAlign = 'center'; ctx.fillText(ln, cx, y); } } y += Math.round(sz * 1.38); } y += 8; };
         para(e.gloss || '(meaning not available)', size, soft(0.97), 600);
         if (e.syn.length) para(`Same meaning: ${e.syn.join(', ')}`, Math.round(24 * scale), hexA('#8fe6f7', 0.95));
         if (e.ant.length) para(`Opposite: ${e.ant.join(', ')}`, Math.round(24 * scale), hexA('#8fe6f7', 0.95));
-        if (e.ex) para(`Example: ${e.ex}`, Math.round(22 * scale), soft(0.8));
+        if (e.ex) para(`Example: ${e.ex}`, Math.round(22 * scale), soft(0.8), 500, e.w);
+        if (e.mn) para(`Memory hook: ${e.mn}`, Math.round(22 * scale), hexA('#ffe08a', 0.9));
+        for (const ln of X.cardExtras?.(e) ?? []) para(ln, Math.round(21 * scale), hexA('#8fe6f7', 0.85));
         void lines; void lh;
-        if (X.lookupOn) text('Look it up in a dictionary', cx, bd.y + bd.h - 28, 24, hc ? '#ffffff' : CYAN, { weight: 700 });
+        if (X.lookupOn) text('Look it up in a dictionary', cx, bd.y + bd.h - 28, 24, hc ? '#ffffff' : CYAN, { weight: 700, maxW: bd.w - 190 });
       }
     }
     void flipT;
+    if (X.canSpeak) button(C.hear, 'Hear it', { id: 'cardHear', size: 26 });
+    if (words[state.cardIdx]) { button(C.dict, 'Dictionary', { id: 'cardDict', size: 24 }); button(C.thes, 'Thesaurus', { id: 'cardThes', size: 24 }); }
     button(C.know, 'I know it', { id: 'know', size: 30, style: 'primary' });
     button(C.learn, 'Still learning', { id: 'learn', size: 30 });
     button(Q.back, 'Back', { size: 34 });
@@ -772,7 +833,7 @@ export function render(ctx, state, title, demoLimit, L, env, X = {}) {
     // the lanes the words drift along, with chevrons flowing the way the words go
     const bd = P.band, hh = Math.min(110, L.laneH / 2);
     ctx.save(); ctx.beginPath(); ctx.rect(bd.x, 0, w - bd.x, h); ctx.clip();            // words slide in from the right edge and out under the card
-    for (let k = 0; k < 3; k++) {
+    for (let k = 0; k < lanes.n; k++) {
       const ly = L.laneY(k);
       if (hc) continue;
       const lg = ctx.createLinearGradient(0, ly - hh, 0, ly + hh);
@@ -854,13 +915,24 @@ export function render(ctx, state, title, demoLimit, L, env, X = {}) {
     if (state.round) {
       const shake = fx && fx.kind !== 'right' ? Math.sin(fx.t * 58) * 12 * Math.max(0, 1 - fx.t / 0.4) : 0;
       const rd = state.round, pk = { dx: shake, pop: 0.8 + 0.2 * easeBack(rd.age / 0.28) };
-      if (rd.kind === 'listening' || rd.kind === 'letter-hear') plaque(P.plaque, rd.label, rd.targetWord, { ...pk, speaker: true });
-      else if (rd.kind === 'picture') plaque(P.plaque, rd.label, '', { ...pk, art: rd.art });
-      else if (rd.kind === 'letter-case') plaque(P.plaque, rd.label, rd.targetWord, { ...pk, wordSize: 150 });
-      else if (rd.kind === 'letter-next') plaque(P.plaque, rd.label, rd.targetWord, { ...pk, wordSize: 96 });
-      else if (['definition', 'spelling', 'confusable', 'root', 'phrase'].includes(rd.kind)) plaque(P.plaque, rd.label, rd.targetWord, { ...pk, lines: wrapLines(rd.targetWord, 44, P.plaque.w - 70, 3) });
+      const rdLabel = rd.hintLabel && (rd.hinted >= 0 || (state.autoPlay && state.autoPhase === 'reveal')) ? rd.hintLabel : rd.label;     // analogy puzzles name the link once a hint is used or the answer is revealed
+      const spk = rd.kind === 'listening' || rd.kind === 'letter-hear' || rd.kind === 'hearmeaning' || rd.kind === 'hearspell' || rd.kind === 'pron';
+      if (rd.hearable && !spk) pk.hearBtn = true;
+      if (rd.kind === 'listening' || rd.kind === 'letter-hear' || rd.kind === 'hearmeaning' || rd.kind === 'hearspell' || rd.kind === 'pron') plaque(P.plaque, rd.label, rd.targetWord, { ...pk, speaker: true });
+      else if (rd.art) plaque(P.plaque, rd.label, '', { ...pk, art: rd.art });
+      else if (rd.kind === 'letter-case' || rd.kind === 'letter-find' || rd.kind === 'letter-order') plaque(P.plaque, rd.label, rd.targetWord, { ...pk, wordSize: 150 });
+      else if (rd.kind === 'letter-next' || rd.kind === 'letter-odd') plaque(P.plaque, rd.label, rd.targetWord, { ...pk, wordSize: 96 });
+      else if (['definition', 'spelling', 'confusable', 'root', 'phrase', 'sortpos', 'greet', 'signs', 'settle', 'daily', 'trade', 'workeng', 'manners', 'style', 'pragma', 'rhetoric', 'rhetdef', 'sounddev', 'formation', 'coining', 'wordplay', 'regional', 'slang', 'compound', 'analogy'].includes(rd.kind)) plaque(P.plaque, rdLabel, rd.targetWord, { ...pk, lines: wrapLines(rd.targetWord, 44, P.plaque.w - 70, 3) });
       else if (rd.kind === 'odd') plaque(P.plaque, rd.label, rd.targetWord, { ...pk, wordSize: 56 });
       else plaque(P.plaque, rd.label, rd.targetWord, pk);
+      if (pk.hearBtn && state.scene === 'playing') {                                      // a visible speaker button: the only way a question is ever spoken
+        const B = hearRect(P.plaque), bx = B.x + B.w / 2 + shake, by = B.y + B.h / 2, u = B.w / 64;
+        ctx.save(); ctx.fillStyle = hc ? '#000000' : 'rgba(10,36,48,0.95)'; ctx.beginPath(); ctx.arc(bx, by, B.w / 2, 0, 6.2832); ctx.fill();
+        ctx.strokeStyle = hc ? '#ffffff' : '#8fe6f7'; ctx.lineWidth = 3; ctx.stroke();
+        ctx.translate(bx - 4 * u, by); ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.moveTo(-14 * u, -7 * u); ctx.lineTo(-5 * u, -7 * u); ctx.lineTo(6 * u, -16 * u); ctx.lineTo(6 * u, 16 * u); ctx.lineTo(-5 * u, 7 * u); ctx.lineTo(-14 * u, 7 * u); ctx.closePath(); ctx.fill();
+        ctx.lineWidth = 3 * u; ctx.lineCap = 'round'; for (let a = 1; a <= 2; a++) { ctx.beginPath(); ctx.arc(9 * u, 0, (6 + a * 7) * u, -0.9, 0.9); ctx.stroke(); }
+        ctx.restore();
+      }
     }
 
     const btnIn = easeBack((sceneT - 0.1) / 0.38);
@@ -887,8 +959,12 @@ export function render(ctx, state, title, demoLimit, L, env, X = {}) {
         ctx.save(); ctx.globalAlpha = a;
         ctx.fillStyle = hc ? '#000000' : 'rgba(3,16,24,0.82)'; rr(tr.x, tr.y, tr.w, tr.h, 20); ctx.fill();
         ctx.strokeStyle = hc ? '#ffffff' : hexA(tt.good ? GOOD : BAD, 0.85); ctx.lineWidth = 2.5; ctx.stroke();
-        text(tt.text, tr.x + tr.w / 2, tr.y + (tt.sub ? 28 : 40), 27, hc ? '#ffffff' : tt.good ? GOOD : BAD, { weight: 800, maxW: tr.w - 30 });
-        if (tt.sub) text(clip(tt.sub, 20, tr.w - 36), tr.x + tr.w / 2, tr.y + 54, 20, soft(0.88), { weight: 500 });
+        const askR = tt.rate && !tt.rated, tw = askR ? tr.w - 190 : tr.w, tcx = tr.x + tw / 2, pill = tt.look && !state.autoPlay && !askR;
+        text(tt.text, pill ? tcx - 55 : tcx, tr.y + (tt.sub || (tt.also && !askR) ? 28 : 40), 27, hc ? '#ffffff' : tt.good ? GOOD : BAD, { weight: 800, maxW: tw - 30 - (pill ? 130 : 0) });
+        if (pill) { ctx.strokeStyle = hc ? '#ffffff' : hexA(GOLD, 0.8); ctx.lineWidth = 2; rr(tr.x + tr.w - 112, tr.y + 8, 104, 30, 10); ctx.stroke(); text(tt.lookRel ? 'Thesaurus' : 'Meaning', tr.x + tr.w - 60, tr.y + 29, 17, hc ? '#ffffff' : GOLD, { weight: 700, maxW: 92 }); }
+        if (tt.sub) text(clip(tt.sub, 20, tw - 36), tcx, tr.y + 54, 20, soft(0.88), { weight: 500 });
+        else if (tt.also && !askR) text(`Also: ${tt.also} ›`, tcx, tr.y + 54, 20, hc ? '#ffffff' : '#8fe6f7', { weight: 700, maxW: tw - 36 });
+        if (askR) { const pr = P.rate; ctx.strokeStyle = hc ? '#ffffff' : hexA(CYAN, 0.9); ctx.lineWidth = 2; rr(pr.x + 6, pr.y + 8, pr.w - 12, pr.h - 16, 14); ctx.stroke(); text(tt.rate.hit ? 'Guessed?' : 'Was sure?', pr.x + pr.w / 2, pr.y + pr.h / 2 + 8, 24, hc ? '#ffffff' : CYAN, { weight: 700, maxW: pr.w - 28 }); }
         ctx.restore();
       }
     }
@@ -927,11 +1003,11 @@ export function render(ctx, state, title, demoLimit, L, env, X = {}) {
     const head = easeOut(sceneT / 0.4);
     ctx.save(); ctx.globalAlpha = head; ctx.translate(0, (1 - head) * -40);
     const RR = state.runResult;
-    let headline = { time: "Time's up!", questions: 'Round complete!', lives: 'Out of lives', stop: 'Session ended', empty: 'Session ended' }[state.reason] ?? "Time's up!";
-    if (RR) headline = RR.type === 'stage' ? (RR.pass ? 'Stage cleared!' : 'Not yet') : RR.type === 'check' ? (RR.pass ? 'Checkpoint passed!' : 'Checkpoint missed') : headline;
+    let headline = { time: 'Nice round', questions: 'Round complete!', lives: 'Lives used up', stop: 'Session ended', empty: 'Session ended' }[state.reason] ?? 'Nice round';
+    if (RR) headline = RR.type === 'stage' ? (RR.pass ? 'Stage cleared!' : 'Not yet') : RR.type === 'check' ? (RR.pass ? 'Checkpoint passed!' : 'Almost there') : headline;
     else if (PF.senior) headline = 'Nicely done';
     text(headline, O.cx, O.titleY, 76, '#ffffff', { font: DISPLAY, maxW: O.card.w });
-    text(state.autoPlay ? 'AUTO-PLAY DEMO — not saved' : RR ? state.run.label.toUpperCase() : state.kind === 'review' ? 'DAILY REVIEW' : 'SESSION REVIEW', O.cx, O.subY, 22, hc ? '#ffffff' : (state.autoPlay ? GOLD : '#8fe6f7'));
+    text(state.autoPlay ? 'AUTO-PLAY DEMO — not saved' : RR ? state.run.label.toUpperCase() : state.kind === 'review' ? 'DAILY REVIEW' : state.kind === 'fluency' ? 'SPEED ROUND ON WORDS YOU KNOW' : 'SESSION REVIEW', O.cx, O.subY, 22, hc ? '#ffffff' : (state.autoPlay ? GOLD : '#8fe6f7'));
 
     // summary card: the score counts up, with the tally and best beside it (or under it in a narrow card)
     const card = O.card;
@@ -947,7 +1023,8 @@ export function render(ctx, state, title, demoLimit, L, env, X = {}) {
     const shownScore = Math.round(state.score * easeOut(sceneT / 0.7));
     const bestNow = state.bestScores[state.bestKey] ?? 0;
     const starTxt = RR && RR.type === 'stage' ? `Stars  ${'★'.repeat(RR.stars)}${'☆'.repeat(3 - RR.stars)}${RR.stars > RR.prevStars ? '  new!' : ''}` : RR && RR.type === 'check' ? `Checkpoint score ${RR.pct}%` : '';
-    const bestStr = starTxt || (state.autoPlay ? '' : state.newBest ? '★  New best score!' : `Best streak ${state.bestStreak}  ·  best score ${bestNow}`);
+    const fluStr = state.kind === 'fluency' && state.answered ? `Average ${(state.ms / state.answered / 1000).toFixed(1)} s  ·  fastest ${((state.bestScores.fluencyAvg ?? state.ms / state.answered) / 1000).toFixed(1)} s` : '';
+    const bestStr = starTxt || fluStr || (state.autoPlay ? '' : state.newBest ? '★  New best score!' : `Best streak ${state.bestStreak}  ·  best score ${bestNow}`);
     const glint = state.newBest && !hc ? 0.75 + 0.25 * Math.sin(t * 5) : 1;
     const sx0 = card.x + card.w * 0.17, dv = card.x + card.w * 0.34, tx0 = card.x + card.w * 0.37, tw2 = card.x + card.w - 14 - tx0;
     text('SCORE', sx0, card.y + 46, 22, hc ? '#ffffff' : '#8fe6f7');
@@ -955,12 +1032,12 @@ export function render(ctx, state, title, demoLimit, L, env, X = {}) {
     ctx.fillStyle = hc ? '#ffffff' : 'rgba(255,255,255,0.18)'; ctx.fillRect(dv, card.y + 26, 2, card.h - 52);
     if (!card.stack) {
       text(`${right} right`, tx0, card.y + 66, 32, hc ? '#ffffff' : GOOD, { align: 'left', maxW: tw2 / 2 - 8 });
-      text(PF.senior ? `${missed} to practise` : `${missed} missed`, tx0 + tw2 / 2 + 8, card.y + 66, 32, hc ? '#ffffff' : PF.senior ? GOLD : BAD, { align: 'left', maxW: tw2 / 2 - 8 });
+      text(`${missed} to practise`, tx0 + tw2 / 2 + 8, card.y + 66, 32, hc ? '#ffffff' : PF.senior ? GOLD : BAD, { align: 'left', maxW: tw2 / 2 - 8 });
       ctx.globalAlpha = head * glint;
       text(bestStr, tx0, card.y + card.h - 46, 28, state.newBest && !hc ? GOLD : soft(0.85), { align: 'left', weight: state.newBest ? 800 : 600, maxW: tw2 });
     } else {
       text(`${right} right`, tx0, card.y + 48, 30, hc ? '#ffffff' : GOOD, { align: 'left', maxW: tw2 });
-      text(PF.senior ? `${missed} to practise` : `${missed} missed`, tx0, card.y + 90, 30, hc ? '#ffffff' : PF.senior ? GOLD : BAD, { align: 'left', maxW: tw2 });
+      text(`${missed} to practise`, tx0, card.y + 90, 30, hc ? '#ffffff' : PF.senior ? GOLD : BAD, { align: 'left', maxW: tw2 });
       ctx.globalAlpha = head * glint;
       text(bestStr, tx0, card.y + card.h - 22, 24, state.newBest && !hc ? GOLD : soft(0.85), { align: 'left', weight: state.newBest ? 800 : 600, maxW: tw2 });
     }
@@ -969,7 +1046,7 @@ export function render(ctx, state, title, demoLimit, L, env, X = {}) {
     const rows = state.history.filter((x) => !x.correct).concat(state.history.filter((x) => x.correct));
     const rcx = O.rowsX + O.rowsW / 2;
     if (!rows.length) text('No answers this session.', rcx, O.rowsTop + 120, 30, soft(0.85), { weight: 500 });
-    else if (rows.every((x) => x.correct)) text('No mistakes. Every answer was right.', rcx, O.rowsTop + 10, 24, hc ? '#ffffff' : GOOD, { weight: 700, maxW: O.rowsW });
+    else if (rows.every((x) => x.correct)) text('Every answer was right. Lovely.', rcx, O.rowsTop + 10, 24, hc ? '#ffffff' : GOOD, { weight: 700, maxW: O.rowsW });
     const rowsTop = rows.every((x) => x.correct) && rows.length ? O.rowsTop + 28 : O.rowsTop;
     const lookOn = !state.autoPlay && X.lookupOn;
     const pages = Math.max(1, Math.ceil(state.history.length / O.perPage)), pg = Math.min(state.reviewPage, pages - 1);
@@ -995,14 +1072,20 @@ export function render(ctx, state, title, demoLimit, L, env, X = {}) {
       if (hr.correct) { ctx.moveTo(mx - 12, my + 1); ctx.lineTo(mx - 3, my + 10); ctx.lineTo(mx + 13, my - 9); }
       else { ctx.moveTo(mx - 10, my - 10); ctx.lineTo(mx + 10, my + 10); ctx.moveTo(mx + 10, my - 10); ctx.lineTo(mx - 10, my + 10); }
       ctx.stroke();
-      text(hr.word, x + 92, y + 52, 42, '#ffffff', { font: DISPLAY, align: 'left', maxW: Math.min(380, rw - 220) });
-      text(KIND_SHORT[hr.kind] ?? '', x + rw - (lookOn && !hr.letter ? 170 : 22), y + 40, 22, soft(0.7), { align: 'right' });
+      const shiftD = lookOn && !hr.letter ? 146 : 0;
+      // left block: word / Answer / You / meaning, all clipped to the space left of the button column; right column: kind label, Meaning, Thesaurus
+      const leftW = rw - 92 - 22 - (hr.letter ? 0 : 150 + shiftD - 10 + 0);
+      text(hr.word, x + 92, y + 52, 42, '#ffffff', { font: DISPLAY, align: 'left', maxW: Math.min(380, leftW) });
+      if (hr.letter) text(KIND_SHORT[hr.kind] ?? '', x + rw - 22, y + 40, 22, soft(0.7), { align: 'right' });
+      else { const dr0 = O.dictRect(i, rowsTop, shiftD); text(KIND_SHORT[hr.kind] ?? '', dr0.x + dr0.w / 2, y + 28, 20, soft(0.7), { maxW: dr0.w }); }
+      if (!hr.letter) { const dr = O.dictRect(i, rowsTop, shiftD); ctx.fillStyle = hc ? '#000000' : 'rgba(10,36,48,0.92)'; rr(dr.x, dr.y, dr.w, dr.h, 14); ctx.fill(); ctx.strokeStyle = hc ? '#ffffff' : hexA(GOLD, 0.7); ctx.lineWidth = 2; ctx.stroke(); text('Meaning', dr.x + dr.w / 2, dr.y + dr.h / 2 + 8, 22, '#ffffff', { weight: 700, maxW: dr.w - 12 }); }
       if (lookOn && !hr.letter) { const lr = O.lookRect(i, rowsTop); ctx.fillStyle = hc ? '#000000' : 'rgba(10,36,48,0.92)'; rr(lr.x, lr.y, lr.w, lr.h, 14); ctx.fill(); ctx.strokeStyle = hc ? '#ffffff' : hexA(CYAN, 0.6); ctx.lineWidth = 2; ctx.stroke(); text('Look up', lr.x + lr.w / 2, lr.y + lr.h / 2 + 8, 22, '#ffffff', { weight: 700 }); }
+      const relRow = !hr.letter && REL_QUIZ_KINDS.has(hr.kind);
+      if (relRow) { const tr2 = O.thesRect(i, rowsTop, shiftD); ctx.fillStyle = hc ? '#000000' : 'rgba(10,36,48,0.92)'; rr(tr2.x, tr2.y, tr2.w, tr2.h, 12); ctx.fill(); ctx.strokeStyle = hc ? '#ffffff' : hexA(GOLD, 0.7); ctx.lineWidth = 2; ctx.stroke(); text('Thesaurus', tr2.x + tr2.w / 2, tr2.y + tr2.h / 2 + 7, 20, '#ffffff', { weight: 700, maxW: tr2.w - 12 }); }
       const you = hr.correct ? '' : hr.picked === null ? 'drifted past' : `You: ${hr.picked}`;
-      const avail = rw - 92 - 22, ansMax = you ? Math.max(150, avail * 0.56) : avail;
-      text(`Answer: ${hr.answer}`, x + 92, y + 88, 26, accent, { align: 'left', weight: 700, maxW: ansMax });
-      if (you) text(you, x + rw - 22, y + 88, 25, tone, { align: 'right', weight: 600, maxW: Math.max(100, avail - ansMax - 12) });
-      text(clip(hr.meaning, 22, rw - 116), x + 92, y + 118, 22, soft(0.78), { align: 'left', weight: 500 });
+      text(clip(`Answer: ${hr.answer}`, 26, leftW, 700), x + 92, y + 88, 26, accent, { align: 'left', weight: 700, maxW: leftW });
+      if (you) text(clip(you, 25, leftW, 600), x + 92, y + 118, 25, tone, { align: 'left', weight: 600, maxW: leftW });
+      text(clip(hr.meaning, 22, leftW), x + 92, y + (you ? 148 : 118), 22, soft(0.78), { align: 'left', weight: 500 });
       ctx.restore();
     });
 
@@ -1010,6 +1093,14 @@ export function render(ctx, state, title, demoLimit, L, env, X = {}) {
       button(O.prev, 'Prev', { id: 'prev', size: 28, disabled: pg === 0 });
       button(O.next, 'Next', { id: 'next', size: 28, disabled: pg >= pages - 1 });
       text(`Page ${pg + 1} of ${pages}`, (O.prev.x + O.next.x + O.next.w) / 2, O.pageY, 27, soft(0.85), { weight: 600 });
+    }
+    if (!state.autoPlay && !RR && X.over && X.over.n && O.strip) {
+      const lab = ['Keep missed', 'Play missed', 'Surprise me'];
+      const ov = X.over, a1 = ov.missed ? `Keep ${ov.n} in My words` : 'Keep these in My words', a2 = ov.missed ? 'Play missed words' : 'Play these words';
+      button(O.stripBtn(0), ov.kept ? 'Kept in My words' : a1, { id: 'keepmissed', size: 21, disabled: ov.kept });
+      button(O.stripBtn(1), a2, { id: 'playmissed', size: 21 });
+      button(O.stripBtn(2), 'Surprise me', { id: 'overwander', size: 21 });
+      void lab;
     }
     const bIn = easeBack((sceneT - 0.25) / 0.38);
     if (state.autoPlay) {

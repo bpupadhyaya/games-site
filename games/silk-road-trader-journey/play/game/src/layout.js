@@ -30,7 +30,7 @@ function build(w, h, nMenu) {
   L.split = (kind) => {
     const frac = { city: 0.34, travel: 0.5, event: 0.4, map: 0.3 }[kind] ?? 0.4;
     if (mode === 'wide') {
-      const aw = Math.round(clamp(w * { city: 0.45, travel: 0.58, event: 0.5, map: 0.4 }[kind], 360, w * 0.66));
+      const aw = Math.round(Math.min(clamp(w * { city: 0.45, travel: 0.58, event: 0.5, map: 0.4 }[kind], 360, w * 0.66), Math.max(300, w - 610 - gap * 2 - host.r)));  // side panel keeps >= ~600 units
       const art = R(0, 0, aw, h);
       const panel = R(aw + gap + 0, S.y + gap, w - aw - gap - gap - host.r, S.h - gap * 2);
       return { art, panel, hudY: S.y + 12, hudX0: S.x + 14 + backPad, hudX1: aw - 14 };

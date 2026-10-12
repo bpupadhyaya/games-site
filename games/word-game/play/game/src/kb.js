@@ -5,6 +5,18 @@ import * as lex from './lexicon.js';
 
 const K = { man: null, rel: {}, cols: null, spell: null, rowIds: null, text: {}, ver: 0, byId: null, phr: null, conf: null, vari: null };
 export const version = () => K.ver;
+// ---- lazy loading state. platform.js registers the loader; the dictionary sheet awaits ensure() and shows Loading / error + Retry from dataState().
+// With no loader (headless tests, the demo) the data is simply "ready" as installed.
+let LOADER = null, LP = null, LST = 'ready';
+export function setLoader(fn) { if (fn === LOADER) return; LOADER = fn; LP = null; LST = fn ? 'idle' : 'ready'; K.ver++; }
+export const dataState = () => (LST === 'idle' ? 'loading' : LST);   // 'ready' | 'loading' | 'error'
+export function ensure() {
+  if (!LOADER || LST === 'ready') return Promise.resolve(true);
+  if (LP) return LP;
+  LST = 'loading'; K.ver++;
+  LP = new Promise((res) => res(LOADER())).then(() => { LST = 'ready'; K.ver++; return true; }, () => { LST = 'error'; LP = null; K.ver++; return false; });
+  return LP;
+}
 export function installManifest(m) { K.man = m; K.ver++; }
 export function installRel(name, buf) {
   const h = new Uint32Array(buf, 0, 2), n = h[0], m = h[1], counts = new Uint8Array(buf, 8, n), pad = (4 - (n % 4)) % 4;
@@ -17,6 +29,8 @@ export function installBytes(name, buf) {
   if (name === 'cols') K.cols = new Uint8Array(buf); else if (name === 'spell') K.spell = new Uint16Array(buf); else if (name === 'rows') { K.rowIds = new Uint32Array(buf); K.byId = null; }
   K.ver++;
 }
+export const hasText = (name) => Boolean(K.text[name]);
+export const getText = (name) => K.text[name] ?? '';
 export function installText(name, text) { K.text[name] = text; K.phr = K.vari = K.plain = null; K.ver++; }
 export const has = (name) => Boolean(K.rel[name]);
 export const manifest = () => K.man;
@@ -66,3 +80,47 @@ export function variants() {
   return K.vari ?? [];
 }
 export const parts = (row) => { const m = K.man; if (!m || !K.cols) return null; const p = col(row, 3), s = col(row, 4), r = col(row, 5); return (p || s || r) ? { prefix: p ? m.prefixes[p - 1] : null, suffix: s ? m.suffixes[s - 1] : null, root: r ? m.roots[r - 1] : null } : null; };
+
+// ---- the full thesaurus (data-build/thes.mjs -> data/kb/thes.txt): every sense, every relation WordNet holds for a study word.
+// Parsed lazily on first use. thesFor(word) -> { senses: [{ gloss, same, sim1, sim2, also, direct: [{ w, type }], indirect }], der, neg } or null.
+let TH = null;
+function parseThes(text) {
+  const t = { syn: [], idx: new Map() }; if (!text || !text.startsWith('#THES1')) return t;
+  const nl = text.indexOf('\n'), cut = text.indexOf('\n#W\n'); if (cut < 0) return t;
+  const ids = (s) => (s ? s.split(' ').map((x) => parseInt(x, 36)) : []);
+  for (const ln of text.slice(nl + 1, cut).split('\n')) { const f = ln.split('\t'); t.syn.push({ pos: f[0] ? f[0][0] : '', gloss: f[0] ? f[0].slice(1) : '', lem: f[1] ? f[1].split(' ') : [], sim1: ids(f[2]), sim2: ids(f[3]), also: ids(f[4]) }); }
+  for (const ln of text.slice(cut + 5).split('\n')) { if (!ln) continue; const f = ln.split('\t'); t.idx.set(f[0], f); }
+  return t;
+}
+export const thesReady = () => Boolean(K.text.thes);
+export function thesFor(w) {
+  if (!K.text.thes) return null;
+  if (!TH || TH.src !== K.text.thes) { TH = parseThes(K.text.thes); TH.src = K.text.thes; }
+  const f = TH.idx.get(w); if (!f) return { senses: [], der: [], neg: [] };
+  const lem = (ids) => ids.flatMap((i) => TH.syn[i]?.lem ?? []);
+  const senses = (f[1] ? f[1].split(';') : []).map((it) => {
+    const m = it.match(/^([0-9a-z]+)(?:!([^?]*))?(?:\?(.*))?$/); const rec = TH.syn[parseInt(m[1], 36)];
+    return { pos: rec.pos, gloss: rec.gloss, same: rec.lem.filter((x) => x !== w), sim1: lem(rec.sim1), sim2: lem(rec.sim2), also: lem(rec.also), direct: m[2] ? m[2].split(',').map((x) => { const d = x.lastIndexOf('.'); return { w: x.slice(0, d), type: Number(x.slice(d + 1)) }; }) : [], indirect: m[3] ? m[3].split(',') : [] };
+  });
+  return { senses, der: f[2] ? f[2].split(' ') : [], neg: f[3] ? f[3].split(' ') : [] };
+}
+
+// ---- "More ways to say it" (data-build/extra-syn.mjs -> data/kb/thesmore.txt): Roget 1911 and Moby Thesaurus words that WordNet does not list.
+// Lazy, optional. thesMoreFor(word) -> { roget: [words], moby: [words] } (empty lists when the file is missing or the word has none).
+let TM = null;
+function parseMore(text) {
+  const t = { tab: [], idx: new Map() }; if (!text || !text.startsWith('#MORE1')) return t;
+  const a = text.indexOf('\n#T\n'), b = text.indexOf('\n#L\n'); if (a < 0 || b < 0) return t;
+  t.tab = text.slice(a + 4, b).split(' ');
+  for (const ln of text.slice(b + 4).split('\n')) { if (ln) { const f = ln.split('\t'); t.idx.set(f[0], f); } }
+  return t;
+}
+export const thesMoreReady = () => Boolean(K.text.thesmore);
+export function thesMoreFor(w) {
+  const none = { roget: [], moby: [] }; if (!K.text.thesmore) return none;
+  if (!TM || TM.src !== K.text.thesmore) { TM = parseMore(K.text.thesmore); TM.src = K.text.thesmore; TM.pos = new Map(TM.tab.map((x, i) => [x, i])); }
+  const i = TM.pos.get(w); if (i === undefined) return none;
+  const f = TM.idx.get(i.toString(36).padStart(3, '0')); if (!f) return none;
+  const dec = (s) => (s ? (s.match(/.{3}/g) ?? []).map((x) => TM.tab[parseInt(x, 36)]).filter(Boolean) : []);
+  return { roget: dec(f[1]), moby: dec(f[2]) };
+}

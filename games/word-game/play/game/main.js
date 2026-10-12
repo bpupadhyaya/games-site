@@ -2,7 +2,8 @@ import { boot } from './kit/index.js';
 import { createGame, meta, wheelInput } from './src/game.js';
 import { host } from './src/layout.js';
 import { setLogo, setLockup } from './src/brand.js';
-import { createPlatform, loadWordData } from './platform.js';
+import { createPlatform, loadWordData, armKb } from './platform.js';
+import { installMirror } from './a11y-dom.js';
 
 const canvas = document.getElementById('game');
 
@@ -22,8 +23,15 @@ canvas.addEventListener('wheel', (e) => { e.preventDefault(); wheelInput.dy += e
 // Dev tools only (?dev=1 or the app's Developer toggle): expose the game object for the layout/resize check scripts.
 const create = async (env) => {
   env.wg = createPlatform(env);                       // speech, file export, links and the database; the game works without any of it
-  const game = await createGame(env);
+  // The dictionary sheet joins the browser history while it is open, so the back gesture / browser Back closes it (and nothing else).
+  let gameRef = null;
+  env.sheetHook = (open) => { try { if (open) history.pushState({ wgSheet: 1 }, ''); else if (history.state && history.state.wgSheet) history.back(); } catch { /* no history in this host */ } };
+  window.addEventListener('popstate', () => { try { gameRef?.back(); } catch { /* ignore */ } });
+  window.__wgBack = () => Boolean(gameRef?.back());   // a native shell can call this first on its back gesture: true means the sheet closed
+  armKb(Boolean(env.config.demo));   // until the word data has loaded the dictionary sheet shows Loading (kb.ensure)
+  const game = await createGame(env); gameRef = game;
   if (env.config.dev) window.__wg = game;
+  try { installMirror({ canvas, game, meta }); } catch { /* the game does not depend on the screen-reader layer */ }
   requestAnimationFrame(() => setTimeout(() => loadWordData(env.wg, Boolean(env.config.demo)), 60));   // word data loads after the first frame
   return game;
 };
