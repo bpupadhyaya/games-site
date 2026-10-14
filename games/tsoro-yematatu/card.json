@@ -1,0 +1,17 @@
+{
+  "title": "Tsoro Yematatu",
+  "tagline": "Drop three stones, then slide them into a line.",
+  "description": "Tsoro yematatu is a traditional game of Zimbabwe played on a triangle with a bar across it. Each side drops three stones onto seven points, then slides them one step at a time along the lines; three in a row wins, and so does leaving the other side with no move. Easy to learn in a minute, tense to master. Five computer levels, two players on one phone, five hands-on lessons, hints, threat marks, take back and a Watch & Learn mode. Three triangles, a carved soapstone board with gold inlay, large text and reduced motion options, no ads, works offline.",
+  "genre": "Zimbabwean three-in-a-row triangle game",
+  "demo": true,
+  "howToPlay": [
+    "New here? Tap Learn to play: five short hands-on lessons where you make every move yourself.",
+    "Take turns dropping your stones: tap any empty point on the triangle.",
+    "When all your stones are down, tap one of them and its reachable points glow. Tap a glowing point, or drag the stone there.",
+    "A stone slides one step along a line to the next point, and never jumps.",
+    "Get three of your stones in a row along a line to win, or leave the other side with no move.",
+    "Red rings show points where the other side would make a line next turn: block them.",
+    "Auto Play shows the computer playing both sides, with Pause. Hint explains a good move.",
+    "Settings has two larger triangles, Grand and Ten Points."
+  ]
+}

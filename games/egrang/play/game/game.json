@@ -1,0 +1,25 @@
+{
+  "slug": "egrang",
+  "title": "Egrang",
+  "tagline": "Walk, balance and race on bamboo stilts.",
+  "genre": "balance racing",
+  "orientation": "any",
+  "version": "1.1.3",
+  "monetization": {
+    "model": "premium",
+    "priceUsd": 2.99,
+    "previewSeconds": 90,
+    "products": [
+      {
+        "id": "unlock_game",
+        "type": "non-consumable",
+        "priceUsd": 2.99,
+        "title": "Unlock Game"
+      }
+    ]
+  },
+  "locales": [
+    "en"
+  ],
+  "demoOnly": true
+}

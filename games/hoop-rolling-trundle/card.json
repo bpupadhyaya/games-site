@@ -1,0 +1,16 @@
+{
+  "title": "Hoop Rolling Trundle",
+  "tagline": "Roll, steer and race a hoop down the road.",
+  "description": "An old children's street game, trundling a hoop down a village lane, as a course racer. Push, brake and lean a rolling hoop with one finger through striped gates, bends, cobbles, mud, puddles, hills and plank bridges against three rivals. Eight courses, Practice, Watch and Learn, an in-app Rules book, portrait and landscape play, synthesised sound, no ads.",
+  "genre": "dexterity racing",
+  "demo": true,
+  "howToPlay": [
+    "Hold your finger below the hoop to push; raise it above the hoop to brake.",
+    "Slide your finger left or right of the hoop to lean and steer toward it.",
+    "Keep the balance dot in the green: a slow or over-steered hoop falls.",
+    "Roll through the middle of each gate for a Perfect; posts knock you off line.",
+    "Brake before tight bends, cobbles and plank bridges, then push on.",
+    "Watch and Learn rolls the course for you and thinks before each section. Pause it any time.",
+    "On a keyboard: Space pushes, Down brakes, Left and Right steer, P pauses."
+  ]
+}

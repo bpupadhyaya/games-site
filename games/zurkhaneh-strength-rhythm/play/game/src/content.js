@@ -1,0 +1,122 @@
+// All the reading text: About, How to Play and the paged Rules. Every number here is the number the engine uses (music.js).
+import { JUDGE, TIMING, SCORE, UNISON, LEARN, SWIPE_MIN } from './music.js';
+
+const ms = (s) => `${Math.round(s * 1000)} ms`;
+
+export const ABOUT = [
+  { h: 'Zurkhaneh Strength Rhythm' },
+  { p: 'A rhythm game inspired by the zurkhaneh, the "house of strength" of Iran: a sunken, eight-sided pit where athletes train in a circle around a drummer, swinging heavy wooden clubs, lifting wooden shields and spinning in time with the beat.' },
+  { fig: 'pit', hh: 330 },
+  { h: 'Where it comes from' },
+  { p: 'Zurkhaneh clubs have trained strength, balance and breathing in Iran and across the Persian-speaking world for centuries, and the tradition is recognised by UNESCO as part of the intangible cultural heritage of humanity. Today there are thousands of clubs, a national federation and championships.' },
+  { p: 'This game shows only the athletic side: the moves and the instrumental drum rhythm. Real clubs have their own customs and spoken traditions, which the game does not try to show, out of respect for the people who keep them.' },
+  { h: 'What you do' },
+  { p: 'You lead the circle. A ring closes in on each move glyph; do the move on the beat with a gesture anywhere on the screen. Play cleanly and the whole circle falls into step and more drum layers join in.' },
+  { h: 'Credits' },
+  { p: 'Game by Arcforge. All sound is synthesised on your device and all art is drawn in the game. Display font Barlow Condensed by the Barlow Project Authors (SIL Open Font License 1.1).' },
+  { p: 'No ads. Works offline. The first 90 seconds of real play are free; the full game is a one-time unlock.' },
+];
+
+export const HOWTO = [
+  { h: 'How to play' },
+  { p: 'Pick a piece, then choose Learn, Perform or Watch and Learn.' },
+  { fig: 'glyphs', hh: 230 },
+  { li: 'Each move is a glyph in the pit. A ring closes in on it. Do the move at the moment the ring meets the glyph.' },
+  { li: 'STOMP: tap anywhere.' },
+  { li: 'CLUB SWING: swipe anywhere in the direction of the arrow. Up, down, left and right all appear.' },
+  { li: 'SHIELD LIFT: press when the ring meets the glyph and keep holding. Let go when the second ring closes.' },
+  { li: 'WHIRL: put a finger down and draw circles until the ring has closed. Either direction works.' },
+  { h: 'The circle' },
+  { p: 'The bar under "Unison" fills as you play cleanly. The more it fills, the more athletes move with you and the more drum layers you hear. Misses loosen the circle again.' },
+  { h: 'Learn, Perform, Watch' },
+  { li: 'Learn: the drummer plays two bars, then you echo them. Each phrase gets up to three tries, then you play the whole piece.' },
+  { li: 'Perform: play the piece straight through for a score and up to three stars.' },
+  { li: 'Watch and Learn: the circle plays the whole piece for you. It thinks out loud before each phrase, shows what is coming, then plays it. Pause at any time.' },
+  { h: 'Need a hint?' },
+  { p: 'The small question-mark button shows the next moves by name. In Learn it plays the drummer\'s phrase again.' },
+  { h: 'Keyboard' },
+  { p: 'Space: stomp, or hold for a shield lift. Arrow keys: club swings. R (hold): whirl. P or Escape: pause. H: hint.' },
+];
+
+export const RULES = [
+  { title: 'The goal', blocks: [
+    { p: 'Play a piece of music with a circle of eight athletes in a sunken pit. Every move in the piece appears as a glyph; you perform it with a gesture on the beat. The better your timing, the more of the circle moves with you, the more the drum layers build and the higher your score.' },
+    { fig: 'pit', hh: 330 },
+    { li: 'A piece is a fixed list of moves set to a steady beat. There are six pieces, from 84 to 132 beats per minute, all open from the start.' },
+    { li: 'Each bar has eight slots (eighth notes). A move sits on a slot; a shield lift or a whirl lasts several slots.' },
+    { li: 'Every piece starts with a one-bar count-in of four beats.' },
+  ] },
+  { title: 'The four moves', blocks: [
+    { fig: 'glyphs', hh: 230 },
+    { h: 'Stomp (tap)' },
+    { p: 'Tap anywhere on the screen. It is judged at the moment your finger lands.' },
+    { h: 'Club swing (swipe)' },
+    { p: `Put a finger down and move it at least ${SWIPE_MIN} units in the direction of the arrow (left, right, up or down). It is judged at the moment the swipe is recognised. The wrong direction counts as OFF and scores little.` },
+    { h: 'Shield lift (press and hold)' },
+    { p: 'Press when the first ring meets the glyph and keep holding. A second ring then closes in on the glyph; let go when it arrives. The press and the release are each judged, and the grade is the average of the two. Releasing very early or never pressing is a MISS.' },
+    { h: 'Whirl (draw circles)' },
+    { p: 'Put a finger down at the start and keep turning in circles, in either direction, until the ring has closed. You are graded on how much of the whirl you kept turning: at least 85% is PERFECT, 65% GREAT, 45% GOOD, 20% OFF.' },
+  ] },
+  { title: 'Timing and grades', blocks: [
+    { p: 'Timing is how far your gesture is from the exact beat of the move. At the Standard setting:' },
+    { li: `PERFECT: within ${ms(JUDGE.perfect)}.` },
+    { li: `GREAT: within ${ms(JUDGE.great)}.` },
+    { li: `GOOD: within ${ms(JUDGE.good)}.` },
+    { li: 'MISS: nothing done in time, or later than GOOD.' },
+    { li: 'OFF: the right time but the wrong swipe direction.' },
+    { p: `The windows scale with the Timing setting: ${TIMING.map((t) => `${t.name} x${t.k}`).join(', ')}.` },
+    { p: 'If notes feel early or late on your device or headphones, use Latency in Settings to shift them.' },
+  ] },
+  { title: 'Score and stars', blocks: [
+    { li: `Points per move: PERFECT ${SCORE.perfect}, GREAT ${SCORE.great}, GOOD ${SCORE.good}, OFF ${SCORE.off}, MISS 0.` },
+    { li: 'Combo: every move that is not a MISS adds one to your combo. Every 10 in a row adds 0.5 to a score multiplier, up to x4.' },
+    { li: 'Accuracy is the average of PERFECT 100%, GREAT 78%, GOOD 50%, OFF 20%, MISS 0% over every move in the piece.' },
+    { li: 'Stars: 55% accuracy earns one, 75% two, 90% three. Grades: S at 95%, A 85%, B 72%, C 55%.' },
+    { li: 'Your best score and stars for each piece are saved on your device.' },
+  ] },
+  { title: 'The circle: unison', blocks: [
+    { fig: 'unison', hh: 250 },
+    { p: 'Unison is a number from 0 to 1 shown as a bar. It starts at zero.' },
+    { li: `Each PERFECT adds ${UNISON.perfect}, GREAT ${UNISON.great}, GOOD ${UNISON.good}. OFF takes away ${Math.abs(UNISON.off)} and a MISS takes away ${Math.abs(UNISON.miss)}.` },
+    { li: 'Athletes: the athlete at the glyph always performs the move. At higher unison more of the other seven perform it with it, in step; at low unison they drift out of time.' },
+    { li: `Drum layers: layer 1 joins at ${UNISON.layers[0]}, layer 2 at ${UNISON.layers[1]}, layer 3 (bell and full-circle stomp) at ${UNISON.layers[2]}. They fall away again if unison drops below the same marks.` },
+    { li: 'Unison changes the sound and the picture only. It does not change your score.' },
+  ] },
+  { title: 'Learn', blocks: [
+    { p: 'Learn teaches a piece phrase by phrase, at a slightly slower tempo.' },
+    { li: 'A phrase is two bars. The drummer plays it first (the circle shows each move); then the same two bars come back for you.' },
+    { li: `If your accuracy on the phrase is at least ${Math.round(LEARN.pass * 100)}% you move on. Otherwise you get another go, up to ${LEARN.tries} tries, then you move on anyway.` },
+    { li: 'Every phrase is shown as a small bar and a hint button plays the drummer\'s phrase again at any time.' },
+    { li: 'After the last phrase you play the whole piece in one go at full tempo. That take gives the result.' },
+  ] },
+  { title: 'Perform', blocks: [
+    { p: 'Perform plays the piece once from start to finish at full tempo. After the count-in the moves arrive without help.' },
+    { li: 'The result screen shows your score, accuracy, stars, grade and longest combo.' },
+    { li: 'You can pause with the pause button, Space, P or Escape. Resuming picks up on the beat where you left off.' },
+    { li: 'The Hint button shows the next moves by name. It never costs points.' },
+  ] },
+  { title: 'Watch and Learn', blocks: [
+    { p: 'Watch and Learn plays a whole piece for you with the circle at full unison, and explains each phrase first.' },
+    { li: 'THINK: the card says what the next two bars contain. The length is set in Settings (2 to 10 seconds, 5 by default). Tap to skip ahead.' },
+    { li: 'REVEAL: for two seconds the phrase\'s glyphs light up in the pit, in order, with the first move picked out.' },
+    { li: 'ACT: the circle plays the phrase with the drum.' },
+    { li: 'The Pause button freezes everything, including animation, and resumes exactly where it stopped.' },
+    { li: 'Watch and Learn is free to use: it does not count against the free preview.' },
+  ] },
+  { title: 'Settings', blocks: [
+    { li: 'Sound: all sound on or off.' },
+    { li: 'Timing: Relaxed, Standard or Tight windows.' },
+    { li: 'Think time: how long Watch and Learn thinks before each phrase.' },
+    { li: 'Latency: shifts the beat judged against your gestures, from -100 to +400 ms.' },
+    { li: 'Move names: show or hide the names under the glyphs.' },
+    { li: 'Calm effects: fewer particles and no screen shake.' },
+    { li: 'Vibration: a small buzz on each move, where the device supports it.' },
+    { li: 'Restore purchase: gets your one-time unlock back after a reinstall or on a new device (not shown in the web demo).' },
+    { li: 'Text size: from 100% to 300% on every reading screen.' },
+  ] },
+  { title: 'Free preview and simplifications', blocks: [
+    { li: 'The first 90 seconds of real play (Perform and Learn) are free. After that the game asks for the one-time unlock. Menus, Rules, About, Watch and Learn and results are always free.' },
+    { li: 'The web demo plays the first piece only, a few times.' },
+    { p: 'Simplifications: this game keeps the athletic moves and the instrumental drum rhythm of the practice. The pit is drawn from above and has eight athletes; real clubs vary in size and the order of exercises. The moves are shown as gestures rather than full exercises.' },
+  ] },
+];

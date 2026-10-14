@@ -1,0 +1,2543 @@
+{
+ "version": 1,
+ "note": "Derived from the owner reference set (not redistributed whole): crops, mirrors, tone-matched hybrids and cut-outs. See docs/SCENERY.md.",
+ "assets": [
+  {
+   "id": "bd-alpine-day",
+   "file": "bd-alpine-day.webp",
+   "kind": "backdrop",
+   "culture": "alpine",
+   "season": "summer",
+   "tags": [
+    "alpine",
+    "summer",
+    "panorama",
+    "tileable-x"
+   ],
+   "bytes": 35590,
+   "source": "derived from owner reference set",
+   "size": [
+    1268,
+    576
+   ],
+   "horizon": 0.7
+  },
+  {
+   "id": "bd-alpine-snow",
+   "file": "bd-alpine-snow.webp",
+   "kind": "backdrop",
+   "culture": "alpine",
+   "season": "winter",
+   "tags": [
+    "alpine",
+    "winter",
+    "panorama",
+    "tileable-x"
+   ],
+   "bytes": 29338,
+   "source": "derived from owner reference set",
+   "size": [
+    1268,
+    384
+   ],
+   "horizon": 0.85
+  },
+  {
+   "id": "bd-golden-ridges",
+   "file": "bd-golden-ridges.webp",
+   "kind": "backdrop",
+   "culture": "alpine",
+   "season": "dusk",
+   "tags": [
+    "alpine",
+    "dusk",
+    "panorama",
+    "tileable-x"
+   ],
+   "bytes": 12080,
+   "source": "derived from owner reference set",
+   "size": [
+    1268,
+    576
+   ],
+   "horizon": 0.75
+  },
+  {
+   "id": "bd-dusk-meadow",
+   "file": "bd-dusk-meadow.webp",
+   "kind": "backdrop",
+   "culture": "north-european",
+   "season": "dusk",
+   "tags": [
+    "north-european",
+    "dusk",
+    "panorama",
+    "tileable-x"
+   ],
+   "bytes": 49708,
+   "source": "derived from owner reference set",
+   "size": [
+    1268,
+    574
+   ],
+   "horizon": 0.6
+  },
+  {
+   "id": "bd-autumn-valley",
+   "file": "bd-autumn-valley.webp",
+   "kind": "backdrop",
+   "culture": "north-european",
+   "season": "autumn",
+   "tags": [
+    "north-european",
+    "autumn",
+    "panorama",
+    "tileable-x"
+   ],
+   "bytes": 76648,
+   "source": "derived from owner reference set",
+   "size": [
+    1264,
+    440
+   ],
+   "horizon": 0.7
+  },
+  {
+   "id": "bd-meadow-day",
+   "file": "bd-meadow-day.webp",
+   "kind": "backdrop",
+   "culture": "north-european",
+   "season": "summer",
+   "tags": [
+    "north-european",
+    "summer",
+    "panorama",
+    "tileable-x"
+   ],
+   "bytes": 48604,
+   "source": "derived from owner reference set",
+   "size": [
+    1268,
+    406
+   ],
+   "horizon": 0.55
+  },
+  {
+   "id": "bd-desert",
+   "file": "bd-desert.webp",
+   "kind": "backdrop",
+   "culture": "desert",
+   "season": "dry",
+   "tags": [
+    "desert",
+    "dry",
+    "panorama",
+    "tileable-x"
+   ],
+   "bytes": 21584,
+   "source": "derived from owner reference set",
+   "size": [
+    1268,
+    312
+   ],
+   "horizon": 0.9
+  },
+  {
+   "id": "bd-beach",
+   "file": "bd-beach.webp",
+   "kind": "backdrop",
+   "culture": "mediterranean",
+   "season": "summer",
+   "tags": [
+    "mediterranean",
+    "summer",
+    "panorama",
+    "tileable-x"
+   ],
+   "bytes": 40572,
+   "source": "derived from owner reference set",
+   "size": [
+    1268,
+    574
+   ],
+   "horizon": 0.55
+  },
+  {
+   "id": "bd-riverbank",
+   "file": "bd-riverbank.webp",
+   "kind": "backdrop",
+   "culture": "north-european",
+   "season": "summer",
+   "tags": [
+    "north-european",
+    "summer",
+    "panorama",
+    "tileable-x"
+   ],
+   "bytes": 97478,
+   "source": "derived from owner reference set",
+   "size": [
+    1268,
+    576
+   ],
+   "horizon": 0.5
+  },
+  {
+   "id": "bd-karst",
+   "file": "bd-karst.webp",
+   "kind": "backdrop",
+   "culture": "east-asian",
+   "season": "summer",
+   "tags": [
+    "east-asian",
+    "summer",
+    "panorama",
+    "tileable-x"
+   ],
+   "bytes": 14608,
+   "source": "derived from owner reference set",
+   "size": [
+    1264,
+    352
+   ],
+   "horizon": 0.85
+  },
+  {
+   "id": "bd-rice",
+   "file": "bd-rice.webp",
+   "kind": "backdrop",
+   "culture": "south-asian",
+   "season": "summer",
+   "tags": [
+    "south-asian",
+    "summer",
+    "panorama",
+    "tileable-x"
+   ],
+   "bytes": 20854,
+   "source": "derived from owner reference set",
+   "size": [
+    1260,
+    342
+   ],
+   "horizon": 0.9
+  },
+  {
+   "id": "bd-mediterranean",
+   "file": "bd-mediterranean.webp",
+   "kind": "backdrop",
+   "culture": "mediterranean",
+   "season": "summer",
+   "tags": [
+    "mediterranean",
+    "summer",
+    "panorama",
+    "tileable-x"
+   ],
+   "bytes": 237500,
+   "source": "derived from owner reference set",
+   "size": [
+    2228,
+    694
+   ],
+   "horizon": 0.8
+  },
+  {
+   "id": "bd-sakura",
+   "file": "bd-sakura.webp",
+   "kind": "backdrop",
+   "culture": "east-asian",
+   "season": "spring",
+   "tags": [
+    "east-asian",
+    "spring",
+    "panorama",
+    "tileable-x"
+   ],
+   "bytes": 71560,
+   "source": "derived from owner reference set",
+   "size": [
+    1268,
+    576
+   ],
+   "horizon": 0.62
+  },
+  {
+   "id": "bd-nordic-village",
+   "file": "bd-nordic-village.webp",
+   "kind": "backdrop",
+   "culture": "north-european",
+   "season": "dusk",
+   "tags": [
+    "north-european",
+    "dusk",
+    "panorama",
+    "tileable-x"
+   ],
+   "bytes": 13950,
+   "source": "derived from owner reference set",
+   "size": [
+    1268,
+    338
+   ],
+   "horizon": 0.9
+  },
+  {
+   "id": "bd-snow-village",
+   "file": "bd-snow-village.webp",
+   "kind": "backdrop",
+   "culture": "north-european",
+   "season": "winter",
+   "tags": [
+    "north-european",
+    "winter",
+    "panorama",
+    "tileable-x"
+   ],
+   "bytes": 50512,
+   "source": "derived from owner reference set",
+   "size": [
+    1204,
+    464
+   ],
+   "horizon": 0.78
+  },
+  {
+   "id": "bd-canal",
+   "file": "bd-canal.webp",
+   "kind": "backdrop",
+   "culture": "north-european",
+   "season": "summer",
+   "tags": [
+    "north-european",
+    "summer",
+    "panorama",
+    "tileable-x"
+   ],
+   "bytes": 66718,
+   "source": "derived from owner reference set",
+   "size": [
+    1268,
+    544
+   ],
+   "horizon": 0.75
+  },
+  {
+   "id": "bd-forest",
+   "file": "bd-forest.webp",
+   "kind": "backdrop",
+   "culture": "north-european",
+   "season": "summer",
+   "tags": [
+    "north-european",
+    "summer",
+    "panorama",
+    "tileable-x"
+   ],
+   "bytes": 73596,
+   "source": "derived from owner reference set",
+   "size": [
+    1268,
+    574
+   ],
+   "horizon": 0.7
+  },
+  {
+   "id": "bd-oasis",
+   "file": "bd-oasis.webp",
+   "kind": "backdrop",
+   "culture": "middle-eastern",
+   "season": "dry",
+   "tags": [
+    "middle-eastern",
+    "dry",
+    "panorama",
+    "tileable-x"
+   ],
+   "bytes": 28750,
+   "source": "derived from owner reference set",
+   "size": [
+    1268,
+    450
+   ],
+   "horizon": 0.55
+  },
+  {
+   "id": "gr-grass",
+   "file": "gr-grass.webp",
+   "kind": "ground",
+   "culture": "any",
+   "season": "summer",
+   "tags": [
+    "ground",
+    "seamless",
+    "procedural"
+   ],
+   "bytes": 5586,
+   "source": "procedural; colour sampled from owner reference set",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "gr-lawn",
+   "file": "gr-lawn.webp",
+   "kind": "ground",
+   "culture": "any",
+   "season": "summer",
+   "tags": [
+    "ground",
+    "seamless",
+    "procedural"
+   ],
+   "bytes": 4464,
+   "source": "procedural; colour sampled from owner reference set",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "gr-steppe",
+   "file": "gr-steppe.webp",
+   "kind": "ground",
+   "culture": "central-asian-steppe",
+   "season": "summer",
+   "tags": [
+    "ground",
+    "seamless",
+    "procedural"
+   ],
+   "bytes": 5300,
+   "source": "procedural; colour sampled from owner reference set",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "gr-savanna",
+   "file": "gr-savanna.webp",
+   "kind": "ground",
+   "culture": "african-savanna",
+   "season": "dry",
+   "tags": [
+    "ground",
+    "seamless",
+    "procedural"
+   ],
+   "bytes": 4820,
+   "source": "procedural; colour sampled from owner reference set",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "gr-sea",
+   "file": "gr-sea.webp",
+   "kind": "ground",
+   "culture": "mediterranean",
+   "season": "summer",
+   "tags": [
+    "water",
+    "seamless",
+    "procedural"
+   ],
+   "bytes": 4746,
+   "source": "procedural; colour sampled from owner reference set",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "gr-river",
+   "file": "gr-river.webp",
+   "kind": "ground",
+   "culture": "any",
+   "season": "summer",
+   "tags": [
+    "water",
+    "seamless",
+    "procedural"
+   ],
+   "bytes": 3050,
+   "source": "procedural; colour sampled from owner reference set",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "gr-sand",
+   "file": "gr-sand.webp",
+   "kind": "ground",
+   "culture": "any",
+   "season": "summer",
+   "tags": [
+    "ground",
+    "seamless",
+    "procedural"
+   ],
+   "bytes": 3906,
+   "source": "procedural; colour sampled from owner reference set",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "gr-red-rock",
+   "file": "gr-red-rock.webp",
+   "kind": "ground",
+   "culture": "desert",
+   "season": "dry",
+   "tags": [
+    "ground",
+    "seamless",
+    "procedural"
+   ],
+   "bytes": 4990,
+   "source": "procedural; colour sampled from owner reference set",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "gr-meadow-flowers",
+   "file": "gr-meadow-flowers.webp",
+   "kind": "ground",
+   "culture": "any",
+   "season": "summer",
+   "tags": [
+    "ground",
+    "seamless"
+   ],
+   "bytes": 7306,
+   "source": "derived from owner reference set",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "gr-dirt",
+   "file": "gr-dirt.webp",
+   "kind": "ground",
+   "culture": "any",
+   "season": "summer",
+   "tags": [
+    "ground",
+    "seamless"
+   ],
+   "bytes": 3740,
+   "source": "derived from owner reference set",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "gr-snow",
+   "file": "gr-snow.webp",
+   "kind": "ground",
+   "culture": "any",
+   "season": "winter",
+   "tags": [
+    "ground",
+    "seamless"
+   ],
+   "bytes": 798,
+   "source": "derived from owner reference set",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "gr-cobble",
+   "file": "gr-cobble.webp",
+   "kind": "ground",
+   "culture": "north-european",
+   "season": "summer",
+   "tags": [
+    "ground",
+    "seamless"
+   ],
+   "bytes": 3280,
+   "source": "derived from owner reference set",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "gr-water",
+   "file": "gr-water.webp",
+   "kind": "ground",
+   "culture": "any",
+   "season": "summer",
+   "tags": [
+    "ground",
+    "seamless"
+   ],
+   "bytes": 2370,
+   "source": "derived from owner reference set",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "gr-paddy",
+   "file": "gr-paddy.webp",
+   "kind": "ground",
+   "culture": "south-asian",
+   "season": "summer",
+   "tags": [
+    "ground",
+    "seamless"
+   ],
+   "bytes": 6182,
+   "source": "derived from owner reference set",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "gr-leaves",
+   "file": "gr-leaves.webp",
+   "kind": "ground",
+   "culture": "any",
+   "season": "autumn",
+   "tags": [
+    "ground",
+    "seamless"
+   ],
+   "bytes": 4776,
+   "source": "derived from owner reference set",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "gr-wheat",
+   "file": "gr-wheat.webp",
+   "kind": "ground",
+   "culture": "any",
+   "season": "summer",
+   "tags": [
+    "ground",
+    "seamless"
+   ],
+   "bytes": 2642,
+   "source": "derived from owner reference set",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "sky-day",
+   "file": "sky-day.webp",
+   "kind": "sky",
+   "culture": "any",
+   "season": "any",
+   "tags": [
+    "sky",
+    "tileable-x"
+   ],
+   "bytes": 9198,
+   "source": "derived from owner reference set",
+   "size": [
+    1024,
+    256
+   ]
+  },
+  {
+   "id": "sky-clear",
+   "file": "sky-clear.webp",
+   "kind": "sky",
+   "culture": "any",
+   "season": "any",
+   "tags": [
+    "sky",
+    "tileable-x"
+   ],
+   "bytes": 12454,
+   "source": "derived from owner reference set",
+   "size": [
+    1024,
+    256
+   ]
+  },
+  {
+   "id": "sky-golden",
+   "file": "sky-golden.webp",
+   "kind": "sky",
+   "culture": "any",
+   "season": "any",
+   "tags": [
+    "sky",
+    "tileable-x"
+   ],
+   "bytes": 10770,
+   "source": "derived from owner reference set",
+   "size": [
+    1024,
+    256
+   ]
+  },
+  {
+   "id": "sky-dusk",
+   "file": "sky-dusk.webp",
+   "kind": "sky",
+   "culture": "any",
+   "season": "any",
+   "tags": [
+    "sky",
+    "tileable-x"
+   ],
+   "bytes": 9628,
+   "source": "derived from owner reference set",
+   "size": [
+    1024,
+    256
+   ]
+  },
+  {
+   "id": "sky-rose",
+   "file": "sky-rose.webp",
+   "kind": "sky",
+   "culture": "any",
+   "season": "any",
+   "tags": [
+    "sky",
+    "tileable-x"
+   ],
+   "bytes": 9190,
+   "source": "derived from owner reference set",
+   "size": [
+    1024,
+    256
+   ]
+  },
+  {
+   "id": "sky-overcast",
+   "file": "sky-overcast.webp",
+   "kind": "sky",
+   "culture": "any",
+   "season": "any",
+   "tags": [
+    "sky",
+    "tileable-x"
+   ],
+   "bytes": 8014,
+   "source": "derived from owner reference set",
+   "size": [
+    1024,
+    256
+   ]
+  },
+  {
+   "id": "sky-peach",
+   "file": "sky-peach.webp",
+   "kind": "sky",
+   "culture": "any",
+   "season": "any",
+   "tags": [
+    "sky",
+    "tileable-x"
+   ],
+   "bytes": 16246,
+   "source": "derived from owner reference set",
+   "size": [
+    1024,
+    256
+   ]
+  },
+  {
+   "id": "band-hills-green",
+   "file": "band-hills-green.webp",
+   "kind": "band",
+   "culture": "alpine",
+   "season": "summer",
+   "tags": [
+    "band",
+    "tileable-x"
+   ],
+   "bytes": 51444,
+   "source": "derived from owner reference set",
+   "size": [
+    1228,
+    358
+   ]
+  },
+  {
+   "id": "band-birch",
+   "file": "band-birch.webp",
+   "kind": "band",
+   "culture": "north-european",
+   "season": "autumn",
+   "tags": [
+    "band",
+    "tileable-x"
+   ],
+   "bytes": 45172,
+   "source": "derived from owner reference set",
+   "size": [
+    1268,
+    456
+   ]
+  },
+  {
+   "id": "band-autumn-trees",
+   "file": "band-autumn-trees.webp",
+   "kind": "band",
+   "culture": "north-european",
+   "season": "autumn",
+   "tags": [
+    "band",
+    "tileable-x"
+   ],
+   "bytes": 47416,
+   "source": "derived from owner reference set",
+   "size": [
+    1268,
+    358
+   ]
+  },
+  {
+   "id": "band-fields",
+   "file": "band-fields.webp",
+   "kind": "band",
+   "culture": "north-european",
+   "season": "summer",
+   "tags": [
+    "band",
+    "tileable-x"
+   ],
+   "bytes": 38610,
+   "source": "derived from owner reference set",
+   "size": [
+    1268,
+    348
+   ]
+  },
+  {
+   "id": "band-snow-pines",
+   "file": "band-snow-pines.webp",
+   "kind": "band",
+   "culture": "north-european",
+   "season": "winter",
+   "tags": [
+    "band",
+    "tileable-x"
+   ],
+   "bytes": 43172,
+   "source": "derived from owner reference set",
+   "size": [
+    1264,
+    308
+   ]
+  },
+  {
+   "id": "band-village-row",
+   "file": "band-village-row.webp",
+   "kind": "band",
+   "culture": "north-european",
+   "season": "summer",
+   "tags": [
+    "band",
+    "tileable-x"
+   ],
+   "bytes": 52316,
+   "source": "derived from owner reference set",
+   "size": [
+    1268,
+    422
+   ]
+  },
+  {
+   "id": "band-karst-houses",
+   "file": "band-karst-houses.webp",
+   "kind": "band",
+   "culture": "east-asian",
+   "season": "summer",
+   "tags": [
+    "band",
+    "tileable-x"
+   ],
+   "bytes": 140228,
+   "source": "derived from owner reference set",
+   "size": [
+    1268,
+    672
+   ]
+  },
+  {
+   "id": "st-thatch-stilt-house",
+   "file": "st-thatch-stilt-house.webp",
+   "kind": "cutout",
+   "culture": "south-east-asian",
+   "season": "summer",
+   "tags": [
+    "cutout"
+   ],
+   "bytes": 44232,
+   "source": "derived from owner reference set",
+   "size": [
+    630,
+    634
+   ]
+  },
+  {
+   "id": "st-thatch-pavilion",
+   "file": "st-thatch-pavilion.webp",
+   "kind": "cutout",
+   "culture": "south-east-asian",
+   "season": "summer",
+   "tags": [
+    "cutout"
+   ],
+   "bytes": 43102,
+   "source": "derived from owner reference set",
+   "size": [
+    634,
+    559
+   ]
+  },
+  {
+   "id": "st-farmhouse",
+   "file": "st-farmhouse.webp",
+   "kind": "cutout",
+   "culture": "north-european",
+   "season": "dusk",
+   "tags": [
+    "cutout"
+   ],
+   "bytes": 30674,
+   "source": "derived from owner reference set",
+   "size": [
+    578,
+    436
+   ]
+  },
+  {
+   "id": "st-wood-house",
+   "file": "st-wood-house.webp",
+   "kind": "cutout",
+   "culture": "south-east-asian",
+   "season": "summer",
+   "tags": [
+    "cutout"
+   ],
+   "bytes": 47468,
+   "source": "derived from owner reference set",
+   "size": [
+    634,
+    618
+   ]
+  },
+  {
+   "id": "st-modern-karst",
+   "file": "st-modern-karst.webp",
+   "kind": "cutout",
+   "culture": "east-asian",
+   "season": "summer",
+   "tags": [
+    "cutout"
+   ],
+   "bytes": 135814,
+   "source": "derived from owner reference set",
+   "size": [
+    1148,
+    1214
+   ]
+  },
+  {
+   "id": "tr-round-tree",
+   "file": "tr-round-tree.webp",
+   "kind": "cutout",
+   "culture": "any",
+   "season": "summer",
+   "tags": [
+    "cutout"
+   ],
+   "bytes": 23418,
+   "source": "derived from owner reference set",
+   "size": [
+    634,
+    688
+   ]
+  },
+  {
+   "id": "tr-broad-tree",
+   "file": "tr-broad-tree.webp",
+   "kind": "cutout",
+   "culture": "any",
+   "season": "summer",
+   "tags": [
+    "cutout"
+   ],
+   "bytes": 52302,
+   "source": "derived from owner reference set",
+   "size": [
+    630,
+    790
+   ]
+  },
+  {
+   "id": "bd-steppe",
+   "file": "bd-steppe.webp",
+   "kind": "backdrop",
+   "culture": "central-asian-steppe",
+   "season": "summer",
+   "tags": [
+    "steppe",
+    "treeless",
+    "panorama"
+   ],
+   "bytes": 9660,
+   "source": "derived from owner reference set (sky/ridge) + procedural grass",
+   "horizon": 0.5,
+   "size": [
+    1268,
+    316
+   ]
+  },
+  {
+   "id": "st-yurt",
+   "file": "st-yurt.webp",
+   "kind": "cutout",
+   "culture": "central-asian-steppe",
+   "season": "summer",
+   "tags": [
+    "cutout",
+    "yurt"
+   ],
+   "bytes": 5622,
+   "source": "procedural felt tent",
+   "size": [
+    313,
+    254
+   ]
+  },
+  {
+   "id": "st-yurt-blue",
+   "file": "st-yurt-blue.webp",
+   "kind": "cutout",
+   "culture": "central-asian-steppe",
+   "season": "summer",
+   "tags": [
+    "cutout",
+    "yurt"
+   ],
+   "bytes": 5818,
+   "source": "procedural felt tent",
+   "size": [
+    313,
+    254
+   ]
+  },
+  {
+   "id": "tr-acacia",
+   "file": "tr-acacia.webp",
+   "kind": "cutout",
+   "culture": "african-savanna",
+   "season": "dry",
+   "tags": [
+    "cutout",
+    "acacia",
+    "tree"
+   ],
+   "bytes": 7524,
+   "source": "procedural tree",
+   "size": [
+    342,
+    231
+   ]
+  },
+  {
+   "id": "tr-acacia-2",
+   "file": "tr-acacia-2.webp",
+   "kind": "cutout",
+   "culture": "african-savanna",
+   "season": "dry",
+   "tags": [
+    "cutout",
+    "acacia",
+    "tree"
+   ],
+   "bytes": 7596,
+   "source": "procedural tree",
+   "size": [
+    348,
+    230
+   ]
+  },
+  {
+   "id": "band-snow-ridge",
+   "file": "band-snow-ridge.webp",
+   "kind": "band",
+   "culture": "central-asian-steppe",
+   "season": "summer",
+   "tags": [
+    "band",
+    "ridge",
+    "snow"
+   ],
+   "bytes": 9776,
+   "source": "derived from owner reference set",
+   "size": [
+    1400,
+    160
+   ]
+  },
+  {
+   "id": "gr-red-earth",
+   "file": "gr-red-earth.webp",
+   "kind": "ground",
+   "culture": "african-savanna",
+   "season": "dry",
+   "tags": [
+    "ground",
+    "seamless",
+    "procedural"
+   ],
+   "bytes": 5862,
+   "source": "procedural",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "gr-dry-grass",
+   "file": "gr-dry-grass.webp",
+   "kind": "ground",
+   "culture": "central-asian-steppe",
+   "season": "dry",
+   "tags": [
+    "ground",
+    "seamless",
+    "procedural"
+   ],
+   "bytes": 6222,
+   "source": "procedural",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "gr-dust-grass",
+   "file": "gr-dust-grass.webp",
+   "kind": "ground",
+   "culture": "central-asian-steppe",
+   "season": "dry",
+   "tags": [
+    "ground",
+    "seamless",
+    "procedural"
+   ],
+   "bytes": 4652,
+   "source": "procedural",
+   "size": [
+    256,
+    256
+   ]
+  },
+  {
+   "id": "bd-savanna",
+   "file": "bd-savanna.webp",
+   "kind": "backdrop",
+   "culture": "african-savanna",
+   "season": "dry",
+   "tags": [
+    "savanna",
+    "panorama"
+   ],
+   "bytes": 11166,
+   "source": "derived from owner reference set",
+   "horizon": 0.5,
+   "size": [
+    1264,
+    316
+   ]
+  }
+ ],
+ "presets": {
+  "steppe-arena": [
+   "band-snow-ridge",
+   "bd-steppe",
+   "gr-dry-grass",
+   "gr-dust-grass",
+   "sky-day",
+   "st-yurt",
+   "st-yurt-blue"
+  ],
+  "alpine-meadow": [
+   "band-birch",
+   "band-hills-green",
+   "bd-alpine-day",
+   "bd-alpine-snow",
+   "bd-autumn-valley",
+   "gr-grass",
+   "gr-leaves",
+   "gr-meadow-flowers",
+   "gr-snow",
+   "sky-clear",
+   "sky-golden",
+   "sky-overcast",
+   "st-farmhouse",
+   "tr-broad-tree"
+  ],
+  "village-street": [
+   "band-village-row",
+   "bd-meadow-day",
+   "gr-cobble",
+   "sky-day",
+   "tr-round-tree"
+  ],
+  "courtyard": [
+   "bd-meadow-day",
+   "gr-cobble",
+   "sky-day",
+   "tr-broad-tree"
+  ],
+  "beach": [
+   "bd-beach",
+   "bd-riverbank",
+   "gr-sand",
+   "gr-sea",
+   "sky-day"
+  ],
+  "riverbank": [
+   "band-birch",
+   "bd-meadow-day",
+   "bd-riverbank",
+   "gr-grass",
+   "gr-meadow-flowers",
+   "gr-river",
+   "sky-day",
+   "tr-broad-tree"
+  ],
+  "terraced-hills": [
+   "band-fields",
+   "bd-rice",
+   "gr-paddy",
+   "gr-wheat",
+   "sky-day",
+   "st-thatch-stilt-house",
+   "st-wood-house",
+   "tr-broad-tree"
+  ],
+  "desert-dusk": [
+   "bd-desert",
+   "gr-red-rock",
+   "gr-sand",
+   "sky-rose"
+  ],
+  "snow-field": [
+   "band-snow-pines",
+   "bd-snow-village",
+   "gr-snow",
+   "sky-overcast"
+  ],
+  "tea-house": [
+   "bd-sakura",
+   "sky-peach"
+  ],
+  "tatami-room": [
+   "bd-forest",
+   "sky-day"
+  ],
+  "temple-yard": [
+   "band-karst-houses",
+   "bd-sakura",
+   "gr-cobble",
+   "sky-peach",
+   "tr-broad-tree"
+  ],
+  "market-square": [
+   "band-village-row",
+   "bd-canal",
+   "bd-mediterranean",
+   "gr-cobble",
+   "sky-day",
+   "tr-round-tree"
+  ],
+  "canal-polder": [
+   "band-fields",
+   "bd-meadow-day",
+   "bd-riverbank",
+   "gr-lawn",
+   "gr-river",
+   "sky-day",
+   "st-farmhouse",
+   "tr-round-tree"
+  ],
+  "savanna-plain": [
+   "bd-savanna",
+   "gr-dry-grass",
+   "gr-red-earth",
+   "sky-day",
+   "tr-acacia",
+   "tr-acacia-2"
+  ]
+ },
+ "presetDefs": {
+  "steppe-arena": {
+   "culture": "central-asian-steppe",
+   "haze": "#d8c898",
+   "layers": [
+    {
+     "t": "sky",
+     "id": "sky-day"
+    },
+    {
+     "t": "backdrop",
+     "id": "bd-steppe",
+     "seed": 2
+    },
+    {
+     "t": "band",
+     "id": "band-snow-ridge",
+     "r": 100,
+     "h": 11,
+     "y": 4,
+     "arc": [
+      -170,
+      -10
+     ]
+    },
+    {
+     "t": "ground",
+     "id": "gr-dry-grass",
+     "size": 160,
+     "tile": 5
+    },
+    {
+     "t": "ground-patch",
+     "id": "gr-dust-grass",
+     "count": 18,
+     "r": [
+      6,
+      45
+     ],
+     "size": [
+      5,
+      12
+     ],
+     "seed": 3
+    },
+    {
+     "t": "ring",
+     "kind": "flag",
+     "count": 12,
+     "r": [
+      17,
+      18
+     ],
+     "seed": 3,
+     "colors": [
+      "#c0392b",
+      "#1e6fb0",
+      "#f1c40f",
+      "#ffffff",
+      "#2e9e5b"
+     ]
+    },
+    {
+     "t": "cutouts",
+     "id": "st-yurt",
+     "count": 3,
+     "r": [
+      20,
+      34
+     ],
+     "arc": [
+      -150,
+      -95
+     ],
+     "scale": [
+      5.5,
+      7
+     ],
+     "seed": 4
+    },
+    {
+     "t": "cutouts",
+     "id": "st-yurt-blue",
+     "count": 2,
+     "r": [
+      26,
+      40
+     ],
+     "arc": [
+      -80,
+      -30
+     ],
+     "scale": [
+      5,
+      6.5
+     ],
+     "seed": 7
+    },
+    {
+     "t": "scatter",
+     "kind": "haystack",
+     "count": 3,
+     "r": [
+      18,
+      28
+     ],
+     "seed": 6,
+     "arc": [
+      -140,
+      -40
+     ]
+    }
+   ]
+  },
+  "alpine-meadow": {
+   "culture": "alpine",
+   "layers": [
+    {
+     "t": "sky",
+     "id": "sky-clear"
+    },
+    {
+     "t": "backdrop",
+     "id": "bd-alpine-day",
+     "mix": [
+      "bd-alpine-snow"
+     ],
+     "seed": 4
+    },
+    {
+     "t": "band",
+     "id": "band-hills-green",
+     "r": 80,
+     "h": 22,
+     "arc": [
+      -170,
+      -10
+     ]
+    },
+    {
+     "t": "band",
+     "id": "band-birch",
+     "r": 50,
+     "h": 13,
+     "arc": [
+      -170,
+      -10
+     ]
+    },
+    {
+     "t": "ground",
+     "id": "gr-grass",
+     "size": 160,
+     "repeat": 18,
+     "season": {
+      "winter": {
+       "id": "gr-snow"
+      },
+      "autumn": {
+       "id": "gr-leaves"
+      }
+     }
+    },
+    {
+     "t": "ground-patch",
+     "id": "gr-meadow-flowers",
+     "count": 14,
+     "r": [
+      12,
+      45
+     ],
+     "size": [
+      5,
+      10
+     ],
+     "seed": 5
+    },
+    {
+     "t": "ring",
+     "kind": "fence",
+     "count": 40,
+     "r": [
+      18,
+      18
+     ],
+     "arc": [
+      200,
+      340
+     ],
+     "seed": 2
+    },
+    {
+     "t": "cutouts",
+     "id": "tr-broad-tree",
+     "count": 4,
+     "r": [
+      22,
+      48
+     ],
+     "scale": [
+      5,
+      9
+     ],
+     "seed": 11,
+     "sway": 0.6,
+     "arc": [
+      -155,
+      -25
+     ]
+    },
+    {
+     "t": "cutouts",
+     "id": "st-farmhouse",
+     "count": 2,
+     "r": [
+      36,
+      46
+     ],
+     "arc": [
+      -155,
+      -25
+     ],
+     "scale": [
+      9,
+      11
+     ],
+     "seed": 2
+    }
+   ],
+   "seasons": {
+    "winter": {
+     "backdrop": "bd-alpine-snow",
+     "sky": "sky-overcast"
+    },
+    "autumn": {
+     "backdrop": "bd-autumn-valley",
+     "sky": "sky-golden"
+    }
+   }
+  },
+  "village-street": {
+   "culture": "north-european",
+   "layers": [
+    {
+     "t": "sky",
+     "id": "sky-day"
+    },
+    {
+     "t": "backdrop",
+     "id": "bd-meadow-day"
+    },
+    {
+     "t": "ground",
+     "id": "gr-cobble",
+     "size": 120,
+     "repeat": 40
+    },
+    {
+     "t": "band",
+     "id": "band-village-row",
+     "r": 26,
+     "h": 13,
+     "arc": [
+      -175,
+      -115
+     ]
+    },
+    {
+     "t": "band",
+     "id": "band-village-row",
+     "r": 26,
+     "h": 13,
+     "arc": [
+      -65,
+      -5
+     ]
+    },
+    {
+     "t": "ring",
+     "kind": "lantern",
+     "count": 6,
+     "r": [
+      8,
+      9
+     ],
+     "arc": [
+      -80,
+      80
+     ],
+     "seed": 3
+    },
+    {
+     "t": "scatter",
+     "kind": "barrel",
+     "count": 7,
+     "r": [
+      9,
+      14
+     ],
+     "seed": 6,
+     "arc": [
+      -160,
+      -20
+     ]
+    },
+    {
+     "t": "scatter",
+     "kind": "crate",
+     "count": 4,
+     "r": [
+      10,
+      14
+     ],
+     "seed": 9,
+     "arc": [
+      -160,
+      -20
+     ]
+    },
+    {
+     "t": "cutouts",
+     "id": "tr-round-tree",
+     "count": 2,
+     "r": [
+      30,
+      50
+     ],
+     "scale": [
+      6,
+      8
+     ],
+     "seed": 4,
+     "sway": 0.3,
+     "arc": [
+      -155,
+      -25
+     ]
+    }
+   ]
+  },
+  "courtyard": {
+   "culture": "any",
+   "layers": [
+    {
+     "t": "sky",
+     "id": "sky-day"
+    },
+    {
+     "t": "backdrop",
+     "id": "bd-meadow-day"
+    },
+    {
+     "t": "ground",
+     "id": "gr-cobble",
+     "size": 60,
+     "repeat": 20
+    },
+    {
+     "t": "walls",
+     "id": "gr-cobble",
+     "half": 14,
+     "h": 4.2,
+     "tint": "#d9cdb8",
+     "gap": [
+      60,
+      120
+     ]
+    },
+    {
+     "t": "ring",
+     "kind": "lantern",
+     "count": 8,
+     "r": [
+      12.5,
+      12.5
+     ],
+     "seed": 2
+    },
+    {
+     "t": "cutouts",
+     "id": "tr-broad-tree",
+     "count": 1,
+     "r": [
+      18,
+      22
+     ],
+     "scale": [
+      8,
+      10
+     ],
+     "seed": 3,
+     "sway": 0.5,
+     "arc": [
+      -155,
+      -25
+     ]
+    },
+    {
+     "t": "scatter",
+     "kind": "barrel",
+     "count": 3,
+     "r": [
+      10,
+      12
+     ],
+     "seed": 5,
+     "arc": [
+      -160,
+      -20
+     ]
+    }
+   ]
+  },
+  "beach": {
+   "culture": "mediterranean",
+   "layers": [
+    {
+     "t": "sky",
+     "id": "sky-day"
+    },
+    {
+     "t": "backdrop",
+     "id": "bd-beach",
+     "mix": [
+      "bd-riverbank"
+     ]
+    },
+    {
+     "t": "water",
+     "id": "gr-sea",
+     "x": 0,
+     "z": -120,
+     "w": 400,
+     "d": 210,
+     "shimmer": 1
+    },
+    {
+     "t": "ground",
+     "id": "gr-sand",
+     "size": 70,
+     "repeat": 18,
+     "z": 16,
+     "shape": "plane",
+     "depth": 70
+    },
+    {
+     "t": "ring",
+     "kind": "flag",
+     "count": 6,
+     "r": [
+      19,
+      20
+     ],
+     "arc": [
+      -160,
+      -20
+     ],
+     "seed": 7,
+     "colors": [
+      "#e67e22",
+      "#ffffff",
+      "#16a085"
+     ]
+    },
+    {
+     "t": "scatter",
+     "kind": "crate",
+     "count": 3,
+     "r": [
+      12,
+      16
+     ],
+     "seed": 2,
+     "arc": [
+      -160,
+      -20
+     ]
+    }
+   ]
+  },
+  "riverbank": {
+   "culture": "north-european",
+   "layers": [
+    {
+     "t": "sky",
+     "id": "sky-day"
+    },
+    {
+     "t": "backdrop",
+     "id": "bd-riverbank",
+     "mix": [
+      "bd-meadow-day"
+     ]
+    },
+    {
+     "t": "ground",
+     "id": "gr-grass",
+     "size": 160,
+     "repeat": 18
+    },
+    {
+     "t": "water",
+     "id": "gr-river",
+     "x": 0,
+     "z": -34,
+     "w": 400,
+     "d": 30,
+     "shimmer": 1
+    },
+    {
+     "t": "band",
+     "id": "band-birch",
+     "r": 70,
+     "h": 13,
+     "arc": [
+      -170,
+      -10
+     ]
+    },
+    {
+     "t": "cutouts",
+     "id": "tr-broad-tree",
+     "count": 4,
+     "r": [
+      18,
+      40
+     ],
+     "arc": [
+      -155,
+      -25
+     ],
+     "scale": [
+      5,
+      9
+     ],
+     "seed": 6,
+     "sway": 0.8
+    },
+    {
+     "t": "ground-patch",
+     "id": "gr-meadow-flowers",
+     "count": 10,
+     "r": [
+      12,
+      45
+     ],
+     "size": [
+      4,
+      8
+     ],
+     "seed": 8
+    },
+    {
+     "t": "ring",
+     "kind": "fence",
+     "count": 20,
+     "r": [
+      17,
+      17
+     ],
+     "arc": [
+      20,
+      160
+     ],
+     "seed": 1
+    }
+   ]
+  },
+  "terraced-hills": {
+   "culture": "south-asian",
+   "layers": [
+    {
+     "t": "sky",
+     "id": "sky-day"
+    },
+    {
+     "t": "backdrop",
+     "id": "bd-rice"
+    },
+    {
+     "t": "ground",
+     "id": "gr-paddy",
+     "size": 160,
+     "repeat": 24,
+     "season": {
+      "autumn": {
+       "id": "gr-wheat"
+      }
+     }
+    },
+    {
+     "t": "band",
+     "id": "band-fields",
+     "r": 85,
+     "h": 12
+    },
+    {
+     "t": "cutouts",
+     "id": "st-thatch-stilt-house",
+     "count": 3,
+     "r": [
+      32,
+      46
+     ],
+     "arc": [
+      -155,
+      -25
+     ],
+     "scale": [
+      7,
+      9
+     ],
+     "seed": 2
+    },
+    {
+     "t": "cutouts",
+     "id": "st-wood-house",
+     "count": 2,
+     "r": [
+      40,
+      52
+     ],
+     "arc": [
+      -155,
+      -25
+     ],
+     "scale": [
+      8,
+      9
+     ],
+     "seed": 5
+    },
+    {
+     "t": "cutouts",
+     "id": "tr-broad-tree",
+     "count": 3,
+     "r": [
+      26,
+      50
+     ],
+     "scale": [
+      6,
+      9
+     ],
+     "seed": 13,
+     "sway": 0.8,
+     "arc": [
+      -155,
+      -25
+     ]
+    },
+    {
+     "t": "scatter",
+     "kind": "haystack",
+     "count": 4,
+     "r": [
+      18,
+      28
+     ],
+     "seed": 4,
+     "arc": [
+      -160,
+      -20
+     ]
+    }
+   ]
+  },
+  "desert-dusk": {
+   "culture": "desert",
+   "tod": "dusk",
+   "layers": [
+    {
+     "t": "sky",
+     "id": "sky-rose"
+    },
+    {
+     "t": "backdrop",
+     "id": "bd-desert"
+    },
+    {
+     "t": "ground",
+     "id": "gr-sand",
+     "size": 160,
+     "repeat": 18,
+     "grade": "warm"
+    },
+    {
+     "t": "ground-patch",
+     "id": "gr-red-rock",
+     "count": 10,
+     "r": [
+      10,
+      42
+     ],
+     "size": [
+      6,
+      12
+     ],
+     "seed": 3
+    },
+    {
+     "t": "ring",
+     "kind": "flag",
+     "count": 6,
+     "r": [
+      19,
+      20
+     ],
+     "seed": 5,
+     "colors": [
+      "#8e2b1f",
+      "#e9c46a",
+      "#264653"
+     ],
+     "arc": [
+      -160,
+      -20
+     ]
+    },
+    {
+     "t": "scatter",
+     "kind": "barrel",
+     "count": 3,
+     "r": [
+      14,
+      20
+     ],
+     "seed": 9,
+     "arc": [
+      -160,
+      -20
+     ]
+    },
+    {
+     "t": "scatter",
+     "kind": "crate",
+     "count": 3,
+     "r": [
+      14,
+      20
+     ],
+     "seed": 2,
+     "arc": [
+      -160,
+      -20
+     ]
+    }
+   ]
+  },
+  "snow-field": {
+   "culture": "north-european",
+   "season": "winter",
+   "layers": [
+    {
+     "t": "sky",
+     "id": "sky-overcast"
+    },
+    {
+     "t": "backdrop",
+     "id": "bd-snow-village"
+    },
+    {
+     "t": "ground",
+     "id": "gr-snow",
+     "size": 160,
+     "repeat": 16
+    },
+    {
+     "t": "band",
+     "id": "band-snow-pines",
+     "r": 70,
+     "h": 16
+    },
+    {
+     "t": "band",
+     "id": "band-snow-pines",
+     "r": 46,
+     "h": 11,
+     "arc": [
+      100,
+      260
+     ]
+    },
+    {
+     "t": "ring",
+     "kind": "fence",
+     "count": 28,
+     "r": [
+      16,
+      16
+     ],
+     "arc": [
+      190,
+      350
+     ],
+     "seed": 3
+    },
+    {
+     "t": "ring",
+     "kind": "lantern",
+     "count": 4,
+     "r": [
+      15,
+      15
+     ],
+     "arc": [
+      200,
+      340
+     ],
+     "seed": 2
+    },
+    {
+     "t": "snow",
+     "count": 260
+    }
+   ]
+  },
+  "tea-house": {
+   "culture": "east-asian",
+   "layers": [
+    {
+     "t": "room",
+     "floor": "wood",
+     "walls": "plaster",
+     "size": [
+      14,
+      12,
+      5.2
+     ],
+     "window": "bd-sakura",
+     "windowSky": "sky-peach",
+     "beams": true
+    },
+    {
+     "t": "ring",
+     "kind": "lantern",
+     "count": 6,
+     "r": [
+      5.4,
+      5.4
+     ],
+     "arc": [
+      200,
+      340
+     ],
+     "seed": 2,
+     "hang": true
+    }
+   ]
+  },
+  "tatami-room": {
+   "culture": "east-asian",
+   "layers": [
+    {
+     "t": "room",
+     "floor": "tatami",
+     "walls": "shoji",
+     "size": [
+      12,
+      10,
+      4.2
+     ],
+     "window": "bd-forest",
+     "windowSky": "sky-day",
+     "beams": true
+    },
+    {
+     "t": "ring",
+     "kind": "lantern",
+     "count": 4,
+     "r": [
+      4.6,
+      4.6
+     ],
+     "arc": [
+      210,
+      330
+     ],
+     "seed": 4,
+     "hang": true
+    }
+   ]
+  },
+  "temple-yard": {
+   "culture": "east-asian",
+   "layers": [
+    {
+     "t": "sky",
+     "id": "sky-peach"
+    },
+    {
+     "t": "backdrop",
+     "id": "bd-sakura"
+    },
+    {
+     "t": "ground",
+     "id": "gr-cobble",
+     "size": 100,
+     "repeat": 34,
+     "grade": "cool"
+    },
+    {
+     "t": "walls",
+     "id": "gr-cobble",
+     "half": 15,
+     "h": 3,
+     "tint": "#c9b9a0",
+     "gap": [
+      60,
+      120
+     ]
+    },
+    {
+     "t": "band",
+     "id": "band-karst-houses",
+     "r": 60,
+     "h": 16,
+     "arc": [
+      130,
+      230
+     ]
+    },
+    {
+     "t": "ring",
+     "kind": "lantern",
+     "count": 10,
+     "r": [
+      11,
+      11
+     ],
+     "seed": 3
+    },
+    {
+     "t": "cutouts",
+     "id": "tr-broad-tree",
+     "count": 2,
+     "r": [
+      20,
+      30
+     ],
+     "scale": [
+      7,
+      10
+     ],
+     "seed": 12,
+     "sway": 0.5,
+     "arc": [
+      -155,
+      -25
+     ]
+    }
+   ]
+  },
+  "market-square": {
+   "culture": "mediterranean",
+   "layers": [
+    {
+     "t": "sky",
+     "id": "sky-day"
+    },
+    {
+     "t": "backdrop",
+     "id": "bd-mediterranean",
+     "mix": [
+      "bd-canal"
+     ]
+    },
+    {
+     "t": "ground",
+     "id": "gr-cobble",
+     "size": 100,
+     "repeat": 38,
+     "grade": "warm"
+    },
+    {
+     "t": "band",
+     "id": "band-village-row",
+     "r": 30,
+     "h": 14,
+     "arc": [
+      -175,
+      -115
+     ]
+    },
+    {
+     "t": "band",
+     "id": "band-village-row",
+     "r": 30,
+     "h": 14,
+     "arc": [
+      -65,
+      -5
+     ]
+    },
+    {
+     "t": "ring",
+     "kind": "flag",
+     "count": 14,
+     "r": [
+      17,
+      18
+     ],
+     "seed": 2,
+     "colors": [
+      "#c0392b",
+      "#f4d03f",
+      "#2e86c1",
+      "#ffffff"
+     ],
+     "arc": [
+      -160,
+      -20
+     ]
+    },
+    {
+     "t": "scatter",
+     "kind": "barrel",
+     "count": 6,
+     "r": [
+      10,
+      15
+     ],
+     "seed": 5,
+     "arc": [
+      -160,
+      -20
+     ]
+    },
+    {
+     "t": "scatter",
+     "kind": "crate",
+     "count": 6,
+     "r": [
+      10,
+      15
+     ],
+     "seed": 7,
+     "arc": [
+      -160,
+      -20
+     ]
+    },
+    {
+     "t": "cutouts",
+     "id": "tr-round-tree",
+     "count": 2,
+     "r": [
+      24,
+      36
+     ],
+     "scale": [
+      6,
+      8
+     ],
+     "seed": 6,
+     "sway": 0.3,
+     "arc": [
+      -155,
+      -25
+     ]
+    }
+   ]
+  },
+  "canal-polder": {
+   "culture": "north-european",
+   "layers": [
+    {
+     "t": "sky",
+     "id": "sky-day"
+    },
+    {
+     "t": "backdrop",
+     "id": "bd-meadow-day",
+     "mix": [
+      "bd-riverbank"
+     ]
+    },
+    {
+     "t": "ground",
+     "id": "gr-lawn",
+     "size": 160,
+     "repeat": 20
+    },
+    {
+     "t": "water",
+     "id": "gr-river",
+     "x": 0,
+     "z": -22,
+     "w": 400,
+     "d": 8,
+     "shimmer": 1
+    },
+    {
+     "t": "water",
+     "id": "gr-river",
+     "x": 0,
+     "z": 26,
+     "w": 400,
+     "d": 6,
+     "shimmer": 1
+    },
+    {
+     "t": "band",
+     "id": "band-fields",
+     "r": 75,
+     "h": 10
+    },
+    {
+     "t": "cutouts",
+     "id": "tr-round-tree",
+     "count": 4,
+     "r": [
+      22,
+      48
+     ],
+     "scale": [
+      4,
+      7
+     ],
+     "seed": 10,
+     "sway": 0.6,
+     "arc": [
+      -155,
+      -25
+     ]
+    },
+    {
+     "t": "cutouts",
+     "id": "st-farmhouse",
+     "count": 2,
+     "r": [
+      44,
+      56
+     ],
+     "arc": [
+      -155,
+      -25
+     ],
+     "scale": [
+      9,
+      11
+     ],
+     "seed": 2
+    },
+    {
+     "t": "ring",
+     "kind": "fence",
+     "count": 24,
+     "r": [
+      15,
+      15
+     ],
+     "arc": [
+      30,
+      150
+     ],
+     "seed": 3
+    }
+   ]
+  },
+  "savanna-plain": {
+   "culture": "african-savanna",
+   "haze": "#e8cfa0",
+   "layers": [
+    {
+     "t": "sky",
+     "id": "sky-day"
+    },
+    {
+     "t": "backdrop",
+     "id": "bd-savanna",
+     "seed": 3
+    },
+    {
+     "t": "ground",
+     "id": "gr-red-earth",
+     "size": 160,
+     "tile": 5
+    },
+    {
+     "t": "ground-patch",
+     "id": "gr-dry-grass",
+     "count": 22,
+     "r": [
+      6,
+      48
+     ],
+     "size": [
+      5,
+      12
+     ],
+     "seed": 5
+    },
+    {
+     "t": "cutouts",
+     "id": "tr-acacia",
+     "count": 3,
+     "r": [
+      22,
+      38
+     ],
+     "arc": [
+      -150,
+      -95
+     ],
+     "scale": [
+      8,
+      11
+     ],
+     "seed": 2,
+     "sway": 0.5
+    },
+    {
+     "t": "cutouts",
+     "id": "tr-acacia-2",
+     "count": 3,
+     "r": [
+      26,
+      48
+     ],
+     "arc": [
+      -85,
+      -30
+     ],
+     "scale": [
+      8,
+      12
+     ],
+     "seed": 6,
+     "sway": 0.5
+    },
+    {
+     "t": "scatter",
+     "kind": "haystack",
+     "count": 2,
+     "r": [
+      22,
+      30
+     ],
+     "seed": 3,
+     "arc": [
+      -130,
+      -50
+     ]
+    }
+   ]
+  }
+ }
+}

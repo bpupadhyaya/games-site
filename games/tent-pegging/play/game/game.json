@@ -1,0 +1,25 @@
+{
+  "slug": "tent-pegging",
+  "title": "Tent Pegging",
+  "tagline": "Gallop down the lane and lift the peg with your lance.",
+  "genre": "mounted sport / timing",
+  "orientation": "any",
+  "version": "1.2.0",
+  "monetization": {
+    "model": "premium",
+    "priceUsd": 2.99,
+    "previewSeconds": 90,
+    "products": [
+      {
+        "id": "unlock_game",
+        "type": "non-consumable",
+        "priceUsd": 2.99,
+        "title": "Unlock Game"
+      }
+    ]
+  },
+  "locales": [
+    "en"
+  ],
+  "demoOnly": true
+}

@@ -1,0 +1,17 @@
+{
+  "title": "Krar Lyre",
+  "tagline": "Close the ring. Answer the azmari.",
+  "description": "A music game for the krar, the bowl lyre of Ethiopia and Eritrea. Tap rings as they close on six strings, sweep strums, damp the bowl, answer the azmari from memory in the Echo Duel, and compose small songs in the qenet scales of the Horn of Africa. Six original pieces, a growing accompaniment, synthesised sound, no ads, works offline.",
+  "genre": "rhythm music",
+  "demo": true,
+  "howToPlay": [
+    "Pick a piece, then start with Learn the phrases: the azmari plays a phrase and you answer it.",
+    "Rings close on the strings. Tap a string just as its ring closes on it.",
+    "A wide pill across four strings is a strum: sweep one finger across them in the arrow direction.",
+    "A square ring on the bowl is a damp: tap the bowl and every string falls silent.",
+    "Play cleanly and more voices join the accompaniment. Miss and one drops out.",
+    "Echo Duel hides the rings: listen to a phrase, then answer it from memory. Three lives.",
+    "Compose: tap cells in the grid, play the loop, and let the azmari answer.",
+    "On a keyboard: A S D F G H pluck strings 1 to 6, Z damps, W sweeps the strum that is due, Space pauses."
+  ]
+}

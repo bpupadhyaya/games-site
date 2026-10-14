@@ -1,0 +1,14 @@
+{
+  "title": "Stoolball",
+  "tagline": "Defend the board. Run for it.",
+  "description": "The village bat-and-board game of Sussex. Slide the paddle to meet the ball, choose Block, Drive or Lift and tap as the ring closes, then run or hold. Bat and bowl a match against three levels of opponent, play a quick knock or the daily knock, and let Watch & Learn explain every choice.",
+  "genre": "village bat-and-board sport",
+  "demo": true,
+  "howToPlay": [
+    "Drag sideways on the pitch to slide the paddle into the ball's line.",
+    "Tap Block, Drive or Lift as the ring closes on the paddle.",
+    "The part of the paddle the ball meets sets the direction: aim for a gap on the field map.",
+    "Tap RUN when the gauge is green; tap again to turn back.",
+    "In the second innings you bowl: drag the aim marker, choose pace and bounce, set the field and press Bowl."
+  ]
+}

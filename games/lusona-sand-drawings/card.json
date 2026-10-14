@@ -1,0 +1,14 @@
+{
+  "title": "Lusona Sand Drawings",
+  "tagline": "One unbroken line round every dot.",
+  "description": "A calm line puzzle inspired by the sand drawings of the Chokwe peoples of Angola, DR Congo and Zambia. Turn mirror tiles until the sand line closes into a single loop round every dot. Thirty levels, a daily drawing, hints that explain and Watch and Learn.",
+  "genre": "Logic puzzle",
+  "demo": true,
+  "howToPlay": [
+    "Tap a tile to flip its mirror between the two diagonals.",
+    "The sand line bends round tile corners; each separate loop has its own colour.",
+    "Turn tiles until only one loop is left and it holds every dot.",
+    "Stone tiles are fixed. Fewer moves earn more stars.",
+    "Tap Think for a hint, or Watch and Learn to see a level solved."
+  ]
+}

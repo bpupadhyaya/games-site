@@ -1,0 +1,14 @@
+{
+  "title": "Axe Throwing",
+  "tagline": "Turn it once and bite the bull.",
+  "description": "A calm target sport from the lumber-camp traditions of Canada and the United States. Aim at the painted board, let go on the swing so the axe turns exactly once, and out-score a league rival across four venues with wind and a sliding board.",
+  "genre": "axe throwing skill",
+  "demo": true,
+  "howToPlay": [
+    "Press the board to aim; drag to place the reticle.",
+    "The swing marker sweeps: let go inside a green band.",
+    "A good swing turns the axe once and the blade bites in.",
+    "Rings score 6 to 1; the corner spots are worth 7.",
+    "Read wind and the sliding board; use Think for a hint."
+  ]
+}

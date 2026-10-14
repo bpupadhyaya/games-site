@@ -1,0 +1,14 @@
+{
+  "title": "Akan Gold-Weight Balance",
+  "tagline": "Measure the gold dust exactly, in the fewest weighings.",
+  "description": "A brass pan balance, a handful of cast weights and a customer's order. Put weights on both pans, even weigh the bag itself, and serve each order in as few weighings as you can. Hints that teach, a Daily Order and Watch and Learn. Portrait or landscape.",
+  "genre": "Logic puzzle",
+  "demo": true,
+  "howToPlay": [
+    "Fill the bag with exactly the amount on the order slip.",
+    "Drag weights onto the pans, or tap a weight to send it to a pan.",
+    "The dust poured is what the right pan weighs minus the left.",
+    "From market day three the bag itself can sit on a pan.",
+    "Tap the lamp for a hint: where to look, then why it works."
+  ]
+}

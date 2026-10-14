@@ -1,0 +1,14 @@
+{
+  "title": "Takoyaki Flip Stall",
+  "tagline": "Pour, fill and flip golden street-stall balls for a queue of hungry customers.",
+  "description": "Run a street stall in Japan: pour batter into the iron plate, add fillings, flip each ball a quarter turn at the right moment and pack it for the right ticket. Three stalls, Rush Hour, a Daily Shift and Watch and Learn. Portrait or landscape.",
+  "genre": "Cooking rhythm",
+  "demo": true,
+  "howToPlay": [
+    "Pick the ladle and hold or drag over moulds to pour batter.",
+    "Choose a filling and sweep it over fresh batter.",
+    "Take the picks and tap a ball while its ring is green to flip it a quarter turn.",
+    "After four golden quarters the ball glows: tap it to pack it for a ticket.",
+    "Keep every customer happy; three lost customers close the stall."
+  ]
+}

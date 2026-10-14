@@ -1,0 +1,44 @@
+// Offline app-icon render (developer tool): web/icon.html?size=2048 draws the SAME models the game uses: an amber wink flipping
+// into the brass cup on the baize, a honey-horn squidger behind it, cobalt winks resting, lamp-lit parlour blurred behind.
+import * as THREE from '../vendor3d/three.js';
+import * as B from '../vendor3d/board3d.js';
+import { buildTray, buildRoom, makeWink, makeSquidger, FELT_Y, WINK_T } from './models.js';
+import { gfx } from '../src/v3.js';
+gfx.mk = (w, h) => { const c = document.createElement('canvas'); c.width = w; c.height = h; return c; };
+const SIZE = Number(new URLSearchParams(location.search).get('size') || 2048);
+const out = document.createElement('canvas'); out.width = out.height = SIZE; document.body.appendChild(out); out.style.width = '1024px';
+const ctx = out.getContext('2d');
+const gl = document.createElement('canvas'); gl.width = gl.height = SIZE;
+const renderer = new THREE.WebGLRenderer({ canvas: gl, antialias: true, alpha: false, preserveDrawingBuffer: true });
+renderer.setPixelRatio(1); renderer.setSize(SIZE, SIZE, false);
+renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.toneMapping = THREE.NeutralToneMapping ?? THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 0.9;
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFShadowMap;
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x1a0f0a);
+const env = B.createEnvironment(renderer, scene, { intensity: 0.45 });
+const room = buildRoom({ quality: 1 }); scene.add(room.group);
+const tray = buildTray(1); scene.add(tray);
+const key = new THREE.SpotLight(0xffdcaa, 4.2, 0, 0.45, 0.8, 0); key.position.set(-14, 40, 22); key.target.position.set(0, 1, 0); key.castShadow = true; key.shadow.mapSize.set(2048, 2048);
+Object.assign(key.shadow.camera, { near: 10, far: 120, fov: 36 }); key.shadow.camera.updateProjectionMatrix(); key.shadow.bias = -0.0003; key.shadow.normalBias = 0.03;
+const rim = new THREE.DirectionalLight(0xffa860, 2.2); rim.position.set(12, 14, -22);
+scene.add(new THREE.HemisphereLight(0xffe6c8, 0x2a1810, 0.45), key, key.target, rim);
+const put = (o, x, y, z, ry = 0, rx = 0, rz = 0, s = 1.5) => { o.position.set(x, y, z); o.rotation.set(rx, ry, rz); o.scale.setScalar(s); scene.add(o); return o; };
+const F = FELT_Y;
+put(makeWink(1, 0, false), -3.4, F, 2.4, 0.5); put(makeWink(1, 1, false), 3.8, F, 3.0, 1.1); put(makeWink(0, 1, false), 4.6, F, -0.6, 2.0);
+put(makeWink(1, 0, false), 3.0, F, 1.6, 0.2); put(makeWink(0, 0, false), 3.1, F + WINK_T * 1.5, 1.7, 0.9, 0.05, 0.08);
+const sq = makeSquidger(1); put(sq, -4.6, F + 0.9, 5.6, 0, 0.0, 0.0, 1.5); sq.rotation.x = -0.12;
+const hero = makeWink(0, 0, false); put(hero, -0.3, F + 3.6, 0.2, 0.6, 0.5, 0.25, 2.0);
+const cam = new THREE.PerspectiveCamera(30, 1, 2, 300); cam.position.set(2.5, 11.5, 15); cam.lookAt(0.2, F + 1.2, 0.8);
+scene.traverse((o) => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
+renderer.render(scene, cam);
+const sharp = document.createElement('canvas'); sharp.width = sharp.height = SIZE; sharp.getContext('2d').drawImage(gl, 0, 0);
+ctx.fillStyle = '#1a0e06'; ctx.fillRect(0, 0, SIZE, SIZE);
+ctx.filter = `blur(${SIZE * 0.012}px)`; ctx.drawImage(sharp, -SIZE * 0.02, -SIZE * 0.02, SIZE * 1.04, SIZE * 1.04); ctx.filter = 'none';   // depth of field: soft edges
+const m = document.createElement('canvas'); m.width = m.height = SIZE; const mx = m.getContext('2d');
+mx.drawImage(sharp, 0, 0); mx.globalCompositeOperation = 'destination-in';
+const g = mx.createRadialGradient(SIZE * 0.5, SIZE * 0.5, SIZE * 0.18, SIZE * 0.5, SIZE * 0.5, SIZE * 0.62); g.addColorStop(0, 'rgba(0,0,0,1)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+mx.fillStyle = g; mx.fillRect(0, 0, SIZE, SIZE);
+ctx.drawImage(m, 0, 0);
+ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.filter = `blur(${SIZE * 0.014}px)`; ctx.globalAlpha = 0.18; ctx.drawImage(sharp, 0, 0); ctx.restore();
+const v = ctx.createRadialGradient(SIZE / 2, SIZE / 2, SIZE * 0.42, SIZE / 2, SIZE / 2, SIZE * 0.78); v.addColorStop(0, 'rgba(10,4,2,0)'); v.addColorStop(1, 'rgba(10,4,2,0.5)'); ctx.fillStyle = v; ctx.fillRect(0, 0, SIZE, SIZE);
+window.__icon = () => out.toDataURL('image/png'); window.__iconJpeg = () => out.toDataURL('image/jpeg', 0.93);
+document.title = 'ready';

@@ -1,0 +1,14 @@
+{
+  "title": "Tavern Nail and Wire Puzzles",
+  "tagline": "Slide and turn bent iron until the piece comes free.",
+  "description": "A 3D mechanical puzzle inspired by the bent-nail and wire disentanglement puzzles of inn and pub tables. Slide and turn a loose ring, hook or nail, look round the lit metal, and find the angle where the iron lets it through. Thirty levels, a daily puzzle, hints that explain and Watch and Learn.",
+  "genre": "Mechanical puzzle",
+  "demo": true,
+  "howToPlay": [
+    "Carry every loose piece out of the dashed zone round the iron frame.",
+    "Drag a piece to slide it, or tap the Slide buttons for X, Y and Z.",
+    "Tap the Turn buttons to swing a piece a quarter about an axis.",
+    "Drag the empty mat to look round the puzzle from any side.",
+    "Tap Think for the next move and why, or Watch and Learn to see one solved."
+  ]
+}

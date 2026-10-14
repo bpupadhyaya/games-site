@@ -1,0 +1,17 @@
+{
+  "title": "Sega Ravanne Drum",
+  "tagline": "Play the ravanne, triangle and maravanne as the dancer sways.",
+  "description": "A rhythm game inspired by sega, the music and dance of Mauritius and the Indian Ocean islands. A beam sweeps round the goat-skin ravanne drum; tap and slide on the drum, tap the triangle, shake the maravanne and warm the skin at the fire. Play cleanly and the beach band joins in while the dancer sways. Learn by call and response, perform for stars, or watch the band play. Six original pieces, Rules with text size to 300%, synthesised sound, no ads.",
+  "genre": "rhythm music",
+  "demo": true,
+  "howToPlay": [
+    "Pick a piece, then Learn: the lead drummer calls a short phrase and you echo it back.",
+    "A beam sweeps round the drum, one turn per bar. Dots drop onto the rim; play each when the beam reaches it.",
+    "Tap the drum for a boom, or press and slide across it for a slap.",
+    "Tap the triangle for a ting. Swipe across the maravanne pad for a shake.",
+    "Press and hold the fire to warm the skin when the flame arc comes round.",
+    "Play cleanly and more of the band joins in and the dancer sways harder.",
+    "Watch and Learn plays the whole piece for you, thinking out loud before each phrase. Pause any time.",
+    "On a keyboard: Space boom, S slap, T triangle, M maravanne, W warm, P pause, H hint."
+  ]
+}

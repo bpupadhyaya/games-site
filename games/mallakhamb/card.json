@@ -1,0 +1,16 @@
+{
+  "title": "Mallakhamb",
+  "tagline": "Swipe, wrap and hold your way up the pole.",
+  "description": "A rhythm and balance game built on the Indian pole gymnastics discipline. Link climbs, slides, wraps and long poses into six routines by swiping and holding in time with the beat, steer your balance in the flag and the upside-down hang, and keep the flow going. Learn mode, a Watch and Learn demonstration, an in-app Rules book, portrait and landscape play, synthesised sound, no ads.",
+  "genre": "rhythm gymnastics",
+  "demo": true,
+  "howToPlay": [
+    "Pick a routine, then try Learn it first: slower, forgiving, with a hint button.",
+    "Moves slide along the ribbon to the glowing ring. Act as one lands on it.",
+    "Swipe up to climb, down to slide, left or right to wrap round the pole, tap to salute.",
+    "A long bar is a hold: press and keep your finger down, and slide it to steer the balance marker into the bright band.",
+    "Clean moves build a chain and multiplier; a miss costs flow and an empty flow bar ends the routine.",
+    "Watch and Learn performs a routine for you and thinks before each phrase. Pause it any time.",
+    "On a keyboard: arrow keys swipe, Space taps and holds (Left and Right steer), P pauses."
+  ]
+}

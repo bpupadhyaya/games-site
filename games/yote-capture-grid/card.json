@@ -1,0 +1,16 @@
+{
+  "title": "Yote",
+  "tagline": "Drop, jump, and take a bonus pebble from anywhere.",
+  "description": "Yote is a traditional pebble-and-sand game of Senegal, Mali and Burkina Faso, played on 30 scooped pits. Each turn drop a pebble, step one pit or jump; every jump lets you remove a second enemy pebble of your choice. Five computer levels, two players on one phone, hands-on lessons, hints that explain why, danger marks, take back and a Watch & Learn mode. Large text and reduced motion options, no ads, works offline.",
+  "genre": "West African drop-and-jump game",
+  "demo": true,
+  "howToPlay": [
+    "New here? Tap Learn to play: six short hands-on lessons where you make every move yourself.",
+    "Tap an empty pit to drop a pebble from your hand. You have twelve to place.",
+    "Or tap one of your pebbles on the board, then a glowing pit next to it, to step one pit.",
+    "Jump an enemy pebble that is next to yours onto the empty pit behind it. A red ring marks a jump.",
+    "After every jump, tap any other enemy pebble on the board to remove it as your bonus.",
+    "Capture is your choice, never forced. Keep pebbles in hand: a bonus cannot reach them while others stand on the board.",
+    "Win by capturing every enemy pebble. Auto Play shows the computer playing both sides, with Pause."
+  ]
+}

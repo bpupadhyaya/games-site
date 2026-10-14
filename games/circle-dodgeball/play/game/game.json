@@ -1,0 +1,25 @@
+{
+  "slug": "circle-dodgeball",
+  "title": "Circle Dodgeball",
+  "tagline": "Dodge, catch and burn them all.",
+  "genre": "sports",
+  "orientation": "any",
+  "version": "1.2.2",
+  "monetization": {
+    "model": "premium",
+    "priceUsd": 2.99,
+    "previewSeconds": 90,
+    "products": [
+      {
+        "id": "unlock_game",
+        "type": "non-consumable",
+        "priceUsd": 2.99,
+        "title": "Unlock Game"
+      }
+    ]
+  },
+  "locales": [
+    "en"
+  ],
+  "demoOnly": true
+}

@@ -1,0 +1,17 @@
+{
+  "title": "Sholo Guti",
+  "tagline": "Sixteen stones each. Jump to capture. Bengal's chalk-board game.",
+  "description": "Sholo Guti (\"sixteen stones\") is a traditional jumping and capturing game of Bangladesh and Bengal, drawn with chalk on courtyards and school yards. Step along the lines, jump over enemy stones, and chain jumps in a single turn. Play Classic, Must capture, or Quick. Five computer levels, two players on one phone, hands-on lessons, hints that explain why, danger marks, take back and a Watch & Learn mode. No ads, works offline.",
+  "genre": "Bengal jumping and capturing board game",
+  "demo": true,
+  "howToPlay": [
+    "New here? Tap Learn to play: eight short hands-on lessons where you make every move yourself.",
+    "Tap a stone and the points it can reach glow. A stone steps one point along a drawn line, in any direction.",
+    "Jump over an enemy stone right next to yours, in a straight line, onto the empty point behind it to capture it.",
+    "After a jump the same stone may jump again in the same turn. You can stop after any jump.",
+    "A red ring with a number shows a capturing move and how many stones it takes.",
+    "Classic: capturing is your choice. Must capture: if you can jump, you have to. Quick: first to eight.",
+    "Hint explains a good move. Danger marks warn about stones that can be captured next. Take back undoes your last move.",
+    "Auto Play shows the computer playing both sides, with Pause. 25 quiet moves each settle the game on stones."
+  ]
+}

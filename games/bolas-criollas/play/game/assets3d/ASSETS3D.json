@@ -1,0 +1,30 @@
+{
+  "version": "1.11.1",
+  "characters": [
+    "mannequin_m"
+  ],
+  "clips": [
+    "base"
+  ],
+  "scenery": [
+    "bd-beach",
+    "sky-rose",
+    "band-hills-green",
+    "band-village-row",
+    "tr-round-tree"
+  ],
+  "files": {
+    "characters/mannequin_m.glb": "b75014e5b6033ec6ef0979a126cac399f1004f23bc1ed2e9df74aad9eacf288a",
+    "characters/mannequin_m.json": "d2b7eb91a162f48489ef97377e9fc5dc8cb5136633b52665a0ae970e35f5e7e6",
+    "clips/base.bin": "8a3871846e5303a374014b8d5197bd767f3f62449917be3fc0fc7069f4dd7de0",
+    "clips/base.json": "9d7bd7a3a4e145d959784b59b7058f4ab4afebe0c29bbf6a9ed72603ec145269",
+    "scenery/bd-beach.webp": "8cd0f67912784f0b46cf33a9b8d4212e910ff9fc8d15035f58bf7de145c96a3f",
+    "scenery/sky-rose.webp": "b2effc28a131f7e815b9d7c3d3de0fda5f86677951221bddada60d0c1ab32500",
+    "scenery/band-hills-green.webp": "1596b9fb38ef2656439fc91423afb3c68ede5fa8ac746c8bc7e9a58b571a8252",
+    "scenery/band-village-row.webp": "e779fe0ebe8f636d283ca9b1afd1918111c6138be979a17e39917965d336d1a8",
+    "scenery/tr-round-tree.webp": "385fc8516971a28457b87ca8940195e439ec7c19d1b5e6656146ec145cf528c0",
+    "scenery/catalogue.json": "0b125b303c5bc1f5162600c88dba882b49ab2374d26e1e187f5385dc48ec7674"
+  },
+  "hash": "e8c38fe41066f45e53926c3a9d24f765bb5e8aea13aac81564a50d8f0d6c0369",
+  "note": "Vendored copies. Never edit. Re-select with: tools/arc view3d-add <slug> --characters a,b ; refresh with: tools/arc view3d-upgrade"
+}

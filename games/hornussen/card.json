@@ -1,0 +1,15 @@
+{
+  "title": "Hornussen",
+  "tagline": "Bend the rod, strike the Nouss, stop it with timed boards",
+  "description": "The Swiss field sport on your phone: press and hold to bend the long rod, aim across the Ries and release for a perfect whip. Then swap sides and tap your fielders to throw wooden boards into the flying puck. Four Alpine venues, three levels, Hints and a full Auto Play.",
+  "genre": "field sport",
+  "demo": true,
+  "howToPlay": [
+    "Press and hold anywhere to bend the rod; slide left or right to aim.",
+    "Release in the gold zone of the meter for a perfect whip.",
+    "A puck that lands in the Ries scores 1, 2 or 3 points by distance.",
+    "When fielding, tap the fielder the ring marks as it closes.",
+    "A board that is up as the puck passes stops it: no points.",
+    "The side with more points after both halves wins."
+  ]
+}

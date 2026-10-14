@@ -1,0 +1,14 @@
+{
+  "title": "Billycart Derby",
+  "tagline": "Build it. Steer it. Roll it down the hill.",
+  "description": "A gravity-powered cart race seen from behind the cart: build your billycart from wheels, frame, steering, brake and ballast, then steer it past hay bales and crowds against three rivals. Five hills, a daily hill, ghosts and a cup.",
+  "genre": "Gravity cart racing",
+  "demo": true,
+  "howToPlay": [
+    "Build your cart in the garage: each part has trade-offs.",
+    "Tap just after GO for a launch, then slide your thumb to steer.",
+    "Brake before bends: too fast and the cart slides wide.",
+    "Take the inside line, dodge ruts and bales, draft rivals.",
+    "Beat three rivals, or the ghost of your best run."
+  ]
+}

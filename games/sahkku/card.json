@@ -1,0 +1,17 @@
+{
+  "title": "Sáhkku",
+  "tagline": "Wake herders, race the board, capture rivals.",
+  "description": "Sáhkku is a traditional dice and board game of the Sámi people of Sápmi. Roll four dice, wake sleeping herders, run them round the board or across the middle and capture rivals by landing on them. A neutral white reindeer king joins whichever side lands on it. Four computer levels, two players on one phone, hints, take back, a Watch and Learn mode, large text and reduced motion options, no ads, works offline.",
+  "genre": "Sámi dice and board game",
+  "demo": true,
+  "howToPlay": [
+    "Tap the dice tray to roll four dice. Each shows Dawn, 1, 2 or 3.",
+    "Tap one of your herders and its reachable cells glow, one for each die.",
+    "Tap a glowing cell to use that die. A red ring means the move captures a rival.",
+    "A Dawn die can wake a sleeping herder onto your camp corner, or step one cell.",
+    "At a gate you may turn into the middle: a shortcut across the board through the centre.",
+    "Land exactly on a single rival herder to capture him. Pairs and your camp corner are safe.",
+    "Land on the white reindeer king to make it yours; it moves with your dice and flips if a rival lands on it.",
+    "Capture all six rival herders to win. Hint, Take back and Auto Play help you learn."
+  ]
+}

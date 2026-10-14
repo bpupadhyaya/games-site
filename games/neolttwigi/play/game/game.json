@@ -1,0 +1,25 @@
+{
+  "slug": "neolttwigi",
+  "title": "Neolttwigi",
+  "tagline": "Press as you land, release as she lands, and send each other higher.",
+  "genre": "rhythm duet",
+  "orientation": "any",
+  "version": "1.1.2",
+  "monetization": {
+    "model": "premium",
+    "priceUsd": 2.99,
+    "previewSeconds": 90,
+    "products": [
+      {
+        "id": "unlock_game",
+        "type": "non-consumable",
+        "priceUsd": 2.99,
+        "title": "Unlock Game"
+      }
+    ]
+  },
+  "locales": [
+    "en"
+  ],
+  "demoOnly": true
+}

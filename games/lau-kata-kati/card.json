@@ -1,0 +1,17 @@
+{
+  "title": "Lau Kata Kati",
+  "tagline": "Nine pieces each. Two triangles. Jump to capture.",
+  "description": "Lau Kata Kati is a traditional jumping and capturing game of Bengal, played on a board of two triangles that meet at a single point. Step along the stitched lines, jump over enemy pieces to capture them and chain jumps in one turn. Win by capturing every enemy piece or leaving the other side with no move. Play Classic, Must capture, or Quick. Five computer levels, two players on one phone, hands-on lessons, hints that explain why, danger marks, take back and a Watch & Learn mode. Works offline.",
+  "genre": "Bengal jumping and capturing board game",
+  "demo": true,
+  "howToPlay": [
+    "New here? Tap Learn to play: eight short hands-on lessons where you make every move yourself.",
+    "Tap a piece and the points it can reach glow. A piece steps one point along a drawn line, in any direction.",
+    "Jump over an enemy piece right next to yours, in a straight line, onto the empty point behind it to capture it.",
+    "After a jump the same piece may jump again in the same turn. You can stop after any jump.",
+    "A red ring with a number shows a capturing move and how many pieces it takes.",
+    "Win by capturing all nine enemy pieces, or by leaving the other side with no legal move.",
+    "Classic: capturing is your choice. Must capture: if you can jump, you have to. Quick: first to five.",
+    "Hint explains a good move. Danger marks warn about pieces that can be captured next. Take back undoes your last move."
+  ]
+}

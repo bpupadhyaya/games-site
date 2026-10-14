@@ -1,0 +1,16 @@
+{
+  "title": "Gobak Sodor",
+  "tagline": "Slip past the guards on the chalk lines",
+  "description": "Gobak Sodor, also called Galah Asin and Hadang, is the courtyard game of Indonesia and Malaysia. Lifelike 3D players: lead three runners up a guarded court, cross each chalk line at the right moment, use a teammate as a decoy and run all the way home. Three courts, a hint button, Auto Play, a full Rules page, large text and portrait or landscape play. No ads, works offline.",
+  "genre": "line-crossing puzzle",
+  "demo": true,
+  "howToPlay": [
+    "TAP a runner to pick it, then TAP a cell or SWIPE to step it one cell. After each step every guard moves once.",
+    "Lanes are safe. A guard touches a runner on its chalk line within one cell of it, so watch the red zone.",
+    "A ghost shows each guard's next cell; chasers follow the nearest runner on or beside their line.",
+    "Park a runner in the lane beside a chaser to draw it away, then cross on the far side with another.",
+    "Touch the far end, then come back down to the home lane. Each runner home is one star.",
+    "A match is three rounds. Hint shows the computer's step; Wait passes a beat.",
+    "Keyboard: arrows step, 1 to 3 pick a runner, Space waits, H hint."
+  ]
+}

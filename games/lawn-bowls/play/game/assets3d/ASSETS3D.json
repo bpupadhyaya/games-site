@@ -1,0 +1,55 @@
+{
+  "version": "1.10.1",
+  "characters": [
+    "athlete_m",
+    "athlete_f"
+  ],
+  "clips": [
+    "base"
+  ],
+  "scenery": [
+    "bd-meadow-day",
+    "bd-forest",
+    "gr-grass",
+    "gr-lawn",
+    "sky-day",
+    "sky-clear",
+    "sky-golden",
+    "band-hills-green",
+    "band-birch",
+    "st-farmhouse",
+    "st-wood-house",
+    "tr-round-tree",
+    "tr-broad-tree"
+  ],
+  "files": {
+    "characters/athlete_m.glb": "5d9bcf61db9b4ee4b215df38bc365791a5d4788a3d5ff3dfab7309d0b6f66b0a",
+    "characters/athlete_m.json": "94a1ed84394935d7bbd5c651fbc6e2faa4671191822d35cdc6070b59bf20db4a",
+    "characters/athlete_m_body_mask.webp": "b75361818563e6fd57814c8b135e080f2f04b005af050ecc5c4eb84cc5cf0a28",
+    "characters/athlete_m_body_skin.webp": "6a258aa62fce605ebb805740db1999d3eeca04d233da2ac1e5ff1061b6c435e2",
+    "characters/athlete_m_head_mask.webp": "d2e1db0d1adeda80b512bae1786d138fc882c44beadce8e56f9ac428d470118d",
+    "characters/athlete_f.glb": "480e3908576563bb53d4a5d7cc058217d17a6c700ac5518e6902d59e788bee57",
+    "characters/athlete_f.json": "09c88c33bf5dc2c327ccab9c9e9e51ea62ddd803e7f282571796a3c94270987a",
+    "characters/athlete_f_body_mask.webp": "fbf46bfbe414815fecd7d3ebb5767939f8313b80814111ba5bc9f69262cc9a8c",
+    "characters/athlete_f_body_skin.webp": "a1aae26a96b8bbf94015559f3307216d8e04422f450ffcc9b3f4bad62118b62b",
+    "characters/athlete_f_head_mask.webp": "4def06bcd6ff9b63d42fce7b289e7948023cd60fa4d5ba44f556df2c0c14224e",
+    "clips/base.bin": "8a3871846e5303a374014b8d5197bd767f3f62449917be3fc0fc7069f4dd7de0",
+    "clips/base.json": "9d7bd7a3a4e145d959784b59b7058f4ab4afebe0c29bbf6a9ed72603ec145269",
+    "scenery/bd-meadow-day.webp": "83771c6c48cb93b394cfeb44273b5fa27f8c47d63265d49f6c791a99b4891ebe",
+    "scenery/bd-forest.webp": "1790032653ea4027f17374c00917cb73459f308ba77323c14ed4cd03cd4f40c9",
+    "scenery/gr-grass.webp": "82d981f3b211ce598c56f2e764397e4f1afd851249b701b30d567964f159a98c",
+    "scenery/gr-lawn.webp": "49ec1d43d4056fd938433c2a40140e7661dde5d078f3a01108c7b6226bbbd297",
+    "scenery/sky-day.webp": "42c3161f580dc41be78e0ad08e07136a9e1f112fecab53a96ab7da0567bc56b5",
+    "scenery/sky-clear.webp": "208267a9fc8a359b627037a7037b644b4bdf5d17b0a5bd44eaa1c91707069e76",
+    "scenery/sky-golden.webp": "34f0a32f292f732efd121110c306c3f8e0041eec0c55697b910f008aac87af01",
+    "scenery/band-hills-green.webp": "1596b9fb38ef2656439fc91423afb3c68ede5fa8ac746c8bc7e9a58b571a8252",
+    "scenery/band-birch.webp": "bbc8c0adf57c20990005d05a521727d5d6771bfba82e949bb641a84cff120281",
+    "scenery/st-farmhouse.webp": "6a0085daddfc9d308caffd844986d92416d6e7e264f6f3e1eb21bad88f324095",
+    "scenery/st-wood-house.webp": "faada855db72d7233cebbc2309ca51f528f14f8697be9d5c0e7fa8e215519d75",
+    "scenery/tr-round-tree.webp": "385fc8516971a28457b87ca8940195e439ec7c19d1b5e6656146ec145cf528c0",
+    "scenery/tr-broad-tree.webp": "1f31d8ffc8d037eccac6401b7d9cb77b2bcb43ca98de5c2bd63d3cbea6262f79",
+    "scenery/catalogue.json": "0b125b303c5bc1f5162600c88dba882b49ab2374d26e1e187f5385dc48ec7674"
+  },
+  "hash": "c93bd08409835b246fd13515b152f3a091b2d12d3210ecce69937ebad3907f27",
+  "note": "Vendored copies. Never edit. Re-select with: tools/arc view3d-add <slug> --characters a,b ; refresh with: tools/arc view3d-upgrade"
+}

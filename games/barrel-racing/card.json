@@ -1,0 +1,14 @@
+{
+  "title": "Barrel Racing",
+  "tagline": "Ride the cloverleaf: turn three barrels and beat the clock.",
+  "description": "Barrel racing is the rodeo clock race of the United States and Canada. See the arena from above, steer with one thumb, slow for the turns and find the fastest clean line. Rodeo Cup, endless Time Trial, Practice, Learn drills, Think hints and Watch & Learn.",
+  "genre": "mounted sport / time trial",
+  "demo": true,
+  "howToPlay": [
+    "Choose a horse at the line to set off.",
+    "Slide your thumb left or right to steer, down to slow.",
+    "Turn the right barrel, the left barrel, then the far barrel.",
+    "Flick your thumb up or tap Burst once for a surge on the run home.",
+    "Knocking a barrel adds 5 seconds. Beat the rival's total."
+  ]
+}

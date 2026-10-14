@@ -1,0 +1,14 @@
+{
+  "title": "Hashi Bridges",
+  "tagline": "Join the islands. Pure logic, hints that teach.",
+  "description": "The island-and-bridge logic puzzle on a calm lagoon. Every puzzle has exactly one solution and is graded by the techniques a person needs. Daily puzzle, undo, and hints that explain the logic step by step. Portrait or landscape, phone or tablet.",
+  "genre": "Logic puzzle",
+  "demo": true,
+  "howToPlay": [
+    "Join the islands with bridges so each island has exactly its number.",
+    "Tap an island, then a neighbour in line. Tap again for a double bridge.",
+    "Bridges never cross, and every island must end up connected.",
+    "Tap the bulb for a hint: where to look, then why it works.",
+    "Watch and Learn solves a puzzle for you and explains every step."
+  ]
+}

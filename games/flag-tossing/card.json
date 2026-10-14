@@ -1,0 +1,17 @@
+{
+  "title": "Flag Tossing",
+  "tagline": "Throw, catch and wave flags in time with the drum.",
+  "description": "Be a flag bearer on a sunny Italian piazza. Swipe to throw a heraldic flag to the right height, tap to catch it on the beat, wave it across the sky and trade flags with partners in pair and team figures. Practice, Watch and Learn and an exhaustive Rules page included.",
+  "genre": "dexterity",
+  "demo": true,
+  "howToPlay": [
+    "Press and drag up, then release on the drum beat to throw.",
+    "A longer drag means more beats in the air; the number shows it.",
+    "Tap as the flag reaches your hands to catch it.",
+    "Sweep side to side to wave on every beat.",
+    "Drag sideways towards a partner to pass them a flag.",
+    "Perfect throws and catches build flow and a bigger multiplier.",
+    "Three dropped flags end the show; each act adds partners and tempo.",
+    "Keyboard: A, S, D throw low, middle, high; Enter catches; H is Think; Space pauses."
+  ]
+}

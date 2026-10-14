@@ -1,0 +1,17 @@
+{
+  "title": "Plate Spinning",
+  "tagline": "Whip each plate in time before it wobbles and falls.",
+  "description": "Keep porcelain, lacquer, jade and gold plates spinning on bamboo poles on a theatre stage inspired by Chinese acrobatics. Whip each one inside its sweet band, build combos, survive acts that add a pole each time. Practice, Watch and Learn and an exhaustive Rules page included.",
+  "genre": "dexterity",
+  "demo": true,
+  "howToPlay": [
+    "Every plate slowly loses spin and starts to wobble.",
+    "Tap a plate or its pole to whip it back to full speed.",
+    "Whip while the needle is in the gold zone for a Perfect.",
+    "Whipping a fast plate too soon makes it jolt and breaks your combo.",
+    "Jade plates need two quick taps in a row.",
+    "Three broken plates end the show; each act adds a pole.",
+    "Think slows time for a moment and rings the plate that needs you most.",
+    "Keyboard: 1 to 8 whip the poles left to right, H is Think, Space pauses."
+  ]
+}

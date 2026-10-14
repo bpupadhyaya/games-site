@@ -1,0 +1,15 @@
+{
+  "title": "Game of the Goose",
+  "tagline": "The spiral race of geese, bridges and wells.",
+  "description": "The classic European dice race on a hand-painted spiral of 63 picture spaces, for two to six players. Geese double your move, a bridge, inn, well, prison, maze and skeleton change your luck, and only an exact throw reaches the Garden. Play the pure classic or add optional choices: pick a die, take shortcut roads, collect feathers. Computer opponents, a hint button, Watch and Learn, an in-app Rules book, portrait and landscape, no ads or betting.",
+  "genre": "family race game",
+  "demo": true,
+  "howToPlay": [
+    "Roll two dice and walk your pawn that many spaces along the spiral.",
+    "A goose carries you on again by the same number; pictures change your fortunes.",
+    "The inn holds you a turn; the well and prison wait for a rescuer or a double.",
+    "Land exactly on 63, the Garden, to win; an overshoot bounces you back.",
+    "Optional variants add a choice of dice, shortcut roads and feathers.",
+    "Tap the lightbulb for a hint, or try Watch and Learn to see the game play itself."
+  ]
+}

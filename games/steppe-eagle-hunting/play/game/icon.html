@@ -1,0 +1,45 @@
+<!doctype html><meta charset="utf-8"><title>icon</title>
+<body style="margin:0;background:#111"><canvas id="out" width="1024" height="1024" style="width:512px;height:512px"></canvas>
+<script type="module">
+// The app icon, rendered from the game's own 3D scene (offline, 2048 px then downsampled): a golden eagle on the fox-fur gauntlet against
+// the Altai at sunrise. Background and subject are rendered separately so the backdrop gets a shallow depth of field.
+import { createSteppe3d } from './view3d/steppe3d.js';
+import { THREE as T } from './vendor3d/index.js';
+const q = new URLSearchParams(location.search);
+const N = +(q.get('size') || 2048);
+const P = Object.assign({ yaw: 3.55, pitch: 0.5, fold: 0.55, flap: -0.15, spread: 1, dist: 1.85, gx: 0.5, gy: 0.74, cy: 1.6, cp: 0.0, vfov: 30, blur: 12, camyaw: -0.05, hero: 1.8, legs: 1, tail: 0.5, lookd: 0 }, JSON.parse(q.get('p') || '{}'));
+const F = await createSteppe3d({ quality: 'high', transparent: true });
+const W = 1000, H = 1000;
+const cam = { x: 0, z: -14, y: P.cy, yaw: P.camyaw, pitch: P.cp };
+const frame = () => F.frame({ mode: 'menu', t: 8, W, H, cam, h: null, plum: 0, level: 0, wind: { x: 2.5, z: 0.6 }, glove: { x: W * P.gx, y: H * P.gy }, perchYaw: P.yaw, armDist: P.dist, heroLight: P.hero,
+  pose: { pitch: P.pitch, fold: P.fold, flap: P.flap, spread: P.spread, legs: P.legs, tailFan: P.tail, tailPitch: 0.1, load: 0.4, ruffle: 0.5 }, vfovOverride: P.vfov });
+F.stage.renderer.setPixelRatio(1);
+F.size(N, N);
+frame(); frame();
+// the camera field of view (menu uses its own); set it for the icon
+F.camera.fov = P.vfov; F.camera.aspect = 1; F.camera.updateProjectionMatrix();
+const R = F.stage.renderer;
+const a = document.createElement('canvas'); a.width = a.height = N; const ax = a.getContext('2d');
+const b = document.createElement('canvas'); b.width = b.height = N; const bx = b.getContext('2d');
+// pass A: the world only
+F.eagle.root.visible = false; F.arm.root.visible = false; F.fox.root.visible = false;
+R.setClearColor(0x000000, 1); R.render(F.scene, F.camera); ax.drawImage(F.canvas, 0, 0);
+// pass B: the subject only, transparent
+F.eagle.root.visible = true; F.arm.root.visible = true; F.world.group.visible = false;
+R.setClearColor(0x000000, 0); R.clear(); R.render(F.scene, F.camera); bx.drawImage(F.canvas, 0, 0);
+const out = document.createElement('canvas'); out.width = out.height = N; const o = out.getContext('2d');
+o.filter = `blur(${P.blur * N / 1024}px)`; o.drawImage(a, 0, 0); o.filter = 'none';
+// warm glow behind the subject
+const gl = o.createRadialGradient(N * 0.5, N * 0.38, N * 0.02, N * 0.5, N * 0.38, N * 0.55);
+gl.addColorStop(0, 'rgba(255,214,150,0.55)'); gl.addColorStop(0.5, 'rgba(255,170,100,0.18)'); gl.addColorStop(1, 'rgba(255,150,90,0)');
+o.fillStyle = gl; o.fillRect(0, 0, N, N);
+o.drawImage(b, 0, 0);
+// bloom on the highlights and a gentle vignette
+o.save(); o.globalCompositeOperation = 'lighter'; o.filter = `blur(${N * 0.012}px)`; o.globalAlpha = 0.28; o.drawImage(b, 0, 0); o.restore();
+const vg = o.createRadialGradient(N / 2, N / 2, N * 0.4, N / 2, N / 2, N * 0.78); vg.addColorStop(0, 'rgba(6,8,24,0)'); vg.addColorStop(1, 'rgba(6,8,24,0.5)');
+o.fillStyle = vg; o.fillRect(0, 0, N, N);
+const cv = document.getElementById('out'), c = cv.getContext('2d'); c.drawImage(out, 0, 0, 1024, 1024);
+const small = document.createElement('canvas'); small.width = small.height = 1024; const sx = small.getContext('2d'); sx.imageSmoothingQuality = 'high'; sx.fillStyle = '#10182c'; sx.fillRect(0, 0, 1024, 1024); sx.drawImage(out, 0, 0, 1024, 1024);
+window.__icon = () => small.toDataURL('image/png'); window.__iconJpeg = () => small.toDataURL('image/jpeg', 0.93);
+document.title = 'ready';
+</script>

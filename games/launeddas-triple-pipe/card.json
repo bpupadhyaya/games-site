@@ -1,0 +1,14 @@
+{
+  "title": "Launeddas Triple Pipe",
+  "tagline": "Play the notes. Keep the drone alive.",
+  "description": "The Sardinian triple reed pipe as a rhythm game: tap the melody on two hand pipes while you squeeze the cheeks to keep the drone breathing. Four original dance tunes, a Think coach, or watch and learn.",
+  "genre": "breath-and-fingers rhythm instrument",
+  "demo": true,
+  "howToPlay": [
+    "Tap the notes on the low and high pipe pads as they reach the line.",
+    "The air gauge drains with time and with every note.",
+    "Hold the BREATH pad to squeeze the cheeks and refill the air.",
+    "While you squeeze the reeds are silent: breathe in the rests.",
+    "If the air hits zero for too long, the drone dies and the tune ends."
+  ]
+}

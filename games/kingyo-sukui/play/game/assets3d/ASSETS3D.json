@@ -1,0 +1,21 @@
+{
+  "version": "1.11.0",
+  "characters": [
+    "athlete_f"
+  ],
+  "clips": [
+    "base"
+  ],
+  "scenery": [],
+  "files": {
+    "characters/athlete_f.glb": "480e3908576563bb53d4a5d7cc058217d17a6c700ac5518e6902d59e788bee57",
+    "characters/athlete_f.json": "09c88c33bf5dc2c327ccab9c9e9e51ea62ddd803e7f282571796a3c94270987a",
+    "characters/athlete_f_body_mask.webp": "fbf46bfbe414815fecd7d3ebb5767939f8313b80814111ba5bc9f69262cc9a8c",
+    "characters/athlete_f_body_skin.webp": "a1aae26a96b8bbf94015559f3307216d8e04422f450ffcc9b3f4bad62118b62b",
+    "characters/athlete_f_head_mask.webp": "4def06bcd6ff9b63d42fce7b289e7948023cd60fa4d5ba44f556df2c0c14224e",
+    "clips/base.bin": "8a3871846e5303a374014b8d5197bd767f3f62449917be3fc0fc7069f4dd7de0",
+    "clips/base.json": "9d7bd7a3a4e145d959784b59b7058f4ab4afebe0c29bbf6a9ed72603ec145269"
+  },
+  "hash": "2d501ddc37f195f2cb42b84766956abaa0becbae40e7c01a0e19a143643575b2",
+  "note": "Vendored copies. Never edit. Re-select with: tools/arc view3d-add <slug> --characters a,b ; refresh with: tools/arc view3d-upgrade"
+}

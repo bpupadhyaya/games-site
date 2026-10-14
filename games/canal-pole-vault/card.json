@@ -1,0 +1,12 @@
+{
+  "title": "Canal Pole Vault",
+  "tagline": "Plant, climb and leap the canal",
+  "description": "Sprint, plant a long pole in a Dutch canal, climb as it swings over the upright and let go to land on the far sand bed. Four canals, a lifelike jumper and a real pendulum pole.",
+  "genre": "timing sport",
+  "demo": true,
+  "howToPlay": [
+    "Tap on the beat to build speed, then tap once to plant at the board.",
+    "Hold to climb the pole once it swings over the upright, release to rest.",
+    "Choose a lean and let go to land as far as you can on the sand."
+  ]
+}

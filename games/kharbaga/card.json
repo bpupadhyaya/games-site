@@ -1,0 +1,17 @@
+{
+  "title": "Kharbaga",
+  "tagline": "Jump, crown a Master, capture every piece.",
+  "description": "Kharbaga is a traditional North African capturing game played on a small square board in Algeria, Tunisia and Libya. Men step forward or sideways and jump to capture, and capturing is compulsory, so every move is a plan. Chain jumps, crown a Master on the far row and fly it along the board. Five computer levels, two players on one phone, hands-on lessons, hints that explain why, danger marks, take back and a Watch & Learn mode. A carved sand-and-clay board, large text and reduced motion options, no ads, works offline.",
+  "genre": "North African jump-and-crown board game",
+  "demo": true,
+  "howToPlay": [
+    "New here? Tap Learn to play: six short hands-on lessons where you make every move yourself.",
+    "Tap a piece and its reachable squares glow. A man steps one square forward or sideways, never back.",
+    "Tap a glowing square or drag the piece there. A red ring means the move captures; the number says how many.",
+    "Jump over a neighbouring enemy piece onto the empty square behind it. A man can jump in any direction.",
+    "Capturing is compulsory: if you can jump, you must. Ringed pieces show who has to.",
+    "Chains: a piece that can keep jumping must, and the whole run is one move.",
+    "Reach the far row to crown a Master, who slides like a rook and captures from a distance.",
+    "Auto Play shows the computer playing both sides, with Pause. Hint explains a good move."
+  ]
+}

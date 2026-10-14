@@ -1,0 +1,14 @@
+{
+  "title": "Mas Wrestling",
+  "tagline": "Brace, read the pull, lift them off the floor.",
+  "description": "Mas-wrestling, the seated stick-pull sport of Sakha. One thumb steers a single pull: draw the stick, lift, or sink to defend. Manage stamina and grip, snap your pulls and use leverage. Five rivals, three halls, two players on one phone, or watch and learn.",
+  "genre": "seated stick-pull sport",
+  "demo": true,
+  "howToPlay": [
+    "Put a thumb anywhere and drag: left to pull back, up to lift, down to sink.",
+    "Hard pulling empties stamina; ease off to recover. A quick flick is a snap.",
+    "Draw the stick to your side for leverage, then lift.",
+    "Lifting wears down grip; sink to defend and restore yours.",
+    "Lift your rival off the floor or take the stick. First to two bouts wins."
+  ]
+}

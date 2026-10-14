@@ -1,0 +1,25 @@
+{
+  "slug": "bulgarian-asymmetric-rhythm",
+  "title": "Bulgarian Asymmetric Rhythm",
+  "tagline": "Stitch 7/8 and 11/8 dance rhythms as a village horo grows.",
+  "genre": "rhythm music",
+  "orientation": "any",
+  "version": "1.1.3",
+  "monetization": {
+    "model": "premium",
+    "priceUsd": 2.99,
+    "previewSeconds": 90,
+    "products": [
+      {
+        "id": "unlock_game",
+        "type": "non-consumable",
+        "priceUsd": 2.99,
+        "title": "Unlock Game"
+      }
+    ]
+  },
+  "locales": [
+    "en"
+  ],
+  "demoOnly": true
+}

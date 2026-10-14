@@ -1,0 +1,14 @@
+{
+  "title": "Horseshoe Pitching",
+  "tagline": "Flip it, clank it, ring the stake.",
+  "description": "The back-yard classic of the United States and Canada. Pitch a steel shoe forty feet at the stake, time your release in the green, and outplay five rivals, a partner game or a friend.",
+  "genre": "lawn throwing",
+  "demo": true,
+  "howToPlay": [
+    "Drag the target on the pit board to where the shoe should rest.",
+    "Choose a three-quarter or one-and-a-quarter flip.",
+    "Hold PITCH and let go while the arm is in the green.",
+    "A ringer scores 3; the closest shoe within 6 inches scores 1.",
+    "First to 21 points wins."
+  ]
+}

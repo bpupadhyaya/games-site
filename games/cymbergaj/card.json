@@ -1,0 +1,14 @@
+{
+  "title": "Cymbergaj",
+  "tagline": "Slide the paddle. Strike the brass puck. Score at the far end.",
+  "description": "The Polish puck table duel. Slide your paddle, strike the brass puck, bank it off the rail and score past five computer rivals or a friend on the same phone. A calm mode, a Hint and Watch & Learn help you get better.",
+  "genre": "air table puck duel",
+  "demo": true,
+  "howToPlay": [
+    "Slide a finger on your half of the table and your paddle follows.",
+    "Strike the puck with a moving paddle: the faster the paddle, the faster the puck.",
+    "Score by getting the puck into the goal at the far end, between the two posts.",
+    "Use the side rails for bank shots; the paddles never cross the middle line.",
+    "First to 5 goals (or 7 in a full match) wins; the side that conceded serves."
+  ]
+}

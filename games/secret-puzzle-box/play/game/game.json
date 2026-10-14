@@ -1,0 +1,25 @@
+{
+  "slug": "secret-puzzle-box",
+  "title": "Secret Puzzle Box",
+  "tagline": "Slide the hidden panels in the right order and the drawer opens.",
+  "genre": "sequence puzzle",
+  "orientation": "any",
+  "version": "1.1.1",
+  "monetization": {
+    "model": "premium",
+    "priceUsd": 2.99,
+    "previewSeconds": 90,
+    "products": [
+      {
+        "id": "unlock_game",
+        "type": "non-consumable",
+        "priceUsd": 2.99,
+        "title": "Unlock Game"
+      }
+    ]
+  },
+  "locales": [
+    "en"
+  ],
+  "demoOnly": true
+}

@@ -1,0 +1,14 @@
+{
+  "title": "Kolf",
+  "tagline": "Aim, swing and touch the post across the ice.",
+  "description": "Kolf, the old club-and-ball game of the Low Countries, on long frozen courts painted in the warm light of the Golden Age. Aim, time your swing, bank the ball off the boards and be first to touch the post. Wind leans on the ball, snow slows it and thin ice swallows a slow one. Play four rivals, a friend, or watch and learn.",
+  "genre": "ice club-and-ball sport",
+  "demo": true,
+  "howToPlay": [
+    "Drag on the court to turn your aim; the dotted line shows the flight.",
+    "Tap Swing, then tap Strike! when the power bar shows the power you want.",
+    "Ice carries the ball far, boards bounce it and snow slows it.",
+    "Thin ice swallows a slow ball; a fast one skims it. Mind the wind.",
+    "Fewest strokes to touch the post wins the leg; win more legs than your rival."
+  ]
+}

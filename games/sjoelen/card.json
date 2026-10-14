@@ -1,0 +1,14 @@
+{
+  "title": "Sjoelen",
+  "tagline": "Slide it. Bank it. Chase the 148.",
+  "description": "The Dutch table game of wooden discs with real sliding physics. Flick discs through four numbered arches, build sets of 20 and beat four rivals or a friend.",
+  "genre": "physics disc-sliding table game",
+  "demo": true,
+  "howToPlay": [
+    "Drag the disc sideways at your end of the board.",
+    "Flick it up the board: speed sets the strength, angle sets the direction.",
+    "Follow the dotted guide and bank shots off the rails.",
+    "Arches score 2, 3, 4 and 1; one in each arch is a set worth 20.",
+    "Strays are slid again; perfect is 148."
+  ]
+}

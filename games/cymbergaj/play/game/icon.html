@@ -1,0 +1,110 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>icon</title>
+<style>html,body{margin:0;background:#120904}</style></head>
+<body>
+<script type="module">
+// Offline app-icon render (developer tool, not part of the shipped game flow): the SAME 3D models as the game, lit and framed for a
+// 1024 icon: a hand pushing the brass paddle, the coin puck gliding on its air cushion, the red lacquered rail, lounge lamps behind.
+// Run:  node tools/render-icon.mjs --root web --page icon.html?size=2048 --out store
+import { THREE, board3d as B } from './vendor3d/index.js';
+import * as V3D from './vendor3d/index.js';
+import { buildTable, buildPaddle, buildPuck, buildLounge, buildEnvScene, textures, glowTexture, S, FLOOR_Y } from './view3d/models.js';
+import { createHand } from './view3d/hand3d.js';
+
+const q = new URLSearchParams(location.search);
+const size = Number(q.get('size') || 2048);
+const cv = document.createElement('canvas'); cv.width = cv.height = size;
+const renderer = new THREE.WebGLRenderer({ canvas: cv, antialias: true, alpha: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(1); renderer.setSize(size, size, false);
+renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = Number(q.get('exp') || 0.8);
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFShadowMap; renderer.localClippingEnabled = true;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x120904);
+scene.fog = new THREE.Fog(0x1c0d06, 1.6, 6.5);
+textures();
+const pm = new THREE.PMREMGenerator(renderer);
+const envTex = pm.fromScene(buildEnvScene(), 0.03).texture; pm.dispose();
+scene.environment = envTex; scene.environmentIntensity = 0.7;
+
+const table = buildTable(); scene.add(table);
+const lounge = buildLounge(); scene.add(lounge);
+const pad = buildPaddle(0), pad2 = buildPaddle(1), puck = buildPuck();
+scene.add(pad, pad2, puck);
+
+pad.rotation.set(-0.07, 0.3, 0.03);
+pad.position.set(-0.07, 0.0008, 0.06); pad.rotation.set(-0.04, 0.3, 0.03);
+pad2.position.set(0.075, 0.0008, -0.2); pad2.rotation.set(0.04, -0.4, -0.03);
+puck.position.set(0.0, 0.0022, -0.025); puck.rotation.y = 0.9;
+
+// the cushion of air: glowing dots under the puck and the paddle
+const dotC = document.createElement('canvas'); dotC.width = dotC.height = 512;
+{ const x = dotC.getContext('2d'); x.fillStyle = 'rgba(0,0,0,0)'; for (let j = 0; j < 12; j++) for (let i = 0; i < 12; i++) {
+    const px = 20 + i * 40, py = 20 + j * 40, d = Math.hypot(px - 256, py - 256) / 256, k = Math.max(0, 1 - d);
+    x.fillStyle = `rgba(110,235,245,${0.8 * k * k})`; x.beginPath(); x.arc(px, py, 2 + 2.4 * k, 0, 6.3); x.fill(); } }
+const dots = new THREE.Mesh(new THREE.PlaneGeometry(0.4, 0.4), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(dotC), transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, fog: false }));
+dots.rotation.x = -Math.PI / 2; dots.position.set(0.0, 0.001, -0.025); scene.add(dots);
+// a faint trail behind the puck
+for (let i = 1; i <= 6; i++) {
+  const m = new THREE.Mesh(new THREE.CircleGeometry(0.028 * (1 - i * 0.1), 24), new THREE.MeshBasicMaterial({ color: 0xffc860, transparent: true, opacity: 0.32 * (1 - i / 7), blending: THREE.AdditiveBlending, depthWrite: false, fog: false }));
+  m.rotation.x = -Math.PI / 2; m.position.set(0.0 + i * 0.007, 0.0016, -0.025 - i * 0.026); scene.add(m);
+}
+// golden sparks at the strike
+const sp = new THREE.MeshBasicMaterial({ color: 0xfff0b0, fog: false });
+for (let i = 0; i < 14; i++) { const m = new THREE.Mesh(new THREE.SphereGeometry(0.0016 + (i % 3) * 0.0008, 6, 5), sp); const a = i * 0.9; m.position.set(0.03 + Math.cos(a) * (0.02 + i * 0.003), 0.012 + (i % 5) * 0.006, -0.03 + Math.sin(a) * (0.02 + i * 0.003)); scene.add(m); }
+// bokeh: big soft warm lights far behind
+const halo = glowTexture();
+for (const [x, y, z, r, c] of [[-0.9, 0.55, -1.8, 0.5, 0xffb060], [0.2, 0.7, -2.2, 0.6, 0xffd9a0], [1.0, 0.45, -1.6, 0.4, 0xff9a60], [-0.3, 0.2, -1.4, 0.3, 0xffe0b0], [0.7, 0.9, -2.5, 0.5, 0xffc080]]) {
+  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: halo, color: c, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false, fog: false }));
+  s.position.set(x, y, z); s.scale.setScalar(r * 2); scene.add(s);
+}
+
+const hemi = new THREE.HemisphereLight(0xffe2b8, 0x3a2414, 0.3);
+const key = new THREE.SpotLight(0xffe2b4, Number(q.get('key') || 1.5), 6, 0.55, 0.9, 1.6); key.position.set(0.15, 0.95, 0.35); key.target.position.set(0, 0, 0.02);
+key.castShadow = true; key.shadow.mapSize.set(2048, 2048); key.shadow.bias = -0.0003; key.shadow.normalBias = 0.002; key.shadow.radius = 3; key.shadow.camera.near = 0.3; key.shadow.camera.far = 3;
+const rim = new THREE.DirectionalLight(0x9ff0e0, 1.4); rim.position.set(-1.4, 0.8, -1.8);
+const warm = new THREE.DirectionalLight(0xffc080, 0.8); warm.position.set(1.5, 0.5, 0.3);
+scene.add(hemi, key, key.target, rim, warm);
+table.traverse((o) => { if (o.name === 'surface') { o.material.envMapIntensity = Number(q.get('senv') || 0.28); o.material.color.set(q.get('sc') || '#a89e84'); } });
+scene.traverse((o) => { if (o.material) for (const mt of [].concat(o.material)) if (mt.isMeshStandardMaterial && mt.envMapIntensity !== 1) mt.envMap = envTex; });
+
+// two hands, the same rig the game uses: yours from the camera side, the rival's across the table, arms coming in from the edges
+async function addHand({ character, skin, dir, paddle, cloth, kit, hair }) {
+  const planes = [0, 1, 2, 3, 4, 5].map(() => new THREE.Plane());
+  const hand = await createHand(V3D, { side: 'R', skin, character, preset: 'cup', ...(kit ? { kit } : {}), ...(hair ? { hair } : {}) });
+  hand.object.traverse((o) => { if (o.isMesh) { for (const mt of [].concat(o.material)) { mt.clippingPlanes = planes; if (mt.color) mt.color.multiplyScalar(0.72); mt.needsUpdate = true; } o.frustumCulled = false; } });
+  scene.add(hand.object);
+  const kx = paddle.position.x, kz = paddle.position.z;
+  hand.setPose({ thumb: 0.6, index: 0.88, middle: 0.92, ring: 0.94, pinky: 0.94, spread: 0.1, thumbOut: 0.1 });
+  const wrist = new THREE.Vector3(kx, 0.0008 + 0.045 + 0.044, kz + dir * 0.062);
+  hand.place({ wrist, palmDown: true, fingers: new THREE.Vector3(0, -0.36, -dir * 0.93).normalize(), elbowHint: new THREE.Vector3(kx - dir * 0.25, 0.3, kz + dir * 0.45) });
+  const z0 = dir > 0 ? 0.9 : -0.9;
+  hand.human.setFacing(dir > 0 ? Math.PI : 0, { snap: true });
+  hand.human.setPosition(0, FLOOR_Y, z0); hand.human.update(0); hand.human.root.updateMatrixWorld(true);
+  const so = hand.human.bonePosition('R_UpperArm', new THREE.Vector3()).sub(new THREE.Vector3(0, FLOOR_Y, z0));
+  const sh = new THREE.Vector3(wrist.x - dir * 0.2, wrist.y + 0.2, wrist.z + dir * 0.42);
+  hand.human.setPosition(sh.x - so.x, sh.y - so.y, sh.z - so.z);
+  hand.update(0.016, 60);
+  const a = hand.human.bonePosition('R_Hand', new THREE.Vector3()), b = hand.human.bonePosition('R_Forearm', new THREE.Vector3());
+  const el = b.clone().sub(a).normalize();
+  const u = new THREE.Vector3(1, 0, 0); if (Math.abs(el.x) > 0.9) u.set(0, 0, 1);
+  u.addScaledVector(el, -u.dot(el)).normalize();
+  const v = new THREE.Vector3().crossVectors(el, u).normalize(), W = 0.1;
+  const P = (n, o) => new THREE.Plane().setFromNormalAndCoplanarPoint(n, o);
+  [P(el.clone().negate(), a.clone().addScaledVector(el, 0.16)), P(el.clone(), a.clone().addScaledVector(el, -0.24)), P(u.clone(), a.clone().addScaledVector(u, -W)), P(u.clone().negate(), a.clone().addScaledVector(u, W)), P(v.clone(), a.clone().addScaledVector(v, -W)), P(v.clone().negate(), a.clone().addScaledVector(v, W))].forEach((p, i) => planes[i].copy(p));
+  const mat = new THREE.MeshStandardMaterial({ color: cloth, roughness: 0.85, side: THREE.DoubleSide });
+  const sleeve = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.04, 1.4, 24, 1, true), mat);
+  sleeve.position.copy(a).addScaledVector(el, 0.76); sleeve.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), el); sleeve.castShadow = true; scene.add(sleeve);
+  const cuff = new THREE.Mesh(new THREE.TorusGeometry(0.0405, 0.006, 8, 28), mat); cuff.position.copy(a).addScaledVector(el, 0.062); cuff.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), el); scene.add(cuff);
+}
+await addHand({ character: 'athlete_f', skin: 'tan', dir: 1, paddle: pad, cloth: '#3d5a73' });
+await addHand({ character: 'athlete_m', skin: 'light', dir: -1, paddle: pad2, cloth: '#27313c', kit: { top: '#1d6f66', bottoms: '#232a33', socks: '#1a1a1a' }, hair: 'brown' });
+
+const camera = new THREE.PerspectiveCamera(Number(q.get('fov') || 34), 1, 0.02, 30);
+const cp = (q.get('cam') || '0.04,0.15,0.4').split(',').map(Number), lk = (q.get('look') || '0.0,0.012,-0.09').split(',').map(Number);
+camera.position.set(...cp); camera.lookAt(...lk);
+camera.updateProjectionMatrix(); camera.updateMatrixWorld(true);
+void S;
+B.renderIcon({ scene, camera, size, renderer, background: '#120904', bloom: 0.3, vignette: 0.6, exposure: Number(q.get('exp') || 0.8) });
+</script>
+</body></html>

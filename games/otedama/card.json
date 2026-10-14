@@ -1,0 +1,16 @@
+{
+  "title": "Otedama",
+  "tagline": "Toss and catch cloth bags, in rhythm.",
+  "description": "A rhythm and timing game built on the traditional Japanese game of tossing and catching small cloth bags. Keep one to five bags in the air in eight patterns by tapping the hand each bag lands in, clap between catches, follow the counting song and win new cloth designs. Learn mode, a Watch and Learn demonstration, an in-app Rules book, portrait and landscape play, synthesised sound, no ads.",
+  "genre": "rhythm juggling",
+  "demo": true,
+  "howToPlay": [
+    "Pick a pattern, then try Learn it first: slower, forgiving, with a hint button.",
+    "Bags are tossed from hand to hand. A ring closes on the hand where the next one lands.",
+    "Tap the left or right side of the screen as the bag lands in that hand.",
+    "Some patterns have a clap in the air: tap the middle as its ring closes.",
+    "Clean catches build a chain, a multiplier and the counting song; a drop costs flow.",
+    "Earn a star in a pattern to win its cloth for your bags.",
+    "On a keyboard: A and D (or Left and Right) are the hands, Space claps, P pauses."
+  ]
+}

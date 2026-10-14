@@ -1,0 +1,24 @@
+<!doctype html><meta charset="utf-8"><title>icon</title>
+<body style="margin:0;background:#000"><canvas id="c" width="2048" height="2048"></canvas>
+<script type="module">
+// Offline icon render (developer tool): the same 3D world as the game, a low camera on a girl peeking over the barrels at dusk.
+import { createWorld } from './view3d/world.js';
+import { KIDS } from './src/art.js';
+import { PLACES } from './src/sim.js';
+const q = new URLSearchParams(location.search), S = +(q.get('size') || 2048);
+const cvs = document.getElementById('c'); cvs.width = cvs.height = S;
+const ctx = cvs.getContext('2d');
+const world = await createWorld({ quality: 'high', looks: KIDS });
+world.noAuto = true;
+const kinds = PLACES[0].spots.map((s) => ({ kind: s.kind, v: s.v }));
+const cx = +(q.get('cx') || 1.5);
+const cam = { fov: (+(q.get('fov') || 34)) * Math.PI / 180, pitch: (+(q.get('pitch') || 3)) * Math.PI / 180, pos: [cx, +(q.get('cy') || 1.0), +(q.get('cz') || 3.0)] };
+const kids = [
+  { look: 1, X: 1.78, Z: -0.35, pose: 'peek', faceX: 1.0, faceZ: 6, visible: true, snap: true },
+];
+const model = { place: 0, kinds, tall: true, cam, rect: { x: 0, y: 0, w: S, h: S }, t: 0, kids, round: 'icon', looked: null, shake: null };
+let t = 0;
+for (let i = 0; i < 90; i++) { t += 1 / 30; model.t = t; ctx.clearRect(0, 0, S, S); world.render(ctx, model); await new Promise((r) => setTimeout(r, 0)); }
+window.__icon = () => cvs.toDataURL('image/png');
+document.title = 'ready';
+</script>

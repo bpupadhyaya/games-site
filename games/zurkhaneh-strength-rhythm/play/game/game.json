@@ -1,0 +1,25 @@
+{
+  "slug": "zurkhaneh-strength-rhythm",
+  "title": "Zurkhaneh Strength Rhythm",
+  "tagline": "Lead the circle: stomp, swing, lift and whirl on the drum.",
+  "genre": "rhythm sport",
+  "orientation": "any",
+  "version": "1.2.4",
+  "monetization": {
+    "model": "premium",
+    "priceUsd": 2.99,
+    "previewSeconds": 90,
+    "products": [
+      {
+        "id": "unlock_game",
+        "type": "non-consumable",
+        "priceUsd": 2.99,
+        "title": "Unlock Game"
+      }
+    ]
+  },
+  "locales": [
+    "en"
+  ],
+  "demoOnly": true
+}

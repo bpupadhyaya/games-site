@@ -1,0 +1,14 @@
+{
+  "version": "1.11.1",
+  "characters": [],
+  "clips": [
+    "base"
+  ],
+  "scenery": [],
+  "files": {
+    "clips/base.bin": "8a3871846e5303a374014b8d5197bd767f3f62449917be3fc0fc7069f4dd7de0",
+    "clips/base.json": "9d7bd7a3a4e145d959784b59b7058f4ab4afebe0c29bbf6a9ed72603ec145269"
+  },
+  "hash": "7ac4ca445fd8a5a6109fe09b4948c6eb11238215c3c4f362fc7f05ebc55ee310",
+  "note": "Vendored copies. Never edit. Re-select with: tools/arc view3d-add <slug> --characters a,b ; refresh with: tools/arc view3d-upgrade"
+}

@@ -1,0 +1,22 @@
+<!doctype html><html><head><meta charset="utf-8"><title>vase</title><style>html,body{margin:0;background:transparent}</style></head>
+<body><script type="module">
+// Dev tool (not linked from the game): renders the 3D vase with a transparent background for the Rules / How to Play diagrams.
+// node tools/render-icon.mjs --root web --page vase.html --out <dir>   -> <dir>/icon.png (copy to web/brand/vase.png)
+import * as THREE from './vendor3d/three.js';
+import { makeVase } from './view3d/models.js';
+const W = 500, H = 940, canvas = document.createElement('canvas'); canvas.width = W; canvas.height = H;
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, preserveDrawingBuffer: true });
+renderer.outputColorSpace = THREE.SRGBColorSpace; renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.0;
+renderer.setClearColor(0x000000, 0);
+const scene = new THREE.Scene();
+const pm = new THREE.PMREMGenerator(renderer); scene.environment = pm.fromScene(new THREE.RoomEnvironment(), 0.04).texture; scene.environmentIntensity = 0.9;
+const key = new THREE.DirectionalLight(0xffe0b0, 2.6); key.position.set(-2, 3, 4); scene.add(key);
+const rim = new THREE.DirectionalLight(0xffb070, 1.2); rim.position.set(3, 2, -2); scene.add(rim);
+scene.add(new THREE.HemisphereLight(0xfff0d0, 0x4a3524, 0.5));
+const vase = makeVase(); vase.rotation.y = 0.5; scene.add(vase);
+// x in -12.5..12.5 cm, y in -1..46 cm  (diagram art maps the image onto exactly that box)
+const cam = new THREE.OrthographicCamera(-0.125, 0.125, 0.46, -0.01, 0.1, 10); cam.position.set(0, 0, 3); cam.lookAt(0, 0, 0);
+renderer.render(scene, cam);
+window.__icon = () => canvas.toDataURL('image/png');
+document.title = 'READY';
+</script></body></html>

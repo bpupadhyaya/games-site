@@ -1,0 +1,14 @@
+{
+  "title": "Gorodki",
+  "tagline": "Throw the bat. Knock every pin out of the square.",
+  "description": "The Russian village game of town skittles on your phone. Read each figure of wooden pins, choose where the bat lands and how it is thrown, and let real physics clear the square. Fifteen figures, duels against four computer players, a Watch & Learn mode that explains every throw, and a full rules reference.",
+  "genre": "throwing and physics",
+  "demo": true,
+  "howToPlay": [
+    "Drag in the town to place the landing ring: that is where the bat comes down and starts to slide.",
+    "Pick Sweep (wide and gentle), Drive (narrow and accurate) or Smash (hard and far), then press Throw.",
+    "A pin counts only when it lies completely outside the red line. Pins that stay inside stay where they lie.",
+    "Clear the figure with as few bats as you can: fewer bats earn more stars.",
+    "Press Think for a hint, or duel a rival and win figure by figure."
+  ]
+}

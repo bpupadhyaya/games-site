@@ -1,0 +1,14 @@
+{
+  "title": "Menko",
+  "tagline": "Slam it. Flip it. Win the disc.",
+  "description": "A children's floor game from Japan with real air-gust odds. Slam your paper disc beside a rival's, turn it face-down, and collect twenty-four original designs.",
+  "genre": "physics disc-slam floor game",
+  "demo": true,
+  "howToPlay": [
+    "Pick a disc from your tray: heavy discs make a stronger gust.",
+    "Tap the floor to aim and drag to nudge; the dashed circle is where it may land.",
+    "Set the strength: harder slams scatter wider.",
+    "Press Slam: rival discs in reach show their chance to flip.",
+    "Land on top of a rival disc and yours is lost; most stars wins."
+  ]
+}

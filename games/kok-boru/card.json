@@ -1,0 +1,14 @@
+{
+  "title": "Kok-boru",
+  "tagline": "Gallop, grab and throw in the great team horse game of the steppe.",
+  "description": "Kok-boru is the team horse game of the Central Asian steppe. Steer a galloping rider, scoop the heavy ball from the ground, tug it from a rival, pass to a team-mate and throw it into the sand circle. Climb the five-rung Steppe Ladder, ask Think for advice or watch computer teams play in Watch & Learn.",
+  "genre": "mounted team sport / Central Asia",
+  "demo": true,
+  "howToPlay": [
+    "Drag with your left thumb to ride; hold SPRINT for a burst.",
+    "Ease off near the ball: the ring turns green, then press GRAB.",
+    "Alongside a rival with the ball? The same button tugs it away.",
+    "Hold THROW and let go when the landing ring is inside the circle.",
+    "PASS to an open team-mate, and win the match with more goals."
+  ]
+}

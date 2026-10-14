@@ -1,0 +1,25 @@
+{
+  "slug": "elastic-jump",
+  "title": "Elastic Jump",
+  "tagline": "Jump in, on and out of the elastic, in time.",
+  "genre": "rhythm jump rope",
+  "orientation": "any",
+  "version": "1.2.1",
+  "monetization": {
+    "model": "premium",
+    "priceUsd": 2.99,
+    "previewSeconds": 90,
+    "products": [
+      {
+        "id": "unlock_game",
+        "type": "non-consumable",
+        "priceUsd": 2.99,
+        "title": "Unlock Game"
+      }
+    ]
+  },
+  "locales": [
+    "en"
+  ],
+  "demoOnly": true
+}

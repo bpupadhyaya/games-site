@@ -1,0 +1,25 @@
+{
+  "slug": "ssireum",
+  "title": "Ssireum",
+  "tagline": "Read their balance, hook the sash, put them on the sand",
+  "genre": "sash wrestling mind-game",
+  "orientation": "any",
+  "version": "1.1.1",
+  "monetization": {
+    "model": "premium",
+    "priceUsd": 2.99,
+    "previewSeconds": 90,
+    "products": [
+      {
+        "id": "unlock_game",
+        "type": "non-consumable",
+        "priceUsd": 2.99,
+        "title": "Unlock Game"
+      }
+    ]
+  },
+  "locales": [
+    "en"
+  ],
+  "demoOnly": true
+}

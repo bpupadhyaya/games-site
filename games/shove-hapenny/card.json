@@ -1,0 +1,14 @@
+{
+  "title": "Shove Ha'penny",
+  "tagline": "Slide it. Nudge it. Fill all nine beds.",
+  "description": "The English pub game of coins on slate with real sliding physics. Shove coins into nine narrow beds, win three chalks a bed, and beat four rivals or a friend.",
+  "genre": "pub slide-and-nudge board game",
+  "demo": true,
+  "howToPlay": [
+    "Drag along the near edge to place the coin.",
+    "Drag up the board to aim: the ghost coin shows where it will stop. Let go to shove.",
+    "A coin wholly inside a bed is a chalk; on a line it is dead.",
+    "Three chalks fill a bed; extra coins in your full bed help your rival.",
+    "Nudge coins on with the next one; first to fill nine beds wins."
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "title": "Santoor",
+  "tagline": "Two mallets, sixteen notes, one zigzag.",
+  "description": "A music game for the hammered dulcimer of India. Strike glowing spots with two mallets, hold for a shimmering tremolo and run across the courses in one stroke. Learn six short pieces phrase by phrase from memory, or let Watch and Learn show the mallet, the note and the reason for every note. Five scales, free play, portrait and landscape, no ads, works offline.",
+  "genre": "music dulcimer",
+  "demo": true,
+  "howToPlay": [
+    "Pick a piece and start with Learn: a short phrase is played, then you play it back from memory.",
+    "A coloured disc with a closing ring is a note. Amber is the left mallet, teal the right.",
+    "Tap the spot when the ring closes on the disc. Closer to the beat scores more.",
+    "A disc with a wavy line is a tremolo: touch the spot and hold it until the ring fills.",
+    "Teal discs joined by a band are a run: drag one finger across the spots in one stroke.",
+    "Two discs at once are a chord: use two fingers.",
+    "Clean playing adds a drone and a hand drum. Show me points out the next note.",
+    "On a keyboard: 1 to 0 and Q W E R T Y strike notes 1 to 16, hold for a tremolo, Space pauses."
+  ]
+}

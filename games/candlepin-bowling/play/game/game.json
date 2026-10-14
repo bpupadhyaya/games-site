@@ -1,0 +1,25 @@
+{
+  "slug": "candlepin-bowling",
+  "title": "Candlepin Bowling",
+  "tagline": "Small ball, slim pins, and every fallen pin stays: use the wood.",
+  "genre": "candlepin bowling / physics",
+  "orientation": "any",
+  "version": "1.1.1",
+  "monetization": {
+    "model": "premium",
+    "priceUsd": 3.99,
+    "previewSeconds": 90,
+    "products": [
+      {
+        "id": "unlock_game",
+        "type": "non-consumable",
+        "priceUsd": 3.99,
+        "title": "Unlock Game"
+      }
+    ]
+  },
+  "locales": [
+    "en"
+  ],
+  "demoOnly": true
+}

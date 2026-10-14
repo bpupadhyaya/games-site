@@ -1,0 +1,51 @@
+{
+  "version": "1.11.1",
+  "characters": [
+    "athlete_m",
+    "athlete_f"
+  ],
+  "clips": [
+    "base"
+  ],
+  "scenery": [
+    "bd-nordic-village",
+    "bd-forest",
+    "gr-grass",
+    "gr-lawn",
+    "gr-water",
+    "sky-golden",
+    "sky-dusk",
+    "sky-peach",
+    "band-birch",
+    "tr-round-tree",
+    "tr-broad-tree"
+  ],
+  "files": {
+    "characters/athlete_m.glb": "5d9bcf61db9b4ee4b215df38bc365791a5d4788a3d5ff3dfab7309d0b6f66b0a",
+    "characters/athlete_m.json": "94a1ed84394935d7bbd5c651fbc6e2faa4671191822d35cdc6070b59bf20db4a",
+    "characters/athlete_m_body_mask.webp": "b75361818563e6fd57814c8b135e080f2f04b005af050ecc5c4eb84cc5cf0a28",
+    "characters/athlete_m_body_skin.webp": "6a258aa62fce605ebb805740db1999d3eeca04d233da2ac1e5ff1061b6c435e2",
+    "characters/athlete_m_head_mask.webp": "d2e1db0d1adeda80b512bae1786d138fc882c44beadce8e56f9ac428d470118d",
+    "characters/athlete_f.glb": "480e3908576563bb53d4a5d7cc058217d17a6c700ac5518e6902d59e788bee57",
+    "characters/athlete_f.json": "09c88c33bf5dc2c327ccab9c9e9e51ea62ddd803e7f282571796a3c94270987a",
+    "characters/athlete_f_body_mask.webp": "fbf46bfbe414815fecd7d3ebb5767939f8313b80814111ba5bc9f69262cc9a8c",
+    "characters/athlete_f_body_skin.webp": "a1aae26a96b8bbf94015559f3307216d8e04422f450ffcc9b3f4bad62118b62b",
+    "characters/athlete_f_head_mask.webp": "4def06bcd6ff9b63d42fce7b289e7948023cd60fa4d5ba44f556df2c0c14224e",
+    "clips/base.bin": "8a3871846e5303a374014b8d5197bd767f3f62449917be3fc0fc7069f4dd7de0",
+    "clips/base.json": "9d7bd7a3a4e145d959784b59b7058f4ab4afebe0c29bbf6a9ed72603ec145269",
+    "scenery/bd-nordic-village.webp": "da552238a3beb3040111f13ab861452fc3b91b06fcc97bdae4c2c0f8e99510a3",
+    "scenery/bd-forest.webp": "1790032653ea4027f17374c00917cb73459f308ba77323c14ed4cd03cd4f40c9",
+    "scenery/gr-grass.webp": "82d981f3b211ce598c56f2e764397e4f1afd851249b701b30d567964f159a98c",
+    "scenery/gr-lawn.webp": "49ec1d43d4056fd938433c2a40140e7661dde5d078f3a01108c7b6226bbbd297",
+    "scenery/gr-water.webp": "a7af79e83c154801bf6c504c9c4282b5fb42c4550ff3e1f46df2be3ad266ad35",
+    "scenery/sky-golden.webp": "34f0a32f292f732efd121110c306c3f8e0041eec0c55697b910f008aac87af01",
+    "scenery/sky-dusk.webp": "df76b321b192cb3848494a42c286bbc459d6cc6a6a4f15baa2e85f8ae53a3a57",
+    "scenery/sky-peach.webp": "70cc66bf949c1181891ed3cf748713d093075dba7af0a2b8343d97e7127f1a01",
+    "scenery/band-birch.webp": "bbc8c0adf57c20990005d05a521727d5d6771bfba82e949bb641a84cff120281",
+    "scenery/tr-round-tree.webp": "385fc8516971a28457b87ca8940195e439ec7c19d1b5e6656146ec145cf528c0",
+    "scenery/tr-broad-tree.webp": "1f31d8ffc8d037eccac6401b7d9cb77b2bcb43ca98de5c2bd63d3cbea6262f79",
+    "scenery/catalogue.json": "0b125b303c5bc1f5162600c88dba882b49ab2374d26e1e187f5385dc48ec7674"
+  },
+  "hash": "bd2347424589bd3375aba454ea706928a2cf17cc9bc3ca67980609d5b606f624",
+  "note": "Vendored copies. Never edit. Re-select with: tools/arc view3d-add <slug> --characters a,b ; refresh with: tools/arc view3d-upgrade"
+}

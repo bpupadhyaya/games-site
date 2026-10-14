@@ -1,0 +1,47 @@
+<!doctype html><html><head><meta charset="utf-8"><title>icon</title>
+<style>html,body{margin:0;background:#123}canvas{display:block}</style></head>
+<body><canvas id="c" width="2048" height="2048" style="width:2048px;height:2048px"></canvas>
+<script type="module">
+// Offline icon render (tools/render-icon.mjs loads this page in Chrome with real WebGL): the same 3D village, a player mid-roll,
+// the disc leaving the hand towards two stakes at golden hour; sharp subject, soft far field, bloom and vignette.
+import { createScene } from './view3d/scene.js';
+const q = new URLSearchParams(location.search);
+const SIZE = Number(q.get('size') || 2048);
+const canvas = document.getElementById('c');
+canvas.style.width = SIZE + 'px'; canvas.style.height = SIZE + 'px';
+const S = await createScene({ canvas, quality: 'high', transparent: true, preserve: true, crowdOn: false });
+const track = { id: 'icon', half: 2.6, len: 22, drag: 0.5, gates: [{ x: 0.0, y: 1.2, w: 0.45 }], far: { x: 0.0, y: 12 }, slopes: [], mud: [], rocks: [] };
+const pos = JSON.parse(q.get('pos') || '[-0.06,0.15,0.25]'), look = JSON.parse(q.get('look') || '[0.03,0.2,-1.2]');
+const f = Number(q.get('f') || 1.15), hy = Number(q.get('hy') || 0.62), cx = Number(q.get('cx') || 0);
+const F = { mode: 'hero', track, sides: 1, turn: 0, phase: 'roll', humanTurn: false, aim: { ang: 0, lean: 0 }, hold: { on: false, power: 0 },
+  roll: { side: Number(q.get('side') || 0), s: { x: Number(q.get('dx') || 0.0), y: Number(q.get('dy') || 1.2), vx: Number(q.get('vx') || 0), vy: 4.4, v0: 5.2, rest: false, out: false } },
+  rests: [], parts: [{ kind: 0, x: Number(q.get('dx') || 0.0), y: 0.1, z: 0.05, t: 0.12, max: 0.9, size: 1.4 }, { kind: 0, x: -0.03, y: 0.0, z: 0.1, t: 0.2, max: 0.9, size: 1.8 }, { kind: 0, x: 0.05, y: -0.1, z: 0.12, t: 0.3, max: 0.9, size: 2.2 }], evts: [], held: null, preview: null, noPeople: true, discScale: 1.3, headingOverride: Number(q.get('hd') || 0.7), pathTrace: [], rect: { x: 0, y: 0, w: SIZE, h: SIZE },
+  hero: { pos, look, f, hy, cx, drift: 0 } };
+S.manualDt = 1 / 60;
+for (let i = 0; i < Number(q.get('steps') || 16); i++) S.frame(F, 1 / 60);
+S.world.update(0.2, 0.0);
+if (S.world.farObjs.patch && q.get('patch') !== '1') S.world.farObjs.patch.visible = false;
+S.render({ x: 0, y: 0, w: SIZE, h: SIZE, cw: SIZE, ch: SIZE });
+// post: depth-of-field (far scenery softened; stakes, disc and the lawn they stand on stay sharp), bloom, warm vignette
+const gl = S.renderer;
+const grab = () => { const c = document.createElement('canvas'); c.width = c.height = SIZE; c.getContext('2d').drawImage(gl.domElement, 0, 0, SIZE, SIZE); return c; };
+const full = grab();
+for (const o of S.world.farObjs) o.visible = false;
+S.scene.traverse((o) => { if (o.isSprite) o.visible = true; });
+S.render({ x: 0, y: 0, w: SIZE, h: SIZE, cw: SIZE, ch: SIZE });
+const near = grab();
+const out = document.createElement('canvas'); out.width = out.height = SIZE;
+const x = out.getContext('2d');
+x.filter = `blur(${SIZE * 0.012}px)`; x.drawImage(full, 0, 0); x.filter = 'none';
+x.drawImage(near, 0, 0);
+x.save(); x.globalCompositeOperation = 'lighter'; x.filter = `blur(${SIZE * 0.018}px)`; x.globalAlpha = 0.07; x.drawImage(full, 0, 0); x.restore();
+const vg = x.createRadialGradient(SIZE / 2, SIZE * 0.5, SIZE * 0.34, SIZE / 2, SIZE / 2, SIZE * 0.76); vg.addColorStop(0, 'rgba(20,6,0,0)'); vg.addColorStop(1, 'rgba(20,6,0,0.5)');
+x.fillStyle = vg; x.fillRect(0, 0, SIZE, SIZE);
+// golden-hour grade: warm the light, deepen the shadows
+x.save(); x.globalCompositeOperation = 'soft-light'; const gr = x.createLinearGradient(0, 0, 0, SIZE); gr.addColorStop(0, 'rgba(255,190,110,0.32)'); gr.addColorStop(1, 'rgba(255,140,60,0.2)'); x.fillStyle = gr; x.fillRect(0, 0, SIZE, SIZE); x.restore();
+const small = document.createElement('canvas'); small.width = small.height = 1024;
+const sx = small.getContext('2d'); sx.imageSmoothingQuality = 'high'; sx.drawImage(out, 0, 0, 1024, 1024);
+window.__icon = () => small.toDataURL('image/png');
+window.__iconJpeg = () => small.toDataURL('image/jpeg', 0.93);
+document.title = 'ready';
+</script></body></html>

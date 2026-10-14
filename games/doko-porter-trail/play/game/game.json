@@ -1,0 +1,25 @@
+{
+  "slug": "doko-porter-trail",
+  "title": "Doko Porter Trail",
+  "tagline": "Steady the load on the mountain trail, pace your breath, rest in time.",
+  "genre": "balance journey",
+  "orientation": "any",
+  "version": "1.1.5",
+  "monetization": {
+    "model": "premium",
+    "priceUsd": 2.99,
+    "previewSeconds": 90,
+    "products": [
+      {
+        "id": "unlock_game",
+        "type": "non-consumable",
+        "priceUsd": 2.99,
+        "title": "Unlock Game"
+      }
+    ]
+  },
+  "locales": [
+    "en"
+  ],
+  "demoOnly": true
+}

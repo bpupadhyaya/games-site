@@ -1,0 +1,25 @@
+{
+  "slug": "beach-flags",
+  "title": "Beach Flags",
+  "tagline": "Sprint, dive and grab the last flag on the sand.",
+  "genre": "beach sprint, flags race",
+  "orientation": "any",
+  "version": "1.2.2",
+  "monetization": {
+    "model": "premium",
+    "priceUsd": 2.99,
+    "previewSeconds": 90,
+    "products": [
+      {
+        "id": "unlock_game",
+        "type": "non-consumable",
+        "priceUsd": 2.99,
+        "title": "Unlock Game"
+      }
+    ]
+  },
+  "locales": [
+    "en"
+  ],
+  "demoOnly": true
+}

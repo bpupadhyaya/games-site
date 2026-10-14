@@ -1,0 +1,19 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>icon</title>
+<style>html,body{margin:0;background:#000}canvas{display:block}</style></head>
+<body><script type="module">
+import { createPresenter } from './view3d/presenter.js';
+import { GL } from './src/glbridge.js';
+const q = new URLSearchParams(location.search);
+const P = await createPresenter({ standalone: true, quality: 'high' });
+await P.ready_p;
+GL.state = GL.state || { t: 0 };
+const size = +(q.get('size') || 2048);
+const opt = {};
+for (const k of ['pose','stone','tod','bloom','vignette','exposure']) if (q.has(k)) opt[k] = +q.get(k);
+if (q.has('cam')) opt.cam = q.get('cam').split(',').map(Number);
+if (q.has('sp')) opt.stonePos = q.get('sp').split(',').map(Number);
+if (q.has('sun')) opt.sun = q.get('sun').split(',').map(Number);
+window.__p3d = P;
+P.renderIcon({ ...opt, size });
+</script></body></html>

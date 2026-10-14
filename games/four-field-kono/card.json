@@ -1,0 +1,17 @@
+{
+  "title": "Four-Field Kono",
+  "tagline": "Step forward. Jump to capture. A Korean stone game in five minutes.",
+  "description": "Kono is a family of Korean folk board games played with a few stones on a board of crossing lines. Each stone steps one point forward, or jumps over an enemy stone beside it to take it, and a jump can carry on in a chain. Play the classic Four-Field board against the computer, the tiny Two-Field board or the grand Six-Field board. Five computer levels, two players on one phone, seven hands-on lessons, hints, danger marks, take back and a Watch & Learn mode. A painted paper board, large text and reduced motion options, no ads, works offline.",
+  "genre": "Korean stone-jumping board game",
+  "demo": true,
+  "howToPlay": [
+    "New here? Tap Learn to play: seven short hands-on lessons where you make every move yourself.",
+    "Tap a stone and its reachable points glow. A stone steps one point straight forward; it never steps sideways or back.",
+    "To capture, jump over an enemy stone that stands right beside yours onto the empty point behind it. A jump may go in any direction.",
+    "After a jump your stone may jump again in the same move. A red ring and a number show how many stones a move takes.",
+    "A stone with a stone directly behind it cannot be jumped from the front. Look before you step next to an enemy.",
+    "Capture every enemy stone, or leave the other side with no move, to win. There are no draws.",
+    "Hint explains a good move. Danger marks warn about stones that can be jumped next. Take back undoes your last move.",
+    "Auto Play shows the computer playing both sides, with Pause and a Think time you can change."
+  ]
+}

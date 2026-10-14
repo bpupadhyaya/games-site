@@ -1,0 +1,81 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><title>icon</title>
+<style>html,body{margin:0;background:#05080f}</style></head>
+<body>
+<script type="module">
+// Offline app-icon render (developer page, not linked from the game): the REAL courtyard + a real athlete mid-kick, lit and rendered with the
+// game's own 3D modules at 2048 px, then graded. node dev/icon.mjs writes store/icon.png and store/icon.svg from it.
+import { createStage, loadHuman, THREE } from './vendor3d/index.js';
+import { buildCourtyard } from './view3d/scene.js';
+import { createShuttle } from './view3d/shuttle3d.js';
+import { Person, SCALE } from './view3d/people.js';
+
+const q = new URLSearchParams(location.search);
+const SIZE = Number(q.get('size') || 2048), KIND = q.get('kind') || 'knee', YARD = Number(q.get('yard') || 0);
+const camPos = (q.get('cam') || '1.3,1.0,3.7').split(',').map(Number), camLook = (q.get('look') || '-0.1,0.98,-0.3').split(',').map(Number);
+const FOV = Number(q.get('fov') || 33);
+
+const canvas = document.createElement('canvas'); canvas.width = canvas.height = SIZE;
+document.body.appendChild(canvas);
+const stage = createStage({ canvas, quality: 'high', dprCap: 1, lighting: 'day', mode: 'ondemand', shadows: true, shadowSize: 3.2, preserveDrawingBuffer: true });
+stage.renderer.setPixelRatio(1); stage.renderer.setSize(SIZE, SIZE, false);
+const cam = stage.camera; cam.fov = FOV; cam.aspect = 1; cam.near = 0.1; cam.far = 140; cam.position.set(...camPos); cam.lookAt(...camLook); cam.updateProjectionMatrix(); cam.updateMatrixWorld(true);
+
+const set = buildCourtyard(THREE, { quality: 'high' });
+stage.scene.add(set.root); set.setYard(YARD);
+stage.setLighting('day', { exposure: 0.8, hemi: 0.55, hemiSky: 0xffe9c4, hemiGround: 0x8a6a40, key: 0xffcf88, keyI: 2.5, rim: 0xcfe0ff, rimI: 1.6 });
+stage.scene.fog = null; stage.scene.background = set.background;
+stage._shadowOffset = new THREE.Vector3(-3.2, 6.5, 4.5);
+stage.setShadowTarget(0, 0, -0.2);
+
+const sh = createShuttle(THREE);
+stage.scene.add(sh.root);
+
+const COST = { top: '#2b4d86', bottoms: '#222a40', socks: '#f3e2b3', shoes: '#f1ead9', trim: '#d4432c' };
+const h = await loadHuman({ character: 'athlete_m', kit: COST, skin: 'tan', hair: 'black', scale: SCALE, lod: 0, quality: 'high' });
+h.groundClamp = 'auto'; h.footPlanting = true; h.play('ready_stance', { fade: 0 });
+stage.add(h); stage.track(h);
+const person = new Person(h, 0);
+
+// the kick moment: the sim record the presenter would see just after the strike
+const KINDS = {
+  knee: { y: 0.82, shy: 1.62, anim: { t: 0.1, kind: 'knee', side: 0, cx: 0.34, cy: 0.66, cz: 0, perfect: true } },
+  inside: { y: 0.3, shy: 0.7, anim: { t: 0.05, kind: 'inside', side: 0, cx: 0.34, cy: 0.3, cz: 0, perfect: true } },
+  outside: { y: 0.3, shy: 0.7, anim: { t: 0.05, kind: 'outside', side: 1, cx: 0.34, cy: 0.3, cz: 0, perfect: true } },
+  scoop: { y: 0.1, shy: 0.5, anim: { t: 0.05, kind: 'scoop', side: 0, cx: 0.3, cy: 0.1, cz: 0, perfect: false } },
+};
+const K = KINDS[KIND] || KINDS.knee;
+if (q.has('cx')) { K.anim.cx = Number(q.get('cx')); }
+if (q.has('cy')) { K.anim.cy = Number(q.get('cy')); K.y = K.anim.cy; }
+if (q.has('t')) K.anim.t = Number(q.get('t'));
+const run = { sh: { x: K.anim.cx + 0.05, y: Number(q.get('shy') || K.shy), z: 0, vx: 0.4, vy: 5.2, vz: 0, ang: -0.25, av: 0 }, expect: 0, over: false };
+const e = { i: 0, x: 0, z: 0, anim: K.anim, look: 0 };
+const YAW = Number(q.get('yaw') || 0.35);
+for (let i = 0; i < 90; i++) {
+  person.drive(e, run, YAW, 1 / 60, i === 0);
+  stage.update(1 / 60, { renderNow: false });
+  person.pose(1 / 60, 3 + i / 60);
+  set.update(1 / 60, 3 + i / 60, 0);
+}
+sh.update(run.sh, 3, 1 / 60, 3);
+// a short ghost trail under the shuttle (it left the knee a moment ago)
+for (let k = 1; k <= 4; k++) { const g2 = createShuttle(THREE); stage.scene.add(g2.root); g2.update({ ...run.sh, y: run.sh.y - k * 0.13, x: run.sh.x - k * 0.015, ang: run.sh.ang }, 3 + k * 0.01, 1 / 60, 3); g2.root.traverse((o) => { if (o.material) { o.material = o.material.clone(); o.material.transparent = true; o.material.opacity = 0.35 - k * 0.07; o.material.depthWrite = false; } }); }
+sh.root.scale.setScalar(sh.root.scale.x * Number(q.get('shs') || 1));
+
+stage.renderer.shadowMap.enabled = true;
+stage.render();
+const src = stage.renderer.domElement;
+const cv = (n) => { const c = document.createElement('canvas'); c.width = c.height = n; return c; };
+const out = cv(SIZE), x = out.getContext('2d');
+x.filter = 'contrast(1.22) saturate(1.32) brightness(0.95)'; x.drawImage(src, 0, 0); x.filter = 'none';
+// grade: soft bloom, warm vignette, a touch of contrast
+x.save(); x.globalCompositeOperation = 'lighter'; x.filter = `blur(${SIZE * 0.012}px)`; x.globalAlpha = 0.18; x.drawImage(src, 0, 0); x.restore();
+const vg = x.createRadialGradient(SIZE / 2, SIZE * 0.5, SIZE * 0.34, SIZE / 2, SIZE * 0.5, SIZE * 0.78); vg.addColorStop(0, 'rgba(20,10,0,0)'); vg.addColorStop(1, 'rgba(20,10,4,0.5)');
+x.fillStyle = vg; x.fillRect(0, 0, SIZE, SIZE);
+const small = cv(1024), sx = small.getContext('2d');
+sx.imageSmoothingQuality = 'high'; sx.fillStyle = '#05080f'; sx.fillRect(0, 0, 1024, 1024); sx.drawImage(out, 0, 0, 1024, 1024);
+const png = small.toDataURL('image/png'), jpg = small.toDataURL('image/jpeg', 0.93);
+window.__icon = () => png; window.__iconJpeg = () => jpg;
+document.title = 'ready';
+</script>
+</body></html>

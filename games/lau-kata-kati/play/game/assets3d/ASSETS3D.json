@@ -1,0 +1,34 @@
+{
+  "version": "1.10.1",
+  "characters": [
+    "mannequin_m"
+  ],
+  "clips": [
+    "base"
+  ],
+  "scenery": [
+    "bd-rice",
+    "gr-paddy",
+    "sky-golden",
+    "band-fields",
+    "st-thatch-stilt-house",
+    "st-wood-house",
+    "tr-broad-tree"
+  ],
+  "files": {
+    "characters/mannequin_m.glb": "b75014e5b6033ec6ef0979a126cac399f1004f23bc1ed2e9df74aad9eacf288a",
+    "characters/mannequin_m.json": "d2b7eb91a162f48489ef97377e9fc5dc8cb5136633b52665a0ae970e35f5e7e6",
+    "clips/base.bin": "8a3871846e5303a374014b8d5197bd767f3f62449917be3fc0fc7069f4dd7de0",
+    "clips/base.json": "9d7bd7a3a4e145d959784b59b7058f4ab4afebe0c29bbf6a9ed72603ec145269",
+    "scenery/bd-rice.webp": "65ed947f88fb43ee90017d6fd46d3b1aac43c3bf90fb45ce2f277dca6dea7638",
+    "scenery/gr-paddy.webp": "dd7bfd676ce8ffcb60b7a67087b6a232cef3de22fd56252d398dee663ccf7de8",
+    "scenery/sky-golden.webp": "34f0a32f292f732efd121110c306c3f8e0041eec0c55697b910f008aac87af01",
+    "scenery/band-fields.webp": "fe2fcd48fedb15fd067344a5cae135342c6365429baa365a7d25e5ae0d4bbfb1",
+    "scenery/st-thatch-stilt-house.webp": "6be983caba94e9c4e2f35fa6b7a41253dd10c44cb092f70e25cbfa39111523e9",
+    "scenery/st-wood-house.webp": "faada855db72d7233cebbc2309ca51f528f14f8697be9d5c0e7fa8e215519d75",
+    "scenery/tr-broad-tree.webp": "1f31d8ffc8d037eccac6401b7d9cb77b2bcb43ca98de5c2bd63d3cbea6262f79",
+    "scenery/catalogue.json": "0b125b303c5bc1f5162600c88dba882b49ab2374d26e1e187f5385dc48ec7674"
+  },
+  "hash": "33f3b1878a7ec2044a11f2696e9f24fdb8d83f2983ab13a451550544c6e61fd6",
+  "note": "Vendored copies. Never edit. Re-select with: tools/arc view3d-add <slug> --characters a,b ; refresh with: tools/arc view3d-upgrade"
+}

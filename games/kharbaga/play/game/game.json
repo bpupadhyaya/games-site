@@ -1,0 +1,25 @@
+{
+  "slug": "kharbaga",
+  "title": "Kharbaga",
+  "tagline": "Jump, crown a Master, capture them all. North Africa's sand-board game.",
+  "genre": "North African jump-and-crown board game",
+  "orientation": "any",
+  "version": "1.1.2",
+  "monetization": {
+    "model": "premium",
+    "priceUsd": 2.99,
+    "previewSeconds": 90,
+    "products": [
+      {
+        "id": "unlock_game",
+        "type": "non-consumable",
+        "priceUsd": 2.99,
+        "title": "Unlock Game"
+      }
+    ]
+  },
+  "locales": [
+    "en"
+  ],
+  "demoOnly": true
+}

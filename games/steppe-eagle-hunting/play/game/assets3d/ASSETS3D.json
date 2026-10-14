@@ -1,0 +1,45 @@
+{
+  "version": "1.11.1",
+  "characters": [
+    "athlete_m"
+  ],
+  "clips": [
+    "base"
+  ],
+  "scenery": [
+    "bd-snow-village",
+    "gr-snow",
+    "sky-day",
+    "sky-overcast",
+    "band-snow-pines",
+    "bd-steppe",
+    "st-yurt",
+    "st-yurt-blue",
+    "band-snow-ridge",
+    "gr-dry-grass",
+    "gr-dust-grass"
+  ],
+  "files": {
+    "characters/athlete_m.glb": "5d9bcf61db9b4ee4b215df38bc365791a5d4788a3d5ff3dfab7309d0b6f66b0a",
+    "characters/athlete_m.json": "94a1ed84394935d7bbd5c651fbc6e2faa4671191822d35cdc6070b59bf20db4a",
+    "characters/athlete_m_body_mask.webp": "b75361818563e6fd57814c8b135e080f2f04b005af050ecc5c4eb84cc5cf0a28",
+    "characters/athlete_m_body_skin.webp": "6a258aa62fce605ebb805740db1999d3eeca04d233da2ac1e5ff1061b6c435e2",
+    "characters/athlete_m_head_mask.webp": "d2e1db0d1adeda80b512bae1786d138fc882c44beadce8e56f9ac428d470118d",
+    "clips/base.bin": "8a3871846e5303a374014b8d5197bd767f3f62449917be3fc0fc7069f4dd7de0",
+    "clips/base.json": "9d7bd7a3a4e145d959784b59b7058f4ab4afebe0c29bbf6a9ed72603ec145269",
+    "scenery/bd-snow-village.webp": "6f99e7c3e487413827f0abbaa290170d7405542d41396d3bd175a07be2cbcab0",
+    "scenery/gr-snow.webp": "175a10b398915be8dc6b6fbb8030fa089e33f6ec0996d2e182a6199f7016463a",
+    "scenery/sky-day.webp": "42c3161f580dc41be78e0ad08e07136a9e1f112fecab53a96ab7da0567bc56b5",
+    "scenery/sky-overcast.webp": "6b60708ea18e21c8992289f070bfe6cbbe7151c773a3ae7b1d24f2e615ac9321",
+    "scenery/band-snow-pines.webp": "5aeef13b24223554d3804fa5c3d1186bca57d1fa16502a2d65b56e148e71621c",
+    "scenery/bd-steppe.webp": "65de40ef793c77fb2c72b6a81af9ab98b0a511677aa05e451d896160844cb7fe",
+    "scenery/st-yurt.webp": "ab6cb14d890fabd035ec1e3ee4c0d05939ca8408956fe699a768b053c3970d9e",
+    "scenery/st-yurt-blue.webp": "853e46b9b34b065efd5b0dcf0834fd03f65415ce50ed119c24a0884d1a32e76f",
+    "scenery/band-snow-ridge.webp": "86a26e6ca6384cc8104e064497bc9ecfe1c91429440008dbe8cc5e2ea7deab8d",
+    "scenery/gr-dry-grass.webp": "9a2b85c70ace946e6bcd51702d57ac34a6a78050e5b748e5eb3b5610a685bf87",
+    "scenery/gr-dust-grass.webp": "cf57c548f47db82661b886d835a926efb593e4adfbe4452cad08e7627ff356cd",
+    "scenery/catalogue.json": "0b125b303c5bc1f5162600c88dba882b49ab2374d26e1e187f5385dc48ec7674"
+  },
+  "hash": "36cb1f8bb5f9d119c8d55df7eba2324b54e734fb67de3417a40997685a6bc961",
+  "note": "Vendored copies. Never edit. Re-select with: tools/arc view3d-add <slug> --characters a,b ; refresh with: tools/arc view3d-upgrade"
+}

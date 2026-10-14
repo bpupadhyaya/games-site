@@ -1,0 +1,14 @@
+{
+  "title": "Cirit",
+  "tagline": "Gallop, throw and wheel away in the great mounted javelin game.",
+  "description": "Cirit is the traditional mounted game of Turkey. Ride a galloping 3D horse, lead your throw at the runner's target, then switch roles and dodge the answer by lane, pace or lean. Festival Cup, Practice, Learn drills, Think hints and Watch & Learn.",
+  "genre": "mounted sport / javelin game",
+  "demo": true,
+  "howToPlay": [
+    "Slide the pace bar on the left: canter to full gallop.",
+    "Chasing: drag the ring ahead of the runner and let go to throw.",
+    "Aim where he will be: the javelin takes a moment to arrive.",
+    "Fleeing: leave the red ring, swipe to change lane or tap LEAN.",
+    "Bullseyes, style and dodges score; the higher total wins."
+  ]
+}

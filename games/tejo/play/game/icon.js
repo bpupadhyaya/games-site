@@ -1,0 +1,33 @@
+// Offline icon render page: the real court, the clay box, the thrower mid-pitch with the disc in the air and a mecha popping.
+import { THREE, board3d as B } from './vendor3d/index.js';
+import { buildCourt, buildBox, makeDisc, BOX_Y, THETA, NORMAL, toLocal } from './view3d/world.js';
+import { createFx } from './view3d/fx.js';
+import { createThrower } from './view3d/thrower.js';
+const size = Number(new URLSearchParams(location.search).get('size')) || 2048;
+const c = document.getElementById('c'); c.width = c.height = size;
+const r = new THREE.WebGLRenderer({ canvas: c, antialias: true, preserveDrawingBuffer: true });
+r.setSize(size, size, false); r.outputColorSpace = THREE.SRGBColorSpace; r.toneMapping = THREE.ACESFilmicToneMapping; r.shadowMap.enabled = true; r.shadowMap.type = THREE.PCFShadowMap;
+const scene = new THREE.Scene(); scene.background = new THREE.Color('#e9a46a'); scene.fog = new THREE.Fog('#e0a070', 14, 60);
+const pm = new THREE.PMREMGenerator(r); scene.environment = pm.fromScene(new THREE.RoomEnvironment(), 0.04).texture; scene.environmentIntensity = 0.35;
+const key = new THREE.DirectionalLight('#ffd49a', 3.4); key.position.set(-3, 3.2, 4); key.castShadow = true; key.shadow.mapSize.set(2048, 2048);
+Object.assign(key.shadow.camera, { left: -3, right: 3, top: 3, bottom: -3, near: 0.5, far: 20 }); key.shadow.bias = -0.0004;
+const rim = new THREE.DirectionalLight('#8fc0ff', 1.2); rim.position.set(4, 3, -4);
+scene.add(new THREE.HemisphereLight('#a8bce0', '#6a4a30', 0.6), key, rim);
+const court = buildCourt({ quality: 'high', scenery: true }); scene.add(court.group);
+const box = buildBox(); const root = new THREE.Group(); root.position.set(0, BOX_Y, 0); root.rotation.x = THETA - Math.PI / 2; root.add(box.root); scene.add(root);
+box.mechas[0].visible = false; box.scorch[0].material.opacity = 0.55;
+const fx = createFx(scene, { quality: 'high' });
+const p = new THREE.Vector3(); root.updateMatrixWorld();
+const at = (u, v, z) => { const l = toLocal(u, v); return root.localToWorld(p.set(l.x, l.y, z).clone()); };
+fx.puff(at(50, 60.4, 0.04), { kind: 'flash', size: 0.22, grow: 2.2, life: 1, opacity: 1 });
+for (let i = 0; i < 5; i++) fx.puff(at(50, 60.4, 0.05 + 0.02 * i), { kind: 'smoke', size: 0.05 + 0.012 * i, grow: 4, life: 3, rise: 0.3, opacity: 0.5, tint: '#d8d4cc' });
+fx.sparks(at(50, 60.4, 0.05), 24, { speed: 2.4 }); fx.confetti(at(50, 60.4, 0.05), 60, { speed: 2.2, up: 1.6 });
+for (let i = 0; i < 40; i++) fx.update(0.02);
+const flying = makeDisc(0); flying.position.set(0.15, 1.12, 1.5); flying.scale.setScalar(1.25); flying.rotation.set(-0.5, 0.2, 0.3); scene.add(flying);
+const cam = new THREE.PerspectiveCamera(30, 1, 0.1, 200); cam.position.set(3.3, 1.5, 6.4); cam.lookAt(-0.2, 0.95, 0.9);
+const th = await createThrower({ lod: 0 });
+th.root.position.set(-0.55, 0, 2.0); th.human.setFacing(Math.PI + 0.35); scene.add(th.root);
+th.human.play('tejo_pitch', { fade: 0 }); th.update(0.9); th.update(0.0);
+th.hold.visible = false;
+if (court.scenery) { await court.scenery.ready; court.scenery.update(0, cam); }
+B.renderIcon({ scene, camera: cam, size, renderer: r, bloom: 0.22, vignette: 0.45, exposure: 0.95 });

@@ -1,0 +1,62 @@
+{
+  "version": "1.11.1",
+  "characters": [
+    "athlete_f",
+    "athlete_m",
+    "mannequin_f",
+    "mannequin_m"
+  ],
+  "clips": [
+    "base"
+  ],
+  "scenery": [
+    "bd-desert",
+    "gr-sand",
+    "gr-red-rock",
+    "sky-day",
+    "sky-rose",
+    "bd-steppe",
+    "st-yurt",
+    "st-yurt-blue",
+    "band-snow-ridge",
+    "gr-dry-grass",
+    "gr-dust-grass"
+  ],
+  "animals": [
+    "horse"
+  ],
+  "files": {
+    "characters/athlete_f.glb": "480e3908576563bb53d4a5d7cc058217d17a6c700ac5518e6902d59e788bee57",
+    "characters/athlete_f.json": "09c88c33bf5dc2c327ccab9c9e9e51ea62ddd803e7f282571796a3c94270987a",
+    "characters/athlete_f_body_mask.webp": "fbf46bfbe414815fecd7d3ebb5767939f8313b80814111ba5bc9f69262cc9a8c",
+    "characters/athlete_f_body_skin.webp": "a1aae26a96b8bbf94015559f3307216d8e04422f450ffcc9b3f4bad62118b62b",
+    "characters/athlete_f_head_mask.webp": "4def06bcd6ff9b63d42fce7b289e7948023cd60fa4d5ba44f556df2c0c14224e",
+    "characters/athlete_m.glb": "5d9bcf61db9b4ee4b215df38bc365791a5d4788a3d5ff3dfab7309d0b6f66b0a",
+    "characters/athlete_m.json": "94a1ed84394935d7bbd5c651fbc6e2faa4671191822d35cdc6070b59bf20db4a",
+    "characters/athlete_m_body_mask.webp": "b75361818563e6fd57814c8b135e080f2f04b005af050ecc5c4eb84cc5cf0a28",
+    "characters/athlete_m_body_skin.webp": "6a258aa62fce605ebb805740db1999d3eeca04d233da2ac1e5ff1061b6c435e2",
+    "characters/athlete_m_head_mask.webp": "d2e1db0d1adeda80b512bae1786d138fc882c44beadce8e56f9ac428d470118d",
+    "characters/mannequin_f.glb": "c6632ddaa0fbc8cd80c64e9f7cf5f9fca15aaca1020415159903e1ae53c9b467",
+    "characters/mannequin_f.json": "1f703227b40c1f415fd00774f6ea35c2003c815de98e5e61458e4e4f25daa9f3",
+    "characters/mannequin_m.glb": "b75014e5b6033ec6ef0979a126cac399f1004f23bc1ed2e9df74aad9eacf288a",
+    "characters/mannequin_m.json": "d2b7eb91a162f48489ef97377e9fc5dc8cb5136633b52665a0ae970e35f5e7e6",
+    "clips/base.bin": "8a3871846e5303a374014b8d5197bd767f3f62449917be3fc0fc7069f4dd7de0",
+    "clips/base.json": "9d7bd7a3a4e145d959784b59b7058f4ab4afebe0c29bbf6a9ed72603ec145269",
+    "scenery/bd-desert.webp": "3b913240b1a28db8e5292613d9356e9efe1cdc19d4a4a4d1b82e731a34db5c05",
+    "scenery/gr-sand.webp": "fb0aeeb340d10f635dc027ede7d2594ae62dc09827d5b9dc7ee99e005b109331",
+    "scenery/gr-red-rock.webp": "b0311ed6cb1cefb534ade9a81005ad3d0b81b56d5ac328df3923f70babf691bc",
+    "scenery/sky-day.webp": "42c3161f580dc41be78e0ad08e07136a9e1f112fecab53a96ab7da0567bc56b5",
+    "scenery/sky-rose.webp": "b2effc28a131f7e815b9d7c3d3de0fda5f86677951221bddada60d0c1ab32500",
+    "scenery/bd-steppe.webp": "65de40ef793c77fb2c72b6a81af9ab98b0a511677aa05e451d896160844cb7fe",
+    "scenery/st-yurt.webp": "ab6cb14d890fabd035ec1e3ee4c0d05939ca8408956fe699a768b053c3970d9e",
+    "scenery/st-yurt-blue.webp": "853e46b9b34b065efd5b0dcf0834fd03f65415ce50ed119c24a0884d1a32e76f",
+    "scenery/band-snow-ridge.webp": "86a26e6ca6384cc8104e064497bc9ecfe1c91429440008dbe8cc5e2ea7deab8d",
+    "scenery/gr-dry-grass.webp": "9a2b85c70ace946e6bcd51702d57ac34a6a78050e5b748e5eb3b5610a685bf87",
+    "scenery/gr-dust-grass.webp": "cf57c548f47db82661b886d835a926efb593e4adfbe4452cad08e7627ff356cd",
+    "scenery/catalogue.json": "0b125b303c5bc1f5162600c88dba882b49ab2374d26e1e187f5385dc48ec7674",
+    "animals/horse.glb": "413660274c94e66432f078e30a81bf6a830d4965b73124c2c96b8fd249659056",
+    "animals/horse.json": "5b73869e9476ad1eee5acb73d276c273ad3eec6241fe8c6fcb45bf8c3624ac0b"
+  },
+  "hash": "19689dbf3c482c92fdbdd363eea13f717c049766bb4dfa530e58143a1b8544fb",
+  "note": "Vendored copies. Never edit. Re-select with: tools/arc view3d-add <slug> --characters a,b ; refresh with: tools/arc view3d-upgrade"
+}

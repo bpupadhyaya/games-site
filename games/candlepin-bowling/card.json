@@ -1,0 +1,14 @@
+{
+  "title": "Candlepin Bowling",
+  "tagline": "Small ball, slim pins, and every fallen pin stays: use the wood.",
+  "description": "New England candlepin bowling with real pin physics in a lit 3D alley. Slide, aim, pick your pace and curve, and use the wood: fallen pins stay on the lane. Six rivals, sixteen Wood Puzzles, two players and Watch & Learn.",
+  "genre": "candlepin bowling / physics",
+  "demo": true,
+  "howToPlay": [
+    "Drag along the lower lane to slide the ball; touch the pin deck to aim.",
+    "Choose Soft, Firm or Fast and add curve with the arrows, then press ROLL.",
+    "Three balls a frame, ten frames; fallen pins stay on the lane as wood.",
+    "Strike scores 10 plus the next two balls; a spare 10 plus the next ball.",
+    "Use the wood: bank the ball off lying pins into the ones still standing."
+  ]
+}

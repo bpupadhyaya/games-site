@@ -1,0 +1,19 @@
+<!doctype html><html><head><meta charset="utf-8"><title>icon</title><style>html,body{margin:0;background:#05080f}canvas{display:block}</style></head>
+<body><script type="module">
+// Offline icon render page (developer tool, not shipped in the store build's player path): the game's own 3D scene framed on the athlete.
+import { createPresenter } from './view3d/presenter.js';
+const q = new URLSearchParams(location.search), size = Number(q.get('size') || 2048);
+const p = await createPresenter();
+if (!p.ok) { document.title = 'FAILED'; throw new Error('no webgl'); }
+const o = { R: Number(q.get('R') || 0.58), cy: Number(q.get('cy') || 0.72), ang: Number(q.get('ang') || 62), t: Number(q.get('t') || 3.1) };
+const cv = p.iconFrame(size, o);
+const out = document.createElement('canvas'); out.width = size; out.height = size;
+const g = out.getContext('2d'); g.drawImage(cv, 0, 0, size, size);
+// grade: warm vignette so the subject pops and the corners fall away
+const v = g.createRadialGradient(size / 2, size * 0.52, size * 0.2, size / 2, size * 0.52, size * 0.72); v.addColorStop(0, 'rgba(0,0,0,0)'); v.addColorStop(1, 'rgba(4,2,2,0.78)');
+g.fillStyle = v; g.fillRect(0, 0, size, size);
+window.__icon = () => out.toDataURL('image/png');
+window.__iconJpeg = () => out.toDataURL('image/jpeg', 0.93);
+document.body.appendChild(out); out.style.width = '512px';
+document.title = 'ready';
+</script></body></html>

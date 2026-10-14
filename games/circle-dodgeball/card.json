@@ -1,0 +1,16 @@
+{
+  "title": "Circle Dodgeball",
+  "tagline": "Dodge, catch and burn them all.",
+  "description": "The playground ball game of Brazil, Germany and Italy as a fast real-time sport. Run, throw and pass, step out of the red warning ring or catch at the last moment to burn the thrower. Queimada courts and Volkerball rings in four places, play inside the circle or on the ring. Watch and Learn, a full Rules page and text size up to 300%. Points only, no ads, works offline.",
+  "genre": "sports",
+  "demo": true,
+  "howToPlay": [
+    "Tap the ground to run there; your player has a gold ring.",
+    "Run over a loose ball on your side to pick it up.",
+    "With the ball, tap an opponent to throw or a teammate to pass.",
+    "Fast or Lob: lobs arc over the others and drop in one spot.",
+    "A red ring shows where a ball will land: step away or press Catch.",
+    "A catch burns the thrower and brings a teammate back.",
+    "On a keyboard: arrows steer, Space throws, C catches, L swaps fast and lob."
+  ]
+}

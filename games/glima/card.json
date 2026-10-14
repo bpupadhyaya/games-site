@@ -1,0 +1,14 @@
+{
+  "title": "Glima",
+  "tagline": "Read the step, pull them over, hook the light leg.",
+  "description": "Glima, the standing belt wrestling of Iceland, with real 3D athletes in the traditional hold. Steer your weight with one thumb and tap to hook the leg that is light. Read the rhythm of the dance, wear down your rival's stance, win two of three rounds. Five rivals, three rings, a Think coach, or watch and learn.",
+  "genre": "standing belt-wrestling sport",
+  "demo": true,
+  "howToPlay": [
+    "Drag a thumb left or right to steer your weight and the belt.",
+    "Your weight sits more on one foot; the light leg glows gold.",
+    "Tap HOOK LEFT or RIGHT when both light legs line up.",
+    "A hook is stepped over if the leg is loaded in time.",
+    "Empty their stance to win a round. First to two rounds wins."
+  ]
+}

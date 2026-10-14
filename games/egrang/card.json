@@ -1,0 +1,16 @@
+{
+  "title": "Egrang",
+  "tagline": "Walk, balance and race on bamboo stilts.",
+  "description": "A balance and rhythm race built on the Indonesian stilt game. Choose when to tap to set your speed and stride, and where to tap to catch the sideways wobble, over puddles, mud, stepping stones, plank bridges and hills against three rivals. Eight courses, Practice, Watch and Learn, an in-app Rules book, portrait and landscape play, synthesised sound, no ads.",
+  "genre": "balance racing",
+  "demo": true,
+  "howToPlay": [
+    "Pick a course, then try Practice first: gentler wobbles and a hint button.",
+    "Tap when the bead on the step meter is in the green: earlier is slower, later is faster.",
+    "Tap under the bright bead on the rail to catch the sideways wobble.",
+    "Land on good ground: avoid puddles and potholes, and hit every stepping stone.",
+    "Bump a rival alongside to wobble them; the first across the line wins.",
+    "Watch and Learn races the course for you and thinks before each section. Pause it any time.",
+    "On a keyboard: Space taps (hold Left or Right to catch that side), B bumps, P pauses."
+  ]
+}

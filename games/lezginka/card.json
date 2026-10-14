@@ -1,0 +1,17 @@
+{
+  "title": "Lezginka",
+  "tagline": "Stamp, lift and spin as the tempo climbs.",
+  "description": "A rhythm game about the fast folk dance of the Caucasus. Tap four step pads (left boot, right boot, arms and spin) as rings close in, in time with a drum and an accordion. Learn five original dances phrase by phrase, then dance them while the tempo climbs and more dancers join the floor. Watch and Learn demonstration, calibration, in-app Rules page. Real 3D dancers in festival costume, synthesised sound, no ads, works offline.",
+  "genre": "rhythm dance",
+  "demo": true,
+  "howToPlay": [
+    "Pick a dance, then start with Learn the steps: the teacher dances a phrase and you echo it.",
+    "Four pads surround the dancer: left boot, right boot, arms and spin.",
+    "Tap a pad when its ring lands on the rim. Closer to the beat scores more.",
+    "Use two thumbs, or more fingers.",
+    "Dance cleanly and more dancers join the floor. Miss and one group sits out.",
+    "The tempo climbs through every dance.",
+    "Watch and Learn performs the whole dance for you. Pause it any time.",
+    "Keyboard: A, D, W, S or the arrow keys for the pads, Space pauses."
+  ]
+}

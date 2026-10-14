@@ -1,0 +1,25 @@
+{
+  "slug": "akan-gold-weight-balance",
+  "title": "Akan Gold-Weight Balance",
+  "tagline": "Measure gold dust on a brass balance with cast weights, in the fewest weighings.",
+  "genre": "logic puzzle",
+  "orientation": "any",
+  "version": "1.1.1",
+  "monetization": {
+    "model": "premium",
+    "priceUsd": 2.99,
+    "previewSeconds": 90,
+    "products": [
+      {
+        "id": "unlock_game",
+        "type": "non-consumable",
+        "priceUsd": 2.99,
+        "title": "Unlock Game"
+      }
+    ]
+  },
+  "locales": [
+    "en"
+  ],
+  "demoOnly": true
+}

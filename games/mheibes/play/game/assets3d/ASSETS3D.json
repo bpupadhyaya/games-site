@@ -1,0 +1,27 @@
+{
+  "version": "1.11.1",
+  "characters": [
+    "athlete_m"
+  ],
+  "clips": [
+    "base"
+  ],
+  "scenery": [
+    "bd-sakura",
+    "sky-peach"
+  ],
+  "files": {
+    "characters/athlete_m.glb": "5d9bcf61db9b4ee4b215df38bc365791a5d4788a3d5ff3dfab7309d0b6f66b0a",
+    "characters/athlete_m.json": "94a1ed84394935d7bbd5c651fbc6e2faa4671191822d35cdc6070b59bf20db4a",
+    "characters/athlete_m_body_mask.webp": "b75361818563e6fd57814c8b135e080f2f04b005af050ecc5c4eb84cc5cf0a28",
+    "characters/athlete_m_body_skin.webp": "6a258aa62fce605ebb805740db1999d3eeca04d233da2ac1e5ff1061b6c435e2",
+    "characters/athlete_m_head_mask.webp": "d2e1db0d1adeda80b512bae1786d138fc882c44beadce8e56f9ac428d470118d",
+    "clips/base.bin": "8a3871846e5303a374014b8d5197bd767f3f62449917be3fc0fc7069f4dd7de0",
+    "clips/base.json": "9d7bd7a3a4e145d959784b59b7058f4ab4afebe0c29bbf6a9ed72603ec145269",
+    "scenery/bd-sakura.webp": "f07e91f7e75ea0501f11240741e0fafde0fbc06b7635efa8ec046d4ab734ffa6",
+    "scenery/sky-peach.webp": "70cc66bf949c1181891ed3cf748713d093075dba7af0a2b8343d97e7127f1a01",
+    "scenery/catalogue.json": "0b125b303c5bc1f5162600c88dba882b49ab2374d26e1e187f5385dc48ec7674"
+  },
+  "hash": "baece5be44bb97388882f053b945de06eb8ec1f4833ad878f1fb0ee731770e17",
+  "note": "Vendored copies. Never edit. Re-select with: tools/arc view3d-add <slug> --characters a,b ; refresh with: tools/arc view3d-upgrade"
+}

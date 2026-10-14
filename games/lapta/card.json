@@ -1,0 +1,14 @@
+{
+  "title": "Lapta",
+  "tagline": "Aim the bat, time the swing, run the far line and dodge the throw.",
+  "description": "The old Russian bat-and-run from the village green. Aim between the fielders, time your swing, then decide: run, come back, or stay safe. Dodge the thrown ball to score. Three fielding sides, rival batters, two players, Think and Watch & Learn.",
+  "genre": "bat-and-run sport",
+  "demo": true,
+  "howToPlay": [
+    "Drag on the green to aim, release as the ring closes to swing.",
+    "Early swings loft and pull left; late swings flatten and push right.",
+    "Tap Run! when the ball is far from the fielders; the far line is one point.",
+    "Come back for two more, or stay safe on the line.",
+    "Tap Dodge when a fielder winds up; Think gives a tested suggestion."
+  ]
+}

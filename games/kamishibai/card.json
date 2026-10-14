@@ -1,0 +1,14 @@
+{
+  "title": "Kamishibai",
+  "tagline": "Order the paper story cards, then tell the tale on the beat.",
+  "description": "Arrange the picture cards of ten original tales into the order of the story, then perform each one by pulling the cards out in time with the narration. Hints that teach, a Daily Tale and Watch and Learn. Portrait or landscape.",
+  "genre": "Story puzzle",
+  "demo": true,
+  "howToPlay": [
+    "Put the shuffled picture cards in story order, left to right and top to bottom.",
+    "Tap two cards to swap them, or drag one onto another. Tap the page icon to read a card's line.",
+    "Press Hang the cards: right-place cards lock with a gold edge.",
+    "Then pull each card out sideways right when the ring closes.",
+    "Keep the five lanterns lit for three stars. Climb the Journey or play the Daily Tale."
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "title": "Lo Shu Magic Square",
+  "tagline": "The ancient Chinese magic square, from 3 x 3 to 5 x 5.",
+  "description": "Place the numbers so every row, column and diagonal adds up to the magic number. Start with the original Lo Shu, then climb to 4 x 4 and 5 x 5 squares and broken-diagonal variants. Hints that teach, a Daily Square and Watch and Learn. Portrait or landscape.",
+  "genre": "Logic puzzle",
+  "demo": true,
+  "howToPlay": [
+    "Fill the grid so every row, column and diagonal adds up to the same magic number.",
+    "Tap a stone in the tray, then tap a square, or drag it there.",
+    "Gauges at the end of every line show the running total and glow when it is right.",
+    "Tap the lamp for a hint: where to look, then why it works.",
+    "Climb the Journey, pick any size in Free Play, or play the Daily Square."
+  ]
+}

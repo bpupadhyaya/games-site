@@ -1,0 +1,17 @@
+{
+  "title": "Three Voices",
+  "tagline": "Sing three-part harmony and make the chord lock.",
+  "description": "A singing game inspired by Georgian three-part polyphony. Hold a glowing bead at the right height on the pitch ladder to sing a voice, and when every voice is in tune together the chord locks and the hall glows. Sing one voice, two or the whole choir across six original songs, learn phrase by phrase, or let Watch and Learn explain why each phrase sounds the way it does. A Harmony Lab shows the pure intervals and the beating. Portrait and landscape, no ads, works offline.",
+  "genre": "music polyphony",
+  "demo": true,
+  "howToPlay": [
+    "Choose a song and the voices you sing: Bass, Middle, Top or any mix. Friends sing the rest.",
+    "Note bars slide towards the dashed now line. Their height is pitch.",
+    "Touch and hold to sing: the height of your finger is your pitch. Keep the bead on the bar.",
+    "Lift your finger in the pale breaths so the voice is silent.",
+    "When every voice is in tune together the chord locks; hold it to build resonance and score.",
+    "Learn lets you hear each phrase and echo it. Watch and Learn explains it with time to think.",
+    "The Harmony Lab names the intervals and shows how fast two voices beat.",
+    "Pitch assist in Settings pulls your voice gently to the ladder lines."
+  ]
+}

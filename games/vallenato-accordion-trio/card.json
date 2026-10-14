@@ -1,0 +1,17 @@
+{
+  "title": "Vallenato Accordion Trio",
+  "tagline": "Three parts. One groove.",
+  "description": "A rhythm and ensemble game about vallenato, the accordion music of Colombia's Caribbean coast. Scrape the guacharaca, drum the caja and play the accordion with a real push and pull bellows, one take at a time, and hear your own three takes lock into a band. Or follow the spotlight in the Live Trio. Six original pieces in four aires, hints, Watch and Learn, a latency calibration screen and an in-app Rules page. Synthesised sound, no ads, works offline.",
+  "genre": "rhythm music",
+  "demo": true,
+  "howToPlay": [
+    "Pick a piece, then record three takes: guacharaca, caja, accordion.",
+    "Notes slide along the ribbon to the gold playhead. Tap or scrape when they arrive.",
+    "Accordion: tap the numbered button, and hold the bellows pad with your other thumb for a PULL note.",
+    "Caja: left half for TUM, right half for TAK. Guacharaca: scrape left or right across the tube.",
+    "Each earlier take plays back under the next, exactly as you played it.",
+    "Live Trio moves the spotlight from part to part every two bars.",
+    "The bulb names your next notes. Watch and Learn plays the whole piece for you.",
+    "On a keyboard: A S D F G H J, Space for the bellows, Z and X, the arrow keys."
+  ]
+}

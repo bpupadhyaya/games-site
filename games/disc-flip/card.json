@@ -1,0 +1,14 @@
+{
+  "title": "Disc-flip",
+  "tagline": "Press it. Hop it. Pot it.",
+  "description": "The English parlour game with a felt mat and a cup. Press a big disc on a small one to hop it into the cup or onto a rival's, with the odds shown as you aim.",
+  "genre": "dexterity flicking game",
+  "demo": true,
+  "howToPlay": [
+    "Press near one of your winks, then choose a squidger: Potter, Squidger or Bomber.",
+    "Pull back like a catapult and let go; the dashed oval is where it may land.",
+    "Let go as the steadiness ring meets the gold mark for a tighter landing.",
+    "Drop a wink in the cup to score and shoot again.",
+    "Land on a rival wink to freeze it; the Bomber blasts a pile apart."
+  ]
+}

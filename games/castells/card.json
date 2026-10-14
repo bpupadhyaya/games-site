@@ -1,0 +1,14 @@
+{
+  "title": "Castells",
+  "tagline": "Build it. Steady it. Crown it.",
+  "description": "The human towers of Catalonia as a puzzle. Choose who can hold whom tier by tier, steady the tower while the children climb and crown it with the aleta. Campaign, daily and free builds plus Watch & Learn.",
+  "genre": "human tower puzzle",
+  "demo": true,
+  "howToPlay": [
+    "Tap people to fill each tier from the bottom up.",
+    "Each person must hold the weight of everyone above, shared equally.",
+    "Raise the tier when everyone is strong enough, then repeat to the top.",
+    "Hold left or right to steady the tower while the children climb.",
+    "Tap Aleta when the enxaneta is on top, then take it down safely."
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "title": "Daldøs",
+  "tagline": "Throw the stick, turn your spatulas, race them home.",
+  "description": "Daldøs is a traditional board game of Norway and Denmark. Throw a four-sided stick, walk flat wooden spatulas out along your own row of a boat-shaped board, turn them over and bring them home along the shared middle row, capturing rivals by landing on them. Four computer levels, two players on one phone, hints, a Watch and Learn mode, large text and reduced motion options, no ads, works offline.",
+  "genre": "Norwegian board and stick game",
+  "demo": true,
+  "howToPlay": [
+    "Tap the tray to throw the four-sided stick. It shows 1, 2, 3 or 4.",
+    "Spatulas that can use the throw glow. Tap one and a ring shows where it lands.",
+    "Tap the ring, or the spatula again, to move. A waiting spatula is launched from your harbour.",
+    "Walk out along your own row. At the far end the spatula turns over.",
+    "Come home along the shared middle row, against your rival's traffic.",
+    "Land exactly on a single rival in the middle row to capture it. Two together are a safe pair.",
+    "A throw of 4 earns another throw.",
+    "Bring every spatula home first to win. Hint, danger marks and Auto Play help you learn."
+  ]
+}

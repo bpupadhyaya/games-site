@@ -1,0 +1,14 @@
+{
+  "title": "Ulu Maika",
+  "tagline": "Sight the lane, set the lean, swipe to roll: thread the stakes.",
+  "description": "The disc-rolling game of Hawaiʻi. Look down a sunny meadow lane, turn the sight, bow the roll with a lean and swipe to send a smooth stone disc between the gate stakes and on to the far stake. Slopes push, mud drags, boulders bar the way. Five rivals, pass-and-play, solo practice.",
+  "genre": "disc rolling skill",
+  "demo": true,
+  "howToPlay": [
+    "Drag the picture to turn the sight.",
+    "Set a lean to curve the roll left or right.",
+    "Press ROLL, swipe up and let go: farther is harder.",
+    "Pass clean between the gate stakes, then finish at the far stake.",
+    "Most points after all discs wins."
+  ]
+}

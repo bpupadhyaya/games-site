@@ -1,0 +1,17 @@
+{
+  "title": "Turkish Dama",
+  "tagline": "Turkey's draughts: orthogonal jumps, take the most.",
+  "description": "Dama is the traditional draughts game of Turkey. Pieces move and jump along rows and columns, a capture is compulsory and you must take the most pieces, and a man that reaches the far row becomes a king that flies the length of the board. Play the traditional Standard rules or the Easy capture option. Five computer levels, two players on one phone, hands-on lessons, hints that explain why, danger marks, take back and a Watch & Learn mode. A glazed-tile board, large text and reduced motion options, no ads, works offline.",
+  "genre": "Turkish draughts board game",
+  "demo": true,
+  "howToPlay": [
+    "New here? Tap Learn to play: seven short hands-on lessons where you make every move yourself.",
+    "Tap a piece and its squares glow. A man steps one square forward or sideways, never backwards or diagonally.",
+    "Jump over an enemy piece next to you, forward or sideways, onto the empty square behind it. Capturing is compulsory.",
+    "Keep jumping while you can, even round a corner, one landing square at a time. In Standard rules take the route with the most pieces.",
+    "A red ring with a number shows how many pieces a route captures.",
+    "Reach the far row and your man is crowned: a king moves and captures along a row or column over any distance.",
+    "Hint explains a good move. Danger marks warn about pieces that can be captured next. Take back undoes your last move.",
+    "Win by capturing everything or leaving your opponent with no move. Auto Play shows the computer playing both sides, with Pause."
+  ]
+}

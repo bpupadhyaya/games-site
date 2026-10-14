@@ -1,0 +1,25 @@
+{
+  "slug": "bhavai-pot-balance-dance",
+  "title": "Bhavai Pot Balance Dance",
+  "tagline": "Dance, sway and balance a tower of clay pots.",
+  "genre": "balance rhythm",
+  "orientation": "any",
+  "version": "1.1.2",
+  "monetization": {
+    "model": "premium",
+    "priceUsd": 2.99,
+    "previewSeconds": 90,
+    "products": [
+      {
+        "id": "unlock_game",
+        "type": "non-consumable",
+        "priceUsd": 2.99,
+        "title": "Unlock Game"
+      }
+    ]
+  },
+  "locales": [
+    "en"
+  ],
+  "demoOnly": true
+}

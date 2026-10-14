@@ -1,0 +1,25 @@
+{
+  "slug": "bolas-criollas",
+  "title": "Bolas Criollas",
+  "tagline": "Aim the ring, time the swing, finish nearest the mingo.",
+  "genre": "sand-court throwing",
+  "orientation": "any",
+  "version": "1.1.3",
+  "monetization": {
+    "model": "premium",
+    "priceUsd": 2.99,
+    "previewSeconds": 90,
+    "products": [
+      {
+        "id": "unlock_game",
+        "type": "non-consumable",
+        "priceUsd": 2.99,
+        "title": "Unlock Game"
+      }
+    ]
+  },
+  "locales": [
+    "en"
+  ],
+  "demoOnly": true
+}

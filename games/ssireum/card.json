@@ -1,0 +1,14 @@
+{
+  "title": "Ssireum",
+  "tagline": "Read their balance, hook the sash, win the fall.",
+  "description": "Ssireum, the sash wrestling of Korea, as a duel of reading. Both wrestlers secretly choose a pull, hook or root each beat; push the rival's balance dot over the edge of its disc. Five rivals, three rings, pass-the-phone for two, or watch and learn.",
+  "genre": "sash wrestling mind-game",
+  "demo": true,
+  "howToPlay": [
+    "Pick Pull, Hook or Root, then a power: Light, Firm or Full.",
+    "Tap a petal: on their disc to send them, on yours to root against a pull.",
+    "Lock in. Both moves play at once and the dots move.",
+    "Power costs grip, and a hard pull throws you off balance too.",
+    "Push their dot over the edge to win a fall; first to two falls wins."
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "title": "Peralikatuma",
+  "tagline": "Leap, chain and crown on an octagon of lines.",
+  "description": "Peralikatuma is a traditional jumping game from Sri Lanka, played on an octagon-shaped board of lines. Hop over your opponent's gems to capture them, chain leaps in one move, and crown a Star. Two rule sets, five computer levels, two players on one phone, hands-on lessons, hints that explain why, danger marks, take back and a Watch & Learn mode. Large text and reduced motion options, no ads, works offline.",
+  "genre": "Sri Lankan jumping board game",
+  "demo": true,
+  "howToPlay": [
+    "New here? Tap Learn to play: eight short hands-on lessons where you make every move yourself.",
+    "Tap a piece and the points it can reach glow. A man steps one point forward, diagonally forward from an X point, or sideways.",
+    "Leap an enemy piece next to you onto the free point straight behind it. Keep leaping: a chain is one move.",
+    "A capture is compulsory. Pieces that can leap pulse; a refused move says why.",
+    "Reach the two far rows and your man is crowned a Star that moves in every direction.",
+    "Classic Stars fly along whole lines; Gentle Stars move one point. Capture every piece or block your opponent to win.",
+    "Hint explains a good move. Danger marks warn about pieces that can be captured next. Take back undoes your last move.",
+    "Auto Play shows the computer playing both sides, with Pause. 25 quiet moves each settle the game on strength."
+  ]
+}

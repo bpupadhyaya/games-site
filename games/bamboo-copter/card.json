@@ -1,0 +1,14 @@
+{
+  "title": "Bamboo Copter",
+  "tagline": "Rub it, let go, watch it fly.",
+  "description": "The ancient spinning toy of China, rebuilt for your phone. Rub the shaft between your palms, let go in the gold band and fly the little rotor over bamboo groves, terraced hills and village roofs. Ride warm columns, gather lanterns and land on the ring. Meadow sessions, a daily sky, free flight and Watch & Learn.",
+  "genre": "toy skill",
+  "demo": true,
+  "howToPlay": [
+    "Tap one of the three rotors in the tray.",
+    "Set Lean: left or right for the sideways push at release.",
+    "Press the shaft and rub left and right until the meter reaches the gold band, then let go.",
+    "In the air hold a side of the screen to lean the rotor; it costs spin.",
+    "Gather lanterns, ride warm columns and land on a ring."
+  ]
+}

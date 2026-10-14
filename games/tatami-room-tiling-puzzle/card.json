@@ -1,0 +1,14 @@
+{
+  "title": "Tatami Room Tiling Puzzle",
+  "tagline": "Fill the room. Never let four corners meet.",
+  "description": "Lay woven straw mats across a Japanese-style room so that no point touches the corners of four different mats. Every room has exactly one solution, with hints that teach, a daily puzzle and four seasons. Portrait or landscape, phone or tablet.",
+  "genre": "Tiling logic puzzle",
+  "demo": true,
+  "howToPlay": [
+    "Cover every square of the room using all the mats you are given.",
+    "Pick a full or half mat, then tap a square or drag across two.",
+    "Never let the corners of four different mats meet at one point.",
+    "Tap the lamp for a hint: where to look, then why it works.",
+    "Watch and Learn lays a whole room and explains every mat."
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "title": "Finnish Pin Toss",
+  "tagline": "Throw. Topple. Land on exactly 50.",
+  "description": "The Finnish lawn game of numbered skittles with real tumbling physics. Pull back, let go, and land on exactly 50 against four rivals or friends on one phone.",
+  "genre": "lawn skittle throwing game",
+  "demo": true,
+  "howToPlay": [
+    "Press on the lawn and pull straight down, then let go to throw.",
+    "Hold still to shrink the ring and steady your hand.",
+    "One skittle scores its number; several score how many fell.",
+    "Land on exactly 50 to win; go over and drop back to 25.",
+    "Three misses in a row and you are out."
+  ]
+}

@@ -19,6 +19,24 @@
     "play": "games/abacus-soroban-beads/play/"
   },
   {
+    "slug": "akan-gold-weight-balance",
+    "stage": "release-candidate",
+    "title": "Akan Gold-Weight Balance",
+    "tagline": "Measure the gold dust exactly, in the fewest weighings.",
+    "description": "A brass pan balance, a handful of cast weights and a customer's order. Put weights on both pans, even weigh the bag itself, and serve each order in as few weighings as you can. Hints that teach, a Daily Order and Watch and Learn. Portrait or landscape.",
+    "genre": "Logic puzzle",
+    "demo": true,
+    "howToPlay": [
+      "Fill the bag with exactly the amount on the order slip.",
+      "Drag weights onto the pans, or tap a weight to send it to a pan.",
+      "The dust poured is what the right pan weighs minus the left.",
+      "From market day three the bag itself can sit on a pan.",
+      "Tap the lamp for a hint: where to look, then why it works."
+    ],
+    "icon": "games/akan-gold-weight-balance/icon.svg",
+    "play": "games/akan-gold-weight-balance/play/"
+  },
+  {
     "slug": "alquerque-twelve-and-twelve",
     "stage": "release-candidate",
     "title": "Alquerque: Twelve and Twelve",
@@ -52,6 +70,24 @@
     ],
     "icon": "games/american-football-seven-on-seven/icon.svg",
     "play": "games/american-football-seven-on-seven/play/"
+  },
+  {
+    "slug": "amidakuji",
+    "stage": "release-candidate",
+    "title": "Amidakuji",
+    "tagline": "The ghost-leg ladder of Japan: build it, trace it, draw lots.",
+    "description": "Follow a line down and take every rung. Build ladders that bring every paper lantern home, trace a path against the clock, or draw lots with friends on one device. Hints that teach, a Daily Ladder and Watch and Learn. Portrait or landscape.",
+    "genre": "Ladder puzzle",
+    "demo": true,
+    "howToPlay": [
+      "Each lantern slides down its line and crosses every rung it meets.",
+      "Tap between two lines to add a rung, tap your rung again to take it back.",
+      "Press Release: every lantern must land in the bowl with its own colour and number.",
+      "Tap the lamp for a hint: where to look, then why it works.",
+      "Try Follow the Line against the clock, or Draw Lots with friends."
+    ],
+    "icon": "games/amidakuji/icon.svg",
+    "play": "games/amidakuji/play/"
   },
   {
     "slug": "ampe-jump-and-clap",
@@ -88,6 +124,42 @@
     ],
     "icon": "games/anansi-tales-trickster/icon.svg",
     "play": "games/anansi-tales-trickster/play/"
+  },
+  {
+    "slug": "asmara-highland-road-race",
+    "stage": "release-candidate",
+    "title": "Asmara Highland Road Race",
+    "tagline": "Pace the climb, hide in the group and attack when it counts.",
+    "description": "A stage race over the Eritrean highland roads. Manage three riders against five rival teams: sit in the slipstream, pull, save your reserve and launch your attack on the hairpin climbs. Six stages, a time trial, and Watch & Learn.",
+    "genre": "road cycling / pacing strategy",
+    "demo": true,
+    "howToPlay": [
+      "Tap one of your three riders, then choose EASE, SIT IN, PUSH or ATTACK.",
+      "Sit behind another rider to save about a third of the effort on the flat.",
+      "Hard efforts spend a reserve; at zero your rider cracks and slows down.",
+      "Spend the reserve where it pays most: on the steep climbs and in the finale.",
+      "Think shows the best orders found by trying the next minute several ways."
+    ],
+    "icon": "games/asmara-highland-road-race/icon.svg",
+    "play": "games/asmara-highland-road-race/play/"
+  },
+  {
+    "slug": "axe-throwing",
+    "stage": "release-candidate",
+    "title": "Axe Throwing",
+    "tagline": "Turn it once and bite the bull.",
+    "description": "A calm target sport from the lumber-camp traditions of Canada and the United States. Aim at the painted board, let go on the swing so the axe turns exactly once, and out-score a league rival across four venues with wind and a sliding board.",
+    "genre": "axe throwing skill",
+    "demo": true,
+    "howToPlay": [
+      "Press the board to aim; drag to place the reticle.",
+      "The swing marker sweeps: let go inside a green band.",
+      "A good swing turns the axe once and the blade bites in.",
+      "Rings score 6 to 1; the corner spots are worth 7.",
+      "Read wind and the sliding board; use Think for a hint."
+    ],
+    "icon": "games/axe-throwing/icon.svg",
+    "play": "games/axe-throwing/play/"
   },
   {
     "slug": "badminton-rally",
@@ -129,6 +201,24 @@
     "play": "games/baloot-sun-hokum-table/play/"
   },
   {
+    "slug": "bamboo-copter",
+    "stage": "release-candidate",
+    "title": "Bamboo Copter",
+    "tagline": "Rub it, let go, watch it fly.",
+    "description": "The ancient spinning toy of China, rebuilt for your phone. Rub the shaft between your palms, let go in the gold band and fly the little rotor over bamboo groves, terraced hills and village roofs. Ride warm columns, gather lanterns and land on the ring. Meadow sessions, a daily sky, free flight and Watch & Learn.",
+    "genre": "toy skill",
+    "demo": true,
+    "howToPlay": [
+      "Tap one of the three rotors in the tray.",
+      "Set Lean: left or right for the sideways push at release.",
+      "Press the shaft and rub left and right until the meter reaches the gold band, then let go.",
+      "In the air hold a side of the screen to lean the rotor; it costs spin.",
+      "Gather lanterns, ride warm columns and land on a ring."
+    ],
+    "icon": "games/bamboo-copter/icon.svg",
+    "play": "games/bamboo-copter/play/"
+  },
+  {
     "slug": "bao-la-kiswahili",
     "stage": "release-candidate",
     "title": "Bao la Kiswahili",
@@ -148,6 +238,24 @@
     ],
     "icon": "games/bao-la-kiswahili/icon.svg",
     "play": "games/bao-la-kiswahili/play/"
+  },
+  {
+    "slug": "barrel-racing",
+    "stage": "release-candidate",
+    "title": "Barrel Racing",
+    "tagline": "Ride the cloverleaf: turn three barrels and beat the clock.",
+    "description": "Barrel racing is the rodeo clock race of the United States and Canada. See the arena from above, steer with one thumb, slow for the turns and find the fastest clean line. Rodeo Cup, endless Time Trial, Practice, Learn drills, Think hints and Watch & Learn.",
+    "genre": "mounted sport / time trial",
+    "demo": true,
+    "howToPlay": [
+      "Choose a horse at the line to set off.",
+      "Slide your thumb left or right to steer, down to slow.",
+      "Turn the right barrel, the left barrel, then the far barrel.",
+      "Flick your thumb up or tap Burst once for a surge on the run home.",
+      "Knocking a barrel adds 5 seconds. Beat the rival's total."
+    ],
+    "icon": "games/barrel-racing/icon.svg",
+    "play": "games/barrel-racing/play/"
   },
   {
     "slug": "baseball-home-run-derby",
@@ -180,6 +288,65 @@
     "play": "games/basketball-three-on-three/play/"
   },
   {
+    "slug": "beach-flags",
+    "stage": "release-candidate",
+    "title": "Beach Flags",
+    "tagline": "Sprint, dive and grab the last flag on the sand.",
+    "description": "The beach sprint of Australian surf lifesaving carnivals. Lie flat, spin on the whistle, tap in rhythm, steer to a flag and dive for it: there is always one flag fewer than racers. Cups, Sudden Death, a Daily Beach and Watch & Learn modes.",
+    "genre": "beach sprint, flags race",
+    "demo": true,
+    "howToPlay": [
+      "Lie flat until the whistle, then tap once to spin and get up.",
+      "Tap in a steady rhythm: stay in the gold window of the rhythm bar.",
+      "Tap to the side of your runner to steer towards a flag.",
+      "Press DIVE when the flag is close to stretch for it.",
+      "One flag is missing every round: be the racer who holds the last one."
+    ],
+    "icon": "games/beach-flags/icon.svg",
+    "play": "games/beach-flags/play/"
+  },
+  {
+    "slug": "bentengan",
+    "stage": "release-candidate",
+    "title": "Bentengan",
+    "tagline": "Two forts, one rule: the later leaver wins",
+    "description": "Bentengan is the two-fort tag game of Indonesia. Guard your pole, step out at the right moment, tag rivals into jail and free your own team before the rival pole falls. Tap to command, three computer levels, a hint that explains itself, Auto Play, a full Rules page, large text and portrait or landscape play. No ads, works offline.",
+    "genre": "tag and tactics",
+    "demo": true,
+    "howToPlay": [
+      "TAP a player to pick him, then TAP the field to send him there.",
+      "TAP a rival to chase him, or TAP the rival pole to run for it.",
+      "Numbers above players show who left the fort first; the higher number tags the lower.",
+      "A tagged player goes to jail. TAP your jail with a free player to free everyone in it.",
+      "Inside your fort ring you are safe and your number resets.",
+      "Touch the rival pole, or jail all four rivals, to win the round.",
+      "First to three rounds wins the match.",
+      "Keyboard: 1 to 4 pick a player, Space picks the next, H is a hint."
+    ],
+    "icon": "games/bentengan/icon.svg",
+    "play": "games/bentengan/play/"
+  },
+  {
+    "slug": "bhavai-pot-balance-dance",
+    "stage": "release-candidate",
+    "title": "Bhavai Pot Balance Dance",
+    "tagline": "Dance to the drum and balance a tower of pots.",
+    "description": "Bhavai Pot Balance Dance turns the folk pot dance of Rajasthan into a balance and rhythm game. Slide a finger to steer the dancer onto footprints in time with the drum while a growing tower of clay pots sways on her head. Eight courtyards, spins, wind, Practice, Watch and Learn, an in-app Rules book, portrait and landscape play, synthesised sound, no ads.",
+    "genre": "balance rhythm",
+    "demo": true,
+    "howToPlay": [
+      "Slide a finger sideways: the dancer follows it.",
+      "Be on the footprint when it reaches the gold line on the beat.",
+      "Catch the tower's lean by moving under it; smooth moves keep it quiet.",
+      "Spins push the tower: lean the other way first, then settle.",
+      "Keep still for a pot beat to add another pot to the tower.",
+      "Watch and Learn dances the act for you and thinks before each phrase. Pause it any time.",
+      "On a keyboard: Left and Right steer, P pauses, H hints in Practice."
+    ],
+    "icon": "games/bhavai-pot-balance-dance/icon.svg",
+    "play": "games/bhavai-pot-balance-dance/play/"
+  },
+  {
     "slug": "big-card-solitaire-large-print",
     "stage": "prototype",
     "title": "Big Card Solitaire",
@@ -197,6 +364,44 @@
     ],
     "icon": "games/big-card-solitaire-large-print/icon.svg",
     "play": "games/big-card-solitaire-large-print/play/"
+  },
+  {
+    "slug": "billycart-derby",
+    "stage": "release-candidate",
+    "title": "Billycart Derby",
+    "tagline": "Build it. Steer it. Roll it down the hill.",
+    "description": "A gravity-powered cart race seen from behind the cart: build your billycart from wheels, frame, steering, brake and ballast, then steer it past hay bales and crowds against three rivals. Five hills, a daily hill, ghosts and a cup.",
+    "genre": "Gravity cart racing",
+    "demo": true,
+    "howToPlay": [
+      "Build your cart in the garage: each part has trade-offs.",
+      "Tap just after GO for a launch, then slide your thumb to steer.",
+      "Brake before bends: too fast and the cart slides wide.",
+      "Take the inside line, dodge ruts and bales, draft rivals.",
+      "Beat three rivals, or the ghost of your best run."
+    ],
+    "icon": "games/billycart-derby/icon.svg",
+    "play": "games/billycart-derby/play/"
+  },
+  {
+    "slug": "blind-mans-buff",
+    "stage": "release-candidate",
+    "title": "Blind Man's Buff",
+    "tagline": "Hunt by ear. Catch, then name who it is.",
+    "description": "The party game of Colin-Maillard in a candlelit eighteenth-century room. Follow claps and giggles that appear as ripples, call out, catch a guest, then feel for clues and name them. Swap sides in Hide and Dodge. Four rooms, stereo sound, Watch and Learn, a full Rules page and text size up to 300%. Points only, no ads, works offline.",
+    "genre": "listening chase",
+    "demo": true,
+    "howToPlay": [
+      "Tap the room to walk there; ripples show where sounds came from.",
+      "Press Call to clap: guests nearby answer, so you can map the room.",
+      "When a warm shape is within reach, press Reach to sweep your arms.",
+      "Feel the clues, pick the portrait of who you caught and confirm.",
+      "Name everyone before the sand runs out for up to three feathers.",
+      "Hide and Dodge: tiptoe is silent, steps and Tease are heard.",
+      "On a keyboard: arrows steer, Space reaches, C calls, F feels more."
+    ],
+    "icon": "games/blind-mans-buff/icon.svg",
+    "play": "games/blind-mans-buff/play/"
   },
   {
     "slug": "bocce-roll",
@@ -217,6 +422,24 @@
     "play": "games/bocce-roll/play/"
   },
   {
+    "slug": "bolas-criollas",
+    "stage": "release-candidate",
+    "title": "Bolas Criollas",
+    "tagline": "Aim the ring, time the swing, finish nearest the mingo.",
+    "description": "The sand-court throwing game of Venezuela. Roll, lob or shoot heavy balls at the little white mingo on a cancha of loose and packed sand, time your release in the green, and outplay five rivals or a friend.",
+    "genre": "sand-court throwing",
+    "demo": true,
+    "howToPlay": [
+      "Touch the cancha to place the aim ring where the ball should land.",
+      "Choose Roll, Lob or Shot.",
+      "Hold SWING and let go while the needle is in the green.",
+      "Closest ball to the mingo scores for each ball that beats the rival's best.",
+      "First to 12 points wins."
+    ],
+    "icon": "games/bolas-criollas/icon.svg",
+    "play": "games/bolas-criollas/play/"
+  },
+  {
     "slug": "bonsai-prune-and-shape",
     "stage": "release-candidate",
     "title": "Bonsai",
@@ -235,6 +458,45 @@
     "play": "games/bonsai-prune-and-shape/play/"
   },
   {
+    "slug": "bozo-net-casting",
+    "stage": "release-candidate",
+    "title": "Bozo Net Casting",
+    "tagline": "Open the net over the river.",
+    "description": "The cast net of the great West African river: stand in a dugout canoe, read the shoals, choose a net and its weights, swing and let go when it opens wide. Dawn, noon, golden hour and dusk waters, low water to flood, a daily river, a logbook of the delta's fish, and Watch & Learn.",
+    "genre": "net casting skill",
+    "demo": true,
+    "howToPlay": [
+      "Tap one of the three nets, then Shallow, Middle or Deep for its weights.",
+      "Press the water where the net should land and keep your finger down: the net swings.",
+      "Let go when the circle is widest, in the green band of the gauge.",
+      "Lead the shoal and read the current: a slow net lets fish dart away.",
+      "Six casts make a session; use Think for a suggestion."
+    ],
+    "icon": "games/bozo-net-casting/icon.svg",
+    "play": "games/bozo-net-casting/play/"
+  },
+  {
+    "slug": "bulgarian-asymmetric-rhythm",
+    "stage": "release-candidate",
+    "title": "Bulgarian Asymmetric Rhythm",
+    "tagline": "Stitch 7/8 and 11/8 dance rhythms as a village horo grows.",
+    "description": "A rhythm game inspired by the odd-meter dance music of Bulgaria. A needle runs along an embroidered sash, one pulse at a time, with the pulses gathered in groups of two and three. Tap the drum, clap and step pads to stitch each cell; play cleanly and more dancers join the line while the band grows. Learn by echo, perform for stars, or watch the band play. Six original pieces from 5/8 to 11/8, Rules with text size to 300%, synthesised sound, no ads.",
+    "genre": "rhythm music",
+    "demo": true,
+    "howToPlay": [
+      "Pick a piece, then Learn: the lead drummer plays a short phrase and you echo it back.",
+      "A needle runs along the bar one pulse at a time. Cells are grouped in twos and threes: 2+2+3 in 7/8.",
+      "Tap the red DRUM pad when the needle reaches a red disc, usually the first pulse of a group.",
+      "Tap the gold CLAP pad for a clap burst and the green STEP pad for a boot print.",
+      "Each cell you play is stitched into the sash: a full cross for clean timing, a gap for a miss.",
+      "Play cleanly and the Flow bar fills: more dancers join the horo and the band joins in.",
+      "The next bar is shown below, so you can see the grouping shift before the needle arrives.",
+      "On a keyboard: Space drum, C clap, S step, P pause, H hint."
+    ],
+    "icon": "games/bulgarian-asymmetric-rhythm/icon.svg",
+    "play": "games/bulgarian-asymmetric-rhythm/play/"
+  },
+  {
     "slug": "bulls-and-cows-code",
     "stage": "release-candidate",
     "title": "Bulls and Cows",
@@ -251,6 +513,58 @@
     ],
     "icon": "games/bulls-and-cows-code/icon.svg",
     "play": "games/bulls-and-cows-code/play/"
+  },
+  {
+    "slug": "buzkashi",
+    "stage": "release-candidate",
+    "title": "Buzkashi",
+    "tagline": "Scoop the sack, round the post, ride into the circle.",
+    "description": "Buzkashi is the team horse game of Afghanistan and Central Asia. See the field from above, ride with one finger, scoop the sack, round the post and strip it from rivals. Winter Cup, Gauntlet, Practice, Learn drills, Think hints and Watch & Learn.",
+    "genre": "mounted sport / team game",
+    "demo": true,
+    "howToPlay": [
+      "Hold a finger where you want your rider to go.",
+      "Tap Grab near the loose sack, slowly, to scoop it.",
+      "Carry it round the post at the far end.",
+      "Ride into the white circle to score a carry.",
+      "Ride alongside a rival and tap Grab to strip the sack."
+    ],
+    "icon": "games/buzkashi/icon.svg",
+    "play": "games/buzkashi/play/"
+  },
+  {
+    "slug": "canal-pole-vault",
+    "stage": "release-candidate",
+    "title": "Canal Pole Vault",
+    "tagline": "Plant, climb and leap the canal",
+    "description": "Sprint, plant a long pole in a Dutch canal, climb as it swings over the upright and let go to land on the far sand bed. Four canals, a lifelike jumper and a real pendulum pole.",
+    "genre": "timing sport",
+    "demo": true,
+    "howToPlay": [
+      "Tap on the beat to build speed, then tap once to plant at the board.",
+      "Hold to climb the pole once it swings over the upright, release to rest.",
+      "Choose a lean and let go to land as far as you can on the sand."
+    ],
+    "icon": "games/canal-pole-vault/icon.svg",
+    "play": "games/canal-pole-vault/play/"
+  },
+  {
+    "slug": "candlepin-bowling",
+    "stage": "release-candidate",
+    "title": "Candlepin Bowling",
+    "tagline": "Small ball, slim pins, and every fallen pin stays: use the wood.",
+    "description": "New England candlepin bowling with real pin physics in a lit 3D alley. Slide, aim, pick your pace and curve, and use the wood: fallen pins stay on the lane. Six rivals, sixteen Wood Puzzles, two players and Watch & Learn.",
+    "genre": "candlepin bowling / physics",
+    "demo": true,
+    "howToPlay": [
+      "Drag along the lower lane to slide the ball; touch the pin deck to aim.",
+      "Choose Soft, Firm or Fast and add curve with the arrows, then press ROLL.",
+      "Three balls a frame, ten frames; fallen pins stay on the lane as wood.",
+      "Strike scores 10 plus the next two balls; a spare 10 plus the next ball.",
+      "Use the wood: bank the ball off lying pins into the ones still standing."
+    ],
+    "icon": "games/candlepin-bowling/icon.svg",
+    "play": "games/candlepin-bowling/play/"
   },
   {
     "slug": "carrom-striker-and-queen",
@@ -272,6 +586,63 @@
     ],
     "icon": "games/carrom-striker-and-queen/icon.svg",
     "play": "games/carrom-striker-and-queen/play/"
+  },
+  {
+    "slug": "castells",
+    "stage": "release-candidate",
+    "title": "Castells",
+    "tagline": "Build it. Steady it. Crown it.",
+    "description": "The human towers of Catalonia as a puzzle. Choose who can hold whom tier by tier, steady the tower while the children climb and crown it with the aleta. Campaign, daily and free builds plus Watch & Learn.",
+    "genre": "human tower puzzle",
+    "demo": true,
+    "howToPlay": [
+      "Tap people to fill each tier from the bottom up.",
+      "Each person must hold the weight of everyone above, shared equally.",
+      "Raise the tier when everyone is strong enough, then repeat to the top.",
+      "Hold left or right to steady the tower while the children climb.",
+      "Tap Aleta when the enxaneta is on top, then take it down safely."
+    ],
+    "icon": "games/castells/icon.svg",
+    "play": "games/castells/play/"
+  },
+  {
+    "slug": "charro-lasso-roping",
+    "stage": "release-candidate",
+    "title": "Charro Lasso Roping",
+    "tagline": "Spin the loop to the beat, then rope the running horse",
+    "description": "The Mexican rope art on your phone: tap the knots on the beat through six named tricks, then hold and throw the loop to settle it over a painted target rolling down the rail. Three levels, a rival charro, Hints and a full Auto Play.",
+    "genre": "rope skill",
+    "demo": true,
+    "howToPlay": [
+      "Tap anywhere as each knot meets the gold ring.",
+      "Hold the long bars and let go when they reach the ring.",
+      "Hits in a row build a multiplier up to x4.",
+      "On a run, press and hold to grow the loop, then let go to throw.",
+      "A dashed ring shows where the target will be when the loop lands.",
+      "The charro with the higher total wins the event."
+    ],
+    "icon": "games/charro-lasso-roping/icon.svg",
+    "play": "games/charro-lasso-roping/play/"
+  },
+  {
+    "slug": "chaturanga",
+    "stage": "release-candidate",
+    "title": "Chaturanga",
+    "tagline": "The ancient ancestor of chess, with a tutor beside you",
+    "description": "Chaturanga is the ancient strategy game of India and the ancestor of chess: leaping elephants, a stepping counsellor and wins by stalemate or a bare Raja. Play five computer levels, learn in fourteen short lessons, compare ancient and modern movements side by side, or watch two computers play. Full rules inside, large text, no ads.",
+    "genre": "Ancient chess",
+    "demo": true,
+    "howToPlay": [
+      "New here? Tap Learn: fourteen short lessons where you make every move yourself.",
+      "Tap a piece, then a lit square, or drag it. Dots are quiet moves and red rings are captures.",
+      "Checkmate the other Raja to win. Ivory moves first.",
+      "The Gaja (elephant) leaps two squares diagonally. A Padati that reaches the last rank becomes a Mantri.",
+      "In the ancient game a side with no legal move, or only a bare Raja, loses.",
+      "History shows each piece on an ancient and a modern board. Moves switches the movement set.",
+      "Watch & Learn plays a whole game between two computers: guess the move, then see it revealed. Pause any time."
+    ],
+    "icon": "games/chaturanga/icon.svg",
+    "play": "games/chaturanga/play/"
   },
   {
     "slug": "chess-royal-sixty-four",
@@ -316,6 +687,24 @@
     "play": "games/chinese-rings-puzzle/play/"
   },
   {
+    "slug": "chinlone",
+    "stage": "release-candidate",
+    "title": "Chinlone",
+    "tagline": "Keep the cane ball dancing.",
+    "description": "The cane-ball circle dance of Myanmar, with six dancers in 3D. You lead the dance: tap the named touch (inside foot, knee, back-heel, neck roll, shoulder roll) as the ring closes on the dancer who plays it. Chain patterns, build flow and keep the ball moving. Nobody wins or loses; the aim is a beautiful dance.",
+    "genre": "cooperative rhythm dance",
+    "demo": true,
+    "howToPlay": [
+      "Watch the ring close on the dancer who is about to touch the ball.",
+      "Tap the matching pad just before it closes: foot, knee, heel, neck or shoulder.",
+      "Perfect timing fills the flow bar and raises your score multiplier.",
+      "Land the touches of a named pattern in a row for a bonus.",
+      "Dance four rounds; harmony earns up to five stars and new courtyards."
+    ],
+    "icon": "games/chinlone/icon.svg",
+    "play": "games/chinlone/play/"
+  },
+  {
     "slug": "chogan-persian-polo",
     "stage": "release-candidate",
     "title": "Chogan",
@@ -332,6 +721,83 @@
     ],
     "icon": "games/chogan-persian-polo/icon.svg",
     "play": "games/chogan-persian-polo/play/"
+  },
+  {
+    "slug": "chungi",
+    "stage": "release-candidate",
+    "title": "Chungi",
+    "tagline": "Keep the stretchy ball flying.",
+    "description": "The rubber-band footbag street game of Nepal. Tap toward where the ball should go, ricochet it off the alley walls, drop it through hoops and chain tricks. Street Run, Hoop Rally, Daily Alley and Watch & Learn modes.",
+    "genre": "rubber-band footbag skill",
+    "demo": true,
+    "howToPlay": [
+      "Tap toward the side you want the ball to travel when it is low.",
+      "Low contact is a toe poke, middle the inside foot, high a knee pop.",
+      "Strike right above the foot for a Perfect kick.",
+      "Ricochet off the walls and drop the ball through hoops for bonuses.",
+      "The run ends when the ball touches the ground."
+    ],
+    "icon": "games/chungi/icon.svg",
+    "play": "games/chungi/play/"
+  },
+  {
+    "slug": "circle-dodgeball",
+    "stage": "release-candidate",
+    "title": "Circle Dodgeball",
+    "tagline": "Dodge, catch and burn them all.",
+    "description": "The playground ball game of Brazil, Germany and Italy as a fast real-time sport. Run, throw and pass, step out of the red warning ring or catch at the last moment to burn the thrower. Queimada courts and Volkerball rings in four places, play inside the circle or on the ring. Watch and Learn, a full Rules page and text size up to 300%. Points only, no ads, works offline.",
+    "genre": "sports",
+    "demo": true,
+    "howToPlay": [
+      "Tap the ground to run there; your player has a gold ring.",
+      "Run over a loose ball on your side to pick it up.",
+      "With the ball, tap an opponent to throw or a teammate to pass.",
+      "Fast or Lob: lobs arc over the others and drop in one spot.",
+      "A red ring shows where a ball will land: step away or press Catch.",
+      "A catch burns the thrower and brings a teammate back.",
+      "On a keyboard: arrows steer, Space throws, C catches, L swaps fast and lob."
+    ],
+    "icon": "games/circle-dodgeball/icon.svg",
+    "play": "games/circle-dodgeball/play/"
+  },
+  {
+    "slug": "cirit",
+    "stage": "release-candidate",
+    "title": "Cirit",
+    "tagline": "Gallop, throw and wheel away in the great mounted javelin game.",
+    "description": "Cirit is the traditional mounted game of Turkey. Ride a galloping 3D horse, lead your throw at the runner's target, then switch roles and dodge the answer by lane, pace or lean. Festival Cup, Practice, Learn drills, Think hints and Watch & Learn.",
+    "genre": "mounted sport / javelin game",
+    "demo": true,
+    "howToPlay": [
+      "Slide the pace bar on the left: canter to full gallop.",
+      "Chasing: drag the ring ahead of the runner and let go to throw.",
+      "Aim where he will be: the javelin takes a moment to arrive.",
+      "Fleeing: leave the red ring, swipe to change lane or tap LEAN.",
+      "Bullseyes, style and dodges score; the higher total wins."
+    ],
+    "icon": "games/cirit/icon.svg",
+    "play": "games/cirit/play/"
+  },
+  {
+    "slug": "co-ganh",
+    "stage": "release-candidate",
+    "title": "Co Ganh",
+    "tagline": "Flank them, trap them, flip them all.",
+    "description": "Co Ganh (Cờ gánh) is a traditional Vietnamese game played on a small board of lines and diagonals. Step one point at a time: land between two enemy pieces and both flip to your colour, or close the last gap round a group and the whole group flips. Five computer levels, two players on one phone, hands-on lessons, hints that explain why, danger marks, take back and a Watch & Learn mode. A rice-paper board with lacquer pieces that turn like coins, large text and reduced motion options, no ads, works offline.",
+    "genre": "Vietnamese flanking board game",
+    "demo": true,
+    "howToPlay": [
+      "New here? Tap Learn to play: six short hands-on lessons where you make every move yourself.",
+      "Tap a piece and its reachable points glow. A piece steps one point along a line.",
+      "Diagonal lines run only through points whose row plus column is even; the board shows them.",
+      "Flank: step between two enemy pieces on a line and both flip to your colour.",
+      "A gold ring means that step flips pieces; the number says how many.",
+      "Trap: close the last empty point round an enemy group and the whole group flips.",
+      "Open point: if the enemy leaves a point you can flank into, you must step in.",
+      "Auto Play shows the computer playing both sides, with Pause. Hint explains a good move."
+    ],
+    "icon": "games/co-ganh/icon.svg",
+    "play": "games/co-ganh/play/"
   },
   {
     "slug": "congklak-sungka-shells",
@@ -389,6 +855,24 @@
     ],
     "icon": "games/cornhole-bag-toss/icon.svg",
     "play": "games/cornhole-bag-toss/play/"
+  },
+  {
+    "slug": "costa-rican-painted-oxcart",
+    "stage": "release-candidate",
+    "title": "Costa Rican Painted Oxcart",
+    "tagline": "Paint a sunburst wheel stroke by stroke, then watch the cart roll.",
+    "description": "A calm pattern puzzle inspired by the painted oxcarts of Costa Rica. Paint wheels, cart panels and yokes with symmetric strokes from limited paint pots, keep touching segments apart and meet each commission's rules. Hints that explain, Watch and Learn, Free Painting and a Gallery.",
+    "genre": "Craft pattern puzzle",
+    "demo": true,
+    "howToPlay": [
+      "Tap a paint pot, then tap or drag across the wheel to paint.",
+      "One stroke paints every matching segment of the symmetric set.",
+      "Touching segments must differ, and every pot must end empty.",
+      "Use the bulb for a hint that explains, or Watch and Learn.",
+      "Finished pieces roll down the road and hang in your Gallery."
+    ],
+    "icon": "games/costa-rican-painted-oxcart/icon.svg",
+    "play": "games/costa-rican-painted-oxcart/play/"
   },
   {
     "slug": "crokinole-disc-flick",
@@ -464,6 +948,45 @@
     ],
     "icon": "games/curling-stone-and-sweep/icon.svg",
     "play": "games/curling-stone-and-sweep/play/"
+  },
+  {
+    "slug": "cymbergaj",
+    "stage": "release-candidate",
+    "title": "Cymbergaj",
+    "tagline": "Slide the paddle. Strike the brass puck. Score at the far end.",
+    "description": "The Polish puck table duel. Slide your paddle, strike the brass puck, bank it off the rail and score past five computer rivals or a friend on the same phone. A calm mode, a Hint and Watch & Learn help you get better.",
+    "genre": "air table puck duel",
+    "demo": true,
+    "howToPlay": [
+      "Slide a finger on your half of the table and your paddle follows.",
+      "Strike the puck with a moving paddle: the faster the paddle, the faster the puck.",
+      "Score by getting the puck into the goal at the far end, between the two posts.",
+      "Use the side rails for bank shots; the paddles never cross the middle line.",
+      "First to 5 goals (or 7 in a full match) wins; the side that conceded serves."
+    ],
+    "icon": "games/cymbergaj/icon.svg",
+    "play": "games/cymbergaj/play/"
+  },
+  {
+    "slug": "daldos",
+    "stage": "release-candidate",
+    "title": "Daldøs",
+    "tagline": "Throw the stick, turn your spatulas, race them home.",
+    "description": "Daldøs is a traditional board game of Norway and Denmark. Throw a four-sided stick, walk flat wooden spatulas out along your own row of a boat-shaped board, turn them over and bring them home along the shared middle row, capturing rivals by landing on them. Four computer levels, two players on one phone, hints, a Watch and Learn mode, large text and reduced motion options, no ads, works offline.",
+    "genre": "Norwegian board and stick game",
+    "demo": true,
+    "howToPlay": [
+      "Tap the tray to throw the four-sided stick. It shows 1, 2, 3 or 4.",
+      "Spatulas that can use the throw glow. Tap one and a ring shows where it lands.",
+      "Tap the ring, or the spatula again, to move. A waiting spatula is launched from your harbour.",
+      "Walk out along your own row. At the far end the spatula turns over.",
+      "Come home along the shared middle row, against your rival's traffic.",
+      "Land exactly on a single rival in the middle row to capture it. Two together are a safe pair.",
+      "A throw of 4 earns another throw.",
+      "Bring every spatula home first to win. Hint, danger marks and Auto Play help you learn."
+    ],
+    "icon": "games/daldos/icon.svg",
+    "play": "games/daldos/play/"
   },
   {
     "slug": "dame-ghana-draughts",
@@ -576,6 +1099,24 @@
     "play": "games/diketo-stones/play/"
   },
   {
+    "slug": "disc-flip",
+    "stage": "release-candidate",
+    "title": "Disc-flip",
+    "tagline": "Press it. Hop it. Pot it.",
+    "description": "The English parlour game with a felt mat and a cup. Press a big disc on a small one to hop it into the cup or onto a rival's, with the odds shown as you aim.",
+    "genre": "dexterity flicking game",
+    "demo": true,
+    "howToPlay": [
+      "Press near one of your winks, then choose a squidger: Potter, Squidger or Bomber.",
+      "Pull back like a catapult and let go; the dashed oval is where it may land.",
+      "Let go as the steadiness ring meets the gold mark for a tighter landing.",
+      "Drop a wink in the cup to score and shoot again.",
+      "Land on a rival wink to freeze it; the Bomber blasts a pile apart."
+    ],
+    "icon": "games/disc-flip/icon.svg",
+    "play": "games/disc-flip/play/"
+  },
+  {
     "slug": "djembe-drum-circle",
     "stage": "release-candidate",
     "title": "Djembe Drum Circle",
@@ -596,6 +1137,24 @@
     "play": "games/djembe-drum-circle/play/"
   },
   {
+    "slug": "doko-porter-trail",
+    "stage": "release-candidate",
+    "title": "Doko Porter Trail",
+    "tagline": "Steady the load on the mountain trail, pace your breath, rest in time.",
+    "description": "Carry a loaded doko up a hill trail in Nepal. One thumb leans the load and sets your pace; stone steps jolt it, bridges sway, the wind pushes. Rest at the right places and reach the village before dusk. Hints that teach, a Daily Trail and Watch and Learn.",
+    "genre": "Balance journey",
+    "demo": true,
+    "howToPlay": [
+      "Touch and hold to walk; lift your thumb to rest.",
+      "Drag sideways to lean and keep the load upright.",
+      "Drag up or down to hurry or slow your steps.",
+      "Slow down on steps, break your step on bridges.",
+      "Rest on a chautara to catch your breath."
+    ],
+    "icon": "games/doko-porter-trail/icon.svg",
+    "play": "games/doko-porter-trail/play/"
+  },
+  {
     "slug": "domino-cubano-doble-nueve",
     "stage": "release-candidate",
     "title": "Dominó Cubano: Doble Nueve",
@@ -613,6 +1172,26 @@
     ],
     "icon": "games/domino-cubano-doble-nueve/icon.svg",
     "play": "games/domino-cubano-doble-nueve/play/"
+  },
+  {
+    "slug": "double-dutch",
+    "stage": "release-candidate",
+    "title": "Double Dutch",
+    "tagline": "Hop between two ropes, in time, with tricks.",
+    "description": "A rhythm game about double dutch, the street game of jumping between two ropes turned in opposite directions. Tap to hop as each rope reaches the pavement, swipe to add a tuck, spin, kick or touch down, and keep the streak through eight blocks from the stoop to the final round. Watch and Learn, Practice, a Rules page with large text, original sounds, works offline.",
+    "genre": "rhythm jump rope",
+    "demo": true,
+    "howToPlay": [
+      "Pick a block. Two friends turn the ropes and you hop between them.",
+      "Tap anywhere as the rope reaches the pavement: the top of your hop on the beat.",
+      "When a call shows, swipe that way during the hop: up tuck, left spin, right kick, down touch down.",
+      "Pepper beats pass the ropes twice in one beat: keep hopping light and quick.",
+      "Three tangles and the round ends: try the block again.",
+      "Watch and Learn shows the routine, then jumps it for you.",
+      "On a keyboard: Space hops, arrow keys hop with a trick, P pauses."
+    ],
+    "icon": "games/double-dutch/icon.svg",
+    "play": "games/double-dutch/play/"
   },
   {
     "slug": "dragon-boat-paddle-rhythm",
@@ -672,6 +1251,46 @@
     "play": "games/durak-na-dache/play/"
   },
   {
+    "slug": "egrang",
+    "stage": "release-candidate",
+    "title": "Egrang",
+    "tagline": "Walk, balance and race on bamboo stilts.",
+    "description": "A balance and rhythm race built on the Indonesian stilt game. Choose when to tap to set your speed and stride, and where to tap to catch the sideways wobble, over puddles, mud, stepping stones, plank bridges and hills against three rivals. Eight courses, Practice, Watch and Learn, an in-app Rules book, portrait and landscape play, synthesised sound, no ads.",
+    "genre": "balance racing",
+    "demo": true,
+    "howToPlay": [
+      "Pick a course, then try Practice first: gentler wobbles and a hint button.",
+      "Tap when the bead on the step meter is in the green: earlier is slower, later is faster.",
+      "Tap under the bright bead on the rail to catch the sideways wobble.",
+      "Land on good ground: avoid puddles and potholes, and hit every stepping stone.",
+      "Bump a rival alongside to wobble them; the first across the line wins.",
+      "Watch and Learn races the course for you and thinks before each section. Pause it any time.",
+      "On a keyboard: Space taps (hold Left or Right to catch that side), B bumps, P pauses."
+    ],
+    "icon": "games/egrang/icon.svg",
+    "play": "games/egrang/play/"
+  },
+  {
+    "slug": "elastic-jump",
+    "stage": "release-candidate",
+    "title": "Elastic Jump",
+    "tagline": "Jump in, on and out of the elastic, in time.",
+    "description": "A rhythm game about the playground game of elastic jump, also called Chinese jump rope. Land OUT, IN, ON or SPLIT on the beat as the band rises through eight heights from the ankles to the neck. Learn each routine with Watch and Learn, slow it down in Practice, and clear it for three stars. Painted playground art, original sounds, Rules page with large text, no ads, works offline.",
+    "genre": "rhythm jump rope",
+    "demo": true,
+    "howToPlay": [
+      "Pick a height. The band starts at the ankles and rises to the neck.",
+      "Count in with the beat, then coloured tokens slide towards the NOW line.",
+      "Tap the pad that matches the token: OUT, IN, ON or SPLIT.",
+      "The closer to the beat, the more you score. Wrong steps are trips.",
+      "Three trips and the band comes down: try the height again.",
+      "Watch and Learn shows the whole routine, then jumps it for you.",
+      "On a keyboard: arrow keys or A S D F for the pads, Space pauses."
+    ],
+    "icon": "games/elastic-jump/icon.svg",
+    "play": "games/elastic-jump/play/"
+  },
+  {
     "slug": "fanorona-approach-withdraw",
     "stage": "release-candidate",
     "title": "Fanorona: Approach & Withdraw",
@@ -691,6 +1310,45 @@
     ],
     "icon": "games/fanorona-approach-withdraw/icon.svg",
     "play": "games/fanorona-approach-withdraw/play/"
+  },
+  {
+    "slug": "finnish-pin-toss",
+    "stage": "release-candidate",
+    "title": "Finnish Pin Toss",
+    "tagline": "Throw. Topple. Land on exactly 50.",
+    "description": "The Finnish lawn game of numbered skittles with real tumbling physics. Pull back, let go, and land on exactly 50 against four rivals or friends on one phone.",
+    "genre": "lawn skittle throwing game",
+    "demo": true,
+    "howToPlay": [
+      "Press on the lawn and pull straight down, then let go to throw.",
+      "Hold still to shrink the ring and steady your hand.",
+      "One skittle scores its number; several score how many fell.",
+      "Land on exactly 50 to win; go over and drop back to 25.",
+      "Three misses in a row and you are out."
+    ],
+    "icon": "games/finnish-pin-toss/icon.svg",
+    "play": "games/finnish-pin-toss/play/"
+  },
+  {
+    "slug": "flag-tossing",
+    "stage": "release-candidate",
+    "title": "Flag Tossing",
+    "tagline": "Throw, catch and wave flags in time with the drum.",
+    "description": "Be a flag bearer on a sunny Italian piazza. Swipe to throw a heraldic flag to the right height, tap to catch it on the beat, wave it across the sky and trade flags with partners in pair and team figures. Practice, Watch and Learn and an exhaustive Rules page included.",
+    "genre": "dexterity",
+    "demo": true,
+    "howToPlay": [
+      "Press and drag up, then release on the drum beat to throw.",
+      "A longer drag means more beats in the air; the number shows it.",
+      "Tap as the flag reaches your hands to catch it.",
+      "Sweep side to side to wave on every beat.",
+      "Drag sideways towards a partner to pass them a flag.",
+      "Perfect throws and catches build flow and a bigger multiplier.",
+      "Three dropped flags end the show; each act adds partners and tempo.",
+      "Keyboard: A, S, D throw low, middle, high; Enter catches; H is Think; Space pauses."
+    ],
+    "icon": "games/flag-tossing/icon.svg",
+    "play": "games/flag-tossing/play/"
   },
   {
     "slug": "football-seven-a-side",
@@ -727,6 +1385,27 @@
     ],
     "icon": "games/footy-kick-and-mark/icon.svg",
     "play": "games/footy-kick-and-mark/play/"
+  },
+  {
+    "slug": "four-field-kono",
+    "stage": "release-candidate",
+    "title": "Four-Field Kono",
+    "tagline": "Step forward. Jump to capture. A Korean stone game in five minutes.",
+    "description": "Kono is a family of Korean folk board games played with a few stones on a board of crossing lines. Each stone steps one point forward, or jumps over an enemy stone beside it to take it, and a jump can carry on in a chain. Play the classic Four-Field board against the computer, the tiny Two-Field board or the grand Six-Field board. Five computer levels, two players on one phone, seven hands-on lessons, hints, danger marks, take back and a Watch & Learn mode. A painted paper board, large text and reduced motion options, no ads, works offline.",
+    "genre": "Korean stone-jumping board game",
+    "demo": true,
+    "howToPlay": [
+      "New here? Tap Learn to play: seven short hands-on lessons where you make every move yourself.",
+      "Tap a stone and its reachable points glow. A stone steps one point straight forward; it never steps sideways or back.",
+      "To capture, jump over an enemy stone that stands right beside yours onto the empty point behind it. A jump may go in any direction.",
+      "After a jump your stone may jump again in the same move. A red ring and a number show how many stones a move takes.",
+      "A stone with a stone directly behind it cannot be jumped from the front. Look before you step next to an enemy.",
+      "Capture every enemy stone, or leave the other side with no move, to win. There are no draws.",
+      "Hint explains a good move. Danger marks warn about stones that can be jumped next. Take back undoes your last move.",
+      "Auto Play shows the computer playing both sides, with Pause and a Think time you can change."
+    ],
+    "icon": "games/four-field-kono/icon.svg",
+    "play": "games/four-field-kono/play/"
   },
   {
     "slug": "fox-and-geese",
@@ -786,6 +1465,25 @@
     "play": "games/gabata-three-row-mancala/play/"
   },
   {
+    "slug": "game-of-the-goose",
+    "stage": "release-candidate",
+    "title": "Game of the Goose",
+    "tagline": "The spiral race of geese, bridges and wells.",
+    "description": "The classic European dice race on a hand-painted spiral of 63 picture spaces, for two to six players. Geese double your move, a bridge, inn, well, prison, maze and skeleton change your luck, and only an exact throw reaches the Garden. Play the pure classic or add optional choices: pick a die, take shortcut roads, collect feathers. Computer opponents, a hint button, Watch and Learn, an in-app Rules book, portrait and landscape, no ads or betting.",
+    "genre": "family race game",
+    "demo": true,
+    "howToPlay": [
+      "Roll two dice and walk your pawn that many spaces along the spiral.",
+      "A goose carries you on again by the same number; pictures change your fortunes.",
+      "The inn holds you a turn; the well and prison wait for a rescuer or a double.",
+      "Land exactly on 63, the Garden, to win; an overshoot bounces you back.",
+      "Optional variants add a choice of dice, shortcut roads and feathers.",
+      "Tap the lightbulb for a hint, or try Watch and Learn to see the game play itself."
+    ],
+    "icon": "games/game-of-the-goose/icon.svg",
+    "play": "games/game-of-the-goose/play/"
+  },
+  {
     "slug": "gamelan-metallophone",
     "stage": "release-candidate",
     "title": "Gamelan",
@@ -807,6 +1505,27 @@
     "play": "games/gamelan-metallophone/play/"
   },
   {
+    "slug": "georgian-three-voice-polyphony",
+    "stage": "release-candidate",
+    "title": "Three Voices",
+    "tagline": "Sing three-part harmony and make the chord lock.",
+    "description": "A singing game inspired by Georgian three-part polyphony. Hold a glowing bead at the right height on the pitch ladder to sing a voice, and when every voice is in tune together the chord locks and the hall glows. Sing one voice, two or the whole choir across six original songs, learn phrase by phrase, or let Watch and Learn explain why each phrase sounds the way it does. A Harmony Lab shows the pure intervals and the beating. Portrait and landscape, no ads, works offline.",
+    "genre": "music polyphony",
+    "demo": true,
+    "howToPlay": [
+      "Choose a song and the voices you sing: Bass, Middle, Top or any mix. Friends sing the rest.",
+      "Note bars slide towards the dashed now line. Their height is pitch.",
+      "Touch and hold to sing: the height of your finger is your pitch. Keep the bead on the bar.",
+      "Lift your finger in the pale breaths so the voice is silent.",
+      "When every voice is in tune together the chord locks; hold it to build resonance and score.",
+      "Learn lets you hear each phrase and echo it. Watch and Learn explains it with time to think.",
+      "The Harmony Lab names the intervals and shows how fast two voices beat.",
+      "Pitch assist in Settings pulls your voice gently to the ladder lines."
+    ],
+    "icon": "games/georgian-three-voice-polyphony/icon.svg",
+    "play": "games/georgian-three-voice-polyphony/play/"
+  },
+  {
     "slug": "gilli-danda-stick-and-peg",
     "stage": "release-candidate",
     "title": "Gilli-Danda Stick and Peg",
@@ -822,6 +1541,24 @@
     ],
     "icon": "games/gilli-danda-stick-and-peg/icon.svg",
     "play": "games/gilli-danda-stick-and-peg/play/"
+  },
+  {
+    "slug": "glima",
+    "stage": "release-candidate",
+    "title": "Glima",
+    "tagline": "Read the step, pull them over, hook the light leg.",
+    "description": "Glima, the standing belt wrestling of Iceland, with real 3D athletes in the traditional hold. Steer your weight with one thumb and tap to hook the leg that is light. Read the rhythm of the dance, wear down your rival's stance, win two of three rounds. Five rivals, three rings, a Think coach, or watch and learn.",
+    "genre": "standing belt-wrestling sport",
+    "demo": true,
+    "howToPlay": [
+      "Drag a thumb left or right to steer your weight and the belt.",
+      "Your weight sits more on one foot; the light leg glows gold.",
+      "Tap HOOK LEFT or RIGHT when both light legs line up.",
+      "A hook is stepped over if the leg is loaded in time.",
+      "Empty their stance to win a round. First to two rounds wins."
+    ],
+    "icon": "games/glima/icon.svg",
+    "play": "games/glima/play/"
   },
   {
     "slug": "go-stones-and-territory",
@@ -843,6 +1580,26 @@
     ],
     "icon": "games/go-stones-and-territory/icon.svg",
     "play": "games/go-stones-and-territory/play/"
+  },
+  {
+    "slug": "gobak-sodor",
+    "stage": "release-candidate",
+    "title": "Gobak Sodor",
+    "tagline": "Slip past the guards on the chalk lines",
+    "description": "Gobak Sodor, also called Galah Asin and Hadang, is the courtyard game of Indonesia and Malaysia. Lifelike 3D players: lead three runners up a guarded court, cross each chalk line at the right moment, use a teammate as a decoy and run all the way home. Three courts, a hint button, Auto Play, a full Rules page, large text and portrait or landscape play. No ads, works offline.",
+    "genre": "line-crossing puzzle",
+    "demo": true,
+    "howToPlay": [
+      "TAP a runner to pick it, then TAP a cell or SWIPE to step it one cell. After each step every guard moves once.",
+      "Lanes are safe. A guard touches a runner on its chalk line within one cell of it, so watch the red zone.",
+      "A ghost shows each guard's next cell; chasers follow the nearest runner on or beside their line.",
+      "Park a runner in the lane beside a chaser to draw it away, then cross on the far side with another.",
+      "Touch the far end, then come back down to the home lane. Each runner home is one star.",
+      "A match is three rounds. Hint shows the computer's step; Wait passes a beat.",
+      "Keyboard: arrows step, 1 to 3 pick a runner, Space waits, H hint."
+    ],
+    "icon": "games/gobak-sodor/icon.svg",
+    "play": "games/gobak-sodor/play/"
   },
   {
     "slug": "golden-isle-journey",
@@ -882,6 +1639,42 @@
     ],
     "icon": "games/gonggi-five-stones/icon.svg",
     "play": "games/gonggi-five-stones/play/"
+  },
+  {
+    "slug": "gorodki",
+    "stage": "release-candidate",
+    "title": "Gorodki",
+    "tagline": "Throw the bat. Knock every pin out of the square.",
+    "description": "The Russian village game of town skittles on your phone. Read each figure of wooden pins, choose where the bat lands and how it is thrown, and let real physics clear the square. Fifteen figures, duels against four computer players, a Watch & Learn mode that explains every throw, and a full rules reference.",
+    "genre": "throwing and physics",
+    "demo": true,
+    "howToPlay": [
+      "Drag in the town to place the landing ring: that is where the bat comes down and starts to slide.",
+      "Pick Sweep (wide and gentle), Drive (narrow and accurate) or Smash (hard and far), then press Throw.",
+      "A pin counts only when it lies completely outside the red line. Pins that stay inside stay where they lie.",
+      "Clear the figure with as few bats as you can: fewer bats earn more stars.",
+      "Press Think for a hint, or duel a rival and win figure by figure."
+    ],
+    "icon": "games/gorodki/icon.svg",
+    "play": "games/gorodki/play/"
+  },
+  {
+    "slug": "gumboot-throwing",
+    "stage": "release-candidate",
+    "title": "Gumboot Throwing",
+    "tagline": "Swing the boot, read the wind and wang it as far as you can.",
+    "description": "Gumboot throwing (wellie wanging) is the festival contest of New Zealand and the United Kingdom. See the throw from the side, hold to build the swing, let go in the sweet arc and aim into the wind. Festival Cup, endless Distance Challenge, Practice, Learn drills, Think hints and Watch & Learn.",
+    "genre": "festival distance throwing",
+    "demo": true,
+    "howToPlay": [
+      "Pick Underarm, Overarm or Spin, then drag on the plan strip to aim into the wind.",
+      "Press and hold to swing the boot faster and faster.",
+      "Watch the grip bar: hold too long and the boot slips away.",
+      "Let go while the boot is inside the green sweet arc.",
+      "Throw further than the rival to open the next round."
+    ],
+    "icon": "games/gumboot-throwing/icon.svg",
+    "play": "games/gumboot-throwing/play/"
   },
   {
     "slug": "halma-hop-and-leap",
@@ -986,6 +1779,24 @@
     "play": "games/hasami-shogi-pairs/play/"
   },
   {
+    "slug": "hashi",
+    "stage": "release-candidate",
+    "title": "Hashi Bridges",
+    "tagline": "Join the islands. Pure logic, hints that teach.",
+    "description": "The island-and-bridge logic puzzle on a calm lagoon. Every puzzle has exactly one solution and is graded by the techniques a person needs. Daily puzzle, undo, and hints that explain the logic step by step. Portrait or landscape, phone or tablet.",
+    "genre": "Logic puzzle",
+    "demo": true,
+    "howToPlay": [
+      "Join the islands with bridges so each island has exactly its number.",
+      "Tap an island, then a neighbour in line. Tap again for a double bridge.",
+      "Bridges never cross, and every island must end up connected.",
+      "Tap the bulb for a hint: where to look, then why it works.",
+      "Watch and Learn solves a puzzle for you and explains every step."
+    ],
+    "icon": "games/hashi/icon.svg",
+    "play": "games/hashi/play/"
+  },
+  {
     "slug": "hawalis-gulf-sowing",
     "stage": "release-candidate",
     "title": "Hawalis: Gulf Sowing",
@@ -1004,6 +1815,24 @@
     "play": "games/hawalis-gulf-sowing/play/"
   },
   {
+    "slug": "hide-and-seek",
+    "stage": "release-candidate",
+    "title": "Hide and Seek",
+    "tagline": "Find them, or stay hidden. The seeker remembers.",
+    "description": "The oldest game, played everywhere from Italy to Indonesia to Japan. Tap places to look, read the clue numbers to find the hidden children, or hide and slip away just in time. Daily hunt and Watch & Learn included.",
+    "genre": "hide and seek deduction",
+    "demo": true,
+    "howToPlay": [
+      "Tap a hiding place to look in it.",
+      "An empty place shows how many hiders are next to it.",
+      "Listen costs a look but marks three places.",
+      "In Hide, tap a green neighbour to sneak away.",
+      "Use Think for a suggestion, or watch the game play."
+    ],
+    "icon": "games/hide-and-seek/icon.svg",
+    "play": "games/hide-and-seek/play/"
+  },
+  {
     "slug": "highland-games-caber",
     "stage": "release-candidate",
     "title": "Highland Games: Caber Toss",
@@ -1018,6 +1847,63 @@
     ],
     "icon": "games/highland-games-caber/icon.svg",
     "play": "games/highland-games-caber/play/"
+  },
+  {
+    "slug": "hoop-rolling-trundle",
+    "stage": "release-candidate",
+    "title": "Hoop Rolling Trundle",
+    "tagline": "Roll, steer and race a hoop down the road.",
+    "description": "An old children's street game, trundling a hoop down a village lane, as a course racer. Push, brake and lean a rolling hoop with one finger through striped gates, bends, cobbles, mud, puddles, hills and plank bridges against three rivals. Eight courses, Practice, Watch and Learn, an in-app Rules book, portrait and landscape play, synthesised sound, no ads.",
+    "genre": "dexterity racing",
+    "demo": true,
+    "howToPlay": [
+      "Hold your finger below the hoop to push; raise it above the hoop to brake.",
+      "Slide your finger left or right of the hoop to lean and steer toward it.",
+      "Keep the balance dot in the green: a slow or over-steered hoop falls.",
+      "Roll through the middle of each gate for a Perfect; posts knock you off line.",
+      "Brake before tight bends, cobbles and plank bridges, then push on.",
+      "Watch and Learn rolls the course for you and thinks before each section. Pause it any time.",
+      "On a keyboard: Space pushes, Down brakes, Left and Right steer, P pauses."
+    ],
+    "icon": "games/hoop-rolling-trundle/icon.svg",
+    "play": "games/hoop-rolling-trundle/play/"
+  },
+  {
+    "slug": "hornussen",
+    "stage": "release-candidate",
+    "title": "Hornussen",
+    "tagline": "Bend the rod, strike the Nouss, stop it with timed boards",
+    "description": "The Swiss field sport on your phone: press and hold to bend the long rod, aim across the Ries and release for a perfect whip. Then swap sides and tap your fielders to throw wooden boards into the flying puck. Four Alpine venues, three levels, Hints and a full Auto Play.",
+    "genre": "field sport",
+    "demo": true,
+    "howToPlay": [
+      "Press and hold anywhere to bend the rod; slide left or right to aim.",
+      "Release in the gold zone of the meter for a perfect whip.",
+      "A puck that lands in the Ries scores 1, 2 or 3 points by distance.",
+      "When fielding, tap the fielder the ring marks as it closes.",
+      "A board that is up as the puck passes stops it: no points.",
+      "The side with more points after both halves wins."
+    ],
+    "icon": "games/hornussen/icon.svg",
+    "play": "games/hornussen/play/"
+  },
+  {
+    "slug": "horseshoe-pitching",
+    "stage": "release-candidate",
+    "title": "Horseshoe Pitching",
+    "tagline": "Flip it, clank it, ring the stake.",
+    "description": "The back-yard classic of the United States and Canada. Pitch a steel shoe forty feet at the stake, time your release in the green, and outplay five rivals, a partner game or a friend.",
+    "genre": "lawn throwing",
+    "demo": true,
+    "howToPlay": [
+      "Drag the target on the pit board to where the shoe should rest.",
+      "Choose a three-quarter or one-and-a-quarter flip.",
+      "Hold PITCH and let go while the arm is in the green.",
+      "A ringer scores 3; the closest shoe within 6 inches scores 1.",
+      "First to 21 points wins."
+    ],
+    "icon": "games/horseshoe-pitching/icon.svg",
+    "play": "games/horseshoe-pitching/play/"
   },
   {
     "slug": "huarong-dao-sliding-puzzle",
@@ -1058,6 +1944,27 @@
     "play": "games/hurling-sliotar-dash/play/"
   },
   {
+    "slug": "indian-club-swinging",
+    "stage": "release-candidate",
+    "title": "Indian Club Swinging",
+    "tagline": "Trace the path. Keep the flow.",
+    "description": "A calm rhythm game inspired by the mugdar and jori, the heavy wooden clubs of South Asian wrestling-gym training. Trace a glowing marker round circles, ovals and figure eights with one finger while two weighty clubs follow, and build a flow multiplier from move to move. Six routines and a daily routine, Practice at any tempo, a Watch and Learn demonstration with time to think, a Rules page and text size up to 300%. Synthesised sound, no ads, works offline.",
+    "genre": "rhythm and flow",
+    "demo": true,
+    "howToPlay": [
+      "Pick a routine. Four clicks count you in, then the first move begins.",
+      "Press and drag on the sand. The brass-ringed club follows your finger with a little lag.",
+      "A glowing ring runs round a ghost path. Keep the club head inside the ring.",
+      "Stay close to build flow and your multiplier, from x1 to x5. Lift your finger and the clubs drop.",
+      "Each beat is judged smooth, good or off. Two beats between moves show the next path.",
+      "Practice drills one move at any tempo. Watch and Learn shows a routine with time to think.",
+      "Use the Hint button to see the start point and direction again.",
+      "On a keyboard: drag with the mouse, Space pauses, H shows the hint."
+    ],
+    "icon": "games/indian-club-swinging/icon.svg",
+    "play": "games/indian-club-swinging/play/"
+  },
+  {
     "slug": "ink-brush-strokes",
     "stage": "release-candidate",
     "title": "Ink Brush",
@@ -1077,6 +1984,27 @@
     ],
     "icon": "games/ink-brush-strokes/icon.svg",
     "play": "games/ink-brush-strokes/play/"
+  },
+  {
+    "slug": "intha-leg-rowing-on-the-lake",
+    "stage": "release-candidate",
+    "title": "Intha Leg Rowing",
+    "tagline": "Scull one-legged through the misty floating gardens of Inle Lake.",
+    "description": "A calm balance and flow game from the lake villages of Myanmar. Your thumb is the leg on the oar: sweep for speed, sweep to one side to steer, keep your poise over swells and stakes, and go still beside a shoal to lift the net. Eight courses, three rival rowers, Practice, Watch and Learn, an in-app Rules book, portrait and landscape play, synthesised sound, no ads.",
+    "genre": "balance and rowing",
+    "demo": true,
+    "howToPlay": [
+      "Hold and drag left and right along the oar pad: faster sweeps give more speed.",
+      "Sweep on the side you want to go to; the teal marker shows where you are steering.",
+      "Steer round stakes and weed and thread the buoy gates between the pairs of buoys.",
+      "Row gently through swell bands; frantic strokes and knocks cost poise, and no poise means a splash.",
+      "Slow down beside a fish shoal with it on your right, lift your thumb and let the net ring fill.",
+      "Reach the landing ahead of three rivals: stars for finishing, winning and the fish quota.",
+      "Watch and Learn rows a course for you and thinks before each section. Pause it any time.",
+      "On a keyboard: hold Left or Right arrow to sweep that way, Space holds still, P pauses."
+    ],
+    "icon": "games/intha-leg-rowing-on-the-lake/icon.svg",
+    "play": "games/intha-leg-rowing-on-the-lake/play/"
   },
   {
     "slug": "jack-and-boule-petanque",
@@ -1115,6 +2043,42 @@
     ],
     "icon": "games/janggi-korean-chess-tutor/icon.svg",
     "play": "games/janggi-korean-chess-tutor/play/"
+  },
+  {
+    "slug": "jianzi",
+    "stage": "release-candidate",
+    "title": "Jianzi",
+    "tagline": "Keep the feather flying.",
+    "description": "The feathered kicking game from the parks of China. Time each kick as the shuttle floats down, steer against the wind, chain different kicks into combos, or pass it around a circle of friends. Solo, circle, daily and Watch & Learn modes.",
+    "genre": "shuttlecock kicking skill",
+    "demo": true,
+    "howToPlay": [
+      "Tap a pad when the shuttle falls into the bright band beside your leg.",
+      "Left, straight or right steers the shuttle; in the circle each pad passes to a friend.",
+      "Strike near the white line for a Perfect kick; low is a toe scoop, high is the knee.",
+      "Use different kicks to raise the style multiplier and land combos.",
+      "Kick against the wind; the run ends when the shuttle touches the ground."
+    ],
+    "icon": "games/jianzi/icon.svg",
+    "play": "games/jianzi/play/"
+  },
+  {
+    "slug": "jukskei",
+    "stage": "release-candidate",
+    "title": "Jukskei",
+    "tagline": "Throw the skei, read the wind, knock the stake.",
+    "description": "A South African throwing sport, seen from the side: pick Lob, Skim or Whirl, place the ring, time your release and send a flat wooden pin down the sand lane at the stake. Four lanes, six rivals, a league ladder and pass-and-play.",
+    "genre": "Sand-lane throwing / wind and spin",
+    "demo": true,
+    "howToPlay": [
+      "Press the sand to place the gold ring where the pin should land.",
+      "Pick Lob, Skim or Whirl: the ghost pin shows where it ends up.",
+      "Check the wind box, then press Throw and Release in the green.",
+      "Knock the stake for 3, touch it for 2, land within a metre for 1.",
+      "After eight pins the nearest one earns a bonus point."
+    ],
+    "icon": "games/jukskei/icon.svg",
+    "play": "games/jukskei/play/"
   },
   {
     "slug": "jungle-animal-chess",
@@ -1156,6 +2120,43 @@
     "play": "games/kabaddi-raid-and-tag/play/"
   },
   {
+    "slug": "kamishibai",
+    "stage": "release-candidate",
+    "title": "Kamishibai",
+    "tagline": "Order the paper story cards, then tell the tale on the beat.",
+    "description": "Arrange the picture cards of ten original tales into the order of the story, then perform each one by pulling the cards out in time with the narration. Hints that teach, a Daily Tale and Watch and Learn. Portrait or landscape.",
+    "genre": "Story puzzle",
+    "demo": true,
+    "howToPlay": [
+      "Put the shuffled picture cards in story order, left to right and top to bottom.",
+      "Tap two cards to swap them, or drag one onto another. Tap the page icon to read a card's line.",
+      "Press Hang the cards: right-place cards lock with a gold edge.",
+      "Then pull each card out sideways right when the ring closes.",
+      "Keep the five lanterns lit for three stars. Climb the Journey or play the Daily Tale."
+    ],
+    "icon": "games/kamishibai/icon.svg",
+    "play": "games/kamishibai/play/"
+  },
+  {
+    "slug": "kantha-running-stitch-quilt",
+    "stage": "release-candidate",
+    "title": "Kantha Running Stitch Quilt",
+    "tagline": "The running-stitch quilting of Bengal: sew each patch with the fewest threads.",
+    "description": "Sew cloth patches in running stitch, one chalk row at a time. Your thread is only so long, so plan every hop and make it last. Hints that teach, Watch and Learn, a Daily Patch and a calm timing game called Steady Hand. Portrait or landscape.",
+    "genre": "Stitch puzzle",
+    "demo": true,
+    "howToPlay": [
+      "Tap the end of a chalk row, then tap it again to sew the whole row.",
+      "The thread is only so long and each hop under the cloth uses some.",
+      "When a row does not fit, or is another colour, a new thread begins.",
+      "Sew every row with as few threads as you can: three stars is the fewest.",
+      "Tap the lamp for a hint that shows where to look, then why.",
+      "In Steady Hand, tap as the needle reaches each mark for even stitches."
+    ],
+    "icon": "games/kantha-running-stitch-quilt/icon.svg",
+    "play": "games/kantha-running-stitch-quilt/play/"
+  },
+  {
     "slug": "kegeln-nine-pin-skittles",
     "stage": "release-candidate",
     "title": "Kegeln",
@@ -1190,6 +2191,65 @@
     ],
     "icon": "games/kendama-ken-and-ball/icon.svg",
     "play": "games/kendama-ken-and-ball/play/"
+  },
+  {
+    "slug": "kharbaga",
+    "stage": "release-candidate",
+    "title": "Kharbaga",
+    "tagline": "Jump, crown a Master, capture every piece.",
+    "description": "Kharbaga is a traditional North African capturing game played on a small square board in Algeria, Tunisia and Libya. Men step forward or sideways and jump to capture, and capturing is compulsory, so every move is a plan. Chain jumps, crown a Master on the far row and fly it along the board. Five computer levels, two players on one phone, hands-on lessons, hints that explain why, danger marks, take back and a Watch & Learn mode. A carved sand-and-clay board, large text and reduced motion options, no ads, works offline.",
+    "genre": "North African jump-and-crown board game",
+    "demo": true,
+    "howToPlay": [
+      "New here? Tap Learn to play: six short hands-on lessons where you make every move yourself.",
+      "Tap a piece and its reachable squares glow. A man steps one square forward or sideways, never back.",
+      "Tap a glowing square or drag the piece there. A red ring means the move captures; the number says how many.",
+      "Jump over a neighbouring enemy piece onto the empty square behind it. A man can jump in any direction.",
+      "Capturing is compulsory: if you can jump, you must. Ringed pieces show who has to.",
+      "Chains: a piece that can keep jumping must, and the whole run is one move.",
+      "Reach the far row to crown a Master, who slides like a rook and captures from a distance.",
+      "Auto Play shows the computer playing both sides, with Pause. Hint explains a good move."
+    ],
+    "icon": "games/kharbaga/icon.svg",
+    "play": "games/kharbaga/play/"
+  },
+  {
+    "slug": "kho-kho",
+    "stage": "release-candidate",
+    "title": "Kho-Kho",
+    "tagline": "The chain chase: run, read, shout Kho",
+    "description": "Kho-Kho is the chase sport of India, Nepal, Bangladesh and Sri Lanka. Run the standing chaser, never turn back, and hand the chase to a seated teammate with Kho to cut the runners off; then swap sides and slip past the chasers yourself. Three grounds, hint, Auto Play, a full Rules page, large text and portrait or landscape play. No ads, works offline.",
+    "genre": "chase sport",
+    "demo": true,
+    "howToPlay": [
+      "TAP or DRAG the court to run the standing chaser. Touch a runner to put them out.",
+      "You cannot cross the central lane or turn back.",
+      "Reach the back of a glowing seat and tap it, or press KHO, to hand the chase over.",
+      "Each hand-over flips you to the other half and lets you run the other way.",
+      "Touch all three runners before the clock runs out; then swap and run for yourself.",
+      "Eight batches make a match. Hint freezes the court and shows the computer's choice.",
+      "Keyboard: arrows run, Space gives Kho, 1 to 3 pick a runner, H hint."
+    ],
+    "icon": "games/kho-kho/icon.svg",
+    "play": "games/kho-kho/play/"
+  },
+  {
+    "slug": "kicksled-race",
+    "stage": "release-candidate",
+    "title": "Kicksled Race",
+    "tagline": "Kick, glide and race the snow.",
+    "description": "A Nordic winter racer seen from the side: stand on the runners of a chair-fronted kicksled, kick on the ring, glide to recover and read the course. Four courses, three rivals, ghosts and a daily run.",
+    "genre": "Winter kick-sled racing",
+    "demo": true,
+    "howToPlay": [
+      "Tap KICK, or anywhere on the scene, when the ring is full.",
+      "Tap GLIDE to crouch: less drag, faster recovery, safer bends.",
+      "Stand up before bumps: tap GLIDE again or kick.",
+      "Kick on climbs and soft snow, glide on slopes and ice.",
+      "Beat three rivals, or the ghost of your best run."
+    ],
+    "icon": "games/kicksled-race/icon.svg",
+    "play": "games/kicksled-race/play/"
   },
   {
     "slug": "kilikiti-village-match",
@@ -1231,6 +2291,24 @@
     "play": "games/kings-table-tafl/play/"
   },
   {
+    "slug": "kingyo-sukui",
+    "stage": "release-candidate",
+    "title": "Kingyo Sukui",
+    "tagline": "Lift the fish before the paper tears.",
+    "description": "The summer festival pastime of goldfish scooping. Dip a paper scoop, slide it under a goldfish and lift before the wet paper tears. Stall sessions, a daily tank, free scooping and Watch & Learn, with every fish put back at the end.",
+    "genre": "goldfish scooping skill",
+    "demo": true,
+    "howToPlay": [
+      "Press on the water to dip the paper scoop.",
+      "Drag slowly: fast moves scare the fish.",
+      "Let go when a fish is inside the ring to lift it.",
+      "Watch the paper: time in the water and heavy fish wear it out.",
+      "Three sheets make a session; use Think for a suggestion."
+    ],
+    "icon": "games/kingyo-sukui/icon.svg",
+    "play": "games/kingyo-sukui/play/"
+  },
+  {
     "slug": "kintsugi-gold-seams",
     "stage": "release-candidate",
     "title": "Kintsugi",
@@ -1267,6 +2345,24 @@
     "play": "games/kite-duel-sky-fight/play/"
   },
   {
+    "slug": "kok-boru",
+    "stage": "release-candidate",
+    "title": "Kok-boru",
+    "tagline": "Gallop, grab and throw in the great team horse game of the steppe.",
+    "description": "Kok-boru is the team horse game of the Central Asian steppe. Steer a galloping rider, scoop the heavy ball from the ground, tug it from a rival, pass to a team-mate and throw it into the sand circle. Climb the five-rung Steppe Ladder, ask Think for advice or watch computer teams play in Watch & Learn.",
+    "genre": "mounted team sport / Central Asia",
+    "demo": true,
+    "howToPlay": [
+      "Drag with your left thumb to ride; hold SPRINT for a burst.",
+      "Ease off near the ball: the ring turns green, then press GRAB.",
+      "Alongside a rival with the ball? The same button tugs it away.",
+      "Hold THROW and let go when the landing ring is inside the circle.",
+      "PASS to an open team-mate, and win the match with more goals."
+    ],
+    "icon": "games/kok-boru/icon.svg",
+    "play": "games/kok-boru/play/"
+  },
+  {
     "slug": "kolam-dot-pattern",
     "stage": "release-candidate",
     "title": "Kolam",
@@ -1283,6 +2379,24 @@
     ],
     "icon": "games/kolam-dot-pattern/icon.svg",
     "play": "games/kolam-dot-pattern/play/"
+  },
+  {
+    "slug": "kolf",
+    "stage": "release-candidate",
+    "title": "Kolf",
+    "tagline": "Aim, swing and touch the post across the ice.",
+    "description": "Kolf, the old club-and-ball game of the Low Countries, on long frozen courts painted in the warm light of the Golden Age. Aim, time your swing, bank the ball off the boards and be first to touch the post. Wind leans on the ball, snow slows it and thin ice swallows a slow one. Play four rivals, a friend, or watch and learn.",
+    "genre": "ice club-and-ball sport",
+    "demo": true,
+    "howToPlay": [
+      "Drag on the court to turn your aim; the dotted line shows the flight.",
+      "Tap Swing, then tap Strike! when the power bar shows the power you want.",
+      "Ice carries the ball far, boards bounce it and snow slows it.",
+      "Thin ice swallows a slow ball; a fast one skims it. Mind the wind.",
+      "Fewest strokes to touch the post wins the leg; win more legs than your rival."
+    ],
+    "icon": "games/kolf/icon.svg",
+    "play": "games/kolf/play/"
   },
   {
     "slug": "konane-hawaiian-jumps",
@@ -1348,6 +2462,45 @@
     "play": "games/koto-thirteen-strings/play/"
   },
   {
+    "slug": "kottabos-symposium-toss",
+    "stage": "release-candidate",
+    "title": "Kottabos Symposium Toss",
+    "tagline": "Snap your wrist, flick the water and ring the bronze disc.",
+    "description": "The ancient Greek table game of kottabos: slide and flick the last drops of water from a cup at a balanced bronze disc or at floating cups. Tight streams, a ladder of twelve levels, four computer opponents, two players, Think and Watch & Learn.",
+    "genre": "target flicking / dexterity",
+    "demo": true,
+    "howToPlay": [
+      "Press anywhere and slide toward the target.",
+      "Lift quickly: a clean snap keeps the drops together.",
+      "Rock the disc off its stand to ring the dish.",
+      "Fill the floating cups until they sink.",
+      "Tap Think for a tested suggestion."
+    ],
+    "icon": "games/kottabos-symposium-toss/icon.svg",
+    "play": "games/kottabos-symposium-toss/play/"
+  },
+  {
+    "slug": "krar-lyre",
+    "stage": "release-candidate",
+    "title": "Krar Lyre",
+    "tagline": "Close the ring. Answer the azmari.",
+    "description": "A music game for the krar, the bowl lyre of Ethiopia and Eritrea. Tap rings as they close on six strings, sweep strums, damp the bowl, answer the azmari from memory in the Echo Duel, and compose small songs in the qenet scales of the Horn of Africa. Six original pieces, a growing accompaniment, synthesised sound, no ads, works offline.",
+    "genre": "rhythm music",
+    "demo": true,
+    "howToPlay": [
+      "Pick a piece, then start with Learn the phrases: the azmari plays a phrase and you answer it.",
+      "Rings close on the strings. Tap a string just as its ring closes on it.",
+      "A wide pill across four strings is a strum: sweep one finger across them in the arrow direction.",
+      "A square ring on the bowl is a damp: tap the bowl and every string falls silent.",
+      "Play cleanly and more voices join the accompaniment. Miss and one drops out.",
+      "Echo Duel hides the rings: listen to a phrase, then answer it from memory. Three lives.",
+      "Compose: tap cells in the grid, play the loop, and let the azmari answer.",
+      "On a keyboard: A S D F G H pluck strings 1 to 6, Z damps, W sweeps the strum that is due, Space pauses."
+    ],
+    "icon": "games/krar-lyre/icon.svg",
+    "play": "games/krar-lyre/play/"
+  },
+  {
     "slug": "kubb-toss",
     "stage": "release-candidate",
     "title": "Kubb",
@@ -1364,6 +2517,24 @@
     ],
     "icon": "games/kubb-toss/icon.svg",
     "play": "games/kubb-toss/play/"
+  },
+  {
+    "slug": "kurash",
+    "stage": "release-candidate",
+    "title": "Kurash",
+    "tagline": "Tug them off balance, ride the swing, throw.",
+    "description": "Kurash, the belt wrestling of Uzbekistan, with real wrestlers on a round mat. Move a thumb to tug and set your rival's weight swinging, then flick and lift to throw for chala, yonbosh or a perfect halal. Five rivals, three venues, two players on one phone, or watch and learn.",
+    "genre": "belt wrestling sport",
+    "demo": true,
+    "howToPlay": [
+      "Move a thumb anywhere: the way it moves is the way you pull your rival.",
+      "Tug in time with their swing so it grows and grows.",
+      "Flick and lift your thumb to throw the way they lean.",
+      "Chala 1 point, yonbosh 2, halal wins the bout at once.",
+      "Hold still to root and defend, but passive wrestlers are warned."
+    ],
+    "icon": "games/kurash/icon.svg",
+    "play": "games/kurash/play/"
   },
   {
     "slug": "labyrinth-thread-maze",
@@ -1384,6 +2555,45 @@
     "play": "games/labyrinth-thread-maze/play/"
   },
   {
+    "slug": "lagori",
+    "stage": "release-candidate",
+    "title": "Lagori",
+    "tagline": "Smash the tower, rebuild it, dodge the ball",
+    "description": "Lagori, also called Seven Stones, is a traditional street game from India. Lifelike 3D players run, throw and dodge on a warm street court. Throw the ball to smash a tower of seven painted stones, then race to rebuild it while the other team throws at your runners. Tap stones to fetch them, dodge the telegraphed throws, then field and aim ahead of the computer's runner. Four innings, three computer levels, a hint button, Auto Play, a full Rules page, large text and portrait or landscape play. No ads, works offline.",
+    "genre": "street ball and stack",
+    "demo": true,
+    "howToPlay": [
+      "PRESS and DRAG on the court to place the aim ring. RELEASE to throw the ball at the tower.",
+      "A hard hit scatters the stones wide; a soft hit keeps them close, so they are quicker to rebuild.",
+      "When the tower falls, TAP a stone to fetch it. Your runner stacks it on the tower spot.",
+      "A red ring tightens on your runner: tap DODGE (or flick sideways) to sidestep the throw.",
+      "Stack all seven stones to score 1 point, 2 if none of your runners was hit.",
+      "When the computer strikes you field: drag the ring ahead of the runner and release to throw.",
+      "A match is four innings: strike, field, strike, field. The higher score wins.",
+      "Keyboard: arrows move the ring, Space throws or dodges, 1 to 7 fetch a stone, H hint."
+    ],
+    "icon": "games/lagori/icon.svg",
+    "play": "games/lagori/play/"
+  },
+  {
+    "slug": "lapta",
+    "stage": "release-candidate",
+    "title": "Lapta",
+    "tagline": "Aim the bat, time the swing, run the far line and dodge the throw.",
+    "description": "The old Russian bat-and-run from the village green. Aim between the fielders, time your swing, then decide: run, come back, or stay safe. Dodge the thrown ball to score. Three fielding sides, rival batters, two players, Think and Watch & Learn.",
+    "genre": "bat-and-run sport",
+    "demo": true,
+    "howToPlay": [
+      "Drag on the green to aim, release as the ring closes to swing.",
+      "Early swings loft and pull left; late swings flatten and push right.",
+      "Tap Run! when the ball is far from the fielders; the far line is one point.",
+      "Come back for two more, or stay safe on the line.",
+      "Tap Dodge when a fielder winds up; Think gives a tested suggestion."
+    ],
+    "icon": "games/lapta/icon.svg",
+    "play": "games/lapta/play/"
+  },
+  {
     "slug": "latrunculi-roman",
     "stage": "release-candidate",
     "title": "Ludus Latrunculorum",
@@ -1402,6 +2612,141 @@
     "play": "games/latrunculi-roman/play/"
   },
   {
+    "slug": "lau-kata-kati",
+    "stage": "release-candidate",
+    "title": "Lau Kata Kati",
+    "tagline": "Nine pieces each. Two triangles. Jump to capture.",
+    "description": "Lau Kata Kati is a traditional jumping and capturing game of Bengal, played on a board of two triangles that meet at a single point. Step along the stitched lines, jump over enemy pieces to capture them and chain jumps in one turn. Win by capturing every enemy piece or leaving the other side with no move. Play Classic, Must capture, or Quick. Five computer levels, two players on one phone, hands-on lessons, hints that explain why, danger marks, take back and a Watch & Learn mode. Works offline.",
+    "genre": "Bengal jumping and capturing board game",
+    "demo": true,
+    "howToPlay": [
+      "New here? Tap Learn to play: eight short hands-on lessons where you make every move yourself.",
+      "Tap a piece and the points it can reach glow. A piece steps one point along a drawn line, in any direction.",
+      "Jump over an enemy piece right next to yours, in a straight line, onto the empty point behind it to capture it.",
+      "After a jump the same piece may jump again in the same turn. You can stop after any jump.",
+      "A red ring with a number shows a capturing move and how many pieces it takes.",
+      "Win by capturing all nine enemy pieces, or by leaving the other side with no legal move.",
+      "Classic: capturing is your choice. Must capture: if you can jump, you have to. Quick: first to five.",
+      "Hint explains a good move. Danger marks warn about pieces that can be captured next. Take back undoes your last move."
+    ],
+    "icon": "games/lau-kata-kati/icon.svg",
+    "play": "games/lau-kata-kati/play/"
+  },
+  {
+    "slug": "launeddas-triple-pipe",
+    "stage": "release-candidate",
+    "title": "Launeddas Triple Pipe",
+    "tagline": "Play the notes. Keep the drone alive.",
+    "description": "The Sardinian triple reed pipe as a rhythm game: tap the melody on two hand pipes while you squeeze the cheeks to keep the drone breathing. Four original dance tunes, a Think coach, or watch and learn.",
+    "genre": "breath-and-fingers rhythm instrument",
+    "demo": true,
+    "howToPlay": [
+      "Tap the notes on the low and high pipe pads as they reach the line.",
+      "The air gauge drains with time and with every note.",
+      "Hold the BREATH pad to squeeze the cheeks and refill the air.",
+      "While you squeeze the reeds are silent: breathe in the rests.",
+      "If the air hits zero for too long, the drone dies and the tune ends."
+    ],
+    "icon": "games/launeddas-triple-pipe/icon.svg",
+    "play": "games/launeddas-triple-pipe/play/"
+  },
+  {
+    "slug": "lawn-bowls",
+    "stage": "release-candidate",
+    "title": "Lawn Bowls",
+    "tagline": "Read the green, pick a hand, bend the bowl in to the jack.",
+    "description": "Lawn bowls from above on a striped club green: place the ring, choose which way the bowl leans and how hard it goes, and watch it curve in toward the jack. Five greens, six rivals, a club ladder and pass-and-play for two.",
+    "genre": "Lawn bowls / curved-bias physics",
+    "demo": true,
+    "howToPlay": [
+      "Press the green to place the gold ring where you want the bowl to finish.",
+      "Tap Curve left or Curve right: every bowl bends toward its small-ring side.",
+      "Choose Draw, Firm or Drive for how hard it arrives, then press Roll.",
+      "Bowls alternate, four each. After eight, the side nearer the jack scores a shot per bowl.",
+      "Play 6 or 10 ends; most shots wins."
+    ],
+    "icon": "games/lawn-bowls/icon.svg",
+    "play": "games/lawn-bowls/play/"
+  },
+  {
+    "slug": "lezginka",
+    "stage": "release-candidate",
+    "title": "Lezginka",
+    "tagline": "Stamp, lift and spin as the tempo climbs.",
+    "description": "A rhythm game about the fast folk dance of the Caucasus. Tap four step pads (left boot, right boot, arms and spin) as rings close in, in time with a drum and an accordion. Learn five original dances phrase by phrase, then dance them while the tempo climbs and more dancers join the floor. Watch and Learn demonstration, calibration, in-app Rules page. Real 3D dancers in festival costume, synthesised sound, no ads, works offline.",
+    "genre": "rhythm dance",
+    "demo": true,
+    "howToPlay": [
+      "Pick a dance, then start with Learn the steps: the teacher dances a phrase and you echo it.",
+      "Four pads surround the dancer: left boot, right boot, arms and spin.",
+      "Tap a pad when its ring lands on the rim. Closer to the beat scores more.",
+      "Use two thumbs, or more fingers.",
+      "Dance cleanly and more dancers join the floor. Miss and one group sits out.",
+      "The tempo climbs through every dance.",
+      "Watch and Learn performs the whole dance for you. Pause it any time.",
+      "Keyboard: A, D, W, S or the arrow keys for the pads, Space pauses."
+    ],
+    "icon": "games/lezginka/icon.svg",
+    "play": "games/lezginka/play/"
+  },
+  {
+    "slug": "limbo",
+    "stage": "release-candidate",
+    "title": "Limbo",
+    "tagline": "Lean back and slide under the bar as it drops lower.",
+    "description": "A sunset beach game from Trinidad and Tobago. Drag down to lean, drag sideways to keep your balance, and slide under a bar that drops lower every round. Solo, Party for up to four, Practice and Watch and Learn included.",
+    "genre": "dexterity",
+    "demo": true,
+    "howToPlay": [
+      "Press and hold to start; the dancer shuffles toward the bar.",
+      "Drag your thumb down to lean back and fit under the bar.",
+      "Drag sideways to steer the balance bubble back to the middle.",
+      "Lean late and only as deep as the bar needs; deeper wobbles more.",
+      "Touching the bar or toppling over costs one of your three tries.",
+      "Party mode: two to four friends take turns, last one standing wins.",
+      "Think slows time and shows how deep a lean is enough.",
+      "Keyboard: Space starts, Down leans, Left and Right steer, H is Think."
+    ],
+    "icon": "games/limbo/icon.svg",
+    "play": "games/limbo/play/"
+  },
+  {
+    "slug": "lo-shu-magic-square",
+    "stage": "release-candidate",
+    "title": "Lo Shu Magic Square",
+    "tagline": "The ancient Chinese magic square, from 3 x 3 to 5 x 5.",
+    "description": "Place the numbers so every row, column and diagonal adds up to the magic number. Start with the original Lo Shu, then climb to 4 x 4 and 5 x 5 squares and broken-diagonal variants. Hints that teach, a Daily Square and Watch and Learn. Portrait or landscape.",
+    "genre": "Logic puzzle",
+    "demo": true,
+    "howToPlay": [
+      "Fill the grid so every row, column and diagonal adds up to the same magic number.",
+      "Tap a stone in the tray, then tap a square, or drag it there.",
+      "Gauges at the end of every line show the running total and glow when it is right.",
+      "Tap the lamp for a hint: where to look, then why it works.",
+      "Climb the Journey, pick any size in Free Play, or play the Daily Square."
+    ],
+    "icon": "games/lo-shu-magic-square/icon.svg",
+    "play": "games/lo-shu-magic-square/play/"
+  },
+  {
+    "slug": "log-rolling",
+    "stage": "release-candidate",
+    "title": "Log Rolling",
+    "tagline": "Keep your feet. Tip your rival.",
+    "description": "A balance duel from the logging traditions of Canada and the United States. Lean against every slip, kick the log at the right moment and tip your rival into the water across four ponds, from a still dawn mill pond to white-water rapids.",
+    "genre": "log rolling balance duel",
+    "demo": true,
+    "howToPlay": [
+      "Drag on the pad to lean against a slip and keep your balance.",
+      "Tap the left or right half of the pad to kick the log.",
+      "A kick tips your rival; your own feet go with the log.",
+      "Stand steady to fill momentum: a kick costs about a third.",
+      "Win two of three bouts. Use Think for a hint."
+    ],
+    "icon": "games/log-rolling/icon.svg",
+    "play": "games/log-rolling/play/"
+  },
+  {
     "slug": "loteria-cantada-tablas",
     "stage": "release-candidate",
     "title": "Lotería Cantada",
@@ -1418,6 +2763,58 @@
     ],
     "icon": "games/loteria-cantada-tablas/icon.svg",
     "play": "games/loteria-cantada-tablas/play/"
+  },
+  {
+    "slug": "luge-and-toboggan-run",
+    "stage": "release-candidate",
+    "title": "Luge and Toboggan Run",
+    "tagline": "Lie back, lean, hold the line",
+    "description": "Slide feet first down a banked ice chute of numbered bends. Lean with one thumb, pick the fastest line and shave hundredths off every run, then race a ghost of your best and seven computer sliders in a two-run cup.",
+    "genre": "time attack sport",
+    "demo": true,
+    "howToPlay": [
+      "Tap as each ring closes at the start gate to launch faster.",
+      "Press and drag left or right to lean the sled through the bends.",
+      "Follow the gold line, stay off the walls and beat your ghost."
+    ],
+    "icon": "games/luge-and-toboggan-run/icon.svg",
+    "play": "games/luge-and-toboggan-run/play/"
+  },
+  {
+    "slug": "lusona-sand-drawings",
+    "stage": "release-candidate",
+    "title": "Lusona Sand Drawings",
+    "tagline": "One unbroken line round every dot.",
+    "description": "A calm line puzzle inspired by the sand drawings of the Chokwe peoples of Angola, DR Congo and Zambia. Turn mirror tiles until the sand line closes into a single loop round every dot. Thirty levels, a daily drawing, hints that explain and Watch and Learn.",
+    "genre": "Logic puzzle",
+    "demo": true,
+    "howToPlay": [
+      "Tap a tile to flip its mirror between the two diagonals.",
+      "The sand line bends round tile corners; each separate loop has its own colour.",
+      "Turn tiles until only one loop is left and it holds every dot.",
+      "Stone tiles are fixed. Fewer moves earn more stars.",
+      "Tap Think for a hint, or Watch and Learn to see a level solved."
+    ],
+    "icon": "games/lusona-sand-drawings/icon.svg",
+    "play": "games/lusona-sand-drawings/play/"
+  },
+  {
+    "slug": "maamoul-cookie-moulding",
+    "stage": "release-candidate",
+    "title": "Maamoul Cookie Moulding",
+    "tagline": "Fill, seal and knock out carved cookies, then catch the oven at pale gold.",
+    "description": "Work a bakery bench in the Levant: choose a carved mould, drop the date, walnut or pistachio filling at the marked amount, pinch the dough shut, knock it out in three beats and set it on the tray. Bake it at the pale-gold moment. Eighteen shifts, Rush Hour, a Daily Shift, a Pattern Book and Watch and Learn.",
+    "genre": "Craft timing",
+    "demo": true,
+    "howToPlay": [
+      "Tap a mould on the rack to start a cookie.",
+      "Tap the bench when the filling reaches the dashed ring.",
+      "Drag a finger once round the rim to seal the dough.",
+      "Tap three knock beats as each ring closes on the mould.",
+      "Set the cookie on its slot, then pull the tray at pale gold."
+    ],
+    "icon": "games/maamoul-cookie-moulding/icon.svg",
+    "play": "games/maamoul-cookie-moulding/play/"
   },
   {
     "slug": "mahjong-four-winds",
@@ -1461,6 +2858,26 @@
     "play": "games/makruk-thai-chess-tutor/play/"
   },
   {
+    "slug": "mallakhamb",
+    "stage": "release-candidate",
+    "title": "Mallakhamb",
+    "tagline": "Swipe, wrap and hold your way up the pole.",
+    "description": "A rhythm and balance game built on the Indian pole gymnastics discipline. Link climbs, slides, wraps and long poses into six routines by swiping and holding in time with the beat, steer your balance in the flag and the upside-down hang, and keep the flow going. Learn mode, a Watch and Learn demonstration, an in-app Rules book, portrait and landscape play, synthesised sound, no ads.",
+    "genre": "rhythm gymnastics",
+    "demo": true,
+    "howToPlay": [
+      "Pick a routine, then try Learn it first: slower, forgiving, with a hint button.",
+      "Moves slide along the ribbon to the glowing ring. Act as one lands on it.",
+      "Swipe up to climb, down to slide, left or right to wrap round the pole, tap to salute.",
+      "A long bar is a hold: press and keep your finger down, and slide it to steer the balance marker into the bright band.",
+      "Clean moves build a chain and multiplier; a miss costs flow and an empty flow bar ends the routine.",
+      "Watch and Learn performs a routine for you and thinks before each phrase. Pause it any time.",
+      "On a keyboard: arrow keys swipe, Space taps and holds (Left and Right steer), P pauses."
+    ],
+    "icon": "games/mallakhamb/icon.svg",
+    "play": "games/mallakhamb/play/"
+  },
+  {
     "slug": "marbles-ring-and-shoot",
     "stage": "release-candidate",
     "title": "Marbles: Ring and Shoot",
@@ -1477,6 +2894,24 @@
     ],
     "icon": "games/marbles-ring-and-shoot/icon.svg",
     "play": "games/marbles-ring-and-shoot/play/"
+  },
+  {
+    "slug": "mas-wrestling",
+    "stage": "release-candidate",
+    "title": "Mas Wrestling",
+    "tagline": "Brace, read the pull, lift them off the floor.",
+    "description": "Mas-wrestling, the seated stick-pull sport of Sakha. One thumb steers a single pull: draw the stick, lift, or sink to defend. Manage stamina and grip, snap your pulls and use leverage. Five rivals, three halls, two players on one phone, or watch and learn.",
+    "genre": "seated stick-pull sport",
+    "demo": true,
+    "howToPlay": [
+      "Put a thumb anywhere and drag: left to pull back, up to lift, down to sink.",
+      "Hard pulling empties stamina; ease off to recover. A quick flick is a snap.",
+      "Draw the stick to your side for leverage, then lift.",
+      "Lifting wears down grip; sink to defend and restore yours.",
+      "Lift your rival off the floor or take the stick. First to two bouts wins."
+    ],
+    "icon": "games/mas-wrestling/icon.svg",
+    "play": "games/mas-wrestling/play/"
   },
   {
     "slug": "matkot-beach-rally",
@@ -1513,6 +2948,45 @@
     ],
     "icon": "games/mehen-coiled-snake-race/icon.svg",
     "play": "games/mehen-coiled-snake-race/play/"
+  },
+  {
+    "slug": "menko",
+    "stage": "release-candidate",
+    "title": "Menko",
+    "tagline": "Slam it. Flip it. Win the disc.",
+    "description": "A children's floor game from Japan with real air-gust odds. Slam your paper disc beside a rival's, turn it face-down, and collect twenty-four original designs.",
+    "genre": "physics disc-slam floor game",
+    "demo": true,
+    "howToPlay": [
+      "Pick a disc from your tray: heavy discs make a stronger gust.",
+      "Tap the floor to aim and drag to nudge; the dashed circle is where it may land.",
+      "Set the strength: harder slams scatter wider.",
+      "Press Slam: rival discs in reach show their chance to flip.",
+      "Land on top of a rival disc and yours is lost; most stars wins."
+    ],
+    "icon": "games/menko/icon.svg",
+    "play": "games/menko/play/"
+  },
+  {
+    "slug": "mheibes",
+    "stage": "release-candidate",
+    "title": "Mheibes",
+    "tagline": "Read the faces and find the fist that hides the ring.",
+    "description": "Mheibes is a traditional ring-hunting game of Iraq and the Gulf. A ring is hidden in one of ten closed fists held by five players; you stare at faces, open the fists that look empty and name the hand that holds it, then swap sides and try to fool the other team. Every player has a personality that stays the same through the match: learn who to believe. Three computer levels, two players on one phone, four hands-on lessons, hints, and a Watch & Learn mode with Pause. Counters are only a score. Large text, reduced motion, no ads, works offline.",
+    "genre": "Iraqi hidden-ring face-reading game",
+    "demo": true,
+    "howToPlay": [
+      "New here? Tap Learn to play: four short hands-on lessons.",
+      "Seeking: tap a face to stare at that player and watch for a tell.",
+      "Tap a fist, then press Bat to open it (empty is out, the ring ends the round) or Bas to name it as the ring.",
+      "Open more empty fists before you answer for a bigger score, but each open is a small risk.",
+      "Hiding: tap the fist that will hold the ring, then pick a performer to bluff the other team.",
+      "Every player has a personality that stays the same for the whole match: after each round the game shows who was who.",
+      "Hint explains a good move. Auto Play shows the computer playing a whole match, with Pause.",
+      "Settings: three computer levels, rounds in a match, carpets, sound and reduced motion."
+    ],
+    "icon": "games/mheibes/icon.svg",
+    "play": "games/mheibes/play/"
   },
   {
     "slug": "mill-nine-mens-morris",
@@ -1598,6 +3072,26 @@
     "play": "games/morabaraba-twelve-cows/play/"
   },
   {
+    "slug": "morra",
+    "stage": "release-candidate",
+    "title": "Morra",
+    "tagline": "Throw your fingers. Call the total.",
+    "description": "The ancient finger game of the Roman table. Both players throw out zero to five fingers at once and shout a guess of the total; the exact call scores. Read five osteria rivals with their own habits, while the strongest ones read you right back. Watch and Learn, a Hint button, a full Rules page and text size up to 300%. Points only, no ads, works offline.",
+    "genre": "finger guessing duel",
+    "demo": true,
+    "howToPlay": [
+      "Tap how many fingers to throw, from 0 to 5.",
+      "Tap the total you call: your throw plus the fingers you expect from the rival.",
+      "Press Throw. The fist pumps uno, due, tre and both hands open together.",
+      "Call the exact total of all the fingers and you score; both right or both wrong scores nothing.",
+      "First to the target wins the duel. Each rival has habits to read.",
+      "Use Hint to see what the table knows, or Watch and Learn to see a whole duel.",
+      "On a keyboard: keys 0 to 5 throw, Q to P call 0 to 9, Enter throws, H hints."
+    ],
+    "icon": "games/morra/icon.svg",
+    "play": "games/morra/play/"
+  },
+  {
     "slug": "mu-torere-star-board",
     "stage": "production",
     "title": "Mū Tōrere",
@@ -1617,6 +3111,26 @@
     ],
     "icon": "games/mu-torere-star-board/icon.svg",
     "play": "games/mu-torere-star-board/play/"
+  },
+  {
+    "slug": "neolttwigi",
+    "stage": "release-candidate",
+    "title": "Neolttwigi",
+    "tagline": "Press as you land, release as she lands.",
+    "description": "A rhythm duet built on the Korean seesaw jumping game. Two girls in hanbok stand on the ends of a board across a straw bale: press as your feet land, hold while your partner flies, release as she lands, and send each other higher over five courses. Play with a computer partner, take turns with a friend on one screen, learn with hints, or watch the game play. In-app Rules book, portrait and landscape play, synthesised sound, no ads.",
+    "genre": "rhythm duet",
+    "demo": true,
+    "howToPlay": [
+      "Pick a course, then try Learn it first: slower, forgiving, with a hint button.",
+      "A ring closes on the next landing. Press as the girl's feet touch the board.",
+      "Keep your finger down while your partner flies: you are crouching.",
+      "Release the moment she lands to spring up. Perfect timing sends you higher.",
+      "Harmony fills with clean contacts; a miss costs it, and an empty bar slips the board.",
+      "Two Players: the left half of the screen is the left girl, the right half the right girl.",
+      "Watch and Learn plays both girls and thinks before each phrase. Pause it any time."
+    ],
+    "icon": "games/neolttwigi/icon.svg",
+    "play": "games/neolttwigi/play/"
   },
   {
     "slug": "nonogram-picture-grid",
@@ -1755,6 +3269,26 @@
     "play": "games/origami-fold-by-fold/play/"
   },
   {
+    "slug": "otedama",
+    "stage": "release-candidate",
+    "title": "Otedama",
+    "tagline": "Toss and catch cloth bags, in rhythm.",
+    "description": "A rhythm and timing game built on the traditional Japanese game of tossing and catching small cloth bags. Keep one to five bags in the air in eight patterns by tapping the hand each bag lands in, clap between catches, follow the counting song and win new cloth designs. Learn mode, a Watch and Learn demonstration, an in-app Rules book, portrait and landscape play, synthesised sound, no ads.",
+    "genre": "rhythm juggling",
+    "demo": true,
+    "howToPlay": [
+      "Pick a pattern, then try Learn it first: slower, forgiving, with a hint button.",
+      "Bags are tossed from hand to hand. A ring closes on the hand where the next one lands.",
+      "Tap the left or right side of the screen as the bag lands in that hand.",
+      "Some patterns have a clap in the air: tap the middle as its ring closes.",
+      "Clean catches build a chain, a multiplier and the counting song; a drop costs flow.",
+      "Earn a star in a pattern to win its cloth for your bags.",
+      "On a keyboard: A and D (or Left and Right) are the hands, Space claps, P pauses."
+    ],
+    "icon": "games/otedama/icon.svg",
+    "play": "games/otedama/play/"
+  },
+  {
     "slug": "oud-maqam-strings",
     "stage": "release-candidate",
     "title": "Oud Maqam Strings",
@@ -1856,6 +3390,25 @@
     "play": "games/parques-colombiano-carcel/play/"
   },
   {
+    "slug": "patolli",
+    "stage": "release-candidate",
+    "title": "Patolli",
+    "tagline": "The ancient cross-and-beans race.",
+    "description": "The ancient Mesoamerican race game, rebuilt as a secular score-only reconstruction. Throw five marked beans, choose which piece to move, capture lone pieces, make pairs nobody can land on, avoid trap squares and win corner stones. Two to four seats, computer opponents, a hint button, Watch and Learn, an in-app Rules book, portrait and landscape, no ads or betting.",
+    "genre": "cross-and-beans race",
+    "demo": true,
+    "howToPlay": [
+      "Throw the five beans: count the marked faces to get your steps.",
+      "Choose one piece and move it that many squares round the cross.",
+      "Land on a single piece to send it back to its pit; a pair cannot be landed on.",
+      "Traps throw you back four squares; corner stones give another throw.",
+      "Bring every piece round and home to the centre to win.",
+      "Tap the lightbulb for a hint, or try Watch and Learn."
+    ],
+    "icon": "games/patolli/icon.svg",
+    "play": "games/patolli/play/"
+  },
+  {
     "slug": "pearl-diving-gulf-journey",
     "stage": "release-candidate",
     "title": "Pearl Diving",
@@ -1913,6 +3466,27 @@
     "play": "games/pelota-wall-rally/play/"
   },
   {
+    "slug": "peralikatuma",
+    "stage": "release-candidate",
+    "title": "Peralikatuma",
+    "tagline": "Leap, chain and crown on an octagon of lines.",
+    "description": "Peralikatuma is a traditional jumping game from Sri Lanka, played on an octagon-shaped board of lines. Hop over your opponent's gems to capture them, chain leaps in one move, and crown a Star. Two rule sets, five computer levels, two players on one phone, hands-on lessons, hints that explain why, danger marks, take back and a Watch & Learn mode. Large text and reduced motion options, no ads, works offline.",
+    "genre": "Sri Lankan jumping board game",
+    "demo": true,
+    "howToPlay": [
+      "New here? Tap Learn to play: eight short hands-on lessons where you make every move yourself.",
+      "Tap a piece and the points it can reach glow. A man steps one point forward, diagonally forward from an X point, or sideways.",
+      "Leap an enemy piece next to you onto the free point straight behind it. Keep leaping: a chain is one move.",
+      "A capture is compulsory. Pieces that can leap pulse; a refused move says why.",
+      "Reach the two far rows and your man is crowned a Star that moves in every direction.",
+      "Classic Stars fly along whole lines; Gentle Stars move one point. Capture every piece or block your opponent to win.",
+      "Hint explains a good move. Danger marks warn about pieces that can be captured next. Take back undoes your last move.",
+      "Auto Play shows the computer playing both sides, with Pause. 25 quiet moves each settle the game on strength."
+    ],
+    "icon": "games/peralikatuma/icon.svg",
+    "play": "games/peralikatuma/play/"
+  },
+  {
     "slug": "perch",
     "stage": "production",
     "title": "Perch",
@@ -1934,6 +3508,24 @@
     "play": "games/perch/play/"
   },
   {
+    "slug": "peteca",
+    "stage": "release-candidate",
+    "title": "Peteca",
+    "tagline": "Strike it high. Keep it flying.",
+    "description": "The hand shuttlecock game of Brazil. Strike the feathered peteca with the open palm over a high net on a sunlit beach: choose lob, drive, drop or smash, aim with your thumb and time it for a Perfect. Singles, doubles, Beach Rally and Watch & Learn.",
+    "genre": "hand shuttlecock sport",
+    "demo": true,
+    "howToPlay": [
+      "Tap a pad to choose the stroke: Lob, Drive, Drop or Smash.",
+      "Tap when the peteca falls to the stroke's best height; the pad glows.",
+      "Where you tap in the pad sets the depth: left is short, right is deep.",
+      "Perfect strikes add spin; three in a row light the Power Palm.",
+      "Win the rally: land it in the rival's half or beat their reach."
+    ],
+    "icon": "games/peteca/icon.svg",
+    "play": "games/peteca/play/"
+  },
+  {
     "slug": "pick-up-sticks-steady-hand",
     "stage": "release-candidate",
     "title": "Pick-up Sticks",
@@ -1950,6 +3542,84 @@
     ],
     "icon": "games/pick-up-sticks-steady-hand/icon.svg",
     "play": "games/pick-up-sticks-steady-hand/play/"
+  },
+  {
+    "slug": "pinisi",
+    "stage": "release-candidate",
+    "title": "Pinisi",
+    "tagline": "Build a pinisi, read the monsoon and trade the spice islands.",
+    "description": "Build a hand-made pinisi schooner, then sail an archipelago chart trading cloves, nutmeg and sandalwood. Read the monsoon, reef in a gale, keep the hull sound. Quick Run, Monsoon Voyage, Rules, Think and Watch and Learn included.",
+    "genre": "trade-sailing",
+    "demo": true,
+    "howToPlay": [
+      "Choose a hull size, timber and rig at the shipyard.",
+      "Fit the six planks by tapping when the marker is in the bright zone.",
+      "In port, buy goods that are cheap and sell where they are dear.",
+      "Tap a connected island, then Set Sail.",
+      "Each sea day pick Full sail, Reef or Anchor by the wind.",
+      "Strong wind with full sail strains the hull; repair at Bira.",
+      "Think points at the best route or sail setting and says why.",
+      "Keyboard: 1, 2, 3 set the sail, H is Think, Space pauses."
+    ],
+    "icon": "games/pinisi/icon.svg",
+    "play": "games/pinisi/play/"
+  },
+  {
+    "slug": "pirogue-coastal-canoe-race",
+    "stage": "release-candidate",
+    "title": "Pirogue Coastal Canoe Race",
+    "tagline": "Punch the surf, round the buoy and ride the swell home.",
+    "description": "The coastal canoe regatta of West Africa. Paddle a painted pirogue with taps on the left and right, keep the crew's rhythm, punch each crest bow-on, brace against the heel and surf the swell back to the beach. Three rival crews, five seas, Time Trial, Two Players and a Watch & Learn coach.",
+    "genre": "surf canoe racing",
+    "demo": true,
+    "howToPlay": [
+      "Tap the left or right half of the screen to paddle on that side.",
+      "Tap in the bright arc of the ring to keep the crew's beat.",
+      "Stroke just before each crest hits, bow straight, to punch through.",
+      "Paddle on the low side to brace when the boat heels.",
+      "Round the buoy, then make two perfect strokes to catch a swell home."
+    ],
+    "icon": "games/pirogue-coastal-canoe-race/icon.svg",
+    "play": "games/pirogue-coastal-canoe-race/play/"
+  },
+  {
+    "slug": "pitch-pot",
+    "stage": "release-candidate",
+    "title": "Pitch Pot",
+    "tagline": "Pull back, pitch the arrow, and drop it in the bronze vase.",
+    "description": "The old Chinese and Korean throwing game of touhu and tuho. Pull back to aim and pitch bamboo arrows into a narrow-necked bronze vase: score the mouth, the bounce-ins and the ears. Real arrow physics, four computer opponents, two players, practice, Think and Watch & Learn.",
+    "genre": "target throwing / dexterity",
+    "demo": true,
+    "howToPlay": [
+      "Press anywhere and slide to pull the arrow back.",
+      "Lift your thumb to throw; the dotted path shows the plan.",
+      "Mouth 2, bounce-in 3, ear 5, all four in the pot +3.",
+      "Arrows left in the vase change later throws.",
+      "Tap Think for a tested suggestion."
+    ],
+    "icon": "games/pitch-pot/icon.svg",
+    "play": "games/pitch-pot/play/"
+  },
+  {
+    "slug": "plate-spinning",
+    "stage": "release-candidate",
+    "title": "Plate Spinning",
+    "tagline": "Whip each plate in time before it wobbles and falls.",
+    "description": "Keep porcelain, lacquer, jade and gold plates spinning on bamboo poles on a theatre stage inspired by Chinese acrobatics. Whip each one inside its sweet band, build combos, survive acts that add a pole each time. Practice, Watch and Learn and an exhaustive Rules page included.",
+    "genre": "dexterity",
+    "demo": true,
+    "howToPlay": [
+      "Every plate slowly loses spin and starts to wobble.",
+      "Tap a plate or its pole to whip it back to full speed.",
+      "Whip while the needle is in the gold zone for a Perfect.",
+      "Whipping a fast plate too soon makes it jolt and breaks your combo.",
+      "Jade plates need two quick taps in a row.",
+      "Three broken plates end the show; each act adds a pole.",
+      "Think slows time for a moment and rings the plate that needs you most.",
+      "Keyboard: 1 to 8 whip the poles left to right, H is Think, Space pauses."
+    ],
+    "icon": "games/plate-spinning/icon.svg",
+    "play": "games/plate-spinning/play/"
   },
   {
     "slug": "pond-hockey-slide",
@@ -2165,6 +3835,66 @@
     "play": "games/russian-loto-barrels/play/"
   },
   {
+    "slug": "sack-race",
+    "stage": "release-candidate",
+    "title": "Sack Race",
+    "tagline": "Hop, lean and race the village green.",
+    "description": "The village-fair sack race of Indonesia and Britain. Tap right to push forward and left to rock back, land in time for the strongest hop, keep the lean in the gold zone and beat three rivals over ruts and mud. Race ladder, Clock Run with a ghost, Daily Field and Watch & Learn modes.",
+    "genre": "village-fair hopping race",
+    "demo": true,
+    "howToPlay": [
+      "Every tap is a hop: tap the right half to push forward, the left half to rock back.",
+      "Tap just as your feet touch down for the strongest hop.",
+      "Keep the lean in the gold zone for top speed; too far and you fall.",
+      "Ruts throw you the way their arrow points; mud slows the sack.",
+      "Cross the line first to open the next heat."
+    ],
+    "icon": "games/sack-race/icon.svg",
+    "play": "games/sack-race/play/"
+  },
+  {
+    "slug": "sahkku",
+    "stage": "release-candidate",
+    "title": "Sáhkku",
+    "tagline": "Wake herders, race the board, capture rivals.",
+    "description": "Sáhkku is a traditional dice and board game of the Sámi people of Sápmi. Roll four dice, wake sleeping herders, run them round the board or across the middle and capture rivals by landing on them. A neutral white reindeer king joins whichever side lands on it. Four computer levels, two players on one phone, hints, take back, a Watch and Learn mode, large text and reduced motion options, no ads, works offline.",
+    "genre": "Sámi dice and board game",
+    "demo": true,
+    "howToPlay": [
+      "Tap the dice tray to roll four dice. Each shows Dawn, 1, 2 or 3.",
+      "Tap one of your herders and its reachable cells glow, one for each die.",
+      "Tap a glowing cell to use that die. A red ring means the move captures a rival.",
+      "A Dawn die can wake a sleeping herder onto your camp corner, or step one cell.",
+      "At a gate you may turn into the middle: a shortcut across the board through the centre.",
+      "Land exactly on a single rival herder to capture him. Pairs and your camp corner are safe.",
+      "Land on the white reindeer king to make it yours; it moves with your dice and flips if a rival lands on it.",
+      "Capture all six rival herders to win. Hint, Take back and Auto Play help you learn."
+    ],
+    "icon": "games/sahkku/icon.svg",
+    "play": "games/sahkku/play/"
+  },
+  {
+    "slug": "santoor",
+    "stage": "release-candidate",
+    "title": "Santoor",
+    "tagline": "Two mallets, sixteen notes, one zigzag.",
+    "description": "A music game for the hammered dulcimer of India. Strike glowing spots with two mallets, hold for a shimmering tremolo and run across the courses in one stroke. Learn six short pieces phrase by phrase from memory, or let Watch and Learn show the mallet, the note and the reason for every note. Five scales, free play, portrait and landscape, no ads, works offline.",
+    "genre": "music dulcimer",
+    "demo": true,
+    "howToPlay": [
+      "Pick a piece and start with Learn: a short phrase is played, then you play it back from memory.",
+      "A coloured disc with a closing ring is a note. Amber is the left mallet, teal the right.",
+      "Tap the spot when the ring closes on the disc. Closer to the beat scores more.",
+      "A disc with a wavy line is a tremolo: touch the spot and hold it until the ring fills.",
+      "Teal discs joined by a band are a run: drag one finger across the spots in one stroke.",
+      "Two discs at once are a chord: use two fingers.",
+      "Clean playing adds a drone and a hand drum. Show me points out the next note.",
+      "On a keyboard: 1 to 0 and Q W E R T Y strike notes 1 to 16, hold for a tremolo, Space pauses."
+    ],
+    "icon": "games/santoor/icon.svg",
+    "play": "games/santoor/play/"
+  },
+  {
     "slug": "sapo-frog-toss",
     "stage": "release-candidate",
     "title": "Sapo: Frog Toss",
@@ -2204,6 +3934,24 @@
     "play": "games/scopa-delle-regioni/play/"
   },
   {
+    "slug": "secret-puzzle-box",
+    "stage": "release-candidate",
+    "title": "Secret Puzzle Box",
+    "tagline": "Slide the hidden panels in order to open the drawer.",
+    "description": "A tactile sequence-box puzzle inspired by the secret boxes of Hakone, Japan. Slide inlaid wooden panels along their grooves, turn the box to reach other faces and find the order in which the catches let go. Thirty boxes, a Daily Box, hints that explain and Watch and Learn.",
+    "genre": "Sequence puzzle",
+    "demo": true,
+    "howToPlay": [
+      "Drag a panel along its groove, or tap the side you want it to move toward.",
+      "Slide every panel to its brass mark and the hidden drawer opens.",
+      "A held panel will not move: the panel that holds the catch pulses.",
+      "Turn the box with the face tabs; catches often sit on another face.",
+      "Tap Think for the next move, or Watch and Learn to see a box opened."
+    ],
+    "icon": "games/secret-puzzle-box/icon.svg",
+    "play": "games/secret-puzzle-box/play/"
+  },
+  {
     "slug": "seega-custodian-siege",
     "stage": "release-candidate",
     "title": "Seega: Desert Siege",
@@ -2220,6 +3968,27 @@
     ],
     "icon": "games/seega-custodian-siege/icon.svg",
     "play": "games/seega-custodian-siege/play/"
+  },
+  {
+    "slug": "sega-ravanne-drum",
+    "stage": "release-candidate",
+    "title": "Sega Ravanne Drum",
+    "tagline": "Play the ravanne, triangle and maravanne as the dancer sways.",
+    "description": "A rhythm game inspired by sega, the music and dance of Mauritius and the Indian Ocean islands. A beam sweeps round the goat-skin ravanne drum; tap and slide on the drum, tap the triangle, shake the maravanne and warm the skin at the fire. Play cleanly and the beach band joins in while the dancer sways. Learn by call and response, perform for stars, or watch the band play. Six original pieces, Rules with text size to 300%, synthesised sound, no ads.",
+    "genre": "rhythm music",
+    "demo": true,
+    "howToPlay": [
+      "Pick a piece, then Learn: the lead drummer calls a short phrase and you echo it back.",
+      "A beam sweeps round the drum, one turn per bar. Dots drop onto the rim; play each when the beam reaches it.",
+      "Tap the drum for a boom, or press and slide across it for a slap.",
+      "Tap the triangle for a ting. Swipe across the maravanne pad for a shake.",
+      "Press and hold the fire to warm the skin when the flame arc comes round.",
+      "Play cleanly and more of the band joins in and the dancer sways harder.",
+      "Watch and Learn plays the whole piece for you, thinking out loud before each phrase. Pause any time.",
+      "On a keyboard: Space boom, S slap, T triangle, M maravanne, W warm, P pause, H hint."
+    ],
+    "icon": "games/sega-ravanne-drum/icon.svg",
+    "play": "games/sega-ravanne-drum/play/"
   },
   {
     "slug": "senet-pharaohs-path",
@@ -2317,6 +4086,45 @@
     "play": "games/shogi-generals-and-drops/play/"
   },
   {
+    "slug": "sholo-guti",
+    "stage": "release-candidate",
+    "title": "Sholo Guti",
+    "tagline": "Sixteen stones each. Jump to capture. Bengal's chalk-board game.",
+    "description": "Sholo Guti (\"sixteen stones\") is a traditional jumping and capturing game of Bangladesh and Bengal, drawn with chalk on courtyards and school yards. Step along the lines, jump over enemy stones, and chain jumps in a single turn. Play Classic, Must capture, or Quick. Five computer levels, two players on one phone, hands-on lessons, hints that explain why, danger marks, take back and a Watch & Learn mode. No ads, works offline.",
+    "genre": "Bengal jumping and capturing board game",
+    "demo": true,
+    "howToPlay": [
+      "New here? Tap Learn to play: eight short hands-on lessons where you make every move yourself.",
+      "Tap a stone and the points it can reach glow. A stone steps one point along a drawn line, in any direction.",
+      "Jump over an enemy stone right next to yours, in a straight line, onto the empty point behind it to capture it.",
+      "After a jump the same stone may jump again in the same turn. You can stop after any jump.",
+      "A red ring with a number shows a capturing move and how many stones it takes.",
+      "Classic: capturing is your choice. Must capture: if you can jump, you have to. Quick: first to eight.",
+      "Hint explains a good move. Danger marks warn about stones that can be captured next. Take back undoes your last move.",
+      "Auto Play shows the computer playing both sides, with Pause. 25 quiet moves each settle the game on stones."
+    ],
+    "icon": "games/sholo-guti/icon.svg",
+    "play": "games/sholo-guti/play/"
+  },
+  {
+    "slug": "shove-hapenny",
+    "stage": "release-candidate",
+    "title": "Shove Ha'penny",
+    "tagline": "Slide it. Nudge it. Fill all nine beds.",
+    "description": "The English pub game of coins on slate with real sliding physics. Shove coins into nine narrow beds, win three chalks a bed, and beat four rivals or a friend.",
+    "genre": "pub slide-and-nudge board game",
+    "demo": true,
+    "howToPlay": [
+      "Drag along the near edge to place the coin.",
+      "Drag up the board to aim: the ghost coin shows where it will stop. Let go to shove.",
+      "A coin wholly inside a bed is a chalk; on a line it is dead.",
+      "Three chalks fill a bed; extra coins in your full bed help your rival.",
+      "Nudge coins on with the next one; first to fill nine beds wins."
+    ],
+    "icon": "games/shove-hapenny/icon.svg",
+    "play": "games/shove-hapenny/play/"
+  },
+  {
     "slug": "shut-the-box-tiles",
     "stage": "release-candidate",
     "title": "Shut the Box",
@@ -2359,6 +4167,24 @@
     "play": "games/silk-road-trader-journey/play/"
   },
   {
+    "slug": "sjoelen",
+    "stage": "release-candidate",
+    "title": "Sjoelen",
+    "tagline": "Slide it. Bank it. Chase the 148.",
+    "description": "The Dutch table game of wooden discs with real sliding physics. Flick discs through four numbered arches, build sets of 20 and beat four rivals or a friend.",
+    "genre": "physics disc-sliding table game",
+    "demo": true,
+    "howToPlay": [
+      "Drag the disc sideways at your end of the board.",
+      "Flick it up the board: speed sets the strength, angle sets the direction.",
+      "Follow the dotted guide and bank shots off the rails.",
+      "Arches score 2, 3, 4 and 1; one in each arch is a set worth 20.",
+      "Strays are slid again; perfect is 148."
+    ],
+    "icon": "games/sjoelen/icon.svg",
+    "play": "games/sjoelen/play/"
+  },
+  {
     "slug": "ski-jump-fjord",
     "stage": "release-candidate",
     "title": "Ski Jump Fjord",
@@ -2373,6 +4199,24 @@
     ],
     "icon": "games/ski-jump-fjord/icon.svg",
     "play": "games/ski-jump-fjord/play/"
+  },
+  {
+    "slug": "sled-dog-race",
+    "stage": "release-candidate",
+    "title": "Sled Dog Race",
+    "tagline": "Pace your team, call the trail, care for every dog.",
+    "description": "Dog sled racing from the snowy north of Canada and the United States. See the trail from the side, drive six dogs with one thumb, brake on the downhills, call Gee and Haw and look after the team at every checkpoint. Trail Cup, endless Trail Run, Practice, Learn drills, Think hints and Watch & Learn.",
+    "genre": "sled team race / care management",
+    "demo": true,
+    "howToPlay": [
+      "Slide the pace lever from Walk to Gallop: faster tires the dogs.",
+      "Tap Brake on steep downhills and lift it at the bottom.",
+      "Tap Gee (right) or Haw (left) when the call marker lights up.",
+      "At the checkpoint give water, snacks, paws, rest and praise.",
+      "Finish ahead of the rivals with a care score of 65% for the Care Award."
+    ],
+    "icon": "games/sled-dog-race/icon.svg",
+    "play": "games/sled-dog-race/play/"
   },
   {
     "slug": "snooker-cue-and-frame",
@@ -2430,6 +4274,114 @@
     ],
     "icon": "games/spinning-tops-arena/icon.svg",
     "play": "games/spinning-tops-arena/play/"
+  },
+  {
+    "slug": "square-dance-caller",
+    "stage": "release-candidate",
+    "title": "Square Dance Caller",
+    "tagline": "Name the figures and bring the whole square home.",
+    "description": "Square dancing is a folk dance of the United States. You are the caller: tap a figure, see where every dancer would go, sing it to the fiddle and keep a phrase ahead. Tips, Endless Evening, Practice, Learn lessons, Think hints and Watch & Learn.",
+    "genre": "calling puzzle / timing",
+    "demo": true,
+    "howToPlay": [
+      "Every dancer has a colour; every place has a ring in its owner's colour.",
+      "Tap a call to preview where each dancer goes.",
+      "Tap it again, or Call it, to sing it during the next phrase.",
+      "Stay a phrase ahead: if no call is ready the floor swings partners.",
+      "Bring all eight dancers home in as few phrases as you can."
+    ],
+    "icon": "games/square-dance-caller/icon.svg",
+    "play": "games/square-dance-caller/play/"
+  },
+  {
+    "slug": "ssireum",
+    "stage": "release-candidate",
+    "title": "Ssireum",
+    "tagline": "Read their balance, hook the sash, win the fall.",
+    "description": "Ssireum, the sash wrestling of Korea, as a duel of reading. Both wrestlers secretly choose a pull, hook or root each beat; push the rival's balance dot over the edge of its disc. Five rivals, three rings, pass-the-phone for two, or watch and learn.",
+    "genre": "sash wrestling mind-game",
+    "demo": true,
+    "howToPlay": [
+      "Pick Pull, Hook or Root, then a power: Light, Firm or Full.",
+      "Tap a petal: on their disc to send them, on yours to root against a pull.",
+      "Lock in. Both moves play at once and the dots move.",
+      "Power costs grip, and a hard pull throws you off balance too.",
+      "Push their dot over the edge to win a fall; first to two falls wins."
+    ],
+    "icon": "games/ssireum/icon.svg",
+    "play": "games/ssireum/play/"
+  },
+  {
+    "slug": "steppe-eagle-hunting",
+    "stage": "release-candidate",
+    "title": "Steppe Eagle Hunting",
+    "tagline": "Track the fox, release the eagle in the wind, stoop and call it home.",
+    "description": "The Kazakh eagle hunters' winter steppe as a game of patience and timing. Track a fox, release a golden eagle at the right moment, steer it through the wind, stoop and call it back to the glove. Computer riders, two players, Think and Watch & Learn.",
+    "genre": "timing / patience hunt",
+    "demo": true,
+    "howToPlay": [
+      "Press and drag to keep the sight on the fox; the lock fills.",
+      "Release when the fox is out in open snow, far from its den.",
+      "Drag to steer through the wind; tap Stoop at about 30 m.",
+      "Tap Call as each ring closes for a clean return.",
+      "Tap Think for a tested suggestion."
+    ],
+    "icon": "games/steppe-eagle-hunting/icon.svg",
+    "play": "games/steppe-eagle-hunting/play/"
+  },
+  {
+    "slug": "stilt-fishing",
+    "stage": "release-candidate",
+    "title": "Stilt Fishing",
+    "tagline": "Balance on the stilt. Land the fish.",
+    "description": "Sit on a crossbar in the surf off Sri Lanka's southern coast and fish from dawn to dusk. Keep your seat as the swells roll in, tap the water to cast at the fish you can see, set the hook when the float dives and play each fish in with a reel you must feather. Every catch is weighed, logged and released.",
+    "genre": "balance and angling skill",
+    "demo": true,
+    "howToPlay": [
+      "Hold the pad and slide left or right to lean and keep your seat.",
+      "Watch the swells arrive and lean into them before they hit.",
+      "Tap the water where a fish swims to cast between swells.",
+      "Press the pad the moment the float dives to set the hook.",
+      "Reel while the fish rests, let go when it runs and keep the needle in green."
+    ],
+    "icon": "games/stilt-fishing/icon.svg",
+    "play": "games/stilt-fishing/play/"
+  },
+  {
+    "slug": "stone-skipping",
+    "stage": "release-candidate",
+    "title": "Stone Skipping",
+    "tagline": "Make every stone count.",
+    "description": "The shoreline pastime of skimming flat stones across the water. Pick a stone, set its tilt and spin, flick it low and chase one more skip across dawn ponds, windy lakes, swelling bays and moonlit tarns. Pond sessions, a daily pond, free skipping and Watch & Learn.",
+    "genre": "water skimming skill",
+    "demo": true,
+    "howToPlay": [
+      "Tap one of the three stones in the tray.",
+      "Slide Tilt and Spin: around 12 to 16 degrees of tilt and plenty of spin is a good start.",
+      "Press the stone, drag up and let go: a longer pull is a faster throw.",
+      "Read the wind and the bright and dark bands of the swell.",
+      "Five throws make a session; use Think when you want a suggestion."
+    ],
+    "icon": "games/stone-skipping/icon.svg",
+    "play": "games/stone-skipping/play/"
+  },
+  {
+    "slug": "stoolball",
+    "stage": "release-candidate",
+    "title": "Stoolball",
+    "tagline": "Defend the board. Run for it.",
+    "description": "The village bat-and-board game of Sussex. Slide the paddle to meet the ball, choose Block, Drive or Lift and tap as the ring closes, then run or hold. Bat and bowl a match against three levels of opponent, play a quick knock or the daily knock, and let Watch & Learn explain every choice.",
+    "genre": "village bat-and-board sport",
+    "demo": true,
+    "howToPlay": [
+      "Drag sideways on the pitch to slide the paddle into the ball's line.",
+      "Tap Block, Drive or Lift as the ring closes on the paddle.",
+      "The part of the paddle the ball meets sets the direction: aim for a gap on the field map.",
+      "Tap RUN when the gauge is green; tap again to turn back.",
+      "In the second innings you bowl: drag the aim marker, choose pace and bounce, set the field and press Bowl."
+    ],
+    "icon": "games/stoolball/icon.svg",
+    "play": "games/stoolball/play/"
   },
   {
     "slug": "sudoku-nine-by-nine",
@@ -2549,6 +4501,24 @@
     "play": "games/taiko-drum-circle/play/"
   },
   {
+    "slug": "takoyaki-style-ball-flipping",
+    "stage": "release-candidate",
+    "title": "Takoyaki Flip Stall",
+    "tagline": "Pour, fill and flip golden street-stall balls for a queue of hungry customers.",
+    "description": "Run a street stall in Japan: pour batter into the iron plate, add fillings, flip each ball a quarter turn at the right moment and pack it for the right ticket. Three stalls, Rush Hour, a Daily Shift and Watch and Learn. Portrait or landscape.",
+    "genre": "Cooking rhythm",
+    "demo": true,
+    "howToPlay": [
+      "Pick the ladle and hold or drag over moulds to pour batter.",
+      "Choose a filling and sweep it over fresh batter.",
+      "Take the picks and tap a ball while its ring is green to flip it a quarter turn.",
+      "After four golden quarters the ball glows: tap it to pack it for a ticket.",
+      "Keep every customer happy; three lost customers close the stall."
+    ],
+    "icon": "games/takoyaki-style-ball-flipping/icon.svg",
+    "play": "games/takoyaki-style-ball-flipping/play/"
+  },
+  {
     "slug": "tangram-seven-pieces",
     "stage": "release-candidate",
     "title": "Tangram: Seven Pieces",
@@ -2588,6 +4558,42 @@
     ],
     "icon": "games/tarneeb-levant-table/icon.svg",
     "play": "games/tarneeb-levant-table/play/"
+  },
+  {
+    "slug": "tatami-room-tiling-puzzle",
+    "stage": "release-candidate",
+    "title": "Tatami Room Tiling Puzzle",
+    "tagline": "Fill the room. Never let four corners meet.",
+    "description": "Lay woven straw mats across a Japanese-style room so that no point touches the corners of four different mats. Every room has exactly one solution, with hints that teach, a daily puzzle and four seasons. Portrait or landscape, phone or tablet.",
+    "genre": "Tiling logic puzzle",
+    "demo": true,
+    "howToPlay": [
+      "Cover every square of the room using all the mats you are given.",
+      "Pick a full or half mat, then tap a square or drag across two.",
+      "Never let the corners of four different mats meet at one point.",
+      "Tap the lamp for a hint: where to look, then why it works.",
+      "Watch and Learn lays a whole room and explains every mat."
+    ],
+    "icon": "games/tatami-room-tiling-puzzle/icon.svg",
+    "play": "games/tatami-room-tiling-puzzle/play/"
+  },
+  {
+    "slug": "tavern-nail-and-wire-puzzles",
+    "stage": "release-candidate",
+    "title": "Tavern Nail and Wire Puzzles",
+    "tagline": "Slide and turn bent iron until the piece comes free.",
+    "description": "A 3D mechanical puzzle inspired by the bent-nail and wire disentanglement puzzles of inn and pub tables. Slide and turn a loose ring, hook or nail, look round the lit metal, and find the angle where the iron lets it through. Thirty levels, a daily puzzle, hints that explain and Watch and Learn.",
+    "genre": "Mechanical puzzle",
+    "demo": true,
+    "howToPlay": [
+      "Carry every loose piece out of the dashed zone round the iron frame.",
+      "Drag a piece to slide it, or tap the Slide buttons for X, Y and Z.",
+      "Tap the Turn buttons to swing a piece a quarter about an axis.",
+      "Drag the empty mat to look round the puzzle from any side.",
+      "Tap Think for the next move and why, or Watch and Learn to see one solved."
+    ],
+    "icon": "games/tavern-nail-and-wire-puzzles/icon.svg",
+    "play": "games/tavern-nail-and-wire-puzzles/play/"
   },
   {
     "slug": "tavla-dice-and-points",
@@ -2632,6 +4638,24 @@
     "play": "games/tavli-kafeneio-trio/play/"
   },
   {
+    "slug": "tejo",
+    "stage": "release-candidate",
+    "title": "Tejo (Turmequé)",
+    "tagline": "Slide to aim, throw the steel disc, sink the ring and pop the mechas.",
+    "description": "Colombia's national target sport. Slide to place a target mark on the clay box, lift to throw a heavy steel disc, and score the brass ring, the confetti-popping paper mechas and the closest disc. Four computer opponents, two players, practice, Think and Watch & Learn.",
+    "genre": "target sport / disc throw",
+    "demo": true,
+    "howToPlay": [
+      "Press anywhere and slide your thumb to move the target mark.",
+      "Lift your thumb to throw; the dashed circle shows the scatter.",
+      "Ring 6 points, each paper mecha 3, ring plus pop 9.",
+      "After six discs the one nearest the ring scores 1.",
+      "Tap Think for a tested suggestion."
+    ],
+    "icon": "games/tejo/icon.svg",
+    "play": "games/tejo/play/"
+  },
+  {
     "slug": "tennis-court-rally",
     "stage": "release-candidate",
     "title": "Tennis Court Rally",
@@ -2648,6 +4672,62 @@
     ],
     "icon": "games/tennis-court-rally/icon.svg",
     "play": "games/tennis-court-rally/play/"
+  },
+  {
+    "slug": "tent-pegging",
+    "stage": "release-candidate",
+    "title": "Tent Pegging",
+    "tagline": "Gallop down the lane and lift the peg on the point of your lance.",
+    "description": "Tent pegging (neza bazi) is the mounted lance sport of Pakistan and India. See the lane through the rider's eyes, slide to aim, let go to strike and time the ring onto the peg. Tournament Cup, endless Gallop Challenge, Practice, Learn drills, Think hints and Watch & Learn.",
+    "genre": "mounted sport / timing",
+    "demo": true,
+    "howToPlay": [
+      "Tap Canter, Gallop or Full gallop to set off.",
+      "Slide your thumb left or right to steer the lance ring.",
+      "Let go as the ring reaches the peg to strike.",
+      "Lift the peg for 4 points; bonuses for perfect and full gallop.",
+      "Beat the rival's score over six runs to open the next round."
+    ],
+    "icon": "games/tent-pegging/icon.svg",
+    "play": "games/tent-pegging/play/"
+  },
+  {
+    "slug": "thanjavur-dancing-doll",
+    "stage": "release-candidate",
+    "title": "Thanjavur Dancing Doll",
+    "tagline": "Tune, tap and settle the nodding clay dolls.",
+    "description": "Thanjavur Dancing Doll turns the famous weighted folk toy of southern India into a balance and rhythm game. Slide each doll's bead to tune its swing, tap to keep it nodding, and match a ghost doll's sway before settling every doll upright. 24 levels, a daily set, painted-doll collection, Practice, Watch and Learn, an in-app Rules book, portrait and landscape play, synthesised sound, no ads.",
+    "genre": "balance rhythm toy",
+    "demo": true,
+    "howToPlay": [
+      "Slide a doll's bead until its swing time matches the tag.",
+      "Tap a doll on the side it is leaving to keep it swinging; near the rim is a firm push.",
+      "Stay inside the ghost doll during the Hold part to score.",
+      "Rest a finger on a doll to steady it, and settle them upright at the end.",
+      "Earn stars to paint the clay dolls: body, face, then gold trim.",
+      "Watch and Learn tunes and plays the level for you and thinks before each part. Pause it any time.",
+      "On a keyboard: 1-3 pick a doll, Left and Right push, Up and Down move the bead, Space starts."
+    ],
+    "icon": "games/thanjavur-dancing-doll/icon.svg",
+    "play": "games/thanjavur-dancing-doll/play/"
+  },
+  {
+    "slug": "tiebele-house-painting",
+    "stage": "release-candidate",
+    "title": "Tiebele House Painting",
+    "tagline": "Finish the wall pattern in earth pigments, then save it from the rain.",
+    "description": "A symmetry puzzle inspired by the painted walls of Tiebele in Burkina Faso. Complete the elder's pattern as a mirror, turn or repeat with limited earth pigments, glaze the cells before the rain, and repair the wall. 18 walls, a Daily Wall, Think and Watch & Learn.",
+    "genre": "symmetry puzzle",
+    "demo": true,
+    "howToPlay": [
+      "Pick a pigment pot, then drag across cells to paint them.",
+      "Paint the empty half as the symmetric copy of the elder's half.",
+      "Pigment is limited: fewer, longer strokes score best.",
+      "When the rain comes, tap each ring before the drop lands.",
+      "Repaint what was washed, then tap Done to have the wall checked."
+    ],
+    "icon": "games/tiebele-house-painting/icon.svg",
+    "play": "games/tiebele-house-painting/play/"
   },
   {
     "slug": "tiger-and-goat",
@@ -2713,6 +4793,24 @@
     "play": "games/toguz-kumalak-nine-pits/play/"
   },
   {
+    "slug": "tractor-pull",
+    "stage": "release-candidate",
+    "title": "Tractor Pull",
+    "tagline": "Pull it to 300 feet.",
+    "description": "The summer fair sport of North America: hitch a farm tractor to a sled that gets heavier as it goes and pull it down the track. Roll on the throttle, shift gears, keep wheel slip in the green and watch the nose. Pull sessions, a daily pull, free pulling and Watch & Learn.",
+    "genre": "tractor pulling skill",
+    "demo": true,
+    "howToPlay": [
+      "Drag the throttle lever up gently to launch: too much and the tyres spin.",
+      "Tap Shift up when the engine reaches the top of its green band.",
+      "Keep wheel slip in the green and ease off when the nose lift climbs.",
+      "Dark damp strips of track grip better than pale dusty ones.",
+      "Three pulls make a session, each with a heavier sled; use Think for a suggestion."
+    ],
+    "icon": "games/tractor-pull/icon.svg",
+    "play": "games/tractor-pull/play/"
+  },
+  {
     "slug": "truco-brasileiro-manilha",
     "stage": "release-candidate",
     "title": "Truco Brasileiro: Manilha",
@@ -2732,6 +4830,27 @@
     ],
     "icon": "games/truco-brasileiro-manilha/icon.svg",
     "play": "games/truco-brasileiro-manilha/play/"
+  },
+  {
+    "slug": "tsoro-yematatu",
+    "stage": "release-candidate",
+    "title": "Tsoro Yematatu",
+    "tagline": "Drop three stones, then slide them into a line.",
+    "description": "Tsoro yematatu is a traditional game of Zimbabwe played on a triangle with a bar across it. Each side drops three stones onto seven points, then slides them one step at a time along the lines; three in a row wins, and so does leaving the other side with no move. Easy to learn in a minute, tense to master. Five computer levels, two players on one phone, five hands-on lessons, hints, threat marks, take back and a Watch & Learn mode. Three triangles, a carved soapstone board with gold inlay, large text and reduced motion options, no ads, works offline.",
+    "genre": "Zimbabwean three-in-a-row triangle game",
+    "demo": true,
+    "howToPlay": [
+      "New here? Tap Learn to play: five short hands-on lessons where you make every move yourself.",
+      "Take turns dropping your stones: tap any empty point on the triangle.",
+      "When all your stones are down, tap one of them and its reachable points glow. Tap a glowing point, or drag the stone there.",
+      "A stone slides one step along a line to the next point, and never jumps.",
+      "Get three of your stones in a row along a line to win, or leave the other side with no move.",
+      "Red rings show points where the other side would make a line next turn: block them.",
+      "Auto Play shows the computer playing both sides, with Pause. Hint explains a good move.",
+      "Settings has two larger triangles, Grand and Ten Points."
+    ],
+    "icon": "games/tsoro-yematatu/icon.svg",
+    "play": "games/tsoro-yematatu/play/"
   },
   {
     "slug": "tug-of-war-rope",
@@ -2769,6 +4888,66 @@
     "play": "games/tumbang-preso-can-toss/play/"
   },
   {
+    "slug": "turkish-dama",
+    "stage": "release-candidate",
+    "title": "Turkish Dama",
+    "tagline": "Turkey's draughts: orthogonal jumps, take the most.",
+    "description": "Dama is the traditional draughts game of Turkey. Pieces move and jump along rows and columns, a capture is compulsory and you must take the most pieces, and a man that reaches the far row becomes a king that flies the length of the board. Play the traditional Standard rules or the Easy capture option. Five computer levels, two players on one phone, hands-on lessons, hints that explain why, danger marks, take back and a Watch & Learn mode. A glazed-tile board, large text and reduced motion options, no ads, works offline.",
+    "genre": "Turkish draughts board game",
+    "demo": true,
+    "howToPlay": [
+      "New here? Tap Learn to play: seven short hands-on lessons where you make every move yourself.",
+      "Tap a piece and its squares glow. A man steps one square forward or sideways, never backwards or diagonally.",
+      "Jump over an enemy piece next to you, forward or sideways, onto the empty square behind it. Capturing is compulsory.",
+      "Keep jumping while you can, even round a corner, one landing square at a time. In Standard rules take the route with the most pieces.",
+      "A red ring with a number shows how many pieces a route captures.",
+      "Reach the far row and your man is crowned: a king moves and captures along a row or column over any distance.",
+      "Hint explains a good move. Danger marks warn about pieces that can be captured next. Take back undoes your last move.",
+      "Win by capturing everything or leaving your opponent with no move. Auto Play shows the computer playing both sides, with Pause."
+    ],
+    "icon": "games/turkish-dama/icon.svg",
+    "play": "games/turkish-dama/play/"
+  },
+  {
+    "slug": "ulu-maika",
+    "stage": "release-candidate",
+    "title": "Ulu Maika",
+    "tagline": "Sight the lane, set the lean, swipe to roll: thread the stakes.",
+    "description": "The disc-rolling game of Hawaiʻi. Look down a sunny meadow lane, turn the sight, bow the roll with a lean and swipe to send a smooth stone disc between the gate stakes and on to the far stake. Slopes push, mud drags, boulders bar the way. Five rivals, pass-and-play, solo practice.",
+    "genre": "disc rolling skill",
+    "demo": true,
+    "howToPlay": [
+      "Drag the picture to turn the sight.",
+      "Set a lean to curve the roll left or right.",
+      "Press ROLL, swipe up and let go: farther is harder.",
+      "Pass clean between the gate stakes, then finish at the far stake.",
+      "Most points after all discs wins."
+    ],
+    "icon": "games/ulu-maika/icon.svg",
+    "play": "games/ulu-maika/play/"
+  },
+  {
+    "slug": "vallenato-accordion-trio",
+    "stage": "release-candidate",
+    "title": "Vallenato Accordion Trio",
+    "tagline": "Three parts. One groove.",
+    "description": "A rhythm and ensemble game about vallenato, the accordion music of Colombia's Caribbean coast. Scrape the guacharaca, drum the caja and play the accordion with a real push and pull bellows, one take at a time, and hear your own three takes lock into a band. Or follow the spotlight in the Live Trio. Six original pieces in four aires, hints, Watch and Learn, a latency calibration screen and an in-app Rules page. Synthesised sound, no ads, works offline.",
+    "genre": "rhythm music",
+    "demo": true,
+    "howToPlay": [
+      "Pick a piece, then record three takes: guacharaca, caja, accordion.",
+      "Notes slide along the ribbon to the gold playhead. Tap or scrape when they arrive.",
+      "Accordion: tap the numbered button, and hold the bellows pad with your other thumb for a PULL note.",
+      "Caja: left half for TUM, right half for TAK. Guacharaca: scrape left or right across the tube.",
+      "Each earlier take plays back under the next, exactly as you played it.",
+      "Live Trio moves the spotlight from part to part every two bars.",
+      "The bulb names your next notes. Watch and Learn plays the whole piece for you.",
+      "On a keyboard: A S D F G H J, Space for the bellows, Z and X, the arrow keys."
+    ],
+    "icon": "games/vallenato-accordion-trio/icon.svg",
+    "play": "games/vallenato-accordion-trio/play/"
+  },
+  {
     "slug": "volleyball-rotation-rally",
     "stage": "release-candidate",
     "title": "Volleyball",
@@ -2785,6 +4964,24 @@
     ],
     "icon": "games/volleyball-rotation-rally/icon.svg",
     "play": "games/volleyball-rotation-rally/play/"
+  },
+  {
+    "slug": "wave-riding",
+    "stage": "release-candidate",
+    "title": "Wave Riding",
+    "tagline": "Carve the face. Beat the foam.",
+    "description": "The ocean tradition of riding waves. Paddle in, pop up and carve up and down the face of the wave with one thumb, pump speed, ride the tube, launch off the lip and stay ahead of the foam on four beaches from dawn to storm. Surf sessions, a daily break, free ride and Watch & Learn.",
+    "genre": "flow surf skill",
+    "demo": true,
+    "howToPlay": [
+      "Tap to paddle, then tap inside the green ring to pop up.",
+      "Drag up and down anywhere to carve the face of the wave.",
+      "Carving builds speed: keep moving to stay ahead of the foam.",
+      "Follow the glints for a combo, sit low in a tube, flick to spin in the air.",
+      "Three waves make a session; use Think when you want a hint."
+    ],
+    "icon": "games/wave-riding/icon.svg",
+    "play": "games/wave-riding/play/"
   },
   {
     "slug": "word-game",
@@ -2829,6 +5026,26 @@
     "play": "games/xiangqi-river-and-palace/play/"
   },
   {
+    "slug": "yote-capture-grid",
+    "stage": "release-candidate",
+    "title": "Yote",
+    "tagline": "Drop, jump, and take a bonus pebble from anywhere.",
+    "description": "Yote is a traditional pebble-and-sand game of Senegal, Mali and Burkina Faso, played on 30 scooped pits. Each turn drop a pebble, step one pit or jump; every jump lets you remove a second enemy pebble of your choice. Five computer levels, two players on one phone, hands-on lessons, hints that explain why, danger marks, take back and a Watch & Learn mode. Large text and reduced motion options, no ads, works offline.",
+    "genre": "West African drop-and-jump game",
+    "demo": true,
+    "howToPlay": [
+      "New here? Tap Learn to play: six short hands-on lessons where you make every move yourself.",
+      "Tap an empty pit to drop a pebble from your hand. You have twelve to place.",
+      "Or tap one of your pebbles on the board, then a glowing pit next to it, to step one pit.",
+      "Jump an enemy pebble that is next to yours onto the empty pit behind it. A red ring marks a jump.",
+      "After every jump, tap any other enemy pebble on the board to remove it as your bonus.",
+      "Capture is your choice, never forced. Keep pebbles in hand: a bonus cannot reach them while others stand on the board.",
+      "Win by capturing every enemy pebble. Auto Play shows the computer playing both sides, with Pause."
+    ],
+    "icon": "games/yote-capture-grid/icon.svg",
+    "play": "games/yote-capture-grid/play/"
+  },
+  {
     "slug": "yut-nori-four-sticks",
     "stage": "production",
     "title": "Yut Nori",
@@ -2848,5 +5065,47 @@
     ],
     "icon": "games/yut-nori-four-sticks/icon.svg",
     "play": "games/yut-nori-four-sticks/play/"
+  },
+  {
+    "slug": "zamma",
+    "stage": "release-candidate",
+    "title": "Zamma",
+    "tagline": "Jump, chain and crown a Sultan on a net of lines.",
+    "description": "Zamma is a traditional jumping game of the Sahara and the Maghreb. Step forward, jump in every direction, chain your captures and crown a Sultan that flies across the board. Three board sizes, five computer levels, lessons, Hint and Auto Play. No ads, works offline.",
+    "genre": "Saharan draughts-family game",
+    "demo": true,
+    "howToPlay": [
+      "New here? Tap Learn to play: seven short hands-on lessons where you make every move yourself.",
+      "Tap a stone and its reachable points glow. A man steps one point forward, straight or diagonally.",
+      "Jump over a neighbouring enemy stone, in any direction, onto the empty point behind it. Chains must go on.",
+      "Capturing is compulsory and you must take the most stones you can. Ringed stones are the ones that may move.",
+      "Finish a move on the far row and your man is crowned a Sultan: it slides and captures from any distance.",
+      "Choose the Small 5 by 5, Medium 7 by 7 or Grand 9 by 9 board in Settings.",
+      "Hint explains a good move. Danger marks warn about stones that must be captured next. Take back undoes your move.",
+      "Auto Play shows the computer playing both sides, with Pause and a think-time control."
+    ],
+    "icon": "games/zamma/icon.svg",
+    "play": "games/zamma/play/"
+  },
+  {
+    "slug": "zurkhaneh-strength-rhythm",
+    "stage": "release-candidate",
+    "title": "Zurkhaneh Strength Rhythm",
+    "tagline": "Lead the circle: stomp, swing, lift and whirl on the drum.",
+    "description": "A rhythm game inspired by the zurkhaneh, the sunken octagonal training pit of Iran. A drummer keeps the beat while eight athletes work in a circle; you call each move with a gesture: tap to stomp, swipe to swing the clubs, press and hold to lift the shield, draw circles to whirl. Play cleanly and the whole circle falls into step and more drum layers join. Six pieces, Learn by call and response, a Watch and Learn demonstration, Rules with text size to 300%, synthesised sound, no ads.",
+    "genre": "rhythm sport",
+    "demo": true,
+    "howToPlay": [
+      "Pick a piece, then Learn: the drummer calls a short phrase and you echo it back.",
+      "Each move is a glyph with a ring closing in on it. Do the move when the ring meets the glyph.",
+      "Tap anywhere to stomp. Swipe the way the arrow points to swing the clubs.",
+      "Press and hold to lift the shield; let go when the second ring closes.",
+      "Draw circles with one finger to whirl for the length shown.",
+      "Play cleanly and more athletes move in unison and more drum layers join. Miss and the circle loosens.",
+      "Watch and Learn performs the whole piece for you, thinking out loud before each phrase. Pause any time.",
+      "On a keyboard: Space stomps and holds, arrow keys swipe, R whirls, P pauses, H gives a hint."
+    ],
+    "icon": "games/zurkhaneh-strength-rhythm/icon.svg",
+    "play": "games/zurkhaneh-strength-rhythm/play/"
   }
 ]

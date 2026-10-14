@@ -1,0 +1,73 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ulu Maika 3D dev</title>
+<style>html,body{margin:0;height:100%;background:#123}canvas{position:fixed;inset:0;width:100vw;height:100vh;display:block}</style></head>
+<body><canvas id="c"></canvas>
+<script type="module">
+import { createScene } from './view3d/scene.js';
+import { makeTrack } from './src/sim.js';
+const q = new URLSearchParams(location.search);
+const S = await createScene({ canvas: document.getElementById('c'), quality: q.get('q') || 'high', transparent: false, preserve: true });
+window.__S = S;
+const W = innerWidth, H = innerHeight;
+const track = makeTrack(q.get('track') || 'meadow');
+const mode = q.get('cam') || 'play';
+const F = { mode, track, sides: Number(q.get('sides') || 2), turn: Number(q.get('turn') || 0), hide: q.get('turn') === '1' ? [true, false] : [false, true], phase: q.get('phase') || 'aim', humanTurn: true, aim: { ang: Number(q.get('ang') || 0), lean: 0 }, hold: q.has('hold') ? { on: true, power: Number(q.get('hold')) } : { on: false, power: 0 },
+  cam: { x: Number(q.get('cx') || 0), y: Number(q.get('cy') || -4), yaw: Number(q.get('ang') || 0) }, rect: { x: 0, y: 0, w: W, h: H }, rests: [], parts: [], evts: [],
+  held: { side: Number(q.get('turn') || 0) }, roll: null, preview: null, pathTrace: [], hero: q.has('hero') ? JSON.parse(q.get('hero')) : undefined };
+if (q.has('rests')) F.rests = JSON.parse(q.get('rests'));
+const sw = q.has('swing') ? Number(q.get('swing')) : null;
+const st = { x: 0, y: 0, vx: 0, vy: 5, v0: 1.2 + 7.8 * (sw ?? 0), rest: false, out: false };
+const steps = Number(q.get('steps') || 30);
+let tt = 0;
+const adv = () => { if (sw !== null) { if (tt === 0) { F.hold = { on: false, power: 0 }; } tt += 1 / 60; if (tt > 0.3) { F.roll = F.roll || { side: Number(q.get('turn') || 0), s: st }; st.y += st.vy * (1 / 60) * 0.5; } } S.frame(F, 1 / 60); };
+for (let i = 0; i < steps; i++) { if (sw !== null && i === steps - Number(q.get('after') || 0)) { F.roll = { side: Number(q.get('turn') || 0), s: st }; F.held = null; } if (F.roll) st.y += 0.05; S.frame(F, 1 / 60); }
+const draw = () => S.render({ x: 0, y: 0, w: W, h: H, cw: W, ch: H });
+if (q.has('still')) { draw(); }
+else { const loop = () => { if (F.roll) st.y += 0.05; S.frame(F, 1 / 60); draw(); requestAnimationFrame(loop); }; loop(); }
+document.title = 'ready';
+// ---- motion smoothness recorder (?record=1): a scripted match turn at a fixed 60 Hz step, joints sampled every frame ----
+if (q.has('record')) {
+  const sim = await import('./src/sim.js');
+  const names = ['Pelvis', 'Spine2', 'Head', 'L_Thigh', 'R_Thigh', 'L_Calf', 'R_Calf', 'L_Foot', 'R_Foot', 'L_UpperArm', 'R_UpperArm', 'L_Forearm', 'R_Forearm', 'L_Hand', 'R_Hand'];
+  const T = S.throwers, rec = [[], []];
+  const G = { track, roll: null, rests: [] };
+  const F2 = { ...F, mode: 'play', sides: 2, turn: Number(q.get('turn') || 0), hide: q.get('turn') === '1' ? [true, false] : [false, true], phase: 'aim', humanTurn: true, hold: { on: false, power: 0 }, roll: null, held: { side: 0 }, rests: [], cam: { x: 0, y: -3.4, yaw: 0 }, rect: { x: 0, y: 0, w: W, h: H }, noPeople: false };
+  const P = new S.THREE.Vector3();
+  const sample = () => { for (let k = 0; k < 2; k++) rec[k].push(names.map((n) => { T[k].h.bonePosition(n, P); return [P.x, P.y, P.z]; })); };
+  let frame = 0, sTate = null, acc = 0;
+  const power = 0.8, DT = 1 / 60;
+  const step = (n) => { for (let i = 0; i < n; i++) { frame++; S.frame(F2, DT); sample(); } };
+  step(90);                                                   // 1.5 s ready
+  for (let i = 0; i < 48; i++) { F2.hold = { on: true, power: power * (i / 47) }; frame++; S.frame(F2, DT); sample(); }  // the swipe
+  F2.hold = { on: false, power: 0 }; F2.phase = 'roll'; F2.held = null;
+  sTate = sim.startRoll(track, { ang: 0.0, power, lean: 0 }); F2.roll = { side: 0, s: sTate };
+  while (!sTate.rest && !sTate.out && frame < 2000) { acc += DT * 2; let n = 0; while (acc >= sim.H && !sTate.rest && !sTate.out && n++ < 120) { sim.stepRoll(track, sTate, []); acc -= sim.H; } frame++; S.frame(F2, DT); sample(); }
+  F2.phase = 'result'; step(60);
+  F2.roll = null; F2.rests = [{ x: sTate.x, y: sTate.y, side: 0, out: false, spin: 1 }]; F2.phase = 'aim'; F2.turn = 1; F2.held = { side: 1 }; F2.humanTurn = false; step(120);   // the other player rehearses
+  window.__rec = rec; window.__recNames = names;
+  // metrics
+  const out = {};
+  for (let k = 0; k < 2; k++) {
+    const R = rec[k].slice(12), n = R.length;
+    const per = {}; let pops = 0, rev = 0, slide = 0, maxAcc = 0;
+    names.forEach((nm, j) => {
+      const v = [], a = [];
+      for (let i = 1; i < n; i++) v.push([0, 1, 2].map((c) => (R[i][j][c] - R[i - 1][j][c]) / DT));
+      for (let i = 1; i < v.length; i++) a.push(Math.hypot(...[0, 1, 2].map((c) => (v[i][c] - v[i - 1][c]) / DT)));
+      const med = (arr, i) => { const w = arr.slice(Math.max(0, i - 6), i + 7).slice().sort((x, y) => x - y); return w[Math.floor(w.length / 2)]; };
+      let jp = 0, jr = 0, ma = 0;
+      for (let i = 0; i < a.length; i++) { ma = Math.max(ma, a[i]); if (a[i] > 3 * med(a, i) + 8) jp++; }
+      for (let i = 2; i < v.length; i++) for (const c of [0, 1, 2]) { const d1 = v[i - 1][c] - v[i - 2][c], d2 = v[i][c] - v[i - 1][c]; if (d1 * d2 < 0 && Math.abs(d1) > 0.15 && Math.abs(d2) > 0.15) jr++; }
+      per[nm] = { maxAcc: +ma.toFixed(1), pops: jp, reversals: jr };
+      pops += jp; rev += jr; maxAcc = Math.max(maxAcc, ma);
+    });
+    for (const nm of ['L_Foot', 'R_Foot']) {
+      const j = names.indexOf(nm);
+      for (let i = 1; i < n; i++) { const sp = Math.hypot(R[i][j][0] - R[i - 1][j][0], R[i][j][2] - R[i - 1][j][2]) / DT; if (R[i][j][1] < 0.12 && R[i - 1][j][1] < 0.12 && sp > 0.03) slide++; }
+    }
+    out['thrower' + k] = { frames: n, pops, reversals: rev, footSlideFrames: slide, maxAcc: +maxAcc.toFixed(1), per };
+  }
+  window.__smooth = out;
+  document.title = 'recorded';
+}
+</script></body></html>

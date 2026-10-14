@@ -1,0 +1,17 @@
+{
+  "title": "Co Ganh",
+  "tagline": "Flank them, trap them, flip them all.",
+  "description": "Co Ganh (Cờ gánh) is a traditional Vietnamese game played on a small board of lines and diagonals. Step one point at a time: land between two enemy pieces and both flip to your colour, or close the last gap round a group and the whole group flips. Five computer levels, two players on one phone, hands-on lessons, hints that explain why, danger marks, take back and a Watch & Learn mode. A rice-paper board with lacquer pieces that turn like coins, large text and reduced motion options, no ads, works offline.",
+  "genre": "Vietnamese flanking board game",
+  "demo": true,
+  "howToPlay": [
+    "New here? Tap Learn to play: six short hands-on lessons where you make every move yourself.",
+    "Tap a piece and its reachable points glow. A piece steps one point along a line.",
+    "Diagonal lines run only through points whose row plus column is even; the board shows them.",
+    "Flank: step between two enemy pieces on a line and both flip to your colour.",
+    "A gold ring means that step flips pieces; the number says how many.",
+    "Trap: close the last empty point round an enemy group and the whole group flips.",
+    "Open point: if the enemy leaves a point you can flank into, you must step in.",
+    "Auto Play shows the computer playing both sides, with Pause. Hint explains a good move."
+  ]
+}

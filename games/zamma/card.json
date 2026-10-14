@@ -1,0 +1,17 @@
+{
+  "title": "Zamma",
+  "tagline": "Jump, chain and crown a Sultan on a net of lines.",
+  "description": "Zamma is a traditional jumping game of the Sahara and the Maghreb. Step forward, jump in every direction, chain your captures and crown a Sultan that flies across the board. Three board sizes, five computer levels, lessons, Hint and Auto Play. No ads, works offline.",
+  "genre": "Saharan draughts-family game",
+  "demo": true,
+  "howToPlay": [
+    "New here? Tap Learn to play: seven short hands-on lessons where you make every move yourself.",
+    "Tap a stone and its reachable points glow. A man steps one point forward, straight or diagonally.",
+    "Jump over a neighbouring enemy stone, in any direction, onto the empty point behind it. Chains must go on.",
+    "Capturing is compulsory and you must take the most stones you can. Ringed stones are the ones that may move.",
+    "Finish a move on the far row and your man is crowned a Sultan: it slides and captures from any distance.",
+    "Choose the Small 5 by 5, Medium 7 by 7 or Grand 9 by 9 board in Settings.",
+    "Hint explains a good move. Danger marks warn about stones that must be captured next. Take back undoes your move.",
+    "Auto Play shows the computer playing both sides, with Pause and a think-time control."
+  ]
+}

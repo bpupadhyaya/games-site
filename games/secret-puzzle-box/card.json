@@ -1,0 +1,14 @@
+{
+  "title": "Secret Puzzle Box",
+  "tagline": "Slide the hidden panels in order to open the drawer.",
+  "description": "A tactile sequence-box puzzle inspired by the secret boxes of Hakone, Japan. Slide inlaid wooden panels along their grooves, turn the box to reach other faces and find the order in which the catches let go. Thirty boxes, a Daily Box, hints that explain and Watch and Learn.",
+  "genre": "Sequence puzzle",
+  "demo": true,
+  "howToPlay": [
+    "Drag a panel along its groove, or tap the side you want it to move toward.",
+    "Slide every panel to its brass mark and the hidden drawer opens.",
+    "A held panel will not move: the panel that holds the catch pulses.",
+    "Turn the box with the face tabs; catches often sit on another face.",
+    "Tap Think for the next move, or Watch and Learn to see a box opened."
+  ]
+}

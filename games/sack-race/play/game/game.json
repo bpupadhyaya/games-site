@@ -1,0 +1,25 @@
+{
+  "slug": "sack-race",
+  "title": "Sack Race",
+  "tagline": "Hop, lean and race the village green.",
+  "genre": "village-fair hopping race",
+  "orientation": "any",
+  "version": "1.1.2",
+  "monetization": {
+    "model": "premium",
+    "priceUsd": 2.99,
+    "previewSeconds": 90,
+    "products": [
+      {
+        "id": "unlock_game",
+        "type": "non-consumable",
+        "priceUsd": 2.99,
+        "title": "Unlock Game"
+      }
+    ]
+  },
+  "locales": [
+    "en"
+  ],
+  "demoOnly": true
+}

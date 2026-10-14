@@ -1,0 +1,14 @@
+{
+  "title": "Costa Rican Painted Oxcart",
+  "tagline": "Paint a sunburst wheel stroke by stroke, then watch the cart roll.",
+  "description": "A calm pattern puzzle inspired by the painted oxcarts of Costa Rica. Paint wheels, cart panels and yokes with symmetric strokes from limited paint pots, keep touching segments apart and meet each commission's rules. Hints that explain, Watch and Learn, Free Painting and a Gallery.",
+  "genre": "Craft pattern puzzle",
+  "demo": true,
+  "howToPlay": [
+    "Tap a paint pot, then tap or drag across the wheel to paint.",
+    "One stroke paints every matching segment of the symmetric set.",
+    "Touching segments must differ, and every pot must end empty.",
+    "Use the bulb for a hint that explains, or Watch and Learn.",
+    "Finished pieces roll down the road and hang in your Gallery."
+  ]
+}

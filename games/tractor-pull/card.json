@@ -1,0 +1,14 @@
+{
+  "title": "Tractor Pull",
+  "tagline": "Pull it to 300 feet.",
+  "description": "The summer fair sport of North America: hitch a farm tractor to a sled that gets heavier as it goes and pull it down the track. Roll on the throttle, shift gears, keep wheel slip in the green and watch the nose. Pull sessions, a daily pull, free pulling and Watch & Learn.",
+  "genre": "tractor pulling skill",
+  "demo": true,
+  "howToPlay": [
+    "Drag the throttle lever up gently to launch: too much and the tyres spin.",
+    "Tap Shift up when the engine reaches the top of its green band.",
+    "Keep wheel slip in the green and ease off when the nose lift climbs.",
+    "Dark damp strips of track grip better than pale dusty ones.",
+    "Three pulls make a session, each with a heavier sled; use Think for a suggestion."
+  ]
+}

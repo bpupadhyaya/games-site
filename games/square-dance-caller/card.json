@@ -1,0 +1,14 @@
+{
+  "title": "Square Dance Caller",
+  "tagline": "Name the figures and bring the whole square home.",
+  "description": "Square dancing is a folk dance of the United States. You are the caller: tap a figure, see where every dancer would go, sing it to the fiddle and keep a phrase ahead. Tips, Endless Evening, Practice, Learn lessons, Think hints and Watch & Learn.",
+  "genre": "calling puzzle / timing",
+  "demo": true,
+  "howToPlay": [
+    "Every dancer has a colour; every place has a ring in its owner's colour.",
+    "Tap a call to preview where each dancer goes.",
+    "Tap it again, or Call it, to sing it during the next phrase.",
+    "Stay a phrase ahead: if no call is ready the floor swings partners.",
+    "Bring all eight dancers home in as few phrases as you can."
+  ]
+}

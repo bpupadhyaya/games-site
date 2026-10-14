@@ -1,0 +1,14 @@
+{
+  "title": "Kicksled Race",
+  "tagline": "Kick, glide and race the snow.",
+  "description": "A Nordic winter racer seen from the side: stand on the runners of a chair-fronted kicksled, kick on the ring, glide to recover and read the course. Four courses, three rivals, ghosts and a daily run.",
+  "genre": "Winter kick-sled racing",
+  "demo": true,
+  "howToPlay": [
+    "Tap KICK, or anywhere on the scene, when the ring is full.",
+    "Tap GLIDE to crouch: less drag, faster recovery, safer bends.",
+    "Stand up before bumps: tap GLIDE again or kick.",
+    "Kick on climbs and soft snow, glide on slopes and ice.",
+    "Beat three rivals, or the ghost of your best run."
+  ]
+}

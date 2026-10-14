@@ -1,0 +1,25 @@
+{
+  "slug": "buzkashi",
+  "title": "Buzkashi",
+  "tagline": "Scoop the sack, round the post, ride into the circle.",
+  "genre": "mounted sport / team game",
+  "orientation": "any",
+  "version": "1.2.2",
+  "monetization": {
+    "model": "premium",
+    "priceUsd": 2.99,
+    "previewSeconds": 90,
+    "products": [
+      {
+        "id": "unlock_game",
+        "type": "non-consumable",
+        "priceUsd": 2.99,
+        "title": "Unlock Game"
+      }
+    ]
+  },
+  "locales": [
+    "en"
+  ],
+  "demoOnly": true
+}

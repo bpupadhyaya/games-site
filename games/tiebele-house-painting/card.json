@@ -1,0 +1,14 @@
+{
+  "title": "Tiebele House Painting",
+  "tagline": "Finish the wall pattern in earth pigments, then save it from the rain.",
+  "description": "A symmetry puzzle inspired by the painted walls of Tiebele in Burkina Faso. Complete the elder's pattern as a mirror, turn or repeat with limited earth pigments, glaze the cells before the rain, and repair the wall. 18 walls, a Daily Wall, Think and Watch & Learn.",
+  "genre": "symmetry puzzle",
+  "demo": true,
+  "howToPlay": [
+    "Pick a pigment pot, then drag across cells to paint them.",
+    "Paint the empty half as the symmetric copy of the elder's half.",
+    "Pigment is limited: fewer, longer strokes score best.",
+    "When the rain comes, tap each ring before the drop lands.",
+    "Repaint what was washed, then tap Done to have the wall checked."
+  ]
+}

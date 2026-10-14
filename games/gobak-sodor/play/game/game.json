@@ -1,0 +1,25 @@
+{
+  "slug": "gobak-sodor",
+  "title": "Gobak Sodor",
+  "tagline": "Slip past the guards on the chalk lines",
+  "genre": "line-crossing puzzle",
+  "orientation": "any",
+  "version": "1.2.2",
+  "monetization": {
+    "model": "premium",
+    "priceUsd": 2.99,
+    "previewSeconds": 90,
+    "products": [
+      {
+        "id": "unlock_game",
+        "type": "non-consumable",
+        "priceUsd": 2.99,
+        "title": "Unlock Game"
+      }
+    ]
+  },
+  "locales": [
+    "en"
+  ],
+  "demoOnly": true
+}

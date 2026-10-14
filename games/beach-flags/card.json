@@ -1,0 +1,14 @@
+{
+  "title": "Beach Flags",
+  "tagline": "Sprint, dive and grab the last flag on the sand.",
+  "description": "The beach sprint of Australian surf lifesaving carnivals. Lie flat, spin on the whistle, tap in rhythm, steer to a flag and dive for it: there is always one flag fewer than racers. Cups, Sudden Death, a Daily Beach and Watch & Learn modes.",
+  "genre": "beach sprint, flags race",
+  "demo": true,
+  "howToPlay": [
+    "Lie flat until the whistle, then tap once to spin and get up.",
+    "Tap in a steady rhythm: stay in the gold window of the rhythm bar.",
+    "Tap to the side of your runner to steer towards a flag.",
+    "Press DIVE when the flag is close to stretch for it.",
+    "One flag is missing every round: be the racer who holds the last one."
+  ]
+}

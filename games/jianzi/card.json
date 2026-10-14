@@ -1,0 +1,14 @@
+{
+  "title": "Jianzi",
+  "tagline": "Keep the feather flying.",
+  "description": "The feathered kicking game from the parks of China. Time each kick as the shuttle floats down, steer against the wind, chain different kicks into combos, or pass it around a circle of friends. Solo, circle, daily and Watch & Learn modes.",
+  "genre": "shuttlecock kicking skill",
+  "demo": true,
+  "howToPlay": [
+    "Tap a pad when the shuttle falls into the bright band beside your leg.",
+    "Left, straight or right steers the shuttle; in the circle each pad passes to a friend.",
+    "Strike near the white line for a Perfect kick; low is a toe scoop, high is the knee.",
+    "Use different kicks to raise the style multiplier and land combos.",
+    "Kick against the wind; the run ends when the shuttle touches the ground."
+  ]
+}

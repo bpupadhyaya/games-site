@@ -1,0 +1,17 @@
+{
+  "title": "Mheibes",
+  "tagline": "Read the faces and find the fist that hides the ring.",
+  "description": "Mheibes is a traditional ring-hunting game of Iraq and the Gulf. A ring is hidden in one of ten closed fists held by five players; you stare at faces, open the fists that look empty and name the hand that holds it, then swap sides and try to fool the other team. Every player has a personality that stays the same through the match: learn who to believe. Three computer levels, two players on one phone, four hands-on lessons, hints, and a Watch & Learn mode with Pause. Counters are only a score. Large text, reduced motion, no ads, works offline.",
+  "genre": "Iraqi hidden-ring face-reading game",
+  "demo": true,
+  "howToPlay": [
+    "New here? Tap Learn to play: four short hands-on lessons.",
+    "Seeking: tap a face to stare at that player and watch for a tell.",
+    "Tap a fist, then press Bat to open it (empty is out, the ring ends the round) or Bas to name it as the ring.",
+    "Open more empty fists before you answer for a bigger score, but each open is a small risk.",
+    "Hiding: tap the fist that will hold the ring, then pick a performer to bluff the other team.",
+    "Every player has a personality that stays the same for the whole match: after each round the game shows who was who.",
+    "Hint explains a good move. Auto Play shows the computer playing a whole match, with Pause.",
+    "Settings: three computer levels, rounds in a match, carpets, sound and reduced motion."
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "title": "Hide and Seek",
+  "tagline": "Find them, or stay hidden. The seeker remembers.",
+  "description": "The oldest game, played everywhere from Italy to Indonesia to Japan. Tap places to look, read the clue numbers to find the hidden children, or hide and slip away just in time. Daily hunt and Watch & Learn included.",
+  "genre": "hide and seek deduction",
+  "demo": true,
+  "howToPlay": [
+    "Tap a hiding place to look in it.",
+    "An empty place shows how many hiders are next to it.",
+    "Listen costs a look but marks three places.",
+    "In Hide, tap a green neighbour to sneak away.",
+    "Use Think for a suggestion, or watch the game play."
+  ]
+}

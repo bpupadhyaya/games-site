@@ -1,0 +1,15 @@
+{
+  "title": "Charro Lasso Roping",
+  "tagline": "Spin the loop to the beat, then rope the running horse",
+  "description": "The Mexican rope art on your phone: tap the knots on the beat through six named tricks, then hold and throw the loop to settle it over a painted target rolling down the rail. Three levels, a rival charro, Hints and a full Auto Play.",
+  "genre": "rope skill",
+  "demo": true,
+  "howToPlay": [
+    "Tap anywhere as each knot meets the gold ring.",
+    "Hold the long bars and let go when they reach the ring.",
+    "Hits in a row build a multiplier up to x4.",
+    "On a run, press and hold to grow the loop, then let go to throw.",
+    "A dashed ring shows where the target will be when the loop lands.",
+    "The charro with the higher total wins the event."
+  ]
+}

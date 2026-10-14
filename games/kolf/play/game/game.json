@@ -1,0 +1,25 @@
+{
+  "slug": "kolf",
+  "title": "Kolf",
+  "tagline": "Aim, swing and touch the post on the frozen canals of the Low Countries.",
+  "genre": "ice club-and-ball sport",
+  "orientation": "any",
+  "version": "1.1.1",
+  "monetization": {
+    "model": "premium",
+    "priceUsd": 2.99,
+    "previewSeconds": 90,
+    "products": [
+      {
+        "id": "unlock_game",
+        "type": "non-consumable",
+        "priceUsd": 2.99,
+        "title": "Unlock Game"
+      }
+    ]
+  },
+  "locales": [
+    "en"
+  ],
+  "demoOnly": true
+}

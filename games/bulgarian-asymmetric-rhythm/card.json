@@ -1,0 +1,17 @@
+{
+  "title": "Bulgarian Asymmetric Rhythm",
+  "tagline": "Stitch 7/8 and 11/8 dance rhythms as a village horo grows.",
+  "description": "A rhythm game inspired by the odd-meter dance music of Bulgaria. A needle runs along an embroidered sash, one pulse at a time, with the pulses gathered in groups of two and three. Tap the drum, clap and step pads to stitch each cell; play cleanly and more dancers join the line while the band grows. Learn by echo, perform for stars, or watch the band play. Six original pieces from 5/8 to 11/8, Rules with text size to 300%, synthesised sound, no ads.",
+  "genre": "rhythm music",
+  "demo": true,
+  "howToPlay": [
+    "Pick a piece, then Learn: the lead drummer plays a short phrase and you echo it back.",
+    "A needle runs along the bar one pulse at a time. Cells are grouped in twos and threes: 2+2+3 in 7/8.",
+    "Tap the red DRUM pad when the needle reaches a red disc, usually the first pulse of a group.",
+    "Tap the gold CLAP pad for a clap burst and the green STEP pad for a boot print.",
+    "Each cell you play is stitched into the sash: a full cross for clean timing, a gap for a miss.",
+    "Play cleanly and the Flow bar fills: more dancers join the horo and the band joins in.",
+    "The next bar is shown below, so you can see the grouping shift before the needle arrives.",
+    "On a keyboard: Space drum, C clap, S step, P pause, H hint."
+  ]
+}

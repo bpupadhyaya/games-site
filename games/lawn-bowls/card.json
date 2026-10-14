@@ -1,0 +1,14 @@
+{
+  "title": "Lawn Bowls",
+  "tagline": "Read the green, pick a hand, bend the bowl in to the jack.",
+  "description": "Lawn bowls from above on a striped club green: place the ring, choose which way the bowl leans and how hard it goes, and watch it curve in toward the jack. Five greens, six rivals, a club ladder and pass-and-play for two.",
+  "genre": "Lawn bowls / curved-bias physics",
+  "demo": true,
+  "howToPlay": [
+    "Press the green to place the gold ring where you want the bowl to finish.",
+    "Tap Curve left or Curve right: every bowl bends toward its small-ring side.",
+    "Choose Draw, Firm or Drive for how hard it arrives, then press Roll.",
+    "Bowls alternate, four each. After eight, the side nearer the jack scores a shot per bowl.",
+    "Play 6 or 10 ends; most shots wins."
+  ]
+}

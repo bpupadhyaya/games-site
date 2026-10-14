@@ -1,0 +1,28 @@
+{
+  "version": "1.10.1",
+  "characters": [],
+  "clips": [],
+  "scenery": [
+    "bd-meadow-day",
+    "bd-riverbank",
+    "gr-grass",
+    "gr-river",
+    "gr-meadow-flowers",
+    "sky-day",
+    "band-birch",
+    "tr-broad-tree"
+  ],
+  "files": {
+    "scenery/bd-meadow-day.webp": "83771c6c48cb93b394cfeb44273b5fa27f8c47d63265d49f6c791a99b4891ebe",
+    "scenery/bd-riverbank.webp": "fc02478d7ddcd5d32dc5802631acba7c5e7f504b2665e18a51215749588d5261",
+    "scenery/gr-grass.webp": "82d981f3b211ce598c56f2e764397e4f1afd851249b701b30d567964f159a98c",
+    "scenery/gr-river.webp": "86bbb2ef90ca69417205254901a10d8af0579b157e31922107c38aa02f5ef226",
+    "scenery/gr-meadow-flowers.webp": "2e7b65fefad7b097e07ee37634a6eda1c18c3f42b900869af00d627bc8beecc7",
+    "scenery/sky-day.webp": "42c3161f580dc41be78e0ad08e07136a9e1f112fecab53a96ab7da0567bc56b5",
+    "scenery/band-birch.webp": "bbc8c0adf57c20990005d05a521727d5d6771bfba82e949bb641a84cff120281",
+    "scenery/tr-broad-tree.webp": "1f31d8ffc8d037eccac6401b7d9cb77b2bcb43ca98de5c2bd63d3cbea6262f79",
+    "scenery/catalogue.json": "0b125b303c5bc1f5162600c88dba882b49ab2374d26e1e187f5385dc48ec7674"
+  },
+  "hash": "8364d07d204b6f846bf5feef290d49a1cebe6fd0a7e85a7407d3ea699d615a42",
+  "note": "Vendored copies. Never edit. Re-select with: tools/arc view3d-add <slug> --characters a,b ; refresh with: tools/arc view3d-upgrade"
+}

@@ -1,0 +1,25 @@
+{
+  "slug": "pinisi",
+  "title": "Pinisi",
+  "tagline": "Build a pinisi, read the monsoon and trade the spice islands.",
+  "genre": "trade-sailing",
+  "orientation": "any",
+  "version": "1.1.2",
+  "monetization": {
+    "model": "premium",
+    "priceUsd": 3.99,
+    "previewSeconds": 90,
+    "products": [
+      {
+        "id": "unlock_game",
+        "type": "non-consumable",
+        "priceUsd": 3.99,
+        "title": "Unlock Game"
+      }
+    ]
+  },
+  "locales": [
+    "en"
+  ],
+  "demoOnly": true
+}

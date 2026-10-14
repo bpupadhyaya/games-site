@@ -1,0 +1,15 @@
+{
+  "title": "Patolli",
+  "tagline": "The ancient cross-and-beans race.",
+  "description": "The ancient Mesoamerican race game, rebuilt as a secular score-only reconstruction. Throw five marked beans, choose which piece to move, capture lone pieces, make pairs nobody can land on, avoid trap squares and win corner stones. Two to four seats, computer opponents, a hint button, Watch and Learn, an in-app Rules book, portrait and landscape, no ads or betting.",
+  "genre": "cross-and-beans race",
+  "demo": true,
+  "howToPlay": [
+    "Throw the five beans: count the marked faces to get your steps.",
+    "Choose one piece and move it that many squares round the cross.",
+    "Land on a single piece to send it back to its pit; a pair cannot be landed on.",
+    "Traps throw you back four squares; corner stones give another throw.",
+    "Bring every piece round and home to the centre to win.",
+    "Tap the lightbulb for a hint, or try Watch and Learn."
+  ]
+}

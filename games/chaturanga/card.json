@@ -1,0 +1,16 @@
+{
+  "title": "Chaturanga",
+  "tagline": "The ancient ancestor of chess, with a tutor beside you",
+  "description": "Chaturanga is the ancient strategy game of India and the ancestor of chess: leaping elephants, a stepping counsellor and wins by stalemate or a bare Raja. Play five computer levels, learn in fourteen short lessons, compare ancient and modern movements side by side, or watch two computers play. Full rules inside, large text, no ads.",
+  "genre": "Ancient chess",
+  "demo": true,
+  "howToPlay": [
+    "New here? Tap Learn: fourteen short lessons where you make every move yourself.",
+    "Tap a piece, then a lit square, or drag it. Dots are quiet moves and red rings are captures.",
+    "Checkmate the other Raja to win. Ivory moves first.",
+    "The Gaja (elephant) leaps two squares diagonally. A Padati that reaches the last rank becomes a Mantri.",
+    "In the ancient game a side with no legal move, or only a bare Raja, loses.",
+    "History shows each piece on an ancient and a modern board. Moves switches the movement set.",
+    "Watch & Learn plays a whole game between two computers: guess the move, then see it revealed. Pause any time."
+  ]
+}

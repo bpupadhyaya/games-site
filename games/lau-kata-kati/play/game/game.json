@@ -1,0 +1,25 @@
+{
+  "slug": "lau-kata-kati",
+  "title": "Lau Kata Kati",
+  "tagline": "Nine pieces each. Two triangles meet at one point. Jump to capture.",
+  "genre": "Bengal jumping and capturing board game",
+  "orientation": "any",
+  "version": "1.1.1",
+  "monetization": {
+    "model": "premium",
+    "priceUsd": 2.99,
+    "previewSeconds": 90,
+    "products": [
+      {
+        "id": "unlock_game",
+        "type": "non-consumable",
+        "priceUsd": 2.99,
+        "title": "Unlock Game"
+      }
+    ]
+  },
+  "locales": [
+    "en"
+  ],
+  "demoOnly": true
+}

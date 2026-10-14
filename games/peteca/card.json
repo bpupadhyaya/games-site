@@ -1,0 +1,14 @@
+{
+  "title": "Peteca",
+  "tagline": "Strike it high. Keep it flying.",
+  "description": "The hand shuttlecock game of Brazil. Strike the feathered peteca with the open palm over a high net on a sunlit beach: choose lob, drive, drop or smash, aim with your thumb and time it for a Perfect. Singles, doubles, Beach Rally and Watch & Learn.",
+  "genre": "hand shuttlecock sport",
+  "demo": true,
+  "howToPlay": [
+    "Tap a pad to choose the stroke: Lob, Drive, Drop or Smash.",
+    "Tap when the peteca falls to the stroke's best height; the pad glows.",
+    "Where you tap in the pad sets the depth: left is short, right is deep.",
+    "Perfect strikes add spin; three in a row light the Power Palm.",
+    "Win the rally: land it in the rival's half or beat their reach."
+  ]
+}

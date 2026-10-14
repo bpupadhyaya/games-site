@@ -1,0 +1,25 @@
+{
+  "slug": "luge-and-toboggan-run",
+  "title": "Luge and Toboggan Run",
+  "tagline": "Lie back, lean, hold the line",
+  "genre": "timing sport",
+  "orientation": "any",
+  "version": "1.1.1",
+  "monetization": {
+    "model": "premium",
+    "priceUsd": 2.99,
+    "previewSeconds": 90,
+    "products": [
+      {
+        "id": "unlock_game",
+        "type": "non-consumable",
+        "priceUsd": 2.99,
+        "title": "Unlock Game"
+      }
+    ]
+  },
+  "locales": [
+    "en"
+  ],
+  "demoOnly": true
+}

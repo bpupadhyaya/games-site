@@ -1,0 +1,25 @@
+{
+  "slug": "asmara-highland-road-race",
+  "title": "Asmara Highland Road Race",
+  "tagline": "Pace the climb, hide in the group, spend your reserve and attack when it counts.",
+  "genre": "road cycling / pacing strategy",
+  "orientation": "any",
+  "version": "1.1.1",
+  "monetization": {
+    "model": "premium",
+    "priceUsd": 2.99,
+    "previewSeconds": 90,
+    "products": [
+      {
+        "id": "unlock_game",
+        "type": "non-consumable",
+        "priceUsd": 2.99,
+        "title": "Unlock Game"
+      }
+    ]
+  },
+  "locales": [
+    "en"
+  ],
+  "demoOnly": true
+}

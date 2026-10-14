@@ -1,0 +1,23 @@
+{
+ "id": "mannequin_f",
+ "name": "Mannequin (female)",
+ "kind": "mannequin",
+ "sex": "f",
+ "glb": "mannequin_f.glb",
+ "height": 1.737,
+ "pelvisHeight": 0.9233,
+ "legs": "shorts",
+ "skinLum": 0.5,
+ "hairLum": 0.06,
+ "clothRef": 0.8,
+ "skin": "clay",
+ "kit": {
+  "top": "#1f4aa8",
+  "bottoms": "#f2f2f2",
+  "socks": "#f2f2f2",
+  "shoes": "#f2f2f2"
+ },
+ "bytes": {
+  "glb": 15652
+ }
+}

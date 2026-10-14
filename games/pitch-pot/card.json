@@ -1,0 +1,14 @@
+{
+  "title": "Pitch Pot",
+  "tagline": "Pull back, pitch the arrow, and drop it in the bronze vase.",
+  "description": "The old Chinese and Korean throwing game of touhu and tuho. Pull back to aim and pitch bamboo arrows into a narrow-necked bronze vase: score the mouth, the bounce-ins and the ears. Real arrow physics, four computer opponents, two players, practice, Think and Watch & Learn.",
+  "genre": "target throwing / dexterity",
+  "demo": true,
+  "howToPlay": [
+    "Press anywhere and slide to pull the arrow back.",
+    "Lift your thumb to throw; the dotted path shows the plan.",
+    "Mouth 2, bounce-in 3, ear 5, all four in the pot +3.",
+    "Arrows left in the vase change later throws.",
+    "Tap Think for a tested suggestion."
+  ]
+}

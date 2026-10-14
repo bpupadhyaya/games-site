@@ -1,0 +1,25 @@
+{
+  "slug": "game-of-the-goose",
+  "title": "Game of the Goose",
+  "tagline": "The spiral race of geese, bridges and wells.",
+  "genre": "family race game",
+  "orientation": "any",
+  "version": "1.1.3",
+  "monetization": {
+    "model": "premium",
+    "priceUsd": 2.99,
+    "previewSeconds": 90,
+    "products": [
+      {
+        "id": "unlock_game",
+        "type": "non-consumable",
+        "priceUsd": 2.99,
+        "title": "Unlock Game"
+      }
+    ]
+  },
+  "locales": [
+    "en"
+  ],
+  "demoOnly": true
+}

@@ -1,0 +1,16 @@
+{
+  "title": "Double Dutch",
+  "tagline": "Hop between two ropes, in time, with tricks.",
+  "description": "A rhythm game about double dutch, the street game of jumping between two ropes turned in opposite directions. Tap to hop as each rope reaches the pavement, swipe to add a tuck, spin, kick or touch down, and keep the streak through eight blocks from the stoop to the final round. Watch and Learn, Practice, a Rules page with large text, original sounds, works offline.",
+  "genre": "rhythm jump rope",
+  "demo": true,
+  "howToPlay": [
+    "Pick a block. Two friends turn the ropes and you hop between them.",
+    "Tap anywhere as the rope reaches the pavement: the top of your hop on the beat.",
+    "When a call shows, swipe that way during the hop: up tuck, left spin, right kick, down touch down.",
+    "Pepper beats pass the ropes twice in one beat: keep hopping light and quick.",
+    "Three tangles and the round ends: try the block again.",
+    "Watch and Learn shows the routine, then jumps it for you.",
+    "On a keyboard: Space hops, arrow keys hop with a trick, P pauses."
+  ]
+}

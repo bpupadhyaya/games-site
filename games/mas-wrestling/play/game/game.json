@@ -1,0 +1,25 @@
+{
+  "slug": "mas-wrestling",
+  "title": "Mas Wrestling",
+  "tagline": "Brace your feet, read the pull, lift them off the floor",
+  "genre": "seated stick-pull sport",
+  "orientation": "any",
+  "version": "1.1.1",
+  "monetization": {
+    "model": "premium",
+    "priceUsd": 2.99,
+    "previewSeconds": 90,
+    "products": [
+      {
+        "id": "unlock_game",
+        "type": "non-consumable",
+        "priceUsd": 2.99,
+        "title": "Unlock Game"
+      }
+    ]
+  },
+  "locales": [
+    "en"
+  ],
+  "demoOnly": true
+}

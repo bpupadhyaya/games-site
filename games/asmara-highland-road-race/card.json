@@ -1,0 +1,14 @@
+{
+  "title": "Asmara Highland Road Race",
+  "tagline": "Pace the climb, hide in the group and attack when it counts.",
+  "description": "A stage race over the Eritrean highland roads. Manage three riders against five rival teams: sit in the slipstream, pull, save your reserve and launch your attack on the hairpin climbs. Six stages, a time trial, and Watch & Learn.",
+  "genre": "road cycling / pacing strategy",
+  "demo": true,
+  "howToPlay": [
+    "Tap one of your three riders, then choose EASE, SIT IN, PUSH or ATTACK.",
+    "Sit behind another rider to save about a third of the effort on the flat.",
+    "Hard efforts spend a reserve; at zero your rider cracks and slows down.",
+    "Spend the reserve where it pays most: on the steep climbs and in the finale.",
+    "Think shows the best orders found by trying the next minute several ways."
+  ]
+}

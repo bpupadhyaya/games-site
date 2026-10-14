@@ -1,0 +1,25 @@
+{
+  "slug": "limbo",
+  "title": "Limbo",
+  "tagline": "Lean back and slide under the bar as it drops lower.",
+  "genre": "dexterity",
+  "orientation": "any",
+  "version": "1.1.1",
+  "monetization": {
+    "model": "premium",
+    "priceUsd": 2.99,
+    "previewSeconds": 90,
+    "products": [
+      {
+        "id": "unlock_game",
+        "type": "non-consumable",
+        "priceUsd": 2.99,
+        "title": "Unlock Game"
+      }
+    ]
+  },
+  "locales": [
+    "en"
+  ],
+  "demoOnly": true
+}

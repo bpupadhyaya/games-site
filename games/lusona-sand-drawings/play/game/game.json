@@ -1,0 +1,25 @@
+{
+  "slug": "lusona-sand-drawings",
+  "title": "Lusona Sand Drawings",
+  "tagline": "One unbroken line round every dot. Turn tiles until the sand line closes.",
+  "genre": "logic puzzle",
+  "orientation": "any",
+  "version": "1.1.2",
+  "monetization": {
+    "model": "premium",
+    "priceUsd": 2.99,
+    "previewSeconds": 90,
+    "products": [
+      {
+        "id": "unlock_game",
+        "type": "non-consumable",
+        "priceUsd": 2.99,
+        "title": "Unlock Game"
+      }
+    ]
+  },
+  "locales": [
+    "en"
+  ],
+  "demoOnly": true
+}

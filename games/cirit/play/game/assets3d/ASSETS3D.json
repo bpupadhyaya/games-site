@@ -1,0 +1,60 @@
+{
+  "version": "1.11.1",
+  "characters": [
+    "athlete_f",
+    "athlete_m",
+    "mannequin_f",
+    "mannequin_m"
+  ],
+  "clips": [
+    "base"
+  ],
+  "scenery": [
+    "bd-meadow-day",
+    "gr-steppe",
+    "gr-cobble",
+    "sky-day",
+    "sky-overcast",
+    "band-hills-green",
+    "band-village-row",
+    "tr-round-tree",
+    "tr-broad-tree",
+    "bd-steppe"
+  ],
+  "animals": [
+    "horse"
+  ],
+  "files": {
+    "characters/athlete_f.glb": "480e3908576563bb53d4a5d7cc058217d17a6c700ac5518e6902d59e788bee57",
+    "characters/athlete_f.json": "09c88c33bf5dc2c327ccab9c9e9e51ea62ddd803e7f282571796a3c94270987a",
+    "characters/athlete_f_body_mask.webp": "fbf46bfbe414815fecd7d3ebb5767939f8313b80814111ba5bc9f69262cc9a8c",
+    "characters/athlete_f_body_skin.webp": "a1aae26a96b8bbf94015559f3307216d8e04422f450ffcc9b3f4bad62118b62b",
+    "characters/athlete_f_head_mask.webp": "4def06bcd6ff9b63d42fce7b289e7948023cd60fa4d5ba44f556df2c0c14224e",
+    "characters/athlete_m.glb": "5d9bcf61db9b4ee4b215df38bc365791a5d4788a3d5ff3dfab7309d0b6f66b0a",
+    "characters/athlete_m.json": "94a1ed84394935d7bbd5c651fbc6e2faa4671191822d35cdc6070b59bf20db4a",
+    "characters/athlete_m_body_mask.webp": "b75361818563e6fd57814c8b135e080f2f04b005af050ecc5c4eb84cc5cf0a28",
+    "characters/athlete_m_body_skin.webp": "6a258aa62fce605ebb805740db1999d3eeca04d233da2ac1e5ff1061b6c435e2",
+    "characters/athlete_m_head_mask.webp": "d2e1db0d1adeda80b512bae1786d138fc882c44beadce8e56f9ac428d470118d",
+    "characters/mannequin_f.glb": "c6632ddaa0fbc8cd80c64e9f7cf5f9fca15aaca1020415159903e1ae53c9b467",
+    "characters/mannequin_f.json": "1f703227b40c1f415fd00774f6ea35c2003c815de98e5e61458e4e4f25daa9f3",
+    "characters/mannequin_m.glb": "b75014e5b6033ec6ef0979a126cac399f1004f23bc1ed2e9df74aad9eacf288a",
+    "characters/mannequin_m.json": "d2b7eb91a162f48489ef97377e9fc5dc8cb5136633b52665a0ae970e35f5e7e6",
+    "clips/base.bin": "8a3871846e5303a374014b8d5197bd767f3f62449917be3fc0fc7069f4dd7de0",
+    "clips/base.json": "9d7bd7a3a4e145d959784b59b7058f4ab4afebe0c29bbf6a9ed72603ec145269",
+    "scenery/bd-meadow-day.webp": "83771c6c48cb93b394cfeb44273b5fa27f8c47d63265d49f6c791a99b4891ebe",
+    "scenery/gr-steppe.webp": "31c22d6baa3848715fdd3fed30d8fa9d178114150d9ffbbb76bccf526f7ef3e8",
+    "scenery/gr-cobble.webp": "3a2329fe4213a37a82113e47254d8d914d21d9777fa1ac4c934ad73287b39b47",
+    "scenery/sky-day.webp": "42c3161f580dc41be78e0ad08e07136a9e1f112fecab53a96ab7da0567bc56b5",
+    "scenery/sky-overcast.webp": "6b60708ea18e21c8992289f070bfe6cbbe7151c773a3ae7b1d24f2e615ac9321",
+    "scenery/band-hills-green.webp": "1596b9fb38ef2656439fc91423afb3c68ede5fa8ac746c8bc7e9a58b571a8252",
+    "scenery/band-village-row.webp": "e779fe0ebe8f636d283ca9b1afd1918111c6138be979a17e39917965d336d1a8",
+    "scenery/tr-round-tree.webp": "385fc8516971a28457b87ca8940195e439ec7c19d1b5e6656146ec145cf528c0",
+    "scenery/tr-broad-tree.webp": "1f31d8ffc8d037eccac6401b7d9cb77b2bcb43ca98de5c2bd63d3cbea6262f79",
+    "scenery/bd-steppe.webp": "65de40ef793c77fb2c72b6a81af9ab98b0a511677aa05e451d896160844cb7fe",
+    "scenery/catalogue.json": "0b125b303c5bc1f5162600c88dba882b49ab2374d26e1e187f5385dc48ec7674",
+    "animals/horse.glb": "413660274c94e66432f078e30a81bf6a830d4965b73124c2c96b8fd249659056",
+    "animals/horse.json": "5b73869e9476ad1eee5acb73d276c273ad3eec6241fe8c6fcb45bf8c3624ac0b"
+  },
+  "hash": "8d39b95aa22d65dd09293641659e6ce532986a07fe4d4969306dacb17a40a06c",
+  "note": "Vendored copies. Never edit. Re-select with: tools/arc view3d-add <slug> --characters a,b ; refresh with: tools/arc view3d-upgrade"
+}

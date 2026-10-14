@@ -1,0 +1,17 @@
+{
+  "title": "Bentengan",
+  "tagline": "Two forts, one rule: the later leaver wins",
+  "description": "Bentengan is the two-fort tag game of Indonesia. Guard your pole, step out at the right moment, tag rivals into jail and free your own team before the rival pole falls. Tap to command, three computer levels, a hint that explains itself, Auto Play, a full Rules page, large text and portrait or landscape play. No ads, works offline.",
+  "genre": "tag and tactics",
+  "demo": true,
+  "howToPlay": [
+    "TAP a player to pick him, then TAP the field to send him there.",
+    "TAP a rival to chase him, or TAP the rival pole to run for it.",
+    "Numbers above players show who left the fort first; the higher number tags the lower.",
+    "A tagged player goes to jail. TAP your jail with a free player to free everyone in it.",
+    "Inside your fort ring you are safe and your number resets.",
+    "Touch the rival pole, or jail all four rivals, to win the round.",
+    "First to three rounds wins the match.",
+    "Keyboard: 1 to 4 pick a player, Space picks the next, H is a hint."
+  ]
+}

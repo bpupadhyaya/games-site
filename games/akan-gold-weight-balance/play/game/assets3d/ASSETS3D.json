@@ -1,0 +1,47 @@
+{
+  "version": "1.10.1",
+  "characters": [
+    "athlete_f",
+    "athlete_m",
+    "mannequin_f",
+    "mannequin_m"
+  ],
+  "clips": [
+    "base"
+  ],
+  "scenery": [
+    "bd-mediterranean",
+    "bd-canal",
+    "gr-cobble",
+    "sky-day",
+    "band-village-row",
+    "tr-round-tree"
+  ],
+  "files": {
+    "characters/athlete_f.glb": "480e3908576563bb53d4a5d7cc058217d17a6c700ac5518e6902d59e788bee57",
+    "characters/athlete_f.json": "09c88c33bf5dc2c327ccab9c9e9e51ea62ddd803e7f282571796a3c94270987a",
+    "characters/athlete_f_body_mask.webp": "fbf46bfbe414815fecd7d3ebb5767939f8313b80814111ba5bc9f69262cc9a8c",
+    "characters/athlete_f_body_skin.webp": "a1aae26a96b8bbf94015559f3307216d8e04422f450ffcc9b3f4bad62118b62b",
+    "characters/athlete_f_head_mask.webp": "4def06bcd6ff9b63d42fce7b289e7948023cd60fa4d5ba44f556df2c0c14224e",
+    "characters/athlete_m.glb": "5d9bcf61db9b4ee4b215df38bc365791a5d4788a3d5ff3dfab7309d0b6f66b0a",
+    "characters/athlete_m.json": "94a1ed84394935d7bbd5c651fbc6e2faa4671191822d35cdc6070b59bf20db4a",
+    "characters/athlete_m_body_mask.webp": "b75361818563e6fd57814c8b135e080f2f04b005af050ecc5c4eb84cc5cf0a28",
+    "characters/athlete_m_body_skin.webp": "6a258aa62fce605ebb805740db1999d3eeca04d233da2ac1e5ff1061b6c435e2",
+    "characters/athlete_m_head_mask.webp": "d2e1db0d1adeda80b512bae1786d138fc882c44beadce8e56f9ac428d470118d",
+    "characters/mannequin_f.glb": "c6632ddaa0fbc8cd80c64e9f7cf5f9fca15aaca1020415159903e1ae53c9b467",
+    "characters/mannequin_f.json": "1f703227b40c1f415fd00774f6ea35c2003c815de98e5e61458e4e4f25daa9f3",
+    "characters/mannequin_m.glb": "b75014e5b6033ec6ef0979a126cac399f1004f23bc1ed2e9df74aad9eacf288a",
+    "characters/mannequin_m.json": "d2b7eb91a162f48489ef97377e9fc5dc8cb5136633b52665a0ae970e35f5e7e6",
+    "clips/base.bin": "8a3871846e5303a374014b8d5197bd767f3f62449917be3fc0fc7069f4dd7de0",
+    "clips/base.json": "9d7bd7a3a4e145d959784b59b7058f4ab4afebe0c29bbf6a9ed72603ec145269",
+    "scenery/bd-mediterranean.webp": "eb479a8dbec7eef92a4a4ab89aa82b91d610d2dd46ff534f06cce8b0ccc70219",
+    "scenery/bd-canal.webp": "1a57603a96d5645b38b7d8d953dac88e9364040c3d055e5649ca5549fa7dd891",
+    "scenery/gr-cobble.webp": "3a2329fe4213a37a82113e47254d8d914d21d9777fa1ac4c934ad73287b39b47",
+    "scenery/sky-day.webp": "42c3161f580dc41be78e0ad08e07136a9e1f112fecab53a96ab7da0567bc56b5",
+    "scenery/band-village-row.webp": "e779fe0ebe8f636d283ca9b1afd1918111c6138be979a17e39917965d336d1a8",
+    "scenery/tr-round-tree.webp": "385fc8516971a28457b87ca8940195e439ec7c19d1b5e6656146ec145cf528c0",
+    "scenery/catalogue.json": "0b125b303c5bc1f5162600c88dba882b49ab2374d26e1e187f5385dc48ec7674"
+  },
+  "hash": "39d401d3a389a0f5d9898f1a63a754c048adc613b90396810f40aa098ef78391",
+  "note": "Vendored copies. Never edit. Re-select with: tools/arc view3d-add <slug> --characters a,b ; refresh with: tools/arc view3d-upgrade"
+}

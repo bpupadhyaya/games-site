@@ -1,0 +1,25 @@
+{
+  "slug": "lo-shu-magic-square",
+  "title": "Lo Shu Magic Square",
+  "tagline": "The ancient Chinese magic square, from 3 x 3 to 5 x 5.",
+  "genre": "logic puzzle",
+  "orientation": "any",
+  "version": "1.1.2",
+  "monetization": {
+    "model": "premium",
+    "priceUsd": 2.99,
+    "previewSeconds": 90,
+    "products": [
+      {
+        "id": "unlock_game",
+        "type": "non-consumable",
+        "priceUsd": 2.99,
+        "title": "Unlock Game"
+      }
+    ]
+  },
+  "locales": [
+    "en"
+  ],
+  "demoOnly": true
+}

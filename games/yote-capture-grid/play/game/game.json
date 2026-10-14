@@ -1,0 +1,25 @@
+{
+  "slug": "yote-capture-grid",
+  "title": "Yote",
+  "tagline": "Drop, step, jump: each capture takes a bonus pebble.",
+  "genre": "West African drop-and-jump board game",
+  "orientation": "any",
+  "version": "1.0.2",
+  "monetization": {
+    "model": "premium",
+    "priceUsd": 2.99,
+    "previewSeconds": 90,
+    "products": [
+      {
+        "id": "unlock_game",
+        "type": "non-consumable",
+        "priceUsd": 2.99,
+        "title": "Unlock Game"
+      }
+    ]
+  },
+  "locales": [
+    "en"
+  ],
+  "demoOnly": true
+}

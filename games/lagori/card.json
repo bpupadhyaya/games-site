@@ -1,0 +1,17 @@
+{
+  "title": "Lagori",
+  "tagline": "Smash the tower, rebuild it, dodge the ball",
+  "description": "Lagori, also called Seven Stones, is a traditional street game from India. Lifelike 3D players run, throw and dodge on a warm street court. Throw the ball to smash a tower of seven painted stones, then race to rebuild it while the other team throws at your runners. Tap stones to fetch them, dodge the telegraphed throws, then field and aim ahead of the computer's runner. Four innings, three computer levels, a hint button, Auto Play, a full Rules page, large text and portrait or landscape play. No ads, works offline.",
+  "genre": "street ball and stack",
+  "demo": true,
+  "howToPlay": [
+    "PRESS and DRAG on the court to place the aim ring. RELEASE to throw the ball at the tower.",
+    "A hard hit scatters the stones wide; a soft hit keeps them close, so they are quicker to rebuild.",
+    "When the tower falls, TAP a stone to fetch it. Your runner stacks it on the tower spot.",
+    "A red ring tightens on your runner: tap DODGE (or flick sideways) to sidestep the throw.",
+    "Stack all seven stones to score 1 point, 2 if none of your runners was hit.",
+    "When the computer strikes you field: drag the ring ahead of the runner and release to throw.",
+    "A match is four innings: strike, field, strike, field. The higher score wins.",
+    "Keyboard: arrows move the ring, Space throws or dodges, 1 to 7 fetch a stone, H hint."
+  ]
+}

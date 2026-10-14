@@ -1,0 +1,14 @@
+{
+  "title": "Sack Race",
+  "tagline": "Hop, lean and race the village green.",
+  "description": "The village-fair sack race of Indonesia and Britain. Tap right to push forward and left to rock back, land in time for the strongest hop, keep the lean in the gold zone and beat three rivals over ruts and mud. Race ladder, Clock Run with a ghost, Daily Field and Watch & Learn modes.",
+  "genre": "village-fair hopping race",
+  "demo": true,
+  "howToPlay": [
+    "Every tap is a hop: tap the right half to push forward, the left half to rock back.",
+    "Tap just as your feet touch down for the strongest hop.",
+    "Keep the lean in the gold zone for top speed; too far and you fall.",
+    "Ruts throw you the way their arrow points; mud slows the sack.",
+    "Cross the line first to open the next heat."
+  ]
+}

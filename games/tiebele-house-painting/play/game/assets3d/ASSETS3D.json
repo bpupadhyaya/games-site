@@ -1,0 +1,51 @@
+{
+  "version": "1.10.1",
+  "characters": [
+    "athlete_f",
+    "athlete_m"
+  ],
+  "clips": [
+    "base"
+  ],
+  "scenery": [
+    "bd-meadow-day",
+    "gr-cobble",
+    "sky-day",
+    "band-village-row",
+    "tr-round-tree",
+    "tr-broad-tree",
+    "tr-acacia",
+    "tr-acacia-2",
+    "gr-red-earth",
+    "gr-dry-grass",
+    "bd-savanna"
+  ],
+  "files": {
+    "characters/athlete_f.glb": "480e3908576563bb53d4a5d7cc058217d17a6c700ac5518e6902d59e788bee57",
+    "characters/athlete_f.json": "09c88c33bf5dc2c327ccab9c9e9e51ea62ddd803e7f282571796a3c94270987a",
+    "characters/athlete_f_body_mask.webp": "fbf46bfbe414815fecd7d3ebb5767939f8313b80814111ba5bc9f69262cc9a8c",
+    "characters/athlete_f_body_skin.webp": "a1aae26a96b8bbf94015559f3307216d8e04422f450ffcc9b3f4bad62118b62b",
+    "characters/athlete_f_head_mask.webp": "4def06bcd6ff9b63d42fce7b289e7948023cd60fa4d5ba44f556df2c0c14224e",
+    "characters/athlete_m.glb": "5d9bcf61db9b4ee4b215df38bc365791a5d4788a3d5ff3dfab7309d0b6f66b0a",
+    "characters/athlete_m.json": "94a1ed84394935d7bbd5c651fbc6e2faa4671191822d35cdc6070b59bf20db4a",
+    "characters/athlete_m_body_mask.webp": "b75361818563e6fd57814c8b135e080f2f04b005af050ecc5c4eb84cc5cf0a28",
+    "characters/athlete_m_body_skin.webp": "6a258aa62fce605ebb805740db1999d3eeca04d233da2ac1e5ff1061b6c435e2",
+    "characters/athlete_m_head_mask.webp": "d2e1db0d1adeda80b512bae1786d138fc882c44beadce8e56f9ac428d470118d",
+    "clips/base.bin": "8a3871846e5303a374014b8d5197bd767f3f62449917be3fc0fc7069f4dd7de0",
+    "clips/base.json": "9d7bd7a3a4e145d959784b59b7058f4ab4afebe0c29bbf6a9ed72603ec145269",
+    "scenery/bd-meadow-day.webp": "83771c6c48cb93b394cfeb44273b5fa27f8c47d63265d49f6c791a99b4891ebe",
+    "scenery/gr-cobble.webp": "3a2329fe4213a37a82113e47254d8d914d21d9777fa1ac4c934ad73287b39b47",
+    "scenery/sky-day.webp": "42c3161f580dc41be78e0ad08e07136a9e1f112fecab53a96ab7da0567bc56b5",
+    "scenery/band-village-row.webp": "e779fe0ebe8f636d283ca9b1afd1918111c6138be979a17e39917965d336d1a8",
+    "scenery/tr-round-tree.webp": "385fc8516971a28457b87ca8940195e439ec7c19d1b5e6656146ec145cf528c0",
+    "scenery/tr-broad-tree.webp": "1f31d8ffc8d037eccac6401b7d9cb77b2bcb43ca98de5c2bd63d3cbea6262f79",
+    "scenery/tr-acacia.webp": "0a552384d474560cda9154ccdea992c38fb0e983727d42a88ad30ade1cc0a9e7",
+    "scenery/tr-acacia-2.webp": "7055b173e73bdb9c66d915d4d4e83189bb47a305dc3e67b31f37e3e60b5a35ce",
+    "scenery/gr-red-earth.webp": "b45a0f4ff925f4db7cc667f3f736a256484e45b936e790333d33c98d50acdc5b",
+    "scenery/gr-dry-grass.webp": "9a2b85c70ace946e6bcd51702d57ac34a6a78050e5b748e5eb3b5610a685bf87",
+    "scenery/bd-savanna.webp": "db1c4d09b96ba8c409339c20ded3d213d119c14863f267db0ff975c88c2ffc54",
+    "scenery/catalogue.json": "0b125b303c5bc1f5162600c88dba882b49ab2374d26e1e187f5385dc48ec7674"
+  },
+  "hash": "c3f0b2dd72425330821cd8f8c10e7dac7d8258a668763b10bbea22412e350d07",
+  "note": "Vendored copies. Never edit. Re-select with: tools/arc view3d-add <slug> --characters a,b ; refresh with: tools/arc view3d-upgrade"
+}

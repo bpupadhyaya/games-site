@@ -1,0 +1,14 @@
+{
+  "title": "Jukskei",
+  "tagline": "Throw the skei, read the wind, knock the stake.",
+  "description": "A South African throwing sport, seen from the side: pick Lob, Skim or Whirl, place the ring, time your release and send a flat wooden pin down the sand lane at the stake. Four lanes, six rivals, a league ladder and pass-and-play.",
+  "genre": "Sand-lane throwing / wind and spin",
+  "demo": true,
+  "howToPlay": [
+    "Press the sand to place the gold ring where the pin should land.",
+    "Pick Lob, Skim or Whirl: the ghost pin shows where it ends up.",
+    "Check the wind box, then press Throw and Release in the green.",
+    "Knock the stake for 3, touch it for 2, land within a metre for 1.",
+    "After eight pins the nearest one earns a bonus point."
+  ]
+}

@@ -1,0 +1,25 @@
+{
+  "slug": "co-ganh",
+  "title": "Co Ganh",
+  "tagline": "Flank them, trap them, flip them all. Vietnam's pavement board game.",
+  "genre": "Vietnamese flanking board game",
+  "orientation": "any",
+  "version": "1.0.3",
+  "monetization": {
+    "model": "premium",
+    "priceUsd": 2.99,
+    "previewSeconds": 90,
+    "products": [
+      {
+        "id": "unlock_game",
+        "type": "non-consumable",
+        "priceUsd": 2.99,
+        "title": "Unlock Game"
+      }
+    ]
+  },
+  "locales": [
+    "en"
+  ],
+  "demoOnly": true
+}

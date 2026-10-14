@@ -1,0 +1,14 @@
+{
+  "title": "Amidakuji",
+  "tagline": "The ghost-leg ladder of Japan: build it, trace it, draw lots.",
+  "description": "Follow a line down and take every rung. Build ladders that bring every paper lantern home, trace a path against the clock, or draw lots with friends on one device. Hints that teach, a Daily Ladder and Watch and Learn. Portrait or landscape.",
+  "genre": "Ladder puzzle",
+  "demo": true,
+  "howToPlay": [
+    "Each lantern slides down its line and crosses every rung it meets.",
+    "Tap between two lines to add a rung, tap your rung again to take it back.",
+    "Press Release: every lantern must land in the bowl with its own colour and number.",
+    "Tap the lamp for a hint: where to look, then why it works.",
+    "Try Follow the Line against the clock, or Draw Lots with friends."
+  ]
+}

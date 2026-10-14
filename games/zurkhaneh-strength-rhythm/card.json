@@ -1,0 +1,17 @@
+{
+  "title": "Zurkhaneh Strength Rhythm",
+  "tagline": "Lead the circle: stomp, swing, lift and whirl on the drum.",
+  "description": "A rhythm game inspired by the zurkhaneh, the sunken octagonal training pit of Iran. A drummer keeps the beat while eight athletes work in a circle; you call each move with a gesture: tap to stomp, swipe to swing the clubs, press and hold to lift the shield, draw circles to whirl. Play cleanly and the whole circle falls into step and more drum layers join. Six pieces, Learn by call and response, a Watch and Learn demonstration, Rules with text size to 300%, synthesised sound, no ads.",
+  "genre": "rhythm sport",
+  "demo": true,
+  "howToPlay": [
+    "Pick a piece, then Learn: the drummer calls a short phrase and you echo it back.",
+    "Each move is a glyph with a ring closing in on it. Do the move when the ring meets the glyph.",
+    "Tap anywhere to stomp. Swipe the way the arrow points to swing the clubs.",
+    "Press and hold to lift the shield; let go when the second ring closes.",
+    "Draw circles with one finger to whirl for the length shown.",
+    "Play cleanly and more athletes move in unison and more drum layers join. Miss and the circle loosens.",
+    "Watch and Learn performs the whole piece for you, thinking out loud before each phrase. Pause any time.",
+    "On a keyboard: Space stomps and holds, arrow keys swipe, R whirls, P pauses, H gives a hint."
+  ]
+}

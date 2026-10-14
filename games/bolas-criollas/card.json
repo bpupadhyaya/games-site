@@ -1,0 +1,14 @@
+{
+  "title": "Bolas Criollas",
+  "tagline": "Aim the ring, time the swing, finish nearest the mingo.",
+  "description": "The sand-court throwing game of Venezuela. Roll, lob or shoot heavy balls at the little white mingo on a cancha of loose and packed sand, time your release in the green, and outplay five rivals or a friend.",
+  "genre": "sand-court throwing",
+  "demo": true,
+  "howToPlay": [
+    "Touch the cancha to place the aim ring where the ball should land.",
+    "Choose Roll, Lob or Shot.",
+    "Hold SWING and let go while the needle is in the green.",
+    "Closest ball to the mingo scores for each ball that beats the rival's best.",
+    "First to 12 points wins."
+  ]
+}

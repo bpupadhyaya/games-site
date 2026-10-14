@@ -1,0 +1,16 @@
+{
+  "title": "Morra",
+  "tagline": "Throw your fingers. Call the total.",
+  "description": "The ancient finger game of the Roman table. Both players throw out zero to five fingers at once and shout a guess of the total; the exact call scores. Read five osteria rivals with their own habits, while the strongest ones read you right back. Watch and Learn, a Hint button, a full Rules page and text size up to 300%. Points only, no ads, works offline.",
+  "genre": "finger guessing duel",
+  "demo": true,
+  "howToPlay": [
+    "Tap how many fingers to throw, from 0 to 5.",
+    "Tap the total you call: your throw plus the fingers you expect from the rival.",
+    "Press Throw. The fist pumps uno, due, tre and both hands open together.",
+    "Call the exact total of all the fingers and you score; both right or both wrong scores nothing.",
+    "First to the target wins the duel. Each rival has habits to read.",
+    "Use Hint to see what the table knows, or Watch and Learn to see a whole duel.",
+    "On a keyboard: keys 0 to 5 throw, Q to P call 0 to 9, Enter throws, H hints."
+  ]
+}
