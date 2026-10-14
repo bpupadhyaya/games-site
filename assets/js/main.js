@@ -100,7 +100,7 @@ mainNav.querySelectorAll('a').forEach(link => {
     note.hidden = false;
     note.textContent = q
       ? matched.length + ' of ' + cards.length + ' games match \u201c' + q + '\u201d (all pages)'
-      : 'Searching all ' + cards.length + ' games, not just this page';
+      : (activeCat ? matched.length + ' games in ' + activeCat : 'Searching all ' + cards.length + ' games, not just this page');
     renderPagers();
   }
 
@@ -116,10 +116,21 @@ mainNav.querySelectorAll('a').forEach(link => {
     if (scroll) scrollToList();
   }
 
+  let activeCat = '';
   function filter(q) {
     q = q.trim().toLowerCase();
-    matched = cards.filter((c, i) => !q || haystacks[i].includes(q));
+    matched = cards.filter((c, i) => (!q || haystacks[i].includes(q)) && (!activeCat || c.dataset.cat === activeCat));
   }
+  const chipBar = document.getElementById('catChips');
+  if (chipBar) chipBar.addEventListener('click', e => {
+    const b = e.target.closest('button[data-cat]');
+    if (!b) return;
+    activeCat = b.dataset.cat;
+    chipBar.querySelectorAll('.cat-chip').forEach(x => x.classList.toggle('is-on', x === b));
+    filter(input.value);
+    page = 1;
+    apply();
+  });
 
   // Show the page holding a card (clearing the search if needed) and scroll to it.
   function showCard(id) {

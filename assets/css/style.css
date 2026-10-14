@@ -793,3 +793,11 @@ html { scroll-padding-top: 96px; }
 }
 .game-search-note { text-align: center; color: var(--text-dim); font-size: 13px; margin: -8px auto 4px; padding: 0 8px; }
 .game-search-note[hidden] { display: none; }
+
+/* Category filter chips (mirror the app's 13 categories) */
+.cat-chips { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin: 14px auto 18px; max-width: 980px; padding: 0 8px; }
+.cat-chip { font: inherit; font-size: 13px; font-weight: 600; padding: 7px 14px; border-radius: 999px; cursor: pointer; color: var(--text-dim); background: rgba(255,255,255,0.05); border: 1px solid var(--border); }
+.cat-chip:hover { color: var(--text); border-color: var(--violet); }
+.cat-chip.is-on { color: #06070d; background: var(--grad, linear-gradient(135deg,#8b5cf6,#06b6d4)); border-color: transparent; }
+.gc-newnote { font-size: 13px; color: var(--text-dim); margin: 0 0 12px; }
+.gc-newnote strong { color: var(--text); }
