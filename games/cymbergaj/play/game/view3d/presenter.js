@@ -385,6 +385,8 @@ export async function createPresenter({ kitCanvas, quality = 'high' }) {
       const rt = h.root, kf = rt.ready ? 1 - Math.pow(0.0005, Math.max(dt, 0.001)) : 1;
       rt.x = lerp(rt.x, _a.x - h.shoulderOffset.x, kf); rt.y = lerp(rt.y, _a.y - h.shoulderOffset.y, kf); rt.z = lerp(rt.z, _a.z - h.shoulderOffset.z, kf); rt.ready = true;
       h.human.setPosition(rt.x, rt.y, rt.z);
+      // the free hand rests on the rail beside him, as real players do while they lean over the table
+      if (i === 1) { _el.set(wx(232), 0.07, wz(-300)); try { h.human.setReach('L', _el, { weight: 0.95 }); } catch { /* no left reach on this rig */ } }
       if (i === 1 && w.puck) h.human.lookAt({ x: wx(w.puck.x), y: 0.03, z: wz(w.puck.y) }, { weight: 0.8, maxYaw: 1.0, maxPitch: 0.8 });
       h.update(dt || 0.016, h.iters); h.iters = 4;
       if (i === 1) { h.object.visible = true; sleeves[1].m.visible = sleeves[1].cuff.visible = sleeves[1].elbow.visible = sleeves[1].upper.visible = false; continue; }
