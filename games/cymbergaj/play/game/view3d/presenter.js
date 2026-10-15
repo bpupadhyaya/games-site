@@ -10,7 +10,7 @@ import { syncSize, W as LW, H as LH } from '../src/layout.js';
 import { layoutOf } from '../src/view.js';
 import { HW, HH, R_PAD, R_PUCK } from '../src/sim.js';
 import { S, OW, OH, RAIL_H, FLOOR_Y, buildTable, buildPaddle, buildPuck, buildLounge, buildEnvScene, textures, glowTexture, SIDE3, PATRON_SPOTS } from './models.js';
-import { createHand } from './hand3d.js';
+import { createRobotArm } from './robot.js';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const lerp = (a, b, t) => a + (b - a) * t;
@@ -129,42 +129,11 @@ export async function createPresenter({ kitCanvas, quality = 'high' }) {
   const ZERO = new THREE.Matrix4().makeScale(0, 0, 0);
   const wx = (x) => x * S, wz = (y) => y * S;
 
-  // ------------------------------------------------------------------ hands (real, from the shared hand rig)
-  const hands = [null, null];
-  const handClip = [0, 1].map(() => [0, 1, 2, 3, 4, 5].map(() => new THREE.Plane()));
-  // The sleeve is a short, softly tapered forearm sleeve with a rolled cuff, an elbow, and an upper arm that bends away toward the
-  // shoulder: it reads as a real arm in a jumper instead of one long pipe. `m` (forearm) is what the existing code positions;
-  // the elbow and upper arm are placed from it in updateHands.
-  const sleeves = [0, 1].map((i) => {
-    const cuffMat = new THREE.MeshStandardMaterial({ color: i === 0 ? '#3d5a73' : '#27313c', roughness: 0.9, side: THREE.DoubleSide });
-    const rollMat = new THREE.MeshStandardMaterial({ color: i === 0 ? '#5d7f9c' : '#3a4756', roughness: 0.8 });
-    const m = new THREE.Mesh(new THREE.CylinderGeometry(0.058, 0.043, 0.30, 24, 1, true), cuffMat); m.castShadow = true; m.visible = false; scene.add(m);
-    const cuff = new THREE.Mesh(new THREE.TorusGeometry(0.0455, 0.0105, 10, 28), rollMat); cuff.visible = false; scene.add(cuff);
-    const elbow = new THREE.Mesh(new THREE.SphereGeometry(0.06, 16, 12), cuffMat); elbow.castShadow = true; elbow.visible = false; scene.add(elbow);
-    const upper = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.06, 0.62, 24, 1, true), cuffMat); upper.castShadow = true; upper.visible = false; scene.add(upper);
-    return { m, cuff, elbow, upper };
-  });
-  const skins = ['tan', 'light'];
-  async function loadHands() {
-    for (let i = 0; i < 2; i++) {
-      try {
-        const h = await createHand(V3D, { side: 'R', skin: skins[i], character: i === 0 ? 'athlete_f' : 'athlete_m', preset: 'cup', ...(i === 1 ? { kit: { top: '#1d6f66', bottoms: '#232a33', socks: '#1a1a1a' }, hair: 'brown' } : {}) });
-        h.object.visible = false; scene.add(h.object);
-        h.human.root.traverse((o) => {
-          if (o.isMesh) { for (const mt of [].concat(o.material)) { if (i === 0) { mt.clippingPlanes = handClip[i]; mt.clipShadows = true; mt.needsUpdate = true; } } o.frustumCulled = false; }
-        });
-        h.human.play('idle', { loop: true });
-        h.iters = 24; h.root = { x: 0, y: 0, z: 0, ready: false };
-        const z0 = i === 0 ? 0.9 : -0.9;
-        if (i === 1) h.human.root.scale.setScalar(1.12);   // the rival is a touch taller: his arm reaches every spot of his half
-        h.human.setFacing(i === 0 ? Math.PI : 0, { snap: true });
-        h.human.setPosition(0, FLOOR_Y, z0); h.human.update(0); h.human.root.updateMatrixWorld(true);
-        const sh = h.human.bonePosition('R_UpperArm', new THREE.Vector3());
-        h.shoulderOffset = sh.clone().sub(new THREE.Vector3(0, FLOOR_Y, z0));
-        hands[i] = h;
-      } catch (e) { console.warn('hand load failed', e); }
-    }
-  }
+  // ------------------------------------------------------------------ robotic arms (one per paddle, on floor pedestals beside the table)
+  // Both arms stand on the table's far side (the landscape camera looks from the other side, so no pedestal blocks the view); the rival's
+  // at the far end, yours at the near end.
+  const robots = [0, 1].map((i) => createRobotArm(scene, { x: -(OW * S + 0.09), z: (i === 0 ? 1 : -1) * 0.24, floorY: -0.12, tableEdge: OW * S, accent: SIDE3[i].glow }));
+  async function loadHands() { /* robots are built synchronously above */ }
 
   // ------------------------------------------------------------------ patrons
   let crowd = null;
@@ -307,20 +276,14 @@ export async function createPresenter({ kitCanvas, quality = 'high' }) {
     const u = w.puck, ps = u.scale ?? 1;
     puck.visible = ps > 0.02;
     puck.position.set(wx(u.x), 0.002, wz(u.y)); puck.rotation.y = -(u.ang || 0); puck.scale.setScalar(Math.max(0.01, ps));
-    blobs[2].position.set(wx(u.x) + 0.003, 0.0012, wz(u.y) + 0.005); blobs[2].scale.setScalar(Math.max(0.01, ps));
+    blobs[2].visible = false;   // the puck casts its real shadow from the key light; no second blob shadow following it
     const U = airUni.uObj.value;
-    U[0].set(wx(u.x), wz(u.y), 110 * S, ps);
+    U[0].set(wx(u.x), wz(u.y), 110 * S, 0);   // no glow patch under the moving puck
     for (let i = 0; i < 2; i++) U[1 + i].set(wx(w.pads[i].x), wz(w.pads[i].y), (R_PAD + 46) * S, 0.55);
     U[3].set(0, 0, 1, 0);
-    const tr = o.trail || [];
-    for (let i = 0; i < 10; i++) {
-      const q = tr[i];
-      if (!q) { trailMesh.setMatrixAt(i, ZERO); continue; }
-      const k = (i + 1) / tr.length, r = R_PUCK * (0.25 + 0.5 * k) * S * 1.15;
-      _p.set(wx(q.x), 0.0018, wz(q.y)); _s.set(r, 1, r); _m.compose(_p, _q.identity(), _s); trailMesh.setMatrixAt(i, _m);
-    }
+    // no ghost trail behind the puck (owner: the shadowy thing following the disc is not wanted)
+    for (let i = 0; i < 10; i++) trailMesh.setMatrixAt(i, ZERO);
     trailMesh.instanceMatrix.needsUpdate = true;
-    trailMesh.material.opacity = 0.18 + 0.4 * (tr.length ? tr[tr.length - 1].a : 0);
   }
   function syncParts(parts) {
     let ns = 0, np = 0, nr = 0, nl = 0;
@@ -365,59 +328,14 @@ export async function createPresenter({ kitCanvas, quality = 'high' }) {
     if (coach && coach.stand) { stand.visible = true; const pulse = 0.5 + 0.5 * Math.sin(t * 6), r = (R_PAD + 4 + 3 * pulse) * S; stand.scale.set(r, 1, r); stand.position.set(wx(coach.stand.x), 0.003, wz(coach.stand.y)); stand.material.opacity = 0.7 + 0.25 * pulse; } else stand.visible = false;
   }
 
-  // ------------------------------------------------------------------ hands follow the paddles
-  const _w = new THREE.Vector3(), _f = new THREE.Vector3(), _el = new THREE.Vector3(), _a = new THREE.Vector3(), _b = new THREE.Vector3(), _up = new THREE.Vector3(0, 1, 0), _fw = new THREE.Vector3(0, 0, 1);
+  // ------------------------------------------------------------------ robot arms follow the paddles
+  const _g = new THREE.Vector3();
   function updateHands(w, dt, grip, play = true) {
     for (let i = 0; i < 2; i++) {
-      const h = hands[i]; if (!h) continue;
-      if (!play && i === 0) { h.object.visible = false; sleeves[0].m.visible = sleeves[0].cuff.visible = sleeves[0].elbow.visible = sleeves[0].upper.visible = false; continue; }
-      const p = w.pads[i], dir = i === 0 ? 1 : -1;       // +1: the hand comes from the +Z end (the camera side)
-      const kx = wx(p.x), kz = wz(p.y), knobY = 0.0008 + 0.045;
-      const sway = Math.sin(clock * 1.7 + i) * 0.0018;
-      _w.set(kx, knobY + 0.042 + sway, kz + dir * 0.062);
-      _f.set(0, -0.36, -dir * 0.93).normalize();
-      // the opponent grips the knob from above: wrist right over it, fingers pointing steeply down so they curl round the handle
-      if (i === 1) { _w.set(kx, knobY + 0.05 + sway, kz + dir * 0.03); _f.set(0, -0.72, -dir * 0.69).normalize(); }
-      _el.set(kx + 0.16, 0.30, kz + dir * 0.45);
-      h.setPose({ thumb: 0.6, index: 0.85 + 0.1 * grip, middle: 0.9 + 0.08 * grip, ring: 0.92 + 0.06 * grip, pinky: 0.92 + 0.06 * grip, spread: 0.1, thumbOut: 0.1 });
-      h.place({ wrist: _w, palmDown: true, fingers: _f, elbowHint: _el });
-      if (i === 1) { _a.set(_w.x - 0.1, _w.y + 0.32, Math.min(-0.66, _w.z - 0.3)); _el.set(_a.x + 0.22, _w.y + 0.14, (_a.z + _w.z) * 0.5); } else _a.set(_w.x + 0.17, _w.y + 0.2, _w.z + dir * 0.44);
-      const rt = h.root, kf = rt.ready ? 1 - Math.pow(0.0005, Math.max(dt, 0.001)) : 1;
-      rt.x = lerp(rt.x, _a.x - h.shoulderOffset.x, kf); rt.y = lerp(rt.y, _a.y - h.shoulderOffset.y, kf); rt.z = lerp(rt.z, _a.z - h.shoulderOffset.z, kf); rt.ready = true;
-      h.human.setPosition(rt.x, rt.y, rt.z);
-      // the free hand rests on the rail beside him, as real players do while they lean over the table
-      if (i === 1) { _el.set(wx(232), 0.07, wz(-300)); try { h.human.setReach('L', _el, { weight: 0.95 }); } catch { /* no left reach on this rig */ } }
-      if (i === 1 && w.puck) h.human.lookAt({ x: wx(w.puck.x), y: 0.03, z: wz(w.puck.y) }, { weight: 0.8, maxYaw: 1.0, maxPitch: 0.8 });
-      h.update(dt || 0.016, h.iters); h.iters = 4;
-      if (i === 1) { h.object.visible = true; sleeves[1].m.visible = sleeves[1].cuff.visible = sleeves[1].elbow.visible = sleeves[1].upper.visible = false; continue; }
-      h.human.bonePosition('R_Hand', _a);
-      h.human.bonePosition('R_Forearm', _b);
-      _el.copy(_b).sub(_a).normalize();                      // from the wrist toward the elbow
-      // keep only a box around the hand and the first 15 cm of forearm: the rest of the body stays out of the picture
-      const uA = _f.set(1, 0, 0); if (Math.abs(_el.x) > 0.9) uA.set(0, 0, 1);
-      uA.addScaledVector(_el, -uA.dot(_el)).normalize();
-      const vA = _b.crossVectors(_el, uA).normalize();
-      const hc = handClip[i], HWd = 0.1;
-      hc[0].setFromNormalAndCoplanarPoint(_up.copy(_el).negate(), _w.copy(_a).addScaledVector(_el, 0.16));
-      hc[1].setFromNormalAndCoplanarPoint(_up.copy(_el), _w.copy(_a).addScaledVector(_el, -0.24));
-      hc[2].setFromNormalAndCoplanarPoint(_up.copy(uA), _w.copy(_a).addScaledVector(uA, -HWd));
-      hc[3].setFromNormalAndCoplanarPoint(_up.copy(uA).negate(), _w.copy(_a).addScaledVector(uA, HWd));
-      hc[4].setFromNormalAndCoplanarPoint(_up.copy(vA), _w.copy(_a).addScaledVector(vA, -HWd));
-      hc[5].setFromNormalAndCoplanarPoint(_up.copy(vA).negate(), _w.copy(_a).addScaledVector(vA, HWd));
-      _up.set(0, 1, 0);
-      const sl = sleeves[i];
-      sl.m.visible = sl.cuff.visible = sl.elbow.visible = sl.upper.visible = true;
-      // forearm: from just behind the wrist, 0.30 m toward the elbow
-      sl.m.position.copy(_a).addScaledVector(_el, 0.07 + 0.15);
-      sl.m.quaternion.setFromUnitVectors(_up, _el);
-      sl.cuff.position.copy(_a).addScaledVector(_el, 0.072); sl.cuff.quaternion.setFromUnitVectors(_fw, _el);
-      // elbow, then an upper arm that swings away from the body line and rises toward the shoulder (off screen)
-      const eb = _w.copy(_a).addScaledVector(_el, 0.37);
-      sl.elbow.position.copy(eb);
-      const ud = _b.copy(_el).multiplyScalar(0.72); ud.x += 0.45; ud.y += 0.55; ud.normalize();
-      sl.upper.position.copy(eb).addScaledVector(ud, 0.31);
-      sl.upper.quaternion.setFromUnitVectors(_up, ud);
-      h.object.visible = true;
+      if (!play && i === 0) { robots[0].hide(); continue; }
+      const p = w.pads[i];
+      _g.set(wx(p.x), 0.0008 + 0.044, wz(p.y));               // the knob's waist: the fingers close here
+      robots[i].update(_g, i === 0 ? grip : 0);
     }
   }
 
@@ -487,7 +405,7 @@ export async function createPresenter({ kitCanvas, quality = 'high' }) {
       if (play && m && m.phase === 'goal' && lastGoalT !== state.goalT && (state.goalT || 0) < 0.05 && crowd) { try { crowd.react('cheer', { origin: [0, 0, 0], radius: 12, intensity: 1 }); } catch { /* ignore */ } }
       lastGoalT = state.goalT;
       updateHands(w, dt, Math.min(1, Math.hypot(vel[0].x, vel[0].y) / 400), play);
-    } else { for (const h of hands) if (h) h.object.visible = false; for (const sl of sleeves) sl.m.visible = sl.cuff.visible = sl.elbow.visible = sl.upper.visible = false; }
+    } else { for (const r of robots) r.hide(); }
     lounge.userData.update(clock, state.settings && state.settings.calm);
     if (crowd) crowd.update(dt);
     mats();
@@ -516,7 +434,7 @@ export async function createPresenter({ kitCanvas, quality = 'high' }) {
   } catch (e) { console.warn('3D init failed; 2D fallback', e); canvas.remove(); v3.on = false; return noop; }
   v3.on = true;
   loadHands();
-  if (qs.has('dev')) window.__p3 = { renderer, scene, camera, hands, paddles, puck, key, setTier: (t) => { tier = t; applyTier(); }, setCam: (c) => { devCam = c; }, get crowd() { return crowd; } };
+  if (qs.has('dev')) window.__p3 = { renderer, scene, camera, robots, paddles, puck, key, setTier: (t) => { tier = t; applyTier(); }, setCam: (c) => { devCam = c; }, get crowd() { return crowd; } };
 
   return {
     ok: true, renderer, scene, camera,
