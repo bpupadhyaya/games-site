@@ -60,7 +60,7 @@ export function describeShot(plan) {
 }
 
 // One decision per tick. Sets pad.tx / pad.ty / pad.vmax for the paddle of b.side.
-export function brainStep(b, w, dt, ctx = {}) {
+function brainStepInner(b, w, dt, ctx = {}) {
   const side = b.side, pad = w.pads[side], opp = w.pads[1 - side], prof = b.prof, rng = b.rng, f = side === 0 ? 1 : -1;
   const pu = w.puck;
   b.hist.push({ x: pu.x, y: pu.y * f, vx: pu.vx, vy: pu.vy * f });
@@ -79,7 +79,7 @@ export function brainStep(b, w, dt, ctx = {}) {
   // waiting: the world is frozen for the Watch & Learn think, or the serve has not been released yet
   if (ctx.hold) { set(0, homeY - 20); b.phase = 'idle'; return; }
 
-  const inOwn = o.y > 10;
+  const inOwn = o.y > -6;                // a puck resting right on the centre line belongs to both (otherwise neither would play it)
   const toward = o.vy > 70;
   const resting = speed < prof.attackSpeed;
 
@@ -124,16 +124,17 @@ export function brainStep(b, w, dt, ctx = {}) {
       // pass on the side the paddle is already on; only if the wall leaves no room there, take the other side
       let sd = me.x >= o.x ? 1 : -1;
       if (Math.abs(o.x + sd * (R_PAD + R_PUCK + 18)) > HW - R_PAD + 4) sd = -sd;
-      b.via = { side: sd, stage: 0 };
+      b.via = { side: sd, stage: 0, t: 0 };
     }
     if (b.via) {
+      b.via.t += dt;
       const v = b.via, cl = R_PAD + R_PUCK + 18, vx = clamp(o.x + v.side * cl, -HW + R_PAD, HW - R_PAD);
       // first slide sideways at the paddle's own height (never toward the puck), then go down beside it
       if (v.stage === 0) { set(vx, Math.min(me.y, o.y - 30)); if ((me.x - o.x) * v.side >= cl * 0.9 || Math.hypot(me.x - vx, me.y - Math.min(me.y, o.y - 30)) < 14) v.stage = 1; }
       else {
         const vy = clamp(Math.max(by, o.y + cl * 0.55), R_PAD, HH - R_PAD);
         set(vx, vy);
-        if (me.y >= vy - 14 || b.lineT > 0.9) { b.via = null; b.viaDone = true; }
+        if (me.y >= vy - 14 || v.t > 2.2) { b.via = null; b.viaDone = true; }
       }
       return;
     }
@@ -154,7 +155,28 @@ export function brainStep(b, w, dt, ctx = {}) {
   // ---- the puck is coming: block the lane, then hit it back ----
   if (toward || (inOwn && !resting)) {
     // already past my paddle (between it and my goal): chasing it would only push it in. Hold the line.
-    if (o.y > me.y + 8) { set(clamp(o.x * 0.6, -HW + R_PAD, HW - R_PAD), me.y); b.say = 'hold'; return; }
+    if (o.y > me.y + 8) {
+      b.say = 'hold';
+      if (o.vy > 30) {
+        // it is heading for my goal: get to where it will cross the goal line and stand in the way
+        const pts2 = predictPuck({ x: o.x, y: o.y, vx: o.vx, vy: o.vy }, 1.2, 1 / 30);
+        const gx = (pts2.find((q) => q.y >= HH - R_PAD - 10) || pts2[pts2.length - 1] || o).x;
+        set(clamp(gx, -GOAL_HW + 10, GOAL_HW - 10), HH - R_PAD - 4);
+      } else {
+        // it is behind my paddle and not going into my goal: never sit in its way (it would bounce off my back into my own goal);
+        // slide out of its lane, to the side I am already on
+        const cl = R_PAD + R_PUCK + 26, ttl = o.vy < -20 ? Math.max(0, (o.y - me.y) / -o.vy) : 0;
+        const lane = clamp(o.x + o.vx * ttl, -HW, HW);               // where its lane crosses my height
+        let best = me.x, bestScore = -1e9;
+        for (const c0 of [lane - cl, lane + cl]) {
+          const c = clamp(c0, -HW + R_PAD, HW - R_PAD);
+          const score = Math.min(Math.abs(c - lane), cl) - 0.15 * Math.abs(me.x - c);
+          if (score > bestScore) { bestScore = score; best = c; }
+        }
+        set(best, me.y);
+      }
+      return;
+    }
     const pts = predictPuck({ x: o.x, y: o.y, vx: o.vx, vy: o.vy }, 1.4, 1 / 30);
     const defY = prof.defY + (o.vy > 700 ? 30 : 0);
     let hit = null;
@@ -203,4 +225,22 @@ export function coach(w, side, prof, rng) {
   }
   const pts = predictPuck(o, 1.2, 1 / 30);
   return { kind: 'wait', stand: flip({ x: clamp(o.x * 0.3, -90, 90), y: prof.defY - 40 }), line: pts.filter((_, i) => i % 3 === 0).map(flip), text: 'Guard the middle of your goal and wait for the puck to come back' };
+}
+
+// Safety net on top of every behaviour: a paddle that is directly in front of its own puck (the puck between the paddle and my goal,
+// within reach) must never move toward it, or it would knock the puck backwards into my own goal. Back off along the line
+// away from the puck instead; behind-the-puck strikes and side passes are unaffected (they are not in the puck's lane).
+export function brainStep(b, w, dt, ctx = {}) {
+  brainStepInner(b, w, dt, ctx);
+  if (b.phase === 'strike') return;
+  const side = b.side, pad = w.pads[side], f = side === 0 ? 1 : -1, pu = w.puck;
+  if (Math.hypot(pu.vx, pu.vy) < 60) return;     // a resting puck is the line-up logic's job (it goes round it)
+  const mx = pad.x, my = pad.y * f, ux = pu.x, uy = pu.y * f;
+  const reach = R_PAD + R_PUCK;
+  if (uy <= my + 6 || uy - my > reach + 50 || Math.abs(ux - mx) > reach + 6) return;     // puck not directly behind me
+  const tx = pad.tx - mx, ty = pad.ty * f - my;
+  if (tx * (ux - mx) + ty * (uy - my) <= 0) return;                                     // not heading toward the puck
+  const dx = mx - ux, dy = my - uy, l = Math.hypot(dx, dy) || 1;
+  const nx = clamp(mx + dx / l * 70, -HW + R_PAD, HW - R_PAD), ny = clamp(my + dy / l * 70, R_PAD, HH - R_PAD);
+  b.tx = nx; b.ty = ny; pad.tx = nx; pad.ty = ny * f; b.say = 'hold';
 }
