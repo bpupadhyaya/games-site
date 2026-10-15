@@ -245,8 +245,11 @@ export async function createPresenter({ kitCanvas, quality = 'high' }) {
       const k = 1 - Math.exp(-dt * 14), fol = down || playing ? 1 : k;
       poiS.x += (px - poiS.x) * fol; poiS.y += (py - poiS.y) * fol;
       let ty = 0.075 + Math.sin(clock * 1.6) * 0.004, tilt = 0;
-      if (lifting) { const e = ease(lt / LIFT_T); ty = lerp(-0.002, 0.17, e); tilt = 0.28 * e; }
-      else if (down) { const e = ease(clamp(dipT / 0.16, 0, 1)); ty = lerp(0.06, -0.0015, playing ? e : 1); }
+      // the paper goes under the surface (below the fish, which swim at FISH_DEPTH) with the handle tipped up out of the water;
+      // on lift it rises through the surface carrying the fish on the paper
+      const DIP_Y = FISH_DEPTH - 0.012;
+      if (lifting) { const e = ease(lt / LIFT_T); ty = lerp(DIP_Y, 0.17, e); tilt = lerp(0.3, 0.28, e); }
+      else if (down) { const e = ease(clamp(dipT / 0.2, 0, 1)); ty = lerp(0.06, DIP_Y, playing ? e : 1); tilt = 0.3 * e; }
       poiS.yy += (ty - poiS.yy) * (1 - Math.exp(-dt * (down ? 26 : 12)));
       poiS.tilt += (tilt - poiS.tilt) * (1 - Math.exp(-dt * 10));
     }
