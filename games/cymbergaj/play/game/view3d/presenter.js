@@ -378,7 +378,7 @@ export async function createPresenter({ kitCanvas, quality = 'high' }) {
       _el.set(kx + 0.16, 0.30, kz + dir * 0.45);
       h.setPose({ thumb: 0.6, index: 0.85 + 0.1 * grip, middle: 0.9 + 0.08 * grip, ring: 0.92 + 0.06 * grip, pinky: 0.92 + 0.06 * grip, spread: 0.1, thumbOut: 0.1 });
       h.place({ wrist: _w, palmDown: true, fingers: _f, elbowHint: _el });
-      if (i === 1) _a.set(_w.x - 0.2, _w.y + 0.25, Math.min(-0.74, _w.z - 0.4)); else _a.set(_w.x + 0.17, _w.y + 0.2, _w.z + dir * 0.44);
+      if (i === 1) { _a.set(_w.x - 0.08, _w.y + 0.34, Math.min(-0.74, _w.z - 0.26)); _el.set(_a.x + 0.2, _w.y + 0.12, _w.z - 0.2); } else _a.set(_w.x + 0.17, _w.y + 0.2, _w.z + dir * 0.44);
       const rt = h.root, kf = rt.ready ? 1 - Math.pow(0.0005, Math.max(dt, 0.001)) : 1;
       rt.x = lerp(rt.x, _a.x - h.shoulderOffset.x, kf); rt.y = lerp(rt.y, _a.y - h.shoulderOffset.y, kf); rt.z = lerp(rt.z, _a.z - h.shoulderOffset.z, kf); rt.ready = true;
       h.human.setPosition(rt.x, rt.y, rt.z);

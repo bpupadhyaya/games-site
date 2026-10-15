@@ -69,8 +69,8 @@ export function createGame(env) {
   // ---- helpers -----------------------------------------------------------------------------------------------------------------
   const say = (text, kind = 'info') => { state.msg = { text, kind, t: 0 }; };
   const sound = (name) => {
-    // Watch & Learn plays itself with nobody to hear it: silent by design, like the menu.
-    if (!state.sound || state.scene === 'auto') return;
+    // Audible in Watch & Learn exactly as in manual play.
+    if (!state.sound) return;
     if (name === 'tok') audio.tone({ freq: 300, to: 150, dur: 0.07, type: 'triangle', vol: 0.3 });
     else if (name === 'take') { audio.tone({ freq: 220, to: 100, dur: 0.12, type: 'triangle', vol: 0.34 }); sfx.push({ at: state.t + 0.06, o: { freq: 560, to: 320, dur: 0.1, type: 'square', vol: 0.05 } }); }
     else if (name === 'refuse') audio.tone({ freq: 160, to: 110, dur: 0.14, type: 'sine', vol: 0.2 });

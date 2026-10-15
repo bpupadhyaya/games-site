@@ -39,7 +39,7 @@ export function createGame(env) {
 
   const say = (text, hold = 4) => { state.msg = { text, t: 0, hold }; };
   // Auto Play is silent by design regardless of the player's own Sound setting; every sound funnels through this one helper.
-  const tone = (o) => { if (state.sound && sounds < 4 && state.scene !== 'auto' && state.scene !== 'title') { sounds++; audio.tone(o); } };
+  const tone = (o) => { if (state.sound && sounds < 4 && state.scene !== 'title') { sounds++; audio.tone(o); } };
   const dur = (d) => (state.calm ? d * 0.6 : d);
   const names = () => (state.scene === 'auto' ? { H: 'Saffron', C: 'Teal' } : { H: 'You', C: 'The computer' });
 

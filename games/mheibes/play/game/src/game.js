@@ -52,7 +52,7 @@ export function createGame(env) {
   state.owned = !!monetization.owns?.('unlock_game'); state.restoreBusy = false; state.demo = config.demo === true;
   monetization.onChange?.(() => { state.owned = !!monetization.owns('unlock_game'); });
   const say = (text, hold = 4.5) => { state.msg = { text, t: 0, hold }; };
-  const tone = (o) => { if (state.sound && !state.autoMode) audio.tone(o); };
+  const tone = (o) => { if (state.sound) audio.tone(o); };
   const clack = (f = 420) => tone({ freq: f * 0.8, to: f * 0.4, dur: 0.07, type: 'sine', vol: 0.12 });
   const thump = () => tone({ freq: 140, to: 70, dur: 0.14, type: 'sine', vol: 0.2 });
   const chime = () => { tone({ freq: 880, to: 1320, dur: 0.3, type: 'triangle', vol: 0.12 }); tone({ freq: 1320, to: 1760, dur: 0.4, type: 'sine', vol: 0.07 }); };

@@ -58,7 +58,7 @@ export function createGame(env) {
   const clearSave = () => { saveRaw = null; S.hasSave = false; storage.remove('save'); recount(); };
 
   // ---- sound -----------------------------------------------------------------------------------------------------------------
-  const tone = (o) => { if (S.prefs.sound && !S.auto.on) audio.tone(o); };
+  const tone = (o) => { if (S.prefs.sound) audio.tone(o); };
   const later = (t, o) => S.sfx.push({ t, o });
   const sfx = {
     slide: () => tone({ freq: 330, to: 260, dur: 0.07, type: 'triangle', vol: 0.08 }),

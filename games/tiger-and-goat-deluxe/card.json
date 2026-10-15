@@ -1,0 +1,17 @@
+{
+  "title": "Bagh-Chal",
+  "tagline": "Four tigers. Twenty goats. One mountain board.",
+  "description": "Bagh-Chal is Nepal's traditional tiger and goat board game, in a complete edition with a three-dimensional board, character pieces, a 44-puzzle Campaign, 14 lessons, heritage notes, statistics and a daily challenge. Play either side against the computer, pass the device to a friend, or watch the computer play itself. Earn tiger and goat breeds, boards and scenery by playing. Text up to 300 percent, reduced motion, portrait and landscape. No ads, works offline.",
+  "genre": "abstract strategy board game",
+  "demo": false,
+  "howToPlay": [
+    "Goats move first: tap an empty point to place one. All 20 goats must be placed before any goat may move.",
+    "To move, tap a piece, then tap where it should go. Goats step one point along a line and never jump.",
+    "A tiger steps one point, or jumps over a goat to the empty point right behind it, capturing it.",
+    "Tigers win by capturing every goat. Goats win when no tiger can move. Three repeats is a draw.",
+    "Campaign: 44 puzzles with one winning first move each. Stars for no wrong try and no hint.",
+    "Academy: 14 short lessons. Heritage: notes on the game. Rules: the full rules, text up to 300 percent.",
+    "Tap the cube to change the camera view and the eye for insight: safe points and goats a tiger can take.",
+    "Win games and solve levels to earn new tigers, goats, boards and scenery. Nothing is for sale."
+  ]
+}

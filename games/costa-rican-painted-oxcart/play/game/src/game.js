@@ -60,7 +60,7 @@ export function createGame(env) {
   const clearSave = () => { saveRaw = null; S.saved = null; storage.remove('save'); };
 
   // ---- sound ----------------------------------------------------------------------------------------------------------------
-  const tone = (o) => { if (S.prefs.sound && !S.auto.on) audio.tone(o); };
+  const tone = (o) => { if (S.prefs.sound) audio.tone(o); };
   const later = (t, o) => S.sfx.push({ t, o });
   const sfx = {
     brush: (k) => { const f = NOTES[k % NOTES.length]; tone({ freq: f * 0.96, to: f, dur: 0.09, type: 'triangle', vol: 0.09 }); later(0.05, { freq: f * 1.5, to: f * 1.48, dur: 0.06, type: 'sine', vol: 0.03 }); },

@@ -47,8 +47,8 @@ export function createGame(env) {
   const saveStats = () => { storage.set('stats', state.stats); storage.set('progress', { matches: state.stats.matches, wins: state.stats.wins }); };
 
   const say = (text, hold = 4) => { state.msg = { text, t: 0, hold }; };
-  // Auto Play is silent by design regardless of the player's own Sound setting; every sound funnels through this one helper.
-  const tone = (o) => { if (state.sound && sounds < 4 && state.scene !== 'auto' && state.scene !== 'title') { sounds++; audio.tone(o); } };
+  // Every sound funnels through this one helper (audible in Auto Play too).
+  const tone = (o) => { if (state.sound && sounds < 4 && state.scene !== 'title') { sounds++; audio.tone(o); } };
   const dur = (d) => (state.calm ? d * 0.6 : d);
 
   // ---------------------------------------------------------------- starting things

@@ -4,7 +4,7 @@
   "tagline": "Drop, step, jump: each capture takes a bonus pebble.",
   "genre": "West African drop-and-jump board game",
   "orientation": "any",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "monetization": {
     "model": "premium",
     "priceUsd": 2.99,

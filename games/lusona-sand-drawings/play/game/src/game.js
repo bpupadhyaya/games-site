@@ -60,7 +60,7 @@ export function createGame(env) {
   const clearSave = () => { saveRaw = null; S.hasSave = false; storage.remove('save'); recount(); };
 
   // ---- sound -----------------------------------------------------------------------------------------------------------------
-  const tone = (o) => { if (S.prefs.sound && !S.auto.on) audio.tone(o); };
+  const tone = (o) => { if (S.prefs.sound) audio.tone(o); };
   const later = (t, o) => S.sfx.push({ t, o });
   const sfx = {
     flip: (loops) => tone({ freq: 300 + Math.max(0, 6 - loops) * 55, to: 250, dur: 0.07, type: 'sine', vol: 0.11 }),

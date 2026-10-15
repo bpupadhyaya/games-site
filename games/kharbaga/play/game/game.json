@@ -4,7 +4,7 @@
   "tagline": "Jump, crown a Master, capture them all. North Africa's sand-board game.",
   "genre": "North African jump-and-crown board game",
   "orientation": "any",
-  "version": "1.1.2",
+  "version": "1.1.3",
   "monetization": {
     "model": "premium",
     "priceUsd": 2.99,

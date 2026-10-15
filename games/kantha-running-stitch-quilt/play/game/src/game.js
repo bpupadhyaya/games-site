@@ -75,7 +75,7 @@ export function createGame(env) {
   const clearSave = () => { saveRaw = null; S.saved = null; storage.remove('save'); };
 
   // ---- sound ----------------------------------------------------------------------------------------------------------------------------------
-  const tone = (o) => { if (S.prefs.sound && !S.auto.on) audio.tone(o); };
+  const tone = (o) => { if (S.prefs.sound) audio.tone(o); };
   const later = (t, o) => S.sfx.push({ t, o });
   const PENT = [0, 2, 4, 7, 9];
   const note = (k) => 262 * 2 ** ((PENT[((k % 5) + 5) % 5] + 12 * Math.floor(k / 5)) / 12);

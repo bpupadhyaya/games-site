@@ -59,7 +59,7 @@ export function createGame(env) {
   const clearSave = () => { saveRaw = null; S.hasSave = false; storage.remove('save'); recount(); };
 
   // ---- sound -----------------------------------------------------------------------------------------------------------------
-  const tone = (o) => { if (S.prefs.sound && !S.auto.on) audio.tone(o); };
+  const tone = (o) => { if (S.prefs.sound) audio.tone(o); };
   const later = (t, o) => S.sfx.push({ t, o });
   const sfx = {
     click: (place) => tone({ freq: 360 + place * 70, to: 260, dur: 0.06, type: 'triangle', vol: 0.12 }),

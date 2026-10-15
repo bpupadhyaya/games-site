@@ -4,7 +4,7 @@
   "tagline": "Flank them, trap them, flip them all. Vietnam's pavement board game.",
   "genre": "Vietnamese flanking board game",
   "orientation": "any",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "monetization": {
     "model": "premium",
     "priceUsd": 2.99,

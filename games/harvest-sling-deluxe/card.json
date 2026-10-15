@@ -1,0 +1,16 @@
+{
+  "title": "Golden Sling",
+  "tagline": "Pull, aim, release. Guard the harvest.",
+  "description": "A paper-cut diorama of four seasons, a carved slingshot, and birds raiding the crop. Read the wind, pull back and release to scare the flock off the field. Play 32 fields through Spring, Monsoon, Harvest and Winter, face a guardian at the end of every season, and earn medals, achievements and sling skins. Free to play. No ads. Works offline. A Harvest Journal opens a page for every bird you meet. An in-app Rules page covers every bird and mechanic.",
+  "genre": "slingshot arcade",
+  "demo": false,
+  "howToPlay": [
+    "Drag back from the slingshot to aim - the diamonds show your path, wind included.",
+    "Release to fire. Pull farther for more power; gravity and wind bend the shot.",
+    "Hit birds to scare them off and score. Hits in a row build a combo.",
+    "A miss costs the stone and startles nearby birds, so pick your shots.",
+    "Never hit the owl - it is protected and costs you stones.",
+    "Falcons and hawks may hunt the flock and help you: spare them, because hitting one costs points.",
+    "Clear each field before your stones or the crop run out, and beat the guardian at the end of every season."
+  ]
+}

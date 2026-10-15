@@ -4,7 +4,7 @@
   "tagline": "Strike with a bending rod, stop it with timed boards.",
   "genre": "field sport",
   "orientation": "any",
-  "version": "1.1.4",
+  "version": "1.1.5",
   "monetization": {
     "model": "premium",
     "priceUsd": 2.99,

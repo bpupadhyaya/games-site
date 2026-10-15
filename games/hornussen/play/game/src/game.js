@@ -58,7 +58,7 @@ export function createGame(env) {
   // ---- sound (all synthesized; delayed tones are scheduled in update so it stays deterministic) ---------------------------------
   const isAuto = () => state.scene === 'autoplay' || state.scene === 'autoplay-over';
   // Auto Play is silent by design regardless of the player's sound setting: never surprise a viewer with sound from a demo.
-  const tone = (o, delay = 0) => { if (!state.prefs.sound || isAuto()) return; if (delay > 0) state.sfx.push({ t: delay, o }); else audio.tone(o); };
+  const tone = (o, delay = 0) => { if (!state.prefs.sound) return; if (delay > 0) state.sfx.push({ t: delay, o }); else audio.tone(o); };
   const sounds = {
     ui: () => tone({ freq: 520, to: 700, dur: 0.06, type: 'sine', vol: 0.07 }),
     swing: () => { tone({ freq: 160, to: 760, dur: 0.16, type: 'sawtooth', vol: 0.05 }); tone({ freq: 90, to: 60, dur: 0.12, type: 'triangle', vol: 0.12 }, 0.12); },

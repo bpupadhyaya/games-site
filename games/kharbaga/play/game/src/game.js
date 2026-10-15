@@ -49,7 +49,7 @@ export function createGame(env) {
 
   const dur = (d) => (state.calm ? d * 0.6 : d);
   const say = (text, hold = 4.5) => { state.msg = { text, t: 0, hold }; };
-  const tone = (o) => { if (state.sound && !state.autoMode) audio.tone(o); };
+  const tone = (o) => { if (state.sound) audio.tone(o); };
   const clack = (f = 420) => tone({ freq: f * 0.8, to: f * 0.36, dur: 0.07, type: 'sine', vol: 0.12 });
   const reset = (extra) => Object.assign(state, { sel: -1, selMoves: [], drag: null, anim: null, msg: null, think: 0, thinking: false, undo: [], hint: null, hintsLeft: HINTS_PER_GAME, autoMode: false, autoPhase: null, autoMove: null, autoTimer: 0, autoPaused: false, dangerAt: -1, mustAt: -1, result: null }, extra);
   const dangerSet = () => {

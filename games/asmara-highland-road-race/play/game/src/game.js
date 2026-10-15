@@ -148,7 +148,7 @@ export function createGame(env) {
       const isMine = r.team === 0 && R.mode !== 'tt' || r.ctl === 'human';
       if (r.cracked && !state.prevCr[r.id]) {
         if (isMine && R.mode !== 'watch') { toast(`${TYPES[r.role].label} has cracked: ease off to recover`, 3); sfx.crack(); state.shake = { t: 0, dur: 0.35, a: 4 }; }
-        else if (r.team === 0 && R.mode === 'watch') toast(`${TYPES[r.role].label} has cracked`, 2.4);
+        else if (r.team === 0 && R.mode === 'watch') { toast(`${TYPES[r.role].label} has cracked`, 2.4); sfx.crack(); }
       }
       state.prevCr[r.id] = r.cracked;
       if (r.att && !state.prevAtt[r.id] && R.mode !== 'tt') {
@@ -162,7 +162,7 @@ export function createGame(env) {
           const place = 1 + ids.filter((q) => q.fin !== null && q.fin < r.fin).length;
           banner(place === 1 ? 'STAGE WIN!' : ordinal(place), `${TYPES[r.role].label} over the line`, place === 1 ? '#ffd35a' : '#fff3d6', 2.2);
           sfx.chime(place === 1 ? 3 : 1);
-        }
+        } else if (r.team === 0 && R.mode === 'watch') sfx.chime(1);
       }
     }
     const lead = Math.max(...ids.map((r) => r.s));

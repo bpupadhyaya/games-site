@@ -64,7 +64,7 @@ export function createGame(env) {
   const clearSave = () => { saveRaw = null; S.saved = null; storage.remove('save'); };
 
   // ---- sound ------------------------------------------------------------------------------------------------------------------
-  const tone = (o) => { if (S.prefs.sound && !S.auto.on) audio.tone(o); };
+  const tone = (o) => { if (S.prefs.sound) audio.tone(o); };
   const later = (t, o) => S.sfx.push({ t, o });
   const sfx = {
     plank: (n) => tone({ freq: 330 + n * 70, to: 200, dur: 0.09, type: 'triangle', vol: 0.12 }),

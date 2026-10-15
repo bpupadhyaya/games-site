@@ -7,6 +7,40 @@ import { texOf, indigoCanvas, mk } from './tex.js';
 
 const T = V3D.THREE;
 
+
+// Only the right arm may ever render. The clip plane alone is not enough: the idle clip and the root tracking swing the legs and the
+// other arm across it. So the skinned geometry itself is cut down to the triangles that belong to the right upper arm, forearm and
+// hand/fingers (decided by each vertex's strongest bone), and every other mesh of the athlete (shoes, hair, eyes, clothes) is hidden.
+const KEEP = /^Bip01_R_(UpperArm|Forearm|Hand|Finger\d*)$/;
+function keepOnlyRightArm(object) {
+  object.traverse((o) => {
+    if (!o.isMesh) return;
+    if (!o.isSkinnedMesh || !o.skeleton || !o.geometry.attributes.skinIndex) { o.visible = false; return; }
+    const g = o.geometry.clone(), si = g.attributes.skinIndex, sw = g.attributes.skinWeight, bones = o.skeleton.bones;
+    const ok = new Uint8Array(si.count);
+    for (let v = 0; v < si.count; v++) {
+      let best = 0, bw = -1;
+      for (let k = 0; k < 4; k++) { const w = sw.getComponent(v, k); if (w > bw) { bw = w; best = si.getComponent(v, k); } }
+      ok[v] = KEEP.test(bones[best]?.name || '') ? 1 : 0;
+    }
+    const idx = g.index ? g.index.array : null, out = [], groups = [];
+    const src = g.groups.length ? g.groups : [{ start: 0, count: idx ? idx.length : si.count, materialIndex: 0 }];
+    for (const gr of src) {
+      const start = out.length;
+      for (let i = gr.start; i < gr.start + gr.count; i += 3) {
+        const a = idx ? idx[i] : i, b = idx ? idx[i + 1] : i + 1, c = idx ? idx[i + 2] : i + 2;
+        if (ok[a] && ok[b] && ok[c]) out.push(a, b, c);
+      }
+      if (out.length > start) groups.push({ start, count: out.length - start, materialIndex: gr.materialIndex });
+    }
+    if (!out.length) { o.visible = false; return; }
+    g.setIndex(out);
+    g.clearGroups();
+    for (const gr of groups) g.addGroup(gr.start, gr.count, gr.materialIndex);
+    o.geometry = g;
+  });
+}
+
 export async function createPoiHand(scene, { skin = 'light', character = 'athlete_f' } = {}) {
   const hand = await createHand(V3D, { side: 'R', skin, character, preset: 'pinch' });
   hand.human.setKit?.({ top: '#1d2c5e', trim: '#e9eef4' });
@@ -15,6 +49,7 @@ export async function createPoiHand(scene, { skin = 'light', character = 'athlet
   scene.add(root);
   root.visible = false;
   const clip = new T.Plane(new T.Vector3(0, 0, 1), 0);
+  keepOnlyRightArm(hand.object);
   hand.object.traverse((o) => {
     if (!o.isMesh) return;
     o.frustumCulled = false; o.castShadow = true; o.receiveShadow = false;
