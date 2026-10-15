@@ -98,7 +98,7 @@ export function brainStep(b, w, dt, ctx = {}) {
     if (b.phase !== 'line') {
       // the plan may have been prepared by the game (Watch & Learn reveal); otherwise decide now
       b.plan = ctx.plan || planShot(prof, rng, { x: o.x, y: o.y }, oppF);
-      b.phase = 'line'; b.lineT = 0;
+      b.phase = 'line'; b.lineT = 0; b.via = null; b.viaDone = false;
       b.dwell = prof.dwell[0] + rng.next() * (prof.dwell[1] - prof.dwell[0]);
       if (ctx.serve) b.dwell = Math.max(b.dwell, ctx.serveDwell || 0);
       b.feintT = rng.chance(prof.feint) ? 0.22 : 0; b.feintX = (rng.chance(0.5) ? -1 : 1) * 70;
@@ -118,6 +118,25 @@ export function brainStep(b, w, dt, ctx = {}) {
       bx = o.x - dx * (R_PAD + R_PUCK + 8); by = o.y - dy * (R_PAD + R_PUCK + 8);
     }
     bx = clamp(bx, -HW + R_PAD, HW - R_PAD); by = clamp(by, R_PAD, HH - R_PAD);
+    // the paddle is in front of the puck (between it and the rival) and the straight run to the spot behind it would push the
+    // puck into my own goal: go round it first (out to the side level with it, then down beside it), then line up as usual
+    if (!b.via && !b.viaDone && me.y < o.y + 6 && segDist(o.x, o.y, me.x, me.y, bx, by) < R_PAD + R_PUCK + 6) {
+      // pass on the side the paddle is already on; only if the wall leaves no room there, take the other side
+      let sd = me.x >= o.x ? 1 : -1;
+      if (Math.abs(o.x + sd * (R_PAD + R_PUCK + 18)) > HW - R_PAD + 4) sd = -sd;
+      b.via = { side: sd, stage: 0 };
+    }
+    if (b.via) {
+      const v = b.via, cl = R_PAD + R_PUCK + 18, vx = clamp(o.x + v.side * cl, -HW + R_PAD, HW - R_PAD);
+      // first slide sideways at the paddle's own height (never toward the puck), then go down beside it
+      if (v.stage === 0) { set(vx, Math.min(me.y, o.y - 30)); if ((me.x - o.x) * v.side >= cl * 0.9 || Math.hypot(me.x - vx, me.y - Math.min(me.y, o.y - 30)) < 14) v.stage = 1; }
+      else {
+        const vy = clamp(Math.max(by, o.y + cl * 0.55), R_PAD, HH - R_PAD);
+        set(vx, vy);
+        if (me.y >= vy - 14 || b.lineT > 0.9) { b.via = null; b.viaDone = true; }
+      }
+      return;
+    }
     b.lineT += dt;
     if (b.dwell > 0) { b.dwell -= dt; set(clamp(bx * 0.6 + homeX * 0.4, -HW + R_PAD, HW - R_PAD), Math.min(HH - R_PAD, Math.max(by, homeY))); b.say = 'ready'; return; }
     if (b.feintT > 0) { b.feintT -= dt; set(clamp(bx + b.feintX, -HW + R_PAD, HW - R_PAD), by); return; }
