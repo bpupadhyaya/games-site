@@ -156,6 +156,7 @@ export async function createPresenter({ kitCanvas, quality = 'high' }) {
         h.human.play('idle', { loop: true });
         h.iters = 24; h.root = { x: 0, y: 0, z: 0, ready: false };
         const z0 = i === 0 ? 0.9 : -0.9;
+        if (i === 1) h.human.root.scale.setScalar(1.12);   // the rival is a touch taller: his arm reaches every spot of his half
         h.human.setFacing(i === 0 ? Math.PI : 0, { snap: true });
         h.human.setPosition(0, FLOOR_Y, z0); h.human.update(0); h.human.root.updateMatrixWorld(true);
         const sh = h.human.bonePosition('R_UpperArm', new THREE.Vector3());
@@ -380,7 +381,7 @@ export async function createPresenter({ kitCanvas, quality = 'high' }) {
       _el.set(kx + 0.16, 0.30, kz + dir * 0.45);
       h.setPose({ thumb: 0.6, index: 0.85 + 0.1 * grip, middle: 0.9 + 0.08 * grip, ring: 0.92 + 0.06 * grip, pinky: 0.92 + 0.06 * grip, spread: 0.1, thumbOut: 0.1 });
       h.place({ wrist: _w, palmDown: true, fingers: _f, elbowHint: _el });
-      if (i === 1) { _a.set(_w.x - 0.08, _w.y + 0.34, Math.min(-0.74, _w.z - 0.26)); _el.set(_a.x + 0.2, _w.y + 0.12, _w.z - 0.2); } else _a.set(_w.x + 0.17, _w.y + 0.2, _w.z + dir * 0.44);
+      if (i === 1) { _a.set(_w.x - 0.1, _w.y + 0.32, Math.min(-0.66, _w.z - 0.3)); _el.set(_a.x + 0.22, _w.y + 0.14, (_a.z + _w.z) * 0.5); } else _a.set(_w.x + 0.17, _w.y + 0.2, _w.z + dir * 0.44);
       const rt = h.root, kf = rt.ready ? 1 - Math.pow(0.0005, Math.max(dt, 0.001)) : 1;
       rt.x = lerp(rt.x, _a.x - h.shoulderOffset.x, kf); rt.y = lerp(rt.y, _a.y - h.shoulderOffset.y, kf); rt.z = lerp(rt.z, _a.z - h.shoulderOffset.z, kf); rt.ready = true;
       h.human.setPosition(rt.x, rt.y, rt.z);

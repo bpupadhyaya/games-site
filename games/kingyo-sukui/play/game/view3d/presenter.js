@@ -72,6 +72,23 @@ export async function createPresenter({ kitCanvas, quality = 'high' }) {
   const _m = new THREE.Matrix4(), _q = new THREE.Quaternion(), _s = new THREE.Vector3(), _p = new THREE.Vector3(), _e = new THREE.Euler();
   const ZERO = new THREE.Matrix4().makeScale(0, 0, 0);
 
+  // ---- 3D splash and drain particles, spawned here from what the scoop does (the game's own 2D effect list stays as it was) ----------------
+  const NSP = 110;
+  const splM = new THREE.InstancedMesh(new THREE.SphereGeometry(1, 7, 5), new THREE.MeshBasicMaterial({ color: 0xf2fbff, transparent: true, opacity: 0.9, depthWrite: false, fog: false }), NSP);
+  splM.frustumCulled = false; splM.renderOrder = 5; scene.add(splM);
+  const spl = [];
+  const emit = (x, y, z, vx, vy, vz, r, max) => { if (spl.length >= NSP) spl.shift(); spl.push({ x, y, z, vx, vy, vz, r, t: 0, max }); };
+  const crown = (x, z, n) => {
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2 + Math.random() * 0.3, s = 0.1 + Math.random() * 0.16;
+      emit(x + Math.cos(a) * 0.03, -0.004, z + Math.sin(a) * 0.03, Math.cos(a) * s, 0.5 + Math.random() * 0.45, Math.sin(a) * s, 0.0042 + Math.random() * 0.003, 0.9);
+    }
+  };
+  const foam = new THREE.Mesh(new THREE.RingGeometry(0.82, 1, 40).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.7, depthWrite: false, fog: false }));
+  foam.visible = false; foam.renderOrder = 4; scene.add(foam);
+  let foamT = 9, foamX = 0, foamZ = 0, prevDown = false, prevLifting = false, relT = 9, relItems = [];
+  const relFrom = new THREE.Vector3(), lastPaper = new THREE.Vector3();
+
   // ---- crowd (deferred: it is only background) -------------------------------------------------------------------------------------------
   let crowd = null;
   const mkCrowd = () => {
@@ -263,6 +280,47 @@ export async function createPresenter({ kitCanvas, quality = 'high' }) {
       poi.set(clamp(paper, 0, 1), clamp(wet, 0, 1), load, sheet, clock);
       poi.paper.renderOrder = poiS.yy < 0.004 ? 1 : 3;
       if (blobN < 31 && !shadowOn()) putBlob(pg.position.x, pg.position.z, 0.2, 0.2, 0);
+    }
+    // ---- the scoop in the water: a crown of splash and a foam ring when it goes in, water sheeting off the paper as it lifts, and the
+    // caught fish carried off the paper toward the bowl once it is up
+    {
+      const R = POI_RM;
+      if (down && !prevDown) { crown(pg.position.x, pg.position.z, 26); foamT = 0; foamX = pg.position.x; foamZ = pg.position.z; }
+      if (lifting && !prevLifting) {
+        for (let i = 0; i < 18; i++) { const a = (i / 18) * Math.PI * 2; _p.set(Math.cos(a) * R * 0.92, 0, Math.sin(a) * R * 0.92); pg.localToWorld(_p); emit(_p.x, _p.y, _p.z, Math.cos(a) * 0.05, 0.1 + Math.random() * 0.12, Math.sin(a) * 0.05, 0.0034, 0.9); }
+      }
+      if (lifting) {
+        for (let i = 0; i < 2; i++) { const a = Math.random() * Math.PI * 2; _p.set(Math.cos(a) * R, -0.004, Math.sin(a) * R); pg.localToWorld(_p); emit(_p.x, _p.y, _p.z, 0, 0, 0, 0.0026 + Math.random() * 0.0016, 1.0); }
+        lastPaper.copy(pg.position);
+        if (items && items.length) relItems = items.map((it) => it.k);
+      }
+      if (prevLifting && !lifting && relItems.length) { relT = 0; relFrom.copy(lastPaper); relFrom.y += 0.02; }
+      prevDown = down; prevLifting = lifting;
+      if (relT < 0.85 && relItems.length) {
+        relT += dt;
+        const k = Math.min(1, relT / 0.85);
+        relItems.forEach((kk, i) => {
+          const e = acquire(kk), len = fishLen(FISH[kk].len, 1) * 0.9 * (1 - 0.35 * k);
+          e.world = null; e.id = -1;
+          e.model.pose(len, clock * 14 + i * 2, 0.5, 1);
+          const g = e.model.group, sd = (i - (relItems.length - 1) / 2) * 0.05;
+          g.position.set(relFrom.x + dX * 0.8 * k + dZ * sd, relFrom.y + 0.26 * Math.sin(Math.PI * k * 0.9) - 0.4 * k * k, relFrom.z + dZ * 0.8 * k - dX * sd);
+          g.rotation.set(0.5 * k, -Math.atan2(dX, dZ) + i, Math.sin(clock * 16 + i) * 0.5); g.visible = true;
+        });
+        if (relT >= 0.85) relItems = [];
+      }
+      if (foamT < 0.75) {
+        foamT += dt; const f = Math.min(1, foamT / 0.75);
+        foam.visible = true; foam.position.set(foamX, 0.003, foamZ); foam.scale.set(0.03 + f * 0.2, 1, 0.03 + f * 0.2); foam.material.opacity = 0.75 * (1 - f);
+      } else foam.visible = false;
+      let ns = 0;
+      for (let i = spl.length - 1; i >= 0; i--) {
+        const q = spl[i]; q.t += dt; q.vy -= 3.0 * dt; q.x += q.vx * dt; q.y += q.vy * dt; q.z += q.vz * dt;
+        if (q.t >= q.max || q.y < -0.012) { spl.splice(i, 1); continue; }
+      }
+      for (const q of spl) { if (ns >= NSP) break; _p.set(q.x, q.y, q.z); _s.setScalar(q.r * (1 - 0.4 * (q.t / q.max))); _q.identity(); _m.compose(_p, _q, _s); splM.setMatrixAt(ns++, _m); }
+      for (let i = ns; i < NSP; i++) splM.setMatrixAt(i, ZERO);
+      splM.instanceMatrix.needsUpdate = true;
     }
     if (hand) {
       gripV.set(0, 0.012, POI_RM + 0.13); pg.localToWorld(gripV);
