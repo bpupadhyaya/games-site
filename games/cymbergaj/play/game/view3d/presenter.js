@@ -375,6 +375,8 @@ export async function createPresenter({ kitCanvas, quality = 'high' }) {
       const sway = Math.sin(clock * 1.7 + i) * 0.0018;
       _w.set(kx, knobY + 0.042 + sway, kz + dir * 0.062);
       _f.set(0, -0.36, -dir * 0.93).normalize();
+      // the opponent grips the knob from above: wrist right over it, fingers pointing steeply down so they curl round the handle
+      if (i === 1) { _w.set(kx, knobY + 0.05 + sway, kz + dir * 0.03); _f.set(0, -0.72, -dir * 0.69).normalize(); }
       _el.set(kx + 0.16, 0.30, kz + dir * 0.45);
       h.setPose({ thumb: 0.6, index: 0.85 + 0.1 * grip, middle: 0.9 + 0.08 * grip, ring: 0.92 + 0.06 * grip, pinky: 0.92 + 0.06 * grip, spread: 0.1, thumbOut: 0.1 });
       h.place({ wrist: _w, palmDown: true, fingers: _f, elbowHint: _el });

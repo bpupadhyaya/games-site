@@ -62,11 +62,15 @@ export async function createPoiHand(scene, { skin = 'light', character = 'athlet
   const sleeveMat = new T.MeshStandardMaterial({ map: indigo, roughness: 0.9, metalness: 0, side: T.DoubleSide, vertexColors: true, transparent: true, depthWrite: false, clippingPlanes: [clip] });
   const cuffMat = new T.MeshStandardMaterial({ color: 0xeae6dc, roughness: 0.85, side: T.DoubleSide, clippingPlanes: [clip] });
   const sstep = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
-  const tubeGeo = new T.CylinderGeometry(0.06, 0.045, 0.3, 20, 3, true);
+  // the sleeve is a long wide yukata sleeve: opaque from the cuff and running on past the edge of the frame, so the arm never ends
+  // in a visible cut (the skin forearm is clipped inside it, where only the sleeve shows)
+  const SLEEVE_LEN = 1.7;
+  const tubeGeo = new T.CylinderGeometry(0.075, 0.046, SLEEVE_LEN, 24, 8, true);
   { const p = tubeGeo.attributes.position, c = new Float32Array(p.count * 4);
-    for (let i = 0; i < p.count; i++) { const d = p.getY(i) + 0.15; c[i * 4] = c[i * 4 + 1] = c[i * 4 + 2] = 1; c[i * 4 + 3] = 1 - sstep(0.03, 0.17, d); }
+    for (let i = 0; i < p.count; i++) { c[i * 4] = c[i * 4 + 1] = c[i * 4 + 2] = 1; c[i * 4 + 3] = 1; }
     tubeGeo.setAttribute('color', new T.BufferAttribute(c, 4)); }
-  const tube = new T.Mesh(tubeGeo, sleeveMat);
+  const tubeMat = new T.MeshStandardMaterial({ map: indigo, roughness: 0.9, metalness: 0, side: T.DoubleSide });
+  const tube = new T.Mesh(tubeGeo, tubeMat);
   const cuff = new T.Mesh(new T.CylinderGeometry(0.034, 0.036, 0.04, 16, 1, true), cuffMat);
   const NX = 12, NY = 7;
   const dg = new T.BufferGeometry();
@@ -92,7 +96,7 @@ export async function createPoiHand(scene, { skin = 'light', character = 'athlet
     update(grip, d, want, dt, wiggle = 0) {
       shown = Math.max(0, Math.min(1, shown + (want ? 1 : -1) * dt * 3.2));
       const vis = shown > 0.01;
-      root.visible = tube.visible = cuff.visible = drape.visible = vis;
+      root.visible = tube.visible = cuff.visible = vis; drape.visible = false;   // the long sleeve replaces the drape (it z-fought with the tube)
       if (!vis) { have = false; return; }
       const e = shown * shown * (3 - 2 * shown);
       // the wrist sits just above and behind the grip (toward the player); it arrives from below the screen edge
@@ -107,7 +111,7 @@ export async function createPoiHand(scene, { skin = 'light', character = 'athlet
       right.crossVectors(up, d).normalize();   // toward the player's right... (d x up) handled by sign below
       hand.setPose({ thumb: 0.5, index: 0.52 + wiggle * 0.1, middle: 0.5, ring: 0.62, pinky: 0.68, spread: 0.1, thumbOut: 0.25 });
       hand.place({ wrist, palmDown: true, fingers, elbowHint: wrist.clone().addScaledVector(d, 0.25).addScaledVector(right, -0.16).add(new T.Vector3(0, -0.04, 0)) });
-      clip.normal.copy(d).multiplyScalar(-1); clip.constant = d.dot(tmp.copy(wrist).addScaledVector(d, 0.27));
+      clip.normal.copy(d).multiplyScalar(-1); clip.constant = d.dot(tmp.copy(wrist).addScaledVector(d, 0.09));
       hand.human.setReach('R', wrist, { weight: 1, pole: null });
       hand.update(Math.min(dt, 0.05));
       root.updateMatrixWorld(true);
@@ -124,7 +128,7 @@ export async function createPoiHand(scene, { skin = 'light', character = 'athlet
       // cuff just behind the wrist bone, tube from there towards the elbow (clipped by the same plane)
       const c0 = tmp.copy(wrist).addScaledVector(axis, 0.035);
       cuff.position.copy(c0).addScaledVector(axis, 0.0); cuff.quaternion.setFromUnitVectors(up, axis);
-      tube.position.copy(wrist).addScaledVector(axis, 0.035 + 0.15); tube.quaternion.copy(cuff.quaternion);
+      tube.position.copy(wrist).addScaledVector(axis, 0.035 + SLEEVE_LEN / 2); tube.quaternion.copy(cuff.quaternion);
       // drape (the hanging half of the sleeve): lags behind the hand's motion
       vel.copy(wrist).sub(lastWrist).multiplyScalar(1 / Math.max(dt, 1e-3)); lastWrist.copy(wrist);
       sway.lerp(vel, 1 - Math.exp(-dt * 7));
