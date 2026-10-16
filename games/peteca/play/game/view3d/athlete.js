@@ -285,7 +285,9 @@ export function createAthleteKit(V3) {
           // the receiver's palm waits behind and just above the falling peteca, cocked and tracking it
           const bk = 0.26, a = shot || 'lob';
           const tr = S.ball ? V(S.ball.x - bk * dir, S.ball.y + (a === 'lob' ? -0.12 : a === 'smash' ? 0.14 : 0.04), this.depth) : cock(sh, a);
-          target = tr; w = sstep(this.ready * 1.3); nrm = PALM_N(a, dir);
+          // while waiting, the palm tracks the peteca but the elbow stays bent: the arm only extends for the stroke itself
+          { const dW = tr.clone().sub(sh), LW = dW.length(); target = LW > 0.4 ? V().copy(sh).addScaledVector(dW, 0.4 / LW) : tr; }
+          w = sstep(this.ready * 1.3); nrm = PALM_N(a, dir);
         } else if (S.held && S.ball) {
           target = V(sh.x + 0.12 * dir, sh.y - 0.2, sh.z); w = 0.7; nrm = [0.1 * dir, 1];
         } else if (this.ready > 0.04) {
@@ -316,14 +318,14 @@ export function createAthleteKit(V3) {
       else if (inStroke && tau > -0.05 && tau < 0.45) {
         offT = shot === 'smash' ? V(shF.x + 0.24 * dir, shF.y - 0.12, shF.z) : V(shF.x - 0.05 * dir, shF.y - 0.34, shF.z + 0.05);
         offW = 0.85 * (1 - sstep((tau - 0.2) / 0.25));
-      } else if (S.mine && this.ready > 0.1) { offT = V(shF.x + 0.38 * dir, shF.y - 0.1, shF.z - 0.05); offW = sstep(this.ready) * 0.8; }
-      else if (this.jumpY > 0.03) { offT = V(shF.x + 0.18 * dir, shF.y + 0.05, shF.z); offW = 0.7; }
+      } else if (S.mine && this.ready > 0.1) { offT = V(shF.x + 0.13 * dir, shF.y - 0.36, shF.z + 0.1); offW = sstep(this.ready) * 0.8; }   // a bent, relaxed free arm in front of the body (not a straight arm held out)
+      else if (this.jumpY > 0.03) { offT = V(shF.x + 0.12 * dir, shF.y - 0.12, shF.z + 0.06); offW = 0.7; }
       if (offT) {
         if (!this.off) this.off = offT.clone();
         this.off.lerp(offT, 1 - Math.exp(-dt / (up ? 0.02 : 0.06)));
         this.offW = damp(this.offW, offW, dd, 0.08);
       } else this.offW = damp(this.offW, 0, dd, 0.1);
-      if (this.offW > 0.03 && this.off) h.setReach(far, this.off, { weight: this.offW, pole: V(shF.x - 0.05 * dir, shF.y - 0.1, shF.z - 0.8) });
+      if (this.offW > 0.03 && this.off) h.setReach(far, this.off, { weight: this.offW, pole: V(shF.x - 0.12 * dir, shF.y - 0.45, shF.z - 0.7) });
       else h.setReach(far, null);
 
       h.update(dt);
