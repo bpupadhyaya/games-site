@@ -23,7 +23,8 @@ scene.fog = null;
 await world.scenery.ready;
 
 const L = LOOKS[5];
-const h = await loadHuman({ character: 'athlete_m', kit: { top: '#1f6fe0', bottoms: '#f6f0dc', socks: '#f4f4f0' }, skin: L.skin, hair: L.hair });
+const h = await loadHuman({ character: 'mannequin_m', kit: { top: '#1f6fe0', bottoms: '#f6f0dc', socks: '#dfe5ee', shoes: '#ff9b2b' }, skin: '#aeb8c6', hair: '#2c323d' });
+h.root.traverse((o) => { if (o.isMesh) for (const m of [].concat(o.material)) { if (m && 'metalness' in m) { m.metalness = 0.45; m.roughness = 0.38; m.envMapIntensity = 1.3; } } });
 h.root.traverse((o) => { if (o.isMesh) o.castShadow = true; });
 scene.add(h.root);
 const { Athlete } = createAthleteKit(V3);

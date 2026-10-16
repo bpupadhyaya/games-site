@@ -73,7 +73,10 @@ export async function createPresenter({ kitCanvas, quality = pickQuality() }) {
     loading.add(i);
     try {
       const L = LOOKS[i];
-      const h = await loadHuman({ character: L.fem ? 'athlete_f' : 'athlete_m', kit: { top: L.shirt, bottoms: L.shorts, socks: '#f4f4f0' }, skin: L.skin, hair: L.hair });
+      // robot players: the clean procedural mannequin on the same skeleton (mitten hands with a separate thumb, no face or fingers to
+      // break), steel-skinned with a little metal sheen and each side's shirt colour kept as the team marking
+      const h = await loadHuman({ character: L.fem ? 'mannequin_f' : 'mannequin_m', kit: { top: L.shirt, bottoms: L.shorts, socks: '#dfe5ee', shoes: L.shoes }, skin: '#aeb8c6', hair: '#2c323d' });
+      h.root.traverse((o) => { if (o.isMesh) for (const m of [].concat(o.material)) { if (m && 'metalness' in m) { m.metalness = 0.45; m.roughness = 0.38; m.envMapIntensity = 1.3; } } });
       h.setFingers('L', 'relaxed'); h.setFingers('R', 'relaxed');
       stage.add(h);
       h.root.visible = false;
