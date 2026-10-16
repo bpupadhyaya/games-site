@@ -10,6 +10,9 @@ import { RUN_Q, CONTACT_LATE, TEE_Y, KICKER_LOOKS, TILTS } from '../src/consts.j
 const LIB = '../vendor3d/index.js';
 const MAX_PIXELS = 2.4e6;
 const BALL_R = 0.12;
+// robot players: the clean procedural mannequin on the shared skeleton (mitten hands, nothing to break), steel skin with a metal sheen
+const STEEL = '#aeb8c6', STEEL_HAIR = '#2c323d';
+function steelify(h) { h.root.traverse((o) => { if (o.isMesh) for (const m of [].concat(o.material)) { if (m && 'metalness' in m) { m.metalness = 0.45; m.roughness = 0.38; m.envMapIntensity = 1.3; } } }); }
 const CONTACT = RUN_Q + CONTACT_LATE;
 const KICK_LEAD = 1.133;                 // seconds from the start of the base `kick` clip to its contact event
 const CLIP_START = 0.45;                 // the run-up starts moving here
@@ -52,7 +55,8 @@ export async function createPresenter({ kitCanvas, meta = { width: 720, height: 
     if (loading) return; loading = true;
     try {
       const look = KICKER_LOOKS.you;
-      const h = await loadHuman({ character: woman ? 'athlete_f' : 'athlete_m', kit: { top: look.top, bottoms: look.bottoms, socks: look.socks }, skin: look.skin, hair: look.hair, quality });
+      const h = await loadHuman({ character: woman ? 'mannequin_f' : 'mannequin_m', kit: { top: look.top, bottoms: look.bottoms, socks: look.socks }, skin: STEEL, hair: STEEL_HAIR, lod: 'auto', quality });
+      steelify(h);
       if (K) stage.remove(K.human);
       h.groundClamp = 'auto'; h.footPlanting = true; h.turnRate = 0;
       for (const sd of ['L', 'R']) solveFootBall(h, sd, V(), V(0, 0, 1), V(0, 0, 1), 'instep', 0.1);
@@ -70,7 +74,8 @@ export async function createPresenter({ kitCanvas, meta = { width: 720, height: 
   let REF = null;
   (async () => {
     try {
-      const h = await loadHuman({ character: 'athlete_m', kit: { top: '#e9d12c', bottoms: '#15171c', socks: '#15171c' }, skin: 'light', hair: 'grey', quality });
+      const h = await loadHuman({ character: 'mannequin_m', kit: { top: '#e9d12c', bottoms: '#15171c', socks: '#15171c' }, skin: STEEL, hair: STEEL_HAIR, lod: 'auto', quality });
+      steelify(h);
       h.groundClamp = 'auto'; h.footPlanting = true; h.turnRate = 0;
       h.addLayer('live', { mask: 'all', additive: true, weight: 1 });
       h.play('idle_relaxed', { fade: 0, loop: true, startTime: 1.1 }); stage.add(h); REF = h;
@@ -193,7 +198,7 @@ export async function createPresenter({ kitCanvas, meta = { width: 720, height: 
     if (s.n !== K.n || (G.sim && s.who !== K.who)) {   // a new kick: the kicker walks back to the start of his run-up
       K.n = s.n; K.clipOn = false; K.mode = ''; K.who = s.who; K.afterT = 0; K.react = '';
       const look = s.who === 'rival' ? KICKER_LOOKS.rival : KICKER_LOOKS.you;
-      h.setKit({ top: look.top, bottoms: look.bottoms, socks: look.socks }); h.setSkin(look.skin); h.setHair(look.hair);
+      h.setKit({ top: look.top, bottoms: look.bottoms, socks: look.socks }); h.setSkin(STEEL); h.setHair(STEEL_HAIR);
       h.play('idle_relaxed', { fade: 0.2, loop: true }); K.mode = 'idle';
     }
     const k0 = fr.ball.clone().addScaledVector(fr.f, -KF).addScaledVector(fr.left, KS);
