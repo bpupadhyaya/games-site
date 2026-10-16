@@ -78,7 +78,10 @@ export async function createPresenter({ kitCanvas, quality = pickQuality(), stan
   // ---- the thrower ---------------------------------------------------------------------------------------------------------------
   let thrower = null;
   async function build() {
-    const h = await loadHuman({ character: 'athlete_m', kit: { top: '#d9d2c2', bottoms: '#3b4a5c', socks: '#d9d2c2' }, skin: 'tan', hair: 'brown', lod: 'auto', quality });
+    // robot thrower: the clean procedural mannequin on the same skeleton (mitten hands with a separate thumb, nothing to break), steel skin
+    // with a little metal sheen; the shirt / shorts colours stay as the marking
+    const h = await loadHuman({ character: 'mannequin_m', kit: { top: '#d9d2c2', bottoms: '#3b4a5c', socks: '#dfe5ee', shoes: '#d9d2c2' }, skin: '#aeb8c6', hair: '#2c323d', lod: 'auto', quality });
+    h.root.traverse((o) => { if (o.isMesh) for (const m of [].concat(o.material)) { if (m && 'metalness' in m) { m.metalness = 0.45; m.roughness = 0.38; m.envMapIntensity = 1.3; } } });
     h.groundClamp = 'auto'; h.footPlanting = QS.has('fp');   // the feet are pinned by the clips' own foot IK (no planting pops)
     stage.add(h); stage.track(h);
     h.setLOD(0);
