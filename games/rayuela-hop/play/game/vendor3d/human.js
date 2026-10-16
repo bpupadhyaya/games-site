@@ -5,6 +5,7 @@ import { decodeClips, CLIP_BONES } from './clipcodec.js';
 import { Clip, Layer, NB, MASKS, makePose, copyPose, sampleClip } from './animation.js';
 import { buildMannequinGeometry, MANNEQUIN_DETAIL, MANNEQUIN_BASE } from './mannequin.js';
 import { buildLodSet, makeLightMaterial, LOD_NAMES, LOD_POLICY, screenHeightPx, pickLod } from './lod.js';
+import { limbSanity } from './limbs.js';
 import { FingerRig, WristLimiter, LookAt, solveTwoBone, FINGER_POSES, blendFingerPose } from './rig.js';
 
 export const SKIN_TONES = { original: null, light: null, tan: '#c8936a', brown: '#8c5a3c', deep: '#583826', clay: '#b48765', wood: '#a97a47', ivory: '#e2d8c8', peach: '#e0a982' };   // clay/wood/ivory/peach: the mannequin tones
@@ -156,6 +157,25 @@ export class Human {
   }
 
   _applyRest() { this._writePose(this.restPose, true); }
+
+  /**
+   * Default knee pole for a leg IK solve when the author gave none: the knee points where the TOES point (so it never flares or bows
+   * when the pelvis drops), with the foot yaw limited to +-40 deg of body forward. `footQ` = the world orientation the foot will have.
+   */
+  _kneePole(leg, footQ, out = new THREE.Vector3()) {
+    const bodyF = this._fwdW(new THREE.Vector3()); bodyF.y = 0; bodyF.normalize();
+    const sole = this._sole && this._sole[leg.side];
+    const d = sole ? sole.fwd.clone().applyQuaternion(footQ) : bodyF.clone();
+    d.y = 0;
+    if (d.lengthSq() < 1e-4) d.copy(bodyF); else d.normalize();
+    const ang = Math.atan2(bodyF.x * d.z - bodyF.z * d.x, bodyF.x * d.x + bodyF.z * d.z), lim = 0.7;
+    if (Math.abs(ang) > lim) d.copy(bodyF).applyAxisAngle(new THREE.Vector3(0, 1, 0), Math.sign(ang) * lim);
+    leg.thigh.getWorldPosition(out);
+    return out.addScaledVector(d, 1.0);
+  }
+
+  /** World forward of the avatar (+Z of the root), unit, for bend-direction hints. */
+  _fwdW(out = new THREE.Vector3()) { return out.set(0, 0, 1).applyQuaternion(this.root.getWorldQuaternion(new THREE.Quaternion())); }
 
   // ------------------------------------------------------------ transform
   setPosition(x, y, z) { this.root.position.set(x, y ?? this.root.position.y, z ?? this.root.position.z); return this; }
@@ -584,7 +604,12 @@ export class Human {
     // 5) second hand on a prop
     if (this._hold) this._twoHand();
     root.updateMatrixWorld(true);
+    // 6) anatomy clamp: hyperextended knees, inverted/over-twisted feet, candy-wrapper forearms, broken wrists (see limbs.js)
+    if (this.limbSanityOn !== false && !(this.lod === 2 && this.cheapLight !== false)) limbSanity(this, { update: false });
   }
+
+  /** Re-run the anatomy clamp (call it yourself if you pose bones AFTER update()). Returns the number of corrections. */
+  limbSanity(opts) { return limbSanity(this, opts); }
 
   _groundClamp(dt) {
     if (this._airborne) { this.model.position.y = 0; return; }
@@ -624,7 +649,8 @@ export class Human {
         let p = null;
         if (t.poleKeys) { const pk = evalKeys(t.poleKeys, tr.time, clip.dur); pole.set(pk[0], pk[1], pk[2]); if (t.space !== 'world') pole.applyMatrix4(this.root.matrixWorld); p = pole; }
         const keepQ = kind === 'foot' ? chain.end.getWorldQuaternion(new THREE.Quaternion()) : null;
-        solveTwoBone(chain.upper, chain.mid, chain.end, v, { weight: w, pole: p });
+        if (kind === 'foot' && !p) p = this._kneePole(this.legs[side === 'L' ? 0 : 1], keepQ, pole);
+        solveTwoBone(chain.upper, chain.mid, chain.end, v, { weight: w, pole: p, bend: kind === 'foot' ? this._fwdW() : this._fwdW().negate() });
         if (keepQ) setWorldQuat(chain.end, keepQ);   // hands keep their local wrist relation (no twisted wrists)
       }
     }
@@ -633,7 +659,7 @@ export class Human {
       const r = this._reach[side];
       if (!r || r.weight <= 0.001) continue;
       const a = this.arms[side];
-      solveTwoBone(a.upper, a.mid, a.end, r.p, { weight: r.weight, pole: r.pole });
+      solveTwoBone(a.upper, a.mid, a.end, r.p, { weight: r.weight, pole: r.pole, bend: this._fwdW().negate() });
       if (r.quat) { const cur = a.end.getWorldQuaternion(new THREE.Quaternion()); this._setHandWorld(side, cur.slerp(r.quat, r.weight)); }
     }
     // authored prop (bat) pose track: grip point + direction + roll in character space, solved with arm IK
@@ -641,7 +667,7 @@ export class Human {
     for (const side of ['L', 'R']) {
       const r = this._reachFoot[side]; if (!r || r.weight <= 0.001) continue;
       const leg = this.legs[side === 'L' ? 0 : 1];
-      solveTwoBone(leg.thigh, leg.calf, leg.foot, r.p, { weight: r.weight });
+      solveTwoBone(leg.thigh, leg.calf, leg.foot, r.p, { weight: r.weight, pole: this._kneePole(leg, r.quat || leg.foot.getWorldQuaternion(new THREE.Quaternion())), bend: this._fwdW() });
       if (r.quat) { const cur = leg.foot.getWorldQuaternion(new THREE.Quaternion()); setWorldQuat(leg.foot, cur.slerp(r.quat, r.weight)); }
     }
     // prop sweet-spot target: shift the gripping hand so a point on the prop meets a world point
@@ -708,7 +734,7 @@ export class Human {
     let tl = tiltQ(tl0.rx, tl0.rz);
     if (auto) {
       const h0 = handFor(this._autoRoll ?? 0, tl);
-      solveTwoBone(arm.upper, arm.mid, arm.end, h0.handPos, { weight: 1 });
+      solveTwoBone(arm.upper, arm.mid, arm.end, h0.handPos, { weight: 1, bend: this._fwdW().negate() });
       arm.mid.updateWorldMatrix(true, false);
       const fq = arm.mid.getWorldQuaternion(new THREE.Quaternion()).invert();
       const prev = this._autoRoll ?? 0;
@@ -733,7 +759,7 @@ export class Human {
       tl = tiltQ(tl0.rx, tl0.rz);
     }
     const hf = handFor(rollDeg, tl);
-    solveTwoBone(arm.upper, arm.mid, arm.end, hf.handPos, { weight: 1 });
+    solveTwoBone(arm.upper, arm.mid, arm.end, hf.handPos, { weight: 1, bend: this._fwdW().negate() });
     this._setHandWorld(side, hf.handQ);
   }
 
@@ -778,7 +804,7 @@ export class Human {
       const keepQ = leg.foot.getWorldQuaternion(new THREE.Quaternion());
       const target = leg.lock.clone();
       target.y = rootY + this._ankleRest;
-      solveTwoBone(leg.thigh, leg.calf, leg.foot, target, { weight: leg.w });
+      solveTwoBone(leg.thigh, leg.calf, leg.foot, target, { weight: leg.w, pole: this._kneePole(leg, keepQ), bend: this._fwdW() });
       // keep the foot orientation it had in the animation, blended flat on the ground
       const flat = keepQ.clone();
       setWorldQuat(leg.foot, flat);

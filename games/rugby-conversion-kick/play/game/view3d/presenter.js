@@ -12,6 +12,25 @@ const MAX_PIXELS = 2.4e6;
 const BALL_R = 0.12;
 // robot players: the clean procedural mannequin on the shared skeleton (mitten hands, nothing to break), steel skin with a metal sheen
 const STEEL = '#aeb8c6', STEEL_HAIR = '#2c323d';
+// robot arms: driven directly (two-bone IK) so they hang relaxed, counter-swing in the run-up, spread to balance at contact, then settle
+const _ra = { a: null, b: null, c: null };
+function robotArms(h, swing, spread) {
+  const T = robotArms.T;
+  _ra.a ||= new T.Vector3(); _ra.b ||= new T.Vector3(); _ra.c ||= new T.Vector3();
+  const rp = h.root.position, fw = new T.Vector3(0, 0, 1).applyQuaternion(h.root.quaternion);
+  for (const side of ['L', 'R']) {
+    const a = h.arms[side]; if (!a) continue;
+    a.upper.getWorldPosition(_ra.a); a.mid.getWorldPosition(_ra.b); a.end.getWorldPosition(_ra.c);
+    const len = _ra.a.distanceTo(_ra.b) + _ra.b.distanceTo(_ra.c);
+    const out = new T.Vector3(_ra.a.x - rp.x, 0, _ra.a.z - rp.z); out.addScaledVector(fw, -out.dot(fw)); if (out.lengthSq() < 1e-6) continue; out.normalize();
+    const sg = side === 'R' ? 1 : -1;                         // opposite arms swing opposite ways
+    const reach = (0.97 - 0.1 * Math.abs(swing)) * len;
+    const tgt = _ra.a.clone().addScaledVector(out, (0.05 + 0.8 * spread) * len).addScaledVector(fw, sg * swing * 0.3 * len);
+    tgt.y -= Math.sqrt(Math.max(0.02, 1 - Math.pow(0.05 + 0.8 * spread, 2))) * reach * (1 - 0.45 * spread);
+    const pole = _ra.a.clone().addScaledVector(out, 0.15).addScaledVector(fw, -0.8); pole.y -= 0.1;
+    h.setReach(side, tgt, { weight: 1, pole });
+  }
+}
 function steelify(h) { h.root.traverse((o) => { if (o.isMesh) for (const m of [].concat(o.material)) { if (m && 'metalness' in m) { m.metalness = 0.45; m.roughness = 0.38; m.envMapIntensity = 1.3; } } }); }
 const CONTACT = RUN_Q + CONTACT_LATE;
 const KICK_LEAD = 1.133;                 // seconds from the start of the base `kick` clip to its contact event
@@ -32,6 +51,7 @@ export async function createPresenter({ kitCanvas, meta = { width: 720, height: 
   let V3;
   try { V3 = await import(LIB); } catch (e) { console.warn('view3d failed to load; using the 2D fallback', e); return fallback; }
   const { createStage, loadHuman, THREE, solveFootBall } = V3;
+  robotArms.T = THREE;
   const canvas = globalThis.document.createElement('canvas');
   canvas.style.cssText = 'position:fixed;inset:0;width:100vw;height:100dvh;display:block;pointer-events:none;z-index:0';
   kitCanvas.parentElement.insertBefore(canvas, kitCanvas);
@@ -175,6 +195,7 @@ export async function createPresenter({ kitCanvas, meta = { width: 720, height: 
     if (REF && K) {
       const fr = frameOf(s), rp = fr.ball.clone().addScaledVector(fr.left, 2.5).addScaledVector(fr.f, 5);
       REF.root.position.set(rp.x, 0, rp.z); REF.setFacing(Math.atan2(fr.ball.x - rp.x, fr.ball.z - rp.z - 1.5));
+      robotArms(REF, 0, 0);
       REF.lookAt(s.ball.fly ? V(-bi.x, bi.y, bi.z) : fr.ball.clone().add(V(0, 0.5, 0)), { weight: 0.6, maxYaw: 1.2, maxPitch: 0.6 });
       REF.update(dt);
     }
@@ -218,6 +239,13 @@ export async function createPresenter({ kitCanvas, meta = { width: 720, height: 
     // eyes: the posts while setting up, the ball during the run-up, the flight afterwards
     const lookP = s.phase === 'ready' ? V(-s.aimX, 3.5, 0) : s.phase === 'runup' ? (rc < 1.3 ? V(-s.aimX, 3.5, 0) : fr.ball) : (s.ball.fly ? V(-bi.x, bi.y, bi.z) : V(-s.aimX, 3.5, 0));
     h.lookAt(lookP, { weight: 0.7, maxYaw: 1.1, maxPitch: 0.7 });
+    {   // arms: relaxed at rest, counter-swing through the run-up, spread to balance at contact, settle after
+      const u2 = running && rc >= CLIP_START ? Math.min(1.2, (rc - CLIP_START) / (CONTACT - CLIP_START)) : 0;
+      const post = rc > CONTACT ? sstep(0, 0.9, rc - CONTACT) : 0;
+      const swing = u2 > 0 ? Math.sin(u2 * Math.PI * 2.4) * (1 - sstep(0.7, 1, u2)) * 0.8 : 0;
+      const spread = sstep(0.55, 1, u2) * (1 - post);
+      robotArms(h, swing * (1 - post), K.mode === 'celeb' ? 0 : spread);
+    }
     // foot onto the ball at contact
     h.setReachFoot('R', null); h.setReachFoot('L', null);
     if (s.shot && s.phase !== 'ready' && K.clipOn) {
