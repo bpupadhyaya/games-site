@@ -144,7 +144,7 @@ export async function createAthlete(V3, o) {
     const frac = clamp(0.78 + 0.2 * pull + 0.04 * S.up - 0.1 * S.dig, 0.7, 0.99);
     const want = ARM * frac;
     let pitch = 10, best = 1e9;
-    for (let a = -32; a <= 50; a += 1) {
+    for (let a = -32; a <= 66; a += 1) {
       const ar = a * D2R, sx = dir * -hipX + dir * Math.sin(ar) * TORSO, sy = hipY + Math.cos(ar) * TORSO;
       const err = Math.abs(Math.hypot(hx - sx, hy - sy) - want);
       if (err < best) { best = err; pitch = a; }
@@ -210,7 +210,12 @@ export async function createAthlete(V3, o) {
     info.reach = 1;
     if (p.stick) {
       const st = p.stick, hold = 1 - celebrate;
-      GEOM.grip.forEach((dd, i) => {
+      // grips: where the hands sit on the stick adapts to this athlete's reach (a shorter arm or longer legs would otherwise leave both hands
+      // clamped together short of the grips); the inner hand takes the closest point the arm can hold, the outer one sits a hand-width further out
+      const shP = bp('L_UpperArm'), shQ = bp('R_UpperArm');
+      const shd = Math.abs((shP.x + shQ.x) / 2 - st.c.x) / Math.max(0.3, Math.abs(st.dir.x));
+      const g0 = clamp(shd - ARM * 0.93, GEOM.grip[0], 0.46), g1 = clamp(g0 + 0.15, GEOM.grip[1], GEOM.stickHalf - 0.07);
+      [g0, g1].forEach((dd, i) => {
         const hand = i === 0 ? 'R' : 'L';
         const c = V(st.c.x + st.dir.x * sgn * dd, st.c.y + st.dir.y * sgn * dd, 0);
         const inward = V(0, 0, 0).addScaledVector(lat, hand === 'L' ? -1 : 1);
