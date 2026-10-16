@@ -1,4 +1,4 @@
-#WGP1	43978
+#WGP1	44053
 have	v055	40	have or possess, either in a concrete or an abstract sense	have as a feature	She has $1,000 in the bank	hold	lack
 say	v04x	32	express in words	report or maintain	He said that he wanted to marry her	state,tell	
 make	v049	41	engage in	give certain properties to something	make love, not war	get	
@@ -43977,3 +43977,78 @@ euphemism	a41w	0	mild expression in place of an unpleasant statement			understat
 flout	a41s	0	reject; mock			defy	obey
 officious	a41w	0	meddlesome; excessively pushy in offering services			meddlesome	reserved
 warranted	a41s	0	justified; authorized			justified	unjustified
+presbyterian	n40	18	a member of a Protestant church governed by elders, with roots in the Scottish Reformation	relating to a church governed by elders	She sang in the Presbyterian church choir.		
+presbyterianism	n50	18	a form of church government by elders, and the Protestant tradition that follows it		Presbyterianism spread widely from Scotland.		
+baptist	n40	18	a member of a Protestant church that baptizes believers who are old enough to choose for themselves	relating to the Baptists	The Baptist congregation met every Sunday.		
+methodist	n40	18	a member of a Protestant church that grew out of the teaching of John Wesley	relating to the Methodists	The Methodist hall hosted the village supper.		
+lutheran	n40	18	a member of a Protestant church that follows the teaching of Martin Luther	relating to the Lutherans	The Lutheran church stood by the harbor.		
+anglican	n40	18	a member of the Church of England or of a church linked to it	relating to the Church of England	The Anglican service began at nine.		
+episcopalian	n50	18	a member of an Anglican church, especially in the United States	relating to a church governed by bishops	The Episcopalian parish raised money for the school.		
+calvinist	n50	18	a follower of the Protestant teaching of John Calvin	relating to Calvin or his teaching	The Calvinist settlers built a small chapel.		
+pentecostal	n50	18	a member of a Christian church that stresses gifts of the Spirit such as speaking in tongues	relating to such a church	The Pentecostal choir clapped along.		
+unitarian	n50	18	a member of a church that values reason and freedom of belief	relating to such a church	The Unitarian group welcomed every visitor.		
+jesuit	n50	18	a member of the Society of Jesus, a Catholic order of teachers and scholars		A Jesuit teacher ran the school.		
+sikh	n40	18	a follower of Sikhism, the faith founded by Guru Nanak in northern India	relating to Sikhism	The Sikh temple served a free meal to all.		
+jain	n50	18	a follower of Jainism, an Indian faith that stresses non-violence	relating to Jainism	The Jain family never harmed any living thing.		
+shinto	n50	18	the traditional faith of Japan, which honors nature spirits and ancestors		A Shinto shrine stood under the old trees.		
+taoist	n50	18	a follower of Taoism, the Chinese way of living in harmony with nature	relating to Taoism	The Taoist poem praised the quiet river.		
+confucian	n50	18	a follower of Confucius, the Chinese thinker who taught respect and duty	relating to Confucius or his teaching	The Confucian scholar valued learning.		
+buddhist	n40	18	a follower of Buddhism, the way of life taught by the Buddha	relating to Buddhism	The Buddhist monk rang the temple bell.		
+hindu	n40	18	a follower of Hinduism, the major faith of India	relating to Hinduism or the people of India who follow it	The Hindu festival lit the street with lamps.		
+muslim	n40	18	a follower of Islam, the faith revealed through the Prophet Muhammad	relating to Islam	The Muslim family fasted during Ramadan.		
+jewish	n30	18	relating to the Jews, their faith or their culture		The Jewish holiday began at sunset.		
+sunni	n50	18	a member of the larger branch of Islam	relating to that branch	The Sunni scholar taught in the mosque.		
+shiite	n50	18	a member of the second largest branch of Islam	relating to that branch	The Shiite community marked the day together.		
+buddhism	n40	18	the way of life and teaching of the Buddha, which seeks freedom from suffering		Buddhism spread from India across Asia.		
+hinduism	n40	18	the major faith of India, with many gods and ancient texts		Hinduism is one of the oldest living faiths.		
+judaism	n40	18	the faith and way of life of the Jewish people		Judaism is built on the Torah.		
+christianity	n40	18	the faith based on the life and teaching of Jesus		Christianity grew from a small group of followers.		
+islam	n40	18	the faith revealed through the Prophet Muhammad, whose followers are Muslims		Islam is practiced around the world.		
+catholicism	n50	18	the faith and practice of the Roman Catholic Church		Catholicism reached the islands by ship.		
+protestantism	n50	18	the Christian movement that began in the 1500s apart from the Roman Catholic Church		Protestantism spread across northern Europe.		
+american	n30	18	a person from the United States, or from North or South America	relating to the United States or the Americas	The American team flew in on Friday.		
+african	n30	18	a person from Africa	relating to the continent of Africa	The African savanna is home to elephants.		
+asian	n30	18	a person from Asia	relating to the continent of Asia	The Asian market sold spices and silk.		
+european	n30	18	a person from Europe	relating to the continent of Europe	The European train crossed three borders.		
+british	n30	18	relating to Great Britain or its people	the people of Great Britain	The British museum opens at ten.		
+english	n20	18	the language of England, now spoken around the world	relating to England, its people or its language	She speaks English and Spanish.		
+french	n20	18	the language of France	relating to France, its people or its language	He learned French at school.		
+german	n30	18	the language of Germany	relating to Germany, its people or its language	She read the German poem aloud.		
+spanish	n30	18	the language of Spain and much of Latin America	relating to Spain, its people or its language	They spoke Spanish at the market.		
+italian	n30	18	the language of Italy	relating to Italy, its people or its language	We ate an Italian dinner.		
+portuguese	n30	18	the language of Portugal and Brazil	relating to Portugal, its people or its language	The Portuguese sailors crossed the sea.		
+dutch	n30	18	the language of the Netherlands	relating to the Netherlands, its people or its language	The Dutch fields bloom with tulips.		
+greek	n30	18	the language of Greece	relating to Greece, its people or its language	He studied ancient Greek.		
+latin	n30	18	the language of ancient Rome	relating to ancient Rome or its language	Many English words come from Latin.		
+hebrew	n40	18	the ancient language of the Jewish people, now spoken in Israel	relating to that language or people	She read the Hebrew text slowly.		
+arabic	n30	18	the language of the Arab world, written from right to left	relating to the Arabs or their language	The Arabic script flows from right to left.		
+arab	n30	18	a person whose first language is Arabic and who comes from the Arab world	relating to the Arabs	The Arab traders crossed the desert.		
+chinese	n30	18	the language of China	relating to China, its people or its language	The Chinese lantern glowed red.		
+japanese	n30	18	the language of Japan	relating to Japan, its people or its language	The Japanese garden was perfectly raked.		
+korean	n30	18	the language of Korea	relating to Korea, its people or its language	The Korean drum beat steadily.		
+indian	n30	18	a person from India	relating to India or its people	The Indian train crossed the plain.		
+nepali	n30	18	a person from Nepal, or the language of Nepal	relating to Nepal, its people or its language	The Nepali village sat below the mountains.		
+tibetan	n40	18	a person from Tibet, or the language of Tibet	relating to Tibet, its people or its language	The Tibetan monk carried a prayer wheel.		
+thai	n30	18	a person from Thailand, or the language of Thailand	relating to Thailand, its people or its language	The Thai boat glided down the river.		
+vietnamese	n40	18	a person from Vietnam, or the language of Vietnam	relating to Vietnam, its people or its language	The Vietnamese market opened at dawn.		
+filipino	n40	18	a person from the Philippines	relating to the Philippines or its people	The Filipino dancers wore bright costumes.		
+indonesian	n40	18	a person from Indonesia, or the language of Indonesia	relating to Indonesia, its people or its language	The Indonesian island has a volcano.		
+pakistani	n40	18	a person from Pakistan	relating to Pakistan or its people	The Pakistani cricket team won.		
+bengali	n40	18	a person from Bengal, or the language of Bengal and Bangladesh	relating to Bengal, its people or its language	The Bengali poem rhymed beautifully.		
+russian	n30	18	a person from Russia, or the language of Russia	relating to Russia, its people or its language	The Russian winter was long and cold.		
+swedish	n30	18	relating to Sweden, its people or its language	the language of Sweden	The Swedish village was quiet in snow.		
+norwegian	n40	18	a person from Norway, or the language of Norway	relating to Norway, its people or its language	The Norwegian fjord was deep and still.		
+finnish	n40	18	relating to Finland, its people or its language	the language of Finland	The Finnish lake froze solid.		
+swiss	n30	18	a person from Switzerland	relating to Switzerland or its people	The Swiss village sat below the Alps.		
+belgian	n40	18	a person from Belgium	relating to Belgium or its people	The Belgian chocolate melted slowly.		
+turkish	n30	18	relating to Turkey, its people or its language	the language of Turkey	The Turkish tea came in a small glass.		
+egyptian	n30	18	a person from Egypt	relating to Egypt or its people	The Egyptian pyramids rise from the desert.		
+brazilian	n40	18	a person from Brazil	relating to Brazil or its people	The Brazilian band played all night.		
+mexican	n30	18	a person from Mexico	relating to Mexico or its people	The Mexican festival filled the square.		
+canadian	n30	18	a person from Canada	relating to Canada or its people	The Canadian geese flew south.		
+australian	n30	18	a person from Australia	relating to Australia or its people	The Australian outback is vast and dry.		
+irish	n30	18	relating to Ireland, its people or its language	the people of Ireland	The Irish hills were green all year.		
+scottish	n30	18	relating to Scotland, its people or its language		The Scottish lake lay under the mist.		
+israeli	n40	18	a person from Israel	relating to Israel or its people	The Israeli orchard grew oranges.		
+iranian	n40	18	a person from Iran	relating to Iran or its people	The Iranian rug had a deep red pattern.		
+iraqi	n40	18	a person from Iraq	relating to Iraq or its people	The Iraqi river runs between two ancient cities.		
