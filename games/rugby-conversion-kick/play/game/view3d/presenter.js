@@ -5,6 +5,7 @@ import { buildStadium, buildBall, buildTee } from './field.js';
 import { camFor } from '../src/camera.js';
 import { bandOf } from '../src/hud.js';
 import { windAt } from '../src/sim.js';
+import { solveTwoBone } from '../vendor3d/rig.js';
 import { RUN_Q, CONTACT_LATE, TEE_Y, KICKER_LOOKS, TILTS } from '../src/consts.js';
 
 const LIB = '../vendor3d/index.js';
@@ -12,26 +13,32 @@ const MAX_PIXELS = 2.4e6;
 const BALL_R = 0.12;
 // robot players: the clean procedural mannequin on the shared skeleton (mitten hands, nothing to break), steel skin with a metal sheen
 const STEEL = '#aeb8c6', STEEL_HAIR = '#2c323d';
-// robot arms: driven directly (two-bone IK) so they hang relaxed, counter-swing in the run-up, spread to balance at contact, then settle
-const _ra = { a: null, b: null, c: null };
+// robot arms: solved AFTER the clip with two-bone IK; the clavicles are put back to their bind pose first so the shoulders never hunch.
+// Relaxed hang at rest, a small counter-swing in the run-up, arms out and a little forward to balance at contact, then they settle.
+const _v = {};
 function robotArms(h, swing, spread) {
-  const T = robotArms.T;
-  _ra.a ||= new T.Vector3(); _ra.b ||= new T.Vector3(); _ra.c ||= new T.Vector3();
-  const rp = h.root.position, fw = new T.Vector3(0, 0, 1).applyQuaternion(h.root.quaternion);
+  const T = robotArms.T; if (!T) return;
+  const V3_ = (k) => (_v[k] ||= new T.Vector3());
+  const bn = h.bones;
+  for (const s of ['L', 'R']) { const c = bn[`Bip01_${s}_Clavicle`]; if (c && h._clavRest[s]) c.quaternion.copy(h._clavRest[s]); }
+  h.root.updateMatrixWorld(true);
+  const fw = V3_('fw').set(0, 0, 1).applyQuaternion(h.root.quaternion), rp = h.root.position;
   for (const side of ['L', 'R']) {
     const a = h.arms[side]; if (!a) continue;
-    a.upper.getWorldPosition(_ra.a); a.mid.getWorldPosition(_ra.b); a.end.getWorldPosition(_ra.c);
-    const len = _ra.a.distanceTo(_ra.b) + _ra.b.distanceTo(_ra.c);
-    const out = new T.Vector3(_ra.a.x - rp.x, 0, _ra.a.z - rp.z); out.addScaledVector(fw, -out.dot(fw)); if (out.lengthSq() < 1e-6) continue; out.normalize();
-    const sg = side === 'R' ? 1 : -1;                         // opposite arms swing opposite ways
-    const reach = (0.97 - 0.1 * Math.abs(swing)) * len;
-    const tgt = _ra.a.clone().addScaledVector(out, (0.05 + 0.8 * spread) * len).addScaledVector(fw, sg * swing * 0.3 * len);
-    tgt.y -= Math.sqrt(Math.max(0.02, 1 - Math.pow(0.05 + 0.8 * spread, 2))) * reach * (1 - 0.45 * spread);
-    const pole = _ra.a.clone().addScaledVector(out, 0.15).addScaledVector(fw, -0.8); pole.y -= 0.1;
-    h.setReach(side, tgt, { weight: 1, pole });
+    const sh = V3_('sh'), el = V3_('el'), wr = V3_('wr');
+    a.upper.getWorldPosition(sh); a.mid.getWorldPosition(el); a.end.getWorldPosition(wr);
+    const len = sh.distanceTo(el) + el.distanceTo(wr);
+    const out = V3_('out').set(sh.x - rp.x, 0, sh.z - rp.z); out.addScaledVector(fw, -out.dot(fw)); if (out.lengthSq() < 1e-6) continue; out.normalize();
+    const kick = side === 'R' ? 1 : -1;                          // the kicking leg is the right one: that side's arm swings back at contact, the other forward
+    const o = 0.07 + 0.55 * spread, f = kick * (-0.18 * spread) + (-kick) * swing * 0.22 + (kick < 0 ? 0.18 * spread : 0), dn = 0.93 - 0.42 * spread;
+    const tgt = V3_('t').copy(sh).addScaledVector(out, o * len).addScaledVector(fw, f * len); tgt.y = sh.y - dn * len;
+    const pole = V3_('p').copy(sh).addScaledVector(out, 0.25).addScaledVector(fw, -0.7); pole.y -= 0.15;
+    T.rigSolve(a.upper, a.mid, a.end, tgt, { weight: 1, pole });
   }
 }
-function steelify(h) { h.root.traverse((o) => { if (o.isMesh) for (const m of [].concat(o.material)) { if (m && 'metalness' in m) { m.metalness = 0.45; m.roughness = 0.38; m.envMapIntensity = 1.3; } } }); }
+function steelify(h) {
+  h._clavRest = {}; for (const s of ['L', 'R']) { const c = h.bones[`Bip01_${s}_Clavicle`]; if (c) h._clavRest[s] = c.quaternion.clone(); }
+  h.root.traverse((o) => { if (o.isMesh) for (const m of [].concat(o.material)) { if (m && 'metalness' in m) { m.metalness = 0.45; m.roughness = 0.38; m.envMapIntensity = 1.3; } } }); }
 const CONTACT = RUN_Q + CONTACT_LATE;
 const KICK_LEAD = 1.133;                 // seconds from the start of the base `kick` clip to its contact event
 const CLIP_START = 0.45;                 // the run-up starts moving here
@@ -51,7 +58,7 @@ export async function createPresenter({ kitCanvas, meta = { width: 720, height: 
   let V3;
   try { V3 = await import(LIB); } catch (e) { console.warn('view3d failed to load; using the 2D fallback', e); return fallback; }
   const { createStage, loadHuman, THREE, solveFootBall } = V3;
-  robotArms.T = THREE;
+  robotArms.T = { Vector3: THREE.Vector3, rigSolve: solveTwoBone };
   const canvas = globalThis.document.createElement('canvas');
   canvas.style.cssText = 'position:fixed;inset:0;width:100vw;height:100dvh;display:block;pointer-events:none;z-index:0';
   kitCanvas.parentElement.insertBefore(canvas, kitCanvas);
@@ -195,9 +202,8 @@ export async function createPresenter({ kitCanvas, meta = { width: 720, height: 
     if (REF && K) {
       const fr = frameOf(s), rp = fr.ball.clone().addScaledVector(fr.left, 2.5).addScaledVector(fr.f, 5);
       REF.root.position.set(rp.x, 0, rp.z); REF.setFacing(Math.atan2(fr.ball.x - rp.x, fr.ball.z - rp.z - 1.5));
-      robotArms(REF, 0, 0);
       REF.lookAt(s.ball.fly ? V(-bi.x, bi.y, bi.z) : fr.ball.clone().add(V(0, 0.5, 0)), { weight: 0.6, maxYaw: 1.2, maxPitch: 0.6 });
-      REF.update(dt);
+      REF.update(dt); robotArms(REF, 0, 0);
     }
     blobs.set(0, K ? K.human.root.position.x : 0, K ? K.human.root.position.z : 0, 0.6);
     blobs.set(1, ball.position.x, ball.position.z, 0.3 * Math.max(0.3, 1 - Math.min(1, Math.max(0, ball.position.y - 0.2) / 8)));
@@ -244,7 +250,7 @@ export async function createPresenter({ kitCanvas, meta = { width: 720, height: 
       const post = rc > CONTACT ? sstep(0, 0.9, rc - CONTACT) : 0;
       const swing = u2 > 0 ? Math.sin(u2 * Math.PI * 2.4) * (1 - sstep(0.7, 1, u2)) * 0.8 : 0;
       const spread = sstep(0.55, 1, u2) * (1 - post);
-      robotArms(h, swing * (1 - post), K.mode === 'celeb' ? 0 : spread);
+      K.armPose = [swing * (1 - post), K.mode === 'celeb' ? 0 : spread];
     }
     // foot onto the ball at contact
     h.setReachFoot('R', null); h.setReachFoot('L', null);
@@ -266,6 +272,7 @@ export async function createPresenter({ kitCanvas, meta = { width: 720, height: 
     if (K.mode === 'kick' && K.clipOn && s.phase !== 'runup' && rc > CLIP_START + h.clips.kick.dur / rate + 0.1) { h.play('idle_relaxed', { fade: 0.4, loop: true }); K.mode = 'idle'; K.clipOn = false; K.done = s.n; }
     h.layers.live.setWeight(K.mode === 'kick' ? 0.1 : 1, 0);
     h.update(dt);
+    robotArms(h, K.armPose ? K.armPose[0] : 0, K.armPose ? K.armPose[1] : 0);
   }
 
   P.wrap = (game) => {

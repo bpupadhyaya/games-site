@@ -100,7 +100,7 @@ export function hopperPose(c) {
       // balance: arms out to the sides, a little forward, counter-swinging with the hop
       // two feet down: relaxed, hands at the hips, slightly forward (ready to spring); on one foot or in the air: elbows bent, hands out and a little up
       const sw = air ? Math.sin(Math.PI * H.air) : 0, one = H.supp !== 'B' ? 1 : 0, rdy = Math.sin(ti * 2.1 + ph) * 0.012;
-      p = [sx * (0.30 + 0.10 * one + 0.08 * sw) * k, (0.0 + 0.16 * one + 0.12 * sw + rdy) * k, (0.15 + 0.03 * sw) * k]; pole = [sx * 0.8, -0.7, -0.5];
+      p = [sx * (0.22 + 0.16 * one + 0.1 * sw) * k, (-0.06 + 0.2 * one + 0.12 * sw + rdy) * k, (0.12 + 0.03 * sw) * k]; pole = [sx * 0.35, -0.9, -0.7];
     }
     if (stumble > 0 && !celeb) {
       const w = Math.sin((H.stumbleT || 0) * 12) * (1 - smooth((H.stumbleT || 0) / 1.1));

@@ -16,8 +16,8 @@ const KIT = [
   { top: '#1f9d8f', bottoms: '#f2c14e', socks: '#fff3d6', trim: '#ffd98a', shoes: '#fff3d6' },
 ];
 const LOOKS = {
-  f: { character: 'mannequin_f', scale: 0.8, skin: '#aeb8c6', hair: '#2c323d', label: 'girl' },
-  m: { character: 'mannequin_m', scale: 0.9, skin: '#aeb8c6', hair: '#2c323d', label: 'boy' },
+  f: { character: 'mannequin_m', scale: 0.8, skin: '#aeb8c6', hair: '#aeb8c6', label: 'girl' },
+  m: { character: 'mannequin_m', scale: 0.9, skin: '#aeb8c6', hair: '#aeb8c6', label: 'boy' },
 };
 const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
 const lerp = (a, b, u) => a + (b - a) * u;
