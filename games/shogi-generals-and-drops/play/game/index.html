@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <title>Shogi</title>
+  <style>
+    /* Titles: Cormorant Garamond Bold and Noto Serif JP Bold (subset), both SIL Open Font License 1.1 (fonts/OFL*.txt). */
+    @font-face { font-family: "Cormorant Garamond"; src: url("./fonts/CormorantGaramond-Bold.woff2") format("woff2"); font-weight: 700; font-display: swap; }
+    @font-face { font-family: "Noto Serif JP"; src: url("./fonts/NotoSerifJP-Bold-subset.woff2") format("woff2"); font-weight: 700; font-display: swap; }
+    /* Forces the fonts to load before the canvas first asks for them. */
+    .font-warm { position: absolute; left: -999px; top: 0; opacity: 0; pointer-events: none; font-weight: 700; }
+    .font-warm.a { font-family: "Cormorant Garamond"; }
+    .font-warm.b { font-family: "Noto Serif JP"; }
+    html, body { margin: 0; height: 100%; background: #000; overflow: hidden; overscroll-behavior: none; }
+    canvas { display: block; width: 100vw; height: 100vh; height: 100dvh; touch-action: none; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+  </style>
+</head>
+<body>
+  <span class="font-warm a" aria-hidden="true">Shogi 0123456789</span>
+  <span class="font-warm b" aria-hidden="true">将棋歩香桂銀金角飛玉王と杏圭全馬龍持駒一二三四五六七八九0123456789日本語</span>
+  <canvas id="game"></canvas>
+  <script>
+    /* Render at most 2x: phones report 3x, which is ~2x the pixels for no visible gain and costs frames. */
+    (function () { var real = window.devicePixelRatio || 1; if (real > 2) Object.defineProperty(window, 'devicePixelRatio', { get: function () { return 2; } }); })();
+  </script>
+  <script type="module" src="./main.js"></script>
+</body>
+</html>
