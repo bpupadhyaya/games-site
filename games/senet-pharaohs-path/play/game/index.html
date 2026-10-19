@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <title>Senet</title>
+  <style>
+    /* Titles: Cormorant Garamond Bold, SIL Open Font License 1.1 (fonts/OFL.txt). */
+    @font-face { font-family: "Cormorant Garamond"; src: url("./fonts/CormorantGaramond-Bold.woff2") format("woff2"); font-weight: 700; font-display: swap; }
+    .font-warm { position: absolute; left: -999px; top: 0; font-family: "Cormorant Garamond"; font-weight: 700; opacity: 0; pointer-events: none; }
+    html, body { margin: 0; height: 100%; background: #000; overflow: hidden; overscroll-behavior: none; }
+    canvas { display: block; width: 100vw; height: 100vh; height: 100dvh; touch-action: none; -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent; }
+  </style>
+</head>
+<body>
+  <span class="font-warm" aria-hidden="true">Senet 0123456789</span>
+  <canvas id="game"></canvas>
+  <script>
+    /* Render at most 2x: phones report 3x, which costs frames for no visible gain. */
+    (function () { var real = window.devicePixelRatio || 1; if (real > 2) Object.defineProperty(window, 'devicePixelRatio', { get: function () { return 2; } }); })();
+  </script>
+  <script type="module" src="./main.js"></script>
+</body>
+</html>

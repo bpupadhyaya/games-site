@@ -1,0 +1,25 @@
+{
+  "slug": "world-weave",
+  "title": "World Weave",
+  "tagline": "Weave real heritage patterns, one tile at a time.",
+  "genre": "puzzle",
+  "orientation": "portrait",
+  "version": "0.1.1",
+  "monetization": {
+    "model": "premium",
+    "priceUsd": 2.99,
+    "previewSeconds": 90,
+    "products": [
+      {
+        "id": "unlock_game",
+        "type": "non-consumable",
+        "priceUsd": 2.99,
+        "title": "Unlock Game"
+      }
+    ]
+  },
+  "locales": [
+    "en"
+  ],
+  "demoOnly": true
+}
