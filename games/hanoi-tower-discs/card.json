@@ -1,7 +1,7 @@
 {
   "title": "Tower of Hanoi",
   "tagline": "Move the tower. Find the pattern.",
-  "description": "The classic disc-stacking puzzle, made to feel wonderful: lit, lacquered discs on carved pegs that lift, slide and drop with a satisfying thud. Three chapters from 3 to 10 discs, a four-peg variant and scrambled starts, a Daily Challenge, and a real solver behind Think and Watch & Learn so every level shows its exact minimum. No timers and no ads.",
+  "description": "The classic disc-stacking puzzle, made to feel wonderful: lit, lacquered discs on carved pegs that lift, slide and drop with a satisfying thud. Three chapters from 3 to 10 discs, a four-peg variant and scrambled starts, a Daily Challenge, and a real solver behind Think and Watch & Learn so every level shows its exact minimum. No timers.",
   "genre": "disc-stacking recursion puzzle",
   "demo": true,
   "howToPlay": [

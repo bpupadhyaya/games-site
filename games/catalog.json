@@ -41,7 +41,7 @@
     "stage": "release-candidate",
     "title": "Alquerque: Twelve and Twelve",
     "tagline": "Step. Jump. Capture.",
-    "description": "An old board game of Spain and the Arab world, often described as a forerunner of draughts, made beautiful. Twelve pieces a side on a carved and inlaid board of 25 points joined by lines: step forward or sideways, jump to capture, and chain your jumps. Capturing is compulsory. Five opponent levels from Novice to Master, two players on one phone, Think with a plain-English reason, a short Learn course and Watch & Learn. Play in English, Spanish or Arabic. No timers and no ads.",
+    "description": "An old board game of Spain and the Arab world, often described as a forerunner of draughts, made beautiful. Twelve pieces a side on a carved and inlaid board of 25 points joined by lines: step forward or sideways, jump to capture, and chain your jumps. Capturing is compulsory. Five opponent levels from Novice to Master, two players on one phone, Think with a plain-English reason, a short Learn course and Watch & Learn. Play in English, Spanish or Arabic. No timers.",
     "genre": "abstract strategy, leaping capture",
     "demo": true,
     "howToPlay": [
@@ -184,7 +184,7 @@
     "stage": "release-candidate",
     "title": "Baloot",
     "tagline": "The partnership card game of the Gulf",
-    "description": "Baloot is the traditional four-player partnership card game of Saudi Arabia and the Gulf, related to the French game Belote. Bid for Sun (no trump) or Hokum (a trump suit where the Jack and 9 outrank the Ace), then play all eight tricks with your computer partner against two computer opponents. Ten hands-on lessons teach the whole game, four computer levels give you room to grow, and a new daily deal tests your reading of the table every day. Score only: no wagering, no ads, works offline. A full in-app Rules reference covers every ruling in detail.",
+    "description": "Baloot is the traditional four-player partnership card game of Saudi Arabia and the Gulf, related to the French game Belote. Bid for Sun (no trump) or Hokum (a trump suit where the Jack and 9 outrank the Ace), then play all eight tricks with your computer partner against two computer opponents. Ten hands-on lessons teach the whole game, four computer levels give you room to grow, and a new daily deal tests your reading of the table every day. Score only: no wagering, works offline. A full in-app Rules reference covers every ruling in detail.",
     "genre": "partnership trick-taking card game",
     "demo": true,
     "howToPlay": [
@@ -310,7 +310,7 @@
     "stage": "release-candidate",
     "title": "Bentengan",
     "tagline": "Two forts, one rule: the later leaver wins",
-    "description": "Bentengan is the two-fort tag game of Indonesia. Guard your pole, step out at the right moment, tag rivals into jail and free your own team before the rival pole falls. Tap to command, three computer levels, a hint that explains itself, Auto Play, a full Rules page, large text and portrait or landscape play. No ads, works offline.",
+    "description": "Bentengan is the two-fort tag game of Indonesia. Guard your pole, step out at the right moment, tag rivals into jail and free your own team before the rival pole falls. Tap to command, three computer levels, a hint that explains itself, Auto Play, a full Rules page, large text and portrait or landscape play. Works offline.",
     "genre": "tag and tactics",
     "demo": true,
     "howToPlay": [
@@ -331,7 +331,7 @@
     "stage": "release-candidate",
     "title": "Bhavai Pot Balance Dance",
     "tagline": "Dance to the drum and balance a tower of pots.",
-    "description": "Bhavai Pot Balance Dance turns the folk pot dance of Rajasthan into a balance and rhythm game. Slide a finger to steer the dancer onto footprints in time with the drum while a growing tower of clay pots sways on her head. Eight courtyards, spins, wind, Practice, Watch and Learn, an in-app Rules book, portrait and landscape play, synthesised sound, no ads.",
+    "description": "Bhavai Pot Balance Dance turns the folk pot dance of Rajasthan into a balance and rhythm game. Slide a finger to steer the dancer onto footprints in time with the drum while a growing tower of clay pots sways on her head. Eight courtyards, spins, wind, Practice, Watch and Learn, an in-app Rules book, portrait and landscape play, synthesised sound.",
     "genre": "balance rhythm",
     "demo": true,
     "howToPlay": [
@@ -388,7 +388,7 @@
     "stage": "release-candidate",
     "title": "Blind Man's Buff",
     "tagline": "Hunt by ear. Catch, then name who it is.",
-    "description": "The party game of Colin-Maillard in a candlelit eighteenth-century room. Follow claps and giggles that appear as ripples, call out, catch a guest, then feel for clues and name them. Swap sides in Hide and Dodge. Four rooms, stereo sound, Watch and Learn, a full Rules page and text size up to 300%. Points only, no ads, works offline.",
+    "description": "The party game of Colin-Maillard in a candlelit eighteenth-century room. Follow claps and giggles that appear as ripples, call out, catch a guest, then feel for clues and name them. Swap sides in Hide and Dodge. Four rooms, stereo sound, Watch and Learn, a full Rules page and text size up to 300%. Points only, works offline.",
     "genre": "listening chase",
     "demo": true,
     "howToPlay": [
@@ -444,7 +444,7 @@
     "stage": "release-candidate",
     "title": "Bonsai",
     "tagline": "Grow, prune and wire a tiny tree toward a classic style.",
-    "description": "A young tree grows through the four seasons while you watch where each branch is heading. Snip, pinch and wire it toward a named style, choose a pot, and let the judge score balance, taper and negative space. Lessons, hints, and Watch and Learn show how it is done. No timer pressure, no ads.",
+    "description": "A young tree grows through the four seasons while you watch where each branch is heading. Snip, pinch and wire it toward a named style, choose a pot, and let the judge score balance, taper and negative space. Lessons, hints, and Watch and Learn show how it is done. No timer pressure.",
     "genre": "shaping puzzle",
     "demo": true,
     "howToPlay": [
@@ -480,7 +480,7 @@
     "stage": "release-candidate",
     "title": "Bulgarian Asymmetric Rhythm",
     "tagline": "Stitch 7/8 and 11/8 dance rhythms as a village horo grows.",
-    "description": "A rhythm game inspired by the odd-meter dance music of Bulgaria. A needle runs along an embroidered sash, one pulse at a time, with the pulses gathered in groups of two and three. Tap the drum, clap and step pads to stitch each cell; play cleanly and more dancers join the line while the band grows. Learn by echo, perform for stars, or watch the band play. Six original pieces from 5/8 to 11/8, Rules with text size to 300%, synthesised sound, no ads.",
+    "description": "A rhythm game inspired by the odd-meter dance music of Bulgaria. A needle runs along an embroidered sash, one pulse at a time, with the pulses gathered in groups of two and three. Tap the drum, clap and step pads to stitch each cell; play cleanly and more dancers join the line while the band grows. Learn by echo, perform for stars, or watch the band play. Six original pieces from 5/8 to 11/8, Rules with text size to 300%, synthesised sound.",
     "genre": "rhythm music",
     "demo": true,
     "howToPlay": [
@@ -571,7 +571,7 @@
     "stage": "release-candidate",
     "title": "Carrom",
     "tagline": "Flick, pocket, cover the queen",
-    "description": "Carrom is the flick-and-pocket board game played across South Asia, in homes, clubs and tournaments. Slide your striker along the baseline, pull back to aim and let go: coins slide, rebound off the cushions and drop into the corner pockets. Learn in eight hands-on lessons, play the computer at four levels or a friend on one phone, and try a new trick shot every day. A polished plywood board, glossy coins and a dotted aim guide that shows where each shot will go. Large text, reduced motion and left-handed layout included. An in-app Game Rules page covers every edge case. No ads, works offline.",
+    "description": "Carrom is the flick-and-pocket board game played across South Asia, in homes, clubs and tournaments. Slide your striker along the baseline, pull back to aim and let go: coins slide, rebound off the cushions and drop into the corner pockets. Learn in eight hands-on lessons, play the computer at four levels or a friend on one phone, and try a new trick shot every day. A polished plywood board, glossy coins and a dotted aim guide that shows where each shot will go. Large text, reduced motion and left-handed layout included. An in-app Game Rules page covers every edge case. Works offline.",
     "genre": "flick physics board game",
     "demo": true,
     "howToPlay": [
@@ -629,7 +629,7 @@
     "stage": "release-candidate",
     "title": "Chaturanga",
     "tagline": "The ancient ancestor of chess, with a tutor beside you",
-    "description": "Chaturanga is the ancient strategy game of India and the ancestor of chess: leaping elephants, a stepping counsellor and wins by stalemate or a bare Raja. Play five computer levels, learn in fourteen short lessons, compare ancient and modern movements side by side, or watch two computers play. Full rules inside, large text, no ads.",
+    "description": "Chaturanga is the ancient strategy game of India and the ancestor of chess: leaping elephants, a stepping counsellor and wins by stalemate or a bare Raja. Play five computer levels, learn in fourteen short lessons, compare ancient and modern movements side by side, or watch two computers play. Full rules inside, large text.",
     "genre": "Ancient chess",
     "demo": true,
     "howToPlay": [
@@ -649,7 +649,7 @@
     "stage": "release-candidate",
     "title": "Chess",
     "tagline": "The timeless game of sixty-four squares.",
-    "description": "A complete, beautifully carved chess set: full rules including castling, en passant and promotion - with a full in-app rules reference for every piece and every way to win or draw - six AI levels from Beginner to Grandmaster, a 12-lesson tutorial, and a two-game AI vs AI demo to watch and learn from. Three original board themes with dimensional, carved-look pieces. Free to play, forever. No ads, no purchases.",
+    "description": "A complete, beautifully carved chess set: full rules including castling, en passant and promotion - with a full in-app rules reference for every piece and every way to win or draw - six AI levels from Beginner to Grandmaster, a 12-lesson tutorial, and a two-game AI vs AI demo to watch and learn from. Three original board themes with dimensional, carved-look pieces. Free to play, forever. No purchases.",
     "genre": "chess / strategy board game",
     "demo": true,
     "howToPlay": [
@@ -670,7 +670,7 @@
     "stage": "release-candidate",
     "title": "Chinese Rings",
     "tagline": "Free the rings from the bar, one legal move at a time.",
-    "description": "The classic ring-and-bar puzzle from China. Take three to nine real metal rings on and off a steel bar following one rule, and free them all. An exact counter shows the fewest moves still needed, seven hands-on lessons teach the rhythm, Hint shows the next legal move and why, and Auto Play solves the puzzle while explaining. No ads, works offline.",
+    "description": "The classic ring-and-bar puzzle from China. Take three to nine real metal rings on and off a steel bar following one rule, and free them all. An exact counter shows the fewest moves still needed, seven hands-on lessons teach the rhythm, Hint shows the next legal move and why, and Auto Play solves the puzzle while explaining. Works offline.",
     "genre": "Mechanical ring puzzle",
     "demo": true,
     "howToPlay": [
@@ -745,7 +745,7 @@
     "stage": "release-candidate",
     "title": "Circle Dodgeball",
     "tagline": "Dodge, catch and burn them all.",
-    "description": "The playground ball game of Brazil, Germany and Italy as a fast real-time sport. Run, throw and pass, step out of the red warning ring or catch at the last moment to burn the thrower. Queimada courts and Volkerball rings in four places, play inside the circle or on the ring. Watch and Learn, a full Rules page and text size up to 300%. Points only, no ads, works offline.",
+    "description": "The playground ball game of Brazil, Germany and Italy as a fast real-time sport. Run, throw and pass, step out of the red warning ring or catch at the last moment to burn the thrower. Queimada courts and Volkerball rings in four places, play inside the circle or on the ring. Watch and Learn, a full Rules page and text size up to 300%. Points only, works offline.",
     "genre": "sports",
     "demo": true,
     "howToPlay": [
@@ -783,7 +783,7 @@
     "stage": "release-candidate",
     "title": "Co Ganh",
     "tagline": "Flank them, trap them, flip them all.",
-    "description": "Co Ganh (Cờ gánh) is a traditional Vietnamese game played on a small board of lines and diagonals. Step one point at a time: land between two enemy pieces and both flip to your colour, or close the last gap round a group and the whole group flips. Five computer levels, two players on one phone, hands-on lessons, hints that explain why, danger marks, take back and a Watch & Learn mode. A rice-paper board with lacquer pieces that turn like coins, large text and reduced motion options, no ads, works offline.",
+    "description": "Co Ganh (Cờ gánh) is a traditional Vietnamese game played on a small board of lines and diagonals. Step one point at a time: land between two enemy pieces and both flip to your colour, or close the last gap round a group and the whole group flips. Five computer levels, two players on one phone, hands-on lessons, hints that explain why, danger marks, take back and a Watch & Learn mode. A rice-paper board with lacquer pieces that turn like coins, large text and reduced motion options, works offline.",
     "genre": "Vietnamese flanking board game",
     "demo": true,
     "howToPlay": [
@@ -804,7 +804,7 @@
     "stage": "production",
     "title": "Congklak",
     "tagline": "The shell game of Southeast Asia",
-    "description": "Congklak (Congkak in Malaysia, Sungka in the Philippines) is the carved-boat mancala of Southeast Asia: seven houses a side, seven shells in each, both players sowing at once to open. Sow one shell at a time, scoop on when you land on a full house, shoot the house opposite when you land in an empty one, and play again when you end in your storehouse. Nine hands-on lessons, five computer levels, a daily puzzle and pass-and-play. Burnt houses raise the stakes each round. No ads, works offline.",
+    "description": "Congklak (Congkak in Malaysia, Sungka in the Philippines) is the carved-boat mancala of Southeast Asia: seven houses a side, seven shells in each, both players sowing at once to open. Sow one shell at a time, scoop on when you land on a full house, shoot the house opposite when you land in an empty one, and play again when you end in your storehouse. Nine hands-on lessons, five computer levels, a daily puzzle and pass-and-play. Burnt houses raise the stakes each round. Works offline.",
     "genre": "Southeast Asian mancala",
     "demo": true,
     "howToPlay": [
@@ -972,7 +972,7 @@
     "stage": "release-candidate",
     "title": "Daldøs",
     "tagline": "Throw the stick, turn your spatulas, race them home.",
-    "description": "Daldøs is a traditional board game of Norway and Denmark. Throw a four-sided stick, walk flat wooden spatulas out along your own row of a boat-shaped board, turn them over and bring them home along the shared middle row, capturing rivals by landing on them. Four computer levels, two players on one phone, hints, a Watch and Learn mode, large text and reduced motion options, no ads, works offline.",
+    "description": "Daldøs is a traditional board game of Norway and Denmark. Throw a four-sided stick, walk flat wooden spatulas out along your own row of a boat-shaped board, turn them over and bring them home along the shared middle row, capturing rivals by landing on them. Four computer levels, two players on one phone, hints, a Watch and Learn mode, large text and reduced motion options, works offline.",
     "genre": "Norwegian board and stick game",
     "demo": true,
     "howToPlay": [
@@ -993,7 +993,7 @@
     "stage": "release-candidate",
     "title": "Dame: West African Draughts",
     "tagline": "Flying kings, backward captures, bottle caps.",
-    "description": "Dame, called Damii in Ghana, is draughts as played across West Africa. Men capture backwards, kings fly the whole diagonal, and in Damii a side down to its last piece has lost. Play the 10 by 10 board or the 8 by 8 school board against four computer levels, get hints that explain themselves, or watch the computer play both sides. A full Rules reference with diagrams is built in. Large text, reduced motion, no ads, works offline.",
+    "description": "Dame, called Damii in Ghana, is draughts as played across West Africa. Men capture backwards, kings fly the whole diagonal, and in Damii a side down to its last piece has lost. Play the 10 by 10 board or the 8 by 8 school board against four computer levels, get hints that explain themselves, or watch the computer play both sides. A full Rules reference with diagrams is built in. Large text, reduced motion, works offline.",
     "genre": "draughts board game",
     "demo": true,
     "howToPlay": [
@@ -1216,7 +1216,7 @@
     "stage": "release-candidate",
     "title": "Dudo: Andean Bluff Dice",
     "tagline": "Hide your dice. Bid. Bluff. Call it.",
-    "description": "The bluffing dice game of the Andes, made beautiful: five dice under a leather cup, woven tables, bone dice that tumble and shine. Bid on what lies under every cup, call Dudo when you smell a bluff, or risk an exact Calzo. Five computer levels, two to four friends on one phone with a screen that hides the dice, Think with the exact odds in plain words, six short lessons and Watch & Learn with every cup open. Play in English or in Spanish. No timers, no ads, nothing wagered.",
+    "description": "The bluffing dice game of the Andes, made beautiful: five dice under a leather cup, woven tables, bone dice that tumble and shine. Bid on what lies under every cup, call Dudo when you smell a bluff, or risk an exact Calzo. Five computer levels, two to four friends on one phone with a screen that hides the dice, Think with the exact odds in plain words, six short lessons and Watch & Learn with every cup open. Play in English or in Spanish. No timers, nothing wagered.",
     "genre": "bluffing dice game",
     "demo": true,
     "howToPlay": [
@@ -1255,7 +1255,7 @@
     "stage": "release-candidate",
     "title": "Egrang",
     "tagline": "Walk, balance and race on bamboo stilts.",
-    "description": "A balance and rhythm race built on the Indonesian stilt game. Choose when to tap to set your speed and stride, and where to tap to catch the sideways wobble, over puddles, mud, stepping stones, plank bridges and hills against three rivals. Eight courses, Practice, Watch and Learn, an in-app Rules book, portrait and landscape play, synthesised sound, no ads.",
+    "description": "A balance and rhythm race built on the Indonesian stilt game. Choose when to tap to set your speed and stride, and where to tap to catch the sideways wobble, over puddles, mud, stepping stones, plank bridges and hills against three rivals. Eight courses, Practice, Watch and Learn, an in-app Rules book, portrait and landscape play, synthesised sound.",
     "genre": "balance racing",
     "demo": true,
     "howToPlay": [
@@ -1275,7 +1275,7 @@
     "stage": "release-candidate",
     "title": "Elastic Jump",
     "tagline": "Jump in, on and out of the elastic, in time.",
-    "description": "A rhythm game about the playground game of elastic jump, also called Chinese jump rope. Land OUT, IN, ON or SPLIT on the beat as the band rises through eight heights from the ankles to the neck. Learn each routine with Watch and Learn, slow it down in Practice, and clear it for three stars. Painted playground art, original sounds, Rules page with large text, no ads, works offline.",
+    "description": "A rhythm game about the playground game of elastic jump, also called Chinese jump rope. Land OUT, IN, ON or SPLIT on the beat as the band rises through eight heights from the ankles to the neck. Learn each routine with Watch and Learn, slow it down in Practice, and clear it for three stars. Painted playground art, original sounds, Rules page with large text, works offline.",
     "genre": "rhythm jump rope",
     "demo": true,
     "howToPlay": [
@@ -1295,7 +1295,7 @@
     "stage": "release-candidate",
     "title": "Fanorona: Approach & Withdraw",
     "tagline": "Madagascar's national board game: capture by approach, capture by withdrawal.",
-    "description": "Fanorona is the strategy board game of Madagascar: 22 stones a side on a board of 45 points, where you capture whole lines by moving toward them or away from them, then chain on along new lines. Play six computer levels from Beginner to Master, learn in eight short lessons, watch two computers play with a think-and-reveal commentary, or share one phone. Full rules inside, large text, no ads.",
+    "description": "Fanorona is the strategy board game of Madagascar: 22 stones a side on a board of 45 points, where you capture whole lines by moving toward them or away from them, then chain on along new lines. Play six computer levels from Beginner to Master, learn in eight short lessons, watch two computers play with a think-and-reveal commentary, or share one phone. Full rules inside, large text.",
     "genre": "abstract strategy board game",
     "demo": true,
     "howToPlay": [
@@ -1391,7 +1391,7 @@
     "stage": "release-candidate",
     "title": "Four-Field Kono",
     "tagline": "Step forward. Jump to capture. A Korean stone game in five minutes.",
-    "description": "Kono is a family of Korean folk board games played with a few stones on a board of crossing lines. Each stone steps one point forward, or jumps over an enemy stone beside it to take it, and a jump can carry on in a chain. Play the classic Four-Field board against the computer, the tiny Two-Field board or the grand Six-Field board. Five computer levels, two players on one phone, seven hands-on lessons, hints, danger marks, take back and a Watch & Learn mode. A painted paper board, large text and reduced motion options, no ads, works offline.",
+    "description": "Kono is a family of Korean folk board games played with a few stones on a board of crossing lines. Each stone steps one point forward, or jumps over an enemy stone beside it to take it, and a jump can carry on in a chain. Play the classic Four-Field board against the computer, the tiny Two-Field board or the grand Six-Field board. Five computer levels, two players on one phone, seven hands-on lessons, hints, danger marks, take back and a Watch & Learn mode. A painted paper board, large text and reduced motion options, works offline.",
     "genre": "Korean stone-jumping board game",
     "demo": true,
     "howToPlay": [
@@ -1412,7 +1412,7 @@
     "stage": "release-candidate",
     "title": "Fox and Geese",
     "tagline": "One fox. A flock of geese. A cross of frost.",
-    "description": "Fox and Geese is the classic hunt game, played on a cross of 33 points across Europe for centuries. One fox faces thirteen geese: the geese step forward or sideways and never back, and try to close the fox in; the fox slips between them and jumps any goose left alone, chaining jumps in one turn. Learn in nine hands-on lessons, play either side against four computer levels or a friend on one phone, choose a flock of 7 to 17 geese, and solve a new puzzle every day. Hand-painted fox and geese on a moonlit board. An in-app Rules page covers it all. No ads, works offline.",
+    "description": "Fox and Geese is the classic hunt game, played on a cross of 33 points across Europe for centuries. One fox faces thirteen geese: the geese step forward or sideways and never back, and try to close the fox in; the fox slips between them and jumps any goose left alone, chaining jumps in one turn. Learn in nine hands-on lessons, play either side against four computer levels or a friend on one phone, choose a flock of 7 to 17 geese, and solve a new puzzle every day. Hand-painted fox and geese on a moonlit board. An in-app Rules page covers it all. Works offline.",
     "genre": "abstract strategy board game",
     "demo": true,
     "howToPlay": [
@@ -1451,7 +1451,7 @@
     "stage": "release-candidate",
     "title": "Gabata: Three-Row Sowing",
     "tagline": "The three-row sowing game of Ethiopia and Eritrea.",
-    "description": "A carved wooden board of eighteen holes: sow seeds round your own loop, relay through full holes and capture a whole column when your last seed drops into an empty hole. Five opponent levels, two players on one phone, Think with a reason in words, six lessons and Watch & Learn. Play in English or choose the Amharic option for the menus and scores. No timers and no ads.",
+    "description": "A carved wooden board of eighteen holes: sow seeds round your own loop, relay through full holes and capture a whole column when your last seed drops into an empty hole. Five opponent levels, two players on one phone, Think with a reason in words, six lessons and Watch & Learn. Play in English or choose the Amharic option for the menus and scores. No timers.",
     "genre": "mancala, sowing and capture",
     "demo": true,
     "howToPlay": [
@@ -1469,7 +1469,7 @@
     "stage": "release-candidate",
     "title": "Game of the Goose",
     "tagline": "The spiral race of geese, bridges and wells.",
-    "description": "The classic European dice race on a hand-painted spiral of 63 picture spaces, for two to six players. Geese double your move, a bridge, inn, well, prison, maze and skeleton change your luck, and only an exact throw reaches the Garden. Play the pure classic or add optional choices: pick a die, take shortcut roads, collect feathers. Computer opponents, a hint button, Watch and Learn, an in-app Rules book, portrait and landscape, no ads or betting.",
+    "description": "The classic European dice race on a hand-painted spiral of 63 picture spaces, for two to six players. Geese double your move, a bridge, inn, well, prison, maze and skeleton change your luck, and only an exact throw reaches the Garden. Play the pure classic or add optional choices: pick a die, take shortcut roads, collect feathers. Computer opponents, a hint button, Watch and Learn, an in-app Rules book, portrait and landscape, no betting.",
     "genre": "family race game",
     "demo": true,
     "howToPlay": [
@@ -1488,7 +1488,7 @@
     "stage": "release-candidate",
     "title": "Gamelan",
     "tagline": "Strike the bronze bars. Keep the cycle.",
-    "description": "A rhythm and music game for the tuned bronze bars and hanging gongs of Java and Bali. Strike the bars in time, take over the gong and kenong to keep the cycle, and learn six original pieces by call and response while a computer ensemble joins in as you play cleanly. Slendro and pelog tunings with a shimmering sustain, free play, Watch and Learn with a caption for every strike, a calibration screen and an in-app Rules page. Carved wood and bronze in a lamp-lit hall, synthesised sound, no ads, works offline.",
+    "description": "A rhythm and music game for the tuned bronze bars and hanging gongs of Java and Bali. Strike the bars in time, take over the gong and kenong to keep the cycle, and learn six original pieces by call and response while a computer ensemble joins in as you play cleanly. Slendro and pelog tunings with a shimmering sustain, free play, Watch and Learn with a caption for every strike, a calibration screen and an in-app Rules page. Carved wood and bronze in a lamp-lit hall, synthesised sound, works offline.",
     "genre": "rhythm music",
     "demo": true,
     "howToPlay": [
@@ -1509,7 +1509,7 @@
     "stage": "release-candidate",
     "title": "Three Voices",
     "tagline": "Sing three-part harmony and make the chord lock.",
-    "description": "A singing game inspired by Georgian three-part polyphony. Hold a glowing bead at the right height on the pitch ladder to sing a voice, and when every voice is in tune together the chord locks and the hall glows. Sing one voice, two or the whole choir across six original songs, learn phrase by phrase, or let Watch and Learn explain why each phrase sounds the way it does. A Harmony Lab shows the pure intervals and the beating. Portrait and landscape, no ads, works offline.",
+    "description": "A singing game inspired by Georgian three-part polyphony. Hold a glowing bead at the right height on the pitch ladder to sing a voice, and when every voice is in tune together the chord locks and the hall glows. Sing one voice, two or the whole choir across six original songs, learn phrase by phrase, or let Watch and Learn explain why each phrase sounds the way it does. A Harmony Lab shows the pure intervals and the beating. Portrait and landscape, works offline.",
     "genre": "music polyphony",
     "demo": true,
     "howToPlay": [
@@ -1565,7 +1565,7 @@
     "stage": "production",
     "title": "Go",
     "tagline": "The game of stones and territory",
-    "description": "Go is the classic board game of East Asia: Weiqi in China, Baduk in Korea, Igo in Japan. Place stones on a kaya-wood board, surround territory and capture what has no liberties. Learn in eleven hands-on lessons, play the computer at four levels on 9x9, 13x13 or 19x19 boards, pass the phone to a friend, and solve a new puzzle every day. Dead stones are found for you, every refused move is explained, and hints say why a move is good. Hand-painted board, slate and shell stones, large text and reduced motion. An in-app Rules page covers every rule in exact detail. No ads, works offline.",
+    "description": "Go is the classic board game of East Asia: Weiqi in China, Baduk in Korea, Igo in Japan. Place stones on a kaya-wood board, surround territory and capture what has no liberties. Learn in eleven hands-on lessons, play the computer at four levels on 9x9, 13x13 or 19x19 boards, pass the phone to a friend, and solve a new puzzle every day. Dead stones are found for you, every refused move is explained, and hints say why a move is good. Hand-painted board, slate and shell stones, large text and reduced motion. An in-app Rules page covers every rule in exact detail. Works offline.",
     "genre": "abstract strategy board game",
     "demo": true,
     "howToPlay": [
@@ -1586,7 +1586,7 @@
     "stage": "release-candidate",
     "title": "Gobak Sodor",
     "tagline": "Slip past the guards on the chalk lines",
-    "description": "Gobak Sodor, also called Galah Asin and Hadang, is the courtyard game of Indonesia and Malaysia. Lifelike 3D players: lead three runners up a guarded court, cross each chalk line at the right moment, use a teammate as a decoy and run all the way home. Three courts, a hint button, Auto Play, a full Rules page, large text and portrait or landscape play. No ads, works offline.",
+    "description": "Gobak Sodor, also called Galah Asin and Hadang, is the courtyard game of Indonesia and Malaysia. Lifelike 3D players: lead three runners up a guarded court, cross each chalk line at the right moment, use a teammate as a decoy and run all the way home. Three courts, a hint button, Auto Play, a full Rules page, large text and portrait or landscape play. Works offline.",
     "genre": "line-crossing puzzle",
     "demo": true,
     "howToPlay": [
@@ -1681,7 +1681,7 @@
     "stage": "release-candidate",
     "title": "Halma: Hop and Leap",
     "tagline": "Hop your pegs across the board and fill the far camp first.",
-    "description": "Halma (from the Greek word for a jump) is a family race game from the 1880s. Move a team of pegs from your corner to the opposite corner, stepping one square or hopping over any piece, and chain hops into long leaps. Play Classic on a 16 by 16 board, Quick on 10 by 10, or race three computer players in the four-player game. Five computer levels, two to four players on one phone, hands-on lessons, hints, take back and a Watch & Learn mode. Lit wooden boards, large text and reduced motion options, no ads, works offline.",
+    "description": "Halma (from the Greek word for a jump) is a family race game from the 1880s. Move a team of pegs from your corner to the opposite corner, stepping one square or hopping over any piece, and chain hops into long leaps. Play Classic on a 16 by 16 board, Quick on 10 by 10, or race three computer players in the four-player game. Five computer levels, two to four players on one phone, hands-on lessons, hints, take back and a Watch & Learn mode. Lit wooden boards, large text and reduced motion options, works offline.",
     "genre": "Hopping race board game",
     "demo": true,
     "howToPlay": [
@@ -1702,7 +1702,7 @@
     "stage": "release-candidate",
     "title": "Tower of Hanoi",
     "tagline": "Move the tower. Find the pattern.",
-    "description": "The classic disc-stacking puzzle, made to feel wonderful: lit, lacquered discs on carved pegs that lift, slide and drop with a satisfying thud. Three chapters from 3 to 10 discs, a four-peg variant and scrambled starts, a Daily Challenge, and a real solver behind Think and Watch & Learn so every level shows its exact minimum. No timers and no ads.",
+    "description": "The classic disc-stacking puzzle, made to feel wonderful: lit, lacquered discs on carved pegs that lift, slide and drop with a satisfying thud. Three chapters from 3 to 10 discs, a four-peg variant and scrambled starts, a Daily Challenge, and a real solver behind Think and Watch & Learn so every level shows its exact minimum. No timers.",
     "genre": "disc-stacking recursion puzzle",
     "demo": true,
     "howToPlay": [
@@ -1721,7 +1721,7 @@
     "stage": "release-candidate",
     "title": "Hare and Hounds",
     "tagline": "One hare. Three hounds. One narrow board.",
-    "description": "Hare and Hounds is a traditional hunt game for two sides on a tiny board of eleven points. Three hounds close in on one hare, but hounds may never move backward, so every step is a promise. Trap the hare before the hunt clock runs out, or slip past the hounds. Learn in nine hands-on lessons, play either side at four computer levels, take on a twelve-level campaign with stars, solve a new puzzle every day, or play a friend on one phone. Hand-painted animals, large text and reduced motion. An in-app Rules page covers it all. No ads, works offline.",
+    "description": "Hare and Hounds is a traditional hunt game for two sides on a tiny board of eleven points. Three hounds close in on one hare, but hounds may never move backward, so every step is a promise. Trap the hare before the hunt clock runs out, or slip past the hounds. Learn in nine hands-on lessons, play either side at four computer levels, take on a twelve-level campaign with stars, solve a new puzzle every day, or play a friend on one phone. Hand-painted animals, large text and reduced motion. An in-app Rules page covers it all. Works offline.",
     "genre": "abstract strategy board game",
     "demo": true,
     "howToPlay": [
@@ -1762,7 +1762,7 @@
     "stage": "production",
     "title": "Golden Sling",
     "tagline": "Pull, aim, release. Guard the harvest.",
-    "description": "A paper-cut diorama of four seasons, a carved slingshot, and birds raiding the crop. Read the wind, pull back and release to scare the flock off the field. Play 32 fields through Spring, Monsoon, Harvest and Winter, face a guardian at the end of every season, and earn medals, achievements and sling skins. Free to play. No ads. Works offline. A Harvest Journal opens a page for every bird you meet. An in-app Rules page covers every bird and mechanic.",
+    "description": "A paper-cut diorama of four seasons, a carved slingshot, and birds raiding the crop. Read the wind, pull back and release to scare the flock off the field. Play 32 fields through Spring, Monsoon, Harvest and Winter, face a guardian at the end of every season, and earn medals, achievements and sling skins. Free to play. Works offline. A Harvest Journal opens a page for every bird you meet. An in-app Rules page covers every bird and mechanic.",
     "genre": "slingshot arcade",
     "demo": false,
     "howToPlay": [
@@ -1782,7 +1782,7 @@
     "stage": "release-candidate",
     "title": "Hasami Shogi: Pairs",
     "tagline": "Sandwich the enemy on a nine by nine board.",
-    "description": "Hasami shogi (hasami is sandwich, shogi is Japanese chess) is a traditional Japanese board game on a nine by nine board. Every piece slides like a rook, and you capture by trapping an enemy piece between two of yours. Play Classic, the quick first-to-five-captures game, or Dai (\"large\") with jumping and five in a row. Five computer levels, two players on one phone, hands-on lessons, hints that explain why, danger marks, take back and a Watch & Learn mode. A lit wooden board, large text and reduced motion options, no ads, works offline.",
+    "description": "Hasami shogi (hasami is sandwich, shogi is Japanese chess) is a traditional Japanese board game on a nine by nine board. Every piece slides like a rook, and you capture by trapping an enemy piece between two of yours. Play Classic, the quick first-to-five-captures game, or Dai (\"large\") with jumping and five in a row. Five computer levels, two players on one phone, hands-on lessons, hints that explain why, danger marks, take back and a Watch & Learn mode. A lit wooden board, large text and reduced motion options, works offline.",
     "genre": "Japanese custodian-capture board game",
     "demo": true,
     "howToPlay": [
@@ -1821,7 +1821,7 @@
     "stage": "release-candidate",
     "title": "Hawalis: Gulf Sowing",
     "tagline": "The four-row sowing game of Oman and the Gulf.",
-    "description": "A carved teak board of twenty-eight holes with pearl seeds: sow round your own two rows, relay through full holes and capture when your last seed lands in your inner row facing seeds. Five opponent levels, two players on one phone, Think with a reason in words, six lessons and Watch & Learn. No timers and no ads.",
+    "description": "A carved teak board of twenty-eight holes with pearl seeds: sow round your own two rows, relay through full holes and capture when your last seed lands in your inner row facing seeds. Five opponent levels, two players on one phone, Think with a reason in words, six lessons and Watch & Learn. No timers.",
     "genre": "mancala, sowing and capture",
     "demo": true,
     "howToPlay": [
@@ -1873,7 +1873,7 @@
     "stage": "release-candidate",
     "title": "Hoop Rolling Trundle",
     "tagline": "Roll, steer and race a hoop down the road.",
-    "description": "An old children's street game, trundling a hoop down a village lane, as a course racer. Push, brake and lean a rolling hoop with one finger through striped gates, bends, cobbles, mud, puddles, hills and plank bridges against three rivals. Eight courses, Practice, Watch and Learn, an in-app Rules book, portrait and landscape play, synthesised sound, no ads.",
+    "description": "An old children's street game, trundling a hoop down a village lane, as a course racer. Push, brake and lean a rolling hoop with one finger through striped gates, bends, cobbles, mud, puddles, hills and plank bridges against three rivals. Eight courses, Practice, Watch and Learn, an in-app Rules book, portrait and landscape play, synthesised sound.",
     "genre": "dexterity racing",
     "demo": true,
     "howToPlay": [
@@ -1930,7 +1930,7 @@
     "stage": "release-candidate",
     "title": "Huarong Dao: Sliding Puzzle",
     "tagline": "Free the commander. Fewest moves wins.",
-    "description": "The classic Chinese sliding-block puzzle, made to feel wonderful. Slide carved lacquer blocks around the pass to lead Cao Cao to the gate. 32 layouts including the famous Heng Dao Li Ma, the fewest possible moves for each, a real hint, unlimited undo and Watch & Learn, which solves levels step by step. No timers and no ads.",
+    "description": "The classic Chinese sliding-block puzzle, made to feel wonderful. Slide carved lacquer blocks around the pass to lead Cao Cao to the gate. 32 layouts including the famous Heng Dao Li Ma, the fewest possible moves for each, a real hint, unlimited undo and Watch & Learn, which solves levels step by step. No timers.",
     "genre": "sliding block puzzle",
     "demo": true,
     "howToPlay": [
@@ -1968,7 +1968,7 @@
     "stage": "release-candidate",
     "title": "Indian Club Swinging",
     "tagline": "Trace the path. Keep the flow.",
-    "description": "A calm rhythm game inspired by the mugdar and jori, the heavy wooden clubs of South Asian wrestling-gym training. Trace a glowing marker round circles, ovals and figure eights with one finger while two weighty clubs follow, and build a flow multiplier from move to move. Six routines and a daily routine, Practice at any tempo, a Watch and Learn demonstration with time to think, a Rules page and text size up to 300%. Synthesised sound, no ads, works offline.",
+    "description": "A calm rhythm game inspired by the mugdar and jori, the heavy wooden clubs of South Asian wrestling-gym training. Trace a glowing marker round circles, ovals and figure eights with one finger while two weighty clubs follow, and build a flow multiplier from move to move. Six routines and a daily routine, Practice at any tempo, a Watch and Learn demonstration with time to think, a Rules page and text size up to 300%. Synthesised sound, works offline.",
     "genre": "rhythm and flow",
     "demo": true,
     "howToPlay": [
@@ -1989,7 +1989,7 @@
     "stage": "release-candidate",
     "title": "Ink Brush",
     "tagline": "Grind the ink, load the brush, make the stroke.",
-    "description": "A calm skill game of Chinese brush-and-ink writing and painting. A believable brush that bleeds into paper and splits when it runs dry, six basic strokes, eight characters with the stroke order shown, bamboo, orchid and plum blossom compositions, feedback on order, shape and rhythm, a free scroll, six seals and a gallery. No ads, works offline.",
+    "description": "A calm skill game of Chinese brush-and-ink writing and painting. A believable brush that bleeds into paper and splits when it runs dry, six basic strokes, eight characters with the stroke order shown, bamboo, orchid and plum blossom compositions, feedback on order, shape and rhythm, a free scroll, six seals and a gallery. Works offline.",
     "genre": "brush and ink craft",
     "demo": true,
     "howToPlay": [
@@ -2010,7 +2010,7 @@
     "stage": "release-candidate",
     "title": "Intha Leg Rowing",
     "tagline": "Scull one-legged through the misty floating gardens of Inle Lake.",
-    "description": "A calm balance and flow game from the lake villages of Myanmar. Your thumb is the leg on the oar: sweep for speed, sweep to one side to steer, keep your poise over swells and stakes, and go still beside a shoal to lift the net. Eight courses, three rival rowers, Practice, Watch and Learn, an in-app Rules book, portrait and landscape play, synthesised sound, no ads.",
+    "description": "A calm balance and flow game from the lake villages of Myanmar. Your thumb is the leg on the oar: sweep for speed, sweep to one side to steer, keep your poise over swells and stakes, and go still beside a shoal to lift the net. Eight courses, three rival rowers, Practice, Watch and Learn, an in-app Rules book, portrait and landscape play, synthesised sound.",
     "genre": "balance and rowing",
     "demo": true,
     "howToPlay": [
@@ -2049,7 +2049,7 @@
     "stage": "release-candidate",
     "title": "Janggi: Korean Chess",
     "tagline": "Korean chess with a tutor",
-    "description": "Janggi is Korean chess: two armies of carved octagonal pieces, each general guarded inside a palace with crossing diagonals, no river, and cannons that must jump a screen even to move. A tutor explains every piece, marks risky points and says why a suggested move is good. Choose your horse and elephant set-up, then play Cho or Han against five computer levels or a friend. Eleven hands-on lessons, passing, bikjang and counting included. Traditional characters or Western letters. No ads, works offline.",
+    "description": "Janggi is Korean chess: two armies of carved octagonal pieces, each general guarded inside a palace with crossing diagonals, no river, and cannons that must jump a screen even to move. A tutor explains every piece, marks risky points and says why a suggested move is good. Choose your horse and elephant set-up, then play Cho or Han against five computer levels or a friend. Eleven hands-on lessons, passing, bikjang and counting included. Traditional characters or Western letters. Works offline.",
     "genre": "abstract strategy board game",
     "demo": true,
     "howToPlay": [
@@ -2105,7 +2105,7 @@
     "stage": "release-candidate",
     "title": "Jungle (Dou Shou Qi)",
     "tagline": "The rat can topple the elephant. Reach the den to win.",
-    "description": "Dou Shou Qi, known as Jungle, is a traditional Chinese board game. Eight animals per side, from rat to elephant, fight across a board with two lakes, four traps and a den at each end. Bigger animals eat smaller ones, only the rat swims, lions and tigers leap the lakes, and the rat is the one animal that can eat the elephant. Five computer levels, lessons, hints, a two-player mode and Watch & Learn. Painted animal tokens, no ads, works offline.",
+    "description": "Dou Shou Qi, known as Jungle, is a traditional Chinese board game. Eight animals per side, from rat to elephant, fight across a board with two lakes, four traps and a den at each end. Bigger animals eat smaller ones, only the rat swims, lions and tigers leap the lakes, and the rat is the one animal that can eat the elephant. Five computer levels, lessons, hints, a two-player mode and Watch & Learn. Painted animal tokens, works offline.",
     "genre": "Chinese animal-rank board game",
     "demo": true,
     "howToPlay": [
@@ -2217,7 +2217,7 @@
     "stage": "release-candidate",
     "title": "Kharbaga",
     "tagline": "Jump, crown a Master, capture every piece.",
-    "description": "Kharbaga is a traditional North African capturing game played on a small square board in Algeria, Tunisia and Libya. Men step forward or sideways and jump to capture, and capturing is compulsory, so every move is a plan. Chain jumps, crown a Master on the far row and fly it along the board. Five computer levels, two players on one phone, hands-on lessons, hints that explain why, danger marks, take back and a Watch & Learn mode. A carved sand-and-clay board, large text and reduced motion options, no ads, works offline.",
+    "description": "Kharbaga is a traditional North African capturing game played on a small square board in Algeria, Tunisia and Libya. Men step forward or sideways and jump to capture, and capturing is compulsory, so every move is a plan. Chain jumps, crown a Master on the far row and fly it along the board. Five computer levels, two players on one phone, hands-on lessons, hints that explain why, danger marks, take back and a Watch & Learn mode. A carved sand-and-clay board, large text and reduced motion options, works offline.",
     "genre": "North African jump-and-crown board game",
     "demo": true,
     "howToPlay": [
@@ -2238,7 +2238,7 @@
     "stage": "release-candidate",
     "title": "Kho-Kho",
     "tagline": "The chain chase: run, read, shout Kho",
-    "description": "Kho-Kho is the chase sport of India, Nepal, Bangladesh and Sri Lanka. Run the standing chaser, never turn back, and hand the chase to a seated teammate with Kho to cut the runners off; then swap sides and slip past the chasers yourself. Three grounds, hint, Auto Play, a full Rules page, large text and portrait or landscape play. No ads, works offline.",
+    "description": "Kho-Kho is the chase sport of India, Nepal, Bangladesh and Sri Lanka. Run the standing chaser, never turn back, and hand the chase to a seated teammate with Kho to cut the runners off; then swap sides and slip past the chasers yourself. Three grounds, hint, Auto Play, a full Rules page, large text and portrait or landscape play. Works offline.",
     "genre": "chase sport",
     "demo": true,
     "howToPlay": [
@@ -2294,7 +2294,7 @@
     "stage": "release-candidate",
     "title": "Tafl",
     "tagline": "The king's table of the North",
-    "description": "Tafl is Hnefatafl, the Viking-age strategy game of Northern Europe. A king and his twelve defenders, surrounded by twenty-four attackers, must break out to any corner of the board before the ring closes or the king is taken. Play Copenhagen 11x11, the modern standard board, or start on the smaller, quicker Brandubh 7x7. Learn in ten hands-on lessons where you make every move yourself, play either side against four computer levels or a friend on one phone, and solve a new proven puzzle every day. Carved oak board, bone and horn pieces, hearth light, no ads, works offline.",
+    "description": "Tafl is Hnefatafl, the Viking-age strategy game of Northern Europe. A king and his twelve defenders, surrounded by twenty-four attackers, must break out to any corner of the board before the ring closes or the king is taken. Play Copenhagen 11x11, the modern standard board, or start on the smaller, quicker Brandubh 7x7. Learn in ten hands-on lessons where you make every move yourself, play either side against four computer levels or a friend on one phone, and solve a new proven puzzle every day. Carved oak board, bone and horn pieces, hearth light, works offline.",
     "genre": "abstract strategy board game",
     "demo": true,
     "howToPlay": [
@@ -2333,7 +2333,7 @@
     "stage": "release-candidate",
     "title": "Kintsugi",
     "tagline": "Mend broken pottery with gold. Slow hands, beautiful seams.",
-    "description": "Twelve broken Japanese vessels wait on a dark lacquer bench. Turn and fit every shard back into place, then trace each crack with liquid gold. Slow, steady strokes make thick, bright seams. No timer, no ads, hints that show you where a shard goes, and Watch and Learn to see a whole mend.",
+    "description": "Twelve broken Japanese vessels wait on a dark lacquer bench. Turn and fit every shard back into place, then trace each crack with liquid gold. Slow, steady strokes make thick, bright seams. No timer, hints that show you where a shard goes, and Watch and Learn to see a whole mend.",
     "genre": "mending puzzle",
     "demo": true,
     "howToPlay": [
@@ -2387,7 +2387,7 @@
     "stage": "release-candidate",
     "title": "Kolam",
     "tagline": "One line. Every dot.",
-    "description": "A calm drawing puzzle inspired by the South Indian kolam tradition: trace one unbroken glowing line around every dot and close it. 72 patterns on square, diamond and staggered grids, Think with checked reasons, Watch & Learn, a daily pattern and a free-draw Sandbox with mirror symmetry. No timer, no ads.",
+    "description": "A calm drawing puzzle inspired by the South Indian kolam tradition: trace one unbroken glowing line around every dot and close it. 72 patterns on square, diamond and staggered grids, Think with checked reasons, Watch & Learn, a daily pattern and a free-draw Sandbox with mirror symmetry. No timer.",
     "genre": "dot-pattern drawing puzzle",
     "demo": true,
     "howToPlay": [
@@ -2444,7 +2444,7 @@
     "stage": "release-candidate",
     "title": "Kora",
     "tagline": "Pluck the strings. Play the pattern.",
-    "description": "A music game for the kora, the 21-string harp-lute of West Africa. Pluck the strings as glowing beads reach the bridge, with two thumbs or more. Learn six original pieces by call and response, then play them while a quiet accompaniment grows fuller as you play cleanly. Watch and Learn shows the four plucking fingers and explains what each hand does and why. Free play with strumming, a click and an echo partner. Calabash, cow hide and a warm evening courtyard, synthesised sound, no ads, works offline.",
+    "description": "A music game for the kora, the 21-string harp-lute of West Africa. Pluck the strings as glowing beads reach the bridge, with two thumbs or more. Learn six original pieces by call and response, then play them while a quiet accompaniment grows fuller as you play cleanly. Watch and Learn shows the four plucking fingers and explains what each hand does and why. Free play with strumming, a click and an echo partner. Calabash, cow hide and a warm evening courtyard, synthesised sound, works offline.",
     "genre": "rhythm music",
     "demo": true,
     "howToPlay": [
@@ -2465,7 +2465,7 @@
     "stage": "release-candidate",
     "title": "Koto",
     "tagline": "Pluck, sweep and press thirteen silk strings.",
-    "description": "A calm music game for the Japanese long zither. Slide the ivory bridges to tune thirteen silk strings, pluck with your fingertips, sweep across the strings and press behind a bridge to bend a note upward. Learn six short pieces phrase by phrase, or let Watch and Learn show the finger, the string and the reason for every note. Silence counts too: keep still during a rest. Five traditional tunings, free play with movable bridges, portrait and landscape, no ads, works offline.",
+    "description": "A calm music game for the Japanese long zither. Slide the ivory bridges to tune thirteen silk strings, pluck with your fingertips, sweep across the strings and press behind a bridge to bend a note upward. Learn six short pieces phrase by phrase, or let Watch and Learn show the finger, the string and the reason for every note. Silence counts too: keep still during a rest. Five traditional tunings, free play with movable bridges, portrait and landscape, works offline.",
     "genre": "music zither",
     "demo": true,
     "howToPlay": [
@@ -2504,7 +2504,7 @@
     "stage": "release-candidate",
     "title": "Krar Lyre",
     "tagline": "Close the ring. Answer the azmari.",
-    "description": "A music game for the krar, the bowl lyre of Ethiopia and Eritrea. Tap rings as they close on six strings, sweep strums, damp the bowl, answer the azmari from memory in the Echo Duel, and compose small songs in the qenet scales of the Horn of Africa. Six original pieces, a growing accompaniment, synthesised sound, no ads, works offline.",
+    "description": "A music game for the krar, the bowl lyre of Ethiopia and Eritrea. Tap rings as they close on six strings, sweep strums, damp the bowl, answer the azmari from memory in the Echo Duel, and compose small songs in the qenet scales of the Horn of Africa. Six original pieces, a growing accompaniment, synthesised sound, works offline.",
     "genre": "rhythm music",
     "demo": true,
     "howToPlay": [
@@ -2579,7 +2579,7 @@
     "stage": "release-candidate",
     "title": "Lagori",
     "tagline": "Smash the tower, rebuild it, dodge the ball",
-    "description": "Lagori, also called Seven Stones, is a traditional street game from India. Lifelike 3D players run, throw and dodge on a warm street court. Throw the ball to smash a tower of seven painted stones, then race to rebuild it while the other team throws at your runners. Tap stones to fetch them, dodge the telegraphed throws, then field and aim ahead of the computer's runner. Four innings, three computer levels, a hint button, Auto Play, a full Rules page, large text and portrait or landscape play. No ads, works offline.",
+    "description": "Lagori, also called Seven Stones, is a traditional street game from India. Lifelike 3D players run, throw and dodge on a warm street court. Throw the ball to smash a tower of seven painted stones, then race to rebuild it while the other team throws at your runners. Tap stones to fetch them, dodge the telegraphed throws, then field and aim ahead of the computer's runner. Four innings, three computer levels, a hint button, Auto Play, a full Rules page, large text and portrait or landscape play. Works offline.",
     "genre": "street ball and stack",
     "demo": true,
     "howToPlay": [
@@ -2618,7 +2618,7 @@
     "stage": "release-candidate",
     "title": "Ludus Latrunculorum",
     "tagline": "Slide. Sandwich. Enclose the dux.",
-    "description": "The Roman game of little soldiers on a marble board with pieces of bone and glass. Slide your soldiers like rooks, sandwich the other side's soldiers to take them, and enclose the enemy dux. A reconstructed game, with five opponent levels from Novice to Master, two players on one phone, Think with a plain-English reason, a short Learn course and Watch & Learn. No timers and no ads.",
+    "description": "The Roman game of little soldiers on a marble board with pieces of bone and glass. Slide your soldiers like rooks, sandwich the other side's soldiers to take them, and enclose the enemy dux. A reconstructed game, with five opponent levels from Novice to Master, two players on one phone, Think with a plain-English reason, a short Learn course and Watch & Learn. No timers.",
     "genre": "abstract strategy, custodian capture",
     "demo": true,
     "howToPlay": [
@@ -2693,7 +2693,7 @@
     "stage": "release-candidate",
     "title": "Lezginka",
     "tagline": "Stamp, lift and spin as the tempo climbs.",
-    "description": "A rhythm game about the fast folk dance of the Caucasus. Tap four step pads (left boot, right boot, arms and spin) as rings close in, in time with a drum and an accordion. Learn five original dances phrase by phrase, then dance them while the tempo climbs and more dancers join the floor. Watch and Learn demonstration, calibration, in-app Rules page. Real 3D dancers in festival costume, synthesised sound, no ads, works offline.",
+    "description": "A rhythm game about the fast folk dance of the Caucasus. Tap four step pads (left boot, right boot, arms and spin) as rings close in, in time with a drum and an accordion. Learn five original dances phrase by phrase, then dance them while the tempo climbs and more dancers join the floor. Watch and Learn demonstration, calibration, in-app Rules page. Real 3D dancers in festival costume, synthesised sound, works offline.",
     "genre": "rhythm dance",
     "demo": true,
     "howToPlay": [
@@ -2841,7 +2841,7 @@
     "stage": "release-candidate",
     "title": "Mahjong",
     "tagline": "The game of the four winds",
-    "description": "Mahjong is the four-player tile game of China, played around the world. Build four sets and a pair before three computer players do: draw, discard, and call chows, pungs and kongs. Hong Kong-style scoring shows exactly which patterns scored and why. Learn in eleven hands-on lessons, watch free Auto Play play a whole hand face-up for you, play three computer levels, get plain-words hints, and solve a new discard puzzle every day. Thick ivory-and-jade tiles, a felt table, large text, reduced motion and three tile-face styles. Play in 中文 or English. Score only, no ads, works offline.",
+    "description": "Mahjong is the four-player tile game of China, played around the world. Build four sets and a pair before three computer players do: draw, discard, and call chows, pungs and kongs. Hong Kong-style scoring shows exactly which patterns scored and why. Learn in eleven hands-on lessons, watch free Auto Play play a whole hand face-up for you, play three computer levels, get plain-words hints, and solve a new discard puzzle every day. Thick ivory-and-jade tiles, a felt table, large text, reduced motion and three tile-face styles. Play in 中文 or English. Score only, works offline.",
     "genre": "tile game",
     "demo": true,
     "howToPlay": [
@@ -2862,7 +2862,7 @@
     "stage": "release-candidate",
     "title": "Makruk: Thai Chess",
     "tagline": "The chess of Thailand, with a tutor beside you.",
-    "description": "Makruk is Thailand's traditional chess: cowrie-shell pawns, a queen that steps one square, and endgames played against a count. Play five computer levels from Beginner to Master, learn in eight short lessons, watch two computers play with a think-and-reveal commentary, or share one phone. Think shows a strong move and why, and a live Count strip teaches the counting rules. Full rules inside, large text, no ads.",
+    "description": "Makruk is Thailand's traditional chess: cowrie-shell pawns, a queen that steps one square, and endgames played against a count. Play five computer levels from Beginner to Master, learn in eight short lessons, watch two computers play with a think-and-reveal commentary, or share one phone. Think shows a strong move and why, and a live Count strip teaches the counting rules. Full rules inside, large text.",
     "genre": "Thai chess",
     "demo": true,
     "howToPlay": [
@@ -2882,7 +2882,7 @@
     "stage": "release-candidate",
     "title": "Mallakhamb",
     "tagline": "Swipe, wrap and hold your way up the pole.",
-    "description": "A rhythm and balance game built on the Indian pole gymnastics discipline. Link climbs, slides, wraps and long poses into six routines by swiping and holding in time with the beat, steer your balance in the flag and the upside-down hang, and keep the flow going. Learn mode, a Watch and Learn demonstration, an in-app Rules book, portrait and landscape play, synthesised sound, no ads.",
+    "description": "A rhythm and balance game built on the Indian pole gymnastics discipline. Link climbs, slides, wraps and long poses into six routines by swiping and holding in time with the beat, steer your balance in the flag and the upside-down hang, and keep the flow going. Learn mode, a Watch and Learn demonstration, an in-app Rules book, portrait and landscape play, synthesised sound.",
     "genre": "rhythm gymnastics",
     "demo": true,
     "howToPlay": [
@@ -2956,7 +2956,7 @@
     "stage": "release-candidate",
     "title": "Mehen: Coiled Snake Race",
     "tagline": "Throw. Roll. Reach the head.",
-    "description": "Race carved lions along a coiled snake of stone from its tail to its head. Throw four sticks, choose a lion, spend a marble to nudge the throw, rest on the carved stones and knock rivals back to the start. Two to six seats, four computer levels, three race lengths, Think with a plain-English reason and Watch & Learn. A reconstruction of the ancient Egyptian game, because no original rules survive. No timers and no ads.",
+    "description": "Race carved lions along a coiled snake of stone from its tail to its head. Throw four sticks, choose a lion, spend a marble to nudge the throw, rest on the carved stones and knock rivals back to the start. Two to six seats, four computer levels, three race lengths, Think with a plain-English reason and Watch & Learn. A reconstruction of the ancient Egyptian game, because no original rules survive. No timers.",
     "genre": "ancient race board game",
     "demo": true,
     "howToPlay": [
@@ -2992,7 +2992,7 @@
     "stage": "release-candidate",
     "title": "Mheibes",
     "tagline": "Read the faces and find the fist that hides the ring.",
-    "description": "Mheibes is a traditional ring-hunting game of Iraq and the Gulf. A ring is hidden in one of ten closed fists held by five players; you stare at faces, open the fists that look empty and name the hand that holds it, then swap sides and try to fool the other team. Every player has a personality that stays the same through the match: learn who to believe. Three computer levels, two players on one phone, four hands-on lessons, hints, and a Watch & Learn mode with Pause. Counters are only a score. Large text, reduced motion, no ads, works offline.",
+    "description": "Mheibes is a traditional ring-hunting game of Iraq and the Gulf. A ring is hidden in one of ten closed fists held by five players; you stare at faces, open the fists that look empty and name the hand that holds it, then swap sides and try to fool the other team. Every player has a personality that stays the same through the match: learn who to believe. Three computer levels, two players on one phone, four hands-on lessons, hints, and a Watch & Learn mode with Pause. Counters are only a score. Large text, reduced motion, works offline.",
     "genre": "Iraqi hidden-ring face-reading game",
     "demo": true,
     "howToPlay": [
@@ -3013,7 +3013,7 @@
     "stage": "production",
     "title": "Nine Men's Morris",
     "tagline": "The mill game of Europe",
-    "description": "Nine Men's Morris, known as Muhle in Germany, Moulin in France and Merels in England, is a medieval mill game carved into cloister seats across Europe. Place nine men on a 24-point board, slide them along the lines and take an enemy man with every row of three. Learn in ten hands-on lessons, watch a free Auto Play demonstration play a whole game for you, play five computer levels from Apprentice to Grandmaster, pass the phone to a friend, and solve a mill puzzle every day. Every rule is written out in full on the in-app Rules page. No ads, works offline.",
+    "description": "Nine Men's Morris, known as Muhle in Germany, Moulin in France and Merels in England, is a medieval mill game carved into cloister seats across Europe. Place nine men on a 24-point board, slide them along the lines and take an enemy man with every row of three. Learn in ten hands-on lessons, watch a free Auto Play demonstration play a whole game for you, play five computer levels from Apprentice to Grandmaster, pass the phone to a friend, and solve a mill puzzle every day. Every rule is written out in full on the in-app Rules page. Works offline.",
     "genre": "abstract strategy board game",
     "demo": true,
     "howToPlay": [
@@ -3074,7 +3074,7 @@
     "stage": "production",
     "title": "Morabaraba",
     "tagline": "The game of twelve cows",
-    "description": "Morabaraba is a traditional board game of Southern Africa, played in Lesotho, South Africa, Botswana and Zimbabwe. Twelve cows each on a board of three squares joined by lines and diagonals: place your herd, form a mill of three to shoot an opposing cow, slide to open and close mills, and fly when you are down to three. Learn in nine hands-on lessons, watch a free Auto Play demonstration play a whole game for you, play four computer levels or a friend on one phone, and solve a daily puzzle. Painted dusk-over-the-veld art, large text and reduced motion. No ads, works offline.",
+    "description": "Morabaraba is a traditional board game of Southern Africa, played in Lesotho, South Africa, Botswana and Zimbabwe. Twelve cows each on a board of three squares joined by lines and diagonals: place your herd, form a mill of three to shoot an opposing cow, slide to open and close mills, and fly when you are down to three. Learn in nine hands-on lessons, watch a free Auto Play demonstration play a whole game for you, play four computer levels or a friend on one phone, and solve a daily puzzle. Painted dusk-over-the-veld art, large text and reduced motion. Works offline.",
     "genre": "mill board game",
     "demo": true,
     "howToPlay": [
@@ -3096,7 +3096,7 @@
     "stage": "release-candidate",
     "title": "Morra",
     "tagline": "Throw your fingers. Call the total.",
-    "description": "The ancient finger game of the Roman table. Both players throw out zero to five fingers at once and shout a guess of the total; the exact call scores. Read five osteria rivals with their own habits, while the strongest ones read you right back. Watch and Learn, a Hint button, a full Rules page and text size up to 300%. Points only, no ads, works offline.",
+    "description": "The ancient finger game of the Roman table. Both players throw out zero to five fingers at once and shout a guess of the total; the exact call scores. Read five osteria rivals with their own habits, while the strongest ones read you right back. Watch and Learn, a Hint button, a full Rules page and text size up to 300%. Points only, works offline.",
     "genre": "finger guessing duel",
     "demo": true,
     "howToPlay": [
@@ -3116,7 +3116,7 @@
     "stage": "production",
     "title": "Mū Tōrere",
     "tagline": "The eight-pointed star game of Aotearoa",
-    "description": "Mū Tōrere is a traditional Māori board game of Aotearoa New Zealand. Four stones each sit on an eight-pointed star around a central pit, the putahi: slide one stone at a time and leave your opponent with no move. The game is tiny and fully solved, all traps and foresight. Learn in eight hands-on lessons, watch free Auto Play play a whole game for you, climb a Ladder of twelve opponents, solve a new proven puzzle daily, or play a friend on one phone. Carved-wood board, shell and greenstone stones, calm sound. An in-app Rules page spells out every move. No ads, works offline.",
+    "description": "Mū Tōrere is a traditional Māori board game of Aotearoa New Zealand. Four stones each sit on an eight-pointed star around a central pit, the putahi: slide one stone at a time and leave your opponent with no move. The game is tiny and fully solved, all traps and foresight. Learn in eight hands-on lessons, watch free Auto Play play a whole game for you, climb a Ladder of twelve opponents, solve a new proven puzzle daily, or play a friend on one phone. Carved-wood board, shell and greenstone stones, calm sound. An in-app Rules page spells out every move. Works offline.",
     "genre": "abstract strategy board game",
     "demo": true,
     "howToPlay": [
@@ -3137,7 +3137,7 @@
     "stage": "release-candidate",
     "title": "Neolttwigi",
     "tagline": "Press as you land, release as she lands.",
-    "description": "A rhythm duet built on the Korean seesaw jumping game. Two girls in hanbok stand on the ends of a board across a straw bale: press as your feet land, hold while your partner flies, release as she lands, and send each other higher over five courses. Play with a computer partner, take turns with a friend on one screen, learn with hints, or watch the game play. In-app Rules book, portrait and landscape play, synthesised sound, no ads.",
+    "description": "A rhythm duet built on the Korean seesaw jumping game. Two girls in hanbok stand on the ends of a board across a straw bale: press as your feet land, hold while your partner flies, release as she lands, and send each other higher over five courses. Play with a computer partner, take turns with a friend on one screen, learn with hints, or watch the game play. In-app Rules book, portrait and landscape play, synthesised sound.",
     "genre": "rhythm duet",
     "demo": true,
     "howToPlay": [
@@ -3157,7 +3157,7 @@
     "stage": "release-candidate",
     "title": "Nonogram",
     "tagline": "Fill the grid. Reveal the picture.",
-    "description": "A calm logic picture puzzle: use the numbers beside the grid to decide which squares are filled and a small illustration appears. 121 pictures from 5 by 5 to 20 by 20, each with exactly one solution that logic alone can reach. Think explains the next step in plain words, Watch & Learn solves pictures with the reasons shown, and a daily picture keeps it fresh. English and Japanese. No timer, no ads.",
+    "description": "A calm logic picture puzzle: use the numbers beside the grid to decide which squares are filled and a small illustration appears. 121 pictures from 5 by 5 to 20 by 20, each with exactly one solution that logic alone can reach. Think explains the next step in plain words, Watch & Learn solves pictures with the reasons shown, and a daily picture keeps it fresh. English and Japanese. No timer.",
     "genre": "logic picture puzzle",
     "demo": true,
     "howToPlay": [
@@ -3175,7 +3175,7 @@
     "stage": "release-candidate",
     "title": "Noughts & Crosses",
     "tagline": "Three in a row, made deep.",
-    "description": "The classic three-in-a-row game, made beautiful: lit bronze crosses and verdigris noughts on carved marble, with four ways to play. Classic 3x3, the Roman Terni Lapilli with sliding pieces, Misère where three in a row loses, and a 4x4 Quad board. Five opponent levels up to a solver that never slips, two players on one phone, Think with a plain-English reason, eleven lessons and Watch & Learn. No timers and no ads.",
+    "description": "The classic three-in-a-row game, made beautiful: lit bronze crosses and verdigris noughts on carved marble, with four ways to play. Classic 3x3, the Roman Terni Lapilli with sliding pieces, Misère where three in a row loses, and a 4x4 Quad board. Five opponent levels up to a solver that never slips, two players on one phone, Think with a plain-English reason, eleven lessons and Watch & Learn. No timers.",
     "genre": "abstract strategy, three in a row",
     "demo": true,
     "howToPlay": [
@@ -3194,7 +3194,7 @@
     "stage": "release-candidate",
     "title": "O An Quan: Mandarin Squares",
     "tagline": "Vietnam's pebble game of sowing and capture.",
-    "description": "The traditional Vietnamese children's game, rebuilt on a lacquered wooden board: sow stones one at a time, relay through full squares, leap an empty square to capture and win the two mandarins. Five opponent levels, two players on one phone, Think with a reason in words, six lessons and Watch & Learn. Play in English or in Vietnamese. No timers and no ads.",
+    "description": "The traditional Vietnamese children's game, rebuilt on a lacquered wooden board: sow stones one at a time, relay through full squares, leap an empty square to capture and win the two mandarins. Five opponent levels, two players on one phone, Think with a reason in words, six lessons and Watch & Learn. Play in English or in Vietnamese. No timers.",
     "genre": "mancala, sowing and capture",
     "demo": true,
     "howToPlay": [
@@ -3230,7 +3230,7 @@
     "stage": "release-candidate",
     "title": "Okey Offline",
     "tagline": "Turkey's tile rummy, four at the table.",
-    "description": "Okey is the tile rummy game of Turkey. You and three computer players share 106 tiles; each deal a turned-up indicator decides which tile is the wild okey for that deal only. Draw, arrange your two-row rack into runs and sets (or seven pairs) by dragging, then finish by discarding your last tile. Finish on the okey itself and the deal counts double. Sort helpers tidy the rack, a free Hint explains its reasoning, and Watch & Learn plays a whole deal with time to think before each move. Three computer levels, a full Rules page, English or Turkish labels. Offline, no ads, score only.",
+    "description": "Okey is the tile rummy game of Turkey. You and three computer players share 106 tiles; each deal a turned-up indicator decides which tile is the wild okey for that deal only. Draw, arrange your two-row rack into runs and sets (or seven pairs) by dragging, then finish by discarding your last tile. Finish on the okey itself and the deal counts double. Sort helpers tidy the rack, a free Hint explains its reasoning, and Watch & Learn plays a whole deal with time to think before each move. Three computer levels, a full Rules page, English or Turkish labels. Offline, score only.",
     "genre": "tile rummy game",
     "demo": true,
     "howToPlay": [
@@ -3273,7 +3273,7 @@
     "stage": "release-candidate",
     "title": "Origami: Fold by Fold",
     "tagline": "Fold paper into something wonderful.",
-    "description": "Real, curling, layered paper in 3D. Grab a flap, drag it across and feel the crease snap flat, then watch your kite, puppy, fish or paper dart stand up. Seven models, six washi papers, free-fold Studio and a Watch & Learn mode that folds for you. No ads and no timers.",
+    "description": "Real, curling, layered paper in 3D. Grab a flap, drag it across and feel the crease snap flat, then watch your kite, puppy, fish or paper dart stand up. Seven models, six washi papers, free-fold Studio and a Watch & Learn mode that folds for you. No timers.",
     "genre": "paper folding craft puzzle",
     "demo": true,
     "howToPlay": [
@@ -3293,7 +3293,7 @@
     "stage": "release-candidate",
     "title": "Otedama",
     "tagline": "Toss and catch cloth bags, in rhythm.",
-    "description": "A rhythm and timing game built on the traditional Japanese game of tossing and catching small cloth bags. Keep one to five bags in the air in eight patterns by tapping the hand each bag lands in, clap between catches, follow the counting song and win new cloth designs. Learn mode, a Watch and Learn demonstration, an in-app Rules book, portrait and landscape play, synthesised sound, no ads.",
+    "description": "A rhythm and timing game built on the traditional Japanese game of tossing and catching small cloth bags. Keep one to five bags in the air in eight patterns by tapping the hand each bag lands in, clap between catches, follow the counting song and win new cloth designs. Learn mode, a Watch and Learn demonstration, an in-app Rules book, portrait and landscape play, synthesised sound.",
     "genre": "rhythm juggling",
     "demo": true,
     "howToPlay": [
@@ -3334,7 +3334,7 @@
     "stage": "production",
     "title": "Oware",
     "tagline": "The seed-sowing game of West Africa",
-    "description": "Oware is the classic seed-sowing game of Ghana and West Africa, part of the mancala family. Twelve pits, forty-eight seeds: lift a pit, sow seeds round the board, and capture pits that end with two or three. Learn in eight short hands-on lessons, watch free Auto Play play a whole game at your own pace, play the computer at five levels from Easy to Grandmaster, pass the phone to a friend, and solve a new capture puzzle every day. Hand-carved wood and glossy seed art, large text and reduced motion. Full rules are in the in-app Rules page. No ads, works offline.",
+    "description": "Oware is the classic seed-sowing game of Ghana and West Africa, part of the mancala family. Twelve pits, forty-eight seeds: lift a pit, sow seeds round the board, and capture pits that end with two or three. Learn in eight short hands-on lessons, watch free Auto Play play a whole game at your own pace, play the computer at five levels from Easy to Grandmaster, pass the phone to a friend, and solve a new capture puzzle every day. Hand-carved wood and glossy seed art, large text and reduced motion. Full rules are in the in-app Rules page. Works offline.",
     "genre": "abstract strategy board game",
     "demo": true,
     "howToPlay": [
@@ -3355,7 +3355,7 @@
     "stage": "production",
     "title": "Pachisi",
     "tagline": "The royal race of the cross",
-    "description": "Pachisi is the royal race game of India, ancestor of Ludo. Throw six cowrie shells, count the mouths that face up, and race four pawns around the embroidered cloth cross to its centre. Land on a rival to send it home, hide on the marked squares, block the way with a pair. Play the full game or the friendly Ludo mode, with two to four players, against four computer personalities or friends passing one phone. Nine hands-on lessons, Auto Play (a full game plays itself at a pace you set), a daily race and an exhaustive in-app Rules reference. No ads, works offline.",
+    "description": "Pachisi is the royal race game of India, ancestor of Ludo. Throw six cowrie shells, count the mouths that face up, and race four pawns around the embroidered cloth cross to its centre. Land on a rival to send it home, hide on the marked squares, block the way with a pair. Play the full game or the friendly Ludo mode, with two to four players, against four computer personalities or friends passing one phone. Nine hands-on lessons, Auto Play (a full game plays itself at a pace you set), a daily race and an exhaustive in-app Rules reference. Works offline.",
     "genre": "family board game",
     "demo": true,
     "howToPlay": [
@@ -3376,7 +3376,7 @@
     "stage": "release-candidate",
     "title": "Paper Cutting",
     "tagline": "Fold, snip, unfold: one cut repeats all around.",
-    "description": "Fold coloured paper in half, quarters or twelfths, snip the wedge with scissors or punches, then unfold it in real 3D to reveal the pattern. 26 levels from paper-cutting traditions around the world, a free-cutting Studio and Gallery, and a Watch & Learn mode that explains every cut. No ads and no timers.",
+    "description": "Fold coloured paper in half, quarters or twelfths, snip the wedge with scissors or punches, then unfold it in real 3D to reveal the pattern. 26 levels from paper-cutting traditions around the world, a free-cutting Studio and Gallery, and a Watch & Learn mode that explains every cut. No timers.",
     "genre": "paper cutting craft puzzle",
     "demo": true,
     "howToPlay": [
@@ -3414,7 +3414,7 @@
     "stage": "release-candidate",
     "title": "Patolli",
     "tagline": "The ancient cross-and-beans race.",
-    "description": "The ancient Mesoamerican race game, rebuilt as a secular score-only reconstruction. Throw five marked beans, choose which piece to move, capture lone pieces, make pairs nobody can land on, avoid trap squares and win corner stones. Two to four seats, computer opponents, a hint button, Watch and Learn, an in-app Rules book, portrait and landscape, no ads or betting.",
+    "description": "The ancient Mesoamerican race game, rebuilt as a secular score-only reconstruction. Throw five marked beans, choose which piece to move, capture lone pieces, make pairs nobody can land on, avoid trap squares and win corner stones. Two to four seats, computer opponents, a hint button, Watch and Learn, an in-app Rules book, portrait and landscape, no betting.",
     "genre": "cross-and-beans race",
     "demo": true,
     "howToPlay": [
@@ -3451,7 +3451,7 @@
     "stage": "release-candidate",
     "title": "Peg Solitaire",
     "tagline": "Jump. Capture. Leave just one.",
-    "description": "The classic jumping puzzle from the French court, on a lit wooden board with glass pegs. Five boards (Triangle, English, French, Diamond, Grand Cross), 60 curated puzzles with stars and par, a Daily puzzle, hints from a solver and Auto Play that shows a full solution. No clock, no ads, works offline.",
+    "description": "The classic jumping puzzle from the French court, on a lit wooden board with glass pegs. Five boards (Triangle, English, French, Diamond, Grand Cross), 60 curated puzzles with stars and par, a Daily puzzle, hints from a solver and Auto Play that shows a full solution. No clock, works offline.",
     "genre": "board puzzle",
     "demo": true,
     "howToPlay": [
@@ -3490,7 +3490,7 @@
     "stage": "release-candidate",
     "title": "Peralikatuma",
     "tagline": "Leap, chain and crown on an octagon of lines.",
-    "description": "Peralikatuma is a traditional jumping game from Sri Lanka, played on an octagon-shaped board of lines. Hop over your opponent's gems to capture them, chain leaps in one move, and crown a Star. Two rule sets, five computer levels, two players on one phone, hands-on lessons, hints that explain why, danger marks, take back and a Watch & Learn mode. Large text and reduced motion options, no ads, works offline.",
+    "description": "Peralikatuma is a traditional jumping game from Sri Lanka, played on an octagon-shaped board of lines. Hop over your opponent's gems to capture them, chain leaps in one move, and crown a Star. Two rule sets, five computer levels, two players on one phone, hands-on lessons, hints that explain why, danger marks, take back and a Watch & Learn mode. Large text and reduced motion options, works offline.",
     "genre": "Sri Lankan jumping board game",
     "demo": true,
     "howToPlay": [
@@ -3511,7 +3511,7 @@
     "stage": "production",
     "title": "Perch",
     "tagline": "Read the stone. Choose your moment.",
-    "description": "You are a small bird on a branch, and hunters with catapults ring the field. You never aim: you read the stone coming and choose your moment to fly. Survive each day until sunset for up to three stars. Level 1 is one tree; from level 2 whole groves and orchards open up and you choose where to fly. Every level adds one new idea: golden seeds, fast archers, wind, a Master Hunter with a pattern to learn, nets and beaters. From level 3, close calls earn acorns to knock hunters flat. A hit only ruffles feathers. No ads, works offline. An in-game Rules page covers every mechanic in detail.",
+    "description": "You are a small bird on a branch, and hunters with catapults ring the field. You never aim: you read the stone coming and choose your moment to fly. Survive each day until sunset for up to three stars. Level 1 is one tree; from level 2 whole groves and orchards open up and you choose where to fly. Every level adds one new idea: golden seeds, fast archers, wind, a Master Hunter with a pattern to learn, nets and beaters. From level 3, close calls earn acorns to knock hunters flat. A hit only ruffles feathers. Works offline. An in-game Rules page covers every mechanic in detail.",
     "genre": "dodge arcade",
     "demo": true,
     "howToPlay": [
@@ -3664,7 +3664,7 @@
     "stage": "release-candidate",
     "title": "Pottery Wheel",
     "tagline": "Throw, shape and glaze a pot on a spinning wheel.",
-    "description": "A calm craft game: centre a lump of clay, open it, pull the walls up and shape the form with your fingertip in real 3D, then trim, glaze and fire it. Six glaze traditions from around the world, twelve target-outline challenges, a daily pot, a shelf for your finished work, and Watch and Learn, which throws a whole pot for you and explains each stroke. No ads, works offline.",
+    "description": "A calm craft game: centre a lump of clay, open it, pull the walls up and shape the form with your fingertip in real 3D, then trim, glaze and fire it. Six glaze traditions from around the world, twelve target-outline challenges, a daily pot, a shelf for your finished work, and Watch and Learn, which throws a whole pot for you and explains each stroke. Works offline.",
     "genre": "craft pottery",
     "demo": true,
     "howToPlay": [
@@ -3742,7 +3742,7 @@
     "stage": "release-candidate",
     "title": "Reversi Flip Board",
     "tagline": "Trap them, turn them, take the board.",
-    "description": "The classic game of flipping, beautifully made. Place a disc, trap a line of enemy discs between two of yours and watch them turn over in a ripple. Classic 8 by 8, quick Mini 6 by 6 and Reverse (fewest discs wins). Five computer levels, two players on one device, hands-on lessons, hints that explain why, take back and a Watch & Learn mode. A felt and brass board, glossy two-faced discs, large text and reduced motion options. No ads, works offline.",
+    "description": "The classic game of flipping, beautifully made. Place a disc, trap a line of enemy discs between two of yours and watch them turn over in a ripple. Classic 8 by 8, quick Mini 6 by 6 and Reverse (fewest discs wins). Five computer levels, two players on one device, hands-on lessons, hints that explain why, take back and a Watch & Learn mode. A felt and brass board, glossy two-faced discs, large text and reduced motion options. Works offline.",
     "genre": "Classic disc-flipping board game",
     "demo": true,
     "howToPlay": [
@@ -3781,7 +3781,7 @@
     "stage": "release-candidate",
     "title": "Rithmomachia: Number Battle",
     "tagline": "The philosophers' game of medieval Europe, with the arithmetic on screen.",
-    "description": "Rithmomachia, the battle of numbers, was a game for scholars across medieval Europe. Every piece carries a number. Touch an enemy piece whose number is equal to yours, or in the ratio 1:2, 1:3 or 2:3, and it is taken; ambush a piece between two of yours whose numbers add up to its own. Win by lining three pieces up in the enemy camp as an arithmetic, geometric or harmonic progression. Eight hands-on lessons, five computer levels, hints, danger marks, a Watch & Learn mode and the sum of every capture shown on the board. Gold leaf, lapis and vellum. No ads, works offline.",
+    "description": "Rithmomachia, the battle of numbers, was a game for scholars across medieval Europe. Every piece carries a number. Touch an enemy piece whose number is equal to yours, or in the ratio 1:2, 1:3 or 2:3, and it is taken; ambush a piece between two of yours whose numbers add up to its own. Win by lining three pieces up in the enemy camp as an arithmetic, geometric or harmonic progression. Eight hands-on lessons, five computer levels, hints, danger marks, a Watch & Learn mode and the sum of every capture shown on the board. Gold leaf, lapis and vellum. Works offline.",
     "genre": "Medieval number-battle board game",
     "demo": true,
     "howToPlay": [
@@ -3802,7 +3802,7 @@
     "stage": "production",
     "title": "The Royal Game of Ur",
     "tagline": "A race from the cradle of civilisation",
-    "description": "The Royal Game of Ur is the Game of Twenty Squares, played in Mesopotamia over four thousand years ago. Roll four pyramid dice and race seven inlaid pieces down your lane, up the shared middle lane and home. Rosettes are safe and give another roll; landing on an enemy sends it back. Learn in nine hands-on lessons, watch Auto Play demonstrate a whole game move by move at your own pace, play four computer levels or a friend, and solve a daily best-move puzzle. Lapis, shell and red-limestone art lit by an oil lamp. Plays in portrait and landscape. No ads, works offline.",
+    "description": "The Royal Game of Ur is the Game of Twenty Squares, played in Mesopotamia over four thousand years ago. Roll four pyramid dice and race seven inlaid pieces down your lane, up the shared middle lane and home. Rosettes are safe and give another roll; landing on an enemy sends it back. Learn in nine hands-on lessons, watch Auto Play demonstrate a whole game move by move at your own pace, play four computer levels or a friend, and solve a daily best-move puzzle. Lapis, shell and red-limestone art lit by an oil lamp. Plays in portrait and landscape. Works offline.",
     "genre": "ancient race game",
     "demo": true,
     "howToPlay": [
@@ -3877,7 +3877,7 @@
     "stage": "release-candidate",
     "title": "Sáhkku",
     "tagline": "Wake herders, race the board, capture rivals.",
-    "description": "Sáhkku is a traditional dice and board game of the Sámi people of Sápmi. Roll four dice, wake sleeping herders, run them round the board or across the middle and capture rivals by landing on them. A neutral white reindeer king joins whichever side lands on it. Four computer levels, two players on one phone, hints, take back, a Watch and Learn mode, large text and reduced motion options, no ads, works offline.",
+    "description": "Sáhkku is a traditional dice and board game of the Sámi people of Sápmi. Roll four dice, wake sleeping herders, run them round the board or across the middle and capture rivals by landing on them. A neutral white reindeer king joins whichever side lands on it. Four computer levels, two players on one phone, hints, take back, a Watch and Learn mode, large text and reduced motion options, works offline.",
     "genre": "Sámi dice and board game",
     "demo": true,
     "howToPlay": [
@@ -3898,7 +3898,7 @@
     "stage": "release-candidate",
     "title": "Santoor",
     "tagline": "Two mallets, sixteen notes, one zigzag.",
-    "description": "A music game for the hammered dulcimer of India. Strike glowing spots with two mallets, hold for a shimmering tremolo and run across the courses in one stroke. Learn six short pieces phrase by phrase from memory, or let Watch and Learn show the mallet, the note and the reason for every note. Five scales, free play, portrait and landscape, no ads, works offline.",
+    "description": "A music game for the hammered dulcimer of India. Strike glowing spots with two mallets, hold for a shimmering tremolo and run across the courses in one stroke. Learn six short pieces phrase by phrase from memory, or let Watch and Learn show the mallet, the note and the reason for every note. Five scales, free play, portrait and landscape, works offline.",
     "genre": "music dulcimer",
     "demo": true,
     "howToPlay": [
@@ -3937,7 +3937,7 @@
     "stage": "release-candidate",
     "title": "Scopa",
     "tagline": "The Italian card game of the broom",
-    "description": "Scopa is one of Italy's three major national card games, played with a 40-card Italian deck: coins, cups, swords and batons. Match a card's rank or a sum to capture it, clear the table for a scopa, and score cards, coins, sette bello and primiera. Nine hands-on lessons, free Auto Play at your own pace, four computer levels to a card-counting Maestro, four-player partnerships, and a new daily deal every day. Original hand-drawn Italian court cards, a trattoria table, and a French-suit option. No ads, no chips, score only.",
+    "description": "Scopa is one of Italy's three major national card games, played with a 40-card Italian deck: coins, cups, swords and batons. Match a card's rank or a sum to capture it, clear the table for a scopa, and score cards, coins, sette bello and primiera. Nine hands-on lessons, free Auto Play at your own pace, four computer levels to a card-counting Maestro, four-player partnerships, and a new daily deal every day. Original hand-drawn Italian court cards, a trattoria table, and a French-suit option. No chips, score only.",
     "genre": "card game",
     "demo": true,
     "howToPlay": [
@@ -3976,7 +3976,7 @@
     "stage": "release-candidate",
     "title": "Seega: Desert Siege",
     "tagline": "Place. Slide. Sandwich.",
-    "description": "A traditional Egyptian board game for a 5x5 board, made beautiful. Fill the board two stones at a time, leaving only the centre empty, then slide your stones and trap enemy stones between two of yours. Lit pebbles and date stones sit on a carved sandstone board. Five opponent levels from Novice to Master, two players on one phone, Think with a plain-English reason, a short Learn course and Watch & Learn. Play in English or in Arabic. No timers and no ads.",
+    "description": "A traditional Egyptian board game for a 5x5 board, made beautiful. Fill the board two stones at a time, leaving only the centre empty, then slide your stones and trap enemy stones between two of yours. Lit pebbles and date stones sit on a carved sandstone board. Five opponent levels from Novice to Master, two players on one phone, Think with a plain-English reason, a short Learn course and Watch & Learn. Play in English or in Arabic. No timers.",
     "genre": "abstract strategy, custodian capture",
     "demo": true,
     "howToPlay": [
@@ -3994,7 +3994,7 @@
     "stage": "release-candidate",
     "title": "Sega Ravanne Drum",
     "tagline": "Play the ravanne, triangle and maravanne as the dancer sways.",
-    "description": "A rhythm game inspired by sega, the music and dance of Mauritius and the Indian Ocean islands. A beam sweeps round the goat-skin ravanne drum; tap and slide on the drum, tap the triangle, shake the maravanne and warm the skin at the fire. Play cleanly and the beach band joins in while the dancer sways. Learn by call and response, perform for stars, or watch the band play. Six original pieces, Rules with text size to 300%, synthesised sound, no ads.",
+    "description": "A rhythm game inspired by sega, the music and dance of Mauritius and the Indian Ocean islands. A beam sweeps round the goat-skin ravanne drum; tap and slide on the drum, tap the triangle, shake the maravanne and warm the skin at the fire. Play cleanly and the beach band joins in while the dancer sways. Learn by call and response, perform for stars, or watch the band play. Six original pieces, Rules with text size to 300%, synthesised sound.",
     "genre": "rhythm music",
     "demo": true,
     "howToPlay": [
@@ -4015,7 +4015,7 @@
     "stage": "prototype",
     "title": "Senet",
     "tagline": "The board game of ancient Egypt",
-    "description": "Senet is the board game of ancient Egypt, played for thousands of years and shown in tomb paintings. Throw four sticks, race five pieces along a 30-square path, swap lone enemy pieces, hold a wall of three, and avoid the House of Water. Rules follow a widely published modern reconstruction. Learn in ten hands-on lessons, watch free Auto Play play a whole game at your own pace, play five computer levels or a friend, and solve a daily puzzle. Ebony-and-ivory board, gilded inlay, faience pieces, tumbling sticks. No ads, works offline.",
+    "description": "Senet is the board game of ancient Egypt, played for thousands of years and shown in tomb paintings. Throw four sticks, race five pieces along a 30-square path, swap lone enemy pieces, hold a wall of three, and avoid the House of Water. Rules follow a widely published modern reconstruction. Learn in ten hands-on lessons, watch free Auto Play play a whole game at your own pace, play five computer levels or a friend, and solve a daily puzzle. Ebony-and-ivory board, gilded inlay, faience pieces, tumbling sticks. Works offline.",
     "genre": "ancient Egyptian race board game",
     "demo": true,
     "howToPlay": [
@@ -4089,7 +4089,7 @@
     "stage": "prototype",
     "title": "Shogi",
     "tagline": "Japan's game of generals and drops",
-    "description": "Shogi is the chess-like strategy game of Japan, played on a 9 by 9 board. Its big idea: a captured piece changes sides and can be dropped back on any empty point. Learn in twelve hands-on lessons where you make every move, play five computer levels from Novice to Master as either side, try the quick 5x5 mini board, or pass the phone to a friend. Every refused move is explained, hints tell you why, and a new checkmate puzzle arrives every day. Hand-drawn kaya board and boxwood pieces, large text and reduced motion options. No ads, works offline. Play in 日本語 or English. Full rules built in.",
+    "description": "Shogi is the chess-like strategy game of Japan, played on a 9 by 9 board. Its big idea: a captured piece changes sides and can be dropped back on any empty point. Learn in twelve hands-on lessons where you make every move, play five computer levels from Novice to Master as either side, try the quick 5x5 mini board, or pass the phone to a friend. Every refused move is explained, hints tell you why, and a new checkmate puzzle arrives every day. Hand-drawn kaya board and boxwood pieces, large text and reduced motion options. Works offline. Play in 日本語 or English. Full rules built in.",
     "genre": "board game",
     "demo": true,
     "howToPlay": [
@@ -4110,7 +4110,7 @@
     "stage": "release-candidate",
     "title": "Sholo Guti",
     "tagline": "Sixteen stones each. Jump to capture. Bengal's chalk-board game.",
-    "description": "Sholo Guti (\"sixteen stones\") is a traditional jumping and capturing game of Bangladesh and Bengal, drawn with chalk on courtyards and school yards. Step along the lines, jump over enemy stones, and chain jumps in a single turn. Play Classic, Must capture, or Quick. Five computer levels, two players on one phone, hands-on lessons, hints that explain why, danger marks, take back and a Watch & Learn mode. No ads, works offline.",
+    "description": "Sholo Guti (\"sixteen stones\") is a traditional jumping and capturing game of Bangladesh and Bengal, drawn with chalk on courtyards and school yards. Step along the lines, jump over enemy stones, and chain jumps in a single turn. Play Classic, Must capture, or Quick. Five computer levels, two players on one phone, hands-on lessons, hints that explain why, danger marks, take back and a Watch & Learn mode. Works offline.",
     "genre": "Bengal jumping and capturing board game",
     "demo": true,
     "howToPlay": [
@@ -4149,7 +4149,7 @@
     "stage": "release-candidate",
     "title": "Shut the Box",
     "tagline": "Roll, add, flip. Close the box.",
-    "description": "The classic tavern dice game of England and France on a lit oak box with brass hinges and bone tiles. Roll two dice, flip down tiles that add up to the total and try to shut them all: low score wins. Classic and Tall boxes, a five-round Duel with the Innkeeper, a Daily Box, hints from an exact solver and Watch & Learn. No clock, no ads, works offline.",
+    "description": "The classic tavern dice game of England and France on a lit oak box with brass hinges and bone tiles. Roll two dice, flip down tiles that add up to the total and try to shut them all: low score wins. Classic and Tall boxes, a five-round Duel with the Innkeeper, a Daily Box, hints from an exact solver and Watch & Learn. No clock, works offline.",
     "genre": "dice game",
     "demo": true,
     "howToPlay": [
@@ -4170,7 +4170,7 @@
     "stage": "release-candidate",
     "title": "Silk Road Trader",
     "tagline": "Lead a caravan from Chang'an to Baghdad and trade your way across Eurasia.",
-    "description": "A journey and trading game on the old Silk Road, around the year 780. Provision your camels, buy silk, paper, glass, spices, horses and jade where they are cheap and sell them where they are dear, choose your roads and your pace, and meet the people of the road in illustrated encounters where every choice has consequences. Keep a journal of cities, goods and people, watch an expert trader explain each decision, and finish with the best score before the passes close. Painted landscapes, no ads, works offline.",
+    "description": "A journey and trading game on the old Silk Road, around the year 780. Provision your camels, buy silk, paper, glass, spices, horses and jade where they are cheap and sell them where they are dear, choose your roads and your pace, and meet the people of the road in illustrated encounters where every choice has consequences. Keep a journal of cities, goods and people, watch an expert trader explain each decision, and finish with the best score before the passes close. Painted landscapes, works offline.",
     "genre": "journey trading",
     "demo": true,
     "howToPlay": [
@@ -4261,7 +4261,7 @@
     "stage": "release-candidate",
     "title": "Songo",
     "tagline": "The sowing game of Central Africa",
-    "description": "Songo is the classic mancala game of Cameroon, Gabon and the Ekang peoples of Central Africa. Fourteen houses, seventy seeds: sow clockwise and capture any opponent house your last seed brings to two, three or four, with the houses behind it. A protected first house, a leftmost house that cannot be sown thin, and long sowings through the opponent's row make it play unlike other mancala games. Nine hands-on lessons, free Auto Play, five computer levels, two players on one phone and a daily puzzle. Carved wood board, seeds that click and roll. No ads, works offline.",
+    "description": "Songo is the classic mancala game of Cameroon, Gabon and the Ekang peoples of Central Africa. Fourteen houses, seventy seeds: sow clockwise and capture any opponent house your last seed brings to two, three or four, with the houses behind it. A protected first house, a leftmost house that cannot be sown thin, and long sowings through the opponent's row make it play unlike other mancala games. Nine hands-on lessons, free Auto Play, five computer levels, two players on one phone and a daily puzzle. Carved wood board, seeds that click and roll. Works offline.",
     "genre": "abstract strategy board game",
     "demo": true,
     "howToPlay": [
@@ -4426,7 +4426,7 @@
     "stage": "release-candidate",
     "title": "Surakarta",
     "tagline": "The looping capture game",
-    "description": "A Javanese-named strategy game on a carved board of looping tracks. Pieces step one point but capture by racing round the circuits and the corner loops, with every legal route drawn as a glowing trail. Five opponent levels, two players on one phone, Think with a plain-English reason, seven lessons and Watch & Learn. No timers and no ads.",
+    "description": "A Javanese-named strategy game on a carved board of looping tracks. Pieces step one point but capture by racing round the circuits and the corner loops, with every legal route drawn as a glowing trail. Five opponent levels, two players on one phone, Think with a plain-English reason, seven lessons and Watch & Learn. No timers.",
     "genre": "abstract strategy, circuit capture",
     "demo": true,
     "howToPlay": [
@@ -4466,7 +4466,7 @@
     "stage": "release-candidate",
     "title": "Tab: Stick Race",
     "tagline": "The four-stick race of Egypt and the Arab world",
-    "description": "A traditional race-and-capture game played with four tumbling throwing sticks. Bring your stones on with a one, slide them along a carved 28-square path, land on your rival's stones, rest on the star squares and be first home. Five opponent levels, two players on one phone, Think that explains moves with the real chances of the next throws, a Learn course and Watch & Learn. Play in English or Arabic. No timers and no ads.",
+    "description": "A traditional race-and-capture game played with four tumbling throwing sticks. Bring your stones on with a one, slide them along a carved 28-square path, land on your rival's stones, rest on the star squares and be first home. Five opponent levels, two players on one phone, Think that explains moves with the real chances of the next throws, a Learn course and Watch & Learn. Play in English or Arabic. No timers.",
     "genre": "race board game, stick dice",
     "demo": true,
     "howToPlay": [
@@ -4504,7 +4504,7 @@
     "stage": "release-candidate",
     "title": "Taiko Drum Circle",
     "tagline": "Hit the centre for don, the rim for ka.",
-    "description": "A rhythm game for the big drums of Japanese ensemble drumming. Tap the middle of a drum for don and the rim for ka, in time, with two thumbs or more. Learn six original pieces by call and response, then play them while a circle of computer drummers joins in layer by layer as your timing tightens. Free play with a metronome and an echo partner, a Watch and Learn demonstration, a calibration screen, and an in-app Rules page. Lit hand-drawn drums, synthesised sound, no ads, works offline.",
+    "description": "A rhythm game for the big drums of Japanese ensemble drumming. Tap the middle of a drum for don and the rim for ka, in time, with two thumbs or more. Learn six original pieces by call and response, then play them while a circle of computer drummers joins in layer by layer as your timing tightens. Free play with a metronome and an echo partner, a Watch and Learn demonstration, a calibration screen, and an in-app Rules page. Lit hand-drawn drums, synthesised sound, works offline.",
     "genre": "rhythm drumming",
     "demo": true,
     "howToPlay": [
@@ -4543,7 +4543,7 @@
     "stage": "release-candidate",
     "title": "Tangram: Seven Pieces",
     "tagline": "Seven pieces. Endless shapes.",
-    "description": "The classic Chinese seven-piece puzzle, made to feel wonderful. Drag, turn, flip and click the pieces into more than 80 hand-checked silhouettes, from animals and people to the thirteen convex shapes. A Daily Puzzle, stars, a hint that teaches, and Watch & Learn, which solves a puzzle step by step. No timers and no ads.",
+    "description": "The classic Chinese seven-piece puzzle, made to feel wonderful. Drag, turn, flip and click the pieces into more than 80 hand-checked silhouettes, from animals and people to the thirteen convex shapes. A Daily Puzzle, stars, a hint that teaches, and Watch & Learn, which solves a puzzle step by step. No timers.",
     "genre": "silhouette dissection puzzle",
     "demo": true,
     "howToPlay": [
@@ -4563,7 +4563,7 @@
     "stage": "production",
     "title": "Tarneeb",
     "tagline": "The partnership card game of the Levant",
-    "description": "Tarneeb is the bidding-and-trump trick-taking card game of the Levant. You and a computer partner bid against two computer opponents for how many of 13 tricks your side will take; the winning bidder names trump and leads. Follow suit, take tricks, and score by what you win. Learn in eight hands-on lessons, play four computer levels with hints that explain the reasoning, and solve a new open-hand Daily Deal every day. An in-app Rules page covers bidding and scoring in full. Designed cards with a large-print option, a warm cafe table. No ads, offline, score only.",
+    "description": "Tarneeb is the bidding-and-trump trick-taking card game of the Levant. You and a computer partner bid against two computer opponents for how many of 13 tricks your side will take; the winning bidder names trump and leads. Follow suit, take tricks, and score by what you win. Learn in eight hands-on lessons, play four computer levels with hints that explain the reasoning, and solve a new open-hand Daily Deal every day. An in-app Rules page covers bidding and scoring in full. Designed cards with a large-print option, a warm cafe table. Offline, score only.",
     "genre": "trick-taking card game",
     "demo": true,
     "howToPlay": [
@@ -4620,7 +4620,7 @@
     "stage": "production",
     "title": "Tavla",
     "tagline": "The dice game of the coffeehouse",
-    "description": "Tavla is backgammon as played in the coffeehouses of Turkey, the Arab world, Israel and Persia, also called tawla, shesh besh and takhteh nard. Race fifteen checkers around 24 points, hit lone checkers, build walls and bear off first. Learn in nine hands-on lessons, play four computer levels or a friend on one phone, and solve a new best-move puzzle every day. Hints explain why, undo is one tap, forced moves can play themselves. Optional score-only doubling cube and gammons. Inlaid wooden board, carved checkers, tumbling dice. Large text and reduced motion. No ads, works offline.",
+    "description": "Tavla is backgammon as played in the coffeehouses of Turkey, the Arab world, Israel and Persia, also called tawla, shesh besh and takhteh nard. Race fifteen checkers around 24 points, hit lone checkers, build walls and bear off first. Learn in nine hands-on lessons, play four computer levels or a friend on one phone, and solve a new best-move puzzle every day. Hints explain why, undo is one tap, forced moves can play themselves. Optional score-only doubling cube and gammons. Inlaid wooden board, carved checkers, tumbling dice. Large text and reduced motion. Works offline.",
     "genre": "backgammon board game",
     "demo": true,
     "howToPlay": [
@@ -4641,7 +4641,7 @@
     "stage": "release-candidate",
     "title": "Tavli: Portes Plakoto Fevga",
     "tagline": "The Greek coffeehouse trio",
-    "description": "Tavli is the Greek tables family, played in coffeehouses as three games in turn on one board: Portes hits, Plakoto pins, Fevga blocks and never hits. Play a match to 5 or 7 against a strong offline computer at four levels, or a friend. Fevga is the closest relative of long nard, known as Nard or Nardy across the Caucasus and Persia, and Portes is tavla or tawla elsewhere. Hints explain why, Watch and Learn shows the computer thinking, text up to 300 percent. No ads, offline.",
+    "description": "Tavli is the Greek tables family, played in coffeehouses as three games in turn on one board: Portes hits, Plakoto pins, Fevga blocks and never hits. Play a match to 5 or 7 against a strong offline computer at four levels, or a friend. Fevga is the closest relative of long nard, known as Nard or Nardy across the Caucasus and Persia, and Portes is tavla or tawla elsewhere. Hints explain why, Watch and Learn shows the computer thinking, text up to 300 percent. Works offline.",
     "genre": "backgammon variants",
     "demo": true,
     "howToPlay": [
@@ -4716,7 +4716,7 @@
     "stage": "release-candidate",
     "title": "Thanjavur Dancing Doll",
     "tagline": "Tune, tap and settle the nodding clay dolls.",
-    "description": "Thanjavur Dancing Doll turns the famous weighted folk toy of southern India into a balance and rhythm game. Slide each doll's bead to tune its swing, tap to keep it nodding, and match a ghost doll's sway before settling every doll upright. 24 levels, a daily set, painted-doll collection, Practice, Watch and Learn, an in-app Rules book, portrait and landscape play, synthesised sound, no ads.",
+    "description": "Thanjavur Dancing Doll turns the famous weighted folk toy of southern India into a balance and rhythm game. Slide each doll's bead to tune its swing, tap to keep it nodding, and match a ghost doll's sway before settling every doll upright. 24 levels, a daily set, painted-doll collection, Practice, Watch and Learn, an in-app Rules book, portrait and landscape play, synthesised sound.",
     "genre": "balance rhythm toy",
     "demo": true,
     "howToPlay": [
@@ -4754,7 +4754,7 @@
     "stage": "release-candidate",
     "title": "Tiger and Goat",
     "tagline": "Four tigers. Twenty goats. One board.",
-    "description": "Tiger and Goat is Bagh-chal, Nepal's traditional board game. Four tigers hunt twenty goats on a board of 25 points: the goats are slow but many, the tigers few but fast. The game ends only when every goat is captured or every tiger is trapped. Learn in nine hands-on lessons, play either side against four computer levels or a friend on one phone, and solve a new puzzle every day. Win games to earn new boards and a snowy set of pieces. Hand-painted art, large text and reduced motion options. An in-app Rules page covers it all. No ads, works offline.",
+    "description": "Tiger and Goat is Bagh-chal, Nepal's traditional board game. Four tigers hunt twenty goats on a board of 25 points: the goats are slow but many, the tigers few but fast. The game ends only when every goat is captured or every tiger is trapped. Learn in nine hands-on lessons, play either side against four computer levels or a friend on one phone, and solve a new puzzle every day. Win games to earn new boards and a snowy set of pieces. Hand-painted art, large text and reduced motion options. An in-app Rules page covers it all. Works offline.",
     "genre": "abstract strategy board game",
     "demo": true,
     "howToPlay": [
@@ -4775,7 +4775,7 @@
     "stage": "release-candidate",
     "title": "Bagh-Chal",
     "tagline": "Four tigers. Twenty goats. One mountain board.",
-    "description": "Bagh-Chal is Nepal's traditional tiger and goat board game, in a complete edition with a three-dimensional board, character pieces, a 44-puzzle Campaign, 14 lessons, heritage notes, statistics and a daily challenge. Play either side against the computer, pass the device to a friend, or watch the computer play itself. Earn tiger and goat breeds, boards and scenery by playing. Text up to 300 percent, reduced motion, portrait and landscape. No ads, works offline.",
+    "description": "Bagh-Chal is Nepal's traditional tiger and goat board game, in a complete edition with a three-dimensional board, character pieces, a 44-puzzle Campaign, 14 lessons, heritage notes, statistics and a daily challenge. Play either side against the computer, pass the device to a friend, or watch the computer play itself. Earn tiger and goat breeds, boards and scenery by playing. Text up to 300 percent, reduced motion, portrait and landscape. Works offline.",
     "genre": "abstract strategy board game",
     "demo": false,
     "howToPlay": [
@@ -4817,7 +4817,7 @@
     "stage": "production",
     "title": "Toguz Kumalak",
     "tagline": "The nine-pebble game of the steppe",
-    "description": "Toguz Kumalak is the traditional sowing game of Kazakhstan and Kyrgyzstan, part of the mancala family. Eighteen pits, 162 pebbles: lift a pit, sow round the board, capture pits your last pebble makes even, and win one opponent pit for good as your tuz. Learn in ten short hands-on lessons, play the computer at five levels, pass the phone to a friend, and solve a new puzzle every day. An in-app Rules page covers every rule in full. Carved wood, felt and kilim-pattern art, large text and reduced-motion options. No ads, works offline.",
+    "description": "Toguz Kumalak is the traditional sowing game of Kazakhstan and Kyrgyzstan, part of the mancala family. Eighteen pits, 162 pebbles: lift a pit, sow round the board, capture pits your last pebble makes even, and win one opponent pit for good as your tuz. Learn in ten short hands-on lessons, play the computer at five levels, pass the phone to a friend, and solve a new puzzle every day. An in-app Rules page covers every rule in full. Carved wood, felt and kilim-pattern art, large text and reduced-motion options. Works offline.",
     "genre": "abstract strategy board game",
     "demo": true,
     "howToPlay": [
@@ -4856,7 +4856,7 @@
     "stage": "release-candidate",
     "title": "Truco Brasileiro: Manilha",
     "tagline": "Shout Truco, bluff the table, win with the manilha",
-    "description": "Truco is one of Brazil's best-loved card games: three cards each, a shouted stake ladder (Truco, Seis, Nove, Doze) and a lot of bluffing. This version has both big regional styles, Paulista (a turned card names the four manilhas) and Mineiro (four fixed manilhas), for two players or as a four-player partnership. The computer opponents truly bluff and remember whether you run; your computer partner sends and reads the traditional table gestures. Hints, full Rules, big text and Auto Play help you learn. Score only: no chips, no wagers, no ads, works offline.",
+    "description": "Truco is one of Brazil's best-loved card games: three cards each, a shouted stake ladder (Truco, Seis, Nove, Doze) and a lot of bluffing. This version has both big regional styles, Paulista (a turned card names the four manilhas) and Mineiro (four fixed manilhas), for two players or as a four-player partnership. The computer opponents truly bluff and remember whether you run; your computer partner sends and reads the traditional table gestures. Hints, full Rules, big text and Auto Play help you learn. Score only: no chips, no wagers, works offline.",
     "genre": "vying trick-taking card game",
     "demo": true,
     "howToPlay": [
@@ -4877,7 +4877,7 @@
     "stage": "release-candidate",
     "title": "Tsoro Yematatu",
     "tagline": "Drop three stones, then slide them into a line.",
-    "description": "Tsoro yematatu is a traditional game of Zimbabwe played on a triangle with a bar across it. Each side drops three stones onto seven points, then slides them one step at a time along the lines; three in a row wins, and so does leaving the other side with no move. Easy to learn in a minute, tense to master. Five computer levels, two players on one phone, five hands-on lessons, hints, threat marks, take back and a Watch & Learn mode. Three triangles, a carved soapstone board with gold inlay, large text and reduced motion options, no ads, works offline.",
+    "description": "Tsoro yematatu is a traditional game of Zimbabwe played on a triangle with a bar across it. Each side drops three stones onto seven points, then slides them one step at a time along the lines; three in a row wins, and so does leaving the other side with no move. Easy to learn in a minute, tense to master. Five computer levels, two players on one phone, five hands-on lessons, hints, threat marks, take back and a Watch & Learn mode. Three triangles, a carved soapstone board with gold inlay, large text and reduced motion options, works offline.",
     "genre": "Zimbabwean three-in-a-row triangle game",
     "demo": true,
     "howToPlay": [
@@ -4933,7 +4933,7 @@
     "stage": "release-candidate",
     "title": "Turkish Dama",
     "tagline": "Turkey's draughts: orthogonal jumps, take the most.",
-    "description": "Dama is the traditional draughts game of Turkey. Pieces move and jump along rows and columns, a capture is compulsory and you must take the most pieces, and a man that reaches the far row becomes a king that flies the length of the board. Play the traditional Standard rules or the Easy capture option. Five computer levels, two players on one phone, hands-on lessons, hints that explain why, danger marks, take back and a Watch & Learn mode. A glazed-tile board, large text and reduced motion options, no ads, works offline.",
+    "description": "Dama is the traditional draughts game of Turkey. Pieces move and jump along rows and columns, a capture is compulsory and you must take the most pieces, and a man that reaches the far row becomes a king that flies the length of the board. Play the traditional Standard rules or the Easy capture option. Five computer levels, two players on one phone, hands-on lessons, hints that explain why, danger marks, take back and a Watch & Learn mode. A glazed-tile board, large text and reduced motion options, works offline.",
     "genre": "Turkish draughts board game",
     "demo": true,
     "howToPlay": [
@@ -4972,7 +4972,7 @@
     "stage": "release-candidate",
     "title": "Vallenato Accordion Trio",
     "tagline": "Three parts. One groove.",
-    "description": "A rhythm and ensemble game about vallenato, the accordion music of Colombia's Caribbean coast. Scrape the guacharaca, drum the caja and play the accordion with a real push and pull bellows, one take at a time, and hear your own three takes lock into a band. Or follow the spotlight in the Live Trio. Six original pieces in four aires, hints, Watch and Learn, a latency calibration screen and an in-app Rules page. Synthesised sound, no ads, works offline.",
+    "description": "A rhythm and ensemble game about vallenato, the accordion music of Colombia's Caribbean coast. Scrape the guacharaca, drum the caja and play the accordion with a real push and pull bellows, one take at a time, and hear your own three takes lock into a band. Or follow the spotlight in the Live Trio. Six original pieces in four aires, hints, Watch and Learn, a latency calibration screen and an in-app Rules page. Synthesised sound, works offline.",
     "genre": "rhythm music",
     "demo": true,
     "howToPlay": [
@@ -5071,7 +5071,7 @@
     "stage": "prototype",
     "title": "Xiangqi",
     "tagline": "The game of the river and the palace",
-    "description": "Xiangqi is Chinese chess: two armies of sixteen carved pieces face each other across the river, each general guarded inside its palace. Cannons jump to capture, horses can be hobbled, and the generals may never face each other. Learn in ten hands-on lessons, play Red or Black against five computer levels or a friend on one phone, and solve a new checkmate puzzle every day. Play in 中文 with the traditional characters, or in English with Western piece letters. Two board styles, two piece sets, large text and reduced motion. No ads, works offline.",
+    "description": "Xiangqi is Chinese chess: two armies of sixteen carved pieces face each other across the river, each general guarded inside its palace. Cannons jump to capture, horses can be hobbled, and the generals may never face each other. Learn in ten hands-on lessons, play Red or Black against five computer levels or a friend on one phone, and solve a new checkmate puzzle every day. Play in 中文 with the traditional characters, or in English with Western piece letters. Two board styles, two piece sets, large text and reduced motion. Works offline.",
     "genre": "abstract strategy board game",
     "demo": true,
     "howToPlay": [
@@ -5092,7 +5092,7 @@
     "stage": "release-candidate",
     "title": "Yote",
     "tagline": "Drop, jump, and take a bonus pebble from anywhere.",
-    "description": "Yote is a traditional pebble-and-sand game of Senegal, Mali and Burkina Faso, played on 30 scooped pits. Each turn drop a pebble, step one pit or jump; every jump lets you remove a second enemy pebble of your choice. Five computer levels, two players on one phone, hands-on lessons, hints that explain why, danger marks, take back and a Watch & Learn mode. Large text and reduced motion options, no ads, works offline.",
+    "description": "Yote is a traditional pebble-and-sand game of Senegal, Mali and Burkina Faso, played on 30 scooped pits. Each turn drop a pebble, step one pit or jump; every jump lets you remove a second enemy pebble of your choice. Five computer levels, two players on one phone, hands-on lessons, hints that explain why, danger marks, take back and a Watch & Learn mode. Large text and reduced motion options, works offline.",
     "genre": "West African drop-and-jump game",
     "demo": true,
     "howToPlay": [
@@ -5112,7 +5112,7 @@
     "stage": "production",
     "title": "Yut Nori",
     "tagline": "Korea's four-stick race",
-    "description": "Throw four carved sticks and race your horse tokens round a paper board on a woven mat. Yut Nori is the traditional Korean game: yut and mo earn extra throws, corner shortcuts cut across the board, tokens stack to travel as one, and landing on a rival sends it back to the start. Learn in ten hands-on lessons, play a cautious, balanced or aggressive computer team, pass the phone between two teams, and try a new daily challenge. Hand-drawn art, sound, large text and reduced motion. No ads, works offline.",
+    "description": "Throw four carved sticks and race your horse tokens round a paper board on a woven mat. Yut Nori is the traditional Korean game: yut and mo earn extra throws, corner shortcuts cut across the board, tokens stack to travel as one, and landing on a rival sends it back to the start. Learn in ten hands-on lessons, play a cautious, balanced or aggressive computer team, pass the phone between two teams, and try a new daily challenge. Hand-drawn art, sound, large text and reduced motion. Works offline.",
     "genre": "traditional stick-throwing race game",
     "demo": true,
     "howToPlay": [
@@ -5133,7 +5133,7 @@
     "stage": "release-candidate",
     "title": "Zamma",
     "tagline": "Jump, chain and crown a Sultan on a net of lines.",
-    "description": "Zamma is a traditional jumping game of the Sahara and the Maghreb. Step forward, jump in every direction, chain your captures and crown a Sultan that flies across the board. Three board sizes, five computer levels, lessons, Hint and Auto Play. No ads, works offline.",
+    "description": "Zamma is a traditional jumping game of the Sahara and the Maghreb. Step forward, jump in every direction, chain your captures and crown a Sultan that flies across the board. Three board sizes, five computer levels, lessons, Hint and Auto Play. Works offline.",
     "genre": "Saharan draughts-family game",
     "demo": true,
     "howToPlay": [
@@ -5154,7 +5154,7 @@
     "stage": "release-candidate",
     "title": "Zurkhaneh Strength Rhythm",
     "tagline": "Lead the circle: stomp, swing, lift and whirl on the drum.",
-    "description": "A rhythm game inspired by the zurkhaneh, the sunken octagonal training pit of Iran. A drummer keeps the beat while eight athletes work in a circle; you call each move with a gesture: tap to stomp, swipe to swing the clubs, press and hold to lift the shield, draw circles to whirl. Play cleanly and the whole circle falls into step and more drum layers join. Six pieces, Learn by call and response, a Watch and Learn demonstration, Rules with text size to 300%, synthesised sound, no ads.",
+    "description": "A rhythm game inspired by the zurkhaneh, the sunken octagonal training pit of Iran. A drummer keeps the beat while eight athletes work in a circle; you call each move with a gesture: tap to stomp, swipe to swing the clubs, press and hold to lift the shield, draw circles to whirl. Play cleanly and the whole circle falls into step and more drum layers join. Six pieces, Learn by call and response, a Watch and Learn demonstration, Rules with text size to 300%, synthesised sound.",
     "genre": "rhythm sport",
     "demo": true,
     "howToPlay": [
