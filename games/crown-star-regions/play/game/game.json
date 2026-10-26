@@ -6,7 +6,8 @@
   "orientation": "any",
   "version": "0.2.4",
   "monetization": {
-    "model": "free"
+    "model": "free",
+    "previewSeconds": 180
   },
   "locales": [
     "en"
