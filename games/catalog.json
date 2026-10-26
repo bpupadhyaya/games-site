@@ -5046,27 +5046,6 @@
     "play": "games/word-game/play/"
   },
   {
-    "slug": "world-weave",
-    "stage": "prototype",
-    "title": "World Weave",
-    "tagline": "Weave real heritage patterns, one tile at a time.",
-    "description": "World Weave is a calm tile-placement puzzle built from real heritage patterns. Rotate and flip each tile so its edges continue whatever is already placed, then drop it into an open cell - nothing is ever blocked. Every region shares one weave-fit mechanic and adds a single construction-rule twist: a locking rosette (Mesopotamia), an unbroken kolam thread (Deccan & South India), or a backward color-run (Niger River & West Africa). Fill a panel to reveal real heritage notes, and match its twist for a \"perfect weave.\" The World Atlas tracks your mastery as more civilizations are added.",
-    "genre": "tile-placement puzzle",
-    "demo": true,
-    "howToPlay": [
-      "Tap Rotate or Flip to line up the active tile's edges with what's already on the board.",
-      "Tap an open cell to drop the tile - nothing is ever blocked, so you can always keep playing.",
-      "A strong edge match glows and chimes; a weak one just looks and sounds duller.",
-      "Chain good placements for a streak, and watch heritage notes reveal at 25%, 50% and 75% filled.",
-      "Each region adds one twist to learn: a locking rosette, an unbroken thread, or a backward color-run.",
-      "Match every twist across a full panel for a \"perfect weave\" and unlock a deeper heritage fact.",
-      "Tap Undo for a free take-back - except a locked rosette cell, which stays locked for good.",
-      "Open World Atlas from the title screen to track your mastery across every region."
-    ],
-    "icon": "games/world-weave/icon.svg",
-    "play": "games/world-weave/play/"
-  },
-  {
     "slug": "xiangqi-river-and-palace",
     "stage": "prototype",
     "title": "Xiangqi",
