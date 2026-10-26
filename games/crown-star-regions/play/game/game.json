@@ -7,7 +7,7 @@
   "version": "0.2.4",
   "monetization": {
     "model": "free",
-    "previewSeconds": 180
+    "previewSeconds": 90
   },
   "locales": [
     "en"
