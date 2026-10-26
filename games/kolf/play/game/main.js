@@ -25,7 +25,7 @@ document.getElementById('game').addEventListener('wheel', (e) => { e.preventDefa
 
 // The real 3D court (see view3d/court3d.js): loaded in the background; the painted court is used until it is ready or if WebGL is missing.
 const q3 = (() => { try { const m = /[?&]q=(low|medium|high)/.exec(globalThis.location.search); if (m) return m[1]; } catch { /* ignore */ } const nav = globalThis.navigator || {}; let touch = false; try { touch = !!(globalThis.matchMedia && globalThis.matchMedia('(pointer: coarse)').matches); } catch { /* ignore */ } return (nav.hardwareConcurrency && nav.hardwareConcurrency <= 6) || (nav.deviceMemory && nav.deviceMemory <= 4) || touch ? 'medium' : 'high'; })();
-if (!/[?&]fig=2d/.test(globalThis.location.search)) import('./view3d/court3d.js').then((m) => m.createCourt3D({ quality: q3 })).then((api) => { if (api) { court3d.api = api; globalThis.__kolf3d = api; } }).catch((e) => console.warn('kolf 3d unavailable', e));
+const start3d = () => import('./view3d/court3d.js').then((m) => m.createCourt3D({ quality: q3 })).then((api) => { if (api) { court3d.api = api; globalThis.__kolf3d = api; } }).catch((e) => console.warn('kolf 3d unavailable', e));
 
 // The vendored 3D layer's licence text, shown as the last About page (required by the layer's licences).
 fetch('./vendor3d/LICENSES.md').then((r) => (r.ok ? r.text() : '')).then((txt) => {
@@ -33,4 +33,10 @@ fetch('./vendor3d/LICENSES.md').then((r) => (r.ok ? r.text() : '')).then((txt) =
   if (paras.length > 1) ABOUT.push({ title: 'Credits: 3D people and tools', p: paras.slice(2) });
 }).catch(() => {});
 
-boot({ createGame, meta, canvas: document.getElementById('game'), background: '#140d07' });
+// The 3D court (three.js graph + WebGL stage + scenery build) starts only AFTER the kit has sized the canvas and drawn a few frames:
+// started alongside boot() it starved weak WebViews, so the canvas was still unsized after 20 s. The painted court is used meanwhile.
+boot({ createGame, meta, canvas: document.getElementById('game'), background: '#140d07' }).then(() => {
+  if (/[?&]fig=2d/.test(globalThis.location.search)) return;
+  let n = 0; const wait = () => (++n < 4 ? requestAnimationFrame(wait) : setTimeout(start3d, 400));
+  requestAnimationFrame(wait);
+});

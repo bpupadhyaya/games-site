@@ -88,7 +88,7 @@ export const ABOUT = [
   { title: 'What you get', items: [
     P('Three rule sets: Classic (8 by 8), Mini (6 by 6, quick) and Reverse (fewest discs wins).'),
     P('Five computer levels from Beginner to Master, two players on one phone, hands-on lessons, Hint, legal-move marks, take back, and Auto Play (Watch & Learn).'),
-    P('Three felt boards and two disc styles to earn. Large text, reduced motion and sound options. No ads, and it works offline.'),
+    P('Three felt boards and two disc styles to earn. Large text, reduced motion and sound options. It works offline.'),
   ] },
   { title: 'Credits', items: [
     P('Board, discs, sounds and the computer player were made for Arcforge. Titles are set in Cormorant Garamond (SIL Open Font License 1.1).'),

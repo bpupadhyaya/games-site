@@ -13,8 +13,8 @@ const STR = {
   autoSession: 'Watch & Learn finished', autoSummary: 'You saw how every fold is chosen: the ideas, the one that fits, and the fold itself. Try the same models yourself.',
   autoAgain: 'Watch again', autoExit: 'Back to menu', autoThink: 'Thinking', autoReveal: 'This fold', autoAct: 'Folding', autoPaused: 'Paused',
   settings: 'Settings', soundOn: 'Sound: on', soundOff: 'Sound: off', thinkTime: 'Think time in Watch & Learn', seconds: ' s', textSize: 'Text size',
-  unlock: 'Unlock full game', restore: 'Restore purchase', owned: 'Full game unlocked. Thank you!', resetProgress: 'Reset progress', resetConfirm: 'Tap again to erase all progress',
-  demoLeft: '{n} models left in the web demo', demoLimitTitle: 'That is the web demo', demoLimitBody: 'The free web demo folds the first three models. Get the full game on iPhone and Android for every model, Studio and all papers.',
+  unlock: 'Go ad-free', restore: 'Restore purchase', owned: 'Full game unlocked. Thank you!', resetProgress: 'Reset progress', resetConfirm: 'Tap again to erase all progress',
+  demoLeft: '{n} models left in the web demo', demoLimitTitle: 'That is the web demo', demoLimitBody: 'The free web demo folds the first three models. Get the free app on iPhone and Android for every model, Studio and all papers.',
   studioHint: 'Drag from any point of the paper: that point is carried to your finger and the paper folds along the crease between.',
   studioDone: 'Fold made.', studioNothing: 'Nothing to undo', tapGrab: 'Grab the glowing corner and drag it to the dot.',
   paperName: 'Paper', unlockPaper: 'Finish a model to unlock its papers.',
@@ -73,7 +73,7 @@ export const RULES = [
   { title: 'Hint, Undo and Restart', art: 'hint', body: [
     'Hint plays the current fold once as a ghost demonstration, then the glowing corner pulses for a few seconds. Hints are free and unlimited, but each press is counted and costs stars.',
     'Undo takes back the last step and plays it in reverse. It removes that step\'s neatness score; hints already used stay counted. Restart puts a fresh sheet on the table and clears the model\'s scores and hint count.',
-    'Pause stops the game; menus, rules and Watch & Learn never use up your free preview time.'] },
+    'Pause stops the game. Free to play with short ads; go ad-free once.'] },
   { title: 'Stars', art: 'stars', body: [
     'Finishing a model gives one star. Two stars: an average neatness of 45 percent or more with no more than two hints. Three stars: an average of 70 percent or more with no hints.',
     'Your best result for each model is kept. Folding a model again can only improve it.',
@@ -89,16 +89,16 @@ export const RULES = [
   { title: 'Watch & Learn', art: 'auto', body: [
     'Watch & Learn plays a whole session for you: for each fold the game thinks (it shows the candidate crease lines one after another), reveals the fold it chooses with the corner and landing ring, and then folds it.',
     'You can set the thinking time to 2, 5, 8 or 10 seconds in Settings. The Pause button freezes everything exactly where it is and Resume carries on.',
-    'Watch & Learn is free and never uses up your free preview.'] },
-  { title: 'Free preview and unlocking', art: 'preview', body: [
-    'You can fold for 90 seconds of real play for free. The menus, this Rules reference, About, Settings, Watch & Learn and every card never count against the 90 seconds.',
-    'When the preview ends you can unlock the full game once with a single purchase, or restore an earlier purchase. There are no ads and no timers.',
+    'Watch & Learn is always free to use.'] },
+  { title: 'Free to play and ad-free', art: 'preview', body: [
+    'Free to play with short ads; go ad-free once.',
+    'If you already bought it, Restore purchase is on the game page in Arcforge. There are no timers.',
     'The free web demo plays the first three models and a short Studio session.'] },
 ];
 
 export const ABOUT = [
   { title: 'Origami: Fold by Fold', body: 'Fold one sheet of patterned paper, one crease at a time, into a finished model. The paper is real, layered and curling: grab a flap, feel it lift, and let the crease snap flat.' },
   { title: 'Heritage', body: 'Origami (from the Japanese ori, to fold, and kami, paper) is the art of folding paper, practised in Japan for centuries and loved around the world. The papers here are inspired by traditional printed washi patterns: waves, hemp leaf, blossom, dots, stripes and gold.' },
-  { title: 'What you get', body: 'Seven models in three chapters from a kite to a paper dart, every one with its own papers; Studio for free folding; Watch & Learn that folds whole models while showing how each fold is chosen; and a Rules guide with text that grows to 300 percent. No ads, no timers, works offline.' },
+  { title: 'What you get', body: 'Seven models in three chapters from a kite to a paper dart, every one with its own papers; Studio for free folding; Watch & Learn that folds whole models while showing how each fold is chosen; and a Rules guide with text that grows to 300 percent. No timers, works offline.' },
   { title: 'Part of Arcforge', body: 'Origami: Fold by Fold belongs to the Arcforge collection of World Heritage Games.' },
 ];

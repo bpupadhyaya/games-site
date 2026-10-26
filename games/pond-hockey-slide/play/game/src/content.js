@@ -19,9 +19,9 @@ export const ABOUT = [
     ],
   },
   {
-    title: 'Credits and the free preview',
+    title: 'Credits and ads',
     p: [
-      'The first 90 seconds of real play are free. Menus, rules, Watch & Learn and pauses never use up the preview. One purchase unlocks the full game on this device, with no ads and no timers.',
+      'Free to play with short ads; go ad-free once.',
       'Made by Arcforge: polished world heritage games that work offline. All artwork and sound are drawn and synthesised inside the game.',
     ],
   },
@@ -128,10 +128,10 @@ export const RULES = [
     ],
   },
   {
-    title: '10. Two players, text size and the free preview',
+    title: '10. Two players, text size and free play',
     p: [
       'In two-player mode one phone is shared. The pond never turns; after each shot a hand-over card covers the controls until the next player taps it, so nobody sees the aim of the other by accident.',
-      'Text size (Settings, or A- and A+ on the reading pages) goes from 100% to 300% and the menus scroll when they no longer fit. The first 90 seconds of real play are free; menus, rules, Watch & Learn and pauses never count. In the web demo you can play one match against the first two rivals.',
+      'Text size (Settings, or A- and A+ on the reading pages) goes from 100% to 300% and the menus scroll when they no longer fit. In the web demo you can play one match against the first two rivals. Free to play with short ads; go ad-free once.',
     ],
   },
 ];

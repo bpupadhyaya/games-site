@@ -97,7 +97,7 @@ export const ABOUT = [
     P('If you are a Sámi player, teacher or organisation and see something to correct or improve, please tell us through the app store page.'),
   ] },
   { title: 'This app', items: [
-    P('Four computer levels, two players on one phone, hints, Take back, Auto Play (Watch and Learn), text size up to 300 percent and reduced motion. Works offline, no ads.'),
+    P('Four computer levels, two players on one phone, hints, Take back, Auto Play (Watch and Learn), text size up to 300 percent and reduced motion. Works offline.'),
   ] },
   { title: 'Made by', items: [
     P('Part of Arcforge, a collection of heritage games from around the world.'),

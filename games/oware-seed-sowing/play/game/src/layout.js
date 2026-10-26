@@ -36,7 +36,7 @@ const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const BOARD_W = 680, BOARD_H = 676;                  // the canonical board's footprint (frame + shadow margin)
 
 function build(w, h, ins) {
-  const wide = w >= h * 1.18, tall = !wide && h >= 1540, mode = wide ? 'wide' : tall ? 'tall' : 'compact';
+  const wide = w >= h * 1.18, tall = !wide && h >= 1540 + (ins.t > 0 ? ins.t + 32 / Math.max(host.px, 0.2) : 0), mode = wide ? 'wide' : tall ? 'tall' : 'compact';
   const L = { w, h, wide, tall, mode, ins };
   const U = L.U = { x0: ins.l, y0: ins.t, x1: w - ins.r, y1: h - ins.b }; U.w = U.x1 - U.x0; U.h = U.y1 - U.y0;
   const backSz = ins.back ? Math.max(ins.back, 56) : 0;
@@ -44,7 +44,9 @@ function build(w, h, ins) {
   const oy = L.oy = tall ? (h - 1560) / 2 : 0;
   // decorative woven bands: thick on portrait phones, thin elsewhere; mid bands only frame the phone-shaped board scene
   const tb = tall ? 92 : wide ? 40 : h >= 1100 ? 60 : 40;
-  L.bands = { top: R(0, 0, w, tb), bottom: R(0, h - tb, w, tb), mid: tall ? [R(0, 326 + oy, w, 50), R(0, 1130 + oy, w, 56)] : null, tb };
+  // the top band sits BELOW the status bar / notch (field colour above it); tt = top clearance used by the layouts
+  const gapT = ins.t > 0 ? ins.t + 32 / Math.max(host.px, 0.2) : 0;   // status bar + the kit's preview pill (it sits at inset + 6 css px)
+  L.bands = { top: R(0, gapT, w, tb), bottom: R(0, h - tb, w, tb), mid: tall ? [R(0, 326 + oy, w, 50), R(0, 1130 + oy, w, 56)] : null, tb, tt: tb + gapT };
 
   playLayout(L);
   L.title = (() => { const c = {}; return (hasSave) => (c[hasSave ? 1 : 0] ??= buildTitle(L, !!hasSave)); })();
@@ -53,7 +55,7 @@ function build(w, h, ins) {
   L.over = buildOver(L);
   const tc = wide ? L.title(false).card : null;
   L.demo = { cx: tc ? tc.x + tc.w / 2 : w / 2, cy: tall ? 990 + oy : h / 2, sc: clamp(Math.min(((tc ? tc.w : U.w) - 24) / 640, (U.h - 24) / 420), 0.5, 1), dim: !tall };
-  L.dev = { x: U.x1 - 20, y: Math.max(U.y0 + 28, wide ? tb + 22 : 40) };
+  L.dev = { x: U.x1 - 20, y: Math.max(U.y0 + 28, wide ? L.bands.tt + 22 : 40) };
   return L;
 }
 
@@ -85,7 +87,7 @@ function playLayout(L) {
     L.apCap = { x: 360, y: barY - 14, size: 22 };
   } else if (!wide) {
     const tiers = [{ k: 1, hh: 190, mh: 118, bh: 82 }, { k: 0.82, hh: 132, mh: 100, bh: 76 }, { k: 0.66, hh: 96, mh: 88, bh: 70 }];
-    const top0 = Math.max(L.bands.tb, ins.t) + 6, bot = h - Math.max(L.bands.tb, ins.b + 8) - 8;
+    const top0 = L.bands.tt + 6, bot = h - Math.max(L.bands.tb, ins.b + 8) - 8;
     let T = tiers[2], s = 0.5;
     for (const t of tiers) {
       const sp = (bot - top0 - (t.hh + t.mh + t.bh)) / (BOARD_H + 56);
@@ -105,12 +107,12 @@ function playLayout(L) {
     L.apCap = { x: 360, y: barY - 10, size: 22 };
   } else {
     // wide: left card (status + message), board, right card (buttons)
-    const g = 14, Lmin = 190, tb = L.bands.tb;
-    const sH = (h - 2 * tb - 20) / BOARD_H, sW = (U.w - 2 * Lmin - 2 * g - 8) / BOARD_W;
+    const g = 14, Lmin = 190, tb = L.bands.tb, tt = L.bands.tt;
+    const sH = (h - tb - tt - 20) / BOARD_H, sW = (U.w - 2 * Lmin - 2 * g - 8) / BOARD_W;
     const s = clamp(Math.min(sH, sW, 1.08), 0.4, 1.08), bw = BOARD_W * s;
     const sym = Math.min(400, (U.w - bw) / 2 - g - 4);
     board.s = s; board.cx = U.x0 + U.w / 2; board.cy = h / 2;
-    const cardTop = Math.max(tb + 8, ins.back ? L.backBox.y + L.backBox.h + 4 : 0, U.y0 + 6), cardBot = Math.min(h - tb - 8, U.y1 - 6), cardH = cardBot - cardTop;
+    const cardTop = Math.max(tt + 8, ins.back ? L.backBox.y + L.backBox.h + 4 : 0, U.y0 + 6), cardBot = Math.min(h - tb - 8, U.y1 - 6), cardH = cardBot - cardTop;
     L.leftCard = R(board.cx - bw / 2 - g - sym, cardTop, sym, cardH);
     L.rightCard = R(board.cx + bw / 2 + g, cardTop, sym, cardH);
     const lc = L.leftCard;
@@ -151,7 +153,7 @@ function buildTitle(L, hasSave) {
     return T;
   }
   if (!L.wide) {
-    const top0 = Math.max(L.bands.tb, ins.t) + 8, bot = h - Math.max(L.bands.tb, ins.b + 6) - 6, lockH = Math.round(Math.max(0.35 * 720, 120 / Math.max(host.px, 1e-6)) / 3.67);
+    const top0 = L.bands.tt + 8, bot = h - Math.max(L.bands.tb, ins.b + 6) - 6, lockH = Math.round(Math.max(0.35 * 720, 120 / Math.max(host.px, 1e-6)) / 3.67);
     let pitch = 88, statsH = 76;
     const heroFor = (p, sh) => (bot - top0 - lockH - 28 - n * p - sh - 30) / HERO_H;
     if (heroFor(pitch, statsH) < 0.62) pitch = 74;
@@ -169,7 +171,7 @@ function buildTitle(L, hasSave) {
     return T;
   }
   // wide: art on the left, a card of buttons on the right
-  const tb = L.bands.tb, aw = clamp(U.w * 0.46, 420, 640), cardX = U.x1 - aw - 12, cardTop = tb + 8, cardBot = h - tb - 8;
+  const tb = L.bands.tb, aw = clamp(U.w * 0.46, 420, 640), cardX = U.x1 - aw - 12, cardTop = L.bands.tt + 8, cardBot = h - tb - 8;
   const lockW = Math.min(aw - 44, Math.max(0.28 * 720, 120 / Math.max(host.px, 1e-6))), lockH = Math.round(lockW / 3.67);
   const pitch = Math.min(88, (cardBot - cardTop - 20 - lockH - 14) / n), bh = pitch - 10, rowsH = n * pitch - (pitch - bh);
   const ry0 = cardTop + (cardBot - cardTop - rowsH - lockH - 14) / 2;
@@ -177,7 +179,7 @@ function buildTitle(L, hasSave) {
   T.card = R(cardX, cardTop, aw, cardBot - cardTop);
   T.lockup = { cx: cardX + aw / 2, top: ry0 + rowsH + 14, h: lockH };
   const leftX0 = U.x0 + 8, leftW = cardX - leftX0 - 8, lcx = leftX0 + leftW / 2;
-  const zoneTop = Math.max(tb + 6, ins.back ? L.backBox.y + L.backBox.h : 0), zoneBot = h - tb - 6;
+  const zoneTop = Math.max(L.bands.tt + 6, ins.back ? L.backBox.y + L.backBox.h : 0), zoneBot = h - tb - 6;
   const statsH = zoneBot - zoneTop > 600 ? 70 : 0;
   const sc = clamp(Math.min((leftW - 20) / HERO_W, (zoneBot - zoneTop - statsH - 20) / HERO_H), 0.4, 1.1), heroH = HERO_H * sc;
   const blockH = heroH + statsH + 18, top = zoneTop + Math.max(0, (zoneBot - zoneTop - blockH) / 2);
@@ -196,7 +198,7 @@ function buildSettings(L) {
     S.blurb = { x: 360, y: 980 + oy, w: 600, size: 26 }; S.seeds = { x0: 210, y: 1090 + oy, step: 38, sc: 1.5 };
     S.back = R(130, 1400 + oy, 460, 90); S.size = 30; return S;
   }
-  const top0 = Math.max(L.bands.tb, ins.t) + 10, bot = h - Math.max(L.bands.tb, ins.b + 6) - 10, availH = bot - top0;
+  const top0 = L.bands.tt + 10, bot = h - Math.max(L.bands.tb, ins.b + 6) - 10, availH = bot - top0;
   if (!L.wide) {
     const k = clamp(availH / 1068, 0.6, 1), rowH = 84 * k, step = 100 * k, tH = 110 * k;
     S.panel = R(40, top0 - 4, 640, availH + 8); S.title = { x: 360, y: top0 + 76 * k, size: Math.round(70 * k) };
@@ -217,7 +219,7 @@ function buildSettings(L) {
 // ---- About / Rules reference pages: a framed panel, a scrolling body, text-size stepper, Back / Next ----------------------------
 function buildReader(L) {
   const { w, h, U, ins, wide } = L, tb = L.bands.tb;
-  const top = Math.max(ins.t, wide ? tb : 92) + 8 + (L.tall ? 12 : 0), navH = L.tall ? 84 : 72;
+  const top = (wide ? L.bands.tt : Math.max(L.bands.tt, 92)) + 8 + (L.tall ? 12 : 0), navH = L.tall ? 84 : 72;
   const navY = h - Math.max(ins.b + 12, wide ? tb + 10 : L.tall ? 78 : tb + 6) - navH;
   const pw = wide ? Math.min(U.w - 40, 1000) : w - 72, px = U.x0 + (U.w - pw) / 2;
   const hdrH = wide ? 70 : 90, panel = R(px, top, pw, navY - 14 - top);

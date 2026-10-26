@@ -158,7 +158,7 @@ export function pauseWidgets(state) {
 }
 export function demoLimitWidgets() {
   return [
-    { t: 'gap', h: isWide() ? 20 : 200 }, { t: 'h', label: 'That is the free preview', size: 48 },
+    { t: 'gap', h: isWide() ? 20 : 200 }, { t: 'h', label: 'That is the demo end', size: 48 },
     { t: 'p', label: 'You have used the kicks of the web demo. The full game on iPhone and Android has all 24 ladder levels, every rival, lessons and Watch & Learn.', size: 28 },
     { t: 'gap', h: 20 },
     { t: 'btn', id: 'menu', label: 'Main menu', primary: true },

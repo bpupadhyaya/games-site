@@ -20,9 +20,9 @@ export const ABOUT = {
       ],
     },
     {
-      title: 'Credits and the free preview',
+      title: 'Credits and ads',
       body: [
-        { p: 'You can play a free preview first. Unlocking the full game is a single one-time purchase. There are no ads and no subscriptions. Use Restore Purchase in Settings if you have bought it before.' },
+        { p: 'Free to play with short ads; go ad-free once.' },
         { p: 'All pictures are painted by the game itself and all sounds are synthesized on your device.' },
         { p: 'Kintsugi is part of Arcforge, a collection of world heritage games.' },
       ],
@@ -177,9 +177,9 @@ export const RULES = {
       ],
     },
     {
-      title: 'Free preview and keyboard',
+      title: 'Keyboard and free play',
       body: [
-        { p: 'The free preview counts 90 seconds of real play (fitting or gilding, not paused and not Watch and Learn). Menus, the shelf, these pages and Watch and Learn are free. After the preview, one purchase unlocks the whole game. In the web demo three vessels can be started, then the demo ends.' },
+        { p: 'Menus, the shelf, these pages and Watch and Learn are free. In the web demo three vessels can be started, then the demo ends. Free to play with short ads; go ad-free once.' },
         { li: ['Mouse or touch: everything.', 'Q / E: turn the selected shard. Shift for fine turns.', 'Arrow keys: nudge the selected shard. Tab: select the next shard. Enter: try to fit it.', 'H: hint. G: change guide. P or Escape: pause.'] },
       ],
     },

@@ -14,7 +14,7 @@ export const ABOUT = [
   { li: `Duels run to ${DEFAULT_TARGET} points (or ${tgt} in Settings). Points only: there are no stakes, chips or money.` },
   { li: 'After every round you get a short tell about your own habits, and the result screen shows which throws you favour.' },
   { li: 'Watch and Learn plays a whole duel for you with time to think before each throw, and you can pause it. A Hint button shows how to read the rival.' },
-  { li: 'A full Rules page and text size up to 300%. Sound is made on your device. No ads, works offline.' },
+  { li: 'A full Rules page and text size up to 300%. Sound is made on your device. Works offline.' },
   { sp: 1 },
   { p: 'Simplifications: a closed fist counts as zero, so a throw is 0 to 5 and a call is 0 to 10. Regional tables vary on this and on how a tied round is handled; the Rules page says exactly what this game does.' },
   { sp: 1 },
@@ -33,7 +33,7 @@ export const HOWTO = [
   { li: 'The stronger rivals read you too. If you always throw the same number or always guess a repeat, they will use it. Mix it up.' },
   { h: 'Other modes' },
   { li: 'Watch and Learn plays a short duel for you, thinking before each throw. Pause it any time.' },
-  { li: 'Settings: sound, think time, Italian number words, duel length, reduced motion, your hand colour, Restore purchase, and text size.' },
+  { li: 'Settings: sound, think time, Italian number words, duel length, reduced motion, your hand colour and text size.' },
   { h: 'On a keyboard' },
   { li: 'Keys 0 to 5 pick the throw. Q W E R T Y U I O P pick a call of 0 to 9 and the minus key picks 10. Enter or Space throws. H is the hint and Escape pauses.' },
 ];
@@ -114,7 +114,7 @@ export const RULES = [
     title: 'Watch and Learn and Settings',
     blocks: [
       { h: 'Watch and Learn' },
-      { p: `The computer plays your side of a short duel. Before each throw it thinks for ${THINK_TIMES[1]} seconds (set in Settings, ${THINK_TIMES[0]} to ${THINK_TIMES[THINK_TIMES.length - 1]}), then shows its throw and call for 2 seconds with the reason, then throws. Pause and Resume freeze the whole show exactly where it stopped. Real duels use the clock for the free preview; Watch and Learn does not.` },
+      { p: `The computer plays your side of a short duel. Before each throw it thinks for ${THINK_TIMES[1]} seconds (set in Settings, ${THINK_TIMES[0]} to ${THINK_TIMES[THINK_TIMES.length - 1]}), then shows its throw and call for 2 seconds with the reason, then throws. Pause and Resume freeze the whole show exactly where it stopped. Watch and Learn is always free to use.` },
       { h: 'Settings' },
       { li: 'Sound on or off.' },
       { li: 'Think time for Watch and Learn.' },

@@ -217,7 +217,7 @@ export function renderDemoLimit(ctx, state, L) {
   pageArt(ctx, state, L);
   const P = L.page, pr = R(P.panel.x, L.U.y0 + L.U.h * 0.2, P.panel.w, Math.min(520, L.U.h * 0.6));
   panel(ctx, pr, { radius: 26, brand: true });
-  text(ctx, 'That was the free preview', pr.x + pr.w / 2, pr.y + 80, 44, '#f3e6c4', { font: DISPLAY, weight: 700, maxW: pr.w - 40 });
+  text(ctx, 'That was the demo end', pr.x + pr.w / 2, pr.y + 80, 44, '#f3e6c4', { font: DISPLAY, weight: 700, maxW: pr.w - 40 });
   para(ctx, 'The full game, with every rule set, all five computer levels, the coach and Watch & Learn, is in the Arcforge app for iPhone and Android.', pr.x + 32, pr.y + 120, pr.w - 64, 28, COL.text, { weight: 500 });
   button(ctx, R(pr.x + (pr.w - 300) / 2, pr.y + pr.h - 100, 300, 70), 'Back', 'back', { kind: 'primary' });
 }

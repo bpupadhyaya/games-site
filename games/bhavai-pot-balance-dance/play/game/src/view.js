@@ -1,6 +1,6 @@
 // Drawing for every screen. render() is the single entry point; the playing screen lives in playview.js, text screens in docview.js.
 import { PAL, UI, DISPLAY, drawStars, clamp, TAU } from './art.js';
-import { txt, button, panel, rrect, chip, wrap, wrapFit } from './ui.js';
+import { txt, button, panel, rrect, chip, headerTitle, wrap, wrapFit } from './ui.js';
 import { renderDoc } from './docview.js';
 import { renderPlay, renderStage, ordinal, fmtTime } from './playview.js';
 import { ABOUT, HOWTO, rulesPages, THINK_CHOICES } from './content.js';
@@ -130,7 +130,7 @@ function potRow(ctx, x, y, n, target, size) {
 function renderActs(ctx, st, L) {
   const G = L.courses, S = L.S;
   button(ctx, G.back, 'Back', { icon: 'back', kind: 'ghost', size: 28 });
-  txt(ctx, 'Choose an act', S.x + S.w / 2 + (L.backPad ? L.backPad / 2 : 0), G.titleY, 40, PAL.gold, { align: 'center', font: DISPLAY, weight: 700, stroke: 7, maxW: S.w - 380 });
+  headerTitle(ctx, 'Choose an act', G.back, S, G.titleY, 40, { font: DISPLAY, weight: 700, stroke: 7 });
   G.cards.forEach((r, i) => {
     const a = ACTS[i], best = st.best[a.id] ?? {}, s = actStats(a);
     const locked = st.demo && i > 0;
@@ -166,7 +166,7 @@ function drawPoster(ctx, r, a, t) {
 function renderDetail(ctx, st, L) {
   const D = L.detail, S = L.S, a = ACTS[st.sel], best = st.best[a.id] ?? {}, s = actStats(a);
   button(ctx, D.back, 'Back', { icon: 'back', kind: 'ghost', size: 28 });
-  txt(ctx, a.name, S.x + S.w / 2 + (L.backPad ? L.backPad / 2 : 0), L.courses.titleY, 42, PAL.gold, { align: 'center', font: DISPLAY, weight: 700, stroke: 7, maxW: S.w - 380 });
+  headerTitle(ctx, a.name, D.back, S, L.courses.titleY, 42, { font: DISPLAY, weight: 700, stroke: 7 });
   const I = D.info;
   panel(ctx, I, { rad: 26, fill: 'rgba(7,22,44,0.86)' });
   const pad = 22;

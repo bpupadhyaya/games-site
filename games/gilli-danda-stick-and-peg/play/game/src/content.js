@@ -24,7 +24,7 @@ export const ABOUT = [
   h('What is in the game'),
   p('Real 3D lanes and fields with real-looking players. A Team Match against a rival village, a Distance Challenge for one striker, a Daily Challenge with the same field for everyone, and Auto Play where the computer plays and explains each decision. Three levels of fielders (Gully, Mohalla, Maidan) and three grounds (Mango Lane, Harvest Field, Lamp Night).'),
   h('Original, and for everyone'),
-  p('Every team, village and player in this game is invented. It is a score-only game: no chips, no stakes, no betting of any kind. One purchase after a free preview, no ads.'),
+  p('Every team, village and player in this game is invented. It is a score-only game: no chips, no stakes, no betting of any kind. Go ad-free once.'),
   h('3D people and credits'),
   p('The players are 3D people from the Microsoft Rocketbox Avatar Library (MIT) with motion made in the game itself. The 3D engine is three.js (MIT). Full credits are listed below when the 3D layer is present.'),
   gap(6),

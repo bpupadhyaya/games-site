@@ -25,43 +25,44 @@ export function titleWidgets(state, land) {
   const w = [];
   if (!land) w.push({ t: 'art', h: Math.round(v3.on ? Math.min(520, Math.max(240, FR.h - topSafe() - botSafe() - 1010)) : Math.min(380, Math.max(240, FR.h * 0.24))), draw: (ctx, cw, ch) => titleHero(ctx, cw, ch, state) });
   if (state.resume) w.push({ t: 'btn', id: 'resume', label: 'Continue match', sub: resumeLine(state.resume), primary: true, h: 92 });
-  w.push({ t: 'btn', id: 'ai', label: 'Play the computer', primary: !state.resume, h: 88 });
-  w.push({ t: 'btn', id: 'two', label: 'Two players', sub: 'Pass the phone', h: 80 });
-  w.push({ t: 'btn', id: 'solo', label: 'Practice', sub: state.record.practiceBest ? `Best ${state.record.practiceBest}` : 'Twelve discs on your own', h: 80 });
-  w.push({ t: 'btn', id: 'watch', label: 'Watch & Learn', sub: 'Two players show how it is done', h: 80 });
-  w.push({ t: 'btn', id: 'howto', label: 'How to Play', row: 1, h: 72 }, { t: 'btn', id: 'rules', label: 'Rules', row: 1, h: 72 });
-  w.push({ t: 'btn', id: 'about', label: 'About', row: 2, h: 72 }, { t: 'btn', id: 'settings', label: 'Settings', row: 2, h: 72 });
+  w.push({ t: 'btn', id: 'ai', label: 'Play the computer', primary: !state.resume, h: land ? 76 : 88 });
+  w.push({ t: 'btn', id: 'two', label: 'Two players', sub: 'Pass the phone', h: land ? 70 : 80 });
+  w.push({ t: 'btn', id: 'solo', label: 'Practice', sub: state.record.practiceBest ? `Best ${state.record.practiceBest}` : 'Twelve discs on your own', h: land ? 70 : 80 });
+  w.push({ t: 'btn', id: 'watch', label: 'Watch & Learn', sub: 'Two players show how it is done', h: land ? 70 : 80 });
+  w.push({ t: 'btn', id: 'howto', label: 'How to Play', row: 1, h: land ? 64 : 72 }, { t: 'btn', id: 'rules', label: 'Rules', row: 1, h: land ? 64 : 72 });
+  w.push({ t: 'btn', id: 'about', label: 'About', row: 2, h: land ? 64 : 72 }, { t: 'btn', id: 'settings', label: 'Settings', row: 2, h: land ? 64 : 72 });
   w.push(lockupWidget());
   return w;
 }
 const resumeLine = (r) => `${r.cfg.mode === 'two' ? 'Two players' : r.cfg.mode === 'solo' ? 'Practice' : LEVELS[r.cfg.opp].name}  ${r.score[0]} : ${r.score[1]}`;
 
-export function setupWidgets(state) {
+export function setupWidgets(state, land = false) {
   const s = state.setup, two = s.mode === 'two', w = [];
   w.push({ t: 'h', label: two ? 'Two players' : 'Play the computer', size: 46 });
   if (!two) {
     w.push({ t: 'p', label: 'Opponent', bold: true, size: 26 });
-    LEVELS.forEach((l, i) => w.push({ t: 'btn', id: `lv${i}`, label: l.name, sub: l.note, active: s.opp === i, h: 82 }));
+    LEVELS.forEach((l, i) => w.push({ t: 'btn', id: `lv${i}`, label: l.name, sub: l.note, active: s.opp === i, h: land ? 76 : 82, ...(land ? { row: 8 + (i >> 1) } : {}) }));
   }
   w.push({ t: 'p', label: 'First to', bold: true, size: 26 });
   TARGETS.forEach((n, i) => w.push({ t: 'btn', id: `tg${i}`, label: `${n}`, sub: TARGET_NAMES[i], active: s.target === i, row: 7, h: 84 }));
   w.push({ t: 'gap', h: 10 });
-  w.push({ t: 'btn', id: 'start', label: 'Start', primary: true, h: 92 });
-  w.push({ t: 'btn', id: 'back', label: 'Back', h: 76 });
+  // Landscape phones are only 720 units tall: Start and Back share one row so they never fall below the fold.
+  w.push({ t: 'btn', id: 'start', label: 'Start', primary: true, h: land ? 80 : 92, ...(land ? { row: 20 } : {}) });
+  w.push({ t: 'btn', id: 'back', label: 'Back', h: land ? 80 : 76, ...(land ? { row: 20 } : {}) });
   return w;
 }
 
-export function settingsWidgets(state) {
-  const st = state.settings, w = [];
+export function settingsWidgets(state, land = false) {
+  const st = state.settings, w = [], R = (n) => (land ? { row: n } : {});
   w.push({ t: 'h', label: 'Settings', size: 46 });
   w.push({ t: 'p', label: `Text size ${Math.round(scaleOf(state) * 100)}%`, bold: true, size: 28 });
   w.push({ t: 'btn', id: 'dec', label: 'Smaller', row: 1, disabled: st.textIdx === 0, h: 76 }, { t: 'btn', id: 'inc', label: 'Larger', row: 1, disabled: st.textIdx === TEXT_SCALES.length - 1, h: 76 });
-  w.push({ t: 'btn', id: 'sound', label: st.sound ? 'Sound: on' : 'Sound: off', h: 78 });
-  w.push({ t: 'btn', id: 'guide', label: st.guide ? 'Aim guide: on' : 'Aim guide: off', sub: 'Dashed arc and scatter circle', h: 84 });
-  w.push({ t: 'btn', id: 'think', label: `Think time: ${THINK_STEPS[st.thinkIdx]} s`, sub: 'Watch & Learn', h: 84 });
+  w.push({ t: 'btn', id: 'sound', label: st.sound ? 'Sound: on' : 'Sound: off', h: 78, ...R(2) });
+  w.push({ t: 'btn', id: 'guide', label: st.guide ? 'Aim guide: on' : 'Aim guide: off', sub: 'Dashed arc and scatter circle', h: 84, ...R(2) });
+  w.push({ t: 'btn', id: 'think', label: `Think time: ${THINK_STEPS[st.thinkIdx]} s`, sub: 'Watch & Learn', h: 84, ...R(3) });
   if (!state.demo) {
     const owned = state.owned;
-    w.push({ t: 'btn', id: 'restore', label: owned ? 'Full game unlocked' : 'Restore purchase', sub: state.restoreMsg || (owned ? 'Thank you for playing' : 'Already bought it? Get it back'), disabled: owned, h: 90 });
+    w.push({ t: 'btn', id: 'restore', label: owned ? 'Full game unlocked' : 'Restore purchase', sub: state.restoreMsg || (owned ? 'Thank you for playing' : 'Already bought it? Get it back'), disabled: owned, h: 90, ...R(3) });
   }
   w.push({ t: 'btn', id: 'back', label: 'Back', primary: true, h: 84 });
   return w;
@@ -122,14 +123,15 @@ export function flowGeom(scene, land) {
     const w = Math.max(440, Math.min(520, FR.w * 0.4));
     return { top, bottom, x: FR.w - FR.r - w - Math.max(24, FR.w * 0.05), w };
   }
-  const w = scene === 'pause' ? Math.min(colW(), 560) : colW();
+  const wide = FR.land && (scene === 'setup' || scene === 'settings');   // two-column screens on landscape phones
+  const w = scene === 'pause' ? Math.min(colW(), 560) : wide ? Math.min(900, FR.w - FR.l - FR.r - 80) : colW();
   return { top, bottom, x: scene === 'pause' ? FR.l + (FR.w - FR.l - FR.r - w) / 2 : colX(), w };
 }
 export function widgetsFor(state, scene) {
   switch (scene) {
     case 'title': return titleWidgets(state, FR.land);
-    case 'setup': return setupWidgets(state);
-    case 'settings': return settingsWidgets(state);
+    case 'setup': return setupWidgets(state, FR.land);
+    case 'settings': return settingsWidgets(state, FR.land);
     case 'result': return resultWidgets(state);
     case 'pause': return pauseWidgets(state);
     case 'demolimit': return demoWidgets();
@@ -141,7 +143,7 @@ export function ensureLayout(state, scene) {
   const key = sig(state, scene);
   if (CACHE.key === key) return CACHE;
   const g = flowGeom(scene, FR.land), scale = scaleOf(state);
-  const lay = flowLayout(metrics, widgetsFor(state, scene), scale, { x: 0, w: g.w, btn: 28 });
+  const lay = flowLayout(metrics, widgetsFor(state, scene), scale, { x: 0, w: g.w, btn: FR.land && (scene === 'setup' || scene === 'settings' || scene === 'title') ? 25 : 28 });
   // centre short screens vertically (not the title: it stays at the top)
   const room = g.bottom - g.top - lay.contentH;
   Object.assign(CACHE, { key, lay, top: g.top + (room > 0 && scene !== 'title' ? Math.min(room / 2, 140) : 0), bottom: g.bottom, x: g.x, w: g.w, max: Math.max(0, lay.contentH - (g.bottom - g.top)) });

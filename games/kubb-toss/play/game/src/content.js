@@ -31,7 +31,7 @@ export const ABOUT = [
   ] },
   { title: 'Made to be comfortable', p: [
     'Every text screen can be enlarged up to 300%. Aim steadiness has three settings. The Think button explains a throw and tests it with real simulated throws, Learn teaches the game in four short lessons (throwing, field kubbs, the baseline and the king), and Watch & Learn lets you watch two players with their reasons on screen.',
-    'The game is free to try for 90 seconds of real play. Menus, the rules, Learn and Watch & Learn are always free; one purchase unlocks everything for good.',
+    'Menus, the rules, Learn and Watch & Learn are always free. Free to play with short ads; go ad-free once.',
   ] },
 ];
 
@@ -123,9 +123,9 @@ export const RULES = [
     'Think tries many throws, throws the best ones twelve times each with your own aim steadiness, and shows the target, loft and spin with how many of the twelve worked.',
     'Learn has four lessons with goals. Watch & Learn plays two computer opponents: it thinks for the time you set (2 to 10 seconds), reveals the throw for 2 seconds with its reason, then throws. Pause freezes the whole loop.',
   ] },
-  { title: 'Saving and the free preview', p: [
+  { title: 'Saving and free play', p: [
     'The match is saved after every baton. Choose Continue on the menu after leaving; the match resumes paused where you stopped.',
-    'The game is free to try for 90 seconds of real play. Menus, these rules, Learn and Watch & Learn do not use the preview time. One purchase unlocks the full game for good; Restore purchases is in Settings and on the unlock screen.',
+    'Free to play with short ads; go ad-free once.',
   ] },
 ];
 

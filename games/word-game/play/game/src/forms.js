@@ -19,12 +19,20 @@ export function wrapEst(str, size, width, cw = 0.47) {
 const rect = (x, y, w, h) => ({ x, y, w, h });
 
 // Returns { items, height }. Item: { row, y, h, lines?, hits: [{ id, x, y, w, h, label, style, on, disabled, kind }] }; x,y relative to the content origin.
-export function layoutForm(rows, width, scale, cwMul = 1) {
+export function layoutForm(rows, width, scale, cwMul = 1, opts = {}) {
   const wrapEst2 = (str, size, w, cw) => wrapEst(str, size, w, cw * cwMul);
   const S = (n) => Math.round(n * scale);
   const items = []; let y = 6;
   const push = (row, h, extra = {}) => { items.push({ row, y, h, hits: [], ...extra }); const it = items[items.length - 1]; y += h; return it; };
-  for (const row of rows) {
+  for (let ri = 0; ri < rows.length; ri += 1) {
+    const row = rows[ri];
+    if (opts.twoCol && row.k === 'btn') {   // landscape welcome screens: consecutive option buttons share a compact two-column grid
+      let rj = ri; while (rj < rows.length && rows[rj].k === 'btn') rj += 1;
+      const grp = rows.slice(ri, rj), bh = S(76), gw = S(14), hw = (width - gw) / 2, nr = Math.ceil(grp.length / 2);
+      const it = push({ k: 'btn', id: grp[0].id }, nr * (bh + S(10)));
+      grp.forEach((g, i) => it.hits.push({ id: g.id, x: (i % 2) * (hw + gw), y: Math.floor(i / 2) * (bh + S(10)), w: hw, h: bh, label: g.label, sub: g.sub, style: g.style, disabled: g.disabled, kind: 'btn' }));
+      ri = rj - 1; continue;
+    }
     switch (row.k) {
       case 'h': { const sz = S(38), lines = wrapEst2(row.t, sz, width, 0.58); push(row, lines.length * Math.round(sz * 1.2) + S(16), { lines, size: sz, lh: Math.round(sz * 1.2) }); break; }
       case 'p': { const sz = S(row.small ? 23 : 27), lines = wrapEst2(row.t, sz, width, 0.47); push(row, lines.length * Math.round(sz * 1.42) + S(10), { lines, size: sz, lh: Math.round(sz * 1.42) }); break; }

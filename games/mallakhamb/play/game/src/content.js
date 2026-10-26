@@ -13,7 +13,7 @@ export const ABOUT = {
     { p: 'Mallakhamb turns a routine into a rhythm and balance game. Swipe to climb, slide and wrap in time with the beat, then press and hold to take a long pose and steer your balance. The performer is a generic 3D figure, not a real athlete.' },
     { p: 'This is a game, not a coaching guide. Real mallakhamb is learned from a trained teacher over a soft surface, never from an app.' },
     { h: 'Credits' },
-    { p: 'Made by Arcforge, a collection of heritage games from around the world. All sound is synthesised on your device. Titles are set in Dela Gothic One (SIL Open Font License 1.1). Drawn with canvas graphics and a real-time 3D scene for the performer, the crowd and the pit; no ads, works offline.' },
+    { p: 'Made by Arcforge, a collection of heritage games from around the world. All sound is synthesised on your device. Titles are set in Dela Gothic One (SIL Open Font License 1.1). Drawn with canvas graphics and a real-time 3D scene for the performer, the crowd and the pit; works offline.' },
   ],
 };
 
@@ -128,10 +128,10 @@ export function rulesPages() {
       ],
     },
     {
-      title: 'Free preview and demo',
+      title: 'Free to play and demo',
       blocks: [
-        { h: 'Trying it first' },
-        { p: 'The full game has a free preview of real play; menus, Rules, Watch and Learn and results are always free. When the preview ends you can unlock the whole game once, or restore an earlier purchase.' },
+        { h: 'In the app' },
+        { p: 'Menus, Rules, Watch and Learn and results are always free. Free to play with short ads; go ad-free once.' },
         { p: `The public web demo is limited to ${DEMO_RUNS} performances and the first routine, so it is a taste of the game; the apps for iPhone and Android hold everything.` },
       ],
     },

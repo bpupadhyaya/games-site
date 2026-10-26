@@ -16,7 +16,7 @@ export const ABOUT = {
     { li: 'A carved stone cross, five beans, and two to four seats, each human or computer.' },
     { li: 'Choose which piece to move, make pairs that cannot be landed on, avoid trap squares, and win corner stones for an extra throw.' },
     { li: 'Computer players that weigh every move, a hint button, and Watch and Learn, where the game plays itself and shows its thinking.' },
-    { li: 'A full Rules book, text size up to 300%, portrait and landscape, no ads, no betting.' },
+    { li: 'A full Rules book, text size up to 300%, portrait and landscape, no betting.' },
     { p: PREVIEW_NOTE },
     { h: 'Made by' },
     { p: 'Patolli is part of Arcforge: world heritage games, redrawn with care.' },

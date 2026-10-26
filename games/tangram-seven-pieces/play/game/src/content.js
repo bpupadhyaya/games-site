@@ -72,8 +72,8 @@ export const STR = {
   autoSession: { en: 'Watch & Learn', zh: '观看学习' },
   autoAgain: { en: 'Watch Again', zh: '再看一遍' },
   autoSummary: { en: 'You watched three puzzles solved step by step.', zh: '你看完了三道拼图的逐步解法。' },
-  demoLimitTitle: { en: 'FREE PREVIEW FINISHED', zh: '免费试玩已结束' },
-  demoLimitBody: { en: 'You solved the six free puzzles. Get the full game on iPhone and Android for all chapters, the daily puzzle and the thirteen convex shapes.', zh: '你已完成六道免费题。在 iPhone 和安卓上获取完整版，畅玩全部章节、每日挑战和十三凸形。' },
+  demoLimitTitle: { en: 'DEMO FINISHED', zh: '免费试玩已结束' },
+  demoLimitBody: { en: 'You solved the six free puzzles. Get the free app on iPhone and Android for all chapters, the daily puzzle and the thirteen convex shapes.', zh: '你已完成六道免费题。在 iPhone 和安卓上获取完整版，畅玩全部章节、每日挑战和十三凸形。' },
   demoLeft: { en: '{n} free puzzles left', zh: '还剩 {n} 道免费题' },
   pieceL: { en: 'large triangle', zh: '大三角形' },
   pieceM: { en: 'medium triangle', zh: '中三角形' },
@@ -127,7 +127,7 @@ export const ABOUT = {
   en: [
     { title: 'Tangram: Seven Pieces', body: 'The tangram, called qiqiaoban or "seven boards of skill" in Chinese, is a dissection puzzle that began in China and spread around the world. A square is cut into seven flat pieces, and the fun is in arranging them into thousands of shapes.' },
     { title: 'What is in the game', body: '83 hand-checked silhouettes in seven chapters, from guided first steps to the thirteen convex shapes, plus a new Daily Puzzle every day. Every silhouette is built from the seven real pieces, so each one can be solved.' },
-    { title: 'Made to feel good', body: 'Pieces lift, turn and click into place. A hint shows you the next move, and Watch & Learn plays a whole puzzle for you with time to think. Everything works offline, with no timers and no ads. Text can be enlarged to 300 percent and the whole game is available in English and Chinese.' },
+    { title: 'Made to feel good', body: 'Pieces lift, turn and click into place. A hint shows you the next move, and Watch & Learn plays a whole puzzle for you with time to think. Everything works offline, with no timers. Text can be enlarged to 300 percent and the whole game is available in English and Chinese.' },
   ],
   zh: [
     { title: '七巧板', body: '七巧板是一种起源于中国、流传世界各地的拼图游戏。把一个正方形切成七块平板，再把它们拼成成千上万种图形，乐趣就在于排列组合。' },
@@ -185,7 +185,7 @@ export const RULES = {
     { art: 'auto', title: 'Watch & Learn', body: [
       'Watch & Learn plays three puzzles by itself using each puzzle\'s stored solution. For each piece it first thinks (you choose 2, 5, 8 or 10 seconds), then reveals the move by lighting the piece and its spot for 2 seconds, then places it.',
       'Pause freezes everything exactly where it is and Resume carries on. Watch & Learn is free everywhere and never changes your progress.' ] },
-    { art: 'demo', title: 'Free preview', body: [
+    { art: 'demo', title: 'Free to play', body: [
       'The web preview contains the first six puzzles of the first chapter. The full game on iPhone and Android has everything described here, and works offline.' ] },
   ],
   zh: [

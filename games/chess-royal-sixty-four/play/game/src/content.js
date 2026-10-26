@@ -40,9 +40,9 @@ export const ABOUT = [
     ],
   },
   {
-    title: 'Free, forever',
+    title: 'Free to play',
     lines: [
-      'Free to play, forever. No ads, no purchases.',
+      'Free with short ads. Go ad-free once.',
     ],
   },
 ];

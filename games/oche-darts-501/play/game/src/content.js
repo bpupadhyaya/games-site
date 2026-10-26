@@ -16,7 +16,7 @@ export const ABOUT = [
   ] },
   { title: 'Made to be comfortable', p: [
     'Every text screen can be enlarged up to 300%. Aim steadiness has three settings, from Relaxed to Pub-tough. The Think button and the checkout coach teach finishing as you play, and Watch & Learn lets you watch a whole leg with the reasons shown.',
-    'The game is free to try for 90 seconds of real play. Menus, the rules and Watch & Learn are always free; one purchase unlocks everything for good.',
+    'Menus, the rules and Watch & Learn are always free. Free to play with short ads; go ad-free once.',
   ] },
 ];
 
@@ -48,7 +48,7 @@ export const HOWTO = [
   ], art: 'checkout' },
   { title: 'Watch & Learn', p: [
     'Choose Watch & Learn on the menu to watch two computer players play a whole leg of 301. Each dart has three steps: THINK (the player is working it out, 5 seconds by default; change it with the plus and minus buttons), REVEAL (the chosen target glows for 2 seconds with a plain explanation) and ACT (the dart is thrown).',
-    'Pause freezes everything exactly where it is. Exit returns to the menu. Watching never uses up the free preview.',
+    'Pause freezes everything exactly where it is. Exit returns to the menu.',
   ] },
   { title: 'Two players', p: [
     'Choose Two Players and pass the phone: Player 1 and Player 2 take turns with three darts each. The same rules apply, and the Think button and coach work for both.',
@@ -113,11 +113,11 @@ export const RULES = [
   ] },
   { title: 'Watch & Learn', p: [
     'Two computer players, picked at random from the four stronger opponents, play one leg of 301. For every dart there are three steps: THINK, which lasts 2, 5, 8 or 10 seconds as you choose (5 by default); REVEAL, which lasts 2 seconds while the chosen target glows and the reason is shown; and ACT, when the aim point settles and the dart is thrown.',
-    'Pause freezes every timer and animation until you resume. Watch & Learn does not count against the free preview.',
+    'Pause freezes every timer and animation until you resume.',
   ] },
   { title: 'Saving, settings and unlocking', p: [
     'Quit to menu from the pause menu keeps a match in progress: choose Continue match on the menu. It resumes at the start of the current visit. A finished match is cleared.',
-    'Settings: sound, aim steadiness, the checkout coach, text size (100% to 300%) and Watch & Learn thinking time. Restore purchases is also there.',
-    'Free preview: the first 90 seconds of real play. Menus, these pages and Watch & Learn do not use it up. After that, one purchase unlocks the whole game for good.',
+    'Settings: sound, aim steadiness, the checkout coach, text size (100% to 300%) and Watch & Learn thinking time.',
+    'Free to play with short ads; go ad-free once.',
   ] },
 ];

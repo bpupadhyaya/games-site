@@ -12,14 +12,14 @@ export const ABOUT = {
       fig: { k: 'rows', secret: [4, 1, 7, 2], guesses: [[0, 1, 2, 3], [1, 4, 0, 2]], hide: false },
       body: [
         { p: 'A secret code of digits is hidden. You guess, and every guess earns two clues: bulls (a right digit in the right place) and cows (a right digit in the wrong place). Use the clues to narrow the possibilities until you crack it.' },
-        { p: 'Bulls and Cows is a pencil-and-paper game that has been played in many countries for generations, and it is the ancestor of Mastermind. This version is made for calm, sharp thinking: lit enamel pegs, a coach that teaches real deduction, no ads and no pressure.' },
+        { p: 'Bulls and Cows is a pencil-and-paper game that has been played in many countries for generations, and it is the ancestor of Mastermind. This version is made for calm, sharp thinking: lit enamel pegs, a coach that teaches real deduction and no pressure.' },
         { li: ['Break the Code: find the computer\'s secret in as few guesses as you can.', 'Set the Code: choose your own secret and score the computer\'s guesses. Can you outlast it?', 'A Daily Code, the same for everyone, with a streak.', 'Five grades, from three digits to five digits with repeats.', 'Hints that explain the logic, and Watch and Learn.'] },
       ],
     },
     {
-      title: 'Credits and the free preview',
+      title: 'Credits and ads',
       body: [
-        { p: 'You can play for a free preview first. Unlocking the full game is a single one-time purchase; there are no ads and no subscriptions. Restore Purchase is in Settings.' },
+        { p: 'Free to play with short ads; go ad-free once.' },
         { p: 'Titles are set in Cinzel and interface text in Fredoka, both used under the SIL Open Font License 1.1. All sounds are synthesized on your device.' },
         { p: 'Bulls and Cows is part of Arcforge, a collection of world heritage games.' },
       ],
@@ -183,14 +183,14 @@ export const RULES = {
       title: 'Watch and Learn',
       body: [
         { p: 'The computer solves a hidden code from scratch. Each turn has three parts: Think (it studies the clues), Reveal (it shows its guess and the reason) and Act (it plays the guess).' },
-        { p: 'Pause freezes everything at once and Resume continues exactly where it stopped. Think time is 2, 5, 8 or 10 seconds. Watch and Learn does not use up the free preview and does not change your stats.' },
+        { p: 'Pause freezes everything at once and Resume continues exactly where it stopped. Free to play with short ads; go ad-free once.' },
       ],
     },
     {
-      title: 'Pause, saving and the free preview',
+      title: 'Pause, saving and free play',
       body: [
         { p: 'Pause stops the clock. Your round is saved as you play, so Continue on the menu resumes it, even after closing the game.' },
-        { p: 'The free preview counts real play only. Menus, Rules, Watch and Learn, Pause and results do not use it. After it ends, one purchase unlocks the full game.' },
+        { p: 'Free to play with short ads; go ad-free once.' },
         { p: 'The free web demo allows three rounds.' },
       ],
     },

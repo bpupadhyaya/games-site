@@ -24,7 +24,7 @@ export const ABOUT = [
   ] },
   { title: 'Made to be comfortable', p: [
     'Every text screen can be enlarged up to 300%. Aim steadiness has three settings. The Think button tests a throw with real simulated bags and tells you what happened, Learn teaches throws, scoring and cancellation in five short lessons, and Watch & Learn lets you watch two players with their reasons on screen.',
-    'The game is free to try for 90 seconds of real play. Menus, the rules, Learn and Watch & Learn are always free; one purchase unlocks everything for good.',
+    'Menus, the rules, Learn and Watch & Learn are always free. Free to play with short ads; go ad-free once.',
   ] },
 ];
 

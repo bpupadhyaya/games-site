@@ -216,7 +216,7 @@ export function pauseWidgets(state) {
 
 export function demoLimitWidgets() {
   return [
-    { t: 'gap', h: VIEW.mode === 'wide' ? 40 : 200 }, { t: 'h', label: 'That is the free preview', size: 48 },
+    { t: 'gap', h: VIEW.mode === 'wide' ? 40 : 200 }, { t: 'h', label: 'That is the demo end', size: 48 },
     { t: 'p', label: 'You have played the two legs of the web demo. The full game on iPhone and Android has all five opponents, 301 and 501, matches of up to three legs and your saved records.', size: 28 },
     { t: 'gap', h: 20 },
     { t: 'btn', id: 'menu', label: 'Main menu', primary: true },

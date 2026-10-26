@@ -286,6 +286,13 @@ export function drawBoard(ctx, rect, st) {
 
 // ---- the arm gauge ---------------------------------------------------------------------------------------------------------
 // The pivot sits at the bottom centre; 0 degrees is straight up; the green wedge is the release window for the chosen flip.
+// shrink a one-line label until it fits the given width (never below 9px)
+export function fitHintPx(ctx, text, px, maxW) {
+  let p = px;
+  for (; p > 9; p--) { ctx.font = `700 ${p}px ${FONT}`; if (ctx.measureText(text).width <= maxW) break; }
+  return p;
+}
+
 export function drawGauge(ctx, r, st) {
   const R = Math.min(r.h * 0.68, r.w * 0.34), cx = r.x + r.w / 2, cy = r.y + r.h - 12;
   const rad = (deg) => ((deg - 90) * Math.PI) / 180;
@@ -333,10 +340,14 @@ export function drawGauge(ctx, r, st) {
   ctx.restore();
   // words
   ctx.fillStyle = 'rgba(235,245,255,0.9)'; ctx.font = `700 ${Math.round(clampN(r.h * 0.14, 15, 22))}px ${FONT}`; ctx.textBaseline = 'alphabetic';
+  { const sidePx = Math.min(fitHintPx(ctx, 'early: short', Math.round(clampN(r.h * 0.14, 15, 22)), r.w / 2 - 34), fitHintPx(ctx, 'late: long', Math.round(clampN(r.h * 0.14, 15, 22)), r.w / 2 - 34)); ctx.font = `700 ${sidePx}px ${FONT}`; }
   ctx.textAlign = 'left'; ctx.fillText('early: short', r.x + 14, r.y + r.h - 12);
   ctx.textAlign = 'right'; ctx.fillText('late: long', r.x + r.w - 14, r.y + r.h - 12);
   ctx.textAlign = 'center'; ctx.fillStyle = '#9dffc7';
-  ctx.fillText(st.live ? 'let go in the green' : 'hold PITCH, let go in the green', cx, r.y + 24);
+  const hint = st.live ? 'let go in the green' : 'hold PITCH, let go in the green';
+  const fitPx = fitHintPx(ctx, hint, Math.round(clampN(r.h * 0.14, 15, 22)), r.w - 24);
+  ctx.font = `700 ${fitPx}px ${FONT}`;
+  ctx.fillText(hint, cx, r.y + 24);
   ctx.restore();
 }
 

@@ -171,7 +171,7 @@ export function pauseWidgets(state) {
 
 export function demoLimitWidgets() {
   return [
-    { t: 'gap', h: 200 }, heading('That is the free preview'),
+    { t: 'gap', h: 200 }, heading('That is the demo end'),
     { t: 'p', label: 'You have played the free matches of the web demo. The full game on iPhone and Android has all five rivals, longer matches, the Cup and Watch & Learn.', size: 28 },
     { t: 'gap', h: 20 },
     { t: 'btn', id: 'menu', label: 'Main menu', primary: true },

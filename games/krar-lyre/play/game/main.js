@@ -4,6 +4,7 @@ import { host } from './src/layout.js';
 import { setLogo, setLockup } from './src/brand.js';
 import { createKrarEngine } from './audio/engine.js';
 import { createPresenter } from './view3d/presenter.js';
+import { installResizeGuard } from './resizeguard.js';
 
 const canvas = document.getElementById('game');
 const engine = createKrarEngine();
@@ -73,8 +74,22 @@ const af = new Image(); af.onload = () => setLogo(af); af.src = './brand/arcforg
 const lk = new Image(); lk.onload = () => setLockup(lk); lk.src = './brand/arcforge-lockup.png';
 
 // 3D presenter: boots flat (instant) and builds the WebGL scene in slices, then crossfades in. No WebGL / ?flat -> the flat art stays.
-let presenter = { wrap: (g) => g };
-if (!q.has('flat')) { try { presenter = createPresenter({ kitCanvas: canvas }); } catch (e) { console.warn('3D presenter unavailable', e); } }
-if (q.has('dev')) window.__p3 = presenter;
-// background stays opaque dark behind the flat art; the presenter's canvas sits behind a transparent kit canvas once the scene is ready
-boot({ createGame: async (env) => presenter.wrap(await create(env)), meta, canvas, background: presenter.ok ? 'rgba(0,0,0,0)' : '#08201e' }).then((b) => { gate = b.game; });
+// 1.1.2: the presenter is created AFTER the 2D game is up (it used to be created here, before boot(): constructing the WebGL renderer is a
+// synchronous main-thread call that can take many seconds on a weak phone/emulator GPU, so the canvas stayed unsized and the page looked
+// dead). `view` below is a stable game object that starts flat and switches to the presenter's wrapper once it exists.
+let presenter = { wrap: (g) => g, ok: false }, wrapped = null;
+const lateWrap = (g) => {
+  wrapped = g;
+  return Object.assign({}, g, { update: (...a) => (presenter.ok ? presenter.wrapped : g).update(...a), render: (...a) => (presenter.ok ? presenter.wrapped : g).render(...a) });
+};
+const start3d = () => {
+  if (q.has('flat')) return;
+  try { presenter = createPresenter({ kitCanvas: canvas }); } catch (e) { console.warn('3D presenter unavailable', e); presenter = { wrap: (g) => g, ok: false }; }
+  if (presenter.ok && wrapped) presenter.wrapped = presenter.wrap(wrapped);
+  if (q.has('dev')) window.__p3 = presenter;
+};
+// Resize guard (1.1.2): see resizeguard.js.
+installResizeGuard({ canvas, win: window }).burst();
+// the kit paints the opaque background, then the presenter's render clears the whole canvas whenever the 3D scene is on
+const after3dDelay = () => new Promise((res) => requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(res, 250))));
+boot({ createGame: async (env) => lateWrap(await create(env)), meta, canvas, background: '#08201e' }).then((b) => { gate = b.game; return after3dDelay(); }).then(start3d);

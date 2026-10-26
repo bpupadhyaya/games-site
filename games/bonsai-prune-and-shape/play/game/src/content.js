@@ -20,9 +20,9 @@ export const ABOUT = {
       ],
     },
     {
-      title: 'Credits and the free preview',
+      title: 'Credits and ads',
       body: [
-        { p: 'You can play a free preview first. Unlocking the full game is a single one-time purchase. There are no ads and no subscriptions. Use Restore Purchase in Settings if you have bought it before.' },
+        { p: 'Free to play with short ads; go ad-free once.' },
         { p: 'All pictures are painted by the game itself and all sounds are synthesized on your device.' },
         { p: 'Bonsai is part of Arcforge, a collection of world heritage games.' },
       ],
@@ -157,8 +157,8 @@ export const RULES = {
     { title: 'Pause, saving and Watch and Learn', fig: 'tree:c3', body: [
       { li: ['Pause stops the tree and every animation. Restart gives you the same sapling again. Menu keeps your tree so you can continue it later.', 'One tree per commission is saved: the whole skeleton, wires, buds and the season.', 'Watch and Learn trains a tree by itself using the same hint planner: it thinks (2, 5, 8 or 10 seconds, your choice) while the tree keeps growing, shows what it will do and why, then does it. Pause and Resume freeze everything exactly where it is. It is never saved to your Shelf.'] },
     ] },
-    { title: 'Free preview and keyboard', body: [
-      { p: 'The free preview counts 90 seconds of real play (training a tree, not paused and not Watch and Learn). Menus, the Shelf, these pages, Lessons, the pot choice and the judging are free. After the preview one purchase unlocks the whole game. In the web demo two trees can be started, then the demo ends.' },
+    { title: 'Keyboard and free play', body: [
+      { p: 'Menus, the Shelf, these pages, Lessons, the pot choice and the judging are free. In the web demo two trees can be started, then the demo ends. Free to play with short ads; go ad-free once.' },
       { li: ['Mouse or touch: everything.', '1, 2, 3: choose Snip, Pinch, Wire. H: hint. F: change speed. P or Escape: pause. Enter: present.', 'Arrow keys scroll long pages.'] },
     ] },
   ],

@@ -83,6 +83,6 @@ export const RULES = [
   ] },
   { title: 'Where this version simplifies', p: [
     'The real sport has its own team formats, stake distances and scoring tables; this game keeps the heart of it, throwing a flat pin at a stake, and uses its own simple points. The stake, the pins and the scoring circles are drawn larger than life so they can be seen on a phone. Wind is a constant push while a pin is in the air. Rivals, lanes and names are made up.',
-    'Menus and Watch & Learn are always free. The free preview counts only real play.',
+    'Menus and Watch & Learn are always free. Go ad-free once.',
   ] },
 ];

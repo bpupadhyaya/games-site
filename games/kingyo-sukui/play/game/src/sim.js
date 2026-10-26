@@ -9,6 +9,7 @@ export const SHEETS = 3;
 export const LIFT_T = 0.55;       // seconds of lift animation (the result is decided at release)
 export const NEW_SHEET_T = 1.1;   // pause while a torn sheet is replaced
 export const MAX_SCOOP = 3;
+export const RELEASE_M = 100;     // released fish are put back at least this far inside the pool edge
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 export { clamp };
@@ -56,7 +57,7 @@ export const fishOwned = (rec, k) => (rec.scoops | 0) >= FISH[k].need;
 export const tankOwned = (rec, i) => (rec.bestSession | 0) >= TANKS[i].need;
 
 // ---- the world --------------------------------------------------------------------------------------------------------
-export function makeWorld({ tank = 0, grade = 1, rng, owned, sheets = SHEETS, endless = false }) {
+export function makeWorld({ tank = 0, grade = 1, rng, owned, sheets = SHEETS, endless = false, release = endless }) {
   const T = TANKS[tank], pool = [], wts = [];
   FISH.forEach((f, i) => { if (owned ? owned[i] : true) { pool.push(i); wts.push(T.mix[i]); } });
   const total = wts.reduce((a, b) => a + b, 0) || 1;
@@ -70,7 +71,7 @@ export function makeWorld({ tank = 0, grade = 1, rng, owned, sheets = SHEETS, en
     });
   }
   return {
-    tank, grade, t: 0, fish, endless, sheets, sheetNo: 0, score: 0, streak: 0, scoops: 0, caught: [], bestScoop: 0, torn: 0, ev: [], pending: [],
+    tank, grade, t: 0, fish, endless, release, goal: 0, sheets, sheetNo: 0, score: 0, streak: 0, scoops: 0, caught: [], bestScoop: 0, torn: 0, ev: [], pending: [],
     poi: { down: false, x: TW / 2, y: TH * 0.45, tx: TW / 2, ty: TH * 0.45, sp: 0, wet: 0, paper: 1, entryT: 0, lift: null, hold: 0, fresh: 0.6, dipT: 0, trail: [] },
     last: null, over: false, nextId: T.n,
   };
@@ -88,7 +89,7 @@ export function stepWorld(w, dt, r) {
   if (P.hold > 0) P.hold -= dt;
   if (P.fresh > 0) P.fresh -= dt;
   if (P.entryT > 0) P.entryT -= dt;
-  if (P.lift) { P.lift.t += dt; if (P.lift.t >= LIFT_T) P.lift = null; }
+  if (P.lift) { P.lift.t += dt; if (P.lift.t >= (P.lift.dur || LIFT_T)) P.lift = null; }
   const ox = P.x, oy = P.y;
   if (P.down) {
     const k = Math.min(1, dt * 16);
@@ -155,7 +156,7 @@ export function stepWorld(w, dt, r) {
   if (w.pending.length) {
     for (const p of w.pending) p.t -= dt;
     const ready = w.pending.filter((p) => p.t <= 0);
-    if (ready.length) { w.pending = w.pending.filter((p) => p.t > 0); for (const p of ready) w.fish.push(p.fish); }
+    if (ready.length) { w.pending = w.pending.filter((p) => p.t > 0); for (const p of ready) { w.fish.push(p.fish); w.ev.push({ type: 'release', x: p.fish.x, y: p.fish.y, k: p.fish.k }); } }
   }
 }
 
@@ -192,7 +193,7 @@ export function poiRelease(w, r) {
   const strength = Math.max(0, P.paper) * (1 - TUNE.wetWeak * P.wet) * G.str;
   const load = kept.reduce((a, f) => a + spec(f).w, 0) * TUNE.strain;
   const out = { x: P.x, y: P.y, kept: [], slipped: slipped.map((f) => f.k), tore: false, pts: 0, load, strength, combo: 1, speed: P.sp, empty: inside.length === 0 };
-  P.lift = { t: 0, ok: true, items: kept.map((f) => ({ k: f.k, x: f.x, y: f.y })) };
+  P.lift = { t: 0, ok: true, dur: clamp(0.42 + 0.4 * (load / Math.max(0.05, strength)) * (kept.length ? 1 : 0), 0.42, 0.8), items: kept.map((f) => ({ k: f.k, x: f.x, y: f.y })) };
   for (const f of slipped) { w.ev.push({ type: 'slip', x: f.x, y: f.y, k: f.k }); flee(f, P.x, P.y, 0.8); }
   if (kept.length && load > strength) {
     // the paper gives way: the fish drop back and the sheet is spent
@@ -210,7 +211,11 @@ export function poiRelease(w, r) {
     w.score += out.pts; w.scoops += kept.length; w.bestScoop = Math.max(w.bestScoop, out.pts);
     for (const f of kept) { w.caught.push(f.k); w.ev.push({ type: 'catch', x: f.x, y: f.y, k: f.k, pts: out.pts }); }
     w.fish = w.fish.filter((f) => !keptIds.has(f.id));
-    if (w.endless) for (const f of kept) w.pending.push({ t: 2.4, fish: { ...f, x: r.range(120, TW - 120), y: r.range(120, TH - 120), flee: 0, rest: 0, lift: 0 } });
+    // catch and release: the fish is shown on the paper, then set back into the same pool a short way from where it was lifted
+    if (w.release) kept.forEach((f, i) => {
+      const a = r.range(0, Math.PI * 2), d = r.range(50, 110);
+      w.pending.push({ t: P.lift.dur + 0.3, fish: { ...f, x: clamp(f.x + Math.cos(a) * d, RELEASE_M, TW - RELEASE_M), y: clamp(f.y + Math.sin(a) * d, RELEASE_M, TH - RELEASE_M), flee: 0, rest: 0, lift: 0, h: a } });
+    });
     P.paper -= load * TUNE.damage;
     P.dipT = 0;
     if (P.paper < TUNE.spentBelow) { w.last = out; tearPoi(w, 'spent'); return out; }
@@ -218,7 +223,8 @@ export function poiRelease(w, r) {
     w.streak = 0;
     w.ev.push({ type: 'empty', x: P.x, y: P.y });
   }
-  if (!w.endless && w.fish.length === 0) w.over = true;
+  if (!w.endless && w.fish.length === 0 && w.pending.length === 0) w.over = true;
+  if (w.goal && w.caught.length >= w.goal) w.over = true;   // Watch & Learn: the demo ends after as many scoops as the tank has fish
   w.last = out;
   return out;
 }
@@ -250,27 +256,53 @@ export function fishAhead(f, secs) {
 }
 
 // ---- the automatic player (Watch & Learn) ------------------------------------------------------------------------------------
-// A patient hand: dip well away from the target fish, creep up under it at a gentle speed and lift when it sits in the ring.
-export const newAuto = () => ({ id: -1, t: 0, cool: 0.4, pref: null });
+// A hand with a poi: a reaction pause, a smooth ease-in / ease-out glide above the water to a dip point beside the fish (0.6 to 1.2 s),
+// a gentle dip, a slow proportional creep under the fish that eases in and out, a short steady settle and then the lift.
+// Every random choice comes from the sim generator `r`, so a seed gives the same hand. `ap.log` records each attempt's timings.
+export const AUTO = { reactMin: 0.35, reactMax: 0.6, travelMin: 0.6, travelMax: 1.2, dipAway: 242, creepMax: 4.5, settleMin: 0.15, settleMax: 0.3, accel: 450 };
+export const newAuto = () => ({ id: -1, t: 0, cool: 0.4, pref: null, phase: 'idle', log: [], v: 0 });
+const minJerk = (u) => { u = clamp(u, 0, 1); return u * u * u * (10 - 15 * u + 6 * u * u); };
 export function autoStep(w, ap, r, dt) {
   const P = w.poi;
   if (w.over || P.hold > 0) return;
+  if (ap.phase === 'travel') {
+    // the poi is above the water here: glide to the dip point
+    ap.t += dt;
+    const e = minJerk(ap.t / ap.dur);
+    P.x = ap.x0 + (ap.ex - ap.x0) * e; P.y = ap.y0 + (ap.ey - ap.y0) * e; P.tx = P.x; P.ty = P.y;
+    if (ap.t >= ap.dur) {
+      ap.log.push({ kind: 'travel', dur: ap.t });
+      if (poiPress(w, ap.ex, ap.ey)) { ap.phase = 'creep'; ap.t = 0; ap.v = 0; } else { ap.phase = 'idle'; ap.cool = 0.3; }
+    }
+    return;
+  }
   if (!P.down) {
+    ap.phase = 'idle';
     if (ap.cool > 0) { ap.cool -= dt; return; }
+    if (P.lift) return;
     const adv = ap.pref != null && w.fish.some((q) => q.id === ap.pref) ? { id: ap.pref } : advise(w);
     if (!adv) return;
     const f = w.fish.find((q) => q.id === adv.id);
-    const a = f.h + Math.PI / 2 * (adv.id % 2 ? 1 : -1);
-    const ex = clamp(f.x + Math.cos(a) * 300, 40, TW - 40), ey = clamp(f.y + Math.sin(a) * 300, 40, TH - 40);
-    if (poiPress(w, ex, ey)) { ap.id = adv.id; ap.t = 0; }
+    const a = f.h + Math.PI / 2 * (adv.id % 2 ? 1 : -1) + r.range(-0.35, 0.35);
+    const away = AUTO.dipAway * r.range(0.95, 1.1);
+    const ex = clamp(f.x + Math.cos(a) * away, 40, TW - 40), ey = clamp(f.y + Math.sin(a) * away, 40, TH - 40);
+    const dist = Math.hypot(ex - P.x, ey - P.y);
+    ap.dur = clamp((0.55 + 0.5 * Math.min(1, dist / 700)) * r.range(0.92, 1.12), AUTO.travelMin, AUTO.travelMax);
+    ap.x0 = P.x; ap.y0 = P.y; ap.ex = ex; ap.ey = ey; ap.t = 0; ap.id = adv.id; ap.phase = 'travel';
+    ap.vmax = r.range(0.92, 1.08); ap.settle = r.range(AUTO.settleMin, AUTO.settleMax); ap.still = 0;
     return;
   }
   ap.t += dt;
   const f = w.fish.find((q) => q.id === ap.id);
-  if (!f || ap.t > 9) { poiRelease(w, r); ap.cool = 0.5; return; }
+  if (!f || ap.t > AUTO.creepMax) { ap.log.push({ kind: 'creep', dur: ap.t, miss: true }); poiRelease(w, r); ap.cool = 0.5; ap.phase = 'idle'; return; }
+  // creep under the fish: speed follows the distance (fast when far, careful when close) and eases in and out
   const lead = fishAhead(f, 0.3), dx = lead.x - P.x, dy = lead.y - P.y, d = Math.hypot(dx, dy) || 1;
-  const spd = d > 160 ? 135 : d > 70 ? 85 : 60;
-  const step = Math.min(d, spd / 16);
-  P.tx = clamp(P.x + (dx / d) * step, 0, TW); P.ty = clamp(P.y + (dy / d) * step, 0, TH);
-  if (Math.hypot(f.x - P.x, f.y - P.y) < 26 && P.sp < 95) { poiRelease(w, r); ap.cool = 0.6; }
+  const want = (d > 200 ? 90 : clamp(Math.max(22 + d * 0.24, f.s * 1.1 + d * 0.22), 0, 82)) * ap.vmax * (d < 6 ? d / 6 : 1);
+  ap.v += clamp(want - ap.v, -AUTO.accel * dt * 1.6, AUTO.accel * dt);
+  const step = Math.min(d, ap.v / 16);   // the poi eases toward its target at 16 per second, so a target v/16 ahead gives speed v
+  P.tx = clamp(P.x + (dx / d) * step * 1.0, 0, TW); P.ty = clamp(P.y + (dy / d) * step, 0, TH);
+  if (Math.hypot(f.x - P.x, f.y - P.y) < 38 && P.sp < 95) {
+    ap.still += dt;
+    if (ap.still >= ap.settle) { ap.log.push({ kind: 'creep', dur: ap.t }); poiRelease(w, r); ap.cool = 0.6; ap.phase = 'idle'; }
+  } else ap.still = Math.max(0, ap.still - dt);
 }

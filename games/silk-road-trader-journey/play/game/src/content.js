@@ -131,11 +131,11 @@ export const RULES = [
     P('An experienced trader plays the first part of a journey (from Chang\'an to Samarkand) and tells you the reason for every decision: what to buy, what to sell, which road, how much to carry and which choice to make in each encounter.'),
     LI('Each decision has three beats: Think, Reveal (what could be done and what is chosen) and Act.'),
     LI('Pause stops everything where it is; Resume continues from the same point. Skip jumps to the next decision.'),
-    LI('Watch and Learn is free and does not use the free preview time.'),
+    LI('Free to play with short ads; go ad-free once.'),
     H('Think (hint)'),
     P('The Think button in the city and in every encounter shows the single next step the advisor would take, with the reason. It never acts for you.'),
-    H('Free preview and unlock'),
-    P('The first 90 seconds of real play are free. After that the game asks you to unlock the full game once. Menus, Rules, About, Journal and Watch and Learn never use the preview time.'),
+    H('Ads and ad-free'),
+    P('Free to play with short ads; go ad-free once.'),
   ] },
 ];
 

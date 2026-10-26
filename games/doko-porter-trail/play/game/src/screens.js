@@ -410,8 +410,8 @@ export function drawDemo(ctx, w, h, S, flash) {
   const T = theme(), L = demoLayout(w, h);
   background(ctx, w, h);
   panel(ctx, L.panel, { radius: 28, fill: 'rgba(16,24,48,0.97)', line: T.accent });
-  txt(ctx, 'That was the free preview', L.panel.x + L.panel.w / 2, L.panel.y + 70, { size: F(44), weight: 800, fam: NUM, align: 'center', color: T.accent, maxW: L.panel.w - 40 });
-  para(ctx, 'The web demo walks three trails. Get the full game on iPhone and Android: twelve trails, the Long Road, a Daily Trail and Watch and Learn, with no ads.', L.panel.x + 36, L.panel.y + 120, L.panel.w - 72, { size: F(28), weight: 400, lh: 1.36 });
+  txt(ctx, 'That was the demo end', L.panel.x + L.panel.w / 2, L.panel.y + 70, { size: F(44), weight: 800, fam: NUM, align: 'center', color: T.accent, maxW: L.panel.w - 40 });
+  para(ctx, 'The web demo walks three trails. Get the free app on iPhone and Android: twelve trails, the Long Road, a Daily Trail and Watch and Learn.', L.panel.x + 36, L.panel.y + 120, L.panel.w - 72, { size: F(28), weight: 400, lh: 1.36 });
   button(ctx, L.ok, 'Back to the menu', { kind: 'accent', size: 34, flash: flash('ok') });
 }
 

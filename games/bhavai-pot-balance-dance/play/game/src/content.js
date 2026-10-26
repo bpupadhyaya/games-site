@@ -16,7 +16,7 @@ export const ABOUT = {
     { p: 'Bhavai Pot Balance Dance turns the dance into a balance and rhythm game. You slide a finger sideways to steer the dancer; her feet must land on the footprints that scroll in time with the drum, while the tower of pots on her head sways. Every few phrases a helper hands up another pot, and the drums, the wind and the spins all get stronger across eight acts.' },
     { p: 'Pots here are simply shown breaking when they fall. No one is hurt and nothing is wagered: only your own score.' },
     { h: 'Credits' },
-    { p: 'Made by Arcforge, a collection of heritage games from around the world. All sound is synthesised on your device. The dancer and the drummer are 3D people shown with the shared Arcforge 3D layer; the courtyard, pots and effects are drawn with plain canvas graphics. Text is set in Fredoka (SIL Open Font License 1.1). No ads, works offline.' },
+    { p: 'Made by Arcforge, a collection of heritage games from around the world. All sound is synthesised on your device. The dancer and the drummer are 3D people shown with the shared Arcforge 3D layer; the courtyard, pots and effects are drawn with plain canvas graphics. Text is set in Fredoka (SIL Open Font License 1.1). Works offline.' },
   ],
 };
 
@@ -127,10 +127,10 @@ export function rulesPages() {
       ],
     },
     {
-      title: 'Free preview and demo',
+      title: 'Free to play and demo',
       blocks: [
-        { h: 'Trying it first' },
-        { p: 'The full game has a free preview of real play; menus, Rules, Watch and Learn and results are always free. When the preview ends you can unlock the whole game once, or restore an earlier purchase.' },
+        { h: 'In the app' },
+        { p: 'Menus, Rules, Watch and Learn and results are always free. Free to play with short ads; go ad-free once.' },
         { p: `The public web demo is limited to ${DEMO_RUNS} dances of the first act, so it is a taste of the game; the apps for iPhone and Android hold everything.` },
       ],
     },

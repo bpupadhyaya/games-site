@@ -17,7 +17,7 @@ export const ABOUT = {
     { p: 'The people and boats are stylised drawings, not portraits of real rowers. The lake, the gardens and the villages are original illustrations, and no national flags or emblems are used. The game shows fishing and travel only.' },
     { p: 'This is a game, not a coaching guide. Real leg rowing is learned from experienced rowers over years; do not try to stand in a small boat without them.' },
     { h: 'Credits' },
-    { p: 'Made by Arcforge, a collection of heritage games from around the world. All sound is synthesised on your device. Titles are set in Cormorant Garamond (SIL Open Font License 1.1). Drawn with plain canvas graphics; no ads, works offline.' },
+    { p: 'Made by Arcforge, a collection of heritage games from around the world. All sound is synthesised on your device. Titles are set in Cormorant Garamond (SIL Open Font License 1.1). Drawn with plain canvas graphics; works offline.' },
   ],
 };
 
@@ -155,10 +155,10 @@ export function rulesPages() {
       ],
     },
     {
-      title: 'Free preview and demo',
+      title: 'Free to play and demo',
       blocks: [
-        { h: 'Trying it first' },
-        { p: 'The full game has a free preview of real play; menus, Rules, Watch and Learn and results are always free. When the preview ends you can unlock the whole game once, or restore an earlier purchase.' },
+        { h: 'In the app' },
+        { p: 'Menus, Rules, Watch and Learn and results are always free. Free to play with short ads; go ad-free once.' },
         { p: `The public web demo is limited to ${DEMO_RUNS} runs on the first course, so it is a taste of the game; the apps for iPhone and Android hold everything.` },
       ],
     },

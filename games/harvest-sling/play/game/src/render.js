@@ -1107,6 +1107,7 @@ export function drawGame(ctx, state, manifest, day, apGame, L) {
   const PR = state.predator;
   if (PR && PR.push > 0.001) { const zz = 1 + 0.035 * PR.push, cx = SLING.x, cy = SLING.y; ctx.translate(cx, cy); ctx.scale(zz, zz); ctx.translate(-cx, -cy); }   // camera push (<= 3.5 %), centred on the sling so aiming stays true
   if (state.shake > 0) ctx.translate(Math.sin(state.time * 90) * state.shake * 0.6, Math.cos(state.time * 77) * state.shake * 0.6);   // subtle: <= ~8 units
+  if (state.scene === 'levelclear' && state.nudgeY) ctx.translate(0, state.nudgeY);   // level-clear bump (vertical only, 0 outside the two bumps)
   drawSky(ctx, scheme, time);
   drawHills(ctx, scheme, state.time);
   if (state.world?.hasWire) drawWire(ctx);
@@ -1261,7 +1262,7 @@ export function drawGame(ctx, state, manifest, day, apGame, L) {
     const f = L.centerFrame;
     ctx.save(); ctx.translate(f.ox, f.oy);
     panel(ctx, 70, 430, 580, 330);
-    centered(ctx, "That's the free preview!", 360, 510, '800 42px system-ui, sans-serif', '#fff', 540);
+    centered(ctx, "That's the demo end!", 360, 510, '800 42px system-ui, sans-serif', '#fff', 540);
     centered(ctx, 'Get Golden Sling free on iPhone and', 360, 590, '500 26px system-ui, sans-serif', 'rgba(255,255,255,0.85)', 540);
     centered(ctx, 'Android: every level, Endless and', 360, 628, '500 26px system-ui, sans-serif', 'rgba(255,255,255,0.85)', 540);
     centered(ctx, 'the Daily Hunt.', 360, 666, '500 26px system-ui, sans-serif', 'rgba(255,255,255,0.85)', 540);

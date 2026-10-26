@@ -387,7 +387,7 @@ export function listFor(ctx, state, L) {
   else if (state.scene === 'title') { items = titleItems(state, L); if (L.titleSplit) G = L.titleList; else if (L.h < 1230 && sc <= 1.5) G = { ...G, tight: true }; }
   else if (state.scene === 'setup') items = setupItems(state);
   else if (state.scene === 'settings') items = settingsItems(state);
-  else if (state.scene === 'demo-limit') items = [{ t: 'gap', h: (L.land ? 40 : 240) / sc }, { t: 'text', text: 'You have played the free web games.', px: 34, bold: true, color: '#ffe08a' }, { t: 'text', text: 'Get the full game on iPhone and Android: unlimited games, every board and every rule.', px: 28 }, { t: 'btn', id: 'menu', label: 'Menu', primary: true }];
+  else if (state.scene === 'demo-limit') items = [{ t: 'gap', h: (L.land ? 40 : 240) / sc }, { t: 'text', text: 'You have played the free web games.', px: 34, bold: true, color: '#ffe08a' }, { t: 'text', text: 'Get the free app on iPhone and Android: unlimited games, every board and every rule.', px: 28 }, { t: 'btn', id: 'menu', label: 'Menu', primary: true }];
   else if (state.scene === 'demo' && state.demo.finished) items = demoDoneItems(state, L);
   else items = resultItems(state, L);
   return layoutList(ctx, items, sc, G);

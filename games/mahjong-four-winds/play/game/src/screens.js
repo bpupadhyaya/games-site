@@ -74,13 +74,14 @@ export function titleLayout(S) {
     const aTop = t + 6 + 44, aH = Math.max(150, y - aTop), k = clamp(Math.min(aH / ART_H, W / 720), 0.3, 1);
     Object.assign(v, { lockup, art: { x: W / 2 - 360 * k, y: aTop + Math.max(0, (aH - ART_H * k) / 2), k }, oppLabel, langLabel, foot, size: { main: 32, small: 25, chip: 22, lang: 25 } });
   } else {
-    const Rw = Math.min(560, Math.floor(W * 0.46)), rx = W - r - 22 - Rw, avail = H - t - b - 20, n = rows.length;
-    const fixed = 96 + 74 + 96 + 26 + LKH + 14, pitch = clamp((avail - fixed) / n, 56, 78), bh = pitch - 8, total = fixed + n * pitch;
-    let y = t + 10 + Math.max(0, (avail - total) / 2);
-    const oppLabel = { x: rx + Rw / 2, y: y + 16 }; chipRow(rx, y + 24, Rw, 62); y += 96;
-    rows.forEach((rw, i) => out.push({ ...rw, r: R(rx, y + i * pitch, Rw, bh) })); y += n * pitch + 4;
-    smallRow(rx, y, Rw, 62, 8); y += 74;
-    const langLabel = { x: rx + Rw / 2, y: y + 16 }; langRow(rx, y + 24, Rw, 62); y += 96;
+    const Rw = Math.min(560, Math.floor(W * 0.46)), rx = W - r - 34 - Rw, top = Math.max(t, 0) + 34, avail = H - top - Math.max(b, 0) - 42, n = rows.length;
+    const ch = 46, lh = 20;                                                  // control-row height, caption band
+    const fixed = (lh + ch + 8) + 6 + (ch + 10) + (lh + ch + 8) + LKH + 14, pitch = clamp((avail - fixed) / n, 47, 84), bh = pitch - 8, total = fixed + n * pitch;
+    let y = top + Math.max(0, (avail - total) / 2);
+    const oppLabel = { x: rx + Rw / 2, y: y + 16 }; chipRow(rx, y + lh + 4, Rw, ch); y += lh + ch + 12;
+    rows.forEach((rw, i) => out.push({ ...rw, r: R(rx, y + i * pitch, Rw, bh) })); y += n * pitch + 6;
+    smallRow(rx, y, Rw, ch, 8); y += ch + 10;
+    const langLabel = { x: rx + Rw / 2, y: y + 16 }; langRow(rx, y + lh + 4, Rw, ch); y += lh + ch + 8;
     const aL = l + 16, aW = rx - 20 - aL, aTop = t + 6 + 44, aH = H - t - b - 12 - 44, k = clamp(Math.min(aW / 720, aH / ART_H), 0.3, 1);
     Object.assign(v, { lockup: { x: rx + Rw / 2, y: y + 28, h: LKH }, art: { x: aL + aW / 2 - 360 * k, y: aTop + Math.max(0, (aH - ART_H * k) / 2), k }, oppLabel, langLabel, foot: { x: rx + Rw / 2, y: y + 14 }, size: { main: 32, small: 24, chip: 22, lang: 24 } });
   }
@@ -607,6 +608,6 @@ export function renderDemoLimit(ctx, S) {
   panel(ctx, pn.x, pn.y, pn.w, pn.h, { alpha: 0.92 });
   tx(ctx, '麻將', W / 2, G.top + 120, 110, 'rgba(241,207,122,0.9)', { font: CJKF });
   tx(ctx, 'That was the preview', W / 2, G.top + 220, 54, GOLD, { font: DISPLAY, shadow: true });
-  wrap(ctx, 'The web preview ends here. Get the full game on iPhone and Android for unlimited hands, all lessons and the daily challenge.', W / 2, G.top + 290, 28, Math.min(500, pn.w - 60), IVORY, { lh: 38 });
+  wrap(ctx, 'The web preview ends here. Get the free app on iPhone and Android for unlimited hands, all lessons and the daily challenge.', W / 2, G.top + 290, 28, Math.min(500, pn.w - 60), IVORY, { lh: 38 });
   btn(ctx, DEMO_MENU, 'Main menu', { kind: 'wood', size: 34 });
 }

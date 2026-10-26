@@ -140,7 +140,7 @@ export const RULES = [
   p('Runs are the runs completed, or four or six for a boundary. Wides add one run. The side with more runs wins. If the runs are level it is a tie.'),
   h('Computer levels'),
   p(`There are five levels. A level sets how well that side bats, bowls, fields, catches and throws. The computer's own team mates are always at level ${3}, which is competent but not the strongest. ` + LEVELS.map((l) => `${l.name} (${l.who}): ${l.blurb}`).join(' ')),
-  h('Preview, practice and Watch & Learn'),
+  h('Practice and Watch & Learn'),
   p('Practice and Watch & Learn are not counted as play. In practice there is no result: you play six balls toward a goal with unlimited hints. In Watch & Learn the computer plays both sides and explains its choices.'),
   gap(6),
 ];

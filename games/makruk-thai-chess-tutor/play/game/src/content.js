@@ -41,7 +41,7 @@ export const ABOUT = [
   { title: 'About Makruk', diagram: start(), lines: ['Makruk is the traditional chess of Thailand. It is played across the country, and a close relative is played in Cambodia.'] },
   { title: 'An old family', lines: ['Makruk comes from the same ancient game family as chess, shogi and xiangqi. It keeps older, slower pieces and its own endgame counting.'] },
   { title: 'What is different', lines: ['The board has no checkered colours. Pawns are cowries. The Met steps one square, pawns promote on the sixth rank, and endgames are timed by a count.'] },
-  { title: 'About this game', lines: ['A complete Makruk with five computer levels, eight lessons, Watch & Learn, and a Rules reference. It works offline and has no ads.'] },
+  { title: 'About this game', lines: ['A complete Makruk with five computer levels, eight lessons, Watch & Learn, and a Rules reference. It works offline.'] },
 ];
 
 // ---- the exhaustive Rules reference -------------------------------------------------------------------------------------------------

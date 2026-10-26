@@ -117,10 +117,10 @@ export const ABOUT = [
   { title: 'About this game', items: [
     P('Jungle is known in China as Dou Shou Qi, "fighting beasts chess". It is a traditional children\'s and family board game of China, played there since at least the early twentieth century, and it is loved across Asia and beyond under names such as Jungle, Animal Chess and Dou Shou Qi.'),
     P('The animals are drawn by hand in this edition: eight painted tokens on a lit jungle board with lakes that ripple, dens with gold roofs, and traps ringed in each side\'s colour.'),
-    P('Five computer levels from Beginner to Master, six hands-on lessons, hints that explain themselves, danger marks, take back, a two-player mode and a Watch & Learn mode. Large text up to 300 percent and a reduced-motion option. No ads. Works offline.'),
+    P('Five computer levels from Beginner to Master, six hands-on lessons, hints that explain themselves, danger marks, take back, a two-player mode and a Watch & Learn mode. Large text up to 300 percent and a reduced-motion option. Works offline.'),
   ] },
-  { title: 'A free taste, and the full game', items: [
-    P('You can try the game for a short time for free. The full game is a single one-time purchase, with no ads and nothing else to buy. Your menus, Rules, lessons and Auto Play are always free to open.'),
+  { title: 'Free to play and ad-free', items: [
+    P('Free to play with short ads; go ad-free once. Your menus, Rules, lessons and Auto Play are always free to open.'),
   ] },
   { title: 'Part of Arcforge', items: [
     P('Jungle is one of the world\'s heritage games collected in the Arcforge app: classic games from many cultures, each made to look and feel better than the usual store versions.'),

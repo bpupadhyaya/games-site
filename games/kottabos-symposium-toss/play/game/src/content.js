@@ -31,7 +31,7 @@ export const ABOUT = [
     'This version shows the toss as a quiet game of skill. The cup holds water. It carries no toasts, no dedications and no stakes.',
   ] },
   { title: 'This version', text: [
-    'Kottabos Symposium Toss is part of the Arcforge collection of world heritage games. It has no ads, no betting and no stakes, works offline and saves your records on your device.',
+    'Kottabos Symposium Toss is part of the Arcforge collection of world heritage games. It has no betting and no stakes, works offline and saves your records on your device.',
     'The drops are simulated one by one: they fly as real parabolas, the disc rocks on its support like a damped pendulum, and the cups bob and drift. The Rules pages list the numbers the engine uses.',
     'The look borrows from black-figure vase painting: terracotta, black glaze, a Greek key frieze. Text size can be set up to 300 percent in Settings and on every reading page.',
   ] },

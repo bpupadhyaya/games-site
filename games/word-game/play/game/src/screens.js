@@ -513,7 +513,7 @@ export function screenRows(name, S) {
     case 'privacy':
       return { title: 'Privacy', rows: [
         { k: 'h', t: 'Your data stays with you' },
-        { k: 'p', t: 'Word Game has no accounts, no ads, no tracking and no outside services. Your progress, settings and scores are stored only on this device.' },
+        { k: 'p', t: 'Word Game has no accounts. Your progress, settings and scores are stored only on this device. Ads, when shown, come from Google AdMob.' },
         { k: 'p', t: 'Nothing leaves the app unless you choose to export or share it: a backup, a spreadsheet, a PDF report, a worksheet, a lesson plan, a learning log or your journal. Reports and printables are made on this device from your own practice. They are files you control.' },
         { k: 'p', t: 'Your journal, your parent PIN (kept scrambled) and your per-word memory stay on this device. Voice commands use the speech recogniser built into your phone; the game does not keep or send what you say.' },
         { k: 'p', t: 'There is one optional exception. If you turn on Look up, tapping it shows a meaning from the Wiktionary website in a window inside the app, and can open a dictionary website of your choice in your browser; either way only the word you tapped is sent. It is never used during play, and it is off if you choose Never.' },

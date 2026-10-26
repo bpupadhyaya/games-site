@@ -76,6 +76,6 @@ export const RULES = [
   { title: 'Replay, pause, Think', p: [
     'After every attempt you can watch a slow-motion replay at quarter speed. Pause stops everything. Think shows a hint without changing anything.',
     'Watch & Learn plays the festival with the computer: THINK (2 to 10 seconds, you choose), REVEAL (2 seconds, showing the choice), then ACT. Pause freezes the whole loop, including the motion.'] },
-  { title: 'Free preview', p: [
-    'The first 90 seconds of real play are free. Menus, Rules, About, Watch & Learn and paused time never count. After that, one unlock opens the whole festival.'] },
+  { title: 'Free to play', p: [
+    'Free to play with short ads; go ad-free once.'] },
 ];

@@ -215,7 +215,7 @@ export async function createPresenter({ kitCanvas, quality = pickQuality() }) {
   }
 
   // ---- one frame ---------------------------------------------------------------------------------------------------------------------------
-  let lastT = null, lastWall = null, frames = 0, ema = 16, lastPhase = '', tier = quality === 'high' ? 0 : quality === 'medium' ? 1 : 2;
+  let lastT = null, lastWall = null, frames = 0, slowFrames = 0, ema = 16, lastPhase = '', tier = quality === 'high' ? 0 : quality === 'medium' ? 1 : 2;
   function updateTrail(state, inPlay) {
     const tr = inPlay ? state.trail : null;
     if (!tr || tr.length < 6) { trailMesh.visible = false; return; }
@@ -384,6 +384,9 @@ export async function createPresenter({ kitCanvas, quality = pickQuality() }) {
         P.clock += wall;
         ema = ema * 0.95 + wall * 1000 * 0.05; frames++;
         if (frames > 120 && ema > 30 && tier < 2) { tier++; applyTier(); frames = 0; ema = 16; }
+        // Software-GL / very slow devices (emulators): a frame that takes a third of a second or more starves the main thread, so the kit
+        // misses rotations and the page looks hung. Drop straight to the lowest tier after two such frames instead of waiting for 120.
+        if (wall > 0.3 && tier < 2 && ++slowFrames >= 2) { tier = 2; applyTier(); frames = 0; ema = 16; slowFrames = 0; }
         const L = layoutFor(view?.width ?? 720, view?.height ?? 1560);
         prepare();
         stage.setVisible(true);

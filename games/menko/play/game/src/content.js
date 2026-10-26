@@ -89,7 +89,7 @@ export const RULES = [
     'Your score is the total stars of the discs you flipped, plus the stars of any of your rival\'s discs that covered a disc of yours. Discs still on the floor at the end of the match, and discs left in a hand, score nothing.',
     'The higher score wins. Equal scores are a draw.',
   ] },
-  { title: 'Free preview and help', p: [
+  { title: 'Help and free play', p: [
     'In Watch & Learn two computer rivals play a whole match; the Pause button freezes everything exactly where it is, and Think − / Think + set how long each rival thinks. The Hint button during your own turn picks a disc, a spot and a strength for you, using the same odds you see.',
     'Two Players shares one phone: after each turn a hand-over card hides the tray until the next player taps it.',
   ] },

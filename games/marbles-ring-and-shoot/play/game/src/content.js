@@ -82,7 +82,7 @@ export const RULES = [
     'A round ends when no marbles are left in the ring. The points each player collected, with any captures, are added to the match score.',
     'A Quick match is one round, a Full match is three. If the match is tied after the last round, one more round is played.',
   ] },
-  { title: '9. Watch & Learn, hints and free preview', p: [
+  { title: '9. Watch & Learn, hints and free play', p: [
     'Watch & Learn plays a full round between two rivals. Each shot has a thinking pause, a reveal that shows the planned path, and then the flick. You can pause at any moment and change the thinking time.',
     'The Hint button shows the best shot it can find from the current position.',
     'The web demo includes the first rounds only. The full game has every rival and unlimited play.',

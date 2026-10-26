@@ -108,7 +108,8 @@ export function createGame(env) {
     const grade = daily ? 1 : rec.grade;
     const r = daily ? seeded(state.day * 977 + 5) : runRng;
     state.simRng = r;
-    state.ws = makeWorld({ tank, grade, rng: r, owned: daily ? null : ownedList(), endless: mode === 'free' });
+    state.ws = makeWorld({ tank, grade, rng: r, owned: daily ? null : ownedList(), endless: mode === 'free', release: mode === 'free' || mode === 'watch' });
+    if (mode === 'watch') state.ws.goal = state.ws.fish.length;
     state.run = { mode, tank, grade, hints: 0, before: ownedNow() };
     state.scene = 'play'; state.paused = false; state.pauseMenu = false; state.ui.scroll = 0; state.last = null;
     state.hint = null; state.dec = null; state.pops.length = 0; state.banner = null; state.endT = 0; state.hold = 0.4; state.drag = false; state.kbDown = false;
@@ -156,8 +157,9 @@ export function createGame(env) {
       else if (e.type === 'catch') {
         sfx.catch(Math.max(0, w.streak - 1)); ripple(e.x, e.y, 0.8); splash(e.x, e.y, 10);
         pop(`+${e.pts}`, e.x, e.y, w.streak > 2 ? '#ffd97a' : '#ffffff', 1 + Math.min(0.5, FISH[e.k].pts * 0.06));
-        if (tr) { const sp = tankToScreen(tr, e.x, e.y); state.fx.flights.push({ k: e.k, x0: sp.x, y0: sp.y, t: 0, max: 0.75 }); }
-      } else if (e.type === 'slip') { sfx.slip(); splash(e.x, e.y, 4); pop('slipped', e.x, e.y, '#ffb09a', 0.7); }
+        if (tr && !w.release) { const sp = tankToScreen(tr, e.x, e.y); state.fx.flights.push({ k: e.k, x0: sp.x, y0: sp.y, t: 0, max: 0.75 }); }
+      } else if (e.type === 'release') { ripple(e.x, e.y, 0.7); ripple(e.x, e.y, 0.4); splash(e.x, e.y, 5); sfx.plop(); }
+      else if (e.type === 'slip') { sfx.slip(); splash(e.x, e.y, 4); pop('slipped', e.x, e.y, '#ffb09a', 0.7); }
       else if (e.type === 'empty') { ripple(e.x, e.y, 0.5); sfx.lift(); }
       else if (e.type === 'tear') {
         tearBits(e.x, e.y); sfx.tear(); splash(e.x, e.y, 6);

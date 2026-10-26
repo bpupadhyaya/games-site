@@ -96,8 +96,8 @@ export const RULES = [
   { title: 'Think hint', p: [
     'Think slows time to a third for about two and a half seconds and lights the pad for the next touch, with the reason. A dance where you used Think is not saved as a best.',
   ] },
-  { title: 'Free preview', p: [
-    'The first 90 seconds of real play are free. Menus, Watch & Learn, the Moves journal and paused play do not count. The full game is a one-time unlock; Restore Purchases is in Settings.',
+  { title: 'Free to play', p: [
+    'Free to play with short ads; go ad-free once.',
   ] },
 ];
 export const HOWTO_N = N;

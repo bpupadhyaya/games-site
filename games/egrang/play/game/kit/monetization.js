@@ -1,4 +1,4 @@
-// In-app purchases behind one API (no ads). Products come from game.json.
+// In-app purchases behind one API. Products come from game.json.
 // Modes:  native = real StoreKit / Play Billing through the shell
 //         demo   = public web demo: nothing can be bought, purchase() reports reason "demo"
 //         mock   = local development + headless tests: purchases succeed instantly

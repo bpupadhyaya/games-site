@@ -75,8 +75,8 @@ export const RULES = [
   { t: 'para', text: 'Auto Play cycles THINK (2, 5, 8 or 10 seconds as you choose), REVEAL (2 seconds, the choices are highlighted) and ACT, at decision points: leaving harbour, a new wind, a squall, a night sight, a dhow in need, landfall. PAUSE freezes everything exactly. The ? hint during your own sailing explains the wind, the best heading and sheet, and what is ahead; you have 3 hints per passage.' },
   { t: 'h', text: 'Controls' },
   { t: 'para', text: 'Touch: drag the compass to steer, drag the sheet slider, tap Reef, Sight and Sweeps. The camera button cycles chase, side, bow and orbit views. Keyboard: Left/Right steer, Up/Down sheet, R reef, K sight and N for NOW, W sweeps, P pause, T hint, C camera.' },
-  { t: 'h', text: 'Free preview' },
-  { t: 'para', text: 'You can sail for 90 seconds free. Menus, Rules, About, Auto Play and the paused hint do not count. Then you can unlock the full game once, and the web demo allows two passages.' },
+  { t: 'h', text: 'Free to play' },
+  { t: 'para', text: 'Free to play with short ads. Menus, Rules, About, Auto Play and the paused hint are always free. Go ad-free once; the web demo allows two passages.' },
 ];
 void pol; void PORTS;
 

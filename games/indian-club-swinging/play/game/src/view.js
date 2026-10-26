@@ -268,7 +268,7 @@ function renderDemoLimit(ctx, st, L) {
   panel(ctx, { x: cx - Math.min(S.w - 40, 560) / 2, y: cy - 190, w: Math.min(S.w - 40, 560), h: 380 }, { fill: 'rgba(8,30,34,0.94)', rad: 28 });
   txt(ctx, 'That is the free web demo', cx, cy - 110, 36, PAL.gold, { align: 'center', font: DISPLAY, weight: 400, maxW: Math.min(S.w - 80, 520) });
   ctx.font = `500 26px ${UI}`;
-  const lines = wrap(ctx, 'Get the full game on iPhone and Android for every routine, Practice and your saved bests.', Math.min(S.w - 100, 480));
+  const lines = wrap(ctx, 'Get the free app on iPhone and Android for every routine, Practice and your saved bests.', Math.min(S.w - 100, 480));
   lines.forEach((ln, i) => txt(ctx, ln, cx, cy - 30 + i * 36, 26, PAL.text, { align: 'center', weight: 500 }));
   txt(ctx, 'Tap to go back to the menu', cx, cy + 150, 24, PAL.dim, { align: 'center', weight: 600 });
 }

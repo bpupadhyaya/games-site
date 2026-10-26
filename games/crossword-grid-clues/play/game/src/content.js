@@ -10,14 +10,14 @@ export const ABOUT = {
       fig: 'grid',
       body: [
         { p: 'Fill the white squares with letters so that every answer, across and down, fits its clue. Every white square belongs to at least one answer, and most belong to two, so each word you find helps with the words that cross it.' },
-        { p: 'The crossword began in newspapers in Britain and America and is now one of the most loved word puzzles in the world. This version is made for calm, focused play: a clean printed grid, a proper keyboard, no ads and no pressure.' },
+        { p: 'The crossword began in newspapers in Britain and America and is now one of the most loved word puzzles in the world. This version is made for calm, focused play: a clean printed grid, a proper keyboard and no pressure.' },
         { li: ['Five sizes, from a five-by-five Mini to a thirteen-by-thirteen Giant.', 'Every clue is written for this game. British and American spellings both appear, and the clue tells you which.', 'A new Daily Crossword every day, the same for everyone.', 'Pencil letters, undo and redo, checks, reveals and hints that teach.', 'Watch and Learn solves a whole puzzle step by step and explains how it thinks.'] },
       ],
     },
     {
-      title: 'Credits and the free preview',
+      title: 'Credits and ads',
       body: [
-        { p: 'You can play for a free preview first. Unlocking the full game is a single one-time purchase; there are no ads and no subscriptions.' },
+        { p: 'Free to play with short ads; go ad-free once.' },
         { p: 'Letters and titles are set in Cormorant Garamond, and the interface and clues in Barlow. Both fonts are used under the SIL Open Font License 1.1. All sounds are synthesized on your device.' },
         { p: 'Crossword Grid Clues is part of Arcforge, a collection of world heritage games.' },
       ],
@@ -182,7 +182,7 @@ export const RULES = {
       body: [
         { p: 'Watch and Learn plays a whole puzzle with its own method. It repeats three steps: think, reveal, write.' },
         { li: ['Think: it chooses the unfinished answer that looks easiest (most letters already in place, favouring fill-in-the-blank and short clues), shows the clue and the letters it has, and waits for the think time you chose (2, 5, 8 or 10 seconds).', 'Reveal: it explains the topic, the first letter and any tip about the clue, then shows the answer.', 'Write: it types the word into the grid.'] },
-        { p: 'Pause stops everything where it is. Exit returns to the menu. Watching never uses the free preview.' },
+        { p: 'Pause stops everything where it is. Exit returns to the menu.' },
       ],
     },
     {

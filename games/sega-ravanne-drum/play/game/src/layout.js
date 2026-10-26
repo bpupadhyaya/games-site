@@ -31,17 +31,30 @@ export function layoutFor(w, h) {
     if (wide) {
       const dR = Math.min((h - top - 90) * 0.4, w * 0.2), cx = left + (w * 0.46 - left) / 2 + 20, cy = top + (bot - top) / 2 + 20;
       const bx = w * 0.5 + 10, bw = Math.min(right - bx, 520), x = bx + (right - bx - bw) / 2, mid = bx + (right - bx) / 2;
-      const hs = [84, 60, 60, 60, 60, 60], ys = []; let yy = top + 150;
-      hs.forEach((hh) => { ys.push(yy); yy += hh + 10; });
-      const rr = (i) => R(x, ys[i], bw, hs[i]);
-      L.title = { drum: { cx, cy, R: dR }, name: { x: mid, y: top + 52 }, tag: { x: mid, y: top + 106 }, play: rr(0), auto: rr(1), how: rr(2), rules: rr(3), about: rr(4), settings: rr(5), credit: { x: mid, y: bot - 6 } };
+      const y0 = top + 150, rows1 = [84, 60, 60, 60, 60, 60], full = y0 + rows1.reduce((a, b) => a + b, 0) + 10 * 5;
+      const lockH = Math.min(300, (right - bx) * 0.5) * 0.2725 + 14;
+      let play, auto, how, rules, about, settings;
+      if (full <= bot - lockH) {        // roomy: one column
+        const ys = []; let yy = y0;
+        rows1.forEach((hh) => { ys.push(yy); yy += hh + 10; });
+        const rr = (i) => R(x, ys[i], bw, rows1[i]);
+        play = rr(0); auto = rr(1); how = rr(2); rules = rr(3); about = rr(4); settings = rr(5);
+      } else {                           // short landscape (phones, safe areas): the four small buttons go two by two
+        const g = 10, hw = (bw - g) / 2, ph = 84, ah = 60, sh = 60;
+        play = R(x, y0, bw, ph); auto = R(x, y0 + ph + g, bw, ah);
+        const r2 = y0 + ph + ah + g * 2, r3 = r2 + sh + g;
+        how = R(x, r2, hw, sh); rules = R(x + hw + g, r2, hw, sh); about = R(x, r3, hw, sh); settings = R(x + hw + g, r3, hw, sh);
+      }
+      L.title = { drum: { cx, cy, R: dR }, name: { x: mid, y: top + 52 }, tag: { x: mid, y: top + 106 }, play, auto, how, rules, about, settings, credit: { x: mid, y: bot - 6 } };
     } else {
       const bw = Math.min(W, 560), bx = (w - bw) / 2;
-      const bh1 = 96, bh = 72, gap = 12, half = (bw - gap) / 2;
-      const dR = Math.max(90, Math.min(W * 0.36, 280, (h - top - 140 - 60 - (bh1 + bh * 3 + gap * 3) - 100 - 8) / 2.4));   // leaves room for the drummer's head + raised hand above the drum
+      const bh1 = 96, bh = 72, gap = 12, half = (bw - gap) / 2, colH = bh1 + bh * 3 + gap * 3;
+      const lockH = Math.min(300, W * 0.5) * 0.2725 + 22;                       // the ARCFORGE lockup gets its own row under the last button
+      const avail = bot - lockH - top;                                          // room for drummer + drum + button column
+      const dR = Math.max(60, Math.min(W * 0.36, 280, (avail - 140 - 60 - colH - 8) / 2.4));   // leaves room for the drummer's head + raised hand above the drum
       const off = 140 + dR * 0.4;
-      const block = off + dR * 2 + 60 + (bh1 + bh * 3 + gap * 3) + 100, extra = Math.max(0, h - top - block);
-      const cy = top + off + extra * 0.3 + dR, by = cy + dR + 50 + extra * 0.4;
+      const block = off + dR * 2 + 60 + colH, extra = Math.max(0, avail - block);
+      const cy = top + off + extra * 0.3 + dR, by = Math.min(cy + dR + 50 + extra * 0.4, bot - lockH - colH);
       L.title = {
         drum: { cx: w / 2, cy, R: dR }, name: { x: w / 2, y: top + 62 + extra * 0.12 }, tag: { x: w / 2, y: top + 118 + extra * 0.12 },
         play: R(bx, by, bw, bh1), auto: R(bx, by + bh1 + gap, bw, bh),

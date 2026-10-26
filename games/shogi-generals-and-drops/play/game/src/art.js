@@ -2,6 +2,7 @@
 // One light: a paper lantern above and slightly left of the board.
 import { geom } from './layout.js';
 import { JP } from './pieces.js';
+const UIF = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
 
 const TAU = Math.PI * 2;
 function lcg(seed) { let s = seed >>> 0; return () => ((s = (Math.imul(s, 1664525) + 1013904223) >>> 0) / 4294967296); }
@@ -28,7 +29,7 @@ function paintTable(ctx, W, H) {
 }
 
 // A stand (komadai), painted in local coordinates (0,0 = top-left of its rect): a low walnut tray with a recessed bed.
-function paintStand(ctx, st, top) {
+function paintStand(ctx, st, top, lang) {
   const w = st.rect.w, h = st.rect.h, k = st.k;
   ctx.save();
   ctx.shadowColor = 'rgba(0,0,0,0.55)'; ctx.shadowBlur = 22; ctx.shadowOffsetY = top ? -6 : 10;
@@ -48,8 +49,9 @@ function paintStand(ctx, st, top) {
   // title on the tray
   ctx.save();
   ctx.translate(st.label.x - st.rect.x, st.label.y - st.rect.y); if (top) ctx.rotate(Math.PI);
-  ctx.font = `700 22px ${JP}`; ctx.fillStyle = 'rgba(250,220,160,0.22)'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.fillText('持駒', 0, 0);
+  ctx.fillStyle = 'rgba(250,220,160,0.22)'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  if (lang === 'en') { ctx.font = `700 15px ${UIF}`; ctx.fillText('HAND', 0, 0); }
+  else { ctx.font = `700 22px ${JP}`; ctx.fillText('持駒', 0, 0); }
   ctx.restore();
 }
 
@@ -129,11 +131,11 @@ export function drawTable(ctx, w, h) {
   const l = getLayer(`table${qw}x${qh}`, qw, qh, 1.5, (c) => paintTable(c, qw, qh));
   if (l) ctx.drawImage(l, 0, 0, w, h); else { ctx.save(); ctx.scale(w / qw, h / qh); paintTable(ctx, qw, qh); ctx.restore(); }
 }
-export function drawStand(ctx, st, top) {
-  const M = 30, r = st.rect, key = `stand${Math.round(r.w)}x${Math.round(r.h)}${top ? 't' : 'b'}${st.cols}${st.vertical ? 'v' : 'h'}`;
-  const l = getLayer(key, r.w + 2 * M, r.h + 2 * M, 2, (c) => { c.translate(M, M); paintStand(c, { ...st, rect: { x: 0, y: 0, w: r.w, h: r.h }, slot: (i) => { const p = st.slot(i); return { x: p.x - r.x, y: p.y - r.y }; }, label: { x: st.label.x - r.x, y: st.label.y - r.y } }, top); });
+export function drawStand(ctx, st, top, lang) {
+  const M = 30, r = st.rect, key = `stand${Math.round(r.w)}x${Math.round(r.h)}${top ? 't' : 'b'}${st.cols}${st.vertical ? 'v' : 'h'}${lang === 'en' ? 'e' : ''}`;
+  const l = getLayer(key, r.w + 2 * M, r.h + 2 * M, 2, (c) => { c.translate(M, M); paintStand(c, { ...st, rect: { x: 0, y: 0, w: r.w, h: r.h }, slot: (i) => { const p = st.slot(i); return { x: p.x - r.x, y: p.y - r.y }; }, label: { x: st.label.x - r.x, y: st.label.y - r.y } }, top, lang); });
   if (l) ctx.drawImage(l, r.x - M, r.y - M, r.w + 2 * M, r.h + 2 * M);
-  else { ctx.save(); ctx.translate(r.x, r.y); paintStand(ctx, { ...st, rect: { x: 0, y: 0, w: r.w, h: r.h }, slot: (i) => { const p = st.slot(i); return { x: p.x - r.x, y: p.y - r.y }; }, label: { x: st.label.x - r.x, y: st.label.y - r.y } }, top); ctx.restore(); }
+  else { ctx.save(); ctx.translate(r.x, r.y); paintStand(ctx, { ...st, rect: { x: 0, y: 0, w: r.w, h: r.h }, slot: (i) => { const p = st.slot(i); return { x: p.x - r.x, y: p.y - r.y }; }, label: { x: st.label.x - r.x, y: st.label.y - r.y } }, top, lang); ctx.restore(); }
 }
 // The board is painted once in canonical coordinates (geom(n)) and drawn at the live scale g.s with its slab at (g.bx, g.by).
 export function drawBoard(ctx, n, g) {

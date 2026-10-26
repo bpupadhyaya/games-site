@@ -62,7 +62,7 @@ export const ABOUT = [
     'Before the game each player chooses one of four ways to place the horses and elephants. It is one of the most important decisions in the game, and a big part of what makes Janggi feel different.',
   ] },
   { title: 'About this edition', items: [
-    'A Rules page, a lesson for every piece, a tutor that explains moves in plain words, five computer levels, a free Auto Play demo and a Think button. Two board styles, two piece sets, large text and reduced motion. Your game is saved when you leave. No ads, works offline.',
+    'A Rules page, a lesson for every piece, a tutor that explains moves in plain words, five computer levels, a free Auto Play demo and a Think button. Two board styles, two piece sets, large text and reduced motion. Your game is saved when you leave. Works offline.',
   ] },
 ];
 

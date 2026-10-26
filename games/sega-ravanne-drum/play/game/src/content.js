@@ -14,7 +14,7 @@ export const ABOUT = [
   { p: 'A beam sweeps round the drum like the hand of a clock, one turn for every bar. Each stroke arrives as a dot on the rim. When the beam meets a dot, play it on the right instrument: tap or slide on the drum, tap the triangle, shake the maravanne. Warm the skin at the fire when the drum slackens. The more cleanly you play, the more the band joins in and the livelier the dancer sways.' },
   { h: 'Credits' },
   { p: 'Game by Arcforge. All sound is synthesised on your device and all art is drawn in the game. Display font Fredoka by the Fredoka Project Authors (SIL Open Font License 1.1).' },
-  { p: 'No ads. Works offline. The first 90 seconds of real play are free; the full game is a one-time unlock.' },
+  { p: 'Works offline. Free to play with short ads; go ad-free once.' },
 ];
 
 export const HOWTO = [
@@ -111,12 +111,12 @@ export const RULES = [
     { li: 'THINK: a card says what is coming. The music waits. The think time is a setting (2 to 10 seconds, default 5); tap the card to skip it.' },
     { li: 'REVEAL: for 2 seconds the dots of the phrase are lit, with the first stroke highlighted.' },
     { li: 'ACT: the band plays the phrase with the full groove.' },
-    { p: 'Pause freezes everything: the beam, the music and the think timer. Watch and Learn does not use up the free preview.' },
+    { p: 'Pause freezes everything: the beam, the music and the think timer.' },
   ] },
   { title: 'The pieces', blocks: PIECES.map((p, i) => ({ li: `${i + 1}. ${p.name}: ${p.bpm} bpm, ${p.bars.length} bars. ${p.sub}.` })).concat([{ p: 'Patterns are original and were made for this game; none is a transcription of an existing tune.' }]) },
-  { title: 'Preview, unlock and settings', blocks: [
-    { li: 'The first 90 seconds of real play (Learn or Perform) are free. Menus, Rules, Watch and Learn, pause and result screens are always free.' },
-    { li: 'The full game is a single one-time purchase with no ads. Restore purchase is on the unlock screen and in Settings.' },
+  { title: 'Free to play and settings', blocks: [
+    { li: 'Menus, Rules, Watch and Learn, pause and result screens are always free. Free to play with short ads; go ad-free once.' },
+    { li: 'If you already bought it, Restore purchase is on the game page in Arcforge.' },
     { li: 'Settings: sound, timing (relaxed, standard, tight), think time, latency, move names, calm effects (fewer particles, no shake) and vibration. Text size goes up to 300% on every text page.' },
     { li: 'On the web demo only the first piece is playable, a few times.' },
   ] },

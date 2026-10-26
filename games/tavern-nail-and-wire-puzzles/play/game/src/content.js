@@ -20,9 +20,9 @@ export const ABOUT = {
       ],
     },
     {
-      title: 'Credits and the free preview',
+      title: 'Credits and ads',
       body: [
-        { p: 'You can play for a free preview first. Unlocking the full game is a single one-time purchase; there are no ads and no subscriptions.' },
+        { p: 'Free to play with short ads; go ad-free once.' },
         { p: 'Headings are set in Cinzel and interface text in Barlow, both used under the SIL Open Font License 1.1. All sounds are synthesized on your device and the 3D picture is drawn by the game itself.' },
         { p: 'Tavern Nail and Wire Puzzles is part of Arcforge, a collection of world heritage games.' },
       ],
@@ -126,7 +126,7 @@ export const RULES = {
       body: [
         { p: 'There are thirty levels in five stages. Freeing a level unlocks the next. The Round of the Day is a puzzle chosen from the day number, so it is the same for everyone, and finishing it keeps your daily streak.' },
         { p: 'Watch and Learn plays a puzzle by itself: it thinks (2, 5, 8 or 10 seconds, your choice), highlights its move, then makes it. Pause freezes everything, including the thinking timer, and Resume carries on exactly where it stopped. It uses the same search as Think.' },
-        { p: 'The free preview counts only time spent in a live puzzle. Menus, these pages, settings, Watch and Learn, pause and result screens are free. The web demo is limited to three puzzles.' },
+        { p: 'Menus, these pages, settings, Watch and Learn, pause and result screens are free. The web demo is limited to three puzzles. Free to play with short ads; go ad-free once.' },
       ],
     },
     {

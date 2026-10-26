@@ -18,9 +18,9 @@ export const ABOUT = {
       ],
     },
     {
-      title: 'Credits and the free preview', fig: { k: 'jars' },
+      title: 'Credits and ads', fig: { k: 'jars' },
       body: [
-        { p: 'You can play for a free preview first. Unlocking the full game is a single one-time purchase; there are no ads and no subscriptions.' },
+        { p: 'Free to play with short ads; go ad-free once.' },
         { p: 'Patterns here are generic geometric designs in the spirit of the tradition; they do not copy any particular workshop or painter. No animals appear in the game: it is about the wheel and the cart.' },
         { p: 'Interface text is set in Barlow and titles in Dela Gothic One, both used under the SIL Open Font License 1.1. The 3D workshop is drawn on your device with three.js (MIT licence, threejs.org); the lit wheel, boards, jars and bench are built in code. All paint, wood and sound are made on your device. Costa Rican Painted Oxcart is part of Arcforge, a collection of world heritage games.' },
       ],
@@ -104,7 +104,7 @@ export const RULES = {
       { p: 'The workshop paints a commission itself, one stroke at a time, using the same teacher as the hint: first it looks (the Think time you set, 2, 5, 8 or 10 seconds), then it says why, then it paints. Pause freezes everything, including the timers, and Resume continues exactly where it stopped. Exit returns to the menu.' },
     ] },
     { title: '9. Free Painting, Gallery and daily', fig: { k: 'panel' }, body: [
-      { li: ['Free Painting has no rules, no stars and unlimited paint; you choose the shape and the symmetry.', 'The Gallery keeps your 24 most recent pieces; older ones drop off.', 'The Daily Commission is the same piece for everyone on a given day. Finish it on its own day to extend your streak.', 'The free preview counts 90 seconds of real painting; menus, rules, pause, results, the Gallery and Watch and Learn do not use it. The web demo allows three pieces.'] },
+      { li: ['Free Painting has no rules, no stars and unlimited paint; you choose the shape and the symmetry.', 'The Gallery keeps your 24 most recent pieces; older ones drop off.', 'The Daily Commission is the same piece for everyone on a given day. Finish it on its own day to extend your streak.', 'The web demo allows three pieces. Free to play with short ads; go ad-free once.'] },
     ] },
     { title: '10. Simplifications and controls', fig: { k: 'cart' }, body: [
       { li: ['Real painting is freehand and has no exact colour counts; the pots, rules and smudges are puzzle conventions added by this game.', 'Patterns and set names are generic. Wheels here are a solid timber wheel with a flat painted face, painted ring by ring.'] },

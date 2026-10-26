@@ -736,7 +736,7 @@ function drawTitle(ctx, state, R, L) {
   ctx.restore();
   if (lay.maxScroll > 0) { const th = Math.max(40, reg.h * reg.h / lay.total), ty = reg.y + (reg.h - th) * (lay.scroll / lay.maxScroll); ctx.fillStyle = 'rgba(255,214,90,0.95)'; ctx.beginPath(); ctx.roundRect(reg.x + reg.w + 8, ty, 6, th, 3); ctx.fill(); }
   const s = state.stats;
-  R.text(s.played ? `${s.played} matches · ${s.won} won` : state.demo ? 'Free web preview' : 'Free preview: 90 seconds of play', pr.x + pr.w / 2, pr.y + pr.h - 6, 18, '#cfe9d4', DISPLAY, 600);
+  R.text(s.played ? `${s.played} matches · ${s.won} won` : state.demo ? 'Free web preview' : 'Free to play', pr.x + pr.w / 2, pr.y + pr.h - 6, 18, '#cfe9d4', DISPLAY, 600);
   drawLockup(ctx, T.lock, Boolean(state.press && state.press.af && !state.press.moved));
 }
 

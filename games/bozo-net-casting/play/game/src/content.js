@@ -80,7 +80,7 @@ export const RULES = [
     'Watch & Learn thinks for the time you set (2 to 10 seconds), shows its choice for 2 seconds, then swings and casts it. Pause stops everything exactly where it is.',
   ] },
   { title: 'Ranks', p: RANKS.slice().reverse().map(([min, name]) => `${name}: ${min} points in a session.`) },
-  { title: 'Free preview', p: [
-    'The first 90 seconds of real play are free. Menus, Watch & Learn, the Logbook and a paused game never use them up. The full game is a single one-time unlock.',
+  { title: 'Free to play', p: [
+    'Free to play with short ads; go ad-free once.',
   ] },
 ];

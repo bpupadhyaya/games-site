@@ -42,7 +42,7 @@ export const ABOUT = [
   ] },
   { title: 'Made to be comfortable', p: [
     `Every text screen can be enlarged up to 300%. A Steadiness setting (${STEADY.map((s) => s.name).join(', ')}) forgives a shaky hand. The Think button tests swings with the real physics and tells you what it found; Watch & Learn lets two computer players play a whole duel with a real Pause.`,
-    'The game is free to try for 90 seconds of real play. Menus, the rules, Think and Watch & Learn are always free; one purchase unlocks everything for good.',
+    'Menus, the rules, Think and Watch & Learn are always free. Free to play with short ads; go ad-free once.',
   ] },
 ];
 
@@ -128,7 +128,7 @@ export const RULES = [
   ] },
   { title: 'Settings and comfort', p: [
     `Steadiness changes how far off your hand lands: ${STEADY.map((s) => s.name).join(', ')}. The aim guide can be switched off for a harder game. Text size goes from 100% to 300% on every text screen. Sound can be turned off.`,
-    'Menus, the rules, Think and Watch & Learn never use up the free preview. Only real swinging does.',
+    'Free to play with short ads; go ad-free once.',
   ] },
   { title: 'What this game leaves out', p: [
     'Some playgrounds have extra rules: calling "snags" when strings tangle, "stamps" when a conker falls, "no-strikes" and so on. This game leaves them out, so a duel is always about the swing. Cheating tricks such as baked or soaked conkers have no place here.',

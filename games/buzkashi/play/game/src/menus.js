@@ -194,7 +194,7 @@ export function pauseWidgets(state) {
 
 export function demoLimitWidgets() {
   return [
-    { t: 'gap', h: 200 }, { t: 'h', label: 'That is the free preview', size: 48 },
+    { t: 'gap', h: 200 }, { t: 'h', label: 'That is the demo end', size: 48 },
     { t: 'p', label: 'You have used the free carries of the web demo. The full game on iPhone and Android has all five rounds of the Winter Cup, the endless Gauntlet, Learn drills and Watch & Learn.', size: 28 },
     { t: 'gap', h: 20 },
     { t: 'btn', id: 'menu', label: 'Main menu', primary: true },

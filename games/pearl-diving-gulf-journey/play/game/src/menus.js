@@ -306,7 +306,7 @@ export function watchEndWidgets(state) {
     { t: 'btn', id: 'again', label: 'Watch another', primary: true, h: 84 }, { t: 'btn', id: 'menu', label: 'Main menu', dark: true, h: 76 }];
 }
 export function demoLimitWidgets() {
-  return [{ t: 'gap', h: 200 }, head('That is the free preview', 48), para('You have sailed the first two days of the web demo. The full game on iPhone and Android has the whole season of four trips, the harbour, the necklace and your journal.', { size: 28 }), { t: 'gap', h: 20 }, { t: 'btn', id: 'menu', label: 'Main menu', primary: true }];
+  return [{ t: 'gap', h: 200 }, head('That is the demo end', 48), para('You have sailed the first two days of the web demo. The full game on iPhone and Android has the whole season of four trips, the harbour, the necklace and your journal.', { size: 28 }), { t: 'gap', h: 20 }, { t: 'btn', id: 'menu', label: 'Main menu', primary: true }];
 }
 
 // ---- drawing the flow screens --------------------------------------------------------------------------------------------------------------------------------------------------------

@@ -399,7 +399,7 @@ function drawDemoLimit(ctx, st, L) {
   panel(ctx, r, { fill: 'rgba(36,14,14,0.95)', stroke: rgba(PAL.amber, 0.6) });
   titleText(ctx, 'ENJOYED THE DEMO?', L.w / 2, r.y + 62, 52, PAL.amber, { maxW: w - 30 });
   ctx.font = `500 27px ${UI}`;
-  wrap(ctx, 'The web demo plays the first piece a few times. Get the full game on iPhone and Android for all six pieces, Learn mode and Watch and Learn.', w - 56).forEach((ln, i) => txt(ctx, ln, L.w / 2, r.y + 130 + i * 36, 27, PAL.text, { align: 'center', weight: 500 }));
+  wrap(ctx, 'The web demo plays the first piece a few times. Get the free app on iPhone and Android for all six pieces, Learn mode and Watch and Learn.', w - 56).forEach((ln, i) => txt(ctx, ln, L.w / 2, r.y + 130 + i * 36, 27, PAL.text, { align: 'center', weight: 500 }));
   txt(ctx, 'Tap to go back', L.w / 2, r.y + r.h - 28, 22, PAL.dim, { align: 'center', weight: 600 });
 }
 

@@ -188,7 +188,7 @@ export function drawTable(ctx, wood, L, withMid = true) {
   ctx.fillStyle = bg; ctx.fillRect(0, 0, w, h);
   const wv = plainLayer('weave', WEAVE, WEAVE, paintWeave);
   if (wv) for (let y = 0; y < h; y += WEAVE) ctx.drawImage(wv, 0, 0, Math.min(WEAVE, w), WEAVE, 0, y, Math.min(WEAVE, w), WEAVE);
-  drawBand(ctx, L.bands.top, 1); shade(ctx, 0, L.bands.top.h, w, 12);
+  drawBand(ctx, L.bands.top, 1); shade(ctx, 0, L.bands.top.y + L.bands.top.h, w, 12);
   drawBand(ctx, L.bands.bottom, 2);
   if (withMid && L.bands.mid) { drawBand(ctx, L.bands.mid[0], 3); drawBand(ctx, L.bands.mid[1], 4); for (const m of L.bands.mid) { shade(ctx, 0, m.y + m.h, w, 10); } }
 }

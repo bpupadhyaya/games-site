@@ -72,7 +72,7 @@ export const ABOUT = [
   ] },
   { title: 'What you get', items: [
     P('Three triangles (Classic, Grand and Ten Points), five computer levels from Beginner to Master, two players on one phone, five hands-on lessons, Hint, threat marks, take back, and Auto Play (Watch & Learn).'),
-    P('Three boards (granite, soapstone and copper) and two kinds of stone, earned by winning. Large text, reduced motion and sound options. No ads, and it works offline.'),
+    P('Three boards (granite, soapstone and copper) and two kinds of stone, earned by winning. Large text, reduced motion and sound options. It works offline.'),
   ] },
   { title: 'Credits', items: [
     P('Board, stones, sounds and the computer player were made for Arcforge. Titles are set in Cormorant Garamond (SIL Open Font License 1.1).'),

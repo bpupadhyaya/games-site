@@ -19,7 +19,7 @@ export const ABOUT = [
   h('Made for this game'),
   p('The kegs, bag, cards, chips and every sound were made for this game. Nothing is borrowed from any real set.'),
   h('Just for fun'),
-  p('Scores are only for bragging rights. There are no stakes, no chips to buy and no ads.'),
+  p('Scores are only for bragging rights. There are no stakes and no chips to buy.'),
   h('Ways to play'),
   li('Play against computer players who mark their own cards.', 'Face to face: two players share one device, each with their own cards.', 'Daily Challenge: the same cards and kegs for everyone, once a day.', 'Watch & Learn: a whole round plays itself and explains each step.'),
   h('Your pace'),

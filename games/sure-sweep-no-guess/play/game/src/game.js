@@ -121,7 +121,7 @@ export function createGame(env) {
   storage.get('autoThinkIdx', 1).then((v) => {
     state.autoThinkIdx = Math.min(Math.max(v ?? 1, 0), THINK_STEPS.length - 1);
   });
-  // Persisted so reloading the page can't reset the free preview's board count.
+  // Persisted so reloading the page can't reset the game's board count.
   if (demo) {
     storage.get('demoBoards', 0).then((v) => {
       state.demoBoards = v;

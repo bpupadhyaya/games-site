@@ -26,7 +26,7 @@ const STR = {
     record: 'Record', wins: 'W', draws: 'D', losses: 'L',
     autoThink: 'Thinking', autoPause: 'Pause', autoPlay: 'Resume', autoExit: 'Exit', autoSlower: 'Think -', autoFaster: 'Think +',
     autoSession: 'Watch & Learn', autoAgain: 'Watch Again', autoSummary: 'You watched two whole games, each move chosen by the game\'s own engine with its reason shown: Master against Master, and Master against Expert.',
-    demoLimitTitle: 'FREE PREVIEW FINISHED', demoLimitBody: 'You played the three free games. Get the full game on iPhone and Android for every opponent level, two players on one phone and the full Learn course.',
+    demoLimitTitle: 'DEMO FINISHED', demoLimitBody: 'You played the three free games. Get the free app on iPhone and Android for every opponent level, two players on one phone and the full Learn course.',
     demoLeft: '{n} free games left', locked: 'In the full game', lessonsTitle: 'Learn', lessonDone: 'Done', again: 'Play Again', newSetup: 'Change Game',
     lessonNext: 'Next Lesson', lessonRetry: 'Try Again', lessonList: 'All Lessons', lessonOf: 'Lesson {n} of {m}', correct: 'Correct!', notQuite: 'Not quite',
     yourMove: 'Your move', thinking: 'Thinking...', turnOf: '{who} to move', pickHole: 'Tap one of your holes that holds seeds.',
@@ -163,7 +163,7 @@ const rulesEn = () => [
   ] },
   { title: 'Language, boards and text', art: 'themes', body: [
     'Play in English or the Amharic choice is a real choice on the first launch and on the main menu. The Amharic choice shows the name of the game, the menus, buttons, level names and scores in Amharic script; the long texts (these Rules, How to Play, About, lessons and the reasons given by Think) stay in English.',
-    'Settings offers two boards (Carved Acacia, Highland Clay), sound, the Watch & Learn think time and text size up to 300 percent on every text screen, including the game screen. There are no timers; the free preview is the first 90 seconds of real play.',
+    'Settings offers two boards (Carved Acacia, Highland Clay), sound, the Watch & Learn think time and text size up to 300 percent on every text screen, including the game screen. There are no timers. Free to play with short ads; go ad-free once.',
   ] },
 ];
 export const howtoPages = () => HOWTO;
@@ -175,5 +175,5 @@ export const aboutSections = () => [
   { title: 'Gabata', body: 'The three-row sowing game of Ethiopia and Eritrea, played on a carved wooden board with glossy seeds that are dropped one at a time.' },
   { title: 'Where it comes from', body: 'Gabata, also spelled Gebeta, is the name used in Ethiopia and Eritrea for a family of mancala sowing games, most of them played on two rows. A three-row form is recorded from the nineteenth century. Rules differ from region to region and from family to family, so this game follows one documented pattern, states its rules in full on the Rules pages and notes where it takes turns instead of the traditional simultaneous start.' },
   { title: 'Language', body: 'Choose Play in English, or the Amharic choice. The Amharic choice shows the name of the game, the menus, buttons and scores in Amharic script. The long texts are in English.' },
-  { title: 'In this game', body: 'Three rows of six holes, three seeds in each, relay sowing and column captures. Five opponent levels from Novice to Master, two players on one phone, Think with a reason in words, six lessons and Watch & Learn. A free preview, then one purchase unlocks the game. No timers and no ads.' },
+  { title: 'In this game', body: 'Three rows of six holes, three seeds in each, relay sowing and column captures. Five opponent levels from Novice to Master, two players on one phone, Think with a reason in words, six lessons and Watch & Learn. Free to play with short ads; go ad-free once.' },
 ];

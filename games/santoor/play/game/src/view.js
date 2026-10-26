@@ -99,7 +99,7 @@ function heroSantoor(ctx, st, r, focus, vert = false, hands = false) {
   const s0 = melody[idx % melody.length], s1 = melody[(idx + 11) % melody.length];
   ss[s0].vib = Math.exp(-frac * 2.2); ss[s0].glow = Math.exp(-frac * 3); ss[s0].ph = st.t * 60;
   ss[s1].vib = 0.5 * Math.exp(-(frac + 1) * 2.2); ss[s1].ph = st.t * 55;
-  const lg = ctx.createRadialGradient(r.x + r.w / 2, r.y + r.h / 2, r.h * 0.2, r.x + r.w / 2, r.y + r.h / 2, r.w * 0.72);
+  const lg = ctx.createRadialGradient(r.x + r.w / 2, r.y + r.h / 2, Math.max(0, r.h * 0.2), r.x + r.w / 2, r.y + r.h / 2, Math.max(0, r.w * 0.72));
   lg.addColorStop(0, 'rgba(255,170,90,0.3)'); lg.addColorStop(1, 'rgba(255,170,90,0)');
   ctx.fillStyle = lg; ctx.fillRect(r.x - r.w * 0.3, r.y - r.h, r.w * 1.6, r.h * 3);
   const inst = drawMiniSantoor(ctx, r, { ss, focus, vert });

@@ -159,7 +159,7 @@ export function pauseWidgets(state) {
 }
 export function demoLimitWidgets() {
   return [
-    { t: 'h', label: 'That was the free preview', size: 40 },
+    { t: 'h', label: 'That was the demo end', size: 40 },
     { t: 'p', label: 'The web demo plays three innings. The full game for iPhone and Android has every rival, every pit and the Daily Pit, with no limits.', size: 26 },
     { t: 'btn', id: 'menu', label: 'Main menu', primary: true, h: 90 },
   ];

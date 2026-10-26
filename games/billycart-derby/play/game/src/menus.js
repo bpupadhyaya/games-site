@@ -274,7 +274,7 @@ export function pauseWidgets(state) {
 
 export function demoLimitWidgets(wide) {
   return [
-    { t: 'gap', h: wide ? 40 : 200 }, { t: 'h', label: 'That is the free preview', size: 48 },
+    { t: 'gap', h: wide ? 40 : 200 }, { t: 'h', label: 'That is the demo end', size: 48 },
     { t: 'p', label: 'You have driven the free derbies of the web demo. The full game on iPhone and Android has every hill, the Daily hill, the cup, all the parts and all the rivals.', size: 28 },
     { t: 'gap', h: 20 },
     { t: 'btn', id: 'menu', label: 'Main menu', primary: true },

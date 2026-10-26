@@ -14,7 +14,7 @@ export const ABOUT = [
   { p: 'You lead the circle. A ring closes in on each move glyph; do the move on the beat with a gesture anywhere on the screen. Play cleanly and the whole circle falls into step and more drum layers join in.' },
   { h: 'Credits' },
   { p: 'Game by Arcforge. All sound is synthesised on your device and all art is drawn in the game. Display font Barlow Condensed by the Barlow Project Authors (SIL Open Font License 1.1).' },
-  { p: 'No ads. Works offline. The first 90 seconds of real play are free; the full game is a one-time unlock.' },
+  { p: 'Works offline. Free to play with short ads; go ad-free once.' },
 ];
 
 export const HOWTO = [
@@ -101,7 +101,7 @@ export const RULES = [
     { li: 'REVEAL: for two seconds the phrase\'s glyphs light up in the pit, in order, with the first move picked out.' },
     { li: 'ACT: the circle plays the phrase with the drum.' },
     { li: 'The Pause button freezes everything, including animation, and resumes exactly where it stopped.' },
-    { li: 'Watch and Learn is free to use: it does not count against the free preview.' },
+    { li: 'Free to play with short ads; go ad-free once.' },
   ] },
   { title: 'Settings', blocks: [
     { li: 'Sound: all sound on or off.' },
@@ -111,11 +111,11 @@ export const RULES = [
     { li: 'Move names: show or hide the names under the glyphs.' },
     { li: 'Calm effects: fewer particles and no screen shake.' },
     { li: 'Vibration: a small buzz on each move, where the device supports it.' },
-    { li: 'Restore purchase: gets your one-time unlock back after a reinstall or on a new device (not shown in the web demo).' },
+    
     { li: 'Text size: from 100% to 300% on every reading screen.' },
   ] },
-  { title: 'Free preview and simplifications', blocks: [
-    { li: 'The first 90 seconds of real play (Perform and Learn) are free. After that the game asks for the one-time unlock. Menus, Rules, About, Watch and Learn and results are always free.' },
+  { title: 'Free play and simplifications', blocks: [
+    { li: 'Menus, Rules, About, Watch and Learn and results are always free. Free to play with short ads; go ad-free once.' },
     { li: 'The web demo plays the first piece only, a few times.' },
     { p: 'Simplifications: this game keeps the athletic moves and the instrumental drum rhythm of the practice. The pit is drawn from above and has eight athletes; real clubs vary in size and the order of exercises. The moves are shown as gestures rather than full exercises.' },
   ] },

@@ -79,7 +79,7 @@ export const RULES = [
     'Watch & Learn plays two computer players through a figure. Before each throw there is a think time (2, 5, 8 or 10 seconds, your choice), then the candidates and the choice are shown with a short reason, then the throw. Pause stops everything where it is, including the bat in the air.',
     'Think can be pressed any time it is your turn. It moves the ring and the style to the best plan it can find and says what it expects.',
   ] },
-  { title: 'The free preview', p: [
-    'The first ninety seconds of real play are free. Menus, Watch & Learn and the reference pages never count. The web demo has the first three figures and two duel figures, and the full game has everything.',
+  { title: 'Free to play', p: [
+    'The web demo has the first three figures and two duel figures, and the full game has everything. Free to play with short ads; go ad-free once.',
   ] },
 ];

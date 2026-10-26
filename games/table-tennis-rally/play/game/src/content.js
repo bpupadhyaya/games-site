@@ -4,7 +4,7 @@ export const ABOUT = [
   { h: 'Table Tennis Rally', p: 'A fast, real-feeling table tennis game for one finger. The table, ball, paddle, net, shadows and camera are all in real 3D, and the ball obeys real spin: topspin dips and kicks, backspin floats and dies, sidespin curves.' },
   { h: 'Why table tennis', p: 'Table tennis is played by hundreds of millions of people, and it is a national passion in China, where the modern game grew into the sport the world knows. Its reflexes, its spin and its tactics are what this game is built on.' },
   { h: 'What you can do', p: 'Play a quick match against 18 opponents with their own styles, climb six tournament cups from a neighbourhood hall to the big stage, train in the Rally Challenge against a ball machine, or sit back and let the coach play while it explains every decision (Watch & Learn).' },
-  { h: 'Made with care', p: 'No ads, no energy timers, no tracking. The first 90 seconds of real play are free; one unlock keeps the whole game, on your device, forever. Everything works offline.' },
+  { h: 'Made with care', p: 'No energy timers. This game is free to play with short ads from Google AdMob; go ad-free once and keep it on your device. The game itself works offline.' },
 ];
 export const CREDITS = 'Arcforge. 3D drawing by an open-source WebGL library (MIT licence, see Licences below). Fonts: Barlow and Barlow Condensed (SIL Open Font Licence). All sounds are synthesized in the game. Opponent names and places are invented.';
 

@@ -208,7 +208,7 @@ function renderWork(ctx, st, L, h) {
 function renderDemoLimit(ctx, st, L) {
   const S = L.S, cx = S.x + S.w / 2, w = Math.min(S.w - 60, 620), y = S.y + S.h * 0.3;
   titleText(ctx, cx, y, Math.min(86, w / 5.5), 'INK BRUSH', null);
-  const lines = (ctx.font = `600 32px ${UI}`, wrap(ctx, 'That is the end of the free preview in the browser. The full game has every lesson, the free scroll, the seals and the gallery. Get Ink Brush on iPhone and Android.', w));
+  const lines = (ctx.font = `600 32px ${UI}`, wrap(ctx, 'That is the end of the demo in the browser. The full game has every lesson, the free scroll, the seals and the gallery. Get Ink Brush on iPhone and Android.', w));
   lines.forEach((ln, i) => txt(ctx, ln, cx, y + 90 + i * 44, 32, PAL.text, { align: 'center', weight: 600 }));
   txt(ctx, 'Tap to go back to the menu', cx, y + 120 + lines.length * 44, 26, PAL.dim, { align: 'center', weight: 500 });
 }

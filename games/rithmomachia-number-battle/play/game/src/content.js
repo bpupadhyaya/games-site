@@ -98,7 +98,7 @@ export const ABOUT = [
   ] },
   { title: 'This edition', items: [
     P('Five computer levels from Beginner to Master, two players on one device, hands-on lessons, hints, danger marks, take back, and a Watch and Learn mode. The board and pieces follow an illuminated manuscript: vellum, gold leaf, lapis and ink.'),
-    P('Works in portrait and landscape on phones and tablets, with text zoom up to 300 percent on the reading screens and a reduced motion option. No ads. Your game is saved when you leave.'),
+    P('Works in portrait and landscape on phones and tablets, with text zoom up to 300 percent on the reading screens and a reduced motion option. Your game is saved when you leave.'),
   ] },
   { title: 'Arcforge', items: [
     P('Arcforge is a collection of the world’s heritage games, each built to look and feel better than the usual store version. Tap the Arcforge mark on the menu to see the others.'),

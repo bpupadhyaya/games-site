@@ -150,9 +150,9 @@ export function drawObstacle(ctx, o, t = 0) {
     if (o.art === 'fountain') {
       ctx.fillStyle = 'rgba(10,6,20,0.34)'; ctx.beginPath(); ctx.arc(x + 9, y + 9, r, 0, TAU); ctx.fill();
       ctx.fillStyle = '#e0d9c8'; ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill();
-      ctx.fillStyle = '#a99f8c'; ctx.beginPath(); ctx.arc(x, y, r - 10, 0, TAU); ctx.fill();
-      const wg = ctx.createRadialGradient(x - 20, y - 20, 6, x, y, r - 14); wg.addColorStop(0, '#bff0ff'); wg.addColorStop(1, '#4f9db8');
-      ctx.fillStyle = wg; ctx.beginPath(); ctx.arc(x, y, r - 14, 0, TAU); ctx.fill();
+      ctx.fillStyle = '#a99f8c'; ctx.beginPath(); ctx.arc(x, y, Math.max(0, r - 10), 0, TAU); ctx.fill();
+      const wg = ctx.createRadialGradient(x - 20, y - 20, 6, x, y, Math.max(0, r - 14)); wg.addColorStop(0, '#bff0ff'); wg.addColorStop(1, '#4f9db8');
+      ctx.fillStyle = wg; ctx.beginPath(); ctx.arc(x, y, Math.max(0, r - 14), 0, TAU); ctx.fill();
       ctx.strokeStyle = 'rgba(255,255,255,0.55)'; ctx.lineWidth = 2;
       for (let i = 0; i < 3; i++) { ctx.beginPath(); ctx.arc(x, y, 30 + i * 22 + ((t * 14 + i * 9) % 22), 0, TAU); ctx.globalAlpha = 0.5 - i * 0.12; ctx.stroke(); }
       ctx.globalAlpha = 1;
@@ -167,13 +167,13 @@ export function drawObstacle(ctx, o, t = 0) {
       ctx.fillStyle = 'rgba(10,6,20,0.4)'; ctx.beginPath(); ctx.arc(x + 9, y + 9, r, 0, TAU); ctx.fill();
       const g = ctx.createRadialGradient(x - r * 0.35, y - r * 0.35, 3, x, y, r); g.addColorStop(0, '#ffffff'); g.addColorStop(1, '#a89fb8');
       ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill();
-      ctx.strokeStyle = '#e8c26a'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(x, y, r - 5, 0, TAU); ctx.stroke();
+      ctx.strokeStyle = '#e8c26a'; ctx.lineWidth = 4; ctx.beginPath(); ctx.arc(x, y, Math.max(0, r - 5), 0, TAU); ctx.stroke();
       ctx.strokeStyle = 'rgba(80,60,110,0.35)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y, r * 0.5, 0, TAU); ctx.stroke();
     } else if (o.art === 'table') {
       ctx.fillStyle = 'rgba(10,6,20,0.36)'; ctx.beginPath(); ctx.arc(x + 9, y + 9, r, 0, TAU); ctx.fill();
       const g = ctx.createRadialGradient(x - 20, y - 20, 4, x, y, r); g.addColorStop(0, '#fff8e8'); g.addColorStop(1, '#d4c3a0');
       ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill();
-      ctx.strokeStyle = '#e8c26a'; ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(x, y, r - 8, 0, TAU); ctx.stroke();
+      ctx.strokeStyle = '#e8c26a'; ctx.lineWidth = 5; ctx.beginPath(); ctx.arc(x, y, Math.max(0, r - 8), 0, TAU); ctx.stroke();
       ctx.fillStyle = '#e8c26a'; ctx.beginPath(); ctx.arc(x, y, 14, 0, TAU); ctx.fill();
       ctx.fillStyle = '#ffd27a'; ctx.beginPath(); ctx.arc(x, y - 6, 7, 0, TAU); ctx.fill();
       for (let k = 0; k < 4; k++) { const a = k * (TAU / 4) + 0.6; ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.arc(x + Math.cos(a) * (r - 24), y + Math.sin(a) * (r - 24), 7, 0, TAU); ctx.fill(); ctx.strokeStyle = '#c8a860'; ctx.lineWidth = 2; ctx.stroke(); }
@@ -181,7 +181,7 @@ export function drawObstacle(ctx, o, t = 0) {
       ctx.fillStyle = 'rgba(10,6,20,0.34)'; ctx.beginPath(); ctx.arc(x + 7, y + 8, r, 0, TAU); ctx.fill();
       const g = ctx.createRadialGradient(x - r * 0.3, y - r * 0.3, 2, x, y, r); g.addColorStop(0, '#9ec8d8'); g.addColorStop(1, '#3e6f8a');
       ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, TAU); ctx.fill();
-      ctx.strokeStyle = '#e8c26a'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(x, y, r - 6, 0, TAU); ctx.stroke();
+      ctx.strokeStyle = '#e8c26a'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(x, y, Math.max(0, r - 6), 0, TAU); ctx.stroke();
       ctx.fillStyle = '#3a8a3a'; for (let k = 0; k < 5; k++) { ctx.beginPath(); ctx.arc(x + Math.cos(k * 1.26) * 9, y + Math.sin(k * 1.26) * 9, 8, 0, TAU); ctx.fill(); }
     }
   }

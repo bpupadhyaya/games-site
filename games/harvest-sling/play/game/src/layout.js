@@ -88,6 +88,8 @@ function build(w, h, ins) {
     const f = fit(w, h, ins, bs + 38);
     L.brand.x = w / 2; L.brand.y = h - Math.max(ins.b, 10) - 18 - bs; L.brand.align = 'center';
     L.title = { f, r: TD, hit: Object.fromEntries(Object.entries(TD).map(([k, r]) => [k, mapRect(f, r)])), title: { x: 360, y: 250, size: 84 }, tag: { x: 360, y: 330, size: 28 }, stats: { x: 360, y: 470, size: 26 }, sling: null };
+    const autoBottom = (mapRect(f, TD.auto).y + mapRect(f, TD.auto).h) / z;   // keep the decorative slingshot fork clear of the last menu button
+    L.title.sling = { x: L.sling.x, y: Math.max(L.sling.y, autoBottom + 78) };
     L.title.hit.soundTitle = R(Math.min(L.title.hit.soundTitle.x, w - ins.r - 90), Math.max(L.title.hit.soundTitle.y, ins.t + 8), L.title.hit.soundTitle.w, L.title.hit.soundTitle.h);
     L.title.r = { ...TD, soundTitle: R((L.title.hit.soundTitle.x - f.ox) / f.s, (L.title.hit.soundTitle.y - f.oy) / f.s, 84, 64) };
   } else {

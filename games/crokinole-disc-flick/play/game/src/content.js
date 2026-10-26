@@ -120,7 +120,7 @@ export const RULES = [
     'Each rival thinks about many flicks, tries them out in a hidden copy of the board and picks the best. Weaker rivals consider fewer options and have a less steady hand. The strongest rarely slips.',
     'Hint uses the strongest rival\'s thinking for you.',
   ] },
-  { title: 'Preview and unlocking', p: [
-    'The first 90 seconds of real play are free. Menus, these pages, settings and Watch & Learn never use up the free time, and a paused match does not either.',
+  { title: 'Ads and ad-free', p: [
+    'Free to play with short ads; go ad-free once.',
   ] },
 ];

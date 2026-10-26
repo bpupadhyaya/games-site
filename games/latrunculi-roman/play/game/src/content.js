@@ -19,8 +19,8 @@ export const STR = {
   autoPause: 'Pause', autoPlay: 'Resume', autoExit: 'Exit', autoSlower: 'Think -', autoFaster: 'Think +',
   autoSession: 'Watch & Learn', autoAgain: 'Watch Again',
   autoSummary: 'You watched a whole game, with every move explained. Watch again for a different game, or head to Learn to try the ideas yourself.',
-  demoLimitTitle: 'FREE PREVIEW FINISHED',
-  demoLimitBody: 'You played the three free games. Get the full game on iPhone and Android for every opponent level, two players on one phone, all the lessons and the other boards.',
+  demoLimitTitle: 'DEMO FINISHED',
+  demoLimitBody: 'You played the three free games. Get the free app on iPhone and Android for every opponent level, two players on one phone, all the lessons and the other boards.',
   demoLeft: '{n} free games left',
   ludus: 'Ludus', latrunculorum: 'Latrunculorum', tagline: 'The Roman game of little soldiers',
   taglineSub: 'Slide. Sandwich. Enclose the dux.',
@@ -227,15 +227,15 @@ const RULES = [
   ] },
   { art: 'learn', title: 'Learn', body: [
     'Learn is a short course of real positions: how pieces slide, capturing, taking two at once, moving between two enemies, edges and corners, staying safe, enclosing the dux, guarding your own dux and leaving the other side with no move. A move that is wrong is not played: you are told why and can try again.',
-    'Lessons you finish are ticked. They do not use up the free preview.',
+    'Lessons you finish are ticked.',
   ] },
   { art: 'auto', title: 'Watch & Learn', body: [
     `Watch & Learn plays a whole game for you with the game's own opponent engine on both sides. Each decision has three steps: THINK (2, 5, 8 or 10 seconds, you choose), REVEAL (two seconds: the options light up and the chosen move is marked, with the reason in words) and ACT.`,
-    'Pause freezes everything where it is and Resume carries on from exactly there. Watch & Learn does not use up the free preview.',
+    'Pause freezes everything where it is and Resume carries on from exactly there.',
   ] },
   { art: 'themes', title: 'Boards and sound', body: [
     'In Settings you can choose the board: Carrara Marble, Nero and Gold, or Imperial Porphyry. The rules do not change. Sound can be switched off, the think time of Watch & Learn set, and the text size raised up to 300 percent on every text screen, including the game screen.',
-    'There are no timers and no stakes: results are only kept as your own record of wins, draws and losses for each level. The game starts with a free preview of the first 90 seconds of play; the full game is a single one-time unlock and works offline.',
+    'There are no timers and no stakes: results are only kept as your own record of wins, draws and losses for each level. Free to play with short ads; go ad-free once.',
   ] },
 ];
 

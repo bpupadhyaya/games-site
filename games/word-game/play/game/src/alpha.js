@@ -114,7 +114,7 @@ export const GUIDE = [
   { h: 'Keep it short', p: 'Five to ten minutes is plenty for a young child. Stop while it is still fun. The Settings screen has a play-time limit and a break reminder that you can set.' },
   { h: 'Connect it to the day', p: 'After a game, look for the same letters and words around you: on a cereal box, a sign, a book. The letter on the screen becomes a letter in the world.' },
   { h: 'Use your own language too', p: 'A child learns best when words are linked to words they already know. Say the word in your home language as well, then in English.' },
-  { h: 'You decide what is on the screen', p: 'The grown-up area (Settings, data, players) asks a simple sum before it opens when a child profile is in use. There are no ads, no links to other sites and no purchases inside the games on this page.' },
+  { h: 'You decide what is on the screen', p: 'The grown-up area (Settings, data, players) asks a simple sum before it opens when a child profile is in use. There are no links to other sites and no purchases inside the games on this page.' },
 ];
 export const GUIDE_NOTE = 'This is general advice for sharing a game with a young child, not medical or teaching advice. Follow the guidance of your own clinic or school about screen time for very young children.';
 export const BEDTIME_MINS = [0, 5, 10, 15, 20];

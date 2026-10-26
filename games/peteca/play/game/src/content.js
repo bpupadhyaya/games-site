@@ -100,7 +100,7 @@ export const RULES = [
   { title: 'Collection', p: [
     'Courts and petecas are unlocked by playing: the Park square after your first win, the Dusk court with a Beach Rally streak of 15; the Arara peteca with a first win, the Tucano with 50 perfect strikes and the Beija-flor with a Beach Rally streak of 20.',
   ] },
-  { title: 'Free preview', p: [
-    'The first 90 seconds of real play are free. Menus, Watch & Learn, the Collection and paused play do not count. The full game is a one-time unlock; Restore Purchases is in Settings.',
+  { title: 'Free to play', p: [
+    'Free to play with short ads; go ad-free once.',
   ] },
 ];

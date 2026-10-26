@@ -507,7 +507,7 @@ function renderDemoLimit(ctx, st, L) {
   const M = L.modal(620, 520);
   panel(ctx, M, { radius: 26, fill: 'rgba(30,13,24,0.96)', brand: true });
   txt(ctx, 'You are in the circle', M.x + M.w / 2, M.y + 100, 50, { align: 'center', font: 'display', color: PAL.gold });
-  wrap(ctx, 'The free web version lets you play a few sessions. Get the full game on iPhone and Android for every rhythm, the whole circle and unlimited play.', M.w - 80, 28).forEach((l, i) => txt(ctx, l, M.x + M.w / 2, M.y + 170 + i * 40, 28, { align: 'center', weight: 500 }));
+  wrap(ctx, 'The free web version lets you play a few sessions. Get the free app on iPhone and Android for every rhythm, the whole circle and unlimited play.', M.w - 80, 28).forEach((l, i) => txt(ctx, l, M.x + M.w / 2, M.y + 170 + i * 40, 28, { align: 'center', weight: 500 }));
   buttonsDraw(ctx, st, L);
 }
 void brandGradient; void edgeStroke; void DIFFICULTY; void GRADE_POINTS; void notation; void TITLE_CARDS;

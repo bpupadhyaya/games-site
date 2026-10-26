@@ -25,7 +25,7 @@ export const ABOUT = [
     'Here the green, the farmhouses and the birches are drawn for this game. Nothing in it stands for any country, party or brand.',
   ] },
   { title: 'This version', text: [
-    'Lapta is part of the Arcforge collection of world heritage games. It has no ads, no betting and no stakes, works offline and saves your records on your device.',
+    'Lapta is part of the Arcforge collection of world heritage games. It has no betting and no stakes, works offline and saves your records on your device.',
     'The rules page lists every number the engine uses. Text size can be set up to 300% in Settings and on every reading page.',
     'Four kit colours (poppy red, cornflower, birch green and sunflower) unlock as your career points grow: 250, 700 and 1400 points.',
   ] },

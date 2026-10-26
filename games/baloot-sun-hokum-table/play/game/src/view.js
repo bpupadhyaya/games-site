@@ -428,7 +428,8 @@ function table(ctx, state, V) {
   if (H.phase === 'bid' && H.floor >= 0) {
     const bob = calm ? 0 : Math.sin(t * 2) * 4, ds = T.deckSc;
     drawCard(ctx, H.floor, DECK.x - CW * ds / 2, DECK.y - CH * ds / 2 + bob, ds, { big, four });
-    text('Turned-up card', DECK.x, DECK.y + CH * ds / 2 + 32, 24, 'rgba(255,240,200,0.9)', UI, 700);
+    const lblSize = Math.max(24, LAY.minU);   // the text helper bumps small sizes up to the minimum readable size, so place by that size (cap height ~0.75) below the card, its bob and its shadow
+    text('Turned-up card', DECK.x, DECK.y + CH * ds / 2 + 4 + 10 + 0.8 * lblSize + 6, lblSize, 'rgba(255,240,200,0.9)', UI, 700);
   }
 
   // ---- cards: hand, then table, then the raised/dragged card on top

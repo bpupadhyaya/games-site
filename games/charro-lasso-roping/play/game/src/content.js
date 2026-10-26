@@ -35,8 +35,8 @@ export const ABOUT = [
     `This is a simplified game for your phone that keeps the real names and the real idea: spin the loop to the beat, then rope a running target. It is not an official simulation. The target is a calm, trained horse shown running across the arena; the rope settles gently over its neck and nothing is shown that could hurt it. Tricks included: ${ids.map((k) => `${TRICKS[k].name} (${TRICKS[k].en})`).join(', ')}.`,
     `Play against the computer at ${Object.values(LEVEL_NAMES).join(', ')} level, ask for a Hint any time, or watch a whole short event with Auto Play.`,
   ] },
-  { h: 'Free preview and unlock', p: [
-    'Your first 90 seconds of event play are free. A single one-time purchase then unlocks the whole game, with no ads and nothing else to buy. Restore purchase is on the unlock screen. Menus, Settings, the Rules and Auto Play never use up the preview.',
+  { h: 'Ads and ad-free', p: [
+    'Free to play with short ads. A single one-time purchase makes it ad-free, with nothing else to buy. Restore purchase is on the game page in Arcforge. Menus, Settings, the Rules and Auto Play are always free to use.',
   ] },
   { h: 'Play and wellness', p: [
     'Nothing is staked: you play for the event. Text size can be raised to 300% in Settings and on every reading page, and Reduced motion calms the animation.',
@@ -78,8 +78,8 @@ export const RULES = [
   { h: 'The other charro', p: [
     `The computer charro does not play on the screen: its score for every part is worked out when the event starts from its level (skill ${LV.apprentice.skill * 100}% Apprentice, ${LV.charro.skill * 100}% Charro, ${LV.maestro.skill * 100}% Maestro) with a little luck either way. For a trick it scores about three quarters of the best possible trick score times its skill; for a run it catches with a chance equal to its skill. You see its score appear after each part.`,
   ] },
-  { h: 'Hint, Auto Play and the free preview', p: [
+  { h: 'Hint, Auto Play and free play', p: [
     'Hint lights the next knot (and says whether it is held) or, in a run, marks the moment to let go. Auto Play plays a whole short event with a computer charro of its own: it thinks (2, 5, 8 or 10 seconds), shows its plan for 2 seconds, then performs it. It is allowed to miss. Pause freezes everything.',
-    'Event play uses the 90-second free preview; menus, Rules, Settings and Auto Play do not. After that one purchase unlocks the whole game.',
+    'Free to play with short ads; go ad-free once.',
   ] },
 ];

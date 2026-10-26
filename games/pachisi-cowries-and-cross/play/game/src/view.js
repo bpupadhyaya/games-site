@@ -438,7 +438,7 @@ function drawTitle(ctx, state, text, shadowText) {
   drawLockupImage(ctx, Tt.lock.cx, Tt.lock.y, Tt.lock.h, 0.9, (state.afFlash || 0) > 0);   // the Arcforge credit in this game's colours, bottom-centre under the menu
   const G = titleGeo(state), P = G.plate;
   plate(ctx, P.x, P.y, P.w, P.h);
-  const s = state.stats; text(s.played ? `${s.played} played · ${s.wins} won` : 'Free preview: 5 minutes of play', P.x + P.w / 2, G.footY, 22, '#c9a86a', UI, 600);
+  const s = state.stats; text(s.played ? `${s.played} played · ${s.wins} won` : 'Free to play', P.x + P.w / 2, G.footY, 22, '#c9a86a', UI, 600);
   void has;
 }
 

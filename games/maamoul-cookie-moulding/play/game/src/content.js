@@ -102,7 +102,7 @@ export const DOCS = {
         { p: 'This game is about that moment of craft: the right amount of filling, a tight seal, three clean knocks and an oven watched for pale gold. It is inspired by the tradition; the shifts, bakeries and scoring are our own.' },
       ], 'cookies'),
       R('Good to know', [
-        { li: ['One-time unlock after a free preview; no ads and no subscriptions.', 'Fillings are date paste, walnut and pistachio. Everything is vegetarian.', 'Everything works offline. Portrait or landscape on phone and tablet.', 'Tap Think any time you want a nudge. Watch and Learn plays and explains a whole shift.'] },
+        { li: ['Free to play with short ads; go ad-free once.', 'Fillings are date paste, walnut and pistachio. Everything is vegetarian.', 'Everything works offline. Portrait or landscape on phone and tablet.', 'Tap Think any time you want a nudge. Watch and Learn plays and explains a whole shift.'] },
         { p: 'Part of Arcforge, a collection of world heritage games.' },
       ]),
       R('Credits', [

@@ -34,7 +34,7 @@ export function titleGeo(s) {
   put({ id: 'autoplay', x: x0, y, w, h: H(66), label: 'Auto Play · Watch & Learn', size: 28 }, 14);
   { const h = H(62); B.push({ id: 'about', y, h, ...rowAt(3, 0, x0, w), label: 'About', size: 26 }, { id: 'how', y, h, ...rowAt(3, 1, x0, w), label: 'How to play', size: 26 }, { id: 'settings', y, h, ...rowAt(3, 2, x0, w), label: 'Settings', size: 26 }); y += h + 14 * sc; }
   put({ id: 'rules', x: x0, y, w, h: H(66), label: 'Rules', size: 28 }, 0);
-  return { plate, buttons: B, footY: plate.y + plate.h - 22 };
+  return { plate, buttons: B, footY: plate.y + plate.h - T.footOff };
 }
 
 // ---- the set-up screen -----------------------------------------------------------------------------------------------------

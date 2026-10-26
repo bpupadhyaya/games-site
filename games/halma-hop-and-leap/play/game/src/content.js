@@ -85,7 +85,7 @@ export const ABOUT = [
   ] },
   { title: 'What you get', items: [
     P('Three rule sets: Classic (16 by 16, two players), Quick (10 by 10) and a four-player game. Five computer levels from Beginner to Master, two to four players on one device, five hands-on lessons, Hint, take back, and Auto Play (Watch & Learn).'),
-    P('Three boards and two peg styles to earn. Large text up to 300 percent, reduced motion and sound options. No ads, and it works offline.'),
+    P('Three boards and two peg styles to earn. Large text up to 300 percent, reduced motion and sound options. It works offline.'),
   ] },
   { title: 'Credits', items: [
     P('Board, pegs, sounds and the computer player were made for Arcforge. Titles are set in Fredoka (SIL Open Font License 1.1).'),

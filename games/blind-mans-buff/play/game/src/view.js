@@ -58,7 +58,7 @@ function warmShape(ctx, g, S, a, k) {
 // ---- title ------------------------------------------------------------------------------------------------------------------------------
 function hero(ctx, st, area) {
   const side = Math.min(area.w - 24, area.h - 12), x = area.x + (area.w - side) / 2, y = area.y + (area.h - side) / 2, S = side / 1000, t = st.t;
-  ctx.save(); ctx.beginPath(); ctx.roundRect(x, y, side, side, side * 0.06); ctx.clip();
+  ctx.save(); ctx.beginPath(); ctx.roundRect(x, y, side, side, Math.max(0, side * 0.06)); ctx.clip();
   // the seeker walks a slow loop; three guests drift and clap in the dark; the room is the real 3D salon when it is available
   const a = t * 0.35, px = 500 + Math.cos(a) * 250, py = 540 + Math.sin(a * 1.3) * 160, head = Math.atan2(Math.cos(a * 1.3) * 160 * 1.3, -Math.sin(a) * 250);
   const orbit = (cx, cy, rx, ry, w, ph) => ({ x: cx + Math.cos(t * w + ph) * rx, y: cy + Math.sin(t * w * 1.2 + ph) * ry, a: Math.atan2(Math.cos(t * w * 1.2 + ph) * ry * 1.2, -Math.sin(t * w + ph) * rx) });
@@ -88,11 +88,11 @@ function hero(ctx, st, area) {
     ctx.restore();
   } else {
     // a vignette keeps the eye on the middle of the picture
-    const vg = ctx.createRadialGradient(x + side / 2, y + side * 0.55, side * 0.3, x + side / 2, y + side * 0.55, side * 0.78);
+    const vg = ctx.createRadialGradient(x + side / 2, y + side * 0.55, Math.max(0, side * 0.3), x + side / 2, y + side * 0.55, Math.max(0, side * 0.78));
     vg.addColorStop(0, 'rgba(8,6,22,0)'); vg.addColorStop(1, 'rgba(8,6,22,0.62)'); ctx.fillStyle = vg; ctx.fillRect(x, y, side, side);
   }
   ctx.restore();
-  ctx.strokeStyle = 'rgba(232,194,106,0.55)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.roundRect(x, y, side, side, side * 0.06); ctx.stroke();
+  ctx.strokeStyle = 'rgba(232,194,106,0.55)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.roundRect(x, y, side, side, Math.max(0, side * 0.06)); ctx.stroke();
 }
 
 function renderTitle(ctx, st, L) {
@@ -521,7 +521,7 @@ function renderDemoLimit(ctx, st, L) {
   panel(ctx, { x: cx - bw / 2, y: cy - 190, w: bw, h: 380 }, { fill: 'rgba(24,18,52,0.96)', rad: 28 });
   txt(ctx, 'That is the free web demo', cx, cy - 110, 38, PAL.gold, { align: 'center', font: DISPLAY, weight: 700, maxW: bw - 40 });
   ctx.font = `500 26px ${UI}`;
-  wrap(ctx, 'Get the full game on iPhone and Android for all four rooms, Hide and Dodge and your saved feathers.', bw - 80).forEach((ln, i) => txt(ctx, ln, cx, cy - 30 + i * 36, 26, PAL.text, { align: 'center', weight: 500 }));
+  wrap(ctx, 'Get the free app on iPhone and Android for all four rooms, Hide and Dodge and your saved feathers.', bw - 80).forEach((ln, i) => txt(ctx, ln, cx, cy - 30 + i * 36, 26, PAL.text, { align: 'center', weight: 500 }));
   txt(ctx, 'Tap to go back to the menu', cx, cy + 150, 24, PAL.dim, { align: 'center', weight: 600 });
 }
 

@@ -31,7 +31,7 @@ export const ABOUT = [
     'This game takes the craft as its inspiration: the bands, the symmetry and the care. The patterns in the game are original and abstract; they are not copies of any family\'s wall, and the game makes no claim to teach the meaning of any real design.',
   ] },
   { title: 'This version', text: [
-    'Tiebele House Painting is part of the Arcforge collection of world heritage games. It has no ads, no betting and no stakes, works offline and saves your records on your device.',
+    'Tiebele House Painting is part of the Arcforge collection of world heritage games. It has no betting and no stakes, works offline and saves your records on your device.',
     'The walls are generated from the pattern rules in the Rules pages, so every wall can be checked cell by cell. Text size can be set up to 300% in Settings and on every reading page.',
     'With respect to the Kassena people and to the families of Tiebele, whose living craft this game honours.',
   ] },

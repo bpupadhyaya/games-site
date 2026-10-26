@@ -14,7 +14,7 @@ export const STR = {
   autoThink: 'Thinking', autoReveal: 'The next move', autoAct: 'Moving', autoDone: 'Tower complete', autoPause: 'Pause', autoPlay: 'Resume',
   autoExit: 'Exit', autoSlower: 'Think -', autoFaster: 'Think +', autoSession: 'Watch & Learn', autoAgain: 'Watch Again',
   autoSummary: 'You watched three towers solved with the fewest possible moves, one step at a time.',
-  demoLimitTitle: 'FREE PREVIEW FINISHED', demoLimitBody: 'You solved the three free towers. Get the full game on iPhone and Android for every chapter, the Scrambles and the Daily Challenge.',
+  demoLimitTitle: 'DEMO FINISHED', demoLimitBody: 'You solved the three free towers. Get the free app on iPhone and Android for every chapter, the Scrambles and the Daily Challenge.',
   demoLeft: '{n} free towers left', tagline: 'Move the tower. Find the pattern.', best: 'Best', moves: 'Moves', minimum: 'Minimum',
   tipTap: 'Tap a peg to lift its top disc', tipTap2: 'Now tap the peg where it should go', refused: 'A larger disc cannot rest on a smaller one',
   nothingUndo: 'Nothing to undo', stars3: 'Perfect: the fewest possible moves.', stars2: 'Great: within one and a half times the minimum.',
@@ -95,7 +95,7 @@ export const RULES = [
   ] },
   { title: 'Watch & Learn', art: 'auto', body: [
     'Watch & Learn plays three towers for you: three discs, four discs, and four discs on four pegs. Each move has three steps: THINK (2, 5, 8 or 10 seconds, you choose), REVEAL (two seconds: the disc to move and the pegs it may go to light up) and ACT (the move happens).',
-    'Pause freezes everything where it is and Resume carries on from exactly there. The moves are the solver\'s best moves, so every tower is solved in the fewest possible moves. Watch & Learn does not use up the free preview.',
+    'Pause freezes everything where it is and Resume carries on from exactly there. The moves are the solver\'s best moves, so every tower is solved in the fewest possible moves.',
   ] },
   { title: 'Daily Challenge', art: 'daily', body: [
     'Each day brings one new scrambled position, the same for everyone: three or four pegs and four to seven discs, worked out from the date. Solve it for stars and to extend your daily streak.',
@@ -103,7 +103,7 @@ export const RULES = [
   ] },
   { title: 'Chapters and unlocking', art: 'chapters', body: [
     'The Classic Tower opens first. Solve three Classic levels to open Four Pegs, and three Four Pegs levels to open the Scrambles. Inside a chapter every level is open.',
-    'The game starts with a free preview of the first 90 seconds of play; the full game is a single one-time unlock and works offline.',
+    'Free to play with short ads; go ad-free once.',
   ] },
   { title: 'How a level ends', art: 'win', body: [
     'A level ends when every disc is on the gold peg. There is no losing: no timer, no move limit and no way to get stuck, because every position can still be solved.',

@@ -210,6 +210,14 @@ function build(w, h, ins) {
     Q.viewport = R(Q.panel.x + 10, Q.panel.y + 12, Q.panel.w - 20 - Q.sbW - 8, Q.panel.h - 24);
     Q.scrollbar = R(Q.panel.x + Q.panel.w - 10 - Q.sbW, Q.viewport.y, Q.sbW, Q.viewport.h);
     Q.textW = Q.viewport.w - 2 * Q.padX;
+    // Welcome / first-level screens draw no Back or Next button, so in portrait their panel runs down to the bottom safe area
+    // instead of stopping above an empty button row (every option stays reachable, nothing cut off).
+    L.rulesFull = Q;
+    if (!wide) {
+      const py = Q.panel.y, ph = Math.max(Q.panel.h, h - ins.b - 24 - py), P2 = R(Q.panel.x, py, Q.panel.w, ph);
+      const vpf = R(P2.x + 10, P2.y + 12, P2.w - 20 - Q.sbW - 8, P2.h - 24);
+      L.rulesFull = { ...Q, panel: P2, viewport: vpf, scrollbar: R(P2.x + P2.w - 10 - Q.sbW, vpf.y, Q.sbW, vpf.h) };
+    }
     // flashcards: the reader panel is the card, two answer buttons sit inside its lower edge
     const C = L.cards = {}, pn = Q.panel, bw = (pn.w - 60) / 2;
     C.card = R(pn.x, pn.y, pn.w, pn.h);

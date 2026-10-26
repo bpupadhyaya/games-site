@@ -13,8 +13,8 @@ const STR = {
   autoSession: 'Watch & Learn finished', autoSummary: 'You saw how each cut is chosen: the ideas, the one that fits and the cut itself. Try the same levels yourself.',
   autoAgain: 'Watch again', autoExit: 'Back to menu', autoThink: 'Thinking', autoReveal: 'This cut', autoAct: 'Cutting', autoPaused: 'Paused', autoFold: 'Folding', autoUnfold: 'Unfolding',
   settings: 'Settings', soundOn: 'Sound: on', soundOff: 'Sound: off', thinkTime: 'Think time in Watch & Learn', seconds: ' s', textSize: 'Text size',
-  unlock: 'Unlock full game', restore: 'Restore purchase', owned: 'Full game unlocked. Thank you!', resetProgress: 'Reset progress', resetConfirm: 'Tap again to erase all progress',
-  demoLeft: '{n} lessons left in the web demo', demoLimitTitle: 'That is the web demo', demoLimitBody: 'The free web demo covers the first chapter. Get the full game on iPhone and Android for every level, Studio, the Gallery and all papers.',
+  unlock: 'Go ad-free', restore: 'Restore purchase', owned: 'Full game unlocked. Thank you!', resetProgress: 'Reset progress', resetConfirm: 'Tap again to erase all progress',
+  demoLeft: '{n} lessons left in the web demo', demoLimitTitle: 'That is the web demo', demoLimitBody: 'The free web demo covers the first chapter. Get the free app on iPhone and Android for every level, Studio, the Gallery and all papers.',
   studioHint: 'Free cutting: pick a sheet, a paper and a fold, then snip and unfold. Save the ones you like to the Gallery.',
   save: 'Save', saved: 'Saved to the Gallery', galleryFull: 'The Gallery holds 12 cut-outs. Delete one first.', del: 'Delete', replay: 'Replay unfold', myCutouts: 'My cut-outs', traditions: 'Traditions',
   emptyGallery: 'Nothing saved yet. Make a cut-out in Studio and press Save.', solveToSee: 'Finish a level of this tradition to see its patterns here.',
@@ -94,16 +94,16 @@ export const RULES = [
   { title: 'Watch & Learn', art: 'auto', body: [
     'Watch & Learn plays whole levels for you. For each cut the game thinks (it shows three candidate cuts one after another), reveals the one that fits with a line about why, and then cuts it. The levels it plays fold the paper, cut it and unfold it.',
     'You can set the thinking time to 2, 5, 8 or 10 seconds in Settings. The Pause button freezes everything exactly where it is and Resume carries on.',
-    'Watch & Learn is free and never uses up your free preview.'] },
-  { title: 'Free preview and unlocking', art: 'preview', body: [
-    'You can fold and cut for 90 seconds of real play for free. The menus, this Rules reference, About, Settings, the Gallery, Watch & Learn, the unfold and every card never count against the 90 seconds.',
-    'When the preview ends you can unlock the full game once with a single purchase, or restore an earlier purchase. There are no ads and no timers.',
+    'Watch & Learn is always free to use.'] },
+  { title: 'Free to play and ad-free', art: 'preview', body: [
+    'Free to play with short ads; go ad-free once.',
+    'If you already bought it, Restore purchase is on the game page in Arcforge. There are no timers.',
     'The free web demo plays the first chapter.'] },
 ];
 
 export const ABOUT = [
   { title: 'Paper Cutting', body: 'Fold a sheet of coloured paper, snip the wedge and unfold: one careful cut becomes a whole pattern. The paper is real, layered and curling in 3D, and every cut is repeated by the folds.' },
   { title: 'Heritage', body: 'Paper cutting is a folk craft around the world: jianzhi in China, wycinanki in Poland, papel picado in Mexico, Scherenschnitte in Germany and Switzerland, kirigami in Japan, and paper snowflakes everywhere. The levels follow those traditions by their craft: the folds, the papers and the motifs.' },
-  { title: 'What you get', body: '26 levels in 6 chapters with a target to match and a par to beat, Scissors and six Punch shapes, folds from x2 to x12 on four kinds of sheet, Studio and a Gallery to keep your cut-outs, and Watch & Learn that explains every cut. A Rules guide with text that grows to 300 percent. No ads, no timers, works offline.' },
+  { title: 'What you get', body: '26 levels in 6 chapters with a target to match and a par to beat, Scissors and six Punch shapes, folds from x2 to x12 on four kinds of sheet, Studio and a Gallery to keep your cut-outs, and Watch & Learn that explains every cut. A Rules guide with text that grows to 300 percent. No timers, works offline.' },
   { title: 'Part of Arcforge', body: 'Paper Cutting belongs to the Arcforge collection of World Heritage Games.' },
 ];

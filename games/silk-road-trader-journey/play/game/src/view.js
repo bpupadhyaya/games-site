@@ -455,6 +455,6 @@ export function renderDemoLimit(ctx, st, L, t) {
   ctx.fillStyle = 'rgba(14,8,4,0.6)'; ctx.fillRect(0, 0, L.w, L.h);
   const S = L.S, w = Math.min(S.w - 40, 620), r = { x: S.x + (S.w - w) / 2, y: S.y + S.h * 0.22, w, h: 420 }; panel(ctx, r, { fill: 'rgba(24,16,11,0.95)' });
   txt(ctx, 'The road goes on', r.x + r.w / 2, r.y + 62, 42, PAL.gold, { align: 'center', font: DISPLAY, weight: 800, maxW: r.w - 40 });
-  ctx.font = `500 27px ${UI}`; ctx.fillStyle = PAL.text; ctx.textAlign = 'center'; ctx.textBaseline = 'top'; wrap(ctx, 'This web demo covers the first two legs, Chang\'an to Dunhuang. Get the full game on iPhone and Android to cross the whole road to Baghdad and back.', r.w - 60).forEach((ln, i) => ctx.fillText(ln, r.x + r.w / 2, r.y + 118 + i * 38));
+  ctx.font = `500 27px ${UI}`; ctx.fillStyle = PAL.text; ctx.textAlign = 'center'; ctx.textBaseline = 'top'; wrap(ctx, 'This web demo covers the first two legs, Chang\'an to Dunhuang. Get the free app on iPhone and Android to cross the whole road to Baghdad and back.', r.w - 60).forEach((ln, i) => ctx.fillText(ln, r.x + r.w / 2, r.y + 118 + i * 38));
   const b = { x: r.x + 40, y: r.y + r.h - 110, w: r.w - 80, h: 76 }; button(ctx, b, 'Back to the menu', { kind: 'primary', size: 29 }); ui.hits.push({ id: 'demoBack', r: b });
 }

@@ -10,7 +10,7 @@ export const ABOUT = [
   { p: 'Four players sit around a table with 106 tiles. Each deal, a turned-up tile decides which tile is the wild "okey" for that deal only.' },
   { tiles: [{ c: 0, n: 3 }, { c: 0, n: 4 }, { c: 0, n: 5 }, { gap: true }, { c: 1, n: 9 }, { c: 2, n: 9 }, { c: 3, n: 9 }], cap: 'A run and a set: the two shapes you build.' },
   { h: 'This version' },
-  { p: 'You sit at the bottom of the table against three computer players, Elif, Mehmet and Deniz. Everything is offline: no accounts, no ads, no betting.' },
+  { p: 'You sit at the bottom of the table against three computer players, Elif, Mehmet and Deniz. Everything is offline: no accounts, no betting.' },
   { p: 'Scoring is points only. There are no chips or stakes of any kind.' },
   { p: 'Arrange your tiles on a two-row rack by dragging them, or let the sort helpers and Smart arrange do the tidying for you.' },
   { p: 'Three computer levels (Casual, Club and Master) and an unlimited Hint button that explains its reasoning make it easy to learn and hard to master.' },

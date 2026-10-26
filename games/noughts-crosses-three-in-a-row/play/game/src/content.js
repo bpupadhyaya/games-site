@@ -12,7 +12,7 @@ export const STR = {
   autoThink: 'Thinking', autoReveal: 'The move', autoDone: 'Game over', autoPause: 'Pause', autoPlay: 'Resume', autoExit: 'Exit', autoSlower: 'Think -', autoFaster: 'Think +',
   autoSession: 'Watch & Learn', autoAgain: 'Watch Again',
   autoSummary: 'You watched three whole games, each move chosen by the game\'s own solver with its reason shown: a perfect draw, a Roman slide game and a Misère game.',
-  demoLimitTitle: 'FREE PREVIEW FINISHED', demoLimitBody: 'You played the three free games. Get the full game on iPhone and Android for all four modes, every opponent level, two players on one phone and the full tutor.',
+  demoLimitTitle: 'DEMO FINISHED', demoLimitBody: 'You played the three free games. Get the free app on iPhone and Android for all four modes, every opponent level, two players on one phone and the full tutor.',
   demoLeft: '{n} free games left', tagline: 'Three in a row, made deep.', record: 'Record', wins: 'W', draws: 'D', losses: 'L',
   yourMove: 'Your move', thinking: 'Thinking...', xTurn: 'X to move', oTurn: 'O to move', pickPiece: 'Pick one of your pieces to slide', pickTarget: 'Now pick where it slides to',
   lessonsTitle: 'Learn', lessonDone: 'Done', again: 'Play Again', newSetup: 'Change Game', rematch: 'Rematch', lessonNext: 'Next Lesson', lessonRetry: 'Try Again', lessonList: 'All Lessons',
@@ -50,7 +50,7 @@ export const RULES = [
     'That is why the centre is the strongest point to take and a corner is the next best, and why an edge is the weakest first move.',
   ] },
   { title: 'Making a move', art: 'tap', body: [
-    'Tap an empty square. Press and hold a square and a faint preview of your mark appears; let go on the same square to place it, or slide your finger away to cancel. Tapping a taken square places nothing and flashes that square red; a tap when it is not your turn does nothing.',
+    'Tap an empty square. Press and hold a square and a faint outline of your mark appears; let go on the same square to place it, or slide your finger away to cancel. Tapping a taken square places nothing and flashes that square red; a tap when it is not your turn does nothing.',
     'On a keyboard use the arrow keys and Enter or Space, the digits 1 to 9 on the 3x3 boards, U for Undo, T for Think, R for Restart and Escape or P to pause.',
   ] },
   { title: 'Forks and blocks', art: 'fork', body: [
@@ -99,11 +99,11 @@ export const RULES = [
   ] },
   { title: 'Learn', art: 'learn', body: [
     'Learn is a course of eleven short lessons, each a real position. Tap the right square to finish a line, block, make or stop a fork, open well, answer a corner, play a Misère safe move and solve the Roman and 4x4 positions. One lesson is a whole game against Perfect to show why a draw is the best possible result.',
-    'A move that is wrong is not played: you are told why and can try again. Lessons you finish are ticked. They do not use up the free preview.',
+    'A move that is wrong is not played: you are told why and can try again. Lessons you finish are ticked.',
   ] },
   { title: 'Watch & Learn', art: 'auto', body: [
     'Watch & Learn plays three whole games for you: a Classic game between two Perfect players (a draw), a Terni Lapilli game and a Misère game. Each move has three steps: THINK (2, 5, 8 or 10 seconds, you choose), REVEAL (two seconds: the possible squares light up and the chosen one is marked, with the reason in words) and ACT (the move is played).',
-    'Pause freezes everything where it is and Resume carries on from exactly there. The moves are chosen by the same opponent engine you play against (Perfect on both sides, except Skilled for one side in the Terni Lapilli game); if a move is not the strongest, the reason says so. Watch & Learn does not use up the free preview.',
+    'Pause freezes everything where it is and Resume carries on from exactly there. The moves are chosen by the same opponent engine you play against (Perfect on both sides, except Skilled for one side in the Terni Lapilli game); if a move is not the strongest, the reason says so.',
   ] },
   { title: 'Boards and sound', art: 'themes', body: [
     'In Settings you can choose the board and pieces: Marble & Bronze, Boxwood & Lacquer or Night Glass. The rules do not change. Sound can be switched off, the think time of Watch & Learn set, and the text size raised up to 300 percent on every text screen, including the game screen.',
@@ -111,7 +111,7 @@ export const RULES = [
   ] },
   { title: 'How a game ends', art: 'win', body: [
     'Three in a row wins (four in a row or in a square on 4x4), except in Misère where it loses. A full board with no line is a draw. In Terni Lapilli a position seen for the third time is a draw.',
-    'A glowing bar draws through the winning line (a frame around a winning 2x2 square), then the result card shows who won and offers Play Again, Change Game or the menu. The game starts with a free preview of the first 90 seconds of play; the full game is a single one-time unlock and works offline.',
+    'A glowing bar draws through the winning line (a frame around a winning 2x2 square), then the result card shows who won and offers Play Again, Change Game or the menu. Free to play with short ads; go ad-free once.',
   ] },
 ];
 

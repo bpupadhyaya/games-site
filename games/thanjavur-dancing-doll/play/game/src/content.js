@@ -18,7 +18,7 @@ export const ABOUT = {
     { p: 'Thanjavur Dancing Doll turns the toy into a balance and rhythm game. You tune each doll by sliding its ballast bead, tap it to start it swaying, and match the sway pattern of a ghost doll, in time, over a 22 second performance. Across six sets the dolls come in rows, swing at different speeds, and a breeze leans on them.' },
     { p: 'Every doll you play starts as bare clay and gains its paint as you earn stars: body colour first, then the face, then the gold trim. Nothing is wagered and nothing breaks: only your own score.' },
     { h: 'Credits' },
-    { p: 'Made by Arcforge, a collection of heritage games from around the world. All sound is synthesised on your device. The dolls, the toy-maker\'s room and the shelf are modelled and painted in real-time 3D on your device with three.js (MIT licence, copyright the three.js authors), with a flat 2D fallback when 3D is not available; the textures are generated in the game. Display text is set in Dela Gothic One (SIL Open Font License 1.1). No ads, works offline.' },
+    { p: 'Made by Arcforge, a collection of heritage games from around the world. All sound is synthesised on your device. The dolls, the toy-maker\'s room and the shelf are modelled and painted in real-time 3D on your device with three.js (MIT licence, copyright the three.js authors), with a flat 2D fallback when 3D is not available; the textures are generated in the game. Display text is set in Dela Gothic One (SIL Open Font License 1.1). Works offline.' },
   ],
 };
 
@@ -120,10 +120,10 @@ export function rulesPages() {
       ],
     },
     {
-      title: 'Free preview and demo',
+      title: 'Free to play and demo',
       blocks: [
-        { h: 'Trying it first' },
-        { p: 'The full game has a free preview of real play; menus, Rules, Watch and Learn and results are always free. When the preview ends you can unlock the whole game once, or restore an earlier purchase.' },
+        { h: 'In the app' },
+        { p: 'Menus, Rules, Watch and Learn and results are always free. Free to play with short ads; go ad-free once.' },
         { p: `The public web demo is limited to ${DEMO_RUNS} performances on the first ${DEMO_LEVELS} levels, so it is a taste of the game; the apps for iPhone and Android hold everything.` },
       ],
     },

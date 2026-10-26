@@ -378,7 +378,7 @@ export function drawFelt(ctx, th, r) {
 function paintFelt(ctx, th, r) {
   ctx.save();
   ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 24; ctx.shadowOffsetY = 8;
-  const g = ctx.createRadialGradient(r.x + r.w / 2, r.y + r.h * 0.5, 30, r.x + r.w / 2, r.y + r.h * 0.5, r.w * 0.75);
+  const g = ctx.createRadialGradient(r.x + r.w / 2, r.y + r.h * 0.5, 30, r.x + r.w / 2, r.y + r.h * 0.5, Math.max(0, r.w * 0.75));
   g.addColorStop(0, th.felt[0]); g.addColorStop(1, th.felt[1]);
   ctx.fillStyle = g; rr(ctx, r.x, r.y, r.w, r.h, 30); ctx.fill();
   ctx.shadowColor = 'transparent'; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;

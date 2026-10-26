@@ -13,7 +13,7 @@ export const ABOUT = [
   { title: 'Your rules', lines: ['Play the classic one-die game, or choose between two dice each turn. Switch on extra rules if you like.'], fig: 'dice2' },
   { title: 'Fresh boards', lines: ['Play the classic board, a fresh board every game, or the board of the day.'] },
   { title: 'Watch and learn', lines: ['Not sure? Watch the computer play a whole game and see why it chooses what it does.'] },
-  { title: 'Price', lines: ['Try it free for a short while. A single purchase unlocks the full game. No ads, ever.'] },
+  { title: 'Price', lines: ['Free to play with short ads. Go ad-free for this game with a one-time purchase.'] },
 ];
 
 export const HOWTO = [

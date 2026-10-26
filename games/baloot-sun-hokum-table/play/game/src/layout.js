@@ -191,8 +191,10 @@ function build(w, h, ins) {
       T.panel = { ...R(U.x0 + 16, handY + 4 - ph, U.w - 32, ph), col: false };
       const aw = (U.w - 60 - 28) / 2, ah = Math.min(104, ph - 108);
       T.act = { a: R(U.x0 + 30, T.panel.y + 98, aw, ah), b: R(U.x0 + 30 + aw + 28, T.panel.y + 98, aw, ah) };
-      const deckSc = clamp((T.panel.y - 40 - bandTop - 8) / 187, 0.45, 0.9);
-      T.deckSc = deckSc; T.deck = { x: cx, y: Math.min(cy, T.panel.y - 40 - 94 * deckSc - 6) };
+      // the 'Turned-up card' caption sits under the card (bob + shadow + its own height incl. descenders): keep it fully above the panel edge
+      const deckRes = 30 + 1.15 * Math.max(24, L.minU);
+      const deckSc = clamp((T.panel.y - deckRes - bandTop - 8) / 187, 0.4, 0.9);
+      T.deckSc = deckSc; T.deck = { x: cx, y: Math.min(cy, T.panel.y - deckRes - 94 * deckSc) };
       const tw = Math.min(600, U.w - 40);
       T.toast = R(cx - tw / 2, zoneBottom + 6, tw, 88);
       T.zoneBottom = zoneBottom;

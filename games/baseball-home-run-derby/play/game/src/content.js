@@ -83,8 +83,8 @@ export const RULES = [
   p('Your drag sets the spray (horizontal, up to 42 degrees either side of straight away) and the lift (vertical). Low pitches want a steeper lift and high pitches a flatter one; if your lift does not match the pitch the contact is less square and the ball comes off slower. The ball then flies with real drag and backspin.'),
   h('Opponents and the bracket'),
   p('The bracket has eight batters. Each round you bat and then your opponent bats a round of the same kind on the same park. Higher points win; a tie goes to a three-swing swing-off (no outs, most points wins), then to total home run distance. Opponents differ in power and steadiness and get stronger toward the final.'),
-  h('Free preview'),
-  p('The game starts with a 90 second free preview of real batting. Menus, Rules, About, Settings and Auto Play do not use up the preview.'),
+  h('Free to play'),
+  p('Free to play with short ads; go ad-free once.'),
   gap(6),
 ];
 

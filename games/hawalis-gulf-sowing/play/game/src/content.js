@@ -20,7 +20,7 @@ const STR = {
   record: 'Record', wins: 'W', draws: 'D', losses: 'L',
   autoThink: 'Thinking', autoPause: 'Pause', autoPlay: 'Resume', autoExit: 'Exit', autoSlower: 'Think -', autoFaster: 'Think +',
   autoSession: 'Watch & Learn', autoAgain: 'Watch Again', autoSummary: 'You watched two whole games, each move chosen by the game\'s own engine with its reason shown: Master against Master, and Master against Expert.',
-  demoLimitTitle: 'FREE PREVIEW FINISHED', demoLimitBody: 'You played the three free games. Get the full game on iPhone and Android for every opponent level, two players on one phone and the full Learn course.',
+  demoLimitTitle: 'DEMO FINISHED', demoLimitBody: 'You played the three free games. Get the free app on iPhone and Android for every opponent level, two players on one phone and the full Learn course.',
   demoLeft: '{n} free games left', locked: 'In the full game', lessonsTitle: 'Learn', lessonDone: 'Done', again: 'Play Again', newSetup: 'Change Game',
   lessonNext: 'Next Lesson', lessonRetry: 'Try Again', lessonList: 'All Lessons', lessonOf: 'Lesson {n} of {m}', correct: 'Correct!', notQuite: 'Not quite',
   yourMove: 'Your move', thinking: 'Thinking...', turnOf: '{who} to move', pickHole: 'Tap one of your holes that holds seeds.',
@@ -138,7 +138,7 @@ const rulesEn = () => [
     'Watch & Learn plays two whole games with THINK (2, 5, 8 or 10 seconds), REVEAL (two seconds: the possible holes light up and the chosen hole is marked, with the reason in words) and ACT (the seeds are sown). Pause freezes everything where it is.',
   ] },
   { title: 'Boards and text', art: 'themes', body: [
-    'Settings offers two boards (Dhow Teak, Sadu Weave), sound, the Watch & Learn think time and text size up to 300 percent on every text screen, including the game screen. There are no timers; the free preview is the first 90 seconds of real play.',
+    'Settings offers two boards (Dhow Teak, Sadu Weave), sound, the Watch & Learn think time and text size up to 300 percent on every text screen, including the game screen. There are no timers. Free to play with short ads; go ad-free once.',
     'The seeds are drawn as pearls, a nod to the pearl divers of the Gulf. The woven diamond band on the frame follows the patterns of Sadu weaving.',
   ] },
 ];
@@ -151,5 +151,5 @@ export const aboutSections = () => [
   { title: 'About the game', body: 'Hawalis is the four-row sowing game of Oman and the Gulf, played on a carved teak board with pearl seeds that are dropped one at a time.' },
   { title: 'Where it comes from', body: 'Hawalis is a traditional sowing game of Oman, also played on the coast of Zanzibar, where one version is called Bao la Kiarabu. It was described in writing in 1694 and studied in Oman in 2003. The board has four rows of seven holes and each player owns two rows. Descriptions are short, so this game follows the published Omani form, states its rules in full on the Rules pages and says where it makes its own choices.' },
   { title: 'The look', body: 'The board is inspired by Gulf craft: dark teak, brass studs like those on old carved doors, a woven diamond band in the pattern of Sadu weaving, and pearls for seeds.' },
-  { title: 'In this game', body: 'Four rows of seven holes, two seeds in each, relay sowing and inner-row captures. Five opponent levels from Novice to Master, two players on one phone, Think with a reason in words, six lessons and Watch & Learn. A free preview, then one purchase unlocks the game. No timers and no ads.' },
+  { title: 'In this game', body: 'Four rows of seven holes, two seeds in each, relay sowing and inner-row captures. Five opponent levels from Novice to Master, two players on one phone, Think with a reason in words, six lessons and Watch & Learn. Free to play with short ads; go ad-free once.' },
 ];

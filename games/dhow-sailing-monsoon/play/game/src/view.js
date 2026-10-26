@@ -257,8 +257,8 @@ export function sceneSpec(state) {
       let items = doc.map((it) => (it.t === 'fig' ? { ...it, draw: (ctx, w, h) => drawFigure(ctx, it.key, w, h, state) } : it));
       if (state.scene === 'about') {
         const m = state.env.monetization, owned = m && m.owns && m.owns('unlock_game');
-        items = items.concat([{ t: 'h', text: 'Full game' }, { t: 'para', text: owned ? 'The full game is unlocked. Thank you!' : 'Sail free for a short preview, then unlock the full game once for good.' }]);
-        if (!owned) items.push({ t: 'btn', id: 'a:unlock', label: 'Unlock full game', primary: true, h: 80 });
+        items = items.concat([{ t: 'h', text: 'Full game' }, { t: 'para', text: owned ? 'The full game is unlocked. Thank you!' : 'Sail free with short ads, or go ad-free once for good.' }]);
+        if (!owned) items.push({ t: 'btn', id: 'a:unlock', label: 'Go ad-free', primary: true, h: 80 });
         items.push({ t: 'btn', id: 'a:restore', label: 'Restore purchase', h: 70 });
         items = items.concat((state.env?.view3d?.credits ?? CREDITS_FALLBACK).map((text) => (text.startsWith('# ') ? { t: 'h', text: text.slice(2) } : { t: 'para', text })));
         items.push({ t: 'more' });

@@ -97,11 +97,11 @@ export const DOCS = {
         ] },
         { p: 'Score only: there are no stakes, no lives and nothing is lost by missing.' },
       ], 'steady'),
-      R('Daily patch, saving and the preview', [
+      R('Daily patch and saving', [
         { li: [
           'The Daily Patch is a new cloth each day, the same for everyone. Sew it to keep your streak.',
           'A patch in progress is saved when you leave and offered under Continue.',
-          'The free preview counts real play only: sewing a patch or a Steady Hand round. Menus, Rules, Settings, Watch and Learn and pause do not use it.',
+          'Free to play with short ads; go ad-free once.',
           'Keyboard: arrow keys move the marker, Space or Enter selects and sews, U undoes, H hints, P or Esc pauses.',
         ] },
       ], 'quilt'),

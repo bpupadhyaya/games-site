@@ -62,7 +62,8 @@ export function layoutStack(items, z, frame, scroll = 0, u = 1) {
         it.ids.forEach((id, i) => { const lines = wrapLines(it.labels[i], size, region.w - 36), h = Math.max(it.h, Math.ceil(minTap() / u), Math.round(lines.length * size * 1.22 + 30)); push({ k: 'btn', id, label: it.labels[i], lines, h, size, sel: it.cur === id, chip: true, after: 10 }); });
       }
     } else if (it.k === 'stepper') {
-      const size = Math.round(it.size * z), bw = Math.max(92, Math.ceil(minTap() / u)), mw = region.w - 2 * (bw + 10), lines = wrapLines(it.label, size, mw - 6), h = Math.max(78, Math.ceil(minTap() / u), lines.length * Math.round(size * UI_LH) + 24);
+      const bw = Math.max(92, Math.ceil(minTap() / u)), mw = region.w - 2 * (bw + 10); let size = Math.round(it.size * z); while (size > 15 && estW(it.label, size) > mw - 10) size -= 1; // keep the value on ONE line (no '5' / 'seconds' split)
+      const lines = wrapLines(it.label, size, mw - 6), h = Math.max(78, Math.ceil(minTap() / u), lines.length * Math.round(size * UI_LH) + 24);
       const base = region.y + y - scroll;
       nodes.push({ k: 'btn', id: it.idDec, label: '−', lines: ['−'], x: region.x, y: base, w: bw, h, size: 44, dim: it.decDim, step: true });
       nodes.push({ k: 'btn', id: it.idInc, label: '+', lines: ['+'], x: region.x + region.w - bw, y: base, w: bw, h, size: 44, dim: it.incDim, step: true });
@@ -167,7 +168,8 @@ export function screenLayout(s, L = curLayout()) {
     const t = layoutStack(st.items, z, region, 0, 1).total;
     if (t > region.h) u = Math.max(0.85, region.h / t);
   }
-  const first = layoutStack(st.items, z, region, 0, u);
+  let first = layoutStack(st.items, z, region, 0, u);
+  if (first.total > region.h + 0.5) { region = { ...region, h: region.h - Math.round(34 * u) }; first = layoutStack(st.items, z, region, 0, u); } // keep a strip under a scrolling list for its 'drag to scroll' hint
   const maxScroll = Math.max(0, first.total - region.h), scroll = Math.min(Math.max(s.scroll || 0, 0), maxScroll);
   const lay = scroll ? layoutStack(st.items, z, region, scroll, u) : first;
   return { st, frame: fr, nodes: lay.nodes, footer: foot, region, total: first.total, maxScroll, scroll, u };

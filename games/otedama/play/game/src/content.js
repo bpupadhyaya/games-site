@@ -24,7 +24,7 @@ export const ABOUT = {
     { p: 'This game turns the toss-and-catch side of otedama into a rhythm and timing game. Bags travel from hand to hand in patterns from one bag up to five; you catch each one by tapping the hand it falls into, on the beat. The counting words (ichi, ni, san...) count your clean catches. The cloth patterns of the bags are original drawings in the spirit of traditional Japanese woven and printed cloth.' },
     { p: 'The many regional pick-up and counting-song variants of the traditional game are not included; this is a modern, simplified way to enjoy the same skill of tossing and catching in rhythm.' },
     { h: 'Credits' },
-    { p: 'Made by Arcforge, a collection of heritage games from around the world. All sound is synthesised on your device. Text is set in Fredoka (SIL Open Font License 1.1). The performer is a 3D figure rendered on your device, with plain canvas graphics for the room and bags; no ads, works offline.' },
+    { p: 'Made by Arcforge, a collection of heritage games from around the world. All sound is synthesised on your device. Text is set in Fredoka (SIL Open Font License 1.1). The performer is a 3D figure rendered on your device, with plain canvas graphics for the room and bags; works offline.' },
   ],
 };
 
@@ -143,10 +143,10 @@ export function rulesPages() {
       ],
     },
     {
-      title: 'Free preview and demo',
+      title: 'Free to play and demo',
       blocks: [
-        { h: 'Trying it first' },
-        { p: 'The full game has a free preview of real play; menus, Rules, Watch and Learn and results are always free. When the preview ends you can unlock the whole game once, or restore an earlier purchase.' },
+        { h: 'In the app' },
+        { p: 'Menus, Rules, Watch and Learn and results are always free. Free to play with short ads; go ad-free once.' },
         { p: `The public web demo is limited to ${DEMO_RUNS} plays and the first pattern, so it is a taste of the game; the apps for iPhone and Android hold everything.` },
       ],
     },

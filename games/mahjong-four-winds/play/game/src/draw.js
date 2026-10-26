@@ -71,10 +71,13 @@ export function btn(ctx, r, label, o = {}) {
   ctx.fillStyle = pressed ? c[2] : c[1]; rr(ctx, r.x, r.y + dy, r.w, r.h, R); ctx.fill();
   ctx.strokeStyle = c[4]; ctx.lineWidth = 2; rr(ctx, r.x + 1, r.y + dy + 1, r.w - 2, r.h - 2, R - 1); ctx.stroke();
   let fs = size;                                       // long labels shrink to fit the button (never below 12)
-  if (label) { ctx.save(); const floor = Math.max(12, minUnits()); while (fs > floor) { ctx.font = `700 ${fs}px ${font}`; if (ctx.measureText(label).width <= r.w - 20) break; fs -= 1; } ctx.restore(); }
-  const ty = r.y + dy + r.h / 2 + fs * 0.32 - (sub ? 8 : 0);
-  tx(ctx, label, r.x + r.w / 2, ty, fs, c[3], { font, weight: 700, shadow: kind !== 'gold' });
-  if (sub) tx(ctx, sub, r.x + r.w / 2, ty + fs * 0.62, Math.max(13, fs * 0.4), c[3], { font: UI, weight: 600, alpha: 0.85 });
+  const subOf = (f) => Math.max(11, f * 0.4);
+  if (label) { ctx.save(); const floor = Math.max(12, minUnits()); while (fs > floor) { ctx.font = `700 ${fs}px ${font}`; if (ctx.measureText(label).width <= r.w - 20 && (!sub || fs + subOf(fs) * 1.2 + 16 <= r.h)) break; fs -= 1; } ctx.restore(); }
+  if (sub) {                                           // two lines: size from the row height so title and subtitle never touch
+    const ss = subOf(fs), total = fs * 1.0 + 6 + ss * 1.1, top = r.y + dy + (r.h - total) / 2;
+    tx(ctx, label, r.x + r.w / 2, top + fs * 0.82, fs, c[3], { font, weight: 700, shadow: kind !== 'gold' });
+    tx(ctx, sub, r.x + r.w / 2, top + fs + 6 + ss * 0.92, ss, c[3], { font: UI, weight: 600, alpha: 0.85 });
+  } else tx(ctx, label, r.x + r.w / 2, r.y + dy + r.h / 2 + fs * 0.32, fs, c[3], { font, weight: 700, shadow: kind !== 'gold' });
   ctx.restore();
 }
 export function panel(ctx, x, y, w, h, o = {}) {

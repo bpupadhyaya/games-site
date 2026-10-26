@@ -4,6 +4,7 @@ import { host } from './src/layout.js';
 import { setLogo, setLockup } from './src/brand.js';
 import { createPresenter } from './view3d/presenter.js';
 import { ABOUT } from './src/content.js';
+import { installResizeGuard } from './resizeguard.js';
 
 const canvas = document.getElementById('game');
 
@@ -29,10 +30,27 @@ const lock = new Image(); lock.onload = () => setLockup(lock); lock.src = './bra
 
 // 3D presenter (WebGL canvas behind the kit canvas). With no WebGL, or if the context is lost, every screen falls back to the flat 2D art.
 const qp0 = new URLSearchParams(window.location.search);
-let presenter = { wrap: (g) => g, ok: false };
-if (!qp0.has('flat')) { try { presenter = await createPresenter({ kitCanvas: canvas }); } catch (e) { console.warn('3D presenter unavailable', e); } }
-if (qp0.has('dev')) window.__p3 = presenter;
-boot({ createGame: async (env) => presenter.wrap(await create(env)), meta, canvas, background: presenter.ok ? 'rgba(0,0,0,0)' : '#0b2236' });
+// The kit boots at once (its resize handling, heartbeat and the flat 2D screens must not wait for WebGL: on slow / software-GL devices
+// the 3D start-up blocks the main thread for many seconds and a rotation during it was lost). The presenter is created in parallel and
+// the game's render is routed through it as soon as it is ready; until then (and with no WebGL) the flat 2D art draws.
+const none = { wrap: (g) => g, ok: false };
+let presenter = none;
+let bootDone; const booted = new Promise((r) => { bootDone = r; });
+const presenterReady = qp0.has('flat') ? Promise.resolve(none)
+  : booted.then(() => new Promise((r) => setTimeout(r, 800))).then(() => createPresenter({ kitCanvas: canvas })).catch((e) => { console.warn('3D presenter unavailable', e); return none; });
+presenterReady.then((p) => { presenter = p; if (qp0.has('dev')) window.__p3 = p; });
+// Resize guard (1.1.2): keeps canvas pixels == CSS box x dpr when a rotation lands while the page is busy; see resizeguard.js.
+const guard = installResizeGuard({ canvas, win: window });
+window.__canvasStale = guard.stale;
+boot({
+  createGame: async (env) => {
+    const game = await create(env);
+    let wrapped = null;
+    presenterReady.then((p) => { if (p.ok) wrapped = p.wrap(game); });
+    return Object.assign({}, game, { render: (ctx, view) => (wrapped || game).render(ctx, view) });
+  },
+  meta, canvas, background: 'rgba(0,0,0,0)',
+}).then(() => { guard.burst(); bootDone(); });
 
 // About shows the 3D licence credits (three.js MIT, shared people and scenery licences) from the vendored LICENSES.md.
 fetch('./vendor3d/LICENSES.md').then((r) => (r.ok ? r.text() : '')).then((t) => {

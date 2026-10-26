@@ -52,22 +52,36 @@ export function drawMenuBackdrop(ctx, state, t) {
   if (state.scene !== 'title') { const g = ctx.createLinearGradient(0, 0, 0, VH); g.addColorStop(0, 'rgba(12,8,28,0.62)'); g.addColorStop(1, 'rgba(12,8,28,0.72)'); ctx.fillStyle = g; ctx.fillRect(0, 0, VW, VH); }
 }
 
+/** Where the two title lines sit in a hero of w x h (baselines + sizes): never lower than the tagline, whatever height the layout leaves. */
+export function heroTitleBox(w, h, tagSz) {
+  const th = Math.max(60, h - 34);
+  const limit = h - 12 - tagSz * 0.95 - 12;   // lowest point the title may reach: clear of the tagline
+  let s1 = Math.min(w * 0.115, th * 0.25), s2 = Math.min(w * 0.17, th * 0.38);
+  let base = Math.max(th * 0.34, 90), y2 = Math.max(base + (th * 0.62 - th * 0.34), base + s1 * 0.2 + s2 * 0.85);
+  if (y2 + s2 * 0.1 > limit) {   // short hero (tablet portrait, safe areas): fit both lines above the tagline with a visible gap between them
+    const room = Math.max(60, limit - 26), block = 0.74 * s1 + 0.3 * s1 + 0.74 * s2 + 0.1 * s2, k = Math.min(1, room / block);
+    s1 *= k; s2 *= k;
+    y2 = limit - s2 * 0.1; base = y2 - 0.74 * s2 - 0.3 * s1;
+  }
+  return { s1, s2, base, y2, limit };
+}
+
 function drawHero(ctx, w, h, state) {
   const t = state.t;
   const cx = w / 2;
   const th = Math.max(60, h - 34);   // the title block leaves room for the tagline line at the bottom of the hero
-  const base = Math.max(th * 0.34, 90);
-  textFill(ctx, 'GOLDEN HOUR', cx, base, Math.min(w * 0.115, th * 0.25), { italic: true, grad: [[0, '#fff3c2'], [0.6, '#ffc54d'], [1, '#ff8a3d']], stroke: 'rgba(70,24,10,0.65)' });
-  const s1 = Math.min(w * 0.115, th * 0.25), s2 = Math.min(w * 0.17, th * 0.38);
-  textFill(ctx, 'CRICKET', cx, Math.max(base + (th * 0.62 - th * 0.34), base + s1 * 0.2 + s2 * 0.85), s2, { italic: true, grad: [[0, '#ffffff'], [0.6, '#ffe6b0'], [1, '#ffb347']], stroke: 'rgba(70,24,10,0.65)' });
+  const tag = 'Swipe to bat. Flick to bowl. Beat the sunset.', ts = scaleOf(state);
+  const tagSz = fitFont(ctx, tag, Math.min(24, w * 0.036) * Math.min(ts, 2.2), w - 40, 600, SANS, LY.minText);
+  const { s1, s2, base, y2 } = heroTitleBox(w, h, tagSz);
+  textFill(ctx, 'GOLDEN HOUR', cx, base, s1, { italic: true, grad: [[0, '#fff3c2'], [0.6, '#ffc54d'], [1, '#ff8a3d']], stroke: 'rgba(70,24,10,0.65)' });
+  textFill(ctx, 'CRICKET', cx, y2, s2, { italic: true, grad: [[0, '#ffffff'], [0.6, '#ffe6b0'], [1, '#ffb347']], stroke: 'rgba(70,24,10,0.65)' });
   // ball arcing over the title
   const u = (t * 0.45) % 1;
   const bx = lerp(w * 0.08, w * 0.92, u), by = h * 0.86 - Math.sin(u * Math.PI) * h * 0.6;
   for (let i = 1; i < 10; i++) { const uu = Math.max(0, u - i * 0.012); glow(ctx, lerp(w * 0.08, w * 0.92, uu), h * 0.86 - Math.sin(uu * Math.PI) * h * 0.6, 12 - i, 'rgba(255,210,150,A)', 0.5 - i * 0.045); }
   drawBall(ctx, bx, by, 15, 'leather', t * 12);
   ctx.fillStyle = 'rgba(255,255,255,0.85)'; ctx.textAlign = 'center';
-  const tag = 'Swipe to bat. Flick to bowl. Beat the sunset.', ts = scaleOf(state);
-  fitFont(ctx, tag, Math.min(24, w * 0.036) * Math.min(ts, 2.2), w - 40, 600, SANS, LY.minText);
+  ctx.font = `600 ${tagSz}px ${SANS}`;
   ctx.fillText(tag, cx, h - 12);
 }
 
@@ -92,7 +106,15 @@ function columnScreen(ctx, state, spec) {
   const top = col.top, bottom = fy.top - 10 - (lk ? lk.h + 24 : 0);
   const view = { x: col.x, y: top, w: col.w, h: Math.max(80, bottom - top) };
   const gutter = 26, contentW = view.w - gutter;
-  const lay = layoutColumn(ctx, spec.items, contentW, s, { cols: spec.cols ?? 1 });
+  let lay = layoutColumn(ctx, spec.items, contentW, s, { cols: spec.cols ?? 1 });
+  // Compact steps (landscape title): when the column would scroll, shrink the button label size and minimum height step by step until it fits.
+  if (spec.fit && lay.total > view.h) {
+    for (const f of spec.fit) {
+      const items = spec.items.map((it) => (it.t === 'btn' ? { ...it, size: Math.min(it.size ?? 31, f.size), h: Math.min(it.h ?? 84, f.h) } : it));
+      lay = layoutColumn(ctx, items, contentW, s, { cols: spec.cols ?? 1 });
+      if (lay.total <= view.h) break;
+    }
+  }
   const maxS = maxScroll(lay, view.h);
   const sc = clamp(state.ui.scroll, 0, maxS);
   state.ui.scroll = sc;
@@ -168,7 +190,7 @@ export function sceneSpec(state) {
         { t: 'btn', id: 'about', label: 'About', h: bh, ...hf },
         { t: 'btn', id: 'settings', label: 'Settings', h: bh, ...hf },
       );
-      return { lockup: true, items, footer: [], col: LY.title.col, hero: LY.land ? LY.title.hero : null };
+      return { lockup: true, fit: LY.land && s < 2 ? [{ size: 28, h: 58 }, { size: 26, h: 52 }, { size: 24, h: 46 }, { size: 22, h: 42 }] : null, items, footer: [], col: LY.title.col, hero: LY.land ? LY.title.hero : null };
     }
     case 'modes': {
       const rec = state.records;
@@ -352,11 +374,15 @@ function drawHud(ctx, state, hm) {
   drawPill(ctx, LY.pause, paused ? '▶' : 'II', { size: 28 });
   if (state.scene !== 'auto') drawPill(ctx, LY.think, `?${m.hints}`, { size: 26, disabled: thinkOff });
   // batters strip
-  const s0 = strikerOf(m), s1 = nonStrikerOf(m), sy = yy + 154;
-  ctx.font = `600 ${txt(21)}px ${SANS}`; ctx.textBaseline = 'alphabetic'; ctx.textAlign = 'left';
-  ctx.fillStyle = PAL.gold; ctx.fillText(`${s0.name}* ${s0.runs} (${s0.balls})`, hud.x + 10, sy);
-  ctx.fillStyle = 'rgba(255,244,224,0.85)'; ctx.fillText(`${s1.name} ${s1.runs} (${s1.balls})`, hud.x + 220, sy);
-  if (i.role === 'bat') { ctx.textAlign = 'right'; ctx.fillStyle = 'rgba(255,244,224,0.7)'; ctx.fillText(`${bowlerOf(m).name} to bowl`, hud.x + hud.w - 10, sy); ctx.textAlign = 'left'; }
+  const s0 = strikerOf(m), s1 = nonStrikerOf(m), sy = yy + 152;
+  // three columns inside the panel; every text is fitted to its own column so they can never run into each other
+  const colW = (hud.w - 44 - 20) / 3, cs = txt(21);
+  ctx.textBaseline = 'alphabetic';
+  const cell = (text, x, align, col) => { ctx.font = `600 ${fitFont(ctx, text, cs, colW, 600)}px ${SANS}`; ctx.textAlign = align; ctx.fillStyle = col; ctx.fillText(text, x, sy); };
+  cell(`${s0.name}* ${s0.runs} (${s0.balls})`, hud.x + 22, 'left', PAL.gold);
+  cell(`${s1.name} ${s1.runs} (${s1.balls})`, hud.x + 22 + colW + 10, 'left', 'rgba(255,244,224,0.85)');
+  if (i.role === 'bat') cell(`${bowlerOf(m).name} to bowl`, hud.x + hud.w - 22, 'right', 'rgba(255,244,224,0.7)');
+  ctx.textAlign = 'left';
   if (i.fh && m.rules.extras) { textFill(ctx, 'FREE HIT', LY.freeHitX, hudBottom + 71, 30, { color: '#ffd34d', italic: true, stroke: 'rgba(80,20,10,0.8)' }); }
 }
 
@@ -399,10 +425,26 @@ function drawCall(ctx, state, y) {
   // headline word (up to the first punctuation) is shown big, the rest as a smaller line
   const mt = /^([A-Z][A-Z' ]*!)\s*(.*)$/.exec(c.text);
   const head = mt && c.big ? mt[1] : null, rest = mt && c.big ? mt[2] : c.text;
-  const bw = Math.min(620, (LY.U.w - 24) / sc);
+  let bw = Math.min(620, (LY.U.w - 24) / sc), bcx = LY.cx, bs = c.big ? 30 : 32;
+  if (!head) {
+    // Plain banners without a big headline word (the chase intro, run-rate notes) never sit over the batter or the radar: in landscape they use the free strip beside the
+    // scoreboard (left of pause / think), in portrait they sit just under the radar.
+    if (LY.land) {
+      const x0 = LY.hud.x + LY.hud.w + 12, x1 = LY.think.x - 12;
+      const room = LY.radar.y - 6 - (LY.U.y0 + 10);   // the strip beside the scoreboard ends where the radar begins
+      for (bs = 28; x1 - x0 >= 220 && bs >= LY.minText; bs -= 2) {
+        ctx.font = `italic 700 ${bs}px ${FONT}`;
+        if (wrapLines(ctx, rest, x1 - x0 - 60).length * bs * 1.2 + 26 <= room) { bw = (x1 - x0) / sc; bcx = (x0 + x1) / 2; y = LY.U.y0 + 10 + 73; break; }
+      }
+      if (y !== LY.U.y0 + 10 + 73) { bs = 28; y = hudBottom + 10 + 73; }   // big landscape: straight under the scoreboard, above the batter's head
+    } else {
+      const x0 = LY.U.x0 + 12, x1 = LY.radar.x - 10;
+      if (x1 - x0 >= 300) { bw = (x1 - x0) / sc; bcx = (x0 + x1) / 2; bs = 26; y = hudBottom + 10 + 73; }
+    }
+  }
   ctx.save();
-  ctx.globalAlpha = a; ctx.translate(LY.cx, y); ctx.scale(sc, sc);
-  const hs = 76, bs = c.big ? 30 : 32;
+  ctx.globalAlpha = a; ctx.translate(bcx, y); ctx.scale(sc, sc);
+  const hs = 76;
   ctx.font = `italic 700 ${bs}px ${FONT}`;
   const lines = wrapLines(ctx, rest, bw - 60).slice(0, 3);
   const hh = (head ? hs * 0.95 : 0) + lines.length * bs * 1.2 + 26;
@@ -445,8 +487,8 @@ export function renderPlay(ctx, state) {
   const fieldPick = m.phase === 'overbreak' && m.inn.role === 'bowl';
   // the bowling screens dim the picture first, so the scoreboard stays on top of them
   if (bowlAim || fieldPick) {
-    if (bowlAim) placeBowl(LY, hudBottom + 52); else placeField(LY, hudBottom + 52);
-    const top = LY.land ? 0 : hudBottom + 48;
+    if (bowlAim) placeBowl(LY, hudBottom + 16); else placeField(LY, hudBottom + 16);   // the scoreboard panel now holds the batters strip (it was +52 under a 124 panel)
+    const top = LY.land ? 0 : hudBottom + 0;
     ctx.fillStyle = bowlAim ? 'rgba(10,6,24,0.78)' : 'rgba(10,6,24,0.8)'; ctx.fillRect(0, top, VW, VH - top);
   }
   drawHud(ctx, state, hm);

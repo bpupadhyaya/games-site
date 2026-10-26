@@ -225,8 +225,8 @@ export function createGame(env) {
     const sc = st.scene;
     if (sc === 'rules') { const pg = RULES[clamp(st.page, 0, RULES.length - 1)]; return { key: 'rules' + st.page, title: pg.title, blocks: pg.blocks, nav: true, page: st.page, pages: RULES.length }; }
     if (sc === 'about') {
-      const blocks = [...ABOUT, { h: 'Full game' }, { p: st.owned ? 'The full game is unlocked on this device. Thank you!' : 'The first 90 seconds of real play are free. The full game is a single purchase: no ads, no subscription.' },
-        ...(st.owned || st.demo ? [] : [{ row: 'unlock', label: 'Unlock full game', hint: 'One purchase', kind: 'button', btn: 'Unlock' }]), ...(st.demo ? [] : [{ row: 'restore', label: 'Restore purchase', hint: 'If you bought it before', kind: 'button', btn: 'Restore' }])];
+      const blocks = [...ABOUT, { h: 'Full game' }, { p: st.owned ? 'The full game is unlocked on this device. Thank you!' : 'Free to play with short ads; go ad-free once.' },
+        ...(st.owned || st.demo ? [] : [{ row: 'unlock', label: 'Go ad-free', hint: 'One purchase', kind: 'button', btn: 'Unlock' }]), ...(st.demo ? [] : [{ row: 'restore', label: 'Restore purchase', hint: 'If you bought it before', kind: 'button', btn: 'Restore' }])];
       return { key: 'about' + st.owned + st.demo, title: 'About', blocks };
     }
     if (sc === 'howto') return { key: 'howto', title: 'How to Play', blocks: HOWTO };
@@ -247,7 +247,7 @@ export function createGame(env) {
   }
   const isDoc = (sc) => sc === 'rules' || sc === 'about' || sc === 'howto' || sc === 'settings' || sc === 'journal';
   const setText = (i) => { const max = docMetrics.max || 1; st.docFrac = max > 0 ? st.docScroll / max : 0; st.prefs.textIdx = clamp(i, 0, TEXT_SCALES.length - 1); applyPrefs(); st.docRescale = true; savePrefs(); };
-  async function buyFull() { const r = await m.purchase('unlock_game'); if (r?.ok) toast('Unlocked. Thank you!'); else if (r?.reason === 'demo') toast('Get the full game on iPhone and Android.'); else toast('The purchase did not go through.', 'bad'); refreshOwned(); }
+  async function buyFull() { const r = await m.purchase('unlock_game'); if (r?.ok) toast('Unlocked. Thank you!'); else if (r?.reason === 'demo') toast('Get the free app on iPhone and Android.'); else toast('The purchase did not go through.', 'bad'); refreshOwned(); }
   async function restoreBuy() { await m.restore?.(); refreshOwned(); toast(st.owned ? 'Purchase restored.' : 'Nothing to restore.'); }
   function docHit(id) {
     if (id === 'back') { snd('tap'); const to = st.backTo ?? 'title'; st.backTo = 'title'; go(to); return; }

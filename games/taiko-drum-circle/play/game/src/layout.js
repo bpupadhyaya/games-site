@@ -27,6 +27,7 @@ function build(w, h) {
   const mode = w >= h * 1.2 ? 'wide' : h >= w * 1.5 ? 'tall' : 'compact';
   const S = R(host.l, host.t, w - host.l - host.r, h - host.t - host.b);          // the safe rectangle
   const mb = minBtn(), gap = 16;
+  const backW = Math.max(150, mb * 2);                                             // wide enough that "Back" is never squeezed
   const backPad = host.back > 0 ? host.back + 8 : 0;                               // the host's floating back button owns the top-left corner
   const L = { w, h, mode, S, mb, backPad };
 
@@ -113,7 +114,7 @@ function build(w, h) {
       F.bell = null;
     } else {
       const top = S.y + 10;
-      F.exit = R(S.x + 12 + backPad, top, Math.max(120, mb * 1.7), bh);
+      F.exit = R(S.x + 12 + backPad, top, backW, bh);
       const rowY = S.y + S.h - bh - 14, gap = 10, W = S.w - 24;
       const wm = W * 0.34, wt = W * 0.17, we = W - wm - wt * 2 - gap * 3;
       F.metro = R(S.x + 12, rowY, wm, bh); F.tempoDec = R(F.metro.x + wm + gap, rowY, wt, bh); F.tempoInc = R(F.tempoDec.x + wt + gap, rowY, wt, bh);
@@ -169,7 +170,7 @@ function build(w, h) {
   {
     const G = {};
     const hdrH = Math.max(76, mb) + 8;
-    G.back = R(S.x + 12 + (backPad ? backPad : 0), S.y + 12, Math.max(120, mb * 1.7), Math.max(60, mb));
+    G.back = R(S.x + 12 + (backPad ? backPad : 0), S.y + 12, backW, Math.max(60, mb));
     G.titleY = S.y + 12 + Math.max(60, mb) / 2;
     const top = S.y + hdrH + 24, bot = S.y + S.h - 16;
     const cols = mode === 'wide' ? 3 : mode === 'compact' && w > h ? 3 : mode === 'compact' ? 2 : 1;
@@ -183,7 +184,7 @@ function build(w, h) {
   // ---- PIECE (detail + mode choice) ---------------------------------------------------------------------------------------------------
   {
     const D = {};
-    D.back = R(S.x + 12 + backPad, S.y + 12, Math.max(120, mb * 1.7), Math.max(60, mb));
+    D.back = R(S.x + 12 + backPad, S.y + 12, backW, Math.max(60, mb));
     const bh = Math.max(88, mb);
     if (mode === 'wide') {
       const colW = clamp(w * 0.3, 340, 460), colX = S.x + S.w - 32 - colW;
@@ -224,7 +225,7 @@ function build(w, h) {
     const bh = Math.max(64, mb), margin = mode === 'wide' ? Math.max(24, S.w * 0.06) : 16;
     const contentW = Math.min(S.w - margin * 2, mode === 'wide' ? 1100 : 820);
     const cx = S.x + (S.w - contentW) / 2;
-    Dc.back = R(S.x + 12 + backPad, S.y + 12, Math.max(110, mb * 1.6), bh);
+    Dc.back = R(S.x + 12 + backPad, S.y + 12, backW, bh);
     const decW = Math.max(64, mb);
     Dc.textInc = R(S.x + S.w - 12 - decW, S.y + 12, decW, bh);
     Dc.textDec = R(Dc.textInc.x - 10 - decW, S.y + 12, decW, bh);
@@ -242,7 +243,7 @@ function build(w, h) {
   {
     const C = {};
     const bh = Math.max(72, mb);
-    C.back = R(S.x + 12 + backPad, S.y + 12, Math.max(120, mb * 1.7), bh);
+    C.back = R(S.x + 12 + backPad, S.y + 12, backW, bh);
     const bw = Math.min(S.w - 48, 520);
     C.use = R(S.x + (S.w - bw) / 2, S.y + S.h - 24 - bh, bw, bh);
     C.retry = R(C.use.x, C.use.y - 12 - bh, bw, bh);

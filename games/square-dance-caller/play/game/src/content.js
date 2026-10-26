@@ -111,8 +111,8 @@ export const RULES = [
   { title: 'Think and Watch & Learn', p: [
     `Think names a good next call and explains it. It freezes the music while you read and adds ${HINT_COST} phrase. Watch & Learn lets the computer call a whole square: it thinks for ${THINK_STEPS.join(', ')} seconds (your choice in Settings), reveals the call it has picked with the arrows, and then calls it. Pause freezes everything exactly where it is.`,
   ] },
-  { title: 'Preview and unlock', p: [
-    `The free preview counts the time the music is running in Tips and Endless. Menus, Rules, Practice, Learn, Watch & Learn and the time you spend thinking before a first call are free. The web demo plays the first ${DEMO_LEVELS} squares.`,
+  { title: 'Ads and ad-free', p: [
+    `Free to play with short ads. Menus, Rules, Practice, Learn, Watch & Learn and the time you spend thinking before a first call are free. The web demo plays the first ${DEMO_LEVELS} squares.`,
   ] },
 ];
 

@@ -16,7 +16,7 @@ export const ABOUT = [
   { li: `Hide and Dodge: you are a guest and a blindfolded seeker hunts by ear. Tiptoe is silent; every step you take above that can be heard. Survive ${HIDE_TIME} seconds.` },
   { li: 'Wear headphones if you can: the sounds come from the side they are on.' },
   { li: 'Watch and Learn plays a whole round for you with time to think before each move, and you can pause it. A Hint button works in the real game too.' },
-  { li: 'A full Rules page and text size up to 300%. Sound is made on your device. No ads, works offline. Points only: there are no stakes, chips or money.' },
+  { li: 'A full Rules page and text size up to 300%. Sound is made on your device. Works offline. Points only: there are no stakes, chips or money.' },
   { sp: 1 },
   { p: 'Simplifications: the traditional rule that the caught player becomes the next seeker is not used. Naming the person you caught is the whole goal, and the Rules page says exactly what this game does.' },
   { sp: 1 },

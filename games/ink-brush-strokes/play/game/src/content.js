@@ -18,7 +18,7 @@ export const ABOUT = [
   { li: 'Feedback on stroke order, shape and rhythm after every stroke.' },
   { li: 'Watch and Learn: the brush paints a lesson for you and says why each stroke is made that way.' },
   { li: `A long free-draw scroll, ${SEALS.length} seals to press, and a gallery for your sealed work.` },
-  { li: 'Works with a finger, a stylus or a mouse. Text size up to 300%. No ads. Works offline.' },
+  { li: 'Works with a finger, a stylus or a mouse. Text size up to 300%. Works offline.' },
   { sp: 1 },
   { p: 'Everything is drawn and synthesised on your device. Ink Brush is part of Arcforge, a collection of world heritage games.' },
 ];

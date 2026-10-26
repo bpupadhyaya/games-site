@@ -507,8 +507,8 @@ function drawDemoLimit(ctx, s, w, h) {
   background(ctx, w, h, s.t);
   const c = centerCard(w, h, 600, 380);
   panel(ctx, c, { radius: 26, fill: '#1f1310' });
-  txt(ctx, 'That was the free preview', c.x + c.w / 2, c.y + 70, { size: F(44), weight: 800, align: 'center', fam: NUM, maxW: c.w - 40 });
-  para(ctx, 'The web version stops after three shifts. Get the full game on iPhone and Android for every stall, Rush Hour, the Daily Shift and Watch and Learn.', c.x + 30, c.y + 130, c.w - 60, { size: F(26), weight: 500, align: 'center', color: T.dim });
+  txt(ctx, 'That was the demo end', c.x + c.w / 2, c.y + 70, { size: F(44), weight: 800, align: 'center', fam: NUM, maxW: c.w - 40 });
+  para(ctx, 'The web version stops after three shifts. Get the free app on iPhone and Android for every stall, Rush Hour, the Daily Shift and Watch and Learn.', c.x + 30, c.y + 130, c.w - 60, { size: F(26), weight: 500, align: 'center', color: T.dim });
   button(ctx, { x: c.x + 30, y: c.y + c.h - 100, w: c.w - 60, h: 70 }, 'Back to menu', { kind: 'accent', size: 30 });
 }
 

@@ -105,7 +105,9 @@ export function storyCard(ctx, o) { return FR.land && !o.tall ? storyCardWide(ct
 export const lastCard = { x: 0, y: 0, w: 0, h: 0 };
 function storyCardWide(ctx, { kicker, title, text, appear = 1, stars = -1, t = 0, who = null, note = null, scale = 1, x = null, w = null, top = null, maxH = null }) {
   const vh = FR.h, cw = w ?? clamp(FR.w - 80, 560, 980), cx = x ?? (W - cw) / 2;
-  const t0 = Math.max(top ?? 0, 40, host.t / FR.s + 20), availH = maxH ?? vh - t0 - Math.max(24, host.b / FR.s + 12);
+  // the card must start below the back / sound icons whenever it is wide enough to sit under them (they are screen-space)
+  const hudBottom = (HUD.back.y + HUD.back.h + 14 - FR.oy) / FR.s, underHud = cx * FR.s + FR.ox < HUD.back.x + HUD.back.w + 8 || (cx + cw) * FR.s + FR.ox > HUD.mute.x - 8;
+  const t0 = Math.max(top ?? 0, 40, host.t / FR.s + 20, underHud ? hudBottom : 0), availH = maxH ?? vh - t0 - Math.max(24, host.b / FR.s + 12);
   const r = who ? clamp(Math.round(cw * 0.13), 70, 104) : 0, portCol = who ? r * 2 + 56 : 0;
   const tx = cx + 36 + portCol, tw = cw - 72 - portCol;
   let size = Math.round(34 * scale), lines = [], noteLines = [], lh = 0, nlh = 0, h = 0, S = 1;
@@ -124,9 +126,9 @@ function storyCardWide(ctx, { kicker, title, text, appear = 1, stars = -1, t = 0
   if (who) portrait(ctx, { who, x: cx + 36 + r + 8, y: yy0 + h / 2 + 10, r, t });
   const mid = tx + tw / 2;
   ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic'; ctx.fillStyle = GOLD;
-  const kickerStr = String(kicker).toUpperCase().split('').join(' ');
+  let kickerStr = String(kicker).toUpperCase().split('').join(' ');
   let ks = Math.round(22 * S); ctx.font = font(ks, SANS, 600);
-  const kw = ctx.measureText(kickerStr).width; if (kw > tw) { ks = Math.max(13, Math.floor(ks * tw / kw)); ctx.font = font(ks, SANS, 600); }
+  const kw = ctx.measureText(kickerStr).width; const kmax = Math.min(tw, 2 * (cx + cw - 96 - mid)); if (kw > kmax) { ks = Math.max(13, Math.floor(ks * kmax / kw)); ctx.font = font(ks, SANS, 600); if (ctx.measureText(kickerStr).width > kmax) { kickerStr = String(kicker).toUpperCase(); ks = Math.max(13, Math.round(22 * S)); ctx.font = font(ks, SANS, 600); const w2 = ctx.measureText(kickerStr).width; if (w2 > kmax) { ks = Math.max(11, Math.floor(ks * kmax / w2)); ctx.font = font(ks, SANS, 600); } } }
   ctx.fillText(kickerStr, mid, yy0 + Math.round(52 * S));
   ctx.fillStyle = '#fff1cf'; let ts = Math.round(50 * S); ctx.font = font(ts);
   const tww = ctx.measureText(title).width; if (tww > tw) { ts = Math.max(26, Math.floor(ts * tw / tww)); ctx.font = font(ts); }

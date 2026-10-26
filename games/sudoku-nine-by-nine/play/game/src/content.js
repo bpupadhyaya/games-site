@@ -17,14 +17,14 @@ export const ABOUT = {
       fig: 'houses',
       body: [
         { p: 'Fill the nine-by-nine grid so every row, every column and every three-by-three box holds the digits 1 to 9 exactly once. The numerals that came with the puzzle never change. Everything else is logic.' },
-        { p: 'Sudoku is a Japanese-named puzzle that is now played all over the world. This version is built for calm, focused play: soft tiles, big readable digits, no ads and no pressure.' },
+        { p: 'Sudoku is a Japanese-named puzzle that is now played all over the world. This version is built for calm, focused play: soft tiles, big readable digits and no pressure.' },
         { li: ['Every puzzle is generated with exactly one solution and graded by the techniques a person needs to solve it.', 'A new Daily Puzzle every day, the same for everyone.', 'Pencil marks, undo and redo, and three ways of checking your work.', 'Hints that name the technique and show why it works, and Watch and Learn, where the game solves a puzzle step by step and explains each move.', 'Portrait and landscape, phone or tablet, with a left-hand or right-hand keypad.'] },
       ],
     },
     {
-      title: 'Credits and the free preview',
+      title: 'Credits and ads',
       body: [
-        { p: 'You can play for a free preview first. Unlocking the full game is a single one-time purchase; there are no ads and no subscriptions.' },
+        { p: 'Free to play with short ads; go ad-free once.' },
         { p: 'Numerals and interface text are set in Fredoka, used under the SIL Open Font License 1.1. All sounds are synthesized on your device.' },
         { p: 'Sudoku Nine by Nine is part of Arcforge, a collection of world heritage games.' },
       ],

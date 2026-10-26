@@ -563,7 +563,7 @@ function renderLimit(ctx, state, T) {
   drawPanel(ctx, r, T, { round: 34 });
   ctx.save(); ctx.textAlign = 'center'; ctx.fillStyle = GOLD;
   fitFont(ctx, 'That was the free taste', 700, 58, r.w - 60, 26, DISPLAY); ctx.fillText('That was the free taste', cx, r.y + 100);
-  const text = 'Get the full game on iPhone and Android: every level, two-player games, and all the lessons.';
+  const text = 'Get the free app on iPhone and Android: every level, two-player games, and all the lessons.';
   let px = Math.round(32 * Math.min(sc, 2.4)), lines;
   for (;;) { ctx.font = `400 ${px}px ${FONT}`; lines = wrapLines(ctx, text, r.w - 80); if (lines.length * px * 1.3 <= LIMIT.btn.y - (r.y + 140) - 20 || px <= 18) break; px -= 1; }
   ctx.fillStyle = T.ink; ctx.textBaseline = 'alphabetic'; lines.forEach((l, i) => ctx.fillText(l, cx, r.y + 150 + px + i * px * 1.3));

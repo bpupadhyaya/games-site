@@ -152,7 +152,7 @@ export const RULES = [
       { li: 'Latency: some phones and Bluetooth headphones play sound a little late. Calibrate by tapping along with a pulse; the game then judges your gestures against that delay. You can also adjust the number by hand.' },
       { li: 'Text size: A- and A+ at the top of every text screen, up to 300%.' },
       { li: 'Keyboard: A S D F G H pluck strings 1 to 6; Z or the down arrow damps; W sweeps the strum that is due; Space or Escape pauses.' },
-      { li: 'Pause and the menus are free: only real playing counts toward the free preview.' },
+      { li: 'Free to play with short ads; go ad-free once.' },
       { li: 'Simplifications: the six scales are given as equal-tempered five-note scales; the real instrument is tuned by ear and varies with the player and the song.' },
     ],
   },

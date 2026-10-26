@@ -5,7 +5,7 @@ import { COLOR_NAMES, COLOR_NAMES_TR, isFake } from './rules.js';
 const EN = {
   tagline: 'The tile game of Turkey', tagline2: 'Four at the table. Offline. Points only.',
   play: 'Play', cont: 'Continue', newMatch: 'New match', watch: 'Watch & Learn', howto: 'How to Play', rules: 'Rules', about: 'About', settings: 'Settings',
-  soundOn: 'Sound On', soundOff: 'Sound Off', offline: 'Offline. No ads. No chips, no stakes.',
+  soundOn: 'Sound On', soundOff: 'Sound Off', offline: 'Offline. No chips, no stakes.',
   dealsWon: 'Deals won', matchesWon: 'Matches won', bestMatch: 'Best match score',
   sound: 'Sound', opponents: 'Opponents', matchLen: 'Match length', assist: 'Tell me when I can finish', labels: 'Labels',
   textSize: 'Text size', thinkTime: 'Watch & Learn think time', on: 'On', off: 'Off', deal1: 'deal', deals: 'deals', back: 'Back', next: 'Next', done: 'Done',
@@ -19,7 +19,7 @@ const EN = {
   thinking: 'is thinking...', starts: 'starts the deal.', coach: 'Drag tiles to build runs (4-5-6 in one colour) and sets (7-7-7 in different colours). A green line shows a valid group.', resumed: 'Welcome back. Your deal continues.',
   dThinkDraw: 'THINK: draw from the stack, or take the pile on the left? Which helps this rack more?',
   dThinkDiscard: 'THINK: which tile is least useful to keep?',
-  limitTitle: 'Web preview ends here', limitBody: 'Get the full game on iPhone and Android to keep playing: every deal, every computer level.',
+  limitTitle: 'Web preview ends here', limitBody: 'Get the free app on iPhone and Android to keep playing: every deal, every computer level.',
   nextDeal: 'Next deal', playAgain: 'Play again', toMenu: 'Menu', drawnDeal: 'Drawn deal', youWin: 'You finish!', youWinMatch: 'You win the match!', matchOver: 'Match over',
 };
 const TR = {

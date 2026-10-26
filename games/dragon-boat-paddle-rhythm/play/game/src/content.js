@@ -4,7 +4,7 @@ export const ABOUT = [
   { h: 'Dragon Boat Race', p: 'A rhythm race in real 3D. You are a paddler in a long carved boat with twenty paddlers, a drummer at the bow and a steerer at the stern. The drum sets the beat: tap in time to bring the whole crew into sync, steer across the river lanes, and cross the line first.' },
   { h: 'The tradition', p: 'Dragon boat racing is team paddling at its purest: long narrow boats with a carved dragon head and tail, a big drum to keep every paddle in time, and crowds on the riverbank. It is raced across China, Hong Kong, Taiwan, Singapore, Malaysia and in clubs all over the world, and it is as much about teamwork and timing as strength.' },
   { h: 'What you can do', p: 'Race a three-river regatta (heat, semifinal and final on each river), pick a quick race, take the drum yourself in the Drummer Challenge and set the tempo for the crew, learn the beat in a short lesson, or sit back and let the coach crew race while it explains every decision (Watch & Learn).' },
-  { h: 'Made with care', p: 'No ads, no energy timers, no tracking. The first 90 seconds of real racing are free; one unlock keeps the whole game, on your device, forever. Everything works offline.' },
+  { h: 'Made with care', p: 'No energy timers. This game is free to play with short ads from Google AdMob; go ad-free once and keep it on your device. The game itself works offline.' },
 ];
 export const CREDITS = 'Arcforge. 3D drawing by an open-source WebGL library (MIT licence, see Licences below). Fonts: Barlow and Barlow Condensed (SIL Open Font Licence). All sounds are synthesized in the game. Crew names, rivers and places are invented.';
 
@@ -85,9 +85,9 @@ export const RULES = [
   ] },
   { title: 'Practice and Watch & Learn', blocks: [
     ['h', 'Learn the Beat'],
-    ['p', 'A short guided race: tap on the beat, keep the crew in sync, take a stream, dodge a log and fire the Surge. It does not count against the free preview.'],
+    ['p', 'A short guided race: tap on the beat, keep the crew in sync, take a stream, dodge a log and fire the Surge.'],
     ['h', 'Watch & Learn'],
-    ['p', 'The coach crew races for you. At key moments (the start, a tempo call, debris ahead, a stream, a slipstream, a full Surge) the race stops: THINK (you choose 2, 5, 8 or 10 seconds in Settings), then REVEAL (2 seconds, the plan is highlighted) and then the coach ACTS. Pause stops everything and Resume carries on exactly where it stopped. It does not count against the free preview.'],
+    ['p', 'The coach crew races for you. At key moments (the start, a tempo call, debris ahead, a stream, a slipstream, a full Surge) the race stops: THINK (you choose 2, 5, 8 or 10 seconds in Settings), then REVEAL (2 seconds, the plan is highlighted) and then the coach ACTS. Pause stops everything and Resume carries on exactly where it stopped.'],
     ['h', 'Hints'],
     ['p', 'Tap the bulb during a race for a hint: the best line and what to do next. You get 3 hints per race.'],
   ] },

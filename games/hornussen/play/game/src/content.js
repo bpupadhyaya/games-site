@@ -45,8 +45,8 @@ export const ABOUT = [
     'This is a simplified match for your phone, with the real words and the real idea: strike with a bending rod, then defend with timed boards. It is not an official simulation. A real match has bigger sides and more strikes; here a match is a short, quick contest between two sides of twenty fielders each.',
     `Four venues are named after Swiss regions: ${VENUES.map((v) => v.name).join(', ')}. They change the light and the wind. Play against the computer at ${Object.values(LEVEL_NAMES).join(', ')} level, ask for a Hint any time, or watch a whole match with Auto Play.`,
   ] },
-  { h: 'Free preview and unlock', p: [
-    'Your first 90 seconds of match play are free. A single one-time purchase then unlocks the whole game, with no ads and nothing else to buy. Restore purchase is on the unlock screen. Menus, Settings, the Rules and Auto Play never use up the preview.',
+  { h: 'Ads and ad-free', p: [
+    'Free to play with short ads. A single one-time purchase makes it ad-free, with nothing else to buy. Restore purchase is on the game page in Arcforge. Menus, Settings, the Rules and Auto Play are always free to use.',
   ] },
   { h: 'Play and wellness', p: [
     'Nothing is staked: you play for the match. Text size can be raised to 300% in Settings and on every reading page, and Reduced motion calms the animation.',
@@ -90,8 +90,8 @@ export const RULES = [
   { h: 'The computer', p: [
     `The computer sees the whole flight, but it is not perfect. Its fielders only react to ${Math.round(levelInfo('easy').att * 100)}% (Easy), ${Math.round(levelInfo('normal').att * 100)}% (Steady) or ${Math.round(levelInfo('hard').att * 100)}% (Sharp) of the strikes they could reach, and their timing is off by a few tenths of a second. A computer striker picks one of the best targets for the level: Easy chooses among its six best targets, Steady among three, Sharp always takes the best one, and each aims with the level's own scatter.`,
   ] },
-  { h: 'Hint, Auto Play and the free preview', p: [
+  { h: 'Hint, Auto Play and free play', p: [
     'Hint names the fielder to tap and the moment (fielding), or the target and tension to aim for (striking). Auto Play plays a whole match between two computer sides: it thinks (2, 5, 8 or 10 seconds), shows its choice for 2 seconds, then plays it. Pause freezes everything.',
-    'Match play uses the 90-second free preview; menus, Rules, Settings and Auto Play do not. After that one purchase unlocks the whole game.',
+    'Free to play with short ads; go ad-free once.',
   ] },
 ];

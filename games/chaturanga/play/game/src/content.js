@@ -36,7 +36,7 @@ export const ABOUT = [
   { title: 'A reconstruction', lines: ['No complete rule book from the period survives. The rules here are the commonly reconstructed ones, built from later Persian and Arabic descriptions. Where historians disagree (stalemate, bare Raja, promotion) this game states its choice plainly on the Rules page.'] },
   { title: 'The look', lines: ['The board is uncheckered carved sandalwood in a dark frame with a brass inlay and the old cross-marks of the eight-squared ashtapada, standing on a rug in a lamp-lit palace courtyard at sunset. The pieces are sculpted figures: a Raja under his canopy, a turbaned Mantri, an elephant with a howdah, a horse, a chariot with spoked wheels and a foot soldier with spear and shield, in ivory and vermilion lacquer with brass. The colours are taken from Indian miniature painting.'] },
   { title: '3D credits', lines: ['The 3D scene is drawn with three.js (Copyright (c) 2010-2024 three.js authors, MIT License, threejs.org), including its RoomEnvironment lighting helper, and the meshoptimizer decoder (Copyright (c) 2016-2024 Arseny Kapoulkine, MIT License). All models, textures and lettering in this game were made for it.'] },
-  { title: 'Part of Arcforge', lines: ['One of the world heritage games in the Arcforge collection. No ads, it works offline, and the free preview lets you try the game before you unlock it once.'] },
+  { title: 'Part of Arcforge', lines: ['One of the world heritage games in the Arcforge collection. Free to play with short ads; go ad-free once.'] },
 ];
 
 const pieceRule = (type, era, at, text, extra) => ({ title: era === MODERN ? `${MODERN_NAME[type]} (${TYPE_NAME[type]})` : `${TYPE_NAME[type]} (${MODERN_NAME[type]})`, lines: [text], diagram: moveDiagram(type, era, at, extra) });
@@ -65,7 +65,7 @@ export const RULES = [
   { title: 'Computer levels', lines: LEVELS.slice(1).map((L, i) => `Level ${i + 1}, ${L.name}: ${L.blurb}`) },
   { title: 'Think, Threats and Undo', lines: ['Think searches for a strong move, marks it with an arrow and explains it. Threats rings every one of your pieces that the enemy could take next move. Undo takes back your move and the computer\'s reply. Resign gives up the game (tap twice to confirm).'] },
   { title: 'Watch & Learn', lines: ['Two computers play a whole game. For each move the game THINKS (you choose 2, 5, 8 or 10 seconds), then REVEALS the pieces that could move and the move chosen, then ACTS. Pause freezes everything exactly where it is.'] },
-  { title: 'Previews and unlocking', lines: ['The menus, Settings, Rules, History and Watch & Learn are always free. Real play and the lessons use a short free preview; unlock the full game once to keep playing, with no ads and no subscription.'] },
+  { title: 'Ads and ad-free', lines: ['The menus, Settings, Rules, History and Watch & Learn are always free. Free to play with short ads; go ad-free once.'] },
 ];
 
 export function page(scene) { return scene === 'howto' ? HOWTO : scene === 'about' ? ABOUT : RULES; }

@@ -103,16 +103,21 @@ function boardPortrait(L, n, teach) {
   const U = { ...L.U, y0: Math.max(L.U.y0, 36) }, w = L.w, BB = boardBlock(n), side = 30; U.h = L.U.y1 - U.y0;
   const V = [
     { hdr: 108, nameRow: 30, tray: 104, msg: 128, bar: 92, card: 186, g: 10, title: 60, sub: 25 },
-    { hdr: 78, nameRow: 28, tray: 84, msg: 88, bar: 76, card: 134, g: 7, title: 46, sub: 23 },
-    { hdr: 62, nameRow: 24, tray: 66, msg: 66, bar: 66, card: 100, g: 5, title: 38, sub: 20 },   // short portrait (3:4 tablets): trays and bars shrink so the board can grow
+    { hdr: 82, nameRow: 28, tray: 84, msg: 88, bar: 76, card: 134, g: 7, title: 46, sub: 23 },
+    { hdr: 72, nameRow: 24, tray: 66, msg: 66, bar: 66, card: 100, g: 5, title: 38, sub: 20 },   // short portrait (3:4 tablets): trays and bars shrink so the board can grow
+    { hdr: 50, nameRow: 18, tray: 54, msg: 36, bar: 56, card: 84, g: 2, title: 23, sub: 16 },    // very short portrait (iPad 13 at 3:4): minimum chrome, board fills the width
   ];
-  let v = V[0], s = 1;
+  // Pick the roomiest chrome that still lets the board reach (nearly) the full width; if none does, the one giving the biggest board.
+  const fit = (q) => {
+    const top = teach ? q.card : q.nameRow + q.tray;
+    const fixed = q.hdr + top + q.nameRow + q.tray + q.msg + q.bar + q.g * 7 + 12;
+    return Math.min((U.h - fixed) / BB.h, (U.w - 2 * 14) / BB.w, 1.1);
+  };
+  let v = V[0], s = fit(v);
   for (let i = 0; i < V.length; i++) {
-    v = V[i];
-    const top = teach ? v.card : v.nameRow + v.tray;
-    const fixed = v.hdr + top + v.nameRow + v.tray + v.msg + v.bar + v.g * 7 + 12;
-    s = Math.min((U.h - fixed) / BB.h, (U.w - 2 * 14) / BB.w, 1.1);
-    if (s >= (i === 0 ? 0.9 : 0.62)) break;
+    const si = fit(V[i]);
+    if (si >= 0.95 * Math.min((U.w - 28) / BB.w, 1.1)) { v = V[i]; s = si; break; }
+    if (si > s || i === 0) { v = V[i]; s = si; }
   }
   s = Math.max(s, 0.36);
   const top = teach ? v.card : v.nameRow + v.tray;
@@ -120,19 +125,19 @@ function boardPortrait(L, n, teach) {
   const extra = Math.max(0, U.h - used), eg = Math.min(extra / 6, 16);       // spare height goes into the gaps, not into huge margins
   const fw = Math.min(w - 2 * side, 720 - 2 * side + 40), x = U.x0 + (U.w - fw) / 2;
   let y = U.y0 + 6 + Math.max(0, extra - eg * 6) / 2;
-  const B = { mode: 'portrait', s, v, teach };
+  const B = { mode: 'portrait', s, v, teach }, nsz = Math.min(27, Math.max(20, Math.round(v.nameRow * 1.2)));   // name type shrinks with its row so it never rides up into the header
   B.hdr = { y, h: v.hdr, titleY: y + v.title * 0.92, titleSize: v.title, subY: y + v.hdr - 8, subSize: v.sub, cx: L.cx, maxW: L.topMaxW, jp: true };
   y += v.hdr + v.g + eg;
   const sps = 0.42 * (v.tray / 104);
   if (!teach) {
-    B.nameTop = { x: x + 14, y: y + v.nameRow - 6, size: 27, dotX: x - 2 };
-    B.think = { x: x + fw - 4, y: y + v.nameRow - 6, size: 26, align: 'right' };
+    B.nameTop = { x: x + 14, y: y + v.nameRow - 6, size: nsz, dotX: x - 2 };
+    B.think = { x: x + fw - 4, y: y + v.nameRow - 6, size: Math.min(26, nsz), align: 'right' };
     B.top = makeStand(R(x, y + v.nameRow, fw, v.tray), 7, 1, sps, false);
     y += v.nameRow + v.tray + v.g + eg;
   } else { B.card = R(x, y, fw, v.card); y += v.card + v.g + eg; }
   const bx = U.x0 + (U.w - BB.w * s) / 2;
   B.g = liveGeom(n, bx, y, s); y += BB.h * s + v.g + eg;
-  B.nameBot = { x: x + 14, y: y + v.nameRow - 6, size: 27, dotX: x - 2 };
+  B.nameBot = { x: x + 14, y: y + v.nameRow - 6, size: nsz, dotX: x - 2 };
   B.bot = makeStand(R(x, y + v.nameRow, fw, v.tray), 7, 1, sps, false);
   y += v.nameRow + v.tray + v.g + eg;
   B.msg = R(x, y, fw, v.msg); B.msgSize = v.msg > 100 ? 30 : 25; y += v.msg + v.g + eg;
@@ -141,7 +146,7 @@ function boardPortrait(L, n, teach) {
 }
 
 function boardWide(L, n, teach) {
-  const U = { ...L.U, y0: Math.max(L.U.y0, 38) }, BB = boardBlock(n), gap = 14, minP = 252; U.h = L.U.y1 - U.y0;
+  const U = { ...L.U, y0: Math.max(L.U.y0, 38) }, BB = boardBlock(n), gap = 14, minP = 214; U.h = L.U.y1 - U.y0;
   let s = Math.min((U.h - 16) / BB.h, 1.15);
   s = Math.max(0.42, Math.min(s, (U.w - 2 * minP - 2 * gap) / BB.w));
   const bw = BB.w * s, pw = clamp((U.w - bw - 2 * gap) / 2, 200, 400);

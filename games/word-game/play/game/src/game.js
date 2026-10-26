@@ -680,12 +680,17 @@ export function createGame(env) {
     };
   };
   const getForm = () => {
-    const Q = lay().rules, scale = TEXT_SCALES[state.textScaleIdx] ?? 1;
-    const key = `${state.scene}|${rev}|${scale}|${Math.round(Q.viewport.w)}|${lex.version()}|${state.prefs.font}`;
+    const Q = formRules(), base = TEXT_SCALES[state.textScaleIdx] ?? 1, fitScene = state.scene === 'age' || state.scene === 'firstlevel';
+    const key = `${state.scene}|${rev}|${base}|${Math.round(Q.viewport.w)}x${Math.round(Q.viewport.h)}|${lex.version()}|${state.prefs.font}`;
     if (formCache && formCache.key === key) return formCache;
     const def = screenRows(state.scene, snapshot());
-    const width = Q.viewport.w - 2 * Q.padX;
-    formCache = { key, def, layout: layoutForm(def.rows, width, scale, state.prefs.font === 'dys' ? 1.2 : 1), width };
+    const width = Q.viewport.w - 2 * Q.padX, cw = state.prefs.font === 'dys' ? 1.2 : 1;
+    const lo = { twoCol: fitScene && lay().wide };
+    let scale = base, layout = layoutForm(def.rows, width, scale, cw, lo);
+    // The welcome screens have no Back button and should show every option at once when that is possible: shrink a little (never below 75%) before falling back to scrolling.
+    if (fitScene && base === 1) for (let s = 0.95; layout.height > Q.viewport.h && s >= 0.75; s -= 0.05) { scale = s; layout = layoutForm(def.rows, width, scale, cw, lo); }
+    if (layout.height > Q.viewport.h) { scale = base; layout = layoutForm(def.rows, width, scale, cw, lo); }
+    formCache = { key, def, layout, width, scale };
     return formCache;
   };
   const setFormScroll = (v) => { state.formScroll = Math.max(0, Math.min(v, formMetrics.max)); };
@@ -1634,8 +1639,9 @@ export function createGame(env) {
     }
   };
 
+  const formRules = (L = lay()) => (state.scene === 'age' || state.scene === 'firstlevel' ? L.rulesFull : L.rules);
   const updateForm = (input) => {
-    const Q = lay().rules, p = input.pointer, keys = input.keys.pressed;
+    const Q = formRules(), p = input.pointer, keys = input.keys.pressed;
     const F = getForm(), vp = Q.viewport;
     formMetrics.content = F.layout.height; formMetrics.view = vp.h; formMetrics.max = Math.max(0, F.layout.height - vp.h);
     if (wheelInput.dy) { setFormScroll(state.formScroll + wheelInput.dy); wheelInput.dy = 0; }
@@ -2049,7 +2055,7 @@ export function createGame(env) {
       item('n', 'text', sc === 'journey' ? 'The Journey map is drawn as a picture. To practise with a screen reader, use Play, Study or Learn more from the More screen.' : 'Tracing needs a finger on the screen. Use Alphabet in More to hear every letter.');
       back(L.rules.back);
     } else if (FORM_SCENES.has(sc)) {
-      const F = getForm(), Q = L.rules, vp = Q.viewport, scroll = state.formScroll;
+      const F = getForm(), Q = formRules(L), vp = Q.viewport, scroll = state.formScroll;
       const R = (it, h) => { const y = vp.y + it.y + (h ? h.y : 0) - scroll, hh = h ? h.h : it.h, x = vp.x + Q.padX + (h ? h.x : 0); return y + hh < vp.y || y > vp.y + vp.h ? null : { x, y, w: h ? h.w : vp.w - 2 * Q.padX, h: hh }; };
       item('h', 'heading', F.def.title || sc, { level: 1 });
       if (sc !== 'age' && sc !== 'firstlevel') back(Q.back);
@@ -2182,7 +2188,7 @@ export function createGame(env) {
     // Centre of a control on the current form screen (scrolls it into view first). Used by the scripted tests and screenshot driver.
     hitCenter(id) {
       if (!FORM_SCENES.has(state.scene)) return null;
-      const F = getForm(), Q = lay().rules, vp = Q.viewport;
+      const F = getForm(), Q = formRules(), vp = Q.viewport;
       for (const it of F.layout.items) for (const h of it.hits) {
         if (h.id !== id) continue;
         const maxS = Math.max(0, F.layout.height - vp.h);

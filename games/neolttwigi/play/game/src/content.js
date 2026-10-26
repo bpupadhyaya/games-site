@@ -17,7 +17,7 @@ export const ABOUT = {
     { p: 'In this game you are one of the two players. You press as you land and release as your partner lands, and the closer each one is to the exact moment of contact, the higher you both go. Play with a computer partner, take turns with a friend on one screen, or watch and learn from the game itself. The girls are drawn in plain colours and are not portraits of real people.' },
     { p: 'The real game needs a flat, safe surface, a sturdy board and a partner who is happy to be thrown into the air. This is a game, not a guide to doing it yourself.' },
     { h: 'Credits' },
-    { p: 'Made by Arcforge, a collection of heritage games from around the world. All sound is synthesised on your device. Titles are set in Cormorant Garamond (SIL Open Font License 1.1). Drawn with plain canvas graphics; no ads, works offline.' },
+    { p: 'Made by Arcforge, a collection of heritage games from around the world. All sound is synthesised on your device. Titles are set in Cormorant Garamond (SIL Open Font License 1.1). Drawn with plain canvas graphics; works offline.' },
   ],
 };
 
@@ -125,10 +125,10 @@ export function rulesPages() {
       ],
     },
     {
-      title: 'Free preview and demo',
+      title: 'Free to play and demo',
       blocks: [
-        { h: 'Trying it first' },
-        { p: 'The full game has a free preview of real play; menus, Rules, Watch and Learn and results are always free. When the preview ends you can unlock the whole game once, or restore an earlier purchase.' },
+        { h: 'In the app' },
+        { p: 'Menus, Rules, Watch and Learn and results are always free. Free to play with short ads; go ad-free once.' },
         { p: `The public web demo is limited to ${DEMO_RUNS} rounds and the first course, a taste of the game; the apps for iPhone and Android hold everything.` },
       ],
     },

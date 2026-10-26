@@ -18,7 +18,7 @@ export const ABOUT = [
     'Goal-kicking from the try line is part of rugby as played in New Zealand, South Africa, Wales and many other countries. This game is an original, simplified take on that craft. It carries no club, union, league or tournament marks.',
   ] },
   { title: 'Full game', p: [
-    'The first minute and a half of real play is free. The full game is a single one-time unlock with no ads and no other purchases. Menus, rules, lessons and Watch & Learn are always free. Settings has Restore Purchases.',
+    'Menus, rules, lessons and Watch & Learn are always free. Free to play with short ads; go ad-free once.',
   ] },
 ];
 
@@ -85,9 +85,9 @@ export const RULES = [
     'Watch & Learn: the computer kicker plays a session. Before each kick it thinks (2, 5, 8 or 10 seconds, your choice), then shows its chosen aim, tilt and power for 2 seconds, then kicks. You can Pause and Resume at any moment, and make the thinking time longer or shorter.',
     'Think: during your own kick, press Think for the coach\'s advice. It never kicks for you.',
   ] },
-  { title: 'Text size and the free preview', p: [
+  { title: 'Text size and free play', p: [
     'A- and A+ change the text size from 100 to 300 percent on every text screen.',
-    'The first minute and a half of real play (ladder, shootout and practice) is free. Menus, Rules, About, lessons, Watch & Learn, Think and pause never count against it.',
+    'Free to play with short ads; go ad-free once.',
   ] },
 ];
 

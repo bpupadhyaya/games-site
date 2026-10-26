@@ -1,6 +1,6 @@
 // Drawing for every screen. render() is the single entry point; playing screens live in playview.js, text screens in docview.js.
 import { PAL, UI, DISPLAY, rgba, drawBackdrop, drawLantern, drawDrum, drawStick, drawStars, drawEmbers, drawFloor } from './art.js';
-import { txt, button, panel, rrect, chip, icon, wrap } from './ui.js';
+import { txt, headerTitle, button, panel, rrect, chip, icon, wrap } from './ui.js';
 import { renderDoc } from './docview.js';
 import { renderPlay, renderFree, renderCalib } from './playview.js';
 import { ABOUT, HOWTO, RULES } from './content.js';
@@ -106,7 +106,7 @@ function renderTitle(ctx, st, L) {
 function renderSongs(ctx, st, L) {
   const G = L.songs, S = L.S;
   button(ctx, G.back, 'Back', { icon: 'back', kind: 'ghost', size: 28 });
-  txt(ctx, 'Choose a piece', S.x + S.w / 2, G.titleY, 40, PAL.gold, { align: 'center', font: DISPLAY, weight: 400, stroke: 6, maxW: S.w - 2 * (G.back.w + 30) });
+  headerTitle(ctx, 'Choose a piece', G.back, S, G.titleY, 40, { font: DISPLAY, weight: 400, stroke: 6 });
   PIECES.forEach((p, i) => {
     const r = G.cards[i], best = st.best[p.id] ?? {}, locked = st.demo && i > 0;
     panel(ctx, r, { fill: 'rgba(16,10,40,0.78)' }); edgeStroke(ctx, r, 24, 0.28);
@@ -151,7 +151,7 @@ function patternStrip(ctx, p, x, y, w, rowH) {
 function renderPiece(ctx, st, L) {
   const D = L.piece, S = L.S, p = PIECES[st.sel], best = st.best[p.id] ?? {}, wide = L.mode === 'wide';
   button(ctx, D.back, 'Back', { icon: 'back', kind: 'ghost', size: 28 });
-  txt(ctx, p.name, S.x + S.w / 2, S.y + 12 + D.back.h / 2, 44, PAL.gold, { align: 'center', font: DISPLAY, weight: 400, stroke: 6, maxW: S.w - 2 * (D.back.w + 30) });
+  headerTitle(ctx, p.name, D.back, S, S.y + 12 + D.back.h / 2, 44, { font: DISPLAY, weight: 400, stroke: 6 });
   const I = D.info;
   panel(ctx, I, { fill: 'rgba(16,10,40,0.72)' }); edgeStroke(ctx, I, 24, 0.3);
   ctx.save(); rrect(ctx, I, 24); ctx.clip();

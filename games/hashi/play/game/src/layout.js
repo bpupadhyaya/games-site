@@ -72,7 +72,7 @@ function buildPlay(F, coach, lefty, pw, ph) {
     const cw = Math.min(U.w - 2 * m, Math.max(B, 560)), cx = U.x0 + (U.w - cw) / 2;
     const ctlTop = by + B + 12, ctlH = Math.max(100, U.y1 - ctlTop - 8);
     const hb = U.x0 + (back.w ? back.w + 4 : 0);
-    L.hud = { diff: R(Math.max(U.x0 + m, hb), hudTop, cw * 0.4, hudH), timer: { x: U.x0 + U.w / 2 + (back.w ? 20 : 0), y: hudTop + 62 }, pause: R(U.x1 - m - 66, hudTop + 10, 66, 66), mist: { x: U.x1 - m - 66 - 18, y: hudTop + 62 } };
+    L.hud = { diff: R(Math.max(U.x0 + m, hb), hudTop, cw * 0.4, hudH), timer: { x: U.x0 + U.w * 0.58 - 6, y: hudTop + 62 }, pause: R(U.x1 - m - 66, hudTop + 10, 66, 66), mist: { x: U.x1 - m - 66 - 18, y: hudTop + 62 } };
     L.pause = L.hud.pause;
     L.ctl = R(cx, ctlTop, cw, ctlH);
     const toolH = clamp(ctlH * 0.34, 62, 110), progH = ctlH - toolH - gap * 2 >= 70 ? clamp(ctlH * 0.3, 70, 130) : 0;

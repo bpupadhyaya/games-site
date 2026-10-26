@@ -129,12 +129,21 @@ export function render(ctx, state, h) {
     for (const l of TL.lanterns) lantern(ctx, l.x, l.y, l.s, T, l.ph);
     // the mark
     const ms = TL.markSize, k = ms / 190;
+    if (lang === 'en') {
+      // English presentation: the mark is the word itself (no kanji anywhere)
+      const es = ms * 0.8, ey = (TL.markY + TL.shogiY) / 2 + es * 0.12;
+      ctx.save(); ctx.shadowColor = 'rgba(255,150,70,0.55)'; ctx.shadowBlur = 40 * k;
+      ctx.textAlign = 'center'; ctx.font = `700 ${es}px ${DISPLAY}`; ctx.lineWidth = 8 * k; ctx.strokeStyle = '#3a1608'; ctx.strokeText('Shogi', TL.cx, ey);
+      const g = ctx.createLinearGradient(0, ey - es * 0.74, 0, ey); g.addColorStop(0, '#f6d27a'); g.addColorStop(1, '#c58a2c'); ctx.fillStyle = g; ctx.fillText('Shogi', TL.cx, ey);
+      ctx.restore();
+    } else {
     ctx.save(); ctx.shadowColor = 'rgba(255,150,70,0.55)'; ctx.shadowBlur = 40 * k;
     ctx.textAlign = 'center'; ctx.font = `700 ${ms}px ${JP}`; ctx.lineWidth = 8 * k; ctx.strokeStyle = '#3a1608'; ctx.strokeText('将棋', TL.cx, TL.markY);
     const g = ctx.createLinearGradient(0, TL.markY - ms * 0.74, 0, TL.markY); g.addColorStop(0, '#f0604c'); g.addColorStop(1, '#a4241a'); ctx.fillStyle = g; ctx.fillText('将棋', TL.cx, TL.markY);
     ctx.restore();
     ctx.save(); ctx.globalAlpha = 0.55; ctx.font = `700 ${ms}px ${JP}`; ctx.textAlign = 'center'; ctx.fillStyle = 'rgba(255,220,180,0.35)'; ctx.fillText('将棋', TL.cx - 2, TL.markY - 4); ctx.restore();
     text('Shogi', TL.cx, TL.shogiY, TL.shogiSize, GOLD, DISPLAY, 700);
+    }
     fitLine('Japan\'s game of generals and drops', TL.cx, TL.tagY, TL.tagSize, (L.land ? TL.split - L.U.x0 : L.U.w) - 40, PAPER, UI, 500);
     // three koma that float
     if (TL.parade) {
@@ -249,7 +258,7 @@ export function render(ctx, state, h) {
     const flying = state.anim && state.anim.cap ? state.anim : null;
     const drawTray = (st, owner, which) => {
       const hand = pos.hand[owner], rot = which === 'top' ? 1 : 0;
-      drawStand(ctx, st, which === 'top');
+      drawStand(ctx, st, which === 'top', lang);
       STAND_ORDER.forEach((tt, i) => {
         let cnt = hand[tt] - (flying && flying.by === owner && base(flying.cap & 15) === tt ? 1 : 0);
         if (cnt <= 0) return;
@@ -391,11 +400,14 @@ export function render(ctx, state, h) {
     else if (lessonScene) fitLine(LESSONS[state.lesson.i].title, H.cx, H.titleY, H.titleSize * 0.84, H.maxW, GOLD);
     else if (puzzleScene) fitLine(`Puzzle of the day: mate in ${state.pz.pz.n}`, H.cx, H.titleY, H.titleSize * 0.8, H.maxW, GOLD);
     else {
+      if (lang === 'en') text('Shogi', H.cx, H.titleY, H.titleSize, GOLD, DISPLAY, 700);
+      else {
       // 将棋 + Shogi side by side, centred
       ctx.font = `700 ${H.titleSize * 0.74}px ${JP}`; const wj = ctx.measureText('将棋').width;
       ctx.font = `700 ${H.titleSize}px ${DISPLAY}`; const ws = ctx.measureText('Shogi').width, tot = wj + 18 + ws, k = Math.min(1, H.maxW / tot);
       const x0 = H.cx - (tot * k) / 2;
       text('将棋', x0, H.titleY, H.titleSize * 0.74 * k, VERMILION, JP, 700, 'left'); text('Shogi', x0 + (wj + 18) * k, H.titleY, H.titleSize * k, GOLD, DISPLAY, 700, 'left');
+      }
     }
     if (H.wide) fitText(sub, H.cx, H.subY - 20, H.maxW, 76, Math.max(H.subSize, minU), 'rgba(247,236,210,0.8)', 'center', UI, 500);
     else fitLine(sub, H.cx, H.subY, Math.max(H.subSize, Math.min(minU, H.subSize + 2)), L.U.w - 60, 'rgba(247,236,210,0.8)', UI, 500);

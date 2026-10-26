@@ -129,7 +129,7 @@ export function pauseWidgets(state) {
 }
 export function demoLimitWidgets(wide) {
   return [
-    { t: 'h', label: 'That was the free preview', size: 40 },
+    { t: 'h', label: 'That was the demo end', size: 40 },
     { t: 'p', label: 'The web demo plays three ends. The full game for iPhone and Android has every rival, every cancha and the Daily Court, with no limits.', size: 26 },
     { t: 'btn', id: 'menu', label: 'Main menu', primary: true, h: 90 },
   ];

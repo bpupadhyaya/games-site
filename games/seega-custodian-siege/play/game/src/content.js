@@ -24,8 +24,8 @@ export const STR = {
   autoSession: L('Watch & Learn', 'شاهد وتعلّم'), autoAgain: L('Watch Again', 'شاهد مرة أخرى'),
   autoSummary: L('You watched a whole game: the layout, the first slide into the centre, the captures and the finish, with each move explained. Watch again for a different game, or head to Learn to try the ideas yourself.',
     'شاهدت لعبة كاملة: التشكيل، وأول انزلاق إلى المركز، وعمليات الأسر، والنهاية، مع شرح كل حركة. شاهد مرة أخرى للعبة مختلفة، أو انتقل إلى «تعلّم» لتجرّب الأفكار بنفسك.'),
-  demoLimitTitle: L('FREE PREVIEW FINISHED', 'انتهت المعاينة المجانية'),
-  demoLimitBody: L('You played the three free games. Get the full game on iPhone and Android for every opponent level, two players on one phone, all the lessons and the other boards.',
+  demoLimitTitle: L('DEMO FINISHED', 'انتهت المعاينة المجانية'),
+  demoLimitBody: L('You played the three free games. Get the free app on iPhone and Android for every opponent level, two players on one phone, all the lessons and the other boards.',
     'لعبتَ الألعاب الثلاث المجانية. احصل على اللعبة كاملة على آيفون وأندرويد لتجد كل مستويات الخصم، واللعب بين لاعبين على هاتف واحد، وكل الدروس، والرقع الأخرى.'),
   demoLeft: L('{n} free games left', 'متبقٍ {n} ألعاب مجانية'),
   seega: L('Seega', 'سيجا'), desertSiege: L('Desert Siege', 'حصار الصحراء'), fromEgypt: L('A traditional game of Egypt', 'لعبة تقليدية من مصر'),
@@ -355,29 +355,29 @@ const RULES_DEF = [
   { art: 'learn',
     en: { title: 'Learn', body: [
       'Learn is a short course of real positions: safe corners, blocking the first move, the first slide into the centre, capturing, capturing two at once, keeping going, staying safe, the safe centre and blocked positions. A move that is wrong is not played: you are told why and can try again.',
-      'Lessons you finish are ticked. They do not use up the free preview.',
+      'Lessons you finish are ticked.',
     ] },
     ar: { title: 'تعلّم', body: [
       '«تعلّم» دورة قصيرة من مواضع حقيقية: زوايا آمنة، ومنع الحركة الأولى، وأول انزلاق إلى المركز، والأسر، وأسر حجرين معًا، ومواصلة الأسر، والبقاء آمنًا، والمركز الآمن، والمواضع المحجوبة. الحركة الخاطئة لا تُلعب: يُقال لك السبب ويمكنك المحاولة مرة أخرى.',
-      'الدروس التي تنهيها تُعلَّم بعلامة. ولا تستهلك المعاينة المجانية.',
+      'الدروس التي تنهيها تُعلَّم بعلامة.',
     ] } },
   { art: 'auto',
     en: { title: 'Watch & Learn', body: [
       'Watch & Learn plays a whole game for you with the game\'s own opponent engine on both sides: Skilled plays the pebbles and Casual the date stones, which makes for a lively game with captures and a finish. Each decision has three steps: THINK (2, 5, 8 or 10 seconds, you choose), REVEAL (two seconds: the options light up and the chosen one is marked, with the reason in words) and ACT.',
-      'Pause freezes everything where it is and Resume carries on from exactly there. Watch & Learn does not use up the free preview.',
+      'Pause freezes everything where it is and Resume carries on from exactly there.',
     ] },
     ar: { title: 'شاهد وتعلّم', body: [
       'يلعب «شاهد وتعلّم» لعبة كاملة نيابةً عنك بمحرك الخصم نفسه في اللعبة على الجانبين: الماهر يلعب بالحصى والهاوي بنوى التمر، فتكون لعبة حيّة فيها أسر ونهاية. لكل قرار ثلاث خطوات: التفكير (2 أو 5 أو 8 أو 10 ثوانٍ، تختار أنت)، ثم الكشف (ثانيتان: تضيء الخيارات ويُعلَّم الخيار المختار مع السبب بالكلمات)، ثم التنفيذ.',
-      'يجمّد «إيقاف مؤقت» كل شيء مكانه، وتواصل «متابعة» من الموضع نفسه تمامًا. ولا يستهلك «شاهد وتعلّم» المعاينة المجانية.',
+      'يجمّد «إيقاف مؤقت» كل شيء مكانه، وتواصل «متابعة» من الموضع نفسه تمامًا.',
     ] } },
   { art: 'themes',
     en: { title: 'Boards and sound', body: [
       'In Settings you can choose the board and stones: Sandstone, Basalt and Copper, or Oasis Night. The rules do not change. Sound can be switched off, the think time of Watch & Learn set, and the text size raised up to 300 percent on every text screen, including the game screen.',
-      'There are no timers and no stakes: results are only kept as your own record of wins, draws and losses for each level. The game starts with a free preview of the first 90 seconds of play; the full game is a single one-time unlock and works offline.',
+      'There are no timers and no stakes: results are only kept as your own record of wins, draws and losses for each level. Free to play with short ads; go ad-free once.',
     ] },
     ar: { title: 'الرقع والصوت', body: [
       'من الإعدادات يمكنك اختيار الرقعة والأحجار: حجر رملي، أو بازلت ونحاس، أو ليل الواحة. القواعد لا تتغير. ويمكن إيقاف الصوت، وضبط مدة التفكير في «شاهد وتعلّم»، ورفع حجم النص حتى 300 بالمئة في كل شاشات النص، بما فيها شاشة اللعب.',
-      'لا مؤقتات ولا رهانات: تُحفظ النتائج فقط كسجل خاص بك للفوز والتعادل والخسارة لكل مستوى. تبدأ اللعبة بمعاينة مجانية لأول 90 ثانية من اللعب، والفتح الكامل عملية شراء واحدة، وتعمل بلا اتصال بالإنترنت.',
+      'لا مؤقتات ولا رهانات: تُحفظ النتائج فقط كسجل خاص بك للفوز والتعادل والخسارة لكل مستوى. اللعبة مجانية مع إعلانات قصيرة، وإزالة الإعلانات لهذه اللعبة عملية شراء واحدة.',
     ] } },
 ];
 

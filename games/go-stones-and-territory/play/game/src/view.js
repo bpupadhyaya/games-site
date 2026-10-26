@@ -431,8 +431,8 @@ function drawSettings(ctx, S, u) {
 function drawDemoLimit(ctx, S, u) {
   const { wrap, panel, title } = u, d = layout().demo;
   panel(d.panel);
-  title('That is the free preview', d.cx, d.panel.y + 100 * d.k, 50, d.panel.w - 40);
-  wrap('You have used the free games in this web preview. Get the full game on iPhone and Android for every lesson, every level, all board sizes and a new puzzle each day.', d.cx, d.panel.y + 170 * d.k, 28, d.panel.w - 80, '#f2e6cc');
+  title('That is the demo end', d.cx, d.panel.y + 100 * d.k, 50, d.panel.w - 40);
+  wrap('You have used the free games in this web demo. Get the free app on iPhone and Android for every lesson, every level, all board sizes and a new puzzle each day.', d.cx, d.panel.y + 170 * d.k, 28, d.panel.w - 80, '#f2e6cc');
 }
 
 // ---- board scenes: play / lesson / puzzle / auto play ---------------------------------------------------------------------------

@@ -95,7 +95,7 @@ export const RULES = [
   {
     title: 'Watch and Learn, hints and pause',
     blocks: [
-      D.h('Watch and Learn'), D.p('The band plays the whole piece. A caption names the part in the spotlight and says what it does and why. Nothing is scored and watching does not use up the free preview. You can pause it at any time, and you can start any piece in Watch and Learn from its screen.'),
+      D.h('Watch and Learn'), D.p('The band plays the whole piece. A caption names the part in the spotlight and says what it does and why. You can pause it at any time, and you can start any piece in Watch and Learn from its screen.'),
       D.h('Hint'), D.p('During a take or a Live Trio, the bulb button shows the next few notes of your part in words, for example: Next: button 4 PULL, then button 5 PUSH. Using a hint costs nothing.'),
       D.h('Pause'), D.p('Pause freezes the music, the ribbon and your take exactly where they are and resumes from the same moment. Leaving the app pauses automatically.'),
       D.h('Slow practice'), D.p(`The Speed setting plays everything at ${Math.round(SPEEDS[1].k * 100)}% tempo. Notes and windows are the same; only the tempo changes.`),

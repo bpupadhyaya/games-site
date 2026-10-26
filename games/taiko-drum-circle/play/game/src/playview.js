@@ -1,6 +1,6 @@
 // Drawing for the playing screens: the stage (lanes, notes, drums, sticks, sparks), the HUD, free play and calibration.
 import { PAL, UI, DISPLAY, rgba, drawBackdrop, drawFloor, drawDrum, drawSticks, drawBell, drawNote, drawPopup, drawParticles, drawLane } from './art.js';
-import { txt, button, panel, rrect, chip, icon } from './ui.js';
+import { txt, headerTitle, button, panel, rrect, chip, icon } from './ui.js';
 import { menuRects } from './layout.js';
 import { SPEEDS, DRUMS, PIECES, ENSEMBLE, barDur, comboMult } from './music.js';
 import { drawCredit, edgeStroke } from './brand.js';
@@ -165,16 +165,18 @@ export function renderPlay(ctx, st, L, view, meta, pauseItems) {
   if (L.mode === 'wide') {
     const lc = P.left, rc = P.right;
     panel(ctx, lc); edgeStroke(ctx, lc, 24, 0.35); panel(ctx, rc); edgeStroke(ctx, rc, 24, 0.35);
-    txt(ctx, 'SCORE', lc.x + 22, lc.y + 34, 22, PAL.gold, { weight: 800 });
-    txt(ctx, String(pl.score), lc.x + 22, lc.y + 82, 54, PAL.text, { font: DISPLAY, weight: 400, maxW: lc.w - 44 });
-    txt(ctx, 'COMBO', lc.x + 22, lc.y + 150, 22, PAL.gold, { weight: 800 });
-    txt(ctx, String(pl.combo), lc.x + 22, lc.y + 200, 60, pl.combo >= 10 ? PAL.emberHi : PAL.text, { font: DISPLAY, weight: 400 });
-    if (mult > 1) chip(ctx, lc.x + lc.w - 18, lc.y + 146, `x${mult}`, 24, { align: 'right', fill: PAL.ember, color: '#fff' });
-    txt(ctx, 'ACCURACY', lc.x + 22, lc.y + 262, 22, PAL.gold, { weight: 800 });
-    txt(ctx, `${Math.round(acc * 100)}%`, lc.x + 22, lc.y + 306, 46, PAL.text, { font: DISPLAY, weight: 400 });
-    let yy = lc.y + 360;
-    for (const k of ['perfect', 'great', 'good', 'off', 'miss']) { txt(ctx, k.toUpperCase(), lc.x + 18, yy, 18, PAL.dim, { weight: 700, maxW: lc.w * 0.55 }); txt(ctx, String(pl.counts[k]), lc.x + lc.w - 18, yy, 20, PAL.text, { align: 'right', weight: 800 }); yy += 34; }
-    drawCredit(ctx, lc.x + lc.w / 2, lc.y + lc.h - 18, 11.5, { dim: 0.8 });
+    // everything scales to fit above a reserved footer strip (the Arcforge credit), at any landscape height
+    const k = clamp((lc.h - 46) / 520, 0.55, 1), ly = (o) => lc.y + o * k;
+    txt(ctx, 'SCORE', lc.x + 22, ly(34), 22 * k, PAL.gold, { weight: 800 });
+    txt(ctx, String(pl.score), lc.x + 22, ly(82), 54 * k, PAL.text, { font: DISPLAY, weight: 400, maxW: lc.w - 44 });
+    txt(ctx, 'COMBO', lc.x + 22, ly(150), 22 * k, PAL.gold, { weight: 800 });
+    txt(ctx, String(pl.combo), lc.x + 22, ly(200), 60 * k, pl.combo >= 10 ? PAL.emberHi : PAL.text, { font: DISPLAY, weight: 400 });
+    if (mult > 1) chip(ctx, lc.x + lc.w - 18, ly(146), `x${mult}`, 24 * k, { align: 'right', fill: PAL.ember, color: '#fff' });
+    txt(ctx, 'ACCURACY', lc.x + 22, ly(262), 22 * k, PAL.gold, { weight: 800 });
+    txt(ctx, `${Math.round(acc * 100)}%`, lc.x + 22, ly(306), 46 * k, PAL.text, { font: DISPLAY, weight: 400 });
+    let yy = ly(360);
+    for (const kk of ['perfect', 'great', 'good', 'off', 'miss']) { txt(ctx, kk.toUpperCase(), lc.x + 18, yy, 18 * k, PAL.dim, { weight: 700, maxW: lc.w * 0.55 }); txt(ctx, String(pl.counts[kk]), lc.x + lc.w - 18, yy, 20 * k, PAL.text, { align: 'right', weight: 800 }); yy += 34 * k; }
+    drawCredit(ctx, lc.x + lc.w / 2, lc.y + lc.h - 18, 11.5, { dim: 0.8, maxW: lc.w - 28 });
     // right: bell, layers
     txt(ctx, DRUMS[4].name.toUpperCase(), rc.x + rc.w / 2, rc.y + 34, 20, PAL.gold, { align: 'center', weight: 800 });
     if (showEns) {
@@ -244,9 +246,9 @@ export function renderFree(ctx, st, L, meta) {
     txt(ctx, 'FREE PLAY', mid.x + mid.w / 2, mid.y + 44, 26, PAL.gold, { align: 'center', font: DISPLAY, weight: 400, maxW: mid.w - 30 });
     const tips = ['Middle of a drum: don', 'Rim: ka', 'Use both thumbs', 'Stop, and the circle answers'];
     tips.forEach((tp, i) => { ctx.font = `500 21px ${UI}`; wrapText(ctx, tp, mid.x + 18, mid.y + 100 + i * 84, mid.w - 36, 26, PAL.text); });
-    drawCredit(ctx, mid.x + mid.w / 2, mid.y + mid.h - 18, 11.5, { dim: 0.8 });
+    drawCredit(ctx, mid.x + mid.w / 2, mid.y + mid.h - 18, 11.5, { dim: 0.8, maxW: mid.w - 28 });
   } else {
-    txt(ctx, 'FREE PLAY', S.x + S.w / 2, mid.y + mid.h / 2, 34, PAL.gold, { align: 'center', font: DISPLAY, weight: 400, stroke: 6, maxW: S.w * 0.4 });
+    headerTitle(ctx, 'FREE PLAY', F.exit, S, mid.y + mid.h / 2, 34, { font: DISPLAY, weight: 400, stroke: 6, rightPad: 100 });
     txt(ctx, f.echo ? (f.hits ? 'Stop for a moment and the circle answers' : 'Middle of a drum = don, rim = ka') : 'Middle of a drum = don, rim = ka', S.x + S.w / 2, mid.y + mid.h + 34, 22, PAL.dim, { align: 'center', weight: 600, maxW: S.w - 40 });
   }
   void bh;

@@ -17,7 +17,7 @@ export const ABOUT = [
   { li: 'Turn by turn: nothing happens until you choose, so you can play at your own pace.' },
   { li: 'Think points at the best next move and says why.' },
   { li: 'Watch and Learn plays a whole short voyage for you and explains each choice. Pause it at any time.' },
-  { li: 'Large text and reduced-motion options. No ads. Works offline.' },
+  { li: 'Large text and reduced-motion options. Works offline.' },
   { sp: 1 },
   { p: 'Pinisi is part of Arcforge, a collection of world heritage games.' },
 ];
@@ -154,7 +154,7 @@ export const RULES = [
       { li: 'Keyboard: 1, 2, 3 at sea for Full, Reef, Anchor; H Think; Space or Escape pause.' },
       { li: 'Text size: every text screen has A- and A+ buttons, up to 300%.' },
       { sp: 1 },
-      { p: 'Free preview: the full game starts with a 90 second preview of real play. Menus, Rules, Watch and Learn and the result never use up the preview.' },
+      { p: 'Free to play with short ads; go ad-free once.' },
     ],
   },
 ];

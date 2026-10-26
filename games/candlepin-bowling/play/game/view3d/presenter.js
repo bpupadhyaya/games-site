@@ -295,7 +295,7 @@ export async function createPresenter({ kitCanvas, quality = 'high' }) {
     scene.traverse((o) => { if (o.material) for (const m of [].concat(o.material)) m.needsUpdate = true; });
   }
   const sweepFn = (state) => (state.sweep ? (p) => ((state.sweep.then === 'rack' ? p.s !== 2 : p.s === 1) ? Math.max(0, 1 - state.sweep.t / 0.7) : 1) : null);
-  let frames = 0, ema = 16, lastNow = performance.now(), force = null;
+  let frames = 0, slowFrames = 0, ema = 16, lastNow = performance.now(), force = null;
 
   // camera for the title, menus and reading screens: low behind the pin deck, drifting a little
   function heroFor(state, L) {
@@ -381,9 +381,11 @@ export async function createPresenter({ kitCanvas, quality = 'high' }) {
           const state = game.getState();
           if (!v3.on) { game.render(ctx, view); return; }
           const L = layoutFor(view?.width ?? 720, view?.height ?? 1280);
-          const now = performance.now(), dt = Math.min(0.1, Math.max(0, (now - lastNow) / 1000)); lastNow = now;
+          const now = performance.now(), raw = Math.max(0, (now - lastNow) / 1000), dt = Math.min(0.1, raw); lastNow = now;
           ema = ema * 0.95 + dt * 1000 * 0.05; frames++;
           if (frames > 90 && ema > 30 && tier < TIERS.length - 1) { tier++; applyTier(); frames = 0; ema = 16; }
+          // Software-GL / very slow devices: a frame of 0.3 s or more starves the main thread (rotations get missed). Two of them -> lowest tier now.
+          if (raw > 0.3 && frames > 1 && tier < TIERS.length - 1 && ++slowFrames >= 2) { tier = TIERS.length - 1; applyTier(); frames = 0; ema = 16; slowFrames = 0; }
           v3.panels.length = 0; v3.buttons.length = 0; v3.shades.length = 0; v3.seq = 0; v3.hero = null; v3.clip = null; v3.scene = state.scene;
           try { game.render(ctx, view); } catch (e) { console.warn('2D render failed', e); }
           try { frame(state, L, dt); } catch (e) { console.warn('3D frame failed', e); v3.on = false; }

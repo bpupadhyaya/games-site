@@ -19,7 +19,7 @@ export const STR = {
     autoThink: 'Thinking', autoPause: 'Pause', autoPlay: 'Resume', autoExit: 'Exit', autoSlower: 'Slower', autoFaster: 'Faster',
     autoSession: 'Watch & Learn', autoAgain: 'Watch Again',
     autoSummary: 'You watched a whole game. Every move was chosen by the game\'s own analysis, with its reason shown before it was played.',
-    demoLimitTitle: 'FREE PREVIEW FINISHED', demoLimitBody: 'You played the free games. Get the full game on iPhone and Android for every opponent level, two players on one phone, all three boards and the full Learn course.',
+    demoLimitTitle: 'DEMO FINISHED', demoLimitBody: 'You played the free games. Get the free app on iPhone and Android for every opponent level, two players on one phone, all three boards and the full Learn course.',
     demoLeft: '{n} free games left', record: 'Record', wins: 'W', losses: 'L',
     lessonsTitle: 'Learn', lessonDone: 'Done', again: 'Play Again', newSetup: 'Change Game', lessonNext: 'Next Lesson', lessonRetry: 'Try Again', lessonList: 'All Lessons',
     textSize: 'Text size', locked: 'In the full game', language: 'Language',
@@ -209,10 +209,10 @@ export const RULES = [
     'يوقف «إيقاف مؤقت» كل شيء مكانه. وتُحفظ لعبتك بعد كل نقلة: اخرج وعد، فتأخذك «متابعة اللعبة» في القائمة إليها وهي متوقفة مؤقتاً.',
   ] } },
   { art: 'learn', en: { title: 'Learn and Watch & Learn', body: [
-    'Learn is a course of short lessons, each a real position: throwing, entering, moving, capturing, star squares, going home and a whole game against Casual. A wrong move in a lesson is not played: you are told why and can try again. Lessons do not use up the free preview.',
+    'Learn is a course of short lessons, each a real position: throwing, entering, moving, capturing, star squares, going home and a whole game against Casual. A wrong move in a lesson is not played: you are told why and can try again.',
     'Watch & Learn plays a whole short game for you (two stones each) at a speed you choose (x1, x2 or x4). Each move has three steps: THINK (2, 5, 8 or 10 seconds, you choose), REVEAL (two seconds: the stone, the square and the reason in words) and ACT (the move is played). Pause freezes everything and Resume carries on exactly where it stopped.',
   ] }, ar: { title: 'تعلّم وشاهد وتعلّم', body: [
-    '«تعلّم» دورة من دروس قصيرة، كل درس موقف حقيقي: الرمي، والإدخال، والتحريك، والأسر، ومربعات النجمة، والعودة إلى البيت، ولعبة كاملة ضد المستوى العادي. النقلة الخاطئة في الدرس لا تُلعب: يُشرح لك السبب وتحاول من جديد. ولا تستهلك الدروس المعاينة المجانية.',
+    '«تعلّم» دورة من دروس قصيرة، كل درس موقف حقيقي: الرمي، والإدخال، والتحريك، والأسر، ومربعات النجمة، والعودة إلى البيت، ولعبة كاملة ضد المستوى العادي. النقلة الخاطئة في الدرس لا تُلعب: يُشرح لك السبب وتحاول من جديد.',
     '«شاهد وتعلّم» يلعب لعبة قصيرة كاملة عنك (حجران لكل طرف) بالسرعة التي تختارها (×1 أو ×2 أو ×4). لكل نقلة ثلاث خطوات: التفكير (2 أو 5 أو 8 أو 10 ثوانٍ بحسب اختيارك)، ثم العرض (ثانيتان: الحجر والمربع والسبب بالكلمات)، ثم التنفيذ (تُلعب النقلة). يجمّد الإيقاف المؤقت كل شيء، ويتابع الاستئناف من حيث توقف تماماً.',
   ] } },
   { art: 'themes', en: { title: 'Boards, sound, language and text', body: [
@@ -222,12 +222,12 @@ export const RULES = [
     'في الإعدادات يمكنك اختيار اللوح والبساط: رمل وترصيع، أو ليل اللازورد، أو نخيل. القواعد لا تتغير. ويمكن إيقاف الصوت، وضبط سرعة اللعب ومدة التفكير في «شاهد وتعلّم»، واختيار أن تُلعب النقلة الوحيدة الممكنة عنك أو لا، ورفع حجم الخط حتى 300 بالمئة في كل شاشة نصية بما فيها أثناء اللعب.',
     'يمكنك اللعب بالإنجليزية أو بالعربية (طاب). الاختيار في القائمة وفي الإعدادات ولا يتغير من تلقاء نفسه. لا توجد مؤقّتات ولا رهانات: تُحفظ النتائج سجلاً شخصياً لانتصاراتك وخسائرك في كل مستوى فقط.',
   ] } },
-  { art: 'logo', en: { title: 'Names, words and the preview', body: [
+  { art: 'logo', en: { title: 'Names and words', body: [
     'Tab is written طاب in Arabic and pronounced "tab"; the same word names a throw of one flat side. A stone is called a kelb (dog) in Egyptian Arabic. In this game the two sides are called Ivory and Clay. The four-stick throws are named in Arabic mode: طاب (1), اثنان (2), ثلاثة (3), أربعة (4) and ستة (6).',
-    'The preview: the full game starts with a free preview of the first 90 seconds of play; the full game is a single one-time unlock and works offline.',
-  ] }, ar: { title: 'الأسماء والكلمات والمعاينة', body: [
+    'Free to play with short ads; go ad-free once.',
+  ] }, ar: { title: 'الأسماء والكلمات', body: [
     'تُكتب «طاب» بالعربية وتُنطق «طاب»، وهي الكلمة نفسها التي تسمّي رمية الوجه المسطح الواحد. ويسمى الحجر «كلب» في العامية المصرية. في هذه اللعبة يسمى الطرفان العاج والطين. وتسمى رميات العيدان في الوضع العربي: طاب (1) واثنان (2) وثلاثة (3) وأربعة (4) وستة (6).',
-    'المعاينة: تبدأ اللعبة الكاملة بمعاينة مجانية لأول 90 ثانية من اللعب؛ واللعبة الكاملة تُفتح مرة واحدة وتعمل بلا اتصال.',
+    'اللعبة مجانية مع إعلانات قصيرة، وإزالة الإعلانات لهذه اللعبة عملية شراء واحدة.',
   ] } },
 ];
 

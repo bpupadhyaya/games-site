@@ -239,7 +239,7 @@ export function render(ctx, st, L) {
     const D = L.demo();
     within(D.S, () => {
       plaque({ x: 0, y: 0, w: 600, h: 520 });
-      text('That is the free preview', 300, 90, 46, '#f7e8c4', FONT, 700);
+      text('That is the demo end', 300, 90, 46, '#f7e8c4', FONT, 700);
       wrap('Get the full Mū Tōrere on iPhone or Android for the whole Ladder, every lesson and a new puzzle each day.', 300, 160, 30, 500);
     });
     button(D.back, 'Back');

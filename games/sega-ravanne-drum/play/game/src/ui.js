@@ -44,7 +44,12 @@ export function button(ctx, r, label, o = {}) {
   ctx.fillStyle = fill; rrect(ctx, r, rad); ctx.fill();
   if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = 2.5; ctx.stroke(); }
   const cy = r.y + r.h / 2;
-  if (o.sub) { txt(ctx, label, r.x + r.w / 2, cy - size * 0.28, size, col, { align: 'center', weight: 800, maxW: r.w - 28 }); txt(ctx, o.sub, r.x + r.w / 2, cy + size * 0.72, size * 0.58, kind === 'primary' || kind === 'turq' ? 'rgba(0,0,0,0.65)' : PAL.dim, { align: 'center', weight: 500, maxW: r.w - 28 }); }
+  if (o.sub) {
+    // two lines inside the button's own height: the label sits in the upper part, the subtitle in the lower part, whatever the button height
+    const ls = Math.min(size, r.h * 0.46), ss = Math.min(size * 0.58, r.h * 0.26);
+    txt(ctx, label, r.x + r.w / 2, r.y + r.h * 0.36, ls, col, { align: 'center', weight: 800, maxW: r.w - 28 });
+    txt(ctx, o.sub, r.x + r.w / 2, r.y + r.h * 0.72, ss, kind === 'primary' || kind === 'turq' ? 'rgba(0,0,0,0.65)' : PAL.dim, { align: 'center', weight: 500, maxW: r.w - 28 });
+  }
   else txt(ctx, label, r.x + r.w / 2 + (o.icon ? size * 0.5 : 0), cy, size, col, { align: 'center', weight: 800, maxW: r.w - 28 - (o.icon ? size : 0) });
   if (o.icon === 'back') { ctx.strokeStyle = col; ctx.lineWidth = 4; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; const ix = r.x + r.w / 2 - ctx.measureText(label).width / 2 - size * 0.6; ctx.beginPath(); ctx.moveTo(ix + 8, cy - 11); ctx.lineTo(ix, cy); ctx.lineTo(ix + 8, cy + 11); ctx.stroke(); }
   ctx.restore();

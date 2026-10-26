@@ -73,8 +73,8 @@ export const STR = {
   autoAgain: { en: 'Watch Again', zh: '再看一遍' },
   autoSummary: { en: 'You watched three levels solved step by step with the fewest possible moves.', zh: '你看完了三关的逐步解法，每一关都用了最少步数。' },
   autoMove: { en: 'Move {a} of {b}', zh: '第 {a} 步，共 {b} 步' },
-  demoLimitTitle: { en: 'FREE PREVIEW FINISHED', zh: '免费试玩已结束' },
-  demoLimitBody: { en: 'You solved the six free levels. Get the full game on iPhone and Android for all four chapters and every layout, including the famous Heng Dao Li Ma.', zh: '你已完成六道免费关卡。在 iPhone 和安卓上获取完整版，畅玩全部四个章节和所有布局，包括著名的横刀立马。' },
+  demoLimitTitle: { en: 'DEMO FINISHED', zh: '免费试玩已结束' },
+  demoLimitBody: { en: 'You solved the six free levels. Get the free app on iPhone and Android for all four chapters and every layout, including the famous Heng Dao Li Ma.', zh: '你已完成六道免费关卡。在 iPhone 和安卓上获取完整版，畅玩全部四个章节和所有布局，包括著名的横刀立马。' },
   demoLeft: { en: '{n} free levels left', zh: '还剩 {n} 道免费关卡' },
   tagline: { en: 'Free the commander. Fewest moves wins.', zh: '护送主将突围，步数越少越好。' },
   best: { en: 'Best', zh: '最佳' },
@@ -118,7 +118,7 @@ export const ABOUT = {
   en: [
     { title: 'Huarong Dao: Sliding Puzzle', body: 'Huarong Dao is the Chinese sliding-block puzzle known in the West as Klotski. It is named after the Huarong Pass of the Three Kingdoms story, where the general Cao Cao slips away through a narrow road guarded by his enemies. Its best-known layout is called Heng Dao Li Ma, "the blade across, the horse upright".' },
     { title: 'What is in the game', body: '32 layouts in four chapters, from gentle first puzzles to the hardest positions of the classic set, with the fewest possible moves for every one worked out by checking every position. Think shows a real best move, Undo is unlimited and Watch & Learn plays whole levels for you.' },
-    { title: 'Made to feel good', body: 'Blocks are carved lacquer with the generals\' names engraved on them. They slide, turn corners and settle with a soft knock. Everything works offline, with no timers and no ads. Text can be enlarged to 300 percent and the whole game is available in English and Chinese.' },
+    { title: 'Made to feel good', body: 'Blocks are carved lacquer with the generals\' names engraved on them. They slide, turn corners and settle with a soft knock. Everything works offline, with no timers. Text can be enlarged to 300 percent and the whole game is available in English and Chinese.' },
   ],
   zh: [
     { title: '华容道', body: '华容道是源自中国的滑块拼图，西方称之为 Klotski。它的名字来自三国故事里的华容道：曹操从被敌人把守的小路中脱身。最著名的布局叫作“横刀立马”。' },
@@ -171,7 +171,7 @@ export const RULES = {
     { art: 'auto', title: 'Watch & Learn', body: [
       'Watch & Learn plays three levels by itself. For each move it first thinks (you choose 2, 5, 8 or 10 seconds), then reveals the move for 2 seconds by lighting the block that will move and the cell it will land on, then slides it.',
       'It always chooses a move from a shortest solution, so every level is finished in the fewest possible moves. Pause freezes everything exactly where it is and Resume carries on. Watch & Learn is free and never changes your progress.' ] },
-    { art: 'demo', title: 'Free preview', body: [
+    { art: 'demo', title: 'Free to play', body: [
       'The web preview contains the first six levels. The full game on iPhone and Android has all 32 levels and works offline.' ] },
   ],
   zh: [

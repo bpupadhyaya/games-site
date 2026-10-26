@@ -11,7 +11,7 @@ export const STR = {
   autoThink: 'Thinking', autoPause: 'Pause', autoPlay: 'Resume', autoExit: 'Exit', autoSlower: 'Think -', autoFaster: 'Think +',
   autoSession: 'Watch & Learn', autoAgain: 'Watch Again',
   autoSummary: 'You watched a whole game. Every move was chosen by the game\'s own search, with its reason shown before it was played.',
-  demoLimitTitle: 'FREE PREVIEW FINISHED', demoLimitBody: 'You played the free games. Get the full game on iPhone and Android for every opponent level, two players on one phone, all three boards and the full Learn course.',
+  demoLimitTitle: 'DEMO FINISHED', demoLimitBody: 'You played the free games. Get the free app on iPhone and Android for every opponent level, two players on one phone, all three boards and the full Learn course.',
   demoLeft: '{n} free games left', tagline: 'The looping capture game', record: 'Record', wins: 'W', draws: 'D', losses: 'L',
   yourMove: 'Your move', thinking: 'Thinking...', lightTurn: 'Light to move', darkTurn: 'Dark to move',
   lessonsTitle: 'Learn', lessonDone: 'Done', again: 'Play Again', newSetup: 'Change Game', lessonNext: 'Next Lesson', lessonRetry: 'Try Again', lessonList: 'All Lessons',
@@ -104,19 +104,19 @@ export const RULES = [
   ] },
   { title: 'Learn', art: 'learn', body: [
     'Learn is a course of seven short lessons, each a real position: stepping, a capture round an outer loop, one on the inner circuit, a capture through your own starting point, defending a piece and choosing a clean capture. The last is a whole game against the Casual opponent.',
-    'A wrong move in a lesson is not played: you are told why and can try again. Lessons do not use up the free preview.',
+    'A wrong move in a lesson is not played: you are told why and can try again.',
   ] },
   { title: 'Watch & Learn', art: 'auto', body: [
     'Watch & Learn plays a whole game for you. Each move has three steps: THINK (2, 5, 8 or 10 seconds, you choose), REVEAL (two seconds: the piece, the trail of a capture and the reason in words) and ACT (the move is played).',
-    'Pause freezes everything where it is and Resume carries on from exactly there. The moves come from the same search as Think. Watch & Learn does not use up the free preview.',
+    'Pause freezes everything where it is and Resume carries on from exactly there. The moves come from the same search as Think.',
   ] },
   { title: 'Boards, sound and text', art: 'themes', body: [
     'In Settings you can choose the board and pieces: Carved Teak, Batik Indigo or Night Lacquer. The rules do not change. Sound can be switched off, the think time of Watch & Learn set, and the text size raised up to 300 percent on every text screen, including the game screen.',
     'There are no timers and no stakes: results are only kept as your own record of wins, draws and losses for each level.',
   ] },
-  { title: 'Names, words and the preview', art: 'logo', body: [
+  { title: 'Names and words', art: 'logo', body: [
     'Surakarta is the name of a city in Central Java, Indonesia, and the game is named after it. In Indonesian, permainan simply means "the game". The pieces are called just "pieces"; Light and Dark are the two sides.',
-    `The preview: the full game starts with a free preview of the first 90 seconds of play; the full game is a single one-time unlock and works offline.`,
+    `Free to play with short ads; go ad-free once.`,
   ] },
 ];
 

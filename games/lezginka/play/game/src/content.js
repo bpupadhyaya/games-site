@@ -15,7 +15,7 @@ export const ABOUT = [
   { h: 'Made for playing' },
   { li: 'Works with two thumbs or more fingers, and with the keyboard on a computer.' },
   { li: 'A calibration screen lines the game up with your speakers or headphones.' },
-  { li: 'Large text (up to 300%) and a reduced-motion option. No ads. Works offline.' },
+  { li: 'Large text (up to 300%) and a reduced-motion option. Works offline.' },
   { sp: 1 },
   { p: 'Lezginka is part of Arcforge, a collection of world heritage games.' },
 ];
@@ -103,7 +103,7 @@ export const RULES = [
   {
     title: 'Watch and Learn',
     blocks: [
-      { p: 'Watch and Learn plays the whole dance by itself with the full band. Nothing you do is judged, it does not use up the free preview, and it ends with a short summary.' },
+      { p: 'Watch and Learn plays the whole dance by itself with the full band.' },
       { li: 'Pause stops everything at once (music, rings and dancers) and continues exactly where it stopped.' },
       { li: 'The Steps button shows the name of the figure that is being danced and its four steps for the bar, so you can think ahead.' },
       { li: 'In the pause menu you can switch the speed to three quarters, jump to the next dance, or leave.' },
@@ -126,7 +126,7 @@ export const RULES = [
       { li: 'Keyboard: A / Left arrow, D / Right arrow, W / Up arrow, S / Down arrow for the four pads. Space or Escape pauses.' },
       { li: 'Settings: sound, note speed, timing, vibration, metronome in Learn, reduced motion and the latency of your device. Calibrate measures the latency by having you tap along to a pulse.' },
       { li: 'Text size: the A- and A+ buttons at the top of every text screen go from 100% to 300%.' },
-      { li: 'The free preview counts real play (Learn the steps and Dance) only. Menus, these Rules, Watch and Learn, calibration and results are always free.' },
+      { li: 'Menus, these Rules, Watch and Learn, calibration and results are always free. Free to play with short ads; go ad-free once.' },
     ],
   },
   {

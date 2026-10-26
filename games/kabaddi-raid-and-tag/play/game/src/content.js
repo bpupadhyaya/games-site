@@ -16,7 +16,7 @@ export const ABOUT = [
   ] },
   { title: 'Made to be comfortable', p: [
     'Every text screen can be enlarged up to 300%, including the play screen. Think explains the best move in plain English. Learn teaches the game in six short lessons, and Watch & Learn lets you watch a whole match with the reasons shown.',
-    'The game is free to try for 90 seconds of real play. Menus, the rules, Learn and Watch & Learn are always free; one purchase unlocks everything for good.',
+    'Menus, the rules, Learn and Watch & Learn are always free. Free to play with short ads; go ad-free once.',
   ] },
 ];
 

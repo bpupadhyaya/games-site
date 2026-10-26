@@ -164,7 +164,7 @@ export function pauseWidgets(state) {
 }
 export function demoLimitWidgets(wide) {
   return [
-    { t: 'h', label: 'That was the free preview', size: 40 },
+    { t: 'h', label: 'That was the demo end', size: 40 },
     { t: 'p', label: 'The web demo plays three discs a side. The full game for iPhone and Android has every rival, every course and the Daily Course, with no limits.', size: 26 },
     { t: 'btn', id: 'menu', label: 'Main menu', primary: true, h: 90 },
   ];

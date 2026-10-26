@@ -82,7 +82,7 @@ export const RULES = [
     'Solo Ladder has twelve levels. Each has a points goal, a share of the heap that rises with the level, and the fault limit gets smaller. Reach the goal before your third slip. A fault is a slip; letting go early is not. Finishing with no slips earns three stars, one slip two stars, two slips one star. You must clear a level to unlock the next.',
     'The Daily Heap is one heap that is the same for everybody on the same day. Lift as many points as you can before the third slip, or until the heap is gone. Your best score today and your best ever are kept on this device.',
   ] },
-  { title: '11. Hint, Watch & Learn and the free preview', p: [
+  { title: '11. Hint, Watch & Learn and free play', p: [
     'Hint shows the free stick a strong player would take and the direction and pace to slide it. Watch & Learn plays a whole heap between two rivals: each pull has a thinking pause, a reveal that marks the stick and path, and then the lift. You can pause at any moment and change the thinking time.',
     'The web demo includes the first two heaps and the first two ladder levels only. The full game has every rival, all twelve levels, the Daily Heap and unlimited play.',
   ] },

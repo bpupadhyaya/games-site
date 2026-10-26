@@ -89,7 +89,7 @@ export const RULES = [
     'Each lesson shows what the command does and what to do. Completed lessons are remembered. No time limit and no score.'] },
   { title: 'Watch & Learn and Think', art: 'think', p: [
     'The computer handler plays a run on the course you choose. For every new command it THINKS (2 to 10 seconds, set in Settings, 5 by default) and explains the situation, REVEALS its choice for 2 seconds by lighting the button and marking the field, then ACTS. Pause freezes the whole run exactly where it is.',
-    'Think during your own run shows the same advice for the moment, and costs nothing. Menus, Rules, Training, Watch & Learn, pause and the result are free; only live play of a trial counts against the free preview.'] },
+    'Think during your own run shows the same advice for the moment, and costs nothing. Menus, Rules, Training, Watch & Learn, pause and the result are free.'] },
   { title: 'Ending a run', p: [
     'A run ends when the gate is shut on all the sheep (a finished run), or when time runs out (a retired run). You can also quit from the pause menu. Your best score on each course is kept.'] },
 ];

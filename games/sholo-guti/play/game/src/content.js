@@ -94,7 +94,7 @@ export const ABOUT = [
   ] },
   { title: 'What you get', items: [
     P('Three rule sets: Classic with optional captures, Must capture for a sharper game, and Quick, first to eight. Five computer levels from Beginner to Master, two players on one phone, hands-on lessons, Hint, danger marks, take back, and Auto Play (Watch & Learn).'),
-    P('Three boards (courtyard clay, school slate, polished teak) and two stone styles to earn by winning. Large text, reduced motion and sound options. No ads, and it works offline.'),
+    P('Three boards (courtyard clay, school slate, polished teak) and two stone styles to earn by winning. Large text, reduced motion and sound options. It works offline.'),
   ] },
   { title: 'Credits', items: [
     P('Board, stones, sounds and the computer player were made for Arcforge. Titles are set in Cormorant Garamond (SIL Open Font License 1.1). Boards of this game are drawn in several slightly different ways in different places; this version uses the common 37-point form.'),

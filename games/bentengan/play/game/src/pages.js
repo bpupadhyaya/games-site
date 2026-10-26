@@ -80,7 +80,7 @@ export const ABOUT = [
   ] },
   { name: 'Credits', items: [
     { t: 'Made by Arcforge, from the World Heritage Games series. Display type: Fredoka. Text: Barlow. Both are open fonts under the SIL Open Font License.' },
-    { t: 'All art and sound are drawn and made in the game. There are no ads. Your best results are kept on this device.' },
+    { t: 'All art and sound are drawn and made in the game. Your best results are kept on this device.' },
   ] },
 ];
 

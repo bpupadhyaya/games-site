@@ -17,7 +17,7 @@ export const ABOUT = [
   { li: 'Fast throws are quick but easy to catch if the target is ready; lobs arc over the others and drop in a small area.' },
   { li: 'Ring places can be played as a dodger inside the circle or as a thrower on the ring.' },
   { li: 'Watch and Learn plays a whole game for you with time to think before each move, and you can pause it. A Hint button works in the real game too.' },
-  { li: 'A full Rules page and text size up to 300%. Sound is made on your device. No ads, works offline. Points only: there are no stakes, chips or money.' },
+  { li: 'A full Rules page and text size up to 300%. Sound is made on your device. Works offline. Points only: there are no stakes, chips or money.' },
   { sp: 1 },
   { p: 'Simplifications: the many local rule sets differ in the number of players, whether a ball that hits the floor first counts, and how a catch revives players. This game uses one clear set, written on the Rules page. The people are invented and carry no real names.' },
   { sp: 1 },

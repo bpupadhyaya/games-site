@@ -179,7 +179,7 @@ export function pauseWidgets(state) {
 }
 export function demoLimitWidgets() {
   return [
-    { t: 'gap', h: 200 }, { t: 'h', label: 'That is the free preview', size: 48 },
+    { t: 'gap', h: 200 }, { t: 'h', label: 'That is the demo end', size: 48 },
     { t: 'p', label: 'The web demo has the first three tricks of each toy and two shows. The full game on iPhone and Android has all fourteen tricks, unlimited shows and everything else.', size: 28 },
     { t: 'gap', h: 20 },
     { t: 'btn', id: 'menu', label: 'Main menu', primary: true },

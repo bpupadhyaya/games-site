@@ -516,7 +516,7 @@ function drawStack(ctx, state, R, z, L) {
 }
 function drawStackBody(ctx, state, R, lay) {
   const reg = lay.region;
-  ctx.save(); ctx.beginPath(); ctx.rect(reg.x - 14, reg.y - 4, reg.w + 28, reg.h + 8); ctx.clip();
+  ctx.save(); ctx.beginPath(); ctx.rect(reg.x - 14, reg.y - 4, reg.w + 28, reg.h + 4); ctx.clip();
   for (const n of lay.nodes) {
     if (n.y + n.h < reg.y - 4 || n.y > reg.y + reg.h + 4) continue;
     if (n.k === 'text') {
@@ -531,7 +531,7 @@ function drawStackBody(ctx, state, R, lay) {
     const th = Math.max(40, reg.h * reg.h / lay.total), ty = reg.y + (reg.h - th) * (lay.scroll / lay.maxScroll);
     ctx.fillStyle = 'rgba(60,30,20,0.25)'; ctx.beginPath(); ctx.roundRect(reg.x + reg.w + 6, reg.y, 6, reg.h, 3); ctx.fill();
     ctx.fillStyle = 'rgba(214,64,43,0.95)'; ctx.beginPath(); ctx.roundRect(reg.x + reg.w + 6, ty, 6, th, 3); ctx.fill();
-    if (lay.scroll < lay.maxScroll - 4) R.text('drag to scroll', reg.x + reg.w / 2, reg.y + reg.h - 4, 18 * Math.min(1, lay.u), 'rgba(60,40,30,0.7)', DISPLAY, 600);
+    if (lay.scroll < lay.maxScroll - 4) R.text('drag to scroll', reg.x + reg.w / 2, reg.y + reg.h + 21 * lay.u, 18 * Math.min(1, lay.u), 'rgba(60,40,30,0.7)', DISPLAY, 600); // in its own strip below the list
   }
   for (const f of lay.footer) R.button(f);
 }
@@ -646,12 +646,12 @@ function drawTitle(ctx, state, R, L) {
   ctx.save(); ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 20; ctx.shadowOffsetY = 6; ctx.fillStyle = 'rgba(28,27,58,0.95)'; ctx.beginPath(); ctx.roundRect(pr.x, pr.y, pr.w, pr.h, 24); ctx.fill(); ctx.restore();
   ctx.strokeStyle = GOLD; ctx.lineWidth = 3; ctx.beginPath(); ctx.roundRect(pr.x, pr.y, pr.w, pr.h, 24); ctx.stroke();
   const lay = screenLayout(state, L), reg = lay.region;
-  ctx.save(); ctx.beginPath(); ctx.rect(reg.x - 14, reg.y - 4, reg.w + 28, reg.h + 8); ctx.clip();
+  ctx.save(); ctx.beginPath(); ctx.rect(reg.x - 14, reg.y - 4, reg.w + 28, reg.h + 4); ctx.clip();
   for (const n of lay.nodes) if (n.k === 'btn') R.button(n);
   ctx.restore();
   if (lay.maxScroll > 0) { const th = Math.max(40, reg.h * reg.h / lay.total), ty = reg.y + (reg.h - th) * (lay.scroll / lay.maxScroll); ctx.fillStyle = 'rgba(255,214,90,0.95)'; ctx.beginPath(); ctx.roundRect(reg.x + reg.w + 8, ty, 6, th, 3); ctx.fill(); }
   const s = state.stats;
-  R.text(s.played ? `${s.played} events · ${s.won} won` : state.demo ? 'Free web preview' : 'Free preview: 90 seconds of play', pr.x + pr.w / 2, pr.y + pr.h - 6, 18, '#cfc8ff', DISPLAY, 600);
+  R.text(s.played ? `${s.played} events · ${s.won} won` : state.demo ? 'Free web preview' : 'Free to play', pr.x + pr.w / 2, pr.y + pr.h - 6, 18, '#cfc8ff', DISPLAY, 600);
   drawLockup(ctx, T.lock, Boolean(state.press && state.press.af && !state.press.moved));
 }
 

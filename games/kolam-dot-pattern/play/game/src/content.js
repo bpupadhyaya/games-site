@@ -22,7 +22,7 @@ export const STR = {
   lessonTask: 'Practice: draw one closed line around every dot.',
   tipDraw: 'Touch near a dot and drag around it. Keep going without lifting until the line closes.',
   tipTip: 'Drag from the glowing tip, or tap a faint choice.',
-  demoLimitTitle: 'Preview finished', demoLimitBody: 'You have drawn the free patterns in this web preview. Get the full game on iPhone and Android for every pattern, the Sandbox and daily patterns.',
+  demoLimitTitle: 'Preview finished', demoLimitBody: 'You have drawn the free patterns in this web demo. Get the free app on iPhone and Android for every pattern, the Sandbox and daily patterns.',
   sbDraw: 'Draw', sbErase: 'Erase', sbMirror: 'Mirror', sbGrid: 'Grid', sbWeave: 'Weave', sbClear: 'Clear', sbUndo: 'Undo',
   sbHint: 'Drag across the arcs to draw. Mirrors repeat your strokes.',
 };

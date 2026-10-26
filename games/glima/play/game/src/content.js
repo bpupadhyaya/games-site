@@ -85,8 +85,8 @@ export const RULES = [
   { title: '10. Simplifications', p: [
     'In a real bout the athletes also use lifts and throws, a fall means touching the ground above the knee, and judges give warnings and points. Here a fall is stance running out, a hook is one leg sweep, and the athletes are generic. The rings are invented for the game and there are no flags or symbols.',
   ] },
-  { title: '11. The free preview', p: [
-    'The first 90 seconds of real rounds are free. Watch & Learn, the menus and the rules never use up the preview, and a paused round does not either. In the web demo the first three rounds against the first two rivals on Green Turf are free, and the full game is on iPhone and Android.',
+  { title: '11. Free to play', p: [
+    'Free to play with short ads. Watch & Learn, the menus and the rules are always free to use. In the web demo the first three rounds against the first two rivals on Green Turf are free, and the full game is on iPhone and Android.',
   ] },
 ];
 

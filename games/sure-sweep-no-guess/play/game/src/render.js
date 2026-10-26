@@ -661,7 +661,7 @@ function drawTitle(ctx, state, pal, extra) {
   drawButton(ctx, TITLE_AUTO_BTN, 'Auto Play', { pal, icon: iconBulb, iconSize: rowIcon, stacked: true, size: 20, pressTau: fx.btn === 'autoplay' ? t - fx.btnAt : -1 });
   if (state.bestTime !== null) drawPill(ctx, T.best.x, T.best.y, `Best time  ${formatTime(state.bestTime)}s`, { color: '#ffe08a', rim: 'rgba(255,224,138,0.5)', size: T.best.size });
   else drawPill(ctx, T.best.x, T.best.y, 'No best time yet - set one', { size: T.best.size - 4, color: 'rgba(244,251,250,0.8)' });
-  if (state.demo && T.demo) drawPill(ctx, T.demo.x, T.demo.y, `Free preview: ${extra.demoLeft} board${extra.demoLeft === 1 ? '' : 's'} left`, { size: T.demo.size, h: T.demo.h });
+  if (state.demo && T.demo) drawPill(ctx, T.demo.x, T.demo.y, `Web demo: ${extra.demoLeft} board${extra.demoLeft === 1 ? '' : 's'} left`, { size: T.demo.size, h: T.demo.h });
   ctx.restore();
   // the Arcforge lockup: small and quiet, never over the buttons or the game art
   if (T.lockup) {
@@ -680,8 +680,8 @@ function drawDemoLimit(ctx, state, pal) {
   const card = { x: (V.w - cw) / 2, y: Math.min(T.logo.y + 130, V.h - 380), w: cw, h: 360 };
   drawLogo(ctx, pal, V.w / 2, T.logo.y, T.logo.size, t, 10, cw);
   glassPanel(ctx, card, 34);
-  text(ctx, "That's the free preview!", V.w / 2, card.y + 90, 44, '#ffe08a', 700);
-  wrapText(ctx, 'Get the full game on iPhone and Android for unlimited boards, hints and no interruptions.', V.w / 2, card.y + 165, cw - 100, 42, 29, LIGHT, 500);
+  text(ctx, "That's the demo end!", V.w / 2, card.y + 90, 44, '#ffe08a', 700);
+  wrapText(ctx, 'Get the free app on iPhone and Android for unlimited boards, hints and no interruptions.', V.w / 2, card.y + 165, cw - 100, 42, 29, LIGHT, 500);
 }
 
 function wrapText(ctx, str, cx, y, maxWidth, lineHeight, size, color, weight = 500) {
@@ -1131,7 +1131,7 @@ function drawPlay(ctx, state, pal, extra) {
   }
   if (a > 0) drawResult(ctx, state, pal, a);
   // Auto Play boards never count against the free-preview limit, so this line would be misleading while watching one.
-  if (state.demo && !over && !state.auto && POS.demo) text(ctx, `Free preview: ${extra.demoLeft} more board${extra.demoLeft === 1 ? '' : 's'}`, POS.demo.x, POS.demo.y, POS.demo.size, pal.inkFaint, 500);
+  if (state.demo && !over && !state.auto && POS.demo) text(ctx, `Web demo: ${extra.demoLeft} more board${extra.demoLeft === 1 ? '' : 's'}`, POS.demo.x, POS.demo.y, POS.demo.size, pal.inkFaint, 500);
 }
 
 // ---- Rules reference page ----------------------------------------------------------------------

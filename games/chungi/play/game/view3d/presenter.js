@@ -184,7 +184,7 @@ export async function createPresenter({ kitCanvas, quality = pickQuality() }) {
     let warned = false, patched = false;
     game.render = (ctx, view) => {
       if (!patched) {
-        // the kit's "free preview finished" card is drawn over the game after this render: hide the 3D kid when it appears
+        // the kit's "demo finished" card is drawn over the game after this render: hide the 3D kid when it appears
         patched = true;
         const fr = ctx.fillRect.bind(ctx);
         ctx.fillRect = (x, y, w, h) => { if (ctx.fillStyle === 'rgba(8, 8, 16, 0.88)') { P.locked = true; canvas.style.visibility = 'hidden'; } return fr(x, y, w, h); };

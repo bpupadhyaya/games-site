@@ -376,7 +376,7 @@ function drawDemoLimit(ctx, s, w, h) {
   setBrandTone(theme().dark);
   const T = theme(), c = centerCard(w, h, 640, 440);
   panel(ctx, c, { radius: 28 }); edgeStroke(ctx, c, 28, 0.5);
-  txt(ctx, 'That was the free preview', c.x + c.w / 2, c.y + 70, { size: F(36), weight: 700, color: T.text, align: 'center', maxW: c.w - 40, min: 18, display: true });
+  txt(ctx, 'That was the demo end', c.x + c.w / 2, c.y + 70, { size: F(36), weight: 700, color: T.text, align: 'center', maxW: c.w - 40, min: 18, display: true });
   para(ctx, 'The full game has every level, the Round of the Day, Think help and Watch and Learn. Get Tavern Nail and Wire Puzzles on iPhone and Android.', c.x + 30, c.y + 120, c.w - 60, { size: F(28), weight: 400, color: T.text, align: 'center' });
   txt(ctx, 'Tap anywhere to return to the menu', c.x + c.w / 2, c.y + c.h - 84, { size: F(22), weight: 600, color: T.dim, align: 'center', maxW: c.w - 40, min: 12 });
   drawCredit(ctx, c.x + c.w / 2, c.y + c.h - 28, 14);

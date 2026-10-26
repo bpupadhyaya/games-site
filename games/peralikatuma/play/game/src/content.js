@@ -107,7 +107,7 @@ export const ABOUT = [
   { title: 'What you get', items: [
     P('Two rule sets: Classic, where a crowned Star flies along whole lines, and Gentle Stars, where a Star moves one point at a time.'),
     P('Five computer levels from Beginner to Master, two players on one phone, hands-on lessons, Hint, danger marks, take back, and Auto Play (Watch & Learn).'),
-    P('Three boards and two cuts of gems to earn. Large text, reduced motion and sound options. No ads, and it works offline.'),
+    P('Three boards and two cuts of gems to earn. Large text, reduced motion and sound options. It works offline.'),
   ] },
   { title: 'Credits', items: [
     P('A heritage game of Sri Lanka, brought to a screen. Board, pieces, sounds and the computer player were made for Arcforge. The rule set is described in full on the Rules page. Titles are set in Cormorant Garamond (SIL Open Font License 1.1). Calamander, the second board, is named for an ebony from Sri Lanka.'),

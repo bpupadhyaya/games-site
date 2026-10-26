@@ -21,8 +21,8 @@ export const STR = {
   autoPause: 'Pause', autoPlay: 'Resume', autoExit: 'Exit', autoSlower: 'Think -', autoFaster: 'Think +',
   autoThink: 'Thinking {n}', autoSession: 'Watch & Learn', autoAgain: 'Watch Again',
   autoSummary: 'You watched a whole race, with every choice explained. Watch again for a different race, or head to Play to try the ideas yourself.',
-  demoLimitTitle: 'FREE PREVIEW FINISHED',
-  demoLimitBody: 'You played the three free games. Get the full game on iPhone and Android for every computer level, all three race lengths, up to six seats and the other stones.',
+  demoLimitTitle: 'DEMO FINISHED',
+  demoLimitBody: 'You played the three free games. Get the free app on iPhone and Android for every computer level, all three race lengths, up to six seats and the other stones.',
   demoLeft: '{n} free games left',
   title: 'Mehen', tagline: 'The coiled snake race', taglineSub: 'Throw. Roll. Reach the head.',
   record: 'Record', recordLine: '{label} ({level}): {w} W  {l} L',
@@ -172,7 +172,7 @@ export function getAbout() {
     { title: 'Mehen: The Coiled Snake Race', body: 'Carved lions race along a coiled snake of stone, from its tail on the outside to its head in the middle. Throw four sticks, decide which lion to move, spend a marble to nudge a throw, rest on the carved stones and knock rivals back to the start.' },
     { title: 'An old game', body: 'Boards in the shape of a coiled snake, with sets of lion figures and small marbles, have been found in Egypt and are shown in wall paintings from the Old Kingdom, roughly 3000 to 2300 BC. Similar spiral boards turn up later in Cyprus and the Levant. It is one of the oldest board games known.' },
     { title: 'A reconstruction', body: 'Nobody knows how Mehen was really played: no rules survive. This game is a reconstruction in the spirit of the evidence, and it says so plainly. The Rules page explains each choice made here, so you can see where this version fills a gap.' },
-    { title: 'This version', body: 'Up to six seats, any mix of people and computer, in three race lengths. A carved board lit like a lamp-lit stone, glass marbles that roll, four computer levels, Think with plain-English reasons, and Watch & Learn. Plays in portrait and landscape, with text that scales to 300%. No timers, no ads, works offline.' },
+    { title: 'This version', body: 'Up to six seats, any mix of people and computer, in three race lengths. A carved board lit like a lamp-lit stone, glass marbles that roll, four computer levels, Think with plain-English reasons, and Watch & Learn. Plays in portrait and landscape, with text that scales to 300%. No timers, works offline.' },
     { title: 'Credits', body: 'Designed and built by Arcforge: every picture, the carved relief and all of the sounds are drawn and synthesized in the game itself.' },
   ];
 }

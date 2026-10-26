@@ -22,9 +22,9 @@ export const ABOUT = {
       ],
     },
     {
-      title: 'Credits and the free preview',
+      title: 'Credits and ads',
       body: [
-        { p: 'You can play for a free preview first. Unlocking the full game is a single one-time purchase; there are no ads and no subscriptions.' },
+        { p: 'Free to play with short ads; go ad-free once.' },
         { p: 'Interface text is set in Fredoka, used under the SIL Open Font License 1.1. All pictures are drawn in the game and all sounds are synthesized on your device.' },
         { p: 'Tatami Room Tiling Puzzle is part of Arcforge, a collection of world heritage games. The mats, the room and its furnishings are modelled and drawn in the game; the hands that lay the mats are derived from a Microsoft Rocketbox avatar (MIT licence), and the 3D view is rendered with three.js (MIT licence). The full licence texts follow on the next pages.' },
       ],
@@ -64,7 +64,7 @@ export const HOWTO = {
       title: 'Watch and Learn',
       body: [
         { p: 'From the menu, Watch and Learn solves a whole room by itself and explains every mat. Use the minus and plus buttons to set how long it thinks before each step, and Pause to freeze it exactly where it is.' },
-        { p: 'Watching does not use up the free preview.' },
+        { p: 'Watching is always free.' },
       ],
     },
   ],

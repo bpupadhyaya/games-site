@@ -15,6 +15,7 @@ export const host = { t: 0, r: 0, b: 0, l: 0, back: 0, px: 0.6 };   // px: css p
 export const L = { key: '', mode: 'tall', w: 720, h: 1560 };      // the live layout (filled by applyLayout)
 
 const R4 = (x, y, w, h) => ({ x, y, w, h });
+export const CAP_ROW = 112;   // title plate: reserved bottom row for the caption line (clear of the last button)
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const cache = new Map();
 
@@ -79,6 +80,7 @@ function build(w, h, ins) {
     const availT = h - botT - strip - blockBottom, ptw = Math.min(648, w - 24);
     T.lock = { cx: w / 2, y: h - botT - lockH - 6, h: lockH };
     T.rowScale = (hasSave) => clamp((Math.min(availT - 250, 548) - 86) / stackedPlate(hasSave), 0.72, 1);
+    T.footOff = 22;
     T.plateFor = (hasSave) => { const sc = T.rowScale(hasSave), ph = Math.round(stackedPlate(hasSave) * sc + 86); return R4((w - ptw) / 2, h - botT - strip - ph, ptw, ph); };
     T.board = (hasSave) => { const p = T.plateFor(hasSave), a = p.y - blockBottom, S2 = clamp(a - 64, 0, 680); return { cx: w / 2, cy: blockBottom + a / 2 - 6, S: S2 < 120 ? 0 : S2 }; };
     B.title = T;
@@ -106,7 +108,8 @@ function build(w, h, ins) {
     T.orn = col.y + 14; T.y = col.y + 104; T.size = 96; T.tagY = col.y + 142; T.tagSize = 30;
     const lockH = Math.round(Math.max(0.28 * 720, 120 / Math.max(host.px, 1e-6)) / 3.66), py = col.y + 168, ph = col.y + col.h - py - lockH - 26;
     T.lock = { cx: col.x + Cw / 2, y: col.y + col.h - lockH - 4, h: lockH };
-    T.rowScale = (hasSave) => clamp((ph - 86) / stackedPlate(hasSave), 0.72, 1);
+    T.footOff = 30;
+    T.rowScale = (hasSave) => clamp((ph - CAP_ROW) / stackedPlate(hasSave), 0.72, 1);
     T.plateFor = () => R4(col.x, py, Cw, ph);
     T.board = () => B.board;
     B.title = T;

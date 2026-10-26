@@ -75,7 +75,7 @@ export const RULES = [
   ] },
   { title: 'Rigs and grounds', art: 'rigs', p: [...rigLines, ...groundLines] },
   { title: 'Modes', p: [
-    'Pull Session: three pulls on your chosen rig and ground. Daily Pull: three pulls on the ground and strips of the day, the same for everyone. Free Pull: practise one pull at a time with no score. Watch & Learn: the game drives a whole session while you watch; it is free and never counts against the preview.',
+    'Pull Session: three pulls on your chosen rig and ground. Daily Pull: three pulls on the ground and strips of the day, the same for everyone. Free Pull: practise one pull at a time with no score. Watch & Learn: the game drives a whole session while you watch; it is always free to use.',
     'Think: shows a gold mark on the lever and the gear a good driver would use right now and why. A session in which Think was used is practice and is not saved as a best.',
   ] },
   { title: 'Ranks and unlocks', p: [

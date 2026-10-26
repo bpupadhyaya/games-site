@@ -19,9 +19,9 @@ export const ABOUT = [
   { li: 'Learn plays you a phrase and then asks you to play it from memory, with no notes shown.' },
   { li: 'Watch and Learn shows the mallet, the note and the reason for every note, and you set how long it waits for you to think.' },
   { li: 'A calibration screen lines the game up with your speakers or headphones. Text size goes up to 300%.' },
-  { li: 'Portrait and landscape on phones and tablets. No ads. Works offline.' },
-  { h: 'Free preview' },
-  { p: 'The first 90 seconds of real playing (Learn, Play and Free Play) are free. Menus, these pages, Watch and Learn and the results never use the preview. One purchase unlocks the whole game on this device.' },
+  { li: 'Portrait and landscape on phones and tablets. Works offline.' },
+  { h: 'Free to play' },
+  { p: 'Free to play with short ads; go ad-free once.' },
   { sp: 1 },
   { p: 'Santoor is part of Arcforge, a collection of world heritage games.' },
 ];

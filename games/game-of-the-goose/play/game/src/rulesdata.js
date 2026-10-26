@@ -5,7 +5,7 @@ export const THINK_CHOICES = [2, 3, 5, 8, 10];     // Watch and Learn: seconds o
 export const DEFAULT_THINK_IDX = 2;
 export const REVEAL_SECONDS = 2;
 export const DEMO_GAMES = 3;
-export const PREVIEW_NOTE = 'The full game starts with a free preview of 90 seconds of real play, then asks you to unlock it once.';
+export const PREVIEW_NOTE = 'Free to play with short ads; go ad-free once.';
 export const ROSTER = [
   { name: 'Isabella' }, { name: 'Cosimo' }, { name: 'Lucrezia' }, { name: 'Federico' }, { name: 'Caterina' }, { name: 'Bartolomeo' },
 ];

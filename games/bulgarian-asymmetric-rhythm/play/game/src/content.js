@@ -17,7 +17,7 @@ export const ABOUT = [
   { p: 'Each bar is a row of cells on an embroidered sash, and a needle runs along it one pulse at a time. The cells are gathered in groups, with the group sizes marked above. Play the symbol in each cell with the matching pad: DRUM for the accents, CLAP for lighter pulses, STEP for dance steps. Every cell you play is stitched into the cloth; a clean performance fills the sash with stitches, and as you play well the line of dancers grows and the band joins in.' },
   { h: 'Credits' },
   { p: 'Game by Arcforge. All sound is synthesised on your device and all art is drawn in the game. Display font Cinzel by the Cinzel Project Authors (SIL Open Font License 1.1).' },
-  { p: 'No ads. Works offline. The first 90 seconds of real play are free; the full game is a one-time unlock.' },
+  { p: 'Works offline. Free to play with short ads; go ad-free once.' },
 ];
 
 export const HOWTO = [
@@ -106,14 +106,14 @@ export const RULES = [
   ] },
   { title: 'Watch and Learn', blocks: [
     { p: `Watch and Learn plays the whole piece for you in phrases of ${AUTO_PHRASE} bars. Before each phrase it THINKS: the phrase appears on a card with a plain description and a countdown (Settings: 2 to 10 seconds, default 5; tap the card to skip ahead). Then it REVEALS the cues one by one, numbered, for 2 seconds. Then it plays the phrase with the whole band.` },
-    { p: 'The music waits during the think and reveal steps. Pause stops everything, including a phrase in flight, and resumes exactly where it stopped. Watch and Learn never uses up the free preview and nothing it plays is scored.' },
+    { p: 'The music waits during the think and reveal steps. Pause stops everything, including a phrase in flight, and resumes exactly where it stopped. Free to play with short ads; go ad-free once.' },
   ] },
   { title: 'The pieces', blocks: [
     ...PIECES.map((p) => ({ li: pieceLine(p) })),
     { p: 'Speeds are in pulses (eighth notes) a second. Village dancing is often faster; the game is slower so that every pulse can be played.' },
   ] },
-  { title: 'Preview, unlock, settings', blocks: [
-    { p: 'The first 90 seconds of real play (Learn and Perform) are free. Menus, Rules, About, Watch and Learn, results and the pause screen never use the preview. The full game is a one-time unlock; there are no ads.' },
+  { title: 'Free to play and settings', blocks: [
+    { p: 'Free to play with short ads; go ad-free once.' },
     { p: 'The web demo plays the first piece a few times.' },
     { p: 'Settings: Sound, Timing (Relaxed, Standard, Tight), Think time for Watch and Learn, Latency (shifts the beat by -100 to +400 ms for your device; Latency check listens to ten of your taps and sets it for you), Count numbers (the 1 2 | 1 2 3 under the cells), Calm effects (fewer particles, no screen shake) and Vibration.' },
   ] },

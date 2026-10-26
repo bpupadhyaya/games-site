@@ -1,4 +1,5 @@
 // Every non-race screen, plus the dispatcher. Immediate mode: each control is drawn and registered in one call (see ui.js).
+import { host } from './layout.js';
 import { COL, FONT_D, R, icon } from './ui.js';
 import { backdrop, veil, sideVeil, header, avatar, initials, toast } from './chrome.js';
 import { drawCredit, drawMoreLine } from './brand.js';
@@ -40,8 +41,10 @@ export function titleLayout(L) {
   if (side) {
     const lw = clamp(Math.round(U.w * 0.4), 360, 580);
     const s = clamp(L.h / 720, 0.8, 1.25);
-    T.col = R(U.x + 16, U.y, lw, U.h);
-    T.wm = { x: U.x + 24, y: U.y + 22, s, align: 'left' };
+    // keep clear of the host's small back tab (34 css px wide at the screen edge) plus the safe inset
+    const tab = host.px > 0 ? 34 / host.px : 0, lp = Math.max(U.x, tab + 8);
+    T.col = R(lp + 16, U.y, lw, U.h);
+    T.wm = { x: lp + 24, y: U.y + 22, s, align: 'left' };
     const wmH = (84 + 120) * s * 0.78 + 60 * s;
     T.menu = R(T.col.x, U.y + 26 + wmH, lw, U.h - (26 + wmH) - 74);
     T.credit = { x: T.col.x + lw / 2, y: U.y + U.h - 22 - L.ins.b * 0.3 };
@@ -374,7 +377,7 @@ function demoLimit(ctx, G) {
   const U = L.U, cx = U.x + U.w / 2;
   const w = Math.min(U.w - 40, 560), x = cx - w / 2;
   ui.zoom = G.zoom;
-  const body = 'You have raced the free web races. Get Dragon Boat Race for iPhone and Android to race all three rivers, take the drum and play offline with no ads.';
+  const body = 'You have raced the free web races. Get Dragon Boat Race for iPhone and Android to race all three rivers, take the drum and play offline.';
   const h = ui.fs(48) * 1.4 + ui.paraHeight(ctx, body, w - 40, 24) + 150, y = U.y + Math.max(30, (U.h - h) / 2);
   ui.panel(ctx, R(x, y, w, h), { fill: COL.panel2, radius: 26 });
   ui.text(ctx, 'GET THE FULL GAME', cx, y + 24 + ui.fs(48) * 0.85, 48, { disp: true, weight: 800, align: 'center', fit: w - 40 });

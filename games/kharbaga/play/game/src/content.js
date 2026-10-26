@@ -88,7 +88,7 @@ export const ABOUT = [
   ] },
   { title: 'What you get', items: [
     P('Five computer levels from Beginner to Master, two players on one phone, six hands-on lessons, Hint, danger marks, take back, and Auto Play (Watch & Learn).'),
-    P('Three boards (sand, dusk and rose) and two piece styles, earned by winning. Large text, reduced motion and sound options. No ads, and it works offline.'),
+    P('Three boards (sand, dusk and rose) and two piece styles, earned by winning. Large text, reduced motion and sound options. It works offline.'),
   ] },
   { title: 'Credits', items: [
     P('Board, pieces, sounds and the computer player were made for Arcforge. Titles are set in Cormorant Garamond (SIL Open Font License 1.1). The 3D scene uses the shared three.js renderer (MIT licence).'),

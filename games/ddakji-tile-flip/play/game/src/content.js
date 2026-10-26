@@ -12,8 +12,8 @@ export const ABOUT = [
   { title: 'Heritage', p: [
     'Ddakji comes from Korea and is played on floors, pavements and school yards. Folded paper tiles from old exercise books, calendars and wrapping paper are the traditional material. The patterns in this game are original and inspired by Korean paper crafts: window lattices, patchwork cloth, fans, waves, bamboo, plum blossom and the night sky.',
   ] },
-  { title: 'The free preview', p: [
-    'Real play is free for a short preview. Menus, the Fold Workshop, the Collection, Rules, Watch & Learn and a paused game never use up preview time. The full game is a single purchase that also unlocks every rival, with nothing else to buy. Settings has Restore Purchases for people who already own it.',
+  { title: 'Free to play', p: [
+    'Free to play with short ads; go ad-free once. Menus, the Fold Workshop, the Collection, Rules and Watch & Learn are always free to use. If you already own it, Restore purchase is on the game page in Arcforge.',
   ] },
   { title: 'Made by Arcforge', p: [
     'Ddakji is part of Arcforge, a growing collection of the world\'s heritage games, each built to feel as good as it looks.',
@@ -75,7 +75,7 @@ export const RULES = [
     'Twelve patterns. You start with Ribbon Bands. Flip your first tile for Plum Blossom; 10 flips in all for Morning Sun; 30 for Honeycomb; fold a tile with 90 percent crispness for Curled Clouds; win a full match 3 to 0 or win three matches in a row for Night Stars; and beat each of the six rivals once for their patterns. The pattern you choose is your tile; it changes nothing but the look.',
   ] },
   { title: 'Watch & Learn', p: [
-    'Two rivals play a quick match. Each throw has three phases: Think (2, 5, 8 or 10 seconds, you choose), Reveal (2 seconds: the chosen landing spot, strength and twist are shown, with the runner-up spots), then the throw. Pause stops everything exactly where it is. Watch & Learn never uses preview time.',
+    'Two rivals play a quick match. Each throw has three phases: Think (2, 5, 8 or 10 seconds, you choose), Reveal (2 seconds: the chosen landing spot, strength and twist are shown, with the runner-up spots), then the throw. Pause stops everything exactly where it is. Watch & Learn is always free to use.',
   ] },
   { title: 'Two players', p: [
     'Two people share the screen and pass the device. Between throws a card says whose turn it is; tap it to take your throw.',

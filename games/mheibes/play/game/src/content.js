@@ -73,7 +73,7 @@ export const HOWTO = [
 export const ABOUT = [
   { title: 'About Mheibes', items: [
     P('Mheibes is a traditional ring-hunting game of Iraq and the Gulf, played in living rooms and majlis gatherings by two teams. This version is made with respect for the tradition and its places: a quick, friendly game of faces, fists and nerve.'),
-    P('Credits and the rules of the original game are described on the Rules screen, which also lists what is simplified here. No ads. Works offline.'),
+    P('Credits and the rules of the original game are described on the Rules screen, which also lists what is simplified here. Works offline.'),
   ] },
 ];
 

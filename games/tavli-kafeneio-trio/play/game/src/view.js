@@ -263,8 +263,8 @@ function drawDemoLimit(c, st, U) {
   const Dm = L.demo, P = Dm.panel;
   c.fillStyle = 'rgba(8,22,42,0.86)'; c.fillRect(0, 0, L.w, L.h);
   U.panel(P.x, P.y, P.w, P.h, 0.96);
-  U.fitText('That is the free preview', L.w / 2, Dm.titleY, P.w - 40, 46, '#f8efd2', FONT, 700);
-  U.wrap('The full Tavli is on iPhone and Android: all three games, the Greek match, four computer levels, Watch and Learn and no ads.', L.w / 2, Dm.bodyY, Dm.size, Dm.bodyW, '#f6ecd4', Dm.size * 1.3);
+  U.fitText('That is the demo end', L.w / 2, Dm.titleY, P.w - 40, 46, '#f8efd2', FONT, 700);
+  U.wrap('The full Tavli is on iPhone and Android: all three games, the Greek match, four computer levels and Watch and Learn.', L.w / 2, Dm.bodyY, Dm.size, Dm.bodyW, '#f6ecd4', Dm.size * 1.3);
   U.button(Dm.button, 'Back to the menu', { primary: true, size: 28 });
 }
 

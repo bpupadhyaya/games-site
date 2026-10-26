@@ -38,7 +38,7 @@ export const STR = {
   autoSummary: ['You watched three whole pictures solved with line logic only. Every step was a real deduction with its reason, and no square was ever guessed.', '線の論理だけで解かれた三枚の絵を見ました。すべての手には理由があり、当て推量は一度もありません。'],
   lessonsTitle: ['Learn', '学ぶ'], lessonDone: ['Done', '完了'], lessonStart: ['Practice', '練習する'], lessonNext: ['Next Lesson', '次のレッスン'], lessonRetry: ['Try Again', 'もう一度'], lessonList: ['All Lessons', 'レッスン一覧'],
   lessonPass: ['Lesson complete!', 'レッスン完了！'], lessonTask: ['Practice: solve the picture. Think shows the next step.', '練習: 絵を完成させましょう。ヒントで次の一手がわかります。'],
-  demoLimitTitle: ['FREE PREVIEW FINISHED', '無料体験はここまでです'], demoLimitBody: ['You played the three free pictures. Get the full game on iPhone and Android for 121 pictures in six chapters, Think, the daily puzzle and the whole Learn path.', '無料の三枚を遊びました。iPhoneとAndroidの製品版では、6つのチャプターの121枚、ヒント、毎日の一枚、すべてのレッスンが遊べます。'],
+  demoLimitTitle: ['DEMO FINISHED', '無料体験はここまでです'], demoLimitBody: ['You played the three free pictures. Get the free app on iPhone and Android for 121 pictures in six chapters, Think, the daily puzzle and the whole Learn path.', '無料の三枚を遊びました。iPhoneとAndroidの製品版では、6つのチャプターの121枚、ヒント、毎日の一枚、すべてのレッスンが遊べます。'],
   demoLeft: ['{n} free pictures left', '無料の絵 あと{n}枚'],
   thinkingHead: ['Thinking...', '考え中...'], solvedNote: ['Solved', '完成'],
   bad: ['Check {line}', '{line}を確認'],
@@ -161,7 +161,7 @@ export const ABOUT = [
     'Number-grid picture puzzles of this kind were invented independently in Japan in the late 1980s, where Non Ishida and Tetsuya Nishio each devised them. The name "nonogram" and their popularity in the United Kingdom came in the 1990s through newspaper puzzle pages, where they were also called "griddlers". Other names include "paint by numbers" and "hanjie".',
     'このような数字による絵のパズルは、1980年代後半の日本で、石田ノンさんと西尾徹也さんがそれぞれ考案しました。「ノノグラム」という名前と英国での人気は、1990年代の新聞のパズル欄から広まりました。日本では「お絵かきロジック」とも呼ばれます。'] },
   { title: ['What is in this version', 'この版の内容'], body: [
-    'Think explains the next deduction in plain words. Watch & Learn solves three pictures with the reasons shown. Learn teaches overlap, edges and gaps. A new daily picture, three looks, and text from 100 to 300 percent. No timer, no ads.',
+    'Think explains the next deduction in plain words. Watch & Learn solves three pictures with the reasons shown. Learn teaches overlap, edges and gaps. A new daily picture, three looks, and text from 100 to 300 percent. No timer.',
     '「ヒント」は次の一手を平易な言葉で説明します。「見て学ぶ」は三枚の絵を理由つきで解きます。「学ぶ」では重なり・端・すき間を学べます。毎日の一枚、三種類の見た目、100〜300パーセントの文字サイズ。時間制限も広告もありません。'] },
   { title: ['Language', '言語'], body: [
     'The game is complete in English and in Japanese (日本語). Choose one in Settings or on the menu.',

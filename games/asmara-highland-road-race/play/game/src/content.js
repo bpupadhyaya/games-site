@@ -11,7 +11,7 @@ export const ABOUT = [
     'Stages are shortened so a race takes a few minutes, and the race clock runs faster than real time. Riders, teams and jerseys are invented and generic: they are not real people or real teams.',
     'The physics are a simple model of a rider\'s power, the road gradient, wind, slipstream and a limited reserve of hard effort. It is built to reward good pacing, not to be a training tool.' ] },
   { title: 'A note', p: [
-    'Part of the Arcforge collection of heritage games. No ads, no stakes and no betting: it is a pacing game from start to finish.' ] },
+    'Part of the Arcforge collection of heritage games. No stakes and no betting: it is a pacing game from start to finish.' ] },
 ];
 
 export const HOWTO = [

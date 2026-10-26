@@ -110,7 +110,7 @@ export function render(ctx, state, L) {
     blob(ctx, DL.hero.x, DL.hero.y + 40, 300, 200, '120,230,170', 0.22);
     piece(1, DL.hero.x - 70, DL.hero.y, { R: 32, scale: 2.6 }); piece(-1, DL.hero.x + 70, DL.hero.y, { R: 32, scale: 2.6 });
     text('Enjoying Janggi?', DL.title.x, DL.title.y, 60, GOLD, TITLE, 700, 'center');
-    wrap('The free web version stops here. Get the full game on iPhone and Android: every lesson, unlimited games against five computer levels with a tutor that explains moves, and it works offline.', DL.body.x, DL.body.y, 30, DL.body.w, CREAM, 42);
+    wrap('The free web version stops here. Get the free app on iPhone and Android: every lesson, unlimited games against five computer levels with a tutor that explains moves, and it works offline.', DL.body.x, DL.body.y, 30, DL.body.w, CREAM, 42);
     button(DL.back, 'Back to menu', { primary: true }); return;
   }
 

@@ -10,13 +10,13 @@ export const ABOUT = {
       body: [
         { p: 'The soroban is the Japanese bead abacus: one heaven bead worth 5 above the beam and four earth beads worth 1 below it on every rod. Skilled users add, subtract and multiply faster than they can type, and many can do it in their heads by picturing the beads.' },
         { p: 'Here you slide the beads yourself with your thumb. Learn to read numbers, then add, subtract and multiply, with a coach that moves the beads and explains why. Test the skill with Flash Mental and a 60-second Timed Challenge.' },
-        { li: ['13 short lessons from "Meet the beads" to multiplying.', 'Flash Mental: numbers flash by, you set the total.', 'Timed Challenge: five levels of fast sums.', 'Watch and Learn: the beads move by themselves while the reason is spelled out.', 'Sounds are synthesized on your device. No ads.'] },
+        { li: ['13 short lessons from "Meet the beads" to multiplying.', 'Flash Mental: numbers flash by, you set the total.', 'Timed Challenge: five levels of fast sums.', 'Watch and Learn: the beads move by themselves while the reason is spelled out.', 'Sounds are synthesized on your device.'] },
       ],
     },
     {
-      title: 'Free preview and credits',
+      title: 'Credits and ads',
       body: [
-        { p: 'You can play for a free preview first. Unlocking the full game is a single one-time purchase; there are no ads and no subscriptions. Menus, Rules, About, Watch and Learn and Pause do not use up the preview.' },
+        { p: 'Free to play with short ads; go ad-free once.' },
         { p: 'Numerals and interface text are set in Fredoka, used under the SIL Open Font License 1.1.' },
         { p: 'Abacus Soroban is part of Arcforge, a collection of world heritage games.' },
       ],
@@ -150,7 +150,7 @@ export const RULES = {
     {
       title: 'Settings and text size',
       body: [
-        { li: ['Look: Kyoto, Cedar or Jade.', 'Number readout: shows the total the beads hold. Rod digits: shows each rod\'s digit.', 'Sound and Calm motion (fewer particles).', 'Think time for Watch and Learn.', 'Restore purchases.'] },
+        { li: ['Look: Kyoto, Cedar or Jade.', 'Number readout: shows the total the beads hold. Rod digits: shows each rod\'s digit.', 'Sound and Calm motion (fewer particles).', 'Think time for Watch and Learn.'] },
         { p: 'Every text screen has A- and A+ to scale text up to 300%.' },
       ],
     },

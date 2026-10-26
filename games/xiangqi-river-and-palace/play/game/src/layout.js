@@ -76,14 +76,23 @@ function build(w, h) {
   function boardStack(kind) {
     const lesson = kind === 'lesson' || kind === 'puzzle', hasBot = !lesson, auto = kind === 'auto';
     const colW = Math.min(S.w, 640), cl = cx - colW / 2;
-    const gap = 10;
-    let head = Math.max(88, backH), stp = auto ? 52 : 0;
-    let A = lesson ? 176 : 76, M = lesson ? 120 : 100, B = hasBot ? 76 : 0, C = 64;
-    const gaps = (stp ? 1 : 0) + 1 + 1 + (hasBot ? 1 : 0) + 1 + 1;   // head|stp, stp|A, A|board, board|B, B|M, M|C
+    const gaps = (auto ? 1 : 0) + 1 + 1 + (hasBot ? 1 : 0) + 1 + 1;   // head|stp, stp|A, A|board, board|B, B|M, M|C
+    // Two furniture tiers. Roomy (tall phones) keeps the approved look; compact (squarer portrait screens such as a tablet,
+    // where the furniture would otherwise squeeze the board to ~60% of the width) trims it so the board can fill the width.
+    const tiers = [
+      { gap: 10, head: Math.max(88, backH), stp: auto ? 52 : 0, A: lesson ? 176 : 76, M: lesson ? 120 : 100, B: hasBot ? 76 : 0, C: 64, roomy: true },
+      { gap: 5, head: Math.max(44, backH), stp: auto ? 44 : 0, A: lesson ? 150 : 56, M: lesson ? 90 : 58, B: hasBot ? 56 : 0, C: 50, roomy: false },
+    ];
+    const fit0 = (t) => S.h - (t.head + t.stp + t.A + t.B + t.M + t.C + t.gap * gaps) - BH;
+    const sOf = (t) => { const f = fit0(t); return f >= 0 ? 1 : clamp((BH + f) / BH, 0.3, 1); };
+    const T0 = tiers[0], T1 = tiers[1];
+    const tier = sOf(T0) >= 0.97 || sOf(T0) >= sOf(T1) ? T0 : T1;
+    const gap = tier.gap;
+    let { head, stp, A, M, B, C } = tier;
     const fixed = head + stp + A + B + M + C + gap * gaps;
     let free = S.h - fixed - BH, s = 1;
     if (free < 0) { s = clamp((BH + free) / BH, 0.3, 1); free = 0; }
-    else {
+    else if (tier.roomy) {
       const gM = Math.min(free * 0.5, (lesson ? 290 : 190) - M); M += gM; free -= gM;
       const gH = Math.min(free * 0.5, 40); head += gH; free -= gH;
       const gP = Math.min(free * 0.5, 12); A += gP; if (hasBot) B += gP; free -= gP * (hasBot ? 2 : 1);
@@ -92,7 +101,7 @@ function build(w, h) {
     const total = head + stp + A + B + M + C + gp * gaps + BH * s;
     let y = S.y0 + Math.max(0, (S.h - total) / 2) * 0.5;
     const out = { kind, mode: 'stack', s, flipSafe: true };
-    out.head = { x: cx, y: y + head * 0.72 - (head > 100 ? 4 : 0), size: head >= 100 ? 58 : 46, align: 'center', sub: { x: cx, y: y + head * 0.72 + 30 } };
+    out.head = { x: cx, y: y + head * (head < 60 ? 0.74 : 0.72) - (head > 100 ? 4 : 0), size: head >= 100 ? 58 : head < 60 ? 38 : 46, align: 'center', sub: head < 60 ? null : { x: cx, y: y + head * 0.72 + 30 } };
     y += head + gp;
     if (stp) { out.stepper = { dec: R_(cx - 190, y, 90, stp), inc: R_(cx + 100, y, 90, stp), label: { x: cx, y: y + stp * 0.66, size: 24 } }; y += stp + gp; }
     out.top = R_(cl, y, colW, A); y += A + gp;
@@ -104,7 +113,7 @@ function build(w, h) {
     const bw3 = (colW - 28) / 3;
     out.btn = { menu: R_(cl, y, bw3, C), undo: R_(cl + bw3 + 14, y, bw3, C), hint: R_(cl + 2 * (bw3 + 14), y, bw3, C) };
     out.btnSingle = R_(cl + colW / 2 - 110, y, 220, C);
-    out.lanterns = true; out.lanternScale = 0.62;
+    out.lanterns = true; out.lanternScale = tier.roomy ? 0.62 : clamp((head + gp + 12) / 200, 0.3, 0.62);   // compact header: lanterns shrink to hang inside it
     out.tipInMsg = true;
     return out;
   }

@@ -82,10 +82,10 @@ export const ABOUT = [
   { p: 'Celadon, terracotta with white slip, blue and white, black on red, ash and iron, and combed slipware. Each is described by how it is made, and each has its own colours and patterns.' },
   { h: 'Challenges' },
   { p: 'Twelve target silhouettes from a straight cup to a tall storage jar, a daily challenge, and a free studio. Your finished pots go on a shelf.' },
-  { h: 'Free preview' },
-  { p: 'The first 90 seconds of throwing are free. Menus, Rules, Watch and Learn, results and your shelf are always free. A one-time unlock then lets you throw as much as you like. There are no ads.' },
+  { h: 'Free to play' },
+  { p: 'Menus, Rules, Watch and Learn, results and your shelf are always free. Free to play with short ads; go ad-free once.' },
   { h: 'Calm by design' },
-  { p: 'The wheel rewards slow, steady hands and a relaxed rhythm. There is no timer while you throw and no ads.' },
+  { p: 'The wheel rewards slow, steady hands and a relaxed rhythm. There is no timer while you throw.' },
   { h: 'Credits' },
   { p: 'Sounds are synthesised on your device. Fredoka by Milena Brandao, SIL Open Font License 1.1. 3D rendering uses three.js (MIT).' },
 ];

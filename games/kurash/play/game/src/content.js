@@ -106,7 +106,7 @@ export const RULES = [
     'Think: pauses the bout, picks the plan a good wrestler would choose (build the swing, hold your ground, or throw now), shows its direction as an arrow and says why. It never plays for you.',
     'Watch & Learn: two computer wrestlers play a whole match. Every few seconds one of them thinks aloud, then does what they said. You can pause, speed up three times and set how long they think.',
   ] },
-  { title: '11. Preview', p: [
-    'The free preview counts only the time spent in a live bout: menus, countdowns, pauses and Watch & Learn do not use it up. Unlocking the game once removes the limit for good.',
+  { title: '11. Ad-free', p: [
+    'Free to play with short ads; go ad-free once.',
   ] },
 ];

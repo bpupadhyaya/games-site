@@ -13,9 +13,9 @@ export const ABOUT = {
       ],
     },
     {
-      title: 'Credits and the free preview', fig: { k: 'quilt' },
+      title: 'Credits and ads', fig: { k: 'quilt' },
       body: [
-        { p: 'You can play for a free preview first. Unlocking the full game is a single one-time purchase; there are no ads and no subscriptions.' },
+        { p: 'Free to play with short ads; go ad-free once.' },
         { p: 'Palette names such as "Plain and jewel tones", "Homespun scraps" and "Bold and improvised" describe styles of cloth and colour only. They are inspired by the wide range of American quilt making and make no claim to reproduce, represent or be endorsed by any maker or community.' },
         { p: 'Interface text is set in Fredoka, used under the SIL Open Font License 1.1. All cloth, light and sound are made on your device. Quilt Patterns is part of Arcforge, a collection of world heritage games.' },
       ],
@@ -83,9 +83,9 @@ export const RULES = {
       { p: 'A hint plans the next piece from the game\'s own answer to the task. Stage 1 says where to look and marks the piece. Stage 2 explains why that cloth fits. Apply stitches it for you.' },
       { p: 'If your design already meets every rule there is nothing left to hint. If you have used a different but valid cloth, the hint still points to the game\'s answer, which is one of several possible.' },
       { p: 'Watch and Learn runs the same planner by itself: think (2, 5, 8 or 10 seconds), reveal (two seconds with the piece marked and the reason shown), then place. Pause freezes everything, including the think timer, until you resume.' } ] },
-    { title: 'Daily Brief, preview and saving', fig: { k: 'quilt' }, body: [
+    { title: 'Daily Brief and saving', fig: { k: 'quilt' }, body: [
       { p: 'The Daily Brief is generated from the day number, so every player gets the same task. Finishing it keeps a streak of consecutive days.' },
-      { p: 'The free preview counts only live play: menus, Rules, results, Watch and Learn, pause and the Gallery are free. An unfinished task is saved when you leave and offered as Continue.' },
+      { p: 'An unfinished task is saved when you leave and offered as Continue. Free to play with short ads; go ad-free once.' },
       { p: 'Finished blocks join the My Blocks shelf (up to 12) for Free Studio quilts. The Gallery keeps up to 24 finished quilts.' } ] },
   ],
 };

@@ -424,7 +424,7 @@ export function arrow(ctx, color, x0, y0, x1, y1, lw = 6) {
 export function drawMiniTrack(ctx, th, x, y, side, opts = {}) {
   const g = trackGeo(x, y, side);
   ctx.save();
-  ctx.fillStyle = alpha(th.edge.length === 7 ? th.edge : '#6e4f30', 0.9); ctx.beginPath(); ctx.roundRect(x, y, side, side, side * 0.06); ctx.fill();
+  ctx.fillStyle = alpha(th.edge.length === 7 ? th.edge : '#6e4f30', 0.9); ctx.beginPath(); ctx.roundRect(x, y, side, side, Math.max(0, side * 0.06)); ctx.fill();
   ctx.strokeStyle = 'rgba(255,255,255,0.14)'; ctx.lineWidth = 1.5; ctx.stroke();
   const pts = pathBetween(g, 0, TRACK, 8);
   ctx.lineCap = 'round'; ctx.lineJoin = 'round';

@@ -17,7 +17,7 @@ export const ABOUT = [
   { li: 'Six routines and a new daily routine, each a chain of moves at its own tempo.' },
   { li: 'Practice: drill one move at any tempo from 40 to 110 beats per minute.' },
   { li: 'Watch and Learn: a computer swinger shows the first four moves of a routine with time to think, and you can pause it.' },
-  { li: 'A full Rules page and text size up to 300%. Sound is made on your device. No ads, works offline.' },
+  { li: 'A full Rules page and text size up to 300%. Sound is made on your device. Works offline.' },
   { sp: 1 },
   { p: 'Simplifications: there is no real club to lift, so weight is shown as a short lag in how the clubs follow your finger. Figure eights, mirror and alternating mills are drawn as simple paths.' },
   { sp: 1 },
@@ -105,7 +105,7 @@ export const RULES = [
     { p: `A computer swinger plays the first four moves of the chosen routine. Before each move it THINKS (${THINK_TIMES.join(', ')} seconds, set in Settings, default ${THINK_TIMES[1]}) while the whole game waits, then REVEALS the start point and direction for 2 seconds, then swings it with the beat.` },
     { li: 'Pause freezes everything, including the thinking time and every moving thing on screen, and resumes exactly where it stopped.' },
     { li: 'Pressing Hint during the reveal goes back to the think phase.' },
-    { li: 'Watch and Learn is free to use in the preview; it does not use up your play time.' },
+    { li: 'Watch and Learn is always free to use.' },
   ] },
   { title: 'Hint, pause and settings', blocks: [
     { li: 'Hint: shows the start point of the move and its direction for four seconds. It is counted on the result screen but never costs points.' },
@@ -113,8 +113,8 @@ export const RULES = [
     { li: 'Settings: sound, club weight, timing, club trail, reduced motion, think time, and text size with A- and A+ on every text page.' },
     { li: `Club weight: ${WEIGHT.map((w) => `${w.name} (${Math.round(w.tau * 1000)} ms lag)`).join(', ')}.` },
   ] },
-  { title: 'Preview and full game', blocks: [
-    { p: 'You can play the first 90 seconds of real swinging for free. Menus, these rules, About, Watch and Learn and results are always free. After the preview a single one-time purchase unlocks the full game on that device, and Restore brings it back on a new one.' },
+  { title: 'Ads and ad-free', blocks: [
+    { p: 'Free to play with short ads. Menus, these rules, About, Watch and Learn and results are always free to use. A single one-time purchase makes it ad-free on that device, and Restore brings it back on a new one.' },
     { p: 'In the free web demo the first routine and Practice can be started a few times; the full game is on iPhone and Android.' },
   ] },
 ];

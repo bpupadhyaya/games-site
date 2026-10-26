@@ -28,7 +28,7 @@ export const ABOUT = [
     'This version shows it as a quiet social game in a scholar\'s garden pavilion. It carries no ceremony and no stakes.',
   ] },
   { title: 'This version', text: [
-    'Pitch Pot is part of the Arcforge collection of world heritage games. It has no ads, no betting and no stakes, works offline and saves your records on your device.',
+    'Pitch Pot is part of the Arcforge collection of world heritage games. It has no betting and no stakes, works offline and saves your records on your device.',
     'Arrows are simulated as real rods: they tumble, bounce off the bronze, slide down the neck and lean on each other. The Rules pages list the numbers the engine uses.',
     'Text size can be set up to 300% in Settings and on every reading page.',
   ] },

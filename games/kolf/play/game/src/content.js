@@ -93,7 +93,7 @@ export const RULES = [
     'Real kolf is played with a leather ball, a club with a lead-faced head and a stake or a wall at each end, often over ice that is much longer than this. The ball here is a single rolling circle with no spin, and the post is a target you simply have to touch. Players do not obstruct each other\'s balls.',
     'Distances are in metres of play. The six courts are invented for the game, in the manner of the canals, mill ponds and harbours where the game was played.',
   ] },
-  { title: '12. The free preview', p: [
-    'The first 90 seconds of real play are free. Watch & Learn, the menus and the rules never use up the preview, and pausing stops its clock. In the web demo the first three legs of The Frozen Canal are free and the full game is on iPhone and Android.',
+  { title: '12. Free to play', p: [
+    'In the web demo the first three legs of The Frozen Canal are free and the full game is on iPhone and Android. Free to play with short ads; go ad-free once.',
   ] },
 ];

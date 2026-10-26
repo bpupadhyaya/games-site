@@ -63,20 +63,27 @@ export function buildUi(S) {
     }
     case 'title': {
       ui.kind = 'menu';
-      const d = L.wide ? 0.72 : L.mode === 'compact' ? 0.8 : 1;
-      const m = (n) => Math.round(n * d);
-      const b = [];
-      if (S.save) b.push({ t: 'btn', id: 'continue', label: tr('continueBtn'), kind: 'primary', size: 32, sub: `${levelLabel(S, S.save.two ? 'two' : S.save.level)}`, minH: m(104) });
-      const playSub = S.demo ? tr('demoLeft', { n: Math.max(0, DEMO_GAMES - S.demoGames) }) : undefined;
-      b.push({ t: 'btn', id: 'play', label: tr('playBtn'), kind: S.save ? 'normal' : 'primary', size: 36, sub: playSub, minH: m(S.save ? 92 : 118) });
-      b.push({ t: 'btn', id: 'learn', label: tr('learnBtn'), size: 30, sub: `${lessonsDone(S)} / ${LESSONS.length}`, minH: m(96) });
-      b.push({ t: 'btn', id: 'auto', label: tr('autoBtn'), size: 30, minH: m(92) });
-      b.push({ t: 'row', size: 28, minH: m(92), items: [{ id: 'howto', label: tr('howtoBtn') }, { id: 'rules', label: tr('rulesBtn') }] });
-      b.push({ t: 'row', size: 28, minH: m(92), items: [{ id: 'about', label: tr('aboutBtn') }, { id: 'settings', label: tr('settingsBtn') }] });
-      b.push({ t: 'row', size: 26, minH: m(84), items: [{ id: 'lang:en', label: 'Play in English', kind: S.lang === 'en' ? 'on' : 'normal' }, { id: 'lang:vi', label: 'Chơi bằng tiếng Việt', kind: S.lang === 'vi' ? 'on' : 'normal' }] });
-      ui.blocks = b;
-      const lay = layoutDoc(b, scale, titleMenuW());
-      ui.title = titleLayout(lay.height);
+      const build = (d) => {
+        const m = (n) => Math.max(48, Math.round(n * d)), z = (n) => Math.round(n * Math.min(1, 0.55 + 0.6 * d));
+        const b = [];
+        if (S.save) b.push({ t: 'btn', id: 'continue', label: tr('continueBtn'), kind: 'primary', size: z(32), sub: `${levelLabel(S, S.save.two ? 'two' : S.save.level)}`, minH: m(104) });
+        const playSub = S.demo ? tr('demoLeft', { n: Math.max(0, DEMO_GAMES - S.demoGames) }) : undefined;
+        b.push({ t: 'btn', id: 'play', label: tr('playBtn'), kind: S.save ? 'normal' : 'primary', size: z(36), sub: playSub, minH: m(S.save ? 92 : 118) });
+        b.push({ t: 'btn', id: 'learn', label: tr('learnBtn'), size: z(30), sub: `${lessonsDone(S)} / ${LESSONS.length}`, minH: m(96) });
+        b.push({ t: 'btn', id: 'auto', label: tr('autoBtn'), size: z(30), minH: m(92) });
+        b.push({ t: 'row', size: z(28), minH: m(92), items: [{ id: 'howto', label: tr('howtoBtn') }, { id: 'rules', label: tr('rulesBtn') }] });
+        b.push({ t: 'row', size: z(28), minH: m(92), items: [{ id: 'about', label: tr('aboutBtn') }, { id: 'settings', label: tr('settingsBtn') }] });
+        b.push({ t: 'row', size: z(26), minH: m(84), items: [{ id: 'lang:en', label: 'Play in English', kind: S.lang === 'en' ? 'on' : 'normal' }, { id: 'lang:vi', label: 'Chơi bằng tiếng Việt', kind: S.lang === 'vi' ? 'on' : 'normal' }] });
+        const lay = layoutDoc(b, scale, titleMenuW());
+        return { b, lay, tl: titleLayout(lay.height) };
+      };
+      // Start from the roomy sizes and tighten the button heights until the whole menu (language row included) fits its column.
+      const d0 = L.wide ? 0.72 : L.mode === 'compact' ? 0.8 : 1, fits = (q) => q.tl.menu.h >= q.lay.height - 0.5;
+      let d = d0, r = build(d);
+      while (!fits(r) && d > 0.3) { d = Math.round((d - 0.04) * 100) / 100; r = build(d); }
+      if (!fits(r)) r = build(d0);   // large text: the menu scrolls at its roomy size instead
+      ui.blocks = r.b;
+      ui.title = r.tl;
       ui.region = ui.title.menu;
       break;
     }

@@ -15,7 +15,7 @@ export const ABOUT = [
   { h: 'Made for playing' },
   { li: 'Works in portrait and landscape, with two hands or one thumb, and with the keyboard on a computer.' },
   { li: 'A gentle pitch window and an optional pitch assist keep it friendly; Strict is there for those who want it.' },
-  { li: 'Large text up to 300%, a calm mode with less motion, no ads, works offline.' },
+  { li: 'Large text up to 300%, a calm mode with less motion, works offline.' },
   { sp: 1 },
   { p: 'Oud Maqam Strings is part of Arcforge, a collection of world heritage games.' },
 ];

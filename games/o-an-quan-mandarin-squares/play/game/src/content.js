@@ -25,7 +25,7 @@ const STR = {
     record: 'Record', wins: 'W', draws: 'D', losses: 'L',
     autoThink: 'Thinking', autoPause: 'Pause', autoPlay: 'Resume', autoExit: 'Exit', autoSlower: 'Think -', autoFaster: 'Think +',
     autoSession: 'Watch & Learn', autoAgain: 'Watch Again', autoSummary: 'You watched two whole games, each move chosen by the game\'s own engine with its reason shown: Master against Master, and Master against Expert.',
-    demoLimitTitle: 'FREE PREVIEW FINISHED', demoLimitBody: 'You played the three free games. Get the full game on iPhone and Android for every opponent level, two players on one phone, the rule options and the full Learn course.',
+    demoLimitTitle: 'DEMO FINISHED', demoLimitBody: 'You played the three free games. Get the free app on iPhone and Android for every opponent level, two players on one phone, the rule options and the full Learn course.',
     demoLeft: '{n} free games left', locked: 'In the full game', lessonsTitle: 'Learn', lessonDone: 'Done', again: 'Play Again', newSetup: 'Change Game',
     lessonNext: 'Next Lesson', lessonRetry: 'Try Again', lessonList: 'All Lessons', lessonOf: 'Lesson {n} of {m}', correct: 'Correct!', notQuite: 'Not quite',
     yourMove: 'Your move', thinking: 'Thinking...', turnOf: '{who} to move', pickSquare: 'Tap one of your squares that holds stones.', pickDir: 'Now choose which way to sow.',
@@ -195,7 +195,7 @@ const rulesEn = () => [
   ] },
   { title: 'Language, boards and text', art: 'themes', body: [
     'Play in English or Chơi bằng tiếng Việt is a real choice on the first launch and on the main menu: every screen, rule and hint is written in both languages.',
-    'Settings offers two boards (Lacquer & Gold, Bamboo & Jade), sound, the Watch & Learn think time and text size up to 300 percent on every text screen, including the game screen. There are no timers; the free preview is the first 90 seconds of real play.',
+    'Settings offers two boards (Lacquer & Gold, Bamboo & Jade), sound, the Watch & Learn think time and text size up to 300 percent on every text screen, including the game screen. There are no timers. Free to play with short ads; go ad-free once.',
   ] },
 ];
 

@@ -212,7 +212,7 @@ function draw(ctx, state, L) {
   }
   if (sc === 'demo-limit') {
     backdrop(); const D = L.demo; shadowText('Enjoying the preview?', D.title.x, D.title.y, D.title.size, GOLD, 'center', 700, L.U.w - 40);
-    wrap('The free web preview ends here. Get the full game on iPhone and Android for every lesson, all four computer levels, the daily trick shot and unlimited boards.', D.body.x, D.body.y, 32, D.body.w, CREAM, 44); button(D.back, 'Back', { primary: true, size: 30 }); return;
+    wrap('The free web preview ends here. Get the free app on iPhone and Android for every lesson, all four computer levels, the daily trick shot and unlimited boards.', D.body.x, D.body.y, 32, D.body.w, CREAM, 44); button(D.back, 'Back', { primary: true, size: 30 }); return;
   }
 
   // ---------------------------------------------------------------- BOARD SCENES

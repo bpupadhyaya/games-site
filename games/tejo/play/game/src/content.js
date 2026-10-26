@@ -28,7 +28,7 @@ export const ABOUT = [
     'The traditional game puts small paper packets on the ring that crack when a disc strikes them. In this version they are harmless paper mechas that burst into confetti with a pop.',
   ] },
   { title: 'This version', text: [
-    'Tejo is part of the Arcforge collection of world heritage games. It has no ads, no betting and no stakes, works offline and saves your records on your device.',
+    'Tejo is part of the Arcforge collection of world heritage games. It has no betting and no stakes, works offline and saves your records on your device.',
     'The rules are a clear, simplified version of the real game: Rules lists every number the engine uses.',
     'Text size can be set up to 300% in Settings and on every reading page.',
   ] },

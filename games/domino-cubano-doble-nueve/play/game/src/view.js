@@ -744,10 +744,10 @@ function drawRules(ctx, state, helpers, L) {
 function drawDemoLimit(ctx, manifest, L) {
   const cx = W / 2, y0 = L.demoTop;
   drawTile(ctx, cx - 46, y0, 92, 138, 9, 9, { highlight: true, lift: true });
-  text(ctx, 'FREE PREVIEW FINISHED', cx, y0 + 202, 32, GOLD, DISPLAY, 800);
+  text(ctx, 'DEMO FINISHED', cx, y0 + 202, 32, GOLD, DISPLAY, 800);
   const tw = Math.min(560, L.C.w);
-  wrapText(ctx, `You’ve played the free preview matches of ${manifest?.title ?? 'this game'}.`, cx, y0 + 262, tw, 30, 22);
-  wrapText(ctx, 'Get the full game on iPhone and Android to keep playing — same table, no limits.', cx, y0 + 320, tw, 30, 22);
+  wrapText(ctx, `You’ve played the web demo matches of ${manifest?.title ?? 'this game'}.`, cx, y0 + 262, tw, 30, 22);
+  wrapText(ctx, 'Get the free app on iPhone and Android to keep playing — same table, no limits.', cx, y0 + 320, tw, 30, 22);
   const pillW = 250, pillH = 62, gap = 24, pillY = y0 + 430;
   const startX = cx - pillW - gap / 2;
   [['iPhone', CREAM], ['Android', GOLD]].forEach(([label, accent], i) => {

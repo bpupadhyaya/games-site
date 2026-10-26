@@ -20,7 +20,7 @@ export const ABOUT = [
   { li: 'Think slows time for a moment and shows how deep a lean the bar needs.' },
   { li: 'Watch and Learn plays a whole game for you and explains each choice. Pause it at any time.' },
   { li: 'Party mode: two to four friends pass one phone around, one by one.' },
-  { li: 'Large text and reduced-motion options. No ads. Works offline.' },
+  { li: 'Large text and reduced-motion options. Works offline.' },
   { sp: 1 },
   { p: 'Limbo is part of Arcforge, a collection of world heritage games.' },
 ];
@@ -113,7 +113,7 @@ export const RULES = [
       { li: 'Text size: the A- and A+ buttons on every text page go up to 300%.' },
       { h: 'What is simplified' },
       { p: 'Real limbo is danced in three dimensions with the bar held at both ends. Here the dancer is seen from the side, the walk is automatic, and the only things you control are the lean and the balance. Real limbo has no scoring; the points are only there to give you something to beat.' },
-      { p: 'Limbo does not collect any personal data and shows no ads.' },
+      { p: 'Limbo does not collect any personal data.' },
     ],
   },
 ];

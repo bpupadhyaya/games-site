@@ -94,7 +94,7 @@ export const ABOUT = [
   ] },
   { name: 'Credits', items: [
     { t: 'Made by Arcforge, from the World Heritage Games series. Display type: Dela Gothic One. Text: Barlow. Both are open fonts under the SIL Open Font License.' },
-    { t: 'The court, stones and sound are made in the game; the players are real-looking 3D figures animated from captured human motion. There are no ads. Your best results are kept on this device.' },
+    { t: 'The court, stones and sound are made in the game; the players are real-looking 3D figures animated from captured human motion. Your best results are kept on this device.' },
   ] },
 ];
 

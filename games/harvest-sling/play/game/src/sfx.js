@@ -1,4 +1,4 @@
-// Impact sounds for Golden Sling: strike (stone hits a bird), whoosh (stone in flight) and ground thud (stone lands). Procedural WebAudio on the game's
+// Impact sounds for Golden Sling: strike (stone hits a bird), ground thud (stone lands). Procedural WebAudio on the game's
 // OWN AudioContext (the kit's audio.tone has no noise source). Rules, from the owner:
 //  - every effect is ONE short shot with a gain envelope that reaches zero, its sources are stopped on a schedule and disconnected afterwards;
 //  - no loops, no timers, nothing plays unless an event happened; at most MAX_VOICES at once (the oldest is stolen); stopAll() ramps everything to zero within 60 ms;
@@ -72,10 +72,6 @@ export function createSfx({ makeCtx, isMuted }) {
     flinch() {
       play([{ type: 'osc', wave: 'triangle', f0: 3000, f1: 1500, dur: 0.22 }, { type: 'noise', filter: 'bandpass', freq: 3500, q: 1, dur: 0.12 }], { peak: 0.22, dur: 0.26 });
       play([{ type: 'osc', wave: 'sawtooth', f0: 1900, f1: 900, dur: 0.18 }], { peak: 0.08, dur: 0.2 }, 0.1);
-    },
-    // A stone in flight: a soft whoosh. Returns a handle; cancel(handle) ends it quickly (stone landed, hit or left the screen).
-    whoosh(power = 1) {
-      return play([{ type: 'noise', filter: 'bandpass', freq: 1100 + 500 * power, q: 0.7, dur: 0.55 }], { peak: 0.07 * clamp(power, 0.4, 1.3), attack: 0.06, dur: 0.55 });
     },
     cancel(v) { if (v && ac && voices.includes(v)) kill(v, 0.05); },
     // The stone touches the ground: ONE low thud on soil with a faint dust puff, scaled by impact speed (lower for the Wide stone).

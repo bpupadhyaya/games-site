@@ -4,6 +4,7 @@ import { host } from './src/layout.js';
 import { setLogo, setLockup } from './src/brand.js';
 import { v3 } from './src/v3.js';
 import { createPresenter } from './view3d/presenter.js';
+import { installResizeGuard } from './resizeguard.js';
 
 const canvas = document.getElementById('game');
 
@@ -54,7 +55,8 @@ let gameProxy = null;
 if (q.has('dev')) { Object.defineProperty(window, '__p3', { get: () => presenter }); window.__v3 = v3; }
 // Store-shot / scripted-scene runs need the 3D frame from the very first draw, so they wait for the presenter.
 if (!q.has('flat') && (q.has('shot') || q.has('scene') || q.has('bare'))) { try { presenter = await createPresenter({ kitCanvas: canvas }); } catch (e) { console.warn('3D presenter unavailable', e); } }
-boot({ createGame: async (env) => { gameProxy = proxy(await create(env)); if (presenter?.ok) gameProxy.adopt(false); return gameProxy; }, meta, canvas, background: bg });
+const guard = installResizeGuard({ canvas, win: window });   // re-dispatches resize when canvas pixels != CSS box x dpr (missed rotation)
+boot({ createGame: async (env) => { gameProxy = proxy(await create(env)); if (presenter?.ok) gameProxy.adopt(false); return gameProxy; }, meta, canvas, background: bg }).then(() => guard.burst());
 // Normal play: the game boots at once on the flat 2D art (styled interactive title in the first frame); the 3D scene builds in the
 // background in small slices and takes over with a short fade. No WebGL / context lost: the flat art stays.
 if (!q.has('flat') && !presenter) {

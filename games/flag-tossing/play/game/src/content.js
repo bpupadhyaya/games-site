@@ -18,7 +18,7 @@ export const ABOUT = [
   { li: 'Works with a thumb or a finger, and with the keyboard on a computer.' },
   { li: 'Think slows the drum for a moment and shows what comes next.' },
   { li: 'Watch and Learn performs a whole show for you and explains each figure. Pause it at any time.' },
-  { li: 'Large text and reduced-motion options. No ads. Works offline.' },
+  { li: 'Large text and reduced-motion options. Works offline.' },
   { sp: 1 },
   { p: 'Flag Tossing is part of Arcforge, a collection of world heritage games.' },
 ];
@@ -146,7 +146,7 @@ export const RULES = [
       { h: 'Think' },
       { p: `The Think button slows the drum to ${pct(TUNE.thinkScale)} for ${TUNE.thinkSeconds} seconds and draws a ghost of the next throw: its height, and where it should land. It can be used again after ${TUNE.thinkCooldown} seconds (always in Practice).` },
       { h: 'Watch and Learn' },
-      { p: 'The computer performs a show. Before each figure it stops the drum and goes through three beats: Think (what the figure asks for), Reveal (the ghost of its first throw), then Act (it performs). You can set how long Think lasts in Settings, skip a step, or pause everything at any time. Watch and Learn never uses up the free preview.' },
+      { p: 'The computer performs a show. Before each figure it stops the drum and goes through three beats: Think (what the figure asks for), Reveal (the ghost of its first throw), then Act (it performs). You can set how long Think lasts in Settings, skip a step, or pause everything at any time.' },
     ],
   },
   {
@@ -155,10 +155,10 @@ export const RULES = [
       { li: 'Touch: drag up to throw, tap to catch, hold and sweep to wave.' },
       { li: 'Keyboard: A, S, D throw 2, 3 or 4 beats high (aimed automatically); Enter or Z catches; arrow keys sweep a wave; H is Think; Space or Escape pauses.' },
       { li: 'Pause: the pause button freezes the whole show, including the Watch and Learn lesson.' },
-      { li: 'Settings: sound, ghost guides, reduced motion, Think time for Watch and Learn, and Restore purchase for the full game.' },
+      { li: 'Settings: sound, ghost guides, reduced motion and Think time for Watch and Learn.' },
       { li: 'Text size: every text screen has A- and A+ buttons, up to 300%.' },
       { sp: 1 },
-      { p: 'Free preview: the full game starts with a 90 second preview of real play (Perform and Practice). Menus, Rules, Watch and Learn and results never use up the preview.' },
+      { p: 'Free to play with short ads; go ad-free once.' },
     ],
   },
 ];

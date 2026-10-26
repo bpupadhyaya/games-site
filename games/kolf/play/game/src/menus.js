@@ -223,7 +223,7 @@ export function reasonWidgets(state) {
 export function demoLimitWidgets(state) {
   const big = TEXT_SCALES[state.settings.textIdx] > 1.5;
   return [
-    { t: 'gap', h: big ? 30 : 160 }, { t: 'h', label: 'That is the free preview', size: 48 },
+    { t: 'gap', h: big ? 30 : 160 }, { t: 'h', label: 'That is the demo end', size: 48 },
     { t: 'p', label: 'You have played the free legs of the web demo. The full game on iPhone and Android has all six courts, every rival, The Golden Cup and unlimited play.', size: 28 },
     { t: 'gap', h: 20 },
     { t: 'btn', id: 'menu', label: 'Main menu', primary: true },

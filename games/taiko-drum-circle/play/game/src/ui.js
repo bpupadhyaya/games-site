@@ -6,13 +6,23 @@ import { host } from './layout.js';
 export const minUnits = () => 11.5 / Math.max(0.2, host.px);
 
 export function txt(ctx, s, x, y, size, color = PAL.text, o = {}) {
-  ctx.font = `${o.weight ?? 600} ${Math.max(size, minUnits())}px ${o.font ?? UI}`;
+  let fs = Math.max(size, minUnits());
+  ctx.font = `${o.weight ?? 600} ${fs}px ${o.font ?? UI}`;
+  if (o.maxW && ctx.measureText(s).width > o.maxW) {                      // squeeze to fit BEFORE stroking, so the outline matches the fill
+    fs = Math.max(fs * o.maxW / ctx.measureText(s).width, minUnits()); ctx.font = `${o.weight ?? 600} ${fs}px ${o.font ?? UI}`;
+  }
   ctx.textAlign = o.align ?? 'left'; ctx.textBaseline = o.base ?? 'middle'; ctx.fillStyle = color;
   if (o.stroke) { ctx.lineJoin = 'round'; ctx.lineWidth = o.stroke; ctx.strokeStyle = o.strokeColor ?? 'rgba(10,6,24,0.85)'; ctx.strokeText(s, x, y); }
-  if (o.maxW && ctx.measureText(s).width > o.maxW) {                      // squeeze to fit rather than overflow
-    const k = o.maxW / ctx.measureText(s).width; ctx.font = `${o.weight ?? 600} ${Math.max(size * k, minUnits())}px ${o.font ?? UI}`;
-  }
   ctx.fillText(s, x, y);
+}
+
+// A header title that sits beside a Back button: centred on the screen when it clears the button, else centred in the free space to its right, else shrunk to fit.
+export function headerTitle(ctx, s, back, S, y, size, o = {}) {
+  const left = back.x + back.w + 16, right = S.x + S.w - 12 - (o.rightPad ?? 0), free = right - left;
+  ctx.font = `${o.weight ?? 400} ${Math.max(size, minUnits())}px ${o.font ?? UI}`;
+  const tw = Math.min(ctx.measureText(s).width, free), mid = S.x + S.w / 2;
+  const cx = mid - tw / 2 >= left && mid + tw / 2 <= right ? mid : left + free / 2;
+  txt(ctx, s, cx, y, size, o.color ?? PAL.gold, { ...o, align: 'center', maxW: free });
 }
 
 // Greedy word wrap into lines no wider than maxW at the font currently set on ctx.

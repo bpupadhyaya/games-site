@@ -120,8 +120,8 @@ export const RULES = [
   { title: 'Hints', art: 'think', p: [
     'In Beach Rally and Match a hint is available when the ball is coming to you. The coach thinks for up to 1.5 seconds and reveals for 2 seconds while play is frozen, then play continues with the green stand ring and aim ring left on the sand until you hit.',
   ] },
-  { title: 'Settings and the free preview', p: [
-    'Settings: sound, Calm mode, the gold aim guide, text size (100% to 300%), Watch & Learn thinking time and Restore purchases.',
-    'The game starts with a free preview of 90 seconds of play. Menus, these pages and Watch & Learn do not count. After that, one purchase unlocks everything. The web demo allows 6 rallies and the first rival.',
+  { title: 'Settings and free play', p: [
+    'Settings: sound, Calm mode, the gold aim guide, text size (100% to 300%) and Watch & Learn thinking time.',
+    'The web demo allows 6 rallies and the first rival. Free to play with short ads; go ad-free once.',
   ] },
 ];

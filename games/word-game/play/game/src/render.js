@@ -333,7 +333,7 @@ export function render(ctx, state, title, demoLimit, L, env, X = {}) {
     const colCx = T.play.x + T.play.w / 2;
     if (state.demo) {
       const left = Math.max(0, demoLimit - state.demoSessions);
-      text(`Free preview: ${left} session${left === 1 ? '' : 's'} left`, colCx, T.previewY, 24, soft(0.85), { weight: 600, maxW: 560 });
+      text(`Web demo: ${left} session${left === 1 ? '' : 's'} left`, colCx, T.previewY, 24, soft(0.85), { weight: 600, maxW: 560 });
     }
     {   // the Arcforge lockup directly under the last button, on a soft plate (a tap opens the Arcforge home)
       const lk = T.lockup, cx = lk.x + lk.w / 2, cy = lk.y + lk.h / 2;
@@ -446,7 +446,7 @@ export function render(ctx, state, title, demoLimit, L, env, X = {}) {
 
   // ---- generic form reader: Words and pace, Study, Progress, About, Settings, Your data, credits ----------------------
   if (X.form) {
-    const F = X.form, Q = L.rules, scale = TEXT_SCALES[state.textScaleIdx] ?? 1, vp = Q.viewport;
+    const F = X.form, Q = (state.scene === 'age' || state.scene === 'firstlevel') ? L.rulesFull : L.rules, scale = F.scale ?? TEXT_SCALES[state.textScaleIdx] ?? 1, vp = Q.viewport;
     button(Q.dec, 'A−', { id: 'textDec', size: 34, disabled: state.textScaleIdx === 0 });
     button(Q.inc, 'A+', { id: 'textInc', size: 34, disabled: state.textScaleIdx === TEXT_SCALES.length - 1 });
     ctx.save();

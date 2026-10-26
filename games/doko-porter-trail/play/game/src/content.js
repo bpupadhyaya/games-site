@@ -88,7 +88,7 @@ export const DOCS = {
           `Walk the Trail: ${TRAILS.length} trails in ${CHAPTERS.length} chapters, each unlocking the next.`,
           'Long Road: one endless trail that gets harder. The score is the distance, plus 10 for each rest platform reached. It ends when the last item falls.',
           'Daily Trail: the same trail for everyone each day. Finish it to build a streak.',
-          'Watch and Learn: the game plays a trail and explains each hazard. It is free and never counts toward the preview.',
+          'Watch and Learn: the game plays a trail and explains each hazard. It is always free to use.',
           'Gentle mode (Settings): the load is easier to hold and jolts are softer.',
         ] },
       ] },

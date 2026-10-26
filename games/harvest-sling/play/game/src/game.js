@@ -46,6 +46,8 @@ export const wheelInput = { dy: 0 };   // fed by main.js (the kit has no wheel e
 const hit = (r, x, y) => inRect(r, x, y);
 const FEATHERS = { sparrow: ['#a5744a', '#e8d2b0'], pigeon: ['#8d97a8', '#c7cedb'], parrot: ['#2fae4f', '#ffd23f'], duck: ['#7a5a3a', '#e9dcc3'], crow: ['#2d3040', '#5a5f78'], hummingbird: ['#18b89a', '#e9fff8'], goldfinch: ['#ffc93f', '#fff3b0'], swallow: ['#2f4a8a', '#e8d2b0'], bigcrow: ['#1d1f2a', '#5a5f78'], hawk: ['#6b4a2a', '#e8d2b0'] };
 
+const AD_PARAMS = { format: 'interstitial', placement: 'level-complete' };
+
 export function createGame(env) {
   const { rng, storage, monetization, audio, config } = env;
   const demo = Boolean(config?.demo);
@@ -75,6 +77,8 @@ export function createGame(env) {
     wind: 0,
     time: 0,
     clearTimer: 0,
+    nudgeT: 99, // seconds since level clear began (nudge bumps run in its first 0.28 s)
+    nudgeY: 0, // world-unit vertical offset of the level-clear bumps
     lastStars: 0,
     newStone: -1, // same for stones
     newWood: -1, // index of a slingshot wood unlocked by the level just cleared, else -1
@@ -121,7 +125,6 @@ export function createGame(env) {
   let apGame = null;
   // Impact sounds on the game's own AudioContext (sfx.js); the Auto Play shadow game is silent. `env.sfxCtx` lets tests supply a fake context.
   const sfx = env.silent ? null : createSfx({ makeCtx: env.sfxCtx ?? (() => { const C = globalThis.AudioContext ?? globalThis.webkitAudioContext; return C ? new C() : null; }), isMuted: () => state.muted || audio.muted === true });
-  const whooshes = new WeakMap();
 
   // The live layout. Called at the top of update() and render(): publishes the world geometry (V, SLING) and, when the screen
   // changed shape (rotation, split window, resize), re-spreads the scenery and carries the live birds / stones over by proportion
@@ -290,12 +293,43 @@ export function createGame(env) {
     }
     state.score += state.stonesLeft * 5;
     state.scene = 'levelclear';
-    state.clearTimer = 2.4;
+    state.clearTimer = 2.4; state.nudgeT = 0; state.nudgeY = 0;   // level clear: exactly two quick soft nudges (see the levelclear update)
     state.aim = null;
     for (const f of [523, 659, 784]) audio.tone({ freq: f, dur: 0.14, type: 'triangle', vol: 0.2 });
   };
 
+  // Level-complete ad opportunity (docs/BRIDGE.md `ads.show`). The kit gives games no bridge handle, so this talks to the native shell directly with its own id range
+  // and chains the kit's receive hook; `env.bridge` (if a future kit supplies one) wins. Never throws; no native shell (web, tests, headless) = nothing happens.
+  let adSeq = 1.9e9;
+  const adCall = () => {
+    try {
+      if (env.silent || demo) return null;
+      if (env.bridge?.call) return env.bridge.native === null ? null : Promise.resolve(env.bridge.call('ads.show', AD_PARAMS));
+      const g = globalThis, ios = g.webkit?.messageHandlers?.arcforge, and = g.ArcforgeAndroid;
+      if (!ios && !and) return null;
+      const prev = g.__arcforgeReceive, id = ++adSeq;
+      return new Promise((resolve, reject) => {
+        g.__arcforgeReceive = (payload) => {
+          let m = null; try { m = typeof payload === 'string' ? JSON.parse(payload) : payload; } catch { /* not ours */ }
+          if (m && m.id === id) { g.__arcforgeReceive = prev; return m.ok ? resolve(m.result) : reject(new Error(m.error || 'ads')); }
+          return prev?.(payload);
+        };
+        const msg = { id, method: 'ads.show', params: AD_PARAMS };
+        if (ios) ios.postMessage(msg); else and.postMessage(JSON.stringify(msg));
+      });
+    } catch { return null; }
+  };
+  const AD_WAIT = 4;   // seconds of game time to wait for the host before simply continuing
+  const leaveLevelClear = () => {
+    if (state.adWait != null) return;
+    if (demo && state.level >= DEMO_LEVEL_LIMIT) return nextLevel();
+    const p = adCall();
+    if (!p) return nextLevel();
+    state.adWait = 0; state.adDone = false;
+    p.catch(() => {}).then(() => { state.adDone = true; });
+  };
   const nextLevel = () => {
+    state.adWait = null;
     if (state.restNote) { state.restNote = false; state.playTime = 0; }
     if (demo && state.level >= DEMO_LEVEL_LIMIT) {
       state.scene = 'demo-limit';
@@ -321,23 +355,22 @@ export function createGame(env) {
     state.power = null;
     const stone = { x: SLING.x, y: SLING.y, px: SLING.x, py: SLING.y, vx: v.vx, vy: v.vy, minMiss: 9999, hit: false, wide, trail: [], air: false, landed: false, landT: 0, missed: false };
     state.stones.push(stone);
-    if (sfx) { const w = sfx.whoosh(pull.len / 220); if (w) whooshes.set(stone, w); }
     state.stonesLeft -= 1;
     state.tally.thrown += 1;
     state.snap = 0.18;
-    audio.tone({ freq: 300, to: 900, dur: 0.12, type: 'sine', vol: 0.15 });
-    audio.tone({ freq: 190, to: 80, dur: 0.22, type: 'triangle', vol: 0.12 });   // the release twang
+    // No sound at release (owner): audio plays only when a stone strikes something.
   };
 
   // Pentatonic note for combo step k (rising as the streak builds).
   const comboNote = (k) => 523.25 * 2 ** ([0, 2, 4, 7, 9][k % 5] / 12) * (1 + Math.floor(k / 5));
+  const NUDGE_A = 4.5, NUDGE_T = 0.1;
   const feel = (stop, shake) => { if (state.calm) return; state.hitStop = Math.max(state.hitStop, stop); state.shake = Math.max(state.shake, shake); };
 
   const onHit = (stone, bird) => {
     stone.hit = true;
     const def = BIRDS[bird.type];
     const dmg = stone.wide ? 2 : 1;
-    if (sfx) { sfx.cancel(whooshes.get(stone)); sfx.strike(bird.r, bird.type === 'bigcrow' || bird.type === 'hawk'); }   // ONE strike sound per hit, at the moment of impact
+    if (sfx) { sfx.strike(bird.r, bird.type === 'bigcrow' || bird.type === 'hawk'); }   // ONE strike sound per hit, at the moment of impact
     state.missStreak = 0;
     state.duck = 0.5;
     const P = state.predator;
@@ -374,8 +407,7 @@ export function createGame(env) {
     // Tough birds (big crow, hawk) take several hits.
     bird.hp -= dmg;
     if (bird.hp > 0) {
-      feel(0.09, 9);
-      state.score += 15;
+      state.score += 15;   // (no screen shake on bird strikes: the strike sound is the feedback)
       state.popups.push({ x: bird.x, y: bird.y - 40, text: bird.type === 'hawk' ? `Hawk hit! ${bird.hp} left` : 'Tough one! Again!', life: 1.2, bad: false, size: 34, gold: true });
       burst(bird.x, bird.y, FEATHERS[bird.type]?.[0] ?? '#ffffff', 14, FEATHERS[bird.type]?.[1] ?? '#ffffff');
       if (bird.type === 'bigcrow') { bird.phase = 'dodging'; bird.dodged = true; bird.dodgeT = 3; bird.tx = bird.x + (stone.vx >= 0 ? -1 : 1) * 90; bird.ty = bird.y - 50; bird.t = 0; }
@@ -385,7 +417,6 @@ export function createGame(env) {
     if (bird.type === 'hawk') { state.bossDown = true; state.flash = 0.5; state.popups.push({ x: bird.x, y: bird.y - 90, text: 'The Hawk is beaten!', life: 2, bad: false, size: 40, gold: true }); }
     state.combo += 1;
     state.bestCombo = Math.max(state.bestCombo, state.combo);
-    feel(bird.type === 'goldfinch' || bird.type === 'hawk' ? 0.14 : 0.06, Math.min(14, 4 + state.combo * 1.5 + (bird.type === 'goldfinch' ? 4 : 0)));   // a tiny freeze sells the impact
     const distance = Math.min(1, Math.hypot(bird.x - SLING.x, bird.y - SLING.y) / 1000);
     const moving = bird.phase === 'crossing' || bird.phase === 'darting' || bird.phase === 'hopping' || bird.phase === 'arriving' || bird.phase === 'swoop';
     const gained = Math.round(def.points * comboMultiplier(state.combo - 1) * (1 + distance * 0.5) * (moving ? 1.25 : 1));
@@ -501,7 +532,7 @@ export function createGame(env) {
     state.popups.push({ x: V.WW / 2, y: Math.max(P.y - 60, V.top + 190), text: n === 1 ? 'Oops! The falcon was helping - birds return!' : `Falcon hit again (-${pts})`, life: 2.4, bad: true, size: n === 1 ? 26 : 30 });
     burst(P.x, P.y, P.kind === 'falcon' ? '#4f6379' : '#7b5432', 14, '#e9eef3');
     feel(0.08, 6);
-    if (sfx) { sfx.cancel(whooshes.get(stone)); sfx.flinch(); }
+    if (sfx) { sfx.flinch(); }
     // the predator tumbles a short way, then flies off high; the hunt is over for this level
     if (sitter) { sitter.state = 'tumble'; sitter.vy = -160; sitter.spin = 0; }
     else { P0.phase = 'flinch'; P0.t = 0; P0.strike = false; P0.carry = null; P0.target = null; P0.hist.length = 0; P0.spin = 0; if (!P0.sitter && state.hunt) state.hunt.left = 0; }
@@ -632,12 +663,12 @@ export function createGame(env) {
       if (!stone.hit && !stone.landed && stone.air && stone.vy > 0 && stone.y >= gy) {
         const impact = Math.hypot(stone.vx, stone.vy);
         stone.landed = true; stone.landT = 0.35; stone.y = gy; stone.vx = 0; stone.vy = 0;
-        if (sfx) { sfx.cancel(whooshes.get(stone)); sfx.ground(impact, stone.wide); }
+        if (sfx) { sfx.ground(impact, stone.wide); }
         if (!stone.missed) { stone.missed = true; onMiss(stone); }
       }
       if (stone.landed) stone.landT -= dt;
       stone.done = stone.hit || (stone.landed && stone.landT <= 0) || stone.y > V.WH + 40 || stone.x < -60 || stone.x > V.WW + 60;
-      if (stone.done && !stone.hit && !stone.missed) { stone.missed = true; sfx?.cancel(whooshes.get(stone)); onMiss(stone); }
+      if (stone.done && !stone.hit && !stone.missed) { stone.missed = true; onMiss(stone); }
     }
     state.stones = state.stones.filter((s) => !s.done);
     state.birds = state.birds.filter((b) => !b.gone);
@@ -881,8 +912,14 @@ export function createGame(env) {
       else if (state.scene === 'autoplay') updateAutoplay(dt, input);
       else if (state.scene === 'levelclear') {
         state.time += dt;
-        state.clearTimer -= dt;
-        if (state.clearTimer <= 0 || (input.pointer.pressed && state.clearTimer < 1.6)) nextLevel();
+        state.nudgeT += dt;   // level clear: exactly two single smooth bumps (0.10 s each, starting at 0 and 0.18 s); offset is exactly 0 outside them
+        const bump = (t0) => { const u = (state.nudgeT - t0) / NUDGE_T; return u >= 0 && u < 1 ? NUDGE_A * Math.sin(Math.PI * u) : 0; };
+        state.nudgeY = state.calm ? 0 : bump(0) + bump(0.18);
+        if (state.adWait != null) { state.adWait += dt; if (state.adDone || state.adWait >= AD_WAIT) nextLevel(); }   // the ad is up (or timed out): continue afterwards
+        else {
+          state.clearTimer -= dt;
+          if (state.clearTimer <= 0 || (input.pointer.pressed && state.clearTimer < 1.6)) leaveLevelClear();
+        }
       } else if (state.scene === 'tally') {
         if (input.pointer.pressed) {
           const { x, y } = input.pointer;

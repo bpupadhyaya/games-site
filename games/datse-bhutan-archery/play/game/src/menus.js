@@ -205,7 +205,7 @@ export function lessonWidgets(state) {
   return [{ t: 'h', label: 'Not quite', size: 52, color: '#ffb4a0' }, { t: 'p', label: `The goal was: ${d.goal} You scored ${L.pts}. Try again.`, size: 26, cap: 3, color: 'rgba(255,243,214,0.96)' }, { t: 'btn', id: 'ls-retry', label: 'Try again', primary: true, h: 84 }, { t: 'btn', id: 'ls-back', label: 'Lessons', dark: true, h: 76 }];
 }
 export function demoLimitWidgets() {
-  return [{ t: 'gap', h: 200 }, { t: 'h', label: 'That is the free preview', size: 48 }, { t: 'p', label: 'You have played the short match of the web demo. The full game on iPhone and Android has all three opponents, longer matches, the practice range and your saved records.', size: 28 }, { t: 'gap', h: 20 }, { t: 'btn', id: 'menu', label: 'Main menu', primary: true }];
+  return [{ t: 'gap', h: 200 }, { t: 'h', label: 'That is the demo end', size: 48 }, { t: 'p', label: 'You have played the short match of the web demo. The full game on iPhone and Android has all three opponents, longer matches, the practice range and your saved records.', size: 28 }, { t: 'gap', h: 20 }, { t: 'btn', id: 'menu', label: 'Main menu', primary: true }];
 }
 
 function scrollHint(ctx, top, bottom, scroll, maxScroll, x0 = 0, w = W) {

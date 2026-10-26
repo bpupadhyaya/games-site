@@ -96,7 +96,7 @@ export const ABOUT = [
   ] },
   { title: 'What you get', items: [
     P('The traditional Standard rules, and an Easy capture option that lets you choose any capture route. Five computer levels from Beginner to Master, two players on one phone, seven hands-on lessons, Hint, danger marks, take back, and Auto Play (Watch & Learn).'),
-    P('Three tile boards and two piece sets to earn by winning. Large text up to 300 percent, reduced motion, and sound options. No ads, and it works offline.'),
+    P('Three tile boards and two piece sets to earn by winning. Large text up to 300 percent, reduced motion, and sound options. It works offline.'),
   ] },
   { title: 'Credits', items: [
     P('Board, pieces, sounds and the computer player were made for Arcforge. Titles are set in Cinzel (SIL Open Font License 1.1). The board takes its look from the inlaid woodwork, glazed tile work and tulip designs of Turkish decorative arts.'),

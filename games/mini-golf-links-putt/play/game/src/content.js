@@ -122,7 +122,7 @@ export const RULES = [
     'Rookie, Clubhouse, Club Pro and Champion differ in how many putts they try before choosing, how many bounces they dare to rely on (none, one, one, two), how carefully they check that a shot is safe, and how steady their stroke is. The better they are, the straighter and more even their putts. The Full field option plays you against Clubhouse, Club Pro and Champion together.',
     'Think uses the strongest search with a perfect stroke: it shows what an expert would try.',
   ] },
-  { title: 'Free preview', p: [
-    'The free preview gives ninety seconds of real play. Menus, these pages and Watch & Learn never use that time. In the web demo, only the first three holes of Heather Dunes are available.',
+  { title: 'Free to play', p: [
+    'In the web demo, only the first three holes of Heather Dunes are available. Free to play with short ads; go ad-free once.',
   ] },
 ];

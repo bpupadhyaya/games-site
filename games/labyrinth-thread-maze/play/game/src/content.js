@@ -19,9 +19,9 @@ export const ABOUT = {
       ],
     },
     {
-      title: 'Credits and the free preview',
+      title: 'Credits and ads',
       body: [
-        { p: 'You can play for a free preview first. Unlocking the full game is a single one-time purchase; there are no ads and no subscriptions.' },
+        { p: 'Free to play with short ads; go ad-free once.' },
         { p: 'Titles are set in Cinzel and the interface in Fredoka, both used under the SIL Open Font License 1.1. All sounds are synthesized on your device.' },
         { p: 'Labyrinth Thread Maze is part of Arcforge, a collection of world heritage games.' },
       ],
@@ -155,7 +155,7 @@ export const RULES = {
       fig: 'fork',
       body: [
         { p: 'Watch and Learn plays a Courtyard, Gallery, Passage or Halls maze (your last grade, at most Halls) along the shortest route. At the doorway and at every fork on that route it THINKS (2, 5, 8 or 10 seconds, your choice), then REVEALS for two seconds or more: each way on is named as the shortest way, a longer way round, a loop back to the fork, or a dead end with its length. Then the lamp walks to the next fork.' },
-        { p: 'Easy forks, where every other way is a dead end of one or two cells, are thought about for less time. Pause freezes the whole loop, including the lamp, and Resume carries on from the same spot. Watch and Learn does not use up your free preview and is not saved.' },
+        { p: 'Easy forks, where every other way is a dead end of one or two cells, are thought about for less time. Pause freezes the whole loop, including the lamp, and Resume carries on from the same spot. Watch and Learn is always free to use and is not saved.' },
       ],
     },
     {

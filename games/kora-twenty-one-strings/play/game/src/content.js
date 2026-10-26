@@ -139,7 +139,7 @@ export const RULES = [
       { li: 'Latency: some phones and Bluetooth headphones play sound a little late. Calibrate by tapping along with a pulse; the game then judges your plucks against that delay. You can also adjust the number by hand.' },
       { li: 'Text size: A- and A+ at the top of every text screen, up to 300%.' },
       { li: 'Keyboard: A S D F G H pluck the lanes from left to right; in Free play A S D F G H J K L pluck nine strings. Space or Escape pauses.' },
-      { li: 'Pause and the menus are free: only real playing counts toward the free preview.' },
+      { li: 'Free to play with short ads; go ad-free once.' },
     ],
   },
 ];

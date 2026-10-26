@@ -164,7 +164,7 @@ export function render(ctx, state, L) {
     } else {
       const Dm = L.demo, c = Dm.card;
       plaqueR(c);
-      fitText('Free preview finished', Dm.cx, c.y + 90, 42, c.w - 50, '#f6e3b4');
+      fitText('Demo finished', Dm.cx, c.y + 90, 42, c.w - 50, '#f6e3b4');
       wrap('You have played the two games of the web preview. The full game, with every level, all ten lessons and the daily puzzle, is on iPhone and Android.', Dm.cx, c.y + 160, 28, c.w - 80);
       button(Dm.back, 'Back');
     }

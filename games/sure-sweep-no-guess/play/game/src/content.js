@@ -350,8 +350,8 @@ export const RULES = [
     lines: ["Every tap of New Board is a freshly generated, freshly verified layout with a new random seed."],
   },
   {
-    title: "The free preview",
-    lines: ["The free web preview limits how many boards you can start before it asks you to get the full game; the full app has no such limit."],
+    title: "The web demo",
+    lines: ["The web demo limits how many boards you can start before it asks you to get the full game."],
   },
   {
     title: "How every board is guaranteed solvable",

@@ -3,7 +3,6 @@ import { createGame, meta } from './src/game.js';
 import { host } from './src/layout.js';
 import { setLogo, setLockup } from './src/brand.js';
 import { v3 } from './src/v3.js';
-import { createPresenter } from './view3d/presenter.js';
 
 const canvas = document.getElementById('game');
 let game = null;
@@ -47,10 +46,32 @@ const load = (src, fn) => { const i = new Image(); i.onload = () => fn(i); i.src
 load('./brand/arcforge-af.png', setLogo);
 load('./brand/arcforge-lockup.png', setLockup);
 
-// 3D presenter: boots flat 2D immediately (first interactive title < 1 s), then builds the lit 3D set in slices and crossfades it in.
-// No WebGL, a failed build or a lost context leaves every screen on the flat 2D art.
-let presenter = { wrap: (g) => g, ok: false, build: async () => {} };
-if (!q.has('flat')) { try { presenter = await createPresenter({ kitCanvas: canvas }); } catch (e) { console.warn('3D presenter unavailable', e); } }
-if (q.has('dev')) { window.__p3 = presenter; window.__v3 = v3; }
-boot({ createGame: async (env) => presenter.wrap(await create(env)), meta, canvas, background: presenter.ok ? 'rgba(0,0,0,0)' : '#f4ddb0' });
-if (presenter.ok) setTimeout(() => presenter.build(), q.has('shot') ? 0 : 60);
+// 3D presenter: boots flat 2D first (usable canvas immediately), then loads three.js + builds the lit 3D set in slices and crossfades it in.
+// The heavy module graph and WebGL setup start only AFTER the kit has sized the canvas and drawn frames (a static import plus a top-level
+// await ahead of boot() starved weak WebViews, so the canvas was not sized within 20 s). No WebGL, a failed build or a lost context
+// leaves every screen on the flat 2D art. Store-screenshot runs (?shot) still bring 3D up before boot so the frozen frame has it.
+let live = null;                       // the presenter-wrapped game, once 3D is ready
+const FLAT = '#f4ddb0', CLEAR = 'rgba(0,0,0,0)';
+let bg = FLAT;                         // the kit fills the canvas with String(background) each frame; transparent once 3D is up
+const background = { toString: () => bg };
+const make3d = async () => {
+  if (q.has('flat')) return null;
+  try {
+    const { createPresenter } = await import('./view3d/presenter.js');
+    const presenter = await createPresenter({ kitCanvas: canvas });
+    if (q.has('dev')) { window.__p3 = presenter; window.__v3 = v3; }
+    return presenter.ok ? presenter : null;
+  } catch (e) { console.warn('3D presenter unavailable', e); return null; }
+};
+const attach3d = (presenter) => { if (!presenter || !game) return; live = presenter.wrap(game); bg = CLEAR; };
+const early = q.has('shot') ? await make3d() : null;
+const late = async (env) => {
+  const g = await create(env);
+  attach3d(early);
+  return Object.assign({}, g, { update: (dt, input) => (live || g).update(dt, input), render: (ctx, view) => (live || g).render(ctx, view) });
+};
+boot({ createGame: late, meta, canvas, background }).then(() => {
+  if (early) { setTimeout(() => early.build(), 0); return; }
+  let n = 0; const wait = () => (++n < 4 ? requestAnimationFrame(wait) : setTimeout(async () => { const p = await make3d(); attach3d(p); if (p) p.build(); }, 400));
+  requestAnimationFrame(wait);
+});

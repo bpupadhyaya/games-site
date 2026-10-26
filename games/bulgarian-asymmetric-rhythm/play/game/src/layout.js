@@ -25,12 +25,21 @@ export function layoutFor(w, h) {
   {
     if (side) {
       const bx = w * 0.5 + 10, bw = Math.min(right - bx, 520), x = bx + (right - bx - bw) / 2, mid = bx + (right - bx) / 2;
-      const hs = [94, 60, 58, 58, 58, 58], ys = []; let yy = top + 160;
-      hs.forEach((hh) => { ys.push(yy); yy += hh + 10; });
+      // The six buttons must always sit fully above the bottom edge (host insets and the floating back button eat height): keep
+      // room for the Arcforge lockup when there is room, otherwise start higher, then shrink heights and gaps.
+      const base = [100, 60, 58, 58, 58, 58], sum = base.reduce((a, b) => a + b, 0) + 8, lock = 84;   // +8: extra air under Play so its subtitle clears the next button
+      let y0 = top + 160, avail = bot - lock - y0;
+      let creditX = mid;
+      if (sum + 50 > avail) {   // no room for the lockup under the buttons: it moves to the art column and the buttons take the height
+        y0 = top + 150; avail = bot - 4 - y0; creditX = left + (w * 0.5 - left - 10) / 2;
+      }
+      const k = clamp((avail - 50) / sum, 0.55, 1), gp = k < 1 ? Math.max(6, 10 * k) : 10;
+      const hs = base.map((v) => Math.round(v * k)), ys = []; let yy = y0;
+      hs.forEach((hh, i) => { ys.push(yy); yy += hh + gp + (i === 0 ? Math.round(8 * k) : 0); });
       const rr = (i) => R(x, ys[i], bw, hs[i]);
       L.title = {
         art: R(left, top + 20, w * 0.5 - left - 10, bot - top - 80), name: { x: mid, y: top + 52 }, tag: { x: mid, y: top + 112 }, nameW: right - bx - 10,
-        play: rr(0), auto: rr(1), how: rr(2), rules: rr(3), about: rr(4), settings: rr(5), credit: { x: mid, y: bot - 6 },
+        play: rr(0), auto: rr(1), how: rr(2), rules: rr(3), about: rr(4), settings: rr(5), credit: { x: creditX, y: bot - 6 },
       };
     } else {
       const bw = Math.min(W, 560), bx = (w - bw) / 2, bh1 = 96, bh = 72, gap = 12, half = (bw - gap) / 2;

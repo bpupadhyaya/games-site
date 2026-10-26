@@ -429,7 +429,7 @@ export function practiceRows(scene, P, S) {
     }
     case 'together': {
       const C = P.co;
-      const rows = [{ k: 'h', t: 'Play together' }, { k: 'p', t: 'One screen, two players: a grown-up and a child take turns. Talk about each picture. There are no links, no ads and nothing to buy here.', small: true }];
+      const rows = [{ k: 'h', t: 'Play together' }, { k: 'p', t: 'One screen, two players: a grown-up and a child take turns. Talk about each picture. There are no links and nothing to buy here.', small: true }];
       if (!C) {
         rows.push({ k: 'chips', id: 'prxcom', label: 'What to play', opts: [chip('pic', 'Pictures', (P.coMode ?? 'pic') === 'pic'), chip('abc', 'Letters', P.coMode === 'abc'), chip('both', 'Both', P.coMode === 'both')] });
         rows.push({ k: 'btn', id: 'pr:costart', label: 'Start', style: 'primary' }, { k: 'btn', id: 'pr:guide', label: 'Tips for grown-ups' });

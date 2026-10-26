@@ -540,7 +540,7 @@ function renderDemoLimit(ctx, s, th, d) {
   panel(ctx, P, th, 30, 1);
   text(ctx, 'Demo finished', d.W / 2, M.titleY, 54 * Math.min(sc, 1.3), { italic: true, color: th.accent, stroke: 5, maxW: P.w - 40 });
   const px = 32 * Math.min(sc, 1.5); ctx.font = font(px, 400, true);
-  wrapLines(ctx, 'Get the full game on iPhone and Android.', P.w - 70).forEach((l, i) => text(ctx, l, d.W / 2, M.msgY + i * px * 1.5, px, { weight: 400, italic: true, color: th.text, maxW: P.w - 60 }));
+  wrapLines(ctx, 'Get the free app on iPhone and Android.', P.w - 70).forEach((l, i) => text(ctx, l, d.W / 2, M.msgY + i * px * 1.5, px, { weight: 400, italic: true, color: th.text, maxW: P.w - 60 }));
   drawButton(ctx, M.back, 'Menu', th, { primary: true, scale: sc });
 }
 void dropAt; void ladderStrip; void rgba; void THEME_IDS; void byId; void decadeLabel; void HINTS_PER_ROUND; void cardGeom; void drawChip;

@@ -394,7 +394,7 @@ export function render(ctx, S, L) {
     case 'play': renderPlay(ctx, S, L); break;
     case 'doc': drawTable(ctx, L.w, L.h); renderDoc(ctx, S, L); break;
     case 'settings': renderSettings(ctx, S, L); break;
-    case 'demo-limit': renderSimple(ctx, S, L, 'Enjoying it?', ['You have played the free puzzles of the web preview.', 'Get the full game on iPhone and Android: five boards, sixty puzzles, a daily puzzle and Auto Play.']); break;
+    case 'demo-limit': renderSimple(ctx, S, L, 'Enjoying it?', ['You have played the free puzzles of the web preview.', 'Get the free app on iPhone and Android: five boards, sixty puzzles, a daily puzzle and Auto Play.']); break;
     default: renderSimple(ctx, S, L, 'Peg Solitaire', ['Loading…']);
   }
 }

@@ -87,7 +87,7 @@ export const RULES = [
   { title: '11. Simplifications', p: [
     'In a real contest the athletes sit on the floor and judges rule on fouls, the lift is a hip height and bouts are decided by a series of rounds with their own rules. Here a bout is a single continuous pull, the lift is a gauge, and the stick has a draw position. The athletes are generic and the halls are invented for the game.',
   ] },
-  { title: '12. The free preview', p: [
-    'The first 90 seconds of real bouts are free. Watch & Learn, the menus and the rules never use up the preview, and a paused bout does not either. In the web demo the first three bouts against the first two rivals in Festival Meadow are free, and the full game is on iPhone and Android.',
+  { title: '12. Free to play', p: [
+    'Free to play with short ads. Watch & Learn, the menus and the rules are always free to use. In the web demo the first three bouts against the first two rivals in Festival Meadow are free, and the full game is on iPhone and Android.',
   ] },
 ];

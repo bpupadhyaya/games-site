@@ -146,7 +146,7 @@ export function pauseWidgets(state) {
 
 export function demoLimitWidgets() {
   return [
-    { t: 'gap', h: 200 }, { t: 'h', label: 'That is the free preview', size: 48 },
+    { t: 'gap', h: 200 }, { t: 'h', label: 'That is the demo end', size: 48 },
     { t: 'p', label: 'The web demo has the first year of each chapter. The full game on iPhone and Android has all eight years, the Daily weather of the Bali council, Watch & Learn on every hillside and the whole journal.', size: 28 },
     { t: 'gap', h: 20 },
     { t: 'btn', id: 'menu', label: 'Main menu', primary: true },

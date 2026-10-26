@@ -16,6 +16,15 @@ export function txt(ctx, s, x, y, size, color = PAL.text, o = {}) {
   ctx.fillText(s, x, y);
 }
 
+// A header title beside a Back button: centred on screen when it clears the button, else centred in the free space to its right, else shrunk to fit.
+export function headerTitle(ctx, s, back, S, y, size, o = {}) {
+  const left = back.x + back.w + 16, right = S.x + S.w - 12 - (o.rightPad ?? 0), free = right - left;
+  ctx.font = `${o.weight ?? 400} ${Math.max(size, minUnits())}px ${o.font ?? UI}`;
+  const tw = Math.min(ctx.measureText(s).width, free), mid = S.x + S.w / 2;
+  const cx = mid - tw / 2 >= left && mid + tw / 2 <= right ? mid : left + free / 2;
+  txt(ctx, s, cx, y, size, o.color ?? PAL.gold, { ...o, align: 'center', maxW: free });
+}
+
 export function wrap(ctx, text, maxW) {
   const out = [];
   for (const para of String(text).split('\n')) {

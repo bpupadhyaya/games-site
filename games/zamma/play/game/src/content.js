@@ -102,7 +102,7 @@ export const ABOUT = [
   { title: 'What you get', items: [
     P('Three board sizes: Small (5 by 5, the classic board), Medium (7 by 7) and Grand (9 by 9, with alquerque-style diagonals).'),
     P('Five computer levels from Beginner to Master, two players on one phone, hands-on lessons, Hint, danger marks, take back, and Auto Play (Watch & Learn).'),
-    P('Three boards and two stone styles. Large text, reduced motion and sound options. No ads, and it works offline.'),
+    P('Three boards and two stone styles. Large text, reduced motion and sound options. It works offline.'),
   ] },
   { title: 'Credits', items: [
     P('Zamma comes from the living game traditions of the Sahara and North Africa, with players recorded in Algeria and Morocco. This version is a respectful simplification of village play, and the Rules page says exactly which choices were made.'),

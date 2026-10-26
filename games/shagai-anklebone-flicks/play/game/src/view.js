@@ -382,7 +382,7 @@ function drawTitle(ctx, state, R, L) {
   ctx.restore();
   if (lay.maxScroll > 0) { const th = Math.max(40, reg.h * reg.h / lay.total), ty = reg.y + (reg.h - th) * (lay.scroll / lay.maxScroll); ctx.fillStyle = 'rgba(255,214,90,0.95)'; ctx.beginPath(); ctx.roundRect(reg.x + reg.w + 8, ty, 6, th, 3); ctx.fill(); }
   const s = state.stats;
-  inBand(ctx, T.stats, () => R.text(s.played ? `${s.played} races · ${s.wins} won` : (state.demo ? 'Free web preview' : 'Free preview: 90 seconds of play'), 360, 1456, 22, '#f1d79a', DISPLAY, 500));
+  inBand(ctx, T.stats, () => R.text(s.played ? `${s.played} races · ${s.wins} won` : (state.demo ? 'Free web preview' : 'Free to play'), 360, 1456, 22, '#f1d79a', DISPLAY, 500));
   drawLockup(ctx, T.lock.r, Boolean(state.press && state.press.af && !state.press.moved));
 }
 

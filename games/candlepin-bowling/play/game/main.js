@@ -1,4 +1,5 @@
 import { boot } from './kit/index.js';
+import { installResizeGuard } from './resizeguard.js';
 import { createGame, meta } from './src/game.js';
 import { host } from './src/layout.js';
 import { setLogo, setLockup } from './src/brand.js';
@@ -27,6 +28,25 @@ const af = new Image(); af.onload = () => setLogo(af); af.src = './brand/arcforg
 const lock = new Image(); lock.onload = () => setLockup(lock); lock.src = './brand/arcforge-lockup.png';
 
 // 3D presenter (WebGL canvas behind the kit canvas). With no WebGL, or if the context is lost, every screen falls back to the flat 2D art.
-let presenter = { wrap: (g) => g, ok: false };
-try { presenter = await createPresenter({ kitCanvas: canvas }); } catch (e) { console.warn('3D presenter unavailable', e); }
-boot({ createGame: async (env) => presenter.wrap(await create(env)), meta, canvas, background: presenter.ok ? 'rgba(0,0,0,0)' : '#0a1128' });
+// The kit boots at once (its resize handling, heartbeat and the flat 2D screens must not wait for WebGL: on slow / software-GL devices
+// the 3D start-up blocks the main thread for many seconds and a rotation during it was lost). The presenter is created after boot and
+// the game is routed through it as soon as it is ready; until then (and with no WebGL) the flat 2D art draws.
+const none = { wrap: (g) => g, ok: false };
+let bootDone; const booted = new Promise((r) => { bootDone = r; });
+const presenterReady = booted.then(() => new Promise((r) => setTimeout(r, 800)))
+  .then(() => createPresenter({ kitCanvas: canvas })).catch((e) => { console.warn('3D presenter unavailable', e); return none; });
+// Resize guard (1.1.2): keeps canvas pixels == CSS box x dpr when a rotation lands while the page is busy; see resizeguard.js.
+const guard = installResizeGuard({ canvas, win: window });
+window.__canvasStale = guard.stale;
+boot({
+  createGame: async (env) => {
+    const game = await create(env);
+    let wrapped = null;
+    presenterReady.then((p) => { if (p.ok) wrapped = p.wrap(game); });
+    return Object.assign({}, game, {
+      update: (dt, input) => (wrapped || game).update(dt, input),
+      render: (ctx, view) => (wrapped || game).render(ctx, view),
+    });
+  },
+  meta, canvas, background: 'rgba(0,0,0,0)',
+}).then(() => { guard.burst(); bootDone(); });

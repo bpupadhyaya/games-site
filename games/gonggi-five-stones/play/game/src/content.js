@@ -37,7 +37,7 @@ const en = {
   r_wins: '{name} wins', r_youWin: 'You win the match!', r_stats: 'Turns played: {turns}. Best kkeokki: {kk}.', r_vs: 'Against {name}, you have won {n}.',
   r_again: 'Rematch', r_new: 'New match', r_menu: 'Main menu',
   paused: 'Paused', resume: 'Resume', soundOnShort: 'Sound: On', soundOffShort: 'Sound: Off', calmOnShort: 'Calm: On', calmOffShort: 'Calm: Off', quit: 'Quit to menu',
-  d_title: 'That is the free preview', d_body: 'You have played the free matches of the web demo. The full game on iPhone and Android has every level, every lesson and unlimited matches.',
+  d_title: 'That is the demo end', d_body: 'You have played the free matches of the web demo. The full game on iPhone and Android has every level, every lesson and unlimited matches.',
   more: 'more', up: 'up', cont: 'cont.', page: 'Page {a} of {b}', close: 'Close', done: 'Done', next: 'Next',
   // coaching lines for the lessons (lesson number from 0, phase)
   tip_0_scatter: 'Lesson 1: press in the middle, drag outward to size the circle, let go', tip_0_hold: 'Tap one stone to hold: it will be the one you toss', tip_0_plan: 'Tap one stone to take, then hold the pad to toss',

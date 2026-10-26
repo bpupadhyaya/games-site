@@ -69,7 +69,7 @@ export const RULES = [
     'Standard is the full challenge. Relaxed drains the air more slowly and refills it faster, so you can concentrate on the notes first. The tunes themselves are the same.',
   ] },
   { title: '9. Think, Watch & Learn and Pause', p: [
-    'Think stops the tune and tells you what the computer piper would do about the air now and which note is next. Closing it carries on. Watch & Learn plays a whole tune with a computer piper: before each breathing decision it thinks (2 to 10 seconds, your choice), shows what it will do and why, then acts. Pause freezes everything exactly where it is. Neither counts toward the free preview.',
+    'Think stops the tune and tells you what the computer piper would do about the air now and which note is next. Closing it carries on. Watch & Learn plays a whole tune with a computer piper: before each breathing decision it thinks (2 to 10 seconds, your choice), shows what it will do and why, then acts. Pause freezes everything exactly where it is.',
   ] },
   { title: '10. What the game simplifies', p: [
     'A real launeddas has a long drone pipe with no holes and two pipes with four holes each, and a skilled piper chooses the sets of pipes for a particular tuning. Here the low pipe has two pads, the high pipe three, and each tune uses one fixed tuning.',

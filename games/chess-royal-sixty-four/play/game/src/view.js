@@ -327,7 +327,7 @@ function renderTitle(ctx, state, L) {
   // The discreet Arcforge credit (never over gameplay), then the free-to-play line.
   if (!drawLockup(ctx, T.credit.x, T.credit.y + T.credit.w * (260 / 700), T.credit.w, state.lockPress > 0 ? 0.7 : 1)) drawCredit(ctx, T.credit.x, T.credit.y + T.credit.w * 0.2, Math.round(fs(13)), { dim: 0.95 });
   ctx.save(); ctx.textAlign = 'center'; ctx.globalAlpha = 0.6; ctx.fillStyle = '#e7d3a6'; ctx.font = `400 ${Math.round(fs(17))}px Georgia, serif`;
-  ctx.fillText('Free to play, forever. No ads, no purchases.', T.foot.x, T.foot.y);
+  ctx.fillText('Free with short ads. Go ad-free once.', T.foot.x, T.foot.y);
   ctx.restore();
 }
 

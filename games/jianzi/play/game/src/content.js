@@ -86,7 +86,7 @@ export const RULES = [
   { title: 'Collection', p: [
     'Shuttles and courtyards are unlocked by playing: a streak of 10 for Rooster Red, a circle chain of 20 for Peacock Teal, 5 combos for Ginkgo Gold, a daily streak of 10 for Ink Black and 100 perfect kicks for Festival Mix. Courtyards unlock at streaks of 15, 30 and 50.',
   ] },
-  { title: 'Free preview', p: [
-    'The first 90 seconds of real play are free. Menus, Watch & Learn, the Collection and paused play do not count. The full game is a one-time unlock; Restore Purchases is in Settings.',
+  { title: 'Free to play', p: [
+    'Free to play with short ads; go ad-free once.',
   ] },
 ];

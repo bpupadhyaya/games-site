@@ -276,7 +276,7 @@ function drawPlaying(ctx, state, helpers) {
   button(ctx, UNDO_BUTTON, 'Undo', { size: 18, dim: state.history.length === 0 });
   button(ctx, EXIT_BUTTON, 'Exit', { size: 18 });
 
-  if (state.demo) text(ctx, `Free preview: ${state.demoPanels}/${helpers.DEMO_PANEL_LIMIT} panels used`, W / 2, 1220, 17, 'rgba(245,236,216,0.6)');
+  if (state.demo) text(ctx, `Web demo: ${state.demoPanels}/${helpers.DEMO_PANEL_LIMIT} panels used`, W / 2, 1220, 17, 'rgba(245,236,216,0.6)');
 
   if (state.noteToast) {
     panel(ctx, NOTE_TOAST.x, NOTE_TOAST.y, NOTE_TOAST.w, NOTE_TOAST.h, 'rgba(20,10,40,0.97)');
@@ -486,8 +486,8 @@ function drawAtlas(ctx, state, helpers) {
 }
 
 function drawDemoLimit(ctx) {
-  text(ctx, 'FREE PREVIEW FINISHED', W / 2, H / 2 - 40, 34, GOLD, DISPLAY, 800);
-  wrapText(ctx, 'You’ve played the free preview panels. Get World Weave on iPhone and Android to keep weaving every region.', W / 2, H / 2 + 20, 520, 32, 22);
+  text(ctx, 'DEMO FINISHED', W / 2, H / 2 - 40, 34, GOLD, DISPLAY, 800);
+  wrapText(ctx, 'You’ve played the web demo panels. Get World Weave free on iPhone and Android to keep weaving every region.', W / 2, H / 2 + 20, 520, 32, 22);
 }
 
 // A short fade + rise on every scene change (2026-09-25, per direct owner feedback that

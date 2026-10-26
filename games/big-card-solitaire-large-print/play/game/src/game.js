@@ -85,7 +85,7 @@ export function createGame(env) {
     state.textScaleIdx = Math.min(Math.max(textScaleIdx ?? 0, 0), TEXT_SCALES.length - 1);
     state.autoThinkIdx = Math.min(Math.max(autoThinkIdx ?? 1, 0), AUTO_THINK_STEPS.length - 1);
   });
-  // Persisted so reloading the page can't reset the free preview's deal count.
+  // Persisted so reloading the page can't reset the game's deal count.
   if (demo) {
     storage.get('demoDeals', 0).then((v) => {
       state.demoDeals = v;

@@ -125,12 +125,16 @@ function drawInfo(ctx, s, L) {
   const title = s.auto.on ? 'Watch and Learn' : gi.name, sub = S.kind === 'daily' ? 'Daily Puzzle' : s.auto.on ? `${gi.name} puzzle` : `${islandsDone(S)} of ${P.n} islands done`;
   const time = fmtTime(S.t);
   if (L.mode === 'portrait') {
+    // the left block ends before the timer plaque (it never runs under the timer); the subtitle shortens to fit
+    const tL = hud.timer.x + 6 - 62, availW = Math.max(60, tL - 8 - hud.diff.x - 6);
+    const fit = (cands, size) => { ctx.save(); setFont(ctx, size, 400); const ok = cands.find((c) => ctx.measureText(c).width <= availW) || cands[cands.length - 1]; ctx.restore(); return ok; };
+    const sub2 = S.kind === 'daily' || s.auto.on ? sub : fit([sub, `${islandsDone(S)} of ${P.n} islands`, `${islandsDone(S)} / ${P.n}`], F(22));
     if (v3.on) {
-      plaque(ctx, R(hud.diff.x - 10, hud.diff.y - 2, Math.min(L.U.w * 0.44 + 14, hud.timer.x + 6 - 78 - hud.diff.x - 4), 76), { radius: 18 });
-      if (pr.timer) plaque(ctx, R(hud.timer.x + 6 - 78, hud.timer.y - 36, 156, 70), { radius: 20 });
+      plaque(ctx, R(hud.diff.x - 10, hud.diff.y - 2, availW + 16, 76), { radius: 18 });
+      if (pr.timer) plaque(ctx, R(tL, hud.timer.y - 36, 124, 70), { radius: 20 });
     }
-    txt(ctx, title, hud.diff.x, hud.diff.y + 24, { size: F(36), weight: 700, color: T.text, maxW: L.U.w * 0.42, min: 18 });
-    txt(ctx, sub, hud.diff.x, hud.diff.y + 56, { size: F(22), weight: 400, color: T.dim, maxW: L.U.w * 0.42, min: 12 });
+    txt(ctx, title, hud.diff.x, hud.diff.y + 24, { size: F(36), weight: 700, color: T.text, maxW: availW, min: 18 });
+    txt(ctx, sub2, hud.diff.x, hud.diff.y + 56, { size: F(22), weight: 400, color: T.dim, maxW: availW, min: 12 });
     if (pr.timer) txt(ctx, time, hud.timer.x + 6, hud.timer.y, { size: F(40), weight: 600, color: T.text, align: 'center' });
     if (pr.check === 'check' && !s.auto.on) txt(ctx, `Mistakes ${S.errs}`, hud.mist.x, hud.mist.y + 2, { size: F(22), weight: 500, color: S.errs ? T.err : T.dim, align: 'right', maxW: 160, min: 12 });
     button(ctx, L.pause, '', { icon: s.paused ? 'play' : 'pause', size: 28, radius: 20, flash: flashOf(s, 'pause') });
@@ -505,7 +509,7 @@ function drawDemoLimit(ctx, s, w, h) {
   setBrandTone(theme().dark);
   const T = theme(), c = centerCard(w, h, 640, 440);
   panel(ctx, c, { radius: 28 }); edgeStroke(ctx, c, 28, 0.5);
-  txt(ctx, 'That was the free preview', c.x + c.w / 2, c.y + 70, { size: F(38), weight: 700, color: T.text, align: 'center', maxW: c.w - 40, min: 18 });
+  txt(ctx, 'That was the demo end', c.x + c.w / 2, c.y + 70, { size: F(38), weight: 700, color: T.text, align: 'center', maxW: c.w - 40, min: 18 });
   para(ctx, 'The full game has all five grades, the Daily Puzzle, hints that teach and Watch and Learn. Get Hashi Bridges on iPhone and Android.', c.x + 30, c.y + 120, c.w - 60, { size: F(28), weight: 400, color: T.text, align: 'center' });
   drawCredit(ctx, c.x + c.w / 2, c.y + c.h - 28, 14);
 }

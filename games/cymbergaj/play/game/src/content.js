@@ -19,9 +19,9 @@ export const ABOUT = [
     ],
   },
   {
-    title: 'Credits and the free preview',
+    title: 'Credits and ads',
     p: [
-      'The first 90 seconds of real play are free. Menus, rules, Watch & Learn and pauses never use up the preview. One purchase unlocks the full game on this device, with no ads and no timers.',
+      'Free to play with short ads; go ad-free once.',
       'Made by Arcforge: polished world heritage games that work offline. The table, paddles, puck, hands and onlookers are lit 3D drawn on your device, and all sound is synthesised inside the game.',
     ],
   },
@@ -141,14 +141,14 @@ export const RULES = [
     title: 'Hint', art: 'coach',
     p: [
       'Hint is available in a match against the computer. It freezes the table for up to six seconds and asks the strongest rival what it would do. A gold dashed line shows the shot (with its bounce), a white ring shows where to stand, and one line of words explains it.',
-      'While the table is frozen the free preview clock waits. Tap Hint again, or anywhere on the table, to carry on.',
+      'Tap Hint again, or anywhere on the table, to carry on. Free to play with short ads; go ad-free once.',
     ],
   },
   {
     title: 'Watch & Learn',
     p: [
       'Two computer players play a match to 3. Before each serve the server thinks for the time set in Settings or with the Think buttons (2, 5, 8 or 10 seconds, 5 by default), then shows its plan for two seconds: the dashed line is the shot, the ring is where the paddle stands. Then it serves and the rally runs live.',
-      'Pause freezes everything exactly where it is, including the thinking timer, and resumes from the same place. Leave returns to the menu. Watch & Learn never uses the free preview.',
+      'Pause freezes everything exactly where it is, including the thinking timer, and resumes from the same place. Leave returns to the menu.',
     ],
   },
   {

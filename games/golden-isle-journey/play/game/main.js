@@ -2,6 +2,7 @@ import { boot } from './kit/index.js';
 import { createGame, meta, wheelInput } from './src/game.js';
 import { host } from './src/frame.js';
 import { setLogo, setLockup } from './src/brand.js';
+import { installResizeGuard } from './resizeguard.js';
 
 const canvas = document.getElementById('game');
 
@@ -26,4 +27,8 @@ const lk = new Image(); lk.onload = () => setLockup(lk); lk.src = './brand/arcfo
 // Dev tools only (?dev=1 or the app's Developer toggle): expose the game for the layout / resize check scripts.
 const create = async (env) => { const game = await createGame(env); if (env.config.dev) window.__gij = game; return game; };
 
-boot({ createGame: create, meta, canvas, background: '#0a0410' });
+// Resize guard (0.2.6): see resizeguard.js. Re-checks every frame and on every viewport signal, and once the game has booted.
+const guard = installResizeGuard({ canvas, win: window });
+window.__gijCanvasStale = guard.stale;   // read-only probe for the layout check scripts
+
+boot({ createGame: create, meta, canvas, background: '#0a0410' }).then(() => guard.burst());

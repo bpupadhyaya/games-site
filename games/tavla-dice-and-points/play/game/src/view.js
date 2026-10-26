@@ -250,8 +250,8 @@ function drawDemoLimit(c, st, U) {
   const O = L.over, P = O.dpanel;
   c.fillStyle = 'rgba(14,7,3,0.75)'; c.fillRect(0, 0, L.w, L.h);
   U.panel(P.x, P.y, P.w, P.h, 0.96);
-  U.fitText('That is the free preview', O.cx, O.dTitleY, 46, P.w - 40, '#f6dfae', FONT, 700);
-  U.wrap('The full Tavla is on iPhone and Android: every lesson, all four computer levels, the daily puzzle, the doubling cube and no ads.', O.cx, O.dBodyY, 26, O.dBodyW, '#f6ead0', 34);
+  U.fitText('That is the demo end', O.cx, O.dTitleY, 46, P.w - 40, '#f6dfae', FONT, 700);
+  U.wrap('The full Tavla is on iPhone and Android: every lesson, all four computer levels, the daily puzzle and the doubling cube.', O.cx, O.dBodyY, 26, O.dBodyW, '#f6ead0', 34);
   U.button(O.dback, 'Back to the menu', { primary: true, size: 28 });
 }
 

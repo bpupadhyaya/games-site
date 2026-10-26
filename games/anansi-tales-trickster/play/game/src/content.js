@@ -400,12 +400,12 @@ export const ABOUT = {
       ],
     },
     {
-      title: 'Oral tradition, credits and the free preview',
+      title: 'Oral tradition, credits and ads',
       fig: 'patterns',
       body: [
         { p: 'These tales are inspired by Anansi stories of the Akan people of Ghana, which have been told aloud for generations and travel in many versions. This game retells them in its own words and puzzles, and is not a record of any one storyteller. If you know a different telling, that is the tradition working as it should.' },
         { p: 'The patterns on the cloth are inspired by Adinkra symbols of the Akan. Here they are used only as decoration, with the sayings commonly given for them: Akoma, patience and tolerance; Sankofa, learn from the past; Dwennimmen, humility together with strength; Nkyinkyim, adaptability to change; Duafe, care and good looks.' },
-        { p: 'You can play for a free preview first. Unlocking the full game is a single one-time purchase; there are no ads and no subscriptions.' },
+        { p: 'Free to play with short ads; go ad-free once.' },
         { p: 'Titles are set in Cormorant Garamond and the interface in Fredoka, both used under the SIL Open Font License 1.1. All sounds and the music are synthesized on your device.' },
         { p: 'Anansi Tales is part of Arcforge, a collection of world heritage games.' },
       ],
@@ -507,10 +507,10 @@ export const RULES = {
       ],
     },
     {
-      title: 'Stars, the Gallery and the preview', fig: 'stars',
+      title: 'Stars and the Gallery', fig: 'stars',
       body: [
         { p: 'At the end of a tale: three stars for at most one miss and no hints; two stars for at most five misses and at most two hints; one star otherwise. Your best stars for each tale are kept. Every finished tale adds its cloth to the Gallery.' },
-        { p: 'The free preview counts only time spent solving a puzzle or listening in a tale you are playing. Menus, Rules, the Gallery, Settings and Watch and Learn are free and never use it. Paused time is not counted.' },
+        { p: 'Free to play with short ads; go ad-free once.' },
       ],
     },
   ],

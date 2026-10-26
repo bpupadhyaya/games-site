@@ -55,7 +55,7 @@ export const DOCS = {
       ], { story: 'egg', card: 4 }),
       R('Stars and score', [
         { p: 'Three stars: no more than the par number of checks (two for four to six cards, three for seven and eight; one more on Master), at least seven in ten pulls Good or Perfect, and at least three lanterns lit at the end. Two stars need a couple of extra checks and four in ten good pulls. Otherwise one star.' },
-        { p: 'Preview and unlock: the game is free to try for a short while of real play. Menus, Rules, Watch and Learn and pauses do not use the preview time.' },
+        { p: 'Free to play with short ads; go ad-free once.' },
       ]),
       R('How this differs from the street tradition', [
         { p: 'A real performer reads each picture\'s words from the back of the card behind it, slides the pulled card to the back and ad-libs. Here every line is printed on the card\'s own back, the cards are drawn in one style and the beat is fixed. All tales are original to this game.' },

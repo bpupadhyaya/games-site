@@ -15,7 +15,7 @@ export const ABOUT = [
   { h: 'Made for playing' },
   { li: 'Works with two thumbs or more fingers, and with the keyboard on a computer.' },
   { li: 'A calibration screen lines the game up with your speakers or headphones.' },
-  { li: 'Large text and reduced-motion options. No ads. Works offline.' },
+  { li: 'Large text and reduced-motion options. Works offline.' },
   { sp: 1 },
   { p: 'Taiko Drum Circle is part of Arcforge, a collection of world heritage games.' },
 ];
@@ -115,7 +115,7 @@ export const RULES = [
       { p: 'Free play gives you all four drums and no notes. Hit as you like, with up to ten fingers.' },
       { li: 'Metronome: a click on every beat at the tempo shown. Change the tempo with the minus and plus buttons.' },
       { li: 'Echo: after you stop for a moment, the circle answers by playing your phrase back, a little softer, on the same drums. Play another phrase and it answers again.' },
-      { p: 'Free play uses your preview time like a real piece does.' },
+      { p: 'Free play works like a real piece.' },
     ],
   },
   {
@@ -125,7 +125,7 @@ export const RULES = [
       { li: 'Pause stops everything at once, the sounds included, and Resume carries on exactly where it stopped.' },
       { li: 'Speed can be set to 100% or 75%.' },
       { li: 'Next piece moves on to the next piece in the list.' },
-      { p: 'Watch and Learn does not use any of the free preview time, does not change your scores, and keeps playing to the end of the piece.' },
+      { p: 'Watch and Learn is always free to use, does not change your scores, and keeps playing to the end of the piece.' },
     ],
   },
   {

@@ -63,9 +63,9 @@ export const RULES = [
     'Pausing does not change the run. A run that is not finished does not count towards a record.'] },
   { title: 'Watch & Learn', art: 'think', p: [
     'Watch & Learn plays a two-run cup with a computer slider that follows the line. It stops in front of the first bend, every fourth bend and every tight bend. At each stop it thinks (the time you set in Settings), reveals the line, and then slides on.',
-    'Pause freezes everything exactly where it is. Think and Watch & Learn never change the real record and do not count against the free preview.'] },
-  { title: 'Free preview', p: [
-    'The first 90 seconds of live sliding are free. Menus, this page, Watch & Learn and result screens are always free. One purchase unlocks every chute and mode.'] },
+    'Pause freezes everything exactly where it is.'] },
+  { title: 'Free to play', p: [
+    'Free to play with short ads. Menus, this page, Watch & Learn and result screens are always free to use. One purchase makes every chute and mode ad-free.'] },
   { title: 'Simplifications', p: [
     'Real sliders lie flat on the back and steer with both legs and shoulders; here one lean is all there is. The physics is a simplified model of speed, bank, slope and lateral force, built for play, and the chutes are invented. There is no fall or crash in this game: a wall costs you time.'] },
 ];

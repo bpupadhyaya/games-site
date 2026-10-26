@@ -7,8 +7,8 @@ export const ABOUT = [
   { title: 'The grounds and the teams', p: [
     'Six festival grounds: a harvest green with hay bales, a riverside fair, a mountain meadow, a seaside games day, a night of lanterns and the grand festival arena. Eight village teams from every kind of place meet you in a bracket.',
     'Play the bracket, a quick match, the Daily Pull, or two players on one device with the screen split in half. Watch & Learn teaches the rhythm with a computer teammate.'] },
-  { title: 'Free preview and unlock', p: [
-    'The first 90 seconds of real pulling are free. Menus, Rules, About, Watch & Learn and paused time never count against it. After that, one unlock opens the whole game. Settings has Restore purchases.'] },
+  { title: 'Ads and ad-free', p: [
+    'Free to play with short ads. Menus, Rules, About, Watch & Learn and paused time are always free to use. One purchase makes the whole game ad-free. Restore purchase is on the game page in Arcforge.'] },
   { title: 'Made with', p: ['Arcforge heritage games. Human figures: Microsoft Rocketbox avatars (MIT) and motion data credited under Credits and licences below.'] },
 ];
 
@@ -80,8 +80,8 @@ export const RULES = [
     'Friendly: timing noise 0.15 s, strength 0.95, a surge every 8 beats, 1.0 s beat. Local: 0.12 s, 1.10, every 6, 0.95 s. Regional: 0.09 s, 1.28, every 5, 0.90 s. Champion: 0.065 s, 1.50, every 4, 0.85 s. Legend: 0.045 s, 1.75, every 3, 0.80 s.',
     'In the bracket the starting difficulty you pick is the first round; the second round is one level up and the final two levels up (never above Legend).'] },
   { title: 'Think, Pause and Watch & Learn', art: 'think', p: [
-    'Think shows what a good coach would do at this moment and stops the pull while you read it. Pause stops everything. Neither counts against the free preview.',
+    'Think shows what a good coach would do at this moment and stops the pull while you read it. Pause stops everything.',
     'Watch & Learn plays one pull against a Local team with a computer on your side who pulls with small timing errors. It stops at the key moments: the first beat, a rival surge, low stamina, the anchor, the coach and rival fatigue, each shown once. The loop is THINK (2, 5, 8 or 10 seconds, you choose in Settings), REVEAL (2 seconds, the action highlighted) and ACT. Pause freezes the whole loop and resumes exactly where it stopped.'] },
-  { title: 'Records and the free preview', p: [
-    'The game remembers your best flag lead, longest run of perfect heaves, matches won and bracket titles on this device. The first 90 seconds of live pulling are free (menus, Rules, About, Watch & Learn, cards and pauses never count). The web demo allows three pulls.'] },
+  { title: 'Records and free play', p: [
+    'The game remembers your best flag lead, longest run of perfect heaves, matches won and bracket titles on this device. Free to play with short ads. The web demo allows three pulls.'] },
 ];

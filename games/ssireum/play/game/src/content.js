@@ -99,7 +99,7 @@ export const RULES = [
   { title: 'What is simplified', p: [
     'Real ssireum begins from a kneeling grip and is decided by any body part above the knee touching the sand; the game shows that as a balance dot leaving its disc, and the looks of the throws follow the dots rather than a physical simulation. There is no time limit, no ring-out and no scoring beyond the fall, and the techniques named in the game (belly lift, inside and outside leg hooks, sickle hook) are used as plain labels for the directions.',
   ] },
-  { title: 'The free preview', p: [
-    'The free preview counts 90 seconds of real play against a rival. Menus, this reference, Watch & Learn and a paused game do not use it. After that the full game is unlocked once, with no ads.',
+  { title: 'Free to play', p: [
+    'Free to play with short ads; go ad-free once.',
   ] },
 ];

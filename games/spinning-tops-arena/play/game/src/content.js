@@ -115,8 +115,8 @@ export const RULES = [
     'Think tries a grid of launches against several launches you might meet, then gives the best one with a reason taken from what happened in the trial. It uses your own top and your rival\'s real top.',
     'Learn has five lessons with a goal each. Watch & Learn plays a best-of-three match between two rivals: Think (you choose how long, up to 10 seconds), Reveal (2 seconds, both plans and reasons are shown), Act (the launches and the round).',
   ] },
-  { title: 'Two players, saving and the preview', p: [
+  { title: 'Two players and saving', p: [
     'In Two Players each player builds a top and launches in turn; the first launch is hidden. In a one-player match the game saves at the start of every round and about once a second while the tops run. Continue on the title screen picks the match up paused, where it was.',
-    'The free preview counts only real play against the computer or a friend. Menus, rules, lessons and Watch & Learn do not use it up.',
+    'Free to play with short ads; go ad-free once.',
   ] },
 ];

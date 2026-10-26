@@ -19,7 +19,7 @@ export const ABOUT = [
   { li: 'Works with two thumbs, and with the keyboard on a computer.' },
   { li: 'Think slows time for a moment and points at the plate that needs you most.' },
   { li: 'Watch and Learn plays a whole show for you and explains each choice. Pause it at any time.' },
-  { li: 'Large text and reduced-motion options. No ads. Works offline.' },
+  { li: 'Large text and reduced-motion options. Works offline.' },
   { sp: 1 },
   { p: 'Plate Spinning is part of Arcforge, a collection of world heritage games.' },
 ];
@@ -125,7 +125,7 @@ export const RULES = [
       { li: 'Settings: sound, timing gauges, reduced motion, Think time for Watch and Learn.' },
       { li: 'Text size: every text screen has A- and A+ buttons, up to 300%.' },
       { sp: 1 },
-      { p: 'Free preview: the full game starts with a 90 second preview of real play (Perform and Practice). Menus, Rules, Watch and Learn and results never use up the preview.' },
+      { p: 'Free to play with short ads; go ad-free once.' },
     ],
   },
 ];

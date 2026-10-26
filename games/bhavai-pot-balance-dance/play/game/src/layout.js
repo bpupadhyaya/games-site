@@ -27,6 +27,7 @@ function build(w, h) {
   const S = R(host.l, host.t, w - host.l - host.r, h - host.t - host.b);
   const mb = minBtn();
   const backPad = host.back > 0 ? host.back + 8 : 0;
+  const backW = Math.max(150, mb * 2);                                  // wide enough that "Back" is never squeezed
   const L = { w, h, mode, S, mb, backPad };
 
   // ---- PLAY ----------------------------------------------------------------------------------------------------------------------
@@ -93,7 +94,7 @@ function build(w, h) {
   {
     const G = {};
     const hdrH = Math.max(76, mb) + 8;
-    G.back = R(S.x + 12 + backPad, S.y + 12, Math.max(120, mb * 1.7), Math.max(60, mb));
+    G.back = R(S.x + 12 + backPad, S.y + 12, backW, Math.max(60, mb));
     G.titleY = S.y + 12 + Math.max(60, mb) / 2;
     const top = S.y + hdrH + 24, bot = S.y + S.h - 16;
     const cols = mode === 'wide' ? 4 : mode === 'compact' && w > h ? 4 : 2;
@@ -107,7 +108,7 @@ function build(w, h) {
   // ---- COURSE DETAIL (choose how to play it) -------------------------------------------------------------------------------------
   {
     const D = {};
-    D.back = R(S.x + 12 + backPad, S.y + 12, Math.max(120, mb * 1.7), Math.max(60, mb));
+    D.back = R(S.x + 12 + backPad, S.y + 12, backW, Math.max(60, mb));
     const bh = Math.max(88, mb);
     if (mode === 'wide') {
       const colW = clamp(w * 0.3, 340, 460), colX = S.x + S.w - 32 - colW;
@@ -148,7 +149,7 @@ function build(w, h) {
     const bh = Math.max(64, mb), margin = mode === 'wide' ? Math.max(24, S.w * 0.06) : 16;
     const contentW = Math.min(S.w - margin * 2, mode === 'wide' ? 1100 : 820);
     const cx = S.x + (S.w - contentW) / 2;
-    Dc.back = R(S.x + 12 + backPad, S.y + 12, Math.max(110, mb * 1.6), bh);
+    Dc.back = R(S.x + 12 + backPad, S.y + 12, backW, bh);
     const decW = Math.max(64, mb);
     Dc.textInc = R(S.x + S.w - 12 - decW, S.y + 12, decW, bh);
     Dc.textDec = R(Dc.textInc.x - 10 - decW, S.y + 12, decW, bh);

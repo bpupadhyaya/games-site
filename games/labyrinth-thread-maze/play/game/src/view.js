@@ -392,7 +392,7 @@ function drawDemoLimit(ctx, s, w, h) {
   setBrandTone(theme().dark);
   const T = theme(), c = centerCard(w, h, 640, 440);
   panel(ctx, c, { radius: 28 }); edgeStroke(ctx, c, 28, 0.5);
-  txt(ctx, 'That was the free preview', c.x + c.w / 2, c.y + 70, { size: F(36), weight: 700, color: T.text, align: 'center', maxW: c.w - 40, min: 18, font: DISPLAY });
+  txt(ctx, 'That was the demo end', c.x + c.w / 2, c.y + 70, { size: F(36), weight: 700, color: T.text, align: 'center', maxW: c.w - 40, min: 18, font: DISPLAY });
   para(ctx, 'The full game has all six grades, the Daily Maze, hints and Watch and Learn. Get Labyrinth Thread Maze on iPhone and Android.', c.x + 30, c.y + 120, c.w - 60, { size: F(28), weight: 400, color: T.text, align: 'center' });
   drawCredit(ctx, c.x + c.w / 2, c.y + c.h - 28, 14);
 }

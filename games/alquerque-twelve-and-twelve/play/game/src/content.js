@@ -29,8 +29,8 @@ export const STR = {
   autoSummary: L('You watched a whole game: the opening, the compulsory captures, the multiple jumps and the finish, each move explained. Watch again for a different game, or head to Learn to try the ideas yourself.',
     'Viste una partida entera: la apertura, las capturas obligatorias, los saltos múltiples y el final, con cada jugada explicada. Mira otra vez para ver una partida distinta, o ve a Aprender para probar las ideas tú mismo.',
     'شاهدت لعبة كاملة: البداية، والأسر الإلزامي، والقفزات المتتالية، والنهاية، مع شرح كل حركة. شاهد مرة أخرى للعبة مختلفة، أو انتقل إلى «تعلّم» لتجرّب الأفكار بنفسك.'),
-  demoLimitTitle: L('FREE PREVIEW FINISHED', 'VISTA PREVIA GRATIS TERMINADA', 'انتهت المعاينة المجانية'),
-  demoLimitBody: L('You played the three free games. Get the full game on iPhone and Android for the strongest opponents, two players on one phone, all nine lessons and as many games as you like.',
+  demoLimitTitle: L('DEMO FINISHED', 'VISTA PREVIA GRATIS TERMINADA', 'انتهت المعاينة المجانية'),
+  demoLimitBody: L('You played the three free games. Get the free app on iPhone and Android for the strongest opponents, two players on one phone, all nine lessons and as many games as you like.',
     'Jugaste las tres partidas gratis. Consigue el juego completo en iPhone y Android: los rivales más fuertes, dos jugadores en un móvil, las nueve lecciones y todas las partidas que quieras.',
     'لعبتَ الألعاب الثلاث المجانية. احصل على اللعبة كاملة على آيفون وأندرويد لتجد أقوى الخصوم، واللعب بين لاعبين على هاتف واحد، والدروس التسعة كلها، وما شئت من الألعاب.'),
   demoLeft: L('{n} free games left', 'Quedan {n} partidas gratis', 'متبقٍ {n} ألعاب مجانية'),
@@ -388,41 +388,41 @@ const RULES_DEF = [
   { art: 'learn',
     en: { title: 'Learn', body: [
       'Learn is a course of short lessons, each a real position: stepping, the diagonals, jumping, compulsory capture, multiple jumps, jumping backward, keeping a piece safe and choosing the best capture. The last is a whole game against the Casual opponent.',
-      'A wrong move in a lesson is not played: you are told why and can try again. Lessons do not use up the free preview.',
+      'A wrong move in a lesson is not played: you are told why and can try again.',
     ] },
     es: { title: 'Aprender', body: [
       'Aprender es un curso de lecciones cortas, cada una una posición real: dar pasos, las diagonales, saltar, la captura obligatoria, los saltos múltiples, saltar hacia atrás, poner una pieza a salvo y elegir la mejor captura. La última es una partida entera contra el rival Aficionado.',
-      'Una jugada equivocada en una lección no se realiza: te explican el motivo y puedes intentarlo de nuevo. Las lecciones no gastan la vista previa gratuita.',
+      'Una jugada equivocada en una lección no se realiza: te explican el motivo y puedes intentarlo de nuevo.',
     ] },
     ar: { title: 'تعلّم', body: [
       '«تعلّم» دورة من دروس قصيرة، كل منها موضع حقيقي: الخطوات، والأقطار، والقفز، والأسر الإلزامي، والقفزات المتتالية، والقفز إلى الخلف، وحماية القطعة، واختيار أفضل أسر. والأخير لعبة كاملة ضد الخصم الهاوي.',
-      'الحركة الخاطئة في الدرس لا تُلعب: يُقال لك السبب ويمكنك المحاولة مرة أخرى. ولا تستهلك الدروس المعاينة المجانية.',
+      'الحركة الخاطئة في الدرس لا تُلعب: يُقال لك السبب ويمكنك المحاولة مرة أخرى.',
     ] } },
   { art: 'auto',
     en: { title: 'Watch & Learn', body: [
       'Watch & Learn plays a whole game for you with the game\'s own opponent engine on both sides: Master plays Light and Expert plays Dark. Each move has three steps: THINK (2, 5, 8 or 10 seconds, you choose), REVEAL (two seconds: the options light up and the chosen move is marked, with the reason in words) and ACT (the move is played).',
-      'Pause freezes everything where it is and Resume carries on from exactly there. Watch & Learn does not use up the free preview.',
+      'Pause freezes everything where it is and Resume carries on from exactly there.',
     ] },
     es: { title: 'Mirar y aprender', body: [
       'Mirar y aprender juega una partida entera por ti con el propio motor de rival del juego en ambos bandos: el Maestro juega con las Claras y el Experto con las Oscuras. Cada jugada tiene tres pasos: PENSAR (2, 5, 8 o 10 segundos, tú eliges), MOSTRAR (dos segundos: se iluminan las opciones y se marca la jugada elegida, con el motivo en palabras) y JUGAR (se hace la jugada).',
-      'La pausa congela todo donde está y Reanudar sigue exactamente desde ahí. Mirar y aprender no gasta la vista previa gratuita.',
+      'La pausa congela todo donde está y Reanudar sigue exactamente desde ahí.',
     ] },
     ar: { title: 'شاهد وتعلّم', body: [
       'يلعب «شاهد وتعلّم» لعبة كاملة نيابةً عنك بمحرك الخصم نفسه في اللعبة على الجانبين: الأستاذ يلعب بالفاتحة والخبير بالداكنة. لكل حركة ثلاث خطوات: التفكير (2 أو 5 أو 8 أو 10 ثوانٍ، تختار أنت)، ثم الكشف (ثانيتان: تضيء الخيارات وتُعلَّم الحركة المختارة مع السبب بالكلمات)، ثم التنفيذ (تُلعب الحركة).',
-      'يجمّد «إيقاف مؤقت» كل شيء مكانه، وتواصل «متابعة» من الموضع نفسه تمامًا. ولا يستهلك «شاهد وتعلّم» المعاينة المجانية.',
+      'يجمّد «إيقاف مؤقت» كل شيء مكانه، وتواصل «متابعة» من الموضع نفسه تمامًا.',
     ] } },
   { art: 'themes',
     en: { title: 'Boards, sound and text', body: [
       'In Settings you can choose the board and pieces: Cedar and Brass, Alhambra Blue or Ebony and Ivory. The rules do not change. Sound can be switched off, the think time of Watch & Learn set, and the text size raised up to 300 percent on every text screen, including the game screen.',
-      'There are no timers and no stakes: results are only kept as your own record of wins, draws and losses for each level. The game starts with a free preview of the first 90 seconds of play; the full game is a single one-time unlock and works offline.',
+      'There are no timers and no stakes: results are only kept as your own record of wins, draws and losses for each level. Free to play with short ads; go ad-free once.',
     ] },
     es: { title: 'Tableros, sonido y texto', body: [
       'En Ajustes puedes elegir el tablero y las piezas: Cedro y latón, Azul alhambreño o Ébano y marfil. Las reglas no cambian. Se puede apagar el sonido, fijar el tiempo de pensar de Mirar y aprender y subir el tamaño del texto hasta el 300 por ciento en todas las pantallas de texto, incluida la del juego.',
-      'No hay temporizadores ni apuestas: los resultados solo se guardan como tu propio récord de victorias, empates y derrotas por nivel. El juego empieza con una vista previa gratuita de los primeros 90 segundos de juego; el juego completo es un único desbloqueo y funciona sin conexión.',
+      'No hay temporizadores ni apuestas: los resultados solo se guardan como tu propio récord de victorias, empates y derrotas por nivel. Este juego es gratis con anuncios breves. Quitar los anuncios de este juego es una compra única.',
     ] },
     ar: { title: 'الرقع والصوت والنص', body: [
       'من الإعدادات يمكنك اختيار الرقعة والقطع: أرز ونحاس، أو أزرق الحمراء، أو أبنوس وعاج. القواعد لا تتغير. ويمكن إيقاف الصوت، وضبط مدة التفكير في «شاهد وتعلّم»، ورفع حجم النص حتى 300 بالمئة في كل شاشات النص، بما فيها شاشة اللعب.',
-      'لا مؤقتات ولا رهانات: تُحفظ النتائج فقط كسجل خاص بك للفوز والتعادل والخسارة لكل مستوى. تبدأ اللعبة بمعاينة مجانية لأول 90 ثانية من اللعب، والفتح الكامل عملية شراء واحدة، وتعمل بلا اتصال بالإنترنت.',
+      'لا مؤقتات ولا رهانات: تُحفظ النتائج فقط كسجل خاص بك للفوز والتعادل والخسارة لكل مستوى. اللعبة مجانية مع إعلانات قصيرة، وإزالة الإعلانات لهذه اللعبة عملية شراء واحدة.',
     ] } },
   { art: 'start',
     en: { title: 'Names and words', body: [

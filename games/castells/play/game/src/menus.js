@@ -215,7 +215,7 @@ export function pauseWidgets(state) {
 export function demoLimitWidgets(state, wide = false) {
   const big = TEXT_SCALES[state.settings.textIdx] > 1.5;
   return [
-    { t: 'gap', h: wide ? 6 : big ? 30 : 140 }, { t: 'h', label: 'That is the free preview', size: 48 },
+    { t: 'gap', h: wide ? 6 : big ? 30 : 140 }, { t: 'h', label: 'That is the demo end', size: 48 },
     { t: 'p', label: 'You have played the free towers of the web demo. The full game on iPhone and Android has the whole campaign, the daily castell, free builds, every shirt and square, and unlimited play.', size: 28 },
     { t: 'gap', h: 20 },
     { t: 'btn', id: 'menu', label: 'Main menu', primary: true },

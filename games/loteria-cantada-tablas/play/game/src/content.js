@@ -24,7 +24,7 @@ const ABOUT_SRC = [
     [`All ${DECK_SIZE} pictures were drawn for this game in a folk-art style, and every verse was written for it, in Spanish and in English.`, `Las ${DECK_SIZE} imágenes se dibujaron para este juego en estilo de arte popular, y cada verso se escribió para él, en español y en inglés.`],
   ], { type: 'cards', ids: [37, 36, 11] }),
   pg(['Just for fun', 'Solo por diversión'], [
-    ['Scores are only for bragging rights. There are no stakes, no chips and no ads.', 'Los puntos son solo para presumir. No hay apuestas, ni fichas, ni anuncios.'],
+    ['Scores are only for bragging rights. There are no stakes and no chips.', 'Los puntos son solo para presumir. No hay apuestas, ni fichas, ni anuncios.'],
   ]),
   pg(['Ways to play', 'Maneras de jugar'], [
     ['Play against computer players, face to face with a friend on one phone, or let the phone be the caller for a real table with real tablas.', 'Juega contra la computadora, cara a cara con un amigo en un solo teléfono, o deja que el teléfono sea el cantador de una mesa real con tablas de verdad.'],

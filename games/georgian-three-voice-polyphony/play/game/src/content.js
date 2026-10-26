@@ -19,9 +19,9 @@ export const ABOUT = [
   { li: 'Up to three fingers at once, each finger a voice. You choose which voices you sing; friends sing the rest.' },
   { li: 'Watch and Learn lets you hear a song with time to think, and tells you why each phrase sounds the way it does.' },
   { li: 'A pitch assist from strong to off. Text size goes up to 300%.' },
-  { li: 'Portrait and landscape on phones and tablets. No ads. Works offline.' },
-  { h: 'Free preview' },
-  { p: 'The first 90 seconds of real singing (Sing, Learn and the Harmony Lab) are free. Menus, these pages, Watch and Learn and the results never use the preview. One purchase unlocks the whole game on this device.' },
+  { li: 'Portrait and landscape on phones and tablets. Works offline.' },
+  { h: 'Free to play' },
+  { p: 'Free to play with short ads. Menus, these pages, Watch and Learn and the results are always free to use. One purchase makes the whole game ad-free on this device.' },
   { sp: 1 },
   { p: 'Three Voices is part of Arcforge, a collection of world heritage games.' },
   { h: 'Credits for the 3D scene' },
@@ -141,7 +141,7 @@ export const RULES = [
     title: 'Watch and Learn',
     blocks: [
       { p: `Watch and Learn plays the song with all three voices sung for you. It goes phrase by phrase: THINK (default ${THINK.def} seconds, set ${THINK.min} to ${THINK.max} in Settings; tap the lamp button to continue early), REVEAL (${THINK.reveal} seconds, the voices and their notes are lit), then ACT, where the phrase sounds with its caption.` },
-      { p: 'The caption is worked out from the notes of the phrase itself: where each voice starts and ends, whether the top voice answers in gaps, where two voices rub a second apart, and the interval of the closing chord. Pause freezes the whole thing and resumes exactly where it stopped. Watching never uses the preview.' },
+      { p: 'The caption is worked out from the notes of the phrase itself: where each voice starts and ends, whether the top voice answers in gaps, where two voices rub a second apart, and the interval of the closing chord. Pause freezes the whole thing and resumes exactly where it stopped. Watching is always free to use.' },
     ],
   },
   {

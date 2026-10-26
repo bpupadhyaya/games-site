@@ -203,7 +203,7 @@ export function pauseWidgets(state, split = false) {
 
 export function demoLimitWidgets(wide = false) {
   return [
-    { t: 'gap', h: wide ? 20 : 200 }, { t: 'h', label: 'That is the free preview', size: 48 },
+    { t: 'gap', h: wide ? 20 : 200 }, { t: 'h', label: 'That is the demo end', size: 48 },
     { t: 'p', label: 'You have played the free games of the web demo. The full game on iPhone and Android has every opponent level, the full game length, the Learn practices and Watch & Learn.', size: 28 },
     { t: 'gap', h: 20 },
     { t: 'btn', id: 'menu', label: 'Main menu', primary: true },

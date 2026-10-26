@@ -8,8 +8,8 @@ export const ABOUT = [
     'Quick matches to 3, 5 or 7 goals against five rival levels, or against a friend on the same screen. A three-round Cup. Watch & Learn, where two computer sides play and explain each kick, and a Think hint when you want one.',
     'Rules, How to Play and text size up to 300% are always a tap away. The table turns with your screen, in portrait and in landscape.',
   ] },
-  { title: 'Full game and free preview', p: [
-    'You can play a free preview of real matches. The menus, Rules, About, Watch & Learn and the hint are free. The full game is a single one-time unlock: no ads, no extras to buy. Use Restore purchase in Settings if you have bought it before.',
+  { title: 'Free to play and ad-free', p: [
+    'The menus, Rules, About, Watch & Learn and the hint are free. Free to play with short ads; go ad-free once.',
   ] },
   { title: 'A note on names', p: [
     'All team names are invented. The game uses no brands, leagues, clubs or players.',
@@ -87,8 +87,8 @@ export const RULES = [
     'Hint stops the match and names the rod a strong player would use, how to slide it and why. Use it to take that rod, or close it and carry on.',
     'Pause stops the whole game; nothing moves until you resume. Watch & Learn plays two computer sides. Before each strike by the red side it stops for the Think time (2, 5, 8 or 10 seconds), then shows the plan for two seconds, then lets the kick happen. Pause freezes all of it.',
   ] },
-  { title: 'Free preview and the full game', p: [
-    'Real matches use up a 90 second free preview, counted only while the ball is in play. Menus, Rules, Watch & Learn and hints do not count. After that, one purchase unlocks everything for good.',
+  { title: 'Free to play and ad-free', p: [
+    'Free to play with short ads; go ad-free once.',
     'In the free web demo only two matches against the first two levels are available.',
   ] },
 ];

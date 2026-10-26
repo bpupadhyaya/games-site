@@ -248,7 +248,7 @@ export async function createPresenter({ kitCanvas, quality = 'high' }) {
     let px, py, down = false, lifting = false, lt = 0, paper = 1, wet = 0, hold = 0, sheet = 0, items = null, over = false, load = 0, dipT = 0;
     if (playing) {
       const w = st.ws, Pp = w.poi;
-      px = Pp.x; py = Pp.y; down = Pp.down; lifting = !!Pp.lift; lt = Pp.lift ? Pp.lift.t : 0; paper = Pp.paper; wet = Pp.wet; hold = Pp.hold; sheet = w.sheetNo;
+      px = Pp.x; py = Pp.y; down = Pp.down; lifting = !!Pp.lift; lt = Pp.lift ? Pp.lift.t * LIFT_T / (Pp.lift.dur || LIFT_T) : 0; paper = Pp.paper; wet = Pp.wet; hold = Pp.hold; sheet = w.sheetNo;
       items = Pp.lift ? Pp.lift.items : null; over = w.over; dipT = Pp.dipT;
       load = items ? Math.min(1.2, items.reduce((a, it) => a + FISH[it.k].w, 0) * 0.16 * 0.9) : 0;
       handWant = !(hold > 0.05) && !over;
@@ -304,7 +304,10 @@ export async function createPresenter({ kitCanvas, quality = 'high' }) {
           e.world = null; e.id = -1;
           e.model.pose(len, clock * 14 + i * 2, 0.5, 1);
           const g = e.model.group, sd = (i - (relItems.length - 1) / 2) * 0.05;
-          g.position.set(relFrom.x + dX * 0.8 * k + dZ * sd, relFrom.y + 0.26 * Math.sin(Math.PI * k * 0.9) - 0.4 * k * k, relFrom.z + dZ * 0.8 * k - dX * sd);
+          // shown on the paper, then set back into the same pool: a short arc (never leaving the tub); scored runs shrink it away into the bowl count
+          const rel = st.ws && st.ws.release, reach = rel ? 0.1 : 0.18, q = rel ? Math.min(1, k * 1.15) : k;
+          const hx = clamp(relFrom.x + dX * reach * q + dZ * sd, -TUB.hx + 0.06, TUB.hx - 0.06), hz = clamp(relFrom.z + dZ * reach * q - dX * sd, -TUB.hz + 0.06, TUB.hz - 0.06);
+          g.position.set(hx, relFrom.y * (1 - q * q) + 0.12 * Math.sin(Math.PI * q), hz);
           g.rotation.set(0.5 * k, -Math.atan2(dX, dZ) + i, Math.sin(clock * 16 + i) * 0.5); g.visible = true;
         });
         if (relT >= 0.85) relItems = [];

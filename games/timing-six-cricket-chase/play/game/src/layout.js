@@ -62,7 +62,7 @@ function build(w, h, ins) {
   // ---- scoreboard, pause, think ---------------------------------------------------------------------------------------------------
   const kc = Math.max(0.3, ins.px || 0.54), badgeBottom = U.y0 + 6 / kc + 1.7 * Math.max(16, 11.5 / kc);   // the kit's preview badge (top centre)
   const hx = U.x0 + 12 + backSz, hy = land ? U.y0 + 10 : Math.max(U.y0 + 10, Math.ceil(badgeBottom + 4));
-  const hud = L.hud = { x: hx, y: hy, w: land ? Math.min(620, Math.max(470, U.w * 0.55 - backSz)) : U.x1 - 12 - hx, h: 124 };
+  const hud = L.hud = { x: hx, y: hy, w: land ? Math.min(620, Math.max(470, U.w * 0.55 - backSz)) : U.x1 - 12 - hx, h: 172 };   // 172: the scoreboard AND the batters strip sit inside one panel (the strip used to float over the floodlight art)
   if (land) L.pause = R(U.x1 - 12 - tap, U.y0 + 12, tap, tap);
   else L.pause = R(hud.x + hud.w - 12 - tap, hy + 10, tap, tap);
   L.think = R(L.pause.x - 8 - tap, L.pause.y, tap, tap);
@@ -72,7 +72,7 @@ function build(w, h, ins) {
 
   // ---- play furniture -------------------------------------------------------------------------------------------------------------
   const rs = land ? 170 : 154;
-  L.radar = R(U.x1 - 16 - rs, land ? L.pause.y + tap + 12 : hud.y + 176, rs, rs);
+  L.radar = R(U.x1 - 16 - rs, land ? L.pause.y + tap + 12 : hud.y + hud.h + 6, rs, rs);
   L.over = { cx, y: U.y1 - (land ? 34 : 44), r: land ? 17 : 21, gap: land ? 10 : 12 };
   L.run = land ? R(U.x1 - 14 - 300, U.y1 - 14 - 112, 300, 112) : R(cx - 210, U.y1 - 184, 420, 112);
   L.runSize = land ? 34 : 40;
@@ -136,8 +136,8 @@ function build(w, h, ins) {
   }
 
   // ---- bowling aim screen and the field picker (placed again with the live scoreboard height, see placeBowl / placeField) -----------
-  placeBowl(L, hud.y + 176);
-  placeField(L, hud.y + 176);
+  placeBowl(L, hud.y + hud.h + 16);
+  placeField(L, hud.y + hud.h + 16);
   return L;
 }
 
@@ -209,7 +209,7 @@ const hits = (a, b) => a.x < b.x + b.w - 0.5 && b.x < a.x + a.w - 0.5 && a.y < b
 /** The rectangles that are on screen together in each play state / menu state, at the standard text size. */
 export function layoutSets(L) {
   const { U, hud, over } = L;
-  const hudAll = R(hud.x, hud.y, hud.w, 164);
+  const hudAll = R(hud.x, hud.y, hud.w, hud.h);
   const overW = 6 * (over.r * 2 + over.gap), overR = R(over.cx - overW / 2, over.y - over.r, overW, over.r * 2);
   const hint = R(L.cx - Math.min(340, U.w / 2 - 12), L.hintY - 28, Math.min(680, U.w - 24), 40);
   const B = L.bowl, F = L.field, A = L.auto;

@@ -37,8 +37,27 @@ function spaced(ctx, str, x, y, track, align = 'left') {
 }
 
 // "AF  ARCFORGE · World Heritage Games" centred on x. Baseline y; `size` is the wordmark's font size.
-export function drawCredit(ctx, x, y, size, { dim = 1 } = {}) {
+export function drawCredit(ctx, x, y, size, { dim = 1, maxW = 0 } = {}) {
   const tag = ' ·  World Heritage Games';
+  if (maxW > 0) {   // shrink so badge + wordmark + tagline fit inside maxW (measured, not guessed)
+    ctx.save();
+    const meas = (sz) => { ctx.font = `800 ${sz}px ${UI}`; const a = [...'ARCFORGE'].reduce((t, ch) => t + ctx.measureText(ch).width + sz * 0.2, -sz * 0.2); ctx.font = `500 ${sz}px ${UI}`; return a + ctx.measureText(tag).width + (logo && logo.width ? sz * 2.5 : 0); };
+    const w0 = meas(size); ctx.restore();
+    if (w0 > maxW * 1.0 && maxW / w0 < 0.85) {   // would shrink to unreadable: stack on two lines (badge + ARCFORGE, then the tagline)
+      ctx.save(); ctx.globalAlpha = dim;
+      const fit = (str, wt, sz, tr) => { ctx.font = `${wt} ${sz}px ${UI}`; const w = [...str].reduce((t, ch) => t + ctx.measureText(ch).width + sz * tr, -sz * tr); return w > maxW ? sz * maxW / w : sz; };
+      const s1 = Math.min(size * 1.15, fit('ARCFORGE', 800, size * 1.15, 0.2), (maxW - size * 2.6) / 6.6), bs = s1 * 1.9;
+      ctx.font = `800 ${s1}px ${UI}`; const w1 = [...'ARCFORGE'].reduce((t, ch) => t + ctx.measureText(ch).width + s1 * 0.2, -s1 * 0.2);
+      const has = logo && logo.width, tot = (has ? bs + s1 * 0.6 : 0) + w1, y1 = y - size * 1.5;
+      let cx = x - tot / 2;
+      if (has) { badge(ctx, cx + bs / 2, y1 - s1 * 0.32, bs); cx += bs + s1 * 0.6; }
+      ctx.fillStyle = brandGradient(ctx, cx, 0, cx + w1, 0, 1); spaced(ctx, 'ARCFORGE', cx, y1, s1 * 0.2);
+      const s2 = Math.min(size, fit('World Heritage Games', 500, size, 0));
+      ctx.font = `500 ${s2}px ${UI}`; ctx.fillStyle = 'rgba(246,223,174,0.72)'; ctx.textAlign = 'center'; ctx.fillText('World Heritage Games', x, y);
+      ctx.restore(); return;
+    }
+    if (w0 > maxW) size = Math.max(5, size * maxW / w0);
+  }
   ctx.save(); ctx.globalAlpha = dim;
   ctx.font = `800 ${size}px ${UI}`; const w1 = [...'ARCFORGE'].reduce((s, ch) => s + ctx.measureText(ch).width + size * 0.2, -size * 0.2);
   ctx.font = `500 ${size}px ${UI}`; const w2 = ctx.measureText(tag).width, bs = size * 1.9, total = (logo && logo.width ? bs + size * 0.6 : 0) + w1 + w2;

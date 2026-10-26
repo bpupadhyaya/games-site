@@ -271,7 +271,7 @@ function draw(ctx, state, L) {
   }
   if (sc === 'demo-limit') {
     backdrop(); const D = L.demo; shadowText('Enjoying the preview?', D.title.x, D.title.y, D.title.size * 0.5, GOLD, 'center', 400, L.U.w - 40);
-    wrap('The free web preview ends here. Get the full game on iPhone and Android for unlimited matches on all three grounds.', D.body.x, D.body.y, 30, D.body.w, CREAM, 42); button(D.back, 'Back', { primary: true, size: 26 }); return;
+    wrap('The free web preview ends here. Get the free app on iPhone and Android for unlimited matches on all three grounds.', D.body.x, D.body.y, 30, D.body.w, CREAM, 42); button(D.back, 'Back', { primary: true, size: 26 }); return;
   }
 
   // -------------------------------------------------------------- PLAY / AUTO

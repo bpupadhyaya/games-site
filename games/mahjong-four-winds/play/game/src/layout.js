@@ -31,23 +31,25 @@ export const BTN = { menu: R(0, 0, 0, 0), hint: R(0, 0, 0, 0), pause: R(0, 0, 0,
 export const CHIPS = [R(0, 0, 0, 0), R(0, 0, 0, 0), R(0, 0, 0, 0), R(0, 0, 0, 0)];
 export const AUTO_STEP = { dec: R(0, 0, 0, 0), inc: R(0, 0, 0, 0) };
 export const GEO = {
-  key: '', mode: 'tall', variant: 'tall', wide: false, k: 1, cx: 360, cy: 700, hr: 120, cols: 6, rows: 4, hw: 330, hubK: 1,
+  key: '', tight: false, mode: 'tall', variant: 'tall', wide: false, k: 1, cx: 360, cy: 700, hr: 120, cols: 6, rows: 4, hw: 330, hubK: 1,
   headerX: 40, headerY1: 80, headerY2: 112, headerSize: 40, claimY: 1128, claimH: 84, claimStack: false, claimRect: null, pillBelow: true,
   pillY: 1222, pillBelowY: 1230, textY: 1182, timerY: 1106, chowY: 1164, chowBackY: 1256, chowTitleY: 1150,
-  panels: null, status: null, autoCap: { x: 360, y: 20, size: 15 }, autoThink: { x: 360, y: 72, size: 22 }, bottomY: 1452, inlay: null, backBox: R(0, 0, 0, 0),
+  panels: null, status: null, pillOverlay: false, autoCap: { x: 360, y: 20, size: 15 }, autoThink: { x: 360, y: 72, size: 22 }, bottomY: 1452, inlay: null, backBox: R(0, 0, 0, 0),
   handMax: 52, handCx: 360, handAvail: 694, hudBottom: 0, safeTop: 0, safeBottom: 0,
 };
 
 // ------------------------------------------------------------------------------------------------ cluster (canonical coordinates, centre = ring centre)
 const P = {};
-function params(variant, rows, cols) {
+function params(variant, rows, cols, gapV0 = 42) {
   if (variant === 'tall') return { hr: 120, cols: 6, rows: 4, gapV: 42, gapH: 32, oppW: 30, oppPitch: 31, sideW: 26, sidePitch: 26, tMeld: 34, sMeld: 22, tHandY: -462, tMeldY: -394, flowTopY: -400, flowSideY: -252, sideHandX: 330, sideY0: -214, sideMeldX: 330, sideMeldY0: 180, bMeldY: 366, bFlowY: 368, hw: 330, ownMeldW: 34, ownL: -336, ownR: 336, topL: -330, topR: 330, top: -568, bottom: 400 };
-  const hr = 96, gapV = 42, gapH = 32, topEdge = hr + gapV + (rows - 1) * 45 + 24, sideEdge = hr + gapH + (rows - 1) * 45 + 24;
+  const hr = 96, gapV = gapV0, gapH = 32, topEdge = hr + gapV + (rows - 1) * 45 + 24, sideEdge = hr + gapH + (rows - 1) * 45 + 24;
   const sideHandX = sideEdge + 16, sideMeldX = sideHandX + 31, hw = sideMeldX + 15, tHandY = -(topEdge + 22 + 36), bMeldY = topEdge + 24;
   return { hr, cols, rows, gapV, gapH, oppW: 26, oppPitch: 27, sideW: 22, sidePitch: 24, tMeld: 22, sMeld: 22, tMeldY: -(topEdge + 22), tHandY, flowTopY: -(topEdge + 22), flowSideY: -212, sideHandX, sideY0: -190, sideMeldX, sideMeldY0: -190, bMeldY, bFlowY: topEdge + 23, hw, ownMeldW: 30, ownL: -hw, ownR: hw, topL: -hw + 14, topR: hw, top: tHandY - 18, bottom: bMeldY + 20 };
 }
 P.tall = params('tall'); P.flat3 = params('flat', 3, 7); P.flat4 = params('flat', 4, 6);
-const pr = () => P[GEO.variant === 'tall' ? 'tall' : GEO.rows === 3 ? 'flat3' : 'flat4'];
+// tall-tablet portrait (iPad 13 and similar): the same table with the gap between the ring and the pools trimmed, so it can grow wider
+P.tight3 = params('flat', 3, 7, 22);
+const pr = () => P[GEO.variant === 'tall' ? 'tall' : GEO.tight ? 'tight3' : GEO.rows === 3 ? 'flat3' : 'flat4'];
 const place = (x, y) => ({ x: GEO.cx + GEO.k * x, y: GEO.cy + GEO.k * y });
 
 // ---- slots in the wall ring: slot i (0..143) -> a position around the ring
@@ -184,6 +186,7 @@ export function chowSlots(n) {
 // the message pill (portrait modes); null in wide, where messages live in the status panel
 export const pillRect = (hasButtons, bh) => {
   if (GEO.wide) return null;
+  if (GEO.pillOverlay && !hasButtons) return R(GEO.handCx - 330, GEO.claimY + (GEO.claimH - bh) / 2, 660, bh);
   const y = GEO.pillBelow ? (hasButtons ? GEO.pillY : Math.min(GEO.pillBelowY, GEO.bottomY - 134 - bh)) - 4 : GEO.claimY - 8 - bh;
   return R(GEO.handCx - 330, y, 660, bh);
 };
@@ -212,7 +215,7 @@ function build(w, h) {
     const hdrBottom = t + 124;
     const freeTall = (yb - 324) - hdrBottom - 8, kt = clamp(freeTall / 996, 0, 1);
     if (kt >= 0.9) {
-      GEO.mode = 'tall'; GEO.variant = 'tall'; GEO.k = kt; Object.assign(GEO, { hr: 120, cols: 6, rows: 4, hw: 330 });
+      GEO.tight = false; GEO.mode = 'tall'; GEO.variant = 'tall'; GEO.pillOverlay = false; GEO.k = kt; Object.assign(GEO, { hr: 120, cols: 6, rows: 4, hw: 330 });
       const top = hdrBottom + 8 + Math.max(0, freeTall - 996) / 2;
       GEO.cx = w / 2; GEO.cy = top + 568 * kt;
       Object.assign(GEO, { claimY: yb - 324, claimH: 84, pillBelow: true, pillY: yb - 230, pillBelowY: yb - 222, textY: yb - 270, timerY: yb - 346, chowY: yb - 288, chowBackY: yb - 196, chowTitleY: yb - 302, claimStack: false, handMax: 52, handAvail: Math.min(694, w - l - r - 26) });
@@ -223,25 +226,41 @@ function build(w, h) {
       for (let i = 1; i < 4; i++) set(CHIPS[i], GEO.cx + rel[i][0] * kt, GEO.cy + rel[i][1] * kt, size[i][0], size[i][1]);
     } else {
       GEO.mode = 'compact'; GEO.variant = 'flat';
-      const claimY = yb - 211, pillH = 62, botLimit = claimY - 8 - pillH - 6, topY = hdrBottom + 66 + 6;
-      const fit = (p) => clamp(Math.min((botLimit - topY) / (p.bottom - p.top), (w - 20) / (2 * p.hw)), 0.5, 1.15);
-      const k4 = fit(P.flat4), rows = k4 >= 0.85 ? 4 : 3, p = rows === 4 ? P.flat4 : P.flat3, kk = rows === 4 ? k4 : fit(P.flat3);
+      // short portrait (4:3 tablets): when the table would be small, the message pill shares the claim-button row
+      // (it only sits above the table while claim buttons are showing) so the table gets that height too
+      const lay = (tight) => {
+        const bh = tight ? 72 : 84, ybT = h - Math.max(24, b + 8) - bh, hb = tight ? t + 80 : hdrBottom;
+        const claimY = ybT - (tight ? 188 : 211), topY = tight ? t + 142 : hb + 66 + 6;
+        let pillH = 62, botLimit = claimY - 8 - pillH - 6, overlay = false;
+        const f3 = tight ? P.tight3 : P.flat3, f4 = P.flat4;
+        const fit = (p) => clamp(Math.min((botLimit - topY) / (p.bottom - p.top), (w - 20) / (2 * p.hw)), 0.5, 1.4);
+        if (fit(f3) < 0.85) { pillH = 0; botLimit = claimY - 8; overlay = true; }
+        const k4 = tight ? 0 : fit(f4), rows = k4 >= 0.85 ? 4 : 3, p = rows === 4 ? f4 : f3, kk = rows === 4 ? k4 : fit(f3);
+        return { tight, bh, yb: ybT, hb, claimY, topY, pillH, botLimit, overlay, rows, p, kk, frac: 2 * p.hw * kk / w };
+      };
+      let L = lay(false);
+      if (L.frac < 0.75) { const T = lay(true); if (T.kk > L.kk) L = T; }
+      const { tight, claimY, topY, pillH, botLimit, overlay, rows, p, kk } = L;
+      GEO.tight = tight; GEO.pillOverlay = overlay;
+      if (tight) { GEO.bottomY = L.yb; GEO.headerY1 = t + 46; GEO.headerY2 = t + 74; GEO.headerSize = 34; }
       Object.assign(GEO, { k: kk, hr: p.hr, cols: p.cols, rows, hw: p.hw });
       GEO.cx = w / 2; GEO.cy = topY + ((botLimit - topY) - (p.bottom - p.top) * kk) / 2 - p.top * kk;
-      Object.assign(GEO, { claimY, claimH: 84, pillBelow: false, pillY: claimY - 8 - pillH, textY: claimY - 8 - pillH + 40, timerY: claimY - 14, chowY: claimY - 4, chowBackY: yb - 188, chowTitleY: claimY - 16, claimStack: false, handMax: 58, handAvail: Math.min(900, w - l - r - 26) });
-      HAND_Y = yb - 62;
-      const cw = Math.min(216, (w - 28 - 20) / 3), y = hdrBottom + 4, x0 = w / 2 - (3 * cw + 20) / 2;
-      set(CHIPS[3], x0, y, cw, 60); set(CHIPS[2], x0 + cw + 10, y, cw, 60); set(CHIPS[1], x0 + 2 * (cw + 10), y, cw, 60); set(CHIPS[0], 24 + px, yb, 220, 84);
+      const cH = tight ? 62 : 84;
+      Object.assign(GEO, { claimY, claimH: cH, pillBelow: false, pillY: claimY - 8 - pillH, textY: overlay ? claimY + cH / 2 + 2 : claimY - 8 - pillH + 40, timerY: claimY - 14, chowY: claimY - 4, chowBackY: L.yb - 188, chowTitleY: claimY - 16, claimStack: false, handMax: 58, handAvail: Math.min(900, w - l - r - 26) });
+      HAND_Y = L.yb - 62;
+      const cw = Math.min(216, (w - 28 - 20) / 3), ch = tight ? 56 : 60, y = tight ? t + 84 : hdrBottom + 4, x0 = w / 2 - (3 * cw + 20) / 2;
+      set(CHIPS[3], x0, y, cw, ch); set(CHIPS[2], x0 + cw + 10, y, cw, ch); set(CHIPS[1], x0 + 2 * (cw + 10), y, cw, ch); set(CHIPS[0], 24 + px, L.yb, 220, L.bh);
     }
     HANDZONE_Y = HAND_Y - 100; GEO.panels = null; GEO.status = null;
-    set(BTN.menu, w - r - 28 - 76, t + 44, 76, 76);
-    set(BTN.hint, 264 + px, yb, 200, 84); set(BTN.pause, 480 + px, yb, 216, 84);
-    set(AUTO_STEP.dec, 180 + px, t + 28, 92, 72); set(AUTO_STEP.inc, 448 + px, t + 28, 92, 72);
+    const tg = GEO.mode === 'compact' && GEO.tight, by = tg ? GEO.bottomY : yb, bh = tg ? 72 : 84;
+    if (tg) set(BTN.menu, w - r - 28 - 64, t + 8, 64, 64); else set(BTN.menu, w - r - 28 - 76, t + 44, 76, 76);
+    set(BTN.hint, 264 + px, by, 200, bh); set(BTN.pause, 480 + px, by, 216, bh);
+    set(AUTO_STEP.dec, 180 + px, t + (tg ? 8 : 28), 92, tg ? 64 : 72); set(AUTO_STEP.inc, 448 + px, t + (tg ? 8 : 28), 92, tg ? 64 : 72);
     if (backClear && AUTO_STEP.dec.x < backClear) AUTO_STEP.dec.x = backClear;
-    GEO.autoCap = { x: w / 2, y: t + 20, size: 15 }; GEO.autoThink = { x: w / 2, y: t + 72, size: 22 };
+    GEO.autoCap = { x: w / 2, y: t + (tg ? 14 : 20), size: 15 }; GEO.autoThink = { x: w / 2, y: t + (tg ? 56 : 72), size: 22 };
   } else {
     // ---------------- wide (landscape)
-    GEO.mode = 'wide'; GEO.variant = 'flat';
+    GEO.tight = false; GEO.mode = 'wide'; GEO.variant = 'flat'; GEO.pillOverlay = false;
     const maxTw = 58, handBottom = h - Math.max(b, 6) - 10, tileTop = handBottom - maxTw * 1.333;
     const p = P.flat3, availTop = t + 8, availBot = tileTop - 4;
     const kH = (availBot - availTop) / (p.bottom - p.top), kW = (w / 2 - 214 - 14 - Math.max(l, r)) / p.hw;

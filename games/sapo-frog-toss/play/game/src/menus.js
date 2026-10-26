@@ -250,7 +250,7 @@ export function whyWidgets(state) {
 }
 export function demoLimitWidgets() {
   return [
-    { t: 'gap', h: 200 }, { t: 'h', label: tr('That is the free preview', 'Esa es la vista previa gratuita'), size: 48 },
+    { t: 'gap', h: 200 }, { t: 'h', label: tr('That is the demo end', 'Esa es la vista previa gratuita'), size: 48 },
     { t: 'p', label: tr('You have played the two short matches of the web demo. The full game on iPhone and Android has all five opponents, three match lengths, Two Players and your saved records.', 'Has jugado las dos partidas cortas de la demo web. El juego completo en iPhone y Android tiene los cinco rivales, tres duraciones, Dos jugadores y tus récords guardados.'), size: 28 },
     { t: 'gap', h: 20 },
     { t: 'btn', id: 'menu', label: tr('Main menu', 'Menú principal'), primary: true },

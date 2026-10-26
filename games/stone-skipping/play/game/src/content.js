@@ -75,7 +75,7 @@ export const RULES = [
   { title: 'Ranks', p: [
     'Session totals earn a title: First Steps, Pebble Tosser (10 skips), Steady Thrower (22), Skimmer (40), Pond Legend (60) and Master Skimmer (80).',
   ] },
-  { title: 'Free preview', p: [
-    'The first 90 seconds of real play are free. Menus, Watch & Learn, the Collection and paused play do not count. The full game is a one-time unlock; Restore purchase is in Settings.',
+  { title: 'Free to play', p: [
+    'Free to play with short ads; go ad-free once.',
   ] },
 ];

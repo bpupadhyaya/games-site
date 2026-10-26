@@ -110,7 +110,7 @@ export const ABOUT = [
   { title: 'What you get', items: [
     P('Three rule sets: Classic (the standard game), Quick (first to five captures) and Dai ("large") with jumping and five in a row.'),
     P('Five computer levels from Beginner to Master, two players on one phone, hands-on lessons, Hint, danger marks, take back, and Auto Play (Watch & Learn).'),
-    P('Three board woods and two piece styles. Large text, reduced motion and sound options. No ads, and it works offline.'),
+    P('Three board woods and two piece styles. Large text, reduced motion and sound options. It works offline.'),
   ] },
   { title: 'Credits', items: [
     P('Board, pieces, sounds and the computer player were made for Arcforge. Titles are set in Cormorant Garamond (SIL Open Font License 1.1). Kaya, the first board, is named for a pale Japanese wood traditionally used for game boards.'),

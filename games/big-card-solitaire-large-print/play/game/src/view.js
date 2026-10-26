@@ -228,7 +228,7 @@ function drawTitle(ctx, env, state, theme, time, demoLimit, L) {
     if (state.demo) {
       drawPlate(ctx, 360, d.demoY, 520, 64);
       const left = Math.max(demoLimit - state.demoDeals, 0);
-      text(ctx, `Free preview: ${left} ${left === 1 ? 'deal' : 'deals'} left`, 360, d.demoY + 42, 28, CREAM, UI, 600);
+      text(ctx, `Web demo: ${left} ${left === 1 ? 'deal' : 'deals'} left`, 360, d.demoY + 42, 28, CREAM, UI, 600);
     }
     { const q = d.lock, dn = state.lkDown;       // the themed Arcforge lockup under the menu; a tap opens the Arcforge home
       ctx.save(); ctx.fillStyle = 'rgba(8,36,26,0.62)'; rr(ctx, q.x - 12, q.y - 6, q.w + 24, q.h + 12, (q.h + 12) / 2); ctx.fill(); ctx.restore();
@@ -497,7 +497,7 @@ function drawDemoLimit(ctx, L) {
   withBlock(ctx, L.demo.blk, () => {
     const s = L.demo.d.sheet;
     drawSheet(ctx, s.x, s.y, s.w, s.h);
-    text(ctx, "That's the free preview", 360, 640, 58, CREAM, FONT, 700);
-    wrapText(ctx, 'Get the full game on iPhone and Android for unlimited deals and every card back.', 360, 730, 32, 520, 46, 'rgba(251,238,221,0.92)');
+    text(ctx, "That's the demo end", 360, 640, 58, CREAM, FONT, 700);
+    wrapText(ctx, 'Get the free app on iPhone and Android for unlimited deals and every card back.', 360, 730, 32, 520, 46, 'rgba(251,238,221,0.92)');
   });
 }

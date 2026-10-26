@@ -127,10 +127,10 @@ export const RULES = [
   { title: 'Learn, Think, Watch & Learn', art: 'flick', p: [
     'The first time you open a trick, and whenever you tap Think while the toy is at rest, the game searches hand motions by simulating the real physics many times. It then shows the best one as a ghost: a see-through toy, hand and path.',
     'Watch & Learn thinks for 2, 5, 8 or 10 seconds (your choice), reveals the plan for 2 seconds, and performs it with the same physics. If the plan fails it thinks again. Pause freezes the planner, the hand, the physics and every timer.',
-    'Watch & Learn, the ghost and the menus never count against the free preview.',
+    'Free to play with short ads; go ad-free once.',
   ] },
-  { title: 'Settings and the free preview', p: [
-    'Sound can be switched off. Steady hands has three levels. Text size goes up to 300%. Thinking time sets Watch & Learn. The free preview lasts 90 seconds of real play; menus, the ghost and Watch & Learn are free. One purchase unlocks everything and can be restored.',
+  { title: 'Settings and free play', p: [
+    'Sound can be switched off. Steady hands has three levels. Text size goes up to 300%. Thinking time sets Watch & Learn. Menus, the ghost and Watch & Learn are free. Free to play with short ads; go ad-free once.',
   ] },
 ];
 

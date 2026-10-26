@@ -18,7 +18,7 @@ export const ABOUT = {
     { p: 'The players are generic 3D characters, not portraits of real children. The lanes, markets and fair are original scenery in the style of a nineteenth-century village; no national flags, emblems or brands are used.' },
     { p: 'This is a game for fun. It simplifies the real thing: a real hoop is steered by the stick touching the rim; here your finger is the stick.' },
     { h: 'Credits' },
-    { p: 'Made by Arcforge, a collection of heritage games from around the world. All sound is synthesised on your device. Text is set in Fredoka (SIL Open Font License 1.1). Drawn with plain canvas graphics; no ads, works offline.' },
+    { p: 'Made by Arcforge, a collection of heritage games from around the world. All sound is synthesised on your device. Text is set in Fredoka (SIL Open Font License 1.1). Drawn with plain canvas graphics; works offline.' },
   ],
 };
 
@@ -148,10 +148,10 @@ export function rulesPages() {
       ],
     },
     {
-      title: 'Free preview and demo',
+      title: 'Free to play and demo',
       blocks: [
-        { h: 'Trying it first' },
-        { p: 'The full game has a free preview of real play; menus, Rules, Watch and Learn and results are always free. When the preview ends you can unlock the whole game once, or restore an earlier purchase.' },
+        { h: 'In the app' },
+        { p: 'Menus, Rules, Watch and Learn and results are always free. Free to play with short ads; go ad-free once.' },
         { p: `The public web demo is limited to ${DEMO_RUNS} runs on the first course, so it is a taste of the game; the apps for iPhone and Android hold everything.` },
       ],
     },

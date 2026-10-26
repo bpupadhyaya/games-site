@@ -17,7 +17,7 @@ export const ABOUT = [
   { h: 'Made for playing' },
   { li: 'Four big pads, or the arrow keys on a computer. One thumb is enough.' },
   { li: 'Watch and Learn plays a whole routine for you, and Practice slows the beat and forgives trips.' },
-  { li: 'Large text up to 300 percent, a timing option and a latency setting. No ads. Works offline.' },
+  { li: 'Large text up to 300 percent, a timing option and a latency setting. Works offline.' },
   { sp: 1 },
   { p: 'Elastic Jump is part of Arcforge, a collection of world heritage games.' },
 ];
@@ -132,7 +132,7 @@ export const RULES = [
     blocks: [
       { p: `Watch and Learn plays one whole routine for you. It has three parts: THINK, REVEAL and ACT. During THINK (${THINK.def} seconds by default, ${THINK.min} to ${THINK.max} in Settings) the whole routine is laid out as a strip of tokens so you can read it. During REVEAL (${THINK.reveal} seconds) the tokens light up one by one with their names. Then the count-in starts and the jumper performs it.` },
       { p: 'Pause stops everything, even the sounds and the jumper in mid-air, and carries on from exactly the same moment. Skip THINK with the Skip button.' },
-      { p: 'The computer jumper lands a little before or after the beat, like a person, and it never trips. Watch and Learn does not use up the free preview.' },
+      { p: 'The computer jumper lands a little before or after the beat, like a person, and it never trips.' },
       { p: 'In Play and Practice, Hint lights the pads for the next four steps and writes their names on the tokens. It costs nothing and never changes the score.' },
     ],
   },

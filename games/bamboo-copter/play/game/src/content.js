@@ -98,7 +98,7 @@ export const RULES = [
     'Tap Think before you rub. The game simulates many choices of rotor, lean and charge and shows the best one: a gold marker on the lean slider and the meter, a gold ring around the rotor and a dotted path. Using Think marks the session as practice and it is not saved as a best.',
   ] },
   { title: 'Ranks', p: RANKS.map(([n, name]) => `${name}: ${n}+ points in a session`) },
-  { title: 'Free preview', p: [
-    'Menus, Watch & Learn and the Collection are always free. A short amount of real flying is free; after that the full game can be unlocked once, on your phone or tablet.',
+  { title: 'Free to play', p: [
+    'Menus, Watch & Learn and the Collection are always free. Free to play with short ads; go ad-free once.',
   ] },
 ];

@@ -1,7 +1,7 @@
 // Everything drawn each frame. Reads `state` (see game.js) and changes nothing. Static art and pieces are cached sprites.
 // Positions come from the layout (layout.js `layoutFor(w, h)`), never from fixed numbers: the screen can be portrait or landscape.
 // The board and everything that lives on it is drawn in canonical board space under one transform (L.board(kind): s, ox, oy).
-import { pointXY, D, GY, TEXT_SCALES, THINK_STEPS } from './layout.js';
+import { pointXY, D, GY, TEXT_SCALES, THINK_STEPS, host } from './layout.js';
 import { drawTable, drawBoard, drawLantern } from './art.js';
 import { drawPiece, blob, CJK } from './pieces.js';
 import { LEVELS } from './engine.js';
@@ -66,7 +66,7 @@ export function render(ctx, state, L) {
     text(label, r.x + r.w / 2, r.y + press + r.h / 2 + sz * 0.35, sz, o.primary ? '#2a1204' : CREAM, o.font ?? UI, 700);
     ctx.restore();
   };
-  const lantern = (x, scale) => drawLantern(ctx, x, -6, T, x < SW / 2 ? 0 : 2.1, scale);
+  const lantern = (x, scale) => drawLantern(ctx, x, host.t - 6, T, x < SW / 2 ? 0 : 2.1, scale);
   const stepper = (st, dec, inc, label) => {
     button(st.dec, '−', { dim: dec, size: 30 }); button(st.inc, '+', { dim: inc, size: 30 });
     text(label, st.label.x, st.label.y, st.label.size, 'rgba(251,236,203,0.9)', UI, 700);
@@ -76,7 +76,7 @@ export function render(ctx, state, L) {
   if (scene === 'title') {
     const TL = L.title(!!state.saved), hr = TL.hero;
     ctx.save(); ctx.translate(hr.x, hr.y); ctx.scale(hr.s, hr.s);
-    drawLantern(ctx, TL.lanternX[0], -6, T, 0, 1); drawLantern(ctx, TL.lanternX[1], -6, T, 2.1, 1);
+    { const ly = host.t / hr.s - 6; drawLantern(ctx, TL.lanternX[0], ly, T, 0, 1); drawLantern(ctx, TL.lanternX[1], ly, T, 2.1, 1); }
     const bob = calm ? 0 : Math.sin(T * 1.4) * 5;
     blob(ctx, 360, 380, 330, 190, '255,150,70', 0.28);
     piece(1, 226, 372 + bob, { R: 32, scale: 2.75 });
@@ -115,7 +115,7 @@ export function render(ctx, state, L) {
     piece(1, DL.hero.x, DL.hero.y, { R: 32, scale: 3 });
     const al = L.wide ? 'center' : 'center';
     text('Enjoying Xiangqi?', DL.title.x, DL.title.y, 60, GOLD, TITLE, 700, al);
-    wrap('The free web version stops here. Get the full game on iPhone and Android: every lesson, unlimited games against five computer levels, a new puzzle every day, and it works offline.', DL.body.x, DL.body.y, 30, DL.body.w, CREAM, 42);
+    wrap('The free web version stops here. Get the free app on iPhone and Android: every lesson, unlimited games against five computer levels, a new puzzle every day, and it works offline.', DL.body.x, DL.body.y, 30, DL.body.w, CREAM, 42);
     button(DL.back, 'Back to menu', { primary: true }); return;
   }
   if (scene === 'look') {

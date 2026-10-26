@@ -255,8 +255,15 @@ export function createGame(env) {
   // web/src must stay deterministic (no wall-clock reads), so this can't adapt to how slow a group
   // actually was; it only bounds how much unbuilt work can pile into any one frame to "one group",
   // instead of a whole chapter's cast (or the title effigy's ten heads) landing on a single frame.
+  // Robustness (0.2.6): ONE build per frame, not one whole group. A group is up to ~22 relief passes (Ravan's ten heads); on a weak
+  // phone/emulator that was several seconds in a single frame (input ANR, frozen resize/rotation handling). A single pass is
+  // ~100-250 ms there, so input and resize events are serviced between passes. A group's last entry (its onDone) still runs last.
   function drainGroup(queue) {
-    if (queue.length) for (const fn of queue.shift()) fn();
+    const group = queue[0];
+    if (!group) return;
+    const fn = group.shift();
+    if (!group.length) queue.shift();
+    if (fn) fn();
   }
 
   // PERF: the title screen's cast (Ram, Hanuman, the ten-crowned effigy - see titleBackdrop below)
@@ -313,6 +320,14 @@ export function createGame(env) {
   let F = null, fKey = '';
   const ART_S = 0.85;
   const AP = { dec: ui.TEXT_STEP.dec, inc: ui.TEXT_STEP.inc, exit: { x: 20, y: 1462, w: 200, h: 76 }, pause: { x: 260, y: 1462, w: 200, h: 76 }, skip: { x: 500, y: 1462, w: 200, h: 76 } };
+  // Landscape title art: Ram (art x ~134) and Hanuman (to ~720) must sit entirely LEFT of the title frame (which starts at
+  // tcx - 316), clear of the host's left inset, so the figures never run under the frame, the tagline or the buttons.
+  function titleArtFrame(sw, sh, tcx) {
+    const L0 = Math.max(0, host.l) + 10, R0 = tcx - 316 - 12, A0 = 134, A1 = 720;
+    const s = clamp((R0 - L0) / (A1 - A0), 0.3, ART_S);
+    const mid = (L0 + R0) / 2, ax = mid - ((A0 + A1) / 2 - 360) * s;
+    return pinFrame(sw, sh, s, 360, 900, ax, sh * 0.62);
+  }
   function refreshFrames() {
     const sw = Math.round(meta.width), sh = Math.round(meta.height);
     // a chapter may choose its landscape window: LAND_Y1 = design y at the bottom edge, LAND_S = scale (numbers, or functions of its state)
@@ -335,7 +350,7 @@ export function createGame(env) {
         scr, world, ui: ui0, land: true, sw, sh,
         title: pinFrame(sw, sh, 1, W / 2, 0, tcx, 0),
         doc: pinFrame(sw, sh, 1, DOC.w / 2, 0, sw / 2, 0),
-        bg: pinFrame(sw, sh, ART_S, 360, 900, Math.min(sw * 0.3, tcx - 330), sh * 0.62),
+        bg: titleArtFrame(sw, sh, tcx),
       };
     }
     ui.layoutScreen(sw, sh);
@@ -766,12 +781,12 @@ export function createGame(env) {
       at(F.bg, () => { titleBackdrop(ctx); finish(ctx, 0.8); });
       at(F.title, () => {
         const L = LAND(), tp = topPad();
-        const fy = L ? 50 + tp : 130, fh = L ? 190 : 290, by = L ? fy + 82 : 258;
+        const fy = L ? 50 + tp : 130, fh = L ? 188 : 290, by = L ? fy + 78 : 258;
         filigree(ctx, 44, fy, W - 88, fh, 0.85);
         ctx.textAlign = 'center'; ctx.textBaseline = 'alphabetic';
         ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.font = ui.font(74); ctx.fillText(T.title, W / 2 + 2, by + 4);
         ctx.fillStyle = '#ffe9b8'; ctx.fillText(T.title, W / 2, by);
-        ctx.fillStyle = '#f2c46a'; ctx.font = ui.font(L ? 28 : 31); ui.paragraph(ctx, T.tagline, W / 2, by + (L ? 56 : 68), W - 190, L ? 36 : 40);
+        ctx.fillStyle = '#f2c46a'; ctx.font = ui.font(L ? 27 : 31); ui.paragraph(ctx, T.tagline, W / 2, by + (L ? 54 : 68), W - 190, L ? 34 : 40);
         drawButtons(ctx, titleButtons());
         { const lb = lockupBtn(), a = lb.art; ctx.save(); ctx.fillStyle = 'rgba(14,6,16,0.5)'; ctx.beginPath(); ctx.roundRect(a.x - a.w / 2 - 10, a.y - 4, a.w + 20, a.h + 8, 14); ctx.fill(); ctx.restore(); drawLockup(ctx, a.x, a.y, a.h, lockPress > 0 ? 0.5 : 0.95); if (lockPress > 0) lockPress--; }
         const tb = titleButtons(), lastY = tb[tb.length - 1].y + tb[tb.length - 1].h + (L ? 0 : 0);

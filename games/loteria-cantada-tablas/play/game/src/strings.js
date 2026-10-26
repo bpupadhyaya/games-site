@@ -25,7 +25,7 @@ const S = {
   exit: ['Exit', 'Salir'], think: ['Think', 'Pensar'], thinkIn: ['Think: guess the card', 'Piensa: adivina la carta'], reveal: ['The answer', 'La respuesta'], act: ['Bean!', '¡Frijol!'],
   autoIs: ['It is {name}', 'Es {name}'], watchAgain: ['Watch again', 'Ver otra vez'], thinkTime: ['{n}s', '{n}s'],
   lang: ['Language', 'Idioma'], sound: ['Sound', 'Sonido'], on: ['On', 'Sí'], off: ['Off', 'No'], text: ['Text size', 'Tamaño de texto'], look: ['Look', 'Estilo'], reset: ['Reset best score', 'Borrar mejor puntaje'], resetDone: ['Done', 'Listo'],
-  demoEnd: ['Demo finished', 'Fin de la demo'], demoMsg: ['Get the full game on iPhone and Android.', 'Consigue el juego completo en iPhone y Android.'],
+  demoEnd: ['Demo finished', 'Fin de la demo'], demoMsg: ['Get the free app on iPhone and Android.', 'Consigue el juego completo en iPhone y Android.'],
   page: ['Page {n} of {m}', 'Página {n} de {m}'], englishTag: ['(reference in English)', '(referencia en inglés)'],
   fast: ['Fast-forward: you cannot finish', 'Avance rápido: ya no puedes completar'], hintLeft: ['{n} left', 'quedan {n}'],
   tip: ['Tap the picture on your tabla that matches the call!', '¡Toca en tu tabla la imagen de la carta cantada!'],

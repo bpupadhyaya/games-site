@@ -514,7 +514,7 @@ function renderDemoLimit(ctx, st, L) {
   panel(ctx, { x: cx - bw / 2, y: cy - 190, w: bw, h: 380 }, { fill: 'rgba(12,20,42,0.96)', rad: 28 });
   txt(ctx, 'That is the free web demo', cx, cy - 110, 46, PAL.gold, { align: 'center', font: DISPLAY, weight: 800, maxW: bw - 40 });
   ctx.font = `500 26px ${UI}`;
-  wrap(ctx, 'Get the full game on iPhone and Android for all four places, the ring role and your saved stars.', bw - 80).forEach((ln, i) => txt(ctx, ln, cx, cy - 30 + i * 36, 26, PAL.text, { align: 'center', weight: 500 }));
+  wrap(ctx, 'Get the free app on iPhone and Android for all four places, the ring role and your saved stars.', bw - 80).forEach((ln, i) => txt(ctx, ln, cx, cy - 30 + i * 36, 26, PAL.text, { align: 'center', weight: 500 }));
   txt(ctx, 'Tap to go back to the menu', cx, cy + 150, 24, PAL.dim, { align: 'center', weight: 600 });
 }
 

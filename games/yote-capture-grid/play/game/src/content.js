@@ -85,7 +85,7 @@ export const ABOUT = [
   ] },
   { title: 'What you get', items: [
     P('Five computer levels from Beginner to Master, two players on one phone, six hands-on lessons, Hint, danger marks, take back, and Auto Play (Watch & Learn).'),
-    P('Three boards (laterite, dune and rose clay) and two pebble styles, earned by winning. Large text, reduced motion and sound options. No ads, and it works offline.'),
+    P('Three boards (laterite, dune and rose clay) and two pebble styles, earned by winning. Large text, reduced motion and sound options. It works offline.'),
   ] },
   { title: 'Credits', items: [
     P('Board, pebbles, sounds and the computer player were made for Arcforge. Titles are set in Fredoka (SIL Open Font License 1.1).'),

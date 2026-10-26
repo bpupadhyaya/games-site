@@ -988,7 +988,7 @@ function drawTitle(ctx, state, manifest, palette, demoLimit, L) {
     if (lockPress > 0) lockPress--;
   }
   const fr = T.footRow;
-  const str = state.demo ? `Free preview — ${demoLimit - state.demoSolves} puzzle(s) left` : state.totalSolved > 0 ? `Puzzles solved: ${state.totalSolved}` : '';
+  const str = state.demo ? `Web demo — ${demoLimit - state.demoSolves} puzzle(s) left` : state.totalSolved > 0 ? `Puzzles solved: ${state.totalSolved}` : '';
   if (str && !(state.lockMessageTimer > 0)) pill(ctx, fr, str);
 }
 export const pressLockup = () => { lockPress = 10; };
@@ -1129,9 +1129,9 @@ function drawDemoLimit(ctx, state, L) {
   rays(ctx, cx, r.y, 420, state.t, 0.18);
   panel(ctx, r.x, r.y, r.w, r.h);
   drawCrown(ctx, cx, r.y - 4 + Math.sin(state.t * 2) * 3, 64, {});
-  goldText(ctx, "THAT'S THE FREE PREVIEW", cx, r.y + 160, 40, r.w - 80, 800);
+  goldText(ctx, "THE DEMO ENDS HERE", cx, r.y + 160, 40, r.w - 80, 800);
   flourish(ctx, cx, r.y + 192, 120, Math.min(270, r.w / 2 - 20));
-  note(ctx, 'Get the full game on iPhone and Android for unlimited puzzles, the Expert board and hints.', { x: r.x + 50, y: r.y + 230, w: r.w - 100, h: 200 }, 28, 'rgba(250,240,215,0.92)');
+  note(ctx, 'Get the free app on iPhone and Android for unlimited puzzles, the Expert board and hints.', { x: r.x + 50, y: r.y + 230, w: r.w - 100, h: 200 }, 28, 'rgba(250,240,215,0.92)');
   ctx.restore();
 }
 

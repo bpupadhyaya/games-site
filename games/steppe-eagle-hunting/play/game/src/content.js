@@ -26,7 +26,7 @@ export const ABOUT = [
     'Here the hunt is a game of patience and timing. The fox always escapes unharmed in a burst of snow; the skill you show is tracking, release, flight and the clean return to the glove.',
   ] },
   { title: 'This version', text: [
-    'Steppe Eagle Hunting is part of the Arcforge collection of world heritage games. It has no ads, no betting and no stakes, works offline and saves your records on your device.',
+    'Steppe Eagle Hunting is part of the Arcforge collection of world heritage games. It has no betting and no stakes, works offline and saves your records on your device.',
     'The rules page lists every number the engine uses. Text size can be set up to 300% in Settings and on every reading page.',
     `Four eagle plumages (golden, dark brown, pale and white-tail) unlock as your career points grow: 250, 700 and 1400 points.`,
   ] },

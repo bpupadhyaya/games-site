@@ -36,7 +36,7 @@ export function drawWorld(ctx, tr, w, theme, t, fx, o = {}) {
   const P = w.poi;
   if (!o.noPoi) {
     if (P.lift) {
-      const p = Math.min(1, P.lift.t / LIFT_T), e = ease.outCubic(p);
+      const p = Math.min(1, P.lift.t / (P.lift.dur || LIFT_T)), e = ease.outCubic(p);
       drawPoi(ctx, P.x, P.y, { paper: P.paper, wet: P.wet, scale: 1 + 0.4 * e, alpha: 1 - 0.55 * p * p, lift: e, ha });
       P.lift.items.forEach((it, i) => {
         const a = i * 2.1 + w.t * 7;

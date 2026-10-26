@@ -46,5 +46,5 @@ export const HOWTO = [
 export const ABOUT = [
   { title: 'About this game', lines: ['Truco is one of the best-loved card games in Brazil: three cards each, a shouted stake ladder, a lot of bluffing, and the manilhas that beat the whole deck.', 'This version has the two big regional styles, Paulista (a turned card names the manilhas) and Mineiro (four fixed manilhas), for two or four players.'] },
   { title: 'What is inside', lines: ['Full Paulista and Mineiro rules with Truco, Seis, Nove, Doze and the special hands at the end of a match.', 'Three computer levels. The partner and opponents bluff, read gestures, and remember whether you run.', 'Hints, a complete Rules reference, Auto Play to learn by watching, large-print cards and four-colour suits.'] },
-  { title: 'Score only', lines: ['Points are only a score. There are no chips, coins, wagers or ads, and the game works offline.', 'A free preview lets you try it; one purchase unlocks everything.'] },
+  { title: 'Score only', lines: ['Points are only a score. There are no chips, coins, wagers or ads, and the game works offline.', 'Free to play with short ads; go ad-free once.'] },
 ];

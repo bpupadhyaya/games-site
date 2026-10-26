@@ -131,7 +131,7 @@ export const RULES = [
     'Each rival beats the one below it more often than not; this was checked by playing thousands of ends between them.',
     'Think uses the strongest rival\'s thinking for you.',
   ] },
-  { title: 'Preview and unlocking', p: [
-    'The first 90 seconds of real play are free. Menus, these pages, Learn, settings and Watch & Learn never use up the free time, and a paused match does not either.',
+  { title: 'Ads and ad-free', p: [
+    'Free to play with short ads; go ad-free once.',
   ] },
 ];

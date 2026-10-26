@@ -135,7 +135,7 @@ export function createPreviewGate({ game, meta, storage, monetization, manifest,
     const minPx = 11 / k; // 11 css px in virtual units
     const minBtn = 44 / k; // 44 css px
     const bodyText = demo
-      ? `You've played the free preview of ${manifest.title}. Get the full game on iPhone and Android.`
+      ? `You've played the web demo of ${manifest.title}. Get the free app for iPhone and Android.`
       : `You've played the ${config.previewSeconds}-second preview of ${manifest.title}. Unlock it to keep playing.`;
     const buyLabel = busy ? 'Please wait…' : priceLabel(product, monetization.priceOf?.(PRODUCT_ID) ?? `$${product?.priceUsd?.toFixed(2)}`);
     const pw = Math.min(w * 0.84, 900 * Math.max(1, u));
@@ -149,7 +149,7 @@ export function createPreviewGate({ game, meta, storage, monetization, manifest,
       const textW = pw - side * 2;
       const tF = fs(44), bF = fs(26), btF = fs(30), mF = fs(24);
       ctx.font = `700 ${tF}px system-ui, sans-serif`;
-      const titleLines = wrap(ctx, 'Free preview finished', textW);
+      const titleLines = wrap(ctx, 'Demo finished', textW);
       ctx.font = `400 ${bF}px system-ui, sans-serif`;
       const bodyLines = wrap(ctx, bodyText, textW);
       const lh = bF * 1.46;
