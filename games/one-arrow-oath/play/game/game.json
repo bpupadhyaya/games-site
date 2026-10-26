@@ -8,7 +8,7 @@
   "monetization": {
     "model": "premium",
     "priceUsd": 7.99,
-    "previewSeconds": 600,
+    "previewSeconds": 90,
     "products": [
       {
         "id": "unlock_game",
